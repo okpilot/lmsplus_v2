@@ -4,7 +4,8 @@
     ".claude/hooks/check-retracted-phrase.test.mjs",
     ".claude/hooks/check-retracted-phrase.repo.test.mjs",
     ".claude/hooks/check-retracted-phrase.base.test.mjs",
-    ".claude/hooks/check-retracted-phrase.paths.test.mjs"
+    ".claude/hooks/check-retracted-phrase.paths.test.mjs",
+    ".claude/hooks/check-retracted-phrase.color.test.mjs"
   ],
   "mutations": [
     {
@@ -29,7 +30,8 @@
         "a rename in the same commit does not desync the path stream",
         "a LONGER number containing the token does not exonerate the retraction",
         "a token re-added only in application code does not exonerate a corpus retraction",
-        "a submodule pointer does not abort the run"
+        "a submodule pointer does not abort the run",
+        "blocks a corrected value under color.ui=always, exactly as without it"
       ],
       "note": "superset: the corpus-facing suites exercise the same tokenisation end to end"
     },
@@ -132,7 +134,8 @@
         "grades a path whose name survives an argv round-trip",
         "a sibling in a different directory with the same filename is not dropped as self",
         "CLAUDE.md counts as a surviving corpus file (exact-match root entry)",
-        "a completed spec is not a surviving occurrence, a live one is"
+        "a completed spec is not a surviving occurrence, a live one is",
+        "a LIVE spec still counts as a survivor under color.ui=always, exactly as without it"
       ],
       "note": "the comment says \"any break\", which is inherently broad — this is the narrowest same-class break found; a coarser one (addN = []) reddens 17 tests in the other suites instead of 7"
     },
@@ -353,7 +356,9 @@
         "CLAUDE.md counts as a surviving corpus file (exact-match root entry)",
         "a completed spec is not a surviving occurrence, a live one is",
         "a submodule pointer does not abort the run",
-        "a sibling in a different directory with the same filename is not dropped as self"
+        "a sibling in a different directory with the same filename is not dropped as self",
+        "blocks a corrected value under color.ui=always, exactly as without it",
+        "a LIVE spec still counts as a survivor under color.ui=always, exactly as without it"
       ],
       "note": "BROAD BY NATURE, and the exact observed set. Diffing by argv path instead of blob SHA makes git compare WORKTREE to INDEX; after the fixtures' `git add -A` those are identical, so hunksFor returns no hunks for any staged change and the guard misses every retraction. That is why most of the suites redden. The argv-specific consequence the comment names — a name carrying raw bytes re-encoded on its way through argv — is the odd-byte fixture alone. A narrower form was measured and rejected: appending `-- entry.path` to the blob-to-blob diff makes git reject the pathspec and the guard exits 2 (could-not-run), grading nothing. Cascade exposure: any test added to these suites that this break also reddens will MISMATCH this entry until the set is re-derived. The harness catches a stale set before merge — re-derive with `node .claude/hooks/run-mutations.mjs --guard check-retracted-phrase` and take the observed set."
     },
@@ -411,7 +416,8 @@
         "a longer number elsewhere is not counted as a surviving occurrence",
         "a longer filename elsewhere is not counted as a surviving occurrence",
         "a dot in a filename token is treated as a literal character, not a wildcard, by the survivor grep",
-        "a ticket reference elsewhere does not exonerate or survive a retraction"
+        "a ticket reference elsewhere does not exonerate or survive a retraction",
+        "passes a clean correction under color.ui=always, exactly as without it"
       ],
       "note": "superset: a floor of 0 makes a COMPLETED retraction block its own commit, so every fixture asserting exit 0 reddens."
     },
@@ -556,9 +562,11 @@
         "a token re-added only in application code does not exonerate a corpus retraction",
         "CLAUDE.md counts as a surviving corpus file (exact-match root entry)",
         "a completed spec is not a surviving occurrence, a live one is",
-        "a submodule pointer does not abort the run"
+        "a submodule pointer does not abort the run",
+        "blocks a corrected value under color.ui=always, exactly as without it",
+        "a LIVE spec still counts as a survivor under color.ui=always, exactly as without it"
       ],
-      "note": "Planted CONTROL — forces main()'s terminal offenders-found return to exit 0 instead of 1. This guard's suites span 4 files (test.mjs, repo.test.mjs, base.test.mjs, paths.test.mjs) and every fixture asserting a blocking outcome — staged OR --base mode — funnels through this one return, so 18 tests redden alongside the planted RED control. Set from the harness's own 'actually red' report, per contract §5."
+      "note": "Planted CONTROL — forces main()'s terminal offenders-found return to exit 0 instead of 1. This guard's suites span 5 files (test.mjs, repo.test.mjs, base.test.mjs, paths.test.mjs, color.test.mjs) and every fixture asserting a blocking outcome — staged OR --base mode — funnels through this one return, so 20 tests redden alongside the planted RED control. Set from the harness's own 'actually red' report, per contract §5."
     },
     {
       "id": "check-retracted-phrase-always-blocks",
@@ -581,9 +589,40 @@
         "a longer number elsewhere is not counted as a surviving occurrence",
         "a longer filename elsewhere is not counted as a surviving occurrence",
         "a dot in a filename token is treated as a literal character, not a wildcard, by the survivor grep",
-        "a ticket reference elsewhere does not exonerate or survive a retraction"
+        "a ticket reference elsewhere does not exonerate or survive a retraction",
+        "passes a clean correction under color.ui=always, exactly as without it"
       ],
-      "note": "Planted CONTROL — removes the only early-exit that lets a clean run skip the offenders-found report, so a clean input falls through to the terminal `return 1`. Every fixture asserting a clean pass, staged OR --base mode, funnels through this one gate, so 17 tests redden alongside the planted GREEN control. Set from the harness's own 'actually red' report, per contract §5."
+      "note": "Planted CONTROL — removes the only early-exit that lets a clean run skip the offenders-found report, so a clean input falls through to the terminal `return 1`. Every fixture asserting a clean pass, staged OR --base mode, funnels through this one gate, so 18 tests redden alongside the planted GREEN control. Set from the harness's own 'actually red' report, per contract §5."
+    },
+    {
+      "id": "check-retracted-phrase-color-blobdiff",
+      "find": "  const buf = git([\n    '--no-pager',\n    'diff',\n    '--no-color',\n    '--no-ext-diff',\n    '--no-textconv',\n    '--text',\n    '-U0',\n    '--no-relative',\n    entry.src,\n    entry.dst,\n  ])",
+      "replace": "  const buf = git([\n    '--no-pager',\n    'diff',\n    '--no-ext-diff',\n    '--no-textconv',\n    '--text',\n    '-U0',\n    '--no-relative',\n    entry.src,\n    entry.dst,\n  ])",
+      "expectRed": [
+        "blocks a corrected value under color.ui=always, exactly as without it",
+        "passes a clean correction under color.ui=always, exactly as without it",
+        "a LIVE spec still counts as a survivor under color.ui=always, exactly as without it"
+      ],
+      "note": "Drops --no-color from hunksFor's blob-to-blob diff — a local `color.ui always` wraps every `@@`/`-`/`+` line in ANSI escapes, parseHunks finds no markers and throws, and the guard exits 2 instead of blocking at exit 1 (or exit 0 for a clean commit that also touches a corpus file). The spec-grep fixture retracts a value too, so its diff runs through the same blob-to-blob path."
+    },
+    {
+      "id": "check-retracted-phrase-color-grep",
+      "find": "      '--no-pager',\n      'grep',\n      '--no-color',\n      '-l',\n      '-z',\n      '-a',\n      '-P',",
+      "replace": "      '--no-pager',\n      'grep',\n      '-l',\n      '-z',\n      '-a',\n      '-P',",
+      "expectRed": [
+        "blocks a corrected value under color.ui=always, exactly as without it",
+        "a LIVE spec still counts as a survivor under color.ui=always, exactly as without it"
+      ],
+      "note": "Drops --no-color from survivors()'s `git grep -l` — a local `color.ui always` wraps the matched filename in ANSI escapes, `inCorpus` rejects the wrapped path, the retraction reads as complete, and the guard passes silently instead of blocking. The spec-grep fixture's corpus scan runs through the same survivors() grep."
+    },
+    {
+      "id": "check-retracted-phrase-color-specgrep",
+      "find": "          'grep',\n          '-l',\n          '-z',\n          '--no-color',\n          '--full-name', // repo-root-relative output; see the comment above `withTasks`",
+      "replace": "          'grep',\n          '-l',\n          '-z',\n          '--full-name', // repo-root-relative output; see the comment above `withTasks`",
+      "expectRed": [
+        "a LIVE spec still counts as a survivor under color.ui=always, exactly as without it"
+      ],
+      "note": "Drops --no-color from completedSpecDirs' `git grep -l -z` — a local `color.ui always` wraps the matched tasks.md path in ANSI escapes, so it matches no spec directory, the live spec is treated as fully completed, and a retraction still standing there goes unreported."
     }
   ],
   "notEncoded": [

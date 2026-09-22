@@ -180,6 +180,7 @@ function completedSpecDirs(ref) {
           'grep',
           '-l',
           '-z',
+          '--no-color',
           '--full-name', // repo-root-relative output; see the comment above `withTasks`
           '-F',
           '-e',
@@ -388,6 +389,7 @@ function survivors(token, kind, self, pathspecs, ref) {
       'core.quotePath=false',
       '--no-pager',
       'grep',
+      '--no-color',
       '-l',
       '-z',
       '-a',
@@ -497,6 +499,7 @@ function hunksFor(entry) {
   const buf = git([
     '--no-pager',
     'diff',
+    '--no-color',
     '--no-ext-diff',
     '--no-textconv',
     '--text',

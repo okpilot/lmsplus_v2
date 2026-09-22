@@ -1,0 +1,16 @@
+{
+  "target": ".claude/hooks/check-mirror-sync.mjs",
+  "suites": [".claude/hooks/check-mirror-sync.test.mjs"],
+  "mutations": [
+    {
+      "id": "check-mirror-sync-no-color",
+      "find": "execFileSync('git', ['grep', '-lFz', '--no-color', '--', anchor, '--', ':/'], {",
+      "replace": "execFileSync('git', ['grep', '-lFz', '--', anchor, '--', ':/'], {",
+      "expectRed": [
+        "resolves matched filenames correctly under color.ui=always, exactly as without it"
+      ],
+      "note": "Drops --no-color from filesContaining's `git grep -lFz` — a local `color.ui always` wraps every matched filename in ANSI escapes, the wrapped path fails to open, and checkMirrors reports the file unreadable instead of comparing it."
+    }
+  ],
+  "notEncoded": []
+}

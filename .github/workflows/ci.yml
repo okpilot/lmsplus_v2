@@ -47,6 +47,12 @@ jobs:
       - name: Pre-push hook red/green controls
         run: node --test .claude/hooks/run-security-auditor.controls.test.mjs
 
+      - name: Pre-push hook git-config bypass controls
+        run: node --test .claude/hooks/run-security-auditor.config.test.mjs
+
+      - name: Pre-push hook prompt git-config bypass controls
+        run: node --test .claude/hooks/run-security-auditor.prompt-config.test.mjs
+
       - name: Soft-delete column guard
         run: node .claude/hooks/check-soft-delete-guard.mjs
 
@@ -107,6 +113,12 @@ jobs:
       - name: Test-title impl-leakage guard — unit test
         run: node --test .claude/hooks/check-test-title-leakage.test.mjs
 
+      - name: Test-title impl-leakage guard — repo-config fixtures (textconv/ext-diff/noprefix/color)
+        run: node --test .claude/hooks/check-test-title-leakage.repo.test.mjs
+
+      - name: Shared diff parser — unit test
+        run: node --test .claude/hooks/diff-parse.test.mjs
+
       - name: Mirror-sync checker unit tests
         run: node --test .claude/hooks/check-mirror-sync.test.mjs
 
@@ -147,6 +159,9 @@ jobs:
 
       - name: Retracted-phrase guard — path-handling tests
         run: node --test .claude/hooks/check-retracted-phrase.paths.test.mjs
+
+      - name: Retracted-phrase guard — color.ui=always tests
+        run: node --test .claude/hooks/check-retracted-phrase.color.test.mjs
 
       # Prose-claims guard (code-style.md §1: limits are DATA; never restate a number in prose).
       # `--all` here, NOT the staged mode the pre-commit hook uses: CI grades the whole worktree

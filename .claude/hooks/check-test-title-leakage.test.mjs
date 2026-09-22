@@ -1,5 +1,10 @@
 // Unit tests for the §7 test-title impl-leakage guard (#946).
 // Run: node --test .claude/hooks/check-test-title-leakage.test.mjs
+//
+// Pure diff-mechanics tests (header decoding, added-line extraction, run-breaking) live in
+// diff-parse.test.mjs; repo-fixture tests for textconv/ext-diff/noprefix/color config live in
+// check-test-title-leakage.repo.test.mjs. This file covers title-pattern analysis and the
+// composition of TITLE_RE over addedLines()'s runs.
 
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
@@ -8,7 +13,8 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { analyzeTitle, extractAddedTitles, splitByFile } from './check-test-title-leakage.mjs'
+import { analyzeTitle, extractAddedTitles } from './check-test-title-leakage.mjs'
+import { splitByFile } from './diff-parse.mjs'
 import { runNode } from './spawn.testkit.mjs'
 
 const HOOK = join(dirname(fileURLToPath(import.meta.url)), 'check-test-title-leakage.mjs')
@@ -253,23 +259,7 @@ test('extractAddedTitles detects two split-form titles in one contiguous run wit
   assert.notEqual(analyzeTitle(found[1].title), null)
 })
 
-// --- splitByFile ----------------------------------------------------------
-
-test('splitByFile separates a multi-file diff by new path', () => {
-  const diff = [
-    'diff --git a/a.test.ts b/a.test.ts',
-    '@@ -0,0 +1 @@',
-    "+  it('maps x_y', () => {})",
-    'diff --git a/b.test.ts b/b.test.ts',
-    '@@ -0,0 +1 @@',
-    "+  it('ok', () => {})",
-  ].join('\n')
-  const parts = splitByFile(diff)
-  assert.equal(parts.length, 2)
-  assert.equal(parts[0].file, 'a.test.ts')
-  assert.equal(parts[1].file, 'b.test.ts')
-  assert.equal(extractAddedTitles(parts[0].body)[0].title, 'maps x_y')
-})
+// --- splitByFile + extractAddedTitles integration -------------------------
 
 test('integration: detects only the violating title across multiple files', () => {
   const diff = [

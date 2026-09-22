@@ -120,7 +120,10 @@
     },
     ".claude/hooks/check-test-title-leakage.mjs": {
       "base": "check-test-title-leakage",
-      "suites": [".claude/hooks/check-test-title-leakage.test.mjs"]
+      "suites": [
+        ".claude/hooks/check-test-title-leakage.test.mjs",
+        ".claude/hooks/check-test-title-leakage.repo.test.mjs"
+      ]
     },
     ".claude/hooks/check-prose-claims.mjs": {
       "base": "check-prose-claims",
@@ -149,7 +152,8 @@
         ".claude/hooks/check-retracted-phrase.test.mjs",
         ".claude/hooks/check-retracted-phrase.repo.test.mjs",
         ".claude/hooks/check-retracted-phrase.base.test.mjs",
-        ".claude/hooks/check-retracted-phrase.paths.test.mjs"
+        ".claude/hooks/check-retracted-phrase.paths.test.mjs",
+        ".claude/hooks/check-retracted-phrase.color.test.mjs"
       ]
     },
     ".claude/hooks/guard-bash.js": {
@@ -170,7 +174,11 @@
     },
     ".claude/hooks/run-security-auditor.sh": {
       "base": "run-security-auditor",
-      "suites": [".claude/hooks/run-security-auditor.controls.test.mjs"]
+      "suites": [
+        ".claude/hooks/run-security-auditor.controls.test.mjs",
+        ".claude/hooks/run-security-auditor.config.test.mjs",
+        ".claude/hooks/run-security-auditor.prompt-config.test.mjs"
+      ]
     },
     ".claude/hooks/on-stop.sh": {
       "exempt": "Stop hook; always exits 0 (toast notification only, its powershell.exe call is `|| true`) — cannot block"

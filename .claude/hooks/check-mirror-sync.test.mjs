@@ -150,3 +150,40 @@ test('extracts to end of file when the clause is last and unterminated', () => {
 test('produces a different digest when any line of the block changes', () => {
   assert.notEqual(digest(clauseBlock(para('x'), ANCHOR)), digest(clauseBlock(para('y'), ANCHOR)))
 })
+
+/**
+ * Prove `color.ui always` is ACTIVE on the exact `git grep -lFz` invocation `filesContaining`
+ * runs, before trusting a test built on it: without `--no-color`, a matched filename must carry
+ * an ANSI escape; with it, none.
+ */
+function assertColorGrepActive(repo, anchor) {
+  const git = (...args) =>
+    execFileSync('git', ['grep', ...args, '--', anchor, '--', ':/'], {
+      cwd: repo,
+      encoding: 'utf8',
+    })
+  const hidden = git('-lFz')
+  const shown = git('-lFz', '--no-color')
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: asserting the ANSI escape is present
+  assert.match(hidden, /\x1b\[/)
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: asserting the ANSI escape is absent
+  assert.doesNotMatch(shown, /\x1b\[/)
+}
+
+// GROUP: check-mirror-sync-no-color
+test('resolves matched filenames correctly under color.ui=always, exactly as without it', () => {
+  // MUTATION: dropping --no-color from filesContaining's `git grep -lFz` lets a local
+  // `color.ui always` wrap every matched filename in ANSI escapes; the wrapped path then fails
+  // to open and the sweep reports the file unreadable instead of comparing it.
+  withRepo((repo, commit) => {
+    writeFileSync(join(repo, 'a.md'), para('second line'))
+    writeFileSync(join(repo, 'b.md'), para('second line'))
+    commit()
+    execFileSync('git', ['config', 'color.ui', 'always'], { cwd: repo })
+    assertColorGrepActive(repo, ANCHOR)
+    const { ok, rows } = checkMirrors(ANCHOR, repo)
+    assert.equal(ok, true)
+    assert.equal(rows.length, 2)
+    assert.ok(rows.every((r) => r.digest))
+  })
+})

@@ -19,7 +19,7 @@ Rules for every PR below:
 - Per PR, before the gate: `node --test` its suites, `node .claude/controls.test.mjs`,
   `node .claude/pipeline.test.mjs`, `node .claude/hooks/run-mutations.mjs --guard <each guard>`.
 
-Order (each depends on the ones above it):
+Order (re-planned 2026-09-22):
 
 - [x] **P1 — mutation harness** (Part of #1325 — `--jobs` is not in it; PR #1331, merged).
       `.claude/hooks/run-mutations.mjs` + its `run-mutations.*` suites and
@@ -31,43 +31,38 @@ Order (each depends on the ones above it):
       `namedPaths` before matching; in `--staged` mode list data files from the ref via
       `git ls-tree`, not the worktree; give `commit-tree` an explicit `-c user.name/-c user.email`
       so a missing identity is not misreported as an unborn HEAD.
-- [ ] **P2 — guard controls** (Decision 79). `.claude/controls.{test,repo.test,fixtures}.mjs`,
-      `.claude/hooks/controls.mutations.json`, the `*.mutations.json` + small test edits for the
-      EXISTING guards (commit-claims, file-size-guard, prose-claims, prose-paths,
-      retracted-phrase, soft-delete-guard, guard-bash, review-gate, pipeline),
-      `run-security-auditor.test.sh`, `.claude/pipeline.repo.test.mjs`, `pipeline.json` `guards`,
-      `code-style.md` §7 control rule, its `ci.yml` steps.
-- [ ] **P3 — secrets guard** (Closes #1324; SECURITY PATH → red-team). `check-secrets.*`,
-      `lefthook.yml` `secrets:`, `.gitignore` (`.env*` allowlist — `.env.remote` was trackable),
-      `docs/security.md` §8, `.claude/rules/security.md` §8, `agent-security-auditor.md`, the
-      corpus entry `lefthook-has-no-secret-scan` flipped to `FALSIFIED` if P4 has landed, else in P4.
-- [ ] **P4 — claims hook** (R0b-5). `check-claims.{mjs,stub.mjs,test,controls.test,mutations,corpus}`,
-      `lefthook.yml` `claims:`, CLAUDE.md § QA pipeline line.
+- [x] **P2 — guard controls** (Decision 79; PR #1333, merged).
+- [ ] **P8 — shared diff parser.** `.claude/hooks/diff-parse.mjs`: `diff --git` header parsing, C-quoted
+      path decoding, added-line extraction, and the flags every content diff carries
+      (`--no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/`). First consumer:
+      `check-test-title-leakage.mjs`, with the source branch's fixes. `run-security-auditor.sh` diffs
+      gain `--no-textconv --no-ext-diff`.
+- [ ] **P3 — secrets guard** (Closes #1324; SECURITY PATH → red-team). `check-secrets.*` importing
+      `diff-parse.mjs`, `lefthook.yml` `secrets:`, `.gitignore` (`.env*` allowlist — `.env.remote` was
+      trackable), `docs/security.md` §8, `.claude/rules/security.md` §8, `agent-security-auditor.md`.
 - [ ] **P5 — Claude PR reviewer + rule-coverage manifest** (Decision 78). `.github/workflows/claude-review.yml`,
       `.claude/review-prompt.md`, `.claude/rule-coverage.*`, `rule-coverage.mutations.json`,
-      `.spec-workflow/specs/ci-claude-review/`.
-- [ ] **P6 — promotion guard** (W3, Decision 82). `check-promotion-enforcer.*`, its lefthook/ci/
-      pipeline hunks, `agent-memory.md` / `agent-learner.md` / `learner.md` Enforcer text.
-- [ ] **P7 — review process** (Decisions 80, 81; docs only). `deletion-reviewer` agent + rule file,
-      every-round wording across `CLAUDE.md`, `.claude/rules/agent-*.md`, `.claude/agents/*.md`,
-      `.claude/commands/*.md`, steering `tech.md`, `docs/plan.md`, the three live specs.
-- [ ] **P8 — shared diff parser** (after P3, P4, P6 merge). One module for `diff --git` / `+++`
-      header parsing, C-quote decoding and added-line extraction; the four guards import it
-      (check-claims, check-secrets, check-promotion-enforcer, check-test-title-leakage). Carries
-      the `check-test-title-leakage.mjs` fixes from the source branch. Deletes the four copies and
-      their duplicated tests.
+      `.spec-workflow/specs/ci-claude-review/`. Runs on every PR under the user's subscription
+      (`CLAUDE_CODE_OAUTH_TOKEN`), model `claude-opus-5` — a named Opus exception, recorded in the decision
+      and `pipeline.json` `modelLiteralSites`. Blocks via a REQUEST_CHANGES review (dismissable), never a
+      required status check.
+- [ ] **P7 — review process** (Decision 80; docs only). `deletion-reviewer` agent + rule file as a
+      round-1-only member; roster wording across `CLAUDE.md`, `.claude/rules/agent-*.md`,
+      `.claude/agents/*.md`, `.claude/commands/*.md`, steering `tech.md`, `docs/plan.md`, live specs.
+      Decision 81 (every round runs every reviewer) is DROPPED.
+- [ ] **P6 — promotion guard** (W3, Decision 82). `check-promotion-enforcer.*` importing
+      `diff-parse.mjs`, its lefthook/ci/pipeline hunks, `agent-memory.md` / `agent-learner.md` /
+      `learner.md` Enforcer text.
+- DROPPED — **P4 claims hook** (LLM on every commit, fail-open).
 
 Round-13 findings, validated, NOT yet applied — each goes into the PR that owns the file:
-- P3: `git diff` without `--no-textconv`/`--no-ext-diff` — a `.gitattributes` textconv driver makes
-  the guard exit 0 on a staged `sk_live_` line (reproduced). Same in P4, P6, P8. A rename AWAY from
-  a `.env*` path is blocked (check the new path only). `evaluateStaged` and `evaluateAll` are over
-  the §3 30-line cap.
-- P4: `--jobs` of 0, negative or NaN runs no worker and reports nothing — validate a positive int.
-  `GIT_NAMED_ESCAPES` not frozen.
+- P3: a rename AWAY from a `.env*` path is blocked (check the new path only). `evaluateStaged` and
+  `evaluateAll` are over the §3 30-line cap.
 - P6: a PROMOTED row ending in `\r` or a trailing space reads status `""` and is not checked
-  (reproduced). `GIT_NAMED_ESCAPES` not frozen.
-- P8: `extractAddedTitles` is over the §3 30-line cap, and longer than its `origin/master` body.
-- SKIPPED: external diff tool (`diff.external`, `GIT_EXTERNAL_DIFF`) — not reproduced; guards still block.
+  (reproduced). `GIT_NAMED_ESCAPES` not frozen — resolved by importing `diff-parse.mjs`.
+- P8: textconv and external-diff bypass (both reproduced on git 2.43) — `--no-textconv --no-ext-diff`.
+  `extractAddedTitles` over the §3 30-line cap.
+
 
 ## Slice 0 — groundwork (COMPLETE)
 

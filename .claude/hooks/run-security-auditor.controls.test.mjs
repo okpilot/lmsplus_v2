@@ -15,18 +15,17 @@
 
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import test from 'node:test'
-import { fileURLToPath } from 'node:url'
-import { assertUsable } from './spawn.testkit.mjs'
-
-// import.meta.url resolves inside whichever tree runs the suite — the real repo when run
-// directly, a throwaway worktree copy when run-mutations.mjs grades a mutation.
-const HOOK = join(dirname(fileURLToPath(import.meta.url)), 'run-security-auditor.sh')
-
-const TIMEOUT_MS = 10_000
+import {
+  commitInit,
+  gitFactory,
+  initShimScratch,
+  runHookAndCleanup,
+  TIMEOUT_MS,
+  TIMEOUT_SHIM,
+} from './run-security-auditor.testkit.mjs'
 
 /** The default uncommitted change — no secret, no `.env`, no `SELECT *`, no `adminClient`. */
 const DEFAULT_DIRTY_CONTENT = 'base\nchanged\n'
@@ -41,48 +40,84 @@ const DEFAULT_DIRTY_CONTENT = 'base\nchanged\n'
  * @param {string} dirtyContent  `file.txt`'s uncommitted content — what the hook's diff carries
  */
 function setupShimRepo(shimBody, dirtyContent) {
-  const scratch = mkdtempSync(join(tmpdir(), 'sec-aud-controls-'))
-  const shimDir = join(scratch, 'shim')
-  const repoDir = join(scratch, 'repo')
-  mkdirSync(shimDir, { recursive: true })
-  mkdirSync(join(repoDir, '.claude/agents'), { recursive: true })
-  writeFileSync(join(shimDir, 'claude'), shimBody)
-  chmodSync(join(shimDir, 'claude'), 0o755)
-  writeFileSync(join(repoDir, '.claude/agents/security-auditor.md'), '# stub auditor prompt\n')
-  writeFileSync(join(repoDir, 'file.txt'), 'base\n')
-
-  const git = (args) =>
-    spawnSync('git', args, { cwd: repoDir, encoding: 'utf8', timeout: TIMEOUT_MS })
-  git(['init', '-q'])
-  git(['config', 'user.email', 'test@test.local'])
-  git(['config', 'user.name', 'test'])
-  git(['add', '-A'])
-  git(['commit', '-qm', 'init'])
+  const { scratch, shimDir, repoDir } = initShimScratch('sec-aud-controls-', shimBody)
+  commitInit(gitFactory(repoDir))
   writeFileSync(join(repoDir, 'file.txt'), dirtyContent)
   return { scratch, shimDir, repoDir }
 }
 
 /**
- * Spawn the real hook inside a fresh shim repo, with no arguments — the way lefthook's pre-push
- * command runs it. Removes the scratch dir when done, success or failure.
+ * Spawn the real hook inside a fresh shim repo, with no arguments.
  *
  * @param {string} shimBody      a full shebang script written to the shim's `claude` executable
  * @param {string} [dirtyContent]  `file.txt`'s uncommitted content — defaults to no secret/`.env`
  */
 function runHookWithShim(shimBody, dirtyContent = DEFAULT_DIRTY_CONTENT) {
-  const { scratch, shimDir, repoDir } = setupShimRepo(shimBody, dirtyContent)
-  try {
-    const r = spawnSync('bash', [HOOK], {
-      cwd: repoDir,
-      encoding: 'utf8',
-      timeout: TIMEOUT_MS,
-      env: { ...process.env, PATH: `${shimDir}:${process.env.PATH}` },
-    })
-    assertUsable('run-security-auditor.sh', r, TIMEOUT_MS)
-    return r
-  } finally {
-    rmSync(scratch, { recursive: true, force: true })
-  }
+  return runHookAndCleanup(setupShimRepo(shimBody, dirtyContent))
+}
+
+/**
+ * Build a repo where an uncommitted change to `secret.txt` is hidden from `git diff HEAD` by a
+ * local `diff.hide.textconv` driver — a repo-local, never-committed config, mirroring an
+ * attacker's own machine. `file.txt` also changes so the overall diff isn't emptied outright.
+ *
+ * @param {string} shimBody  a full shebang script written to the shim's `claude` executable
+ */
+function setupTextconvDirtyShimRepo(shimBody) {
+  const { scratch, shimDir, repoDir } = initShimScratch('sec-aud-textconv-', shimBody)
+  writeFileSync(join(repoDir, '.gitattributes'), 'secret.txt diff=hide\n')
+  writeFileSync(join(repoDir, 'secret.txt'), 'base\n')
+  const git = gitFactory(repoDir)
+  commitInit(git)
+  git(['config', 'diff.hide.textconv', 'sh -c true'])
+  writeFileSync(join(repoDir, 'file.txt'), 'base\nchanged\n')
+  writeFileSync(join(repoDir, 'secret.txt'), 'sk_live_FAKE_TEST_KEY_1234567890\n')
+  return { scratch, shimDir, repoDir }
+}
+
+/**
+ * Build a repo with a real `origin` upstream so `@{upstream}` resolves, then a COMMITTED leak
+ * on top — the upstream `"$REMOTE_REF"...HEAD` diff is a commit-to-commit comparison, not a
+ * working-tree one, so the secret must land in a real commit to be visible on that path at all.
+ * The same local, never-committed `diff.hide.textconv` driver hides it.
+ *
+ * @param {string} shimBody  a full shebang script written to the shim's `claude` executable
+ */
+function setupUpstreamShimRepo(shimBody) {
+  const { scratch, shimDir, repoDir } = initShimScratch('sec-aud-upstream-', shimBody)
+  const remoteDir = join(scratch, 'remote.git')
+  mkdirSync(remoteDir, { recursive: true })
+  writeFileSync(join(repoDir, '.gitattributes'), 'secret.txt diff=hide\n')
+  spawnSync('git', ['init', '-q', '--bare'], { cwd: remoteDir, timeout: TIMEOUT_MS })
+  const git = gitFactory(repoDir)
+  commitInit(git)
+  git(['remote', 'add', 'origin', remoteDir])
+  const branch = git(['branch', '--show-current']).stdout.trim()
+  git(['push', '-q', '-u', 'origin', branch])
+  git(['config', 'diff.hide.textconv', 'sh -c true'])
+  writeFileSync(join(repoDir, 'file.txt'), 'base\nchanged\n')
+  writeFileSync(join(repoDir, 'secret.txt'), 'sk_live_FAKE_TEST_KEY_1234567890\n')
+  git(['add', '-A'])
+  git(['commit', '-qm', 'leak'])
+  const upstreamRef = git(['rev-parse', '--abbrev-ref', '@{upstream}']).stdout.trim()
+  return { scratch, shimDir, repoDir, upstreamRef }
+}
+
+/**
+ * Prove the textconv driver is ACTIVE before trusting a test built on it: without
+ * `--no-textconv`, the diff must lack the secret; with it, the diff must contain it.
+ *
+ * @param {string} repoDir              the prepared repo's directory
+ * @param {string[]} diffArgs           ref args appended to `git diff` (e.g. `['HEAD']`)
+ */
+function assertTextconvDriverActive(repoDir, diffArgs) {
+  const hidden = spawnSync('git', ['diff', ...diffArgs], { cwd: repoDir, encoding: 'utf8' })
+  const shown = spawnSync('git', ['diff', '--no-textconv', ...diffArgs], {
+    cwd: repoDir,
+    encoding: 'utf8',
+  })
+  assert.doesNotMatch(hidden.stdout, /sk_live_FAKE_TEST_KEY/)
+  assert.match(shown.stdout, /sk_live_FAKE_TEST_KEY/)
 }
 
 const BLOCKED_SHIM = `#!/usr/bin/env bash
@@ -108,13 +143,6 @@ EOF
 exit 0
 `
 
-// Exit 124 is the code `timeout $AUDIT_TIMEOUT_SECS` reports on a kill — this shim never sleeps,
-// it just returns that code directly, so the test stays fast under `--jobs` load.
-const TIMEOUT_SHIM = `#!/usr/bin/env bash
-echo "simulated claude CLI timeout" >&2
-exit 124
-`
-
 // Any non-zero, non-124 exit takes the CLI-failure branch instead of the timeout branch.
 const CLI_FAILURE_SHIM = `#!/usr/bin/env bash
 echo "simulated claude CLI failure" >&2
@@ -125,6 +153,20 @@ exit 1
 // (`eyJ|sk_live_|service_role|-----BEGIN`) — routes the diagnostic scan to "Found N issue(s)"
 // instead of falling through to fail_closed_no_llm_output.
 const SECRET_DIRTY_CONTENT = 'base\nsk_live_FAKE_TEST_KEY_1234567890\n'
+
+// A validating shim: reads the prompt piped to it via stdin (the security-auditor.md prefix
+// + the DIFF being pushed) and only returns APPROVED when the diff section contains the
+// secret token — used to prove the LLM receives the unmasked diff content.
+const DIFF_VALIDATING_SHIM = `#!/usr/bin/env bash
+stdin=$(cat)
+if printf '%s' "$stdin" | grep -q 'sk_live_FAKE_TEST_KEY'; then
+  printf 'APPROVED\\n'
+  exit 0
+else
+  printf 'BLOCKED: secret not found in diff sent to LLM\\n'
+  exit 0
+fi
+`
 
 // CONTROL: red
 // GROUP: run-security-auditor-always-passes
@@ -170,4 +212,183 @@ test('blocks the push via the fallback scan when the CLI fails and a secret is i
   const r = runHookWithShim(CLI_FAILURE_SHIM, SECRET_DIRTY_CONTENT)
   assert.notEqual(r.status, 0)
   assert.match(r.stdout, /Found \d+ issue\(s\) in fallback scan/)
+})
+
+// CONTROL: red
+// GROUP: run-security-auditor-always-passes, run-security-auditor-textconv-fallback
+// MUTATION: dropping --no-textconv from the no-upstream `git diff HEAD` fallback call lets a
+// local textconv driver empty a leaking file's diff, hiding its secret from the fallback scan.
+test('fallback scan still finds a secret a textconv driver hides on the no-upstream diff', () => {
+  const built = setupTextconvDirtyShimRepo(TIMEOUT_SHIM)
+  assertTextconvDriverActive(built.repoDir, ['HEAD'])
+  const r = runHookAndCleanup(built)
+  assert.notEqual(r.status, 0)
+  assert.match(r.stdout, /Found \d+ issue\(s\) in fallback scan/)
+})
+
+// CONTROL: red
+// GROUP: run-security-auditor-always-passes, run-security-auditor-textconv-upstream
+// MUTATION: dropping --no-textconv from the "$REMOTE_REF"...HEAD diff call lets a local
+// textconv driver empty a leaking file's diff, hiding its secret from the fallback scan.
+test('fallback scan still finds a secret a textconv driver hides on the upstream diff', () => {
+  const built = setupUpstreamShimRepo(TIMEOUT_SHIM)
+  assertTextconvDriverActive(built.repoDir, [`${built.upstreamRef}...HEAD`])
+  const r = runHookAndCleanup(built)
+  assert.notEqual(r.status, 0)
+  assert.match(r.stdout, /Found \d+ issue\(s\) in fallback scan/)
+})
+
+// CONTROL: red
+// GROUP: run-security-auditor-always-passes, run-security-auditor-extdiff-fallback
+// MUTATION: dropping --no-ext-diff from the no-upstream `git diff HEAD` fallback call lets
+// GIT_EXTERNAL_DIFF hide every added line from the fallback scan.
+test('fallback scan still finds a secret GIT_EXTERNAL_DIFF hides on the no-upstream diff', () => {
+  const built = setupShimRepo(TIMEOUT_SHIM, SECRET_DIRTY_CONTENT)
+  const extEnv = { ...process.env, GIT_EXTERNAL_DIFF: 'true' }
+  const hidden = spawnSync('git', ['diff', 'HEAD'], {
+    cwd: built.repoDir,
+    encoding: 'utf8',
+    env: extEnv,
+  })
+  const shown = spawnSync('git', ['diff', '--no-ext-diff', 'HEAD'], {
+    cwd: built.repoDir,
+    encoding: 'utf8',
+    env: extEnv,
+  })
+  assert.doesNotMatch(hidden.stdout, /sk_live_FAKE_TEST_KEY/)
+  assert.match(shown.stdout, /sk_live_FAKE_TEST_KEY/)
+  const r = runHookAndCleanup(built, { GIT_EXTERNAL_DIFF: 'true' })
+  assert.notEqual(r.status, 0)
+  assert.match(r.stdout, /Found \d+ issue\(s\) in fallback scan/)
+})
+
+// ── Large-diff path: filtered call (>3000 lines triggers the security-sensitive-only pathspec) ──
+
+/**
+ * Scratch repo with an upstream, a diff over MAX_DIFF_LINES, and a secret in a migration file
+ * the hook's large-diff pathspec keeps. A `diff.hide.textconv` driver hides that file's content.
+ *
+ * @param {string} shimBody  a full shebang script written to the shim's `claude` executable
+ */
+function setupLargeTextconvUpstreamShimRepo(shimBody) {
+  const { scratch, shimDir, repoDir } = initShimScratch('sec-aud-large-tc-', shimBody)
+  const remoteDir = join(scratch, 'remote.git')
+  mkdirSync(remoteDir, { recursive: true })
+  // .gitattributes must be committed before the diff that includes the SQL file
+  writeFileSync(join(repoDir, '.gitattributes'), '*.sql diff=hide\n')
+  spawnSync('git', ['init', '-q', '--bare'], { cwd: remoteDir, timeout: TIMEOUT_MS })
+  const git = gitFactory(repoDir)
+  commitInit(git)
+  git(['remote', 'add', 'origin', remoteDir])
+  const branch = git(['branch', '--show-current']).stdout.trim()
+  git(['push', '-q', '-u', 'origin', branch])
+  // Local textconv driver — never committed (mirrors the attacker's own machine config)
+  git(['config', 'diff.hide.textconv', 'sh -c true'])
+  // Large file: >3000 lines triggers the hook's large-diff filtered-pathspec branch
+  const bigContent = `${Array.from({ length: 3001 }, (_, i) => `dummy line ${i + 1}`).join('\n')}\n`
+  writeFileSync(join(repoDir, 'bigfile.txt'), bigContent)
+  // Secret in a security-sensitive file matching `**/migrations/**` and `**/*.sql` pathspecs
+  mkdirSync(join(repoDir, 'supabase/migrations'), { recursive: true })
+  writeFileSync(
+    join(repoDir, 'supabase/migrations/001_init.sql'),
+    'sk_live_FAKE_TEST_KEY_1234567890\n',
+  )
+  git(['add', '-A'])
+  git(['commit', '-qm', 'large diff with secret'])
+  const upstreamRef = git(['rev-parse', '--abbrev-ref', '@{upstream}']).stdout.trim()
+  return { scratch, shimDir, repoDir, upstreamRef }
+}
+
+/**
+ * Build the same large-diff upstream repo without a textconv driver. Used by the ext-diff
+ * fixture, where GIT_EXTERNAL_DIFF is the only driver hiding content.
+ *
+ * @param {string} shimBody  a full shebang script written to the shim's `claude` executable
+ */
+function setupLargeExtDiffUpstreamShimRepo(shimBody) {
+  const { scratch, shimDir, repoDir } = initShimScratch('sec-aud-large-ed-', shimBody)
+  const remoteDir = join(scratch, 'remote.git')
+  mkdirSync(remoteDir, { recursive: true })
+  spawnSync('git', ['init', '-q', '--bare'], { cwd: remoteDir, timeout: TIMEOUT_MS })
+  const git = gitFactory(repoDir)
+  commitInit(git)
+  git(['remote', 'add', 'origin', remoteDir])
+  const branch = git(['branch', '--show-current']).stdout.trim()
+  git(['push', '-q', '-u', 'origin', branch])
+  // Large file: >3000 lines triggers the hook's large-diff filtered-pathspec branch
+  const bigContent = `${Array.from({ length: 3001 }, (_, i) => `dummy line ${i + 1}`).join('\n')}\n`
+  writeFileSync(join(repoDir, 'bigfile.txt'), bigContent)
+  // Secret in a security-sensitive file matching `**/migrations/**` and `**/*.sql` pathspecs
+  mkdirSync(join(repoDir, 'supabase/migrations'), { recursive: true })
+  writeFileSync(
+    join(repoDir, 'supabase/migrations/001_init.sql'),
+    'sk_live_FAKE_TEST_KEY_1234567890\n',
+  )
+  git(['add', '-A'])
+  git(['commit', '-qm', 'large diff with secret'])
+  const upstreamRef = git(['rev-parse', '--abbrev-ref', '@{upstream}']).stdout.trim()
+  return { scratch, shimDir, repoDir, upstreamRef }
+}
+
+// CONTROL: green
+// GROUP: run-security-auditor-always-blocks, run-security-auditor-textconv-filtered-large-diff
+// MUTATION: dropping --no-textconv from the large-diff filtered-pathspec call lets a local
+// textconv driver empty the SQL file's diff, so the LLM receives no secret and the validating
+// shim returns BLOCKED.
+test('LLM receives the secret from the filtered diff under a textconv driver (large diff path)', () => {
+  const built = setupLargeTextconvUpstreamShimRepo(DIFF_VALIDATING_SHIM)
+  // NON-VACUITY: without --no-textconv the textconv driver hides the SQL file's content.
+  const hiddenSql = spawnSync(
+    'git',
+    ['diff', `${built.upstreamRef}...HEAD`, '--', 'supabase/migrations/001_init.sql'],
+    { cwd: built.repoDir, encoding: 'utf8', timeout: TIMEOUT_MS },
+  )
+  const shownSql = spawnSync(
+    'git',
+    [
+      'diff',
+      '--no-textconv',
+      `${built.upstreamRef}...HEAD`,
+      '--',
+      'supabase/migrations/001_init.sql',
+    ],
+    { cwd: built.repoDir, encoding: 'utf8', timeout: TIMEOUT_MS },
+  )
+  assert.doesNotMatch(hiddenSql.stdout, /sk_live_FAKE_TEST_KEY/)
+  assert.match(shownSql.stdout, /sk_live_FAKE_TEST_KEY/)
+  const r = runHookAndCleanup(built)
+  assert.equal(r.status, 0)
+  assert.match(r.stdout, /Push approved/)
+})
+
+// CONTROL: green
+// GROUP: run-security-auditor-always-blocks, run-security-auditor-extdiff-filtered-large-diff
+// MUTATION: dropping --no-ext-diff from the large-diff filtered-pathspec call lets
+// GIT_EXTERNAL_DIFF discard all diff content, so the LLM receives only a stat and the
+// validating shim returns BLOCKED.
+test('LLM receives the secret from the filtered diff under GIT_EXTERNAL_DIFF (large diff path)', () => {
+  const built = setupLargeExtDiffUpstreamShimRepo(DIFF_VALIDATING_SHIM)
+  const extEnv = { ...process.env, GIT_EXTERNAL_DIFF: 'true' }
+  // NON-VACUITY: without --no-ext-diff, GIT_EXTERNAL_DIFF discards the SQL file's content.
+  const hiddenSql = spawnSync(
+    'git',
+    ['diff', `${built.upstreamRef}...HEAD`, '--', 'supabase/migrations/001_init.sql'],
+    { cwd: built.repoDir, encoding: 'utf8', timeout: TIMEOUT_MS, env: extEnv },
+  )
+  const shownSql = spawnSync(
+    'git',
+    [
+      'diff',
+      '--no-ext-diff',
+      `${built.upstreamRef}...HEAD`,
+      '--',
+      'supabase/migrations/001_init.sql',
+    ],
+    { cwd: built.repoDir, encoding: 'utf8', timeout: TIMEOUT_MS, env: extEnv },
+  )
+  assert.doesNotMatch(hiddenSql.stdout, /sk_live_FAKE_TEST_KEY/)
+  assert.match(shownSql.stdout, /sk_live_FAKE_TEST_KEY/)
+  const r = runHookAndCleanup(built, { GIT_EXTERNAL_DIFF: 'true' })
+  assert.equal(r.status, 0)
+  assert.match(r.stdout, /Push approved/)
 })

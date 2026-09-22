@@ -1,0 +1,147 @@
+{
+  "_": "diff-parse.mjs is a library, not a wired guard — no CONTROL:red/green pair, no pipeline.json `guards` entry. Every mutation here is graded by diff-parse.test.mjs alone. A DIFF_ARGS flag's real-git-config effect (textconv/ext-diff/noprefix/color) is pinned at the CALL SITE instead, in check-test-title-leakage.mutations.json — a suite cannot be shared across two data files' `suites` lists without a GROUP marker naming one file's id reading as dangling under the other's coverage check.",
+  "target": ".claude/hooks/diff-parse.mjs",
+  "suites": [".claude/hooks/diff-parse.test.mjs"],
+  "mutations": [
+    {
+      "id": "cr-escape-undecoded",
+      "find": "  r: 0x0d,\n",
+      "replace": "",
+      "expectRed": [
+        "unquoteGitPath decodes a carriage-return escape",
+        "headerNewPath decodes a carriage-return escape in a quoted header"
+      ]
+    },
+    {
+      "id": "backspace-escape-undecoded",
+      "find": "  b: 0x08,\n",
+      "replace": "",
+      "expectRed": ["unquoteGitPath decodes a backspace escape"],
+      "note": "Without `b: 0x08`, git's named \\b escape falls through the octal branch (fails, \"b\" isn't [0-7]{3}) so only the backslash is emitted, then the next iteration emits 'b' as a literal character."
+    },
+    {
+      "id": "named-escapes-table-not-frozen",
+      "find": "export const GIT_NAMED_ESCAPES = Object.freeze({",
+      "replace": "export const GIT_NAMED_ESCAPES = ({",
+      "expectRed": ["GIT_NAMED_ESCAPES is frozen against mutation"],
+      "note": "`({ … })` stays a valid parenthesized object literal — only `Object.freeze` is dropped, so `Object.isFrozen` reads false."
+    },
+    {
+      "id": "literal-char-single-byte",
+      "find": "      bytes.push(...Buffer.from(ch, 'utf8'))\n",
+      "replace": "      bytes.push(ch.charCodeAt(0))\n",
+      "expectRed": [
+        "unquoteGitPath keeps a literal non-ASCII character beside an escaped double quote",
+        "unquoteGitPath keeps a literal astral character beside an escaped double quote"
+      ],
+      "note": "Pushing one UTF-16 code unit as a single byte turns a literal non-ASCII character in a quoted path into an invalid UTF-8 byte, decoded as U+FFFD."
+    },
+    {
+      "id": "astral-char-split",
+      "find": "      i += ch.length - 1\n",
+      "replace": "",
+      "expectRed": [
+        "unquoteGitPath keeps a literal astral character beside an escaped double quote"
+      ],
+      "note": "Without the skip, the loop revisits an astral character's low surrogate and encodes it alone, appending U+FFFD."
+    },
+    {
+      "id": "quoted-header-unrecognised",
+      "find": "  const quoted = /^diff --git \"a\\/(?:[^\"\\\\]|\\\\.)*\" (\"b\\/(?:[^\"\\\\]|\\\\.)*\")$/.exec(line)\n  return quoted ? unquoteGitPath(quoted[1]).slice(2) : null\n",
+      "replace": "  return null\n",
+      "expectRed": [
+        "headerNewPath reads a both-quoted header and unquotes the new path",
+        "headerNewPath decodes a carriage-return escape in a quoted header",
+        "splitByFile keys a quoted diff --git header by the decoded new path"
+      ],
+      "note": "core.quotePath=false keeps a plain non-ASCII path unquoted; only a path holding `\\\"`, `\\\\`, or a control character — always quoted regardless — reaches the removed branch."
+    },
+    {
+      "id": "bare-header-branch-dropped",
+      "find": "  const bare = /^diff --git a\\/.+ b\\/(.+)$/.exec(line)\n  if (bare) return bare[1]\n",
+      "replace": "",
+      "expectRed": [
+        "headerNewPath reads the bare form",
+        "splitByFile keys a bare diff --git header by the new path",
+        "splitByFile separates a multi-file diff by new path"
+      ],
+      "note": "Every ordinary (non-quoted) header in a diff would then fall through to the quoted-only regex, match nothing, and the file is silently dropped from splitByFile's output."
+    },
+    {
+      "id": "plus-plus-content-not-a-header",
+      "find": "    if (!sawHunk && (raw.startsWith('+++') || raw.startsWith('---'))) continue\n",
+      "replace": "    if (raw.startsWith('+++') || raw.startsWith('---')) continue\n",
+      "expectRed": [
+        "addedLines scans an added line whose own content starts with ++ once a hunk has begun"
+      ]
+    },
+    {
+      "id": "trailing-cr-not-stripped",
+      "find": "results.push({ line: newLine, text: raw.slice(1).replace(/\\r$/, ''), run })",
+      "replace": "results.push({ line: newLine, text: raw.slice(1), run })",
+      "expectRed": ["addedLines strips a trailing carriage return from added text"]
+    },
+    {
+      "id": "added-line-number-not-advanced",
+      "find": "results.push({ line: newLine, text: raw.slice(1).replace(/\\r$/, ''), run })\n      newLine += 1\n      continue\n",
+      "replace": "results.push({ line: newLine, text: raw.slice(1).replace(/\\r$/, ''), run })\n      continue\n",
+      "expectRed": [
+        "addedLines picks up only added lines with new-file line numbers",
+        "addedLines advances the new-file line number for each added line"
+      ],
+      "note": "Every added line in a contiguous run reports the SAME new-file line number as the first, instead of advancing one per line."
+    },
+    {
+      "id": "context-line-number-not-advanced",
+      "find": "    run += 1\n    if (!raw.startsWith('-')) newLine += 1\n",
+      "replace": "    run += 1\n",
+      "expectRed": ["addedLines advances the new-file line number across a context line"],
+      "note": "A context line no longer advances the new-file counter, so an added line following one is attributed to the wrong new-file line number."
+    },
+    {
+      "id": "context-or-removed-does-not-break-run",
+      "find": "    run += 1\n    if (!raw.startsWith('-')) newLine += 1\n",
+      "replace": "    if (!raw.startsWith('-')) newLine += 1\n",
+      "expectRed": [
+        "addedLines breaks the run on a removed line between two added lines",
+        "addedLines breaks the run on a context line between two added lines"
+      ],
+      "note": "A context or removed line no longer separates the added lines around it into distinct `run` values, so a caller joins two added lines that were not actually adjacent in the source."
+    },
+    {
+      "id": "hunk-header-does-not-break-run",
+      "find": "    if (raw.startsWith('@@')) {\n      run += 1\n      sawHunk = true\n",
+      "replace": "    if (raw.startsWith('@@')) {\n      sawHunk = true\n",
+      "expectRed": ["addedLines starts a new run at a hunk header even with no separating line"],
+      "note": "Two added lines either side of a hunk boundary, with no context/removed line between them, would share one `run` value and a caller joins them as if adjacent in the source."
+    },
+    {
+      "id": "textconv-flag-dropped",
+      "find": "  '--no-textconv',\n",
+      "replace": "",
+      "expectRed": ["DIFF_ARGS carries every flag a content diff must pass"],
+      "note": "A repo-local textconv driver can hide the added line's text entirely from an unflagged `git diff`. The real-git-config effect is pinned at the call site — check-test-title-leakage.repo.test.mjs's textconv fixture, under check-test-title-leakage.mutations.json's `-diff-args-dropped` mutations."
+    },
+    {
+      "id": "ext-diff-flag-dropped",
+      "find": "  '--no-ext-diff',\n",
+      "replace": "",
+      "expectRed": ["DIFF_ARGS carries every flag a content diff must pass"],
+      "note": "diff.external / GIT_EXTERNAL_DIFF hands the whole diff to another program, which need not print anything. Real-git-config effect pinned at the call site — see textconv-flag-dropped's note."
+    },
+    {
+      "id": "no-color-flag-dropped",
+      "find": "  '--no-color',\n",
+      "replace": "",
+      "expectRed": ["DIFF_ARGS carries every flag a content diff must pass"],
+      "note": "color.ui=always wraps every diff line in ANSI escapes, so headerNewPath's and addedLines's `+`/`diff --git` anchors no longer match column 0. Real-git-config effect pinned at the call site — see textconv-flag-dropped's note."
+    },
+    {
+      "id": "prefix-flags-dropped",
+      "find": "  '--src-prefix=a/',\n  '--dst-prefix=b/',\n",
+      "replace": "",
+      "expectRed": ["DIFF_ARGS carries every flag a content diff must pass"],
+      "note": "diff.noprefix=true drops the a/ b/ prefixes on a two-treeish comparison (diff.mnemonicPrefix never applies there), and headerNewPath's bare-header regex is anchored on `a/`/`b/`. Real-git-config effect pinned at the call site — see textconv-flag-dropped's note."
+    }
+  ]
+}

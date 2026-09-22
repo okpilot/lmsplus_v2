@@ -35,7 +35,7 @@ import { fileURLToPath } from 'node:url'
 export function filesContaining(anchor, cwd = process.cwd()) {
   let out
   try {
-    out = execFileSync('git', ['grep', '-lFz', '--', anchor, '--', ':/'], {
+    out = execFileSync('git', ['grep', '-lFz', '--no-color', '--', anchor, '--', ':/'], {
       cwd,
       encoding: 'utf8',
       maxBuffer: 32 * 1024 * 1024,
