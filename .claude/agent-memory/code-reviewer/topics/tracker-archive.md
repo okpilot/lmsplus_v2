@@ -8,6 +8,7 @@
 |--------|-------|--------|-------|
 | guards/mutation-harness-staged | R4 (confirming, ceiling override) | 0944dff5 | Comment-only commit. All four §10 sites verified against touchesStaged body — five inputs correct. No code violations in full range. |
 | guards/mutation-harness-staged | R5 (final confirming round post-fixup) | a7865d77 | Rename-scope fix + stale MUTATION comments + new test + ci.yml comment. 26/26 tests pass. MUTATION comment claims verified against blobAt body and git() helper (throws on non-zero). No code violations. |
+| guards/mutation-harness-jobs | R2 | 670c2379 | --jobs N, runPool, spawnSuite async, transitive staged scope walk. All function bodies under 30L, all test files under 500L, 20/20 jobs tests pass. No code violations in full range. |
 
 ## Archived terminal rows
 

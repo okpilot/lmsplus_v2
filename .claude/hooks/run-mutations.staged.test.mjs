@@ -307,34 +307,54 @@ test('a guard whose suite is absent at the ref is scoped out, not a fault', () =
 })
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// --staged: data file absent from the index is dropped rather than faulting the run
+// --staged: a data file on disk but absent from the index is never a CANDIDATE at all
 //
-// Fixture: one data file that exists on disk but was never staged or committed. Its target is
-// staged, so without the existence probe `loadDataFileAt` would call `git show` directly, which
-// throws on a missing object — aborting the run with exit 2. With the probe the file is returned
-// as null and filtered out; the scoped list is empty and the run exits 0 instead.
+// #1329/R6: the candidate set under `--staged` is enumerated from the REF (`git ls-tree`), not
+// from disk — so a data file that lives only on disk, never staged or committed, is not merely
+// scoped OUT, it is never discovered in the first place, however loudly its target is staged.
+// Fixture carries a second, committed guard so the repo has at least one ref candidate; otherwise
+// the "no data files found" guard would fire first and this would prove nothing about filtering.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
-// MUTATION: delete the `git ls-tree` existence probe from `blobAt` (let `git show` run
-// unguarded) → when the data file is absent from the index commit, `git show` throws rather
-// than returning null, so the run faults with exit 2 instead of gracefully dropping the file and
-// printing the "nothing staged touches" message.
-// GROUP: blobat-absent-returns-null
-test('a data file on disk but absent from the index is dropped without faulting the run', () => {
+test('a data file on disk but absent from the index never becomes a --staged candidate', () => {
   const { dir, g } = newRepo('rm-staged-absent-df-')
+  writeFileSync(join(dir, 'other.mjs'), 'export const other = 1\n')
+  writeFileSync(join(dir, 'other.test.mjs'), fixedGreenSuite('other-ok'))
+  writeGuard(dir, 'other-df', 'other.mjs')
+  g(['add', '-A'])
+  g(['commit', '-q', '-m', 'init'])
+  writeFileSync(join(dir, 'abs.mjs'), 'export const abs = 1\n')
+  writeFileSync(join(dir, 'abs.test.mjs'), fixedGreenSuite('abs-ok'))
+  writeGuard(dir, 'absent-df', 'abs.mjs')
+  // Stage the untracked guard's target and suite but NOT its data file — it lives only on disk.
+  g(['add', 'abs.mjs', 'abs.test.mjs'])
+  const run = runNode(
+    'harness --staged with a data file absent from the index',
+    [HARNESS, '--staged'],
+    { cwd: dir, env: envWithoutTestContext },
+  )
+  assert.equal(run.status, 0, `stdout:\n${run.stdout}\nstderr:\n${run.stderr}`)
+  assert.doesNotMatch(run.stdout, /touch-abs/, run.stdout)
+  assert.doesNotMatch(run.stdout, /absent-df/, run.stdout)
+})
+
+// Smoke test, no MUTATION claim: `selectFiles`'s guard-not-found throw is already pinned in
+// `run-mutations.test.mjs`; this only confirms the SAME throw fires reading a ref-enumerated
+// candidate list under `--staged`, not a disk-enumerated one.
+test('a --staged --guard naming a data file absent from the index refuses to run, not silently 0', () => {
+  const { dir, g } = newRepo('rm-staged-absent-guard-')
   g(['commit', '-q', '--allow-empty', '-m', 'init'])
   writeFileSync(join(dir, 'abs.mjs'), 'export const abs = 1\n')
   writeFileSync(join(dir, 'abs.test.mjs'), fixedGreenSuite('abs-ok'))
   writeGuard(dir, 'absent-df', 'abs.mjs')
-  // Stage target and suite but NOT the data file — it lives only on disk.
   g(['add', 'abs.mjs', 'abs.test.mjs'])
   const run = runNode(
-    'harness --staged with data file absent from index',
+    'harness --staged --guard absent-df, data file untracked',
     [HARNESS, '--staged', '--guard', 'absent-df'],
     { cwd: dir, env: envWithoutTestContext },
   )
-  assert.equal(run.status, 0, `stderr:\n${run.stderr}`)
-  assert.match(run.stdout, /nothing staged touches/, run.stdout)
+  assert.notEqual(run.status, 0, `stdout:\n${run.stdout}\nstderr:\n${run.stderr}`)
+  assert.match(run.stderr, /no data file for --guard absent-df/, run.stderr)
 })
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────

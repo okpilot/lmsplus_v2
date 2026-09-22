@@ -19,22 +19,28 @@
 //         node .claude/hooks/run-mutations.mjs --staged         grade the INDEX, not HEAD —
 //                                                               scoped to data files that touch
 //                                                               what is staged (plain run only)
+//         [--jobs N]                                            run up to N mutations concurrently
+//                                                               (default 1). Output, exit code and
+//                                                               `onResult` order are IDENTICAL for
+//                                                               any N — see `runPool`. Not valid
+//                                                               with `--list`/`--coverage`.
 //         [--scratch <dir>]                                     where worktrees are made
 //
 // `--staged` exists because a pre-commit gate built on the plain run grades the last COMMIT: a
 // file only staged, not yet committed, reports NO VERDICT rather than a result. It builds a
 // commit of the INDEX tree without moving HEAD or touching the worktree (`git write-tree` +
 // `git commit-tree -p HEAD`), grades THAT, and narrows to the data files whose target, suites,
-// own path, one-hop suite imports, or a path a suite names as a string literal are actually
-// staged. `touchesStaged` is the predicate; the runtime message names the same set.
+// own path, or a file TRANSITIVELY reachable from the target or a suite by import (or by literal
+// path from a file reached from a suite) is actually staged. `touchesStaged` is the predicate;
+// the runtime message names the same set.
 //
 // Exit:   0 = every encoded mutation was CAUGHT
 //         1 = at least one SURVIVED or MISMATCHed — a finding about the TESTS
 //         2 = NO TRUSTWORTHY VERDICT — a finding about the HARNESS. Covers a fault in ANY
 //             single mutation (the batch still grades the rest and reports how many it could
 //             not), and the cases with nothing to grade at all — EXCEPT one: under `--staged`,
-//             a staged set touching no data file, target, suite, one-hop suite import or path a
-//             suite names as a literal exits 0. That is a commit
+//             a staged set touching no data file, target, suite, or reachable import/literal
+//             exits 0. That is a commit
 //             this tool has no claim to grade, not a harness that lost its corpus, and the
 //             `files.length === 0` throw below still covers the corpus going missing.
 //
@@ -61,7 +67,7 @@
 //     claims about. `--staged` is the stated exception: it builds the worktree from a commit made
 //     of the INDEX, so there the staged edit IS what gets graded and an unstaged one still is not.
 
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, isAbsolute, join, resolve, sep } from 'node:path'
@@ -75,7 +81,7 @@ const SUITE_TIMEOUT_MS = 120_000
 
 /** Mode flags. Options (`--guard`, `--scratch`) take a value and are NOT modes. */
 const MODE_FLAGS = new Set(['--list', '--coverage', '--update-expected'])
-const OPTION_FLAGS = new Set(['--guard', '--scratch'])
+const OPTION_FLAGS = new Set(['--guard', '--scratch', '--jobs'])
 /** Boolean flags: present or absent, never take a value. */
 const BOOLEAN_FLAGS = new Set(['--staged'])
 
@@ -411,7 +417,8 @@ export function assertSingleOccurrence(source, find, id) {
   return count
 }
 
-/** The two ways a flag set names more than one run: two modes, or `--staged` on a non-run mode. */
+/** The three ways a flag set names more than one run: two modes, `--staged` or `--jobs` on a
+ * non-run mode. */
 function modeConflict(modes, opts) {
   // Two modes both pass the unknown-flag gate, then whichever branch is tested first wins and
   // the other request is dropped with no diagnostic at exit 0 — the collision
@@ -428,7 +435,21 @@ function modeConflict(modes, opts) {
       error: '--staged only applies to a plain run (no --list, --coverage or --update-expected)',
     }
   }
+  // `--jobs` parallelises a GRADING run. `--list` and `--coverage` grade nothing, so the flag
+  // would name a mechanism neither mode consults.
+  if (opts.jobs !== null && (modes.includes('--list') || modes.includes('--coverage'))) {
+    return { error: '--jobs only applies to a grading run (no --list or --coverage)' }
+  }
   return null
+}
+
+/** Parse `--jobs`'s value: a positive integer, or an arg error. */
+export function parseJobs(value) {
+  const n = Number(value)
+  if (!Number.isInteger(n) || n < 1) {
+    return { error: `--jobs must be a positive integer (got ${JSON.stringify(value)})` }
+  }
+  return { jobs: n }
 }
 
 /**
@@ -457,15 +478,17 @@ function readFlag(args, i, modes, opts) {
   return { i: i + 1 }
 }
 
-/** Parse argv. Returns `{ error }` or `{ mode, guard, scratch, staged }`. */
+/** Parse argv. Returns `{ error }` or `{ mode, guard, scratch, staged, jobs }`. */
 export function parseArgs(args) {
   const modes = []
-  const opts = { guard: null, scratch: null, staged: false }
+  const opts = { guard: null, scratch: null, staged: false, jobs: null }
   for (let i = 0; i < args.length; i++) {
     const read = readFlag(args, i, modes, opts)
     if (read.error) return { error: read.error }
     i = read.i
   }
+  const jobsResult = parseJobs(opts.jobs ?? '1')
+  if (jobsResult.error) return { error: jobsResult.error }
   const clash = modeConflict(modes, opts)
   if (clash) return clash
   return {
@@ -473,6 +496,7 @@ export function parseArgs(args) {
     guard: opts.guard,
     scratch: opts.scratch,
     staged: opts.staged,
+    jobs: jobsResult.jobs,
   }
 }
 
@@ -496,6 +520,27 @@ function dataFiles(root) {
     .filter((f) => f.endsWith(DATA_SUFFIX))
     .sort()
     .map((f) => ({ basename: f.slice(0, -DATA_SUFFIX.length), path: join(dir, f) }))
+}
+
+/**
+ * Data files present in `.claude/hooks` AT `ref` — the committed/indexed tree, never the working
+ * directory — so a `--staged` run's CANDIDATE set matches what the commit actually carries. A
+ * file only `git rm --cached`-ed but still on disk must drop out; a brand-new untracked data file
+ * must not silently enter. `git ls-tree --name-only <ref> -- .claude/hooks/` returns full
+ * repo-relative paths (`.claude/hooks/<name>.mutations.json`), so `basename` is taken from the last
+ * path segment, not the whole entry.
+ */
+function dataFilesAt(root, ref) {
+  const out = git(['ls-tree', '--name-only', ref, '--', '.claude/hooks/'], root)
+  return out
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l.endsWith(DATA_SUFFIX))
+    .sort()
+    .map((f) => ({
+      basename: f.slice(f.lastIndexOf('/') + 1, -DATA_SUFFIX.length),
+      path: join(root, f),
+    }))
 }
 
 /** Parse and validate one data file's already-read text, errors tagged with `file.path`. */
@@ -578,7 +623,23 @@ function indexCommit(root) {
     throw new Error(`--staged cannot grade this index (unresolved merge conflicts?): ${e.message}`)
   }
   try {
-    return git(['commit-tree', tree, '-p', 'HEAD', '-m', 'index'], root).trim()
+    // Explicit identity, not inherited config: a CI runner or a fresh clone may carry no
+    // `user.name`/`user.email` at all, and `commit-tree` refuses to make a commit without one.
+    return git(
+      [
+        '-c',
+        'user.name=mutation-harness',
+        '-c',
+        'user.email=mutation-harness@localhost',
+        'commit-tree',
+        tree,
+        '-p',
+        'HEAD',
+        '-m',
+        'index',
+      ],
+      root,
+    ).trim()
   } catch (e) {
     throw new Error(`--staged needs a commit to parent from (unborn HEAD?): ${e.message}`)
   }
@@ -607,11 +668,20 @@ export function relPath(root, p) {
     .join('/')
 }
 
-/** Relative-specifier imports of `text`, resolved against the directory of `from`. */
+/**
+ * Relative-specifier imports of `text`, resolved against the directory of `from`.
+ *
+ * A specifier resolving OUTSIDE `root` is SKIPPED, not thrown — the scope walk (`reachable`)
+ * follows import chains across the whole repo, and a file importing something outside it (a
+ * node_modules shim reached via a relative path, a symlink target) is not a defect in the walk;
+ * refusing there would fault a `--staged` run over a file it was never asked to grade.
+ */
 export function localImports(root, from, text) {
   const out = []
   for (const m of text.matchAll(/(?:from|import)\s*\(?\s*['"](\.[^'"]+)['"]/g)) {
-    out.push(relPath(root, resolve(dirname(isAbsolute(from) ? from : join(root, from)), m[1])))
+    const abs = resolve(dirname(isAbsolute(from) ? from : join(root, from)), m[1])
+    if (abs !== root && !abs.startsWith(root + sep)) continue
+    out.push(relPath(root, abs))
   }
   return out
 }
@@ -624,32 +694,63 @@ export function localImports(root, from, text) {
  *
  * Bounded to LITERALS. A computed path (a template with a substitution, a joined variable) names
  * nothing this can read, exactly as `localImports` cannot follow a computed specifier.
+ *
+ * A leading `./` (one or more) is stripped, so `'./.claude/limits.json'` yields
+ * `.claude/limits.json` — the root-relative form `staged.has(...)` compares against.
  */
 export function namedPaths(text) {
   const re = /['"`]([A-Za-z0-9._][\w.-]*(?:\/[\w.-]+)+)['"`]/g
-  return [...text.matchAll(re)].map((m) => m[1])
+  return [...text.matchAll(re)].map((m) => m[1].replace(/^(?:\.\/)+/, ''))
 }
 
 /**
- * Whether any of five things is in `staged`: `file`'s own path, `data.target`, a `data.suites`
- * entry, a helper a suite imports, or a path a suite names as a string literal.
+ * Every path TRANSITIVELY reachable from `seeds` by following `localImports`, cycle-guarded by a
+ * visited set keyed on the root-relative path — an import cycle terminates instead of looping.
  *
- * The last two are load-bearing because no data file names them. A shared testkit reaches the run
- * only through a suite's import, and a fixture path only through a literal, so without those hops
- * a commit staging ONLY that file grades nothing and exits 0 — while the edit can redden every
- * suite that reads it. Both hops are ONE level deep and cover suites only, never the target's own
- * imports; widening that reach is #1329.
+ * `includeNamed`: also collect every `namedPaths` literal in each file reached, not only the
+ * seeds themselves — a suite that imports a helper which in turn `readFileSync`s a fixture by
+ * literal path declares that dependency nowhere an import-only walk can see. Set for a SUITE
+ * walk (#1329: "every file reached from a suite"), unset for a TARGET walk — the target's own
+ * `namedPaths` are not part of what makes it gradeable.
+ */
+function reachable(root, seeds, readAt, includeNamed) {
+  const visited = new Set()
+  const found = new Set()
+  const queue = [...seeds]
+  while (queue.length > 0) {
+    const cur = queue.shift()
+    const rel = relPath(root, cur)
+    if (visited.has(rel)) continue
+    visited.add(rel)
+    const text = readAt(cur)
+    if (text === null) continue
+    for (const imp of localImports(root, cur, text)) {
+      found.add(imp)
+      queue.push(imp)
+    }
+    if (includeNamed) for (const named of namedPaths(text)) found.add(named)
+  }
+  return found
+}
+
+/**
+ * Whether `staged` holds any of: `file`'s own path, `data.target`, a `data.suites` entry, or a
+ * path TRANSITIVELY reachable from `data.target` or `data.suites` by import (plus every
+ * `namedPaths` literal reached from a suite) — #1329.
+ *
+ * The reachable set is load-bearing because no data file names it. A shared testkit reaches the
+ * run only through an import chain, and a fixture path only through a literal, so without this
+ * walk a commit staging ONLY that file grades nothing and exits 0 — while the edit can redden
+ * every suite (or the target itself) that depends on it.
  */
 export function touchesStaged(root, file, data, staged, readAt = null) {
   const paths = [file.path, data.target, ...data.suites]
   if (paths.some((p) => staged.has(relPath(root, p)))) return true
   if (!readAt) return false
-  return data.suites.some((suite) => {
-    const text = readAt(suite)
-    if (text === null) return false
-    if (localImports(root, suite, text).some((i) => staged.has(i))) return true
-    return namedPaths(text).some((named) => staged.has(named))
-  })
+  const fromTarget = reachable(root, [data.target], readAt, false)
+  if ([...fromTarget].some((p) => staged.has(p))) return true
+  const fromSuites = reachable(root, data.suites, readAt, true)
+  return [...fromSuites].some((p) => staged.has(p))
 }
 
 /** Data files `touchesStaged` keeps — everything else is a no-op. */
@@ -696,41 +797,179 @@ export function assertSpawnUsable(mutId, r, timeoutMs) {
 }
 
 /**
+ * Run `node <args>` and resolve to the SAME shape `spawnSync` returns — `{ status, signal,
+ * stdout, stderr, error }` — so `assertSpawnUsable` needs no change. Timeout → SIGKILL +
+ * `error.code = 'ETIMEDOUT'` (matching `spawnSync`'s own timeout shape); combined stdout+stderr
+ * over `maxBuffer` → SIGKILL + `error.code = 'ENOBUFS'` (matching `spawnSync`'s own overflow
+ * shape). Concurrency is the whole reason this exists: `spawnSync` blocks the event loop, so N
+ * mutations could never run in parallel through it.
+ */
+export function spawnSuite(args, opts) {
+  return new Promise((settle) => runSpawnSuiteProcess(args, opts, settle))
+}
+
+/** Build the ENOBUFS result `spawnSuite` finishes with on overflow. */
+function spawnSuiteOverflowResult(stdout, stderr) {
+  return {
+    status: null,
+    signal: null,
+    stdout,
+    stderr,
+    error: Object.assign(new Error('spawnSuite output exceeded maxBuffer'), {
+      code: 'ENOBUFS',
+    }),
+  }
+}
+
+/** Wire the child's `error`/`close` events to `finish`, distinguishing a timeout close. */
+function wireSpawnSuiteExit(child, finish, getState) {
+  child.on('error', (error) => {
+    const { stdout, stderr } = getState()
+    finish({ status: null, signal: null, stdout, stderr, error })
+  })
+  child.on('close', (status, signal) => {
+    const { stdout, stderr, timedOut } = getState()
+    // A child that exited on its own before the timer fired closes with a real status; only a
+    // signal-terminated one (`status === null`) timed out.
+    if (timedOut && status === null) {
+      finish({
+        status,
+        signal,
+        stdout,
+        stderr,
+        error: Object.assign(new Error('spawnSuite timed out'), { code: 'ETIMEDOUT' }),
+      })
+      return
+    }
+    finish({ status, signal, stdout, stderr, error: null })
+  })
+}
+
+/**
+ * Collect the child's stdout/stderr as UTF-8 text and call `onOverflow` once their combined BYTE
+ * count passes `maxBuffer` — bytes, as `spawnSync` counts it. `setEncoding` decodes a multi-byte
+ * character split across two chunks whole; appending raw chunks would decode each half alone.
+ */
+function collectSpawnOutput(child, maxBuffer, onOverflow) {
+  const out = { stdout: '', stderr: '', bytes: 0 }
+  for (const name of ['stdout', 'stderr']) {
+    child[name].setEncoding('utf8')
+    child[name].on('data', (d) => {
+      out[name] += d
+      out.bytes += Buffer.byteLength(d)
+      if (out.bytes > maxBuffer) onOverflow()
+    })
+  }
+  return out
+}
+
+/** Create the child, wire its output/exit handlers, and settle `spawnSuite`'s promise. */
+function runSpawnSuiteProcess(args, { cwd, timeout, maxBuffer, killSignal = 'SIGKILL' }, settle) {
+  const child = spawn('node', args, { cwd })
+  let done = false
+  let timedOut = false
+  const finish = (result) => {
+    if (done) return
+    done = true
+    clearTimeout(timer)
+    settle(result)
+  }
+  const timer = setTimeout(() => {
+    timedOut = true
+    child.kill(killSignal)
+  }, timeout)
+  const out = collectSpawnOutput(child, maxBuffer, () => {
+    child.kill(killSignal)
+    finish(spawnSuiteOverflowResult(out.stdout, out.stderr))
+  })
+  wireSpawnSuiteExit(child, finish, () => ({ stdout: out.stdout, stderr: out.stderr, timedOut }))
+}
+
+/**
+ * SYNC half of one mutation: make the worktree, assert the anchor is unique, write the mutated
+ * target. Runs on the main thread like every git call — worktrees never race each other even
+ * under `--jobs N`, because the event loop serialises them.
+ */
+function prepareMutation({ root, wt, data, mut, ref }) {
+  git(['worktree', 'add', '--detach', wt, ref], root)
+  const targetPath = join(wt, data.target)
+  let source
+  try {
+    source = readFileSync(targetPath, 'utf8')
+  } catch (err) {
+    throw new Error(`mutation ${mut.id}: cannot read target ${data.target} — ${err.message}`)
+  }
+  assertSingleOccurrence(source, mut.find, mut.id)
+  // A FUNCTION replacer is required. With a string pattern, `$&`, `$'`, `` $` `` and `$$` in
+  // the REPLACEMENT are still expanded, so a mutation whose replacement code contains any of
+  // them would write text the data file does not declare — while assertSingleOccurrence had
+  // just reported a clean single match. The verdict would then describe a break nobody wrote.
+  writeFileSync(
+    targetPath,
+    source.replace(mut.find, () => mut.replace),
+    'utf8',
+  )
+}
+
+/** SYNC half: turn a finished `spawnSuite` result into a verdict. Throws for NO VERDICT. */
+function finishMutation(mut, r) {
+  assertSpawnUsable(mut.id, r, SUITE_TIMEOUT_MS)
+  let tap
+  try {
+    tap = parseTap(r.stdout ?? '')
+  } catch (err) {
+    throw new Error(`mutation ${mut.id}: ${err.message}\n${(r.stderr || '').trim()}`)
+  }
+  return { id: mut.id, ...compareResult(mut.expectRed, tap.failed), failed: tap.failed }
+}
+
+/**
+ * Remove a mutation's worktree, best-effort. `--force` because the tree is dirty by
+ * construction: we just mutated a tracked file in it.
+ */
+function cleanupWorktree(root, wt) {
+  try {
+    git(['worktree', 'remove', '--force', wt], root)
+  } catch {
+    // Best effort; the prune keeps the primary repo's worktree list from accumulating
+    // stale administrative entries even if the directory removal lost a race.
+    try {
+      git(['worktree', 'prune'], root)
+    } catch {
+      /* nothing further this process can do; the real error is the one being thrown */
+    }
+    // The directory is made by `mkdtempSync` BEFORE prepareMutation runs, so a failed
+    // `worktree add` leaves a path git never registered: `worktree remove` refuses it and
+    // `prune` only tidies git's own admin entries. Neither deletes it. Harmless once; per-mutation
+    // fault isolation makes it once PER MUTATION, so remove the directory directly. A no-op when
+    // git already did.
+    try {
+      rmSync(wt, { recursive: true, force: true })
+    } catch {
+      /* the temp dir outlives this run; tmpdir() is reclaimed by the OS */
+    }
+  }
+}
+
+/**
  * Apply ONE mutation in a throwaway worktree and report the verdict.
  *
  * The ordering is the point: create the worktree, assert the anchor is unique, write, run,
  * compare, and remove the worktree in `finally` so cleanup survives a throw. A leaked worktree
  * is a documented bypass class in `.claude/agents/test-writer.md` — it keeps the mutated code
- * on disk while the primary repo's status, HEAD and stash list are all blind to it.
+ * on disk while the primary repo's status, HEAD and stash list are all blind to it. Only the
+ * suite run (`spawnSuite`) is concurrent; `mkdtempSync` and every git call are synchronous on the
+ * main thread, so they never overlap across mutations even under `--jobs N`.
  */
-function runMutation({ root, data, mut, base, ref }) {
+async function runMutation({ root, data, mut, base, ref }) {
   const wt = mkdtempSync(join(base, 'run-mutations-'))
   try {
-    git(['worktree', 'add', '--detach', wt, ref], root)
-    const targetPath = join(wt, data.target)
-    let source
-    try {
-      source = readFileSync(targetPath, 'utf8')
-    } catch (err) {
-      throw new Error(`mutation ${mut.id}: cannot read target ${data.target} — ${err.message}`)
-    }
-    assertSingleOccurrence(source, mut.find, mut.id)
-    // A FUNCTION replacer is required. With a string pattern, `$&`, `$'`, `` $` `` and `$$` in
-    // the REPLACEMENT are still expanded, so a mutation whose replacement code contains any of
-    // them would write text the data file does not declare — while assertSingleOccurrence had
-    // just reported a clean single match. The verdict would then describe a break nobody wrote.
-    writeFileSync(
-      targetPath,
-      source.replace(mut.find, () => mut.replace),
-      'utf8',
-    )
-
+    prepareMutation({ root, wt, data, mut, ref })
     // cwd is the WORKTREE ROOT, not the suite's directory: the suites resolve
     // `.claude/limits.json` by a CWD-relative path and fail with ENOENT from anywhere else.
-    const r = spawnSync('node', ['--test', '--test-reporter=tap', ...data.suites], {
+    const r = await spawnSuite(['--test', '--test-reporter=tap', ...data.suites], {
       cwd: wt,
       maxBuffer: MAX_BUFFER,
-      encoding: 'utf8',
       // `node --test` applies no default per-test timeout, so a mutation that produces an
       // unbounded loop would block until CI killed the job — no verdict, no partial report.
       // Not hypothetical: `check-file-size-guard.mutations.json` records a break that HANGS,
@@ -739,47 +978,19 @@ function runMutation({ root, data, mut, base, ref }) {
       // name the timeout there. Every route THROUGH THAT HELPER leads to exit 2: a harness failure,
       // never a verdict. `runMutation`'s normal return is a separate path and yields 0 or 1.
       timeout: SUITE_TIMEOUT_MS,
-      // SIGKILL, not the SIGTERM default: `spawnSync` keeps WAITING when the child handles the
-      // signal without exiting, so an interceptable kill turns the bound above into a
+      // SIGKILL, not the SIGTERM default: an interceptable kill turns the bound above into a
       // suggestion. Today's suites are bare `node --test` and trap nothing — the point is that
       // the budget must hold for a suite that DOES, since a stall reports no verdict at all.
       killSignal: 'SIGKILL',
     })
-    assertSpawnUsable(mut.id, r, SUITE_TIMEOUT_MS)
-    let tap
-    try {
-      tap = parseTap(r.stdout ?? '')
-    } catch (err) {
-      throw new Error(`mutation ${mut.id}: ${err.message}\n${(r.stderr || '').trim()}`)
-    }
-    return { id: mut.id, ...compareResult(mut.expectRed, tap.failed), failed: tap.failed }
+    return finishMutation(mut, r)
   } finally {
-    // --force because the tree is dirty by construction: we just mutated a tracked file in it.
-    try {
-      git(['worktree', 'remove', '--force', wt], root)
-    } catch {
-      // Best effort; the prune keeps the primary repo's worktree list from accumulating
-      // stale administrative entries even if the directory removal lost a race.
-      try {
-        git(['worktree', 'prune'], root)
-      } catch {
-        /* nothing further this process can do; the real error is the one being thrown */
-      }
-      // The directory is made by `mkdtempSync` BEFORE the try, so a failed `worktree add` leaves
-      // a path git never registered: `worktree remove` refuses it and `prune` only tidies git's
-      // own admin entries. Neither deletes it. Harmless once; per-mutation fault isolation makes
-      // it once PER MUTATION, so remove the directory directly. A no-op when git already did.
-      try {
-        rmSync(wt, { recursive: true, force: true })
-      } catch {
-        /* the temp dir outlives this run; tmpdir() is reclaimed by the OS */
-      }
-    }
+    cleanupWorktree(root, wt)
   }
 }
 
-function selectFiles(root, guard) {
-  const all = dataFiles(root)
+/** `all`, narrowed to `guard`'s basename, or `all` unchanged when `guard` is falsy. */
+function selectFiles(all, guard) {
   if (!guard) return all
   const hit = all.filter((f) => f.basename === guard || f.basename === guard.replace(/\.mjs$/, ''))
   if (hit.length === 0) {
@@ -791,7 +1002,7 @@ function selectFiles(root, guard) {
 }
 
 function modeList(root, guard) {
-  const files = selectFiles(root, guard)
+  const files = selectFiles(dataFiles(root), guard)
   if (files.length === 0) console.log('no *.mutations.json data files found')
   for (const file of files) {
     const data = loadDataFile(file)
@@ -844,7 +1055,7 @@ function surveySuites(root, data, ids, readSuite = workingTreeSuite) {
 }
 
 function modeCoverage(root, guard) {
-  const files = selectFiles(root, guard)
+  const files = selectFiles(dataFiles(root), guard)
   if (files.length === 0) console.log('no *.mutations.json data files found')
   let dangling = 0
   for (const file of files) {
@@ -869,7 +1080,13 @@ function modeCoverage(root, guard) {
 }
 
 /**
- * Run ONE mutation and report it. Returns 'caught' | 'bad' | 'fault'; never throws.
+ * Run ONE mutation. Returns `{ outcome, lines, result }` — never throws, never prints.
+ *
+ * `outcome` is 'caught' | 'bad' | 'fault'. `lines` is the report `gradeScoped` prints, in order,
+ * once every mutation in the batch has a verdict — printing here would interleave across
+ * concurrent mutations under `--jobs N` and make the report order depend on completion order
+ * instead of the data-file/mutation order R2 requires. `result` is `{ id, status, observed }`
+ * for `onResult`, or null for a fault (a fault has no observed set).
  *
  * ISOLATE the fault, do NOT swallow it. Every OTHER mutation is independent of this one, so
  * aborting the batch throws away every verdict it could still have earned — both stale anchors on
@@ -882,31 +1099,31 @@ function modeCoverage(root, guard) {
  * and both mean the same thing about the RUN, which is why they share a verdict — but a reader
  * told only about recipes will go audit a data file that is fine.
  */
-function gradeOne({ root, data, mut, base, ref, onResult }) {
+async function gradeOne({ root, data, mut, base, ref }) {
   let res
   try {
-    res = runMutation({ root, data, mut, base, ref })
+    res = await runMutation({ root, data, mut, base, ref })
   } catch (err) {
-    console.log(`  FAULT     ${mut.id}`)
-    console.log(`    ${err.message}`)
-    return 'fault'
+    return {
+      outcome: 'fault',
+      lines: [`  FAULT     ${mut.id}`, `    ${err.message}`],
+      result: null,
+    }
   }
-  // Deliberately AFTER the catch: a fault has no observed set, and reporting one would let
-  // `--update-expected` write an expectation for a mutation that never ran. `res.failed` is the
-  // raw TAP list, so it can repeat a name; the SET is what an `expectRed` means.
-  onResult?.({ id: mut.id, status: res.status, observed: [...new Set(res.failed)] })
+  // `res.failed` is the raw TAP list, so it can repeat a name; the SET is what an `expectRed`
+  // means, and is what `--update-expected` would write.
+  const result = { id: mut.id, status: res.status, observed: [...new Set(res.failed)] }
   if (res.status === 'CAUGHT') {
-    console.log(`  CAUGHT    ${mut.id}`)
-    return 'caught'
+    return { outcome: 'caught', lines: [`  CAUGHT    ${mut.id}`], result }
   }
-  console.log(`  ${res.status.padEnd(9)} ${mut.id}`)
-  console.log(`    expected red : ${mut.expectRed.join(' | ') || '(none)'}`)
-  console.log(`    actually red : ${res.failed.join(' | ') || '(none — the suites were green)'}`)
-  if (res.missing.length > 0) console.log(`    never went red: ${res.missing.join(' | ')}`)
+  const lines = [`  ${res.status.padEnd(9)} ${mut.id}`]
+  lines.push(`    expected red : ${mut.expectRed.join(' | ') || '(none)'}`)
+  lines.push(`    actually red : ${res.failed.join(' | ') || '(none — the suites were green)'}`)
+  if (res.missing.length > 0) lines.push(`    never went red: ${res.missing.join(' | ')}`)
   if (res.unexpected.length > 0) {
-    console.log(`    also went red: ${res.unexpected.join(' | ')} — the claim is under-specific`)
+    lines.push(`    also went red: ${res.unexpected.join(' | ')} — the claim is under-specific`)
   }
-  return 'bad'
+  return { outcome: 'bad', lines, result }
 }
 
 /**
@@ -1114,8 +1331,8 @@ function reportSurvivor(file, id) {
   console.error('      the MUTATION, not the expectation. Nothing written for this id.')
 }
 
-function modeUpdateExpected(root, guard, scratch) {
-  const files = selectFiles(root, guard)
+async function modeUpdateExpected(root, guard, scratch, jobs) {
+  const files = selectFiles(dataFiles(root), guard)
   if (firstDirtyFile(root, files)) return 2
   // Keyed by DATA FILE and id, never id alone. `validateDataFile` rejects a duplicate id within
   // ONE file and says nothing across files, and nine ids are in fact shared between the
@@ -1124,10 +1341,11 @@ function modeUpdateExpected(root, guard, scratch) {
   // observed set into another guard's entry. `--guard` hides it: one file cannot collide.
   const keyOf = (file, id) => `${file}\u0000${id}`
   const graded = new Map()
-  const runExit = modeRun({
+  const runExit = await modeRun({
     root,
     guard,
     scratch,
+    jobs,
     onResult: (r) => graded.set(keyOf(r.file, r.id), r),
   })
   if (runExit === 2) {
@@ -1190,31 +1408,109 @@ function loadScoped(root, files, ref, staged) {
   return filterByStagedScope(root, loaded, ref)
 }
 
-/** Grade every mutation in every `scoped` data file; tallies caught/bad/faults/total. */
-function gradeScoped(scoped, { root, base, ref, readSuite, onResult }) {
-  let caught = 0
-  let bad = 0
-  let faults = 0
-  let total = 0
-  for (const { file, data } of scoped) {
-    // A dangling id is a stale reference, and a stale reference is the same class of defect as a
-    // stale anchor: it reads as coverage and grades nothing. Fail before anything is graded.
+/**
+ * Run `tasks` (zero-arg thunks returning a Promise) with at most `jobs` in flight at once.
+ * Resolves to their results in INPUT order regardless of COMPLETION order.
+ *
+ * This is the whole reason R2 (byte-identical output for any `jobs`) holds: a task never prints
+ * — `gradeOne` returns lines, it does not emit them — so concurrency changes only WHEN work
+ * happens, never in what order it is reported. `gradeScoped` prints from this array afterward.
+ */
+export async function runPool(tasks, jobs) {
+  const results = new Array(tasks.length)
+  let next = 0
+  const worker = async () => {
+    while (next < tasks.length) {
+      const i = next++
+      results[i] = await tasks[i]()
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(jobs, tasks.length) }, worker))
+  return results
+}
+
+/**
+ * A dangling id is a stale reference, and a stale reference is the same class of defect as a
+ * stale anchor: it reads as coverage and grades nothing. Fail before anything is graded.
+ */
+function assertNoDanglingIds(scoped, root, readSuite) {
+  for (const { data } of scoped) {
     const ids = new Set(data.mutations.map((m) => m.id))
     const problems = surveySuites(root, data, ids, readSuite).problems
     if (problems.length > 0) throw new Error(problems.join('\n  '))
-    console.log(`\n${file.basename}${DATA_SUFFIX}  → ${data.target}`)
-    // Hoisted out of the mutation loop: one closure per FILE. The DATA FILE is what scopes a
-    // mutation id — ids are unique within one file and do collide across files.
-    const report = onResult ? (r) => onResult({ ...r, file: file.path }) : null
+  }
+}
+
+/** Flatten every `scoped` data file's mutations into one grading-task list, paired with owners. */
+function buildGradeTasks(scoped, { root, base, ref }) {
+  const tasks = []
+  const owners = []
+  for (const { file, data } of scoped) {
     for (const mut of data.mutations) {
-      total++
-      const outcome = gradeOne({ root, data, mut, base, ref, onResult: report })
-      if (outcome === 'caught') caught++
-      else if (outcome === 'bad') bad++
-      else faults++
+      tasks.push(() => gradeOne({ root, data, mut, base, ref }))
+      owners.push({ file, data })
     }
   }
-  return { caught, bad, faults, total }
+  return { tasks, owners }
+}
+
+/** Print each result in input order and tally caught/bad/faults; calls `onResult` per grade. */
+function tallyGradeResults(results, owners, onResult) {
+  let caught = 0
+  let bad = 0
+  let faults = 0
+  let currentFile = null
+  for (let i = 0; i < results.length; i++) {
+    const { file, data } = owners[i]
+    if (file !== currentFile) {
+      console.log(`\n${file.basename}${DATA_SUFFIX}  → ${data.target}`)
+      currentFile = file
+    }
+    const { outcome, lines, result } = results[i]
+    for (const line of lines) console.log(line)
+    if (outcome === 'caught') caught++
+    else if (outcome === 'bad') bad++
+    else faults++
+    if (result) onResult?.({ ...result, file: file.path })
+  }
+  return { caught, bad, faults }
+}
+
+/**
+ * Grade every mutation in every `scoped` data file; tallies caught/bad/faults/total.
+ *
+ * Dangling-id validation runs for EVERY file up front, before any task is built — a stale
+ * reference is caught before a single mutation runs, whatever `jobs` is. Grading itself runs
+ * through `runPool`, so up to `jobs` mutations run at once; printing happens afterward, walking
+ * the results in INPUT (data-file/mutation) order, so the report reads identically at any `jobs`.
+ */
+async function gradeScoped(scoped, { root, base, ref, readSuite, onResult, jobs }) {
+  assertNoDanglingIds(scoped, root, readSuite)
+  const { tasks, owners } = buildGradeTasks(scoped, { root, base, ref })
+  const results = await runPool(tasks, jobs)
+  const { caught, bad, faults } = tallyGradeResults(results, owners, onResult)
+  return { caught, bad, faults, total: results.length }
+}
+
+/**
+ * Resolve the ref, the candidate data files under it, and the staged-scoped subset of those
+ * files, for one `modeRun` invocation. `ref` first: under `--staged` the CANDIDATE file list
+ * itself comes from the ref (`dataFilesAt`), not from disk — so the ref must exist before files
+ * can be selected.
+ */
+function resolveRunScope(root, guard, scratch, staged) {
+  const ref = staged ? indexCommit(root) : 'HEAD'
+  const files = selectFiles(staged ? dataFilesAt(root, ref) : dataFiles(root), guard)
+  if (files.length === 0) {
+    // NOT exit 0. Exit 0 asserts "every encoded mutation was CAUGHT"; a run that graded NOTHING
+    // has earned no such claim. A data file emptied, renamed, or moved out of `.claude/hooks/`
+    // would otherwise turn this oracle permanently green while checking nothing — the precise
+    // failure mode the tool exists to detect in other people's tests.
+    throw new Error('no *.mutations.json data files found — nothing graded, so no verdict')
+  }
+  const base = scratchBase(root, scratch)
+  const scoped = loadScoped(root, files, ref, staged)
+  return { ref, base, scoped }
 }
 
 /**
@@ -1225,31 +1521,23 @@ function gradeScoped(scoped, { root, base, ref, readSuite, onResult }) {
  * @param opts.onResult   called once per GRADED mutation with `{ file, id, status, observed }`;
  *                        null for a plain run. Never called for a fault, which has no observed set.
  * @param opts.staged     grade the INDEX instead of HEAD, scoped to data files touching what is staged
+ * @param opts.jobs       run up to this many mutations concurrently (default 1)
  */
-function modeRun({ root, guard, scratch, onResult = null, staged = false }) {
-  const files = selectFiles(root, guard)
-  if (files.length === 0) {
-    // NOT exit 0. Exit 0 asserts "every encoded mutation was CAUGHT"; a run that graded NOTHING
-    // has earned no such claim. A data file emptied, renamed, or moved out of `.claude/hooks/`
-    // would otherwise turn this oracle permanently green while checking nothing — the precise
-    // failure mode the tool exists to detect in other people's tests.
-    throw new Error('no *.mutations.json data files found — nothing graded, so no verdict')
-  }
-  const base = scratchBase(root, scratch)
-  const ref = staged ? indexCommit(root) : 'HEAD'
-  const scoped = loadScoped(root, files, ref, staged)
+async function modeRun({ root, guard, scratch, onResult = null, staged = false, jobs = 1 }) {
+  const { ref, base, scoped } = resolveRunScope(root, guard, scratch, staged)
   if (scoped.length === 0) {
     console.log(
-      '\nnothing staged touches a data file, its target, a suite, a helper a suite imports, or a path a suite names — nothing to grade',
+      '\nnothing staged touches a data file, its target, a suite, or a file reachable from them — nothing to grade',
     )
     return 0
   }
-  const { caught, bad, faults, total } = gradeScoped(scoped, {
+  const { caught, bad, faults, total } = await gradeScoped(scoped, {
     root,
     base,
     ref,
     readSuite: committedSuiteAt(ref),
     onResult,
+    jobs,
   })
   console.log(
     `\n${total} mutations run, ${caught} caught, ${bad} survived-or-mismatched, ${faults} could not be graded`,
@@ -1261,13 +1549,12 @@ function modeRun({ root, guard, scratch, onResult = null, staged = false }) {
   return bad === 0 ? 0 : 1
 }
 
-export function main(args) {
+export async function main(args) {
   const parsed = parseArgs(args)
   if (parsed.error) {
     console.error(`✖ mutation harness: ${parsed.error} — BLOCKING`)
-    console.error(
-      '  usage: run-mutations.mjs [--list | --coverage | --update-expected] [--staged] [--guard <basename>] [--scratch <dir>]',
-    )
+    console.error('  usage: run-mutations.mjs [--list | --coverage | --update-expected] [--staged]')
+    console.error('           [--guard <basename>] [--scratch <dir>] [--jobs <N>]')
     // Said here, not only in the file header, because the people who need it are authoring
     // `<guard>.mutations.json` and will never open this source file.
     console.error(
@@ -1282,19 +1569,28 @@ export function main(args) {
   if (parsed.mode === 'list') return modeList(root, parsed.guard)
   if (parsed.mode === 'coverage') return modeCoverage(root, parsed.guard)
   if (parsed.mode === 'update-expected') {
-    return modeUpdateExpected(root, parsed.guard, parsed.scratch)
+    return modeUpdateExpected(root, parsed.guard, parsed.scratch, parsed.jobs)
   }
-  return modeRun({ root, guard: parsed.guard, scratch: parsed.scratch, staged: parsed.staged })
+  return modeRun({
+    root,
+    guard: parsed.guard,
+    scratch: parsed.scratch,
+    staged: parsed.staged,
+    jobs: parsed.jobs,
+  })
 }
 
 if (argv[1] && import.meta.url === pathToFileURL(argv[1]).href) {
-  try {
-    exit(main(argv.slice(2)))
-  } catch (err) {
-    // Fail CLOSED at 2, never 1: see the exit-code rationale in the header. A harness fault
-    // reported as a test finding gets remedied by deleting the test.
-    console.error(`✖ mutation harness: could not run — NO VERDICT: ${err.message}`)
-    console.error('  This is a harness/environment failure, NOT evidence that a test is unpinned.')
-    exit(2)
-  }
+  main(argv.slice(2)).then(
+    (code) => exit(code),
+    (err) => {
+      // Fail CLOSED at 2, never 1: see the exit-code rationale in the header. A harness fault
+      // reported as a test finding gets remedied by deleting the test.
+      console.error(`✖ mutation harness: could not run — NO VERDICT: ${err.message}`)
+      console.error(
+        '  This is a harness/environment failure, NOT evidence that a test is unpinned.',
+      )
+      exit(2)
+    },
+  )
 }

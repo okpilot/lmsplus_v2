@@ -13,6 +13,14 @@ import { join } from 'node:path'
 import test, { after } from 'node:test'
 import { blobAt, localImports, namedPaths, relPath, touchesStaged } from './run-mutations.mjs'
 
+/** A fake `readAt`, keyed by root-relative path — no real git, no worktree. */
+function fakeReader(root, files) {
+  return (p) => {
+    const rel = relPath(root, p)
+    return Object.hasOwn(files, rel) ? files[rel] : null
+  }
+}
+
 const fixtureDirs = []
 after(() => {
   for (const dir of fixtureDirs) rmSync(dir, { recursive: true, force: true })
@@ -42,7 +50,7 @@ test('relPath renders an absolute path under root as root-relative POSIX', () =>
 })
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// localImports and the one-hop scope reach
+// localImports and the scope reach
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 test('localImports resolves relative specifiers against the importer, and skips bare ones', () => {
@@ -141,6 +149,95 @@ test('touchesStaged returns false when readAt returns null for all suites', () =
   const readAt = () => null
   // staged has a path that could only match via readAt (import/named-path hop, not direct)
   assert.equal(touchesStaged(root, file, data, new Set(['hooks/kit.mjs']), readAt), false)
+})
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// reachable / touchesStaged — the TRANSITIVE walk (#1329), never just one hop
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+// MUTATION: in `reachable`, stop pushing `imp` onto the queue (collect it into `found` but never
+// walk further) → the walk drops back to ONE hop, and a commit staging only a file TWO imports
+// away from a suite grades nothing and exits 0 while the edit can redden the suite.
+// GROUP: reachable-two-hop-suite-chain
+test('touchesStaged follows a suite import chain two hops deep', () => {
+  const root = '/repo'
+  const file = { path: '/repo/.claude/hooks/x.mutations.json' }
+  const data = { target: 'hooks/x.mjs', suites: ['hooks/x.test.mjs'], mutations: [] }
+  const readAt = fakeReader(root, {
+    'hooks/x.test.mjs': "import { a } from './a.mjs'\n",
+    'hooks/a.mjs': "import { b } from './b.mjs'\n",
+    'hooks/b.mjs': 'export const b = 1\n',
+  })
+  assert.equal(touchesStaged(root, file, data, new Set(['hooks/b.mjs']), readAt), true)
+  assert.equal(touchesStaged(root, file, data, new Set(['hooks/unrelated.mjs']), readAt), false)
+})
+
+// MUTATION: delete the `reachable(root, [data.target], readAt, false)` walk from `touchesStaged`
+// → #1329 regresses: a commit staging only a helper the TARGET imports (never the suite) grades
+// nothing and exits 0 while the edit can redden every suite that exercises the target.
+// GROUP: touchesstaged-target-own-imports
+test("touchesStaged follows the target's own imports, not only a suite's", () => {
+  const root = '/repo'
+  const file = { path: '/repo/.claude/hooks/x.mutations.json' }
+  const data = { target: 'hooks/x.mjs', suites: ['hooks/x.test.mjs'], mutations: [] }
+  const readAt = fakeReader(root, {
+    'hooks/x.mjs': "import { k } from './kit.mjs'\n",
+    'hooks/x.test.mjs': 'no imports here\n',
+  })
+  assert.equal(touchesStaged(root, file, data, new Set(['hooks/kit.mjs']), readAt), true)
+  assert.equal(touchesStaged(root, file, data, new Set(['hooks/other.mjs']), readAt), false)
+})
+
+// Smoke test, no MUTATION claim: deleting `reachable`'s `visited.has(rel)` guard would turn this
+// into an unbounded synchronous loop rather than a red test — encoding it as a graded mutation
+// would make every run of this corpus hang for the full SUITE_TIMEOUT_MS and FAULT, never CAUGHT.
+// This only confirms the walk actually terminates on a cycle, which is the precondition for the
+// two tests above to mean anything at all.
+test('touchesStaged terminates on an import cycle instead of looping forever', () => {
+  const root = '/repo'
+  const file = { path: '/repo/.claude/hooks/x.mutations.json' }
+  const data = { target: 'hooks/x.mjs', suites: ['hooks/x.test.mjs'], mutations: [] }
+  const readAt = fakeReader(root, {
+    'hooks/x.test.mjs': "import { a } from './a.mjs'\n",
+    'hooks/a.mjs': "import { b } from './b.mjs'\n",
+    'hooks/b.mjs': "import { a } from './a.mjs'\n",
+  })
+  assert.equal(touchesStaged(root, file, data, new Set(['hooks/unrelated.mjs']), readAt), false)
+  assert.equal(touchesStaged(root, file, data, new Set(['hooks/a.mjs']), readAt), true)
+})
+
+// MUTATION: delete the `abs !== root && !abs.startsWith(root + sep)` guard in `localImports` →
+// a specifier resolving outside the repo root reaches `relPath`, which THROWS — a suite or target
+// importing anything via a `../` chain that escapes root (a symlinked shim, a monorepo sibling)
+// faults the whole `--staged` run instead of the walk simply skipping what it cannot follow.
+// GROUP: localimports-skips-out-of-root
+test('localImports skips a specifier resolving outside the repo root, rather than throwing', () => {
+  const root = '/repo'
+  const text = "import { x } from '../../etc/passwd.mjs'\n"
+  assert.deepEqual(localImports(root, 'hooks/f.mjs', text), [])
+})
+
+test('touchesStaged does not throw when a reached file imports outside the repo root', () => {
+  const root = '/repo'
+  const file = { path: '/repo/.claude/hooks/x.mutations.json' }
+  const data = { target: 'hooks/x.mjs', suites: ['hooks/x.test.mjs'], mutations: [] }
+  const readAt = fakeReader(root, {
+    'hooks/x.test.mjs': "import { x } from '../../etc/passwd.mjs'\nimport { k } from './kit.mjs'\n",
+    'hooks/kit.mjs': 'export const k = 1\n',
+  })
+  assert.doesNotThrow(() => touchesStaged(root, file, data, new Set(['hooks/kit.mjs']), readAt))
+  assert.equal(touchesStaged(root, file, data, new Set(['hooks/kit.mjs']), readAt), true)
+})
+
+// MUTATION: drop the `.replace(/^(?:\.\/)+/, '')` strip from `namedPaths` → a literal spelled with
+// a leading `./` (`readFileSync('./.claude/limits.json')`) never equals the root-relative form
+// every caller stages against, so a commit staging only that file grades nothing and exits 0.
+// GROUP: namedpaths-strips-leading-dot-slash
+test('namedPaths strips a leading ./ so the literal matches the root-relative staged path', () => {
+  assert.deepEqual(namedPaths("readFileSync('./.claude/limits.json', 'utf8')"), [
+    '.claude/limits.json',
+  ])
+  assert.deepEqual(namedPaths('readFileSync(`././fixtures/a.json`)'), ['fixtures/a.json'])
 })
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────

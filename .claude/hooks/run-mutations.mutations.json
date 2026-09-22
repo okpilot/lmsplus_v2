@@ -6,7 +6,8 @@
     ".claude/hooks/run-mutations.parse.test.mjs",
     ".claude/hooks/run-mutations.write.test.mjs",
     ".claude/hooks/run-mutations.staged.test.mjs",
-    ".claude/hooks/run-mutations.scope.test.mjs"
+    ".claude/hooks/run-mutations.scope.test.mjs",
+    ".claude/hooks/run-mutations.jobs.test.mjs"
   ],
   "mutations": [
     {
@@ -85,7 +86,9 @@
         "a survivor still fails the run when another entry was rewritten",
         "a name the suite reddened twice is written once",
         "two data files sharing a mutation id each get their own observed set",
-        "a --staged run grades a file that is only staged, not committed"
+        "a --staged run grades a file that is only staged, not committed",
+        "grading with --jobs 1 and --jobs 3 produces byte-identical output and the same exit code",
+        "a --staged run still selects a data file deleted from the working tree but present in the index"
       ],
       "note": "Inverting the core filter reddens every parseTap case. Every name it reddens is listed rather than the one the comment names — an exact-set comparison will not accept a subset. Anchor RE-POINTED in the same commit that reformatted its target: the SKIP-filter fix turned a one-line `.filter(...)` into a four-line form and orphaned this entry at count=0. Caught by implementation-critic BEFORE commit; uncaught it would have aborted the whole run at exit 2. expectRed WIDENED after the harness's own run reported MISMATCH: a test added later in the same branch also reddens under this break. Recorded rather than trimmed — a superset means the claim was under-specific (§7), and exact-set comparison is what surfaced it. expectRed widened again when the isAggregate SKIP test landed — THIRD occurrence of a new test invalidating existing entries on this branch, which is the maintenance pressure `--update-expected` is recorded in the spec to absorb."
     },
@@ -97,7 +100,8 @@
         "reports SURVIVED when nothing went red at all",
         "--update-expected writes nothing for a SURVIVED entry and says why",
         "a survivor still fails the run when another entry was rewritten",
-        "a --staged run grades a file that is only staged, not committed"
+        "a --staged run grades a file that is only staged, not committed",
+        "a --staged run still selects a data file deleted from the working tree but present in the index"
       ]
     },
     {
@@ -218,7 +222,9 @@
         "a normal run never writes to the data file",
         "a name the suite reddened twice is written once",
         "two data files sharing a mutation id each get their own observed set",
-        "a --staged run grades a file that is only staged, not committed"
+        "a --staged run grades a file that is only staged, not committed",
+        "grading with --jobs 1 and --jobs 3 produces byte-identical output and the same exit code",
+        "a --staged run still selects a data file deleted from the working tree but present in the index"
       ],
       "note": "The test's MUTATION: comment names this exact break. count=1 → condition true → throws (breaks 'accepts'); count=2 → condition false → no throw (breaks 'refuses ambiguous'). count=0 stays: 0!==2 is true → still throws. WIDENED when the spawned-process tests joined the suite list: those tests run the WHOLE harness against a temp repo, so a break in core decision logic reddens them too. That coupling is real, not noise — if this break ships, the end-to-end harness IS broken — and the exact-set comparison is what surfaced it rather than passing a superset as CAUGHT."
     },
@@ -236,14 +242,16 @@
         "a staged run scopes to data files that touch what is staged, not every file on disk",
         "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top",
         "a guard whose suite is absent at the ref is scoped out, not a fault",
-        "a data file on disk but absent from the index is dropped without faulting the run",
         "a --staged run exits 0 when nothing staged is in the scope of any guard",
         "a --staged run keeps a guard in scope when its target is renamed away",
         "reports a diagnostic when HEAD is unborn under --staged",
         "reports a diagnostic when the index has unresolved conflicts under --staged",
         "defaults to the run mode with no flags",
         "reads the value of the --scratch option",
-        "a normal run never writes to the data file"
+        "a normal run never writes to the data file",
+        "a --staged run still selects a data file deleted from the working tree but present in the index",
+        "a data file on disk but absent from the index never becomes a --staged candidate",
+        "a --staged --guard naming a data file absent from the index refuses to run, not silently 0"
       ],
       "note": "The bare command would print ids and exit 0 without running a mutation — indistinguishable from a fully caught run. expectRed WIDENED after the harness's own run reported MISMATCH: a test added later in the same branch also reddens under this break. Recorded rather than trimmed — a superset means the claim was under-specific (§7), and exact-set comparison is what surfaced it. WIDENED when the spawned-process tests joined the suite list: those tests run the WHOLE harness against a temp repo, so a break in core decision logic reddens them too. That coupling is real, not noise — if this break ships, the end-to-end harness IS broken — and the exact-set comparison is what surfaced it rather than passing a superset as CAUGHT."
     },
@@ -252,11 +260,18 @@
       "find": "  opts[a.slice(2)] = value\n  return { i: i + 1 }",
       "replace": "  opts[a.slice(2)] = value\n  return { i }",
       "expectRed": [
+        "grading with --jobs 1 and --jobs 3 produces byte-identical output and the same exit code",
+        "a --staged run still selects a data file deleted from the working tree but present in the index",
+        "indexCommit succeeds with no git identity configured anywhere",
+        "parseArgs propagates --jobs N to the jobs field in the result",
+        "parseArgs returns an error when --jobs has an invalid value",
+        "parseArgs rejects --jobs combined with --list",
+        "parseArgs rejects --jobs combined with --coverage",
         "a dangling GROUP id makes coverage mode exit non-zero, not merely print",
         "reports the claim sites a suite carries and the entries excused from encoding",
         "a --staged run grades a file that is only staged, not committed",
         "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top",
-        "a data file on disk but absent from the index is dropped without faulting the run",
+        "a --staged --guard naming a data file absent from the index refuses to run, not silently 0",
         "reports a diagnostic when HEAD is unborn under --staged",
         "reports a diagnostic when the index has unresolved conflicts under --staged",
         "reads the value of an option flag",
@@ -436,7 +451,19 @@
       "id": "spawn-error-guard-compares-undefined",
       "find": "  if (r.error) {\n",
       "replace": "  if (r.error !== undefined) {\n",
-      "expectRed": ["grades a run that finished on its own, whether it passed or failed"],
+      "expectRed": [
+        "grades a run that finished on its own, whether it passed or failed",
+        "grading with --jobs 1 and --jobs 3 produces byte-identical output and the same exit code",
+        "a --staged run still selects a data file deleted from the working tree but present in the index",
+        "grades every mutation after a stale-anchor fault, not just those before it",
+        "a --staged run grades a file that is only staged, not committed",
+        "--update-expected rewrites a MISMATCH from the set actually observed",
+        "--update-expected writes nothing for a SURVIVED entry and says why",
+        "a survivor still fails the run when another entry was rewritten",
+        "a normal run never writes to the data file",
+        "a name the suite reddened twice is written once",
+        "two data files sharing a mutation id each get their own observed set"
+      ],
       "note": "An explicit error:null is dereferenced; truthiness is what unifies the two absent shapes."
     },
     {
@@ -469,8 +496,8 @@
     },
     {
       "id": "drop-fault-isolation",
-      "find": "  let res\n  try {\n    res = runMutation({ root, data, mut, base, ref })\n  } catch (err) {\n    console.log(`  FAULT     ${mut.id}`)\n    console.log(`    ${err.message}`)\n    return 'fault'\n  }\n",
-      "replace": "  const res = runMutation({ root, data, mut, base, ref })\n",
+      "find": "  let res\n  try {\n    res = await runMutation({ root, data, mut, base, ref })\n  } catch (err) {\n    return {\n      outcome: 'fault',\n      lines: [`  FAULT     ${mut.id}`, `    ${err.message}`],\n      result: null,\n    }\n  }\n",
+      "replace": "  const res = await runMutation({ root, data, mut, base, ref })\n",
       "expectRed": ["grades every mutation after a stale-anchor fault, not just those before it"],
       "note": "Without the catch the first fault unwinds to main()'s handler and the summary is never printed."
     },
@@ -503,7 +530,9 @@
         "a normal run never writes to the data file",
         "a name the suite reddened twice is written once",
         "two data files sharing a mutation id each get their own observed set",
-        "a --staged run grades a file that is only staged, not committed"
+        "a --staged run grades a file that is only staged, not committed",
+        "grading with --jobs 1 and --jobs 3 produces byte-identical output and the same exit code",
+        "a --staged run still selects a data file deleted from the working tree but present in the index"
       ],
       "note": "Pins the timeout OPTION on the real spawnSync call, which no other recipe reaches — the rest drive assertSpawnUsable with synthetic results. Shrinking rather than deleting: deleting it needs a HANGING fixture, and a suite that hangs is the one thing a suite cannot be asked to do."
     },
@@ -651,11 +680,14 @@
         "a staged run scopes to data files that touch what is staged, not every file on disk",
         "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top",
         "a guard whose suite is absent at the ref is scoped out, not a fault",
-        "a data file on disk but absent from the index is dropped without faulting the run",
         "a --staged run exits 0 when nothing staged is in the scope of any guard",
         "reports a diagnostic when HEAD is unborn under --staged",
         "reports a diagnostic when the index has unresolved conflicts under --staged",
-        "a normal run never writes to the data file"
+        "a normal run never writes to the data file",
+        "a --staged run still selects a data file deleted from the working tree but present in the index",
+        "indexCommit succeeds with no git identity configured anywhere",
+        "a data file on disk but absent from the index never becomes a --staged candidate",
+        "a --staged --guard naming a data file absent from the index refuses to run, not silently 0"
       ]
     },
     {
@@ -757,9 +789,12 @@
         "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top",
         "a guard whose suite is absent at the ref is scoped out, not a fault",
         "a --staged run exits 0 when nothing staged is in the scope of any guard",
-        "a --staged run keeps a guard in scope when its target is renamed away"
+        "a --staged run keeps a guard in scope when its target is renamed away",
+        "a --staged run still selects a data file deleted from the working tree but present in the index",
+        "indexCommit succeeds with no git identity configured anywhere",
+        "a data file on disk but absent from the index never becomes a --staged candidate"
       ],
-      "note": "Inverting the predicate excludes exactly the file that IS staged and includes the one that is not — the opposite of the scoping `--staged` promises. Both fixture repos have exactly one data file that touches what is staged, so inversion excludes it in each, reddening both end-to-end tests. WIDENED for a third fixture on the same shape (its data file also touches staged, so exclusion drops it from the run's output too)."
+      "note": "Inverting the predicate excludes exactly the file that IS staged and includes the one that is not — the opposite of the scoping `--staged` promises. Both fixture repos have exactly one data file that touches what is staged, so inversion excludes it in each, reddening both end-to-end tests. WIDENED for a third fixture on the same shape (its data file also touches staged, so exclusion drops it from the run's output too), and again for the jobs.test.mjs fixtures whose single data file is likewise excluded by the inversion."
     },
     {
       "id": "touchesstaged-always-in-scope",
@@ -772,9 +807,13 @@
         "touchesStaged returns false when readAt returns null for all suites",
         "a staged run scopes to data files that touch what is staged, not every file on disk",
         "a guard whose suite is absent at the ref is scoped out, not a fault",
-        "a --staged run exits 0 when nothing staged is in the scope of any guard"
+        "a --staged run exits 0 when nothing staged is in the scope of any guard",
+        "touchesStaged follows a suite import chain two hops deep",
+        "touchesStaged follows the target's own imports, not only a suite's",
+        "touchesStaged terminates on an import cycle instead of looping forever",
+        "a data file on disk but absent from the index never becomes a --staged candidate"
       ],
-      "note": "Every data file reads as in scope regardless of what is staged, so `--staged` silently widens back to a full run — and the unit test asserting a real miss (`unrelated.mjs`) catches it directly too."
+      "note": "Every data file reads as in scope regardless of what is staged, so `--staged` silently widens back to a full run — and the unit test asserting a real miss (`unrelated.mjs`) catches it directly too. WIDENED: the same short-circuit also makes every touchesStaged-based fixture (import-hop, cycle, out-of-root) read as in-scope unconditionally, so their own dedicated assertions redden too."
     },
     {
       "id": "staged-rejects-other-modes",
@@ -789,9 +828,9 @@
       "replace": ".map((file) => ({ file, data: loadDataFile(file) }))",
       "expectRed": [
         "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top",
-        "a data file on disk but absent from the index is dropped without faulting the run"
+        "a --staged run still selects a data file deleted from the working tree but present in the index"
       ],
-      "note": "loadScoped's staged branch falls back to reading the data file straight off disk, so an unstaged edit sitting on top of the staged/committed copy gets graded instead of what --staged is supposed to see."
+      "note": "loadScoped's staged branch falls back to reading the data file straight off disk, so an unstaged edit sitting on top of the staged/committed copy gets graded instead of what --staged is supposed to see. R6's ref-enumerated candidate list retired the old disk-fallback test this mutation used to redden; a newer test on the same disk-vs-index divergence now catches it instead."
     },
     {
       "id": "boolean-flag-not-recognized",
@@ -804,18 +843,28 @@
         "a staged run scopes to data files that touch what is staged, not every file on disk",
         "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top",
         "a guard whose suite is absent at the ref is scoped out, not a fault",
-        "a data file on disk but absent from the index is dropped without faulting the run",
         "a --staged run exits 0 when nothing staged is in the scope of any guard",
         "reports a diagnostic when HEAD is unborn under --staged",
-        "reports a diagnostic when the index has unresolved conflicts under --staged"
+        "reports a diagnostic when the index has unresolved conflicts under --staged",
+        "a --staged run still selects a data file deleted from the working tree but present in the index",
+        "indexCommit succeeds with no git identity configured anywhere",
+        "a data file on disk but absent from the index never becomes a --staged candidate",
+        "a --staged --guard naming a data file absent from the index refuses to run, not silently 0"
       ],
       "note": "Dropping the BOOLEAN_FLAGS.has(a) branch makes --staged fall through to the unknown-flag error path, so every caller that passes --staged exits 2 with a usage error instead of grading the index."
     },
     {
       "id": "touchesstaged-no-import-hop",
-      "find": "    if (localImports(root, suite, text).some((i) => staged.has(i))) return true",
-      "replace": "    if (false) return true",
-      "expectRed": ["a suite is in scope when a helper it imports is the only staged file"]
+      "find": "    for (const imp of localImports(root, cur, text)) {\n      found.add(imp)\n      queue.push(imp)\n    }",
+      "replace": "    for (const imp of localImports(root, cur, text)) {\n      // no-op\n    }",
+      "expectRed": [
+        "a suite is in scope when a helper it imports is the only staged file",
+        "touchesStaged follows a suite import chain two hops deep",
+        "touchesStaged follows the target's own imports, not only a suite's",
+        "touchesStaged terminates on an import cycle instead of looping forever",
+        "touchesStaged does not throw when a reached file imports outside the repo root"
+      ],
+      "note": "#1329 made the import hop TRANSITIVE and shared between the target and suite walks (`reachable`), so neutering it widened from one test to every test that depends on following an import at all."
     },
     {
       "id": "blobat-absent-returns-null",
@@ -823,9 +872,9 @@
       "replace": "  return git(['show', `${ref}:${rel}`], root)",
       "expectRed": [
         "blobAt returns null for a path absent from an otherwise valid tree",
-        "a guard whose suite is absent at the ref is scoped out, not a fault",
-        "a data file on disk but absent from the index is dropped without faulting the run"
-      ]
+        "a guard whose suite is absent at the ref is scoped out, not a fault"
+      ],
+      "note": "R6 made the data-file candidate list ref-enumerated (dataFilesAt), so blobAt's null-return branch is no longer reached for a data file absent from the index — only for a SUITE absent at the ref."
     },
     {
       "id": "blobat-always-null",
@@ -837,7 +886,9 @@
         "a staged run scopes to data files that touch what is staged, not every file on disk",
         "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top",
         "a guard whose suite is absent at the ref is scoped out, not a fault",
-        "a --staged run keeps a guard in scope when its target is renamed away"
+        "a --staged run keeps a guard in scope when its target is renamed away",
+        "a --staged run still selects a data file deleted from the working tree but present in the index",
+        "indexCommit succeeds with no git identity configured anywhere"
       ]
     },
     {
@@ -854,10 +905,10 @@
     },
     {
       "id": "staged-empty-scope-exits-zero",
-      "find": "    )\n    return 0\n  }\n  const { caught, bad, faults, total } = gradeScoped(scoped, {",
-      "replace": "    )\n    return 2\n  }\n  const { caught, bad, faults, total } = gradeScoped(scoped, {",
+      "find": "    )\n    return 0\n  }\n  const { caught, bad, faults, total } = await gradeScoped(scoped, {",
+      "replace": "    )\n    return 2\n  }\n  const { caught, bad, faults, total } = await gradeScoped(scoped, {",
       "expectRed": [
-        "a data file on disk but absent from the index is dropped without faulting the run",
+        "a data file on disk but absent from the index never becomes a --staged candidate",
         "a --staged run exits 0 when nothing staged is in the scope of any guard"
       ]
     },
@@ -875,8 +926,8 @@
     },
     {
       "id": "touchesstaged-no-named-paths",
-      "find": "    return namedPaths(text).some((named) => staged.has(named))",
-      "replace": "    return false",
+      "find": "    if (includeNamed) for (const named of namedPaths(text)) found.add(named)",
+      "replace": "    if (false) for (const named of namedPaths(text)) found.add(named)",
       "expectRed": [
         "a suite is in scope when a file it reads by literal path is the only staged file"
       ]
@@ -885,7 +936,10 @@
       "id": "namedpaths-backtick-quote",
       "find": "  const re = /['\"`]([A-Za-z0-9._][\\w.-]*(?:\\/[\\w.-]+)+)['\"`]/g",
       "replace": "  const re = /['\"]([A-Za-z0-9._][\\w.-]*(?:\\/[\\w.-]+)+)['\"]/g",
-      "expectRed": ["namedPaths extracts a backtick-quoted path literal without a substitution"]
+      "expectRed": [
+        "namedPaths extracts a backtick-quoted path literal without a substitution",
+        "namedPaths strips a leading ./ so the literal matches the root-relative staged path"
+      ]
     },
     {
       "id": "namedpaths-slash-required",
@@ -895,17 +949,23 @@
         "namedPaths collects repo-relative path literals and skips bare module specifiers",
         "namedPaths extracts a backtick-quoted path literal without a substitution",
         "namedPaths extracts a double-quoted path literal",
-        "namedPaths rejects a single-segment name with no path separator"
+        "namedPaths rejects a single-segment name with no path separator",
+        "namedPaths strips a leading ./ so the literal matches the root-relative staged path"
       ]
     },
     {
       "id": "touchesstaged-null-readat",
-      "find": "    if (text === null) return false\n",
+      "find": "    if (text === null) continue\n",
       "replace": "",
       "expectRed": [
         "touchesStaged returns false when readAt returns null for all suites",
+        "touchesStaged follows a suite import chain two hops deep",
+        "touchesStaged follows the target's own imports, not only a suite's",
+        "touchesStaged terminates on an import cycle instead of looping forever",
+        "touchesStaged does not throw when a reached file imports outside the repo root",
         "a guard whose suite is absent at the ref is scoped out, not a fault"
-      ]
+      ],
+      "note": "This guard now lives in the shared `reachable` walk, so it backs every reachable-based test, not only the suite-scoped ones the id's name still reflects."
     },
     {
       "id": "namedpaths-double-quote",
@@ -926,6 +986,165 @@
       "find": "  if (probe.error) throw probe.error\n",
       "replace": "",
       "expectRed": ["blobAt surfaces the spawn error rather than reporting a null exit status"]
+    },
+    {
+      "id": "reachable-two-hop-suite-chain",
+      "find": "    for (const imp of localImports(root, cur, text)) {\n      found.add(imp)\n      queue.push(imp)\n    }",
+      "replace": "    for (const imp of localImports(root, cur, text)) {\n      found.add(imp)\n    }",
+      "expectRed": ["touchesStaged follows a suite import chain two hops deep"],
+      "note": "Collects the direct import but stops walking further — ONE hop survives, TWO does not."
+    },
+    {
+      "id": "touchesstaged-target-own-imports",
+      "find": "  const fromTarget = reachable(root, [data.target], readAt, false)\n  if ([...fromTarget].some((p) => staged.has(p))) return true\n  const fromSuites = reachable(root, data.suites, readAt, true)\n  return [...fromSuites].some((p) => staged.has(p))",
+      "replace": "  const fromSuites = reachable(root, data.suites, readAt, true)\n  return [...fromSuites].some((p) => staged.has(p))",
+      "expectRed": ["touchesStaged follows the target's own imports, not only a suite's"],
+      "note": "#1329: dropping the target-seeded walk regresses to the pre-#1329 suite-only scope."
+    },
+    {
+      "id": "localimports-skips-out-of-root",
+      "find": "    const abs = resolve(dirname(isAbsolute(from) ? from : join(root, from)), m[1])\n    if (abs !== root && !abs.startsWith(root + sep)) continue\n    out.push(relPath(root, abs))",
+      "replace": "    const abs = resolve(dirname(isAbsolute(from) ? from : join(root, from)), m[1])\n    out.push(relPath(root, abs))",
+      "expectRed": [
+        "localImports skips a specifier resolving outside the repo root, rather than throwing",
+        "touchesStaged does not throw when a reached file imports outside the repo root"
+      ]
+    },
+    {
+      "id": "namedpaths-strips-leading-dot-slash",
+      "find": "  return [...text.matchAll(re)].map((m) => m[1].replace(/^(?:\\.\\/)+/, ''))",
+      "replace": "  return [...text.matchAll(re)].map((m) => m[1])",
+      "expectRed": [
+        "namedPaths strips a leading ./ so the literal matches the root-relative staged path"
+      ]
+    },
+    {
+      "id": "parsejobs-rejects-non-integer",
+      "find": "  if (!Number.isInteger(n) || n < 1) {",
+      "replace": "  if (n < 1) {",
+      "expectRed": [
+        "parseJobs rejects a non-integer value",
+        "parseJobs rejects a non-numeric value",
+        "parseArgs returns an error when --jobs has an invalid value"
+      ]
+    },
+    {
+      "id": "parsejobs-rejects-zero-and-negative",
+      "find": "  const n = Number(value)\n  if (!Number.isInteger(n) || n < 1) {",
+      "replace": "  const n = Number(value)\n  if (!Number.isInteger(n) || n < 0) {",
+      "expectRed": [
+        "parseJobs rejects zero and negative values",
+        "parseArgs returns an error when --jobs has an invalid value"
+      ]
+    },
+    {
+      "id": "parsejobs-rejects-nan",
+      "find": "  const n = Number(value)",
+      "replace": "  const n = Number(value) || 1",
+      "expectRed": [
+        "parseJobs rejects zero and negative values",
+        "parseJobs rejects a non-numeric value",
+        "parseArgs returns an error when --jobs has an invalid value"
+      ]
+    },
+    {
+      "id": "parsejobs-accepts-positive-integer",
+      "find": "  return { jobs: n }",
+      "replace": "  return { jobs: 1 }",
+      "expectRed": [
+        "parseJobs accepts a positive integer and returns it as a number",
+        "parseArgs propagates --jobs N to the jobs field in the result"
+      ]
+    },
+    {
+      "id": "runpool-preserves-input-order",
+      "find": "      results[i] = await tasks[i]()",
+      "replace": "      results.push(await tasks[i]())",
+      "expectRed": [
+        "runPool returns results in input order even when they complete out of order",
+        "grading with --jobs 1 and --jobs 3 produces byte-identical output and the same exit code",
+        "a --staged run still selects a data file deleted from the working tree but present in the index",
+        "indexCommit succeeds with no git identity configured anywhere",
+        "grades every mutation after a stale-anchor fault, not just those before it",
+        "a --staged run grades a file that is only staged, not committed",
+        "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top",
+        "a guard whose suite is absent at the ref is scoped out, not a fault",
+        "--update-expected rewrites a MISMATCH from the set actually observed",
+        "--update-expected writes nothing for a SURVIVED entry and says why",
+        "a survivor still fails the run when another entry was rewritten",
+        "a normal run never writes to the data file",
+        "a name the suite reddened twice is written once",
+        "two data files sharing a mutation id each get their own observed set"
+      ],
+      "note": "`results = new Array(tasks.length)` pre-allocates tasks.length holes; push then APPENDS past them instead of filling them, so every `results[i]` gradeScoped reads for i < tasks.length stays undefined and every multi-mutation end-to-end test that reads a per-mutation result breaks — not only runPool's own unit test."
+    },
+    {
+      "id": "runpool-bounds-in-flight",
+      "find": "  await Promise.all(Array.from({ length: Math.min(jobs, tasks.length) }, worker))",
+      "replace": "  await Promise.all(Array.from({ length: tasks.length }, worker))",
+      "expectRed": [
+        "runPool never runs more than `jobs` tasks at once",
+        "runPool with jobs=1 runs strictly serially"
+      ]
+    },
+    {
+      "id": "spawnsuite-timeout-sets-etimedout",
+      "find": "error: Object.assign(new Error('spawnSuite timed out'), { code: 'ETIMEDOUT' }),",
+      "replace": "error: Object.assign(new Error('spawnSuite timed out'), { code: 'ETIMEOUT' }),",
+      "expectRed": ["spawnSuite kills a hanging child and reports ETIMEDOUT, matching spawnSync"]
+    },
+    {
+      "id": "spawnsuite-enforces-maxbuffer",
+      "find": "      if (out.bytes > maxBuffer) onOverflow()\n",
+      "replace": "",
+      "expectRed": ["spawnSuite kills a child whose output exceeds maxBuffer and reports ENOBUFS"]
+    },
+    {
+      "id": "indexcommit-explicit-identity",
+      "find": "    return git(\n      [\n        '-c',\n        'user.name=mutation-harness',\n        '-c',\n        'user.email=mutation-harness@localhost',\n        'commit-tree',\n        tree,\n        '-p',\n        'HEAD',\n        '-m',\n        'index',\n      ],\n      root,\n    ).trim()",
+      "replace": "    return git(['commit-tree', tree, '-p', 'HEAD', '-m', 'index'], root).trim()",
+      "expectRed": ["indexCommit succeeds with no git identity configured anywhere"]
+    },
+    {
+      "id": "parseargs-reads-jobs-value",
+      "find": "    jobs: jobsResult.jobs,",
+      "replace": "    jobs: 1,",
+      "expectRed": ["parseArgs propagates --jobs N to the jobs field in the result"]
+    },
+    {
+      "id": "parseargs-propagates-jobs-error",
+      "find": "  const jobsResult = parseJobs(opts.jobs ?? '1')\n  if (jobsResult.error) return { error: jobsResult.error }\n",
+      "replace": "  const jobsResult = { jobs: 1 }\n",
+      "expectRed": [
+        "parseArgs propagates --jobs N to the jobs field in the result",
+        "parseArgs returns an error when --jobs has an invalid value"
+      ]
+    },
+    {
+      "id": "jobs-conflicts-with-list",
+      "find": "modes.includes('--list') || modes.includes('--coverage')",
+      "replace": "modes.includes('--coverage')",
+      "expectRed": ["parseArgs rejects --jobs combined with --list"]
+    },
+    {
+      "id": "jobs-conflicts-with-coverage",
+      "find": "modes.includes('--list') || modes.includes('--coverage')",
+      "replace": "modes.includes('--list')",
+      "expectRed": ["parseArgs rejects --jobs combined with --coverage"]
+    },
+    {
+      "id": "spawnsuite-decodes-utf8",
+      "find": "    child[name].setEncoding('utf8')\n",
+      "replace": "",
+      "expectRed": ["spawnSuite decodes a multi-byte character split across two output chunks"]
+    },
+    {
+      "id": "spawnsuite-timeout-needs-null-status",
+      "find": "    if (timedOut && status === null) {",
+      "replace": "    if (timedOut) {",
+      "expectRed": [
+        "spawnSuite keeps the real exit status of a child whose output closes after the timeout"
+      ]
     }
   ],
   "notEncoded": [

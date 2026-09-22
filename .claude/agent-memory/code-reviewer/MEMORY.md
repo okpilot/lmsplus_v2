@@ -8,7 +8,7 @@
 | Pattern | First Seen | Count | Last Seen | Status (→ rule loc) |
 |---------|-----------|-------|-----------|---------------------|
 | Feature modes (study/exam) wired into one hook/component | 2026-04-13 (exam PR2) | 2 | 2026-04-26 (34194aa) | RULE CANDIDATE — extract mode logic once file passes 120L (hook) or 200L (component). |
-| Utility function > 30 lines | 2026-05-31 (c879a259) | 36 | 2026-09-21 (guards/mutation-harness-staged R1) | WATCHING. See [tracker-notes](topics/tracker-notes.md#utility-function-30-lines). |
+| Utility function > 30 lines | 2026-05-31 (c879a259) | 37 | 2026-09-22 (guards/mutation-harness-jobs R1) | WATCHING. R2 clean — all new/modified functions under 30L after refactor. See [tracker-notes](topics/tracker-notes.md#utility-function-30-lines). |
 | Deep nesting > 3 levels | 2026-03-27 (75ffa51) | 3 | 2026-07-10 (df045384) | WATCHING. See [tracker-notes](topics/tracker-notes.md#deep-nesting-3-levels). |
 | Utility file > 200-line limit | 2026-04-27 (c656868) | 7 | 2026-08-30 (464fd213) | WATCHING. SPLIT CANDIDATE: quiz-session-storage.ts 279L; quiz-submit.ts 239L. See [tracker-notes](topics/tracker-notes.md#utility-file-200-line-limit). |
 | `waitForTimeout` in E2E specs | 2026-06-06 (test/isolation-hygiene) | 1 | 2026-06-06 | WATCHING (exam-recovery.spec.ts — fixed in same commit; tracking for recurrence). |
