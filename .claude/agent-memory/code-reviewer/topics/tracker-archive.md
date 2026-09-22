@@ -6,6 +6,8 @@
 
 | Branch | Round | Commit | Notes |
 |--------|-------|--------|-------|
+| ci/claude-opus-review | R1 | 4ae83e8e | 5 files, CI workflow + config + rules + docs only. No TypeScript/React. Action pin version comments verified (checkout v7.0.1 SHA + claude-code-action v1.0.231 SHA both confirmed via GitHub API). No code-style violations. CLEAN. |
+| ci/claude-opus-review | R2 | eb513817 | 3 files (workflow fixup + steering + decisions). No TypeScript/React. Fixup adds verdict marker, live-head guard, trims prose, updates Decision 78. pipeline.json `modelLiteralSites` entry verified: `expects: "opus"` → `claude-opus-5`, matches `--model claude-opus-5` in workflow. No code-style violations. CLEAN. |
 | guards/mutation-harness-staged | R4 (confirming, ceiling override) | 0944dff5 | Comment-only commit. All four §10 sites verified against touchesStaged body — five inputs correct. No code violations in full range. |
 | guards/mutation-harness-staged | R5 (final confirming round post-fixup) | a7865d77 | Rename-scope fix + stale MUTATION comments + new test + ci.yml comment. 26/26 tests pass. MUTATION comment claims verified against blobAt body and git() helper (throws on non-zero). No code violations. |
 | docs/deletion-reviewer | R3 (post-CR-fix) | 6b479426 | Three CR fixes: "PR"→"commit" in .coderabbit.yaml (mirrors canonical code-style.md §7); tasks.md derivation command extended to include `code-review (skill)` grep; plan.md post-gate steps renumbered 7/8/9→8/9/10 (7 round-1 members now). All changes verified correct against canonical sources. No code violations. |
@@ -65,3 +67,4 @@
 | fix/learner-tracker-termination (R8-R11) | 2026-09-20-21 | CLEAN R8-R11. SATURATED state, all §10 claims verified. prose-claims/prose-paths EXIT:0. |
 | guards/mutation-harness-staged R3 (CEILING) | 2026-09-22 (3f609574) | CLEAN. modeRun body improved 40→32L; no new function over 30L; touchesStaged 5 params + JSDoc → infra exception. Positive: scope predicates cleanly extracted as testable exports. |
 | guards/shared-diff-parser R1 | 2026-09-22 | CLEAN. All 13 files in .claude/hooks/ + pipeline.json + ci.yml + tasks.md. No app code. All function bodies ≤30L, all params ≤3, nesting ≤3 levels, file-size guard passed. |
+| ci/claude-opus-review | R3 | b758dca1 | Fixup: two `(.body // "")` jq null guards in claude-review.yml supersede shell step. CI workflow + pipeline.json + rules + docs + spec only. No TypeScript/React. No code-style violations. CLEAN. |
