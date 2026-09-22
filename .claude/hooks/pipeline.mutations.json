@@ -34,6 +34,13 @@
       "replace": "true",
       "expectRed": ["a tracked file under .claude/agent-memory blocks"],
       "note": "The no-tracked-agent-memory check always takes the pass branch — a tracked file under .claude/agent-memory or apps/web/.claude would no longer fail the check."
+    },
+    {
+      "id": "pipeline-apps-web-claude-tracked-allowed",
+      "find": "'.claude/agent-memory', 'apps/web/.claude']",
+      "replace": "'.claude/agent-memory']",
+      "expectRed": ["a tracked file under apps/web/.claude blocks"],
+      "note": "Drops apps/web/.claude from the pathspec — a tracked file there would no longer fail the check."
     }
   ]
 }

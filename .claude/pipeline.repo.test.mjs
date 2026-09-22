@@ -89,3 +89,16 @@ test('a tracked file under .claude/agent-memory blocks', () =>
     assert.equal(status, 1)
     assert.match(stderr, /agent-memory\/scratch\/MEMORY\.md/)
   }))
+
+// GROUP: pipeline-apps-web-claude-tracked-allowed
+test('a tracked file under apps/web/.claude blocks', () =>
+  withWorktree(({ wt }) => {
+    const dir = join(wt, 'apps/web/.claude')
+    mkdirSync(dir, { recursive: true })
+    const file = join(dir, 'settings.json')
+    writeFileSync(file, '{}\n')
+    git(['add', '-f', file], wt)
+    const { status, stderr } = run(wt)
+    assert.equal(status, 1)
+    assert.match(stderr, /apps\/web\/\.claude\/settings\.json/)
+  }))
