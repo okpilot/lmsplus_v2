@@ -50,6 +50,9 @@ jobs:
       - name: Pre-push hook git-config bypass controls
         run: node --test .claude/hooks/run-security-auditor.config.test.mjs
 
+      - name: Pre-push hook prompt git-config bypass controls
+        run: node --test .claude/hooks/run-security-auditor.prompt-config.test.mjs
+
       - name: Soft-delete column guard
         run: node .claude/hooks/check-soft-delete-guard.mjs
 
@@ -156,6 +159,9 @@ jobs:
 
       - name: Retracted-phrase guard — path-handling tests
         run: node --test .claude/hooks/check-retracted-phrase.paths.test.mjs
+
+      - name: Retracted-phrase guard — color.ui=always tests
+        run: node --test .claude/hooks/check-retracted-phrase.color.test.mjs
 
       # Prose-claims guard (code-style.md §1: limits are DATA; never restate a number in prose).
       # `--all` here, NOT the staged mode the pre-commit hook uses: CI grades the whole worktree

@@ -72,7 +72,7 @@ if [ "$DIFF_LINES" -gt "$MAX_DIFF_LINES" ]; then
 
   if [ -z "$DIFF" ]; then
     echo "[security-auditor] No security-sensitive files changed. Running stat-only audit..."
-    DIFF=$(git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ "$REMOTE_REF"...HEAD --stat 2>/dev/null || echo "No changes")
+    DIFF=$(git diff --no-textconv --no-ext-diff --no-color "$REMOTE_REF"...HEAD --stat 2>/dev/null || echo "No changes")
   fi
 else
   DIFF="$DIFF_FULL"

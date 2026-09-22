@@ -3,7 +3,8 @@
   "target": ".claude/hooks/run-security-auditor.sh",
   "suites": [
     ".claude/hooks/run-security-auditor.controls.test.mjs",
-    ".claude/hooks/run-security-auditor.config.test.mjs"
+    ".claude/hooks/run-security-auditor.config.test.mjs",
+    ".claude/hooks/run-security-auditor.prompt-config.test.mjs"
   ],
   "mutations": [
     {
@@ -19,7 +20,9 @@
         "fallback scan still finds a secret a textconv driver hides on the upstream diff",
         "fallback scan still finds a secret GIT_EXTERNAL_DIFF hides on the no-upstream diff",
         "fallback scan still finds a secret color.ui=always hides on the no-upstream diff",
-        "fallback scan still finds a .env file diff.noprefix=true hides on the no-upstream diff"
+        "fallback scan still finds a .env file diff.noprefix=true hides on the no-upstream diff",
+        "fallback scan still finds a secret color.ui=always hides on the upstream diff",
+        "fallback scan still finds a .env file diff.noprefix=true hides on the upstream diff"
       ],
       "note": "Shadows the `exit` builtin with a function that always exits 0 — every blocking exit in the script, whichever of the four routes reaches it (the terminal BLOCKED exit, fail_closed_no_llm_output, and the two fallback-scan branches), is defeated at once. Chosen over patching only the terminal exit because the guard has multiple independent fail-closed exits (Decision 79) and this is the one mutation that represents 'the guard never blocks', matching what code-reviewer's controls.test.mjs requires every CONTROL: red test in a suite to link to under a single `<base>-always-passes` id."
     },
@@ -30,7 +33,10 @@
       "expectRed": [
         "approves the push when the security audit returns a clean APPROVED verdict",
         "LLM receives the secret from the filtered diff under a textconv driver (large diff path)",
-        "LLM receives the secret from the filtered diff under GIT_EXTERNAL_DIFF (large diff path)"
+        "LLM receives the secret from the filtered diff under GIT_EXTERNAL_DIFF (large diff path)",
+        "LLM receives no ANSI escapes from the filtered diff under color.ui=always (large diff path)",
+        "LLM receives a b/-prefixed diff under diff.noprefix=true (large diff path)",
+        "LLM receives no ANSI escapes from the --stat summary under color.ui=always (stat path)"
       ],
       "note": "Forces the full-script approve branch to exit 1 instead of 0 — a clean APPROVED verdict still prints 'Push approved' but the hook blocks the push anyway."
     },
@@ -51,7 +57,9 @@
         "fallback scan still finds a secret a textconv driver hides on the upstream diff",
         "fallback scan still finds a secret GIT_EXTERNAL_DIFF hides on the no-upstream diff",
         "fallback scan still finds a secret color.ui=always hides on the no-upstream diff",
-        "fallback scan still finds a .env file diff.noprefix=true hides on the no-upstream diff"
+        "fallback scan still finds a .env file diff.noprefix=true hides on the no-upstream diff",
+        "fallback scan still finds a secret color.ui=always hides on the upstream diff",
+        "fallback scan still finds a .env file diff.noprefix=true hides on the upstream diff"
       ],
       "note": "Forces the timeout branch's fallback-scan exit to 0 instead of 1 — a secret found in the diff after a CLI timeout still prints 'Found N issue(s)' but approves the push anyway. Every CONTROL: red test that also uses TIMEOUT_SHIM with a finding the scan is expected to catch goes red here too, including the textconv/ext-diff/color/noprefix cases."
     },
@@ -126,6 +134,49 @@
         "fallback scan still finds a .env file diff.noprefix=true hides on the no-upstream diff"
       ],
       "note": "Drops --src-prefix=a/ --dst-prefix=b/ from the no-upstream `git diff HEAD` fallback — a local `diff.noprefix true` then strips the `b/` prefix from every header, so the fallback scan's `^\\+\\+\\+ b/.*\\.env` pattern never matches a committed `.env` file."
+    },
+    {
+      "id": "run-security-auditor-color-upstream",
+      "find": "git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ \"$REMOTE_REF\"...HEAD 2>/dev/null",
+      "replace": "git diff --no-textconv --no-ext-diff --src-prefix=a/ --dst-prefix=b/ \"$REMOTE_REF\"...HEAD 2>/dev/null",
+      "expectRed": [
+        "fallback scan still finds a secret color.ui=always hides on the upstream diff"
+      ],
+      "note": "Drops --no-color from the upstream \"$REMOTE_REF\"...HEAD diff — a local `color.ui always` then wraps every added line in ANSI escapes, so the fallback scan's `^\\+` secret pattern never matches a committed secret."
+    },
+    {
+      "id": "run-security-auditor-noprefix-upstream",
+      "find": "git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ \"$REMOTE_REF\"...HEAD 2>/dev/null",
+      "replace": "git diff --no-textconv --no-ext-diff --no-color \"$REMOTE_REF\"...HEAD 2>/dev/null",
+      "expectRed": [
+        "fallback scan still finds a .env file diff.noprefix=true hides on the upstream diff"
+      ],
+      "note": "Drops --src-prefix=a/ --dst-prefix=b/ from the upstream \"$REMOTE_REF\"...HEAD diff — a local `diff.noprefix true` then strips the `b/` prefix from every header, so the fallback scan's `^\\+\\+\\+ b/.*\\.env` pattern never matches a committed `.env` file."
+    },
+    {
+      "id": "run-security-auditor-color-filtered-large-diff",
+      "find": "  DIFF=$(git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ \"$REMOTE_REF\"...HEAD -- \\\n",
+      "replace": "  DIFF=$(git diff --no-textconv --no-ext-diff --src-prefix=a/ --dst-prefix=b/ \"$REMOTE_REF\"...HEAD -- \\\n",
+      "expectRed": [
+        "LLM receives no ANSI escapes from the filtered diff under color.ui=always (large diff path)"
+      ],
+      "note": "Drops --no-color from the large-diff filtered-pathspec call — a local `color.ui always` then wraps the prompt sent to the LLM in ANSI escapes, and the validating shim returns BLOCKED."
+    },
+    {
+      "id": "run-security-auditor-noprefix-filtered-large-diff",
+      "find": "  DIFF=$(git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ \"$REMOTE_REF\"...HEAD -- \\\n",
+      "replace": "  DIFF=$(git diff --no-textconv --no-ext-diff --no-color \"$REMOTE_REF\"...HEAD -- \\\n",
+      "expectRed": ["LLM receives a b/-prefixed diff under diff.noprefix=true (large diff path)"],
+      "note": "Drops --src-prefix=a/ --dst-prefix=b/ from the large-diff filtered-pathspec call — a local `diff.noprefix true` then strips the `b/` prefix from the diff sent to the LLM, and the validating shim returns BLOCKED."
+    },
+    {
+      "id": "run-security-auditor-color-stat-fallback",
+      "find": "git diff --no-textconv --no-ext-diff --no-color \"$REMOTE_REF\"...HEAD --stat 2>/dev/null",
+      "replace": "git diff --no-textconv --no-ext-diff \"$REMOTE_REF\"...HEAD --stat 2>/dev/null",
+      "expectRed": [
+        "LLM receives no ANSI escapes from the --stat summary under color.ui=always (stat path)"
+      ],
+      "note": "Drops --no-color from the `--stat` fallback call — a local `color.ui always` then wraps the stat summary sent to the LLM in ANSI escapes, and the validating shim returns BLOCKED."
     }
   ]
 }
