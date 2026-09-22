@@ -69,7 +69,7 @@ const GUARD = '.claude/hooks/check-prose-claims.mjs'
 const CORPUS = ['CLAUDE.md', '.coderabbit.yaml', '.claude/', 'docs/', '.spec-workflow/']
 
 /**
- * A dated append-only log of what happened on a given day. Same class as agent memory: an
+ * A dated append-only log of what happened on a given day. An
  * entry saying a file was split to get under its cap is history, and history cannot be
  * corrected into a pointer. Excluded by exact path, not by prefix, so a future `.claude/run-log/` tree
  * would have to be added deliberately rather than inherited.

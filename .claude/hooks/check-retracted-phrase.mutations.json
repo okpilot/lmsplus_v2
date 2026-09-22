@@ -463,9 +463,10 @@
       "replace": "const CORPUS = ['CLAUDE.md', '.coderabbit.yaml', '.claude/', 'docs/', '.spec-workflow/', 'apps/']",
       "expectRed": [
         "application code is out of scope on both sides",
-        "a token re-added only in application code does not exonerate a corpus retraction"
+        "a token re-added only in application code does not exonerate a corpus retraction",
+        "grades a path whose name survives an argv round-trip"
       ],
-      "note": "superset: widening CORPUS puts the app-code fixture’s added line into addedText as well, so the re-added check exonerates it."
+      "note": "superset: widening CORPUS puts the app-code fixture’s added line into addedText as well, so the re-added check exonerates it, and makes the seedFlagship decoy under apps/ a survivor."
     },
     {
       "id": "drop-readded-exoneration",
@@ -524,8 +525,8 @@
     },
     {
       "id": "check-retracted-phrase-always-passes",
-      "find": "  )\n  return 1\n}",
-      "replace": "  )\n  return 0\n}",
+      "find": "completed specs')\n  return 1\n}",
+      "replace": "completed specs')\n  return 0\n}",
       "expectRed": [
         "--base mode does not let one commit's waiver clear another commit's finding",
         "an intermediate commit is graded against its OWN tree, not HEAD",

@@ -330,8 +330,8 @@
     },
     {
       "id": "check-prose-claims-always-passes",
-      "find": "  )\n  return 1\n}",
-      "replace": "  )\n  return 0\n}",
+      "find": "code/data lines`)\n  return 1\n}",
+      "replace": "code/data lines`)\n  return 0\n}",
       "expectRed": [
         "blocks a commit that stages a new prose claim",
         "blocks when a baseline row no longer describes a live claim",

@@ -527,7 +527,7 @@ function checkCommit({ range, message, ref }) {
     perFile.set(entry.path, hunks)
     // CORPUS-scoped, to match the survivor search. Accumulating app-code additions too would
     // mean a token moved OUT of the documented set — corpus to source — exonerates a corpus
-    // retraction that is still incomplete. `inCorpus` already excludes agent memory.
+    // retraction that is still incomplete.
     if (inCorpus(entry.path)) {
       for (const h of hunks) addedText += `${h.add.join('\n')}\n`
     }
