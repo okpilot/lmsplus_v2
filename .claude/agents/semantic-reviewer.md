@@ -1,7 +1,7 @@
 ---
 name: semantic-reviewer
 description: Deep semantic code review — catches logic bugs, security gaps, behavioral inconsistencies, and architectural issues that lint-level checks miss. Mirrors CodeRabbit's analysis depth. Runs on sonnet in every round of the pre-push review gate.
-model: claude-sonnet-4-6
+model: sonnet
 tools: Read, Glob, Grep, Bash
 memory: project
 ---

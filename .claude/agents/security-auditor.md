@@ -1,7 +1,7 @@
 ---
 name: security-auditor
 description: Scans every git push diff for security vulnerabilities, secret leaks, RLS gaps, and correct-answer exposure. Runs automatically on pre-push. Blocking — findings must be fixed before push proceeds.
-model: claude-sonnet-4-6
+model: sonnet
 tools: Read, Glob, Grep, Bash
 ---
 

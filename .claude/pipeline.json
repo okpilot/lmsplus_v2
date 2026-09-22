@@ -2,8 +2,8 @@
   "_": "Single source of truth for pipeline facts that .claude/pipeline.test.mjs VALIDATES. Every FACT here is asserted by that test (this `_` field is documentation, not a fact) — nothing is recorded that is not checked, so proximity to a green suite never implies coverage. Prose explains WHY; it must not restate a value from here. Rationale: docs/decisions.md Decision 62.",
 
   "models": {
-    "sonnet": "claude-sonnet-4-6",
-    "haiku": "claude-haiku-4-5-20251001",
+    "sonnet": "sonnet",
+    "haiku": "haiku",
     "opus": "claude-opus-5-5"
   },
 

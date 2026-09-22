@@ -1,7 +1,7 @@
 ---
 name: implementation-critic
 description: Reviews the branch diff against the validated plan and requirements. Catches deviations from the approved plan, logic errors, missed requirements, and pattern violations. Runs in round 1 of the pre-push review gate.
-model: claude-sonnet-4-6
+model: sonnet
 tools: Read, Glob, Grep, Bash
 memory: project
 ---

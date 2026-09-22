@@ -1,7 +1,7 @@
 ---
 name: code-reviewer
 description: Reviews the branch diff for code quality, structure, and maintainability violations. Launched by the orchestrator in every round of the pre-push review gate (see `CLAUDE.md § Pre-push review gate`). Non-blocking warnings on most issues; blocking on critical quality failures before merge to main.
-model: claude-sonnet-4-6
+model: sonnet
 tools: Read, Glob, Grep, Bash
 memory: project
 ---
