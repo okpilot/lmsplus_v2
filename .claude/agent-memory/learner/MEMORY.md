@@ -105,7 +105,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | `json.dumps` round-trip reformats tracked JSON file, masking real changes in noise | 3 | 2026-09-18 | RULE CANDIDATE (3) → agent-test-writer.md NEVER + dispatch CONSTRAINTS. |
 | False universal quantifier in new comment ("unlike every other case") falsified by sibling cases | 1 | 2026-09-16 | WATCHING — `fa43f72c`. Log and watch. |
 | Reviewer miscounts function length by including JSDoc in the body line count | 2 | 2026-09-19 | RULE CANDIDATE (2) → agent-code-reviewer.md: count body only, from first statement to closing `}`. |
-| Adding tests to mutation harness invalidates pre-existing exact-set `expectRed` specs | 15 | 2026-09-22 | RULE CANDIDATE (15). Run FULL harness; check all expectRed sets on every test addition. Detail: cross-agent-lessons.md |
+| Adding tests to mutation harness invalidates pre-existing exact-set `expectRed` specs | 16 | 2026-09-22 | RULE CANDIDATE (16). Run FULL harness; check all expectRed sets on every test addition. Detail: cross-agent-lessons.md |
 | `expectRed` member reddens via an earlier unrelated assertion — named mechanism never reached | 3 | 2026-09-18 | WATCHING. Test goes red via earlier assertion; mechanism never reached. NOT row 97 (overclaim in SET not comment). |
 | run-mutations.mjs grades committed HEAD, not the worktree | 1 | 2026-09-18 | WATCHING. Commit before running; stale worktree gives wrong verdict. |
 | doc-updater miscounts its own pasted command output (correct artifact, wrong tally) | 1 | 2026-09-16 | WATCHING — distinct from row 109 (no-artifact variant). |
@@ -139,6 +139,11 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Agent writes tomorrow's date (2AM host clock, UTC still prior day) in committed text | 1 | 2026-09-20 | WATCHING — e3769450 stamped 2026-09-21 on 2026-09-20. First learner occurrence. |
 | `git cat-file -e` exits 128 for absent-path AND unresolvable-ref — probe conflates two states; comment claiming it avoids conflation is §10 | 1 | 2026-09-22 | WATCHING — `12766d16`. blobAt/git ls-tree is the fix. Log and watch. |
 | test-writer writes `GROUP: <id>` naming a mutation not yet encoded — `--coverage` exits non-zero on DANGLING id | 1 | 2026-09-22 | WATCHING — `12766d16`. Log and watch. |
+| Runtime message/comment names narrower scope than actual transitive walk after scope expansion | 2 | 2026-09-22 | RULE CANDIDATE (2). P1 + P1b branches. Stale message text + stale header prose after one-hop→transitive walk. |
+| Test comment uses positional cross-file reference ("above") when referent is in a different file | 1 | 2026-09-22 | WATCHING — `670c2379` semantic-reviewer R1. Log and watch. |
+| Docstring/comment example claims code performs an operation it does not | 1 | 2026-09-22 | WATCHING — `670c2379` semantic-reviewer R1 SUGGESTION. Log and watch. |
+| test-writer writes MUTATION: annotations without GROUP: linkage — orchestrator must encode and link | 1 | 2026-09-22 | WATCHING — `670c2379` R1 test-writer gap. Log and watch. |
+| Node.js readable stream appended as raw Buffer without setEncoding — multi-byte chars corrupt at chunk boundaries; maxBuffer in bytes ≠ JS string .length | 1 | 2026-09-22 | WATCHING — `670c2379` code-review(skill) R1. Log and watch. |
 
 ## Durable knowledge (cross-agent)
 
@@ -151,6 +156,7 @@ Bullets removed 2026-09-16 are relocated verbatim in `topics/cross-agent-lessons
 - Decision 76: mechanical §10 enforcer has 50% FP rate on correction-context commits.
 - 172 RULE CANDIDATE rows in tracker-archive.md (confirmed 2026-09-20) — each at promotion bar.
 - guards/mutation-harness-staged (2026-09-22): ceiling (R3 APPLY). Row 63 (SATURATED, §10 cl.8) → 38, archived. Row 109 → 15. Row 52 → 5. POSITIVE: code-review (skill) caught git cat-file exit-code conflation (critical). 2 new WATCHING.
+- guards/mutation-harness-jobs (2026-09-22): R2 clean. Row 108 → 16. New RULE CANDIDATE: scope-understatement after walk expansion (2 branches, findings 2+6). 4 new WATCHING (positional comment ref, false docstring example, test-writer GROUP omission, Node stream encoding). implementation-critic CLEAN.
 - Per-branch history (2026-09-18 to 2026-09-20): topics/cross-agent-lessons.md (search "Durable-knowledge bullets relocated").
 
 ## Topic pointers
