@@ -148,6 +148,8 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Guard behavior wired/declared but not graded in mutation harness (expectRed/grading loop) | 4 | 2026-09-22 | RULE CANDIDATE (4). guards/controls R1+R2 + shared-diff-parser R1+R2. New code path added to existing guard without mutation annotation in the same commit. → §7 addendum |
 | CI YAML parser's guard-lookup misses `- run:` list-item form — wired guard escapes registry | 1 | 2026-09-22 | WATCHING — guards/controls R1 code-review(skill) |
 | Guard git-invocation output not normalized for git-config-sensitive options (color.ui, noprefix, textconv, ext-diff) | 1 | 2026-09-22 | WATCHING — shared-diff-parser R1 (semantic + code-review skill independently); fix kept widening to N sibling call sites in R2 |
+| `Closes #N` keyword on a PR that drops the issue's own acceptance criteria | 1 | 2026-09-22 | WATCHING |
+| Orchestrator checks only root `.gitignore` when verifying file exposure — misses nested `.gitignore` files | 1 | 2026-09-22 | WATCHING |
 
 ## Durable knowledge (cross-agent)
 
@@ -163,6 +165,7 @@ Bullets removed 2026-09-16 are relocated verbatim in `topics/cross-agent-lessons
 - guards/mutation-harness-jobs (2026-09-22): R2 clean. Row 108 → 16. New RULE CANDIDATE: scope-understatement after walk expansion (2 branches). 4 new WATCHING.
 - guards/controls (2026-09-22): ceiling (R3 APPLY). Row 75 → 3. 2 new RULE CANDIDATEs (fixup function-length overrun; ungraded guard behaviors). 1 new WATCHING (CI YAML `- run:` form). implementation-critic CLEAN. doc-updater SKIPPED (CLAUDE.md §QA enumeration correctly rejected — data belongs in pipeline.json).
 - guards/shared-diff-parser (2026-09-22): R3 clean. Row 148 → 4 (ungraded new path on R1+R2). 1 new WATCHING (git-config-sensitive parse). Partial-sibling-fix recurrence is SATURATED (CLAUDE.md rule already exists; archived row count+). POSITIVE: semantic + code-review(skill) independently caught the `--no-color` gap in R1 — gate redundancy worked.
+- guards/secrets-guard (2026-09-22): R3 clean (docs + .gitignore fix only; no pre-commit guard built). Pattern "correction introduces a new false claim" recurred TWICE (R1 and R2 fixups) — SATURATED by §10 cl.8 (rule text already exists). 2 new WATCHING rows (Closes-#N drops acceptance criteria; nested .gitignore miss). POSITIVE: code-review (skill, opus) caught false claim in plan text that plan-critic, impl-critic, and semantic all missed in R1.
 - Per-branch history (2026-09-18 to 2026-09-20): topics/cross-agent-lessons.md (search "Durable-knowledge bullets relocated").
 - docs/deletion-reviewer (2026-09-22): R2 clean. Row 61 → 18 (learner.md same-file paraphrase left stale after Mission edit). Row 116 → 3, RULE CANDIDATE (2 open specs + plan-critic hit on corpus-codification tasks.md; all carried stale 6-member round-1 count). code-review (skill) caught 4 of 5 applied findings; semantic-reviewer 1. deletion-reviewer CLEAN. Recommendation: clarify "ACTIVE spec" definition in agent-workflow.md mirror table row.
 
