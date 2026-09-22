@@ -2420,7 +2420,7 @@ them.
   the learner agent/rule are gone. `apps/web/e2e/redteam/attack-surface.md` (content unchanged)
   replaces the red-team matrix's memory-dir home; red-team now reports row edits for the
   orchestrator to apply, mirroring doc-updater.
-- Evidence: of ~866 tracker rows, 47 reached `PROMOTED`. A 25-row sample of those 47: ~19 causally
-  attributable to the promotion, 2 not, 1 marked `PROMOTED` falsely.
+- Evidence: of ~866 tracker rows, 47 reached `PROMOTED`. A 25-row sample of those 47: ~19 plausibly
+  caused by the tracker, 2 predate it, 1 marked `PROMOTED` falsely, 3 not resolvable to one commit.
 - Recurrence/pattern evidence now comes from GitHub review comments (CodeRabbit + the CI reviewer,
   Decision 78) instead of a learner tracker.

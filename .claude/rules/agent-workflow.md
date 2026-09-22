@@ -277,6 +277,10 @@ Push the CR fix → notice a doc nit → commit it → push again → full CI + 
 
 ---
 
+## Call-Site Sweep — a new rule covers existing code (MANDATORY on rule promotion)
+A commit adding a hard rule to `docs/security.md`, `.claude/rules/security.md`, `code-style.md` or `biome.json` schedules a one-time repo sweep for EVERY existing instance the rule forbids — not only the call sites in the diff. Each site is fixed in the same session (≤10 lines) or gets a GitHub issue. A scope clause in the rule itself (e.g. "never in a sweep") overrides this.
+**A sweep declared complete states the command and pastes its output.** Where the rule has a mechanical enforcer — a hook, a test harness, a CI script — run THAT as the sweep and paste its summary; where the enforcer grades, paste both `node .claude/hooks/run-mutations.mjs` and `--coverage`.
+
 ## Rule-Mirror Sync — restatements across the mirror set (MANDATORY on rule edits)
 A commit modifying a rule in `.claude/rules/*.md` or `CLAUDE.md` must update every stale restatement **in the same commit**. Enumerate the mirror set from this table, never from memory or a count.
 
