@@ -217,7 +217,7 @@ function validEntryShape(guardPath, entry) {
 }
 
 // A control test's title is its STRING-LITERAL first argument — single- or double-quoted, no
-// interpolation. Not extractable → a problem, never silently skipped (§ per titleProblems).
+// interpolation. Not extractable → a problem, never silently skipped.
 const TITLE_RE = /^\s*(?:test|it)(?:\.\w+)?\s*\(\s*(['"])((?:\\.|(?!\1).)*)\1/
 function extractTitle(line) {
   const m = TITLE_RE.exec(line)

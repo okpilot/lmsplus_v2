@@ -125,11 +125,7 @@ run_case "APPROVED with leading whitespace approves" 0 \
 
   APPROVED"
 
-# Shared plumbing for cases 12-14 (all three spawn the full script, not just --parse-verdict).
-# Builds a throwaway git repo with an initial commit plus one uncommitted change — a non-empty
-# `git diff HEAD`, the no-upstream fallback diff the hook falls back to outside a real PR
-# branch — and a `<tmpdir>/shim` directory the caller drops a `claude` executable into. Echoes
-# the tmpdir.
+# Echoes a tmpdir holding a repo with one uncommitted change and an empty shim/ for `claude`.
 make_shim_repo() {
   local tmpdir
   tmpdir="$(mktemp -d)"
@@ -149,9 +145,6 @@ make_shim_repo() {
   printf '%s\n' "$tmpdir"
 }
 
-# Spawns the real hook against a prepared shim repo (PATH-shimmed `claude` already dropped into
-# "$tmpdir/shim") and reports PASS/FAIL against the expected exit code + a required substring in
-# combined stdout/stderr. Removes tmpdir when done.
 report_full_script_case() {
   local name="$1" tmpdir="$2" expected="$3" want_substring="$4"
   local output actual=0
@@ -167,10 +160,7 @@ report_full_script_case() {
   fi
 }
 
-# 12. Full-script run: `claude` CLI failure must FAIL CLOSED (push blocked).
-#     Builds a throwaway git repo with a non-empty diff and shims `claude` on PATH
-#     to exit 1. The hook's fallback grep scan finds nothing — the old behavior
-#     approved the push here; the fail-closed behavior must block with exit 1.
+# 12. `claude` CLI failure fails closed.
 run_cli_failure_case() {
   local name="claude CLI failure fails closed (push blocked)"
   local tmpdir
@@ -181,10 +171,7 @@ run_cli_failure_case() {
 }
 run_cli_failure_case
 
-# 13. Full-script run: TIMEOUT (exit 124 from the `timeout $AUDIT_TIMEOUT_SECS` wrapper) must FAIL CLOSED.
-#     Same throwaway-repo setup as case 12, but the `claude` shim exits 124 — the code the
-#     hook's `EXIT_CODE -eq 124` timeout branch detects. The fallback grep scan finds
-#     nothing, so the timeout branch must block with exit 1 + the push-blocked message.
+# 13. `claude` CLI timeout (exit 124) fails closed.
 run_timeout_case() {
   local name="claude CLI timeout (exit 124) fails closed (push blocked)"
   local tmpdir
@@ -195,10 +182,7 @@ run_timeout_case() {
 }
 run_timeout_case
 
-# 14. Full-script run: GREEN — `claude` CLI succeeds and prints a clean APPROVED verdict.
-#     Same throwaway-repo setup as cases 12/13, but the `claude` shim exits 0 and prints an
-#     APPROVED-only transcript. The hook must exit 0 and print "Push approved." — the
-#     full-script counterpart to case 4 (lone APPROVED line approves the parser in isolation).
+# 14. `claude` CLI success with an APPROVED verdict approves.
 run_cli_success_case() {
   local name="claude CLI success with APPROVED verdict exits 0 (push approved)"
   local tmpdir

@@ -6,8 +6,7 @@
 
 ## SPLIT of `ci/claude-review` (user directive 2026-09-21) — LIVE, read first
 
-The branch reached 13 gate rounds and +8,4xx lines without a clean round: five features, one
-diff, one review loop. It is split into the PRs below. `ci/claude-review` is the SOURCE, never
+It is split into the PRs below. `ci/claude-review` is the SOURCE, never
 pushed as a PR; each PR is a fresh branch from `origin/master` taking files from its tip.
 
 Rules for every PR below:
