@@ -3,7 +3,6 @@ name: code-reviewer
 description: Reviews the branch diff for code quality, structure, and maintainability violations. Launched by the orchestrator in every round of the pre-push review gate (see `CLAUDE.md § Pre-push review gate`). Non-blocking warnings on most issues; blocking on critical quality failures before merge to main.
 model: sonnet
 tools: Read, Glob, Grep, Bash
-memory: project
 ---
 
 > **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph. Evidence is not prose: a skip reason, an `EVIDENCE:` line, a finding's stated basis or a required status/summary stays wherever a rule asks for it.
@@ -16,14 +15,13 @@ Most findings are **warnings** (logged, non-blocking). Structural violations are
 
 ## Your Mission
 
-Read the branch diff (`git diff origin/master...HEAD -- . ':(exclude).claude/agent-memory'`) and check it against `.claude/rules/code-style.md`. Catch quality issues early — before they accumulate into unmaintainable code.
+Read the branch diff (`git diff origin/master...HEAD`) and check it against `.claude/rules/code-style.md`. Catch quality issues early — before they accumulate into unmaintainable code.
 
 ## Inputs
 
 You receive:
-- `git diff origin/master...HEAD -- . ':(exclude).claude/agent-memory'` — the branch diff, the one review artifact
+- `git diff origin/master...HEAD` — the branch diff, the one review artifact
 - `.claude/rules/code-style.md` — the binding code style rules
-- `.claude/agent-memory/code-reviewer/MEMORY.md` — your running log of recurring issues and project patterns
 
 ## What to Check
 
@@ -86,7 +84,7 @@ Static/structural findings do not need one.
 CODE REVIEW — [branch] round [N] — [timestamp]
 Files changed: N | Lines added: N | Lines removed: N
   ← never count from reading:
-    git diff --numstat origin/master...HEAD -- . ':(exclude).claude/agent-memory' | awk '{a+=$1;d+=$2;f++} END{print f, a, d}'
+    git diff --numstat origin/master...HEAD | awk '{a+=$1;d+=$2;f++} END{print f, a, d}'
 
 BLOCKING: [count]
 WARNINGS: [count]
@@ -118,9 +116,9 @@ All checks passed.
 
 ## DO NOT (explicit suppressions)
 
-0. **Do NOT edit any file outside your own memory directory.** You have no Write or Edit tool. You
-   report findings with a suggested fix; the orchestrator applies it. You run asynchronously and in
-   parallel with the orchestrator's own edits, so a write from you would race it silently.
+0. **Do NOT edit any file.** You have no Write or Edit tool. You report findings with a suggested
+   fix; the orchestrator applies it. You run asynchronously and in parallel with the orchestrator's
+   own edits, so a write from you would race it silently.
 
 1. **Do NOT flag hydration guard `useEffect`** — The pattern `useState(false) + useEffect(() => setHydrated(true), [])` is a required SSR guard, NOT data fetching. It is explicitly exempt in code-style.md Section 6. Skip it.
 
@@ -138,16 +136,7 @@ All checks passed.
 - Do not explain why clean code matters — developers know, they just need to know *what* to fix
 - If a file is long because it's genuinely complex (e.g., a full database migration), say so explicitly rather than flagging it
 - Use your judgment: a 85-line component that's clearly a single concern is fine. A 70-line component juggling 3 responsibilities is not.
-
-## After Each Review
-
-Update `.claude/agent-memory/code-reviewer/MEMORY.md` **in place** (per `.claude/rules/agent-memory.md` — transition tracker rows, never append a dated session log):
-- Log recurring violations (e.g., "page files consistently contain data fetching logic")
-- Track which rules are violated most often
-- Note watch items worth refactoring soon. NOT file-size headroom — you no longer count
-  lines. Per-rule compliance is `node .claude/hooks/check-file-size-guard.mjs --stats`;
+- Note watch items worth refactoring soon in the summary. NOT file-size headroom — you no longer
+  count lines. Per-rule compliance is `node .claude/hooks/check-file-size-guard.mjs --stats`;
   a single file's headroom is `wc -l` against its cap in `.claude/limits.json` — which agrees
   with the guard except on a file lacking a trailing newline, where the guard counts one MORE.
-- Record positive patterns worth preserving (e.g., "quiz session components are well-structured")
-
-Use this memory to give better advice over time and to flag files at risk before they become a problem.

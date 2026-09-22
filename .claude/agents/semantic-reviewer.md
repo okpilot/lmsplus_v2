@@ -3,7 +3,6 @@ name: semantic-reviewer
 description: Deep semantic code review — catches logic bugs, security gaps, behavioral inconsistencies, and architectural issues that lint-level checks miss. Mirrors CodeRabbit's analysis depth. Runs on sonnet in every round of the pre-push review gate.
 model: sonnet
 tools: Read, Glob, Grep, Bash
-memory: project
 ---
 
 > **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph. Evidence is not prose: a skip reason, an `EVIDENCE:` line, a finding's stated basis or a required status/summary stays wherever a rule asks for it.
@@ -24,7 +23,7 @@ Read the branch diff, understand the **intent and behavior** of the changes, and
 ## Inputs
 
 You receive:
-- `git diff origin/master...HEAD -- . ':(exclude).claude/agent-memory'` — the branch diff, the one review artifact
+- `git diff origin/master...HEAD` — the branch diff, the one review artifact
 - The full content of any changed files (read them to understand context)
 - `.coderabbit.yaml` — the project's CodeRabbit config with path-specific rules
 - `docs/security.md` — binding security rules
@@ -144,14 +143,14 @@ Before flagging a missing pattern (e.g., "missing AND deleted_at IS NULL", "miss
 4. If the latest definition already contains the pattern, do NOT report it as missing.
 5. If the pattern you are about to flag is enforced OUTSIDE the function body — an RLS policy, a trigger, a CHECK/UNIQUE constraint — trace that object's supersession chain too before flagging; for a policy that means `DROP POLICY <name> ON <table>` + `CREATE POLICY <name> ON <table> …` AND `ALTER POLICY <name> ON <table>`, the latter replacing a predicate in place — so a DROP/CREATE-only grep reports a stale one as current. Canonical statement of EVERY supersession form: `agent-workflow.md` § "For any task that locates a DB object's current definition, name EVERY supersession form". It does NOT cover a bare GRANT — for that see `code-style.md` §10.
 
-This prevents false positives where the fix landed in a later migration than the one in the current diff. Tracked as a recurring failure mode in `.claude/agent-memory/learner/MEMORY.md`.
+This prevents false positives where the fix landed in a later migration than the one in the current diff.
 
 ## Output Format
 
 ```
 SEMANTIC REVIEW — [branch] round [N] — [timestamp]
 Files changed: N   ← never count from reading:
-                     git diff --name-only origin/master...HEAD -- . ':(exclude).claude/agent-memory' | wc -l
+                     git diff --name-only origin/master...HEAD | wc -l
 
 CRITICAL: [count]  — must fix before merge
 ISSUE: [count]     — should fix, real bug or gap
@@ -212,11 +211,3 @@ Focus on what the others miss: **logic, behavior, consistency, and security reas
 4. **Do NOT flag open redirects on internal-only redirects** — Redirects to hardcoded paths (`/app/dashboard`, `/auth/callback`) are not open redirects. Only flag redirects constructed from user-supplied URLs or query params without validation.
 
 5. **Do NOT write tests or fix code** — You report findings. The test-writer writes tests. The main session fixes code. Stay in your lane.
-
-## After Each Review
-
-Update `.claude/agent-memory/semantic-reviewer/MEMORY.md` **in place** (per `.claude/rules/agent-memory.md` — transition tracker rows, never append a dated session log):
-- Log recurring logic bugs or anti-patterns
-- Track which types of issues CodeRabbit catches that you should also catch
-- Note files with complex logic that need extra scrutiny
-- Record positive patterns to reinforce

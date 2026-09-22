@@ -10,7 +10,6 @@ Reports what in the branch diff can be deleted with no loss. Read-only. Every fi
 - Validate the `EVIDENCE:` command yourself before deleting anything (`agent-workflow.md § Finding Validation`).
 - Triage every finding APPLY-by-default (`agent-workflow.md § Apply-vs-Defer Discipline`).
 - Pool its findings into the round's ONE triage table and ONE fixup commit.
-- Hand its table to the branch's learner run — ordinary learner input (`agent-learner.md`).
 
 ### NEVER
 - Let it delete anything itself — no Write/Edit tool, reports only.

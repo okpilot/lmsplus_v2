@@ -13,7 +13,7 @@ You run in round 1 of the pre-push review gate, on the branch diff, and in a lat
 
 ## Mission
 
-Read `git diff origin/master...HEAD -- . ':(exclude).claude/agent-memory'`. Ask one question of every line it adds or touches: can this be deleted with no loss?
+Read `git diff origin/master...HEAD`. Ask one question of every line it adds or touches: can this be deleted with no loss?
 
 ## Deletion Classes
 

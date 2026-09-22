@@ -13,63 +13,49 @@
   "agents": {
     "code-reviewer": {
       "model": "sonnet",
-      "memory": "project",
       "write": false,
       "role": "gate-round"
     },
     "semantic-reviewer": {
       "model": "sonnet",
-      "memory": "project",
       "write": false,
       "role": "gate-round"
     },
     "doc-updater": {
       "model": "haiku",
-      "memory": "project",
       "write": false,
       "role": "gate-round"
     },
     "test-writer": {
       "model": "sonnet",
-      "memory": "project",
       "write": true,
       "role": "gate-round"
     },
     "deletion-reviewer": {
       "model": "sonnet",
-      "memory": "none",
       "write": false,
       "role": "gate-round"
     },
-    "learner": {
-      "model": "sonnet",
-      "memory": "project",
-      "write": false,
-      "role": "gate-learner"
-    },
-    "red-team": { "model": "sonnet", "memory": "project", "write": false, "role": "conditional" },
+    "red-team": { "model": "sonnet", "write": false, "role": "conditional" },
     "coderabbit-sync": {
       "model": "haiku",
-      "memory": "none",
       "write": false,
       "role": "conditional"
     },
     "plan-critic": {
       "model": "sonnet",
-      "memory": "project",
       "write": false,
       "role": "pre-execution"
     },
     "implementation-critic": {
       "model": "sonnet",
-      "memory": "project",
       "write": false,
       "role": "gate-round"
     },
-    "security-auditor": { "model": "sonnet", "memory": "none", "write": false, "role": "pre-push" }
+    "security-auditor": { "model": "sonnet", "write": false, "role": "pre-push" }
   },
 
-  "order": ["gate-round", "fix-loop", "gate-learner", "conditional", "spec-tasks"],
+  "order": ["gate-round", "fix-loop", "conditional", "spec-tasks"],
 
   "hooks": {
     "pre-commit": [

@@ -3,7 +3,6 @@ name: test-writer
 description: Writes Vitest unit and integration tests for the TypeScript functions and React components a branch diff adds or changes. Runs in round 1 of the pre-push review gate, and in a later round only when the fixup added surface it has not seen. Use proactively when the user asks to test something or when new files lack tests.
 model: sonnet
 tools: Read, Glob, Grep, Bash, Write, Edit
-memory: project
 ---
 
 > **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph. Evidence is not prose: a skip reason, an `EVIDENCE:` line, a finding's stated basis or a required status/summary stays wherever a rule asks for it.
@@ -144,6 +143,3 @@ throwaway location, discarded rather than restored: a check taken afterwards is 
 
 This is the ONE case where touching non-test code is sanctioned, and only because nothing survives it.
 A mutation you cannot make this way is the orchestrator's to run — say so rather than skipping it.
-
-## Memory
-Update `.claude/agent-memory/test-writer/MEMORY.md` **in place** per `.claude/rules/agent-memory.md` — keep durable test conventions there and reusable scaffolding in `topics/test-recipes.md`; never append a dated session log. Native subagent memory injects MEMORY.md automatically at the start of each invocation.

@@ -85,8 +85,6 @@ mode being removed.
 
 - `.claude/index.json` — *generated*: rule handle → file → anchor → mechanical enforcer →
   last-fired commit. One lookup instead of grepping twelve files.
-- `tracker.jsonl` — the learner tracker as data with stable IDs (ten archive row numbers are
-  currently duplicated), so counts are computed and cannot go stale.
 - `verify-claims.mjs` pre-commit hook — a cited SHA must exist and touch the path claimed; a
   `file:line` citation must resolve; a bare count next to "instances/files/rows" needs a derivation
   marker or fails.
@@ -103,8 +101,5 @@ became a tested script, and its six fail-opens are now regression tests.
 - A subagent published an Artifact nobody requested
   (`https://claude.ai/code/artifact/2b76dc3a-...`) during a read-only task. **Not opened, not
   treated as authoritative.** Review or delete.
-- Learner promotion bar is self-contradictory: `agent-learner.md` says "2+ across different
-  commits"; row 655 applies an unwritten "2nd branch" gate and sits unpromoted at count=11, while
-  row 660 promoted at same-branch count=3. **Unresolved — needs a decision.**
 - Pre-existing: `jsdom@30.0.1` declares `dependencies.undici: "^8.9.0"` but the `undici` override
   forces `7.29.0` — a major below what jsdom asks for. Untouched here; worth its own audit.

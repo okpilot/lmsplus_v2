@@ -44,7 +44,7 @@
 //      `correct/incorrect`, `origin/master...HEAD` — 1,602 fake hits, the single biggest class
 //      by an order of magnitude.
 //   5. RESOLUTION INDEXES DIRECTORY SUFFIXES, NOT ONLY FILE SUFFIXES. Prose refers to files
-//      relative to a directory under discussion (`topics/attack-surface.md`, `lib/queries/`,
+//      relative to a directory under discussion (`redteam/attack-surface.md`, `lib/queries/`,
 //      `e2e/redteam/`). Indexing files only called every one of those a miss: it took the
 //      residual from 69 to 108, and all 39 were context-relative references that were right.
 //   6. LONGEST-FIRST EXTENSION ALTERNATION plus a trailing `(?![\w-])`. Both are required, and

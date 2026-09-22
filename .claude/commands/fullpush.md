@@ -14,11 +14,11 @@ Before doing anything else, answer these questions honestly. Do NOT skip any. Pr
 ### Completeness
 4. **Are there any unresolved CRITICAL, BLOCKING, or ISSUE findings** from any agent or reviewer?
 5. **Did the pre-push review gate reach a CLEAN round?** (`agent-workflow.md § Pre-Push Review Gate`.) Run `git fetch origin` (ABORT if it fails) — `origin/master` only advances on fetch, and a stale one shifts the review scope, see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`". Then account for the loop, not for commits:
-   - **Which rounds ran**, and on what range — every reviewer reads `git diff origin/master...HEAD -- . ':(exclude).claude/agent-memory'`.
+   - **Which rounds ran**, and on what range — every reviewer reads `git diff origin/master...HEAD`.
    - **Round 1 launched all seven**: implementation-critic, code-reviewer, semantic-reviewer, doc-updater, test-writer, deletion-reviewer, code-review (skill) — the built-in `/code-review` skill, dispatched as a subagent in an isolated worktree on opus, round 1 only. Round 2+ launched code-reviewer, semantic-reviewer (doc-updater/test-writer/deletion-reviewer only where the fixup added surface they had not seen). They are ASYNC, so "ran" means the completion notification arrived and the result was read, not that it was dispatched.
    - **What each round's pooled triage concluded** — one table per round, every finding at a terminal verdict.
    - **The FINAL round carried no APPLY-worthy finding.** A round that still carries one is not a stopping round. If you stopped at the 3-round ceiling instead, say so and escalate — do not push past it.
-   - The **learner** is not a round member: it runs ONCE per branch after the loop ends, takes every round's findings as input. Check it separately. Same for the conditionals — red-team if the branch diff touches security paths, coderabbit-sync if rules changed.
+   - The conditionals run ONCE per branch after the loop ends — red-team if the branch diff touches security paths, coderabbit-sync if rules changed.
    A bare "yes" does not answer this. Name the rounds and paste their verdicts.
 6. **Did every round's fixup commit get re-read by the NEXT round, and did the loop end clean?** A fixup commit triggers nothing on its own — the only thing that reads it is the next round, on the re-diffed branch. So: for each round that produced a fixup commit, a further round ran over a diff that included it; and the last round ran on an artifact nobody has changed since. Any edit made after the final round means the loop is not finished — run another round. Re-run the conditionals when their trigger paths entered the diff via a fixup: red-team, coderabbit-sync.
 7. **For every DEFER verdict on this branch:** Did you create a GitHub Issue to track it? List the issue numbers. No silent deferrals — every deferred item gets a ticket or it's not really deferred, it's forgotten.
@@ -73,8 +73,7 @@ Before doing anything else, answer these questions honestly. Do NOT skip any. Pr
       doc that re-states the mechanics rather than pointing at them — notably `docs/database.md`,
       whose §7 describes what the security-auditor flags. That last one is a CLASS, not a path — no
       doc-shaped grep reaches it; find it by asking "what else asserts this claim?".
-      (The canonical table lives in `agent-workflow.md § Rule-Mirror Sync`; see also
-      `agent-learner.md § Downstream-enforcer sync`.) **`.claude/agents/security-auditor.md` is the
+      (The canonical table lives in `agent-workflow.md § Rule-Mirror Sync`.) **`.claude/agents/security-auditor.md` is the
       one people forget, and it is the blocking pre-push gate** — a stale checklist there emits
       false CRITICALs. **Grep is a first pass, not the sweep**: a phrase-grep cannot find a
       paraphrase, so when a change retires a *claim*, read the affected section and its mirrors
@@ -158,7 +157,6 @@ After answering the checklist:
 | test-writer            | 1(+N)  | ...      | ...   | added N     |
 | deletion-reviewer      | 1(+N)  | ...      | ...   | fixed/clean |
 | code-review (skill)    | 1      | ...      | ...   | fixed/clean |
-| learner (once/branch)  | —      | ...      | ...   | done        |
 ```
 
 9. **If an active spec exists**, confirm all completed tasks are checked off in `tasks.md` (`[ ]` → `[x]`). If any are missing, update before proceeding.

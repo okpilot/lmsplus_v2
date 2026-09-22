@@ -3,7 +3,7 @@
 > Model: haiku | Trigger: pre-push review gate — round 1; a later round only when the fixup added surface it has not seen | Non-blocking (it PRODUCES doc edits, it does not gate)
 
 ## Purpose
-Keeps project documentation in sync with code changes: schema changes, new RPCs, new routes, dependency updates, architecture shifts. REPORTS the edits needed to `docs/plan.md`, `docs/decisions.md` and `docs/database.md` — the orchestrator applies them; the agent has no Write/Edit tool. It writes only its own agent memory (`.claude/agent-memory/doc-updater/MEMORY.md`), which nothing else touches.
+Keeps project documentation in sync with code changes: schema changes, new RPCs, new routes, dependency updates, architecture shifts. REPORTS the edits needed to `docs/plan.md`, `docs/decisions.md` and `docs/database.md` — the orchestrator applies them; the agent has no Write/Edit tool.
 
 ## Handling Results
 
@@ -26,7 +26,6 @@ Keeps project documentation in sync with code changes: schema changes, new RPCs,
 - Let the agent create new documentation files unless the user explicitly asks for one.
 - Let the agent write speculative docs ("we might need...", "in the future...").
 - Let the agent report partially — a multi-doc change needs edits for ALL of them in the same cycle.
-- Let the agent edit its memory file (`.claude/agent-memory/doc-updater/MEMORY.md`) without reading it first.
 - Let the agent pad docs with unnecessary detail — keep concise and scannable.
 - Ignore the agent's "no changes needed" report — acknowledge it in the summary.
 - Edit steering documents directly.
