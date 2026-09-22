@@ -37,10 +37,10 @@ Order (re-planned 2026-09-22):
       (`--no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/`). First consumer:
       `check-test-title-leakage.mjs`, with the source branch's fixes. `run-security-auditor.sh` diffs
       gain `--no-textconv --no-ext-diff`.
-- [ ] **P3 — secrets claims + `.gitignore`** (#1324 closed as not planned; SECURITY PATH → red-team). No guard (user,
-      2026-09-22: "shrink it to minimum"). `.gitignore` `.env*` + `!.env.example` + `*.pem`/`*.key`;
+- [ ] **P3 — secrets claims + `.gitignore`** (#1324 closed as not planned; SECURITY PATH → red-team). No guard.
+      `.gitignore` `.env*` + `!.env.example` + `*.pem`/`*.key`;
       the pre-commit secret-hook claim corrected in `docs/security.md` §8, `.claude/rules/security.md` §8,
-      `CLAUDE.md`, `agent-security-auditor.md`.
+      `CLAUDE.md`, `.claude/rules/agent-security-auditor.md`.
 - [ ] **P5 — Claude PR reviewer + rule-coverage manifest** (Decision 78). `.github/workflows/claude-review.yml`,
       `.claude/review-prompt.md`, `.claude/rule-coverage.*`, `rule-coverage.mutations.json`,
       `.spec-workflow/specs/ci-claude-review/`. Runs on every PR under the user's subscription
@@ -51,11 +51,12 @@ Order (re-planned 2026-09-22):
       round-1-only member; roster wording across `CLAUDE.md`, `.claude/rules/agent-*.md`,
       `.claude/agents/*.md`, `.claude/commands/*.md`, steering `tech.md`, `docs/plan.md`, live specs.
       Decision 81 (every round runs every reviewer) is DROPPED. Also: `code-style.md` §7 addendum — a new
-      code path in an existing guard ships its graded mutation in the same commit (learner, P8).
+      code path in an existing guard ships its graded mutation in the same commit.
 - [ ] **P6 — promotion guard** (W3, Decision 82). `check-promotion-enforcer.*` importing
-      `diff-parse.mjs`, its lefthook/ci/pipeline hunks, `agent-memory.md` / `agent-learner.md` /
-      `learner.md` Enforcer text. Also: `measure-quantifier-swap.mjs` diff takes `DIFF_ARGS` from
-      `diff-parse.mjs` (colour-sensitive, found in P8), with a `color.ui=always` test and mutation.
+      `.claude/hooks/diff-parse.mjs`, its lefthook/ci/pipeline hunks, `.claude/rules/agent-memory.md` /
+      `.claude/rules/agent-learner.md` / `.claude/agents/learner.md` Enforcer text. Also:
+      `.claude/hooks/measure-quantifier-swap.mjs` diff takes `DIFF_ARGS` from `.claude/hooks/diff-parse.mjs`
+      (colour-sensitive), with a `color.ui=always` test and mutation.
 - DROPPED — **P4 claims hook** (LLM on every commit, fail-open).
 
 Round-13 findings, validated, NOT yet applied — each goes into the PR that owns the file:
