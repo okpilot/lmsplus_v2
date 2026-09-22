@@ -37,7 +37,7 @@ Order (re-planned 2026-09-22):
       (`--no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/`). First consumer:
       `check-test-title-leakage.mjs`, with the source branch's fixes. `run-security-auditor.sh` diffs
       gain `--no-textconv --no-ext-diff`.
-- [ ] **P3 — secrets claims + `.gitignore`** (Closes #1324; SECURITY PATH → red-team). No guard (user,
+- [ ] **P3 — secrets claims + `.gitignore`** (#1324 closed as not planned; SECURITY PATH → red-team). No guard (user,
       2026-09-22: "shrink it to minimum"). `.gitignore` `.env*` + `!.env.example` + `*.pem`/`*.key`;
       the pre-commit secret-hook claim corrected in `docs/security.md` §8, `.claude/rules/security.md` §8,
       `CLAUDE.md`, `agent-security-auditor.md`.
