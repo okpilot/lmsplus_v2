@@ -25,7 +25,7 @@ Final defense before code reaches the remote. Scans the push diff for security v
 - Downgrade a finding's severity to make a push go through.
 - Dismiss a finding because "RLS will catch it" — defense in depth means every layer must be correct.
 - Let the auditor's timeout (`AUDIT_TIMEOUT_SECS`, 300s) be a reason to skip. A timeout FAILS CLOSED — no fallback approval — the only way past it is to make the audit finish, never bypass it. Diagnose before assuming diff size: a large SECURITY DEFINER SQL diff can legitimately need most of the budget.
-- Commit `.env*` files, even if the auditor didn't catch them (pre-commit hook should block these too).
+- Commit `.env*` files, even if the auditor didn't catch them. `.gitignore` ignores them; no pre-commit hook scans for secrets.
 
 ## What This Agent Checks
 - Secret exposure: API keys, tokens, passwords in code or config
