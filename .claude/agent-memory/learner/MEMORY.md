@@ -58,7 +58,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Derivation query replacing an open-set enumeration is unverified before publish | 3 | 2026-09-15 | RULE CANDIDATE (3) → §10 cl.2 addendum. Detail: topic file |
 | §10 fix staged partially — correct text in tree, not commit; `git grep` clean | 3 | 2026-08-24 | RULE CANDIDATE (3) |
 | Empirical measurement correct for tested scenario but excludes the failure case | 4 | 2026-09-08 | RULE CANDIDATE (4) → §10 clause 5. Detail: topic file |
-| Corrected claim partially retracted — old wording persists elsewhere | 17 | 2026-09-20 | RULE CANDIDATE (17). Detail: cross-agent-lessons.md |
+| Corrected claim partially retracted — old wording persists elsewhere | 18 | 2026-09-22 | RULE CANDIDATE (18). Detail: cross-agent-lessons.md |
 | Mirror-sync grep misses a mirror on the wrong axis | 2 | 2026-08-24 | RULE CANDIDATE (2) |
 | check-mirror-sync.mjs cannot verify 2+ occurrences of one anchor WITHIN the same file | 1 | 2026-09-02 | WATCHING |
 | Agent asserts a reduced-cycle exemption from a change's SHAPE, not the rule's PATH test | 3 | 2026-08-24 | RULE CANDIDATE (3) — 2 agent types |
@@ -113,7 +113,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Prose claims exclusion prevents fail-open when exclusion IS the fail-open | 1 | 2026-09-16 | WATCHING |
 | Doc summary/footer recapitulates content already present inline | 1 | 2026-09-16 | WATCHING |
 | CR reviewer contradicts its own prior-round verdict on the same finding | 1 | 2026-09-16 | WATCHING |
-| Taskless/draft spec carries stale rule-restatement — mirror table "ACTIVE specs only" unclear | 1 | 2026-09-17 | WATCHING |
+| Taskless/draft spec carries stale rule-restatement — mirror table "ACTIVE specs only" unclear | 3 | 2026-09-22 | RULE CANDIDATE (3) — active-spec roster/count mirror missed on deletion-reviewer addition: 2 open specs + plan-critic caught corpus-codification tasks.md. Clarify "ACTIVE" in agent-workflow.md mirror table |
 | Test fixture for compound AND-check vacuous about one conjunct — other half undetectable | 1 | 2026-09-17 | WATCHING |
 | `--coverage` gap denominator rises when a new test carries its own MUTATION: comment | 1 | 2026-09-18 | WATCHING |
 | Orchestrator propagates a numeric claim from an agent's review report into a committed artifact without re-deriving | 2 | 2026-09-18 | RULE CANDIDATE (2). Detail: topic file |
@@ -164,6 +164,7 @@ Bullets removed 2026-09-16 are relocated verbatim in `topics/cross-agent-lessons
 - guards/controls (2026-09-22): ceiling (R3 APPLY). Row 75 → 3. 2 new RULE CANDIDATEs (fixup function-length overrun; ungraded guard behaviors). 1 new WATCHING (CI YAML `- run:` form). implementation-critic CLEAN. doc-updater SKIPPED (CLAUDE.md §QA enumeration correctly rejected — data belongs in pipeline.json).
 - guards/shared-diff-parser (2026-09-22): R3 clean. Row 148 → 4 (ungraded new path on R1+R2). 1 new WATCHING (git-config-sensitive parse). Partial-sibling-fix recurrence is SATURATED (CLAUDE.md rule already exists; archived row count+). POSITIVE: semantic + code-review(skill) independently caught the `--no-color` gap in R1 — gate redundancy worked.
 - Per-branch history (2026-09-18 to 2026-09-20): topics/cross-agent-lessons.md (search "Durable-knowledge bullets relocated").
+- docs/deletion-reviewer (2026-09-22): R2 clean. Row 61 → 18 (learner.md same-file paraphrase left stale after Mission edit). Row 116 → 3, RULE CANDIDATE (2 open specs + plan-critic hit on corpus-codification tasks.md; all carried stale 6-member round-1 count). code-review (skill) caught 4 of 5 applied findings; semantic-reviewer 1. deletion-reviewer CLEAN. Recommendation: clarify "ACTIVE spec" definition in agent-workflow.md mirror table row.
 
 ## Topic pointers
 
