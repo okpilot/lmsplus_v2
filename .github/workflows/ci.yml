@@ -19,7 +19,7 @@ env:
 
 jobs:
   lint:
-    name: Lint & Format
+    name: Lint & Format — checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -223,19 +223,6 @@ jobs:
           .claude/hooks/run-mutations.scope.test.mjs
           .claude/hooks/run-mutations.jobs.test.mjs
 
-      # Budget, not a guess — but the basis is DATED: 7m56s in run 35345067470, before the staged,
-      # scope and jobs suites joined the corpus and before `--jobs 4` parallelised grading, so that
-      # figure no longer bounds this job. Re-derive from THIS workflow's own history rather than
-      # trusting the number above: step timings are null in `gh run view --json jobs`; read the
-      # jobs API:
-      #   gh api repos/okpilot/lmsplus_v2/actions/jobs/<job_id> \
-      #     --jq '.steps[] | select(.name|test("encoded mutation")) | {started_at, completed_at}'
-      # Raised to 25 to absorb corpus growth between re-derivations. (`--list` is not the count —
-      # it prints notEncoded entries too; `--coverage` prints the encoded count.)
-      - name: Mutation harness — run every encoded mutation
-        timeout-minutes: 25
-        run: node .claude/hooks/run-mutations.mjs --jobs 4
-
       # Pipeline spec invariant (Decision 62): .claude/pipeline.json is the single
       # source for each agent's model, tools and memory, for the phase order, and
       # for every path the pipeline keys on. Supersedes agent-tools.test.mjs — the
@@ -263,6 +250,96 @@ jobs:
       # controls.test.mjs against synthetic fixture roots.
       - name: "Guard controls registry's own controls — unit test"
         run: node --test .claude/controls.repo.test.mjs
+
+  mutation-plan:
+    name: Mutation Harness — plan
+    runs-on: ubuntu-latest
+    outputs:
+      guards: ${{ steps.list.outputs.guards }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # Derives the guard list from the directory, never a hand-maintained list, so a new
+      # `.claude/hooks/<base>.mutations.json` is picked up automatically. Fails closed on an
+      # empty list or a name that would misbehave once interpolated into a job `name:` or
+      # passed as the `--guard` CLI arg.
+      - name: List mutation guards
+        id: list
+        run: |
+          node -e '
+          const fs = require("fs");
+          const dir = ".claude/hooks";
+          const suffix = ".mutations.json";
+          const names = fs.readdirSync(dir)
+            .filter((f) => f.endsWith(suffix))
+            .map((f) => f.slice(0, -suffix.length))
+            .sort();
+          if (names.length === 0) {
+            console.error("no .mutations.json data files found under " + dir);
+            process.exit(1);
+          }
+          const bad = names.find((n) => !/^[a-z0-9][a-z0-9.-]*$/.test(n));
+          if (bad) {
+            console.error("guard name fails ^[a-z0-9][a-z0-9.-]*$: " + bad);
+            process.exit(1);
+          }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, "guards=" + JSON.stringify(names) + "\n");
+          '
+
+  mutation-harness:
+    name: Mutation Harness (${{ matrix.guard }})
+    needs: mutation-plan
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        guard: ${{ fromJSON(needs.mutation-plan.outputs.guards) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Run encoded mutations for this guard
+        timeout-minutes: 15
+        env:
+          GUARD: ${{ matrix.guard }}
+        run: node .claude/hooks/run-mutations.mjs --guard "$GUARD" --jobs 4
+
+  # Required status check ("Lint & Format" — branch protection). Aggregates the jobs the
+  # mutation-harness run was split into, so a skipped/cancelled dependency still fails the gate.
+  lint-gate:
+    name: Lint & Format
+    needs: [lint, mutation-plan, mutation-harness]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require lint, mutation-plan and mutation-harness to have succeeded
+        env:
+          LINT_RESULT: ${{ needs.lint.result }}
+          PLAN_RESULT: ${{ needs.mutation-plan.result }}
+          HARNESS_RESULT: ${{ needs.mutation-harness.result }}
+        run: |
+          if [ "$LINT_RESULT" != "success" ] || [ "$PLAN_RESULT" != "success" ] || [ "$HARNESS_RESULT" != "success" ]; then
+            echo "lint=$LINT_RESULT mutation-plan=$PLAN_RESULT mutation-harness=$HARNESS_RESULT"
+            exit 1
+          fi
 
   type-check:
     name: Type Check
