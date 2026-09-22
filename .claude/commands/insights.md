@@ -31,7 +31,7 @@ Weekly self-review: analyse project health and audit the agent system.
      OPEN set: a waiver carries a written reason, a description carries a `<placeholder>`.
      READ every reason. Growth means the detector must be RE-NARROWED, never baselined.
    - **Plan-critic**: review recent plan validations — were plans challenged effectively? Any false positives or missed issues?
-   - **Implementation-critic**: check its findings log — is the round-1 branch-diff review catching plan deviations before push?
+   - **Implementation-critic**: check its round-1 reports — is the round-1 branch-diff review catching plan deviations before push?
 4. **Spec workflow** — are specs up-to-date via spec-workflow MCP (`spec-status`)? Any steering drift unresolved? Flag stale or unapproved specs.
 5. **Delegation protocol** — review any logged subagent failures. Were they addressed? Any patterns in delegation breakdowns?
 

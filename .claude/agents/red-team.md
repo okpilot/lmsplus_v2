@@ -63,6 +63,9 @@ RECOMMENDATIONS: [specific test cases to add]
 
 [For each affected spec, explain what changed and whether the spec still covers it]
 
+--- MATRIX ROWS ---
+row: <exact text> — one per row `apps/web/e2e/redteam/attack-surface.md` must add or change; new IDs start at max+1 over BOTH `origin/master` and the working tree (`agent-red-team.md`). Or: NONE.
+
 --- VERDICT ---
 COVERED: All changes have existing red-team coverage.
 — or —

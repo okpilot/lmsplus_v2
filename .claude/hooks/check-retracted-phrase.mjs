@@ -3,10 +3,7 @@
 // Mechanical guard: block a commit that CORRECTS a claim in one file while the SAME
 // claim still stands in another. Mechanises `code-style.md` §10 clause 3 — "a partial
 // comment edit is the tell ... grep the retracted phrase repo-wide" — which is the one
-// step in that clause nobody performs reliably. Learner row "Claim-correction commit
-// updates a count but leaves its arithmetic stale" reached RULE CANDIDATE across five
-// separate branches before this guard existed; derive its current count from
-// `.claude/agent-memory/learner/MEMORY.md` rather than trusting a number here.
+// step in that clause nobody performs reliably.
 //
 // Motivating instance: `3752c88a` corrected packages/db/src/types.ts's line count from
 // 1807 to 1806 in `.claude/limits.json` and left "a 1807-line GENERATED file" standing

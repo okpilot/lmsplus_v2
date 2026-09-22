@@ -89,7 +89,7 @@ jobs:
           while IFS= read -r section_line; do
             # Extract section title after "## N. "
             # trim (not xargs): a future title with an apostrophe/backtick would make
-            # xargs error and || true would silently skip that section. Same fix as Check 3.
+            # xargs error and || true would silently skip that section.
             title=$(echo "$section_line" | sed 's/^## [0-9]*\. *//' | trim)
             [ -z "$title" ] && continue
             # Use first word as keyword, stemmed so e.g. "Testing" matches

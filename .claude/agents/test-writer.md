@@ -52,7 +52,7 @@ describe('functionName', () => {
 
 3. **Do NOT flag missing tests on pure presenter components** — Components with no logic (just render props as JSX) do not need unit tests. Only flag gaps on logic-bearing functions, hooks, and stateful components.
 
-4. **Do NOT over-mock Supabase query chains** — Use the Proxy-based `buildChain()` helper pattern to auto-forward method calls (`.select().eq().single()` etc.). Do not manually mock every chain step — it's verbose and brittle.
+4. **Do NOT over-mock Supabase query chains** — Use the Proxy-based `buildChain()` helper pattern to auto-forward method calls (`.select().eq().single()` etc.); copy it from an existing test such as `apps/web/app/app/quiz/actions/flag.test.ts`. Do not manually mock every chain step — it's verbose and brittle.
 
 5. **Do NOT use `mockResolvedValue` for Response objects read multiple times** — `Response.body` is a stream consumed on first read. Use `mockImplementation(() => new Response(...))` to create a fresh Response per call.
 
