@@ -61,7 +61,7 @@ Order (re-planned 2026-09-22):
 
 Round-13 findings, validated, NOT yet applied — each goes into the PR that owns the file:
 - P6: a PROMOTED row ending in `\r` or a trailing space reads status `""` and is not checked
-  (reproduced). `GIT_NAMED_ESCAPES` not frozen — resolved by importing `.claude/hooks/diff-parse.mjs`.
+  (reproduced). `GIT_NAMED_ESCAPES` not frozen — to resolve by importing `.claude/hooks/diff-parse.mjs`.
 
 
 ## Slice 0 — groundwork (COMPLETE)
