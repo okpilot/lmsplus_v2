@@ -624,6 +624,13 @@ reviews:
           mechanism and the suite still construct nothing the gate would reject. For a diff adding
           or changing a gate, name the defect class, name the input that triggers it, and point at
           the fixture that builds it — no such fixture, no coverage, whatever the pass count says.
+        - EVERY GUARD CARRIES A PLANTED RED AND A PLANTED GREEN CONTROL (code-style.md §7). For a
+          guard listed in `.claude/pipeline.json` `guards` (not exempt), flag a diff that removes
+          or weakens its `// CONTROL: red` test (planted violation, guard SPAWNED, blocking exit)
+          or `// CONTROL: green` test (clean input, exit 0), or unlinks either from its
+          `<base>-always-passes` / `<base>-always-blocks` mutation via `// GROUP:`. A test that
+          imports a pure function is not a control. `.claude/controls.test.mjs` enforces the
+          registry in CI.
 
     # Tests — behavioral naming + navigation mock URL assertions
     - path: "**/*.test.{ts,tsx}"

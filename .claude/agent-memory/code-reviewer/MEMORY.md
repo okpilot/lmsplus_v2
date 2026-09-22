@@ -8,7 +8,7 @@
 | Pattern | First Seen | Count | Last Seen | Status (→ rule loc) |
 |---------|-----------|-------|-----------|---------------------|
 | Feature modes (study/exam) wired into one hook/component | 2026-04-13 (exam PR2) | 2 | 2026-04-26 (34194aa) | RULE CANDIDATE — extract mode logic once file passes 120L (hook) or 200L (component). |
-| Utility function > 30 lines | 2026-05-31 (c879a259) | 39 | 2026-09-22 (guards/controls R2) | WATCHING. R1 finding fixed (run_cli_success_case extracted, now 17L). New: `runHookWithShim` in run-security-auditor.controls.test.mjs 33L — try/finally cleanup boilerplate inflates. See [tracker-notes](topics/tracker-notes.md#utility-function-30-lines). |
+| Utility function > 30 lines | 2026-05-31 (c879a259) | 40 | 2026-09-22 (guards/controls R3) | WATCHING. R2 fixed runHookWithShim (split into setupShimRepo+runHookWithShim). R3: parseSuite in run-mutations.mjs worsened 31→32L (1 line added to add controls[] field propagation). Pre-existing, minimal growth. See [tracker-notes](topics/tracker-notes.md#utility-function-30-lines). |
 | Deep nesting > 3 levels | 2026-03-27 (75ffa51) | 3 | 2026-07-10 (df045384) | WATCHING. See [tracker-notes](topics/tracker-notes.md#deep-nesting-3-levels). |
 | Utility file > 200-line limit | 2026-04-27 (c656868) | 7 | 2026-08-30 (464fd213) | WATCHING. SPLIT CANDIDATE: quiz-session-storage.ts 279L; quiz-submit.ts 239L. See [tracker-notes](topics/tracker-notes.md#utility-file-200-line-limit). |
 | `waitForTimeout` in E2E specs | 2026-06-06 (test/isolation-hygiene) | 1 | 2026-06-06 | WATCHING (exam-recovery.spec.ts — fixed in same commit; tracking for recurrence). |

@@ -273,10 +273,15 @@ export function parseSuite(text) {
     return tests[k]
   }
 
+  scanClaims(lines, scanAllMarkers(lines, ownerFor), ownerFor)
+  return { header, tests }
+}
+
+/** Attach every `GROUP:` and `CONTROL:` marker to its owner. Returns the lines they occupy. */
+function scanAllMarkers(lines, ownerFor) {
   const markerLines = scanMarkers(lines, ownerFor)
   for (const i of scanControls(lines, ownerFor)) markerLines.add(i)
-  scanClaims(lines, markerLines, ownerFor)
-  return { header, tests }
+  return markerLines
 }
 
 /** Attach every `GROUP:` marker to its owner. Returns the line numbers the markers occupy. */
