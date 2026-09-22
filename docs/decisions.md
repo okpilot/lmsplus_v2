@@ -2374,10 +2374,10 @@ them.
 - Verdict: after posting inline comments, it submits exactly ONE review per head commit via
   `create_and_submit_pull_request_review`, `event: REQUEST_CHANGES` on any CRITICAL/ISSUE finding
   else `COMMENT`. Never APPROVE.
-- A `Supersede older verdicts` step, gated on the Review step succeeding, dismisses every prior
-  `github-actions[bot]` CHANGES_REQUESTED review whose `commit_id` differs from the current head —
-  but only after confirming a verdict review exists ON the current head sha; missing that, it fails
-  the job and dismisses nothing, so a run that never posted a verdict cannot clear an older block.
+- The verdict body starts with `<!-- claude-review-verdict -->`. A `Supersede older verdicts` step,
+  gated on the Review step succeeding, dismisses prior CHANGES_REQUESTED reviews carrying that
+  marker on other commits — only when the event's head is still the PR's live head and a marked
+  verdict exists on it. No marked verdict fails the job and dismisses nothing.
 - Evidence: probe PR #1337 — a `github-actions[bot]` REQUEST_CHANGES review left the PR
   `mergeStateStatus: BLOCKED` with every required check green, and a later run's `github.token`
   dismissed it via the same `PUT .../reviews/{id}/dismissals` call this step uses.

@@ -6,8 +6,7 @@ name: Claude Review
 # takes effect with no sync step. The checkout is the PR's BASE branch (below); the PR's
 # own diff/files reach the reviewer only through the PR tools, never through what is on disk.
 #
-# BLOCKING via a dismissable REQUEST_CHANGES review (Decision 78). Not a required status check.
-# CodeRabbit runs unchanged, in parallel.
+# BLOCKING via a dismissable REQUEST_CHANGES review (Decision 78).
 #
 # No `paths:` filter, matching redteam.yml: a path-filtered check leaves unrelated PRs pending.
 
@@ -36,7 +35,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.pull_request.base.sha }} # trusted base, not the PR's own copy — see below
+          ref: ${{ github.event.pull_request.base.sha }} # trusted base, not the PR's own copy
           persist-credentials: false # the reviewer reads the diff through the action, not via git
 
       - name: Review
@@ -57,8 +56,6 @@ jobs:
             changes as absent because it is missing from what is on disk.
 
             # PR review instructions
-
-            Post findings as inline comments on the changed lines.
 
             ## Read before reviewing
 
@@ -126,8 +123,9 @@ jobs:
             `mcp__github__create_and_submit_pull_request_review` on owner/repo/pullNumber of this
             PR, with `commitID` set to `${{ github.event.pull_request.head.sha }}`. Set `event` to
             REQUEST_CHANGES if you posted any CRITICAL or ISSUE finding, else COMMENT. Never
-            APPROVE. The body is one line per finding (severity + file:line), or "No findings." if
-            none. Always submit this verdict, even with no findings.
+            APPROVE. The body's FIRST line is exactly `<!-- claude-review-verdict -->`, then one line
+            per finding (severity + file:line), or "No findings." if none. Always submit this
+            verdict, even with no findings.
           # Agent mode passes this prompt VERBATIM (src/modes/agent/index.ts:
           # `promptContent = context.inputs.prompt`) — it injects no PR number, base ref or patch.
           # Whatever scoping the reviewer gets, it gets from these lines and the MCP grants below.
@@ -180,16 +178,24 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        # Only reviews carrying the verdict marker are this workflow's verdicts: inline comments
+        # also land as COMMENTED bot reviews, and other workflows post as the same bot.
+        # A re-run reuses its original event payload, so HEAD_SHA can be stale: dismiss nothing then.
         run: |
           set -euo pipefail
+          live=$(gh api "repos/$REPO/pulls/$PR" --jq .head.sha)
+          if [ "$live" != "$HEAD_SHA" ]; then
+            echo "::notice::head moved to $live; the run for that commit supersedes"
+            exit 0
+          fi
           current=$(gh api "repos/$REPO/pulls/$PR/reviews" --paginate \
-            --jq '.[] | select(.user.login == "github-actions[bot]" and .commit_id == env.HEAD_SHA) | .id')
+            --jq '.[] | select(.user.login == "github-actions[bot]" and .commit_id == env.HEAD_SHA and (.body | startswith("<!-- claude-review-verdict -->"))) | .id')
           if [ -z "$current" ]; then
             echo "::error::no verdict review on $HEAD_SHA"
             exit 1
           fi
           gh api "repos/$REPO/pulls/$PR/reviews" --paginate \
-            --jq '.[] | select(.user.login == "github-actions[bot]" and .state == "CHANGES_REQUESTED" and .commit_id != env.HEAD_SHA) | .id' |
+            --jq '.[] | select(.user.login == "github-actions[bot]" and .state == "CHANGES_REQUESTED" and .commit_id != env.HEAD_SHA and (.body | startswith("<!-- claude-review-verdict -->"))) | .id' |
           while read -r id; do
             gh api -X PUT "repos/$REPO/pulls/$PR/reviews/$id/dismissals" \
               -f message="Superseded by the review of $HEAD_SHA" -f event=DISMISS
