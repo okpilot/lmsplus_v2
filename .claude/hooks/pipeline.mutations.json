@@ -10,7 +10,8 @@
       "expectRed": [
         "renaming a lefthook pre-commit command the spec still declares blocks",
         "a memory key in an agent's frontmatter blocks",
-        "a tracked file under .claude/agent-memory blocks"
+        "a tracked file under .claude/agent-memory blocks",
+        "a tracked file under apps/web/.claude blocks"
       ],
       "note": "The final blocking exit, dropped: every mismatch still prints FAIL, but the process exits 0 regardless — a lefthook.yml/pipeline.json mismatch, a stray frontmatter `memory:` key, or a tracked agent-memory file would no longer fail the CI step."
     },
@@ -32,7 +33,10 @@
       "id": "pipeline-agent-memory-tracked-allowed",
       "find": "trackedMemory.length === 0",
       "replace": "true",
-      "expectRed": ["a tracked file under .claude/agent-memory blocks"],
+      "expectRed": [
+        "a tracked file under .claude/agent-memory blocks",
+        "a tracked file under apps/web/.claude blocks"
+      ],
       "note": "The no-tracked-agent-memory check always takes the pass branch — a tracked file under .claude/agent-memory or apps/web/.claude would no longer fail the check."
     },
     {
