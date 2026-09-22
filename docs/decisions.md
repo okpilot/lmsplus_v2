@@ -2373,7 +2373,7 @@ them.
   breakage those changes cause elsewhere (callers, stale tests/docs, guard-linked mutations); the
   checkout is `base.sha` and there is no shell (`--disallowedTools "Bash"`). `Read`/`Grep`/`Glob`
   are granted explicitly and read that base checkout only — denied outside it (`/proc`, `/sys`,
-  `~`, the runner's temp dirs, `/tmp`, `/etc`), backed by `--settings
+  the runner's temp dir, `/tmp`, `/etc`), backed by `--settings
   '{"permissions":{"blockReadsOutsideWorkingDirectories":true}}'`.
 - Verdict: after posting inline comments, it submits exactly ONE review per head commit via
   `create_and_submit_pull_request_review`, `event: REQUEST_CHANGES` on any CRITICAL/ISSUE finding
