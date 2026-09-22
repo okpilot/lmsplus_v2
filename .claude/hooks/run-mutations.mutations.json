@@ -260,19 +260,23 @@
       "find": "  opts[a.slice(2)] = value\n  return { i: i + 1 }",
       "replace": "  opts[a.slice(2)] = value\n  return { i }",
       "expectRed": [
+        "grading with --jobs 1 and --jobs 3 produces byte-identical output and the same exit code",
+        "a --staged run still selects a data file deleted from the working tree but present in the index",
+        "indexCommit succeeds with no git identity configured anywhere",
+        "parseArgs propagates --jobs N to the jobs field in the result",
+        "parseArgs returns an error when --jobs has an invalid value",
+        "parseArgs rejects --jobs combined with --list",
+        "parseArgs rejects --jobs combined with --coverage",
         "a dangling GROUP id makes coverage mode exit non-zero, not merely print",
         "reports the claim sites a suite carries and the entries excused from encoding",
         "a --staged run grades a file that is only staged, not committed",
         "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top",
+        "a --staged --guard naming a data file absent from the index refuses to run, not silently 0",
         "reports a diagnostic when HEAD is unborn under --staged",
         "reports a diagnostic when the index has unresolved conflicts under --staged",
         "reads the value of an option flag",
         "takes --update-expected together with --guard, which is an option and not a mode",
-        "reads the value of the --scratch option",
-        "grading with --jobs 1 and --jobs 3 produces byte-identical output and the same exit code",
-        "a --staged run still selects a data file deleted from the working tree but present in the index",
-        "indexCommit succeeds with no git identity configured anywhere",
-        "a --staged --guard naming a data file absent from the index refuses to run, not silently 0"
+        "reads the value of the --scratch option"
       ],
       "note": "Any test asserting run-mutations' own OUTPUT reddens under this break and joins the set. A superset here means the claim was under-specific (§7); exact-set comparison is what surfaces it. Widen rather than trim — `--update-expected` writes the set actually observed."
     },
@@ -1020,14 +1024,18 @@
       "replace": "  if (n < 1) {",
       "expectRed": [
         "parseJobs rejects a non-integer value",
-        "parseJobs rejects a non-numeric value"
+        "parseJobs rejects a non-numeric value",
+        "parseArgs returns an error when --jobs has an invalid value"
       ]
     },
     {
       "id": "parsejobs-rejects-zero-and-negative",
       "find": "  const n = Number(value)\n  if (!Number.isInteger(n) || n < 1) {",
       "replace": "  const n = Number(value)\n  if (!Number.isInteger(n) || n < 0) {",
-      "expectRed": ["parseJobs rejects zero and negative values"]
+      "expectRed": [
+        "parseJobs rejects zero and negative values",
+        "parseArgs returns an error when --jobs has an invalid value"
+      ]
     },
     {
       "id": "parsejobs-rejects-nan",
@@ -1035,14 +1043,18 @@
       "replace": "  const n = Number(value) || 1",
       "expectRed": [
         "parseJobs rejects zero and negative values",
-        "parseJobs rejects a non-numeric value"
+        "parseJobs rejects a non-numeric value",
+        "parseArgs returns an error when --jobs has an invalid value"
       ]
     },
     {
       "id": "parsejobs-accepts-positive-integer",
       "find": "  return { jobs: n }",
       "replace": "  return { jobs: 1 }",
-      "expectRed": ["parseJobs accepts a positive integer and returns it as a number"]
+      "expectRed": [
+        "parseJobs accepts a positive integer and returns it as a number",
+        "parseArgs propagates --jobs N to the jobs field in the result"
+      ]
     },
     {
       "id": "runpool-preserves-input-order",
@@ -1083,8 +1095,8 @@
     },
     {
       "id": "spawnsuite-enforces-maxbuffer",
-      "find": "  child.stdout.on('data', (d) => {\n    stdout += d\n    checkBuffer()\n  })\n  child.stderr.on('data', (d) => {\n    stderr += d\n    checkBuffer()\n  })",
-      "replace": "  child.stdout.on('data', (d) => {\n    stdout += d\n  })\n  child.stderr.on('data', (d) => {\n    stderr += d\n  })",
+      "find": "      if (out.bytes > maxBuffer) onOverflow()\n",
+      "replace": "",
       "expectRed": ["spawnSuite kills a child whose output exceeds maxBuffer and reports ENOBUFS"]
     },
     {
@@ -1092,6 +1104,39 @@
       "find": "    return git(\n      [\n        '-c',\n        'user.name=mutation-harness',\n        '-c',\n        'user.email=mutation-harness@localhost',\n        'commit-tree',\n        tree,\n        '-p',\n        'HEAD',\n        '-m',\n        'index',\n      ],\n      root,\n    ).trim()",
       "replace": "    return git(['commit-tree', tree, '-p', 'HEAD', '-m', 'index'], root).trim()",
       "expectRed": ["indexCommit succeeds with no git identity configured anywhere"]
+    },
+    {
+      "id": "parseargs-reads-jobs-value",
+      "find": "    jobs: jobsResult.jobs,",
+      "replace": "    jobs: 1,",
+      "expectRed": ["parseArgs propagates --jobs N to the jobs field in the result"]
+    },
+    {
+      "id": "parseargs-propagates-jobs-error",
+      "find": "  const jobsResult = parseJobs(opts.jobs ?? '1')\n  if (jobsResult.error) return { error: jobsResult.error }\n",
+      "replace": "  const jobsResult = { jobs: 1 }\n",
+      "expectRed": [
+        "parseArgs propagates --jobs N to the jobs field in the result",
+        "parseArgs returns an error when --jobs has an invalid value"
+      ]
+    },
+    {
+      "id": "jobs-conflicts-with-list",
+      "find": "modes.includes('--list') || modes.includes('--coverage')",
+      "replace": "modes.includes('--coverage')",
+      "expectRed": ["parseArgs rejects --jobs combined with --list"]
+    },
+    {
+      "id": "jobs-conflicts-with-coverage",
+      "find": "modes.includes('--list') || modes.includes('--coverage')",
+      "replace": "modes.includes('--list')",
+      "expectRed": ["parseArgs rejects --jobs combined with --coverage"]
+    },
+    {
+      "id": "spawnsuite-decodes-utf8",
+      "find": "    child[name].setEncoding('utf8')\n",
+      "replace": "",
+      "expectRed": ["spawnSuite decodes a multi-byte character split across two output chunks"]
     }
   ],
   "notEncoded": [

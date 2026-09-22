@@ -50,7 +50,7 @@ test('relPath renders an absolute path under root as root-relative POSIX', () =>
 })
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// localImports and the one-hop scope reach
+// localImports and the scope reach
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 test('localImports resolves relative specifiers against the importer, and skips bare ones', () => {

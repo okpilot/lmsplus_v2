@@ -695,9 +695,8 @@ export function localImports(root, from, text) {
  * Bounded to LITERALS. A computed path (a template with a substitution, a joined variable) names
  * nothing this can read, exactly as `localImports` cannot follow a computed specifier.
  *
- * A leading `./` (one or more) is stripped so `'./kit.mjs'` and `'kit.mjs'` compare equal to the
- * root-relative form every caller stages against — `staged.has(...)` otherwise never matches a
- * literal spelled with the relative prefix.
+ * A leading `./` (one or more) is stripped, so `'./.claude/limits.json'` yields
+ * `.claude/limits.json` — the root-relative form `staged.has(...)` compares against.
  */
 export function namedPaths(text) {
   const re = /['"`]([A-Za-z0-9._][\w.-]*(?:\/[\w.-]+)+)['"`]/g
@@ -809,7 +808,7 @@ export function spawnSuite(args, opts) {
   return new Promise((settle) => runSpawnSuiteProcess(args, opts, settle))
 }
 
-/** Build the ENOBUFS result `spawnSuite`'s `checkBuffer` finishes with on overflow. */
+/** Build the ENOBUFS result `spawnSuite` finishes with on overflow. */
 function spawnSuiteOverflowResult(stdout, stderr) {
   return {
     status: null,
@@ -844,13 +843,29 @@ function wireSpawnSuiteExit(child, finish, getState) {
   })
 }
 
+/**
+ * Collect the child's stdout/stderr as UTF-8 text and call `onOverflow` once their combined BYTE
+ * count passes `maxBuffer` — bytes, as `spawnSync` counts it. `setEncoding` decodes a multi-byte
+ * character split across two chunks whole; appending raw chunks would decode each half alone.
+ */
+function collectSpawnOutput(child, maxBuffer, onOverflow) {
+  const out = { stdout: '', stderr: '', bytes: 0 }
+  for (const name of ['stdout', 'stderr']) {
+    child[name].setEncoding('utf8')
+    child[name].on('data', (d) => {
+      out[name] += d
+      out.bytes += Buffer.byteLength(d)
+      if (out.bytes > maxBuffer) onOverflow()
+    })
+  }
+  return out
+}
+
 /** Create the child, wire its output/exit handlers, and settle `spawnSuite`'s promise. */
 function runSpawnSuiteProcess(args, { cwd, timeout, maxBuffer, killSignal = 'SIGKILL' }, settle) {
   const child = spawn('node', args, { cwd })
-  let stdout = ''
-  let stderr = ''
-  let done = false,
-    timedOut = false
+  let done = false
+  let timedOut = false
   const finish = (result) => {
     if (done) return
     done = true
@@ -861,20 +876,11 @@ function runSpawnSuiteProcess(args, { cwd, timeout, maxBuffer, killSignal = 'SIG
     timedOut = true
     child.kill(killSignal)
   }, timeout)
-  const checkBuffer = () => {
-    if (stdout.length + stderr.length <= maxBuffer) return
+  const out = collectSpawnOutput(child, maxBuffer, () => {
     child.kill(killSignal)
-    finish(spawnSuiteOverflowResult(stdout, stderr))
-  }
-  child.stdout.on('data', (d) => {
-    stdout += d
-    checkBuffer()
+    finish(spawnSuiteOverflowResult(out.stdout, out.stderr))
   })
-  child.stderr.on('data', (d) => {
-    stderr += d
-    checkBuffer()
-  })
-  wireSpawnSuiteExit(child, finish, () => ({ stdout, stderr, timedOut }))
+  wireSpawnSuiteExit(child, finish, () => ({ stdout: out.stdout, stderr: out.stderr, timedOut }))
 }
 
 /**
@@ -1519,7 +1525,7 @@ async function modeRun({ root, guard, scratch, onResult = null, staged = false, 
   const { ref, base, scoped } = resolveRunScope(root, guard, scratch, staged)
   if (scoped.length === 0) {
     console.log(
-      '\nnothing staged touches a data file, its target, a suite, a helper a suite imports, or a path a suite names — nothing to grade',
+      '\nnothing staged touches a data file, its target, a suite, or a file reachable from them — nothing to grade',
     )
     return 0
   }

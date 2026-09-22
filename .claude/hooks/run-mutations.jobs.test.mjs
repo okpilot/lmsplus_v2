@@ -19,7 +19,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test, { after } from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { parseJobs, runPool, spawnSuite } from './run-mutations.mjs'
+import { parseArgs, parseJobs, runPool, spawnSuite } from './run-mutations.mjs'
 import { runNode } from './spawn.testkit.mjs'
 
 // Absolute path to the harness itself — needed so a subprocess invoked with a DIFFERENT cwd can
@@ -195,7 +195,7 @@ test('spawnSuite resolves a non-zero exit without treating it as a spawn error',
 // timeout falls through to the generic "could not spawn node" branch instead of naming itself.
 // (Dropping the `child.kill(killSignal)` call itself is NOT encoded: without it the fixture's
 // hanging child is never killed, so grading it would hang for the full SUITE_TIMEOUT_MS and the
-// mutation would always FAULT, never CAUGHT — the same reason the cycle-guard mutation above is a
+// mutation would always FAULT, never CAUGHT — the same reason the import-cycle test in `run-mutations.scope.test.mjs` is a
 // smoke test rather than a data-file entry.)
 // GROUP: spawnsuite-timeout-sets-etimedout
 test('spawnSuite kills a hanging child and reports ETIMEDOUT, matching spawnSync', async () => {
@@ -207,9 +207,9 @@ test('spawnSuite kills a hanging child and reports ETIMEDOUT, matching spawnSync
   assert.ok(r.signal, 'expected a kill signal to be recorded')
 })
 
-// MUTATION: delete the `checkBuffer()` call after appending to `stdout` in spawnSuite → output
-// past `maxBuffer` is buffered without limit instead of the child being killed — exactly the
-// unbounded growth `spawnSync`'s own `maxBuffer` option exists to bound.
+// MUTATION: delete the `if (out.bytes > maxBuffer) onOverflow()` check in spawnSuite's output
+// collector → output past `maxBuffer` is buffered without limit instead of the child being
+// killed — the unbounded growth `spawnSync`'s own `maxBuffer` option exists to bound.
 // GROUP: spawnsuite-enforces-maxbuffer
 test('spawnSuite kills a child whose output exceeds maxBuffer and reports ENOBUFS', async () => {
   const r = await spawnSuite(
@@ -217,6 +217,19 @@ test('spawnSuite kills a child whose output exceeds maxBuffer and reports ENOBUF
     { timeout: 5000, maxBuffer: 4096 },
   )
   assert.equal(r.error.code, 'ENOBUFS')
+})
+
+// MUTATION: delete the `setEncoding('utf8')` call in spawnSuite's output collector → each raw
+// chunk is decoded alone, so a `€` split across two writes arrives as replacement characters.
+// GROUP: spawnsuite-decodes-utf8
+test('spawnSuite decodes a multi-byte character split across two output chunks', async () => {
+  const child = [
+    "const b = Buffer.from('€')",
+    'process.stdout.write(b.subarray(0, 2))',
+    'setTimeout(() => process.stdout.write(b.subarray(2)), 50)',
+  ].join(';')
+  const r = await spawnSuite(['-e', child], { timeout: 5000, maxBuffer: 1024 * 1024 })
+  assert.equal(r.stdout, '€')
 })
 
 // Smoke test, no MUTATION claim: confirms a genuine spawn-time error (an unusable cwd) surfaces
@@ -394,4 +407,42 @@ test('indexCommit succeeds with no git identity configured anywhere', () => {
   assert.doesNotMatch(out, /unable to auto-detect/, out)
   assert.doesNotMatch(out, /Please tell me who you are/, out)
   assert.match(out, /touch-e/, out)
+})
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// parseArgs -- --jobs integration: happy path and conflict detection
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+// MUTATION: change `jobs: jobsResult.jobs` to `jobs: 1` in parseArgs's return → every
+// valid --jobs value is silently discarded and the caller always gets 1.
+// GROUP: parseargs-reads-jobs-value
+test('parseArgs propagates --jobs N to the jobs field in the result', () => {
+  const result = parseArgs(['--jobs', '4'])
+  assert.equal(result.error, undefined)
+  assert.equal(result.jobs, 4)
+})
+
+// MUTATION: replace the `parseJobs(opts.jobs ?? '1')` call and its error return in parseArgs with
+// `{ jobs: 1 }` → a bad --jobs value like 'abc' passes through without an error.
+// GROUP: parseargs-propagates-jobs-error
+test('parseArgs returns an error when --jobs has an invalid value', () => {
+  assert.match(parseArgs(['--jobs', 'abc']).error, /--jobs must be a positive integer/)
+  assert.match(parseArgs(['--jobs', '0']).error, /--jobs must be a positive integer/)
+})
+
+// MUTATION: delete the `modes.includes('--list')` sub-condition from the modeConflict jobs check
+// → `--jobs` together with `--list` is accepted and the jobs value is silently ignored.
+// GROUP: jobs-conflicts-with-list
+test('parseArgs rejects --jobs combined with --list', () => {
+  assert.match(parseArgs(['--jobs', '2', '--list']).error, /--jobs only applies to a grading run/)
+})
+
+// MUTATION: delete the `modes.includes('--coverage')` sub-condition from the modeConflict jobs
+// check → `--jobs` together with `--coverage` is accepted and the jobs value is silently ignored.
+// GROUP: jobs-conflicts-with-coverage
+test('parseArgs rejects --jobs combined with --coverage', () => {
+  assert.match(
+    parseArgs(['--jobs', '2', '--coverage']).error,
+    /--jobs only applies to a grading run/,
+  )
 })
