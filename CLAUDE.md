@@ -163,8 +163,8 @@ A commit triggers NOTHING. Full mechanics: `agent-workflow.md § Pre-Push Review
 7. **code-review (skill)** (opus) — the built-in `/code-review` skill, dispatched as a subagent in an isolated worktree, round 1 only
 
 **Round 2+** — code-reviewer + semantic-reviewer. code-review (skill) is ROUND 1 ONLY.
-doc-updater, test-writer and deletion-reviewer PRODUCE rather than gate; re-run one only when the fixup added surface
-it has not seen.
+doc-updater and test-writer PRODUCE rather than gate; re-run one, or deletion-reviewer, only when the
+fixup added surface it has not seen.
 
 **Async.** WAIT for a completion notification from every agent LAUNCHED, read ALL results, validate
 each finding, then ONE pooled triage table and ONE fixup commit. Never edit a file while an agent

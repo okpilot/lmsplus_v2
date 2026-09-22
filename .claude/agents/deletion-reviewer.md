@@ -29,11 +29,11 @@ Read `git diff origin/master...HEAD -- . ':(exclude).claude/agent-memory'`. Ask 
 
 ## Evidence Rule
 
-Every finding carries a pasted command proving nothing depends on it — grep for callers/readers; for code, the test suite green with it removed in a scratch copy under `/tmp`, never the main tree. No evidence, no finding.
+Every finding carries a pasted `grep`/`git grep` showing nothing depends on it: no caller, importer, reader or test references it; for restated prose, the grep that finds the original. No evidence, no finding.
 
 ## Severity
 
-ISSUE (default APPLY) when the evidence shows zero dependents. SUGGESTION otherwise.
+ISSUE (default APPLY) when the evidence proves no loss. SUGGESTION when the loss is a judgment call the evidence cannot settle (e.g. prose that may carry a scope clause). Evidence showing a dependent means no finding.
 
 ## Output Format
 

@@ -1,5 +1,5 @@
 # Agent Rules — deletion-reviewer
-> Model: sonnet | Trigger: pre-push review gate — round 1; a later round only when the fixup added surface it has not seen | Non-blocking (it PRODUCES findings, it does not gate)
+> Model: sonnet | Trigger: pre-push review gate — round 1; a later round only when the fixup added surface it has not seen | Blocking: on ISSUE
 
 ## Purpose
 Reports what in the branch diff can be deleted with no loss. Read-only. Every finding carries a pasted `EVIDENCE:` command proving nothing depends on it.

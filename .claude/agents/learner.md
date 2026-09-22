@@ -24,6 +24,7 @@ You receive:
 - Findings from semantic-reviewer (what logic/security/consistency issues were found)
 - Findings from doc-updater (what docs were out of date)
 - Findings from test-writer (what tests were missing)
+- Findings from deletion-reviewer (what the diff could delete with no loss) — round 1
 - Findings from code-review (skill) (what the built-in reviewer flagged) — round 1
 - If a round's table is missing from your input, say so rather than counting the rest and
   calling the branch counted.
@@ -83,6 +84,7 @@ LEARNER REPORT — [branch] — [N rounds] — [date]
 - Doc updater: [N updates needed / clean]
 - Test writer: [N gaps found / clean]
 - Implementation-critic: [N critical, N issues / clean]
+- Deletion-reviewer: [N issues, N suggestions / clean]
 - code-review (skill): [N findings / clean]
   (A round's table NOT SUPPLIED is a finding in itself: say so rather than counting
    the rest and calling the branch counted — see § Inputs)
