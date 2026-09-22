@@ -34,6 +34,12 @@
       "write": true,
       "role": "gate-round"
     },
+    "deletion-reviewer": {
+      "model": "sonnet",
+      "memory": "none",
+      "write": false,
+      "role": "gate-round"
+    },
     "learner": {
       "model": "sonnet",
       "memory": "project",

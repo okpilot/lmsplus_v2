@@ -575,7 +575,7 @@ the tree; verify each before building on it.**
 | Claim now in prose | Precedent to extend | Derive the precedent with |
 |---|---|---|
 | member 6 runs **opus** | `pipeline.json` `modelLiteralSites` already asserts a model literal at a path for the security-auditor | `python3 -c "import json;print(json.load(open('.claude/pipeline.json'))['modelLiteralSites'])"` |
-| round 1 is SIX, and who they are | `pipeline.json` agent rows carry `role: "gate-round"`; `pipeline.test.mjs` asserts that set. The GAP is the prose mirrors, which nothing compares against the data | `grep -n 'gate-round\|EXPECTED_CORE' .claude/pipeline.test.mjs` |
+| round 1's size, and who they are | `pipeline.json` agent rows carry `role: "gate-round"`; `pipeline.test.mjs` asserts that set. The GAP is the prose mirrors, which nothing compares against the data | `grep -n 'gate-round\|EXPECTED_CORE' .claude/pipeline.test.mjs` |
 | no retired reviewer named as current | falls out of the roster check for free — a retired member is simply absent from the data | — |
 | orchestrator never invokes the skill directly | `settings.json` `PreToolUse` matchers are tool-name regexes (`Bash`, `Edit\|Write` today), so a `Skill` matcher is plausible — **UNVERIFIED**: whether the hook payload distinguishes orchestrator from subagent is unknown. Probe before planning on it | `python3 -c "import json;print(json.load(open('.claude/settings.json'))['hooks']['PreToolUse'])"` |
 

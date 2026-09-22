@@ -1073,7 +1073,8 @@ pre-push review gate — ONE loop per BRANCH. `git fetch origin || abort`, then
         5. test-writer (sonnet) — find/write missing tests (the only agent holding Write/Edit on REPOSITORY files; `memory: project`
          separately grants each agent Read/Write/Edit on its OWN memory dir, and Bash remains
          everywhere by design)
-        6. code-review (skill) — the built-in `/code-review` skill, dispatched as a subagent in an isolated worktree on opus, round 1 only
+        6. deletion-reviewer (sonnet) — reports what the diff can delete with no loss; read-only
+        7. code-review (skill) — the built-in `/code-review` skill, dispatched as a subagent in an isolated worktree on opus, round 1 only
         round 2+: code-reviewer + semantic-reviewer
     → Pool every validated finding into ONE triage table and ONE fixup commit, which
       carries every agent-authored artifact too — test-writer's new tests

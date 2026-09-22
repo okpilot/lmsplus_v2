@@ -23,7 +23,7 @@ State what is true. Delete the rest.
 2. **NEVER explore the codebase yourself when subagents can do it** — Explore agents (Sonnet) do it. Reading one known file or a simple symbol grep is exempt (§ When NOT to use subagents).
 3. **ALWAYS delegate execution** — parallel when independent; worktree isolation for risky changes.
 4. **ALWAYS read every subagent result first** — no fire-and-forget.
-5. **ALWAYS run the pre-push review gate** — once per branch, all six reviewers in round 1. No exemption.
+5. **ALWAYS run the pre-push review gate** — once per branch, all seven reviewers in round 1. No exemption.
 
 ### Your workflow for any non-trivial task:
 ```
@@ -153,16 +153,17 @@ met, same commit. Verify redundancy, never infer from the resolved version:
 ONE loop per BRANCH over `git diff origin/master...HEAD -- . ':(exclude).claude/agent-memory'`.
 A commit triggers NOTHING. Full mechanics: `agent-workflow.md § Pre-Push Review Gate`.
 
-**Round 1** — six reviewers, ONE parallel dispatch:
+**Round 1** — seven reviewers, ONE parallel dispatch:
 1. **implementation-critic** (sonnet) — branch diff vs the validated plan
 2. **code-reviewer** (sonnet) — diff vs `.claude/rules/code-style.md`
 3. **semantic-reviewer** (sonnet) — deep logic/security/consistency review
 4. **doc-updater** (haiku) — reports doc edits; YOU apply them (no Write/Edit tool)
 5. **test-writer** (sonnet) — missing tests, writes + runs them (sole agent with repo Write/Edit, scoped to test files; `memory: project` also grants each its own R/W/E memory dir)
-6. **code-review (skill)** (opus) — the built-in `/code-review` skill, dispatched as a subagent in an isolated worktree, round 1 only
+6. **deletion-reviewer** (sonnet) — reports what the diff can delete with no loss, each with `EVIDENCE:`; read-only
+7. **code-review (skill)** (opus) — the built-in `/code-review` skill, dispatched as a subagent in an isolated worktree, round 1 only
 
 **Round 2+** — code-reviewer + semantic-reviewer. code-review (skill) is ROUND 1 ONLY.
-doc-updater and test-writer PRODUCE rather than gate; re-run one only when the fixup added surface
+doc-updater, test-writer and deletion-reviewer PRODUCE rather than gate; re-run one only when the fixup added surface
 it has not seen.
 
 **Async.** WAIT for a completion notification from every agent LAUNCHED, read ALL results, validate
@@ -174,16 +175,16 @@ loop by one round; a skip-with-reason does not. **Ceiling 3 rounds** — at it, 
 NEW critical in a section an earlier round passed means the diff is too large, so SPLIT.
 
 Then ONCE per branch, in order:
-7. **learner** (sonnet) — reads every round's findings, REPORTS proposed rule changes; you apply
+8. **learner** (sonnet) — reads every round's findings, REPORTS proposed rule changes; you apply
    them. Writes only its own memory dir (`agent-learner.md`).
 
 Security files touched (migrations, db/src, quiz/actions, auth, proxy.ts, security.md — full set
 in `agent-workflow.md § Red-Team Agent Trigger`, +`apps/web/e2e/redteam/`) → also run:
-8. **red-team** (sonnet) — maps diff to specs, flags gaps; `pnpm --filter @repo/web e2e:redteam` if affected
+9. **red-team** (sonnet) — maps diff to specs, flags gaps; `pnpm --filter @repo/web e2e:redteam` if affected
 
 Rules changed (`code-style.md`, `.claude/rules/security.md`, `docs/security.md`, `biome.json`,
 `CLAUDE.md`, or a new **or changed** `.claude/hooks/*.mjs` guard — see `agent-coderabbit-sync.md`) → also run:
-9. **coderabbit-sync** (haiku) — keeps `.coderabbit.yaml` aligned
+10. **coderabbit-sync** (haiku) — keeps `.coderabbit.yaml` aligned
 
 **Triage discipline.** Fix every validated CRITICAL and ISSUE (`agent-semantic-reviewer.md`). The
 ONE bounded case: a wording REFINEMENT on prose this loop's own fixup just wrote is logged, not
