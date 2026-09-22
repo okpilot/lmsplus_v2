@@ -431,13 +431,12 @@
       "expectRed": ["CLAUDE.md counts as a surviving corpus file (exact-match root entry)"]
     },
     {
-      "id": "addedtext-include-memory",
+      "id": "addedtext-any-entry",
       "find": "    if (inCorpus(entry.path)) {",
       "replace": "    if (true) {",
       "expectRed": [
         "a token re-added only in application code does not exonerate a corpus retraction"
-      ],
-      "note": "superset: accumulating every entry also pulls the app-code fixture’s added line into addedText, exonerating that retraction too."
+      ]
     },
     {
       "id": "waiver-any-trailer-clears",

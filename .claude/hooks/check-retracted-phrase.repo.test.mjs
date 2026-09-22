@@ -223,9 +223,9 @@ test('a LONGER number containing the token does not exonerate the retraction', (
   })
 })
 
-// GROUP: addedtext-include-memory
+// GROUP: addedtext-any-entry
 test('a token re-added only in application code does not exonerate a corpus retraction', () => {
-  // MUTATION: accumulate addedText from every non-memory entry instead of corpus entries only →
+  // MUTATION: accumulate addedText from every entry instead of corpus entries only →
   // a value moved OUT of the documented corpus into source exonerates a corpus retraction that
   // is still incomplete. The survivor search is corpus-scoped, so the re-added check must be too,
   // or the two halves disagree about what "the documented set" means.

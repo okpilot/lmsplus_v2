@@ -2424,3 +2424,6 @@ them.
   caused by the tracker, 2 predate it, 1 marked `PROMOTED` falsely, 3 not resolvable to one commit.
 - Recurrence/pattern evidence now comes from GitHub review comments (CodeRabbit + the CI reviewer,
   Decision 78) instead of a learner tracker.
+- Supersedes every earlier decision's `.claude/agent-memory` clause
+  (`git grep -n agent-memory docs/decisions.md`). The guard and `.coderabbit.yaml` exclusions of
+  that path are removed.
