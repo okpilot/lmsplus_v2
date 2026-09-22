@@ -275,7 +275,13 @@ test('refuses an ambiguous anchor that occurs twice', () => {
 test('defaults to the run mode with no flags', () => {
   // MUTATION: default `mode` to 'list' → the bare command prints ids and exits 0 without running
   // a single mutation, which is indistinguishable from a fully caught run.
-  assert.deepEqual(parseArgs([]), { mode: 'run', guard: null, scratch: null, staged: false })
+  assert.deepEqual(parseArgs([]), {
+    mode: 'run',
+    guard: null,
+    scratch: null,
+    staged: false,
+    jobs: 1,
+  })
 })
 
 test('reads the value of an option flag', () => {
@@ -286,6 +292,7 @@ test('reads the value of an option flag', () => {
     guard: 'check-x',
     scratch: null,
     staged: false,
+    jobs: 1,
   })
 })
 
@@ -295,6 +302,7 @@ test('reads --update-expected as a mode', () => {
     guard: null,
     scratch: null,
     staged: false,
+    jobs: 1,
   })
 })
 
@@ -304,6 +312,7 @@ test('takes --update-expected together with --guard, which is an option and not 
     guard: 'run-mutations',
     scratch: null,
     staged: false,
+    jobs: 1,
   })
 })
 
@@ -336,11 +345,11 @@ test('blocks an option flag given with no value', () => {
 
 // ---------------------------------------------------------------- main
 
-test('exits 2, not 1, on a usage error', () => {
+test('exits 2, not 1, on a usage error', async () => {
   // MUTATION: return 1 from main's arg-error branch → a broken invocation is reported as a test
   // finding, and the header's whole 1-vs-2 rationale collapses: the cheapest remedy a reader has
   // for "this test is unpinned" is to delete the test.
-  assert.equal(main(['--list', '--coverage']), 2)
+  assert.equal(await main(['--list', '--coverage']), 2)
 })
 
 // ---------------------------------------------------------------- validateDataFile (uncovered branches)
@@ -419,6 +428,7 @@ test('reads the value of the --scratch option', () => {
     guard: null,
     scratch: '/tmp/my-scratch',
     staged: false,
+    jobs: 1,
   })
 })
 
