@@ -16,13 +16,27 @@
 //         node .claude/hooks/run-mutations.mjs --coverage       claim sites vs encoded mutations
 //         node .claude/hooks/run-mutations.mjs --update-expected rewrite every MISMATCHed
 //                                                               `expectRed` from what went red
+//         node .claude/hooks/run-mutations.mjs --staged         grade the INDEX, not HEAD —
+//                                                               scoped to data files that touch
+//                                                               what is staged (plain run only)
 //         [--scratch <dir>]                                     where worktrees are made
+//
+// `--staged` exists because a pre-commit gate built on the plain run grades the last COMMIT: a
+// file only staged, not yet committed, reports NO VERDICT rather than a result. It builds a
+// commit of the INDEX tree without moving HEAD or touching the worktree (`git write-tree` +
+// `git commit-tree -p HEAD`), grades THAT, and narrows to the data files whose target, suites,
+// own path, one-hop suite imports, or a path a suite names as a string literal are actually
+// staged. `touchesStaged` is the predicate; the runtime message names the same set.
 //
 // Exit:   0 = every encoded mutation was CAUGHT
 //         1 = at least one SURVIVED or MISMATCHed — a finding about the TESTS
 //         2 = NO TRUSTWORTHY VERDICT — a finding about the HARNESS. Covers a fault in ANY
 //             single mutation (the batch still grades the rest and reports how many it could
-//             not), and the cases with nothing to grade at all.
+//             not), and the cases with nothing to grade at all — EXCEPT one: under `--staged`,
+//             a staged set touching no data file, target, suite, one-hop suite import or path a
+//             suite names as a literal exits 0. That is a commit
+//             this tool has no claim to grade, not a harness that lost its corpus, and the
+//             `files.length === 0` throw below still covers the corpus going missing.
 //
 // Why 1 and 2 are separate. A mutation reports SURVIVED when the suites stayed green, and
 // `code-style.md` §7 names the trap directly: "a `sed` whose anchor does not match is a no-op,
@@ -42,13 +56,15 @@
 //   - `expectRed` is compared as an EXACT SET. A mutation that reddens a superset of the named
 //     tests is reported MISMATCH, not CAUGHT — §7 calls a comment naming fewer tests than it
 //     actually breaks "under-specific", and silently passing it would launder that defect;
-//   - the worktree is built from HEAD, so an UNCOMMITTED edit to a target or a suite is not what
-//     gets graded. The run measures the committed tree; that is what a commit message claims about.
+//   - the worktree is built from HEAD by default, so an UNCOMMITTED edit to a target or a suite is
+//     not what gets graded. The run measures the committed tree; that is what a commit message
+//     claims about. `--staged` is the stated exception: it builds the worktree from a commit made
+//     of the INDEX, so there the staged edit IS what gets graded and an unstaged one still is not.
 
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { isAbsolute, join, resolve, sep } from 'node:path'
+import { dirname, isAbsolute, join, resolve, sep } from 'node:path'
 import { argv, exit } from 'node:process'
 import { pathToFileURL } from 'node:url'
 
@@ -60,6 +76,8 @@ const SUITE_TIMEOUT_MS = 120_000
 /** Mode flags. Options (`--guard`, `--scratch`) take a value and are NOT modes. */
 const MODE_FLAGS = new Set(['--list', '--coverage', '--update-expected'])
 const OPTION_FLAGS = new Set(['--guard', '--scratch'])
+/** Boolean flags: present or absent, never take a value. */
+const BOOLEAN_FLAGS = new Set(['--staged'])
 
 const DATA_SUFFIX = '.mutations.json'
 
@@ -393,32 +411,8 @@ export function assertSingleOccurrence(source, find, id) {
   return count
 }
 
-/** Parse argv. Returns `{ error }` or `{ mode, guard, scratch }`. */
-export function parseArgs(args) {
-  const modes = []
-  const opts = { guard: null, scratch: null }
-  for (let i = 0; i < args.length; i++) {
-    const a = args[i]
-    if (!a.startsWith('--')) {
-      // A bare positional is never meaningful here, and accepting one is how a flag typo
-      // (`-list`) becomes a silently ignored argument on a run that then reports green.
-      return { error: `unexpected argument ${JSON.stringify(a)} — this tool takes flags only` }
-    }
-    if (MODE_FLAGS.has(a)) {
-      modes.push(a)
-      continue
-    }
-    if (OPTION_FLAGS.has(a)) {
-      const value = args[i + 1]
-      if (value === undefined || value.startsWith('--')) {
-        return { error: `${a} requires a value` }
-      }
-      opts[a.slice(2)] = value
-      i++
-      continue
-    }
-    return { error: `unknown flag ${a}` }
-  }
+/** The two ways a flag set names more than one run: two modes, or `--staged` on a non-run mode. */
+function modeConflict(modes, opts) {
   // Two modes both pass the unknown-flag gate, then whichever branch is tested first wins and
   // the other request is dropped with no diagnostic at exit 0 — the collision
   // `check-file-size-guard.mjs` documents at its own arg parser. Precedence between modes is
@@ -426,10 +420,59 @@ export function parseArgs(args) {
   if (new Set(modes).size > 1) {
     return { error: `${[...new Set(modes)].join(' and ')} are separate modes — run one` }
   }
+  // `--staged` picks the ref the plain run grades against; the other modes (`--list`, `--coverage`,
+  // `--update-expected`) have no ref-dependent behavior to redirect, so combining it with one is a
+  // request that names a mechanism the mode never consults — refuse rather than silently ignore it.
+  if (opts.staged && modes.length > 0) {
+    return {
+      error: '--staged only applies to a plain run (no --list, --coverage or --update-expected)',
+    }
+  }
+  return null
+}
+
+/**
+ * Consume one flag at `args[i]`, recording it in `modes`/`opts`.
+ * Returns `{ error }`, or `{ i }` — the index of the last argument consumed.
+ */
+function readFlag(args, i, modes, opts) {
+  const a = args[i]
+  if (!a.startsWith('--')) {
+    // A bare positional is never meaningful here, and accepting one is how a flag typo
+    // (`-list`) becomes a silently ignored argument on a run that then reports green.
+    return { error: `unexpected argument ${JSON.stringify(a)} — this tool takes flags only` }
+  }
+  if (MODE_FLAGS.has(a)) {
+    modes.push(a)
+    return { i }
+  }
+  if (BOOLEAN_FLAGS.has(a)) {
+    opts[a.slice(2)] = true
+    return { i }
+  }
+  if (!OPTION_FLAGS.has(a)) return { error: `unknown flag ${a}` }
+  const value = args[i + 1]
+  if (value === undefined || value.startsWith('--')) return { error: `${a} requires a value` }
+  opts[a.slice(2)] = value
+  return { i: i + 1 }
+}
+
+/** Parse argv. Returns `{ error }` or `{ mode, guard, scratch, staged }`. */
+export function parseArgs(args) {
+  const modes = []
+  const opts = { guard: null, scratch: null, staged: false }
+  for (let i = 0; i < args.length; i++) {
+    const read = readFlag(args, i, modes, opts)
+    if (read.error) return { error: read.error }
+    i = read.i
+  }
+  const clash = modeConflict(modes, opts)
+  if (clash) return clash
   return {
     mode: modes.length === 0 ? 'run' : modes[0].slice(2),
     guard: opts.guard,
     scratch: opts.scratch,
+    staged: opts.staged,
   }
 }
 
@@ -455,16 +498,58 @@ function dataFiles(root) {
     .map((f) => ({ basename: f.slice(0, -DATA_SUFFIX.length), path: join(dir, f) }))
 }
 
-function loadDataFile(file) {
+/** Parse and validate one data file's already-read text, errors tagged with `file.path`. */
+function parseDataFile(text, file) {
   let obj
   try {
-    obj = JSON.parse(readFileSync(file.path, 'utf8'))
+    obj = JSON.parse(text)
   } catch (err) {
     throw new Error(`${file.path}: unreadable or malformed JSON — ${err.message}`)
   }
   const problems = validateDataFile(obj, file.path)
   if (problems.length > 0) throw new Error(problems.join('\n  '))
   return obj
+}
+
+function loadDataFile(file) {
+  return parseDataFile(readFileSync(file.path, 'utf8'), file)
+}
+
+/**
+ * `file`'s content AT `ref`'s tree — never the working tree — so a `--staged` run grades the
+ * INDEXED `find`/`replace`/`expectRed`, not an unstaged-only edit sitting on top of it. Returns
+ * null ONLY when `file` has no entry in that tree at all — untracked, or `git rm --cached`-ed.
+ * A committed file the commit leaves alone still has an entry, so it still loads; whether it is
+ * GRADED is `filterByStagedScope`'s question, not this one.
+ */
+function loadDataFileAt(root, file, ref) {
+  const text = blobAt(root, ref, file.path)
+  if (text === null) return null
+  return parseDataFile(text, file)
+}
+
+/**
+ * `path`'s content at `ref`, or null when that path is simply not in that tree.
+ *
+ * Existence is its own question, asked with its own command: a catch around `git show` would read
+ * EVERY failure — an index lock, a corrupt object, git off PATH — as "not staged", silently drop
+ * that guard from the run, and still exit 0. `git cat-file -e <ref>:<path>` cannot carry the
+ * distinction either — it exits 128 BOTH for a path absent from a valid tree and for a ref that
+ * does not resolve, so one unresolvable ref would empty the scope and report nothing to grade.
+ * `ls-tree` separates them: exit 0 with empty output is absence, a non-zero exit is a fault.
+ */
+export function blobAt(root, ref, path) {
+  const rel = relPath(root, path)
+  const probe = spawnSync('git', ['ls-tree', ref, '--', rel], { cwd: root, encoding: 'utf8' })
+  // Same disposition as `git()` above: a spawn that never ran leaves `status` null, and
+  // interpolating that yields "exited null" while discarding the only diagnostic there is.
+  if (probe.error) throw probe.error
+  if (probe.status !== 0) {
+    const why = (probe.stderr || '').trim() || `git ls-tree exited ${probe.status}`
+    throw new Error(`cannot read ${rel} at ${ref}: ${why}`)
+  }
+  if (probe.stdout.trim() === '') return null
+  return git(['show', `${ref}:${rel}`], root)
 }
 
 /**
@@ -478,6 +563,100 @@ function scratchBase(root, requested) {
     throw new Error(`--scratch must be outside the repository (got ${base} under ${root})`)
   }
   return base
+}
+
+// ---------------------------------------------------------------- --staged: ref and scope
+
+/** A commit of the INDEX tree, without moving HEAD or touching the worktree. */
+function indexCommit(root) {
+  // `write-tree` refuses an index holding unmerged entries, and `commit-tree -p HEAD` fails on an
+  // unborn HEAD. Both reach the caller as a generic fault, so name them here instead.
+  let tree
+  try {
+    tree = git(['write-tree'], root).trim()
+  } catch (e) {
+    throw new Error(`--staged cannot grade this index (unresolved merge conflicts?): ${e.message}`)
+  }
+  try {
+    return git(['commit-tree', tree, '-p', 'HEAD', '-m', 'index'], root).trim()
+  } catch (e) {
+    throw new Error(`--staged needs a commit to parent from (unborn HEAD?): ${e.message}`)
+  }
+}
+
+/** Root-relative POSIX paths currently staged. */
+function stagedPaths(root) {
+  // --no-renames: a staged rename otherwise lists only the NEW path, scoping out the guard whose
+  // target moved away.
+  const out = git(['diff', '--cached', '--name-only', '--no-renames', '-z'], root)
+  return new Set(out.split('\u0000').filter(Boolean))
+}
+
+/** `p` (absolute or root-relative) as a root-relative POSIX path. */
+export function relPath(root, p) {
+  const abs = isAbsolute(p) ? p : join(root, p)
+  // A path outside `root` would `.slice()` into a silently wrong string — and every caller feeds
+  // the result to `staged.has(...)`, where a wrong string is indistinguishable from "not staged".
+  // Scope would narrow with no diagnostic, so this faults instead.
+  if (abs !== root && !abs.startsWith(root + sep)) {
+    throw new Error(`path escapes the repo root: ${p} (root ${root})`)
+  }
+  return abs
+    .slice(root.length + 1)
+    .split(sep)
+    .join('/')
+}
+
+/** Relative-specifier imports of `text`, resolved against the directory of `from`. */
+export function localImports(root, from, text) {
+  const out = []
+  for (const m of text.matchAll(/(?:from|import)\s*\(?\s*['"](\.[^'"]+)['"]/g)) {
+    out.push(relPath(root, resolve(dirname(isAbsolute(from) ? from : join(root, from)), m[1])))
+  }
+  return out
+}
+
+/**
+ * Repo-relative paths a suite NAMES as a string literal. A file a suite reads directly —
+ * `readFileSync('.claude/limits.json')` — is a graded input that no import hop can see, so
+ * without this a commit staging only that file grades nothing and exits 0. Over-inclusion is
+ * harmless: a literal naming nothing simply matches nothing staged.
+ *
+ * Bounded to LITERALS. A computed path (a template with a substitution, a joined variable) names
+ * nothing this can read, exactly as `localImports` cannot follow a computed specifier.
+ */
+export function namedPaths(text) {
+  const re = /['"`]([A-Za-z0-9._][\w.-]*(?:\/[\w.-]+)+)['"`]/g
+  return [...text.matchAll(re)].map((m) => m[1])
+}
+
+/**
+ * Whether any of five things is in `staged`: `file`'s own path, `data.target`, a `data.suites`
+ * entry, a helper a suite imports, or a path a suite names as a string literal.
+ *
+ * The last two are load-bearing because no data file names them. A shared testkit reaches the run
+ * only through a suite's import, and a fixture path only through a literal, so without those hops
+ * a commit staging ONLY that file grades nothing and exits 0 — while the edit can redden every
+ * suite that reads it. Both hops are ONE level deep and cover suites only, never the target's own
+ * imports; widening that reach is #1329.
+ */
+export function touchesStaged(root, file, data, staged, readAt = null) {
+  const paths = [file.path, data.target, ...data.suites]
+  if (paths.some((p) => staged.has(relPath(root, p)))) return true
+  if (!readAt) return false
+  return data.suites.some((suite) => {
+    const text = readAt(suite)
+    if (text === null) return false
+    if (localImports(root, suite, text).some((i) => staged.has(i))) return true
+    return namedPaths(text).some((named) => staged.has(named))
+  })
+}
+
+/** Data files `touchesStaged` keeps — everything else is a no-op. */
+function filterByStagedScope(root, loaded, ref) {
+  const staged = stagedPaths(root)
+  const readAt = (suite) => blobAt(root, ref, suite)
+  return loaded.filter(({ file, data }) => touchesStaged(root, file, data, staged, readAt))
 }
 
 /**
@@ -524,10 +703,10 @@ export function assertSpawnUsable(mutId, r, timeoutMs) {
  * is a documented bypass class in `.claude/agents/test-writer.md` — it keeps the mutated code
  * on disk while the primary repo's status, HEAD and stash list are all blind to it.
  */
-function runMutation({ root, data, mut, base }) {
+function runMutation({ root, data, mut, base, ref }) {
   const wt = mkdtempSync(join(base, 'run-mutations-'))
   try {
-    git(['worktree', 'add', '--detach', wt, 'HEAD'], root)
+    git(['worktree', 'add', '--detach', wt, ref], root)
     const targetPath = join(wt, data.target)
     let source
     try {
@@ -633,12 +812,14 @@ function workingTreeSuite(root, suite) {
 }
 
 /**
- * Suite text at HEAD — the tree the grading run executes. Validating the working tree instead
- * would split the two halves of one gate: an unstaged marker fix would hide a dangling id in the
- * committed suite, and an unstaged dangling one would block a run that is valid as committed.
+ * Suite text at `ref` — HEAD normally, or the synthetic index commit under `--staged` — the tree
+ * the grading run executes. Validating the working tree instead would split the two halves of one
+ * gate: an unstaged marker fix would hide a dangling id in the committed suite, and an unstaged
+ * dangling one would block a run that is valid as committed.
  */
-function committedSuite(root, suite) {
-  return isAbsolute(suite) ? readFileSync(suite, 'utf8') : git(['show', `HEAD:${suite}`], root)
+function committedSuiteAt(ref) {
+  return (root, suite) =>
+    isAbsolute(suite) ? readFileSync(suite, 'utf8') : git(['show', `${ref}:${suite}`], root)
 }
 
 /** 4 params: the reader is the tree being surveyed, not data — `--coverage` and `--run` differ. */
@@ -701,10 +882,10 @@ function modeCoverage(root, guard) {
  * and both mean the same thing about the RUN, which is why they share a verdict — but a reader
  * told only about recipes will go audit a data file that is fine.
  */
-function gradeOne({ root, data, mut, base, onResult }) {
+function gradeOne({ root, data, mut, base, ref, onResult }) {
   let res
   try {
-    res = runMutation({ root, data, mut, base })
+    res = runMutation({ root, data, mut, base, ref })
   } catch (err) {
     console.log(`  FAULT     ${mut.id}`)
     console.log(`    ${err.message}`)
@@ -943,7 +1124,12 @@ function modeUpdateExpected(root, guard, scratch) {
   // observed set into another guard's entry. `--guard` hides it: one file cannot collide.
   const keyOf = (file, id) => `${file}\u0000${id}`
   const graded = new Map()
-  const runExit = modeRun(root, guard, scratch, (r) => graded.set(keyOf(r.file, r.id), r))
+  const runExit = modeRun({
+    root,
+    guard,
+    scratch,
+    onResult: (r) => graded.set(keyOf(r.file, r.id), r),
+  })
   if (runExit === 2) {
     console.error('\n✖ a mutation could not be graded — NO VERDICT, nothing written.')
     return 2
@@ -992,16 +1178,55 @@ function reportOutcome(written, survivors) {
 }
 
 /**
- * Grade every mutation of every selected data file.
- *
- * Four parameters, each a distinct role (`code-style.md` §3, infrastructure exception):
- * @param root       repository root; every git call and every path resolves against it
- * @param guard      basename selecting ONE data file, or falsy for all of them
- * @param scratch    where throwaway worktrees are made
- * @param onResult   called once per GRADED mutation with `{ file, id, status, observed }`;
- *                   null for a plain run. Never called for a fault, which has no observed set.
+ * Every selected data file's `{ file, data }`, at `ref`, staged-scoped when `staged`. Under
+ * `--staged`, a file with no copy at `ref` (untracked, or removed from the index) is dropped —
+ * `loadDataFileAt` returns null for it — before `filterByStagedScope` ever sees it.
  */
-function modeRun(root, guard, scratch, onResult = null) {
+function loadScoped(root, files, ref, staged) {
+  if (!staged) return files.map((file) => ({ file, data: loadDataFile(file) }))
+  const loaded = files
+    .map((file) => ({ file, data: loadDataFileAt(root, file, ref) }))
+    .filter(({ data }) => data !== null)
+  return filterByStagedScope(root, loaded, ref)
+}
+
+/** Grade every mutation in every `scoped` data file; tallies caught/bad/faults/total. */
+function gradeScoped(scoped, { root, base, ref, readSuite, onResult }) {
+  let caught = 0
+  let bad = 0
+  let faults = 0
+  let total = 0
+  for (const { file, data } of scoped) {
+    // A dangling id is a stale reference, and a stale reference is the same class of defect as a
+    // stale anchor: it reads as coverage and grades nothing. Fail before anything is graded.
+    const ids = new Set(data.mutations.map((m) => m.id))
+    const problems = surveySuites(root, data, ids, readSuite).problems
+    if (problems.length > 0) throw new Error(problems.join('\n  '))
+    console.log(`\n${file.basename}${DATA_SUFFIX}  → ${data.target}`)
+    // Hoisted out of the mutation loop: one closure per FILE. The DATA FILE is what scopes a
+    // mutation id — ids are unique within one file and do collide across files.
+    const report = onResult ? (r) => onResult({ ...r, file: file.path }) : null
+    for (const mut of data.mutations) {
+      total++
+      const outcome = gradeOne({ root, data, mut, base, ref, onResult: report })
+      if (outcome === 'caught') caught++
+      else if (outcome === 'bad') bad++
+      else faults++
+    }
+  }
+  return { caught, bad, faults, total }
+}
+
+/**
+ * Grade every mutation of every selected data file.
+ * @param opts.root       repository root; every git call and every path resolves against it
+ * @param opts.guard      basename selecting ONE data file, or falsy for all of them
+ * @param opts.scratch    where throwaway worktrees are made
+ * @param opts.onResult   called once per GRADED mutation with `{ file, id, status, observed }`;
+ *                        null for a plain run. Never called for a fault, which has no observed set.
+ * @param opts.staged     grade the INDEX instead of HEAD, scoped to data files touching what is staged
+ */
+function modeRun({ root, guard, scratch, onResult = null, staged = false }) {
   const files = selectFiles(root, guard)
   if (files.length === 0) {
     // NOT exit 0. Exit 0 asserts "every encoded mutation was CAUGHT"; a run that graded NOTHING
@@ -1011,29 +1236,21 @@ function modeRun(root, guard, scratch, onResult = null) {
     throw new Error('no *.mutations.json data files found — nothing graded, so no verdict')
   }
   const base = scratchBase(root, scratch)
-  let caught = 0
-  let bad = 0
-  let faults = 0
-  let total = 0
-  for (const file of files) {
-    const data = loadDataFile(file)
-    // A dangling id is a stale reference, and a stale reference is the same class of defect as a
-    // stale anchor: it reads as coverage and grades nothing. Fail before anything is graded.
-    const ids = new Set(data.mutations.map((m) => m.id))
-    const problems = surveySuites(root, data, ids, committedSuite).problems
-    if (problems.length > 0) throw new Error(problems.join('\n  '))
-    console.log(`\n${file.basename}${DATA_SUFFIX}  → ${data.target}`)
-    // Hoisted out of the mutation loop: one closure per FILE. The DATA FILE is what scopes a
-    // mutation id — ids are unique within one file and do collide across files.
-    const report = onResult ? (r) => onResult({ ...r, file: file.path }) : null
-    for (const mut of data.mutations) {
-      total++
-      const outcome = gradeOne({ root, data, mut, base, onResult: report })
-      if (outcome === 'caught') caught++
-      else if (outcome === 'bad') bad++
-      else faults++
-    }
+  const ref = staged ? indexCommit(root) : 'HEAD'
+  const scoped = loadScoped(root, files, ref, staged)
+  if (scoped.length === 0) {
+    console.log(
+      '\nnothing staged touches a data file, its target, a suite, a helper a suite imports, or a path a suite names — nothing to grade',
+    )
+    return 0
   }
+  const { caught, bad, faults, total } = gradeScoped(scoped, {
+    root,
+    base,
+    ref,
+    readSuite: committedSuiteAt(ref),
+    onResult,
+  })
   console.log(
     `\n${total} mutations run, ${caught} caught, ${bad} survived-or-mismatched, ${faults} could not be graded`,
   )
@@ -1049,7 +1266,7 @@ export function main(args) {
   if (parsed.error) {
     console.error(`✖ mutation harness: ${parsed.error} — BLOCKING`)
     console.error(
-      '  usage: run-mutations.mjs [--list | --coverage | --update-expected] [--guard <basename>] [--scratch <dir>]',
+      '  usage: run-mutations.mjs [--list | --coverage | --update-expected] [--staged] [--guard <basename>] [--scratch <dir>]',
     )
     // Said here, not only in the file header, because the people who need it are authoring
     // `<guard>.mutations.json` and will never open this source file.
@@ -1067,7 +1284,7 @@ export function main(args) {
   if (parsed.mode === 'update-expected') {
     return modeUpdateExpected(root, parsed.guard, parsed.scratch)
   }
-  return modeRun(root, parsed.guard, parsed.scratch)
+  return modeRun({ root, guard: parsed.guard, scratch: parsed.scratch, staged: parsed.staged })
 }
 
 if (argv[1] && import.meta.url === pathToFileURL(argv[1]).href) {

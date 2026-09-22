@@ -49,7 +49,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Follow-up commit misses review-follow-up line bound by margin | 2 | 2026-08-17 | RULE CANDIDATE |
 | §10 violations (non-DB form) cluster in content/authoring commit | 4 | 2026-08-19 | RULE CANDIDATE (4) |
 | Evidence cited predates the code it certifies (stale build artifact as proof) | 2 | 2026-08-18 | RULE CANDIDATE (2) |
-| Prose asserts an issue is closed/resolved without `gh issue view` | 4 | 2026-08-19 | RULE CANDIDATE (4) |
+| Prose asserts an issue is open/closed without `gh issue view` | 5 | 2026-09-22 | RULE CANDIDATE (5) |
 | Implementation-critic skipped under a self-invented size exemption | 2 | 2026-08-19 | RULE CANDIDATE (2) |
 | Self-invalidating relative reference in durable rules/doc file | 4 | 2026-09-16 | RULE CANDIDATE (4) |
 | Verification gate's pass condition is empty result — fails open on malformed input | 7 | 2026-09-18 | RULE CANDIDATE (7). Detail: cross-agent-lessons.md |
@@ -60,7 +60,6 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Empirical measurement correct for tested scenario but excludes the failure case | 4 | 2026-09-08 | RULE CANDIDATE (4) → §10 clause 5. Detail: topic file |
 | Corrected claim partially retracted — old wording persists elsewhere | 17 | 2026-09-20 | RULE CANDIDATE (17). Detail: cross-agent-lessons.md |
 | Mirror-sync grep misses a mirror on the wrong axis | 2 | 2026-08-24 | RULE CANDIDATE (2) |
-| Rules-file claim true in its hunk, false vs another section/mirror/arithmetic | 35 | 2026-09-20 | SATURATED — §10 cl.5+cl.8 cover all three mechanisms (same-file contradiction, mirror, arithmetic); recurrence is behavioural. Detail: topic file |
 | check-mirror-sync.mjs cannot verify 2+ occurrences of one anchor WITHIN the same file | 1 | 2026-09-02 | WATCHING. Log and watch |
 | Agent asserts a reduced-cycle exemption from a change's SHAPE, not the rule's PATH test | 3 | 2026-08-24 | RULE CANDIDATE (3) — 2 agent types |
 | Unverified superlative/rank asserted about tracker data without re-deriving | 2 | 2026-08-30 | RULE CANDIDATE (2) |
@@ -106,7 +105,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | `json.dumps` round-trip reformats tracked JSON file, masking real changes in noise | 3 | 2026-09-18 | RULE CANDIDATE (3) → agent-test-writer.md NEVER + dispatch CONSTRAINTS. |
 | False universal quantifier in new comment ("unlike every other case") falsified by sibling cases | 1 | 2026-09-16 | WATCHING — `fa43f72c`. Log and watch. |
 | Reviewer miscounts function length by including JSDoc in the body line count | 2 | 2026-09-19 | RULE CANDIDATE (2) → agent-code-reviewer.md: count body only, from first statement to closing `}`. |
-| Adding tests to mutation harness invalidates pre-existing exact-set `expectRed` specs | 14 | 2026-09-19 | RULE CANDIDATE (14). Run FULL harness; check all expectRed sets on every test addition. Detail: cross-agent-lessons.md |
+| Adding tests to mutation harness invalidates pre-existing exact-set `expectRed` specs | 15 | 2026-09-22 | RULE CANDIDATE (15). Run FULL harness; check all expectRed sets on every test addition. Detail: cross-agent-lessons.md |
 | `expectRed` member reddens via an earlier unrelated assertion — named mechanism never reached | 3 | 2026-09-18 | WATCHING. Test goes red via earlier assertion; mechanism never reached. NOT row 97 (overclaim in SET not comment). |
 | run-mutations.mjs grades committed HEAD, not the worktree | 1 | 2026-09-18 | WATCHING. Commit before running; stale worktree gives wrong verdict. |
 | doc-updater miscounts its own pasted command output (correct artifact, wrong tally) | 1 | 2026-09-16 | WATCHING — distinct from row 109 (no-artifact variant). |
@@ -114,7 +113,6 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Prose claims exclusion prevents fail-open when exclusion IS the fail-open | 1 | 2026-09-16 | WATCHING — f431ea74: insights.md audit excluded .claude/hooks/, claiming this... |
 | Doc summary/footer recapitulates content already present inline | 1 | 2026-09-16 | WATCHING — f431ea74: decisions.md footer recapitulated Decisions 71-65 below their own bodies. |
 | CR reviewer contradicts its own prior-round verdict on the same finding | 1 | 2026-09-16 | WATCHING — f431ea74: CR pass 1 called two markers "real waivers", pass 2 call... |
-| `git show <merge>` combined diff silently omits paths matching a parent | 2 | 2026-09-19 | SATURATED (2) — use `--diff-merges=first-parent`. Rule text exists; the gap is execution. |
 | Taskless/draft spec carries stale rule-restatement — mirror table "ACTIVE specs only" unclear | 1 | 2026-09-17 | WATCHING — active vs draft boundary unspecified. Log and watch. |
 | Test fixture for compound AND-check vacuous about one conjunct — other half undetectable | 1 | 2026-09-17 | WATCHING — test-writer caught it. Log and watch. |
 | `--coverage` gap denominator rises when a new test carries its own MUTATION: comment | 1 | 2026-09-18 | WATCHING — `chore/encode-retracted-phrase-claims`. Detail: topic file |
@@ -139,6 +137,8 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | `check-retracted-phrase.mjs` tokeniser matches numbers and filenames only — phrase-blind beyond those tokens | 1 | 2026-09-20 | WATCHING — distinct from row 112 (deletion-bypass). Phrases without numbers or filenames pass unchecked. Log and watch. |
 | Deletion pass drops correction-annotation, leaving false body text standing | 1 | 2026-09-20 | WATCHING — e4d375d8 dropped cluster without distinguishing annotations from corrections; false text resurfaces. |
 | Agent writes tomorrow's date (2AM host clock, UTC still prior day) in committed text | 1 | 2026-09-20 | WATCHING — e3769450 stamped 2026-09-21 on 2026-09-20. First learner occurrence. |
+| `git cat-file -e` exits 128 for absent-path AND unresolvable-ref — probe conflates two states; comment claiming it avoids conflation is §10 | 1 | 2026-09-22 | WATCHING — `12766d16`. blobAt/git ls-tree is the fix. Log and watch. |
+| test-writer writes `GROUP: <id>` naming a mutation not yet encoded — `--coverage` exits non-zero on DANGLING id | 1 | 2026-09-22 | WATCHING — `12766d16`. Log and watch. |
 
 ## Durable knowledge (cross-agent)
 
@@ -146,19 +146,12 @@ Bullets removed 2026-09-16 are relocated verbatim in `topics/cross-agent-lessons
 
 - Promotion threshold = **2 distinct mechanisms**, different commits. Sweep-On-Rule-Promotion.
 - Biggest recurring defect: partial fix to a sibling-file group. Topic file.
-- Compaction history: 2026-09-01/02/13/15/16 batches → archive/topic file.
-- WHY-clause falsity: explanatory sentences are less-verified than facts (row 60). Check WHY clauses first on doc-only commits.
-- SWEEP COMPLETENESS: "audited, all accurate" is unfalsifiable (§10 cl.5) — paste the enforcer's output. Row 44.
-- File-deletion-falsifies-mirror (2026-09-17): deleting a .sh hook leaves the mirror-sync table claiming it fires. Log and watch.
-- POSITIVE (fix/db-integration-fixture-isolation, 2026-09-18): round 2 clean. Rows 118/41/82++. New WATCHING: Plan Validation wc-l skip.
-- test/non-vacuous-integration-negatives (2026-09-19): ceiling. Rows 140/22/41++.
-- POSITIVE (fix/redteam-seed-atomicity, 2026-09-19): round 2 clean. Row 143 → 2 RULE CANDIDATE. Rows 141-144 new WATCHING.
-- feat/corpus-b3-encode-retracted-phrase (2026-09-19): round 3 clean. Row 82 → 8. Row 145 → 2 RULE CANDIDATE. Row 121 → 14.
-- feat/corpus-update-expected (2026-09-19): round 3 clean. Row 82 → 10 PROMOTED §7. Row 120 → 2. Row 41 → 68 (2 fresh §10 in correction context). Row 40 → 5. New WATCHING: orchestrator misses plan-stated doc edit.
-- docs/parked-and-next-work (2026-09-19): round 3 clean (ceiling hit, round 3 had 0 findings). Row 41 → 71 (3 fresh §10 in correction context; Decision 76 refutes mechanical enforcer: 50% FP rate). Row 129 → 2 RULE CANDIDATE. Row 141 → 2 RULE CANDIDATE. New WATCHING: loose-SHA citation (row 149).
-- docs/schedule-cr-local-retirement (2026-09-20): post-split pass 3 clean. Row 41 → 76 → PROMOTED §10 cl.8 (rule existed; propose SATURATED state in agent-memory.md). Row 82 → 12. Row 103 → 2 RULE CANDIDATE. Rows 150-152 new WATCHING. [GOOD]-gate mitigation (dispatch prompt requiring anchor non-match scope) reduced round-3 false positives from 2 to 0. FINDING: 172 RULE CANDIDATE rows confirmed in tracker-archive.md — far above the ~55 rough estimate; each is a pattern at promotion bar buried in the archive.
-- fix/learner-tracker-termination (2026-09-20): 11 rounds; R8-10 self-inflicted loop (each correction in agent-memory.md introduced new false claim in adjacent text). Row 63 → 35 SATURATED. Row 61 → 17. Row 88 → 2 RC. New WATCHING ×2. Split to fix/stop-hook-claims cleared non-convergent doc sweep.
-- Remaining bullets: topics/cross-agent-lessons.md (search "Durable-knowledge bullets relocated").
+- WHY-clause falsity: check WHY clauses first on doc-only commits (row 60).
+- SWEEP COMPLETENESS: paste enforcer output — "audited, all accurate" is unfalsifiable (§10 cl.5). Row 44.
+- Decision 76: mechanical §10 enforcer has 50% FP rate on correction-context commits.
+- 172 RULE CANDIDATE rows in tracker-archive.md (confirmed 2026-09-20) — each at promotion bar.
+- guards/mutation-harness-staged (2026-09-22): ceiling (R3 APPLY). Row 63 (SATURATED, §10 cl.8) → 38, archived. Row 109 → 15. Row 52 → 5. POSITIVE: code-review (skill) caught git cat-file exit-code conflation (critical). 2 new WATCHING.
+- Per-branch history (2026-09-18 to 2026-09-20): topics/cross-agent-lessons.md (search "Durable-knowledge bullets relocated").
 
 ## Topic pointers
 

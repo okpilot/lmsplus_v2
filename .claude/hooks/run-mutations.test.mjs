@@ -275,7 +275,7 @@ test('refuses an ambiguous anchor that occurs twice', () => {
 test('defaults to the run mode with no flags', () => {
   // MUTATION: default `mode` to 'list' → the bare command prints ids and exits 0 without running
   // a single mutation, which is indistinguishable from a fully caught run.
-  assert.deepEqual(parseArgs([]), { mode: 'run', guard: null, scratch: null })
+  assert.deepEqual(parseArgs([]), { mode: 'run', guard: null, scratch: null, staged: false })
 })
 
 test('reads the value of an option flag', () => {
@@ -285,6 +285,7 @@ test('reads the value of an option flag', () => {
     mode: 'coverage',
     guard: 'check-x',
     scratch: null,
+    staged: false,
   })
 })
 
@@ -293,6 +294,7 @@ test('reads --update-expected as a mode', () => {
     mode: 'update-expected',
     guard: null,
     scratch: null,
+    staged: false,
   })
 })
 
@@ -301,6 +303,7 @@ test('takes --update-expected together with --guard, which is an option and not 
     mode: 'update-expected',
     guard: 'run-mutations',
     scratch: null,
+    staged: false,
   })
 })
 
@@ -318,8 +321,9 @@ test('blocks an unknown flag', () => {
 
 test('blocks a bare positional argument', () => {
   // MUTATION: delete the positional branch → `-list` (one hyphen) falls through to the
-  // unknown-flag branch, which is still an error but names the wrong fault. The assertion is on
-  // the MESSAGE for exactly that reason; asserting only that `error` is set would not go red.
+  // unknown-flag branch, which is still an error but names the wrong fault, so the assertion is
+  // on the MESSAGE. The encoded `positional-allowed` entry breaks it the other way — accepting
+  // the positional, leaving no `error` at all — and the same assertion catches both.
   assert.match(parseArgs(['-list']).error, /unexpected argument/)
 })
 
@@ -414,6 +418,7 @@ test('reads the value of the --scratch option', () => {
     mode: 'run',
     guard: null,
     scratch: '/tmp/my-scratch',
+    staged: false,
   })
 })
 

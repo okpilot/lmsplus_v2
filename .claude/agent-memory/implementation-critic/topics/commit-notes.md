@@ -6,6 +6,9 @@
 
 ## Positive-pattern log
 
+### guards/mutation-harness-staged — REVISE (2026-09-21, #1325 P1)
+Two findings blocked APPROVED: (1) `--jobs N` worker pool (H3 of plan) not implemented despite "run jobs in parallel" in the commit message — zero matches for 'jobs|worker|pool|mutex|parallel' in run-mutations.mjs; (2) `parseArgs` body grew from 36 to 49 lines, over the §3 30-line cap — a validated round-13 finding assigned to P1 in tasks.md SPLIT that was not applied. `CONTROL:` marker parsing is a forward-looking addition for P2, additive, tested, graded — SUGGESTION only.
+
 ### CR-local retirement + code-review (skill) — APPROVED (2026-09-19, docs/schedule-cr-local-retirement)
 
 28 files, +281/-403. All plan items verified — complete mirror sync, no residual CR-local references in live surfaces, D1-D6 all satisfied. Notable: Rule-Mirror Sync table row for `.claude/hooks/*.sh` correctly updated from deleted `cr-local-plan-reminder.sh` to live `run-security-auditor.sh` example. Roster hazard (`code-review` vs `code-reviewer`) explicitly addressed in both the new rules file's NEVER list and agent-workflow.md's collision-set note.
