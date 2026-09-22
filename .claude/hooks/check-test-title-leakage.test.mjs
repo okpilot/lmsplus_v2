@@ -2,8 +2,44 @@
 // Run: node --test .claude/hooks/check-test-title-leakage.test.mjs
 
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
 import { test } from 'node:test'
+import { fileURLToPath } from 'node:url'
 import { analyzeTitle, extractAddedTitles, splitByFile } from './check-test-title-leakage.mjs'
+import { runNode } from './spawn.testkit.mjs'
+
+const HOOK = join(dirname(fileURLToPath(import.meta.url)), 'check-test-title-leakage.mjs')
+const TIMEOUT_MS = 10_000
+
+/**
+ * A throwaway one-commit repo, isolated from the runner's global git config. Stages one
+ * `.test.ts` file and returns the guard's spawned verdict; the dir is always removed.
+ */
+function runGuardOnStagedTitle(titleLine) {
+  const dir = mkdtempSync(join(tmpdir(), 'test-title-leak-control-'))
+  try {
+    const git = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' })
+    git('init', '-q', '.')
+    git('config', 'user.email', 't@example.com')
+    git('config', 'user.name', 'Test')
+    git('config', 'commit.gpgsign', 'false')
+    git('config', 'core.hooksPath', join(dir, '.git', 'no-hooks'))
+    writeFileSync(join(dir, 'base.txt'), 'x\n')
+    git('add', '.')
+    git('commit', '-qm', 'init')
+    writeFileSync(join(dir, 'sample.test.ts'), `${titleLine}\n`)
+    git('add', 'sample.test.ts')
+    return runNode('check-test-title-leakage.mjs', [HOOK, 'sample.test.ts'], {
+      cwd: dir,
+      timeout: TIMEOUT_MS,
+    })
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
 
 // --- Disallowed §7 forms: each MUST be flagged ----------------------------
 
@@ -250,4 +286,21 @@ test('integration: detects only the violating title across multiple files', () =
   assert.equal(violations.length, 1)
   assert.equal(violations[0].title, 'maps admin_error')
   assert.equal(violations[0].file, 'b.test.ts')
+})
+
+// ── Planted controls (spawned, EXIT-CODE only — every test above imports pure functions) ────
+
+// CONTROL: red
+// GROUP: check-test-title-leakage-always-passes
+test('control: a staged test file with a disallowed title blocks with exit 1', () => {
+  const r = runGuardOnStagedTitle("it('maps admin_not_found', () => {})")
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /test-title impl-leakage guard/)
+})
+
+// CONTROL: green
+// GROUP: check-test-title-leakage-always-blocks
+test('control: a staged test file with a permitted title passes with exit 0', () => {
+  const r = runGuardOnStagedTitle("it('calls onClick when the button is clicked', () => {})")
+  assert.equal(r.status, 0)
 })

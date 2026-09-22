@@ -201,6 +201,55 @@ run_timeout_case() {
 }
 run_timeout_case
 
+# 14. Full-script run: GREEN — `claude` CLI succeeds and prints a clean APPROVED verdict.
+#     Same throwaway-repo setup as cases 12/13, but the `claude` shim exits 0 and prints an
+#     APPROVED-only transcript. The hook must exit 0 and print "Push approved." — the
+#     full-script counterpart to case 4 (lone APPROVED line approves the parser in isolation).
+run_cli_success_case() {
+  local name="claude CLI success with APPROVED verdict exits 0 (push approved)"
+  local tmpdir shimdir output
+  local actual=0
+  tmpdir="$(mktemp -d)"
+  shimdir="$tmpdir/shim"
+  mkdir -p "$shimdir" "$tmpdir/repo/.claude/agents"
+  cat > "$shimdir/claude" <<'SHIM'
+#!/usr/bin/env bash
+cat <<'EOF'
+## Security Audit Findings
+
+No CRITICAL or HIGH issues found.
+
+--- VERDICT ---
+APPROVED
+EOF
+exit 0
+SHIM
+  chmod +x "$shimdir/claude"
+  (
+    cd "$tmpdir/repo" || exit 1
+    git init -q
+    git config user.email test@test.local
+    git config user.name test
+    echo "# stub auditor prompt" > .claude/agents/security-auditor.md
+    echo "base" > file.txt
+    git add -A
+    git commit -qm init
+    # Uncommitted change → non-empty `git diff HEAD` (the no-upstream fallback diff)
+    echo "changed" >> file.txt
+  ) >/dev/null 2>&1
+  output="$(cd "$tmpdir/repo" && PATH="$shimdir:$PATH" bash "$HOOK" 2>&1)" || actual=$?
+  rm -rf "$tmpdir"
+  if [ "$actual" -eq 0 ] && printf '%s' "$output" | grep -q "Push approved"; then
+    echo "PASS: $name (exit $actual)"
+    PASS=$((PASS + 1))
+  else
+    echo "FAIL: $name (expected exit 0 + 'Push approved' message, got exit $actual)"
+    printf '%s\n' "$output" | sed 's/^/    /'
+    FAIL=$((FAIL + 1))
+  fi
+}
+run_cli_success_case
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

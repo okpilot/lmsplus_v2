@@ -78,6 +78,8 @@ function baseline({ dir }) {
 
 // ---------------------------------------------------------------- enforcement
 
+// CONTROL: red
+// GROUP: check-prose-claims-always-passes
 test('blocks a commit that stages a new prose claim', () =>
   withRepo((r) => {
     r.write('docs/a.md', 'intro\n')
@@ -94,6 +96,8 @@ test('blocks a commit that stages a new prose claim', () =>
     assert.match(res.stderr, /docs\/a\.md:2/)
   }))
 
+// CONTROL: green
+// GROUP: check-prose-claims-always-blocks
 test('does not block a claim already carried by the baseline', () =>
   withRepo((r) => {
     r.write('docs/a.md', `${CLAIM}\n`)

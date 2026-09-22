@@ -406,3 +406,57 @@ test('the current tracked tree has no regression against the committed baseline'
   }
   assert.equal(code, 0)
 })
+
+// ------------------------------------------------------------- planted controls
+
+// CONTROL: red
+// GROUP: check-file-size-guard-always-passes
+test('a planted over-limit file blocks the run', () => {
+  const guard = join(process.cwd(), '.claude/hooks/check-file-size-guard.mjs')
+  const repo = mkdtempSync(join(tmpdir(), 'file-size-control-red-'))
+  try {
+    execFileSync('git', ['init', '-q', '.'], { cwd: repo })
+    mkdirSync(join(repo, '.claude'), { recursive: true })
+    writeFileSync(
+      join(repo, '.claude', 'limits.json'),
+      JSON.stringify({
+        rules: [{ kind: 'util', glob: '**/*.ts', max: 1 }],
+        excludeBasenamePatterns: [],
+        excludeGlobs: [],
+        baseline: {},
+      }),
+    )
+    writeFileSync(join(repo, 'a.ts'), lines(3)) // deliberately over the max: 1 limit
+    execFileSync('git', ['add', '-A'], { cwd: repo })
+    const { status } = runNode('file-size guard', [guard], { cwd: repo, encoding: 'utf8' })
+    assert.equal(status, 1, 'a planted over-limit file must block the run')
+  } finally {
+    rmSync(repo, { recursive: true, force: true })
+  }
+})
+
+// CONTROL: green
+// GROUP: check-file-size-guard-always-blocks
+test('a repo with no over-limit file passes the run', () => {
+  const guard = join(process.cwd(), '.claude/hooks/check-file-size-guard.mjs')
+  const repo = mkdtempSync(join(tmpdir(), 'file-size-control-green-'))
+  try {
+    execFileSync('git', ['init', '-q', '.'], { cwd: repo })
+    mkdirSync(join(repo, '.claude'), { recursive: true })
+    writeFileSync(
+      join(repo, '.claude', 'limits.json'),
+      JSON.stringify({
+        rules: [{ kind: 'util', glob: '**/*.ts', max: 10 }],
+        excludeBasenamePatterns: [],
+        excludeGlobs: [],
+        baseline: {},
+      }),
+    )
+    writeFileSync(join(repo, 'a.ts'), lines(1)) // well within the limit
+    execFileSync('git', ['add', '-A'], { cwd: repo })
+    const { status } = runNode('file-size guard', [guard], { cwd: repo, encoding: 'utf8' })
+    assert.equal(status, 0, 'a clean repo must not block the run')
+  } finally {
+    rmSync(repo, { recursive: true, force: true })
+  }
+})

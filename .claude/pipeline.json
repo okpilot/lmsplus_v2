@@ -99,5 +99,80 @@
 
   "modelLiteralSites": [
     { "path": ".claude/hooks/run-security-auditor.sh", "flag": "--model", "expects": "sonnet" }
-  ]
+  ],
+
+  "guards": {
+    "_": "Every guard wired into lefthook.yml, ci.yml (a `node .claude/...` step that is not `node --test`), or .claude/settings.json PreToolUse must carry a spawned, graded RED and GREEN control (code-style.md §7). .claude/controls.test.mjs derives the wired set and checks it against these keys in BOTH directions, then checks each non-exempt entry's `suites` for a linked CONTROL: red and CONTROL: green test. `base` names the co-located `.claude/hooks/<base>.mutations.json` carrying the `<base>-always-passes` / `<base>-always-blocks` grading entries.",
+    ".claude/hooks/check-soft-delete-guard.mjs": {
+      "base": "check-soft-delete-guard",
+      "suites": [".claude/hooks/check-soft-delete-guard.test.mjs"]
+    },
+    ".claude/hooks/check-file-size-guard.mjs": {
+      "base": "check-file-size-guard",
+      "suites": [
+        ".claude/hooks/check-file-size-guard.test.mjs",
+        ".claude/hooks/check-file-size-guard.args.test.mjs",
+        ".claude/hooks/check-file-size-guard.cli.test.mjs",
+        ".claude/hooks/check-file-size-guard.trailer.test.mjs",
+        ".claude/hooks/check-file-size-guard.update.test.mjs",
+        ".claude/hooks/check-file-size-guard.directive.test.mjs"
+      ]
+    },
+    ".claude/hooks/check-test-title-leakage.mjs": {
+      "base": "check-test-title-leakage",
+      "suites": [".claude/hooks/check-test-title-leakage.test.mjs"]
+    },
+    ".claude/hooks/check-prose-claims.mjs": {
+      "base": "check-prose-claims",
+      "suites": [
+        ".claude/hooks/check-prose-claims.test.mjs",
+        ".claude/hooks/check-prose-claims.repo.test.mjs"
+      ]
+    },
+    ".claude/hooks/check-prose-paths.mjs": {
+      "base": "check-prose-paths",
+      "suites": [
+        ".claude/hooks/check-prose-paths.test.mjs",
+        ".claude/hooks/check-prose-paths.repo.test.mjs"
+      ]
+    },
+    ".claude/hooks/check-commit-claims.mjs": {
+      "base": "check-commit-claims",
+      "suites": [
+        ".claude/hooks/check-commit-claims.test.mjs",
+        ".claude/hooks/check-commit-claims.controls.test.mjs"
+      ]
+    },
+    ".claude/hooks/check-retracted-phrase.mjs": {
+      "base": "check-retracted-phrase",
+      "suites": [
+        ".claude/hooks/check-retracted-phrase.test.mjs",
+        ".claude/hooks/check-retracted-phrase.repo.test.mjs",
+        ".claude/hooks/check-retracted-phrase.base.test.mjs",
+        ".claude/hooks/check-retracted-phrase.paths.test.mjs"
+      ]
+    },
+    ".claude/hooks/guard-bash.js": {
+      "base": "guard-bash",
+      "suites": [".claude/hooks/guard-bash.test.mjs"]
+    },
+    ".claude/hooks/review-gate.js": {
+      "base": "review-gate",
+      "suites": [".claude/hooks/review-gate.test.mjs"]
+    },
+    ".claude/pipeline.test.mjs": {
+      "base": "pipeline",
+      "suites": [".claude/pipeline.repo.test.mjs"]
+    },
+    ".claude/controls.test.mjs": {
+      "base": "controls",
+      "suites": [".claude/controls.repo.test.mjs"]
+    },
+    ".claude/hooks/run-security-auditor.sh": {
+      "exempt": "bash suite; parser reads // markers only"
+    },
+    ".claude/hooks/run-mutations.mjs": {
+      "exempt": "a grader, not a blocking guard"
+    }
+  }
 }

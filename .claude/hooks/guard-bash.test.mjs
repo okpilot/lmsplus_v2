@@ -21,12 +21,16 @@ function runHook(stdin) {
   return runNode('guard-bash.js', [HOOK], { input: stdin, timeout: TIMEOUT_MS })
 }
 
+// CONTROL: red
+// GROUP: guard-bash-always-passes
 test('blocks a dangerous command delivered via stdin JSON with exit 2 and a BLOCKED stderr', () => {
   const r = runHook('{"tool_input":{"command":"DROP DATABASE x"}}')
   assert.equal(r.status, 2)
   assert.match(r.stderr, /BLOCKED/)
 })
 
+// CONTROL: green
+// GROUP: guard-bash-always-blocks
 test('allows a benign command with exit 0', () => {
   const r = runHook('{"tool_input":{"command":"ls -la"}}')
   assert.equal(r.status, 0)

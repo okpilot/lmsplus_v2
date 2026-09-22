@@ -2,7 +2,8 @@
 //
 // `parseSuite` and `groupProblems`: what a suite CLAIMS, and whether its `GROUP:` markers still
 // name mutations that exist. Split from run-mutations.test.mjs at the test-file cap in
-// .claude/limits.json.
+// .claude/limits.json. Also covers `CONTROL:` marker parsing (.claude/controls.test.mjs reads
+// `tests[].controls` to check every registered guard carries a spawned red and green control).
 
 import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
@@ -237,6 +238,72 @@ test('a GROUP marker line is never also counted as a claim, even when it contain
     ),
   )
   assert.equal(parsed.tests[0].claims, 0)
+})
+
+// --- CONTROL markers ---------------------------------------------------------
+
+test('a CONTROL: red marker directly above a test marks it red', () => {
+  const parsed = parseSuite("// CONTROL: red\ntest('behaves', () => {})\n")
+  assert.deepEqual(parsed.tests[0].controls, ['red'])
+})
+
+test('a CONTROL: green marker directly above a test marks it green', () => {
+  const parsed = parseSuite("// CONTROL: green\ntest('behaves', () => {})\n")
+  assert.deepEqual(parsed.tests[0].controls, ['green'])
+})
+
+test('a test with no CONTROL: marker carries an empty controls array', () => {
+  const parsed = parseSuite("test('behaves', () => {})\n")
+  assert.deepEqual(parsed.tests[0].controls, [])
+})
+
+test('CONTROL: and GROUP: markers stacked above one test both attach to it', () => {
+  const parsed = parseSuite(
+    "// CONTROL: red\n// GROUP: guard-always-passes\ntest('blocks a violation', () => {})\n",
+  )
+  assert.deepEqual(parsed.tests[0].controls, ['red'])
+  assert.deepEqual(parsed.tests[0].groups, ['guard-always-passes'])
+})
+
+test('the marker order does not matter — GROUP above CONTROL still attaches both', () => {
+  const parsed = parseSuite(
+    "// GROUP: guard-always-blocks\n// CONTROL: green\ntest('passes a clean input', () => {})\n",
+  )
+  assert.deepEqual(parsed.tests[0].controls, ['green'])
+  assert.deepEqual(parsed.tests[0].groups, ['guard-always-blocks'])
+})
+
+test('a CONTROL marker written inside a body names the test it sits in, not the next one', () => {
+  const parsed = parseSuite(
+    [
+      "test('first', () => {",
+      '  // CONTROL: red',
+      '  assert.ok(1)',
+      '})',
+      "test('second', () => {})",
+      '',
+    ].join('\n'),
+  )
+  assert.deepEqual(
+    parsed.tests.map((t) => t.controls),
+    [['red'], []],
+  )
+})
+
+test('a value other than red or green is not recognised as a CONTROL marker', () => {
+  const parsed = parseSuite("// CONTROL: yellow\ntest('behaves', () => {})\n")
+  assert.deepEqual(parsed.tests[0].controls, [])
+})
+
+test('a CONTROL marker line is never also counted as a claim', () => {
+  const parsed = parseSuite("// CONTROL: red\ntest('behaves', () => {})\n")
+  assert.equal(parsed.tests[0].claims, 0)
+})
+
+test('a CONTROL marker separated from every test by code belongs to the header, not a test', () => {
+  const parsed = parseSuite("// CONTROL: red\nconst helper = () => 1\ntest('behaves', () => {})\n")
+  assert.deepEqual(parsed.header.controls, ['red'])
+  assert.deepEqual(parsed.tests[0].controls, [])
 })
 
 // --- expectRed writer -------------------------------------------------------

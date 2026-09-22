@@ -225,6 +225,27 @@ jobs:
       - name: "Pipeline spec matches the repo — unit test"
         run: node .claude/pipeline.test.mjs
 
+      # pipeline.test.mjs is itself a guard (pipeline.json `guards`, base `pipeline`) and needs
+      # the same spawned red/green control every other guard needs. Spawns pipeline.test.mjs
+      # against a throwaway worktree of HEAD, pristine and mutated.
+      - name: "Pipeline spec's own controls — unit test"
+        run: node --test .claude/pipeline.repo.test.mjs
+
+      # Guard-controls registry (code-style.md §7): every guard wired into lefthook.yml, this
+      # job's own `node .claude/...` steps, or .claude/settings.json PreToolUse must carry a
+      # spawned, graded CONTROL: red and CONTROL: green test, registered in pipeline.json
+      # `guards`. This step itself is one of the paths .claude/controls.test.mjs derives, so
+      # adding or removing a non-`--test` `node .claude/...` step anywhere in this job changes
+      # what the next run of this step expects the registry to declare.
+      - name: "Guard controls registry matches the repo — unit test"
+        run: node .claude/controls.test.mjs
+
+      # controls.test.mjs is itself a guard (pipeline.json `guards`, base `controls`) and needs
+      # the same spawned red/green control it requires of every other guard. Spawns
+      # controls.test.mjs against synthetic fixture roots.
+      - name: "Guard controls registry's own controls — unit test"
+        run: node --test .claude/controls.repo.test.mjs
+
   type-check:
     name: Type Check
     runs-on: ubuntu-latest

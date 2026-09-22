@@ -1,0 +1,25 @@
+{
+  "_": "Planted red/green controls for the CLI wiring (main/exit), which every other test in the suite never reaches — they import analyze()/loadSchema() directly. The two entries here grade only the two spawned `CONTROL:` tests, not the pure-function suite.",
+  "target": ".claude/hooks/check-soft-delete-guard.mjs",
+  "suites": [".claude/hooks/check-soft-delete-guard.test.mjs"],
+  "mutations": [
+    {
+      "id": "check-soft-delete-guard-always-passes",
+      "find": "    exit(1)\n  }\n  console.log(`✓ soft-delete/schema column guard:",
+      "replace": "    exit(0)\n  }\n  console.log(`✓ soft-delete/schema column guard:",
+      "expectRed": [
+        "control: a staged file with .is(deleted_at) on a table lacking the column blocks with exit 1"
+      ],
+      "note": "Forces main()'s offender branch to exit 0 instead of 1 — the guard reports violations but never blocks."
+    },
+    {
+      "id": "check-soft-delete-guard-always-blocks",
+      "find": "  if (offenders.length > 0) {\n    console.error('✖ soft-delete/schema column guard:",
+      "replace": "  if (true) {\n    console.error('✖ soft-delete/schema column guard:",
+      "expectRed": [
+        "control: a staged file with .is(deleted_at) on a table that has the column passes with exit 0"
+      ],
+      "note": "Forces main() to always take the offender branch, regardless of `analyze()`'s result — a clean file also blocks."
+    }
+  ]
+}

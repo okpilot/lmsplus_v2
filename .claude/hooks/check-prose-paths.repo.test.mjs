@@ -71,6 +71,8 @@ function baseline({ dir }) {
 
 // ---------------------------------------------------------------- enforcement
 
+// CONTROL: red
+// GROUP: check-prose-paths-always-passes
 test('blocks a commit that stages a citation of a file that is not there', () =>
   withRepo((r) => {
     r.write('docs/a.md', 'intro\n')
@@ -87,6 +89,8 @@ test('blocks a commit that stages a citation of a file that is not there', () =>
     assert.match(res.stderr, /does not/)
   }))
 
+// CONTROL: green
+// GROUP: check-prose-paths-always-blocks
 test('does not block a citation already carried by the baseline', () =>
   withRepo((r) => {
     r.write('docs/a.md', `${DEAD}\n`)

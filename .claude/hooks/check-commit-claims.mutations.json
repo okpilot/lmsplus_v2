@@ -1,0 +1,21 @@
+{
+  "_": "Planted red/green controls for main()'s EXIT CODE. check-commit-claims.test.mjs already covers extractRefs()/classifyRef() and drives main() end-to-end too, but it is baselined at exactly 604 lines (.claude/limits.json) — the two `CONTROL:`-marked spawns live in check-commit-claims.controls.test.mjs instead, so `suites` names that file only.",
+  "target": ".claude/hooks/check-commit-claims.mjs",
+  "suites": [".claude/hooks/check-commit-claims.controls.test.mjs"],
+  "mutations": [
+    {
+      "id": "check-commit-claims-always-passes",
+      "find": "    exit(1)\n    return\n  }\n\n  console.log(`✓ commit-claims guard:",
+      "replace": "    exit(0)\n    return\n  }\n\n  console.log(`✓ commit-claims guard:",
+      "expectRed": ["control: a message citing an absent SHA exits non-zero"],
+      "note": "Forces main()'s offender branch to exit 0 instead of 1 — the guard reports the unresolved SHA but never blocks."
+    },
+    {
+      "id": "check-commit-claims-always-blocks",
+      "find": "  if (offenders.length > 0) {\n    console.error('✖ commit-claims guard: commit message cites unresolved SHA(s):')",
+      "replace": "  if (true) {\n    console.error('✖ commit-claims guard: commit message cites unresolved SHA(s):')",
+      "expectRed": ["control: a message citing HEAD exits 0"],
+      "note": "Forces main() to always take the offender branch, regardless of collectOffenders()'s result — a message citing a real, resolved SHA also blocks."
+    }
+  ]
+}

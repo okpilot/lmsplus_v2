@@ -1,0 +1,25 @@
+{
+  "_": "Grades controls.test.mjs's own exit-code wiring. controls.test.mjs is itself registered in pipeline.json `guards` (base `controls`), so its blocking exit needs the same spawned red/green control every other guard needs — .claude/controls.repo.test.mjs carries them, spawning THIS script against synthetic fixture roots.",
+  "target": ".claude/controls.test.mjs",
+  "suites": [".claude/controls.repo.test.mjs"],
+  "mutations": [
+    {
+      "id": "controls-always-passes",
+      "find": "if (failed > 0) process.exit(1)",
+      "replace": "",
+      "expectRed": [
+        "a guard registered with a red control but no green control blocks",
+        "a guard wired in lefthook.yml but absent from the registry blocks",
+        "a suite path the registry names but that does not exist on disk blocks"
+      ],
+      "note": "The final blocking exit, dropped: every finding still prints as FAIL but the process exits 0 regardless. Reddens every test in controls.repo.test.mjs that asserts status 1 on a broken fixture, not only the CONTROL: red one — the two ordinary coverage tests assert the same exit code and are just as blind to a dropped exit."
+    },
+    {
+      "id": "controls-always-blocks",
+      "find": "if (failed > 0) process.exit(1)",
+      "replace": "process.exit(1)",
+      "expectRed": ["a guard registered with linked red and green controls passes"],
+      "note": "Unconditional exit 1, even when `failed` is 0 — a fully consistent registry would still read as broken."
+    }
+  ]
+}

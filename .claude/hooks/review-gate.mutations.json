@@ -1,0 +1,24 @@
+{
+  "_": "Planted red/green controls linked by GROUP marker to the two spawned tests that already drove the guard's exit code before this file existed.",
+  "target": ".claude/hooks/review-gate.js",
+  "suites": [".claude/hooks/review-gate.test.mjs"],
+  "mutations": [
+    {
+      "id": "review-gate-always-passes",
+      "find": "then delete .claude/review-gate.json to unlock edits.\\n`,\n  )\n  process.exit(2)",
+      "replace": "then delete .claude/review-gate.json to unlock edits.\\n`,\n  )\n  process.exit(0)",
+      "expectRed": [
+        "blocks a production file edit and surfaces findings when the gate is active",
+        "still blocks on a corrupt gate file, substituting a parse-error message"
+      ],
+      "note": "Forces the active-gate branch to exit 0 instead of 2 — findings are printed but the edit is no longer blocked. Reddens the corrupt-gate-file test too: it falls through to the same blocking branch once its own JSON.parse catch substitutes the parse-error message."
+    },
+    {
+      "id": "review-gate-always-blocks",
+      "find": "  // No gate file = no restrictions\n  if (!fs.existsSync(GATE_FILE)) {\n    process.exit(0)\n  }",
+      "replace": "  // No gate file = no restrictions\n  if (false) {\n    process.exit(0)\n  }",
+      "expectRed": ["allows any edit when no gate file is present"],
+      "note": "Removes the early no-gate-file return — the hook falls through to the blocking path, whose own catch turns a missing gate file into '(could not parse gate file)' and still blocks."
+    }
+  ]
+}

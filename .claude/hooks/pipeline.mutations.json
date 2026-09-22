@@ -1,0 +1,21 @@
+{
+  "_": "Grades pipeline.test.mjs's own exit-code wiring. The data file lives here because run-mutations.mjs's dataFiles() reads .claude/hooks only; target points out of that directory, which the harness allows.",
+  "target": ".claude/pipeline.test.mjs",
+  "suites": [".claude/pipeline.repo.test.mjs"],
+  "mutations": [
+    {
+      "id": "pipeline-always-passes",
+      "find": "if (failed > 0) process.exit(1)",
+      "replace": "",
+      "expectRed": ["renaming a lefthook pre-commit command the spec still declares blocks"],
+      "note": "The final blocking exit, dropped: every mismatch still prints FAIL, but the process exits 0 regardless — a lefthook.yml/pipeline.json mismatch would no longer fail the CI step."
+    },
+    {
+      "id": "pipeline-always-blocks",
+      "find": "if (failed > 0) process.exit(1)",
+      "replace": "process.exit(1)",
+      "expectRed": ["a pristine worktree of HEAD passes"],
+      "note": "Unconditional exit 1, even when `failed` is 0 — a fully consistent tree would still fail the CI step."
+    }
+  ]
+}

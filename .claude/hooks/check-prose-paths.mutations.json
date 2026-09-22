@@ -446,6 +446,42 @@
       "replace": "  if (fresh.length > 0) {",
       "expectRed": ["scope footer is present when only a waiver problem is found"],
       "note": "Pins the || RHS independently. Dropping scopedProblems.length > 0 suppresses the footer when the only failure is a bad waiver \u2014 a corpus scan did happen, but the context is hidden."
+    },
+    {
+      "id": "check-prose-paths-always-passes",
+      "find": "  return 1\n}\n\nexport function main",
+      "replace": "  return 0\n}\n\nexport function main",
+      "expectRed": [
+        "blocks a commit that stages a citation of a file that is not there",
+        "scopes a finding to the staged files, but --all grades the whole worktree",
+        "reports a stale baseline row even when its file is not staged",
+        "grades the INDEX, not the working tree",
+        "ignores a citation in a spec but grades one in steering",
+        "treats an absent baseline as empty and blocks, rather than passing",
+        "never rewrites the baseline from an enforcement run",
+        "a directory-only gitignore pattern excuses the path even when the directory is absent",
+        "an inline waiver with a written reason clears the finding",
+        "scope footer is absent when the only failure is a stale baseline row",
+        "scope footer is present when a fresh finding is blocked",
+        "scope footer is present when only a waiver problem is found"
+      ],
+      "note": "Planted CONTROL \u2014 forces reportFindings' only return to exit 0 instead of 1, the guard's single blocking exit site. Every fixture asserting a blocking outcome funnels through this one return, so 12 tests redden alongside the planted RED control. Set from the harness's own 'actually red' report, per contract \u00a75."
+    },
+    {
+      "id": "check-prose-paths-always-blocks",
+      "find": "  if (fresh.length === 0 && stale.length === 0 && scopedProblems.length === 0) return 0",
+      "replace": "  if (false) return 0",
+      "expectRed": [
+        "does not block a citation already carried by the baseline",
+        "scopes a finding to the staged files, but --all grades the whole worktree",
+        "accepts a path that is present on disk but untracked",
+        "ignores a citation in agent memory",
+        "ignores a gitignored artifact",
+        "a directory-only gitignore pattern excuses the path even when the directory is absent",
+        "an inline waiver with a written reason clears the finding",
+        "does not flag a placeholder ending in > when TRAIL strips the bracket before classify"
+      ],
+      "note": "Planted CONTROL \u2014 removes the only early-exit that lets a clean run skip reportFindings, so a clean input reaches reportFindings (which always returns 1) instead of returning 0. Every fixture asserting a clean pass funnels through this one gate, so 8 tests redden alongside the planted GREEN control. Set from the harness's own 'actually red' report, per contract \u00a75."
     }
   ],
   "notEncoded": []

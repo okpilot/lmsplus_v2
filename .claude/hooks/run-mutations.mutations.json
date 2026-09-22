@@ -550,6 +550,10 @@
         "a duplicate id in one GROUP marker is attached twice and reported twice when dangling",
         "a continuation line that is not an id list ends the marker instead of joining it",
         "a suite written with CRLF line endings still yields its markers",
+        "a CONTROL: red marker directly above a test marks it red",
+        "a CONTROL: green marker directly above a test marks it green",
+        "CONTROL: and GROUP: markers stacked above one test both attach to it",
+        "the marker order does not matter — GROUP above CONTROL still attaches both",
         "reports the claim sites a suite carries and the entries excused from encoding"
       ]
     },
@@ -560,6 +564,8 @@
       "expectRed": [
         "a claim in a multi-line comment block belongs to the test below it",
         "a continuation line that is not an id list ends the marker instead of joining it",
+        "CONTROL: and GROUP: markers stacked above one test both attach to it",
+        "the marker order does not matter — GROUP above CONTROL still attaches both",
         "reports the claim sites a suite carries and the entries excused from encoding"
       ]
     },
@@ -606,7 +612,9 @@
       "replace": "    while (j < lines.length && !TEST_LINE_RE.test(lines[j])) j++",
       "expectRed": [
         "a marker written inside a body names the test it sits in, not the next one",
-        "a claim separated from every test by code belongs to the file, not to a test"
+        "a claim separated from every test by code belongs to the file, not to a test",
+        "a CONTROL marker written inside a body names the test it sits in, not the next one",
+        "a CONTROL marker separated from every test by code belongs to the header, not a test"
       ]
     },
     {
@@ -624,7 +632,8 @@
       "expectRed": [
         "a marker written inside a body names the test it sits in, not the next one",
         "counts a claim written mid-line after other prose",
-        "counts every claim on a line, not one per claiming line"
+        "counts every claim on a line, not one per claiming line",
+        "a CONTROL marker written inside a body names the test it sits in, not the next one"
       ],
       "note": "superset: the two claim-counting fixtures also write their comment INSIDE a test body, so attributing every owner to the header strips their claims off the test as well."
     },

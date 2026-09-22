@@ -291,9 +291,10 @@
         "update-baseline reports an added violation and a removed now-compliant entry, and drops the removed key",
         "reports per-rule compliance totals when asked for stats",
         "stats mode skips an unreadable tracked file instead of blocking the whole report",
-        "updating the baseline rewrites a shrunk entry and leaves everything else alone"
+        "updating the baseline rewrites a shrunk entry and leaves everything else alone",
+        "a repo with no over-limit file passes the run"
       ],
-      "note": "core.quotePath renders the path as a literal escape sequence; readFile then gets ENOENT and the unreadable branch returns before the baseline is consulted, so no baseline row can clear it. expectRed names 21 tests because dropping -z also destroys the NUL splitting, so the whole listing collapses into one bogus path — this entry pins 'the guard still parses its file list at all', and the non-ASCII case is one member. The comment above the test claims a narrower pin than the break delivers."
+      "note": "core.quotePath renders the path as a literal escape sequence; readFile then gets ENOENT and the unreadable branch returns before the baseline is consulted, so no baseline row can clear it. expectRed names 22 tests because dropping -z also destroys the NUL splitting, so the whole listing collapses into one bogus path — this entry pins 'the guard still parses its file list at all', and the non-ASCII case is one member. The comment above the test claims a narrower pin than the break delivers. The planted GREEN control (check-file-size-guard-always-blocks) reaches the same listing collapse through its own clean-repo fixture, so it reddens here too — added by grading, per contract."
     },
     {
       "id": "cli-staged-deletion-drop-z",
@@ -511,9 +512,10 @@
         "prints split-file guidance for a normal violation, not the unreadable-path one",
         "flags a new over-limit file that is not in the baseline",
         "an over-limit file with no baseline row is reported as a new violation",
-        "evaluate treats a config with no baseline key at all as an empty baseline"
+        "evaluate treats a config with no baseline key at all as an empty baseline",
+        "a planted over-limit file blocks the run"
       ],
-      "note": "This early return fires BEFORE `liveViolators.add` and the `n !== allowed` comparison, so no mutation of the baseline comparison can reach these tests. Replaces a comment that claimed the opposite — `fixture()` already ships `baseline: {}`, so an emptied-baseline override is a no-op and nothing in that test was ever grandfathered. Eight tests: an un-baselined over-limit file is the ordinary case, so most end-to-end fixtures depend on this branch reporting."
+      "note": "This early return fires BEFORE `liveViolators.add` and the `n !== allowed` comparison, so no mutation of the baseline comparison can reach these tests. Replaces a comment that claimed the opposite — `fixture()` already ships `baseline: {}`, so an emptied-baseline override is a no-op and nothing in that test was ever grandfathered. Eight tests: an un-baselined over-limit file is the ordinary case, so most end-to-end fixtures depend on this branch reporting. The planted RED control (check-file-size-guard-always-passes) is an un-baselined over-limit fixture too, so it joins this set — added by grading, per contract."
     },
     {
       "id": "stale-baseline-rows-never-reported",
@@ -588,6 +590,45 @@
         "a baseline row for a file that became EXCLUDED is reported stale, not kept alive"
       ],
       "note": "A file baselined and later moved under an exclusion glob is wrongly counted as still violating, so staleBaselineEntries never surfaces its orphaned baseline row for pruning. The path exits via evaluate's own isExcluded check, which returns before classify is ever called. Three tests: hoisting the add above the check keeps every early-exit class alive in liveViolators, so the now-compliant and shrank-below-limit rows stop being reported stale too."
+    },
+    {
+      "id": "check-file-size-guard-always-passes",
+      "find": "  console.error('')\n  return 1\n}",
+      "replace": "  console.error('')\n  return 0\n}",
+      "expectRed": [
+        "a violation blocks however its path is spelled, and an unknown path is rejected",
+        "a rename into a violation still blocks — the exemption clears the unknown-path check, not the violation check",
+        "only a violation among the files passed as arguments can block the commit",
+        "staged mode grades the INDEX, not the working tree",
+        "a planted over-limit file blocks the run",
+        "prints split-file guidance for a normal violation, not the unreadable-path one",
+        "prints unreadable-path guidance for a dangling symlink, not the split-file one",
+        "an unreadable path blocks the commit only when it is among the staged arguments",
+        "updating the baseline rewrites a shrunk entry and leaves everything else alone"
+      ],
+      "note": "Planted CONTROL — forces main()'s terminal violation-reporting return to exit 0 instead of 1. `find` is graded, not reasoned about: this is the single generic exit every real-violation fixture in the suite falls through, so 9 tests redden alongside the planted RED control, not just the control itself. Set from the harness's own 'actually red' report, per contract §5 ('choose the forcing point by GRADING, not reasoning')."
+    },
+    {
+      "id": "check-file-size-guard-always-blocks",
+      "find": "if (regressions.length === 0) return stale.length > 0 ? 1 : 0",
+      "replace": "if (regressions.length === 0) return 1",
+      "expectRed": [
+        "a staged deletion is not rejected as an unknown path",
+        "a staged rename does not reject the SOURCE path as unknown",
+        "a staged path with non-UTF-8 bytes is graded from the index, not called unreadable",
+        "only a violation among the files passed as arguments can block the commit",
+        "a non-ASCII tracked filename does not block every run",
+        "removing a non-ASCII file does not read as an unknown path",
+        "a tracked path whose bytes are not valid UTF-8 is still graded",
+        "staged mode does not launder a worktree-only regression through the index",
+        "keeps working when the tracked-file listing is bigger than node's default buffer cap",
+        "renaming a grandfathered file out of its rule class is blocked, not silently allowed",
+        "the current tracked tree has no regression against the committed baseline",
+        "a repo with no over-limit file passes the run",
+        "an unreadable path blocks the commit only when it is among the staged arguments",
+        "updating the baseline rewrites a shrunk entry and leaves everything else alone"
+      ],
+      "note": "Planted CONTROL — forces the clean-input branch to block (exit 1) instead of returning 0. Every fixture in the suite that legitimately expects a clean exit 0 falls through this same generic gate, so 14 tests redden alongside the planted GREEN control. Set from the harness's own 'actually red' report, per contract §5."
     }
   ],
   "notEncoded": [
