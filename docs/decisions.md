@@ -2372,7 +2372,8 @@ them.
   diff through the granted GitHub MCP tools and reviews the lines the diff adds or changes, plus
   breakage those changes cause elsewhere; the
   checkout is `base.sha` and there is no shell (`--disallowedTools "Bash"`). `Read`/`Grep`/`Glob`
-  are granted explicitly and read that base checkout only — denied outside it (`/proc`, `/sys`,
+  are granted explicitly and read that base checkout only — denied the action's `.claude-pr/`
+  snapshot of the PR's `.claude/` and everything outside the checkout (`/proc`, `/sys`,
   `~/.claude`, the runner's `_temp` and `_actions` dirs, `/tmp`, `/etc`), backed by `--settings
   '{"permissions":{"blockReadsOutsideWorkingDirectories":true}}'`.
 - Verdict: after posting inline comments, it submits exactly ONE review per head commit via
