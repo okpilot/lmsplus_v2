@@ -29,7 +29,7 @@ Any future protected matrix: named topic file, referenced from `MEMORY.md`, neve
 - **Standard (`memory: project`, MEMORY.md index):** learner, semantic-reviewer, test-writer, code-reviewer, doc-updater, plan-critic, implementation-critic.
 - **red-team (special):** `memory: project` + small MEMORY.md index → protected `attack-surface.md` topic file.
 - **security-auditor:** deferred — derive, don't trust: `wc -c .claude/agent-memory/security-auditor/findings.md` and `git log -1 --format=%cs -- .claude/agent-memory/security-auditor/findings.md`. No `memory:` until it accumulates real content.
-- **coderabbit-sync:** excluded — no memory dir, no `memory:`.
+- **coderabbit-sync, deletion-reviewer:** excluded — no memory dir, no `memory:`.
 ## DO
 - Keep `MEMORY.md` under 200 lines and 25 KB — spill detail into `topics/`.
 - Update rows and bullets in place; let git hold the history.

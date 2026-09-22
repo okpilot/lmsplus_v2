@@ -1073,7 +1073,8 @@ pre-push review gate — ONE loop per BRANCH. `git fetch origin || abort`, then
         5. test-writer (sonnet) — find/write missing tests (the only agent holding Write/Edit on REPOSITORY files; `memory: project`
          separately grants each agent Read/Write/Edit on its OWN memory dir, and Bash remains
          everywhere by design)
-        6. code-review (skill) — the built-in `/code-review` skill, dispatched as a subagent in an isolated worktree on opus, round 1 only
+        6. deletion-reviewer (sonnet) — reports what the diff can delete with no loss; read-only
+        7. code-review (skill) — the built-in `/code-review` skill, dispatched as a subagent in an isolated worktree on opus, round 1 only
         round 2+: code-reviewer + semantic-reviewer
     → Pool every validated finding into ONE triage table and ONE fixup commit, which
       carries every agent-authored artifact too — test-writer's new tests
@@ -1083,12 +1084,12 @@ pre-push review gate — ONE loop per BRANCH. `git fetch origin || abort`, then
     → STOP on the first round with no APPLY-worthy finding. An APPLY finding extends
       the loop by one round; ceiling 3 rounds, then escalate.
         then ONCE per branch, in this order:
-        7. learner (sonnet) — detect patterns, REPORT proposed rule changes for the
+        8. learner (sonnet) — detect patterns, REPORT proposed rule changes for the
            orchestrator to apply; writes only its own memory dir. Takes every round's
            findings
         conditionals, after the learner:
-        8. red-team (sonnet) — if the branch diff touches security files, map to attack specs + flag gaps
-        9. coderabbit-sync (haiku) — sync .coderabbit.yaml if rules changed
+        9. red-team (sonnet) — if the branch diff touches security files, map to attack specs + flag gaps
+        10. coderabbit-sync (haiku) — sync .coderabbit.yaml if rules changed
     (plan-critic is separate and unchanged: it runs ONCE per plan, before user approval.)
 
 git push (only with user approval)

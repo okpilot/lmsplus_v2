@@ -36,6 +36,6 @@ Governs every reviewer in the pre-push gate, implementation-critic included. NOT
 - Skip implementation-critic in round 1. Plan-critic may be skipped for single-file changes under 10 lines.
 - Re-run plan-critic on the same plan to chase a clean round — it runs ONCE.
 - Exceed the 3-round ceiling; escalate instead.
-- Punt a finding to another reviewer — six run in one round, so "someone else will catch it" is how a finding reaches nobody. Every finding gets a terminal disposition in the round's pooled triage.
+- Punt a finding to another reviewer — seven run in one round, so "someone else will catch it" is how a finding reaches nobody. Every finding gets a terminal disposition in the round's pooled triage.
 - Let critics modify code or plans directly. Critics report findings; the orchestrator changes.
 - Run plan-critic on single-file changes under 10 lines.

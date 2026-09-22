@@ -734,6 +734,8 @@ A control is graded, not declared. The guard's `.mutations.json` carries `<base>
 control goes red); each control links to its entry with `// GROUP:`.
 `.claude/controls.test.mjs` enforces this in CI against `.claude/pipeline.json` `guards`, which
 must equal the wired guard set. An exemption states its reason there.
+A commit adding a code path to an existing guard adds, in the same commit, a `.mutations.json`
+entry breaking that path and a test linked to it by `// GROUP:`.
 ### A `MUTATION:` Comment Is a Prose Claim, Subject to §10
 A `// MUTATION: <break>` line asserts `<break>` turns THIS test red — a behaviour claim, governed by §10 like any other comment. List only mechanisms the fixture can actually REACH: naming two mechanisms where one is unreachable (an earlier guard rejects the input first) silently overclaims. Verify by reverting ONLY the named mechanism — exactly those tests should go red; a superset is under-specific, green is false. Where a mechanism can't be reached, say so rather than implying coverage.
 **Naming a reachable mechanism isn't enough — the described FAILURE MODE must be true too.** A comment can name a real break yet mischaracterize how it fails (claims "pass silently", actually throws downstream). Reddening proves the mechanism, not the account of HOW — verify by reading the actual output, not predicting it.

@@ -97,6 +97,7 @@ const CORE = Object.entries(spec.agents)
   .sort()
 const EXPECTED_CORE = [
   'code-reviewer',
+  'deletion-reviewer',
   'doc-updater',
   'implementation-critic',
   'semantic-reviewer',
@@ -111,6 +112,7 @@ const EXPECTED_ROLES = {
   'semantic-reviewer': 'gate-round',
   'doc-updater': 'gate-round',
   'test-writer': 'gate-round',
+  'deletion-reviewer': 'gate-round',
   'implementation-critic': 'gate-round',
   learner: 'gate-learner',
   'red-team': 'conditional',
