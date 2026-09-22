@@ -618,18 +618,14 @@ export async function submitAnswer(raw: unknown) {
 | Production  | Vercel Environment Variables (encrypted at rest) |
 | CI/CD       | GitHub Actions secrets (never in workflow YAML) |
 
-**`.gitignore` must always include:**
-```
-.env
-.env.local
-.env*.local
-*.pem
-*.key
-```
+**`.gitignore`:** `.env*` except `.env.example`, plus `*.pem` and `*.key`. Derive: `git check-ignore -v <path>`.
 
-**Pre-commit hook blocks:**
-- Any file matching `*.env*` from being staged
-- Any content matching `sk_live_`, `service_role`, `eyJ` (JWT prefix) patterns
+**No pre-commit secret scan.** Pushes are checked by:
+- the pre-push security-auditor (`.claude/hooks/run-security-auditor.sh`), fail-closed. An LLM review, not
+  a scan: above `MAX_DIFF_LINES` it reviews only security-path globs, truncated if still over. Its secret-literal grep
+  runs only when the LLM call times out or fails: `grep -n 's[k]_live_' .claude/hooks/run-security-auditor.sh`.
+- GitHub secret scanning with push protection: `gh api repos/okpilot/lmsplus_v2 -q .security_and_analysis`.
+- CodeRabbit's `no-secrets` custom check (`.coderabbit.yaml`).
 
 ---
 

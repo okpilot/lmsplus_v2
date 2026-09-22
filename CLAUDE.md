@@ -117,7 +117,7 @@ met, same commit. Verify redundancy, never infer from the resolved version:
 - **NEVER** prefix service role key with `NEXT_PUBLIC_` — lives in `packages/db/src/admin.ts` only
 - **NEVER** hard DELETE — always `UPDATE SET deleted_at = now()`
 - **NEVER** UPDATE/DELETE `audit_events`, `student_responses`, `quiz_session_answers` — immutable
-- **NEVER** commit `.env*` files — pre-commit hook blocks them
+- **NEVER** commit `.env*` files — `.gitignore` ignores them (except `.env.example`); no pre-commit hook scans for secrets
 - **NEVER** trust client input — Zod `.parse()` on every Server Action/API route first
 - **NEVER** create SECURITY DEFINER functions without `auth.uid()` check AND `SET search_path = public`
 

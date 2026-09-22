@@ -32,14 +32,15 @@ Order (re-planned 2026-09-22):
       `git ls-tree`, not the worktree; give `commit-tree` an explicit `-c user.name/-c user.email`
       so a missing identity is not misreported as an unborn HEAD.
 - [x] **P2 — guard controls** (Decision 79; PR #1333, merged).
-- [ ] **P8 — shared diff parser.** `.claude/hooks/diff-parse.mjs`: `diff --git` header parsing, C-quoted
+- [x] **P8 — shared diff parser** (PR #1334, merged). `.claude/hooks/diff-parse.mjs`: `diff --git` header parsing, C-quoted
       path decoding, added-line extraction, and the flags every content diff carries
       (`--no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/`). First consumer:
       `check-test-title-leakage.mjs`, with the source branch's fixes. `run-security-auditor.sh` diffs
       gain `--no-textconv --no-ext-diff`.
-- [ ] **P3 — secrets guard** (Closes #1324; SECURITY PATH → red-team). `check-secrets.*` importing
-      `diff-parse.mjs`, `lefthook.yml` `secrets:`, `.gitignore` (`.env*` allowlist — `.env.remote` was
-      trackable), `docs/security.md` §8, `.claude/rules/security.md` §8, `agent-security-auditor.md`.
+- [ ] **P3 — secrets claims + `.gitignore`** (#1324 closed as not planned; SECURITY PATH → red-team). No guard.
+      `.gitignore` `.env*` + `!.env.example` + `*.pem`/`*.key`;
+      the pre-commit secret-hook claim corrected in `docs/security.md` §8, `.claude/rules/security.md` §8,
+      `CLAUDE.md`, `.claude/rules/agent-security-auditor.md`.
 - [ ] **P5 — Claude PR reviewer + rule-coverage manifest** (Decision 78). `.github/workflows/claude-review.yml`,
       `.claude/review-prompt.md`, `.claude/rule-coverage.*`, `rule-coverage.mutations.json`,
       `.spec-workflow/specs/ci-claude-review/`. Runs on every PR under the user's subscription
@@ -49,19 +50,18 @@ Order (re-planned 2026-09-22):
 - [ ] **P7 — review process** (Decision 80; docs only). `deletion-reviewer` agent + rule file as a
       round-1-only member; roster wording across `CLAUDE.md`, `.claude/rules/agent-*.md`,
       `.claude/agents/*.md`, `.claude/commands/*.md`, steering `tech.md`, `docs/plan.md`, live specs.
-      Decision 81 (every round runs every reviewer) is DROPPED.
+      Decision 81 (every round runs every reviewer) is DROPPED. Also: `.claude/rules/code-style.md` §7 addendum — a new
+      code path in an existing guard ships its graded mutation in the same commit.
 - [ ] **P6 — promotion guard** (W3, Decision 82). `check-promotion-enforcer.*` importing
-      `diff-parse.mjs`, its lefthook/ci/pipeline hunks, `agent-memory.md` / `agent-learner.md` /
-      `learner.md` Enforcer text.
+      `.claude/hooks/diff-parse.mjs`, its lefthook/ci/pipeline hunks, `.claude/rules/agent-memory.md` /
+      `.claude/rules/agent-learner.md` / `.claude/agents/learner.md` Enforcer text. Also:
+      `.claude/hooks/measure-quantifier-swap.mjs` diff takes `DIFF_ARGS` from `.claude/hooks/diff-parse.mjs`
+      (colour-sensitive), with a `color.ui=always` test and mutation.
 - DROPPED — **P4 claims hook** (LLM on every commit, fail-open).
 
 Round-13 findings, validated, NOT yet applied — each goes into the PR that owns the file:
-- P3: a rename AWAY from a `.env*` path is blocked (check the new path only). `evaluateStaged` and
-  `evaluateAll` are over the §3 30-line cap.
 - P6: a PROMOTED row ending in `\r` or a trailing space reads status `""` and is not checked
-  (reproduced). `GIT_NAMED_ESCAPES` not frozen — resolved by importing `diff-parse.mjs`.
-- P8: textconv and external-diff bypass (both reproduced on git 2.43) — `--no-textconv --no-ext-diff`.
-  `extractAddedTitles` over the §3 30-line cap.
+  (reproduced). `GIT_NAMED_ESCAPES` not frozen — to resolve by importing `.claude/hooks/diff-parse.mjs`.
 
 
 ## Slice 0 — groundwork (COMPLETE)
