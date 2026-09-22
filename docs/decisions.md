@@ -2377,7 +2377,9 @@ them.
 - The verdict body starts with `<!-- claude-review-verdict -->`. A `Supersede older verdicts` step,
   gated on the Review step succeeding, dismisses prior CHANGES_REQUESTED reviews carrying that
   marker on other commits — only when the event's head is still the PR's live head and a marked
-  verdict exists on it. No marked verdict fails the job and dismisses nothing.
+  verdict exists on it. No marked verdict fails the job and dismisses nothing. A re-run on the SAME
+  head never clears that head's block: two runs over one commit can disagree, so only a new commit
+  or a human dismissal lifts it.
 - Evidence: probe PR #1337 — a `github-actions[bot]` REQUEST_CHANGES review left the PR
   `mergeStateStatus: BLOCKED` with every required check green, and a later run's `github.token`
   dismissed it via the same `PUT .../reviews/{id}/dismissals` call this step uses.
