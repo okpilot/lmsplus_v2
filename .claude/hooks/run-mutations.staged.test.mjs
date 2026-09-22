@@ -1,7 +1,7 @@
 // Run: node --test .claude/hooks/run-mutations.staged.test.mjs
 //
-// Coverage for `--staged`: grades the INDEX rather than HEAD, scoped to the data files whose
-// target/suites/own path actually touch what is staged. A SIBLING file, not a section of
+// Coverage for `--staged`: grades the INDEX rather than HEAD, scoped to the data files
+// `touchesStaged` keeps. A SIBLING file, not a section of
 // `run-mutations.test.mjs`: that suite sits at its cap in `.claude/limits.json`
 // (`--stats` before adding a line here). Listed in `run-mutations.mutations.json`, so a break in
 // this file's own logic is graded by the harness itself, same as every other suite there.
@@ -12,7 +12,7 @@
 // spawn the harness itself, the same pattern `run-mutations.spawn.test.mjs` and
 // `run-mutations.write.test.mjs` use.
 //
-// Every case with a `// MUTATION:` comment is pinned by a `// GROUP:` marker into
+// Every case carrying a mutation claim is pinned by a GROUP marker into
 // `run-mutations.mutations.json` — `--coverage` is the check, not this sentence; a few smoke
 // tests carry neither and claim no coverage.
 
@@ -275,7 +275,7 @@ test('a --staged run grades the data file as staged, not an unstaged-only edit s
   assert.doesNotMatch(stagedDivergeRun.stdout, /unstaged-id/, `stdout:\n${stagedDivergeRun.stdout}`)
 })
 
-// MUTATION: delete `filterByStagedScope`'s `git cat-file -e` existence probe (let `git show` run
+// MUTATION: delete `blobAt`'s empty-`git ls-tree` check (let `git show` run
 // unguarded) → scoping a guard whose suite has no copy at the ref throws out of the filter, so an
 // unrelated guard with a missing suite aborts the whole run instead of being scoped out of it.
 // GROUP: blobat-absent-returns-null
@@ -350,7 +350,7 @@ test('a data file on disk but absent from the index is dropped without faulting 
 // a staged set touching no guard exits 2 ("NO VERDICT") instead of 0, blocking the pre-commit
 // gate on any commit that doesn't touch a guarded file, which is the common case.
 // GROUP: staged-empty-scope-exits-zero
-test('a --staged run exits 0 when no staged file touches any data file, target, or suite', () => {
+test('a --staged run exits 0 when nothing staged is in the scope of any guard', () => {
   const { dir, g } = newRepo('rm-staged-noscope-')
   writeFileSync(join(dir, 'ns.mjs'), 'export const ns = 1\n')
   writeFileSync(join(dir, 'ns.test.mjs'), fixedGreenSuite('ns-ok'))
@@ -366,6 +366,25 @@ test('a --staged run exits 0 when no staged file touches any data file, target, 
   })
   assert.equal(run.status, 0, `stderr:\n${run.stderr}`)
   assert.match(run.stdout, /nothing staged touches/, run.stdout)
+})
+
+// MUTATION: drop `--no-renames` from `stagedPaths` → a staged rename lists only the NEW path, so the
+// guard whose target moved away is scoped out and the run exits 0 having graded nothing.
+// GROUP: staged-paths-no-renames
+test('a --staged run keeps a guard in scope when its target is renamed away', () => {
+  const { dir, g } = newRepo('rm-staged-rename-')
+  writeFileSync(join(dir, 'rn.mjs'), 'export const rn = 1\n')
+  writeFileSync(join(dir, 'rn.test.mjs'), fixedGreenSuite('rn-ok'))
+  writeGuard(dir, 'rename', 'rn.mjs')
+  g(['add', '-A'])
+  g(['commit', '-q', '-m', 'init'])
+  g(['mv', 'rn.mjs', 'moved.mjs'])
+  const run = runNode('harness --staged after renaming a guarded target', [HARNESS, '--staged'], {
+    cwd: dir,
+    env: envWithoutTestContext,
+  })
+  assert.notEqual(run.status, 0, `stdout:\n${run.stdout}`)
+  assert.doesNotMatch(run.stdout, /nothing staged touches/, run.stdout)
 })
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────

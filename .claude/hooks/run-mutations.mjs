@@ -586,7 +586,9 @@ function indexCommit(root) {
 
 /** Root-relative POSIX paths currently staged. */
 function stagedPaths(root) {
-  const out = git(['diff', '--cached', '--name-only', '-z'], root)
+  // --no-renames: a staged rename otherwise lists only the NEW path, scoping out the guard whose
+  // target moved away.
+  const out = git(['diff', '--cached', '--name-only', '--no-renames', '-z'], root)
   return new Set(out.split('\u0000').filter(Boolean))
 }
 
@@ -650,7 +652,7 @@ export function touchesStaged(root, file, data, staged, readAt = null) {
   })
 }
 
-/** Data files whose target/suites/own path is actually staged — everything else is a no-op. */
+/** Data files `touchesStaged` keeps — everything else is a no-op. */
 function filterByStagedScope(root, loaded, ref) {
   const staged = stagedPaths(root)
   const readAt = (suite) => blobAt(root, ref, suite)

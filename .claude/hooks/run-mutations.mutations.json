@@ -237,7 +237,8 @@
         "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top",
         "a guard whose suite is absent at the ref is scoped out, not a fault",
         "a data file on disk but absent from the index is dropped without faulting the run",
-        "a --staged run exits 0 when no staged file touches any data file, target, or suite",
+        "a --staged run exits 0 when nothing staged is in the scope of any guard",
+        "a --staged run keeps a guard in scope when its target is renamed away",
         "reports a diagnostic when HEAD is unborn under --staged",
         "reports a diagnostic when the index has unresolved conflicts under --staged",
         "defaults to the run mode with no flags",
@@ -651,7 +652,7 @@
         "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top",
         "a guard whose suite is absent at the ref is scoped out, not a fault",
         "a data file on disk but absent from the index is dropped without faulting the run",
-        "a --staged run exits 0 when no staged file touches any data file, target, or suite",
+        "a --staged run exits 0 when nothing staged is in the scope of any guard",
         "reports a diagnostic when HEAD is unborn under --staged",
         "reports a diagnostic when the index has unresolved conflicts under --staged",
         "a normal run never writes to the data file"
@@ -755,7 +756,8 @@
         "a staged run scopes to data files that touch what is staged, not every file on disk",
         "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top",
         "a guard whose suite is absent at the ref is scoped out, not a fault",
-        "a --staged run exits 0 when no staged file touches any data file, target, or suite"
+        "a --staged run exits 0 when nothing staged is in the scope of any guard",
+        "a --staged run keeps a guard in scope when its target is renamed away"
       ],
       "note": "Inverting the predicate excludes exactly the file that IS staged and includes the one that is not — the opposite of the scoping `--staged` promises. Both fixture repos have exactly one data file that touches what is staged, so inversion excludes it in each, reddening both end-to-end tests. WIDENED for a third fixture on the same shape (its data file also touches staged, so exclusion drops it from the run's output too)."
     },
@@ -770,7 +772,7 @@
         "touchesStaged returns false when readAt returns null for all suites",
         "a staged run scopes to data files that touch what is staged, not every file on disk",
         "a guard whose suite is absent at the ref is scoped out, not a fault",
-        "a --staged run exits 0 when no staged file touches any data file, target, or suite"
+        "a --staged run exits 0 when nothing staged is in the scope of any guard"
       ],
       "note": "Every data file reads as in scope regardless of what is staged, so `--staged` silently widens back to a full run — and the unit test asserting a real miss (`unrelated.mjs`) catches it directly too."
     },
@@ -803,7 +805,7 @@
         "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top",
         "a guard whose suite is absent at the ref is scoped out, not a fault",
         "a data file on disk but absent from the index is dropped without faulting the run",
-        "a --staged run exits 0 when no staged file touches any data file, target, or suite",
+        "a --staged run exits 0 when nothing staged is in the scope of any guard",
         "reports a diagnostic when HEAD is unborn under --staged",
         "reports a diagnostic when the index has unresolved conflicts under --staged"
       ],
@@ -826,6 +828,25 @@
       ]
     },
     {
+      "id": "blobat-always-null",
+      "find": "  if (probe.stdout.trim() === '') return null\n",
+      "replace": "  return null\n",
+      "expectRed": [
+        "blobAt returns a tracked file content at the ref",
+        "a --staged run grades a file that is only staged, not committed",
+        "a staged run scopes to data files that touch what is staged, not every file on disk",
+        "a --staged run grades the data file as staged, not an unstaged-only edit sitting on top",
+        "a guard whose suite is absent at the ref is scoped out, not a fault",
+        "a --staged run keeps a guard in scope when its target is renamed away"
+      ]
+    },
+    {
+      "id": "staged-paths-no-renames",
+      "find": "'--name-only', '--no-renames', '-z'",
+      "replace": "'--name-only', '-z'",
+      "expectRed": ["a --staged run keeps a guard in scope when its target is renamed away"]
+    },
+    {
       "id": "blobat-fault-is-not-absence",
       "find": "  if (probe.status !== 0) {\n    const why = (probe.stderr || '').trim() || `git ls-tree exited ${probe.status}`\n    throw new Error(`cannot read ${rel} at ${ref}: ${why}`)\n  }",
       "replace": "  if (probe.status !== 0) return null",
@@ -837,7 +858,7 @@
       "replace": "    )\n    return 2\n  }\n  const { caught, bad, faults, total } = gradeScoped(scoped, {",
       "expectRed": [
         "a data file on disk but absent from the index is dropped without faulting the run",
-        "a --staged run exits 0 when no staged file touches any data file, target, or suite"
+        "a --staged run exits 0 when nothing staged is in the scope of any guard"
       ]
     },
     {

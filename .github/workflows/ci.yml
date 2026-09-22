@@ -207,9 +207,9 @@ jobs:
       # Budget, not a guess — but the basis is DATED: 7m56s in run 35345067470, before the staged
       # and scope suites joined the corpus, so that figure no longer bounds this job. Re-derive
       # from THIS workflow's own history rather than trusting the number above:
-      #   gh run list --workflow=ci.yml --json databaseId --jq '.[].databaseId' | head -20 \
-      #     | xargs -n1 -I{} gh run view {} --json jobs \
-      #         --jq '.jobs[] | select(.name|test("every encoded mutation")) | .completedAt'
+      # step timings are null in `gh run view --json jobs`; read the jobs API:
+      #   gh api repos/okpilot/lmsplus_v2/actions/jobs/<job_id> \
+      #     --jq '.steps[] | select(.name|test("encoded mutation")) | {started_at, completed_at}'
       # Raised to 25 to absorb corpus growth between re-derivations. (`--list` is not the count —
       # it prints notEncoded entries too; `--coverage` prints the encoded count.)
       - name: Mutation harness — run every encoded mutation

@@ -163,13 +163,16 @@ function blobRepo() {
   return { dir, g }
 }
 
+// MUTATION: change blobAt's `if (probe.stdout.trim() === '') return null` to `return null` → every
+// path reads as absent, so no data file ever loads and a --staged run grades nothing.
+// GROUP: blobat-always-null
 test('blobAt returns a tracked file content at the ref', () => {
   const { dir } = blobRepo()
   assert.match(blobAt(dir, 'HEAD', join(dir, 'a/present.mjs')), /export const present = 1/)
 })
 
-// MUTATION: change blobAt's `if (probe.stdout.trim() === '') return null` to `return null` → every
-// path reads as absent, so no data file ever loads and a --staged run grades nothing.
+// MUTATION: delete blobAt's `if (probe.stdout.trim() === '') return null` → an absent path reaches
+// `git show`, which throws instead of returning null.
 // GROUP: blobat-absent-returns-null
 test('blobAt returns null for a path absent from an otherwise valid tree', () => {
   const { dir } = blobRepo()
