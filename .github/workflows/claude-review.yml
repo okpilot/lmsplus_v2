@@ -189,13 +189,13 @@ jobs:
             exit 0
           fi
           current=$(gh api "repos/$REPO/pulls/$PR/reviews" --paginate \
-            --jq '.[] | select(.user.login == "github-actions[bot]" and .commit_id == env.HEAD_SHA and (.body | startswith("<!-- claude-review-verdict -->"))) | .id')
+            --jq '.[] | select(.user.login == "github-actions[bot]" and .commit_id == env.HEAD_SHA and ((.body // "") | startswith("<!-- claude-review-verdict -->"))) | .id')
           if [ -z "$current" ]; then
             echo "::error::no verdict review on $HEAD_SHA"
             exit 1
           fi
           gh api "repos/$REPO/pulls/$PR/reviews" --paginate \
-            --jq '.[] | select(.user.login == "github-actions[bot]" and .state == "CHANGES_REQUESTED" and .commit_id != env.HEAD_SHA and (.body | startswith("<!-- claude-review-verdict -->"))) | .id' |
+            --jq '.[] | select(.user.login == "github-actions[bot]" and .state == "CHANGES_REQUESTED" and .commit_id != env.HEAD_SHA and ((.body // "") | startswith("<!-- claude-review-verdict -->"))) | .id' |
           while read -r id; do
             gh api -X PUT "repos/$REPO/pulls/$PR/reviews/$id/dismissals" \
               -f message="Superseded by the review of $HEAD_SHA" -f event=DISMISS
