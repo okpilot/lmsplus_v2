@@ -155,10 +155,12 @@ jobs:
           #
           # Read/Grep/Glob are granted explicitly, rather than left to the read-only default, and
           # read the BASE checkout on disk (see the checkout step above) — never the PR's own files.
-          # --disallowedTools fences them outside the checkout (/proc, /sys, the runner's temp
-          # dirs, /tmp, /etc) so a prompt-injected reviewer can't read CLAUDE_CODE_OAUTH_TOKEN out of
-          # /proc/self/environ and post it in a comment; deny beats allow. `--settings` backs the
-          # same fence with permissions.blockReadsOutsideWorkingDirectories, in every mode.
+          # --disallowedTools fences them outside the checkout (/proc, /sys, ~/.claude, the
+          # runner's _temp and _actions dirs, /tmp, /etc) so a prompt-injected reviewer can't read
+          # CLAUDE_CODE_OAUTH_TOKEN out of /proc/self/environ and post it in a comment; deny beats
+          # allow. `--settings` backs the same fence with
+          # permissions.blockReadsOutsideWorkingDirectories, in every mode — verified on Claude Code
+          # 2.1.280, the build the action pins: Read, Grep and Glob outside the cwd are refused.
           #
           # NO Bash, DENIED EXPLICITLY. `Bash(cmd:*)` is a PREFIX match, and three review rounds
           # found three different commands that satisfy a narrow-looking prefix and then exceed
@@ -180,7 +182,7 @@ jobs:
             --setting-sources user
             --settings '{"permissions":{"blockReadsOutsideWorkingDirectories":true}}'
             --allowedTools "mcp__github_inline_comment__create_inline_comment,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__create_and_submit_pull_request_review,Read,Grep,Glob"
-            --disallowedTools "Bash,Read(//proc/**),Read(//sys/**),Read(//home/runner/work/_temp/**),Read(//tmp/**),Read(//etc/**)"
+            --disallowedTools "Bash,Read(//proc/**),Read(//sys/**),Read(~/.claude/**),Read(//home/runner/work/_temp/**),Read(//home/runner/work/_actions/**),Read(//tmp/**),Read(//etc/**)"
 
       - name: Skip notice
         if: env.CLAUDE_CODE_OAUTH_TOKEN == ''
