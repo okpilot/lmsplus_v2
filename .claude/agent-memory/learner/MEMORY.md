@@ -145,8 +145,9 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | test-writer writes MUTATION: annotations without GROUP: linkage — orchestrator must encode and link | 1 | 2026-09-22 | WATCHING |
 | Node.js readable stream appended as raw Buffer without setEncoding — multi-byte chars corrupt at chunk boundaries | 1 | 2026-09-22 | WATCHING |
 | Implementation/fixup agent writes new function exceeding 30-line cap — not caught before committing | 3 | 2026-09-22 | RULE CANDIDATE (3). guards/controls R1/R2/R3: 3 distinct functions. Broadens row 22 |
-| Guard behavior wired/declared but not graded in mutation harness (expectRed/grading loop) | 2 | 2026-09-22 | RULE CANDIDATE (2). guards/controls R1 (code-review skill) + R2 (semantic). Distinct mechanisms |
+| Guard behavior wired/declared but not graded in mutation harness (expectRed/grading loop) | 4 | 2026-09-22 | RULE CANDIDATE (4). guards/controls R1+R2 + shared-diff-parser R1+R2. New code path added to existing guard without mutation annotation in the same commit. → §7 addendum |
 | CI YAML parser's guard-lookup misses `- run:` list-item form — wired guard escapes registry | 1 | 2026-09-22 | WATCHING — guards/controls R1 code-review(skill) |
+| Guard git-invocation output not normalized for git-config-sensitive options (color.ui, noprefix, textconv, ext-diff) | 1 | 2026-09-22 | WATCHING — shared-diff-parser R1 (semantic + code-review skill independently); fix kept widening to N sibling call sites in R2 |
 
 ## Durable knowledge (cross-agent)
 
@@ -161,6 +162,7 @@ Bullets removed 2026-09-16 are relocated verbatim in `topics/cross-agent-lessons
 - guards/mutation-harness-staged (2026-09-22): ceiling (R3 APPLY). Row 63 (SATURATED, §10 cl.8) → 38, archived. Row 109 → 15. Row 52 → 5. POSITIVE: code-review (skill) caught git cat-file exit-code conflation (critical). 2 new WATCHING.
 - guards/mutation-harness-jobs (2026-09-22): R2 clean. Row 108 → 16. New RULE CANDIDATE: scope-understatement after walk expansion (2 branches). 4 new WATCHING.
 - guards/controls (2026-09-22): ceiling (R3 APPLY). Row 75 → 3. 2 new RULE CANDIDATEs (fixup function-length overrun; ungraded guard behaviors). 1 new WATCHING (CI YAML `- run:` form). implementation-critic CLEAN. doc-updater SKIPPED (CLAUDE.md §QA enumeration correctly rejected — data belongs in pipeline.json).
+- guards/shared-diff-parser (2026-09-22): R3 clean. Row 148 → 4 (ungraded new path on R1+R2). 1 new WATCHING (git-config-sensitive parse). Partial-sibling-fix recurrence is SATURATED (CLAUDE.md rule already exists; archived row count+). POSITIVE: semantic + code-review(skill) independently caught the `--no-color` gap in R1 — gate redundancy worked.
 - Per-branch history (2026-09-18 to 2026-09-20): topics/cross-agent-lessons.md (search "Durable-knowledge bullets relocated").
 
 ## Topic pointers
