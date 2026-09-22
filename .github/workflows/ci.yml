@@ -47,6 +47,9 @@ jobs:
       - name: Pre-push hook red/green controls
         run: node --test .claude/hooks/run-security-auditor.controls.test.mjs
 
+      - name: Pre-push hook git-config bypass controls
+        run: node --test .claude/hooks/run-security-auditor.config.test.mjs
+
       - name: Soft-delete column guard
         run: node .claude/hooks/check-soft-delete-guard.mjs
 

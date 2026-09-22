@@ -6,6 +6,10 @@
 
 ## Positive-pattern log
 
+### guards/shared-diff-parser — APPROVED (2026-09-22, P8)
+
+13 files changed. All R1-R5 satisfied: diff-parse.mjs exports all required symbols (DIFF_ARGS/GIT_QUOTEPATH/GIT_NAMED_ESCAPES/unquoteGitPath/headerNewPath/splitByFile/addedLines); check-test-title-leakage.mjs rebuilt on diff-parse imports, extractAddedTitles 26 lines (under 30), DIFF_ARGS threaded at both call sites; run-security-auditor.sh gains --no-textconv --no-ext-diff on all 4 diff calls; full mutation coverage via two-level strategy (per-flag presence in diff-parse.test.mjs, call-site behavioral in repo.test.mjs — dangling-GROUP-id reason is valid); spec tasks.md correctly re-planned. All suites pass: diff-parse 32, title-leakage unit 42, repo 4. EVIDENCE: all node --test runs executed and verified green.
+
 ### guards/controls — APPROVED (2026-09-22, P2)
 
 35 files changed. All R1-R6 satisfied: 12 non-exempt guards each carry `// CONTROL: red` + `// CONTROL: green` tests; `controls.test.mjs` derives wired set from lefthook.yml/ci.yml/settings.json and checks bidirectionally; `scanControls()` + `controls: []` fields added to `parseSuite`; 3 CI steps added; `code-style.md` §7 + Decision 79 written; tasks.md SPLIT section inserted with correct wording. Rule-mirror grep showed no files restate the guard-controls rule → no mirror update needed. Zero CRITICAL, ISSUE, or SUGGESTION.

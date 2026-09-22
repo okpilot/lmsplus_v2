@@ -2,11 +2,6 @@
 // guard: no CONTROL:red/green pair, no pipeline.json `guards` entry — check-test-title-leakage.mjs
 // is its first consumer and carries the wiring.
 // Run: node --test .claude/hooks/diff-parse.test.mjs
-//
-// Every case below is MUTATION-PINNED: the break that turns it red is named in a `// MUTATION:`
-// comment and encoded in diff-parse.mutations.json under the linked `// GROUP:` id.
-// `node .claude/hooks/run-mutations.mjs --guard diff-parse` re-derives the claim; do not trust it
-// unread (code-style.md §7).
 
 import assert from 'node:assert/strict'
 import { test } from 'node:test'

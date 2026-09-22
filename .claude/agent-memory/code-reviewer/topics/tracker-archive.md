@@ -56,3 +56,4 @@
 | RULE 0 archaeology in new rules file + §10 cl.7 count (docs/schedule-cr-local-retirement) | 2026-09-19-20 | R1 RULE 0 FIXED. R2-R5 CLEAN. git grep correct form: `git grep <pattern> <branch> -- <pathspec>` (branch after pattern, not before). |
 | fix/learner-tracker-termination (R8-R11) | 2026-09-20-21 | CLEAN R8-R11. SATURATED state, all §10 claims verified. prose-claims/prose-paths EXIT:0. |
 | guards/mutation-harness-staged R3 (CEILING) | 2026-09-22 (3f609574) | CLEAN. modeRun body improved 40→32L; no new function over 30L; touchesStaged 5 params + JSDoc → infra exception. Positive: scope predicates cleanly extracted as testable exports. |
+| guards/shared-diff-parser R1 | 2026-09-22 | CLEAN. All 13 files in .claude/hooks/ + pipeline.json + ci.yml + tasks.md. No app code. All function bodies ≤30L, all params ≤3, nesting ≤3 levels, file-size guard passed. |

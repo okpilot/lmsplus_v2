@@ -173,7 +173,10 @@
     },
     ".claude/hooks/run-security-auditor.sh": {
       "base": "run-security-auditor",
-      "suites": [".claude/hooks/run-security-auditor.controls.test.mjs"]
+      "suites": [
+        ".claude/hooks/run-security-auditor.controls.test.mjs",
+        ".claude/hooks/run-security-auditor.config.test.mjs"
+      ]
     },
     ".claude/hooks/on-stop.sh": {
       "exempt": "Stop hook; always exits 0 (toast notification only, its powershell.exe call is `|| true`) — cannot block"

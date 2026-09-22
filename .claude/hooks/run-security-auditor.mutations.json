@@ -1,7 +1,10 @@
 {
   "_": "Planted red/green controls linked by GROUP marker to the two spawned tests that already drove run-security-auditor.sh's exit code before this file existed.",
   "target": ".claude/hooks/run-security-auditor.sh",
-  "suites": [".claude/hooks/run-security-auditor.controls.test.mjs"],
+  "suites": [
+    ".claude/hooks/run-security-auditor.controls.test.mjs",
+    ".claude/hooks/run-security-auditor.config.test.mjs"
+  ],
   "mutations": [
     {
       "id": "run-security-auditor-always-passes",
@@ -14,7 +17,9 @@
         "blocks the push via the fallback scan when the CLI fails and a secret is in the diff",
         "fallback scan still finds a secret a textconv driver hides on the no-upstream diff",
         "fallback scan still finds a secret a textconv driver hides on the upstream diff",
-        "fallback scan still finds a secret GIT_EXTERNAL_DIFF hides on the no-upstream diff"
+        "fallback scan still finds a secret GIT_EXTERNAL_DIFF hides on the no-upstream diff",
+        "fallback scan still finds a secret color.ui=always hides on the no-upstream diff",
+        "fallback scan still finds a .env file diff.noprefix=true hides on the no-upstream diff"
       ],
       "note": "Shadows the `exit` builtin with a function that always exits 0 — every blocking exit in the script, whichever of the four routes reaches it (the terminal BLOCKED exit, fail_closed_no_llm_output, and the two fallback-scan branches), is defeated at once. Chosen over patching only the terminal exit because the guard has multiple independent fail-closed exits (Decision 79) and this is the one mutation that represents 'the guard never blocks', matching what code-reviewer's controls.test.mjs requires every CONTROL: red test in a suite to link to under a single `<base>-always-passes` id."
     },
@@ -22,7 +27,11 @@
       "id": "run-security-auditor-always-blocks",
       "find": "  echo \"[security-auditor] Push approved.\"\n  exit 0\n",
       "replace": "  echo \"[security-auditor] Push approved.\"\n  exit 1\n",
-      "expectRed": ["approves the push when the security audit returns a clean APPROVED verdict"],
+      "expectRed": [
+        "approves the push when the security audit returns a clean APPROVED verdict",
+        "LLM receives the secret from the filtered diff under a textconv driver (large diff path)",
+        "LLM receives the secret from the filtered diff under GIT_EXTERNAL_DIFF (large diff path)"
+      ],
       "note": "Forces the full-script approve branch to exit 1 instead of 0 — a clean APPROVED verdict still prints 'Push approved' but the hook blocks the push anyway."
     },
     {
@@ -40,9 +49,11 @@
         "blocks the push via the fallback scan when the CLI times out and a secret is in the diff",
         "fallback scan still finds a secret a textconv driver hides on the no-upstream diff",
         "fallback scan still finds a secret a textconv driver hides on the upstream diff",
-        "fallback scan still finds a secret GIT_EXTERNAL_DIFF hides on the no-upstream diff"
+        "fallback scan still finds a secret GIT_EXTERNAL_DIFF hides on the no-upstream diff",
+        "fallback scan still finds a secret color.ui=always hides on the no-upstream diff",
+        "fallback scan still finds a .env file diff.noprefix=true hides on the no-upstream diff"
       ],
-      "note": "Forces the timeout branch's fallback-scan exit to 0 instead of 1 — a secret found in the diff after a CLI timeout still prints 'Found N issue(s)' but approves the push anyway. Every CONTROL: red test that also uses TIMEOUT_SHIM with a secret the scan is expected to catch goes red here too, including the three textconv/ext-diff cases."
+      "note": "Forces the timeout branch's fallback-scan exit to 0 instead of 1 — a secret found in the diff after a CLI timeout still prints 'Found N issue(s)' but approves the push anyway. Every CONTROL: red test that also uses TIMEOUT_SHIM with a finding the scan is expected to catch goes red here too, including the textconv/ext-diff/color/noprefix cases."
     },
     {
       "id": "run-security-auditor-fallback-scan-cli-failure",
@@ -55,8 +66,8 @@
     },
     {
       "id": "run-security-auditor-textconv-upstream",
-      "find": "git diff --no-textconv --no-ext-diff \"$REMOTE_REF\"...HEAD 2>/dev/null",
-      "replace": "git diff --no-ext-diff \"$REMOTE_REF\"...HEAD 2>/dev/null",
+      "find": "git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ \"$REMOTE_REF\"...HEAD 2>/dev/null",
+      "replace": "git diff --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ \"$REMOTE_REF\"...HEAD 2>/dev/null",
       "expectRed": [
         "fallback scan still finds a secret a textconv driver hides on the upstream diff"
       ],
@@ -64,8 +75,8 @@
     },
     {
       "id": "run-security-auditor-textconv-fallback",
-      "find": "git diff --no-textconv --no-ext-diff HEAD 2>/dev/null",
-      "replace": "git diff --no-ext-diff HEAD 2>/dev/null",
+      "find": "git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ HEAD 2>/dev/null",
+      "replace": "git diff --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ HEAD 2>/dev/null",
       "expectRed": [
         "fallback scan still finds a secret a textconv driver hides on the no-upstream diff"
       ],
@@ -73,12 +84,48 @@
     },
     {
       "id": "run-security-auditor-extdiff-fallback",
-      "find": "git diff --no-textconv --no-ext-diff HEAD 2>/dev/null",
-      "replace": "git diff --no-textconv HEAD 2>/dev/null",
+      "find": "git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ HEAD 2>/dev/null",
+      "replace": "git diff --no-textconv --no-color --src-prefix=a/ --dst-prefix=b/ HEAD 2>/dev/null",
       "expectRed": [
         "fallback scan still finds a secret GIT_EXTERNAL_DIFF hides on the no-upstream diff"
       ],
       "note": "Drops --no-ext-diff from the no-upstream `git diff HEAD` fallback — GIT_EXTERNAL_DIFF then drops every added line from DIFF_FULL, so the fallback scan finds nothing."
+    },
+    {
+      "id": "run-security-auditor-textconv-filtered-large-diff",
+      "find": "  DIFF=$(git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ \"$REMOTE_REF\"...HEAD -- \\\n",
+      "replace": "  DIFF=$(git diff --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ \"$REMOTE_REF\"...HEAD -- \\\n",
+      "expectRed": [
+        "LLM receives the secret from the filtered diff under a textconv driver (large diff path)"
+      ],
+      "note": "Drops --no-textconv from the large-diff filtered-pathspec call — a local textconv driver then hides the SQL file's content from the filtered DIFF sent to the LLM, which sees no secret and the validating shim returns BLOCKED."
+    },
+    {
+      "id": "run-security-auditor-extdiff-filtered-large-diff",
+      "find": "  DIFF=$(git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ \"$REMOTE_REF\"...HEAD -- \\\n",
+      "replace": "  DIFF=$(git diff --no-textconv --no-color --src-prefix=a/ --dst-prefix=b/ \"$REMOTE_REF\"...HEAD -- \\\n",
+      "expectRed": [
+        "LLM receives the secret from the filtered diff under GIT_EXTERNAL_DIFF (large diff path)"
+      ],
+      "note": "Drops --no-ext-diff from the large-diff filtered-pathspec call — GIT_EXTERNAL_DIFF then discards all filtered diff content; the hook falls through to the stat-only path which lacks the secret; the validating shim returns BLOCKED."
+    },
+    {
+      "id": "run-security-auditor-color-fallback",
+      "find": "git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ HEAD 2>/dev/null",
+      "replace": "git diff --no-textconv --no-ext-diff --src-prefix=a/ --dst-prefix=b/ HEAD 2>/dev/null",
+      "expectRed": [
+        "fallback scan still finds a secret color.ui=always hides on the no-upstream diff"
+      ],
+      "note": "Drops --no-color from the no-upstream `git diff HEAD` fallback — a local `color.ui always` then wraps every added line in ANSI escapes, so the fallback scan's `^\\+` secret pattern never matches."
+    },
+    {
+      "id": "run-security-auditor-noprefix-fallback",
+      "find": "git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ HEAD 2>/dev/null",
+      "replace": "git diff --no-textconv --no-ext-diff --no-color HEAD 2>/dev/null",
+      "expectRed": [
+        "fallback scan still finds a .env file diff.noprefix=true hides on the no-upstream diff"
+      ],
+      "note": "Drops --src-prefix=a/ --dst-prefix=b/ from the no-upstream `git diff HEAD` fallback — a local `diff.noprefix true` then strips the `b/` prefix from every header, so the fallback scan's `^\\+\\+\\+ b/.*\\.env` pattern never matches a committed `.env` file."
     }
   ]
 }
