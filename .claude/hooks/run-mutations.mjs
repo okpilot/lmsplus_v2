@@ -829,7 +829,9 @@ function wireSpawnSuiteExit(child, finish, getState) {
   })
   child.on('close', (status, signal) => {
     const { stdout, stderr, timedOut } = getState()
-    if (timedOut) {
+    // A child that exited on its own before the timer fired closes with a real status; only a
+    // signal-terminated one (`status === null`) timed out.
+    if (timedOut && status === null) {
       finish({
         status,
         signal,

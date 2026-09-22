@@ -1137,6 +1137,14 @@
       "find": "    child[name].setEncoding('utf8')\n",
       "replace": "",
       "expectRed": ["spawnSuite decodes a multi-byte character split across two output chunks"]
+    },
+    {
+      "id": "spawnsuite-timeout-needs-null-status",
+      "find": "    if (timedOut && status === null) {",
+      "replace": "    if (timedOut) {",
+      "expectRed": [
+        "spawnSuite keeps the real exit status of a child whose output closes after the timeout"
+      ]
     }
   ],
   "notEncoded": [

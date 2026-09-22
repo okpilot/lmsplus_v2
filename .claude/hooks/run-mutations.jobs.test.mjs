@@ -207,6 +207,21 @@ test('spawnSuite kills a hanging child and reports ETIMEDOUT, matching spawnSync
   assert.ok(r.signal, 'expected a kill signal to be recorded')
 })
 
+// MUTATION: drop `&& status === null` from spawnSuite's close handler → a child that exited 0
+// while a grandchild still held its stdout open is reported as ETIMEDOUT, a verdict lost to FAULT.
+// GROUP: spawnsuite-timeout-needs-null-status
+test('spawnSuite keeps the real exit status of a child whose output closes after the timeout', async () => {
+  const child = [
+    "require('node:child_process').spawn(process.execPath, ['-e', 'setTimeout(() => {}, 1500)'], {",
+    "  stdio: ['ignore', 'inherit', 'inherit'],",
+    '})',
+    'process.exit(0)',
+  ].join('\n')
+  const r = await spawnSuite(['-e', child], { timeout: 300, maxBuffer: 1024 * 1024 })
+  assert.equal(r.error, null)
+  assert.equal(r.status, 0)
+})
+
 // MUTATION: delete the `if (out.bytes > maxBuffer) onOverflow()` check in spawnSuite's output
 // collector → output past `maxBuffer` is buffered without limit instead of the child being
 // killed — the unbounded growth `spawnSync`'s own `maxBuffer` option exists to bound.
