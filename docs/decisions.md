@@ -2365,6 +2365,27 @@ reach a LATER branch's learner run, on the same terms as red-team and coderabbit
 member runs pre-push, so its findings are ordinary input to the learner of the branch that produced
 them.
 
+## Decision 78: CI reviewer on opus blocks via a dismissable REQUEST_CHANGES (2026-09-22)
+
+- New `.github/workflows/claude-review.yml` runs on every PR to `master`, on **opus**. It is not a
+  subagent; `agent-critic.md § Model tier` names it. It fetches the PR
+  diff through the granted GitHub MCP tools and reviews only lines the diff adds or changes; the
+  checkout is `base.sha` and there is no shell (`--disallowedTools "Bash"`).
+- Verdict: after posting inline comments, it submits exactly ONE review per head commit via
+  `create_and_submit_pull_request_review`, `event: REQUEST_CHANGES` on any CRITICAL/ISSUE finding
+  else `COMMENT`. Never APPROVE.
+- The verdict body starts with `<!-- claude-review-verdict -->`. A `Supersede older verdicts` step,
+  gated on the Review step succeeding, dismisses prior CHANGES_REQUESTED reviews carrying that
+  marker on other commits — only when the event's head is still the PR's live head and a marked
+  verdict exists on it. No marked verdict fails the job and dismisses nothing. A re-run on the SAME
+  head never clears that head's block: two runs over one commit can disagree, so only a new commit
+  or a human dismissal lifts it.
+- Evidence: probe PR #1337 — a `github-actions[bot]` REQUEST_CHANGES review left the PR
+  `mergeStateStatus: BLOCKED` with every required check green, and a later run's `github.token`
+  dismissed it via the same `PUT .../reviews/{id}/dismissals` call this step uses.
+- Not a required status check. `claude-opus-5-5` is registered in `.claude/pipeline.json`
+  `modelLiteralSites`. CodeRabbit keeps running unchanged, in parallel.
+
 ## Decision 79: every guard carries a planted, graded red and green control (2026-09-21)
 
 - `code-style.md` §7: each guard has a spawned `// CONTROL: red` and `// CONTROL: green` test,

@@ -6,6 +6,10 @@
 
 ## Positive-pattern log
 
+### ci/claude-opus-review — APPROVED (2026-09-22, P5)
+
+5 files changed. All R1-R5 satisfied: workflow prompt inlined, no `.claude/review-prompt.md`; `--model claude-opus-5` + `--disallowedTools "Bash"` + `--setting-sources user` + allowedTools list all present; checkout is `base.sha`; supersede step uses `--paginate --jq` with `env.HEAD_SHA` (per-page approach — deliberate deviation from initial plan, correct); `pipeline.json` TEXT-edited (not re-serialised), gains `opus` model + modelLiteralSites entry; `agent-critic.md` Model tier sentence updated exactly per R3; D78 inserted between D77 and D79; `tasks.md` P5 entry updated with prompt-inlined wording and correct file list. Probe evidence (PR #1337): two DISMISSED github-actions[bot] reviews confirm mechanism works. EVIDENCE: `gh api repos/okpilot/lmsplus_v2/pulls/1337/reviews` → ids 5280832946 (DISMISSED, commit 3a6365c0), 5280899706 (DISMISSED, commit 024bfd51), 5281088801 (COMMENTED, no findings probe).
+
 ### guards/shared-diff-parser — APPROVED (2026-09-22, P8)
 
 13 files changed. All R1-R5 satisfied: diff-parse.mjs exports all required symbols (DIFF_ARGS/GIT_QUOTEPATH/GIT_NAMED_ESCAPES/unquoteGitPath/headerNewPath/splitByFile/addedLines); check-test-title-leakage.mjs rebuilt on diff-parse imports, extractAddedTitles 26 lines (under 30), DIFF_ARGS threaded at both call sites; run-security-auditor.sh gains --no-textconv --no-ext-diff on all 4 diff calls; full mutation coverage via two-level strategy (per-flag presence in diff-parse.test.mjs, call-site behavioral in repo.test.mjs — dangling-GROUP-id reason is valid); spec tasks.md correctly re-planned. All suites pass: diff-parse 32, title-leakage unit 42, repo 4. EVIDENCE: all node --test runs executed and verified green.

@@ -32,7 +32,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Reviewer asserts code/test element absent or unreachable | 2 | 2026-08-16 | RULE CANDIDATE (2) → 2 agent DOs |
 | Behavior-first test-title rename overclaims a stronger guarantee | 3 | 2026-08-09 | RULE CANDIDATE (3) → code-style.md §7 |
 | Claim-correction commit updates a count but leaves its sibling stale | 12 | 2026-09-20 | RULE CANDIDATE (12). Detail: topic file |
-| CR fabricates repo-history claims (SHA/PR/issue "doesn't exist") | 3 | 2026-08-19 | RULE CANDIDATE (3) |
+| Reviewer fabricates external state claims (SHA/PR/issue/tag "doesn't exist") | 4 | 2026-09-22 | RULE CANDIDATE (4). CR (3×) + semantic-reviewer (1×: false "no v7 tag" claim) |
 | check-test-title-leakage.mjs misses bare snake_case token in title | 2 | 2026-08-17 | RULE CANDIDATE (2) → extend hook DISALLOWED_PATTERNS or §7 note |
 | Status/error-posture change leaves a sibling spec unrevised | 2 | 2026-08-09 | RULE CANDIDATE (2) → agent-workflow.md §Plan Validation |
 | Post-commit gates miss new site violating a promoted §7 rule | 2 | 2026-08-19 | RULE CANDIDATE (2) |
@@ -40,7 +40,7 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Rules-file bullet closes an enumeration of a structurally OPEN set | 15 | 2026-09-18 | RULE CANDIDATE (15) — text exists (§10 cl.2). Detail: topic file |
 | Rule-promotion sweep recorded closed/complete, later found incomplete | 5 | 2026-09-17 | RULE CANDIDATE (5). Topic file |
 | Mutation-check executed but doesn't falsify the claim — unisolated or untargeted mutation | 7 | 2026-09-18 | RULE CANDIDATE (7). Detail: cross-agent-lessons.md |
-| Verification/gate check accepts category-membership/substring, not exact identity | 4 | 2026-09-14 | RULE CANDIDATE (4). Topic file |
+| Verification/gate check accepts category-membership/substring, not exact identity | 5 | 2026-09-22 | RULE CANDIDATE (5). Topic file |
 | Schema/spec validator has no closed key set — extra keys pass silently | 2 | 2026-09-07 | RULE CANDIDATE (2) → code-style.md §5. Draft in topic file |
 | Orchestrator encodes its own unresolved proposal into a durable data file as settled fact | 1 | 2026-09-07 | WATCHING — data-file variant of row 74 (topic file) |
 | Delimiter-scan parser matches first occurrence anywhere, not the paired/anchored one | 1 | 2026-09-07 | WATCHING |
@@ -150,6 +150,8 @@ Schema: Issue Type | Count | Last Seen | Status. Count=1: narrative in topic fil
 | Guard git-invocation output not normalized for git-config-sensitive options (color.ui, noprefix, textconv, ext-diff) | 1 | 2026-09-22 | WATCHING — shared-diff-parser R1 (semantic + code-review skill independently); fix kept widening to N sibling call sites in R2 |
 | `Closes #N` keyword on a PR that drops the issue's own acceptance criteria | 1 | 2026-09-22 | WATCHING |
 | Orchestrator checks only root `.gitignore` when verifying file exposure — misses nested `.gitignore` files | 1 | 2026-09-22 | WATCHING |
+| CI workflow re-run reuses stale event payload — head.sha is the trigger event's, not live HEAD | 1 | 2026-09-22 | WATCHING — code-review(skill) ci/claude-opus-review |
+| jq filter reads nullable field without null coalescing → exits non-zero on null (`.body` case) | 1 | 2026-09-22 | WATCHING — semantic-reviewer ci/claude-opus-review; fix: `(.field // "")` |
 
 ## Durable knowledge (cross-agent)
 
@@ -168,6 +170,7 @@ Bullets removed 2026-09-16 are relocated verbatim in `topics/cross-agent-lessons
 - guards/secrets-guard (2026-09-22): R3 clean (docs + .gitignore fix only; no pre-commit guard built). Pattern "correction introduces a new false claim" recurred TWICE (R1 and R2 fixups) — SATURATED by §10 cl.8 (rule text already exists). 2 new WATCHING rows (Closes-#N drops acceptance criteria; nested .gitignore miss). POSITIVE: code-review (skill, opus) caught false claim in plan text that plan-critic, impl-critic, and semantic all missed in R1.
 - Per-branch history (2026-09-18 to 2026-09-20): topics/cross-agent-lessons.md (search "Durable-knowledge bullets relocated").
 - docs/deletion-reviewer (2026-09-22): R2 clean. Row 61 → 18 (learner.md same-file paraphrase left stale after Mission edit). Row 116 → 3, RULE CANDIDATE (2 open specs + plan-critic hit on corpus-codification tasks.md; all carried stale 6-member round-1 count). code-review (skill) caught 4 of 5 applied findings; semantic-reviewer 1. deletion-reviewer CLEAN. Recommendation: clarify "ACTIVE spec" definition in agent-workflow.md mirror table row.
+- ci/claude-opus-review (2026-09-22): R3 clean. Row 43 → 5 (dismiss filter too broad: any bot review, not exact marker — code-review+semantic both caught it). Row 35 → 4 (semantic-reviewer false "no v7 tag" claim; row broadened to all reviewer types). 2 new WATCHING (stale workflow head.sha on re-run; jq nullable-body). POSITIVE: deletion-reviewer found 3 prose redundancies (Decision-78 restatements); doc-updater found steering tech.md omission; gate stopped R3 clean.
 
 ## Topic pointers
 

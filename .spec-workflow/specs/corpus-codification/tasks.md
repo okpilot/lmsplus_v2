@@ -41,10 +41,10 @@ Order (re-planned 2026-09-22):
       `.gitignore` `.env*` + `!.env.example` + `*.pem`/`*.key`;
       the pre-commit secret-hook claim corrected in `docs/security.md` §8, `.claude/rules/security.md` §8,
       `CLAUDE.md`, `.claude/rules/agent-security-auditor.md`.
-- [ ] **P5 — Claude PR reviewer + rule-coverage manifest** (Decision 78). `.github/workflows/claude-review.yml`,
-      `.claude/review-prompt.md`, `.claude/rule-coverage.*`, `rule-coverage.mutations.json`,
-      `.spec-workflow/specs/ci-claude-review/`. Runs on every PR under the user's subscription
-      (`CLAUDE_CODE_OAUTH_TOKEN`), model `claude-opus-5` — a named Opus exception, recorded in the decision
+- [ ] **P5 — Claude PR reviewer** (Decision 78). `.github/workflows/claude-review.yml` (prompt inlined,
+      no `.claude/review-prompt.md`), `.claude/pipeline.json`, `.claude/rules/agent-critic.md`,
+      `docs/decisions.md` Decision 78. Runs on every PR under the user's subscription
+      (`CLAUDE_CODE_OAUTH_TOKEN`), model `claude-opus-5-5` — a named Opus exception, recorded in the decision
       and `pipeline.json` `modelLiteralSites`. Blocks via a REQUEST_CHANGES review (dismissable), never a
       required status check.
 - [ ] **P7 — review process** (Decision 80; docs only). `deletion-reviewer` agent + rule file as a
