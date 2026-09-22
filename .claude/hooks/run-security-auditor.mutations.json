@@ -11,7 +11,10 @@
         "blocks the push when the security audit returns a BLOCKED verdict",
         "fails closed when the CLI fails and the diagnostic scan finds nothing",
         "blocks the push via the fallback scan when the CLI times out and a secret is in the diff",
-        "blocks the push via the fallback scan when the CLI fails and a secret is in the diff"
+        "blocks the push via the fallback scan when the CLI fails and a secret is in the diff",
+        "fallback scan still finds a secret a textconv driver hides on the no-upstream diff",
+        "fallback scan still finds a secret a textconv driver hides on the upstream diff",
+        "fallback scan still finds a secret GIT_EXTERNAL_DIFF hides on the no-upstream diff"
       ],
       "note": "Shadows the `exit` builtin with a function that always exits 0 — every blocking exit in the script, whichever of the four routes reaches it (the terminal BLOCKED exit, fail_closed_no_llm_output, and the two fallback-scan branches), is defeated at once. Chosen over patching only the terminal exit because the guard has multiple independent fail-closed exits (Decision 79) and this is the one mutation that represents 'the guard never blocks', matching what code-reviewer's controls.test.mjs requires every CONTROL: red test in a suite to link to under a single `<base>-always-passes` id."
     },
@@ -34,9 +37,12 @@
       "find": "    if [ \"$ISSUES\" -gt 0 ]; then\n      echo \"[security-auditor] Found $ISSUES issue(s) in fallback scan. Push blocked.\"\n      exit 1\n    fi",
       "replace": "    if [ \"$ISSUES\" -gt 0 ]; then\n      echo \"[security-auditor] Found $ISSUES issue(s) in fallback scan. Push blocked.\"\n      exit 0\n    fi",
       "expectRed": [
-        "blocks the push via the fallback scan when the CLI times out and a secret is in the diff"
+        "blocks the push via the fallback scan when the CLI times out and a secret is in the diff",
+        "fallback scan still finds a secret a textconv driver hides on the no-upstream diff",
+        "fallback scan still finds a secret a textconv driver hides on the upstream diff",
+        "fallback scan still finds a secret GIT_EXTERNAL_DIFF hides on the no-upstream diff"
       ],
-      "note": "Forces the timeout branch's fallback-scan exit to 0 instead of 1 — a secret found in the diff after a CLI timeout still prints 'Found N issue(s)' but approves the push anyway."
+      "note": "Forces the timeout branch's fallback-scan exit to 0 instead of 1 — a secret found in the diff after a CLI timeout still prints 'Found N issue(s)' but approves the push anyway. Every CONTROL: red test that also uses TIMEOUT_SHIM with a secret the scan is expected to catch goes red here too, including the three textconv/ext-diff cases."
     },
     {
       "id": "run-security-auditor-fallback-scan-cli-failure",
@@ -46,6 +52,33 @@
         "blocks the push via the fallback scan when the CLI fails and a secret is in the diff"
       ],
       "note": "Forces the CLI-failure branch's fallback-scan exit to 0 instead of 1 — a secret found in the diff after a CLI failure still prints 'Found N issue(s)' but approves the push anyway."
+    },
+    {
+      "id": "run-security-auditor-textconv-upstream",
+      "find": "git diff --no-textconv --no-ext-diff \"$REMOTE_REF\"...HEAD 2>/dev/null",
+      "replace": "git diff --no-ext-diff \"$REMOTE_REF\"...HEAD 2>/dev/null",
+      "expectRed": [
+        "fallback scan still finds a secret a textconv driver hides on the upstream diff"
+      ],
+      "note": "Drops --no-textconv from the upstream \"$REMOTE_REF\"...HEAD diff — a local diff.hide.textconv driver then empties a committed secret from DIFF_FULL, so the fallback scan finds nothing."
+    },
+    {
+      "id": "run-security-auditor-textconv-fallback",
+      "find": "git diff --no-textconv --no-ext-diff HEAD 2>/dev/null",
+      "replace": "git diff --no-ext-diff HEAD 2>/dev/null",
+      "expectRed": [
+        "fallback scan still finds a secret a textconv driver hides on the no-upstream diff"
+      ],
+      "note": "Drops --no-textconv from the no-upstream `git diff HEAD` fallback — a local diff.hide.textconv driver then empties an uncommitted secret from DIFF_FULL, so the fallback scan finds nothing."
+    },
+    {
+      "id": "run-security-auditor-extdiff-fallback",
+      "find": "git diff --no-textconv --no-ext-diff HEAD 2>/dev/null",
+      "replace": "git diff --no-textconv HEAD 2>/dev/null",
+      "expectRed": [
+        "fallback scan still finds a secret GIT_EXTERNAL_DIFF hides on the no-upstream diff"
+      ],
+      "note": "Drops --no-ext-diff from the no-upstream `git diff HEAD` fallback — GIT_EXTERNAL_DIFF then drops every added line from DIFF_FULL, so the fallback scan finds nothing."
     }
   ]
 }

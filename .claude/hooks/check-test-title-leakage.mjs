@@ -20,10 +20,15 @@
 // they use the verbs `calls` / `does not call`, which none of the disallowed
 // patterns key on. The hook's unit test pins this (zero false positives on the
 // Permitted examples).
+//
+// Diff parsing (header/path decoding, added-line extraction) lives in the shared
+// .claude/hooks/diff-parse.mjs — see check-test-title-leakage.repo.test.mjs for the
+// textconv/ext-diff/noprefix/color-config cases DIFF_ARGS/GIT_QUOTEPATH defend against.
 
 import { execFileSync } from 'node:child_process'
 import { argv, exit } from 'node:process'
 import { pathToFileURL } from 'node:url'
+import { addedLines, DIFF_ARGS, GIT_QUOTEPATH, splitByFile } from './diff-parse.mjs'
 
 /**
  * The §7 disallowed-title patterns. Each entry: a regex tested against the title
@@ -103,61 +108,47 @@ export function analyzeTitle(title) {
 const TITLE_RE = /\b(it|test)(\.[A-Za-z0-9.()'"\s,[\]-]*)?\(\s*(['"`])((?:\\.|(?!\3).)*)\3/g
 
 /**
- * Extract every it()/test() title literal that appears on ADDED diff lines,
- * with the new-file line number. Parses unified-diff text: hunk headers
- * (`@@ -a,b +c,d @@`) seed the new-file line counter.
- *
- * A contiguous run of `+` lines is joined into one buffer before matching, so a
- * split-form call — `it(` on one added line and the `'title'` literal on the
- * next — is still detected (TITLE_RE's `\s*` between `(` and the quote spans the
- * joined newline). The match is attributed to the source line where the
- * `it(`/`test(` token starts (newlines before the match index index the run).
+ * Extract every it()/test() title literal that appears on ADDED diff lines, with the new-file
+ * line number. Groups `addedLines()`'s flat output back into contiguous runs (by its `run` field)
+ * and matches TITLE_RE against each run joined with `\n` — so a split-form call (`it(` on one
+ * added line, the `'title'` literal on the next) is still detected. The match is attributed to
+ * the run entry at the line where the `it(`/`test(` token starts.
  *
  * @param {string} diffText output of `git diff … -U0`
  * @returns {{ line: number, title: string }[]}
  */
 export function extractAddedTitles(diffText) {
   const results = []
-  let newLine = 0
-  /** @type {{ text: string, line: number }[]} current contiguous run of added lines */
-  let run = []
+  let buffer = []
+  let currentRun = null
   const flush = () => {
-    if (run.length === 0) return
-    const buffer = run.map((r) => r.text).join('\n')
+    if (buffer.length === 0) return
+    const text = buffer.map((r) => r.text).join('\n')
     TITLE_RE.lastIndex = 0
-    let m = TITLE_RE.exec(buffer)
+    let m = TITLE_RE.exec(text)
     while (m !== null) {
-      // The line of the match = the run entry at the count of newlines before it.
-      const nl = (buffer.slice(0, m.index).match(/\n/g) || []).length
-      results.push({ line: run[nl].line, title: m[4] })
-      m = TITLE_RE.exec(buffer)
+      const nl = (text.slice(0, m.index).match(/\n/g) || []).length
+      results.push({ line: buffer[nl].line, title: m[4] })
+      m = TITLE_RE.exec(text)
     }
-    run = []
+    buffer = []
   }
-  for (const raw of diffText.split('\n')) {
-    if (raw.startsWith('@@')) {
-      flush() // a new hunk breaks the added run
-      const m = /@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(raw)
-      if (m) newLine = Number(m[1])
-      continue
-    }
-    if (raw.startsWith('+++') || raw.startsWith('---')) continue
-    if (raw.startsWith('+')) {
-      run.push({ text: raw.slice(1), line: newLine })
-      newLine += 1
-    } else if (!raw.startsWith('\\')) {
-      // A removed line (or, only without -U0, a context line) breaks the added
-      // run. Context lines also advance the new-file counter; removed lines do not.
+  for (const r of addedLines(diffText)) {
+    if (r.run !== currentRun) {
       flush()
-      if (!raw.startsWith('-')) newLine += 1
+      currentRun = r.run
     }
+    buffer.push(r)
   }
   flush()
   return results
 }
 
 function git(args) {
-  return execFileSync('git', args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+  return execFileSync('git', [...GIT_QUOTEPATH, ...args], {
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+  })
 }
 
 const TEST_FILE_RE = /\.test\.(ts|tsx)$/
@@ -186,6 +177,7 @@ function collectOffendersCI(base) {
     // recursion is explicit to a reader used to shell-glob (root-only) semantics.
     const diff = git([
       'diff',
+      ...DIFF_ARGS,
       '--diff-filter=AM',
       '-U0',
       `${base}...HEAD`,
@@ -206,7 +198,7 @@ function collectOffendersStaged(args) {
   for (const file of args.filter((p) => TEST_FILE_RE.test(p))) {
     let diff = ''
     try {
-      diff = git(['diff', '--cached', '--diff-filter=AM', '-U0', '--', file])
+      diff = git(['diff', '--cached', ...DIFF_ARGS, '--diff-filter=AM', '-U0', '--', file])
     } catch (err) {
       // Fail CLOSED: a `git diff --cached` failure must not silently skip
       // enforcement (a real git error would let a violating title through).
@@ -232,27 +224,6 @@ function collectOffenders(args) {
   const baseIdx = args.indexOf('--base')
   if (baseIdx !== -1) return collectOffendersCI(args[baseIdx + 1])
   return collectOffendersStaged(args)
-}
-
-/**
- * Split a multi-file `git diff` into per-file bodies keyed by the new path.
- * @param {string} diff
- * @returns {{ file: string, body: string }[]}
- */
-export function splitByFile(diff) {
-  const out = []
-  let current = null
-  for (const line of diff.split('\n')) {
-    const header = /^diff --git a\/.+ b\/(.+)$/.exec(line)
-    if (header) {
-      if (current) out.push(current)
-      current = { file: header[1], body: '' }
-    } else if (current) {
-      current.body += `${line}\n`
-    }
-  }
-  if (current) out.push(current)
-  return out
 }
 
 function main() {

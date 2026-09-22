@@ -37,7 +37,7 @@ fi
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 REMOTE_REF=$(git rev-parse --abbrev-ref @{upstream} 2>/dev/null || echo "origin/master")
-DIFF_FULL=$(git diff "$REMOTE_REF"...HEAD 2>/dev/null || git diff HEAD 2>/dev/null || echo "")
+DIFF_FULL=$(git diff --no-textconv --no-ext-diff "$REMOTE_REF"...HEAD 2>/dev/null || git diff --no-textconv --no-ext-diff HEAD 2>/dev/null || echo "")
 
 if [ -z "$DIFF_FULL" ]; then
   echo "[security-auditor] No diff to audit. Skipping."
@@ -52,7 +52,7 @@ echo "[security-auditor] Auditing changes before push ($DIFF_LINES lines)..."
 # For large diffs, filter to security-sensitive files only
 if [ "$DIFF_LINES" -gt "$MAX_DIFF_LINES" ]; then
   echo "[security-auditor] Diff too large ($DIFF_LINES lines). Filtering to security-sensitive files..."
-  DIFF=$(git diff "$REMOTE_REF"...HEAD -- \
+  DIFF=$(git diff --no-textconv --no-ext-diff "$REMOTE_REF"...HEAD -- \
     '*.env*' '**/migrations/**' '**/admin.*' '**/auth/**' \
     '**/middleware.*' '**/proxy.*' '**/actions.*' '**/route.ts' \
     '**/server.ts' '**/*schema*' '**/*security*' '**/next.config.*' \
@@ -72,7 +72,7 @@ if [ "$DIFF_LINES" -gt "$MAX_DIFF_LINES" ]; then
 
   if [ -z "$DIFF" ]; then
     echo "[security-auditor] No security-sensitive files changed. Running stat-only audit..."
-    DIFF=$(git diff "$REMOTE_REF"...HEAD --stat 2>/dev/null || echo "No changes")
+    DIFF=$(git diff --no-textconv --no-ext-diff "$REMOTE_REF"...HEAD --stat 2>/dev/null || echo "No changes")
   fi
 else
   DIFF="$DIFF_FULL"

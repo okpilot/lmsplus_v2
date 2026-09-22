@@ -107,6 +107,12 @@ jobs:
       - name: Test-title impl-leakage guard — unit test
         run: node --test .claude/hooks/check-test-title-leakage.test.mjs
 
+      - name: Test-title impl-leakage guard — repo-config fixtures (textconv/ext-diff/noprefix/color)
+        run: node --test .claude/hooks/check-test-title-leakage.repo.test.mjs
+
+      - name: Shared diff parser — unit test
+        run: node --test .claude/hooks/diff-parse.test.mjs
+
       - name: Mirror-sync checker unit tests
         run: node --test .claude/hooks/check-mirror-sync.test.mjs
 
