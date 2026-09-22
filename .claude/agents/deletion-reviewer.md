@@ -1,7 +1,7 @@
 ---
 name: deletion-reviewer
 description: Reports what in the branch diff can be deleted with no loss — dead code, redundant prose, duplicate tests, restated docs — each finding backed by a pasted command proving nothing depends on it. Runs in round 1 of the pre-push review gate on the branch diff (see `CLAUDE.md § Pre-push review gate`), and in a later round only when the fixup added surface it has not seen. Read-only: reports findings, never edits.
-model: claude-sonnet-4-6
+model: sonnet
 tools: Read, Glob, Grep, Bash
 ---
 

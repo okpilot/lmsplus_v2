@@ -102,8 +102,8 @@ else
   TIMEOUT_CMD=""
 fi
 
-OUTPUT=$(cat "$TMPFILE" | $TIMEOUT_CMD env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT claude --print \
-  --model claude-sonnet-4-6 \
+OUTPUT=$(cat "$TMPFILE" | $TIMEOUT_CMD env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT -u ANTHROPIC_DEFAULT_SONNET_MODEL claude --print \
+  --model sonnet \
   --allowedTools "Read" \
   --no-session-persistence 2>&1) || {
   EXIT_CODE=$?

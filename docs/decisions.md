@@ -2402,3 +2402,14 @@ them.
   hits on the tree.
 - Later rounds match doc-updater/test-writer: re-runs only when a fixup adds surface it has not
   seen. Rounds 2+ otherwise stay code-reviewer + semantic-reviewer.
+
+## Decision 81: subagents and the pre-push auditor run the `sonnet` / `haiku` aliases (2026-09-22)
+
+- `.claude/pipeline.json` `models` maps `sonnet` → `sonnet` and `haiku` → `haiku`; agent frontmatter
+  and `run-security-auditor.sh` carry the alias, so they track the newest model of the family the
+  installed Claude Code knows. `pipeline.test.mjs` still asserts every site agrees.
+- Trade-off accepted: a model change lands without a commit. The auditor records no model
+  (`--no-session-persistence`, model never printed); it unsets `ANTHROPIC_DEFAULT_SONNET_MODEL`,
+  which would otherwise remap the alias. Subagents honour that variable if a user sets it.
+- The CI reviewer stays pinned (`claude-opus-5-5`, Decision 78): its action bundles its own Claude
+  Code, so an alias there resolves per that version, not per ours.

@@ -1,7 +1,7 @@
 ---
 name: learner
 description: Learns from the pre-push review gate's findings, identifies recurring patterns, and REPORTS proposed rule changes for the orchestrator to apply. Writes only its own memory dir. Runs ONCE per branch, after the review loop stops.
-model: claude-sonnet-4-6
+model: sonnet
 tools: Read, Glob, Grep, Bash
 memory: project
 ---

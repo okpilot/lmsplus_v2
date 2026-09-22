@@ -1,7 +1,7 @@
 ---
 name: test-writer
 description: Writes Vitest unit and integration tests for the TypeScript functions and React components a branch diff adds or changes. Runs in round 1 of the pre-push review gate, and in a later round only when the fixup added surface it has not seen. Use proactively when the user asks to test something or when new files lack tests.
-model: claude-sonnet-4-6
+model: sonnet
 tools: Read, Glob, Grep, Bash, Write, Edit
 memory: project
 ---

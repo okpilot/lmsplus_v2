@@ -1,7 +1,7 @@
 ---
 name: doc-updater
 description: Reports the documentation updates needed when APIs, schemas, or architecture change. Runs in round 1 of the pre-push review gate on the branch diff, and in a later round only when the fixup added doc surface it has not seen. Reports the exact edits for docs/plan.md, docs/decisions.md and docs/database.md; the orchestrator applies them.
-model: claude-haiku-4-5-20251001
+model: haiku
 tools: Read, Glob, Grep, Bash
 memory: project
 ---
