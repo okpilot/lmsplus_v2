@@ -155,7 +155,8 @@ jobs:
           #
           # Read/Grep/Glob are granted explicitly, rather than left to the read-only default, and
           # read the BASE checkout on disk (see the checkout step above) — never the PR's own files:
-          # Read(.claude-pr/**) denies the action's in-cwd snapshot of the PR's .claude/ tree.
+          # Read(.claude-pr/**) denies the action's in-cwd snapshot of the PR's config files
+          # (SENSITIVE_PATHS in the action's src/github/operations/restore-config.ts).
           # --disallowedTools fences them outside the checkout (/proc, /sys, ~/.claude, the
           # runner's _temp and _actions dirs, /tmp, /etc) so a prompt-injected reviewer can't read
           # CLAUDE_CODE_OAUTH_TOKEN out of /proc/self/environ and post it in a comment; deny beats
