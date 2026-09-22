@@ -113,3 +113,154 @@ export function withConsistentFixture(fn) {
 export function run({ dir }) {
   return runNode('controls', [SCRIPT, dir])
 }
+
+// ---------------------------------------------------------------------------------------------
+// Discovery-form fixtures — `fake-guard` fully REGISTERED (pipeline.json + a consistent suite +
+// matching mutations.json), wired through exactly ONE non-standard channel. Each asserts status
+// 0: the guard must still be discovered as wired, or the wired-vs-registered closure check in
+// part (a) fails it for a reason unrelated to the channel under test.
+
+/** No `.claude/...` reference anywhere — every discovery channel contributes nothing. */
+const NOOP_LEFTHOOK = 'pre-commit:\n  commands: {}\n'
+const NOOP_CI = 'jobs:\n  lint:\n    steps:\n      - run: echo noop\n'
+const NOOP_SETTINGS = JSON.stringify({ hooks: { PreToolUse: [], Stop: [] } })
+
+/** Registers `fake-guard` with a fully consistent suite+mutations — closes parts (b)/(c). Leaves
+ * lefthook.yml / ci.yml / settings.json to the caller, so each discovery fixture wires exactly
+ * one channel and every OTHER channel stays a no-op. */
+function writeRegisteredGuard(write) {
+  write('.claude/pipeline.json', PIPELINE_JSON)
+  write(GUARD_PATH, '// fake guard, never executed by controls.test.mjs\n')
+  write(SUITE_PATH, RED_AND_GREEN_SUITE)
+  write(MUTATIONS_PATH, MUTATIONS_JSON)
+}
+
+/** Wired ONLY via a compact `- run: ...` list-item CI step (no separate `- name:` line). */
+export function withCiListItemFixture(fn) {
+  return withFixture(({ dir, write }) => {
+    writeRegisteredGuard(write)
+    write('lefthook.yml', NOOP_LEFTHOOK)
+    write(
+      '.github/workflows/ci.yml',
+      `jobs:\n  lint:\n    steps:\n      - run: node ${GUARD_PATH}\n`,
+    )
+    write('.claude/settings.json', NOOP_SETTINGS)
+    return fn({ dir })
+  })
+}
+
+/** Wired ONLY via a `bash`-prefixed CI step (not `node`). */
+export function withCiBashStepFixture(fn) {
+  return withFixture(({ dir, write }) => {
+    writeRegisteredGuard(write)
+    write('lefthook.yml', NOOP_LEFTHOOK)
+    write(
+      '.github/workflows/ci.yml',
+      `jobs:\n  lint:\n    steps:\n      - name: run guard\n        run: bash ${GUARD_PATH}\n`,
+    )
+    write('.claude/settings.json', NOOP_SETTINGS)
+    return fn({ dir })
+  })
+}
+
+/** Wired ONLY via a lefthook.yml `run: |` block-scalar CONTINUATION line — the path is not on
+ * the `run:` line itself. */
+export function withLefthookContinuationFixture(fn) {
+  return withFixture(({ dir, write }) => {
+    writeRegisteredGuard(write)
+    write(
+      'lefthook.yml',
+      `pre-commit:\n  commands:\n    fake-guard:\n      run: |\n        echo pretend\n        node ${GUARD_PATH}\n`,
+    )
+    write('.github/workflows/ci.yml', NOOP_CI)
+    write('.claude/settings.json', NOOP_SETTINGS)
+    return fn({ dir })
+  })
+}
+
+/** Wired ONLY via a SECOND, fixture-only workflow file, never `ci.yml`. */
+export function withSecondWorkflowFixture(fn) {
+  return withFixture(({ dir, write }) => {
+    writeRegisteredGuard(write)
+    write('lefthook.yml', NOOP_LEFTHOOK)
+    write('.github/workflows/ci.yml', NOOP_CI)
+    write(
+      '.github/workflows/other.yml',
+      `jobs:\n  other:\n    steps:\n      - name: run guard\n        run: node ${GUARD_PATH}\n`,
+    )
+    write('.claude/settings.json', NOOP_SETTINGS)
+    return fn({ dir })
+  })
+}
+
+/** Wired ONLY via a `.claude/settings.json` `Stop` hook event, never `PreToolUse`. */
+export function withStopHookFixture(fn) {
+  return withFixture(({ dir, write }) => {
+    writeRegisteredGuard(write)
+    write('lefthook.yml', NOOP_LEFTHOOK)
+    write('.github/workflows/ci.yml', NOOP_CI)
+    write(
+      '.claude/settings.json',
+      JSON.stringify({
+        hooks: {
+          PreToolUse: [],
+          Stop: [{ hooks: [{ type: 'command', command: `node ${GUARD_PATH}` }] }],
+        },
+      }),
+    )
+    return fn({ dir })
+  })
+}
+
+// ---------------------------------------------------------------------------------------------
+// Grading-form fixtures — `fake-guard` fully WIRED (lefthook + ci + settings all standard, so
+// part (a) closes cleanly), with exactly one part (b)/(c) grading defect. Each asserts status 1.
+
+/** The CONTROL: red test's title does not appear in `fake-guard-always-passes`'s `expectRed`. */
+export function withTitleMismatchFixture(fn) {
+  return withFixture(({ dir, write }) => {
+    writeCommonFiles(write)
+    const suite = RED_AND_GREEN_SUITE.replace('blocks a violation', 'blocks a different violation')
+    write(SUITE_PATH, suite)
+    write(MUTATIONS_PATH, MUTATIONS_JSON)
+    return fn({ dir })
+  })
+}
+
+/** The data file's `suites` does not list the suite carrying the control. */
+export function withSuiteNotListedFixture(fn) {
+  return withFixture(({ dir, write }) => {
+    writeCommonFiles(write)
+    write(SUITE_PATH, RED_AND_GREEN_SUITE)
+    const data = JSON.parse(MUTATIONS_JSON)
+    data.suites = ['.claude/hooks/some-other-file.test.mjs']
+    write(MUTATIONS_PATH, JSON.stringify(data))
+    return fn({ dir })
+  })
+}
+
+/** The data file's `target` does not equal the guard's own registry path. */
+export function withTargetMismatchFixture(fn) {
+  return withFixture(({ dir, write }) => {
+    writeCommonFiles(write)
+    write(SUITE_PATH, RED_AND_GREEN_SUITE)
+    const data = JSON.parse(MUTATIONS_JSON)
+    data.target = '.claude/hooks/some-other-guard.mjs'
+    write(MUTATIONS_PATH, JSON.stringify(data))
+    return fn({ dir })
+  })
+}
+
+/** The CONTROL: red test is written `test.skip(...)` — never runs. */
+export function withSkippedControlFixture(fn) {
+  return withFixture(({ dir, write }) => {
+    writeCommonFiles(write)
+    const suite = RED_AND_GREEN_SUITE.replace(
+      "test('blocks a violation'",
+      "test.skip('blocks a violation'",
+    )
+    write(SUITE_PATH, suite)
+    write(MUTATIONS_PATH, MUTATIONS_JSON)
+    return fn({ dir })
+  })
+}

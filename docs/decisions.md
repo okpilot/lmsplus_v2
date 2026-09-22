@@ -2369,6 +2369,6 @@ them.
 
 - `code-style.md` §7: each guard has a spawned `// CONTROL: red` and `// CONTROL: green` test,
   graded by `<guard>-always-passes` / `<guard>-always-blocks` mutations.
-  `.claude/controls.test.mjs` (CI) derives the wired guard set from `lefthook.yml`, `ci.yml` and
-  blocking `.claude/settings.json` hooks, and fails when `.claude/pipeline.json` `guards` disagrees
+  `.claude/controls.test.mjs` (CI) derives the wired guard set from `lefthook.yml`, every
+  `.github/workflows/*.yml` and every `.claude/settings.json` hook event, and fails when `.claude/pipeline.json` `guards` disagrees
   or a registered guard lacks a control. Exempt entries carry their reason in the registry.

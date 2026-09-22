@@ -44,6 +44,9 @@ jobs:
       - name: Pre-push hook verdict parser tests
         run: bash .claude/hooks/run-security-auditor.test.sh
 
+      - name: Pre-push hook red/green controls
+        run: node --test .claude/hooks/run-security-auditor.controls.test.mjs
+
       - name: Soft-delete column guard
         run: node .claude/hooks/check-soft-delete-guard.mjs
 
@@ -231,12 +234,12 @@ jobs:
       - name: "Pipeline spec's own controls — unit test"
         run: node --test .claude/pipeline.repo.test.mjs
 
-      # Guard-controls registry (code-style.md §7): every guard wired into lefthook.yml, this
-      # job's own `node .claude/...` steps, or .claude/settings.json PreToolUse must carry a
-      # spawned, graded CONTROL: red and CONTROL: green test, registered in pipeline.json
-      # `guards`. This step itself is one of the paths .claude/controls.test.mjs derives, so
-      # adding or removing a non-`--test` `node .claude/...` step anywhere in this job changes
-      # what the next run of this step expects the registry to declare.
+      # Guard-controls registry (code-style.md §7): every guard wired into lefthook.yml, any
+      # workflow step, or any .claude/settings.json hook event must carry a spawned, graded
+      # CONTROL: red and CONTROL: green test, registered in pipeline.json `guards`. This step
+      # itself is one of the paths .claude/controls.test.mjs derives, so adding or removing a
+      # `.claude/...` step not run under `node --test`, in any workflow, changes what the next
+      # run of this step expects the registry to declare.
       - name: "Guard controls registry matches the repo — unit test"
         run: node .claude/controls.test.mjs
 

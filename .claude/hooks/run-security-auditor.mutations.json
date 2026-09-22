@@ -1,0 +1,21 @@
+{
+  "_": "Planted red/green controls linked by GROUP marker to the two spawned tests that already drove run-security-auditor.sh's exit code before this file existed.",
+  "target": ".claude/hooks/run-security-auditor.sh",
+  "suites": [".claude/hooks/run-security-auditor.controls.test.mjs"],
+  "mutations": [
+    {
+      "id": "run-security-auditor-always-passes",
+      "find": "echo \"[security-auditor] Push blocked. Fix CRITICAL/HIGH findings above.\"\nexit 1",
+      "replace": "echo \"[security-auditor] Push blocked. Fix CRITICAL/HIGH findings above.\"\nexit 0",
+      "expectRed": ["blocks the push when the security audit returns a BLOCKED verdict"],
+      "note": "Forces the terminal blocking exit to 0 instead of 1 — a BLOCKED verdict from the audit still prints 'Push blocked' but the hook approves the push anyway."
+    },
+    {
+      "id": "run-security-auditor-always-blocks",
+      "find": "  echo \"[security-auditor] Push approved.\"\n  exit 0\n",
+      "replace": "  echo \"[security-auditor] Push approved.\"\n  exit 1\n",
+      "expectRed": ["approves the push when the security audit returns a clean APPROVED verdict"],
+      "note": "Forces the full-script approve branch to exit 1 instead of 0 — a clean APPROVED verdict still prints 'Push approved' but the hook blocks the push anyway."
+    }
+  ]
+}

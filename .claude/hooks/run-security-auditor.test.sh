@@ -125,19 +125,15 @@ run_case "APPROVED with leading whitespace approves" 0 \
 
   APPROVED"
 
-# 12. Full-script run: `claude` CLI failure must FAIL CLOSED (push blocked).
-#     Builds a throwaway git repo with a non-empty diff and shims `claude` on PATH
-#     to exit 1. The hook's fallback grep scan finds nothing — the old behavior
-#     approved the push here; the fail-closed behavior must block with exit 1.
-run_cli_failure_case() {
-  local name="claude CLI failure fails closed (push blocked)"
-  local tmpdir shimdir output
-  local actual=0
+# Shared plumbing for cases 12-14 (all three spawn the full script, not just --parse-verdict).
+# Builds a throwaway git repo with an initial commit plus one uncommitted change — a non-empty
+# `git diff HEAD`, the no-upstream fallback diff the hook falls back to outside a real PR
+# branch — and a `<tmpdir>/shim` directory the caller drops a `claude` executable into. Echoes
+# the tmpdir.
+make_shim_repo() {
+  local tmpdir
   tmpdir="$(mktemp -d)"
-  shimdir="$tmpdir/shim"
-  mkdir -p "$shimdir" "$tmpdir/repo/.claude/agents"
-  printf '#!/usr/bin/env bash\necho "simulated claude CLI failure" >&2\nexit 1\n' > "$shimdir/claude"
-  chmod +x "$shimdir/claude"
+  mkdir -p "$tmpdir/shim" "$tmpdir/repo/.claude/agents"
   (
     cd "$tmpdir/repo" || exit 1
     git init -q
@@ -150,16 +146,38 @@ run_cli_failure_case() {
     # Uncommitted change → non-empty `git diff HEAD` (the no-upstream fallback diff)
     echo "changed" >> file.txt
   ) >/dev/null 2>&1
-  output="$(cd "$tmpdir/repo" && PATH="$shimdir:$PATH" bash "$HOOK" 2>&1)" || actual=$?
+  printf '%s\n' "$tmpdir"
+}
+
+# Spawns the real hook against a prepared shim repo (PATH-shimmed `claude` already dropped into
+# "$tmpdir/shim") and reports PASS/FAIL against the expected exit code + a required substring in
+# combined stdout/stderr. Removes tmpdir when done.
+report_full_script_case() {
+  local name="$1" tmpdir="$2" expected="$3" want_substring="$4"
+  local output actual=0
+  output="$(cd "$tmpdir/repo" && PATH="$tmpdir/shim:$PATH" bash "$HOOK" 2>&1)" || actual=$?
   rm -rf "$tmpdir"
-  if [ "$actual" -eq 1 ] && printf '%s' "$output" | grep -q "push blocked"; then
+  if [ "$actual" -eq "$expected" ] && printf '%s' "$output" | grep -q "$want_substring"; then
     echo "PASS: $name (exit $actual)"
     PASS=$((PASS + 1))
   else
-    echo "FAIL: $name (expected exit 1 + 'push blocked' message, got exit $actual)"
+    echo "FAIL: $name (expected exit $expected + '$want_substring' message, got exit $actual)"
     printf '%s\n' "$output" | sed 's/^/    /'
     FAIL=$((FAIL + 1))
   fi
+}
+
+# 12. Full-script run: `claude` CLI failure must FAIL CLOSED (push blocked).
+#     Builds a throwaway git repo with a non-empty diff and shims `claude` on PATH
+#     to exit 1. The hook's fallback grep scan finds nothing — the old behavior
+#     approved the push here; the fail-closed behavior must block with exit 1.
+run_cli_failure_case() {
+  local name="claude CLI failure fails closed (push blocked)"
+  local tmpdir
+  tmpdir="$(make_shim_repo)"
+  printf '#!/usr/bin/env bash\necho "simulated claude CLI failure" >&2\nexit 1\n' > "$tmpdir/shim/claude"
+  chmod +x "$tmpdir/shim/claude"
+  report_full_script_case "$name" "$tmpdir" 1 "push blocked"
 }
 run_cli_failure_case
 
@@ -169,35 +187,11 @@ run_cli_failure_case
 #     nothing, so the timeout branch must block with exit 1 + the push-blocked message.
 run_timeout_case() {
   local name="claude CLI timeout (exit 124) fails closed (push blocked)"
-  local tmpdir shimdir output
-  local actual=0
-  tmpdir="$(mktemp -d)"
-  shimdir="$tmpdir/shim"
-  mkdir -p "$shimdir" "$tmpdir/repo/.claude/agents"
-  printf '#!/usr/bin/env bash\necho "simulated claude CLI timeout" >&2\nexit 124\n' > "$shimdir/claude"
-  chmod +x "$shimdir/claude"
-  (
-    cd "$tmpdir/repo" || exit 1
-    git init -q
-    git config user.email test@test.local
-    git config user.name test
-    echo "# stub auditor prompt" > .claude/agents/security-auditor.md
-    echo "base" > file.txt
-    git add -A
-    git commit -qm init
-    # Uncommitted change → non-empty `git diff HEAD` (the no-upstream fallback diff)
-    echo "changed" >> file.txt
-  ) >/dev/null 2>&1
-  output="$(cd "$tmpdir/repo" && PATH="$shimdir:$PATH" bash "$HOOK" 2>&1)" || actual=$?
-  rm -rf "$tmpdir"
-  if [ "$actual" -eq 1 ] && printf '%s' "$output" | grep -q "push blocked"; then
-    echo "PASS: $name (exit $actual)"
-    PASS=$((PASS + 1))
-  else
-    echo "FAIL: $name (expected exit 1 + 'push blocked' message, got exit $actual)"
-    printf '%s\n' "$output" | sed 's/^/    /'
-    FAIL=$((FAIL + 1))
-  fi
+  local tmpdir
+  tmpdir="$(make_shim_repo)"
+  printf '#!/usr/bin/env bash\necho "simulated claude CLI timeout" >&2\nexit 124\n' > "$tmpdir/shim/claude"
+  chmod +x "$tmpdir/shim/claude"
+  report_full_script_case "$name" "$tmpdir" 1 "push blocked"
 }
 run_timeout_case
 
@@ -207,12 +201,9 @@ run_timeout_case
 #     full-script counterpart to case 4 (lone APPROVED line approves the parser in isolation).
 run_cli_success_case() {
   local name="claude CLI success with APPROVED verdict exits 0 (push approved)"
-  local tmpdir shimdir output
-  local actual=0
-  tmpdir="$(mktemp -d)"
-  shimdir="$tmpdir/shim"
-  mkdir -p "$shimdir" "$tmpdir/repo/.claude/agents"
-  cat > "$shimdir/claude" <<'SHIM'
+  local tmpdir
+  tmpdir="$(make_shim_repo)"
+  cat > "$tmpdir/shim/claude" <<'SHIM'
 #!/usr/bin/env bash
 cat <<'EOF'
 ## Security Audit Findings
@@ -224,29 +215,8 @@ APPROVED
 EOF
 exit 0
 SHIM
-  chmod +x "$shimdir/claude"
-  (
-    cd "$tmpdir/repo" || exit 1
-    git init -q
-    git config user.email test@test.local
-    git config user.name test
-    echo "# stub auditor prompt" > .claude/agents/security-auditor.md
-    echo "base" > file.txt
-    git add -A
-    git commit -qm init
-    # Uncommitted change → non-empty `git diff HEAD` (the no-upstream fallback diff)
-    echo "changed" >> file.txt
-  ) >/dev/null 2>&1
-  output="$(cd "$tmpdir/repo" && PATH="$shimdir:$PATH" bash "$HOOK" 2>&1)" || actual=$?
-  rm -rf "$tmpdir"
-  if [ "$actual" -eq 0 ] && printf '%s' "$output" | grep -q "Push approved"; then
-    echo "PASS: $name (exit $actual)"
-    PASS=$((PASS + 1))
-  else
-    echo "FAIL: $name (expected exit 0 + 'Push approved' message, got exit $actual)"
-    printf '%s\n' "$output" | sed 's/^/    /'
-    FAIL=$((FAIL + 1))
-  fi
+  chmod +x "$tmpdir/shim/claude"
+  report_full_script_case "$name" "$tmpdir" 0 "Push approved"
 }
 run_cli_success_case
 

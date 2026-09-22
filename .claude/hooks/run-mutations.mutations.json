@@ -1154,6 +1154,25 @@
       "expectRed": [
         "spawnSuite keeps the real exit status of a child whose output closes after the timeout"
       ]
+    },
+    {
+      "id": "control-marker-re-accepts-invalid-color",
+      "find": "(red|green)",
+      "replace": "(\\w+)",
+      "expectRed": ["a value other than red or green is not recognised as a CONTROL marker"]
+    },
+    {
+      "id": "scancontrols-call-dropped",
+      "find": "  for (const i of scanControls(lines, ownerFor)) markerLines.add(i)\n",
+      "replace": "",
+      "expectRed": [
+        "a CONTROL: red marker directly above a test marks it red",
+        "a CONTROL: green marker directly above a test marks it green",
+        "CONTROL: and GROUP: markers stacked above one test both attach to it",
+        "the marker order does not matter — GROUP above CONTROL still attaches both",
+        "a CONTROL marker written inside a body names the test it sits in, not the next one",
+        "a CONTROL marker separated from every test by code belongs to the header, not a test"
+      ]
     }
   ],
   "notEncoded": [

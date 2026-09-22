@@ -242,11 +242,13 @@ test('a GROUP marker line is never also counted as a claim, even when it contain
 
 // --- CONTROL markers ---------------------------------------------------------
 
+// GROUP: scancontrols-call-dropped, ownerfor-never-looks-down
 test('a CONTROL: red marker directly above a test marks it red', () => {
   const parsed = parseSuite("// CONTROL: red\ntest('behaves', () => {})\n")
   assert.deepEqual(parsed.tests[0].controls, ['red'])
 })
 
+// GROUP: scancontrols-call-dropped, ownerfor-never-looks-down
 test('a CONTROL: green marker directly above a test marks it green', () => {
   const parsed = parseSuite("// CONTROL: green\ntest('behaves', () => {})\n")
   assert.deepEqual(parsed.tests[0].controls, ['green'])
@@ -257,6 +259,7 @@ test('a test with no CONTROL: marker carries an empty controls array', () => {
   assert.deepEqual(parsed.tests[0].controls, [])
 })
 
+// GROUP: scancontrols-call-dropped, ownerfor-never-looks-down, ownerfor-stops-at-comments
 test('CONTROL: and GROUP: markers stacked above one test both attach to it', () => {
   const parsed = parseSuite(
     "// CONTROL: red\n// GROUP: guard-always-passes\ntest('blocks a violation', () => {})\n",
@@ -265,6 +268,7 @@ test('CONTROL: and GROUP: markers stacked above one test both attach to it', () 
   assert.deepEqual(parsed.tests[0].groups, ['guard-always-passes'])
 })
 
+// GROUP: scancontrols-call-dropped, ownerfor-never-looks-down, ownerfor-stops-at-comments
 test('the marker order does not matter — GROUP above CONTROL still attaches both', () => {
   const parsed = parseSuite(
     "// GROUP: guard-always-blocks\n// CONTROL: green\ntest('passes a clean input', () => {})\n",
@@ -273,6 +277,7 @@ test('the marker order does not matter — GROUP above CONTROL still attaches bo
   assert.deepEqual(parsed.tests[0].groups, ['guard-always-blocks'])
 })
 
+// GROUP: scancontrols-call-dropped, ownerfor-scan-skips-code, ownerfor-always-header
 test('a CONTROL marker written inside a body names the test it sits in, not the next one', () => {
   const parsed = parseSuite(
     [
@@ -290,6 +295,7 @@ test('a CONTROL marker written inside a body names the test it sits in, not the 
   )
 })
 
+// GROUP: control-marker-re-accepts-invalid-color
 test('a value other than red or green is not recognised as a CONTROL marker', () => {
   const parsed = parseSuite("// CONTROL: yellow\ntest('behaves', () => {})\n")
   assert.deepEqual(parsed.tests[0].controls, [])
@@ -300,6 +306,7 @@ test('a CONTROL marker line is never also counted as a claim', () => {
   assert.equal(parsed.tests[0].claims, 0)
 })
 
+// GROUP: scancontrols-call-dropped, ownerfor-scan-skips-code
 test('a CONTROL marker separated from every test by code belongs to the header, not a test', () => {
   const parsed = parseSuite("// CONTROL: red\nconst helper = () => 1\ntest('behaves', () => {})\n")
   assert.deepEqual(parsed.header.controls, ['red'])

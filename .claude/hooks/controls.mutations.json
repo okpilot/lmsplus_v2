@@ -10,16 +10,96 @@
       "expectRed": [
         "a guard registered with a red control but no green control blocks",
         "a guard wired in lefthook.yml but absent from the registry blocks",
-        "a suite path the registry names but that does not exist on disk blocks"
+        "a suite path the registry names but that does not exist on disk blocks",
+        "a CONTROL test whose title is missing from expectRed blocks",
+        "a mutations.json whose suites omits the suite under test blocks",
+        "a mutations.json whose target does not equal the guard path blocks",
+        "a `.skip`-ed CONTROL test blocks — a control must run to be graded"
       ],
-      "note": "The final blocking exit, dropped: every finding still prints as FAIL but the process exits 0 regardless. Reddens every test in controls.repo.test.mjs that asserts status 1 on a broken fixture, not only the CONTROL: red one — the two ordinary coverage tests assert the same exit code and are just as blind to a dropped exit."
+      "note": "The final blocking exit, dropped: every finding still prints as FAIL but the process exits 0 regardless. Reddens every test in controls.repo.test.mjs that asserts status 1 on a broken fixture, not only the CONTROL: red one — every other status-1 assertion in the suite is just as blind to a dropped exit."
     },
     {
       "id": "controls-always-blocks",
       "find": "if (failed > 0) process.exit(1)",
       "replace": "process.exit(1)",
-      "expectRed": ["a guard registered with linked red and green controls passes"],
-      "note": "Unconditional exit 1, even when `failed` is 0 — a fully consistent registry would still read as broken."
+      "expectRed": [
+        "a guard registered with linked red and green controls passes",
+        "a guard wired only via a compact `- run:` list-item CI step is still discovered",
+        "a guard wired only via a `bash`-prefixed CI step is still discovered",
+        "a guard wired only via a lefthook.yml block-continuation line is still discovered",
+        "a guard wired only via a second, non-ci.yml workflow file is still discovered",
+        "a guard wired only via a Stop hook event is still discovered"
+      ],
+      "note": "Unconditional exit 1, even when `failed` is 0 — a fully consistent registry would still read as broken. Reddens every test in controls.repo.test.mjs that asserts status 0, not only the CONTROL: green one."
+    },
+    {
+      "id": "controls-ci-list-item",
+      "find": "const RUN_LINE_RE = /^(\\s*)(?:-\\s*)?run:[ \\t]?(.*)$/",
+      "replace": "const RUN_LINE_RE = /^(\\s*)run:[ \\t]?(.*)$/",
+      "expectRed": [
+        "a guard wired only via a compact `- run:` list-item CI step is still discovered"
+      ],
+      "note": "Drops the optional `- ` list-item prefix from the run-line regex — a compact `- run: node <guard>` step no longer matches, so a guard wired only that way goes undiscoverable."
+    },
+    {
+      "id": "controls-ci-bash-wrapper",
+      "find": "  const nodeDirect = /^\\s*node\\s+(?!--test\\b)\\S/.test(firstContent)",
+      "replace": "  const nodeDirect = /^\\s*node\\s+(?!--test\\b)\\S/.test(firstContent)\n  if (!/^\\s*node\\b/.test(firstContent)) return",
+      "expectRed": ["a guard wired only via a `bash`-prefixed CI step is still discovered"],
+      "note": "Drops every run step whose command does not literally start with `node` — a `bash`-prefixed step wiring a guard goes undiscoverable."
+    },
+    {
+      "id": "controls-lefthook-continuation",
+      "find": "  for (const raw of text.split('\\n')) {\n    if (/^\\s*#/.test(raw)) continue\n    for (const hit of raw.matchAll(CLAUDE_PATH_RE)) found.add(hit[0])\n  }\n  return found\n}\n\n/**\n * Every `.claude/...` path EXECUTED",
+      "replace": "  for (const raw of text.split('\\n')) {\n    if (!/^\\s*run:/.test(raw)) continue\n    for (const hit of raw.matchAll(CLAUDE_PATH_RE)) found.add(hit[0])\n  }\n  return found\n}\n\n/**\n * Every `.claude/...` path EXECUTED",
+      "expectRed": [
+        "a guard wired only via a lefthook.yml block-continuation line is still discovered"
+      ],
+      "note": "Reverts fromLefthook to only scan lines literally starting with `run:` — a path on a `run: |` block-scalar CONTINUATION line goes undiscoverable."
+    },
+    {
+      "id": "controls-scan-all-workflows",
+      "find": "  for (const entry of readdirSync(dir).sort()) {\n    if (!/\\.ya?ml$/.test(entry)) continue\n    collectRunSteps(readFileSync(join(dir, entry), 'utf8'), found)\n  }",
+      "replace": "  collectRunSteps(readFileSync(join(dir, 'ci.yml'), 'utf8'), found)",
+      "expectRed": [
+        "a guard wired only via a second, non-ci.yml workflow file is still discovered"
+      ],
+      "note": "Reverts fromCi to read only ci.yml — a guard wired solely from a second workflow file goes undiscoverable."
+    },
+    {
+      "id": "controls-settings-stop-event",
+      "find": "  for (const eventEntries of Object.values(settings.hooks ?? {})) {",
+      "replace": "  for (const eventEntries of [settings.hooks?.PreToolUse ?? []]) {",
+      "expectRed": ["a guard wired only via a Stop hook event is still discovered"],
+      "note": "Reverts fromSettings to scan only the PreToolUse hook event — a guard wired solely via Stop goes undiscoverable."
+    },
+    {
+      "id": "controls-title-check",
+      "find": "  const m = data.mutations.find((mm) => mm.id === wantId)\n  if (!new Set(m.expectRed ?? []).has(title)) {\n    problems.push(`${loc}: title \"${title}\" is not in ${wantId}'s expectRed`)\n  }",
+      "replace": "  const m = data.mutations.find((mm) => mm.id === wantId)",
+      "expectRed": ["a CONTROL test whose title is missing from expectRed blocks"],
+      "note": "Drops the title-in-expectRed check — a control whose own title is absent from its mutation's expectRed is no longer flagged."
+    },
+    {
+      "id": "controls-suites-check",
+      "find": "  if (!Array.isArray(data.suites) || !data.suites.includes(suite)) {\n    problems.push(`${suite}: ${base}.mutations.json \\`suites\\` does not include this suite`)\n  }\n",
+      "replace": "",
+      "expectRed": ["a mutations.json whose suites omits the suite under test blocks"],
+      "note": "Drops the suites-includes check — a data file whose `suites` omits the suite under test is no longer flagged."
+    },
+    {
+      "id": "controls-target-check",
+      "find": "  if (data.target !== guardPath) {\n    problems.push(\n      `${suite}: ${base}.mutations.json \\`target\\` \"${data.target}\" does not equal guard path \"${guardPath}\"`,\n    )\n  }\n",
+      "replace": "",
+      "expectRed": ["a mutations.json whose target does not equal the guard path blocks"],
+      "note": "Drops the target-equals-guardPath check — a data file whose `target` names a different guard is no longer flagged."
+    },
+    {
+      "id": "controls-skip-check",
+      "find": "  if (isSkippedLine(line)) {\n    problems.push(`${loc}: control is .skip/.todo — never runs, not a graded control`)\n  }\n",
+      "replace": "",
+      "expectRed": ["a `.skip`-ed CONTROL test blocks — a control must run to be graded"],
+      "note": "Drops the .skip/.todo check — a control written `test.skip(...)` is no longer flagged even though it never runs."
     }
   ]
 }
