@@ -899,6 +899,12 @@
       "expectRed": [
         "relPath throws on a path outside the repo root rather than returning a wrong string"
       ]
+    },
+    {
+      "id": "blobat-surfaces-spawn-error",
+      "find": "  if (probe.error) throw probe.error\n",
+      "replace": "",
+      "expectRed": ["blobAt surfaces the spawn error rather than reporting a null exit status"]
     }
   ],
   "notEncoded": [

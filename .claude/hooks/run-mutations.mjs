@@ -541,6 +541,9 @@ function loadDataFileAt(root, file, ref) {
 export function blobAt(root, ref, path) {
   const rel = relPath(root, path)
   const probe = spawnSync('git', ['ls-tree', ref, '--', rel], { cwd: root, encoding: 'utf8' })
+  // Same disposition as `git()` above: a spawn that never ran leaves `status` null, and
+  // interpolating that yields "exited null" while discarding the only diagnostic there is.
+  if (probe.error) throw probe.error
   if (probe.status !== 0) {
     const why = (probe.stderr || '').trim() || `git ls-tree exited ${probe.status}`
     throw new Error(`cannot read ${rel} at ${ref}: ${why}`)

@@ -192,3 +192,16 @@ test('blobAt throws on an unresolvable ref rather than reporting the path absent
 test('relPath throws on a path outside the repo root rather than returning a wrong string', () => {
   assert.throws(() => relPath('/repo', '/elsewhere/x.mjs'), /escapes the repo root/)
 })
+
+// MUTATION: delete blobAt's `if (probe.error) throw probe.error` → a spawn that never ran leaves
+// status null, so the status branch reports "git ls-tree exited null" and discards the ENOENT
+// that is the only diagnostic. The call still faults, so this is about what the fault SAYS.
+// GROUP: blobat-surfaces-spawn-error
+test('blobAt surfaces the spawn error rather than reporting a null exit status', () => {
+  assert.throws(
+    () => blobAt('/nonexistent-root-for-blobat', 'HEAD', '/nonexistent-root-for-blobat/a.mjs'),
+    {
+      code: 'ENOENT',
+    },
+  )
+})
