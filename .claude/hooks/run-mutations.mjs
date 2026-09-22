@@ -805,59 +805,76 @@ export function assertSpawnUsable(mutId, r, timeoutMs) {
  * shape). Concurrency is the whole reason this exists: `spawnSync` blocks the event loop, so N
  * mutations could never run in parallel through it.
  */
-export function spawnSuite(args, { cwd, timeout, maxBuffer, killSignal = 'SIGKILL' }) {
-  return new Promise((settle) => {
-    const child = spawn('node', args, { cwd })
-    let stdout = ''
-    let stderr = ''
-    let done = false
-    let timedOut = false
-    const finish = (result) => {
-      if (done) return
-      done = true
-      clearTimeout(timer)
-      settle(result)
-    }
-    const timer = setTimeout(() => {
-      timedOut = true
-      child.kill(killSignal)
-    }, timeout)
-    const checkBuffer = () => {
-      if (stdout.length + stderr.length <= maxBuffer) return
-      child.kill(killSignal)
+export function spawnSuite(args, opts) {
+  return new Promise((settle) => runSpawnSuiteProcess(args, opts, settle))
+}
+
+/** Build the ENOBUFS result `spawnSuite`'s `checkBuffer` finishes with on overflow. */
+function spawnSuiteOverflowResult(stdout, stderr) {
+  return {
+    status: null,
+    signal: null,
+    stdout,
+    stderr,
+    error: Object.assign(new Error('spawnSuite output exceeded maxBuffer'), {
+      code: 'ENOBUFS',
+    }),
+  }
+}
+
+/** Wire the child's `error`/`close` events to `finish`, distinguishing a timeout close. */
+function wireSpawnSuiteExit(child, finish, getState) {
+  child.on('error', (error) => {
+    const { stdout, stderr } = getState()
+    finish({ status: null, signal: null, stdout, stderr, error })
+  })
+  child.on('close', (status, signal) => {
+    const { stdout, stderr, timedOut } = getState()
+    if (timedOut) {
       finish({
-        status: null,
-        signal: null,
+        status,
+        signal,
         stdout,
         stderr,
-        error: Object.assign(new Error('spawnSuite output exceeded maxBuffer'), {
-          code: 'ENOBUFS',
-        }),
+        error: Object.assign(new Error('spawnSuite timed out'), { code: 'ETIMEDOUT' }),
       })
+      return
     }
-    child.stdout.on('data', (d) => {
-      stdout += d
-      checkBuffer()
-    })
-    child.stderr.on('data', (d) => {
-      stderr += d
-      checkBuffer()
-    })
-    child.on('error', (error) => finish({ status: null, signal: null, stdout, stderr, error }))
-    child.on('close', (status, signal) => {
-      if (timedOut) {
-        finish({
-          status,
-          signal,
-          stdout,
-          stderr,
-          error: Object.assign(new Error('spawnSuite timed out'), { code: 'ETIMEDOUT' }),
-        })
-        return
-      }
-      finish({ status, signal, stdout, stderr, error: null })
-    })
+    finish({ status, signal, stdout, stderr, error: null })
   })
+}
+
+/** Create the child, wire its output/exit handlers, and settle `spawnSuite`'s promise. */
+function runSpawnSuiteProcess(args, { cwd, timeout, maxBuffer, killSignal = 'SIGKILL' }, settle) {
+  const child = spawn('node', args, { cwd })
+  let stdout = ''
+  let stderr = ''
+  let done = false,
+    timedOut = false
+  const finish = (result) => {
+    if (done) return
+    done = true
+    clearTimeout(timer)
+    settle(result)
+  }
+  const timer = setTimeout(() => {
+    timedOut = true
+    child.kill(killSignal)
+  }, timeout)
+  const checkBuffer = () => {
+    if (stdout.length + stderr.length <= maxBuffer) return
+    child.kill(killSignal)
+    finish(spawnSuiteOverflowResult(stdout, stderr))
+  }
+  child.stdout.on('data', (d) => {
+    stdout += d
+    checkBuffer()
+  })
+  child.stderr.on('data', (d) => {
+    stderr += d
+    checkBuffer()
+  })
+  wireSpawnSuiteExit(child, finish, () => ({ stdout, stderr, timedOut }))
 }
 
 /**
@@ -1405,21 +1422,19 @@ export async function runPool(tasks, jobs) {
 }
 
 /**
- * Grade every mutation in every `scoped` data file; tallies caught/bad/faults/total.
- *
- * Dangling-id validation runs for EVERY file up front, before any task is built — a stale
- * reference is caught before a single mutation runs, whatever `jobs` is. Grading itself runs
- * through `runPool`, so up to `jobs` mutations run at once; printing happens afterward, walking
- * the results in INPUT (data-file/mutation) order, so the report reads identically at any `jobs`.
+ * A dangling id is a stale reference, and a stale reference is the same class of defect as a
+ * stale anchor: it reads as coverage and grades nothing. Fail before anything is graded.
  */
-async function gradeScoped(scoped, { root, base, ref, readSuite, onResult, jobs }) {
+function assertNoDanglingIds(scoped, root, readSuite) {
   for (const { data } of scoped) {
-    // A dangling id is a stale reference, and a stale reference is the same class of defect as a
-    // stale anchor: it reads as coverage and grades nothing. Fail before anything is graded.
     const ids = new Set(data.mutations.map((m) => m.id))
     const problems = surveySuites(root, data, ids, readSuite).problems
     if (problems.length > 0) throw new Error(problems.join('\n  '))
   }
+}
+
+/** Flatten every `scoped` data file's mutations into one grading-task list, paired with owners. */
+function buildGradeTasks(scoped, { root, base, ref }) {
   const tasks = []
   const owners = []
   for (const { file, data } of scoped) {
@@ -1428,7 +1443,11 @@ async function gradeScoped(scoped, { root, base, ref, readSuite, onResult, jobs 
       owners.push({ file, data })
     }
   }
-  const results = await runPool(tasks, jobs)
+  return { tasks, owners }
+}
+
+/** Print each result in input order and tally caught/bad/faults; calls `onResult` per grade. */
+function tallyGradeResults(results, owners, onResult) {
   let caught = 0
   let bad = 0
   let faults = 0
@@ -1446,7 +1465,44 @@ async function gradeScoped(scoped, { root, base, ref, readSuite, onResult, jobs 
     else faults++
     if (result) onResult?.({ ...result, file: file.path })
   }
+  return { caught, bad, faults }
+}
+
+/**
+ * Grade every mutation in every `scoped` data file; tallies caught/bad/faults/total.
+ *
+ * Dangling-id validation runs for EVERY file up front, before any task is built — a stale
+ * reference is caught before a single mutation runs, whatever `jobs` is. Grading itself runs
+ * through `runPool`, so up to `jobs` mutations run at once; printing happens afterward, walking
+ * the results in INPUT (data-file/mutation) order, so the report reads identically at any `jobs`.
+ */
+async function gradeScoped(scoped, { root, base, ref, readSuite, onResult, jobs }) {
+  assertNoDanglingIds(scoped, root, readSuite)
+  const { tasks, owners } = buildGradeTasks(scoped, { root, base, ref })
+  const results = await runPool(tasks, jobs)
+  const { caught, bad, faults } = tallyGradeResults(results, owners, onResult)
   return { caught, bad, faults, total: results.length }
+}
+
+/**
+ * Resolve the ref, the candidate data files under it, and the staged-scoped subset of those
+ * files, for one `modeRun` invocation. `ref` first: under `--staged` the CANDIDATE file list
+ * itself comes from the ref (`dataFilesAt`), not from disk — so the ref must exist before files
+ * can be selected.
+ */
+function resolveRunScope(root, guard, scratch, staged) {
+  const ref = staged ? indexCommit(root) : 'HEAD'
+  const files = selectFiles(staged ? dataFilesAt(root, ref) : dataFiles(root), guard)
+  if (files.length === 0) {
+    // NOT exit 0. Exit 0 asserts "every encoded mutation was CAUGHT"; a run that graded NOTHING
+    // has earned no such claim. A data file emptied, renamed, or moved out of `.claude/hooks/`
+    // would otherwise turn this oracle permanently green while checking nothing — the precise
+    // failure mode the tool exists to detect in other people's tests.
+    throw new Error('no *.mutations.json data files found — nothing graded, so no verdict')
+  }
+  const base = scratchBase(root, scratch)
+  const scoped = loadScoped(root, files, ref, staged)
+  return { ref, base, scoped }
 }
 
 /**
@@ -1460,19 +1516,7 @@ async function gradeScoped(scoped, { root, base, ref, readSuite, onResult, jobs 
  * @param opts.jobs       run up to this many mutations concurrently (default 1)
  */
 async function modeRun({ root, guard, scratch, onResult = null, staged = false, jobs = 1 }) {
-  // `ref` first: under `--staged` the CANDIDATE file list itself comes from the ref
-  // (`dataFilesAt`), not from disk — so the ref must exist before files can be selected.
-  const ref = staged ? indexCommit(root) : 'HEAD'
-  const files = selectFiles(staged ? dataFilesAt(root, ref) : dataFiles(root), guard)
-  if (files.length === 0) {
-    // NOT exit 0. Exit 0 asserts "every encoded mutation was CAUGHT"; a run that graded NOTHING
-    // has earned no such claim. A data file emptied, renamed, or moved out of `.claude/hooks/`
-    // would otherwise turn this oracle permanently green while checking nothing — the precise
-    // failure mode the tool exists to detect in other people's tests.
-    throw new Error('no *.mutations.json data files found — nothing graded, so no verdict')
-  }
-  const base = scratchBase(root, scratch)
-  const scoped = loadScoped(root, files, ref, staged)
+  const { ref, base, scoped } = resolveRunScope(root, guard, scratch, staged)
   if (scoped.length === 0) {
     console.log(
       '\nnothing staged touches a data file, its target, a suite, a helper a suite imports, or a path a suite names — nothing to grade',

@@ -1083,8 +1083,8 @@
     },
     {
       "id": "spawnsuite-enforces-maxbuffer",
-      "find": "    child.stdout.on('data', (d) => {\n      stdout += d\n      checkBuffer()\n    })\n    child.stderr.on('data', (d) => {\n      stderr += d\n      checkBuffer()\n    })",
-      "replace": "    child.stdout.on('data', (d) => {\n      stdout += d\n    })\n    child.stderr.on('data', (d) => {\n      stderr += d\n    })",
+      "find": "  child.stdout.on('data', (d) => {\n    stdout += d\n    checkBuffer()\n  })\n  child.stderr.on('data', (d) => {\n    stderr += d\n    checkBuffer()\n  })",
+      "replace": "  child.stdout.on('data', (d) => {\n    stdout += d\n  })\n  child.stderr.on('data', (d) => {\n    stderr += d\n  })",
       "expectRed": ["spawnSuite kills a child whose output exceeds maxBuffer and reports ENOBUFS"]
     },
     {
