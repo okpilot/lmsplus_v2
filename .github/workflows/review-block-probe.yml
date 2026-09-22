@@ -9,6 +9,14 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - run: gh pr review "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" --request-changes --body "probe - does an Actions REQUEST_CHANGES block the merge"
-        env:
+      - env:
           GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          ids=$(gh api "repos/$REPO/pulls/$PR/reviews" --paginate --jq '.[] | select(.user.login == "github-actions[bot]" and .state == "CHANGES_REQUESTED") | .id')
+          for id in $ids; do
+            gh api -X PUT "repos/$REPO/pulls/$PR/reviews/$id/dismissals" -f message="superseded by a newer run" -f event=DISMISS --jq '.state'
+          done
+          gh pr review "$PR" --repo "$REPO" --comment --body "probe - dismissal test, no findings"
