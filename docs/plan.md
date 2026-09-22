@@ -1084,12 +1084,12 @@ pre-push review gate — ONE loop per BRANCH. `git fetch origin || abort`, then
     → STOP on the first round with no APPLY-worthy finding. An APPLY finding extends
       the loop by one round; ceiling 3 rounds, then escalate.
         then ONCE per branch, in this order:
-        7. learner (sonnet) — detect patterns, REPORT proposed rule changes for the
+        8. learner (sonnet) — detect patterns, REPORT proposed rule changes for the
            orchestrator to apply; writes only its own memory dir. Takes every round's
            findings
         conditionals, after the learner:
-        8. red-team (sonnet) — if the branch diff touches security files, map to attack specs + flag gaps
-        9. coderabbit-sync (haiku) — sync .coderabbit.yaml if rules changed
+        9. red-team (sonnet) — if the branch diff touches security files, map to attack specs + flag gaps
+        10. coderabbit-sync (haiku) — sync .coderabbit.yaml if rules changed
     (plan-critic is separate and unchanged: it runs ONCE per plan, before user approval.)
 
 git push (only with user approval)

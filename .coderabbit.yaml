@@ -635,7 +635,7 @@ reviews:
     - path: ".claude/hooks/*.mjs"
       instructions: |
         Guard code (code-style.md §7). Flag a diff adding a code path to an existing guard
-        without, in the same PR, a `.mutations.json` entry breaking that path and a test linked
+        without, in the same commit, a `.mutations.json` entry breaking that path and a test linked
         to it by `// GROUP:`.
 
     # Tests — behavioral naming + navigation mock URL assertions
