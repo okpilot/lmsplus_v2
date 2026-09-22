@@ -25,14 +25,16 @@
 // file only staged, not yet committed, reports NO VERDICT rather than a result. It builds a
 // commit of the INDEX tree without moving HEAD or touching the worktree (`git write-tree` +
 // `git commit-tree -p HEAD`), grades THAT, and narrows to the data files whose target, suites,
-// or own path are actually staged.
+// own path, one-hop suite imports, or a path a suite names as a string literal are actually
+// staged. `touchesStaged` is the predicate; the runtime message names the same set.
 //
 // Exit:   0 = every encoded mutation was CAUGHT
 //         1 = at least one SURVIVED or MISMATCHed — a finding about the TESTS
 //         2 = NO TRUSTWORTHY VERDICT — a finding about the HARNESS. Covers a fault in ANY
 //             single mutation (the batch still grades the rest and reports how many it could
 //             not), and the cases with nothing to grade at all — EXCEPT one: under `--staged`,
-//             a staged set touching no data file, target or suite exits 0. That is a commit
+//             a staged set touching no data file, target, suite, one-hop suite import or path a
+//             suite names as a literal exits 0. That is a commit
 //             this tool has no claim to grade, not a harness that lost its corpus, and the
 //             `files.length === 0` throw below still covers the corpus going missing.
 //
@@ -624,10 +626,14 @@ export function namedPaths(text) {
 }
 
 /**
- * Whether `file`'s own path, `data.target`, any `data.suites` entry, or a helper a suite imports
- * names or imports is in `staged`. The import hop is load-bearing: a shared testkit is named by no data file, so
- * without it a commit staging ONLY that helper grades nothing and exits 0 — while the edit can
- * redden every suite importing it.
+ * Whether any of five things is in `staged`: `file`'s own path, `data.target`, a `data.suites`
+ * entry, a helper a suite imports, or a path a suite names as a string literal.
+ *
+ * The last two are load-bearing because no data file names them. A shared testkit reaches the run
+ * only through a suite's import, and a fixture path only through a literal, so without those hops
+ * a commit staging ONLY that file grades nothing and exits 0 — while the edit can redden every
+ * suite that reads it. Both hops are ONE level deep and cover suites only, never the target's own
+ * imports; widening that reach is #1329.
  */
 export function touchesStaged(root, file, data, staged, readAt = null) {
   const paths = [file.path, data.target, ...data.suites]
@@ -1229,7 +1235,7 @@ function modeRun({ root, guard, scratch, onResult = null, staged = false }) {
   const scoped = loadScoped(root, files, ref, staged)
   if (scoped.length === 0) {
     console.log(
-      '\nnothing staged touches a data file, its target, a suite, or a path a suite names — nothing to grade',
+      '\nnothing staged touches a data file, its target, a suite, a helper a suite imports, or a path a suite names — nothing to grade',
     )
     return 0
   }
