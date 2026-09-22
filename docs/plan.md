@@ -1097,7 +1097,7 @@ GitHub PR
     → [GitHub Actions redteam.yml] red-team security tests (runs on every PR; required check)
 
 Weekly
-    → /project:insights → reads git log + test failures + agent memories
+    → /project:insights → reads git log + test failures
                         → updates MEMORY.md + suggests rule improvements
 ```
 
