@@ -61,14 +61,6 @@ const EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
 const CORPUS = ['CLAUDE.md', '.coderabbit.yaml', '.claude/', 'docs/', '.spec-workflow/']
 
 /**
- * Agent memory NARRATES past false claims verbatim — a tracker row quoting "1807" is a
- * record that the claim was wrong, not a live restatement of it. Counting those files
- * both hides real retractions (the quote exonerates the token as "re-added") and invents
- * fake survivors. Excluded from all three sides: edited, re-added, and surviving.
- */
-const MEMORY_PREFIX = '.claude/agent-memory/'
-
-/**
  * Longest-first is DEFENCE IN DEPTH, not the mechanism. What actually stops `.tsx` being
  * partially matched as `.ts` is FILE_RE's trailing `(?![\w-])`, which rejects the short match
  * and forces a backtrack into the longer alternative — verified by reordering `ts` before `tsx`
@@ -143,7 +135,6 @@ function splitNul(buf) {
 }
 
 function inCorpus(path) {
-  if (path.startsWith(MEMORY_PREFIX)) return false
   return CORPUS.some((root) => (root.endsWith('/') ? path.startsWith(root) : path === root))
 }
 
@@ -203,7 +194,6 @@ function completedSpecDirs(ref) {
 /** Pathspecs scoping every survivor search to the live prose corpus. */
 function corpusPathspecs(ref) {
   const specs = CORPUS.map((r) => `:(top)${r}`)
-  specs.push(`:(top,exclude)${MEMORY_PREFIX}`)
   for (const dir of completedSpecDirs(ref)) specs.push(`:(top,exclude)${dir}/`)
   return specs
 }
@@ -661,9 +651,7 @@ export function main(args) {
   console.error(
     'Searched: CLAUDE.md, .coderabbit.yaml, .claude/**, docs/**, .spec-workflow/** (live specs)',
   )
-  console.error(
-    'Excluded: .claude/agent-memory/** (narrates past claims verbatim), completed specs',
-  )
+  console.error('Excluded: completed specs')
   return 1
 }
 

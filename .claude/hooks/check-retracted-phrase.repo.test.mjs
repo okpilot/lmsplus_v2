@@ -58,15 +58,12 @@ test('passes once the correction is finished everywhere', () => {
   // MUTATION: make the rarity floor 0 instead of 1 → a fully completed correction blocks its
   // own commit, and the guard becomes impossible to satisfy.
   //
-  // The memory row below carries the CORRECTED value deliberately. Sharing the flagship's stale
-  // row would make this fixture identical to the agent-memory test's, and BOTH would then redden
-  // on either mutation — neither pinning its own claim (CR, PR #1274).
+  // The out-of-corpus row below carries the CORRECTED value deliberately. Sharing the flagship's
+  // stale row would make this fixture identical to the flagship's own, and BOTH would then
+  // redden on either mutation — neither pinning its own claim (CR, PR #1274).
   withRepo((r) => {
     seedFlagship(r)
-    r.write(
-      '.claude/agent-memory/code-reviewer/MEMORY.md',
-      '| drift | types.ts cited as "1806-line" - correct |\n',
-    )
+    r.write('apps/web/lib/notes.md', '| drift | types.ts cited as "1806-line" - correct |\n')
     r.write(
       '.claude/limits.json',
       '{ "note": "types.ts is GENERATED (1806 lines) - the generator owns it" }\n',
@@ -77,57 +74,6 @@ test('passes once the correction is finished everywhere', () => {
     )
     r.git('add', '-A')
     assert.equal(run(r, 'fix: correct the count everywhere\n').status, 0)
-  })
-})
-
-// GROUP: incorpus-drop-memory-prefix
-test('does not count an agent-memory file as a surviving occurrence', () => {
-  // MUTATION: drop the MEMORY_PREFIX check from `inCorpus` → a tracker row quoting the old claim
-  // counts as a survivor, so every corrected claim blocks forever and the guard is disabled
-  // within a week.
-  //
-  // NOT the `:(top,exclude)` pathspec in `corpusPathspecs`, which this comment named until
-  // test-writer measured it: dropping that alone leaves the suite green, because `inCorpus`
-  // filters the same paths out of the grep's RESULTS regardless. The pathspec is
-  // defence-in-depth — it saves git the work — and `inCorpus` is what this test pins.
-  withRepo((r) => {
-    seedFlagship(r)
-    // Leave ONLY the memory file holding the old value.
-    r.write(
-      '.claude/limits.json',
-      '{ "note": "types.ts is GENERATED (1806 lines) - the generator owns it" }\n',
-    )
-    r.write(
-      '.claude/hooks/check-file-size-guard.test.mjs',
-      '// a 1806-line GENERATED file is reported\n',
-    )
-    r.git('add', '-A')
-    assert.equal(run(r, 'fix: correct the count\n').status, 0)
-  })
-})
-
-// GROUP: addedtext-include-memory
-test('an agent-memory file quoting the old value does not exonerate the retraction', () => {
-  // The memory exclusion has TWO halves and they fail differently. The test above pins the
-  // SURVIVOR half; this pins the re-added half.
-  // MUTATION: include .claude/agent-memory/** when building addedText → a tracker row recording
-  // "the claim used to say 1807" is read as the token being re-added, the retraction is
-  // exonerated, and the real survivor is never reported. Every branch's learner run writes such a
-  // row, so this would silently disable the guard on precisely the commits it exists for.
-  withRepo((r) => {
-    seedFlagship(r)
-    r.write(
-      '.claude/limits.json',
-      '{ "note": "types.ts is GENERATED (1806 lines) - the generator owns it" }\n',
-    )
-    r.write(
-      '.claude/agent-memory/learner/MEMORY.md',
-      '| row | the note previously claimed 1807 lines |\n',
-    )
-    r.git('add', '-A')
-    const { status, stderr } = run(r, 'fix: correct the count and record it\n')
-    assert.equal(status, 1)
-    assert.match(stderr, /retracted the value `1807`/)
   })
 })
 
@@ -277,7 +223,7 @@ test('a LONGER number containing the token does not exonerate the retraction', (
   })
 })
 
-// GROUP: addedtext-any-non-memory-entry
+// GROUP: addedtext-include-memory
 test('a token re-added only in application code does not exonerate a corpus retraction', () => {
   // MUTATION: accumulate addedText from every non-memory entry instead of corpus entries only →
   // a value moved OUT of the documented corpus into source exonerates a corpus retraction that

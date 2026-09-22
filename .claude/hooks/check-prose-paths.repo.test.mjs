@@ -180,16 +180,16 @@ test('accepts a path that is present on disk but untracked', () =>
 
 // ---------------------------------------------------------------- corpus scoping
 
-test('ignores a citation in agent memory', () =>
+test('ignores a citation outside the corpus roots', () =>
   withRepo((r) => {
     r.write('docs/a.md', 'intro\n')
     r.git('add', '-A')
     r.git('commit', '-qm', 'init')
-    r.write('.claude/agent-memory/learner/MEMORY.md', `| row | ${DEAD} |\n`)
+    r.write('apps/web/lib/notes.md', `| row | ${DEAD} |\n`)
     r.git('add', '-A')
-    // MUTATION: drop the `if (!inCorpus(path)) return false` test from inPathCorpus → agent
-    // memory, the run log and every file outside the corpus roots are graded, so a tracker row
-    // QUOTING a path that has since gone becomes a blocking offence.
+    // MUTATION: drop the `if (!inCorpus(path)) return false` test from inPathCorpus → the run
+    // log and every file outside the corpus roots are graded, so a note QUOTING a path that has
+    // since gone becomes a blocking offence.
     assert.equal(run(r).status, 0)
   }))
 

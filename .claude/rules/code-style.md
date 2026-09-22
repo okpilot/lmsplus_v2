@@ -800,7 +800,7 @@ it is what the next reader trusts when deciding whether a guard can safely be re
    — without them a regex or a subtree-only search fails open. A claim re-typed unchanged inside a reflowed block is a NEW assertion on a `+` line
    that reads as old text. Mechanically enforced at `commit-msg` by
    `.claude/hooks/check-retracted-phrase.mjs`, scoped to `.claude/`, `docs/`, `.spec-workflow/`,
-   `CLAUDE.md`, `.coderabbit.yaml` (excludes agent-memory and all-`[x]` specs); it needs the hunk to
+   `CLAUDE.md`, `.coderabbit.yaml` (excludes all-`[x]` specs); it needs the hunk to
    contain the replacement and can't see a paraphrase — the grep above is still yours to run.
    Waiver: `Retracted-ok: <token> — <reason>` trailer.
    **Grep the CLAIM, not only the STRING that expressed it** — a sweep anchored on the retracted

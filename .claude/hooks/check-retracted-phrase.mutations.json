@@ -24,7 +24,6 @@
         "finds a survivor when invoked from a subdirectory, not just the repo root",
         "a global diff.relative does not hide changes from the guard",
         "blocks when a corrected value still stands in another corpus file",
-        "an agent-memory file quoting the old value does not exonerate the retraction",
         "a waiver naming a different token does not clear the finding",
         "grades the INDEX, not the working tree",
         "a rename in the same commit does not desync the path stream",
@@ -347,7 +346,6 @@
         "finds a survivor when invoked from a subdirectory, not just the repo root",
         "a global diff.relative does not hide changes from the guard",
         "blocks when a corrected value still stands in another corpus file",
-        "an agent-memory file quoting the old value does not exonerate the retraction",
         "a waiver naming a different token does not clear the finding",
         "grades the INDEX, not the working tree",
         "a rename in the same commit does not desync the path stream",
@@ -411,7 +409,6 @@
         "--base mode excludes a completed spec from a subdirectory too",
         "a completed spec is still excluded when the guard runs from a subdirectory",
         "passes once the correction is finished everywhere",
-        "does not count an agent-memory file as a surviving occurrence",
         "a completed spec is not a surviving occurrence, a live one is",
         "a longer number elsewhere is not counted as a surviving occurrence",
         "a longer filename elsewhere is not counted as a surviving occurrence",
@@ -428,12 +425,6 @@
       "expectRed": ["a token surviving in three or more files is common vocabulary, not a claim"]
     },
     {
-      "id": "incorpus-drop-memory-prefix",
-      "find": "  if (path.startsWith(MEMORY_PREFIX)) return false\n",
-      "replace": "",
-      "expectRed": ["an agent-memory file quoting the old value does not exonerate the retraction"]
-    },
-    {
       "id": "incorpus-drop-exact-root",
       "find": "CORPUS.some((root) => (root.endsWith('/') ? path.startsWith(root) : path === root))",
       "replace": "CORPUS.some((root) => root.endsWith('/') && path.startsWith(root))",
@@ -444,18 +435,9 @@
       "find": "    if (inCorpus(entry.path)) {",
       "replace": "    if (true) {",
       "expectRed": [
-        "an agent-memory file quoting the old value does not exonerate the retraction",
         "a token re-added only in application code does not exonerate a corpus retraction"
       ],
       "note": "superset: accumulating every entry also pulls the app-code fixture’s added line into addedText, exonerating that retraction too."
-    },
-    {
-      "id": "addedtext-any-non-memory-entry",
-      "find": "    if (inCorpus(entry.path)) {",
-      "replace": "    if (!entry.path.startsWith(MEMORY_PREFIX)) {",
-      "expectRed": [
-        "a token re-added only in application code does not exonerate a corpus retraction"
-      ]
     },
     {
       "id": "waiver-any-trailer-clears",
@@ -554,7 +536,6 @@
         "a global diff.relative does not hide changes from the guard",
         "a sibling in a different directory with the same filename is not dropped as self",
         "blocks when a corrected value still stands in another corpus file",
-        "an agent-memory file quoting the old value does not exonerate the retraction",
         "a waiver naming a different token does not clear the finding",
         "grades the INDEX, not the working tree",
         "a rename in the same commit does not desync the path stream",
@@ -566,7 +547,7 @@
         "blocks a corrected value under color.ui=always, exactly as without it",
         "a LIVE spec still counts as a survivor under color.ui=always, exactly as without it"
       ],
-      "note": "Planted CONTROL — forces main()'s terminal offenders-found return to exit 0 instead of 1. This guard's suites span 5 files (test.mjs, repo.test.mjs, base.test.mjs, paths.test.mjs, color.test.mjs) and every fixture asserting a blocking outcome — staged OR --base mode — funnels through this one return, so 20 tests redden alongside the planted RED control. Set from the harness's own 'actually red' report, per contract §5."
+      "note": "Planted CONTROL — forces main()'s terminal offenders-found return to exit 0 instead of 1. This guard's suites span 5 files (test.mjs, repo.test.mjs, base.test.mjs, paths.test.mjs, color.test.mjs) and every fixture asserting a blocking outcome — staged OR --base mode — funnels through this one return, so 19 tests redden alongside the planted RED control. Set from the harness's own 'actually red' report, per contract §5."
     },
     {
       "id": "check-retracted-phrase-always-blocks",
@@ -579,7 +560,6 @@
         "--base mode excludes a completed spec from a subdirectory too",
         "a completed spec is still excluded when the guard runs from a subdirectory",
         "passes once the correction is finished everywhere",
-        "does not count an agent-memory file as a surviving occurrence",
         "a valid waiver trailer permits the commit",
         "a token surviving in three or more files is common vocabulary, not a claim",
         "application code is out of scope on both sides",
@@ -592,7 +572,7 @@
         "a ticket reference elsewhere does not exonerate or survive a retraction",
         "passes a clean correction under color.ui=always, exactly as without it"
       ],
-      "note": "Planted CONTROL — removes the only early-exit that lets a clean run skip the offenders-found report, so a clean input falls through to the terminal `return 1`. Every fixture asserting a clean pass, staged OR --base mode, funnels through this one gate, so 18 tests redden alongside the planted GREEN control. Set from the harness's own 'actually red' report, per contract §5."
+      "note": "Planted CONTROL — removes the only early-exit that lets a clean run skip the offenders-found report, so a clean input falls through to the terminal `return 1`. Every fixture asserting a clean pass, staged OR --base mode, funnels through this one gate, so 17 tests redden alongside the planted GREEN control. Set from the harness's own 'actually red' report, per contract §5."
     },
     {
       "id": "check-retracted-phrase-color-blobdiff",

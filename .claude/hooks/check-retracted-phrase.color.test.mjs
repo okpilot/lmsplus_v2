@@ -71,10 +71,7 @@ test('passes a clean correction under color.ui=always, exactly as without it', (
   withRepo((r) => {
     seedFlagship(r)
     r.git('config', 'color.ui', 'always')
-    r.write(
-      '.claude/agent-memory/code-reviewer/MEMORY.md',
-      '| drift | types.ts cited as "1806-line" - correct |\n',
-    )
+    r.write('apps/web/lib/notes.md', '| drift | types.ts cited as "1806-line" - correct |\n')
     r.write(
       '.claude/limits.json',
       '{ "note": "types.ts is GENERATED (1806 lines) - the generator owns it" }\n',

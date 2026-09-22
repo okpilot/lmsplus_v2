@@ -715,9 +715,7 @@ function reportFindings({ scopedProblems, fresh, stale, baseline }) {
     console.error(
       'Searched: CLAUDE.md, .coderabbit.yaml, .claude/**, docs/**, .spec-workflow/steering/**',
     )
-    console.error(
-      `Excluded: .claude/agent-memory/**, ${SPEC_PREFIX}**, *.json, code/data lines, globs,`,
-    )
+    console.error(`Excluded: ${SPEC_PREFIX}**, *.json, code/data lines, globs,`)
     console.error('  placeholders, URLs, npm specifiers, gitignored artifacts, frozen migrations')
   }
   return 1

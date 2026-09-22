@@ -246,12 +246,6 @@
       "expectRed": ["does not block a claim in a file the commit did not touch"]
     },
     {
-      "id": "agent-memory-not-excluded",
-      "find": "  if (path.startsWith(MEMORY_PREFIX)) return false",
-      "replace": "",
-      "expectRed": ["ignores a claim in agent memory"]
-    },
-    {
       "id": "run-log-not-excluded",
       "find": "  if (EXCLUDED_PATHS.has(path)) return false",
       "replace": "",
@@ -356,7 +350,6 @@
       "expectRed": [
         "does not block a claim already carried by the baseline",
         "does not block a claim in a file the commit did not touch",
-        "ignores a claim in agent memory",
         "ignores a claim in the dated run log",
         "an inline waiver with a written reason clears the finding"
       ],
