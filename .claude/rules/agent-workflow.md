@@ -101,7 +101,7 @@ If the spec-workflow MCP is unavailable, write spec files manually to `.spec-wor
 ### Every agent dispatch is ASYNCHRONOUS — the diagram is a data dependency, not a clock
 `Agent` returns an id immediately; the agent runs in the BACKGROUND and notifies you when done. Nothing makes the diagram below happen in the order it is drawn.
 - **"Complete" means every completion notification from the agents LAUNCHED is RECEIVED, never merely dispatched.** Read every result before triaging — a partial pool biases the triage and the learner's counts.
-- **Never edit a file while an agent that can write it is in flight.** The loser's change vanishes with no error, no conflict, no failing gate. Only **test-writer** holds Write/Edit (scoped to test files); every agent still keeps `Bash`, which can write. `memory: project` auto-grants R/W/E on an agent's OWN memory dir only — no race there. Round 1 runs six concurrently — this is the gate's sharpest edge. The collision set is FIVE: `code-review (skill)` runs with its cwd in an isolated worktree, so its writes land there and not in the main tree. That is NOT a read-only guarantee — it keeps `Bash` like every agent — and the exemption holds only while it is dispatched the way `agent-code-review.md § Dispatch` mandates.
+- **Never edit a file while an agent that can write it is in flight.** The loser's change vanishes with no error, no conflict, no failing gate. Only **test-writer** holds Write/Edit (scoped to test files); every agent still keeps `Bash`, which can write. `memory: project` auto-grants R/W/E on an agent's OWN memory dir only — no race there. Round 1 runs seven concurrently — this is the gate's sharpest edge. The collision set is SIX: `code-review (skill)` runs with its cwd in an isolated worktree, so its writes land there and not in the main tree. That is NOT a read-only guarantee — it keeps `Bash` like every agent — and the exemption holds only while it is dispatched the way `agent-code-review.md § Dispatch` mandates.
 
 ### The gate — ONE loop over the branch diff, not a cycle per commit
 Commits inside a branch are scratch history; squash-merge discards them. Review the artifact that lands.
@@ -116,11 +116,11 @@ Three-dot (merge-base). ABORT on a non-zero EXIT CODE from fetch, base resolutio
 Execute ▼ commit freely — a commit triggers NOTHING
     ▼  (pre-push, per BRANCH)
 ROUND 1  implementation-critic + code-reviewer + semantic-reviewer + doc-updater
-         + test-writer + code-review (skill) — ONE parallel batch, all on the
+         + test-writer + deletion-reviewer + code-review (skill) — ONE parallel batch, all on the
          branch diff.  code-review (skill) is the built-in /code-review skill,
          dispatched as a subagent in an isolated worktree on opus, round 1 only.
 ROUND 2+ code-reviewer + semantic-reviewer — code-review (skill) is ROUND 1 ONLY
-         (doc-updater and test-writer PRODUCE, they do not gate — re-run one only
+         (doc-updater and test-writer PRODUCE, they do not gate — re-run one, or deletion-reviewer, only
           when the fixup added surface it has not seen)
     ▼
 each round: WAIT for every agent LAUNCHED ─► validate every finding
@@ -309,7 +309,7 @@ A commit modifying a rule in `.claude/rules/*.md` or `CLAUDE.md` must update eve
 
 ## Orchestrator Role
 ### DO
-- Run the pre-push gate once per branch (§ Pre-Push Review Gate) — round 1 dispatches all six reviewers in ONE parallel batch; WAIT for a completion notification from every agent LAUNCHED before acting.
+- Run the pre-push gate once per branch (§ Pre-Push Review Gate) — round 1 dispatches all seven reviewers in ONE parallel batch; WAIT for a completion notification from every agent LAUNCHED before acting.
 - Read all results before starting any fixes.
 - Validate every ISSUE/CRITICAL finding before fixing.
 - Report findings to the user in a summary table: agent / severity / count / status.

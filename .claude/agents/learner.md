@@ -14,7 +14,7 @@ You are a continuous improvement agent for LMS Plus v2. You run ONCE per branch,
 
 ## Your Mission
 
-Read every round's findings — implementation-critic, code-reviewer, semantic-reviewer, doc-updater, test-writer, and code-review (skill), the built-in `/code-review` skill, which runs in round 1 only. Red-team and coderabbit-sync run AFTER you, so their findings are NOT your input; they reach a LATER BRANCH's learner run. Identify patterns, REPORT proposed changes to project rules for the orchestrator to apply, and update your OWN memory dir (`memory: project` grants that regardless of `tools:`).
+Read every round's findings — implementation-critic, code-reviewer, semantic-reviewer, doc-updater, test-writer, deletion-reviewer, and code-review (skill), the built-in `/code-review` skill, which runs in round 1 only. Red-team and coderabbit-sync run AFTER you, so their findings are NOT your input; they reach a LATER BRANCH's learner run. Identify patterns, REPORT proposed changes to project rules for the orchestrator to apply, and update your OWN memory dir (`memory: project` grants that regardless of `tools:`).
 
 ## Inputs
 
@@ -24,6 +24,7 @@ You receive:
 - Findings from semantic-reviewer (what logic/security/consistency issues were found)
 - Findings from doc-updater (what docs were out of date)
 - Findings from test-writer (what tests were missing)
+- Findings from deletion-reviewer (what the diff could delete with no loss) — round 1
 - Findings from code-review (skill) (what the built-in reviewer flagged) — round 1
 - If a round's table is missing from your input, say so rather than counting the rest and
   calling the branch counted.
@@ -83,6 +84,7 @@ LEARNER REPORT — [branch] — [N rounds] — [date]
 - Doc updater: [N updates needed / clean]
 - Test writer: [N gaps found / clean]
 - Implementation-critic: [N critical, N issues / clean]
+- Deletion-reviewer: [N issues, N suggestions / clean]
 - code-review (skill): [N findings / clean]
   (A round's table NOT SUPPLIED is a finding in itself: say so rather than counting
    the rest and calling the branch counted — see § Inputs)

@@ -7,7 +7,7 @@ A reviewer over the branch diff running a prompt we do not own. Reports correctn
 Write it as `code-review (skill)` in every roster. `code-reviewer` is a DIFFERENT member: an agent of ours, on sonnet, checking `code-style.md` — a prompt we own and maintain.
 
 ## Trigger Conditions
-- **ROUND 1 ONLY**, in the same parallel batch as the other five, on the same range they read.
+- **ROUND 1 ONLY**, in the same parallel batch as the other six, on the same range they read.
 - **Round-1 scoping is a default whose widening is measured and deliberately held** (Decision 77). Take the widening once the roster is single-sourced: while round scope is restated across the roster's mirrors, changing it costs a hand-sync of every one.
 - No loop of its own: its findings enter the round's ONE pooled triage table and the round's ONE pooled fixup commit.
 

@@ -2372,3 +2372,12 @@ them.
   `.claude/controls.test.mjs` (CI) derives the wired guard set from `lefthook.yml`, every
   `.github/workflows/*.yml` and every `.claude/settings.json` hook event, and fails when `.claude/pipeline.json` `guards` disagrees
   or a registered guard lacks a control. Exempt entries carry their reason in the registry.
+
+## Decision 80: deletion-reviewer joins round 1 (2026-09-22)
+
+- Seventh round-1 gate member, sonnet, read-only: reports branch-diff deletions with no loss, each
+  backed by a pasted `EVIDENCE:` command.
+- No mechanical guard — measured: the best lexical pattern caught 6 of 431 cut lines, 188+ false
+  hits on the tree.
+- Later rounds match doc-updater/test-writer: re-runs only when a fixup adds surface it has not
+  seen. Rounds 2+ otherwise stay code-reviewer + semantic-reviewer.
