@@ -622,7 +622,7 @@ export async function submitAnswer(raw: unknown) {
 
 **No pre-commit secret scan.** Pushes are checked by:
 - the pre-push security-auditor (`.claude/hooks/run-security-auditor.sh`), fail-closed. An LLM review, not
-  a scan: above `MAX_DIFF_LINES` it reviews only security-path globs, truncated. Its secret-literal grep
+  a scan: above `MAX_DIFF_LINES` it reviews only security-path globs, truncated if still over. Its secret-literal grep
   runs only when the LLM call times out or fails: `grep -n 'sk_live_' .claude/hooks/run-security-auditor.sh`.
 - GitHub secret scanning with push protection: `gh api repos/okpilot/lmsplus_v2 -q .security_and_analysis`.
 - CodeRabbit's `no-secrets` custom check (`.coderabbit.yaml`).
