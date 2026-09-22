@@ -517,9 +517,8 @@ function checkCommit({ range, message, ref }) {
   const tracked = new Set(splitNul(listTracked(ref)).map((p) => p.split('/').pop()))
 
   // Every added line in the CORPUS side of this commit. A token reappearing here was REWORDED,
-  // not retracted. Memory files are excluded: a tracker row quoting the old claim would otherwise
-  // exonerate the very retraction it is recording. Waiver trailers live in the message, not the
-  // diff, so they cannot leak into this set.
+  // not retracted. Waiver trailers live in the message, not the diff, so they cannot leak into
+  // this set.
   let addedText = ''
   const perFile = new Map()
   for (const entry of entries) {

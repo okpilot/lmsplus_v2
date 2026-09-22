@@ -468,7 +468,7 @@ export function completedSpecDirs(files, readFile) {
   return done
 }
 
-/** Tracked corpus paths, minus memory, the run log, and completed specs. */
+/** Tracked corpus paths, minus the run log and completed specs. */
 function corpusFiles(readFile) {
   const tracked = splitNul(git(['ls-files', '-z', '--full-name']))
   const candidates = tracked.filter(inCorpus)
