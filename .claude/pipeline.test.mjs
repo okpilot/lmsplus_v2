@@ -435,5 +435,19 @@ for (const site of spec.modelLiteralSites) {
       : fail(`root lint script "${lintScript}" has no biome check over .claude`)
 }
 
+// No agent memory is tracked (Decision 82).
+{
+  const trackedMemory = execFileSync(
+    'git',
+    ['-C', ROOT, 'ls-files', '-z', '--', '.claude/agent-memory', 'apps/web/.claude'],
+    { encoding: 'utf8' },
+  )
+    .split('\0')
+    .filter(Boolean)
+  trackedMemory.length === 0
+    ? pass('no agent memory is tracked')
+    : fail(`agent memory is tracked: ${trackedMemory.join(', ')}`)
+}
+
 console.log(`\nResults: ${passed} passed, ${failed} failed`)
 if (failed > 0) process.exit(1)

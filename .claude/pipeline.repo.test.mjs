@@ -6,7 +6,7 @@
 
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import test from 'node:test'
@@ -62,4 +62,30 @@ test('renaming a lefthook pre-commit command the spec still declares blocks', ()
     const { status, stderr } = run(wt)
     assert.equal(status, 1)
     assert.match(stderr, /soft-delete-guard/)
+  }))
+
+// GROUP: pipeline-memory-key-allowed
+test("a memory key in an agent's frontmatter blocks", () =>
+  withWorktree(({ wt }) => {
+    const path = join(wt, '.claude/agents/code-reviewer.md')
+    const text = readFileSync(path, 'utf8')
+    const anchor = 'tools: Read, Glob, Grep, Bash\n'
+    assertSingleOccurrence(text, anchor, 'pipeline-repo-agent-memory-key')
+    writeFileSync(path, text.replace(anchor, `${anchor}memory: project\n`))
+    const { status, stderr } = run(wt)
+    assert.equal(status, 1)
+    assert.match(stderr, /memory/)
+  }))
+
+// GROUP: pipeline-agent-memory-tracked-allowed
+test('a tracked file under .claude/agent-memory blocks', () =>
+  withWorktree(({ wt }) => {
+    const dir = join(wt, '.claude/agent-memory/scratch')
+    mkdirSync(dir, { recursive: true })
+    const file = join(dir, 'MEMORY.md')
+    writeFileSync(file, '# scratch\n')
+    git(['add', '-f', file], wt)
+    const { status, stderr } = run(wt)
+    assert.equal(status, 1)
+    assert.match(stderr, /agent-memory\/scratch\/MEMORY\.md/)
   }))
