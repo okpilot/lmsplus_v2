@@ -50,7 +50,7 @@ Order (re-planned 2026-09-22):
 - [ ] **P7 — review process** (Decision 80; docs only). `deletion-reviewer` agent + rule file as a
       round-1-only member; roster wording across `CLAUDE.md`, `.claude/rules/agent-*.md`,
       `.claude/agents/*.md`, `.claude/commands/*.md`, steering `tech.md`, `docs/plan.md`, live specs.
-      Decision 81 (every round runs every reviewer) is DROPPED. Also: `code-style.md` §7 addendum — a new
+      Decision 81 (every round runs every reviewer) is DROPPED. Also: `.claude/rules/code-style.md` §7 addendum — a new
       code path in an existing guard ships its graded mutation in the same commit.
 - [ ] **P6 — promotion guard** (W3, Decision 82). `check-promotion-enforcer.*` importing
       `.claude/hooks/diff-parse.mjs`, its lefthook/ci/pipeline hunks, `.claude/rules/agent-memory.md` /
@@ -61,7 +61,7 @@ Order (re-planned 2026-09-22):
 
 Round-13 findings, validated, NOT yet applied — each goes into the PR that owns the file:
 - P6: a PROMOTED row ending in `\r` or a trailing space reads status `""` and is not checked
-  (reproduced). `GIT_NAMED_ESCAPES` not frozen — resolved by importing `diff-parse.mjs`.
+  (reproduced). `GIT_NAMED_ESCAPES` not frozen — resolved by importing `.claude/hooks/diff-parse.mjs`.
 
 
 ## Slice 0 — groundwork (COMPLETE)
