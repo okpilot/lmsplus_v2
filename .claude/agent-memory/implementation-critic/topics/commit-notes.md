@@ -6,6 +6,10 @@
 
 ## Positive-pattern log
 
+### guards/controls — APPROVED (2026-09-22, P2)
+
+35 files changed. All R1-R6 satisfied: 12 non-exempt guards each carry `// CONTROL: red` + `// CONTROL: green` tests; `controls.test.mjs` derives wired set from lefthook.yml/ci.yml/settings.json and checks bidirectionally; `scanControls()` + `controls: []` fields added to `parseSuite`; 3 CI steps added; `code-style.md` §7 + Decision 79 written; tasks.md SPLIT section inserted with correct wording. Rule-mirror grep showed no files restate the guard-controls rule → no mirror update needed. Zero CRITICAL, ISSUE, or SUGGESTION.
+
 ### guards/mutation-harness-staged — REVISE (2026-09-21, #1325 P1)
 Two findings blocked APPROVED: (1) `--jobs N` worker pool (H3 of plan) not implemented despite "run jobs in parallel" in the commit message — zero matches for 'jobs|worker|pool|mutex|parallel' in run-mutations.mjs; (2) `parseArgs` body grew from 36 to 49 lines, over the §3 30-line cap — a validated round-13 finding assigned to P1 in tasks.md SPLIT that was not applied. `CONTROL:` marker parsing is a forward-looking addition for P2, additive, tested, graded — SUGGESTION only.
 

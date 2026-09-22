@@ -1,0 +1,24 @@
+{
+  "_": "Planted red/green controls linked by GROUP marker to the two spawned tests that already drove the guard's exit code before this file existed.",
+  "target": ".claude/hooks/guard-bash.js",
+  "suites": [".claude/hooks/guard-bash.test.mjs"],
+  "mutations": [
+    {
+      "id": "guard-bash-always-passes",
+      "find": "process.exit(2) // Exit code 2 = block the tool call",
+      "replace": "process.exit(0) // Exit code 2 = block the tool call",
+      "expectRed": [
+        "blocks a dangerous command delivered via stdin JSON with exit 2 and a BLOCKED stderr",
+        "blocks a dangerous command in flat JSON shape (backward-compat path)"
+      ],
+      "note": "Forces the blocked-pattern branch to exit 0 instead of 2 — a dangerous command is logged as BLOCKED on stderr but no longer stops the tool call. Reddens the flat-JSON-shape test too: it drives the same BLOCKED_PATTERNS branch via the tool_input?.command fallback."
+    },
+    {
+      "id": "guard-bash-always-blocks",
+      "find": "process.exit(0) // Allow",
+      "replace": "process.exit(2) // Allow",
+      "expectRed": ["allows a benign command with exit 0"],
+      "note": "Forces the allow path to exit 2 instead of 0 — a benign command is blocked too."
+    }
+  ]
+}

@@ -2364,3 +2364,11 @@ both still bind for the cloud reviewer. Cloud CR findings land after the gate ha
 reach a LATER branch's learner run, on the same terms as red-team and coderabbit-sync. The new
 member runs pre-push, so its findings are ordinary input to the learner of the branch that produced
 them.
+
+## Decision 79: every guard carries a planted, graded red and green control (2026-09-21)
+
+- `code-style.md` §7: each guard has a spawned `// CONTROL: red` and `// CONTROL: green` test,
+  graded by `<guard>-always-passes` / `<guard>-always-blocks` mutations.
+  `.claude/controls.test.mjs` (CI) derives the wired guard set from `lefthook.yml`, every
+  `.github/workflows/*.yml` and every `.claude/settings.json` hook event, and fails when `.claude/pipeline.json` `guards` disagrees
+  or a registered guard lacks a control. Exempt entries carry their reason in the registry.

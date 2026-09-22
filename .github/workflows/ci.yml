@@ -44,6 +44,9 @@ jobs:
       - name: Pre-push hook verdict parser tests
         run: bash .claude/hooks/run-security-auditor.test.sh
 
+      - name: Pre-push hook red/green controls
+        run: node --test .claude/hooks/run-security-auditor.controls.test.mjs
+
       - name: Soft-delete column guard
         run: node .claude/hooks/check-soft-delete-guard.mjs
 
@@ -224,6 +227,27 @@ jobs:
       # access-control checks that file made are a strict subset of these.
       - name: "Pipeline spec matches the repo — unit test"
         run: node .claude/pipeline.test.mjs
+
+      # pipeline.test.mjs is itself a guard (pipeline.json `guards`, base `pipeline`) and needs
+      # the same spawned red/green control every other guard needs. Spawns pipeline.test.mjs
+      # against a throwaway worktree of HEAD, pristine and mutated.
+      - name: "Pipeline spec's own controls — unit test"
+        run: node --test .claude/pipeline.repo.test.mjs
+
+      # Guard-controls registry (code-style.md §7): every guard wired into lefthook.yml, any
+      # workflow step, or any .claude/settings.json hook event must carry a spawned, graded
+      # CONTROL: red and CONTROL: green test, registered in pipeline.json `guards`. This step
+      # itself is one of the paths .claude/controls.test.mjs derives, so adding or removing a
+      # `.claude/...` step not run under `node --test`, in any workflow, changes what the next
+      # run of this step expects the registry to declare.
+      - name: "Guard controls registry matches the repo — unit test"
+        run: node .claude/controls.test.mjs
+
+      # controls.test.mjs is itself a guard (pipeline.json `guards`, base `controls`) and needs
+      # the same spawned red/green control it requires of every other guard. Spawns
+      # controls.test.mjs against synthetic fixture roots.
+      - name: "Guard controls registry's own controls — unit test"
+        run: node --test .claude/controls.repo.test.mjs
 
   type-check:
     name: Type Check

@@ -212,12 +212,12 @@ test('spawnSuite kills a hanging child and reports ETIMEDOUT, matching spawnSync
 // GROUP: spawnsuite-timeout-needs-null-status
 test('spawnSuite keeps the real exit status of a child whose output closes after the timeout', async () => {
   const child = [
-    "require('node:child_process').spawn(process.execPath, ['-e', 'setTimeout(() => {}, 1500)'], {",
+    "require('node:child_process').spawn(process.execPath, ['-e', 'setTimeout(() => {}, 4000)'], {",
     "  stdio: ['ignore', 'inherit', 'inherit'],",
     '})',
     'process.exit(0)',
   ].join('\n')
-  const r = await spawnSuite(['-e', child], { timeout: 300, maxBuffer: 1024 * 1024 })
+  const r = await spawnSuite(['-e', child], { timeout: 1500, maxBuffer: 1024 * 1024 })
   assert.equal(r.error, null)
   assert.equal(r.status, 0)
 })

@@ -725,6 +725,15 @@ by a path the flag under test does not sit on (a dirty-tree check edited a TRACK
 flag guarding UNTRACKED ones was never consulted).
 Before trusting a gate's tests: name the defect class, name the input that triggers it, point at
 the fixture that builds it. No such fixture, no coverage — whatever the pass count says.
+### Every Guard Carries a Planted Red and a Planted Green Control
+A guard's suite holds a `// CONTROL: red` test (planted violation → the guard, SPAWNED, exits with
+its blocking code) and a `// CONTROL: green` test (clean input → exit 0). A test importing a pure
+function is not a control: it never reaches the exit wiring.
+A control is graded, not declared. The guard's `.mutations.json` carries `<base>-always-passes`
+(blocking exit forced to 0 — every red control goes red) and `<base>-always-blocks` (every green
+control goes red); each control links to its entry with `// GROUP:`.
+`.claude/controls.test.mjs` enforces this in CI against `.claude/pipeline.json` `guards`, which
+must equal the wired guard set. An exemption states its reason there.
 ### A `MUTATION:` Comment Is a Prose Claim, Subject to §10
 A `// MUTATION: <break>` line asserts `<break>` turns THIS test red — a behaviour claim, governed by §10 like any other comment. List only mechanisms the fixture can actually REACH: naming two mechanisms where one is unreachable (an earlier guard rejects the input first) silently overclaims. Verify by reverting ONLY the named mechanism — exactly those tests should go red; a superset is under-specific, green is false. Where a mechanism can't be reached, say so rather than implying coverage.
 **Naming a reachable mechanism isn't enough — the described FAILURE MODE must be true too.** A comment can name a real break yet mischaracterize how it fails (claims "pass silently", actually throws downstream). Reddening proves the mechanism, not the account of HOW — verify by reading the actual output, not predicting it.

@@ -333,6 +333,34 @@
       "replace": "      claims.set(claimKey(path, text), {\n",
       "expectRed": ["keys a repeated identical claim separately from its first occurrence"],
       "note": "Restores the collapse cloud review found: once the first copy is baselined, a second identical restatement inherits its key and is admitted silently."
+    },
+    {
+      "id": "check-prose-claims-always-passes",
+      "find": "  )\n  return 1\n}",
+      "replace": "  )\n  return 0\n}",
+      "expectRed": [
+        "blocks a commit that stages a new prose claim",
+        "blocks when a baseline row no longer describes a live claim",
+        "ignores a claim in a spec whose tasks are all complete",
+        "grades the INDEX, not the working tree",
+        "treats an absent baseline as empty and blocks, rather than passing",
+        "never rewrites the baseline from an enforcement run",
+        "an inline waiver with a written reason clears the finding"
+      ],
+      "note": "Planted CONTROL — forces reportFindings' only return to exit 0 instead of 1, the guard's single blocking exit site. Every fixture asserting a blocking outcome funnels through this one return, so 7 tests redden alongside the planted RED control. Set from the harness's own 'actually red' report, per contract §5."
+    },
+    {
+      "id": "check-prose-claims-always-blocks",
+      "find": "  if (fresh.length === 0 && stale.length === 0 && scopedProblems.length === 0) return 0",
+      "replace": "  if (false) return 0",
+      "expectRed": [
+        "does not block a claim already carried by the baseline",
+        "does not block a claim in a file the commit did not touch",
+        "ignores a claim in agent memory",
+        "ignores a claim in the dated run log",
+        "an inline waiver with a written reason clears the finding"
+      ],
+      "note": "Planted CONTROL — removes the only early-exit that lets a clean run skip reportFindings, so a clean input reaches reportFindings (which always returns 1) instead of returning 0. Every fixture asserting a clean pass funnels through this one gate, so 5 tests redden alongside the planted GREEN control. Set from the harness's own 'actually red' report, per contract §5."
     }
   ],
   "notEncoded": []

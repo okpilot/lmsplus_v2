@@ -4,8 +4,28 @@
 // import time (no schema mocking), so these tests double as a live check that the
 // generated types still shape as expected for the tables exercised below.
 import assert from 'node:assert/strict'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
 import { test } from 'node:test'
+import { fileURLToPath } from 'node:url'
 import { analyze, loadSchema } from './check-soft-delete-guard.mjs'
+import { runNode } from './spawn.testkit.mjs'
+
+const HOOK = join(dirname(fileURLToPath(import.meta.url)), 'check-soft-delete-guard.mjs')
+const TIMEOUT_MS = 10_000
+
+/** Spawn the real guard (staged-mode argv) against a throwaway `.ts` fixture and clean up. */
+function runGuardOn(source) {
+  const dir = mkdtempSync(join(tmpdir(), 'soft-delete-guard-control-'))
+  try {
+    const file = join(dir, 'fixture.ts')
+    writeFileSync(file, source, 'utf8')
+    return runNode('check-soft-delete-guard.mjs', [HOOK, file], { timeout: TIMEOUT_MS })
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
 
 test('flags a forbidden table paired with .is(deleted_at) in one chain', () => {
   const src = `const r = await supabase.from('easa_subjects').select('id').is('deleted_at', null)`
@@ -243,4 +263,25 @@ export type Database = {
 }`
   const schema = loadSchema(arrayTypes)
   assert.deepEqual([...schema.get('sample_tbl')].sort(), ['name', 'tags'])
+})
+
+// ── Planted controls (spawned, EXIT-CODE only — every test above imports pure functions) ────
+
+// CONTROL: red
+// GROUP: check-soft-delete-guard-always-passes
+test('control: a staged file with .is(deleted_at) on a table lacking the column blocks with exit 1', () => {
+  const r = runGuardOn(
+    `const r = await supabase.from('easa_subjects').select('id').is('deleted_at', null)\n`,
+  )
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /soft-delete\/schema column guard/)
+})
+
+// CONTROL: green
+// GROUP: check-soft-delete-guard-always-blocks
+test('control: a staged file with .is(deleted_at) on a table that has the column passes with exit 0', () => {
+  const r = runGuardOn(
+    `const r = await supabase.from('users').select('id').is('deleted_at', null)\n`,
+  )
+  assert.equal(r.status, 0)
 })

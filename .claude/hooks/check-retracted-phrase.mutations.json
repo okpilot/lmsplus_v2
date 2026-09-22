@@ -533,6 +533,57 @@
       "find": "  if (entry.srcMode === GITLINK_MODE || entry.dstMode === GITLINK_MODE) return []\n",
       "replace": "",
       "expectRed": ["a submodule pointer does not abort the run"]
+    },
+    {
+      "id": "check-retracted-phrase-always-passes",
+      "find": "  )\n  return 1\n}",
+      "replace": "  )\n  return 0\n}",
+      "expectRed": [
+        "--base mode does not let one commit's waiver clear another commit's finding",
+        "an intermediate commit is graded against its OWN tree, not HEAD",
+        "a LIVE spec still counts as a survivor when run from a subdirectory",
+        "a near-identical sibling path is not mistaken for the edited file",
+        "grades a path whose name survives an argv round-trip",
+        "finds a survivor when invoked from a subdirectory, not just the repo root",
+        "a global diff.relative does not hide changes from the guard",
+        "a sibling in a different directory with the same filename is not dropped as self",
+        "blocks when a corrected value still stands in another corpus file",
+        "an agent-memory file quoting the old value does not exonerate the retraction",
+        "a waiver naming a different token does not clear the finding",
+        "grades the INDEX, not the working tree",
+        "a rename in the same commit does not desync the path stream",
+        "a LONGER number containing the token does not exonerate the retraction",
+        "a token re-added only in application code does not exonerate a corpus retraction",
+        "CLAUDE.md counts as a surviving corpus file (exact-match root entry)",
+        "a completed spec is not a surviving occurrence, a live one is",
+        "a submodule pointer does not abort the run"
+      ],
+      "note": "Planted CONTROL — forces main()'s terminal offenders-found return to exit 0 instead of 1. This guard's suites span 4 files (test.mjs, repo.test.mjs, base.test.mjs, paths.test.mjs) and every fixture asserting a blocking outcome — staged OR --base mode — funnels through this one return, so 18 tests redden alongside the planted RED control. Set from the harness's own 'actually red' report, per contract §5."
+    },
+    {
+      "id": "check-retracted-phrase-always-blocks",
+      "find": "  if (offenders.length === 0) return 0",
+      "replace": "  if (false) return 0",
+      "expectRed": [
+        "--base mode honours a waiver written in the commit that needed it",
+        "a completed spec stays excluded in --base mode, exactly as at commit-msg",
+        "a merge commit in the range does not swallow the waivers below it",
+        "--base mode excludes a completed spec from a subdirectory too",
+        "a completed spec is still excluded when the guard runs from a subdirectory",
+        "passes once the correction is finished everywhere",
+        "does not count an agent-memory file as a surviving occurrence",
+        "a valid waiver trailer permits the commit",
+        "a token surviving in three or more files is common vocabulary, not a claim",
+        "application code is out of scope on both sides",
+        "a token re-added elsewhere in the same commit was reworded, not retracted",
+        "runs on a repository with no commits yet",
+        "a completed spec is not a surviving occurrence, a live one is",
+        "a longer number elsewhere is not counted as a surviving occurrence",
+        "a longer filename elsewhere is not counted as a surviving occurrence",
+        "a dot in a filename token is treated as a literal character, not a wildcard, by the survivor grep",
+        "a ticket reference elsewhere does not exonerate or survive a retraction"
+      ],
+      "note": "Planted CONTROL — removes the only early-exit that lets a clean run skip the offenders-found report, so a clean input falls through to the terminal `return 1`. Every fixture asserting a clean pass, staged OR --base mode, funnels through this one gate, so 17 tests redden alongside the planted GREEN control. Set from the harness's own 'actually red' report, per contract §5."
     }
   ],
   "notEncoded": [

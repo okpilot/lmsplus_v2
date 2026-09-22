@@ -192,6 +192,8 @@ export function compareResult(expectRed, failedNames) {
 const TEST_LINE_RE = /^\s*(?:test|it)(?:\.\w+)?\s*\(/
 /** `// GROUP: <id>, <id>` — the marker linking a claim site to the mutations that encode it. */
 const GROUP_MARKER_RE = /^\s*\/\/ GROUP: (.*)$/
+/** `// CONTROL: red` or `// CONTROL: green` — marks a test as a spawned guard control. */
+const CONTROL_MARKER_RE = /^\s*\/\/ CONTROL: (red|green)\s*$/
 /** Any comment line. A marker's id list continues onto one of these while it ends with a comma. */
 const COMMENT_LINE_RE = /^\s*\/\/ ?(.*)$/
 /** A marker continues onto a comment line only while that line is itself an id list. */
@@ -228,13 +230,16 @@ function readMarker(lines, i, m) {
 }
 
 /**
- * Read one suite's claim sites and `GROUP:` markers.
+ * Read one suite's claim sites, `GROUP:` markers, and `CONTROL:` markers.
  *
- * Returns `{ header: { claims, groups }, tests: [{ line, groups, claims }] }`, `line` 1-based.
+ * Returns `{ header: { claims, groups, controls }, tests: [{ line, groups, claims, controls }] }`,
+ * `line` 1-based. `controls` is an array of `'red'|'green'`, one entry per `CONTROL:` marker
+ * attached to that test — normally zero or one, but a malformed suite can stack several.
  *
  * ATTACHMENT. A marker sitting directly above a `test(` names that test; a marker inside a body
  * names the test it is written in, not the next one. So the lookahead skips blanks and comments
- * and asks what the marker actually precedes — an assertion means the enclosing test.
+ * and asks what the marker actually precedes — an assertion means the enclosing test. `CONTROL:`
+ * shares this rule with `GROUP:` (`ownerFor` is one function, reused by both scans).
  *
  * CLAIMS. Only `MUTATION:` on a COMMENT line is a claim. The token also appears in test titles and
  * in string fixtures, where it is the harness's own subject matter rather than an assertion about
@@ -250,8 +255,8 @@ export function parseSuite(text) {
   lines.forEach((l, i) => {
     if (TEST_LINE_RE.test(l)) testLines.push(i)
   })
-  const tests = testLines.map((i) => ({ line: i + 1, groups: [], claims: 0 }))
-  const header = { claims: 0, groups: [] }
+  const tests = testLines.map((i) => ({ line: i + 1, groups: [], claims: 0, controls: [] }))
+  const header = { claims: 0, groups: [], controls: [] }
 
   /**
    * The test a comment belongs to. `from` is its last line, `anchor` its first.
@@ -268,9 +273,15 @@ export function parseSuite(text) {
     return tests[k]
   }
 
-  const markerLines = scanMarkers(lines, ownerFor)
-  scanClaims(lines, markerLines, ownerFor)
+  scanClaims(lines, scanAllMarkers(lines, ownerFor), ownerFor)
   return { header, tests }
+}
+
+/** Attach every `GROUP:` and `CONTROL:` marker to its owner. Returns the lines they occupy. */
+function scanAllMarkers(lines, ownerFor) {
+  const markerLines = scanMarkers(lines, ownerFor)
+  for (const i of scanControls(lines, ownerFor)) markerLines.add(i)
+  return markerLines
 }
 
 /** Attach every `GROUP:` marker to its owner. Returns the line numbers the markers occupy. */
@@ -284,6 +295,24 @@ function scanMarkers(lines, ownerFor) {
     ownerFor(last, i).groups.push(...ids)
   }
   return markerLines
+}
+
+/**
+ * Attach every `CONTROL:` marker to its owner. Returns the line numbers the markers occupy.
+ *
+ * Single-line only — unlike `GROUP:`, a control marker never continues onto the next comment
+ * line, so `ownerFor(i, i)` reads correctly: the marker's only line is both its anchor and its
+ * last line.
+ */
+function scanControls(lines, ownerFor) {
+  const controlLines = new Set()
+  for (let i = 0; i < lines.length; i++) {
+    const m = CONTROL_MARKER_RE.exec(lines[i])
+    if (!m) continue
+    controlLines.add(i)
+    ownerFor(i, i).controls.push(m[1])
+  }
+  return controlLines
 }
 
 /** Count every `MUTATION:` claim onto its owner. A marker line is never also a claim line. */

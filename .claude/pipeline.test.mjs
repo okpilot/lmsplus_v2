@@ -204,6 +204,7 @@ const TOP_LEVEL_KEYS = [
   'coderabbitSyncTriggers',
   'modelLiteralSites',
   'hooks',
+  'guards',
 ]
 const strayTopKeys = Object.keys(spec).filter((k) => !TOP_LEVEL_KEYS.includes(k))
 strayTopKeys.length === 0

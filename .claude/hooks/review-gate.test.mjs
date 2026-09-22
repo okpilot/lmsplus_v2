@@ -55,6 +55,8 @@ function runHook(stdin, cwd) {
 
 // --- No gate file ---
 
+// CONTROL: green
+// GROUP: review-gate-always-blocks
 test('allows any edit when no gate file is present', () => {
   const dir = makeDir()
   try {
@@ -67,6 +69,8 @@ test('allows any edit when no gate file is present', () => {
 
 // --- Gate active — production files are blocked ---
 
+// CONTROL: red
+// GROUP: review-gate-always-passes
 test('blocks a production file edit and surfaces findings when the gate is active', () => {
   const dir = makeDir()
   try {
