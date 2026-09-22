@@ -1057,7 +1057,7 @@ git commit
     (a commit triggers NO review — Decision 73)
 
 pre-push review gate — ONE loop per BRANCH. `git fetch origin || abort`, then
-`git diff origin/master...HEAD -- . ':(exclude).claude/agent-memory' || abort`
+`git diff origin/master...HEAD || abort`
     → [Claude subagents — dispatched via the Agent tool. They run ASYNCHRONOUSLY:
        the dispatch returns immediately and each notifies on completion, so the
        numbering below is a data dependency, not a running order. Wait for a
@@ -1070,26 +1070,20 @@ pre-push review gate — ONE loop per BRANCH. `git fetch origin || abort`, then
         2. code-reviewer (sonnet) — diff against code-style.md
         3. semantic-reviewer (sonnet) — logic, security, behavioural consistency
         4. doc-updater (haiku) — reports doc edits; the orchestrator applies them
-        5. test-writer (sonnet) — find/write missing tests (the only agent holding Write/Edit on REPOSITORY files; `memory: project`
-         separately grants each agent Read/Write/Edit on its OWN memory dir, and Bash remains
-         everywhere by design)
+        5. test-writer (sonnet) — find/write missing tests (the only agent holding Write/Edit on
+         REPOSITORY files; Bash remains everywhere by design)
         6. deletion-reviewer (sonnet) — reports what the diff can delete with no loss; read-only
         7. code-review (skill) — the built-in `/code-review` skill, dispatched as a subagent in an isolated worktree on opus, round 1 only
         round 2+: code-reviewer + semantic-reviewer
     → Pool every validated finding into ONE triage table and ONE fixup commit, which
       carries every agent-authored artifact too — test-writer's new tests
-      (agent-test-writer.md) and any memory/tracker delta (agent-memory.md forbids
-      leaving one uncommitted). A written test is not a "finding", so an agent can
+      (agent-test-writer.md). A written test is not a "finding", so an agent can
       report clean while its output sits uncommitted. The fixup triggers nothing.
     → STOP on the first round with no APPLY-worthy finding. An APPLY finding extends
       the loop by one round; ceiling 3 rounds, then escalate.
-        then ONCE per branch, in this order:
-        8. learner (sonnet) — detect patterns, REPORT proposed rule changes for the
-           orchestrator to apply; writes only its own memory dir. Takes every round's
-           findings
-        conditionals, after the learner:
-        9. red-team (sonnet) — if the branch diff touches security files, map to attack specs + flag gaps
-        10. coderabbit-sync (haiku) — sync .coderabbit.yaml if rules changed
+        then ONCE per branch, after the loop ends:
+        8. red-team (sonnet) — if the branch diff touches security files, map to attack specs + flag gaps
+        9. coderabbit-sync (haiku) — sync .coderabbit.yaml if rules changed
     (plan-critic is separate and unchanged: it runs ONCE per plan, before user approval.)
 
 git push (only with user approval)
@@ -1103,7 +1097,7 @@ GitHub PR
     → [GitHub Actions redteam.yml] red-team security tests (runs on every PR; required check)
 
 Weekly
-    → /project:insights → reads git log + test failures + agent memories
+    → /project:insights → reads git log + test failures
                         → updates MEMORY.md + suggests rule improvements
 ```
 

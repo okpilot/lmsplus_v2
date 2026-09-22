@@ -7,7 +7,6 @@ Writes Vitest unit and integration tests for the functions and React components 
 - Let the agent discover gaps — it often finds untested files.
 - Commit new tests in the round's ONE pooled fixup commit, alongside every other agent's applied findings, after verifying they pass (`agent-workflow.md § PR Batching`). Not a commit of their own.
 - If a new test reveals a bug in production code, treat it as an ISSUE — fix production code first, then commit the test.
-- Trust the agent's mock patterns — proven patterns live in `.claude/agent-memory/test-writer/MEMORY.md`.
 - Run `pnpm test` after committing the agent's tests to confirm nothing regressed.
 - Review test names — describe behavior, not implementation ("schedules shorter interval when wrong" not "calls updateFsrsState").
 - **Mutation-check is the AGENT's terminal duty**, protocol in `.claude/agents/test-writer.md` § "Mutation-check every test that pins a mechanism". YOUR duty is the receiving end: a mutation check is a self-reported ACTION — verify the ARTIFACT per `agent-workflow.md § Finding Validation` rather than the claim — `git status --porcelain --untracked-files=all` empty, HEAD unchanged, `git stash list --format='%H'` byte-identical, scratch location gone.

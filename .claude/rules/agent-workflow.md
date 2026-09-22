@@ -100,17 +100,17 @@ If the spec-workflow MCP is unavailable, write spec files manually to `.spec-wor
 ## Pre-Push Review Gate
 ### Every agent dispatch is ASYNCHRONOUS — the diagram is a data dependency, not a clock
 `Agent` returns an id immediately; the agent runs in the BACKGROUND and notifies you when done. Nothing makes the diagram below happen in the order it is drawn.
-- **"Complete" means every completion notification from the agents LAUNCHED is RECEIVED, never merely dispatched.** Read every result before triaging — a partial pool biases the triage and the learner's counts.
-- **Never edit a file while an agent that can write it is in flight.** The loser's change vanishes with no error, no conflict, no failing gate. Only **test-writer** holds Write/Edit (scoped to test files); every agent still keeps `Bash`, which can write. `memory: project` auto-grants R/W/E on an agent's OWN memory dir only — no race there. Round 1 runs seven concurrently — this is the gate's sharpest edge. The collision set is SIX: `code-review (skill)` runs with its cwd in an isolated worktree, so its writes land there and not in the main tree. That is NOT a read-only guarantee — it keeps `Bash` like every agent — and the exemption holds only while it is dispatched the way `agent-code-review.md § Dispatch` mandates.
+- **"Complete" means every completion notification from the agents LAUNCHED is RECEIVED, never merely dispatched.** Read every result before triaging — a partial pool biases the triage.
+- **Never edit a file while an agent that can write it is in flight.** The loser's change vanishes with no error, no conflict, no failing gate. Only **test-writer** holds Write/Edit (scoped to test files); every agent still keeps `Bash`, which can write. Round 1 runs seven concurrently — this is the gate's sharpest edge. The collision set is SIX: `code-review (skill)` runs with its cwd in an isolated worktree, so its writes land there and not in the main tree. That is NOT a read-only guarantee — it keeps `Bash` like every agent — and the exemption holds only while it is dispatched the way `agent-code-review.md § Dispatch` mandates.
 
 ### The gate — ONE loop over the branch diff, not a cycle per commit
 Commits inside a branch are scratch history; squash-merge discards them. Review the artifact that lands.
 **Scope** — every reviewer in the loop reads the same range:
 ```bash
 git fetch origin || abort
-git diff origin/master...HEAD -- . ':(exclude).claude/agent-memory'
+git diff origin/master...HEAD
 ```
-Three-dot (merge-base). ABORT on a non-zero EXIT CODE from fetch, base resolution, or the diff — never on an empty result. `.claude/agent-memory/**` is EXCLUDED because each round's agents write their own memory deltas, those deltas land in the branch diff, and reviewing them is how the loop stops terminating.
+Three-dot (merge-base). ABORT on a non-zero EXIT CODE from fetch, base resolution, or the diff — never on an empty result.
 
 ```
 Execute ▼ commit freely — a commit triggers NOTHING
@@ -134,7 +134,7 @@ STOP on the FIRST round carrying no APPLY-worthy finding. No minimum, no floor.
           never run another round.
     ▼
 then ONCE per branch, in this order:
-    learner ─► red-team (if the branch diff matches § Red-Team Agent Trigger)
+    red-team (if the branch diff matches § Red-Team Agent Trigger)
             ─► coderabbit-sync (if it matches `agent-coderabbit-sync.md`)
     ▼
 update spec tasks.md ([ ] → [x]) ▼ /fullpush ▼ push (security-auditor, fail-closed)
@@ -146,7 +146,7 @@ update spec tasks.md ([ ] → [x]) ▼ /fullpush ▼ push (security-auditor, fai
 Runs on the branch diff against the validated plan and requirements (spec or plan output). No staged-diff scope, no exemption, and no revision sub-loop — its findings enter the same pooled triage as every other reviewer's, and the loop ceiling is the only round limit that applies to it.
 **Timeout:** proceed with a warning past 90 seconds for diffs under 500 lines.
 ### Red-Team Agent Trigger (conditional)
-After the learner, check whether the BRANCH DIFF includes any of these paths: `supabase/migrations/**`, `packages/db/src/**`, `apps/web/app/app/quiz/actions/**`, `apps/web/app/auth/**`, `apps/web/proxy.ts`, `docs/security.md`.
+After the review loop ends, check whether the BRANCH DIFF includes any of these paths: `supabase/migrations/**`, `packages/db/src/**`, `apps/web/app/app/quiz/actions/**`, `apps/web/app/auth/**`, `apps/web/proxy.ts`, `docs/security.md`.
 `agent-red-team.md` adds ONE path for its own trigger — `apps/web/e2e/redteam/` — and `/fullpush` step 7b honours it too; a spec-only change runs the agent while matching nothing above.
 If yes, run red-team (sonnet) — maps changes to specs, flags coverage gaps. If it flags affected specs, run `pnpm --filter @repo/web e2e:redteam`.
 
@@ -211,11 +211,11 @@ Accepted justifications: first-illumination, red-team coverage gaps — both nee
 **First-illumination exemption — evidence required, once per area.** Name the path set and paste the output of:
 1. `git log --oneline -- <paths>` — must be NON-empty (pathspec resolves).
 2. `git log --since=6.months.ago --oneline | head -1` — repo-wide, no pathspec — must be NON-empty (date expression parsed; step 3's EMPTY result is the pass condition, so a spuriously empty log silently GRANTS the exemption).
-3. `git log --since=6.months.ago --format=%h -- <paths> | xargs -r -n1 git show --stat --format='%h %s'` — must list no substantive commit (not docs-only/agent-memory-only). Same date + paths as above.
+3. `git log --since=6.months.ago --format=%h -- <paths> | xargs -r -n1 git show --stat --format='%h %s'` — must list no substantive commit (not docs-only). Same date + paths as above.
 4. No open issue targeted those paths at branch cut — judgment call; state which you checked.
 Check the exit code of every command above before reading its output — step 3 pipes into `xargs`, which exits 0 on empty input, so a FAILED `git log` is indistinguishable from the granting result.
 Record as `first-illumination: <path set>` in the PR body. Find prior grants via `gh pr list --state merged --search '"first-illumination" in:body'`. Treat a shared directory as the same area.
-**Red-team coverage-gap justification — evidence required, no area limit.** `agent-red-team.md` mandates filing an issue for every coverage gap it identifies; these filings still COUNT toward `filed`. List each in `## Deferred` marked `red-team-gap`, naming the vector ID from `.claude/agent-memory/red-team/topics/attack-surface.md` or the spec path it covers. A gap you cannot name is not a red-team gap. A PR whose filings are ALL red-team gaps passes; mixed with ordinary deferrals, judged on the ordinary ones alone against `closed`.
+**Red-team coverage-gap justification — evidence required, no area limit.** `agent-red-team.md` mandates filing an issue for every coverage gap it identifies; these filings still COUNT toward `filed`. List each in `## Deferred` marked `red-team-gap`, naming the vector ID from `apps/web/e2e/redteam/attack-surface.md` or the spec path it covers. A gap you cannot name is not a red-team gap. A PR whose filings are ALL red-team gaps passes; mixed with ordinary deferrals, judged on the ordinary ones alone against `closed`.
 Otherwise re-triage: usually APPLY two or three deferrals rather than argue for them.
 ### What every deferred issue must include (no silent backlog growth)
 If you file a deferral, the issue body must contain:
@@ -277,6 +277,10 @@ Push the CR fix → notice a doc nit → commit it → push again → full CI + 
 
 ---
 
+## Call-Site Sweep — a new rule covers existing code (MANDATORY on rule promotion)
+A commit adding a hard rule to `docs/security.md`, `.claude/rules/security.md`, `code-style.md` or `biome.json` schedules a one-time repo sweep for EVERY existing instance the rule forbids — not only the call sites in the diff. Each site is fixed in the same session (≤10 lines) or gets a GitHub issue. A scope clause in the rule itself (e.g. "never in a sweep") overrides this.
+**A sweep declared complete states the command and pastes its output.** Where the rule has a mechanical enforcer — a hook, a test harness, a CI script — run THAT as the sweep and paste its summary; where the enforcer grades, paste both `node .claude/hooks/run-mutations.mjs` and `--coverage`.
+
 ## Rule-Mirror Sync — restatements across the mirror set (MANDATORY on rule edits)
 A commit modifying a rule in `.claude/rules/*.md` or `CLAUDE.md` must update every stale restatement **in the same commit**. Enumerate the mirror set from this table, never from memory or a count.
 
@@ -323,7 +327,7 @@ A commit modifying a rule in `.claude/rules/*.md` or `CLAUDE.md` must update eve
 - Treat a commit as a review trigger. Commits are free; only a round reads them.
 - Start fixing before every LAUNCHED agent has reported — async, dispatching is not reporting.
 - Fire-and-forget agents without reading results.
-- Edit a file while an agent that can write it is in flight — only test-writer holds Write/Edit (scoped to test files); Bash still writes, so this is one collision, silent and gateless. Agent memory dirs are NOT a collision.
+- Edit a file while an agent that can write it is in flight — only test-writer holds Write/Edit (scoped to test files); Bash still writes, so this is one collision, silent and gateless.
 - Jump to fix a reviewer finding without validating the claim first.
 - Present "0 critical" as if that means clean — report every severity.
 - Push with any unresolved CRITICAL, BLOCKING, or ISSUE finding.
@@ -394,9 +398,6 @@ CONTEXT: [file paths, type signatures, patterns to follow, related tests]
 
 ### The TERMINAL MESSAGE is the whole report — nothing else reaches the orchestrator
 An agent's final message is the ONLY channel back — the orchestrator cannot read a subagent transcript. "The review stands as reported above" and any reference to an earlier turn are forbidden AS THE SOLE CONTENT: there is no above.
-The report is lost when an agent's last tool call is its own memory write. Put this in every dispatch's CONSTRAINTS:
-> Do NOT make a memory write your FINAL action — write memory FIRST, then compose the report as your last act.
-Required whenever a lost report is expensive to recover — always when `SendMessage` is disabled.
 ### State the MECHANISM behind a constraint, not just the prohibition
 A bare prohibition invites the agent to reason around it.
 > ❌ "Do not use the local DB to check grants." ✅ "Do not use the local DB to check grants — local grants drift **ADDITIVELY** (a `fix-local-grants` workaround re-grants blanket DML at every reset), so a grant appearing locally is NOT evidence it exists in production."

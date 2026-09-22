@@ -74,14 +74,9 @@ for (const [name, want] of Object.entries(spec.agents)) {
   fm.tools === wantTools
     ? pass(`${name}: tool grant matches the spec`)
     : fail(`${name}: tools "${fm.tools}" != "${wantTools}"`)
-
-  const wantMemory = want.memory === 'none' ? undefined : want.memory
-  ;(fm.memory ?? undefined) === wantMemory
-    ? pass(`${name}: memory ${want.memory}`)
-    : fail(`${name}: memory "${fm.memory ?? 'none'}" != "${want.memory}"`)
 }
 
-const FRONTMATTER_KEYS = ['name', 'description', 'model', 'tools', 'memory']
+const FRONTMATTER_KEYS = ['name', 'description', 'model', 'tools']
 for (const name of onDisk) {
   const fm = frontmatter(name)
   if (!fm) continue
@@ -114,7 +109,6 @@ const EXPECTED_ROLES = {
   'test-writer': 'gate-round',
   'deletion-reviewer': 'gate-round',
   'implementation-critic': 'gate-round',
-  learner: 'gate-learner',
   'red-team': 'conditional',
   'coderabbit-sync': 'conditional',
   'plan-critic': 'pre-execution',
@@ -213,7 +207,7 @@ strayTopKeys.length === 0
   ? pass('pipeline.json has no unchecked top-level keys')
   : fail(`pipeline.json has unchecked top-level key(s): ${strayTopKeys.join(', ')}`)
 
-const AGENT_KEYS = ['model', 'memory', 'write', 'role']
+const AGENT_KEYS = ['model', 'write', 'role']
 for (const [name, want] of Object.entries(spec.agents)) {
   const stray = Object.keys(want).filter((k) => !AGENT_KEYS.includes(k))
   stray.length === 0
@@ -249,7 +243,7 @@ for (const t of spec.coderabbitSyncTriggers) {
     : fail(`coderabbit-sync trigger does not exist: ${t}`)
 }
 
-const REQUIRED_ORDER = ['gate-round', 'fix-loop', 'gate-learner', 'conditional', 'spec-tasks']
+const REQUIRED_ORDER = ['gate-round', 'fix-loop', 'conditional', 'spec-tasks']
 const missing = REQUIRED_ORDER.filter((p) => !spec.order.includes(p))
 const extra = spec.order.filter((p) => !REQUIRED_ORDER.includes(p))
 const dupes = spec.order.filter((p, i) => spec.order.indexOf(p) !== i)
@@ -349,9 +343,8 @@ for (const site of spec.modelLiteralSites) {
   // lines below, not a guarantee about them.
   //
   // This guard has been rewritten repeatedly, each time after a reviewer defeated the version
-  // before it; `.claude/agent-memory/implementation-critic/topics/commit-notes.md` carries the
-  // record, including the drafts that were caught before they were ever committed. The durable
-  // finding is not any particular guard --
+  // before it — see git log for the record, including the drafts that were caught before they
+  // were ever committed. The durable finding is not any particular guard --
   // it is that a test cannot establish its own enumeration is complete, because the oracle and the
   // subject are the same editable file. What the block below is FOR is the two checks it ends with:
   // the lefthook glob against the extensions actually tracked, and the lint script actually
@@ -440,6 +433,20 @@ for (const site of spec.modelLiteralSites) {
           'root lint script runs biome over .claude, read-only (turbo only reaches workspace packages)',
         )
       : fail(`root lint script "${lintScript}" has no biome check over .claude`)
+}
+
+// No agent memory is tracked (Decision 82).
+{
+  const trackedMemory = execFileSync(
+    'git',
+    ['-C', ROOT, 'ls-files', '-z', '--', '.claude/agent-memory', 'apps/web/.claude'],
+    { encoding: 'utf8' },
+  )
+    .split('\0')
+    .filter(Boolean)
+  trackedMemory.length === 0
+    ? pass('no agent memory is tracked')
+    : fail(`agent memory is tracked: ${trackedMemory.join(', ')}`)
 }
 
 console.log(`\nResults: ${passed} passed, ${failed} failed`)

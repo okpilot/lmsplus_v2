@@ -1,27 +1,14 @@
-Weekly self-review: analyse project health, audit agent system, and update memory.
+Weekly self-review: analyse project health and audit the agent system.
 
 > **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph. Evidence is not prose: a skip reason, an `EVIDENCE:` line, a finding's stated basis or a required status/summary stays wherever a rule asks for it.
 
 ## Part 1 — Project Health
 1. Run `git log --oneline --since="7 days ago"` — what was built this week
-2. Read `.claude/agent-memory/code-reviewer/MEMORY.md` — recurring issues
-3. Read `.claude/agent-memory/security-auditor/findings.md` — security patterns
-4. Read `.claude/agent-memory/test-writer/MEMORY.md` — test coverage gaps
-5. Check open questions in `docs/decisions.md` — any resolved?
+2. Check open questions in `docs/decisions.md` — any resolved?
 
 ## Part 2 — Agent System Health
-6. Read ALL agent memory files:
-   - `.claude/agent-memory/doc-updater/MEMORY.md`
-   - `.claude/agent-memory/semantic-reviewer/MEMORY.md`
-   - `.claude/agent-memory/red-team/topics/attack-surface.md`
-   - `.claude/agent-memory/learner/MEMORY.md`
-   - `.claude/agent-memory/plan-critic/MEMORY.md`
-   - `.claude/agent-memory/implementation-critic/MEMORY.md`
-7. Cross-reference agent health:
-   - **Memory budget**: run `wc -lc .claude/agent-memory/*/MEMORY.md` — flag any MEMORY.md over **200 lines OR over 25 KB (25600 bytes)**, whichever it hits first. Native injection truncates at min(200 lines, 25 KB), and the **byte cap is usually the binding one** because tracker rows are long paragraphs — a file can be well under 200 lines yet 2–3× over 25 KB, silently losing its tail (and since new rows append at the bottom, the *most recent* learnings are what get dropped). A line-only check misses this. Spill detail into `topics/` files per `.claude/rules/agent-memory.md` (the tracker stays terse; verbose evidence/rationale moves out; terminal-state rows — PROMOTED/SATURATED/FALSE POSITIVE/RESOLVED — move (never RESOLVED-WATCH: only `MEMORY.md` is injected, so archiving one ends the watch it names) to the agent's `topics/tracker-archive.md`; a COMPOUND `PROMOTED … RESOLVED-WATCH` row IS archived, so open a NEW `WATCHING` row FIRST where the watch must continue — never split or replace the archived one).
-   - **Red-team**: list spec files in `apps/web/e2e/redteam/` vs mentions in `topics/attack-surface.md` — flag orphans and stale mappings
-   - **Learner**: scan frequency table for entries with count >= 2 still at "Watch" — these should be "Rule Candidate"
-   - **Semantic-reviewer**: note false positive patterns, check if any flagged patterns stopped recurring
+3. Cross-reference agent health:
+   - **Red-team**: list spec files in `apps/web/e2e/redteam/` vs mentions in `apps/web/e2e/redteam/attack-surface.md` — flag orphans and stale mappings
    - **Test-writer**: verify mock patterns still match codebase (Supabase client shape, auth helpers)
    - **Doc-updater**: confirm watched file list matches actual doc files in repo; note any unresolved steering drift
    - **Security-auditor**: compare checklist in agent definition vs rules in `docs/security.md`
@@ -40,17 +27,17 @@ Weekly self-review: analyse project health, audit agent system, and update memor
      Quotations of the command, re-derive with:
      `git grep -n -e 'prose-claim-ok:' -e 'prose-path-ok:' | grep "git grep -n -e"`
      Do NOT exclude `.claude/commands/` or `.claude/hooks/`: both carry live waivers.
-     Non-waiver residue (guard `WAIVER_RE`, help text, suite fixtures, agent-memory notes) is an
+     Non-waiver residue (guard `WAIVER_RE`, help text, suite fixtures) is an
      OPEN set: a waiver carries a written reason, a description carries a `<placeholder>`.
      READ every reason. Growth means the detector must be RE-NARROWED, never baselined.
    - **Plan-critic**: review recent plan validations — were plans challenged effectively? Any false positives or missed issues?
-   - **Implementation-critic**: check its findings log — is the round-1 branch-diff review catching plan deviations before push?
-8. **Spec workflow** — are specs up-to-date via spec-workflow MCP (`spec-status`)? Any steering drift unresolved? Flag stale or unapproved specs.
-9. **Delegation protocol** — review any logged subagent failures. Were they addressed? Any patterns in delegation breakdowns?
+   - **Implementation-critic**: check its round-1 reports — is the round-1 branch-diff review catching plan deviations before push?
+4. **Spec workflow** — are specs up-to-date via spec-workflow MCP (`spec-status`)? Any steering drift unresolved? Flag stale or unapproved specs.
+5. **Delegation protocol** — review any logged subagent failures. Were they addressed? Any patterns in delegation breakdowns?
 
 ## Part 3 — Synthesis
-10. Update `MEMORY.md` — summarise insights, remove stale entries
-11. Suggest: any new rules to add, any patterns to codify, any tech debt to prioritise
+6. Update `MEMORY.md` — summarise insights, remove stale entries
+7. Suggest: any new rules to add, any patterns to codify, any tech debt to prioritise
 
 ## Output Format
 - 10-15 project health bullet points
@@ -62,7 +49,6 @@ Weekly self-review: analyse project health, audit agent system, and update memor
 | semantic-reviewer | ✅/⚠️ | date | summary |
 | test-writer | ✅/⚠️ | date | summary |
 | doc-updater | ✅/⚠️ | date | summary |
-| learner | ✅/⚠️ | date | summary |
 | red-team | ✅/⚠️ | date | summary |
 | security-auditor | ✅/⚠️ | date | summary |
 | plan-critic | ✅/⚠️ | date | summary |

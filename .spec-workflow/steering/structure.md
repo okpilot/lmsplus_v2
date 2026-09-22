@@ -82,7 +82,6 @@ lmsplusv2/                          # Monorepo root (Turborepo + pnpm)
 ├── .claude/                        # Claude Code agent system
 │   ├── agents/                     # Agent definitions
 │   ├── rules/                      # Binding rules (code-style, security, workflow)
-│   ├── agent-memory/               # Persistent agent pattern tracking
 │   └── commands/                   # Custom slash commands
 │
 ├── .spec-workflow/                 # Spec-driven development artifacts

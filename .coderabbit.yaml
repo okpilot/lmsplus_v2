@@ -42,6 +42,7 @@ reviews:
     # it would have emitted false CRITICALs) and a docs/security.md claim about
     # WITH CHECK that was flatly wrong. Widen this exclusion and you lose those.
     - "!.claude/agent-memory/**"
+    - "!apps/web/e2e/redteam/attack-surface.md"
 
   auto_review:
     enabled: true

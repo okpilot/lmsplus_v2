@@ -779,8 +779,7 @@ The `code-reviewer` agent flags these on the branch diff in the pre-push review 
 **When renaming core files** (e.g., `middleware.ts` → `proxy.ts`), **always grep all docs for stale references before committing**. Pattern to check:
 - `docs/*.md` for code examples
 - `.claude/rules/*.md` for file paths
-- MEMORY.md for references
-- Agent memory files (`.claude/agent-memory/`) for notes
+- `.claude/commands/*.md` and `.claude/agents/*.md` for references
 
 `.claude/hooks/check-prose-paths.mjs` runs at pre-commit and in CI. It blocks a file path written
 in PROSE that does not resolve on disk. Its suppression marker is `prose-path-ok: <reason>`.

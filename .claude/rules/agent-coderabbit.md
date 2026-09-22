@@ -63,8 +63,8 @@ CodeRabbit does not converge. Cloud CR on the pushed PR is the authoritative gat
 `CHANGES_REQUESTED`, and bind the verdict to the CURRENT head SHA: a `CHANGES_REQUESTED` on a
 superseded commit is cleared by a later review on HEAD.
 
-Its findings land after the pre-push gate has ended, so they reach the learner run of a LATER
-branch — the same path as red-team and coderabbit-sync (`agent-learner.md`).
+Its findings land after the pre-push gate has ended, so they are out of scope for this branch's
+review loop.
 
 ## Handling Results
 

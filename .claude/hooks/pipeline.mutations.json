@@ -7,8 +7,13 @@
       "id": "pipeline-always-passes",
       "find": "if (failed > 0) process.exit(1)",
       "replace": "",
-      "expectRed": ["renaming a lefthook pre-commit command the spec still declares blocks"],
-      "note": "The final blocking exit, dropped: every mismatch still prints FAIL, but the process exits 0 regardless — a lefthook.yml/pipeline.json mismatch would no longer fail the CI step."
+      "expectRed": [
+        "renaming a lefthook pre-commit command the spec still declares blocks",
+        "a memory key in an agent's frontmatter blocks",
+        "a tracked file under .claude/agent-memory blocks",
+        "a tracked file under apps/web/.claude blocks"
+      ],
+      "note": "The final blocking exit, dropped: every mismatch still prints FAIL, but the process exits 0 regardless — a lefthook.yml/pipeline.json mismatch, a stray frontmatter `memory:` key, or a tracked agent-memory file would no longer fail the CI step."
     },
     {
       "id": "pipeline-always-blocks",
@@ -16,6 +21,30 @@
       "replace": "process.exit(1)",
       "expectRed": ["a pristine worktree of HEAD passes"],
       "note": "Unconditional exit 1, even when `failed` is 0 — a fully consistent tree would still fail the CI step."
+    },
+    {
+      "id": "pipeline-memory-key-allowed",
+      "find": "const FRONTMATTER_KEYS = ['name', 'description', 'model', 'tools']",
+      "replace": "const FRONTMATTER_KEYS = ['name', 'description', 'model', 'tools', 'memory']",
+      "expectRed": ["a memory key in an agent's frontmatter blocks"],
+      "note": "Re-admits `memory` as a checked frontmatter key — an agent file carrying `memory:` would no longer fail the closed-key check."
+    },
+    {
+      "id": "pipeline-agent-memory-tracked-allowed",
+      "find": "trackedMemory.length === 0",
+      "replace": "true",
+      "expectRed": [
+        "a tracked file under .claude/agent-memory blocks",
+        "a tracked file under apps/web/.claude blocks"
+      ],
+      "note": "The no-tracked-agent-memory check always takes the pass branch — a tracked file under .claude/agent-memory or apps/web/.claude would no longer fail the check."
+    },
+    {
+      "id": "pipeline-apps-web-claude-tracked-allowed",
+      "find": "'.claude/agent-memory', 'apps/web/.claude']",
+      "replace": "'.claude/agent-memory']",
+      "expectRed": ["a tracked file under apps/web/.claude blocks"],
+      "note": "Drops apps/web/.claude from the pathspec — a tracked file there would no longer fail the check."
     }
   ]
 }

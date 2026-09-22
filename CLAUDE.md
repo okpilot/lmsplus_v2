@@ -38,10 +38,9 @@ State what is true. Delete the rest.
 9. Execute → parallel subagents; commit freely, a commit triggers nothing
 10. Pre-push gate → ONE loop over the branch diff (§ Pre-push review gate)
 11. Fix → ONE pooled fixup commit per round → re-run → stop on first clean round
-12. Learn → once per branch, after the loop
-13. Conditionals → red-team / coderabbit-sync if the branch diff triggers them
-14. Tasks → update TaskCreate status
-15. /fullpush → push
+12. Conditionals → red-team / coderabbit-sync if the branch diff triggers them
+13. Tasks → update TaskCreate status
+14. /fullpush → push
 ```
 
 ### Plan Validation (step 6 — MANDATORY before execution)
@@ -150,7 +149,7 @@ met, same commit. Verify redundancy, never infer from the resolved version:
 5. `/project:insights` weekly
 
 ## Pre-push review gate (MANDATORY)
-ONE loop per BRANCH over `git diff origin/master...HEAD -- . ':(exclude).claude/agent-memory'`.
+ONE loop per BRANCH over `git diff origin/master...HEAD`.
 A commit triggers NOTHING. Full mechanics: `agent-workflow.md § Pre-Push Review Gate`.
 
 **Round 1** — seven reviewers, ONE parallel dispatch:
@@ -158,7 +157,7 @@ A commit triggers NOTHING. Full mechanics: `agent-workflow.md § Pre-Push Review
 2. **code-reviewer** (sonnet) — diff vs `.claude/rules/code-style.md`
 3. **semantic-reviewer** (sonnet) — deep logic/security/consistency review
 4. **doc-updater** (haiku) — reports doc edits; YOU apply them (no Write/Edit tool)
-5. **test-writer** (sonnet) — missing tests, writes + runs them (sole agent with repo Write/Edit, scoped to test files; `memory: project` also grants each its own R/W/E memory dir)
+5. **test-writer** (sonnet) — missing tests, writes + runs them (sole agent with repo Write/Edit, scoped to test files)
 6. **deletion-reviewer** (sonnet) — reports what the diff can delete with no loss, each with `EVIDENCE:`; read-only
 7. **code-review (skill)** (opus) — the built-in `/code-review` skill, dispatched as a subagent in an isolated worktree, round 1 only
 
@@ -174,17 +173,15 @@ that can write it is in flight (`agent-workflow.md § Every agent dispatch is AS
 loop by one round; a skip-with-reason does not. **Ceiling 3 rounds** — at it, STOP and escalate; a
 NEW critical in a section an earlier round passed means the diff is too large, so SPLIT.
 
-Then ONCE per branch, in order:
-8. **learner** (sonnet) — reads every round's findings, REPORTS proposed rule changes; you apply
-   them. Writes only its own memory dir (`agent-learner.md`).
+Then ONCE per branch, after the loop ends:
 
 Security files touched (migrations, db/src, quiz/actions, auth, proxy.ts, security.md — full set
 in `agent-workflow.md § Red-Team Agent Trigger`, +`apps/web/e2e/redteam/`) → also run:
-9. **red-team** (sonnet) — maps diff to specs, flags gaps; `pnpm --filter @repo/web e2e:redteam` if affected
+8. **red-team** (sonnet) — maps diff to specs, flags gaps; `pnpm --filter @repo/web e2e:redteam` if affected
 
 Rules changed (`code-style.md`, `.claude/rules/security.md`, `docs/security.md`, `biome.json`,
 `CLAUDE.md`, or a new **or changed** `.claude/hooks/*.mjs` guard — see `agent-coderabbit-sync.md`) → also run:
-10. **coderabbit-sync** (haiku) — keeps `.coderabbit.yaml` aligned
+9. **coderabbit-sync** (haiku) — keeps `.coderabbit.yaml` aligned
 
 **Triage discipline.** Fix every validated CRITICAL and ISSUE (`agent-semantic-reviewer.md`). The
 ONE bounded case: a wording REFINEMENT on prose this loop's own fixup just wrote is logged, not

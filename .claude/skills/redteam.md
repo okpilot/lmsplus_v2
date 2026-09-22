@@ -25,7 +25,7 @@ added. Derive the baseline at runtime from two live sources:
 
 - **Expected per-spec status** — the source of truth is the `## Vector-to-Spec
   Mapping` table in
-  `.claude/agent-memory/red-team/topics/attack-surface.md` (the `Status`
+  `apps/web/e2e/redteam/attack-surface.md` (the `Status`
   column). The cells are free-form prose, not a fixed enum — the runner is you,
   an agent, not a regex, so judge each row's posture from the **leading
   word(s)** of its `Status` cell by meaning, ignoring trailing commit refs,
@@ -45,7 +45,7 @@ added. Derive the baseline at runtime from two live sources:
   range stops at the next `## ` heading without printing it):
   ```bash
   awk '/^## Vector-to-Spec Mapping/{f=1;print;next} /^## /{f=0} f' \
-    .claude/agent-memory/red-team/topics/attack-surface.md
+    apps/web/e2e/redteam/attack-surface.md
   ```
 - **The live spec set** — what actually exists on disk:
   ```bash
@@ -81,5 +81,5 @@ normal; a `skipped` spec corresponds to a known-gap row. Then surface three
 ### 3. Write back the current status
 
 Update the `## Vector-to-Spec Mapping` table (and Lessons Learned, if a vector
-changed) in `.claude/agent-memory/red-team/topics/attack-surface.md` to reflect
+changed) in `apps/web/e2e/redteam/attack-surface.md` to reflect
 this run — closing the read → run → compare → write loop.

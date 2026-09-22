@@ -2,7 +2,7 @@
 > Model: sonnet | Trigger: pre-push review gate — round 1 and every later round | Blocking: on merge to main
 
 ## Purpose
-Checks the branch diff (`git diff origin/master...HEAD -- . ':(exclude).claude/agent-memory'`) against `.claude/rules/code-style.md`. Catches mechanical violations: naming, nesting depth, `any` types, barrel files, useEffect misuse, missing tests.
+Checks the branch diff (`git diff origin/master...HEAD`) against `.claude/rules/code-style.md`. Catches mechanical violations: naming, nesting depth, `any` types, barrel files, useEffect misuse, missing tests.
 
 ## Severity Levels
 | Level | Meaning | Action |

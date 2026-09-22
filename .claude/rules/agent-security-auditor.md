@@ -40,4 +40,4 @@ Final defense before code reaches the remote. Scans the push diff for security v
 - Soft-delete filter in SECURITY DEFINER SELECTs (docs/security.md §15); audit-event INSERT subquery soft-delete (§11c); per-caller RPC multiple-permissive-RLS scoping (§3); single-active-session start guard (§11d); sibling guard-set parity (§11c, advisory/MEDIUM)
 
 ## Checklist ↔ security.md sync
-The auditor's checklist (`.claude/agents/security-auditor.md`) is a hand-maintained mirror of `docs/security.md`; it does not auto-track the doc. When a security rule is promoted, a matching check must be added to the auditor **in the same session** — enforced by `.claude/rules/agent-learner.md` § Sweep On Rule Promotion (Downstream-enforcer sync).
+The auditor's checklist (`.claude/agents/security-auditor.md`) is a hand-maintained mirror of `docs/security.md`; it does not auto-track the doc. When a security rule is promoted, a matching check must be added to the auditor **in the same session** — enforced by `agent-workflow.md § Rule-Mirror Sync`; existing code the rule forbids is swept per `agent-workflow.md § Call-Site Sweep`.

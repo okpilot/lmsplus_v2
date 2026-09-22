@@ -60,19 +60,11 @@ npm-debug.log*
 # Handover working docs — local-only scratch, not repo artifacts (any dir)
 HANDOVER.md
 
-# Agent memory resolves relative to cwd. A subagent launched with cwd=apps/web writes a
-# from-scratch .claude/agent-memory/ tree there instead of a delta of the real one at the
-# repo root — truncated, count-less, and easy to commit by accident next to the stray
-# apps/web/.git.disabled-by-claude-* dir. Merge anything useful into the root tree, then
-# let this keep FUTURE duplicates out of the index.
-#
-# Caveat: gitignore does not untrack what is already tracked.
-# apps/web/.claude/agent-memory/test-writer/MEMORY.md has been committed since f972b77c
-# (Study Mode, #1006) and is unaffected by this rule — removing it is a separate cleanup,
-# deliberately not done in a content PR.
+# No agent memory — subagents run fresh, with no persistent state directory.
+.claude/agent-memory/
 apps/web/.claude/
 
-# The stray apps/web/.git.disabled-by-claude-<date>/ dir the comment above refers to. A prior
+# The stray apps/web/.git.disabled-by-claude-<date>/ dir. A prior
 # session neutralised a nested repo by renaming its .git rather than removing it, leaving ~549
 # untracked files under apps/web/. Two costs, and the second is the dangerous one:
 #   1. `git add -A apps/web` stages all of them.

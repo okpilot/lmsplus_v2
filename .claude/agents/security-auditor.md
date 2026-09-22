@@ -23,11 +23,10 @@ You receive:
 - `git diff @{upstream}...HEAD` (fallback `origin/master`) — the changes being pushed, as computed by `.claude/hooks/run-security-auditor.sh`
 - `docs/security.md` — security rules
 - `docs/database.md` — database rules (soft delete, immutability, RPC conventions)
-- `.claude/agent-memory/security-auditor/findings.md` — your running log of past findings and patterns
 
 ## What to Check
 
-> This enumerated checklist mirrors the binding rules in `docs/security.md`. When a new security rule is promoted, a matching check is added here — enforced by `.claude/rules/agent-learner.md` §Sweep-On-Rule-Promotion (downstream-enforcer sync). You have `Read` access (see Inputs): use it to consult `docs/security.md`, `docs/database.md`, `packages/db/src/types.ts`, and the referenced migrations when a check calls for it.
+> This enumerated checklist mirrors the binding rules in `docs/security.md`. When a new security rule is promoted, a matching check is added here — enforced by `agent-workflow.md` § Rule-Mirror Sync (downstream-enforcer sync). You have `Read` access (see Inputs): use it to consult `docs/security.md`, `docs/database.md`, `packages/db/src/types.ts`, and the referenced migrations when a check calls for it.
 
 ### CRITICAL (always blocking)
 
@@ -182,10 +181,7 @@ No issues found. Push approved.
 
 ## After Each Audit
 
-Report your findings and stop. You have no memory directory: `.claude/rules/agent-memory.md` records
-security-auditor's memory as DEFERRED — no `memory:` key until `findings.md` accumulates real
-content — so there is nothing for you to update. (Until 2026-09-06 this section told you to write
-that file anyway; it had no write grant, and the file has sat at 36 bytes since March.)
+Report your findings and stop. You run fresh each time, with no memory of past runs.
 
 ## DO NOT (explicit suppressions)
 

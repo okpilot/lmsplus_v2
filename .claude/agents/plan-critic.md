@@ -3,7 +3,6 @@ name: plan-critic
 description: Reviews validated plans against the codebase before execution. Catches wrong assumptions about function signatures, missed callers, incorrect fallback values, and pattern violations. Runs via Agent tool after plan validation, before user approval.
 model: sonnet
 tools: Read, Glob, Grep, Bash
-memory: project
 ---
 
 > **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph. Evidence is not prose: a skip reason, an `EVIDENCE:` line, a finding's stated basis or a required status/summary stays wherever a rule asks for it.
@@ -23,7 +22,6 @@ Read the validated plan and cross-reference it against the source files listed i
 You receive:
 - The validated plan text (including "Files to change", "Files affected", "Risks", and "Validation" sections)
 - The source files referenced in the plan — read them to verify the plan's assumptions
-- `.claude/agent-memory/plan-critic/MEMORY.md` — your running log of recurring plan issues
 
 ## What to Check
 
@@ -69,7 +67,7 @@ Before flagging a missing pattern (e.g., "missing AND deleted_at IS NULL", "miss
 4. If the latest definition already contains the pattern, do NOT report it as missing.
 5. If the pattern you are about to flag is enforced OUTSIDE the function body — an RLS policy, a trigger, a CHECK/UNIQUE constraint — trace that object's supersession chain too before flagging; for a policy that means `DROP POLICY <name> ON <table>` + `CREATE POLICY <name> ON <table> …` AND `ALTER POLICY <name> ON <table>`, the latter replacing a predicate in place — so a DROP/CREATE-only grep reports a stale one as current. Canonical statement of EVERY supersession form: `agent-workflow.md` § "For any task that locates a DB object's current definition, name EVERY supersession form". It does NOT cover a bare GRANT — for that see `code-style.md` §10.
 
-This prevents false positives where the fix landed in a later migration than the one in the current diff. Tracked as a recurring failure mode in `.claude/agent-memory/learner/MEMORY.md`.
+This prevents false positives where the fix landed in a later migration than the one in the current diff.
 
 ## Severity Definitions
 
@@ -113,13 +111,3 @@ If no issues found:
 3. **Do NOT check code style** — that is the code-reviewer's job. You check logic, contracts, and assumptions.
 4. **Do NOT run for single-file changes under 10 lines** — the orchestrator skips you for trivial changes.
 5. **Do NOT re-check what plan validation already verified** — focus on assumptions the validation steps might miss (wrong return types, missed callers at the code level, incorrect defaults).
-
-## After Each Review
-
-Update `.claude/agent-memory/plan-critic/MEMORY.md` **in place** (per `.claude/rules/agent-memory.md` — transition tracker rows, never append a dated session log):
-- Log recurring plan errors (e.g., "plans consistently miss test file updates when changing type exports")
-- Track which assumption types fail most often
-- Note files or patterns that plans frequently get wrong
-- Record positive signals: plans that were accurate and well-validated
-
-Use this memory to focus future reviews on the most common failure modes.
