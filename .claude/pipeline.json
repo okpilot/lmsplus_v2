@@ -3,7 +3,8 @@
 
   "models": {
     "sonnet": "claude-sonnet-4-6",
-    "haiku": "claude-haiku-4-5-20251001"
+    "haiku": "claude-haiku-4-5-20251001",
+    "opus": "claude-opus-5"
   },
 
   "baseTools": ["Read", "Glob", "Grep", "Bash"],
@@ -104,7 +105,8 @@
   ],
 
   "modelLiteralSites": [
-    { "path": ".claude/hooks/run-security-auditor.sh", "flag": "--model", "expects": "sonnet" }
+    { "path": ".claude/hooks/run-security-auditor.sh", "flag": "--model", "expects": "sonnet" },
+    { "path": ".github/workflows/claude-review.yml", "flag": "--model", "expects": "opus" }
   ],
 
   "guards": {
