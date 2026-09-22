@@ -2381,7 +2381,7 @@ them.
 - Evidence: probe PR #1337 — a `github-actions[bot]` REQUEST_CHANGES review left the PR
   `mergeStateStatus: BLOCKED` with every required check green, and a later run's `github.token`
   dismissed it via the same `PUT .../reviews/{id}/dismissals` call this step uses.
-- Not a required status check. `claude-opus-5` is registered in `.claude/pipeline.json`
+- Not a required status check. `claude-opus-5-5` is registered in `.claude/pipeline.json`
   `modelLiteralSites`. CodeRabbit keeps running unchanged, in parallel.
 
 ## Decision 79: every guard carries a planted, graded red and green control (2026-09-21)
