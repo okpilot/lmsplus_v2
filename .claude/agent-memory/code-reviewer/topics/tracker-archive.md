@@ -2,6 +2,13 @@
 > Terminal-state rows and single-branch CLEAN runs moved here from MEMORY.md to stay under the 25KB injection cap.
 > Rows are never deleted. States: PROMOTED, RESOLVED, FALSE POSITIVE, SATURATED.
 
+## Single-branch CLEAN rounds
+
+| Branch | Round | Commit | Notes |
+|--------|-------|--------|-------|
+| guards/mutation-harness-staged | R4 (confirming, ceiling override) | 0944dff5 | Comment-only commit. All four §10 sites verified against touchesStaged body — five inputs correct. No code violations in full range. |
+| guards/mutation-harness-staged | R5 (final confirming round post-fixup) | a7865d77 | Rename-scope fix + stale MUTATION comments + new test + ci.yml comment. 26/26 tests pass. MUTATION comment claims verified against blobAt body and git() helper (throws on non-zero). No code violations. |
+
 ## Archived terminal rows
 
 | Pattern | First Seen | Count | Last Seen | Status |
