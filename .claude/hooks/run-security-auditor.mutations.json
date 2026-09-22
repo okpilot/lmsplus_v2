@@ -5,10 +5,15 @@
   "mutations": [
     {
       "id": "run-security-auditor-always-passes",
-      "find": "echo \"[security-auditor] Push blocked. Fix CRITICAL/HIGH findings above.\"\nexit 1",
-      "replace": "echo \"[security-auditor] Push blocked. Fix CRITICAL/HIGH findings above.\"\nexit 0",
-      "expectRed": ["blocks the push when the security audit returns a BLOCKED verdict"],
-      "note": "Forces the terminal blocking exit to 0 instead of 1 — a BLOCKED verdict from the audit still prints 'Push blocked' but the hook approves the push anyway."
+      "find": "set -euo pipefail",
+      "replace": "set -euo pipefail\n\nexit() { command exit 0; }",
+      "expectRed": [
+        "blocks the push when the security audit returns a BLOCKED verdict",
+        "fails closed when the CLI fails and the diagnostic scan finds nothing",
+        "blocks the push via the fallback scan when the CLI times out and a secret is in the diff",
+        "blocks the push via the fallback scan when the CLI fails and a secret is in the diff"
+      ],
+      "note": "Shadows the `exit` builtin with a function that always exits 0 — every blocking exit in the script, whichever of the four routes reaches it (the terminal BLOCKED exit, fail_closed_no_llm_output, and the two fallback-scan branches), is defeated at once. Chosen over patching only the terminal exit because the guard has multiple independent fail-closed exits (Decision 79) and this is the one mutation that represents 'the guard never blocks', matching what code-reviewer's controls.test.mjs requires every CONTROL: red test in a suite to link to under a single `<base>-always-passes` id."
     },
     {
       "id": "run-security-auditor-always-blocks",
@@ -16,6 +21,31 @@
       "replace": "  echo \"[security-auditor] Push approved.\"\n  exit 1\n",
       "expectRed": ["approves the push when the security audit returns a clean APPROVED verdict"],
       "note": "Forces the full-script approve branch to exit 1 instead of 0 — a clean APPROVED verdict still prints 'Push approved' but the hook blocks the push anyway."
+    },
+    {
+      "id": "run-security-auditor-fail-closed-no-llm-output",
+      "find": "fail_closed_no_llm_output() {\n  echo \"[security-auditor] LLM security audit could not run — push blocked. Fix the Claude CLI (auth/network/timeout) and retry. Do not use --no-verify.\"\n  exit 1\n}",
+      "replace": "fail_closed_no_llm_output() {\n  echo \"[security-auditor] LLM security audit could not run — push blocked. Fix the Claude CLI (auth/network/timeout) and retry. Do not use --no-verify.\"\n  exit 0\n}",
+      "expectRed": ["fails closed when the CLI fails and the diagnostic scan finds nothing"],
+      "note": "Forces fail_closed_no_llm_output's exit to 0 instead of 1 — a CLI failure with nothing for the diagnostic scan to find still prints the fix-the-CLI message but approves the push anyway."
+    },
+    {
+      "id": "run-security-auditor-fallback-scan-timeout",
+      "find": "    if [ \"$ISSUES\" -gt 0 ]; then\n      echo \"[security-auditor] Found $ISSUES issue(s) in fallback scan. Push blocked.\"\n      exit 1\n    fi",
+      "replace": "    if [ \"$ISSUES\" -gt 0 ]; then\n      echo \"[security-auditor] Found $ISSUES issue(s) in fallback scan. Push blocked.\"\n      exit 0\n    fi",
+      "expectRed": [
+        "blocks the push via the fallback scan when the CLI times out and a secret is in the diff"
+      ],
+      "note": "Forces the timeout branch's fallback-scan exit to 0 instead of 1 — a secret found in the diff after a CLI timeout still prints 'Found N issue(s)' but approves the push anyway."
+    },
+    {
+      "id": "run-security-auditor-fallback-scan-cli-failure",
+      "find": "  if [ \"$ISSUES\" -gt 0 ]; then\n    echo \"[security-auditor] Found $ISSUES issue(s) in fallback scan. Push blocked.\"\n    exit 1\n  fi",
+      "replace": "  if [ \"$ISSUES\" -gt 0 ]; then\n    echo \"[security-auditor] Found $ISSUES issue(s) in fallback scan. Push blocked.\"\n    exit 0\n  fi",
+      "expectRed": [
+        "blocks the push via the fallback scan when the CLI fails and a secret is in the diff"
+      ],
+      "note": "Forces the CLI-failure branch's fallback-scan exit to 0 instead of 1 — a secret found in the diff after a CLI failure still prints 'Found N issue(s)' but approves the push anyway."
     }
   ]
 }

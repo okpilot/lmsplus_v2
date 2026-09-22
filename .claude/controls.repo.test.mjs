@@ -14,12 +14,17 @@ import {
   withFixture,
   withLefthookContinuationFixture,
   withMissingGreenFixture,
+  withNodeTestStepFixture,
   withSecondWorkflowFixture,
+  withSkipOptionsFixture,
   withSkippedControlFixture,
   withStopHookFixture,
   withSuiteNotListedFixture,
   withTargetMismatchFixture,
   withTitleMismatchFixture,
+  withTodoControlFixture,
+  withUnextractableTitleFixture,
+  withUnregisteredCjsGuardFixture,
 } from './controls.fixtures.mjs'
 
 // CONTROL: red
@@ -155,4 +160,49 @@ test('a `.skip`-ed CONTROL test blocks — a control must run to be graded', () 
     const { status, stderr } = run({ dir })
     assert.equal(status, 1)
     assert.match(stderr, /is \.skip\/\.todo — never runs, not a graded control/)
+  }))
+
+// MUTATION: drop the `node --test` early-return in addBlockPaths
+// GROUP: controls-always-passes, controls-node-test-exclusion
+test('a `node --test <path>` CI step does not wire the path as a guard', () =>
+  withNodeTestStepFixture(({ dir }) => {
+    const { status, stderr } = run({ dir })
+    assert.equal(status, 1)
+    assert.match(stderr, /not found wired anywhere/)
+  }))
+
+// MUTATION: widen TITLE_RE to accept backtick strings
+// GROUP: controls-always-passes, controls-unextractable-title
+test('a CONTROL test with an unextractable title blocks', () =>
+  withUnextractableTitleFixture(({ dir }) => {
+    const { status, stderr } = run({ dir })
+    assert.equal(status, 1)
+    assert.match(stderr, /could not extract the control test's string-literal title/)
+  }))
+
+// MUTATION: drop the isSkippedLine call entirely
+// GROUP: controls-always-passes, controls-skip-check
+test('a `.todo`-ed CONTROL test blocks — a control must run to be graded', () =>
+  withTodoControlFixture(({ dir }) => {
+    const { status, stderr } = run({ dir })
+    assert.equal(status, 1)
+    assert.match(stderr, /is \.skip\/\.todo — never runs, not a graded control/)
+  }))
+
+// MUTATION: drop only the options-form skip/todo branch in isSkippedLine
+// GROUP: controls-always-passes, controls-skip-check, controls-skip-options-check
+test('a `{ skip: true }`-options CONTROL test blocks — a control must run to be graded', () =>
+  withSkipOptionsFixture(({ dir }) => {
+    const { status, stderr } = run({ dir })
+    assert.equal(status, 1)
+    assert.match(stderr, /is \.skip\/\.todo — never runs, not a graded control/)
+  }))
+
+// MUTATION: narrow CLAUDE_PATH_RE's extension set back to mjs|js|sh (drop cjs/ts/py)
+// GROUP: controls-always-passes, controls-path-extensions
+test('a guard wired only as a `.cjs` path is discovered as wired but unregistered', () =>
+  withUnregisteredCjsGuardFixture(({ dir }) => {
+    const { status, stderr } = run({ dir })
+    assert.equal(status, 1)
+    assert.match(stderr, /wired but not registered/)
   }))

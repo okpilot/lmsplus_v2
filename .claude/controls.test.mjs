@@ -42,8 +42,8 @@ const registeredPaths = Object.keys(guards).filter((k) => k !== '_')
 
 // ---------------------------------------------------------------- (a) derive the wired set
 
-/** Any `.claude/...` path ending in .mjs, .js or .sh, found anywhere in a matched string. */
-const CLAUDE_PATH_RE = /\.claude\/[\w./-]+\.(?:mjs|js|sh)/g
+/** Any `.claude/...` path ending in .mjs, .cjs, .js, .ts, .sh or .py, found anywhere in a matched string. */
+const CLAUDE_PATH_RE = /\.claude\/[\w./-]+\.(?:mjs|cjs|js|ts|sh|py)/g
 
 /**
  * A `.test.sh`/`.testkit` path reached by something other than a bare `node <path>` step. Bash

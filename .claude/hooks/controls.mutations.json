@@ -14,7 +14,12 @@
         "a CONTROL test whose title is missing from expectRed blocks",
         "a mutations.json whose suites omits the suite under test blocks",
         "a mutations.json whose target does not equal the guard path blocks",
-        "a `.skip`-ed CONTROL test blocks — a control must run to be graded"
+        "a `.skip`-ed CONTROL test blocks — a control must run to be graded",
+        "a `node --test <path>` CI step does not wire the path as a guard",
+        "a CONTROL test with an unextractable title blocks",
+        "a `.todo`-ed CONTROL test blocks — a control must run to be graded",
+        "a `{ skip: true }`-options CONTROL test blocks — a control must run to be graded",
+        "a guard wired only as a `.cjs` path is discovered as wired but unregistered"
       ],
       "note": "The final blocking exit, dropped: every finding still prints as FAIL but the process exits 0 regardless. Reddens every test in controls.repo.test.mjs that asserts status 1 on a broken fixture, not only the CONTROL: red one — every other status-1 assertion in the suite is just as blind to a dropped exit."
     },
@@ -98,8 +103,42 @@
       "id": "controls-skip-check",
       "find": "  if (isSkippedLine(line)) {\n    problems.push(`${loc}: control is .skip/.todo — never runs, not a graded control`)\n  }\n",
       "replace": "",
-      "expectRed": ["a `.skip`-ed CONTROL test blocks — a control must run to be graded"],
+      "expectRed": [
+        "a `.skip`-ed CONTROL test blocks — a control must run to be graded",
+        "a `.todo`-ed CONTROL test blocks — a control must run to be graded",
+        "a `{ skip: true }`-options CONTROL test blocks — a control must run to be graded"
+      ],
       "note": "Drops the .skip/.todo check — a control written `test.skip(...)` is no longer flagged even though it never runs."
+    },
+    {
+      "id": "controls-node-test-exclusion",
+      "find": "  if (/^\\s*node\\s+--test\\b/.test(firstContent)) return",
+      "replace": "",
+      "expectRed": ["a `node --test <path>` CI step does not wire the path as a guard"],
+      "note": "Drops the `node --test` early-return in addBlockPaths — a file listed as an argument to `node --test` is counted as a guard wiring, making a registered guard wired only that way appear discovered when it should not be."
+    },
+    {
+      "id": "controls-unextractable-title",
+      "find": "const TITLE_RE = /^\\s*(?:test|it)(?:\\.\\w+)?\\s*\\(\\s*(['\"])",
+      "replace": "const TITLE_RE = /^\\s*(?:test|it)(?:\\.\\w+)?\\s*\\(\\s*(['\"`])",
+      "expectRed": ["a CONTROL test with an unextractable title blocks"],
+      "note": "Widens the title regex to accept backtick strings — a template-literal title is no longer unextractable; the extracted title passes the expectRed check, so the fail-closed path is never reached."
+    },
+    {
+      "id": "controls-skip-options-check",
+      "find": "  return /\\{\\s*(?:skip|todo)\\s*:/.test(line)",
+      "replace": "  return false",
+      "expectRed": [
+        "a `{ skip: true }`-options CONTROL test blocks — a control must run to be graded"
+      ],
+      "note": "Replaces the options-form skip/todo check with an unconditional false — a CONTROL test written `test('title', { skip: true }, fn)` is no longer flagged even though it never runs."
+    },
+    {
+      "id": "controls-path-extensions",
+      "find": "const CLAUDE_PATH_RE = /\\.claude\\/[\\w./-]+\\.(?:mjs|cjs|js|ts|sh|py)/g",
+      "replace": "const CLAUDE_PATH_RE = /\\.claude\\/[\\w./-]+\\.(?:mjs|js|sh)/g",
+      "expectRed": ["a guard wired only as a `.cjs` path is discovered as wired but unregistered"],
+      "note": "Narrows CLAUDE_PATH_RE back to the mjs|js|sh-only extension set — a guard wired solely via a `.cjs` (or `.ts`/`.py`) path is no longer discovered as wired, so an unregistered one goes unflagged, fail-open."
     }
   ]
 }

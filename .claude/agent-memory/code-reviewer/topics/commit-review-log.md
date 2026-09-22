@@ -172,3 +172,7 @@ CLEAN R2. 6 files: run-mutations.mjs (+257/-69), run-mutations.mutations.json (+
 ## `guards/mutation-harness-jobs` R3 (2026-09-22)
 
 CLEAN R3. New commit 95c2c78c only: 3 files changed (+26/-1). `wireSpawnSuiteExit` body 22L (well under 30L cap). New test `spawnSuite keeps the real exit status of a child whose output closes after the timeout` passes (EVIDENCE: node --test, 1556ms, 1 pass). MUTATION: comment verified: mutation `spawnsuite-timeout-needs-null-status` replaces `if (timedOut && status === null)` with `if (timedOut)` — with test fixture (child exits 0, grandchild holds stdout, 300ms timeout fires), `timedOut` is true and `status` is 0; mutation causes `r.error` = ETIMEDOUT, test assertion `r.error === null` fails. Failure mode "verdict lost to FAULT" accurate. File-size guard clean (exit 0). No BLOCKING, no WARNINGS.
+
+## `guards/controls` R2 (2026-09-22)
+
+WARNING: `runHookWithShim` in `.claude/hooks/run-security-auditor.controls.test.mjs` body lines 38–70 = 33 lines (limit: 30). try/finally cleanup boilerplate inflates. R1 warning confirmed fixed: `run_cli_success_case` refactored to 17L (was 41L); `make_shim_repo` 16L; `report_full_script_case` 12L. No BLOCKING. All other new functions: `scanControls` 9L, `checkSuiteControls` 29L, `collectControlProblems` 12L, `checkGuardControls` 12L, `withFixture` 10L, `withWorktree` 14L — all clean.

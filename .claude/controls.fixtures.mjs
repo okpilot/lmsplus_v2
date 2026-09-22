@@ -264,3 +264,86 @@ export function withSkippedControlFixture(fn) {
     return fn({ dir })
   })
 }
+
+/** Wired ONLY via a `node --test <path>` CI step — the path should NOT be discovered as a guard
+ * wiring because `node --test` launches a test runner, not a guard directly. */
+export function withNodeTestStepFixture(fn) {
+  return withFixture(({ dir, write }) => {
+    writeRegisteredGuard(write)
+    write('lefthook.yml', NOOP_LEFTHOOK)
+    write(
+      '.github/workflows/ci.yml',
+      `jobs:\n  test:\n    steps:\n      - run: node --test ${GUARD_PATH}\n`,
+    )
+    write('.claude/settings.json', NOOP_SETTINGS)
+    return fn({ dir })
+  })
+}
+
+const BACKTICK_RED_AND_GREEN_SUITE = [
+  "import test from 'node:test'",
+  '// CONTROL: red',
+  '// GROUP: fake-guard-always-passes',
+  'test(`blocks a violation`, () => {})',
+  '// CONTROL: green',
+  '// GROUP: fake-guard-always-blocks',
+  "test('passes a clean input', () => {})",
+  '',
+].join('\n')
+
+/** The CONTROL: red test's title is a backtick (template-literal) string — `extractTitle` returns
+ * null, which controls.test.mjs must treat as a grading failure (fail closed). */
+export function withUnextractableTitleFixture(fn) {
+  return withFixture(({ dir, write }) => {
+    writeCommonFiles(write)
+    write(SUITE_PATH, BACKTICK_RED_AND_GREEN_SUITE)
+    write(MUTATIONS_PATH, MUTATIONS_JSON)
+    return fn({ dir })
+  })
+}
+
+/** The CONTROL: red test uses `test.todo(...)` — the second `skip|todo` form, never runs. */
+export function withTodoControlFixture(fn) {
+  return withFixture(({ dir, write }) => {
+    writeCommonFiles(write)
+    const suite = RED_AND_GREEN_SUITE.replace(
+      "test('blocks a violation'",
+      "test.todo('blocks a violation'",
+    )
+    write(SUITE_PATH, suite)
+    write(MUTATIONS_PATH, MUTATIONS_JSON)
+    return fn({ dir })
+  })
+}
+
+/** A root wiring a `.cjs`-extension guard via lefthook.yml but never registering it in
+ * pipeline.json — the unregistered-but-wired half of part (a)'s closure check. Proves
+ * `CLAUDE_PATH_RE` actually discovers a `.cjs` path: under the pre-widening `.mjs|.js|.sh`-only
+ * regex this path was invisible to `fromLefthook`, so `unregistered` stayed empty and the check
+ * passed despite an unregistered guard sitting in the wiring. */
+export function withUnregisteredCjsGuardFixture(fn) {
+  return withFixture(({ dir, write }) => {
+    write('.claude/pipeline.json', JSON.stringify({ guards: {} }))
+    write(
+      'lefthook.yml',
+      'pre-commit:\n  commands:\n    fake-guard-cjs:\n      run: node .claude/hooks/fake-guard.cjs\n',
+    )
+    write('.github/workflows/ci.yml', NOOP_CI)
+    write('.claude/settings.json', NOOP_SETTINGS)
+    return fn({ dir })
+  })
+}
+
+/** The CONTROL: red test uses a `{ skip: true }` options object — the options-form skip, never runs. */
+export function withSkipOptionsFixture(fn) {
+  return withFixture(({ dir, write }) => {
+    writeCommonFiles(write)
+    const suite = RED_AND_GREEN_SUITE.replace(
+      "test('blocks a violation', () => {})",
+      "test('blocks a violation', { skip: true }, () => {})",
+    )
+    write(SUITE_PATH, suite)
+    write(MUTATIONS_PATH, MUTATIONS_JSON)
+    return fn({ dir })
+  })
+}
