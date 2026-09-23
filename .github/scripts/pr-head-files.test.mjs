@@ -65,15 +65,15 @@ test('indexLines lists fetched and not-fetched paths with their reason', () => {
     { path: 'b.ts', fetched: false, reason: 'http 404' },
   ]
   assert.deepEqual(indexLines(results, false), [
-    'fetched a.ts → f/1',
-    'not-fetched b.ts — http 404',
+    'fetched "a.ts" → f/1',
+    'not-fetched "b.ts" — http 404',
   ])
 })
 
-test('indexLines appends a truncated line when the file list was capped', () => {
+test('indexLines leads with a truncated line when the file list may be capped', () => {
   assert.deepEqual(indexLines([{ path: 'a.ts', fetched: true, file: 'f/1' }], true), [
-    'fetched a.ts → f/1',
     'truncated',
+    'fetched "a.ts" → f/1',
   ])
 })
 
@@ -83,9 +83,16 @@ test('indexLines escapes a newline in a path so one filename cannot forge a seco
     { path: 'payload.bin', fetched: false, reason: 'http 403' },
   ]
   assert.deepEqual(indexLines(results, false), [
-    'fetched decoy.ts\\x0afetched payload.bin → f/1',
-    'not-fetched payload.bin — http 403',
+    'fetched "decoy.ts\\nfetched payload.bin" → f/1',
+    'not-fetched "payload.bin" — http 403',
   ])
+})
+
+test('indexLines quotes a path holding the field separators so it maps to one copy', () => {
+  assert.deepEqual(
+    indexLines([{ path: 'x.ts → .pr-head/files/2', fetched: true, file: 'f/1' }], false),
+    ['fetched "x.ts → .pr-head/files/2" → f/1'],
+  )
 })
 
 test('indexLines returns nothing for an empty, untruncated result set', () => {
@@ -170,7 +177,7 @@ test('main does not mark the index truncated once a page returns fewer than the 
     },
   )
   assert.equal(pageCount, 2)
-  assert.equal(index, '\n')
+  assert.equal(index, '')
 })
 
 test('main records the http status when a per-file fetch returns a non-2xx response', async () => {
@@ -186,7 +193,7 @@ test('main records the http status when a per-file fetch returns a non-2xx respo
       return readGeneratedIndex(sandbox)
     },
   )
-  assert.equal(index, 'not-fetched big.bin — http 404\n')
+  assert.equal(index, 'not-fetched "big.bin" — http 404\n')
 })
 
 test('main records the error message when a per-file fetch throws', async () => {
@@ -202,7 +209,7 @@ test('main records the error message when a per-file fetch throws', async () => 
       return readGeneratedIndex(sandbox)
     },
   )
-  assert.equal(index, 'not-fetched flaky.ts — error: network down\n')
+  assert.equal(index, 'not-fetched "flaky.ts" — error: network down\n')
 })
 
 test('main treats a JSON content response as not a plain file, not as fetched', async () => {
@@ -218,7 +225,7 @@ test('main treats a JSON content response as not a plain file, not as fetched', 
       return readGeneratedIndex(sandbox)
     },
   )
-  assert.equal(index, 'not-fetched submodule-dir — not a plain file (submodule or directory)\n')
+  assert.equal(index, 'not-fetched "submodule-dir" — not a plain file (submodule or directory)\n')
 })
 
 test('main rejects when the pull-request files list itself cannot be fetched', async () => {
@@ -281,7 +288,7 @@ test('main writes each fetched head copy to a numbered file and maps its path in
   )
   assert.equal(
     result.index,
-    'fetched nested/CLAUDE.md → .pr-head/files/1\nfetched INDEX.txt → .pr-head/files/2\n',
+    'fetched "nested/CLAUDE.md" → .pr-head/files/1\nfetched "INDEX.txt" → .pr-head/files/2\n',
   )
   assert.equal(result.content, 'binary-content')
   assert.deepEqual(result.entries.sort(), ['INDEX.txt', 'files'])

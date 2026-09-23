@@ -107,14 +107,16 @@ jobs:
             ## Files without a diff patch
 
             Some changed files carry no `patch` in the diff tools — large diffs and binaries. Read
-            `.pr-head/INDEX.txt` first: `fetched <path> → <copy>` means the head-commit copy of
-            `<path>` is the file `<copy>`; `not-fetched <path> — <reason>` means there is none.
-            The base copy, if any, is at `<path>` on disk — for a renamed file, at its previous
-            name. A `truncated` line means GitHub capped the file list: every changed file missing
-            from INDEX.txt is unreviewed, as is every file without a patch when
-            `.pr-head/INDEX.txt` is missing. Every such
-            file, every `not-fetched` path, and any other changed file you could not read, is
-            named in the verdict's `Not reviewed:` line below.
+            `.pr-head/INDEX.txt` first. Each path there is a JSON string: `fetched "<path>" →
+            <copy>` means the head-commit copy of `<path>` is the file `<copy>`; `not-fetched
+            "<path>" — <reason>` means there is none. The base copy, if any, is at `<path>` on
+            disk — for a renamed file, at its previous name. Every changed file without a patch
+            that INDEX.txt does not list as `fetched` is unreviewed, including when INDEX.txt is
+            missing. A leading `truncated` line means GitHub may have capped the file list at 3000:
+            files beyond the cap reach neither INDEX.txt nor the diff tools. Every unreviewed
+            file, any other changed file you could not read, and — after a `truncated` line —
+            "files beyond GitHub's 3000-file cap", are named in the verdict's `Not reviewed:` line
+            below.
 
             ## Verify before you flag
 

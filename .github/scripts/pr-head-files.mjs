@@ -12,7 +12,7 @@
 // Exit:  0 = ran to completion — a per-file fetch failure is recorded in INDEX.txt, not fatal
 //        1 = the pull-request files list itself could not be fetched
 
-import { mkdir, writeFile } from 'node:fs/promises'
+import { appendFile, mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { argv, env, exit } from 'node:process'
 import { pathToFileURL } from 'node:url'
@@ -38,25 +38,15 @@ export function safePath(p) {
   return null
 }
 
-/** `p` with every control character written as `\xNN`, so a filename cannot start a new line. */
-export function escapePath(p) {
-  return [...p]
-    .map((c) => {
-      const code = c.charCodeAt(0)
-      return code < 0x20 || code === 0x7f ? `\\x${code.toString(16).padStart(2, '0')}` : c
-    })
-    .join('')
+/** One INDEX.txt line. The path is a JSON string, so no filename can forge a line or a field. */
+export function indexLine(r) {
+  const path = JSON.stringify(r.path)
+  return r.fetched ? `fetched ${path} → ${r.file}` : `not-fetched ${path} — ${r.reason}`
 }
 
-/** `results`: [{path, fetched, file?, reason?}]. Appends `truncated` when the list was capped. */
+/** `results`: [{path, fetched, file?, reason?}]; a leading `truncated` when the list may be capped. */
 export function indexLines(results, truncated) {
-  const lines = results.map((r) =>
-    r.fetched
-      ? `fetched ${escapePath(r.path)} → ${r.file}`
-      : `not-fetched ${escapePath(r.path)} — ${r.reason}`,
-  )
-  if (truncated) lines.push('truncated')
-  return lines
+  return [...(truncated ? ['truncated'] : []), ...results.map(indexLine)]
 }
 
 // ---------------------------------------------------------------- I/O
@@ -103,25 +93,32 @@ async function tryFetch(opts) {
   }
 }
 
-async function fetchAll(candidates, opts) {
-  const results = []
+/** Fetches each candidate in turn, handing every result to `onResult` as it lands. */
+async function fetchAll(candidates, opts, onResult) {
   for (const [i, path] of candidates.entries()) {
     const reason = safePath(path)
     const file = join(FILES_DIR, String(i + 1))
-    results.push(
+    await onResult(
       reason ? { path, fetched: false, reason } : await tryFetch({ ...opts, path, file }),
     )
   }
-  return results
 }
 
+/** INDEX.txt grows one line per file, so a step killed mid-run keeps every finished entry. */
 export async function main() {
   const { GH_TOKEN: token, REPO: repo, PR_NUMBER: pr, HEAD_SHA: ref } = env
   const { files, truncated } = await listFiles({ repo, pr, token })
   await mkdir(FILES_DIR, { recursive: true })
-  const results = await fetchAll(selectPatchless(files), { repo, ref, token })
-
-  await writeFile(join(OUT_DIR, 'INDEX.txt'), `${indexLines(results, truncated).join('\n')}\n`)
+  const index = join(OUT_DIR, 'INDEX.txt')
+  await writeFile(
+    index,
+    indexLines([], truncated)
+      .map((l) => `${l}\n`)
+      .join(''),
+  )
+  await fetchAll(selectPatchless(files), { repo, ref, token }, (r) =>
+    appendFile(index, `${indexLine(r)}\n`),
+  )
 }
 
 if (argv[1] && import.meta.url === pathToFileURL(argv[1]).href) {
