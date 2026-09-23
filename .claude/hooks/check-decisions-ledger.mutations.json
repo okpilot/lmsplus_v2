@@ -123,6 +123,12 @@
       "expectRed": ["a range finding tells the author a merge cannot waive it"]
     },
     {
+      "id": "range-unchanged-ledger-graded",
+      "find": "  if (oldText === newText) return []\n",
+      "replace": "",
+      "expectRed": ["a range that never touched the ledger reports nothing"]
+    },
+    {
       "id": "range-ledgerless-waiver-recorded",
       "find": "  if (unit.newText === null) return\n",
       "replace": "",

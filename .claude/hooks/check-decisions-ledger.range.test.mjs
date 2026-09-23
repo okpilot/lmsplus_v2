@@ -55,6 +55,22 @@ test('a range edit clears only when the authorized text equals the final line', 
   )
 })
 
+// GROUP: range-unchanged-ledger-graded
+test('a range that never touched the ledger reports nothing', () => {
+  // MUTATION: drop the unchanged-ledger early return → an absent ledger at both ends reads as
+  // deleted, and a malformed line already at the merge-base blocks every PR.
+  const malformed = ledger('first decision.', 'second decision.', ['## 16 no date here'])
+  for (const text of [null, malformed]) {
+    const res = checkRange({
+      oldText: text,
+      newText: text,
+      authorized: new Map(),
+      gradeFormat: true,
+    })
+    assert.deepEqual(res, [])
+  }
+})
+
 // GROUP: range-authorization-never-clears
 test('an ABSENT authorization clears a waived removal', () => {
   const newText = '# Decisions\n\n> rule text\n\n## 15 — 2026-03-11 — second decision.\n'
