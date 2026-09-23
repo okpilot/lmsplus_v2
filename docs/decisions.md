@@ -3,7 +3,6 @@
 > **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph. Evidence is not prose: a skip reason, an `EVIDENCE:` line, a finding's stated basis or a required status/summary stays wherever a rule asks for it.
 
 > Running log of all decisions, ideas, and open questions.
-> Sources: `app-design-document.md`, `step-zero-research.md`, conversation notes.
 
 ---
 
@@ -285,7 +284,7 @@ One app, one window, one login. Builder + Player + LMS backbone + question bank 
 
 ## SETUP AUDIT (2026-03-11)
 
-Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/setup-audit.md`.
+Full audit completed — 46 files reviewed. Score: 9.5/10.
 
 ### Minor items to address (non-blocking)
 - [ ] Update `apps/web/app/layout.tsx` metadata (still says "Create Next App") — do in Phase 4
@@ -402,7 +401,7 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 - All deferred tech debt is tracked as GitHub Issues with the `tech-debt` label
 - Issues created immediately when the decision to defer is made (not "someday")
 - Each issue gets a conventional commit prefix in the title (`refactor:`, `test:`, `fix:`, `chore:`, `docs:`)
-- Sprint planning pulls from `tech-debt` label alongside `docs/backlog.md`
+- Sprint planning pulls from the `tech-debt` label
 - No Slack, no spreadsheets, no TODO comments in code — GitHub Issues is the single source of truth for deferred work
 
 **Why GitHub Issues:** Lives next to the code, Claude can reference issue numbers in commits (`fixes #5`), filterable by label, visible in PRs.
@@ -835,7 +834,7 @@ this decision; existing immutability (trigger mig 079) already enforces question
 
 **Update (2026-07-02 — Phases 5–7 complete)**: All five question types now ship on the shared `/app/quiz` Study UI — `multiple_choice`, `short_answer`, `dialog_fill` (Phases 1–4), plus `ordering` and `diagram_label` via dnd-kit (Phases 5–6; Decisions 50–52). Phase 7 (cleanup) confirmed the VFR RT practice path was type-agnostic throughout — the "optional MC-only filter" in the Phase-1 plan was never wired, so there was no scaffolding to remove. #923's bespoke `/app/vfr-rt-exam` UI stays **parked/throwaway**; the timed exam will return as an **exam-mode toggle on this shared UI, inheriting all five types** — not a parallel bespoke screen. (Training go-live is still gated on RT content import + the #1045 ordering answer-key hardening.)
 
-**Rationale**: Reusing the Study UI eliminates duplicate runner/report logic and inherits its test coverage; building training first gives students value immediately and lets the timed exam ride on a proven, shared foundation. See `feedback-reuse-quiz-ui-for-vfr-rt` memory and `.spec-workflow/specs/vfr-rt-training/`.
+**Rationale**: Reusing the Study UI eliminates duplicate runner/report logic and inherits its test coverage; building training first gives students value immediately and lets the timed exam ride on a proven, shared foundation.
 
 **Scope**: VFR RT student-facing training UI. Backend non-MC question types, the drag types, and exam-mode are later phases of the same spec.
 
@@ -868,7 +867,7 @@ this decision; existing immutability (trigger mig 079) already enforces question
 
 **Rationale**: The REVOKE-internal-helper model keeps one authorization boundary (no per-answer guard re-execution, no duplicated surface) while closing the default-grant hole. This is a NEW repo pattern (no prior `REVOKE ... FROM <role>` on a helper), so an integration test asserts each helper returns `42501`/`PGRST202` to a direct authenticated PostgREST call **with signature-valid args** — an empty `{}` payload is a vacuous negative (PostgREST returns `PGRST202` from overload-resolution failure *before* the EXECUTE check, so the test passes even if the REVOKE regressed; `code-style.md §7`). The signature-valid form is what surfaced the `FROM PUBLIC`-only insufficiency above. Partial-credit scoring was chosen (over all-or-nothing) for consistency with the exam — user decision 2026-06-21.
 
-**Scope**: `batch_submit_quiz` recording + scoring for practice modes (`smart_review`/`quick_quiz`); MC behavior is byte-equivalent (single row/question → DISTINCT count == row count). Exam modes use their own RPCs. Deviation recorded in `.spec-workflow/specs/vfr-rt-training/tasks.md` N2.
+**Scope**: `batch_submit_quiz` recording + scoring for practice modes (`smart_review`/`quick_quiz`); MC behavior is byte-equivalent (single row/question → DISTINCT count == row count). Exam modes use their own RPCs.
 
 ---
 
@@ -951,7 +950,7 @@ This prevents orphaned practice sessions from blocking new quiz starts (prior bu
 
 **Rationale**: This is a **documented deviation from N7**. N7's single-row storage actively makes BOTH scoring (needs a fraction the row can't carry) and the report (needs an id→text map the single row doesn't provide) harder; per-slot rows make both trivial by reuse. The user's partial-credit decision (2026-06-24, more recent + more user-facing) outranks the implementation note. No data cost: no live RT data on prod (the page is dormant until RT import), so the storage shape can still change cheaply if the user objects at the manual-eval gate. Validated against two Opus plan-critic rounds (security/scoring + contract lenses) which ratified the deviation as sound; the mig-131 trigger blocker was caught there and fixed (mig 144).
 
-**Scope**: practice modes (`smart_review`/`quick_quiz`) on `/app/vfr-rt`; first of the two Part-3 drag types (`diagram_label` follows in Phase 6 and will reuse this per-slot model). Deviation recorded in `.spec-workflow/specs/vfr-rt-training/tasks.md` Phase 5.
+**Scope**: practice modes (`smart_review`/`quick_quiz`) on `/app/vfr-rt`; first of the two Part-3 drag types (`diagram_label` follows in Phase 6 and will reuse this per-slot model).
 
 ---
 
@@ -1207,7 +1206,7 @@ changed.
 red-team Vector FJ (`apps/web/e2e/redteam/tenant-tables-direct-write.spec.ts`); and the rule mirrors
 in `docs/security.md` §3, `docs/database.md` §3/§7, `.claude/rules/security.md` rule 2,
 `.coderabbit.yaml`, `.claude/agents/security-auditor.md`, `.claude/agents/semantic-reviewer.md`,
-`.claude/agents/coderabbit-sync.md`, `.claude/skills/supabase-rls.md` and `app-design-document.md`.
+`.claude/agents/coderabbit-sync.md` and `.claude/skills/supabase-rls.md`.
 
 ## Decision 60: The report "Correct" fraction is item/item in every mode; Skipped carries the paper size (2026-08-24)
 
@@ -1762,8 +1761,7 @@ ARE graded, under the test-file rule, which keys on the basename. Deliberate, bu
 **Consequence accepted.** Codifying a rule barely shrinks the injected corpus: many hand-kept copies collapsed to
 one, and the corpus did not get smaller. Derive the current total with
 `wc -l CLAUDE.md .claude/rules/*.md` rather than quoting one here — that is the INJECTED
-corpus; `.spec-workflow/specs/corpus-codification/requirements.md` measures a wider one (agents,
-commands, `.coderabbit.yaml` too), so the two derivations disagree by design: three figures in this slice
+corpus. Three figures in this slice
 shipped wrong, each measured before its own commit's remaining edits landed (§10 cl.7), and the
 replacement was itself stale by the time CodeRabbit round 1 was triaged. The size win is in deleting archaeology, not in
 codification; the win here is that these copies can no longer drift.
@@ -2060,9 +2058,7 @@ reached it. Derive the current set rather than trusting this sentence:
 lists every file in those paths that mentions the bucket — read each to sort restatements from
 pointers. It does not reach app code or migrations, which name the bucket without mirroring the
 carve-out (`git grep -l question-images -- :/`).
-The scoped grep returns more files than are named here: `docs/decisions.md` is this entry itself, and
-`.spec-workflow/specs/corpus-codification/tasks.md` matches only on the branch NAME, not the
-bucket.
+The scoped grep also returns `docs/decisions.md` — this entry itself.
 
 Other files POINT at this decision without restating the mechanics, and need no sync when the
 wording here changes — again an illustration as of 2026-09-15, not a closed set: `docs/plan.md` and
@@ -2112,8 +2108,7 @@ FILES, so CodeRabbit chat replies and commit-message review are no longer covere
 Pinned by `check-file-size-guard.update.test.mjs`.
 
 **Not mechanically enforced.** No hook measures Rule 0 compliance or prose volume; the banner is
-advisory and `.coderabbit.yaml` is a reviewer instruction, not a gate. The test is whether the corpus shrinks — the
-`corpus-codification` spec already lists its deletion set.
+advisory and `.coderabbit.yaml` is a reviewer instruction, not a gate. The test is whether the corpus shrinks.
 
 ## Decision 71: a path cited in prose becomes a check (2026-09-16)
 
@@ -2165,7 +2160,7 @@ sweep, a pointer audit. Only reading each diff against the original found them.
 
 **Consequence for the remaining slices:** before deleting a date-stamped sentence, check whether it
 is a SCOPE sentence; and re-read every condensed multi-clause sentence clause-by-clause against the
-original. Both are recorded in `.spec-workflow/specs/corpus-codification/tasks.md § Slice 3`.
+original.
 
 ## Decision 73: review runs ONCE per branch, on the branch diff, before the push (2026-09-17)
 

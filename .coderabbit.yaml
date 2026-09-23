@@ -258,10 +258,9 @@ reviews:
     # binding surfaces rather than taking .claude/**/*.md, which globstar-matches zero segments
     # and so would also sweep in files never meant as claims anyone reasons from. The list
     # mirrors the set in
-    # agent-workflow.md § Rule-Mirror Sync. Not a clean partition, in two ways, both harmless:
-    # docs/ also holds point-in-time eval logs (docs/manual-eval-*.md) which this sweeps in, and
+    # agent-workflow.md § Rule-Mirror Sync. Not a clean partition, harmless:
     # a docs/README.md would match too if one were ever added (none exists today). Reviewing
-    # either costs nothing; the set is "binding docs plus a little", not the pure set.
+    # it costs nothing; the set is "binding docs plus a little", not the pure set.
     # This path list is the BINDING-DOCUMENT subset of agent-workflow.md § Rule-Mirror Sync, not
     # the whole table: package.json is a mirror row too, reviewed INDIRECTLY — CLAUDE.md, which IS
     # in this list, carries the pnpm.overrides audit instructions that apply to it. No

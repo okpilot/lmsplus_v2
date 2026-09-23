@@ -753,7 +753,7 @@ Migrations 044–047. 1082 tests, all passing. Production Supabase email templat
 - ✅ Add `/coderabbit` skill command for triaging CodeRabbit review comments
 
 **Tech debt PR 1 — Docs & Comments (2026-03-14, `fix/pr1-docs-comments`):**
-- ✅ PR #105 merged — 10 doc/comment issues fixed (see `docs/tech-debt-batches.md` PR 1)
+- ✅ PR #105 merged — 10 doc/comment issues fixed
 - ✅ Biome CSS formatting fix (`globals.css` — trailing zeros, line breaks, quote normalization)
 - ✅ Stylelint disabled in `.coderabbit.yaml` (was producing false positives on unquoted font names)
 
@@ -1157,7 +1157,7 @@ Test summary: 247 unit tests (32 files) + 37 integration tests + 10 E2E tests. A
 
 ## Phase 6 — Feature Backlog (post-MVP feedback)
 
-Full backlog with sizing and sprint grouping: **`docs/backlog.md`**
+Backlog: GitHub issues.
 
 | Sprint | Focus | Key items |
 |--------|-------|-----------|
@@ -1430,7 +1430,7 @@ Pattern hit count=2 (`admin-students.spec.ts` precedent + `admin-questions.spec.
 
 ## VFR RT Training — Phase 1 (page + nav, MC-only) — 2026-06-20
 
-**Branch:** `feat/vfr-rt-training` (off `master` @ `55e50398`). Spec: `.spec-workflow/specs/vfr-rt-training/`. Tracks #697.
+**Branch:** `feat/vfr-rt-training` (off `master` @ `55e50398`). Tracks #697.
 
 Pivots VFR RT from the rejected bespoke mock-exam UI (parked PR #923) to a **training-first** feature that **reuses the existing `/app/quiz` Study UI** (see Decision 45). Phase 1 stands up the entry surface; no DB changes, multiple-choice only.
 
@@ -1448,7 +1448,7 @@ Pivots VFR RT from the rejected bespoke mock-exam UI (parked PR #923) to a **tra
 
 ## VFR RT Training — Phase 3 (Study runner renders + grades non-MC) — 2026-06-24
 
-**Branch:** `feat/vfr-rt-training-phase3`. Spec: `.spec-workflow/specs/vfr-rt-training/` tasks 3.1–3.3. Tracks #697. No migration (Phase 2 shipped the backend grader).
+**Branch:** `feat/vfr-rt-training-phase3`. Tracks #697. No migration (Phase 2 shipped the backend grader).
 
 Wires the reused `/app/quiz` Study runner to render and immediately grade the two text question types delivered by Phase 2 (`short_answer`, `dialog_fill`) via the `check_non_mc_answer` RPC.
 
@@ -1461,7 +1461,7 @@ Wires the reused `/app/quiz` Study runner to render and immediately grade the tw
 
 ## VFR RT Training — Phase 4 (report renders short_answer/dialog_fill) — 2026-06-24
 
-**Branch:** `feat/vfr-rt-training-phase3` (continued). Spec: `.spec-workflow/specs/vfr-rt-training/` tasks 4.1–4.3. Tracks #697. Migration commit (mig 132 + new RPC mig 133).
+**Branch:** `feat/vfr-rt-training-phase3` (continued). Tracks #697. Migration commit (mig 132 + new RPC mig 133).
 
 Makes the reused `/app/quiz` report render and score the two text question types post-session, unifying study scoring semantics with the exam path.
 
@@ -1473,7 +1473,7 @@ Makes the reused `/app/quiz` report render and score the two text question types
 
 ## VFR RT Training — Phase 6 (`diagram_label` question type) — 2026-07-02
 
-**Branch:** continuation of `feat/vfr-rt-training-phase3`. Spec: `.spec-workflow/specs/vfr-rt-training/` tasks 6.1–6.3 (see `.spec-workflow/specs/vfr-rt-training/phase6-plan.md` for the validated plan). Tracks #697. Migration commit (migs 150–156, dual-authored `packages/db/migrations/` ≡ `supabase/migrations/`).
+**Branch:** continuation of `feat/vfr-rt-training-phase3`. Tracks #697. Migration commit (migs 150–156, dual-authored `packages/db/migrations/` ≡ `supabase/migrations/`).
 
 Adds the second of the two Part-3 drag types — `diagram_label` — completing the runway traffic-pattern drill (drag text labels onto an SVG diagram's drop zones) alongside Phase 5's `ordering`. Reuses the `ordering` per-slot storage model end-to-end (Decision 52).
 

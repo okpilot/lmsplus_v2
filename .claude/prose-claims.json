@@ -16,11 +16,6 @@
     "docs/decisions.md@de0c40084b2501a1": "it used to carry had drifted — it invented an \"any file: max 300 lines\" rule that never",
     "docs/plan.md@1ccf3d2b5f9e2e9c": "- ✅ Hook split: `use-quiz-state` → `use-answer-handler` extraction to stay under 80-line limit",
     "docs/plan.md@73c01eee4865e6c2": "- All 8 list reads routed through it with a deterministic total order; `users` stays `.single()`; phase-2 `quiz_sessi...",
-    "docs/plan.md@eec1cb456c5312ff": "- use-session-state.ts refactored: async operations extracted to session-operations.ts, type refs to _types/session.t...",
-    "docs/tech-debt-batches.md@1a3013aa56b2872c": "| 36 | Refactor: Split useQuizState hook (80-line limit) |",
-    "docs/tech-debt-batches.md@27ffd0d2c8bd68cc": "| 71 | refactor: split StatsDisplay in statistics-tab.tsx (148/150 line limit) |",
-    "docs/tech-debt-batches.md@a30f5d2155e4e011": "| 2 | refactor: split quiz/actions.ts to stay under 100-line limit |",
-    "docs/tech-debt-batches.md@b79b93717829748f": "*Completed 2026-03-14. Split quiz/actions.test.ts (300 lines) into 3 co-located files (start.test.ts, submit.test.ts,...",
-    "docs/tech-debt-batches.md@c1b3d70202fc4bc6": "| 92 | Refactor use-session-state.ts to comply with 80-line hook limit |"
+    "docs/plan.md@eec1cb456c5312ff": "- use-session-state.ts refactored: async operations extracted to session-operations.ts, type refs to _types/session.t..."
   }
 }

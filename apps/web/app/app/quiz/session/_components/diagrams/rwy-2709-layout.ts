@@ -5,7 +5,7 @@
 // drop-zone coordinates can never drift apart.
 //
 // SECURITY (VFR RT Phase 6 diagram_label answer-oracle invariant — see
-// `.spec-workflow/specs/vfr-rt-training/phase6-plan.md` and docs/security.md):
+// docs/security.md):
 // every zone and label id below is DERIVED from content, never chosen by an
 // author. A zone id is `deriveZoneId(RWY_2709_IMAGE_REF, <its array index>)`
 // and a label id is `deriveLabelId(<its own text>)` — both from
