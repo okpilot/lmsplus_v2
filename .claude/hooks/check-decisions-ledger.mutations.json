@@ -1,0 +1,152 @@
+{
+  "_": "Every expectRed set below was derived by executing the mutation against a scratch clone of both suites and reading the actual TAP failures (code-style.md \u00a77) \u2014 none is predicted.",
+  "target": ".claude/hooks/check-decisions-ledger.mjs",
+  "suites": [
+    ".claude/hooks/check-decisions-ledger.test.mjs",
+    ".claude/hooks/check-decisions-ledger.repo.test.mjs"
+  ],
+  "mutations": [
+    {
+      "id": "marker-anchor-not-end-of-line",
+      "find": "const MARKER_ONE_RE = / (Superseded|Amended) by (\\d+(?:, \\d+)*)\\.$/",
+      "replace": "const MARKER_ONE_RE = / (Superseded|Amended) by (\\d+(?:, \\d+)*)\\./",
+      "expectRed": ["strips two trailing marker sentences chained together"]
+    },
+    {
+      "id": "marker-comma-list-not-split",
+      "find": "    for (const n of m[2].split(',').map((s) => s.trim())) markers.add(`${kind} ${n}`)",
+      "replace": "    markers.add(`${kind} ${m[2]}`)",
+      "expectRed": [
+        "splits a comma list of numbers into one marker per number",
+        "allows an OLD entry to gain an additional marker on top of its old one"
+      ]
+    },
+    {
+      "id": "marker-loop-single-pass",
+      "find": "    body = body.slice(0, m.index)\n    m = MARKER_ONE_RE.exec(body)\n  }",
+      "replace": "    body = body.slice(0, m.index)\n    m = null\n  }",
+      "expectRed": ["strips two trailing marker sentences chained together"]
+    },
+    {
+      "id": "header-split-loop-off-by-one",
+      "find": "  while (i < rawLines.length && !rawLines[i].startsWith('## ')) {",
+      "replace": "  while (i < rawLines.length && !rawLines[i + 1]?.startsWith('## ')) {",
+      "expectRed": ["splits header from entries at the first \\#\\# line"]
+    },
+    {
+      "id": "parseledger-blank-lines-not-skipped",
+      "find": "    if (rawLines[i].trim() === '') continue",
+      "replace": "    if (false) continue",
+      "expectRed": [
+        "allows appending a new decision line",
+        "allows appending a marker to an existing line",
+        "a Ledger-edit-ok trailer waives the edit it names",
+        "reads the ledger from the INDEX, ignoring an unstaged working-tree edit",
+        "--base is clean across a range of commits that never touch decisions.md after init",
+        "commit-msg mode on the FIRST commit (unborn HEAD) runs F1/F2 with no immutability check",
+        "splits header from entries at the first \\#\\# line",
+        "skips a blank line between entries rather than treating it as a malformed entry",
+        "does not treat a trailing newline as a trailing blank entry",
+        "a Ledger-edit-ok trailer waives exactly the finding for its token",
+        "reports a waiver token that matched no finding, without blocking",
+        "appending a new line with no edits to existing lines is clean",
+        "appending a marker to an existing line with no other edit is clean"
+      ]
+    },
+    {
+      "id": "check-decisions-ledger-numbering-skips-malformed",
+      "find": "export function checkNumbering(entries) {\n  const parsed = parsedEntries(entries)",
+      "replace": "export function checkNumbering(entries) {\n  const parsed = entries.map((raw) => ({ num: Number(ENTRY_RE.exec(raw)?.[1]), raw }))",
+      "expectRed": [
+        "does not let a malformed entry line break numbering for the well-formed ones around it"
+      ]
+    },
+    {
+      "id": "commitmsg-index-read-swapped",
+      "find": "        newText: readIndex(DECISIONS_PATH),",
+      "replace": "        newText: readAtTree('HEAD', DECISIONS_PATH),",
+      "expectRed": [
+        "blocks an edit to an existing line staged for commit",
+        "blocks changing an existing marker to a different number",
+        "blocks a malformed new entry line even with a matching waiver token",
+        "blocks a numbering gap in a newly appended line",
+        "a file deletion is blocked"
+      ]
+    },
+    {
+      "id": "waiver-reason-length-check-dropped",
+      "find": "    if (reason.replace(/\\s/g, '').length < 20 || EMPTY_REASONS.has(bare)) {",
+      "replace": "    if (EMPTY_REASONS.has(bare)) {",
+      "expectRed": [
+        "rejects a Ledger-edit-ok trailer whose reason is too short",
+        "an unusable waiver reason is reported as a problem, not silently ignored"
+      ]
+    },
+    {
+      "id": "base-per-commit-old-ref-wrong",
+      "find": "      oldText: readAtTree(`${sha}^`, DECISIONS_PATH),",
+      "replace": "      oldText: readAtTree(`${sha}^^`, DECISIONS_PATH),",
+      "expectRed": [
+        "a waiver trailer in one commit does not cover an edit made in an earlier commit",
+        "an edit then a restore across two commits is still flagged (the file is not diffed end to end)"
+      ]
+    },
+    {
+      "id": "waiver-scoped-to-wrong-commit",
+      "find": "      message: git(['log', '-1', '--format=%B', sha]).toString('utf8'),",
+      "replace": "      message: git(['log', '-1', '--format=%B', shas[shas.length - 1]]).toString('utf8'),",
+      "expectRed": [
+        "a waiver trailer in one commit does not cover an edit made in an earlier commit"
+      ]
+    },
+    {
+      "id": "base-root-commit-not-handled",
+      "find": "      oldText: readAtTree(`${sha}^`, DECISIONS_PATH),",
+      "replace": "      oldText: git(['show', `${sha}^:${DECISIONS_PATH}`]).toString('utf8'),",
+      "expectRed": ["--base handles a root commit in the range (no parent to diff against)"]
+    },
+    {
+      "id": "unborn-head-not-treated-as-absent",
+      "find": "    if (err.status === 1 && !err.signal) return false",
+      "replace": "    if (false) return false",
+      "expectRed": [
+        "--base handles a root commit in the range (no parent to diff against)",
+        "commit-msg mode on the FIRST commit (unborn HEAD) runs F1/F2 with no immutability check"
+      ]
+    },
+    {
+      "id": "usage-check-dropped",
+      "find": "  } else if (args.length === 1 && !args[0].startsWith('--')) {",
+      "replace": "  } else if (true) {",
+      "expectRed": ["exits 2 on an unrecognised argument shape"]
+    },
+    {
+      "id": "check-decisions-ledger-always-passes",
+      "find": "  return blocked ? 1 : 0",
+      "replace": "  return 0",
+      "expectRed": [
+        "blocks an edit to an existing line staged for commit",
+        "blocks changing an existing marker to a different number",
+        "--base catches an edit made in a middle commit of the range",
+        "a waiver trailer in one commit does not cover an edit made in an earlier commit",
+        "an edit then a restore across two commits is still flagged (the file is not diffed end to end)",
+        "blocks a malformed new entry line even with a matching waiver token",
+        "blocks a numbering gap in a newly appended line",
+        "a file deletion is blocked"
+      ]
+    },
+    {
+      "id": "check-decisions-ledger-always-blocks",
+      "find": "  return blocked ? 1 : 0",
+      "replace": "  return 1",
+      "expectRed": [
+        "allows appending a new decision line",
+        "allows appending a marker to an existing line",
+        "a Ledger-edit-ok trailer waives the edit it names",
+        "reads the ledger from the INDEX, ignoring an unstaged working-tree edit",
+        "--base is clean across a range of commits that never touch decisions.md after init",
+        "commit-msg mode on the FIRST commit (unborn HEAD) runs F1/F2 with no immutability check"
+      ]
+    }
+  ]
+}

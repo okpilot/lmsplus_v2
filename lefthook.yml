@@ -96,6 +96,10 @@ commit-msg:
     # because its only escape hatch is a `Retracted-ok:` trailer in the message itself.
     retracted-phrase:
       run: node .claude/hooks/check-retracted-phrase.mjs "{1}"
+    # Block an edit to an existing docs/decisions.md line other than an appended marker
+    # (Decision 86). Escape hatch: a `Ledger-edit-ok: <N|header> — <reason>` trailer.
+    decisions-ledger:
+      run: node .claude/hooks/check-decisions-ledger.mjs "{1}"
 
 pre-push:
   parallel: true
