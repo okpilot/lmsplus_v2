@@ -37,7 +37,7 @@ test('a range edit clears only when the authorized text equals the final line', 
   const cleared = checkRange({
     oldText: LEDGER_V1,
     newText,
-    authorized: new Map([['14', '## 14 — 2026-03-11 — EDITED.']]),
+    authorized: new Map([['14', ['## 14 — 2026-03-11 — EDITED.']]]),
     gradeFormat: true,
   })
   assert.deepEqual(cleared, [])
@@ -45,7 +45,7 @@ test('a range edit clears only when the authorized text equals the final line', 
   const stale = checkRange({
     oldText: LEDGER_V1,
     newText,
-    authorized: new Map([['14', '## 14 — 2026-03-11 — an earlier waived text.']]),
+    authorized: new Map([['14', ['## 14 — 2026-03-11 — an earlier waived text.']]]),
     gradeFormat: true,
   })
   assert.equal(
@@ -59,10 +59,71 @@ test('an ABSENT authorization clears a waived removal', () => {
   const res = checkRange({
     oldText: LEDGER_V1,
     newText,
-    authorized: new Map([['14', null]]),
+    authorized: new Map([['14', [null]]]),
     gradeFormat: false,
   })
   assert.deepEqual(res, [])
+})
+
+// GROUP: range-authorization-token-only
+test('an absent authorization does not clear a merge that reinstates the entry with new text', () => {
+  const newText = ledger('REINSTATED.')
+  // MUTATION: treat any absent-mapped authorization as clearing every finding for the token →
+  // this reinstated (not removed) entry would wrongly clear even though the waiver only ever
+  // authorized the entry's ABSENCE, not this new text.
+  const res = checkRange({
+    oldText: LEDGER_V1,
+    newText,
+    authorized: new Map([['14', [null]]]),
+    gradeFormat: true,
+  })
+  assert.equal(
+    res.some((f) => f.token === '14'),
+    true,
+  )
+})
+
+// GROUP: range-authorization-token-only
+test('a non-empty authorization does not clear a merge that deletes the entry instead', () => {
+  const newText = '# Decisions\n\n> rule text\n\n## 15 — 2026-03-11 — second decision.\n'
+  // MUTATION: clear on the token alone regardless of value → a waived edit's authorized text
+  // would also clear the entry's outright deletion, which was never the waived shape.
+  const res = checkRange({
+    oldText: LEDGER_V1,
+    newText,
+    authorized: new Map([['14', ['## 14 — 2026-03-11 — EDITED.']]]),
+    gradeFormat: true,
+  })
+  assert.equal(
+    res.some((f) => f.token === '14'),
+    true,
+  )
+})
+
+// GROUP: range-deletion-branch-dropped
+test('checkRange reports the whole-file deletion finding when NEW is absent', () => {
+  const res = checkRange({
+    oldText: LEDGER_V1,
+    newText: null,
+    authorized: new Map(),
+    gradeFormat: true,
+  })
+  // MUTATION: return [] when NEW is absent → a merge deleting the ledger passes.
+  assert.deepEqual(res, [{ token: null, kind: 'deleted', detail: 'docs/decisions.md deleted' }])
+})
+
+test('an unwaived header edit blocks the range unit', () => {
+  const newText = LEDGER_V1.replace('> rule text', '> EDITED rule text')
+  const res = checkRange({
+    oldText: LEDGER_V1,
+    newText,
+    authorized: new Map(),
+    gradeFormat: true,
+  })
+  assert.equal(
+    res.some((f) => f.token === 'header'),
+    true,
+  )
 })
 
 // GROUP: range-gradeformat-ignored
@@ -71,6 +132,18 @@ test('the range unit skips F1/F2 when a per-commit unit already graded this HEAD
   const newText = ledger('first decision.', 'second decision.', ['## 16 2026-03-12 broken'])
   const res = checkRange({ oldText: LEDGER_V1, newText, authorized: new Map(), gradeFormat: false })
   assert.deepEqual(res, [])
+})
+
+// GROUP: range-gradeformat-inverted
+test('the range unit catches a malformed line no per-commit unit graded', () => {
+  // MUTATION: invert gradeFormat (skip when true, grade when false) → a malformed line
+  // introduced only by the merge resolution would silently pass.
+  const newText = ledger('first decision.', 'second decision.', ['## 16 2026-03-12 broken'])
+  const res = checkRange({ oldText: LEDGER_V1, newText, authorized: new Map(), gradeFormat: true })
+  assert.equal(
+    res.some((f) => f.kind === 'format'),
+    true,
+  )
 })
 
 // ---------------------------------------------------------------- spawned: merge commits
@@ -134,10 +207,10 @@ test('a waived edit re-edited by a merge is blocked', () =>
     assert.equal(runBase(r, 'master').status, 1)
   }))
 
-// GROUP: range-authorization-accumulated
+// GROUP: range-authorization-not-invalidated
 test('a merge reinstating a superseded waived text is blocked', () =>
   withRepo((r) => {
-    // MUTATION: keep the FIRST authorization per token instead of the last → A clears.
+    // MUTATION: never drop an ancestor's authorization → the superseded waived text A clears.
     forked(r, () => {
       commit(r, ledger('A.'), waive(14, 'fix: reword 14'))
       commit(r, ledger('B.'), waive(14, 'fix: correct the reword of 14'))
@@ -207,4 +280,107 @@ test('restoring the line in a waived follow-up commit clears a merge edit', () =
     mergeMaster(r, ledger('EDITED IN MERGE.', undefined, [E16_MASTER]))
     commit(r, ledger(undefined, undefined, [E16_MASTER]), waive(14, 'fix: restore 14'))
     assert.equal(runBase(r, 'master').status, 0)
+  }))
+
+/** A ledger with only decision 15 and any extra entry lines (14 absent). */
+function ledgerNo14(extra = []) {
+  const lines = ['## 15 — 2026-03-11 — second decision.', ...extra]
+  return `# Decisions\n\n> rule text\n\n${lines.join('\n')}\n`
+}
+
+// GROUP: range-unit-dropped
+test('--base blocks a header edit made only in a merge commit', () =>
+  withRepo((r) => {
+    forked(r, () => readme(r))
+    const editedHeader = ledger(undefined, undefined, [E16_MASTER]).replace(
+      '> rule text',
+      '> EDITED rule text',
+    )
+    mergeMaster(r, editedHeader)
+    const res = runBase(r, 'master')
+    assert.equal(res.status, 1)
+    assert.match(res.stderr, /\[range\][\s\S]*header changed/)
+  }))
+
+// GROUP: range-unit-dropped
+test('--base blocks a merge that deletes docs/decisions.md entirely', () =>
+  withRepo((r) => {
+    forked(r, () => readme(r))
+    try {
+      r.git('merge', '-q', '--no-ff', '--no-commit', 'master')
+    } catch {
+      // A ledger conflict is expected here; the rm below resolves it.
+    }
+    r.git('rm', '-qf', 'docs/decisions.md')
+    r.git('commit', '-qm', 'Merge branch master into work')
+    const res = runBase(r, 'master')
+    assert.equal(res.status, 1)
+    assert.match(res.stderr, /\[range\][\s\S]*docs\/decisions\.md deleted/)
+  }))
+
+test('--base catches a malformed line introduced only by a merge resolution', () =>
+  withRepo((r) => {
+    forked(r, () => readme(r))
+    mergeMaster(r, ledger(undefined, undefined, [E16_MASTER, '## 17 2026-03-12 broken']))
+    const res = runBase(r, 'master')
+    assert.equal(res.status, 1)
+    assert.match(res.stderr, /\[range\][\s\S]*malformed entry line/)
+  }))
+
+// GROUP: range-authorization-not-invalidated
+test('a merge re-deleting an entry the branch removed and then restored is blocked', () =>
+  withRepo((r) => {
+    forked(r, () => {
+      commit(r, ledgerNo14(), waive(14, 'fix: remove duplicate decision 14 temporarily'))
+      commit(r, LEDGER_V1, 'restore decision 14 unchanged')
+    })
+    // MUTATION: never drop an ancestor's authorization → the stale ABSENT waiver clears it.
+    mergeMaster(r, ledgerNo14([E16_MASTER]))
+    assert.equal(runBase(r, 'master').status, 1)
+  }))
+
+// GROUP: range-gradeformat-last-unit
+test('a numbering break made in a merge blocks even when a later commit leaves the ledger alone', () =>
+  withRepo((r) => {
+    // MUTATION: track the last unit instead of the last unit that CHANGED the ledger → the
+    // trailing README commit's NEW equals HEAD and F1/F2 are skipped.
+    forked(r, () => readme(r))
+    mergeMaster(r, ledger(undefined, undefined, [E16_MASTER, '## 16 — 2026-03-12 — a duplicate.']))
+    r.write('README.md', 'after the merge\n')
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'readme after merge')
+    const res = runBase(r, 'master')
+    assert.equal(res.status, 1)
+    assert.match(res.stderr, /\[range\][\s\S]*## 16 follows ## 16/)
+  }))
+
+// GROUP: range-marker-exact-match
+test('a waived edit that later gains an appended marker passes on a linear branch', () =>
+  withRepo((r) => {
+    // MUTATION: compare the whole raw line instead of body + marker superset → the marker
+    // appended after the waiver no longer matches the waived text and the range unit blocks.
+    commit(r, LEDGER_V1, 'init')
+    r.git('branch', '-m', 'master')
+    r.git('checkout', '-qb', 'work')
+    commit(r, ledger('EDITED.'), waive(14, 'fix: reword 14'))
+    commit(
+      r,
+      ledger('EDITED. Amended by 16.', undefined, ['## 16 — 2026-03-12 — amends 14.']),
+      'feat: decision 16 amends 14',
+    )
+    assert.equal(runBase(r, 'master').status, 0)
+  }))
+
+test('concurrent waived edits on both sides let the merge keep either one', () =>
+  withRepo((r) => {
+    commit(r, LEDGER_V1, 'init')
+    r.git('branch', '-m', 'master')
+    r.git('tag', 'stale')
+    r.git('checkout', '-qb', 'work')
+    commit(r, ledger('BRANCH WORDING.'), waive(14, 'fix: reword 14 on the branch'))
+    r.git('checkout', '-q', 'master')
+    commit(r, ledger('MASTER WORDING.'), waive(14, 'fix: reword 14 on master'))
+    r.git('checkout', '-q', 'work')
+    mergeMaster(r, ledger('BRANCH WORDING.'))
+    assert.equal(runBase(r, 'stale').status, 0)
   }))

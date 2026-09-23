@@ -28,33 +28,46 @@
         "--base blocks an edit to an existing line made only in a merge commit",
         "a waived edit re-edited by a merge is blocked",
         "a merge reinstating a superseded waived text is blocked",
-        "a waiver for one line does not clear a merge edit to another"
+        "a waiver for one line does not clear a merge edit to another",
+        "--base blocks a header edit made only in a merge commit",
+        "--base blocks a merge that deletes docs/decisions.md entirely",
+        "--base catches a malformed line introduced only by a merge resolution",
+        "a merge re-deleting an entry the branch removed and then restored is blocked",
+        "a numbering break made in a merge blocks even when a later commit leaves the ledger alone"
       ]
     },
     {
       "id": "range-authorization-token-only",
-      "find": "      authorized.get(f.token) !== slotText(newText, f.token),",
-      "replace": "      false,",
+      "find": "!(authorized.get(f.token) ?? []).some((t) => slotMatches(t, newText, f.token)),",
+      "replace": "!authorized.has(f.token),",
       "expectRed": [
         "a range edit clears only when the authorized text equals the final line",
+        "an absent authorization does not clear a merge that reinstates the entry with new text",
+        "a non-empty authorization does not clear a merge that deletes the entry instead",
         "a waived edit re-edited by a merge is blocked",
-        "a merge reinstating a superseded waived text is blocked"
+        "a merge reinstating a superseded waived text is blocked",
+        "a merge re-deleting an entry the branch removed and then restored is blocked"
       ]
     },
     {
-      "id": "range-authorization-accumulated",
-      "find": "if (!res.unusedWaivers.includes(token)) authorized.set(",
-      "replace": "if (!res.unusedWaivers.includes(token) && !authorized.has(token)) authorized.set(",
-      "expectRed": ["a merge reinstating a superseded waived text is blocked"]
+      "id": "range-authorization-not-invalidated",
+      "find": ".filter((a) => !isAncestor(a.sha, unit.label))",
+      "replace": ".filter(() => true)",
+      "expectRed": [
+        "a merge reinstating a superseded waived text is blocked",
+        "a merge re-deleting an entry the branch removed and then restored is blocked"
+      ]
     },
     {
       "id": "range-authorizations-not-recorded",
-      "find": "if (!res.unusedWaivers.includes(token)) authorized.set(",
-      "replace": "if (false) authorized.set(",
+      "find": "    if (unusedWaivers.includes(token)) continue\n",
+      "replace": "    continue\n",
       "expectRed": [
         "a waived edit passes --base",
         "a waiver in a non-last commit of the range still waives its own edit",
-        "a stale base passes when the branch merged a newer master carrying a waived edit"
+        "a stale base passes when the branch merged a newer master carrying a waived edit",
+        "a waived edit that later gains an appended marker passes on a linear branch",
+        "concurrent waived edits on both sides let the merge keep either one"
       ]
     },
     {
@@ -63,6 +76,40 @@
       "replace": "(f) => true || (f.kind",
       "expectRed": [
         "the range unit skips F1/F2 when a per-commit unit already graded this HEAD text"
+      ]
+    },
+    {
+      "id": "range-gradeformat-last-unit",
+      "find": "if (unit.oldText !== unit.newText) lastTouched = unit.newText",
+      "replace": "lastTouched = unit.newText",
+      "expectRed": [
+        "a numbering break made in a merge blocks even when a later commit leaves the ledger alone"
+      ]
+    },
+    {
+      "id": "range-marker-exact-match",
+      "find": "  if (auth.body !== head.body) return false",
+      "replace": "  if (authorizedText !== slotText(headText, token)) return false",
+      "expectRed": ["a waived edit that later gains an appended marker passes on a linear branch"]
+    },
+    {
+      "id": "range-deletion-branch-dropped",
+      "find": "  if (newText === null) {\n    return [{ token: null, kind: 'deleted', detail: 'docs/decisions.md deleted' }]\n  }\n  const findings",
+      "replace": "  if (newText === null) {\n    return []\n  }\n  const findings",
+      "expectRed": [
+        "checkRange reports the whole-file deletion finding when NEW is absent",
+        "--base blocks a merge that deletes docs/decisions.md entirely"
+      ]
+    },
+    {
+      "id": "range-gradeformat-inverted",
+      "find": "(f) => gradeFormat || (f.kind",
+      "replace": "(f) => !gradeFormat || (f.kind",
+      "expectRed": [
+        "the range unit skips F1/F2 when a per-commit unit already graded this HEAD text",
+        "the range unit catches a malformed line no per-commit unit graded",
+        "--base catches a malformed line introduced only by a merge resolution",
+        "a numbering break made in a merge blocks even when a later commit leaves the ledger alone"
       ]
     },
     {
@@ -106,6 +153,8 @@
         "a stale base passes when the branch merged a newer master carrying a waived edit",
         "renumbering a branch-only line while merging master passes",
         "restoring the line in a waived follow-up commit clears a merge edit",
+        "a waived edit that later gains an appended marker passes on a linear branch",
+        "concurrent waived edits on both sides let the merge keep either one",
         "allows appending a new decision line",
         "allows appending a marker to an existing line",
         "a Ledger-edit-ok trailer waives the edit it names",
@@ -159,7 +208,10 @@
         "a waiver in a non-last commit of the range still waives its own edit",
         "a waiver trailer in one commit does not cover an edit made in an earlier commit",
         "an edit then a restore across two commits is still flagged (the file is not diffed end to end)",
-        "a stale base passes when the branch merged a newer master carrying a waived edit"
+        "a stale base passes when the branch merged a newer master carrying a waived edit",
+        "a numbering break made in a merge blocks even when a later commit leaves the ledger alone",
+        "a waived edit that later gains an appended marker passes on a linear branch",
+        "concurrent waived edits on both sides let the merge keep either one"
       ]
     },
     {
@@ -169,7 +221,7 @@
       "expectRed": [
         "a waiver in a non-last commit of the range still waives its own edit",
         "a waiver trailer in one commit does not cover an edit made in an earlier commit",
-        "a stale base passes when the branch merged a newer master carrying a waived edit"
+        "a waived edit that later gains an appended marker passes on a linear branch"
       ]
     },
     {
@@ -184,6 +236,7 @@
       "replace": "    if (false) return false",
       "expectRed": [
         "--base handles a root commit in the range (no parent to diff against)",
+        "concurrent waived edits on both sides let the merge keep either one",
         "blocks an edit to an existing line staged for commit",
         "allows appending a new decision line",
         "allows appending a marker to an existing line",
@@ -215,6 +268,11 @@
         "a waived edit re-edited by a merge is blocked",
         "a merge reinstating a superseded waived text is blocked",
         "a waiver for one line does not clear a merge edit to another",
+        "--base blocks a header edit made only in a merge commit",
+        "--base blocks a merge that deletes docs/decisions.md entirely",
+        "--base catches a malformed line introduced only by a merge resolution",
+        "a merge re-deleting an entry the branch removed and then restored is blocked",
+        "a numbering break made in a merge blocks even when a later commit leaves the ledger alone",
         "blocks an edit to an existing line staged for commit",
         "blocks changing an existing marker to a different number",
         "an unusable waiver reason still blocks the commit",
@@ -235,6 +293,8 @@
         "a stale base passes when the branch merged a newer master carrying a waived edit",
         "renumbering a branch-only line while merging master passes",
         "restoring the line in a waived follow-up commit clears a merge edit",
+        "a waived edit that later gains an appended marker passes on a linear branch",
+        "concurrent waived edits on both sides let the merge keep either one",
         "allows appending a new decision line",
         "allows appending a marker to an existing line",
         "a Ledger-edit-ok trailer waives the edit it names",
@@ -248,6 +308,7 @@
       "find": "    offenders.push({ token: 'header', kind: 'header', detail: 'docs/decisions.md header changed' })",
       "replace": "    offenders.push({ token: null, kind: 'header', detail: 'docs/decisions.md header changed' })",
       "expectRed": [
+        "an unwaived header edit blocks the range unit",
         "flags a changed header (I3)",
         "a Ledger-edit-ok: header trailer waives a changed header"
       ]
@@ -299,6 +360,8 @@
       "find": "  return entries.filter((raw) => !ENTRY_RE.test(raw))",
       "replace": "  return []",
       "expectRed": [
+        "the range unit catches a malformed line no per-commit unit graded",
+        "--base catches a malformed line introduced only by a merge resolution",
         "blocks a malformed new entry line even with a matching waiver token",
         "flags an entry line missing the second em-dash separator",
         "flags an entry line with a malformed date",
@@ -311,6 +374,7 @@
       "find": "    if (parsed[i].num !== parsed[i - 1].num + 1) {",
       "replace": "    if (false) {",
       "expectRed": [
+        "a numbering break made in a merge blocks even when a later commit leaves the ledger alone",
         "blocks a numbering gap in a newly appended line",
         "flags a gap in decision numbering",
         "flags a duplicated decision number"
@@ -320,7 +384,11 @@
       "id": "i1-missing-entry-dropped",
       "find": "  if (newRaw === undefined) {\n    return { token, kind: 'missing'",
       "replace": "  if (newRaw === undefined) return null\n  if (false) {\n    return { token, kind: 'missing'",
-      "expectRed": ["flags an OLD entry number missing entirely from NEW (I1)"]
+      "expectRed": [
+        "a non-empty authorization does not clear a merge that deletes the entry instead",
+        "a merge re-deleting an entry the branch removed and then restored is blocked",
+        "flags an OLD entry number missing entirely from NEW (I1)"
+      ]
     },
     {
       "id": "i2-body-check-dropped",
@@ -331,6 +399,7 @@
         "a waiver trailer in one commit does not cover an edit made in an earlier commit",
         "an edit then a restore across two commits is still flagged (the file is not diffed end to end)",
         "a range edit clears only when the authorized text equals the final line",
+        "an absent authorization does not clear a merge that reinstates the entry with new text",
         "--base blocks an edit to an existing line made only in a merge commit",
         "a waived edit re-edited by a merge is blocked",
         "a merge reinstating a superseded waived text is blocked",
@@ -354,7 +423,11 @@
       "id": "i3-header-check-dropped",
       "find": "  if (oldLedger.header !== newLedger.header) {",
       "replace": "  if (false) {",
-      "expectRed": ["flags a changed header (I3)"]
+      "expectRed": [
+        "an unwaived header edit blocks the range unit",
+        "--base blocks a header edit made only in a merge commit",
+        "flags a changed header (I3)"
+      ]
     },
     {
       "id": "deleted-file-finding-dropped",

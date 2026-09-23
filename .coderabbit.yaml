@@ -369,8 +369,8 @@ reviews:
     - path: "docs/decisions.md"
       instructions: |
         Decisions ledger (Decision 86; mechanised by .claude/hooks/check-decisions-ledger.mjs at
-        commit-msg and in CI; in CI a merge commit's edit clears only when the final line equals
-        what the latest `Ledger-edit-ok` commit for it produced — Decision 88). Flag:
+        commit-msg and in CI; in CI a merge commit's edit clears only when the final line matches
+        a text a `Ledger-edit-ok` commit produced that no descendant commit re-edited — Decision 88). Flag:
         - An entry line not matching `## <N> — <YYYY-MM-DD> — <text>`, or a number that is not
           the previous entry's number + 1.
         - Any change to an EXISTING line other than appending ` Superseded by <N>.` or
