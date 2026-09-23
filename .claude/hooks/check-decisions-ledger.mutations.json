@@ -39,7 +39,8 @@
         "a numbering break made in a merge blocks even when a later commit leaves the ledger alone",
         "a waiver on a commit with no ledger does not clear a merge dropping the last entry",
         "a superseded waiver stays revoked when commit dates put the ancestor last",
-        "a marker appended after a merge edit does not adopt the merge text"
+        "a marker appended after a merge edit does not adopt the merge text",
+        "a waived header edit does not clear a merge that rewrites the header again"
       ]
     },
     {
@@ -56,7 +57,8 @@
         "a merge reinstating a superseded waived text is blocked",
         "a merge re-deleting an entry the branch removed and then restored is blocked",
         "a superseded waiver stays revoked when commit dates put the ancestor last",
-        "a marker appended after a merge edit does not adopt the merge text"
+        "a marker appended after a merge edit does not adopt the merge text",
+        "a waived header edit does not clear a merge that rewrites the header again"
       ]
     },
     {
@@ -177,6 +179,15 @@
         "a superseded waiver stays revoked when commit dates put the ancestor last",
         "a ledger-neutral commit after a merge edit does not re-bind a waiver to the merge text",
         "a marker appended after a merge edit does not adopt the merge text"
+      ]
+    },
+    {
+      "id": "range-header-slot-dropped",
+      "find": "  if (token === 'header') return ledger.header\n",
+      "replace": "",
+      "expectRed": [
+        "a waived header edit does not clear a merge that rewrites the header again",
+        "slotText returns the header, an entry line, or null for an absent entry"
       ]
     },
     {
@@ -392,7 +403,8 @@
         "blocks a malformed new entry line even with a matching waiver token",
         "blocks a numbering gap in a newly appended line",
         "a file deletion is blocked",
-        "a marker appended after a merge edit does not adopt the merge text"
+        "a marker appended after a merge edit does not adopt the merge text",
+        "a waived header edit does not clear a merge that rewrites the header again"
       ]
     },
     {
@@ -550,7 +562,8 @@
       "expectRed": [
         "an unwaived header edit blocks the range unit",
         "--base blocks a header edit made only in a merge commit",
-        "flags a changed header (I3)"
+        "flags a changed header (I3)",
+        "a waived header edit does not clear a merge that rewrites the header again"
       ]
     },
     {

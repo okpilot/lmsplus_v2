@@ -235,6 +235,18 @@ test('--base blocks a header edit made only in a merge commit', () =>
     assert.match(res.stderr, /\[range\][\s\S]*header changed/)
   }))
 
+// GROUP: range-header-slot-dropped
+test('a waived header edit does not clear a merge that rewrites the header again', () =>
+  withRepo((r) => {
+    // MUTATION: drop the header branch of slotText → the waiver binds to null, matches any
+    // header, and the merge's own header rewrite clears.
+    const header = (text, extra) =>
+      ledger(undefined, undefined, extra).replace('> rule text', `> ${text}`)
+    forked(r, () => commit(r, header('BRANCH rule text', []), waive('header', 'fix: header')))
+    mergeMaster(r, header('MERGE rule text', [E16_MASTER]))
+    assert.equal(runBase(r, 'master').status, 1)
+  }))
+
 // GROUP: range-unit-dropped
 test('--base blocks a merge that deletes docs/decisions.md entirely', () =>
   withRepo((r) => {

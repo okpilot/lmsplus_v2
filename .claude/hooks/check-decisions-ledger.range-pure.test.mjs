@@ -14,6 +14,7 @@ import { LEDGER_V1, ledger } from './check-decisions-ledger.testkit.mjs'
 
 // ---------------------------------------------------------------- pure: slotText / checkRange
 
+// GROUP: range-header-slot-dropped
 test('slotText returns the header, an entry line, or null for an absent entry', () => {
   assert.equal(slotText(LEDGER_V1, 'header'), '# Decisions\n\n> rule text\n')
   assert.equal(slotText(LEDGER_V1, '14'), '## 14 — 2026-03-11 — first decision.')
