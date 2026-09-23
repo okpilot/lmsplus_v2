@@ -162,7 +162,8 @@
       "base": "check-decisions-ledger",
       "suites": [
         ".claude/hooks/check-decisions-ledger.test.mjs",
-        ".claude/hooks/check-decisions-ledger.repo.test.mjs"
+        ".claude/hooks/check-decisions-ledger.repo.test.mjs",
+        ".claude/hooks/check-decisions-ledger.base.test.mjs"
       ]
     },
     ".claude/hooks/guard-bash.js": {

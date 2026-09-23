@@ -248,6 +248,43 @@ test('accepts a colon separator, not only an em dash', () => {
   assert.equal(waivers.get('14'), GOOD_REASON)
 })
 
+// ---------------------------------------------------------------- parseWaivers: trailer-block only
+
+// GROUP: waiver-not-scoped-to-trailer-block
+test('a Ledger-edit-ok line in a body paragraph does not waive', () => {
+  // MUTATION: scan the whole message instead of only the LAST paragraph → a line describing
+  // the trailer SYNTAX in prose (not a real trailer) reads as one — exactly what a24e439b's
+  // own commit body produced: `(note) … matched no finding: <N|header>`.
+  const message = `fix: reword decision 14\n\nLedger-edit-ok: 14 — ${GOOD_REASON}\n\nThis paragraph is unrelated trailing prose, not a trailer.\n`
+  const { waivers } = parseWaivers(message)
+  assert.equal(waivers.has('14'), false)
+})
+
+test('the same line in the final paragraph does waive', () => {
+  const message = `fix: reword decision 14\n\nThis paragraph is unrelated body prose.\n\nLedger-edit-ok: 14 — ${GOOD_REASON}\n`
+  const { waivers } = parseWaivers(message)
+  assert.equal(waivers.get('14'), GOOD_REASON)
+})
+
+// GROUP: waiver-line-trimmed-before-match
+test('an indented line in the final paragraph does not waive', () => {
+  // MUTATION: trim the line before matching TRAILER_RE → an indented line (a quoted example
+  // inside body prose, not a real trailer) matches anyway.
+  const message = `fix: reword decision 14\n\n  Ledger-edit-ok: 14 — ${GOOD_REASON}\n`
+  const { waivers } = parseWaivers(message)
+  assert.equal(waivers.has('14'), false)
+})
+
+// GROUP: waiver-comment-lines-not-stripped
+test('a trailing git commit-template comment block does not hide the trailer paragraph before it', () => {
+  // MUTATION: skip stripping `#`-prefixed comment lines → the template's trailing comment
+  // block (added by `git commit` without -m) becomes the "last paragraph" instead of the
+  // real trailer above it, and the waiver is lost.
+  const message = `fix: reword decision 14\n\nLedger-edit-ok: 14 — ${GOOD_REASON}\n\n# Please enter the commit message for your changes.\n# Lines starting with '#' will be ignored.\n`
+  const { waivers } = parseWaivers(message)
+  assert.equal(waivers.get('14'), GOOD_REASON)
+})
+
 // ---------------------------------------------------------------- checkUnit (integration of the pure pieces)
 
 test('both OLD and NEW absent is a clean run', () => {
@@ -354,6 +391,16 @@ test('appending a marker to an existing line with no other edit is clean', () =>
     message: 'chore: decision 16 supersedes 15\n',
   })
   assert.deepEqual(res, { problems: [], offenders: [], unusedWaivers: [] })
+})
+
+// GROUP: header-token-not-waivable
+test('a Ledger-edit-ok: header trailer waives a changed header', () => {
+  const res = checkUnit({
+    oldText: '# Decisions\n\n> rule\n\n## 14 — 2026-03-11 — first.\n',
+    newText: '# Decisions\n\n> a DIFFERENT rule\n\n## 14 — 2026-03-11 — first.\n',
+    message: `chore: reword rule text\n\nLedger-edit-ok: header — ${GOOD_REASON}\n`,
+  })
+  assert.deepEqual(res.offenders, [])
 })
 
 test('changing a marker number without waiving it is flagged', () => {

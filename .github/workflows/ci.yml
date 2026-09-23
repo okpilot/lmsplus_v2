@@ -175,6 +175,9 @@ jobs:
       - name: Decisions-ledger guard — git-facing tests
         run: node --test .claude/hooks/check-decisions-ledger.repo.test.mjs
 
+      - name: Decisions-ledger guard — --base (branch-range) tests
+        run: node --test .claude/hooks/check-decisions-ledger.base.test.mjs
+
       # Prose-claims guard (code-style.md §1: limits are DATA; never restate a number in prose).
       # `--all` here, NOT the staged mode the pre-commit hook uses: CI grades the whole worktree
       # against `.claude/prose-claims.json`, so a restatement that reached master before this

@@ -1,9 +1,10 @@
 {
-  "_": "Every expectRed set below was derived by executing the mutation against a scratch clone of both suites and reading the actual TAP failures (code-style.md \u00a77) \u2014 none is predicted.",
+  "_": "Every expectRed set below was derived by executing the mutation against a scratch clone of all suites and reading the actual TAP failures (code-style.md §7) — none is predicted.",
   "target": ".claude/hooks/check-decisions-ledger.mjs",
   "suites": [
     ".claude/hooks/check-decisions-ledger.test.mjs",
-    ".claude/hooks/check-decisions-ledger.repo.test.mjs"
+    ".claude/hooks/check-decisions-ledger.repo.test.mjs",
+    ".claude/hooks/check-decisions-ledger.base.test.mjs"
   ],
   "mutations": [
     {
@@ -43,6 +44,8 @@
         "a Ledger-edit-ok trailer waives the edit it names",
         "reads the ledger from the INDEX, ignoring an unstaged working-tree edit",
         "--base is clean across a range of commits that never touch decisions.md after init",
+        "a waived per-commit edit still passes the range unit",
+        "a waiver in a non-last commit of the range still waives its own edit",
         "commit-msg mode on the FIRST commit (unborn HEAD) runs F1/F2 with no immutability check",
         "splits header from entries at the first \\#\\# line",
         "skips a blank line between entries rather than treating it as a malformed entry",
@@ -50,7 +53,8 @@
         "a Ledger-edit-ok trailer waives exactly the finding for its token",
         "reports a waiver token that matched no finding, without blocking",
         "appending a new line with no edits to existing lines is clean",
-        "appending a marker to an existing line with no other edit is clean"
+        "appending a marker to an existing line with no other edit is clean",
+        "a Ledger-edit-ok: header trailer waives a changed header"
       ]
     },
     {
@@ -63,8 +67,8 @@
     },
     {
       "id": "commitmsg-index-read-swapped",
-      "find": "        newText: readIndex(DECISIONS_PATH),",
-      "replace": "        newText: readAtTree('HEAD', DECISIONS_PATH),",
+      "find": "    newText: readIndex(DECISIONS_PATH),",
+      "replace": "    newText: readAtTree('HEAD', DECISIONS_PATH),",
       "expectRed": [
         "blocks an edit to an existing line staged for commit",
         "blocks changing an existing marker to a different number",
@@ -84,25 +88,27 @@
     },
     {
       "id": "base-per-commit-old-ref-wrong",
-      "find": "      oldText: readAtTree(`${sha}^`, DECISIONS_PATH),",
-      "replace": "      oldText: readAtTree(`${sha}^^`, DECISIONS_PATH),",
+      "find": "    oldText: readAtTree(`${sha}^`, DECISIONS_PATH),",
+      "replace": "    oldText: readAtTree(`${sha}^^`, DECISIONS_PATH),",
       "expectRed": [
         "a waiver trailer in one commit does not cover an edit made in an earlier commit",
-        "an edit then a restore across two commits is still flagged (the file is not diffed end to end)"
+        "an edit then a restore across two commits is still flagged (the file is not diffed end to end)",
+        "a waiver in a non-last commit of the range still waives its own edit"
       ]
     },
     {
       "id": "waiver-scoped-to-wrong-commit",
-      "find": "      message: git(['log', '-1', '--format=%B', sha]).toString('utf8'),",
-      "replace": "      message: git(['log', '-1', '--format=%B', shas[shas.length - 1]]).toString('utf8'),",
+      "find": "    message: git(['log', '-1', '--format=%B', sha]).toString('utf8'),",
+      "replace": "    message: git(['log', '-1', '--format=%B', shas[shas.length - 1]]).toString('utf8'),",
       "expectRed": [
-        "a waiver trailer in one commit does not cover an edit made in an earlier commit"
+        "a waiver trailer in one commit does not cover an edit made in an earlier commit",
+        "a waiver in a non-last commit of the range still waives its own edit"
       ]
     },
     {
       "id": "base-root-commit-not-handled",
-      "find": "      oldText: readAtTree(`${sha}^`, DECISIONS_PATH),",
-      "replace": "      oldText: git(['show', `${sha}^:${DECISIONS_PATH}`]).toString('utf8'),",
+      "find": "    oldText: readAtTree(`${sha}^`, DECISIONS_PATH),",
+      "replace": "    oldText: git(['show', `${sha}^:${DECISIONS_PATH}`]).toString('utf8'),",
       "expectRed": ["--base handles a root commit in the range (no parent to diff against)"]
     },
     {
@@ -132,7 +138,8 @@
         "an edit then a restore across two commits is still flagged (the file is not diffed end to end)",
         "blocks a malformed new entry line even with a matching waiver token",
         "blocks a numbering gap in a newly appended line",
-        "a file deletion is blocked"
+        "a file deletion is blocked",
+        "a conflict-resolved --no-ff merge that rewrites an existing entry is caught by the range unit"
       ]
     },
     {
@@ -145,8 +152,72 @@
         "a Ledger-edit-ok trailer waives the edit it names",
         "reads the ledger from the INDEX, ignoring an unstaged working-tree edit",
         "--base is clean across a range of commits that never touch decisions.md after init",
+        "a waived per-commit edit still passes the range unit",
+        "a waiver in a non-last commit of the range still waives its own edit",
         "commit-msg mode on the FIRST commit (unborn HEAD) runs F1/F2 with no immutability check"
       ]
+    },
+    {
+      "id": "header-token-not-waivable",
+      "find": "    offenders.push({ token: 'header', kind: 'header', detail: 'docs/decisions.md header changed' })",
+      "replace": "    offenders.push({ token: null, kind: 'header', detail: 'docs/decisions.md header changed' })",
+      "expectRed": [
+        "flags a changed header (I3)",
+        "a Ledger-edit-ok: header trailer waives a changed header"
+      ]
+    },
+    {
+      "id": "top-level-catch-exit-code",
+      "find": "    console.error(`✖ decisions-ledger guard: check could not run — BLOCKING: ${err.message}`)\n    exit(2)",
+      "replace": "    console.error(`✖ decisions-ledger guard: check could not run — BLOCKING: ${err.message}`)\n    exit(0)",
+      "expectRed": [
+        "--base against a ref that does not exist is a git fault, not a usage error — exits 2",
+        "a merge-base that cannot resolve (no shared history at all) is a fault, exit 2"
+      ]
+    },
+    {
+      "id": "waiver-not-scoped-to-trailer-block",
+      "find": "  return raw.slice(lastBlank + 1)",
+      "replace": "  return raw",
+      "expectRed": ["a Ledger-edit-ok line in a body paragraph does not waive"]
+    },
+    {
+      "id": "waiver-line-trimmed-before-match",
+      "find": "    const m = TRAILER_RE.exec(line)",
+      "replace": "    const m = TRAILER_RE.exec(line.trim())",
+      "expectRed": ["an indented line in the final paragraph does not waive"]
+    },
+    {
+      "id": "waiver-comment-lines-not-stripped",
+      "find": "  const raw = message.split('\\n').filter((line) => !line.startsWith('#'))",
+      "replace": "  const raw = message.split('\\n')",
+      "expectRed": [
+        "a trailing git commit-template comment block does not hide the trailer paragraph before it"
+      ]
+    },
+    {
+      "id": "range-unit-not-added",
+      "find": "  return [...perCommit, rangeUnit(ref)]",
+      "replace": "  return perCommit",
+      "expectRed": [
+        "a conflict-resolved --no-ff merge that rewrites an existing entry is caught by the range unit",
+        "a merge-base that cannot resolve (no shared history at all) is a fault, exit 2"
+      ]
+    },
+    {
+      "id": "range-unit-message-not-concatenated",
+      "find": "  const message = shas\n    .map((sha) => trailerBlock(git(['log', '-1', '--format=%B', sha]).toString('utf8')).join('\\n'))\n    .join('\\n')",
+      "replace": "  const message = ''",
+      "expectRed": [
+        "a waived per-commit edit still passes the range unit",
+        "a waiver in a non-last commit of the range still waives its own edit"
+      ]
+    },
+    {
+      "id": "range-unit-message-plain-join",
+      "find": "  const message = shas\n    .map((sha) => trailerBlock(git(['log', '-1', '--format=%B', sha]).toString('utf8')).join('\\n'))\n    .join('\\n')",
+      "replace": "  const message = shas\n    .map((sha) => git(['log', '-1', '--format=%B', sha]).toString('utf8'))\n    .join('\\n')",
+      "expectRed": ["a waiver in a non-last commit of the range still waives its own edit"]
     }
   ]
 }
