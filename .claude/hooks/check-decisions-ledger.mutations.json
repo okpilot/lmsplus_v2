@@ -38,7 +38,8 @@
         "a merge re-deleting an entry the branch removed and then restored is blocked",
         "a numbering break made in a merge blocks even when a later commit leaves the ledger alone",
         "a waiver on a commit with no ledger does not clear a merge dropping the last entry",
-        "a superseded waiver stays revoked when commit dates put the ancestor last"
+        "a superseded waiver stays revoked when commit dates put the ancestor last",
+        "a marker appended after a merge edit does not adopt the merge text"
       ]
     },
     {
@@ -54,12 +55,13 @@
         "a waived edit re-edited by a merge is blocked",
         "a merge reinstating a superseded waived text is blocked",
         "a merge re-deleting an entry the branch removed and then restored is blocked",
-        "a superseded waiver stays revoked when commit dates put the ancestor last"
+        "a superseded waiver stays revoked when commit dates put the ancestor last",
+        "a marker appended after a merge edit does not adopt the merge text"
       ]
     },
     {
       "id": "range-authorization-not-invalidated",
-      "find": "      list.map((a) => (isAncestor(a.sha, unit.label) ? { ...a, text } : a)),\n",
+      "find": "      list.map((a) => (follows(a) ? { ...a, text } : a)),\n",
       "replace": "      list,\n",
       "expectRed": [
         "a merge dropping a marker the branch removed and then restored is blocked",
@@ -78,7 +80,8 @@
         "a waiver in a non-last commit of the range still waives its own edit",
         "a stale base passes when the branch merged a newer master carrying a waived edit",
         "a waived edit that later gains an appended marker passes on a linear branch",
-        "concurrent waived edits on both sides let the merge keep either one"
+        "concurrent waived edits on both sides let the merge keep either one",
+        "a master re-edit of a text the branch also waived keeps the branch waiver"
       ]
     },
     {
@@ -154,9 +157,9 @@
     },
     {
       "id": "range-rebind-ignores-ancestry",
-      "find": "(isAncestor(a.sha, unit.label) ? { ...a, text } : a)",
-      "replace": "(true ? { ...a, text } : a)",
-      "expectRed": ["concurrent waived edits on both sides let the merge keep either one"]
+      "find": "&& isAncestor(a.sha, unit.label)",
+      "replace": "&& true",
+      "expectRed": ["a master re-edit of a text the branch also waived keeps the branch waiver"]
     },
     {
       "id": "range-dedup-token-only",
@@ -168,11 +171,12 @@
     },
     {
       "id": "range-rebind-unchanged-slot",
-      "find": "    if (text === slotText(unit.oldText, token)) continue\n",
-      "replace": "",
+      "find": "slotMatches(a.text, unit.oldText, token) && isAncestor",
+      "replace": "isAncestor",
       "expectRed": [
         "a superseded waiver stays revoked when commit dates put the ancestor last",
-        "a ledger-neutral commit after a merge edit does not re-bind a waiver to the merge text"
+        "a ledger-neutral commit after a merge edit does not re-bind a waiver to the merge text",
+        "a marker appended after a merge edit does not adopt the merge text"
       ]
     },
     {
@@ -195,7 +199,8 @@
         "an ABSENT authorization clears a waived removal",
         "a stale base passes when the branch merged a newer master carrying a waived edit",
         "a waived edit that later gains an appended marker passes on a linear branch",
-        "concurrent waived edits on both sides let the merge keep either one"
+        "concurrent waived edits on both sides let the merge keep either one",
+        "a master re-edit of a text the branch also waived keeps the branch waiver"
       ]
     },
     {
@@ -259,7 +264,8 @@
         "reports a waiver token that matched no finding, without blocking",
         "appending a new line with no edits to existing lines is clean",
         "appending a marker to an existing line with no other edit is clean",
-        "a Ledger-edit-ok: header trailer waives a changed header"
+        "a Ledger-edit-ok: header trailer waives a changed header",
+        "a master re-edit of a text the branch also waived keeps the branch waiver"
       ]
     },
     {
@@ -306,7 +312,8 @@
         "a stale base passes when the branch merged a newer master carrying a waived edit",
         "a numbering break made in a merge blocks even when a later commit leaves the ledger alone",
         "a waived edit that later gains an appended marker passes on a linear branch",
-        "concurrent waived edits on both sides let the merge keep either one"
+        "concurrent waived edits on both sides let the merge keep either one",
+        "a master re-edit of a text the branch also waived keeps the branch waiver"
       ]
     },
     {
@@ -335,7 +342,6 @@
       "replace": "    if (false) return false",
       "expectRed": [
         "--base handles a root commit in the range (no parent to diff against)",
-        "concurrent waived edits on both sides let the merge keep either one",
         "a waiver on a commit with no ledger does not clear a merge dropping the last entry",
         "blocks an edit to an existing line staged for commit",
         "allows appending a new decision line",
@@ -347,7 +353,8 @@
         "blocks a malformed new entry line even with a matching waiver token",
         "blocks a numbering gap in a newly appended line",
         "a file deletion is blocked",
-        "commit-msg mode on the FIRST commit (unborn HEAD) runs F1/F2 with no immutability check"
+        "commit-msg mode on the FIRST commit (unborn HEAD) runs F1/F2 with no immutability check",
+        "a master re-edit of a text the branch also waived keeps the branch waiver"
       ]
     },
     {
@@ -384,7 +391,8 @@
         "an unusable waiver reason still blocks the commit",
         "blocks a malformed new entry line even with a matching waiver token",
         "blocks a numbering gap in a newly appended line",
-        "a file deletion is blocked"
+        "a file deletion is blocked",
+        "a marker appended after a merge edit does not adopt the merge text"
       ]
     },
     {
@@ -407,7 +415,8 @@
         "a Ledger-edit-ok trailer waives the edit it names",
         "reads the ledger from the INDEX, ignoring an unstaged working-tree edit",
         "commit-msg mode on the FIRST commit (unborn HEAD) runs F1/F2 with no immutability check",
-        "a clean merge auto-adopting an already-waived incoming edit passes"
+        "a clean merge auto-adopting an already-waived incoming edit passes",
+        "a master re-edit of a text the branch also waived keeps the branch waiver"
       ]
     },
     {
@@ -519,7 +528,8 @@
         "a superseded waiver stays revoked when commit dates put the ancestor last",
         "blocks an edit to an existing line staged for commit",
         "flags an OLD entry whose body text changed (I2)",
-        "a Ledger-edit-ok trailer for one token does not waive a finding on a different token"
+        "a Ledger-edit-ok trailer for one token does not waive a finding on a different token",
+        "a marker appended after a merge edit does not adopt the merge text"
       ]
     },
     {

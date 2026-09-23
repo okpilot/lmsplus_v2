@@ -41,7 +41,7 @@
 // units walk --no-merges. --base then runs a RANGE unit: OLD = ledger at
 // `git merge-base <ref> HEAD`, NEW = HEAD's. A range finding for token T clears only when HEAD's
 // T matches the text a waiving per-commit unit produced (same body, markers a superset); a
-// DESCENDANT per-commit unit that changes T re-binds that text to its own result. A merge never waives, so an edit made only
+// DESCENDANT per-commit unit whose OLD T still matches that text re-binds it to its own result. A merge never waives, so an edit made only
 // in a merge resolution blocks in CI. A non-merge commit HEAD reaches is an ancestor of the
 // merge-base or a per-commit unit, so <ref> need not be an ancestor of HEAD. With several merge-bases
 // (criss-cross) git picks one, and the range unit can OVER-block. Only lines present at the
@@ -449,15 +449,16 @@ function isAncestor(a, b) {
   return gitProbe(['merge-base', '--is-ancestor', a, b])
 }
 
-/** Re-bind `unit`'s ancestors' authorizations to `unit`'s result for every token `unit` changed,
- *  then add `unit`'s own applied waivers. `live` is Map<token, {sha, text}[]>. */
+/** Re-bind to `unit`'s result each ancestor authorization that `unit`'s OLD slot still matches
+ *  (so text a merge wrote is never adopted), then add `unit`'s own applied waivers.
+ *  `live` is Map<token, {sha, text}[]>. */
 function recordAuthorizations(live, unit, unusedWaivers) {
   for (const [token, list] of live) {
     const text = slotText(unit.newText, token)
-    if (text === slotText(unit.oldText, token)) continue
+    const follows = (a) => slotMatches(a.text, unit.oldText, token) && isAncestor(a.sha, unit.label)
     live.set(
       token,
-      list.map((a) => (isAncestor(a.sha, unit.label) ? { ...a, text } : a)),
+      list.map((a) => (follows(a) ? { ...a, text } : a)),
     )
   }
   // No ledger in NEW: checkUnit returned before applying waivers, so none was applied.

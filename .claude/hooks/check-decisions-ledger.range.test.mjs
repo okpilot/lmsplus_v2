@@ -129,6 +129,17 @@ test('a ledger-neutral commit after a merge edit does not re-bind a waiver to th
     assert.equal(runBase(r, 'master').status, 1)
   }))
 
+// GROUP: range-rebind-unchanged-slot
+test('a marker appended after a merge edit does not adopt the merge text', () =>
+  withRepo((r) => {
+    // MUTATION: re-bind without checking the commit's OLD slot matched the authorized text → the
+    // marker commit moves the waiver for A onto the merge's X and the merge-only edit clears.
+    forked(r, () => commit(r, ledger('A.'), waive(14, 'fix: reword 14')))
+    mergeMaster(r, ledger('X.', undefined, [E16_MASTER]))
+    commit(r, ledger('X. Amended by 16.', undefined, [E16_MASTER]), 'feat: 16 amends 14')
+    assert.equal(runBase(r, 'master').status, 1)
+  }))
+
 // GROUP: range-authorization-token-only
 test('a waived edit re-edited by a merge is blocked', () =>
   withRepo((r) => {
@@ -320,11 +331,8 @@ test('a waived edit that a merge later marks passes', () =>
     assert.equal(runBase(r, 'master').status, 0)
   }))
 
-// GROUP: range-rebind-ignores-ancestry
 test('concurrent waived edits on both sides let the merge keep either one', () =>
   withRepo((r) => {
-    // MUTATION: re-bind every authorization regardless of ancestry → the master commit moves the
-    // branch's authorization to MASTER WORDING and the merge keeping BRANCH WORDING blocks.
     startWork(r)
     r.git('tag', 'stale', 'master')
     commit(r, ledger('BRANCH WORDING.'), waive(14, 'fix: reword 14 on the branch'))
@@ -332,6 +340,22 @@ test('concurrent waived edits on both sides let the merge keep either one', () =
     commit(r, ledger('MASTER WORDING.'), waive(14, 'fix: reword 14 on master'))
     r.git('checkout', '-q', 'work')
     mergeMaster(r, ledger('BRANCH WORDING.'))
+    assert.equal(runBase(r, 'stale').status, 0)
+  }))
+
+// GROUP: range-rebind-ignores-ancestry
+test('a master re-edit of a text the branch also waived keeps the branch waiver', () =>
+  withRepo((r) => {
+    // MUTATION: re-bind regardless of ancestry → the master commit rewording A to B moves the
+    // branch's waiver for A to B, and the merge keeping the branch's A blocks.
+    startWork(r)
+    r.git('tag', 'stale', 'master')
+    commit(r, ledger('A.'), waive(14, 'fix: reword 14 on the branch'))
+    r.git('checkout', '-q', 'master')
+    commit(r, ledger('A.'), waive(14, 'fix: reword 14 on master'))
+    commit(r, ledger('B.'), waive(14, 'fix: reword 14 again on master'))
+    r.git('checkout', '-q', 'work')
+    mergeMaster(r, ledger('A.'))
     assert.equal(runBase(r, 'stale').status, 0)
   }))
 
