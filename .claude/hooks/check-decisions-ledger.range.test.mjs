@@ -209,7 +209,10 @@ test('a range finding tells the author a merge cannot waive it', () =>
     forked(r, () => readme(r))
     mergeMaster(r, ledger('EDITED IN MERGE.', undefined, [E16_MASTER]))
     const res = runBase(r, 'master')
-    assert.match(res.stderr, /a merge cannot waive: add a non-merge commit with Ledger-edit-ok: 14/)
+    assert.match(
+      res.stderr,
+      /a merge cannot waive: restore this line in a commit with Ledger-edit-ok: 14, or redo the merge/,
+    )
   }))
 
 // GROUP: range-authorization-token-only

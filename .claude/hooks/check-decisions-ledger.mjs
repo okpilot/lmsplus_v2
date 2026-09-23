@@ -409,7 +409,7 @@ function reportUnit(label, offenders, unusedWaivers) {
       console.error(`  ${o.detail}`)
       if (o.token !== null && label === 'range') {
         console.error(
-          `    → a merge cannot waive: add a non-merge commit with Ledger-edit-ok: ${o.token} that produces this exact line`,
+          `    → a merge cannot waive: restore this line in a commit with Ledger-edit-ok: ${o.token}, or redo the merge without the edit and make it in a non-merge commit with Ledger-edit-ok: ${o.token}`,
         )
       } else if (o.token !== null) {
         console.error(
