@@ -40,15 +40,13 @@
       "replace": "    if (false) continue",
       "expectRed": [
         "--base is clean across a range of commits that never touch decisions.md after init",
-        "a waived per-commit edit still passes the range unit",
+        "a waived edit passes --base",
         "a waiver in a non-last commit of the range still waives its own edit",
-        "a merge commit carrying its own waiver for its own resolution edit passes the range unit",
         "allows appending a new decision line",
         "allows appending a marker to an existing line",
         "a Ledger-edit-ok trailer waives the edit it names",
         "reads the ledger from the INDEX, ignoring an unstaged working-tree edit",
         "commit-msg mode on the FIRST commit (unborn HEAD) runs F1/F2 with no immutability check",
-        "a clean merge auto-adopting an already-waived incoming edit passes",
         "splits header from entries at the first \\#\\# line",
         "skips a blank line between entries rather than treating it as a malformed entry",
         "does not treat a trailing newline as a trailing blank entry",
@@ -76,8 +74,7 @@
         "blocks changing an existing marker to a different number",
         "blocks a malformed new entry line even with a matching waiver token",
         "blocks a numbering gap in a newly appended line",
-        "a file deletion is blocked",
-        "resolving a merge conflict to a third version of a line still blocks"
+        "a file deletion is blocked"
       ]
     },
     {
@@ -94,7 +91,6 @@
       "find": "    oldText: readAtTree(`${sha}^`, DECISIONS_PATH),\n    newText: readAtTree(sha, DECISIONS_PATH),",
       "replace": "    oldText: readAtTree(`${sha}^^`, DECISIONS_PATH),\n    newText: readAtTree(sha, DECISIONS_PATH),",
       "expectRed": [
-        "a waived per-commit edit still passes the range unit",
         "a waiver in a non-last commit of the range still waives its own edit",
         "a waiver trailer in one commit does not cover an edit made in an earlier commit",
         "an edit then a restore across two commits is still flagged (the file is not diffed end to end)"
@@ -146,17 +142,14 @@
       "replace": "    const code = main(argv.slice(2))\n    exit(code === 1 ? 0 : code)",
       "expectRed": [
         "--base catches an edit made in a middle commit of the range",
-        "a conflict-resolved --no-ff merge that rewrites an existing entry is caught by the range unit",
         "a file deletion is blocked",
         "a waiver trailer in one commit does not cover an edit made in an earlier commit",
         "an edit then a restore across two commits is still flagged (the file is not diffed end to end)",
-        "an unapplied waiver on an empty commit does not waive an unrelated merge-commit edit",
         "an unusable waiver reason still blocks the commit",
         "blocks a malformed new entry line even with a matching waiver token",
         "blocks a numbering gap in a newly appended line",
         "blocks an edit to an existing line staged for commit",
-        "blocks changing an existing marker to a different number",
-        "resolving a merge conflict to a third version of a line still blocks"
+        "blocks changing an existing marker to a different number"
       ]
     },
     {
@@ -167,8 +160,7 @@
         "--base is clean across a range of commits that never touch decisions.md after init",
         "a Ledger-edit-ok trailer waives the edit it names",
         "a clean merge auto-adopting an already-waived incoming edit passes",
-        "a merge commit carrying its own waiver for its own resolution edit passes the range unit",
-        "a waived per-commit edit still passes the range unit",
+        "a waived edit passes --base",
         "a waiver in a non-last commit of the range still waives its own edit",
         "allows appending a marker to an existing line",
         "allows appending a new decision line",
@@ -190,7 +182,6 @@
       "find": "    console.error(`✖ decisions-ledger guard: check could not run — BLOCKING: ${err.message}`)\n    exit(2)",
       "replace": "    console.error(`✖ decisions-ledger guard: check could not run — BLOCKING: ${err.message}`)\n    exit(0)",
       "expectRed": [
-        "a merge-base that cannot resolve (no shared history at all) is a fault, exit 2",
         "--base against a ref that does not exist is a git fault, not a usage error — exits 2"
       ]
     },
@@ -223,40 +214,9 @@
       ]
     },
     {
-      "id": "applied-waivers-not-filtered",
-      "find": "  const unusedWaivers = [...waivers.keys()].filter((t) => !applied.has(t))\n  return { offenders, unusedWaivers, applied }",
-      "replace": "  const unusedWaivers = [...waivers.keys()].filter((t) => !applied.has(t))\n  return { offenders, unusedWaivers, applied: waivers }",
-      "expectRed": [
-        "an unapplied waiver on an empty commit does not waive an unrelated merge-commit edit"
-      ]
-    },
-    {
-      "id": "range-pool-excludes-per-commit-applied",
-      "find": "  const pool = new Map([...perCommit.pool, ...merge.pool])",
-      "replace": "  const pool = new Map([...merge.pool])",
-      "expectRed": [
-        "a waived per-commit edit still passes the range unit",
-        "a waiver in a non-last commit of the range still waives its own edit"
-      ]
-    },
-    {
-      "id": "range-pool-excludes-merge-own",
-      "find": "  const pool = new Map([...perCommit.pool, ...merge.pool])",
-      "replace": "  const pool = new Map([...perCommit.pool])",
-      "expectRed": [
-        "a merge commit carrying its own waiver for its own resolution edit passes the range unit"
-      ]
-    },
-    {
-      "id": "mergehead-not-detected",
-      "find": "  const merging = refExists('MERGE_HEAD')",
-      "replace": "  const merging = false",
-      "expectRed": ["a clean merge auto-adopting an already-waived incoming edit passes"]
-    },
-    {
-      "id": "mergehead-alt-not-intersected",
-      "find": "  if (oldTextAlt == null) return [...findings, ...primary]",
-      "replace": "  if (true) return [...findings, ...primary]",
+      "id": "mergehead-skip-dropped",
+      "find": "    if (refExists('MERGE_HEAD')) return 0\n",
+      "replace": "",
       "expectRed": ["a clean merge auto-adopting an already-waived incoming edit passes"]
     }
   ]

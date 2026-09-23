@@ -187,9 +187,9 @@ test('commit-msg mode on the FIRST commit (unborn HEAD) runs F1/F2 with no immut
     assert.equal(runCommitMsg(r, 'chore: add ledger\n').status, 0)
   }))
 
-// ---------------------------------------------------------------- commit-msg mode during a merge (MERGE_HEAD)
+// ---------------------------------------------------------------- commit-msg mode during a merge (skipped, #1350)
 
-// GROUP: mergehead-not-detected, mergehead-alt-not-intersected
+// GROUP: mergehead-skip-dropped
 test('a clean merge auto-adopting an already-waived incoming edit passes', () =>
   withRepo((r) => {
     r.write('docs/decisions.md', LEDGER_V1)
@@ -208,48 +208,11 @@ test('a clean merge auto-adopting an already-waived incoming edit passes', () =>
     r.write('README.md', 'unrelated master change\n')
     r.git('add', '-A')
     r.git('commit', '-qm', 'unrelated master work')
-    // MUTATION: never detect/read MERGE_HEAD, or never intersect its findings with HEAD's →
-    // HEAD-only comparison finds the edit "new" and blocks the auto-generated merge commit.
+    // MUTATION: drop the MERGE_HEAD skip → the incoming edit reads as new against HEAD and
+    // blocks the auto-generated merge commit.
     r.git('merge', '--no-ff', '--no-commit', 'feature')
     const res = runCommitMsg(r, "Merge branch 'feature'\n")
     assert.equal(res.status, 0)
-  }))
-
-test('resolving a merge conflict to a third version of a line still blocks', () =>
-  withRepo((r) => {
-    r.write('docs/decisions.md', LEDGER_V1)
-    r.git('add', '-A')
-    r.git('commit', '-qm', 'init')
-    r.git('branch', '-m', 'master')
-    r.git('checkout', '-qb', 'feature')
-    r.write(
-      'docs/decisions.md',
-      '# Decisions\n\n> rule text\n\n## 14 — 2026-03-11 — first decision, FEATURE EDIT.\n## 15 — 2026-03-11 — second decision.\n',
-    )
-    r.git('add', '-A')
-    r.git('commit', '-qm', 'feature edits 14')
-    r.git('checkout', '-q', 'master')
-    r.write(
-      'docs/decisions.md',
-      '# Decisions\n\n> rule text\n\n## 14 — 2026-03-11 — first decision, MASTER EDIT.\n## 15 — 2026-03-11 — second decision.\n',
-    )
-    r.git('add', '-A')
-    r.git('commit', '-qm', 'master edits 14 too')
-    let conflicted = false
-    try {
-      r.git('merge', '--no-ff', '--no-commit', 'feature')
-    } catch {
-      conflicted = true
-    }
-    assert.equal(conflicted, true)
-    r.write(
-      'docs/decisions.md',
-      '# Decisions\n\n> rule text\n\n## 14 — 2026-03-11 — first decision, RESOLVED DIFFERENTLY.\n## 15 — 2026-03-11 — second decision.\n',
-    )
-    r.git('add', '-A')
-    const res = runCommitMsg(r, "Merge branch 'feature' (resolved)\n")
-    assert.equal(res.status, 1)
-    assert.match(res.stderr, /## 14 — body edited/)
   }))
 
 // ---------------------------------------------------------------- CLI usage

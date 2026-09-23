@@ -36,12 +36,8 @@
 // `git commit --amend`, commit-msg mode's HEAD is the commit being amended — an edit already
 // there reads as unchanged; waive it the same way.
 //
-// commit-msg mode during a merge (MERGE_HEAD present): a finding blocks only if it holds
-// against BOTH HEAD and MERGE_HEAD — an edit already accepted on the incoming side passes.
-//
-// --base mode's range unit (catches an edit only a merge commit's own tree carries) is waived
-// by (a) waivers a per-commit unit actually APPLIED to a real finding, plus (b) a merge
-// commit's own trailer — never by an unused per-commit waiver (see runBaseMode).
+// Merge commits are not checked: commit-msg mode exits 0 while MERGE_HEAD resolves, and
+// --base walks --no-merges. An edit made only in a merge resolution passes (#1350).
 
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
@@ -246,12 +242,8 @@ export function parseWaivers(message) {
   return { waivers, problems }
 }
 
-/**
- * F1/F2 (always) plus I1-I3 vs `oldText` (when present). `oldTextAlt`, when given, is a
- * SECOND old version (MERGE_HEAD) — an I1-I3 finding is kept only if it ALSO holds against
- * `oldTextAlt`, so an edit already accepted on either side of a merge passes.
- */
-function collectFindings(oldText, newLedger, oldTextAlt) {
+/** F1/F2 (always) plus I1-I3 (only when OLD is present) findings, before waivers are applied. */
+function collectFindings(oldText, newLedger) {
   const findings = [
     ...checkFormat(newLedger.entries).map((raw) => ({
       token: null,
@@ -264,55 +256,44 @@ function collectFindings(oldText, newLedger, oldTextAlt) {
       detail,
     })),
   ]
-  if (oldText === null) return findings
-  const primary = checkImmutability(parseLedger(oldText), newLedger)
-  if (oldTextAlt == null) return [...findings, ...primary]
-  const altTokens = new Set(
-    checkImmutability(parseLedger(oldTextAlt), newLedger).map((o) => o.token),
-  )
-  return [...findings, ...primary.filter((o) => altTokens.has(o.token))]
+  if (oldText !== null) findings.push(...checkImmutability(parseLedger(oldText), newLedger))
+  return findings
 }
 
-/** Drop every finding whose token is waived; a waiver matching nothing surfaces separately.
- *  `applied` is the waivers that actually cleared a finding — never the full waiver set. */
+/** Drop every finding whose token is waived; a waiver matching nothing surfaces separately. */
 function applyWaivers(findings, waivers) {
-  const applied = new Map()
+  const applied = new Set()
   const offenders = []
   for (const f of findings) {
     if (f.token !== null && waivers.has(f.token)) {
-      applied.set(f.token, waivers.get(f.token))
+      applied.add(f.token)
       continue
     }
     offenders.push(f)
   }
   const unusedWaivers = [...waivers.keys()].filter((t) => !applied.has(t))
-  return { offenders, unusedWaivers, applied }
+  return { offenders, unusedWaivers }
 }
 
 /**
  * One unit's worth of work: `oldText`/`newText` are ledger content or `null` (absent),
- * `message` is the commit message whose trailers waive per-token immutability findings — or
- * pass a prebuilt `waivers` Map to skip parsing `message` (the range unit's own pool).
+ * `message` is the commit message whose trailers waive per-token immutability findings.
  * Pure — no git, no fs — so every branch is covered by check-decisions-ledger.test.mjs.
  */
-export function checkUnit({ oldText, newText, message, waivers: prebuilt, oldTextAlt }) {
-  const { waivers, problems } = prebuilt
-    ? { waivers: prebuilt, problems: [] }
-    : parseWaivers(message)
-  if (problems.length > 0) return { problems, offenders: [], unusedWaivers: [], applied: new Map() }
+export function checkUnit({ oldText, newText, message }) {
+  const { waivers, problems } = parseWaivers(message)
+  if (problems.length > 0) return { problems, offenders: [], unusedWaivers: [] }
 
   if (newText === null) {
-    if (oldText === null)
-      return { problems: [], offenders: [], unusedWaivers: [], applied: new Map() }
+    if (oldText === null) return { problems: [], offenders: [], unusedWaivers: [] }
     return {
       problems: [],
       offenders: [{ token: null, kind: 'deleted', detail: 'docs/decisions.md deleted' }],
       unusedWaivers: [],
-      applied: new Map(),
     }
   }
 
-  const findings = collectFindings(oldText, parseLedger(newText), oldTextAlt)
+  const findings = collectFindings(oldText, parseLedger(newText))
   return { problems: [], ...applyWaivers(findings, waivers) }
 }
 
@@ -373,37 +354,7 @@ function reportProblems(problems) {
   return 1
 }
 
-/** OLD = merge-base(ref, HEAD), NEW = HEAD — catches an edit only a merge commit's own tree
- *  carries. Waivers are the caller's prebuilt pool (see runBaseMode), not this unit's own
- *  message. A failed merge-base throws (exit 2). */
-function rangeUnit(ref) {
-  const mergeBase = git(['merge-base', ref, 'HEAD']).toString('utf8').trim()
-  return {
-    oldText: readAtTree(mergeBase, DECISIONS_PATH),
-    newText: readAtTree('HEAD', DECISIONS_PATH),
-    label: `range ${mergeBase}..HEAD`,
-  }
-}
-
-/** Every MERGE commit's own trailer block, unioned into one waiver pool. A malformed reason
- *  on any of them surfaces as `problems`, same as a per-commit unit's own. */
-function mergeOwnWaivers(ref) {
-  const shas = git(['rev-list', '--reverse', '--merges', `${ref}..HEAD`])
-    .toString('latin1')
-    .split('\n')
-    .filter(Boolean)
-  const pool = new Map()
-  const problems = []
-  for (const sha of shas) {
-    const parsed = parseWaivers(git(['log', '-1', '--format=%B', sha]).toString('utf8'))
-    problems.push(...parsed.problems)
-    for (const [token, reason] of parsed.waivers) pool.set(token, reason)
-  }
-  return { pool, problems }
-}
-
-/** Per-commit units (--no-merges — a merge commit's OWN trailer is read separately, by
- *  mergeOwnWaivers, and scoped to the range unit only). */
+/** Per-commit units; --no-merges (see header). */
 function baseUnits(ref) {
   const shas = git(['rev-list', '--reverse', '--no-merges', `${ref}..HEAD`])
     .toString('latin1')
@@ -417,47 +368,25 @@ function baseUnits(ref) {
   }))
 }
 
-/** The single commit-msg-mode unit: staged INDEX vs HEAD, waived by the message file itself.
- *  Mid-merge (MERGE_HEAD resolves), a finding is also checked against MERGE_HEAD (§ header). */
+/** The single commit-msg-mode unit: staged INDEX vs HEAD, waived by the message file itself. */
 function commitMsgUnit(path) {
-  const merging = refExists('MERGE_HEAD')
   return {
     oldText: readAtTree('HEAD', DECISIONS_PATH),
-    oldTextAlt: merging ? readAtTree('MERGE_HEAD', DECISIONS_PATH) : undefined,
     newText: readIndex(DECISIONS_PATH),
     message: readFileSync(path, 'utf8'),
     label: null,
   }
 }
 
-/** Run every unit, reporting each; collect the waivers each unit actually APPLIED (never an
- *  unused one) into `pool`, for a caller building a wider unit's waiver pool from them. */
 function runUnits(units) {
   let blocked = false
-  const pool = new Map()
   for (const unit of units) {
     const res = checkUnit(unit)
-    if (res.problems.length > 0) return { code: reportProblems(res.problems), pool, stopped: true }
+    if (res.problems.length > 0) return reportProblems(res.problems)
     if (res.offenders.length > 0) blocked = true
     reportUnit(unit.label, res.offenders, res.unusedWaivers)
-    for (const [token, reason] of res.applied) pool.set(token, reason)
   }
-  return { code: blocked ? 1 : 0, pool, stopped: false }
-}
-
-/** --base mode: per-commit units first; the range unit's pool = per-commit APPLIED waivers
- *  union each merge commit's OWN trailer — never an unused per-commit waiver (§ header). */
-function runBaseMode(ref) {
-  const perCommit = runUnits(baseUnits(ref))
-  if (perCommit.stopped) return perCommit.code
-  const merge = mergeOwnWaivers(ref)
-  if (merge.problems.length > 0) return reportProblems(merge.problems)
-  const pool = new Map([...perCommit.pool, ...merge.pool])
-  const range = rangeUnit(ref)
-  const res = checkUnit({ ...range, waivers: pool })
-  if (res.problems.length > 0) return reportProblems(res.problems)
-  reportUnit(range.label, res.offenders, res.unusedWaivers)
-  return perCommit.code === 1 || res.offenders.length > 0 ? 1 : 0
+  return blocked ? 1 : 0
 }
 
 export function main(args) {
@@ -466,9 +395,10 @@ export function main(args) {
       console.error('✖ decisions-ledger guard: --base requires a ref')
       return 2
     }
-    return runBaseMode(args[1])
+    return runUnits(baseUnits(args[1]))
   } else if (args.length === 1 && !args[0].startsWith('--')) {
-    return runUnits([commitMsgUnit(args[0])]).code
+    if (refExists('MERGE_HEAD')) return 0
+    return runUnits([commitMsgUnit(args[0])])
   } else {
     console.error('✖ decisions-ledger guard: usage: <commit-msg-file> | --base <ref>')
     return 2

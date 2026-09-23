@@ -1,9 +1,7 @@
 // Run: node --test .claude/hooks/check-decisions-ledger.base.test.mjs
 //
 // The --base-mode git-facing paths of the decisions-ledger guard (Decision 86): per-commit
-// tree reads, per-commit waiver scoping, and the whole-range unit. Fixtures/helpers
-// (`withRepo`, `LEDGER_V1`, `GOOD_REASON`, `GUARD`) are imported from the sibling commit-msg
-// suite, check-decisions-ledger.repo.test.mjs, which still owns and exports them.
+// tree reads and per-commit waiver scoping. Fixtures: check-decisions-ledger.testkit.mjs.
 //
 // Every case is MUTATION-PINNED (code-style.md §7); the exact set each break reddens is DATA
 // in check-decisions-ledger.mutations.json, re-derived by
@@ -70,50 +68,8 @@ test('--base is clean across a range of commits that never touch decisions.md af
     assert.equal(runBase(r, 'master').status, 0)
   }))
 
-// CONTROL: red
-// GROUP: check-decisions-ledger-always-passes
-test('a conflict-resolved --no-ff merge that rewrites an existing entry is caught by the range unit', () =>
-  withRepo((r) => {
-    r.write('docs/decisions.md', LEDGER_V1)
-    r.write('README.md', 'base\n')
-    r.git('add', '-A')
-    r.git('commit', '-qm', 'init')
-    r.git('branch', '-m', 'master')
-    r.git('checkout', '-qb', 'left')
-    r.write('README.md', 'left change\n')
-    r.git('add', '-A')
-    r.git('commit', '-qm', 'left readme change')
-    r.git('checkout', '-q', 'master')
-    r.git('checkout', '-qb', 'right')
-    r.write('README.md', 'right change\n')
-    r.git('add', '-A')
-    r.git('commit', '-qm', 'right readme change')
-    r.git('checkout', '-q', 'master')
-    r.git('checkout', '-qb', 'work')
-    r.git('merge', '-q', '--no-ff', 'left', '-m', 'merge left')
-    // A genuine README conflict between 'work' and 'right'; neither parent touches decisions.md.
-    // MUTATION: drop the range unit → the merge commit's own tree is never read, clean passes.
-    let conflicted = false
-    try {
-      r.git('merge', '--no-ff', 'right', '-m', 'merge right')
-    } catch {
-      conflicted = true
-    }
-    assert.equal(conflicted, true)
-    r.write('README.md', 'resolved\n')
-    r.write(
-      'docs/decisions.md',
-      '# Decisions\n\n> rule text\n\n## 14 — 2026-03-11 — first decision, REWRITTEN DURING MERGE.\n## 15 — 2026-03-11 — second decision.\n',
-    )
-    r.git('add', '-A')
-    r.git('commit', '-qm', 'merge right (resolved)')
-    const res = runBase(r, 'master')
-    assert.equal(res.status, 1)
-    assert.match(res.stderr, /## 14 — body edited/)
-  }))
-
-// GROUP: range-pool-excludes-per-commit-applied
-test('a waived per-commit edit still passes the range unit', () =>
+// GROUP: waiver-scoped-to-wrong-commit
+test('a waived edit passes --base', () =>
   withRepo((r) => {
     r.write('docs/decisions.md', LEDGER_V1)
     r.git('add', '-A')
@@ -125,14 +81,12 @@ test('a waived per-commit edit still passes the range unit', () =>
       '# Decisions\n\n> rule text\n\n## 14 — 2026-03-11 — first decision, EDITED.\n## 15 — 2026-03-11 — second decision.\n',
     )
     r.git('add', '-A')
-    // MUTATION: drop the per-commit APPLIED pool from the range unit's own → the waiver this
-    // commit applied to its own edit no longer reaches the range unit, and it blocks.
     r.git('commit', '-qm', `fix: reword decision 14\n\nLedger-edit-ok: 14 — ${GOOD_REASON}`)
     const res = runBase(r, 'master')
     assert.equal(res.status, 0)
   }))
 
-// GROUP: range-pool-excludes-per-commit-applied
+// GROUP: waiver-scoped-to-wrong-commit
 test('a waiver in a non-last commit of the range still waives its own edit', () =>
   withRepo((r) => {
     r.write('docs/decisions.md', LEDGER_V1)
@@ -153,88 +107,6 @@ test('a waiver in a non-last commit of the range still waives its own edit', () 
     )
     r.git('add', '-A')
     r.git('commit', '-qm', 'chore: append decision 16')
-    const res = runBase(r, 'master')
-    assert.equal(res.status, 0)
-  }))
-
-// GROUP: applied-waivers-not-filtered
-test('an unapplied waiver on an empty commit does not waive an unrelated merge-commit edit', () =>
-  withRepo((r) => {
-    r.write('docs/decisions.md', LEDGER_V1)
-    r.write('README.md', 'base\n')
-    r.git('add', '-A')
-    r.git('commit', '-qm', 'init')
-    r.git('branch', '-m', 'master')
-    r.git('checkout', '-qb', 'empty-waiver')
-    r.write('README.md', 'unrelated\n')
-    r.git('add', '-A')
-    // MUTATION: let `applied` include every parsed waiver, not just ones that cleared a
-    // finding → this commit's waiver (which cleared NOTHING here) still reaches the range pool.
-    r.git('commit', '-qm', `chore: unrelated\n\nLedger-edit-ok: 14 — ${GOOD_REASON}`)
-    r.git('checkout', '-q', 'master')
-    r.git('checkout', '-qb', 'right')
-    r.write('README.md', 'right change\n')
-    r.git('add', '-A')
-    r.git('commit', '-qm', 'right readme change')
-    r.git('checkout', '-q', 'master')
-    r.git('checkout', '-qb', 'work')
-    r.git('merge', '-q', '--no-ff', 'empty-waiver', '-m', 'merge empty-waiver')
-    let conflicted = false
-    try {
-      r.git('merge', '--no-ff', 'right', '-m', 'merge right')
-    } catch {
-      conflicted = true
-    }
-    assert.equal(conflicted, true)
-    r.write('README.md', 'resolved\n')
-    r.write(
-      'docs/decisions.md',
-      '# Decisions\n\n> rule text\n\n## 14 — 2026-03-11 — first decision, REWRITTEN DURING MERGE.\n## 15 — 2026-03-11 — second decision.\n',
-    )
-    r.git('add', '-A')
-    // The merge commit itself carries no waiver of its own.
-    r.git('commit', '-qm', 'merge right (resolved)')
-    const res = runBase(r, 'master')
-    assert.equal(res.status, 1)
-    assert.match(res.stderr, /## 14 — body edited/)
-  }))
-
-// GROUP: range-pool-excludes-merge-own
-test('a merge commit carrying its own waiver for its own resolution edit passes the range unit', () =>
-  withRepo((r) => {
-    r.write('docs/decisions.md', LEDGER_V1)
-    r.write('README.md', 'base\n')
-    r.git('add', '-A')
-    r.git('commit', '-qm', 'init')
-    r.git('branch', '-m', 'master')
-    r.git('checkout', '-qb', 'left')
-    r.write('README.md', 'left change\n')
-    r.git('add', '-A')
-    r.git('commit', '-qm', 'left readme change')
-    r.git('checkout', '-q', 'master')
-    r.git('checkout', '-qb', 'right')
-    r.write('README.md', 'right change\n')
-    r.git('add', '-A')
-    r.git('commit', '-qm', 'right readme change')
-    r.git('checkout', '-q', 'master')
-    r.git('checkout', '-qb', 'work')
-    r.git('merge', '-q', '--no-ff', 'left', '-m', 'merge left')
-    let conflicted = false
-    try {
-      r.git('merge', '--no-ff', 'right', '-m', 'merge right')
-    } catch {
-      conflicted = true
-    }
-    assert.equal(conflicted, true)
-    r.write('README.md', 'resolved\n')
-    r.write(
-      'docs/decisions.md',
-      '# Decisions\n\n> rule text\n\n## 14 — 2026-03-11 — first decision, REWRITTEN DURING MERGE.\n## 15 — 2026-03-11 — second decision.\n',
-    )
-    r.git('add', '-A')
-    // MUTATION: drop the merge commit's own trailer from the range pool → this waiver never
-    // reaches the range unit, and the edit blocks despite being explicitly waived.
-    r.git('commit', '-qm', `merge right (resolved)\n\nLedger-edit-ok: 14 — ${GOOD_REASON}`)
     const res = runBase(r, 'master')
     assert.equal(res.status, 0)
   }))
@@ -293,11 +165,7 @@ test('an edit then a restore across two commits is still flagged (the file is no
 // GROUP: base-root-commit-not-handled
 test('--base handles a root commit in the range (no parent to diff against)', () =>
   withRepo((r) => {
-    // Two independent histories joined by ONE `--allow-unrelated-histories` merge: the
-    // per-commit range still contains a genuine root commit (no parent) while base and HEAD
-    // share a real merge-base for the range unit (§ fix 2) to resolve against — an orphan
-    // base with NO shared history at all now makes the range unit's own merge-base call
-    // fault (exit 2), which is a DIFFERENT case, covered separately below.
+    // An unrelated-histories merge puts a genuine root commit (no parent) in the range.
     r.git('checkout', '-q', '--orphan', 'origin-base')
     r.write('docs/decisions.md', LEDGER_V1)
     r.git('add', '-A')
@@ -323,20 +191,6 @@ test('--base handles a root commit in the range (no parent to diff against)', ()
     )
     const res = runBase(r, 'base-tag')
     assert.notEqual(res.status, 2)
-  }))
-
-test('a merge-base that cannot resolve (no shared history at all) is a fault, exit 2', () =>
-  withRepo((r) => {
-    r.git('checkout', '-q', '--orphan', 'base-empty')
-    r.write('.gitkeep', '')
-    r.git('add', '-A')
-    r.git('commit', '-qm', 'unrelated orphan base')
-    r.git('checkout', '-q', '--orphan', 'master')
-    r.write('docs/decisions.md', LEDGER_V1)
-    r.git('add', '-A')
-    r.git('commit', '-qm', 'root of master, disjoint from base-empty')
-    const res = runBase(r, 'base-empty')
-    assert.equal(res.status, 2)
   }))
 
 // ---------------------------------------------------------------- CLI usage / git faults
