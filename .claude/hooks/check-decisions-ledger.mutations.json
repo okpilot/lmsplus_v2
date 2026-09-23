@@ -113,6 +113,12 @@
       ]
     },
     {
+      "id": "range-hint-generic",
+      "find": "      if (o.token !== null && label === 'range') {",
+      "replace": "      if (false) {",
+      "expectRed": ["a range finding tells the author a merge cannot waive it"]
+    },
+    {
       "id": "marker-anchor-not-end-of-line",
       "find": "const MARKER_ONE_RE = / (Superseded|Amended) by (\\d+(?:, \\d+)*)\\.$/",
       "replace": "const MARKER_ONE_RE = / (Superseded|Amended) by (\\d+(?:, \\d+)*)\\./",
@@ -401,6 +407,7 @@
         "a range edit clears only when the authorized text equals the final line",
         "an absent authorization does not clear a merge that reinstates the entry with new text",
         "--base blocks an edit to an existing line made only in a merge commit",
+        "a range finding tells the author a merge cannot waive it",
         "a waived edit re-edited by a merge is blocked",
         "a merge reinstating a superseded waived text is blocked",
         "a waiver for one line does not clear a merge edit to another",

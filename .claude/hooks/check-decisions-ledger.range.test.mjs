@@ -199,6 +199,17 @@ test('--base blocks an edit to an existing line made only in a merge commit', ()
     assert.match(res.stderr, /\[range\][\s\S]*## 14 — body edited/)
   }))
 
+// GROUP: range-hint-generic
+test('a range finding tells the author a merge cannot waive it', () =>
+  withRepo((r) => {
+    // MUTATION: print the per-commit hint for range findings → the author is told to add a
+    // trailer to the merge commit, which is never read.
+    forked(r, () => readme(r))
+    mergeMaster(r, ledger('EDITED IN MERGE.', undefined, [E16_MASTER]))
+    const res = runBase(r, 'master')
+    assert.match(res.stderr, /a merge cannot waive: add a non-merge commit with Ledger-edit-ok: 14/)
+  }))
+
 // GROUP: range-authorization-token-only
 test('a waived edit re-edited by a merge is blocked', () =>
   withRepo((r) => {

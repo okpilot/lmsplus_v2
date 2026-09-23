@@ -325,7 +325,7 @@ function slotParts(text, token) {
 }
 
 /** HEAD's slot for `token` is what `authorizedText` authorized: same body, markers ⊇. */
-export function slotMatches(authorizedText, headText, token) {
+function slotMatches(authorizedText, headText, token) {
   const want = authorizedText === null ? { body: null, markers: new Set() } : null
   const auth =
     want ??
@@ -338,7 +338,7 @@ export function slotMatches(authorizedText, headText, token) {
 }
 
 /** Tokens whose BODY or presence differs between two ledger texts (marker appends excluded). */
-export function changedTokens(oldText, newText) {
+function changedTokens(oldText, newText) {
   const tokens = new Set(['header'])
   for (const text of [oldText, newText]) {
     if (text === null) continue
@@ -409,7 +409,11 @@ function reportUnit(label, offenders, unusedWaivers) {
     )
     for (const o of offenders) {
       console.error(`  ${o.detail}`)
-      if (o.token !== null) {
+      if (o.token !== null && label === 'range') {
+        console.error(
+          `    → a merge cannot waive: add a non-merge commit with Ledger-edit-ok: ${o.token} that produces this exact line`,
+        )
+      } else if (o.token !== null) {
         console.error(
           `    → add to the commit message: Ledger-edit-ok: ${o.token} — <why this edit is safe>`,
         )
