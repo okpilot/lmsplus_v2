@@ -6,7 +6,7 @@
 // plus any line-format or numbering break in the new file.
 //
 // Usage:  node .claude/hooks/check-decisions-ledger.mjs <commit-msg-file>   (commit-msg)
-//         node .claude/hooks/check-decisions-ledger.mjs --base <ref>        (CI, <ref>..HEAD, --no-merges)
+//         node .claude/hooks/check-decisions-ledger.mjs --base <ref>        (CI: per commit in <ref>..HEAD, --no-merges, then merge-base..HEAD)
 // Exit:   0 = docs/decisions.md was not edited outside the allowed shape
 //         1 = at least one finding — fix it, or waive it (see below)
 //         2 = the check COULD NOT RUN (usage, git failure, unreadable message file)
@@ -468,6 +468,8 @@ function recordAuthorizations(live, unit, unusedWaivers) {
     const kept = (live.get(token) ?? []).filter((a) => !isAncestor(a.sha, unit.label))
     live.set(token, kept)
   }
+  // No ledger in NEW: checkUnit returned before applying waivers, so none was applied.
+  if (unit.newText === null) return
   for (const token of parseWaivers(unit.message).waivers.keys()) {
     if (unusedWaivers.includes(token)) continue
     live.set(token, [

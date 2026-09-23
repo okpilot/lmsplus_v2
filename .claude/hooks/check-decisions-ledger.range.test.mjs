@@ -395,3 +395,24 @@ test('concurrent waived edits on both sides let the merge keep either one', () =
     mergeMaster(r, ledger('BRANCH WORDING.'))
     assert.equal(runBase(r, 'stale').status, 0)
   }))
+
+// GROUP: range-ledgerless-waiver-recorded
+test('a waiver on a commit with no ledger does not clear a merge dropping the last entry', () =>
+  withRepo((r) => {
+    // MUTATION: record waivers from a unit whose NEW has no ledger → its Ledger-edit-ok: 16
+    // becomes an ABSENT authorization and clears the merge-only removal of ## 16.
+    commit(r, ledger(undefined, undefined, [E16_MASTER]), 'init')
+    r.git('branch', '-m', 'master')
+    r.git('checkout', '-qb', 'work')
+    r.git('checkout', '-q', '--orphan', 'other')
+    r.git('rm', '-rqf', '.')
+    r.write('README.md', 'unrelated history\n')
+    r.git('add', '-A')
+    r.git('commit', '-qm', waive(16, 'chore: unrelated history'))
+    r.git('checkout', '-q', 'work')
+    r.git('merge', '-q', '--no-ff', '--no-commit', '--allow-unrelated-histories', 'other')
+    commit(r, ledger(), 'Merge unrelated history')
+    const res = runBase(r, 'master')
+    assert.equal(res.status, 1)
+    assert.match(res.stderr, /\[range\][\s\S]*## 16 — line removed entirely/)
+  }))

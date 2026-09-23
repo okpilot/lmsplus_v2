@@ -33,7 +33,8 @@
         "--base blocks a merge that deletes docs/decisions.md entirely",
         "--base catches a malformed line introduced only by a merge resolution",
         "a merge re-deleting an entry the branch removed and then restored is blocked",
-        "a numbering break made in a merge blocks even when a later commit leaves the ledger alone"
+        "a numbering break made in a merge blocks even when a later commit leaves the ledger alone",
+        "a waiver on a commit with no ledger does not clear a merge dropping the last entry"
       ]
     },
     {
@@ -117,6 +118,14 @@
       "find": "      if (o.token !== null && label === 'range') {",
       "replace": "      if (false) {",
       "expectRed": ["a range finding tells the author a merge cannot waive it"]
+    },
+    {
+      "id": "range-ledgerless-waiver-recorded",
+      "find": "  if (unit.newText === null) return\n",
+      "replace": "",
+      "expectRed": [
+        "a waiver on a commit with no ledger does not clear a merge dropping the last entry"
+      ]
     },
     {
       "id": "marker-anchor-not-end-of-line",
@@ -234,7 +243,10 @@
       "id": "base-root-commit-not-handled",
       "find": "  return shas.map((sha) => ({\n    oldText: readAtTree(`${sha}^`, DECISIONS_PATH),",
       "replace": "  return shas.map((sha) => ({\n    oldText: git(['show', `${sha}^:${DECISIONS_PATH}`]).toString('utf8'),",
-      "expectRed": ["--base handles a root commit in the range (no parent to diff against)"]
+      "expectRed": [
+        "--base handles a root commit in the range (no parent to diff against)",
+        "a waiver on a commit with no ledger does not clear a merge dropping the last entry"
+      ]
     },
     {
       "id": "unborn-head-not-treated-as-absent",
@@ -243,6 +255,7 @@
       "expectRed": [
         "--base handles a root commit in the range (no parent to diff against)",
         "concurrent waived edits on both sides let the merge keep either one",
+        "a waiver on a commit with no ledger does not clear a merge dropping the last entry",
         "blocks an edit to an existing line staged for commit",
         "allows appending a new decision line",
         "allows appending a marker to an existing line",
@@ -279,6 +292,7 @@
         "--base catches a malformed line introduced only by a merge resolution",
         "a merge re-deleting an entry the branch removed and then restored is blocked",
         "a numbering break made in a merge blocks even when a later commit leaves the ledger alone",
+        "a waiver on a commit with no ledger does not clear a merge dropping the last entry",
         "blocks an edit to an existing line staged for commit",
         "blocks changing an existing marker to a different number",
         "an unusable waiver reason still blocks the commit",
@@ -393,6 +407,7 @@
       "expectRed": [
         "a non-empty authorization does not clear a merge that deletes the entry instead",
         "a merge re-deleting an entry the branch removed and then restored is blocked",
+        "a waiver on a commit with no ledger does not clear a merge dropping the last entry",
         "flags an OLD entry number missing entirely from NEW (I1)"
       ]
     },
