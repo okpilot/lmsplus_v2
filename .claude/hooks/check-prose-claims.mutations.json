@@ -246,12 +246,6 @@
       "expectRed": ["does not block a claim in a file the commit did not touch"]
     },
     {
-      "id": "agent-memory-not-excluded",
-      "find": "  if (path.startsWith(MEMORY_PREFIX)) return false",
-      "replace": "",
-      "expectRed": ["ignores a claim in agent memory"]
-    },
-    {
       "id": "run-log-not-excluded",
       "find": "  if (EXCLUDED_PATHS.has(path)) return false",
       "replace": "",
@@ -336,8 +330,8 @@
     },
     {
       "id": "check-prose-claims-always-passes",
-      "find": "  )\n  return 1\n}",
-      "replace": "  )\n  return 0\n}",
+      "find": "code/data lines`)\n  return 1\n}",
+      "replace": "code/data lines`)\n  return 0\n}",
       "expectRed": [
         "blocks a commit that stages a new prose claim",
         "blocks when a baseline row no longer describes a live claim",
@@ -356,7 +350,6 @@
       "expectRed": [
         "does not block a claim already carried by the baseline",
         "does not block a claim in a file the commit did not touch",
-        "ignores a claim in agent memory",
         "ignores a claim in the dated run log",
         "an inline waiver with a written reason clears the finding"
       ],

@@ -59,7 +59,11 @@ export function run({ dir }, message, args, cwd) {
   }
 }
 
-/** The flagship: a value corrected in one corpus file, left standing in another. */
+/**
+ * The flagship: a value corrected in one corpus file, left standing in another. The third
+ * write is a decoy — it quotes the old value too, from OUTSIDE the corpus roots, and must not
+ * count as a survivor.
+ */
 export function seedFlagship({ git, write }) {
   write(
     '.claude/limits.json',
@@ -69,10 +73,7 @@ export function seedFlagship({ git, write }) {
     '.claude/hooks/check-file-size-guard.test.mjs',
     '// a 1807-line GENERATED file is reported\n',
   )
-  write(
-    '.claude/agent-memory/code-reviewer/MEMORY.md',
-    '| drift | types.ts cited as "1807-line" - actual 1806 |\n',
-  )
+  write('apps/web/lib/notes.md', '| drift | types.ts cited as "1807-line" - actual 1806 |\n')
   git('add', '-A')
   git('commit', '-qm', 'init')
 }

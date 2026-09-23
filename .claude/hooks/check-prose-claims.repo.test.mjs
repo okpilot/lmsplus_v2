@@ -145,19 +145,6 @@ test('blocks when a baseline row no longer describes a live claim', () =>
 
 // ---------------------------------------------------------------- corpus scoping
 
-test('ignores a claim in agent memory', () =>
-  withRepo((r) => {
-    r.write('docs/a.md', 'intro\n')
-    r.git('add', '-A')
-    r.git('commit', '-qm', 'init')
-    r.write('.claude/agent-memory/learner/MEMORY.md', `| row | ${CLAIM} |\n`)
-    r.git('add', '-A')
-    // MUTATION: delete the MEMORY_PREFIX test in inCorpus → tracker rows QUOTING a past
-    // claim are graded as live restatements, so recording what went wrong becomes a
-    // blocking offence.
-    assert.equal(run(r).status, 0)
-  }))
-
 test('ignores a claim in the dated run log', () =>
   withRepo((r) => {
     r.write('docs/a.md', 'intro\n')

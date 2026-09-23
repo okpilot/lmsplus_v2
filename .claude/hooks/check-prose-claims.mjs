@@ -69,14 +69,7 @@ const GUARD = '.claude/hooks/check-prose-claims.mjs'
 const CORPUS = ['CLAUDE.md', '.coderabbit.yaml', '.claude/', 'docs/', '.spec-workflow/']
 
 /**
- * Agent memory NARRATES past claims verbatim — a tracker row quoting a cap value is a record
- * of what was once written, not a live restatement. Same exclusion, same reason, as
- * the retracted-phrase guard.
- */
-const MEMORY_PREFIX = '.claude/agent-memory/'
-
-/**
- * A dated append-only log of what happened on a given day. Same class as agent memory: an
+ * A dated append-only log of what happened on a given day. An
  * entry saying a file was split to get under its cap is history, and history cannot be
  * corrected into a pointer. Excluded by exact path, not by prefix, so a future `.claude/run-log/` tree
  * would have to be added deliberately rather than inherited.
@@ -448,7 +441,6 @@ function splitNul(buf) {
 }
 
 export function inCorpus(path) {
-  if (path.startsWith(MEMORY_PREFIX)) return false
   if (EXCLUDED_PATHS.has(path)) return false
   return CORPUS.some((root) => (root.endsWith('/') ? path.startsWith(root) : path === root))
 }
@@ -476,7 +468,7 @@ export function completedSpecDirs(files, readFile) {
   return done
 }
 
-/** Tracked corpus paths, minus memory, the run log, and completed specs. */
+/** Tracked corpus paths, minus the run log and completed specs. */
 function corpusFiles(readFile) {
   const tracked = splitNul(git(['ls-files', '-z', '--full-name']))
   const candidates = tracked.filter(inCorpus)
@@ -633,9 +625,7 @@ function reportFindings({ scopedProblems, fresh, stale, baseline }) {
   console.error(
     'Searched: CLAUDE.md, .coderabbit.yaml, .claude/**, docs/**, .spec-workflow/** (live specs)',
   )
-  console.error(
-    `Excluded: ${MEMORY_PREFIX}**, ${[...EXCLUDED_PATHS].join(', ')}, completed specs, code/data lines`,
-  )
+  console.error(`Excluded: ${[...EXCLUDED_PATHS].join(', ')}, completed specs, code/data lines`)
   return 1
 }
 

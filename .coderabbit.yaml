@@ -29,10 +29,9 @@ reviews:
     - "!**/.next/**"
     - "!**/coverage/**"
     - "!**/pnpm-lock.yaml"
-    # Agent scratch space — tracker rows, counts and topic notes that agents
-    # rewrite every cycle. Reviewing it burns a cloud review on markdownlint nits
-    # (blank-line-after-heading, list spacing) in files no human reads as prose,
-    # and it churns on almost every PR. Excluded deliberately.
+    # The red-team attack-surface map. Reviewing it burns a
+    # cloud review on markdownlint nits (blank-line-after-heading, list spacing).
+    # Excluded deliberately.
     #
     # NOT excluded, on purpose: docs/**, .claude/rules/** and .claude/agents/**.
     # Those are prose too, but they are the BINDING rule surfaces — a wrong
@@ -41,7 +40,6 @@ reviews:
     # security-auditor checklist that contradicted itself (it blocks pushes, so
     # it would have emitted false CRITICALs) and a docs/security.md claim about
     # WITH CHECK that was flatly wrong. Widen this exclusion and you lose those.
-    - "!.claude/agent-memory/**"
     - "!apps/web/e2e/redteam/attack-surface.md"
 
   auto_review:
@@ -258,8 +256,8 @@ reviews:
     # comments, and its markdown instances all landed in BINDING docs (a docs/database.md grant
     # claim, a rules paragraph miscounting the commits it described). The glob ENUMERATES the
     # binding surfaces rather than taking .claude/**/*.md, which globstar-matches zero segments
-    # and so would also sweep in .claude/agent-memory/** — write-once tracker rows, not claims
-    # anyone reasons from. The list mirrors the set in
+    # and so would also sweep in files never meant as claims anyone reasons from. The list
+    # mirrors the set in
     # agent-workflow.md § Rule-Mirror Sync. Not a clean partition, in two ways, both harmless:
     # docs/ also holds point-in-time eval logs (docs/manual-eval-*.md) which this sweeps in, and
     # a docs/README.md would match too if one were ever added (none exists today). Reviewing
@@ -271,8 +269,7 @@ reviews:
     # .spec-workflow is included by its AUTHORITY files only, not **: steering/ plus each spec's
     # requirements.md and design.md, which § Spec Artifact Rules makes the source of truth over
     # chat history. Excluded is specs/<name>/tasks.md and the ad-hoc *plan.md / HANDOVER.md
-    # trackers — same class as agent-memory, where rows get ticked and revised in flight, so
-    # reviewing them is churn.
+    # trackers, where rows get ticked and revised in flight, so reviewing them is churn.
     # Rule 0 — every file this glob matches, INCLUDING spec tasks.md (which the
     # comment-accuracy entry below deliberately excludes).
     - path: "{CLAUDE.md,*.md,docs/**/*.md,.claude/rules/**/*.md,.claude/commands/**/*.md,.claude/agents/**/*.md,.claude/skills/**/*.md,.claude/hooks/*.sh,.spec-workflow/steering/**/*.md,.spec-workflow/specs/**/*.md}"

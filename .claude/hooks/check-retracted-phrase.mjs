@@ -61,14 +61,6 @@ const EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
 const CORPUS = ['CLAUDE.md', '.coderabbit.yaml', '.claude/', 'docs/', '.spec-workflow/']
 
 /**
- * Agent memory NARRATES past false claims verbatim — a tracker row quoting "1807" is a
- * record that the claim was wrong, not a live restatement of it. Counting those files
- * both hides real retractions (the quote exonerates the token as "re-added") and invents
- * fake survivors. Excluded from all three sides: edited, re-added, and surviving.
- */
-const MEMORY_PREFIX = '.claude/agent-memory/'
-
-/**
  * Longest-first is DEFENCE IN DEPTH, not the mechanism. What actually stops `.tsx` being
  * partially matched as `.ts` is FILE_RE's trailing `(?![\w-])`, which rejects the short match
  * and forces a backtrack into the longer alternative — verified by reordering `ts` before `tsx`
@@ -143,7 +135,6 @@ function splitNul(buf) {
 }
 
 function inCorpus(path) {
-  if (path.startsWith(MEMORY_PREFIX)) return false
   return CORPUS.some((root) => (root.endsWith('/') ? path.startsWith(root) : path === root))
 }
 
@@ -203,7 +194,6 @@ function completedSpecDirs(ref) {
 /** Pathspecs scoping every survivor search to the live prose corpus. */
 function corpusPathspecs(ref) {
   const specs = CORPUS.map((r) => `:(top)${r}`)
-  specs.push(`:(top,exclude)${MEMORY_PREFIX}`)
   for (const dir of completedSpecDirs(ref)) specs.push(`:(top,exclude)${dir}/`)
   return specs
 }
@@ -527,9 +517,8 @@ function checkCommit({ range, message, ref }) {
   const tracked = new Set(splitNul(listTracked(ref)).map((p) => p.split('/').pop()))
 
   // Every added line in the CORPUS side of this commit. A token reappearing here was REWORDED,
-  // not retracted. Memory files are excluded: a tracker row quoting the old claim would otherwise
-  // exonerate the very retraction it is recording. Waiver trailers live in the message, not the
-  // diff, so they cannot leak into this set.
+  // not retracted. Waiver trailers live in the message, not the diff, so they cannot leak into
+  // this set.
   let addedText = ''
   const perFile = new Map()
   for (const entry of entries) {
@@ -537,7 +526,7 @@ function checkCommit({ range, message, ref }) {
     perFile.set(entry.path, hunks)
     // CORPUS-scoped, to match the survivor search. Accumulating app-code additions too would
     // mean a token moved OUT of the documented set — corpus to source — exonerates a corpus
-    // retraction that is still incomplete. `inCorpus` already excludes agent memory.
+    // retraction that is still incomplete.
     if (inCorpus(entry.path)) {
       for (const h of hunks) addedText += `${h.add.join('\n')}\n`
     }
@@ -661,9 +650,7 @@ export function main(args) {
   console.error(
     'Searched: CLAUDE.md, .coderabbit.yaml, .claude/**, docs/**, .spec-workflow/** (live specs)',
   )
-  console.error(
-    'Excluded: .claude/agent-memory/** (narrates past claims verbatim), completed specs',
-  )
+  console.error('Excluded: completed specs')
   return 1
 }
 

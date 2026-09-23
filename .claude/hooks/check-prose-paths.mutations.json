@@ -198,7 +198,7 @@
       "id": "sibling-corpus-not-consulted",
       "find": "  if (!inCorpus(path)) return false",
       "replace": "  if (false) return false",
-      "expectRed": ["ignores a citation in agent memory"]
+      "expectRed": ["ignores a citation outside the corpus roots"]
     },
     {
       "id": "waiver-never-recognised",
@@ -475,7 +475,7 @@
         "does not block a citation already carried by the baseline",
         "scopes a finding to the staged files, but --all grades the whole worktree",
         "accepts a path that is present on disk but untracked",
-        "ignores a citation in agent memory",
+        "ignores a citation outside the corpus roots",
         "ignores a gitignored artifact",
         "a directory-only gitignore pattern excuses the path even when the directory is absent",
         "an inline waiver with a written reason clears the finding",
