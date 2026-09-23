@@ -1,0 +1,18 @@
+{
+  "_": "Where a new TRACKED markdown file (.md/.mdx/.markdown) may live. Enforced by .claude/hooks/check-md-allowlist.mjs. Anything else goes to the gitignored .work/.",
+  "dirs": [
+    ".claude/rules/",
+    ".claude/agents/",
+    ".claude/commands/",
+    ".claude/skills/",
+    ".spec-workflow/steering/",
+    ".github/"
+  ],
+  "files": [
+    "docs/security.md",
+    "docs/database.md",
+    "docs/decisions.md",
+    "apps/web/e2e/redteam/attack-surface.md"
+  ],
+  "basenames": ["CLAUDE.md", "AGENTS.md", "README.md"]
+}

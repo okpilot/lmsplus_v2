@@ -1,0 +1,195 @@
+{
+  "_": "Every expectRed set below was derived by executing the mutation against a scratch copy of both suites and reading the actual TAP failures — none is predicted. Several mutations redden overlapping sets (over-delivery, not a hole: check-prose-paths.mutations.json documents the same pattern).",
+  "target": ".claude/hooks/check-md-allowlist.mjs",
+  "suites": [
+    ".claude/hooks/check-md-allowlist.test.mjs",
+    ".claude/hooks/check-md-allowlist.repo.test.mjs"
+  ],
+  "mutations": [
+    {
+      "id": "md-ext-narrowed",
+      "find": "const MD_EXT_RE = /\\.(md|mdx|markdown)$/i",
+      "replace": "const MD_EXT_RE = /\\.md$/i",
+      "expectRed": ["recognises the three markdown extensions, case-insensitively"]
+    },
+    {
+      "id": "dirs-branch-dropped",
+      "find": "  if (allow.dirs.some((d) => path.startsWith(d))) return true",
+      "replace": "  if (false) return true",
+      "expectRed": [
+        "allows a path under a listed directory prefix",
+        "allows staging a new markdown file under a listed directory"
+      ]
+    },
+    {
+      "id": "files-branch-dropped",
+      "find": "  if (allow.files.includes(path)) return true",
+      "replace": "  if (false) return true",
+      "expectRed": [
+        "allows an exact listed file but not its sibling",
+        "allows staging an exact listed file"
+      ]
+    },
+    {
+      "id": "basenames-branch-dropped",
+      "find": "  if (allow.basenames.includes(path.split('/').pop())) return true",
+      "replace": "  if (false) return true",
+      "expectRed": [
+        "allows a listed basename under any directory",
+        "allows staging a listed basename under a new directory"
+      ]
+    },
+    {
+      "id": "specdirs-loop-dropped",
+      "find": "  for (const d of specDirs) if (path.startsWith(d)) return true",
+      "replace": "  for (const d of []) if (path.startsWith(d)) return true",
+      "expectRed": [
+        "allows a new file under a spec directory the .gitignore re-includes",
+        "allows a path under a re-included spec directory"
+      ]
+    },
+    {
+      "id": "isallowed-fallback-inverted",
+      "find": "  return false\n}",
+      "replace": "  return true\n}",
+      "expectRed": [
+        "allows a listed basename under any directory",
+        "allows a path under a listed directory prefix",
+        "allows a path under a re-included spec directory",
+        "allows an exact listed file but not its sibling",
+        "blocks a new file under a spec directory the .gitignore never re-includes",
+        "blocks a path matching none of the allowed shapes",
+        "blocks renaming an existing file into a disallowed path",
+        "blocks staging a new markdown file outside the allowlist",
+        "scopes a finding to the staged additions, but --all grades the whole worktree"
+      ],
+      "note": "isAllowed's return-false fallback is what every other branch's `return true` sits above; inverting it makes the guard permit everything, so it reddens every test that expects a real block."
+    },
+    {
+      "id": "spec-reinclude-requires-bang",
+      "find": "const SPEC_REINCLUDE_RE = /^!\\.spec-workflow\\/specs\\/([^/]+)\\/$/",
+      "replace": "const SPEC_REINCLUDE_RE = /^!?\\.spec-workflow\\/specs\\/([^/]+)\\/$/",
+      "expectRed": ["requires the leading ! — a plain gitignore entry is not a re-include"]
+    },
+    {
+      "id": "spec-reinclude-no-trailing-slash",
+      "find": "([^/]+)\\/$/",
+      "replace": "([^/]+)$/",
+      "expectRed": [
+        "allows a new file under a spec directory the .gitignore re-includes",
+        "parses a spec re-include line into its directory prefix",
+        "trims surrounding whitespace before matching a re-include line"
+      ],
+      "note": "dropping the trailing slash+end anchor makes the regex fail to match every real re-include line (they all end in '/'), not just the fixture that most directly names the slash."
+    },
+    {
+      "id": "spec-reinclude-no-trim",
+      "find": "SPEC_REINCLUDE_RE.exec(rawLine.trim())",
+      "replace": "SPEC_REINCLUDE_RE.exec(rawLine)",
+      "expectRed": ["trims surrounding whitespace before matching a re-include line"]
+    },
+    {
+      "id": "addedpaths-pushes-every-status",
+      "find": "    if (status[0] === 'A') out.push(fields[i + 1])\n    else if (isRenameOrCopy) out.push(fields[i + count])",
+      "replace": "    if (!isRenameOrCopy) out.push(fields[i + 1])\n    else out.push(fields[i + count])",
+      "expectRed": [
+        "does not block modifying an existing disallowed markdown file",
+        "takes an added path but neither a modified nor a deleted one"
+      ]
+    },
+    {
+      "id": "addedpaths-rename-pushes-source",
+      "find": "    else if (isRenameOrCopy) out.push(fields[i + count])",
+      "replace": "    else if (isRenameOrCopy) out.push(fields[i + 1])",
+      "expectRed": [
+        "blocks renaming an existing file into a disallowed path",
+        "takes only the destination of a staged rename"
+      ]
+    },
+    {
+      "id": "addedpaths-status-not-validated",
+      "find": "    if (!/^[A-Z]\\d*$/.test(status)) {",
+      "replace": "    if (false) {",
+      "expectRed": ["aborts on a desynchronised name-status stream"]
+    },
+    {
+      "id": "loadallowlist-toplevel-not-object",
+      "find": "  if (obj === null || typeof obj !== 'object' || Array.isArray(obj)) {\n    throw new Error(`${ALLOWLIST_PATH}: top level must be an object`)\n  }",
+      "replace": "  if (false) {\n    throw new Error(`${ALLOWLIST_PATH}: top level must be an object`)\n  }",
+      "expectRed": ["exits 2 when the allowlist top level is not an object"]
+    },
+    {
+      "id": "loadallowlist-dirs-not-string-array",
+      "find": "  if (!isStringArray(obj.dirs))\n    throw new Error(`${ALLOWLIST_PATH}: \\`dirs\\` must be a string array`)",
+      "replace": "  if (false)\n    throw new Error(`${ALLOWLIST_PATH}: \\`dirs\\` must be a string array`)",
+      "expectRed": ["exits 2 when dirs is not an array"]
+    },
+    {
+      "id": "loadallowlist-files-not-string-array",
+      "find": "  if (!isStringArray(obj.files))\n    throw new Error(`${ALLOWLIST_PATH}: \\`files\\` must be a string array`)",
+      "replace": "  if (false)\n    throw new Error(`${ALLOWLIST_PATH}: \\`files\\` must be a string array`)",
+      "expectRed": ["exits 2 when files is not an array"]
+    },
+    {
+      "id": "loadallowlist-basenames-not-string-array",
+      "find": "  if (!isStringArray(obj.basenames)) {\n    throw new Error(`${ALLOWLIST_PATH}: \\`basenames\\` must be a string array`)\n  }",
+      "replace": "  if (false) {\n    throw new Error(`${ALLOWLIST_PATH}: \\`basenames\\` must be a string array`)\n  }",
+      "expectRed": ["exits 2 when basenames is not an array"]
+    },
+    {
+      "id": "loadallowlist-baddir-slash-check",
+      "find": "  const badDir = obj.dirs.find((d) => !d.endsWith('/'))\n  if (badDir !== undefined) {\n    throw new Error(`${ALLOWLIST_PATH}: dirs entry ${JSON.stringify(badDir)} must end in '/'`)\n  }",
+      "replace": "  const badDir = obj.dirs.find((d) => !d.endsWith('/'))\n  if (false) {\n    throw new Error(`${ALLOWLIST_PATH}: dirs entry ${JSON.stringify(badDir)} must end in '/'`)\n  }",
+      "expectRed": ["exits 2 when a dirs entry does not end in a slash"]
+    },
+    {
+      "id": "main-positional-check-dropped",
+      "find": "  if (positional.length > 0) {\n    console.error(`✖ md-allowlist guard: takes flags only, got ${JSON.stringify(positional[0])}`)\n    return 2\n  }",
+      "replace": "  if (false) {\n    console.error(`✖ md-allowlist guard: takes flags only, got ${JSON.stringify(positional[0])}`)\n    return 2\n  }",
+      "expectRed": ["refuses a positional argument, because the guard self-enumerates"]
+    },
+    {
+      "id": "main-unknown-flag-check-dropped",
+      "find": "  const unknown = flags.filter((f) => !KNOWN_FLAGS.has(f))\n  if (unknown.length > 0) {\n    console.error(`✖ md-allowlist guard: unknown flag(s) ${unknown.join(' ')}`)\n    return 2\n  }",
+      "replace": "  const unknown = flags.filter((f) => !KNOWN_FLAGS.has(f))\n  if (false) {\n    console.error(`✖ md-allowlist guard: unknown flag(s) ${unknown.join(' ')}`)\n    return 2\n  }",
+      "expectRed": [
+        "refuses an unknown flag",
+        "refuses an unknown flag at the CLI boundary, spawned end to end"
+      ]
+    },
+    {
+      "id": "candidates-mode-ternary-inverted",
+      "find": "  const candidates = all",
+      "replace": "  const candidates = !all",
+      "expectRed": [
+        "does not block modifying an existing disallowed markdown file",
+        "scopes a finding to the staged additions, but --all grades the whole worktree"
+      ],
+      "note": "swapping which branch `all` selects does not redden the CONTROL red test: the file staged there is still in the git index either way, so `git ls-files` (the wrong branch) still finds it."
+    },
+    {
+      "id": "check-md-allowlist-always-passes",
+      "find": "  const offenders = candidates.filter((p) => !isAllowed(p, allow, specDirs))",
+      "replace": "  const offenders = []",
+      "expectRed": [
+        "blocks a new file under a spec directory the .gitignore never re-includes",
+        "blocks renaming an existing file into a disallowed path",
+        "blocks staging a new markdown file outside the allowlist",
+        "scopes a finding to the staged additions, but --all grades the whole worktree"
+      ]
+    },
+    {
+      "id": "check-md-allowlist-always-blocks",
+      "find": "  if (offenders.length === 0) return 0",
+      "replace": "  if (false) return 0",
+      "expectRed": [
+        "allows a new file under a spec directory the .gitignore re-includes",
+        "allows staging a listed basename under a new directory",
+        "allows staging a new markdown file under a listed directory",
+        "allows staging an exact listed file",
+        "does not block modifying an existing disallowed markdown file",
+        "scopes a finding to the staged additions, but --all grades the whole worktree"
+      ]
+    }
+  ]
+}

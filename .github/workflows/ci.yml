@@ -196,6 +196,18 @@ jobs:
       - name: Prose-paths guard — git-facing tests
         run: node --test .claude/hooks/check-prose-paths.repo.test.mjs
 
+      # md-allowlist guard (docs/decisions.md Decision 85): a new tracked markdown file outside
+      # .claude/md-allowlist.json is blocked. `--all` here, NOT the staged mode the pre-commit
+      # hook uses: CI grades every tracked markdown path, not just this commit's staged additions.
+      - name: Md-allowlist guard (whole worktree)
+        run: node .claude/hooks/check-md-allowlist.mjs --all
+
+      - name: Md-allowlist guard — unit test
+        run: node --test .claude/hooks/check-md-allowlist.test.mjs
+
+      - name: Md-allowlist guard — git-facing tests
+        run: node --test .claude/hooks/check-md-allowlist.repo.test.mjs
+
       # Mutation harness (Decision 67). Makes "N mutations run, N caught" RE-DERIVABLE: the
       # mutations are DATA in `<guard>.mutations.json`, applied at runtime to a throwaway worktree.
       # BOTH steps are needed and they cover different things. The unit suite pins the LOGIC that
