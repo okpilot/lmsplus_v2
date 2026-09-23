@@ -7,12 +7,12 @@
 > line it replaces.
 
 ## 14 — 2026-03-11 — Import format: JSON matches QDB folder structure, `question_number` for dedup, images to public Storage bucket, 9 EASA PPL(A) subjects, inline bootstrap script.
-## 15 — 2026-03-11 — Wire code-reviewer, doc-updater, test-writer (post-commit) and security-auditor (pre-push) to Lefthook via shell hooks, with each agent persisting its own memory on disk.
+## 15 — 2026-03-11 — Wire code-reviewer, doc-updater, test-writer (post-commit) and security-auditor (pre-push) to Lefthook via shell hooks, with each agent persisting its own memory on disk. Amended by 20, 82.
 ## 16 — 2026-03-11 — Students require a pre-created `users` row before sign-in; no self-registration; the auth callback checks for it and redirects unregistered users to an error page.
-## 17 — 2026-03-11 — test-writer agent gains Bash to run its own tests; `pnpm test` also runs post-agent as a safety net; test-failure output stays visible (no `--silent`).
+## 17 — 2026-03-11 — test-writer agent gains Bash and must run the tests it writes before reporting; test-failure output stays visible (no `--silent`).
 ## 18 — 2026-03-11 — All development runs against local Supabase; `.env.local`/`.env.remote` split; Mailpit and local Studio serve dev; remote DB is staging/production only.
 ## 19 — 2026-03-11 — Immutable-table RLS policies are scoped to `FOR SELECT` + `FOR INSERT` only, closing the ALL-scope policy that let `quiz_session_answers`/`student_responses` be updated or deleted.
-## 20 — 2026-03-11 — Post-commit review agents move from external Lefthook hooks to in-session Claude Code subagents so their findings are visible; Lefthook keeps only pre-commit/commit-msg/pre-push. Superseded by 73.
+## 20 — 2026-03-11 — Post-commit review agents move from external Lefthook hooks to in-session Claude Code subagents so their findings are visible; Lefthook keeps only pre-commit/commit-msg/pre-push. Amended by 73.
 ## 21 — 2026-03-11 — Deferred tech debt is tracked exclusively as GitHub Issues labeled `tech-debt`, filed immediately rather than left as TODOs or in a spreadsheet.
 ## 22 — 2026-03-11 — Production Supabase auth Site URL and redirect allowlist are set for `lmsplus.app`; login uses `window.location.origin` for the redirect target.
 ## 23 — 2026-03-12 — Quiz submission becomes atomic via a new `batch_submit_quiz()` RPC, replacing the per-answer submit-then-complete RPC pair for new code.
