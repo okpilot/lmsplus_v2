@@ -294,6 +294,17 @@ test('an unwaived re-add of a line a waiver removed is blocked', () =>
     assert.equal(runBase(r, 'master').status, 1)
   }))
 
+// GROUP: range-readd-waiver-dropped
+test('a waived re-add of a line a waiver removed passes', () =>
+  withRepo((r) => {
+    startWork(r)
+    commit(r, ledgerNo14(), waive(14, 'fix: remove decision 14'))
+    // MUTATION: record only waivers a per-commit finding used → the re-add's waiver, which no
+    // per-commit finding needs, authorizes nothing and the range unit blocks.
+    commit(r, ledger('REVIEWED WORDING.'), waive(14, 'fix: re-add 14 reworded'))
+    assert.equal(runBase(r, 'master').status, 0)
+  }))
+
 // GROUP: range-rebind-marker-superset-dropped
 test('a later commit marking a text a merge stripped of a base marker is blocked', () =>
   withRepo((r) => {

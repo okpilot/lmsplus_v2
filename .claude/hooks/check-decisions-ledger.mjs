@@ -477,8 +477,11 @@ function recordAuthorizations(live, unit, unusedWaivers) {
   }
   // No ledger in NEW: checkUnit returned before applying waivers, so none was applied.
   if (unit.newText === null) return
+  // A re-add raises no per-commit finding (OLD lacks the line), yet its waiver authorizes the text.
+  const readds = (token) =>
+    slotText(unit.oldText, token) === null && slotText(unit.newText, token) !== null
   for (const token of parseWaivers(unit.message).waivers.keys()) {
-    if (unusedWaivers.includes(token)) continue
+    if (unusedWaivers.includes(token) && !readds(token)) continue
     live.set(token, [
       ...(live.get(token) ?? []),
       { sha: unit.label, text: slotText(unit.newText, token) },

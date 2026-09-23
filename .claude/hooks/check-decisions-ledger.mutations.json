@@ -80,7 +80,7 @@
     },
     {
       "id": "range-authorizations-not-recorded",
-      "find": "    if (unusedWaivers.includes(token)) continue\n",
+      "find": "    if (unusedWaivers.includes(token) && !readds(token)) continue\n",
       "replace": "    continue\n",
       "expectRed": [
         "a waived edit that a merge later marks passes",
@@ -90,7 +90,8 @@
         "a waived edit that later gains an appended marker passes on a linear branch",
         "concurrent waived edits on both sides let the merge keep either one",
         "a master re-edit of a text the branch also waived keeps the branch waiver",
-        "a merge dropping a marker the branch added after a waived edit passes"
+        "a merge dropping a marker the branch added after a waived edit passes",
+        "a waived re-add of a line a waiver removed passes"
       ]
     },
     {
@@ -183,6 +184,12 @@
       "expectRed": ["a later commit marking a text a merge stripped of a base marker is blocked"]
     },
     {
+      "id": "range-readd-waiver-dropped",
+      "find": "if (unusedWaivers.includes(token) && !readds(token)) continue",
+      "replace": "if (unusedWaivers.includes(token)) continue",
+      "expectRed": ["a waived re-add of a line a waiver removed passes"]
+    },
+    {
       "id": "range-removal-auth-rebinds",
       "find": "      if (a.text === null && text !== null) return []\n",
       "replace": "",
@@ -244,7 +251,8 @@
         "a waived edit that later gains an appended marker passes on a linear branch",
         "concurrent waived edits on both sides let the merge keep either one",
         "a master re-edit of a text the branch also waived keeps the branch waiver",
-        "a merge dropping a marker the branch added after a waived edit passes"
+        "a merge dropping a marker the branch added after a waived edit passes",
+        "a waived re-add of a line a waiver removed passes"
       ]
     },
     {
@@ -310,7 +318,8 @@
         "appending a marker to an existing line with no other edit is clean",
         "a Ledger-edit-ok: header trailer waives a changed header",
         "a master re-edit of a text the branch also waived keeps the branch waiver",
-        "a merge dropping a marker the branch added after a waived edit passes"
+        "a merge dropping a marker the branch added after a waived edit passes",
+        "a waived re-add of a line a waiver removed passes"
       ]
     },
     {
@@ -348,18 +357,14 @@
       "find": "    oldText: readAtTree(`${sha}^`, DECISIONS_PATH),\n    newText: readAtTree(sha, DECISIONS_PATH),",
       "replace": "    oldText: readAtTree(`${sha}^^`, DECISIONS_PATH),\n    newText: readAtTree(sha, DECISIONS_PATH),",
       "expectRed": [
-        "a waived edit that a merge later marks passes",
         "an unwaived edit on a branch with no merge is reported once, with the trailer hint",
-        "a waived edit passes --base",
         "a waiver in a non-last commit of the range still waives its own edit",
         "a waiver trailer in one commit does not cover an edit made in an earlier commit",
         "an edit then a restore across two commits is still flagged (the file is not diffed end to end)",
-        "a stale base passes when the branch merged a newer master carrying a waived edit",
         "a numbering break made in a merge blocks even when a later commit leaves the ledger alone",
         "a waived edit that later gains an appended marker passes on a linear branch",
-        "concurrent waived edits on both sides let the merge keep either one",
-        "a master re-edit of a text the branch also waived keeps the branch waiver",
-        "a merge dropping a marker the branch added after a waived edit passes"
+        "a merge dropping a marker the branch added after a waived edit passes",
+        "a merge reinstating a superseded waived text is blocked"
       ]
     },
     {
@@ -467,7 +472,8 @@
         "commit-msg mode on the FIRST commit (unborn HEAD) runs F1/F2 with no immutability check",
         "a clean merge auto-adopting an already-waived incoming edit passes",
         "a master re-edit of a text the branch also waived keeps the branch waiver",
-        "a merge dropping a marker the branch added after a waived edit passes"
+        "a merge dropping a marker the branch added after a waived edit passes",
+        "a waived re-add of a line a waiver removed passes"
       ]
     },
     {
