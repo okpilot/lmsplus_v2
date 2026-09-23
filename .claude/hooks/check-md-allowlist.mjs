@@ -7,7 +7,7 @@
 // Usage:  node .claude/hooks/check-md-allowlist.mjs        (pre-commit; staged adds/renames)
 //         node .claude/hooks/check-md-allowlist.mjs --all  (CI; every tracked markdown path)
 // Exit:   0 = every candidate path is allowed
-//         1 = a finding — a new markdown path outside the allowlist
+//         1 = a finding — a markdown path outside the allowlist
 //         2 = the check COULD NOT RUN (usage, git failure, malformed allowlist file,
 //             unreadable .gitignore)
 
