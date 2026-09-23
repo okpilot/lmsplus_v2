@@ -96,14 +96,13 @@ test('a range finding tells the author a merge cannot waive it', () =>
 // GROUP: range-repeats-commit-findings
 test('an unwaived edit on a branch with no merge is reported once, with the trailer hint', () =>
   withRepo((r) => {
-    // MUTATION: drop the per-commit dedup → the same edit is reported again under [range] with
-    // a merge-only hint on a branch that has no merge.
+    // MUTATION: drop the per-commit dedup → the same edit is reported again under [range].
     startWork(r)
     commit(r, ledger('EDITED.'), 'edit 14')
     const res = runBase(r, 'master')
     assert.equal(res.status, 1)
     assert.match(res.stderr, /→ add to the commit message: Ledger-edit-ok: 14/)
-    assert.doesNotMatch(res.stderr, /a merge cannot waive/)
+    assert.equal(res.stderr.match(/## 14 — body edited/g)?.length, 1)
   }))
 
 // GROUP: range-dedup-token-only
@@ -121,8 +120,8 @@ test('a merge re-editing a line a commit already broke is still reported as a me
 // GROUP: range-rebind-unchanged-slot
 test('a ledger-neutral commit after a merge edit does not re-bind a waiver to the merge text', () =>
   withRepo((r) => {
-    // MUTATION: re-bind on every unit, not only one that changed the slot → the README commit
-    // moves the waiver for A to the merge's text X and the merge-only edit clears.
+    // MUTATION: re-bind without checking the commit's OLD slot matched the authorized text → the
+    // README commit moves the waiver for A to the merge's text X and the merge-only edit clears.
     forked(r, () => commit(r, ledger('A.'), waive(14, 'fix: reword 14')))
     mergeMaster(r, ledger('X.', undefined, [E16_MASTER]))
     readme(r)
@@ -292,6 +291,19 @@ test('an unwaived re-add of a line a waiver removed is blocked', () =>
     // MUTATION: re-bind a removal authorization to the re-added text → the new body clears.
     commit(r, ledger('NEVER REVIEWED.'), 're-add 14')
     assert.equal(runBase(r, 'master').status, 1)
+  }))
+
+// GROUP: range-hint-merges-ignored
+test('a range finding on a branch with no merge names the non-merge remedy', () =>
+  withRepo((r) => {
+    startWork(r)
+    commit(r, ledgerNo14(), waive(14, 'fix: remove decision 14'))
+    // MUTATION: give every range finding the merge hint → a merge-free branch is told to redo a
+    // merge it does not have.
+    commit(r, ledger('NEVER REVIEWED.'), 're-add 14')
+    const res = runBase(r, 'master')
+    assert.match(res.stderr, /\[range\][\s\S]*add Ledger-edit-ok: 14 to the non-merge commit/)
+    assert.doesNotMatch(res.stderr, /redo the merge/)
   }))
 
 // GROUP: range-readd-waiver-dropped

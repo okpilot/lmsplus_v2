@@ -401,22 +401,26 @@ function readIndex(path) {
 
 // ---------------------------------------------------------------- reporting
 
-function reportUnit(label, offenders, unusedWaivers) {
+/** The remedy for a finding on `token`. A range finding names redoing a merge only when the
+ *  range holds one (`merges`); its edit is otherwise a non-merge commit's to waive. */
+function hintFor(token, { label, merges }) {
+  if (label !== 'range') {
+    return `add to the commit message: Ledger-edit-ok: ${token} — <why this edit is safe>`
+  }
+  if (!merges) {
+    return `restore this line, or add Ledger-edit-ok: ${token} to the non-merge commit that made the edit`
+  }
+  return `a merge cannot waive: restore this line in a commit with Ledger-edit-ok: ${token}, or redo the merge without the edit and make it in a non-merge commit with Ledger-edit-ok: ${token}`
+}
+
+function reportUnit(label, offenders, { unusedWaivers = [], merges = false } = {}) {
   if (offenders.length > 0) {
     console.error(
       `✖ decisions-ledger guard (Decision 86): docs/decisions.md was edited outside the allowed shape${label ? ` [${label}]` : ''}\n`,
     )
     for (const o of offenders) {
       console.error(`  ${o.detail}`)
-      if (o.token !== null && label === 'range') {
-        console.error(
-          `    → a merge cannot waive: restore this line in a commit with Ledger-edit-ok: ${o.token}, or redo the merge without the edit and make it in a non-merge commit with Ledger-edit-ok: ${o.token}`,
-        )
-      } else if (o.token !== null) {
-        console.error(
-          `    → add to the commit message: Ledger-edit-ok: ${o.token} — <why this edit is safe>`,
-        )
-      }
+      if (o.token !== null) console.error(`    → ${hintFor(o.token, { label, merges })}`)
     }
   }
   if (unusedWaivers.length > 0) {
@@ -499,7 +503,7 @@ function runBase(ref) {
     const res = checkUnit(unit)
     if (res.problems.length > 0) return reportProblems(res.problems)
     if (res.offenders.length > 0) blocked = true
-    reportUnit(unit.label, res.offenders, res.unusedWaivers)
+    reportUnit(unit.label, res.offenders, { unusedWaivers: res.unusedWaivers })
     for (const o of res.offenders) reported.add(`${o.token}\n${slotText(unit.newText, o.token)}`)
     recordAuthorizations(live, unit, res.unusedWaivers)
     if (unit.oldText !== unit.newText) lastTouched = unit.newText
@@ -520,12 +524,16 @@ function runRange(ref, live, { lastTouched, reported }) {
     gradeFormat: newText !== lastTouched,
   })
   // A per-commit unit that reported this token AND produced HEAD's text has the fix; skip it.
+  const merges =
+    git(['rev-list', '--merges', `${ref}..HEAD`])
+      .toString('utf8')
+      .trim() !== ''
   reportUnit(
     'range',
     offenders.filter(
       (o) => o.token === null || !reported.has(`${o.token}\n${slotText(newText, o.token)}`),
     ),
-    [],
+    { merges },
   )
   return offenders.length > 0
 }
@@ -536,7 +544,7 @@ function runUnits(units) {
     const res = checkUnit(unit)
     if (res.problems.length > 0) return reportProblems(res.problems)
     if (res.offenders.length > 0) blocked = true
-    reportUnit(unit.label, res.offenders, res.unusedWaivers)
+    reportUnit(unit.label, res.offenders, { unusedWaivers: res.unusedWaivers })
   }
   return blocked ? 1 : 0
 }

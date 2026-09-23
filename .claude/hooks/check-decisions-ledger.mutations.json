@@ -44,7 +44,8 @@
         "a range finding tells the author a merge cannot waive it",
         "a merge re-editing a line a commit already broke is still reported as a merge edit",
         "an unwaived re-add of a line a waiver removed is blocked",
-        "a later commit marking a text a merge stripped of a base marker is blocked"
+        "a later commit marking a text a merge stripped of a base marker is blocked",
+        "a range finding on a branch with no merge names the non-merge remedy"
       ]
     },
     {
@@ -64,7 +65,8 @@
         "a marker appended after a merge edit does not adopt the merge text",
         "a waived header edit does not clear a merge that rewrites the header again",
         "an unwaived re-add of a line a waiver removed is blocked",
-        "a later commit marking a text a merge stripped of a base marker is blocked"
+        "a later commit marking a text a merge stripped of a base marker is blocked",
+        "a range finding on a branch with no merge names the non-merge remedy"
       ]
     },
     {
@@ -140,12 +142,19 @@
       ]
     },
     {
+      "id": "range-hint-merges-ignored",
+      "find": "  if (!merges) {",
+      "replace": "  if (false) {",
+      "expectRed": ["a range finding on a branch with no merge names the non-merge remedy"]
+    },
+    {
       "id": "range-hint-generic",
-      "find": "      if (o.token !== null && label === 'range') {",
-      "replace": "      if (false) {",
+      "find": "  if (label !== 'range') {",
+      "replace": "  if (true) {",
       "expectRed": [
         "a merge re-editing a line a commit already broke is still reported as a merge edit",
-        "a range finding tells the author a merge cannot waive it"
+        "a range finding tells the author a merge cannot waive it",
+        "a range finding on a branch with no merge names the non-merge remedy"
       ]
     },
     {
@@ -193,7 +202,10 @@
       "id": "range-removal-auth-rebinds",
       "find": "      if (a.text === null && text !== null) return []\n",
       "replace": "",
-      "expectRed": ["an unwaived re-add of a line a waiver removed is blocked"]
+      "expectRed": [
+        "an unwaived re-add of a line a waiver removed is blocked",
+        "a range finding on a branch with no merge names the non-merge remedy"
+      ]
     },
     {
       "id": "range-rebind-ignores-ancestry",
@@ -364,7 +376,8 @@
         "a numbering break made in a merge blocks even when a later commit leaves the ledger alone",
         "a waived edit that later gains an appended marker passes on a linear branch",
         "a merge dropping a marker the branch added after a waived edit passes",
-        "a merge reinstating a superseded waived text is blocked"
+        "a merge reinstating a superseded waived text is blocked",
+        "a range finding on a branch with no merge names the non-merge remedy"
       ]
     },
     {
@@ -587,7 +600,8 @@
         "flags an OLD entry whose body text changed (I2)",
         "a Ledger-edit-ok trailer for one token does not waive a finding on a different token",
         "a marker appended after a merge edit does not adopt the merge text",
-        "an unwaived re-add of a line a waiver removed is blocked"
+        "an unwaived re-add of a line a waiver removed is blocked",
+        "a range finding on a branch with no merge names the non-merge remedy"
       ]
     },
     {
