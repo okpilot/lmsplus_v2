@@ -108,6 +108,13 @@ apps/web/scripts/seed-907-pagination-eval.ts
 .claude/worktrees/
 .claude/scheduled_tasks.lock
 
-# Working notes and specs — untracked (D2b)
+# Working notes and specs — untracked (D2b). Each ! line re-includes a spec tracked before
+# 2026-09-23; delete its line when the spec is deleted.
 .work/
-.spec-workflow/specs/
+.spec-workflow/specs/*
+!.spec-workflow/specs/backlog-burndown/
+!.spec-workflow/specs/internal-exam-code-email/
+!.spec-workflow/specs/quiz-sessions-rpc-only-immutability/
+!.spec-workflow/specs/redteam-quiz-session-bugs/
+!.spec-workflow/specs/study-mode/
+!.spec-workflow/specs/vfr-rt-slovenia-mock-exam/

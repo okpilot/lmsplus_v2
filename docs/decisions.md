@@ -2426,3 +2426,11 @@ them.
 - Supersedes every earlier decision's `.claude/agent-memory` clause
   (`git grep -n agent-memory docs/decisions.md`). The guard and `.coderabbit.yaml` exclusions of
   that path are removed.
+
+## Decision 83: working notes and new specs are untracked; the build-plan doc deleted (2026-09-23)
+
+- `.work/` holds plans, task lists, handovers, triage and eval notes; `.spec-workflow/specs/*` is
+  gitignored. Specs tracked before this date stay tracked (one `!` line each in `.gitignore`) until
+  their work lands, then are deleted.
+- The build-plan doc (`plan.md` under `docs/`) deleted: git history and GitHub issues are the record and the plan.
+- History docs, completed specs and root notes were deleted in #1345 (D2a).
