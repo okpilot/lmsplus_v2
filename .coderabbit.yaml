@@ -371,7 +371,7 @@ reviews:
         Decisions ledger (Decision 86; mechanised by .claude/hooks/check-decisions-ledger.mjs at
         commit-msg and in CI; in CI a merge commit's edit clears only when the final line has the
         body, and at least the markers, of the text a non-merge `Ledger-edit-ok` commit produced,
-        as re-written by any later non-merge commit — Decision 88). Flag:
+        as re-written by any non-merge commit descending from it — Decision 88). Flag:
         - An entry line not matching `## <N> — <YYYY-MM-DD> — <text>`, or a number that is not
           the previous entry's number + 1.
         - Any change to an EXISTING line other than appending ` Superseded by <N>.` or
