@@ -22,8 +22,8 @@
 ## 27 — 2026-03-14 — Adopt a Playwright red-team suite of adversarial attack specs against local Supabase, with a review agent mapping diffs to coverage gaps on security-sensitive changes. Amended by 73.
 ## 28 — 2026-03-17 — Add four weekly GitHub Actions health-check workflows (agent-health, coverage-trend, bundle-size, stale-issues), each maintaining a single tracking issue. #259
 ## 29 — 2026-03-17 — Switch auth from magic-link (`signInWithOtp`) to email+password (`signInWithPassword`), with a PKCE-based forgot-password flow through a new `/auth/confirm` route. #174
-## 30 — 2026-03-20 — `question_comments` uses hard DELETE, not soft-delete, for own-row/admin deletions; `deleted_at` is kept only as a defensive fallback. #327
-## 31 — 2026-03-20 — All authenticated users can see all non-deleted question comments; no org-scoping or answered-question restriction on comment visibility. #327
+## 30 — 2026-03-20 — `question_comments` uses hard DELETE, not soft-delete, for own-row/admin deletions; `deleted_at` is kept only as a defensive fallback. #315
+## 31 — 2026-03-20 — All authenticated users can see all non-deleted question comments; no org-scoping or answered-question restriction on comment visibility. #315
 ## 32 — 2026-03-27 — GDPR consent is enforced via an append-only `user_consents` table, two SECURITY DEFINER RPCs, and a cookie-based version check in `proxy.ts` that redirects to `/consent` on mismatch.
 ## 33 — 2026-03-27 — GDPR data-subject rights ship as self-service/admin JSON export only; erasure is declined under Article 17(3)(b) because EASA Part ORA requires retained training records. #182
 ## 34 — 2026-04-04 — All paginated lists use server-side `.range()` pagination with URL-driven, server-side sort/filter; client-side sort/filter on a paginated subset is disallowed. #472
