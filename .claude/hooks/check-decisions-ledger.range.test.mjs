@@ -118,6 +118,17 @@ test('a merge re-editing a line a commit already broke is still reported as a me
     assert.match(res.stderr, /\[range\][\s\S]*a merge cannot waive/)
   }))
 
+// GROUP: range-rebind-unchanged-slot
+test('a ledger-neutral commit after a merge edit does not re-bind a waiver to the merge text', () =>
+  withRepo((r) => {
+    // MUTATION: re-bind on every unit, not only one that changed the slot → the README commit
+    // moves the waiver for A to the merge's text X and the merge-only edit clears.
+    forked(r, () => commit(r, ledger('A.'), waive(14, 'fix: reword 14')))
+    mergeMaster(r, ledger('X.', undefined, [E16_MASTER]))
+    readme(r)
+    assert.equal(runBase(r, 'master').status, 1)
+  }))
+
 // GROUP: range-authorization-token-only
 test('a waived edit re-edited by a merge is blocked', () =>
   withRepo((r) => {
@@ -343,7 +354,7 @@ test('a waiver on a commit with no ledger does not clear a merge dropping the la
     assert.match(res.stderr, /\[range\][\s\S]*## 16 — line removed entirely/)
   }))
 
-// GROUP: range-units-not-topo-ordered
+// GROUP: range-units-not-topo-ordered, range-rebind-unchanged-slot
 test('a superseded waiver stays revoked when commit dates put the ancestor last', () =>
   withRepo((r) => {
     // MUTATION: drop --topo-order → A is also reachable through side commit C, dated after B, so

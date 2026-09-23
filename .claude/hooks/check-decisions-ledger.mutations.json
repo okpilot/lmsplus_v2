@@ -26,6 +26,7 @@
       "find": "  if (offenders.length > 0) blocked = true\n  // A per-commit unit that reported",
       "replace": "  // A per-commit unit that reported",
       "expectRed": [
+        "a ledger-neutral commit after a merge edit does not re-bind a waiver to the merge text",
         "a merge dropping a marker the branch removed and then restored is blocked",
         "--base blocks an edit to an existing line made only in a merge commit",
         "a waived edit re-edited by a merge is blocked",
@@ -45,6 +46,7 @@
       "find": "!(authorized.get(f.token) ?? []).some((t) => slotMatches(t, newText, f.token)),",
       "replace": "!authorized.has(f.token),",
       "expectRed": [
+        "a ledger-neutral commit after a merge edit does not re-bind a waiver to the merge text",
         "a merge dropping a marker the branch removed and then restored is blocked",
         "a range edit clears only when the authorized text equals the final line",
         "an absent authorization does not clear a merge that reinstates the entry with new text",
@@ -162,6 +164,15 @@
       "replace": "![...reported].some((k) => k.startsWith(`${o.token}\\n`))",
       "expectRed": [
         "a merge re-editing a line a commit already broke is still reported as a merge edit"
+      ]
+    },
+    {
+      "id": "range-rebind-unchanged-slot",
+      "find": "    if (text === slotText(unit.oldText, token)) continue\n",
+      "replace": "",
+      "expectRed": [
+        "a superseded waiver stays revoked when commit dates put the ancestor last",
+        "a ledger-neutral commit after a merge edit does not re-bind a waiver to the merge text"
       ]
     },
     {
@@ -350,6 +361,7 @@
       "find": "    exit(main(argv.slice(2)))",
       "replace": "    const code = main(argv.slice(2))\n    exit(code === 1 ? 0 : code)",
       "expectRed": [
+        "a ledger-neutral commit after a merge edit does not re-bind a waiver to the merge text",
         "a merge re-editing a line a commit already broke is still reported as a merge edit",
         "a merge dropping a marker the branch removed and then restored is blocked",
         "an unwaived edit on a branch with no merge is reported once, with the trailer hint",
@@ -491,6 +503,7 @@
       "find": "  if (oldSplit.body !== newSplit.body) {",
       "replace": "  if (false) {",
       "expectRed": [
+        "a ledger-neutral commit after a merge edit does not re-bind a waiver to the merge text",
         "a merge re-editing a line a commit already broke is still reported as a merge edit",
         "an unwaived edit on a branch with no merge is reported once, with the trailer hint",
         "--base catches an edit made in a middle commit of the range",
