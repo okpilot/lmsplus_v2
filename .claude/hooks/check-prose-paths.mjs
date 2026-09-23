@@ -107,9 +107,14 @@ const KNOWN_FLAGS = new Set(['--all', '--update-baseline'])
  */
 const SPEC_PREFIX = '.spec-workflow/specs/'
 
-/** Gitignored trees that hold notes, not artifacts: a citation into one must resolve to a TRACKED file. */
+/**
+ * Gitignored NOTES, not artifacts — the notes entries of `.gitignore`, which cannot itself tell a
+ * note from a build output. A citation of one must resolve to a TRACKED file: an untracked note
+ * exists only in the author's checkout, so citing it is dead everywhere else.
+ */
 const UNTRACKED_NOTE_PREFIXES = [SPEC_PREFIX, '.work/']
-const inNoteTree = (t) => UNTRACKED_NOTE_PREFIXES.some((p) => t.startsWith(p))
+const inNoteTree = (t) =>
+  UNTRACKED_NOTE_PREFIXES.some((p) => t.startsWith(p)) || t.split('/').at(-1) === 'HANDOVER.md'
 
 /**
  * `.json` has no comment syntax, so it has no prose lines — the same reason
@@ -238,6 +243,7 @@ export function resolves(tok, index) {
   // never reaches the report; there is no claim here to grade.
   if (!t) return true
   if (index.trackedSet.has(t) || index.dirSet.has(t)) return true
+  if (inNoteTree(t)) return false
   return existsSync(t)
 }
 

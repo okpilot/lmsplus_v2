@@ -227,21 +227,20 @@ test('ignores a gitignored artifact', () =>
     assert.equal(run(r).status, 0)
   }))
 
-// GROUP: untracked-notes-exempted, new-findings-never-block, check-prose-paths-always-passes
-test('blocks a dead citation into a gitignored notes tree', () =>
+const NOTES = ['.spec-workflow/specs/gone/tasks.md', '.work/notes.md', 'docs/HANDOVER.md']
+
+// GROUP: untracked-notes-exempted, handover-not-a-note, untracked-note-resolves-on-disk, new-findings-never-block, check-prose-paths-always-passes
+test('blocks a citation into a gitignored notes tree, even of a note on local disk', () =>
   withRepo((r) => {
-    r.write('.gitignore', '.work/\n.spec-workflow/specs/*\n')
-    r.write('docs/a.md', 'intro\n')
+    r.write('.gitignore', '.work/\n.spec-workflow/specs/*\nHANDOVER.md\n')
+    r.write('.work/notes.md', 'local only\n')
+    r.write('docs/a.md', `intro\nsee ${NOTES.join('\nsee ')}\n`)
     r.git('add', '-A')
-    r.git('commit', '-qm', 'init')
-    r.write('docs/a.md', 'intro\nsee .spec-workflow/specs/gone/tasks.md and .work/notes.md\n')
-    r.git('add', '-A')
-    // MUTATION: drop the inNoteTree term → both citations classify as gitignored artifacts
-    // through the real `git check-ignore` round trip, and the commit passes.
+    // MUTATION: drop inNoteTree from classify or resolves, or its HANDOVER.md clause → a note
+    // citation passes. One citation per line: a finding echoes its line.
     const res = run(r)
     assert.equal(res.status, 1)
-    assert.match(res.stderr, /specs\/gone\/tasks\.md/)
-    assert.match(res.stderr, /\.work\/notes\.md/)
+    for (const p of NOTES) assert.ok(res.stderr.includes(p), p)
   }))
 
 // ---------------------------------------------------------------- fail closed

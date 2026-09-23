@@ -2062,9 +2062,7 @@ The scoped grep also returns `docs/decisions.md` — this entry itself.
 Other files POINT at this decision without restating the mechanics, and need no sync when the
 wording here changes — again an illustration as of 2026-09-15, not a closed set:
 `.spec-workflow/steering/tech.md`. No count is stated —
-`grep -n 'Decision 69' .spec-workflow/steering/tech.md` is the derivation, and
-it is deliberately not a figure here: this sentence has now carried a WRONG count twice, the second
-time because the same commit that asserted it added another citation (§10 cl.7).
+`grep -n 'Decision 69' .spec-workflow/steering/tech.md` is the derivation.
 The distinction is what `agent-workflow.md § Rule-Mirror Sync` turns on — a restatement is a mirror,
 a pointer is not.
 
