@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: read
+  packages: read
 
 concurrency:
   group: redteam-${{ github.ref }}
@@ -62,6 +63,13 @@ jobs:
         # group of fonts and xvfb that no spec here uses -- no screenshot/snapshot assertions,
         # headless only).
         run: pnpm --filter @repo/web exec playwright install chromium
+
+      - name: Log in to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Start local Supabase
         run: supabase start
