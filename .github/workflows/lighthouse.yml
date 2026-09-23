@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: read
-  packages: read
 
 concurrency:
   group: lighthouse-${{ github.ref }}
@@ -42,15 +41,12 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Log in to GHCR
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Pull Supabase images from ECR Public
+        # supabase/setup-cli exports SUPABASE_INTERNAL_IMAGE_REGISTRY=ghcr.io; GHCR throttles these pulls.
+        run: echo "SUPABASE_INTERNAL_IMAGE_REGISTRY=public.ecr.aws" >> "$GITHUB_ENV"
 
       - name: Start local Supabase
-        run: supabase start
+        run: supabase start -x logflare,vector
 
       - name: Wait for Supabase readiness
         run: bash .github/scripts/wait-for-supabase.sh
