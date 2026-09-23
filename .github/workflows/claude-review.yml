@@ -47,6 +47,7 @@ jobs:
       - name: Fetch head copies of patch-less files
         if: env.CLAUDE_CODE_OAUTH_TOKEN != ''
         continue-on-error: true # a failed fetch leaves no INDEX.txt; the Review step still runs
+        timeout-minutes: 5
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
@@ -108,8 +109,10 @@ jobs:
             Some changed files carry no `patch` in the diff tools — large diffs and binaries. Read
             `.pr-head/INDEX.txt` first: `fetched <path> → <copy>` means the head-commit copy of
             `<path>` is the file `<copy>`; `not-fetched <path> — <reason>` means there is none.
-            The base copy, if any, is at `<path>` on disk. If `.pr-head/INDEX.txt` is missing,
-            every changed file the diff tools return without a patch is unreviewed. Every such
+            The base copy, if any, is at `<path>` on disk — for a renamed file, at its previous
+            name. A `truncated` line means GitHub capped the file list: every changed file missing
+            from INDEX.txt is unreviewed, as is every file without a patch when
+            `.pr-head/INDEX.txt` is missing. Every such
             file, every `not-fetched` path, and any other changed file you could not read, is
             named in the verdict's `Not reviewed:` line below.
 
@@ -186,7 +189,8 @@ jobs:
           # github-mcp-server v0.17.1 (pkg/github/pullrequests.go), the build the action pins.
           #
           # Read/Grep/Glob are granted explicitly, rather than left to the read-only default, and
-          # read the BASE checkout on disk (see the checkout step above) — never the PR's own files:
+          # read the BASE checkout on disk (see the checkout step above), plus the numbered head
+          # copies of patch-less files under .pr-head/files/ — never the PR's config files:
           # Read(.claude-pr/**) denies the action's in-cwd snapshot of the PR's config files
           # (SENSITIVE_PATHS in the action's src/github/operations/restore-config.ts).
           # --disallowedTools fences them outside the checkout (/proc, /sys, ~/.claude, the

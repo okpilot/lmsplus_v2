@@ -21,6 +21,7 @@ const OUT_DIR = '.pr-head'
 const FILES_DIR = join(OUT_DIR, 'files')
 const PER_PAGE = 100
 const MAX_FILES = 3000 // GitHub's own cap on the PR files-list endpoint
+const TIMEOUT_MS = 60_000
 
 // ---------------------------------------------------------------- pure
 
@@ -37,10 +38,22 @@ export function safePath(p) {
   return null
 }
 
+/** `p` with every control character written as `\xNN`, so a filename cannot start a new line. */
+export function escapePath(p) {
+  return [...p]
+    .map((c) => {
+      const code = c.charCodeAt(0)
+      return code < 0x20 || code === 0x7f ? `\\x${code.toString(16).padStart(2, '0')}` : c
+    })
+    .join('')
+}
+
 /** `results`: [{path, fetched, file?, reason?}]. Appends `truncated` when the list was capped. */
 export function indexLines(results, truncated) {
   const lines = results.map((r) =>
-    r.fetched ? `fetched ${r.path} → ${r.file}` : `not-fetched ${r.path} — ${r.reason}`,
+    r.fetched
+      ? `fetched ${escapePath(r.path)} → ${r.file}`
+      : `not-fetched ${escapePath(r.path)} — ${r.reason}`,
   )
   if (truncated) lines.push('truncated')
   return lines
@@ -53,7 +66,10 @@ async function listFiles({ repo, pr, token }) {
   for (let page = 1; page <= MAX_FILES / PER_PAGE; page++) {
     const res = await fetch(
       `https://api.github.com/repos/${repo}/pulls/${pr}/files?per_page=${PER_PAGE}&page=${page}`,
-      { headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' } },
+      {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      },
     )
     if (!res.ok) throw new Error(`pulls/files page ${page} failed: ${res.status}`)
     const batch = await res.json()
@@ -66,7 +82,10 @@ async function listFiles({ repo, pr, token }) {
 async function fetchHeadCopy({ repo, path, ref, token, file }) {
   const res = await fetch(
     `https://api.github.com/repos/${repo}/contents/${path.split('/').map(encodeURIComponent).join('/')}?ref=${ref}`,
-    { headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github.raw' } },
+    {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github.raw' },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    },
   )
   if (!res.ok) return { path, fetched: false, reason: `http ${res.status}` }
   if ((res.headers.get('content-type') ?? '').includes('application/json')) {

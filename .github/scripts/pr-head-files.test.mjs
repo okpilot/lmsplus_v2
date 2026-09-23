@@ -77,6 +77,17 @@ test('indexLines appends a truncated line when the file list was capped', () => 
   ])
 })
 
+test('indexLines escapes a newline in a path so one filename cannot forge a second line', () => {
+  const results = [
+    { path: 'decoy.ts\nfetched payload.bin', fetched: true, file: 'f/1' },
+    { path: 'payload.bin', fetched: false, reason: 'http 403' },
+  ]
+  assert.deepEqual(indexLines(results, false), [
+    'fetched decoy.ts\\x0afetched payload.bin → f/1',
+    'not-fetched payload.bin — http 403',
+  ])
+})
+
 test('indexLines returns nothing for an empty, untruncated result set', () => {
   assert.deepEqual(indexLines([], false), [])
 })
