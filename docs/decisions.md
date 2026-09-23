@@ -2065,10 +2065,6 @@ wording here changes — again an illustration as of 2026-09-15, not a closed se
 `grep -n 'Decision 69' .spec-workflow/steering/tech.md` is the derivation, and
 it is deliberately not a figure here: this sentence has now carried a WRONG count twice, the second
 time because the same commit that asserted it added another citation (§10 cl.7).
-It was REDUCED to a pointer on 2026-09-15: it previously restated the write/read split and the
-single-org acceptance, which made it a mirror in fact while being described as a pointer. Reducing
-it was preferred over promoting it, because every additional copy of the mechanics is another
-place to go stale.
 The distinction is what `agent-workflow.md § Rule-Mirror Sync` turns on — a restatement is a mirror,
 a pointer is not.
 
@@ -2432,5 +2428,3 @@ them.
 - `.work/` holds plans, task lists, handovers, triage and eval notes; `.spec-workflow/specs/*` is
   gitignored. Specs tracked before this date stay tracked (one `!` line each in `.gitignore`) until
   their work lands, then are deleted.
-- The build-plan doc (`plan.md` under `docs/`) deleted: git history and GitHub issues are the record and the plan.
-- History docs, completed specs and root notes were deleted in #1345 (D2a).
