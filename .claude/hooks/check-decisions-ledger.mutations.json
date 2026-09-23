@@ -22,8 +22,8 @@
     },
     {
       "id": "range-unit-dropped",
-      "find": "  if (offenders.length > 0) blocked = true\n  reportUnit('range', offenders, [])",
-      "replace": "  reportUnit('range', offenders, [])",
+      "find": "  if (offenders.length > 0) blocked = true\n  // A token a per-commit",
+      "replace": "  // A token a per-commit",
       "expectRed": [
         "--base blocks an edit to an existing line made only in a merge commit",
         "a waived edit re-edited by a merge is blocked",
@@ -127,6 +127,14 @@
       "find": "  if (oldText === newText) return []\n",
       "replace": "",
       "expectRed": ["a range that never touched the ledger reports nothing"]
+    },
+    {
+      "id": "range-repeats-commit-findings",
+      "find": "    offenders.filter((o) => o.token === null || !reported.has(o.token)),\n",
+      "replace": "    offenders,\n",
+      "expectRed": [
+        "an unwaived edit on a branch with no merge is reported once, with the trailer hint"
+      ]
     },
     {
       "id": "range-ledgerless-waiver-recorded",
@@ -254,6 +262,7 @@
       "find": "    oldText: readAtTree(`${sha}^`, DECISIONS_PATH),\n    newText: readAtTree(sha, DECISIONS_PATH),",
       "replace": "    oldText: readAtTree(`${sha}^^`, DECISIONS_PATH),\n    newText: readAtTree(sha, DECISIONS_PATH),",
       "expectRed": [
+        "an unwaived edit on a branch with no merge is reported once, with the trailer hint",
         "a waived edit passes --base",
         "a waiver in a non-last commit of the range still waives its own edit",
         "a waiver trailer in one commit does not cover an edit made in an earlier commit",
@@ -315,6 +324,7 @@
       "find": "    exit(main(argv.slice(2)))",
       "replace": "    const code = main(argv.slice(2))\n    exit(code === 1 ? 0 : code)",
       "expectRed": [
+        "an unwaived edit on a branch with no merge is reported once, with the trailer hint",
         "--base catches an edit made in a middle commit of the range",
         "a waiver trailer in one commit does not cover an edit made in an earlier commit",
         "an edit then a restore across two commits is still flagged (the file is not diffed end to end)",
@@ -452,6 +462,7 @@
       "find": "  if (oldSplit.body !== newSplit.body) {",
       "replace": "  if (false) {",
       "expectRed": [
+        "an unwaived edit on a branch with no merge is reported once, with the trailer hint",
         "--base catches an edit made in a middle commit of the range",
         "a waiver trailer in one commit does not cover an edit made in an earlier commit",
         "an edit then a restore across two commits is still flagged (the file is not diffed end to end)",

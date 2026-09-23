@@ -482,11 +482,13 @@ function runBase(ref) {
   const live = new Map()
   let blocked = false
   let lastTouched
+  const reported = new Set()
   for (const unit of baseUnits(ref)) {
     const res = checkUnit(unit)
     if (res.problems.length > 0) return reportProblems(res.problems)
     if (res.offenders.length > 0) blocked = true
     reportUnit(unit.label, res.offenders, res.unusedWaivers)
+    for (const o of res.offenders) reported.add(o.token)
     recordAuthorizations(live, unit, res.unusedWaivers)
     if (unit.oldText !== unit.newText) lastTouched = unit.newText
   }
@@ -500,7 +502,12 @@ function runBase(ref) {
     gradeFormat: newText !== lastTouched,
   })
   if (offenders.length > 0) blocked = true
-  reportUnit('range', offenders, [])
+  // A token a per-commit unit already reported has its fix there; do not repeat it.
+  reportUnit(
+    'range',
+    offenders.filter((o) => o.token === null || !reported.has(o.token)),
+    [],
+  )
   return blocked ? 1 : 0
 }
 

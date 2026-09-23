@@ -231,6 +231,21 @@ test('a range finding tells the author a merge cannot waive it', () =>
     )
   }))
 
+// GROUP: range-repeats-commit-findings
+test('an unwaived edit on a branch with no merge is reported once, with the trailer hint', () =>
+  withRepo((r) => {
+    // MUTATION: drop the per-commit dedup → the same edit is reported again under [range] with
+    // a merge-only hint on a branch that has no merge.
+    commit(r, LEDGER_V1, 'init')
+    r.git('branch', '-m', 'master')
+    r.git('checkout', '-qb', 'work')
+    commit(r, ledger('EDITED.'), 'edit 14')
+    const res = runBase(r, 'master')
+    assert.equal(res.status, 1)
+    assert.match(res.stderr, /→ add to the commit message: Ledger-edit-ok: 14/)
+    assert.doesNotMatch(res.stderr, /a merge cannot waive/)
+  }))
+
 // GROUP: range-authorization-token-only
 test('a waived edit re-edited by a merge is blocked', () =>
   withRepo((r) => {
