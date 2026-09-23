@@ -2,7 +2,7 @@
 
 > **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph. Evidence is not prose: a skip reason, an `EVIDENCE:` line, a finding's stated basis or a required status/summary stays wherever a rule asks for it.
 
-> One line per decision: `## <N> — <YYYY-MM-DD> — <what was decided>. #<PR>`. Never edit a line;
+> One line per decision: `## <N> — <YYYY-MM-DD> — <what was decided>. #<PR or issue>`. Never edit a line;
 > a later decision adds a new line and appends `Superseded by <N>.` (or `Amended by <N>.`) to the
 > line it replaces.
 
@@ -64,7 +64,7 @@
 ## 69 — 2026-06-09 — `question-images` stays a public-read Storage bucket; org-private storage is deferred as a P1 gate (#814) that must land before a second organization is onboarded. #1284
 ## 70 — 2026-09-15 — RULE 0 — NO PROSE (state what is true, delete the rest) outranks every other rule in the corpus and is mirrored as a CodeRabbit `path_instructions` entry. #1284
 ## 71 — 2026-09-16 — `.claude/hooks/check-prose-paths.mjs` blocks a file path written in prose that does not resolve on disk, ratcheted against `.claude/prose-paths.json`. #1295
-## 72 — 2026-09-17 — The injected rules corpus (`CLAUDE.md` + `.claude/rules/**`) is cut ~37% by deleting archaeology, precedent and duplication first, before further guard-building. #1300
+## 72 — 2026-09-17 — The injected rules corpus (`CLAUDE.md` + `.claude/rules/**`) is cut ~37% by deleting archaeology, precedent and duplication first, before further guard-building. #1299
 ## 73 — 2026-09-17 — LLM review runs once per branch on the branch diff before push, not once per commit; round 1 dispatches the full reviewer roster, stopping on the first round with no APPLY-worthy finding, capped at 3 rounds. #1301 Amended by 74, 77.
 ## 74 — 2026-09-17 — CR-local (`/crlocal`) runs only in round 1 of the pre-push gate, not every round, based on its measured applied-per-raised yield decay across rounds. #1302 Superseded by 77.
 ## 75 — 2026-09-18 — A `// MUTATION:` comment links to its grading mutations via a checked `// GROUP: <id>` marker; the unreliable subtracted coverage-gap figure is retired. #1308
