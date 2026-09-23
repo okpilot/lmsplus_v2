@@ -2108,8 +2108,7 @@ FILES, so CodeRabbit chat replies and commit-message review are no longer covere
 Pinned by `check-file-size-guard.update.test.mjs`.
 
 **Not mechanically enforced.** No hook measures Rule 0 compliance or prose volume; the banner is
-advisory and `.coderabbit.yaml` is a reviewer instruction, not a gate. The test is whether the corpus shrinks — the
-`corpus-codification` spec already lists its deletion set.
+advisory and `.coderabbit.yaml` is a reviewer instruction, not a gate. The test is whether the corpus shrinks.
 
 ## Decision 71: a path cited in prose becomes a check (2026-09-16)
 

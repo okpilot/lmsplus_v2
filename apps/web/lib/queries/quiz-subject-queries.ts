@@ -41,8 +41,8 @@ export const getSubjectsWithCounts = cache(async (): Promise<SubjectOption[]> =>
   // The `code !== 'RT'` filter below is picker-only BY DESIGN (R1.3), and R1.4 requires it
   // stay a SINGLE centralized filter — it has no siblings and must not grow any. RT is
   // deliberately still listed by dashboard.ts and progress.ts; that asymmetry reads like a
-  // parity gap and is not one. Rationale + accepted KPI consequences: vfr-rt-training
-  // design.md open question 6, CLOSED 2026-08-11.
+  // parity gap and is not one. Rationale + accepted KPI consequences: open question 6 in
+  // `git show 417b825a:.spec-workflow/specs/vfr-rt-training/design.md`, CLOSED 2026-08-11.
   return subjects
     .map((s) => ({
       id: s.id,
