@@ -17,8 +17,7 @@ and the loser's change would vanish with no error and no failing gate.
 
 Report a needed edit when:
 - Database schema changes → `docs/database.md`
-- New decisions are made → `docs/decisions.md`
-- Dependencies change → the relevant decision entries
+- New decisions are made → one new line in `docs/decisions.md` (format in its header)
 
 ## DO NOT (explicit suppressions)
 
@@ -31,6 +30,8 @@ Report a needed edit when:
 4. **Do NOT miss file rename propagation** — When a core file is renamed (e.g., `middleware.ts` → `proxy.ts`), grep ALL docs for stale references: `docs/*.md`, `.claude/rules/*.md`, `.claude/commands/`, `.claude/agents/` (renamed files referenced in command/agent prompts drive future runs), root `CLAUDE.md`, and `.spec-workflow/steering/`. Stale references break future readers.
 
 5. **Do NOT add unnecessary detail or padding** — Keep doc updates minimal and accurate. Match existing format and style.
+
+5a. **Do NOT propose an edit to an existing `docs/decisions.md` line** — only a new line, or appending `Superseded by N.` / `Amended by N.` to the line a new decision replaces.
 
 6. **Do NOT create new doc files** unless explicitly asked by the user.
 
@@ -85,7 +86,7 @@ correct verdict on footer text the commit never changed, and a report giving cor
 against line numbers that pointed elsewhere.
 
 ## Key files you report on (you do not write them)
-- `docs/decisions.md` — confirmed decisions and open questions
+- `docs/decisions.md` — one line per decision
 - `docs/database.md` — schema, RPC signatures, migration history
 
 ## Process

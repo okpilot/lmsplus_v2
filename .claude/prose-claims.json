@@ -9,9 +9,6 @@
     ".claude/hooks/check-retracted-phrase.base.test.mjs@2454a61054c15977": "// on 2026-09-14 when that file reached 493 of its 500-line cap and these cases could not be",
     ".claude/hooks/check-retracted-phrase.paths.test.mjs@f461f3e1579c435b": "// check-retracted-phrase.repo.test.mjs on 2026-09-14 when that file crossed its 500-line cap —",
     ".claude/hooks/check-retracted-phrase.test.mjs@e404c2653acd5abf": "// check-retracted-phrase.repo.test.mjs so neither file approaches the 500-line test cap.",
-    ".spec-workflow/specs/redteam-quiz-session-bugs/design.md@d27339db6c6e4bbb": "- `packages/db/migrations/082_quiz_sessions_immutable_score_columns.sql` (new, ~80 lines)",
-    "docs/decisions.md@c216b51067c8cc0b": "caps are achievable and the violators are drift. The 500-line test-file cap was previously a",
-    "docs/decisions.md@dcd8eb2acbbc915d": "**Context**: VFR RT Training Phase 2 must let `batch_submit_quiz` record `short_answer` + `dialog_fill` answers at se...",
-    "docs/decisions.md@de0c40084b2501a1": "it used to carry had drifted — it invented an \"any file: max 300 lines\" rule that never"
+    ".spec-workflow/specs/redteam-quiz-session-bugs/design.md@d27339db6c6e4bbb": "- `packages/db/migrations/082_quiz_sessions_immutable_score_columns.sql` (new, ~80 lines)"
   }
 }

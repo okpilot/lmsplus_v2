@@ -36,7 +36,7 @@ Keeps project documentation in sync with code changes: schema changes, new RPCs,
 | Document | What triggers an update |
 |----------|------------------------|
 | `docs/database.md` | New migration, new RPC, schema change |
-| `docs/decisions.md` | New architectural decision, changed approach |
+| `docs/decisions.md` | New decision — one new line (format in its header) |
 | `.spec-workflow/steering/*.md` | Code change contradicts a steering doc statement |
 
 ## File Rename Protocol
@@ -60,7 +60,7 @@ nobody who can run `ls`.
 **The exemption is staleness only, and only for inventory counts.** A count that is INTERNALLY
 inconsistent is still a finding: an "N + M" whose terms no longer sum to the headline they explain,
 or a total that contradicts a list in the same block. That is the `code-style.md` §10 defect and it
-is unaffected by this drop — `.coderabbit.yaml` draws the same line. See `docs/decisions.md`.
+is unaffected by this drop — `.coderabbit.yaml` draws the same line. See Decision 58 in `docs/decisions.md`.
 
 ### `lefthook.yml` / `ci.yml` change ⇒ audit `CLAUDE.md` §QA-pipeline
 
