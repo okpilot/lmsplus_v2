@@ -68,7 +68,7 @@
       "test-title-leakage",
       "type-check"
     ],
-    "commit-msg": ["claim-check", "commitlint", "retracted-phrase"],
+    "commit-msg": ["claim-check", "commitlint", "decisions-ledger", "retracted-phrase"],
     "pre-push": ["audit", "security-auditor"]
   },
 
@@ -156,6 +156,14 @@
         ".claude/hooks/check-retracted-phrase.base.test.mjs",
         ".claude/hooks/check-retracted-phrase.paths.test.mjs",
         ".claude/hooks/check-retracted-phrase.color.test.mjs"
+      ]
+    },
+    ".claude/hooks/check-decisions-ledger.mjs": {
+      "base": "check-decisions-ledger",
+      "suites": [
+        ".claude/hooks/check-decisions-ledger.test.mjs",
+        ".claude/hooks/check-decisions-ledger.repo.test.mjs",
+        ".claude/hooks/check-decisions-ledger.base.test.mjs"
       ]
     },
     ".claude/hooks/guard-bash.js": {

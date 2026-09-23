@@ -366,6 +366,17 @@ reviews:
           restatement must either carry the current mechanics or be reduced to a pointer.
 
     # Database package — security critical
+    - path: "docs/decisions.md"
+      instructions: |
+        Decisions ledger (Decision 86; mechanised by .claude/hooks/check-decisions-ledger.mjs at
+        commit-msg and in CI, merge commits excepted — #1350). Flag:
+        - An entry line not matching `## <N> — <YYYY-MM-DD> — <text>`, or a number that is not
+          the previous entry's number + 1.
+        - Any change to an EXISTING line other than appending ` Superseded by <N>.` or
+          ` Amended by <N>.` (comma list allowed), a removed entry, or a changed header — unless
+          the commit making that edit carries `Ledger-edit-ok: <N|header> — <reason>` in its
+          final message paragraph.
+
     - path: "packages/db/src/**/*.ts"
       instructions: |
         Database utility (SECURITY CRITICAL). Enforce:

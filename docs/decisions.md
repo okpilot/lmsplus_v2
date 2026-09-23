@@ -79,3 +79,4 @@
 ## 84 — 2026-09-23 — `code-review (skill)` runs in every round of the pre-push gate, not round 1 only, superseding the round scope in Decisions 77 and 80. #1347
 ## 85 — 2026-09-23 — A new tracked markdown file outside `.claude/md-allowlist.json` is blocked at commit time. #1348
 ## 86 — 2026-09-23 — docs/decisions.md holds one line per decision, never edited; a later decision adds a new line and marks the old one Superseded by N (or Amended by N). #1349
+## 87 — 2026-09-23 — `.claude/hooks/check-decisions-ledger.mjs` blocks, at commit-msg and in CI, any edit to an existing docs/decisions.md line other than an appended marker, and any line-format or numbering break; a `Ledger-edit-ok: <N|header> — <reason>` trailer waives one line; merge commits are not checked (#1350). #1351

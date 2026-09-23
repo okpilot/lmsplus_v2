@@ -163,6 +163,21 @@ jobs:
       - name: Retracted-phrase guard — color.ui=always tests
         run: node --test .claude/hooks/check-retracted-phrase.color.test.mjs
 
+      # Decisions-ledger guard (Decision 86): re-checks each commit in the range as the
+      # commit-msg hook did, catching commits pushed with the hook bypassed.
+      - name: Decisions-ledger guard (PR commits, Decision 86)
+        if: github.event_name == 'pull_request'
+        run: node .claude/hooks/check-decisions-ledger.mjs --base ${{ github.event.pull_request.base.sha }}
+
+      - name: Decisions-ledger guard — unit test
+        run: node --test .claude/hooks/check-decisions-ledger.test.mjs
+
+      - name: Decisions-ledger guard — git-facing tests
+        run: node --test .claude/hooks/check-decisions-ledger.repo.test.mjs
+
+      - name: Decisions-ledger guard — --base (branch-range) tests
+        run: node --test .claude/hooks/check-decisions-ledger.base.test.mjs
+
       # Prose-claims guard (code-style.md §1: limits are DATA; never restate a number in prose).
       # `--all` here, NOT the staged mode the pre-commit hook uses: CI grades the whole worktree
       # against `.claude/prose-claims.json`, so a restatement that reached master before this
