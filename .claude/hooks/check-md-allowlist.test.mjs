@@ -1,8 +1,8 @@
 // Run: node --test .claude/hooks/check-md-allowlist.test.mjs
 //
 // Pure decision logic for the md-allowlist guard: markdown detection, the allow decision, the
-// spec re-include parser, the added-path filter and the CLI's flag parsing. Nothing here spawns
-// a process or touches git — that path lives in check-md-allowlist.repo.test.mjs.
+// spec re-include parser, and the CLI's flag parsing. Nothing here spawns a process or touches
+// git — that path lives in check-md-allowlist.repo.test.mjs.
 //
 // Every case is MUTATION-PINNED: the opening comment names the break that turns it red, and
 // every break was EXECUTED before being written down (`code-style.md` §7 — a `MUTATION:` line
@@ -13,7 +13,7 @@
 
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { addedPaths, isAllowed, isMarkdown, main, specDirsFrom } from './check-md-allowlist.mjs'
+import { isAllowed, isMarkdown, main, specDirsFrom } from './check-md-allowlist.mjs'
 
 const ALLOW = {
   dirs: ['.claude/rules/', '.claude/agents/'],
@@ -102,33 +102,6 @@ test('trims surrounding whitespace before matching a re-include line', () => {
   // carrying a trailing space) is no longer recognised, and its spec directory is dropped.
   const text = '  !.spec-workflow/specs/study-mode/  \n'
   assert.deepEqual(specDirsFrom(text), new Set(['.spec-workflow/specs/study-mode/']))
-})
-
-// ---------------------------------------------------------------- added-path filtering
-
-// GROUP: addedpaths-pushes-every-status
-test('takes an added path but neither a modified nor a deleted one', () => {
-  // MUTATION: push a path for every status, not only 'A' → editing an EXISTING disallowed
-  // markdown file becomes a blocking finding, when only a new arrival should be.
-  const raw = Buffer.from(
-    ['A', 'docs/new.md', 'M', 'docs/old.md', 'D', 'docs/gone.md', ''].join('\0'),
-  )
-  assert.deepEqual(addedPaths(raw), ['docs/new.md'])
-})
-
-// GROUP: addedpaths-rename-pushes-source
-test('takes only the destination of a staged rename', () => {
-  // MUTATION: push the SOURCE instead of the destination for an R/C record → a rename INTO a
-  // disallowed folder is invisible, and a rename OUT of one is wrongly reported.
-  const raw = Buffer.from(['R100', 'docs/old.md', 'docs/new.md', ''].join('\0'))
-  assert.deepEqual(addedPaths(raw), ['docs/new.md'])
-})
-
-// GROUP: addedpaths-status-not-validated
-test('aborts on a desynchronised name-status stream', () => {
-  // MUTATION: `void status` instead of throwing on an unrecognised status → a desync is
-  // absorbed and the guard scopes a set nobody chose, at exit 0.
-  assert.throws(() => addedPaths(Buffer.from(['M', 'a.md', 'b.md'].join('\0'))), /unrecognised/)
 })
 
 // ---------------------------------------------------------------- argument parsing

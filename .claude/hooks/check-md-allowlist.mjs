@@ -12,7 +12,6 @@
 //             unreadable .gitignore)
 
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
 import { argv, exit } from 'node:process'
 import { pathToFileURL } from 'node:url'
 
@@ -46,10 +45,8 @@ export function isAllowed(path, allow, specDirs) {
   return false
 }
 
-/** `!.spec-workflow/specs/<name>/` re-include lines in `.gitignore` — the single source for
- *  which spec directories are tracked at all. A spec not re-included here is gitignored, so a
- *  markdown file under it can never reach this guard as a tracked add in the first place; this
- *  function exists so `isAllowed` does not have to special-case that it is redundant. */
+/** `!.spec-workflow/specs/<name>/` re-include lines in `.gitignore` — the spec directories
+ *  still tracked. */
 const SPEC_REINCLUDE_RE = /^!\.spec-workflow\/specs\/([^/]+)\/$/
 
 export function specDirsFrom(gitignoreText) {
@@ -74,33 +71,10 @@ function splitNul(buf) {
     .filter((s) => s.length > 0)
 }
 
-/**
- * Paths this commit is ADDING to the tree, from `git diff --cached --name-status -z -M` — an `A`
- * record's own path, or an `R`/`C` record's DESTINATION only. `M`/`D` carry no path at all: a
- * modification or a deletion of an existing file is never a candidate, only a new arrival is.
- * Same `-z` record shape and desync guard as `stagedPaths` in check-prose-paths.mjs.
- */
-export function addedPaths(raw) {
-  const fields = splitNul(raw)
-  const out = []
-  for (let i = 0; i < fields.length; ) {
-    const status = fields[i]
-    if (!/^[A-Z]\d*$/.test(status)) {
-      throw new Error(`unrecognised --name-status record ${JSON.stringify(status)}`)
-    }
-    const isRenameOrCopy = status[0] === 'R' || status[0] === 'C'
-    const count = isRenameOrCopy ? 2 : 1
-    if (status[0] === 'A') out.push(fields[i + 1])
-    else if (isRenameOrCopy) out.push(fields[i + count])
-    i += 1 + count
-  }
-  return out
-}
-
 // ---------------------------------------------------------------- allowlist file
 
 function loadAllowlist() {
-  const obj = JSON.parse(readFileSync(ALLOWLIST_PATH, 'utf8'))
+  const obj = JSON.parse(git(['show', `:${ALLOWLIST_PATH}`]).toString('utf8'))
   if (obj === null || typeof obj !== 'object' || Array.isArray(obj)) {
     throw new Error(`${ALLOWLIST_PATH}: top level must be an object`)
   }
@@ -136,11 +110,13 @@ export function main(args) {
 
   const all = flags.includes('--all')
   const allow = loadAllowlist()
-  const specDirs = specDirsFrom(readFileSync(GITIGNORE_PATH, 'utf8'))
+  const specDirs = specDirsFrom(git(['show', `:${GITIGNORE_PATH}`]).toString('utf8'))
 
   const candidates = all
     ? splitNul(git(['ls-files', '-z', '--full-name'])).filter(isMarkdown)
-    : addedPaths(git(['diff', '--cached', '--name-status', '-z', '-M'])).filter(isMarkdown)
+    : splitNul(
+        git(['diff', '--cached', '--name-only', '-z', '--no-renames', '--diff-filter=A']),
+      ).filter(isMarkdown)
 
   const offenders = candidates.filter((p) => !isAllowed(p, allow, specDirs))
   if (offenders.length === 0) return 0

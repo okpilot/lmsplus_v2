@@ -105,7 +105,7 @@ test('allows staging a listed basename under a new directory', () =>
     assert.equal(run(r).status, 0)
   }))
 
-// GROUP: addedpaths-pushes-every-status
+// GROUP: staged-diff-filter-widened
 test('does not block modifying an existing disallowed markdown file', () =>
   withRepo((r) => {
     r.write('docs/notes.md', 'a maintenance note\n')
@@ -113,13 +113,13 @@ test('does not block modifying an existing disallowed markdown file', () =>
     r.git('commit', '-qm', 'init (pre-existing offender, not this guard’s concern)')
     r.write('docs/notes.md', 'a maintenance note, edited\n')
     r.git('add', '-A')
-    // MUTATION: push a path for every status in addedPaths, not only A/R/C → editing an
-    // existing offender becomes a blocking finding, so introducing the guard blocks every repo
-    // carrying one until the whole tree is clean.
+    // MUTATION: widen `--diff-filter=A` to also admit modifications → editing an existing
+    // offender becomes a blocking finding, so introducing the guard blocks every repo carrying
+    // one until the whole tree is clean.
     assert.equal(run(r).status, 0)
   }))
 
-// GROUP: addedpaths-rename-pushes-source
+// GROUP: staged-renames-not-disabled
 test('blocks renaming an existing file into a disallowed path', () =>
   withRepo((r) => {
     r.write('.claude/rules/old.md', 'a rule\n')
@@ -127,8 +127,8 @@ test('blocks renaming an existing file into a disallowed path', () =>
     r.git('commit', '-qm', 'init')
     mkdirSync(join(r.dir, 'docs'), { recursive: true })
     r.git('mv', '.claude/rules/old.md', 'docs/renamed.md')
-    // MUTATION: take the SOURCE instead of the DESTINATION for an R/C record in addedPaths → a
-    // rename into a disallowed folder is invisible to this guard.
+    // MUTATION: drop `--no-renames` → git's default rename detection reports the pair as `R100`,
+    // which `--diff-filter=A` excludes, so a rename into a disallowed folder is invisible.
     const res = run(r)
     assert.equal(res.status, 1)
     assert.match(res.stderr, /docs\/renamed\.md/)
@@ -147,11 +147,50 @@ test('allows a new file under a spec directory the .gitignore re-includes', () =
 
 test('blocks a new file under a spec directory the .gitignore never re-includes', () =>
   withRepo((r) => {
+    r.git('add', '-A')
     r.write('.spec-workflow/specs/other/tasks.md', 'a task list\n')
     r.git('add', '-f', '.spec-workflow/specs/other/tasks.md')
     const res = run(r)
     assert.equal(res.status, 1)
     assert.match(res.stderr, /specs\/other\/tasks\.md/)
+  }))
+
+// ---------------------------------------------------------------- index reads, not working-tree reads
+
+// GROUP: loadallowlist-index-read-swapped
+test('reads the allowlist from the INDEX, ignoring an unstaged working-tree edit', () =>
+  withRepo((r) => {
+    r.write('docs/notes.md', 'a maintenance note\n')
+    r.git('add', '-A')
+    // Widens the allowlist to admit docs/ — on disk only, never staged. The guard must still
+    // see the STAGED (narrower) allowlist and block the file written above.
+    r.write(
+      '.claude/md-allowlist.json',
+      JSON.stringify({ ...ALLOWLIST, dirs: [...ALLOWLIST.dirs, 'docs/'] }),
+    )
+    // MUTATION: read the allowlist from the working tree instead of the index → the unstaged
+    // widening above is consulted, and a file about to be committed under a stale allowlist
+    // ships unchecked.
+    const res = run(r)
+    assert.equal(res.status, 1)
+    assert.match(res.stderr, /docs\/notes\.md/)
+  }))
+
+// GROUP: gitignore-index-read-swapped
+test('reads .gitignore from the INDEX, ignoring an unstaged working-tree re-include', () =>
+  withRepo((r) => {
+    r.git('add', '-A')
+    r.write('.spec-workflow/specs/demo/tasks.md', 'a task list\n')
+    r.git('add', '-f', '.spec-workflow/specs/demo/tasks.md')
+    // Re-includes the spec dir — on disk only, never staged. The guard must still see the
+    // STAGED (non-re-included) .gitignore and block the spec markdown.
+    r.write('.gitignore', '.work/\n.spec-workflow/specs/*\n!.spec-workflow/specs/demo/\n')
+    // MUTATION: read .gitignore from the working tree instead of the index → the unstaged
+    // re-include above is consulted, and a spec file about to be committed under a stale
+    // .gitignore ships unchecked.
+    const res = run(r)
+    assert.equal(res.status, 1)
+    assert.match(res.stderr, /specs\/demo\/tasks\.md/)
   }))
 
 // ---------------------------------------------------------------- scoping: staged vs --all
@@ -174,18 +213,33 @@ test('scopes a finding to the staged additions, but --all grades the whole workt
 
 // ---------------------------------------------------------------- fail closed
 
-test('exits 2 on an unreadable allowlist file', () =>
+test('exits 2 when the allowlist is absent from the index', () =>
   withRepo((r) => {
     r.write('docs/notes.md', 'x\n')
     r.git('add', '-A')
-    rmSync(join(r.dir, '.claude/md-allowlist.json'))
-    mkdirSync(join(r.dir, '.claude/md-allowlist.json'))
-    // Structural: loadAllowlist has no catch around its read, so an EISDIR here propagates to
-    // the top-level try/catch unmodified. Nothing to mutate — the absence of a swallow IS the
+    r.git('rm', '--cached', '-q', '.claude/md-allowlist.json')
+    // Structural: loadAllowlist reads via `git show :<path>`, which fails when the path is not
+    // in the index; nothing catches that inside loadAllowlist, so it propagates to the
+    // top-level try/catch unmodified. Nothing to mutate — the absence of a swallow IS the
     // behaviour under test.
     const res = run(r)
     assert.equal(res.status, 2)
     assert.match(res.stderr, /check could not run — BLOCKING/)
+  }))
+
+// GROUP: isstringarray-every-check-dropped
+test('exits 2 when a dirs entry is present but not a string', () =>
+  withRepo((r) => {
+    r.write('.claude/md-allowlist.json', JSON.stringify({ dirs: [123], files: [], basenames: [] }))
+    r.write('docs/notes.md', 'x\n')
+    r.git('add', '-A')
+    // MUTATION: drop the `.every((x) => typeof x === 'string')` conjunct from isStringArray,
+    // leaving only `Array.isArray(v)` → a dirs array holding a non-string element passes this
+    // check and reaches `.endsWith('/')` in the badDir check, which throws a TypeError instead
+    // (still exit 2, but with a different, uninformative diagnostic).
+    const res = run(r)
+    assert.equal(res.status, 2)
+    assert.match(res.stderr, /`dirs` must be a string array/)
   }))
 
 // GROUP: loadallowlist-baddir-slash-check
@@ -271,13 +325,12 @@ test('exits 2 when basenames is not an array', () =>
     assert.match(res.stderr, /`basenames` must be a string array/)
   }))
 
-test('exits 2 when .gitignore is unreadable', () =>
+test('exits 2 when .gitignore is absent from the index', () =>
   withRepo((r) => {
     r.write('docs/notes.md', 'x\n')
     r.git('add', '-A')
-    rmSync(join(r.dir, '.gitignore'))
-    mkdirSync(join(r.dir, '.gitignore'))
-    // Structural: specDirsFrom's readFileSync call has no catch either, so this pins the same
+    r.git('rm', '--cached', '-q', '.gitignore')
+    // Structural: main's `git show :.gitignore` call has no catch either, so this pins the same
     // absence-of-swallow property as the allowlist read above, for the other required file.
     const res = run(r)
     assert.equal(res.status, 2)
