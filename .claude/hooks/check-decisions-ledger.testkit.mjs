@@ -28,7 +28,14 @@ export function withRepo(fn) {
       mkdirSync(join(dir, dirname(rel)), { recursive: true })
       writeFileSync(join(dir, rel), body)
     }
-    return fn({ dir, git, write })
+    /** `git` with both author and committer date pinned to `date`. */
+    const gitAt = (date, ...args) =>
+      execFileSync('git', args, {
+        cwd: dir,
+        encoding: 'utf8',
+        env: { ...process.env, GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date },
+      })
+    return fn({ dir, git, gitAt, write })
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }

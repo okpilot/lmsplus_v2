@@ -31,7 +31,7 @@ test('slotText returns the header, an entry line, or null for an absent entry', 
   assert.equal(slotText(null, '14'), null)
 })
 
-// GROUP: range-authorization-token-only
+// GROUP: range-authorization-token-only, range-authorization-never-clears
 test('a range edit clears only when the authorized text equals the final line', () => {
   const newText = ledger('EDITED.')
   const cleared = checkRange({
@@ -40,6 +40,7 @@ test('a range edit clears only when the authorized text equals the final line', 
     authorized: new Map([['14', ['## 14 — 2026-03-11 — EDITED.']]]),
     gradeFormat: true,
   })
+  // MUTATION: never clear a range finding → the matching authorization above still blocks.
   assert.deepEqual(cleared, [])
   // MUTATION: clear on the token alone → a waiver for 14 covers ANY final text for 14.
   const stale = checkRange({
@@ -54,6 +55,7 @@ test('a range edit clears only when the authorized text equals the final line', 
   )
 })
 
+// GROUP: range-authorization-never-clears
 test('an ABSENT authorization clears a waived removal', () => {
   const newText = '# Decisions\n\n> rule text\n\n## 15 — 2026-03-11 — second decision.\n'
   const res = checkRange({
@@ -365,7 +367,7 @@ test('a numbering break made in a merge blocks even when a later commit leaves t
     assert.match(res.stderr, /\[range\][\s\S]*## 16 follows ## 16/)
   }))
 
-// GROUP: range-marker-exact-match
+// GROUP: range-marker-exact-match, range-invalidation-counts-marker-appends
 test('a waived edit that later gains an appended marker passes on a linear branch', () =>
   withRepo((r) => {
     // MUTATION: compare the whole raw line instead of body + marker superset → the marker
@@ -415,4 +417,28 @@ test('a waiver on a commit with no ledger does not clear a merge dropping the la
     const res = runBase(r, 'master')
     assert.equal(res.status, 1)
     assert.match(res.stderr, /\[range\][\s\S]*## 16 — line removed entirely/)
+  }))
+
+// GROUP: range-units-not-topo-ordered
+test('a superseded waiver stays revoked when commit dates put the ancestor last', () =>
+  withRepo((r) => {
+    // MUTATION: drop --topo-order → A is also reachable through side commit C, dated after B, so
+    // date order visits B before its ancestor A; A's authorization is added after B revoked it,
+    // and the merge reinstating A clears.
+    const dated = (date, text, message) => {
+      r.write(text === null ? 'README.md' : 'docs/decisions.md', text ?? `${date}\n`)
+      r.git('add', '-A')
+      r.gitAt(date, 'commit', '-qm', message)
+    }
+    forked(r, () => {
+      dated('2030-01-03T00:00:00Z', ledger('A.'), waive(14, 'fix: reword 14'))
+      r.git('branch', 'side')
+      dated('2030-01-01T00:00:00Z', ledger('B.'), waive(14, 'fix: reword 14 again'))
+      r.git('checkout', '-q', 'side')
+      dated('2030-01-02T00:00:00Z', null, 'side work')
+      r.git('checkout', '-q', 'work')
+      r.gitAt('2030-01-04T00:00:00Z', 'merge', '-q', '--no-ff', '-m', 'Merge side', 'side')
+    })
+    mergeMaster(r, ledger('A.', undefined, [E16_MASTER]))
+    assert.equal(runBase(r, 'master').status, 1)
   }))

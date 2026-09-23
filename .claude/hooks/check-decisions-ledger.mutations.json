@@ -34,7 +34,8 @@
         "--base catches a malformed line introduced only by a merge resolution",
         "a merge re-deleting an entry the branch removed and then restored is blocked",
         "a numbering break made in a merge blocks even when a later commit leaves the ledger alone",
-        "a waiver on a commit with no ledger does not clear a merge dropping the last entry"
+        "a waiver on a commit with no ledger does not clear a merge dropping the last entry",
+        "a superseded waiver stays revoked when commit dates put the ancestor last"
       ]
     },
     {
@@ -47,7 +48,8 @@
         "a non-empty authorization does not clear a merge that deletes the entry instead",
         "a waived edit re-edited by a merge is blocked",
         "a merge reinstating a superseded waived text is blocked",
-        "a merge re-deleting an entry the branch removed and then restored is blocked"
+        "a merge re-deleting an entry the branch removed and then restored is blocked",
+        "a superseded waiver stays revoked when commit dates put the ancestor last"
       ]
     },
     {
@@ -56,7 +58,8 @@
       "replace": ".filter(() => true)",
       "expectRed": [
         "a merge reinstating a superseded waived text is blocked",
-        "a merge re-deleting an entry the branch removed and then restored is blocked"
+        "a merge re-deleting an entry the branch removed and then restored is blocked",
+        "a superseded waiver stays revoked when commit dates put the ancestor last"
       ]
     },
     {
@@ -126,6 +129,32 @@
       "expectRed": [
         "a waiver on a commit with no ledger does not clear a merge dropping the last entry"
       ]
+    },
+    {
+      "id": "range-authorization-never-clears",
+      "find": "!(authorized.get(f.token) ?? []).some((t) => slotMatches(t, newText, f.token)),",
+      "replace": "true,",
+      "expectRed": [
+        "a waived edit passes --base",
+        "a waiver in a non-last commit of the range still waives its own edit",
+        "a range edit clears only when the authorized text equals the final line",
+        "an ABSENT authorization clears a waived removal",
+        "a stale base passes when the branch merged a newer master carrying a waived edit",
+        "a waived edit that later gains an appended marker passes on a linear branch",
+        "concurrent waived edits on both sides let the merge keep either one"
+      ]
+    },
+    {
+      "id": "range-units-not-topo-ordered",
+      "find": "'--reverse', '--topo-order', '--no-merges'",
+      "replace": "'--reverse', '--no-merges'",
+      "expectRed": ["a superseded waiver stays revoked when commit dates put the ancestor last"]
+    },
+    {
+      "id": "range-invalidation-counts-marker-appends",
+      "find": "slotParts(oldText, t).body !== slotParts(newText, t).body",
+      "replace": "slotText(oldText, t) !== slotText(newText, t)",
+      "expectRed": ["a waived edit that later gains an appended marker passes on a linear branch"]
     },
     {
       "id": "marker-anchor-not-end-of-line",
@@ -293,6 +322,7 @@
         "a merge re-deleting an entry the branch removed and then restored is blocked",
         "a numbering break made in a merge blocks even when a later commit leaves the ledger alone",
         "a waiver on a commit with no ledger does not clear a merge dropping the last entry",
+        "a superseded waiver stays revoked when commit dates put the ancestor last",
         "blocks an edit to an existing line staged for commit",
         "blocks changing an existing marker to a different number",
         "an unusable waiver reason still blocks the commit",
@@ -426,6 +456,7 @@
         "a waived edit re-edited by a merge is blocked",
         "a merge reinstating a superseded waived text is blocked",
         "a waiver for one line does not clear a merge edit to another",
+        "a superseded waiver stays revoked when commit dates put the ancestor last",
         "blocks an edit to an existing line staged for commit",
         "flags an OLD entry whose body text changed (I2)",
         "a Ledger-edit-ok trailer for one token does not waive a finding on a different token"

@@ -42,8 +42,8 @@
 // `git merge-base <ref> HEAD`, NEW = HEAD's. A range finding for token T clears only when HEAD's
 // T matches the text a waiving per-commit unit produced (same body, markers a superset), and no
 // DESCENDANT per-commit unit changed T's body since. A merge never waives, so an edit made only
-// in a merge resolution blocks in CI. A commit HEAD reaches is an ancestor of the merge-base or
-// a per-commit unit, so <ref> need not be an ancestor of HEAD. With several merge-bases
+// in a merge resolution blocks in CI. A non-merge commit HEAD reaches is an ancestor of the
+// merge-base or a per-commit unit, so <ref> need not be an ancestor of HEAD. With several merge-bases
 // (criss-cross) git picks one, and the range unit can OVER-block. Only lines present at the
 // merge-base are protected: a merge dropping a line or marker the branch itself added is the
 // PR choosing not to land it.
@@ -318,20 +318,18 @@ export function slotText(text, token) {
 }
 
 /** A slot's comparable form: the header text, entry N's body + marker set, or `null` (absent). */
-function slotParts(text, token) {
-  const raw = slotText(text, token)
+function partsOf(raw, token) {
   if (raw === null || token === 'header') return { body: raw, markers: new Set() }
   return splitMarkers(raw)
 }
 
+function slotParts(text, token) {
+  return partsOf(slotText(text, token), token)
+}
+
 /** HEAD's slot for `token` is what `authorizedText` authorized: same body, markers ⊇. */
 function slotMatches(authorizedText, headText, token) {
-  const want = authorizedText === null ? { body: null, markers: new Set() } : null
-  const auth =
-    want ??
-    (token === 'header'
-      ? { body: authorizedText, markers: new Set() }
-      : splitMarkers(authorizedText))
+  const auth = partsOf(authorizedText, token)
   const head = slotParts(headText, token)
   if (auth.body !== head.body) return false
   return [...auth.markers].every((mk) => head.markers.has(mk))
