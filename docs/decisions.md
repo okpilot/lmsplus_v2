@@ -2427,4 +2427,4 @@ them.
   gitignored. Specs tracked before this date stay tracked (one `!` line each in `.gitignore`) until
   their work lands, then are deleted.
 
-## Decision 84 — 2026-09-23 — `code-review (skill)` runs in every round of the pre-push gate; supersedes the round scope in Decisions 74, 77, 80.
+## Decision 84: `code-review (skill)` runs in every round of the pre-push gate; supersedes the round scope in Decisions 77 and 80 (2026-09-23)

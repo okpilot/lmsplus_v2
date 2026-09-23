@@ -100,7 +100,7 @@ lmsplusv2/
   measured bounds live in those decisions; do not restate them here, and do not count the gates —
   "a second gate" stood here and went stale the moment a third landed. The stage's command list is
   DATA in `.claude/pipeline.json`.
-- **Code review**: CodeRabbit and the CI reviewer `.github/workflows/claude-review.yml` (Decision 78) on PRs, + in-session Claude Code subagents. The GATE runs once per branch over `git diff origin/master...HEAD`; within it, round 1 runs all seven reviewers — implementation-critic, code-reviewer, semantic-reviewer, doc-updater, test-writer, deletion-reviewer, and `code-review (skill)`, the built-in `/code-review` skill, dispatched as a subagent in an isolated worktree on opus, every round — and later rounds run code-reviewer + semantic-reviewer + `code-review (skill)` (`agent-workflow.md § Pre-Push Review Gate`).
+- **Code review**: CodeRabbit and the CI reviewer `.github/workflows/claude-review.yml` (Decision 78) on PRs, + in-session Claude Code subagents. The GATE runs once per branch over `git diff origin/master...HEAD`; within it, round 1 runs all seven reviewers — implementation-critic, code-reviewer, semantic-reviewer, doc-updater, test-writer, deletion-reviewer, and `code-review (skill)`, the built-in `/code-review` skill, dispatched as a subagent in an isolated worktree on opus — and later rounds run code-reviewer + semantic-reviewer + `code-review (skill)` (`agent-workflow.md § Pre-Push Review Gate`).
 - **Git hooks (Lefthook v2, `lefthook.yml`)**:
   - `pre-commit` (SERIAL — `parallel: false`; biome restages files while the file-size guard grades
     the INDEX for the paths it is passed, and the guard's ratchet is exact-match): the stage's command list is DATA in
