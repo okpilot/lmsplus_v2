@@ -83,7 +83,8 @@
       "replace": "    if (EMPTY_REASONS.has(bare)) {",
       "expectRed": [
         "rejects a Ledger-edit-ok trailer whose reason is too short",
-        "an unusable waiver reason is reported as a problem, not silently ignored"
+        "an unusable waiver reason is reported as a problem, not silently ignored",
+        "an unusable waiver reason still blocks the commit"
       ]
     },
     {

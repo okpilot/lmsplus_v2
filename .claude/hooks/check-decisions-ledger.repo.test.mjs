@@ -91,7 +91,7 @@ test('blocks changing an existing marker to a different number', () =>
     assert.match(res.stderr, /## 15 — lost marker/)
   }))
 
-// GROUP: check-decisions-ledger-always-passes
+// GROUP: check-decisions-ledger-always-blocks
 test('a Ledger-edit-ok trailer waives the edit it names', () =>
   withRepo((r) => {
     r.write('docs/decisions.md', LEDGER_V1)
@@ -106,7 +106,7 @@ test('a Ledger-edit-ok trailer waives the edit it names', () =>
     assert.equal(res.status, 0)
   }))
 
-// GROUP: check-decisions-ledger-always-passes, check-decisions-ledger-always-blocks, waiver-reason-length-check-dropped
+// GROUP: check-decisions-ledger-always-passes, waiver-reason-length-check-dropped
 test('an unusable waiver reason still blocks the commit', () =>
   withRepo((r) => {
     r.write('docs/decisions.md', LEDGER_V1)
@@ -117,9 +117,9 @@ test('an unusable waiver reason still blocks the commit', () =>
       '# Decisions\n\n> rule text\n\n## 14 — 2026-03-11 — first decision, EDITED.\n## 15 — 2026-03-11 — second decision.\n',
     )
     r.git('add', '-A')
-    // MUTATION: drop the `< 20` reason-length check → a bare "Ledger-edit-ok: 14 — ok" waives
-    // any edit with no stated justification, the same hole check-retracted-phrase closed.
-    const res = runCommitMsg(r, 'fix: reword decision 14\n\nLedger-edit-ok: 14 — ok\n')
+    // MUTATION: drop the `< 20` reason-length check → a short, non-blocklisted reason waives
+    // the edit.
+    const res = runCommitMsg(r, 'fix: reword decision 14\n\nLedger-edit-ok: 14 — too short\n')
     assert.equal(res.status, 1)
     assert.match(res.stderr, /unusable Ledger-edit-ok trailer/)
   }))

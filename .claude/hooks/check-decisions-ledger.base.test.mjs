@@ -23,7 +23,7 @@ function runBase({ dir }, ref) {
 // ---------------------------------------------------------------- --base mode: per-commit scoping
 
 // CONTROL: red
-// GROUP: check-decisions-ledger-always-passes, base-per-commit-old-ref-wrong
+// GROUP: check-decisions-ledger-always-passes
 test('--base catches an edit made in a middle commit of the range', () =>
   withRepo((r) => {
     r.write('docs/decisions.md', LEDGER_V1)
@@ -39,8 +39,6 @@ test('--base catches an edit made in a middle commit of the range', () =>
       '# Decisions\n\n> rule text\n\n## 14 — 2026-03-11 — first decision, EDITED.\n## 15 — 2026-03-11 — second decision.\n',
     )
     r.git('add', '-A')
-    // MUTATION: diff `sha` against `sha^^` (grandparent) instead of `sha^` (parent) for OLD →
-    // the previous commit's own additions leak into "OLD", masking what THIS commit changed.
     r.git('commit', '-qm', 'edit decision 14')
     r.write('README.md', 'unrelated, again\n')
     r.git('add', '-A')
@@ -68,7 +66,6 @@ test('--base is clean across a range of commits that never touch decisions.md af
     assert.equal(runBase(r, 'master').status, 0)
   }))
 
-// GROUP: waiver-scoped-to-wrong-commit
 test('a waived edit passes --base', () =>
   withRepo((r) => {
     r.write('docs/decisions.md', LEDGER_V1)
@@ -139,6 +136,7 @@ test('a waiver trailer in one commit does not cover an edit made in an earlier c
     assert.match(res.stderr, /## 14 — body edited/)
   }))
 
+// GROUP: base-per-commit-old-ref-wrong
 test('an edit then a restore across two commits is still flagged (the file is not diffed end to end)', () =>
   withRepo((r) => {
     r.write('docs/decisions.md', LEDGER_V1)

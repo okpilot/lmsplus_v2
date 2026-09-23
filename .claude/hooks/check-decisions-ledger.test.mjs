@@ -24,10 +24,7 @@ const GOOD_REASON = 'because this is a genuinely safe correction'
 
 // ---------------------------------------------------------------- splitMarkers
 
-// GROUP: marker-anchor-not-end-of-line
 test('strips a single trailing marker sentence', () => {
-  // MUTATION: drop the trailing `$` from MARKER_ONE_RE → a marker phrase anywhere in the
-  // line (not just at the end) is stripped, corrupting the body of an unrelated sentence.
   const { body, markers } = splitMarkers('## 20 — 2026-03-11 — text. #15 Amended by 73.')
   assert.equal(body, '## 20 — 2026-03-11 — text. #15')
   assert.deepEqual([...markers], ['Amended 73'])
@@ -41,10 +38,12 @@ test('splits a comma list of numbers into one marker per number', () => {
   assert.deepEqual([...markers].sort(), ['Amended 20', 'Amended 82'])
 })
 
-// GROUP: marker-loop-single-pass
+// GROUP: marker-loop-single-pass, marker-anchor-not-end-of-line
 test('strips two trailing marker sentences chained together', () => {
   // MUTATION: run MARKER_ONE_RE once instead of looping → only the LAST marker sentence is
   // stripped, so a second appended marker corrupts the body comparison.
+  // MUTATION: drop the trailing `$` from MARKER_ONE_RE → the FIRST marker matches, the body is
+  // cut there and the later marker is lost.
   const { body, markers } = splitMarkers(
     '## 80 — 2026-09-22 — text. #1336 Superseded by 90. Amended by 84.',
   )
