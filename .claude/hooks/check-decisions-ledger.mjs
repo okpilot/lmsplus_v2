@@ -6,7 +6,7 @@
 // plus any line-format or numbering break in the new file.
 //
 // Usage:  node .claude/hooks/check-decisions-ledger.mjs <commit-msg-file>   (commit-msg)
-//         node .claude/hooks/check-decisions-ledger.mjs --base <ref>        (CI, <ref>..HEAD, --no-merges)
+//         node .claude/hooks/check-decisions-ledger.mjs --base <ref>        (CI: per commit in <ref>..HEAD, --no-merges, then merge-base..HEAD)
 // Exit:   0 = docs/decisions.md was not edited outside the allowed shape
 //         1 = at least one finding — fix it, or waive it (see below)
 //         2 = the check COULD NOT RUN (usage, git failure, unreadable message file)
@@ -37,8 +37,17 @@
 // `git commit --amend`, commit-msg mode's HEAD is the commit being amended — an edit already
 // there reads as unchanged; waive it the same way.
 //
-// Merge commits are not checked: commit-msg mode exits 0 while MERGE_HEAD resolves, and
-// --base walks --no-merges. An edit made only in a merge resolution passes (#1350).
+// Merge commits: commit-msg mode exits 0 while MERGE_HEAD resolves, and --base's per-commit
+// units walk --no-merges. --base then runs a RANGE unit: OLD = ledger at
+// `git merge-base <ref> HEAD`, NEW = HEAD's. A range finding for token T clears only when HEAD's
+// T has the body of the text a waiving per-commit unit produced and every marker of it the
+// merge-base also had; a DESCENDANT per-commit unit whose OLD T still matches that text re-binds
+// it to its own result, and one re-adding a waived-removed T retires it. A merge never waives, so an edit made only
+// in a merge resolution blocks in CI. A non-merge commit HEAD reaches is an ancestor of the
+// merge-base or a per-commit unit, so <ref> need not be an ancestor of HEAD. With several merge-bases
+// (criss-cross) git picks one, and the range unit can OVER-block. Only lines present at the
+// merge-base are protected: a merge dropping a line or marker the branch itself added is the
+// PR choosing not to land it.
 
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
@@ -300,16 +309,78 @@ export function checkUnit({ oldText, newText, message }) {
   return { problems: [], ...applyWaivers(findings, waivers) }
 }
 
+/** The text a waiver for `token` authorizes: the header, entry N's raw line, or `null` (absent). */
+export function slotText(text, token) {
+  if (text === null) return null
+  const ledger = parseLedger(text)
+  if (token === 'header') return ledger.header
+  const hit = parsedEntries(ledger.entries).find((e) => String(e.num) === token)
+  return hit ? hit.raw : null
+}
+
+/** A slot's comparable form: the header text, entry N's body + marker set, or `null` (absent). */
+function partsOf(raw, token) {
+  if (raw === null || token === 'header') return { body: raw, markers: new Set() }
+  return splitMarkers(raw)
+}
+
+function slotParts(text, token) {
+  return partsOf(slotText(text, token), token)
+}
+
+/** HEAD's slot for `token` is what `authorizedText` authorized: same body, markers ⊇. */
+function slotMatches(authorizedText, headText, token) {
+  const auth = partsOf(authorizedText, token)
+  const head = slotParts(headText, token)
+  if (auth.body !== head.body) return false
+  return [...auth.markers].every((mk) => head.markers.has(mk))
+}
+
+/** The range finding for `token` is cleared by `authorizedText`: HEAD has its body and every
+ *  marker of it the merge-base also had (a marker the branch added may be left out). */
+function rangeCleared(authorizedText, { oldText, newText, token }) {
+  const auth = partsOf(authorizedText, token)
+  const head = slotParts(newText, token)
+  const base = slotParts(oldText, token).markers
+  if (head.body !== auth.body) return false
+  return [...auth.markers].every((mk) => !base.has(mk) || head.markers.has(mk))
+}
+
+/**
+ * The range unit: `oldText` at the merge-base, `newText` at HEAD, `authorized` a
+ * Map<token, text[]> of the still-live waived texts per token. `gradeFormat` false skips F1/F2
+ * when a per-commit unit already graded this exact HEAD text. Pure.
+ */
+export function checkRange({ oldText, newText, authorized, gradeFormat }) {
+  if (oldText === newText) return []
+  if (newText === null) {
+    return [{ token: null, kind: 'deleted', detail: 'docs/decisions.md deleted' }]
+  }
+  const findings = collectFindings(oldText, parseLedger(newText)).filter(
+    (f) => gradeFormat || (f.kind !== 'format' && f.kind !== 'numbering'),
+  )
+  const isCleared = (f) =>
+    (authorized.get(f.token) ?? []).some((t) =>
+      rangeCleared(t, { oldText, newText, token: f.token }),
+    )
+  return findings.filter((f) => f.token === null || !isCleared(f))
+}
+
 // ---------------------------------------------------------------- git-facing reads
 
-function refExists(ref) {
+/** `true` on exit 0, `false` on exit 1, throws on anything else (a fault, never "no"). */
+function gitProbe(args) {
   try {
-    git(['rev-parse', '--verify', '--quiet', ref])
+    git(args)
     return true
   } catch (err) {
     if (err.status === 1 && !err.signal) return false
     throw err
   }
+}
+
+function refExists(ref) {
+  return gitProbe(['rev-parse', '--verify', '--quiet', ref])
 }
 
 /** `path` at tree-ish `ref`, or `null` when `ref` doesn't resolve (unborn HEAD, no parent on
@@ -337,7 +408,11 @@ function reportUnit(label, offenders, unusedWaivers) {
     )
     for (const o of offenders) {
       console.error(`  ${o.detail}`)
-      if (o.token !== null) {
+      if (o.token !== null && label === 'range') {
+        console.error(
+          `    → a merge cannot waive: restore this line in a commit with Ledger-edit-ok: ${o.token}, or redo the merge without the edit and make it in a non-merge commit with Ledger-edit-ok: ${o.token}`,
+        )
+      } else if (o.token !== null) {
         console.error(
           `    → add to the commit message: Ledger-edit-ok: ${o.token} — <why this edit is safe>`,
         )
@@ -357,9 +432,9 @@ function reportProblems(problems) {
   return 1
 }
 
-/** Per-commit units; --no-merges (see header). */
+/** Per-commit units, parents first; --no-merges (see header). */
 function baseUnits(ref) {
-  const shas = git(['rev-list', '--reverse', '--no-merges', `${ref}..HEAD`])
+  const shas = git(['rev-list', '--reverse', '--topo-order', '--no-merges', `${ref}..HEAD`])
     .toString('latin1')
     .split('\n')
     .filter(Boolean)
@@ -381,6 +456,80 @@ function commitMsgUnit(path) {
   }
 }
 
+function isAncestor(a, b) {
+  return gitProbe(['merge-base', '--is-ancestor', a, b])
+}
+
+/** Re-bind to `unit`'s result each ancestor authorization that `unit`'s OLD slot still matches
+ *  (so text a merge wrote is never adopted); a removal authorization is retired, never re-bound,
+ *  when `unit` re-adds the line. Then add `unit`'s own applied waivers.
+ *  `live` is Map<token, {sha, text}[]>. */
+function recordAuthorizations(live, unit, unusedWaivers) {
+  for (const [token, list] of live) {
+    const text = slotText(unit.newText, token)
+    const follows = (a) => slotMatches(a.text, unit.oldText, token) && isAncestor(a.sha, unit.label)
+    const rebind = (a) => {
+      if (!follows(a)) return [a]
+      if (a.text === null && text !== null) return []
+      return [{ ...a, text }]
+    }
+    live.set(token, list.flatMap(rebind))
+  }
+  // No ledger in NEW: checkUnit returned before applying waivers, so none was applied.
+  if (unit.newText === null) return
+  // A re-add raises no per-commit finding (OLD lacks the line), yet its waiver authorizes the text.
+  const readds = (token) =>
+    slotText(unit.oldText, token) === null && slotText(unit.newText, token) !== null
+  for (const token of parseWaivers(unit.message).waivers.keys()) {
+    if (unusedWaivers.includes(token) && !readds(token)) continue
+    live.set(token, [
+      ...(live.get(token) ?? []),
+      { sha: unit.label, text: slotText(unit.newText, token) },
+    ])
+  }
+}
+
+/** Per-commit units, recording each applied waiver's resulting text, then the range unit. */
+function runBase(ref) {
+  const live = new Map()
+  let blocked = false
+  let lastTouched
+  const reported = new Set()
+  for (const unit of baseUnits(ref)) {
+    const res = checkUnit(unit)
+    if (res.problems.length > 0) return reportProblems(res.problems)
+    if (res.offenders.length > 0) blocked = true
+    reportUnit(unit.label, res.offenders, res.unusedWaivers)
+    for (const o of res.offenders) reported.add(`${o.token}\n${slotText(unit.newText, o.token)}`)
+    recordAuthorizations(live, unit, res.unusedWaivers)
+    if (unit.oldText !== unit.newText) lastTouched = unit.newText
+  }
+  if (runRange(ref, live, { lastTouched, reported })) blocked = true
+  return blocked ? 1 : 0
+}
+
+/** The range unit over merge-base..HEAD; reports and returns whether it found offenders. */
+function runRange(ref, live, { lastTouched, reported }) {
+  const mergeBase = git(['merge-base', ref, 'HEAD']).toString('utf8').trim()
+  const newText = readAtTree('HEAD', DECISIONS_PATH)
+  const authorized = new Map([...live].map(([t, list]) => [t, list.map((a) => a.text)]))
+  const offenders = checkRange({
+    oldText: readAtTree(mergeBase, DECISIONS_PATH),
+    newText,
+    authorized,
+    gradeFormat: newText !== lastTouched,
+  })
+  // A per-commit unit that reported this token AND produced HEAD's text has the fix; skip it.
+  reportUnit(
+    'range',
+    offenders.filter(
+      (o) => o.token === null || !reported.has(`${o.token}\n${slotText(newText, o.token)}`),
+    ),
+    [],
+  )
+  return offenders.length > 0
+}
+
 function runUnits(units) {
   let blocked = false
   for (const unit of units) {
@@ -398,7 +547,7 @@ export function main(args) {
       console.error('✖ decisions-ledger guard: --base requires a ref')
       return 2
     }
-    return runUnits(baseUnits(args[1]))
+    return runBase(args[1])
   } else if (args.length === 1 && !args[0].startsWith('--')) {
     if (refExists('MERGE_HEAD')) return 0
     return runUnits([commitMsgUnit(args[0])])

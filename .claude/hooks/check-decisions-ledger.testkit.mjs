@@ -12,6 +12,12 @@ export const GOOD_REASON = 'because this is a genuinely safe correction'
 export const LEDGER_V1 =
   '# Decisions\n\n> rule text\n\n## 14 — 2026-03-11 — first decision.\n## 15 — 2026-03-11 — second decision.\n'
 
+/** A ledger with decision 14/15 bodies and any extra entry lines. */
+export function ledger(e14 = 'first decision.', e15 = 'second decision.', extra = []) {
+  const lines = [`## 14 — 2026-03-11 — ${e14}`, `## 15 — 2026-03-11 — ${e15}`, ...extra]
+  return `# Decisions\n\n> rule text\n\n${lines.join('\n')}\n`
+}
+
 /** A throwaway repo, removed however the body exits. */
 export function withRepo(fn) {
   const dir = mkdtempSync(join(tmpdir(), 'decisions-ledger-'))
@@ -28,7 +34,14 @@ export function withRepo(fn) {
       mkdirSync(join(dir, dirname(rel)), { recursive: true })
       writeFileSync(join(dir, rel), body)
     }
-    return fn({ dir, git, write })
+    /** `git` with both author and committer date pinned to `date`. */
+    const gitAt = (date, ...args) =>
+      execFileSync('git', args, {
+        cwd: dir,
+        encoding: 'utf8',
+        env: { ...process.env, GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date },
+      })
+    return fn({ dir, git, gitAt, write })
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
