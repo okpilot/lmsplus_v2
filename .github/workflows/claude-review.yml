@@ -50,10 +50,13 @@ jobs:
           prompt: |
             Review pull request #${{ github.event.pull_request.number }} in
             ${{ github.repository }}. Fetch its diff with the GitHub MCP tools you have been
-            granted, and review ONLY the lines that diff adds or changes. The files checked out on
-            disk are the PR's BASE branch, not its head — the PR's own additions and changes are
-            reachable only through the PR diff/files tools. Never read something the PR adds or
-            changes as absent because it is missing from what is on disk.
+            granted. Review the lines the diff adds or changes, and report breakage those changes
+            cause elsewhere — a caller of a changed function, a test or doc asserting the old
+            behaviour, a mutation/test linked to a changed guard line. Never review untouched code
+            for its own sake. The files checked out on disk are the PR's BASE branch, not its
+            head — the PR's own additions and changes are reachable only through the PR diff/files
+            tools. Never read something the PR adds or changes as absent because it is missing from
+            what is on disk.
 
             # PR review instructions
 
@@ -62,6 +65,7 @@ jobs:
             - `.claude/rules/code-style.md` — code rules
             - `docs/security.md` — the binding security reference
             - `.claude/rules/security.md` — its quick summary
+            - `docs/database.md` — the binding schema and RPC reference
 
             These files are the rules. Nothing here restates them, and nothing here supersedes them.
 
@@ -99,6 +103,9 @@ jobs:
             - **Do not judge an issue or PR citation at all.** The tracker is unreachable for the
               same reason. Say the premise is unestablished; never assert a citation is stale.
             - **Recompute any count or extent you are about to assert.**
+            - **A new code path in a guard** (the keys of `.claude/pipeline.json` `guards`) needs a
+              `.mutations.json` entry breaking it and a `// GROUP:`-linked test that goes red
+              (`code-style.md` §7). Flag a path missing either as an ISSUE.
 
             If you cannot establish a finding's premise, say so in the comment instead of asserting it.
 
@@ -146,6 +153,17 @@ jobs:
           # `git diff origin/<base>...HEAD` is unavailable. Tool names verified against
           # github-mcp-server v0.17.1 (pkg/github/pullrequests.go), the build the action pins.
           #
+          # Read/Grep/Glob are granted explicitly, rather than left to the read-only default, and
+          # read the BASE checkout on disk (see the checkout step above) — never the PR's own files:
+          # Read(.claude-pr/**) denies the action's in-cwd snapshot of the PR's config files
+          # (SENSITIVE_PATHS in the action's src/github/operations/restore-config.ts).
+          # --disallowedTools fences them outside the checkout (/proc, /sys, ~/.claude, the
+          # runner's _temp and _actions dirs, /tmp, /etc) so a prompt-injected reviewer can't read
+          # CLAUDE_CODE_OAUTH_TOKEN out of /proc/self/environ and post it in a comment; deny beats
+          # allow. `--settings` backs the same fence with
+          # permissions.blockReadsOutsideWorkingDirectories, in every mode — verified on Claude Code
+          # 2.1.280, the build the action pins: Read, Grep and Glob outside the cwd are refused.
+          #
           # NO Bash, DENIED EXPLICITLY. `Bash(cmd:*)` is a PREFIX match, and three review rounds
           # found three different commands that satisfy a narrow-looking prefix and then exceed
           # what the grant appears to permit:
@@ -164,8 +182,9 @@ jobs:
           claude_args: >-
             --model claude-opus-5-5
             --setting-sources user
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__create_and_submit_pull_request_review"
-            --disallowedTools "Bash"
+            --settings '{"permissions":{"blockReadsOutsideWorkingDirectories":true}}'
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__create_and_submit_pull_request_review,Read,Grep,Glob"
+            --disallowedTools "Bash,Read(.claude-pr/**),Read(//proc/**),Read(//sys/**),Read(~/.claude/**),Read(//home/runner/work/_temp/**),Read(//home/runner/work/_actions/**),Read(//tmp/**),Read(//etc/**)"
 
       - name: Skip notice
         if: env.CLAUDE_CODE_OAUTH_TOKEN == ''
