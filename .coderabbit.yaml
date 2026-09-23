@@ -29,10 +29,9 @@ reviews:
     - "!**/.next/**"
     - "!**/coverage/**"
     - "!**/pnpm-lock.yaml"
-    # Agent scratch space — tracker rows, counts and topic notes that agents
-    # rewrite every cycle. Reviewing it burns a cloud review on markdownlint nits
-    # (blank-line-after-heading, list spacing) in files no human reads as prose,
-    # and it churns on almost every PR. Excluded deliberately.
+    # The red-team attack-surface map. Reviewing it burns a
+    # cloud review on markdownlint nits (blank-line-after-heading, list spacing).
+    # Excluded deliberately.
     #
     # NOT excluded, on purpose: docs/**, .claude/rules/** and .claude/agents/**.
     # Those are prose too, but they are the BINDING rule surfaces — a wrong
