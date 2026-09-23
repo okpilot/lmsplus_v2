@@ -136,7 +136,7 @@ export function main(args) {
   const offenders = candidates.filter((p) => !isAllowed(p, allow, specDirs))
   if (offenders.length === 0) return 0
 
-  console.error('✖ md-allowlist guard: a new tracked markdown path is outside')
+  console.error('✖ md-allowlist guard: a tracked markdown path is outside')
   console.error(`  ${ALLOWLIST_PATH}\n`)
   for (const p of offenders) console.error(`  ${p}`)
   console.error(`\n  → move it to .work/ (gitignored), or add its folder to ${ALLOWLIST_PATH}`)

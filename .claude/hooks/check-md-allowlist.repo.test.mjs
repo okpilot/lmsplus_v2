@@ -70,7 +70,7 @@ test('blocks staging a new markdown file outside the allowlist', () =>
   withRepo((r) => {
     r.write('docs/notes.md', 'a maintenance note\n')
     r.git('add', '-A')
-    // MUTATION: return 0 unconditionally from main → every new markdown file, anywhere, ships
+    // MUTATION: force the offender list empty → every new markdown file, anywhere, ships
     // unchecked and the allowlist stops meaning anything.
     const res = run(r)
     assert.equal(res.status, 1)
@@ -349,7 +349,7 @@ test('exits 2 when files is not an array', () =>
     r.git('add', '-A')
     // MUTATION: drop the `isStringArray(obj.files)` check in loadAllowlist → a string `files`
     // reaches `isAllowed`'s `allow.files.includes(path)`, which still runs (strings have
-    // `.includes`), silently comparing against characters instead of listed file paths.
+    // `.includes`), a SUBSTRING match: any path contained in the string is allowed.
     const res = run(r)
     assert.equal(res.status, 2)
     assert.match(res.stderr, /`files` must be a string array/)
