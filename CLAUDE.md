@@ -158,9 +158,9 @@ A commit triggers NOTHING. Full mechanics: `agent-workflow.md § Pre-Push Review
 4. **doc-updater** (haiku) — reports doc edits; YOU apply them (no Write/Edit tool)
 5. **test-writer** (sonnet) — missing tests, writes + runs them (sole agent with repo Write/Edit, scoped to test files)
 6. **deletion-reviewer** (sonnet) — reports what the diff can delete with no loss, each with `EVIDENCE:`; read-only
-7. **code-review (skill)** (opus) — the built-in `/code-review` skill, dispatched as a subagent in an isolated worktree, round 1 only
+7. **code-review (skill)** (opus) — the built-in `/code-review` skill, dispatched as a subagent in an isolated worktree
 
-**Round 2+** — code-reviewer + semantic-reviewer. code-review (skill) is ROUND 1 ONLY.
+**Round 2+** — code-reviewer + semantic-reviewer + code-review (skill).
 doc-updater and test-writer PRODUCE rather than gate; re-run one, or deletion-reviewer, only when the
 fixup added surface it has not seen.
 
