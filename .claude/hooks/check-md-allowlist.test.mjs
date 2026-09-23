@@ -82,8 +82,8 @@ test('blocks a path matching none of the allowed shapes', () => {
 
 // GROUP: spec-reinclude-no-trailing-slash
 test('parses a spec re-include line into its directory prefix', () => {
-  // MUTATION: drop the trailing `/` from SPEC_REINCLUDE_RE → the returned prefix no longer ends
-  // in '/', so `isAllowed`'s startsWith check stops matching any file under that spec at all.
+  // MUTATION: drop the trailing `/` from SPEC_REINCLUDE_RE → a re-include line, which ends in
+  // '/', no longer matches, so its spec directory is dropped.
   const text = '.work/\n.spec-workflow/specs/*\n!.spec-workflow/specs/backlog-burndown/\n'
   assert.deepEqual(specDirsFrom(text), new Set(['.spec-workflow/specs/backlog-burndown/']))
 })

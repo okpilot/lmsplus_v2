@@ -97,7 +97,7 @@
       "find": "SPEC_REINCLUDE_RE.exec(rawLine.trimEnd())",
       "replace": "SPEC_REINCLUDE_RE.exec(rawLine.trim())",
       "expectRed": ["ignores trailing whitespace but not leading, as git does"],
-      "note": "trim() also strips LEADING whitespace, which git does not treat as part of a .gitignore pattern — an indented re-include line is recognised though git would not re-include it."
+      "note": "trim() also strips LEADING whitespace, which git keeps as part of a .gitignore pattern — an indented re-include line is recognised though git would not re-include it."
     },
     {
       "id": "isstringarray-every-check-dropped",
