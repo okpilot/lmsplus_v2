@@ -237,8 +237,13 @@ test('rejects a Ledger-edit-ok trailer whose reason is too short', () => {
   assert.equal(problems.length, 1)
 })
 
+// GROUP: waiver-empty-reason-blocklist-dropped
 test('rejects a Ledger-edit-ok trailer whose reason is a blocklisted empty phrase', () => {
-  const { problems } = parseWaivers('fix: reword\n\nLedger-edit-ok: 14 — intentional\n')
+  // MUTATION: drop `|| EMPTY_REASONS.has(bare)` → a punctuation-padded bare phrase clears the
+  // length floor and waives.
+  const { problems } = parseWaivers(
+    'fix: reword\n\nLedger-edit-ok: 14 — intentional!!!!!!!!!!!!!!!!!!!!\n',
+  )
   assert.equal(problems.length, 1)
 })
 

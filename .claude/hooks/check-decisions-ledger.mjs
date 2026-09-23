@@ -6,7 +6,7 @@
 // plus any line-format or numbering break in the new file.
 //
 // Usage:  node .claude/hooks/check-decisions-ledger.mjs <commit-msg-file>   (commit-msg)
-//         node .claude/hooks/check-decisions-ledger.mjs --base <ref>        (CI, <ref>...HEAD)
+//         node .claude/hooks/check-decisions-ledger.mjs --base <ref>        (CI, <ref>..HEAD, --no-merges)
 // Exit:   0 = docs/decisions.md was not edited outside the allowed shape
 //         1 = at least one finding — fix it, or waive it (see below)
 //         2 = the check COULD NOT RUN (usage, git failure, unreadable message file)

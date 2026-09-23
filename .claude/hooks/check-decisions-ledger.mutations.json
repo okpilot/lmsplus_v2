@@ -14,6 +14,12 @@
       "expectRed": ["a commit that leaves a malformed ledger untouched is clean"]
     },
     {
+      "id": "waiver-empty-reason-blocklist-dropped",
+      "find": " || EMPTY_REASONS.has(bare)) {",
+      "replace": ") {",
+      "expectRed": ["rejects a Ledger-edit-ok trailer whose reason is a blocklisted empty phrase"]
+    },
+    {
       "id": "marker-anchor-not-end-of-line",
       "find": "const MARKER_ONE_RE = / (Superseded|Amended) by (\\d+(?:, \\d+)*)\\.$/",
       "replace": "const MARKER_ONE_RE = / (Superseded|Amended) by (\\d+(?:, \\d+)*)\\./",

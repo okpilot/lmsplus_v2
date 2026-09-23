@@ -374,8 +374,8 @@ reviews:
           the previous entry's number + 1.
         - Any change to an EXISTING line other than appending ` Superseded by <N>.` or
           ` Amended by <N>.` (comma list allowed), a removed entry, or a changed header — unless
-          a commit on the PR carries `Ledger-edit-ok: <N|header> — <reason>` in its final
-          message paragraph.
+          the commit making that edit carries `Ledger-edit-ok: <N|header> — <reason>` in its
+          final message paragraph.
 
     - path: "packages/db/src/**/*.ts"
       instructions: |
