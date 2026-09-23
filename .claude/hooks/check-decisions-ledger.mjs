@@ -482,7 +482,7 @@ function runBase(ref) {
     if (res.problems.length > 0) return reportProblems(res.problems)
     if (res.offenders.length > 0) blocked = true
     reportUnit(unit.label, res.offenders, res.unusedWaivers)
-    for (const o of res.offenders) reported.add(o.token)
+    for (const o of res.offenders) reported.add(`${o.token}\n${slotText(unit.newText, o.token)}`)
     recordAuthorizations(live, unit, res.unusedWaivers)
     if (unit.oldText !== unit.newText) lastTouched = unit.newText
   }
@@ -496,10 +496,12 @@ function runBase(ref) {
     gradeFormat: newText !== lastTouched,
   })
   if (offenders.length > 0) blocked = true
-  // A token a per-commit unit already reported has its fix there; do not repeat it.
+  // A per-commit unit that reported this token AND produced HEAD's text has the fix; skip it.
   reportUnit(
     'range',
-    offenders.filter((o) => o.token === null || !reported.has(o.token)),
+    offenders.filter(
+      (o) => o.token === null || !reported.has(`${o.token}\n${slotText(newText, o.token)}`),
+    ),
     [],
   )
   return blocked ? 1 : 0

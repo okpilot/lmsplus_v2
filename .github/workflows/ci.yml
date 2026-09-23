@@ -181,6 +181,9 @@ jobs:
       - name: Decisions-ledger guard — merge-commit (range) tests
         run: node --test .claude/hooks/check-decisions-ledger.range.test.mjs
 
+      - name: Decisions-ledger guard — range unit (pure) tests
+        run: node --test .claude/hooks/check-decisions-ledger.range-pure.test.mjs
+
       # Prose-claims guard (code-style.md §1: limits are DATA; never restate a number in prose).
       # `--all` here, NOT the staged mode the pre-commit hook uses: CI grades the whole worktree
       # against `.claude/prose-claims.json`, so a restatement that reached master before this

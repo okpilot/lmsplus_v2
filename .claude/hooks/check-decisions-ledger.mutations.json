@@ -5,7 +5,8 @@
     ".claude/hooks/check-decisions-ledger.test.mjs",
     ".claude/hooks/check-decisions-ledger.repo.test.mjs",
     ".claude/hooks/check-decisions-ledger.base.test.mjs",
-    ".claude/hooks/check-decisions-ledger.range.test.mjs"
+    ".claude/hooks/check-decisions-ledger.range.test.mjs",
+    ".claude/hooks/check-decisions-ledger.range-pure.test.mjs"
   ],
   "mutations": [
     {
@@ -22,8 +23,8 @@
     },
     {
       "id": "range-unit-dropped",
-      "find": "  if (offenders.length > 0) blocked = true\n  // A token a per-commit",
-      "replace": "  // A token a per-commit",
+      "find": "  if (offenders.length > 0) blocked = true\n  // A per-commit unit that reported",
+      "replace": "  // A per-commit unit that reported",
       "expectRed": [
         "a merge dropping a marker the branch removed and then restored is blocked",
         "--base blocks an edit to an existing line made only in a merge commit",
@@ -124,7 +125,10 @@
       "id": "range-hint-generic",
       "find": "      if (o.token !== null && label === 'range') {",
       "replace": "      if (false) {",
-      "expectRed": ["a range finding tells the author a merge cannot waive it"]
+      "expectRed": [
+        "a merge re-editing a line a commit already broke is still reported as a merge edit",
+        "a range finding tells the author a merge cannot waive it"
+      ]
     },
     {
       "id": "range-unchanged-ledger-graded",
@@ -134,8 +138,8 @@
     },
     {
       "id": "range-repeats-commit-findings",
-      "find": "    offenders.filter((o) => o.token === null || !reported.has(o.token)),\n",
-      "replace": "    offenders,\n",
+      "find": "      (o) => o.token === null || !reported.has(`${o.token}\\n${slotText(newText, o.token)}`),\n",
+      "replace": "      () => true,\n",
       "expectRed": [
         "an unwaived edit on a branch with no merge is reported once, with the trailer hint"
       ]
@@ -151,6 +155,14 @@
       "find": "(isAncestor(a.sha, unit.label) ? { ...a, text } : a)",
       "replace": "(true ? { ...a, text } : a)",
       "expectRed": ["concurrent waived edits on both sides let the merge keep either one"]
+    },
+    {
+      "id": "range-dedup-token-only",
+      "find": "!reported.has(`${o.token}\\n${slotText(newText, o.token)}`)",
+      "replace": "![...reported].some((k) => k.startsWith(`${o.token}\\n`))",
+      "expectRed": [
+        "a merge re-editing a line a commit already broke is still reported as a merge edit"
+      ]
     },
     {
       "id": "range-ledgerless-waiver-recorded",
@@ -338,6 +350,7 @@
       "find": "    exit(main(argv.slice(2)))",
       "replace": "    const code = main(argv.slice(2))\n    exit(code === 1 ? 0 : code)",
       "expectRed": [
+        "a merge re-editing a line a commit already broke is still reported as a merge edit",
         "a merge dropping a marker the branch removed and then restored is blocked",
         "an unwaived edit on a branch with no merge is reported once, with the trailer hint",
         "--base catches an edit made in a middle commit of the range",
@@ -478,6 +491,7 @@
       "find": "  if (oldSplit.body !== newSplit.body) {",
       "replace": "  if (false) {",
       "expectRed": [
+        "a merge re-editing a line a commit already broke is still reported as a merge edit",
         "an unwaived edit on a branch with no merge is reported once, with the trailer hint",
         "--base catches an edit made in a middle commit of the range",
         "a waiver trailer in one commit does not cover an edit made in an earlier commit",

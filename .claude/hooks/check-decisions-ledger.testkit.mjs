@@ -12,6 +12,12 @@ export const GOOD_REASON = 'because this is a genuinely safe correction'
 export const LEDGER_V1 =
   '# Decisions\n\n> rule text\n\n## 14 — 2026-03-11 — first decision.\n## 15 — 2026-03-11 — second decision.\n'
 
+/** A ledger with decision 14/15 bodies and any extra entry lines. */
+export function ledger(e14 = 'first decision.', e15 = 'second decision.', extra = []) {
+  const lines = [`## 14 — 2026-03-11 — ${e14}`, `## 15 — 2026-03-11 — ${e15}`, ...extra]
+  return `# Decisions\n\n> rule text\n\n${lines.join('\n')}\n`
+}
+
 /** A throwaway repo, removed however the body exits. */
 export function withRepo(fn) {
   const dir = mkdtempSync(join(tmpdir(), 'decisions-ledger-'))
