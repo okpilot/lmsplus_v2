@@ -120,8 +120,8 @@ Execute ▼ commit freely — a commit triggers NOTHING
 ROUND 1  implementation-critic + code-reviewer + semantic-reviewer + doc-updater
          + test-writer + deletion-reviewer + code-review (skill) — ONE parallel batch, all on the
          branch diff.  code-review (skill) is the built-in /code-review skill,
-         dispatched as a subagent in an isolated worktree on opus, round 1 only.
-ROUND 2+ code-reviewer + semantic-reviewer — code-review (skill) is ROUND 1 ONLY
+         dispatched as a subagent in an isolated worktree on opus, every round.
+ROUND 2+ code-reviewer + semantic-reviewer + code-review (skill)
          (doc-updater and test-writer PRODUCE, they do not gate — re-run one, or deletion-reviewer, only
           when the fixup added surface it has not seen)
     ▼

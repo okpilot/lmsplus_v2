@@ -258,7 +258,7 @@
   - _Requirements: NFR-Security_
 
 - [ ] **E.3 Pre-push review gate**
-  - Run `git fetch origin || abort`, then `git diff origin/master...HEAD -- . ':(exclude).claude/agent-memory' || abort`, per `agent-workflow.md § Pre-Push Review Gate`. Round 1 = implementation-critic + code-reviewer + semantic-reviewer + doc-updater + test-writer + deletion-reviewer + `code-review (skill)` — the built-in `/code-review` skill, dispatched as a subagent in an isolated worktree on opus, round 1 only; round 2+ = code-reviewer + semantic-reviewer. Stop on the first round with no APPLY-worthy finding, ceiling 3.
+  - Run `git fetch origin || abort`, then `git diff origin/master...HEAD -- . ':(exclude).claude/agent-memory' || abort`, per `agent-workflow.md § Pre-Push Review Gate`. Round 1 = implementation-critic + code-reviewer + semantic-reviewer + doc-updater + test-writer + deletion-reviewer + `code-review (skill)` — the built-in `/code-review` skill, dispatched as a subagent in an isolated worktree on opus, every round; round 2+ = code-reviewer + semantic-reviewer + `code-review (skill)`. Stop on the first round with no APPLY-worthy finding, ceiling 3.
   - _Requirements: workflow_
 
 - [ ] **E.4 Update spec `tasks.md` checkboxes `[x]` after each task completion**

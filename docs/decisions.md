@@ -2426,3 +2426,5 @@ them.
 - `.work/` holds plans, task lists, handovers, triage and eval notes; `.spec-workflow/specs/*` is
   gitignored. Specs tracked before this date stay tracked (one `!` line each in `.gitignore`) until
   their work lands, then are deleted.
+
+## Decision 84 — 2026-09-23 — `code-review (skill)` runs in every round of the pre-push gate; supersedes the round scope in Decisions 74, 77, 80.

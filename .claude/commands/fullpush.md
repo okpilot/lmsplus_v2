@@ -15,7 +15,7 @@ Before doing anything else, answer these questions honestly. Do NOT skip any. Pr
 4. **Are there any unresolved CRITICAL, BLOCKING, or ISSUE findings** from any agent or reviewer?
 5. **Did the pre-push review gate reach a CLEAN round?** (`agent-workflow.md § Pre-Push Review Gate`.) Run `git fetch origin` (ABORT if it fails) — `origin/master` only advances on fetch, and a stale one shifts the review scope, see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`". Then account for the loop, not for commits:
    - **Which rounds ran**, and on what range — every reviewer reads `git diff origin/master...HEAD`.
-   - **Round 1 launched all seven**: implementation-critic, code-reviewer, semantic-reviewer, doc-updater, test-writer, deletion-reviewer, code-review (skill) — the built-in `/code-review` skill, dispatched as a subagent in an isolated worktree on opus, round 1 only. Round 2+ launched code-reviewer, semantic-reviewer (doc-updater/test-writer/deletion-reviewer only where the fixup added surface they had not seen). They are ASYNC, so "ran" means the completion notification arrived and the result was read, not that it was dispatched.
+   - **Round 1 launched all seven**: implementation-critic, code-reviewer, semantic-reviewer, doc-updater, test-writer, deletion-reviewer, code-review (skill) — the built-in `/code-review` skill, dispatched as a subagent in an isolated worktree on opus, every round. Round 2+ launched code-reviewer, semantic-reviewer, code-review (skill) (doc-updater/test-writer/deletion-reviewer only where the fixup added surface they had not seen). They are ASYNC, so "ran" means the completion notification arrived and the result was read, not that it was dispatched.
    - **What each round's pooled triage concluded** — one table per round, every finding at a terminal verdict.
    - **The FINAL round carried no APPLY-worthy finding.** A round that still carries one is not a stopping round. If you stopped at the 3-round ceiling instead, say so and escalate — do not push past it.
    - The conditionals run ONCE per branch after the loop ends — red-team if the branch diff touches security paths, coderabbit-sync if rules changed.
@@ -156,7 +156,7 @@ After answering the checklist:
 | doc-updater            | 1(+N)  | ...      | ...   | clean       |
 | test-writer            | 1(+N)  | ...      | ...   | added N     |
 | deletion-reviewer      | 1(+N)  | ...      | ...   | fixed/clean |
-| code-review (skill)    | 1      | ...      | ...   | fixed/clean |
+| code-review (skill)    | 1-N    | ...      | ...   | fixed/clean |
 ```
 
 9. **If an active spec exists**, confirm all completed tasks are checked off in `tasks.md` (`[ ]` → `[x]`). If any are missing, update before proceeding.
