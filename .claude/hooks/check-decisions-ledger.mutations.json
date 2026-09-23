@@ -25,6 +25,7 @@
       "find": "  if (offenders.length > 0) blocked = true\n  // A token a per-commit",
       "replace": "  // A token a per-commit",
       "expectRed": [
+        "a merge dropping a marker the branch removed and then restored is blocked",
         "--base blocks an edit to an existing line made only in a merge commit",
         "a waived edit re-edited by a merge is blocked",
         "a merge reinstating a superseded waived text is blocked",
@@ -43,6 +44,7 @@
       "find": "!(authorized.get(f.token) ?? []).some((t) => slotMatches(t, newText, f.token)),",
       "replace": "!authorized.has(f.token),",
       "expectRed": [
+        "a merge dropping a marker the branch removed and then restored is blocked",
         "a range edit clears only when the authorized text equals the final line",
         "an absent authorization does not clear a merge that reinstates the entry with new text",
         "a non-empty authorization does not clear a merge that deletes the entry instead",
@@ -54,9 +56,10 @@
     },
     {
       "id": "range-authorization-not-invalidated",
-      "find": ".filter((a) => !isAncestor(a.sha, unit.label))",
-      "replace": ".filter(() => true)",
+      "find": "      list.map((a) => (isAncestor(a.sha, unit.label) ? { ...a, text } : a)),\n",
+      "replace": "      list,\n",
       "expectRed": [
+        "a merge dropping a marker the branch removed and then restored is blocked",
         "a merge reinstating a superseded waived text is blocked",
         "a merge re-deleting an entry the branch removed and then restored is blocked",
         "a superseded waiver stays revoked when commit dates put the ancestor last"
@@ -67,6 +70,7 @@
       "find": "    if (unusedWaivers.includes(token)) continue\n",
       "replace": "    continue\n",
       "expectRed": [
+        "a waived edit that a merge later marks passes",
         "a waived edit passes --base",
         "a waiver in a non-last commit of the range still waives its own edit",
         "a stale base passes when the branch merged a newer master carrying a waived edit",
@@ -94,7 +98,7 @@
       "id": "range-marker-exact-match",
       "find": "  if (auth.body !== head.body) return false",
       "replace": "  if (authorizedText !== slotText(headText, token)) return false",
-      "expectRed": ["a waived edit that later gains an appended marker passes on a linear branch"]
+      "expectRed": ["a waived edit that a merge later marks passes"]
     },
     {
       "id": "range-deletion-branch-dropped",
@@ -149,6 +153,7 @@
       "find": "!(authorized.get(f.token) ?? []).some((t) => slotMatches(t, newText, f.token)),",
       "replace": "true,",
       "expectRed": [
+        "a waived edit that a merge later marks passes",
         "a waived edit passes --base",
         "a waiver in a non-last commit of the range still waives its own edit",
         "a range edit clears only when the authorized text equals the final line",
@@ -163,12 +168,6 @@
       "find": "'--reverse', '--topo-order', '--no-merges'",
       "replace": "'--reverse', '--no-merges'",
       "expectRed": ["a superseded waiver stays revoked when commit dates put the ancestor last"]
-    },
-    {
-      "id": "range-invalidation-counts-marker-appends",
-      "find": "slotParts(oldText, t).body !== slotParts(newText, t).body",
-      "replace": "slotText(oldText, t) !== slotText(newText, t)",
-      "expectRed": ["a waived edit that later gains an appended marker passes on a linear branch"]
     },
     {
       "id": "marker-anchor-not-end-of-line",
@@ -205,6 +204,7 @@
       "find": "    if (rawLines[i].trim() === '') continue",
       "replace": "    if (false) continue",
       "expectRed": [
+        "a waived edit that a merge later marks passes",
         "a waived edit passes --base",
         "a waiver in a non-last commit of the range still waives its own edit",
         "a range edit clears only when the authorized text equals the final line",
@@ -262,6 +262,7 @@
       "find": "    oldText: readAtTree(`${sha}^`, DECISIONS_PATH),\n    newText: readAtTree(sha, DECISIONS_PATH),",
       "replace": "    oldText: readAtTree(`${sha}^^`, DECISIONS_PATH),\n    newText: readAtTree(sha, DECISIONS_PATH),",
       "expectRed": [
+        "a waived edit that a merge later marks passes",
         "an unwaived edit on a branch with no merge is reported once, with the trailer hint",
         "a waived edit passes --base",
         "a waiver in a non-last commit of the range still waives its own edit",
@@ -278,6 +279,7 @@
       "find": "    message: git(['log', '-1', '--format=%B', sha]).toString('utf8'),\n    label: sha,",
       "replace": "    message: git(['log', '-1', '--format=%B', shas[shas.length - 1]]).toString('utf8'),\n    label: sha,",
       "expectRed": [
+        "a merge dropping a marker the branch removed and then restored is blocked",
         "a waiver in a non-last commit of the range still waives its own edit",
         "a waiver trailer in one commit does not cover an edit made in an earlier commit",
         "a waived edit that later gains an appended marker passes on a linear branch"
@@ -324,6 +326,7 @@
       "find": "    exit(main(argv.slice(2)))",
       "replace": "    const code = main(argv.slice(2))\n    exit(code === 1 ? 0 : code)",
       "expectRed": [
+        "a merge dropping a marker the branch removed and then restored is blocked",
         "an unwaived edit on a branch with no merge is reported once, with the trailer hint",
         "--base catches an edit made in a middle commit of the range",
         "a waiver trailer in one commit does not cover an edit made in an earlier commit",
@@ -352,6 +355,7 @@
       "find": "    exit(main(argv.slice(2)))",
       "replace": "    const code = main(argv.slice(2))\n    exit(code === 0 ? 1 : code)",
       "expectRed": [
+        "a waived edit that a merge later marks passes",
         "--base is clean across a range of commits that never touch decisions.md after init",
         "a waived edit passes --base",
         "a waiver in a non-last commit of the range still waives its own edit",
@@ -484,6 +488,7 @@
       "find": "  if (droppedMarkers.length > 0) {",
       "replace": "  if (false) {",
       "expectRed": [
+        "a merge dropping a marker the branch removed and then restored is blocked",
         "blocks changing an existing marker to a different number",
         "flags an OLD entry whose marker was dropped, not just changed (I2)",
         "changing a marker number without waiving it is flagged"

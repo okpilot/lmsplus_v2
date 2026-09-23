@@ -176,22 +176,27 @@ function commit(r, text, message) {
   r.git('commit', '-qm', message)
 }
 
-function readme(r) {
-  r.write('README.md', 'unrelated\n')
+function readme(r, text = 'unrelated\n') {
+  r.write('README.md', text)
   r.git('add', '-A')
   r.git('commit', '-qm', 'readme')
 }
 
 const waive = (token, subject) => `${subject}\n\nLedger-edit-ok: ${token} — ${GOOD_REASON}`
 
-/** master = LEDGER_V1 + decision 16; `work` forks before 16 and runs `onWork` first. */
-function forked(r, onWork) {
-  commit(r, LEDGER_V1, 'init')
+/** Commit `base` on `master`, then check out a new `work` branch. */
+function startWork(r, base = LEDGER_V1) {
+  commit(r, base, 'init')
   r.git('branch', '-m', 'master')
   r.git('checkout', '-qb', 'work')
+}
+
+/** `work` forks from `base` and runs `onWork`; master then commits `master` (default: + 16). */
+function forked(r, onWork, { base, master = ledger(undefined, undefined, [E16_MASTER]) } = {}) {
+  startWork(r, base)
   onWork()
   r.git('checkout', '-q', 'master')
-  commit(r, ledger(undefined, undefined, [E16_MASTER]), 'add decision 16')
+  commit(r, master, 'master commit')
   r.git('checkout', '-q', 'work')
 }
 
@@ -236,9 +241,7 @@ test('an unwaived edit on a branch with no merge is reported once, with the trai
   withRepo((r) => {
     // MUTATION: drop the per-commit dedup → the same edit is reported again under [range] with
     // a merge-only hint on a branch that has no merge.
-    commit(r, LEDGER_V1, 'init')
-    r.git('branch', '-m', 'master')
-    r.git('checkout', '-qb', 'work')
+    startWork(r)
     commit(r, ledger('EDITED.'), 'edit 14')
     const res = runBase(r, 'master')
     assert.equal(res.status, 1)
@@ -280,12 +283,8 @@ test('a waiver for one line does not clear a merge edit to another', () =>
 // GROUP: check-decisions-ledger-always-blocks
 test('a branch merging master that carries a waived master edit passes', () =>
   withRepo((r) => {
-    commit(r, LEDGER_V1, 'init')
-    r.git('branch', '-m', 'master')
-    r.git('checkout', '-qb', 'work')
-    r.write('README.md', 'x\n')
-    r.git('add', '-A')
-    r.git('commit', '-qm', 'readme')
+    startWork(r)
+    readme(r)
     r.git('checkout', '-q', 'master')
     commit(r, ledger('EDITED ON MASTER.'), waive(14, 'fix: reword 14'))
     r.git('checkout', '-q', 'work')
@@ -298,13 +297,9 @@ test('a stale base passes when the branch merged a newer master carrying a waive
   withRepo((r) => {
     // MUTATION: stop recording authorizations → the master-side waived commit is in the
     // range, its edit reaches HEAD through the merge, and the range unit blocks it.
-    commit(r, LEDGER_V1, 'init')
-    r.git('branch', '-m', 'master')
-    r.git('tag', 'stale')
-    r.git('checkout', '-qb', 'work')
-    r.write('README.md', 'x\n')
-    r.git('add', '-A')
-    r.git('commit', '-qm', 'readme')
+    startWork(r)
+    r.git('tag', 'stale', 'master')
+    readme(r)
     r.git('checkout', '-q', 'master')
     commit(r, ledger('EDITED ON MASTER.'), waive(14, 'fix: reword 14'))
     r.git('checkout', '-q', 'work')
@@ -386,6 +381,27 @@ test('a merge re-deleting an entry the branch removed and then restored is block
     assert.equal(runBase(r, 'master').status, 1)
   }))
 
+// GROUP: range-authorization-not-invalidated
+test('a merge dropping a marker the branch removed and then restored is blocked', () =>
+  withRepo((r) => {
+    // MUTATION: keep the waived marker-less text after a later commit restores the marker → the
+    // merge re-dropping it matches that stale authorization and passes.
+    const marked = ledger('first decision. Amended by 15.')
+    const master = ledger('first decision. Amended by 15.', undefined, [E16_MASTER])
+    forked(
+      r,
+      () => {
+        commit(r, ledger(), waive('14', 'drop marker'))
+        commit(r, marked, 'restore marker')
+      },
+      { base: marked, master },
+    )
+    mergeMaster(r, ledger(undefined, undefined, [E16_MASTER]))
+    const res = runBase(r, 'master')
+    assert.equal(res.status, 1)
+    assert.match(res.stderr, /\[range\][\s\S]*## 14 — lost marker/)
+  }))
+
 // GROUP: range-gradeformat-last-unit
 test('a numbering break made in a merge blocks even when a later commit leaves the ledger alone', () =>
   withRepo((r) => {
@@ -393,22 +409,15 @@ test('a numbering break made in a merge blocks even when a later commit leaves t
     // trailing README commit's NEW equals HEAD and F1/F2 are skipped.
     forked(r, () => readme(r))
     mergeMaster(r, ledger(undefined, undefined, [E16_MASTER, '## 16 — 2026-03-12 — a duplicate.']))
-    r.write('README.md', 'after the merge\n')
-    r.git('add', '-A')
-    r.git('commit', '-qm', 'readme after merge')
+    readme(r, 'after the merge\n')
     const res = runBase(r, 'master')
     assert.equal(res.status, 1)
     assert.match(res.stderr, /\[range\][\s\S]*## 16 follows ## 16/)
   }))
 
-// GROUP: range-marker-exact-match, range-invalidation-counts-marker-appends
 test('a waived edit that later gains an appended marker passes on a linear branch', () =>
   withRepo((r) => {
-    // MUTATION: compare the whole raw line instead of body + marker superset → the marker
-    // appended after the waiver no longer matches the waived text and the range unit blocks.
-    commit(r, LEDGER_V1, 'init')
-    r.git('branch', '-m', 'master')
-    r.git('checkout', '-qb', 'work')
+    startWork(r)
     commit(r, ledger('EDITED.'), waive(14, 'fix: reword 14'))
     commit(
       r,
@@ -418,12 +427,22 @@ test('a waived edit that later gains an appended marker passes on a linear branc
     assert.equal(runBase(r, 'master').status, 0)
   }))
 
+// GROUP: range-marker-exact-match
+test('a waived edit that a merge later marks passes', () =>
+  withRepo((r) => {
+    // MUTATION: compare the whole raw line instead of body + marker superset → the marker the
+    // merge appended no longer matches the waived text and the range unit blocks.
+    const e16 = '## 16 — 2026-03-12 — amends 14.'
+    const master = ledger('first decision. Amended by 16.', undefined, [e16])
+    forked(r, () => commit(r, ledger('EDITED.'), waive(14, 'fix: reword 14')), { master })
+    mergeMaster(r, ledger('EDITED. Amended by 16.', undefined, [e16]))
+    assert.equal(runBase(r, 'master').status, 0)
+  }))
+
 test('concurrent waived edits on both sides let the merge keep either one', () =>
   withRepo((r) => {
-    commit(r, LEDGER_V1, 'init')
-    r.git('branch', '-m', 'master')
-    r.git('tag', 'stale')
-    r.git('checkout', '-qb', 'work')
+    startWork(r)
+    r.git('tag', 'stale', 'master')
     commit(r, ledger('BRANCH WORDING.'), waive(14, 'fix: reword 14 on the branch'))
     r.git('checkout', '-q', 'master')
     commit(r, ledger('MASTER WORDING.'), waive(14, 'fix: reword 14 on master'))
@@ -437,9 +456,7 @@ test('a waiver on a commit with no ledger does not clear a merge dropping the la
   withRepo((r) => {
     // MUTATION: record waivers from a unit whose NEW has no ledger → its Ledger-edit-ok: 16
     // becomes an ABSENT authorization and clears the merge-only removal of ## 16.
-    commit(r, ledger(undefined, undefined, [E16_MASTER]), 'init')
-    r.git('branch', '-m', 'master')
-    r.git('checkout', '-qb', 'work')
+    startWork(r, ledger(undefined, undefined, [E16_MASTER]))
     r.git('checkout', '-q', '--orphan', 'other')
     r.git('rm', '-rqf', '.')
     r.write('README.md', 'unrelated history\n')

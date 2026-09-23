@@ -40,8 +40,8 @@
 // Merge commits: commit-msg mode exits 0 while MERGE_HEAD resolves, and --base's per-commit
 // units walk --no-merges. --base then runs a RANGE unit: OLD = ledger at
 // `git merge-base <ref> HEAD`, NEW = HEAD's. A range finding for token T clears only when HEAD's
-// T matches the text a waiving per-commit unit produced (same body, markers a superset), and no
-// DESCENDANT per-commit unit changed T's body since. A merge never waives, so an edit made only
+// T matches the text a waiving per-commit unit produced (same body, markers a superset); a
+// DESCENDANT per-commit unit that changes T re-binds that text to its own result. A merge never waives, so an edit made only
 // in a merge resolution blocks in CI. A non-merge commit HEAD reaches is an ancestor of the
 // merge-base or a per-commit unit, so <ref> need not be an ancestor of HEAD. With several merge-bases
 // (criss-cross) git picks one, and the range unit can OVER-block. Only lines present at the
@@ -335,16 +335,6 @@ function slotMatches(authorizedText, headText, token) {
   return [...auth.markers].every((mk) => head.markers.has(mk))
 }
 
-/** Tokens whose BODY or presence differs between two ledger texts (marker appends excluded). */
-function changedTokens(oldText, newText) {
-  const tokens = new Set(['header'])
-  for (const text of [oldText, newText]) {
-    if (text === null) continue
-    for (const { num } of parsedEntries(parseLedger(text).entries)) tokens.add(String(num))
-  }
-  return [...tokens].filter((t) => slotParts(oldText, t).body !== slotParts(newText, t).body)
-}
-
 /**
  * The range unit: `oldText` at the merge-base, `newText` at HEAD, `authorized` a
  * Map<token, text[]> of the still-live waived texts per token. `gradeFormat` false skips F1/F2
@@ -459,12 +449,16 @@ function isAncestor(a, b) {
   return gitProbe(['merge-base', '--is-ancestor', a, b])
 }
 
-/** Drop `unit`'s ancestors' authorizations for every token whose body `unit` changed, then add
- *  `unit`'s own applied waivers. `live` is Map<token, {sha, text}[]>. */
+/** Re-bind `unit`'s ancestors' authorizations to `unit`'s result for every token `unit` changed,
+ *  then add `unit`'s own applied waivers. `live` is Map<token, {sha, text}[]>. */
 function recordAuthorizations(live, unit, unusedWaivers) {
-  for (const token of changedTokens(unit.oldText, unit.newText)) {
-    const kept = (live.get(token) ?? []).filter((a) => !isAncestor(a.sha, unit.label))
-    live.set(token, kept)
+  for (const [token, list] of live) {
+    const text = slotText(unit.newText, token)
+    if (text === slotText(unit.oldText, token)) continue
+    live.set(
+      token,
+      list.map((a) => (isAncestor(a.sha, unit.label) ? { ...a, text } : a)),
+    )
   }
   // No ledger in NEW: checkUnit returned before applying waivers, so none was applied.
   if (unit.newText === null) return
