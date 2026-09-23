@@ -96,12 +96,18 @@ test('requires the leading ! — a plain gitignore entry is not a re-include', (
   assert.deepEqual(specDirsFrom(text), new Set())
 })
 
-// GROUP: spec-reinclude-no-trim, spec-reinclude-no-trailing-slash
-test('trims surrounding whitespace before matching a re-include line', () => {
-  // MUTATION: drop `.trim()` before SPEC_REINCLUDE_RE.exec → an indented re-include line (or one
-  // carrying a trailing space) is no longer recognised, and its spec directory is dropped.
-  const text = '  !.spec-workflow/specs/study-mode/  \n'
-  assert.deepEqual(specDirsFrom(text), new Set(['.spec-workflow/specs/study-mode/']))
+// GROUP: spec-reinclude-no-trim, spec-reinclude-trim-too-greedy, spec-reinclude-no-trailing-slash
+test('ignores trailing whitespace but not leading, as git does', () => {
+  // MUTATION: replace `rawLine.trimEnd()` with `rawLine` → the trailing-space and CRLF lines
+  // below stop matching, though git strips unescaped trailing whitespace from a pattern.
+  // MUTATION: replace `rawLine.trimEnd()` with `rawLine.trim()` → the indented line below is
+  // recognised too, though git keeps leading whitespace as part of the pattern.
+  const trailing = '!.spec-workflow/specs/study-mode/  \n'
+  const crlf = '!.spec-workflow/specs/exam-mode/\r\n'
+  const indented = '  !.spec-workflow/specs/indented/\n'
+  assert.deepEqual(specDirsFrom(trailing), new Set(['.spec-workflow/specs/study-mode/']))
+  assert.deepEqual(specDirsFrom(crlf), new Set(['.spec-workflow/specs/exam-mode/']))
+  assert.deepEqual(specDirsFrom(indented), new Set())
 })
 
 // ---------------------------------------------------------------- argument parsing

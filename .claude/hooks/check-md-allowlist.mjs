@@ -52,7 +52,7 @@ const SPEC_REINCLUDE_RE = /^!\.spec-workflow\/specs\/([^/]+)\/$/
 export function specDirsFrom(gitignoreText) {
   const dirs = new Set()
   for (const rawLine of gitignoreText.split('\n')) {
-    const m = SPEC_REINCLUDE_RE.exec(rawLine.trim())
+    const m = SPEC_REINCLUDE_RE.exec(rawLine.trimEnd())
     if (m) dirs.add(`.spec-workflow/specs/${m[1]}/`)
   }
   return dirs
@@ -101,6 +101,17 @@ function loadAllowlist() {
 
 // ---------------------------------------------------------------- main
 
+// `--no-relative`: under `diff.relative=true`, a run from a subdirectory lists only that subtree.
+const STAGED_DIFF_ARGS = [
+  'diff',
+  '--cached',
+  '--name-only',
+  '-z',
+  '--no-renames',
+  '--no-relative',
+  '--diff-filter=A',
+]
+
 export function main(args) {
   const flags = args.filter((a) => a.startsWith('--'))
   const positional = args.filter((a) => !a.startsWith('--'))
@@ -120,9 +131,7 @@ export function main(args) {
 
   const candidates = all
     ? splitNul(git(['ls-files', '-z', '--full-name', '--', ':/'])).filter(isMarkdown)
-    : splitNul(
-        git(['diff', '--cached', '--name-only', '-z', '--no-renames', '--diff-filter=A']),
-      ).filter(isMarkdown)
+    : splitNul(git(STAGED_DIFF_ARGS)).filter(isMarkdown)
 
   const offenders = candidates.filter((p) => !isAllowed(p, allow, specDirs))
   if (offenders.length === 0) return 0

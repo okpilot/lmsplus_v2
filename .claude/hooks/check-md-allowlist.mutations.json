@@ -61,6 +61,7 @@
         "blocks a path matching none of the allowed shapes",
         "blocks renaming an existing file into a disallowed path",
         "blocks staging a new markdown file outside the allowlist",
+        "blocks a staged offender outside the cwd subdirectory when diff.relative is set",
         "reads .gitignore from the INDEX, ignoring an unstaged working-tree re-include",
         "reads the allowlist from the INDEX, ignoring an unstaged working-tree edit",
         "scopes a finding to the staged additions, but --all grades every tracked path",
@@ -81,15 +82,22 @@
       "expectRed": [
         "allows a new file under a spec directory the .gitignore re-includes",
         "parses a spec re-include line into its directory prefix",
-        "trims surrounding whitespace before matching a re-include line"
+        "ignores trailing whitespace but not leading, as git does"
       ],
       "note": "dropping the trailing slash+end anchor makes the regex fail to match every real re-include line (they all end in '/'), not just the fixture that most directly names the slash."
     },
     {
       "id": "spec-reinclude-no-trim",
-      "find": "SPEC_REINCLUDE_RE.exec(rawLine.trim())",
+      "find": "SPEC_REINCLUDE_RE.exec(rawLine.trimEnd())",
       "replace": "SPEC_REINCLUDE_RE.exec(rawLine)",
-      "expectRed": ["trims surrounding whitespace before matching a re-include line"]
+      "expectRed": ["ignores trailing whitespace but not leading, as git does"]
+    },
+    {
+      "id": "spec-reinclude-trim-too-greedy",
+      "find": "SPEC_REINCLUDE_RE.exec(rawLine.trimEnd())",
+      "replace": "SPEC_REINCLUDE_RE.exec(rawLine.trim())",
+      "expectRed": ["ignores trailing whitespace but not leading, as git does"],
+      "note": "trim() also strips LEADING whitespace, which git does not treat as part of a .gitignore pattern — an indented re-include line is recognised though git would not re-include it."
     },
     {
       "id": "isstringarray-every-check-dropped",
@@ -144,7 +152,8 @@
       "expectRed": [
         "exits 2 when the allowlist is absent from the index",
         "reads the allowlist from the INDEX, ignoring an unstaged working-tree edit",
-        "--all grades every tracked path even when spawned from a subdirectory"
+        "--all grades every tracked path even when spawned from a subdirectory",
+        "blocks a staged offender outside the cwd subdirectory when diff.relative is set"
       ],
       "note": "swapping to a working-tree read makes the allowlist absent-from-index case fall through to a real (working-tree) read instead of failing, and makes the unstaged-widening test's edit visible."
     },
@@ -155,7 +164,8 @@
       "expectRed": [
         "exits 2 when .gitignore is absent from the index",
         "reads .gitignore from the INDEX, ignoring an unstaged working-tree re-include",
-        "--all grades every tracked path even when spawned from a subdirectory"
+        "--all grades every tracked path even when spawned from a subdirectory",
+        "blocks a staged offender outside the cwd subdirectory when diff.relative is set"
       ],
       "note": "swapping to a working-tree read makes the .gitignore absent-from-index case fall through to a real (working-tree) read instead of failing, and makes the unstaged re-include test's edit visible."
     },
@@ -176,8 +186,8 @@
     },
     {
       "id": "staged-renames-not-disabled",
-      "find": "        git(['diff', '--cached', '--name-only', '-z', '--no-renames', '--diff-filter=A']),",
-      "replace": "        git(['diff', '--cached', '--name-only', '-z', '--diff-filter=A']),",
+      "find": "  '--no-renames',\n  '--no-relative',",
+      "replace": "  '--no-relative',",
       "expectRed": ["blocks renaming an existing file into a disallowed path"],
       "note": "with rename detection left on (git's default), a rename is reported as `R100`, which --diff-filter=A excludes — a rename into a disallowed folder becomes invisible."
     },
@@ -186,6 +196,15 @@
       "find": "'--diff-filter=A'",
       "replace": "'--diff-filter=AM'",
       "expectRed": ["does not block modifying an existing disallowed markdown file"]
+    },
+    {
+      "id": "staged-no-relative-dropped",
+      "find": "  '--no-relative',\n  '--diff-filter=A',",
+      "replace": "  '--diff-filter=A',",
+      "expectRed": [
+        "blocks a staged offender outside the cwd subdirectory when diff.relative is set"
+      ],
+      "note": "diff.relative=true makes the staged diff print paths relative to (and scoped to) the spawn cwd, so a guard run from a subdirectory never sees an offender staged elsewhere."
     },
     {
       "id": "candidates-mode-ternary-inverted",
@@ -206,6 +225,7 @@
         "blocks a new file under a spec directory the .gitignore never re-includes",
         "blocks renaming an existing file into a disallowed path",
         "blocks staging a new markdown file outside the allowlist",
+        "blocks a staged offender outside the cwd subdirectory when diff.relative is set",
         "reads .gitignore from the INDEX, ignoring an unstaged working-tree re-include",
         "reads the allowlist from the INDEX, ignoring an unstaged working-tree edit",
         "scopes a finding to the staged additions, but --all grades every tracked path",

@@ -233,6 +233,23 @@ test('--all grades every tracked path even when spawned from a subdirectory', ()
     assert.match(res.stderr, /docs\/bad\.md/)
   }))
 
+// GROUP: staged-no-relative-dropped, isallowed-fallback-inverted, loadallowlist-index-read-swapped,
+// gitignore-index-read-swapped, check-md-allowlist-always-passes
+test('blocks a staged offender outside the cwd subdirectory when diff.relative is set', () =>
+  withRepo((r) => {
+    r.write('sub/x.txt', 'placeholder\n')
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'init')
+    r.git('config', 'diff.relative', 'true')
+    r.write('docs/notes.md', 'a maintenance note\n')
+    r.git('add', '-A')
+    // MUTATION: drop `--no-relative` from the staged diff call → the staged list holds only the
+    // cwd subtree, so the offender outside it passes.
+    const res = runNode('check-md-allowlist', [GUARD], { cwd: join(r.dir, 'sub') })
+    assert.equal(res.status, 1)
+    assert.match(res.stderr, /docs\/notes\.md/)
+  }))
+
 // ---------------------------------------------------------------- fail closed
 
 // GROUP: loadallowlist-index-read-swapped
