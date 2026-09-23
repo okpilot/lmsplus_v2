@@ -95,7 +95,7 @@ test('does not treat a trailing newline as a trailing blank entry', () => {
 
 // ---------------------------------------------------------------- checkFormat (F1)
 
-// GROUP: check-decisions-ledger-always-passes
+// GROUP: f1-format-check-dropped
 test('flags an entry line missing the second em-dash separator', () => {
   // MUTATION: force checkFormat to always return [] → a completely malformed entry line
   // ships unchecked, and F1 stops meaning anything.
@@ -114,9 +114,9 @@ test('accepts a well-formed entry line', () => {
 
 // ---------------------------------------------------------------- checkNumbering (F2)
 
+// GROUP: f2-numbering-check-dropped
 test('flags a gap in decision numbering', () => {
-  // MUTATION (checked against F2's own comparison, `!== previous + 1`): weakening it to
-  // `< previous` would let a gap (14 → 16) through since 16 is still greater than 14.
+  // MUTATION: drop F2's `!== previous + 1` comparison → the 14 → 16 gap passes.
   const offenders = checkNumbering(['## 14 — 2026-03-11 — a.', '## 16 — 2026-03-11 — b.'])
   assert.equal(offenders.length, 1)
   assert.match(offenders[0], /## 16 follows ## 14, expected ## 15/)
@@ -156,7 +156,7 @@ const OLD_LEDGER = parseLedger(
   '# Decisions\n\n> rule\n\n## 14 — 2026-03-11 — first decision.\n## 15 — 2026-03-11 — second decision. Amended by 20.\n',
 )
 
-// GROUP: check-decisions-ledger-always-passes
+// GROUP: i1-missing-entry-dropped
 test('flags an OLD entry number missing entirely from NEW (I1)', () => {
   const newLedger = parseLedger(
     '# Decisions\n\n> rule\n\n## 15 — 2026-03-11 — second decision. Amended by 20.\n',
@@ -168,6 +168,7 @@ test('flags an OLD entry number missing entirely from NEW (I1)', () => {
   )
 })
 
+// GROUP: i2-body-check-dropped
 test('flags an OLD entry whose body text changed (I2)', () => {
   const newLedger = parseLedger(
     '# Decisions\n\n> rule\n\n## 14 — 2026-03-11 — a DIFFERENT decision.\n## 15 — 2026-03-11 — second decision. Amended by 20.\n',
@@ -179,10 +180,9 @@ test('flags an OLD entry whose body text changed (I2)', () => {
   )
 })
 
+// GROUP: i2-marker-subset-dropped
 test('flags an OLD entry whose marker was dropped, not just changed (I2)', () => {
-  // MUTATION (checked against `.filter((mk) => !newSplit.markers.has(mk))`): using `!==` on
-  // the marker SETS instead of a subset check would also flag a line that gained a NEW
-  // marker while keeping every old one — which Decision 86 explicitly allows.
+  // MUTATION: drop the dropped-marker check → a line that lost its marker passes.
   const newLedger = parseLedger(
     '# Decisions\n\n> rule\n\n## 14 — 2026-03-11 — first decision.\n## 15 — 2026-03-11 — second decision.\n',
   )
@@ -200,7 +200,7 @@ test('allows an OLD entry to gain an additional marker on top of its old one', (
   assert.deepEqual(checkImmutability(OLD_LEDGER, newLedger), [])
 })
 
-// GROUP: check-decisions-ledger-always-passes
+// GROUP: i3-header-check-dropped
 test('flags a changed header (I3)', () => {
   const newLedger = parseLedger(
     '# Decisions\n\n> a DIFFERENT rule\n\n## 14 — 2026-03-11 — first decision.\n## 15 — 2026-03-11 — second decision. Amended by 20.\n',
@@ -232,7 +232,7 @@ test('accepts the header token', () => {
   assert.equal(waivers.has('header'), true)
 })
 
-// GROUP: check-decisions-ledger-always-blocks
+// GROUP: waiver-reason-length-check-dropped
 test('rejects a Ledger-edit-ok trailer whose reason is too short', () => {
   const { problems } = parseWaivers('fix: reword\n\nLedger-edit-ok: 14 — too short\n')
   assert.equal(problems.length, 1)
@@ -310,7 +310,7 @@ test('both OLD and NEW absent is a clean run', () => {
   assert.deepEqual(res, { problems: [], offenders: [], unusedWaivers: [] })
 })
 
-// GROUP: check-decisions-ledger-always-passes
+// GROUP: deleted-file-finding-dropped
 test('flags a whole-file deletion when OLD is present and NEW is absent', () => {
   const res = checkUnit({
     oldText: '# Decisions\n\n## 14 — 2026-03-11 — a.\n',
@@ -344,7 +344,7 @@ test('a Ledger-edit-ok trailer waives exactly the finding for its token', () => 
   assert.deepEqual(res.offenders, [])
 })
 
-// GROUP: check-decisions-ledger-always-blocks
+// GROUP: waiver-token-not-matched
 test('a Ledger-edit-ok trailer for one token does not waive a finding on a different token', () => {
   const res = checkUnit({
     oldText: '# Decisions\n\n## 14 — 2026-03-11 — first.\n## 15 — 2026-03-11 — second.\n',
@@ -368,7 +368,7 @@ test('reports a waiver token that matched no finding, without blocking', () => {
   assert.deepEqual(res.unusedWaivers, ['14'])
 })
 
-// GROUP: check-decisions-ledger-always-passes
+// GROUP: waiver-reason-length-check-dropped
 test('an unusable waiver reason is reported as a problem, not silently ignored', () => {
   const res = checkUnit({
     oldText: '# Decisions\n\n## 14 — 2026-03-11 — first.\n',

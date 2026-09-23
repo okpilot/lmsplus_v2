@@ -218,6 +218,80 @@
       "find": "    if (refExists('MERGE_HEAD')) return 0\n",
       "replace": "",
       "expectRed": ["a clean merge auto-adopting an already-waived incoming edit passes"]
+    },
+    {
+      "id": "f1-format-check-dropped",
+      "find": "  return entries.filter((raw) => !ENTRY_RE.test(raw))",
+      "replace": "  return []",
+      "expectRed": [
+        "blocks a malformed new entry line even with a matching waiver token",
+        "flags an entry line missing the second em-dash separator",
+        "flags an entry line with a malformed date",
+        "OLD absent (new file, or unborn HEAD) skips immutability checks but still runs F1/F2",
+        "a format or numbering finding is never waivable (token is always null)"
+      ]
+    },
+    {
+      "id": "f2-numbering-check-dropped",
+      "find": "    if (parsed[i].num !== parsed[i - 1].num + 1) {",
+      "replace": "    if (false) {",
+      "expectRed": [
+        "blocks a numbering gap in a newly appended line",
+        "flags a gap in decision numbering",
+        "flags a duplicated decision number"
+      ]
+    },
+    {
+      "id": "i1-missing-entry-dropped",
+      "find": "  if (newRaw === undefined) {\n    return { token, kind: 'missing'",
+      "replace": "  if (newRaw === undefined) return null\n  if (false) {\n    return { token, kind: 'missing'",
+      "expectRed": ["flags an OLD entry number missing entirely from NEW (I1)"]
+    },
+    {
+      "id": "i2-body-check-dropped",
+      "find": "  if (oldSplit.body !== newSplit.body) {",
+      "replace": "  if (false) {",
+      "expectRed": [
+        "--base catches an edit made in a middle commit of the range",
+        "a waiver trailer in one commit does not cover an edit made in an earlier commit",
+        "an edit then a restore across two commits is still flagged (the file is not diffed end to end)",
+        "blocks an edit to an existing line staged for commit",
+        "flags an OLD entry whose body text changed (I2)",
+        "a Ledger-edit-ok trailer for one token does not waive a finding on a different token"
+      ]
+    },
+    {
+      "id": "i2-marker-subset-dropped",
+      "find": "  if (droppedMarkers.length > 0) {",
+      "replace": "  if (false) {",
+      "expectRed": [
+        "blocks changing an existing marker to a different number",
+        "flags an OLD entry whose marker was dropped, not just changed (I2)",
+        "changing a marker number without waiving it is flagged"
+      ]
+    },
+    {
+      "id": "i3-header-check-dropped",
+      "find": "  if (oldLedger.header !== newLedger.header) {",
+      "replace": "  if (false) {",
+      "expectRed": ["flags a changed header (I3)"]
+    },
+    {
+      "id": "deleted-file-finding-dropped",
+      "find": "      offenders: [{ token: null, kind: 'deleted', detail: 'docs/decisions.md deleted' }],",
+      "replace": "      offenders: [],",
+      "expectRed": [
+        "a file deletion is blocked",
+        "flags a whole-file deletion when OLD is present and NEW is absent"
+      ]
+    },
+    {
+      "id": "waiver-token-not-matched",
+      "find": "    if (f.token !== null && waivers.has(f.token)) {",
+      "replace": "    if (f.token !== null && waivers.size > 0) {",
+      "expectRed": [
+        "a Ledger-edit-ok trailer for one token does not waive a finding on a different token"
+      ]
     }
   ]
 }
