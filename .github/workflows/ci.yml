@@ -236,7 +236,7 @@ jobs:
           .claude/hooks/run-mutations.jobs.test.mjs
 
       # Pipeline spec invariant (Decision 62): .claude/pipeline.json is the single
-      # source for each agent's model, tools and memory, for the phase order, and
+      # source for each agent's model and tools, for the phase order, and
       # for every path the pipeline keys on. Supersedes agent-tools.test.mjs — the
       # access-control checks that file made are a strict subset of these.
       - name: "Pipeline spec matches the repo — unit test"

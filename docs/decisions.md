@@ -16,7 +16,7 @@
 ## 21 — 2026-03-11 — Deferred tech debt is tracked exclusively as GitHub Issues labeled `tech-debt`, filed immediately rather than left as TODOs or in a spreadsheet.
 ## 22 — 2026-03-11 — Production Supabase auth Site URL and redirect allowlist are set for `lmsplus.app`; login uses `window.location.origin` for the redirect target.
 ## 23 — 2026-03-12 — Quiz submission becomes atomic via a new `batch_submit_quiz()` RPC, replacing the per-answer submit-then-complete RPC pair for new code.
-## 24 — 2026-03-12 — Analytics RPCs (`get_daily_activity`, `get_subject_scores`) are rewritten as plpgsql with an explicit `auth.uid()` guard plus parameter clamping, later adding an active-user gate and a `deleted_at` filter.
+## 24 — 2026-03-12 — Analytics RPCs (`get_daily_activity`, `get_subject_scores`) are rewritten as plpgsql requiring both an `auth.uid() IS NULL` guard with an `auth.uid() IS DISTINCT FROM p_student_id` identity guard and the `WHERE auth.uid() = p_student_id` clause kept in the query, plus parameter clamping, later adding an active-user gate and a `deleted_at` filter.
 ## 25 — 2026-03-13 — Post-session quiz reports read correct answers only via a dedicated `get_report_correct_options()` RPC gated on `ended_at IS NOT NULL`, never the raw options JSONB.
 ## 26 — 2026-03-13 — Quiz Server Actions must verify session ownership, active state, non-discarded state and question membership before acting; a failed check reverts and unlocks the UI.
 ## 27 — 2026-03-14 — Adopt a Playwright red-team suite of adversarial attack specs against local Supabase, with a review agent mapping diffs to coverage gaps on security-sensitive changes. Amended by 73.
@@ -39,18 +39,18 @@
 ## 44 — 2026-06-18 — Adopt Resend as the transactional email provider for operational emails (e.g. internal-exam codes), separate from Supabase Auth's own email provider. #904
 ## 45 — 2026-06-20 — VFR RT training is built by reusing the existing `/app/quiz` Study UI on a dedicated `/app/vfr-rt` route, training before any timed exam mode. #927
 ## 46 — 2026-06-21 — Add an app-layer DB integration-test tier against real Postgres plus a schema-derived soft-delete-column guard; every new `.from()`/`.rpc()` app-layer site ships a co-located integration test. #939
-## 47 — 2026-06-21 — `batch_submit_quiz` stays the sole authorization boundary; per-type grading is extracted into internal helpers REVOKEd from PUBLIC/anon/authenticated, with partial-credit scoring matching the VFR RT exam path. #952
+## 47 — 2026-06-21 — `batch_submit_quiz` stays the sole authorization boundary; per-type grading is extracted into internal helpers REVOKEd from PUBLIC/anon/authenticated; the session score rolls up over DISTINCT `question_id` with partial credit, matching the VFR RT exam path. #952
 ## 48 — 2026-06-26 — Study Mode (Discovery) reuses the real quiz session runner with answers pre-marked correct. #1006 Amended by 49.
 ## 49 — 2026-06-29 — At most one active (non-ended, non-deleted) `quiz_sessions` row is permitted per student across all modes, enforced by a unique index and per-start-RPC guards; Discovery becomes a real non-resumable, non-scored session row to participate. #1011
 ## 50 — 2026-06-25 — Adopt `@dnd-kit` for the drag-and-drop question types (`ordering`, `diagram_label`), configured with pointer/touch/keyboard sensors for iPad support. #998
 ## 51 — 2026-06-25 — `ordering` question answers are stored as per-slot rows (like `dialog_fill`), deviating from the spec's single-JSON-row design, to support partial-credit scoring. #998
-## 52 — 2026-07-02 — `diagram_label` questions use an in-code inline-SVG diagram registry, allow distractor labels, and store one answer row per zone with server-derived zone ordinals. #1059
+## 52 — 2026-07-02 — `diagram_label` questions use an in-code inline-SVG diagram registry, allow distractor labels and partial submission (unlike `ordering`, which requires a complete permutation), and store one answer row per zone with server-derived zone ordinals. #1059
 ## 53 — 2026-08-09 — `tenant_isolation` on `questions` is narrowed to `FOR SELECT` so role-gated admin write policies actually bind; declared as the rule for any table with role-gated writes. #1174 Amended by 59.
 ## 54 — 2026-08-11 — VFR RT content is stored in the org's existing single question bank; the course/licence/enrolment model stays deferred until ATPL or IR content is real. #1185
 ## 55 — 2026-08-15 — A `dialog_fill` blank must be answerable from the visible dialogue alone; add transmissions rather than a scene line or deleting the question, enforced by authoring rule R7. #1201
 ## 56 — 2026-08-15 — Text-answer grading tolerates bounded spelling slips (Levenshtein-based, no wider tolerance for long-word negation pairs) via a new `answer_matches()` function, but never tolerates digit mismatches. #1201
 ## 57 — 2026-08-18 — The Part 2 authoring gate rule R3 stays an exact-match check even though the DB grader (`answer_matches`) is typo-tolerant; the tolerance is not ported into TypeScript. #1225
-## 58 — 2026-08-19 — Drop doc-updater's repeated-numeric-literal drift checks and reject building a no-executable-change post-commit exemption, both measured as not worth their review/maintenance cost. #1235 Amended by 73.
+## 58 — 2026-08-19 — Drop doc-updater's repeated-numeric-literal drift checks and reject building a no-executable-change post-commit exemption, both measured as not worth their review/maintenance cost. #1235
 ## 59 — 2026-08-20 — Every `tenant_isolation` policy in `public` is `FOR SELECT`, on two independent grounds (role-gated writes present, or no intended user-scoped write path); `organizations`/`question_banks`/`courses`/`lessons` are narrowed to match. #1237
 ## 60 — 2026-08-24 — The report "Correct" fraction is item/item (`correctCount / answeredItems`) in every mode, not item/question; `Skipped` now renders for exams and on mobile to carry the paper size. #1241
 ## 61 — 2026-09-06 — Post-commit reviewer rounds use extend-by-one on any APPLY finding rather than a resetting consecutive-clean counter, since the two were arithmetically incompatible with the round ceiling. #1266 Amended by 73.
@@ -78,4 +78,4 @@
 ## 83 — 2026-09-23 — Working notes live in the gitignored `.work/`; new `.spec-workflow/specs/*` are gitignored too, with specs tracked before this date kept tracked until their work lands; the build-plan doc is deleted. #1346
 ## 84 — 2026-09-23 — `code-review (skill)` runs in every round of the pre-push gate, not round 1 only, superseding the round scope in Decisions 77 and 80. #1347
 ## 85 — 2026-09-23 — A new tracked markdown file outside `.claude/md-allowlist.json` is blocked at commit time. #1348
-## 86 — 2026-09-23 — docs/decisions.md holds one line per decision, never edited; a later decision adds a new line and marks the old one Superseded by N. #1349
+## 86 — 2026-09-23 — docs/decisions.md holds one line per decision, never edited; a later decision adds a new line and marks the old one Superseded by N (or Amended by N). #1349
