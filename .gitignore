@@ -106,3 +106,4 @@ apps/web/scripts/seed-907-pagination-eval.ts
 # Ignored in .git/info/exclude on the machine this was written on, which is local-only — CI has
 # no such rule, so the prose-paths guard saw an untracked, unignored path and failed.
 .claude/worktrees/
+.claude/scheduled_tasks.lock
