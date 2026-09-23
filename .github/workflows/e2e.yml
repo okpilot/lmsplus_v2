@@ -38,8 +38,12 @@ jobs:
         with:
           version: 2.78.1
 
+      - name: Pull Supabase images from ECR Public
+        # supabase/setup-cli exports SUPABASE_INTERNAL_IMAGE_REGISTRY=ghcr.io; GHCR throttles these pulls.
+        run: echo "SUPABASE_INTERNAL_IMAGE_REGISTRY=public.ecr.aws" >> "$GITHUB_ENV"
+
       - name: Start local Supabase
-        run: supabase start
+        run: supabase start -x logflare,vector
 
       # `db reset` applies every migration and THEN restarts the storage container and probes
       # the Storage API (GET /storage/v1/bucket) to reconcile buckets against config.toml. That
@@ -127,8 +131,12 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Pull Supabase images from ECR Public
+        # supabase/setup-cli exports SUPABASE_INTERNAL_IMAGE_REGISTRY=ghcr.io; GHCR throttles these pulls.
+        run: echo "SUPABASE_INTERNAL_IMAGE_REGISTRY=public.ecr.aws" >> "$GITHUB_ENV"
+
       - name: Start local Supabase
-        run: supabase start
+        run: supabase start -x logflare,vector
 
       - name: Wait for Supabase readiness
         run: bash .github/scripts/wait-for-supabase.sh
@@ -196,8 +204,12 @@ jobs:
         # headless only).
         run: pnpm --filter @repo/web exec playwright install chromium
 
+      - name: Pull Supabase images from ECR Public
+        # supabase/setup-cli exports SUPABASE_INTERNAL_IMAGE_REGISTRY=ghcr.io; GHCR throttles these pulls.
+        run: echo "SUPABASE_INTERNAL_IMAGE_REGISTRY=public.ecr.aws" >> "$GITHUB_ENV"
+
       - name: Start local Supabase
-        run: supabase start
+        run: supabase start -x logflare,vector
 
       - name: Wait for Supabase readiness
         run: bash .github/scripts/wait-for-supabase.sh
