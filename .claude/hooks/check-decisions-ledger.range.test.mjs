@@ -284,6 +284,32 @@ test('a merge re-deleting an entry the branch removed and then restored is block
     assert.equal(runBase(r, 'master').status, 1)
   }))
 
+// GROUP: range-removal-auth-rebinds
+test('an unwaived re-add of a line a waiver removed is blocked', () =>
+  withRepo((r) => {
+    startWork(r)
+    commit(r, ledgerNo14(), waive(14, 'fix: remove decision 14'))
+    // MUTATION: re-bind a removal authorization to the re-added text → the new body clears.
+    commit(r, ledger('NEVER REVIEWED.'), 're-add 14')
+    assert.equal(runBase(r, 'master').status, 1)
+  }))
+
+// GROUP: range-rebind-marker-superset-dropped
+test('a later commit marking a text a merge stripped of a base marker is blocked', () =>
+  withRepo((r) => {
+    const base = ledger('first decision. Amended by 15.')
+    const master = ledger('first decision. Amended by 15.', undefined, [E16_MASTER])
+    forked(r, () => commit(r, ledger('EDITED. Amended by 15.'), waive(14, 'fix: reword 14')), {
+      base,
+      master,
+    })
+    mergeMaster(r, ledger('EDITED.', undefined, [E16_MASTER]))
+    // MUTATION: re-bind on the body alone → the waiver follows the stripped text into the
+    // marked one, and the base marker the merge dropped clears.
+    commit(r, ledger('EDITED. Amended by 16.', undefined, [E16_MASTER]), 'mark 14')
+    assert.equal(runBase(r, 'master').status, 1)
+  }))
+
 // GROUP: range-authorization-not-invalidated, range-marker-superset-dropped
 test('a merge dropping a marker the branch removed and then restored is blocked', () =>
   withRepo((r) => {
@@ -340,6 +366,19 @@ test('a waived edit that a merge later marks passes', () =>
     const master = ledger('first decision. Amended by 16.', undefined, [e16])
     forked(r, () => commit(r, ledger('EDITED.'), waive(14, 'fix: reword 14')), { master })
     mergeMaster(r, ledger('EDITED. Amended by 16.', undefined, [e16]))
+    assert.equal(runBase(r, 'master').status, 0)
+  }))
+
+// GROUP: range-branch-marker-required
+test('a merge dropping a marker the branch added after a waived edit passes', () =>
+  withRepo((r) => {
+    // MUTATION: require every re-bound marker at HEAD → the branch-added marker the merge left
+    // out no longer matches and the range unit blocks.
+    forked(r, () => {
+      commit(r, ledger('EDITED.'), waive(14, 'fix: reword 14'))
+      commit(r, ledger('EDITED. Amended by 15.'), 'mark 14')
+    })
+    mergeMaster(r, ledger('EDITED.', undefined, [E16_MASTER]))
     assert.equal(runBase(r, 'master').status, 0)
   }))
 

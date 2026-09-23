@@ -40,8 +40,9 @@
 // Merge commits: commit-msg mode exits 0 while MERGE_HEAD resolves, and --base's per-commit
 // units walk --no-merges. --base then runs a RANGE unit: OLD = ledger at
 // `git merge-base <ref> HEAD`, NEW = HEAD's. A range finding for token T clears only when HEAD's
-// T matches the text a waiving per-commit unit produced (same body, markers a superset); a
-// DESCENDANT per-commit unit whose OLD T still matches that text re-binds it to its own result. A merge never waives, so an edit made only
+// T has the body of the text a waiving per-commit unit produced and every marker of it the
+// merge-base also had; a DESCENDANT per-commit unit whose OLD T still matches that text re-binds
+// it to its own result, and one re-adding a waived-removed T retires it. A merge never waives, so an edit made only
 // in a merge resolution blocks in CI. A non-merge commit HEAD reaches is an ancestor of the
 // merge-base or a per-commit unit, so <ref> need not be an ancestor of HEAD. With several merge-bases
 // (criss-cross) git picks one, and the range unit can OVER-block. Only lines present at the
@@ -335,6 +336,16 @@ function slotMatches(authorizedText, headText, token) {
   return [...auth.markers].every((mk) => head.markers.has(mk))
 }
 
+/** The range finding for `token` is cleared by `authorizedText`: HEAD has its body and every
+ *  marker of it the merge-base also had (a marker the branch added may be left out). */
+function rangeCleared(authorizedText, { oldText, newText, token }) {
+  const auth = partsOf(authorizedText, token)
+  const head = slotParts(newText, token)
+  const base = slotParts(oldText, token).markers
+  if (head.body !== auth.body) return false
+  return [...auth.markers].every((mk) => !base.has(mk) || head.markers.has(mk))
+}
+
 /**
  * The range unit: `oldText` at the merge-base, `newText` at HEAD, `authorized` a
  * Map<token, text[]> of the still-live waived texts per token. `gradeFormat` false skips F1/F2
@@ -348,11 +359,11 @@ export function checkRange({ oldText, newText, authorized, gradeFormat }) {
   const findings = collectFindings(oldText, parseLedger(newText)).filter(
     (f) => gradeFormat || (f.kind !== 'format' && f.kind !== 'numbering'),
   )
-  return findings.filter(
-    (f) =>
-      f.token === null ||
-      !(authorized.get(f.token) ?? []).some((t) => slotMatches(t, newText, f.token)),
-  )
+  const isCleared = (f) =>
+    (authorized.get(f.token) ?? []).some((t) =>
+      rangeCleared(t, { oldText, newText, token: f.token }),
+    )
+  return findings.filter((f) => f.token === null || !isCleared(f))
 }
 
 // ---------------------------------------------------------------- git-facing reads
@@ -450,16 +461,19 @@ function isAncestor(a, b) {
 }
 
 /** Re-bind to `unit`'s result each ancestor authorization that `unit`'s OLD slot still matches
- *  (so text a merge wrote is never adopted), then add `unit`'s own applied waivers.
+ *  (so text a merge wrote is never adopted); a removal authorization is retired, never re-bound,
+ *  when `unit` re-adds the line. Then add `unit`'s own applied waivers.
  *  `live` is Map<token, {sha, text}[]>. */
 function recordAuthorizations(live, unit, unusedWaivers) {
   for (const [token, list] of live) {
     const text = slotText(unit.newText, token)
     const follows = (a) => slotMatches(a.text, unit.oldText, token) && isAncestor(a.sha, unit.label)
-    live.set(
-      token,
-      list.map((a) => (follows(a) ? { ...a, text } : a)),
-    )
+    const rebind = (a) => {
+      if (!follows(a)) return [a]
+      if (a.text === null && text !== null) return []
+      return [{ ...a, text }]
+    }
+    live.set(token, list.flatMap(rebind))
   }
   // No ledger in NEW: checkUnit returned before applying waivers, so none was applied.
   if (unit.newText === null) return
@@ -487,6 +501,12 @@ function runBase(ref) {
     recordAuthorizations(live, unit, res.unusedWaivers)
     if (unit.oldText !== unit.newText) lastTouched = unit.newText
   }
+  if (runRange(ref, live, { lastTouched, reported })) blocked = true
+  return blocked ? 1 : 0
+}
+
+/** The range unit over merge-base..HEAD; reports and returns whether it found offenders. */
+function runRange(ref, live, { lastTouched, reported }) {
   const mergeBase = git(['merge-base', ref, 'HEAD']).toString('utf8').trim()
   const newText = readAtTree('HEAD', DECISIONS_PATH)
   const authorized = new Map([...live].map(([t, list]) => [t, list.map((a) => a.text)]))
@@ -496,7 +516,6 @@ function runBase(ref) {
     authorized,
     gradeFormat: newText !== lastTouched,
   })
-  if (offenders.length > 0) blocked = true
   // A per-commit unit that reported this token AND produced HEAD's text has the fix; skip it.
   reportUnit(
     'range',
@@ -505,7 +524,7 @@ function runBase(ref) {
     ),
     [],
   )
-  return blocked ? 1 : 0
+  return offenders.length > 0
 }
 
 function runUnits(units) {

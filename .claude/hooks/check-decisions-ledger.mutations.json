@@ -23,8 +23,8 @@
     },
     {
       "id": "range-unit-dropped",
-      "find": "  if (offenders.length > 0) blocked = true\n  // A per-commit unit that reported",
-      "replace": "  // A per-commit unit that reported",
+      "find": "  if (runRange(ref, live, { lastTouched, reported })) blocked = true\n",
+      "replace": "",
       "expectRed": [
         "a ledger-neutral commit after a merge edit does not re-bind a waiver to the merge text",
         "a merge dropping a marker the branch removed and then restored is blocked",
@@ -40,13 +40,17 @@
         "a waiver on a commit with no ledger does not clear a merge dropping the last entry",
         "a superseded waiver stays revoked when commit dates put the ancestor last",
         "a marker appended after a merge edit does not adopt the merge text",
-        "a waived header edit does not clear a merge that rewrites the header again"
+        "a waived header edit does not clear a merge that rewrites the header again",
+        "a range finding tells the author a merge cannot waive it",
+        "a merge re-editing a line a commit already broke is still reported as a merge edit",
+        "an unwaived re-add of a line a waiver removed is blocked",
+        "a later commit marking a text a merge stripped of a base marker is blocked"
       ]
     },
     {
       "id": "range-authorization-token-only",
-      "find": "!(authorized.get(f.token) ?? []).some((t) => slotMatches(t, newText, f.token)),",
-      "replace": "!authorized.has(f.token),",
+      "find": "f.token === null || !isCleared(f)",
+      "replace": "f.token === null || !authorized.has(f.token)",
       "expectRed": [
         "a ledger-neutral commit after a merge edit does not re-bind a waiver to the merge text",
         "a merge dropping a marker the branch removed and then restored is blocked",
@@ -58,13 +62,15 @@
         "a merge re-deleting an entry the branch removed and then restored is blocked",
         "a superseded waiver stays revoked when commit dates put the ancestor last",
         "a marker appended after a merge edit does not adopt the merge text",
-        "a waived header edit does not clear a merge that rewrites the header again"
+        "a waived header edit does not clear a merge that rewrites the header again",
+        "an unwaived re-add of a line a waiver removed is blocked",
+        "a later commit marking a text a merge stripped of a base marker is blocked"
       ]
     },
     {
       "id": "range-authorization-not-invalidated",
-      "find": "      list.map((a) => (follows(a) ? { ...a, text } : a)),\n",
-      "replace": "      list,\n",
+      "find": "    live.set(token, list.flatMap(rebind))",
+      "replace": "    live.set(token, list)",
       "expectRed": [
         "a merge dropping a marker the branch removed and then restored is blocked",
         "a merge reinstating a superseded waived text is blocked",
@@ -83,7 +89,8 @@
         "a stale base passes when the branch merged a newer master carrying a waived edit",
         "a waived edit that later gains an appended marker passes on a linear branch",
         "concurrent waived edits on both sides let the merge keep either one",
-        "a master re-edit of a text the branch also waived keeps the branch waiver"
+        "a master re-edit of a text the branch also waived keeps the branch waiver",
+        "a merge dropping a marker the branch added after a waived edit passes"
       ]
     },
     {
@@ -104,9 +111,12 @@
     },
     {
       "id": "range-marker-exact-match",
-      "find": "  if (auth.body !== head.body) return false",
-      "replace": "  if (authorizedText !== slotText(headText, token)) return false",
-      "expectRed": ["a waived edit that a merge later marks passes"]
+      "find": "  if (head.body !== auth.body) return false",
+      "replace": "  if (authorizedText !== slotText(newText, token)) return false",
+      "expectRed": [
+        "a waived edit that a merge later marks passes",
+        "a merge dropping a marker the branch added after a waived edit passes"
+      ]
     },
     {
       "id": "range-deletion-branch-dropped",
@@ -153,9 +163,30 @@
     },
     {
       "id": "range-marker-superset-dropped",
+      "find": "  return [...auth.markers].every((mk) => !base.has(mk) || head.markers.has(mk))",
+      "replace": "  return true",
+      "expectRed": [
+        "a merge dropping a marker the branch removed and then restored is blocked",
+        "a later commit marking a text a merge stripped of a base marker is blocked"
+      ]
+    },
+    {
+      "id": "range-branch-marker-required",
+      "find": "every((mk) => !base.has(mk) || head.markers.has(mk))",
+      "replace": "every((mk) => head.markers.has(mk))",
+      "expectRed": ["a merge dropping a marker the branch added after a waived edit passes"]
+    },
+    {
+      "id": "range-rebind-marker-superset-dropped",
       "find": "  return [...auth.markers].every((mk) => head.markers.has(mk))",
       "replace": "  return true",
-      "expectRed": ["a merge dropping a marker the branch removed and then restored is blocked"]
+      "expectRed": ["a later commit marking a text a merge stripped of a base marker is blocked"]
+    },
+    {
+      "id": "range-removal-auth-rebinds",
+      "find": "      if (a.text === null && text !== null) return []\n",
+      "replace": "",
+      "expectRed": ["an unwaived re-add of a line a waiver removed is blocked"]
     },
     {
       "id": "range-rebind-ignores-ancestry",
@@ -178,7 +209,8 @@
       "expectRed": [
         "a superseded waiver stays revoked when commit dates put the ancestor last",
         "a ledger-neutral commit after a merge edit does not re-bind a waiver to the merge text",
-        "a marker appended after a merge edit does not adopt the merge text"
+        "a marker appended after a merge edit does not adopt the merge text",
+        "a later commit marking a text a merge stripped of a base marker is blocked"
       ]
     },
     {
@@ -200,8 +232,8 @@
     },
     {
       "id": "range-authorization-never-clears",
-      "find": "!(authorized.get(f.token) ?? []).some((t) => slotMatches(t, newText, f.token)),",
-      "replace": "true,",
+      "find": "f.token === null || !isCleared(f)",
+      "replace": "true",
       "expectRed": [
         "a waived edit that a merge later marks passes",
         "a waived edit passes --base",
@@ -211,7 +243,8 @@
         "a stale base passes when the branch merged a newer master carrying a waived edit",
         "a waived edit that later gains an appended marker passes on a linear branch",
         "concurrent waived edits on both sides let the merge keep either one",
-        "a master re-edit of a text the branch also waived keeps the branch waiver"
+        "a master re-edit of a text the branch also waived keeps the branch waiver",
+        "a merge dropping a marker the branch added after a waived edit passes"
       ]
     },
     {
@@ -276,7 +309,8 @@
         "appending a new line with no edits to existing lines is clean",
         "appending a marker to an existing line with no other edit is clean",
         "a Ledger-edit-ok: header trailer waives a changed header",
-        "a master re-edit of a text the branch also waived keeps the branch waiver"
+        "a master re-edit of a text the branch also waived keeps the branch waiver",
+        "a merge dropping a marker the branch added after a waived edit passes"
       ]
     },
     {
@@ -324,7 +358,8 @@
         "a numbering break made in a merge blocks even when a later commit leaves the ledger alone",
         "a waived edit that later gains an appended marker passes on a linear branch",
         "concurrent waived edits on both sides let the merge keep either one",
-        "a master re-edit of a text the branch also waived keeps the branch waiver"
+        "a master re-edit of a text the branch also waived keeps the branch waiver",
+        "a merge dropping a marker the branch added after a waived edit passes"
       ]
     },
     {
@@ -335,7 +370,8 @@
         "a merge dropping a marker the branch removed and then restored is blocked",
         "a waiver in a non-last commit of the range still waives its own edit",
         "a waiver trailer in one commit does not cover an edit made in an earlier commit",
-        "a waived edit that later gains an appended marker passes on a linear branch"
+        "a waived edit that later gains an appended marker passes on a linear branch",
+        "a merge dropping a marker the branch added after a waived edit passes"
       ]
     },
     {
@@ -404,7 +440,9 @@
         "blocks a numbering gap in a newly appended line",
         "a file deletion is blocked",
         "a marker appended after a merge edit does not adopt the merge text",
-        "a waived header edit does not clear a merge that rewrites the header again"
+        "a waived header edit does not clear a merge that rewrites the header again",
+        "an unwaived re-add of a line a waiver removed is blocked",
+        "a later commit marking a text a merge stripped of a base marker is blocked"
       ]
     },
     {
@@ -428,7 +466,8 @@
         "reads the ledger from the INDEX, ignoring an unstaged working-tree edit",
         "commit-msg mode on the FIRST commit (unborn HEAD) runs F1/F2 with no immutability check",
         "a clean merge auto-adopting an already-waived incoming edit passes",
-        "a master re-edit of a text the branch also waived keeps the branch waiver"
+        "a master re-edit of a text the branch also waived keeps the branch waiver",
+        "a merge dropping a marker the branch added after a waived edit passes"
       ]
     },
     {
@@ -541,7 +580,8 @@
         "blocks an edit to an existing line staged for commit",
         "flags an OLD entry whose body text changed (I2)",
         "a Ledger-edit-ok trailer for one token does not waive a finding on a different token",
-        "a marker appended after a merge edit does not adopt the merge text"
+        "a marker appended after a merge edit does not adopt the merge text",
+        "an unwaived re-add of a line a waiver removed is blocked"
       ]
     },
     {
