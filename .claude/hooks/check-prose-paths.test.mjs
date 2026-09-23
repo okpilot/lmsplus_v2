@@ -197,7 +197,7 @@ test('names a gitignored artifact rather than reporting it', () => {
   assert.equal(cls('apps/web/.next/build.js', 'prose', true), 'gitignored-artifact')
 })
 
-// GROUP: untracked-notes-exempted
+// GROUP: untracked-notes-exempted, spec-prefix-untracked-note-dropped, work-prefix-untracked-note-dropped
 test('reports a dead citation into the gitignored spec and working-notes trees', () => {
   // MUTATION: drop the UNTRACKED_NOTE_PREFIXES term from the gitignored branch → a citation of a
   // deleted or never-committed spec or `.work/` note classifies as an artifact and passes.

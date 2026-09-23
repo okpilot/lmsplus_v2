@@ -91,7 +91,7 @@ After a spec reaches "approved", material changes to the approach require updati
 ### MCP fallback
 If the spec-workflow MCP is unavailable, write spec files manually to `.spec-workflow/specs/<name>/`, copying an existing spec's structure.
 ### Working notes
-Plans, task lists, handovers, triage and eval notes go in `.work/` (gitignored). Untracked files exist only in the main checkout: pass their content inline to an isolated-worktree agent, and never cite their path from a tracked file.
+Plans, task lists, handovers, triage and eval notes go in `.work/` (gitignored). Untracked files exist only in the main checkout: pass their content inline to an isolated-worktree agent, and never cite their path from a tracked file. `check-md-allowlist.mjs` blocks a new tracked markdown file outside `.claude/md-allowlist.json` (pre-commit and CI).
 ### DO
 - Create a spec for any feature spanning 3+ files or introducing a new pattern.
 ### NEVER

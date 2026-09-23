@@ -63,6 +63,7 @@
       "file-size-guard",
       "prose-claims",
       "prose-paths",
+      "md-allowlist",
       "soft-delete-guard",
       "test-title-leakage",
       "type-check"
@@ -131,6 +132,13 @@
       "suites": [
         ".claude/hooks/check-prose-paths.test.mjs",
         ".claude/hooks/check-prose-paths.repo.test.mjs"
+      ]
+    },
+    ".claude/hooks/check-md-allowlist.mjs": {
+      "base": "check-md-allowlist",
+      "suites": [
+        ".claude/hooks/check-md-allowlist.test.mjs",
+        ".claude/hooks/check-md-allowlist.repo.test.mjs"
       ]
     },
     ".claude/hooks/check-commit-claims.mjs": {

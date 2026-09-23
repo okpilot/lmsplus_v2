@@ -155,6 +155,24 @@
       ]
     },
     {
+      "id": "spec-prefix-untracked-note-dropped",
+      "find": "const UNTRACKED_NOTE_PREFIXES = [SPEC_PREFIX, '.work/']",
+      "replace": "const UNTRACKED_NOTE_PREFIXES = ['.work/']",
+      "expectRed": [
+        "reports a dead citation into the gitignored spec and working-notes trees",
+        "blocks a citation into a gitignored notes tree, even of a note on local disk"
+      ]
+    },
+    {
+      "id": "work-prefix-untracked-note-dropped",
+      "find": "const UNTRACKED_NOTE_PREFIXES = [SPEC_PREFIX, '.work/']",
+      "replace": "const UNTRACKED_NOTE_PREFIXES = [SPEC_PREFIX]",
+      "expectRed": [
+        "reports a dead citation into the gitignored spec and working-notes trees",
+        "blocks a citation into a gitignored notes tree, even of a note on local disk"
+      ]
+    },
+    {
       "id": "gitignored-class-removed",
       "find": "  if (isIgnored(t) && !inNoteTree(t)) return 'gitignored-artifact'",
       "replace": "  if (false) return 'gitignored-artifact'",

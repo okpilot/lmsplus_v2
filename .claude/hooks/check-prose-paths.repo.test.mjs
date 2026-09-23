@@ -229,7 +229,7 @@ test('ignores a gitignored artifact', () =>
 
 const NOTES = ['.spec-workflow/specs/gone/tasks.md', '.work/notes.md', 'docs/HANDOVER.md']
 
-// GROUP: untracked-notes-exempted, handover-not-a-note, untracked-note-resolves-on-disk, new-findings-never-block, check-prose-paths-always-passes
+// GROUP: untracked-notes-exempted, handover-not-a-note, untracked-note-resolves-on-disk, new-findings-never-block, check-prose-paths-always-passes, spec-prefix-untracked-note-dropped, work-prefix-untracked-note-dropped
 test('blocks a citation into a gitignored notes tree, even of a note on local disk', () =>
   withRepo((r) => {
     r.write('.gitignore', '.work/\n.spec-workflow/specs/*\nHANDOVER.md\n')

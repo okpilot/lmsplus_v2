@@ -2428,3 +2428,5 @@ them.
   their work lands, then are deleted.
 
 ## Decision 84: `code-review (skill)` runs in every round of the pre-push gate; supersedes the round scope in Decisions 77 and 80 (2026-09-23)
+
+## Decision 85: a new tracked markdown file outside `.claude/md-allowlist.json` is blocked (2026-09-23)

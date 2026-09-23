@@ -75,6 +75,11 @@ pre-commit:
     # exactly the files it covers.
     prose-paths:
       run: node .claude/hooks/check-prose-paths.mjs
+    # Forbid a new TRACKED markdown file outside .claude/md-allowlist.json (docs/decisions.md
+    # Decision 85) — a maintenance note belongs in the gitignored .work/. NO glob, for the same
+    # reason prose-paths has none: the guard enumerates its own staged-add/rename list.
+    md-allowlist:
+      run: node .claude/hooks/check-md-allowlist.mjs
     # Full test suite runs in CI (ci.yml). Pre-commit runs fast gates only.
     # test:
     #   run: pnpm test
