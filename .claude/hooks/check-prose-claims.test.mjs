@@ -110,7 +110,7 @@ test('requires the context word within the proximity bound, not merely on the li
 
 test('flags the compliance-ratio shape when the word line is adjacent', () => {
   // MUTATION: make findClaims return [] for the RATIO_SHAPE loop → "(n/<cap> lines)", the
-  // shape docs/plan.md uses to record a near-cap file, stops being a claim.
+  // shape a build log uses to record a near-cap file, stops being a claim.
   const found = claims('use-session-state.ts is now 79/80 lines')
   // GROUP: line-shape-context-not-required
   assert.deepEqual(

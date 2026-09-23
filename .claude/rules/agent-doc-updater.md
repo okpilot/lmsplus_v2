@@ -3,15 +3,14 @@
 > Model: haiku | Trigger: pre-push review gate — round 1; a later round only when the fixup added surface it has not seen | Non-blocking (it PRODUCES doc edits, it does not gate)
 
 ## Purpose
-Keeps project documentation in sync with code changes: schema changes, new RPCs, new routes, dependency updates, architecture shifts. REPORTS the edits needed to `docs/plan.md`, `docs/decisions.md` and `docs/database.md` — the orchestrator applies them; the agent has no Write/Edit tool.
+Keeps project documentation in sync with code changes: schema changes, new RPCs, new routes, dependency updates, architecture shifts. REPORTS the edits needed to `docs/decisions.md` and `docs/database.md` — the orchestrator applies them; the agent has no Write/Edit tool.
 
 ## Handling Results
 
 ### DO
 - Apply the agent's reported doc edits YOURSELF and commit them in the round's ONE pooled fixup commit — it has no Write/Edit tool and cannot commit.
-- Verify cross-references — if database.md changed, check decisions.md/plan.md stay consistent.
+- Verify cross-references — if database.md changed, check decisions.md stays consistent.
 - Trust the agent's judgment on what needs updating — it checks the diff against all doc files.
-- Apply reported `docs/plan.md` progress-tracking edits yourself — a write from the agent races yours and silently vanishes (no Write/Edit tool).
 - Review reported doc edits for accuracy before applying — it can hallucinate details about code it didn't read.
 - When a stale claim is found in a doc block, read the WHOLE block before reporting — adjacent claims are frequently stale too. Re-derive any claim a source file could falsify, don't re-read it.
 - Report DRIFT findings with specific steering doc reference and contradicting code.
@@ -38,7 +37,6 @@ Keeps project documentation in sync with code changes: schema changes, new RPCs,
 |----------|------------------------|
 | `docs/database.md` | New migration, new RPC, schema change |
 | `docs/decisions.md` | New architectural decision, changed approach |
-| `docs/plan.md` | Phase/sprint progress, completed items |
 | `.spec-workflow/steering/*.md` | Code change contradicts a steering doc statement |
 
 ## File Rename Protocol

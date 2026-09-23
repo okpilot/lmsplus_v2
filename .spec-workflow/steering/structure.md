@@ -74,7 +74,6 @@ lmsplusv2/                          # Monorepo root (Turborepo + pnpm)
 │   └── migrations/                 # Forward-only SQL migrations (timestamped)
 │
 ├── docs/                           # Project documentation
-│   ├── plan.md                     # Build plan, current phase
 │   ├── decisions.md                # Architecture decision ledger
 │   ├── database.md                 # Full schema + RPC reference
 │   └── security.md                 # Binding security rules

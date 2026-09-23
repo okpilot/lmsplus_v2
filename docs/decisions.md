@@ -712,7 +712,7 @@ A second finding surfaced *during* this work: **Snyk was already integrated** �
 
 **Rationale**: Closes the one real gap in #109 (supply-chain behavioral detection) at zero cost and near-zero maintenance, and removes a redundant CVE scanner rather than maintaining two. Socket's PR-comment model pairs naturally with Dependabot's update cadence; an App-only integration was chosen over a CI Socket Action to avoid maintaining a workflow + API secret.
 
-**Implementation**: Docs-only in-repo (this entry + `docs/plan.md` tooling note). Two one-time repo-admin actions are documented on issue #109: **install the Socket GitHub App** and **disconnect the Snyk App**. Dependabot security-updates toggled via `PUT /repos/okpilot/lmsplus_v2/automated-security-fixes`. No code, migration, or CI-workflow change (Snyk left no repo files to remove).
+**Implementation**: Docs-only in-repo (this entry). Two one-time repo-admin actions are documented on issue #109: **install the Socket GitHub App** and **disconnect the Snyk App**. Dependabot security-updates toggled via `PUT /repos/okpilot/lmsplus_v2/automated-security-fixes`. No code, migration, or CI-workflow change (Snyk left no repo files to remove).
 
 ### Decision 41: Column-level privilege gate (REVOKE/GRANT) for answer-key columns on questions (2026-06-10)
 
@@ -1124,7 +1124,7 @@ stops being zero. Recorded rather than silently left divergent, which is what #1
 
 **Context.** Issue #1222: *"are we nitpicking or actually solving something? are we using the full circus for 3 lines?"* and *"circus for md files, counts — is nonsense."* Two remedies were considered.
 
-**DROP the repeated-numeric-literal sub-rules** in `.claude/rules/agent-doc-updater.md`. doc-updater no longer chases a stale count literal across `.spec-workflow/steering/tech.md` ×3, `docs/decisions.md` or `docs/plan.md`. A stale count in a steering doc misleads nobody who can run `ls`, and chasing one has cost real review rounds and fixup commits. **Accepted consequence:** those literals will drift and stay drifted; a stale count is no longer a DRIFT finding. The drop is enforced on both reviewers, not just the local one: `.coderabbit.yaml`'s comment-accuracy block now flags only counts that are INTERNALLY inconsistent (an "N + M" that no longer sums, a count contradicting a list in the same block) and explicitly does not flag a standalone inventory count for having drifted. Silencing doc-updater while cloud CodeRabbit kept raising the same nit would have moved the cost to the more expensive reviewer rather than removing it.
+**DROP the repeated-numeric-literal sub-rules** in `.claude/rules/agent-doc-updater.md`. doc-updater no longer chases a stale count literal across `.spec-workflow/steering/tech.md` ×3 or `docs/decisions.md`. A stale count in a steering doc misleads nobody who can run `ls`, and chasing one has cost real review rounds and fixup commits. **Accepted consequence:** those literals will drift and stay drifted; a stale count is no longer a DRIFT finding. The drop is enforced on both reviewers, not just the local one: `.coderabbit.yaml`'s comment-accuracy block now flags only counts that are INTERNALLY inconsistent (an "N + M" that no longer sums, a count contradicting a list in the same block) and explicitly does not flag a standalone inventory count for having drifted. Silencing doc-updater while cloud CodeRabbit kept raising the same nit would have moved the cost to the more expensive reviewer rather than removing it.
 
 **Do NOT add a no-executable-change post-commit exemption.** A working oracle was built (TypeScript-parser based, 44 tests, 100% of tracked files parseable) and then **reverted**, because it was finally measured rather than assumed: across the last 300 commits on master it would have fired **once** — 0.33%. Of those 300, **204 touched at least one `.md` file** but only **37 were `.md`-only**, and just **17** of those qualify for the docs-only exemption, which is narrower than `.md`-only — it excludes `docs/security.md`, `CLAUDE.md`, and every `.md` outside `docs/`, root, `.claude/agent-memory/` and the run log (measured 2026-08-19 against `origin/master`; re-derive with `git log origin/master -300 --format=%H` and classify each commit by whether EVERY path ends in `.md`). So the exemption covers under half the `.md`-only class, not all of it. 230 of the 300 contained at least one path the oracle could not classify — that figure is the reverted oracle's own classifier output and is no longer reproducible, the implementation having never been committed; it is recorded as history, not as a re-derivable measurement. **The 204 was twice mislabelled here as the `.md`-only count** — first by the original entry, then by a "fix" that derived a further figure from it and stamped it "measured"; re-derived by counting per commit whether EVERY path ends in `.md`. (The first draft of this decision said "230 `.md`-only", conflating the two; re-derived.) When it did fire it skipped only test-writer and the learner (code-reviewer, doc-updater and semantic-reviewer still run), so the feature was worth roughly 0.1% of review effort. It also still carried an open defect: a pre-order AST walk without a close delimiter is not injective, so ordinary refactors — moving a statement into a block, moving an argument into a nested call — fingerprinted as unchanged.
 
@@ -1210,8 +1210,7 @@ in `docs/security.md` §3, `docs/database.md` §3/§7, `.claude/rules/security.m
 
 ## Decision 60: The report "Correct" fraction is item/item in every mode; Skipped carries the paper size (2026-08-24)
 
-**Reverses** the exam half of the Phase 4 header split (Decision-era note in `docs/plan.md`, VFR RT
-Training Phase 4): the exam summary header used to render `correctCount / totalQuestions`.
+**Reverses** the exam half of the VFR RT Training Phase 4 header split: the exam summary header used to render `correctCount / totalQuestions`.
 
 **Problem**: `quiz_sessions.correct_count` is written **item-level** (or zero) by every writer that
 touches it — derive the set with `grep -rn "correct_count *=" supabase/migrations/`, tracing each
@@ -2061,14 +2060,14 @@ carve-out (`git grep -l question-images -- :/`).
 The scoped grep also returns `docs/decisions.md` — this entry itself.
 
 Other files POINT at this decision without restating the mechanics, and need no sync when the
-wording here changes — again an illustration as of 2026-09-15, not a closed set: `docs/plan.md` and
-`.spec-workflow/steering/tech.md`. No count is stated for
-either — `grep -n 'Decision 69' docs/plan.md .spec-workflow/steering/tech.md` is the derivation, and
+wording here changes — again an illustration as of 2026-09-15, not a closed set:
+`.spec-workflow/steering/tech.md`. No count is stated —
+`grep -n 'Decision 69' .spec-workflow/steering/tech.md` is the derivation, and
 it is deliberately not a figure here: this sentence has now carried a WRONG count twice, the second
 time because the same commit that asserted it added another citation (§10 cl.7).
-Both were REDUCED to pointers on 2026-09-15: they previously restated the write/read split and the
-single-org acceptance, which made them mirrors in fact while being described as pointers. Reducing
-them was preferred over promoting them, because every additional copy of the mechanics is another
+It was REDUCED to a pointer on 2026-09-15: it previously restated the write/read split and the
+single-org acceptance, which made it a mirror in fact while being described as a pointer. Reducing
+it was preferred over promoting it, because every additional copy of the mechanics is another
 place to go stale.
 The distinction is what `agent-workflow.md § Rule-Mirror Sync` turns on — a restatement is a mirror,
 a pointer is not.

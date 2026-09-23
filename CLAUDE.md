@@ -47,7 +47,7 @@ State what is true. Delete the rest.
 
 **Verify per file:** impact (callers/dependents via Explore agents), contract (do tests assert
 behavior you're changing?), pattern (matches how similar things are done?), doc/schema (stays
-accurate — database.md/decisions.md/plan.md), security surface (auth/RLS/answer data/input
+accurate — database.md/decisions.md), security surface (auth/RLS/answer data/input
 validation — check `docs/security.md`).
 
 **Plan must include:** files to change (line ranges), files affected, risks, test updates.
@@ -63,8 +63,8 @@ validation — check `docs/security.md`).
 ---
 
 ## Key docs (read for context)
-- `docs/plan.md` — build plan | `docs/decisions.md` — confirmed decisions
-- `docs/database.md` — schema + RPC (binding) | `docs/security.md` — security rules (binding)
+- `docs/decisions.md` — confirmed decisions | `docs/database.md` — schema + RPC (binding)
+- `docs/security.md` — security rules (binding)
 - `.claude/rules/code-style.md` — file size limits, component rules (binding)
 - `.claude/rules/agent-workflow.md` — pipeline order, orchestrator DO/NEVER (binding)
 - `.claude/rules/agent-critic.md` — plan/implementation-critic rules (binding)
@@ -142,11 +142,10 @@ met, same commit. Verify redundancy, never infer from the resolved version:
 - **NEVER** duplicate work between agents (code-reviewer = style, semantic-reviewer = logic, zero overlap)
 
 ## Workflow
-1. Start each session: read `docs/plan.md`
-2. Multi-file: draft + validate the plan (§ Plan Validation above)
-3. Get user approval before executing
-4. `/project:review` after feature complete
-5. `/project:insights` weekly
+1. Multi-file: draft + validate the plan (§ Plan Validation above)
+2. Get user approval before executing
+3. `/project:review` after feature complete
+4. `/project:insights` weekly
 
 ## Pre-push review gate (MANDATORY)
 ONE loop per BRANCH over `git diff origin/master...HEAD`.

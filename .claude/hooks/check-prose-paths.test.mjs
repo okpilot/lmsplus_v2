@@ -149,7 +149,7 @@ test('strips a ./ prefix before any index lookup so a ./- prefixed citation reso
   //
   // MUTATION: remove the .replace(/^\.\//, '') term from normalise. Verified by execution in a
   // scratch copy: exactly one test fails and it is THIS one — no other case reddens. It fails
-  // on the FIRST assertion — normalise returns './docs/plan.md' unstripped — so the cls()
+  // on the FIRST assertion — normalise returns the ./-prefixed path unstripped — so the cls()
   // assertion is NOT reached under this mutation. cls() pins the end-to-end path separately:
   // a ./-prefixed token misses every index set (trackedSet, dirSet and suffixes all hold
   // paths without the prefix) and classify, which has no existsSync fallback of its own,

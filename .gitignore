@@ -107,3 +107,7 @@ apps/web/scripts/seed-907-pagination-eval.ts
 # no such rule, so the prose-paths guard saw an untracked, unignored path and failed.
 .claude/worktrees/
 .claude/scheduled_tasks.lock
+
+# Working notes and specs — untracked (D2b)
+.work/
+.spec-workflow/specs/

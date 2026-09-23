@@ -9,12 +9,6 @@
     ".coderabbit.yaml@e3dd325cf4abef8b": "SECURITY DEFINER function must filter deleted_at IS NULL on any user/session/",
     ".spec-workflow/steering/tech.md@56656cd91dc8465d": "- **Linting**: Biome is the sole linter (no ESLint; the former `packages/eslint-config/` placeholder was removed).",
     "docs/decisions.md@acce9f225945d6a7": "**Context**: App-layer query code (`apps/web/lib/queries/**` + `apps/web/app/**` Server Actions — over 100 `.from()`/...",
-    "docs/decisions.md@b35fd51aac613102": "the spec owns. `.claude/agents/agent-tools.test.mjs` is DELETED — its access-control checks are a",
-    "docs/plan.md@036624274b8dd630": "- Refactored quiz/actions.ts into feature-based files: start.ts, submit.ts, complete.ts, batch-submit.ts, discard.ts ...",
-    "docs/plan.md@2a6ee4d060053047": "- Consolidated duplicate QuestionFilter type: canonical def in lib/queries/quiz.ts, all other imports reference it",
-    "docs/plan.md@2d7a72494b88dca7": "- `dependabot.yml` — automated dependency updates, weekly schedule, `tech-debt` label, commits with `ci` or `chore` p...",
-    "docs/plan.md@37cc77857385585f": "- Local Supabase spun up in CI via `supabase/setup-cli` — runs all migrations automatically",
-    "docs/plan.md@6dcd98a42356740e": "- `app/app/quiz/actions/lookup-helpers.ts` and `app/app/quiz/actions/filter-helpers.ts` deleted (functions removed; n...",
-    "docs/plan.md@f2535ea0605399c5": "- `lib/queries/quiz.ts:getRandomQuestionIds` — now a thin `rpc<{id}[]>(supabase, 'get_random_question_ids', …)` calle..."
+    "docs/decisions.md@b35fd51aac613102": "the spec owns. `.claude/agents/agent-tools.test.mjs` is DELETED — its access-control checks are a"
   }
 }

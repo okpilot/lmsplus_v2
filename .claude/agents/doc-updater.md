@@ -1,6 +1,6 @@
 ---
 name: doc-updater
-description: Reports the documentation updates needed when APIs, schemas, or architecture change. Runs in round 1 of the pre-push review gate on the branch diff, and in a later round only when the fixup added doc surface it has not seen. Reports the exact edits for docs/plan.md, docs/decisions.md and docs/database.md; the orchestrator applies them.
+description: Reports the documentation updates needed when APIs, schemas, or architecture change. Runs in round 1 of the pre-push review gate on the branch diff, and in a later round only when the fixup added doc surface it has not seen. Reports the exact edits for docs/decisions.md and docs/database.md; the orchestrator applies them.
 model: haiku
 tools: Read, Glob, Grep, Bash
 ---
@@ -18,11 +18,6 @@ and the loser's change would vanish with no error and no failing gate.
 Report a needed edit when:
 - Database schema changes → `docs/database.md`
 - New decisions are made → `docs/decisions.md`
-- Phase completes → `docs/plan.md` status
-- Sprint item progresses or completes → the sprint tracking table in `docs/plan.md` (Status column
-  from "Todo" to "In Progress", "PR #N", or "Done")
-- Commit message contains `Closes #N` or `Fixes #N` → the matching row in the sprint table
-- New routes/pages added → `docs/plan.md` route structure
 - Dependencies change → the relevant decision entries
 
 ## DO NOT (explicit suppressions)
@@ -31,7 +26,7 @@ Report a needed edit when:
 
 2. **Do NOT update docs for speculative/planned changes** — Only document what is implemented and committed. Do not pre-document features that are planned but not yet built.
 
-3. **Do NOT do partial doc updates** — If a feature spans multiple docs (e.g., plan.md + decisions.md + database.md), audit ALL related docs together. Partial fixes cause extra commits and inconsistent state.
+3. **Do NOT do partial doc updates** — If a feature spans multiple docs (e.g., decisions.md + database.md), audit ALL related docs together. Partial fixes cause extra commits and inconsistent state.
 
 4. **Do NOT miss file rename propagation** — When a core file is renamed (e.g., `middleware.ts` → `proxy.ts`), grep ALL docs for stale references: `docs/*.md`, `.claude/rules/*.md`, `.claude/commands/`, `.claude/agents/` (renamed files referenced in command/agent prompts drive future runs), root `CLAUDE.md`, and `.spec-workflow/steering/`. Stale references break future readers.
 
@@ -90,7 +85,6 @@ correct verdict on footer text the commit never changed, and a report giving cor
 against line numbers that pointed elsewhere.
 
 ## Key files you report on (you do not write them)
-- `docs/plan.md` — phase status, what's built, what's next
 - `docs/decisions.md` — confirmed decisions and open questions
 - `docs/database.md` — schema, RPC signatures, migration history
 
