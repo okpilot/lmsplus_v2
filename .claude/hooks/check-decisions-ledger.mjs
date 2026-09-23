@@ -20,6 +20,7 @@
 //   I3 the header (everything before the first `## ` line) is unchanged      — waivable as `header`
 // NEW absent while OLD present is a whole-file deletion — always a finding, never waivable.
 // Both absent (path never existed) is a clean run: nothing to check.
+// A unit whose NEW is byte-identical to OLD is clean: F1/F2 grade only a commit that touches the file.
 //
 // Escape hatch, one per token: a commit-message trailer
 //     Ledger-edit-ok: <N|header> — <reason>
@@ -292,6 +293,8 @@ export function checkUnit({ oldText, newText, message }) {
       unusedWaivers: [],
     }
   }
+
+  if (oldText === newText) return { problems: [], ...applyWaivers([], waivers) }
 
   const findings = collectFindings(oldText, parseLedger(newText))
   return { problems: [], ...applyWaivers(findings, waivers) }

@@ -322,6 +322,13 @@ test('flags a whole-file deletion when OLD is present and NEW is absent', () => 
   )
 })
 
+// GROUP: unchanged-file-skip-dropped
+test('a commit that leaves a malformed ledger untouched is clean', () => {
+  const ledger = '# Decisions\n\n## 14 2026-03-11 broken\n'
+  const res = checkUnit({ oldText: ledger, newText: ledger, message: 'chore: readme\n' })
+  assert.deepEqual(res, { problems: [], offenders: [], unusedWaivers: [] })
+})
+
 test('OLD absent (new file, or unborn HEAD) skips immutability checks but still runs F1/F2', () => {
   const res = checkUnit({
     oldText: null,

@@ -8,6 +8,12 @@
   ],
   "mutations": [
     {
+      "id": "unchanged-file-skip-dropped",
+      "find": "  if (oldText === newText) return { problems: [], ...applyWaivers([], waivers) }\n",
+      "replace": "",
+      "expectRed": ["a commit that leaves a malformed ledger untouched is clean"]
+    },
+    {
       "id": "marker-anchor-not-end-of-line",
       "find": "const MARKER_ONE_RE = / (Superseded|Amended) by (\\d+(?:, \\d+)*)\\.$/",
       "replace": "const MARKER_ONE_RE = / (Superseded|Amended) by (\\d+(?:, \\d+)*)\\./",
@@ -39,13 +45,11 @@
       "find": "    if (rawLines[i].trim() === '') continue",
       "replace": "    if (false) continue",
       "expectRed": [
-        "--base is clean across a range of commits that never touch decisions.md after init",
         "a waived edit passes --base",
         "a waiver in a non-last commit of the range still waives its own edit",
         "allows appending a new decision line",
         "allows appending a marker to an existing line",
         "a Ledger-edit-ok trailer waives the edit it names",
-        "reads the ledger from the INDEX, ignoring an unstaged working-tree edit",
         "commit-msg mode on the FIRST commit (unborn HEAD) runs F1/F2 with no immutability check",
         "splits header from entries at the first \\#\\# line",
         "skips a blank line between entries rather than treating it as a malformed entry",
