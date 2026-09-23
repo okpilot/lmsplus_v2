@@ -513,10 +513,10 @@ function runBase(ref) {
   return blocked ? 1 : 0
 }
 
-/** The range unit over merge-base..HEAD; reports and returns whether it found offenders. */
-/** Whether a merge in `ref`..HEAD wrote `token`'s line: its text there matches no parent's. A merge
- *  taking one side's line (GitHub's pull_request checkout, a merge of master) wrote nothing. */
-function mergeWriter(ref) {
+/** Whether a merge in `ref`..HEAD wrote `token`'s final line: its text there is `newText`'s and
+ *  matches no parent's. A merge taking one side's line (GitHub's pull_request checkout, a merge of
+ *  master) wrote nothing. */
+function mergeWriter(ref, newText) {
   const merges = git(['rev-list', '--merges', '--parents', `${ref}..HEAD`])
     .toString('utf8')
     .trim()
@@ -529,11 +529,15 @@ function mergeWriter(ref) {
     return texts.get(sha)
   }
   return (token) =>
-    merges.some(([m, ...parents]) =>
-      parents.every((p) => slotText(at(p), token) !== slotText(at(m), token)),
-    )
+    merges.some(([m, ...parents]) => {
+      const text = slotText(at(m), token)
+      return (
+        text === slotText(newText, token) && parents.every((p) => slotText(at(p), token) !== text)
+      )
+    })
 }
 
+/** The range unit over merge-base..HEAD; reports and returns whether it found offenders. */
 function runRange(ref, live, { lastTouched, reported }) {
   const mergeBase = git(['merge-base', ref, 'HEAD']).toString('utf8').trim()
   const newText = readAtTree('HEAD', DECISIONS_PATH)
@@ -550,7 +554,7 @@ function runRange(ref, live, { lastTouched, reported }) {
     offenders.filter(
       (o) => o.token === null || !reported.has(`${o.token}\n${slotText(newText, o.token)}`),
     ),
-    { mergeWrote: mergeWriter(ref) },
+    { mergeWrote: mergeWriter(ref, newText) },
   )
   return offenders.length > 0
 }

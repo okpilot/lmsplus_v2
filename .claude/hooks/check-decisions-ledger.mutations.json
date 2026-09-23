@@ -46,7 +46,7 @@
         "an unwaived re-add of a line a waiver removed is blocked",
         "a later commit marking a text a merge stripped of a base marker is blocked",
         "a range finding on a branch with no merge names the non-merge remedy",
-        "a range finding names the non-merge remedy when the only merge left the line alone"
+        "a range finding names the non-merge remedy when a merge wrote only an earlier text"
       ]
     },
     {
@@ -68,7 +68,7 @@
         "an unwaived re-add of a line a waiver removed is blocked",
         "a later commit marking a text a merge stripped of a base marker is blocked",
         "a range finding on a branch with no merge names the non-merge remedy",
-        "a range finding names the non-merge remedy when the only merge left the line alone"
+        "a range finding names the non-merge remedy when a merge wrote only an earlier text"
       ]
     },
     {
@@ -149,22 +149,30 @@
       "replace": "  if (false) {",
       "expectRed": [
         "a range finding on a branch with no merge names the non-merge remedy",
-        "a range finding names the non-merge remedy when the only merge left the line alone"
+        "a range finding names the non-merge remedy when a merge wrote only an earlier text"
       ]
     },
     {
       "id": "range-hint-merge-wrote",
-      "find": "{ mergeWrote: mergeWriter(ref) }",
+      "find": "{ mergeWrote: mergeWriter(ref, newText) }",
       "replace": "{ mergeWrote: () => true }",
       "expectRed": [
-        "a range finding names the non-merge remedy when the only merge left the line alone",
+        "a range finding names the non-merge remedy when a merge wrote only an earlier text",
         "a range finding on a branch with no merge names the non-merge remedy"
       ]
     },
     {
+      "id": "range-merge-writer-not-final",
+      "find": "text === slotText(newText, token) && ",
+      "replace": "",
+      "expectRed": [
+        "a range finding names the non-merge remedy when a merge wrote only an earlier text"
+      ]
+    },
+    {
       "id": "range-merge-writer-any-parent",
-      "find": "      parents.every((p) => slotText",
-      "replace": "      parents.some((p) => slotText",
+      "find": "&& parents.every((p) =>",
+      "replace": "&& parents.some((p) =>",
       "expectRed": ["a range finding on a branch with no merge names the non-merge remedy"]
     },
     {
@@ -175,7 +183,7 @@
         "a merge re-editing a line a commit already broke is still reported as a merge edit",
         "a range finding tells the author a merge cannot waive it",
         "a range finding on a branch with no merge names the non-merge remedy",
-        "a range finding names the non-merge remedy when the only merge left the line alone"
+        "a range finding names the non-merge remedy when a merge wrote only an earlier text"
       ]
     },
     {
@@ -226,7 +234,7 @@
       "expectRed": [
         "an unwaived re-add of a line a waiver removed is blocked",
         "a range finding on a branch with no merge names the non-merge remedy",
-        "a range finding names the non-merge remedy when the only merge left the line alone"
+        "a range finding names the non-merge remedy when a merge wrote only an earlier text"
       ]
     },
     {
@@ -400,7 +408,7 @@
         "a merge dropping a marker the branch added after a waived edit passes",
         "a merge reinstating a superseded waived text is blocked",
         "a range finding on a branch with no merge names the non-merge remedy",
-        "a range finding names the non-merge remedy when the only merge left the line alone"
+        "a range finding names the non-merge remedy when a merge wrote only an earlier text"
       ]
     },
     {
@@ -625,7 +633,7 @@
         "a marker appended after a merge edit does not adopt the merge text",
         "an unwaived re-add of a line a waiver removed is blocked",
         "a range finding on a branch with no merge names the non-merge remedy",
-        "a range finding names the non-merge remedy when the only merge left the line alone"
+        "a range finding names the non-merge remedy when a merge wrote only an earlier text"
       ]
     },
     {

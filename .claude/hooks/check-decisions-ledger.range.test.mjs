@@ -93,19 +93,18 @@ test('a range finding tells the author a merge cannot waive it', () =>
     )
   }))
 
-// GROUP: range-hint-merge-wrote
-test('a range finding names the non-merge remedy when the only merge left the line alone', () =>
+// GROUP: range-hint-merge-wrote, range-merge-writer-not-final
+test('a range finding names the non-merge remedy when a merge wrote only an earlier text', () =>
   withRepo((r) => {
-    startWork(r)
-    r.git('checkout', '-qb', 'topic')
-    readme(r)
-    r.git('checkout', '-q', 'work')
-    r.git('merge', '-q', '--no-ff', '-m', 'Merge topic into work', 'topic')
-    commit(r, ledgerNo14(), waive(14, 'fix: remove decision 14'))
-    // MUTATION: name the merge remedy whenever the range holds a merge → an unrelated merge
-    // sends the author to redo it.
-    commit(r, ledger('NEVER REVIEWED.'), 're-add 14')
-    assert.match(runBase(r, 'master').stderr, /\[range\][\s\S]*to the non-merge commit that made/)
+    forked(r, () => readme(r))
+    mergeMaster(r, ledger('EDITED IN MERGE.', undefined, [E16_MASTER]))
+    commit(r, ledgerNo14([E16_MASTER]), waive(14, 'fix: remove decision 14'))
+    // MUTATION: name the merge remedy whenever the range holds a merge → the merge is blamed.
+    // MUTATION: blame a merge whose text is not the final line's → the same.
+    commit(r, ledger('NEVER REVIEWED.', undefined, [E16_MASTER]), 're-add 14')
+    const res = runBase(r, 'master')
+    assert.match(res.stderr, /\[range\][\s\S]*## 14[\s\S]*to the non-merge commit that made/)
+    assert.doesNotMatch(res.stderr, /redo the merge/)
   }))
 
 // GROUP: range-repeats-commit-findings
