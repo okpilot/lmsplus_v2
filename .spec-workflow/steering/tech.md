@@ -50,7 +50,7 @@ lmsplusv2/
 
 - **Primary storage**: Supabase (managed Postgres). 17+ tables with RLS on every table. Soft delete (`deleted_at`) on all mutable tables.
 - **File storage**: Supabase Storage (`question-images` bucket). Access model — including which
-  operations are org-scoped — is `docs/decisions.md` Decision 69; do not restate it here.
+  operations are org-scoped — is `docs/security.md` §13; do not restate it here.
 - **Client-side persistence**: localStorage for quiz session recovery (7-day staleness, private-mode safe).
 - **Caching**: Turborepo build cache. Vercel edge cache for static assets. No application-level Redis.
 - **Data formats**: JSON/JSONB (question options, session config, audit metadata), SQL for all persistence.
@@ -58,8 +58,8 @@ lmsplusv2/
 ### External Integrations
 
 - **Supabase Auth**: Email + password authentication. JWT sessions (1hr expiry, 7-day sliding refresh). PKCE flow for password recovery.
-- **Supabase Storage**: Image upload for question images. Policy model: `docs/decisions.md`
-  Decision 69.
+- **Supabase Storage**: Image upload for question images. Policy model: `docs/security.md`
+  §13.
 - **Sentry**: Error tracking and performance monitoring. Source map upload during build.
 - **Vercel**: Hosting with Skew Protection (4hr max age). Serverless functions for Server Actions.
 - **SonarCloud**: Static analysis with 80% new-code coverage gate.
@@ -172,35 +172,7 @@ lmsplusv2/
 
 ## Technical Decisions & Rationale
 
-### Decision Log
-
-1. **Turborepo + pnpm over Nx** (Decision: Stack): Vercel-native, simpler configuration, built-in caching. Single `turbo.json` for task graph.
-
-2. **Biome over ESLint + Prettier** (Decision: Tooling): 10-25x faster, single binary, one config file, 450+ rules, TypeScript-aware. Officially recommended with Lefthook.
-
-3. **Email + password over magic link** (Decision 29): Magic link caused friction in dev (Mailpit, rate limits, PKCE complexity) and production (email deliverability, user confusion). Simpler for internal training platform.
-
-4. **Pre-created users only, no self-registration** (Decision 16): ATOs manage their own students. Auth callback checks for `users` row; missing row -> sign out + "not registered" error.
-
-5. **Review agents as in-session subagents, not Lefthook hooks** (Decision 20; cadence set by Decision 73): findings flow into the conversation and are fixed in the round's pooled fixup commit.
-
-6. **Analytics RPCs in plpgsql, not sql** (Decision 24): Explicit `auth.uid()` guard at function start is auditable. Parameter validation (days clamped to [1,365], limit to [1,100]). `IS DISTINCT FROM` instead of `!=` for NULL safety.
-
-7. **Atomic batch quiz submission** (Decision 23): `batch_submit_quiz()` processes all answers + score + session completion in one Postgres transaction. Prevents orphaned answers from partial failures.
-
-8. **question_comments hard DELETE exception** (Decision 30): Comments have low audit value. Primary path is hard DELETE, not soft-delete. Documented in database.md soft-delete matrix, which also carries the other approved hard-DELETE exceptions: `quiz_drafts` (disposable temp storage) and `exam_config_distributions` (replaced atomically by `upsert_exam_config`).
-
-9. **GDPR erasure declined under EASA Part ORA** (Decision 33): Training records retained with full identity per Article 17(3)(b) exemption. Data export provided (self-service + admin). No deletion, no anonymisation.
-
-10. **Post-session correct answer feedback via dedicated RPC** (Decision 25): `get_report_correct_options()` returns only `(question_id, correct_option_id)` for completed sessions. TypeScript layer never touches raw `correct` boolean.
-
-11. **Server Action session ownership validation** (Decision 26): Four mandatory checks before operating on a quiz session: ownership (`student_id`), active (`ended_at IS NULL`), not discarded (`deleted_at IS NULL`), question membership (`config.question_ids`). `Array.isArray()` runtime guard required.
-
-12. **GDPR consent gate with version-based re-consent** (Decision 32): Append-only `user_consents` table. Cookie-based middleware check (no DB hit per request). Version bump in `lib/consent/versions.ts` triggers re-consent.
-
-13. **Red-team adversarial security testing** (Decision 27): 53 Playwright attack specs in `e2e/redteam/`. Separate CI workflow on security-sensitive paths. Red-team agent maps diffs to affected specs. OWASP coverage spans A01 access control, A02 security misconfiguration, A03 injection (SQL + XSS), A07 auth, A09 logging/monitoring, A10:2025 exceptional-condition handling.
-
-14. **Server-side pagination with server-side sort/filter** (Decision 34): All paginated lists use Supabase `.range()` with `{ count: 'exact' }`, URL-driven `?page=N&sort=field&dir=asc|desc`, and the shared `PaginationBar` component. Sorting and filtering MUST be server-side when combined with pagination — client-side sort on a paginated subset returns incorrect results. Page sizes: 10 for student-facing pages, 25 for admin pages. Out-of-range pages redirect to the last valid page. First established in admin questions (PR #463), now standardized app-wide.
+Decisions: `docs/decisions.md` (one line each).
 
 ## Known Limitations
 

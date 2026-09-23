@@ -4,10 +4,9 @@ Weekly self-review: analyse project health and audit the agent system.
 
 ## Part 1 — Project Health
 1. Run `git log --oneline --since="7 days ago"` — what was built this week
-2. Check open questions in `docs/decisions.md` — any resolved?
 
 ## Part 2 — Agent System Health
-3. Cross-reference agent health:
+2. Cross-reference agent health:
    - **Red-team**: list spec files in `apps/web/e2e/redteam/` vs mentions in `apps/web/e2e/redteam/attack-surface.md` — flag orphans and stale mappings
    - **Test-writer**: verify mock patterns still match codebase (Supabase client shape, auth helpers)
    - **Doc-updater**: confirm watched file list matches actual doc files in repo; note any unresolved steering drift
@@ -32,12 +31,12 @@ Weekly self-review: analyse project health and audit the agent system.
      READ every reason. Growth means the detector must be RE-NARROWED, never baselined.
    - **Plan-critic**: review recent plan validations — were plans challenged effectively? Any false positives or missed issues?
    - **Implementation-critic**: check its round-1 reports — is the round-1 branch-diff review catching plan deviations before push?
-4. **Spec workflow** — are specs up-to-date via spec-workflow MCP (`spec-status`)? Any steering drift unresolved? Flag stale or unapproved specs.
-5. **Delegation protocol** — review any logged subagent failures. Were they addressed? Any patterns in delegation breakdowns?
+3. **Spec workflow** — are specs up-to-date via spec-workflow MCP (`spec-status`)? Any steering drift unresolved? Flag stale or unapproved specs.
+4. **Delegation protocol** — review any logged subagent failures. Were they addressed? Any patterns in delegation breakdowns?
 
 ## Part 3 — Synthesis
-6. Update `MEMORY.md` — summarise insights, remove stale entries
-7. Suggest: any new rules to add, any patterns to codify, any tech debt to prioritise
+5. Update `MEMORY.md` — summarise insights, remove stale entries
+6. Suggest: any new rules to add, any patterns to codify, any tech debt to prioritise
 
 ## Output Format
 - 10-15 project health bullet points

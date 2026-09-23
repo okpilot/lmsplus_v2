@@ -2,7 +2,7 @@
 // Asserts .claude/pipeline.json against the repo it describes.
 // Adding a key to pipeline.json without an assertion here is the defect this file
 // removes; the closed-key checks below enforce that mechanically.
-// Why each check exists: docs/decisions.md Decision 62, and git log.
+// Why each check exists: git history of docs/decisions.md (Decision 62, #1268).
 //
 // Run:  node .claude/pipeline.test.mjs [root]
 import { execFileSync } from 'node:child_process'

@@ -291,7 +291,7 @@ test('extractRefs keeps a citation when unrelated scope@ref prose shares the lin
 
 // These three pin the paren rule's BOUNDARY — they are not an endorsement of the outcome.
 // `(see <sha>)` is a real citation idiom in this history, so the `[]` below is a KNOWN
-// UNCOVERED POSITION, listed as such in docs/decisions.md Decision 64, not correct behaviour
+// UNCOVERED POSITION, not correct behaviour
 // the guard is meant to preserve. Whoever closes that gap should expect these to change.
 test('extractRefs isolates the opening-paren boundary', () => {
   assert.deepEqual(extractRefs('Reworked the parser (see ab12cd34)'), [])

@@ -54,7 +54,7 @@ Closes #1222, #1232, #1231, #1164. One PR by user decision — all four touch
       **REVERTED**. Measured across the last 300 commits on master it would have fired ONCE (0.33%);
       204 of the 300 were `.md`-only, already covered by docs-only. **DO NOT REBUILD** — the full
       reasoning, including the three probed designs and the non-injective pre-order walk that was
-      still open at revert time, is `docs/decisions.md` Decision 58.
+      still open at revert time, is in the git history of `docs/decisions.md` (Decision 58, #1235).
 - [x] `#1232` — aggregate defer budget + issues-closed-vs-filed line in `fullpush.md` step 8 table
 - [x] `#1232` — reconcile `.claude/commands/coderabbit.md:83-87`, whose defer criteria already
       contradict `agent-workflow.md:397-405` today (pre-existing; found by this sweep)

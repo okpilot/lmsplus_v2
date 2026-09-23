@@ -7,8 +7,6 @@
     ".claude/hooks/review-gate.test.mjs@c12e4f8b911b6448": "/** Write a gate file inside dir/.claude/review-gate.json. */",
     ".coderabbit.yaml@8c19f0a9ecf7dc58": "# a docs/README.md would match too if one were ever added (none exists today). Reviewing",
     ".coderabbit.yaml@e3dd325cf4abef8b": "SECURITY DEFINER function must filter deleted_at IS NULL on any user/session/",
-    ".spec-workflow/steering/tech.md@56656cd91dc8465d": "- **Linting**: Biome is the sole linter (no ESLint; the former `packages/eslint-config/` placeholder was removed).",
-    "docs/decisions.md@acce9f225945d6a7": "**Context**: App-layer query code (`apps/web/lib/queries/**` + `apps/web/app/**` Server Actions — over 100 `.from()`/...",
-    "docs/decisions.md@b35fd51aac613102": "the spec owns. `.claude/agents/agent-tools.test.mjs` is DELETED — its access-control checks are a"
+    ".spec-workflow/steering/tech.md@56656cd91dc8465d": "- **Linting**: Biome is the sole linter (no ESLint; the former `packages/eslint-config/` placeholder was removed)."
   }
 }
