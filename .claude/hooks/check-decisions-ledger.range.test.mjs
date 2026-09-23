@@ -93,6 +93,21 @@ test('a range finding tells the author a merge cannot waive it', () =>
     )
   }))
 
+// GROUP: range-hint-merge-wrote
+test('a range finding names the non-merge remedy when the only merge left the line alone', () =>
+  withRepo((r) => {
+    startWork(r)
+    r.git('checkout', '-qb', 'topic')
+    readme(r)
+    r.git('checkout', '-q', 'work')
+    r.git('merge', '-q', '--no-ff', '-m', 'Merge topic into work', 'topic')
+    commit(r, ledgerNo14(), waive(14, 'fix: remove decision 14'))
+    // MUTATION: name the merge remedy whenever the range holds a merge → an unrelated merge
+    // sends the author to redo it.
+    commit(r, ledger('NEVER REVIEWED.'), 're-add 14')
+    assert.match(runBase(r, 'master').stderr, /\[range\][\s\S]*to the non-merge commit that made/)
+  }))
+
 // GROUP: range-repeats-commit-findings
 test('an unwaived edit on a branch with no merge is reported once, with the trailer hint', () =>
   withRepo((r) => {
@@ -293,14 +308,18 @@ test('an unwaived re-add of a line a waiver removed is blocked', () =>
     assert.equal(runBase(r, 'master').status, 1)
   }))
 
-// GROUP: range-hint-merges-ignored
+// GROUP: range-hint-merges-ignored, range-merge-writer-any-parent
 test('a range finding on a branch with no merge names the non-merge remedy', () =>
   withRepo((r) => {
     startWork(r)
     commit(r, ledgerNo14(), waive(14, 'fix: remove decision 14'))
     // MUTATION: give every range finding the merge hint → a merge-free branch is told to redo a
     // merge it does not have.
+    // MUTATION: count a merge whose line matches one parent's as its writer → GitHub's pull_request
+    // checkout, a merge of the branch into master, reads as the merge that made the edit.
     commit(r, ledger('NEVER REVIEWED.'), 're-add 14')
+    r.git('checkout', '-qb', 'pr-merge', 'master')
+    r.git('merge', '-q', '--no-ff', '-m', 'Merge work into master', 'work')
     const res = runBase(r, 'master')
     assert.match(res.stderr, /\[range\][\s\S]*add Ledger-edit-ok: 14 to the non-merge commit/)
     assert.doesNotMatch(res.stderr, /redo the merge/)

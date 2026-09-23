@@ -401,26 +401,27 @@ function readIndex(path) {
 
 // ---------------------------------------------------------------- reporting
 
-/** The remedy for a finding on `token`. A range finding names redoing a merge only when the
- *  range holds one (`merges`); its edit is otherwise a non-merge commit's to waive. */
-function hintFor(token, { label, merges }) {
+/** The remedy for a finding on `token`. A range finding names redoing a merge only when a merge
+ *  wrote the line (`merge`); its edit is otherwise a non-merge commit's to waive. */
+function hintFor(token, { label, merge }) {
   if (label !== 'range') {
     return `add to the commit message: Ledger-edit-ok: ${token} — <why this edit is safe>`
   }
-  if (!merges) {
-    return `restore this line, or add Ledger-edit-ok: ${token} to the non-merge commit that made the edit`
+  if (!merge) {
+    return `add Ledger-edit-ok: ${token} to the non-merge commit that made the edit`
   }
   return `a merge cannot waive: restore this line in a commit with Ledger-edit-ok: ${token}, or redo the merge without the edit and make it in a non-merge commit with Ledger-edit-ok: ${token}`
 }
 
-function reportUnit(label, offenders, { unusedWaivers = [], merges = false } = {}) {
+function reportUnit(label, offenders, { unusedWaivers = [], mergeWrote = () => false } = {}) {
   if (offenders.length > 0) {
     console.error(
       `✖ decisions-ledger guard (Decision 86): docs/decisions.md was edited outside the allowed shape${label ? ` [${label}]` : ''}\n`,
     )
     for (const o of offenders) {
       console.error(`  ${o.detail}`)
-      if (o.token !== null) console.error(`    → ${hintFor(o.token, { label, merges })}`)
+      if (o.token !== null)
+        console.error(`    → ${hintFor(o.token, { label, merge: mergeWrote(o.token) })}`)
     }
   }
   if (unusedWaivers.length > 0) {
@@ -513,6 +514,26 @@ function runBase(ref) {
 }
 
 /** The range unit over merge-base..HEAD; reports and returns whether it found offenders. */
+/** Whether a merge in `ref`..HEAD wrote `token`'s line: its text there matches no parent's. A merge
+ *  taking one side's line (GitHub's pull_request checkout, a merge of master) wrote nothing. */
+function mergeWriter(ref) {
+  const merges = git(['rev-list', '--merges', '--parents', `${ref}..HEAD`])
+    .toString('utf8')
+    .trim()
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => line.split(' '))
+  const texts = new Map()
+  const at = (sha) => {
+    if (!texts.has(sha)) texts.set(sha, readAtTree(sha, DECISIONS_PATH))
+    return texts.get(sha)
+  }
+  return (token) =>
+    merges.some(([m, ...parents]) =>
+      parents.every((p) => slotText(at(p), token) !== slotText(at(m), token)),
+    )
+}
+
 function runRange(ref, live, { lastTouched, reported }) {
   const mergeBase = git(['merge-base', ref, 'HEAD']).toString('utf8').trim()
   const newText = readAtTree('HEAD', DECISIONS_PATH)
@@ -524,16 +545,12 @@ function runRange(ref, live, { lastTouched, reported }) {
     gradeFormat: newText !== lastTouched,
   })
   // A per-commit unit that reported this token AND produced HEAD's text has the fix; skip it.
-  const merges =
-    git(['rev-list', '--merges', `${ref}..HEAD`])
-      .toString('utf8')
-      .trim() !== ''
   reportUnit(
     'range',
     offenders.filter(
       (o) => o.token === null || !reported.has(`${o.token}\n${slotText(newText, o.token)}`),
     ),
-    { merges },
+    { mergeWrote: mergeWriter(ref) },
   )
   return offenders.length > 0
 }

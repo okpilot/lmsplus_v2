@@ -45,7 +45,8 @@
         "a merge re-editing a line a commit already broke is still reported as a merge edit",
         "an unwaived re-add of a line a waiver removed is blocked",
         "a later commit marking a text a merge stripped of a base marker is blocked",
-        "a range finding on a branch with no merge names the non-merge remedy"
+        "a range finding on a branch with no merge names the non-merge remedy",
+        "a range finding names the non-merge remedy when the only merge left the line alone"
       ]
     },
     {
@@ -66,7 +67,8 @@
         "a waived header edit does not clear a merge that rewrites the header again",
         "an unwaived re-add of a line a waiver removed is blocked",
         "a later commit marking a text a merge stripped of a base marker is blocked",
-        "a range finding on a branch with no merge names the non-merge remedy"
+        "a range finding on a branch with no merge names the non-merge remedy",
+        "a range finding names the non-merge remedy when the only merge left the line alone"
       ]
     },
     {
@@ -143,8 +145,26 @@
     },
     {
       "id": "range-hint-merges-ignored",
-      "find": "  if (!merges) {",
+      "find": "  if (!merge) {",
       "replace": "  if (false) {",
+      "expectRed": [
+        "a range finding on a branch with no merge names the non-merge remedy",
+        "a range finding names the non-merge remedy when the only merge left the line alone"
+      ]
+    },
+    {
+      "id": "range-hint-merge-wrote",
+      "find": "{ mergeWrote: mergeWriter(ref) }",
+      "replace": "{ mergeWrote: () => true }",
+      "expectRed": [
+        "a range finding names the non-merge remedy when the only merge left the line alone",
+        "a range finding on a branch with no merge names the non-merge remedy"
+      ]
+    },
+    {
+      "id": "range-merge-writer-any-parent",
+      "find": "      parents.every((p) => slotText",
+      "replace": "      parents.some((p) => slotText",
       "expectRed": ["a range finding on a branch with no merge names the non-merge remedy"]
     },
     {
@@ -154,7 +174,8 @@
       "expectRed": [
         "a merge re-editing a line a commit already broke is still reported as a merge edit",
         "a range finding tells the author a merge cannot waive it",
-        "a range finding on a branch with no merge names the non-merge remedy"
+        "a range finding on a branch with no merge names the non-merge remedy",
+        "a range finding names the non-merge remedy when the only merge left the line alone"
       ]
     },
     {
@@ -204,7 +225,8 @@
       "replace": "",
       "expectRed": [
         "an unwaived re-add of a line a waiver removed is blocked",
-        "a range finding on a branch with no merge names the non-merge remedy"
+        "a range finding on a branch with no merge names the non-merge remedy",
+        "a range finding names the non-merge remedy when the only merge left the line alone"
       ]
     },
     {
@@ -377,7 +399,8 @@
         "a waived edit that later gains an appended marker passes on a linear branch",
         "a merge dropping a marker the branch added after a waived edit passes",
         "a merge reinstating a superseded waived text is blocked",
-        "a range finding on a branch with no merge names the non-merge remedy"
+        "a range finding on a branch with no merge names the non-merge remedy",
+        "a range finding names the non-merge remedy when the only merge left the line alone"
       ]
     },
     {
@@ -601,7 +624,8 @@
         "a Ledger-edit-ok trailer for one token does not waive a finding on a different token",
         "a marker appended after a merge edit does not adopt the merge text",
         "an unwaived re-add of a line a waiver removed is blocked",
-        "a range finding on a branch with no merge names the non-merge remedy"
+        "a range finding on a branch with no merge names the non-merge remedy",
+        "a range finding names the non-merge remedy when the only merge left the line alone"
       ]
     },
     {
