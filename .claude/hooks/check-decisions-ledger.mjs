@@ -31,9 +31,17 @@
 // ABSENT, a non-zero exit is a FAULT and propagates to exit 2. `git cat-file -e` is never used
 // here: it exits 128 for both, so a probe built on it fails open (reference-git-probe-absent-vs-fault).
 //
-// `Ledger-edit-ok:` is read only from a message's last paragraph, column 0, comments dropped
-// (see trailerBlock). Under `git commit --amend`, commit-msg mode's HEAD is the commit being
-// amended — an edit already there reads as unchanged; waive it the same way.
+// `Ledger-edit-ok:` is read only from a message's last paragraph, column 0, comments dropped,
+// message truncated at a `git commit -v` scissors line first (see trailerBlock). Under
+// `git commit --amend`, commit-msg mode's HEAD is the commit being amended — an edit already
+// there reads as unchanged; waive it the same way.
+//
+// commit-msg mode during a merge (MERGE_HEAD present): a finding blocks only if it holds
+// against BOTH HEAD and MERGE_HEAD — an edit already accepted on the incoming side passes.
+//
+// --base mode's range unit (catches an edit only a merge commit's own tree carries) is waived
+// by (a) waivers a per-commit unit actually APPLIED to a real finding, plus (b) a merge
+// commit's own trailer — never by an unused per-commit waiver (see runBaseMode).
 
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
@@ -51,6 +59,10 @@ const ENTRY_RE = /^## (\d+) — (\d{4}-\d{2}-\d{2}) — (.+)$/
 const MARKER_ONE_RE = / (Superseded|Amended) by (\d+(?:, \d+)*)\.$/
 
 const TRAILER_RE = /^Ledger-edit-ok:\s*(\S+)\s*[—:-]\s*(.+?)\s*$/
+
+// `git commit -v` / core.commentChar default: everything from this line on is the diff git
+// appended for editing convenience, never part of the message.
+const SCISSORS_RE = /^\S -{24} >8 -{24}$/
 
 /** Reasons that assert nothing. Copied from check-retracted-phrase.mjs's EMPTY_REASONS. */
 const EMPTY_REASONS = new Set([
@@ -196,9 +208,13 @@ export function checkImmutability(oldLedger, newLedger) {
   return offenders
 }
 
-/** A message's trailer paragraph: `#`-comments dropped, then lines after the last blank line. */
-export function trailerBlock(message) {
-  const raw = message.split('\n').filter((line) => !line.startsWith('#'))
+/** A message's trailer paragraph: truncated at a `-v` scissors line, `#`-comments dropped,
+ *  then lines after the last blank line. */
+function trailerBlock(message) {
+  const lines = message.split('\n')
+  const cut = lines.findIndex((line) => SCISSORS_RE.test(line))
+  const scoped = cut === -1 ? lines : lines.slice(0, cut)
+  const raw = scoped.filter((line) => !line.startsWith('#'))
   while (raw.length > 0 && raw[raw.length - 1] === '') raw.pop()
   let lastBlank = -1
   for (let i = 0; i < raw.length; i++) {
@@ -230,8 +246,12 @@ export function parseWaivers(message) {
   return { waivers, problems }
 }
 
-/** F1/F2 (always) plus I1-I3 (only when OLD is present) findings, before waivers are applied. */
-function collectFindings(oldText, newLedger) {
+/**
+ * F1/F2 (always) plus I1-I3 vs `oldText` (when present). `oldTextAlt`, when given, is a
+ * SECOND old version (MERGE_HEAD) — an I1-I3 finding is kept only if it ALSO holds against
+ * `oldTextAlt`, so an edit already accepted on either side of a merge passes.
+ */
+function collectFindings(oldText, newLedger, oldTextAlt) {
   const findings = [
     ...checkFormat(newLedger.entries).map((raw) => ({
       token: null,
@@ -244,46 +264,56 @@ function collectFindings(oldText, newLedger) {
       detail,
     })),
   ]
-  if (oldText !== null) findings.push(...checkImmutability(parseLedger(oldText), newLedger))
-  return findings
+  if (oldText === null) return findings
+  const primary = checkImmutability(parseLedger(oldText), newLedger)
+  if (oldTextAlt == null) return [...findings, ...primary]
+  const altTokens = new Set(
+    checkImmutability(parseLedger(oldTextAlt), newLedger).map((o) => o.token),
+  )
+  return [...findings, ...primary.filter((o) => altTokens.has(o.token))]
 }
 
-/** Drop every finding whose token is waived; a waiver matching nothing surfaces separately. */
+/** Drop every finding whose token is waived; a waiver matching nothing surfaces separately.
+ *  `applied` is the waivers that actually cleared a finding — never the full waiver set. */
 function applyWaivers(findings, waivers) {
-  const applied = new Set()
+  const applied = new Map()
   const offenders = []
   for (const f of findings) {
     if (f.token !== null && waivers.has(f.token)) {
-      applied.add(f.token)
+      applied.set(f.token, waivers.get(f.token))
       continue
     }
     offenders.push(f)
   }
   const unusedWaivers = [...waivers.keys()].filter((t) => !applied.has(t))
-  return { offenders, unusedWaivers }
+  return { offenders, unusedWaivers, applied }
 }
 
 /**
  * One unit's worth of work: `oldText`/`newText` are ledger content or `null` (absent),
- * `message` is the commit message whose trailers waive per-token immutability findings.
+ * `message` is the commit message whose trailers waive per-token immutability findings — or
+ * pass a prebuilt `waivers` Map to skip parsing `message` (the range unit's own pool).
  * Pure — no git, no fs — so every branch is covered by check-decisions-ledger.test.mjs.
  */
-export function checkUnit({ oldText, newText, message }) {
-  const { waivers, problems } = parseWaivers(message)
-  if (problems.length > 0) return { problems, offenders: [], unusedWaivers: [] }
+export function checkUnit({ oldText, newText, message, waivers: prebuilt, oldTextAlt }) {
+  const { waivers, problems } = prebuilt
+    ? { waivers: prebuilt, problems: [] }
+    : parseWaivers(message)
+  if (problems.length > 0) return { problems, offenders: [], unusedWaivers: [], applied: new Map() }
 
   if (newText === null) {
-    if (oldText === null) return { problems: [], offenders: [], unusedWaivers: [] }
+    if (oldText === null)
+      return { problems: [], offenders: [], unusedWaivers: [], applied: new Map() }
     return {
       problems: [],
       offenders: [{ token: null, kind: 'deleted', detail: 'docs/decisions.md deleted' }],
       unusedWaivers: [],
+      applied: new Map(),
     }
   }
 
-  const findings = collectFindings(oldText, parseLedger(newText))
-  const { offenders, unusedWaivers } = applyWaivers(findings, waivers)
-  return { problems: [], offenders, unusedWaivers }
+  const findings = collectFindings(oldText, parseLedger(newText), oldTextAlt)
+  return { problems: [], ...applyWaivers(findings, waivers) }
 }
 
 // ---------------------------------------------------------------- git-facing reads
@@ -337,81 +367,112 @@ function reportUnit(label, offenders, unusedWaivers) {
   }
 }
 
-/** OLD = merge-base(ref, HEAD), NEW = HEAD, message = every commit's own trailerBlock joined —
- *  catches an edit only a merge commit's own tree carries. A failed merge-base throws (exit 2). */
+function reportProblems(problems) {
+  console.error('✖ decisions-ledger guard: unusable Ledger-edit-ok trailer\n')
+  for (const p of problems) console.error(`  ${p}`)
+  return 1
+}
+
+/** OLD = merge-base(ref, HEAD), NEW = HEAD — catches an edit only a merge commit's own tree
+ *  carries. Waivers are the caller's prebuilt pool (see runBaseMode), not this unit's own
+ *  message. A failed merge-base throws (exit 2). */
 function rangeUnit(ref) {
   const mergeBase = git(['merge-base', ref, 'HEAD']).toString('utf8').trim()
-  const shas = git(['rev-list', '--reverse', `${ref}..HEAD`])
-    .toString('latin1')
-    .split('\n')
-    .filter(Boolean)
-  const message = shas
-    .map((sha) => trailerBlock(git(['log', '-1', '--format=%B', sha]).toString('utf8')).join('\n'))
-    .join('\n')
   return {
     oldText: readAtTree(mergeBase, DECISIONS_PATH),
     newText: readAtTree('HEAD', DECISIONS_PATH),
-    message,
     label: `range ${mergeBase}..HEAD`,
   }
 }
 
-/** Per-commit units (--no-merges — a `pull_request` merge commit carries no waiver trailer of
- *  its own) plus the one range unit that reads a merge commit's OWN tree. */
+/** Every MERGE commit's own trailer block, unioned into one waiver pool. A malformed reason
+ *  on any of them surfaces as `problems`, same as a per-commit unit's own. */
+function mergeOwnWaivers(ref) {
+  const shas = git(['rev-list', '--reverse', '--merges', `${ref}..HEAD`])
+    .toString('latin1')
+    .split('\n')
+    .filter(Boolean)
+  const pool = new Map()
+  const problems = []
+  for (const sha of shas) {
+    const parsed = parseWaivers(git(['log', '-1', '--format=%B', sha]).toString('utf8'))
+    problems.push(...parsed.problems)
+    for (const [token, reason] of parsed.waivers) pool.set(token, reason)
+  }
+  return { pool, problems }
+}
+
+/** Per-commit units (--no-merges — a merge commit's OWN trailer is read separately, by
+ *  mergeOwnWaivers, and scoped to the range unit only). */
 function baseUnits(ref) {
   const shas = git(['rev-list', '--reverse', '--no-merges', `${ref}..HEAD`])
     .toString('latin1')
     .split('\n')
     .filter(Boolean)
-  const perCommit = shas.map((sha) => ({
+  return shas.map((sha) => ({
     oldText: readAtTree(`${sha}^`, DECISIONS_PATH),
     newText: readAtTree(sha, DECISIONS_PATH),
     message: git(['log', '-1', '--format=%B', sha]).toString('utf8'),
     label: sha,
   }))
-  return [...perCommit, rangeUnit(ref)]
 }
 
-/** The single commit-msg-mode unit: staged INDEX vs HEAD, waived by the message file itself. */
+/** The single commit-msg-mode unit: staged INDEX vs HEAD, waived by the message file itself.
+ *  Mid-merge (MERGE_HEAD resolves), a finding is also checked against MERGE_HEAD (§ header). */
 function commitMsgUnit(path) {
+  const merging = refExists('MERGE_HEAD')
   return {
     oldText: readAtTree('HEAD', DECISIONS_PATH),
+    oldTextAlt: merging ? readAtTree('MERGE_HEAD', DECISIONS_PATH) : undefined,
     newText: readIndex(DECISIONS_PATH),
     message: readFileSync(path, 'utf8'),
     label: null,
   }
 }
 
+/** Run every unit, reporting each; collect the waivers each unit actually APPLIED (never an
+ *  unused one) into `pool`, for a caller building a wider unit's waiver pool from them. */
 function runUnits(units) {
   let blocked = false
+  const pool = new Map()
   for (const unit of units) {
     const res = checkUnit(unit)
-    if (res.problems.length > 0) {
-      console.error('✖ decisions-ledger guard: unusable Ledger-edit-ok trailer\n')
-      for (const p of res.problems) console.error(`  ${p}`)
-      return 1
-    }
+    if (res.problems.length > 0) return { code: reportProblems(res.problems), pool, stopped: true }
     if (res.offenders.length > 0) blocked = true
     reportUnit(unit.label, res.offenders, res.unusedWaivers)
+    for (const [token, reason] of res.applied) pool.set(token, reason)
   }
-  return blocked ? 1 : 0
+  return { code: blocked ? 1 : 0, pool, stopped: false }
+}
+
+/** --base mode: per-commit units first; the range unit's pool = per-commit APPLIED waivers
+ *  union each merge commit's OWN trailer — never an unused per-commit waiver (§ header). */
+function runBaseMode(ref) {
+  const perCommit = runUnits(baseUnits(ref))
+  if (perCommit.stopped) return perCommit.code
+  const merge = mergeOwnWaivers(ref)
+  if (merge.problems.length > 0) return reportProblems(merge.problems)
+  const pool = new Map([...perCommit.pool, ...merge.pool])
+  const range = rangeUnit(ref)
+  const res = checkUnit({ ...range, waivers: pool })
+  if (res.problems.length > 0) return reportProblems(res.problems)
+  reportUnit(range.label, res.offenders, res.unusedWaivers)
+  return perCommit.code === 1 || res.offenders.length > 0 ? 1 : 0
 }
 
 export function main(args) {
-  let units
   if (args[0] === '--base') {
     if (!args[1]) {
       console.error('✖ decisions-ledger guard: --base requires a ref')
       return 2
     }
-    units = baseUnits(args[1])
+    return runBaseMode(args[1])
   } else if (args.length === 1 && !args[0].startsWith('--')) {
-    units = [commitMsgUnit(args[0])]
+    return runUnits([commitMsgUnit(args[0])]).code
   } else {
     console.error('✖ decisions-ledger guard: usage: <commit-msg-file> | --base <ref>')
     return 2
   }
-  return runUnits(units)
 }
 
 if (argv[1] && import.meta.url === pathToFileURL(argv[1]).href) {

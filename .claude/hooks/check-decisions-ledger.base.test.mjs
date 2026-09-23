@@ -71,7 +71,7 @@ test('--base is clean across a range of commits that never touch decisions.md af
   }))
 
 // CONTROL: red
-// GROUP: check-decisions-ledger-always-passes, range-unit-not-added
+// GROUP: check-decisions-ledger-always-passes
 test('a conflict-resolved --no-ff merge that rewrites an existing entry is caught by the range unit', () =>
   withRepo((r) => {
     r.write('docs/decisions.md', LEDGER_V1)
@@ -112,7 +112,7 @@ test('a conflict-resolved --no-ff merge that rewrites an existing entry is caugh
     assert.match(res.stderr, /## 14 — body edited/)
   }))
 
-// GROUP: range-unit-message-not-concatenated
+// GROUP: range-pool-excludes-per-commit-applied
 test('a waived per-commit edit still passes the range unit', () =>
   withRepo((r) => {
     r.write('docs/decisions.md', LEDGER_V1)
@@ -125,14 +125,14 @@ test('a waived per-commit edit still passes the range unit', () =>
       '# Decisions\n\n> rule text\n\n## 14 — 2026-03-11 — first decision, EDITED.\n## 15 — 2026-03-11 — second decision.\n',
     )
     r.git('add', '-A')
-    // MUTATION: drop the concatenated range-unit message down to '' → the waiver this commit
-    // carries no longer reaches the range unit's own check, and the net edit blocks.
+    // MUTATION: drop the per-commit APPLIED pool from the range unit's own → the waiver this
+    // commit applied to its own edit no longer reaches the range unit, and it blocks.
     r.git('commit', '-qm', `fix: reword decision 14\n\nLedger-edit-ok: 14 — ${GOOD_REASON}`)
     const res = runBase(r, 'master')
     assert.equal(res.status, 0)
   }))
 
-// GROUP: range-unit-message-plain-join
+// GROUP: range-pool-excludes-per-commit-applied
 test('a waiver in a non-last commit of the range still waives its own edit', () =>
   withRepo((r) => {
     r.write('docs/decisions.md', LEDGER_V1)
@@ -152,8 +152,89 @@ test('a waiver in a non-last commit of the range still waives its own edit', () 
       '# Decisions\n\n> rule text\n\n## 14 — 2026-03-11 — first decision, EDITED.\n## 15 — 2026-03-11 — second decision.\n## 16 — 2026-03-12 — a new decision.\n',
     )
     r.git('add', '-A')
-    // MUTATION: plain message join → only the LAST commit's trailer survives.
     r.git('commit', '-qm', 'chore: append decision 16')
+    const res = runBase(r, 'master')
+    assert.equal(res.status, 0)
+  }))
+
+// GROUP: applied-waivers-not-filtered
+test('an unapplied waiver on an empty commit does not waive an unrelated merge-commit edit', () =>
+  withRepo((r) => {
+    r.write('docs/decisions.md', LEDGER_V1)
+    r.write('README.md', 'base\n')
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'init')
+    r.git('branch', '-m', 'master')
+    r.git('checkout', '-qb', 'empty-waiver')
+    r.write('README.md', 'unrelated\n')
+    r.git('add', '-A')
+    // MUTATION: let `applied` include every parsed waiver, not just ones that cleared a
+    // finding → this commit's waiver (which cleared NOTHING here) still reaches the range pool.
+    r.git('commit', '-qm', `chore: unrelated\n\nLedger-edit-ok: 14 — ${GOOD_REASON}`)
+    r.git('checkout', '-q', 'master')
+    r.git('checkout', '-qb', 'right')
+    r.write('README.md', 'right change\n')
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'right readme change')
+    r.git('checkout', '-q', 'master')
+    r.git('checkout', '-qb', 'work')
+    r.git('merge', '-q', '--no-ff', 'empty-waiver', '-m', 'merge empty-waiver')
+    let conflicted = false
+    try {
+      r.git('merge', '--no-ff', 'right', '-m', 'merge right')
+    } catch {
+      conflicted = true
+    }
+    assert.equal(conflicted, true)
+    r.write('README.md', 'resolved\n')
+    r.write(
+      'docs/decisions.md',
+      '# Decisions\n\n> rule text\n\n## 14 — 2026-03-11 — first decision, REWRITTEN DURING MERGE.\n## 15 — 2026-03-11 — second decision.\n',
+    )
+    r.git('add', '-A')
+    // The merge commit itself carries no waiver of its own.
+    r.git('commit', '-qm', 'merge right (resolved)')
+    const res = runBase(r, 'master')
+    assert.equal(res.status, 1)
+    assert.match(res.stderr, /## 14 — body edited/)
+  }))
+
+// GROUP: range-pool-excludes-merge-own
+test('a merge commit carrying its own waiver for its own resolution edit passes the range unit', () =>
+  withRepo((r) => {
+    r.write('docs/decisions.md', LEDGER_V1)
+    r.write('README.md', 'base\n')
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'init')
+    r.git('branch', '-m', 'master')
+    r.git('checkout', '-qb', 'left')
+    r.write('README.md', 'left change\n')
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'left readme change')
+    r.git('checkout', '-q', 'master')
+    r.git('checkout', '-qb', 'right')
+    r.write('README.md', 'right change\n')
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'right readme change')
+    r.git('checkout', '-q', 'master')
+    r.git('checkout', '-qb', 'work')
+    r.git('merge', '-q', '--no-ff', 'left', '-m', 'merge left')
+    let conflicted = false
+    try {
+      r.git('merge', '--no-ff', 'right', '-m', 'merge right')
+    } catch {
+      conflicted = true
+    }
+    assert.equal(conflicted, true)
+    r.write('README.md', 'resolved\n')
+    r.write(
+      'docs/decisions.md',
+      '# Decisions\n\n> rule text\n\n## 14 — 2026-03-11 — first decision, REWRITTEN DURING MERGE.\n## 15 — 2026-03-11 — second decision.\n',
+    )
+    r.git('add', '-A')
+    // MUTATION: drop the merge commit's own trailer from the range pool → this waiver never
+    // reaches the range unit, and the edit blocks despite being explicitly waived.
+    r.git('commit', '-qm', `merge right (resolved)\n\nLedger-edit-ok: 14 — ${GOOD_REASON}`)
     const res = runBase(r, 'master')
     assert.equal(res.status, 0)
   }))

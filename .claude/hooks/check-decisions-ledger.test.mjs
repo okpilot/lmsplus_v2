@@ -285,11 +285,29 @@ test('a trailing git commit-template comment block does not hide the trailer par
   assert.equal(waivers.get('14'), GOOD_REASON)
 })
 
+// GROUP: scissors-not-truncated
+test('a git commit -v scissors line drops the diff below it before scanning for the trailer', () => {
+  // MUTATION: skip truncating at the scissors line → the diff lines below it (no '#' prefix)
+  // become the "last paragraph" instead of the real trailer above the scissors.
+  const message = [
+    'fix: reword decision 14',
+    '',
+    `Ledger-edit-ok: 14 — ${GOOD_REASON}`,
+    '',
+    '# ------------------------ >8 ------------------------',
+    '# Do not modify or remove the line above.',
+    'diff --git a/docs/decisions.md b/docs/decisions.md',
+    '+## 14 — 2026-03-11 — first decision, EDITED.',
+  ].join('\n')
+  const { waivers } = parseWaivers(message)
+  assert.equal(waivers.get('14'), GOOD_REASON)
+})
+
 // ---------------------------------------------------------------- checkUnit (integration of the pure pieces)
 
 test('both OLD and NEW absent is a clean run', () => {
   const res = checkUnit({ oldText: null, newText: null, message: 'chore: unrelated\n' })
-  assert.deepEqual(res, { problems: [], offenders: [], unusedWaivers: [] })
+  assert.deepEqual(res, { problems: [], offenders: [], unusedWaivers: [], applied: new Map() })
 })
 
 // GROUP: check-decisions-ledger-always-passes
@@ -380,7 +398,7 @@ test('appending a new line with no edits to existing lines is clean', () => {
     newText: '# Decisions\n\n## 14 — 2026-03-11 — first.\n## 15 — 2026-03-12 — a new one.\n',
     message: 'chore: append decision 15\n',
   })
-  assert.deepEqual(res, { problems: [], offenders: [], unusedWaivers: [] })
+  assert.deepEqual(res, { problems: [], offenders: [], unusedWaivers: [], applied: new Map() })
 })
 
 test('appending a marker to an existing line with no other edit is clean', () => {
@@ -390,7 +408,7 @@ test('appending a marker to an existing line with no other edit is clean', () =>
       '# Decisions\n\n## 14 — 2026-03-11 — first.\n## 15 — 2026-03-11 — second. Superseded by 16.\n## 16 — 2026-03-12 — third.\n',
     message: 'chore: decision 16 supersedes 15\n',
   })
-  assert.deepEqual(res, { problems: [], offenders: [], unusedWaivers: [] })
+  assert.deepEqual(res, { problems: [], offenders: [], unusedWaivers: [], applied: new Map() })
 })
 
 // GROUP: header-token-not-waivable
