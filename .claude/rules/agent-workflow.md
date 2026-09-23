@@ -38,7 +38,7 @@ Answers feed the plan draft (and the spec's requirements section, if one exists)
 | **Pattern scan** | How similar code is written elsewhere in the repo | Explore agents: find 2-3 similar files | Your approach diverges from established patterns |
 | **Sibling file audit** | When updating a function that provisions users, seeds fixtures, or manages test records, find ALL functions with the same semantic purpose (e.g., all `ensure*User` helpers, all seed functions) and update them together | Grep for function name patterns, check all helper files | A sibling function is missed and breaks at runtime |
 | **Gitignore placement** | Every NEW file under a root-level dir — confirm it is not silently ignored before choosing its path | Run `git check-ignore <path>` on each new file path | The path is ignored (exit 0). Root `/scripts/` is gitignored — put CI workflow helper scripts in `.github/scripts/`, dev hooks in `.claude/hooks/`, app/eval/seed scripts in `apps/web/scripts/` (note `apps/web/scripts/probe-*.py` is also ignored) |
-| **Doc/schema check** | docs/database.md, docs/decisions.md, docs/plan.md | Read relevant doc sections | A doc table/matrix will become inaccurate |
+| **Doc/schema check** | docs/database.md, docs/decisions.md | Read relevant doc sections | A doc table/matrix will become inaccurate |
 | **Security surface** | Auth checks, RLS policies, answer exposure, input validation | Read docs/security.md + check against plan | Change touches security boundary without matching rules |
 ### Plan output format:
 ```
@@ -82,7 +82,7 @@ Bug fixes, single-file refactors, changes touching fewer than 3 files — unless
 ### Spec lifecycle
 1. **Created** during planning — requirements, approach, file list.
 2. **Updated** during implementation — deviations, decisions, task progress.
-3. **Committed** with the feature branch — lives in `.spec-workflow/specs/<name>/`.
+3. **Untracked** — `.spec-workflow/specs/<name>/` is gitignored. Specs tracked before 2026-09-23 stay tracked (a `!` line each in `.gitignore`) until their work lands, then are deleted with their `!` line.
 4. **Session resume context** — the spec is the restart starting point, not chat history.
 ### Spec-as-context rule
 When a spec exists, the orchestrator references it — not chat history — as the source of truth.
@@ -90,6 +90,8 @@ When a spec exists, the orchestrator references it — not chat history — as t
 After a spec reaches "approved", material changes to the approach require updating the spec first.
 ### MCP fallback
 If the spec-workflow MCP is unavailable, write spec files manually to `.spec-workflow/specs/<name>/`, copying an existing spec's structure.
+### Working notes
+Plans, task lists, handovers, triage and eval notes go in `.work/` (gitignored). Untracked files exist only in the main checkout: pass their content inline to an isolated-worktree agent, and never cite their path from a tracked file.
 ### DO
 - Create a spec for any feature spanning 3+ files or introducing a new pattern.
 ### NEVER
@@ -292,7 +294,7 @@ A commit modifying a rule in `.claude/rules/*.md` or `CLAUDE.md` must update eve
 | `.claude/agents/*.md` | `security-auditor.md` is the BLOCKING pre-push gate |
 | `.claude/commands/*.md` | slash commands restate gate lists |
 | `.claude/skills/**/*.md` (recursive) | loaded as write-time guidance; enumerate at sweep time with `find .claude/skills -name '*.md'` |
-| `.spec-workflow/specs/**` — ACTIVE specs only | `§ Spec-as-context rule` makes an approved spec the source of truth over chat history, so a cap restated in one that still has open tasks is a live mirror. A spec whose tasks are all `[x]` is a historical record — leave it |
+| `.spec-workflow/specs/**` — TRACKED specs with open tasks only (`git ls-files .spec-workflow/specs`) | `§ Spec-as-context rule` makes an approved spec the source of truth over chat history, so a cap restated in one that still has open tasks is a live mirror. A spec whose tasks are all `[x]` is a historical record — leave it |
 | `.spec-workflow/steering/**` | ALWAYS live — steering docs are re-read at planning time and are never superseded the way a completed spec is. `structure.md` and `tech.md` restate layout and stack mechanics, and both went stale in this very slice |
 | `.claude/hooks/*.sh` | **executable mirrors** — `run-security-auditor.sh` pins the auditor's `--model` sonnet literal, a restatement of the `agent-critic.md` model-tier rule that `.claude/pipeline.json` `modelLiteralSites` asserts. Not `.md`, so doc-shaped greps miss them |
 | `package.json` | the artifact `CLAUDE.md`'s `pnpm.overrides` paragraph asserts about |

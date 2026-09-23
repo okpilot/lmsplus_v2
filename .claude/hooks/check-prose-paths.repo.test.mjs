@@ -227,6 +227,22 @@ test('ignores a gitignored artifact', () =>
     assert.equal(run(r).status, 0)
   }))
 
+const NOTES = ['.spec-workflow/specs/gone/tasks.md', '.work/notes.md', 'docs/HANDOVER.md']
+
+// GROUP: untracked-notes-exempted, handover-not-a-note, untracked-note-resolves-on-disk, new-findings-never-block, check-prose-paths-always-passes
+test('blocks a citation into a gitignored notes tree, even of a note on local disk', () =>
+  withRepo((r) => {
+    r.write('.gitignore', '.work/\n.spec-workflow/specs/*\nHANDOVER.md\n')
+    r.write('.work/notes.md', 'local only\n')
+    r.write('docs/a.md', `intro\nsee ${NOTES.join('\nsee ')}\n`)
+    r.git('add', '-A')
+    // MUTATION: drop inNoteTree from classify or resolves, or its HANDOVER.md clause → a note
+    // citation passes. One citation per line: a finding echoes its line.
+    const res = run(r)
+    assert.equal(res.status, 1)
+    for (const p of NOTES) assert.ok(res.stderr.includes(p), p)
+  }))
+
 // ---------------------------------------------------------------- fail closed
 
 test('exits 2, not 1, when the baseline cannot be read at all', () =>

@@ -74,7 +74,6 @@ lmsplusv2/                          # Monorepo root (Turborepo + pnpm)
 │   └── migrations/                 # Forward-only SQL migrations (timestamped)
 │
 ├── docs/                           # Project documentation
-│   ├── plan.md                     # Build plan, current phase
 │   ├── decisions.md                # Architecture decision ledger
 │   ├── database.md                 # Full schema + RPC reference
 │   └── security.md                 # Binding security rules
@@ -84,9 +83,11 @@ lmsplusv2/                          # Monorepo root (Turborepo + pnpm)
 │   ├── rules/                      # Binding rules (code-style, security, workflow)
 │   └── commands/                   # Custom slash commands
 │
+├── .work/                          # Gitignored working notes (plans, handovers, triage)
+│
 ├── .spec-workflow/                 # Spec-driven development artifacts
 │   ├── steering/                   # Steering documents (this file)
-│   ├── specs/                      # Feature specifications
+│   ├── specs/                      # Feature specifications (new ones gitignored)
 │   ├── approvals/                  # Approval records
 │   ├── templates/                  # Document templates
 │   └── user-templates/             # User-customized templates

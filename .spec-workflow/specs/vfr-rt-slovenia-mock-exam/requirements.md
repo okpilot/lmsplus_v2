@@ -16,7 +16,7 @@ This is v1: just the mock-exam feature. Course-model refactor and per-part pract
 
 ## Alignment with Product Vision
 
-`docs/plan.md` Phase 4 lists "additional licence-specific exam modes" as a downstream goal. The existing `mock_exam` and `internal_exam` modes both prove the timed-exam shape (timer, frozen question IDs in `quiz_sessions.config.question_ids`, per-mode RPC, completion report). VFR RT is the first mode that needs **non-multiple-choice question types** and **per-part scoring**, so the work serves a dual purpose: ship one product (VFR RT for VictorOne) and unlock future Slovenia-, EASA-, and country-specific exam modes that require similar shapes (e.g., DGAC FCL.055 French RT, UK CAA RT exam).
+The existing `mock_exam` and `internal_exam` modes both prove the timed-exam shape (timer, frozen question IDs in `quiz_sessions.config.question_ids`, per-mode RPC, completion report). VFR RT is the first mode that needs **non-multiple-choice question types** and **per-part scoring**, so the work serves a dual purpose: ship one product (VFR RT for VictorOne) and unlock future Slovenia-, EASA-, and country-specific exam modes that require similar shapes (e.g., DGAC FCL.055 French RT, UK CAA RT exam).
 
 Steering doc `product.md` lists "in-house mock exam fidelity" as a foundational pillar of the EASA training pipeline — every published exam mode must match the rules of the real exam exactly so that practice scores predict real-exam outcomes. The 30-min / per-part-75% / closed-acronym-list / per-blank-mean rules below are not parameters to tune — they are contract-bound to the briefing package.
 

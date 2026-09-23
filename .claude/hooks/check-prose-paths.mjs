@@ -72,7 +72,8 @@
 //     that went missing. Example, in the TypeScript npm package:
 //     `lib/typescript.js` // prose-path-ok: this bound IS a path that does not resolve HERE; it resolves inside a dependency this guard cannot see
 //   - a token that resolves only because an UNTRACKED file of that name happens to sit in the
-//     worktree passes. Resolution is "on disk", and that is deliberately the weaker test.
+//     worktree passes, outside the note trees (`inNoteTree`). Resolution is "on disk", and that
+//     is deliberately the weaker test.
 // It reduces the class; it does not close it.
 
 import { execFileSync } from 'node:child_process'
@@ -106,6 +107,15 @@ const KNOWN_FLAGS = new Set(['--all', '--update-baseline'])
  * guard needs no `completedSpecDirs` pass at all.
  */
 const SPEC_PREFIX = '.spec-workflow/specs/'
+
+/**
+ * Gitignored NOTES, not artifacts — the notes entries of `.gitignore`, which cannot itself tell a
+ * note from a build output. A citation of one must resolve to a TRACKED file: an untracked note
+ * exists only in the author's checkout, so citing it is dead everywhere else.
+ */
+const UNTRACKED_NOTE_PREFIXES = [SPEC_PREFIX, '.work/']
+const inNoteTree = (t) =>
+  UNTRACKED_NOTE_PREFIXES.some((p) => t.startsWith(p)) || t.split('/').at(-1) === 'HANDOVER.md'
 
 /**
  * `.json` has no comment syntax, so it has no prose lines — the same reason
@@ -234,6 +244,7 @@ export function resolves(tok, index) {
   // never reaches the report; there is no claim here to grade.
   if (!t) return true
   if (index.trackedSet.has(t) || index.dirSet.has(t)) return true
+  if (inNoteTree(t)) return false
   return existsSync(t)
 }
 
@@ -279,7 +290,7 @@ export function classify(tok, line, index, isIgnored) {
   if (t.startsWith('node_modules/') || t.includes('/node_modules/')) return 'node_modules'
   // Runtime and generated artifacts. Derived from `git check-ignore`, never a hand-written
   // list: a hand list goes stale against `.gitignore` silently and in the fail-open direction.
-  if (isIgnored(t)) return 'gitignored-artifact'
+  if (isIgnored(t) && !inNoteTree(t)) return 'gitignored-artifact'
   // `user/session/question/membership` — English alternation that survived narrowing 4 because
   // its first segment happens to name a top-level entry. NARROW on purpose: all-plain-word
   // segments AND no trailing slash. A first cut omitted the trailing-slash condition and

@@ -134,8 +134,29 @@
       "expectRed": ["names the provenance classes rather than reporting them"]
     },
     {
+      "id": "untracked-note-resolves-on-disk",
+      "find": "  if (inNoteTree(t)) return false\n",
+      "replace": "",
+      "expectRed": ["blocks a citation into a gitignored notes tree, even of a note on local disk"]
+    },
+    {
+      "id": "handover-not-a-note",
+      "find": " || t.split('/').at(-1) === 'HANDOVER.md'",
+      "replace": "",
+      "expectRed": ["blocks a citation into a gitignored notes tree, even of a note on local disk"]
+    },
+    {
+      "id": "untracked-notes-exempted",
+      "find": "  if (isIgnored(t) && !inNoteTree(t)) return 'gitignored-artifact'",
+      "replace": "  if (isIgnored(t)) return 'gitignored-artifact'",
+      "expectRed": [
+        "reports a dead citation into the gitignored spec and working-notes trees",
+        "blocks a citation into a gitignored notes tree, even of a note on local disk"
+      ]
+    },
+    {
       "id": "gitignored-class-removed",
-      "find": "  if (isIgnored(t)) return 'gitignored-artifact'",
+      "find": "  if (isIgnored(t) && !inNoteTree(t)) return 'gitignored-artifact'",
       "replace": "  if (false) return 'gitignored-artifact'",
       "expectRed": [
         "names a gitignored artifact rather than reporting it",
@@ -287,6 +308,7 @@
         "scopes a finding to the staged files, but --all grades the whole worktree",
         "grades the INDEX, not the working tree",
         "ignores a citation in a spec but grades one in steering",
+        "blocks a citation into a gitignored notes tree, even of a note on local disk",
         "treats an absent baseline as empty and blocks, rather than passing",
         "never rewrites the baseline from an enforcement run",
         "scope footer is present when a fresh finding is blocked",
@@ -457,6 +479,7 @@
         "reports a stale baseline row even when its file is not staged",
         "grades the INDEX, not the working tree",
         "ignores a citation in a spec but grades one in steering",
+        "blocks a citation into a gitignored notes tree, even of a note on local disk",
         "treats an absent baseline as empty and blocks, rather than passing",
         "never rewrites the baseline from an enforcement run",
         "a directory-only gitignore pattern excuses the path even when the directory is absent",

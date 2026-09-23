@@ -117,7 +117,7 @@ test('does not split a .tsx filename into a .ts one', () => {
 
 // GROUP: file-re-lookbehind-exclude-slash, file-ext-generic-list-hostname
 test('reduces a path to its basename and ignores a hostname', () => {
-  // MUTATION: add "/" back to FILE_RE's lookbehind → "docs/plan.md" yields NO token at all, so
+  // MUTATION: add "/" back to FILE_RE's lookbehind → a slash-joined path yields NO token at all, so
   // every filename written as a path becomes invisible to the guard.
   assert.deepEqual(files('cited in docs/plan.md today'), ['plan.md'])
   // A hostname is held out by the CLOSED extension list, not by the lookbehind — a dotted name

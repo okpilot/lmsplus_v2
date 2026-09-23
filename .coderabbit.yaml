@@ -267,8 +267,9 @@ reviews:
     # path_instructions block matches package.json itself.
     # .spec-workflow is included by its AUTHORITY files only, not **: steering/ plus each spec's
     # requirements.md and design.md, which § Spec Artifact Rules makes the source of truth over
-    # chat history. Excluded is specs/<name>/tasks.md and the ad-hoc *plan.md / HANDOVER.md
-    # trackers, where rows get ticked and revised in flight, so reviewing them is churn.
+    # chat history. Excluded is specs/<name>/tasks.md, where rows get ticked and revised in
+    # flight, so reviewing it is churn. New specs are gitignored in place; working notes live in
+    # the gitignored .work/.
     # Rule 0 — every file this glob matches, INCLUDING spec tasks.md (which the
     # comment-accuracy entry below deliberately excludes).
     - path: "{CLAUDE.md,*.md,docs/**/*.md,.claude/rules/**/*.md,.claude/commands/**/*.md,.claude/agents/**/*.md,.claude/skills/**/*.md,.claude/hooks/*.sh,.spec-workflow/steering/**/*.md,.spec-workflow/specs/**/*.md}"

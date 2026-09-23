@@ -34,7 +34,7 @@ Committed-but-unpushed is a **valid** end state — pushing needs explicit user 
 wait for a push that something else needs anyway. Report unpushed commits as status, never as a
 process failure. The failure mode this step exists to catch is docs that were never *written*.
 
-- Is `docs/plan.md` status current? Any decision made this session recorded in `docs/decisions.md`?
+- Any decision made this session recorded in `docs/decisions.md`?
 - Did every rule change land with its full mirror set? Read the rows off `agent-workflow.md
   § Rule-Mirror Sync` — do not work from a copy here, which is how the executable `.claude/hooks/*.sh`
   and `package.json` rows came to be missed on the branch that added them. The table is the list;

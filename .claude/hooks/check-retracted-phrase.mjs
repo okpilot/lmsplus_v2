@@ -79,7 +79,7 @@ const FILE_EXT = ['tsx', 'jsx', 'mjs', 'cjs', 'yaml', 'json', 'sql', 'yml', 'ts'
 const FILE_RE = new RegExp(
   // No leading word char, dot, @ or hyphen — that kills `v1.2` and the interior segments of a
   // hostname like `www.example.md`, whose `example.md` is preceded by a dot. `/` is deliberately
-  // NOT excluded, so `docs/plan.md` reduces to the basename `plan.md`, which is both what a
+  // NOT excluded, so `docs/database.md` reduces to the basename `database.md`, which is both what a
   // repo-wide grep wants and what the tracked-file comparison can resolve.
   `(?<![\\w.@-])([A-Za-z0-9_][A-Za-z0-9_.-]*\\.(?:${FILE_EXT.join('|')}))(?![\\w-])`,
   'g',
