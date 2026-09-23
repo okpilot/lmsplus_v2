@@ -1,7 +1,7 @@
 // Run: node --test .claude/hooks/check-md-allowlist.repo.test.mjs
 //
 // The git-facing and subprocess paths of the md-allowlist guard: staged scoping, the `--all`
-// whole-tree mode, the allowlist and `.gitignore` reads, and the exit-code split. The pure
+// every-tracked-path mode, the allowlist and `.gitignore` reads, and the exit-code split. The pure
 // decision logic lives in check-md-allowlist.test.mjs, so neither file approaches the test-file
 // cap in .claude/limits.json.
 //
@@ -65,7 +65,7 @@ function run({ dir }, args = []) {
 // ---------------------------------------------------------------- enforcement
 
 // CONTROL: red
-// GROUP: check-md-allowlist-always-passes
+// GROUP: check-md-allowlist-always-passes, isallowed-fallback-inverted
 test('blocks staging a new markdown file outside the allowlist', () =>
   withRepo((r) => {
     r.write('docs/notes.md', 'a maintenance note\n')
@@ -89,7 +89,7 @@ test('allows staging a new markdown file under a listed directory', () =>
     assert.equal(run(r).status, 0)
   }))
 
-// GROUP: files-branch-dropped
+// GROUP: files-branch-dropped, check-md-allowlist-always-blocks
 test('allows staging an exact listed file', () =>
   withRepo((r) => {
     r.write('docs/security.md', 'a security rule\n')
@@ -97,7 +97,7 @@ test('allows staging an exact listed file', () =>
     assert.equal(run(r).status, 0)
   }))
 
-// GROUP: basenames-branch-dropped
+// GROUP: basenames-branch-dropped, check-md-allowlist-always-blocks
 test('allows staging a listed basename under a new directory', () =>
   withRepo((r) => {
     r.write('apps/web/CLAUDE.md', 'app-scoped guidance\n')
@@ -105,7 +105,8 @@ test('allows staging a listed basename under a new directory', () =>
     assert.equal(run(r).status, 0)
   }))
 
-// GROUP: staged-diff-filter-widened
+// GROUP: staged-diff-filter-widened, candidates-mode-ternary-inverted,
+// check-md-allowlist-always-blocks
 test('does not block modifying an existing disallowed markdown file', () =>
   withRepo((r) => {
     r.write('docs/notes.md', 'a maintenance note\n')
@@ -114,12 +115,12 @@ test('does not block modifying an existing disallowed markdown file', () =>
     r.write('docs/notes.md', 'a maintenance note, edited\n')
     r.git('add', '-A')
     // MUTATION: widen `--diff-filter=A` to also admit modifications → editing an existing
-    // offender becomes a blocking finding, so introducing the guard blocks every repo carrying
-    // one until the whole tree is clean.
+    // offender blocks the commit. Pre-commit grades additions only; --all, every tracked path.
     assert.equal(run(r).status, 0)
   }))
 
-// GROUP: staged-renames-not-disabled
+// GROUP: staged-renames-not-disabled, isallowed-fallback-inverted,
+// check-md-allowlist-always-passes
 test('blocks renaming an existing file into a disallowed path', () =>
   withRepo((r) => {
     r.write('.claude/rules/old.md', 'a rule\n')
@@ -136,7 +137,8 @@ test('blocks renaming an existing file into a disallowed path', () =>
 
 // ---------------------------------------------------------------- spec re-include
 
-// GROUP: specdirs-loop-dropped, spec-reinclude-no-trailing-slash
+// GROUP: specdirs-loop-dropped, spec-reinclude-no-trailing-slash,
+// check-md-allowlist-always-blocks
 test('allows a new file under a spec directory the .gitignore re-includes', () =>
   withRepo((r) => {
     r.write('.gitignore', '.work/\n.spec-workflow/specs/*\n!.spec-workflow/specs/demo/\n')
@@ -145,6 +147,7 @@ test('allows a new file under a spec directory the .gitignore re-includes', () =
     assert.equal(run(r).status, 0)
   }))
 
+// GROUP: isallowed-fallback-inverted, check-md-allowlist-always-passes
 test('blocks a new file under a spec directory the .gitignore never re-includes', () =>
   withRepo((r) => {
     r.git('add', '-A')
@@ -157,7 +160,8 @@ test('blocks a new file under a spec directory the .gitignore never re-includes'
 
 // ---------------------------------------------------------------- index reads, not working-tree reads
 
-// GROUP: loadallowlist-index-read-swapped
+// GROUP: loadallowlist-index-read-swapped, isallowed-fallback-inverted,
+// check-md-allowlist-always-passes
 test('reads the allowlist from the INDEX, ignoring an unstaged working-tree edit', () =>
   withRepo((r) => {
     r.write('docs/notes.md', 'a maintenance note\n')
@@ -176,7 +180,8 @@ test('reads the allowlist from the INDEX, ignoring an unstaged working-tree edit
     assert.match(res.stderr, /docs\/notes\.md/)
   }))
 
-// GROUP: gitignore-index-read-swapped
+// GROUP: gitignore-index-read-swapped, isallowed-fallback-inverted,
+// check-md-allowlist-always-passes
 test('reads .gitignore from the INDEX, ignoring an unstaged working-tree re-include', () =>
   withRepo((r) => {
     r.git('add', '-A')
@@ -195,8 +200,9 @@ test('reads .gitignore from the INDEX, ignoring an unstaged working-tree re-incl
 
 // ---------------------------------------------------------------- scoping: staged vs --all
 
-// GROUP: candidates-mode-ternary-inverted
-test('scopes a finding to the staged additions, but --all grades the whole worktree', () =>
+// GROUP: candidates-mode-ternary-inverted, isallowed-fallback-inverted,
+// check-md-allowlist-always-passes, check-md-allowlist-always-blocks
+test('scopes a finding to the staged additions, but --all grades every tracked path', () =>
   withRepo((r) => {
     r.write('docs/untouched.md', 'an old offender, never staged this commit\n')
     r.write('docs/b.ts', 'export const x = 1\n')
@@ -205,14 +211,31 @@ test('scopes a finding to the staged additions, but --all grades the whole workt
     r.write('docs/b.ts', 'export const x = 2\n')
     r.git('add', '-A')
     // MUTATION: invert the `all` condition on the candidates ternary → the plain pre-commit run
-    // enumerates the whole worktree (blocking on the untouched pre-existing offender) and --all
+    // enumerates every tracked path (blocking on the untouched pre-existing offender) and --all
     // reads only the staged diff (missing it), swapping the two modes' scope.
     assert.equal(run(r).status, 0, 'pre-commit: the offender was never staged this commit')
-    assert.equal(run(r, ['--all']).status, 1, 'CI: the whole worktree is graded')
+    assert.equal(run(r, ['--all']).status, 1, 'CI: every tracked path is graded')
+  }))
+
+// GROUP: all-pathspec-dropped, candidates-mode-ternary-inverted, isallowed-fallback-inverted,
+// gitignore-index-read-swapped, loadallowlist-index-read-swapped, check-md-allowlist-always-passes
+test('--all grades every tracked path even when spawned from a subdirectory', () =>
+  withRepo((r) => {
+    r.write('docs/bad.md', 'a maintenance note\n')
+    r.write('sub/x.txt', 'placeholder\n')
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'init')
+    // MUTATION: drop the `'--', ':/'` pathspec from the --all `ls-files` call → the enumeration
+    // is scoped to git's CURRENT WORKING DIRECTORY subtree, not the whole index, so a run
+    // spawned from `sub/` never sees the offender outside it.
+    const res = runNode('check-md-allowlist', [GUARD, '--all'], { cwd: join(r.dir, 'sub') })
+    assert.equal(res.status, 1)
+    assert.match(res.stderr, /docs\/bad\.md/)
   }))
 
 // ---------------------------------------------------------------- fail closed
 
+// GROUP: loadallowlist-index-read-swapped
 test('exits 2 when the allowlist is absent from the index', () =>
   withRepo((r) => {
     r.write('docs/notes.md', 'x\n')
@@ -220,14 +243,13 @@ test('exits 2 when the allowlist is absent from the index', () =>
     r.git('rm', '--cached', '-q', '.claude/md-allowlist.json')
     // Structural: loadAllowlist reads via `git show :<path>`, which fails when the path is not
     // in the index; nothing catches that inside loadAllowlist, so it propagates to the
-    // top-level try/catch unmodified. Nothing to mutate — the absence of a swallow IS the
-    // behaviour under test.
+    // top-level try/catch unmodified. A working-tree read finds the file on disk → exit 1.
     const res = run(r)
     assert.equal(res.status, 2)
     assert.match(res.stderr, /check could not run — BLOCKING/)
   }))
 
-// GROUP: isstringarray-every-check-dropped
+// GROUP: isstringarray-every-check-dropped, loadallowlist-dirs-not-string-array
 test('exits 2 when a dirs entry is present but not a string', () =>
   withRepo((r) => {
     r.write('.claude/md-allowlist.json', JSON.stringify({ dirs: [123], files: [], basenames: [] }))
@@ -259,14 +281,19 @@ test('exits 2 when a dirs entry does not end in a slash', () =>
     assert.match(res.stderr, /must end in/)
   }))
 
+// GROUP: loadallowlist-jsonparse-prefix-dropped
 test('exits 2 when the allowlist JSON is malformed', () =>
   withRepo((r) => {
     r.write('.claude/md-allowlist.json', '{ "dirs": [')
     r.write('docs/notes.md', 'x\n')
     r.git('add', '-A')
+    // MUTATION: drop the `${ALLOWLIST_PATH}: ` prefix from the re-thrown parse error → the
+    // diagnostic reads as a bare `Unexpected end of JSON input`, giving no hint which file is
+    // malformed.
     const res = run(r)
     assert.equal(res.status, 2)
     assert.match(res.stderr, /check could not run — BLOCKING/)
+    assert.match(res.stderr, /\.claude\/md-allowlist\.json:/)
   }))
 
 // GROUP: loadallowlist-toplevel-not-object
@@ -325,6 +352,7 @@ test('exits 2 when basenames is not an array', () =>
     assert.match(res.stderr, /`basenames` must be a string array/)
   }))
 
+// GROUP: gitignore-index-read-swapped
 test('exits 2 when .gitignore is absent from the index', () =>
   withRepo((r) => {
     r.write('docs/notes.md', 'x\n')
@@ -332,6 +360,7 @@ test('exits 2 when .gitignore is absent from the index', () =>
     r.git('rm', '--cached', '-q', '.gitignore')
     // Structural: main's `git show :.gitignore` call has no catch either, so this pins the same
     // absence-of-swallow property as the allowlist read above, for the other required file.
+    // A working-tree read finds the file on disk instead → exit 1.
     const res = run(r)
     assert.equal(res.status, 2)
     assert.match(res.stderr, /check could not run — BLOCKING/)

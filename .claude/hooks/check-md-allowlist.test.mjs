@@ -36,7 +36,7 @@ test('recognises the three markdown extensions, case-insensitively', () => {
 
 // ---------------------------------------------------------------- allow decision
 
-// GROUP: dirs-branch-dropped
+// GROUP: dirs-branch-dropped, isallowed-fallback-inverted
 test('allows a path under a listed directory prefix', () => {
   // MUTATION: drop the `allow.dirs.some(...)` branch from isAllowed → every rules/agents file
   // is reported as a new offender, and the folder allowlist stops meaning anything.
@@ -44,7 +44,7 @@ test('allows a path under a listed directory prefix', () => {
   assert.equal(isAllowed('.claude/rulesx/x.md', ALLOW, new Set()), false, 'no sibling-prefix match')
 })
 
-// GROUP: files-branch-dropped
+// GROUP: files-branch-dropped, isallowed-fallback-inverted
 test('allows an exact listed file but not its sibling', () => {
   // MUTATION: drop the `allow.files.includes(path)` branch from isAllowed → docs/security.md,
   // named nowhere else in the allowlist, is reported as a new offender.
@@ -52,7 +52,7 @@ test('allows an exact listed file but not its sibling', () => {
   assert.equal(isAllowed('docs/other.md', ALLOW, new Set()), false)
 })
 
-// GROUP: basenames-branch-dropped
+// GROUP: basenames-branch-dropped, isallowed-fallback-inverted
 test('allows a listed basename under any directory', () => {
   // MUTATION: drop the `allow.basenames.includes(...)` branch from isAllowed → every nested
   // README.md/CLAUDE.md is reported as a new offender.
@@ -61,7 +61,7 @@ test('allows a listed basename under any directory', () => {
   assert.equal(isAllowed('apps/web/NOTES.md', ALLOW, new Set()), false)
 })
 
-// GROUP: specdirs-loop-dropped
+// GROUP: specdirs-loop-dropped, isallowed-fallback-inverted
 test('allows a path under a re-included spec directory', () => {
   // MUTATION: drop the `for (const d of specDirs)` loop from isAllowed → every spec doc,
   // re-included in .gitignore for exactly this purpose, is reported as a new offender.
@@ -96,7 +96,7 @@ test('requires the leading ! — a plain gitignore entry is not a re-include', (
   assert.deepEqual(specDirsFrom(text), new Set())
 })
 
-// GROUP: spec-reinclude-no-trim
+// GROUP: spec-reinclude-no-trim, spec-reinclude-no-trailing-slash
 test('trims surrounding whitespace before matching a re-include line', () => {
   // MUTATION: drop `.trim()` before SPEC_REINCLUDE_RE.exec → an indented re-include line (or one
   // carrying a trailing space) is no longer recognised, and its spec directory is dropped.

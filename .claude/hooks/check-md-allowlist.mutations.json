@@ -63,7 +63,8 @@
         "blocks staging a new markdown file outside the allowlist",
         "reads .gitignore from the INDEX, ignoring an unstaged working-tree re-include",
         "reads the allowlist from the INDEX, ignoring an unstaged working-tree edit",
-        "scopes a finding to the staged additions, but --all grades the whole worktree"
+        "scopes a finding to the staged additions, but --all grades every tracked path",
+        "--all grades every tracked path even when spawned from a subdirectory"
       ],
       "note": "isAllowed's return-false fallback is what every other branch's `return true` sits above; inverting it makes the guard permit everything, so it reddens every test that expects a real block."
     },
@@ -95,6 +96,12 @@
       "find": "  const isStringArray = (v) => Array.isArray(v) && v.every((x) => typeof x === 'string')",
       "replace": "  const isStringArray = (v) => Array.isArray(v)",
       "expectRed": ["exits 2 when a dirs entry is present but not a string"]
+    },
+    {
+      "id": "loadallowlist-jsonparse-prefix-dropped",
+      "find": "    throw new Error(`${ALLOWLIST_PATH}: ${err.message}`)",
+      "replace": "    throw new Error(err.message)",
+      "expectRed": ["exits 2 when the allowlist JSON is malformed"]
     },
     {
       "id": "loadallowlist-toplevel-not-object",
@@ -132,11 +139,12 @@
     },
     {
       "id": "loadallowlist-index-read-swapped",
-      "find": "  const obj = JSON.parse(git(['show', `:${ALLOWLIST_PATH}`]).toString('utf8'))",
-      "replace": "  const obj = JSON.parse(execFileSync('cat', [ALLOWLIST_PATH]).toString('utf8'))",
+      "find": "  const raw = git(['show', `:${ALLOWLIST_PATH}`]).toString('utf8')",
+      "replace": "  const raw = execFileSync('cat', [ALLOWLIST_PATH]).toString('utf8')",
       "expectRed": [
         "exits 2 when the allowlist is absent from the index",
-        "reads the allowlist from the INDEX, ignoring an unstaged working-tree edit"
+        "reads the allowlist from the INDEX, ignoring an unstaged working-tree edit",
+        "--all grades every tracked path even when spawned from a subdirectory"
       ],
       "note": "swapping to a working-tree read makes the allowlist absent-from-index case fall through to a real (working-tree) read instead of failing, and makes the unstaged-widening test's edit visible."
     },
@@ -146,7 +154,8 @@
       "replace": "  const specDirs = specDirsFrom(execFileSync('cat', [GITIGNORE_PATH]).toString('utf8'))",
       "expectRed": [
         "exits 2 when .gitignore is absent from the index",
-        "reads .gitignore from the INDEX, ignoring an unstaged working-tree re-include"
+        "reads .gitignore from the INDEX, ignoring an unstaged working-tree re-include",
+        "--all grades every tracked path even when spawned from a subdirectory"
       ],
       "note": "swapping to a working-tree read makes the .gitignore absent-from-index case fall through to a real (working-tree) read instead of failing, and makes the unstaged re-include test's edit visible."
     },
@@ -184,7 +193,8 @@
       "replace": "  const candidates = !all",
       "expectRed": [
         "does not block modifying an existing disallowed markdown file",
-        "scopes a finding to the staged additions, but --all grades the whole worktree"
+        "scopes a finding to the staged additions, but --all grades every tracked path",
+        "--all grades every tracked path even when spawned from a subdirectory"
       ],
       "note": "swapping which branch `all` selects does not redden the CONTROL red test: the file staged there is still in the git index either way, so `git ls-files` (the wrong branch) still finds it."
     },
@@ -198,8 +208,15 @@
         "blocks staging a new markdown file outside the allowlist",
         "reads .gitignore from the INDEX, ignoring an unstaged working-tree re-include",
         "reads the allowlist from the INDEX, ignoring an unstaged working-tree edit",
-        "scopes a finding to the staged additions, but --all grades the whole worktree"
+        "scopes a finding to the staged additions, but --all grades every tracked path",
+        "--all grades every tracked path even when spawned from a subdirectory"
       ]
+    },
+    {
+      "id": "all-pathspec-dropped",
+      "find": "'ls-files', '-z', '--full-name', '--', ':/'",
+      "replace": "'ls-files', '-z', '--full-name'",
+      "expectRed": ["--all grades every tracked path even when spawned from a subdirectory"]
     },
     {
       "id": "check-md-allowlist-always-blocks",
@@ -211,7 +228,7 @@
         "allows staging a new markdown file under a listed directory",
         "allows staging an exact listed file",
         "does not block modifying an existing disallowed markdown file",
-        "scopes a finding to the staged additions, but --all grades the whole worktree"
+        "scopes a finding to the staged additions, but --all grades every tracked path"
       ]
     }
   ]

@@ -199,7 +199,7 @@ jobs:
       # md-allowlist guard (docs/decisions.md Decision 85): a new tracked markdown file outside
       # .claude/md-allowlist.json is blocked. `--all` here, NOT the staged mode the pre-commit
       # hook uses: CI grades every tracked markdown path, not just this commit's staged additions.
-      - name: Md-allowlist guard (whole worktree)
+      - name: Md-allowlist guard (every tracked path)
         run: node .claude/hooks/check-md-allowlist.mjs --all
 
       - name: Md-allowlist guard — unit test

@@ -74,7 +74,13 @@ function splitNul(buf) {
 // ---------------------------------------------------------------- allowlist file
 
 function loadAllowlist() {
-  const obj = JSON.parse(git(['show', `:${ALLOWLIST_PATH}`]).toString('utf8'))
+  const raw = git(['show', `:${ALLOWLIST_PATH}`]).toString('utf8')
+  let obj
+  try {
+    obj = JSON.parse(raw)
+  } catch (err) {
+    throw new Error(`${ALLOWLIST_PATH}: ${err.message}`)
+  }
   if (obj === null || typeof obj !== 'object' || Array.isArray(obj)) {
     throw new Error(`${ALLOWLIST_PATH}: top level must be an object`)
   }
@@ -113,7 +119,7 @@ export function main(args) {
   const specDirs = specDirsFrom(git(['show', `:${GITIGNORE_PATH}`]).toString('utf8'))
 
   const candidates = all
-    ? splitNul(git(['ls-files', '-z', '--full-name'])).filter(isMarkdown)
+    ? splitNul(git(['ls-files', '-z', '--full-name', '--', ':/'])).filter(isMarkdown)
     : splitNul(
         git(['diff', '--cached', '--name-only', '-z', '--no-renames', '--diff-filter=A']),
       ).filter(isMarkdown)
