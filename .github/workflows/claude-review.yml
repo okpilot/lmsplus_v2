@@ -38,6 +38,24 @@ jobs:
           ref: ${{ github.event.pull_request.base.sha }} # trusted base, not the PR's own copy
           persist-credentials: false # the reviewer reads the diff through the action, not via git
 
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        if: env.CLAUDE_CODE_OAUTH_TOKEN != ''
+        with:
+          node-version: '22'
+
+      - name: Fetch head copies of patch-less files
+        if: env.CLAUDE_CODE_OAUTH_TOKEN != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        # Runs the BASE checkout's copy of the script (checked out above) — an unrestricted CI
+        # step, unlike the Review step below which has no Bash. Writes `.pr-head/<path>` for
+        # every changed file the diff tools return with no `patch`, readable by the Review
+        # step's Read/Grep/Glob (its cwd is this same checkout).
+        run: node .github/scripts/pr-head-files.mjs
+
       - name: Review
         id: review
         if: env.CLAUDE_CODE_OAUTH_TOKEN != ''
@@ -82,6 +100,15 @@ jobs:
 
             Biome, `tsc`, the lefthook guards and CodeRabbit already run on this PR. Never comment
             on formatting or anything a linter would reject.
+
+            ## Files without a diff patch
+
+            Some changed files carry no `patch` in the diff tools — large diffs and binaries. The
+            head-commit copy of each is at `.pr-head/<path>`; the base copy, if any, is at
+            `<path>` on disk. Read `.pr-head/INDEX.txt` first: `fetched <path>` means the head
+            copy is there to read, `not-fetched <path> — <reason>` means it is not. Every
+            `not-fetched` path, and any other changed file you could not read, is named in the
+            verdict's `Not reviewed:` line below.
 
             ## Verify before you flag
 
@@ -130,9 +157,12 @@ jobs:
             `mcp__github__create_and_submit_pull_request_review` on owner/repo/pullNumber of this
             PR, with `commitID` set to `${{ github.event.pull_request.head.sha }}`. Set `event` to
             REQUEST_CHANGES if you posted any CRITICAL or ISSUE finding, else COMMENT. Never
-            APPROVE. The body's FIRST line is exactly `<!-- claude-review-verdict -->`, then one line
-            per finding (severity + file:line), or "No findings." if none. Always submit this
-            verdict, even with no findings.
+            APPROVE. The body's FIRST line is exactly `<!-- claude-review-verdict -->`, then one
+            line per finding (severity + file:line) or "No findings." if none, then — only when
+            you could not review at least one changed file — a `Not reviewed: <path>, <path>`
+            line naming every such file (every `.pr-head/INDEX.txt` `not-fetched` path, plus any
+            other changed file you could not read). "No findings." is allowed only when that list
+            is empty. Always submit this verdict, even with no findings.
           # Agent mode passes this prompt VERBATIM (src/modes/agent/index.ts:
           # `promptContent = context.inputs.prompt`) — it injects no PR number, base ref or patch.
           # Whatever scoping the reviewer gets, it gets from these lines and the MCP grants below.
