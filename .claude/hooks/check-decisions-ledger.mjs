@@ -37,8 +37,13 @@
 // `git commit --amend`, commit-msg mode's HEAD is the commit being amended — an edit already
 // there reads as unchanged; waive it the same way.
 //
-// Merge commits are not checked: commit-msg mode exits 0 while MERGE_HEAD resolves, and
-// --base walks --no-merges. An edit made only in a merge resolution passes (#1350).
+// Merge commits: commit-msg mode exits 0 while MERGE_HEAD resolves, and --base's per-commit
+// units walk --no-merges. --base then runs a RANGE unit: OLD = ledger at
+// `git merge-base <ref> HEAD`, NEW = HEAD's. A range finding for token T clears only when HEAD's
+// text for T equals the text produced by the LAST per-commit unit that waived T. A merge never
+// waives, so an edit made only in a merge resolution blocks in CI. A commit HEAD reaches is an
+// ancestor of the merge-base or a per-commit unit, so <ref> need not be an ancestor of HEAD.
+// With several merge-bases (criss-cross) git picks one, and the range unit can OVER-block.
 
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
@@ -300,6 +305,36 @@ export function checkUnit({ oldText, newText, message }) {
   return { problems: [], ...applyWaivers(findings, waivers) }
 }
 
+/** The text a waiver for `token` authorizes: the header, entry N's raw line, or `null` (absent). */
+export function slotText(text, token) {
+  if (text === null) return null
+  const ledger = parseLedger(text)
+  if (token === 'header') return ledger.header
+  const hit = parsedEntries(ledger.entries).find((e) => String(e.num) === token)
+  return hit ? hit.raw : null
+}
+
+/**
+ * The range unit: `oldText` at the merge-base, `newText` at HEAD, `authorized` a
+ * Map<token, text> of the last text each token was waived to. `gradeFormat` false skips F1/F2
+ * when a per-commit unit already graded this exact HEAD text. Pure.
+ */
+export function checkRange({ oldText, newText, authorized, gradeFormat }) {
+  if (oldText === newText) return []
+  if (newText === null) {
+    return [{ token: null, kind: 'deleted', detail: 'docs/decisions.md deleted' }]
+  }
+  const findings = collectFindings(oldText, parseLedger(newText)).filter(
+    (f) => gradeFormat || (f.kind !== 'format' && f.kind !== 'numbering'),
+  )
+  return findings.filter(
+    (f) =>
+      f.token === null ||
+      !authorized.has(f.token) ||
+      authorized.get(f.token) !== slotText(newText, f.token),
+  )
+}
+
 // ---------------------------------------------------------------- git-facing reads
 
 function refExists(ref) {
@@ -381,6 +416,34 @@ function commitMsgUnit(path) {
   }
 }
 
+/** Per-commit units, recording each applied waiver's resulting text, then the range unit. */
+function runBase(ref) {
+  const authorized = new Map()
+  let blocked = false
+  let lastNew
+  for (const unit of baseUnits(ref)) {
+    const res = checkUnit(unit)
+    if (res.problems.length > 0) return reportProblems(res.problems)
+    if (res.offenders.length > 0) blocked = true
+    reportUnit(unit.label, res.offenders, res.unusedWaivers)
+    for (const token of parseWaivers(unit.message).waivers.keys()) {
+      if (!res.unusedWaivers.includes(token)) authorized.set(token, slotText(unit.newText, token))
+    }
+    lastNew = unit.newText
+  }
+  const mergeBase = git(['merge-base', ref, 'HEAD']).toString('utf8').trim()
+  const newText = readAtTree('HEAD', DECISIONS_PATH)
+  const offenders = checkRange({
+    oldText: readAtTree(mergeBase, DECISIONS_PATH),
+    newText,
+    authorized,
+    gradeFormat: newText !== lastNew,
+  })
+  if (offenders.length > 0) blocked = true
+  reportUnit('range', offenders, [])
+  return blocked ? 1 : 0
+}
+
 function runUnits(units) {
   let blocked = false
   for (const unit of units) {
@@ -398,7 +461,7 @@ export function main(args) {
       console.error('✖ decisions-ledger guard: --base requires a ref')
       return 2
     }
-    return runUnits(baseUnits(args[1]))
+    return runBase(args[1])
   } else if (args.length === 1 && !args[0].startsWith('--')) {
     if (refExists('MERGE_HEAD')) return 0
     return runUnits([commitMsgUnit(args[0])])

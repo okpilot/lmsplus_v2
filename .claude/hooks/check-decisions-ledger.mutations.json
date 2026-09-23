@@ -4,7 +4,8 @@
   "suites": [
     ".claude/hooks/check-decisions-ledger.test.mjs",
     ".claude/hooks/check-decisions-ledger.repo.test.mjs",
-    ".claude/hooks/check-decisions-ledger.base.test.mjs"
+    ".claude/hooks/check-decisions-ledger.base.test.mjs",
+    ".claude/hooks/check-decisions-ledger.range.test.mjs"
   ],
   "mutations": [
     {
@@ -18,6 +19,51 @@
       "find": " || EMPTY_REASONS.has(bare)) {",
       "replace": ") {",
       "expectRed": ["rejects a Ledger-edit-ok trailer whose reason is a blocklisted empty phrase"]
+    },
+    {
+      "id": "range-unit-dropped",
+      "find": "  if (offenders.length > 0) blocked = true\n  reportUnit('range', offenders, [])",
+      "replace": "  reportUnit('range', offenders, [])",
+      "expectRed": [
+        "--base blocks an edit to an existing line made only in a merge commit",
+        "a waived edit re-edited by a merge is blocked",
+        "a merge reinstating a superseded waived text is blocked",
+        "a waiver for one line does not clear a merge edit to another"
+      ]
+    },
+    {
+      "id": "range-authorization-token-only",
+      "find": "      authorized.get(f.token) !== slotText(newText, f.token),",
+      "replace": "      false,",
+      "expectRed": [
+        "a range edit clears only when the authorized text equals the final line",
+        "a waived edit re-edited by a merge is blocked",
+        "a merge reinstating a superseded waived text is blocked"
+      ]
+    },
+    {
+      "id": "range-authorization-accumulated",
+      "find": "if (!res.unusedWaivers.includes(token)) authorized.set(",
+      "replace": "if (!res.unusedWaivers.includes(token) && !authorized.has(token)) authorized.set(",
+      "expectRed": ["a merge reinstating a superseded waived text is blocked"]
+    },
+    {
+      "id": "range-authorizations-not-recorded",
+      "find": "if (!res.unusedWaivers.includes(token)) authorized.set(",
+      "replace": "if (false) authorized.set(",
+      "expectRed": [
+        "a waived edit passes --base",
+        "a waiver in a non-last commit of the range still waives its own edit",
+        "a stale base passes when the branch merged a newer master carrying a waived edit"
+      ]
+    },
+    {
+      "id": "range-gradeformat-ignored",
+      "find": "(f) => gradeFormat || (f.kind",
+      "replace": "(f) => true || (f.kind",
+      "expectRed": [
+        "the range unit skips F1/F2 when a per-commit unit already graded this HEAD text"
+      ]
     },
     {
       "id": "marker-anchor-not-end-of-line",
@@ -44,7 +90,10 @@
       "id": "header-split-loop-off-by-one",
       "find": "  while (i < rawLines.length && !rawLines[i].startsWith('## ')) {",
       "replace": "  while (i < rawLines.length && !rawLines[i + 1]?.startsWith('## ')) {",
-      "expectRed": ["splits header from entries at the first \\#\\# line"]
+      "expectRed": [
+        "slotText returns the header, an entry line, or null for an absent entry",
+        "splits header from entries at the first \\#\\# line"
+      ]
     },
     {
       "id": "parseledger-blank-lines-not-skipped",
@@ -53,6 +102,10 @@
       "expectRed": [
         "a waived edit passes --base",
         "a waiver in a non-last commit of the range still waives its own edit",
+        "a range edit clears only when the authorized text equals the final line",
+        "a stale base passes when the branch merged a newer master carrying a waived edit",
+        "renumbering a branch-only line while merging master passes",
+        "restoring the line in a waived follow-up commit clears a merge edit",
         "allows appending a new decision line",
         "allows appending a marker to an existing line",
         "a Ledger-edit-ok trailer waives the edit it names",
@@ -102,9 +155,11 @@
       "find": "    oldText: readAtTree(`${sha}^`, DECISIONS_PATH),\n    newText: readAtTree(sha, DECISIONS_PATH),",
       "replace": "    oldText: readAtTree(`${sha}^^`, DECISIONS_PATH),\n    newText: readAtTree(sha, DECISIONS_PATH),",
       "expectRed": [
+        "a waived edit passes --base",
         "a waiver in a non-last commit of the range still waives its own edit",
         "a waiver trailer in one commit does not cover an edit made in an earlier commit",
-        "an edit then a restore across two commits is still flagged (the file is not diffed end to end)"
+        "an edit then a restore across two commits is still flagged (the file is not diffed end to end)",
+        "a stale base passes when the branch merged a newer master carrying a waived edit"
       ]
     },
     {
@@ -113,7 +168,8 @@
       "replace": "    message: git(['log', '-1', '--format=%B', shas[shas.length - 1]]).toString('utf8'),\n    label: sha,",
       "expectRed": [
         "a waiver in a non-last commit of the range still waives its own edit",
-        "a waiver trailer in one commit does not cover an edit made in an earlier commit"
+        "a waiver trailer in one commit does not cover an edit made in an earlier commit",
+        "a stale base passes when the branch merged a newer master carrying a waived edit"
       ]
     },
     {
@@ -153,14 +209,18 @@
       "replace": "    const code = main(argv.slice(2))\n    exit(code === 1 ? 0 : code)",
       "expectRed": [
         "--base catches an edit made in a middle commit of the range",
-        "a file deletion is blocked",
         "a waiver trailer in one commit does not cover an edit made in an earlier commit",
         "an edit then a restore across two commits is still flagged (the file is not diffed end to end)",
+        "--base blocks an edit to an existing line made only in a merge commit",
+        "a waived edit re-edited by a merge is blocked",
+        "a merge reinstating a superseded waived text is blocked",
+        "a waiver for one line does not clear a merge edit to another",
+        "blocks an edit to an existing line staged for commit",
+        "blocks changing an existing marker to a different number",
         "an unusable waiver reason still blocks the commit",
         "blocks a malformed new entry line even with a matching waiver token",
         "blocks a numbering gap in a newly appended line",
-        "blocks an edit to an existing line staged for commit",
-        "blocks changing an existing marker to a different number"
+        "a file deletion is blocked"
       ]
     },
     {
@@ -169,14 +229,18 @@
       "replace": "    const code = main(argv.slice(2))\n    exit(code === 0 ? 1 : code)",
       "expectRed": [
         "--base is clean across a range of commits that never touch decisions.md after init",
-        "a Ledger-edit-ok trailer waives the edit it names",
-        "a clean merge auto-adopting an already-waived incoming edit passes",
         "a waived edit passes --base",
         "a waiver in a non-last commit of the range still waives its own edit",
-        "allows appending a marker to an existing line",
+        "a branch merging master that carries a waived master edit passes",
+        "a stale base passes when the branch merged a newer master carrying a waived edit",
+        "renumbering a branch-only line while merging master passes",
+        "restoring the line in a waived follow-up commit clears a merge edit",
         "allows appending a new decision line",
+        "allows appending a marker to an existing line",
+        "a Ledger-edit-ok trailer waives the edit it names",
+        "reads the ledger from the INDEX, ignoring an unstaged working-tree edit",
         "commit-msg mode on the FIRST commit (unborn HEAD) runs F1/F2 with no immutability check",
-        "reads the ledger from the INDEX, ignoring an unstaged working-tree edit"
+        "a clean merge auto-adopting an already-waived incoming edit passes"
       ]
     },
     {
@@ -266,6 +330,11 @@
         "--base catches an edit made in a middle commit of the range",
         "a waiver trailer in one commit does not cover an edit made in an earlier commit",
         "an edit then a restore across two commits is still flagged (the file is not diffed end to end)",
+        "a range edit clears only when the authorized text equals the final line",
+        "--base blocks an edit to an existing line made only in a merge commit",
+        "a waived edit re-edited by a merge is blocked",
+        "a merge reinstating a superseded waived text is blocked",
+        "a waiver for one line does not clear a merge edit to another",
         "blocks an edit to an existing line staged for commit",
         "flags an OLD entry whose body text changed (I2)",
         "a Ledger-edit-ok trailer for one token does not waive a finding on a different token"
