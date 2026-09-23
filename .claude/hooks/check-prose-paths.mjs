@@ -107,6 +107,9 @@ const KNOWN_FLAGS = new Set(['--all', '--update-baseline'])
  */
 const SPEC_PREFIX = '.spec-workflow/specs/'
 
+/** Gitignored trees that hold notes, not artifacts: a citation into one must resolve to a TRACKED file. */
+const UNTRACKED_NOTE_PREFIXES = [SPEC_PREFIX, '.work/']
+
 /**
  * `.json` has no comment syntax, so it has no prose lines — the same reason
  * `check-prose-claims.mjs` gives for why `limits.json` can never flag itself. A path inside a
@@ -279,7 +282,9 @@ export function classify(tok, line, index, isIgnored) {
   if (t.startsWith('node_modules/') || t.includes('/node_modules/')) return 'node_modules'
   // Runtime and generated artifacts. Derived from `git check-ignore`, never a hand-written
   // list: a hand list goes stale against `.gitignore` silently and in the fail-open direction.
-  if (isIgnored(t)) return 'gitignored-artifact'
+  if (isIgnored(t) && !UNTRACKED_NOTE_PREFIXES.some((p) => t.startsWith(p))) {
+    return 'gitignored-artifact'
+  }
   // `user/session/question/membership` — English alternation that survived narrowing 4 because
   // its first segment happens to name a top-level entry. NARROW on purpose: all-plain-word
   // segments AND no trailing slash. A first cut omitted the trailing-slash condition and

@@ -197,6 +197,14 @@ test('names a gitignored artifact rather than reporting it', () => {
   assert.equal(cls('apps/web/.next/build.js', 'prose', true), 'gitignored-artifact')
 })
 
+// GROUP: untracked-notes-exempted
+test('reports a dead citation into the gitignored spec and working-notes trees', () => {
+  // MUTATION: drop the UNTRACKED_NOTE_PREFIXES term from the gitignored branch → a citation of a
+  // deleted or never-committed spec or `.work/` note classifies as an artifact and passes.
+  assert.equal(cls('.spec-workflow/specs/gone/tasks.md', 'prose', true), 'unresolved')
+  assert.equal(cls('.work/handover.md', 'prose', true), 'unresolved')
+})
+
 test('names the English-shaped classes but keeps a directory reference reportable', () => {
   // MUTATION: drop the `!tok.endsWith('/')` term from the english-alternation test → a
   // genuinely dead directory citation, all-alphabetic and slash-terminated like the second

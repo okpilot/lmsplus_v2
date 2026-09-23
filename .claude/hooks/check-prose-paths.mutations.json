@@ -134,9 +134,15 @@
       "expectRed": ["names the provenance classes rather than reporting them"]
     },
     {
+      "id": "untracked-notes-exempted",
+      "find": "  if (isIgnored(t) && !UNTRACKED_NOTE_PREFIXES.some((p) => t.startsWith(p))) {",
+      "replace": "  if (isIgnored(t)) {",
+      "expectRed": ["reports a dead citation into the gitignored spec and working-notes trees"]
+    },
+    {
       "id": "gitignored-class-removed",
-      "find": "  if (isIgnored(t)) return 'gitignored-artifact'",
-      "replace": "  if (false) return 'gitignored-artifact'",
+      "find": "  if (isIgnored(t) && !UNTRACKED_NOTE_PREFIXES.some((p) => t.startsWith(p))) {",
+      "replace": "  if (false) {",
       "expectRed": [
         "names a gitignored artifact rather than reporting it",
         "ignores a gitignored artifact",
