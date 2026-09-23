@@ -72,7 +72,8 @@
 //     that went missing. Example, in the TypeScript npm package:
 //     `lib/typescript.js` // prose-path-ok: this bound IS a path that does not resolve HERE; it resolves inside a dependency this guard cannot see
 //   - a token that resolves only because an UNTRACKED file of that name happens to sit in the
-//     worktree passes. Resolution is "on disk", and that is deliberately the weaker test.
+//     worktree passes, outside the note trees (`inNoteTree`). Resolution is "on disk", and that
+//     is deliberately the weaker test.
 // It reduces the class; it does not close it.
 
 import { execFileSync } from 'node:child_process'
