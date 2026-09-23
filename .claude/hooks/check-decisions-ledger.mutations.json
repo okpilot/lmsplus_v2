@@ -141,6 +141,18 @@
       ]
     },
     {
+      "id": "range-marker-superset-dropped",
+      "find": "  return [...auth.markers].every((mk) => head.markers.has(mk))",
+      "replace": "  return true",
+      "expectRed": ["a merge dropping a marker the branch removed and then restored is blocked"]
+    },
+    {
+      "id": "range-rebind-ignores-ancestry",
+      "find": "(isAncestor(a.sha, unit.label) ? { ...a, text } : a)",
+      "replace": "(true ? { ...a, text } : a)",
+      "expectRed": ["concurrent waived edits on both sides let the merge keep either one"]
+    },
+    {
       "id": "range-ledgerless-waiver-recorded",
       "find": "  if (unit.newText === null) return\n",
       "replace": "",

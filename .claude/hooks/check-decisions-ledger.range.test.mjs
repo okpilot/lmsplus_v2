@@ -381,11 +381,12 @@ test('a merge re-deleting an entry the branch removed and then restored is block
     assert.equal(runBase(r, 'master').status, 1)
   }))
 
-// GROUP: range-authorization-not-invalidated
+// GROUP: range-authorization-not-invalidated, range-marker-superset-dropped
 test('a merge dropping a marker the branch removed and then restored is blocked', () =>
   withRepo((r) => {
     // MUTATION: keep the waived marker-less text after a later commit restores the marker → the
     // merge re-dropping it matches that stale authorization and passes.
+    // MUTATION: match on the body alone → the re-bound marked text matches the unmarked merge.
     const marked = ledger('first decision. Amended by 15.')
     const master = ledger('first decision. Amended by 15.', undefined, [E16_MASTER])
     forked(
@@ -439,8 +440,11 @@ test('a waived edit that a merge later marks passes', () =>
     assert.equal(runBase(r, 'master').status, 0)
   }))
 
+// GROUP: range-rebind-ignores-ancestry
 test('concurrent waived edits on both sides let the merge keep either one', () =>
   withRepo((r) => {
+    // MUTATION: re-bind every authorization regardless of ancestry → the master commit moves the
+    // branch's authorization to MASTER WORDING and the merge keeping BRANCH WORDING blocks.
     startWork(r)
     r.git('tag', 'stale', 'master')
     commit(r, ledger('BRANCH WORDING.'), waive(14, 'fix: reword 14 on the branch'))
