@@ -34,7 +34,7 @@ Every finding carries a pasted `grep`/`git grep`: for dead code, that no caller,
 
 ## Severity
 
-ISSUE (default APPLY) when the evidence proves no loss. SUGGESTION when the loss is a judgment call the evidence cannot settle (e.g. prose that may carry a scope clause). Evidence showing a dependent means no finding — except a duplicate's callers. A duplicate is a SUGGESTION.
+A duplicate is a SUGGESTION. Otherwise: ISSUE (default APPLY) when the evidence proves no loss; SUGGESTION when the loss is a judgment call the evidence cannot settle (e.g. prose that may carry a scope clause). Evidence showing a dependent means no finding — except a duplicate's callers.
 
 ## Output Format
 
