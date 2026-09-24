@@ -186,6 +186,22 @@
       "replace": "",
       "expectRed": ["blocks a steered brief for a templated type when pipeline.json is unreadable"],
       "note": "Only pipeline.json roles gate, so a templated type is allowed unchecked when pipeline.json is unreadable."
+    },
+    {
+      "id": "guard-agent-brief-round-class-widened",
+      "find": "round: '(?:\\\\d+|after-loop)',",
+      "replace": "round: '\\\\S+',",
+      "expectRed": [
+        "blocks a round that is not digits or \"after-loop\" (e.g. \"2a\") with exit 2"
+      ],
+      "note": "{round} accepts any non-space token, so free text reaches the brief's round slot."
+    },
+    {
+      "id": "guard-agent-brief-pr-class-widened",
+      "find": "pr: '(?:#\\\\d+|none)',",
+      "replace": "pr: '(?:#?\\\\d+|none)',",
+      "expectRed": ["blocks a brief whose PR number has no hash sign with exit 2"],
+      "note": "{pr} accepts a bare number, so the template's #N form is no longer enforced."
     }
   ]
 }

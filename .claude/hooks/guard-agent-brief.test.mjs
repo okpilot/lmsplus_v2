@@ -184,6 +184,7 @@ for (const type of Object.keys(TEMPLATES)) {
   })
 }
 
+// GROUP: guard-agent-brief-round-class-widened
 test('blocks a round that is not digits or "after-loop" (e.g. "2a") with exit 2', () => {
   const brief = fillTemplate(TEMPLATES['code-reviewer'], { round: '2a' })
   const r = runHook(payload('code-reviewer', brief))
@@ -367,6 +368,7 @@ test('allows a brief with PR none and round after-loop', () => {
   assert.equal(r.status, 0)
 })
 
+// GROUP: guard-agent-brief-pr-class-widened
 test('blocks a brief whose PR number has no hash sign with exit 2', () => {
   const brief = fillTemplate(TEMPLATES['code-reviewer'], { pr: '123' })
   const r = runHook(payload('code-reviewer', brief))
