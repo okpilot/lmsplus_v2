@@ -20,6 +20,7 @@ Write it as `code-review (skill)` in every roster. `code-reviewer` is a DIFFEREN
 - **The report OPENS with provenance** — `pwd`, `git rev-parse --abbrev-ref HEAD`, `git rev-parse HEAD`, and whether the skill ran inline or in an isolated worktree. A run that cannot show where it ran is not a clean round. Nothing in the repo can check this; the orchestrator reads it or it is unverified.
 - **`ReportFindings` may be unavailable in the worktree.** Where it is NOT available the findings arrive as PROSE in the agent's terminal message — a normal result, not a failed round.
 - **`gh` IS available to the run** (`command -v gh`, `gh auth status`). Require it to resolve any finding resting on issue/PR state at its source — `gh issue view <N>`, `gh pr view <N>` — rather than reporting it unverified.
+- Never steer it (`agent-workflow.md § Gate reviewer agent integration`): the prompt carries the dispatch mechanics above, the round and the PR number once one exists — never a prior finding, a fix to verify, a hypothesis or a focus area.
 - State no derived count in the dispatch prompt — ship the command (`agent-workflow.md § A dispatch prompt states no derived number`).
 
 ## Severity Mapping

@@ -30,7 +30,6 @@ Keeps project documentation in sync with code changes: schema changes, new RPCs,
 - Edit steering documents directly.
 - Skip drift check when steering docs exist.
 - Cite a migration number, RPC guard, error string, file path, commit SHA (as a change's cause), or **column name** without reading the source directly. Column names count even in an illustrative example — grep `packages/db/src/types.ts` and scan EVERY `ALTER TABLE` chronologically to HEAD first (one match only proves the column existed once, never its state at HEAD). Plans, commit messages and session context are unreliable for `mig NNN` references, paths, and implementation specifics — read the file before citing. Run `git show <sha> -- <path>` to confirm a cited SHA actually contains the change.
-- Flag DRIFT (or any ISSUE) on an item the approved plan designates historical, or already in the session's exclusion list. Restate as known-open context at most, never a new finding — each re-litigation costs a validation cycle.
 
 ## Key Documents The Agent Watches
 | Document | What triggers an update |

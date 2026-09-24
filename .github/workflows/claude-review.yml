@@ -143,6 +143,11 @@ jobs:
             - **A new code path in a guard** (the keys of `.claude/pipeline.json` `guards`) needs a
               `.mutations.json` entry breaking it and a `// GROUP:`-linked test that goes red
               (`code-style.md` §7). Flag a path missing either as an ISSUE.
+            - **Compare new code with the repo's existing code for the same operation.** For each
+              helper, query or external-API call the diff adds, search for one already doing that
+              job (same SDK method, table or RPC). Flag a difference in paging, caps, error
+              handling, fallback, retry or filters the diff does not justify, and a function already over the
+              `code-style.md` §3 cap that the diff makes longer.
 
             If you cannot establish a finding's premise, say so in the comment instead of asserting it.
 
