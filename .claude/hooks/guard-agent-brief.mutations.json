@@ -159,6 +159,13 @@
         "blocks every gated brief with exit 2 when the templates file has no templates object"
       ],
       "note": "A templates file with no templates object lets every brief through."
+    },
+    {
+      "id": "guard-agent-brief-gated-template-check-disabled",
+      "find": "if (typeof templates[name] === 'string' && templates[name] !== '') continue",
+      "replace": "continue",
+      "expectRed": ["blocks every brief with exit 2 when a gated type has no template"],
+      "note": "A gated type dropped from gate-briefs.json is treated as ungated."
     }
   ]
 }

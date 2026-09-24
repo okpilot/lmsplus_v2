@@ -23,6 +23,9 @@ const path = require('node:path')
 // biome-ignore lint/suspicious/noUndeclaredEnvVars: not a Turborepo task — runs outside turbo.
 const REPO_ROOT = process.env.GUARD_AGENT_BRIEF_ROOT || path.join(__dirname, '..', '..')
 const TEMPLATES_PATH = path.join(REPO_ROOT, '.claude', 'hooks', 'gate-briefs.json')
+/** Every `.claude/pipeline.json` agent with one of these roles must have a template. */
+const PIPELINE_PATH = path.join(REPO_ROOT, '.claude', 'pipeline.json')
+const GATED_ROLES = new Set(['gate-round', 'conditional'])
 
 /** Regex-escape a literal chunk of a template. */
 function escapeRe(t) {
@@ -180,19 +183,28 @@ function dispatchReason(subagentType, toolInput) {
 /** Reads `templates` from `gate-briefs.json`. Fails closed: with no templates, a gated brief
  * cannot be checked. */
 function loadTemplates() {
-  let templatesDoc
-  try {
-    templatesDoc = JSON.parse(fs.readFileSync(TEMPLATES_PATH, 'utf8'))
-  } catch (err) {
-    process.stderr.write(`BLOCKED: cannot read ${TEMPLATES_PATH}: ${err.message}\n`)
-    process.exit(2)
-  }
-  const templates = templatesDoc?.templates
+  const templates = readJsonOrBlock(TEMPLATES_PATH)?.templates
   if (templates === null || typeof templates !== 'object' || Array.isArray(templates)) {
     process.stderr.write(`BLOCKED: ${TEMPLATES_PATH} has no "templates" object\n`)
     process.exit(2)
   }
+  const agents = readJsonOrBlock(PIPELINE_PATH)?.agents ?? {}
+  for (const [name, spec] of Object.entries(agents)) {
+    if (!GATED_ROLES.has(spec?.role)) continue
+    if (typeof templates[name] === 'string' && templates[name] !== '') continue
+    process.stderr.write(`BLOCKED: ${TEMPLATES_PATH} has no template for gated type ${name}\n`)
+    process.exit(2)
+  }
   return templates
+}
+
+function readJsonOrBlock(file) {
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf8'))
+  } catch (err) {
+    process.stderr.write(`BLOCKED: cannot read ${file}: ${err.message}\n`)
+    process.exit(2)
+  }
 }
 
 let input = ''

@@ -30,6 +30,7 @@ copyFileSync(
   path.join(HOOKS_DIR, 'gate-briefs.json'),
   path.join(ROOT, '.claude/hooks/gate-briefs.json'),
 )
+copyFileSync(path.join(HOOKS_DIR, '..', 'pipeline.json'), path.join(ROOT, '.claude/pipeline.json'))
 const git = (...args) =>
   execFileSync('git', [
     '-C',
@@ -46,7 +47,7 @@ const git = (...args) =>
   ])
 execFileSync('git', ['init', '-q', '-b', 'chore/agent-brief-guard', ROOT])
 // gate-briefs.json is tracked, the plan is not — as in the real repo, a linked worktree lacks it.
-git('add', '.claude/hooks/gate-briefs.json')
+git('add', '.claude/hooks/gate-briefs.json', '.claude/pipeline.json')
 git('commit', '-q', '-m', 'init')
 const WORKTREE = path.join(ROOT, 'wt')
 git('worktree', 'add', '-q', '-b', 'wt-branch', WORKTREE)
@@ -58,28 +59,24 @@ writeFileSync(path.join(BROKEN_ROOT, '.claude/hooks/gate-briefs.json'), '{')
 const EMPTY_ROOT = mkdtempSync(path.join(tmpdir(), 'guard-agent-brief-empty-'))
 mkdirSync(path.join(EMPTY_ROOT, '.claude/hooks'), { recursive: true })
 writeFileSync(path.join(EMPTY_ROOT, '.claude/hooks/gate-briefs.json'), '{}')
+// A root whose templates file lacks one gated type's template.
+const PARTIAL_ROOT = mkdtempSync(path.join(tmpdir(), 'guard-agent-brief-partial-'))
+mkdirSync(path.join(PARTIAL_ROOT, '.claude/hooks'), { recursive: true })
+copyFileSync(
+  path.join(HOOKS_DIR, '..', 'pipeline.json'),
+  path.join(PARTIAL_ROOT, '.claude/pipeline.json'),
+)
+{
+  const doc = JSON.parse(readFileSync(path.join(HOOKS_DIR, 'gate-briefs.json'), 'utf8'))
+  delete doc.templates['semantic-reviewer']
+  writeFileSync(path.join(PARTIAL_ROOT, '.claude/hooks/gate-briefs.json'), JSON.stringify(doc))
+}
 after(() => {
   rmSync(ROOT, { recursive: true, force: true })
+  rmSync(PARTIAL_ROOT, { recursive: true, force: true })
   rmSync(BROKEN_ROOT, { recursive: true, force: true })
   rmSync(EMPTY_ROOT, { recursive: true, force: true })
 })
-execFileSync('git', [
-  '-C',
-  ROOT,
-  '-c',
-  'user.name=t',
-  '-c',
-  'user.email=t@t',
-  '-c',
-  'commit.gpgsign=false',
-  '-c',
-  'core.hooksPath=/dev/null',
-  'commit',
-  '-q',
-  '--allow-empty',
-  '-m',
-  'init',
-])
 
 const TIMEOUT_MS = 5_000
 
@@ -321,6 +318,13 @@ test('blocks every gated brief with exit 2 when the templates file has no templa
   const r = runHook(payload('code-reviewer', brief), EMPTY_ROOT)
   assert.equal(r.status, 2)
   assert.match(r.stderr, /no "templates" object/)
+})
+
+// GROUP: guard-agent-brief-gated-template-check-disabled
+test('blocks every brief with exit 2 when a gated type has no template', () => {
+  const r = runHook(payload('semantic-reviewer', 'anything'), PARTIAL_ROOT)
+  assert.equal(r.status, 2)
+  assert.match(r.stderr, /no template for gated type semantic-reviewer/)
 })
 
 // GROUP: guard-agent-brief-main-checkout-fallback-disabled
