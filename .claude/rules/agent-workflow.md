@@ -46,7 +46,7 @@ PLAN — [task description]
 Files to change: path/to/file.ts (lines ~X-Y) — what and why
 Files affected: path/to/file.test.ts — update assertion from X to Y; docs/database.md — update soft-delete matrix row for table Z
 Risks: [specific edge case or known concern]
-Validation: ✓ Impact [N callers, conflicts] ✓ Contracts [N test files, M need updates] ✓ Patterns [matches/diverges + why] ✓ Docs [drift/update] ✓ Security [n/a or rule N]
+Validation: ✓ Impact [N callers, conflicts] ✓ Contracts [N test files, M need updates] ✓ Patterns [matches/diverges + why; the existing implementation of each new operation, or the git grep showing none] ✓ Docs [drift/update] ✓ Security [n/a or rule N]
 ```
 
 ### Plan-Critic Review (runs AFTER plan validation, BEFORE user approval)
