@@ -76,6 +76,7 @@ test('blocks a code-reviewer brief carrying an extra CONTEXT line with exit 2 an
   const r = runHook(payload('code-reviewer', brief))
   assert.equal(r.status, 2)
   assert.match(r.stderr, /BLOCKED: code-reviewer/)
+  assert.match(r.stderr, /does not match its required template/)
   assert.match(r.stderr, /Expected:/)
 })
 
@@ -128,6 +129,7 @@ test('blocks implementation-critic when the plan file does not exist on disk wit
   })
   const r = runHook(payload('implementation-critic', brief))
   assert.equal(r.status, 2)
+  assert.match(r.stderr, /invalid \{plan\} path/)
 })
 
 test('blocks implementation-critic when the plan path contains ".." with exit 2', () => {
@@ -136,6 +138,7 @@ test('blocks implementation-critic when the plan path contains ".." with exit 2'
   })
   const r = runHook(payload('implementation-critic', brief))
   assert.equal(r.status, 2)
+  assert.match(r.stderr, /invalid \{plan\} path/)
 })
 
 // planPathValid's format regex has no dedicated pinning test above — the ".." test and the
@@ -149,6 +152,7 @@ test('blocks implementation-critic when the plan path is outside .work and .spec
   })
   const r = runHook(payload('implementation-critic', brief))
   assert.equal(r.status, 2)
+  assert.match(r.stderr, /invalid \{plan\} path/)
 })
 
 // path.join collapses "foo/.." away, so this resolves to the same real file as VALID_PLAN —
@@ -161,6 +165,7 @@ test('blocks implementation-critic when the plan path contains ".." that collaps
   })
   const r = runHook(payload('implementation-critic', brief))
   assert.equal(r.status, 2)
+  assert.match(r.stderr, /invalid \{plan\} path/)
 })
 
 // GROUP: guard-agent-brief-isolation-worktree-check-disabled
@@ -168,6 +173,7 @@ test('blocks code-review-skill without isolation: worktree with exit 2', () => {
   const brief = exactBrief('code-review-skill')
   const r = runHook(payload('code-review-skill', brief, { model: 'opus' }))
   assert.equal(r.status, 2)
+  assert.match(r.stderr, /requires isolation: "worktree"/)
 })
 
 // GROUP: guard-agent-brief-model-opus-check-disabled
@@ -175,6 +181,7 @@ test('blocks code-review-skill with model "sonnet" with exit 2', () => {
   const brief = exactBrief('code-review-skill')
   const r = runHook(payload('code-review-skill', brief, { isolation: 'worktree', model: 'sonnet' }))
   assert.equal(r.status, 2)
+  assert.match(r.stderr, /requires model "opus" or omitted/)
 })
 
 test('allows code-review-skill with model omitted (undefined defaults to opus)', () => {

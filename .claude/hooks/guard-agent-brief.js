@@ -62,10 +62,18 @@ function allow() {
   process.exit(0) // Allow
 }
 
-function block(type, template) {
-  process.stderr.write(
-    `BLOCKED: ${type} brief does not match its required template\nExpected:\n${template}\n`,
-  )
+/** Human-readable cause per `checkBrief` block reason — keeps stderr naming the actual defect
+ * instead of always claiming a template mismatch. */
+const BLOCK_MESSAGES = {
+  mismatch: 'does not match its required template',
+  plan: 'names an invalid {plan} path — must be under .work/ or .spec-workflow/specs/, end in .md, contain no "..", and exist on disk',
+  isolation: 'requires isolation: "worktree"',
+  model: 'requires model "opus" or omitted',
+}
+
+function block(type, reason, template) {
+  process.stderr.write(`BLOCKED: ${type} brief ${BLOCK_MESSAGES[reason]}\n`)
+  if (reason === 'mismatch') process.stderr.write(`Expected:\n${template}\n`)
   process.exit(2) // Exit code 2 = block the tool call
 }
 
@@ -77,6 +85,44 @@ function planPathValid(plan, cwd) {
   if (plan.includes('..')) return false
   const resolved = path.join(typeof cwd === 'string' ? cwd : process.cwd(), plan)
   return fs.existsSync(resolved)
+}
+
+/** Parses the hook's stdin JSON payload. Returns `undefined` on invalid JSON — caller is
+ * responsible for the fail-open stderr write and exit. */
+function parsePayload(input) {
+  try {
+    return JSON.parse(input)
+  } catch {
+    return undefined
+  }
+}
+
+/** Validates one Agent-tool brief against its gated template (`templates[subagentType]`).
+ * Returns `null` when the call is allowed (non-gated type, or every check passes), or
+ * `{ reason, template }` when it must be blocked — `reason` is one of the `BLOCK_MESSAGES` keys. */
+function checkBrief(toolInput, cwd, templates) {
+  const subagentType = toolInput?.subagent_type
+  const template = templates[subagentType]
+  if (typeof template !== 'string') return null // not a gated type
+
+  const rawPrompt = toolInput?.prompt
+  const prompt = typeof rawPrompt === 'string' ? rawPrompt.replace(/\s+$/, '') : ''
+  const re = buildTemplateRegex(template)
+  const m = re.exec(prompt)
+  if (!m) return { reason: 'mismatch', template }
+
+  if (subagentType === 'implementation-critic') {
+    const plan = m.groups?.plan
+    if (!planPathValid(plan, cwd)) return { reason: 'plan', template }
+  }
+
+  if (subagentType === 'code-review-skill') {
+    if (toolInput?.isolation !== 'worktree') return { reason: 'isolation', template }
+    const model = toolInput?.model
+    if (model !== undefined && model !== 'opus') return { reason: 'model', template }
+  }
+
+  return null
 }
 
 let input = ''
@@ -100,10 +146,8 @@ process.stdin.on('data', (chunk) => {
 })
 process.stdin.on('end', () => {
   if (oversizedPayload) return
-  let payload
-  try {
-    payload = JSON.parse(input)
-  } catch {
+  const payload = parsePayload(input)
+  if (payload === undefined) {
     process.stderr.write('[guard-agent-brief] unparseable hook payload — allowing\n', () =>
       process.exit(0),
     )
@@ -124,25 +168,8 @@ process.stdin.on('end', () => {
     return allow()
   }
   const templates = templatesDoc?.templates ?? {}
-  const template = templates[subagentType]
-  if (typeof template !== 'string') return allow() // not a gated type
 
-  const rawPrompt = toolInput?.prompt
-  const prompt = typeof rawPrompt === 'string' ? rawPrompt.replace(/\s+$/, '') : ''
-  const re = buildTemplateRegex(template)
-  const m = re.exec(prompt)
-  if (!m) return block(subagentType, template)
-
-  if (subagentType === 'implementation-critic') {
-    const plan = m.groups?.plan
-    if (!planPathValid(plan, payload?.cwd)) return block(subagentType, template)
-  }
-
-  if (subagentType === 'code-review-skill') {
-    if (toolInput?.isolation !== 'worktree') return block(subagentType, template)
-    const model = toolInput?.model
-    if (model !== undefined && model !== 'opus') return block(subagentType, template)
-  }
-
+  const result = checkBrief(toolInput, payload?.cwd, templates)
+  if (result) return block(subagentType, result.reason, result.template)
   return allow()
 })

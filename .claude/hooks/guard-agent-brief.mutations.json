@@ -83,15 +83,15 @@
     },
     {
       "id": "guard-agent-brief-isolation-worktree-check-disabled",
-      "find": "if (toolInput?.isolation !== 'worktree') return block(subagentType, template)",
-      "replace": "if (false) return block(subagentType, template)",
+      "find": "if (toolInput?.isolation !== 'worktree') return { reason: 'isolation', template }",
+      "replace": "if (false) return { reason: 'isolation', template }",
       "expectRed": ["blocks code-review-skill without isolation: worktree with exit 2"],
       "note": "Disables the code-review-skill isolation:worktree check only — a valid model with isolation omitted is no longer blocked on that basis."
     },
     {
       "id": "guard-agent-brief-model-opus-check-disabled",
-      "find": "if (model !== undefined && model !== 'opus') return block(subagentType, template)",
-      "replace": "if (false) return block(subagentType, template)",
+      "find": "if (model !== undefined && model !== 'opus') return { reason: 'model', template }",
+      "replace": "if (false) return { reason: 'model', template }",
       "expectRed": ["blocks code-review-skill with model \"sonnet\" with exit 2"],
       "note": "Disables the code-review-skill model check only — isolation:worktree with a non-opus model is no longer blocked on that basis."
     }
