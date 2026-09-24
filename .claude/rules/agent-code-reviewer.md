@@ -18,6 +18,7 @@ Checks the branch diff (`git diff origin/master...HEAD`) against `.claude/rules/
 - Measure a function-length finding on the BODY — its first `{` to the matching `}` — never
   declaration-to-next-declaration, which sweeps the FOLLOWING JSDoc into the count and reports a
   compliant function as over.
+- Count a function already over the cap at `origin/master` that the diff makes longer (`code-style.md` §8).
 - Note watch items in the summary. File-size headroom is NOT the reviewer's to count — it no longer counts lines. For per-rule compliance run `node .claude/hooks/check-file-size-guard.mjs --stats`; for one file's headroom, `wc -l` against that rule's cap in `.claude/limits.json` (agrees with the guard except on a file lacking a trailing newline, where the guard counts one MORE). `--stats` does NOT report headroom.
 
 ### NEVER
