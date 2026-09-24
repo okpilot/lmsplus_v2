@@ -160,8 +160,8 @@ A commit triggers NOTHING. Full mechanics: `agent-workflow.md § Pre-Push Review
 6. **deletion-reviewer** (sonnet) — reports what the diff can delete with no loss, each with `EVIDENCE:`; read-only
 7. **code-review (skill)** (opus) — the built-in `/code-review` skill, dispatched as `subagent_type: code-review-skill` in an isolated worktree
 
-**Round 2+** — code-reviewer + semantic-reviewer + code-review (skill).
-doc-updater and test-writer PRODUCE rather than gate; re-run one, or deletion-reviewer, only when the
+**Round 2+** — code-reviewer + semantic-reviewer + deletion-reviewer + code-review (skill).
+doc-updater and test-writer PRODUCE rather than gate; re-run either only when the
 fixup added surface it has not seen.
 
 **Async.** WAIT for a completion notification from every agent LAUNCHED, read ALL results, validate

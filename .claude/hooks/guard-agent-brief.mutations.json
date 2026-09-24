@@ -1,7 +1,10 @@
 {
   "_": "Planted red/green controls linked by GROUP marker to the two spawned tests that already drove the guard's exit code before this file existed.",
   "target": ".claude/hooks/guard-agent-brief.js",
-  "suites": [".claude/hooks/guard-agent-brief.test.mjs"],
+  "suites": [
+    ".claude/hooks/guard-agent-brief.test.mjs",
+    ".claude/hooks/guard-agent-brief.sendmessage.test.mjs"
+  ],
   "mutations": [
     {
       "id": "guard-agent-brief-always-passes",
@@ -24,9 +27,18 @@
         "blocks an implementation-critic brief dispatched with isolation: \"worktree\" with exit 2",
         "blocks a brief whose branch is not a local branch with exit 2",
         "blocks a steered brief padded with trailing-whitespace runs within the timeout",
-        "blocks a steered brief for a templated type pipeline.json gives no gate role"
+        "blocks a steered brief for a templated type pipeline.json gives no gate role",
+        "blocks code-reviewer with a model that is not its pipeline.json alias with exit 2",
+        "blocks implementation-critic when the requirements file does not exist on disk with exit 2",
+        "blocks a SendMessage whose to resolves to a gated agent type with exit 2",
+        "blocks a SendMessage to a gated agent id written with a trailing ref suffix with exit 2",
+        "blocks a SendMessage to an agent id whose meta.json does not exist with exit 2",
+        "blocks a SendMessage to an agent id when transcript_path is missing with exit 2",
+        "blocks a SendMessage to an agent id when session_id is missing with exit 2",
+        "blocks a gated brief dispatched with a name with exit 2",
+        "blocks a SendMessage from a subagent to a gated agent id with exit 2"
       ],
-      "note": "Forces the block() branch to exit 0 instead of 2 — a mismatched brief is logged as BLOCKED on stderr but no longer stops the tool call. Reddens every test asserting exit 2, not only the control."
+      "note": "Forces the block() branch to exit 0 instead of 2 — a mismatched brief is logged as BLOCKED on stderr but no longer stops the tool call. Reddens every test asserting exit 2, not only the control — Agent-brief and SendMessage blocks alike, since both route through this one shared exit call."
     },
     {
       "id": "guard-agent-brief-always-blocks",
@@ -50,9 +62,14 @@
         "allows implementation-critic with a valid existing plan when stdin cwd points elsewhere",
         "allows a code-reviewer brief with isolation omitted",
         "allows implementation-critic from a linked worktree when the plan exists only in the main checkout",
-        "allows an ungated type when a gated type lacks its template"
+        "allows an ungated type when a gated type lacks its template",
+        "allows code-reviewer with model explicitly set to its pipeline.json alias",
+        "allows implementation-critic when plan and requirements name the same file",
+        "allows a SendMessage sent to a plain agent name with exit 0",
+        "allows a SendMessage sent to \"main\" with exit 0",
+        "allows a SendMessage whose to resolves to an ungated agent type"
       ],
-      "note": "Forces the allow() path to exit 2 instead of 0 — every non-blocked brief (the exact-match control, every gated type's own exact brief, and every non-gated type) is blocked too."
+      "note": "Forces the allow() path to exit 2 instead of 0 — every non-blocked brief (the exact-match control, every gated type's own exact brief, and every non-gated type) is blocked too, Agent and SendMessage alike."
     },
     {
       "id": "guard-agent-brief-plan-regex-always-passes",
@@ -77,9 +94,10 @@
       "find": "root && fs.existsSync(path.join(root, plan))",
       "replace": "root",
       "expectRed": [
-        "blocks implementation-critic when the plan file does not exist on disk with exit 2"
+        "blocks implementation-critic when the plan file does not exist on disk with exit 2",
+        "blocks implementation-critic when the requirements file does not exist on disk with exit 2"
       ],
-      "note": "Disables planPathValid's exists-on-disk check only — a well-formed plan path with no '..' is accepted even when the file is missing."
+      "note": "Disables planPathValid's exists-on-disk check only — a well-formed plan path with no '..' is accepted even when the file is missing. planPathValid is shared by {plan} and {requirements} (R3), so both checks lose it."
     },
     {
       "id": "guard-agent-brief-backreference-disabled",
@@ -99,15 +117,18 @@
     },
     {
       "id": "guard-agent-brief-model-opus-check-disabled",
-      "find": "if (model !== undefined && model !== 'opus') return 'model'",
+      "find": "if (model !== undefined && model !== expected) return 'model'",
       "replace": "if (false) return 'model'",
-      "expectRed": ["blocks code-review-skill with model \"sonnet\" with exit 2"],
-      "note": "Disables the code-review-skill model check only — isolation:worktree with a non-opus model is no longer blocked on that basis."
+      "expectRed": [
+        "blocks code-review-skill with model \"sonnet\" with exit 2",
+        "blocks code-reviewer with a model that is not its pipeline.json alias with exit 2"
+      ],
+      "note": "Disables the model-floor check for every gated type — a model that disagrees with the dispatched type's own pipeline.json alias is no longer blocked on that basis, for code-review-skill or any other gated type."
     },
     {
       "id": "guard-agent-brief-other-worktree-check-disabled",
-      "find": "return toolInput?.isolation === 'worktree' ? 'worktree-forbidden' : null",
-      "replace": "return null",
+      "find": "} else if (toolInput?.isolation === 'worktree') {",
+      "replace": "} else if (false) {",
       "expectRed": [
         "blocks a code-reviewer brief dispatched with isolation: \"worktree\" with exit 2",
         "blocks an implementation-critic brief dispatched with isolation: \"worktree\" with exit 2"
@@ -164,16 +185,17 @@
     },
     {
       "id": "guard-agent-brief-gated-scope-disabled",
-      "find": "if (!gated) {",
-      "replace": "if (false) {",
+      "find": "if (!gated) {\n    if (!agents) blockLoad(`cannot read ${PIPELINE_PATH} to tell whether ${subagentType} is gated`)",
+      "replace": "if (false) {\n    if (!agents) blockLoad(`cannot read ${PIPELINE_PATH} to tell whether ${subagentType} is gated`)",
       "expectRed": [
         "allows a non-gated subagent_type with any prompt",
         "allows general-purpose with any prompt",
         "blocks every gated brief with exit 2 when the templates file is unparseable",
         "allows an ungated type when a gated type lacks its template",
-        "blocks an untemplated type when pipeline.json is unreadable"
+        "blocks an untemplated type when pipeline.json is unreadable",
+        "allows a SendMessage whose to resolves to an ungated agent type"
       ],
-      "note": "The template checks run for every subagent_type, so an ungated dispatch is blocked."
+      "note": "The template checks run for every subagent_type, so an ungated dispatch is blocked — including checkSendMessage's own loadTemplates(type) call for a resolved ungated type."
     },
     {
       "id": "guard-agent-brief-template-key-gating-disabled",
@@ -207,6 +229,85 @@
         "blocks an untemplated type when pipeline.json is unreadable"
       ],
       "note": "With pipeline.json unreadable, a gated type whose template is also missing reads as ungated and is allowed."
+    },
+    {
+      "id": "guard-agent-brief-requirements-check-disabled",
+      "find": "if (!planPathValid(requirements)) return { reason: 'requirements', template }",
+      "replace": "",
+      "expectRed": [
+        "blocks implementation-critic when the requirements file does not exist on disk with exit 2"
+      ],
+      "note": "R3 — implementation-critic's {requirements} capture is no longer validated; only {plan} still is."
+    },
+    {
+      "id": "guard-agent-brief-sendmessage-id-check-disabled",
+      "find": "if (!AGENT_ID_RE.test(stripped)) return null",
+      "replace": "if (true) return null",
+      "expectRed": [
+        "blocks a SendMessage whose to resolves to a gated agent type with exit 2",
+        "blocks a SendMessage to a gated agent id written with a trailing ref suffix with exit 2",
+        "blocks a SendMessage to an agent id whose meta.json does not exist with exit 2",
+        "blocks a SendMessage to an agent id when transcript_path is missing with exit 2",
+        "blocks a SendMessage to an agent id when session_id is missing with exit 2",
+        "blocks a SendMessage from a subagent to a gated agent id with exit 2"
+      ],
+      "note": "Every SendMessage `to` reads as a non-id (a name or main) and is never resolved, so a message to a gated agent id is never blocked."
+    },
+    {
+      "id": "guard-agent-brief-sendmessage-ref-strip-disabled",
+      "find": "const stripped = to.replace(/ \\[[0-9a-f]+\\]$/, '')",
+      "replace": "const stripped = to",
+      "expectRed": [
+        "blocks a SendMessage to a gated agent id written with a trailing ref suffix with exit 2"
+      ],
+      "note": "An agent id written with its trailing \" [<ref>]\" suffix no longer matches AGENT_ID_RE, so it is never resolved as an id."
+    },
+    {
+      "id": "guard-agent-brief-sendmessage-context-missing-disabled",
+      "find": "if (typeof transcriptPath !== 'string' || typeof sessionId !== 'string') return undefined",
+      "replace": "if (false) return undefined",
+      "expectRed": [
+        "blocks a SendMessage to an agent id when transcript_path is missing with exit 2",
+        "blocks a SendMessage to an agent id when session_id is missing with exit 2"
+      ],
+      "note": "The SendMessage fail-closed rule for a missing transcript_path/session_id is disabled — an undefined transcriptPath reaches path.dirname(undefined), which throws, so the mutated run exits non-zero for a different reason (an uncaught exception) rather than the guard's own deliberate block; the assertion still reddens because the exit code is never 2."
+    },
+    {
+      "id": "guard-agent-brief-sendmessage-meta-unreadable-disabled",
+      "find": "return typeof meta?.agentType === 'string' ? meta.agentType : undefined",
+      "replace": "return 'general-purpose'",
+      "expectRed": [
+        "blocks a SendMessage whose to resolves to a gated agent type with exit 2",
+        "blocks a SendMessage to a gated agent id written with a trailing ref suffix with exit 2",
+        "blocks a SendMessage to an agent id whose meta.json does not exist with exit 2",
+        "blocks a SendMessage from a subagent to a gated agent id with exit 2"
+      ],
+      "note": "Meta.json resolution always reports the ungated 'general-purpose', regardless of what (or whether) a meta.json file actually says — an unreadable meta.json no longer fails closed, and a genuinely gated type's own meta.json is never read either."
+    },
+    {
+      "id": "guard-agent-brief-sendmessage-gated-check-disabled",
+      "find": "return gated ? { reason: 'sendmessage-gated' } : null",
+      "replace": "return null",
+      "expectRed": [
+        "blocks a SendMessage whose to resolves to a gated agent type with exit 2",
+        "blocks a SendMessage to a gated agent id written with a trailing ref suffix with exit 2",
+        "blocks a SendMessage from a subagent to a gated agent id with exit 2"
+      ],
+      "note": "A SendMessage that successfully resolves to a gated type is no longer blocked on that basis."
+    },
+    {
+      "id": "guard-agent-brief-name-check-disabled",
+      "find": "if (toolInput?.name !== undefined) return 'name'",
+      "replace": "if (false) return 'name'",
+      "expectRed": ["blocks a gated brief dispatched with a name with exit 2"],
+      "note": "A gated dispatch may carry a name, so SendMessage to that name reaches it unchecked."
+    },
+    {
+      "id": "guard-agent-brief-sendmessage-subagent-dir-disabled",
+      "find": "path.basename(transcriptDir) === 'subagents'",
+      "replace": "false",
+      "expectRed": ["blocks a SendMessage from a subagent to a gated agent id with exit 2"],
+      "note": "A subagent sender's meta path gains a spurious <session>/subagents segment, so resolution fails closed with the unresolved reason instead of the gated one."
     }
   ]
 }

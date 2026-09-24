@@ -4,11 +4,14 @@
  * Blocks a gate-reviewer brief unless it matches that type's template in
  * `.claude/hooks/gate-briefs.json` EXACTLY, after trimming trailing whitespace off the
  * whole prompt. Only round, PR number, branch, and (implementation-critic only) a plan-file
- * path may vary — `agent-workflow.md § Never steer a gate reviewer`.
+ * and requirements-file path may vary — `agent-workflow.md § Never steer a gate reviewer`.
  *
  * Claude Code delivers the hook payload on STDIN as JSON:
  *   {"cwd":"...","tool_name":"Agent","tool_input":{"subagent_type":"...","prompt":"...",
  *    "description":"...","isolation":"worktree","model":"...","run_in_background":false}}
+ * Also gates `SendMessage` (Decision 94) — same PreToolUse channel, a different shape:
+ *   {"session_id":"...","transcript_path":"...","tool_name":"SendMessage",
+ *    "tool_input":{"to":"...","message":"..."}}
  * Reference pattern: .claude/hooks/guard-bash.js (stdin accumulate + parse on 'end').
  */
 
@@ -38,8 +41,12 @@ const PLACEHOLDER_PATTERNS = {
   pr: '(?:#\\d+|none)',
   branch: '[A-Za-z0-9._/-]+',
   plan: '[^`]+',
+  requirements: '[^`]+',
 }
-const PLACEHOLDER_RE = /\{(round|pr|branch|plan)\}/g
+const PLACEHOLDER_RE = /\{(round|pr|branch|plan|requirements)\}/g
+
+/** SendMessage `to` shape for an agent id (`.meta.json` filename suffix) — never a name or `main`. */
+const AGENT_ID_RE = /^a[0-9a-f]{16}$/
 
 /**
  * Build an anchored regex from a template string. A placeholder repeated in one template
@@ -77,11 +84,18 @@ function allow() {
 const BLOCK_MESSAGES = {
   mismatch: 'does not match its required template',
   plan: 'names an invalid {plan} path — must be under .work/ or .spec-workflow/specs/, end in .md, contain no "..", and exist on disk',
+  requirements:
+    'names an invalid {requirements} path — must be under .work/ or .spec-workflow/specs/, end in .md, contain no "..", and exist on disk',
   branch: 'names a {branch} that is not a local branch (refs/heads/<branch>)',
   isolation: 'requires isolation: "worktree"',
-  model: 'requires model "opus" or omitted',
+  model: 'requires model omitted or its pipeline.json alias',
+  name: 'must not carry a name — a named gated agent could be resumed by SendMessage to that name',
   'worktree-forbidden':
     'must not use isolation: "worktree" — only code-review-skill is dispatched into an isolated worktree (agent-code-review.md § Dispatch); a worktree for any other gated type is cut at origin/master, so its own git diff origin/master...HEAD resolves to zero paths',
+  'sendmessage-unresolved':
+    'targets an agent id whose type cannot be resolved (missing transcript_path/session_id, or an unreadable meta.json) — fails closed',
+  'sendmessage-gated':
+    'targets an agent id whose type is gated — a gated agent takes no message outside its own template-checked brief',
 }
 
 function block(type, reason, template) {
@@ -146,7 +160,7 @@ function parsePayload(input) {
 /** Validates one Agent-tool brief against its gated template (`templates[subagentType]`).
  * Returns `null` when the call is allowed (non-gated type, or every check passes), or
  * `{ reason, template }` when it must be blocked — `reason` is one of the `BLOCK_MESSAGES` keys. */
-function checkBrief(toolInput, templates) {
+function checkBrief(toolInput, templates, agents) {
   const subagentType = toolInput?.subagent_type
   const template = templates[subagentType]
   if (typeof template !== 'string') return null // not a gated type
@@ -160,29 +174,36 @@ function checkBrief(toolInput, templates) {
   if (subagentType === 'implementation-critic') {
     const plan = m.groups?.plan
     if (!planPathValid(plan)) return { reason: 'plan', template }
+    const requirements = m.groups?.requirements
+    if (!planPathValid(requirements)) return { reason: 'requirements', template }
   }
   if (!branchExists(m.groups?.branch)) return { reason: 'branch', template }
 
-  const reason = dispatchReason(subagentType, toolInput)
+  const reason = dispatchReason(subagentType, toolInput, agents)
   return reason ? { reason, template } : null
 }
 
 /** Only code-review-skill is dispatched into a worktree (agent-code-review.md § Dispatch) — it
  * is cut at origin/master, and every OTHER gated type reviews origin/master...HEAD, which
- * resolves to zero paths there. Returns a `BLOCK_MESSAGES` key, or `null`. */
-function dispatchReason(subagentType, toolInput) {
-  if (subagentType !== 'code-review-skill') {
-    return toolInput?.isolation === 'worktree' ? 'worktree-forbidden' : null
+ * resolves to zero paths there. The `model` param, when given, must equal the dispatched type's
+ * own `pipeline.json` alias — checked for every gated type, not only code-review-skill.
+ * Returns a `BLOCK_MESSAGES` key, or `null`. */
+function dispatchReason(subagentType, toolInput, agents) {
+  if (subagentType === 'code-review-skill') {
+    if (toolInput?.isolation !== 'worktree') return 'isolation'
+  } else if (toolInput?.isolation === 'worktree') {
+    return 'worktree-forbidden'
   }
-  if (toolInput?.isolation !== 'worktree') return 'isolation'
+  if (toolInput?.name !== undefined) return 'name'
   const model = toolInput?.model
-  if (model !== undefined && model !== 'opus') return 'model'
+  const expected = agents?.[subagentType]?.model
+  if (model !== undefined && model !== expected) return 'model'
   return null
 }
 
-/** Templates for a gated `subagentType` — a `pipeline.json` gate role or a template key — or
- * `null` for an ungated one. Fails closed for a gated type whose template cannot be read, and
- * for an untemplated type when `pipeline.json` cannot be read to tell. */
+/** Templates plus the pipeline's `agents` map for a `subagentType`, and whether it is gated (a
+ * `pipeline.json` gate role, or a template key). Fails closed for a gated type whose template cannot be read, and for an untemplated type when
+ * `pipeline.json` cannot be read to tell. */
 function loadTemplates(subagentType) {
   const templates = objectOrUndefined(readJson(TEMPLATES_PATH)?.templates)
   const agents = objectOrUndefined(readJson(PIPELINE_PATH)?.agents)
@@ -190,14 +211,48 @@ function loadTemplates(subagentType) {
     GATED_ROLES.has(agents?.[subagentType]?.role) || Object.hasOwn(templates ?? {}, subagentType)
   if (!gated) {
     if (!agents) blockLoad(`cannot read ${PIPELINE_PATH} to tell whether ${subagentType} is gated`)
-    return null
+    return { templates, agents, gated: false }
   }
   if (!templates) blockLoad(`${TEMPLATES_PATH} has no "templates" object`)
   const template = templates[subagentType]
   if (typeof template !== 'string' || template === '') {
     blockLoad(`${TEMPLATES_PATH} has no template for gated type ${subagentType}`)
   }
-  return templates
+  return { templates, agents, gated: true }
+}
+
+/** SendMessage's `to` field resolved to an agent type, or `undefined` when `to` names an
+ * agent id but the type cannot be determined (missing context, unreadable/malformed meta.json).
+ * `null` means `to` is not an agent id at all (a name or `main`) — no resolution needed. */
+function resolveSendMessageType(payload) {
+  const to = payload?.tool_input?.to
+  if (typeof to !== 'string') return null
+  const stripped = to.replace(/ \[[0-9a-f]+\]$/, '')
+  if (!AGENT_ID_RE.test(stripped)) return null
+
+  const transcriptPath = payload?.transcript_path
+  const sessionId = payload?.session_id
+  if (typeof transcriptPath !== 'string' || typeof sessionId !== 'string') return undefined
+
+  // A subagent sender's transcript already sits in the session's `subagents/` directory.
+  const transcriptDir = path.dirname(transcriptPath)
+  const subagentsDir =
+    path.basename(transcriptDir) === 'subagents'
+      ? transcriptDir
+      : path.join(transcriptDir, sessionId, 'subagents')
+  const metaPath = path.join(subagentsDir, `agent-${stripped}.meta.json`)
+  const meta = readJson(metaPath)
+  return typeof meta?.agentType === 'string' ? meta.agentType : undefined
+}
+
+/** validates one SendMessage call. Returns `null` when allowed (not an agent id, or an ungated
+ * one), or `{ reason }` when it must be blocked. */
+function checkSendMessage(payload) {
+  const type = resolveSendMessageType(payload)
+  if (type === null) return null
+  if (type === undefined) return { reason: 'sendmessage-unresolved' }
+  const { gated } = loadTemplates(type)
+  return gated ? { reason: 'sendmessage-gated' } : null
 }
 
 function readJson(file) {
@@ -244,13 +299,18 @@ process.stdin.on('end', () => {
     return
   }
 
+  if (payload?.tool_name === 'SendMessage') {
+    const result = checkSendMessage(payload)
+    return result ? block('SendMessage', result.reason) : allow()
+  }
+
   const toolInput = payload?.tool_input
   const subagentType = toolInput?.subagent_type
   if (typeof subagentType !== 'string') return allow()
 
-  const templates = loadTemplates(subagentType)
-  if (!templates) return allow()
-  const result = checkBrief(toolInput, templates)
+  const { templates, agents, gated } = loadTemplates(subagentType)
+  if (!gated) return allow()
+  const result = checkBrief(toolInput, templates, agents)
   if (result) return block(subagentType, result.reason, result.template)
   return allow()
 })
