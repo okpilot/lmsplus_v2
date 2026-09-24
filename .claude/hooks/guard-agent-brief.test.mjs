@@ -14,7 +14,10 @@ import { runNode } from './spawn.testkit.mjs'
 
 const HOOKS_DIR = path.dirname(fileURLToPath(import.meta.url))
 const HOOK = path.join(HOOKS_DIR, 'guard-agent-brief.js')
-// A self-contained cwd carrying the plan file — the real plans are gitignored and absent in CI.
+// A self-contained fixture root carrying the plan file — the real plans are gitignored and
+// absent in CI. Passed to the hook as GUARD_AGENT_BRIEF_ROOT (see runHook), never as stdin
+// `cwd`: the hook resolves {plan} against the repo root (or this override), not the caller's
+// shell directory.
 const ROOT = mkdtempSync(path.join(tmpdir(), 'guard-agent-brief-test-'))
 mkdirSync(path.join(ROOT, '.spec-workflow/specs/agent-brief-guard'), { recursive: true })
 writeFileSync(path.join(ROOT, '.spec-workflow/specs/agent-brief-guard/plan.md'), '# plan\n')
@@ -28,13 +31,24 @@ const TEMPLATES = gateBriefs.templates
 
 // runNode throws NO VERDICT on a signal, a timeout or a failed spawn — see guard-bash.test.mjs
 // for why `status` must never be read off a killed child.
+//
+// GUARD_AGENT_BRIEF_ROOT points the hook's plan-path resolution at ROOT (this suite's throwaway
+// fixture directory) instead of the real repo root — the real plans are gitignored and absent in
+// CI. Every call goes through here so every test gets it, including ones that never touch a
+// {plan} placeholder.
 function runHook(stdin) {
-  return runNode('guard-agent-brief.js', [HOOK], { input: stdin, timeout: TIMEOUT_MS })
+  return runNode('guard-agent-brief.js', [HOOK], {
+    input: stdin,
+    timeout: TIMEOUT_MS,
+    env: { ...process.env, GUARD_AGENT_BRIEF_ROOT: ROOT },
+  })
 }
 
-function payload(subagentType, prompt, extra = {}) {
+// `cwd` here is DECORATIVE — a realistic field on the real hook payload — never what {plan}
+// resolves against; pass a bogus one to prove that.
+function payload(subagentType, prompt, extra = {}, cwd = ROOT) {
   return JSON.stringify({
-    cwd: ROOT,
+    cwd,
     hook_event_name: 'PreToolUse',
     tool_name: 'Agent',
     tool_input: { subagent_type: subagentType, prompt, ...extra },
@@ -246,4 +260,36 @@ test('blocks code-review-skill when its two {branch} occurrences disagree with e
     .replace('{branch}', 'some-other-branch')
   const r = runHook(payload('code-review-skill', brief, { isolation: 'worktree', model: 'opus' }))
   assert.equal(r.status, 2)
+})
+
+// {plan} must resolve against the repo root (GUARD_AGENT_BRIEF_ROOT here), never the stdin
+// `cwd` — a bogus cwd that carries no plan file at all must not block a real, existing plan.
+test('allows implementation-critic with a valid existing plan when stdin cwd points elsewhere', () => {
+  const brief = fillTemplate(TEMPLATES['implementation-critic'], { plan: VALID_PLAN })
+  const r = runHook(
+    payload('implementation-critic', brief, {}, '/nonexistent-cwd-should-be-ignored'),
+  )
+  assert.equal(r.status, 0)
+})
+
+// GROUP: guard-agent-brief-other-worktree-check-disabled
+test('blocks a code-reviewer brief dispatched with isolation: "worktree" with exit 2', () => {
+  const brief = exactBrief('code-reviewer')
+  const r = runHook(payload('code-reviewer', brief, { isolation: 'worktree' }))
+  assert.equal(r.status, 2)
+  assert.match(r.stderr, /must not use isolation: "worktree"/)
+})
+
+// Every gated type but code-review-skill takes this path — implementation-critic is a second,
+// independent example (it also carries the {plan} check, so this proves the two aren't confused).
+test('blocks an implementation-critic brief dispatched with isolation: "worktree" with exit 2', () => {
+  const brief = fillTemplate(TEMPLATES['implementation-critic'], { plan: VALID_PLAN })
+  const r = runHook(payload('implementation-critic', brief, { isolation: 'worktree' }))
+  assert.equal(r.status, 2)
+  assert.match(r.stderr, /must not use isolation: "worktree"/)
+})
+
+test('allows a code-reviewer brief with isolation omitted', () => {
+  const r = runHook(payload('code-reviewer', exactBrief('code-reviewer')))
+  assert.equal(r.status, 0)
 })

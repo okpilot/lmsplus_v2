@@ -19,7 +19,9 @@
         "blocks code-review-skill without isolation: worktree with exit 2",
         "blocks code-review-skill with model \"sonnet\" with exit 2",
         "blocks a brief whose PR number has no hash sign with exit 2",
-        "blocks code-review-skill when its two {branch} occurrences disagree with exit 2"
+        "blocks code-review-skill when its two {branch} occurrences disagree with exit 2",
+        "blocks a code-reviewer brief dispatched with isolation: \"worktree\" with exit 2",
+        "blocks an implementation-critic brief dispatched with isolation: \"worktree\" with exit 2"
       ],
       "note": "Forces the block() branch to exit 0 instead of 2 — a mismatched brief is logged as BLOCKED on stderr but no longer stops the tool call. Reddens every test asserting exit 2, not only the control."
     },
@@ -41,7 +43,9 @@
         "allows implementation-critic's exact template brief with exit 0",
         "allows code-review-skill's exact template brief with exit 0",
         "allows code-review-skill with model omitted (undefined defaults to opus)",
-        "allows a brief with PR none and round after-loop"
+        "allows a brief with PR none and round after-loop",
+        "allows implementation-critic with a valid existing plan when stdin cwd points elsewhere",
+        "allows a code-reviewer brief with isolation omitted"
       ],
       "note": "Forces the allow() path to exit 2 instead of 0 — every non-blocked brief (the exact-match control, every gated type's own exact brief, and every non-gated type) is blocked too."
     },
@@ -94,6 +98,16 @@
       "replace": "if (false) return { reason: 'model', template }",
       "expectRed": ["blocks code-review-skill with model \"sonnet\" with exit 2"],
       "note": "Disables the code-review-skill model check only — isolation:worktree with a non-opus model is no longer blocked on that basis."
+    },
+    {
+      "id": "guard-agent-brief-other-worktree-check-disabled",
+      "find": "} else if (toolInput?.isolation === 'worktree') {",
+      "replace": "} else if (false) {",
+      "expectRed": [
+        "blocks a code-reviewer brief dispatched with isolation: \"worktree\" with exit 2",
+        "blocks an implementation-critic brief dispatched with isolation: \"worktree\" with exit 2"
+      ],
+      "note": "Disables the non-code-review-skill worktree-forbidden check only — a gated type other than code-review-skill dispatched with isolation: \"worktree\" is no longer blocked on that basis."
     }
   ]
 }

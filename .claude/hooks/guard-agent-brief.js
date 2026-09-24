@@ -17,6 +17,13 @@ const path = require('node:path')
 
 const TEMPLATES_PATH = path.join(__dirname, 'gate-briefs.json')
 
+/** Repo root plan paths resolve against — never the stdin `cwd`, which is the orchestrator's
+ * own shell directory and has no fixed relationship to the repo. `GUARD_AGENT_BRIEF_ROOT` lets
+ * the test suite point this at a throwaway fixture root instead of a real (gitignored) plan
+ * file — production callers never set it, so they get the real repo root. */
+// biome-ignore lint/suspicious/noUndeclaredEnvVars: not a Turborepo task — runs outside turbo.
+const REPO_ROOT = process.env.GUARD_AGENT_BRIEF_ROOT || path.join(__dirname, '..', '..')
+
 /** Regex-escape a literal chunk of a template. */
 function escapeRe(t) {
   return t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -69,6 +76,8 @@ const BLOCK_MESSAGES = {
   plan: 'names an invalid {plan} path — must be under .work/ or .spec-workflow/specs/, end in .md, contain no "..", and exist on disk',
   isolation: 'requires isolation: "worktree"',
   model: 'requires model "opus" or omitted',
+  'worktree-forbidden':
+    'must not use isolation: "worktree" — only code-review-skill is dispatched into an isolated worktree (agent-code-review.md § Dispatch); a worktree for any other gated type is cut at origin/master, so its own git diff origin/master...HEAD resolves to zero paths',
 }
 
 function block(type, reason, template) {
@@ -78,12 +87,12 @@ function block(type, reason, template) {
 }
 
 /** implementation-critic's `{plan}` capture: under `.work/` or `.spec-workflow/specs/`, `.md`,
- * no `..`, existing on disk relative to the stdin `cwd`. */
-function planPathValid(plan, cwd) {
+ * no `..`, existing on disk relative to `REPO_ROOT`. */
+function planPathValid(plan) {
   if (typeof plan !== 'string') return false
   if (!/^(\.work|\.spec-workflow\/specs)\/[A-Za-z0-9._/-]+\.md$/.test(plan)) return false
   if (plan.includes('..')) return false
-  const resolved = path.join(typeof cwd === 'string' ? cwd : process.cwd(), plan)
+  const resolved = path.join(REPO_ROOT, plan)
   return fs.existsSync(resolved)
 }
 
@@ -100,7 +109,7 @@ function parsePayload(input) {
 /** Validates one Agent-tool brief against its gated template (`templates[subagentType]`).
  * Returns `null` when the call is allowed (non-gated type, or every check passes), or
  * `{ reason, template }` when it must be blocked — `reason` is one of the `BLOCK_MESSAGES` keys. */
-function checkBrief(toolInput, cwd, templates) {
+function checkBrief(toolInput, templates) {
   const subagentType = toolInput?.subagent_type
   const template = templates[subagentType]
   if (typeof template !== 'string') return null // not a gated type
@@ -113,13 +122,18 @@ function checkBrief(toolInput, cwd, templates) {
 
   if (subagentType === 'implementation-critic') {
     const plan = m.groups?.plan
-    if (!planPathValid(plan, cwd)) return { reason: 'plan', template }
+    if (!planPathValid(plan)) return { reason: 'plan', template }
   }
 
+  // Only code-review-skill is dispatched into a worktree (agent-code-review.md § Dispatch) —
+  // it is cut at origin/master, and every OTHER gated type reviews origin/master...HEAD, which
+  // resolves to zero paths there.
   if (subagentType === 'code-review-skill') {
     if (toolInput?.isolation !== 'worktree') return { reason: 'isolation', template }
     const model = toolInput?.model
     if (model !== undefined && model !== 'opus') return { reason: 'model', template }
+  } else if (toolInput?.isolation === 'worktree') {
+    return { reason: 'worktree-forbidden', template }
   }
 
   return null
@@ -169,7 +183,7 @@ process.stdin.on('end', () => {
   }
   const templates = templatesDoc?.templates ?? {}
 
-  const result = checkBrief(toolInput, payload?.cwd, templates)
+  const result = checkBrief(toolInput, templates)
   if (result) return block(subagentType, result.reason, result.template)
   return allow()
 })
