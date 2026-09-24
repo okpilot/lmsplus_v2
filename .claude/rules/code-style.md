@@ -763,7 +763,7 @@ expect(row.actor_role).toBe('admin')
 The `code-reviewer` agent flags these on the branch diff in the pre-push review gate:
 - Page files with logic instead of composition
 - Components with direct Supabase queries (no Server Component pattern)
-- Functions longer than 30 lines (EXCEPTION: React render/return bodies of pure JSX composition, no branching/data-transform — allowed up to 35 lines; see §3)
+- Functions longer than 30 lines, including a pre-existing one the diff makes longer (EXCEPTION: React render/return bodies of pure JSX composition, no branching/data-transform — allowed up to 35 lines; see §3)
 - Functions with >3 parameters (non-object)
 - Nesting deeper than 3 levels
 - `any` types

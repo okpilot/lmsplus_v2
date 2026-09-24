@@ -22,6 +22,7 @@ Read `git diff origin/master...HEAD`. Ask one question of every line it adds or 
 - **Tests** — a test duplicating another test's assertion.
 - **Docs** — a doc section restating a rule file.
 - **Features** — a whole feature nothing in the requirements asks for.
+- **Duplicates** — new code reimplementing an operation an existing helper already performs; delete it and import the existing one.
 
 ## Never Flag
 
@@ -29,11 +30,11 @@ Read `git diff origin/master...HEAD`. Ask one question of every line it adds or 
 
 ## Evidence Rule
 
-Every finding carries a pasted `grep`/`git grep` showing nothing depends on it: no caller, importer, reader or test references it; for restated prose, the grep that finds the original. No evidence, no finding.
+Every finding carries a pasted `grep`/`git grep` showing nothing depends on it: no caller, importer, reader or test references it; for restated prose, the grep that finds the original; for a duplicate, the grep that finds the existing implementation, whose callers take over the duplicate's. No evidence, no finding.
 
 ## Severity
 
-ISSUE (default APPLY) when the evidence proves no loss. SUGGESTION when the loss is a judgment call the evidence cannot settle (e.g. prose that may carry a scope clause). Evidence showing a dependent means no finding.
+ISSUE (default APPLY) when the evidence proves no loss. SUGGESTION when the loss is a judgment call the evidence cannot settle (e.g. prose that may carry a scope clause). Evidence showing a dependent means no finding — except a duplicate's callers, which move to the existing implementation.
 
 ## Output Format
 
