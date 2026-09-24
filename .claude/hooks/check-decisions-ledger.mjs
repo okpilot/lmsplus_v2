@@ -537,8 +537,9 @@ function memoize(fn) {
 
 /** A merge-blame walker bound to `baseText`, shared across every offender in one range run:
  *  ledger text, parent and merge-base lookups are memoized once, not per offender. Each call
- *  follows the first parent whose key matches HEAD's. A merge whose other parent `q` changed
- *  the key from the two parents' merge-base discarded that change, so the merge wrote the line.
+ *  follows the first parent whose key matches HEAD's. A merge whose other parent `q` has a
+ *  different key, changed from the two parents' merge-base, discarded that change, so the merge
+ *  wrote the line.
  *  Otherwise the commit where no parent matches wrote it; `true` only when that is a merge. */
 function buildMergeWalker(baseText) {
   const ledgerAt = memoize((sha) => readAtTree(sha, DECISIONS_PATH))
@@ -561,7 +562,7 @@ function buildMergeWalker(baseText) {
       const ps = parentsOf(c)
       const p = ps.find((par) => keyAt(par) === target)
       if (p === undefined) return ps.length > 1
-      if (ps.some((q) => q !== p && discarded(p, q))) return true
+      if (ps.some((q) => keyAt(q) !== target && discarded(p, q))) return true
       c = p
     }
   }

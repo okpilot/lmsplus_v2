@@ -225,3 +225,21 @@ test('a per-commit marker drop is not repeated under range after a later marker 
     assert.equal(res.status, 1)
     assert.equal(res.stderr.match(/lost marker\(s\): Superseded 20/g)?.length, 1)
   }))
+
+// GROUP: discard-counts-matching-side
+test('a clean merge of two identical re-adds names the non-merge remedy', () =>
+  withRepo((r) => {
+    // MUTATION: count a parent whose text equals HEAD's as discarded → the other side's identical
+    // re-add reads as a change the merge threw away, and the merge is blamed for writing nothing.
+    startWork(r)
+    r.git('checkout', '-qb', 'side')
+    commit(r, ledgerNo14(), waive(14, 'fix: remove decision 14 on side'))
+    commit(r, ledger('X.'), 're-add 14 on side')
+    r.git('checkout', '-q', 'work')
+    commit(r, ledgerNo14(), waive(14, 'fix: remove decision 14'))
+    commit(r, ledger('X.'), 're-add 14')
+    mergeMaster(r, ledger('X.'), { from: 'side' })
+    const res = runBase(r, 'master')
+    assert.match(res.stderr, /\[range\][\s\S]*## 14[\s\S]*to the non-merge commit that made/)
+    assert.doesNotMatch(res.stderr, /redo the merge/)
+  }))

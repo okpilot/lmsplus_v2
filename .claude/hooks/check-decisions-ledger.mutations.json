@@ -54,7 +54,8 @@
         "a merge that reverts a body master reworded is blamed",
         "a merge of an untouched master line names the non-merge remedy for a branch re-add",
         "a branch body kept beside a marker master appended names the non-merge remedy",
-        "a merge of an unrelated history names the non-merge remedy for a branch re-add"
+        "a merge of an unrelated history names the non-merge remedy for a branch re-add",
+        "a clean merge of two identical re-adds names the non-merge remedy"
       ]
     },
     {
@@ -79,7 +80,8 @@
         "a range finding names the non-merge remedy when a merge wrote only an earlier text",
         "a merge of an untouched master line names the non-merge remedy for a branch re-add",
         "a branch body kept beside a marker master appended names the non-merge remedy",
-        "a merge of an unrelated history names the non-merge remedy for a branch re-add"
+        "a merge of an unrelated history names the non-merge remedy for a branch re-add",
+        "a clean merge of two identical re-adds names the non-merge remedy"
       ]
     },
     {
@@ -163,7 +165,8 @@
         "a range finding names the non-merge remedy when a merge wrote only an earlier text",
         "a merge of an untouched master line names the non-merge remedy for a branch re-add",
         "a branch body kept beside a marker master appended names the non-merge remedy",
-        "a merge of an unrelated history names the non-merge remedy for a branch re-add"
+        "a merge of an unrelated history names the non-merge remedy for a branch re-add",
+        "a clean merge of two identical re-adds names the non-merge remedy"
       ]
     },
     {
@@ -201,7 +204,8 @@
         "a range finding names the non-merge remedy when a merge wrote only an earlier text",
         "a merge of an untouched master line names the non-merge remedy for a branch re-add",
         "a branch body kept beside a marker master appended names the non-merge remedy",
-        "a merge of an unrelated history names the non-merge remedy for a branch re-add"
+        "a merge of an unrelated history names the non-merge remedy for a branch re-add",
+        "a clean merge of two identical re-adds names the non-merge remedy"
       ]
     },
     {
@@ -219,7 +223,8 @@
         "a merge that reverts a body master reworded is blamed",
         "a merge of an untouched master line names the non-merge remedy for a branch re-add",
         "a branch body kept beside a marker master appended names the non-merge remedy",
-        "a merge of an unrelated history names the non-merge remedy for a branch re-add"
+        "a merge of an unrelated history names the non-merge remedy for a branch re-add",
+        "a clean merge of two identical re-adds names the non-merge remedy"
       ]
     },
     {
@@ -284,7 +289,8 @@
         "a range finding names the non-merge remedy when a merge wrote only an earlier text",
         "a merge of an untouched master line names the non-merge remedy for a branch re-add",
         "a branch body kept beside a marker master appended names the non-merge remedy",
-        "a merge of an unrelated history names the non-merge remedy for a branch re-add"
+        "a merge of an unrelated history names the non-merge remedy for a branch re-add",
+        "a clean merge of two identical re-adds names the non-merge remedy"
       ]
     },
     {
@@ -466,7 +472,8 @@
         "two separate unwaived marker drops on the same token are each reported once",
         "a merge of an untouched master line names the non-merge remedy for a branch re-add",
         "a branch body kept beside a marker master appended names the non-merge remedy",
-        "a merge of an unrelated history names the non-merge remedy for a branch re-add"
+        "a merge of an unrelated history names the non-merge remedy for a branch re-add",
+        "a clean merge of two identical re-adds names the non-merge remedy"
       ]
     },
     {
@@ -705,7 +712,8 @@
         "a merge that reverts a body master reworded is blamed",
         "a merge of an untouched master line names the non-merge remedy for a branch re-add",
         "a branch body kept beside a marker master appended names the non-merge remedy",
-        "a merge of an unrelated history names the non-merge remedy for a branch re-add"
+        "a merge of an unrelated history names the non-merge remedy for a branch re-add",
+        "a clean merge of two identical re-adds names the non-merge remedy"
       ]
     },
     {
@@ -753,7 +761,7 @@
     },
     {
       "id": "walk-no-discard-check",
-      "find": "      if (ps.some((q) => q !== p && discarded(p, q))) return true\n",
+      "find": "      if (ps.some((q) => keyAt(q) !== target && discarded(p, q))) return true\n",
       "replace": "",
       "expectRed": [
         "a merge that discards a marker master appended is blamed",
@@ -786,6 +794,12 @@
       "expectRed": [
         "a per-commit marker drop is not repeated under range after a later marker append"
       ]
+    },
+    {
+      "id": "discard-counts-matching-side",
+      "find": "if (ps.some((q) => keyAt(q) !== target && discarded(p, q)))",
+      "replace": "if (ps.some((q) => q !== p && discarded(p, q)))",
+      "expectRed": ["a clean merge of two identical re-adds names the non-merge remedy"]
     }
   ]
 }
