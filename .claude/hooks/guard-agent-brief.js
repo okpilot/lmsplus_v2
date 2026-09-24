@@ -7,7 +7,8 @@
  * path may vary — `agent-workflow.md § Never steer a gate reviewer`.
  *
  * Claude Code delivers the hook payload on STDIN as JSON:
- *   {"cwd":"...","tool_name":"Agent","tool_input":{"subagent_type":"...","prompt":"..."}}
+ *   {"cwd":"...","tool_name":"Agent","tool_input":{"subagent_type":"...","prompt":"...",
+ *    "description":"...","isolation":"worktree","model":"...","run_in_background":false}}
  * Reference pattern: .claude/hooks/guard-bash.js (stdin accumulate + parse on 'end').
  */
 

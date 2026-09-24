@@ -18,6 +18,8 @@ const HOOK = path.join(HOOKS_DIR, 'guard-agent-brief.js')
 const ROOT = mkdtempSync(path.join(tmpdir(), 'guard-agent-brief-test-'))
 mkdirSync(path.join(ROOT, '.spec-workflow/specs/agent-brief-guard'), { recursive: true })
 writeFileSync(path.join(ROOT, '.spec-workflow/specs/agent-brief-guard/plan.md'), '# plan\n')
+mkdirSync(path.join(ROOT, 'docs'))
+writeFileSync(path.join(ROOT, 'docs/decisions.md'), '# decisions\n')
 
 const TIMEOUT_MS = 5_000
 
@@ -217,8 +219,24 @@ test('allows a brief with PR none and round after-loop', () => {
   assert.equal(r.status, 0)
 })
 
-test('blocks a brief whose PR number lacks the # with exit 2', () => {
+test('blocks a brief whose PR number has no hash sign with exit 2', () => {
   const brief = fillTemplate(TEMPLATES['code-reviewer'], { pr: '123' })
   const r = runHook(payload('code-reviewer', brief))
+  assert.equal(r.status, 2)
+})
+
+// code-review-skill's template repeats {branch} (once in the TASK line, again in the diff
+// range). The two occurrences must bind to the SAME value via a regex backreference — this
+// mismatched pair is only rejected if that binding is enforced; independently-matched
+// placeholders would let each occurrence take its own branch name.
+// GROUP: guard-agent-brief-backreference-disabled
+test('blocks code-review-skill when its two {branch} occurrences disagree with exit 2', () => {
+  const template = TEMPLATES['code-review-skill']
+  const brief = template
+    .replace('{round}', '1')
+    .replace('{pr}', '#123')
+    .replace('{branch}', 'chore/agent-brief-guard')
+    .replace('{branch}', 'some-other-branch')
+  const r = runHook(payload('code-review-skill', brief, { isolation: 'worktree', model: 'opus' }))
   assert.equal(r.status, 2)
 })

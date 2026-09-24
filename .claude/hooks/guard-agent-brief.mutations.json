@@ -17,7 +17,9 @@
         "blocks implementation-critic when the plan path is outside .work and .spec-workflow/specs with exit 2",
         "blocks implementation-critic when the plan path contains \"..\" that collapses to an existing file with exit 2",
         "blocks code-review-skill without isolation: worktree with exit 2",
-        "blocks code-review-skill with model \"sonnet\" with exit 2"
+        "blocks code-review-skill with model \"sonnet\" with exit 2",
+        "blocks a brief whose PR number has no hash sign with exit 2",
+        "blocks code-review-skill when its two {branch} occurrences disagree with exit 2"
       ],
       "note": "Forces the block() branch to exit 0 instead of 2 — a mismatched brief is logged as BLOCKED on stderr but no longer stops the tool call. Reddens every test asserting exit 2, not only the control."
     },
@@ -38,7 +40,8 @@
         "allows test-writer's exact template brief with exit 0",
         "allows implementation-critic's exact template brief with exit 0",
         "allows code-review-skill's exact template brief with exit 0",
-        "allows code-review-skill with model omitted (undefined defaults to opus)"
+        "allows code-review-skill with model omitted (undefined defaults to opus)",
+        "allows a brief with PR none and round after-loop"
       ],
       "note": "Forces the allow() path to exit 2 instead of 0 — every non-blocked brief (the exact-match control, every gated type's own exact brief, and every non-gated type) is blocked too."
     },
@@ -68,6 +71,15 @@
         "blocks implementation-critic when the plan file does not exist on disk with exit 2"
       ],
       "note": "Disables planPathValid's exists-on-disk check only — a well-formed plan path with no '..' is accepted even when the file is missing."
+    },
+    {
+      "id": "guard-agent-brief-backreference-disabled",
+      "find": "pattern += `\\\\k<${name}>`",
+      "replace": "pattern += `(?:${PLACEHOLDER_PATTERNS[name]})`",
+      "expectRed": [
+        "blocks code-review-skill when its two {branch} occurrences disagree with exit 2"
+      ],
+      "note": "Replaces the backreference for a repeated placeholder with an independent match on the same character class — the two {branch} occurrences in code-review-skill's template no longer have to agree."
     },
     {
       "id": "guard-agent-brief-isolation-worktree-check-disabled",
