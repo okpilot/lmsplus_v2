@@ -38,6 +38,13 @@ describe('safeNextPath', () => {
     expect(safeNextPath('https://evil.com/app')).toBeNull()
   })
 
+  it('rejects a malformed URL the WHATWG parser cannot construct', () => {
+    // An unterminated IPv6 host throws inside `new URL(...)` rather than just
+    // resolving to a different origin — exercises the try/catch, not the
+    // origin check.
+    expect(safeNextPath('http://[::1')).toBeNull()
+  })
+
   it('rejects a path that traverses out of /app', () => {
     expect(safeNextPath('/app/../auth/reset-password')).toBeNull()
   })

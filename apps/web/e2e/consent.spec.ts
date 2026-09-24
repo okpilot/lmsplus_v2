@@ -1,80 +1,11 @@
 import { expect, test } from '@playwright/test'
-import { getAdminClient } from './helpers/supabase'
+import { ensureNoConsentUser, removeNoConsentUser } from './helpers/no-consent-user'
 
 const CONSENT_TEST_EMAIL = 'e2e-consent-test@lmsplus.local'
 const CONSENT_TEST_PASSWORD = 'e2e-consent-test-password-2026!'
 
 // Run without saved auth state — we control auth manually per-test
 test.use({ storageState: { cookies: [], origins: [] } })
-
-/**
- * Creates the consent test user in the Egmont Aviation org WITHOUT seeding
- * consent records — the whole point is to test the gate before consent is given.
- */
-async function ensureConsentTestUser(
-  admin: ReturnType<typeof getAdminClient>,
-  orgId: string,
-): Promise<string> {
-  const { data: existingUsers, error: listError } = await admin.auth.admin.listUsers()
-  if (listError) throw new Error(`ensureConsentTestUser listUsers: ${listError.message}`)
-
-  const existingAuth = existingUsers?.users.find(
-    (u: { email?: string }) => u.email === CONSENT_TEST_EMAIL,
-  )
-
-  let userId: string
-  if (existingAuth) {
-    userId = existingAuth.id
-    const { error: resetError } = await admin.auth.admin.updateUserById(userId, {
-      password: CONSENT_TEST_PASSWORD,
-    })
-    if (resetError) throw new Error(`ensureConsentTestUser reset password: ${resetError.message}`)
-
-    // Remove any existing consent records so the gate fires on every test run
-    const { error: deleteError } = await admin.from('user_consents').delete().eq('user_id', userId)
-    if (deleteError) {
-      console.error('[ensureConsentTestUser] Failed to clear consents:', deleteError.message)
-    }
-  } else {
-    const { data: authData, error: authError } = await admin.auth.admin.createUser({
-      email: CONSENT_TEST_EMAIL,
-      password: CONSENT_TEST_PASSWORD,
-      email_confirm: true,
-    })
-    if (authError) throw new Error(`ensureConsentTestUser auth: ${authError.message}`)
-    userId = authData.user.id
-  }
-
-  const { data: userRow, error: userRowError } = await admin
-    .from('users')
-    .select('id, organization_id')
-    .eq('id', userId)
-    .single()
-
-  if (userRowError && userRowError.code !== 'PGRST116') {
-    throw new Error(`ensureConsentTestUser user lookup: ${userRowError.message}`)
-  }
-
-  if (!userRow) {
-    const { error: userError } = await admin.from('users').insert({
-      id: userId,
-      organization_id: orgId,
-      email: CONSENT_TEST_EMAIL,
-      full_name: 'E2E Consent Test Student',
-      role: 'student',
-    })
-    if (userError) throw new Error(`ensureConsentTestUser public: ${userError.message}`)
-  } else if (userRow.organization_id !== orgId) {
-    const { error: updateError } = await admin
-      .from('users')
-      .update({ organization_id: orgId })
-      .eq('id', userId)
-    if (updateError) throw new Error(`ensureConsentTestUser update org: ${updateError.message}`)
-  }
-
-  // Intentionally NOT seeding consent records — the gate must fire
-  return userId
-}
 
 /** Log in as the consent test user via the login page. */
 async function loginAsConsentTestUser(page: import('@playwright/test').Page) {
@@ -91,63 +22,15 @@ async function loginAsConsentTestUser(page: import('@playwright/test').Page) {
 test.describe
   .serial('Consent gate — redirects and form', () => {
     test.beforeAll(async () => {
-      const admin = getAdminClient()
-      const { data: org, error: orgError } = await admin
-        .from('organizations')
-        .select('id')
-        .eq('slug', 'egmont-aviation')
-        .single()
-      if (orgError || !org) throw new Error(`consent setup org lookup: ${orgError?.message}`)
-      await ensureConsentTestUser(admin, org.id)
+      await ensureNoConsentUser({
+        email: CONSENT_TEST_EMAIL,
+        password: CONSENT_TEST_PASSWORD,
+        fullName: 'E2E Consent Test Student',
+      })
     })
 
     test.afterAll(async () => {
-      const admin = getAdminClient()
-      const errors: string[] = []
-
-      // Step 1: resolve the target auth user id
-      let authUser: { id: string; email?: string } | undefined
-      try {
-        const { data: existingUsers, error: listError } = await admin.auth.admin.listUsers()
-        if (listError) throw new Error(`afterAll listUsers: ${listError.message}`)
-        authUser = existingUsers?.users.find(
-          (u: { email?: string }) => u.email === CONSENT_TEST_EMAIL,
-        )
-        if (!authUser) {
-          console.warn('[afterAll] Consent test user not found:', CONSENT_TEST_EMAIL)
-        }
-      } catch (e) {
-        errors.push(e instanceof Error ? e.message : String(e))
-      }
-
-      // Step 2: delete consent records (FK child — must precede auth user delete)
-      if (authUser) {
-        try {
-          const { error: consentDeleteError } = await admin
-            .from('user_consents')
-            .delete()
-            .eq('user_id', authUser.id)
-          if (consentDeleteError)
-            throw new Error(`afterAll delete consent records: ${consentDeleteError.message}`)
-        } catch (e) {
-          errors.push(e instanceof Error ? e.message : String(e))
-        }
-      }
-
-      // Step 3: delete the auth user — BEST-EFFORT, not accumulated. The user
-      // carries immutable audit_events FK references (append-only per security
-      // rule 5), so auth.admin.deleteUser cannot fully succeed; the email is
-      // reused across runs, so a lingering user is not a cross-spec state leak.
-      // Log only — the hermiticity-critical cleanup (the consent records, which
-      // WOULD leak into the next run) is in the accumulator above.
-      if (authUser) {
-        const { error: deleteUserError } = await admin.auth.admin.deleteUser(authUser.id)
-        if (deleteUserError) {
-          console.error('[afterAll] best-effort auth-user delete failed:', deleteUserError.message)
-        }
-      }
-
-      if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
+      await removeNoConsentUser(CONSENT_TEST_EMAIL)
     })
 
     // 1. Redirect to /consent when user has no consent records

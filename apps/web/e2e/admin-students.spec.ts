@@ -459,8 +459,8 @@ test.describe('Admin Student Management — Access Control', () => {
     await page.context().clearCookies()
 
     await page.goto('/app/admin/students')
-    // Middleware redirects unauthenticated /app/* to the login page
-    await expect(page).toHaveURL('/', { timeout: 10_000 })
+    await page.waitForURL((url) => url.pathname === '/', { timeout: 10_000 })
+    expect(new URL(page.url()).searchParams.get('next')).toBe('/app/admin/students')
     await expect(page.getByRole('heading', { name: 'LMS Plus' })).toBeVisible()
   })
 
