@@ -505,7 +505,7 @@ function runBase(ref) {
     if (res.problems.length > 0) return reportProblems(res.problems)
     if (res.offenders.length > 0) blocked = true
     reportUnit(unit.label, res.offenders, { unusedWaivers: res.unusedWaivers })
-    for (const o of res.offenders) reported.add(`${o.token}\n${slotText(unit.newText, o.token)}`)
+    for (const o of res.offenders) reported.add(reportedKey(o.token, o.kind, unit.newText))
     recordAuthorizations(live, unit, res.unusedWaivers)
     if (unit.oldText !== unit.newText) lastTouched = unit.newText
   }
@@ -513,49 +513,83 @@ function runBase(ref) {
   return blocked ? 1 : 0
 }
 
-/** Whether a merge in `ref`..HEAD wrote `token`'s final line: its text there is `newText`'s and
- *  matches no parent's. A merge taking one side's line (GitHub's pull_request checkout, a merge of
- *  master) wrote nothing. */
-function mergeWriter(ref, newText) {
-  const merges = git(['rev-list', '--merges', '--parents', `${ref}..HEAD`])
-    .toString('utf8')
-    .trim()
-    .split('\n')
-    .filter(Boolean)
-    .map((line) => line.split(' '))
+/** The blame-walk KEY for `offender` at ledger text `text`: what must stay equal while walking
+ *  parents to find who wrote it. Kind `body`/`missing`/`header` track the entry's (or header's)
+ *  body with markers stripped, so a marker append never moves the writer. Kind `marker` tracks
+ *  the sorted, still-present subset of `baseText`'s markers for the token, so a later append of
+ *  a DIFFERENT marker doesn't move the writer either, and a merge that dropped the marker is found. */
+function offenderKey({ kind, token }, baseText) {
+  if (kind !== 'marker') return (text) => slotParts(text, token).body
+  const baseMarkers = [...slotParts(baseText, token).markers].sort()
+  return (text) => baseMarkers.filter((mk) => slotParts(text, token).markers.has(mk)).join('\n')
+}
+
+/** A merge-blame walker bound to `ref`/`baseText`, shared across every offender in one range
+ *  run: ledger text and direct-parent lookups are memoized once, not per offender. Each call
+ *  follows the first parent whose key matches HEAD's, stopping (not a merge) once that parent is
+ *  `ref` or an ancestor of it — the text came from the base side. The commit where no parent
+ *  matches wrote it; `true` only when that commit is a merge. */
+function buildMergeWalker(ref, baseText) {
   const texts = new Map()
-  const at = (sha) => {
+  const parents = new Map()
+  const ledgerAt = (sha) => {
     if (!texts.has(sha)) texts.set(sha, readAtTree(sha, DECISIONS_PATH))
     return texts.get(sha)
   }
-  return (token) =>
-    merges.some(([m, ...parents]) => {
-      const text = slotText(at(m), token)
-      return (
-        text === slotText(newText, token) && parents.every((p) => slotText(at(p), token) !== text)
-      )
-    })
+  const parentsOf = (sha) => {
+    if (!parents.has(sha)) {
+      const line = git(['rev-list', '--parents', '-n', '1', sha]).toString('utf8').trim()
+      parents.set(sha, line.split(' ').slice(1))
+    }
+    return parents.get(sha)
+  }
+  return (offender) => {
+    const key = offenderKey(offender, baseText)
+    const target = key(ledgerAt('HEAD'))
+    let c = 'HEAD'
+    for (;;) {
+      const p = parentsOf(c).find((par) => key(ledgerAt(par)) === target)
+      if (p === undefined) return parentsOf(c).length > 1
+      if (isAncestor(p, ref)) return false
+      c = p
+    }
+  }
+}
+
+/** A `mergeWrote(token)` predicate for `offenders`, built lazily — a clean run (none) makes no
+ *  extra git call. */
+function mergeWroteFor(offenders, ref, baseText) {
+  if (offenders.length === 0) return () => false
+  const walk = buildMergeWalker(ref, baseText)
+  const byToken = new Map(offenders.map((o) => [o.token, o]))
+  return (token) => byToken.has(token) && walk(byToken.get(token))
+}
+
+/** The `reported` dedup key for a finding on `token`/`kind` at ledger text `text`: the body
+ *  alone for kind `body` (so a later marker append doesn't un-dedup it), the raw slot text
+ *  otherwise. */
+function reportedKey(token, kind, text) {
+  const k = kind === 'body' ? slotParts(text, token).body : slotText(text, token)
+  return `${token}\n${kind}\n${k}`
 }
 
 /** The range unit over merge-base..HEAD; reports and returns whether it found offenders. */
 function runRange(ref, live, { lastTouched, reported }) {
   const mergeBase = git(['merge-base', ref, 'HEAD']).toString('utf8').trim()
+  const oldText = readAtTree(mergeBase, DECISIONS_PATH)
   const newText = readAtTree('HEAD', DECISIONS_PATH)
   const authorized = new Map([...live].map(([t, list]) => [t, list.map((a) => a.text)]))
   const offenders = checkRange({
-    oldText: readAtTree(mergeBase, DECISIONS_PATH),
+    oldText,
     newText,
     authorized,
     gradeFormat: newText !== lastTouched,
   })
   // A per-commit unit that reported this token AND produced HEAD's text has the fix; skip it.
-  reportUnit(
-    'range',
-    offenders.filter(
-      (o) => o.token === null || !reported.has(`${o.token}\n${slotText(newText, o.token)}`),
-    ),
-    { mergeWrote: mergeWriter(ref, newText) },
+  const filtered = offenders.filter(
+    (o) => o.token === null || !reported.has(reportedKey(o.token, o.kind, newText)),
   )
+  reportUnit('range', filtered, { mergeWrote: mergeWroteFor(filtered, ref, oldText) })
   return offenders.length > 0
 }
 

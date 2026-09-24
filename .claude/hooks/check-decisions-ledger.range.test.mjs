@@ -2,7 +2,8 @@
 //
 // The --base RANGE unit of the decisions-ledger guard (#1350), spawned: an edit made only in a
 // merge commit, and the exact-text binding of a waiver. Pure slotText/checkRange cases:
-// check-decisions-ledger.range-pure.test.mjs. Fixtures: check-decisions-ledger.testkit.mjs.
+// check-decisions-ledger.range-pure.test.mjs. The range finding's HINT TEXT (merge vs non-merge
+// remedy): check-decisions-ledger.range-hint.test.mjs. Fixtures: check-decisions-ledger.testkit.mjs.
 //
 // Every case is MUTATION-PINNED (code-style.md §7); the exact set each break reddens is DATA
 // in check-decisions-ledger.mutations.json, re-derived by
@@ -11,61 +12,19 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
-  GOOD_REASON,
-  GUARD,
+  commit,
+  E16_MASTER,
+  forked,
   LEDGER_V1,
   ledger,
+  ledgerNo14,
+  mergeMaster,
+  readme,
+  runBase,
+  startWork,
+  waive,
   withRepo,
 } from './check-decisions-ledger.testkit.mjs'
-import { runNode } from './spawn.testkit.mjs'
-
-const E16_MASTER = '## 16 — 2026-03-12 — a master decision.'
-
-// ---------------------------------------------------------------- spawned: merge commits
-
-function runBase({ dir }, ref) {
-  return runNode('check-decisions-ledger', [GUARD, '--base', ref], { cwd: dir })
-}
-
-function commit(r, text, message) {
-  r.write('docs/decisions.md', text)
-  r.git('add', '-A')
-  r.git('commit', '-qm', message)
-}
-
-function readme(r, text = 'unrelated\n') {
-  r.write('README.md', text)
-  r.git('add', '-A')
-  r.git('commit', '-qm', 'readme')
-}
-
-const waive = (token, subject) => `${subject}\n\nLedger-edit-ok: ${token} — ${GOOD_REASON}`
-
-/** Commit `base` on `master`, then check out a new `work` branch. */
-function startWork(r, base = LEDGER_V1) {
-  commit(r, base, 'init')
-  r.git('branch', '-m', 'master')
-  r.git('checkout', '-qb', 'work')
-}
-
-/** `work` forks from `base` and runs `onWork`; master then commits `master` (default: + 16). */
-function forked(r, onWork, { base, master = ledger(undefined, undefined, [E16_MASTER]) } = {}) {
-  startWork(r, base)
-  onWork()
-  r.git('checkout', '-q', 'master')
-  commit(r, master, 'master commit')
-  r.git('checkout', '-q', 'work')
-}
-
-/** Merge master into the current branch, resolving the ledger to `text`. */
-function mergeMaster(r, text) {
-  try {
-    r.git('merge', '-q', '--no-ff', '--no-commit', 'master')
-  } catch {
-    // A ledger conflict is expected in some fixtures; the resolution below overwrites it.
-  }
-  commit(r, text, 'Merge branch master into work')
-}
 
 // CONTROL: red
 // GROUP: check-decisions-ledger-always-passes, range-unit-dropped
@@ -77,34 +36,6 @@ test('--base blocks an edit to an existing line made only in a merge commit', ()
     const res = runBase(r, 'master')
     assert.equal(res.status, 1)
     assert.match(res.stderr, /\[range\][\s\S]*## 14 — body edited/)
-  }))
-
-// GROUP: range-hint-generic
-test('a range finding tells the author a merge cannot waive it', () =>
-  withRepo((r) => {
-    // MUTATION: print the per-commit hint for range findings → the author is told to add a
-    // trailer to the merge commit, which is never read.
-    forked(r, () => readme(r))
-    mergeMaster(r, ledger('EDITED IN MERGE.', undefined, [E16_MASTER]))
-    const res = runBase(r, 'master')
-    assert.match(
-      res.stderr,
-      /a merge cannot waive: restore this line in a commit with Ledger-edit-ok: 14, or redo the merge/,
-    )
-  }))
-
-// GROUP: range-hint-merge-wrote, range-merge-writer-not-final
-test('a range finding names the non-merge remedy when a merge wrote only an earlier text', () =>
-  withRepo((r) => {
-    forked(r, () => readme(r))
-    mergeMaster(r, ledger('EDITED IN MERGE.', undefined, [E16_MASTER]))
-    commit(r, ledgerNo14([E16_MASTER]), waive(14, 'fix: remove decision 14'))
-    // MUTATION: name the merge remedy whenever the range holds a merge → the merge is blamed.
-    // MUTATION: blame a merge whose text is not the final line's → the same.
-    commit(r, ledger('NEVER REVIEWED.', undefined, [E16_MASTER]), 're-add 14')
-    const res = runBase(r, 'master')
-    assert.match(res.stderr, /\[range\][\s\S]*## 14[\s\S]*to the non-merge commit that made/)
-    assert.doesNotMatch(res.stderr, /redo the merge/)
   }))
 
 // GROUP: range-repeats-commit-findings
@@ -228,12 +159,6 @@ test('restoring the line in a waived follow-up commit clears a merge edit', () =
     assert.equal(runBase(r, 'master').status, 0)
   }))
 
-/** A ledger with only decision 15 and any extra entry lines (14 absent). */
-function ledgerNo14(extra = []) {
-  const lines = ['## 15 — 2026-03-11 — second decision.', ...extra]
-  return `# Decisions\n\n> rule text\n\n${lines.join('\n')}\n`
-}
-
 // GROUP: range-unit-dropped
 test('--base blocks a header edit made only in a merge commit', () =>
   withRepo((r) => {
@@ -305,23 +230,6 @@ test('an unwaived re-add of a line a waiver removed is blocked', () =>
     // MUTATION: re-bind a removal authorization to the re-added text → the new body clears.
     commit(r, ledger('NEVER REVIEWED.'), 're-add 14')
     assert.equal(runBase(r, 'master').status, 1)
-  }))
-
-// GROUP: range-hint-merges-ignored, range-merge-writer-any-parent
-test('a range finding on a branch with no merge names the non-merge remedy', () =>
-  withRepo((r) => {
-    startWork(r)
-    commit(r, ledgerNo14(), waive(14, 'fix: remove decision 14'))
-    // MUTATION: give every range finding the merge hint → a merge-free branch is told to redo a
-    // merge it does not have.
-    // MUTATION: count a merge whose line matches one parent's as its writer → GitHub's pull_request
-    // checkout, a merge of the branch into master, reads as the merge that made the edit.
-    commit(r, ledger('NEVER REVIEWED.'), 're-add 14')
-    r.git('checkout', '-qb', 'pr-merge', 'master')
-    r.git('merge', '-q', '--no-ff', '-m', 'Merge work into master', 'work')
-    const res = runBase(r, 'master')
-    assert.match(res.stderr, /\[range\][\s\S]*add Ledger-edit-ok: 14 to the non-merge commit/)
-    assert.doesNotMatch(res.stderr, /redo the merge/)
   }))
 
 // GROUP: range-readd-waiver-dropped

@@ -181,6 +181,9 @@ jobs:
       - name: Decisions-ledger guard — merge-commit (range) tests
         run: node --test .claude/hooks/check-decisions-ledger.range.test.mjs
 
+      - name: Decisions-ledger guard — range hint tests
+        run: node --test .claude/hooks/check-decisions-ledger.range-hint.test.mjs
+
       - name: Decisions-ledger guard — range unit (pure) tests
         run: node --test .claude/hooks/check-decisions-ledger.range-pure.test.mjs
 

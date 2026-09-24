@@ -165,7 +165,8 @@
         ".claude/hooks/check-decisions-ledger.repo.test.mjs",
         ".claude/hooks/check-decisions-ledger.base.test.mjs",
         ".claude/hooks/check-decisions-ledger.range.test.mjs",
-        ".claude/hooks/check-decisions-ledger.range-pure.test.mjs"
+        ".claude/hooks/check-decisions-ledger.range-pure.test.mjs",
+        ".claude/hooks/check-decisions-ledger.range-hint.test.mjs"
       ]
     },
     ".claude/hooks/guard-bash.js": {
