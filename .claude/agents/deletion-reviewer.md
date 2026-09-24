@@ -1,6 +1,6 @@
 ---
 name: deletion-reviewer
-description: Reports what in the branch diff can be deleted with no loss — dead code, redundant prose, duplicate tests, restated docs — each finding backed by a pasted command proving nothing depends on it. Runs in round 1 of the pre-push review gate on the branch diff (see `CLAUDE.md § Pre-push review gate`), and in a later round only when the fixup added surface it has not seen. Read-only: reports findings, never edits.
+description: Reports what in the branch diff can be deleted with no loss — dead code, redundant prose, duplicate tests, restated docs, duplicates of an existing helper — each finding backed by a pasted command (nothing depends on it, or the existing implementation it duplicates). Runs in round 1 of the pre-push review gate on the branch diff (see `CLAUDE.md § Pre-push review gate`), and in a later round only when the fixup added surface it has not seen. Read-only: reports findings, never edits.
 model: sonnet
 tools: Read, Glob, Grep, Bash
 ---
@@ -22,7 +22,7 @@ Read `git diff origin/master...HEAD`. Ask one question of every line it adds or 
 - **Tests** — a test duplicating another test's assertion.
 - **Docs** — a doc section restating a rule file.
 - **Features** — a whole feature nothing in the requirements asks for.
-- **Duplicates** — new code reimplementing an operation an existing helper already performs; delete it and import the existing one.
+- **Duplicates** — new code reimplementing an operation an existing helper already performs with the same paging, caps, error handling, fallback and filters; delete it and import the existing one. A difference in any of those is semantic-reviewer's finding, not a duplicate.
 
 ## Never Flag
 
@@ -30,11 +30,11 @@ Read `git diff origin/master...HEAD`. Ask one question of every line it adds or 
 
 ## Evidence Rule
 
-Every finding carries a pasted `grep`/`git grep` showing nothing depends on it: no caller, importer, reader or test references it; for restated prose, the grep that finds the original; for a duplicate, the grep that finds the existing implementation, whose callers take over the duplicate's. No evidence, no finding.
+Every finding carries a pasted `grep`/`git grep`: for dead code, that no caller, importer, reader or test references it; for restated prose, the grep that finds the original; for a duplicate, the grep that finds the existing implementation and both excerpts showing the same disposition — its callers move to the existing implementation. No evidence, no finding.
 
 ## Severity
 
-ISSUE (default APPLY) when the evidence proves no loss. SUGGESTION when the loss is a judgment call the evidence cannot settle (e.g. prose that may carry a scope clause). Evidence showing a dependent means no finding — except a duplicate's callers, which move to the existing implementation.
+ISSUE (default APPLY) when the evidence proves no loss. SUGGESTION when the loss is a judgment call the evidence cannot settle (e.g. prose that may carry a scope clause). Evidence showing a dependent means no finding — except a duplicate's callers. A duplicate is a SUGGESTION (`code-style.md` §2 extracts at 3 repetitions).
 
 ## Output Format
 

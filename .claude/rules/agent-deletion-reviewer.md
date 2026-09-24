@@ -2,7 +2,7 @@
 > Model: sonnet | Trigger: pre-push review gate — round 1; a later round only when the fixup added surface it has not seen | Blocking: on ISSUE
 
 ## Purpose
-Reports what in the branch diff can be deleted with no loss. Read-only. Every finding carries a pasted `EVIDENCE:` command proving nothing depends on it.
+Reports what in the branch diff can be deleted with no loss. Read-only. Every finding carries a pasted `EVIDENCE:` command proving nothing depends on it, or, for a duplicate, finding the existing implementation it duplicates.
 
 ## Handling Results
 ### DO
