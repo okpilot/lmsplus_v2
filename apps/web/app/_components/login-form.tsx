@@ -23,9 +23,10 @@ const FRIENDLY_AUTH_ERRORS: Record<string, string> = {
 
 type LoginFormProps = {
   initialError?: string
+  nextPath?: string | null
 }
 
-export function LoginForm({ initialError }: Readonly<LoginFormProps>) {
+export function LoginForm({ initialError, nextPath }: Readonly<LoginFormProps>) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -62,7 +63,9 @@ export function LoginForm({ initialError }: Readonly<LoginFormProps>) {
     }
 
     // Keep loading state active — the page is navigating away
-    window.location.href = '/auth/login-complete'
+    window.location.href = nextPath
+      ? `/auth/login-complete?next=${encodeURIComponent(nextPath)}`
+      : '/auth/login-complete'
   }
 
   return (

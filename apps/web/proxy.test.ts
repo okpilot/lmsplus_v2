@@ -342,6 +342,53 @@ describe('proxy', () => {
     }
   })
 
+  describe('next redirect param', () => {
+    it('carries the requested /app path as next when redirecting an unauthenticated request', async () => {
+      mockGetUser.mockResolvedValue({ data: { user: null } })
+
+      const response = await proxy(makeRequest('/app/internal-exam'))
+
+      const location = new URL(response.headers.get('location') ?? '')
+      expect(location.pathname).toBe('/')
+      expect(location.searchParams.get('next')).toBe('/app/internal-exam')
+    })
+
+    it('omits next when the unauthenticated request already targets /app/dashboard', async () => {
+      mockGetUser.mockResolvedValue({ data: { user: null } })
+
+      const response = await proxy(makeRequest('/app/dashboard'))
+
+      const location = new URL(response.headers.get('location') ?? '')
+      expect(location.searchParams.has('next')).toBe(false)
+    })
+
+    it('carries next through the consent-gate redirect', async () => {
+      mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+
+      const response = await proxy(makeRequest('/app/internal-exam'))
+
+      const location = new URL(response.headers.get('location') ?? '')
+      expect(location.pathname).toBe('/consent')
+      expect(location.searchParams.get('next')).toBe('/app/internal-exam')
+    })
+
+    it('sends an authenticated root request to the validated next path', async () => {
+      mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+
+      const response = await proxy(makeRequest('/?next=%2Fapp%2Fquiz'))
+
+      expect(new URL(response.headers.get('location') ?? '').pathname).toBe('/app/quiz')
+    })
+
+    it('falls back to /app/dashboard when the authenticated next param is an open redirect', async () => {
+      mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+
+      const response = await proxy(makeRequest('/?next=%2F%2Fevil.com'))
+
+      expect(new URL(response.headers.get('location') ?? '').pathname).toBe('/app/dashboard')
+    })
+  })
+
   describe('__vdpl deployment pinning cookie', () => {
     const DEPLOYMENT_ID = 'dpl_test_abc123'
 

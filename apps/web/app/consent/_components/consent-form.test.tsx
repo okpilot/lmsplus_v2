@@ -96,6 +96,20 @@ describe('ConsentForm', () => {
         expect(mockRouterPush).toHaveBeenCalledWith('/app/dashboard')
       })
     })
+
+    it('navigates to nextPath instead of the dashboard when one is provided', async () => {
+      vi.mocked(recordConsent).mockResolvedValue({ success: true })
+      const user = userEvent.setup()
+      render(<ConsentForm nextPath="/app/internal-exam" />)
+
+      await user.click(screen.getByLabelText('I accept the Terms of Service'))
+      await user.click(screen.getByLabelText('I accept the Privacy Policy'))
+      await user.click(screen.getByRole('button', { name: /continue/i }))
+
+      await waitFor(() => {
+        expect(mockRouterPush).toHaveBeenCalledWith('/app/internal-exam')
+      })
+    })
   })
 
   describe('error handling', () => {

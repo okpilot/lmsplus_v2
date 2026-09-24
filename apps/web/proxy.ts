@@ -1,11 +1,18 @@
 import { createMiddlewareSupabaseClient } from '@repo/db/middleware'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
+import { safeNextPath } from '@/lib/auth/safe-next-path'
 import {
   CONSENT_COOKIE,
   CURRENT_PRIVACY_VERSION,
   CURRENT_TOS_VERSION,
 } from '@/lib/consent/versions'
+
+/** Sets `next` on a redirect target when a validated path is present, otherwise leaves the URL bare. */
+function withNext(url: URL, next: string | null): URL {
+  if (next) url.searchParams.set('next', next)
+  return url
+}
 
 // next.config.ts `headers()` does NOT apply to non-routed responses
 // emitted from Edge Middleware (3xx redirects, 4xx/5xx errors). Mirror
@@ -73,9 +80,11 @@ export async function proxy(request: NextRequest): Promise<Response> {
     return redirectWithCookies(new URL('/auth/reset-password', request.url))
   }
 
-  // Protect /app/* routes — redirect to login if not authenticated
+  // Protect /app/* routes — redirect to login if not authenticated, carrying the
+  // originally-requested path so login can return the student to it afterwards.
   if (pathname.startsWith('/app') && !user) {
-    return redirectWithCookies(new URL('/', request.url))
+    const next = safeNextPath(pathname + request.nextUrl.search)
+    return redirectWithCookies(withNext(new URL('/', request.url), next))
   }
 
   // Consent gate: authenticated /app/* users without valid consent → /consent
@@ -83,7 +92,8 @@ export async function proxy(request: NextRequest): Promise<Response> {
     const consentCookie = request.cookies.get(CONSENT_COOKIE)?.value
     const expected = `${CURRENT_TOS_VERSION}:${CURRENT_PRIVACY_VERSION}`
     if (consentCookie !== expected) {
-      return redirectWithCookies(new URL('/consent', request.url))
+      const next = safeNextPath(pathname + request.nextUrl.search)
+      return redirectWithCookies(withNext(new URL('/consent', request.url), next))
     }
   }
 
@@ -144,10 +154,12 @@ export async function proxy(request: NextRequest): Promise<Response> {
     }
   }
 
-  // Redirect authenticated users away from login page to dashboard
+  // Redirect authenticated users away from login page to dashboard, or to the
+  // path they originally requested (e.g. from an emailed /app/... link).
   // But preserve error messages (e.g. expired recovery links)
   if (pathname === '/' && user && !request.nextUrl.searchParams.has('error')) {
-    return redirectWithCookies(new URL('/app/dashboard', request.url))
+    const next = safeNextPath(request.nextUrl.searchParams.get('next'))
+    return redirectWithCookies(new URL(next ?? '/app/dashboard', request.url))
   }
 
   return response

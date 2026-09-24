@@ -10,14 +10,18 @@ test.describe('protected routes redirect to login', () => {
     await expect(page.getByRole('heading', { name: 'LMS Plus' })).toBeVisible()
   })
 
-  test('quiz page redirects to login', async ({ page }) => {
+  test('quiz page redirects to login carrying it as the next destination', async ({ page }) => {
     await page.goto('/app/quiz')
-    await expect(page).toHaveURL('/')
+    const url = new URL(page.url())
+    expect(url.pathname).toBe('/')
+    expect(url.searchParams.get('next')).toBe('/app/quiz')
   })
 
-  test('progress page redirects to login', async ({ page }) => {
+  test('progress page redirects to login carrying it as the next destination', async ({ page }) => {
     await page.goto('/app/progress')
-    await expect(page).toHaveURL('/')
+    const url = new URL(page.url())
+    expect(url.pathname).toBe('/')
+    expect(url.searchParams.get('next')).toBe('/app/progress')
   })
 })
 
