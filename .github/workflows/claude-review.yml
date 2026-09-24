@@ -184,7 +184,7 @@ jobs:
           # --setting-sources user: the SDK default is ["user","project","local"]
           # (base-action/src/parse-sdk-options.ts), which loads the CHECKED-OUT repo's
           # .claude/settings.json. That file defines `type: "command"` hooks — a Stop hook running
-          # `bash .claude/hooks/on-stop.sh`. Hooks spawn a shell DIRECTLY; no tool grant is
+          # `bash "$CLAUDE_PROJECT_DIR"/.claude/hooks/on-stop.sh`. Hooks spawn a shell DIRECTLY; no tool grant is
           # consulted and --disallowedTools cannot reach them. The checkout step above pins
           # `ref: base.sha`, so the hook script on disk is the TRUSTED base branch's copy, never
           # the PR's own — a PR editing the hook cannot reach this run.
