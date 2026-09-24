@@ -182,14 +182,16 @@ function dispatchReason(subagentType, toolInput) {
 
 /** Templates for a gated `subagentType` — a `pipeline.json` gate role or a template key — or
  * `null` for an ungated one. Fails closed for a gated type whose template cannot be read, and
- * when neither file can be read to tell. */
+ * for an untemplated type when `pipeline.json` cannot be read to tell. */
 function loadTemplates(subagentType) {
   const templates = objectOrUndefined(readJson(TEMPLATES_PATH)?.templates)
   const agents = objectOrUndefined(readJson(PIPELINE_PATH)?.agents)
-  if (!templates && !agents) blockLoad(`cannot read ${TEMPLATES_PATH} or ${PIPELINE_PATH}`)
   const gated =
     GATED_ROLES.has(agents?.[subagentType]?.role) || Object.hasOwn(templates ?? {}, subagentType)
-  if (!gated) return null
+  if (!gated) {
+    if (!agents) blockLoad(`cannot read ${PIPELINE_PATH} to tell whether ${subagentType} is gated`)
+    return null
+  }
   if (!templates) blockLoad(`${TEMPLATES_PATH} has no "templates" object`)
   const template = templates[subagentType]
   if (typeof template !== 'string' || template === '') {

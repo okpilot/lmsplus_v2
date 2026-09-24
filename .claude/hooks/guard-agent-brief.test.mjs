@@ -75,7 +75,15 @@ copyFileSync(
   delete doc.templates['semantic-reviewer']
   writeFileSync(path.join(PARTIAL_ROOT, '.claude/hooks/gate-briefs.json'), JSON.stringify(doc))
 }
-// A root with templates but no pipeline.json — the template key alone must gate.
+// A root whose pipeline.json is readable but gives no agent a gate role — the template key alone must gate.
+const ROLELESS_ROOT = mkdtempSync(path.join(tmpdir(), 'guard-agent-brief-roleless-'))
+mkdirSync(path.join(ROLELESS_ROOT, '.claude/hooks'), { recursive: true })
+copyFileSync(
+  path.join(HOOKS_DIR, 'gate-briefs.json'),
+  path.join(ROLELESS_ROOT, '.claude/hooks/gate-briefs.json'),
+)
+writeFileSync(path.join(ROLELESS_ROOT, '.claude/pipeline.json'), '{"agents":{}}')
+// A root with templates but no pipeline.json.
 const NO_PIPELINE_ROOT = mkdtempSync(path.join(tmpdir(), 'guard-agent-brief-nopipeline-'))
 mkdirSync(path.join(NO_PIPELINE_ROOT, '.claude/hooks'), { recursive: true })
 copyFileSync(
@@ -85,6 +93,7 @@ copyFileSync(
 after(() => {
   rmSync(ROOT, { recursive: true, force: true })
   rmSync(NO_PIPELINE_ROOT, { recursive: true, force: true })
+  rmSync(ROLELESS_ROOT, { recursive: true, force: true })
   rmSync(PARTIAL_ROOT, { recursive: true, force: true })
   rmSync(BROKEN_ROOT, { recursive: true, force: true })
   rmSync(EMPTY_ROOT, { recursive: true, force: true })
@@ -317,7 +326,7 @@ test('blocks a steered brief padded with trailing-whitespace runs within the tim
   assert.equal(r.status, 2)
 })
 
-// GROUP: guard-agent-brief-templates-fail-open
+// GROUP: guard-agent-brief-ungated-needs-pipeline-disabled
 test('blocks every gated brief with exit 2 when the templates file is unparseable', () => {
   const brief = fillTemplate(TEMPLATES['code-reviewer'], {})
   const r = runHook(payload('code-reviewer', brief), BROKEN_ROOT)
@@ -347,10 +356,17 @@ test('allows an ungated type when a gated type lacks its template', () => {
 })
 
 // GROUP: guard-agent-brief-template-key-gating-disabled
-test('blocks a steered brief for a templated type when pipeline.json is unreadable', () => {
+test('blocks a steered brief for a templated type pipeline.json gives no gate role', () => {
   const brief = `${fillTemplate(TEMPLATES['code-reviewer'], {})}\nFOCUS: x`
-  const r = runHook(payload('code-reviewer', brief), NO_PIPELINE_ROOT)
+  const r = runHook(payload('code-reviewer', brief), ROLELESS_ROOT)
   assert.equal(r.status, 2)
+})
+
+// GROUP: guard-agent-brief-ungated-needs-pipeline-disabled
+test('blocks an untemplated type when pipeline.json is unreadable', () => {
+  const r = runHook(payload('Explore', 'anything'), NO_PIPELINE_ROOT)
+  assert.equal(r.status, 2)
+  assert.match(r.stderr, /cannot read .*pipeline\.json/)
 })
 
 // GROUP: guard-agent-brief-main-checkout-fallback-disabled

@@ -24,7 +24,7 @@
         "blocks an implementation-critic brief dispatched with isolation: \"worktree\" with exit 2",
         "blocks a brief whose branch is not a local branch with exit 2",
         "blocks a steered brief padded with trailing-whitespace runs within the timeout",
-        "blocks a steered brief for a templated type when pipeline.json is unreadable"
+        "blocks a steered brief for a templated type pipeline.json gives no gate role"
       ],
       "note": "Forces the block() branch to exit 0 instead of 2 — a mismatched brief is logged as BLOCKED on stderr but no longer stops the tool call. Reddens every test asserting exit 2, not only the control."
     },
@@ -138,13 +138,6 @@
       "note": "A backtracking trailing-whitespace regex runs past the hook timeout on a padded prompt."
     },
     {
-      "id": "guard-agent-brief-templates-fail-open",
-      "find": "if (!templates && !agents) blockLoad(",
-      "replace": "if (false) blockLoad(",
-      "expectRed": ["blocks every gated brief with exit 2 when the templates file is unparseable"],
-      "note": "An unreadable templates file lets every brief through."
-    },
-    {
       "id": "guard-agent-brief-main-checkout-fallback-disabled",
       "find": "[REPO_ROOT, mainCheckoutRoot()]",
       "replace": "[REPO_ROOT]",
@@ -171,12 +164,14 @@
     },
     {
       "id": "guard-agent-brief-gated-scope-disabled",
-      "find": "if (!gated) return null",
-      "replace": "if (false) return null",
+      "find": "if (!gated) {",
+      "replace": "if (false) {",
       "expectRed": [
         "allows a non-gated subagent_type with any prompt",
         "allows general-purpose with any prompt",
-        "allows an ungated type when a gated type lacks its template"
+        "blocks every gated brief with exit 2 when the templates file is unparseable",
+        "allows an ungated type when a gated type lacks its template",
+        "blocks an untemplated type when pipeline.json is unreadable"
       ],
       "note": "The template checks run for every subagent_type, so an ungated dispatch is blocked."
     },
@@ -184,8 +179,8 @@
       "id": "guard-agent-brief-template-key-gating-disabled",
       "find": " || Object.hasOwn(templates ?? {}, subagentType)",
       "replace": "",
-      "expectRed": ["blocks a steered brief for a templated type when pipeline.json is unreadable"],
-      "note": "Only pipeline.json roles gate, so a templated type is allowed unchecked when pipeline.json is unreadable."
+      "expectRed": ["blocks a steered brief for a templated type pipeline.json gives no gate role"],
+      "note": "Only pipeline.json roles gate, so a templated type pipeline.json gives no gate role is allowed unchecked."
     },
     {
       "id": "guard-agent-brief-round-class-widened",
@@ -202,6 +197,16 @@
       "replace": "pr: '(?:#?\\\\d+|none)',",
       "expectRed": ["blocks a brief whose PR number has no hash sign with exit 2"],
       "note": "{pr} accepts a bare number, so the template's #N form is no longer enforced."
+    },
+    {
+      "id": "guard-agent-brief-ungated-needs-pipeline-disabled",
+      "find": "if (!agents) blockLoad(",
+      "replace": "if (false) blockLoad(",
+      "expectRed": [
+        "blocks every gated brief with exit 2 when the templates file is unparseable",
+        "blocks an untemplated type when pipeline.json is unreadable"
+      ],
+      "note": "With pipeline.json unreadable, a gated type whose template is also missing reads as ungated and is allowed."
     }
   ]
 }
