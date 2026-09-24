@@ -1,4 +1,4 @@
-import { findAuthUserByEmail } from '../redteam/helpers/seed-core'
+import { findAuthUserByEmail } from './auth-users'
 import { getAdminClient } from './supabase'
 
 type NoConsentUser = { email: string; password: string; fullName: string }

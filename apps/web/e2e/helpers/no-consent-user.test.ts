@@ -15,9 +15,7 @@ vi.mock('@supabase/supabase-js', () => ({
 
 import { ensureNoConsentUser, removeNoConsentUser } from './no-consent-user'
 
-// ---------------------------------------------------------------------------
 // Chainable Supabase mock (copied pattern from supabase.test.ts)
-// ---------------------------------------------------------------------------
 
 function buildChain(returnValue: unknown) {
   const awaitable = {
@@ -60,44 +58,51 @@ type EnsureMockOptions = {
   updateError?: { message: string } | null
 }
 
-function buildEnsureMockClient(opts: EnsureMockOptions) {
-  const {
-    org = { data: { id: 'org-123' }, error: null },
-    listUsers = { data: { users: [] } },
-    listUsersImpl,
-    createUser = { data: { user: { id: 'new-user-id' } }, error: null },
-    resetError = null,
-    consentDeleteError = null,
-    userRow = { data: null, error: { message: 'no rows found', code: 'PGRST116' } },
-    insertError = null,
-    updateError = null,
-  } = opts
-
+function buildConsentTableMock(consentDeleteError: { message: string } | null) {
   const consentDeleteEqMock = vi.fn().mockResolvedValue({ error: consentDeleteError })
   const consentDeleteMock = vi.fn().mockReturnValue({ eq: consentDeleteEqMock })
+  return { consentDeleteMock, consentDeleteEqMock }
+}
 
+function buildUsersTableMock(
+  userRow: EnsureMockOptions['userRow'],
+  insertError: { message: string } | null,
+  updateError: { message: string } | null,
+) {
   const usersInsertMock = vi.fn().mockResolvedValue({ error: insertError })
-
   const usersUpdateEqMock = vi.fn().mockResolvedValue({ error: updateError })
   const usersUpdateMock = vi.fn().mockReturnValue({ eq: usersUpdateEqMock })
+  const table = {
+    select: () => buildChain(userRow),
+    insert: usersInsertMock,
+    update: usersUpdateMock,
+  }
+  return { table, usersInsertMock, usersUpdateMock, usersUpdateEqMock }
+}
 
-  const listUsersMock = listUsersImpl
+function buildListUsersMock(
+  listUsers: ListUsersResult,
+  listUsersImpl: EnsureMockOptions['listUsersImpl'],
+) {
+  return listUsersImpl
     ? vi.fn((args: { page: number }) => Promise.resolve(listUsersImpl(args.page)))
     : vi.fn().mockResolvedValue(listUsers)
+}
 
-  const client = {
+function buildEnsureClient(deps: {
+  org: EnsureMockOptions['org']
+  usersTable: ReturnType<typeof buildUsersTableMock>['table']
+  consentDeleteMock: ReturnType<typeof buildConsentTableMock>['consentDeleteMock']
+  listUsersMock: ReturnType<typeof buildListUsersMock>
+  createUser: EnsureMockOptions['createUser']
+  resetError: { message: string } | null
+}) {
+  const { org, usersTable, consentDeleteMock, listUsersMock, createUser, resetError } = deps
+  return {
     from: (table: string) => {
       if (table === 'organizations') return buildChain(org)
-      if (table === 'user_consents') {
-        return { delete: consentDeleteMock }
-      }
-      if (table === 'users') {
-        return {
-          select: () => buildChain(userRow),
-          insert: usersInsertMock,
-          update: usersUpdateMock,
-        }
-      }
+      if (table === 'user_consents') return { delete: consentDeleteMock }
+      if (table === 'users') return usersTable
       return buildChain({ data: null, error: null })
     },
     auth: {
@@ -109,9 +114,38 @@ function buildEnsureMockClient(opts: EnsureMockOptions) {
       },
     },
   }
+}
+
+function resolveEnsureDefaults(opts: EnsureMockOptions) {
+  return {
+    org: opts.org ?? { data: { id: 'org-123' }, error: null },
+    listUsers: opts.listUsers ?? { data: { users: [] } },
+    listUsersImpl: opts.listUsersImpl,
+    createUser: opts.createUser ?? { data: { user: { id: 'new-user-id' } }, error: null },
+    resetError: opts.resetError ?? null,
+    consentDeleteError: opts.consentDeleteError ?? null,
+    userRow: opts.userRow ?? { data: null, error: { message: 'no rows found', code: 'PGRST116' } },
+    insertError: opts.insertError ?? null,
+    updateError: opts.updateError ?? null,
+  }
+}
+
+function buildEnsureTableMocks(opts: EnsureMockOptions) {
+  const d = resolveEnsureDefaults(opts)
+  const { consentDeleteMock, consentDeleteEqMock } = buildConsentTableMock(d.consentDeleteError)
+  const {
+    table: usersTable,
+    usersInsertMock,
+    usersUpdateMock,
+    usersUpdateEqMock,
+  } = buildUsersTableMock(d.userRow, d.insertError, d.updateError)
+  const listUsersMock = buildListUsersMock(d.listUsers, d.listUsersImpl)
 
   return {
-    client,
+    org: d.org,
+    createUser: d.createUser,
+    resetError: d.resetError,
+    usersTable,
     consentDeleteMock,
     consentDeleteEqMock,
     usersInsertMock,
@@ -121,13 +155,17 @@ function buildEnsureMockClient(opts: EnsureMockOptions) {
   }
 }
 
+function buildEnsureMockClient(opts: EnsureMockOptions) {
+  const mocks = buildEnsureTableMocks(opts)
+  const client = buildEnsureClient(mocks)
+  return { client, ...mocks }
+}
+
 beforeEach(() => {
   vi.resetAllMocks()
 })
 
-// ---------------------------------------------------------------------------
 // ensureNoConsentUser
-// ---------------------------------------------------------------------------
 
 describe('ensureNoConsentUser', () => {
   it('throws when the org lookup query fails', async () => {
@@ -347,9 +385,7 @@ describe('ensureNoConsentUser', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
 // removeNoConsentUser
-// ---------------------------------------------------------------------------
 
 type RemoveMockOptions = {
   listUsers?: ListUsersResult
