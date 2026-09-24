@@ -1,0 +1,87 @@
+{
+  "_": "Planted red/green controls linked by GROUP marker to the two spawned tests that already drove the guard's exit code before this file existed.",
+  "target": ".claude/hooks/guard-agent-brief.js",
+  "suites": [".claude/hooks/guard-agent-brief.test.mjs"],
+  "mutations": [
+    {
+      "id": "guard-agent-brief-always-passes",
+      "find": "process.exit(2) // Exit code 2 = block the tool call",
+      "replace": "process.exit(0) // Exit code 2 = block the tool call",
+      "expectRed": [
+        "blocks a code-reviewer brief carrying an extra CONTEXT line with exit 2 and a BLOCKED stderr",
+        "blocks a round that is not digits or \"after-loop\" (e.g. \"2a\") with exit 2",
+        "blocks a branch containing a space with exit 2",
+        "blocks a branch containing a newline with exit 2",
+        "blocks implementation-critic when the plan file does not exist on disk with exit 2",
+        "blocks implementation-critic when the plan path contains \"..\" with exit 2",
+        "blocks implementation-critic when the plan path is outside .work and .spec-workflow/specs with exit 2",
+        "blocks implementation-critic when the plan path contains \"..\" that collapses to an existing file with exit 2",
+        "blocks code-review-skill without isolation: worktree with exit 2",
+        "blocks code-review-skill with model \"sonnet\" with exit 2"
+      ],
+      "note": "Forces the block() branch to exit 0 instead of 2 — a mismatched brief is logged as BLOCKED on stderr but no longer stops the tool call. Reddens every test asserting exit 2, not only the control."
+    },
+    {
+      "id": "guard-agent-brief-always-blocks",
+      "find": "process.exit(0) // Allow",
+      "replace": "process.exit(2) // Allow",
+      "expectRed": [
+        "allows an exact code-reviewer brief with exit 0",
+        "allows a non-gated subagent_type with any prompt",
+        "allows general-purpose with any prompt",
+        "allows code-reviewer's exact template brief with exit 0",
+        "allows semantic-reviewer's exact template brief with exit 0",
+        "allows deletion-reviewer's exact template brief with exit 0",
+        "allows doc-updater's exact template brief with exit 0",
+        "allows red-team's exact template brief with exit 0",
+        "allows coderabbit-sync's exact template brief with exit 0",
+        "allows test-writer's exact template brief with exit 0",
+        "allows implementation-critic's exact template brief with exit 0",
+        "allows code-review-skill's exact template brief with exit 0",
+        "allows code-review-skill with model omitted (undefined defaults to opus)"
+      ],
+      "note": "Forces the allow() path to exit 2 instead of 0 — every non-blocked brief (the exact-match control, every gated type's own exact brief, and every non-gated type) is blocked too."
+    },
+    {
+      "id": "guard-agent-brief-plan-regex-always-passes",
+      "find": "if (!/^(\\.work|\\.spec-workflow\\/specs)\\/[A-Za-z0-9._/-]+\\.md$/.test(plan)) return false",
+      "replace": "if (false) return false",
+      "expectRed": [
+        "blocks implementation-critic when the plan path is outside .work and .spec-workflow/specs with exit 2"
+      ],
+      "note": "Disables planPathValid's format regex only — a plan outside .work/.spec-workflow/specs (but real, no '..') is no longer rejected on that basis. The '..' test and the missing-file test still fail via their own checks and stay green."
+    },
+    {
+      "id": "guard-agent-brief-plan-dotdot-always-passes",
+      "find": "if (plan.includes('..')) return false",
+      "replace": "if (false) return false",
+      "expectRed": [
+        "blocks implementation-critic when the plan path contains \"..\" that collapses to an existing file with exit 2"
+      ],
+      "note": "Disables planPathValid's explicit '..' check only. The pre-existing '..' test still blocks via the exists-on-disk check after path.join collapses its traversal to a nonexistent path, so only the fixture whose collapsed path exists goes red."
+    },
+    {
+      "id": "guard-agent-brief-plan-exists-always-passes",
+      "find": "return fs.existsSync(resolved)",
+      "replace": "return true",
+      "expectRed": [
+        "blocks implementation-critic when the plan file does not exist on disk with exit 2"
+      ],
+      "note": "Disables planPathValid's exists-on-disk check only — a well-formed plan path with no '..' is accepted even when the file is missing."
+    },
+    {
+      "id": "guard-agent-brief-isolation-worktree-check-disabled",
+      "find": "if (toolInput?.isolation !== 'worktree') return block(subagentType, template)",
+      "replace": "if (false) return block(subagentType, template)",
+      "expectRed": ["blocks code-review-skill without isolation: worktree with exit 2"],
+      "note": "Disables the code-review-skill isolation:worktree check only — a valid model with isolation omitted is no longer blocked on that basis."
+    },
+    {
+      "id": "guard-agent-brief-model-opus-check-disabled",
+      "find": "if (model !== undefined && model !== 'opus') return block(subagentType, template)",
+      "replace": "if (false) return block(subagentType, template)",
+      "expectRed": ["blocks code-review-skill with model \"sonnet\" with exit 2"],
+      "note": "Disables the code-review-skill model check only — isolation:worktree with a non-opus model is no longer blocked on that basis."
+    }
+  ]
+}

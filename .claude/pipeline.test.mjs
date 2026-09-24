@@ -70,7 +70,11 @@ for (const [name, want] of Object.entries(spec.agents)) {
     : fail(`${name}: model "${fm.model}" != "${wantModel}"`)
 
   // Exact-string, deliberately: one canonical spelling, so reordering fails too.
-  const wantTools = [...spec.baseTools, ...(want.write ? spec.writeTools : [])].join(', ')
+  const wantTools = [
+    ...spec.baseTools,
+    ...(want.write ? spec.writeTools : []),
+    ...(want.skill ? spec.skillTools : []),
+  ].join(', ')
   fm.tools === wantTools
     ? pass(`${name}: tool grant matches the spec`)
     : fail(`${name}: tools "${fm.tools}" != "${wantTools}"`)
@@ -91,6 +95,7 @@ const CORE = Object.entries(spec.agents)
   .map(([n]) => n)
   .sort()
 const EXPECTED_CORE = [
+  'code-review-skill',
   'code-reviewer',
   'deletion-reviewer',
   'doc-updater',
@@ -109,6 +114,7 @@ const EXPECTED_ROLES = {
   'test-writer': 'gate-round',
   'deletion-reviewer': 'gate-round',
   'implementation-critic': 'gate-round',
+  'code-review-skill': 'gate-round',
   'red-team': 'conditional',
   'coderabbit-sync': 'conditional',
   'plan-critic': 'pre-execution',
@@ -193,6 +199,7 @@ const TOP_LEVEL_KEYS = [
   'models',
   'baseTools',
   'writeTools',
+  'skillTools',
   'agents',
   'order',
   'securityPaths',
@@ -207,12 +214,18 @@ strayTopKeys.length === 0
   ? pass('pipeline.json has no unchecked top-level keys')
   : fail(`pipeline.json has unchecked top-level key(s): ${strayTopKeys.join(', ')}`)
 
-const AGENT_KEYS = ['model', 'write', 'role']
+const AGENT_KEYS = ['model', 'write', 'role', 'skill']
 for (const [name, want] of Object.entries(spec.agents)) {
   const stray = Object.keys(want).filter((k) => !AGENT_KEYS.includes(k))
   stray.length === 0
     ? pass(`${name}: no unchecked keys on its agent entry`)
     : fail(`${name}: unchecked key(s) on its agent entry: ${stray.join(', ')}`)
+
+  if ('skill' in want) {
+    typeof want.skill === 'boolean'
+      ? pass(`${name}: skill is boolean`)
+      : fail(`${name}: skill "${want.skill}" is not a boolean`)
+  }
 }
 
 const usedAliases = new Set([
