@@ -122,6 +122,11 @@ jobs:
       - name: Mirror-sync checker unit tests
         run: node --test .claude/hooks/check-mirror-sync.test.mjs
 
+      # PR head-file fetcher used by claude-review.yml (Decision 89) — not a guard, no
+      # pipeline.json `guards` entry.
+      - name: PR head-file fetcher — unit test
+        run: node --test .github/scripts/pr-head-files.test.mjs
+
       # Shared spawn-verdict helpers, imported by guard suites elsewhere in this job.
       - name: Spawn verdict helpers — unit test
         run: node --test .claude/hooks/spawn.testkit.test.mjs

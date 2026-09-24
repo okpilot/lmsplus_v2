@@ -4,7 +4,8 @@ name: Claude Review
 # must carry inline copies of every rule because it cannot follow a pointer, this reviewer reads
 # `.claude/rules/code-style.md` and `docs/security.md` from the checkout — so a merged rule change
 # takes effect with no sync step. The checkout is the PR's BASE branch (below); the PR's
-# own diff/files reach the reviewer only through the PR tools, never through what is on disk.
+# own diff/files reach the reviewer only through the PR tools — except the head copies of files the
+# diff tools return with no patch, which the step before Review writes under `.pr-head/`.
 #
 # BLOCKING via a dismissable REQUEST_CHANGES review (Decision 78).
 #
@@ -38,6 +39,27 @@ jobs:
           ref: ${{ github.event.pull_request.base.sha }} # trusted base, not the PR's own copy
           persist-credentials: false # the reviewer reads the diff through the action, not via git
 
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        if: env.CLAUDE_CODE_OAUTH_TOKEN != ''
+        continue-on-error: true # the fetch below then runs on the runner's own Node, or fails soft
+        with:
+          node-version: '22'
+
+      - name: Fetch head copies of patch-less files
+        if: env.CLAUDE_CODE_OAUTH_TOKEN != ''
+        continue-on-error: true # a failed fetch leaves no INDEX.txt; the Review step still runs
+        timeout-minutes: 5
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        # Runs the BASE checkout's copy of the script (checked out above) — an unrestricted CI
+        # step, unlike the Review step below which has no Bash. Writes `.pr-head/INDEX.txt` and a
+        # numbered copy under `.pr-head/files/` for every changed file the diff tools return with
+        # no `patch`, readable by the Review step's Read/Grep/Glob (its cwd is this checkout).
+        run: node .github/scripts/pr-head-files.mjs
+
       - name: Review
         id: review
         if: env.CLAUDE_CODE_OAUTH_TOKEN != ''
@@ -55,7 +77,7 @@ jobs:
             behaviour, a mutation/test linked to a changed guard line. Never review untouched code
             for its own sake. The files checked out on disk are the PR's BASE branch, not its
             head — the PR's own additions and changes are reachable only through the PR diff/files
-            tools. Never read something the PR adds or changes as absent because it is missing from
+            tools, and the `.pr-head/` copies described below. Never read something the PR adds or changes as absent because it is missing from
             what is on disk.
 
             # PR review instructions
@@ -82,6 +104,21 @@ jobs:
 
             Biome, `tsc`, the lefthook guards and CodeRabbit already run on this PR. Never comment
             on formatting or anything a linter would reject.
+
+            ## Files without a diff patch
+
+            Some changed files carry no `patch` in the diff tools — large diffs and binaries. Read
+            `.pr-head/INDEX.txt` first. Each path there is a JSON string: `fetched "<path>" →
+            <copy>` means the head-commit copy of `<path>` is the file `<copy>`; `not-fetched
+            "<path>" — <reason>` means there is none. The base copy, if any, is at `<path>` on
+            disk — for a renamed file, at its previous name. A deleted file has no head copy and
+            is not listed; its base copy is the whole change. Every other changed file without a
+            patch that INDEX.txt does not list as `fetched` is unreviewed, including when INDEX.txt
+            is missing. A leading `truncated` line means GitHub may have capped the file list at 3000:
+            files beyond the cap reach neither INDEX.txt nor the diff tools. Every unreviewed
+            file, any other changed file you could not read, and — after a `truncated` line —
+            "files beyond GitHub's 3000-file cap", are named in the verdict's `Not reviewed:` line
+            below.
 
             ## Verify before you flag
 
@@ -130,9 +167,11 @@ jobs:
             `mcp__github__create_and_submit_pull_request_review` on owner/repo/pullNumber of this
             PR, with `commitID` set to `${{ github.event.pull_request.head.sha }}`. Set `event` to
             REQUEST_CHANGES if you posted any CRITICAL or ISSUE finding, else COMMENT. Never
-            APPROVE. The body's FIRST line is exactly `<!-- claude-review-verdict -->`, then one line
-            per finding (severity + file:line), or "No findings." if none. Always submit this
-            verdict, even with no findings.
+            APPROVE. The body's FIRST line is exactly `<!-- claude-review-verdict -->`, then one
+            line per finding (severity + file:line) or "No findings." if none, then — only when
+            you could not review at least one changed file — a `Not reviewed: <path>, <path>`
+            line naming every such file (see "Files without a diff patch" above). "No findings." is allowed only when that list
+            is empty. Always submit this verdict, even with no findings.
           # Agent mode passes this prompt VERBATIM (src/modes/agent/index.ts:
           # `promptContent = context.inputs.prompt`) — it injects no PR number, base ref or patch.
           # Whatever scoping the reviewer gets, it gets from these lines and the MCP grants below.
@@ -154,7 +193,8 @@ jobs:
           # github-mcp-server v0.17.1 (pkg/github/pullrequests.go), the build the action pins.
           #
           # Read/Grep/Glob are granted explicitly, rather than left to the read-only default, and
-          # read the BASE checkout on disk (see the checkout step above) — never the PR's own files:
+          # read the BASE checkout on disk (see the checkout step above), plus the numbered head
+          # copies of patch-less files under .pr-head/files/ — never the PR's config files:
           # Read(.claude-pr/**) denies the action's in-cwd snapshot of the PR's config files
           # (SENSITIVE_PATHS in the action's src/github/operations/restore-config.ts).
           # --disallowedTools fences them outside the checkout (/proc, /sys, ~/.claude, the
