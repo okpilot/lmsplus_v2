@@ -477,6 +477,11 @@ function appliedWaivers(unit, unusedWaivers) {
   )
 }
 
+/** `res`'s waivers that matched no finding and authorized no re-add. */
+function unapplied(res, applied) {
+  return res.unusedWaivers.filter((token) => !applied.includes(token))
+}
+
 /** Re-bind to `unit`'s result each ancestor authorization that `unit`'s OLD slot still matches
  *  (so text a merge wrote is never adopted); a removal authorization is retired, never re-bound,
  *  when `unit` re-adds the line. Then authorize `unit`'s text for each of `tokens`.
@@ -511,8 +516,8 @@ function runBase(ref) {
     const res = checkUnit(unit)
     if (res.problems.length > 0) return reportProblems(res.problems)
     if (res.offenders.length > 0) blocked = true
-    reportUnit(unit.label, res.offenders, { unusedWaivers: res.unusedWaivers })
     const applied = appliedWaivers(unit, res.unusedWaivers)
+    reportUnit(unit.label, res.offenders, { unusedWaivers: unapplied(res, applied) })
     recordAuthorizations(live, unit, applied)
     const found = res.offenders.map((o) => o.token).filter((t) => t !== null)
     recordAuthorizations(assumed, unit, [...applied, ...found])
@@ -547,10 +552,10 @@ function memoize(fn) {
 
 /** A merge-blame walker bound to `baseText`, shared across every offender in one range run:
  *  ledger text, parent and merge-base lookups are memoized once, not per offender. Each call
- *  follows the first parent whose key matches HEAD's. A merge whose other parent `q` has a
- *  different key, changed from the two parents' merge-base, discarded that change, so the merge
- *  wrote the line.
- *  Otherwise the commit where no parent matches wrote it; `true` only when that is a merge. */
+ *  follows the first parent `p` whose key matches HEAD's. A merge wrote the line when its other
+ *  parent `q` changed it since the two parents' merge-base and `p` did not (the merge discarded
+ *  that change). Otherwise the commit where no parent matches wrote it; `true` when that is a
+ *  merge, or a root commit (reached only through a merge that joined an unrelated history). */
 function buildMergeWalker(baseText) {
   const ledgerAt = memoize((sha) => readAtTree(sha, DECISIONS_PATH))
   const parentsOf = memoize((sha) =>
@@ -565,14 +570,14 @@ function buildMergeWalker(baseText) {
     const target = keyAt('HEAD')
     const discarded = (p, q) => {
       const mb = mergeBaseOf(p, q)
-      return mb !== null && keyAt(q) !== keyAt(mb)
+      return mb !== null && keyAt(q) !== keyAt(mb) && keyAt(p) === keyAt(mb)
     }
     let c = 'HEAD'
     for (;;) {
       const ps = parentsOf(c)
       const p = ps.find((par) => keyAt(par) === target)
-      if (p === undefined) return ps.length > 1
-      if (ps.some((q) => keyAt(q) !== target && discarded(p, q))) return true
+      if (p === undefined) return ps.length !== 1
+      if (ps.some((q) => discarded(p, q))) return true
       c = p
     }
   }
@@ -615,7 +620,8 @@ function runUnits(units) {
     const res = checkUnit(unit)
     if (res.problems.length > 0) return reportProblems(res.problems)
     if (res.offenders.length > 0) blocked = true
-    reportUnit(unit.label, res.offenders, { unusedWaivers: res.unusedWaivers })
+    const applied = appliedWaivers(unit, res.unusedWaivers)
+    reportUnit(unit.label, res.offenders, { unusedWaivers: unapplied(res, applied) })
   }
   return blocked ? 1 : 0
 }

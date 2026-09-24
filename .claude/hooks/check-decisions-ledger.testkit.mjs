@@ -109,5 +109,7 @@ export function mergeMaster(r, text, { from = 'master', args = [] } = {}) {
       throw err
     }
   }
+  // Nothing to merge leaves no MERGE_HEAD; the commit below would then not be a merge.
+  r.git('rev-parse', '-q', '--verify', 'MERGE_HEAD')
   commit(r, text, `Merge branch ${from} into work`)
 }

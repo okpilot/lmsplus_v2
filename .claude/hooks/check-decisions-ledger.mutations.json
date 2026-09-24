@@ -58,7 +58,9 @@
         "a clean merge of two identical re-adds names the non-merge remedy",
         "a merge dropping a marker from a waived branch edit is blamed",
         "a merge dropping a marker from an unwaived branch edit is reported beside the edit",
-        "a re-add without its marker after an unwaived removal is reported under range"
+        "a re-add without its marker after an unwaived removal is reported under range",
+        "a branch re-add kept over a master reword names the non-merge remedy",
+        "a merge taking the ledger from an unrelated first parent is blamed"
       ]
     },
     {
@@ -85,7 +87,8 @@
         "a branch body kept beside a marker master appended names the non-merge remedy",
         "a merge of an unrelated history names the non-merge remedy for a branch re-add",
         "a clean merge of two identical re-adds names the non-merge remedy",
-        "a merge dropping a marker from a waived branch edit is blamed"
+        "a merge dropping a marker from a waived branch edit is blamed",
+        "a branch re-add kept over a master reword names the non-merge remedy"
       ]
     },
     {
@@ -171,7 +174,8 @@
         "a merge of an untouched master line names the non-merge remedy for a branch re-add",
         "a branch body kept beside a marker master appended names the non-merge remedy",
         "a merge of an unrelated history names the non-merge remedy for a branch re-add",
-        "a clean merge of two identical re-adds names the non-merge remedy"
+        "a clean merge of two identical re-adds names the non-merge remedy",
+        "a branch re-add kept over a master reword names the non-merge remedy"
       ]
     },
     {
@@ -205,7 +209,7 @@
     },
     {
       "id": "walker-any-merge",
-      "find": "if (p === undefined) return ps.length > 1",
+      "find": "if (p === undefined) return ps.length !== 1",
       "replace": "if (p === undefined) return true",
       "expectRed": [
         "a range finding names the non-merge remedy when a merge-free branch is merged into master",
@@ -213,7 +217,8 @@
         "a merge of an untouched master line names the non-merge remedy for a branch re-add",
         "a branch body kept beside a marker master appended names the non-merge remedy",
         "a merge of an unrelated history names the non-merge remedy for a branch re-add",
-        "a clean merge of two identical re-adds names the non-merge remedy"
+        "a clean merge of two identical re-adds names the non-merge remedy",
+        "a branch re-add kept over a master reword names the non-merge remedy"
       ]
     },
     {
@@ -234,7 +239,9 @@
         "a merge of an unrelated history names the non-merge remedy for a branch re-add",
         "a clean merge of two identical re-adds names the non-merge remedy",
         "a merge dropping a marker from a waived branch edit is blamed",
-        "a merge dropping a marker from an unwaived branch edit is reported beside the edit"
+        "a merge dropping a marker from an unwaived branch edit is reported beside the edit",
+        "a branch re-add kept over a master reword names the non-merge remedy",
+        "a merge taking the ledger from an unrelated first parent is blamed"
       ]
     },
     {
@@ -305,7 +312,8 @@
         "a branch body kept beside a marker master appended names the non-merge remedy",
         "a merge of an unrelated history names the non-merge remedy for a branch re-add",
         "a clean merge of two identical re-adds names the non-merge remedy",
-        "a re-add without its marker after an unwaived removal is reported under range"
+        "a re-add without its marker after an unwaived removal is reported under range",
+        "a branch re-add kept over a master reword names the non-merge remedy"
       ]
     },
     {
@@ -329,7 +337,8 @@
         "a merge dropping a marker from a waived branch edit is blamed",
         "a merge dropping a marker from an unwaived branch edit is reported beside the edit",
         "a re-add without its marker after an unwaived removal is reported under range",
-        "a merge dropping a marker the branch removed and then restored is blocked"
+        "a merge dropping a marker the branch removed and then restored is blocked",
+        "a branch re-add kept over a master reword names the non-merge remedy"
       ]
     },
     {
@@ -502,7 +511,9 @@
         "a clean merge of two identical re-adds names the non-merge remedy",
         "a merge dropping a marker from an unwaived branch edit is reported beside the edit",
         "a re-add without its marker after an unwaived removal is reported under range",
-        "a per-commit body finding is not repeated under range after a merge appends a marker"
+        "a per-commit body finding is not repeated under range after a merge appends a marker",
+        "a branch re-add kept over a master reword names the non-merge remedy",
+        "a waived re-add of a line a waiver removed passes"
       ]
     },
     {
@@ -523,7 +534,8 @@
       "expectRed": [
         "--base handles a root commit in the range (no parent to diff against)",
         "a waiver on a commit with no ledger does not clear a merge dropping the last entry",
-        "a merge of an unrelated history names the non-merge remedy for a branch re-add"
+        "a merge of an unrelated history names the non-merge remedy for a branch re-add",
+        "a merge taking the ledger from an unrelated first parent is blamed"
       ]
     },
     {
@@ -545,7 +557,8 @@
         "a file deletion is blocked",
         "commit-msg mode on the FIRST commit (unborn HEAD) runs F1/F2 with no immutability check",
         "a master re-edit of a text the branch also waived keeps the branch waiver",
-        "a merge of an unrelated history names the non-merge remedy for a branch re-add"
+        "a merge of an unrelated history names the non-merge remedy for a branch re-add",
+        "a merge taking the ledger from an unrelated first parent is blamed"
       ]
     },
     {
@@ -597,7 +610,8 @@
         "a merge dropping a marker from a waived branch edit is blamed",
         "a merge dropping a marker from an unwaived branch edit is reported beside the edit",
         "a re-add without its marker after an unwaived removal is reported under range",
-        "a per-commit body finding is not repeated under range after a merge appends a marker"
+        "a per-commit body finding is not repeated under range after a merge appends a marker",
+        "a merge taking the ledger from an unrelated first parent is blamed"
       ]
     },
     {
@@ -712,7 +726,9 @@
         "a merge re-deleting an entry the branch removed and then restored is blocked",
         "a waiver on a commit with no ledger does not clear a merge dropping the last entry",
         "flags an OLD entry number missing entirely from NEW (I1)",
-        "a re-add without its marker after an unwaived removal is reported under range"
+        "a re-add without its marker after an unwaived removal is reported under range",
+        "a merge taking the ledger from an unrelated first parent is blamed",
+        "a waived re-add of a line a waiver removed passes"
       ]
     },
     {
@@ -749,7 +765,8 @@
         "a merge of an unrelated history names the non-merge remedy for a branch re-add",
         "a clean merge of two identical re-adds names the non-merge remedy",
         "a merge dropping a marker from an unwaived branch edit is reported beside the edit",
-        "a per-commit body finding is not repeated under range after a merge appends a marker"
+        "a per-commit body finding is not repeated under range after a merge appends a marker",
+        "a branch re-add kept over a master reword names the non-merge remedy"
       ]
     },
     {
@@ -798,7 +815,7 @@
     },
     {
       "id": "walk-no-discard-check",
-      "find": "      if (ps.some((q) => keyAt(q) !== target && discarded(p, q))) return true\n",
+      "find": "      if (ps.some((q) => discarded(p, q))) return true\n",
       "replace": "",
       "expectRed": [
         "a merge that discards a marker master appended is blamed",
@@ -813,13 +830,15 @@
         "a merge of an untouched master line names the non-merge remedy for a branch re-add",
         "a range finding names the non-merge remedy when a merge-free branch is merged into master",
         "a branch body kept beside a marker master appended names the non-merge remedy",
-        "a merge of an unrelated history names the non-merge remedy for a branch re-add"
+        "a merge of an unrelated history names the non-merge remedy for a branch re-add",
+        "a clean merge of two identical re-adds names the non-merge remedy",
+        "a branch re-add kept over a master reword names the non-merge remedy"
       ]
     },
     {
       "id": "discard-needs-merge-base",
-      "find": "return mb !== null && keyAt(q) !== keyAt(mb)",
-      "replace": "return keyAt(q) !== (mb === null ? null : keyAt(mb))",
+      "find": "      return mb !== null && ",
+      "replace": "      return mb === null || ",
       "expectRed": [
         "a merge of an unrelated history names the non-merge remedy for a branch re-add"
       ]
@@ -829,6 +848,27 @@
       "find": "  const lost = [...slotParts(baseText, token).markers].filter((mk) => !kept.has(mk)).sort()",
       "replace": "  const lost = [...slotParts(baseText, token).markers].sort()",
       "expectRed": ["a branch body kept beside a marker master appended names the non-merge remedy"]
+    },
+    {
+      "id": "discard-ignores-own-side",
+      "find": " && keyAt(p) === keyAt(mb)",
+      "replace": "",
+      "expectRed": [
+        "a branch re-add kept over a master reword names the non-merge remedy",
+        "a clean merge of two identical re-adds names the non-merge remedy"
+      ]
+    },
+    {
+      "id": "walk-root-not-blamed",
+      "find": "if (p === undefined) return ps.length !== 1",
+      "replace": "if (p === undefined) return ps.length > 1",
+      "expectRed": ["a merge taking the ledger from an unrelated first parent is blamed"]
+    },
+    {
+      "id": "unused-note-counts-readds",
+      "find": "  return res.unusedWaivers.filter((token) => !applied.includes(token))",
+      "replace": "  return res.unusedWaivers",
+      "expectRed": ["a waived re-add of a line a waiver removed passes"]
     },
     {
       "id": "range-assumes-nothing",
@@ -842,12 +882,6 @@
         "a per-commit body finding is not repeated under range after a merge appends a marker",
         "an unwaived edit on a branch with no merge is reported once, with the trailer hint"
       ]
-    },
-    {
-      "id": "discard-counts-matching-side",
-      "find": "if (ps.some((q) => keyAt(q) !== target && discarded(p, q)))",
-      "replace": "if (ps.some((q) => q !== p && discarded(p, q)))",
-      "expectRed": ["a clean merge of two identical re-adds names the non-merge remedy"]
     }
   ]
 }
