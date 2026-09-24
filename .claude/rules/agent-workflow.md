@@ -120,7 +120,7 @@ Execute ▼ commit freely — a commit triggers NOTHING
 ROUND 1  implementation-critic + code-reviewer + semantic-reviewer + doc-updater
          + test-writer + deletion-reviewer + code-review (skill) — ONE parallel batch, all on the
          branch diff.  code-review (skill) is the built-in /code-review skill,
-         dispatched as a subagent in an isolated worktree on opus.
+         dispatched as subagent_type code-review-skill in an isolated worktree on opus.
 ROUND 2+ code-reviewer + semantic-reviewer + code-review (skill)
          (doc-updater and test-writer PRODUCE, they do not gate — re-run one, or deletion-reviewer, only
           when the fixup added surface it has not seen)
@@ -426,7 +426,7 @@ Fix: [what to include next time]
 
 ### Gate reviewer agent integration
 For the gate's reviewer AGENTS, `.claude/agents/*.md` serve as the CONSTRAINTS and CONTEXT sections. The delegation template supplements with TASK, OBJECTIVE, and DONE WHEN — never duplicate the definitions.
-**Never steer a gate reviewer.** Its brief carries the branch, the range, the round, the PR number once one exists, and the inputs its definition requires (implementation-critic's plan and requirements) — never a prior finding, a fix to verify, a hypothesis or a focus area.
+**Never steer a gate reviewer.** Its brief is its type's template in `.claude/hooks/gate-briefs.json` — never a prior finding, a fix to verify, a hypothesis or a focus area. `.claude/hooks/guard-agent-brief.js` blocks any other brief.
 ### DO
 - Use the 5-section delegation template for every subagent prompt.
 - Log delegation failures and improve future prompts.

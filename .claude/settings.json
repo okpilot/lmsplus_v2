@@ -2,11 +2,20 @@
   "hooks": {
     "PreToolUse": [
       {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard-agent-brief.js"
+          }
+        ]
+      },
+      {
         "matcher": "Bash",
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/hooks/guard-bash.js"
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard-bash.js"
           }
         ]
       },
@@ -15,7 +24,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/hooks/review-gate.js"
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/review-gate.js"
           }
         ]
       }
@@ -25,7 +34,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/hooks/on-stop.sh"
+            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/on-stop.sh"
           }
         ]
       }

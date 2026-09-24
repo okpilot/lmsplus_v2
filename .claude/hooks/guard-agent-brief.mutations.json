@@ -1,0 +1,212 @@
+{
+  "_": "Planted red/green controls linked by GROUP marker to the two spawned tests that already drove the guard's exit code before this file existed.",
+  "target": ".claude/hooks/guard-agent-brief.js",
+  "suites": [".claude/hooks/guard-agent-brief.test.mjs"],
+  "mutations": [
+    {
+      "id": "guard-agent-brief-always-passes",
+      "find": "process.exit(2) // Exit code 2 = block the tool call",
+      "replace": "process.exit(0) // Exit code 2 = block the tool call",
+      "expectRed": [
+        "blocks a code-reviewer brief carrying an extra CONTEXT line with exit 2 and a BLOCKED stderr",
+        "blocks a round that is not digits or \"after-loop\" (e.g. \"2a\") with exit 2",
+        "blocks a branch containing a space with exit 2",
+        "blocks a branch containing a newline with exit 2",
+        "blocks implementation-critic when the plan file does not exist on disk with exit 2",
+        "blocks implementation-critic when the plan path contains \"..\" with exit 2",
+        "blocks implementation-critic when the plan path is outside .work and .spec-workflow/specs with exit 2",
+        "blocks implementation-critic when the plan path contains \"..\" that collapses to an existing file with exit 2",
+        "blocks code-review-skill without isolation: worktree with exit 2",
+        "blocks code-review-skill with model \"sonnet\" with exit 2",
+        "blocks a brief whose PR number has no hash sign with exit 2",
+        "blocks code-review-skill when its two {branch} occurrences disagree with exit 2",
+        "blocks a code-reviewer brief dispatched with isolation: \"worktree\" with exit 2",
+        "blocks an implementation-critic brief dispatched with isolation: \"worktree\" with exit 2",
+        "blocks a brief whose branch is not a local branch with exit 2",
+        "blocks a steered brief padded with trailing-whitespace runs within the timeout",
+        "blocks a steered brief for a templated type pipeline.json gives no gate role"
+      ],
+      "note": "Forces the block() branch to exit 0 instead of 2 — a mismatched brief is logged as BLOCKED on stderr but no longer stops the tool call. Reddens every test asserting exit 2, not only the control."
+    },
+    {
+      "id": "guard-agent-brief-always-blocks",
+      "find": "process.exit(0) // Allow",
+      "replace": "process.exit(2) // Allow",
+      "expectRed": [
+        "allows an exact code-reviewer brief with exit 0",
+        "allows a non-gated subagent_type with any prompt",
+        "allows general-purpose with any prompt",
+        "allows code-reviewer's exact template brief with exit 0",
+        "allows semantic-reviewer's exact template brief with exit 0",
+        "allows deletion-reviewer's exact template brief with exit 0",
+        "allows doc-updater's exact template brief with exit 0",
+        "allows red-team's exact template brief with exit 0",
+        "allows coderabbit-sync's exact template brief with exit 0",
+        "allows test-writer's exact template brief with exit 0",
+        "allows implementation-critic's exact template brief with exit 0",
+        "allows code-review-skill's exact template brief with exit 0",
+        "allows code-review-skill with model omitted (undefined defaults to opus)",
+        "allows a brief with PR none and round after-loop",
+        "allows implementation-critic with a valid existing plan when stdin cwd points elsewhere",
+        "allows a code-reviewer brief with isolation omitted",
+        "allows implementation-critic from a linked worktree when the plan exists only in the main checkout",
+        "allows an ungated type when a gated type lacks its template"
+      ],
+      "note": "Forces the allow() path to exit 2 instead of 0 — every non-blocked brief (the exact-match control, every gated type's own exact brief, and every non-gated type) is blocked too."
+    },
+    {
+      "id": "guard-agent-brief-plan-regex-always-passes",
+      "find": "if (!/^(\\.work|\\.spec-workflow\\/specs)\\/[A-Za-z0-9._/-]+\\.md$/.test(plan)) return false",
+      "replace": "if (false) return false",
+      "expectRed": [
+        "blocks implementation-critic when the plan path is outside .work and .spec-workflow/specs with exit 2"
+      ],
+      "note": "Disables planPathValid's format regex only — a plan outside .work/.spec-workflow/specs (but real, no '..') is no longer rejected on that basis. The '..' test and the missing-file test still fail via their own checks and stay green."
+    },
+    {
+      "id": "guard-agent-brief-plan-dotdot-always-passes",
+      "find": "if (plan.includes('..')) return false",
+      "replace": "if (false) return false",
+      "expectRed": [
+        "blocks implementation-critic when the plan path contains \"..\" that collapses to an existing file with exit 2"
+      ],
+      "note": "Disables planPathValid's explicit '..' check only. The pre-existing '..' test still blocks via the exists-on-disk check after path.join collapses its traversal to a nonexistent path, so only the fixture whose collapsed path exists goes red."
+    },
+    {
+      "id": "guard-agent-brief-plan-exists-always-passes",
+      "find": "root && fs.existsSync(path.join(root, plan))",
+      "replace": "root",
+      "expectRed": [
+        "blocks implementation-critic when the plan file does not exist on disk with exit 2"
+      ],
+      "note": "Disables planPathValid's exists-on-disk check only — a well-formed plan path with no '..' is accepted even when the file is missing."
+    },
+    {
+      "id": "guard-agent-brief-backreference-disabled",
+      "find": "pattern += `\\\\k<${name}>`",
+      "replace": "pattern += `(?:${PLACEHOLDER_PATTERNS[name]})`",
+      "expectRed": [
+        "blocks code-review-skill when its two {branch} occurrences disagree with exit 2"
+      ],
+      "note": "Replaces the backreference for a repeated placeholder with an independent match on the same character class — the two {branch} occurrences in code-review-skill's template no longer have to agree."
+    },
+    {
+      "id": "guard-agent-brief-isolation-worktree-check-disabled",
+      "find": "if (toolInput?.isolation !== 'worktree') return 'isolation'",
+      "replace": "if (false) return 'isolation'",
+      "expectRed": ["blocks code-review-skill without isolation: worktree with exit 2"],
+      "note": "Disables the code-review-skill isolation:worktree check only — a valid model with isolation omitted is no longer blocked on that basis."
+    },
+    {
+      "id": "guard-agent-brief-model-opus-check-disabled",
+      "find": "if (model !== undefined && model !== 'opus') return 'model'",
+      "replace": "if (false) return 'model'",
+      "expectRed": ["blocks code-review-skill with model \"sonnet\" with exit 2"],
+      "note": "Disables the code-review-skill model check only — isolation:worktree with a non-opus model is no longer blocked on that basis."
+    },
+    {
+      "id": "guard-agent-brief-other-worktree-check-disabled",
+      "find": "return toolInput?.isolation === 'worktree' ? 'worktree-forbidden' : null",
+      "replace": "return null",
+      "expectRed": [
+        "blocks a code-reviewer brief dispatched with isolation: \"worktree\" with exit 2",
+        "blocks an implementation-critic brief dispatched with isolation: \"worktree\" with exit 2"
+      ],
+      "note": "Disables the non-code-review-skill worktree-forbidden check only — a gated type other than code-review-skill dispatched with isolation: \"worktree\" is no longer blocked on that basis."
+    },
+    {
+      "id": "guard-agent-brief-oversize-allows",
+      "find": "process.stderr.write('BLOCKED: Agent payload exceeds 1MB\\n', () => process.exit(2))",
+      "replace": "process.stderr.write('BLOCKED: Agent payload exceeds 1MB\\n', () => process.exit(0))",
+      "expectRed": ["blocks a steered brief padded past 1MB with exit 2"],
+      "note": "Oversize payload exits 0 — a steered brief padded past 1MB bypasses the template check."
+    },
+    {
+      "id": "guard-agent-brief-branch-check-disabled",
+      "find": "if (!branchExists(m.groups?.branch)) return { reason: 'branch', template }",
+      "replace": "",
+      "expectRed": ["blocks a brief whose branch is not a local branch with exit 2"],
+      "note": "A {branch} that is not a local branch is no longer blocked."
+    },
+    {
+      "id": "guard-agent-brief-quadratic-trim",
+      "find": "rawPrompt.trimEnd()",
+      "replace": "rawPrompt.replace(/\\s+$/, '')",
+      "expectRed": [
+        "blocks a steered brief padded with trailing-whitespace runs within the timeout"
+      ],
+      "note": "A backtracking trailing-whitespace regex runs past the hook timeout on a padded prompt."
+    },
+    {
+      "id": "guard-agent-brief-main-checkout-fallback-disabled",
+      "find": "[REPO_ROOT, mainCheckoutRoot()]",
+      "replace": "[REPO_ROOT]",
+      "expectRed": [
+        "allows implementation-critic from a linked worktree when the plan exists only in the main checkout"
+      ],
+      "note": "A {plan} present only in the main checkout is rejected from a linked worktree."
+    },
+    {
+      "id": "guard-agent-brief-templates-object-check-disabled",
+      "find": "if (!templates) blockLoad(",
+      "replace": "if (false) blockLoad(",
+      "expectRed": [
+        "blocks every gated brief with exit 2 when the templates file has no templates object"
+      ],
+      "note": "A templates file with no templates object lets every brief through."
+    },
+    {
+      "id": "guard-agent-brief-gated-template-check-disabled",
+      "find": "if (typeof template !== 'string' || template === '') {",
+      "replace": "if (false) {",
+      "expectRed": ["blocks a gated type with exit 2 when its template is missing"],
+      "note": "A gated type dropped from gate-briefs.json is treated as ungated."
+    },
+    {
+      "id": "guard-agent-brief-gated-scope-disabled",
+      "find": "if (!gated) {",
+      "replace": "if (false) {",
+      "expectRed": [
+        "allows a non-gated subagent_type with any prompt",
+        "allows general-purpose with any prompt",
+        "blocks every gated brief with exit 2 when the templates file is unparseable",
+        "allows an ungated type when a gated type lacks its template",
+        "blocks an untemplated type when pipeline.json is unreadable"
+      ],
+      "note": "The template checks run for every subagent_type, so an ungated dispatch is blocked."
+    },
+    {
+      "id": "guard-agent-brief-template-key-gating-disabled",
+      "find": " || Object.hasOwn(templates ?? {}, subagentType)",
+      "replace": "",
+      "expectRed": ["blocks a steered brief for a templated type pipeline.json gives no gate role"],
+      "note": "Only pipeline.json roles gate, so a templated type pipeline.json gives no gate role is allowed unchecked."
+    },
+    {
+      "id": "guard-agent-brief-round-class-widened",
+      "find": "round: '(?:\\\\d+|after-loop)',",
+      "replace": "round: '\\\\S+',",
+      "expectRed": [
+        "blocks a round that is not digits or \"after-loop\" (e.g. \"2a\") with exit 2"
+      ],
+      "note": "{round} accepts any non-space token, so free text reaches the brief's round slot."
+    },
+    {
+      "id": "guard-agent-brief-pr-class-widened",
+      "find": "pr: '(?:#\\\\d+|none)',",
+      "replace": "pr: '(?:#?\\\\d+|none)',",
+      "expectRed": ["blocks a brief whose PR number has no hash sign with exit 2"],
+      "note": "{pr} accepts a bare number, so the template's #N form is no longer enforced."
+    },
+    {
+      "id": "guard-agent-brief-ungated-needs-pipeline-disabled",
+      "find": "if (!agents) blockLoad(",
+      "replace": "if (false) blockLoad(",
+      "expectRed": [
+        "blocks every gated brief with exit 2 when the templates file is unparseable",
+        "blocks an untemplated type when pipeline.json is unreadable"
+      ],
+      "note": "With pipeline.json unreadable, a gated type whose template is also missing reads as ungated and is allowed."
+    }
+  ]
+}

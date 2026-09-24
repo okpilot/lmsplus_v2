@@ -102,3 +102,29 @@ test('a tracked file under apps/web/.claude blocks', () =>
     assert.equal(status, 1)
     assert.match(stderr, /apps\/web\/\.claude\/settings\.json/)
   }))
+
+// GROUP: pipeline-skill-boolean-check-disabled
+test('a non-boolean skill flag in pipeline.json blocks', () =>
+  withWorktree(({ wt }) => {
+    const path = join(wt, '.claude/pipeline.json')
+    const text = readFileSync(path, 'utf8')
+    const anchor = '"skill": true'
+    assertSingleOccurrence(text, anchor, 'pipeline-repo-skill-string')
+    writeFileSync(path, text.replace(anchor, '"skill": "true"'))
+    const { status, stderr } = run(wt)
+    assert.equal(status, 1)
+    assert.match(stderr, /skill "true" is not a boolean/)
+  }))
+
+// GROUP: pipeline-skill-tools-dropped
+test('a skill agent whose tools omit Skill blocks', () =>
+  withWorktree(({ wt }) => {
+    const path = join(wt, '.claude/agents/code-review-skill.md')
+    const text = readFileSync(path, 'utf8')
+    const anchor = 'tools: Read, Glob, Grep, Bash, Skill\n'
+    assertSingleOccurrence(text, anchor, 'pipeline-repo-skill-tool-dropped')
+    writeFileSync(path, text.replace(anchor, 'tools: Read, Glob, Grep, Bash\n'))
+    const { status, stderr } = run(wt)
+    assert.equal(status, 1)
+    assert.match(stderr, /code-review-skill: tools/)
+  }))

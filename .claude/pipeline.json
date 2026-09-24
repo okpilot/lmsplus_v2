@@ -9,6 +9,7 @@
 
   "baseTools": ["Read", "Glob", "Grep", "Bash"],
   "writeTools": ["Write", "Edit"],
+  "skillTools": ["Skill"],
 
   "agents": {
     "code-reviewer": {
@@ -51,6 +52,12 @@
       "model": "sonnet",
       "write": false,
       "role": "gate-round"
+    },
+    "code-review-skill": {
+      "model": "opus",
+      "write": false,
+      "role": "gate-round",
+      "skill": true
     },
     "security-auditor": { "model": "sonnet", "write": false, "role": "pre-push" }
   },
@@ -172,6 +179,10 @@
     ".claude/hooks/guard-bash.js": {
       "base": "guard-bash",
       "suites": [".claude/hooks/guard-bash.test.mjs"]
+    },
+    ".claude/hooks/guard-agent-brief.js": {
+      "base": "guard-agent-brief",
+      "suites": [".claude/hooks/guard-agent-brief.test.mjs"]
     },
     ".claude/hooks/review-gate.js": {
       "base": "review-gate",

@@ -85,3 +85,4 @@
 ## 90 — 2026-09-24 — A logged-out /app request carries its destination as a next param, validated same-app by safeNextPath, through login and consent. #1357
 ## 91 — 2026-09-24 — semantic-reviewer (behaviour, callers), deletion-reviewer (duplicates), plan-critic and the plan's pattern scan (plan time), and the CI reviewer compare new code with the repo's existing implementation of the same operation; code-reviewer and the CI reviewer flag an over-limit function the diff makes longer. #1360
 ## 92 — 2026-09-24 — Gate reviewer briefs carry the branch, range, round, PR number and the inputs the reviewer's definition requires; never a prior finding, a fix to verify, a hypothesis or a focus area. #1360
+## 93 — 2026-09-24 — `guard-agent-brief.js` (PreToolUse on Agent) blocks a gate reviewer's brief unless it matches its template in `.claude/hooks/gate-briefs.json`; the code-review skill member is the `code-review-skill` agent, dispatched in a worktree on opus. #1361

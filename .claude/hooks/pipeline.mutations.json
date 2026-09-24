@@ -11,7 +11,9 @@
         "renaming a lefthook pre-commit command the spec still declares blocks",
         "a memory key in an agent's frontmatter blocks",
         "a tracked file under .claude/agent-memory blocks",
-        "a tracked file under apps/web/.claude blocks"
+        "a tracked file under apps/web/.claude blocks",
+        "a non-boolean skill flag in pipeline.json blocks",
+        "a skill agent whose tools omit Skill blocks"
       ],
       "note": "The final blocking exit, dropped: every mismatch still prints FAIL, but the process exits 0 regardless — a lefthook.yml/pipeline.json mismatch, a stray frontmatter `memory:` key, or a tracked agent-memory file would no longer fail the CI step."
     },
@@ -45,6 +47,23 @@
       "replace": "'.claude/agent-memory']",
       "expectRed": ["a tracked file under apps/web/.claude blocks"],
       "note": "Drops apps/web/.claude from the pathspec — a tracked file there would no longer fail the check."
+    },
+    {
+      "id": "pipeline-skill-boolean-check-disabled",
+      "find": "typeof want.skill === 'boolean'",
+      "replace": "true",
+      "expectRed": ["a non-boolean skill flag in pipeline.json blocks"],
+      "note": "A string `skill` flag passes the key check and still grants Skill by truthiness."
+    },
+    {
+      "id": "pipeline-skill-tools-dropped",
+      "find": "...(want.skill ? spec.skillTools : []),",
+      "replace": "",
+      "expectRed": [
+        "a pristine worktree of HEAD passes",
+        "a skill agent whose tools omit Skill blocks"
+      ],
+      "note": "The expected tool grant omits Skill for a skill agent."
     }
   ]
 }
