@@ -44,7 +44,7 @@ You receive:
    - Plan introduces a new pattern when 3+ existing files use a different one
    - Plan uses a different error return shape than sibling functions
    - Plan introduces a non-standard runtime or error contract without justification
-   - Plan adds a helper, query or external-API call without naming the existing implementation of the same operation, or without `git grep` evidence that none exists
+   - Plan adds a helper, query or external-API call but neither names an existing implementation of the same operation nor cites `git grep` evidence that none exists
 
 5. **Security surface gaps**
    - Plan touches auth, RLS, or answer data without referencing `docs/security.md`
