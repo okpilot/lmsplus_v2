@@ -39,8 +39,8 @@ test('a range finding tells the author a merge cannot waive it', () =>
     )
   }))
 
-// GROUP: range-hint-merges-ignored, walk-stops-at-first-parent-only, walker-any-merge
-test('a range finding on a branch with no merge names the non-merge remedy', () =>
+// GROUP: range-hint-merges-ignored, walk-stops-at-first-parent-only, walker-any-merge, discard-ignores-merge-base
+test('a range finding names the non-merge remedy when a merge-free branch is merged into master', () =>
   withRepo((r) => {
     startWork(r)
     commit(r, ledgerNo14(), waive(14, 'fix: remove decision 14'))
@@ -134,4 +134,94 @@ test('two separate unwaived marker drops on the same token are each reported onc
     assert.equal(res.status, 1)
     assert.equal(res.stderr.match(/lost marker\(s\): Superseded 20/g)?.length, 1)
     assert.equal(res.stderr.match(/lost marker\(s\): Amended 21/g)?.length, 1)
+  }))
+
+// GROUP: walk-no-discard-check
+test('a merge that discards a marker master appended is blamed', () =>
+  withRepo((r) => {
+    // MUTATION: never check the merge's other parent → the merge's first parent (the untouched
+    // work tip) matches, the walk continues to a base-side commit, and a non-merge is blamed —
+    // though no commit on the branch touched the ledger.
+    const master = ledger('first decision. Superseded by 16.', undefined, [E16_MASTER])
+    forked(r, () => readme(r), { master })
+    mergeMaster(r, ledger('first decision.', undefined, [E16_MASTER]))
+    const res = runBase(r, 'master')
+    assert.equal(res.status, 1)
+    assert.match(res.stderr, /\[range\][\s\S]*## 14[\s\S]*redo the merge/)
+  }))
+
+// GROUP: walk-no-discard-check
+test('a merge that reverts a body master reworded is blamed', () =>
+  withRepo((r) => {
+    forked(r, () => readme(r), { master: ledger('reworded.', undefined, [E16_MASTER]) })
+    mergeMaster(r, ledger('first decision.', undefined, [E16_MASTER]))
+    const res = runBase(r, 'master')
+    assert.equal(res.status, 1)
+    assert.match(res.stderr, /\[range\][\s\S]*## 14[\s\S]*redo the merge/)
+  }))
+
+// GROUP: discard-ignores-merge-base
+test('a merge of an untouched master line names the non-merge remedy for a branch re-add', () =>
+  withRepo((r) => {
+    // MUTATION: treat every differing other parent as discarded → master's line, unchanged since
+    // the fork, makes the merge look like the writer of the branch's re-added text.
+    forked(r, () => {
+      commit(r, ledgerNo14(), waive(14, 'fix: remove decision 14'))
+      commit(r, ledger('NEVER REVIEWED.'), 're-add 14')
+    })
+    mergeMaster(r, ledger('NEVER REVIEWED.', undefined, [E16_MASTER]))
+    const res = runBase(r, 'master')
+    assert.match(res.stderr, /\[range\][\s\S]*## 14[\s\S]*to the non-merge commit that made/)
+    assert.doesNotMatch(res.stderr, /redo the merge/)
+  }))
+
+// GROUP: walk-uses-raw-text
+test('a branch body kept beside a marker master appended names the non-merge remedy', () =>
+  withRepo((r) => {
+    const master = ledger('first decision. Superseded by 16.', undefined, [E16_MASTER])
+    forked(
+      r,
+      () => {
+        commit(r, ledgerNo14(), waive(14, 'fix: remove decision 14'))
+        commit(r, ledger('B.'), 're-add 14')
+      },
+      { master },
+    )
+    mergeMaster(r, ledger('B. Superseded by 16.', undefined, [E16_MASTER]))
+    const res = runBase(r, 'master')
+    assert.match(res.stderr, /\[range\][\s\S]*## 14[\s\S]*to the non-merge commit that made/)
+    assert.doesNotMatch(res.stderr, /redo the merge/)
+  }))
+
+// GROUP: discard-needs-merge-base
+test('a merge of an unrelated history names the non-merge remedy for a branch re-add', () =>
+  withRepo((r) => {
+    // MUTATION: compare against a missing merge-base → the unrelated side reads as changed, and
+    // the merge is blamed for the branch's re-added text.
+    startWork(r)
+    commit(r, ledgerNo14(), waive(14, 'fix: remove decision 14'))
+    commit(r, ledger('NEVER REVIEWED.'), 're-add 14')
+    r.git('checkout', '-q', '--orphan', 'other')
+    commit(r, ledger('other.'), 'other root')
+    r.git('checkout', '-q', 'work')
+    mergeMaster(r, ledger('NEVER REVIEWED.'), {
+      from: 'other',
+      args: ['--allow-unrelated-histories'],
+    })
+    const res = runBase(r, 'master')
+    assert.match(res.stderr, /\[range\][\s\S]*## 14[\s\S]*to the non-merge commit that made/)
+    assert.doesNotMatch(res.stderr, /redo the merge/)
+  }))
+
+// GROUP: dedup-marker-raw-slot
+test('a per-commit marker drop is not repeated under range after a later marker append', () =>
+  withRepo((r) => {
+    // MUTATION: dedup a marker finding on the raw slot text → the later append changes the slot,
+    // and the same lost marker prints again under [range].
+    startWork(r, ledger('first decision. Superseded by 20.'))
+    commit(r, ledger('first decision.'), 'drop marker')
+    commit(r, ledger('first decision. Amended by 30.'), 'feat: 30 amends 14')
+    const res = runBase(r, 'master')
+    assert.equal(res.status, 1)
+    assert.equal(res.stderr.match(/lost marker\(s\): Superseded 20/g)?.length, 1)
   }))

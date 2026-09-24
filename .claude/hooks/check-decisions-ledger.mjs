@@ -505,7 +505,8 @@ function runBase(ref) {
     if (res.problems.length > 0) return reportProblems(res.problems)
     if (res.offenders.length > 0) blocked = true
     reportUnit(unit.label, res.offenders, { unusedWaivers: res.unusedWaivers })
-    for (const o of res.offenders) reported.add(reportedKey(o.token, o.kind, unit.newText))
+    for (const o of res.offenders)
+      for (const k of reportedKeys(o, unit.oldText, unit.newText)) reported.add(k)
     recordAuthorizations(live, unit, res.unusedWaivers)
     if (unit.oldText !== unit.newText) lastTouched = unit.newText
   }
@@ -524,33 +525,43 @@ function offenderKey({ kind, token }, baseText) {
   return (text) => baseMarkers.filter((mk) => slotParts(text, token).markers.has(mk)).join('\n')
 }
 
-/** A merge-blame walker bound to `ref`/`baseText`, shared across every offender in one range
- *  run: ledger text and direct-parent lookups are memoized once, not per offender. Each call
- *  follows the first parent whose key matches HEAD's, stopping (not a merge) once that parent is
- *  `ref` or an ancestor of it — the text came from the base side. The commit where no parent
- *  matches wrote it; `true` only when that commit is a merge. */
-function buildMergeWalker(ref, baseText) {
-  const texts = new Map()
-  const parents = new Map()
-  const ledgerAt = (sha) => {
-    if (!texts.has(sha)) texts.set(sha, readAtTree(sha, DECISIONS_PATH))
-    return texts.get(sha)
+/** `fn` memoized on its argument list. */
+function memoize(fn) {
+  const cache = new Map()
+  return (...args) => {
+    const k = args.join(' ')
+    if (!cache.has(k)) cache.set(k, fn(...args))
+    return cache.get(k)
   }
-  const parentsOf = (sha) => {
-    if (!parents.has(sha)) {
-      const line = git(['rev-list', '--parents', '-n', '1', sha]).toString('utf8').trim()
-      parents.set(sha, line.split(' ').slice(1))
-    }
-    return parents.get(sha)
-  }
+}
+
+/** A merge-blame walker bound to `baseText`, shared across every offender in one range run:
+ *  ledger text, parent and merge-base lookups are memoized once, not per offender. Each call
+ *  follows the first parent whose key matches HEAD's. A merge whose other parent `q` changed
+ *  the key from the two parents' merge-base discarded that change, so the merge wrote the line.
+ *  Otherwise the commit where no parent matches wrote it; `true` only when that is a merge. */
+function buildMergeWalker(baseText) {
+  const ledgerAt = memoize((sha) => readAtTree(sha, DECISIONS_PATH))
+  const parentsOf = memoize((sha) =>
+    git(['rev-list', '--parents', '-n', '1', sha]).toString('utf8').trim().split(' ').slice(1),
+  )
+  const mergeBaseOf = memoize((a, b) =>
+    gitProbe(['merge-base', a, b]) ? git(['merge-base', a, b]).toString('utf8').trim() : null,
+  )
   return (offender) => {
     const key = offenderKey(offender, baseText)
-    const target = key(ledgerAt('HEAD'))
+    const keyAt = (sha) => key(ledgerAt(sha))
+    const target = keyAt('HEAD')
+    const discarded = (p, q) => {
+      const mb = mergeBaseOf(p, q)
+      return mb !== null && keyAt(q) !== keyAt(mb)
+    }
     let c = 'HEAD'
     for (;;) {
-      const p = parentsOf(c).find((par) => key(ledgerAt(par)) === target)
-      if (p === undefined) return parentsOf(c).length > 1
-      if (isAncestor(p, ref)) return false
+      const ps = parentsOf(c)
+      const p = ps.find((par) => keyAt(par) === target)
+      if (p === undefined) return ps.length > 1
+      if (ps.some((q) => q !== p && discarded(p, q))) return true
       c = p
     }
   }
@@ -558,19 +569,25 @@ function buildMergeWalker(ref, baseText) {
 
 /** A `mergeWrote(token)` predicate for `offenders`, built lazily — a clean run (none) makes no
  *  extra git call. */
-function mergeWroteFor(offenders, ref, baseText) {
+function mergeWroteFor(offenders, baseText) {
   if (offenders.length === 0) return () => false
-  const walk = buildMergeWalker(ref, baseText)
+  const walk = buildMergeWalker(baseText)
   const byToken = new Map(offenders.map((o) => [o.token, o]))
   return (token) => byToken.has(token) && walk(byToken.get(token))
 }
 
-/** The `reported` dedup key for a finding on `token`/`kind` at ledger text `text`: the body
- *  alone for kind `body` (so a later marker append doesn't un-dedup it), the raw slot text
- *  otherwise. */
-function reportedKey(token, kind, text) {
-  const k = kind === 'body' ? slotParts(text, token).body : slotText(text, token)
-  return `${token}\n${kind}\n${k}`
+/** The `reported` dedup keys for a finding: one per lost marker for kind `marker` (so a later
+ *  append of a different marker, or a second drop, doesn't un-dedup it); otherwise one, over the
+ *  body alone for kind `body` (a later marker append doesn't un-dedup it) or the raw slot text. */
+function reportedKeys({ token, kind }, oldText, newText) {
+  if (kind === 'marker') {
+    const kept = slotParts(newText, token).markers
+    return [...slotParts(oldText, token).markers]
+      .filter((mk) => !kept.has(mk))
+      .map((mk) => `${token}\nmarker\n${mk}`)
+  }
+  const k = kind === 'body' ? slotParts(newText, token).body : slotText(newText, token)
+  return [`${token}\n${kind}\n${k}`]
 }
 
 /** The range unit over merge-base..HEAD; reports and returns whether it found offenders. */
@@ -585,11 +602,13 @@ function runRange(ref, live, { lastTouched, reported }) {
     authorized,
     gradeFormat: newText !== lastTouched,
   })
-  // A per-commit unit that reported this token AND produced HEAD's text has the fix; skip it.
-  const filtered = offenders.filter(
-    (o) => o.token === null || !reported.has(reportedKey(o.token, o.kind, newText)),
-  )
-  reportUnit('range', filtered, { mergeWrote: mergeWroteFor(filtered, ref, oldText) })
+  // A finding every part of which a per-commit unit already reported has its fix there; skip it.
+  const wasReported = (o) => {
+    const keys = reportedKeys(o, oldText, newText)
+    return keys.length > 0 && keys.every((k) => reported.has(k))
+  }
+  const filtered = offenders.filter((o) => o.token === null || !wasReported(o))
+  reportUnit('range', filtered, { mergeWrote: mergeWroteFor(filtered, oldText) })
   return offenders.length > 0
 }
 

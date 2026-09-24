@@ -97,12 +97,17 @@ export function forked(
   r.git('checkout', '-q', 'work')
 }
 
-/** Merge master into the current branch, resolving the ledger to `text`. */
-export function mergeMaster(r, text) {
+/** Merge `from` (default master) into the current branch, resolving the ledger to `text`. */
+export function mergeMaster(r, text, { from = 'master', args = [] } = {}) {
   try {
-    r.git('merge', '-q', '--no-ff', '--no-commit', 'master')
-  } catch {
-    // A ledger conflict is expected in some fixtures; the resolution below overwrites it.
+    r.git('merge', '-q', '--no-ff', '--no-commit', ...args, from)
+  } catch (err) {
+    // A ledger conflict leaves MERGE_HEAD and is resolved below; any other failure is real.
+    try {
+      r.git('rev-parse', '-q', '--verify', 'MERGE_HEAD')
+    } catch {
+      throw err
+    }
   }
-  commit(r, text, 'Merge branch master into work')
+  commit(r, text, `Merge branch ${from} into work`)
 }
