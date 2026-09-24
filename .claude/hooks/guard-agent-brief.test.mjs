@@ -75,8 +75,16 @@ copyFileSync(
   delete doc.templates['semantic-reviewer']
   writeFileSync(path.join(PARTIAL_ROOT, '.claude/hooks/gate-briefs.json'), JSON.stringify(doc))
 }
+// A root with templates but no pipeline.json — the template key alone must gate.
+const NO_PIPELINE_ROOT = mkdtempSync(path.join(tmpdir(), 'guard-agent-brief-nopipeline-'))
+mkdirSync(path.join(NO_PIPELINE_ROOT, '.claude/hooks'), { recursive: true })
+copyFileSync(
+  path.join(HOOKS_DIR, 'gate-briefs.json'),
+  path.join(NO_PIPELINE_ROOT, '.claude/hooks/gate-briefs.json'),
+)
 after(() => {
   rmSync(ROOT, { recursive: true, force: true })
+  rmSync(NO_PIPELINE_ROOT, { recursive: true, force: true })
   rmSync(PARTIAL_ROOT, { recursive: true, force: true })
   rmSync(BROKEN_ROOT, { recursive: true, force: true })
   rmSync(EMPTY_ROOT, { recursive: true, force: true })
@@ -335,6 +343,13 @@ test('blocks a gated type with exit 2 when its template is missing', () => {
 test('allows an ungated type when a gated type lacks its template', () => {
   const r = runHook(payload('Explore', 'anything'), PARTIAL_ROOT)
   assert.equal(r.status, 0)
+})
+
+// GROUP: guard-agent-brief-template-key-gating-disabled
+test('blocks a steered brief for a templated type when pipeline.json is unreadable', () => {
+  const brief = `${fillTemplate(TEMPLATES['code-reviewer'], {})}\nFOCUS: x`
+  const r = runHook(payload('code-reviewer', brief), NO_PIPELINE_ROOT)
+  assert.equal(r.status, 2)
 })
 
 // GROUP: guard-agent-brief-main-checkout-fallback-disabled

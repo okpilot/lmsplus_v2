@@ -23,7 +23,8 @@
         "blocks a code-reviewer brief dispatched with isolation: \"worktree\" with exit 2",
         "blocks an implementation-critic brief dispatched with isolation: \"worktree\" with exit 2",
         "blocks a brief whose branch is not a local branch with exit 2",
-        "blocks a steered brief padded with trailing-whitespace runs within the timeout"
+        "blocks a steered brief padded with trailing-whitespace runs within the timeout",
+        "blocks a steered brief for a templated type when pipeline.json is unreadable"
       ],
       "note": "Forces the block() branch to exit 0 instead of 2 — a mismatched brief is logged as BLOCKED on stderr but no longer stops the tool call. Reddens every test asserting exit 2, not only the control."
     },
@@ -178,6 +179,13 @@
         "allows an ungated type when a gated type lacks its template"
       ],
       "note": "The template checks run for every subagent_type, so an ungated dispatch is blocked."
+    },
+    {
+      "id": "guard-agent-brief-template-key-gating-disabled",
+      "find": " || Object.hasOwn(templates ?? {}, subagentType)",
+      "replace": "",
+      "expectRed": ["blocks a steered brief for a templated type when pipeline.json is unreadable"],
+      "note": "Only pipeline.json roles gate, so a templated type is allowed unchecked when pipeline.json is unreadable."
     }
   ]
 }
