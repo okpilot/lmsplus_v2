@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * PreToolUse guard for the Agent tool (Decision 92).
+ * PreToolUse guard for the Agent tool (enforces Decision 92; recorded as Decision 93).
  * Blocks a gate-reviewer brief unless it matches that type's template in
  * `.claude/hooks/gate-briefs.json` EXACTLY, after trimming trailing whitespace off the
  * whole prompt. Only round, PR number, branch, and (implementation-critic only) a plan-file
