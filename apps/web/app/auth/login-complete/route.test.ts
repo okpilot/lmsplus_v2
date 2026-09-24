@@ -49,6 +49,7 @@ describe('GET /auth/login-complete', () => {
     expect(response.status).toBe(307)
     const location = new URL(response.headers.get('location') ?? '')
     expect(location.pathname).toBe('/')
+    expect(location.search).toBe('')
     expect(mockRpcHelper).not.toHaveBeenCalled()
   })
 
@@ -97,6 +98,46 @@ describe('GET /auth/login-complete', () => {
     expect(response.status).toBe(307)
     const location = new URL(response.headers.get('location') ?? '')
     expect(location.pathname).toBe('/consent')
+  })
+
+  it('redirects to the validated next path when consent is satisfied', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockRpcHelper.mockResolvedValue({ data: null, error: null })
+    mockCheckConsent.mockResolvedValue('satisfied')
+
+    const response = await GET(
+      makeRequest('http://localhost:3000/auth/login-complete?next=%2Fapp%2Finternal-exam'),
+    )
+
+    const location = new URL(response.headers.get('location') ?? '')
+    expect(location.pathname).toBe('/app/internal-exam')
+  })
+
+  it('falls back to /app/dashboard when the next path is an open redirect', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockRpcHelper.mockResolvedValue({ data: null, error: null })
+    mockCheckConsent.mockResolvedValue('satisfied')
+
+    const response = await GET(
+      makeRequest('http://localhost:3000/auth/login-complete?next=%2F%2Fevil.com'),
+    )
+
+    const location = new URL(response.headers.get('location') ?? '')
+    expect(location.pathname).toBe('/app/dashboard')
+  })
+
+  it('carries the validated next path through to /consent when consent is required', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockRpcHelper.mockResolvedValue({ data: null, error: null })
+    mockCheckConsent.mockResolvedValue('required')
+
+    const response = await GET(
+      makeRequest('http://localhost:3000/auth/login-complete?next=%2Fapp%2Finternal-exam'),
+    )
+
+    const location = new URL(response.headers.get('location') ?? '')
+    expect(location.pathname).toBe('/consent')
+    expect(location.searchParams.get('next')).toBe('/app/internal-exam')
   })
 
   it('redirects to /consent even if record_login fails and consent is required', async () => {

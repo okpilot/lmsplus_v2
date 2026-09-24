@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
+import { safeNextPath } from '@/lib/auth/safe-next-path'
 import { buildConsentCookieValue, checkConsentStatus } from '@/lib/consent/check-consent'
 import { CONSENT_COOKIE } from '@/lib/consent/versions'
 import { rpc } from '@/lib/supabase-rpc'
@@ -16,6 +17,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/', request.url))
   }
 
+  const next = safeNextPath(new URL(request.url).searchParams.get('next'))
+
   // Best-effort audit — don't block login if it fails
   const { error } = await rpc(supabase, 'record_login', {})
   if (error) {
@@ -25,11 +28,13 @@ export async function GET(request: NextRequest) {
   const consentStatus = await checkConsentStatus(supabase)
 
   if (consentStatus === 'required') {
-    return NextResponse.redirect(new URL('/consent', request.url))
+    const consentUrl = new URL('/consent', request.url)
+    if (next) consentUrl.searchParams.set('next', next)
+    return NextResponse.redirect(consentUrl)
   }
 
   // Consent satisfied — set cookie to skip proxy DB checks
-  const dashboardUrl = new URL('/app/dashboard', request.url)
+  const dashboardUrl = new URL(next ?? '/app/dashboard', request.url)
   const redirectResponse = NextResponse.redirect(dashboardUrl)
   redirectResponse.cookies.set(CONSENT_COOKIE, buildConsentCookieValue(), {
     httpOnly: true,

@@ -1,3 +1,4 @@
+import { safeNextPath } from '@/lib/auth/safe-next-path'
 import { LoginForm } from './_components/login-form'
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -12,11 +13,11 @@ const ERROR_MESSAGES: Record<string, string> = {
 }
 
 type Props = {
-  searchParams: Promise<{ error?: string }>
+  searchParams: Promise<{ error?: string; next?: string }>
 }
 
 export default async function LoginPage({ searchParams }: Readonly<Props>) {
-  const { error } = await searchParams
+  const { error, next } = await searchParams
   const initialError = error
     ? (ERROR_MESSAGES[error] ?? 'Something went wrong. Please try again.')
     : undefined
@@ -31,7 +32,7 @@ export default async function LoginPage({ searchParams }: Readonly<Props>) {
           <h1 className="text-2xl font-semibold tracking-tight">LMS Plus</h1>
         </div>
         <p className="mb-6 text-center text-sm text-muted-foreground">Sign in to your account</p>
-        <LoginForm initialError={initialError} />
+        <LoginForm initialError={initialError} nextPath={safeNextPath(next)} />
       </div>
     </main>
   )

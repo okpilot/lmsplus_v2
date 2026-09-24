@@ -3,10 +3,14 @@ import { describe, expect, it, vi } from 'vitest'
 import LoginPage from './page'
 
 // LoginForm has its own test file. Here we only verify the page maps error
-// codes correctly and passes initialError down — not the form internals.
+// codes correctly and passes initialError/nextPath down — not the form internals.
 vi.mock('./_components/login-form', () => ({
-  LoginForm: ({ initialError }: { initialError?: string }) => (
-    <div data-testid="login-form" data-initial-error={initialError ?? ''} />
+  LoginForm: ({ initialError, nextPath }: { initialError?: string; nextPath?: string | null }) => (
+    <div
+      data-testid="login-form"
+      data-initial-error={initialError ?? ''}
+      data-next-path={nextPath ?? ''}
+    />
   ),
 }))
 
@@ -74,5 +78,15 @@ describe('LoginPage', () => {
   it('renders the LMS Plus heading', async () => {
     await renderPage()
     expect(screen.getByRole('heading', { name: /lms plus/i })).toBeInTheDocument()
+  })
+
+  it('keeps a safe same-app destination for after login', async () => {
+    await renderPage({ next: '/app/internal-exam' })
+    expect(screen.getByTestId('login-form').dataset.nextPath).toBe('/app/internal-exam')
+  })
+
+  it('drops an off-site next destination', async () => {
+    await renderPage({ next: '//evil.com' })
+    expect(screen.getByTestId('login-form').dataset.nextPath).toBe('')
   })
 })

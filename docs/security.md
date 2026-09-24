@@ -34,7 +34,7 @@ The highest-value targets are:
 ### Email + Password Auth
 
 - Supabase Auth handles password hashing, session tokens, and expiry
-- Login via `signInWithPassword({ email, password })` → `/auth/login-complete` (server hop) → `record_login()` RPC (audit event) → `/app/dashboard`
+- Login via `signInWithPassword({ email, password })` → `/auth/login-complete` (server hop) → `record_login()` RPC (audit event) → the validated `next` destination (`safeNextPath`, same-app `/app` paths only), else `/app/dashboard`
 - Forgot password via `resetPasswordForEmail()` → recovery email with PKCE token → `/auth/confirm` (verifyOtp server-side) → `/auth/reset-password`
 - Recovery defense-in-depth: `/auth/callback` also supports `?next=/auth/reset-password` with allowlist validation (blocks open-redirect, protocol-relative URLs, malformed URLs)
 - Password minimum length: 6 characters (enforced by Zod on client, Supabase on server)
@@ -60,23 +60,28 @@ Refresh token expiry: 7 days (sliding)
 
 ### Proxy Rule (Next.js 16)
 Every route under `/app/*` must be protected by `apps/web/proxy.ts`.
-Unauthenticated requests redirect to `/`. No exceptions.
+Unauthenticated requests redirect to `/`. No exceptions. The only extra state carried is a `next`
+destination, validated by `safeNextPath()` (`apps/web/lib/auth/safe-next-path.ts`).
 
 ```ts
 // apps/web/proxy.ts — pattern required (Next.js 16 convention)
-import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { safeNextPath } from '@/lib/auth/safe-next-path'
 
-export async function middleware(request: NextRequest) {
-  // ... supabase session check
-  if (!session && request.nextUrl.pathname.startsWith('/app')) {
-    return NextResponse.redirect(new URL('/', request.url))
+export async function proxy(request: NextRequest) {
+  // ... supabase user check
+  const { pathname, search } = request.nextUrl
+  if (!user && pathname.startsWith('/app')) {
+    const url = new URL('/', request.url)
+    const next = safeNextPath(pathname + search)
+    if (next) url.searchParams.set('next', next)
+    return NextResponse.redirect(url)
   }
 }
 
 export const config = {
-  matcher: ['/app/:path*'],
+  matcher: ['/', '/app/:path*', '/auth/login-complete', '/consent'],
 }
 ```
 
@@ -862,7 +867,7 @@ We store student PII: email address, full name, learning history, exam scores.
 - Immutable append-only log of consent decisions: Terms of Service and Privacy Policy — with version, acceptance flag, timestamp, IP, and user agent. Since `20260606000001_record_consent_idempotency.sql`, `record_consent()` skips an `accepted=true` INSERT when an accepted row for the same (user, document_type, document_version) already exists, so a *sequential* retry does not append a duplicate. That is a best-effort guard, **not** a uniqueness invariant: a declined decision (`accepted=false`) is always inserted as a distinct event, and two truly-concurrent accepted calls can both pass the `EXISTS` pre-check and insert. Nothing in the schema enforces it — `idx_user_consents_lookup` is a NON-unique partial index, which is why that migration used an `EXISTS` pre-check rather than `ON CONFLICT` (see `code-style.md` §5, arbiter table). (Cookie Analytics was removed from the `document_type` CHECK by `20260327000058_remove_cookie_analytics.sql`.)
 - Direct client inserts blocked by RLS. Writes via `record_consent()` SECURITY DEFINER RPC only.
 - First-login: `/auth/login-complete` calls `check_consent_status()` → if user hasn't accepted current TOS/Privacy versions → redirect to `/consent` page.
-- `/consent` page: two required checkboxes (TOS, Privacy). Server Action calls `record_consent()` twice and sets the cookie with version tokens; the form then navigates client-side to `/app/dashboard` (`consent-form.tsx` — the action itself does not redirect).
+- `/consent` page: two required checkboxes (TOS, Privacy). Server Action calls `record_consent()` twice and sets the cookie with version tokens; the form then navigates client-side to the validated `next` destination (`safeNextPath`), else `/app/dashboard` (`consent-form.tsx` — the action itself does not redirect).
 - Re-consent trigger: bump `CURRENT_TOS_VERSION` or `CURRENT_PRIVACY_VERSION` in `lib/consent/versions.ts` → cookie mismatch on next request → `/consent` redirect (no DB hit in middleware, check is cookie-based).
 - **Rationale:** Audit trail for legal proof of consent. Append-only pattern prevents accidental history loss. Version strings allow fast re-consent detection.
 

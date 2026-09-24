@@ -103,6 +103,20 @@ describe('LoginForm', () => {
     })
   })
 
+  it('redirects to /auth/login-complete with an encoded next param when nextPath is provided', async () => {
+    mockSignInWithPassword.mockResolvedValue({ error: null })
+    const user = userEvent.setup()
+    render(<LoginForm nextPath="/app/internal-exam" />)
+
+    await user.type(screen.getByLabelText(/email address/i), 'pilot@example.com')
+    await user.type(screen.getByLabelText(/^password$/i), 'secret123')
+    await user.click(screen.getByRole('button', { name: /sign in/i }))
+
+    await waitFor(() => {
+      expect(assignedHrefs).toContain('/auth/login-complete?next=%2Fapp%2Finternal-exam')
+    })
+  })
+
   it('shows a loading state while the sign-in request is in flight', async () => {
     mockSignInWithPassword.mockReturnValue(new Promise(() => {}))
     const user = userEvent.setup()

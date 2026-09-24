@@ -1,3 +1,4 @@
+import { findAuthUserByEmail } from '../../helpers/auth-users'
 import type { getAdminClient } from '../../helpers/supabase'
 
 const OTHER_ORG_SLUG = 'redteam-other-org'
@@ -33,25 +34,6 @@ export async function getOrCreateOtherOrg(
     .single()
   if (error || !data) throw new Error(`Could not upsert redteam-other-org: ${error?.message}`)
   return data.id
-}
-
-/**
- * Find an auth user by email, paging through the full admin list. The admin API
- * returns 50 users/page by default; the shared red-team project accumulates
- * users across dozens of specs, so a single unpaginated listUsers() would miss
- * any email past page 1 — the caller would then re-create it and hit an
- * "already registered" error. Pages until the email is found or exhausted.
- */
-const AUTH_USERS_PER_PAGE = 200
-
-async function findAuthUserByEmail(admin: ReturnType<typeof getAdminClient>, email: string) {
-  for (let page = 1; ; page++) {
-    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: AUTH_USERS_PER_PAGE })
-    if (error) throw new Error(`Could not list users: ${error.message}`)
-    const match = data.users.find((u) => u.email === email)
-    if (match) return match
-    if (data.users.length < AUTH_USERS_PER_PAGE) return undefined
-  }
 }
 
 export async function upsertUser(

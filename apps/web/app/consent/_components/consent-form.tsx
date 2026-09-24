@@ -7,7 +7,11 @@ import { LoadingButton } from '@/components/ui/loading-button'
 import { recordConsent } from '../actions'
 import { ConsentCheckbox } from './consent-checkbox'
 
-export function ConsentForm() {
+type ConsentFormProps = {
+  nextPath?: string | null
+}
+
+export function ConsentForm({ nextPath }: Readonly<ConsentFormProps>) {
   const router = useRouter()
   const [acceptedTos, setAcceptedTos] = useState(false)
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false)
@@ -21,7 +25,7 @@ export function ConsentForm() {
       try {
         const res = await recordConsent({ acceptedTos, acceptedPrivacy })
         if (res.success) {
-          router.push('/app/dashboard')
+          router.push(nextPath ?? '/app/dashboard')
         } else {
           setError(res.error)
         }
