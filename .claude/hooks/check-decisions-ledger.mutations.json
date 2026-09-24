@@ -456,7 +456,8 @@
         "a merge dropping a marker the branch added after a waived edit passes",
         "a waived re-add of a line a waiver removed passes",
         "a per-commit body finding is not repeated under range after a merge appends a marker",
-        "a waiver on a brand-new entry is reported as matching no finding"
+        "a waiver on a brand-new entry is reported as matching no finding",
+        "a waiver on a newly appended line is reported as matching no finding"
       ]
     },
     {
@@ -559,7 +560,8 @@
         "commit-msg mode on the FIRST commit (unborn HEAD) runs F1/F2 with no immutability check",
         "a master re-edit of a text the branch also waived keeps the branch waiver",
         "a merge of an unrelated history names the non-merge remedy for a branch re-add",
-        "a merge taking the ledger from an unrelated first parent is blamed"
+        "a merge taking the ledger from an unrelated first parent is blamed",
+        "a waiver on a newly appended line is reported as matching no finding"
       ]
     },
     {
@@ -639,7 +641,8 @@
         "a master re-edit of a text the branch also waived keeps the branch waiver",
         "a merge dropping a marker the branch added after a waived edit passes",
         "a waived re-add of a line a waiver removed passes",
-        "a waiver on a brand-new entry is reported as matching no finding"
+        "a waiver on a brand-new entry is reported as matching no finding",
+        "a waiver on a newly appended line is reported as matching no finding"
       ]
     },
     {
@@ -867,8 +870,14 @@
       "expectRed": ["a merge taking the ledger from an unrelated first parent is blamed"]
     },
     {
+      "id": "commitmsg-note-drops-unused",
+      "find": "    reportUnit(unit.label, res.offenders, { unusedWaivers: res.unusedWaivers })",
+      "replace": "    reportUnit(unit.label, res.offenders, { unusedWaivers: [] })",
+      "expectRed": ["a waiver on a newly appended line is reported as matching no finding"]
+    },
+    {
       "id": "readd-needs-range-base",
-      "find": "    (rangeBase === undefined || slotText(rangeBase, token) !== null)",
+      "find": "    slotText(rangeBase, token) !== null",
       "replace": "    true",
       "expectRed": ["a waiver on a brand-new entry is reported as matching no finding"]
     },

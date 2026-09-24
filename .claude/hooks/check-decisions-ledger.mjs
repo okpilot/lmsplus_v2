@@ -466,8 +466,8 @@ function isAncestor(a, b) {
   return gitProbe(['merge-base', '--is-ancestor', a, b])
 }
 
-/** The tokens `unit`'s own waivers applied to. `rangeBase` is the ledger at the range merge-base;
- *  given, a re-add must restore a line it has, so a waiver on a brand-new entry stays unused. */
+/** The tokens `unit`'s own waivers applied to. A re-add must restore a line `rangeBase` (the
+ *  ledger at the range merge-base) has, so a waiver on a brand-new entry stays unused. */
 function appliedWaivers(unit, unusedWaivers, rangeBase) {
   // No ledger in NEW: checkUnit returned before applying waivers, so none was applied.
   if (unit.newText === null) return []
@@ -475,7 +475,7 @@ function appliedWaivers(unit, unusedWaivers, rangeBase) {
   const readds = (token) =>
     slotText(unit.oldText, token) === null &&
     slotText(unit.newText, token) !== null &&
-    (rangeBase === undefined || slotText(rangeBase, token) !== null)
+    slotText(rangeBase, token) !== null
   return [...parseWaivers(unit.message).waivers.keys()].filter(
     (token) => !unusedWaivers.includes(token) || readds(token),
   )
@@ -626,8 +626,7 @@ function runUnits(units) {
     const res = checkUnit(unit)
     if (res.problems.length > 0) return reportProblems(res.problems)
     if (res.offenders.length > 0) blocked = true
-    const applied = appliedWaivers(unit, res.unusedWaivers)
-    reportUnit(unit.label, res.offenders, { unusedWaivers: unapplied(res, applied) })
+    reportUnit(unit.label, res.offenders, { unusedWaivers: res.unusedWaivers })
   }
   return blocked ? 1 : 0
 }
