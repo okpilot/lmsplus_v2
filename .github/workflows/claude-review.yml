@@ -41,6 +41,7 @@ jobs:
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         if: env.CLAUDE_CODE_OAUTH_TOKEN != ''
+        continue-on-error: true # the fetch below then runs on the runner's own Node, or fails soft
         with:
           node-version: '22'
 
