@@ -8,13 +8,18 @@ import type { getAdminClient } from './supabase'
  * "already registered" error. Pages until the email is found or exhausted.
  */
 const AUTH_USERS_PER_PAGE = 200
+/** An API returning full pages forever would otherwise hang the spec's beforeAll. */
+const MAX_AUTH_USER_PAGES = 50
 
 export async function findAuthUserByEmail(admin: ReturnType<typeof getAdminClient>, email: string) {
-  for (let page = 1; ; page++) {
+  for (let page = 1; page <= MAX_AUTH_USER_PAGES; page++) {
     const { data, error } = await admin.auth.admin.listUsers({ page, perPage: AUTH_USERS_PER_PAGE })
     if (error) throw new Error(`Could not list users: ${error.message}`)
     const match = data.users.find((u) => u.email === email)
     if (match) return match
     if (data.users.length < AUTH_USERS_PER_PAGE) return undefined
   }
+  throw new Error(
+    `No short page after ${MAX_AUTH_USER_PAGES} listUsers pages — possible API paging bug`,
+  )
 }

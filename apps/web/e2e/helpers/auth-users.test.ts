@@ -94,4 +94,15 @@ describe('findAuthUserByEmail', () => {
     expect(admin.auth.admin.listUsers).toHaveBeenNthCalledWith(1, { page: 1, perPage: 200 })
     expect(admin.auth.admin.listUsers).toHaveBeenNthCalledWith(2, { page: 2, perPage: 200 })
   })
+  it('stops with an error instead of paging forever when every page is full', async () => {
+    const admin = buildAdminMock(() => ({ data: { users: buildFillerPage(200) } }))
+
+    await expect(
+      findAuthUserByEmail(
+        admin as unknown as Parameters<typeof findAuthUserByEmail>[0],
+        'nonexistent@lmsplus.local',
+      ),
+    ).rejects.toThrow('No short page after 50 listUsers pages')
+    expect(admin.auth.admin.listUsers).toHaveBeenCalledTimes(50)
+  })
 })
