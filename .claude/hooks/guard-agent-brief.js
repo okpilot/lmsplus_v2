@@ -16,14 +16,13 @@ const { execFileSync } = require('node:child_process')
 const fs = require('node:fs')
 const path = require('node:path')
 
-const TEMPLATES_PATH = path.join(__dirname, 'gate-briefs.json')
-
 /** Repo root plan paths resolve against — never the stdin `cwd`, which is the orchestrator's
  * own shell directory and has no fixed relationship to the repo. `GUARD_AGENT_BRIEF_ROOT` lets
  * the test suite point this at a throwaway fixture root instead of a real (gitignored) plan
  * file — production callers never set it, so they get the real repo root. */
 // biome-ignore lint/suspicious/noUndeclaredEnvVars: not a Turborepo task — runs outside turbo.
 const REPO_ROOT = process.env.GUARD_AGENT_BRIEF_ROOT || path.join(__dirname, '..', '..')
+const TEMPLATES_PATH = path.join(REPO_ROOT, '.claude', 'hooks', 'gate-briefs.json')
 
 /** Regex-escape a literal chunk of a template. */
 function escapeRe(t) {
@@ -94,8 +93,24 @@ function planPathValid(plan) {
   if (typeof plan !== 'string') return false
   if (!/^(\.work|\.spec-workflow\/specs)\/[A-Za-z0-9._/-]+\.md$/.test(plan)) return false
   if (plan.includes('..')) return false
-  const resolved = path.join(REPO_ROOT, plan)
-  return fs.existsSync(resolved)
+  return [REPO_ROOT, mainCheckoutRoot()].some(
+    (root) => root && fs.existsSync(path.join(root, plan)),
+  )
+}
+
+/** The main checkout — where gitignored `.work/` lives when REPO_ROOT is a linked worktree.
+ * `null` on a git fault. */
+function mainCheckoutRoot() {
+  try {
+    const commonDir = execFileSync(
+      'git',
+      ['-C', REPO_ROOT, 'rev-parse', '--path-format=absolute', '--git-common-dir'],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
+    ).trim()
+    return path.dirname(commonDir)
+  } catch {
+    return null
+  }
 }
 
 /** `{branch}` must name an existing local branch — a free-text value could carry steering.
@@ -197,10 +212,9 @@ process.stdin.on('end', () => {
   try {
     templatesDoc = JSON.parse(fs.readFileSync(TEMPLATES_PATH, 'utf8'))
   } catch (err) {
-    process.stderr.write(
-      `[guard-agent-brief] cannot read ${TEMPLATES_PATH} — allowing: ${err.message}\n`,
-    )
-    return allow()
+    // Fail closed: with no templates, a gated brief cannot be checked.
+    process.stderr.write(`BLOCKED: cannot read ${TEMPLATES_PATH}: ${err.message}\n`)
+    process.exit(2)
   }
   const templates = templatesDoc?.templates ?? {}
 

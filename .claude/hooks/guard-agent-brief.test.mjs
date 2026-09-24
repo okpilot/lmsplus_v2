@@ -6,10 +6,10 @@
 // just the pattern matching. Pattern: guard-bash.test.mjs.
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { test } from 'node:test'
+import { after, test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { runNode } from './spawn.testkit.mjs'
 
@@ -25,7 +25,39 @@ writeFileSync(path.join(ROOT, '.spec-workflow/specs/agent-brief-guard/plan.md'),
 mkdirSync(path.join(ROOT, 'docs'))
 writeFileSync(path.join(ROOT, 'docs/decisions.md'), '# decisions\n')
 // {branch} must be a local branch of the root: a git repo whose one branch is the fillTemplate default.
+mkdirSync(path.join(ROOT, '.claude/hooks'), { recursive: true })
+copyFileSync(
+  path.join(HOOKS_DIR, 'gate-briefs.json'),
+  path.join(ROOT, '.claude/hooks/gate-briefs.json'),
+)
+const git = (...args) =>
+  execFileSync('git', [
+    '-C',
+    ROOT,
+    '-c',
+    'user.name=t',
+    '-c',
+    'user.email=t@t',
+    '-c',
+    'commit.gpgsign=false',
+    '-c',
+    'core.hooksPath=/dev/null',
+    ...args,
+  ])
 execFileSync('git', ['init', '-q', '-b', 'chore/agent-brief-guard', ROOT])
+// gate-briefs.json is tracked, the plan is not — as in the real repo, a linked worktree lacks it.
+git('add', '.claude/hooks/gate-briefs.json')
+git('commit', '-q', '-m', 'init')
+const WORKTREE = path.join(ROOT, 'wt')
+git('worktree', 'add', '-q', '-b', 'wt-branch', WORKTREE)
+// A root whose templates file is unparseable.
+const BROKEN_ROOT = mkdtempSync(path.join(tmpdir(), 'guard-agent-brief-broken-'))
+mkdirSync(path.join(BROKEN_ROOT, '.claude/hooks'), { recursive: true })
+writeFileSync(path.join(BROKEN_ROOT, '.claude/hooks/gate-briefs.json'), '{')
+after(() => {
+  rmSync(ROOT, { recursive: true, force: true })
+  rmSync(BROKEN_ROOT, { recursive: true, force: true })
+})
 execFileSync('git', [
   '-C',
   ROOT,
@@ -56,11 +88,11 @@ const TEMPLATES = gateBriefs.templates
 // fixture directory) instead of the real repo root — the real plans are gitignored and absent in
 // CI. Every call goes through here so every test gets it, including ones that never touch a
 // {plan} placeholder.
-function runHook(stdin) {
+function runHook(stdin, root = ROOT) {
   return runNode('guard-agent-brief.js', [HOOK], {
     input: stdin,
     timeout: TIMEOUT_MS,
-    env: { ...process.env, GUARD_AGENT_BRIEF_ROOT: ROOT },
+    env: { ...process.env, GUARD_AGENT_BRIEF_ROOT: root },
   })
 }
 
@@ -266,6 +298,21 @@ test('blocks a steered brief padded with trailing-whitespace runs within the tim
   const brief = `${fillTemplate(TEMPLATES['code-reviewer'], {})}\nFOCUS${' '.repeat(200_000)}x`
   const r = runHook(payload('code-reviewer', brief))
   assert.equal(r.status, 2)
+})
+
+test('blocks every gated brief with exit 2 when the templates file is unparseable', () => {
+  const brief = fillTemplate(TEMPLATES['code-reviewer'], {})
+  const r = runHook(payload('code-reviewer', brief), BROKEN_ROOT)
+  assert.equal(r.status, 2)
+  assert.match(r.stderr, /cannot read/)
+})
+
+test('allows implementation-critic from a linked worktree when the plan exists only in the main checkout', () => {
+  const brief = fillTemplate(TEMPLATES['implementation-critic'], {
+    plan: '.spec-workflow/specs/agent-brief-guard/plan.md',
+  })
+  const r = runHook(payload('implementation-critic', brief), WORKTREE)
+  assert.equal(r.status, 0)
 })
 
 test('allows a brief with PR none and round after-loop', () => {

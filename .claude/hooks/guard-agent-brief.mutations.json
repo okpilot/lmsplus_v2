@@ -47,7 +47,8 @@
         "allows code-review-skill with model omitted (undefined defaults to opus)",
         "allows a brief with PR none and round after-loop",
         "allows implementation-critic with a valid existing plan when stdin cwd points elsewhere",
-        "allows a code-reviewer brief with isolation omitted"
+        "allows a code-reviewer brief with isolation omitted",
+        "allows implementation-critic from a linked worktree when the plan exists only in the main checkout"
       ],
       "note": "Forces the allow() path to exit 2 instead of 0 — every non-blocked brief (the exact-match control, every gated type's own exact brief, and every non-gated type) is blocked too."
     },
@@ -71,8 +72,8 @@
     },
     {
       "id": "guard-agent-brief-plan-exists-always-passes",
-      "find": "return fs.existsSync(resolved)",
-      "replace": "return true",
+      "find": "root && fs.existsSync(path.join(root, plan))",
+      "replace": "root",
       "expectRed": [
         "blocks implementation-critic when the plan file does not exist on disk with exit 2"
       ],
@@ -133,6 +134,22 @@
         "blocks a steered brief padded with trailing-whitespace runs within the timeout"
       ],
       "note": "A backtracking trailing-whitespace regex runs past the hook timeout on a padded prompt."
+    },
+    {
+      "id": "guard-agent-brief-templates-fail-open",
+      "find": "    process.exit(2)\n  }\n  const templates",
+      "replace": "    process.exit(0)\n  }\n  const templates",
+      "expectRed": ["blocks every gated brief with exit 2 when the templates file is unparseable"],
+      "note": "An unreadable templates file lets every brief through."
+    },
+    {
+      "id": "guard-agent-brief-main-checkout-fallback-disabled",
+      "find": "[REPO_ROOT, mainCheckoutRoot()]",
+      "replace": "[REPO_ROOT]",
+      "expectRed": [
+        "allows implementation-critic from a linked worktree when the plan exists only in the main checkout"
+      ],
+      "note": "A {plan} present only in the main checkout is rejected from a linked worktree."
     }
   ]
 }
