@@ -115,9 +115,8 @@ test.describe('Red Team: Open redirect via `next` (Vector FO)', () => {
   /**
    * A forged `next` against `/auth/login-complete` directly — the same guard,
    * exercised on an already-authenticated caller rather than through the login
-   * form. Reuses the session cookies from the positive-control test's sign-in
-   * by performing its own login first (redteam project has no storageState
-   * dependency, so each test starts logged out).
+   * form. Signs in first: the redteam project has no storageState dependency,
+   * so each test starts logged out.
    */
   test('an authenticated GET of /auth/login-complete with a protocol-relative next stays on the dashboard', async ({
     page,
