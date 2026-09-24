@@ -7,8 +7,9 @@
  *         forged `/auth/login-complete?next=` request against an already-signed-in
  *         victim — tries to redirect the post-login browser off the app origin.
  * Defense: `apps/web/lib/auth/safe-next-path.ts` (`safeNextPath`) validates every
- *          `next` value read on the login page (`app/page.tsx`), the consent page
- *          (`app/consent/page.tsx`) and `/auth/login-complete` — same-origin `/app/...`
+ *          `next` value read by the proxy's authenticated `/` redirect, the login page
+ *          (`app/page.tsx`), the consent page (`app/consent/page.tsx`) and
+ *          `/auth/login-complete` — same-origin `/app/...`
  *          paths only. It rejects: a different origin (absolute URL or `//host`
  *          protocol-relative), a literal backslash (a browser-normalized `//host`
  *          bypass `new URL` alone would not catch), a path that normalizes outside
@@ -23,12 +24,15 @@
 
 import { expect, test } from '@playwright/test'
 import { CURRENT_PRIVACY_VERSION, CURRENT_TOS_VERSION } from '../../lib/consent/versions'
+import { ensureNoConsentUser, removeNoConsentUser } from '../helpers/no-consent-user'
 import { getAdminClient } from '../helpers/supabase'
 import { seedConsentRecords } from './helpers/seed-consent'
 import { getEgmontOrgId, upsertUser } from './helpers/seed-core'
 
 const OPEN_REDIRECT_EMAIL = 'redteam-open-redirect@lmsplus.local'
 const OPEN_REDIRECT_PASSWORD = 'redteam-open-redirect-2026!'
+const NO_CONSENT_EMAIL = 'redteam-open-redirect-consent@lmsplus.local'
+const NO_CONSENT_PASSWORD = 'redteam-open-redirect-consent-2026!'
 
 const HOSTILE_NEXT_VALUES = [
   { name: 'protocol-relative host swap', value: '//evil.example' },
@@ -134,4 +138,58 @@ test.describe('Red Team: Open redirect via `next` (Vector FO)', () => {
     expect(url.pathname).toBe('/app/dashboard')
     expect(url.origin).not.toContain('evil.example')
   })
+
+  test('a signed-in user following a crafted /?next= link stays on the dashboard', async ({
+    page,
+    baseURL,
+  }) => {
+    await page.goto('/')
+    await page.getByLabel('Email address').fill(OPEN_REDIRECT_EMAIL)
+    await page.getByLabel('Password', { exact: true }).fill(OPEN_REDIRECT_PASSWORD)
+    await page.getByRole('button', { name: 'Sign in' }).click()
+    await page.waitForURL('**/app/dashboard', { timeout: 15_000 })
+
+    await page.goto(`/?next=${encodeURIComponent('//evil.example')}`)
+
+    await page.waitForURL('**/app/dashboard', { timeout: 15_000 })
+    const url = new URL(page.url())
+    expect(url.origin).toBe(new URL(baseURL ?? 'http://localhost:3000').origin)
+    expect(url.pathname).toBe('/app/dashboard')
+  })
 })
+
+test.describe
+  .serial('Red Team: Open redirect via `next` on the consent page (Vector FO)', () => {
+    test.beforeAll(async () => {
+      await ensureNoConsentUser({
+        email: NO_CONSENT_EMAIL,
+        password: NO_CONSENT_PASSWORD,
+        fullName: 'Red Team Open Redirect Consent',
+      })
+    })
+
+    test.afterAll(async () => {
+      await removeNoConsentUser(NO_CONSENT_EMAIL)
+    })
+
+    test('accepting consent with a protocol-relative next lands on the dashboard', async ({
+      page,
+      baseURL,
+    }) => {
+      await page.goto('/')
+      await page.getByLabel('Email address').fill(NO_CONSENT_EMAIL)
+      await page.getByLabel('Password', { exact: true }).fill(NO_CONSENT_PASSWORD)
+      await page.getByRole('button', { name: 'Sign in' }).click()
+      await page.waitForURL('**/consent', { timeout: 15_000 })
+
+      await page.goto(`/consent?next=${encodeURIComponent('//evil.example')}`)
+      await page.getByRole('checkbox', { name: /terms of service/i }).check()
+      await page.getByRole('checkbox', { name: /privacy policy/i }).check()
+      await page.getByRole('button', { name: 'Continue' }).click()
+
+      await page.waitForURL('**/app/dashboard', { timeout: 15_000 })
+      const url = new URL(page.url())
+      expect(url.origin).toBe(new URL(baseURL ?? 'http://localhost:3000').origin)
+      expect(url.pathname).toBe('/app/dashboard')
+    })
+  })
