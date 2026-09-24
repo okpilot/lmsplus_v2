@@ -247,6 +247,22 @@ test('a waived re-add of a line a waiver removed passes', () =>
     assert.doesNotMatch(res.stderr, /matched no finding/)
   }))
 
+// GROUP: readd-needs-range-base
+test('a waiver on a brand-new entry is reported as matching no finding', () =>
+  withRepo((r) => {
+    startWork(r)
+    // MUTATION: count any add as a re-add → the waiver on an entry the base never had reads as
+    // applied and the note is dropped.
+    commit(
+      r,
+      ledger(undefined, undefined, ['## 16 — 2026-03-13 — a new decision.']),
+      waive(16, 'feat: add 16'),
+    )
+    const res = runBase(r, 'master')
+    assert.equal(res.status, 0)
+    assert.match(res.stderr, /matched no finding/)
+  }))
+
 // GROUP: range-rebind-marker-superset-dropped
 test('a later commit marking a text a merge stripped of a base marker is blocked', () =>
   withRepo((r) => {

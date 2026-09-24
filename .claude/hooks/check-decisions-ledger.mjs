@@ -402,7 +402,8 @@ function readIndex(path) {
 // ---------------------------------------------------------------- reporting
 
 /** The remedy for a finding on `token`. A range finding names redoing a merge only when a merge
- *  wrote the line (`merge`); its edit is otherwise a non-merge commit's to waive. */
+ *  wrote the line (`merge`); its edit is otherwise a non-merge commit's to waive — unless that
+ *  commit deleted the ledger file, a finding of its own that no waiver clears. */
 function hintFor(token, { label, merge }) {
   if (label !== 'range') {
     return `add to the commit message: Ledger-edit-ok: ${token} — <why this edit is safe>`
@@ -465,13 +466,16 @@ function isAncestor(a, b) {
   return gitProbe(['merge-base', '--is-ancestor', a, b])
 }
 
-/** The tokens `unit`'s own waivers applied to. */
-function appliedWaivers(unit, unusedWaivers) {
+/** The tokens `unit`'s own waivers applied to. `rangeBase` is the ledger at the range merge-base;
+ *  given, a re-add must restore a line it has, so a waiver on a brand-new entry stays unused. */
+function appliedWaivers(unit, unusedWaivers, rangeBase) {
   // No ledger in NEW: checkUnit returned before applying waivers, so none was applied.
   if (unit.newText === null) return []
   // A re-add raises no per-commit finding (OLD lacks the line), yet its waiver authorizes the text.
   const readds = (token) =>
-    slotText(unit.oldText, token) === null && slotText(unit.newText, token) !== null
+    slotText(unit.oldText, token) === null &&
+    slotText(unit.newText, token) !== null &&
+    (rangeBase === undefined || slotText(rangeBase, token) !== null)
   return [...parseWaivers(unit.message).waivers.keys()].filter(
     (token) => !unusedWaivers.includes(token) || readds(token),
   )
@@ -512,11 +516,13 @@ function runBase(ref) {
   const assumed = new Map()
   let blocked = false
   let lastTouched
+  const mergeBase = git(['merge-base', ref, 'HEAD']).toString('utf8').trim()
+  const rangeBase = readAtTree(mergeBase, DECISIONS_PATH)
   for (const unit of baseUnits(ref)) {
     const res = checkUnit(unit)
     if (res.problems.length > 0) return reportProblems(res.problems)
     if (res.offenders.length > 0) blocked = true
-    const applied = appliedWaivers(unit, res.unusedWaivers)
+    const applied = appliedWaivers(unit, res.unusedWaivers, rangeBase)
     reportUnit(unit.label, res.offenders, { unusedWaivers: unapplied(res, applied) })
     recordAuthorizations(live, unit, applied)
     const found = res.offenders.map((o) => o.token).filter((t) => t !== null)
@@ -533,7 +539,7 @@ function runBase(ref) {
  *  writer; a commit that changed the body or dropped a lost marker is found. */
 function offenderKey({ token }, baseText, headText) {
   const kept = slotParts(headText, token).markers
-  const lost = [...slotParts(baseText, token).markers].filter((mk) => !kept.has(mk)).sort()
+  const lost = [...slotParts(baseText, token).markers].filter((mk) => !kept.has(mk))
   return (text) => {
     const { body, markers } = slotParts(text, token)
     return JSON.stringify([body, lost.filter((mk) => markers.has(mk))])
