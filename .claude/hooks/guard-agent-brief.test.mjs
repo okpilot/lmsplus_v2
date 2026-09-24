@@ -59,6 +59,10 @@ writeFileSync(path.join(BROKEN_ROOT, '.claude/hooks/gate-briefs.json'), '{')
 const EMPTY_ROOT = mkdtempSync(path.join(tmpdir(), 'guard-agent-brief-empty-'))
 mkdirSync(path.join(EMPTY_ROOT, '.claude/hooks'), { recursive: true })
 writeFileSync(path.join(EMPTY_ROOT, '.claude/hooks/gate-briefs.json'), '{}')
+copyFileSync(
+  path.join(HOOKS_DIR, '..', 'pipeline.json'),
+  path.join(EMPTY_ROOT, '.claude/pipeline.json'),
+)
 // A root whose templates file lacks one gated type's template.
 const PARTIAL_ROOT = mkdtempSync(path.join(tmpdir(), 'guard-agent-brief-partial-'))
 mkdirSync(path.join(PARTIAL_ROOT, '.claude/hooks'), { recursive: true })
@@ -321,10 +325,16 @@ test('blocks every gated brief with exit 2 when the templates file has no templa
 })
 
 // GROUP: guard-agent-brief-gated-template-check-disabled
-test('blocks every brief with exit 2 when a gated type has no template', () => {
+test('blocks a gated type with exit 2 when its template is missing', () => {
   const r = runHook(payload('semantic-reviewer', 'anything'), PARTIAL_ROOT)
   assert.equal(r.status, 2)
   assert.match(r.stderr, /no template for gated type semantic-reviewer/)
+})
+
+// GROUP: guard-agent-brief-gated-scope-disabled
+test('allows an ungated type when a gated type lacks its template', () => {
+  const r = runHook(payload('Explore', 'anything'), PARTIAL_ROOT)
+  assert.equal(r.status, 0)
 })
 
 // GROUP: guard-agent-brief-main-checkout-fallback-disabled

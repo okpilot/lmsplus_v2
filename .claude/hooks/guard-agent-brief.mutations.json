@@ -48,7 +48,8 @@
         "allows a brief with PR none and round after-loop",
         "allows implementation-critic with a valid existing plan when stdin cwd points elsewhere",
         "allows a code-reviewer brief with isolation omitted",
-        "allows implementation-critic from a linked worktree when the plan exists only in the main checkout"
+        "allows implementation-critic from a linked worktree when the plan exists only in the main checkout",
+        "allows an ungated type when a gated type lacks its template"
       ],
       "note": "Forces the allow() path to exit 2 instead of 0 — every non-blocked brief (the exact-match control, every gated type's own exact brief, and every non-gated type) is blocked too."
     },
@@ -137,8 +138,8 @@
     },
     {
       "id": "guard-agent-brief-templates-fail-open",
-      "find": "${err.message}\\n`)\n    process.exit(2)",
-      "replace": "${err.message}\\n`)\n    process.exit(0)",
+      "find": "if (!templates && !agents) blockLoad(",
+      "replace": "if (false) blockLoad(",
       "expectRed": ["blocks every gated brief with exit 2 when the templates file is unparseable"],
       "note": "An unreadable templates file lets every brief through."
     },
@@ -153,8 +154,8 @@
     },
     {
       "id": "guard-agent-brief-templates-object-check-disabled",
-      "find": "if (templates === null || typeof templates !== 'object' || Array.isArray(templates)) {",
-      "replace": "if (false) {",
+      "find": "if (!templates) blockLoad(",
+      "replace": "if (false) blockLoad(",
       "expectRed": [
         "blocks every gated brief with exit 2 when the templates file has no templates object"
       ],
@@ -162,10 +163,21 @@
     },
     {
       "id": "guard-agent-brief-gated-template-check-disabled",
-      "find": "if (typeof templates[name] === 'string' && templates[name] !== '') continue",
-      "replace": "continue",
-      "expectRed": ["blocks every brief with exit 2 when a gated type has no template"],
+      "find": "if (typeof template !== 'string' || template === '') {",
+      "replace": "if (false) {",
+      "expectRed": ["blocks a gated type with exit 2 when its template is missing"],
       "note": "A gated type dropped from gate-briefs.json is treated as ungated."
+    },
+    {
+      "id": "guard-agent-brief-gated-scope-disabled",
+      "find": "if (!gated) return null",
+      "replace": "if (false) return null",
+      "expectRed": [
+        "allows a non-gated subagent_type with any prompt",
+        "allows general-purpose with any prompt",
+        "allows an ungated type when a gated type lacks its template"
+      ],
+      "note": "The template checks run for every subagent_type, so an ungated dispatch is blocked."
     }
   ]
 }

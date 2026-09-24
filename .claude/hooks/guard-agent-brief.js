@@ -180,31 +180,39 @@ function dispatchReason(subagentType, toolInput) {
   return null
 }
 
-/** Reads `templates` from `gate-briefs.json`. Fails closed: with no templates, a gated brief
- * cannot be checked. */
-function loadTemplates() {
-  const templates = readJsonOrBlock(TEMPLATES_PATH)?.templates
-  if (templates === null || typeof templates !== 'object' || Array.isArray(templates)) {
-    process.stderr.write(`BLOCKED: ${TEMPLATES_PATH} has no "templates" object\n`)
-    process.exit(2)
-  }
-  const agents = readJsonOrBlock(PIPELINE_PATH)?.agents ?? {}
-  for (const [name, spec] of Object.entries(agents)) {
-    if (!GATED_ROLES.has(spec?.role)) continue
-    if (typeof templates[name] === 'string' && templates[name] !== '') continue
-    process.stderr.write(`BLOCKED: ${TEMPLATES_PATH} has no template for gated type ${name}\n`)
-    process.exit(2)
+/** Templates for a gated `subagentType` — a `pipeline.json` gate role or a template key — or
+ * `null` for an ungated one. Fails closed for a gated type whose template cannot be read, and
+ * when neither file can be read to tell. */
+function loadTemplates(subagentType) {
+  const templates = objectOrUndefined(readJson(TEMPLATES_PATH)?.templates)
+  const agents = objectOrUndefined(readJson(PIPELINE_PATH)?.agents)
+  if (!templates && !agents) blockLoad(`cannot read ${TEMPLATES_PATH} or ${PIPELINE_PATH}`)
+  const gated =
+    GATED_ROLES.has(agents?.[subagentType]?.role) || Object.hasOwn(templates ?? {}, subagentType)
+  if (!gated) return null
+  if (!templates) blockLoad(`${TEMPLATES_PATH} has no "templates" object`)
+  const template = templates[subagentType]
+  if (typeof template !== 'string' || template === '') {
+    blockLoad(`${TEMPLATES_PATH} has no template for gated type ${subagentType}`)
   }
   return templates
 }
 
-function readJsonOrBlock(file) {
+function readJson(file) {
   try {
     return JSON.parse(fs.readFileSync(file, 'utf8'))
-  } catch (err) {
-    process.stderr.write(`BLOCKED: cannot read ${file}: ${err.message}\n`)
-    process.exit(2)
+  } catch {
+    return undefined
   }
+}
+
+function objectOrUndefined(v) {
+  return v !== null && typeof v === 'object' && !Array.isArray(v) ? v : undefined
+}
+
+function blockLoad(message) {
+  process.stderr.write(`BLOCKED: ${message}\n`)
+  process.exit(2)
 }
 
 let input = ''
@@ -238,7 +246,9 @@ process.stdin.on('end', () => {
   const subagentType = toolInput?.subagent_type
   if (typeof subagentType !== 'string') return allow()
 
-  const result = checkBrief(toolInput, loadTemplates())
+  const templates = loadTemplates(subagentType)
+  if (!templates) return allow()
+  const result = checkBrief(toolInput, templates)
   if (result) return block(subagentType, result.reason, result.template)
   return allow()
 })
