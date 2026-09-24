@@ -137,8 +137,8 @@
     },
     {
       "id": "guard-agent-brief-templates-fail-open",
-      "find": "    process.exit(2)\n  }\n  const templates",
-      "replace": "    process.exit(0)\n  }\n  const templates",
+      "find": "${err.message}\\n`)\n    process.exit(2)",
+      "replace": "${err.message}\\n`)\n    process.exit(0)",
       "expectRed": ["blocks every gated brief with exit 2 when the templates file is unparseable"],
       "note": "An unreadable templates file lets every brief through."
     },
@@ -150,6 +150,15 @@
         "allows implementation-critic from a linked worktree when the plan exists only in the main checkout"
       ],
       "note": "A {plan} present only in the main checkout is rejected from a linked worktree."
+    },
+    {
+      "id": "guard-agent-brief-templates-object-check-disabled",
+      "find": "if (templates === null || typeof templates !== 'object' || Array.isArray(templates)) {",
+      "replace": "if (false) {",
+      "expectRed": [
+        "blocks every gated brief with exit 2 when the templates file has no templates object"
+      ],
+      "note": "A templates file with no templates object lets every brief through."
     }
   ]
 }

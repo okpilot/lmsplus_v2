@@ -29,7 +29,7 @@ function escapeRe(t) {
   return t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-/** Character classes for each placeholder — `agent-workflow.md`/plan §1. */
+/** Character classes for each placeholder — `.claude/hooks/gate-briefs.json` `_`. */
 const PLACEHOLDER_PATTERNS = {
   round: '(?:\\d+|after-loop)',
   pr: '(?:#\\d+|none)',
@@ -177,6 +177,24 @@ function dispatchReason(subagentType, toolInput) {
   return null
 }
 
+/** Reads `templates` from `gate-briefs.json`. Fails closed: with no templates, a gated brief
+ * cannot be checked. */
+function loadTemplates() {
+  let templatesDoc
+  try {
+    templatesDoc = JSON.parse(fs.readFileSync(TEMPLATES_PATH, 'utf8'))
+  } catch (err) {
+    process.stderr.write(`BLOCKED: cannot read ${TEMPLATES_PATH}: ${err.message}\n`)
+    process.exit(2)
+  }
+  const templates = templatesDoc?.templates
+  if (templates === null || typeof templates !== 'object' || Array.isArray(templates)) {
+    process.stderr.write(`BLOCKED: ${TEMPLATES_PATH} has no "templates" object\n`)
+    process.exit(2)
+  }
+  return templates
+}
+
 let input = ''
 let oversizedPayload = false
 process.stdin.setEncoding('utf8')
@@ -208,17 +226,7 @@ process.stdin.on('end', () => {
   const subagentType = toolInput?.subagent_type
   if (typeof subagentType !== 'string') return allow()
 
-  let templatesDoc
-  try {
-    templatesDoc = JSON.parse(fs.readFileSync(TEMPLATES_PATH, 'utf8'))
-  } catch (err) {
-    // Fail closed: with no templates, a gated brief cannot be checked.
-    process.stderr.write(`BLOCKED: cannot read ${TEMPLATES_PATH}: ${err.message}\n`)
-    process.exit(2)
-  }
-  const templates = templatesDoc?.templates ?? {}
-
-  const result = checkBrief(toolInput, templates)
+  const result = checkBrief(toolInput, loadTemplates())
   if (result) return block(subagentType, result.reason, result.template)
   return allow()
 })

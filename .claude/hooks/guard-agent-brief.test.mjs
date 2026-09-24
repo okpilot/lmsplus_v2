@@ -54,9 +54,14 @@ git('worktree', 'add', '-q', '-b', 'wt-branch', WORKTREE)
 const BROKEN_ROOT = mkdtempSync(path.join(tmpdir(), 'guard-agent-brief-broken-'))
 mkdirSync(path.join(BROKEN_ROOT, '.claude/hooks'), { recursive: true })
 writeFileSync(path.join(BROKEN_ROOT, '.claude/hooks/gate-briefs.json'), '{')
+// A root whose templates file parses but carries no templates object.
+const EMPTY_ROOT = mkdtempSync(path.join(tmpdir(), 'guard-agent-brief-empty-'))
+mkdirSync(path.join(EMPTY_ROOT, '.claude/hooks'), { recursive: true })
+writeFileSync(path.join(EMPTY_ROOT, '.claude/hooks/gate-briefs.json'), '{}')
 after(() => {
   rmSync(ROOT, { recursive: true, force: true })
   rmSync(BROKEN_ROOT, { recursive: true, force: true })
+  rmSync(EMPTY_ROOT, { recursive: true, force: true })
 })
 execFileSync('git', [
   '-C',
@@ -268,6 +273,7 @@ test('fails open but loud on empty stdin (exit 0 + stderr warning)', () => {
   assert.match(r.stderr, /unparseable hook payload/)
 })
 
+// GROUP: guard-agent-brief-oversize-allows
 test('blocks a steered brief padded past 1MB with exit 2', () => {
   const brief = `${fillTemplate(TEMPLATES['code-reviewer'], {})}\nFOCUS: ${'x'.repeat(1_100_000)}`
   const r = runHook(payload('code-reviewer', brief))
@@ -275,18 +281,18 @@ test('blocks a steered brief padded past 1MB with exit 2', () => {
   assert.match(r.stderr, /exceeds 1MB/)
 })
 
-test('the gated template set equals the pipeline.json agents with role gate-round or conditional, plus code-review-skill', () => {
+test('the gated template set equals the pipeline.json agents with role gate-round or conditional', () => {
   const pipeline = JSON.parse(readFileSync(path.join(HOOKS_DIR, '..', 'pipeline.json'), 'utf8'))
   const expected = new Set(
     Object.entries(pipeline.agents)
       .filter(([, a]) => a.role === 'gate-round' || a.role === 'conditional')
       .map(([n]) => n),
   )
-  expected.add('code-review-skill')
   const actual = new Set(Object.keys(TEMPLATES))
   assert.deepEqual([...actual].sort(), [...expected].sort())
 })
 
+// GROUP: guard-agent-brief-branch-check-disabled
 test('blocks a brief whose branch is not a local branch with exit 2', () => {
   const brief = fillTemplate(TEMPLATES['code-reviewer'], { branch: 'focus/null-deref/line-118' })
   const r = runHook(payload('code-reviewer', brief))
@@ -294,12 +300,14 @@ test('blocks a brief whose branch is not a local branch with exit 2', () => {
   assert.match(r.stderr, /not a local branch/)
 })
 
+// GROUP: guard-agent-brief-quadratic-trim
 test('blocks a steered brief padded with trailing-whitespace runs within the timeout', () => {
   const brief = `${fillTemplate(TEMPLATES['code-reviewer'], {})}\nFOCUS${' '.repeat(200_000)}x`
   const r = runHook(payload('code-reviewer', brief))
   assert.equal(r.status, 2)
 })
 
+// GROUP: guard-agent-brief-templates-fail-open
 test('blocks every gated brief with exit 2 when the templates file is unparseable', () => {
   const brief = fillTemplate(TEMPLATES['code-reviewer'], {})
   const r = runHook(payload('code-reviewer', brief), BROKEN_ROOT)
@@ -307,6 +315,15 @@ test('blocks every gated brief with exit 2 when the templates file is unparseabl
   assert.match(r.stderr, /cannot read/)
 })
 
+// GROUP: guard-agent-brief-templates-object-check-disabled
+test('blocks every gated brief with exit 2 when the templates file has no templates object', () => {
+  const brief = fillTemplate(TEMPLATES['code-reviewer'], {})
+  const r = runHook(payload('code-reviewer', brief), EMPTY_ROOT)
+  assert.equal(r.status, 2)
+  assert.match(r.stderr, /no "templates" object/)
+})
+
+// GROUP: guard-agent-brief-main-checkout-fallback-disabled
 test('allows implementation-critic from a linked worktree when the plan exists only in the main checkout', () => {
   const brief = fillTemplate(TEMPLATES['implementation-critic'], {
     plan: '.spec-workflow/specs/agent-brief-guard/plan.md',
