@@ -426,7 +426,7 @@ Fix: [what to include next time]
 
 ### Gate reviewer agent integration
 For the gate's reviewer AGENTS, `.claude/agents/*.md` serve as the CONSTRAINTS and CONTEXT sections. The delegation template supplements with TASK, OBJECTIVE, and DONE WHEN — never duplicate the definitions.
-**Never steer a gate reviewer.** Its brief carries the branch, the range, the round and the PR number only — never a prior finding, a fix to verify, a hypothesis or a focus area. The definition decides what to check; a steered reviewer checks what the orchestrator already believes.
+**Never steer a gate reviewer.** Its brief carries the branch, the range, the round, the PR number once one exists, and the inputs its definition requires (implementation-critic's plan and requirements) — never a prior finding, a fix to verify, a hypothesis or a focus area. The definition decides what to check; a steered reviewer checks what the orchestrator already believes.
 ### DO
 - Use the 5-section delegation template for every subagent prompt.
 - Log delegation failures and improve future prompts.
