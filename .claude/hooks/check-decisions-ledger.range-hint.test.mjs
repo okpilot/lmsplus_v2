@@ -86,11 +86,9 @@ test('a range finding names the non-merge remedy when a merge wrote only an earl
     assert.doesNotMatch(res.stderr, /redo the merge/)
   }))
 
-// GROUP: range-repeats-commit-findings, dedup-raw-key
+// GROUP: range-repeats-commit-findings
 test('a per-commit body finding is not repeated under range after a later marker append', () =>
   withRepo((r) => {
-    // MUTATION: dedup on the raw slot text instead of the body alone → the marker-append commit's
-    // text differs from what was reported, so the same body edit prints again under [range].
     startWork(r)
     commit(r, ledger('EDITED.'), 'edit 14')
     commit(
@@ -175,7 +173,7 @@ test('a merge of an untouched master line names the non-merge remedy for a branc
     assert.doesNotMatch(res.stderr, /redo the merge/)
   }))
 
-// GROUP: walk-uses-raw-text
+// GROUP: walk-uses-raw-text, walk-key-tracks-kept-markers
 test('a branch body kept beside a marker master appended names the non-merge remedy', () =>
   withRepo((r) => {
     const master = ledger('first decision. Superseded by 16.', undefined, [E16_MASTER])
@@ -213,11 +211,11 @@ test('a merge of an unrelated history names the non-merge remedy for a branch re
     assert.doesNotMatch(res.stderr, /redo the merge/)
   }))
 
-// GROUP: dedup-marker-raw-slot
+// GROUP: range-assumes-nothing
 test('a per-commit marker drop is not repeated under range after a later marker append', () =>
   withRepo((r) => {
-    // MUTATION: dedup a marker finding on the raw slot text → the later append changes the slot,
-    // and the same lost marker prints again under [range].
+    // MUTATION: never assume a printed finding waived → the same lost marker prints again under
+    // [range].
     startWork(r, ledger('first decision. Superseded by 20.'))
     commit(r, ledger('first decision.'), 'drop marker')
     commit(r, ledger('first decision. Amended by 30.'), 'feat: 30 amends 14')
@@ -244,15 +242,72 @@ test('a clean merge of two identical re-adds names the non-merge remedy', () =>
     assert.doesNotMatch(res.stderr, /redo the merge/)
   }))
 
-// GROUP: commit-finding-ignores-lost-markers
+// GROUP: range-assumes-nothing
 test('a body finding that also dropped a marker is not repeated under range', () =>
   withRepo((r) => {
-    // MUTATION: record only the finding's own kind → commit 2 reports a body edit, the range
-    // unit sees the same line as a lost marker, and prints it again under [range].
+    // MUTATION: never assume a printed finding waived → the range unit, which sees the same
+    // line as a lost marker, prints it again under [range].
     startWork(r, ledger('first decision. Superseded by 15.'))
     commit(r, ledger('X. Superseded by 15.'), 'edit 14')
     commit(r, ledger('first decision.'), 'restore 14, drop marker')
     const res = runBase(r, 'master')
     assert.equal(res.status, 1)
+    assert.doesNotMatch(res.stderr, /\[range\]/)
+  }))
+
+// GROUP: walk-marker-key-uses-body
+test('a merge dropping a marker from a waived branch edit is blamed', () =>
+  withRepo((r) => {
+    // MUTATION: key the walk on the body alone → the work parent's body matches HEAD's, and the
+    // waived non-merge edit is blamed for a marker only the merge dropped.
+    const base = ledger('first decision. Superseded by 15.')
+    const master = ledger('first decision. Superseded by 15.', undefined, [E16_MASTER])
+    forked(r, () => commit(r, ledger('X. Superseded by 15.'), waive(14, 'fix: reword 14')), {
+      base,
+      master,
+    })
+    mergeMaster(r, ledger('X.', undefined, [E16_MASTER]))
+    const res = runBase(r, 'master')
+    assert.equal(res.status, 1)
+    assert.match(res.stderr, /\[range\][\s\S]*## 14[\s\S]*redo the merge/)
+  }))
+
+// GROUP: range-dedup-token-only
+test('a merge dropping a marker from an unwaived branch edit is reported beside the edit', () =>
+  withRepo((r) => {
+    // MUTATION: skip every range finding on a token a commit reported → the marker the merge
+    // dropped, which waiving the commit would not clear, is never printed.
+    const base = ledger('first decision. Superseded by 15.')
+    const master = ledger('first decision. Superseded by 15.', undefined, [E16_MASTER])
+    forked(r, () => commit(r, ledger('X. Superseded by 15.'), 'reword 14'), { base, master })
+    mergeMaster(r, ledger('X.', undefined, [E16_MASTER]))
+    const res = runBase(r, 'master')
+    assert.equal(res.status, 1)
+    assert.match(res.stderr, /body edited[\s\S]*\[range\][\s\S]*## 14[\s\S]*redo the merge/)
+  }))
+
+// GROUP: range-dedup-token-only
+test('a re-add without its marker after an unwaived removal is reported under range', () =>
+  withRepo((r) => {
+    // MUTATION: skip every range finding on a token a commit reported → the removal's finding
+    // hides the lost marker, which waiving the removal would not clear.
+    startWork(r, ledger('first decision. Superseded by 15.'))
+    commit(r, ledgerNo14(), 'remove 14')
+    commit(r, ledger('first decision.'), 're-add 14')
+    const res = runBase(r, 'master')
+    assert.equal(res.status, 1)
+    assert.match(res.stderr, /line removed entirely[\s\S]*\[range\][\s\S]*lost marker/)
+  }))
+
+// GROUP: dedup-exact-text
+test('a per-commit body finding is not repeated under range after a merge appends a marker', () =>
+  withRepo((r) => {
+    // MUTATION: count a printed finding covered only when HEAD's slot equals its text → the
+    // merge's appended marker makes them differ, so the same body edit prints again under [range].
+    forked(r, () => commit(r, ledger('EDITED.'), 'edit 14'))
+    mergeMaster(r, ledger('EDITED. Amended by 16.', undefined, [E16_MASTER]))
+    const res = runBase(r, 'master')
+    assert.equal(res.status, 1)
+    assert.equal(res.stderr.match(/## 14 — body edited/g)?.length, 1)
     assert.doesNotMatch(res.stderr, /\[range\]/)
   }))

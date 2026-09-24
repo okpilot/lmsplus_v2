@@ -24,7 +24,7 @@
     },
     {
       "id": "range-unit-dropped",
-      "find": "  if (runRange(ref, live, { lastTouched, reported })) blocked = true\n",
+      "find": "  if (runRange(ref, live, { lastTouched, assumed })) blocked = true\n",
       "replace": "",
       "expectRed": [
         "a ledger-neutral commit after a merge edit does not re-bind a waiver to the merge text",
@@ -55,7 +55,10 @@
         "a merge of an untouched master line names the non-merge remedy for a branch re-add",
         "a branch body kept beside a marker master appended names the non-merge remedy",
         "a merge of an unrelated history names the non-merge remedy for a branch re-add",
-        "a clean merge of two identical re-adds names the non-merge remedy"
+        "a clean merge of two identical re-adds names the non-merge remedy",
+        "a merge dropping a marker from a waived branch edit is blamed",
+        "a merge dropping a marker from an unwaived branch edit is reported beside the edit",
+        "a re-add without its marker after an unwaived removal is reported under range"
       ]
     },
     {
@@ -81,7 +84,8 @@
         "a merge of an untouched master line names the non-merge remedy for a branch re-add",
         "a branch body kept beside a marker master appended names the non-merge remedy",
         "a merge of an unrelated history names the non-merge remedy for a branch re-add",
-        "a clean merge of two identical re-adds names the non-merge remedy"
+        "a clean merge of two identical re-adds names the non-merge remedy",
+        "a merge dropping a marker from a waived branch edit is blamed"
       ]
     },
     {
@@ -97,8 +101,8 @@
     },
     {
       "id": "range-authorizations-not-recorded",
-      "find": "    if (unusedWaivers.includes(token) && !readds(token)) continue\n",
-      "replace": "    continue\n",
+      "find": "    (token) => !unusedWaivers.includes(token) || readds(token),\n",
+      "replace": "    () => false,\n",
       "expectRed": [
         "a waived edit that a merge later marks passes",
         "a waived edit passes --base",
@@ -133,7 +137,8 @@
       "replace": "  if (authorizedText !== slotText(newText, token)) return false",
       "expectRed": [
         "a waived edit that a merge later marks passes",
-        "a merge dropping a marker the branch added after a waived edit passes"
+        "a merge dropping a marker the branch added after a waived edit passes",
+        "a per-commit body finding is not repeated under range after a merge appends a marker"
       ]
     },
     {
@@ -171,20 +176,23 @@
     },
     {
       "id": "walk-uses-raw-text",
-      "find": "if (kind !== 'marker') return (text) => slotParts(text, token).body",
-      "replace": "if (kind !== 'marker') return (text) => slotText(text, token)",
+      "find": "    return JSON.stringify([body, lost.filter((mk) => markers.has(mk))])",
+      "replace": "    return JSON.stringify(slotText(text, token))",
       "expectRed": [
         "a merge that wrote the body is still blamed after a later commit appends a marker",
-        "a branch body kept beside a marker master appended names the non-merge remedy"
+        "a branch body kept beside a marker master appended names the non-merge remedy",
+        "a merge dropping a base marker is blamed even after a later commit appends a different one"
       ]
     },
     {
       "id": "walk-marker-key-uses-body",
-      "find": "  const baseMarkers = [...slotParts(baseText, token).markers].sort()\n  return (text) => baseMarkers.filter((mk) => slotParts(text, token).markers.has(mk)).join('\\n')",
-      "replace": "  return (text) => slotParts(text, token).body",
+      "find": "    return JSON.stringify([body, lost.filter((mk) => markers.has(mk))])",
+      "replace": "    return JSON.stringify([body])",
       "expectRed": [
         "a merge dropping a base marker is blamed even after a later commit appends a different one",
-        "a merge that discards a marker master appended is blamed"
+        "a merge that discards a marker master appended is blamed",
+        "a merge dropping a marker from a waived branch edit is blamed",
+        "a merge dropping a marker from an unwaived branch edit is reported beside the edit"
       ]
     },
     {
@@ -224,7 +232,9 @@
         "a merge of an untouched master line names the non-merge remedy for a branch re-add",
         "a branch body kept beside a marker master appended names the non-merge remedy",
         "a merge of an unrelated history names the non-merge remedy for a branch re-add",
-        "a clean merge of two identical re-adds names the non-merge remedy"
+        "a clean merge of two identical re-adds names the non-merge remedy",
+        "a merge dropping a marker from a waived branch edit is blamed",
+        "a merge dropping a marker from an unwaived branch edit is reported beside the edit"
       ]
     },
     {
@@ -235,22 +245,23 @@
     },
     {
       "id": "range-repeats-commit-findings",
-      "find": "offenders.filter((o) => o.token === null || !wasReported(o))",
+      "find": "offenders.filter((o) => o.token === null || !coveredByCommit(o))",
       "replace": "offenders.filter(() => true)",
       "expectRed": [
         "an unwaived edit on a branch with no merge is reported once, with the trailer hint",
         "a per-commit body finding is not repeated under range after a later marker append",
         "two separate unwaived marker drops on the same token are each reported once",
         "a per-commit marker drop is not repeated under range after a later marker append",
-        "a body finding that also dropped a marker is not repeated under range"
+        "a body finding that also dropped a marker is not repeated under range",
+        "a per-commit body finding is not repeated under range after a merge appends a marker"
       ]
     },
     {
-      "id": "dedup-raw-key",
-      "find": "const k = kind === 'body' ? slotParts(newText, token).body : slotText(newText, token)",
-      "replace": "const k = slotText(newText, token)",
+      "id": "dedup-exact-text",
+      "find": "      rangeCleared(a.text, { oldText, newText, token: o.token }),",
+      "replace": "      a.text === slotText(newText, o.token),",
       "expectRed": [
-        "a per-commit body finding is not repeated under range after a later marker append"
+        "a per-commit body finding is not repeated under range after a merge appends a marker"
       ]
     },
     {
@@ -259,7 +270,9 @@
       "replace": "  return true",
       "expectRed": [
         "a merge dropping a marker the branch removed and then restored is blocked",
-        "a later commit marking a text a merge stripped of a base marker is blocked"
+        "a later commit marking a text a merge stripped of a base marker is blocked",
+        "a merge dropping a marker from a waived branch edit is blamed",
+        "a merge dropping a marker from an unwaived branch edit is reported beside the edit"
       ]
     },
     {
@@ -276,8 +289,8 @@
     },
     {
       "id": "range-readd-waiver-dropped",
-      "find": "if (unusedWaivers.includes(token) && !readds(token)) continue",
-      "replace": "if (unusedWaivers.includes(token)) continue",
+      "find": "!unusedWaivers.includes(token) || readds(token)",
+      "replace": "!unusedWaivers.includes(token)",
       "expectRed": ["a waived re-add of a line a waiver removed passes"]
     },
     {
@@ -291,7 +304,8 @@
         "a merge of an untouched master line names the non-merge remedy for a branch re-add",
         "a branch body kept beside a marker master appended names the non-merge remedy",
         "a merge of an unrelated history names the non-merge remedy for a branch re-add",
-        "a clean merge of two identical re-adds names the non-merge remedy"
+        "a clean merge of two identical re-adds names the non-merge remedy",
+        "a re-add without its marker after an unwaived removal is reported under range"
       ]
     },
     {
@@ -302,10 +316,20 @@
     },
     {
       "id": "range-dedup-token-only",
-      "find": "keys.length > 0 && keys.every((k) => reported.has(k))",
-      "replace": "[...reported].some((k) => k.startsWith(`${o.token}\\n`))",
+      "find": "    (assumed.get(o.token) ?? []).some((a) =>\n      rangeCleared(a.text, { oldText, newText, token: o.token }),\n    )",
+      "replace": "    assumed.has(o.token)",
       "expectRed": [
-        "a merge re-editing a line a commit already broke is still reported as a merge edit"
+        "a merge re-editing a line a commit already broke is still reported as a merge edit",
+        "a range finding names the non-merge remedy when a merge-free branch is merged into master",
+        "a range finding names the non-merge remedy when a merge wrote only an earlier text",
+        "a merge of an untouched master line names the non-merge remedy for a branch re-add",
+        "a branch body kept beside a marker master appended names the non-merge remedy",
+        "a merge of an unrelated history names the non-merge remedy for a branch re-add",
+        "a clean merge of two identical re-adds names the non-merge remedy",
+        "a merge dropping a marker from a waived branch edit is blamed",
+        "a merge dropping a marker from an unwaived branch edit is reported beside the edit",
+        "a re-add without its marker after an unwaived removal is reported under range",
+        "a merge dropping a marker the branch removed and then restored is blocked"
       ]
     },
     {
@@ -330,7 +354,7 @@
     },
     {
       "id": "range-ledgerless-waiver-recorded",
-      "find": "  if (unit.newText === null) return\n",
+      "find": "  if (unit.newText === null) return []\n",
       "replace": "",
       "expectRed": [
         "a waiver on a commit with no ledger does not clear a merge dropping the last entry"
@@ -421,7 +445,8 @@
         "a Ledger-edit-ok: header trailer waives a changed header",
         "a master re-edit of a text the branch also waived keeps the branch waiver",
         "a merge dropping a marker the branch added after a waived edit passes",
-        "a waived re-add of a line a waiver removed passes"
+        "a waived re-add of a line a waiver removed passes",
+        "a per-commit body finding is not repeated under range after a merge appends a marker"
       ]
     },
     {
@@ -474,7 +499,10 @@
         "a merge of an untouched master line names the non-merge remedy for a branch re-add",
         "a branch body kept beside a marker master appended names the non-merge remedy",
         "a merge of an unrelated history names the non-merge remedy for a branch re-add",
-        "a clean merge of two identical re-adds names the non-merge remedy"
+        "a clean merge of two identical re-adds names the non-merge remedy",
+        "a merge dropping a marker from an unwaived branch edit is reported beside the edit",
+        "a re-add without its marker after an unwaived removal is reported under range",
+        "a per-commit body finding is not repeated under range after a merge appends a marker"
       ]
     },
     {
@@ -482,7 +510,6 @@
       "find": "    message: git(['log', '-1', '--format=%B', sha]).toString('utf8'),\n    label: sha,",
       "replace": "    message: git(['log', '-1', '--format=%B', shas[shas.length - 1]]).toString('utf8'),\n    label: sha,",
       "expectRed": [
-        "a merge dropping a marker the branch removed and then restored is blocked",
         "a waiver in a non-last commit of the range still waives its own edit",
         "a waiver trailer in one commit does not cover an edit made in an earlier commit",
         "a waived edit that later gains an appended marker passes on a linear branch",
@@ -566,7 +593,11 @@
         "a merge that discards a marker master appended is blamed",
         "a merge that reverts a body master reworded is blamed",
         "a per-commit marker drop is not repeated under range after a later marker append",
-        "a body finding that also dropped a marker is not repeated under range"
+        "a body finding that also dropped a marker is not repeated under range",
+        "a merge dropping a marker from a waived branch edit is blamed",
+        "a merge dropping a marker from an unwaived branch edit is reported beside the edit",
+        "a re-add without its marker after an unwaived removal is reported under range",
+        "a per-commit body finding is not repeated under range after a merge appends a marker"
       ]
     },
     {
@@ -680,7 +711,8 @@
         "a non-empty authorization does not clear a merge that deletes the entry instead",
         "a merge re-deleting an entry the branch removed and then restored is blocked",
         "a waiver on a commit with no ledger does not clear a merge dropping the last entry",
-        "flags an OLD entry number missing entirely from NEW (I1)"
+        "flags an OLD entry number missing entirely from NEW (I1)",
+        "a re-add without its marker after an unwaived removal is reported under range"
       ]
     },
     {
@@ -715,7 +747,9 @@
         "a merge of an untouched master line names the non-merge remedy for a branch re-add",
         "a branch body kept beside a marker master appended names the non-merge remedy",
         "a merge of an unrelated history names the non-merge remedy for a branch re-add",
-        "a clean merge of two identical re-adds names the non-merge remedy"
+        "a clean merge of two identical re-adds names the non-merge remedy",
+        "a merge dropping a marker from an unwaived branch edit is reported beside the edit",
+        "a per-commit body finding is not repeated under range after a merge appends a marker"
       ]
     },
     {
@@ -730,7 +764,8 @@
         "a merge dropping a base marker is blamed even after a later commit appends a different one",
         "two separate unwaived marker drops on the same token are each reported once",
         "a merge that discards a marker master appended is blamed",
-        "a per-commit marker drop is not repeated under range after a later marker append"
+        "a per-commit marker drop is not repeated under range after a later marker append",
+        "a re-add without its marker after an unwaived removal is reported under range"
       ]
     },
     {
@@ -790,12 +825,22 @@
       ]
     },
     {
-      "id": "dedup-marker-raw-slot",
-      "find": "  if (kind === 'marker') return lostMarkerKeys(token, oldText, newText)",
-      "replace": "  if (false) return lostMarkerKeys(token, oldText, newText)",
+      "id": "walk-key-tracks-kept-markers",
+      "find": "  const lost = [...slotParts(baseText, token).markers].filter((mk) => !kept.has(mk)).sort()",
+      "replace": "  const lost = [...slotParts(baseText, token).markers].sort()",
+      "expectRed": ["a branch body kept beside a marker master appended names the non-merge remedy"]
+    },
+    {
+      "id": "range-assumes-nothing",
+      "find": "recordAuthorizations(assumed, unit, [...applied, ...found])",
+      "replace": "recordAuthorizations(assumed, unit, applied)",
       "expectRed": [
         "a per-commit marker drop is not repeated under range after a later marker append",
-        "a body finding that also dropped a marker is not repeated under range"
+        "a body finding that also dropped a marker is not repeated under range",
+        "a per-commit body finding is not repeated under range after a later marker append",
+        "two separate unwaived marker drops on the same token are each reported once",
+        "a per-commit body finding is not repeated under range after a merge appends a marker",
+        "an unwaived edit on a branch with no merge is reported once, with the trailer hint"
       ]
     },
     {
@@ -803,12 +848,6 @@
       "find": "if (ps.some((q) => keyAt(q) !== target && discarded(p, q)))",
       "replace": "if (ps.some((q) => q !== p && discarded(p, q)))",
       "expectRed": ["a clean merge of two identical re-adds names the non-merge remedy"]
-    },
-    {
-      "id": "commit-finding-ignores-lost-markers",
-      "find": "    const lost = o.token === null ? [] : lostMarkerKeys(o.token, unit.oldText, unit.newText)",
-      "replace": "    const lost = []",
-      "expectRed": ["a body finding that also dropped a marker is not repeated under range"]
     }
   ]
 }

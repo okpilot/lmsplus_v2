@@ -465,11 +465,23 @@ function isAncestor(a, b) {
   return gitProbe(['merge-base', '--is-ancestor', a, b])
 }
 
+/** The tokens `unit`'s own waivers applied to. */
+function appliedWaivers(unit, unusedWaivers) {
+  // No ledger in NEW: checkUnit returned before applying waivers, so none was applied.
+  if (unit.newText === null) return []
+  // A re-add raises no per-commit finding (OLD lacks the line), yet its waiver authorizes the text.
+  const readds = (token) =>
+    slotText(unit.oldText, token) === null && slotText(unit.newText, token) !== null
+  return [...parseWaivers(unit.message).waivers.keys()].filter(
+    (token) => !unusedWaivers.includes(token) || readds(token),
+  )
+}
+
 /** Re-bind to `unit`'s result each ancestor authorization that `unit`'s OLD slot still matches
  *  (so text a merge wrote is never adopted); a removal authorization is retired, never re-bound,
- *  when `unit` re-adds the line. Then add `unit`'s own applied waivers.
+ *  when `unit` re-adds the line. Then authorize `unit`'s text for each of `tokens`.
  *  `live` is Map<token, {sha, text}[]>. */
-function recordAuthorizations(live, unit, unusedWaivers) {
+function recordAuthorizations(live, unit, tokens) {
   for (const [token, list] of live) {
     const text = slotText(unit.newText, token)
     const follows = (a) => slotMatches(a.text, unit.oldText, token) && isAncestor(a.sha, unit.label)
@@ -480,13 +492,7 @@ function recordAuthorizations(live, unit, unusedWaivers) {
     }
     live.set(token, list.flatMap(rebind))
   }
-  // No ledger in NEW: checkUnit returned before applying waivers, so none was applied.
-  if (unit.newText === null) return
-  // A re-add raises no per-commit finding (OLD lacks the line), yet its waiver authorizes the text.
-  const readds = (token) =>
-    slotText(unit.oldText, token) === null && slotText(unit.newText, token) !== null
-  for (const token of parseWaivers(unit.message).waivers.keys()) {
-    if (unusedWaivers.includes(token) && !readds(token)) continue
+  for (const token of tokens) {
     live.set(token, [
       ...(live.get(token) ?? []),
       { sha: unit.label, text: slotText(unit.newText, token) },
@@ -494,43 +500,39 @@ function recordAuthorizations(live, unit, unusedWaivers) {
   }
 }
 
-/** Add `unit`'s findings to `reported`. A finding on a commit that also dropped markers of its
- *  token reports those drops too, whatever its own kind. */
-function recordReported(reported, offenders, unit) {
-  for (const o of offenders) {
-    const lost = o.token === null ? [] : lostMarkerKeys(o.token, unit.oldText, unit.newText)
-    for (const k of [...reportedKeys(o, unit.oldText, unit.newText), ...lost]) reported.add(k)
-  }
-}
-
-/** Per-commit units, recording each applied waiver's resulting text, then the range unit. */
+/** Per-commit units, recording each applied waiver's resulting text, then the range unit.
+ *  `assumed` also authorizes every per-commit finding, as if the printed fix were applied. */
 function runBase(ref) {
   const live = new Map()
+  const assumed = new Map()
   let blocked = false
   let lastTouched
-  const reported = new Set()
   for (const unit of baseUnits(ref)) {
     const res = checkUnit(unit)
     if (res.problems.length > 0) return reportProblems(res.problems)
     if (res.offenders.length > 0) blocked = true
     reportUnit(unit.label, res.offenders, { unusedWaivers: res.unusedWaivers })
-    recordReported(reported, res.offenders, unit)
-    recordAuthorizations(live, unit, res.unusedWaivers)
+    const applied = appliedWaivers(unit, res.unusedWaivers)
+    recordAuthorizations(live, unit, applied)
+    const found = res.offenders.map((o) => o.token).filter((t) => t !== null)
+    recordAuthorizations(assumed, unit, [...applied, ...found])
     if (unit.oldText !== unit.newText) lastTouched = unit.newText
   }
-  if (runRange(ref, live, { lastTouched, reported })) blocked = true
+  if (runRange(ref, live, { lastTouched, assumed })) blocked = true
   return blocked ? 1 : 0
 }
 
 /** The blame-walk KEY for `offender` at ledger text `text`: what must stay equal while walking
- *  parents to find who wrote it. Kind `body`/`missing`/`header` track the entry's (or header's)
- *  body with markers stripped, so a marker append never moves the writer. Kind `marker` tracks
- *  the sorted, still-present subset of `baseText`'s markers for the token, so a later append of
- *  a DIFFERENT marker doesn't move the writer either, and a merge that dropped the marker is found. */
-function offenderKey({ kind, token }, baseText) {
-  if (kind !== 'marker') return (text) => slotParts(text, token).body
-  const baseMarkers = [...slotParts(baseText, token).markers].sort()
-  return (text) => baseMarkers.filter((mk) => slotParts(text, token).markers.has(mk)).join('\n')
+ *  parents to find who wrote it — the slot's body with markers stripped, plus which of the
+ *  base markers HEAD lost `text` still has. A marker HEAD kept or the base lacked never moves the
+ *  writer; a commit that changed the body or dropped a lost marker is found. */
+function offenderKey({ token }, baseText, headText) {
+  const kept = slotParts(headText, token).markers
+  const lost = [...slotParts(baseText, token).markers].filter((mk) => !kept.has(mk)).sort()
+  return (text) => {
+    const { body, markers } = slotParts(text, token)
+    return JSON.stringify([body, lost.filter((mk) => markers.has(mk))])
+  }
 }
 
 /** `fn` memoized on its argument list. */
@@ -558,7 +560,7 @@ function buildMergeWalker(baseText) {
     gitProbe(['merge-base', a, b]) ? git(['merge-base', a, b]).toString('utf8').trim() : null,
   )
   return (offender) => {
-    const key = offenderKey(offender, baseText)
+    const key = offenderKey(offender, baseText, ledgerAt('HEAD'))
     const keyAt = (sha) => key(ledgerAt(sha))
     const target = keyAt('HEAD')
     const discarded = (p, q) => {
@@ -585,25 +587,8 @@ function mergeWroteFor(offenders, baseText) {
   return (token) => byToken.has(token) && walk(byToken.get(token))
 }
 
-/** One `reported` key per marker `oldText` has for `token` and `newText` lacks. */
-function lostMarkerKeys(token, oldText, newText) {
-  const kept = slotParts(newText, token).markers
-  return [...slotParts(oldText, token).markers]
-    .filter((mk) => !kept.has(mk))
-    .map((mk) => `${token}\nmarker\n${mk}`)
-}
-
-/** The `reported` dedup keys for a finding: one per lost marker for kind `marker` (so a later
- *  append of a different marker, or a second drop, doesn't un-dedup it); otherwise one, over the
- *  body alone for kind `body` (a later marker append doesn't un-dedup it) or the raw slot text. */
-function reportedKeys({ token, kind }, oldText, newText) {
-  if (kind === 'marker') return lostMarkerKeys(token, oldText, newText)
-  const k = kind === 'body' ? slotParts(newText, token).body : slotText(newText, token)
-  return [`${token}\n${kind}\n${k}`]
-}
-
 /** The range unit over merge-base..HEAD; reports and returns whether it found offenders. */
-function runRange(ref, live, { lastTouched, reported }) {
+function runRange(ref, live, { lastTouched, assumed }) {
   const mergeBase = git(['merge-base', ref, 'HEAD']).toString('utf8').trim()
   const oldText = readAtTree(mergeBase, DECISIONS_PATH)
   const newText = readAtTree('HEAD', DECISIONS_PATH)
@@ -614,12 +599,12 @@ function runRange(ref, live, { lastTouched, reported }) {
     authorized,
     gradeFormat: newText !== lastTouched,
   })
-  // A finding every part of which a per-commit unit already reported has its fix there; skip it.
-  const wasReported = (o) => {
-    const keys = reportedKeys(o, oldText, newText)
-    return keys.length > 0 && keys.every((k) => reported.has(k))
-  }
-  const filtered = offenders.filter((o) => o.token === null || !wasReported(o))
+  // A finding the printed per-commit fixes would clear has its fix there; skip it.
+  const coveredByCommit = (o) =>
+    (assumed.get(o.token) ?? []).some((a) =>
+      rangeCleared(a.text, { oldText, newText, token: o.token }),
+    )
+  const filtered = offenders.filter((o) => o.token === null || !coveredByCommit(o))
   reportUnit('range', filtered, { mergeWrote: mergeWroteFor(filtered, oldText) })
   return offenders.length > 0
 }
