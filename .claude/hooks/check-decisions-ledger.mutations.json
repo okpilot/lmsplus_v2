@@ -241,7 +241,8 @@
         "an unwaived edit on a branch with no merge is reported once, with the trailer hint",
         "a per-commit body finding is not repeated under range after a later marker append",
         "two separate unwaived marker drops on the same token are each reported once",
-        "a per-commit marker drop is not repeated under range after a later marker append"
+        "a per-commit marker drop is not repeated under range after a later marker append",
+        "a body finding that also dropped a marker is not repeated under range"
       ]
     },
     {
@@ -564,7 +565,8 @@
         "two separate unwaived marker drops on the same token are each reported once",
         "a merge that discards a marker master appended is blamed",
         "a merge that reverts a body master reworded is blamed",
-        "a per-commit marker drop is not repeated under range after a later marker append"
+        "a per-commit marker drop is not repeated under range after a later marker append",
+        "a body finding that also dropped a marker is not repeated under range"
       ]
     },
     {
@@ -789,10 +791,11 @@
     },
     {
       "id": "dedup-marker-raw-slot",
-      "find": "  if (kind === 'marker') {\n    const kept",
-      "replace": "  if (false) {\n    const kept",
+      "find": "  if (kind === 'marker') return lostMarkerKeys(token, oldText, newText)",
+      "replace": "  if (false) return lostMarkerKeys(token, oldText, newText)",
       "expectRed": [
-        "a per-commit marker drop is not repeated under range after a later marker append"
+        "a per-commit marker drop is not repeated under range after a later marker append",
+        "a body finding that also dropped a marker is not repeated under range"
       ]
     },
     {
@@ -800,6 +803,12 @@
       "find": "if (ps.some((q) => keyAt(q) !== target && discarded(p, q)))",
       "replace": "if (ps.some((q) => q !== p && discarded(p, q)))",
       "expectRed": ["a clean merge of two identical re-adds names the non-merge remedy"]
+    },
+    {
+      "id": "commit-finding-ignores-lost-markers",
+      "find": "    const lost = o.token === null ? [] : lostMarkerKeys(o.token, unit.oldText, unit.newText)",
+      "replace": "    const lost = []",
+      "expectRed": ["a body finding that also dropped a marker is not repeated under range"]
     }
   ]
 }

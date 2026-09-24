@@ -243,3 +243,16 @@ test('a clean merge of two identical re-adds names the non-merge remedy', () =>
     assert.match(res.stderr, /\[range\][\s\S]*## 14[\s\S]*to the non-merge commit that made/)
     assert.doesNotMatch(res.stderr, /redo the merge/)
   }))
+
+// GROUP: commit-finding-ignores-lost-markers
+test('a body finding that also dropped a marker is not repeated under range', () =>
+  withRepo((r) => {
+    // MUTATION: record only the finding's own kind → commit 2 reports a body edit, the range
+    // unit sees the same line as a lost marker, and prints it again under [range].
+    startWork(r, ledger('first decision. Superseded by 15.'))
+    commit(r, ledger('X. Superseded by 15.'), 'edit 14')
+    commit(r, ledger('first decision.'), 'restore 14, drop marker')
+    const res = runBase(r, 'master')
+    assert.equal(res.status, 1)
+    assert.doesNotMatch(res.stderr, /\[range\]/)
+  }))

@@ -494,6 +494,15 @@ function recordAuthorizations(live, unit, unusedWaivers) {
   }
 }
 
+/** Add `unit`'s findings to `reported`. A finding on a commit that also dropped markers of its
+ *  token reports those drops too, whatever its own kind. */
+function recordReported(reported, offenders, unit) {
+  for (const o of offenders) {
+    const lost = o.token === null ? [] : lostMarkerKeys(o.token, unit.oldText, unit.newText)
+    for (const k of [...reportedKeys(o, unit.oldText, unit.newText), ...lost]) reported.add(k)
+  }
+}
+
 /** Per-commit units, recording each applied waiver's resulting text, then the range unit. */
 function runBase(ref) {
   const live = new Map()
@@ -505,8 +514,7 @@ function runBase(ref) {
     if (res.problems.length > 0) return reportProblems(res.problems)
     if (res.offenders.length > 0) blocked = true
     reportUnit(unit.label, res.offenders, { unusedWaivers: res.unusedWaivers })
-    for (const o of res.offenders)
-      for (const k of reportedKeys(o, unit.oldText, unit.newText)) reported.add(k)
+    recordReported(reported, res.offenders, unit)
     recordAuthorizations(live, unit, res.unusedWaivers)
     if (unit.oldText !== unit.newText) lastTouched = unit.newText
   }
@@ -577,16 +585,19 @@ function mergeWroteFor(offenders, baseText) {
   return (token) => byToken.has(token) && walk(byToken.get(token))
 }
 
+/** One `reported` key per marker `oldText` has for `token` and `newText` lacks. */
+function lostMarkerKeys(token, oldText, newText) {
+  const kept = slotParts(newText, token).markers
+  return [...slotParts(oldText, token).markers]
+    .filter((mk) => !kept.has(mk))
+    .map((mk) => `${token}\nmarker\n${mk}`)
+}
+
 /** The `reported` dedup keys for a finding: one per lost marker for kind `marker` (so a later
  *  append of a different marker, or a second drop, doesn't un-dedup it); otherwise one, over the
  *  body alone for kind `body` (a later marker append doesn't un-dedup it) or the raw slot text. */
 function reportedKeys({ token, kind }, oldText, newText) {
-  if (kind === 'marker') {
-    const kept = slotParts(newText, token).markers
-    return [...slotParts(oldText, token).markers]
-      .filter((mk) => !kept.has(mk))
-      .map((mk) => `${token}\nmarker\n${mk}`)
-  }
+  if (kind === 'marker') return lostMarkerKeys(token, oldText, newText)
   const k = kind === 'body' ? slotParts(newText, token).body : slotText(newText, token)
   return [`${token}\n${kind}\n${k}`]
 }
