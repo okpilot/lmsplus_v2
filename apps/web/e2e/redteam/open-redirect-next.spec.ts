@@ -11,8 +11,8 @@
  *          (`app/page.tsx`), the consent page (`app/consent/page.tsx`) and
  *          `/auth/login-complete` — same-origin `/app/...`
  *          paths only. It rejects: a different origin (absolute URL or `//host`
- *          protocol-relative), a literal backslash (a browser-normalized `//host`
- *          bypass `new URL` alone would not catch), a path that normalizes outside
+ *          protocol-relative, including `/\host`, which URL parsing reads as `//host`),
+ *          any literal backslash, a path that normalizes outside
  *          `/app` (`/app/../...`), and a non-http(s) scheme (`javascript:`, whose
  *          `URL.origin` is the string `"null"`). A rejected value falls back to
  *          `/app/dashboard`.

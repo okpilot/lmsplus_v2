@@ -34,6 +34,11 @@ describe('safeNextPath', () => {
     expect(safeNextPath('/\\evil.com')).toBeNull()
   })
 
+  it('rejects a backslash inside an /app path rather than letting it become a slash', () => {
+    // URL parsing would turn this into /app/x/y — only the backslash check rejects it.
+    expect(safeNextPath('/app/x\\y')).toBeNull()
+  })
+
   it('rejects an absolute URL to a different origin', () => {
     expect(safeNextPath('https://evil.com/app')).toBeNull()
   })
