@@ -401,22 +401,28 @@ function readIndex(path) {
 
 // ---------------------------------------------------------------- reporting
 
-function reportUnit(label, offenders, unusedWaivers) {
+/** The remedy for a finding on `token`. A range finding names redoing a merge only when a merge
+ *  wrote the line (`merge`); its edit is otherwise a non-merge commit's to waive — unless that
+ *  commit deleted the ledger file, a finding of its own that no waiver clears. */
+function hintFor(token, { label, merge }) {
+  if (label !== 'range') {
+    return `add to the commit message: Ledger-edit-ok: ${token} — <why this edit is safe>`
+  }
+  if (!merge) {
+    return `add Ledger-edit-ok: ${token} to the non-merge commit that made the edit`
+  }
+  return `a merge cannot waive: restore this line in a commit with Ledger-edit-ok: ${token}, or redo the merge without the edit and make it in a non-merge commit with Ledger-edit-ok: ${token}`
+}
+
+function reportUnit(label, offenders, { unusedWaivers = [], mergeWrote = () => false } = {}) {
   if (offenders.length > 0) {
     console.error(
       `✖ decisions-ledger guard (Decision 86): docs/decisions.md was edited outside the allowed shape${label ? ` [${label}]` : ''}\n`,
     )
     for (const o of offenders) {
       console.error(`  ${o.detail}`)
-      if (o.token !== null && label === 'range') {
-        console.error(
-          `    → a merge cannot waive: restore this line in a commit with Ledger-edit-ok: ${o.token}, or redo the merge without the edit and make it in a non-merge commit with Ledger-edit-ok: ${o.token}`,
-        )
-      } else if (o.token !== null) {
-        console.error(
-          `    → add to the commit message: Ledger-edit-ok: ${o.token} — <why this edit is safe>`,
-        )
-      }
+      if (o.token !== null)
+        console.error(`    → ${hintFor(o.token, { label, merge: mergeWrote(o.token) })}`)
     }
   }
   if (unusedWaivers.length > 0) {
@@ -460,11 +466,31 @@ function isAncestor(a, b) {
   return gitProbe(['merge-base', '--is-ancestor', a, b])
 }
 
+/** The tokens `unit`'s own waivers applied to. A re-add must restore a line `rangeBase` (the
+ *  ledger at the range merge-base) has, so a waiver on a brand-new entry stays unused. */
+function appliedWaivers(unit, unusedWaivers, rangeBase) {
+  // No ledger in NEW: checkUnit returned before applying waivers, so none was applied.
+  if (unit.newText === null) return []
+  // A re-add raises no per-commit finding (OLD lacks the line), yet its waiver authorizes the text.
+  const readds = (token) =>
+    slotText(unit.oldText, token) === null &&
+    slotText(unit.newText, token) !== null &&
+    slotText(rangeBase, token) !== null
+  return [...parseWaivers(unit.message).waivers.keys()].filter(
+    (token) => !unusedWaivers.includes(token) || readds(token),
+  )
+}
+
+/** `res`'s waivers that matched no finding and authorized no re-add. */
+function unapplied(res, applied) {
+  return res.unusedWaivers.filter((token) => !applied.includes(token))
+}
+
 /** Re-bind to `unit`'s result each ancestor authorization that `unit`'s OLD slot still matches
  *  (so text a merge wrote is never adopted); a removal authorization is retired, never re-bound,
- *  when `unit` re-adds the line. Then add `unit`'s own applied waivers.
+ *  when `unit` re-adds the line. Then authorize `unit`'s text for each of `tokens`.
  *  `live` is Map<token, {sha, text}[]>. */
-function recordAuthorizations(live, unit, unusedWaivers) {
+function recordAuthorizations(live, unit, tokens) {
   for (const [token, list] of live) {
     const text = slotText(unit.newText, token)
     const follows = (a) => slotMatches(a.text, unit.oldText, token) && isAncestor(a.sha, unit.label)
@@ -475,13 +501,7 @@ function recordAuthorizations(live, unit, unusedWaivers) {
     }
     live.set(token, list.flatMap(rebind))
   }
-  // No ledger in NEW: checkUnit returned before applying waivers, so none was applied.
-  if (unit.newText === null) return
-  // A re-add raises no per-commit finding (OLD lacks the line), yet its waiver authorizes the text.
-  const readds = (token) =>
-    slotText(unit.oldText, token) === null && slotText(unit.newText, token) !== null
-  for (const token of parseWaivers(unit.message).waivers.keys()) {
-    if (unusedWaivers.includes(token) && !readds(token)) continue
+  for (const token of tokens) {
     live.set(token, [
       ...(live.get(token) ?? []),
       { sha: unit.label, text: slotText(unit.newText, token) },
@@ -489,44 +509,114 @@ function recordAuthorizations(live, unit, unusedWaivers) {
   }
 }
 
-/** Per-commit units, recording each applied waiver's resulting text, then the range unit. */
+/** Per-commit units, recording each applied waiver's resulting text, then the range unit.
+ *  `assumed` also authorizes every per-commit finding, as if the printed fix were applied. */
 function runBase(ref) {
   const live = new Map()
+  const assumed = new Map()
   let blocked = false
   let lastTouched
-  const reported = new Set()
+  const mergeBase = git(['merge-base', ref, 'HEAD']).toString('utf8').trim()
+  const rangeBase = readAtTree(mergeBase, DECISIONS_PATH)
   for (const unit of baseUnits(ref)) {
     const res = checkUnit(unit)
     if (res.problems.length > 0) return reportProblems(res.problems)
     if (res.offenders.length > 0) blocked = true
-    reportUnit(unit.label, res.offenders, res.unusedWaivers)
-    for (const o of res.offenders) reported.add(`${o.token}\n${slotText(unit.newText, o.token)}`)
-    recordAuthorizations(live, unit, res.unusedWaivers)
+    const applied = appliedWaivers(unit, res.unusedWaivers, rangeBase)
+    reportUnit(unit.label, res.offenders, { unusedWaivers: unapplied(res, applied) })
+    recordAuthorizations(live, unit, applied)
+    const found = res.offenders.map((o) => o.token).filter((t) => t !== null)
+    recordAuthorizations(assumed, unit, [...applied, ...found])
     if (unit.oldText !== unit.newText) lastTouched = unit.newText
   }
-  if (runRange(ref, live, { lastTouched, reported })) blocked = true
+  if (runRange(ref, live, { lastTouched, assumed })) blocked = true
   return blocked ? 1 : 0
 }
 
+/** The blame-walk KEY for `offender` at ledger text `text`: what must stay equal while walking
+ *  parents to find who wrote it — the slot's body with markers stripped, plus which of the
+ *  base markers HEAD lost `text` still has. A marker HEAD kept or the base lacked never moves the
+ *  writer; a commit that changed the body or dropped a lost marker is found. */
+function offenderKey({ token }, baseText, headText) {
+  const kept = slotParts(headText, token).markers
+  const lost = [...slotParts(baseText, token).markers].filter((mk) => !kept.has(mk))
+  return (text) => {
+    const { body, markers } = slotParts(text, token)
+    return JSON.stringify([body, lost.filter((mk) => markers.has(mk))])
+  }
+}
+
+/** `fn` memoized on its argument list. */
+function memoize(fn) {
+  const cache = new Map()
+  return (...args) => {
+    const k = args.join(' ')
+    if (!cache.has(k)) cache.set(k, fn(...args))
+    return cache.get(k)
+  }
+}
+
+/** A merge-blame walker bound to `baseText`, shared across every offender in one range run:
+ *  ledger text, parent and merge-base lookups are memoized once, not per offender. Each call
+ *  follows the first parent `p` whose key matches HEAD's. A merge wrote the line when its other
+ *  parent `q` changed it since the two parents' merge-base and `p` did not (the merge discarded
+ *  that change). Otherwise the commit where no parent matches wrote it; `true` when that is a
+ *  merge, or a root commit (reached only through a merge that joined an unrelated history). */
+function buildMergeWalker(baseText) {
+  const ledgerAt = memoize((sha) => readAtTree(sha, DECISIONS_PATH))
+  const parentsOf = memoize((sha) =>
+    git(['rev-list', '--parents', '-n', '1', sha]).toString('utf8').trim().split(' ').slice(1),
+  )
+  const mergeBaseOf = memoize((a, b) =>
+    gitProbe(['merge-base', a, b]) ? git(['merge-base', a, b]).toString('utf8').trim() : null,
+  )
+  return (offender) => {
+    const key = offenderKey(offender, baseText, ledgerAt('HEAD'))
+    const keyAt = (sha) => key(ledgerAt(sha))
+    const target = keyAt('HEAD')
+    const discarded = (p, q) => {
+      const mb = mergeBaseOf(p, q)
+      return mb !== null && keyAt(q) !== keyAt(mb) && keyAt(p) === keyAt(mb)
+    }
+    let c = 'HEAD'
+    for (;;) {
+      const ps = parentsOf(c)
+      const p = ps.find((par) => keyAt(par) === target)
+      if (p === undefined) return ps.length !== 1
+      if (ps.some((q) => discarded(p, q))) return true
+      c = p
+    }
+  }
+}
+
+/** A `mergeWrote(token)` predicate for `offenders`, built lazily — a clean run (none) makes no
+ *  extra git call. */
+function mergeWroteFor(offenders, baseText) {
+  if (offenders.length === 0) return () => false
+  const walk = buildMergeWalker(baseText)
+  const byToken = new Map(offenders.map((o) => [o.token, o]))
+  return (token) => byToken.has(token) && walk(byToken.get(token))
+}
+
 /** The range unit over merge-base..HEAD; reports and returns whether it found offenders. */
-function runRange(ref, live, { lastTouched, reported }) {
+function runRange(ref, live, { lastTouched, assumed }) {
   const mergeBase = git(['merge-base', ref, 'HEAD']).toString('utf8').trim()
+  const oldText = readAtTree(mergeBase, DECISIONS_PATH)
   const newText = readAtTree('HEAD', DECISIONS_PATH)
   const authorized = new Map([...live].map(([t, list]) => [t, list.map((a) => a.text)]))
   const offenders = checkRange({
-    oldText: readAtTree(mergeBase, DECISIONS_PATH),
+    oldText,
     newText,
     authorized,
     gradeFormat: newText !== lastTouched,
   })
-  // A per-commit unit that reported this token AND produced HEAD's text has the fix; skip it.
-  reportUnit(
-    'range',
-    offenders.filter(
-      (o) => o.token === null || !reported.has(`${o.token}\n${slotText(newText, o.token)}`),
-    ),
-    [],
-  )
+  // A finding the printed per-commit fixes would clear has its fix there; skip it.
+  const coveredByCommit = (o) =>
+    (assumed.get(o.token) ?? []).some((a) =>
+      rangeCleared(a.text, { oldText, newText, token: o.token }),
+    )
+  const filtered = offenders.filter((o) => o.token === null || !coveredByCommit(o))
+  reportUnit('range', filtered, { mergeWrote: mergeWroteFor(filtered, oldText) })
   return offenders.length > 0
 }
 
@@ -536,7 +626,7 @@ function runUnits(units) {
     const res = checkUnit(unit)
     if (res.problems.length > 0) return reportProblems(res.problems)
     if (res.offenders.length > 0) blocked = true
-    reportUnit(unit.label, res.offenders, res.unusedWaivers)
+    reportUnit(unit.label, res.offenders, { unusedWaivers: res.unusedWaivers })
   }
   return blocked ? 1 : 0
 }

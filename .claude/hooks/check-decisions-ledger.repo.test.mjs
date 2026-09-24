@@ -58,6 +58,24 @@ test('allows appending a new decision line', () =>
     assert.equal(runCommitMsg(r, 'chore: append decision 16\n').status, 0)
   }))
 
+// GROUP: commitmsg-note-drops-unused
+test('a waiver on a newly appended line is reported as matching no finding', () =>
+  withRepo((r) => {
+    r.write('docs/decisions.md', LEDGER_V1)
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'init')
+    r.write('docs/decisions.md', `${LEDGER_V1}## 16 — 2026-03-12 — a new decision.\n`)
+    r.git('add', '-A')
+    // MUTATION: drop the unused-waiver note in commit-msg mode → the waiver nothing needed is
+    // not reported.
+    const res = runCommitMsg(
+      r,
+      `chore: append decision 16\n\nLedger-edit-ok: 16 — ${GOOD_REASON}\n`,
+    )
+    assert.equal(res.status, 0)
+    assert.match(res.stderr, /matched no finding[^\n]*: 16/)
+  }))
+
 // GROUP: check-decisions-ledger-always-blocks
 test('allows appending a marker to an existing line', () =>
   withRepo((r) => {
