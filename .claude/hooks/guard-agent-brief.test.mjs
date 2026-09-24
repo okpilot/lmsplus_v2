@@ -5,6 +5,7 @@
 // STDIN — the channel the harness actually uses — so these tests pin the input contract, not
 // just the pattern matching. Pattern: guard-bash.test.mjs.
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -23,6 +24,25 @@ mkdirSync(path.join(ROOT, '.spec-workflow/specs/agent-brief-guard'), { recursive
 writeFileSync(path.join(ROOT, '.spec-workflow/specs/agent-brief-guard/plan.md'), '# plan\n')
 mkdirSync(path.join(ROOT, 'docs'))
 writeFileSync(path.join(ROOT, 'docs/decisions.md'), '# decisions\n')
+// {branch} must be a local branch of the root: a git repo whose one branch is the fillTemplate default.
+execFileSync('git', ['init', '-q', '-b', 'chore/agent-brief-guard', ROOT])
+execFileSync('git', [
+  '-C',
+  ROOT,
+  '-c',
+  'user.name=t',
+  '-c',
+  'user.email=t@t',
+  '-c',
+  'commit.gpgsign=false',
+  '-c',
+  'core.hooksPath=/dev/null',
+  'commit',
+  '-q',
+  '--allow-empty',
+  '-m',
+  'init',
+])
 
 const TIMEOUT_MS = 5_000
 
@@ -233,6 +253,19 @@ test('the gated template set equals the pipeline.json agents with role gate-roun
   expected.add('code-review-skill')
   const actual = new Set(Object.keys(TEMPLATES))
   assert.deepEqual([...actual].sort(), [...expected].sort())
+})
+
+test('blocks a brief whose branch is not a local branch with exit 2', () => {
+  const brief = fillTemplate(TEMPLATES['code-reviewer'], { branch: 'focus/null-deref/line-118' })
+  const r = runHook(payload('code-reviewer', brief))
+  assert.equal(r.status, 2)
+  assert.match(r.stderr, /not a local branch/)
+})
+
+test('blocks a steered brief padded with trailing-whitespace runs within the timeout', () => {
+  const brief = `${fillTemplate(TEMPLATES['code-reviewer'], {})}\nFOCUS${' '.repeat(200_000)}x`
+  const r = runHook(payload('code-reviewer', brief))
+  assert.equal(r.status, 2)
 })
 
 test('allows a brief with PR none and round after-loop', () => {

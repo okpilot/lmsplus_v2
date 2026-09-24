@@ -21,7 +21,9 @@
         "blocks a brief whose PR number has no hash sign with exit 2",
         "blocks code-review-skill when its two {branch} occurrences disagree with exit 2",
         "blocks a code-reviewer brief dispatched with isolation: \"worktree\" with exit 2",
-        "blocks an implementation-critic brief dispatched with isolation: \"worktree\" with exit 2"
+        "blocks an implementation-critic brief dispatched with isolation: \"worktree\" with exit 2",
+        "blocks a brief whose branch is not a local branch with exit 2",
+        "blocks a steered brief padded with trailing-whitespace runs within the timeout"
       ],
       "note": "Forces the block() branch to exit 0 instead of 2 — a mismatched brief is logged as BLOCKED on stderr but no longer stops the tool call. Reddens every test asserting exit 2, not only the control."
     },
@@ -87,22 +89,22 @@
     },
     {
       "id": "guard-agent-brief-isolation-worktree-check-disabled",
-      "find": "if (toolInput?.isolation !== 'worktree') return { reason: 'isolation', template }",
-      "replace": "if (false) return { reason: 'isolation', template }",
+      "find": "if (toolInput?.isolation !== 'worktree') return 'isolation'",
+      "replace": "if (false) return 'isolation'",
       "expectRed": ["blocks code-review-skill without isolation: worktree with exit 2"],
       "note": "Disables the code-review-skill isolation:worktree check only — a valid model with isolation omitted is no longer blocked on that basis."
     },
     {
       "id": "guard-agent-brief-model-opus-check-disabled",
-      "find": "if (model !== undefined && model !== 'opus') return { reason: 'model', template }",
-      "replace": "if (false) return { reason: 'model', template }",
+      "find": "if (model !== undefined && model !== 'opus') return 'model'",
+      "replace": "if (false) return 'model'",
       "expectRed": ["blocks code-review-skill with model \"sonnet\" with exit 2"],
       "note": "Disables the code-review-skill model check only — isolation:worktree with a non-opus model is no longer blocked on that basis."
     },
     {
       "id": "guard-agent-brief-other-worktree-check-disabled",
-      "find": "} else if (toolInput?.isolation === 'worktree') {",
-      "replace": "} else if (false) {",
+      "find": "return toolInput?.isolation === 'worktree' ? 'worktree-forbidden' : null",
+      "replace": "return null",
       "expectRed": [
         "blocks a code-reviewer brief dispatched with isolation: \"worktree\" with exit 2",
         "blocks an implementation-critic brief dispatched with isolation: \"worktree\" with exit 2"
@@ -115,6 +117,22 @@
       "replace": "process.stderr.write('BLOCKED: Agent payload exceeds 1MB\\n', () => process.exit(0))",
       "expectRed": ["blocks a steered brief padded past 1MB with exit 2"],
       "note": "Oversize payload exits 0 — a steered brief padded past 1MB bypasses the template check."
+    },
+    {
+      "id": "guard-agent-brief-branch-check-disabled",
+      "find": "if (!branchExists(m.groups?.branch)) return { reason: 'branch', template }",
+      "replace": "",
+      "expectRed": ["blocks a brief whose branch is not a local branch with exit 2"],
+      "note": "A {branch} that is not a local branch is no longer blocked."
+    },
+    {
+      "id": "guard-agent-brief-quadratic-trim",
+      "find": "rawPrompt.trimEnd()",
+      "replace": "rawPrompt.replace(/\\s+$/, '')",
+      "expectRed": [
+        "blocks a steered brief padded with trailing-whitespace runs within the timeout"
+      ],
+      "note": "A backtracking trailing-whitespace regex runs past the hook timeout on a padded prompt."
     }
   ]
 }

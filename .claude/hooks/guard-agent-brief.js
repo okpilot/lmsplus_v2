@@ -12,6 +12,7 @@
  * Reference pattern: .claude/hooks/guard-bash.js (stdin accumulate + parse on 'end').
  */
 
+const { execFileSync } = require('node:child_process')
 const fs = require('node:fs')
 const path = require('node:path')
 
@@ -74,6 +75,7 @@ function allow() {
 const BLOCK_MESSAGES = {
   mismatch: 'does not match its required template',
   plan: 'names an invalid {plan} path — must be under .work/ or .spec-workflow/specs/, end in .md, contain no "..", and exist on disk',
+  branch: 'names a {branch} that is not a local branch (refs/heads/<branch>)',
   isolation: 'requires isolation: "worktree"',
   model: 'requires model "opus" or omitted',
   'worktree-forbidden':
@@ -96,6 +98,23 @@ function planPathValid(plan) {
   return fs.existsSync(resolved)
 }
 
+/** `{branch}` must name an existing local branch — a free-text value could carry steering.
+ * A git fault reads as absent, so it blocks. */
+function branchExists(branch) {
+  try {
+    execFileSync(
+      'git',
+      ['-C', REPO_ROOT, 'show-ref', '--verify', '--quiet', `refs/heads/${branch}`],
+      {
+        stdio: 'ignore',
+      },
+    )
+    return true
+  } catch {
+    return false
+  }
+}
+
 /** Parses the hook's stdin JSON payload. Returns `undefined` on invalid JSON — caller is
  * responsible for the fail-open stderr write and exit. */
 function parsePayload(input) {
@@ -115,7 +134,7 @@ function checkBrief(toolInput, templates) {
   if (typeof template !== 'string') return null // not a gated type
 
   const rawPrompt = toolInput?.prompt
-  const prompt = typeof rawPrompt === 'string' ? rawPrompt.replace(/\s+$/, '') : ''
+  const prompt = typeof rawPrompt === 'string' ? rawPrompt.trimEnd() : ''
   const re = buildTemplateRegex(template)
   const m = re.exec(prompt)
   if (!m) return { reason: 'mismatch', template }
@@ -124,18 +143,22 @@ function checkBrief(toolInput, templates) {
     const plan = m.groups?.plan
     if (!planPathValid(plan)) return { reason: 'plan', template }
   }
+  if (!branchExists(m.groups?.branch)) return { reason: 'branch', template }
 
-  // Only code-review-skill is dispatched into a worktree (agent-code-review.md § Dispatch) —
-  // it is cut at origin/master, and every OTHER gated type reviews origin/master...HEAD, which
-  // resolves to zero paths there.
-  if (subagentType === 'code-review-skill') {
-    if (toolInput?.isolation !== 'worktree') return { reason: 'isolation', template }
-    const model = toolInput?.model
-    if (model !== undefined && model !== 'opus') return { reason: 'model', template }
-  } else if (toolInput?.isolation === 'worktree') {
-    return { reason: 'worktree-forbidden', template }
+  const reason = dispatchReason(subagentType, toolInput)
+  return reason ? { reason, template } : null
+}
+
+/** Only code-review-skill is dispatched into a worktree (agent-code-review.md § Dispatch) — it
+ * is cut at origin/master, and every OTHER gated type reviews origin/master...HEAD, which
+ * resolves to zero paths there. Returns a `BLOCK_MESSAGES` key, or `null`. */
+function dispatchReason(subagentType, toolInput) {
+  if (subagentType !== 'code-review-skill') {
+    return toolInput?.isolation === 'worktree' ? 'worktree-forbidden' : null
   }
-
+  if (toolInput?.isolation !== 'worktree') return 'isolation'
+  const model = toolInput?.model
+  if (model !== undefined && model !== 'opus') return 'model'
   return null
 }
 
