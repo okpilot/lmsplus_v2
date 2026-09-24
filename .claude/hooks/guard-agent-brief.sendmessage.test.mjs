@@ -112,3 +112,17 @@ test('blocks a SendMessage from a subagent to a gated agent id with exit 2', () 
   assert.equal(r.status, 2)
   assert.match(r.stderr, /type is gated/)
 })
+
+// GROUP: guard-agent-brief-sendmessage-trim-disabled, guard-agent-brief-sendmessage-id-check-disabled, guard-agent-brief-sendmessage-meta-unreadable-disabled, guard-agent-brief-sendmessage-gated-check-disabled
+test('blocks a SendMessage to a gated agent id padded with whitespace with exit 2', () => {
+  const r = runHook(sendPayload(` ${GATED_AGENT_ID} `))
+  assert.equal(r.status, 2)
+  assert.match(r.stderr, /type is gated/)
+})
+
+// GROUP: guard-agent-brief-sendmessage-case-disabled, guard-agent-brief-sendmessage-id-check-disabled, guard-agent-brief-sendmessage-meta-unreadable-disabled, guard-agent-brief-sendmessage-gated-check-disabled
+test('blocks a SendMessage to a gated agent id written in upper case with exit 2', () => {
+  const r = runHook(sendPayload(GATED_AGENT_ID.toUpperCase()))
+  assert.equal(r.status, 2)
+  assert.match(r.stderr, /type is gated/)
+})

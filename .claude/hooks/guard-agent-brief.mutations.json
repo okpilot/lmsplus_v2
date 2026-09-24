@@ -36,7 +36,9 @@
         "blocks a SendMessage to an agent id when transcript_path is missing with exit 2",
         "blocks a SendMessage to an agent id when session_id is missing with exit 2",
         "blocks a gated brief dispatched with a name with exit 2",
-        "blocks a SendMessage from a subagent to a gated agent id with exit 2"
+        "blocks a SendMessage from a subagent to a gated agent id with exit 2",
+        "blocks a SendMessage to a gated agent id padded with whitespace with exit 2",
+        "blocks a SendMessage to a gated agent id written in upper case with exit 2"
       ],
       "note": "Forces the block() branch to exit 0 instead of 2 — a mismatched brief is logged as BLOCKED on stderr but no longer stops the tool call. Reddens every test asserting exit 2, not only the control — Agent-brief and SendMessage blocks alike, since both route through this one shared exit call."
     },
@@ -249,14 +251,16 @@
         "blocks a SendMessage to an agent id whose meta.json does not exist with exit 2",
         "blocks a SendMessage to an agent id when transcript_path is missing with exit 2",
         "blocks a SendMessage to an agent id when session_id is missing with exit 2",
-        "blocks a SendMessage from a subagent to a gated agent id with exit 2"
+        "blocks a SendMessage from a subagent to a gated agent id with exit 2",
+        "blocks a SendMessage to a gated agent id padded with whitespace with exit 2",
+        "blocks a SendMessage to a gated agent id written in upper case with exit 2"
       ],
       "note": "Every SendMessage `to` reads as a non-id (a name or main) and is never resolved, so a message to a gated agent id is never blocked."
     },
     {
       "id": "guard-agent-brief-sendmessage-ref-strip-disabled",
-      "find": "const stripped = to.replace(/ \\[[0-9a-f]+\\]$/, '')",
-      "replace": "const stripped = to",
+      "find": "    .replace(/ \\[[0-9a-f]+\\]$/, '')\n",
+      "replace": "",
       "expectRed": [
         "blocks a SendMessage to a gated agent id written with a trailing ref suffix with exit 2"
       ],
@@ -280,7 +284,9 @@
         "blocks a SendMessage whose to resolves to a gated agent type with exit 2",
         "blocks a SendMessage to a gated agent id written with a trailing ref suffix with exit 2",
         "blocks a SendMessage to an agent id whose meta.json does not exist with exit 2",
-        "blocks a SendMessage from a subagent to a gated agent id with exit 2"
+        "blocks a SendMessage from a subagent to a gated agent id with exit 2",
+        "blocks a SendMessage to a gated agent id padded with whitespace with exit 2",
+        "blocks a SendMessage to a gated agent id written in upper case with exit 2"
       ],
       "note": "Meta.json resolution always reports the ungated 'general-purpose', regardless of what (or whether) a meta.json file actually says — an unreadable meta.json no longer fails closed, and a genuinely gated type's own meta.json is never read either."
     },
@@ -291,7 +297,9 @@
       "expectRed": [
         "blocks a SendMessage whose to resolves to a gated agent type with exit 2",
         "blocks a SendMessage to a gated agent id written with a trailing ref suffix with exit 2",
-        "blocks a SendMessage from a subagent to a gated agent id with exit 2"
+        "blocks a SendMessage from a subagent to a gated agent id with exit 2",
+        "blocks a SendMessage to a gated agent id padded with whitespace with exit 2",
+        "blocks a SendMessage to a gated agent id written in upper case with exit 2"
       ],
       "note": "A SendMessage that successfully resolves to a gated type is no longer blocked on that basis."
     },
@@ -308,6 +316,20 @@
       "replace": "false",
       "expectRed": ["blocks a SendMessage from a subagent to a gated agent id with exit 2"],
       "note": "A subagent sender's meta path gains a spurious <session>/subagents segment, so resolution fails closed with the unresolved reason instead of the gated one."
+    },
+    {
+      "id": "guard-agent-brief-sendmessage-trim-disabled",
+      "find": "    .trim()\n",
+      "replace": "",
+      "expectRed": ["blocks a SendMessage to a gated agent id padded with whitespace with exit 2"],
+      "note": "A whitespace-padded id no longer matches AGENT_ID_RE and is allowed as a name, though the router trims it and delivers to the gated agent."
+    },
+    {
+      "id": "guard-agent-brief-sendmessage-case-disabled",
+      "find": "    .toLowerCase()\n",
+      "replace": "",
+      "expectRed": ["blocks a SendMessage to a gated agent id written in upper case with exit 2"],
+      "note": "An upper-case id no longer matches AGENT_ID_RE and is allowed as a name."
     }
   ]
 }

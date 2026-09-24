@@ -227,7 +227,11 @@ function loadTemplates(subagentType) {
 function resolveSendMessageType(payload) {
   const to = payload?.tool_input?.to
   if (typeof to !== 'string') return null
-  const stripped = to.replace(/ \[[0-9a-f]+\]$/, '')
+  // The SendMessage router trims `to`; case is folded as well.
+  const stripped = to
+    .trim()
+    .toLowerCase()
+    .replace(/ \[[0-9a-f]+\]$/, '')
   if (!AGENT_ID_RE.test(stripped)) return null
 
   const transcriptPath = payload?.transcript_path
