@@ -26,6 +26,17 @@ type LoginFormProps = {
   nextPath?: string | null
 }
 
+/** Signs in with Supabase; returns a user-facing error message, or null on success. */
+async function signIn(credentials: { email: string; password: string }): Promise<string | null> {
+  try {
+    const { error } = await createClient().auth.signInWithPassword(credentials)
+    if (!error) return null
+    return FRIENDLY_AUTH_ERRORS[error.message] ?? 'Unable to sign in. Please try again.'
+  } catch {
+    return 'Unable to sign in. Please try again.'
+  }
+}
+
 export function LoginForm({ initialError, nextPath }: Readonly<LoginFormProps>) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -44,20 +55,9 @@ export function LoginForm({ initialError, nextPath }: Readonly<LoginFormProps>) 
     }
 
     setLoading(true)
-    try {
-      const supabase = createClient()
-      const { error: authError } = await supabase.auth.signInWithPassword({
-        email: result.data.email,
-        password: result.data.password,
-      })
-
-      if (authError) {
-        setError(FRIENDLY_AUTH_ERRORS[authError.message] ?? 'Unable to sign in. Please try again.')
-        setLoading(false)
-        return
-      }
-    } catch {
-      setError('Unable to sign in. Please try again.')
+    const signInError = await signIn(result.data)
+    if (signInError) {
+      setError(signInError)
       setLoading(false)
       return
     }

@@ -44,7 +44,7 @@ export async function getOrCreateOtherOrg(
  */
 const AUTH_USERS_PER_PAGE = 200
 
-async function findAuthUserByEmail(admin: ReturnType<typeof getAdminClient>, email: string) {
+export async function findAuthUserByEmail(admin: ReturnType<typeof getAdminClient>, email: string) {
   for (let page = 1; ; page++) {
     const { data, error } = await admin.auth.admin.listUsers({ page, perPage: AUTH_USERS_PER_PAGE })
     if (error) throw new Error(`Could not list users: ${error.message}`)

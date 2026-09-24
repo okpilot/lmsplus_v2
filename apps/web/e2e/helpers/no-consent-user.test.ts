@@ -39,12 +39,16 @@ const TEST_USER = {
   fullName: 'No Consent',
 }
 
+type ListUsersResult = {
+  data: { users: Array<{ id: string; email: string }> } | null
+  error?: { message: string } | null
+}
+
 type EnsureMockOptions = {
   org?: { data: { id: string } | null; error: { message: string } | null }
-  listUsers?: {
-    data: { users: Array<{ id: string; email: string }> } | null
-    error?: { message: string } | null
-  }
+  listUsers?: ListUsersResult
+  /** Per-page override for pagination tests — takes priority over `listUsers`. */
+  listUsersImpl?: (page: number) => ListUsersResult
   createUser?: { data: { user: { id: string } } | null; error: { message: string } | null }
   resetError?: { message: string } | null
   consentDeleteError?: { message: string } | null
@@ -60,6 +64,7 @@ function buildEnsureMockClient(opts: EnsureMockOptions) {
   const {
     org = { data: { id: 'org-123' }, error: null },
     listUsers = { data: { users: [] } },
+    listUsersImpl,
     createUser = { data: { user: { id: 'new-user-id' } }, error: null },
     resetError = null,
     consentDeleteError = null,
@@ -68,29 +73,51 @@ function buildEnsureMockClient(opts: EnsureMockOptions) {
     updateError = null,
   } = opts
 
-  return {
+  const consentDeleteEqMock = vi.fn().mockResolvedValue({ error: consentDeleteError })
+  const consentDeleteMock = vi.fn().mockReturnValue({ eq: consentDeleteEqMock })
+
+  const usersInsertMock = vi.fn().mockResolvedValue({ error: insertError })
+
+  const usersUpdateEqMock = vi.fn().mockResolvedValue({ error: updateError })
+  const usersUpdateMock = vi.fn().mockReturnValue({ eq: usersUpdateEqMock })
+
+  const listUsersMock = listUsersImpl
+    ? vi.fn((args: { page: number }) => Promise.resolve(listUsersImpl(args.page)))
+    : vi.fn().mockResolvedValue(listUsers)
+
+  const client = {
     from: (table: string) => {
       if (table === 'organizations') return buildChain(org)
       if (table === 'user_consents') {
-        return { delete: () => buildChain({ error: consentDeleteError }) }
+        return { delete: consentDeleteMock }
       }
       if (table === 'users') {
         return {
           select: () => buildChain(userRow),
-          insert: () => buildChain({ error: insertError }),
-          update: () => buildChain({ error: updateError }),
+          insert: usersInsertMock,
+          update: usersUpdateMock,
         }
       }
       return buildChain({ data: null, error: null })
     },
     auth: {
       admin: {
-        listUsers: vi.fn().mockResolvedValue(listUsers),
+        listUsers: listUsersMock,
         createUser: vi.fn().mockResolvedValue(createUser),
         updateUserById: vi.fn().mockResolvedValue({ error: resetError }),
         deleteUser: vi.fn().mockResolvedValue({ error: null }),
       },
     },
+  }
+
+  return {
+    client,
+    consentDeleteMock,
+    consentDeleteEqMock,
+    usersInsertMock,
+    usersUpdateMock,
+    usersUpdateEqMock,
+    listUsersMock,
   }
 }
 
@@ -105,7 +132,8 @@ beforeEach(() => {
 describe('ensureNoConsentUser', () => {
   it('throws when the org lookup query fails', async () => {
     mockCreateClient.mockReturnValue(
-      buildEnsureMockClient({ org: { data: null, error: { message: 'connection refused' } } }),
+      buildEnsureMockClient({ org: { data: null, error: { message: 'connection refused' } } })
+        .client,
     )
     await expect(ensureNoConsentUser(TEST_USER)).rejects.toThrow(
       'ensureNoConsentUser org lookup: connection refused',
@@ -113,33 +141,67 @@ describe('ensureNoConsentUser', () => {
   })
 
   it('throws when the org is not found', async () => {
-    mockCreateClient.mockReturnValue(buildEnsureMockClient({ org: { data: null, error: null } }))
+    mockCreateClient.mockReturnValue(
+      buildEnsureMockClient({ org: { data: null, error: null } }).client,
+    )
     await expect(ensureNoConsentUser(TEST_USER)).rejects.toThrow('ensureNoConsentUser org lookup:')
   })
 
   it('throws when listUsers returns an error', async () => {
     mockCreateClient.mockReturnValue(
-      buildEnsureMockClient({ listUsers: { data: null, error: { message: 'permission denied' } } }),
+      buildEnsureMockClient({
+        listUsers: { data: null, error: { message: 'permission denied' } },
+      }).client,
     )
     await expect(ensureNoConsentUser(TEST_USER)).rejects.toThrow(
-      'ensureNoConsentUser listUsers: permission denied',
+      'Could not list users: permission denied',
     )
   })
 
   it('creates a new auth user and public row when no matching auth user exists', async () => {
-    const mockClient = buildEnsureMockClient({
+    const mock = buildEnsureMockClient({
       listUsers: { data: { users: [] } },
       createUser: { data: { user: { id: 'new-user-id' } }, error: null },
       userRow: { data: null, error: { message: 'no rows found', code: 'PGRST116' } },
     })
-    mockCreateClient.mockReturnValue(mockClient)
+    mockCreateClient.mockReturnValue(mock.client)
 
     const userId = await ensureNoConsentUser(TEST_USER)
 
-    expect(mockClient.auth.admin.createUser).toHaveBeenCalledWith(
+    expect(mock.client.auth.admin.createUser).toHaveBeenCalledWith(
       expect.objectContaining({ email: TEST_USER.email, email_confirm: true }),
     )
+    expect(mock.usersInsertMock).toHaveBeenCalledWith({
+      id: 'new-user-id',
+      organization_id: 'org-123',
+      email: TEST_USER.email,
+      full_name: TEST_USER.fullName,
+      role: 'student',
+    })
     expect(userId).toBe('new-user-id')
+  })
+
+  it('finds an existing auth user whose email only appears on page 2 of listUsers', async () => {
+    const page1Users = Array.from({ length: 200 }, (_, i) => ({
+      id: `filler-${i}`,
+      email: `filler-${i}@lmsplus.local`,
+    }))
+    const mock = buildEnsureMockClient({
+      listUsersImpl: (page) =>
+        page === 1
+          ? { data: { users: page1Users } }
+          : { data: { users: [{ id: 'existing-id', email: TEST_USER.email }] } },
+      userRow: { data: { id: 'existing-id', organization_id: 'org-123' }, error: null },
+    })
+    mockCreateClient.mockReturnValue(mock.client)
+
+    const userId = await ensureNoConsentUser(TEST_USER)
+
+    expect(mock.listUsersMock).toHaveBeenCalledTimes(2)
+    expect(mock.client.auth.admin.updateUserById).toHaveBeenCalledWith('existing-id', {
+      password: TEST_USER.password,
+    })
+    expect(userId).toBe('existing-id')
   })
 
   it('throws when new auth user creation fails', async () => {
@@ -147,7 +209,7 @@ describe('ensureNoConsentUser', () => {
       buildEnsureMockClient({
         listUsers: { data: { users: [] } },
         createUser: { data: null, error: { message: 'email already registered' } },
-      }),
+      }).client,
     )
     await expect(ensureNoConsentUser(TEST_USER)).rejects.toThrow(
       'ensureNoConsentUser auth: email already registered',
@@ -161,7 +223,7 @@ describe('ensureNoConsentUser', () => {
         createUser: { data: { user: { id: 'new-user-id' } }, error: null },
         userRow: { data: null, error: { message: 'no rows found', code: 'PGRST116' } },
         insertError: { message: 'duplicate key value' },
-      }),
+      }).client,
     )
     await expect(ensureNoConsentUser(TEST_USER)).rejects.toThrow(
       'ensureNoConsentUser public: duplicate key value',
@@ -169,17 +231,19 @@ describe('ensureNoConsentUser', () => {
   })
 
   it('resets the password and clears consent records for an existing auth user', async () => {
-    const mockClient = buildEnsureMockClient({
+    const mock = buildEnsureMockClient({
       listUsers: { data: { users: [{ id: 'existing-id', email: TEST_USER.email }] } },
       userRow: { data: { id: 'existing-id', organization_id: 'org-123' }, error: null },
     })
-    mockCreateClient.mockReturnValue(mockClient)
+    mockCreateClient.mockReturnValue(mock.client)
 
     const userId = await ensureNoConsentUser(TEST_USER)
 
-    expect(mockClient.auth.admin.updateUserById).toHaveBeenCalledWith('existing-id', {
+    expect(mock.client.auth.admin.updateUserById).toHaveBeenCalledWith('existing-id', {
       password: TEST_USER.password,
     })
+    expect(mock.consentDeleteMock).toHaveBeenCalled()
+    expect(mock.consentDeleteEqMock).toHaveBeenCalledWith('user_id', 'existing-id')
     expect(userId).toBe('existing-id')
   })
 
@@ -189,31 +253,25 @@ describe('ensureNoConsentUser', () => {
         listUsers: { data: { users: [{ id: 'existing-id', email: TEST_USER.email }] } },
         resetError: { message: 'rate limited' },
         userRow: { data: { id: 'existing-id', organization_id: 'org-123' }, error: null },
-      }),
+      }).client,
     )
     await expect(ensureNoConsentUser(TEST_USER)).rejects.toThrow(
       'ensureNoConsentUser reset password: rate limited',
     )
   })
 
-  it('logs but does not throw when clearing consent records fails for an existing user', async () => {
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+  it('throws when clearing consent records fails for an existing user', async () => {
     mockCreateClient.mockReturnValue(
       buildEnsureMockClient({
         listUsers: { data: { users: [{ id: 'existing-id', email: TEST_USER.email }] } },
         consentDeleteError: { message: 'rls denied' },
         userRow: { data: { id: 'existing-id', organization_id: 'org-123' }, error: null },
-      }),
+      }).client,
     )
 
-    const userId = await ensureNoConsentUser(TEST_USER)
-
-    expect(userId).toBe('existing-id')
-    expect(errorSpy).toHaveBeenCalledWith(
-      '[ensureNoConsentUser] Failed to clear consents:',
-      'rls denied',
+    await expect(ensureNoConsentUser(TEST_USER)).rejects.toThrow(
+      'ensureNoConsentUser clear consents: rls denied',
     )
-    errorSpy.mockRestore()
   })
 
   it('throws when the public users lookup fails with a non-not-found error', async () => {
@@ -221,7 +279,7 @@ describe('ensureNoConsentUser', () => {
       buildEnsureMockClient({
         listUsers: { data: { users: [{ id: 'existing-id', email: TEST_USER.email }] } },
         userRow: { data: null, error: { message: 'connection refused', code: '500' } },
-      }),
+      }).client,
     )
     await expect(ensureNoConsentUser(TEST_USER)).rejects.toThrow(
       'ensureNoConsentUser user lookup: connection refused',
@@ -229,24 +287,35 @@ describe('ensureNoConsentUser', () => {
   })
 
   it('inserts a public users row when the public row is not found (PGRST116)', async () => {
-    const mockClient = buildEnsureMockClient({
+    const mock = buildEnsureMockClient({
       listUsers: { data: { users: [{ id: 'existing-id', email: TEST_USER.email }] } },
       userRow: { data: null, error: { message: 'no rows found', code: 'PGRST116' } },
     })
-    mockCreateClient.mockReturnValue(mockClient)
+    mockCreateClient.mockReturnValue(mock.client)
 
     const userId = await ensureNoConsentUser(TEST_USER)
+
+    expect(mock.usersInsertMock).toHaveBeenCalledWith({
+      id: 'existing-id',
+      organization_id: 'org-123',
+      email: TEST_USER.email,
+      full_name: TEST_USER.fullName,
+      role: 'student',
+    })
     expect(userId).toBe('existing-id')
   })
 
   it('updates the organization when the existing public row belongs to a different org', async () => {
-    mockCreateClient.mockReturnValue(
-      buildEnsureMockClient({
-        listUsers: { data: { users: [{ id: 'existing-id', email: TEST_USER.email }] } },
-        userRow: { data: { id: 'existing-id', organization_id: 'other-org' }, error: null },
-      }),
-    )
+    const mock = buildEnsureMockClient({
+      listUsers: { data: { users: [{ id: 'existing-id', email: TEST_USER.email }] } },
+      userRow: { data: { id: 'existing-id', organization_id: 'other-org' }, error: null },
+    })
+    mockCreateClient.mockReturnValue(mock.client)
+
     const userId = await ensureNoConsentUser(TEST_USER)
+
+    expect(mock.usersUpdateMock).toHaveBeenCalledWith({ organization_id: 'org-123' })
+    expect(mock.usersUpdateEqMock).toHaveBeenCalledWith('id', 'existing-id')
     expect(userId).toBe('existing-id')
   })
 
@@ -256,7 +325,7 @@ describe('ensureNoConsentUser', () => {
         listUsers: { data: { users: [{ id: 'existing-id', email: TEST_USER.email }] } },
         userRow: { data: { id: 'existing-id', organization_id: 'other-org' }, error: null },
         updateError: { message: 'foreign key violation' },
-      }),
+      }).client,
     )
     await expect(ensureNoConsentUser(TEST_USER)).rejects.toThrow(
       'ensureNoConsentUser update org: foreign key violation',
@@ -264,15 +333,16 @@ describe('ensureNoConsentUser', () => {
   })
 
   it('does not insert or update when the existing public row already matches the org', async () => {
-    mockCreateClient.mockReturnValue(
-      buildEnsureMockClient({
-        listUsers: { data: { users: [{ id: 'existing-id', email: TEST_USER.email }] } },
-        userRow: { data: { id: 'existing-id', organization_id: 'org-123' }, error: null },
-        insertError: { message: 'should not be called' },
-        updateError: { message: 'should not be called' },
-      }),
-    )
+    const mock = buildEnsureMockClient({
+      listUsers: { data: { users: [{ id: 'existing-id', email: TEST_USER.email }] } },
+      userRow: { data: { id: 'existing-id', organization_id: 'org-123' }, error: null },
+    })
+    mockCreateClient.mockReturnValue(mock.client)
+
     const userId = await ensureNoConsentUser(TEST_USER)
+
+    expect(mock.usersInsertMock).not.toHaveBeenCalled()
+    expect(mock.usersUpdateMock).not.toHaveBeenCalled()
     expect(userId).toBe('existing-id')
   })
 })
@@ -282,10 +352,7 @@ describe('ensureNoConsentUser', () => {
 // ---------------------------------------------------------------------------
 
 type RemoveMockOptions = {
-  listUsers?: {
-    data: { users: Array<{ id: string; email: string }> } | null
-    error?: { message: string } | null
-  }
+  listUsers?: ListUsersResult
   consentDeleteError?: { message: string } | null
   deleteUserError?: { message: string } | null
 }
@@ -341,7 +408,7 @@ describe('removeNoConsentUser', () => {
     mockCreateClient.mockReturnValue(client)
 
     await expect(removeNoConsentUser(TEST_USER.email)).rejects.toThrow(
-      'afterAll: afterAll listUsers: permission denied',
+      'afterAll: Could not list users: permission denied',
     )
   })
 

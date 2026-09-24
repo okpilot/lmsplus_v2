@@ -1,3 +1,4 @@
+import { findAuthUserByEmail } from '../redteam/helpers/seed-core'
 import { getAdminClient } from './supabase'
 
 type NoConsentUser = { email: string; password: string; fullName: string }
@@ -24,9 +25,7 @@ async function upsertAuthUser(
   admin: ReturnType<typeof getAdminClient>,
   user: NoConsentUser,
 ): Promise<string> {
-  const { data: existingUsers, error: listError } = await admin.auth.admin.listUsers()
-  if (listError) throw new Error(`ensureNoConsentUser listUsers: ${listError.message}`)
-  const existing = existingUsers?.users.find((u: { email?: string }) => u.email === user.email)
+  const existing = await findAuthUserByEmail(admin, user.email)
 
   if (!existing) {
     const { data, error } = await admin.auth.admin.createUser({
@@ -47,9 +46,7 @@ async function upsertAuthUser(
     .from('user_consents')
     .delete()
     .eq('user_id', existing.id)
-  if (deleteError) {
-    console.error('[ensureNoConsentUser] Failed to clear consents:', deleteError.message)
-  }
+  if (deleteError) throw new Error(`ensureNoConsentUser clear consents: ${deleteError.message}`)
   return existing.id
 }
 
@@ -95,9 +92,7 @@ export async function removeNoConsentUser(email: string): Promise<void> {
 
   let authUser: { id: string; email?: string } | undefined
   try {
-    const { data: existingUsers, error: listError } = await admin.auth.admin.listUsers()
-    if (listError) throw new Error(`afterAll listUsers: ${listError.message}`)
-    authUser = existingUsers?.users.find((u: { email?: string }) => u.email === email)
+    authUser = await findAuthUserByEmail(admin, email)
     if (!authUser) console.warn('[afterAll] no-consent user not found:', email)
   } catch (e) {
     errors.push(e instanceof Error ? e.message : String(e))

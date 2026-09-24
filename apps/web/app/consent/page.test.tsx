@@ -16,17 +16,17 @@ async function renderPage(searchParams: Record<string, string> = {}) {
 }
 
 describe('ConsentPage', () => {
-  it('passes a validated next path down to the consent form', async () => {
+  it('keeps a safe same-app destination for after consent', async () => {
     await renderPage({ next: '/app/internal-exam' })
     expect(screen.getByTestId('consent-form').dataset.nextPath).toBe('/app/internal-exam')
   })
 
-  it('passes an empty next path when no next param is present', async () => {
+  it('leaves the destination unset when no next param is present', async () => {
     await renderPage()
     expect(screen.getByTestId('consent-form').dataset.nextPath).toBe('')
   })
 
-  it('passes an empty next path when the next param is a hostile open redirect', async () => {
+  it('drops an off-site next destination', async () => {
     await renderPage({ next: '//evil.com' })
     expect(screen.getByTestId('consent-form').dataset.nextPath).toBe('')
   })

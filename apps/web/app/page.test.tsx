@@ -80,12 +80,12 @@ describe('LoginPage', () => {
     expect(screen.getByRole('heading', { name: /lms plus/i })).toBeInTheDocument()
   })
 
-  it('passes a validated next path down to the login form', async () => {
+  it('keeps a safe same-app destination for after login', async () => {
     await renderPage({ next: '/app/internal-exam' })
     expect(screen.getByTestId('login-form').dataset.nextPath).toBe('/app/internal-exam')
   })
 
-  it('passes an empty next path when the next param is a hostile open redirect', async () => {
+  it('drops an off-site next destination', async () => {
     await renderPage({ next: '//evil.com' })
     expect(screen.getByTestId('login-form').dataset.nextPath).toBe('')
   })

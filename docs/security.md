@@ -65,19 +65,23 @@ destination, validated by `safeNextPath()` (`apps/web/lib/auth/safe-next-path.ts
 
 ```ts
 // apps/web/proxy.ts — pattern required (Next.js 16 convention)
-import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { safeNextPath } from '@/lib/auth/safe-next-path'
 
-export async function middleware(request: NextRequest) {
-  // ... supabase session check
-  if (!session && request.nextUrl.pathname.startsWith('/app')) {
-    return NextResponse.redirect(new URL('/', request.url))
+export async function proxy(request: NextRequest) {
+  // ... supabase user check
+  const { pathname, search } = request.nextUrl
+  if (!user && pathname.startsWith('/app')) {
+    const url = new URL('/', request.url)
+    const next = safeNextPath(pathname + search)
+    if (next) url.searchParams.set('next', next)
+    return NextResponse.redirect(url)
   }
 }
 
 export const config = {
-  matcher: ['/app/:path*'],
+  matcher: ['/', '/app/:path*', '/auth/login-complete', '/consent'],
 }
 ```
 
