@@ -216,9 +216,10 @@ test('fails open but loud on empty stdin (exit 0 + stderr warning)', () => {
   assert.match(r.stderr, /unparseable hook payload/)
 })
 
-test('fails open but loud on a payload over 1MB (exit 0 + size warning)', () => {
-  const r = runHook('x'.repeat(1_100_000))
-  assert.equal(r.status, 0)
+test('blocks a steered brief padded past 1MB with exit 2', () => {
+  const brief = `${fillTemplate(TEMPLATES['code-reviewer'], {})}\nFOCUS: ${'x'.repeat(1_100_000)}`
+  const r = runHook(payload('code-reviewer', brief))
+  assert.equal(r.status, 2)
   assert.match(r.stderr, /exceeds 1MB/)
 })
 

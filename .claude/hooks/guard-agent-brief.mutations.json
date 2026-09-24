@@ -108,6 +108,13 @@
         "blocks an implementation-critic brief dispatched with isolation: \"worktree\" with exit 2"
       ],
       "note": "Disables the non-code-review-skill worktree-forbidden check only — a gated type other than code-review-skill dispatched with isolation: \"worktree\" is no longer blocked on that basis."
+    },
+    {
+      "id": "guard-agent-brief-oversize-allows",
+      "find": "process.stderr.write('BLOCKED: Agent payload exceeds 1MB\\n', () => process.exit(2))",
+      "replace": "process.stderr.write('BLOCKED: Agent payload exceeds 1MB\\n', () => process.exit(0))",
+      "expectRed": ["blocks a steered brief padded past 1MB with exit 2"],
+      "note": "Oversize payload exits 0 — a steered brief padded past 1MB bypasses the template check."
     }
   ]
 }

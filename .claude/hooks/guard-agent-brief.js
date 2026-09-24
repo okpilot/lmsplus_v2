@@ -152,10 +152,8 @@ process.stdin.on('data', (chunk) => {
   if (input.length > 1_000_000 && !oversizedPayload) {
     oversizedPayload = true
     process.stdin.destroy()
-    process.stderr.write(
-      '[guard-agent-brief] payload exceeds 1MB — allowing (unparseable-payload policy)\n',
-      () => process.exit(0),
-    )
+    // Fail closed: a gated brief is under 1KB, so only padding reaches 1MB.
+    process.stderr.write('BLOCKED: Agent payload exceeds 1MB\n', () => process.exit(2))
   }
 })
 process.stdin.on('end', () => {
