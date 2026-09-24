@@ -58,7 +58,7 @@ You receive:
    - Edge cases called out in the plan's "Risks" section that are unhandled
 
 6. **Pattern violations**
-   - Diverges from the existing implementation the plan's pattern scan named (a divergence the plan did not name is semantic-reviewer's)
+   - Diverges from how similar code is written elsewhere in the codebase (a new operation's paging, caps, error handling, fallback, retry or filters is semantic-reviewer's)
    - Uses a different error handling pattern than sibling functions
    - Diverges from established runtime or data contracts used by related files
 

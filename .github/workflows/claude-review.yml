@@ -146,7 +146,7 @@ jobs:
             - **Compare new code with the repo's existing code for the same operation.** For each
               helper, query or external-API call the diff adds, search for one already doing that
               job (same SDK method, table or RPC). Flag a difference in paging, caps, error
-              handling or fallbacks the diff does not justify, and a function already over the
+              handling, fallback, retry or filters the diff does not justify, and a function already over the
               `code-style.md` §3 cap that the diff makes longer.
 
             If you cannot establish a finding's premise, say so in the comment instead of asserting it.

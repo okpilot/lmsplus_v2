@@ -22,7 +22,7 @@ Read `git diff origin/master...HEAD`. Ask one question of every line it adds or 
 - **Tests** — a test duplicating another test's assertion.
 - **Docs** — a doc section restating a rule file.
 - **Features** — a whole feature nothing in the requirements asks for.
-- **Duplicates** — new code reimplementing an operation an existing helper already performs with the same paging, caps, error handling, fallback and filters; delete it and import the existing one. A difference in any of those is semantic-reviewer's finding, not a duplicate.
+- **Duplicates** — new code reimplementing an operation an existing helper already performs with the same paging, caps, error handling, fallback, retry and filters; delete it and import the existing one. A difference in any of those is semantic-reviewer's finding, not a duplicate.
 
 ## Never Flag
 
@@ -34,7 +34,7 @@ Every finding carries a pasted `grep`/`git grep`: for dead code, that no caller,
 
 ## Severity
 
-ISSUE (default APPLY) when the evidence proves no loss. SUGGESTION when the loss is a judgment call the evidence cannot settle (e.g. prose that may carry a scope clause). Evidence showing a dependent means no finding — except a duplicate's callers. A duplicate is a SUGGESTION (`code-style.md` §2 extracts at 3 repetitions).
+ISSUE (default APPLY) when the evidence proves no loss. SUGGESTION when the loss is a judgment call the evidence cannot settle (e.g. prose that may carry a scope clause). Evidence showing a dependent means no finding — except a duplicate's callers. A duplicate is a SUGGESTION.
 
 ## Output Format
 

@@ -36,7 +36,7 @@ You receive:
 - Are error cases handled consistently across similar functions?
 - Do new branches/conditions follow the same patterns as existing ones in the same file?
 - Are return types consistent across similar functions?
-- **Existing implementation of the same operation.** For every function, helper, query or external-API call the diff adds, `git grep` the repo for code already doing the same job (same SDK method, table, RPC or endpoint). If one exists, compare its disposition — paging, page cap, error handling, fallback, retry, filters — and flag a difference the diff does not justify as an ISSUE. EVIDENCE: the grep and both excerpts.
+- **Existing implementation of the same operation.** For every function, helper, query or external-API call the diff adds, `git grep` the repo for code already doing the same job (same SDK method, table, RPC or endpoint). If one exists, compare its disposition — paging, caps, error handling, fallback, retry, filters — and flag a difference the diff does not justify as an ISSUE. EVIDENCE: the grep and both excerpts.
 - **Callers of changed code.** For every exported function, type or return shape the diff changes, grep its callers and confirm each still holds. A caller relying on the old behaviour is an ISSUE.
 
 ### 2. Security (mirrors .coderabbit.yaml pre_merge_checks)
