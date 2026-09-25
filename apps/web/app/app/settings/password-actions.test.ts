@@ -2,15 +2,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetUser, mockUpdateUser, mockSignIn, mockRpc, mockClearTempPassword } = vi.hoisted(
-  () => ({
-    mockGetUser: vi.fn(),
-    mockUpdateUser: vi.fn(),
-    mockSignIn: vi.fn(),
-    mockRpc: vi.fn(),
-    mockClearTempPassword: vi.fn(),
-  }),
-)
+const {
+  mockGetUser,
+  mockUpdateUser,
+  mockSignIn,
+  mockRpc,
+  mockClearTempPassword,
+  mockRefuseExpired,
+} = vi.hoisted(() => ({
+  mockGetUser: vi.fn(),
+  mockUpdateUser: vi.fn(),
+  mockSignIn: vi.fn(),
+  mockRpc: vi.fn(),
+  mockClearTempPassword: vi.fn(),
+  mockRefuseExpired: vi.fn(),
+}))
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({
@@ -21,6 +27,11 @@ vi.mock('@repo/db/server', () => ({
 
 vi.mock('@/lib/auth/temp-password', () => ({
   clearTempPassword: (...args: unknown[]) => mockClearTempPassword(...args),
+  refuseIfTempPasswordExpired: (...args: unknown[]) => mockRefuseExpired(...args),
+  TEMP_PASSWORD_EXPIRED_MESSAGE:
+    'Your temporary password has expired. Ask your instructor to send you new login instructions.',
+  RETRY_DIFFERENT_PASSWORD_MESSAGE:
+    'Your password could not be fully updated. Please try again with a different password.',
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -44,6 +55,7 @@ beforeEach(() => {
   vi.resetAllMocks()
   mockRpc.mockResolvedValue({ error: null })
   mockClearTempPassword.mockResolvedValue({ success: true })
+  mockRefuseExpired.mockResolvedValue('ok')
 })
 
 describe('changePassword', () => {
@@ -95,6 +107,51 @@ describe('changePassword', () => {
       expect(result.success).toBe(false)
       if (result.success) return
       expect(result.error).toBe('No email associated with account')
+    })
+  })
+
+  describe('temp-password expiry guard', () => {
+    it('refuses the change and tells the user to ask their instructor when the temp password has expired', async () => {
+      mockAuthenticatedUser()
+      mockRefuseExpired.mockResolvedValue('expired')
+
+      const result = await changePassword(validInput)
+
+      expect(result).toEqual({
+        success: false,
+        error:
+          'Your temporary password has expired. Ask your instructor to send you new login instructions.',
+      })
+      expect(mockSignIn).not.toHaveBeenCalled()
+      expect(mockUpdateUser).not.toHaveBeenCalled()
+      expect(mockClearTempPassword).not.toHaveBeenCalled()
+    })
+
+    it('refuses the change without touching the password when the temp-password state cannot be read', async () => {
+      mockAuthenticatedUser()
+      mockRefuseExpired.mockResolvedValue('error')
+
+      const result = await changePassword(validInput)
+
+      expect(result).toEqual({
+        success: false,
+        error: 'Unable to update password. Please try again.',
+      })
+      expect(mockSignIn).not.toHaveBeenCalled()
+      expect(mockUpdateUser).not.toHaveBeenCalled()
+      expect(mockClearTempPassword).not.toHaveBeenCalled()
+    })
+
+    it('proceeds to verify the current password when the temp-password guard passes', async () => {
+      mockAuthenticatedUser()
+      mockRefuseExpired.mockResolvedValue('ok')
+      mockSignIn.mockResolvedValue({ error: null })
+      mockUpdateUser.mockResolvedValue({ error: null })
+
+      const result = await changePassword(validInput)
+
+      expect(result.success).toBe(true)
+      expect(mockSignIn).toHaveBeenCalled()
     })
   })
 

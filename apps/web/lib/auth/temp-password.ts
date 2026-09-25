@@ -9,6 +9,15 @@ type SupabaseClient =
 
 export type TempPasswordState = 'none' | 'active' | 'expired'
 
+/** Outcome of `refuseIfTempPasswordExpired`: whether a self-service password write may proceed. */
+export type TempPasswordRefusal = 'ok' | 'expired' | 'error'
+
+export const TEMP_PASSWORD_EXPIRED_MESSAGE =
+  'Your temporary password has expired. Ask your instructor to send you new login instructions.'
+
+export const RETRY_DIFFERENT_PASSWORD_MESSAGE =
+  'Your password could not be fully updated. Please try again with a different password.'
+
 type TempPasswordRow = { temp_password_expires_at: string | null }
 
 /**
@@ -52,6 +61,33 @@ export async function expireTempPassword(supabase: SupabaseClient, userId: strin
   if (signOutError) {
     console.error('[expireTempPassword] global sign-out failed:', signOutError.message)
   }
+}
+
+/**
+ * Shared self-defence guard for every Server Action that lets a caller set
+ * their own password (reset, forced-change, and settings change). Reads the
+ * caller's temp-password state and fails closed: a read error refuses the
+ * write just like an actually-expired one, so no self-service path can slip
+ * through on a transient DB failure. On `'expired'` it also scrambles the
+ * password and signs out globally, mirroring the proxy gate's behaviour.
+ */
+export async function refuseIfTempPasswordExpired(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<TempPasswordRefusal> {
+  let state: TempPasswordState
+  try {
+    state = await readTempPasswordState(supabase, userId)
+  } catch (err) {
+    console.error(
+      '[refuseIfTempPasswordExpired] state read error:',
+      err instanceof Error ? err.message : String(err),
+    )
+    return 'error'
+  }
+  if (state !== 'expired') return 'ok'
+  await expireTempPassword(supabase, userId)
+  return 'expired'
 }
 
 /**

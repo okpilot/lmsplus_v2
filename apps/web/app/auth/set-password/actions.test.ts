@@ -21,6 +21,8 @@ vi.mock('@repo/db/server', () => ({
 vi.mock('@/lib/auth/temp-password', () => ({
   readTempPasswordState: (...args: unknown[]) => mockReadTempPasswordState(...args),
   clearTempPassword: (...args: unknown[]) => mockClearTempPassword(...args),
+  RETRY_DIFFERENT_PASSWORD_MESSAGE:
+    'Your password could not be fully updated. Please try again with a different password.',
 }))
 
 // ---- Subject under test --------------------------------------------------------

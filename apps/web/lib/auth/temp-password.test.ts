@@ -16,7 +16,12 @@ vi.mock('@repo/db/admin', () => ({
 
 // ---- Subject under test ---------------------------------------------------
 
-import { clearTempPassword, expireTempPassword, readTempPasswordState } from './temp-password'
+import {
+  clearTempPassword,
+  expireTempPassword,
+  readTempPasswordState,
+  refuseIfTempPasswordExpired,
+} from './temp-password'
 
 // ---- Helpers ----------------------------------------------------------------
 
@@ -140,6 +145,46 @@ describe('expireTempPassword', () => {
     expect(consoleSpy).toHaveBeenCalledWith(
       '[expireTempPassword] global sign-out failed:',
       'session store down',
+    )
+    consoleSpy.mockRestore()
+  })
+})
+
+describe('refuseIfTempPasswordExpired', () => {
+  it('allows the caller through when the temp password is not expired', async () => {
+    const supabase = makeSupabase({
+      fromReturn: { data: { temp_password_expires_at: null }, error: null },
+    })
+
+    await expect(refuseIfTempPasswordExpired(supabase, USER_ID)).resolves.toBe('ok')
+    expect(mockAdminUpdateUserById).not.toHaveBeenCalled()
+  })
+
+  it('scrambles the password and signs out when the temp password has expired', async () => {
+    const past = new Date(Date.now() - 60_000).toISOString()
+    mockAdminUpdateUserById.mockResolvedValue({ error: null })
+    const supabase = makeSupabase({
+      fromReturn: { data: { temp_password_expires_at: past }, error: null },
+    })
+
+    await expect(refuseIfTempPasswordExpired(supabase, USER_ID)).resolves.toBe('expired')
+    expect(mockAdminUpdateUserById).toHaveBeenCalledWith(USER_ID, {
+      password: expect.any(String),
+    })
+    expect(supabase.auth.signOut).toHaveBeenCalledWith({ scope: 'global' })
+  })
+
+  it('refuses without scrambling the password when the state cannot be read', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const supabase = makeSupabase({
+      fromReturn: { data: null, error: { message: 'connection reset' } },
+    })
+
+    await expect(refuseIfTempPasswordExpired(supabase, USER_ID)).resolves.toBe('error')
+    expect(mockAdminUpdateUserById).not.toHaveBeenCalled()
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[refuseIfTempPasswordExpired] state read error:',
+      'Failed to read temp password state: connection reset',
     )
     consoleSpy.mockRestore()
   })

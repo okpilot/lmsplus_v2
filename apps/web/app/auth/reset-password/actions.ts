@@ -4,15 +4,10 @@ import { createServerSupabaseClient } from '@repo/db/server'
 import { NewPasswordSchema } from '@/lib/auth/new-password-schema'
 import {
   clearTempPassword,
-  expireTempPassword,
-  readTempPasswordState,
+  RETRY_DIFFERENT_PASSWORD_MESSAGE,
+  refuseIfTempPasswordExpired,
+  TEMP_PASSWORD_EXPIRED_MESSAGE,
 } from '@/lib/auth/temp-password'
-
-const TEMP_PASSWORD_EXPIRED =
-  'Your temporary password has expired. Ask your instructor to send you new login instructions.'
-
-const RETRY_DIFFERENT_PASSWORD =
-  'Your password could not be fully updated. Please try again with a different password.'
 
 export type ResetOwnPasswordResult =
   | { ok: true }
@@ -41,10 +36,28 @@ export async function resetOwnPassword(raw: unknown): Promise<ResetOwnPasswordRe
     }
   }
 
-  const refusal = await refuseExpiredTempPassword(supabase, user.id)
-  if (refusal) return refusal
+  const refusal = await refuseIfTempPasswordExpired(supabase, user.id)
+  if (refusal === 'expired') {
+    return { ok: false, isSessionMissing: false, message: TEMP_PASSWORD_EXPIRED_MESSAGE }
+  }
+  if (refusal === 'error') {
+    return {
+      ok: false,
+      isSessionMissing: false,
+      message: 'Unable to update password. Please try again.',
+    }
+  }
 
-  const { error } = await supabase.auth.updateUser({ password: parsed.data.password })
+  return finishPasswordReset(supabase, user.id, parsed.data.password)
+}
+
+/** Applies the new password and clears the temp-password flag, signing out on success. */
+async function finishPasswordReset(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+  userId: string,
+  password: string,
+): Promise<ResetOwnPasswordResult> {
+  const { error } = await supabase.auth.updateUser({ password })
   if (error) {
     const isSessionMissing = error.message?.includes('session missing')
     return {
@@ -57,33 +70,11 @@ export async function resetOwnPassword(raw: unknown): Promise<ResetOwnPasswordRe
   }
 
   // A left-armed flag would scramble this password at the next login.
-  const { success: cleared } = await clearTempPassword(user.id)
+  const { success: cleared } = await clearTempPassword(userId)
   if (!cleared) {
-    return { ok: false, isSessionMissing: false, message: RETRY_DIFFERENT_PASSWORD }
+    return { ok: false, isSessionMissing: false, message: RETRY_DIFFERENT_PASSWORD_MESSAGE }
   }
   await supabase.auth.signOut()
 
   return { ok: true }
-}
-
-/** An expired temporary password cannot be replaced here — only an admin resend re-arms it. */
-async function refuseExpiredTempPassword(
-  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
-  userId: string,
-): Promise<ResetOwnPasswordResult | null> {
-  try {
-    if ((await readTempPasswordState(supabase, userId)) !== 'expired') return null
-  } catch (err) {
-    console.error(
-      '[resetOwnPassword] temp password state read error:',
-      err instanceof Error ? err.message : String(err),
-    )
-    return {
-      ok: false,
-      isSessionMissing: false,
-      message: 'Unable to update password. Please try again.',
-    }
-  }
-  await expireTempPassword(supabase, userId)
-  return { ok: false, isSessionMissing: false, message: TEMP_PASSWORD_EXPIRED }
 }

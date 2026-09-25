@@ -1,4 +1,5 @@
 import { createMiddlewareSupabaseClient } from '@repo/db/middleware'
+import type { User } from '@supabase/supabase-js'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { safeNextPath } from '@/lib/auth/safe-next-path'
@@ -56,6 +57,25 @@ function serviceUnavailable(response: NextResponse): NextResponse {
   forwardAntiCacheHeaders(response, unavailable)
   applySecurityHeaders(unavailable)
   return unavailable
+}
+
+/** Pins a mid-quiz session's `__vdpl` cookie so a deploy mid-quiz doesn't break Server Actions. */
+function pinQuizSessionDeployment(opts: {
+  pathname: string
+  user: User | null
+  request: NextRequest
+  response: NextResponse
+}): void {
+  const { pathname, user, request, response } = opts
+  if (!pathname.startsWith('/app/quiz/session') || !user) return
+  const deploymentId = process.env.VERCEL_DEPLOYMENT_ID
+  if (!deploymentId || request.cookies.get('__vdpl')) return
+  response.cookies.set('__vdpl', deploymentId, {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'strict',
+    secure: process.env.NODE_ENV === 'production',
+  })
 }
 
 export async function proxy(request: NextRequest): Promise<Response> {
@@ -160,18 +180,7 @@ export async function proxy(request: NextRequest): Promise<Response> {
     }
   }
 
-  // Pin quiz session to current deployment so mid-quiz deploys don't break Server Actions
-  if (pathname.startsWith('/app/quiz/session') && user) {
-    const deploymentId = process.env.VERCEL_DEPLOYMENT_ID
-    if (deploymentId && !request.cookies.get('__vdpl')) {
-      response.cookies.set('__vdpl', deploymentId, {
-        path: '/',
-        httpOnly: true,
-        sameSite: 'strict',
-        secure: process.env.NODE_ENV === 'production',
-      })
-    }
-  }
+  pinQuizSessionDeployment({ pathname, user, request, response })
 
   // Redirect authenticated users away from login page to dashboard, or to the
   // path they originally requested (e.g. from an emailed /app/... link).

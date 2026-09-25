@@ -6,8 +6,8 @@ import { recordAuthEvent } from '@/lib/audit/record-auth-event'
 import { NewPasswordSchema } from '@/lib/auth/new-password-schema'
 import {
   clearTempPassword,
+  RETRY_DIFFERENT_PASSWORD_MESSAGE,
   readTempPasswordState,
-  type TempPasswordState,
 } from '@/lib/auth/temp-password'
 
 export async function setOwnPassword(raw: unknown): Promise<ActionResult> {
@@ -22,19 +22,42 @@ export async function setOwnPassword(raw: unknown): Promise<ActionResult> {
   } = await supabase.auth.getUser()
   if (authError || !user) return { success: false, error: 'Not authenticated' }
 
-  let state: TempPasswordState
+  const stateResult = await readActiveTempPasswordState(supabase, user.id)
+  if (!stateResult.ok) return stateResult.error
+
+  return finishPasswordSet(supabase, user.id, parsed.data.password)
+}
+
+/** Reads the caller's temp-password state and refuses unless a temp password is active. */
+async function readActiveTempPasswordState(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+  userId: string,
+): Promise<{ ok: true } | { ok: false; error: ActionResult }> {
   try {
-    state = await readTempPasswordState(supabase, user.id)
+    const state = await readTempPasswordState(supabase, userId)
+    if (state !== 'active') {
+      return { ok: false, error: { success: false, error: 'No temporary password to replace.' } }
+    }
+    return { ok: true }
   } catch (err) {
     console.error(
       '[setOwnPassword] Failed to read temp password state:',
       err instanceof Error ? err.message : String(err),
     )
-    return { success: false, error: 'Unable to update password. Please try again.' }
+    return {
+      ok: false,
+      error: { success: false, error: 'Unable to update password. Please try again.' },
+    }
   }
-  if (state !== 'active') return { success: false, error: 'No temporary password to replace.' }
+}
 
-  const { error } = await supabase.auth.updateUser({ password: parsed.data.password })
+/** Applies the new password, clears the temp-password flag, and best-effort audits the change. */
+async function finishPasswordSet(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+  userId: string,
+  password: string,
+): Promise<ActionResult> {
+  const { error } = await supabase.auth.updateUser({ password })
   if (error) {
     console.error('[setOwnPassword] Auth update error:', error.message)
     if (error.code === 'same_password') {
@@ -43,20 +66,16 @@ export async function setOwnPassword(raw: unknown): Promise<ActionResult> {
     return { success: false, error: 'Unable to update password. Please try again.' }
   }
 
-  const { success: cleared } = await clearTempPassword(user.id)
+  const { success: cleared } = await clearTempPassword(userId)
   if (!cleared) {
-    return {
-      success: false,
-      error:
-        'Your password could not be fully updated. Please try again with a different password.',
-    }
+    return { success: false, error: RETRY_DIFFERENT_PASSWORD_MESSAGE }
   }
 
   // Audit the password change (best-effort: the password is already changed, so a
   // failed audit write must not fail the action — log it server-side instead).
   await recordAuthEvent(supabase, {
     eventType: 'user.password_changed',
-    resourceId: user.id,
+    resourceId: userId,
     context: 'setOwnPassword',
   })
 
