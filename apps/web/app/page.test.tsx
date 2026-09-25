@@ -68,6 +68,13 @@ describe('LoginPage', () => {
     )
   })
 
+  it('tells the user their temporary password expired and to ask their instructor', async () => {
+    await renderPage({ error: 'temp_password_expired' })
+    expect(screen.getByTestId('login-form').dataset.initialError).toBe(
+      'Your temporary password has expired. Ask your instructor to send you new login instructions.',
+    )
+  })
+
   it('falls back to a generic message for an unrecognised error code', async () => {
     await renderPage({ error: 'totally_unknown_code' })
     expect(screen.getByTestId('login-form').dataset.initialError).toBe(

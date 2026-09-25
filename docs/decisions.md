@@ -92,3 +92,4 @@
 ## 97 — 2026-09-25 — `anon` holds no INSERT/UPDATE/DELETE/TRUNCATE on public tables and no client role holds TRUNCATE, including through default privileges for new postgres-owned tables. #1366
 ## 98 — 2026-09-25 — `anon` holds no privilege on any public table; `authenticated` holds only table commands a permitting RLS policy allows; new tables default to `authenticated` SELECT only. #1367
 ## 99 — 2026-09-25 — `anon` and PUBLIC hold EXECUTE on no public function; new functions default to `authenticated` EXECUTE. #1367
+## 100 — 2026-09-25 — Forced password change is a navigation gate: proxy (`/app*`) and `/auth/login-complete` read `users.temp_password_expires_at` on every request (read error → 503 / sign-out); active → `/auth/set-password`; expired → Auth password scrambled + global sign-out on that hit; only a successful self `updateUser` clears it (service role); data access stays authorised by RLS. #1367

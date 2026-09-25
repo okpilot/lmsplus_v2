@@ -3,15 +3,9 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ResetPasswordForm } from './reset-password-form'
 
-const mockUpdateUser = vi.fn()
-const mockSignOut = vi.fn().mockResolvedValue({})
-vi.mock('@repo/db/client', () => ({
-  createClient: () => ({
-    auth: {
-      updateUser: mockUpdateUser,
-      signOut: mockSignOut,
-    },
-  }),
+const mockResetOwnPassword = vi.fn()
+vi.mock('../actions', () => ({
+  resetOwnPassword: (...args: unknown[]) => mockResetOwnPassword(...args),
 }))
 
 vi.mock('next/link', () => ({
@@ -22,24 +16,9 @@ vi.mock('next/link', () => ({
   ),
 }))
 
-const assignedHrefs: string[] = []
-Object.defineProperty(window, 'location', {
-  configurable: true,
-  value: {
-    origin: 'http://localhost:3000',
-    get href() {
-      return assignedHrefs[assignedHrefs.length - 1] ?? 'http://localhost:3000/'
-    },
-    set href(val: string) {
-      assignedHrefs.push(val)
-    },
-  },
-})
-
 describe('ResetPasswordForm', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
-    assignedHrefs.length = 0
+    vi.resetAllMocks()
   })
 
   it('renders password and confirm password inputs', () => {
@@ -60,7 +39,7 @@ describe('ResetPasswordForm', () => {
     fireEvent.submit(form)
 
     expect(await screen.findByText(/at least 6 characters/i)).toBeInTheDocument()
-    expect(mockUpdateUser).not.toHaveBeenCalled()
+    expect(mockResetOwnPassword).not.toHaveBeenCalled()
   })
 
   it('shows an error when passwords do not match', async () => {
@@ -74,11 +53,11 @@ describe('ResetPasswordForm', () => {
     fireEvent.submit(form)
 
     expect(await screen.findByText(/passwords do not match/i)).toBeInTheDocument()
-    expect(mockUpdateUser).not.toHaveBeenCalled()
+    expect(mockResetOwnPassword).not.toHaveBeenCalled()
   })
 
   it('shows success confirmation with login link after password update', async () => {
-    mockUpdateUser.mockResolvedValue({ error: null })
+    mockResetOwnPassword.mockResolvedValue({ ok: true })
     const user = userEvent.setup()
     render(<ResetPasswordForm />)
 
@@ -87,15 +66,22 @@ describe('ResetPasswordForm', () => {
     await user.click(screen.getByRole('button', { name: /update password/i }))
 
     await waitFor(() => {
-      expect(mockUpdateUser).toHaveBeenCalledWith({ password: 'newpassword123' })
+      expect(mockResetOwnPassword).toHaveBeenCalledWith({
+        password: 'newpassword123',
+        confirmPassword: 'newpassword123',
+      })
     })
     expect(screen.getByText(/password has been updated successfully/i)).toBeInTheDocument()
     const loginLink = screen.getByRole('link', { name: /sign in with your new password/i })
     expect(loginLink).toHaveAttribute('href', '/auth/reset-password/done')
   })
 
-  it('shows a generic error when updateUser fails', async () => {
-    mockUpdateUser.mockResolvedValue({ error: { message: 'fail' } })
+  it('shows a generic error when the action reports failure', async () => {
+    mockResetOwnPassword.mockResolvedValue({
+      ok: false,
+      isSessionMissing: false,
+      message: 'Unable to update password. Please try again.',
+    })
     const user = userEvent.setup()
     render(<ResetPasswordForm />)
 
@@ -110,8 +96,10 @@ describe('ResetPasswordForm', () => {
   })
 
   it('shows expired session error with link to request new reset when session is missing', async () => {
-    mockUpdateUser.mockResolvedValue({
-      error: { message: 'Auth session missing!' },
+    mockResetOwnPassword.mockResolvedValue({
+      ok: false,
+      isSessionMissing: true,
+      message: 'Your reset link has expired. Please request a new one.',
     })
     const user = userEvent.setup()
     render(<ResetPasswordForm />)

@@ -2,15 +2,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetUser, mockUpdateUser, mockSignIn, mockFrom, mockRevalidatePath, mockRpc } =
-  vi.hoisted(() => ({
-    mockGetUser: vi.fn(),
-    mockUpdateUser: vi.fn(),
-    mockSignIn: vi.fn(),
-    mockFrom: vi.fn(),
-    mockRevalidatePath: vi.fn(),
-    mockRpc: vi.fn(),
-  }))
+const {
+  mockGetUser,
+  mockUpdateUser,
+  mockSignIn,
+  mockFrom,
+  mockRevalidatePath,
+  mockRpc,
+  mockClearTempPassword,
+} = vi.hoisted(() => ({
+  mockGetUser: vi.fn(),
+  mockUpdateUser: vi.fn(),
+  mockSignIn: vi.fn(),
+  mockFrom: vi.fn(),
+  mockRevalidatePath: vi.fn(),
+  mockRpc: vi.fn(),
+  mockClearTempPassword: vi.fn(),
+}))
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({
@@ -21,6 +29,10 @@ vi.mock('@repo/db/server', () => ({
 }))
 
 vi.mock('next/cache', () => ({ revalidatePath: mockRevalidatePath }))
+
+vi.mock('@/lib/auth/temp-password', () => ({
+  clearTempPassword: (...args: unknown[]) => mockClearTempPassword(...args),
+}))
 
 // ---- Subject under test ---------------------------------------------------
 
@@ -58,6 +70,7 @@ function buildUpdateChain({
 beforeEach(() => {
   vi.resetAllMocks()
   mockRpc.mockResolvedValue({ error: null })
+  mockClearTempPassword.mockResolvedValue({ success: true })
 })
 
 describe('updateDisplayName', () => {
@@ -269,6 +282,7 @@ describe('changePassword', () => {
       expect(result.success).toBe(false)
       if (result.success) return
       expect(result.error).toBe('Current password is incorrect')
+      expect(mockClearTempPassword).not.toHaveBeenCalled()
     })
   })
 
@@ -283,6 +297,27 @@ describe('changePassword', () => {
       expect(result.success).toBe(true)
       expect(mockSignIn).toHaveBeenCalledWith({ email: 'test@example.com', password: 'oldpass123' })
       expect(mockUpdateUser).toHaveBeenCalledWith({ password: 'newpass123' })
+    })
+
+    it('clears the temp-password flag after a successful password change', async () => {
+      mockAuthenticatedUser()
+      mockSignIn.mockResolvedValue({ error: null })
+      mockUpdateUser.mockResolvedValue({ error: null })
+
+      await changePassword(validInput)
+
+      expect(mockClearTempPassword).toHaveBeenCalledWith(USER_ID)
+    })
+
+    it('still succeeds when clearing the temp-password flag fails', async () => {
+      mockAuthenticatedUser()
+      mockSignIn.mockResolvedValue({ error: null })
+      mockUpdateUser.mockResolvedValue({ error: null })
+      mockClearTempPassword.mockResolvedValue({ success: false })
+
+      const result = await changePassword(validInput)
+
+      expect(result.success).toBe(true)
     })
 
     it('records a self user.password_changed audit event', async () => {
@@ -329,6 +364,7 @@ describe('changePassword', () => {
       expect(result.success).toBe(false)
       if (result.success) return
       expect(result.error).toBe('Session expired. Please sign in again.')
+      expect(mockClearTempPassword).not.toHaveBeenCalled()
     })
 
     it('returns generic message for other auth errors', async () => {

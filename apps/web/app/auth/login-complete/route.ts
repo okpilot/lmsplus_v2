@@ -2,6 +2,7 @@ import { createServerSupabaseClient } from '@repo/db/server'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { safeNextPath } from '@/lib/auth/safe-next-path'
+import { expireTempPassword, readTempPasswordState } from '@/lib/auth/temp-password'
 import { buildConsentCookieValue, checkConsentStatus } from '@/lib/consent/check-consent'
 import { CONSENT_COOKIE } from '@/lib/consent/versions'
 import { rpc } from '@/lib/supabase-rpc'
@@ -23,6 +24,29 @@ export async function GET(request: NextRequest) {
   const { error } = await rpc(supabase, 'record_login', {})
   if (error) {
     console.error('[login-complete] record_login RPC failed:', error.message)
+  }
+
+  let tempPasswordState: Awaited<ReturnType<typeof readTempPasswordState>>
+  try {
+    tempPasswordState = await readTempPasswordState(supabase, user.id)
+  } catch (err) {
+    console.error(
+      '[login-complete] temp password state read error:',
+      err instanceof Error ? err.message : String(err),
+    )
+    await supabase.auth.signOut()
+    return NextResponse.redirect(new URL('/?error=auth_failed', request.url))
+  }
+
+  if (tempPasswordState === 'expired') {
+    await expireTempPassword(supabase, user.id)
+    return NextResponse.redirect(new URL('/?error=temp_password_expired', request.url))
+  }
+
+  if (tempPasswordState === 'active') {
+    const setPasswordUrl = new URL('/auth/set-password', request.url)
+    if (next) setPasswordUrl.searchParams.set('next', next)
+    return NextResponse.redirect(setPasswordUrl)
   }
 
   const consentStatus = await checkConsentStatus(supabase)

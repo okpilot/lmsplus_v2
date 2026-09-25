@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import type { ActionResult } from '@/lib/action-result'
 import { recordAuthEvent } from '@/lib/audit/record-auth-event'
+import { clearTempPassword } from '@/lib/auth/temp-password'
 
 const UpdateNameSchema = z.object({
   fullName: z.string().trim().min(1, 'Name is required').max(200, 'Name is too long'),
@@ -81,8 +82,9 @@ export async function changePassword(raw: unknown): Promise<ActionResult> {
     return { success: false, error: 'Unable to update password. Please try again.' }
   }
 
-  // Audit the password change (best-effort: the password is already changed, so a
-  // failed audit write must not fail the action — log it server-side instead).
+  // Best-effort: the password is already changed, so a failed clear/audit write
+  // must not fail the action — each logs its own errors server-side instead.
+  await clearTempPassword(user.id)
   await recordAuthEvent(supabase, {
     eventType: 'user.password_changed',
     resourceId: user.id,

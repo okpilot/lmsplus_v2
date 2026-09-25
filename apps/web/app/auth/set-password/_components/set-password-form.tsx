@@ -1,16 +1,14 @@
 'use client'
 
 import { Eye, EyeOff } from 'lucide-react'
-import Link from 'next/link'
 import { useState } from 'react'
 import { z } from 'zod'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { LoadingButton } from '@/components/ui/loading-button'
-import { resetOwnPassword } from '../actions'
-import { ResetSuccess } from './reset-success'
+import { setOwnPassword } from '../actions'
 
-const ResetPasswordSchema = z
+const SetPasswordSchema = z
   .object({
     password: z.string().min(6, 'Password must be at least 6 characters'),
     confirmPassword: z.string(),
@@ -20,31 +18,28 @@ const ResetPasswordSchema = z
     path: ['confirmPassword'],
   })
 
-export function ResetPasswordForm() {
+export function SetPasswordForm({ nextPath }: Readonly<{ nextPath: string | null }>) {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [showRequestLink, setShowRequestLink] = useState(false)
-  const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
 
   async function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
 
-    const result = ResetPasswordSchema.safeParse({ password, confirmPassword })
-    if (!result.success) {
-      setError(result.error.issues[0]?.message ?? 'Invalid input')
+    const parsed = SetPasswordSchema.safeParse({ password, confirmPassword })
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? 'Invalid input')
       return
     }
 
     setLoading(true)
     try {
-      const result2 = await resetOwnPassword(result.data)
-      if (!result2.ok) {
-        setError(result2.message)
-        setShowRequestLink(result2.isSessionMissing)
+      const result = await setOwnPassword(parsed.data)
+      if (!result.success) {
+        setError(result.error)
         return
       }
     } catch {
@@ -54,13 +49,16 @@ export function ResetPasswordForm() {
       setLoading(false)
     }
 
-    setSuccess(true)
+    window.location.assign(nextPath ?? '/app/dashboard')
   }
-
-  if (success) return <ResetSuccess />
 
   return (
     <form noValidate onSubmit={handleSubmit} className="w-full space-y-4">
+      <div className="space-y-1 text-center">
+        <h2 className="text-lg font-medium">Set your password</h2>
+        <p className="text-sm text-muted-foreground">Choose your own password to continue.</p>
+      </div>
+
       <div className="space-y-2">
         <Label htmlFor="password">New password</Label>
         <div className="relative">
@@ -97,29 +95,11 @@ export function ResetPasswordForm() {
         />
       </div>
 
-      {error && (
-        <div className="space-y-1">
-          <p className="text-sm text-destructive">{error}</p>
-          {showRequestLink && (
-            <Link
-              href="/auth/forgot-password"
-              className="text-sm font-medium text-primary hover:underline underline-offset-4"
-            >
-              Request a new reset link
-            </Link>
-          )}
-        </div>
-      )}
+      {error && <p className="text-sm text-destructive">{error}</p>}
 
-      <LoadingButton type="submit" loading={loading} loadingText="Updating..." className="w-full">
-        Update password
+      <LoadingButton type="submit" loading={loading} loadingText="Saving..." className="w-full">
+        Set password
       </LoadingButton>
-
-      <p className="text-center text-sm">
-        <Link href="/" className="text-muted-foreground hover:text-primary">
-          Back to login
-        </Link>
-      </p>
     </form>
   )
 }

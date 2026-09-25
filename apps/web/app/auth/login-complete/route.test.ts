@@ -2,18 +2,34 @@ import { NextRequest } from 'next/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { GET } from './route'
 
-const { mockGetUser, mockRpcHelper, mockCheckConsent } = vi.hoisted(() => ({
+const {
+  mockGetUser,
+  mockRpcHelper,
+  mockCheckConsent,
+  mockReadTempPasswordState,
+  mockExpireTempPassword,
+  mockSignOut,
+} = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
   mockRpcHelper: vi.fn(),
   mockCheckConsent: vi.fn(),
+  mockReadTempPasswordState: vi.fn(),
+  mockExpireTempPassword: vi.fn(),
+  mockSignOut: vi.fn(),
 }))
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({
     auth: {
       getUser: mockGetUser,
+      signOut: mockSignOut,
     },
   }),
+}))
+
+vi.mock('@/lib/auth/temp-password', () => ({
+  readTempPasswordState: mockReadTempPasswordState,
+  expireTempPassword: mockExpireTempPassword,
 }))
 
 // The production code calls rpc() from @/lib/supabase-rpc, which is a typed
@@ -35,6 +51,7 @@ function makeRequest(url: string) {
 describe('GET /auth/login-complete', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockReadTempPasswordState.mockResolvedValue('none')
   })
 
   afterEach(() => {
@@ -156,5 +173,80 @@ describe('GET /auth/login-complete', () => {
       'DB connection lost',
     )
     consoleSpy.mockRestore()
+  })
+
+  describe('temporary-password gate', () => {
+    it('redirects an armed user to set-password carrying the requested next path', async () => {
+      mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+      mockRpcHelper.mockResolvedValue({ data: null, error: null })
+      mockReadTempPasswordState.mockResolvedValue('active')
+
+      const response = await GET(
+        makeRequest('http://localhost:3000/auth/login-complete?next=%2Fapp%2Finternal-exam'),
+      )
+
+      expect(response.status).toBe(307)
+      const location = new URL(response.headers.get('location') ?? '')
+      expect(location.pathname).toBe('/auth/set-password')
+      expect(location.searchParams.get('next')).toBe('/app/internal-exam')
+      expect(mockRpcHelper).toHaveBeenCalledWith(expect.anything(), 'record_login', {})
+      expect(mockCheckConsent).not.toHaveBeenCalled()
+    })
+
+    it('redirects an armed user to set-password with no next param when none was requested', async () => {
+      mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+      mockRpcHelper.mockResolvedValue({ data: null, error: null })
+      mockReadTempPasswordState.mockResolvedValue('active')
+
+      const response = await GET(makeRequest('http://localhost:3000/auth/login-complete'))
+
+      const location = new URL(response.headers.get('location') ?? '')
+      expect(location.pathname).toBe('/auth/set-password')
+      expect(location.searchParams.has('next')).toBe(false)
+    })
+
+    it('expires the temp password and redirects to the expired-password error page', async () => {
+      mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+      mockRpcHelper.mockResolvedValue({ data: null, error: null })
+      mockReadTempPasswordState.mockResolvedValue('expired')
+
+      const response = await GET(makeRequest('http://localhost:3000/auth/login-complete'))
+
+      expect(mockExpireTempPassword).toHaveBeenCalledWith(expect.anything(), 'user-1')
+      expect(response.status).toBe(307)
+      expect(response.headers.get('location')).toBe(
+        'http://localhost:3000/?error=temp_password_expired',
+      )
+      expect(mockRpcHelper).toHaveBeenCalledWith(expect.anything(), 'record_login', {})
+    })
+
+    it('signs out and redirects to the auth-failed error page when the state read fails', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+      mockRpcHelper.mockResolvedValue({ data: null, error: null })
+      mockReadTempPasswordState.mockRejectedValue(new Error('connection reset'))
+
+      const response = await GET(makeRequest('http://localhost:3000/auth/login-complete'))
+
+      expect(mockSignOut).toHaveBeenCalled()
+      expect(response.status).toBe(307)
+      expect(response.headers.get('location')).toBe('http://localhost:3000/?error=auth_failed')
+      expect(mockExpireTempPassword).not.toHaveBeenCalled()
+      expect(mockRpcHelper).toHaveBeenCalledWith(expect.anything(), 'record_login', {})
+      consoleSpy.mockRestore()
+    })
+
+    it('proceeds to the consent check when no temp password is armed', async () => {
+      mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+      mockRpcHelper.mockResolvedValue({ data: null, error: null })
+      mockReadTempPasswordState.mockResolvedValue('none')
+      mockCheckConsent.mockResolvedValue('satisfied')
+
+      const response = await GET(makeRequest('http://localhost:3000/auth/login-complete'))
+
+      expect(mockCheckConsent).toHaveBeenCalled()
+      expect(response.status).toBe(307)
+      expect(new URL(response.headers.get('location') ?? '').pathname).toBe('/app/dashboard')
+    })
   })
 })

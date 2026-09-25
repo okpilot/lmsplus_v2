@@ -2,6 +2,7 @@ import { createMiddlewareSupabaseClient } from '@repo/db/middleware'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { safeNextPath } from '@/lib/auth/safe-next-path'
+import { checkTempPasswordGate } from '@/lib/auth/temp-password-gate'
 import {
   CONSENT_COOKIE,
   CURRENT_PRIVACY_VERSION,
@@ -74,6 +75,18 @@ export async function proxy(request: NextRequest): Promise<Response> {
     return redirect
   }
 
+  // Shared with the admin-role lookup failure below — a DB read failing on a
+  // /app request means the request cannot be authorized either way.
+  function buildServiceUnavailable(): NextResponse {
+    const unavailable = new NextResponse('Service unavailable', { status: 503 })
+    for (const cookie of response.cookies.getAll()) {
+      unavailable.cookies.set(cookie)
+    }
+    forwardAntiCacheHeaders(response, unavailable)
+    applySecurityHeaders(unavailable)
+    return unavailable
+  }
+
   // Recovery sessions can only access /auth/reset-password — block everything else
   const recoveryPending = request.cookies.get('__recovery_pending')?.value === '1'
   if (recoveryPending && user) {
@@ -85,6 +98,21 @@ export async function proxy(request: NextRequest): Promise<Response> {
   if (pathname.startsWith('/app') && !user) {
     const next = safeNextPath(pathname + request.nextUrl.search)
     return redirectWithCookies(withNext(new URL('/', request.url), next))
+  }
+
+  // Temporary-password gate: an armed account must set its own password before
+  // reaching any /app page. DB read on every /app request (no cookie cache).
+  // `/auth/set-password` never matches `/app`, so this gate can't loop into it.
+  if (pathname.startsWith('/app') && user) {
+    const gateResponse = await checkTempPasswordGate({
+      supabase,
+      userId: user.id,
+      requestUrl: request.url,
+      nextPath: safeNextPath(pathname + request.nextUrl.search),
+      buildServiceUnavailable,
+      redirectWithCookies,
+    })
+    if (gateResponse) return gateResponse
   }
 
   // Consent gate: authenticated /app/* users without valid consent → /consent
@@ -114,13 +142,7 @@ export async function proxy(request: NextRequest): Promise<Response> {
 
     if (profileError) {
       console.error('[proxy] admin role lookup error:', profileError.message)
-      const unavailable = new NextResponse('Service unavailable', { status: 503 })
-      for (const cookie of response.cookies.getAll()) {
-        unavailable.cookies.set(cookie)
-      }
-      forwardAntiCacheHeaders(response, unavailable)
-      applySecurityHeaders(unavailable)
-      return unavailable
+      return buildServiceUnavailable()
     }
 
     // Bounce to the student dashboard rather than emitting a bare 403 body: the
@@ -166,5 +188,5 @@ export async function proxy(request: NextRequest): Promise<Response> {
 }
 
 export const config = {
-  matcher: ['/', '/app/:path*', '/auth/login-complete', '/consent'],
+  matcher: ['/', '/app/:path*', '/auth/login-complete', '/auth/set-password', '/consent'],
 }
