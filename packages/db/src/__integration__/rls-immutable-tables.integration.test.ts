@@ -6,9 +6,10 @@ import { seedQuestions, seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
 /**
- * PostgREST + RLS: when a policy like `FOR UPDATE USING (false)` blocks
- * an operation, PostgREST returns success with 0 affected rows (no error).
- * We verify immutability by checking data is unchanged after the attempt.
+ * mig 20260925000300 revokes INSERT/UPDATE/DELETE on these three tables from
+ * `authenticated`, so a student write is now rejected at the privilege layer
+ * (42501) before RLS is ever evaluated. We assert the error code AND verify
+ * data is unchanged, since a code alone doesn't prove the row survived.
  */
 describe('RLS: immutable tables', () => {
   const admin = getAdminClient()
@@ -92,12 +93,15 @@ describe('RLS: immutable tables', () => {
   })
 
   it('cannot UPDATE quiz_session_answers (data unchanged)', async () => {
-    // Attempt to change the selected option
-    await studentClient
+    // Attempt to change the selected option — mig 20260925000300 revokes
+    // UPDATE on quiz_session_answers from authenticated, so this is now
+    // rejected at the privilege layer (42501), not a silent RLS no-op.
+    const { error } = await studentClient
       .from('quiz_session_answers')
       .update({ selected_option_id: 'c' })
       .eq('session_id', sessionId)
       .eq('question_id', questionIds[0])
+    expect(error?.code).toBe('42501')
 
     // Verify original value is intact
     const { data, error: verifyErr } = await admin
@@ -111,11 +115,12 @@ describe('RLS: immutable tables', () => {
   })
 
   it('cannot DELETE quiz_session_answers (row still exists)', async () => {
-    await studentClient
+    const { error } = await studentClient
       .from('quiz_session_answers')
       .delete()
       .eq('session_id', sessionId)
       .eq('question_id', questionIds[0])
+    expect(error?.code).toBe('42501')
 
     const { data, error: verifyErr } = await admin
       .from('quiz_session_answers')
@@ -137,11 +142,12 @@ describe('RLS: immutable tables', () => {
       .single()
     expect(beforeErr).toBeNull()
 
-    await studentClient
+    const { error } = await studentClient
       .from('student_responses')
       .update({ selected_option_id: 'c' })
       .eq('session_id', sessionId)
       .eq('question_id', questionIds[0])
+    expect(error?.code).toBe('42501')
 
     const { data: after, error: afterErr } = await admin
       .from('student_responses')
@@ -162,11 +168,12 @@ describe('RLS: immutable tables', () => {
       .eq('question_id', questionIds[0])
     expect(beforeErr).toBeNull()
 
-    await studentClient
+    const { error } = await studentClient
       .from('student_responses')
       .delete()
       .eq('session_id', sessionId)
       .eq('question_id', questionIds[0])
+    expect(error?.code).toBe('42501')
 
     const { data: after, error: afterErr } = await admin
       .from('student_responses')
@@ -189,9 +196,14 @@ describe('RLS: immutable tables', () => {
     // Previous expect guarantees events is non-empty
     const original = events![0]!
 
-    // Student attempts to update (students can't even read audit_events,
-    // so RLS blocks the update silently)
-    await studentClient.from('audit_events').update({ event_type: 'hacked' }).eq('id', original.id)
+    // Student attempts to update. mig 20260925000300 revokes UPDATE on
+    // audit_events from authenticated, so this is rejected at the privilege
+    // layer (42501) before RLS is ever evaluated.
+    const { error } = await studentClient
+      .from('audit_events')
+      .update({ event_type: 'hacked' })
+      .eq('id', original.id)
+    expect(error?.code).toBe('42501')
 
     const { data: after, error: afterErr } = await admin
       .from('audit_events')
@@ -214,7 +226,8 @@ describe('RLS: immutable tables', () => {
     // Previous expect guarantees events is non-empty
     const eventId = events![0]!.id
 
-    await studentClient.from('audit_events').delete().eq('id', eventId)
+    const { error } = await studentClient.from('audit_events').delete().eq('id', eventId)
+    expect(error?.code).toBe('42501')
 
     const { data: after, error: afterErr } = await admin
       .from('audit_events')

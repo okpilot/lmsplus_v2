@@ -2,12 +2,14 @@
  * Red Team Spec: Unauthenticated Direct Table SELECT Vectors
  *
  * Exercises the subset of Vectors B+E that read tables directly (not via RPC)
- * using an unauthenticated anon-key client (no JWT). Every table's RLS must
- * return 0 rows or an error; no victim data may leak.
+ * using an unauthenticated anon-key client (no JWT). Every SELECT below must
+ * be denied at the privilege layer (mig `20260925000300`: `REVOKE ALL ON ALL
+ * TABLES IN SCHEMA public FROM anon`) — 42501, "permission denied for table/
+ * view …" — never a silent 0-row RLS result; no victim data may leak.
  *
  * Split from server-action-unauthenticated.spec.ts to stay within the 500-line
  * cap (code-style.md §1). RPC vectors remain in the original file.
- * Status: Expected to PASS (anon key + RLS should block everything).
+ * Status: Expected to PASS (anon key should be rejected at the privilege layer).
  */
 
 import { expect, test } from '@playwright/test'
@@ -18,6 +20,7 @@ import { seedUnauthFixtures } from './helpers/seed-unauth-fixtures'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://localhost:54321'
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const PERMISSION_DENIED = /permission denied for (table|view)/i
 
 // Unauthenticated client — anon key only, no sign-in, no JWT
 const unauthClient = createClient(SUPABASE_URL, ANON_KEY, {
@@ -46,10 +49,10 @@ test.describe('Red Team: Unauthenticated Direct Table SELECT Access', () => {
 
   // --- Direct table SELECT vectors ---
 
-  test('unauthenticated client sees 0 rows from student_responses', async () => {
+  test('unauthenticated client is denied SELECT on student_responses', async () => {
     // Non-vacuous (code-style.md §7): confirm the victim's responses exist via the
-    // admin client before the anon probe — a 0-row anon result proves RLS is blocking,
-    // not that the table is empty.
+    // admin client before the anon probe — a denial on an empty table would prove
+    // nothing about the privilege layer.
     const { data: adminRows, error: adminErr } = await adminClient
       .from('student_responses')
       .select('id')
@@ -58,12 +61,12 @@ test.describe('Red Team: Unauthenticated Direct Table SELECT Access', () => {
     expect(adminErr).toBeNull()
     expect((adminRows ?? []).length).toBeGreaterThan(0)
 
-    const { data, error } = await unauthClient.from('student_responses').select('*').limit(10)
-    expect(error).toBeNull() // RLS returns empty, not an error
-    expect(data?.length ?? 0).toBe(0)
+    const { error } = await unauthClient.from('student_responses').select('*').limit(10)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(PERMISSION_DENIED)
   })
 
-  test('unauthenticated client sees 0 rows from quiz_sessions', async () => {
+  test('unauthenticated client is denied SELECT on quiz_sessions', async () => {
     // Non-vacuous: confirm the victim's seeded session exists via the admin client.
     const { data: adminRows, error: adminErr } = await adminClient
       .from('quiz_sessions')
@@ -74,12 +77,12 @@ test.describe('Red Team: Unauthenticated Direct Table SELECT Access', () => {
     expect(adminErr).toBeNull()
     expect((adminRows ?? []).length).toBeGreaterThan(0)
 
-    const { data, error } = await unauthClient.from('quiz_sessions').select('*').limit(10)
-    expect(error).toBeNull()
-    expect(data?.length ?? 0).toBe(0)
+    const { error } = await unauthClient.from('quiz_sessions').select('*').limit(10)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(PERMISSION_DENIED)
   })
 
-  test('unauthenticated client sees 0 rows from users', async () => {
+  test('unauthenticated client is denied SELECT on users', async () => {
     // Non-vacuous: confirm the victim user exists via the admin client.
     const { data: adminRows, error: adminErr } = await adminClient
       .from('users')
@@ -90,12 +93,12 @@ test.describe('Red Team: Unauthenticated Direct Table SELECT Access', () => {
     expect(adminErr).toBeNull()
     expect((adminRows ?? []).length).toBeGreaterThan(0)
 
-    const { data, error } = await unauthClient.from('users').select('id, email').limit(10)
-    expect(error).toBeNull()
-    expect(data?.length ?? 0).toBe(0)
+    const { error } = await unauthClient.from('users').select('id, email').limit(10)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(PERMISSION_DENIED)
   })
 
-  test('unauthenticated client sees 0 rows from questions (correct answers must not leak)', async () => {
+  test('unauthenticated client is denied SELECT on questions (correct answers must not leak)', async () => {
     // Non-vacuous: confirm the known question exists via the admin client.
     const { data: adminRows, error: adminErr } = await adminClient
       .from('questions')
@@ -106,12 +109,12 @@ test.describe('Red Team: Unauthenticated Direct Table SELECT Access', () => {
     expect(adminErr).toBeNull()
     expect((adminRows ?? []).length).toBeGreaterThan(0)
 
-    const { data, error } = await unauthClient.from('questions').select('id').limit(10)
-    expect(error).toBeNull()
-    expect(data?.length ?? 0).toBe(0)
+    const { error } = await unauthClient.from('questions').select('id').limit(10)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(PERMISSION_DENIED)
   })
 
-  test('unauthenticated client sees 0 rows from quiz_session_answers', async () => {
+  test('unauthenticated client is denied SELECT on quiz_session_answers', async () => {
     // Non-vacuous: confirm the victim session's answers exist via the admin client.
     const { data: adminRows, error: adminErr } = await adminClient
       .from('quiz_session_answers')
@@ -121,12 +124,12 @@ test.describe('Red Team: Unauthenticated Direct Table SELECT Access', () => {
     expect(adminErr).toBeNull()
     expect((adminRows ?? []).length).toBeGreaterThan(0)
 
-    const { data, error } = await unauthClient.from('quiz_session_answers').select('*').limit(10)
-    expect(error).toBeNull()
-    expect(data?.length ?? 0).toBe(0)
+    const { error } = await unauthClient.from('quiz_session_answers').select('*').limit(10)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(PERMISSION_DENIED)
   })
 
-  test('unauthenticated client sees 0 rows from audit_events', async () => {
+  test('unauthenticated client is denied SELECT on audit_events', async () => {
     // Non-vacuous: confirm audit rows for the victim session exist via the admin client.
     const { data: adminRows, error: adminErr } = await adminClient
       .from('audit_events')
@@ -137,12 +140,12 @@ test.describe('Red Team: Unauthenticated Direct Table SELECT Access', () => {
     expect(adminErr).toBeNull()
     expect((adminRows ?? []).length).toBeGreaterThan(0)
 
-    const { data, error } = await unauthClient.from('audit_events').select('*').limit(10)
-    expect(error).toBeNull()
-    expect(data?.length ?? 0).toBe(0)
+    const { error } = await unauthClient.from('audit_events').select('*').limit(10)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(PERMISSION_DENIED)
   })
 
-  test('unauthenticated client sees 0 rows from question_comments', async () => {
+  test('unauthenticated client is denied SELECT on question_comments', async () => {
     // Non-vacuous: confirm the seeded victim comment exists via the admin client.
     const { data: adminRows, error: adminErr } = await adminClient
       .from('question_comments')
@@ -153,18 +156,15 @@ test.describe('Red Team: Unauthenticated Direct Table SELECT Access', () => {
     expect(adminErr).toBeNull()
     expect((adminRows ?? []).length).toBeGreaterThan(0)
 
-    const { data, error } = await unauthClient.from('question_comments').select('*').limit(10)
-
-    expect(error).toBeNull() // RLS returns empty, not an error
-    expect(data?.length ?? 0).toBe(0)
+    const { error } = await unauthClient.from('question_comments').select('*').limit(10)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(PERMISSION_DENIED)
   })
 
-  test('unauthenticated client sees 0 rows from flagged_questions even when victim data exists (#276 Vector P)', async () => {
+  test('unauthenticated client is denied SELECT on flagged_questions even when victim data exists (#276 Vector P)', async () => {
     // Non-vacuous (code-style.md §7): first confirm via the admin client that the
-    // seeded victim flag row is actually there — otherwise 0 rows for anon could
-    // mean the table is simply empty, not that RLS is blocking.
-    // RLS policy (mig 050): FOR SELECT USING (student_id = auth.uid()).
-    // An anon client has auth.uid() = NULL → student_id = NULL is always false → 0 rows.
+    // seeded victim flag row is actually there — otherwise a denial for anon could
+    // mean the table is simply empty, not that the privilege layer is blocking.
     const { data: adminRows, error: adminErr } = await adminClient
       .from('flagged_questions')
       .select('student_id')
@@ -174,17 +174,17 @@ test.describe('Red Team: Unauthenticated Direct Table SELECT Access', () => {
     // Confirm the seeded row exists (non-vacuity).
     expect((adminRows ?? []).length).toBeGreaterThan(0)
 
-    // Anon client must see 0 rows despite the victim row existing.
-    const { data, error } = await unauthClient.from('flagged_questions').select('*').limit(10)
-    expect(error).toBeNull()
-    expect(data?.length ?? 0).toBe(0)
+    // Anon client must be denied at the privilege layer despite the victim row existing.
+    const { error } = await unauthClient.from('flagged_questions').select('*').limit(10)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(PERMISSION_DENIED)
   })
 
-  test('unauthenticated client sees 0 rows from easa_topics — fetchTopicsWithSubtopics underlying query blocked (#276 Vector S)', async () => {
+  test('unauthenticated client is denied SELECT on easa_topics — fetchTopicsWithSubtopics underlying query blocked (#276 Vector S)', async () => {
     // fetchTopicsWithSubtopics Server Action (apps/web/app/app/quiz/actions/lookup.ts)
     // calls requireAuthUser() (redirect guard) then getTopicsWithSubtopics(), which
-    // queries easa_topics. RLS policy (mig 001): FOR SELECT USING (auth.uid() IS NOT NULL).
-    // An anon client has auth.uid() = NULL → policy false → 0 rows returned.
+    // queries easa_topics. Mig 20260925000300 revokes anon's SELECT on every public
+    // table, so an anon client is rejected before RLS is ever evaluated.
     //
     // Non-vacuous: first confirm via admin that the subject's topics exist.
     const { data: adminTopics, error: adminTopicsErr } = await adminClient
@@ -196,26 +196,27 @@ test.describe('Red Team: Unauthenticated Direct Table SELECT Access', () => {
     // Confirm topics exist for the known subject (non-vacuity).
     expect((adminTopics ?? []).length).toBeGreaterThan(0)
 
-    // Anon client must see 0 rows from easa_topics.
-    const { data, error } = await unauthClient
+    // Anon client must be denied SELECT on easa_topics.
+    const { error } = await unauthClient
       .from('easa_topics')
       .select('id')
       .eq('subject_id', knownSubjectId)
-    expect(error).toBeNull()
-    expect((data ?? []).length).toBe(0)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(PERMISSION_DENIED)
   })
 
   test('unauthenticated client cannot insert into question_comments', async () => {
     // user_id is a syntactically valid but non-existent user. anon holds no
-    // INSERT privilege (mig 20260925000200), so the privilege check rejects the
-    // write with 42501 before RLS or the FK is evaluated.
+    // INSERT privilege (mig 20260925000200, superseded by 20260925000300),
+    // so the privilege check rejects the write with 42501 before RLS or the
+    // FK is evaluated.
     const { error } = await unauthClient.from('question_comments').insert({
       question_id: knownQuestionId,
       user_id: '00000000-0000-4000-a000-0000000000ff',
       body: 'redteam-unauth-insert',
     })
     expect(error?.code).toBe('42501')
-    expect(error?.message ?? '').toMatch(/permission denied for table/i)
+    expect(error?.message ?? '').toMatch(PERMISSION_DENIED)
   })
 
   // Hermetic cleanup (code-style.md §7): a teardown failure FAILS the suite.

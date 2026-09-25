@@ -144,18 +144,19 @@ test.describe('Red Team: deleteComment cross-user IDOR (Vector P)', () => {
 
   test('no UPDATE policy: a comment cannot be edited, even by its owner', async () => {
     // question_comments has SELECT/INSERT/DELETE policies but NO UPDATE policy
-    // (mig 049). Under RLS default-deny, an UPDATE matches zero rows and is a
-    // silent 0-row no-op (not 42501). Pinning this invariant means a future
-    // migration that adds a permissive UPDATE policy would fail this test.
+    // (mig 049), and mig 20260925000300 additionally revokes table-level UPDATE
+    // from authenticated — so the write is now denied at the privilege layer
+    // (42501) before RLS is ever evaluated. Pinning this invariant means a
+    // future migration that re-adds UPDATE would fail this test.
     const commentId = await seedVictimComment()
 
-    const { data: updated, error: updErr } = await victimClient
+    const { error: updErr } = await victimClient
       .from('question_comments')
       .update({ body: 'edited by owner' })
       .eq('id', commentId)
       .select('id')
-    expect(updErr).toBeNull()
-    expect(updated ?? []).toHaveLength(0)
+    expect(updErr?.code).toBe('42501')
+    expect(updErr?.message ?? '').toMatch(/permission denied for (table|view)/i)
 
     const { data: row, error: checkErr } = await admin
       .from('question_comments')

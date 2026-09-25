@@ -17,6 +17,10 @@ import { VICTIM_EMAIL, VICTIM_PASSWORD } from './helpers/seed-users'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://localhost:54321'
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+// SECURITY INVOKER RPCs run as anon; mig 20260925000300 revokes anon's SELECT
+// on every public table, so their underlying reads now fail at the privilege
+// layer (42501) before RLS is ever reached.
+const PERMISSION_DENIED = /permission denied for (table|view)/i
 
 // Unauthenticated client — anon key only, no sign-in, no JWT
 const unauthClient = createClient(SUPABASE_URL, ANON_KEY, {
@@ -160,35 +164,37 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
     expect(data ?? null).toBeNull()
   })
 
-  test('get_student_mastery_stats returns an empty set for an unauthenticated caller', async () => {
-    // BW1: anon-key client has no JWT → RLS scopes to empty; RPC must not raise.
+  test('get_student_mastery_stats is denied for an unauthenticated caller', async () => {
+    // BW1
     const { data, error } = await unauthClient.rpc('get_student_mastery_stats')
-    expect(error).toBeNull()
-    expect(Array.isArray(data) ? data.length : 0).toBe(0)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(PERMISSION_DENIED)
+    expect(data ?? null).toBeNull()
   })
 
-  test('get_question_counts returns an empty set for an unauthenticated caller', async () => {
-    // CA: named param required; anon → RLS returns empty, no error.
+  test('get_question_counts is denied for an unauthenticated caller', async () => {
+    // CA: named param required.
     const { data, error } = await unauthClient.rpc('get_question_counts', { p_status: 'active' })
-    expect(error).toBeNull()
-    expect(Array.isArray(data) ? data.length : 0).toBe(0)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(PERMISSION_DENIED)
+    expect(data ?? null).toBeNull()
   })
 
-  test('get_student_last_practiced returns an empty set for an unauthenticated caller', async () => {
-    // BX2: anon → RLS filters out all student_responses rows; array must be empty.
+  test('get_student_last_practiced is denied for an unauthenticated caller', async () => {
+    // BX2
     const { data, error } = await unauthClient.rpc('get_student_last_practiced')
-    expect(error).toBeNull()
-    expect(Array.isArray(data) ? data.length : 0).toBe(0)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(PERMISSION_DENIED)
+    expect(data ?? null).toBeNull()
   })
 
-  test('get_student_streak returns a single zeroed row for an unauthenticated caller', async () => {
-    // BX1: this RPC always returns exactly ONE {current_streak, best_streak} row via a
-    // scalar-subquery shape — it is NOT empty even for anon. Anon gets {0, 0}.
+  test('get_student_streak is denied for an unauthenticated caller', async () => {
+    // BX1: previously a scalar-subquery shape returned one zeroed row even for
+    // anon; the users read behind it is now denied before that row is built.
     const { data, error } = await unauthClient.rpc('get_student_streak')
-    expect(error).toBeNull()
-    expect(data).toHaveLength(1)
-    expect(data?.[0]?.current_streak).toBe(0)
-    expect(data?.[0]?.best_streak).toBe(0)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(PERMISSION_DENIED)
+    expect(data ?? null).toBeNull()
   })
 
   test('start_exam_session rejects unauthenticated callers (Vector AG, #545)', async () => {
@@ -294,11 +300,8 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
     expect(data ?? null).toBeNull()
   })
 
-  test('get_random_question_ids returns an empty set for an unauthenticated caller (Vector CA, #689)', async () => {
-    // SECURITY INVOKER → runs as the anon role. _filtered_question_pool reads
-    // questions under tenant_isolation RLS; with auth.uid() NULL the org scope is
-    // empty, so a REAL subject with active questions yields 0 ids (proving RLS
-    // blocks, not table emptiness). No RAISE on this path — empty set, no error.
+  test('get_random_question_ids is denied for an unauthenticated caller (Vector CA, #689)', async () => {
+    // _filtered_question_pool also joins active_flagged_questions.
     const { data, error } = await unauthClient.rpc('get_random_question_ids', {
       p_subject_id: knownSubjectId,
       p_topic_ids: null,
@@ -306,8 +309,9 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
       p_count: 10,
       p_filters: null,
     })
-    expect(error).toBeNull()
-    expect(Array.isArray(data) ? data.length : 0).toBe(0)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(PERMISSION_DENIED)
+    expect(data ?? null).toBeNull()
   })
 
   test('rejects an unauthenticated get_study_questions call (#1005)', async () => {
@@ -325,17 +329,17 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
     expect(data).toBeNull()
   })
 
-  test('get_filtered_question_counts returns an empty set for an unauthenticated caller (Vector CA, #689)', async () => {
-    // Same SECURITY INVOKER + tenant_isolation empty-set defense as
-    // get_random_question_ids — anon enumerates no per-topic counts.
+  test('get_filtered_question_counts is denied for an unauthenticated caller (Vector CA, #689)', async () => {
+    // Same SECURITY INVOKER shape as get_random_question_ids above.
     const { data, error } = await unauthClient.rpc('get_filtered_question_counts', {
       p_subject_id: knownSubjectId,
       p_topic_ids: null,
       p_subtopic_ids: null,
       p_filters: null,
     })
-    expect(error).toBeNull()
-    expect(Array.isArray(data) ? data.length : 0).toBe(0)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(PERMISSION_DENIED)
+    expect(data ?? null).toBeNull()
   })
 
   test('check_consent_status rejects unauthenticated callers (Vector W, #384)', async () => {
