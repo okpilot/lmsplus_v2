@@ -128,14 +128,11 @@ import {
   E2E_REDTEAM_TW_PASSWORD as PASSWORD,
 } from './helpers/seed-markers'
 
-/** PostgREST surfaces an RLS WITH CHECK violation as 42501. */
-const RLS_VIOLATION = '42501'
 /**
  * mig 20260925000300 revokes INSERT/UPDATE/DELETE on all four tables from
- * authenticated — every UPDATE/DELETE arm below is now denied at the
- * privilege layer (same 42501 code, "permission denied for table" message),
- * before RLS is ever evaluated. The message, not just the code, is what
- * tells the two layers apart.
+ * authenticated — every write arm below is denied at the privilege layer
+ * (42501, "permission denied for table") before RLS is evaluated. An RLS
+ * WITH CHECK failure is also 42501: the message tells the two layers apart.
  */
 const PERMISSION_DENIED = /permission denied for (table|view)/i
 
@@ -462,7 +459,8 @@ test.describe('Red Team: direct writes to the tenant tables (Vector FJ)', () => 
       subject: `${MARKER} subject`,
       created_by: studentAId,
     })
-    expect(error?.code).toBe(RLS_VIOLATION)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(PERMISSION_DENIED)
 
     const { data: created, error: readError } = await adminClient
       .from('courses')
@@ -520,7 +518,8 @@ test.describe('Red Team: direct writes to the tenant tables (Vector FJ)', () => 
       subject: `${MARKER} subject`,
       created_by: studentAId,
     })
-    expect(error?.code).toBe(RLS_VIOLATION)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(PERMISSION_DENIED)
 
     const { data: created, error: readError } = await adminClient
       .from('lessons')
@@ -579,7 +578,8 @@ test.describe('Red Team: direct writes to the tenant tables (Vector FJ)', () => 
       name: marker,
       created_by: studentBId,
     })
-    expect(error?.code).toBe(RLS_VIOLATION)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(PERMISSION_DENIED)
 
     const { data: created, error: readError } = await adminClient
       .from('question_banks')
@@ -680,18 +680,17 @@ test.describe('Red Team: direct writes to the tenant tables (Vector FJ)', () => 
     // ERROR-CODE FLIP arm (see header): pre-fix this was a PK collision,
     // because organizations' WITH CHECK constrains the primary key itself, so
     // the only row satisfying it is one whose id already exists. Post-fix there
-    // is no INSERT policy at all, so it is refused as 42501 first.
+    // is no INSERT privilege at all, so it is refused as 42501 first.
     const { error } = await studentA
       .from('organizations')
       .insert({ id: orgAId, name: `${MARKER} forged org`, slug: `${MARKER}-forged-${Date.now()}` })
-    expect(error?.code).toBe(RLS_VIOLATION)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(PERMISSION_DENIED)
   })
 
   test('a student cannot delete their own organisation', async () => {
-    // ERROR-CODE FLIP arm (see header): pre-fix the policy passed and 23503
-    // rejected, because 11 NOT NULL child FKs reference organizations — the
-    // attacker's own users row among them. Post-fix the row never matches, so
-    // it is a silent 0-row no-op and no FK check is reached at all.
+    // Pre-fix the policy passed and a child FK raised 23503; now the privilege
+    // layer denies DELETE before RLS or any FK check is reached.
     const { error: deleteError } = await studentA
       .from('organizations')
       .delete()
@@ -722,7 +721,8 @@ test.describe('Red Team: direct writes to the tenant tables (Vector FJ)', () => 
       subject: `${MARKER} subject`,
       created_by: studentAId,
     })
-    expect(error?.code).toBe(RLS_VIOLATION)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(PERMISSION_DENIED)
 
     const { data: created, error: readError } = await adminClient
       .from('courses')

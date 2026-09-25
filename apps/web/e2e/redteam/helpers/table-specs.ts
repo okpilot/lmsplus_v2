@@ -33,10 +33,14 @@ export async function deriveTableSpecs(): Promise<TableSpec[]> {
     },
   })
   if (!res.ok) throw new Error(`OpenAPI root fetch failed: ${res.status} ${res.statusText}`)
-  const body = (await res.json()) as {
-    definitions?: Record<string, { properties?: Record<string, { format?: string }> }>
-  }
-  const definitions = body.definitions ?? {}
+  const body: unknown = await res.json()
+  const raw =
+    typeof body === 'object' && body !== null
+      ? (body as { definitions?: unknown }).definitions
+      : undefined
+  if (typeof raw !== 'object' || raw === null)
+    throw new Error('OpenAPI root has no definitions object')
+  const definitions = raw as Record<string, { properties?: Record<string, { format?: string }> }>
 
   return Object.entries(definitions).map(([name, def]) => {
     const props = def.properties ?? {}
