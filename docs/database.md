@@ -938,6 +938,8 @@ END;
 $$;
 ```
 
+`anon` holds no INSERT/UPDATE/DELETE/TRUNCATE and `authenticated` holds no TRUNCATE on any public table (migration `20260925000200`, default privileges too); `authenticated` still holds INSERT/UPDATE/DELETE (#1367).
+
 ### The Core RPCs
 
 #### `get_quiz_questions` — strips correct answers

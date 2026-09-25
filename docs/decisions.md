@@ -89,3 +89,4 @@
 ## 94 — 2026-09-24 — deletion-reviewer runs every round of the pre-push gate; the brief guard enforces each gated agent's pipeline.json model alias, blocks SendMessage to a gated agent and a named gated dispatch, and gives implementation-critic a {requirements} slot. #1363
 ## 95 — 2026-09-25 — The brief guard blocks a gate brief's template opening anywhere in an Agent prompt for an ungated or missing subagent_type, and in a SendMessage to any non-gated recipient. #1364
 ## 96 — 2026-09-25 — Login instructions carry a server-generated temporary password with a 7-day expiry; the forced-change and expiry state live in server-owned `users` columns (`login_instructions_sent_at`, `temp_password_expires_at`), not `user_metadata`. #1365
+## 97 — 2026-09-25 — `anon` holds only SELECT on public tables and no client role holds TRUNCATE, including through default privileges for new tables. #1366
