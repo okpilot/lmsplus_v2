@@ -206,15 +206,16 @@ test.describe('Red Team: Unauthenticated Direct Table SELECT Access', () => {
   })
 
   test('unauthenticated client cannot insert into question_comments', async () => {
-    // user_id is a syntactically valid but non-existent user. RLS WITH CHECK
-    // (user_id = auth.uid()) fires first (auth.uid() is NULL for anon), so the
-    // rejection carries the RLS code 42501 — not a downstream FK violation.
+    // user_id is a syntactically valid but non-existent user. anon holds no
+    // INSERT privilege (mig 20260925000200), so the privilege check rejects the
+    // write with 42501 before RLS or the FK is evaluated.
     const { error } = await unauthClient.from('question_comments').insert({
       question_id: knownQuestionId,
       user_id: '00000000-0000-4000-a000-0000000000ff',
       body: 'redteam-unauth-insert',
     })
     expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(/permission denied for table/i)
   })
 
   // Hermetic cleanup (code-style.md §7): a teardown failure FAILS the suite.
