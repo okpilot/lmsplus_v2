@@ -8,7 +8,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { after, test } from 'node:test'
-import { cleanupFixtures, exactBrief, runHook } from './guard-agent-brief.testkit.mjs'
+import { cleanupFixtures, EMPTY_ROOT, exactBrief, runHook } from './guard-agent-brief.testkit.mjs'
 
 // SendMessage fixture — a session directory carrying subagent `meta.json` files, the shape
 // `resolveSendMessageType` reads:
@@ -139,4 +139,11 @@ test('blocks a gate brief sent to a plain agent name with exit 2', () => {
   const r = runHook(sendPayload('general-purpose', {}, `FYI:\n${exactBrief('deletion-reviewer')}`))
   assert.equal(r.status, 2)
   assert.match(r.stderr, /contains a gate-reviewer brief/)
+})
+
+// GROUP: guard-agent-brief-templates-unreadable-allows, guard-agent-brief-sendmessage-brief-check-disabled
+test('blocks a SendMessage to a plain agent name with exit 2 when the templates file has no templates object', () => {
+  const r = runHook(sendPayload('main'), EMPTY_ROOT)
+  assert.equal(r.status, 2)
+  assert.match(r.stderr, /supplies no gate template openings/)
 })

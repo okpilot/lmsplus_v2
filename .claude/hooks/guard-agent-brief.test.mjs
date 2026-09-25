@@ -305,6 +305,19 @@ test('blocks a gate brief dispatched with no subagent_type with exit 2', () => {
   assert.match(r.stderr, /BLOCKED: Agent brief contains a gate-reviewer brief/)
 })
 
+// GROUP: guard-agent-brief-templates-unreadable-allows, guard-agent-brief-gated-scope-disabled, guard-agent-brief-ungated-brief-check-disabled
+test('blocks an ungated type with exit 2 when the templates file has no templates object', () => {
+  const r = runHook(payload('Explore', 'anything'), EMPTY_ROOT)
+  assert.equal(r.status, 2)
+  assert.match(r.stderr, /supplies no gate template openings/)
+})
+
+// GROUP: guard-agent-brief-templates-unreadable-allows, guard-agent-brief-missing-type-check-disabled
+test('blocks a call with no subagent_type with exit 2 when the templates file has no templates object', () => {
+  const r = runHook(payload(undefined, 'anything'), EMPTY_ROOT)
+  assert.equal(r.status, 2)
+})
+
 test('allows a call with no subagent_type and an ordinary prompt', () => {
   const r = runHook(payload(undefined, 'go explore the repo'))
   assert.equal(r.status, 0)

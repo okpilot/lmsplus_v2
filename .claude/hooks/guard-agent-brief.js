@@ -98,6 +98,8 @@ const BLOCK_MESSAGES = {
     'targets an agent id whose type cannot be resolved (missing transcript_path/session_id, or an unreadable meta.json) — fails closed',
   'sendmessage-gated':
     'targets an agent id whose type is gated — a gated agent takes no message outside its own template-checked brief',
+  'templates-unreadable':
+    'cannot be checked — .claude/hooks/gate-briefs.json supplies no gate template openings; fails closed',
   'gate-brief-ungated':
     'contains a gate-reviewer brief sent to an ungated recipient — dispatch it through the matching gated subagent_type instead',
 }
@@ -237,11 +239,13 @@ function gatePrefixes(templates) {
     .filter((p) => p !== '')
 }
 
-/** `'gate-brief-ungated'` when `text` contains any gate brief's opening, else `null`. Unreadable
- * templates give no openings, so nothing blocks here; every gated dispatch blocks in `loadTemplates`. */
+/** `'gate-brief-ungated'` when `text` contains any gate brief's opening, `'templates-unreadable'`
+ * when the templates supply no opening to check against, else `null`. */
 function gateBriefReason(text, templates) {
+  const prefixes = gatePrefixes(templates)
+  if (prefixes.length === 0) return 'templates-unreadable'
   if (typeof text !== 'string') return null
-  return gatePrefixes(templates).some((p) => text.includes(p)) ? 'gate-brief-ungated' : null
+  return prefixes.some((p) => text.includes(p)) ? 'gate-brief-ungated' : null
 }
 
 /** SendMessage's `to` field resolved to an agent type, or `undefined` when `to` names an

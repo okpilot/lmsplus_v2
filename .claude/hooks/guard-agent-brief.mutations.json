@@ -43,7 +43,10 @@
         "blocks a gate brief preceded by other text in an ungated type with exit 2",
         "blocks a gate brief dispatched with no subagent_type with exit 2",
         "blocks a gate brief sent to an ungated agent id with exit 2",
-        "blocks a gate brief sent to a plain agent name with exit 2"
+        "blocks a gate brief sent to a plain agent name with exit 2",
+        "blocks an ungated type with exit 2 when the templates file has no templates object",
+        "blocks a call with no subagent_type with exit 2 when the templates file has no templates object",
+        "blocks a SendMessage to a plain agent name with exit 2 when the templates file has no templates object"
       ],
       "note": "Forces the block() branch to exit 0 instead of 2 — a mismatched brief is logged as BLOCKED on stderr but no longer stops the tool call. Reddens every test asserting exit 2, not only the control — Agent-brief and SendMessage blocks alike, since both route through this one shared exit call."
     },
@@ -204,7 +207,8 @@
         "blocks an untemplated type when pipeline.json is unreadable",
         "allows a SendMessage whose to resolves to an ungated agent type",
         "blocks a gate brief dispatched through an ungated type with exit 2",
-        "blocks a gate brief sent to an ungated agent id with exit 2"
+        "blocks a gate brief sent to an ungated agent id with exit 2",
+        "blocks an ungated type with exit 2 when the templates file has no templates object"
       ],
       "note": "The template checks run for every subagent_type, so an ungated dispatch is blocked — including checkSendMessage's own loadTemplates(type) call for a resolved ungated type — with a no-template message instead of the gate-brief one those two block tests assert."
     },
@@ -339,7 +343,8 @@
       "replace": "const reason = null",
       "expectRed": [
         "blocks a gate brief dispatched through an ungated type with exit 2",
-        "blocks a gate brief preceded by other text in an ungated type with exit 2"
+        "blocks a gate brief preceded by other text in an ungated type with exit 2",
+        "blocks an ungated type with exit 2 when the templates file has no templates object"
       ],
       "note": "An ungated subagent_type carries a gate brief unchecked."
     },
@@ -347,7 +352,10 @@
       "id": "guard-agent-brief-missing-type-check-disabled",
       "find": "const reason = gateBriefReason(toolInput?.prompt, readTemplates())",
       "replace": "const reason = null",
-      "expectRed": ["blocks a gate brief dispatched with no subagent_type with exit 2"],
+      "expectRed": [
+        "blocks a gate brief dispatched with no subagent_type with exit 2",
+        "blocks a call with no subagent_type with exit 2 when the templates file has no templates object"
+      ],
       "note": "An Agent call with no subagent_type carries a gate brief unchecked."
     },
     {
@@ -366,9 +374,21 @@
       "replace": "const reason = null",
       "expectRed": [
         "blocks a gate brief sent to an ungated agent id with exit 2",
-        "blocks a gate brief sent to a plain agent name with exit 2"
+        "blocks a gate brief sent to a plain agent name with exit 2",
+        "blocks a SendMessage to a plain agent name with exit 2 when the templates file has no templates object"
       ],
       "note": "A SendMessage to a non-gated recipient carries a gate brief unchecked."
+    },
+    {
+      "id": "guard-agent-brief-templates-unreadable-allows",
+      "find": "if (prefixes.length === 0) return 'templates-unreadable'",
+      "replace": "if (prefixes.length === 0) return null",
+      "expectRed": [
+        "blocks an ungated type with exit 2 when the templates file has no templates object",
+        "blocks a call with no subagent_type with exit 2 when the templates file has no templates object",
+        "blocks a SendMessage to a plain agent name with exit 2 when the templates file has no templates object"
+      ],
+      "note": "With no template openings to check, an ungated or untyped Agent call and a SendMessage to a non-gated recipient are allowed unchecked."
     },
     {
       "id": "guard-agent-brief-sendmessage-case-disabled",
