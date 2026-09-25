@@ -121,7 +121,7 @@ CREATE TABLE users (
 ```
 
 **Login-instructions columns (migration `20260925000100`, login-instructions-email feature):**
-`login_instructions_sent_at` — last time an admin sent this user their login details; NULL = never sent. `temp_password_expires_at` — NOT NULL = a temporary password's forced change is pending; `< now()` = expired. The only in-app writer of either column is the SECURITY DEFINER RPC `record_login_instructions_sent(p_user_id)` (see RPC section below), which stamps both on a send. No application action or RPC clears `temp_password_expires_at` yet.
+`login_instructions_sent_at` — last time an admin sent this user their login details; NULL = never sent. `temp_password_expires_at` — expiry of the temporary password; NULL = none recorded; `< now()` = expired. The only in-app writer of either column is the SECURITY DEFINER RPC `record_login_instructions_sent(p_user_id)` (see RPC section below), which stamps both on a send. No application action or RPC clears `temp_password_expires_at` yet.
 
 **RLS policies (migration `20260311000004`, fixed in `20260312000012`; UPDATE added `20260326000056`):**
 - SELECT: self-only — `id = auth.uid() AND deleted_at IS NULL` (`users_select` policy). A caller reads only their own row; org-wide member listing goes through admin-gated RPCs, not a direct SELECT.
@@ -1734,7 +1734,7 @@ Admin-only RPC (not a direct API endpoint — invoked from Server Action `sendIn
 
 ##### `record_login_instructions_sent(p_user_id)` (migration `20260925000100`, login-instructions-email feature, PR A)
 
-Admin-only RPC arming the forced password-change state on a student/instructor account. Stamps `users.login_instructions_sent_at = now()` and `users.temp_password_expires_at = now() + interval '7 days'` on the target row, then inserts one `user.login_instructions_sent` audit event.
+Admin-only RPC recording a login-instructions send and its temporary-password expiry on a student/instructor account. Stamps `users.login_instructions_sent_at = now()` and `users.temp_password_expires_at = now() + interval '7 days'` on the target row, then inserts one `user.login_instructions_sent` audit event.
 
 **Guard set:** Mirrors `record_internal_exam_code_emailed` per security.md rule 11c:
 - Rule 7 — `auth.uid()` null-check raises `not_authenticated`

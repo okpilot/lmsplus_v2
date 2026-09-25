@@ -2,7 +2,7 @@
  * Red Team Spec: record_login_instructions_sent RPC
  *
  * Vector FP (HIGH). Admin-only RPC (mig 20260925000100) that stamps a
- * temporary-password forced-change window (`login_instructions_sent_at`,
+ * temporary-password expiry (`login_instructions_sent_at`,
  * `temp_password_expires_at`) on a target `public.users` row and writes one
  * `user.login_instructions_sent` audit row. Guard order (from the migration):
  *   1. auth.uid() IS NULL              → not_authenticated (this spec)
@@ -96,7 +96,7 @@ test.describe('Red Team: record_login_instructions_sent RPC', () => {
     crossOrgAdminClient = await createAuthenticatedClient(crossOrg.email, crossOrg.password)
   })
 
-  // Reads the two forced-change columns via service role — used both as the
+  // Reads the two login-instructions columns via service role — used both as the
   // pre-attack baseline and the post-rejection comparison. The `.single()`
   // error/data assertions double as the target-row-exists proof (non-vacuous
   // negative, code-style.md §7).
@@ -268,33 +268,35 @@ test.describe('Red Team: record_login_instructions_sent RPC', () => {
       baseline = null
     })
 
-    test('a student cannot arm their own forced-change window via direct UPDATE (Vector FP — no column grant)', async () => {
-      // Non-vacuity: prove the attacker row exists and capture its baseline
-      // state before the attempt, so the rejection proves the column-level
-      // privilege revoke fired — not that the row was simply absent.
-      baseline = await expectTargetState(attackerUserId)
+    // One UPDATE per column: Postgres needs UPDATE privilege on every column
+    // a statement writes, so a two-column UPDATE still fails with 42501 when
+    // only one of the grants regresses.
+    for (const column of ['login_instructions_sent_at', 'temp_password_expires_at'] as const) {
+      test(`a student cannot write ${column} on their own row via direct UPDATE (Vector FP — no column grant)`, async () => {
+        // Non-vacuity: prove the attacker row exists and capture its baseline
+        // state before the attempt, so the rejection proves the column-level
+        // privilege revoke fired — not that the row was simply absent.
+        baseline = await expectTargetState(attackerUserId)
 
-      const { error } = await attackerStudentClient
-        .from('users')
-        .update({
-          login_instructions_sent_at: new Date().toISOString(),
-          temp_password_expires_at: new Date().toISOString(),
-        })
-        .eq('id', attackerUserId)
-        .select('id')
+        const { error } = await attackerStudentClient
+          .from('users')
+          .update({ [column]: new Date().toISOString() })
+          .eq('id', attackerUserId)
+          .select('id')
 
-      // Mig 090 (#773) revokes UPDATE on every users column except
-      // full_name from authenticated; the two login-instructions columns
-      // (mig 20260925000100) were never re-granted, so Postgres rejects the
-      // write at the privilege layer (42501) before RLS or any trigger runs
-      // — same mechanism as Vector CG in users-role-forge.spec.ts, whose
-      // header documents Postgres not always naming the specific column.
-      expect(error).not.toBeNull()
-      expect(error?.code).toBe('42501')
-      expect(error?.message ?? '').toMatch(/permission denied for (table users|column)/i)
+        // Mig 090 (#773) revokes UPDATE on every users column except
+        // full_name from authenticated; the two login-instructions columns
+        // (mig 20260925000100) were never re-granted, so Postgres rejects the
+        // write at the privilege layer (42501) before RLS or any trigger runs
+        // — same mechanism as Vector CG in users-role-forge.spec.ts, whose
+        // header documents Postgres not always naming the specific column.
+        expect(error).not.toBeNull()
+        expect(error?.code).toBe('42501')
+        expect(error?.message ?? '').toMatch(/permission denied for (table users|column)/i)
 
-      const after = await expectTargetState(attackerUserId)
-      expect(after).toEqual(baseline)
-    })
+        const after = await expectTargetState(attackerUserId)
+        expect(after).toEqual(baseline)
+      })
+    }
   })
 })

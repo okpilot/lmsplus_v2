@@ -1,21 +1,13 @@
 -- Migration: users login-instructions columns + record_login_instructions_sent
 -- RPC (login-instructions-email feature, PR A).
 --
--- An admin sends a student/instructor their login details by email: a
--- server-generated temporary password, valid for 7 days, forcing a
--- password change at next login (PR B). Two nullable columns on
--- public.users track that state:
---   login_instructions_sent_at — last send. NULL = never sent.
---   temp_password_expires_at   — NOT NULL = forced change pending;
---                                 < now() = expired.
--- Row states: never sent (sent_at NULL) / waiting (expires > now) /
--- expired (expires <= now) / password set (sent_at NOT NULL, expires
--- NULL — cleared by the set-password/change-password Server Actions in
--- PR B, via adminClient after a successful auth.updateUser).
+-- Two nullable columns on public.users:
+--   login_instructions_sent_at — last login-instructions send. NULL = never sent.
+--   temp_password_expires_at   — expiry of the temporary password.
+--                                 NULL = none recorded; < now() = expired.
 --
--- record_login_instructions_sent(p_user_id) is the only writer of the
--- "arm" direction (stamp both columns on a send). It follows the same
--- guard set as the sibling admin-audit RPC
+-- record_login_instructions_sent(p_user_id) stamps both columns on a
+-- send. It follows the same guard set as the sibling admin-audit RPC
 -- record_internal_exam_code_emailed (mig 20260629000900, security.md
 -- rule 11b/11c):
 --   rule 7 auth.uid() null-check, is_admin() gate, active-user gate +
