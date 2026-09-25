@@ -3,8 +3,8 @@ import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { safeNextPath } from '@/lib/auth/safe-next-path'
 import {
-  expireTempPassword,
   readTempPasswordState,
+  signOutExpiredTempPassword,
   type TempPasswordState,
 } from '@/lib/auth/temp-password'
 import { buildConsentCookieValue, checkConsentStatus } from '@/lib/consent/check-consent'
@@ -45,10 +45,11 @@ export async function GET(request: NextRequest) {
 
 /**
  * Handles the temporary-password branch of login-complete: signs out and bounces
- * to an error page on a state-read failure, expires an armed-but-expired temp
- * password, or routes an active one to set-password (with consent already
- * evaluated, carrying the consent cookie through when satisfied). Returns
- * `null` to fall through to the ordinary consent/dashboard flow.
+ * to an error page on a state-read failure, refuses an expired temp password
+ * with a global sign-out, or routes an active one to set-password (with
+ * consent already evaluated, carrying the consent cookie through when
+ * satisfied). Returns `null` to fall through to the ordinary consent/dashboard
+ * flow.
  */
 async function tempPasswordGate(opts: {
   supabase: Supabase
@@ -71,7 +72,7 @@ async function tempPasswordGate(opts: {
   }
 
   if (tempPasswordState === 'expired') {
-    await expireTempPassword(supabase, userId)
+    await signOutExpiredTempPassword(supabase)
     return NextResponse.redirect(new URL('/?error=temp_password_expired', request.url))
   }
 

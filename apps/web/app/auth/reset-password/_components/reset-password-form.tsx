@@ -3,22 +3,12 @@
 import { Eye, EyeOff } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
-import { z } from 'zod'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { LoadingButton } from '@/components/ui/loading-button'
+import { NewPasswordSchema } from '@/lib/auth/new-password-schema'
 import { resetOwnPassword } from '../actions'
 import { ResetSuccess } from './reset-success'
-
-const ResetPasswordSchema = z
-  .object({
-    password: z.string().min(6, 'Password must be at least 6 characters'),
-    confirmPassword: z.string(),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: 'Passwords do not match',
-    path: ['confirmPassword'],
-  })
 
 export function ResetPasswordForm() {
   const [password, setPassword] = useState('')
@@ -33,7 +23,7 @@ export function ResetPasswordForm() {
     e.preventDefault()
     setError(null)
 
-    const result = ResetPasswordSchema.safeParse({ password, confirmPassword })
+    const result = NewPasswordSchema.safeParse({ password, confirmPassword })
     if (!result.success) {
       setError(result.error.issues[0]?.message ?? 'Invalid input')
       return

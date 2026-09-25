@@ -9,14 +9,14 @@ import { proxy } from './proxy'
 
 const mockGetUser = vi.fn()
 const mockFrom = vi.fn()
-const { mockReadTempPasswordState, mockExpireTempPassword } = vi.hoisted(() => ({
+const { mockReadTempPasswordState, mockSignOutExpiredTempPassword } = vi.hoisted(() => ({
   mockReadTempPasswordState: vi.fn(),
-  mockExpireTempPassword: vi.fn(),
+  mockSignOutExpiredTempPassword: vi.fn(),
 }))
 
 vi.mock('@/lib/auth/temp-password', () => ({
   readTempPasswordState: mockReadTempPasswordState,
-  expireTempPassword: mockExpireTempPassword,
+  signOutExpiredTempPassword: mockSignOutExpiredTempPassword,
 }))
 
 // A plain object that stands in for the session-refreshed supabase NextResponse

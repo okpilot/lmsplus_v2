@@ -1,29 +1,82 @@
+import { findAuthUserByEmail } from './auth-users'
 import { ensureConsentRecords, getAdminClient } from './supabase'
 
 /** Marker prefix for throwaway students created by the temp-password specs. */
 export const E2E_TEMP_PASSWORD_EMAIL_PREFIX = 'e2e-temp-password-'
 const E2E_TEMP_PASSWORD_DOMAIN = '@lmsplus.local'
 
-function uniqueTempPasswordEmail(): string {
-  return `${E2E_TEMP_PASSWORD_EMAIL_PREFIX}${Date.now()}-${Math.random().toString(36).slice(2, 8)}${E2E_TEMP_PASSWORD_DOMAIN}`
+function slotEmail(slot: string): string {
+  return `${E2E_TEMP_PASSWORD_EMAIL_PREFIX}${slot}${E2E_TEMP_PASSWORD_DOMAIN}`
 }
 
 type ArmedStudent = { userId: string; email: string; orgId: string }
+type AdminClient = ReturnType<typeof getAdminClient>
+
+/** Resets the Auth password for an existing slot user, or creates a fresh one. */
+async function upsertArmedAuthUser(
+  admin: AdminClient,
+  email: string,
+  password: string,
+): Promise<string> {
+  const existing = await findAuthUserByEmail(admin, email)
+  if (existing) {
+    const { error } = await admin.auth.admin.updateUserById(existing.id, { password })
+    if (error) throw new Error(`createArmedTempPasswordStudent reset: ${error.message}`)
+    return existing.id
+  }
+
+  const { data, error } = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+  })
+  if (error || !data?.user) {
+    throw new Error(`createArmedTempPasswordStudent auth: ${error?.message}`)
+  }
+  return data.user.id
+}
+
+/** Re-arms (or creates) the `public.users` row for a slot user, undeleting it if needed. */
+async function upsertArmedUserRow(opts: {
+  admin: AdminClient
+  userId: string
+  orgId: string
+  email: string
+  expiresAt: string
+  fullName?: string
+}): Promise<void> {
+  const { admin, userId, orgId, email, expiresAt, fullName } = opts
+  const { error } = await admin.from('users').upsert({
+    id: userId,
+    organization_id: orgId,
+    email,
+    full_name: fullName ?? 'E2E Temp Password Student',
+    role: 'student',
+    deleted_at: null,
+    temp_password_expires_at: expiresAt,
+  })
+  if (error) throw new Error(`createArmedTempPasswordStudent public: ${error.message}`)
+}
 
 /**
- * Creates a dedicated throwaway student in the Egmont Aviation org, sets their
- * Auth password via service role, and arms `temp_password_expires_at` at
- * `Date.now() + expiresInMs` — a negative `expiresInMs` arms an
- * already-expired account. Seeds consent records so the consent gate never
- * masks the temp-password gate under test.
+ * Arms a dedicated throwaway student in the Egmont Aviation org, identified by
+ * a caller-chosen `slot` (deterministic email — reused across runs, never
+ * leaking a fresh Auth user per call), sets their Auth password via service
+ * role, and arms `temp_password_expires_at` at `Date.now() + expiresInMs` — a
+ * negative `expiresInMs` arms an already-expired account. Seeds consent
+ * records so the consent gate never masks the temp-password gate under test.
+ *
+ * Each call site must pass its own unique `slot` literal — two call sites
+ * sharing a slot collide under parallel Playwright workers.
  */
 export async function createArmedTempPasswordStudent(opts: {
+  slot: string
   password: string
   expiresInMs: number
   fullName?: string
 }): Promise<ArmedStudent> {
   const admin = getAdminClient()
-  const email = uniqueTempPasswordEmail()
+  const email = slotEmail(opts.slot)
 
   const { data: org, error: orgError } = await admin
     .from('organizations')
@@ -34,26 +87,16 @@ export async function createArmedTempPasswordStudent(opts: {
     throw new Error(`createArmedTempPasswordStudent org lookup: ${orgError?.message}`)
   }
 
-  const { data: authData, error: authError } = await admin.auth.admin.createUser({
-    email,
-    password: opts.password,
-    email_confirm: true,
-  })
-  if (authError || !authData?.user) {
-    throw new Error(`createArmedTempPasswordStudent auth: ${authError?.message}`)
-  }
-  const userId = authData.user.id
-
+  const userId = await upsertArmedAuthUser(admin, email, opts.password)
   const expiresAt = new Date(Date.now() + opts.expiresInMs).toISOString()
-  const { error: userError } = await admin.from('users').insert({
-    id: userId,
-    organization_id: org.id,
+  await upsertArmedUserRow({
+    admin,
+    userId,
+    orgId: org.id,
     email,
-    full_name: opts.fullName ?? 'E2E Temp Password Student',
-    role: 'student',
-    temp_password_expires_at: expiresAt,
+    expiresAt,
+    fullName: opts.fullName,
   })
-  if (userError) throw new Error(`createArmedTempPasswordStudent public: ${userError.message}`)
 
   await ensureConsentRecords(admin, userId)
 
@@ -84,9 +127,10 @@ export async function readTempPasswordExpiresAt(userId: string): Promise<string 
  * hard `auth.admin.deleteUser()` cascading into `public.users` always fails
  * with "Database error deleting user" once any audit event exists for that
  * user. Soft-delete is also the project rule regardless (`code-style.md`
- * rule 6) — never hard DELETE. Emails are unique per call
- * (`uniqueTempPasswordEmail`), so leaving the Auth user behind risks no
- * future collision.
+ * rule 6) — never hard DELETE. Emails are deterministic per slot, not unique
+ * per call — `createArmedTempPasswordStudent` reuses the same Auth user on
+ * its next call for that slot, so the underlying Auth user is never
+ * recreated and never leaked.
  */
 export async function cleanupTempPasswordStudents(): Promise<void> {
   const admin = getAdminClient()

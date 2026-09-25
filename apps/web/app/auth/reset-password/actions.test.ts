@@ -43,7 +43,7 @@ beforeEach(() => {
   vi.resetAllMocks()
   mockSignOut.mockResolvedValue({})
   mockClearTempPassword.mockResolvedValue({ success: true })
-  mockRefuseExpired.mockResolvedValue('ok')
+  mockRefuseExpired.mockResolvedValue('active')
 })
 
 describe('expired temporary password', () => {
@@ -80,12 +80,23 @@ describe('expired temporary password', () => {
 
   it('lets an account with an active temporary password reset normally', async () => {
     mockAuthenticatedUser()
-    mockRefuseExpired.mockResolvedValue('ok')
+    mockRefuseExpired.mockResolvedValue('active')
     mockUpdateUser.mockResolvedValue({ error: null })
 
     const result = await resetOwnPassword(validInput)
 
     expect(result).toEqual({ ok: true })
+  })
+
+  it('lets an ordinary account with no temp password ever armed reset normally, without clearing', async () => {
+    mockAuthenticatedUser()
+    mockRefuseExpired.mockResolvedValue('none')
+    mockUpdateUser.mockResolvedValue({ error: null })
+
+    const result = await resetOwnPassword(validInput)
+
+    expect(result).toEqual({ ok: true })
+    expect(mockClearTempPassword).not.toHaveBeenCalled()
   })
 })
 

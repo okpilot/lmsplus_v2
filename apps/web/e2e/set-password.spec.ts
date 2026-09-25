@@ -27,6 +27,7 @@ test.describe('Set password — forced temp-password change lifecycle', () => {
     page,
   }) => {
     const { email } = await createArmedTempPasswordStudent({
+      slot: 'sp-1-next-reload',
       password: TEMP_PASSWORD,
       expiresInMs: SEVEN_DAYS_MS,
     })
@@ -51,6 +52,7 @@ test.describe('Set password — forced temp-password change lifecycle', () => {
     page,
   }) => {
     const { email } = await createArmedTempPasswordStudent({
+      slot: 'sp-2-direct-nav',
       password: TEMP_PASSWORD,
       expiresInMs: SEVEN_DAYS_MS,
     })
@@ -75,6 +77,7 @@ test.describe('Set password — forced temp-password change lifecycle', () => {
     page,
   }) => {
     const { userId, email } = await createArmedTempPasswordStudent({
+      slot: 'sp-3-lifecycle',
       password: TEMP_PASSWORD,
       expiresInMs: SEVEN_DAYS_MS,
     })

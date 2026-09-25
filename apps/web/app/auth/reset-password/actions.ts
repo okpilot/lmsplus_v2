@@ -36,11 +36,11 @@ export async function resetOwnPassword(raw: unknown): Promise<ResetOwnPasswordRe
     }
   }
 
-  const refusal = await refuseIfTempPasswordExpired(supabase, user.id)
-  if (refusal === 'expired') {
+  const state = await refuseIfTempPasswordExpired(supabase, user.id)
+  if (state === 'expired') {
     return { ok: false, isSessionMissing: false, message: TEMP_PASSWORD_EXPIRED_MESSAGE }
   }
-  if (refusal === 'error') {
+  if (state === 'error') {
     return {
       ok: false,
       isSessionMissing: false,
@@ -48,14 +48,15 @@ export async function resetOwnPassword(raw: unknown): Promise<ResetOwnPasswordRe
     }
   }
 
-  return finishPasswordReset(supabase, user.id, parsed.data.password)
+  return finishPasswordReset(supabase, user.id, parsed.data.password, state === 'active')
 }
 
-/** Applies the new password and clears the temp-password flag, signing out on success. */
+/** Applies the new password, clears an active temp-password flag, and signs out on success. */
 async function finishPasswordReset(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   userId: string,
   password: string,
+  clearTempFlag: boolean,
 ): Promise<ResetOwnPasswordResult> {
   const { error } = await supabase.auth.updateUser({ password })
   if (error) {
@@ -69,10 +70,11 @@ async function finishPasswordReset(
     }
   }
 
-  // A left-armed flag would scramble this password at the next login.
-  const { success: cleared } = await clearTempPassword(userId)
-  if (!cleared) {
-    return { ok: false, isSessionMissing: false, message: RETRY_DIFFERENT_PASSWORD_MESSAGE }
+  if (clearTempFlag) {
+    const { success: cleared } = await clearTempPassword(userId)
+    if (!cleared) {
+      return { ok: false, isSessionMissing: false, message: RETRY_DIFFERENT_PASSWORD_MESSAGE }
+    }
   }
   await supabase.auth.signOut()
 

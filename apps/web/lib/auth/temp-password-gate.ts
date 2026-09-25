@@ -1,7 +1,7 @@
 import type { createMiddlewareSupabaseClient } from '@repo/db/middleware'
 import {
-  expireTempPassword,
   readTempPasswordState,
+  signOutExpiredTempPassword,
   type TempPasswordState,
 } from '@/lib/auth/temp-password'
 
@@ -38,7 +38,7 @@ export async function checkTempPasswordGate(opts: {
   }
 
   if (state === 'expired') {
-    await expireTempPassword(supabase, userId)
+    await signOutExpiredTempPassword(supabase)
     return redirectWithCookies(new URL('/?error=temp_password_expired', requestUrl))
   }
 

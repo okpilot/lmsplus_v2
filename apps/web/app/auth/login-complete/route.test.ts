@@ -7,14 +7,14 @@ const {
   mockRpcHelper,
   mockCheckConsent,
   mockReadTempPasswordState,
-  mockExpireTempPassword,
+  mockSignOutExpiredTempPassword,
   mockSignOut,
 } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
   mockRpcHelper: vi.fn(),
   mockCheckConsent: vi.fn(),
   mockReadTempPasswordState: vi.fn(),
-  mockExpireTempPassword: vi.fn(),
+  mockSignOutExpiredTempPassword: vi.fn(),
   mockSignOut: vi.fn(),
 }))
 
@@ -29,7 +29,7 @@ vi.mock('@repo/db/server', () => ({
 
 vi.mock('@/lib/auth/temp-password', () => ({
   readTempPasswordState: mockReadTempPasswordState,
-  expireTempPassword: mockExpireTempPassword,
+  signOutExpiredTempPassword: mockSignOutExpiredTempPassword,
 }))
 
 // The production code calls rpc() from @/lib/supabase-rpc, which is a typed
@@ -228,14 +228,14 @@ describe('GET /auth/login-complete', () => {
       expect(location.searchParams.has('next')).toBe(false)
     })
 
-    it('expires the temp password and redirects to the expired-password error page', async () => {
+    it('signs out globally and redirects to the expired-password error page', async () => {
       mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
       mockRpcHelper.mockResolvedValue({ data: null, error: null })
       mockReadTempPasswordState.mockResolvedValue('expired')
 
       const response = await GET(makeRequest('http://localhost:3000/auth/login-complete'))
 
-      expect(mockExpireTempPassword).toHaveBeenCalledWith(expect.anything(), 'user-1')
+      expect(mockSignOutExpiredTempPassword).toHaveBeenCalledWith(expect.anything())
       expect(response.status).toBe(307)
       expect(response.headers.get('location')).toBe(
         'http://localhost:3000/?error=temp_password_expired',
@@ -254,7 +254,7 @@ describe('GET /auth/login-complete', () => {
       expect(mockSignOut).toHaveBeenCalled()
       expect(response.status).toBe(307)
       expect(response.headers.get('location')).toBe('http://localhost:3000/?error=auth_failed')
-      expect(mockExpireTempPassword).not.toHaveBeenCalled()
+      expect(mockSignOutExpiredTempPassword).not.toHaveBeenCalled()
       expect(mockRpcHelper).toHaveBeenCalledWith(expect.anything(), 'record_login', {})
       consoleSpy.mockRestore()
     })

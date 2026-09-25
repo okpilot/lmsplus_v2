@@ -2,21 +2,11 @@
 
 import { Eye, EyeOff } from 'lucide-react'
 import { useState } from 'react'
-import { z } from 'zod'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { LoadingButton } from '@/components/ui/loading-button'
+import { NewPasswordSchema } from '@/lib/auth/new-password-schema'
 import { setOwnPassword } from '../actions'
-
-const SetPasswordSchema = z
-  .object({
-    password: z.string().min(6, 'Password must be at least 6 characters'),
-    confirmPassword: z.string(),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: 'Passwords do not match',
-    path: ['confirmPassword'],
-  })
 
 export function SetPasswordForm({ nextPath }: Readonly<{ nextPath: string | null }>) {
   const [password, setPassword] = useState('')
@@ -29,7 +19,7 @@ export function SetPasswordForm({ nextPath }: Readonly<{ nextPath: string | null
     e.preventDefault()
     setError(null)
 
-    const parsed = SetPasswordSchema.safeParse({ password, confirmPassword })
+    const parsed = NewPasswordSchema.safeParse({ password, confirmPassword })
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message ?? 'Invalid input')
       return

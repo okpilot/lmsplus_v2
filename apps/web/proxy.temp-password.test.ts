@@ -42,14 +42,14 @@ vi.mock('@repo/db/middleware', () => ({
   }),
 }))
 
-const { mockReadTempPasswordState, mockExpireTempPassword } = vi.hoisted(() => ({
+const { mockReadTempPasswordState, mockSignOutExpiredTempPassword } = vi.hoisted(() => ({
   mockReadTempPasswordState: vi.fn(),
-  mockExpireTempPassword: vi.fn(),
+  mockSignOutExpiredTempPassword: vi.fn(),
 }))
 
 vi.mock('@/lib/auth/temp-password', () => ({
   readTempPasswordState: mockReadTempPasswordState,
-  expireTempPassword: mockExpireTempPassword,
+  signOutExpiredTempPassword: mockSignOutExpiredTempPassword,
 }))
 
 function makeRequest(pathname: string, base = 'http://localhost:3000') {
@@ -93,13 +93,13 @@ describe('proxy — temporary-password gate', () => {
     expect(location.searchParams.has('next')).toBe(false)
   })
 
-  it('expires the temp password and redirects to the expired-password error page', async () => {
+  it('signs out globally and redirects to the expired-password error page', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
     mockReadTempPasswordState.mockResolvedValue('expired')
 
     const response = await proxy(makeConsentedRequest('/app/dashboard'))
 
-    expect(mockExpireTempPassword).toHaveBeenCalledWith(expect.anything(), 'user-1')
+    expect(mockSignOutExpiredTempPassword).toHaveBeenCalledWith(expect.anything())
     expect(response.status).toBe(307)
     expect(response.headers.get('location')).toBe(
       'http://localhost:3000/?error=temp_password_expired',
@@ -121,7 +121,7 @@ describe('proxy — temporary-password gate', () => {
       expect(response.headers.get('Strict-Transport-Security')).toBe(
         'max-age=63072000; includeSubDomains; preload',
       )
-      expect(mockExpireTempPassword).not.toHaveBeenCalled()
+      expect(mockSignOutExpiredTempPassword).not.toHaveBeenCalled()
     } finally {
       consoleSpy.mockRestore()
     }

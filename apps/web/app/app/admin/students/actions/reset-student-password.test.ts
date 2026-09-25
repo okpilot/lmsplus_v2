@@ -7,9 +7,13 @@ const mockRequireAdmin = vi.hoisted(() => vi.fn())
 const mockFrom = vi.hoisted(() => vi.fn())
 const mockUpdateUserById = vi.hoisted(() => vi.fn())
 const mockRpc = vi.hoisted(() => vi.fn())
+const mockClearTempPassword = vi.hoisted(() => vi.fn())
 
 vi.mock('next/cache', () => ({ revalidatePath: mockRevalidatePath }))
 vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: mockRequireAdmin }))
+vi.mock('@/lib/auth/temp-password', () => ({
+  clearTempPassword: (...args: unknown[]) => mockClearTempPassword(...args),
+}))
 vi.mock('@repo/db/admin', () => ({
   adminClient: {
     from: mockFrom,
@@ -66,6 +70,7 @@ function buildFetchChain({
 
 beforeEach(() => {
   vi.resetAllMocks()
+  mockClearTempPassword.mockResolvedValue({ success: true })
 })
 
 describe('resetStudentPassword', () => {
@@ -109,6 +114,27 @@ describe('resetStudentPassword', () => {
         }),
       )
       expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/students')
+    })
+
+    it('clears any left-armed temp-password flag after a successful reset', async () => {
+      mockAdmin()
+      buildFetchChain()
+      mockUpdateUserById.mockResolvedValue({ error: null })
+
+      await resetStudentPassword(VALID_INPUT)
+
+      expect(mockClearTempPassword).toHaveBeenCalledWith(VALID_UUID)
+    })
+
+    it('still succeeds when clearing the temp-password flag fails (non-fatal)', async () => {
+      mockAdmin()
+      buildFetchChain()
+      mockUpdateUserById.mockResolvedValue({ error: null })
+      mockClearTempPassword.mockResolvedValue({ success: false })
+
+      const result = await resetStudentPassword(VALID_INPUT)
+
+      expect(result.success).toBe(true)
     })
 
     it('records a user.password_reset audit event for the target student', async () => {
@@ -197,6 +223,7 @@ describe('resetStudentPassword', () => {
       expect(mockRevalidatePath).not.toHaveBeenCalled()
       // No audit event for a failed reset (the audit call is after the success path).
       expect(mockRpc).not.toHaveBeenCalled()
+      expect(mockClearTempPassword).not.toHaveBeenCalled()
     })
   })
 

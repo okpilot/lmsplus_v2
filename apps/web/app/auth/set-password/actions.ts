@@ -71,6 +71,8 @@ async function finishPasswordSet(
     return { success: false, error: RETRY_DIFFERENT_PASSWORD_MESSAGE }
   }
 
+  await signOutOtherSessions(supabase)
+
   // Audit the password change (best-effort: the password is already changed, so a
   // failed audit write must not fail the action — log it server-side instead).
   await recordAuthEvent(supabase, {
@@ -80,4 +82,18 @@ async function finishPasswordSet(
   })
 
   return { success: true }
+}
+
+/**
+ * Revokes sessions opened elsewhere with the temp password. Non-fatal: the
+ * password is already set and cleared, so a failed revoke is logged, not
+ * surfaced to the caller.
+ */
+async function signOutOtherSessions(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+): Promise<void> {
+  const { error } = await supabase.auth.signOut({ scope: 'others' })
+  if (error) {
+    console.error('[setOwnPassword] sign-out others failed:', error.message)
+  }
 }

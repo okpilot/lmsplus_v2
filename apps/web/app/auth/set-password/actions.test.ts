@@ -2,18 +2,25 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks --------------------------------------------------------------------
 
-const { mockGetUser, mockUpdateUser, mockRpc, mockReadTempPasswordState, mockClearTempPassword } =
-  vi.hoisted(() => ({
-    mockGetUser: vi.fn(),
-    mockUpdateUser: vi.fn(),
-    mockRpc: vi.fn(),
-    mockReadTempPasswordState: vi.fn(),
-    mockClearTempPassword: vi.fn(),
-  }))
+const {
+  mockGetUser,
+  mockUpdateUser,
+  mockSignOut,
+  mockRpc,
+  mockReadTempPasswordState,
+  mockClearTempPassword,
+} = vi.hoisted(() => ({
+  mockGetUser: vi.fn(),
+  mockUpdateUser: vi.fn(),
+  mockSignOut: vi.fn(),
+  mockRpc: vi.fn(),
+  mockReadTempPasswordState: vi.fn(),
+  mockClearTempPassword: vi.fn(),
+}))
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser, updateUser: mockUpdateUser },
+    auth: { getUser: mockGetUser, updateUser: mockUpdateUser, signOut: mockSignOut },
     rpc: mockRpc,
   }),
 }))
@@ -42,6 +49,7 @@ beforeEach(() => {
   vi.resetAllMocks()
   mockRpc.mockResolvedValue({ error: null })
   mockClearTempPassword.mockResolvedValue({ success: true })
+  mockSignOut.mockResolvedValue({ error: null })
 })
 
 describe('setOwnPassword', () => {
@@ -155,6 +163,7 @@ describe('setOwnPassword', () => {
       expect(result.error).toBe(
         'Your password could not be fully updated. Please try again with a different password.',
       )
+      expect(mockSignOut).not.toHaveBeenCalled()
     })
   })
 
@@ -173,6 +182,33 @@ describe('setOwnPassword', () => {
         p_event_type: 'user.password_changed',
         p_resource_id: USER_ID,
       })
+    })
+
+    it('signs out every other session after clearing the flag', async () => {
+      mockAuthenticatedUser()
+      mockReadTempPasswordState.mockResolvedValue('active')
+      mockUpdateUser.mockResolvedValue({ error: null })
+
+      await setOwnPassword(validInput)
+
+      expect(mockSignOut).toHaveBeenCalledWith({ scope: 'others' })
+    })
+
+    it('still succeeds when signing out other sessions fails (non-fatal)', async () => {
+      mockAuthenticatedUser()
+      mockReadTempPasswordState.mockResolvedValue('active')
+      mockUpdateUser.mockResolvedValue({ error: null })
+      mockSignOut.mockResolvedValue({ error: { message: 'gotrue unavailable' } })
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      const result = await setOwnPassword(validInput)
+
+      expect(result.success).toBe(true)
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[setOwnPassword] sign-out others failed:',
+        'gotrue unavailable',
+      )
+      consoleSpy.mockRestore()
     })
 
     it('still succeeds when the audit event write fails (best-effort)', async () => {

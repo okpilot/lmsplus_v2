@@ -2,14 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockAdminUpdateUserById, mockAdminFrom } = vi.hoisted(() => ({
-  mockAdminUpdateUserById: vi.fn(),
+const { mockAdminFrom } = vi.hoisted(() => ({
   mockAdminFrom: vi.fn(),
 }))
 
 vi.mock('@repo/db/admin', () => ({
   adminClient: {
-    auth: { admin: { updateUserById: mockAdminUpdateUserById } },
     from: mockAdminFrom,
   },
 }))
@@ -18,9 +16,9 @@ vi.mock('@repo/db/admin', () => ({
 
 import {
   clearTempPassword,
-  expireTempPassword,
   readTempPasswordState,
   refuseIfTempPasswordExpired,
+  signOutExpiredTempPassword,
 } from './temp-password'
 
 // ---- Helpers ----------------------------------------------------------------
@@ -101,49 +99,23 @@ describe('readTempPasswordState', () => {
   })
 })
 
-describe('expireTempPassword', () => {
-  it('scrambles the password to a distinct random value each call and signs out globally', async () => {
-    mockAdminUpdateUserById.mockResolvedValue({ error: null })
+describe('signOutExpiredTempPassword', () => {
+  it('signs out globally without touching the Auth password', async () => {
     const supabase = makeSupabase({})
 
-    await expireTempPassword(supabase, USER_ID)
-    const firstPassword = mockAdminUpdateUserById.mock.calls[0]?.[1]?.password as string
-
-    mockAdminUpdateUserById.mockClear()
-    await expireTempPassword(supabase, USER_ID)
-    const secondPassword = mockAdminUpdateUserById.mock.calls[0]?.[1]?.password as string
-
-    expect(mockAdminUpdateUserById).toHaveBeenCalledWith(USER_ID, { password: secondPassword })
-    expect(firstPassword).toHaveLength(43)
-    expect(secondPassword).toHaveLength(43)
-    expect(firstPassword).not.toBe(secondPassword)
-    expect(supabase.auth.signOut).toHaveBeenCalledWith({ scope: 'global' })
-  })
-
-  it('still signs out and does not throw when the password scramble fails', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    mockAdminUpdateUserById.mockResolvedValue({ error: { message: 'gotrue unavailable' } })
-    const supabase = makeSupabase({})
-
-    await expect(expireTempPassword(supabase, USER_ID)).resolves.toBeUndefined()
+    await expect(signOutExpiredTempPassword(supabase)).resolves.toBeUndefined()
 
     expect(supabase.auth.signOut).toHaveBeenCalledWith({ scope: 'global' })
-    expect(consoleSpy).toHaveBeenCalledWith(
-      '[expireTempPassword] password scramble failed:',
-      'gotrue unavailable',
-    )
-    consoleSpy.mockRestore()
   })
 
   it('logs but does not throw when the global sign-out fails', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    mockAdminUpdateUserById.mockResolvedValue({ error: null })
     const supabase = makeSupabase({ signOutError: { message: 'session store down' } })
 
-    await expect(expireTempPassword(supabase, USER_ID)).resolves.toBeUndefined()
+    await expect(signOutExpiredTempPassword(supabase)).resolves.toBeUndefined()
 
     expect(consoleSpy).toHaveBeenCalledWith(
-      '[expireTempPassword] global sign-out failed:',
+      '[signOutExpiredTempPassword] global sign-out failed:',
       'session store down',
     )
     consoleSpy.mockRestore()
@@ -151,37 +123,43 @@ describe('expireTempPassword', () => {
 })
 
 describe('refuseIfTempPasswordExpired', () => {
-  it('allows the caller through when the temp password is not expired', async () => {
+  it('returns none and signs out no one when there is no temp password', async () => {
     const supabase = makeSupabase({
       fromReturn: { data: { temp_password_expires_at: null }, error: null },
     })
 
-    await expect(refuseIfTempPasswordExpired(supabase, USER_ID)).resolves.toBe('ok')
-    expect(mockAdminUpdateUserById).not.toHaveBeenCalled()
+    await expect(refuseIfTempPasswordExpired(supabase, USER_ID)).resolves.toBe('none')
+    expect(supabase.auth.signOut).not.toHaveBeenCalled()
   })
 
-  it('scrambles the password and signs out when the temp password has expired', async () => {
+  it('returns active and signs out no one when the temp password has not expired', async () => {
+    const future = new Date(Date.now() + 60_000).toISOString()
+    const supabase = makeSupabase({
+      fromReturn: { data: { temp_password_expires_at: future }, error: null },
+    })
+
+    await expect(refuseIfTempPasswordExpired(supabase, USER_ID)).resolves.toBe('active')
+    expect(supabase.auth.signOut).not.toHaveBeenCalled()
+  })
+
+  it('returns expired and signs out globally, leaving the Auth password untouched', async () => {
     const past = new Date(Date.now() - 60_000).toISOString()
-    mockAdminUpdateUserById.mockResolvedValue({ error: null })
     const supabase = makeSupabase({
       fromReturn: { data: { temp_password_expires_at: past }, error: null },
     })
 
     await expect(refuseIfTempPasswordExpired(supabase, USER_ID)).resolves.toBe('expired')
-    expect(mockAdminUpdateUserById).toHaveBeenCalledWith(USER_ID, {
-      password: expect.any(String),
-    })
     expect(supabase.auth.signOut).toHaveBeenCalledWith({ scope: 'global' })
   })
 
-  it('refuses without scrambling the password when the state cannot be read', async () => {
+  it('refuses with error and signs out no one when the state cannot be read', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const supabase = makeSupabase({
       fromReturn: { data: null, error: { message: 'connection reset' } },
     })
 
     await expect(refuseIfTempPasswordExpired(supabase, USER_ID)).resolves.toBe('error')
-    expect(mockAdminUpdateUserById).not.toHaveBeenCalled()
+    expect(supabase.auth.signOut).not.toHaveBeenCalled()
     expect(consoleSpy).toHaveBeenCalledWith(
       '[refuseIfTempPasswordExpired] state read error:',
       'Failed to read temp password state: connection reset',

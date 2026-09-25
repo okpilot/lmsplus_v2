@@ -4,33 +4,40 @@
  * Attack surface: an armed account (`users.temp_password_expires_at` set by
  * `record_login_instructions_sent`, Vector FP) must be forced through
  * `/auth/set-password` before it can use the app, and an EXPIRED temp
- * password must be refused, scrambled, and every session for that account
- * revoked. This spec exercises the gate as an attacker would:
+ * password must be refused in-app and every session for that account
+ * revoked. The Auth password is deliberately left unchanged on an expired
+ * hit (Decision 100 revision 2) — an expired temp password stays a valid
+ * Auth credential at the raw API until an admin Resend, which is accepted;
+ * this spec proves the app-layer gates refuse it every time regardless.
+ * This spec exercises the gate as an attacker would:
  *   1. Can an armed account reach `/app/*` or a Server Action directly,
  *      bypassing the redirect a normal page load would follow?
- *   2. Does an expired temp password actually get rejected, and does the
- *      scramble + global sign-out actually happen (not just the redirect)?
+ *   2. Does an expired temp password actually get rejected and every session
+ *      revoked (not just the redirect), and does it stay refused on a
+ *      SECOND, fresh browser login with the same credential?
  *   3. Does `/auth/set-password`'s `next` param accept an off-app target?
  *   4. Can an un-armed caller reach the set-password form, or affect a
  *      DIFFERENT user's `temp_password_expires_at`?
  *   5. Does the OTHER self-service password path (forgot-password →
  *      `resetOwnPassword`) also refuse an expired temp password, or does it
- *      offer a side door around the login-path scramble?
+ *      offer a side door around the login-path refusal?
  *
  * Defense (traced to source):
  *   - `apps/web/proxy.ts` → `checkTempPasswordGate()`
  *     (`apps/web/lib/auth/temp-password-gate.ts`) runs a DB read on every
  *     `/app` request, before the consent gate. `active` → redirect to
  *     `/auth/set-password?next=<attempted path>`. `expired` →
- *     `expireTempPassword()` then redirect to `/?error=temp_password_expired`.
+ *     `signOutExpiredTempPassword()` then redirect to
+ *     `/?error=temp_password_expired`.
  *   - `apps/web/app/auth/login-complete/route.ts` runs the identical check
  *     immediately after login, before the consent RPC — and now sets the
  *     consent cookie on the set-password redirect itself when consent is
  *     already satisfied in the DB, so a consented armed user goes
  *     set-password → `next` directly with no `/consent` detour afterward.
- *   - `apps/web/lib/auth/temp-password.ts` `expireTempPassword()` scrambles
- *     the Auth password via `adminClient.auth.admin.updateUserById` (random
- *     32-byte password) and calls `supabase.auth.signOut({ scope: 'global' })`.
+ *   - `apps/web/lib/auth/temp-password.ts` `signOutExpiredTempPassword()`
+ *     calls `supabase.auth.signOut({ scope: 'global' })` — it never touches
+ *     the Auth password, so the expired credential remains valid at the raw
+ *     API (accepted residual, direct-API use before a hit).
  *   - `apps/web/app/auth/set-password/actions.ts` `setOwnPassword()` resolves
  *     the target user via `getUser()` only — no id parameter — so it cannot
  *     be pointed at another user's row.
@@ -38,9 +45,10 @@
  *     `safeNextPath()` (same allowlist as Vector FO) before ever rendering
  *     the form.
  *   - `apps/web/app/auth/reset-password/actions.ts` `resetOwnPassword()`
- *     calls the same `expireTempPassword()` scramble and refuses with the
- *     identical expiry message BEFORE ever calling `updateUser()`, closing
- *     the forgot-password path as a side door around the login-path refusal.
+ *     calls the same `refuseIfTempPasswordExpired()` guard and refuses with
+ *     the identical expiry message BEFORE ever calling `updateUser()`,
+ *     closing the forgot-password path as a side door around the login-path
+ *     refusal.
  *
  * Closes: login-instructions-enforcement branch, PR B (plan-enforcement.md).
  */
@@ -96,6 +104,7 @@ test.describe('Red Team: Temporary-password forced-change gate (Vector FT)', () 
     browser,
   }) => {
     const { email } = await createArmedTempPasswordStudent({
+      slot: 'ft-1-armed-direct',
       password: ARMED_PASSWORD,
       expiresInMs: SEVEN_DAYS_MS,
     })
@@ -133,6 +142,7 @@ test.describe('Red Team: Temporary-password forced-change gate (Vector FT)', () 
 
   test('a Server Action POST to an /app path is not served while armed', async ({ browser }) => {
     const { email } = await createArmedTempPasswordStudent({
+      slot: 'ft-2-armed-post',
       password: ARMED_PASSWORD,
       expiresInMs: SEVEN_DAYS_MS,
     })
@@ -165,13 +175,15 @@ test.describe('Red Team: Temporary-password forced-change gate (Vector FT)', () 
   })
 
   // ---------------------------------------------------------------------
-  // Expired temp password: refused, scrambled, signed out everywhere
+  // Expired temp password: refused in-app, signed out everywhere, and
+  // remains a valid (but always-refused) Auth credential — no scramble.
   // ---------------------------------------------------------------------
 
-  test('an expired temp password is refused, scrambled, and revokes a token captured before the hit', async ({
+  test('an expired temp password revokes a captured session and stays refused on a fresh login', async ({
     browser,
   }) => {
     const { email } = await createArmedTempPasswordStudent({
+      slot: 'ft-3-expired',
       password: EXPIRED_PASSWORD,
       expiresInMs: -1_000,
     })
@@ -222,23 +234,31 @@ test.describe('Red Team: Temporary-password forced-change gate (Vector FT)', () 
       'a refresh token captured before the hit must no longer refresh',
     ).not.toBeNull()
 
-    // The original temp password must no longer authenticate — proves the
-    // scramble actually replaced the Auth password, not just the DB column.
-    const passwordCheck = rawAnonClient()
-    const { error: staleLoginError } = await passwordCheck.auth.signInWithPassword({
-      email,
-      password: EXPIRED_PASSWORD,
-    })
-    expect(
-      staleLoginError,
-      'the original temp password must no longer sign in after expiry',
-    ).not.toBeNull()
+    // The Auth password is deliberately left untouched (no scramble, Decision
+    // 100 revision 2) — a fresh browser login with the same expired temp
+    // password must still be refused in-app every time, not just the first.
+    const secondContext = await browser.newContext({ storageState: undefined })
+    const secondPage = await secondContext.newPage()
+    try {
+      await secondPage.goto('/')
+      await secondPage.getByLabel('Email address').fill(email)
+      await secondPage.getByLabel('Password', { exact: true }).fill(EXPIRED_PASSWORD)
+      await secondPage.getByRole('button', { name: 'Sign in' }).click()
+
+      await secondPage.waitForURL('**/?error=temp_password_expired', { timeout: 15_000 })
+      const secondUrl = new URL(secondPage.url())
+      expect(secondUrl.pathname).toBe('/')
+      expect(secondUrl.searchParams.get('error')).toBe('temp_password_expired')
+    } finally {
+      await secondContext.close()
+    }
   })
 
-  test('a forgot-password completion also refuses an expired temp password, scrambling it the same way', async ({
+  test('a forgot-password completion also refuses an expired temp password, the same way as the login path', async ({
     page,
   }) => {
     const { email } = await createArmedTempPasswordStudent({
+      slot: 'ft-4-forgot-expired',
       password: EXPIRED_PASSWORD,
       expiresInMs: -1_000,
     })
@@ -269,18 +289,16 @@ test.describe('Red Team: Temporary-password forced-change gate (Vector FT)', () 
       ),
     ).toBeVisible({ timeout: 10_000 })
 
-    // Non-vacuous: the temp password must no longer sign in — the refusal
-    // path scrambles the same way expireTempPassword() does on the login
-    // path, not just returning an error while leaving the password intact.
-    const passwordCheck = rawAnonClient()
-    const { error: staleLoginError } = await passwordCheck.auth.signInWithPassword({
-      email,
-      password: EXPIRED_PASSWORD,
-    })
-    expect(
-      staleLoginError,
-      'the original temp password must no longer sign in after a refused reset',
-    ).not.toBeNull()
+    // Non-vacuous: the original expired temp password stays a valid Auth
+    // credential (no scramble) BUT the login path still refuses it in-app —
+    // proves the reset-path refusal didn't accidentally clear the flag.
+    const staleLoginPage = await page.context().newPage()
+    await staleLoginPage.goto('/')
+    await staleLoginPage.getByLabel('Email address').fill(email)
+    await staleLoginPage.getByLabel('Password', { exact: true }).fill(EXPIRED_PASSWORD)
+    await staleLoginPage.getByRole('button', { name: 'Sign in' }).click()
+    await staleLoginPage.waitForURL('**/?error=temp_password_expired', { timeout: 15_000 })
+    await staleLoginPage.close()
 
     // The NEW password must never have taken effect either — the refusal
     // happens before updateUser() is called.
@@ -309,6 +327,7 @@ test.describe('Red Team: Temporary-password forced-change gate (Vector FT)', () 
       // consumed its student's temp password (set-password clears the gate),
       // so reusing one email across iterations would fail the second sign-in.
       const { email } = await createArmedTempPasswordStudent({
+        slot: 'ft-5-offapp-next',
         password: ARMED_PASSWORD,
         expiresInMs: SEVEN_DAYS_MS,
       })
@@ -361,6 +380,7 @@ test.describe('Red Team: Temporary-password forced-change gate (Vector FT)', () 
     await ensureLoginTestUser()
 
     const { userId: victimUserId } = await createArmedTempPasswordStudent({
+      slot: 'ft-6-victim',
       password: ARMED_PASSWORD,
       expiresInMs: SEVEN_DAYS_MS,
     })

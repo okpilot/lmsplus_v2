@@ -1,4 +1,3 @@
-import { randomBytes } from 'node:crypto'
 import { adminClient } from '@repo/db/admin'
 import type { createMiddlewareSupabaseClient } from '@repo/db/middleware'
 import type { createServerSupabaseClient } from '@repo/db/server'
@@ -8,9 +7,6 @@ type SupabaseClient =
   | ReturnType<typeof createMiddlewareSupabaseClient>['supabase']
 
 export type TempPasswordState = 'none' | 'active' | 'expired'
-
-/** Outcome of `refuseIfTempPasswordExpired`: whether a self-service password write may proceed. */
-export type TempPasswordRefusal = 'ok' | 'expired' | 'error'
 
 export const TEMP_PASSWORD_EXPIRED_MESSAGE =
   'Your temporary password has expired. Ask your instructor to send you new login instructions.'
@@ -44,22 +40,16 @@ export async function readTempPasswordState(
 }
 
 /**
- * Scrambles the user's password to a random, unrecoverable value and signs out
- * every session globally. Best-effort: logs and continues on either failure,
- * never throws. Does NOT clear `temp_password_expires_at` — callers needing
- * that call `clearTempPassword` separately.
+ * Signs out every session globally for an account whose temp password has
+ * expired. Does NOT touch the Auth password — an expired temp password stays
+ * a valid credential at the API until an admin Resend, which is accepted;
+ * the app-layer gates refuse it regardless. Best-effort: logs and continues
+ * on failure, never throws.
  */
-export async function expireTempPassword(supabase: SupabaseClient, userId: string): Promise<void> {
-  const { error: updateError } = await adminClient.auth.admin.updateUserById(userId, {
-    password: randomBytes(32).toString('base64url'),
-  })
-  if (updateError) {
-    console.error('[expireTempPassword] password scramble failed:', updateError.message)
-  }
-
-  const { error: signOutError } = await supabase.auth.signOut({ scope: 'global' })
-  if (signOutError) {
-    console.error('[expireTempPassword] global sign-out failed:', signOutError.message)
+export async function signOutExpiredTempPassword(supabase: SupabaseClient): Promise<void> {
+  const { error } = await supabase.auth.signOut({ scope: 'global' })
+  if (error) {
+    console.error('[signOutExpiredTempPassword] global sign-out failed:', error.message)
   }
 }
 
@@ -68,13 +58,16 @@ export async function expireTempPassword(supabase: SupabaseClient, userId: strin
  * their own password (reset, forced-change, and settings change). Reads the
  * caller's temp-password state and fails closed: a read error refuses the
  * write just like an actually-expired one, so no self-service path can slip
- * through on a transient DB failure. On `'expired'` it also scrambles the
- * password and signs out globally, mirroring the proxy gate's behaviour.
+ * through on a transient DB failure. On `'expired'` it also signs out
+ * globally, mirroring the proxy gate's behaviour. Returns the resolved state
+ * (or `'error'`) so callers can tell an armed account (`'active'`, needs its
+ * flag cleared after the write) from one that never had a temp password
+ * (`'none'`, no clear needed).
  */
 export async function refuseIfTempPasswordExpired(
   supabase: SupabaseClient,
   userId: string,
-): Promise<TempPasswordRefusal> {
+): Promise<TempPasswordState | 'error'> {
   let state: TempPasswordState
   try {
     state = await readTempPasswordState(supabase, userId)
@@ -85,9 +78,8 @@ export async function refuseIfTempPasswordExpired(
     )
     return 'error'
   }
-  if (state !== 'expired') return 'ok'
-  await expireTempPassword(supabase, userId)
-  return 'expired'
+  if (state === 'expired') await signOutExpiredTempPassword(supabase)
+  return state
 }
 
 /**

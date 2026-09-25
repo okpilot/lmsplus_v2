@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { checkTempPasswordGate } from './temp-password-gate'
 
-const { mockReadTempPasswordState, mockExpireTempPassword } = vi.hoisted(() => ({
+const { mockReadTempPasswordState, mockSignOutExpiredTempPassword } = vi.hoisted(() => ({
   mockReadTempPasswordState: vi.fn(),
-  mockExpireTempPassword: vi.fn(),
+  mockSignOutExpiredTempPassword: vi.fn(),
 }))
 
 vi.mock('@/lib/auth/temp-password', () => ({
   readTempPasswordState: mockReadTempPasswordState,
-  expireTempPassword: mockExpireTempPassword,
+  signOutExpiredTempPassword: mockSignOutExpiredTempPassword,
 }))
 
 const REQUEST_URL = 'http://localhost:3000/app/dashboard'
@@ -94,7 +94,7 @@ describe('checkTempPasswordGate', () => {
     expect(result).toBe(sentinel)
   })
 
-  it('expires the temp password with the user id and redirects to the expired-password error page', async () => {
+  it('signs out globally and redirects to the expired-password error page', async () => {
     mockReadTempPasswordState.mockResolvedValue('expired')
 
     await checkTempPasswordGate({
@@ -106,7 +106,7 @@ describe('checkTempPasswordGate', () => {
       redirectWithCookies,
     })
 
-    expect(mockExpireTempPassword).toHaveBeenCalledWith(SUPABASE_STUB, 'user-1')
+    expect(mockSignOutExpiredTempPassword).toHaveBeenCalledWith(SUPABASE_STUB)
     expect(redirectWithCookies).toHaveBeenCalledTimes(1)
     const url = redirectWithCookies.mock.calls[0]?.[0] as URL
     expect(url.toString()).toBe('http://localhost:3000/?error=temp_password_expired')
@@ -128,7 +128,7 @@ describe('checkTempPasswordGate', () => {
     expect(result).toBe(SERVICE_UNAVAILABLE_RESPONSE)
     expect(buildServiceUnavailable).toHaveBeenCalledTimes(1)
     expect(redirectWithCookies).not.toHaveBeenCalled()
-    expect(mockExpireTempPassword).not.toHaveBeenCalled()
+    expect(mockSignOutExpiredTempPassword).not.toHaveBeenCalled()
     expect(consoleSpy).toHaveBeenCalledWith(
       '[proxy] temp password state read error:',
       'connection reset',

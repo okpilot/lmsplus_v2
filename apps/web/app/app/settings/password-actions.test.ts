@@ -55,7 +55,7 @@ beforeEach(() => {
   vi.resetAllMocks()
   mockRpc.mockResolvedValue({ error: null })
   mockClearTempPassword.mockResolvedValue({ success: true })
-  mockRefuseExpired.mockResolvedValue('ok')
+  mockRefuseExpired.mockResolvedValue('active')
 })
 
 describe('changePassword', () => {
@@ -144,7 +144,7 @@ describe('changePassword', () => {
 
     it('proceeds to verify the current password when the temp-password guard passes', async () => {
       mockAuthenticatedUser()
-      mockRefuseExpired.mockResolvedValue('ok')
+      mockRefuseExpired.mockResolvedValue('active')
       mockSignIn.mockResolvedValue({ error: null })
       mockUpdateUser.mockResolvedValue({ error: null })
 
@@ -152,6 +152,18 @@ describe('changePassword', () => {
 
       expect(result.success).toBe(true)
       expect(mockSignIn).toHaveBeenCalled()
+    })
+
+    it('does not clear the temp-password flag when the caller never had one armed', async () => {
+      mockAuthenticatedUser()
+      mockRefuseExpired.mockResolvedValue('none')
+      mockSignIn.mockResolvedValue({ error: null })
+      mockUpdateUser.mockResolvedValue({ error: null })
+
+      const result = await changePassword(validInput)
+
+      expect(result.success).toBe(true)
+      expect(mockClearTempPassword).not.toHaveBeenCalled()
     })
   })
 
