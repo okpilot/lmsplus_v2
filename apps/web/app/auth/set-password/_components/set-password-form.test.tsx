@@ -57,7 +57,7 @@ describe('SetPasswordForm', () => {
   it('shows the returned error message when the action reports failure', async () => {
     mockSetOwnPassword.mockResolvedValue({
       success: false,
-      error: 'Choose a password different from your temporary one.',
+      error: 'Choose a different password.',
     })
     const user = userEvent.setup()
     render(<SetPasswordForm nextPath={null} />)
@@ -66,9 +66,7 @@ describe('SetPasswordForm', () => {
     await user.type(screen.getByLabelText(/confirm password/i), 'newpassword123')
     await user.click(screen.getByRole('button', { name: /set password/i }))
 
-    expect(
-      await screen.findByText(/choose a password different from your temporary one/i),
-    ).toBeInTheDocument()
+    expect(await screen.findByText(/choose a different password/i)).toBeInTheDocument()
     expect(mockAssign).not.toHaveBeenCalled()
   })
 
@@ -98,6 +96,21 @@ describe('SetPasswordForm', () => {
     await waitFor(() => {
       expect(mockAssign).toHaveBeenCalledWith('/app/dashboard')
     })
+  })
+
+  it('shows a generic error when the action call throws', async () => {
+    mockSetOwnPassword.mockRejectedValue(new Error('network error'))
+    const user = userEvent.setup()
+    render(<SetPasswordForm nextPath={null} />)
+
+    await user.type(screen.getByLabelText(/new password/i), 'newpassword123')
+    await user.type(screen.getByLabelText(/confirm password/i), 'newpassword123')
+    await user.click(screen.getByRole('button', { name: /set password/i }))
+
+    expect(
+      await screen.findByText(/unable to update password\. please try again\./i),
+    ).toBeInTheDocument()
+    expect(mockAssign).not.toHaveBeenCalled()
   })
 
   it('toggles password visibility', async () => {

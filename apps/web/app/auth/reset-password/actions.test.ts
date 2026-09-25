@@ -124,15 +124,20 @@ describe('resetOwnPassword', () => {
       expect(mockSignOut).toHaveBeenCalled()
     })
 
-    it('still succeeds when clearing the temp-password flag fails', async () => {
+    it('asks to retry with a different password and keeps the session when finishing the update fails', async () => {
       mockAuthenticatedUser()
       mockUpdateUser.mockResolvedValue({ error: null })
       mockClearTempPassword.mockResolvedValue({ success: false })
 
       const result = await resetOwnPassword(validInput)
 
-      expect(result).toEqual({ ok: true })
-      expect(mockSignOut).toHaveBeenCalled()
+      expect(result).toEqual({
+        ok: false,
+        isSessionMissing: false,
+        message:
+          'Your password could not be fully updated. Please try again with a different password.',
+      })
+      expect(mockSignOut).not.toHaveBeenCalled()
     })
   })
 })

@@ -137,6 +137,19 @@ describe('proxy — temporary-password gate', () => {
     expect(new URL(response.headers.get('location') ?? '').pathname).toBe('/consent')
   })
 
+  it('redirects an armed but consent-less user to set-password, not to /consent', async () => {
+    // Proves gate ORDERING: the temp-password gate must run before the consent
+    // gate (proxy.ts comment). Without the consent cookie, a consent-gate-first
+    // implementation would send this request to /consent instead.
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockReadTempPasswordState.mockResolvedValue('active')
+
+    const response = await proxy(makeRequest('/app/dashboard'))
+
+    expect(response.status).toBe(307)
+    expect(new URL(response.headers.get('location') ?? '').pathname).toBe('/auth/set-password')
+  })
+
   it('does not gate a request to /auth/set-password itself', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
     mockReadTempPasswordState.mockResolvedValue('active')

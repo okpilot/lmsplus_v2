@@ -47,6 +47,17 @@ function forwardAntiCacheHeaders(source: NextResponse, target: NextResponse): vo
   }
 }
 
+/** 503 for a failed authorization read on /app, carrying the session cookies and security headers. */
+function serviceUnavailable(response: NextResponse): NextResponse {
+  const unavailable = new NextResponse('Service unavailable', { status: 503 })
+  for (const cookie of response.cookies.getAll()) {
+    unavailable.cookies.set(cookie)
+  }
+  forwardAntiCacheHeaders(response, unavailable)
+  applySecurityHeaders(unavailable)
+  return unavailable
+}
+
 export async function proxy(request: NextRequest): Promise<Response> {
   // Cast needed: @playwright/test causes a duplicate next.js install with incompatible internal types
   const { supabase, response } = createMiddlewareSupabaseClient(
@@ -75,18 +86,6 @@ export async function proxy(request: NextRequest): Promise<Response> {
     return redirect
   }
 
-  // Shared with the admin-role lookup failure below — a DB read failing on a
-  // /app request means the request cannot be authorized either way.
-  function buildServiceUnavailable(): NextResponse {
-    const unavailable = new NextResponse('Service unavailable', { status: 503 })
-    for (const cookie of response.cookies.getAll()) {
-      unavailable.cookies.set(cookie)
-    }
-    forwardAntiCacheHeaders(response, unavailable)
-    applySecurityHeaders(unavailable)
-    return unavailable
-  }
-
   // Recovery sessions can only access /auth/reset-password — block everything else
   const recoveryPending = request.cookies.get('__recovery_pending')?.value === '1'
   if (recoveryPending && user) {
@@ -100,16 +99,14 @@ export async function proxy(request: NextRequest): Promise<Response> {
     return redirectWithCookies(withNext(new URL('/', request.url), next))
   }
 
-  // Temporary-password gate: an armed account must set its own password before
-  // reaching any /app page. DB read on every /app request (no cookie cache).
-  // `/auth/set-password` never matches `/app`, so this gate can't loop into it.
+  // Temporary-password gate (Decision 100); runs before consent.
   if (pathname.startsWith('/app') && user) {
     const gateResponse = await checkTempPasswordGate({
       supabase,
       userId: user.id,
       requestUrl: request.url,
       nextPath: safeNextPath(pathname + request.nextUrl.search),
-      buildServiceUnavailable,
+      buildServiceUnavailable: () => serviceUnavailable(response),
       redirectWithCookies,
     })
     if (gateResponse) return gateResponse
@@ -142,7 +139,7 @@ export async function proxy(request: NextRequest): Promise<Response> {
 
     if (profileError) {
       console.error('[proxy] admin role lookup error:', profileError.message)
-      return buildServiceUnavailable()
+      return serviceUnavailable(response)
     }
 
     // Bounce to the student dashboard rather than emitting a bare 403 body: the

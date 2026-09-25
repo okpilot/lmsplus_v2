@@ -121,7 +121,7 @@ describe('setOwnPassword', () => {
 
       expect(result.success).toBe(false)
       if (result.success) return
-      expect(result.error).toBe('Choose a password different from your temporary one.')
+      expect(result.error).toBe('Choose a different password.')
       expect(mockClearTempPassword).not.toHaveBeenCalled()
     })
 
@@ -140,7 +140,7 @@ describe('setOwnPassword', () => {
   })
 
   describe('clear failure', () => {
-    it('returns a generic error when clearing the flag fails', async () => {
+    it('asks to retry with a different password when finishing the update fails', async () => {
       mockAuthenticatedUser()
       mockReadTempPasswordState.mockResolvedValue('active')
       mockUpdateUser.mockResolvedValue({ error: null })
@@ -150,7 +150,9 @@ describe('setOwnPassword', () => {
 
       expect(result.success).toBe(false)
       if (result.success) return
-      expect(result.error).toBe('Unable to update password. Please try again.')
+      expect(result.error).toBe(
+        'Your password could not be fully updated. Please try again with a different password.',
+      )
     })
   })
 

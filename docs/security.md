@@ -35,6 +35,7 @@ The highest-value targets are:
 
 - Supabase Auth handles password hashing, session tokens, and expiry
 - Login via `signInWithPassword({ email, password })` → `/auth/login-complete` (server hop) → `record_login()` RPC (audit event) → the validated `next` destination (`safeNextPath`, same-app `/app` paths only), else `/app/dashboard`
+- Temporary password (Decision 100): while `users.temp_password_expires_at` is set, `proxy.ts` (`/app*`) and `/auth/login-complete` redirect to `/auth/set-password`; once past, they scramble the Auth password, sign out globally and redirect to `/?error=temp_password_expired`; a failed read fails closed (503 / sign-out). Only a successful self `updateUser` clears it, via service role (`clearTempPassword`)
 - Forgot password via `resetPasswordForEmail()` → recovery email with PKCE token → `/auth/confirm` (verifyOtp server-side) → `/auth/reset-password`
 - Recovery defense-in-depth: `/auth/callback` also supports `?next=/auth/reset-password` with allowlist validation (blocks open-redirect, protocol-relative URLs, malformed URLs)
 - Password minimum length: 6 characters (enforced by Zod on client, Supabase on server)
@@ -81,7 +82,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/app/:path*', '/auth/login-complete', '/consent'],
+  matcher: ['/', '/app/:path*', '/auth/login-complete', '/auth/set-password', '/consent'],
 }
 ```
 

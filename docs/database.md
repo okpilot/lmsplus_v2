@@ -121,7 +121,7 @@ CREATE TABLE users (
 ```
 
 **Login-instructions columns (migration `20260925000100`, login-instructions-email feature):**
-`login_instructions_sent_at` — last time an admin sent this user their login details; NULL = never sent. `temp_password_expires_at` — expiry of the temporary password; NULL = none recorded; `< now()` = expired. The only in-app writer of either column is the SECURITY DEFINER RPC `record_login_instructions_sent(p_user_id)` (see RPC section below), which stamps both on a send. No application action or RPC clears `temp_password_expires_at` yet.
+`login_instructions_sent_at` — last time an admin sent this user their login details; NULL = never sent. `temp_password_expires_at` — expiry of the temporary password; NULL = none recorded; `< now()` = expired. The only in-app writer of either column is the SECURITY DEFINER RPC `record_login_instructions_sent(p_user_id)` (see RPC section below), which stamps both on a send. `clearTempPassword()` (`apps/web/lib/auth/temp-password.ts`, service role) sets `temp_password_expires_at` to NULL, called only after a successful self `auth.updateUser` password change (set-password, Settings, forgot-password completion). Readers: `apps/web/proxy.ts` (every `/app` request) and `/auth/login-complete`.
 
 **RLS policies (migration `20260311000004`, fixed in `20260312000012`; UPDATE added `20260326000056`):**
 - SELECT: self-only — `id = auth.uid() AND deleted_at IS NULL` (`users_select` policy). A caller reads only their own row; org-wide member listing goes through admin-gated RPCs, not a direct SELECT.

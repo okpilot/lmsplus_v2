@@ -113,6 +113,23 @@ describe('ResetPasswordForm', () => {
     expect(resetLink).toHaveAttribute('href', '/auth/forgot-password')
   })
 
+  it('shows a generic error when the action call throws', async () => {
+    mockResetOwnPassword.mockRejectedValue(new Error('network error'))
+    const user = userEvent.setup()
+    render(<ResetPasswordForm />)
+
+    await user.type(screen.getByLabelText(/new password/i), 'newpassword123')
+    await user.type(screen.getByLabelText(/confirm password/i), 'newpassword123')
+    await user.click(screen.getByRole('button', { name: /update password/i }))
+
+    expect(
+      await screen.findByText(/unable to update password\. please try again\./i),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('link', { name: /request a new reset link/i }),
+    ).not.toBeInTheDocument()
+  })
+
   it('toggles password visibility', async () => {
     const user = userEvent.setup()
     render(<ResetPasswordForm />)

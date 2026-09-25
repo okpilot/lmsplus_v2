@@ -14,6 +14,9 @@ const ResetPasswordSchema = z
     path: ['confirmPassword'],
   })
 
+const RETRY_DIFFERENT_PASSWORD =
+  'Your password could not be fully updated. Please try again with a different password.'
+
 export type ResetOwnPasswordResult =
   | { ok: true }
   | { ok: false; isSessionMissing: boolean; message: string }
@@ -53,9 +56,11 @@ export async function resetOwnPassword(raw: unknown): Promise<ResetOwnPasswordRe
     }
   }
 
-  // Best-effort: the password is already changed, so a failed clear must not
-  // fail the action — clearTempPassword logs its own errors.
-  await clearTempPassword(user.id)
+  // A left-armed flag would scramble this password at the next login.
+  const { success: cleared } = await clearTempPassword(user.id)
+  if (!cleared) {
+    return { ok: false, isSessionMissing: false, message: RETRY_DIFFERENT_PASSWORD }
+  }
   await supabase.auth.signOut()
 
   return { ok: true }
