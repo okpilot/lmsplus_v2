@@ -154,6 +154,10 @@ CREATE POLICY "tenant_isolation" ON table_name
 --    was measured on production 2026-08-20 to hold INSERT/UPDATE/DELETE on
 --    organizations, question_banks, courses and lessons, so RLS was the only
 --    thing standing in the way.
+--    Migration `20260925000200` revoked `anon`'s INSERT/UPDATE/DELETE/TRUNCATE
+--    and `authenticated`'s TRUNCATE on every public table, plus the matching
+--    default privileges for future postgres-owned tables. `anon` keeps SELECT;
+--    `authenticated` still holds INSERT/UPDATE/DELETE (#1367).
 --    Use it ONLY when same-tenant users are genuinely meant to write the table
 --    directly, which NO table in this schema currently does. It is wrong when:
 --      • the table has is_admin()-gated write policies → the OR-ed FOR ALL
