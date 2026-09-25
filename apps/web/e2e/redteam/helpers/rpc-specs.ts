@@ -8,9 +8,7 @@
  * after this helper was written is covered automatically.
  */
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://localhost:54321'
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
-if (!SERVICE_ROLE_KEY) throw new Error('SUPABASE_SERVICE_ROLE_KEY is required')
+import { fetchOpenApiRootField } from './openapi-root'
 
 export type RpcSpec = { name: string; params: string[] }
 
@@ -21,18 +19,7 @@ export type RpcSpec = { name: string; params: string[] }
  * argument names — a parameterless function yields an empty `params` array.
  */
 export async function deriveRpcSpecs(): Promise<RpcSpec[]> {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/`, {
-    headers: {
-      apikey: SERVICE_ROLE_KEY as string,
-      Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
-      Accept: 'application/openapi+json',
-    },
-  })
-  if (!res.ok) throw new Error(`OpenAPI root fetch failed: ${res.status} ${res.statusText}`)
-  const body: unknown = await res.json()
-  const raw =
-    typeof body === 'object' && body !== null ? (body as { paths?: unknown }).paths : undefined
-  if (typeof raw !== 'object' || raw === null) throw new Error('OpenAPI root has no paths object')
+  const raw = await fetchOpenApiRootField('paths')
   const paths = raw as Record<
     string,
     {
