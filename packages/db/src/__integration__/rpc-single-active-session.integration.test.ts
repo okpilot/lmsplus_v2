@@ -283,14 +283,17 @@ describe('RPC: start_discovery_session + single-active-session guard', () => {
     expect(after.map((s) => s.id)).toEqual([quizId])
   })
 
-  it('rejects a discovery start from an unauthenticated caller', async () => {
+  it('rejects a discovery start from an unauthenticated caller at the privilege layer', async () => {
     const anon = getAnonClient()
+    // mig 20260925000400 revokes anon EXECUTE on every public function, so the
+    // call is rejected (42501) before the body's own auth.uid() IS NULL guard
+    // is ever reached.
     const { data, error } = await anon.rpc('start_discovery_session', {
       p_subject_id: subjectId,
       p_question_ids: questionIds.slice(0, 1),
     })
-    expect(error).not.toBeNull()
-    expect(error?.message ?? '').toMatch(/not_authenticated/i)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(/permission denied for function/i)
     expect(data).toBeNull()
   })
 

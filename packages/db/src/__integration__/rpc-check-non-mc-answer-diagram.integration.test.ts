@@ -343,16 +343,16 @@ describe('RPC: check_non_mc_answer — diagram_label grading + guards', () => {
   })
 
   // ── guard rejections ────────────────────────────────────────────────────────
-  it('rejects an unauthenticated caller', async () => {
+  it('rejects an unauthenticated caller at the privilege layer', async () => {
     const anon = getAnonClient()
-    const sessionId = await startSession(studentClient, [diagramAId])
+    const sessionId = await startSession(studentClient, [diagramAId]) // mig 20260925000400: anon EXECUTE revoked
     const { error } = await anon.rpc('check_non_mc_answer', {
       p_question_id: diagramAId,
       p_session_id: sessionId,
       p_mapping: CONFIG_A.answer,
     })
-    expect(error).not.toBeNull()
-    expect(error?.message).toContain('not_authenticated')
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(/permission denied for function/i)
   })
 
   it('rejects a diagram mapping submitted during a mock exam', async () => {

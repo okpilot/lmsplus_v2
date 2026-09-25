@@ -17,10 +17,11 @@ import { VICTIM_EMAIL, VICTIM_PASSWORD } from './helpers/seed-users'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://localhost:54321'
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-// SECURITY INVOKER RPCs run as anon; mig 20260925000300 revokes anon's SELECT
-// on every public table, so their underlying reads now fail at the privilege
-// layer (42501) before RLS is ever reached.
-const PERMISSION_DENIED = /permission denied for (table|view)/i
+// mig 20260925000400 revokes EXECUTE on every public function from PUBLIC and
+// anon, so every RPC call below is rejected at the privilege layer (42501)
+// BEFORE the function body ever runs — never reaching a body-raised
+// 'not authenticated' / 'not_authenticated' message.
+const FUNCTION_PERMISSION_DENIED = /permission denied for function/i
 
 // Unauthenticated client — anon key only, no sign-in, no JWT
 const unauthClient = createClient(SUPABASE_URL, ANON_KEY, {
@@ -59,14 +60,11 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
       p_question_ids: [knownQuestionId],
     })
 
-    // Must fail: either an RPC error or no usable session returned
-    const hasNoSession =
-      error !== null ||
-      data === null ||
-      (typeof data === 'object' &&
-        (data as { question_ids?: unknown[] })?.question_ids?.length === 0)
-
-    expect(hasNoSession).toBe(true)
+    // mig 20260925000400 revokes anon EXECUTE on every public function, so the
+    // call is rejected at the privilege layer before the body ever runs.
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(FUNCTION_PERMISSION_DENIED)
+    expect(data).toBeNull()
   })
 
   test('unauthenticated client cannot call submit_quiz_answer', async () => {
@@ -77,16 +75,11 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
       p_response_time_ms: 1000,
     })
 
-    // Assert the rejection is an AUTH rejection, not merely some error: a bare
-    // `error != null` also passes on a misspelled RPC name (PGRST202) or a
-    // missing session, so it would not notice the auth guard disappearing.
-    // Two spellings are accepted because the rejecting layer differs by
-    // environment: the GRANT (`authenticated` only) raises 42501 "permission
-    // denied", while a role holding EXECUTE reaches the body's
-    // `RAISE EXCEPTION 'not authenticated'` (P0001). Local grants drift
-    // additively via fix-local-grants.sql, so the local layer is NOT evidence
-    // of production's — measured P0001 locally 2026-09-19.
-    expect(error?.message ?? '').toMatch(/not authenticated|permission denied/i)
+    // mig 20260925000400 revokes anon EXECUTE on every public function, so the
+    // call is rejected at the privilege layer (42501) before the body's
+    // `RAISE EXCEPTION 'not authenticated'` (P0001) is ever reached.
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(FUNCTION_PERMISSION_DENIED)
     expect(data).toBeNull()
   })
 
@@ -95,72 +88,71 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
       p_question_ids: [knownQuestionId],
     })
 
-    // Must return an error or empty array — correct answers must never be exposed
-    if (error) {
-      expect(error).not.toBeNull()
-    } else {
-      // If the RPC returned something, it must be an empty array
-      expect(Array.isArray(data) ? data.length : 0).toBe(0)
-    }
+    // mig 20260925000400 revokes anon EXECUTE on every public function, so the
+    // call is rejected at the privilege layer before correct answers could ever
+    // be built or returned.
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(FUNCTION_PERMISSION_DENIED)
+    expect(data).toBeNull()
   })
 
   test('list_my_active_internal_exam_codes rejects unauthenticated callers (Vector BW)', async () => {
-    // The RPC raises not_authenticated via the auth.uid() IS NULL guard before
-    // any data access. An anon-key client has no JWT, so auth.uid() is NULL and
-    // the exception fires before the SELECT runs.
+    // mig 20260925000400 revokes anon EXECUTE, so the call is rejected at the
+    // privilege layer before the auth.uid() IS NULL guard, or any data access,
+    // is ever reached.
     const { data, error } = await unauthClient.rpc('list_my_active_internal_exam_codes')
-    expect(error).not.toBeNull()
-    expect(error?.message ?? '').toMatch(/not_authenticated/i)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(FUNCTION_PERMISSION_DENIED)
     expect(data ?? null).toBeNull()
   })
 
   test('list_my_internal_exam_history rejects unauthenticated callers (Vector BX)', async () => {
-    // Same not_authenticated guard as list_my_active_internal_exam_codes —
+    // Same privilege-layer denial as list_my_active_internal_exam_codes —
     // anonymous callers must not enumerate any student's session history.
     const { data, error } = await unauthClient.rpc('list_my_internal_exam_history')
-    expect(error).not.toBeNull()
-    expect(error?.message ?? '').toMatch(/not_authenticated/i)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(FUNCTION_PERMISSION_DENIED)
     expect(data ?? null).toBeNull()
   })
 
   test('get_daily_activity rejects unauthenticated callers', async () => {
-    // Both analytics RPCs gained the active-user gate in mig 20260824000300, but their FIRST
-    // guard is the older bare auth.uid() IS NULL check, which no test at any tier exercised.
-    // p_student_id is a required arg; a random uuid is fine because the null-check fires first.
+    // Both analytics RPCs gained the active-user gate in mig 20260824000300, but
+    // mig 20260925000400 revokes anon EXECUTE, so the call is rejected before
+    // that gate — or the older auth.uid() IS NULL check — is ever reached.
+    // p_student_id is a required arg; a random uuid is fine, the call never runs.
     const { data, error } = await unauthClient.rpc('get_daily_activity', {
       p_student_id: '00000000-0000-0000-0000-000000000000',
       p_days: 7,
     })
-    expect(error).not.toBeNull()
-    expect(error?.message ?? '').toMatch(/not authenticated/i)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(FUNCTION_PERMISSION_DENIED)
     expect(data ?? null).toBeNull()
   })
 
   test('get_subject_scores rejects unauthenticated callers', async () => {
     // Sibling of the above. MEASURED 2026-09-01: get_subject_scores's only in-repo caller was
     // the getSubjectScores helper (apps/web/lib/queries/analytics.ts), which nothing imported —
-    // so no page reached it and its GRANT to `authenticated` was the whole live surface, making
-    // this anon path the first thing an unauthenticated prober would try. Callers are an OPEN
-    // set; re-derive with `grep -rn "get_subject_scores\|getSubjectScores" apps packages`
-    // rather than trusting this line.
+    // so no page reached it and its GRANT to `authenticated` is now the only live surface, since
+    // mig 20260925000400 revokes anon EXECUTE. Callers are an OPEN set; re-derive with
+    // `grep -rn "get_subject_scores\|getSubjectScores" apps packages` rather than trusting this line.
     const { data, error } = await unauthClient.rpc('get_subject_scores', {
       p_student_id: '00000000-0000-0000-0000-000000000000',
       p_limit: 5,
     })
-    expect(error).not.toBeNull()
-    expect(error?.message ?? '').toMatch(/not authenticated/i)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(FUNCTION_PERMISSION_DENIED)
     expect(data ?? null).toBeNull()
   })
 
   test('record_internal_exam_code_emailed rejects unauthenticated callers (Vector DZ)', async () => {
-    // The RPC raises not_authenticated via the auth.uid() IS NULL guard (mig
-    // 110) BEFORE any code lookup. An anon-key client has no JWT, so auth.uid()
-    // is NULL and the exception fires — a non-existent uuid is therefore fine.
+    // mig 20260925000400 revokes anon EXECUTE, so the call is rejected at the
+    // privilege layer before the auth.uid() IS NULL guard (mig 110) or any code
+    // lookup is ever reached — a non-existent uuid is therefore fine.
     const { data, error } = await unauthClient.rpc('record_internal_exam_code_emailed', {
       p_code_id: '00000000-0000-4000-a000-000000000003',
     })
-    expect(error).not.toBeNull()
-    expect(error?.message ?? '').toMatch(/not_authenticated/i)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(FUNCTION_PERMISSION_DENIED)
     expect(data ?? null).toBeNull()
   })
 
@@ -168,7 +160,7 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
     // BW1
     const { data, error } = await unauthClient.rpc('get_student_mastery_stats')
     expect(error?.code).toBe('42501')
-    expect(error?.message ?? '').toMatch(PERMISSION_DENIED)
+    expect(error?.message ?? '').toMatch(FUNCTION_PERMISSION_DENIED)
     expect(data ?? null).toBeNull()
   })
 
@@ -176,7 +168,7 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
     // CA: named param required.
     const { data, error } = await unauthClient.rpc('get_question_counts', { p_status: 'active' })
     expect(error?.code).toBe('42501')
-    expect(error?.message ?? '').toMatch(PERMISSION_DENIED)
+    expect(error?.message ?? '').toMatch(FUNCTION_PERMISSION_DENIED)
     expect(data ?? null).toBeNull()
   })
 
@@ -184,7 +176,7 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
     // BX2
     const { data, error } = await unauthClient.rpc('get_student_last_practiced')
     expect(error?.code).toBe('42501')
-    expect(error?.message ?? '').toMatch(PERMISSION_DENIED)
+    expect(error?.message ?? '').toMatch(FUNCTION_PERMISSION_DENIED)
     expect(data ?? null).toBeNull()
   })
 
@@ -193,110 +185,115 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
     // anon; the users read behind it is now denied before that row is built.
     const { data, error } = await unauthClient.rpc('get_student_streak')
     expect(error?.code).toBe('42501')
-    expect(error?.message ?? '').toMatch(PERMISSION_DENIED)
+    expect(error?.message ?? '').toMatch(FUNCTION_PERMISSION_DENIED)
     expect(data ?? null).toBeNull()
   })
 
   test('start_exam_session rejects unauthenticated callers (Vector AG, #545)', async () => {
-    // SECURITY DEFINER; the auth.uid() IS NULL guard raises 'not authenticated'
-    // before any exam_config lookup, so an anon caller never reaches the
-    // question-selection path. knownSubjectId is a REAL subject (so the rejection
-    // is the auth guard, not a missing-subject path).
+    // SECURITY DEFINER; mig 20260925000400 revokes anon EXECUTE, so the call is
+    // rejected at the privilege layer before the auth.uid() IS NULL guard, or any
+    // exam_config lookup, is ever reached. knownSubjectId is a REAL subject (so
+    // the rejection is the privilege guard, not a missing-subject path).
     const { data, error } = await unauthClient.rpc('start_exam_session', {
       p_subject_id: knownSubjectId,
     })
-    expect(error).not.toBeNull()
-    expect(error?.message ?? '').toMatch(/not authenticated/i)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(FUNCTION_PERMISSION_DENIED)
     expect(data ?? null).toBeNull()
   })
 
   test('complete_empty_exam_session rejects unauthenticated callers (Vector AN, #557)', async () => {
-    // SECURITY DEFINER; the auth.uid() IS NULL guard fires before the session
-    // ownership lookup, so the session id need not exist for the anon caller to
-    // be rejected with 'not authenticated'.
+    // SECURITY DEFINER; mig 20260925000400 revokes anon EXECUTE, so the call is
+    // rejected at the privilege layer before the auth.uid() IS NULL guard, or the
+    // session ownership lookup, is ever reached — the session id need not exist.
     const { data, error } = await unauthClient.rpc('complete_empty_exam_session', {
       p_session_id: knownSessionId,
     })
-    expect(error).not.toBeNull()
-    expect(error?.message ?? '').toMatch(/not authenticated/i)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(FUNCTION_PERMISSION_DENIED)
     expect(data ?? null).toBeNull()
   })
 
   test('start_vfr_rt_exam_session rejects unauthenticated callers (Vector DN1, #825)', async () => {
-    // SECURITY DEFINER; the auth.uid() IS NULL guard raises 'not_authenticated'
-    // (mig 099) before the exam_config lookup. knownSubjectId is REAL so the
-    // rejection is the auth guard, not a missing-subject path.
+    // SECURITY DEFINER; mig 20260925000400 revokes anon EXECUTE, so the call is
+    // rejected at the privilege layer before the auth.uid() IS NULL guard (mig
+    // 099), or the exam_config lookup, is ever reached. knownSubjectId is REAL so
+    // the rejection is the privilege guard, not a missing-subject path.
     const { data, error } = await unauthClient.rpc('start_vfr_rt_exam_session', {
       p_subject_id: knownSubjectId,
     })
-    expect(error).not.toBeNull()
-    expect(error?.message ?? '').toMatch(/not_authenticated/i)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(FUNCTION_PERMISSION_DENIED)
     expect(data ?? null).toBeNull()
   })
 
   test('get_vfr_rt_exam_questions rejects unauthenticated callers (Vector DO1, #825)', async () => {
-    // SECURITY DEFINER; the auth.uid() IS NULL guard raises 'not_authenticated'
-    // (mig 105 — the session-derived (p_session_id) signature) before the
-    // session/questions read, so the session id need not exist.
+    // SECURITY DEFINER; mig 20260925000400 revokes anon EXECUTE, so the call is
+    // rejected at the privilege layer before the auth.uid() IS NULL guard (mig
+    // 105), or the session/questions read, is ever reached — the session id
+    // need not exist.
     const { data, error } = await unauthClient.rpc('get_vfr_rt_exam_questions', {
       p_session_id: knownSessionId,
     })
-    expect(error).not.toBeNull()
-    expect(error?.message ?? '').toMatch(/not_authenticated/i)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(FUNCTION_PERMISSION_DENIED)
     expect(data ?? null).toBeNull()
   })
 
   test('submit_vfr_rt_exam_answers rejects unauthenticated callers (Vector DQ1, #825)', async () => {
-    // SECURITY DEFINER; the auth.uid() IS NULL guard raises 'not_authenticated'
-    // (mig 100) before the session-ownership SELECT and payload validation.
+    // SECURITY DEFINER; mig 20260925000400 revokes anon EXECUTE, so the call is
+    // rejected at the privilege layer before the auth.uid() IS NULL guard (mig
+    // 100), the session-ownership SELECT, or payload validation, is ever reached.
     const { data, error } = await unauthClient.rpc('submit_vfr_rt_exam_answers', {
       p_session_id: knownSessionId,
       p_answers: [{ question_id: knownQuestionId, selected_option_id: 'a' }],
     })
-    expect(error).not.toBeNull()
-    expect(error?.message ?? '').toMatch(/not_authenticated/i)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(FUNCTION_PERMISSION_DENIED)
     expect(data ?? null).toBeNull()
   })
 
   test('get_vfr_rt_exam_results rejects unauthenticated callers (Vector DR1, #825)', async () => {
-    // SECURITY DEFINER; the auth.uid() IS NULL guard raises 'not_authenticated'
-    // (mig 103/106) before the ended_at-gated results read — so answer keys are
-    // never reachable by an anon caller.
+    // SECURITY DEFINER; mig 20260925000400 revokes anon EXECUTE, so the call is
+    // rejected at the privilege layer before the auth.uid() IS NULL guard (mig
+    // 103/106), or the ended_at-gated results read, is ever reached — so answer
+    // keys are never reachable by an anon caller.
     const { data, error } = await unauthClient.rpc('get_vfr_rt_exam_results', {
       p_session_id: knownSessionId,
     })
-    expect(error).not.toBeNull()
-    expect(error?.message ?? '').toMatch(/not_authenticated/i)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(FUNCTION_PERMISSION_DENIED)
     expect(data ?? null).toBeNull()
   })
 
   test('check_non_mc_answer rejects unauthenticated callers (Vector EM, #983)', async () => {
-    // SECURITY DEFINER (mig 119); the auth.uid() IS NULL guard raises
-    // 'not_authenticated' (snake_case, NO space — distinct from the report RPCs'
-    // 'Not authenticated') as the very first statement, before the active-caller
-    // gate, the session-ownership SELECT, and any answer-key column read. So a
-    // real-looking session id need not exist for the anon caller to be rejected,
-    // and the short_answer/dialog_fill canonicals are never reachable anon.
+    // SECURITY DEFINER (mig 119); mig 20260925000400 revokes anon EXECUTE, so
+    // the call is rejected at the privilege layer before the auth.uid() IS NULL
+    // guard, the active-caller gate, the session-ownership SELECT, or any
+    // answer-key column read, is ever reached. So a real-looking session id
+    // need not exist, and the short_answer/dialog_fill canonicals are never
+    // reachable anon.
     const { data, error } = await unauthClient.rpc('check_non_mc_answer', {
       p_question_id: knownQuestionId,
       p_session_id: knownSessionId,
       p_response_text: 'cleared to land',
       p_blank_answers: null,
     })
-    expect(error).not.toBeNull()
-    expect(error?.message ?? '').toMatch(/not_authenticated/i)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(FUNCTION_PERMISSION_DENIED)
     expect(data ?? null).toBeNull()
   })
 
   test('get_question_authoring_fields rejects unauthenticated callers (Vector DT, #825)', async () => {
-    // SECURITY DEFINER; the auth.uid() IS NULL guard raises 'not authenticated'
-    // (mig 094b — note the SPACE, not the underscore the vfr_rt RPCs use) before
-    // the is_admin() check, so the answer-key columns are never reachable anon.
+    // SECURITY DEFINER; mig 20260925000400 revokes anon EXECUTE, so the call is
+    // rejected at the privilege layer before the auth.uid() IS NULL guard (mig
+    // 094b), or the is_admin() check, is ever reached — the answer-key columns
+    // are never reachable anon.
     const { data, error } = await unauthClient.rpc('get_question_authoring_fields', {
       p_question_id: knownQuestionId,
     })
-    expect(error).not.toBeNull()
-    expect(error?.message ?? '').toMatch(/not authenticated/i)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(FUNCTION_PERMISSION_DENIED)
     expect(data ?? null).toBeNull()
   })
 
@@ -310,23 +307,24 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
       p_filters: null,
     })
     expect(error?.code).toBe('42501')
-    expect(error?.message ?? '').toMatch(PERMISSION_DENIED)
+    expect(error?.message ?? '').toMatch(FUNCTION_PERMISSION_DENIED)
     expect(data ?? null).toBeNull()
   })
 
   test('rejects an unauthenticated get_study_questions call (#1005)', async () => {
     // startStudy (study.ts) chains get_random_question_ids (anon → 0 ids → short-circuits,
-    // already covered above) then get_study_questions; this pins the SECURITY DEFINER
-    // answer-key RPC's `auth.uid() IS NULL` guard (mig 20260629000700 raises
-    // 'Not authenticated') so no correct_option_id is reachable anon. The
-    // Server-Action-shape assertion in #1005's AC is infeasible (can't invoke the
-    // Server Action from a red-team spec); this is the durable RPC mirror.
+    // already covered above) then get_study_questions; mig 20260925000400 revokes
+    // anon EXECUTE, so the call is rejected at the privilege layer before the
+    // SECURITY DEFINER answer-key RPC's `auth.uid() IS NULL` guard (mig 20260629000700)
+    // is ever reached — no correct_option_id is reachable anon. The Server-Action-shape
+    // assertion in #1005's AC is infeasible (can't invoke the Server Action from a
+    // red-team spec); this is the durable RPC mirror.
     const { data, error } = await unauthClient.rpc('get_study_questions', {
       p_question_ids: [knownQuestionId],
     })
-    expect(error).not.toBeNull()
-    expect(error?.message ?? '').toMatch(/not authenticated/i)
-    expect(data).toBeNull()
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(FUNCTION_PERMISSION_DENIED)
+    expect(data ?? null).toBeNull()
   })
 
   test('get_filtered_question_counts is denied for an unauthenticated caller (Vector CA, #689)', async () => {
@@ -338,56 +336,60 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
       p_filters: null,
     })
     expect(error?.code).toBe('42501')
-    expect(error?.message ?? '').toMatch(PERMISSION_DENIED)
+    expect(error?.message ?? '').toMatch(FUNCTION_PERMISSION_DENIED)
     expect(data ?? null).toBeNull()
   })
 
   test('check_consent_status rejects unauthenticated callers (Vector W, #384)', async () => {
-    // SECURITY DEFINER; the _uid IS NULL guard raises 'Not authenticated' before
-    // the consent lookup (message capitalised differently from the exam RPCs —
-    // matched case-insensitively).
+    // SECURITY DEFINER; mig 20260925000400 revokes anon EXECUTE, so the call is
+    // rejected at the privilege layer before the _uid IS NULL guard, or the
+    // consent lookup, is ever reached.
     const { data, error } = await unauthClient.rpc('check_consent_status', {
       p_tos_version: 'v1.0',
       p_privacy_version: 'v1.0',
     })
-    expect(error).not.toBeNull()
-    expect(error?.message ?? '').toMatch(/not authenticated/i)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(FUNCTION_PERMISSION_DENIED)
     expect(data ?? null).toBeNull()
   })
 
   test('record_consent rejects unauthenticated callers (Vector W, #384)', async () => {
-    // SECURITY DEFINER; the _uid IS NULL guard raises 'Not authenticated' before
-    // any user_consents INSERT, so an anon caller cannot forge a consent record.
+    // SECURITY DEFINER; mig 20260925000400 revokes anon EXECUTE, so the call is
+    // rejected at the privilege layer before the _uid IS NULL guard, or any
+    // user_consents INSERT, is ever reached — an anon caller cannot forge a
+    // consent record.
     const { data, error } = await unauthClient.rpc('record_consent', {
       p_document_type: 'terms_of_service',
       p_document_version: 'v1.0',
       p_accepted: true,
     })
-    expect(error).not.toBeNull()
-    expect(error?.message ?? '').toMatch(/not authenticated/i)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(FUNCTION_PERMISSION_DENIED)
     expect(data ?? null).toBeNull()
   })
 
   test('record_auth_event rejects unauthenticated callers (Vector CQ, #788)', async () => {
-    // SECURITY DEFINER (mig 093); the auth.uid() IS NULL guard raises
-    // 'not authenticated' before the actor lookup, event-type whitelist, or any
-    // audit_events INSERT — so an anon caller cannot forge an audit row.
+    // SECURITY DEFINER (mig 093); mig 20260925000400 revokes anon EXECUTE, so
+    // the call is rejected at the privilege layer before the auth.uid() IS NULL
+    // guard, the actor lookup, the event-type whitelist, or any audit_events
+    // INSERT, is ever reached — an anon caller cannot forge an audit row.
     const { data, error } = await unauthClient.rpc('record_auth_event', {
       p_event_type: 'user.password_changed',
       p_resource_id: '00000000-0000-4000-a000-0000000000aa',
     })
-    expect(error).not.toBeNull()
-    expect(error?.message ?? '').toMatch(/not authenticated/i)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(FUNCTION_PERMISSION_DENIED)
     expect(data ?? null).toBeNull()
   })
 
   test('get_session_reports rejects unauthenticated callers (Vector CL1, #784)', async () => {
-    // SECURITY DEFINER (mig 091); the auth.uid() IS NULL guard raises
-    // 'Not authenticated' (capital N) before the session query — so an anon
-    // caller gets an error, NOT an empty result set. Matched case-insensitively.
+    // SECURITY DEFINER (mig 091); mig 20260925000400 revokes anon EXECUTE, so
+    // the call is rejected at the privilege layer before the auth.uid() IS NULL
+    // guard, or the session query, is ever reached — so an anon caller gets an
+    // error, NOT an empty result set.
     const { data, error } = await unauthClient.rpc('get_session_reports')
-    expect(error).not.toBeNull()
-    expect(error?.message ?? '').toMatch(/not authenticated/i)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(FUNCTION_PERMISSION_DENIED)
     expect(data ?? null).toBeNull()
   })
 

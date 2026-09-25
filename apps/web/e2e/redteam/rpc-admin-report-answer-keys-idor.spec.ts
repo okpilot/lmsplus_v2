@@ -88,11 +88,11 @@ const CORRECT_OPTIONS_RPC = 'get_admin_report_correct_options'
 // Exact RAISE string shared byte-for-byte by both RPCs (verified by reading
 // both migration bodies — see the file header comment).
 const ORG_GUARD_MESSAGE = /session not found, not in caller org, or not completed/i
-// FL: the two guard layers before the org check, also shared byte-for-byte
-// by both RPCs (`IF auth.uid() IS NULL THEN RAISE EXCEPTION 'Not
-// authenticated'` / `IF NOT public.is_admin() THEN RAISE EXCEPTION
-// 'forbidden'` — read from both migration bodies, same as ORG_GUARD_MESSAGE).
-const UNAUTHENTICATED_MESSAGE = /not authenticated/i
+// FL: mig 20260925000400 revokes anon EXECUTE, so an anon caller is rejected
+// at the privilege layer before either RPC's own auth.uid() IS NULL guard is
+// ever reached — FORBIDDEN_MESSAGE is still the body's own is_admin() guard,
+// unaffected by this migration.
+const FUNCTION_PERMISSION_DENIED = /permission denied for function/i
 const FORBIDDEN_MESSAGE = /forbidden/i
 
 const SHORT_ANSWER_QNUM = `${E2E_REDTEAM_FK_MARKER} short-answer`
@@ -511,8 +511,8 @@ test.describe('Red Team: get_admin_report_answer_keys / get_admin_report_correct
       auth: { autoRefreshToken: false, persistSession: false },
     })
     const { data, error } = await anon.rpc(ANSWER_KEYS_RPC, { p_session_id: orgASessionId })
-    expect(error).not.toBeNull()
-    expect(error?.message ?? '').toMatch(UNAUTHENTICATED_MESSAGE)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(FUNCTION_PERMISSION_DENIED)
     expect(data).toBeNull()
   })
 
@@ -521,8 +521,8 @@ test.describe('Red Team: get_admin_report_answer_keys / get_admin_report_correct
       auth: { autoRefreshToken: false, persistSession: false },
     })
     const { data, error } = await anon.rpc(CORRECT_OPTIONS_RPC, { p_session_id: orgASessionId })
-    expect(error).not.toBeNull()
-    expect(error?.message ?? '').toMatch(UNAUTHENTICATED_MESSAGE)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(FUNCTION_PERMISSION_DENIED)
     expect(data).toBeNull()
   })
 

@@ -159,8 +159,9 @@ CREATE POLICY "tenant_isolation" ON table_name
 --    table. `authenticated` holds only the table commands that a permitting
 --    RLS policy allows — every other INSERT/UPDATE/DELETE was REVOKEd. A new postgres-owned table defaults to `anon` nothing and
 --    `authenticated` SELECT only; a migration adding a write path must GRANT
---    it explicitly. Function EXECUTE narrowing is tracked separately (#1367
---    part B2).
+--    it explicitly. Migration `20260925000400` (#1367 part B2): `anon` and
+--    PUBLIC hold EXECUTE on no public function. A new postgres-owned
+--    function defaults to `authenticated` EXECUTE and nothing for `anon`.
 --    Use it ONLY when same-tenant users are genuinely meant to write the table
 --    directly, which NO table in this schema currently does. It is wrong when:
 --      • the table has is_admin()-gated write policies → the OR-ed FOR ALL

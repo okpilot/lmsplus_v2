@@ -330,18 +330,21 @@ describe('RPC: get_report_answer_keys — non-MC report keys + guards', () => {
   })
 
   // ── guard: unauthenticated ──────────────────────────────────────────────────
-  it('rejects an unauthenticated caller with Not authenticated', async () => {
-    // Seed a real completed, owned session so the rejection is about auth, not a
-    // missing session.
+  it('rejects an unauthenticated caller at the privilege layer', async () => {
+    // Seed a real completed, owned session so the rejection is about the
+    // privilege layer, not a missing session.
     const sessionId = await completeSession(
       studentClient,
       [saId],
       [{ question_id: saId, response_text: SA_CANONICAL, response_time_ms: 4000 }],
     )
     const anon = getAnonClient()
+    // mig 20260925000400 revokes anon EXECUTE on every public function, so the
+    // call is rejected (42501) before the body's own auth.uid() IS NULL guard
+    // ('Not authenticated') is ever reached.
     const { error } = await anon.rpc('get_report_answer_keys', { p_session_id: sessionId })
-    expect(error).not.toBeNull()
-    expect(error?.message).toContain('Not authenticated')
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(/permission denied for function/i)
   })
 
   // ── guard: soft-deleted caller ──────────────────────────────────────────────

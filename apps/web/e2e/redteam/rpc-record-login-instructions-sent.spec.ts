@@ -124,16 +124,16 @@ test.describe('Red Team: record_login_instructions_sent RPC', () => {
     expect(data?.length ?? 0).toBe(0)
   }
 
-  test('unauthenticated caller cannot send login instructions (Vector FP — not_authenticated)', async () => {
-    // The RPC raises not_authenticated via the auth.uid() IS NULL guard
-    // (mig 20260925000100) BEFORE any target-row lookup — an anon-key
-    // client has no JWT, so auth.uid() is NULL and the exception fires
-    // regardless of the target id. A non-existent uuid is therefore fine.
+  test('unauthenticated caller cannot send login instructions (Vector FP — privilege denied)', async () => {
+    // mig 20260925000400 revokes anon EXECUTE on every public function, so the
+    // call is rejected at the privilege layer (42501) BEFORE the body's own
+    // auth.uid() IS NULL guard (mig 20260925000100) or any target-row lookup
+    // is ever reached. A non-existent uuid is therefore fine.
     const { data, error } = await unauthClient.rpc('record_login_instructions_sent', {
       p_user_id: '00000000-0000-4000-a000-000000000004',
     })
-    expect(error).not.toBeNull()
-    expect(error?.message ?? '').toMatch(/not_authenticated/i)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(/permission denied for function/i)
     expect(data ?? null).toBeNull()
   })
 

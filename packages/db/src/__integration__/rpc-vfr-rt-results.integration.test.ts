@@ -2,7 +2,7 @@
  * A.11 — VFR RT exam: get_vfr_rt_exam_results + complete_overdue_exam_session.
  *
  * get_vfr_rt_exam_results covers:
- *   - not authenticated → not_authenticated error
+ *   - unauthenticated → denied at the privilege layer (42501, mig 20260925000400)
  *   - pre-completion session → 'Session not found, not owned, or not completed'
  *   - non-owner → same guard error
  *   - wrong mode session → same guard error
@@ -339,19 +339,19 @@ afterAll(async () => {
 // ─── get_vfr_rt_exam_results ──────────────────────────────────────────────────
 
 describe('RPC: get_vfr_rt_exam_results — guard errors', () => {
-  it('rejects unauthenticated call with not_authenticated', async () => {
+  it('rejects unauthenticated call at the privilege layer', async () => {
     const anonClient = await import('@supabase/supabase-js').then(({ createClient }) =>
       createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
         { auth: { autoRefreshToken: false, persistSession: false } },
       ),
-    )
+    ) // mig 20260925000400: anon EXECUTE revoked
     const { error } = await anonClient.rpc('get_vfr_rt_exam_results', {
       p_session_id: passingSessionId,
     })
-    expect(error).not.toBeNull()
-    expect(error?.message).toContain('not_authenticated')
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(/permission denied for function/i)
   })
 
   it('rejects a pre-completion session with the guard error — no key material in response', async () => {

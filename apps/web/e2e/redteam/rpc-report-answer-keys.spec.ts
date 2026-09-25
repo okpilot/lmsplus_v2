@@ -525,9 +525,9 @@ test.describe('Red Team: get_report_answer_keys RPC (Vector EN)', () => {
     const anon = createClient(SUPABASE_URL, ANON_KEY, {
       auth: { autoRefreshToken: false, persistSession: false },
     })
-    const { data, error } = await anon.rpc(RPC, { p_session_id: sessionId })
-    expect(error).not.toBeNull()
-    expect(error?.message ?? '').toMatch(/not authenticated/i)
+    const { data, error } = await anon.rpc(RPC, { p_session_id: sessionId }) // mig 20260925000400: anon EXECUTE revoked
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(/permission denied for function/i)
     expect(data).toBeNull()
   })
 

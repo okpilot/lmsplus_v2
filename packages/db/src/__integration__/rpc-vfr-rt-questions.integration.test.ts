@@ -616,18 +616,18 @@ describe('RPC: get_vfr_rt_exam_questions', () => {
     }
   })
 
-  it('rejects an unauthenticated call with not_authenticated', async () => {
+  it('rejects an unauthenticated call at the privilege layer', async () => {
     const { createClient } = await import('@supabase/supabase-js')
     const anonClient = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
       { auth: { autoRefreshToken: false, persistSession: false } },
-    )
+    ) // mig 20260925000400: anon EXECUTE revoked
     const { error } = await anonClient.rpc('get_vfr_rt_exam_questions', {
       p_session_id: sessionId,
     })
-    expect(error).not.toBeNull()
-    expect(error?.message).toContain('not_authenticated')
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(/permission denied for function/i)
   })
 
   it('rejects a soft-deleted caller with user_not_found_or_inactive', async () => {

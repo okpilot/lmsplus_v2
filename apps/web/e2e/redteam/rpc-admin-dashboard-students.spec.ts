@@ -4,8 +4,9 @@
  * SECURITY DEFINER RPC backing the admin student roster (join + filter + sort +
  * paginate + count). Auth is verified at the DB level (#682); this spec pins the
  * regression coverage.
- *  - BY1 (privilege escalation): unauthenticated → 'not authenticated';
- *    student → 'forbidden'; instructor → 'forbidden' (the load-bearing case —
+ *  - BY1 (privilege escalation): unauthenticated → denied at the privilege
+ *    layer (42501, mig 20260925000400); student → 'forbidden'; instructor →
+ *    'forbidden' (the load-bearing case —
  *    instructors are authenticated + org-scoped, gated only by is_admin()).
  *  - BZ1 (cross-org isolation): a cross-org admin sees only their own org's
  *    students — never the egmont victim.
@@ -67,9 +68,12 @@ test.describe('Red Team: get_admin_dashboard_students RPC', () => {
     const anon = createClient(SUPABASE_URL, ANON_KEY, {
       auth: { autoRefreshToken: false, persistSession: false },
     })
+    // mig 20260925000400 revokes anon EXECUTE on every public function, so the
+    // call is rejected at the privilege layer before the body's own
+    // auth.uid() IS NULL guard is ever reached.
     const { data, error } = await anon.rpc(RPC, args)
-    expect(error).not.toBeNull()
-    expect(error?.message ?? '').toMatch(/not authenticated/i)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(/permission denied for function/i)
     expect(data).toBeNull()
   })
 

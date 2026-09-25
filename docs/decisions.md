@@ -91,3 +91,4 @@
 ## 96 — 2026-09-25 — Login instructions carry a server-generated temporary password with a 7-day expiry; the forced-change and expiry state live in server-owned `users` columns (`login_instructions_sent_at`, `temp_password_expires_at`), not `user_metadata`. #1365
 ## 97 — 2026-09-25 — `anon` holds no INSERT/UPDATE/DELETE/TRUNCATE on public tables and no client role holds TRUNCATE, including through default privileges for new postgres-owned tables. #1366
 ## 98 — 2026-09-25 — `anon` holds no privilege on any public table; `authenticated` holds only table commands a permitting RLS policy allows; new tables default to `authenticated` SELECT only. #1367
+## 99 — 2026-09-25 — `anon` and PUBLIC hold EXECUTE on no public function; new functions default to `authenticated` EXECUTE. #1367

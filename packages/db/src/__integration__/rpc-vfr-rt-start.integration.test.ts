@@ -227,7 +227,7 @@ describe('RPC: start_vfr_rt_exam_session', () => {
     // global seed data inserted by mig 097 and must persist across test runs.
   })
 
-  it('rejects an unauthenticated call with not_authenticated', async () => {
+  it('rejects an unauthenticated call at the privilege layer', async () => {
     // Use the anon key client (no auth.uid())
     const anonClient = await import('@supabase/supabase-js').then(({ createClient }) =>
       createClient(
@@ -235,12 +235,12 @@ describe('RPC: start_vfr_rt_exam_session', () => {
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
         { auth: { autoRefreshToken: false, persistSession: false } },
       ),
-    )
+    ) // mig 20260925000400: anon EXECUTE revoked
     const { error } = await anonClient.rpc('start_vfr_rt_exam_session', {
       p_subject_id: rtSubjectId,
     })
-    expect(error).not.toBeNull()
-    expect(error?.message).toContain('not_authenticated')
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(/permission denied for function/i)
   })
 
   it('rejects when no exam_configs row exists for the org', async () => {

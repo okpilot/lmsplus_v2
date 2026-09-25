@@ -26,7 +26,8 @@ import {
  *      (expiry = sent + 7 days) + one audit row with exact fields
  *  (b) resend on the same target → both columns move later
  *  (c) non-admin (student) caller → 'not_admin', no audit row
- *  (d) unauthenticated caller (auth.uid() NULL) → 'not_authenticated'
+ *  (d) unauthenticated caller → denied at the privilege layer (42501, mig
+ *      20260925000400), before the body's own auth.uid() NULL guard runs
  *  (e) cross-org target → 'user_not_found', target row unchanged
  *  (f) soft-deleted target → 'user_not_found', target row unchanged
  *  (g) admin target (role guard) → 'user_not_found', target row unchanged
@@ -238,16 +239,19 @@ describe('RPC: record_login_instructions_sent', () => {
 
   // ── (d) Unauthenticated caller is rejected ──────────────────────────────
 
-  it('rejects an unauthenticated call with not_authenticated', async () => {
+  it('rejects an unauthenticated call at the privilege layer', async () => {
     const { id: studentId } = await createTarget({ org: orgId, role: 'student' })
     const anonClient = getAnonClient()
     const before = await readColumns(studentId)
 
+    // mig 20260925000400 revokes anon EXECUTE on every public function, so the
+    // call is rejected (42501) before the body's own auth.uid() IS NULL guard
+    // ('not_authenticated') is ever reached.
     const { error } = await anonClient.rpc('record_login_instructions_sent', {
       p_user_id: studentId,
     })
-    expect(error).not.toBeNull()
-    expect(error!.message).toMatch(/not_authenticated/)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(/permission denied for function/i)
     expect(await readColumns(studentId)).toEqual(before)
     expect(await auditCount(studentId)).toBe(0)
   })
