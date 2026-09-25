@@ -312,8 +312,7 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
   })
 
   test('rejects an unauthenticated get_study_questions call (#1005)', async () => {
-    // startStudy (study.ts) chains get_random_question_ids (anon → 0 ids → short-circuits,
-    // already covered above) then get_study_questions; mig 20260925000400 revokes
+    // Direct check of get_study_questions: mig 20260925000400 revokes
     // anon EXECUTE, so the call is rejected at the privilege layer before the
     // SECURITY DEFINER answer-key RPC's `auth.uid() IS NULL` guard (mig 20260629000700)
     // is ever reached — no correct_option_id is reachable anon. The Server-Action-shape
