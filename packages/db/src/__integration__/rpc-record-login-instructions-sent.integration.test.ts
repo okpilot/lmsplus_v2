@@ -225,12 +225,14 @@ describe('RPC: record_login_instructions_sent', () => {
       email,
       password: 'test-pass-123',
     })
+    const before = await readColumns(studentId)
 
     const { error } = await studentClient.rpc('record_login_instructions_sent', {
       p_user_id: studentId,
     })
     expect(error).not.toBeNull()
     expect(error!.message).toMatch(/not_admin/)
+    expect(await readColumns(studentId)).toEqual(before)
     expect(await auditCount(studentId)).toBe(0)
   })
 
@@ -239,12 +241,14 @@ describe('RPC: record_login_instructions_sent', () => {
   it('rejects an unauthenticated call with not_authenticated', async () => {
     const { id: studentId } = await createTarget({ org: orgId, role: 'student' })
     const anonClient = getAnonClient()
+    const before = await readColumns(studentId)
 
     const { error } = await anonClient.rpc('record_login_instructions_sent', {
       p_user_id: studentId,
     })
     expect(error).not.toBeNull()
     expect(error!.message).toMatch(/not_authenticated/)
+    expect(await readColumns(studentId)).toEqual(before)
     expect(await auditCount(studentId)).toBe(0)
   })
 
@@ -282,6 +286,7 @@ describe('RPC: record_login_instructions_sent', () => {
       .select('id')
     if (delErr) throw new Error(`soft-delete: ${delErr.message}`)
     expect(deleted).toHaveLength(1)
+    const before = await readColumns(studentId)
 
     const { error } = await adminClient.rpc('record_login_instructions_sent', {
       p_user_id: studentId,
@@ -289,9 +294,7 @@ describe('RPC: record_login_instructions_sent', () => {
     expect(error).not.toBeNull()
     expect(error!.message).toMatch(/user_not_found/)
 
-    const after = await readColumns(studentId)
-    expect(after.login_instructions_sent_at).toBeNull()
-    expect(after.temp_password_expires_at).toBeNull()
+    expect(await readColumns(studentId)).toEqual(before)
     expect(await auditCount(studentId)).toBe(0)
   })
 

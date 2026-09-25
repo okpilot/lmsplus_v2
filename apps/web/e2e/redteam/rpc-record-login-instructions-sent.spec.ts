@@ -25,6 +25,10 @@
  *  - cross-org admin, target in the victim's own org → user_not_found
  *  - own-org admin, soft-deleted target → user_not_found
  *  - own-org admin, admin-role target → user_not_found
+ *  - authenticated student, direct PostgREST UPDATE on their own row's two
+ *    login-instructions columns (bypassing the RPC entirely) → 42501,
+ *    no column-level UPDATE grant (mig 090, #773; mirrors Vector CG in
+ *    users-role-forge.spec.ts)
  *
  * Every rejected AUTHENTICATED-attacker call (guards 2-4) asserts (non-vacuous
  * negative, code-style.md §7):
@@ -73,12 +77,14 @@ test.describe('Red Team: record_login_instructions_sent RPC', () => {
   let crossOrgAdminClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
   let adminUserId: string
   let victimUserId: string
+  let attackerUserId: string
 
   test.beforeAll(async () => {
     admin = getAdminClient()
 
     const seed = await seedRedTeamUsers()
     victimUserId = seed.victimUserId
+    attackerUserId = seed.attackerUserId
 
     const seededAdmin = await seedRedTeamAdmin()
     adminUserId = seededAdmin.adminUserId
@@ -237,5 +243,58 @@ test.describe('Red Team: record_login_instructions_sent RPC', () => {
     const after = await expectTargetState(adminUserId)
     expect(after).toEqual(before)
     await expectNoLoginInstructionsAudit(adminUserId, testStart)
+  })
+
+  test.describe('direct PostgREST column write', () => {
+    let baseline: TargetState | null = null
+
+    // Restore in afterEach, which runs even when the test fails — a
+    // stranded mutated attacker row would poison downstream specs that
+    // authenticate as, or otherwise depend on, redteam-attacker@.
+    test.afterEach(async () => {
+      if (!baseline) return
+      const { data: restored, error: restoreErr } = await admin
+        .from('users')
+        .update({
+          login_instructions_sent_at: baseline.login_instructions_sent_at,
+          temp_password_expires_at: baseline.temp_password_expires_at,
+        })
+        .eq('id', attackerUserId)
+        .select('id')
+      if (restoreErr) throw new Error(`[FP cleanup] restore attacker failed: ${restoreErr.message}`)
+      if ((restored?.length ?? 0) === 0) {
+        throw new Error('[FP cleanup] restore attacker affected 0 rows')
+      }
+      baseline = null
+    })
+
+    test('a student cannot arm their own forced-change window via direct UPDATE (Vector FP — no column grant)', async () => {
+      // Non-vacuity: prove the attacker row exists and capture its baseline
+      // state before the attempt, so the rejection proves the column-level
+      // privilege revoke fired — not that the row was simply absent.
+      baseline = await expectTargetState(attackerUserId)
+
+      const { error } = await attackerStudentClient
+        .from('users')
+        .update({
+          login_instructions_sent_at: new Date().toISOString(),
+          temp_password_expires_at: new Date().toISOString(),
+        })
+        .eq('id', attackerUserId)
+        .select('id')
+
+      // Mig 090 (#773) revokes UPDATE on every users column except
+      // full_name from authenticated; the two login-instructions columns
+      // (mig 20260925000100) were never re-granted, so Postgres rejects the
+      // write at the privilege layer (42501) before RLS or any trigger runs
+      // — same mechanism as Vector CG in users-role-forge.spec.ts, whose
+      // header documents Postgres not always naming the specific column.
+      expect(error).not.toBeNull()
+      expect(error?.code).toBe('42501')
+      expect(error?.message ?? '').toMatch(/permission denied for (table users|column)/i)
+
+      const after = await expectTargetState(attackerUserId)
+      expect(after).toEqual(baseline)
+    })
   })
 })
