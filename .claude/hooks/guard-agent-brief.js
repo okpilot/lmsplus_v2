@@ -12,6 +12,8 @@
  * Also gates `SendMessage` (Decision 94) — same PreToolUse channel, a different shape:
  *   {"session_id":"...","transcript_path":"...","tool_name":"SendMessage",
  *    "tool_input":{"to":"...","message":"..."}}
+ * Any other Agent prompt or SendMessage containing a gate template's opening is blocked
+ * (Decision 95) — a gate brief goes only to its gated type.
  * Reference pattern: .claude/hooks/guard-bash.js (stdin accumulate + parse on 'end').
  */
 
@@ -96,6 +98,8 @@ const BLOCK_MESSAGES = {
     'targets an agent id whose type cannot be resolved (missing transcript_path/session_id, or an unreadable meta.json) — fails closed',
   'sendmessage-gated':
     'targets an agent id whose type is gated — a gated agent takes no message outside its own template-checked brief',
+  'gate-brief-ungated':
+    'contains a gate-reviewer brief sent to an ungated recipient — dispatch it through the matching gated subagent_type instead',
 }
 
 function block(type, reason, template) {
@@ -205,7 +209,7 @@ function dispatchReason(subagentType, toolInput, agents) {
  * `pipeline.json` gate role, or a template key). Fails closed for a gated type whose template cannot be read, and for an untemplated type when
  * `pipeline.json` cannot be read to tell. */
 function loadTemplates(subagentType) {
-  const templates = objectOrUndefined(readJson(TEMPLATES_PATH)?.templates)
+  const templates = readTemplates()
   const agents = objectOrUndefined(readJson(PIPELINE_PATH)?.agents)
   const gated =
     GATED_ROLES.has(agents?.[subagentType]?.role) || Object.hasOwn(templates ?? {}, subagentType)
@@ -219,6 +223,25 @@ function loadTemplates(subagentType) {
     blockLoad(`${TEMPLATES_PATH} has no template for gated type ${subagentType}`)
   }
   return { templates, agents, gated: true }
+}
+
+function readTemplates() {
+  return objectOrUndefined(readJson(TEMPLATES_PATH)?.templates)
+}
+
+/** Each template's text before its first `{placeholder}` — the fixed opening of a gate brief. */
+function gatePrefixes(templates) {
+  return Object.values(templates ?? {})
+    .filter((t) => typeof t === 'string')
+    .map((t) => t.split('{')[0])
+    .filter((p) => p !== '')
+}
+
+/** `'gate-brief-ungated'` when `text` contains any gate brief's opening, else `null`. Unreadable
+ * templates give no openings, so nothing blocks here; every gated dispatch blocks in `loadTemplates`. */
+function gateBriefReason(text, templates) {
+  if (typeof text !== 'string') return null
+  return gatePrefixes(templates).some((p) => text.includes(p)) ? 'gate-brief-ungated' : null
 }
 
 /** SendMessage's `to` field resolved to an agent type, or `undefined` when `to` names an
@@ -249,14 +272,15 @@ function resolveSendMessageType(payload) {
   return typeof meta?.agentType === 'string' ? meta.agentType : undefined
 }
 
-/** validates one SendMessage call. Returns `null` when allowed (not an agent id, or an ungated
- * one), or `{ reason }` when it must be blocked. */
+/** Validates one SendMessage call. Returns `null` when allowed, or `{ reason }` when it must be
+ * blocked: a gated or unresolvable agent id, or a gate brief sent to any other recipient. */
 function checkSendMessage(payload) {
   const type = resolveSendMessageType(payload)
-  if (type === null) return null
   if (type === undefined) return { reason: 'sendmessage-unresolved' }
-  const { gated } = loadTemplates(type)
-  return gated ? { reason: 'sendmessage-gated' } : null
+  const { templates, gated } = type === null ? { templates: readTemplates() } : loadTemplates(type)
+  if (gated) return { reason: 'sendmessage-gated' }
+  const reason = gateBriefReason(payload?.tool_input?.message, templates)
+  return reason ? { reason } : null
 }
 
 function readJson(file) {
@@ -310,10 +334,16 @@ process.stdin.on('end', () => {
 
   const toolInput = payload?.tool_input
   const subagentType = toolInput?.subagent_type
-  if (typeof subagentType !== 'string') return allow()
+  if (typeof subagentType !== 'string') {
+    const reason = gateBriefReason(toolInput?.prompt, readTemplates())
+    return reason ? block('Agent', reason) : allow()
+  }
 
   const { templates, agents, gated } = loadTemplates(subagentType)
-  if (!gated) return allow()
+  if (!gated) {
+    const reason = gateBriefReason(toolInput?.prompt, templates)
+    return reason ? block(subagentType, reason) : allow()
+  }
   const result = checkBrief(toolInput, templates, agents)
   if (result) return block(subagentType, result.reason, result.template)
   return allow()

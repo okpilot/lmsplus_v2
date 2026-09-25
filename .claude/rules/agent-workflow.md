@@ -426,7 +426,7 @@ Fix: [what to include next time]
 
 ### Gate reviewer agent integration
 For the gate's reviewer AGENTS, `.claude/agents/*.md` serve as the CONSTRAINTS and CONTEXT sections. The delegation template supplements with TASK, OBJECTIVE, and DONE WHEN — never duplicate the definitions.
-**Never steer a gate reviewer.** Its brief is its type's template in `.claude/hooks/gate-briefs.json` — never a prior finding, a fix to verify, a hypothesis or a focus area. `.claude/hooks/guard-agent-brief.js` blocks any other brief.
+**Never steer a gate reviewer.** Its brief is its type's template in `.claude/hooks/gate-briefs.json` — never a prior finding, a fix to verify, a hypothesis or a focus area. `.claude/hooks/guard-agent-brief.js` blocks any other brief, and a gate brief sent to any other recipient.
 ### DO
 - Use the 5-section delegation template for every subagent prompt.
 - Log delegation failures and improve future prompts.

@@ -8,12 +8,12 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { after, test } from 'node:test'
-import { cleanupFixtures, runHook } from './guard-agent-brief.testkit.mjs'
+import { cleanupFixtures, exactBrief, runHook } from './guard-agent-brief.testkit.mjs'
 
 // SendMessage fixture — a session directory carrying subagent `meta.json` files, the shape
 // `resolveSendMessageType` reads:
 // <dirname(transcript_path)>/<session_id>/subagents/agent-<id>.meta.json. Separate from the
-// testkit's ROOT (which the plan-path/branch fixtures use) so it can be removed independently.
+// testkit's fixture root (which the plan-path/branch fixtures use) so it can be removed independently.
 const SENDMSG_ROOT = mkdtempSync(path.join(tmpdir(), 'guard-agent-brief-sendmsg-'))
 const SESSION_ID = 'sess-e2e'
 const TRANSCRIPT_PATH = path.join(SENDMSG_ROOT, 'transcript.jsonl')
@@ -41,13 +41,13 @@ after(() => {
 /** SendMessage's PreToolUse payload — `session_id`/`transcript_path` are TOP-LEVEL fields, unlike
  * Agent's `cwd`. `extra` can override or, passed as `undefined`, drop a top-level field — e.g.
  * `{ transcript_path: undefined }` simulates a payload that never carried one. */
-function sendPayload(to, extra = {}) {
+function sendPayload(to, extra = {}, message = 'status update') {
   return JSON.stringify({
     session_id: SESSION_ID,
     transcript_path: TRANSCRIPT_PATH,
     hook_event_name: 'PreToolUse',
     tool_name: 'SendMessage',
-    tool_input: { to, message: 'status update' },
+    tool_input: { to, message },
     ...extra,
   })
 }
@@ -125,4 +125,18 @@ test('blocks a SendMessage to a gated agent id written in upper case with exit 2
   const r = runHook(sendPayload(GATED_AGENT_ID.toUpperCase()))
   assert.equal(r.status, 2)
   assert.match(r.stderr, /type is gated/)
+})
+
+// GROUP: guard-agent-brief-sendmessage-brief-check-disabled, guard-agent-brief-gated-scope-disabled
+test('blocks a gate brief sent to an ungated agent id with exit 2', () => {
+  const r = runHook(sendPayload(UNGATED_AGENT_ID, {}, exactBrief('code-reviewer')))
+  assert.equal(r.status, 2)
+  assert.match(r.stderr, /contains a gate-reviewer brief/)
+})
+
+// GROUP: guard-agent-brief-sendmessage-brief-check-disabled, guard-agent-brief-brief-contains-narrowed
+test('blocks a gate brief sent to a plain agent name with exit 2', () => {
+  const r = runHook(sendPayload('general-purpose', {}, `FYI:\n${exactBrief('deletion-reviewer')}`))
+  assert.equal(r.status, 2)
+  assert.match(r.stderr, /contains a gate-reviewer brief/)
 })
