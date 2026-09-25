@@ -81,12 +81,10 @@ const unauthClient = createClient(SUPABASE_URL, ANON_KEY, {
 test.describe('Red Team: Anonymous Table-Level DML Denied on Every Public Table', () => {
   let tables: TableSpec[]
 
+  // Non-vacuity for every test below (code-style.md §7): an empty or partial
+  // table set would let each loop pass without probing a table.
   test.beforeAll(async () => {
     tables = await deriveTableSpecs()
-  })
-
-  test('the derived table set is non-empty and covers the known-sensitive tables', () => {
-    expect(tables.length).toBeGreaterThan(0)
     const names = tables.map((t) => t.name)
     expect(names).toContain('users')
     expect(names).toContain('questions')
