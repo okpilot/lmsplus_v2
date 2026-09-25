@@ -95,6 +95,9 @@ test.describe('Red Team: Audit Event Completeness', () => {
   // Fixture tracker: sessions and codes cleaned up via afterEach.
   const tracker = createFixtureTracker()
 
+  // Set by the login-instructions test before its RPC call; afterEach resets on it (§7).
+  let loginInstructionsStamped = false
+
   test.beforeAll(async () => {
     admin = getAdminClient()
 
@@ -115,15 +118,31 @@ test.describe('Red Team: Audit Event Completeness', () => {
     await ensureExamConfig(orgId, subjectId, topicId)
   })
 
+  // Two independent steps, isolated so one failing never skips the other (§7).
   test.afterEach(async () => {
-    // Service-role soft-delete (bypasses RLS + immutable-columns trigger,
-    // deleted_at is in the mutable-columns whitelist).
-    // try/finally ensures the ID set is cleared even if the soft-delete
-    // throws. The error accumulator ensures BOTH cleanup blocks run even
-    // when the first throws — otherwise the second block (codes) is
-    // skipped on a session-cleanup failure, leaving codes uncleaned and
-    // polluting downstream specs (code-style.md §7 hermiticity).
-    await cleanupFixtures(admin, tracker)
+    const errors: string[] = []
+    try {
+      await cleanupFixtures(admin, tracker)
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
+    }
+    if (loginInstructionsStamped) {
+      try {
+        const { data, error } = await admin
+          .from('users')
+          .update({ login_instructions_sent_at: null, temp_password_expires_at: null })
+          .eq('id', studentUserId)
+          .select('id')
+        if (error) throw new Error(`reset login-instructions columns: ${error.message}`)
+        if ((data?.length ?? 0) > 0)
+          console.log(`[cleanup] reset login-instructions columns for ${data.length} user(s)`)
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      } finally {
+        loginInstructionsStamped = false
+      }
+    }
+    if (errors.length > 0) throw new Error(`afterEach: ${errors.join('; ')}`)
   })
 
   test('writes quiz_session.batch_submitted on quick_quiz batch submit', async () => {
@@ -365,7 +384,7 @@ test.describe('Red Team: Audit Event Completeness', () => {
 
   test('writes user.login_instructions_sent when admin sends login instructions (actor=admin)', async () => {
     const testStart = new Date().toISOString()
-
+    loginInstructionsStamped = true // set before the call: afterEach resets on it (§7)
     const { data: sendData, error: sendErr } = await adminAuthedClient.rpc(
       'record_login_instructions_sent',
       { p_user_id: studentUserId },
@@ -382,18 +401,6 @@ test.describe('Red Team: Audit Event Completeness', () => {
       testStart,
       studentUserId,
     )
-
-    // studentUserId is the shared redteam-attacker@ fixture reused across
-    // specs — reset the forced-change columns this test just stamped so
-    // downstream specs see the same pre-send state they'd see if this test
-    // hadn't run (single-step cleanup, code-style.md §7).
-    const { error: resetErr } = await admin
-      .from('users')
-      .update({ login_instructions_sent_at: null, temp_password_expires_at: null })
-      .eq('id', studentUserId)
-    if (resetErr) {
-      throw new Error(`cleanup: reset login-instructions columns failed: ${resetErr.message}`)
-    }
   })
 
   test('writes internal_exam.started when student redeems a valid code', async () => {

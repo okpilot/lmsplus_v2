@@ -39,8 +39,8 @@ import {
  * Hermetic: users/org rows created here are hard-deleted by cleanupTestData
  * in afterAll (test teardown only, see cleanup.ts header). audit_events is
  * append-only/immutable, so assertions scope by resource_id rather than
- * deleting audit rows — cleanupTestData removes the test org, which cascades
- * the org-scoped audit_events.
+ * deleting audit rows — cleanupTestData explicitly deletes audit_events by
+ * organization_id (cleanup.ts:83-84) before deleting the org, not a cascade.
  */
 describe('RPC: record_login_instructions_sent', () => {
   const admin = getAdminClient()

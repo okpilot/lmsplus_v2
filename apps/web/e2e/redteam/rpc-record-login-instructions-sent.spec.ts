@@ -5,8 +5,7 @@
  * temporary-password forced-change window (`login_instructions_sent_at`,
  * `temp_password_expires_at`) on a target `public.users` row and writes one
  * `user.login_instructions_sent` audit row. Guard order (from the migration):
- *   1. auth.uid() IS NULL              → not_authenticated (covered by DZ in
- *                                         server-action-unauthenticated.spec.ts)
+ *   1. auth.uid() IS NULL              → not_authenticated (this spec)
  *   2. NOT is_admin()                  → not_admin           (this spec)
  *   3. active-admin gate               → admin_not_found     (NOT exercised
  *                                         here — fires only when the calling
@@ -21,20 +20,27 @@
  *                                         admin-role targets — this spec)
  *
  * Tests cover:
+ *  - unauthenticated (anon-key) caller → not_authenticated
  *  - authenticated student (non-admin) caller → not_admin
  *  - cross-org admin, target in the victim's own org → user_not_found
  *  - own-org admin, soft-deleted target → user_not_found
  *  - own-org admin, admin-role target → user_not_found
  *
- * Every rejected call asserts (non-vacuous negative, code-style.md §7):
+ * Every rejected AUTHENTICATED-attacker call (guards 2-4) asserts (non-vacuous
+ * negative, code-style.md §7):
  *  - the target row exists, read via service role, before the attack;
  *  - both `login_instructions_sent_at`/`temp_password_expires_at` are
  *    unchanged (service-role read before AND after);
  *  - no `user.login_instructions_sent` audit row was written for that
  *    resource_id since test start.
+ * The unauthenticated case (guard 1) raises before any row lookup, so it
+ * calls with a nil uuid and asserts the error + null data only — the same
+ * shape as `record_internal_exam_code_emailed rejects unauthenticated
+ * callers (Vector DZ)` in server-action-unauthenticated.spec.ts.
  */
 
 import { expect, test } from '@playwright/test'
+import { createClient } from '@supabase/supabase-js'
 import { getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
 import {
@@ -47,9 +53,13 @@ import {
   seedRedTeamUsers,
 } from './helpers/seed-users'
 
-// Note: the unauthenticated guard (Vector DZ → not_authenticated) lives in
-// server-action-unauthenticated.spec.ts alongside the other anon-RPC vectors —
-// this spec covers the authenticated attacker paths only.
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://localhost:54321'
+const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+// Unauthenticated client — anon key only, no sign-in, no JWT.
+const unauthClient = createClient(SUPABASE_URL, ANON_KEY, {
+  auth: { autoRefreshToken: false, persistSession: false },
+})
 
 type TargetState = {
   login_instructions_sent_at: string | null
@@ -107,6 +117,19 @@ test.describe('Red Team: record_login_instructions_sent RPC', () => {
     expect(error).toBeNull()
     expect(data?.length ?? 0).toBe(0)
   }
+
+  test('unauthenticated caller cannot send login instructions (Vector FP — not_authenticated)', async () => {
+    // The RPC raises not_authenticated via the auth.uid() IS NULL guard
+    // (mig 20260925000100) BEFORE any target-row lookup — an anon-key
+    // client has no JWT, so auth.uid() is NULL and the exception fires
+    // regardless of the target id. A non-existent uuid is therefore fine.
+    const { data, error } = await unauthClient.rpc('record_login_instructions_sent', {
+      p_user_id: '00000000-0000-4000-a000-000000000004',
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toMatch(/not_authenticated/i)
+    expect(data ?? null).toBeNull()
+  })
 
   test('authenticated student (non-admin) cannot send login instructions (Vector FP — not_admin)', async () => {
     const testStart = new Date().toISOString()
