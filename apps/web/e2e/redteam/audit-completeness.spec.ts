@@ -363,6 +363,39 @@ test.describe('Red Team: Audit Event Completeness', () => {
     await expectAuditRow(admin, 'internal_exam.code_emailed', adminUserId, testStart, codeId)
   })
 
+  test('writes user.login_instructions_sent when admin sends login instructions (actor=admin)', async () => {
+    const testStart = new Date().toISOString()
+
+    const { data: sendData, error: sendErr } = await adminAuthedClient.rpc(
+      'record_login_instructions_sent',
+      { p_user_id: studentUserId },
+    )
+    expect(sendErr).toBeNull()
+    // record_login_instructions_sent RETURNS void — the documented success
+    // payload is null (code-style.md §7 RPC output contract).
+    expect(sendData).toBeNull()
+
+    await expectAuditRow(
+      admin,
+      'user.login_instructions_sent',
+      adminUserId,
+      testStart,
+      studentUserId,
+    )
+
+    // studentUserId is the shared redteam-attacker@ fixture reused across
+    // specs — reset the forced-change columns this test just stamped so
+    // downstream specs see the same pre-send state they'd see if this test
+    // hadn't run (single-step cleanup, code-style.md §7).
+    const { error: resetErr } = await admin
+      .from('users')
+      .update({ login_instructions_sent_at: null, temp_password_expires_at: null })
+      .eq('id', studentUserId)
+    if (resetErr) {
+      throw new Error(`cleanup: reset login-instructions columns failed: ${resetErr.message}`)
+    }
+  })
+
   test('writes internal_exam.started when student redeems a valid code', async () => {
     const testStart = new Date().toISOString()
 

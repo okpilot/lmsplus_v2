@@ -1209,8 +1209,10 @@ export type Database = {
           full_name: string | null
           id: string
           last_active_at: string | null
+          login_instructions_sent_at: string | null
           organization_id: string
           role: string
+          temp_password_expires_at: string | null
         }
         Insert: {
           created_at?: string
@@ -1220,8 +1222,10 @@ export type Database = {
           full_name?: string | null
           id: string
           last_active_at?: string | null
+          login_instructions_sent_at?: string | null
           organization_id: string
           role: string
+          temp_password_expires_at?: string | null
         }
         Update: {
           created_at?: string
@@ -1231,8 +1235,10 @@ export type Database = {
           full_name?: string | null
           id?: string
           last_active_at?: string | null
+          login_instructions_sent_at?: string | null
           organization_id?: string
           role?: string
+          temp_password_expires_at?: string | null
         }
         Relationships: [
           {
@@ -1609,6 +1615,7 @@ export type Database = {
         Returns: undefined
       }
       record_login: { Args: never; Returns: undefined }
+      record_login_instructions_sent: { Args: { p_user_id: string }; Returns: undefined }
       start_exam_session: { Args: { p_subject_id: string }; Returns: Json }
       start_internal_exam_session: {
         Args: { p_code: string }
