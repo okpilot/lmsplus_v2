@@ -123,15 +123,16 @@ test.describe('Red Team: internal_exam_codes table RLS', () => {
     }
   })
 
-  test('unauthenticated client sees 0 rows from internal_exam_codes (Vector DI)', async () => {
-    const { data, error } = await unauthClient
+  test('unauthenticated client is denied SELECT on internal_exam_codes (Vector DI)', async () => {
+    const { error } = await unauthClient
       .from('internal_exam_codes')
       .select('id, code, student_id')
       .limit(50)
 
-    // RLS returns empty for anon — not an error
-    expect(error).toBeNull()
-    expect(data?.length ?? 0).toBe(0)
+    // mig 20260925000300 revokes anon's SELECT on every public table — denied
+    // at the privilege layer, before RLS is ever evaluated.
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(/permission denied for (table|view)/i)
   })
 
   test('student-B cannot SELECT student-A code via direct table read (Vector DK)', async () => {

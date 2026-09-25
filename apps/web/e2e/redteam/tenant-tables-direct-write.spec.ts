@@ -36,13 +36,12 @@
  *     UPDATE/DELETE arms use org A's own childless bank, so DELETE is not
  *     shadowed by questions.bank_id.
  *   - organizations UPDATE — genuinely flips.
- *   - organizations INSERT / DELETE — ERROR-CODE FLIPS ONLY, and the header
- *     says so rather than claiming more. Pre-fix the policy PASSES and a
- *     constraint rejects (a PK collision for INSERT, since organizations'
- *     WITH CHECK constrains the primary key; 23503 for DELETE, from 11 NOT NULL
- *     child FKs). Post-fix it is 42501 / a silent 0-row no-op. The gate closing
- *     is observable as a change of rejection SHAPE, not as a successful write
- *     newly prevented.
+ *   - organizations INSERT / DELETE — ERROR-CODE FLIPS ONLY pre-mig-20260820000100:
+ *     the RLS policy PASSED and a constraint rejected (a PK collision for
+ *     INSERT; 23503 for DELETE, from 11 NOT NULL child FKs). mig
+ *     20260925000300 (below) moots the distinction: every verb on all four
+ *     tables is now denied at the PRIVILEGE layer before RLS or any
+ *     constraint runs, so INSERT/UPDATE/DELETE all assert 42501 the same way.
  *
  * That WITH CHECK is evaluated before the unique index — the premise behind
  * calling those cells constraint-shadowed — was measured, not reasoned: in a
@@ -57,24 +56,17 @@
  * courses/lessons arms, whose tables carry no UNIQUE constraint and so cannot
  * degrade. attack-surface.md records the ordering trap if you do reset.
  *
- * Assertion shapes, and a deliberate DIVERGENCE from the Vector EX model spec.
- *   - PRIMARY proof for every UPDATE/DELETE arm is a before/after read through
- *     the SERVICE-ROLE client showing the attacked column, and the row itself,
- *     untouched. A 0-row result alone is weak evidence — it also passes when
- *     the filter simply matched nothing (a stale fixture id).
- *   - Alongside it we assert `error === null` AND 0 rows. The EX spec
- *     deliberately BRANCHES on DELETE (`if (deleteError === null) … else expect
- *     42501`) because it had no CI-green positive control for the DELETE grant.
- *     We diverge and pin the strict shape, because this spec DOES establish
- *     that control: the pre-fix grant set is measured above, and the
- *     service-role write control below proves the table is reachable. Pinning
- *     `error === null` is what discriminates an RLS denial from a
- *     privilege-layer denial, which matters here precisely because these four
- *     tables have no explicit GRANT statement anywhere in the migration tree.
- *     If a future REVOKE lands on them, this assertion SHOULD fail and be
- *     re-examined — that is the point, not a defect.
- *   - INSERT denial is a WITH CHECK violation → 42501, asserted exactly, on a
- *     FULLY VALID row (created_by is NOT NULL REFERENCES users(id) on all three
+ * Assertion shapes (updated for mig 20260925000300 — see PERMISSION_DENIED
+ * above; this supersedes the RLS-era "error === null AND 0 rows" shape a
+ * prior revision of this header described).
+ *   - Every UPDATE/DELETE arm asserts 42501 + PERMISSION_DENIED — the
+ *     privilege layer rejects before RLS is reached. A before/after read
+ *     through the SERVICE-ROLE client, showing the attacked column or row
+ *     untouched, remains the PRIMARY proof: an error code alone is weaker
+ *     evidence than an unchanged row, since a wrong code could still coincide
+ *     with a mutation on a misconfigured client.
+ *   - INSERT denial is also 42501 + PERMISSION_DENIED, asserted on a FULLY
+ *     VALID row (created_by is NOT NULL REFERENCES users(id) on all three
  *     writable tables, so a thin fixture fails 23502/23503 and the arm would
  *     pass for the wrong reason). Each INSERT arm also proves via service-role
  *     that no marker-tagged row was created.
@@ -138,6 +130,14 @@ import {
 
 /** PostgREST surfaces an RLS WITH CHECK violation as 42501. */
 const RLS_VIOLATION = '42501'
+/**
+ * mig 20260925000300 revokes INSERT/UPDATE/DELETE on all four tables from
+ * authenticated — every UPDATE/DELETE arm below is now denied at the
+ * privilege layer (same 42501 code, "permission denied for table" message),
+ * before RLS is ever evaluated. The message, not just the code, is what
+ * tells the two layers apart.
+ */
+const PERMISSION_DENIED = /permission denied for (table|view)/i
 
 /**
  * Resolve (or atomically create) one of this spec's throwaway orgs. Idempotent
@@ -473,13 +473,13 @@ test.describe('Red Team: direct writes to the tenant tables (Vector FJ)', () => 
   })
 
   test('a student cannot rename a course in their own organisation', async () => {
-    const { data: updated, error: updateError } = await studentA
+    const { error: updateError } = await studentA
       .from('courses')
       .update({ title: `${MARKER} forged title` })
       .eq('id', courseUpdateTargetId)
       .select('id')
-    expect(updateError).toBeNull()
-    expect(updated ?? []).toHaveLength(0)
+    expect(updateError?.code).toBe('42501')
+    expect(updateError?.message ?? '').toMatch(PERMISSION_DENIED)
 
     const { data: after, error: afterError } = await adminClient
       .from('courses')
@@ -491,13 +491,13 @@ test.describe('Red Team: direct writes to the tenant tables (Vector FJ)', () => 
   })
 
   test('a student cannot delete a course in their own organisation', async () => {
-    const { data: deleted, error: deleteError } = await studentA
+    const { error: deleteError } = await studentA
       .from('courses')
       .delete()
       .eq('id', courseDeleteTargetId)
       .select('id')
-    expect(deleteError).toBeNull()
-    expect(deleted ?? []).toHaveLength(0)
+    expect(deleteError?.code).toBe('42501')
+    expect(deleteError?.message ?? '').toMatch(PERMISSION_DENIED)
 
     const { data: after, error: afterError } = await adminClient
       .from('courses')
@@ -531,13 +531,13 @@ test.describe('Red Team: direct writes to the tenant tables (Vector FJ)', () => 
   })
 
   test('a student cannot rename a lesson in their own organisation', async () => {
-    const { data: updated, error: updateError } = await studentA
+    const { error: updateError } = await studentA
       .from('lessons')
       .update({ title: `${MARKER} forged lesson title` })
       .eq('id', lessonUpdateTargetId)
       .select('id')
-    expect(updateError).toBeNull()
-    expect(updated ?? []).toHaveLength(0)
+    expect(updateError?.code).toBe('42501')
+    expect(updateError?.message ?? '').toMatch(PERMISSION_DENIED)
 
     const { data: after, error: afterError } = await adminClient
       .from('lessons')
@@ -549,13 +549,13 @@ test.describe('Red Team: direct writes to the tenant tables (Vector FJ)', () => 
   })
 
   test('a student cannot delete a lesson in their own organisation', async () => {
-    const { data: deleted, error: deleteError } = await studentA
+    const { error: deleteError } = await studentA
       .from('lessons')
       .delete()
       .eq('id', lessonDeleteTargetId)
       .select('id')
-    expect(deleteError).toBeNull()
-    expect(deleted ?? []).toHaveLength(0)
+    expect(deleteError?.code).toBe('42501')
+    expect(deleteError?.message ?? '').toMatch(PERMISSION_DENIED)
 
     const { data: after, error: afterError } = await adminClient
       .from('lessons')
@@ -590,13 +590,13 @@ test.describe('Red Team: direct writes to the tenant tables (Vector FJ)', () => 
   })
 
   test('a student cannot edit a question bank in their own organisation', async () => {
-    const { data: updated, error: updateError } = await studentA
+    const { error: updateError } = await studentA
       .from('question_banks')
       .update({ description: `${MARKER} forged description` })
       .eq('id', bankAId)
       .select('id')
-    expect(updateError).toBeNull()
-    expect(updated ?? []).toHaveLength(0)
+    expect(updateError?.code).toBe('42501')
+    expect(updateError?.message ?? '').toMatch(PERMISSION_DENIED)
 
     const { data: after, error: afterError } = await adminClient
       .from('question_banks')
@@ -608,13 +608,13 @@ test.describe('Red Team: direct writes to the tenant tables (Vector FJ)', () => 
   })
 
   test('a student cannot delete a question bank in their own organisation', async () => {
-    const { data: deleted, error: deleteError } = await studentA
+    const { error: deleteError } = await studentA
       .from('question_banks')
       .delete()
       .eq('id', bankAId)
       .select('id')
-    expect(deleteError).toBeNull()
-    expect(deleted ?? []).toHaveLength(0)
+    expect(deleteError?.code).toBe('42501')
+    expect(deleteError?.message ?? '').toMatch(PERMISSION_DENIED)
 
     const { data: after, error: afterError } = await adminClient
       .from('question_banks')
@@ -637,13 +637,13 @@ test.describe('Red Team: direct writes to the tenant tables (Vector FJ)', () => 
     expect(beforeError).toBeNull()
 
     // Per-run unique payload so `before` can never coincidentally equal it.
-    const { data: updated, error: updateError } = await studentA
+    const { error: updateError } = await studentA
       .from('organizations')
       .update({ settings: { forged: Date.now() } })
       .eq('id', orgAId)
       .select('id')
-    expect(updateError).toBeNull()
-    expect(updated ?? []).toHaveLength(0)
+    expect(updateError?.code).toBe('42501')
+    expect(updateError?.message ?? '').toMatch(PERMISSION_DENIED)
 
     const { data: after, error: afterError } = await adminClient
       .from('organizations')
@@ -659,13 +659,13 @@ test.describe('Red Team: direct writes to the tenant tables (Vector FJ)', () => 
     // alone, with no deleted_at conjunct, so the post-image still satisfied it
     // and this UPDATE succeeded. Tenant-root tampering, not a DoS — one
     // production read gates on this column and it degrades gracefully.
-    const { data: updated, error: updateError } = await studentA
+    const { error: updateError } = await studentA
       .from('organizations')
       .update({ deleted_at: new Date().toISOString() })
       .eq('id', orgAId)
       .select('id')
-    expect(updateError).toBeNull()
-    expect(updated ?? []).toHaveLength(0)
+    expect(updateError?.code).toBe('42501')
+    expect(updateError?.message ?? '').toMatch(PERMISSION_DENIED)
 
     const { data: after, error: afterError } = await adminClient
       .from('organizations')
@@ -692,13 +692,13 @@ test.describe('Red Team: direct writes to the tenant tables (Vector FJ)', () => 
     // rejected, because 11 NOT NULL child FKs reference organizations — the
     // attacker's own users row among them. Post-fix the row never matches, so
     // it is a silent 0-row no-op and no FK check is reached at all.
-    const { data: deleted, error: deleteError } = await studentA
+    const { error: deleteError } = await studentA
       .from('organizations')
       .delete()
       .eq('id', orgAId)
       .select('id')
-    expect(deleteError).toBeNull()
-    expect(deleted ?? []).toHaveLength(0)
+    expect(deleteError?.code).toBe('42501')
+    expect(deleteError?.message ?? '').toMatch(PERMISSION_DENIED)
 
     const { data: after, error: afterError } = await adminClient
       .from('organizations')
@@ -739,13 +739,13 @@ test.describe('Red Team: direct writes to the tenant tables (Vector FJ)', () => 
     // organizations WITH CHECK keyed on `id` alone, so a soft-delete UPDATE
     // satisfied it. An admin is denied it now for the same reason a student is:
     // there is no permissive UPDATE policy at all.
-    const { data: updated, error: updateError } = await adminUserA
+    const { error: updateError } = await adminUserA
       .from('organizations')
       .update({ deleted_at: new Date().toISOString() })
       .eq('id', orgAId)
       .select('id')
-    expect(updateError).toBeNull()
-    expect(updated ?? []).toHaveLength(0)
+    expect(updateError?.code).toBe('42501')
+    expect(updateError?.message ?? '').toMatch(PERMISSION_DENIED)
 
     const { data: after, error: afterError } = await adminClient
       .from('organizations')

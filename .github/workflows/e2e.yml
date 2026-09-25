@@ -104,67 +104,117 @@ jobs:
             exit 1
           fi
 
-      # Fails if anon holds INSERT/UPDATE/DELETE/TRUNCATE or authenticated holds
-      # TRUNCATE on any public table/view or postgres default privilege (mig 20260925000200).
-      - name: Verify anon/authenticated table DML privileges stay revoked
+      # Fails if anon holds ANY table privilege, or authenticated's INSERT/UPDATE/DELETE
+      # set diverges (either direction) from the mig 20260925000300 kept allowlist, or
+      # authenticated holds TRUNCATE/REFERENCES/TRIGGER/MAINTAIN, on any public relation
+      # or postgres default privilege.
+      - name: Verify anon/authenticated table privileges match least-privilege grants
         run: |
           set -euo pipefail
           ROWS=$(PGPASSWORD=postgres psql -h localhost -p 54322 -U postgres -d postgres -tA -F' | ' -c "
-            WITH bad_grants AS (
-              SELECT c.relname, c.relkind, r.rolname AS grantee, priv
+            WITH allow(relname, priv) AS (
+              VALUES
+                ('easa_subjects','INSERT'), ('easa_subjects','UPDATE'), ('easa_subjects','DELETE'),
+                ('easa_topics','INSERT'), ('easa_topics','UPDATE'), ('easa_topics','DELETE'),
+                ('easa_subtopics','INSERT'), ('easa_subtopics','UPDATE'), ('easa_subtopics','DELETE'),
+                ('exam_configs','INSERT'), ('exam_configs','UPDATE'),
+                ('exam_config_distributions','INSERT'), ('exam_config_distributions','DELETE'),
+                ('flagged_questions','INSERT'), ('flagged_questions','UPDATE'),
+                ('fsrs_cards','INSERT'), ('fsrs_cards','UPDATE'), ('fsrs_cards','DELETE'),
+                ('quiz_drafts','INSERT'), ('quiz_drafts','UPDATE'), ('quiz_drafts','DELETE'),
+                ('question_comments','INSERT'), ('question_comments','DELETE'),
+                ('questions','INSERT'), ('questions','UPDATE'),
+                ('quiz_sessions','INSERT'), ('quiz_sessions','UPDATE'),
+                ('users','UPDATE')
+            ),
+            relations AS (
+              SELECT c.oid, c.relname, c.relkind
               FROM pg_class c
-              CROSS JOIN LATERAL (VALUES ('anon','INSERT'),('anon','UPDATE'),('anon','DELETE'),
-                                          ('anon','TRUNCATE'),('authenticated','TRUNCATE')) AS v(rolename, priv)
-              JOIN pg_roles r ON r.rolname = v.rolename
               JOIN pg_namespace n ON n.oid = c.relnamespace
-              WHERE n.nspname = 'public'
-                AND c.relkind IN ('r','p','v','m')
-                AND (has_table_privilege(r.oid, c.oid, v.priv)
-                     OR (v.priv IN ('INSERT','UPDATE') AND has_any_column_privilege(r.oid, c.oid, v.priv)))
+              WHERE n.nspname = 'public' AND c.relkind IN ('r','p','v','m')
+            ),
+            anon_bad AS (
+              SELECT relname, relkind::text, 'anon'::text AS grantee, v.priv
+              FROM relations
+              CROSS JOIN LATERAL (VALUES ('SELECT'),('INSERT'),('UPDATE'),('DELETE'),
+                                          ('TRUNCATE'),('REFERENCES'),('TRIGGER'),('MAINTAIN')) AS v(priv)
+              WHERE has_table_privilege('anon', oid, v.priv)
+                 OR (CASE WHEN v.priv IN ('SELECT','INSERT','UPDATE','REFERENCES')
+                          THEN has_any_column_privilege('anon', oid, v.priv) ELSE false END)
+            ),
+            auth_observed AS (
+              SELECT relname, relkind, v.priv,
+                (has_table_privilege('authenticated', oid, v.priv)
+                 OR (CASE WHEN v.priv IN ('INSERT','UPDATE')
+                          THEN has_any_column_privilege('authenticated', oid, v.priv) ELSE false END)) AS held
+              FROM relations
+              CROSS JOIN LATERAL (VALUES ('INSERT'),('UPDATE'),('DELETE')) AS v(priv)
+            ),
+            auth_extra AS (
+              SELECT relname, relkind::text, 'authenticated'::text AS grantee, priv
+              FROM auth_observed o
+              WHERE held AND NOT EXISTS (SELECT 1 FROM allow a WHERE a.relname = o.relname AND a.priv = o.priv)
+            ),
+            auth_missing AS (
+              SELECT a.relname, NULL::text AS relkind, 'authenticated'::text AS grantee, a.priv
+              FROM allow a
+              LEFT JOIN auth_observed o ON o.relname = a.relname AND o.priv = a.priv
+              WHERE COALESCE(o.held, false) = false
+            ),
+            auth_forbidden AS (
+              SELECT relname, relkind::text, 'authenticated'::text AS grantee, v.priv
+              FROM relations
+              CROSS JOIN LATERAL (VALUES ('TRUNCATE'),('REFERENCES'),('TRIGGER'),('MAINTAIN')) AS v(priv)
+              WHERE has_table_privilege('authenticated', oid, v.priv)
             ),
             bad_defaults AS (
-              SELECT defaclobjtype, grantee_role.rolname AS grantee, acl.privilege_type
+              SELECT da.defaclobjtype, grantee_role.rolname AS grantee, acl.privilege_type
               FROM pg_default_acl da
               JOIN pg_roles owner ON owner.oid = da.defaclrole
-              JOIN pg_namespace n ON n.oid = da.defaclnamespace
+              LEFT JOIN pg_namespace n ON n.oid = da.defaclnamespace
               CROSS JOIN LATERAL aclexplode(da.defaclacl) AS acl(grantor, grantee, privilege_type, grantable)
               JOIN pg_roles grantee_role ON grantee_role.oid = acl.grantee
               WHERE owner.rolname = 'postgres'
-                AND n.nspname = 'public'
-                AND da.defaclobjtype = 'r'
+                AND (n.nspname = 'public' OR da.defaclnamespace = 0)
                 AND (
-                  (grantee_role.rolname = 'anon' AND acl.privilege_type IN ('INSERT','UPDATE','DELETE','TRUNCATE'))
-                  OR (grantee_role.rolname = 'authenticated' AND acl.privilege_type = 'TRUNCATE')
+                  (grantee_role.rolname = 'anon' AND da.defaclobjtype IN ('r','S'))
+                  OR (grantee_role.rolname = 'authenticated' AND da.defaclobjtype = 'r' AND acl.privilege_type <> 'SELECT')
                 )
             )
-            SELECT 'bad_grant' AS kind, relname, relkind::text, grantee, priv FROM bad_grants
+            SELECT 'anon_bad' AS kind, relname, relkind, grantee, priv FROM anon_bad
             UNION ALL
-            SELECT 'bad_default' AS kind, defaclobjtype::text, NULL, grantee, privilege_type FROM bad_defaults;
+            SELECT 'auth_extra', relname, relkind, grantee, priv FROM auth_extra
+            UNION ALL
+            SELECT 'auth_missing', relname, relkind, grantee, priv FROM auth_missing
+            UNION ALL
+            SELECT 'auth_forbidden', relname, relkind, grantee, priv FROM auth_forbidden
+            UNION ALL
+            SELECT 'bad_default', defaclobjtype::text, NULL, grantee, privilege_type FROM bad_defaults;
           ")
 
           TABLE_COUNT=$(PGPASSWORD=postgres psql -h localhost -p 54322 -U postgres -d postgres -tAc "
             SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
               WHERE n.nspname = 'public' AND c.relkind IN ('r','p','v','m');
           ")
-          ANON_CAN_SELECT=$(PGPASSWORD=postgres psql -h localhost -p 54322 -U postgres -d postgres -tAc "
-            SELECT has_table_privilege('anon', 'public.users', 'SELECT');
+          AUTH_CAN_SELECT_USERS=$(PGPASSWORD=postgres psql -h localhost -p 54322 -U postgres -d postgres -tAc "
+            SELECT has_table_privilege('authenticated', 'public.users', 'SELECT');
           ")
 
           if [ "$TABLE_COUNT" -le 0 ]; then
             echo "::error::Non-vacuity check failed — public schema reports 0 tables/views"
             exit 1
           fi
-          if [ "$ANON_CAN_SELECT" != "t" ]; then
-            echo "::error::Non-vacuity check failed — anon lost SELECT on public.users (query is too broad)"
+          if [ "$AUTH_CAN_SELECT_USERS" != "t" ]; then
+            echo "::error::Non-vacuity check failed — authenticated lost SELECT on public.users (query is too broad)"
             exit 1
           fi
 
           if [ -n "$ROWS" ]; then
-            echo "::error::anon/authenticated still hold a revoked DML privilege on public tables/views:"
+            echo "::error::anon/authenticated table privileges diverge from the least-privilege grants:"
             echo "$ROWS"
             exit 1
           fi
-          echo "OK: anon holds no INSERT/UPDATE/DELETE/TRUNCATE and authenticated holds no TRUNCATE on any public table/view or default privilege ($TABLE_COUNT tables/views checked)"
+          echo "OK: anon holds no table privilege, authenticated's INSERT/UPDATE/DELETE set matches the kept allowlist exactly and holds no TRUNCATE/REFERENCES/TRIGGER/MAINTAIN, on any public table/view or default privilege ($TABLE_COUNT tables/views checked)"
 
   integration-tests:
     name: Integration Tests (Supabase)
