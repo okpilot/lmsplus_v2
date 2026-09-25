@@ -126,7 +126,7 @@ describe('resetStudentPassword', () => {
       expect(mockArmTempPassword).toHaveBeenCalledWith(VALID_UUID)
     })
 
-    it('reports failure and skips the audit event when re-arming the temp-password flag fails', async () => {
+    it('still audits the reset but tells the admin to reset again when re-arming the temp-password flag fails', async () => {
       mockAdmin()
       buildFetchChain()
       mockUpdateUserById.mockResolvedValue({ error: null })
@@ -136,9 +136,9 @@ describe('resetStudentPassword', () => {
 
       expect(result.success).toBe(false)
       if (result.success) return
-      expect(result.error).toBe('Failed to reset password')
+      expect(result.error).toBe('Password was changed but not marked temporary. Reset it again.')
       expect(mockRevalidatePath).not.toHaveBeenCalled()
-      expect(mockRpc).not.toHaveBeenCalled()
+      expect(mockRpc).toHaveBeenCalledTimes(1)
     })
 
     it('records a user.password_reset audit event for the target student', async () => {

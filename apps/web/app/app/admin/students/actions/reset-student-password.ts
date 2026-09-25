@@ -65,23 +65,26 @@ async function finishStudentPasswordReset(
 
   // An admin-issued password is itself a new temporary password the student
   // must change again, so re-arm the expiry (7 days, matching
-  // record_login_instructions_sent's window). A failed re-arm leaves the
-  // student able to keep using the just-issued password past its intended
-  // lifetime, so it fails the whole reset — armTempPassword already logs
-  // its own failure.
+  // record_login_instructions_sent's window). The Auth password is already
+  // changed either way, so the reset is audited before the re-arm result is read.
   const { success: armed } = await armTempPassword(id)
-  if (!armed) {
-    return { success: false, error: 'Failed to reset password' }
-  }
 
   // Audit the admin reset via the admin's user-context client (auth.uid() = admin),
-  // not adminClient (service role → auth.uid() NULL). Best-effort: the password is
-  // already reset, so a failed audit write is logged, not surfaced to the admin.
+  // not adminClient (service role → auth.uid() NULL). Best-effort: a failed audit
+  // write is logged, not surfaced to the admin.
   await recordAuthEvent(supabase, {
     eventType: 'user.password_reset',
     resourceId: id,
     context: 'resetStudentPassword',
   })
+
+  if (!armed) {
+    console.error('[resetStudentPassword] Password set but forced change not armed for user:', id)
+    return {
+      success: false,
+      error: 'Password was changed but not marked temporary. Reset it again.',
+    }
+  }
 
   revalidatePath('/app/admin/students')
   return { success: true }
