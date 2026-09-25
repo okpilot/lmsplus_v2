@@ -7,7 +7,7 @@ import { revalidatePath } from 'next/cache'
 import type { ActionResult } from '@/lib/action-result'
 import { recordAuthEvent } from '@/lib/audit/record-auth-event'
 import { requireAdmin } from '@/lib/auth/require-admin'
-import { clearTempPassword } from '@/lib/auth/temp-password'
+import { armTempPassword } from '@/lib/auth/temp-password-admin'
 
 export async function resetStudentPassword(input: unknown): Promise<ActionResult> {
   const parsed = ResetStudentPasswordSchema.safeParse(input)
@@ -48,7 +48,7 @@ async function verifyStudentInOrg(
   return null
 }
 
-/** Sets the Auth password, clears a left-armed temp-password flag, and audits the reset. */
+/** Sets the Auth password, re-arms the temp-password flag, and audits the reset. */
 async function finishStudentPasswordReset(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   id: string,
@@ -63,11 +63,12 @@ async function finishStudentPasswordReset(
     return { success: false, error: 'Failed to reset password' }
   }
 
-  // An admin-issued password replaces any server-issued temp password, so any
-  // left-armed flag from that earlier temp password is stale — clear it.
-  // Non-fatal: clearTempPassword logs its own failure, and verifyStudentInOrg
-  // above already confirmed this row belongs to the admin's org.
-  await clearTempPassword(id)
+  // An admin-issued password is itself a new temporary password the student
+  // must change again, so re-arm the expiry (7 days, matching
+  // record_login_instructions_sent's window). Non-fatal: armTempPassword logs
+  // its own failure, and verifyStudentInOrg above already confirmed this row
+  // belongs to the admin's org.
+  await armTempPassword(id)
 
   // Audit the admin reset via the admin's user-context client (auth.uid() = admin),
   // not adminClient (service role → auth.uid() NULL). Best-effort: the password is

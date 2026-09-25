@@ -5,11 +5,11 @@ import { z } from 'zod'
 import type { ActionResult } from '@/lib/action-result'
 import { recordAuthEvent } from '@/lib/audit/record-auth-event'
 import {
-  clearTempPassword,
   RETRY_DIFFERENT_PASSWORD_MESSAGE,
   refuseIfTempPasswordExpired,
   TEMP_PASSWORD_EXPIRED_MESSAGE,
 } from '@/lib/auth/temp-password'
+import { clearTempPassword } from '@/lib/auth/temp-password-admin'
 
 const ChangePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),

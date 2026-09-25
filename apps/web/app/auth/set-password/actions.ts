@@ -5,10 +5,11 @@ import type { ActionResult } from '@/lib/action-result'
 import { recordAuthEvent } from '@/lib/audit/record-auth-event'
 import { NewPasswordSchema } from '@/lib/auth/new-password-schema'
 import {
-  clearTempPassword,
   RETRY_DIFFERENT_PASSWORD_MESSAGE,
-  readTempPasswordState,
+  refuseIfTempPasswordExpired,
+  TEMP_PASSWORD_EXPIRED_MESSAGE,
 } from '@/lib/auth/temp-password'
+import { clearTempPassword } from '@/lib/auth/temp-password-admin'
 
 export async function setOwnPassword(raw: unknown): Promise<ActionResult> {
   const parsed = NewPasswordSchema.safeParse(raw)
@@ -33,22 +34,20 @@ async function readActiveTempPasswordState(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   userId: string,
 ): Promise<{ ok: true } | { ok: false; error: ActionResult }> {
-  try {
-    const state = await readTempPasswordState(supabase, userId)
-    if (state !== 'active') {
-      return { ok: false, error: { success: false, error: 'No temporary password to replace.' } }
-    }
-    return { ok: true }
-  } catch (err) {
-    console.error(
-      '[setOwnPassword] Failed to read temp password state:',
-      err instanceof Error ? err.message : String(err),
-    )
+  const state = await refuseIfTempPasswordExpired(supabase, userId)
+  if (state === 'expired') {
+    return { ok: false, error: { success: false, error: TEMP_PASSWORD_EXPIRED_MESSAGE } }
+  }
+  if (state === 'error') {
     return {
       ok: false,
       error: { success: false, error: 'Unable to update password. Please try again.' },
     }
   }
+  if (state === 'none') {
+    return { ok: false, error: { success: false, error: 'No temporary password to replace.' } }
+  }
+  return { ok: true }
 }
 
 /** Applies the new password, clears the temp-password flag, and best-effort audits the change. */

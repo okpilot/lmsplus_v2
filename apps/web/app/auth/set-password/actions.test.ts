@@ -7,14 +7,14 @@ const {
   mockUpdateUser,
   mockSignOut,
   mockRpc,
-  mockReadTempPasswordState,
+  mockRefuseIfTempPasswordExpired,
   mockClearTempPassword,
 } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
   mockUpdateUser: vi.fn(),
   mockSignOut: vi.fn(),
   mockRpc: vi.fn(),
-  mockReadTempPasswordState: vi.fn(),
+  mockRefuseIfTempPasswordExpired: vi.fn(),
   mockClearTempPassword: vi.fn(),
 }))
 
@@ -26,10 +26,15 @@ vi.mock('@repo/db/server', () => ({
 }))
 
 vi.mock('@/lib/auth/temp-password', () => ({
-  readTempPasswordState: (...args: unknown[]) => mockReadTempPasswordState(...args),
-  clearTempPassword: (...args: unknown[]) => mockClearTempPassword(...args),
+  refuseIfTempPasswordExpired: (...args: unknown[]) => mockRefuseIfTempPasswordExpired(...args),
   RETRY_DIFFERENT_PASSWORD_MESSAGE:
     'Your password could not be fully updated. Please try again with a different password.',
+  TEMP_PASSWORD_EXPIRED_MESSAGE:
+    'Your temporary password has expired. Ask your instructor to send you new login instructions.',
+}))
+
+vi.mock('@/lib/auth/temp-password-admin', () => ({
+  clearTempPassword: (...args: unknown[]) => mockClearTempPassword(...args),
 }))
 
 // ---- Subject under test --------------------------------------------------------
@@ -85,9 +90,9 @@ describe('setOwnPassword', () => {
   })
 
   describe('temp-password state guard', () => {
-    it('returns a generic error when reading state throws', async () => {
+    it('returns a generic error when the state cannot be read', async () => {
       mockAuthenticatedUser()
-      mockReadTempPasswordState.mockRejectedValue(new Error('db down'))
+      mockRefuseIfTempPasswordExpired.mockResolvedValue('error')
 
       const result = await setOwnPassword(validInput)
 
@@ -99,7 +104,7 @@ describe('setOwnPassword', () => {
 
     it('refuses to replace a password when the state is not active', async () => {
       mockAuthenticatedUser()
-      mockReadTempPasswordState.mockResolvedValue('none')
+      mockRefuseIfTempPasswordExpired.mockResolvedValue('none')
 
       const result = await setOwnPassword(validInput)
 
@@ -109,22 +114,26 @@ describe('setOwnPassword', () => {
       expect(mockUpdateUser).not.toHaveBeenCalled()
     })
 
-    it('refuses to replace an already-expired temp password', async () => {
+    it('refuses an already-expired temp password with the expiry message; the helper already signed out globally', async () => {
       mockAuthenticatedUser()
-      mockReadTempPasswordState.mockResolvedValue('expired')
+      mockRefuseIfTempPasswordExpired.mockResolvedValue('expired')
 
       const result = await setOwnPassword(validInput)
 
       expect(result.success).toBe(false)
       if (result.success) return
-      expect(result.error).toBe('No temporary password to replace.')
+      expect(result.error).toBe(
+        'Your temporary password has expired. Ask your instructor to send you new login instructions.',
+      )
+      expect(mockUpdateUser).not.toHaveBeenCalled()
+      expect(mockRefuseIfTempPasswordExpired).toHaveBeenCalledWith(expect.anything(), USER_ID)
     })
   })
 
   describe('updateUser failure', () => {
     it('asks for a different password when the new one matches the temporary one, and keeps the flag', async () => {
       mockAuthenticatedUser()
-      mockReadTempPasswordState.mockResolvedValue('active')
+      mockRefuseIfTempPasswordExpired.mockResolvedValue('active')
       mockUpdateUser.mockResolvedValue({ error: { code: 'same_password', message: 'same' } })
 
       const result = await setOwnPassword(validInput)
@@ -137,7 +146,7 @@ describe('setOwnPassword', () => {
 
     it('returns a generic error for other updateUser failures', async () => {
       mockAuthenticatedUser()
-      mockReadTempPasswordState.mockResolvedValue('active')
+      mockRefuseIfTempPasswordExpired.mockResolvedValue('active')
       mockUpdateUser.mockResolvedValue({ error: { message: 'password too weak' } })
 
       const result = await setOwnPassword(validInput)
@@ -152,7 +161,7 @@ describe('setOwnPassword', () => {
   describe('clear failure', () => {
     it('asks to retry with a different password when finishing the update fails', async () => {
       mockAuthenticatedUser()
-      mockReadTempPasswordState.mockResolvedValue('active')
+      mockRefuseIfTempPasswordExpired.mockResolvedValue('active')
       mockUpdateUser.mockResolvedValue({ error: null })
       mockClearTempPassword.mockResolvedValue({ success: false })
 
@@ -170,7 +179,7 @@ describe('setOwnPassword', () => {
   describe('happy path', () => {
     it('updates the password, clears the flag, and records an audit event', async () => {
       mockAuthenticatedUser()
-      mockReadTempPasswordState.mockResolvedValue('active')
+      mockRefuseIfTempPasswordExpired.mockResolvedValue('active')
       mockUpdateUser.mockResolvedValue({ error: null })
 
       const result = await setOwnPassword(validInput)
@@ -186,7 +195,7 @@ describe('setOwnPassword', () => {
 
     it('signs out every other session after clearing the flag', async () => {
       mockAuthenticatedUser()
-      mockReadTempPasswordState.mockResolvedValue('active')
+      mockRefuseIfTempPasswordExpired.mockResolvedValue('active')
       mockUpdateUser.mockResolvedValue({ error: null })
 
       await setOwnPassword(validInput)
@@ -196,7 +205,7 @@ describe('setOwnPassword', () => {
 
     it('still succeeds when signing out other sessions fails (non-fatal)', async () => {
       mockAuthenticatedUser()
-      mockReadTempPasswordState.mockResolvedValue('active')
+      mockRefuseIfTempPasswordExpired.mockResolvedValue('active')
       mockUpdateUser.mockResolvedValue({ error: null })
       mockSignOut.mockResolvedValue({ error: { message: 'gotrue unavailable' } })
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -213,7 +222,7 @@ describe('setOwnPassword', () => {
 
     it('still succeeds when the audit event write fails (best-effort)', async () => {
       mockAuthenticatedUser()
-      mockReadTempPasswordState.mockResolvedValue('active')
+      mockRefuseIfTempPasswordExpired.mockResolvedValue('active')
       mockUpdateUser.mockResolvedValue({ error: null })
       mockRpc.mockResolvedValue({ error: { message: 'audit insert failed' } })
 

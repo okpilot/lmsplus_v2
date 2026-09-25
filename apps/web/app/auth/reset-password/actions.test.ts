@@ -18,12 +18,15 @@ vi.mock('@repo/db/server', () => ({
 }))
 
 vi.mock('@/lib/auth/temp-password', () => ({
-  clearTempPassword: (...args: unknown[]) => mockClearTempPassword(...args),
   refuseIfTempPasswordExpired: (...args: unknown[]) => mockRefuseExpired(...args),
   TEMP_PASSWORD_EXPIRED_MESSAGE:
     'Your temporary password has expired. Ask your instructor to send you new login instructions.',
   RETRY_DIFFERENT_PASSWORD_MESSAGE:
     'Your password could not be fully updated. Please try again with a different password.',
+}))
+
+vi.mock('@/lib/auth/temp-password-admin', () => ({
+  clearTempPassword: (...args: unknown[]) => mockClearTempPassword(...args),
 }))
 
 // ---- Subject under test -------------------------------------------------------

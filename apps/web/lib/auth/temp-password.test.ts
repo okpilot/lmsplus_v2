@@ -1,21 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-// ---- Mocks ----------------------------------------------------------------
-
-const { mockAdminFrom } = vi.hoisted(() => ({
-  mockAdminFrom: vi.fn(),
-}))
-
-vi.mock('@repo/db/admin', () => ({
-  adminClient: {
-    from: mockAdminFrom,
-  },
-}))
-
 // ---- Subject under test ---------------------------------------------------
 
 import {
-  clearTempPassword,
   readTempPasswordState,
   refuseIfTempPasswordExpired,
   signOutExpiredTempPassword,
@@ -163,37 +150,6 @@ describe('refuseIfTempPasswordExpired', () => {
     expect(consoleSpy).toHaveBeenCalledWith(
       '[refuseIfTempPasswordExpired] state read error:',
       'Failed to read temp password state: connection reset',
-    )
-    consoleSpy.mockRestore()
-  })
-})
-
-describe('clearTempPassword', () => {
-  it('reports success when a row is updated', async () => {
-    mockAdminFrom.mockImplementation(() => buildChain({ data: [{ id: USER_ID }], error: null }))
-
-    await expect(clearTempPassword(USER_ID)).resolves.toEqual({ success: true })
-  })
-
-  it('reports failure and logs when the update returns an error', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    mockAdminFrom.mockImplementation(() =>
-      buildChain({ data: null, error: { message: 'db unreachable' } }),
-    )
-
-    await expect(clearTempPassword(USER_ID)).resolves.toEqual({ success: false })
-    expect(consoleSpy).toHaveBeenCalledWith('[clearTempPassword] update failed:', 'db unreachable')
-    consoleSpy.mockRestore()
-  })
-
-  it('reports failure and logs when zero rows are updated', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    mockAdminFrom.mockImplementation(() => buildChain({ data: [], error: null }))
-
-    await expect(clearTempPassword(USER_ID)).resolves.toEqual({ success: false })
-    expect(consoleSpy).toHaveBeenCalledWith(
-      '[clearTempPassword] zero rows updated for user:',
-      USER_ID,
     )
     consoleSpy.mockRestore()
   })

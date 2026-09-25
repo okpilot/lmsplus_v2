@@ -1,4 +1,3 @@
-import { adminClient } from '@repo/db/admin'
 import type { createMiddlewareSupabaseClient } from '@repo/db/middleware'
 import type { createServerSupabaseClient } from '@repo/db/server'
 
@@ -80,27 +79,4 @@ export async function refuseIfTempPasswordExpired(
   }
   if (state === 'expired') await signOutExpiredTempPassword(supabase)
   return state
-}
-
-/**
- * Clears the temp-password expiry column via the service-role client, scoped
- * to the target user and to a non-soft-deleted row.
- */
-export async function clearTempPassword(userId: string): Promise<{ success: boolean }> {
-  const { data, error } = await adminClient
-    .from('users')
-    .update({ temp_password_expires_at: null })
-    .eq('id', userId)
-    .is('deleted_at', null)
-    .select('id')
-
-  if (error) {
-    console.error('[clearTempPassword] update failed:', error.message)
-    return { success: false }
-  }
-  if (!data?.length) {
-    console.error('[clearTempPassword] zero rows updated for user:', userId)
-    return { success: false }
-  }
-  return { success: true }
 }

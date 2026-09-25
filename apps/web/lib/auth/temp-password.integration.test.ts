@@ -15,7 +15,8 @@ import {
   getAdminClient,
   getAuthenticatedClient,
 } from '@/lib/integration-support/harness'
-import { clearTempPassword, readTempPasswordState } from './temp-password'
+import { readTempPasswordState } from './temp-password'
+import { clearTempPassword } from './temp-password-admin'
 
 const admin = getAdminClient()
 const suffix = fixtureSuffix()

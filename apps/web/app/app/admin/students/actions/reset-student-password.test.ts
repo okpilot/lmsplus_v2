@@ -7,12 +7,12 @@ const mockRequireAdmin = vi.hoisted(() => vi.fn())
 const mockFrom = vi.hoisted(() => vi.fn())
 const mockUpdateUserById = vi.hoisted(() => vi.fn())
 const mockRpc = vi.hoisted(() => vi.fn())
-const mockClearTempPassword = vi.hoisted(() => vi.fn())
+const mockArmTempPassword = vi.hoisted(() => vi.fn())
 
 vi.mock('next/cache', () => ({ revalidatePath: mockRevalidatePath }))
 vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: mockRequireAdmin }))
-vi.mock('@/lib/auth/temp-password', () => ({
-  clearTempPassword: (...args: unknown[]) => mockClearTempPassword(...args),
+vi.mock('@/lib/auth/temp-password-admin', () => ({
+  armTempPassword: (...args: unknown[]) => mockArmTempPassword(...args),
 }))
 vi.mock('@repo/db/admin', () => ({
   adminClient: {
@@ -70,7 +70,7 @@ function buildFetchChain({
 
 beforeEach(() => {
   vi.resetAllMocks()
-  mockClearTempPassword.mockResolvedValue({ success: true })
+  mockArmTempPassword.mockResolvedValue({ success: true })
 })
 
 describe('resetStudentPassword', () => {
@@ -116,21 +116,21 @@ describe('resetStudentPassword', () => {
       expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/students')
     })
 
-    it('clears any left-armed temp-password flag after a successful reset', async () => {
+    it('re-arms the temp-password flag after a successful reset', async () => {
       mockAdmin()
       buildFetchChain()
       mockUpdateUserById.mockResolvedValue({ error: null })
 
       await resetStudentPassword(VALID_INPUT)
 
-      expect(mockClearTempPassword).toHaveBeenCalledWith(VALID_UUID)
+      expect(mockArmTempPassword).toHaveBeenCalledWith(VALID_UUID)
     })
 
-    it('still succeeds when clearing the temp-password flag fails (non-fatal)', async () => {
+    it('still succeeds when re-arming the temp-password flag fails (non-fatal)', async () => {
       mockAdmin()
       buildFetchChain()
       mockUpdateUserById.mockResolvedValue({ error: null })
-      mockClearTempPassword.mockResolvedValue({ success: false })
+      mockArmTempPassword.mockResolvedValue({ success: false })
 
       const result = await resetStudentPassword(VALID_INPUT)
 
@@ -223,7 +223,7 @@ describe('resetStudentPassword', () => {
       expect(mockRevalidatePath).not.toHaveBeenCalled()
       // No audit event for a failed reset (the audit call is after the success path).
       expect(mockRpc).not.toHaveBeenCalled()
-      expect(mockClearTempPassword).not.toHaveBeenCalled()
+      expect(mockArmTempPassword).not.toHaveBeenCalled()
     })
   })
 

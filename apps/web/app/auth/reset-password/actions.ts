@@ -3,11 +3,11 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { NewPasswordSchema } from '@/lib/auth/new-password-schema'
 import {
-  clearTempPassword,
   RETRY_DIFFERENT_PASSWORD_MESSAGE,
   refuseIfTempPasswordExpired,
   TEMP_PASSWORD_EXPIRED_MESSAGE,
 } from '@/lib/auth/temp-password'
+import { clearTempPassword } from '@/lib/auth/temp-password-admin'
 
 export type ResetOwnPasswordResult =
   | { ok: true }
