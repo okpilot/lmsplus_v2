@@ -119,7 +119,8 @@ jobs:
               JOIN pg_namespace n ON n.oid = c.relnamespace
               WHERE n.nspname = 'public'
                 AND c.relkind IN ('r','p','v','m')
-                AND has_table_privilege(r.oid, c.oid, v.priv)
+                AND (has_table_privilege(r.oid, c.oid, v.priv)
+                     OR (v.priv IN ('INSERT','UPDATE') AND has_any_column_privilege(r.oid, c.oid, v.priv)))
             ),
             bad_defaults AS (
               SELECT defaclobjtype, grantee_role.rolname AS grantee, acl.privilege_type
