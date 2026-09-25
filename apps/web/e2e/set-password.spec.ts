@@ -84,26 +84,25 @@ test.describe('Set password — forced temp-password change lifecycle', () => {
     await page.waitForURL('**/auth/set-password**', { timeout: 15_000 })
     expect(new URL(page.url()).searchParams.get('next')).toBe('/app/progress')
 
+    // Track every frame navigation from here — /auth/login-complete now sets
+    // the consent cookie on the set-password redirect when consent is already
+    // satisfied (DB), so a consented, armed user must go set-password → next
+    // directly, with NO /consent detour on the post-set-password hard nav.
+    const navigatedUrls: string[] = []
+    page.on('framenavigated', (frame) => {
+      if (frame === page.mainFrame()) navigatedUrls.push(frame.url())
+    })
+
     await page.getByLabel('New password').fill(NEW_PASSWORD)
     await page.getByLabel('Confirm password').fill(NEW_PASSWORD)
     await page.getByRole('button', { name: 'Set password' }).click()
 
     // window.location.assign — a hard navigation, so the proxy re-reads state
-    // from scratch. The temp-password gate now passes ('none'), but the
-    // consent gate is cookie-only (proxy.ts) and this flow never ran
-    // /auth/login-complete's consent-cookie branch — the temp-password check
-    // there short-circuits before it. A DB consent record (seeded by
-    // createArmedTempPasswordStudent) does not itself set the cookie, so
-    // this lands on /consent once, exactly like a brand-new student would.
-    // Handle it the same way the other login specs do (login-return-to.spec.ts).
-    await page.waitForURL('**/consent**', { timeout: 15_000 })
-    expect(new URL(page.url()).searchParams.get('next')).toBe('/app/progress')
-    await page.getByRole('checkbox', { name: /terms of service/i }).check()
-    await page.getByRole('checkbox', { name: /privacy policy/i }).check()
-    await page.getByRole('button', { name: 'Continue' }).click()
-
+    // from scratch. The consent cookie set-password's login-complete redirect
+    // wrote must have made this land on `next` directly.
     await page.waitForURL('**/app/progress', { timeout: 15_000 })
     await expect(page.getByRole('heading', { name: 'Progress' })).toBeVisible()
+    expect(navigatedUrls.some((u) => u.includes('/consent'))).toBe(false)
 
     // Non-vacuous: read the column via service role, not the UI, to confirm
     // the gate can never re-arm from stale client state.

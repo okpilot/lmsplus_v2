@@ -190,7 +190,30 @@ describe('GET /auth/login-complete', () => {
       expect(location.pathname).toBe('/auth/set-password')
       expect(location.searchParams.get('next')).toBe('/app/internal-exam')
       expect(mockRpcHelper).toHaveBeenCalledWith(expect.anything(), 'record_login', {})
-      expect(mockCheckConsent).not.toHaveBeenCalled()
+    })
+
+    it('keeps an already-consented armed user from being asked to consent again', async () => {
+      mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+      mockRpcHelper.mockResolvedValue({ data: null, error: null })
+      mockReadTempPasswordState.mockResolvedValue('active')
+      mockCheckConsent.mockResolvedValue('satisfied')
+
+      const response = await GET(makeRequest('http://localhost:3000/auth/login-complete'))
+
+      expect(new URL(response.headers.get('location') ?? '').pathname).toBe('/auth/set-password')
+      expect(response.cookies.get('__consent')?.value).toBe('v1.0:v1.0')
+    })
+
+    it('sends an armed user who has not consented to set-password without a consent cookie', async () => {
+      mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+      mockRpcHelper.mockResolvedValue({ data: null, error: null })
+      mockReadTempPasswordState.mockResolvedValue('active')
+      mockCheckConsent.mockResolvedValue('required')
+
+      const response = await GET(makeRequest('http://localhost:3000/auth/login-complete'))
+
+      expect(new URL(response.headers.get('location') ?? '').pathname).toBe('/auth/set-password')
+      expect(response.cookies.get('__consent')).toBeUndefined()
     })
 
     it('redirects an armed user to set-password with no next param when none was requested', async () => {

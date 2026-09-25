@@ -13,6 +13,9 @@
  *   3. Does `/auth/set-password`'s `next` param accept an off-app target?
  *   4. Can an un-armed caller reach the set-password form, or affect a
  *      DIFFERENT user's `temp_password_expires_at`?
+ *   5. Does the OTHER self-service password path (forgot-password →
+ *      `resetOwnPassword`) also refuse an expired temp password, or does it
+ *      offer a side door around the login-path scramble?
  *
  * Defense (traced to source):
  *   - `apps/web/proxy.ts` → `checkTempPasswordGate()`
@@ -21,7 +24,10 @@
  *     `/auth/set-password?next=<attempted path>`. `expired` →
  *     `expireTempPassword()` then redirect to `/?error=temp_password_expired`.
  *   - `apps/web/app/auth/login-complete/route.ts` runs the identical check
- *     immediately after login, before the consent RPC.
+ *     immediately after login, before the consent RPC — and now sets the
+ *     consent cookie on the set-password redirect itself when consent is
+ *     already satisfied in the DB, so a consented armed user goes
+ *     set-password → `next` directly with no `/consent` detour afterward.
  *   - `apps/web/lib/auth/temp-password.ts` `expireTempPassword()` scrambles
  *     the Auth password via `adminClient.auth.admin.updateUserById` (random
  *     32-byte password) and calls `supabase.auth.signOut({ scope: 'global' })`.
@@ -31,12 +37,17 @@
  *   - `apps/web/app/auth/set-password/page.tsx` computes `nextPath` via
  *     `safeNextPath()` (same allowlist as Vector FO) before ever rendering
  *     the form.
+ *   - `apps/web/app/auth/reset-password/actions.ts` `resetOwnPassword()`
+ *     calls the same `expireTempPassword()` scramble and refuses with the
+ *     identical expiry message BEFORE ever calling `updateUser()`, closing
+ *     the forgot-password path as a side door around the login-path refusal.
  *
  * Closes: login-instructions-enforcement branch, PR B (plan-enforcement.md).
  */
 
 import { expect, test } from '@playwright/test'
 import { createClient } from '@supabase/supabase-js'
+import { clearAllMessages, getLatestEmail } from '../helpers/mailpit'
 import {
   ensureLoginTestUser,
   getAdminClient,
@@ -61,6 +72,15 @@ function rawAnonClient() {
   return createClient(SUPABASE_URL, ANON_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
   })
+}
+
+/** Extract the /auth/confirm link from recovery email HTML (mirrors password-reset.spec.ts). */
+function extractConfirmLink(html: string): string {
+  const match = html.match(/href="([^"]*\/auth\/confirm[^"]*)"/)
+  if (match?.[1]) return match[1].replace(/&amp;/g, '&')
+  const fallback = html.match(/href="([^"]*\/auth\/v1\/verify[^"]*)"/)
+  if (fallback?.[1]) return fallback[1].replace(/&amp;/g, '&')
+  throw new Error('Could not extract confirm link from recovery email')
 }
 
 test.describe('Red Team: Temporary-password forced-change gate (Vector FT)', () => {
@@ -215,6 +235,66 @@ test.describe('Red Team: Temporary-password forced-change gate (Vector FT)', () 
     ).not.toBeNull()
   })
 
+  test('a forgot-password completion also refuses an expired temp password, scrambling it the same way', async ({
+    page,
+  }) => {
+    const { email } = await createArmedTempPasswordStudent({
+      password: EXPIRED_PASSWORD,
+      expiresInMs: -1_000,
+    })
+    await clearAllMessages()
+
+    // Drive the real forgot-password flow (same as password-reset.spec.ts) —
+    // this reaches resetOwnPassword() through a normal form submission, no
+    // Server Action wire protocol needed.
+    await page.goto('/auth/forgot-password')
+    await page.getByLabel('Email address').fill(email)
+    await page.getByRole('button', { name: /send reset email/i }).click()
+    await expect(page.getByText(/password reset email/i)).toBeVisible({ timeout: 10_000 })
+
+    const sentEmail = await getLatestEmail(email)
+    const confirmLink = extractConfirmLink(sentEmail.HTML)
+    await page.goto(confirmLink)
+    await expect(page).toHaveURL('/auth/reset-password', { timeout: 10_000 })
+
+    await page.getByLabel('New password', { exact: true }).fill(NEW_PASSWORD)
+    await page.getByLabel('Confirm password').fill(NEW_PASSWORD)
+    await page.getByRole('button', { name: /update password/i }).click()
+
+    // resetOwnPassword() refuses before ever calling updateUser() — same
+    // refusal message as the login-path expiry, not a generic failure.
+    await expect(
+      page.getByText(
+        'Your temporary password has expired. Ask your instructor to send you new login instructions.',
+      ),
+    ).toBeVisible({ timeout: 10_000 })
+
+    // Non-vacuous: the temp password must no longer sign in — the refusal
+    // path scrambles the same way expireTempPassword() does on the login
+    // path, not just returning an error while leaving the password intact.
+    const passwordCheck = rawAnonClient()
+    const { error: staleLoginError } = await passwordCheck.auth.signInWithPassword({
+      email,
+      password: EXPIRED_PASSWORD,
+    })
+    expect(
+      staleLoginError,
+      'the original temp password must no longer sign in after a refused reset',
+    ).not.toBeNull()
+
+    // The NEW password must never have taken effect either — the refusal
+    // happens before updateUser() is called.
+    const newPasswordCheck = rawAnonClient()
+    const { error: newLoginError } = await newPasswordCheck.auth.signInWithPassword({
+      email,
+      password: NEW_PASSWORD,
+    })
+    expect(
+      newLoginError,
+      'the attempted new password must not sign in — the reset was refused, not applied',
+    ).not.toBeNull()
+  })
+
   // ---------------------------------------------------------------------
   // `next` validation on /auth/set-password
   // ---------------------------------------------------------------------
@@ -245,23 +325,21 @@ test.describe('Red Team: Temporary-password forced-change gate (Vector FT)', () 
         await page.goto(`/auth/set-password?next=${encodeURIComponent(hostileNext)}`)
         await expect(page.getByRole('heading', { name: 'Set your password' })).toBeVisible()
 
+        // Track every frame navigation from here — /auth/login-complete now
+        // sets the consent cookie on the set-password redirect when consent
+        // is already satisfied (DB), so this hard nav must land on
+        // /app/dashboard directly, with NO /consent detour.
+        const navigatedUrls: string[] = []
+        page.on('framenavigated', (frame) => {
+          if (frame === page.mainFrame()) navigatedUrls.push(frame.url())
+        })
+
         await page.getByLabel('New password').fill(NEW_PASSWORD)
         await page.getByLabel('Confirm password').fill(NEW_PASSWORD)
         await page.getByRole('button', { name: 'Set password' }).click()
 
-        // The hard navigation lands on /app/dashboard, but the consent gate
-        // is cookie-only (proxy.ts) and this flow never ran
-        // /auth/login-complete's consent-cookie branch — the temp-password
-        // check there short-circuits before it. A DB consent record does not
-        // itself set the cookie, so this detours through /consent once,
-        // exactly like a brand-new student would (see also
-        // apps/web/e2e/set-password.spec.ts).
-        await page.waitForURL('**/consent**', { timeout: 15_000 })
-        await page.getByRole('checkbox', { name: /terms of service/i }).check()
-        await page.getByRole('checkbox', { name: /privacy policy/i }).check()
-        await page.getByRole('button', { name: 'Continue' }).click()
-
         await page.waitForURL('**/app/dashboard', { timeout: 15_000 })
+        expect(navigatedUrls.some((u) => u.includes('/consent'))).toBe(false)
         const url = new URL(page.url())
         expect(url.pathname, `next=${hostileNext} must fall back to /app/dashboard`).toBe(
           '/app/dashboard',

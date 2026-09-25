@@ -2,7 +2,11 @@ import { createServerSupabaseClient } from '@repo/db/server'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { safeNextPath } from '@/lib/auth/safe-next-path'
-import { expireTempPassword, readTempPasswordState } from '@/lib/auth/temp-password'
+import {
+  expireTempPassword,
+  readTempPasswordState,
+  type TempPasswordState,
+} from '@/lib/auth/temp-password'
 import { buildConsentCookieValue, checkConsentStatus } from '@/lib/consent/check-consent'
 import { CONSENT_COOKIE } from '@/lib/consent/versions'
 import { rpc } from '@/lib/supabase-rpc'
@@ -26,7 +30,7 @@ export async function GET(request: NextRequest) {
     console.error('[login-complete] record_login RPC failed:', error.message)
   }
 
-  let tempPasswordState: Awaited<ReturnType<typeof readTempPasswordState>>
+  let tempPasswordState: TempPasswordState
   try {
     tempPasswordState = await readTempPasswordState(supabase, user.id)
   } catch (err) {
@@ -43,13 +47,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/?error=temp_password_expired', request.url))
   }
 
+  const consentStatus = await checkConsentStatus(supabase)
+
   if (tempPasswordState === 'active') {
     const setPasswordUrl = new URL('/auth/set-password', request.url)
     if (next) setPasswordUrl.searchParams.set('next', next)
-    return NextResponse.redirect(setPasswordUrl)
+    const setPasswordResponse = NextResponse.redirect(setPasswordUrl)
+    if (consentStatus === 'satisfied') setConsentCookie(setPasswordResponse)
+    return setPasswordResponse
   }
-
-  const consentStatus = await checkConsentStatus(supabase)
 
   if (consentStatus === 'required') {
     const consentUrl = new URL('/consent', request.url)
@@ -60,12 +66,16 @@ export async function GET(request: NextRequest) {
   // Consent satisfied — set cookie to skip proxy DB checks
   const dashboardUrl = new URL(next ?? '/app/dashboard', request.url)
   const redirectResponse = NextResponse.redirect(dashboardUrl)
-  redirectResponse.cookies.set(CONSENT_COOKIE, buildConsentCookieValue(), {
+  setConsentCookie(redirectResponse)
+  return redirectResponse
+}
+
+function setConsentCookie(res: NextResponse): void {
+  res.cookies.set(CONSENT_COOKIE, buildConsentCookieValue(), {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     maxAge: 31_536_000, // 1 year — cookie is a cache; version bump invalidates
     path: '/',
   })
-  return redirectResponse
 }

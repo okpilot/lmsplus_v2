@@ -1,23 +1,17 @@
 'use server'
 
 import { createServerSupabaseClient } from '@repo/db/server'
-import { z } from 'zod'
 import type { ActionResult } from '@/lib/action-result'
 import { recordAuthEvent } from '@/lib/audit/record-auth-event'
-import { clearTempPassword, readTempPasswordState } from '@/lib/auth/temp-password'
-
-const SetPasswordSchema = z
-  .object({
-    password: z.string().min(6, 'Password must be at least 6 characters'),
-    confirmPassword: z.string(),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: 'Passwords do not match',
-    path: ['confirmPassword'],
-  })
+import { NewPasswordSchema } from '@/lib/auth/new-password-schema'
+import {
+  clearTempPassword,
+  readTempPasswordState,
+  type TempPasswordState,
+} from '@/lib/auth/temp-password'
 
 export async function setOwnPassword(raw: unknown): Promise<ActionResult> {
-  const parsed = SetPasswordSchema.safeParse(raw)
+  const parsed = NewPasswordSchema.safeParse(raw)
   if (!parsed.success)
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input' }
 
@@ -28,7 +22,7 @@ export async function setOwnPassword(raw: unknown): Promise<ActionResult> {
   } = await supabase.auth.getUser()
   if (authError || !user) return { success: false, error: 'Not authenticated' }
 
-  let state: Awaited<ReturnType<typeof readTempPasswordState>>
+  let state: TempPasswordState
   try {
     state = await readTempPasswordState(supabase, user.id)
   } catch (err) {

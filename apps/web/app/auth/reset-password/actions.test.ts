@@ -2,11 +2,20 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ------------------------------------------------------------------
 
-const { mockGetUser, mockUpdateUser, mockSignOut, mockClearTempPassword } = vi.hoisted(() => ({
+const {
+  mockGetUser,
+  mockUpdateUser,
+  mockSignOut,
+  mockClearTempPassword,
+  mockReadTempPasswordState,
+  mockExpireTempPassword,
+} = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
   mockUpdateUser: vi.fn(),
   mockSignOut: vi.fn(),
   mockClearTempPassword: vi.fn(),
+  mockReadTempPasswordState: vi.fn(),
+  mockExpireTempPassword: vi.fn(),
 }))
 
 vi.mock('@repo/db/server', () => ({
@@ -17,6 +26,8 @@ vi.mock('@repo/db/server', () => ({
 
 vi.mock('@/lib/auth/temp-password', () => ({
   clearTempPassword: (...args: unknown[]) => mockClearTempPassword(...args),
+  readTempPasswordState: (...args: unknown[]) => mockReadTempPasswordState(...args),
+  expireTempPassword: (...args: unknown[]) => mockExpireTempPassword(...args),
 }))
 
 // ---- Subject under test -------------------------------------------------------
@@ -36,6 +47,51 @@ beforeEach(() => {
   vi.resetAllMocks()
   mockSignOut.mockResolvedValue({})
   mockClearTempPassword.mockResolvedValue({ success: true })
+  mockReadTempPasswordState.mockResolvedValue('none')
+})
+
+describe('expired temporary password', () => {
+  it('refuses the reset, locks the account and tells the user to ask their instructor', async () => {
+    mockAuthenticatedUser()
+    mockReadTempPasswordState.mockResolvedValue('expired')
+
+    const result = await resetOwnPassword(validInput)
+
+    expect(result).toEqual({
+      ok: false,
+      isSessionMissing: false,
+      message:
+        'Your temporary password has expired. Ask your instructor to send you new login instructions.',
+    })
+    expect(mockExpireTempPassword).toHaveBeenCalledWith(expect.anything(), USER_ID)
+    expect(mockUpdateUser).not.toHaveBeenCalled()
+    expect(mockClearTempPassword).not.toHaveBeenCalled()
+  })
+
+  it('refuses the reset without changing the password when the state cannot be read', async () => {
+    mockAuthenticatedUser()
+    mockReadTempPasswordState.mockRejectedValue(new Error('connection reset'))
+
+    const result = await resetOwnPassword(validInput)
+
+    expect(result).toEqual({
+      ok: false,
+      isSessionMissing: false,
+      message: 'Unable to update password. Please try again.',
+    })
+    expect(mockUpdateUser).not.toHaveBeenCalled()
+  })
+
+  it('lets an account with an active temporary password reset normally', async () => {
+    mockAuthenticatedUser()
+    mockReadTempPasswordState.mockResolvedValue('active')
+    mockUpdateUser.mockResolvedValue({ error: null })
+
+    const result = await resetOwnPassword(validInput)
+
+    expect(result).toEqual({ ok: true })
+    expect(mockExpireTempPassword).not.toHaveBeenCalled()
+  })
 })
 
 describe('resetOwnPassword', () => {

@@ -4,7 +4,7 @@ import { ensureConsentRecords, getAdminClient } from './supabase'
 export const E2E_TEMP_PASSWORD_EMAIL_PREFIX = 'e2e-temp-password-'
 const E2E_TEMP_PASSWORD_DOMAIN = '@lmsplus.local'
 
-export function uniqueTempPasswordEmail(): string {
+function uniqueTempPasswordEmail(): string {
   return `${E2E_TEMP_PASSWORD_EMAIL_PREFIX}${Date.now()}-${Math.random().toString(36).slice(2, 8)}${E2E_TEMP_PASSWORD_DOMAIN}`
 }
 

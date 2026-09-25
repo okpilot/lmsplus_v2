@@ -89,4 +89,17 @@ describe('SetPasswordPage', () => {
     expect(mockRedirect).not.toHaveBeenCalled()
     expect(result).toBeTruthy()
   })
+
+  it('propagates a temp-password state read error to the Server Component error boundary', async () => {
+    // Unlike the Server Actions and the proxy gate (which catch and return a
+    // generic message / 503), this Server Component follows the code-style.md
+    // §6 query-helper pattern: let it throw so app/error.tsx + Sentry see it.
+    mockAuthenticatedUser()
+    mockReadTempPasswordState.mockRejectedValue(new Error('connection reset'))
+
+    await expect(SetPasswordPage({ searchParams: Promise.resolve({}) })).rejects.toThrow(
+      'connection reset',
+    )
+    expect(mockRedirect).not.toHaveBeenCalled()
+  })
 })

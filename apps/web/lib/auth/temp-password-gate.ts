@@ -1,5 +1,9 @@
 import type { createMiddlewareSupabaseClient } from '@repo/db/middleware'
-import { expireTempPassword, readTempPasswordState } from '@/lib/auth/temp-password'
+import {
+  expireTempPassword,
+  readTempPasswordState,
+  type TempPasswordState,
+} from '@/lib/auth/temp-password'
 
 type MiddlewareSupabaseClient = ReturnType<typeof createMiddlewareSupabaseClient>['supabase']
 
@@ -22,7 +26,7 @@ export async function checkTempPasswordGate(opts: {
   const { supabase, userId, requestUrl, nextPath, buildServiceUnavailable, redirectWithCookies } =
     opts
 
-  let state: Awaited<ReturnType<typeof readTempPasswordState>>
+  let state: TempPasswordState
   try {
     state = await readTempPasswordState(supabase, userId)
   } catch (err) {
