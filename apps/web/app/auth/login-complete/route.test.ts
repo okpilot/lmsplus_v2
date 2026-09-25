@@ -251,7 +251,7 @@ describe('GET /auth/login-complete', () => {
 
       const response = await GET(makeRequest('http://localhost:3000/auth/login-complete'))
 
-      expect(mockSignOut).toHaveBeenCalled()
+      expect(mockSignOut).toHaveBeenCalledWith({ scope: 'local' })
       expect(response.status).toBe(307)
       expect(response.headers.get('location')).toBe('http://localhost:3000/?error=auth_failed')
       expect(mockSignOutExpiredTempPassword).not.toHaveBeenCalled()

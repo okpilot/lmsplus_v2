@@ -65,10 +65,14 @@ async function finishStudentPasswordReset(
 
   // An admin-issued password is itself a new temporary password the student
   // must change again, so re-arm the expiry (7 days, matching
-  // record_login_instructions_sent's window). Non-fatal: armTempPassword logs
-  // its own failure, and verifyStudentInOrg above already confirmed this row
-  // belongs to the admin's org.
-  await armTempPassword(id)
+  // record_login_instructions_sent's window). A failed re-arm leaves the
+  // student able to keep using the just-issued password past its intended
+  // lifetime, so it fails the whole reset — armTempPassword already logs
+  // its own failure.
+  const { success: armed } = await armTempPassword(id)
+  if (!armed) {
+    return { success: false, error: 'Failed to reset password' }
+  }
 
   // Audit the admin reset via the admin's user-context client (auth.uid() = admin),
   // not adminClient (service role → auth.uid() NULL). Best-effort: the password is

@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache'
 import type { ActionResult } from '@/lib/action-result'
 import { recordAuthEvent } from '@/lib/audit/record-auth-event'
 import { requireAdmin } from '@/lib/auth/require-admin'
+import { TEMP_PASSWORD_TTL_MS } from '@/lib/auth/temp-password-admin'
 
 export async function createStudent(input: unknown): Promise<ActionResult> {
   const parsed = CreateStudentSchema.safeParse(input)
@@ -34,12 +35,17 @@ export async function createStudent(input: unknown): Promise<ActionResult> {
   // NOTE: Two coordinated mutations (Auth API + users INSERT) cannot be wrapped
   // in a single Postgres RPC because Auth API is not callable from SQL.
   // Orphan cleanup is handled in the insertErr branch below.
-  const { error: insertErr } = await adminClient
-    .from('users')
-    .upsert(
-      { id: authData.user.id, email, full_name, role, organization_id: organizationId },
-      { onConflict: 'id', ignoreDuplicates: true },
-    )
+  const { error: insertErr } = await adminClient.from('users').upsert(
+    {
+      id: authData.user.id,
+      email,
+      full_name,
+      role,
+      organization_id: organizationId,
+      temp_password_expires_at: new Date(Date.now() + TEMP_PASSWORD_TTL_MS).toISOString(),
+    },
+    { onConflict: 'id', ignoreDuplicates: true },
+  )
 
   if (insertErr) {
     console.error('[createStudent] Profile insert failed:', insertErr.message)

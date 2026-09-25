@@ -67,7 +67,7 @@ async function tempPasswordGate(opts: {
       '[login-complete] temp password state read error:',
       err instanceof Error ? err.message : String(err),
     )
-    await supabase.auth.signOut()
+    await supabase.auth.signOut({ scope: 'local' })
     return NextResponse.redirect(new URL('/?error=auth_failed', request.url))
   }
 
