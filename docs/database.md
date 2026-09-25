@@ -106,24 +106,29 @@ CREATE TABLE organizations (
 ### users
 ```sql
 CREATE TABLE users (
-  id              UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  organization_id UUID NOT NULL REFERENCES organizations(id),
-  email           TEXT NOT NULL,
-  full_name       TEXT NULL,
-  role            TEXT NOT NULL CHECK (role IN ('admin', 'instructor', 'student')),
-  deleted_at      TIMESTAMPTZ NULL,
-  deleted_by      UUID REFERENCES users(id) NULL,
-  last_active_at  TIMESTAMPTZ NULL,
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+  id                          UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  organization_id             UUID NOT NULL REFERENCES organizations(id),
+  email                       TEXT NOT NULL,
+  full_name                   TEXT NULL,
+  role                        TEXT NOT NULL CHECK (role IN ('admin', 'instructor', 'student')),
+  deleted_at                  TIMESTAMPTZ NULL,
+  deleted_by                  UUID REFERENCES users(id) NULL,
+  last_active_at              TIMESTAMPTZ NULL,
+  login_instructions_sent_at  TIMESTAMPTZ NULL,
+  temp_password_expires_at    TIMESTAMPTZ NULL,
+  created_at                  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ```
 
-**RLS policies (migration 020 + 056):**
-- SELECT: org-scoped via `organizations(id)` — users can see org members' names/roles
-- UPDATE: `id = auth.uid() AND deleted_at IS NULL` — students can edit their own profile (migration 056). Protected by `trg_protect_users_sensitive_columns` trigger (migration 041) which blocks `role`, `organization_id`, and `deleted_at` changes for non-service-role connections.
+**Login-instructions columns (migration `20260925000100`, login-instructions-email feature):**
+`login_instructions_sent_at` — last time an admin sent this user their login details; NULL = never sent. `temp_password_expires_at` — expiry of the temporary password; NULL = none recorded; `< now()` = expired. The only in-app writer of either column is the SECURITY DEFINER RPC `record_login_instructions_sent(p_user_id)` (see RPC section below), which stamps both on a send. No application action or RPC clears `temp_password_expires_at` yet.
+
+**RLS policies (migration `20260311000004`, fixed in `20260312000012`; UPDATE added `20260326000056`):**
+- SELECT: self-only — `id = auth.uid() AND deleted_at IS NULL` (`users_select` policy). A caller reads only their own row; org-wide member listing goes through admin-gated RPCs, not a direct SELECT.
+- UPDATE: `id = auth.uid() AND deleted_at IS NULL` — students can edit their own profile. Protected by `trg_protect_users_sensitive_columns` trigger (migration 041) which blocks `role`, `organization_id`, and `deleted_at` changes for non-service-role connections.
 - No DELETE policy — soft-delete only via service role
 
-**Column UPDATE GRANT (mig 090, #773):** Defense-in-depth at the Postgres privilege layer on top of the RLS + trigger defenses. `authenticated` holds `UPDATE (full_name)` only; UPDATE on `role`, `organization_id`, and `deleted_at` is revoked at the privilege layer (`REVOKE UPDATE ON users FROM authenticated` + `GRANT UPDATE (full_name) ON users TO authenticated`). A direct `UPDATE users SET role='admin'` now returns `42501` (permission denied for column) before the trigger or RLS even fires. Mirrors the `quiz_sessions` column-GRANT pattern (mig `20260605000001`).
+**Column UPDATE GRANT (mig 090, #773):** Defense-in-depth at the Postgres privilege layer on top of the RLS + trigger defenses. `authenticated` holds `UPDATE (full_name)` only — every other column is denied because `authenticated` has no UPDATE grant on it (`REVOKE UPDATE ON users FROM authenticated` + `GRANT UPDATE (full_name) ON users TO authenticated`). Columns added after mig 090, including the two login-instructions columns (migration `20260925000100`), carry no UPDATE grant either — nothing re-grants them. A direct `UPDATE users SET role='admin'` now returns `42501` (permission denied for column) before the trigger or RLS even fires. Mirrors the `quiz_sessions` column-GRANT pattern (mig `20260605000001`).
 
 ### easa_subjects / easa_topics / easa_subtopics
 ```sql
@@ -877,6 +882,7 @@ verb_noun pattern:
   start_internal_exam_session ← write, student: validate & consume code, auto-complete overdue prior session, build question set from exam config, atomic code consumption via WHERE-clause race guard; single-active-session guard raises 'another_session_active' if a non-internal-exam active session exists (mig 139, #1011)
   void_internal_exam_code    ← write, admin-only: void unconsumed code or active session (sets session.passed = false), audit internal_exam.code_voided
   record_internal_exam_code_emailed ← write, admin-only: stamp `emailed_at = now()` on the code row + audit an admin emailing an internal exam code to a student (SECURITY DEFINER, mig 110; `emailed_at` column + stamp added in mig 20260629000900 / #905); guard set mirrors issue_/void_internal_exam_code per security.md rule 11b; no direct client call — invoked from Server Action `sendInternalExamCodeEmail` via best-effort audit pathway
+  record_login_instructions_sent   ← write, admin-only: stamp `users.login_instructions_sent_at = now()` + `temp_password_expires_at = now() + 7 days` on a student/instructor row in the admin's org + audit `user.login_instructions_sent` (SECURITY DEFINER, mig 20260925000100, login-instructions-email feature); guard set mirrors record_internal_exam_code_emailed per security.md rule 11c
   list_my_active_internal_exam_codes ← read, student: own unconsumed/unvoided/unexpired internal-exam codes WITHOUT the plaintext `code` column (closes #577; replaces direct SELECT after student policy was dropped in mig 20260521000004); active-user gate added mig 20260824000200
   list_my_internal_exam_history ← read, student: own internal_exam quiz_sessions history; computes per-subject `attempt_number` via row_number() in SQL (closes #579); `answered_count` counts DISTINCT questions and active-user gate added, both mig 20260824000200
   start_vfr_rt_exam_session  ← write, student: VFR Radiotelephony mock exam start; samples 3 parts (short_answer, dialog_fill, multiple_choice) from seeded topics, reads exam_configs.parts_config (mig 099); idempotent resume for in-flight sessions (mig 099); single-active-session guard raises 'another_session_active' if a non-vfr_rt_exam active session exists (mig 140, #1011)
@@ -1725,6 +1731,24 @@ Admin-only RPC (not a direct API endpoint — invoked from Server Action `sendIn
 **Returns:** `void`.
 
 **Security:** SECURITY DEFINER. Invoked from `sendInternalExamCodeEmail` Server Action (email subsystem half) after a Resend POST succeeds; failure to audit does not bubble to caller (best-effort, logs server-side only).
+
+##### `record_login_instructions_sent(p_user_id)` (migration `20260925000100`, login-instructions-email feature, PR A)
+
+Admin-only RPC recording a login-instructions send and its temporary-password expiry on a student/instructor account. Stamps `users.login_instructions_sent_at = now()` and `users.temp_password_expires_at = now() + interval '7 days'` on the target row, then inserts one `user.login_instructions_sent` audit event.
+
+**Guard set:** Mirrors `record_internal_exam_code_emailed` per security.md rule 11c:
+- Rule 7 — `auth.uid()` null-check raises `not_authenticated`
+- `is_admin()` gate raises `not_admin`
+- Active-user gate + rule 9 — org and role captured in one `deleted_at`-filtered users read; cached `v_admin_role` reused in the audit INSERT (mirrors mig 087)
+- Ownership/role guard — the target UPDATE's `WHERE` clause re-asserts `organization_id = v_admin_org AND deleted_at IS NULL AND role IN ('student', 'instructor')`, so a cross-org target, a soft-deleted/deactivated target, an admin target, and an unknown id are all hidden behind one `user_not_found` (existence-hiding, no new error mapping); `GET DIAGNOSTICS ... ROW_COUNT` after the UPDATE detects the miss
+- Rule 10 — no inline audit subqueries; every value in the INSERT comes from pre-read locals or the UPDATE's `RETURNING`
+- `SET search_path = public`
+
+**Audit payload:** `event_type = 'user.login_instructions_sent'`, `resource_type = 'user'`, `resource_id = p_user_id`, `metadata = { expires_at }` (the stamped `temp_password_expires_at`, captured via `UPDATE ... RETURNING ... INTO`).
+
+**Returns:** `void`.
+
+**Security:** SECURITY DEFINER. No "already sent" guard — a resend re-runs the UPDATE and re-stamps both columns. The RPC does not set or invalidate any password.
 
 ##### `list_my_active_internal_exam_codes()` (migrations `20260521000002`, `20260824000200`)
 

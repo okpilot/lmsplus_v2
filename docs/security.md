@@ -697,6 +697,7 @@ CREATE POLICY "audit_read_instructors" ON audit_events
 | `user.password_reset` | Admin resets a student password (via `resetStudentPassword` Server Action, recorded by `record_auth_event()` RPC) |
 | `user.deactivated` | Admin deactivates a student account (via `toggleStudentStatus` deactivate path, recorded by `record_auth_event()` RPC) |
 | `user.created` | Admin creates a new student account (via `createStudent` Server Action, recorded by `record_auth_event()` RPC) |
+| `user.login_instructions_sent` | Admin sends/resends login instructions (temp password) to a student or instructor (via `record_login_instructions_sent()` RPC, migration `20260925000100`) |
 | `quiz_session.started` | Student begins any quiz mode |
 | `quiz_session.completed` | Student finishes session (score recorded) |
 | `exam.started` | Mock exam begins |
