@@ -20,7 +20,7 @@ const HOOK = path.join(HOOKS_DIR, 'guard-agent-brief.js')
 // absent in CI. Passed to the hook as GUARD_AGENT_BRIEF_ROOT (see runHook), never as stdin
 // `cwd`: the hook resolves {plan} against the repo root (or this override), not the caller's
 // shell directory.
-export const ROOT = mkdtempSync(path.join(tmpdir(), 'guard-agent-brief-test-'))
+const ROOT = mkdtempSync(path.join(tmpdir(), 'guard-agent-brief-test-'))
 mkdirSync(path.join(ROOT, '.spec-workflow/specs/agent-brief-guard'), { recursive: true })
 writeFileSync(path.join(ROOT, '.spec-workflow/specs/agent-brief-guard/plan.md'), '# plan\n')
 mkdirSync(path.join(ROOT, 'docs'))

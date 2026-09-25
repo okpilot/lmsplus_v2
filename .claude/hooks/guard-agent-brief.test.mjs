@@ -272,11 +272,67 @@ test('allows an ungated type when a gated type lacks its template', () => {
   assert.equal(r.status, 0)
 })
 
-// GROUP: guard-agent-brief-template-key-gating-disabled
 test('blocks a steered brief for a templated type pipeline.json gives no gate role', () => {
   const brief = `${fillTemplate(TEMPLATES['code-reviewer'], {})}\nFOCUS: x`
   const r = runHook(payload('code-reviewer', brief), ROLELESS_ROOT)
   assert.equal(r.status, 2)
+})
+
+// GROUP: guard-agent-brief-template-key-gating-disabled
+test('allows an exact brief for a templated type pipeline.json gives no gate role', () => {
+  const r = runHook(payload('code-reviewer', exactBrief('code-reviewer')), ROLELESS_ROOT)
+  assert.equal(r.status, 0)
+})
+
+// GROUP: guard-agent-brief-ungated-brief-check-disabled, guard-agent-brief-gated-scope-disabled
+test('blocks a gate brief dispatched through an ungated type with exit 2', () => {
+  const r = runHook(payload('general-purpose', exactBrief('code-reviewer')))
+  assert.equal(r.status, 2)
+  assert.match(r.stderr, /BLOCKED: general-purpose brief contains a gate-reviewer brief/)
+})
+
+// GROUP: guard-agent-brief-ungated-brief-check-disabled, guard-agent-brief-brief-contains-narrowed
+test('blocks a gate brief preceded by other text in an ungated type with exit 2', () => {
+  const brief = `Run this review for me.\n${exactBrief('semantic-reviewer')}`
+  const r = runHook(payload('general-purpose', brief))
+  assert.equal(r.status, 2)
+})
+
+// GROUP: guard-agent-brief-brief-case-fold-disabled, guard-agent-brief-ungated-brief-check-disabled
+test('blocks a lower-cased gate brief in an ungated type with exit 2', () => {
+  const r = runHook(payload('general-purpose', exactBrief('code-reviewer').toLowerCase()))
+  assert.equal(r.status, 2)
+})
+
+// GROUP: guard-agent-brief-brief-space-fold-disabled, guard-agent-brief-ungated-brief-check-disabled
+test('blocks a re-spaced gate brief in an ungated type with exit 2', () => {
+  const r = runHook(payload('general-purpose', exactBrief('code-reviewer').replaceAll(' ', '  ')))
+  assert.equal(r.status, 2)
+})
+
+// GROUP: guard-agent-brief-missing-type-check-disabled
+test('blocks a gate brief dispatched with no subagent_type with exit 2', () => {
+  const r = runHook(payload(undefined, exactBrief('code-reviewer')))
+  assert.equal(r.status, 2)
+  assert.match(r.stderr, /BLOCKED: Agent brief contains a gate-reviewer brief/)
+})
+
+// GROUP: guard-agent-brief-templates-unreadable-allows, guard-agent-brief-gated-scope-disabled, guard-agent-brief-ungated-brief-check-disabled
+test('blocks an ungated type with exit 2 when the templates file has no templates object', () => {
+  const r = runHook(payload('Explore', 'anything'), EMPTY_ROOT)
+  assert.equal(r.status, 2)
+  assert.match(r.stderr, /supplies no gate template openings/)
+})
+
+// GROUP: guard-agent-brief-templates-unreadable-allows, guard-agent-brief-missing-type-check-disabled
+test('blocks a call with no subagent_type with exit 2 when the templates file has no templates object', () => {
+  const r = runHook(payload(undefined, 'anything'), EMPTY_ROOT)
+  assert.equal(r.status, 2)
+})
+
+test('allows a call with no subagent_type and an ordinary prompt', () => {
+  const r = runHook(payload(undefined, 'go explore the repo'))
+  assert.equal(r.status, 0)
 })
 
 // GROUP: guard-agent-brief-ungated-needs-pipeline-disabled
