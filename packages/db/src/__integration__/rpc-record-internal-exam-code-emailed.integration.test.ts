@@ -28,7 +28,7 @@ import {
  *  (f) expired code (state guard) → throws 'code_not_found'
  *  (g) soft-deleted code (rule 9: deleted_at filter) → throws 'code_not_found'
  *  (h) resend on an already-emailed code (no emailed_at IS NULL guard) → later timestamp
- *  (i) unauthenticated caller (auth.uid() NULL) → throws 'not_authenticated'
+ *  (i) unauthenticated caller → denied at the privilege layer (42501, mig 20260925000400)
  *
  * Hermetic: internal_exam_codes rows created here are HARD-deleted in afterAll
  * (test teardown only) — the table has no FK children, and cleanupTestData
@@ -480,15 +480,15 @@ describe('RPC: record_internal_exam_code_emailed', () => {
 
   // ── (i) Unauthenticated caller is rejected ──────────────────────────────────
 
-  it('rejects an unauthenticated call with not_authenticated', async () => {
+  it('rejects an unauthenticated call at the privilege layer', async () => {
     const codeId = await seedCode({ org: orgId, student: studentId, issuedBy: adminUserId })
 
     const anonClient = getAnonClient()
     const { error } = await anonClient.rpc('record_internal_exam_code_emailed', {
       p_code_id: codeId,
     })
-    expect(error).not.toBeNull()
-    expect(error!.message).toMatch(/not_authenticated/)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(/permission denied for function/i)
 
     const { data: rows, error: readErr } = await admin
       .from('audit_events')

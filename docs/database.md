@@ -938,7 +938,7 @@ END;
 $$;
 ```
 
-`anon` holds no privilege on any public table; `authenticated` holds only the table commands a permitting RLS policy allows (migrations `20260925000200`, `20260925000300`, default privileges too). A new postgres-owned table defaults to `anon` nothing and `authenticated` SELECT only — a migration adding a write path must GRANT it explicitly. Function EXECUTE narrowing: #1367 part B2.
+`anon` holds no privilege on any public table; `authenticated` holds only the table commands a permitting RLS policy allows (migrations `20260925000200`, `20260925000300`, default privileges too). A new postgres-owned table defaults to `anon` nothing and `authenticated` SELECT only — a migration adding a write path must GRANT it explicitly. `anon` and PUBLIC hold EXECUTE on no public function (migration `20260925000400`); a new postgres-owned function defaults to `authenticated` EXECUTE and nothing for `anon`.
 
 ### The Core RPCs
 

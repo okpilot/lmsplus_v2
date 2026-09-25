@@ -17,7 +17,7 @@
  * Because the key IS exposed, the guard BOUNDARY around that exposure is the whole
  * security property. This spec proves the key is revealed ONLY inside the intended
  * boundary:
- *   - EO1 unauthenticated caller -> 'Not authenticated' (auth.uid() IS NULL guard),
+ *   - EO1 unauthenticated caller -> 42501 permission denied for function (mig 20260925000400),
  *         no rows / no key.
  *   - EO2 cross-org isolation: a student in org B passing an org-A question id gets
  *         nothing for it (the WHERE q.organization_id = v_org_id filter, where
@@ -163,9 +163,12 @@ test.describe('Red Team: get_study_questions RPC (Vector EO)', () => {
     const anon = createClient(SUPABASE_URL, ANON_KEY, {
       auth: { autoRefreshToken: false, persistSession: false },
     })
+    // mig 20260925000400 revokes anon EXECUTE on every public function, so the
+    // call is rejected at the privilege layer (42501) before the SECURITY
+    // DEFINER body's own auth.uid() IS NULL guard is ever reached.
     const { data, error } = await anon.rpc(RPC, { p_question_ids: [fx.egMcActiveId] })
-    expect(error).not.toBeNull()
-    expect(error?.message ?? '').toMatch(/not authenticated/i)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(/permission denied for function/i)
     expect(data).toBeNull()
   })
 

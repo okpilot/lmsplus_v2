@@ -293,16 +293,19 @@ test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ES/ET
     expect(active[0]?.mode).toBe('mock_exam')
   })
 
-  test('ES: an unauthenticated discovery start is rejected (not_authenticated)', async () => {
+  test('ES: an unauthenticated discovery start is rejected at the privilege layer', async () => {
     const anon = createClient(SUPABASE_URL, ANON_KEY, {
       auth: { autoRefreshToken: false, persistSession: false },
     })
+    // mig 20260925000400 revokes anon EXECUTE on every public function, so the
+    // call is rejected before the body's own auth.uid() IS NULL guard is ever
+    // reached.
     const { data, error } = await anon.rpc('start_discovery_session', {
       p_subject_id: subjectId,
       p_question_ids: questionIds.slice(0, 1),
     })
-    expect(error).not.toBeNull()
-    expect(error?.message ?? '').toMatch(/not_authenticated/i)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(/permission denied for function/i)
     expect(data).toBeNull()
   })
 

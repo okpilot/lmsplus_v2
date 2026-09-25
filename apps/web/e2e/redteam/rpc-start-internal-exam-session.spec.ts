@@ -3,7 +3,7 @@
  *
  * Vectors CX / CY / CZ / DA / DB / DC (HIGH/MEDIUM): student-facing RPC that redeems a
  * single-use code and creates an internal_exam quiz_session.
- *  - CX: unauthenticated → 'not_authenticated'
+ *  - CX: unauthenticated → 42501 permission denied for function (mig 20260925000400)
  *  - CY: student-B uses student-A's code → 'code_not_yours' (cross-student)
  *  - CZ: expired code → 'code_expired'
  *  - DA: voided code  → 'code_voided'
@@ -176,13 +176,16 @@ test.describe('Red Team: start_internal_exam_session RPC', () => {
     await cleanupStudentActiveSessions(VICTIM_EMAIL)
   })
 
-  test('unauthenticated call returns not_authenticated (Vector CX)', async () => {
+  test('unauthenticated call is denied at the privilege layer (Vector CX)', async () => {
+    // mig 20260925000400 revokes anon EXECUTE on every public function, so the
+    // call is rejected before the body's own auth.uid() IS NULL guard is ever
+    // reached.
     const { data, error } = await unauthClient.rpc('start_internal_exam_session', {
       p_code: 'NEVERUSED',
     })
 
-    expect(error).not.toBeNull()
-    expect(error?.message ?? '').toMatch(/not_authenticated/i)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(/permission denied for function/i)
     expect(data).toBeNull()
   })
 

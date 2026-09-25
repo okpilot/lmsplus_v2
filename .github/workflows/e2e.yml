@@ -107,8 +107,9 @@ jobs:
       # Fails if anon holds ANY table privilege, or authenticated's INSERT/UPDATE/DELETE
       # set diverges (either direction) from the mig 20260925000300 kept allowlist, or
       # authenticated holds TRUNCATE/REFERENCES/TRIGGER/MAINTAIN, on any public relation
-      # or postgres default privilege.
-      - name: Verify anon/authenticated table privileges match least-privilege grants
+      # or postgres default privilege, or anon holds EXECUTE on any public function
+      # (mig 20260925000400, any owner).
+      - name: Verify anon/authenticated table and function privileges match least-privilege grants
         run: |
           set -euo pipefail
           ROWS=$(PGPASSWORD=postgres psql -h localhost -p 54322 -U postgres -d postgres -tA -F' | ' -c "
@@ -180,6 +181,13 @@ jobs:
                   (grantee_role.rolname = 'anon' AND da.defaclobjtype IN ('r','S'))
                   OR (grantee_role.rolname = 'authenticated' AND da.defaclobjtype = 'r' AND acl.privilege_type <> 'SELECT')
                 )
+            ),
+            anon_fn AS (
+              SELECT p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' AS fnsig
+              FROM pg_proc p
+              JOIN pg_namespace n ON n.oid = p.pronamespace
+              WHERE n.nspname = 'public' AND p.prokind IN ('f','p')
+                AND has_function_privilege('anon', p.oid, 'EXECUTE')
             )
             SELECT 'anon_bad' AS kind, relname, relkind, grantee, priv FROM anon_bad
             UNION ALL
@@ -189,7 +197,9 @@ jobs:
             UNION ALL
             SELECT 'auth_forbidden', relname, relkind, grantee, priv FROM auth_forbidden
             UNION ALL
-            SELECT 'bad_default', defaclobjtype::text, NULL, grantee, privilege_type FROM bad_defaults;
+            SELECT 'bad_default', defaclobjtype::text, NULL, grantee, privilege_type FROM bad_defaults
+            UNION ALL
+            SELECT 'anon_fn', fnsig, NULL, 'anon', 'EXECUTE' FROM anon_fn;
           ")
 
           TABLE_COUNT=$(PGPASSWORD=postgres psql -h localhost -p 54322 -U postgres -d postgres -tAc "
@@ -198,6 +208,13 @@ jobs:
           ")
           AUTH_CAN_SELECT_USERS=$(PGPASSWORD=postgres psql -h localhost -p 54322 -U postgres -d postgres -tAc "
             SELECT has_table_privilege('authenticated', 'public.users', 'SELECT');
+          ")
+          FN_COUNT=$(PGPASSWORD=postgres psql -h localhost -p 54322 -U postgres -d postgres -tAc "
+            SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+              WHERE n.nspname = 'public' AND p.prokind IN ('f','p');
+          ")
+          AUTH_CAN_EXEC_IS_ADMIN=$(PGPASSWORD=postgres psql -h localhost -p 54322 -U postgres -d postgres -tAc "
+            SELECT has_function_privilege('authenticated', 'public.is_admin()', 'EXECUTE');
           ")
 
           if [ "$TABLE_COUNT" -le 0 ]; then
@@ -208,13 +225,42 @@ jobs:
             echo "::error::Non-vacuity check failed — authenticated lost SELECT on public.users (query is too broad)"
             exit 1
           fi
+          if [ "$FN_COUNT" -le 0 ]; then
+            echo "::error::Non-vacuity check failed — public schema reports 0 functions"
+            exit 1
+          fi
+          if [ "$AUTH_CAN_EXEC_IS_ADMIN" != "t" ]; then
+            echo "::error::Non-vacuity check failed — authenticated lost EXECUTE on public.is_admin() (query is too broad)"
+            exit 1
+          fi
 
           if [ -n "$ROWS" ]; then
-            echo "::error::anon/authenticated table privileges diverge from the least-privilege grants:"
+            echo "::error::anon/authenticated table or function privileges diverge from the least-privilege grants:"
             echo "$ROWS"
             exit 1
           fi
-          echo "OK: anon holds no table privilege, authenticated's INSERT/UPDATE/DELETE set matches the kept allowlist exactly and holds no TRUNCATE/REFERENCES/TRIGGER/MAINTAIN, on any public table/view or default privilege ($TABLE_COUNT tables/views checked)"
+
+          # Behavioural default-privilege probe: an ACL-row check (bad_defaults above) cannot see
+          # the implicit built-in PUBLIC EXECUTE default that applies when no pg_default_acl row
+          # exists for a role/schema. Create a throwaway function inside a rolled-back transaction
+          # and read its live privileges instead. Filter the captured line to the probe's own
+          # "true|false"-shaped row so the BEGIN/CREATE FUNCTION/ROLLBACK command tags psql prints
+          # around it (even under -tA) can't pollute the captured value.
+          PROBE=$(PGPASSWORD=postgres psql -h localhost -p 54322 -U postgres -d postgres -tA -c "
+            BEGIN;
+            CREATE FUNCTION public.zz_ci_default_acl_probe() RETURNS int LANGUAGE sql AS 'SELECT 1';
+            SELECT has_function_privilege('anon','public.zz_ci_default_acl_probe()','EXECUTE')
+                || '|' ||
+                   has_function_privilege('authenticated','public.zz_ci_default_acl_probe()','EXECUTE');
+            ROLLBACK;
+          " | grep -E '^(true|false)\|(true|false)$' || true)
+
+          if [ "$PROBE" != "false|true" ]; then
+            echo "::error::Default-privilege probe failed — a new postgres-owned function must default to anon=false, authenticated=true EXECUTE; got '${PROBE:-<no row captured>}'"
+            exit 1
+          fi
+
+          echo "OK: anon holds no table or function privilege, authenticated's INSERT/UPDATE/DELETE set matches the kept allowlist exactly and holds no TRUNCATE/REFERENCES/TRIGGER/MAINTAIN, on any public table/view, function or default privilege ($TABLE_COUNT tables/views, $FN_COUNT functions checked); a new postgres-owned function defaults to authenticated EXECUTE, anon none"
 
   integration-tests:
     name: Integration Tests (Supabase)

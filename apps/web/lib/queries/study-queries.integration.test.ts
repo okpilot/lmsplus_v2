@@ -7,7 +7,7 @@
 //   - Field mapping from the get_study_questions RETURNS TABLE to StudyQuestion.
 //   - Soft-deleted questions are excluded from results.
 //   - Cross-org questions are excluded (org-scoping guard).
-//   - An unauthenticated call is rejected (RPC raises "Not authenticated"; helper throws).
+//   - An unauthenticated call is rejected (anon has no EXECUTE, mig 20260925000400; helper throws).
 //
 // NOTE: this test requires the local Supabase stack to have migration 135
 // (20260626000200_get_study_questions.sql) applied. The migration is staged on this
@@ -190,9 +190,11 @@ describe('getStudyQuestions (app-layer integration)', () => {
 
   it('throws when called without authentication', async () => {
     // No signInAs — the integration setup resets the cookie jar before each test,
-    // so this runs as anon. The RPC raises "Not authenticated"; the helper surfaces
-    // it as a thrown error (code-style §5: query helpers throw, never collapse to []).
-    await expect(getStudyQuestions(questionIds)).rejects.toThrow('Failed to fetch study questions')
+    // so this runs as anon. anon has no EXECUTE (mig 20260925000400); the helper surfaces
+    // the denial as a thrown error (code-style §5: query helpers throw, never collapse to []).
+    await expect(getStudyQuestions(questionIds)).rejects.toThrow(
+      /Failed to fetch study questions: permission denied for function/,
+    )
   })
 
   it('rejects a request for more than 500 question ids', async () => {

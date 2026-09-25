@@ -4,8 +4,8 @@
  * Vectors EA / EB / EC (HIGH). Admin-only audit RPC (mig 110) that writes one
  * `internal_exam.code_emailed` audit row when an admin emails a code to a
  * student. Guard order (from mig 110):
- *   1. auth.uid() IS NULL          → not_authenticated  (covered by DZ in
- *                                     server-action-unauthenticated.spec.ts)
+ *   1. auth.uid() IS NULL          → not_authenticated  (unreachable by anon:
+ *                                     42501 first, DZ in server-action-unauthenticated.spec.ts)
  *   2. NOT is_admin()              → not_admin           (EA)
  *   3. active-admin gate           → admin_not_found     (NOT exercised here —
  *                                     fires only when the calling admin is
@@ -40,7 +40,7 @@ import {
   seedRedTeamUsers,
 } from './helpers/seed-users'
 
-// Note: the unauthenticated guard (Vector DZ → not_authenticated) lives in
+// Note: the unauthenticated denial (Vector DZ → 42501) lives in
 // server-action-unauthenticated.spec.ts alongside the other anon-RPC vectors —
 // this spec covers the authenticated attacker paths (EA/EB/EC) only.
 

@@ -3,7 +3,7 @@
  *
  * SECURITY DEFINER RPC returning the correct-option ids for a COMPLETED session
  * the caller owns (the report answer key). Vectors (attack-surface.md):
- *  - L  unauthenticated → 'Not authenticated'.
+ *  - L  unauthenticated → 42501 permission denied for function (mig 20260925000400).
  *  - M  cross-tenant / foreign session_id (not owned) →
  *       'Session not found, not owned, or not completed'.
  *  - N  the owner's own session that is still active (ended_at IS NULL) →
@@ -102,9 +102,12 @@ test.describe('Red Team: get_report_correct_options RPC', () => {
     const anon = createClient(SUPABASE_URL, ANON_KEY, {
       auth: { autoRefreshToken: false, persistSession: false },
     })
+    // mig 20260925000400 revokes anon EXECUTE on every public function, so the
+    // call is rejected at the privilege layer before the body's own
+    // auth.uid() IS NULL guard is ever reached.
     const { data, error } = await anon.rpc(RPC, { p_session_id: sessionId })
-    expect(error).not.toBeNull()
-    expect(error?.message ?? '').toMatch(/not authenticated/i)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(/permission denied for function/i)
     expect(data).toBeNull()
   })
 

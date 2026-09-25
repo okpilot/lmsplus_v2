@@ -6,9 +6,7 @@
  * hardcoded — a table added after a spec was written is covered automatically.
  */
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://localhost:54321'
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
-if (!SERVICE_ROLE_KEY) throw new Error('SUPABASE_SERVICE_ROLE_KEY is required')
+import { fetchOpenApiRootField } from './openapi-root'
 
 // A syntactically valid, non-existent UUID. Every table's primary/foreign key
 // column in this schema is `uuid`-typed, so one constant filter value avoids a
@@ -25,21 +23,7 @@ export type TableSpec = { name: string; filterCol: string }
  * the privilege check.
  */
 export async function deriveTableSpecs(): Promise<TableSpec[]> {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/`, {
-    headers: {
-      apikey: SERVICE_ROLE_KEY as string,
-      Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
-      Accept: 'application/openapi+json',
-    },
-  })
-  if (!res.ok) throw new Error(`OpenAPI root fetch failed: ${res.status} ${res.statusText}`)
-  const body: unknown = await res.json()
-  const raw =
-    typeof body === 'object' && body !== null
-      ? (body as { definitions?: unknown }).definitions
-      : undefined
-  if (typeof raw !== 'object' || raw === null)
-    throw new Error('OpenAPI root has no definitions object')
+  const raw = await fetchOpenApiRootField('definitions')
   const definitions = raw as Record<string, { properties?: Record<string, { format?: string }> }>
 
   return Object.entries(definitions).map(([name, def]) => {

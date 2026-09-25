@@ -5,7 +5,7 @@
  * temporary-password expiry (`login_instructions_sent_at`,
  * `temp_password_expires_at`) on a target `public.users` row and writes one
  * `user.login_instructions_sent` audit row. Guard order (from the migration):
- *   1. auth.uid() IS NULL              → not_authenticated (this spec)
+ *   1. auth.uid() IS NULL              → not_authenticated (unreachable by anon)
  *   2. NOT is_admin()                  → not_admin           (this spec)
  *   3. active-admin gate               → admin_not_found     (NOT exercised
  *                                         here — fires only when the calling
@@ -20,7 +20,7 @@
  *                                         admin-role targets — this spec)
  *
  * Tests cover:
- *  - unauthenticated (anon-key) caller → not_authenticated
+ *  - unauthenticated (anon-key) caller → 42501 permission denied for function (mig 20260925000400)
  *  - authenticated student (non-admin) caller → not_admin
  *  - cross-org admin, target in the victim's own org → user_not_found
  *  - own-org admin, soft-deleted target → user_not_found
@@ -124,16 +124,16 @@ test.describe('Red Team: record_login_instructions_sent RPC', () => {
     expect(data?.length ?? 0).toBe(0)
   }
 
-  test('unauthenticated caller cannot send login instructions (Vector FP — not_authenticated)', async () => {
-    // The RPC raises not_authenticated via the auth.uid() IS NULL guard
-    // (mig 20260925000100) BEFORE any target-row lookup — an anon-key
-    // client has no JWT, so auth.uid() is NULL and the exception fires
-    // regardless of the target id. A non-existent uuid is therefore fine.
+  test('unauthenticated caller cannot send login instructions (Vector FP — privilege denied)', async () => {
+    // mig 20260925000400 revokes anon EXECUTE on every public function, so the
+    // call is rejected at the privilege layer (42501) BEFORE the body's own
+    // auth.uid() IS NULL guard (mig 20260925000100) or any target-row lookup
+    // is ever reached. A non-existent uuid is therefore fine.
     const { data, error } = await unauthClient.rpc('record_login_instructions_sent', {
       p_user_id: '00000000-0000-4000-a000-000000000004',
     })
-    expect(error).not.toBeNull()
-    expect(error?.message ?? '').toMatch(/not_authenticated/i)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(/permission denied for function/i)
     expect(data ?? null).toBeNull()
   })
 

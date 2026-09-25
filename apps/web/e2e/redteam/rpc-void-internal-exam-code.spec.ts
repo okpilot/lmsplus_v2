@@ -3,7 +3,7 @@
  *
  * Vectors DD/DE/DF/DG (HIGH). Admin-only RPC that voids a code and (optionally)
  * ends the linked active session. Tests cover:
- *  - DD unauthenticated → not_authenticated
+ *  - DD unauthenticated → 42501 permission denied for function (mig 20260925000400)
  *  - DE student → not_admin
  *  - DF    cross-org admin → code_not_found (existence-hiding)
  *  - DG    consumed + finished session → cannot_void_finished_attempt
@@ -236,15 +236,18 @@ test.describe('Red Team: void_internal_exam_code RPC', () => {
     if (errors.length > 0) throw new Error(`afterEach: ${errors.join('; ')}`)
   })
 
-  test('unauthenticated call returns not_authenticated (Vector DD)', async () => {
+  test('unauthenticated call is denied at the privilege layer (Vector DD)', async () => {
     const code = await validCode()
+    // mig 20260925000400 revokes anon EXECUTE on every public function, so the
+    // call is rejected before the body's own auth.uid() IS NULL guard is ever
+    // reached.
     const { data, error } = await unauthClient.rpc('void_internal_exam_code', {
       p_code_id: code.id,
       p_reason: 'red team',
     })
 
-    expect(error).not.toBeNull()
-    expect(error?.message ?? '').toMatch(/not_authenticated/i)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(/permission denied for function/i)
     expect(data).toBeNull()
   })
 

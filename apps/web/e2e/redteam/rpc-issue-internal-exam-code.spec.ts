@@ -2,7 +2,7 @@
  * Red Team Spec: issue_internal_exam_code RPC
  *
  * Vectors DL / DM (HIGH): admin-only RPC that issues a single-use code.
- *  - DL(1): unauthenticated → 'not_authenticated'
+ *  - DL(1): unauthenticated → 42501 permission denied for function (mig 20260925000400)
  *  - DL(2): authenticated student (non-admin) → 'not_admin'
  *  - DM:    cross-org admin issuing for foreign-org student → 'student_not_found'
  *  - extra: missing exam_config → 'exam_config_required'
@@ -211,14 +211,17 @@ test.describe('Red Team: issue_internal_exam_code RPC', () => {
       .is('deleted_at', null)
   })
 
-  test('unauthenticated call returns not_authenticated (Vector DL-1)', async () => {
+  test('unauthenticated call is denied at the privilege layer (Vector DL-1)', async () => {
+    // mig 20260925000400 revokes anon EXECUTE on every public function, so the
+    // call is rejected before the body's own auth.uid() IS NULL guard is ever
+    // reached.
     const { data, error } = await unauthClient.rpc('issue_internal_exam_code', {
       p_subject_id: configuredSubjectId,
       p_student_id: egmontStudentId,
     })
 
-    expect(error).not.toBeNull()
-    expect(error?.message ?? '').toMatch(/not_authenticated/i)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').toMatch(/permission denied for function/i)
     expect(data).toBeNull()
   })
 
