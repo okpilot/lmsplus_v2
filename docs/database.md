@@ -1748,7 +1748,7 @@ Admin-only RPC arming the forced password-change state on a student/instructor a
 
 **Returns:** `void`.
 
-**Security:** SECURITY DEFINER. No `emailed_at IS NULL` guard — a resend re-runs the UPDATE and re-stamps both columns later, matching the requirement that "every send sets a new temporary password; the earlier one stops working" (requirements.md).
+**Security:** SECURITY DEFINER. No "already sent" guard — a resend re-runs the UPDATE and re-stamps both columns. The RPC does not set or invalidate any password; the caller does that through the Auth admin API.
 
 ##### `list_my_active_internal_exam_codes()` (migrations `20260521000002`, `20260824000200`)
 
