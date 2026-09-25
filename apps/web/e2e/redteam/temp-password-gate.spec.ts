@@ -256,6 +256,7 @@ test.describe('Red Team: Temporary-password forced-change gate (Vector FT)', () 
 
   test('a forgot-password completion also refuses an expired temp password, the same way as the login path', async ({
     page,
+    browser,
   }) => {
     const { email } = await createArmedTempPasswordStudent({
       slot: 'ft-4-forgot-expired',
@@ -292,13 +293,18 @@ test.describe('Red Team: Temporary-password forced-change gate (Vector FT)', () 
     // Non-vacuous: the original expired temp password stays a valid Auth
     // credential (no scramble) BUT the login path still refuses it in-app —
     // proves the reset-path refusal didn't accidentally clear the flag.
-    const staleLoginPage = await page.context().newPage()
-    await staleLoginPage.goto('/')
-    await staleLoginPage.getByLabel('Email address').fill(email)
-    await staleLoginPage.getByLabel('Password', { exact: true }).fill(EXPIRED_PASSWORD)
-    await staleLoginPage.getByRole('button', { name: 'Sign in' }).click()
-    await staleLoginPage.waitForURL('**/?error=temp_password_expired', { timeout: 15_000 })
-    await staleLoginPage.close()
+    // Fresh context: the reset context still carries the recovery lock.
+    const staleContext = await browser.newContext()
+    try {
+      const staleLoginPage = await staleContext.newPage()
+      await staleLoginPage.goto('/')
+      await staleLoginPage.getByLabel('Email address').fill(email)
+      await staleLoginPage.getByLabel('Password', { exact: true }).fill(EXPIRED_PASSWORD)
+      await staleLoginPage.getByRole('button', { name: 'Sign in' }).click()
+      await staleLoginPage.waitForURL('**/?error=temp_password_expired', { timeout: 15_000 })
+    } finally {
+      await staleContext.close()
+    }
 
     // The NEW password must never have taken effect either — the refusal
     // happens before updateUser() is called.
