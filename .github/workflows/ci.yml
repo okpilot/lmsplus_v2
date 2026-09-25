@@ -139,7 +139,7 @@ jobs:
         run: node --test .claude/hooks/guard-bash.test.mjs
 
       - name: Agent-brief guard — unit test
-        run: node --test .claude/hooks/guard-agent-brief.test.mjs
+        run: node --test .claude/hooks/guard-agent-brief.test.mjs .claude/hooks/guard-agent-brief.sendmessage.test.mjs
 
       - name: Review gate — unit test
         run: node --test .claude/hooks/review-gate.test.mjs

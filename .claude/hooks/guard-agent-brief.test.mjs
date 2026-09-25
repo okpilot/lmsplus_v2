@@ -4,159 +4,33 @@
 // ({"cwd":"...","tool_name":"Agent","tool_input":{"subagent_type":"...","prompt":"..."}}) on
 // STDIN — the channel the harness actually uses — so these tests pin the input contract, not
 // just the pattern matching. Pattern: guard-bash.test.mjs.
+//
+// SendMessage coverage lives in guard-agent-brief.sendmessage.test.mjs — split out to keep this
+// file under the test-file cap (code-style.md §1). Fixtures and helpers shared by both suites
+// live in guard-agent-brief.testkit.mjs.
 import assert from 'node:assert/strict'
-import { execFileSync } from 'node:child_process'
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { after, test } from 'node:test'
-import { fileURLToPath } from 'node:url'
-import { runNode } from './spawn.testkit.mjs'
+import {
+  BROKEN_ROOT,
+  cleanupFixtures,
+  EMPTY_ROOT,
+  exactBrief,
+  extraFor,
+  fillTemplate,
+  HOOKS_DIR,
+  NO_PIPELINE_ROOT,
+  PARTIAL_ROOT,
+  payload,
+  ROLELESS_ROOT,
+  runHook,
+  TEMPLATES,
+  VALID_PLAN,
+  WORKTREE,
+} from './guard-agent-brief.testkit.mjs'
 
-const HOOKS_DIR = path.dirname(fileURLToPath(import.meta.url))
-const HOOK = path.join(HOOKS_DIR, 'guard-agent-brief.js')
-// A self-contained fixture root carrying the plan file — the real plans are gitignored and
-// absent in CI. Passed to the hook as GUARD_AGENT_BRIEF_ROOT (see runHook), never as stdin
-// `cwd`: the hook resolves {plan} against the repo root (or this override), not the caller's
-// shell directory.
-const ROOT = mkdtempSync(path.join(tmpdir(), 'guard-agent-brief-test-'))
-mkdirSync(path.join(ROOT, '.spec-workflow/specs/agent-brief-guard'), { recursive: true })
-writeFileSync(path.join(ROOT, '.spec-workflow/specs/agent-brief-guard/plan.md'), '# plan\n')
-mkdirSync(path.join(ROOT, 'docs'))
-writeFileSync(path.join(ROOT, 'docs/decisions.md'), '# decisions\n')
-// {branch} must be a local branch of the root: a git repo whose one branch is the fillTemplate default.
-mkdirSync(path.join(ROOT, '.claude/hooks'), { recursive: true })
-copyFileSync(
-  path.join(HOOKS_DIR, 'gate-briefs.json'),
-  path.join(ROOT, '.claude/hooks/gate-briefs.json'),
-)
-copyFileSync(path.join(HOOKS_DIR, '..', 'pipeline.json'), path.join(ROOT, '.claude/pipeline.json'))
-const git = (...args) =>
-  execFileSync('git', [
-    '-C',
-    ROOT,
-    '-c',
-    'user.name=t',
-    '-c',
-    'user.email=t@t',
-    '-c',
-    'commit.gpgsign=false',
-    '-c',
-    'core.hooksPath=/dev/null',
-    ...args,
-  ])
-execFileSync('git', ['init', '-q', '-b', 'chore/agent-brief-guard', ROOT])
-// gate-briefs.json is tracked, the plan is not — as in the real repo, a linked worktree lacks it.
-git('add', '.claude/hooks/gate-briefs.json', '.claude/pipeline.json')
-git('commit', '-q', '-m', 'init')
-const WORKTREE = path.join(ROOT, 'wt')
-git('worktree', 'add', '-q', '-b', 'wt-branch', WORKTREE)
-// A root whose templates file is unparseable.
-const BROKEN_ROOT = mkdtempSync(path.join(tmpdir(), 'guard-agent-brief-broken-'))
-mkdirSync(path.join(BROKEN_ROOT, '.claude/hooks'), { recursive: true })
-writeFileSync(path.join(BROKEN_ROOT, '.claude/hooks/gate-briefs.json'), '{')
-// A root whose templates file parses but carries no templates object.
-const EMPTY_ROOT = mkdtempSync(path.join(tmpdir(), 'guard-agent-brief-empty-'))
-mkdirSync(path.join(EMPTY_ROOT, '.claude/hooks'), { recursive: true })
-writeFileSync(path.join(EMPTY_ROOT, '.claude/hooks/gate-briefs.json'), '{}')
-copyFileSync(
-  path.join(HOOKS_DIR, '..', 'pipeline.json'),
-  path.join(EMPTY_ROOT, '.claude/pipeline.json'),
-)
-// A root whose templates file lacks one gated type's template.
-const PARTIAL_ROOT = mkdtempSync(path.join(tmpdir(), 'guard-agent-brief-partial-'))
-mkdirSync(path.join(PARTIAL_ROOT, '.claude/hooks'), { recursive: true })
-copyFileSync(
-  path.join(HOOKS_DIR, '..', 'pipeline.json'),
-  path.join(PARTIAL_ROOT, '.claude/pipeline.json'),
-)
-{
-  const doc = JSON.parse(readFileSync(path.join(HOOKS_DIR, 'gate-briefs.json'), 'utf8'))
-  delete doc.templates['semantic-reviewer']
-  writeFileSync(path.join(PARTIAL_ROOT, '.claude/hooks/gate-briefs.json'), JSON.stringify(doc))
-}
-// A root whose pipeline.json is readable but gives no agent a gate role — the template key alone must gate.
-const ROLELESS_ROOT = mkdtempSync(path.join(tmpdir(), 'guard-agent-brief-roleless-'))
-mkdirSync(path.join(ROLELESS_ROOT, '.claude/hooks'), { recursive: true })
-copyFileSync(
-  path.join(HOOKS_DIR, 'gate-briefs.json'),
-  path.join(ROLELESS_ROOT, '.claude/hooks/gate-briefs.json'),
-)
-writeFileSync(path.join(ROLELESS_ROOT, '.claude/pipeline.json'), '{"agents":{}}')
-// A root with templates but no pipeline.json.
-const NO_PIPELINE_ROOT = mkdtempSync(path.join(tmpdir(), 'guard-agent-brief-nopipeline-'))
-mkdirSync(path.join(NO_PIPELINE_ROOT, '.claude/hooks'), { recursive: true })
-copyFileSync(
-  path.join(HOOKS_DIR, 'gate-briefs.json'),
-  path.join(NO_PIPELINE_ROOT, '.claude/hooks/gate-briefs.json'),
-)
-after(() => {
-  rmSync(ROOT, { recursive: true, force: true })
-  rmSync(NO_PIPELINE_ROOT, { recursive: true, force: true })
-  rmSync(ROLELESS_ROOT, { recursive: true, force: true })
-  rmSync(PARTIAL_ROOT, { recursive: true, force: true })
-  rmSync(BROKEN_ROOT, { recursive: true, force: true })
-  rmSync(EMPTY_ROOT, { recursive: true, force: true })
-})
-
-const TIMEOUT_MS = 5_000
-
-const gateBriefs = JSON.parse(readFileSync(path.join(HOOKS_DIR, 'gate-briefs.json'), 'utf8'))
-const TEMPLATES = gateBriefs.templates
-
-// runNode throws NO VERDICT on a signal, a timeout or a failed spawn — see guard-bash.test.mjs
-// for why `status` must never be read off a killed child.
-//
-// GUARD_AGENT_BRIEF_ROOT points the hook's plan-path resolution at ROOT (this suite's throwaway
-// fixture directory) instead of the real repo root — the real plans are gitignored and absent in
-// CI. Every call goes through here so every test gets it, including ones that never touch a
-// {plan} placeholder.
-function runHook(stdin, root = ROOT) {
-  return runNode('guard-agent-brief.js', [HOOK], {
-    input: stdin,
-    timeout: TIMEOUT_MS,
-    env: { ...process.env, GUARD_AGENT_BRIEF_ROOT: root },
-  })
-}
-
-// `cwd` here is DECORATIVE — a realistic field on the real hook payload — never what {plan}
-// resolves against; pass a bogus one to prove that.
-function payload(subagentType, prompt, extra = {}, cwd = ROOT) {
-  return JSON.stringify({
-    cwd,
-    hook_event_name: 'PreToolUse',
-    tool_name: 'Agent',
-    tool_input: { subagent_type: subagentType, prompt, ...extra },
-  })
-}
-
-/** Fill a template's placeholders with valid sample values. A placeholder repeated in one
- * template (code-review-skill's `{branch}`) gets the same value both times via replaceAll. */
-function fillTemplate(
-  template,
-  { round = '1', pr = '#123', branch = 'chore/agent-brief-guard', plan } = {},
-) {
-  let out = template
-    .replaceAll('{round}', round)
-    .replaceAll('{pr}', pr)
-    .replaceAll('{branch}', branch)
-  if (plan !== undefined) out = out.replaceAll('{plan}', plan)
-  return out
-}
-
-const VALID_PLAN = '.spec-workflow/specs/agent-brief-guard/plan.md'
-
-/** Extra `tool_input` fields a type's template alone doesn't cover. */
-function extraFor(type) {
-  if (type === 'implementation-critic') return {}
-  if (type === 'code-review-skill') return { isolation: 'worktree', model: 'opus' }
-  return {}
-}
-
-function exactBrief(type) {
-  const opts = type === 'implementation-critic' ? { plan: VALID_PLAN } : {}
-  return fillTemplate(TEMPLATES[type], opts)
-}
+after(cleanupFixtures)
 
 // CONTROL: red
 // GROUP: guard-agent-brief-always-passes
@@ -258,6 +132,28 @@ test('blocks implementation-critic when the plan path contains ".." that collaps
   assert.match(r.stderr, /invalid \{plan\} path/)
 })
 
+// R3 — implementation-critic's {requirements} slot runs the same planPathValid check as {plan},
+// checked after {plan} passes.
+// GROUP: guard-agent-brief-requirements-check-disabled
+test('blocks implementation-critic when the requirements file does not exist on disk with exit 2', () => {
+  const brief = fillTemplate(TEMPLATES['implementation-critic'], {
+    plan: VALID_PLAN,
+    requirements: '.spec-workflow/specs/agent-brief-guard/requirements-missing.md',
+  })
+  const r = runHook(payload('implementation-critic', brief))
+  assert.equal(r.status, 2)
+  assert.match(r.stderr, /invalid \{requirements\} path/)
+})
+
+test('allows implementation-critic when plan and requirements name the same file', () => {
+  const brief = fillTemplate(TEMPLATES['implementation-critic'], {
+    plan: VALID_PLAN,
+    requirements: VALID_PLAN,
+  })
+  const r = runHook(payload('implementation-critic', brief))
+  assert.equal(r.status, 0)
+})
+
 // GROUP: guard-agent-brief-isolation-worktree-check-disabled
 test('blocks code-review-skill without isolation: worktree with exit 2', () => {
   const brief = exactBrief('code-review-skill')
@@ -271,7 +167,28 @@ test('blocks code-review-skill with model "sonnet" with exit 2', () => {
   const brief = exactBrief('code-review-skill')
   const r = runHook(payload('code-review-skill', brief, { isolation: 'worktree', model: 'sonnet' }))
   assert.equal(r.status, 2)
-  assert.match(r.stderr, /requires model "opus" or omitted/)
+  assert.match(r.stderr, /requires model omitted or its pipeline\.json alias/)
+})
+
+// the model floor applies to every gated type, not only code-review-skill (which is also
+// isolation-gated): a gated type with no isolation requirement still has its model checked.
+// GROUP: guard-agent-brief-model-opus-check-disabled
+test('blocks code-reviewer with a model that is not its pipeline.json alias with exit 2', () => {
+  const r = runHook(payload('code-reviewer', exactBrief('code-reviewer'), { model: 'opus' }))
+  assert.equal(r.status, 2)
+  assert.match(r.stderr, /requires model omitted or its pipeline\.json alias/)
+})
+
+// GROUP: guard-agent-brief-name-check-disabled
+test('blocks a gated brief dispatched with a name with exit 2', () => {
+  const r = runHook(payload('code-reviewer', exactBrief('code-reviewer'), { name: 'reviewer-1' }))
+  assert.equal(r.status, 2)
+  assert.match(r.stderr, /must not carry a name/)
+})
+
+test('allows code-reviewer with model explicitly set to its pipeline.json alias', () => {
+  const r = runHook(payload('code-reviewer', exactBrief('code-reviewer'), { model: 'sonnet' }))
+  assert.equal(r.status, 0)
 })
 
 test('allows code-review-skill with model omitted (undefined defaults to opus)', () => {

@@ -17,7 +17,7 @@ Write it as `code-review (skill)` in every roster. `code-reviewer` is a DIFFEREN
 - **Its cwd being the worktree is what exempts it from the round's write-collision set** (`agent-workflow.md § Every agent dispatch is ASYNCHRONOUS`). This is NOT a read-only guarantee: it keeps `Bash` like every agent, and an absolute path still reaches the main tree.
 - **Read the provenance its report opens with.** A run that cannot show where it ran is not a clean round.
 - **A prose report is a normal result**, not a failed round — `ReportFindings` may be unavailable in the worktree.
-- Its brief is its template in `.claude/hooks/gate-briefs.json`; `guard-agent-brief.js` blocks any other, and a dispatch without `isolation: "worktree"` or with a model other than `opus`.
+- Its brief is its template in `.claude/hooks/gate-briefs.json`; `guard-agent-brief.js` blocks any other, and a dispatch without `isolation: "worktree"` or with a model other than its `.claude/pipeline.json` alias.
 
 ## Severity Mapping
 Its own labels are ADVISORY. Map to the gate's vocabulary before triaging:
