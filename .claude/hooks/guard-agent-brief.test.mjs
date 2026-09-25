@@ -298,6 +298,18 @@ test('blocks a gate brief preceded by other text in an ungated type with exit 2'
   assert.equal(r.status, 2)
 })
 
+// GROUP: guard-agent-brief-brief-case-fold-disabled, guard-agent-brief-ungated-brief-check-disabled
+test('blocks a lower-cased gate brief in an ungated type with exit 2', () => {
+  const r = runHook(payload('general-purpose', exactBrief('code-reviewer').toLowerCase()))
+  assert.equal(r.status, 2)
+})
+
+// GROUP: guard-agent-brief-brief-space-fold-disabled, guard-agent-brief-ungated-brief-check-disabled
+test('blocks a re-spaced gate brief in an ungated type with exit 2', () => {
+  const r = runHook(payload('general-purpose', exactBrief('code-reviewer').replaceAll(' ', '  ')))
+  assert.equal(r.status, 2)
+})
+
 // GROUP: guard-agent-brief-missing-type-check-disabled
 test('blocks a gate brief dispatched with no subagent_type with exit 2', () => {
   const r = runHook(payload(undefined, exactBrief('code-reviewer')))

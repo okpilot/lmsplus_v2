@@ -239,13 +239,20 @@ function gatePrefixes(templates) {
     .filter((p) => p !== '')
 }
 
-/** `'gate-brief-ungated'` when `text` contains any gate brief's opening, `'templates-unreadable'`
- * when the templates supply no opening to check against, else `null`. */
+/** Case- and whitespace-folded text, so a re-cased or re-spaced brief still matches. */
+function foldBrief(text) {
+  return text.toLowerCase().replace(/\s+/g, ' ')
+}
+
+/** `'gate-brief-ungated'` when `text` contains any gate brief's opening (case and whitespace
+ * folded), `'templates-unreadable'` when the templates supply no opening to check against, else
+ * `null`. */
 function gateBriefReason(text, templates) {
-  const prefixes = gatePrefixes(templates)
+  const prefixes = gatePrefixes(templates).map(foldBrief)
   if (prefixes.length === 0) return 'templates-unreadable'
   if (typeof text !== 'string') return null
-  return prefixes.some((p) => text.includes(p)) ? 'gate-brief-ungated' : null
+  const folded = foldBrief(text)
+  return prefixes.some((p) => folded.includes(p)) ? 'gate-brief-ungated' : null
 }
 
 /** SendMessage's `to` field resolved to an agent type, or `undefined` when `to` names an

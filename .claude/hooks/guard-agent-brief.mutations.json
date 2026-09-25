@@ -46,7 +46,9 @@
         "blocks a gate brief sent to a plain agent name with exit 2",
         "blocks an ungated type with exit 2 when the templates file has no templates object",
         "blocks a call with no subagent_type with exit 2 when the templates file has no templates object",
-        "blocks a SendMessage to a plain agent name with exit 2 when the templates file has no templates object"
+        "blocks a SendMessage to a plain agent name with exit 2 when the templates file has no templates object",
+        "blocks a lower-cased gate brief in an ungated type with exit 2",
+        "blocks a re-spaced gate brief in an ungated type with exit 2"
       ],
       "note": "Forces the block() branch to exit 0 instead of 2 — a mismatched brief is logged as BLOCKED on stderr but no longer stops the tool call. Reddens every test asserting exit 2, not only the control — Agent-brief and SendMessage blocks alike, since both route through this one shared exit call."
     },
@@ -344,7 +346,9 @@
       "expectRed": [
         "blocks a gate brief dispatched through an ungated type with exit 2",
         "blocks a gate brief preceded by other text in an ungated type with exit 2",
-        "blocks an ungated type with exit 2 when the templates file has no templates object"
+        "blocks an ungated type with exit 2 when the templates file has no templates object",
+        "blocks a lower-cased gate brief in an ungated type with exit 2",
+        "blocks a re-spaced gate brief in an ungated type with exit 2"
       ],
       "note": "An ungated subagent_type carries a gate brief unchecked."
     },
@@ -360,8 +364,8 @@
     },
     {
       "id": "guard-agent-brief-brief-contains-narrowed",
-      "find": "text.includes(p)",
-      "replace": "text.startsWith(p)",
+      "find": "folded.includes(p)",
+      "replace": "folded.startsWith(p)",
       "expectRed": [
         "blocks a gate brief preceded by other text in an ungated type with exit 2",
         "blocks a gate brief sent to a plain agent name with exit 2"
@@ -389,6 +393,20 @@
         "blocks a SendMessage to a plain agent name with exit 2 when the templates file has no templates object"
       ],
       "note": "With no template openings to check, an ungated or untyped Agent call and a SendMessage to a non-gated recipient are allowed unchecked."
+    },
+    {
+      "id": "guard-agent-brief-brief-case-fold-disabled",
+      "find": "return text.toLowerCase().replace(",
+      "replace": "return text.replace(",
+      "expectRed": ["blocks a lower-cased gate brief in an ungated type with exit 2"],
+      "note": "A re-cased gate brief no longer matches its template opening and reaches an ungated recipient."
+    },
+    {
+      "id": "guard-agent-brief-brief-space-fold-disabled",
+      "find": ".replace(/\\s+/g, ' ')",
+      "replace": "",
+      "expectRed": ["blocks a re-spaced gate brief in an ungated type with exit 2"],
+      "note": "A re-spaced gate brief no longer matches its template opening and reaches an ungated recipient."
     },
     {
       "id": "guard-agent-brief-sendmessage-case-disabled",
