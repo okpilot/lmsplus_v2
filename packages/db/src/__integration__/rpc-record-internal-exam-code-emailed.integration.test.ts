@@ -483,7 +483,7 @@ describe('RPC: record_internal_exam_code_emailed', () => {
   it('rejects an unauthenticated call at the privilege layer', async () => {
     const codeId = await seedCode({ org: orgId, student: studentId, issuedBy: adminUserId })
 
-    const anonClient = getAnonClient() // mig 20260925000400: anon EXECUTE revoked
+    const anonClient = getAnonClient()
     const { error } = await anonClient.rpc('record_internal_exam_code_emailed', {
       p_code_id: codeId,
     })

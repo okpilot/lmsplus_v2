@@ -345,7 +345,7 @@ describe('RPC: check_non_mc_answer — diagram_label grading + guards', () => {
   // ── guard rejections ────────────────────────────────────────────────────────
   it('rejects an unauthenticated caller at the privilege layer', async () => {
     const anon = getAnonClient()
-    const sessionId = await startSession(studentClient, [diagramAId]) // mig 20260925000400: anon EXECUTE revoked
+    const sessionId = await startSession(studentClient, [diagramAId])
     const { error } = await anon.rpc('check_non_mc_answer', {
       p_question_id: diagramAId,
       p_session_id: sessionId,

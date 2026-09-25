@@ -235,7 +235,7 @@ describe('RPC: start_vfr_rt_exam_session', () => {
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
         { auth: { autoRefreshToken: false, persistSession: false } },
       ),
-    ) // mig 20260925000400: anon EXECUTE revoked
+    )
     const { error } = await anonClient.rpc('start_vfr_rt_exam_session', {
       p_subject_id: rtSubjectId,
     })

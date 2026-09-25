@@ -191,7 +191,7 @@ describe('RPC: check_non_mc_answer — guards (EL) + output contract (EM)', () =
   it('EL1 — rejects an unauthenticated caller at the privilege layer', async () => {
     const anon = getAnonClient()
     // anon needs a session id; reuse a real session id but call without auth.
-    const sessionId = await startSession([saCorrectId]) // mig 20260925000400: anon EXECUTE revoked
+    const sessionId = await startSession([saCorrectId])
     const { error } = await anon.rpc('check_non_mc_answer', {
       p_question_id: saCorrectId,
       p_session_id: sessionId,
