@@ -5,7 +5,7 @@
  * temporary-password expiry (`login_instructions_sent_at`,
  * `temp_password_expires_at`) on a target `public.users` row and writes one
  * `user.login_instructions_sent` audit row. Guard order (from the migration):
- *   1. auth.uid() IS NULL              → not_authenticated (this spec)
+ *   1. auth.uid() IS NULL              → not_authenticated (unreachable by anon)
  *   2. NOT is_admin()                  → not_admin           (this spec)
  *   3. active-admin gate               → admin_not_found     (NOT exercised
  *                                         here — fires only when the calling
@@ -20,7 +20,7 @@
  *                                         admin-role targets — this spec)
  *
  * Tests cover:
- *  - unauthenticated (anon-key) caller → not_authenticated
+ *  - unauthenticated (anon-key) caller → 42501 permission denied for function (mig 20260925000400)
  *  - authenticated student (non-admin) caller → not_admin
  *  - cross-org admin, target in the victim's own org → user_not_found
  *  - own-org admin, soft-deleted target → user_not_found

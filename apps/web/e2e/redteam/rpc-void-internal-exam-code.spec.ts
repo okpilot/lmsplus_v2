@@ -3,7 +3,7 @@
  *
  * Vectors DD/DE/DF/DG (HIGH). Admin-only RPC that voids a code and (optionally)
  * ends the linked active session. Tests cover:
- *  - DD unauthenticated → not_authenticated
+ *  - DD unauthenticated → 42501 permission denied for function (mig 20260925000400)
  *  - DE student → not_admin
  *  - DF    cross-org admin → code_not_found (existence-hiding)
  *  - DG    consumed + finished session → cannot_void_finished_attempt

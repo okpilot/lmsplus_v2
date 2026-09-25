@@ -59,7 +59,7 @@
  * short_answer + dialog_fill payload from the positive controls above), not
  * org-B's — this is an authn/role gate, not the org-scoping IDOR that FK1/FK2
  * cover, so there is no cross-org element to it.
- *  - FL1/FL2: an unauthenticated (anon-key) caller -> 'Not authenticated'.
+ *  - FL1/FL2: an unauthenticated (anon-key) caller -> 42501 permission denied for function (mig 20260925000400).
  *  - FL3/FL4: a plain student in org-A (the ATTACKER fixture user, same org
  *    as the target session — proving rejection is role-gated, not
  *    org-gated) -> 'forbidden'.

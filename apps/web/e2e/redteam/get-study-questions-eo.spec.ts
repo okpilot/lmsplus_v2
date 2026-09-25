@@ -17,7 +17,7 @@
  * Because the key IS exposed, the guard BOUNDARY around that exposure is the whole
  * security property. This spec proves the key is revealed ONLY inside the intended
  * boundary:
- *   - EO1 unauthenticated caller -> 'Not authenticated' (auth.uid() IS NULL guard),
+ *   - EO1 unauthenticated caller -> 42501 permission denied for function (mig 20260925000400),
  *         no rows / no key.
  *   - EO2 cross-org isolation: a student in org B passing an org-A question id gets
  *         nothing for it (the WHERE q.organization_id = v_org_id filter, where

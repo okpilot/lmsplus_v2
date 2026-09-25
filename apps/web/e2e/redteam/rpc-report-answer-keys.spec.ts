@@ -10,7 +10,7 @@
  * (mig 114, rpc-report.spec.ts Vectors L/M/N), which delivers the MC key.
  *
  * Vectors (attack-surface.md EN):
- *  - EN1 unauthenticated -> 'Not authenticated' (auth.uid() IS NULL guard).
+ *  - EN1 unauthenticated -> 42501 permission denied for function (mig 20260925000400).
  *  - EN2 cross-student / foreign session_id (IDOR) ->
  *        'Session not found, not owned, or not completed' (ownership EXISTS guard).
  *  - EN3 the owner's own session that is still active (ended_at IS NULL) ->

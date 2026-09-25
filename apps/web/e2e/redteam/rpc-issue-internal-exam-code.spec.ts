@@ -2,7 +2,7 @@
  * Red Team Spec: issue_internal_exam_code RPC
  *
  * Vectors DL / DM (HIGH): admin-only RPC that issues a single-use code.
- *  - DL(1): unauthenticated → 'not_authenticated'
+ *  - DL(1): unauthenticated → 42501 permission denied for function (mig 20260925000400)
  *  - DL(2): authenticated student (non-admin) → 'not_admin'
  *  - DM:    cross-org admin issuing for foreign-org student → 'student_not_found'
  *  - extra: missing exam_config → 'exam_config_required'

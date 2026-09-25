@@ -3,7 +3,7 @@
  *
  * SECURITY DEFINER RPC returning the correct-option ids for a COMPLETED session
  * the caller owns (the report answer key). Vectors (attack-surface.md):
- *  - L  unauthenticated → 'Not authenticated'.
+ *  - L  unauthenticated → 42501 permission denied for function (mig 20260925000400).
  *  - M  cross-tenant / foreign session_id (not owned) →
  *       'Session not found, not owned, or not completed'.
  *  - N  the owner's own session that is still active (ended_at IS NULL) →

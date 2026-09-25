@@ -3,7 +3,7 @@
  *
  * Vectors CX / CY / CZ / DA / DB / DC (HIGH/MEDIUM): student-facing RPC that redeems a
  * single-use code and creates an internal_exam quiz_session.
- *  - CX: unauthenticated → 'not_authenticated'
+ *  - CX: unauthenticated → 42501 permission denied for function (mig 20260925000400)
  *  - CY: student-B uses student-A's code → 'code_not_yours' (cross-student)
  *  - CZ: expired code → 'code_expired'
  *  - DA: voided code  → 'code_voided'
