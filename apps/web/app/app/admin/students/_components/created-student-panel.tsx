@@ -15,9 +15,11 @@ type Props = {
 
 export function CreatedStudentPanel({ studentId, email, fullName, onClose }: Readonly<Props>) {
   const [confirming, setConfirming] = useState(false)
+  const [sent, setSent] = useState(false)
   const { isSending, handleSend } = useSendLoginInstructions({
     studentId,
     email,
+    onSent: () => setSent(true),
     onSettled: () => setConfirming(false),
   })
   const name = fullName || email
@@ -28,7 +30,9 @@ export function CreatedStudentPanel({ studentId, email, fullName, onClose }: Rea
 
       {confirming ? (
         <div className="space-y-2 text-sm">
-          <p className="text-muted-foreground">{loginInstructionsConfirmText('not_sent', name)}</p>
+          <p className="text-muted-foreground">
+            {loginInstructionsConfirmText(sent ? 'waiting' : 'not_sent', name)}
+          </p>
           <div className="flex items-center gap-2">
             <LoadingButton size="sm" loading={isSending} onClick={handleSend}>
               Confirm

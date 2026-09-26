@@ -5,6 +5,8 @@ import { sendLoginInstructions } from '../actions/send-login-instructions'
 type UseSendLoginInstructionsOpts = {
   studentId: string
   email: string
+  /** Called after a successful send. */
+  onSent?: () => void
   /** Called once the send settles, success or failure. */
   onSettled?: () => void
 }
@@ -20,6 +22,7 @@ type UseSendLoginInstructionsOpts = {
 export function useSendLoginInstructions({
   studentId,
   email,
+  onSent,
   onSettled,
 }: UseSendLoginInstructionsOpts) {
   const [isSending, startSending] = useTransition()
@@ -33,6 +36,7 @@ export function useSendLoginInstructions({
         const result = await sendLoginInstructions({ id: studentId })
         if (result.success) {
           toast.success(`Login instructions sent to ${email}`)
+          onSent?.()
         } else {
           toast.error(result.error)
         }

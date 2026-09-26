@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockHandleSend = vi.hoisted(() => vi.fn())
@@ -133,5 +133,24 @@ describe('CreatedStudentPanel', () => {
     expect(close).toBeDisabled()
     fireEvent.click(close)
     expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('warns that the emailed password stops working when sending again after a successful send', () => {
+    render(
+      <CreatedStudentPanel
+        studentId={STUDENT_ID}
+        email={EMAIL}
+        fullName={FULL_NAME}
+        onClose={vi.fn()}
+      />,
+    )
+    const { onSent } = mockUseSendLoginInstructions.mock.lastCall![0] as { onSent: () => void }
+    act(() => onSent())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Send login instructions' }))
+
+    expect(
+      screen.getByText('Send a new temporary password? The earlier one stops working.'),
+    ).toBeInTheDocument()
   })
 })

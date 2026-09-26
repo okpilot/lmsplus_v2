@@ -122,4 +122,24 @@ describe('useSendLoginInstructions', () => {
 
     await waitFor(() => expect(onSettled).toHaveBeenCalledTimes(1))
   })
+
+  it('notifies the caller only when the send succeeds', async () => {
+    const onSent = vi.fn()
+    mockSendLoginInstructions.mockResolvedValue({ success: false, error: 'User not found' })
+    const { result } = renderHook(() =>
+      useSendLoginInstructions({ studentId: STUDENT_ID, email: EMAIL, onSent }),
+    )
+
+    act(() => {
+      result.current.handleSend()
+    })
+    await waitFor(() => expect(mockToastError).toHaveBeenCalled())
+    expect(onSent).not.toHaveBeenCalled()
+
+    mockSendLoginInstructions.mockResolvedValue({ success: true })
+    act(() => {
+      result.current.handleSend()
+    })
+    await waitFor(() => expect(onSent).toHaveBeenCalledTimes(1))
+  })
 })
