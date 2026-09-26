@@ -157,7 +157,7 @@ describe('temp-password helpers (app-layer integration)', () => {
     expect(Date.parse((await readColumn(expiredStudentId)) ?? '')).toBe(Date.parse(valueB))
   })
 
-  it('restoreTempPasswordExpiry leaves the column as is when the arm being undone no longer matches (compare-and-set)', async () => {
+  it('preserves the current expiry when the arm being undone no longer matches', async () => {
     if (!orgId) throw new Error('expected orgId to be set by beforeAll')
     const armedValue = new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString()
     await armTempPassword(expiredStudentId, armedValue)
