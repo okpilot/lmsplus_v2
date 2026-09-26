@@ -37,31 +37,70 @@ export async function clearTempPassword(
 }
 
 /**
- * Re-arms the temp-password expiry column via the service-role client, scoped
- * to the target user, the admin's organization and a non-soft-deleted row.
- * Used by an admin-issued
- * password reset, which replaces the Auth password with a new temporary one
- * the student must change again.
+ * Shared writer behind `armTempPassword` and `restoreTempPasswordExpiry`:
+ * sets the expiry column to exactly `expiresAt` via the service-role client,
+ * scoped to the target user, the admin's organization, and a non-soft-deleted
+ * row. `logPrefix` is each caller's own name, so the two keep distinct,
+ * independently-greppable log lines despite sharing this body.
  */
-export async function armTempPassword(
-  userId: string,
-  organizationId: string,
-): Promise<{ success: boolean }> {
+async function writeTempPasswordExpiry(opts: {
+  userId: string
+  organizationId: string
+  expiresAt: string | null
+  logPrefix: string
+}): Promise<{ success: boolean }> {
+  const { userId, organizationId, expiresAt, logPrefix } = opts
   const { data, error } = await adminClient
     .from('users')
-    .update({ temp_password_expires_at: new Date(Date.now() + TEMP_PASSWORD_TTL_MS).toISOString() })
+    .update({ temp_password_expires_at: expiresAt })
     .eq('id', userId)
     .eq('organization_id', organizationId)
     .is('deleted_at', null)
     .select('id')
 
   if (error) {
-    console.error('[armTempPassword] update failed:', error.message)
+    console.error(`[${logPrefix}] update failed:`, error.message)
     return { success: false }
   }
   if (!data?.length) {
-    console.error('[armTempPassword] zero rows updated for user:', userId)
+    console.error(`[${logPrefix}] zero rows updated for user:`, userId)
     return { success: false }
   }
   return { success: true }
+}
+
+/**
+ * Re-arms the temp-password expiry column via the service-role client, scoped
+ * to the target user, the admin's organization and a non-soft-deleted row.
+ * Called by an admin-issued password reset before it writes the new Auth
+ * password, which is itself a temporary one the student must change again.
+ */
+export async function armTempPassword(
+  userId: string,
+  organizationId: string,
+): Promise<{ success: boolean }> {
+  return writeTempPasswordExpiry({
+    userId,
+    organizationId,
+    expiresAt: new Date(Date.now() + TEMP_PASSWORD_TTL_MS).toISOString(),
+    logPrefix: 'armTempPassword',
+  })
+}
+
+/**
+ * Restores the temp-password expiry column to the value read before an
+ * admin-issued reset whose Auth password update failed after the arm. Same
+ * scoping as `armTempPassword`.
+ */
+export async function restoreTempPasswordExpiry(
+  userId: string,
+  organizationId: string,
+  expiresAt: string | null,
+): Promise<{ success: boolean }> {
+  return writeTempPasswordExpiry({
+    userId,
+    organizationId,
+    expiresAt,
+    logPrefix: 'restoreTempPasswordExpiry',
+  })
 }

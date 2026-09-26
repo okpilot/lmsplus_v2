@@ -8,11 +8,13 @@ const mockFrom = vi.hoisted(() => vi.fn())
 const mockUpdateUserById = vi.hoisted(() => vi.fn())
 const mockRpc = vi.hoisted(() => vi.fn())
 const mockArmTempPassword = vi.hoisted(() => vi.fn())
+const mockRestoreTempPasswordExpiry = vi.hoisted(() => vi.fn())
 
 vi.mock('next/cache', () => ({ revalidatePath: mockRevalidatePath }))
 vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: mockRequireAdmin }))
 vi.mock('@/lib/auth/temp-password-admin', () => ({
   armTempPassword: (...args: unknown[]) => mockArmTempPassword(...args),
+  restoreTempPasswordExpiry: (...args: unknown[]) => mockRestoreTempPasswordExpiry(...args),
 }))
 vi.mock('@repo/db/admin', () => ({
   adminClient: {
@@ -28,6 +30,7 @@ import { resetStudentPassword } from './reset-student-password'
 // ---- Helpers ---------------------------------------------------------------
 
 const VALID_UUID = '00000000-0000-4000-a000-000000000001'
+const PRIOR_EXPIRY = '2026-09-20T00:00:00.000Z'
 
 const VALID_INPUT = {
   id: VALID_UUID,
@@ -46,9 +49,11 @@ function mockAdmin() {
 function buildFetchChain({
   fetchError = null,
   found = true,
+  priorExpiresAt = PRIOR_EXPIRY,
 }: {
   fetchError?: { message: string; code?: string } | null
   found?: boolean
+  priorExpiresAt?: string | null
 } = {}) {
   mockFrom.mockReturnValue({
     select: vi.fn().mockReturnValue({
@@ -56,7 +61,10 @@ function buildFetchChain({
         eq: vi.fn().mockReturnValue({
           is: vi.fn().mockReturnValue({
             single: vi.fn().mockResolvedValue({
-              data: fetchError || !found ? null : { id: VALID_UUID },
+              data:
+                fetchError || !found
+                  ? null
+                  : { id: VALID_UUID, temp_password_expires_at: priorExpiresAt },
               error: fetchError,
             }),
           }),
@@ -71,6 +79,7 @@ function buildFetchChain({
 beforeEach(() => {
   vi.resetAllMocks()
   mockArmTempPassword.mockResolvedValue({ success: true })
+  mockRestoreTempPasswordExpiry.mockResolvedValue({ success: true })
 })
 
 describe('resetStudentPassword', () => {
@@ -116,7 +125,7 @@ describe('resetStudentPassword', () => {
       expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/students')
     })
 
-    it('re-arms the temp-password flag after a successful reset', async () => {
+    it('arms the temp-password flag before writing the new Auth password', async () => {
       mockAdmin()
       buildFetchChain()
       mockUpdateUserById.mockResolvedValue({ error: null })
@@ -124,21 +133,12 @@ describe('resetStudentPassword', () => {
       await resetStudentPassword(VALID_INPUT)
 
       expect(mockArmTempPassword).toHaveBeenCalledWith(VALID_UUID, 'org-1')
-    })
-
-    it('still audits the reset but tells the admin to reset again when re-arming the temp-password flag fails', async () => {
-      mockAdmin()
-      buildFetchChain()
-      mockUpdateUserById.mockResolvedValue({ error: null })
-      mockArmTempPassword.mockResolvedValue({ success: false })
-
-      const result = await resetStudentPassword(VALID_INPUT)
-
-      expect(result.success).toBe(false)
-      if (result.success) return
-      expect(result.error).toBe('Password was changed but not marked temporary. Reset it again.')
-      expect(mockRevalidatePath).not.toHaveBeenCalled()
-      expect(mockRpc).toHaveBeenCalledTimes(1)
+      const armOrder = mockArmTempPassword.mock.invocationCallOrder[0]
+      const updateOrder = mockUpdateUserById.mock.invocationCallOrder[0]
+      expect(armOrder).toBeDefined()
+      expect(updateOrder).toBeDefined()
+      if (armOrder === undefined || updateOrder === undefined) return
+      expect(armOrder).toBeLessThan(updateOrder)
     })
 
     it('records a user.password_reset audit event for the target student', async () => {
@@ -213,8 +213,25 @@ describe('resetStudentPassword', () => {
     })
   })
 
+  describe('arm failure', () => {
+    it('does not write the new Auth password when arming the temp-password flag fails', async () => {
+      mockAdmin()
+      buildFetchChain()
+      mockArmTempPassword.mockResolvedValue({ success: false })
+
+      const result = await resetStudentPassword(VALID_INPUT)
+
+      expect(result.success).toBe(false)
+      if (result.success) return
+      expect(result.error).toBe('Failed to reset password')
+      expect(mockUpdateUserById).not.toHaveBeenCalled()
+      expect(mockRevalidatePath).not.toHaveBeenCalled()
+      expect(mockRpc).not.toHaveBeenCalled()
+    })
+  })
+
   describe('auth user password update', () => {
-    it('returns a generic failure when the auth password update fails', async () => {
+    it('restores the prior temp-password expiry and returns a generic failure when the auth password update fails', async () => {
       mockAdmin()
       buildFetchChain()
       mockUpdateUserById.mockResolvedValue({ error: { message: 'update failed' } })
@@ -224,10 +241,27 @@ describe('resetStudentPassword', () => {
       expect(result.success).toBe(false)
       if (result.success) return
       expect(result.error).toBe('Failed to reset password')
+      expect(mockRestoreTempPasswordExpiry).toHaveBeenCalledWith(VALID_UUID, 'org-1', PRIOR_EXPIRY)
       expect(mockRevalidatePath).not.toHaveBeenCalled()
       // No audit event for a failed reset (the audit call is after the success path).
       expect(mockRpc).not.toHaveBeenCalled()
-      expect(mockArmTempPassword).not.toHaveBeenCalled()
+    })
+
+    it('logs when the rollback of the temp-password expiry also fails after a failed update', async () => {
+      mockAdmin()
+      buildFetchChain()
+      mockUpdateUserById.mockResolvedValue({ error: { message: 'update failed' } })
+      mockRestoreTempPasswordExpiry.mockResolvedValue({ success: false })
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      const result = await resetStudentPassword(VALID_INPUT)
+
+      expect(result.success).toBe(false)
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[resetStudentPassword] Rollback of temp-password expiry failed for user:',
+        VALID_UUID,
+      )
+      consoleSpy.mockRestore()
     })
   })
 

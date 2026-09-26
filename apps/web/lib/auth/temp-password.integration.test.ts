@@ -107,13 +107,14 @@ describe('temp-password helpers (app-layer integration)', () => {
     await expect(readTempPasswordState(client, expiredStudentId)).resolves.toBe('expired')
   })
 
-  it('returns none once the row is soft-deleted, even for the row it used to belong to', async () => {
-    // Sign in BEFORE soft-deleting: gotrue may itself refuse to authenticate a
-    // soft-deleted account, and the behaviour under test is RLS excluding the
-    // row from a session that already exists.
-    const client = await getAuthenticatedClient({ email: softDeletedEmail, password })
+  it('returns none once the row is soft-deleted, even through a client that bypasses RLS', async () => {
+    // Both reads go through the service-role `admin` client (bypasses RLS), so
+    // the pre/post-delete difference can only come from readTempPassword's own
+    // `.is('deleted_at', null)` filter — not from RLS excluding the row. Using
+    // the RLS-restricted client here would make this test pass even if that
+    // filter were removed, since RLS would still exclude the row on its own.
     await armTempPassword(softDeletedStudentId, new Date(Date.now() + 60 * 60 * 1000).toISOString())
-    await expect(readTempPasswordState(client, softDeletedStudentId)).resolves.toBe('active')
+    await expect(readTempPasswordState(admin, softDeletedStudentId)).resolves.toBe('active')
 
     const { error } = await admin
       .from('users')
@@ -121,7 +122,7 @@ describe('temp-password helpers (app-layer integration)', () => {
       .eq('id', softDeletedStudentId)
     if (error) throw new Error(`soft-delete: ${error.message}`)
 
-    await expect(readTempPasswordState(client, softDeletedStudentId)).resolves.toBe('none')
+    await expect(readTempPasswordState(admin, softDeletedStudentId)).resolves.toBe('none')
   })
 
   it('clears only the target user, leaving a second armed user untouched', async () => {
