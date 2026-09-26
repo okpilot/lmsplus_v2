@@ -1,6 +1,6 @@
 'use client'
 
-import { Download, Key, Pencil, UserCheck, UserX } from 'lucide-react'
+import { Download, Pencil, UserCheck, UserX } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -12,12 +12,12 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import type { StudentRow } from '../types'
+import { LoginInstructionsCell } from './login-instructions-cell'
 
 type Props = {
   students: StudentRow[]
   onEdit: (student: StudentRow) => void
   onToggleStatus: (student: StudentRow) => void
-  onResetPassword: (student: StudentRow) => void
   onExport: (student: StudentRow) => void
 }
 
@@ -40,13 +40,7 @@ function formatDate(iso: string) {
   })
 }
 
-export function StudentTable({
-  students,
-  onEdit,
-  onToggleStatus,
-  onResetPassword,
-  onExport,
-}: Readonly<Props>) {
+export function StudentTable({ students, onEdit, onToggleStatus, onExport }: Readonly<Props>) {
   return (
     <div className="rounded-md border">
       <Table>
@@ -58,13 +52,14 @@ export function StudentTable({
             <TableHead className="w-24">Status</TableHead>
             <TableHead className="w-36">Last Active</TableHead>
             <TableHead className="w-32">Created</TableHead>
-            <TableHead className="w-24">Actions</TableHead>
+            <TableHead className="w-48">Login</TableHead>
+            <TableHead className="w-20">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {students.map((s) => (
             <TableRow key={s.id}>
-              <TableCell className="font-medium">{s.full_name ?? '\u2014'}</TableCell>
+              <TableCell className="font-medium">{s.full_name ?? '—'}</TableCell>
               <TableCell className="text-sm text-muted-foreground">{s.email}</TableCell>
               <TableCell>
                 <Badge variant={roleVariant(s.role)} className="text-xs capitalize">
@@ -89,6 +84,9 @@ export function StudentTable({
                 {formatDate(s.created_at)}
               </TableCell>
               <TableCell>
+                <LoginInstructionsCell student={s} />
+              </TableCell>
+              <TableCell>
                 <div className="flex items-center gap-1">
                   <Button
                     variant="ghost"
@@ -111,15 +109,6 @@ export function StudentTable({
                     ) : (
                       <UserCheck className="size-3.5 text-muted-foreground" />
                     )}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    title="Reset password"
-                    aria-label="Reset password"
-                    onClick={() => onResetPassword(s)}
-                  >
-                    <Key className="size-3.5 text-muted-foreground" />
                   </Button>
                   <Button
                     variant="ghost"

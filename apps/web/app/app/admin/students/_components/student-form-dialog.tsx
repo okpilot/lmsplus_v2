@@ -16,6 +16,7 @@ import { LoadingButton } from '@/components/ui/loading-button'
 import { createStudent } from '../actions/create-student'
 import { updateStudent } from '../actions/update-student'
 import type { StudentRow } from '../types'
+import { CreatedStudentPanel } from './created-student-panel'
 import { StudentFormFields } from './student-form-fields'
 
 type Props = {
@@ -24,6 +25,8 @@ type Props = {
   open?: boolean
   onOpenChange?: (open: boolean) => void
 }
+
+type CreatedStudent = { id: string; email: string; fullName: string }
 
 export function StudentFormDialog({
   student,
@@ -40,32 +43,33 @@ export function StudentFormDialog({
   const [email, setEmail] = useState(student?.email ?? '')
   const [fullName, setFullName] = useState(student?.full_name ?? '')
   const [role, setRole] = useState<string>(student?.role ?? 'student')
-  const [tempPassword, setTempPassword] = useState('')
+  const [createdStudent, setCreatedStudent] = useState<CreatedStudent | null>(null)
 
   useEffect(() => {
     if (open) {
       setEmail(student?.email ?? '')
       setFullName(student?.full_name ?? '')
       setRole(student?.role ?? 'student')
-      setTempPassword('')
+      setCreatedStudent(null)
     }
   }, [open, student])
 
   function handleSubmit() {
     startTransition(async () => {
       try {
-        const result = isEdit
-          ? await updateStudent({ id: student.id, full_name: fullName, role })
-          : await createStudent({
-              email,
-              full_name: fullName,
-              role,
-              temporary_password: tempPassword,
-            })
-
+        if (isEdit) {
+          const result = await updateStudent({ id: student.id, full_name: fullName, role })
+          if (result.success) {
+            toast.success('Student updated')
+            setOpen(false)
+          } else {
+            toast.error(result.error)
+          }
+          return
+        }
+        const result = await createStudent({ email, full_name: fullName, role })
         if (result.success) {
-          toast.success(isEdit ? 'Student updated' : 'Student created')
-          setOpen(false)
+          setCreatedStudent({ id: result.id, email, fullName })
         } else {
           toast.error(result.error)
         }
@@ -75,17 +79,17 @@ export function StudentFormDialog({
     })
   }
 
-  const submitLabel = isEdit ? 'Save Changes' : 'Create Student'
-
   return (
     <Dialog
       open={open}
       onOpenChange={(v) => {
-        if (!isPending) setOpen(v)
+        // Block only closing: the post-create panel closes through its own Close, disabled mid-send.
+        if (!v && (isPending || createdStudent)) return
+        setOpen(v)
       }}
     >
       {controlledOpen === undefined && <DialogTrigger render={trigger} />}
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md" showCloseButton={!createdStudent}>
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Edit Student' : 'New Student'}</DialogTitle>
           <DialogDescription>
@@ -95,24 +99,33 @@ export function StudentFormDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <StudentFormFields
-          isEdit={isEdit}
-          isPending={isPending}
-          email={email}
-          fullName={fullName}
-          role={role}
-          tempPassword={tempPassword}
-          onEmailChange={setEmail}
-          onFullNameChange={setFullName}
-          onRoleChange={setRole}
-          onTempPasswordChange={setTempPassword}
-        />
+        {createdStudent ? (
+          <CreatedStudentPanel
+            studentId={createdStudent.id}
+            email={createdStudent.email}
+            fullName={createdStudent.fullName}
+            onClose={() => setOpen(false)}
+          />
+        ) : (
+          <>
+            <StudentFormFields
+              isEdit={isEdit}
+              isPending={isPending}
+              email={email}
+              fullName={fullName}
+              role={role}
+              onEmailChange={setEmail}
+              onFullNameChange={setFullName}
+              onRoleChange={setRole}
+            />
 
-        <DialogFooter showCloseButton>
-          <LoadingButton onClick={handleSubmit} loading={isPending} loadingText="Saving...">
-            {submitLabel}
-          </LoadingButton>
-        </DialogFooter>
+            <DialogFooter showCloseButton>
+              <LoadingButton onClick={handleSubmit} loading={isPending} loadingText="Saving...">
+                {isEdit ? 'Save Changes' : 'Create Student'}
+              </LoadingButton>
+            </DialogFooter>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   )
