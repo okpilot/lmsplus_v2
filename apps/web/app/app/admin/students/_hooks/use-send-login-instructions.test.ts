@@ -123,7 +123,24 @@ describe('useSendLoginInstructions', () => {
     await waitFor(() => expect(onSettled).toHaveBeenCalledTimes(1))
   })
 
-  it('notifies the caller only when the send succeeds', async () => {
+  it('notifies the caller when the email went out but recording the send failed', async () => {
+    const onSent = vi.fn()
+    mockSendLoginInstructions.mockResolvedValue({
+      success: false,
+      error: 'Login instructions were emailed but the send could not be recorded.',
+    })
+    const { result } = renderHook(() =>
+      useSendLoginInstructions({ studentId: STUDENT_ID, email: EMAIL, onSent }),
+    )
+
+    act(() => {
+      result.current.handleSend()
+    })
+
+    await waitFor(() => expect(onSent).toHaveBeenCalledTimes(1))
+  })
+
+  it('notifies the caller only when the email went out', async () => {
     const onSent = vi.fn()
     mockSendLoginInstructions.mockResolvedValue({ success: false, error: 'User not found' })
     const { result } = renderHook(() =>

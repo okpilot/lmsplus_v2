@@ -96,7 +96,7 @@ describe('sendLoginInstructions', () => {
     errorSpy.mockRestore()
   })
 
-  it('returns the delivery error and skips the record-sent RPC when delivery fails', async () => {
+  it('returns the delivery error, skips the record-sent RPC and refreshes the list when delivery fails', async () => {
     mockAdmin()
     mockGetRecipient.mockResolvedValue(RECIPIENT)
     mockIssueAndEmailPassword.mockResolvedValue({
@@ -108,7 +108,7 @@ describe('sendLoginInstructions', () => {
 
     expect(result).toEqual({ success: false, error: 'Failed to send login instructions' })
     expect(mockRpc).not.toHaveBeenCalled()
-    expect(mockRevalidatePath).not.toHaveBeenCalled()
+    expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/students')
   })
 
   it('records the send and revalidates on a fully delivered send', async () => {

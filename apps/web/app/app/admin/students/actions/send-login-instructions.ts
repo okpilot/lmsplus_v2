@@ -42,9 +42,10 @@ export async function sendLoginInstructions(input: unknown): Promise<SendLoginIn
     organizationId,
     recipient,
   })
-  if (!delivered.ok) return delivered.result
-
-  return recordSend(supabase, parsed.data.id)
+  const result = delivered.ok ? await recordSend(supabase, parsed.data.id) : delivered.result
+  // A failed delivery may already have replaced the password, so refresh either way.
+  revalidatePath('/app/admin/students')
+  return result
 }
 
 /** Stamps the send; a failure is surfaced so the admin knows the email already went out. */
@@ -53,7 +54,6 @@ async function recordSend(
   userId: string,
 ): Promise<SendLoginInstructionsResult> {
   const { error } = await rpc(supabase, 'record_login_instructions_sent', { p_user_id: userId })
-  revalidatePath('/app/admin/students')
   if (error) {
     console.error('[sendLoginInstructions] Record-sent RPC failed:', error.message)
     return {

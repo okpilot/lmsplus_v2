@@ -5,7 +5,7 @@ import { sendLoginInstructions } from '../actions/send-login-instructions'
 type UseSendLoginInstructionsOpts = {
   studentId: string
   email: string
-  /** Called after a successful send. */
+  /** Called once the email went out, even if recording the send failed. */
   onSent?: () => void
   /** Called once the send settles, success or failure. */
   onSettled?: () => void
@@ -37,8 +37,13 @@ export function useSendLoginInstructions({
         if (result.success) {
           toast.success(`Login instructions sent to ${email}`)
           onSent?.()
-        } else {
-          toast.error(result.error)
+          return
+        }
+        toast.error(result.error)
+        if (
+          result.error === 'Login instructions were emailed but the send could not be recorded.'
+        ) {
+          onSent?.()
         }
       } catch {
         toast.error('Failed to send login instructions')
