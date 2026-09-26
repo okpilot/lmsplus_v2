@@ -24,10 +24,7 @@ export async function issueTempPassword(
 
   const armed = await armTempPassword(userId, organizationId)
   if (!armed.success) {
-    console.error(
-      '[resetStudentPassword] Failed to arm temp password before reset for user:',
-      userId,
-    )
+    console.error('[issueTempPassword] Failed to arm temp password before reset for user:', userId)
     return 'failed'
   }
 
@@ -44,7 +41,7 @@ export async function issueTempPassword(
 
   const rearmed = await armTempPassword(userId, organizationId)
   if (!rearmed.success) {
-    console.error('[resetStudentPassword] Password set but re-arm failed for user:', userId)
+    console.error('[issueTempPassword] Password set but re-arm failed for user:', userId)
     return 'issued_not_armed'
   }
   return 'issued'
@@ -57,7 +54,7 @@ async function writeAuthPassword(userId: string, password: string): Promise<bool
     user_metadata: { must_change_password: true },
   })
   if (error) {
-    console.error('[resetStudentPassword] Password reset error:', error.message)
+    console.error('[issueTempPassword] Password reset error:', error.message)
     return false
   }
   return true
@@ -73,7 +70,7 @@ async function rollbackFirstArm(opts: {
   const { success: restored } = await restoreTempPasswordExpiry(opts)
   if (!restored) {
     console.error(
-      '[resetStudentPassword] Rollback of temp-password expiry failed for user:',
+      '[issueTempPassword] Rollback of temp-password expiry failed for user:',
       opts.userId,
     )
   }

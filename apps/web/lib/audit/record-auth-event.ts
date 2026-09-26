@@ -1,11 +1,7 @@
 import type { createServerSupabaseClient } from '@repo/db/server'
 import type { Json } from '@repo/db/types'
 
-type AuthEventType =
-  | 'user.password_changed'
-  | 'user.password_reset'
-  | 'user.deactivated'
-  | 'user.created'
+type AuthEventType = 'user.password_changed' | 'user.deactivated' | 'user.created'
 
 type RecordAuthEventOpts = {
   eventType: AuthEventType

@@ -42,6 +42,8 @@ const MOCK_STUDENT: StudentRow = {
   last_active_at: null,
   created_at: '2026-01-01T00:00:00Z',
   deleted_at: null,
+  login_instructions_sent_at: null,
+  temp_password_expires_at: null,
 }
 
 const MOCK_PAYLOAD = {

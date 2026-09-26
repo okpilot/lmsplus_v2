@@ -5,7 +5,6 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import type { StudentFilters, StudentRow } from '../types'
 import { ExportStudentDialog } from './export-student-dialog'
-import { ResetPasswordDialog } from './reset-password-dialog'
 import { StudentFiltersBar } from './student-filters'
 import { StudentFormDialog } from './student-form-dialog'
 import { StudentTable } from './student-table'
@@ -18,7 +17,6 @@ type Props = {
 
 export function StudentsPageShell({ students, filters }: Readonly<Props>) {
   const [editStudent, setEditStudent] = useState<StudentRow | null>(null)
-  const [resetStudent, setResetStudent] = useState<StudentRow | null>(null)
   const [toggleStudent, setToggleStudent] = useState<StudentRow | null>(null)
   const [exportStudent, setExportStudent] = useState<StudentRow | null>(null)
 
@@ -51,7 +49,6 @@ export function StudentsPageShell({ students, filters }: Readonly<Props>) {
           students={students}
           onEdit={setEditStudent}
           onToggleStatus={setToggleStudent}
-          onResetPassword={setResetStudent}
           onExport={setExportStudent}
         />
       )}
@@ -61,14 +58,6 @@ export function StudentsPageShell({ students, filters }: Readonly<Props>) {
         open={editStudent !== null}
         onOpenChange={(v) => {
           if (!v) setEditStudent(null)
-        }}
-      />
-
-      <ResetPasswordDialog
-        student={resetStudent}
-        open={resetStudent !== null}
-        onOpenChange={(v) => {
-          if (!v) setResetStudent(null)
         }}
       />
 
