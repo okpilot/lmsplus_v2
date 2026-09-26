@@ -78,11 +78,10 @@ async function finishPasswordChange(
     return { success: false, error: 'Unable to update password. Please try again.' }
   }
 
-  if (clearTempFlag) {
-    const { success: cleared } = await clearTempPassword(userId)
-    if (!cleared) return { success: false, error: RETRY_DIFFERENT_PASSWORD_MESSAGE }
-  }
+  const cleared = clearTempFlag ? (await clearTempPassword(userId)).success : true
+  // The password is already changed, so audit it before reading the clear result.
   await auditPasswordChanged(supabase, userId)
+  if (!cleared) return { success: false, error: RETRY_DIFFERENT_PASSWORD_MESSAGE }
 
   return { success: true }
 }

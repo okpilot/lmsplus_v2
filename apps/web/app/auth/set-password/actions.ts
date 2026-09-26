@@ -66,19 +66,20 @@ async function finishPasswordSet(
   }
 
   const { success: cleared } = await clearTempPassword(userId)
-  if (!cleared) {
-    return { success: false, error: RETRY_DIFFERENT_PASSWORD_MESSAGE }
-  }
 
-  await signOutOtherSessions(supabase)
-
-  // Audit the password change (best-effort: the password is already changed, so a
-  // failed audit write must not fail the action — log it server-side instead).
+  // The password is already changed, so audit it before reading the clear result
+  // (best-effort: a failed audit write is logged server-side, not surfaced).
   await recordAuthEvent(supabase, {
     eventType: 'user.password_changed',
     resourceId: userId,
     context: 'setOwnPassword',
   })
+
+  if (!cleared) {
+    return { success: false, error: RETRY_DIFFERENT_PASSWORD_MESSAGE }
+  }
+
+  await signOutOtherSessions(supabase)
 
   return { success: true }
 }

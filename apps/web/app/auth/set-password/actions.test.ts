@@ -159,7 +159,7 @@ describe('setOwnPassword', () => {
   })
 
   describe('clear failure', () => {
-    it('asks to retry with a different password when finishing the update fails', async () => {
+    it('asks to retry with a different password when finishing the update fails, and still records the change', async () => {
       mockAuthenticatedUser()
       mockRefuseIfTempPasswordExpired.mockResolvedValue('active')
       mockUpdateUser.mockResolvedValue({ error: null })
@@ -173,6 +173,10 @@ describe('setOwnPassword', () => {
         'Your password could not be fully updated. Please try again with a different password.',
       )
       expect(mockClearTempPassword).toHaveBeenCalledWith(USER_ID)
+      expect(mockRpc).toHaveBeenCalledWith('record_auth_event', {
+        p_event_type: 'user.password_changed',
+        p_resource_id: USER_ID,
+      })
       expect(mockSignOut).not.toHaveBeenCalled()
     })
   })

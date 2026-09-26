@@ -207,7 +207,7 @@ describe('changePassword', () => {
       expect(mockClearTempPassword).toHaveBeenCalledWith(USER_ID)
     })
 
-    it('asks to retry with a different password when finishing the update fails', async () => {
+    it('asks to retry with a different password when finishing the update fails, and still records the change', async () => {
       mockAuthenticatedUser()
       mockSignIn.mockResolvedValue({ error: null })
       mockUpdateUser.mockResolvedValue({ error: null })
@@ -221,7 +221,10 @@ describe('changePassword', () => {
           'Your password could not be fully updated. Please try again with a different password.',
       })
       expect(mockUpdateUser).toHaveBeenCalledWith({ password: 'newpass123' })
-      expect(mockRpc).not.toHaveBeenCalled()
+      expect(mockRpc).toHaveBeenCalledWith('record_auth_event', {
+        p_event_type: 'user.password_changed',
+        p_resource_id: USER_ID,
+      })
     })
 
     it('records a self user.password_changed audit event', async () => {
