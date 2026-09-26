@@ -8,8 +8,9 @@ type LoginInstructionsInput = {
 /**
  * Derives the login-instructions state from the two columns the send flow
  * writes: `login_instructions_sent_at` and `temp_password_expires_at`.
- * - Never sent → `not_sent`.
+ * - Never sent and no armed expiry → `not_sent`.
  * - Sent but no armed expiry (the student has set their own password) → `password_set`.
+ * - An armed expiry without a send (created before the send flow) is judged by the expiry.
  * - Expiry in the past → `expired`.
  * - Otherwise → `waiting`.
  */
@@ -17,8 +18,7 @@ export function computeLoginInstructionsState(
   { sentAt, expiresAt }: LoginInstructionsInput,
   now: Date = new Date(),
 ): LoginInstructionsState {
-  if (sentAt === null) return 'not_sent'
-  if (expiresAt === null) return 'password_set'
+  if (expiresAt === null) return sentAt === null ? 'not_sent' : 'password_set'
   return new Date(expiresAt).getTime() <= now.getTime() ? 'expired' : 'waiting'
 }
 

@@ -12,6 +12,18 @@ describe('computeLoginInstructionsState', () => {
     expect(computeLoginInstructionsState({ sentAt: null, expiresAt: null }, NOW)).toBe('not_sent')
   })
 
+  it('reports waiting for an armed expiry on an account never sent instructions', () => {
+    expect(
+      computeLoginInstructionsState({ sentAt: null, expiresAt: '2026-06-20T12:00:00.000Z' }, NOW),
+    ).toBe('waiting')
+  })
+
+  it('reports expired for a lapsed expiry on an account never sent instructions', () => {
+    expect(
+      computeLoginInstructionsState({ sentAt: null, expiresAt: '2026-06-10T12:00:00.000Z' }, NOW),
+    ).toBe('expired')
+  })
+
   it('reports password_set when sent but no temporary password is armed', () => {
     expect(
       computeLoginInstructionsState({ sentAt: '2026-06-01T00:00:00.000Z', expiresAt: null }, NOW),
