@@ -13,7 +13,7 @@ type IssueTempPasswordOutcome = 'issued' | 'failed' | 'issued_not_armed'
 /**
  * Arms the temp-password flag, writes the new Auth password, then arms it
  * again. Returns `'failed'` if either the first arm or the Auth write fails —
- * a failed Auth write restores the expiry the first arm overwrote, via a
+ * a failed Auth write restores the expiry read before the first arm, via a
  * compare-and-set on that arm's own value. Returns `'issued_not_armed'` if
  * the Auth write succeeds but the second arm fails, otherwise `'issued'`.
  */
