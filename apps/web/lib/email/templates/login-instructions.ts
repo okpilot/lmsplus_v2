@@ -1,3 +1,5 @@
+import { formatExpiry } from '@/lib/email/format-expiry'
+
 type LoginInstructionsEmailArgs = {
   fullName: string | null
   email: string
@@ -16,16 +18,6 @@ function esc(s: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
-}
-
-function formatExpiry(expiresAt: string): string {
-  const date = new Date(expiresAt)
-  if (Number.isNaN(date.getTime())) return expiresAt
-  return date.toLocaleString('en-GB', {
-    dateStyle: 'long',
-    timeStyle: 'short',
-    timeZone: 'UTC',
-  })
 }
 
 /**

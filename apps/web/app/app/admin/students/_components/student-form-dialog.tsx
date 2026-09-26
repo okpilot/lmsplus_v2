@@ -83,7 +83,8 @@ export function StudentFormDialog({
     <Dialog
       open={open}
       onOpenChange={(v) => {
-        if (!isPending) setOpen(v)
+        // The post-create panel closes only through its own Close, which is disabled mid-send.
+        if (!isPending && !createdStudent) setOpen(v)
       }}
     >
       {controlledOpen === undefined && <DialogTrigger render={trigger} />}

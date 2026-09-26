@@ -63,6 +63,21 @@ describe('StudentFormDialog — create', () => {
     expect(toast.success).not.toHaveBeenCalled()
   })
 
+  it('ignores Escape while the post-create panel shows', async () => {
+    vi.mocked(createStudent).mockResolvedValue({ success: true, id: 'new-student-1' })
+    const onOpenChange = vi.fn()
+
+    render(<StudentFormDialog open={true} onOpenChange={onOpenChange} />)
+    await fillCreateForm()
+    await userEvent.click(screen.getByRole('button', { name: 'Create Student' }))
+    await waitFor(() => screen.getByText('Student created.'))
+
+    await userEvent.keyboard('{Escape}')
+
+    expect(onOpenChange).not.toHaveBeenCalledWith(false)
+    expect(screen.getByText('Student created.')).toBeInTheDocument()
+  })
+
   it('closes the dialog when Close is clicked on the post-create panel', async () => {
     vi.mocked(createStudent).mockResolvedValue({ success: true, id: 'new-student-1' })
     const onOpenChange = vi.fn()

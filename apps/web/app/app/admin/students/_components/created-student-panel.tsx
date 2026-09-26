@@ -50,7 +50,7 @@ export function CreatedStudentPanel({ studentId, email, fullName, onClose }: Rea
       )}
 
       <div className="flex justify-end">
-        <Button variant="outline" onClick={onClose}>
+        <Button variant="outline" disabled={isSending} onClick={onClose}>
           Close
         </Button>
       </div>

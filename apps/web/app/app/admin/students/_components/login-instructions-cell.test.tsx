@@ -78,7 +78,8 @@ describe('LoginInstructionsCell', () => {
   it('shows no Send button for an admin account', () => {
     render(<LoginInstructionsCell student={buildStudent({ role: 'admin' })} />)
 
-    expect(screen.queryByRole('button', { name: 'Send' })).not.toBeInTheDocument()
+    expect(screen.getByText('Not sent yet')).toBeInTheDocument()
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 
   it('opens an inline confirmation naming the student before sending for the first time', () => {

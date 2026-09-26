@@ -116,4 +116,22 @@ describe('CreatedStudentPanel', () => {
 
     expect(onClose).toHaveBeenCalledTimes(1)
   })
+
+  it('does not let the admin close the panel while a send is in flight', () => {
+    mockUseSendLoginInstructions.mockReturnValue({ isSending: true, handleSend: mockHandleSend })
+    const onClose = vi.fn()
+    render(
+      <CreatedStudentPanel
+        studentId={STUDENT_ID}
+        email={EMAIL}
+        fullName={FULL_NAME}
+        onClose={onClose}
+      />,
+    )
+
+    const close = screen.getByRole('button', { name: 'Close' })
+    expect(close).toBeDisabled()
+    fireEvent.click(close)
+    expect(onClose).not.toHaveBeenCalled()
+  })
 })
