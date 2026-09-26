@@ -204,5 +204,21 @@ describe('resetOwnPassword', () => {
       })
       expect(mockSignOut).not.toHaveBeenCalled()
     })
+
+    it('still succeeds when the sign-out fails, after logging it', async () => {
+      mockAuthenticatedUser()
+      mockUpdateUser.mockResolvedValue({ error: null })
+      mockSignOut.mockResolvedValue({ error: { message: 'gotrue unavailable' } })
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      const result = await resetOwnPassword(validInput)
+
+      expect(result).toEqual({ ok: true })
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[resetOwnPassword] sign-out failed:',
+        'gotrue unavailable',
+      )
+      consoleSpy.mockRestore()
+    })
   })
 })

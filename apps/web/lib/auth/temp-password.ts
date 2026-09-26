@@ -35,7 +35,11 @@ export async function readTempPasswordState(
   if (error) throw new Error(`Failed to read temp password state: ${error.message}`)
   const expiresAt = data?.temp_password_expires_at
   if (!expiresAt) return 'none'
-  return Date.parse(expiresAt) <= Date.now() ? 'expired' : 'active'
+  const expiresMs = Date.parse(expiresAt)
+  if (Number.isNaN(expiresMs)) {
+    throw new Error('Failed to read temp password state: invalid expiry')
+  }
+  return expiresMs <= Date.now() ? 'expired' : 'active'
 }
 
 /**

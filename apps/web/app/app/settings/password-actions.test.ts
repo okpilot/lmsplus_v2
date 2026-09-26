@@ -220,7 +220,8 @@ describe('changePassword', () => {
         error:
           'Your password could not be fully updated. Please try again with a different password.',
       })
-      expect(mockRpc).not.toHaveBeenCalledWith('record_auth_event', expect.anything())
+      expect(mockUpdateUser).toHaveBeenCalledWith({ password: 'newpass123' })
+      expect(mockRpc).not.toHaveBeenCalled()
     })
 
     it('records a self user.password_changed audit event', async () => {

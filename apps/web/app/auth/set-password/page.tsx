@@ -1,7 +1,5 @@
-import { createServerSupabaseClient } from '@repo/db/server'
-import { redirect } from 'next/navigation'
+import { requireActiveTempPassword } from '@/lib/auth/require-active-temp-password'
 import { safeNextPath } from '@/lib/auth/safe-next-path'
-import { readTempPasswordState } from '@/lib/auth/temp-password'
 import { SetPasswordForm } from './_components/set-password-form'
 
 export default async function SetPasswordPage({
@@ -10,14 +8,7 @@ export default async function SetPasswordPage({
   const { next } = await searchParams
   const nextPath = safeNextPath(next)
 
-  const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) redirect('/')
-
-  const state = await readTempPasswordState(supabase, user.id)
-  if (state !== 'active') redirect(nextPath ?? '/app/dashboard')
+  await requireActiveTempPassword(nextPath)
 
   return (
     <main className="flex min-h-screen items-center justify-center px-4">

@@ -84,6 +84,16 @@ describe('readTempPasswordState', () => {
       'Failed to read temp password state: connection reset',
     )
   })
+
+  it('throws when the expiry column is not a parseable date', async () => {
+    const supabase = makeSupabase({
+      fromReturn: { data: { temp_password_expires_at: 'not-a-date' }, error: null },
+    })
+
+    await expect(readTempPasswordState(supabase, USER_ID)).rejects.toThrow(
+      'Failed to read temp password state: invalid expiry',
+    )
+  })
 })
 
 describe('signOutExpiredTempPassword', () => {

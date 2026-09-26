@@ -329,9 +329,9 @@ test.describe('Red Team: Temporary-password forced-change gate (Vector FT)', () 
     const hostileNextValues = ['https://evil.example', '/auth/callback']
 
     for (const hostileNext of hostileNextValues) {
-      // A fresh throwaway student per value — the previous iteration already
-      // consumed its student's temp password (set-password clears the gate),
-      // so reusing one email across iterations would fail the second sign-in.
+      // Same deterministic slot both iterations — createArmedTempPasswordStudent
+      // resets the password and re-arms the temp-password flag on every call,
+      // so the student is fresh again for the next hostileNext value.
       const { email } = await createArmedTempPasswordStudent({
         slot: 'ft-5-offapp-next',
         password: ARMED_PASSWORD,

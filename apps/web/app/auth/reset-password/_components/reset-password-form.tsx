@@ -1,10 +1,8 @@
 'use client'
 
-import { Eye, EyeOff } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { NewPasswordFields } from '@/components/auth/new-password-fields'
 import { LoadingButton } from '@/components/ui/loading-button'
 import { NewPasswordSchema } from '@/lib/auth/new-password-schema'
 import { resetOwnPassword } from '../actions'
@@ -13,7 +11,6 @@ import { ResetSuccess } from './reset-success'
 export function ResetPasswordForm() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showRequestLink, setShowRequestLink] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -51,41 +48,12 @@ export function ResetPasswordForm() {
 
   return (
     <form noValidate onSubmit={handleSubmit} className="w-full space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="password">New password</Label>
-        <div className="relative">
-          <Input
-            id="password"
-            type={showPassword ? 'text' : 'password'}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="At least 6 characters"
-            required
-            autoFocus
-            className="pr-10"
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            aria-label={showPassword ? 'Hide password' : 'Show password'}
-          >
-            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="confirmPassword">Confirm password</Label>
-        <Input
-          id="confirmPassword"
-          type={showPassword ? 'text' : 'password'}
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          placeholder="Repeat your password"
-          required
-        />
-      </div>
+      <NewPasswordFields
+        password={password}
+        confirmPassword={confirmPassword}
+        onPasswordChange={setPassword}
+        onConfirmPasswordChange={setConfirmPassword}
+      />
 
       {error && (
         <div className="space-y-1">

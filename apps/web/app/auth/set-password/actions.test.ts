@@ -172,6 +172,7 @@ describe('setOwnPassword', () => {
       expect(result.error).toBe(
         'Your password could not be fully updated. Please try again with a different password.',
       )
+      expect(mockClearTempPassword).toHaveBeenCalledWith(USER_ID)
       expect(mockSignOut).not.toHaveBeenCalled()
     })
   })

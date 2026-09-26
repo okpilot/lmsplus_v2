@@ -113,6 +113,7 @@ describe('temp-password helpers (app-layer integration)', () => {
     // row from a session that already exists.
     const client = await getAuthenticatedClient({ email: softDeletedEmail, password })
     await armTempPassword(softDeletedStudentId, new Date(Date.now() + 60 * 60 * 1000).toISOString())
+    await expect(readTempPasswordState(client, softDeletedStudentId)).resolves.toBe('active')
 
     const { error } = await admin
       .from('users')

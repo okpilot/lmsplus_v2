@@ -78,7 +78,10 @@ async function finishPasswordReset(
       return { ok: false, isSessionMissing: false, message: RETRY_DIFFERENT_PASSWORD_MESSAGE }
     }
   }
-  await supabase.auth.signOut()
+  const { error: signOutError } = await supabase.auth.signOut()
+  if (signOutError) {
+    console.error('[resetOwnPassword] sign-out failed:', signOutError.message)
+  }
 
   return { ok: true }
 }
