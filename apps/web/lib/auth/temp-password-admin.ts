@@ -31,15 +31,20 @@ export async function clearTempPassword(userId: string): Promise<{ success: bool
 
 /**
  * Re-arms the temp-password expiry column via the service-role client, scoped
- * to the target user and to a non-soft-deleted row. Used by an admin-issued
+ * to the target user, the admin's organization and a non-soft-deleted row.
+ * Used by an admin-issued
  * password reset, which replaces the Auth password with a new temporary one
  * the student must change again.
  */
-export async function armTempPassword(userId: string): Promise<{ success: boolean }> {
+export async function armTempPassword(
+  userId: string,
+  organizationId: string,
+): Promise<{ success: boolean }> {
   const { data, error } = await adminClient
     .from('users')
     .update({ temp_password_expires_at: new Date(Date.now() + TEMP_PASSWORD_TTL_MS).toISOString() })
     .eq('id', userId)
+    .eq('organization_id', organizationId)
     .is('deleted_at', null)
     .select('id')
 

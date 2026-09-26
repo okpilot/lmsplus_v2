@@ -123,7 +123,7 @@ describe('resetStudentPassword', () => {
 
       await resetStudentPassword(VALID_INPUT)
 
-      expect(mockArmTempPassword).toHaveBeenCalledWith(VALID_UUID)
+      expect(mockArmTempPassword).toHaveBeenCalledWith(VALID_UUID, 'org-1')
     })
 
     it('still audits the reset but tells the admin to reset again when re-arming the temp-password flag fails', async () => {

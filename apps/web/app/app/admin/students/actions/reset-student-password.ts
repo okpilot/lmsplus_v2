@@ -21,7 +21,11 @@ export async function resetStudentPassword(input: unknown): Promise<ActionResult
   const verifyError = await verifyStudentInOrg(id, organizationId)
   if (verifyError) return verifyError
 
-  return finishStudentPasswordReset(supabase, id, temporary_password)
+  return finishStudentPasswordReset(supabase, {
+    id,
+    temporaryPassword: temporary_password,
+    organizationId,
+  })
 }
 
 /** Confirms the target student exists, is active, and belongs to the admin's org. */
@@ -51,9 +55,9 @@ async function verifyStudentInOrg(
 /** Sets the Auth password, re-arms the temp-password flag, and audits the reset. */
 async function finishStudentPasswordReset(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
-  id: string,
-  temporaryPassword: string,
+  opts: { id: string; temporaryPassword: string; organizationId: string },
 ): Promise<ActionResult> {
+  const { id, temporaryPassword, organizationId } = opts
   const { error } = await adminClient.auth.admin.updateUserById(id, {
     password: temporaryPassword,
     user_metadata: { must_change_password: true },
@@ -67,7 +71,7 @@ async function finishStudentPasswordReset(
   // must change again, so re-arm the expiry (7 days, matching
   // record_login_instructions_sent's window). The Auth password is already
   // changed either way, so the reset is audited before the re-arm result is read.
-  const { success: armed } = await armTempPassword(id)
+  const { success: armed } = await armTempPassword(id, organizationId)
 
   // Audit the admin reset via the admin's user-context client (auth.uid() = admin),
   // not adminClient (service role → auth.uid() NULL). Best-effort: a failed audit

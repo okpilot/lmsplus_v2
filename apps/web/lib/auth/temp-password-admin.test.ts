@@ -19,6 +19,7 @@ import { armTempPassword, clearTempPassword, TEMP_PASSWORD_TTL_MS } from './temp
 // ---- Helpers ----------------------------------------------------------------
 
 const USER_ID = 'aaaaaaaa-0000-4000-a000-000000000001'
+const ORG_ID = 'bbbbbbbb-0000-4000-a000-000000000002'
 
 function buildChain(returnValue: unknown) {
   const awaitable = {
@@ -80,10 +81,30 @@ describe('armTempPassword', () => {
     const mockUpdate = vi.fn().mockReturnValue(buildChain({ data: [{ id: USER_ID }], error: null }))
     mockAdminFrom.mockReturnValue({ update: mockUpdate })
 
-    await expect(armTempPassword(USER_ID)).resolves.toEqual({ success: true })
+    await expect(armTempPassword(USER_ID, ORG_ID)).resolves.toEqual({ success: true })
 
     const payload = mockUpdate.mock.calls[0]?.[0] as { temp_password_expires_at: string }
     expect(Date.parse(payload.temp_password_expires_at)).toBe(Date.now() + TEMP_PASSWORD_TTL_MS)
+  })
+
+  it('scopes the write to the target user and the admin organization', async () => {
+    const eqCalls: unknown[][] = []
+    const chain: Record<string, unknown> = {
+      eq: (...args: unknown[]) => {
+        eqCalls.push(args)
+        return chain
+      },
+      is: () => chain,
+      select: () => Promise.resolve({ data: [{ id: USER_ID }], error: null }),
+    }
+    mockAdminFrom.mockReturnValue({ update: () => chain })
+
+    await expect(armTempPassword(USER_ID, ORG_ID)).resolves.toEqual({ success: true })
+
+    expect(eqCalls).toEqual([
+      ['id', USER_ID],
+      ['organization_id', ORG_ID],
+    ])
   })
 
   it('reports failure and logs when the update returns an error', async () => {
@@ -92,7 +113,7 @@ describe('armTempPassword', () => {
       buildChain({ data: null, error: { message: 'db unreachable' } }),
     )
 
-    await expect(armTempPassword(USER_ID)).resolves.toEqual({ success: false })
+    await expect(armTempPassword(USER_ID, ORG_ID)).resolves.toEqual({ success: false })
     expect(consoleSpy).toHaveBeenCalledWith('[armTempPassword] update failed:', 'db unreachable')
     consoleSpy.mockRestore()
   })
@@ -101,7 +122,7 @@ describe('armTempPassword', () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     mockAdminFrom.mockImplementation(() => buildChain({ data: [], error: null }))
 
-    await expect(armTempPassword(USER_ID)).resolves.toEqual({ success: false })
+    await expect(armTempPassword(USER_ID, ORG_ID)).resolves.toEqual({ success: false })
     expect(consoleSpy).toHaveBeenCalledWith(
       '[armTempPassword] zero rows updated for user:',
       USER_ID,
