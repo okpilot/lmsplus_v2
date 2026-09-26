@@ -49,7 +49,7 @@ export function CreatedStudentPanel({ studentId, email, fullName, onClose }: Rea
         </div>
       ) : (
         <Button size="sm" variant="outline" onClick={() => setConfirming(true)}>
-          Send login instructions
+          {sent ? 'Resend login instructions' : 'Send login instructions'}
         </Button>
       )}
 

@@ -147,7 +147,7 @@ describe('CreatedStudentPanel', () => {
     const { onSent } = mockUseSendLoginInstructions.mock.lastCall![0] as { onSent: () => void }
     act(() => onSent())
 
-    fireEvent.click(screen.getByRole('button', { name: 'Send login instructions' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Resend login instructions' }))
 
     expect(
       screen.getByText('Send a new temporary password? The earlier one stops working.'),

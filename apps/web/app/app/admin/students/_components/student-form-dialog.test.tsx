@@ -134,6 +134,24 @@ describe('StudentFormDialog — create', () => {
   })
 })
 
+describe('StudentFormDialog — uncontrolled trigger', () => {
+  it('opens again from its trigger after a create is closed', async () => {
+    vi.mocked(createStudent).mockResolvedValue({ success: true, id: 'new-student-1' })
+    render(<StudentFormDialog trigger={<button type="button">New Student</button>} />)
+
+    await userEvent.click(screen.getByRole('button', { name: 'New Student' }))
+    await fillCreateForm()
+    await userEvent.click(screen.getByRole('button', { name: 'Create Student' }))
+    await waitFor(() => screen.getByText('Student created.'))
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }))
+    await waitFor(() => expect(screen.queryByText('Student created.')).not.toBeInTheDocument())
+
+    await userEvent.click(screen.getByRole('button', { name: 'New Student' }))
+
+    expect(await screen.findByRole('button', { name: 'Create Student' })).toBeInTheDocument()
+  })
+})
+
 describe('StudentFormDialog — edit', () => {
   it('shows toast.success and closes the dialog when updateStudent succeeds (no post-create panel)', async () => {
     vi.mocked(updateStudent).mockResolvedValue({ success: true })
