@@ -97,19 +97,14 @@ describe('issueAndEmailPassword', () => {
     expect(mockRecordAuthEvent).not.toHaveBeenCalled()
   })
 
-  it('does not send an email when the password was issued but not re-armed', async () => {
+  it('still emails the new password when it was issued but not re-armed', async () => {
     mockIssueTempPassword.mockResolvedValue('issued_not_armed')
+    mockSendEmail.mockResolvedValue({ ok: true })
 
     const result = await issueAndEmailPassword(OPTS)
 
-    expect(result).toEqual({
-      ok: false,
-      result: {
-        success: false,
-        error: 'Password was changed but not marked temporary. Send again.',
-      },
-    })
-    expect(mockSendEmail).not.toHaveBeenCalled()
+    expect(result).toEqual({ ok: true })
+    expect(mockSendEmail).toHaveBeenCalledTimes(1)
     expect(mockRecordAuthEvent).toHaveBeenCalledWith(SUPABASE, PASSWORD_RESET_AUDIT)
   })
 

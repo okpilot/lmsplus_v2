@@ -38,16 +38,8 @@ export async function issueAndEmailPassword(opts: {
     resourceId: opts.id,
     context: 'sendLoginInstructions',
   })
-  if (outcome === 'issued_not_armed') {
-    return {
-      ok: false,
-      result: {
-        success: false,
-        error: 'Password was changed but not marked temporary. Send again.',
-      },
-    }
-  }
-
+  // 'issued_not_armed' still emails: the password is already changed, and
+  // record_login_instructions_sent re-stamps the expiry after the send.
   return sendPasswordEmail(opts.recipient, password)
 }
 

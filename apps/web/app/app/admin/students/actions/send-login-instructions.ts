@@ -18,7 +18,6 @@ export type SendLoginInstructionsResult =
         | 'Invalid input'
         | 'User not found'
         | 'Failed to send login instructions'
-        | 'Password was changed but not marked temporary. Send again.'
         | 'The password was replaced but the email could not be sent. Send again.'
         | 'Login instructions were emailed but the send could not be recorded.'
     }
