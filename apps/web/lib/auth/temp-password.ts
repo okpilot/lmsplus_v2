@@ -15,6 +15,38 @@ export const RETRY_DIFFERENT_PASSWORD_MESSAGE =
 
 type TempPasswordRow = { temp_password_expires_at: string | null }
 
+export type TempPasswordRead =
+  | { state: 'none'; expiresAt: null }
+  | { state: 'active' | 'expired'; expiresAt: string }
+
+/**
+ * Reads the caller's own forced-change/expiry state for a server-issued temp
+ * password, along with the raw expiry value the state was derived from.
+ * `'none'` when the column is null or the row is missing/soft-deleted
+ * (`expiresAt: null`), `'active'` when the expiry is in the future, `'expired'`
+ * when it has passed. Throws on a query error.
+ */
+export async function readTempPassword(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<TempPasswordRead> {
+  const { data, error } = await supabase
+    .from('users')
+    .select('temp_password_expires_at')
+    .eq('id', userId)
+    .is('deleted_at', null)
+    .maybeSingle<TempPasswordRow>()
+
+  if (error) throw new Error(`Failed to read temp password state: ${error.message}`)
+  const expiresAt = data?.temp_password_expires_at
+  if (!expiresAt) return { state: 'none', expiresAt: null }
+  const expiresMs = Date.parse(expiresAt)
+  if (Number.isNaN(expiresMs)) {
+    throw new Error('Failed to read temp password state: invalid expiry')
+  }
+  return { state: expiresMs <= Date.now() ? 'expired' : 'active', expiresAt }
+}
+
 /**
  * Reads the caller's own forced-change/expiry state for a server-issued temp
  * password. `'none'` when the column is null or the row is missing/soft-deleted,
@@ -25,21 +57,7 @@ export async function readTempPasswordState(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<TempPasswordState> {
-  const { data, error } = await supabase
-    .from('users')
-    .select('temp_password_expires_at')
-    .eq('id', userId)
-    .is('deleted_at', null)
-    .maybeSingle<TempPasswordRow>()
-
-  if (error) throw new Error(`Failed to read temp password state: ${error.message}`)
-  const expiresAt = data?.temp_password_expires_at
-  if (!expiresAt) return 'none'
-  const expiresMs = Date.parse(expiresAt)
-  if (Number.isNaN(expiresMs)) {
-    throw new Error('Failed to read temp password state: invalid expiry')
-  }
-  return expiresMs <= Date.now() ? 'expired' : 'active'
+  return (await readTempPassword(supabase, userId)).state
 }
 
 /**
@@ -63,24 +81,26 @@ export async function signOutExpiredTempPassword(supabase: SupabaseClient): Prom
  * write just like an actually-expired one, so no self-service path can slip
  * through on a transient DB failure. On `'expired'` it also signs out
  * globally, mirroring the proxy gate's behaviour. Returns the resolved state
- * (or `'error'`) so callers can tell an armed account (`'active'`, needs its
- * flag cleared after the write) from one that never had a temp password
- * (`'none'`, no clear needed).
+ * and the expiry it read (or `'error'`/`null`) so callers can tell an armed
+ * account (`'active'`, needs its flag cleared after the write) from one that
+ * never had a temp password (`'none'`, no clear needed) — and can pass the
+ * returned `expiresAt` to `clearTempPassword` as a compare-and-set token, so
+ * a clear racing an admin re-arm doesn't wipe the new arm.
  */
 export async function refuseIfTempPasswordExpired(
   supabase: SupabaseClient,
   userId: string,
-): Promise<TempPasswordState | 'error'> {
-  let state: TempPasswordState
+): Promise<TempPasswordRead | { state: 'error'; expiresAt: null }> {
+  let result: TempPasswordRead
   try {
-    state = await readTempPasswordState(supabase, userId)
+    result = await readTempPassword(supabase, userId)
   } catch (err) {
     console.error(
       '[refuseIfTempPasswordExpired] state read error:',
       err instanceof Error ? err.message : String(err),
     )
-    return 'error'
+    return { state: 'error', expiresAt: null }
   }
-  if (state === 'expired') await signOutExpiredTempPassword(supabase)
-  return state
+  if (result.state === 'expired') await signOutExpiredTempPassword(supabase)
+  return result
 }

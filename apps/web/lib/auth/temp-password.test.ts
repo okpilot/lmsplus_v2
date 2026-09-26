@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // ---- Subject under test ---------------------------------------------------
 
 import {
+  readTempPassword,
   readTempPasswordState,
   refuseIfTempPasswordExpired,
   signOutExpiredTempPassword,
@@ -96,6 +97,31 @@ describe('readTempPasswordState', () => {
   })
 })
 
+describe('readTempPassword', () => {
+  it('returns the raw expiry string alongside the derived state', async () => {
+    const future = new Date(Date.now() + 60_000).toISOString()
+    const supabase = makeSupabase({
+      fromReturn: { data: { temp_password_expires_at: future }, error: null },
+    })
+
+    await expect(readTempPassword(supabase, USER_ID)).resolves.toEqual({
+      state: 'active',
+      expiresAt: future,
+    })
+  })
+
+  it('returns a null expiry when there is no temp password', async () => {
+    const supabase = makeSupabase({
+      fromReturn: { data: { temp_password_expires_at: null }, error: null },
+    })
+
+    await expect(readTempPassword(supabase, USER_ID)).resolves.toEqual({
+      state: 'none',
+      expiresAt: null,
+    })
+  })
+})
+
 describe('signOutExpiredTempPassword', () => {
   it('signs out globally without touching the Auth password', async () => {
     const supabase = makeSupabase({})
@@ -125,27 +151,36 @@ describe('refuseIfTempPasswordExpired', () => {
       fromReturn: { data: { temp_password_expires_at: null }, error: null },
     })
 
-    await expect(refuseIfTempPasswordExpired(supabase, USER_ID)).resolves.toBe('none')
+    await expect(refuseIfTempPasswordExpired(supabase, USER_ID)).resolves.toEqual({
+      state: 'none',
+      expiresAt: null,
+    })
     expect(supabase.auth.signOut).not.toHaveBeenCalled()
   })
 
-  it('returns active and signs out no one when the temp password has not expired', async () => {
+  it('returns active with the expiry read and signs out no one when the temp password has not expired', async () => {
     const future = new Date(Date.now() + 60_000).toISOString()
     const supabase = makeSupabase({
       fromReturn: { data: { temp_password_expires_at: future }, error: null },
     })
 
-    await expect(refuseIfTempPasswordExpired(supabase, USER_ID)).resolves.toBe('active')
+    await expect(refuseIfTempPasswordExpired(supabase, USER_ID)).resolves.toEqual({
+      state: 'active',
+      expiresAt: future,
+    })
     expect(supabase.auth.signOut).not.toHaveBeenCalled()
   })
 
-  it('returns expired and signs out globally, leaving the Auth password untouched', async () => {
+  it('returns expired with the expiry read and signs out globally, leaving the Auth password untouched', async () => {
     const past = new Date(Date.now() - 60_000).toISOString()
     const supabase = makeSupabase({
       fromReturn: { data: { temp_password_expires_at: past }, error: null },
     })
 
-    await expect(refuseIfTempPasswordExpired(supabase, USER_ID)).resolves.toBe('expired')
+    await expect(refuseIfTempPasswordExpired(supabase, USER_ID)).resolves.toEqual({
+      state: 'expired',
+      expiresAt: past,
+    })
     expect(supabase.auth.signOut).toHaveBeenCalledWith({ scope: 'global' })
   })
 
@@ -155,7 +190,10 @@ describe('refuseIfTempPasswordExpired', () => {
       fromReturn: { data: null, error: { message: 'connection reset' } },
     })
 
-    await expect(refuseIfTempPasswordExpired(supabase, USER_ID)).resolves.toBe('error')
+    await expect(refuseIfTempPasswordExpired(supabase, USER_ID)).resolves.toEqual({
+      state: 'error',
+      expiresAt: null,
+    })
     expect(supabase.auth.signOut).not.toHaveBeenCalled()
     expect(consoleSpy).toHaveBeenCalledWith(
       '[refuseIfTempPasswordExpired] state read error:',

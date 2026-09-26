@@ -2,14 +2,13 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import type { ActionResult } from '@/lib/action-result'
-import { recordAuthEvent } from '@/lib/audit/record-auth-event'
+import { clearTempFlagAndAudit } from '@/lib/auth/finish-self-password-change'
 import { NewPasswordSchema } from '@/lib/auth/new-password-schema'
 import {
   RETRY_DIFFERENT_PASSWORD_MESSAGE,
   refuseIfTempPasswordExpired,
   TEMP_PASSWORD_EXPIRED_MESSAGE,
 } from '@/lib/auth/temp-password'
-import { clearTempPassword } from '@/lib/auth/temp-password-admin'
 
 export async function setOwnPassword(raw: unknown): Promise<ActionResult> {
   const parsed = NewPasswordSchema.safeParse(raw)
@@ -26,35 +25,38 @@ export async function setOwnPassword(raw: unknown): Promise<ActionResult> {
   const stateResult = await readActiveTempPasswordState(supabase, user.id)
   if (!stateResult.ok) return stateResult.error
 
-  return finishPasswordSet(supabase, user.id, parsed.data.password)
+  return finishPasswordSet(supabase, {
+    userId: user.id,
+    password: parsed.data.password,
+    expiresAt: stateResult.expiresAt,
+  })
 }
 
 /** Reads the caller's temp-password state and refuses unless a temp password is active. */
 async function readActiveTempPasswordState(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   userId: string,
-): Promise<{ ok: true } | { ok: false; error: ActionResult }> {
-  const state = await refuseIfTempPasswordExpired(supabase, userId)
-  if (state === 'expired') {
+): Promise<{ ok: true; expiresAt: string } | { ok: false; error: ActionResult }> {
+  const result = await refuseIfTempPasswordExpired(supabase, userId)
+  if (result.state === 'expired') {
     return { ok: false, error: { success: false, error: TEMP_PASSWORD_EXPIRED_MESSAGE } }
   }
-  if (state === 'error') {
+  if (result.state === 'error') {
     return {
       ok: false,
       error: { success: false, error: 'Unable to update password. Please try again.' },
     }
   }
-  if (state === 'none') {
+  if (result.state === 'none') {
     return { ok: false, error: { success: false, error: 'No temporary password to replace.' } }
   }
-  return { ok: true }
+  return { ok: true, expiresAt: result.expiresAt }
 }
 
 /** Applies the new password, clears the temp-password flag, and best-effort audits the change. */
 async function finishPasswordSet(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
-  userId: string,
-  password: string,
+  { userId, password, expiresAt }: { userId: string; password: string; expiresAt: string },
 ): Promise<ActionResult> {
   const { error } = await supabase.auth.updateUser({ password })
   if (error) {
@@ -65,13 +67,9 @@ async function finishPasswordSet(
     return { success: false, error: 'Unable to update password. Please try again.' }
   }
 
-  const { success: cleared } = await clearTempPassword(userId)
-
-  // The password is already changed, so audit it before reading the clear result
-  // (best-effort: a failed audit write is logged server-side, not surfaced).
-  await recordAuthEvent(supabase, {
-    eventType: 'user.password_changed',
-    resourceId: userId,
+  const cleared = await clearTempFlagAndAudit(supabase, {
+    userId,
+    tempPasswordExpiresAt: expiresAt,
     context: 'setOwnPassword',
   })
 

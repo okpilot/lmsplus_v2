@@ -3,13 +3,12 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import type { ActionResult } from '@/lib/action-result'
-import { recordAuthEvent } from '@/lib/audit/record-auth-event'
+import { clearTempFlagAndAudit } from '@/lib/auth/finish-self-password-change'
 import {
   RETRY_DIFFERENT_PASSWORD_MESSAGE,
   refuseIfTempPasswordExpired,
   TEMP_PASSWORD_EXPIRED_MESSAGE,
 } from '@/lib/auth/temp-password'
-import { clearTempPassword } from '@/lib/auth/temp-password-admin'
 
 const ChangePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
@@ -21,7 +20,8 @@ type PasswordChangeOpts = {
   email: string
   currentPassword: string
   password: string
-  clearTempFlag: boolean
+  /** Non-null when a temp password is active; passed to `clearTempPassword` as a compare-and-set token. */
+  tempPasswordExpiresAt: string | null
 }
 
 export async function changePassword(raw: unknown): Promise<ActionResult> {
@@ -39,9 +39,9 @@ export async function changePassword(raw: unknown): Promise<ActionResult> {
   const email = user.email
   if (!email) return { success: false, error: 'No email associated with account' }
 
-  const state = await refuseIfTempPasswordExpired(supabase, user.id)
-  if (state === 'expired') return { success: false, error: TEMP_PASSWORD_EXPIRED_MESSAGE }
-  if (state === 'error') {
+  const result = await refuseIfTempPasswordExpired(supabase, user.id)
+  if (result.state === 'expired') return { success: false, error: TEMP_PASSWORD_EXPIRED_MESSAGE }
+  if (result.state === 'error') {
     return { success: false, error: 'Unable to update password. Please try again.' }
   }
 
@@ -50,14 +50,14 @@ export async function changePassword(raw: unknown): Promise<ActionResult> {
     email,
     currentPassword: parsed.data.currentPassword,
     password: parsed.data.password,
-    clearTempFlag: state === 'active',
+    tempPasswordExpiresAt: result.state === 'active' ? result.expiresAt : null,
   })
 }
 
 /** Verifies the current password, applies the new one, and best-effort audits the change. */
 async function finishPasswordChange(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
-  { userId, email, currentPassword, password, clearTempFlag }: PasswordChangeOpts,
+  { userId, email, currentPassword, password, tempPasswordExpiresAt }: PasswordChangeOpts,
 ): Promise<ActionResult> {
   // signInWithPassword used for credential verification; side effect: refreshes auth session cookies
   const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -78,22 +78,12 @@ async function finishPasswordChange(
     return { success: false, error: 'Unable to update password. Please try again.' }
   }
 
-  const cleared = clearTempFlag ? (await clearTempPassword(userId)).success : true
-  // The password is already changed, so audit it before reading the clear result.
-  await auditPasswordChanged(supabase, userId)
+  const cleared = await clearTempFlagAndAudit(supabase, {
+    userId,
+    tempPasswordExpiresAt,
+    context: 'changePassword',
+  })
   if (!cleared) return { success: false, error: RETRY_DIFFERENT_PASSWORD_MESSAGE }
 
   return { success: true }
-}
-
-/** Best-effort audit: the password is already changed, so a failed write is logged, not surfaced. */
-async function auditPasswordChanged(
-  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
-  userId: string,
-): Promise<void> {
-  await recordAuthEvent(supabase, {
-    eventType: 'user.password_changed',
-    resourceId: userId,
-    context: 'changePassword',
-  })
 }

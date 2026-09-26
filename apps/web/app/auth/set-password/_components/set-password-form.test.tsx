@@ -84,6 +84,37 @@ describe('SetPasswordForm', () => {
     })
   })
 
+  it('keeps the submit button disabled after a successful submit, while navigation is pending', async () => {
+    mockSetOwnPassword.mockResolvedValue({ success: true })
+    const user = userEvent.setup()
+    render(<SetPasswordForm nextPath="/app/quiz" />)
+
+    await user.type(screen.getByLabelText(/new password/i), 'newpassword123')
+    await user.type(screen.getByLabelText(/confirm password/i), 'newpassword123')
+    await user.click(screen.getByRole('button', { name: /set password/i }))
+
+    await waitFor(() => {
+      expect(mockAssign).toHaveBeenCalledWith('/app/quiz')
+    })
+    expect(screen.getByRole('button', { name: /saving/i })).toBeDisabled()
+  })
+
+  it('re-enables the submit button after a failed submit', async () => {
+    mockSetOwnPassword.mockResolvedValue({
+      success: false,
+      error: 'Choose a different password.',
+    })
+    const user = userEvent.setup()
+    render(<SetPasswordForm nextPath={null} />)
+
+    await user.type(screen.getByLabelText(/new password/i), 'newpassword123')
+    await user.type(screen.getByLabelText(/confirm password/i), 'newpassword123')
+    await user.click(screen.getByRole('button', { name: /set password/i }))
+
+    expect(await screen.findByText(/choose a different password/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /set password/i })).not.toBeDisabled()
+  })
+
   it('navigates to /app/dashboard on success when there is no next path', async () => {
     mockSetOwnPassword.mockResolvedValue({ success: true })
     const user = userEvent.setup()

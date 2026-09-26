@@ -44,6 +44,7 @@ import { changePassword } from './password-actions'
 // ---- Helpers ---------------------------------------------------------------
 
 const USER_ID = 'aaaaaaaa-0000-4000-a000-000000000001'
+const EXPIRY = '2026-09-25T00:00:00.000Z'
 
 function mockAuthenticatedUser() {
   mockGetUser.mockResolvedValue({
@@ -58,7 +59,7 @@ beforeEach(() => {
   vi.resetAllMocks()
   mockRpc.mockResolvedValue({ error: null })
   mockClearTempPassword.mockResolvedValue({ success: true })
-  mockRefuseExpired.mockResolvedValue('active')
+  mockRefuseExpired.mockResolvedValue({ state: 'active', expiresAt: EXPIRY })
 })
 
 describe('changePassword', () => {
@@ -116,7 +117,7 @@ describe('changePassword', () => {
   describe('temp-password expiry guard', () => {
     it('refuses the change and tells the user to ask their instructor when the temp password has expired', async () => {
       mockAuthenticatedUser()
-      mockRefuseExpired.mockResolvedValue('expired')
+      mockRefuseExpired.mockResolvedValue({ state: 'expired', expiresAt: null })
 
       const result = await changePassword(validInput)
 
@@ -132,7 +133,7 @@ describe('changePassword', () => {
 
     it('refuses the change without touching the password when the temp-password state cannot be read', async () => {
       mockAuthenticatedUser()
-      mockRefuseExpired.mockResolvedValue('error')
+      mockRefuseExpired.mockResolvedValue({ state: 'error', expiresAt: null })
 
       const result = await changePassword(validInput)
 
@@ -147,7 +148,7 @@ describe('changePassword', () => {
 
     it('proceeds to verify the current password when the temp-password guard passes', async () => {
       mockAuthenticatedUser()
-      mockRefuseExpired.mockResolvedValue('active')
+      mockRefuseExpired.mockResolvedValue({ state: 'active', expiresAt: EXPIRY })
       mockSignIn.mockResolvedValue({ error: null })
       mockUpdateUser.mockResolvedValue({ error: null })
 
@@ -159,7 +160,7 @@ describe('changePassword', () => {
 
     it('does not clear the temp-password flag when the caller never had one armed', async () => {
       mockAuthenticatedUser()
-      mockRefuseExpired.mockResolvedValue('none')
+      mockRefuseExpired.mockResolvedValue({ state: 'none', expiresAt: null })
       mockSignIn.mockResolvedValue({ error: null })
       mockUpdateUser.mockResolvedValue({ error: null })
 
@@ -204,7 +205,7 @@ describe('changePassword', () => {
 
       await changePassword(validInput)
 
-      expect(mockClearTempPassword).toHaveBeenCalledWith(USER_ID)
+      expect(mockClearTempPassword).toHaveBeenCalledWith(USER_ID, EXPIRY)
     })
 
     it('asks to retry with a different password when finishing the update fails, and still records the change', async () => {

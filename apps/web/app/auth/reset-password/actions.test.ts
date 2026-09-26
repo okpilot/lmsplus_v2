@@ -2,19 +2,30 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ------------------------------------------------------------------
 
-const { mockGetUser, mockUpdateUser, mockSignOut, mockClearTempPassword, mockRefuseExpired } =
-  vi.hoisted(() => ({
-    mockGetUser: vi.fn(),
-    mockUpdateUser: vi.fn(),
-    mockSignOut: vi.fn(),
-    mockClearTempPassword: vi.fn(),
-    mockRefuseExpired: vi.fn(),
-  }))
+const {
+  mockGetUser,
+  mockUpdateUser,
+  mockSignOut,
+  mockClearTempPassword,
+  mockRefuseExpired,
+  mockRecordAuthEvent,
+} = vi.hoisted(() => ({
+  mockGetUser: vi.fn(),
+  mockUpdateUser: vi.fn(),
+  mockSignOut: vi.fn(),
+  mockClearTempPassword: vi.fn(),
+  mockRefuseExpired: vi.fn(),
+  mockRecordAuthEvent: vi.fn(),
+}))
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({
     auth: { getUser: mockGetUser, updateUser: mockUpdateUser, signOut: mockSignOut },
   }),
+}))
+
+vi.mock('@/lib/audit/record-auth-event', () => ({
+  recordAuthEvent: (...args: unknown[]) => mockRecordAuthEvent(...args),
 }))
 
 vi.mock('@/lib/auth/temp-password', () => ({
@@ -36,6 +47,7 @@ import { resetOwnPassword } from './actions'
 // ---- Helpers ------------------------------------------------------------------
 
 const USER_ID = 'aaaaaaaa-0000-4000-a000-000000000002'
+const EXPIRY = '2026-09-25T00:00:00.000Z'
 const validInput = { password: 'newpassword123', confirmPassword: 'newpassword123' }
 
 function mockAuthenticatedUser() {
@@ -45,14 +57,15 @@ function mockAuthenticatedUser() {
 beforeEach(() => {
   vi.resetAllMocks()
   mockSignOut.mockResolvedValue({})
+  mockRecordAuthEvent.mockResolvedValue(undefined)
   mockClearTempPassword.mockResolvedValue({ success: true })
-  mockRefuseExpired.mockResolvedValue('active')
+  mockRefuseExpired.mockResolvedValue({ state: 'active', expiresAt: EXPIRY })
 })
 
 describe('expired temporary password', () => {
   it('refuses the reset, locks the account and tells the user to ask their instructor', async () => {
     mockAuthenticatedUser()
-    mockRefuseExpired.mockResolvedValue('expired')
+    mockRefuseExpired.mockResolvedValue({ state: 'expired', expiresAt: null })
 
     const result = await resetOwnPassword(validInput)
 
@@ -69,7 +82,7 @@ describe('expired temporary password', () => {
 
   it('refuses the reset without changing the password when the state cannot be read', async () => {
     mockAuthenticatedUser()
-    mockRefuseExpired.mockResolvedValue('error')
+    mockRefuseExpired.mockResolvedValue({ state: 'error', expiresAt: null })
 
     const result = await resetOwnPassword(validInput)
 
@@ -83,7 +96,7 @@ describe('expired temporary password', () => {
 
   it('lets an account with an active temporary password reset normally', async () => {
     mockAuthenticatedUser()
-    mockRefuseExpired.mockResolvedValue('active')
+    mockRefuseExpired.mockResolvedValue({ state: 'active', expiresAt: EXPIRY })
     mockUpdateUser.mockResolvedValue({ error: null })
 
     const result = await resetOwnPassword(validInput)
@@ -93,7 +106,7 @@ describe('expired temporary password', () => {
 
   it('lets an ordinary account with no temp password ever armed reset normally, without clearing', async () => {
     mockAuthenticatedUser()
-    mockRefuseExpired.mockResolvedValue('none')
+    mockRefuseExpired.mockResolvedValue({ state: 'none', expiresAt: null })
     mockUpdateUser.mockResolvedValue({ error: null })
 
     const result = await resetOwnPassword(validInput)
@@ -185,8 +198,20 @@ describe('resetOwnPassword', () => {
 
       expect(result).toEqual({ ok: true })
       expect(mockUpdateUser).toHaveBeenCalledWith({ password: 'newpassword123' })
-      expect(mockClearTempPassword).toHaveBeenCalledWith(USER_ID)
+      expect(mockClearTempPassword).toHaveBeenCalledWith(USER_ID, EXPIRY)
       expect(mockSignOut).toHaveBeenCalled()
+    })
+
+    it('records a self user.password_changed audit event on success', async () => {
+      mockAuthenticatedUser()
+      mockUpdateUser.mockResolvedValue({ error: null })
+
+      await resetOwnPassword(validInput)
+
+      expect(mockRecordAuthEvent).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ eventType: 'user.password_changed', resourceId: USER_ID }),
+      )
     })
 
     it('asks to retry with a different password and keeps the session when finishing the update fails', async () => {
@@ -203,6 +228,20 @@ describe('resetOwnPassword', () => {
           'Your password could not be fully updated. Please try again with a different password.',
       })
       expect(mockSignOut).not.toHaveBeenCalled()
+    })
+
+    it('still records the audit event when the clear fails and the retry message is returned', async () => {
+      mockAuthenticatedUser()
+      mockUpdateUser.mockResolvedValue({ error: null })
+      mockClearTempPassword.mockResolvedValue({ success: false })
+
+      const result = await resetOwnPassword(validInput)
+
+      expect(result.ok).toBe(false)
+      expect(mockRecordAuthEvent).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ eventType: 'user.password_changed', resourceId: USER_ID }),
+      )
     })
 
     it('still succeeds when the sign-out fails, after logging it', async () => {

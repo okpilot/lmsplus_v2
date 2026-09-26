@@ -27,13 +27,13 @@ export function SetPasswordForm({ nextPath }: Readonly<{ nextPath: string | null
       const result = await setOwnPassword(parsed.data)
       if (!result.success) {
         setError(result.error)
+        setLoading(false)
         return
       }
     } catch {
       setError('Unable to update password. Please try again.')
-      return
-    } finally {
       setLoading(false)
+      return
     }
 
     window.location.assign(nextPath ?? '/app/dashboard')

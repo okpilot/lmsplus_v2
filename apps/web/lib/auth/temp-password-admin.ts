@@ -8,13 +8,20 @@ export const TEMP_PASSWORD_TTL_MS = 7 * 24 * 60 * 60 * 1000
 
 /**
  * Clears the temp-password expiry column via the service-role client, scoped
- * to the target user and to a non-soft-deleted row.
+ * to the target user, a non-soft-deleted row, and the expiry value the caller
+ * read before writing the new password (compare-and-set). Zero rows updated
+ * therefore also means the expiry changed since it was read — e.g. an admin
+ * re-armed it in the meantime — so the (new) flag is left as is.
  */
-export async function clearTempPassword(userId: string): Promise<{ success: boolean }> {
+export async function clearTempPassword(
+  userId: string,
+  expectedExpiresAt: string,
+): Promise<{ success: boolean }> {
   const { data, error } = await adminClient
     .from('users')
     .update({ temp_password_expires_at: null })
     .eq('id', userId)
+    .eq('temp_password_expires_at', expectedExpiresAt)
     .is('deleted_at', null)
     .select('id')
 

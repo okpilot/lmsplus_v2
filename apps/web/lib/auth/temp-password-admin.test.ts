@@ -20,6 +20,7 @@ import { armTempPassword, clearTempPassword, TEMP_PASSWORD_TTL_MS } from './temp
 
 const USER_ID = 'aaaaaaaa-0000-4000-a000-000000000001'
 const ORG_ID = 'bbbbbbbb-0000-4000-a000-000000000002'
+const EXPIRY = '2026-09-25T00:00:00.000Z'
 
 function buildChain(returnValue: unknown) {
   const awaitable = {
@@ -43,7 +44,7 @@ describe('clearTempPassword', () => {
   it('reports success when a row is updated', async () => {
     mockAdminFrom.mockImplementation(() => buildChain({ data: [{ id: USER_ID }], error: null }))
 
-    await expect(clearTempPassword(USER_ID)).resolves.toEqual({ success: true })
+    await expect(clearTempPassword(USER_ID, EXPIRY)).resolves.toEqual({ success: true })
   })
 
   it('reports failure and logs when the update returns an error', async () => {
@@ -52,7 +53,7 @@ describe('clearTempPassword', () => {
       buildChain({ data: null, error: { message: 'db unreachable' } }),
     )
 
-    await expect(clearTempPassword(USER_ID)).resolves.toEqual({ success: false })
+    await expect(clearTempPassword(USER_ID, EXPIRY)).resolves.toEqual({ success: false })
     expect(consoleSpy).toHaveBeenCalledWith('[clearTempPassword] update failed:', 'db unreachable')
     consoleSpy.mockRestore()
   })
@@ -61,12 +62,32 @@ describe('clearTempPassword', () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     mockAdminFrom.mockImplementation(() => buildChain({ data: [], error: null }))
 
-    await expect(clearTempPassword(USER_ID)).resolves.toEqual({ success: false })
+    await expect(clearTempPassword(USER_ID, EXPIRY)).resolves.toEqual({ success: false })
     expect(consoleSpy).toHaveBeenCalledWith(
       '[clearTempPassword] zero rows updated for user:',
       USER_ID,
     )
     consoleSpy.mockRestore()
+  })
+
+  it('scopes the write to the target user and the expiry read before the write', async () => {
+    const eqCalls: unknown[][] = []
+    const chain: Record<string, unknown> = {
+      eq: (...args: unknown[]) => {
+        eqCalls.push(args)
+        return chain
+      },
+      is: () => chain,
+      select: () => Promise.resolve({ data: [{ id: USER_ID }], error: null }),
+    }
+    mockAdminFrom.mockReturnValue({ update: () => chain })
+
+    await expect(clearTempPassword(USER_ID, EXPIRY)).resolves.toEqual({ success: true })
+
+    expect(eqCalls).toEqual([
+      ['id', USER_ID],
+      ['temp_password_expires_at', EXPIRY],
+    ])
   })
 })
 

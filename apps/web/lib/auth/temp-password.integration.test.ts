@@ -128,13 +128,31 @@ describe('temp-password helpers (app-layer integration)', () => {
     // Non-vacuous per code-style.md §7: assert both rows are armed before the
     // mutation, so "still set" afterwards for the untouched user proves scoping,
     // not an already-empty column.
-    expect(await readColumn(activeStudentId)).not.toBeNull()
+    const activeExpiresAt = await readColumn(activeStudentId)
+    expect(activeExpiresAt).not.toBeNull()
     expect(await readColumn(expiredStudentId)).not.toBeNull()
+    if (!activeExpiresAt) throw new Error('expected activeStudentId to carry an expiry')
 
-    const result = await clearTempPassword(activeStudentId)
+    const result = await clearTempPassword(activeStudentId, activeExpiresAt)
 
     expect(result).toEqual({ success: true })
     expect(await readColumn(activeStudentId)).toBeNull()
     expect(await readColumn(expiredStudentId)).not.toBeNull()
+  })
+
+  it('leaves the flag as is when the expiry changed since it was read (an admin re-armed it)', async () => {
+    const valueA = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+    await armTempPassword(expiredStudentId, valueA)
+    const readA = await readColumn(expiredStudentId)
+    expect(Date.parse(readA ?? '')).toBe(Date.parse(valueA))
+
+    const valueB = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString()
+    await armTempPassword(expiredStudentId, valueB)
+
+    if (!readA) throw new Error('expected expiredStudentId to carry an expiry')
+    const result = await clearTempPassword(expiredStudentId, readA)
+
+    expect(result).toEqual({ success: false })
+    expect(Date.parse((await readColumn(expiredStudentId)) ?? '')).toBe(Date.parse(valueB))
   })
 })
