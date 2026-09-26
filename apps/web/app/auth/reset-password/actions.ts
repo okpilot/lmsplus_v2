@@ -48,15 +48,17 @@ export async function resetOwnPassword(raw: unknown): Promise<ResetOwnPasswordRe
     }
   }
 
-  return finishPasswordReset(supabase, user.id, parsed.data.password, state === 'active')
+  return finishPasswordReset(supabase, {
+    userId: user.id,
+    password: parsed.data.password,
+    clearTempFlag: state === 'active',
+  })
 }
 
 /** Applies the new password, clears an active temp-password flag, and signs out on success. */
 async function finishPasswordReset(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
-  userId: string,
-  password: string,
-  clearTempFlag: boolean,
+  { userId, password, clearTempFlag }: { userId: string; password: string; clearTempFlag: boolean },
 ): Promise<ResetOwnPasswordResult> {
   const { error } = await supabase.auth.updateUser({ password })
   if (error) {
