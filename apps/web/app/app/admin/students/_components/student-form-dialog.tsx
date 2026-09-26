@@ -87,7 +87,7 @@ export function StudentFormDialog({
       }}
     >
       {controlledOpen === undefined && <DialogTrigger render={trigger} />}
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md" showCloseButton={!createdStudent}>
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Edit Student' : 'New Student'}</DialogTitle>
           <DialogDescription>

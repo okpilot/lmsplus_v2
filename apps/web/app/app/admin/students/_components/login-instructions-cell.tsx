@@ -26,7 +26,7 @@ export function LoginInstructionsCell({ student }: Readonly<Props>) {
     onSettled: () => setConfirming(false),
   })
   const name = student.full_name ?? student.email
-  const isDeactivated = student.deleted_at !== null
+  const canSend = student.deleted_at === null && student.role !== 'admin'
 
   if (confirming) {
     return (
@@ -59,7 +59,7 @@ export function LoginInstructionsCell({ student }: Readonly<Props>) {
           Sent {formatLastSent(student.login_instructions_sent_at)}
         </p>
       )}
-      {!isDeactivated && (
+      {canSend && (
         <Button size="xs" variant="outline" onClick={() => setConfirming(true)}>
           {state === 'not_sent' ? 'Send' : 'Resend'}
         </Button>

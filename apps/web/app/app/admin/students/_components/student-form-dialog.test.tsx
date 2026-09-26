@@ -72,9 +72,8 @@ describe('StudentFormDialog — create', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Create Student' }))
     await waitFor(() => screen.getByText('Student created.'))
 
-    const closeButtons = screen.getAllByRole('button', { name: 'Close' })
-    const panelClose = closeButtons.find((b) => b.getAttribute('data-slot') !== 'dialog-close')!
-    await userEvent.click(panelClose)
+    // The dialog's own X is hidden while the panel shows, so only the panel's Close remains.
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }))
 
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
