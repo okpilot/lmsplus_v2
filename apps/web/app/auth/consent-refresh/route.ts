@@ -32,3 +32,12 @@ export async function GET(request: NextRequest) {
   setConsentCookie(redirectResponse.cookies, user.id)
   return redirectResponse
 }
+
+/**
+ * The proxy's consent gate redirects with `NextResponse.redirect` (307,
+ * method-preserving) — a Server Action POST hitting a stale-cookie `/app`
+ * page replays here as a POST. Without this export the route 405s and the
+ * action never reaches its destination; with it, the 307 back to `next`
+ * replays the POST with the freshly-set cookie.
+ */
+export const POST = GET

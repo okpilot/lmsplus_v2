@@ -35,6 +35,7 @@
 
 import { expect, test } from '@playwright/test'
 import { buildConsentCookieValue } from '../../lib/consent/check-consent'
+import { CONSENT_COOKIE } from '../../lib/consent/versions'
 import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers } from './helpers/seed-users'
 
 // Two response classes carry different CSPs:
@@ -181,7 +182,7 @@ test.describe('Red Team: OWASP A02 — security response headers', () => {
       // segments, bound to THIS user's id (#1377), not just the doc versions.
       await context.addCookies([
         {
-          name: '__consent',
+          name: CONSENT_COOKIE,
           value: buildConsentCookieValue(attackerUserId),
           url: 'http://localhost:3000',
         },

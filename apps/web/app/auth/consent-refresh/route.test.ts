@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { GET } from './route'
+import { CONSENT_COOKIE } from '@/lib/consent/versions'
+import { GET, POST } from './route'
 
 const { mockGetUser, mockCheckConsent } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
@@ -61,7 +62,7 @@ describe('GET /auth/consent-refresh', () => {
 
     const location = new URL(response.headers.get('location') ?? '')
     expect(location.pathname).toBe('/app/quiz')
-    expect(response.cookies.get('__consent')?.value).toBe('v1.0:v1.0:user-1')
+    expect(response.cookies.get(CONSENT_COOKIE)?.value).toBe('v1.0:v1.0:user-1')
   })
 
   it('falls back to /app/dashboard when consent is satisfied and no next was requested', async () => {
@@ -97,17 +98,37 @@ describe('GET /auth/consent-refresh', () => {
     const location = new URL(response.headers.get('location') ?? '')
     expect(location.pathname).toBe('/app/dashboard')
   })
+})
 
-  it('redirects to /consent when the consent-status check errors', async () => {
-    // checkConsentStatus itself resolves 'required' on an RPC error (see
-    // check-consent.test.ts) — this pins that the route trusts that contract
-    // rather than re-deciding on error.
+describe('POST /auth/consent-refresh', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('replays a redirected Server Action POST to next with a 307 and the user-bound cookie when consent is satisfied', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockCheckConsent.mockResolvedValue('satisfied')
+
+    const response = await POST(
+      makeRequest('http://localhost:3000/auth/consent-refresh?next=%2Fapp%2Fquiz'),
+    )
+
+    expect(response.status).toBe(307)
+    const location = new URL(response.headers.get('location') ?? '')
+    expect(location.pathname).toBe('/app/quiz')
+    expect(response.cookies.get(CONSENT_COOKIE)?.value).toBe('v1.0:v1.0:user-1')
+  })
+
+  it('redirects a Server Action POST to /consent when consent is required', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
     mockCheckConsent.mockResolvedValue('required')
 
-    const response = await GET(makeRequest('http://localhost:3000/auth/consent-refresh'))
+    const response = await POST(
+      makeRequest('http://localhost:3000/auth/consent-refresh?next=%2Fapp%2Fquiz'),
+    )
 
     const location = new URL(response.headers.get('location') ?? '')
     expect(location.pathname).toBe('/consent')
+    expect(location.searchParams.get('next')).toBe('/app/quiz')
   })
 })

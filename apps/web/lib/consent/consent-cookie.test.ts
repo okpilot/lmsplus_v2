@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
-import { CURRENT_PRIVACY_VERSION, CURRENT_TOS_VERSION } from '@/lib/consent/versions'
+import {
+  CONSENT_COOKIE,
+  CURRENT_PRIVACY_VERSION,
+  CURRENT_TOS_VERSION,
+} from '@/lib/consent/versions'
 import { setConsentCookie } from './consent-cookie'
 
 function makeStore() {
@@ -13,7 +17,7 @@ describe('setConsentCookie', () => {
     setConsentCookie(store, 'user-1')
 
     expect(store.set).toHaveBeenCalledWith(
-      '__consent',
+      CONSENT_COOKIE,
       `${CURRENT_TOS_VERSION}:${CURRENT_PRIVACY_VERSION}:user-1`,
       expect.objectContaining({ httpOnly: true }),
     )
@@ -36,7 +40,7 @@ describe('setConsentCookie', () => {
     setConsentCookie(store, 'user-1')
 
     expect(store.set).toHaveBeenCalledWith(
-      '__consent',
+      CONSENT_COOKIE,
       expect.any(String),
       expect.objectContaining({ maxAge: 31_536_000 }),
     )
@@ -49,7 +53,7 @@ describe('setConsentCookie', () => {
       vi.stubEnv('NODE_ENV', 'production')
       setConsentCookie(store, 'user-1')
       expect(store.set).toHaveBeenCalledWith(
-        '__consent',
+        CONSENT_COOKIE,
         expect.any(String),
         expect.objectContaining({ secure: true }),
       )

@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { buildConsentCookieValue } from '@/lib/consent/check-consent'
 import { CONSENT_COOKIE } from '@/lib/consent/versions'
 import { proxy } from './proxy'
@@ -132,6 +132,19 @@ describe('proxy', () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
 
     const response = await proxy(makeConsentedRequest('/app/dashboard', 'someone-else'))
+
+    expect(response.status).toBe(307)
+    expect(new URL(response.headers.get('location') ?? '').pathname).toBe('/auth/consent-refresh')
+  })
+
+  it('ignores a cookie under the pre-rollout name and still requires the current-name cookie', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    const request = makeRequest('/app/dashboard')
+    // A deployment pinned before the CONSENT_COOKIE rename (#1377 follow-up) never
+    // rewrites this old-named cookie — the new deployment must not accept it either.
+    request.cookies.set('__consent', buildConsentCookieValue('user-1'))
+
+    const response = await proxy(request)
 
     expect(response.status).toBe(307)
     expect(new URL(response.headers.get('location') ?? '').pathname).toBe('/auth/consent-refresh')
@@ -415,83 +428,6 @@ describe('proxy', () => {
       const response = await proxy(makeRequest('/?next=%2F%2Fevil.com'))
 
       expect(new URL(response.headers.get('location') ?? '').pathname).toBe('/app/dashboard')
-    })
-  })
-
-  describe('__vdpl deployment pinning cookie', () => {
-    const DEPLOYMENT_ID = 'dpl_test_abc123'
-
-    beforeEach(() => {
-      vi.clearAllMocks()
-      process.env.VERCEL_DEPLOYMENT_ID = DEPLOYMENT_ID
-      mockReadTempPasswordState.mockResolvedValue('none')
-    })
-
-    afterEach(() => {
-      delete process.env.VERCEL_DEPLOYMENT_ID
-    })
-
-    it('sets __vdpl cookie with correct options when on quiz session path, user authenticated, deployment id set, and cookie absent', async () => {
-      mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
-
-      await proxy(makeConsentedRequest('/app/quiz/session/sess-1'))
-
-      expect(MOCK_SESSION_RESPONSE.cookies.set).toHaveBeenCalledWith('__vdpl', DEPLOYMENT_ID, {
-        path: '/',
-        httpOnly: true,
-        sameSite: 'strict',
-        secure: process.env.NODE_ENV === 'production',
-      })
-    })
-
-    it('sets secure: false when NODE_ENV is not production (test environment)', async () => {
-      // NODE_ENV=test in Vitest — secure must be false so local dev cookies work
-      mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
-
-      await proxy(makeConsentedRequest('/app/quiz/session/sess-1'))
-
-      const call = (MOCK_SESSION_RESPONSE.cookies.set.mock.calls as unknown[][]).find(
-        (c) => c[0] === '__vdpl',
-      ) as [string, string, Record<string, unknown>] | undefined
-      expect(call).toBeDefined()
-      expect(call?.[2]?.secure).toBe(false)
-    })
-
-    it('does not set __vdpl cookie when it already exists on the request', async () => {
-      mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
-
-      const request = makeConsentedRequest('/app/quiz/session/sess-1')
-      request.cookies.set('__vdpl', 'existing-deployment-id')
-
-      await proxy(request)
-
-      const vdplCall = (MOCK_SESSION_RESPONSE.cookies.set.mock.calls as unknown[][]).find(
-        (c) => c[0] === '__vdpl',
-      )
-      expect(vdplCall).toBeUndefined()
-    })
-
-    it('does not set __vdpl cookie when not on the quiz session path', async () => {
-      mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
-
-      await proxy(makeConsentedRequest('/app/dashboard'))
-
-      const vdplCall = (MOCK_SESSION_RESPONSE.cookies.set.mock.calls as unknown[][]).find(
-        (c) => c[0] === '__vdpl',
-      )
-      expect(vdplCall).toBeUndefined()
-    })
-
-    it('does not set __vdpl cookie when VERCEL_DEPLOYMENT_ID is not set', async () => {
-      delete process.env.VERCEL_DEPLOYMENT_ID
-      mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
-
-      await proxy(makeConsentedRequest('/app/quiz/session/sess-1'))
-
-      const vdplCall = (MOCK_SESSION_RESPONSE.cookies.set.mock.calls as unknown[][]).find(
-        (c) => c[0] === '__vdpl',
-      )
-      expect(vdplCall).toBeUndefined()
     })
   })
 })

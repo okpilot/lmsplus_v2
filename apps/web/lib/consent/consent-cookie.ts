@@ -16,7 +16,7 @@ type CookieStore = {
   ): unknown
 }
 
-/** Sets the `__consent` cookie bound to `userId` — shared by every write site so the options never drift apart. */
+/** Sets the consent cookie (`CONSENT_COOKIE`) bound to `userId` — shared by every write site so the options never drift apart. */
 export function setConsentCookie(store: CookieStore, userId: string): void {
   store.set(CONSENT_COOKIE, buildConsentCookieValue(userId), {
     httpOnly: true,
