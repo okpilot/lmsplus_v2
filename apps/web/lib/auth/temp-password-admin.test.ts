@@ -26,6 +26,7 @@ import {
 const USER_ID = 'aaaaaaaa-0000-4000-a000-000000000001'
 const ORG_ID = 'bbbbbbbb-0000-4000-a000-000000000002'
 const EXPIRY = '2026-09-25T00:00:00.000Z'
+const ARMED = '2026-10-02T00:00:00.000Z'
 
 function buildChain(returnValue: unknown) {
   const awaitable = {
@@ -107,10 +108,14 @@ describe('armTempPassword', () => {
     const mockUpdate = vi.fn().mockReturnValue(buildChain({ data: [{ id: USER_ID }], error: null }))
     mockAdminFrom.mockReturnValue({ update: mockUpdate })
 
-    await expect(armTempPassword(USER_ID, ORG_ID)).resolves.toEqual({ success: true })
+    const result = await armTempPassword(USER_ID, ORG_ID)
+
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(Date.parse(result.expiresAt)).toBe(Date.now() + TEMP_PASSWORD_TTL_MS)
 
     const payload = mockUpdate.mock.calls[0]?.[0] as { temp_password_expires_at: string }
-    expect(Date.parse(payload.temp_password_expires_at)).toBe(Date.now() + TEMP_PASSWORD_TTL_MS)
+    expect(payload.temp_password_expires_at).toBe(result.expiresAt)
   })
 
   it('scopes the write to the target user and the admin organization', async () => {
@@ -125,7 +130,7 @@ describe('armTempPassword', () => {
     }
     mockAdminFrom.mockReturnValue({ update: () => chain })
 
-    await expect(armTempPassword(USER_ID, ORG_ID)).resolves.toEqual({ success: true })
+    await expect(armTempPassword(USER_ID, ORG_ID)).resolves.toMatchObject({ success: true })
 
     expect(eqCalls).toEqual([
       ['id', USER_ID],
@@ -158,13 +163,18 @@ describe('armTempPassword', () => {
 })
 
 describe('restoreTempPasswordExpiry', () => {
-  it('writes the given expiry when a row is updated', async () => {
+  it('writes the prior expiry when a row is updated', async () => {
     const mockUpdate = vi.fn().mockReturnValue(buildChain({ data: [{ id: USER_ID }], error: null }))
     mockAdminFrom.mockReturnValue({ update: mockUpdate })
 
-    await expect(restoreTempPasswordExpiry(USER_ID, ORG_ID, EXPIRY)).resolves.toEqual({
-      success: true,
-    })
+    await expect(
+      restoreTempPasswordExpiry({
+        userId: USER_ID,
+        organizationId: ORG_ID,
+        armedExpiresAt: ARMED,
+        priorExpiresAt: EXPIRY,
+      }),
+    ).resolves.toEqual({ success: true })
 
     expect(mockUpdate).toHaveBeenCalledWith({ temp_password_expires_at: EXPIRY })
   })
@@ -173,14 +183,19 @@ describe('restoreTempPasswordExpiry', () => {
     const mockUpdate = vi.fn().mockReturnValue(buildChain({ data: [{ id: USER_ID }], error: null }))
     mockAdminFrom.mockReturnValue({ update: mockUpdate })
 
-    await expect(restoreTempPasswordExpiry(USER_ID, ORG_ID, null)).resolves.toEqual({
-      success: true,
-    })
+    await expect(
+      restoreTempPasswordExpiry({
+        userId: USER_ID,
+        organizationId: ORG_ID,
+        armedExpiresAt: ARMED,
+        priorExpiresAt: null,
+      }),
+    ).resolves.toEqual({ success: true })
 
     expect(mockUpdate).toHaveBeenCalledWith({ temp_password_expires_at: null })
   })
 
-  it('scopes the write to the target user and the admin organization', async () => {
+  it('scopes the write to the target user, the admin organization, and the arm being undone', async () => {
     const eqCalls: unknown[][] = []
     const chain: Record<string, unknown> = {
       eq: (...args: unknown[]) => {
@@ -192,13 +207,19 @@ describe('restoreTempPasswordExpiry', () => {
     }
     mockAdminFrom.mockReturnValue({ update: () => chain })
 
-    await expect(restoreTempPasswordExpiry(USER_ID, ORG_ID, EXPIRY)).resolves.toEqual({
-      success: true,
-    })
+    await expect(
+      restoreTempPasswordExpiry({
+        userId: USER_ID,
+        organizationId: ORG_ID,
+        armedExpiresAt: ARMED,
+        priorExpiresAt: EXPIRY,
+      }),
+    ).resolves.toEqual({ success: true })
 
     expect(eqCalls).toEqual([
       ['id', USER_ID],
       ['organization_id', ORG_ID],
+      ['temp_password_expires_at', ARMED],
     ])
   })
 
@@ -208,9 +229,14 @@ describe('restoreTempPasswordExpiry', () => {
       buildChain({ data: null, error: { message: 'db unreachable' } }),
     )
 
-    await expect(restoreTempPasswordExpiry(USER_ID, ORG_ID, EXPIRY)).resolves.toEqual({
-      success: false,
-    })
+    await expect(
+      restoreTempPasswordExpiry({
+        userId: USER_ID,
+        organizationId: ORG_ID,
+        armedExpiresAt: ARMED,
+        priorExpiresAt: EXPIRY,
+      }),
+    ).resolves.toEqual({ success: false })
     expect(consoleSpy).toHaveBeenCalledWith(
       '[restoreTempPasswordExpiry] update failed:',
       'db unreachable',
@@ -218,13 +244,18 @@ describe('restoreTempPasswordExpiry', () => {
     consoleSpy.mockRestore()
   })
 
-  it('reports failure and logs when zero rows are updated', async () => {
+  it('reports failure and logs when zero rows are updated — e.g. the arm was cleared since', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     mockAdminFrom.mockImplementation(() => buildChain({ data: [], error: null }))
 
-    await expect(restoreTempPasswordExpiry(USER_ID, ORG_ID, EXPIRY)).resolves.toEqual({
-      success: false,
-    })
+    await expect(
+      restoreTempPasswordExpiry({
+        userId: USER_ID,
+        organizationId: ORG_ID,
+        armedExpiresAt: ARMED,
+        priorExpiresAt: EXPIRY,
+      }),
+    ).resolves.toEqual({ success: false })
     expect(consoleSpy).toHaveBeenCalledWith(
       '[restoreTempPasswordExpiry] zero rows updated for user:',
       USER_ID,

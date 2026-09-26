@@ -16,7 +16,7 @@ import {
   getAuthenticatedClient,
 } from '@/lib/integration-support/harness'
 import { readTempPasswordState } from './temp-password'
-import { clearTempPassword } from './temp-password-admin'
+import { clearTempPassword, restoreTempPasswordExpiry } from './temp-password-admin'
 
 const admin = getAdminClient()
 const suffix = fixtureSuffix()
@@ -155,5 +155,22 @@ describe('temp-password helpers (app-layer integration)', () => {
 
     expect(result).toEqual({ success: false })
     expect(Date.parse((await readColumn(expiredStudentId)) ?? '')).toBe(Date.parse(valueB))
+  })
+
+  it('restoreTempPasswordExpiry leaves the column as is when the arm being undone no longer matches (compare-and-set)', async () => {
+    if (!orgId) throw new Error('expected orgId to be set by beforeAll')
+    const armedValue = new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString()
+    await armTempPassword(expiredStudentId, armedValue)
+    const staleArmedValue = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString()
+
+    const result = await restoreTempPasswordExpiry({
+      userId: expiredStudentId,
+      organizationId: orgId,
+      armedExpiresAt: staleArmedValue,
+      priorExpiresAt: null,
+    })
+
+    expect(result).toEqual({ success: false })
+    expect(Date.parse((await readColumn(expiredStudentId)) ?? '')).toBe(Date.parse(armedValue))
   })
 })

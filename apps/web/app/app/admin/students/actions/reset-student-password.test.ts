@@ -1,33 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-// ---- Mocks ----------------------------------------------------------------
+// ---- Mocks ------------------------------------------------------------------
 
 const mockRevalidatePath = vi.hoisted(() => vi.fn())
 const mockRequireAdmin = vi.hoisted(() => vi.fn())
 const mockFrom = vi.hoisted(() => vi.fn())
-const mockUpdateUserById = vi.hoisted(() => vi.fn())
 const mockRpc = vi.hoisted(() => vi.fn())
-const mockArmTempPassword = vi.hoisted(() => vi.fn())
-const mockRestoreTempPasswordExpiry = vi.hoisted(() => vi.fn())
+const mockIssueTempPassword = vi.hoisted(() => vi.fn())
 
 vi.mock('next/cache', () => ({ revalidatePath: mockRevalidatePath }))
 vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: mockRequireAdmin }))
-vi.mock('@/lib/auth/temp-password-admin', () => ({
-  armTempPassword: (...args: unknown[]) => mockArmTempPassword(...args),
-  restoreTempPasswordExpiry: (...args: unknown[]) => mockRestoreTempPasswordExpiry(...args),
+vi.mock('./issue-temp-password', () => ({
+  issueTempPassword: (...args: unknown[]) => mockIssueTempPassword(...args),
 }))
 vi.mock('@repo/db/admin', () => ({
-  adminClient: {
-    from: mockFrom,
-    auth: { admin: { updateUserById: mockUpdateUserById } },
-  },
+  adminClient: { from: mockFrom },
 }))
 
-// ---- Subject under test ---------------------------------------------------
+// ---- Subject under test ------------------------------------------------------
 
 import { resetStudentPassword } from './reset-student-password'
 
-// ---- Helpers ---------------------------------------------------------------
+// ---- Helpers ------------------------------------------------------------------
 
 const VALID_UUID = '00000000-0000-4000-a000-000000000001'
 const PRIOR_EXPIRY = '2026-09-20T00:00:00.000Z'
@@ -74,12 +68,11 @@ function buildFetchChain({
   })
 }
 
-// ---- Tests ----------------------------------------------------------------
+// ---- Tests --------------------------------------------------------------------
 
 beforeEach(() => {
   vi.resetAllMocks()
-  mockArmTempPassword.mockResolvedValue({ success: true })
-  mockRestoreTempPasswordExpiry.mockResolvedValue({ success: true })
+  mockIssueTempPassword.mockResolvedValue('issued')
 })
 
 describe('resetStudentPassword', () => {
@@ -106,45 +99,26 @@ describe('resetStudentPassword', () => {
     })
   })
 
-  describe('happy path', () => {
+  describe('happy path — issueTempPassword resolves issued', () => {
     it('resets the password and revalidates on success', async () => {
       mockAdmin()
       buildFetchChain()
-      mockUpdateUserById.mockResolvedValue({ error: null })
 
       const result = await resetStudentPassword(VALID_INPUT)
 
       expect(result.success).toBe(true)
-      expect(mockUpdateUserById).toHaveBeenCalledWith(
-        VALID_UUID,
-        expect.objectContaining({
-          password: VALID_INPUT.temporary_password,
-          user_metadata: { must_change_password: true },
-        }),
-      )
+      expect(mockIssueTempPassword).toHaveBeenCalledWith({
+        userId: VALID_UUID,
+        organizationId: 'org-1',
+        password: VALID_INPUT.temporary_password,
+        priorExpiresAt: PRIOR_EXPIRY,
+      })
       expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/students')
-    })
-
-    it('arms the temp-password flag before writing the new Auth password', async () => {
-      mockAdmin()
-      buildFetchChain()
-      mockUpdateUserById.mockResolvedValue({ error: null })
-
-      await resetStudentPassword(VALID_INPUT)
-
-      expect(mockArmTempPassword).toHaveBeenCalledWith(VALID_UUID, 'org-1')
-      const armOrder = mockArmTempPassword.mock.invocationCallOrder[0]
-      const updateOrder = mockUpdateUserById.mock.invocationCallOrder[0]
-      expect(armOrder).toBeDefined()
-      expect(updateOrder).toBeDefined()
-      if (armOrder === undefined || updateOrder === undefined) return
-      expect(armOrder).toBeLessThan(updateOrder)
     })
 
     it('records a user.password_reset audit event for the target student', async () => {
       mockAdmin()
       buildFetchChain()
-      mockUpdateUserById.mockResolvedValue({ error: null })
 
       await resetStudentPassword(VALID_INPUT)
 
@@ -157,7 +131,6 @@ describe('resetStudentPassword', () => {
     it('still succeeds when the audit event write fails (best-effort)', async () => {
       mockAdmin()
       buildFetchChain()
-      mockUpdateUserById.mockResolvedValue({ error: null })
       mockRpc.mockResolvedValue({ error: { message: 'audit insert failed' } })
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
@@ -182,7 +155,7 @@ describe('resetStudentPassword', () => {
       expect(result.success).toBe(false)
       if (result.success) return
       expect(result.error).toBe('Student not found')
-      expect(mockUpdateUserById).not.toHaveBeenCalled()
+      expect(mockIssueTempPassword).not.toHaveBeenCalled()
       expect(mockRevalidatePath).not.toHaveBeenCalled()
     })
 
@@ -195,7 +168,7 @@ describe('resetStudentPassword', () => {
       expect(result.success).toBe(false)
       if (result.success) return
       expect(result.error).toBe('Failed to reset password')
-      expect(mockUpdateUserById).not.toHaveBeenCalled()
+      expect(mockIssueTempPassword).not.toHaveBeenCalled()
       expect(mockRevalidatePath).not.toHaveBeenCalled()
     })
 
@@ -208,60 +181,43 @@ describe('resetStudentPassword', () => {
       expect(result.success).toBe(false)
       if (result.success) return
       expect(result.error).toBe('Student not found')
-      expect(mockUpdateUserById).not.toHaveBeenCalled()
+      expect(mockIssueTempPassword).not.toHaveBeenCalled()
       expect(mockRevalidatePath).not.toHaveBeenCalled()
     })
   })
 
-  describe('arm failure', () => {
-    it('does not write the new Auth password when arming the temp-password flag fails', async () => {
+  describe('issueTempPassword resolves failed', () => {
+    it('returns a generic failure, does not audit, and does not revalidate', async () => {
       mockAdmin()
       buildFetchChain()
-      mockArmTempPassword.mockResolvedValue({ success: false })
+      mockIssueTempPassword.mockResolvedValue('failed')
 
       const result = await resetStudentPassword(VALID_INPUT)
 
       expect(result.success).toBe(false)
       if (result.success) return
       expect(result.error).toBe('Failed to reset password')
-      expect(mockUpdateUserById).not.toHaveBeenCalled()
-      expect(mockRevalidatePath).not.toHaveBeenCalled()
       expect(mockRpc).not.toHaveBeenCalled()
+      expect(mockRevalidatePath).not.toHaveBeenCalled()
     })
   })
 
-  describe('auth user password update', () => {
-    it('restores the prior temp-password expiry and returns a generic failure when the auth password update fails', async () => {
+  describe('issueTempPassword resolves issued_not_armed', () => {
+    it('audits the password change but tells the admin to reset again, and does not revalidate', async () => {
       mockAdmin()
       buildFetchChain()
-      mockUpdateUserById.mockResolvedValue({ error: { message: 'update failed' } })
+      mockIssueTempPassword.mockResolvedValue('issued_not_armed')
 
       const result = await resetStudentPassword(VALID_INPUT)
 
       expect(result.success).toBe(false)
       if (result.success) return
-      expect(result.error).toBe('Failed to reset password')
-      expect(mockRestoreTempPasswordExpiry).toHaveBeenCalledWith(VALID_UUID, 'org-1', PRIOR_EXPIRY)
+      expect(result.error).toBe('Password was changed but not marked temporary. Reset it again.')
+      expect(mockRpc).toHaveBeenCalledWith('record_auth_event', {
+        p_event_type: 'user.password_reset',
+        p_resource_id: VALID_UUID,
+      })
       expect(mockRevalidatePath).not.toHaveBeenCalled()
-      // No audit event for a failed reset (the audit call is after the success path).
-      expect(mockRpc).not.toHaveBeenCalled()
-    })
-
-    it('logs when the rollback of the temp-password expiry also fails after a failed update', async () => {
-      mockAdmin()
-      buildFetchChain()
-      mockUpdateUserById.mockResolvedValue({ error: { message: 'update failed' } })
-      mockRestoreTempPasswordExpiry.mockResolvedValue({ success: false })
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-
-      const result = await resetStudentPassword(VALID_INPUT)
-
-      expect(result.success).toBe(false)
-      expect(consoleSpy).toHaveBeenCalledWith(
-        '[resetStudentPassword] Rollback of temp-password expiry failed for user:',
-        VALID_UUID,
-      )
-      consoleSpy.mockRestore()
     })
   })
 

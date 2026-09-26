@@ -7,7 +7,7 @@ import { revalidatePath } from 'next/cache'
 import type { ActionResult } from '@/lib/action-result'
 import { recordAuthEvent } from '@/lib/audit/record-auth-event'
 import { requireAdmin } from '@/lib/auth/require-admin'
-import { armTempPassword, restoreTempPasswordExpiry } from '@/lib/auth/temp-password-admin'
+import { issueTempPassword } from './issue-temp-password'
 
 export async function resetStudentPassword(input: unknown): Promise<ActionResult> {
   const parsed = ResetStudentPasswordSchema.safeParse(input)
@@ -53,7 +53,7 @@ async function verifyStudentInOrg(
   return { ok: true, priorExpiresAt: target.temp_password_expires_at }
 }
 
-/** Arms the temp-password flag before writing the new Auth password; rolls the arm back to the prior expiry if that write fails. */
+/** Issues the new Auth password, audits the change once it took effect, and reports the outcome. */
 async function finishStudentPasswordReset(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   opts: {
@@ -65,26 +65,13 @@ async function finishStudentPasswordReset(
 ): Promise<ActionResult> {
   const { id, temporaryPassword, organizationId, priorExpiresAt } = opts
 
-  const { success: armed } = await armTempPassword(id, organizationId)
-  if (!armed) {
-    console.error('[resetStudentPassword] Failed to arm temp password before reset for user:', id)
-    return { success: false, error: 'Failed to reset password' }
-  }
-
-  const { error } = await adminClient.auth.admin.updateUserById(id, {
+  const outcome = await issueTempPassword({
+    userId: id,
+    organizationId,
     password: temporaryPassword,
-    user_metadata: { must_change_password: true },
+    priorExpiresAt,
   })
-  if (error) {
-    console.error('[resetStudentPassword] Password reset error:', error.message)
-    const { success: restored } = await restoreTempPasswordExpiry(
-      id,
-      organizationId,
-      priorExpiresAt,
-    )
-    if (!restored) {
-      console.error('[resetStudentPassword] Rollback of temp-password expiry failed for user:', id)
-    }
+  if (outcome === 'failed') {
     return { success: false, error: 'Failed to reset password' }
   }
 
@@ -94,6 +81,13 @@ async function finishStudentPasswordReset(
     resourceId: id,
     context: 'resetStudentPassword',
   })
+
+  if (outcome === 'issued_not_armed') {
+    return {
+      success: false,
+      error: 'Password was changed but not marked temporary. Reset it again.',
+    }
+  }
 
   revalidatePath('/app/admin/students')
   return { success: true }
