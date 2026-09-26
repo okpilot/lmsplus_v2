@@ -1,10 +1,7 @@
 import { NextRequest } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import {
-  CONSENT_COOKIE,
-  CURRENT_PRIVACY_VERSION,
-  CURRENT_TOS_VERSION,
-} from '@/lib/consent/versions'
+import { buildConsentCookieValue } from '@/lib/consent/check-consent'
+import { CONSENT_COOKIE } from '@/lib/consent/versions'
 import { proxy } from './proxy'
 
 // Split out of proxy.test.ts to keep that file under the test-file size cap
@@ -56,10 +53,10 @@ function makeRequest(pathname: string, base = 'http://localhost:3000') {
   return new NextRequest(new URL(pathname, base))
 }
 
-/** Create a request with the consent cookie set (simulates a user who has consented). */
-function makeConsentedRequest(pathname: string, base = 'http://localhost:3000') {
+/** Create a request with a consent cookie bound to `userId` (simulates a user who has consented). */
+function makeConsentedRequest(pathname: string, userId = 'user-1', base = 'http://localhost:3000') {
   const request = new NextRequest(new URL(pathname, base))
-  request.cookies.set(CONSENT_COOKIE, `${CURRENT_TOS_VERSION}:${CURRENT_PRIVACY_VERSION}`)
+  request.cookies.set(CONSENT_COOKIE, buildConsentCookieValue(userId))
   return request
 }
 
@@ -134,13 +131,13 @@ describe('proxy — temporary-password gate', () => {
     const response = await proxy(makeRequest('/app/dashboard'))
 
     expect(response.status).toBe(307)
-    expect(new URL(response.headers.get('location') ?? '').pathname).toBe('/consent')
+    expect(new URL(response.headers.get('location') ?? '').pathname).toBe('/auth/consent-refresh')
   })
 
-  it('redirects an armed but consent-less user to set-password, not to /consent', async () => {
+  it('redirects an armed but consent-less user to set-password, not to consent-refresh', async () => {
     // Proves gate ORDERING: the temp-password gate must run before the consent
     // gate (proxy.ts comment). Without the consent cookie, a consent-gate-first
-    // implementation would send this request to /consent instead.
+    // implementation would send this request to /auth/consent-refresh instead.
     mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
     mockReadTempPasswordState.mockResolvedValue('active')
 

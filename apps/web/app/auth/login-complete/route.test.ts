@@ -41,7 +41,13 @@ vi.mock('@/lib/supabase-rpc', () => ({
 
 vi.mock('@/lib/consent/check-consent', () => ({
   checkConsentStatus: mockCheckConsent,
-  buildConsentCookieValue: () => 'v1.0:v1.0',
+}))
+
+vi.mock('@/lib/consent/consent-cookie', () => ({
+  setConsentCookie: (
+    store: { set: (name: string, value: string, opts: Record<string, unknown>) => void },
+    userId: string,
+  ) => store.set('__consent', `v1.0:v1.0:${userId}`, { httpOnly: true, maxAge: 31_536_000 }),
 }))
 
 function makeRequest(url: string) {
@@ -91,7 +97,7 @@ describe('GET /auth/login-complete', () => {
     const response = await GET(makeRequest('http://localhost:3000/auth/login-complete'))
 
     const setCookie = response.headers.get('set-cookie') ?? ''
-    expect(setCookie).toContain('__consent=v1.0%3Av1.0')
+    expect(setCookie).toContain('__consent=v1.0%3Av1.0%3Auser-1')
   })
 
   it('sets consent cookie with a 1-year max-age when consent is satisfied', async () => {
@@ -201,7 +207,7 @@ describe('GET /auth/login-complete', () => {
       const response = await GET(makeRequest('http://localhost:3000/auth/login-complete'))
 
       expect(new URL(response.headers.get('location') ?? '').pathname).toBe('/auth/set-password')
-      expect(response.cookies.get('__consent')?.value).toBe('v1.0:v1.0')
+      expect(response.cookies.get('__consent')?.value).toBe('v1.0:v1.0:user-1')
     })
 
     it('sends an armed user who has not consented to set-password without a consent cookie', async () => {

@@ -4,11 +4,8 @@ import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { safeNextPath } from '@/lib/auth/safe-next-path'
 import { checkTempPasswordGate } from '@/lib/auth/temp-password-gate'
-import {
-  CONSENT_COOKIE,
-  CURRENT_PRIVACY_VERSION,
-  CURRENT_TOS_VERSION,
-} from '@/lib/consent/versions'
+import { checkConsentGate } from '@/lib/consent/consent-gate'
+import { CONSENT_COOKIE } from '@/lib/consent/versions'
 
 /** Sets `next` on a redirect target when a validated path is present, otherwise leaves the URL bare. */
 function withNext(url: URL, next: string | null): URL {
@@ -119,27 +116,27 @@ export async function proxy(request: NextRequest): Promise<Response> {
     return redirectWithCookies(withNext(new URL('/', request.url), next))
   }
 
-  // Temporary-password gate (Decision 100); runs before consent.
+  // Temporary-password gate (Decision 100), then consent — both require auth on /app/*.
   if (pathname.startsWith('/app') && user) {
-    const gateResponse = await checkTempPasswordGate({
+    const nextPath = safeNextPath(pathname + request.nextUrl.search)
+    const tempPasswordResponse = await checkTempPasswordGate({
       supabase,
       userId: user.id,
       requestUrl: request.url,
-      nextPath: safeNextPath(pathname + request.nextUrl.search),
+      nextPath,
       buildServiceUnavailable: () => serviceUnavailable(response),
       redirectWithCookies,
     })
-    if (gateResponse) return gateResponse
-  }
+    if (tempPasswordResponse) return tempPasswordResponse
 
-  // Consent gate: authenticated /app/* users without valid consent → /consent
-  if (pathname.startsWith('/app') && user) {
-    const consentCookie = request.cookies.get(CONSENT_COOKIE)?.value
-    const expected = `${CURRENT_TOS_VERSION}:${CURRENT_PRIVACY_VERSION}`
-    if (consentCookie !== expected) {
-      const next = safeNextPath(pathname + request.nextUrl.search)
-      return redirectWithCookies(withNext(new URL('/consent', request.url), next))
-    }
+    const consentResponse = checkConsentGate({
+      userId: user.id,
+      cookieValue: request.cookies.get(CONSENT_COOKIE)?.value,
+      nextPath,
+      requestUrl: request.url,
+      redirectWithCookies,
+    })
+    if (consentResponse) return consentResponse
   }
 
   // Block non-admin users from /app/admin/* routes
@@ -162,19 +159,9 @@ export async function proxy(request: NextRequest): Promise<Response> {
       return serviceUnavailable(response)
     }
 
-    // Bounce to the student dashboard rather than emitting a bare 403 body: the
-    // 403 rendered a plain, unstyled "Forbidden" with no layout and no way back
-    // (#1167). The gate itself is unchanged — a non-admin still never reaches an
-    // /app/admin route — only what they see when blocked.
-    //
-    // Target is `/app/dashboard`, NOT `/app`: since #1170 `/app` is itself only a
-    // redirect to `/app/dashboard`, so bouncing there would add a hop to reach the
-    // same place. (Before #1170 it was worse — `/app` had no page at all and
-    // rendered a bare 404.) `/app/dashboard` is the same destination the
-    // authenticated-root redirect below uses.
-    //
-    // No redirect loop: /app/dashboard is not an admin route, and the consent
-    // gate above has already run for this request.
+    // Bounce to the student dashboard, not a bare 403 (#1167) or `/app` (itself a
+    // redirect to `/app/dashboard` since #1170, so that would add a hop). No
+    // redirect loop: /app/dashboard isn't an admin route, and consent is already gated above.
     if (profile?.role !== 'admin') {
       return redirectWithCookies(new URL('/app/dashboard', request.url))
     }
@@ -194,5 +181,12 @@ export async function proxy(request: NextRequest): Promise<Response> {
 }
 
 export const config = {
-  matcher: ['/', '/app/:path*', '/auth/login-complete', '/auth/set-password', '/consent'],
+  matcher: [
+    '/',
+    '/app/:path*',
+    '/auth/login-complete',
+    '/auth/set-password',
+    '/auth/consent-refresh',
+    '/consent',
+  ],
 }
