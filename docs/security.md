@@ -82,7 +82,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/app/:path*', '/auth/login-complete', '/auth/set-password', '/consent'],
+  matcher: ['/', '/app/:path*', '/auth/login-complete', '/auth/set-password', '/auth/consent-refresh', '/consent'],
 }
 ```
 
