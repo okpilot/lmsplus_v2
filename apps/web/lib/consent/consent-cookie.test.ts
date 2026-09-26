@@ -57,6 +57,13 @@ describe('setConsentCookie', () => {
         expect.any(String),
         expect.objectContaining({ secure: true }),
       )
+      vi.stubEnv('NODE_ENV', 'test')
+      setConsentCookie(store, 'user-1')
+      expect(store.set).toHaveBeenLastCalledWith(
+        CONSENT_COOKIE,
+        expect.any(String),
+        expect.objectContaining({ secure: false }),
+      )
     } finally {
       vi.stubEnv('NODE_ENV', originalEnv ?? 'test')
     }
