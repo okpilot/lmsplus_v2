@@ -137,6 +137,7 @@ describe('LoginInstructionsCell', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
 
+    // The component calls the hook on every render, so lastCall exists.
     const { onSettled } = mockUseSendLoginInstructions.mock.lastCall![0] as {
       onSettled: () => void
     }

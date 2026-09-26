@@ -144,6 +144,7 @@ describe('CreatedStudentPanel', () => {
         onClose={vi.fn()}
       />,
     )
+    // The component calls the hook on every render, so lastCall exists.
     const { onSent } = mockUseSendLoginInstructions.mock.lastCall![0] as { onSent: () => void }
     act(() => onSent())
 
