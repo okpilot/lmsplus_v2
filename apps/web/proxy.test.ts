@@ -1,10 +1,7 @@
 import { NextRequest } from 'next/server'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import {
-  CONSENT_COOKIE,
-  CURRENT_PRIVACY_VERSION,
-  CURRENT_TOS_VERSION,
-} from '@/lib/consent/versions'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { buildConsentCookieValue } from '@/lib/consent/check-consent'
+import { CONSENT_COOKIE } from '@/lib/consent/versions'
 import { proxy } from './proxy'
 
 const mockGetUser = vi.fn()
@@ -53,10 +50,10 @@ function makeRequest(pathname: string, base = 'http://localhost:3000') {
   return new NextRequest(new URL(pathname, base))
 }
 
-/** Create a request with the consent cookie set (simulates a user who has consented). */
-function makeConsentedRequest(pathname: string, base = 'http://localhost:3000') {
+/** Create a request with a consent cookie bound to `userId` (simulates a user who has consented). */
+function makeConsentedRequest(pathname: string, userId = 'user-1', base = 'http://localhost:3000') {
   const request = new NextRequest(new URL(pathname, base))
-  request.cookies.set(CONSENT_COOKIE, `${CURRENT_TOS_VERSION}:${CURRENT_PRIVACY_VERSION}`)
+  request.cookies.set(CONSENT_COOKIE, buildConsentCookieValue(userId))
   return request
 }
 
@@ -122,13 +119,46 @@ describe('proxy', () => {
     expect(response).toBe(MOCK_SESSION_RESPONSE)
   })
 
-  it('redirects authenticated users without consent cookie to /consent', async () => {
+  it('redirects authenticated users without consent cookie to the silent consent-refresh route', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
 
     const response = await proxy(makeRequest('/app/dashboard'))
 
     expect(response.status).toBe(307)
-    expect(new URL(response.headers.get('location') ?? '').pathname).toBe('/consent')
+    expect(new URL(response.headers.get('location') ?? '').pathname).toBe('/auth/consent-refresh')
+  })
+
+  it('redirects to consent-refresh when the cookie is bound to a different user id', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+
+    const response = await proxy(makeConsentedRequest('/app/dashboard', 'someone-else'))
+
+    expect(response.status).toBe(307)
+    expect(new URL(response.headers.get('location') ?? '').pathname).toBe('/auth/consent-refresh')
+  })
+
+  it('ignores a cookie under the pre-rollout name and still requires the current-name cookie', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    const request = makeRequest('/app/dashboard')
+    // A deployment pinned before the CONSENT_COOKIE rename (#1377 follow-up) never
+    // rewrites this old-named cookie — the new deployment must not accept it either.
+    request.cookies.set('__consent', buildConsentCookieValue('user-1'))
+
+    const response = await proxy(request)
+
+    expect(response.status).toBe(307)
+    expect(new URL(response.headers.get('location') ?? '').pathname).toBe('/auth/consent-refresh')
+  })
+
+  it('sends a recovery-pending session requesting consent-refresh to reset-password', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    const request = makeRequest('/auth/consent-refresh')
+    request.cookies.set('__recovery_pending', '1')
+
+    const response = await proxy(request)
+
+    expect(response.status).toBe(307)
+    expect(new URL(response.headers.get('location') ?? '').pathname).toBe('/auth/reset-password')
   })
 
   it('redirects authenticated users on / to /app/dashboard', async () => {
@@ -232,7 +262,7 @@ describe('proxy', () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'admin-1' } } })
     mockFrom.mockReturnValue(buildChain({ data: { role: 'admin' }, error: null }))
 
-    const response = await proxy(makeConsentedRequest('/app/admin/syllabus'))
+    const response = await proxy(makeConsentedRequest('/app/admin/syllabus', 'admin-1'))
 
     expect(response).toBe(MOCK_SESSION_RESPONSE)
   })
@@ -241,7 +271,7 @@ describe('proxy', () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'student-1' } } })
     mockFrom.mockReturnValue(buildChain({ data: { role: 'student' }, error: null }))
 
-    const response = await proxy(makeConsentedRequest('/app/admin/syllabus'))
+    const response = await proxy(makeConsentedRequest('/app/admin/syllabus', 'student-1'))
 
     expect(response.status).toBe(307)
     expect(response.headers.get('location')).toBe('http://localhost:3000/app/dashboard')
@@ -258,7 +288,7 @@ describe('proxy', () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'admin-1' } } })
     mockFrom.mockReturnValue(buildChain({ data: { role: 'admin' }, error: null }, calls))
 
-    await proxy(makeConsentedRequest('/app/admin/syllabus'))
+    await proxy(makeConsentedRequest('/app/admin/syllabus', 'admin-1'))
 
     expect(calls).toContainEqual(['is', ['deleted_at', null]])
   })
@@ -272,7 +302,7 @@ describe('proxy', () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'ghost-1' } } })
     mockFrom.mockReturnValue(buildChain({ data: null, error: null }))
 
-    const response = await proxy(makeConsentedRequest('/app/admin/syllabus'))
+    const response = await proxy(makeConsentedRequest('/app/admin/syllabus', 'ghost-1'))
 
     expect(response.status).toBe(307)
     expect(response.headers.get('location')).toBe('http://localhost:3000/app/dashboard')
@@ -329,7 +359,7 @@ describe('proxy', () => {
     mockFrom.mockReturnValue(buildChain({ data: { role: 'student' }, error: null }))
     MOCK_SESSION_RESPONSE.headers.set('cache-control', 'private, no-store')
     try {
-      const response = await proxy(makeConsentedRequest('/app/admin/syllabus'))
+      const response = await proxy(makeConsentedRequest('/app/admin/syllabus', 'student-1'))
 
       expect(response.status).toBe(307)
       expect(response.headers.get('cache-control')).toBe('private, no-store')
@@ -380,7 +410,7 @@ describe('proxy', () => {
       const response = await proxy(makeRequest('/app/internal-exam'))
 
       const location = new URL(response.headers.get('location') ?? '')
-      expect(location.pathname).toBe('/consent')
+      expect(location.pathname).toBe('/auth/consent-refresh')
       expect(location.searchParams.get('next')).toBe('/app/internal-exam')
     })
 
@@ -398,83 +428,6 @@ describe('proxy', () => {
       const response = await proxy(makeRequest('/?next=%2F%2Fevil.com'))
 
       expect(new URL(response.headers.get('location') ?? '').pathname).toBe('/app/dashboard')
-    })
-  })
-
-  describe('__vdpl deployment pinning cookie', () => {
-    const DEPLOYMENT_ID = 'dpl_test_abc123'
-
-    beforeEach(() => {
-      vi.clearAllMocks()
-      process.env.VERCEL_DEPLOYMENT_ID = DEPLOYMENT_ID
-      mockReadTempPasswordState.mockResolvedValue('none')
-    })
-
-    afterEach(() => {
-      delete process.env.VERCEL_DEPLOYMENT_ID
-    })
-
-    it('sets __vdpl cookie with correct options when on quiz session path, user authenticated, deployment id set, and cookie absent', async () => {
-      mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
-
-      await proxy(makeConsentedRequest('/app/quiz/session/sess-1'))
-
-      expect(MOCK_SESSION_RESPONSE.cookies.set).toHaveBeenCalledWith('__vdpl', DEPLOYMENT_ID, {
-        path: '/',
-        httpOnly: true,
-        sameSite: 'strict',
-        secure: process.env.NODE_ENV === 'production',
-      })
-    })
-
-    it('sets secure: false when NODE_ENV is not production (test environment)', async () => {
-      // NODE_ENV=test in Vitest — secure must be false so local dev cookies work
-      mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
-
-      await proxy(makeConsentedRequest('/app/quiz/session/sess-1'))
-
-      const call = (MOCK_SESSION_RESPONSE.cookies.set.mock.calls as unknown[][]).find(
-        (c) => c[0] === '__vdpl',
-      ) as [string, string, Record<string, unknown>] | undefined
-      expect(call).toBeDefined()
-      expect(call?.[2]?.secure).toBe(false)
-    })
-
-    it('does not set __vdpl cookie when it already exists on the request', async () => {
-      mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
-
-      const request = makeConsentedRequest('/app/quiz/session/sess-1')
-      request.cookies.set('__vdpl', 'existing-deployment-id')
-
-      await proxy(request)
-
-      const vdplCall = (MOCK_SESSION_RESPONSE.cookies.set.mock.calls as unknown[][]).find(
-        (c) => c[0] === '__vdpl',
-      )
-      expect(vdplCall).toBeUndefined()
-    })
-
-    it('does not set __vdpl cookie when not on the quiz session path', async () => {
-      mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
-
-      await proxy(makeConsentedRequest('/app/dashboard'))
-
-      const vdplCall = (MOCK_SESSION_RESPONSE.cookies.set.mock.calls as unknown[][]).find(
-        (c) => c[0] === '__vdpl',
-      )
-      expect(vdplCall).toBeUndefined()
-    })
-
-    it('does not set __vdpl cookie when VERCEL_DEPLOYMENT_ID is not set', async () => {
-      delete process.env.VERCEL_DEPLOYMENT_ID
-      mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
-
-      await proxy(makeConsentedRequest('/app/quiz/session/sess-1'))
-
-      const vdplCall = (MOCK_SESSION_RESPONSE.cookies.set.mock.calls as unknown[][]).find(
-        (c) => c[0] === '__vdpl',
-      )
-      expect(vdplCall).toBeUndefined()
     })
   })
 })

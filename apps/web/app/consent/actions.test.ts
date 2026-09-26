@@ -9,7 +9,7 @@ const {
   mockCookies,
   mockHeaders,
   mockRevalidatePath,
-  mockBuildConsentCookieValue,
+  mockSetConsentCookie,
 } = vi.hoisted(() => {
   const mockCookiesSet = vi.fn()
   const mockCookies = vi.fn()
@@ -17,7 +17,7 @@ const {
   const mockRpc = vi.fn()
   const mockHeaders = vi.fn()
   const mockRevalidatePath = vi.fn()
-  const mockBuildConsentCookieValue = vi.fn()
+  const mockSetConsentCookie = vi.fn()
   return {
     mockGetUser,
     mockRpc,
@@ -25,7 +25,7 @@ const {
     mockCookies,
     mockHeaders,
     mockRevalidatePath,
-    mockBuildConsentCookieValue,
+    mockSetConsentCookie,
   }
 })
 
@@ -43,8 +43,8 @@ vi.mock('next/headers', () => ({
 
 vi.mock('next/cache', () => ({ revalidatePath: mockRevalidatePath }))
 
-vi.mock('@/lib/consent/check-consent', () => ({
-  buildConsentCookieValue: mockBuildConsentCookieValue,
+vi.mock('@/lib/consent/consent-cookie', () => ({
+  setConsentCookie: mockSetConsentCookie,
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -76,7 +76,6 @@ function resetHeadersWithDefaultGet(impl?: (header: string) => string | null) {
 
 beforeEach(() => {
   vi.resetAllMocks()
-  mockBuildConsentCookieValue.mockReturnValue('v1.0:v1.0')
   mockCookies.mockResolvedValue({ set: mockCookiesSet })
   resetHeadersWithDefaultGet()
 })
@@ -179,26 +178,9 @@ describe('recordConsent', () => {
           p_accepted: true,
         }),
       )
-      expect(mockCookiesSet).toHaveBeenCalledWith(
-        '__consent',
-        'v1.0:v1.0',
-        expect.objectContaining({ httpOnly: true }),
-      )
-    })
-
-    it('sets the consent cookie with a 1-year max-age', async () => {
-      mockAuthenticatedUser()
-      mockRpcSuccess()
-
-      await recordConsent({
-        acceptedTos: true,
-        acceptedPrivacy: true,
-      })
-
-      expect(mockCookiesSet).toHaveBeenCalledWith(
-        '__consent',
-        'v1.0:v1.0',
-        expect.objectContaining({ maxAge: 31_536_000 }),
+      expect(mockSetConsentCookie).toHaveBeenCalledWith(
+        expect.objectContaining({ set: mockCookiesSet }),
+        USER_ID,
       )
     })
 
@@ -269,7 +251,7 @@ describe('recordConsent', () => {
       expect(result.success).toBe(false)
       if (result.success) return
       expect(result.error).toBe('Failed to record consent')
-      expect(mockCookiesSet).not.toHaveBeenCalled()
+      expect(mockSetConsentCookie).not.toHaveBeenCalled()
     })
 
     it('returns a sanitized error when Privacy consent recording fails', async () => {
@@ -287,7 +269,7 @@ describe('recordConsent', () => {
       expect(result.success).toBe(false)
       if (result.success) return
       expect(result.error).toBe('Failed to record consent')
-      expect(mockCookiesSet).not.toHaveBeenCalled()
+      expect(mockSetConsentCookie).not.toHaveBeenCalled()
     })
   })
 })

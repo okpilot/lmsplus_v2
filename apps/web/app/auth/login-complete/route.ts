@@ -7,8 +7,8 @@ import {
   signOutExpiredTempPassword,
   type TempPasswordState,
 } from '@/lib/auth/temp-password'
-import { buildConsentCookieValue, checkConsentStatus } from '@/lib/consent/check-consent'
-import { CONSENT_COOKIE } from '@/lib/consent/versions'
+import { checkConsentStatus } from '@/lib/consent/check-consent'
+import { setConsentCookie } from '@/lib/consent/consent-cookie'
 import { rpc } from '@/lib/supabase-rpc'
 
 type Supabase = Awaited<ReturnType<typeof createServerSupabaseClient>>
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
   // Consent satisfied — set cookie to skip proxy DB checks
   const dashboardUrl = new URL(next ?? '/app/dashboard', request.url)
   const redirectResponse = NextResponse.redirect(dashboardUrl)
-  setConsentCookie(redirectResponse)
+  setConsentCookie(redirectResponse.cookies, user.id)
   return redirectResponse
 }
 
@@ -82,16 +82,6 @@ async function tempPasswordGate(opts: {
   const setPasswordUrl = new URL('/auth/set-password', request.url)
   if (next) setPasswordUrl.searchParams.set('next', next)
   const setPasswordResponse = NextResponse.redirect(setPasswordUrl)
-  if (consentStatus === 'satisfied') setConsentCookie(setPasswordResponse)
+  if (consentStatus === 'satisfied') setConsentCookie(setPasswordResponse.cookies, userId)
   return setPasswordResponse
-}
-
-function setConsentCookie(res: NextResponse): void {
-  res.cookies.set(CONSENT_COOKIE, buildConsentCookieValue(), {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 31_536_000, // 1 year — cookie is a cache; version bump invalidates
-    path: '/',
-  })
 }

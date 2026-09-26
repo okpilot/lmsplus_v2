@@ -50,11 +50,8 @@
  */
 
 import { type APIResponse, type BrowserContext, expect, test } from '@playwright/test'
-import {
-  CONSENT_COOKIE,
-  CURRENT_PRIVACY_VERSION,
-  CURRENT_TOS_VERSION,
-} from '../../lib/consent/versions'
+import { buildConsentCookieValue } from '../../lib/consent/check-consent'
+import { CONSENT_COOKIE } from '../../lib/consent/versions'
 import { forceTokenRefresh, readAuthSession } from './helpers/force-token-refresh'
 import { seedRedTeamStudent, VICTIM_EMAIL, VICTIM_PASSWORD } from './helpers/seed-users'
 
@@ -154,9 +151,12 @@ async function fetchWithForcedRefresh(
 }
 
 test.describe('Red Team: CK2 — anti-cache headers on a real token refresh', () => {
+  let victimUserId: string
+
   test.beforeAll(async () => {
     // Idempotent: ensure the egmont victim student exists with known creds.
-    await seedRedTeamStudent()
+    const seed = await seedRedTeamStudent()
+    victimUserId = seed.victimUserId
   })
 
   test('both synthetic exits carry no-store, routed pass-through forbids caching, all after a real refresh', async ({
@@ -177,12 +177,14 @@ test.describe('Red Team: CK2 — anti-cache headers on a real token refresh', ()
       ])
 
       // Inject the consent cookie so the proxy consent gate passes and the
-      // pass-through request reaches the /app/* page as a 200 (not a /consent
-      // redirect). Mirrors proxy.ts: `${CURRENT_TOS_VERSION}:${CURRENT_PRIVACY_VERSION}`.
+      // pass-through request reaches the /app/* page as a 200 (not a
+      // /auth/consent-refresh redirect). Mirrors checkConsentGate:
+      // buildConsentCookieValue(user.id) — three segments, bound to this
+      // victim's own id (#1377).
       await context.addCookies([
         {
           name: CONSENT_COOKIE,
-          value: `${CURRENT_TOS_VERSION}:${CURRENT_PRIVACY_VERSION}`,
+          value: buildConsentCookieValue(victimUserId),
           url: BASE_URL,
         },
       ])
@@ -217,8 +219,9 @@ test.describe('Red Team: CK2 — anti-cache headers on a real token refresh', ()
         'non-admin student on /app/admin/* should be bounced away (3xx), not served the route',
       ).toBe(307)
       // Location discriminates the admin-block branch from the unauth (→ /) and
-      // consent (→ /consent) redirects, which would otherwise satisfy the status
-      // check without exercising the branch this exit is here to cover.
+      // consent (→ /auth/consent-refresh) redirects, which would otherwise
+      // satisfy the status check without exercising the branch this exit is
+      // here to cover.
       expect(
         new URL(blockedRes.headers().location ?? '', BASE_URL).pathname,
         'admin-block exit should target /app/dashboard',

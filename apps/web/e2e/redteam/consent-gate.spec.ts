@@ -1,20 +1,22 @@
 /**
  * Red Team Spec: GDPR Consent Gate — Vectors V + Z (#384)
  *
- * Vector V (MEDIUM): Forged __consent cookie bypass.
+ * Vector V (MEDIUM): Forged __consent cookie bypass — SELF ONLY.
  *   Attack: an authenticated user without a DB consent record crafts a
- *   `__consent=v1.0:v1.0` cookie manually to skip the consent page.
- *   Actual proxy behavior (proxy.ts lines 66-72): the gate checks ONLY the
- *   cookie value against the expected string `v1.0:v1.0`. There is NO DB
- *   lookup in this path — the cookie is a performance cache. A forged cookie
- *   that matches `${CURRENT_TOS_VERSION}:${CURRENT_PRIVACY_VERSION}` WILL
- *   pass the proxy gate even without a DB consent record.
+ *   `__consent` cookie manually to skip the consent page.
+ *   Actual proxy behavior (proxy.ts consent gate, via
+ *   lib/consent/consent-gate.ts): the gate compares the cookie value against
+ *   `buildConsentCookieValue(user.id)` — the expected value is bound to the
+ *   CALLER's own user id (#1377). A forged cookie only ever works for the
+ *   forger's own id: it cannot be replayed against a different account, so
+ *   this is a self-only bypass, not a cross-user one (that gap is Vector FU
+ *   below, and it is closed).
  *   This is the documented design: the DB check happens once at
- *   /auth/login-complete (route.ts lines 25-28) and the cookie caches the
- *   result for subsequent requests. Spec pins the actual behavior: a correctly-
- *   forged cookie bypasses the proxy (no DB re-check per request by design).
- *   A test failure here would mean the proxy was changed to re-check the DB,
- *   which would be a breaking design change (not a bug).
+ *   /auth/login-complete (route.ts) and the cookie caches the result for
+ *   subsequent requests. Spec pins the actual behavior: a correctly-forged
+ *   cookie for ONE'S OWN id bypasses the proxy (no DB re-check per request by
+ *   design). A test failure here would mean the proxy was changed to
+ *   re-check the DB, which would be a breaking design change (not a bug).
  *   Trade-off (named explicitly): a user who knows the cookie format can use
  *   /app/* without a DB consent record until their next /auth/login-complete.
  *   Accepted because (a) the DB check at login-complete is the authoritative
@@ -31,6 +33,10 @@
  *   Case A: user without DB consent rows → redirected to /consent.
  *   Case B: user with DB consent rows → consent cookie set + /app/dashboard.
  *
+ * Vector FU (#1377, CLOSED): shared-browser cross-user cookie reuse — covered
+ * in consent-cookie-user-binding.spec.ts (split out to stay under the
+ * test-file size cap).
+ *
  * Closes: GitHub issue #384 (proxy/browser-gate portion).
  *
  * Note: RLS isolation for user_consents (Vectors X + Y from the same issue)
@@ -38,6 +44,7 @@
  */
 
 import { expect, test } from '@playwright/test'
+import { buildConsentCookieValue } from '../../lib/consent/check-consent'
 import {
   CONSENT_COOKIE,
   CURRENT_PRIVACY_VERSION,
@@ -66,10 +73,11 @@ test.describe('Red Team: Forged __consent cookie bypasses the proxy gate (Vector
    * Case 1 — Authenticated user without DB consent rows + forged cookie → proxy
    * passes them through to /app/dashboard.
    *
-   * Proxy behavior (proxy.ts L66-72): the gate compares the cookie value to the
-   * expected string only. No DB query is issued per request. An attacker who
-   * holds a valid Supabase session AND crafts the correct cookie value can access
-   * /app/* routes without having accepted the consent documents in the DB.
+   * Proxy behavior (lib/consent/consent-gate.ts): the gate compares the cookie
+   * value to `buildConsentCookieValue(user.id)` only. No DB query is issued per
+   * request. An attacker who holds a valid Supabase session AND crafts the
+   * correct cookie value FOR THEIR OWN id can access /app/* routes without
+   * having accepted the consent documents in the DB.
    *
    * Non-vacuity: beforeAll asserts the user has NO consent rows (the guard
    * prevents this case from passing vacuously when consent was already granted).
@@ -112,14 +120,15 @@ test.describe('Red Team: Forged __consent cookie bypasses the proxy gate (Vector
       // consent). Wait for that redirect to settle before injecting the cookie.
       await page.waitForURL(/\/(consent|app\/)/, { timeout: 15_000 })
 
-      // Inject the forged __consent cookie directly into the browser context.
-      // This simulates an attacker who copied the cookie value from a previously-
-      // consented session (or guessed it from the public versions.ts constants).
+      // Inject the forged __consent cookie directly into the browser context,
+      // bound to the ATTACKER's OWN user id — #1377 means a forged cookie only
+      // ever works for the forger's own id, never a copied/guessed value that
+      // doesn't carry it (that would be Vector FU, closed below).
       // Note: addCookies() stores the value verbatim (no percent-encoding), and the
-      // proxy auto-decodes on read — so the raw `v1.0:v1.0` here matches. This is the
+      // proxy auto-decodes on read — so the raw value here matches. This is the
       // mirror of the Case B positive path, which must decodeURIComponent() the value
       // Playwright reads back from a server-set (percent-encoded) cookie.
-      const expectedCookieValue = `${CURRENT_TOS_VERSION}:${CURRENT_PRIVACY_VERSION}`
+      const expectedCookieValue = buildConsentCookieValue(attackerUserId)
       await context.addCookies([
         {
           name: CONSENT_COOKIE,
@@ -134,9 +143,9 @@ test.describe('Red Team: Forged __consent cookie bypasses the proxy gate (Vector
 
       // Navigate directly to a protected /app/* route. The proxy will see:
       //   - A valid Supabase session (user != null)
-      //   - The forged __consent cookie matching the expected value
-      // Proxy L69: `if (consentCookie !== expected)` → false → no redirect.
-      // The request passes through without DB verification.
+      //   - The forged __consent cookie matching buildConsentCookieValue(user.id)
+      // checkConsentGate: `cookieValue === expected` → no redirect. The request
+      // passes through without DB verification.
       await page.goto('/app/dashboard')
 
       // Documented proxy behavior: the cookie is trusted as a cache. The user
@@ -179,7 +188,9 @@ test.describe('Red Team: Forged __consent cookie bypasses the proxy gate (Vector
       const url = new URL(page.url())
       expect(url.pathname).toBe('/consent')
 
-      // Attempt to access /app/* directly — proxy gate must redirect to /consent.
+      // Attempt to access /app/* directly — proxy gate must land on /consent,
+      // via the silent /auth/consent-refresh hop (which re-checks the DB and
+      // finds consent still required).
       await page.goto('/app/dashboard')
       await page.waitForURL('/consent', { timeout: 10_000 })
       const afterDirectUrl = new URL(page.url())
@@ -255,7 +266,7 @@ test.describe('Red Team: login-complete routes based on DB consent status (Vecto
   /**
    * Case A — User without DB consent rows is redirected to /consent.
    *
-   * Defense path (route.ts lines 25-28):
+   * Defense path (route.ts):
    *   const consentStatus = await checkConsentStatus(supabase)  // DB query
    *   if (consentStatus === 'required') return redirect('/consent')
    *
@@ -300,7 +311,7 @@ test.describe('Red Team: login-complete routes based on DB consent status (Vecto
       expect(url.pathname).not.toBe('/app/dashboard')
 
       // Verify no __consent cookie was set (the cookie is only set on the
-      // satisfied path — route.ts lines 34-40).
+      // satisfied path in route.ts).
       const cookies = await context.cookies()
       const consentCookie = cookies.find((c) => c.name === CONSENT_COOKIE)
       expect(consentCookie).toBeUndefined()
@@ -313,10 +324,10 @@ test.describe('Red Team: login-complete routes based on DB consent status (Vecto
    * Case B — User WITH DB consent rows is routed to /app/dashboard with the
    * __consent cookie set.
    *
-   * Defense path (route.ts lines 32-41):
+   * Defense path (route.ts):
    *   const dashboardUrl = new URL('/app/dashboard', request.url)
    *   const redirectResponse = NextResponse.redirect(dashboardUrl)
-   *   redirectResponse.cookies.set(CONSENT_COOKIE, buildConsentCookieValue(), ...)
+   *   setConsentCookie(redirectResponse.cookies, user.id)
    *   return redirectResponse
    *
    * Non-vacuity: beforeAll seeds two DB consent rows for this user via
@@ -360,8 +371,7 @@ test.describe('Red Team: login-complete routes based on DB consent status (Vecto
       // Negative: was not sent to /consent
       expect(url.pathname).not.toBe('/consent')
 
-      // The consent cookie must be set with the correct version string
-      // (route.ts lines 34-39: `buildConsentCookieValue()` = `v1.0:v1.0`).
+      // The consent cookie must be set bound to THIS user's id (#1377).
       const cookies = await context.cookies()
       const consentCookie = cookies.find((c) => c.name === CONSENT_COOKIE)
       expect(
@@ -370,10 +380,10 @@ test.describe('Red Team: login-complete routes based on DB consent status (Vecto
       ).toBeDefined()
       // Playwright's context.cookies() returns the raw stored value, which Next.js
       // percent-encodes on Set-Cookie (the ':' separator becomes %3A). The app reads
-      // it back via request.cookies.get().value (proxy.ts:67), which auto-decodes —
-      // so decode here to compare against the app's runtime view, not the wire form.
+      // it back via request.cookies.get().value, which auto-decodes — so decode
+      // here to compare against the app's runtime view, not the wire form.
       expect(decodeURIComponent(consentCookie?.value ?? '')).toBe(
-        `${CURRENT_TOS_VERSION}:${CURRENT_PRIVACY_VERSION}`,
+        buildConsentCookieValue(withConsentUserId),
       )
     } finally {
       await context.close()

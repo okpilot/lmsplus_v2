@@ -4,12 +4,8 @@ import { createServerSupabaseClient } from '@repo/db/server'
 import { cookies, headers } from 'next/headers'
 import { z } from 'zod'
 import type { ActionResult } from '@/lib/action-result'
-import { buildConsentCookieValue } from '@/lib/consent/check-consent'
-import {
-  CONSENT_COOKIE,
-  CURRENT_PRIVACY_VERSION,
-  CURRENT_TOS_VERSION,
-} from '@/lib/consent/versions'
+import { setConsentCookie } from '@/lib/consent/consent-cookie'
+import { CURRENT_PRIVACY_VERSION, CURRENT_TOS_VERSION } from '@/lib/consent/versions'
 import { rpc } from '@/lib/supabase-rpc'
 
 const ConsentSchema = z.object({
@@ -58,13 +54,7 @@ export async function recordConsent(raw: unknown): Promise<ActionResult> {
   }
 
   const cookieStore = await cookies()
-  cookieStore.set(CONSENT_COOKIE, buildConsentCookieValue(), {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 31_536_000, // 1 year — cookie is a cache; version bump invalidates
-    path: '/',
-  })
+  setConsentCookie(cookieStore, user.id)
 
   return { success: true }
 }

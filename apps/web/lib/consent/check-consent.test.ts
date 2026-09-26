@@ -54,8 +54,12 @@ describe('checkConsentStatus', () => {
 })
 
 describe('buildConsentCookieValue', () => {
-  it('returns tos and privacy versions joined by a colon', () => {
-    const value = buildConsentCookieValue()
-    expect(value).toBe(`${CURRENT_TOS_VERSION}:${CURRENT_PRIVACY_VERSION}`)
+  it('returns tos and privacy versions joined with the user id by colons', () => {
+    const value = buildConsentCookieValue('u1')
+    expect(value).toBe(`${CURRENT_TOS_VERSION}:${CURRENT_PRIVACY_VERSION}:u1`)
+  })
+
+  it('returns different values for different user ids', () => {
+    expect(buildConsentCookieValue('u1')).not.toBe(buildConsentCookieValue('u2'))
   })
 })

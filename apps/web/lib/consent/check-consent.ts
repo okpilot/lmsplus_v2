@@ -20,6 +20,7 @@ export async function checkConsentStatus(
   return 'required'
 }
 
-export function buildConsentCookieValue(): string {
-  return `${CURRENT_TOS_VERSION}:${CURRENT_PRIVACY_VERSION}`
+/** Cookie value bound to a specific user — a value built for one user id never matches for another. */
+export function buildConsentCookieValue(userId: string): string {
+  return `${CURRENT_TOS_VERSION}:${CURRENT_PRIVACY_VERSION}:${userId}`
 }

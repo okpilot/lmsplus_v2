@@ -34,6 +34,8 @@
  */
 
 import { expect, test } from '@playwright/test'
+import { buildConsentCookieValue } from '../../lib/consent/check-consent'
+import { CONSENT_COOKIE } from '../../lib/consent/versions'
 import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers } from './helpers/seed-users'
 
 // Two response classes carry different CSPs:
@@ -138,7 +140,7 @@ test.describe('Red Team: OWASP A02 — security response headers', () => {
   // Location is what proves which one fired:
   //   307 → /app/dashboard        the admin-block branch (what we are testing)
   //   307 → /                     unauthenticated (`/app/*` && !user) — wrong branch
-  //   307 → /consent              consent gate — wrong branch
+  //   307 → /auth/consent-refresh   consent gate — wrong branch
   //   307 → /auth/reset-password  recovery-pending gate — wrong branch
   //   200                         student got admin access (privilege escalation)
   //
@@ -153,7 +155,7 @@ test.describe('Red Team: OWASP A02 — security response headers', () => {
   }) => {
     // Seed the ATTACKER student (role='student') so the proxy's admin-role check
     // returns role !== 'admin' and blocks them. seedRedTeamUsers is idempotent.
-    await seedRedTeamUsers()
+    const { attackerUserId } = await seedRedTeamUsers()
 
     // Create a fresh browser context (no saved auth state — redteam project has
     // no dependencies). Log in via the sign-in page to obtain Supabase session
@@ -176,12 +178,12 @@ test.describe('Red Team: OWASP A02 — security response headers', () => {
 
       // Inject the consent cookie so the proxy's consent gate passes and the
       // request reaches the admin-role check. The cookie value mirrors what
-      // proxy.ts constructs: `${CURRENT_TOS_VERSION}:${CURRENT_PRIVACY_VERSION}`
-      // (lib/consent/versions.ts — currently 'v1.0:v1.0').
+      // checkConsentGate constructs: buildConsentCookieValue(user.id) — three
+      // segments, bound to THIS user's id (#1377), not just the doc versions.
       await context.addCookies([
         {
-          name: '__consent',
-          value: 'v1.0:v1.0',
+          name: CONSENT_COOKIE,
+          value: buildConsentCookieValue(attackerUserId),
           url: 'http://localhost:3000',
         },
       ])
@@ -201,7 +203,7 @@ test.describe('Red Team: OWASP A02 — security response headers', () => {
       ).toBe(307)
 
       // Non-vacuity, part 2: the Location proves WHICH branch redirected. Without
-      // this, an unauthenticated (→ /) or unconsented (→ /consent) request would
+      // this, an unauthenticated (→ /) or unconsented (→ /auth/consent-refresh) request would
       // satisfy the status check while never exercising the admin-role branch.
       expect(
         new URL(response.headers().location ?? '', 'http://localhost:3000').pathname,
