@@ -703,7 +703,7 @@ CREATE POLICY "audit_read_instructors" ON audit_events
 |-------|---------|
 | `student.login` | Successful email + password sign-in (via `record_login()` RPC, 60s rate-limited) |
 | `user.password_changed` | Student changes their own password (via the `changePassword`, `setOwnPassword` or `resetOwnPassword` Server Action, recorded by `record_auth_event()` RPC) |
-| `user.password_reset` | No app caller since `resetStudentPassword` was removed (feat/login-instructions-admin-send) — the `record_auth_event()` RPC still whitelists the event type |
+| `user.password_reset` | Admin Send/Resend replaced a user's Auth password (`sendLoginInstructions`, via `record_auth_event()` once the Auth write took effect, even if the email then fails) |
 | `user.deactivated` | Admin deactivates a student account (via `toggleStudentStatus` deactivate path, recorded by `record_auth_event()` RPC) |
 | `user.created` | Admin creates a new student account (via `createStudent` Server Action, recorded by `record_auth_event()` RPC) |
 | `user.login_instructions_sent` | Admin sends/resends login instructions (temp password) to a student or instructor (via `record_login_instructions_sent()` RPC, migration `20260925000100`) |

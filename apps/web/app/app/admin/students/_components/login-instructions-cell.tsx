@@ -23,21 +23,17 @@ export function LoginInstructionsCell({ student }: Readonly<Props>) {
   const { isSending, handleSend } = useSendLoginInstructions({
     studentId: student.id,
     email: student.email,
+    onSettled: () => setConfirming(false),
   })
   const name = student.full_name ?? student.email
   const isDeactivated = student.deleted_at !== null
-
-  function handleConfirm() {
-    setConfirming(false)
-    handleSend()
-  }
 
   if (confirming) {
     return (
       <div className="max-w-[220px] space-y-1.5 text-xs">
         <p className="text-muted-foreground">{loginInstructionsConfirmText(state, name)}</p>
         <div className="flex items-center gap-1">
-          <LoadingButton size="xs" loading={isSending} onClick={handleConfirm}>
+          <LoadingButton size="xs" loading={isSending} onClick={handleSend}>
             Confirm
           </LoadingButton>
           <Button

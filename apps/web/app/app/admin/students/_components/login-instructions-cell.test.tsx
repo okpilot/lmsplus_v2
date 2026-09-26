@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { StudentRow } from '../types'
 
@@ -120,6 +120,23 @@ describe('LoginInstructionsCell', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
 
     expect(mockHandleSend).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Send' })).toBeInTheDocument()
+  })
+
+  it('keeps the confirmation open while sending and closes it once the send settles', () => {
+    const { rerender } = render(<LoginInstructionsCell student={buildStudent()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
+
+    const { onSettled } = mockUseSendLoginInstructions.mock.lastCall![0] as {
+      onSettled: () => void
+    }
+    act(() => onSettled())
+    rerender(<LoginInstructionsCell student={buildStudent()} />)
+
+    expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Send' })).toBeInTheDocument()
   })
 })

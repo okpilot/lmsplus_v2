@@ -1,3 +1,5 @@
+import type { createServerSupabaseClient } from '@repo/db/server'
+import { recordAuthEvent } from '@/lib/audit/record-auth-event'
 import { generateTempPassword } from '@/lib/auth/generate-temp-password'
 import { TEMP_PASSWORD_TTL_MS } from '@/lib/auth/temp-password-admin'
 import { sendEmail } from '@/lib/email/resend'
@@ -10,10 +12,12 @@ type DeliverOutcome = { ok: true } | { ok: false; result: SendLoginInstructionsR
 
 /**
  * Generates a new temp password, issues it via Auth (arm → write → re-arm),
- * and emails it to the recipient. Returns `{ ok: true }` once the email is
- * sent, or `{ ok: false, result }` with the domain error to return.
+ * audits the change once it took effect, and emails it to the recipient.
+ * Returns `{ ok: true }` once the email is sent, or `{ ok: false, result }`
+ * with the domain error to return.
  */
 export async function issueAndEmailPassword(opts: {
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>
   id: string
   organizationId: string
   recipient: LoginInstructionsRecipient
@@ -28,6 +32,12 @@ export async function issueAndEmailPassword(opts: {
   if (outcome === 'failed') {
     return { ok: false, result: { success: false, error: 'Failed to send login instructions' } }
   }
+  // Admin's user-context client, so auth.uid() is the real actor. Best-effort.
+  await recordAuthEvent(opts.supabase, {
+    eventType: 'user.password_reset',
+    resourceId: opts.id,
+    context: 'sendLoginInstructions',
+  })
   if (outcome === 'issued_not_armed') {
     return {
       ok: false,

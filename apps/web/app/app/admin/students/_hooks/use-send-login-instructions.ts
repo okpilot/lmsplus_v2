@@ -5,6 +5,8 @@ import { sendLoginInstructions } from '../actions/send-login-instructions'
 type UseSendLoginInstructionsOpts = {
   studentId: string
   email: string
+  /** Called once the send settles, success or failure. */
+  onSettled?: () => void
 }
 
 /**
@@ -15,7 +17,11 @@ type UseSendLoginInstructionsOpts = {
  * The lock is cleared once the transition settles either way — unlike a
  * terminal navigation, Resend is expected to fire again later.
  */
-export function useSendLoginInstructions({ studentId, email }: UseSendLoginInstructionsOpts) {
+export function useSendLoginInstructions({
+  studentId,
+  email,
+  onSettled,
+}: UseSendLoginInstructionsOpts) {
   const [isSending, startSending] = useTransition()
   const inFlight = useRef(false)
 
@@ -34,6 +40,7 @@ export function useSendLoginInstructions({ studentId, email }: UseSendLoginInstr
         toast.error('Failed to send login instructions')
       } finally {
         inFlight.current = false
+        onSettled?.()
       }
     })
   }

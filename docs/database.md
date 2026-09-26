@@ -2442,7 +2442,7 @@ $$;
 
 #### `record_auth_event` — audit events for auth Server Actions
 
-Records authentication-related audit events (`user.password_changed`, `user.password_reset`, `user.deactivated`, `user.created`) after successful auth mutations. Called from Server Actions: `changePassword`, `setOwnPassword`, `resetOwnPassword` (all three via `clearTempFlagAndAudit`), `toggleStudentStatus` (deactivate path), and `createStudent`. `user.password_reset` remains a whitelisted event type but has no remaining app caller (`resetStudentPassword` was removed). Auth mutations were previously unaudited; this RPC provides a generic, self-defending audit interface.
+Records authentication-related audit events (`user.password_changed`, `user.password_reset`, `user.deactivated`, `user.created`) after successful auth mutations. Called from Server Actions: `changePassword`, `setOwnPassword`, `resetOwnPassword` (all three via `clearTempFlagAndAudit`), `toggleStudentStatus` (deactivate path), `createStudent`, and `sendLoginInstructions` (`user.password_reset`, once the Auth write took effect). Auth mutations were previously unaudited; this RPC provides a generic, self-defending audit interface.
 
 **Security:**
 - `SECURITY DEFINER` with `SET search_path = public` and manual `auth.uid()` check.

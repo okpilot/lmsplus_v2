@@ -66,6 +66,22 @@ describe('sendLoginInstructions', () => {
     expect(mockIssueAndEmailPassword).not.toHaveBeenCalled()
   })
 
+  it('passes the admin user-context client through to delivery', async () => {
+    mockAdmin()
+    mockGetRecipient.mockResolvedValue(RECIPIENT)
+    mockIssueAndEmailPassword.mockResolvedValue({ ok: true })
+    mockRpc.mockResolvedValue({ data: null, error: null })
+
+    await sendLoginInstructions(VALID_INPUT)
+
+    expect(mockIssueAndEmailPassword).toHaveBeenCalledWith({
+      supabase: SUPABASE,
+      id: USER_ID,
+      organizationId: ORG_ID,
+      recipient: RECIPIENT,
+    })
+  })
+
   it('fails without issuing a password when NEXT_PUBLIC_APP_URL is missing', async () => {
     vi.stubEnv('NEXT_PUBLIC_APP_URL', '')
     mockAdmin()
@@ -110,7 +126,7 @@ describe('sendLoginInstructions', () => {
     expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/students')
   })
 
-  it('still succeeds and logs, but skips revalidate, when the record-sent RPC fails (best-effort)', async () => {
+  it('reports that the email went out but was not recorded when the record-sent RPC fails', async () => {
     mockAdmin()
     mockGetRecipient.mockResolvedValue(RECIPIENT)
     mockIssueAndEmailPassword.mockResolvedValue({ ok: true })
@@ -119,12 +135,15 @@ describe('sendLoginInstructions', () => {
 
     const result = await sendLoginInstructions(VALID_INPUT)
 
-    expect(result).toEqual({ success: true })
+    expect(result).toEqual({
+      success: false,
+      error: 'Login instructions were emailed but the send could not be recorded.',
+    })
     expect(errorSpy).toHaveBeenCalledWith(
       '[sendLoginInstructions] Record-sent RPC failed:',
       'rpc boom',
     )
-    expect(mockRevalidatePath).not.toHaveBeenCalled()
+    expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/students')
     errorSpy.mockRestore()
   })
 })

@@ -5,12 +5,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const mockGenerateTempPassword = vi.hoisted(() => vi.fn())
 const mockIssueTempPassword = vi.hoisted(() => vi.fn())
 const mockSendEmail = vi.hoisted(() => vi.fn())
+const mockRecordAuthEvent = vi.hoisted(() => vi.fn())
 
 vi.mock('@/lib/auth/generate-temp-password', () => ({
   generateTempPassword: mockGenerateTempPassword,
 }))
 vi.mock('./issue-temp-password', () => ({ issueTempPassword: mockIssueTempPassword }))
 vi.mock('@/lib/email/resend', () => ({ sendEmail: mockSendEmail }))
+vi.mock('@/lib/audit/record-auth-event', () => ({ recordAuthEvent: mockRecordAuthEvent }))
 // temp-password-admin re-exports the admin client's module, which throws when
 // imported outside a server context (jsdom test env looks like a browser) —
 // only TEMP_PASSWORD_TTL_MS (a plain constant) is needed here.
@@ -33,7 +35,13 @@ const RECIPIENT = {
   tempPasswordExpiresAt: PRIOR_EXPIRY,
 }
 
-const OPTS = { id: USER_ID, organizationId: ORG_ID, recipient: RECIPIENT }
+const SUPABASE = { __marker: 'supabase' } as never
+const OPTS = { supabase: SUPABASE, id: USER_ID, organizationId: ORG_ID, recipient: RECIPIENT }
+const PASSWORD_RESET_AUDIT = {
+  eventType: 'user.password_reset',
+  resourceId: USER_ID,
+  context: 'sendLoginInstructions',
+}
 
 beforeEach(() => {
   vi.resetAllMocks()
@@ -58,6 +66,7 @@ describe('issueAndEmailPassword', () => {
       password: PASSWORD,
       priorExpiresAt: PRIOR_EXPIRY,
     })
+    expect(mockRecordAuthEvent).toHaveBeenCalledWith(SUPABASE, PASSWORD_RESET_AUDIT)
     expect(result).toEqual({ ok: true })
   })
 
@@ -85,6 +94,7 @@ describe('issueAndEmailPassword', () => {
       result: { success: false, error: 'Failed to send login instructions' },
     })
     expect(mockSendEmail).not.toHaveBeenCalled()
+    expect(mockRecordAuthEvent).not.toHaveBeenCalled()
   })
 
   it('does not send an email when the password was issued but not re-armed', async () => {
@@ -100,6 +110,7 @@ describe('issueAndEmailPassword', () => {
       },
     })
     expect(mockSendEmail).not.toHaveBeenCalled()
+    expect(mockRecordAuthEvent).toHaveBeenCalledWith(SUPABASE, PASSWORD_RESET_AUDIT)
   })
 
   it('reports a send failure and logs when the email fails to send', async () => {
@@ -117,6 +128,7 @@ describe('issueAndEmailPassword', () => {
       },
     })
     expect(errorSpy).toHaveBeenCalledWith('[sendLoginInstructions] send failed:', 'rate limited')
+    expect(mockRecordAuthEvent).toHaveBeenCalledWith(SUPABASE, PASSWORD_RESET_AUDIT)
     errorSpy.mockRestore()
   })
 })
