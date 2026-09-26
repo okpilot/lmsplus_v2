@@ -12,7 +12,7 @@ vi.mock('resend', () => ({
 
 // ---- Subject under test ---------------------------------------------------
 
-import { sendEmail } from './resend'
+import { isEmailConfigured, sendEmail } from './resend'
 
 // ---- Helpers ---------------------------------------------------------------
 
@@ -120,5 +120,31 @@ describe('sendEmail', () => {
     expect(result).toEqual({ ok: false, error: 'send_failed' })
     expect(errorSpy).toHaveBeenCalledWith('[sendEmail] Unexpected error:', 'network down')
     errorSpy.mockRestore()
+  })
+})
+
+describe('isEmailConfigured', () => {
+  it('is configured when RESEND_API_KEY and EMAIL_FROM are present', () => {
+    vi.stubEnv('RESEND_API_KEY', 'test-key')
+    vi.stubEnv('EMAIL_FROM', 'noreply@example.com')
+    expect(isEmailConfigured()).toBe(true)
+  })
+
+  it('is not configured when EMAIL_FROM is missing', () => {
+    vi.stubEnv('RESEND_API_KEY', 'test-key')
+    vi.stubEnv('EMAIL_FROM', '')
+    expect(isEmailConfigured()).toBe(false)
+  })
+
+  it('is not configured in production without RESEND_API_KEY', () => {
+    vi.stubEnv('RESEND_API_KEY', '')
+    vi.stubEnv('NODE_ENV', 'production')
+    expect(isEmailConfigured()).toBe(false)
+  })
+
+  it('is configured outside production without RESEND_API_KEY (dev logging fallback)', () => {
+    vi.stubEnv('RESEND_API_KEY', '')
+    vi.stubEnv('NODE_ENV', 'development')
+    expect(isEmailConfigured()).toBe(true)
   })
 })

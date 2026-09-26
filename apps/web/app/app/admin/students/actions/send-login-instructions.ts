@@ -4,6 +4,7 @@ import type { createServerSupabaseClient } from '@repo/db/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { requireAdmin } from '@/lib/auth/require-admin'
+import { isEmailConfigured } from '@/lib/email/resend'
 import { rpc } from '@/lib/supabase-rpc'
 import { getLoginInstructionsRecipient } from '../login-instructions-recipient'
 import { issueAndEmailPassword } from './deliver-login-instructions'
@@ -33,6 +34,11 @@ export async function sendLoginInstructions(input: unknown): Promise<SendLoginIn
   // Fail fast on a misconfigured base URL rather than emailing a broken link.
   if (!process.env.NEXT_PUBLIC_APP_URL) {
     console.error('[sendLoginInstructions] NEXT_PUBLIC_APP_URL is not set')
+    return { success: false, error: 'Failed to send login instructions' }
+  }
+  // Checked before the password is replaced, so a misconfigured mailer cannot lock the student out.
+  if (!isEmailConfigured()) {
+    console.error('[sendLoginInstructions] email sending is not configured')
     return { success: false, error: 'Failed to send login instructions' }
   }
 

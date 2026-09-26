@@ -7,6 +7,7 @@ const mockRequireAdmin = vi.hoisted(() => vi.fn())
 const mockGetRecipient = vi.hoisted(() => vi.fn())
 const mockRpc = vi.hoisted(() => vi.fn())
 const mockIssueAndEmailPassword = vi.hoisted(() => vi.fn())
+const mockIsEmailConfigured = vi.hoisted(() => vi.fn())
 
 vi.mock('next/cache', () => ({ revalidatePath: mockRevalidatePath }))
 vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: mockRequireAdmin }))
@@ -14,6 +15,7 @@ vi.mock('../login-instructions-recipient', () => ({
   getLoginInstructionsRecipient: mockGetRecipient,
 }))
 vi.mock('@/lib/supabase-rpc', () => ({ rpc: mockRpc }))
+vi.mock('@/lib/email/resend', () => ({ isEmailConfigured: mockIsEmailConfigured }))
 vi.mock('./deliver-login-instructions', () => ({
   issueAndEmailPassword: mockIssueAndEmailPassword,
 }))
@@ -46,6 +48,7 @@ function mockAdmin() {
 beforeEach(() => {
   vi.resetAllMocks()
   vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://app.example.com')
+  mockIsEmailConfigured.mockReturnValue(true)
 })
 
 describe('sendLoginInstructions', () => {
@@ -93,6 +96,20 @@ describe('sendLoginInstructions', () => {
     expect(result).toEqual({ success: false, error: 'Failed to send login instructions' })
     expect(mockIssueAndEmailPassword).not.toHaveBeenCalled()
     expect(errorSpy).toHaveBeenCalledWith('[sendLoginInstructions] NEXT_PUBLIC_APP_URL is not set')
+    errorSpy.mockRestore()
+  })
+
+  it('fails without issuing a password when email sending is not configured', async () => {
+    mockIsEmailConfigured.mockReturnValue(false)
+    mockAdmin()
+    mockGetRecipient.mockResolvedValue(RECIPIENT)
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const result = await sendLoginInstructions(VALID_INPUT)
+
+    expect(result).toEqual({ success: false, error: 'Failed to send login instructions' })
+    expect(mockIssueAndEmailPassword).not.toHaveBeenCalled()
+    expect(errorSpy).toHaveBeenCalledWith('[sendLoginInstructions] email sending is not configured')
     errorSpy.mockRestore()
   })
 
