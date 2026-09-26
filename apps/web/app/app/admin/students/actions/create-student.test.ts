@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -45,9 +45,9 @@ function mockAdmin() {
 }
 
 function buildChain({ insertError = null }: { insertError?: { message: string } | null } = {}) {
-  mockFrom.mockReturnValue({
-    upsert: vi.fn().mockResolvedValue({ error: insertError }),
-  })
+  const mockUpsert = vi.fn().mockResolvedValue({ error: insertError })
+  mockFrom.mockReturnValue({ upsert: mockUpsert })
+  return mockUpsert
 }
 
 function mockAuthCreateUser({ error = null }: { error?: { message: string } | null } = {}) {
@@ -61,6 +61,10 @@ function mockAuthCreateUser({ error = null }: { error?: { message: string } | nu
 
 beforeEach(() => {
   vi.resetAllMocks()
+})
+
+afterEach(() => {
+  vi.useRealTimers()
 })
 
 describe('createStudent', () => {
@@ -156,6 +160,21 @@ describe('createStudent', () => {
 
       expect(mockCreateUser).toHaveBeenCalledWith(
         expect.objectContaining({ user_metadata: { must_change_password: true } }),
+      )
+    })
+
+    it('arms the temp-password expiry roughly 7 days ahead on the new profile row', async () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'))
+      mockAdmin()
+      const mockUpsert = buildChain()
+      mockAuthCreateUser()
+
+      await createStudent(VALID_INPUT)
+
+      expect(mockUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({ temp_password_expires_at: '2026-01-08T00:00:00.000Z' }),
+        expect.anything(),
       )
     })
   })

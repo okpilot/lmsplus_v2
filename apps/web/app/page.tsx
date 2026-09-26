@@ -10,6 +10,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   auth_failed: 'Authentication failed. Please try again.',
   invalid_recovery_link:
     'The password reset link is invalid or has expired. Please request a new one.',
+  temp_password_expired:
+    'Your temporary password has expired. Ask your instructor to send you new login instructions.',
 }
 
 type Props = {

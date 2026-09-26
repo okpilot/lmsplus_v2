@@ -1,7 +1,9 @@
 import { createMiddlewareSupabaseClient } from '@repo/db/middleware'
+import type { User } from '@supabase/supabase-js'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { safeNextPath } from '@/lib/auth/safe-next-path'
+import { checkTempPasswordGate } from '@/lib/auth/temp-password-gate'
 import {
   CONSENT_COOKIE,
   CURRENT_PRIVACY_VERSION,
@@ -46,6 +48,36 @@ function forwardAntiCacheHeaders(source: NextResponse, target: NextResponse): vo
   }
 }
 
+/** 503 for a failed authorization read on /app, carrying the session cookies and security headers. */
+function serviceUnavailable(response: NextResponse): NextResponse {
+  const unavailable = new NextResponse('Service unavailable', { status: 503 })
+  for (const cookie of response.cookies.getAll()) {
+    unavailable.cookies.set(cookie)
+  }
+  forwardAntiCacheHeaders(response, unavailable)
+  applySecurityHeaders(unavailable)
+  return unavailable
+}
+
+/** Pins a mid-quiz session's `__vdpl` cookie so a deploy mid-quiz doesn't break Server Actions. */
+function pinQuizSessionDeployment(opts: {
+  pathname: string
+  user: User | null
+  request: NextRequest
+  response: NextResponse
+}): void {
+  const { pathname, user, request, response } = opts
+  if (!pathname.startsWith('/app/quiz/session') || !user) return
+  const deploymentId = process.env.VERCEL_DEPLOYMENT_ID
+  if (!deploymentId || request.cookies.get('__vdpl')) return
+  response.cookies.set('__vdpl', deploymentId, {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'strict',
+    secure: process.env.NODE_ENV === 'production',
+  })
+}
+
 export async function proxy(request: NextRequest): Promise<Response> {
   // Cast needed: @playwright/test causes a duplicate next.js install with incompatible internal types
   const { supabase, response } = createMiddlewareSupabaseClient(
@@ -87,6 +119,19 @@ export async function proxy(request: NextRequest): Promise<Response> {
     return redirectWithCookies(withNext(new URL('/', request.url), next))
   }
 
+  // Temporary-password gate (Decision 100); runs before consent.
+  if (pathname.startsWith('/app') && user) {
+    const gateResponse = await checkTempPasswordGate({
+      supabase,
+      userId: user.id,
+      requestUrl: request.url,
+      nextPath: safeNextPath(pathname + request.nextUrl.search),
+      buildServiceUnavailable: () => serviceUnavailable(response),
+      redirectWithCookies,
+    })
+    if (gateResponse) return gateResponse
+  }
+
   // Consent gate: authenticated /app/* users without valid consent → /consent
   if (pathname.startsWith('/app') && user) {
     const consentCookie = request.cookies.get(CONSENT_COOKIE)?.value
@@ -114,13 +159,7 @@ export async function proxy(request: NextRequest): Promise<Response> {
 
     if (profileError) {
       console.error('[proxy] admin role lookup error:', profileError.message)
-      const unavailable = new NextResponse('Service unavailable', { status: 503 })
-      for (const cookie of response.cookies.getAll()) {
-        unavailable.cookies.set(cookie)
-      }
-      forwardAntiCacheHeaders(response, unavailable)
-      applySecurityHeaders(unavailable)
-      return unavailable
+      return serviceUnavailable(response)
     }
 
     // Bounce to the student dashboard rather than emitting a bare 403 body: the
@@ -141,18 +180,7 @@ export async function proxy(request: NextRequest): Promise<Response> {
     }
   }
 
-  // Pin quiz session to current deployment so mid-quiz deploys don't break Server Actions
-  if (pathname.startsWith('/app/quiz/session') && user) {
-    const deploymentId = process.env.VERCEL_DEPLOYMENT_ID
-    if (deploymentId && !request.cookies.get('__vdpl')) {
-      response.cookies.set('__vdpl', deploymentId, {
-        path: '/',
-        httpOnly: true,
-        sameSite: 'strict',
-        secure: process.env.NODE_ENV === 'production',
-      })
-    }
-  }
+  pinQuizSessionDeployment({ pathname, user, request, response })
 
   // Redirect authenticated users away from login page to dashboard, or to the
   // path they originally requested (e.g. from an emailed /app/... link).
@@ -166,5 +194,5 @@ export async function proxy(request: NextRequest): Promise<Response> {
 }
 
 export const config = {
-  matcher: ['/', '/app/:path*', '/auth/login-complete', '/consent'],
+  matcher: ['/', '/app/:path*', '/auth/login-complete', '/auth/set-password', '/consent'],
 }

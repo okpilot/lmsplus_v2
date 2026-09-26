@@ -121,7 +121,7 @@ CREATE TABLE users (
 ```
 
 **Login-instructions columns (migration `20260925000100`, login-instructions-email feature):**
-`login_instructions_sent_at` — last time an admin sent this user their login details; NULL = never sent. `temp_password_expires_at` — expiry of the temporary password; NULL = none recorded; `< now()` = expired. The only in-app writer of either column is the SECURITY DEFINER RPC `record_login_instructions_sent(p_user_id)` (see RPC section below), which stamps both on a send. No application action or RPC clears `temp_password_expires_at` yet.
+`login_instructions_sent_at` — last time an admin sent this user their login details; NULL = never sent. `temp_password_expires_at` — expiry of the temporary password; NULL = none recorded; `<= now()` = expired. Writers: the SECURITY DEFINER RPC `record_login_instructions_sent(p_user_id)` (see RPC section below) stamps both on a send; `clearTempPassword()` sets `temp_password_expires_at` to NULL, called only after a successful self `auth.updateUser` password change (set-password, Settings, forgot-password completion); an admin-issued reset (`apps/web/app/app/admin/students/actions/reset-student-password.ts`, orchestrated by `issueTempPassword()` in `apps/web/app/app/admin/students/actions/issue-temp-password.ts`) calls `armTempPassword()` (7 days out) before and again after writing the new Auth password; on an Auth-write failure `restoreTempPasswordExpiry()` writes back the value read before the first arm, compare-and-set on that arm's value — both writers in `apps/web/lib/auth/temp-password-admin.ts` (service role); `apps/web/app/app/admin/students/actions/create-student.ts` sets it directly to 7 days out on the new profile row's insert (`TEMP_PASSWORD_TTL_MS`, same constant). Readers: every caller of `readTempPassword` or its wrapper `readTempPasswordState` (both `apps/web/lib/auth/temp-password.ts`; the self-service writers read through `refuseIfTempPasswordExpired`) — `git grep -nE 'readTempPassword(State)?\(|refuseIfTempPasswordExpired\(' -- apps/web ':!*.test.*'`.
 
 **RLS policies (migration `20260311000004`, fixed in `20260312000012`; UPDATE added `20260326000056`):**
 - SELECT: self-only — `id = auth.uid() AND deleted_at IS NULL` (`users_select` policy). A caller reads only their own row; org-wide member listing goes through admin-gated RPCs, not a direct SELECT.
@@ -2442,7 +2442,7 @@ $$;
 
 #### `record_auth_event` — audit events for auth Server Actions
 
-Records authentication-related audit events (`user.password_changed`, `user.password_reset`, `user.deactivated`, `user.created`) after successful auth mutations. Called from Server Actions: `changePassword`, `resetStudentPassword`, `toggleStudentStatus` (deactivate path), and `createStudent`. Auth mutations were previously unaudited; this RPC provides a generic, self-defending audit interface.
+Records authentication-related audit events (`user.password_changed`, `user.password_reset`, `user.deactivated`, `user.created`) after successful auth mutations. Called from Server Actions: `changePassword`, `setOwnPassword`, `resetOwnPassword` (all three via `clearTempFlagAndAudit`), `resetStudentPassword`, `toggleStudentStatus` (deactivate path), and `createStudent`. Auth mutations were previously unaudited; this RPC provides a generic, self-defending audit interface.
 
 **Security:**
 - `SECURITY DEFINER` with `SET search_path = public` and manual `auth.uid()` check.

@@ -2,8 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('../actions', () => ({
-  updateDisplayName: vi.fn(),
+vi.mock('../password-actions', () => ({
   changePassword: vi.fn(),
 }))
 
@@ -12,7 +11,7 @@ vi.mock('sonner', () => ({
 }))
 
 import { toast } from 'sonner'
-import { changePassword } from '../actions'
+import { changePassword } from '../password-actions'
 import { ChangePasswordForm } from './change-password-form'
 
 describe('ChangePasswordForm', () => {

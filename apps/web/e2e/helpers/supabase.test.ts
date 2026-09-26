@@ -150,7 +150,7 @@ describe('ensureTestUser', () => {
         listUsers: { data: null, error: { message: 'permission denied' } },
       }),
     )
-    await expect(ensureTestUser()).rejects.toThrow('ensureTestUser listUsers: permission denied')
+    await expect(ensureTestUser()).rejects.toThrow('Could not list users: permission denied')
   })
 
   it('throws when the org lookup query fails', async () => {

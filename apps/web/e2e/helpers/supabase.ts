@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { CURRENT_PRIVACY_VERSION, CURRENT_TOS_VERSION } from '../../lib/consent/versions'
+import { findAuthUserByEmail } from './auth-users'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://localhost:54321'
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -97,9 +98,7 @@ export async function ensureTestUser() {
   const orgId = org.id
 
   // Check if auth user exists
-  const { data: existingUsers, error: listError } = await admin.auth.admin.listUsers()
-  if (listError) throw new Error(`ensureTestUser listUsers: ${listError.message}`)
-  const existingAuth = existingUsers?.users.find((u: { email?: string }) => u.email === TEST_EMAIL)
+  const existingAuth = await findAuthUserByEmail(admin, TEST_EMAIL)
 
   let userId: string
   if (existingAuth) {
@@ -171,11 +170,7 @@ export async function ensureLoginTestUser() {
   if (orgError || !org) throw new Error(`ensureLoginTestUser org lookup: ${orgError?.message}`)
   const orgId = org.id
 
-  const { data: existingUsers, error: listError } = await admin.auth.admin.listUsers()
-  if (listError) throw new Error(`ensureLoginTestUser listUsers: ${listError.message}`)
-  const existingAuth = existingUsers?.users.find(
-    (u: { email?: string }) => u.email === LOGIN_TEST_EMAIL,
-  )
+  const existingAuth = await findAuthUserByEmail(admin, LOGIN_TEST_EMAIL)
 
   let userId: string
   if (existingAuth) {
@@ -245,11 +240,7 @@ export async function ensureInternalExamStudentUser() {
     throw new Error(`ensureInternalExamStudentUser org lookup: ${orgError?.message}`)
   const orgId = org.id
 
-  const { data: existingUsers, error: listError } = await admin.auth.admin.listUsers()
-  if (listError) throw new Error(`ensureInternalExamStudentUser listUsers: ${listError.message}`)
-  const existingAuth = existingUsers?.users.find(
-    (u: { email?: string }) => u.email === INTERNAL_EXAM_STUDENT_EMAIL,
-  )
+  const existingAuth = await findAuthUserByEmail(admin, INTERNAL_EXAM_STUDENT_EMAIL)
 
   let userId: string
   if (existingAuth) {

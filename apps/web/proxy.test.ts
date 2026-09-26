@@ -9,6 +9,15 @@ import { proxy } from './proxy'
 
 const mockGetUser = vi.fn()
 const mockFrom = vi.fn()
+const { mockReadTempPasswordState, mockSignOutExpiredTempPassword } = vi.hoisted(() => ({
+  mockReadTempPasswordState: vi.fn(),
+  mockSignOutExpiredTempPassword: vi.fn(),
+}))
+
+vi.mock('@/lib/auth/temp-password', () => ({
+  readTempPasswordState: mockReadTempPasswordState,
+  signOutExpiredTempPassword: mockSignOutExpiredTempPassword,
+}))
 
 // A plain object that stands in for the session-refreshed supabase NextResponse
 const MOCK_SESSION_RESPONSE = {
@@ -81,6 +90,9 @@ describe('proxy', () => {
     // Reset the shared mock's headers each test so a header set by one test can never
     // leak into another (e.g. if a proxy() call throws before a try/finally cleanup runs).
     MOCK_SESSION_RESPONSE.headers = new Headers()
+    // Default: no armed temp password — every pre-existing test exercises a gate
+    // downstream of this one and must fall through it unaffected.
+    mockReadTempPasswordState.mockResolvedValue('none')
   })
 
   it('redirects unauthenticated requests for /app/dashboard to /', async () => {
@@ -395,6 +407,7 @@ describe('proxy', () => {
     beforeEach(() => {
       vi.clearAllMocks()
       process.env.VERCEL_DEPLOYMENT_ID = DEPLOYMENT_ID
+      mockReadTempPasswordState.mockResolvedValue('none')
     })
 
     afterEach(() => {

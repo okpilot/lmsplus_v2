@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache'
 import type { ActionResult } from '@/lib/action-result'
 import { recordAuthEvent } from '@/lib/audit/record-auth-event'
 import { requireAdmin } from '@/lib/auth/require-admin'
+import { TEMP_PASSWORD_TTL_MS } from '@/lib/auth/temp-password-admin'
 
 export async function createStudent(input: unknown): Promise<ActionResult> {
   const parsed = CreateStudentSchema.safeParse(input)
@@ -31,28 +32,14 @@ export async function createStudent(input: unknown): Promise<ActionResult> {
     return { success: false, error: 'Failed to create student' }
   }
 
-  // NOTE: Two coordinated mutations (Auth API + users INSERT) cannot be wrapped
-  // in a single Postgres RPC because Auth API is not callable from SQL.
-  // Orphan cleanup is handled in the insertErr branch below.
-  const { error: insertErr } = await adminClient
-    .from('users')
-    .upsert(
-      { id: authData.user.id, email, full_name, role, organization_id: organizationId },
-      { onConflict: 'id', ignoreDuplicates: true },
-    )
-
-  if (insertErr) {
-    console.error('[createStudent] Profile insert failed:', insertErr.message)
-    const { error: rollbackErr } = await adminClient.auth.admin.deleteUser(authData.user.id)
-    if (rollbackErr) {
-      console.error(
-        '[createStudent] Rollback failed — orphaned auth user:',
-        authData.user.id,
-        rollbackErr.message,
-      )
-    }
-    return { success: false, error: 'Failed to create student' }
-  }
+  const inserted = await insertStudentProfile({
+    userId: authData.user.id,
+    email,
+    fullName: full_name,
+    role,
+    organizationId,
+  })
+  if (!inserted) return { success: false, error: 'Failed to create student' }
 
   // Audit the creation via the admin's user-context client (auth.uid() = admin).
   // Best-effort: the student exists, so a failed audit write is logged, not surfaced.
@@ -64,4 +51,41 @@ export async function createStudent(input: unknown): Promise<ActionResult> {
 
   revalidatePath('/app/admin/students')
   return { success: true }
+}
+
+/**
+ * Inserts the profile row, armed with a 7-day temp-password expiry. On failure,
+ * deletes the just-created Auth user (Auth API + users INSERT cannot share one
+ * SQL transaction) and logs if that rollback fails too.
+ */
+async function insertStudentProfile(opts: {
+  userId: string
+  email: string
+  fullName: string
+  role: string
+  organizationId: string
+}): Promise<boolean> {
+  const { error: insertErr } = await adminClient.from('users').upsert(
+    {
+      id: opts.userId,
+      email: opts.email,
+      full_name: opts.fullName,
+      role: opts.role,
+      organization_id: opts.organizationId,
+      temp_password_expires_at: new Date(Date.now() + TEMP_PASSWORD_TTL_MS).toISOString(),
+    },
+    { onConflict: 'id', ignoreDuplicates: true },
+  )
+  if (!insertErr) return true
+
+  console.error('[createStudent] Profile insert failed:', insertErr.message)
+  const { error: rollbackErr } = await adminClient.auth.admin.deleteUser(opts.userId)
+  if (rollbackErr) {
+    console.error(
+      '[createStudent] Rollback failed — orphaned auth user:',
+      opts.userId,
+      rollbackErr.message,
+    )
+  }
+  return false
 }
