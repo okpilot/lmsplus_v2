@@ -30,7 +30,7 @@ export function LoginInstructionsCell({ student }: Readonly<Props>) {
 
   if (confirming) {
     return (
-      <div className="max-w-[220px] space-y-1.5 text-xs">
+      <div className="max-w-[220px] space-y-1.5 whitespace-normal text-xs">
         <p className="text-muted-foreground">{loginInstructionsConfirmText(state, name)}</p>
         <div className="flex items-center gap-1">
           <LoadingButton size="xs" loading={isSending} onClick={handleSend}>
