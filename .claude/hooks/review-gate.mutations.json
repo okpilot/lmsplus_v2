@@ -9,7 +9,8 @@
       "replace": "then delete .claude/review-gate.json to unlock edits.\\n`,\n  )\n  process.exit(0)",
       "expectRed": [
         "blocks a production file edit and surfaces findings when the gate is active",
-        "still blocks on a corrupt gate file, substituting a parse-error message"
+        "still blocks on a corrupt gate file, substituting a parse-error message",
+        "blocks a production target reached through an exempt directory via .."
       ],
       "note": "Forces the active-gate branch to exit 0 instead of 2 — findings are printed but the edit is no longer blocked. Reddens the corrupt-gate-file test too: it falls through to the same blocking branch once its own JSON.parse catch substitutes the parse-error message."
     },
