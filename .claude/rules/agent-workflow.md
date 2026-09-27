@@ -103,7 +103,8 @@ Plans, task lists, handovers, triage and eval notes go in `.work/` (gitignored).
 ### Every agent dispatch is ASYNCHRONOUS — the diagram is a data dependency, not a clock
 `Agent` returns an id immediately; the agent runs in the BACKGROUND and notifies you when done. Nothing makes the diagram below happen in the order it is drawn.
 - **"Complete" means every completion notification from the agents LAUNCHED is RECEIVED, never merely dispatched.** Read every result before triaging — a partial pool biases the triage.
-- **Never edit a file while an agent that can write it is in flight.** The loser's change vanishes with no error, no conflict, no failing gate. Only **test-writer** holds Write/Edit (scoped to test files); every agent still keeps `Bash`, which can write. Round 1 runs seven concurrently — this is the gate's sharpest edge. The collision set is SIX: `code-review (skill)` runs with its cwd in an isolated worktree, so its writes land there and not in the main tree. That is NOT a read-only guarantee — it keeps `Bash` like every agent — and the exemption holds only while it is dispatched the way `agent-code-review.md § Dispatch` mandates.
+- **Never edit a file while an agent that can write it is in flight.** The loser's change vanishes with no error, no conflict, no failing gate. In round 1, **test-writer** and **e2e-writer** hold Write/Edit on disjoint paths (test-writer scoped to test files, excluding `apps/web/e2e/**`; e2e-writer scoped to `apps/web/e2e/**` excluding `redteam/`); every agent still keeps `Bash`, which can write. Round 1 runs eight concurrently — this is the gate's sharpest edge. The collision set is SEVEN: `code-review (skill)` runs with its cwd in an isolated worktree, so its writes land there and not in the main tree. That is NOT a read-only guarantee — it keeps `Bash` like every agent — and the exemption holds only while it is dispatched the way `agent-code-review.md § Dispatch` mandates. **red-team** (opus) runs once, ALONE, after the loop ends — it holds Write/Edit scoped to `apps/web/e2e/redteam/**` only, never concurrent with round 1 or round 2+.
+- **After each writer agent's result lands, run `git status --porcelain --untracked-files=all` and reject any path outside that writer's scope** (`§ Finding Validation` — an artifact check, not the agent's self-report) before trusting it as that round's/that post-loop run's output.
 
 ### The gate — ONE loop over the branch diff, not a cycle per commit
 Commits inside a branch are scratch history; squash-merge discards them. Review the artifact that lands.
@@ -118,12 +119,13 @@ Three-dot (merge-base). ABORT on a non-zero EXIT CODE from fetch, base resolutio
 Execute ▼ commit freely — a commit triggers NOTHING
     ▼  (pre-push, per BRANCH)
 ROUND 1  implementation-critic + code-reviewer + semantic-reviewer + doc-updater
-         + test-writer + deletion-reviewer + code-review (skill) — ONE parallel batch, all on the
-         branch diff.  code-review (skill) is the built-in /code-review skill,
-         dispatched as subagent_type code-review-skill in an isolated worktree on opus.
+         + test-writer + deletion-reviewer + code-review (skill) + e2e-writer (conditional,
+         see § Trigger below) — ONE parallel batch, all on the branch diff.  code-review (skill)
+         is the built-in /code-review skill, dispatched as subagent_type code-review-skill in an
+         isolated worktree on opus.
 ROUND 2+ code-reviewer + semantic-reviewer + deletion-reviewer + code-review (skill)
-         (doc-updater and test-writer PRODUCE, they do not gate — re-run either only
-          when the fixup added surface it has not seen)
+         (doc-updater, test-writer and e2e-writer PRODUCE, they do not gate — re-run any of
+          them only when the fixup added surface it has not seen)
     ▼
 each round: WAIT for every agent LAUNCHED ─► validate every finding
             (§ Finding Validation) ─► ONE pooled triage table ─► ONE fixup commit
@@ -136,8 +138,12 @@ STOP on the FIRST round carrying no APPLY-worthy finding. No minimum, no floor.
           never run another round.
     ▼
 then ONCE per branch, in this order:
-    red-team (if the branch diff matches § Red-Team Agent Trigger)
-            ─► coderabbit-sync (if it matches `agent-coderabbit-sync.md`)
+    red-team (if the branch diff matches § Red-Team Agent Trigger) — attacks the local stack
+            ├─► NO proven exploit: report gaps ─► coderabbit-sync (if triggered)
+            └─► PROVEN exploit: fixup (spec + prod fix) ─► round-2+ set re-runs on the
+                  re-diffed branch (counts against the same 3-round ceiling; at ceiling,
+                  escalate instead of looping) ─► red-team re-runs ONCE to confirm its
+                  spec now passes ─► coderabbit-sync (if triggered)
     ▼
 update spec tasks.md ([ ] → [x]) ▼ /fullpush ▼ push (security-auditor, fail-closed)
 ```
@@ -150,7 +156,7 @@ Runs on the branch diff against the validated plan and requirements (spec or pla
 ### Red-Team Agent Trigger (conditional)
 After the review loop ends, check whether the BRANCH DIFF includes any of these paths: `supabase/migrations/**`, `packages/db/src/**`, `apps/web/app/app/quiz/actions/**`, `apps/web/app/auth/**`, `apps/web/proxy.ts`, `docs/security.md`.
 `agent-red-team.md` adds ONE path for its own trigger — `apps/web/e2e/redteam/` — and `/fullpush` step 7b honours it too; a spec-only change runs the agent while matching nothing above.
-If yes, run red-team (sonnet) — maps changes to specs, flags coverage gaps. If it flags affected specs, run `pnpm --filter @repo/web e2e:redteam`.
+If yes, run red-team (opus) — maps changes to specs, then attacks the local stack: chases every new/changed primitive through the whole app, and for each proven exploit writes + runs a failing spec under `apps/web/e2e/redteam/` as evidence. Unproven gaps still get a coverage-gap report. If it flags affected specs, run `pnpm --filter @repo/web e2e:redteam`.
 
 ## The branch diff is the review artifact
 § Pre-Push Review Gate is the one review pass, on every branch whatever its commit count. Cross-commit defects are only visible here: a test assertion against prod code from another commit, a doc matrix against an earlier schema change, an error-handling pattern split across commits.
@@ -259,7 +265,7 @@ A review round surfacing a NEW critical in a section an earlier round already re
 ### Splitting is SEQUENCING, not deferring
 Pieces are built in order, in the same run. Only a deferral if a piece is left unbuilt — say so in the PR body.
 ### Batch the fixups too (UNCHANGED by the split default)
-Collect ALL findings from ALL of a round's reviewers into **ONE fixup commit**, not one per finding. test-writer's tests ride the same commit (`agent-test-writer.md`). The fixup commit triggers nothing by itself — the next ROUND is what re-reads it.
+Collect ALL findings from ALL of a round's reviewers into **ONE fixup commit**, not one per finding. test-writer's and e2e-writer's specs ride the same commit (`agent-test-writer.md`, `agent-e2e-writer.md`). red-team's proven-exploit spec + the prod fix ride together as their own fixup commit, post-loop. The fixup commit triggers nothing by itself — the next ROUND is what re-reads it.
 ### Anti-patterns — there are TWO, in opposite directions
 1. One issue → one branch → full pipeline → merge → repeat — crawls on a multi-issue mechanical run.
 2. Everything the work touches → one branch — review does not converge, and a migration drags unrelated code through a prod-deploy gate.
@@ -315,7 +321,7 @@ A commit modifying a rule in `.claude/rules/*.md` or `CLAUDE.md` must update eve
 
 ## Orchestrator Role
 ### DO
-- Run the pre-push gate once per branch (§ Pre-Push Review Gate) — round 1 dispatches all seven reviewers in ONE parallel batch; WAIT for a completion notification from every agent LAUNCHED before acting.
+- Run the pre-push gate once per branch (§ Pre-Push Review Gate) — round 1 dispatches all eight reviewers in ONE parallel batch; WAIT for a completion notification from every agent LAUNCHED before acting.
 - Read all results before starting any fixes.
 - Validate every ISSUE/CRITICAL finding before fixing.
 - Report findings to the user in a summary table: agent / severity / count / status.
@@ -329,7 +335,7 @@ A commit modifying a rule in `.claude/rules/*.md` or `CLAUDE.md` must update eve
 - Treat a commit as a review trigger. Commits are free; only a round reads them.
 - Start fixing before every LAUNCHED agent has reported — async, dispatching is not reporting.
 - Fire-and-forget agents without reading results.
-- Edit a file while an agent that can write it is in flight — only test-writer holds Write/Edit (scoped to test files); Bash still writes, so this is one collision, silent and gateless.
+- Edit a file while an agent that can write it is in flight — in round 1, test-writer and e2e-writer hold Write/Edit on disjoint paths, and post-loop red-team holds it alone on `apps/web/e2e/redteam/**`; Bash still writes for every agent, so this is a live collision, silent and gateless.
 - Jump to fix a reviewer finding without validating the claim first.
 - Present "0 critical" as if that means clean — report every severity.
 - Push with any unresolved CRITICAL, BLOCKING, or ISSUE finding.

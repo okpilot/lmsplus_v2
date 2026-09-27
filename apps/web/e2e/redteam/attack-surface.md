@@ -15,8 +15,8 @@
 
 ## Vector-to-Spec Mapping
 
-| ID | Vector | Priority | Spec File | Status | Notes |
-|----|--------|----------|-----------|--------|-------|
+| ID | Vector | Priority | Spec File | Status | Notes | Technique |
+|----|--------|----------|-----------|--------|-------|---|
 | A | submit_quiz_answer accepts foreign questionId | HIGH | rpc-question-membership.spec.ts | FIXED (migration 033) | Added question membership check to RPC |
 | B | fetch-stats without auth | MEDIUM | server-action-unauthenticated.spec.ts (RPC sub-vectors) + server-action-unauth-table-reads.spec.ts (table SELECT sub-vectors) | PASSING | RPCs require auth.uid(); table SELECT sub-vectors (student_responses, quiz_sessions, users, questions, quiz_session_answers, audit_events) split to server-action-unauth-table-reads.spec.ts (PR test/non-vacuous-integration-negatives, 2026-09-19) — all 6 now have admin non-vacuity pre-checks confirming victim data exists before the anon probe |
 | C | Draft with foreign question_ids | MEDIUM | quiz-draft-injection.spec.ts | TBD | RLS may not check question ownership in drafts |

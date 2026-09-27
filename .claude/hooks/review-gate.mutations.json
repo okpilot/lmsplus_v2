@@ -19,6 +19,13 @@
       "replace": "  // No gate file = no restrictions\n  if (false) {\n    process.exit(0)\n  }",
       "expectRed": ["allows any edit when no gate file is present"],
       "note": "Removes the early no-gate-file return — the hook falls through to the blocking path, whose own catch turns a missing gate file into '(could not parse gate file)' and still blocks."
+    },
+    {
+      "id": "review-gate-e2e-always-blocks",
+      "find": "    filePath.includes('/e2e/') ||\n    filePath.includes('\\\\e2e\\\\') ||\n",
+      "replace": "",
+      "expectRed": ["allows a spec.ts edit under apps/web/e2e/ even when the gate is active"],
+      "note": "Removes the /e2e/ allowance — a spec edit under apps/web/e2e/ is blocked again while the gate is active, even though e2e-writer/red-team need to write there."
     }
   ]
 }

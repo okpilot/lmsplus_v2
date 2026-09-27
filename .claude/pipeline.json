@@ -37,7 +37,12 @@
       "write": false,
       "role": "gate-round"
     },
-    "red-team": { "model": "sonnet", "write": false, "role": "conditional" },
+    "red-team": { "model": "opus", "write": true, "role": "conditional" },
+    "e2e-writer": {
+      "model": "sonnet",
+      "write": true,
+      "role": "gate-round"
+    },
     "coderabbit-sync": {
       "model": "haiku",
       "write": false,

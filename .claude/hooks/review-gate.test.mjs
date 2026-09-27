@@ -121,6 +121,21 @@ test('allows a /docs/ path edit even when the gate is active', () => {
   }
 })
 
+// GROUP: review-gate-e2e-always-blocks
+test('allows a spec.ts edit under apps/web/e2e/ even when the gate is active', () => {
+  const dir = makeDir()
+  try {
+    withGate(dir)
+    const r = runHook(
+      '{"tool_input":{"file_path":"/project/apps/web/e2e/admin-students.spec.ts"}}',
+      dir,
+    )
+    assert.equal(r.status, 0)
+  } finally {
+    cleanup(dir)
+  }
+})
+
 test('allows an .md file edit even when the gate is active', () => {
   const dir = makeDir()
   try {
