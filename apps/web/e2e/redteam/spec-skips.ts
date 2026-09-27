@@ -31,11 +31,17 @@ function isStaticSkipLine(lines: readonly string[], index: number): boolean {
 }
 
 /** Matches a `// Vector <ID>`-style attribution comment, capturing the exact ID token. */
-const VECTOR_ATTRIBUTION_RE = /\bVector\s+([A-Za-z][\w-]*)\b/g
+const VECTOR_ATTRIBUTION_RE =
+  /\bVectors?\s+([A-Za-z][\w-]*(?:\s*(?:,|\/|&|\band\b)\s*(?:Vectors?\s+)?[A-Za-z][\w-]*)*)/g
+
+/** Separates the IDs of one `Vector A, B and C` list. */
+const VECTOR_LIST_SEPARATOR_RE = /\s*(?:,|\/|&|\band\b)\s*(?:Vectors?\s+)?/
 
 /** Every vector ID a line attributes a skip to; empty when the line names none. */
 function attributedVectorIds(line: string): string[] {
-  return [...line.matchAll(VECTOR_ATTRIBUTION_RE)].map((match) => match[1])
+  return [...line.matchAll(VECTOR_ATTRIBUTION_RE)].flatMap((match) =>
+    match[1].split(VECTOR_LIST_SEPARATOR_RE),
+  )
 }
 
 /**

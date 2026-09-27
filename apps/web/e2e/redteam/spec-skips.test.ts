@@ -90,6 +90,21 @@ describe('skippedSpecRowIds', () => {
     expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
   })
 
+  it('flags a skip whose comment lists this row after another ID', () => {
+    const source = "// Vector QQ, ZZ\ntest.skip('rejects a forged token', async () => {})"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
+  })
+
+  it('flags a skip whose plural Vectors comment names this row', () => {
+    const source = "// Vectors QQ and ZZ\ntest.skip('rejects a forged token', async () => {})"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
+  })
+
+  it('does not attribute a skip through an issue reference after the ID', () => {
+    const source = "// Vector QQ, #384\ntest.skip('rejects a forged token', async () => {})"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual([])
+  })
+
   it('does not let a Vector comment for a longer ID match a shorter row ID', () => {
     const row = [...VALID_ROW]
     row[0] = 'F'
