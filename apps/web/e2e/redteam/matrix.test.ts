@@ -6,19 +6,7 @@ import {
   nextVectorId,
   parseMatrixRows,
 } from './matrix'
-
-const REAL_SPEC_FILE = 'rate-limiting.spec.ts'
-const VALID_ROW = ['ZZ', 'probe-something', 'HIGH', REAL_SPEC_FILE, 'FIXED', '', 'rate-limit']
-
-function matrixWithRow(row: readonly string[]): string {
-  return [
-    '## Vector-to-Spec Mapping',
-    '',
-    '| ID | Vector | Priority | Spec File | Status | Notes | Technique |',
-    '|----|--------|----------|-----------|--------|-------|---|',
-    `| ${row.join(' | ')} |`,
-  ].join('\n')
-}
+import { matrixWithRow, VALID_ROW } from './matrix-fixtures'
 
 describe('parseMatrixRows', () => {
   it('reads a row from the Vector-to-Spec Mapping table', () => {
@@ -27,7 +15,7 @@ describe('parseMatrixRows', () => {
   })
 
   it('keeps a literal pipe inside a cell when it is escaped', () => {
-    const row = ['Z2', 'probe', 'HIGH', REAL_SPEC_FILE, 'FIXED', '', 'a\\|b']
+    const row = ['Z2', 'probe', 'HIGH', 'rate-limiting.spec.ts', 'FIXED', '', 'a\\|b']
     const rows = parseMatrixRows(matrixWithRow(row))
     expect(rows[0][6]).toBe('a|b')
   })

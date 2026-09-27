@@ -19,6 +19,8 @@ const GATE_FILE = path.join(process.cwd(), '.claude', 'review-gate.json')
 const EXEMPT_DIRS = ['.claude', 'docs', path.join('apps', 'web', 'e2e')].map(
   (dir) => path.resolve(process.cwd(), dir) + path.sep,
 )
+// A worktree under .claude/ holds production files — never exempt.
+const WORKTREES_DIR = path.resolve(process.cwd(), '.claude', 'worktrees') + path.sep
 
 // Read stdin (tool input JSON)
 let input = ''
@@ -53,7 +55,7 @@ process.stdin.on('end', () => {
   // Allow edits to non-production files
   if (
     filePath.includes('.test.') ||
-    EXEMPT_DIRS.some((dir) => filePath.startsWith(dir)) ||
+    (EXEMPT_DIRS.some((dir) => filePath.startsWith(dir)) && !filePath.startsWith(WORKTREES_DIR)) ||
     filePath.endsWith('.md')
   ) {
     process.exit(0)

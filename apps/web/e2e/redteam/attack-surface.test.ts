@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { ID_RE, parseMatrixRows } from './matrix'
+import { matrixWithRow, VALID_ROW } from './matrix-fixtures'
 import { skippedSpecRowIds } from './spec-skips'
 
 // ---------------------------------------------------------------------------
@@ -119,19 +120,6 @@ function sixCellRowIdsOutsideLegacy(
     .filter((r) => r.length === 6)
     .map((r) => (r[0] ?? '').trim())
     .filter((id) => !legacyIds.has(id))
-}
-
-/** A row that satisfies every rule. */
-const VALID_ROW = ['ZZ', 'probe-something', 'HIGH', REAL_SPEC_FILE, 'FIXED', '', 'rate-limit']
-
-function matrixWithRow(row: readonly string[]): string {
-  return [
-    '## Vector-to-Spec Mapping',
-    '',
-    '| ID | Vector | Priority | Spec File | Status | Notes | Technique |',
-    '|----|--------|----------|-----------|--------|-------|---|',
-    `| ${row.join(' | ')} |`,
-  ].join('\n')
 }
 
 describe('validateMatrixRows — row-shape errors surfaced through parseMatrixRows', () => {

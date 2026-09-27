@@ -11,7 +11,8 @@
         "blocks a production file edit and surfaces findings when the gate is active",
         "still blocks on a corrupt gate file, substituting a parse-error message",
         "blocks a production target reached through an exempt directory via ..",
-        "blocks a production file outside the repo root whose path contains apps/web/e2e/"
+        "blocks a production file outside the repo root whose path contains apps/web/e2e/",
+        "blocks a production file inside a .claude/worktrees/ checkout when the gate is active"
       ],
       "note": "Forces the active-gate branch to exit 0 instead of 2 — findings are printed but the edit is no longer blocked. Reddens the corrupt-gate-file test too: it falls through to the same blocking branch once its own JSON.parse catch substitutes the parse-error message."
     },
@@ -44,6 +45,15 @@
         "blocks a production file outside the repo root whose path contains apps/web/e2e/"
       ],
       "note": "Matches an exempt directory anywhere in the path instead of under the repo root — /vendor/apps/web/e2e/production.ts is let through."
+    },
+    {
+      "id": "review-gate-worktrees-exempt",
+      "find": " && !filePath.startsWith(WORKTREES_DIR)",
+      "replace": "",
+      "expectRed": [
+        "blocks a production file inside a .claude/worktrees/ checkout when the gate is active"
+      ],
+      "note": "Drops the worktree carve-out — a production file inside .claude/worktrees/ passes as an exempt .claude path."
     }
   ]
 }

@@ -1,18 +1,10 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { VALID_ROW } from './matrix-fixtures'
 import { skippedSpecRowIds } from './spec-skips'
 
 const REDTEAM_DIR = path.resolve(__dirname)
-const VALID_ROW = [
-  'ZZ',
-  'probe-something',
-  'HIGH',
-  'rate-limiting.spec.ts',
-  'FIXED',
-  '',
-  'rate-limit',
-]
 
 describe('skippedSpecRowIds', () => {
   const skipped = "test.skip('rejects a forged token', async () => {})"

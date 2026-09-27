@@ -162,6 +162,21 @@ test('blocks a production file outside the repo root whose path contains apps/we
   }
 })
 
+// GROUP: review-gate-worktrees-exempt
+test('blocks a production file inside a .claude/worktrees/ checkout when the gate is active', () => {
+  const dir = makeDir()
+  try {
+    withGate(dir)
+    const r = runHook(
+      payload(path.join(dir, '.claude', 'worktrees', 'wt', 'apps', 'web', 'lib', 'foo.ts')),
+      dir,
+    )
+    assert.equal(r.status, 2)
+  } finally {
+    cleanup(dir)
+  }
+})
+
 test('allows an .md file edit even when the gate is active', () => {
   const dir = makeDir()
   try {
