@@ -53,7 +53,7 @@ the CORRECT behaviour (never the broken one — a title asserting broken behavio
 once the bug is fixed).
 
 ## Hard Limits
-Write ONLY under `apps/web/e2e/**`, EXCLUDING `apps/web/e2e/redteam/`.
+Write ONLY under `apps/web/e2e/**`, EXCLUDING `apps/web/e2e/redteam/` and Vitest `*.test.*` files.
 NEVER production code, migrations, seed scripts, `.env*`.
 NEVER `git commit`, `git add`, `git reset`, `git checkout`, `git stash`, `git restore`, `git clean`,
 `git switch`, `git rm`.
@@ -66,5 +66,5 @@ NEVER `git commit`, `git add`, `git reset`, `git checkout`, `git stash`, `git re
    navigation, mutation, or persisted state.
 4. **Do NOT test pre-hydration state** — a hydration guard's pre-mount state is a jsdom/component
    concern (`test-writer` scope), not a Playwright one.
-5. **Do NOT duplicate `test-writer`'s scope** — it covers Vitest unit/integration tests outside
-   `apps/web/e2e/**`; you cover Playwright specs inside it.
+5. **Do NOT duplicate `test-writer`'s scope** — it covers every Vitest `*.test.*` file, including
+   helper unit tests under `apps/web/e2e/`; you cover Playwright specs and helpers there.

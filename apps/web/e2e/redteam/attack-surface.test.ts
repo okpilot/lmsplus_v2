@@ -16,13 +16,6 @@ const STATUS_VALUES = new Set(['FIXED', 'GAP', 'MISSED', 'BLOCKED'])
 const VECTOR_RE = /^[\w./:()-]+$/
 const SPEC_FILE_RE = /^[\w-]+\.spec\.ts$/
 const NOTES_RE = /^#\d+$/
-// A handful of the 178 pre-existing rows carry an un-escaped `|` inside their prose (a regex
-// alternation quoted verbatim, e.g. `(table|view)`), which this parser — like a real GFM
-// renderer — reads as a spurious extra cell. A genuine Technique code is a closed kebab-case
-// identifier (§ techniques.json), never prose, so anything not shaped like one is that
-// artifact, not a populated Technique column, and the row is skipped exactly like a row with
-// no 7th cell at all.
-const TECHNIQUE_CODE_RE = /^[a-z][a-z0-9-]*$/
 
 /** Splits one `| a | b\|c | d |` markdown table row into trimmed cells, honouring `\|` escapes. */
 function splitTableRow(line: string): string[] {
@@ -75,10 +68,9 @@ function parseMatrixRows(markdown: string): string[][] {
 }
 
 /**
- * Validates every row carrying a non-empty Technique cell (index 6) against
- * the closed rules in `.work/attacker-e2e-agents-plan.md` item 13. A row with
- * no Technique cell (or an empty one — the pre-existing 6-cell rows) is
- * skipped regardless of what its other cells contain.
+ * Validates every row with more than 6 cells (the Technique column, index 6)
+ * against the closed rules. A 6-cell row (pre-existing, no Technique cell) is
+ * skipped; a row with more than 7 cells is rejected (unescaped `|` in prose).
  */
 function validateMatrixRows(
   rows: readonly string[][],
@@ -89,10 +81,13 @@ function validateMatrixRows(
   const errors: string[] = []
 
   for (const row of rows) {
-    const technique = (row[6] ?? '').trim()
-    if (technique === '' || !TECHNIQUE_CODE_RE.test(technique)) continue
-
+    if (row.length <= 6) continue
     const id = row[0] ?? '(no id)'
+    if (row.length > 7) {
+      errors.push(`row ${id}: ${row.length} cells, expected 7 (escape a literal | as \\|)`)
+      continue
+    }
+    const technique = (row[6] ?? '').trim()
     const vector = (row[1] ?? '').trim()
     const specFile = (row[3] ?? '').trim()
     const status = (row[4] ?? '').trim()
@@ -182,24 +177,33 @@ describe('validateMatrixRows', () => {
     expect(errors).toEqual([])
   })
 
-  it('skips a row with no technique even when its other cells are invalid prose', () => {
-    const row = ['Z1', 'not a valid vector!!', 'HIGH', 'nonexistent.spec.ts', 'WRONG', 'prose', '']
+  it('skips a 6-cell row with no Technique column even when its other cells are invalid prose', () => {
+    const row = ['Z1', 'not a valid vector!!', 'HIGH', 'nonexistent.spec.ts', 'WRONG', 'prose']
     const errors = validateMatrixRows([row], techniques, realSpecFileExists)
     expect(errors).toEqual([])
   })
 
-  it('skips a row whose 7th cell is leaked prose rather than a closed technique code', () => {
-    const row = [
-      'Z1',
-      'not a valid vector!!',
-      'HIGH',
-      'nonexistent.spec.ts',
-      'WRONG',
-      'prose',
-      'a regex alternation like (table',
-    ]
+  it('rejects a row whose Technique cell is empty', () => {
+    const row = [...VALID_ROW]
+    row[6] = ''
     const errors = validateMatrixRows([row], techniques, realSpecFileExists)
-    expect(errors).toEqual([])
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).toContain('not in techniques.json')
+  })
+
+  it('rejects a Technique code in the wrong case', () => {
+    const row = [...VALID_ROW]
+    row[6] = 'Rate-Limit'
+    const errors = validateMatrixRows([row], techniques, realSpecFileExists)
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).toContain('not in techniques.json')
+  })
+
+  it('rejects a row split by an unescaped pipe into more than 7 cells', () => {
+    const row = [...VALID_ROW, 'leaked prose']
+    const errors = validateMatrixRows([row], techniques, realSpecFileExists)
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).toContain('expected 7')
   })
 
   it('rejects a technique code that is not in the closed list', () => {

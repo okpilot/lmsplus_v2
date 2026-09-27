@@ -15,10 +15,10 @@ scope does not cover. Runs the specs to verify they pass before reporting.
   then commit the spec.
 - Run the specs after committing to confirm nothing regressed.
 - Review spec titles — describe behavior, not implementation (`code-style.md` §7 Test Naming).
-- It and `test-writer` run CONCURRENTLY in round 1 on disjoint paths — `test-writer` excludes
-  `apps/web/e2e/**`, this agent excludes everywhere else.
+- It and `test-writer` run CONCURRENTLY in round 1 on disjoint paths — `test-writer` owns Vitest
+  `*.test.*` files, this agent owns non-`*.test.*` files under `apps/web/e2e/**`.
 - After the agent runs, check `git status --porcelain --untracked-files=all` and reject any path
-  outside `apps/web/e2e/**` excluding `redteam/` — its write scope is brief-enforced, not
+  outside `apps/web/e2e/**` excluding `redteam/`, or any `*.test.*` path — its write scope is brief-enforced, not
   hook-enforced (same as `test-writer`).
 
 ### NEVER
