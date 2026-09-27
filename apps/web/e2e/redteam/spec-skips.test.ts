@@ -111,6 +111,22 @@ describe('skippedSpecRowIds', () => {
     expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
   })
 
+  it('attributes a skip by the Vector ID in its own title over the line above', () => {
+    const source = "// Vector QQ\ntest.skip('Vector ZZ rejects a forged token', async () => {})"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
+  })
+
+  it('does not flag a row when the skipped title names a different vector', () => {
+    const source = "})\ntest.skip('Vector QQ rejects a forged token', async () => {})"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual([])
+  })
+
+  it('does not flag a conditional skip in a describe body', () => {
+    const source =
+      "test.describe('forged token flows', () => {\n  test.skip(!process.env.X, 'needs X')\n  test('rejects', async () => {})\n})"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual([])
+  })
+
   it('does not let a Vector comment for a longer ID match a shorter row ID', () => {
     const row = [...VALID_ROW]
     row[0] = 'F'

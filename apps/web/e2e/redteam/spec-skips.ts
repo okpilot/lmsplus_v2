@@ -4,8 +4,8 @@
 const STATIC_SKIP_LINE_RE =
   /^\s*(test\.describe\.skip|test\.describe\.fixme|test\.skip|test\.fixme|it\.skip|describe\.skip)\(\s*(['"`])/
 
-/** Matches an untitled `test.skip(` / `test.fixme(` call — static only when it sits in a describe body. */
-const UNTITLED_SKIP_LINE_RE = /^\s*test\.(skip|fixme)\((?!\s*['"`])/
+/** Matches an unconditional untitled `test.skip()` / `test.skip(true` — static only in a describe body. */
+const UNTITLED_SKIP_LINE_RE = /^\s*test\.(skip|fixme)\(\s*(?:\)|true\b)/
 
 /** Matches a line opening a describe block's body. */
 const DESCRIBE_OPENER_RE = /\b(test\.)?describe(\.\w+)?\(/
@@ -48,10 +48,13 @@ function attributedVectorIds(line: string): string[] {
 }
 
 /**
- * True when the static skip at `lines[skipIndex]` is attributed to `id` — its nearest
- * preceding non-blank line names `id` via `Vector <id>`, or names no vector at all.
+ * True when the static skip at `lines[skipIndex]` is attributed to `id` — the skip line itself or,
+ * when it names none, its nearest preceding non-blank line names `id` via `Vector <id>`, or names
+ * no vector at all.
  */
 function isSkipAttributedTo(lines: readonly string[], skipIndex: number, id: string): boolean {
+  const own = attributedVectorIds(lines[skipIndex])
+  if (own.length > 0) return own.includes(id)
   for (let i = skipIndex - 1; i >= 0; i--) {
     const line = lines[i].trim()
     if (line === '') continue
