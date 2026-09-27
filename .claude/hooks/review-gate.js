@@ -44,6 +44,9 @@ process.stdin.on('end', () => {
     process.exit(0)
   }
 
+  // Collapse `..` segments so an exempt substring cannot mask a production target.
+  filePath = path.resolve(filePath)
+
   // Allow edits to non-production files
   if (
     filePath.includes('.test.') ||
