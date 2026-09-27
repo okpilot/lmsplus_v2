@@ -105,6 +105,12 @@ describe('skippedSpecRowIds', () => {
     expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual([])
   })
 
+  it('flags a skip whose comment mentions Vectors without naming an ID', () => {
+    const source =
+      "// Vectors below need a seeded admin\ntest.describe.skip('forged token flows', () => {})"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
+  })
+
   it('does not let a Vector comment for a longer ID match a shorter row ID', () => {
     const row = [...VALID_ROW]
     row[0] = 'F'

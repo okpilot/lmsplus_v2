@@ -37,11 +37,14 @@ const VECTOR_ATTRIBUTION_RE =
 /** Separates the IDs of one `Vector A, B and C` list. */
 const VECTOR_LIST_SEPARATOR_RE = /\s*(?:,|\/|&|\band\b)\s*(?:Vectors?\s+)?/
 
+/** A matrix vector ID's shape: an uppercase run, optionally digits and a hyphenated suffix (`BO-ended_at`). */
+const VECTOR_ID_TOKEN_RE = /^[A-Z]+\d*(?:-\w+)?$/
+
 /** Every vector ID a line attributes a skip to; empty when the line names none. */
 function attributedVectorIds(line: string): string[] {
-  return [...line.matchAll(VECTOR_ATTRIBUTION_RE)].flatMap((match) =>
-    match[1].split(VECTOR_LIST_SEPARATOR_RE),
-  )
+  return [...line.matchAll(VECTOR_ATTRIBUTION_RE)]
+    .flatMap((match) => match[1].split(VECTOR_LIST_SEPARATOR_RE))
+    .filter((token) => VECTOR_ID_TOKEN_RE.test(token))
 }
 
 /**
