@@ -22,10 +22,10 @@
     },
     {
       "id": "review-gate-e2e-always-blocks",
-      "find": "    filePath.includes('/e2e/') ||\n    filePath.includes('\\\\e2e\\\\') ||\n",
+      "find": "    filePath.includes('/apps/web/e2e/') ||\n    filePath.includes('\\\\apps\\\\web\\\\e2e\\\\') ||\n",
       "replace": "",
       "expectRed": ["allows a spec.ts edit under apps/web/e2e/ even when the gate is active"],
-      "note": "Removes the /e2e/ allowance — a spec edit under apps/web/e2e/ is blocked again while the gate is active, even though e2e-writer/red-team need to write there."
+      "note": "Removes the apps/web/e2e/ allowance — a spec edit under apps/web/e2e/ is blocked again while the gate is active, even though e2e-writer/red-team need to write there."
     }
   ]
 }

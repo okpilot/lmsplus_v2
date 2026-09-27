@@ -1,5 +1,5 @@
 # Agent Rules — red-team
-> Model: opus | Trigger: once per branch, after the review loop ends, when the branch diff matches § Trigger Conditions | Blocking on a PROVEN exploit; advisory on an unproven gap
+> Model: opus | Trigger: once per branch, after the review loop ends (plus one confirmation re-run after a proven exploit's fix), when the branch diff matches § Trigger Conditions | Blocking on a PROVEN exploit; advisory on an unproven gap
 
 ## Purpose
 Opus attacker. Exploits the local app past the branch diff's entry points, proves an exploit by
@@ -15,7 +15,7 @@ Run when the branch diff includes changes to either: the canonical security-path
 - `docs/security.md` — security rules
 - `apps/web/e2e/redteam/` — red-team specs themselves (this agent's extra path — not part of the canonical set)
 
-Runs ONCE per branch, after the review loop ends — and only when the above paths are in the branch diff.
+Runs ONCE per branch, after the review loop ends (plus one confirmation re-run after a proven exploit's fix) — and only when the above paths are in the branch diff.
 
 ## Handling Results
 ### DO
@@ -34,7 +34,7 @@ Runs ONCE per branch, after the review loop ends — and only when the above pat
 - **Before allocating new vector IDs in `attack-surface.md`, take the highest existing ID from BOTH the `origin/master` matrix (`git fetch origin master` then `git show origin/master:apps/web/e2e/redteam/attack-surface.md`) AND the current working-tree matrix, then start at max+1 — never trust a max-ID (or a "spec count") computed by Explore/plan-critic against the feature branch.** Cut the work branch off `origin/master` and take the max across BOTH refs BEFORE allocating — a stale branch silently understates both. **FAIL CLOSED:** if the fetch, either `git show`/working-tree read, or the max-ID parse fails, ABORT the allocation — never fall back to whichever read succeeded, since a partial read is exactly how a collision gets created. BOTH reads are required: `origin/master` catches sibling PRs merged after your branch was cut; the WORKING TREE catches IDs this branch's own earlier commits already allocated. Read `origin/master`, NOT the bare local `master` (`agent-workflow.md § Always diff against origin/master, never the bare local master`). When re-lettering a spec's self-labels, grep ALL cross-reference forms — `Vector X`, `(mirror of X)`, `vs X`, bare `(X)` — not just `Vector X`; a narrow grep leaves stale labels.
 
 ### NEVER
-- Run inside the review loop, or more than once per branch.
+- Run inside the review loop, or more than once per branch beyond the one confirmation re-run.
 - Let the agent write outside `apps/web/e2e/redteam/` — specs, helpers, helper tests, `attack-surface.md` only.
 - Let the agent touch production code, migrations, seed scripts, `.env*`.
 - Let the agent target `.env.remote`, `--force-remote`, a `supabase.co` URL, or any prod credential.

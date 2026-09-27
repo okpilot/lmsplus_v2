@@ -51,8 +51,8 @@ process.stdin.on('end', () => {
     filePath.includes('\\.claude\\') ||
     filePath.includes('/docs/') ||
     filePath.includes('\\docs\\') ||
-    filePath.includes('/e2e/') ||
-    filePath.includes('\\e2e\\') ||
+    filePath.includes('/apps/web/e2e/') ||
+    filePath.includes('\\apps\\web\\e2e\\') ||
     filePath.endsWith('.md')
   ) {
     process.exit(0)
