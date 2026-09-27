@@ -13,20 +13,17 @@ import {
 import { setRecoveryPendingCookie } from '@/lib/auth/recovery-pending-cookie'
 import { isEmailConfigured, sendEmail } from '@/lib/email/resend'
 import { recoveryCodeEmail } from '@/lib/email/templates/recovery-code'
+import { withMinimumDuration } from '@/lib/utils/with-minimum-duration'
 
-// Auth stores addresses lowercased; users.email keeps the admin's original casing (create-student
-// does not lowercase on insert), so normalise the input and look it up case-insensitively.
+// Auth lowercases addresses; users.email keeps the admin's original casing, so
+// normalise the input and look it up case-insensitively.
 const EmailSchema = z.string().trim().toLowerCase().email()
 
 const RequestRecoveryCodeSchema = z.object({ email: EmailSchema })
 
 export type RequestRecoveryCodeResult = { ok: true } | { ok: false; error: 'Invalid email' }
 
-/**
- * Step 1. Any valid input resolves to a neutral `{ ok: true }`; the send runs
- * in `after()`, so neither the body nor the response time shows whether the
- * account exists.
- */
+/** Step 1. Always `{ ok: true }` for valid input; the send runs in `after()` so no account enumeration. */
 export async function requestRecoveryCode(input: unknown): Promise<RequestRecoveryCodeResult> {
   const parsed = RequestRecoveryCodeSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: 'Invalid email' }
@@ -64,15 +61,18 @@ const VerifyRecoveryCodeSchema = z.object({
 })
 
 const INVALID_CODE_MESSAGE = 'That code is invalid or has expired.'
+// Floors the response time — a real account (extra lookups) vs. unknown/locked must look alike.
+const VERIFY_MIN_DURATION_MS = 1500
 
 export type VerifyRecoveryCodeResult = { ok: true } | { ok: false; error: string }
 
-/**
- * Step 2. Verifies the code, then sets the `__recovery_pending` cookie. Failed
- * codes are capped per account because Supabase's per-IP verify limit sees
- * this server's IP, not the student's.
- */
+/** Step 2. Verifies the code, sets the `__recovery_pending` cookie. Timing-floored — see `verify`. */
 export async function verifyRecoveryCode(input: unknown): Promise<VerifyRecoveryCodeResult> {
+  return withMinimumDuration(verify(input), VERIFY_MIN_DURATION_MS)
+}
+
+/** Failed codes are capped per account — Supabase's per-IP verify limit sees this server's IP, not the student's. */
+async function verify(input: unknown): Promise<VerifyRecoveryCodeResult> {
   const parsed = VerifyRecoveryCodeSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: INVALID_CODE_MESSAGE }
   const { email, code } = parsed.data
@@ -85,8 +85,13 @@ export async function verifyRecoveryCode(input: unknown): Promise<VerifyRecovery
   const supabase = await createServerSupabaseClient()
   const { error } = await supabase.auth.verifyOtp({ email, token: code, type: 'recovery' })
   if (error) {
-    console.error('[verifyRecoveryCode] verifyOtp failed:', error.message)
-    await recordFailedVerify(userId)
+    // 429 = Supabase's per-IP limit, not a wrong code — never count it against the account.
+    if (error.status === 429) {
+      console.log('[verifyRecoveryCode] verify rate-limited')
+    } else {
+      console.error('[verifyRecoveryCode] verifyOtp failed:', error.message)
+      await recordFailedVerify(userId)
+    }
     return { ok: false, error: INVALID_CODE_MESSAGE }
   }
 

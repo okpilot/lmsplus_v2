@@ -154,19 +154,20 @@ describe('claimRecoverySlot', () => {
     )
   })
 
-  it('preserves other app_metadata keys when recording the send', async () => {
+  it('writes only the recovery_code_sent_at key, never the other app_metadata keys read alongside it', async () => {
     mockGetUserById.mockResolvedValue({
-      data: { user: { app_metadata: { provider: 'email' } } },
+      data: {
+        user: { app_metadata: { provider: 'email', recovery_verify_failed_at: ['stale'] } },
+      },
       error: null,
     })
     mockUpdateUserById.mockResolvedValue({ error: null })
 
     await claimRecoverySlot(USER_ID)
 
-    expect(mockUpdateUserById).toHaveBeenCalledWith(
-      USER_ID,
-      expect.objectContaining({ app_metadata: expect.objectContaining({ provider: 'email' }) }),
-    )
+    expect(mockUpdateUserById).toHaveBeenCalledWith(USER_ID, {
+      app_metadata: { recovery_code_sent_at: [expect.any(String)] },
+    })
   })
 
   it(`refuses once ${MAX_RECOVERY_CODES_PER_HOUR} sends already landed within the last hour`, async () => {
@@ -337,19 +338,18 @@ describe('recordFailedVerify', () => {
     )
   })
 
-  it('preserves other app_metadata keys when recording the failure', async () => {
+  it('writes only the recovery_verify_failed_at key, never the other app_metadata keys read alongside it', async () => {
     mockGetUserById.mockResolvedValue({
-      data: { user: { app_metadata: { provider: 'email' } } },
+      data: { user: { app_metadata: { provider: 'email', recovery_code_sent_at: ['stale'] } } },
       error: null,
     })
     mockUpdateUserById.mockResolvedValue({ error: null })
 
     await recordFailedVerify(USER_ID)
 
-    expect(mockUpdateUserById).toHaveBeenCalledWith(
-      USER_ID,
-      expect.objectContaining({ app_metadata: expect.objectContaining({ provider: 'email' }) }),
-    )
+    expect(mockUpdateUserById).toHaveBeenCalledWith(USER_ID, {
+      app_metadata: { recovery_verify_failed_at: [expect.any(String)] },
+    })
   })
 
   it('logs and does not throw when the user cannot be read', async () => {

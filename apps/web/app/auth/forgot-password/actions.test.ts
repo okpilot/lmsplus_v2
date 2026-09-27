@@ -15,6 +15,7 @@ const {
   mockSendEmail,
   mockRecoveryCodeEmail,
   mockAfter,
+  mockWithMinimumDuration,
 } = vi.hoisted(() => ({
   mockVerifyOtp: vi.fn(),
   mockCookiesSet: vi.fn(),
@@ -28,6 +29,7 @@ const {
   mockSendEmail: vi.fn(),
   mockRecoveryCodeEmail: vi.fn(),
   mockAfter: vi.fn(),
+  mockWithMinimumDuration: vi.fn((...args: unknown[]) => args[0]),
 }))
 
 vi.mock('@repo/db/server', () => ({
@@ -61,6 +63,10 @@ vi.mock('@/lib/email/templates/recovery-code', () => ({
   recoveryCodeEmail: (...args: unknown[]) => mockRecoveryCodeEmail(...args),
 }))
 
+vi.mock('@/lib/utils/with-minimum-duration', () => ({
+  withMinimumDuration: (...args: unknown[]) => mockWithMinimumDuration(...args),
+}))
+
 // ---- Subject under test -------------------------------------------------------
 
 import { requestRecoveryCode, verifyRecoveryCode } from './actions'
@@ -88,6 +94,7 @@ beforeEach(() => {
   mockRecoveryCodeEmail.mockReturnValue({ subject: 's', html: 'h', text: 't' })
   mockSendEmail.mockResolvedValue({ ok: true })
   mockIsVerifyLocked.mockResolvedValue(false)
+  mockWithMinimumDuration.mockImplementation((...args: unknown[]) => args[0])
 })
 
 describe('requestRecoveryCode', () => {
@@ -250,6 +257,25 @@ describe('verifyRecoveryCode', () => {
     await verifyRecoveryCode({ email: EMAIL, code: CODE })
 
     expect(mockRecordFailedVerify).toHaveBeenCalledWith(USER_ID)
+    consoleSpy.mockRestore()
+  })
+
+  it('runs the verification through the minimum-duration floor', async () => {
+    mockVerifyOtp.mockResolvedValue({ error: null })
+
+    await verifyRecoveryCode({ email: EMAIL, code: CODE })
+
+    expect(mockWithMinimumDuration).toHaveBeenCalledWith(expect.any(Promise), 1500)
+  })
+
+  it('does not record a failed attempt when verifyOtp is rate-limited by the per-IP cap', async () => {
+    mockVerifyOtp.mockResolvedValue({ error: { message: 'Too many requests', status: 429 } })
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    const result = await verifyRecoveryCode({ email: EMAIL, code: CODE })
+
+    expect(result).toEqual({ ok: false, error: 'That code is invalid or has expired.' })
+    expect(mockRecordFailedVerify).not.toHaveBeenCalled()
     consoleSpy.mockRestore()
   })
 })

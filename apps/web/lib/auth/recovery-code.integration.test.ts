@@ -12,7 +12,7 @@ import {
   fixtureSuffix,
   getAdminClient,
 } from '@/lib/integration-support/harness'
-import { findActiveUserIdByEmail } from './recovery-code'
+import { claimRecoverySlot, findActiveUserIdByEmail, recordFailedVerify } from './recovery-code'
 
 const admin = getAdminClient()
 const suffix = fixtureSuffix()
@@ -95,5 +95,50 @@ describe('findActiveUserIdByEmail (app-layer integration)', () => {
     await expect(findActiveUserIdByEmail(mixedCaseStoredEmail.toLowerCase())).resolves.toBe(
       mixedCaseStudentId,
     )
+  })
+})
+
+describe('claimRecoverySlot + recordFailedVerify app_metadata merge (app-layer integration)', () => {
+  let throttleOrgId: string | undefined
+  let throttleStudentId: string
+
+  beforeAll(async () => {
+    throttleOrgId = await createTestOrg({
+      admin,
+      name: `recoverycode-throttle ${suffix}`,
+      slug: `recoverycode-throttle-${suffix}`,
+    })
+    throttleStudentId = await createTestUser({
+      admin,
+      orgId: throttleOrgId,
+      email: `int-recoverycode-throttle-${suffix}@test.local`,
+      password,
+      role: 'student',
+    })
+
+    // An unrelated app_metadata key, as GoTrue itself sets on every user (e.g. `provider`) —
+    // proves the real admin API merges by top-level key rather than requiring us to round-trip it.
+    const { error } = await admin.auth.admin.updateUserById(throttleStudentId, {
+      app_metadata: { unrelated_key: 'keep-me' },
+    })
+    if (error) throw new Error(`seed unrelated app_metadata: ${error.message}`)
+  })
+
+  afterAll(async () => {
+    if (throttleOrgId) {
+      await cleanupTestData({ admin, orgId: throttleOrgId, userIds: [throttleStudentId] })
+    }
+  })
+
+  it('leaves both throttle keys and an unrelated pre-seeded key present after a send then a failed verify', async () => {
+    await expect(claimRecoverySlot(throttleStudentId)).resolves.toEqual({ allowed: true })
+    await recordFailedVerify(throttleStudentId)
+
+    const { data, error } = await admin.auth.admin.getUserById(throttleStudentId)
+    if (error || !data.user) throw new Error(`getUserById: ${error?.message ?? 'not found'}`)
+
+    expect(data.user.app_metadata.unrelated_key).toBe('keep-me')
+    expect(data.user.app_metadata.recovery_code_sent_at).toEqual([expect.any(String)])
+    expect(data.user.app_metadata.recovery_verify_failed_at).toEqual([expect.any(String)])
   })
 })

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { fetchRecoveryCode } from './helpers/recovery-code'
+import { fetchRecoveryCode, resetRecoveryThrottle } from './helpers/recovery-code'
 import { ensureLoginTestUser, LOGIN_TEST_EMAIL, LOGIN_TEST_PASSWORD } from './helpers/supabase'
 
 // Run without saved auth state — testing the unauthenticated password reset flow
@@ -8,6 +8,13 @@ test.use({ storageState: { cookies: [], origins: [] } })
 test.describe('password reset flow', () => {
   test.beforeAll(async () => {
     await ensureLoginTestUser()
+  })
+
+  // LOGIN_TEST_EMAIL is a persistent, shared account — the "wrong code" test below
+  // records a failed verify against it every run, and would eventually lock the
+  // account out of the happy-path test in this same file (MAX_FAILED_VERIFIES_PER_HOUR).
+  test.beforeEach(async () => {
+    await resetRecoveryThrottle(LOGIN_TEST_EMAIL)
   })
 
   test('forgot password → code → reset password → dashboard', async ({ page }) => {

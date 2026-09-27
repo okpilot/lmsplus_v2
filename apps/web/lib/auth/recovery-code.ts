@@ -56,6 +56,11 @@ function readTimestamps(appMetadata: Record<string, unknown>, key: string): stri
  * per Decision 103). Returns `allowed: false` without writing when the cap is
  * already reached, or when the read/write itself fails — read-then-write, no
  * lock, so a concurrent burst can exceed the cap by the burst size (accepted).
+ *
+ * Writes only the `recovery_code_sent_at` key — GoTrue's admin update MERGES
+ * `app_metadata` by top-level key, so spreading `existing` back in would
+ * re-write `recovery_verify_failed_at` from this stale read, clobbering a
+ * concurrent `recordFailedVerify` write to that other key.
  */
 export async function claimRecoverySlot(userId: string): Promise<{ allowed: boolean }> {
   const { data, error } = await adminClient.auth.admin.getUserById(userId)
@@ -72,7 +77,7 @@ export async function claimRecoverySlot(userId: string): Promise<{ allowed: bool
   }
 
   const { error: updateError } = await adminClient.auth.admin.updateUserById(userId, {
-    app_metadata: { ...existing, recovery_code_sent_at: [...pruned, new Date().toISOString()] },
+    app_metadata: { recovery_code_sent_at: [...pruned, new Date().toISOString()] },
   })
   if (updateError) {
     console.error('[claimRecoverySlot] failed to record send:', updateError.message)
@@ -127,6 +132,11 @@ export async function isVerifyLocked(userId: string): Promise<boolean> {
  * (service-role only). Best-effort: logs and returns on any read/write
  * error rather than throwing, since the caller has already decided to
  * return the generic invalid-code error regardless.
+ *
+ * Writes only the `recovery_verify_failed_at` key — GoTrue's admin update
+ * MERGES `app_metadata` by top-level key, so spreading `existing` back in
+ * would re-write `recovery_code_sent_at` from this stale read, clobbering a
+ * concurrent `claimRecoverySlot` write to that other key.
  */
 export async function recordFailedVerify(userId: string): Promise<void> {
   const { data, error } = await adminClient.auth.admin.getUserById(userId)
@@ -138,7 +148,7 @@ export async function recordFailedVerify(userId: string): Promise<void> {
   const existing = data.user.app_metadata ?? {}
   const pruned = recentSends(readTimestamps(existing, 'recovery_verify_failed_at'), Date.now())
   const { error: updateError } = await adminClient.auth.admin.updateUserById(userId, {
-    app_metadata: { ...existing, recovery_verify_failed_at: [...pruned, new Date().toISOString()] },
+    app_metadata: { recovery_verify_failed_at: [...pruned, new Date().toISOString()] },
   })
   if (updateError) {
     console.error('[recordFailedVerify] failed to record failure:', updateError.message)

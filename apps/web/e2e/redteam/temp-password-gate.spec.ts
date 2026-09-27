@@ -55,7 +55,7 @@
 
 import { expect, test } from '@playwright/test'
 import { createClient } from '@supabase/supabase-js'
-import { fetchRecoveryCode } from '../helpers/recovery-code'
+import { fetchRecoveryCode, resetRecoveryThrottle } from '../helpers/recovery-code'
 import {
   ensureLoginTestUser,
   getAdminClient,
@@ -254,6 +254,10 @@ test.describe('Red Team: Temporary-password forced-change gate (Vector FT)', () 
       password: EXPIRED_PASSWORD,
       expiresInMs: -1_000,
     })
+    // This slot's email is deterministic and reused across runs — clear any
+    // recovery throttle state left over from an earlier run before driving
+    // the verify flow below.
+    await resetRecoveryThrottle(email)
 
     // Drive the real forgot-password flow (same as password-reset.spec.ts) —
     // this reaches resetOwnPassword() through a normal form submission, no
