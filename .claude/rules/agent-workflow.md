@@ -103,7 +103,7 @@ Plans, task lists, handovers, triage and eval notes go in `.work/` (gitignored).
 ### Every agent dispatch is ASYNCHRONOUS — the diagram is a data dependency, not a clock
 `Agent` returns an id immediately; the agent runs in the BACKGROUND and notifies you when done. Nothing makes the diagram below happen in the order it is drawn.
 - **"Complete" means every completion notification from the agents LAUNCHED is RECEIVED, never merely dispatched.** Read every result before triaging — a partial pool biases the triage.
-- **Never edit a file while an agent that can write it is in flight.** The loser's change vanishes with no error, no conflict, no failing gate. In round 1, **test-writer** and **e2e-writer** hold Write/Edit on disjoint paths (test-writer scoped to Vitest `*.test.*` files; e2e-writer scoped to non-`*.test.*` files under `apps/web/e2e/**` excluding `redteam/`); every agent still keeps `Bash`, which can write. Round 1 runs up to eight concurrently — this is the gate's sharpest edge. The collision set is every launched agent except `code-review (skill)`, which runs with its cwd in an isolated worktree, so its writes land there and not in the main tree. That is NOT a read-only guarantee — it keeps `Bash` like every agent — and the exemption holds only while it is dispatched the way `agent-code-review.md § Dispatch` mandates. **red-team** (opus) runs ALONE after the loop ends (once, plus one confirmation re-run after a proven exploit's fix) — it holds Write/Edit scoped to `apps/web/e2e/redteam/**` only, never concurrent with round 1 or round 2+.
+- **Never edit a file while an agent that can write it is in flight.** The loser's change vanishes with no error, no conflict, no failing gate. In round 1, **test-writer** and **e2e-writer** hold Write/Edit on disjoint paths (test-writer scoped to Vitest `*.test.*` files; e2e-writer scoped to non-`*.test.*` files under `apps/web/e2e/**` excluding `redteam/`); every agent still keeps `Bash`, which can write. Round 1 runs up to eight concurrently — this is the gate's sharpest edge. The collision set is every launched agent except `code-review (skill)`, which runs with its cwd in an isolated worktree, so its writes land there and not in the main tree. That is NOT a read-only guarantee — it keeps `Bash` like every agent — and the exemption holds only while it is dispatched the way `agent-code-review.md § Dispatch` mandates. **red-team** (opus) runs ALONE after the loop ends, once per branch — it holds Write/Edit scoped to `apps/web/e2e/redteam/**` only, never concurrent with round 1 or round 2+.
 - **After every writer in the batch has landed, run `git status --porcelain --untracked-files=all` and reject any path outside the UNION of their scopes** (`git status` cannot attribute a path to one of two concurrent writers) (`§ Finding Validation` — an artifact check, not the agent's self-report) before trusting it as that round's/that post-loop run's output.
 
 ### The gate — ONE loop over the branch diff, not a cycle per commit
@@ -143,8 +143,8 @@ then ONCE per branch, in this order:
                   on the re-diffed branch (a fresh loop, own 3-round ceiling) ─► coderabbit-sync
             └─► PROVEN exploit: fixup (spec + prod fix) ─► round-2+ set re-runs on the
                   re-diffed branch (a fresh loop, own 3-round ceiling; at it, escalate) ─►
-                  red-team re-runs ONCE to confirm its spec now passes ─► coderabbit-sync
-          red-team's own specs + rows never re-trigger red-team; the confirmation run is the only re-run
+                  coderabbit-sync; `/fullpush` 7b confirms the spec now passes
+          red-team's own specs + rows, and an exploit's fix, never re-trigger red-team
     ▼
 update spec tasks.md ([ ] → [x]) ▼ /fullpush ▼ push (security-auditor, fail-closed)
 ```
