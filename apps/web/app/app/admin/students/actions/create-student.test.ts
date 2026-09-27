@@ -49,7 +49,11 @@ function buildChain({ insertError = null }: { insertError?: { message: string } 
   return mockUpsert
 }
 
-function mockAuthCreateUser({ error = null }: { error?: { message: string } | null } = {}) {
+function mockAuthCreateUser({
+  error = null,
+}: {
+  error?: { message: string; code?: string } | null
+} = {}) {
   mockCreateUser.mockResolvedValue({
     data: error ? null : { user: { id: NEW_USER_ID } },
     error,
@@ -173,7 +177,12 @@ describe('createStudent', () => {
     it('returns a duplicate-email message when the email is already registered', async () => {
       mockAdmin()
       buildChain()
-      mockAuthCreateUser({ error: { message: 'Email already registered' } })
+      mockAuthCreateUser({
+        error: {
+          message: 'A user with this email address has already been registered',
+          code: 'email_exists',
+        },
+      })
 
       const result = await createStudent(VALID_INPUT)
 
@@ -187,6 +196,19 @@ describe('createStudent', () => {
       mockAdmin()
       buildChain()
       mockAuthCreateUser({ error: { message: 'service unavailable' } })
+
+      const result = await createStudent(VALID_INPUT)
+
+      expect(result.success).toBe(false)
+      if (result.success) return
+      expect(result.error).toBe('Failed to create student')
+      expect(mockRevalidatePath).not.toHaveBeenCalled()
+    })
+
+    it('returns a generic failure for a registration-worded Auth error that is not a duplicate email', async () => {
+      mockAdmin()
+      buildChain()
+      mockAuthCreateUser({ error: { message: 'Email already registered elsewhere' } })
 
       const result = await createStudent(VALID_INPUT)
 
