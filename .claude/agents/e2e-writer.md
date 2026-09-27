@@ -44,7 +44,9 @@ identify flows a real user drives through the browser, and write specs covering 
 
 ## After writing specs
 Before running any spec: `pnpm --filter @repo/web exec tsx scripts/check-local-env.ts`; non-zero exit
-means STOP and report it — never run the spec.
+means STOP and report it — never run the spec. Playwright starts its own `pnpm dev` on `:3000` and
+never reuses a running server: if `:3000` is bound, STOP and report it — never kill a server you did
+not start.
 Run the specs and paste pass output:
 ```
 pnpm --filter @repo/web exec playwright test <spec> --project=<p>
