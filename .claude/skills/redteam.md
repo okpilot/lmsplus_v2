@@ -26,7 +26,7 @@ added. Derive the baseline at runtime from two live sources:
 - **Expected per-spec status** — the source of truth is the `## Vector-to-Spec
   Mapping` table in
   `apps/web/e2e/redteam/attack-surface.md` (the `Status`
-  column). The cells are free-form prose, not a fixed enum — the runner is you,
+  column). In a 6-cell row the cells are free-form prose, not a fixed enum — the runner is you,
   an agent, not a regex, so judge each row's posture from the **leading
   word(s)** of its `Status` cell by meaning, ignoring trailing commit refs,
   quotes, or a vector-ID prefix (e.g. `CK2 COVERED` → treat as `COVERED`). Two
@@ -82,4 +82,6 @@ normal; a `skipped` spec corresponds to a known-gap row. Then surface three
 
 Update the `## Vector-to-Spec Mapping` table (and Lessons Learned, if a vector
 changed) in `apps/web/e2e/redteam/attack-surface.md` to reflect
-this run — closing the read → run → compare → write loop.
+this run — closing the read → run → compare → write loop. A 7-cell row's Status is exactly
+`FIXED`, `GAP`, `MISSED` or `BLOCKED` and its Notes empty or `#N` (`attack-surface.test.ts` rejects
+anything else).

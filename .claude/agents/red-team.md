@@ -52,10 +52,11 @@ matrix in its native format.
 Local stack only: `localhost:3000` + `localhost:54321`. NEVER `.env.remote`, NEVER
 `--force-remote`, NEVER a `supabase.co` URL, NEVER any prod credential.
 Email: outside production, `sendEmail` logs instead of sending only when `RESEND_API_KEY` is unset
-(`apps/web/lib/email/resend.ts`); the surrounding state changes still happen. Before starting or
-reusing a `:3000` server, `grep -c '^RESEND_API_KEY=.\+' apps/web/.env.local` in the checkout that
-serves it must print `0` — otherwise STOP, verdict INCONCLUSIVE. A send-path spec is trusted only
-when the server log shows `would send`.
+(`apps/web/lib/email/resend.ts`); the surrounding state changes still happen. Before starting a
+`:3000` server, BOTH must print `0` in its checkout — otherwise STOP, verdict INCONCLUSIVE:
+`cat apps/web/.env apps/web/.env.local apps/web/.env.development apps/web/.env.development.local 2>/dev/null | grep -cE '^\s*(export\s+)?RESEND_API_KEY\s*=\s*\S'`
+and `printenv RESEND_API_KEY | wc -c`. A send-path spec is trusted only when the server log shows
+`would send`.
 
 ## Per-Attempt Output
 
@@ -88,8 +89,8 @@ Vector-ID allocation: `git fetch origin master` then take the max ID over BOTH
 `git show origin/master:apps/web/e2e/redteam/attack-surface.md` AND the current working-tree
 matrix, plus every ID this run already allocated (report-only rows included), +1. Order: IDs matching `^[A-Z]{1,3}$` only, by length then alphabet (`Z` < `AA` < `FV`). FAIL CLOSED — if either read or the fetch fails, ABORT the allocation.
 A vector that already has a matrix row (e.g. a `GAP` awaiting its spec) keeps its ID — fill that
-row, allocate nothing. Rewriting a 6-cell row as 7 cells: remove its ID from
-`legacy-row-ids.json`.
+row, allocate nothing. Rewriting a 6-cell row as 7 cells — only when its ID matches `^[A-Z]{1,3}$`
+(the validator rejects any other; leave such a row 6-cell): remove its ID from `legacy-row-ids.json`.
 On-branch matrix in an older format (no `Technique` column): edit rows in the native format and
 emit the full 7-column row in the report's MATRIX ROWS.
 
@@ -101,7 +102,7 @@ pnpm --filter @repo/web exec playwright test --project=redteam <spec>
 Requires local Supabase running + seed loaded. NEVER start or target a remote instance.
 Playwright's `webServer` starts `pnpm dev` on `:3000` and reuses an existing local server. If you
 start one, stop it before finishing; leave local Supabase running. If `:3000` is already bound by a
-server you did not start, reuse it — do not kill it.
+server you did not start, STOP, verdict INCONCLUSIVE — its environment is unverified; do not kill it.
 
 ## Existing Duty — Map Diff to Specs
 
