@@ -1,8 +1,22 @@
 // Detects a red-team spec that is still statically skipped, for attack-surface.test.ts.
 
-/** Matches a line (after leading whitespace) statically skipping a titled test or describe block. */
+/** Matches a line (after leading whitespace) opening a titled skip; group 2 is empty when the title starts on the next line. */
 const STATIC_SKIP_LINE_RE =
-  /^\s*(test\.describe\.skip|test\.describe\.fixme|test\.skip|test\.fixme|it\.skip|describe\.skip)\(\s*(['"`])/
+  /^\s*(test\.describe\.skip|test\.describe\.fixme|test\.skip|test\.fixme|it\.skip|describe\.skip)\(\s*(['"`]|$)/
+
+/** Matches a line whose first token opens a string literal. */
+const TITLE_START_RE = /^\s*['"`]/
+
+/** Matches a comment line (after trimming). */
+const COMMENT_LINE_RE = /^(\/\/|\/\*|\*)/
+
+/** Index of the line holding a titled skip's title, or `null` when `lines[index]` opens no titled skip. */
+function skipTitleIndex(lines: readonly string[], index: number): number | null {
+  const match = STATIC_SKIP_LINE_RE.exec(lines[index])
+  if (!match) return null
+  if (match[2] !== '') return index
+  return TITLE_START_RE.test(lines[index + 1] ?? '') ? index + 1 : null
+}
 
 /** Matches an unconditional untitled `test.skip()` / `test.skip(true` — static only directly in a describe, test or hook body. */
 const UNTITLED_SKIP_LINE_RE = /^\s*test\.(skip|fixme)\(\s*(?:\)|true\b)/
@@ -25,7 +39,7 @@ function enclosingOpener(lines: readonly string[], index: number): string | null
 
 /** True when `lines[index]` skips its whole block: a titled skip, or an untitled one directly in a describe, test or hook body. */
 function isStaticSkipLine(lines: readonly string[], index: number): boolean {
-  if (STATIC_SKIP_LINE_RE.test(lines[index])) return true
+  if (skipTitleIndex(lines, index) !== null) return true
   if (!UNTITLED_SKIP_LINE_RE.test(lines[index])) return false
   const opener = enclosingOpener(lines, index)
   return opener === null || BLOCK_OPENER_RE.test(opener)
@@ -49,16 +63,17 @@ function attributedVectorIds(line: string): string[] {
 }
 
 /**
- * True when the static skip at `lines[skipIndex]` is attributed to `id` — the skip line itself or,
- * when it names none, its nearest preceding non-blank line names `id` via `Vector <id>`, or names
- * no vector at all.
+ * True when the static skip at `lines[skipIndex]` is attributed to `id` — its title line or, when
+ * that names none, its nearest preceding non-blank line is a comment naming `id` via `Vector <id>`,
+ * or is not a comment naming a vector.
  */
 function isSkipAttributedTo(lines: readonly string[], skipIndex: number, id: string): boolean {
-  const own = attributedVectorIds(lines[skipIndex])
+  const own = attributedVectorIds(lines[skipTitleIndex(lines, skipIndex) ?? skipIndex])
   if (own.length > 0) return own.includes(id)
   for (let i = skipIndex - 1; i >= 0; i--) {
     const line = lines[i].trim()
     if (line === '') continue
+    if (!COMMENT_LINE_RE.test(line)) return true
     const attributed = attributedVectorIds(line)
     return attributed.length === 0 || attributed.includes(id)
   }

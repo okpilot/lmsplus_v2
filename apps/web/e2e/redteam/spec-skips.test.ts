@@ -130,6 +130,22 @@ describe('skippedSpecRowIds', () => {
     expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual([])
   })
 
+  it('flags a titled skip whose title starts on the next line', () => {
+    const source = "test.skip(\n  'rejects a forged token',\n  async () => {},\n)"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
+  })
+
+  it('does not flag a row when a next-line skip title names a different vector', () => {
+    const source = "test.skip(\n  'Vector QQ rejects a forged token',\n  async () => {},\n)"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual([])
+  })
+
+  it('flags an unattributed skip right after a test titled with another vector', () => {
+    const source =
+      "test('Vector QQ rejects a forged token', async () => {})\ntest.skip('other flow', async () => {})"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
+  })
+
   it('does not flag a conditional skip in a describe body', () => {
     const source =
       "test.describe('forged token flows', () => {\n  test.skip(!process.env.X, 'needs X')\n  test('rejects', async () => {})\n})"
