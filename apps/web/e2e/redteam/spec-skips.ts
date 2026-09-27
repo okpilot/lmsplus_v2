@@ -18,15 +18,14 @@ function skipTitleIndex(lines: readonly string[], index: number): number | null 
   return TITLE_START_RE.test(lines[index + 1] ?? '') ? index + 1 : null
 }
 
-/** Matches an unconditional untitled `test.skip()` / `test.skip(true`, or a `test.skip(` whose argument starts on the next line — static only directly in a describe, test or hook body. */
+/** Matches an unconditional untitled `test.skip()` / `test.skip(true`, or a `test.skip(` whose argument starts on the next line — static unless inside a control-flow block. */
 const UNTITLED_SKIP_LINE_RE = /^\s*test\.(skip|fixme)\(\s*(?:\)|true\b|$)/
 
 /** Matches a line starting with an unconditional untitled skip's argument list: `)` or `true`. */
 const UNTITLED_SKIP_ARG_RE = /^\s*(?:\)|true\b)/
 
-/** Matches a line opening a describe block's, a test's or a beforeEach/beforeAll hook's body. */
-const BLOCK_OPENER_RE =
-  /\b(test\.)?describe(\.\w+)?\(|^\s*(test|it)(\.only)?\(\s*['"`]|\btest\.before(Each|All)\(/
+/** Matches a statement head opening a control-flow block (`if`, `else`, a loop, a `switch` case or a `catch`). */
+const CONTROL_FLOW_HEAD_RE = /^\s*(?:\}\s*)?(?:if|else|for|while|switch|case|default|catch)\b/
 
 /** The index of the line holding the nearest unclosed `{` above `lines[index]`, or `null` at top level. */
 function enclosingOpenerIndex(lines: readonly string[], index: number): number | null {
@@ -59,12 +58,12 @@ function isUntitledSkipCall(lines: readonly string[], index: number): boolean {
   return !/\(\s*$/.test(lines[index]) || UNTITLED_SKIP_ARG_RE.test(lines[index + 1] ?? '')
 }
 
-/** True when `lines[index]` skips its whole block: a titled skip, or an untitled one directly in a describe, test or hook body. */
+/** True when `lines[index]` skips its whole block: a titled skip, or an unconditional untitled one outside any control-flow block. */
 function isStaticSkipLine(lines: readonly string[], index: number): boolean {
   if (skipTitleIndex(lines, index) !== null) return true
   if (!isUntitledSkipCall(lines, index)) return false
   const opener = enclosingOpenerIndex(lines, index)
-  return opener === null || BLOCK_OPENER_RE.test(statementHead(lines, opener))
+  return opener === null || !CONTROL_FLOW_HEAD_RE.test(statementHead(lines, opener))
 }
 
 /** Matches a `// Vector <ID>`-style attribution comment, capturing the exact ID token. */

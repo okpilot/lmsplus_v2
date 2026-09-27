@@ -86,6 +86,18 @@ describe('skippedSpecRowIds', () => {
     expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual([])
   })
 
+  it('flags an argument-less skip inside a test step', () => {
+    const source =
+      "test('rejects', async () => {\n  await test.step('log in', async () => {\n    test.skip()\n  })\n})"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
+  })
+
+  it('does not flag an unconditional skip inside an else branch', () => {
+    const source =
+      "test('rejects', async () => {\n  if (cond) {\n    await run()\n  } else {\n    test.skip()\n  }\n})"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual([])
+  })
+
   it('does not flag a conditional untitled skip inside a test body', () => {
     const source =
       "test('rejects', async ({ browserName }) => {\n  test.skip(browserName === 'webkit')\n})"
