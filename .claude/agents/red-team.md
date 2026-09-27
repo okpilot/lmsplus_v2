@@ -53,13 +53,9 @@ Local stack only: `localhost:3000` + `localhost:54321`. NEVER `.env.remote`, NEV
 `--force-remote`, NEVER a `supabase.co` URL, NEVER any prod credential.
 Email: outside production, `sendEmail` logs instead of sending only when `RESEND_API_KEY` is unset
 (`apps/web/lib/email/resend.ts`); the surrounding state changes still happen.
-**Local-env gate** — before starting a `:3000` server or running any spec, from the serving
-checkout, with `F="apps/web/.env apps/web/.env.local apps/web/.env.development apps/web/.env.development.local"`,
-all three must print `0` — otherwise STOP, verdict INCONCLUSIVE:
-1. `cat $F 2>/dev/null | grep -cE '^\s*(export\s+)?RESEND_API_KEY\s*=\s*\S'`
-2. `printenv RESEND_API_KEY | wc -c`
-3. `{ cat $F 2>/dev/null; env; } | grep -E '^\s*(export\s+)?[A-Z_]*SUPABASE_URL\s*=' | grep -cvE "=\s*[\"']?http://(localhost|127\.0\.0\.1)[:/]"`
-A send-path spec is trusted only when the server log shows `would send`.
+Before starting a `:3000` server outside Playwright: `pnpm --filter @repo/web exec tsx
+e2e/check-local-env.ts`; non-zero exit → STOP, verdict INCONCLUSIVE. `playwright.config.ts` runs
+the same check for every spec run.
 
 ## Per-Attempt Output
 
@@ -88,14 +84,10 @@ probe) — paste the command and its output as `EVIDENCE:` in the report AND sti
 spec that pins the observable consequence; if none is expressible, say so and leave the finding an
 unproven gap.
 
-Vector-ID allocation: `git fetch origin master` then take the max ID over BOTH
-`git show origin/master:apps/web/e2e/redteam/attack-surface.md` AND the current working-tree
-matrix, plus every ID this run already allocated (report-only rows included), +1. Order: IDs matching `^[A-Z]{1,3}$` only, by length then alphabet (`Z` < `AA` < `FV`). FAIL CLOSED — if either read or the fetch fails, ABORT the allocation.
-A vector that already has a matrix row keeps its ID — fill that
-row, allocate nothing. Rewriting a 6-cell row as 7 cells — only when its ID matches `^[A-Z]{1,3}$`
-(the validator rejects any other; leave such a row 6-cell): remove its ID from `legacy-row-ids.json`.
-On-branch matrix in an older format (no `Technique` column): edit rows in the native format and
-emit the full 7-column row in the report's MATRIX ROWS.
+Vector-ID allocation: `pnpm --filter @repo/web exec tsx e2e/redteam/next-vector-id.ts <IDs this
+run already allocated>`; non-zero exit → ABORT allocation. A vector that already has a matrix row
+keeps its ID — fill that row, allocate nothing.
+`pnpm --filter @repo/web exec vitest run e2e/redteam` must pass after any matrix edit.
 
 ## Run Specs
 

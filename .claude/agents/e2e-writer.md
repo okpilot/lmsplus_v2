@@ -43,8 +43,8 @@ identify flows a real user drives through the browser, and write specs covering 
 4. Confirm the auth fixture (`storageState`) matches the flow's required role.
 
 ## After writing specs
-Before running any spec, run the Local-env gate in `.claude/agents/red-team.md § Environment`; a
-non-`0` result means STOP and report it — never run the spec.
+Before running any spec: `pnpm --filter @repo/web exec tsx e2e/check-local-env.ts`; non-zero exit
+means STOP and report it — never run the spec.
 Run the specs and paste pass output:
 ```
 pnpm --filter @repo/web exec playwright test <spec> --project=<p>
