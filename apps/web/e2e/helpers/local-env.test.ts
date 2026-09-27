@@ -33,6 +33,19 @@ describe('localEnvViolations — RESEND_API_KEY', () => {
     expect(v).toEqual(['RESEND_API_KEY set in .env'])
   })
 
+  it('strips everything after the closing quote, including a trailing comment', () => {
+    const v = localEnvViolations({
+      files: { '.env': 'RESEND_API_KEY="re_abc123" # prod key' },
+      env: {},
+    })
+    expect(v).toEqual(['RESEND_API_KEY set in .env'])
+  })
+
+  it('reads an empty quoted value followed by a trailing comment', () => {
+    const v = localEnvViolations({ files: { '.env': 'RESEND_API_KEY="" # off' }, env: {} })
+    expect(v).toEqual([])
+  })
+
   it('ignores a commented-out line', () => {
     const v = localEnvViolations({ files: { '.env': '# RESEND_API_KEY=re_abc123' }, env: {} })
     expect(v).toEqual([])
@@ -78,6 +91,40 @@ describe('localEnvViolations — *SUPABASE_URL', () => {
       env: {},
     })
     expect(v).toEqual([])
+  })
+
+  it('passes a 127.0.0.1 URL with a trailing slash', () => {
+    const v = localEnvViolations({
+      files: { '.env': 'SUPABASE_URL=http://127.0.0.1:54321/' },
+      env: {},
+    })
+    expect(v).toEqual([])
+  })
+
+  it('passes a quoted localhost URL with a trailing comment', () => {
+    const v = localEnvViolations({
+      files: { '.env': 'NEXT_PUBLIC_SUPABASE_URL="http://localhost:54321" # local' },
+      env: {},
+    })
+    expect(v).toEqual([])
+  })
+
+  it('flags a hosted host smuggled in as localhost userinfo', () => {
+    const v = localEnvViolations({
+      files: {
+        '.env': 'NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321@x.supabase.co',
+      },
+      env: {},
+    })
+    expect(v).toEqual(['NEXT_PUBLIC_SUPABASE_URL is not a local Supabase URL in .env'])
+  })
+
+  it('flags an unparseable URL value', () => {
+    const v = localEnvViolations({
+      files: { '.env': 'NEXT_PUBLIC_SUPABASE_URL=not a url' },
+      env: {},
+    })
+    expect(v).toEqual(['NEXT_PUBLIC_SUPABASE_URL is not a local Supabase URL in .env'])
   })
 
   it('flags a hosted URL, naming the key but not the value', () => {

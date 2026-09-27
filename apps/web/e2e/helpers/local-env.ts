@@ -7,7 +7,6 @@ export type LocalEnvInput = {
 }
 
 const SUPABASE_URL_KEY_RE = /^[A-Z_]*SUPABASE_URL$/
-const LOCAL_URL_RE = /^http:\/\/(localhost|127\.0\.0\.1)[:/]/
 const KEY_RE = /^[A-Za-z_][A-Za-z0-9_]*$/
 
 const ENV_FILES = [
@@ -33,21 +32,33 @@ function parseLine(line: string): ParsedLine | null {
   return { key, value: parseValue(withoutExport.slice(eq + 1).trim()) }
 }
 
-/** Strips a matching pair of quotes, or an unquoted trailing `#` comment. */
+/** Strips a matching pair of quotes (ignoring anything past the close quote), or an unquoted trailing `#` comment. */
 function parseValue(raw: string): string {
-  const isQuoted =
-    raw.length >= 2 &&
-    ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'")))
-  if (isQuoted) return raw.slice(1, -1)
+  const quote = raw[0]
+  if (quote === '"' || quote === "'") {
+    const closeIndex = raw.indexOf(quote, 1)
+    return closeIndex === -1 ? raw.slice(1) : raw.slice(1, closeIndex)
+  }
   const hashIndex = raw.indexOf('#')
   return (hashIndex === -1 ? raw : raw.slice(0, hashIndex)).trim()
+}
+
+/** True only for an `http:` URL whose hostname is localhost or 127.0.0.1. */
+function isLocalUrl(value: string): boolean {
+  let url: URL
+  try {
+    url = new URL(value)
+  } catch {
+    return false
+  }
+  return url.protocol === 'http:' && (url.hostname === 'localhost' || url.hostname === '127.0.0.1')
 }
 
 /** Violation messages (no source, no value) for one key/value pair. */
 function violationsForEntry(key: string, value: string): string[] {
   const messages: string[] = []
   if (key === 'RESEND_API_KEY' && value !== '') messages.push('RESEND_API_KEY set')
-  if (SUPABASE_URL_KEY_RE.test(key) && value !== '' && !LOCAL_URL_RE.test(value)) {
+  if (SUPABASE_URL_KEY_RE.test(key) && value !== '' && !isLocalUrl(value)) {
     messages.push(`${key} is not a local Supabase URL`)
   }
   return messages

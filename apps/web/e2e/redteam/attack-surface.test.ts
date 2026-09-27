@@ -100,11 +100,25 @@ function validateMatrixRows(
 
 const REAL_SPEC_FILE = 'rate-limiting.spec.ts'
 
+/** Matches a line (after leading whitespace) statically skipping a titled test or describe block. */
+const STATIC_SKIP_LINE_RE =
+  /^\s*(test\.describe\.skip|test\.describe\.fixme|test\.skip|test\.fixme|it\.skip|describe\.skip)\(\s*(['"`])/
+
+/** True when the spec source holds at least one statically-skipped titled test or describe. */
+function hasStaticSkip(source: string): boolean {
+  return source.split(/\r\n|\n/).some((line) => STATIC_SKIP_LINE_RE.test(line))
+}
+
 /** IDs of 7-cell rows past `GAP` whose spec is still skipped — a skipped spec passes `e2e:redteam` while running nothing. */
-function skippedSpecRowIds(rows: string[][], readSpec: (name: string) => string): string[] {
+function skippedSpecRowIds(
+  rows: string[][],
+  readSpec: (name: string) => string,
+  specFileExists: (name: string) => boolean = () => true,
+): string[] {
   return rows
     .filter((r) => r.length === 7 && r[4]?.trim() !== 'GAP')
-    .filter((r) => /\.(skip|fixme)\(/.test(readSpec((r[3] ?? '').trim())))
+    .filter((r) => specFileExists((r[3] ?? '').trim()))
+    .filter((r) => hasStaticSkip(readSpec((r[3] ?? '').trim())))
     .map((r) => (r[0] ?? '').trim())
 }
 
@@ -158,24 +172,64 @@ describe('the real attack-surface matrix', () => {
   it('has no row past GAP whose spec is still skipped', () => {
     const rows = parseMatrixRows(fs.readFileSync(MATRIX_PATH, 'utf8'))
     const readSpec = (name: string) => fs.readFileSync(path.join(REDTEAM_DIR, name), 'utf8')
-    expect(skippedSpecRowIds(rows, readSpec)).toEqual([])
+    expect(skippedSpecRowIds(rows, readSpec, realSpecFileExists)).toEqual([])
   })
 })
 
 describe('skippedSpecRowIds', () => {
   const skipped = "test.skip('rejects a forged token', async () => {})"
   const running = "test('rejects a forged token', async () => {})"
+  const blockedRow = () => [...VALID_ROW].fill('BLOCKED', 4, 5)
 
   it('flags a BLOCKED row whose spec is still skipped', () => {
-    expect(skippedSpecRowIds([[...VALID_ROW].fill('BLOCKED', 4, 5)], () => skipped)).toEqual(['ZZ'])
+    expect(skippedSpecRowIds([blockedRow()], () => skipped)).toEqual(['ZZ'])
   })
 
   it('accepts a BLOCKED row whose spec runs', () => {
-    expect(skippedSpecRowIds([[...VALID_ROW].fill('BLOCKED', 4, 5)], () => running)).toEqual([])
+    expect(skippedSpecRowIds([blockedRow()], () => running)).toEqual([])
   })
 
   it('accepts a GAP row whose spec is skipped', () => {
     expect(skippedSpecRowIds([[...VALID_ROW].fill('GAP', 4, 5)], () => skipped)).toEqual([])
+  })
+
+  it('does not flag a spec that only mentions test.skip() in a comment', () => {
+    const source =
+      'test.beforeEach(async () => {\n  // reset id so a test.skip() below does not leak\n})'
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual([])
+  })
+
+  it('does not flag a spec with a conditional runtime test.skip', () => {
+    const source =
+      "test('rejects a forged token', async () => {\n  if (cond) {\n    test.skip(true, 'reason')\n    return\n  }\n})"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual([])
+  })
+
+  it('flags a spec with a titled test.skip', () => {
+    const source = "test.skip('rejects a forged token', async () => {})"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
+  })
+
+  it('flags a spec with a titled test.describe.skip', () => {
+    const source = "test.describe.skip('forged token flows', () => {})"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
+  })
+
+  it('skips a row whose spec file does not exist instead of throwing', () => {
+    expect(() =>
+      skippedSpecRowIds(
+        [blockedRow()],
+        (name) => fs.readFileSync(path.join(REDTEAM_DIR, name), 'utf8'),
+        () => false,
+      ),
+    ).not.toThrow()
+    expect(
+      skippedSpecRowIds(
+        [blockedRow()],
+        (name) => fs.readFileSync(path.join(REDTEAM_DIR, name), 'utf8'),
+        () => false,
+      ),
+    ).toEqual([])
   })
 })
 
