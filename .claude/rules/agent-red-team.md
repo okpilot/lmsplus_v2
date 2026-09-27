@@ -30,7 +30,7 @@ Runs ONCE per branch, after the review loop ends — and only when the above pat
 - Create GitHub Issues for unproven coverage gaps (not immediate fixes). These COUNT toward the `filed >= closed` defer budget; list them in the PR body's `## Deferred` section marked `red-team-gap`, naming the spec or vector each covers (`agent-workflow.md § Apply-vs-Defer Discipline`). A PR whose filings are ALL red-team gaps passes; mixed with ordinary deferrals, it is judged on the ordinary ones alone.
 - A run with no proven exploit: commit its specs and rows as a fixup; the round-2+ set re-runs on the re-diffed branch, a fresh loop with its own 3-round ceiling.
 - Red-team's own specs and rows, and a proven exploit's fix, never re-trigger red-team.
-- After each red-team run, check `git status --porcelain --untracked-files=all` and reject any path outside `apps/web/e2e/redteam/` — the agent's write scope is brief-enforced, not hook-enforced.
+- After each red-team run, check `git status --porcelain --untracked-files=all` and reject any path under `apps/web/e2e/redteam/` other than `*.spec.ts`, `helpers/**` and `attack-surface.md`, or outside it — the agent's write scope is brief-enforced, not hook-enforced.
 - A security bug found downstream of a PASSED red-team run (by CodeRabbit, security-auditor, CI, or in production) gets a `MISSED` row plus a spec, filed in the PR that fixes it.
 - **Read the actual migration before writing any column filter, table assertion, or schema-derived value in a red-team spec — never author one from memory of the schema.** Verify the column exists by scanning EVERY `ALTER TABLE <table>` in `supabase/migrations/` chronologically to HEAD, not just `CREATE TABLE` plus one latest `ALTER`: a column can be ADDED, RENAMED and DROPPED across separate migrations, so one match only proves it existed at some point. Trace the supersession chain — EVERY form (`agent-workflow.md` § "name EVERY supersession form"), reaching beyond the function body to `ALTER FUNCTION <fn>(<arg types>)`, `DROP TRIGGER` + `CREATE TRIGGER`, and the constraint/index forms — to the latest definition, for the MATCHING SIGNATURE, for RPC/trigger assertions.
 - The soft-delete **column-existence guard** (`.claude/hooks/check-soft-delete-guard.mjs`, code-style.md §5) mechanically blocks `.is('<column>')` on any table when `<column>` is not a real column (schema-derived from `packages/db/src/types.ts`) in PRODUCTION code — known base tables in string-literal query chains only, unknown/dynamic tables skipped — but red-team spec files are NOT covered, so "read the migration" still applies there.
@@ -38,7 +38,7 @@ Runs ONCE per branch, after the review loop ends — and only when the above pat
 
 ### NEVER
 - Run inside the review loop, or more than once per branch.
-- Let the agent write outside `apps/web/e2e/redteam/` — specs, helpers, helper tests, `attack-surface.md` only.
+- Let the agent write outside `apps/web/e2e/redteam/` — `*.spec.ts`, `helpers/**`, `attack-surface.md` only.
 - Let the agent touch production code, migrations, seed scripts, `.env*`.
 - Let the agent target `.env.remote`, `--force-remote`, a `supabase.co` URL, or any prod credential.
 - Let the agent run `git commit`, `git add`, `git reset`, `git checkout`, `git stash`, `git restore`, `git clean`, `git switch`, `git rm`.

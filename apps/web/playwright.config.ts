@@ -1,7 +1,7 @@
 import { resolve } from 'node:path'
 import { defineConfig, devices } from '@playwright/test'
 import { config } from 'dotenv'
-import { assertLocalEnv } from './e2e/helpers/local-env'
+import { assertLocalEnv } from './scripts/local-env'
 
 config({ path: resolve(__dirname, '.env.local') })
 assertLocalEnv(__dirname)

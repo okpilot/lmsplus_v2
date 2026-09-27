@@ -54,7 +54,7 @@ Local stack only: `localhost:3000` + `localhost:54321`. NEVER `.env.remote`, NEV
 Email: outside production, `sendEmail` logs instead of sending only when `RESEND_API_KEY` is unset
 (`apps/web/lib/email/resend.ts`); the surrounding state changes still happen.
 Before starting a `:3000` server outside Playwright: `pnpm --filter @repo/web exec tsx
-e2e/check-local-env.ts`; non-zero exit → STOP, verdict INCONCLUSIVE. Stop that server before a spec
+scripts/check-local-env.ts`; non-zero exit → STOP, verdict INCONCLUSIVE. Stop that server before a spec
 run: Playwright never reuses one, it starts its own after `playwright.config.ts` runs the same check.
 
 ## Per-Attempt Output
@@ -95,9 +95,9 @@ keeps its ID — fill that row, allocate nothing.
 pnpm --filter @repo/web exec playwright test --project=redteam <spec>
 ```
 Requires local Supabase running + seed loaded. NEVER start or target a remote instance.
-Playwright's `webServer` starts `pnpm dev` on `:3000` and reuses an existing local server. If you
-start one, stop it before finishing; leave local Supabase running. If `:3000` is already bound by a
-server you did not start, STOP, verdict INCONCLUSIVE — its environment is unverified; do not kill it.
+Playwright's `webServer` starts its own `pnpm dev` on `:3000` and never reuses a running server —
+stop any server you started before a spec run and before finishing; leave local Supabase running. If
+`:3000` is bound by a server you did not start, STOP, verdict INCONCLUSIVE; do not kill it.
 
 ## Existing Duty — Map Diff to Specs
 
@@ -107,7 +107,7 @@ specs.
 
 ## Hard Limits
 
-Write ONLY under `apps/web/e2e/redteam/` — specs, helpers, helper tests, `attack-surface.md`.
+Write ONLY under `apps/web/e2e/redteam/` — `*.spec.ts`, `helpers/**`, `attack-surface.md`.
 NEVER production code, migrations, seed scripts, `.env*`.
 NEVER `.env.remote`, `--force-remote`, a `supabase.co` URL, any prod credential.
 NEVER `git commit`, `git add`, `git reset`, `git checkout`, `git stash`, `git restore`, `git clean`,

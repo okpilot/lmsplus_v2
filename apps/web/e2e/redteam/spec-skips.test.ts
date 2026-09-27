@@ -57,6 +57,12 @@ describe('skippedSpecRowIds', () => {
     expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
   })
 
+  it('flags a spec whose beforeEach hook skips unconditionally', () => {
+    const source =
+      "test.beforeEach(async () => {\n  test.skip(true, 'awaiting fix')\n})\ntest('rejects', async () => {})"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
+  })
+
   it('does not flag a conditional untitled skip inside a test body', () => {
     const source =
       "test('rejects', async ({ browserName }) => {\n  test.skip(browserName === 'webkit')\n})"
