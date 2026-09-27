@@ -23,7 +23,7 @@ State what is true. Delete the rest.
 2. **NEVER explore the codebase yourself when subagents can do it** — Explore agents (Sonnet) do it. Reading one known file or a simple symbol grep is exempt (§ When NOT to use subagents).
 3. **ALWAYS delegate execution** — parallel when independent; worktree isolation for risky changes.
 4. **ALWAYS read every subagent result first** — no fire-and-forget.
-5. **ALWAYS run the pre-push review gate** — once per branch, all eight reviewers in round 1. No exemption.
+5. **ALWAYS run the pre-push review gate** — once per branch, all seven core reviewers in round 1, plus e2e-writer when triggered. No exemption.
 
 ### Your workflow for any non-trivial task:
 ```
@@ -151,7 +151,7 @@ met, same commit. Verify redundancy, never infer from the resolved version:
 ONE loop per BRANCH over `git diff origin/master...HEAD`.
 A commit triggers NOTHING. Full mechanics: `agent-workflow.md § Pre-Push Review Gate`.
 
-**Round 1** — eight reviewers, ONE parallel dispatch:
+**Round 1** — seven reviewers, plus e2e-writer when triggered, ONE parallel dispatch:
 1. **implementation-critic** (sonnet) — branch diff vs the validated plan
 2. **code-reviewer** (sonnet) — diff vs `.claude/rules/code-style.md`
 3. **semantic-reviewer** (sonnet) — deep logic/security/consistency review

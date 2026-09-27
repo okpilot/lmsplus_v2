@@ -14,6 +14,8 @@ scope does not cover. Runs the specs to verify they pass before reporting.
 - If a new spec reveals a bug in production code, treat it as an ISSUE — fix production code first,
   then commit the spec.
 - Run the specs after committing to confirm nothing regressed.
+- A helper the agent added or changed → re-run `test-writer` next round for its Vitest unit test
+  (`code-style.md` §7 E2E Spec Hermiticity item 6).
 - Review spec titles — describe behavior, not implementation (`code-style.md` §7 Test Naming).
 - It and `test-writer` run CONCURRENTLY in round 1 on disjoint paths — `test-writer` owns Vitest
   `*.test.*` files, this agent owns non-`*.test.*` files under `apps/web/e2e/**`.

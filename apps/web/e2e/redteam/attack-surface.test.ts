@@ -16,6 +16,8 @@ const STATUS_VALUES = new Set(['FIXED', 'GAP', 'MISSED', 'BLOCKED'])
 const VECTOR_RE = /^[\w./:()-]+$/
 const SPEC_FILE_RE = /^[\w-]+\.spec\.ts$/
 const NOTES_RE = /^#\d+$/
+/** Rows predating the Technique column; a new row must carry all 7 cells. Only ever decreases. */
+const LEGACY_SIX_CELL_ROWS = 177
 
 /** Splits one `| a | b\|c | d |` markdown table row into trimmed cells, honouring `\|` escapes. */
 function splitTableRow(line: string): string[] {
@@ -166,6 +168,12 @@ describe('the real attack-surface matrix', () => {
     const rows = parseMatrixRows(markdown)
     const errors = validateMatrixRows(rows, techniques, realSpecFileExists)
     expect(errors).toEqual([])
+  })
+
+  it('adds no row without a Technique column beyond the pre-existing ones', () => {
+    const rows = parseMatrixRows(fs.readFileSync(MATRIX_PATH, 'utf8'))
+    expect(rows.length).toBeGreaterThan(0)
+    expect(rows.filter((r) => r.length <= 6).length).toBeLessThanOrEqual(LEGACY_SIX_CELL_ROWS)
   })
 })
 

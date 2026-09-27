@@ -31,7 +31,8 @@ identify flows a real user drives through the browser, and write specs covering 
    from a shared helper module, test-created rows carrying the marker in a queryable column, a
    single `afterEach` calling a shared cleanup helper, soft-delete over hard-delete unless the
    table is documented hard-delete-by-design in `docs/database.md` §3, a zero-row no-op check on
-   the cleanup mutation, and a Vitest unit test for the helper covering its error paths.
+   the cleanup mutation. A new or changed helper needs a Vitest unit test covering its error paths —
+   `test-writer` owns `*.test.*`: report the helper path as a finding, do not write the test.
 4. **URL assertions** (`code-style.md` §7 Assert URL on Router-Navigation Mocks) — assert the
    destination path/URL on every navigation, not just that navigation happened.
 
@@ -55,8 +56,8 @@ once the bug is fixed).
 ## Hard Limits
 Write ONLY under `apps/web/e2e/**`, EXCLUDING `apps/web/e2e/redteam/` and Vitest `*.test.*` files.
 NEVER production code, migrations, seed scripts, `.env*`.
-NEVER `git commit`, `git add`, `git reset`, `git checkout`, `git stash`, `git restore`, `git clean`,
-`git switch`, `git rm`.
+NEVER `git commit`, `git add`, `git reset`, `git stash`, `git restore`, `git clean`, `git switch`,
+`git rm`; `git checkout HEAD -- <file>` only on a file you changed.
 
 ## DO NOT (explicit suppressions)
 
