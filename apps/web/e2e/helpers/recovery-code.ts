@@ -53,17 +53,17 @@ async function readRecoverySentAt(userId: string): Promise<string | null> {
 }
 
 /**
- * Clears both recovery throttle counters (send + failed-verify) for a
- * persistent, reused-across-runs test account — a wrong-code spec run
- * accumulates `recovery_verify_failed_at` entries on the SAME account every
- * time, and after `MAX_FAILED_VERIFIES_PER_HOUR` runs in an hour the account
- * locks out even the happy-path spec. Call this before any spec that reuses
- * a fixed email across runs and exercises the recovery-code verify flow.
+ * Clears the recovery-send throttle counter for a persistent,
+ * reused-across-runs test account — a spec run accumulates
+ * `recovery_code_sent_at` entries on the SAME account every time, and after
+ * `MAX_RECOVERY_CODES_PER_HOUR` runs in an hour the account is throttled out
+ * of even the happy-path spec. Call this before any spec that reuses a fixed
+ * email across runs and exercises the recovery-code request flow.
  */
 export async function resetRecoveryThrottle(email: string): Promise<void> {
   const userId = await readUserId(email)
   const { error } = await getAdminClient().auth.admin.updateUserById(userId, {
-    app_metadata: { recovery_code_sent_at: null, recovery_verify_failed_at: null },
+    app_metadata: { recovery_code_sent_at: null },
   })
   if (error) throw new Error(`resetRecoveryThrottle: ${error.message}`)
 }

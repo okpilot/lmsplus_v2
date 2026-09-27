@@ -9,8 +9,6 @@ const {
   mockFindActiveUserIdByEmail,
   mockClaimRecoverySlot,
   mockIssueRecoveryCode,
-  mockIsVerifyLocked,
-  mockRecordFailedVerify,
   mockIsEmailConfigured,
   mockSendEmail,
   mockRecoveryCodeEmail,
@@ -23,8 +21,6 @@ const {
   mockFindActiveUserIdByEmail: vi.fn(),
   mockClaimRecoverySlot: vi.fn(),
   mockIssueRecoveryCode: vi.fn(),
-  mockIsVerifyLocked: vi.fn(),
-  mockRecordFailedVerify: vi.fn(),
   mockIsEmailConfigured: vi.fn(),
   mockSendEmail: vi.fn(),
   mockRecoveryCodeEmail: vi.fn(),
@@ -50,8 +46,6 @@ vi.mock('@/lib/auth/recovery-code', () => ({
   findActiveUserIdByEmail: (...args: unknown[]) => mockFindActiveUserIdByEmail(...args),
   claimRecoverySlot: (...args: unknown[]) => mockClaimRecoverySlot(...args),
   issueRecoveryCode: (...args: unknown[]) => mockIssueRecoveryCode(...args),
-  isVerifyLocked: (...args: unknown[]) => mockIsVerifyLocked(...args),
-  recordFailedVerify: (...args: unknown[]) => mockRecordFailedVerify(...args),
 }))
 
 vi.mock('@/lib/email/resend', () => ({
@@ -93,7 +87,6 @@ beforeEach(() => {
   mockIssueRecoveryCode.mockResolvedValue(CODE)
   mockRecoveryCodeEmail.mockReturnValue({ subject: 's', html: 'h', text: 't' })
   mockSendEmail.mockResolvedValue({ ok: true })
-  mockIsVerifyLocked.mockResolvedValue(false)
   mockWithMinimumDuration.mockImplementation((...args: unknown[]) => args[0])
 })
 
@@ -241,25 +234,6 @@ describe('verifyRecoveryCode', () => {
     expect(mockVerifyOtp).not.toHaveBeenCalled()
   })
 
-  it('returns the generic invalid-code error without calling verifyOtp when the account is locked', async () => {
-    mockIsVerifyLocked.mockResolvedValue(true)
-
-    const result = await verifyRecoveryCode({ email: EMAIL, code: CODE })
-
-    expect(result).toEqual({ ok: false, error: 'That code is invalid or has expired.' })
-    expect(mockVerifyOtp).not.toHaveBeenCalled()
-  })
-
-  it('records a failed attempt against the account when verifyOtp rejects the code', async () => {
-    mockVerifyOtp.mockResolvedValue({ error: { message: 'Token has expired or is invalid' } })
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-
-    await verifyRecoveryCode({ email: EMAIL, code: CODE })
-
-    expect(mockRecordFailedVerify).toHaveBeenCalledWith(USER_ID)
-    consoleSpy.mockRestore()
-  })
-
   it('runs the verification through the minimum-duration floor', async () => {
     mockVerifyOtp.mockResolvedValue({ error: null })
 
@@ -268,17 +242,13 @@ describe('verifyRecoveryCode', () => {
     expect(mockWithMinimumDuration).toHaveBeenCalledWith(expect.any(Promise), 1500)
   })
 
-  it('asks the student to wait, without counting a failed attempt, when verification is rate-limited', async () => {
+  it('returns the same generic invalid-code error, not a rate-limit message, when verification is rate-limited', async () => {
     mockVerifyOtp.mockResolvedValue({ error: { message: 'Too many requests', status: 429 } })
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
     const result = await verifyRecoveryCode({ email: EMAIL, code: CODE })
 
-    expect(result).toEqual({
-      ok: false,
-      error: 'Too many attempts. Please wait a few minutes and try again.',
-    })
-    expect(mockRecordFailedVerify).not.toHaveBeenCalled()
+    expect(result).toEqual({ ok: false, error: 'That code is invalid or has expired.' })
     consoleSpy.mockRestore()
   })
 })

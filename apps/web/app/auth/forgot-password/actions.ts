@@ -7,8 +7,6 @@ import {
   claimRecoverySlot,
   findActiveUserIdByEmail,
   issueRecoveryCode,
-  isVerifyLocked,
-  recordFailedVerify,
 } from '@/lib/auth/recovery-code'
 import { setRecoveryPendingCookie } from '@/lib/auth/recovery-pending-cookie'
 import { isEmailConfigured, sendEmail } from '@/lib/email/resend'
@@ -61,7 +59,6 @@ const VerifyRecoveryCodeSchema = z.object({
 })
 
 const INVALID_CODE_MESSAGE = 'That code is invalid or has expired.'
-const RATE_LIMITED_MESSAGE = 'Too many attempts. Please wait a few minutes and try again.'
 const VERIFY_MIN_DURATION_MS = 1500
 
 export type VerifyRecoveryCodeResult = { ok: true } | { ok: false; error: string }
@@ -71,27 +68,29 @@ export async function verifyRecoveryCode(input: unknown): Promise<VerifyRecovery
   return withMinimumDuration(verify(input), VERIFY_MIN_DURATION_MS)
 }
 
-/** Failed codes are capped per account — Supabase's per-IP verify limit sees this server's IP, not the student's. */
+/**
+ * An unknown account still returns the generic invalid-code message without
+ * calling `verifyOtp`, preserving the neutral response (no account
+ * enumeration). No per-account failed-verify counter — see #760.
+ */
 async function verify(input: unknown): Promise<VerifyRecoveryCodeResult> {
   const parsed = VerifyRecoveryCodeSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: INVALID_CODE_MESSAGE }
   const { email, code } = parsed.data
 
   const userId = await findActiveUserIdByEmail(email)
-  if (!userId || (await isVerifyLocked(userId))) {
-    return { ok: false, error: INVALID_CODE_MESSAGE }
-  }
+  if (!userId) return { ok: false, error: INVALID_CODE_MESSAGE }
 
   const supabase = await createServerSupabaseClient()
   const { error } = await supabase.auth.verifyOtp({ email, token: code, type: 'recovery' })
   if (error) {
-    // 429 = Supabase's per-IP limit, not a wrong code — never count it against the account.
+    // A distinct rate-limit message would reveal which emails have accounts,
+    // so both branches return the same generic invalid-code message.
     if (error.status === 429) {
       console.log('[verifyRecoveryCode] verify rate-limited')
-      return { ok: false, error: RATE_LIMITED_MESSAGE }
+    } else {
+      console.error('[verifyRecoveryCode] verifyOtp failed:', error.message)
     }
-    console.error('[verifyRecoveryCode] verifyOtp failed:', error.message)
-    await recordFailedVerify(userId)
     return { ok: false, error: INVALID_CODE_MESSAGE }
   }
 

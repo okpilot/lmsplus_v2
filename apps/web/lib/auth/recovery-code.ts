@@ -3,7 +3,6 @@ import { escapeLike } from '@/lib/utils/escape-like'
 
 /** Decision 103: throttle state lives in Auth `app_metadata` (service-role write only). */
 export const MAX_RECOVERY_CODES_PER_HOUR = 3
-export const MAX_FAILED_VERIFIES_PER_HOUR = 5
 const RECOVERY_WINDOW_MS = 60 * 60 * 1000
 
 /**
@@ -58,9 +57,9 @@ function readTimestamps(appMetadata: Record<string, unknown>, key: string): stri
  * lock, so a concurrent burst can exceed the cap by the burst size (accepted).
  *
  * Writes only the `recovery_code_sent_at` key — GoTrue's admin update MERGES
- * `app_metadata` by top-level key, so spreading `existing` back in would
- * re-write `recovery_verify_failed_at` from this stale read, clobbering a
- * concurrent `recordFailedVerify` write to that other key.
+ * `app_metadata` by top-level key, so spreading `existing` back in is
+ * unnecessary and would re-write another GoTrue-managed key (e.g. `provider`)
+ * from this stale read, clobbering a concurrent write to that other key.
  */
 export async function claimRecoverySlot(userId: string): Promise<{ allowed: boolean }> {
   const { data, error } = await adminClient.auth.admin.getUserById(userId)
@@ -104,53 +103,4 @@ export async function issueRecoveryCode(email: string): Promise<string | null> {
     return null
   }
   return code
-}
-
-/**
- * True when the user has hit the per-hour cap on failed verify attempts, or
- * when the user can't be read (fails closed, same posture as
- * `claimRecoverySlot`). Bounds SEQUENTIAL guessing only: `recordFailedVerify`
- * is read-then-write on one key, so N concurrent failures can record as one.
- * The atomic counter is #760.
- */
-export async function isVerifyLocked(userId: string): Promise<boolean> {
-  const { data, error } = await adminClient.auth.admin.getUserById(userId)
-  if (error || !data.user) {
-    console.error('[isVerifyLocked] failed to read user:', error?.message ?? 'not found')
-    return true
-  }
-
-  const recent = recentSends(
-    readTimestamps(data.user.app_metadata ?? {}, 'recovery_verify_failed_at'),
-    Date.now(),
-  )
-  return recent.length >= MAX_FAILED_VERIFIES_PER_HOUR
-}
-
-/**
- * Appends a failed-verify timestamp to the Auth user's `app_metadata`
- * (service-role only). Best-effort: logs and returns on any read/write
- * error rather than throwing, since the caller has already decided to
- * return the generic invalid-code error regardless.
- *
- * Writes only the `recovery_verify_failed_at` key — GoTrue's admin update
- * MERGES `app_metadata` by top-level key, so spreading `existing` back in
- * would re-write `recovery_code_sent_at` from this stale read, clobbering a
- * concurrent `claimRecoverySlot` write to that other key.
- */
-export async function recordFailedVerify(userId: string): Promise<void> {
-  const { data, error } = await adminClient.auth.admin.getUserById(userId)
-  if (error || !data.user) {
-    console.error('[recordFailedVerify] failed to read user:', error?.message ?? 'not found')
-    return
-  }
-
-  const existing = data.user.app_metadata ?? {}
-  const pruned = recentSends(readTimestamps(existing, 'recovery_verify_failed_at'), Date.now())
-  const { error: updateError } = await adminClient.auth.admin.updateUserById(userId, {
-    app_metadata: { recovery_verify_failed_at: [...pruned, new Date().toISOString()] },
-  })
-  if (updateError) {
-    console.error('[recordFailedVerify] failed to record failure:', updateError.message)
-  }
 }

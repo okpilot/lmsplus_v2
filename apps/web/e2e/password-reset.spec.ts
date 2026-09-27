@@ -10,9 +10,9 @@ test.describe('password reset flow', () => {
     await ensureLoginTestUser()
   })
 
-  // LOGIN_TEST_EMAIL is a persistent, shared account — the "wrong code" test below
-  // records a failed verify against it every run, and would eventually lock the
-  // account out of the happy-path test in this same file (MAX_FAILED_VERIFIES_PER_HOUR).
+  // LOGIN_TEST_EMAIL is a persistent, shared account — every test in this file
+  // sends it a new reset code, and would eventually throttle the account out of
+  // the happy-path test (MAX_RECOVERY_CODES_PER_HOUR).
   test.beforeEach(async () => {
     await resetRecoveryThrottle(LOGIN_TEST_EMAIL)
   })

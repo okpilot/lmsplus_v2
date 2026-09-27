@@ -119,14 +119,14 @@ describe('resetRecoveryThrottle', () => {
     vi.resetAllMocks()
   })
 
-  it('clears both throttle counters on the account matching the email', async () => {
+  it('clears the send throttle counter on the account matching the email', async () => {
     mockUserLookup({ data: { id: USER_ID } })
     mockUpdateUserById.mockResolvedValue({ error: null })
 
     await resetRecoveryThrottle(EMAIL)
 
     expect(mockUpdateUserById).toHaveBeenCalledWith(USER_ID, {
-      app_metadata: { recovery_code_sent_at: null, recovery_verify_failed_at: null },
+      app_metadata: { recovery_code_sent_at: null },
     })
   })
 

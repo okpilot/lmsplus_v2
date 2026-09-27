@@ -4,10 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ForgotPasswordForm } from './forgot-password-form'
 
 const mockRequestRecoveryCode = vi.fn()
-const mockVerifyRecoveryCode = vi.fn()
 vi.mock('../actions', () => ({
   requestRecoveryCode: (...args: unknown[]) => mockRequestRecoveryCode(...args),
-  verifyRecoveryCode: (...args: unknown[]) => mockVerifyRecoveryCode(...args),
 }))
 
 vi.mock('next/link', () => ({

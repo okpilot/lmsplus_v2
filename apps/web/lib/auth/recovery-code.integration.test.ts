@@ -12,7 +12,7 @@ import {
   fixtureSuffix,
   getAdminClient,
 } from '@/lib/integration-support/harness'
-import { claimRecoverySlot, findActiveUserIdByEmail, recordFailedVerify } from './recovery-code'
+import { claimRecoverySlot, findActiveUserIdByEmail } from './recovery-code'
 
 const admin = getAdminClient()
 const suffix = fixtureSuffix()
@@ -98,7 +98,7 @@ describe('findActiveUserIdByEmail (app-layer integration)', () => {
   })
 })
 
-describe('claimRecoverySlot + recordFailedVerify app_metadata merge (app-layer integration)', () => {
+describe('claimRecoverySlot app_metadata merge (app-layer integration)', () => {
   let throttleOrgId: string | undefined
   let throttleStudentId: string
 
@@ -130,15 +130,13 @@ describe('claimRecoverySlot + recordFailedVerify app_metadata merge (app-layer i
     }
   })
 
-  it('leaves both throttle keys and an unrelated pre-seeded key present after a send then a failed verify', async () => {
+  it('preserves an unrelated pre-seeded app_metadata key after claiming a recovery slot', async () => {
     await expect(claimRecoverySlot(throttleStudentId)).resolves.toEqual({ allowed: true })
-    await recordFailedVerify(throttleStudentId)
 
     const { data, error } = await admin.auth.admin.getUserById(throttleStudentId)
     if (error || !data.user) throw new Error(`getUserById: ${error?.message ?? 'not found'}`)
 
     expect(data.user.app_metadata.unrelated_key).toBe('keep-me')
     expect(data.user.app_metadata.recovery_code_sent_at).toEqual([expect.any(String)])
-    expect(data.user.app_metadata.recovery_verify_failed_at).toEqual([expect.any(String)])
   })
 })
