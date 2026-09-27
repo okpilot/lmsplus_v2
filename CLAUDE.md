@@ -179,8 +179,8 @@ Security files touched (migrations, db/src, quiz/actions, auth, proxy.ts, securi
 in `agent-workflow.md § Red-Team Agent Trigger`, +`apps/web/e2e/redteam/`) → also run:
 9. **red-team** (opus) — the attacker: attacks the local stack, proves each exploit by writing +
    running a failing spec under `apps/web/e2e/redteam/` (Write/Edit scoped to that path); a proven
-   exploit's prod fix is a fixup that re-enters the review loop for one more round (counts against
-   the 3-round ceiling), then red-team re-runs once to confirm its spec now passes
+   exploit's prod fix is a fixup that re-enters the review loop as a fresh loop (its own 3-round
+   ceiling), then red-team re-runs once to confirm its spec now passes
 
 Rules changed (`code-style.md`, `.claude/rules/security.md`, `docs/security.md`, `biome.json`,
 `CLAUDE.md`, or a new **or changed** `.claude/hooks/*.mjs` guard — see `agent-coderabbit-sync.md`) → also run:

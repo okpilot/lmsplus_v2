@@ -23,12 +23,13 @@ Runs ONCE per branch, after the review loop ends (plus one confirmation re-run a
 - Review the agent's spec mapping — verify it correctly identified affected existing specs.
 - Read every proven exploit's `EVIDENCE:` (spec path + pasted failing output) before acting on it (`agent-workflow.md § Finding Validation`).
 - **A proven exploit → the orchestrator fixes production code.** The spec + fix land in ONE commit — the fix is that round's FIXUP.
-- The fix re-enters the review loop: the round-2+ set (code-reviewer, semantic-reviewer, deletion-reviewer, code-review (skill)) runs on the re-diffed branch. This counts against the SAME 3-round ceiling as every other round — at the ceiling, STOP and escalate.
+- The fix re-enters the review loop: the round-2+ set (code-reviewer, semantic-reviewer, deletion-reviewer, code-review (skill)) runs on the re-diffed branch. It is a fresh loop with its own 3-round ceiling — at that ceiling, STOP and escalate.
 - A proven exploit fixed on this branch: write its row as `BLOCKED` in the fix commit, no issue filed.
 - A proven exploit blocks the push until its fix lands on this branch — never pushed as a `GAP` row with an issue filed.
 - After that round clears, re-run red-team ONCE to confirm its own spec now passes. A proven exploit on that re-run: STOP and escalate to the user.
 - Create GitHub Issues for unproven coverage gaps (not immediate fixes). These COUNT toward the `filed >= closed` defer budget; list them in the PR body's `## Deferred` section marked `red-team-gap`, naming the spec or vector each covers (`agent-workflow.md § Apply-vs-Defer Discipline`). A PR whose filings are ALL red-team gaps passes; mixed with ordinary deferrals, it is judged on the ordinary ones alone.
-- A run with no proven exploit: commit its specs and rows as a fixup; the round-2+ set re-runs on the re-diffed branch, against the same 3-round ceiling.
+- A run with no proven exploit: commit its specs and rows as a fixup; the round-2+ set re-runs on the re-diffed branch, a fresh loop with its own 3-round ceiling.
+- Red-team's own specs and rows never re-trigger red-team; the confirmation run is the only re-run.
 - After each red-team run, check `git status --porcelain --untracked-files=all` and reject any path outside `apps/web/e2e/redteam/` — the agent's write scope is brief-enforced, not hook-enforced.
 - A security bug found downstream of a PASSED red-team run (by CodeRabbit, security-auditor, CI, or in production) gets a `MISSED` row plus a spec, filed in the PR that fixes it.
 - **Read the actual migration before writing any column filter, table assertion, or schema-derived value in a red-team spec — never author one from memory of the schema.** Verify the column exists by scanning EVERY `ALTER TABLE <table>` in `supabase/migrations/` chronologically to HEAD, not just `CREATE TABLE` plus one latest `ALTER`: a column can be ADDED, RENAMED and DROPPED across separate migrations, so one match only proves it existed at some point. Trace the supersession chain — EVERY form (`agent-workflow.md` § "name EVERY supersession form"), reaching beyond the function body to `ALTER FUNCTION <fn>(<arg types>)`, `DROP TRIGGER` + `CREATE TRIGGER`, and the constraint/index forms — to the latest definition, for the MATCHING SIGNATURE, for RPC/trigger assertions.
@@ -44,4 +45,4 @@ Runs ONCE per branch, after the review loop ends (plus one confirmation re-run a
 - Block pushes on an unproven gap alone — advisory, not blocking. A PROVEN exploit (a spec that fails against current code) IS blocking.
 - Ignore an unproven coverage gap finding — create an issue to track it even if not fixing immediately.
 - Run red-team specs in the main E2E pipeline — separate CI workflow.
-- Exceed the 3-round ceiling counting the fixup round the exploit's fix entered — escalate instead of running a fourth round.
+- Exceed a red-team fixup loop's own 3-round ceiling — escalate instead of running a fourth round.

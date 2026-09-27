@@ -140,11 +140,11 @@ STOP on the FIRST round carrying no APPLY-worthy finding. No minimum, no floor.
 then ONCE per branch, in this order:
     red-team (if the branch diff matches § Red-Team Agent Trigger) — attacks the local stack
             ├─► NO proven exploit: commit its specs + rows as a fixup ─► round-2+ set re-runs
-                  on the re-diffed branch (same ceiling) ─► coderabbit-sync (if triggered)
+                  on the re-diffed branch (a fresh loop, own 3-round ceiling) ─► coderabbit-sync
             └─► PROVEN exploit: fixup (spec + prod fix) ─► round-2+ set re-runs on the
-                  re-diffed branch (counts against the same 3-round ceiling; at ceiling,
-                  escalate instead of looping) ─► red-team re-runs ONCE to confirm its
-                  spec now passes ─► coderabbit-sync (if triggered)
+                  re-diffed branch (a fresh loop, own 3-round ceiling; at it, escalate) ─►
+                  red-team re-runs ONCE to confirm its spec now passes ─► coderabbit-sync
+          red-team's own specs + rows never re-trigger red-team; the confirmation run is the only re-run
     ▼
 update spec tasks.md ([ ] → [x]) ▼ /fullpush ▼ push (security-auditor, fail-closed)
 ```
