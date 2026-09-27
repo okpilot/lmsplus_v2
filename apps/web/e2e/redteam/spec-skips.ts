@@ -1,0 +1,72 @@
+// Detects a red-team spec that is still statically skipped, for attack-surface.test.ts.
+
+/** Matches a line (after leading whitespace) statically skipping a titled test or describe block. */
+const STATIC_SKIP_LINE_RE =
+  /^\s*(test\.describe\.skip|test\.describe\.fixme|test\.skip|test\.fixme|it\.skip|describe\.skip)\(\s*(['"`])/
+
+/** Matches an untitled `test.skip(` / `test.fixme(` call — static only when it sits in a describe body. */
+const UNTITLED_SKIP_LINE_RE = /^\s*test\.(skip|fixme)\((?!\s*['"`])/
+
+/** Matches a line opening a describe block's body. */
+const DESCRIBE_OPENER_RE = /\b(test\.)?describe(\.\w+)?\(/
+
+/** The line holding the nearest unclosed `{` above `lines[index]`, or `null` at top level. */
+function enclosingOpener(lines: readonly string[], index: number): string | null {
+  let depth = 0
+  for (let i = index - 1; i >= 0; i--) {
+    for (const ch of [...lines[i]].reverse()) {
+      if (ch === '}') depth++
+      else if (ch === '{' && depth-- === 0) return lines[i]
+    }
+  }
+  return null
+}
+
+/** True when `lines[index]` skips its whole block: a titled skip, or an untitled one in a describe body. */
+function isStaticSkipLine(lines: readonly string[], index: number): boolean {
+  if (STATIC_SKIP_LINE_RE.test(lines[index])) return true
+  if (!UNTITLED_SKIP_LINE_RE.test(lines[index])) return false
+  const opener = enclosingOpener(lines, index)
+  return opener === null || DESCRIBE_OPENER_RE.test(opener)
+}
+
+/** Matches a `// Vector <ID>`-style attribution comment, capturing the exact ID token. */
+const VECTOR_ATTRIBUTION_RE = /\bVector\s+([A-Za-z][\w-]*)\b/g
+
+/** Every vector ID a line attributes a skip to; empty when the line names none. */
+function attributedVectorIds(line: string): string[] {
+  return [...line.matchAll(VECTOR_ATTRIBUTION_RE)].map((match) => match[1])
+}
+
+/**
+ * True when the static skip at `lines[skipIndex]` is attributed to `id` — its nearest
+ * preceding non-blank line names `id` via `Vector <id>`, or names no vector at all.
+ */
+function isSkipAttributedTo(lines: readonly string[], skipIndex: number, id: string): boolean {
+  for (let i = skipIndex - 1; i >= 0; i--) {
+    const line = lines[i].trim()
+    if (line === '') continue
+    const attributed = attributedVectorIds(line)
+    return attributed.length === 0 || attributed.includes(id)
+  }
+  return true
+}
+
+/** True when the spec source holds a static skip attributed to `id`. */
+function hasStaticSkipForId(source: string, id: string): boolean {
+  const lines = source.split(/\r\n|\n/)
+  return lines.some((_, i) => isStaticSkipLine(lines, i) && isSkipAttributedTo(lines, i, id))
+}
+
+/** IDs of 7-cell rows past `GAP` whose spec is still skipped — a skipped spec passes `e2e:redteam` while running nothing. */
+export function skippedSpecRowIds(
+  rows: string[][],
+  readSpec: (name: string) => string,
+  specFileExists: (name: string) => boolean = () => true,
+): string[] {
+  return rows
+    .filter((r) => r.length === 7 && r[4]?.trim() !== 'GAP')
+    .filter((r) => specFileExists((r[3] ?? '').trim()))
+    .filter((r) => hasStaticSkipForId(readSpec((r[3] ?? '').trim()), (r[0] ?? '').trim()))
+    .map((r) => (r[0] ?? '').trim())
+}

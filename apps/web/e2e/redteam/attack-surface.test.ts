@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { ID_RE, parseMatrixRows } from './matrix'
+import { skippedSpecRowIds } from './spec-skips'
 
 // ---------------------------------------------------------------------------
 // Validation helpers for the Vector-to-Spec Mapping table in attack-surface.md.
@@ -105,51 +106,6 @@ function validateMatrixRows(
 
 const REAL_SPEC_FILE = 'rate-limiting.spec.ts'
 
-/** Matches a line (after leading whitespace) statically skipping a titled test or describe block. */
-const STATIC_SKIP_LINE_RE =
-  /^\s*(test\.describe\.skip|test\.describe\.fixme|test\.skip|test\.fixme|it\.skip|describe\.skip)\(\s*(['"`])/
-
-/** Matches a `// Vector <ID>`-style attribution comment, capturing the exact ID token. */
-const VECTOR_ATTRIBUTION_RE = /\bVector\s+([A-Za-z][\w-]*)\b/g
-
-/** Every vector ID a line attributes a skip to; empty when the line names none. */
-function attributedVectorIds(line: string): string[] {
-  return [...line.matchAll(VECTOR_ATTRIBUTION_RE)].map((match) => match[1])
-}
-
-/**
- * True when the static skip at `lines[skipIndex]` is attributed to `id` — its nearest
- * preceding non-blank line names `id` via `Vector <id>`, or names no vector at all.
- */
-function isSkipAttributedTo(lines: readonly string[], skipIndex: number, id: string): boolean {
-  for (let i = skipIndex - 1; i >= 0; i--) {
-    const line = lines[i].trim()
-    if (line === '') continue
-    const attributed = attributedVectorIds(line)
-    return attributed.length === 0 || attributed.includes(id)
-  }
-  return true
-}
-
-/** True when the spec source holds a statically-skipped titled test or describe attributed to `id`. */
-function hasStaticSkipForId(source: string, id: string): boolean {
-  const lines = source.split(/\r\n|\n/)
-  return lines.some((line, i) => STATIC_SKIP_LINE_RE.test(line) && isSkipAttributedTo(lines, i, id))
-}
-
-/** IDs of 7-cell rows past `GAP` whose spec is still skipped — a skipped spec passes `e2e:redteam` while running nothing. */
-function skippedSpecRowIds(
-  rows: string[][],
-  readSpec: (name: string) => string,
-  specFileExists: (name: string) => boolean = () => true,
-): string[] {
-  return rows
-    .filter((r) => r.length === 7 && r[4]?.trim() !== 'GAP')
-    .filter((r) => specFileExists((r[3] ?? '').trim()))
-    .filter((r) => hasStaticSkipForId(readSpec((r[3] ?? '').trim()), (r[0] ?? '').trim()))
-    .map((r) => (r[0] ?? '').trim())
-}
-
 function realSpecFileExists(name: string): boolean {
   return fs.existsSync(path.join(REDTEAM_DIR, name))
 }
@@ -231,91 +187,6 @@ describe('the real attack-surface matrix', () => {
     const rows = parseMatrixRows(fs.readFileSync(MATRIX_PATH, 'utf8'))
     const readSpec = (name: string) => fs.readFileSync(path.join(REDTEAM_DIR, name), 'utf8')
     expect(skippedSpecRowIds(rows, readSpec, realSpecFileExists)).toEqual([])
-  })
-})
-
-describe('skippedSpecRowIds', () => {
-  const skipped = "test.skip('rejects a forged token', async () => {})"
-  const running = "test('rejects a forged token', async () => {})"
-  const blockedRow = () => [...VALID_ROW].fill('BLOCKED', 4, 5)
-
-  it('flags a BLOCKED row whose spec is still skipped', () => {
-    expect(skippedSpecRowIds([blockedRow()], () => skipped)).toEqual(['ZZ'])
-  })
-
-  it('accepts a BLOCKED row whose spec runs', () => {
-    expect(skippedSpecRowIds([blockedRow()], () => running)).toEqual([])
-  })
-
-  it('accepts a GAP row whose spec is skipped', () => {
-    expect(skippedSpecRowIds([[...VALID_ROW].fill('GAP', 4, 5)], () => skipped)).toEqual([])
-  })
-
-  it('does not flag a spec that only mentions test.skip() in a comment', () => {
-    const source =
-      'test.beforeEach(async () => {\n  // reset id so a test.skip() below does not leak\n})'
-    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual([])
-  })
-
-  it('does not flag a spec with a conditional runtime test.skip', () => {
-    const source =
-      "test('rejects a forged token', async () => {\n  if (cond) {\n    test.skip(true, 'reason')\n    return\n  }\n})"
-    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual([])
-  })
-
-  it('flags a spec with a titled test.skip', () => {
-    const source = "test.skip('rejects a forged token', async () => {})"
-    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
-  })
-
-  it('flags a spec with a titled test.describe.skip', () => {
-    const source = "test.describe.skip('forged token flows', () => {})"
-    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
-  })
-
-  it('flags a skip attributed to this row by a preceding Vector comment', () => {
-    const source = "// Vector ZZ\ntest.skip('rejects a forged token', async () => {})"
-    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
-  })
-
-  it('does not flag a skip attributed to a different vector', () => {
-    const source = "// Vector QQ\ntest.skip('rejects a forged token', async () => {})"
-    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual([])
-  })
-
-  it('flags a skip whose Vector comment names this row among several vectors', () => {
-    const source = "// Vector QQ / Vector ZZ\ntest.skip('rejects a forged token', async () => {})"
-    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
-  })
-
-  it('flags an unattributed skip', () => {
-    const source = "// resets fixture state\ntest.skip('rejects a forged token', async () => {})"
-    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
-  })
-
-  it('does not let a Vector comment for a longer ID match a shorter row ID', () => {
-    const row = [...VALID_ROW]
-    row[0] = 'F'
-    row[4] = 'BLOCKED'
-    const source = "// Vector FW\ntest.skip('rejects a forged token', async () => {})"
-    expect(skippedSpecRowIds([row], () => source)).toEqual([])
-  })
-
-  it('skips a row whose spec file does not exist instead of throwing', () => {
-    expect(() =>
-      skippedSpecRowIds(
-        [blockedRow()],
-        (name) => fs.readFileSync(path.join(REDTEAM_DIR, name), 'utf8'),
-        () => false,
-      ),
-    ).not.toThrow()
-    expect(
-      skippedSpecRowIds(
-        [blockedRow()],
-        (name) => fs.readFileSync(path.join(REDTEAM_DIR, name), 'utf8'),
-        () => false,
-      ),
-    ).toEqual([])
   })
 })
 
