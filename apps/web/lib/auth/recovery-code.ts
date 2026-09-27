@@ -109,9 +109,9 @@ export async function issueRecoveryCode(email: string): Promise<string | null> {
 /**
  * True when the user has hit the per-hour cap on failed verify attempts, or
  * when the user can't be read (fails closed, same posture as
- * `claimRecoverySlot`). Read-then-write with `recordFailedVerify`, no lock,
- * so a concurrent burst can exceed the cap by the burst size (accepted, same
- * as the send throttle).
+ * `claimRecoverySlot`). Bounds SEQUENTIAL guessing only: `recordFailedVerify`
+ * is read-then-write on one key, so N concurrent failures can record as one.
+ * The atomic counter is #760.
  */
 export async function isVerifyLocked(userId: string): Promise<boolean> {
   const { data, error } = await adminClient.auth.admin.getUserById(userId)

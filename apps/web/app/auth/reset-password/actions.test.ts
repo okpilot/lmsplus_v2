@@ -147,7 +147,7 @@ describe('resetOwnPassword', () => {
       expect(result.ok).toBe(false)
       if (result.ok) return
       expect(result.isSessionMissing).toBe(true)
-      expect(result.message).toBe('Your reset link has expired. Please request a new one.')
+      expect(result.message).toBe('Your reset session has expired. Please request a new code.')
       expect(mockUpdateUser).not.toHaveBeenCalled()
     })
 
@@ -172,7 +172,7 @@ describe('resetOwnPassword', () => {
       expect(result.ok).toBe(false)
       if (result.ok) return
       expect(result.isSessionMissing).toBe(true)
-      expect(result.message).toBe('Your reset link has expired. Please request a new one.')
+      expect(result.message).toBe('Your reset session has expired. Please request a new code.')
       expect(mockClearTempPassword).not.toHaveBeenCalled()
     })
 

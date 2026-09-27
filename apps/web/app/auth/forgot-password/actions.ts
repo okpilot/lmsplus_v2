@@ -61,7 +61,7 @@ const VerifyRecoveryCodeSchema = z.object({
 })
 
 const INVALID_CODE_MESSAGE = 'That code is invalid or has expired.'
-// Floors the response time — a real account (extra lookups) vs. unknown/locked must look alike.
+const RATE_LIMITED_MESSAGE = 'Too many attempts. Please wait a few minutes and try again.'
 const VERIFY_MIN_DURATION_MS = 1500
 
 export type VerifyRecoveryCodeResult = { ok: true } | { ok: false; error: string }
@@ -88,10 +88,10 @@ async function verify(input: unknown): Promise<VerifyRecoveryCodeResult> {
     // 429 = Supabase's per-IP limit, not a wrong code — never count it against the account.
     if (error.status === 429) {
       console.log('[verifyRecoveryCode] verify rate-limited')
-    } else {
-      console.error('[verifyRecoveryCode] verifyOtp failed:', error.message)
-      await recordFailedVerify(userId)
+      return { ok: false, error: RATE_LIMITED_MESSAGE }
     }
+    console.error('[verifyRecoveryCode] verifyOtp failed:', error.message)
+    await recordFailedVerify(userId)
     return { ok: false, error: INVALID_CODE_MESSAGE }
   }
 

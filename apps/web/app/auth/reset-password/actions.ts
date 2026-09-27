@@ -32,7 +32,7 @@ export async function resetOwnPassword(raw: unknown): Promise<ResetOwnPasswordRe
     return {
       ok: false,
       isSessionMissing: true,
-      message: 'Your reset link has expired. Please request a new one.',
+      message: 'Your reset session has expired. Please request a new code.',
     }
   }
 
@@ -71,7 +71,7 @@ async function finishPasswordReset(
       ok: false,
       isSessionMissing,
       message: isSessionMissing
-        ? 'Your reset link has expired. Please request a new one.'
+        ? 'Your reset session has expired. Please request a new code.'
         : 'Unable to update password. Please try again.',
     }
   }

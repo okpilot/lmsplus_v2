@@ -268,13 +268,16 @@ describe('verifyRecoveryCode', () => {
     expect(mockWithMinimumDuration).toHaveBeenCalledWith(expect.any(Promise), 1500)
   })
 
-  it('does not record a failed attempt when verifyOtp is rate-limited by the per-IP cap', async () => {
+  it('asks the student to wait, without counting a failed attempt, when verification is rate-limited', async () => {
     mockVerifyOtp.mockResolvedValue({ error: { message: 'Too many requests', status: 429 } })
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
     const result = await verifyRecoveryCode({ email: EMAIL, code: CODE })
 
-    expect(result).toEqual({ ok: false, error: 'That code is invalid or has expired.' })
+    expect(result).toEqual({
+      ok: false,
+      error: 'Too many attempts. Please wait a few minutes and try again.',
+    })
     expect(mockRecordFailedVerify).not.toHaveBeenCalled()
     consoleSpy.mockRestore()
   })
