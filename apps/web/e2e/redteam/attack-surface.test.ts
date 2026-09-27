@@ -16,7 +16,7 @@ const STATUS_VALUES = new Set(['FIXED', 'GAP', 'MISSED', 'BLOCKED'])
 const VECTOR_RE = /^[\w./:()-]+$/
 const SPEC_FILE_RE = /^[\w-]+\.spec\.ts$/
 const NOTES_RE = /^#\d+$/
-/** Rows predating the Technique column; a new row must carry all 7 cells. Only ever decreases. */
+/** Rows predating the Technique column; a new row must carry all 7 cells. Lower it when a legacy row goes. */
 const LEGACY_SIX_CELL_ROWS = 177
 
 /** Splits one `| a | b\|c | d |` markdown table row into trimmed cells, honouring `\|` escapes. */
@@ -69,10 +69,42 @@ function parseMatrixRows(markdown: string): string[][] {
   return rows
 }
 
+/** Checks one 7-cell row against the closed rules; returns its errors. */
+function validateRow(
+  row: readonly string[],
+  techniqueSet: ReadonlySet<string>,
+  specFileExists: (name: string) => boolean,
+): string[] {
+  const id = row[0] ?? '(no id)'
+  const [, vector, , specFile, status, notes, technique] = row.map((c) => c.trim())
+  const errors: string[] = []
+  if (!techniqueSet.has(technique ?? '')) {
+    errors.push(`row ${id}: technique "${technique}" is not in techniques.json`)
+  }
+  if (!VECTOR_RE.test(vector ?? '')) {
+    errors.push(`row ${id}: vector "${vector}" does not match ${VECTOR_RE}`)
+  }
+  if (!SPEC_FILE_RE.test(specFile ?? '')) {
+    errors.push(`row ${id}: spec file "${specFile}" is not a single *.spec.ts name`)
+  } else if (!specFileExists(specFile ?? '')) {
+    errors.push(`row ${id}: spec file "${specFile}" does not exist in apps/web/e2e/redteam/`)
+  }
+  if (!STATUS_VALUES.has(status ?? '')) {
+    errors.push(`row ${id}: status "${status}" is not one of FIXED, GAP, MISSED, BLOCKED`)
+  }
+  if (notes !== '' && !NOTES_RE.test(notes ?? '')) {
+    errors.push(`row ${id}: notes "${notes}" is not empty or a #N issue reference`)
+  }
+  if ((status === 'GAP' || status === 'MISSED') && !NOTES_RE.test(notes ?? '')) {
+    errors.push(`row ${id}: status "${status}" requires a #N notes reference`)
+  }
+  return errors
+}
+
 /**
- * Validates every row with more than 6 cells (the Technique column, index 6)
- * against the closed rules. A 6-cell row (pre-existing, no Technique cell) is
- * skipped; a row with more than 7 cells is rejected (unescaped `|` in prose).
+ * Validates every 7-cell row (Technique column, index 6) against the closed
+ * rules. A 6-cell row (pre-existing, no Technique cell) is skipped; any other
+ * cell count is rejected (a missing cell, or an unescaped `|` in prose).
  */
 function validateMatrixRows(
   rows: readonly string[][],
@@ -81,40 +113,15 @@ function validateMatrixRows(
 ): string[] {
   const techniqueSet = new Set(techniques)
   const errors: string[] = []
-
   for (const row of rows) {
-    if (row.length <= 6) continue
-    const id = row[0] ?? '(no id)'
-    if (row.length > 7) {
-      errors.push(`row ${id}: ${row.length} cells, expected 7 (escape a literal | as \\|)`)
+    if (row.length === 6) continue
+    if (row.length !== 7) {
+      errors.push(
+        `row ${row[0] ?? '(no id)'}: ${row.length} cells, expected 7 (escape a literal | as \\|)`,
+      )
       continue
     }
-    const technique = (row[6] ?? '').trim()
-    const vector = (row[1] ?? '').trim()
-    const specFile = (row[3] ?? '').trim()
-    const status = (row[4] ?? '').trim()
-    const notes = (row[5] ?? '').trim()
-
-    if (!techniqueSet.has(technique)) {
-      errors.push(`row ${id}: technique "${technique}" is not in techniques.json`)
-    }
-    if (!VECTOR_RE.test(vector)) {
-      errors.push(`row ${id}: vector "${vector}" does not match ${VECTOR_RE}`)
-    }
-    if (!SPEC_FILE_RE.test(specFile)) {
-      errors.push(`row ${id}: spec file "${specFile}" is not a single *.spec.ts name`)
-    } else if (!specFileExists(specFile)) {
-      errors.push(`row ${id}: spec file "${specFile}" does not exist in apps/web/e2e/redteam/`)
-    }
-    if (!STATUS_VALUES.has(status)) {
-      errors.push(`row ${id}: status "${status}" is not one of FIXED, GAP, MISSED, BLOCKED`)
-    }
-    if (notes !== '' && !NOTES_RE.test(notes)) {
-      errors.push(`row ${id}: notes "${notes}" is not empty or a #N issue reference`)
-    }
-    if ((status === 'GAP' || status === 'MISSED') && !NOTES_RE.test(notes)) {
-      errors.push(`row ${id}: status "${status}" requires a #N notes reference`)
-    }
+    errors.push(...validateRow(row, techniqueSet, specFileExists))
   }
   return errors
 }
@@ -173,7 +180,7 @@ describe('the real attack-surface matrix', () => {
   it('adds no row without a Technique column beyond the pre-existing ones', () => {
     const rows = parseMatrixRows(fs.readFileSync(MATRIX_PATH, 'utf8'))
     expect(rows.length).toBeGreaterThan(0)
-    expect(rows.filter((r) => r.length <= 6).length).toBeLessThanOrEqual(LEGACY_SIX_CELL_ROWS)
+    expect(rows.filter((r) => r.length === 6).length).toBe(LEGACY_SIX_CELL_ROWS)
   })
 })
 
@@ -212,6 +219,13 @@ describe('validateMatrixRows', () => {
     const errors = validateMatrixRows([row], techniques, realSpecFileExists)
     expect(errors).toHaveLength(1)
     expect(errors[0]).toContain('expected 7')
+  })
+
+  it('rejects a row with fewer than 6 cells instead of skipping it as pre-existing', () => {
+    const row = VALID_ROW.slice(0, 5)
+    const errors = validateMatrixRows([row], techniques, realSpecFileExists)
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).toContain('5 cells, expected 7')
   })
 
   it('rejects a technique code that is not in the closed list', () => {

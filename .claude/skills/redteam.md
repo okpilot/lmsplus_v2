@@ -33,8 +33,8 @@ added. Derive the baseline at runtime from two live sources:
   buckets (representative, not exhaustive — bucket new statuses by meaning):
   - **Defense should hold → spec expected to PASS:** statuses that read as
     covered or enforced — `COVERED` (incl. `COVERED AT INTEGRATION LAYER`,
-    `FULLY COVERED`), `PASSING`, `FIXED`, `BLOCKED`, `ENFORCED`, `HARDENED`, `DB-CAPPED`.
-  - **Known gap, or assessed-safe with no spec → no PASS expected:** `GAP`, `MISSED`,
+    `FULLY COVERED`), `PASSING`, `FIXED`, `BLOCKED`, `MISSED`, `ENFORCED`, `HARDENED`, `DB-CAPPED`.
+  - **Known gap, or assessed-safe with no spec → no PASS expected:** `GAP`,
     `DOCUMENTED GAP`, `PARTIAL`, `TBD`, `INTENTIONAL`, and the `ASSESSED …`
     family (`ASSESSED LOW`, `ASSESSED NON-ISSUE`, `ASSESSED IMPROVED`) — these
     usually carry `(no spec)` in the Spec File column, so they produce no
