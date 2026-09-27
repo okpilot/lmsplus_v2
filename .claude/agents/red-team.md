@@ -85,8 +85,8 @@ Vector-ID allocation: `git fetch origin master` then take the max ID over BOTH
 `git show origin/master:apps/web/e2e/redteam/attack-surface.md` AND the current working-tree
 matrix, +1. FAIL CLOSED — if either read or the fetch fails, ABORT the allocation.
 A vector that already has a matrix row (e.g. a `GAP` awaiting its spec) keeps its ID — fill that
-row, allocate nothing. Rewriting a 6-cell row as 7 cells: lower `LEGACY_SIX_CELL_ROWS` in
-`attack-surface.test.ts` by one.
+row, allocate nothing. Rewriting a 6-cell row as 7 cells: remove its ID from
+`legacy-row-ids.json`.
 On-branch matrix in an older format (no `Technique` column): edit rows in the native format and
 emit the full 7-column row in the report's MATRIX ROWS.
 

@@ -16,8 +16,8 @@ const STATUS_VALUES = new Set(['FIXED', 'GAP', 'MISSED', 'BLOCKED'])
 const VECTOR_RE = /^[\w./:()-]+$/
 const SPEC_FILE_RE = /^[\w-]+\.spec\.ts$/
 const NOTES_RE = /^#\d+$/
-/** Rows predating the Technique column; a new row must carry all 7 cells. Lower it when a legacy row goes. */
-const LEGACY_SIX_CELL_ROWS = 177
+/** IDs of the rows predating the Technique column; a new row must carry all 7 cells. */
+const LEGACY_ROW_IDS_PATH = path.join(REDTEAM_DIR, 'legacy-row-ids.json')
 
 /** Splits one `| a | b\|c | d |` markdown table row into trimmed cells, honouring `\|` escapes. */
 function splitTableRow(line: string): string[] {
@@ -55,7 +55,11 @@ function parseMatrixRows(markdown: string): string[][] {
   for (let i = startIndex + 1; i < lines.length; i++) {
     const line = lines[i]
     if (line.startsWith('## ')) break
-    if (!line.startsWith('|')) continue
+    if (!line.startsWith('|')) {
+      // A pipe row without a leading `|` still renders; keep it as one cell so validation rejects it.
+      if (sawSeparator && line.includes('|')) rows.push([line.trim()])
+      continue
+    }
     if (!sawHeader) {
       sawHeader = true
       continue
@@ -155,6 +159,15 @@ describe('parseMatrixRows', () => {
     expect(rows).toEqual([VALID_ROW])
   })
 
+  it('flags a row written without a leading pipe instead of dropping it', () => {
+    const markdown = `${matrixWithRow(VALID_ROW)}\n${VALID_ROW.join(' | ')} |`
+    const rows = parseMatrixRows(markdown)
+    const techniques = JSON.parse(fs.readFileSync(TECHNIQUES_PATH, 'utf8')) as string[]
+    const errors = validateMatrixRows(rows, techniques, realSpecFileExists)
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).toContain('1 cells, expected 7')
+  })
+
   it('keeps a literal pipe inside a cell when it is escaped', () => {
     const row = ['Z2', 'probe', 'HIGH', REAL_SPEC_FILE, 'FIXED', '', 'a\\|b']
     const rows = parseMatrixRows(matrixWithRow(row))
@@ -181,8 +194,10 @@ describe('the real attack-surface matrix', () => {
 
   it('adds no row without a Technique column beyond the pre-existing ones', () => {
     const rows = parseMatrixRows(fs.readFileSync(MATRIX_PATH, 'utf8'))
-    expect(rows.length).toBeGreaterThan(0)
-    expect(rows.filter((r) => r.length === 6).length).toBe(LEGACY_SIX_CELL_ROWS)
+    const legacyIds = JSON.parse(fs.readFileSync(LEGACY_ROW_IDS_PATH, 'utf8')) as string[]
+    expect(legacyIds.length).toBeGreaterThan(0)
+    const sixCellIds = rows.filter((r) => r.length === 6).map((r) => r[0] ?? '')
+    expect(sixCellIds.sort()).toEqual([...legacyIds].sort())
   })
 })
 
