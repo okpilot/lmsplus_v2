@@ -18,31 +18,53 @@ function skipTitleIndex(lines: readonly string[], index: number): number | null 
   return TITLE_START_RE.test(lines[index + 1] ?? '') ? index + 1 : null
 }
 
-/** Matches an unconditional untitled `test.skip()` / `test.skip(true` — static only directly in a describe, test or hook body. */
-const UNTITLED_SKIP_LINE_RE = /^\s*test\.(skip|fixme)\(\s*(?:\)|true\b)/
+/** Matches an unconditional untitled `test.skip()` / `test.skip(true`, or a `test.skip(` whose argument starts on the next line — static only directly in a describe, test or hook body. */
+const UNTITLED_SKIP_LINE_RE = /^\s*test\.(skip|fixme)\(\s*(?:\)|true\b|$)/
+
+/** Matches a line starting with an unconditional untitled skip's argument list: `)` or `true`. */
+const UNTITLED_SKIP_ARG_RE = /^\s*(?:\)|true\b)/
 
 /** Matches a line opening a describe block's, a test's or a beforeEach/beforeAll hook's body. */
 const BLOCK_OPENER_RE =
   /\b(test\.)?describe(\.\w+)?\(|^\s*(test|it)(\.only)?\(\s*['"`]|\btest\.before(Each|All)\(/
 
-/** The line holding the nearest unclosed `{` above `lines[index]`, or `null` at top level. */
-function enclosingOpener(lines: readonly string[], index: number): string | null {
+/** The index of the line holding the nearest unclosed `{` above `lines[index]`, or `null` at top level. */
+function enclosingOpenerIndex(lines: readonly string[], index: number): number | null {
   let depth = 0
   for (let i = index - 1; i >= 0; i--) {
     for (const ch of [...lines[i]].reverse()) {
       if (ch === '}') depth++
-      else if (ch === '{' && depth-- === 0) return lines[i]
+      else if (ch === '{' && depth-- === 0) return i
     }
   }
   return null
 }
 
+/** The first line of the statement ending at `lines[index]`: walks up past wrapped arguments until parentheses balance. */
+function statementHead(lines: readonly string[], index: number): string {
+  let balance = 0
+  for (let i = index; i >= 0; i--) {
+    for (const ch of lines[i]) {
+      if (ch === '(') balance++
+      else if (ch === ')') balance--
+    }
+    if (balance >= 0) return lines[i]
+  }
+  return lines[index]
+}
+
+/** True when `lines[index]` is an unconditional untitled skip call, its argument on the same or the next line. */
+function isUntitledSkipCall(lines: readonly string[], index: number): boolean {
+  if (!UNTITLED_SKIP_LINE_RE.test(lines[index])) return false
+  return !/\(\s*$/.test(lines[index]) || UNTITLED_SKIP_ARG_RE.test(lines[index + 1] ?? '')
+}
+
 /** True when `lines[index]` skips its whole block: a titled skip, or an untitled one directly in a describe, test or hook body. */
 function isStaticSkipLine(lines: readonly string[], index: number): boolean {
   if (skipTitleIndex(lines, index) !== null) return true
-  if (!UNTITLED_SKIP_LINE_RE.test(lines[index])) return false
-  const opener = enclosingOpener(lines, index)
-  return opener === null || BLOCK_OPENER_RE.test(opener)
+  if (!isUntitledSkipCall(lines, index)) return false
+  const opener = enclosingOpenerIndex(lines, index)
+  return opener === null || BLOCK_OPENER_RE.test(statementHead(lines, opener))
 }
 
 /** Matches a `// Vector <ID>`-style attribution comment, capturing the exact ID token. */

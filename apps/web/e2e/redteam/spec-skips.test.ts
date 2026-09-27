@@ -63,6 +63,29 @@ describe('skippedSpecRowIds', () => {
     expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
   })
 
+  it('flags an argument-less skip in a test whose header wraps across lines', () => {
+    const source = "test('rejects a forged token', async ({\n  page,\n}) => {\n  test.skip()\n})"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
+  })
+
+  it('flags an unconditional skip whose arguments start on the next line', () => {
+    const source =
+      "test.describe('forged token flows', () => {\n  test.skip(\n    true,\n    'awaiting fix',\n  )\n})"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
+  })
+
+  it('does not flag a conditional skip whose arguments start on the next line', () => {
+    const source =
+      "test('rejects', async ({ browserName }) => {\n  test.skip(\n    browserName === 'webkit',\n  )\n})"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual([])
+  })
+
+  it('does not flag an unconditional skip inside a wrapped if condition', () => {
+    const source =
+      "test('rejects', async () => {\n  if (\n    cond\n  ) {\n    test.skip()\n  }\n})"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual([])
+  })
+
   it('does not flag a conditional untitled skip inside a test body', () => {
     const source =
       "test('rejects', async ({ browserName }) => {\n  test.skip(browserName === 'webkit')\n})"
