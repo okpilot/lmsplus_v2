@@ -26,7 +26,7 @@ Runs ONCE per branch, after the review loop ends (plus one confirmation re-run a
 - The fix re-enters the review loop: the round-2+ set (code-reviewer, semantic-reviewer, deletion-reviewer, code-review (skill)) runs on the re-diffed branch. This counts against the SAME 3-round ceiling as every other round — at the ceiling, STOP and escalate.
 - A proven exploit fixed on this branch: write its row as `BLOCKED` in the fix commit, no issue filed.
 - A proven exploit blocks the push until its fix lands on this branch — never pushed as a `GAP` row with an issue filed.
-- After that round clears, re-run red-team ONCE to confirm its own spec now passes (`BLOCKED`, not `GAP`).
+- After that round clears, re-run red-team ONCE to confirm its own spec now passes. A proven exploit on that re-run: STOP and escalate to the user.
 - Create GitHub Issues for unproven coverage gaps (not immediate fixes). These COUNT toward the `filed >= closed` defer budget; list them in the PR body's `## Deferred` section marked `red-team-gap`, naming the spec or vector each covers (`agent-workflow.md § Apply-vs-Defer Discipline`). A PR whose filings are ALL red-team gaps passes; mixed with ordinary deferrals, it is judged on the ordinary ones alone.
 - After each red-team run, check `git status --porcelain --untracked-files=all` and reject any path outside `apps/web/e2e/redteam/` — the agent's write scope is brief-enforced, not hook-enforced.
 - A security bug found downstream of a PASSED red-team run (by CodeRabbit, security-auditor, CI, or in production) gets a `MISSED` row plus a spec, filed in the PR that fixes it.

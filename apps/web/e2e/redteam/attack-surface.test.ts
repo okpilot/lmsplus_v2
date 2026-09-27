@@ -20,6 +20,15 @@ const ID_RE = /^[A-Z]{1,3}$/
 /** IDs of the rows predating the Technique column; a new row must carry all 7 cells. */
 const LEGACY_ROW_IDS_PATH = path.join(REDTEAM_DIR, 'legacy-row-ids.json')
 
+/** Reads a repo-local JSON file that must hold an array of strings. */
+function readStringArray(file: string): string[] {
+  const data: unknown = JSON.parse(fs.readFileSync(file, 'utf8'))
+  if (!Array.isArray(data) || !data.every((x): x is string => typeof x === 'string')) {
+    throw new Error(`${file}: expected a JSON array of strings`)
+  }
+  return data
+}
+
 /** Splits one `| a | b\|c | d |` markdown table row into trimmed cells, honouring `\|` escapes. */
 function splitTableRow(line: string): string[] {
   const cells: string[] = []
@@ -171,7 +180,7 @@ describe('parseMatrixRows', () => {
   it('flags a row written without a leading pipe instead of dropping it', () => {
     const markdown = `${matrixWithRow(VALID_ROW)}\n${VALID_ROW.join(' | ')} |`
     const rows = parseMatrixRows(markdown)
-    const techniques = JSON.parse(fs.readFileSync(TECHNIQUES_PATH, 'utf8')) as string[]
+    const techniques = readStringArray(TECHNIQUES_PATH)
     const errors = validateMatrixRows(rows, techniques, realSpecFileExists)
     expect(errors).toHaveLength(1)
     expect(errors[0]).toContain('1 cells, expected 7')
@@ -195,7 +204,7 @@ describe('the real attack-surface matrix', () => {
   // validateRow's rules are pinned by the validateMatrixRows fixtures below.
   it('has zero validation errors', () => {
     const markdown = fs.readFileSync(MATRIX_PATH, 'utf8')
-    const techniques = JSON.parse(fs.readFileSync(TECHNIQUES_PATH, 'utf8')) as string[]
+    const techniques = readStringArray(TECHNIQUES_PATH)
     const rows = parseMatrixRows(markdown)
     const errors = validateMatrixRows(rows, techniques, realSpecFileExists)
     expect(errors).toEqual([])
@@ -203,7 +212,7 @@ describe('the real attack-surface matrix', () => {
 
   it('adds no row without a Technique column beyond the pre-existing ones', () => {
     const rows = parseMatrixRows(fs.readFileSync(MATRIX_PATH, 'utf8'))
-    const legacyIds = JSON.parse(fs.readFileSync(LEGACY_ROW_IDS_PATH, 'utf8')) as string[]
+    const legacyIds = readStringArray(LEGACY_ROW_IDS_PATH)
     expect(legacyIds.length).toBeGreaterThan(0)
     const sixCellIds = rows.filter((r) => r.length === 6).map((r) => r[0] ?? '')
     expect(sixCellIds.sort()).toEqual([...legacyIds].sort())
@@ -211,7 +220,7 @@ describe('the real attack-surface matrix', () => {
 })
 
 describe('validateMatrixRows', () => {
-  const techniques = JSON.parse(fs.readFileSync(TECHNIQUES_PATH, 'utf8')) as string[]
+  const techniques = readStringArray(TECHNIQUES_PATH)
 
   it('accepts a row whose cells all satisfy the closed rules', () => {
     const errors = validateMatrixRows([VALID_ROW], techniques, realSpecFileExists)
@@ -345,7 +354,7 @@ describe('validateMatrixRows', () => {
 })
 
 describe('techniques.json', () => {
-  const techniques = JSON.parse(fs.readFileSync(TECHNIQUES_PATH, 'utf8')) as string[]
+  const techniques = readStringArray(TECHNIQUES_PATH)
 
   it('is non-empty', () => {
     expect(techniques.length).toBeGreaterThan(0)
