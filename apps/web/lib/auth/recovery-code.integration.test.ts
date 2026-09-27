@@ -21,10 +21,14 @@ const password = 'test-pass-123'
 let orgId: string | undefined
 let activeStudentId: string
 let softDeletedStudentId: string
+let mixedCaseStudentId: string
 
 const activeEmail = `int-recoverycode-active-${suffix}@test.local`
 const softDeletedEmail = `int-recoverycode-softdel-${suffix}@test.local`
 const unknownEmail = `int-recoverycode-unknown-${suffix}@test.local`
+// Stored with capitals, the way an admin-typed address is stored (create-student does not
+// lowercase on insert) — the lookup itself always receives a lowercased query (EmailSchema).
+const mixedCaseStoredEmail = `Int-RecoveryCode-Mixed-${suffix}@Test.Local`
 
 describe('findActiveUserIdByEmail (app-layer integration)', () => {
   beforeAll(async () => {
@@ -48,6 +52,13 @@ describe('findActiveUserIdByEmail (app-layer integration)', () => {
       password,
       role: 'student',
     })
+    mixedCaseStudentId = await createTestUser({
+      admin,
+      orgId,
+      email: mixedCaseStoredEmail,
+      password,
+      role: 'student',
+    })
 
     const { error } = await admin
       .from('users')
@@ -61,7 +72,7 @@ describe('findActiveUserIdByEmail (app-layer integration)', () => {
       await cleanupTestData({
         admin,
         orgId,
-        userIds: [activeStudentId, softDeletedStudentId].filter(
+        userIds: [activeStudentId, softDeletedStudentId, mixedCaseStudentId].filter(
           (id): id is string => id !== undefined,
         ),
       })
@@ -78,5 +89,11 @@ describe('findActiveUserIdByEmail (app-layer integration)', () => {
 
   it('returns null when no user matches the email', async () => {
     await expect(findActiveUserIdByEmail(unknownEmail)).resolves.toBeNull()
+  })
+
+  it('finds an active user whose stored email differs only in case', async () => {
+    await expect(findActiveUserIdByEmail(mixedCaseStoredEmail.toLowerCase())).resolves.toBe(
+      mixedCaseStudentId,
+    )
   })
 })

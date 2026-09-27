@@ -1,17 +1,21 @@
 'use server'
 
 import { createServerSupabaseClient } from '@repo/db/server'
-import { cookies } from 'next/headers'
+import { after } from 'next/server'
 import { z } from 'zod'
 import {
   claimRecoverySlot,
   findActiveUserIdByEmail,
   issueRecoveryCode,
+  isVerifyLocked,
+  recordFailedVerify,
 } from '@/lib/auth/recovery-code'
+import { setRecoveryPendingCookie } from '@/lib/auth/recovery-pending-cookie'
 import { isEmailConfigured, sendEmail } from '@/lib/email/resend'
 import { recoveryCodeEmail } from '@/lib/email/templates/recovery-code'
 
-// Auth and users.email store addresses lowercased; normalise so a capitalised entry still matches.
+// Auth stores addresses lowercased; users.email keeps the admin's original casing (create-student
+// does not lowercase on insert), so normalise the input and look it up case-insensitively.
 const EmailSchema = z.string().trim().toLowerCase().email()
 
 const RequestRecoveryCodeSchema = z.object({ email: EmailSchema })
@@ -19,10 +23,9 @@ const RequestRecoveryCodeSchema = z.object({ email: EmailSchema })
 export type RequestRecoveryCodeResult = { ok: true } | { ok: false; error: 'Invalid email' }
 
 /**
- * Step 1 of the forgot-password flow. Always resolves to a neutral `{ ok:
- * true }` once the input itself is valid — whether or not the account
- * exists, the send is throttled, email sending is unconfigured, or the send
- * itself fails — so the response never reveals whether an account exists.
+ * Step 1. Any valid input resolves to a neutral `{ ok: true }`; the send runs
+ * in `after()`, so neither the body nor the response time shows whether the
+ * account exists.
  */
 export async function requestRecoveryCode(input: unknown): Promise<RequestRecoveryCodeResult> {
   const parsed = RequestRecoveryCodeSchema.safeParse(input)
@@ -32,22 +35,27 @@ export async function requestRecoveryCode(input: unknown): Promise<RequestRecove
   const userId = await findActiveUserIdByEmail(email)
   if (!userId) return { ok: true }
 
+  after(() => sendRecoveryCode(userId, email))
+  return { ok: true }
+}
+
+/** Best-effort: every failure is logged and swallowed. */
+async function sendRecoveryCode(userId: string, email: string): Promise<void> {
   if (!isEmailConfigured()) {
     console.error('[requestRecoveryCode] email sending is not configured')
-    return { ok: true }
+    return
   }
 
   const { allowed } = await claimRecoverySlot(userId)
-  if (!allowed) return { ok: true }
+  if (!allowed) return
 
   const code = await issueRecoveryCode(email)
-  if (!code) return { ok: true }
+  if (!code) return
 
   const sent = await sendEmail({ to: email, ...recoveryCodeEmail({ code }) })
   if (!sent.ok) {
     console.error('[requestRecoveryCode] send failed:', sent.error)
   }
-  return { ok: true }
 }
 
 const VerifyRecoveryCodeSchema = z.object({
@@ -60,37 +68,28 @@ const INVALID_CODE_MESSAGE = 'That code is invalid or has expired.'
 export type VerifyRecoveryCodeResult = { ok: true } | { ok: false; error: string }
 
 /**
- * Step 2 of the forgot-password flow. Verifies the emailed code against
- * Supabase Auth and, on success, sets the `__recovery_pending` cookie the
- * proxy uses to lock the resulting session to `/auth/reset-password`.
+ * Step 2. Verifies the code, then sets the `__recovery_pending` cookie. Failed
+ * codes are capped per account because Supabase's per-IP verify limit sees
+ * this server's IP, not the student's.
  */
 export async function verifyRecoveryCode(input: unknown): Promise<VerifyRecoveryCodeResult> {
   const parsed = VerifyRecoveryCodeSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: INVALID_CODE_MESSAGE }
+  const { email, code } = parsed.data
+
+  const userId = await findActiveUserIdByEmail(email)
+  if (!userId || (await isVerifyLocked(userId))) {
+    return { ok: false, error: INVALID_CODE_MESSAGE }
+  }
 
   const supabase = await createServerSupabaseClient()
-  const { error } = await supabase.auth.verifyOtp({
-    email: parsed.data.email,
-    token: parsed.data.code,
-    type: 'recovery',
-  })
+  const { error } = await supabase.auth.verifyOtp({ email, token: code, type: 'recovery' })
   if (error) {
     console.error('[verifyRecoveryCode] verifyOtp failed:', error.message)
+    await recordFailedVerify(userId)
     return { ok: false, error: INVALID_CODE_MESSAGE }
   }
 
   await setRecoveryPendingCookie()
   return { ok: true }
-}
-
-/** Locks the resulting session to `/auth/reset-password` only (the proxy enforces it). */
-async function setRecoveryPendingCookie(): Promise<void> {
-  const cookieStore = await cookies()
-  cookieStore.set('__recovery_pending', '1', {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 600,
-  })
 }

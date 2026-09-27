@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
+import { setRecoveryPendingCookie } from '@/lib/auth/recovery-pending-cookie'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -66,15 +67,7 @@ export async function GET(request: NextRequest) {
   const isRecoveryRedirect = isSafePath && ALLOWED_NEXT_PATHS.includes(extractedNext)
 
   if (isRecoveryRedirect) {
-    const { cookies } = await import('next/headers')
-    const cookieStore = await cookies()
-    cookieStore.set('__recovery_pending', '1', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 600,
-    })
+    await setRecoveryPendingCookie()
     redirectTo.pathname = extractedNext
   } else {
     redirectTo.pathname = '/app/dashboard'
