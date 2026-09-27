@@ -83,7 +83,7 @@ unproven gap.
 
 Vector-ID allocation: `git fetch origin master` then take the max ID over BOTH
 `git show origin/master:apps/web/e2e/redteam/attack-surface.md` AND the current working-tree
-matrix, +1. FAIL CLOSED — if either read or the fetch fails, ABORT the allocation.
+matrix, +1. Order: IDs matching `^[A-Z]{1,3}$` only, by length then alphabet (`Z` < `AA` < `FV`). FAIL CLOSED — if either read or the fetch fails, ABORT the allocation.
 A vector that already has a matrix row (e.g. a `GAP` awaiting its spec) keeps its ID — fill that
 row, allocate nothing. Rewriting a 6-cell row as 7 cells: remove its ID from
 `legacy-row-ids.json`.

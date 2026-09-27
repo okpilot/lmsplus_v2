@@ -139,7 +139,8 @@ STOP on the FIRST round carrying no APPLY-worthy finding. No minimum, no floor.
     ▼
 then ONCE per branch, in this order:
     red-team (if the branch diff matches § Red-Team Agent Trigger) — attacks the local stack
-            ├─► NO proven exploit: report gaps ─► coderabbit-sync (if triggered)
+            ├─► NO proven exploit: commit its specs + rows as a fixup ─► round-2+ set re-runs
+                  on the re-diffed branch ─► coderabbit-sync (if triggered)
             └─► PROVEN exploit: fixup (spec + prod fix) ─► round-2+ set re-runs on the
                   re-diffed branch (counts against the same 3-round ceiling; at ceiling,
                   escalate instead of looping) ─► red-team re-runs ONCE to confirm its
