@@ -68,7 +68,7 @@ function hasStaticSkip(source: string): boolean {
   return visit(file)
 }
 
-/** IDs of 7-cell rows past `GAP` whose spec is still skipped — a skipped spec passes `e2e:redteam` while running nothing. */
+/** IDs of 7-cell rows past `GAP` whose spec file holds a static skip — a skipped spec passes `e2e:redteam` while running nothing. */
 export function skippedSpecRowIds(
   rows: string[][],
   readSpec: (name: string) => string,

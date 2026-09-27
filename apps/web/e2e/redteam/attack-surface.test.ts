@@ -171,7 +171,7 @@ describe('the real attack-surface matrix', () => {
     expect(sixCellRowIdsOutsideLegacy(rows, new Set(legacyIds))).toEqual([])
   })
 
-  it('has no row past GAP whose spec is still skipped', () => {
+  it('has no row past GAP whose spec file holds a static skip', () => {
     const rows = parseMatrixRows(fs.readFileSync(MATRIX_PATH, 'utf8'))
     const readSpec = (name: string) => fs.readFileSync(path.join(REDTEAM_DIR, name), 'utf8')
     expect(skippedSpecRowIds(rows, readSpec, realSpecFileExists)).toEqual([])

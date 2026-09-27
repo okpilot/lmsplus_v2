@@ -71,7 +71,7 @@ Every attempt — proven exploit or defence held — produces:
 **Proven exploit** — the spec FAILS against current code. Report CRITICAL/ISSUE
 with the spec path and the pasted failing test output as `EVIDENCE:`. `Red Team Specs` is a
 required CI check, so a red spec MUST NOT land committed — write it named for the behaviour that
-SHOULD hold and mark it `.skip`; the orchestrator
+SHOULD hold, in a new spec file of its own, and mark it `.skip`; the orchestrator
 un-skips it in the same commit that fixes the prod code (mirrors `agent-test-writer.md` "name for the
 behaviour that SHOULD hold; .skip until fixed").
 **Defence held** — the spec PASSES. Status `BLOCKED`. The spec carries an in-spec control arm
@@ -87,6 +87,7 @@ unproven gap.
 Vector-ID allocation: `pnpm --filter @repo/web exec tsx e2e/redteam/next-vector-id.ts <IDs this
 run already allocated>`; non-zero exit → ABORT allocation. A vector that already has a matrix row
 keeps its ID — fill that row, allocate nothing.
+A row past `GAP` must point at a spec file holding no static skip.
 `pnpm --filter @repo/web exec vitest run e2e/redteam` must pass after any matrix edit.
 
 ## Run Specs

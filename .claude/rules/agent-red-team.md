@@ -26,7 +26,7 @@ Runs ONCE per branch, after the review loop ends — and only when the above pat
 - The fix re-enters the review loop: the round-2+ set (code-reviewer, semantic-reviewer, deletion-reviewer, code-review (skill)) runs on the re-diffed branch. It is a fresh loop with its own 3-round ceiling — at that ceiling, STOP and escalate.
 - A proven exploit fixed on this branch: write its row as `BLOCKED` in the fix commit, no issue filed.
 - A proven exploit blocks the push until its fix lands on this branch — never pushed as a `GAP` row with an issue filed.
-- `/fullpush` step 7b (`e2e:redteam`) confirms the exploit's spec now passes — no red-team re-run. The fix commit un-skips the spec; `attack-surface.test.ts` rejects a row past `GAP` whose spec is still skipped.
+- `/fullpush` step 7b (`e2e:redteam`) confirms the exploit's spec now passes — no red-team re-run. The fix commit un-skips the spec; `attack-surface.test.ts` rejects a row past `GAP` whose spec file holds a static skip.
 - Create GitHub Issues for unproven coverage gaps (not immediate fixes). These COUNT toward the `filed >= closed` defer budget; list them in the PR body's `## Deferred` section marked `red-team-gap`, naming the spec or vector each covers (`agent-workflow.md § Apply-vs-Defer Discipline`). A PR whose filings are ALL red-team gaps passes; mixed with ordinary deferrals, it is judged on the ordinary ones alone.
 - A run with no proven exploit: commit its specs and rows as a fixup; the round-2+ set re-runs on the re-diffed branch, a fresh loop with its own 3-round ceiling.
 - Red-team's own specs and rows, and a proven exploit's fix, never re-trigger red-team.
