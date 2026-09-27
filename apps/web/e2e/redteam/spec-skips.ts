@@ -83,22 +83,26 @@ function attributedVectorIds(line: string): string[] {
     .filter((token) => VECTOR_ID_TOKEN_RE.test(token))
 }
 
-/**
- * True when the static skip at `lines[skipIndex]` is attributed to `id` — its title line or, when
- * that names none, its nearest preceding non-blank line is a comment naming `id` via `Vector <id>`,
- * or is not a comment naming a vector.
- */
-function isSkipAttributedTo(lines: readonly string[], skipIndex: number, id: string): boolean {
-  const own = attributedVectorIds(lines[skipTitleIndex(lines, skipIndex) ?? skipIndex])
-  if (own.length > 0) return own.includes(id)
-  for (let i = skipIndex - 1; i >= 0; i--) {
+/** Vector IDs named by the nearest non-blank line above `lines[index]`; empty unless it is a comment naming some. */
+function precedingCommentIds(lines: readonly string[], index: number): string[] {
+  for (let i = index - 1; i >= 0; i--) {
     const line = lines[i].trim()
     if (line === '') continue
-    if (!COMMENT_LINE_RE.test(line)) return true
-    const attributed = attributedVectorIds(line)
-    return attributed.length === 0 || attributed.includes(id)
+    return COMMENT_LINE_RE.test(line) ? attributedVectorIds(line) : []
   }
-  return true
+  return []
+}
+
+/**
+ * True when the static skip at `lines[skipIndex]` is attributed to `id` — its title line or the
+ * comment directly above names `id` via `Vector <id>`, or neither names any vector.
+ */
+function isSkipAttributedTo(lines: readonly string[], skipIndex: number, id: string): boolean {
+  const ids = [
+    ...attributedVectorIds(lines[skipTitleIndex(lines, skipIndex) ?? skipIndex]),
+    ...precedingCommentIds(lines, skipIndex),
+  ]
+  return ids.length === 0 || ids.includes(id)
 }
 
 /** True when the spec source holds a static skip attributed to `id`. */

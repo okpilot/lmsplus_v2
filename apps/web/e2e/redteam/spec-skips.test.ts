@@ -155,8 +155,14 @@ describe('skippedSpecRowIds', () => {
     expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
   })
 
-  it('attributes a skip by the Vector ID in its own title over the line above', () => {
+  it('flags a skip whose own title names this row under a comment naming another', () => {
     const source = "// Vector QQ\ntest.skip('Vector ZZ rejects a forged token', async () => {})"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
+  })
+
+  it('flags a skip whose comment names this row above a title naming another', () => {
+    const source =
+      "// Vector ZZ\ntest.skip('rejects a forged token (Vector QQ regression)', async () => {})"
     expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
   })
 
