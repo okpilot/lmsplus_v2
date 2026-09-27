@@ -67,6 +67,7 @@
         "allows red-team's exact template brief with exit 0",
         "allows coderabbit-sync's exact template brief with exit 0",
         "allows test-writer's exact template brief with exit 0",
+        "allows e2e-writer's exact template brief with exit 0",
         "allows implementation-critic's exact template brief with exit 0",
         "allows code-review-skill's exact template brief with exit 0",
         "allows code-review-skill with model omitted (undefined defaults to opus)",
