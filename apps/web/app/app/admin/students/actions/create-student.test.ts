@@ -205,7 +205,7 @@ describe('createStudent', () => {
       expect(mockRevalidatePath).not.toHaveBeenCalled()
     })
 
-    it('returns a generic failure when the message mentions registration but the code is not email_exists', async () => {
+    it('returns a generic failure for a registration-worded Auth error that is not a duplicate email', async () => {
       mockAdmin()
       buildChain()
       mockAuthCreateUser({ error: { message: 'Email already registered elsewhere' } })
