@@ -16,6 +16,7 @@ const STATUS_VALUES = new Set(['FIXED', 'GAP', 'MISSED', 'BLOCKED'])
 const VECTOR_RE = /^[\w./:()-]+$/
 const SPEC_FILE_RE = /^[\w-]+\.spec\.ts$/
 const NOTES_RE = /^#\d+$/
+const ID_RE = /^[A-Z]{1,3}$/
 /** IDs of the rows predating the Technique column; a new row must carry all 7 cells. */
 const LEGACY_ROW_IDS_PATH = path.join(REDTEAM_DIR, 'legacy-row-ids.json')
 
@@ -82,6 +83,9 @@ function validateRow(
   const id = row[0] ?? '(no id)'
   const [, vector, , specFile, status, notes, technique] = row.map((c) => c.trim())
   const errors: string[] = []
+  if (!ID_RE.test(id.trim())) {
+    errors.push(`row ${id}: ID "${id}" does not match ${ID_RE}`)
+  }
   if (!techniqueSet.has(technique ?? '')) {
     errors.push(`row ${id}: technique "${technique}" is not in techniques.json`)
   }
@@ -108,7 +112,8 @@ function validateRow(
 /**
  * Validates every 7-cell row (Technique column, index 6) against the closed
  * rules. A 6-cell row (pre-existing, no Technique cell) is skipped; any other
- * cell count is rejected (a missing cell, or an unescaped `|` in prose).
+ * cell count is rejected (a missing cell, or an unescaped `|` in prose). An ID
+ * repeated anywhere in the matrix is rejected.
  */
 function validateMatrixRows(
   rows: readonly string[][],
@@ -117,7 +122,11 @@ function validateMatrixRows(
 ): string[] {
   const techniqueSet = new Set(techniques)
   const errors: string[] = []
+  const seenIds = new Set<string>()
   for (const row of rows) {
+    const id = (row[0] ?? '').trim()
+    if (seenIds.has(id)) errors.push(`row ${id}: duplicate ID`)
+    seenIds.add(id)
     if (row.length === 6) continue
     if (row.length !== 7) {
       errors.push(
@@ -141,7 +150,7 @@ function realSpecFileExists(name: string): boolean {
 }
 
 /** A row that satisfies every rule. */
-const VALID_ROW = ['Z1', 'probe-something', 'HIGH', REAL_SPEC_FILE, 'FIXED', '', 'rate-limit']
+const VALID_ROW = ['ZZ', 'probe-something', 'HIGH', REAL_SPEC_FILE, 'FIXED', '', 'rate-limit']
 
 function matrixWithRow(row: readonly string[]): string {
   return [
@@ -236,6 +245,22 @@ describe('validateMatrixRows', () => {
     const errors = validateMatrixRows([row], techniques, realSpecFileExists)
     expect(errors).toHaveLength(1)
     expect(errors[0]).toContain('expected 7')
+  })
+
+  it('rejects a new row reusing the ID of an existing row', () => {
+    const legacy = ['A', 'legacy-vector', 'HIGH', 'x.spec.ts', 'prose', 'prose']
+    const row = [...VALID_ROW]
+    row[0] = 'A'
+    const errors = validateMatrixRows([legacy, row], techniques, realSpecFileExists)
+    expect(errors).toEqual(['row A: duplicate ID'])
+  })
+
+  it('rejects a new row whose ID is not 1-3 capital letters', () => {
+    const row = [...VALID_ROW]
+    row[0] = 'fv1'
+    const errors = validateMatrixRows([row], techniques, realSpecFileExists)
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).toContain('does not match')
   })
 
   it('rejects a row with fewer than 6 cells instead of skipping it as pre-existing', () => {

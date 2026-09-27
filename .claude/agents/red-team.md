@@ -63,7 +63,8 @@ Every attempt — proven exploit or defence held — produces:
 2. One matrix row, no sentences in any cell:
    `| <ID> | <entry identifier> | <HIGH/MEDIUM/LOW> | <spec file> | <FIXED|GAP|MISSED|BLOCKED> | <empty or #N> | <technique code> |`
    Notes is `#N` for `GAP`/`MISSED` (the validator rejects empty). No issue number yet: put the row in
-   the report's MATRIX ROWS only, not the file — the orchestrator files the issue and writes the row.
+   the report's MATRIX ROWS only, not the file — the orchestrator writes the row (`BLOCKED` once its
+   fix lands on this branch, else with the `#N` of an issue it files).
 
 **Proven exploit** — the spec FAILS against current code. Status `GAP`. Report CRITICAL/ISSUE
 with the spec path and the pasted failing test output as `EVIDENCE:`. `Red Team Specs` is a
