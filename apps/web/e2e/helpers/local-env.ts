@@ -18,7 +18,7 @@ const ENV_FILES = [
   '.env.production.local',
 ]
 
-/** Appended to every violation message: what makes the env pass. */
+/** Appended once to the combined assertLocalEnv error: what makes the env pass. */
 const REMEDY =
   'Local Playwright runs need a local-only env: remove RESEND_API_KEY and point every *SUPABASE_URL at http://localhost:54321'
 
