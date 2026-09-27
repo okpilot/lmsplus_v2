@@ -13,7 +13,7 @@ Run the adversarial security test suite against local Supabase.
 ## Prerequisites
 
 1. Local Supabase must be running: `npx supabase start`
-2. Next.js dev server must be running: `pnpm dev` (only needed for PKCE test)
+2. `:3000` must be free — Playwright starts its own server and never reuses a running one
 3. Test data must be seeded (specs handle this automatically)
 
 ## Steps
