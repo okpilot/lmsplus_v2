@@ -18,6 +18,10 @@ const ENV_FILES = [
   '.env.production.local',
 ]
 
+/** Appended to every violation message: what makes the env pass. */
+const REMEDY =
+  'Local Playwright runs need a local-only env: remove RESEND_API_KEY and point every *SUPABASE_URL at http://localhost:54321'
+
 /** True only for an `http:` URL whose hostname is localhost or 127.0.0.1. */
 function isLocalUrl(value: string): boolean {
   let url: URL
@@ -82,6 +86,6 @@ export function assertLocalEnv(
   }
   const violations = localEnvViolations({ files, env })
   if (violations.length > 0) {
-    throw new Error(`assertLocalEnv: ${violations.join('; ')}`)
+    throw new Error(`assertLocalEnv: ${violations.join('; ')}. ${REMEDY}`)
   }
 }

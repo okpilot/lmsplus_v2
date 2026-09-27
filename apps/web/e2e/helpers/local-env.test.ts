@@ -186,6 +186,11 @@ describe('assertLocalEnv', () => {
     expect(() => assertLocalEnv(dir, {})).toThrow(/RESEND_API_KEY/)
   })
 
+  it('tells the developer how to make the env pass', () => {
+    writeFileSync(join(dir, '.env'), 'RESEND_API_KEY=re_abc123\n')
+    expect(() => assertLocalEnv(dir, {})).toThrow(/remove RESEND_API_KEY.*http:\/\/localhost:54321/)
+  })
+
   it('ignores a hosted SUPABASE_URL in the real process.env when an explicit env argument is given', () => {
     const original = process.env.SUPABASE_URL
     process.env.SUPABASE_URL = 'https://x.supabase.co'
