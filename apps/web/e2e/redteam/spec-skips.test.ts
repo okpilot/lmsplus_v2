@@ -114,76 +114,8 @@ describe('skippedSpecRowIds', () => {
     expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
   })
 
-  it('flags a skip attributed to this row by a preceding Vector comment', () => {
-    const source = "// Vector ZZ\ntest.skip('rejects a forged token', async () => {})"
-    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
-  })
-
-  it('does not flag a skip attributed to a different vector', () => {
-    const source = "// Vector QQ\ntest.skip('rejects a forged token', async () => {})"
-    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual([])
-  })
-
-  it('flags a skip whose Vector comment names this row among several vectors', () => {
-    const source = "// Vector QQ / Vector ZZ\ntest.skip('rejects a forged token', async () => {})"
-    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
-  })
-
-  it('flags an unattributed skip', () => {
-    const source = "// resets fixture state\ntest.skip('rejects a forged token', async () => {})"
-    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
-  })
-
-  it('flags a skip whose comment lists this row after another ID', () => {
-    const source = "// Vector QQ, ZZ\ntest.skip('rejects a forged token', async () => {})"
-    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
-  })
-
-  it('flags a skip whose plural Vectors comment names this row', () => {
-    const source = "// Vectors QQ and ZZ\ntest.skip('rejects a forged token', async () => {})"
-    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
-  })
-
-  it('does not attribute a skip through an issue reference after the ID', () => {
-    const source = "// Vector QQ, #384\ntest.skip('rejects a forged token', async () => {})"
-    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual([])
-  })
-
-  it('flags a skip whose comment mentions Vectors without naming an ID', () => {
-    const source =
-      "// Vectors below need a seeded admin\ntest.describe.skip('forged token flows', () => {})"
-    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
-  })
-
-  it('flags a skip whose own title names this row under a comment naming another', () => {
-    const source = "// Vector QQ\ntest.skip('Vector ZZ rejects a forged token', async () => {})"
-    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
-  })
-
-  it('flags a skip whose comment names this row above a title naming another', () => {
-    const source =
-      "// Vector ZZ\ntest.skip('rejects a forged token (Vector QQ regression)', async () => {})"
-    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
-  })
-
-  it('does not flag a row when the skipped title names a different vector', () => {
-    const source = "})\ntest.skip('Vector QQ rejects a forged token', async () => {})"
-    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual([])
-  })
-
   it('flags a titled skip whose title starts on the next line', () => {
     const source = "test.skip(\n  'rejects a forged token',\n  async () => {},\n)"
-    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
-  })
-
-  it('does not flag a row when a next-line skip title names a different vector', () => {
-    const source = "test.skip(\n  'Vector QQ rejects a forged token',\n  async () => {},\n)"
-    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual([])
-  })
-
-  it('flags an unattributed skip right after a test titled with another vector', () => {
-    const source =
-      "test('Vector QQ rejects a forged token', async () => {})\ntest.skip('other flow', async () => {})"
     expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
   })
 
@@ -193,12 +125,9 @@ describe('skippedSpecRowIds', () => {
     expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual([])
   })
 
-  it('does not let a Vector comment for a longer ID match a shorter row ID', () => {
-    const row = [...VALID_ROW]
-    row[0] = 'F'
-    row[4] = 'BLOCKED'
-    const source = "// Vector FW\ntest.skip('rejects a forged token', async () => {})"
-    expect(skippedSpecRowIds([row], () => source)).toEqual([])
+  it('flags every row past GAP pointing at a spec that holds any static skip', () => {
+    const source = "// Vector QQ\ntest.skip('Vector QQ rejects a forged token', async () => {})"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
   })
 
   it('skips a row whose spec file does not exist instead of throwing', () => {

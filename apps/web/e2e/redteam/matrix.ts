@@ -20,8 +20,8 @@ export function splitTableRow(line: string): string[] {
     current += ch
   }
   cells.push(current)
-  if (cells.length > 0 && cells[0].trim() === '') cells.shift()
-  if (cells.length > 0 && cells[cells.length - 1].trim() === '') cells.pop()
+  if (cells.length > 0 && cells[0]?.trim() === '') cells.shift()
+  if (cells.length > 0 && cells[cells.length - 1]?.trim() === '') cells.pop()
   return cells.map((c) => c.trim())
 }
 
@@ -35,7 +35,7 @@ export function parseMatrixRows(markdown: string): string[][] {
   let sawHeader = false
   let sawSeparator = false
   for (let i = startIndex + 1; i < lines.length; i++) {
-    const line = lines[i]
+    const line = lines[i] ?? ''
     if (line.startsWith('## ')) break
     if (!line.startsWith('|')) {
       // A pipe row without a leading `|` still renders; keep it as one cell so validation rejects it.
@@ -72,7 +72,7 @@ function incrementId(id: string): string {
   let i = letters.length - 1
   while (i >= 0) {
     if (letters[i] !== 'Z') {
-      letters[i] = String.fromCharCode(letters[i].charCodeAt(0) + 1)
+      letters[i] = String.fromCharCode(id.charCodeAt(i) + 1)
       return letters.join('')
     }
     letters[i] = 'A'

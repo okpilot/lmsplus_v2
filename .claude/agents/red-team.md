@@ -71,7 +71,7 @@ Every attempt — proven exploit or defence held — produces:
 **Proven exploit** — the spec FAILS against current code. Report CRITICAL/ISSUE
 with the spec path and the pasted failing test output as `EVIDENCE:`. `Red Team Specs` is a
 required CI check, so a red spec MUST NOT land committed — write it named for the behaviour that
-SHOULD hold and mark it `.skip` with a `// Vector <ID>` line directly above it; the orchestrator
+SHOULD hold and mark it `.skip`; the orchestrator
 un-skips it in the same commit that fixes the prod code (mirrors `agent-test-writer.md` "name for the
 behaviour that SHOULD hold; .skip until fixed").
 **Defence held** — the spec PASSES. Status `BLOCKED`. The spec carries an in-spec control arm

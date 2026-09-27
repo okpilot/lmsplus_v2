@@ -7,12 +7,9 @@ const STATIC_SKIP_LINE_RE =
 /** Matches a line whose first token opens a string literal. */
 const TITLE_START_RE = /^\s*['"`]/
 
-/** Matches a comment line (after trimming). */
-const COMMENT_LINE_RE = /^(\/\/|\/\*|\*)/
-
 /** Index of the line holding a titled skip's title, or `null` when `lines[index]` opens no titled skip. */
 function skipTitleIndex(lines: readonly string[], index: number): number | null {
-  const match = STATIC_SKIP_LINE_RE.exec(lines[index])
+  const match = STATIC_SKIP_LINE_RE.exec(lines[index] ?? '')
   if (!match) return null
   if (match[2] !== '') return index
   return TITLE_START_RE.test(lines[index + 1] ?? '') ? index + 1 : null
@@ -31,7 +28,7 @@ const CONTROL_FLOW_HEAD_RE = /^\s*(?:\}\s*)?(?:if|else|for|while|switch|case|def
 function enclosingOpenerIndex(lines: readonly string[], index: number): number | null {
   let depth = 0
   for (let i = index - 1; i >= 0; i--) {
-    for (const ch of [...lines[i]].reverse()) {
+    for (const ch of [...(lines[i] ?? '')].reverse()) {
       if (ch === '}') depth++
       else if (ch === '{' && depth-- === 0) return i
     }
@@ -43,19 +40,19 @@ function enclosingOpenerIndex(lines: readonly string[], index: number): number |
 function statementHead(lines: readonly string[], index: number): string {
   let balance = 0
   for (let i = index; i >= 0; i--) {
-    for (const ch of lines[i]) {
+    for (const ch of lines[i] ?? '') {
       if (ch === '(') balance++
       else if (ch === ')') balance--
     }
-    if (balance >= 0) return lines[i]
+    if (balance >= 0) return lines[i] ?? ''
   }
-  return lines[index]
+  return lines[index] ?? ''
 }
 
 /** True when `lines[index]` is an unconditional untitled skip call, its argument on the same or the next line. */
 function isUntitledSkipCall(lines: readonly string[], index: number): boolean {
-  if (!UNTITLED_SKIP_LINE_RE.test(lines[index])) return false
-  return !/\(\s*$/.test(lines[index]) || UNTITLED_SKIP_ARG_RE.test(lines[index + 1] ?? '')
+  if (!UNTITLED_SKIP_LINE_RE.test(lines[index] ?? '')) return false
+  return !/\(\s*$/.test(lines[index] ?? '') || UNTITLED_SKIP_ARG_RE.test(lines[index + 1] ?? '')
 }
 
 /** True when `lines[index]` skips its whole block: a titled skip, or an unconditional untitled one outside any control-flow block. */
@@ -66,49 +63,10 @@ function isStaticSkipLine(lines: readonly string[], index: number): boolean {
   return opener === null || !CONTROL_FLOW_HEAD_RE.test(statementHead(lines, opener))
 }
 
-/** Matches a `// Vector <ID>`-style attribution comment, capturing the exact ID token. */
-const VECTOR_ATTRIBUTION_RE =
-  /\bVectors?\s+([A-Za-z][\w-]*(?:\s*(?:,|\/|&|\band\b)\s*(?:Vectors?\s+)?[A-Za-z][\w-]*)*)/g
-
-/** Separates the IDs of one `Vector A, B and C` list. */
-const VECTOR_LIST_SEPARATOR_RE = /\s*(?:,|\/|&|\band\b)\s*(?:Vectors?\s+)?/
-
-/** A matrix vector ID's shape: an uppercase run, optionally digits and a hyphenated suffix (`BO-ended_at`). */
-const VECTOR_ID_TOKEN_RE = /^[A-Z]+\d*(?:-\w+)?$/
-
-/** Every vector ID a line attributes a skip to; empty when the line names none. */
-function attributedVectorIds(line: string): string[] {
-  return [...line.matchAll(VECTOR_ATTRIBUTION_RE)]
-    .flatMap((match) => match[1].split(VECTOR_LIST_SEPARATOR_RE))
-    .filter((token) => VECTOR_ID_TOKEN_RE.test(token))
-}
-
-/** Vector IDs named by the nearest non-blank line above `lines[index]`; empty unless it is a comment naming some. */
-function precedingCommentIds(lines: readonly string[], index: number): string[] {
-  for (let i = index - 1; i >= 0; i--) {
-    const line = lines[i].trim()
-    if (line === '') continue
-    return COMMENT_LINE_RE.test(line) ? attributedVectorIds(line) : []
-  }
-  return []
-}
-
-/**
- * True when the static skip at `lines[skipIndex]` is attributed to `id` — its title line or the
- * comment directly above names `id` via `Vector <id>`, or neither names any vector.
- */
-function isSkipAttributedTo(lines: readonly string[], skipIndex: number, id: string): boolean {
-  const ids = [
-    ...attributedVectorIds(lines[skipTitleIndex(lines, skipIndex) ?? skipIndex]),
-    ...precedingCommentIds(lines, skipIndex),
-  ]
-  return ids.length === 0 || ids.includes(id)
-}
-
-/** True when the spec source holds a static skip attributed to `id`. */
-function hasStaticSkipForId(source: string, id: string): boolean {
+/** True when the spec source holds a static skip. */
+function hasStaticSkip(source: string): boolean {
   const lines = source.split(/\r\n|\n/)
-  return lines.some((_, i) => isStaticSkipLine(lines, i) && isSkipAttributedTo(lines, i, id))
+  return lines.some((_, i) => isStaticSkipLine(lines, i))
 }
 
 /** IDs of 7-cell rows past `GAP` whose spec is still skipped — a skipped spec passes `e2e:redteam` while running nothing. */
@@ -120,6 +78,6 @@ export function skippedSpecRowIds(
   return rows
     .filter((r) => r.length === 7 && r[4]?.trim() !== 'GAP')
     .filter((r) => specFileExists((r[3] ?? '').trim()))
-    .filter((r) => hasStaticSkipForId(readSpec((r[3] ?? '').trim()), (r[0] ?? '').trim()))
+    .filter((r) => hasStaticSkip(readSpec((r[3] ?? '').trim())))
     .map((r) => (r[0] ?? '').trim())
 }

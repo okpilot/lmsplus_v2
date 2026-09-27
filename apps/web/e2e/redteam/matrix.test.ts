@@ -17,7 +17,7 @@ describe('parseMatrixRows', () => {
   it('keeps a literal pipe inside a cell when it is escaped', () => {
     const row = ['Z2', 'probe', 'HIGH', 'rate-limiting.spec.ts', 'FIXED', '', 'a\\|b']
     const rows = parseMatrixRows(matrixWithRow(row))
-    expect(rows[0][6]).toBe('a|b')
+    expect(rows[0]?.[6]).toBe('a|b')
   })
 
   it('stops reading rows at the next heading', () => {

@@ -105,7 +105,7 @@ Patterns observed triaging cloud CR — findings it catches that our internal ag
 8. **CR can fabricate a construct that doesn't exist** — duplicate declaration, phantom import,
    non-existent call site, any severity. Before acting on a claimed SYNTAX/TYPE error, grep for the
    construct and check `tsc` is green under a config that INCLUDES the file (`apps/web/tsconfig.json`
-   excludes integration tests; `apps/web/e2e/**` has no config; `apps/web/scripts/**` uses
+   excludes integration tests; `apps/web/e2e/**` has none, except non-spec `e2e/redteam/*.ts` under `tsconfig.e2e-lib.json`; `apps/web/scripts/**` uses
    `tsconfig.scripts.json` but not every script passes `<Database>` — derive via
    `grep -rlE 'createClient<\s*Database' apps/web/scripts/`). A green suite proves nothing unless a
    test loads the file. Mirror risk: CR can also assert ABSENCE of a guard that exists — grep either way.
