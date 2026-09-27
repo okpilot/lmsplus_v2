@@ -110,11 +110,11 @@ const STATIC_SKIP_LINE_RE =
   /^\s*(test\.describe\.skip|test\.describe\.fixme|test\.skip|test\.fixme|it\.skip|describe\.skip)\(\s*(['"`])/
 
 /** Matches a `// Vector <ID>`-style attribution comment, capturing the exact ID token. */
-const VECTOR_ATTRIBUTION_RE = /\bVector\s+([A-Za-z][\w-]*)\b/
+const VECTOR_ATTRIBUTION_RE = /\bVector\s+([A-Za-z][\w-]*)\b/g
 
-/** The vector ID a line attributes a skip to, or undefined when the line names none. */
-function attributedVectorId(line: string): string | undefined {
-  return line.match(VECTOR_ATTRIBUTION_RE)?.[1]
+/** Every vector ID a line attributes a skip to; empty when the line names none. */
+function attributedVectorIds(line: string): string[] {
+  return [...line.matchAll(VECTOR_ATTRIBUTION_RE)].map((match) => match[1])
 }
 
 /**
@@ -125,8 +125,8 @@ function isSkipAttributedTo(lines: readonly string[], skipIndex: number, id: str
   for (let i = skipIndex - 1; i >= 0; i--) {
     const line = lines[i].trim()
     if (line === '') continue
-    const attributed = attributedVectorId(line)
-    return attributed === undefined || attributed === id
+    const attributed = attributedVectorIds(line)
+    return attributed.length === 0 || attributed.includes(id)
   }
   return true
 }
@@ -281,6 +281,11 @@ describe('skippedSpecRowIds', () => {
   it('does not flag a skip attributed to a different vector', () => {
     const source = "// Vector QQ\ntest.skip('rejects a forged token', async () => {})"
     expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual([])
+  })
+
+  it('flags a skip whose Vector comment names this row among several vectors', () => {
+    const source = "// Vector QQ / Vector ZZ\ntest.skip('rejects a forged token', async () => {})"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
   })
 
   it('flags an unattributed skip', () => {
