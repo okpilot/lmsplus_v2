@@ -62,7 +62,7 @@ Every attempt — proven exploit or defence held — produces:
    accumulator on 2+ cleanup steps), non-vacuous per §7 Isolation/Negative Assertions.
 2. One matrix row, no sentences in any cell:
    `| <ID> | <entry identifier> | <HIGH/MEDIUM/LOW> | <spec file> | <FIXED|GAP|MISSED|BLOCKED> | <empty or #N> | <technique code> |`
-   Notes is `#N` for `GAP`/`MISSED` (the validator rejects empty). No issue number yet: put the row in
+   Notes is `#N` for `GAP` (the validator rejects empty). No issue number yet: put the row in
    the report's MATRIX ROWS only, not the file — the orchestrator writes the row (`BLOCKED` once its
    fix lands on this branch, else with the `#N` of an issue it files).
 

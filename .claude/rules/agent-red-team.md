@@ -25,7 +25,7 @@ Runs ONCE per branch, after the review loop ends (plus one confirmation re-run a
 - **A proven exploit → the orchestrator fixes production code.** The spec + fix land in ONE commit — the fix is that round's FIXUP.
 - The fix re-enters the review loop: the round-2+ set (code-reviewer, semantic-reviewer, deletion-reviewer, code-review (skill)) runs on the re-diffed branch. This counts against the SAME 3-round ceiling as every other round — at the ceiling, STOP and escalate.
 - A proven exploit fixed on this branch: write its row as `BLOCKED` in the fix commit, no issue filed.
-- For a `GAP`/`MISSED` row still open at push, reported without `#N`: file the issue, then write the row with `#N` (`attack-surface.test.ts` rejects an empty Notes cell on either status).
+- For a `GAP` row still open at push, reported without `#N`: file the issue, then write the row with `#N` (`attack-surface.test.ts` rejects a `GAP` row with empty Notes).
 - After that round clears, re-run red-team ONCE to confirm its own spec now passes (`BLOCKED`, not `GAP`).
 - Create GitHub Issues for unproven coverage gaps (not immediate fixes). These COUNT toward the `filed >= closed` defer budget; list them in the PR body's `## Deferred` section marked `red-team-gap`, naming the spec or vector each covers (`agent-workflow.md § Apply-vs-Defer Discipline`). A PR whose filings are ALL red-team gaps passes; mixed with ordinary deferrals, it is judged on the ordinary ones alone.
 - After each red-team run, check `git status --porcelain --untracked-files=all` and reject any path outside `apps/web/e2e/redteam/` — the agent's write scope is brief-enforced, not hook-enforced.

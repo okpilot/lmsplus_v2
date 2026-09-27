@@ -103,7 +103,7 @@ function validateRow(
   if (notes !== '' && !NOTES_RE.test(notes ?? '')) {
     errors.push(`row ${id}: notes "${notes}" is not empty or a #N issue reference`)
   }
-  if ((status === 'GAP' || status === 'MISSED') && !NOTES_RE.test(notes ?? '')) {
+  if (status === 'GAP' && !NOTES_RE.test(notes ?? '')) {
     errors.push(`row ${id}: status "${status}" requires a #N notes reference`)
   }
   return errors
@@ -327,13 +327,12 @@ describe('validateMatrixRows', () => {
     expect(errors[0]).toContain('requires a #N notes reference')
   })
 
-  it('requires a #N notes reference when status is MISSED', () => {
+  it('accepts a MISSED row with empty notes, since its fix lands in the same PR', () => {
     const row = [...VALID_ROW]
     row[4] = 'MISSED'
     row[5] = ''
     const errors = validateMatrixRows([row], techniques, realSpecFileExists)
-    expect(errors).toHaveLength(1)
-    expect(errors[0]).toContain('requires a #N notes reference')
+    expect(errors).toEqual([])
   })
 
   it('accepts a GAP row that carries a #N notes reference', () => {
