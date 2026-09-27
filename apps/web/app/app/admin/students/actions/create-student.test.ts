@@ -49,7 +49,11 @@ function buildChain({ insertError = null }: { insertError?: { message: string } 
   return mockUpsert
 }
 
-function mockAuthCreateUser({ error = null }: { error?: { message: string } | null } = {}) {
+function mockAuthCreateUser({
+  error = null,
+}: {
+  error?: { message: string; code?: string } | null
+} = {}) {
   mockCreateUser.mockResolvedValue({
     data: error ? null : { user: { id: NEW_USER_ID } },
     error,
@@ -173,7 +177,12 @@ describe('createStudent', () => {
     it('returns a duplicate-email message when the email is already registered', async () => {
       mockAdmin()
       buildChain()
-      mockAuthCreateUser({ error: { message: 'Email already registered' } })
+      mockAuthCreateUser({
+        error: {
+          message: 'A user with this email address has already been registered',
+          code: 'email_exists',
+        },
+      })
 
       const result = await createStudent(VALID_INPUT)
 

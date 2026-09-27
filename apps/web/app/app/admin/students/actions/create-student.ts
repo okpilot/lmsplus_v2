@@ -23,7 +23,7 @@ export async function createStudent(input: unknown): Promise<CreateStudentResult
   })
 
   if (authErr) {
-    if (authErr.message.toLowerCase().includes('already registered')) {
+    if (authErr.code === 'email_exists') {
       return { success: false, error: 'A user with this email already exists' }
     }
     console.error('[createStudent] Auth user creation failed:', authErr.message)
