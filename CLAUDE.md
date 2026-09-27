@@ -156,7 +156,7 @@ A commit triggers NOTHING. Full mechanics: `agent-workflow.md § Pre-Push Review
 2. **code-reviewer** (sonnet) — diff vs `.claude/rules/code-style.md`
 3. **semantic-reviewer** (sonnet) — deep logic/security/consistency review
 4. **doc-updater** (haiku) — reports doc edits; YOU apply them (no Write/Edit tool)
-5. **test-writer** (sonnet) — missing tests, writes + runs them (Write/Edit scoped to Vitest `*.test.*` files, incl. under `apps/web/e2e/`)
+5. **test-writer** (sonnet) — missing tests, writes + runs them (Write/Edit scoped to Vitest `*.test.*` files, incl. under `apps/web/e2e/` outside `redteam/`)
 6. **deletion-reviewer** (sonnet) — reports what the diff can delete with no loss, each with `EVIDENCE:`; read-only
 7. **code-review (skill)** (opus) — the built-in `/code-review` skill, dispatched as `subagent_type: code-review-skill` in an isolated worktree
 8. **e2e-writer** (sonnet) — when the branch diff touches `apps/web/app/**`, `apps/web/components/**` or `apps/web/proxy.ts`: writes/updates Playwright specs under `apps/web/e2e/` excluding `redteam/` (Write/Edit scoped to that path)

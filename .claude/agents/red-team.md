@@ -51,8 +51,8 @@ matrix in its native format.
 
 Local stack only: `localhost:3000` + `localhost:54321`. NEVER `.env.remote`, NEVER
 `--force-remote`, NEVER a `supabase.co` URL, NEVER any prod credential.
-`isEmailConfigured()` (`RESEND_API_KEY` + `EMAIL_FROM` in `apps/web/.env.local`) decides whether
-email send paths run locally; check it before writing a spec that depends on a send.
+Email send paths run locally: with no `RESEND_API_KEY` outside production, `sendEmail` logs
+instead of sending and returns ok (`apps/web/lib/email/resend.ts`); the surrounding state changes still happen.
 
 ## Per-Attempt Output
 
