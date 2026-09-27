@@ -10,7 +10,8 @@
       "expectRed": [
         "blocks a production file edit and surfaces findings when the gate is active",
         "still blocks on a corrupt gate file, substituting a parse-error message",
-        "blocks a production target reached through an exempt directory via .."
+        "blocks a production target reached through an exempt directory via ..",
+        "blocks a production file outside the repo root whose path contains apps/web/e2e/"
       ],
       "note": "Forces the active-gate branch to exit 0 instead of 2 — findings are printed but the edit is no longer blocked. Reddens the corrupt-gate-file test too: it falls through to the same blocking branch once its own JSON.parse catch substitutes the parse-error message."
     },
@@ -23,8 +24,8 @@
     },
     {
       "id": "review-gate-e2e-always-blocks",
-      "find": "    filePath.includes('/apps/web/e2e/') ||\n    filePath.includes('\\\\apps\\\\web\\\\e2e\\\\') ||\n",
-      "replace": "",
+      "find": "const EXEMPT_DIRS = ['.claude', 'docs', path.join('apps', 'web', 'e2e')]",
+      "replace": "const EXEMPT_DIRS = ['.claude', 'docs']",
       "expectRed": ["allows a spec.ts edit under apps/web/e2e/ even when the gate is active"],
       "note": "Removes the apps/web/e2e/ allowance — a spec edit under apps/web/e2e/ is blocked again while the gate is active, even though e2e-writer/red-team need to write there."
     },
@@ -33,7 +34,16 @@
       "find": "  filePath = path.resolve(filePath)\n",
       "replace": "",
       "expectRed": ["blocks a production target reached through an exempt directory via .."],
-      "note": "Removes path normalization — the raw path still contains /apps/web/e2e/, so the exemption lets a production target through."
+      "note": "Removes path normalization — the raw path still starts with the apps/web/e2e/ directory, so the exemption lets a production target through."
+    },
+    {
+      "id": "review-gate-exempt-dirs-unanchored",
+      "find": "EXEMPT_DIRS.some((dir) => filePath.startsWith(dir))",
+      "replace": "EXEMPT_DIRS.some((dir) => filePath.includes(dir.slice(process.cwd().length)))",
+      "expectRed": [
+        "blocks a production file outside the repo root whose path contains apps/web/e2e/"
+      ],
+      "note": "Matches an exempt directory anywhere in the path instead of under the repo root — /vendor/apps/web/e2e/production.ts is let through."
     }
   ]
 }

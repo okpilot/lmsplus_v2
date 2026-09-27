@@ -89,3 +89,11 @@ export function nextVectorId(idLists: readonly (readonly string[])[]): string {
   if (max === 'ZZZ') throw new Error('nextVectorId: ZZZ is the last representable 1-3 letter ID')
   return incrementId(max)
 }
+
+/** Throws when any value is not a vector ID — a dropped value would let an ID be allocated twice. */
+export function assertVectorIds(values: readonly string[]): void {
+  const invalid = values.filter((value) => !ID_RE.test(value))
+  if (invalid.length > 0) {
+    throw new Error(`next-vector-id: not a vector ID: ${invalid.join(', ')}`)
+  }
+}

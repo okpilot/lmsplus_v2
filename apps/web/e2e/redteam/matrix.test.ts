@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { compareVectorIds, extractIds, nextVectorId, parseMatrixRows } from './matrix'
+import {
+  assertVectorIds,
+  compareVectorIds,
+  extractIds,
+  nextVectorId,
+  parseMatrixRows,
+} from './matrix'
 
 const REAL_SPEC_FILE = 'rate-limiting.spec.ts'
 const VALID_ROW = ['ZZ', 'probe-something', 'HIGH', REAL_SPEC_FILE, 'FIXED', '', 'rate-limit']
@@ -99,5 +105,15 @@ describe('nextVectorId', () => {
 
   it('throws at ZZZ, the last representable id', () => {
     expect(() => nextVectorId([['ZZZ']])).toThrow(/ZZZ/)
+  })
+})
+
+describe('assertVectorIds', () => {
+  it('accepts capital-letter ids', () => {
+    expect(() => assertVectorIds(['A', 'FW', 'ZZZ'])).not.toThrow()
+  })
+
+  it('rejects a lowercase or comma-joined id, naming it', () => {
+    expect(() => assertVectorIds(['FW', 'fw', 'FX,FY'])).toThrow(/fw, FX,FY/)
   })
 })

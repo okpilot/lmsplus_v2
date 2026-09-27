@@ -16,6 +16,9 @@ const fs = require('node:fs')
 const path = require('node:path')
 
 const GATE_FILE = path.join(process.cwd(), '.claude', 'review-gate.json')
+const EXEMPT_DIRS = ['.claude', 'docs', path.join('apps', 'web', 'e2e')].map(
+  (dir) => path.resolve(process.cwd(), dir) + path.sep,
+)
 
 // Read stdin (tool input JSON)
 let input = ''
@@ -50,12 +53,7 @@ process.stdin.on('end', () => {
   // Allow edits to non-production files
   if (
     filePath.includes('.test.') ||
-    filePath.includes('/.claude/') ||
-    filePath.includes('\\.claude\\') ||
-    filePath.includes('/docs/') ||
-    filePath.includes('\\docs\\') ||
-    filePath.includes('/apps/web/e2e/') ||
-    filePath.includes('\\apps\\web\\e2e\\') ||
+    EXEMPT_DIRS.some((dir) => filePath.startsWith(dir)) ||
     filePath.endsWith('.md')
   ) {
     process.exit(0)

@@ -6,7 +6,7 @@
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { extractIds, nextVectorId, parseMatrixRows } from './matrix'
+import { assertVectorIds, extractIds, nextVectorId, parseMatrixRows } from './matrix'
 
 const MATRIX_PATH = resolve(__dirname, 'attack-surface.md')
 
@@ -19,6 +19,8 @@ function readOriginMasterMatrix(): string {
 }
 
 function main(): void {
+  const allocated = process.argv.slice(2)
+  assertVectorIds(allocated)
   const originMarkdown = readOriginMasterMatrix()
   const workingTreeMarkdown = readFileSync(MATRIX_PATH, 'utf8')
   const originIds = extractIds(parseMatrixRows(originMarkdown))
@@ -26,7 +28,7 @@ function main(): void {
   if (originIds.length === 0 || workingTreeIds.length === 0) {
     throw new Error('next-vector-id: zero IDs parsed from origin/master or working-tree matrix')
   }
-  console.log(nextVectorId([originIds, workingTreeIds, process.argv.slice(2)]))
+  console.log(nextVectorId([originIds, workingTreeIds, allocated]))
 }
 
 try {
