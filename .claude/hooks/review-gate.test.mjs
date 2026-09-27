@@ -177,6 +177,18 @@ test('blocks a production file inside a .claude/worktrees/ checkout when the gat
   }
 })
 
+// GROUP: review-gate-worktree-exempt-dirs-blocked
+test('allows a docs edit inside a .claude/worktrees/ checkout when the gate is active', () => {
+  const dir = makeDir()
+  try {
+    withGate(dir)
+    const r = runHook(payload(path.join(dir, '.claude', 'worktrees', 'wt', 'docs', 'x.ts')), dir)
+    assert.equal(r.status, 0)
+  } finally {
+    cleanup(dir)
+  }
+})
+
 test('allows an .md file edit even when the gate is active', () => {
   const dir = makeDir()
   try {

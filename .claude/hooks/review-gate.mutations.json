@@ -39,21 +39,31 @@
     },
     {
       "id": "review-gate-exempt-dirs-unanchored",
-      "find": "EXEMPT_DIRS.some((dir) => filePath.startsWith(dir))",
-      "replace": "EXEMPT_DIRS.some((dir) => filePath.includes(dir.slice(process.cwd().length)))",
+      "find": "filePath.startsWith(path.resolve(root, dir) + path.sep)",
+      "replace": "filePath.includes(path.sep + dir + path.sep)",
       "expectRed": [
-        "blocks a production file outside the repo root whose path contains apps/web/e2e/"
+        "blocks a production file outside the repo root whose path contains apps/web/e2e/",
+        "blocks a production file inside a .claude/worktrees/ checkout when the gate is active"
       ],
-      "note": "Matches an exempt directory anywhere in the path instead of under the repo root — /vendor/apps/web/e2e/production.ts is let through."
+      "note": "Matches an exempt directory anywhere in the path instead of under its checkout root — /vendor/apps/web/e2e/production.ts, and any worktree file under .claude/, is let through."
     },
     {
       "id": "review-gate-worktrees-exempt",
-      "find": " && !filePath.startsWith(WORKTREES_DIR)",
-      "replace": "",
+      "find": "  if (!filePath.startsWith(WORKTREES_DIR)) return process.cwd()\n",
+      "replace": "  return process.cwd()\n",
       "expectRed": [
         "blocks a production file inside a .claude/worktrees/ checkout when the gate is active"
       ],
       "note": "Drops the worktree carve-out — a production file inside .claude/worktrees/ passes as an exempt .claude path."
+    },
+    {
+      "id": "review-gate-worktree-exempt-dirs-blocked",
+      "find": "return EXEMPT_DIRS.some(",
+      "replace": "return !filePath.startsWith(WORKTREES_DIR) && EXEMPT_DIRS.some(",
+      "expectRed": [
+        "allows a docs edit inside a .claude/worktrees/ checkout when the gate is active"
+      ],
+      "note": "Denies every exemption inside a worktree — the worktree's own docs/, .claude/ and apps/web/e2e/ files are blocked."
     }
   ]
 }

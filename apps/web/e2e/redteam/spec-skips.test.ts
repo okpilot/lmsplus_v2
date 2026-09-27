@@ -104,6 +104,50 @@ describe('skippedSpecRowIds', () => {
     expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual([])
   })
 
+  it('does not flag an unconditional skip under a braceless if', () => {
+    const source = "test('rejects', async () => {\n  if (!process.env.X)\n    test.skip()\n})"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual([])
+  })
+
+  it('does not flag a conditional skip after a string holding a brace', () => {
+    const source =
+      "test('rejects', async () => {\n  if (cond) {\n    const open = '{'\n    test.skip()\n  }\n})"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual([])
+  })
+
+  it('does not flag a skip behind a short-circuit guard', () => {
+    const source = "test('rejects', async () => {\n  cond && test.skip()\n})"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual([])
+  })
+
+  it('does not flag a skip inside a loop', () => {
+    const source =
+      "test('rejects', async () => {\n  for (const x of xs) {\n    test.skip()\n  }\n})"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual([])
+  })
+
+  it('does not flag a skip in one arm of a ternary', () => {
+    const source = "test('rejects', async () => {\n  cond ? test.skip() : run()\n})"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual([])
+  })
+
+  it('does not flag a skip in a switch case', () => {
+    const source =
+      "test('rejects', async () => {\n  switch (mode) {\n    case 'x':\n      test.skip()\n  }\n})"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual([])
+  })
+
+  it('does not flag a skip in a catch block', () => {
+    const source =
+      "test('rejects', async () => {\n  try {\n    run()\n  } catch {\n    test.skip()\n  }\n})"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual([])
+  })
+
+  it('does not flag a skip that only appears inside a string', () => {
+    const source = "test('rejects', async () => {\n  const note = 'test.skip()'\n})"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual([])
+  })
+
   it('flags a spec with a titled test.skip', () => {
     const source = "test.skip('rejects a forged token', async () => {})"
     expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
