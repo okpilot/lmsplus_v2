@@ -34,11 +34,9 @@ const BASE_PROPS = {
   email: 'alice@example.com',
   fullName: 'Alice',
   role: 'student',
-  tempPassword: 'pass123',
   onEmailChange: vi.fn(),
   onFullNameChange: vi.fn(),
   onRoleChange: vi.fn(),
-  onTempPasswordChange: vi.fn(),
 }
 
 describe('StudentFormFields', () => {
@@ -46,17 +44,16 @@ describe('StudentFormFields', () => {
     vi.resetAllMocks()
   })
 
-  it('renders the email, full name, role, and temporary password fields in create mode', () => {
+  it('renders the email, full name, and role fields', () => {
     render(<StudentFormFields {...BASE_PROPS} />)
     expect(screen.getByLabelText('Email')).toBeInTheDocument()
     expect(screen.getByLabelText('Full name')).toBeInTheDocument()
     expect(screen.getByText('Role')).toBeInTheDocument()
-    expect(screen.getByLabelText('Temporary password')).toBeInTheDocument()
   })
 
-  it('hides the temporary password field in edit mode', () => {
-    render(<StudentFormFields {...BASE_PROPS} isEdit={true} />)
-    expect(screen.queryByLabelText('Temporary password')).not.toBeInTheDocument()
+  it('never renders a password field', () => {
+    render(<StudentFormFields {...BASE_PROPS} />)
+    expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument()
   })
 
   it('disables the email field in edit mode', () => {
@@ -98,9 +95,7 @@ describe('StudentFormFields', () => {
 
   it('disables all inputs when isPending is true', () => {
     render(<StudentFormFields {...BASE_PROPS} isPending={true} />)
-    // email input and full name input both disabled when isPending
     expect(screen.getByLabelText('Email')).toBeDisabled()
     expect(screen.getByLabelText('Full name')).toBeDisabled()
-    expect(screen.getByLabelText('Temporary password')).toBeDisabled()
   })
 })

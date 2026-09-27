@@ -16,11 +16,9 @@ type Props = {
   email: string
   fullName: string
   role: string
-  tempPassword: string
   onEmailChange: (value: string) => void
   onFullNameChange: (value: string) => void
   onRoleChange: (value: string) => void
-  onTempPasswordChange: (value: string) => void
 }
 
 const BASE_ROLE_ITEMS = [
@@ -34,11 +32,9 @@ export function StudentFormFields({
   email,
   fullName,
   role,
-  tempPassword,
   onEmailChange,
   onFullNameChange,
   onRoleChange,
-  onTempPasswordChange,
 }: Readonly<Props>) {
   const roleItems = isEdit
     ? [{ value: 'admin', label: 'Admin' }, ...BASE_ROLE_ITEMS]
@@ -91,21 +87,6 @@ export function StudentFormFields({
           </SelectContent>
         </Select>
       </div>
-
-      {!isEdit && (
-        <div className="grid gap-2">
-          <Label htmlFor="tempPassword">Temporary password</Label>
-          <Input
-            id="tempPassword"
-            type="text"
-            value={tempPassword}
-            onChange={(e) => onTempPasswordChange(e.target.value)}
-            disabled={isPending}
-            minLength={6}
-            required
-          />
-        </div>
-      )}
     </div>
   )
 }

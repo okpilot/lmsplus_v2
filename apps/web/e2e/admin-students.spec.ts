@@ -92,13 +92,14 @@ test.describe('Admin Student Management — Create', () => {
     // Fill form fields
     await page.getByLabel('Email').fill(email)
     await page.getByLabel('Full name').fill(fullName)
-    await page.getByLabel('Temporary password').fill('TempPass123!')
 
     // Submit
     await page.getByRole('button', { name: 'Create Student' }).click()
 
-    // Success toast
-    await expect(page.getByText('Student created')).toBeVisible({ timeout: 10_000 })
+    // Post-create panel offers to send login instructions
+    await expect(page.getByText('Student created.')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByRole('button', { name: 'Send login instructions' })).toBeVisible()
+    await page.getByRole('button', { name: 'Close' }).click()
 
     // Student should appear in the table after page reload (Server Component re-render)
     await page.reload()
@@ -125,9 +126,9 @@ test.describe('Admin Student Management — Edit', () => {
     await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5_000 })
     await page.getByLabel('Email').fill(email)
     await page.getByLabel('Full name').fill(originalName)
-    await page.getByLabel('Temporary password').fill('TempPass123!')
     await page.getByRole('button', { name: 'Create Student' }).click()
-    await expect(page.getByText('Student created')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText('Student created.')).toBeVisible({ timeout: 10_000 })
+    await page.getByRole('button', { name: 'Close' }).click()
     await page.reload()
 
     // Find our student's row and click Edit
@@ -170,9 +171,9 @@ test.describe('Admin Student Management — Deactivate / Reactivate', () => {
     await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5_000 })
     await page.getByLabel('Email').fill(email)
     await page.getByLabel('Full name').fill(fullName)
-    await page.getByLabel('Temporary password').fill('TempPass123!')
     await page.getByRole('button', { name: 'Create Student' }).click()
-    await expect(page.getByText('Student created')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText('Student created.')).toBeVisible({ timeout: 10_000 })
+    await page.getByRole('button', { name: 'Close' }).click()
     await page.reload()
 
     // Find the row for our new student and click Deactivate
@@ -275,83 +276,78 @@ test.describe('Admin Student Management — Deactivate / Reactivate', () => {
   })
 })
 
-// ── Section 7: Reset password ─────────────────────────────────────────────────
+// ── Section 7: Login instructions ─────────────────────────────────────────────
+//
+// CI runs `pnpm start` without RESEND_API_KEY, so a real send fails there —
+// these specs assert only the not-sent state, the confirm wording, and Cancel;
+// they never click Confirm (which would dispatch the real Server Action).
 
-test.describe('Admin Student Management — Reset Password', () => {
+test.describe('Admin Student Management — Login Instructions', () => {
   test.afterEach(async () => {
     await cleanupE2eStudents()
   })
 
-  test('opens reset password dialog and shows generated password field', async ({ page }) => {
+  test('shows "Not sent yet" for a new student and Send opens a confirmation', async ({ page }) => {
     await page.goto('/app/admin/students')
     await expect(page.getByRole('heading', { name: 'Student Management' })).toBeVisible()
 
     const email = uniqueEmail()
-    const fullName = `E2E ResetPw ${Date.now()}`
+    const fullName = `E2E LoginInstr ${Date.now()}`
 
     // Create a dedicated student
     await page.getByRole('button', { name: 'New Student' }).click()
     await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5_000 })
     await page.getByLabel('Email').fill(email)
     await page.getByLabel('Full name').fill(fullName)
-    await page.getByLabel('Temporary password').fill('TempPass123!')
     await page.getByRole('button', { name: 'Create Student' }).click()
-    await expect(page.getByText('Student created')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText('Student created.')).toBeVisible({ timeout: 10_000 })
+    await page.getByRole('button', { name: 'Close' }).click()
     await page.reload()
 
-    // Find our student and click reset password
+    // Find our student's row: it has never been sent login instructions
     const studentRow = page.locator('tbody tr').filter({ hasText: fullName })
     await expect(studentRow).toBeVisible({ timeout: 10_000 })
-    await studentRow.getByRole('button', { name: 'Reset password' }).click()
+    await expect(studentRow.getByText('Not sent yet')).toBeVisible()
 
-    // Dialog opens with a pre-filled password field
-    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5_000 })
-    await expect(page.getByRole('heading', { name: 'Reset password' })).toBeVisible()
+    // Send opens an inline confirmation naming the student
+    await studentRow.getByRole('button', { name: 'Send' }).click()
+    await expect(
+      studentRow.getByText(
+        `Send login instructions to ${fullName}? Any password they use now stops working.`,
+      ),
+    ).toBeVisible()
 
-    const passwordInput = page.getByLabel('Temporary password')
-    await expect(passwordInput).toBeVisible()
-
-    // Generated password should be non-empty (12 chars)
-    const generatedPassword = await passwordInput.inputValue()
-    expect(generatedPassword.length).toBeGreaterThanOrEqual(6)
-
-    // Generate button regenerates a different password
-    await page.getByRole('button', { name: 'Generate' }).click()
-    const newPassword = await passwordInput.inputValue()
-    expect(newPassword).not.toBe(generatedPassword)
-
-    // Close without submitting
-    await page.getByRole('button', { name: 'Cancel' }).click()
-    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 3_000 })
+    // Cancel dismisses the confirmation without sending
+    await studentRow.getByRole('button', { name: 'Cancel' }).click()
+    await expect(studentRow.getByRole('button', { name: 'Send' })).toBeVisible()
   })
 
-  test('submits reset password and shows success toast', async ({ page }) => {
+  test('offers to send login instructions from the post-create panel', async ({ page }) => {
     await page.goto('/app/admin/students')
     await expect(page.getByRole('heading', { name: 'Student Management' })).toBeVisible()
 
     const email = uniqueEmail()
-    const fullName = `E2E ResetSubmit ${Date.now()}`
+    const fullName = `E2E PostCreate ${Date.now()}`
 
-    // Create a dedicated student
     await page.getByRole('button', { name: 'New Student' }).click()
     await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5_000 })
     await page.getByLabel('Email').fill(email)
     await page.getByLabel('Full name').fill(fullName)
-    await page.getByLabel('Temporary password').fill('TempPass123!')
     await page.getByRole('button', { name: 'Create Student' }).click()
-    await expect(page.getByText('Student created')).toBeVisible({ timeout: 10_000 })
-    await page.reload()
+    await expect(page.getByText('Student created.')).toBeVisible({ timeout: 10_000 })
 
-    // Find our student and open reset dialog
-    const studentRow = page.locator('tbody tr').filter({ hasText: fullName })
-    await expect(studentRow).toBeVisible({ timeout: 10_000 })
-    await studentRow.getByRole('button', { name: 'Reset password' }).click()
-    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5_000 })
-
-    // Submit
     const dialog = page.getByRole('dialog')
-    await dialog.getByRole('button', { name: 'Reset password' }).click()
-    await expect(page.getByText('Password reset.')).toBeVisible({ timeout: 10_000 })
+    await dialog.getByRole('button', { name: 'Send login instructions' }).click()
+    await expect(
+      dialog.getByText(
+        `Send login instructions to ${fullName}? Any password they use now stops working.`,
+      ),
+    ).toBeVisible()
+
+    await dialog.getByRole('button', { name: 'Cancel' }).click()
+    await expect(dialog.getByRole('button', { name: 'Send login instructions' })).toBeVisible()
+
+    await dialog.getByRole('button', { name: 'Close' }).click()
   })
 })
 

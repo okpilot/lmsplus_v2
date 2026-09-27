@@ -61,9 +61,9 @@ describe('recordAuthEvent', () => {
     const mockRpc = vi.fn().mockResolvedValue({ error: null })
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     await recordAuthEvent(makeClient(mockRpc), {
-      eventType: 'user.password_reset',
+      eventType: 'user.deactivated',
       resourceId: 'user-321',
-      context: 'resetPassword',
+      context: 'toggleStudentStatus',
     })
     expect(errorSpy).not.toHaveBeenCalled()
     errorSpy.mockRestore()

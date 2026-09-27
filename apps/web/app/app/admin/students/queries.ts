@@ -11,7 +11,9 @@ export async function getStudentsList(filters: StudentFilters): Promise<StudentR
 
   let query = adminClient
     .from('users')
-    .select('id, email, full_name, role, organization_id, last_active_at, created_at, deleted_at')
+    .select(
+      'id, email, full_name, role, organization_id, last_active_at, created_at, deleted_at, login_instructions_sent_at, temp_password_expires_at',
+    )
     .eq('organization_id', organizationId)
     .order('created_at', { ascending: false })
     .limit(200)

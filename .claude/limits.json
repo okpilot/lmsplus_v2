@@ -114,7 +114,6 @@
     "apps/web/app/app/quiz/types.ts": 224,
     "apps/web/components/ui/alert-dialog.tsx": 168,
     "apps/web/components/ui/select.tsx": 193,
-    "apps/web/e2e/admin-students.spec.ts": 504,
     "apps/web/e2e/helpers/supabase.test.ts": 849,
     "apps/web/e2e/helpers/supabase.ts": 529,
     "apps/web/e2e/redteam/helpers/audit-helpers.ts": 201,

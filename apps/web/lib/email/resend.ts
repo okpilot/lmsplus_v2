@@ -61,3 +61,14 @@ export async function sendEmail({
     return { ok: false, error: 'send_failed' }
   }
 }
+
+/**
+ * Whether `sendEmail` will pass its config checks — mirrors them. Outside
+ * production with no RESEND_API_KEY this is true and `sendEmail` only logs
+ * (the local-dev fallback above). Callers that change state before sending
+ * (e.g. replacing a password) check this first.
+ */
+export function isEmailConfigured(): boolean {
+  if (!process.env.RESEND_API_KEY) return process.env.NODE_ENV !== 'production'
+  return Boolean(process.env.EMAIL_FROM)
+}

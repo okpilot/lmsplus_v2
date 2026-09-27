@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -32,7 +32,6 @@ const VALID_INPUT = {
   email: 'student@example.com',
   full_name: 'Jane Smith',
   role: 'student' as const,
-  temporary_password: 'TempPass1',
 }
 
 function mockAdmin() {
@@ -63,10 +62,6 @@ beforeEach(() => {
   vi.resetAllMocks()
 })
 
-afterEach(() => {
-  vi.useRealTimers()
-})
-
 describe('createStudent', () => {
   describe('input validation', () => {
     it('returns failure when input is missing required fields', async () => {
@@ -78,13 +73,6 @@ describe('createStudent', () => {
 
     it('returns failure when email is invalid', async () => {
       const result = await createStudent({ ...VALID_INPUT, email: 'not-an-email' })
-      expect(result.success).toBe(false)
-      if (result.success) return
-      expect(result.error).toBe('Invalid input')
-    })
-
-    it('returns failure when temporary_password is shorter than 6 characters', async () => {
-      const result = await createStudent({ ...VALID_INPUT, temporary_password: 'abc' })
       expect(result.success).toBe(false)
       if (result.success) return
       expect(result.error).toBe('Invalid input')
@@ -106,19 +94,48 @@ describe('createStudent', () => {
   })
 
   describe('happy path', () => {
-    it('creates the student and revalidates on success', async () => {
+    it('creates the student, returns its id, and revalidates on success', async () => {
       mockAdmin()
       buildChain()
       mockAuthCreateUser()
 
       const result = await createStudent(VALID_INPUT)
 
-      expect(result.success).toBe(true)
-      expect(mockCreateUser).toHaveBeenCalledWith(
-        expect.objectContaining({ email: VALID_INPUT.email, email_confirm: true }),
-      )
+      expect(result).toEqual({ success: true, id: NEW_USER_ID })
       expect(mockFrom).toHaveBeenCalledWith('users')
       expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/students')
+    })
+
+    it('creates the auth user with no password and no metadata', async () => {
+      mockAdmin()
+      buildChain()
+      mockAuthCreateUser()
+
+      await createStudent(VALID_INPUT)
+
+      expect(mockCreateUser).toHaveBeenCalledWith({
+        email: VALID_INPUT.email,
+        email_confirm: true,
+      })
+    })
+
+    it('inserts the profile row with no temp-password expiry armed', async () => {
+      mockAdmin()
+      const mockUpsert = buildChain()
+      mockAuthCreateUser()
+
+      await createStudent(VALID_INPUT)
+
+      expect(mockUpsert).toHaveBeenCalledTimes(1)
+      const insertedRow = mockUpsert.mock.calls[0]?.[0]
+      expect(insertedRow).not.toHaveProperty('temp_password_expires_at')
+      expect(insertedRow).toEqual({
+        id: NEW_USER_ID,
+        email: VALID_INPUT.email,
+        full_name: VALID_INPUT.full_name,
+        role: VALID_INPUT.role,
+        organization_id: ORG_ID,
+      })
     })
 
     it('records a user.created audit event for the new student', async () => {
@@ -149,33 +166,6 @@ describe('createStudent', () => {
         'audit insert failed',
       )
       consoleSpy.mockRestore()
-    })
-
-    it('sets must_change_password metadata when creating the auth user', async () => {
-      mockAdmin()
-      buildChain()
-      mockAuthCreateUser()
-
-      await createStudent(VALID_INPUT)
-
-      expect(mockCreateUser).toHaveBeenCalledWith(
-        expect.objectContaining({ user_metadata: { must_change_password: true } }),
-      )
-    })
-
-    it('arms the temp-password expiry roughly 7 days ahead on the new profile row', async () => {
-      vi.useFakeTimers()
-      vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'))
-      mockAdmin()
-      const mockUpsert = buildChain()
-      mockAuthCreateUser()
-
-      await createStudent(VALID_INPUT)
-
-      expect(mockUpsert).toHaveBeenCalledWith(
-        expect.objectContaining({ temp_password_expires_at: '2026-01-08T00:00:00.000Z' }),
-        expect.anything(),
-      )
     })
   })
 

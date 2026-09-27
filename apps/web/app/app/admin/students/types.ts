@@ -7,6 +7,8 @@ export type StudentRow = {
   last_active_at: string | null
   created_at: string
   deleted_at: string | null
+  login_instructions_sent_at: string | null
+  temp_password_expires_at: string | null
 }
 
 export type StudentFilters = {

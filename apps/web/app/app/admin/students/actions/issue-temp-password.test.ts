@@ -54,7 +54,7 @@ describe('issueTempPassword', () => {
     expect(outcome).toBe('failed')
     expect(mockUpdateUserById).not.toHaveBeenCalled()
     expect(consoleSpy).toHaveBeenCalledWith(
-      '[resetStudentPassword] Failed to arm temp password before reset for user:',
+      '[issueTempPassword] Failed to arm temp password before reset for user:',
       USER_ID,
     )
     consoleSpy.mockRestore()
@@ -84,7 +84,7 @@ describe('issueTempPassword', () => {
 
     expect(outcome).toBe('failed')
     expect(consoleSpy).toHaveBeenCalledWith(
-      '[resetStudentPassword] Rollback of temp-password expiry failed for user:',
+      '[issueTempPassword] Rollback of temp-password expiry failed for user:',
       USER_ID,
     )
     consoleSpy.mockRestore()
@@ -120,7 +120,7 @@ describe('issueTempPassword', () => {
 
     expect(outcome).toBe('issued_not_armed')
     expect(consoleSpy).toHaveBeenCalledWith(
-      '[resetStudentPassword] Password set but re-arm failed for user:',
+      '[issueTempPassword] Password set but re-arm failed for user:',
       USER_ID,
     )
     expect(mockRestoreTempPasswordExpiry).not.toHaveBeenCalled()
