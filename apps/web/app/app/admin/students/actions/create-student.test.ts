@@ -204,6 +204,19 @@ describe('createStudent', () => {
       expect(result.error).toBe('Failed to create student')
       expect(mockRevalidatePath).not.toHaveBeenCalled()
     })
+
+    it('returns a generic failure when the message mentions registration but the code is not email_exists', async () => {
+      mockAdmin()
+      buildChain()
+      mockAuthCreateUser({ error: { message: 'Email already registered elsewhere' } })
+
+      const result = await createStudent(VALID_INPUT)
+
+      expect(result.success).toBe(false)
+      if (result.success) return
+      expect(result.error).toBe('Failed to create student')
+      expect(mockRevalidatePath).not.toHaveBeenCalled()
+    })
   })
 
   describe('profile insert', () => {
