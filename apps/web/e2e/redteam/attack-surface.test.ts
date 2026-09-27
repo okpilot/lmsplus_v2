@@ -29,16 +29,21 @@ function readStringArray(file: string): string[] {
   return data
 }
 
+type RowValidationContext = {
+  specFileExists: (name: string) => boolean
+  legacyIds?: ReadonlySet<string>
+}
+
 /** Checks one 7-cell row against the closed rules; returns its errors. */
 function validateRow(
   row: readonly string[],
   techniqueSet: ReadonlySet<string>,
-  specFileExists: (name: string) => boolean,
+  { specFileExists, legacyIds = new Set() }: RowValidationContext,
 ): string[] {
   const id = row[0] ?? '(no id)'
   const [, vector, , specFile, status, notes, technique] = row.map((c) => c.trim())
   const errors: string[] = []
-  if (!ID_RE.test(id.trim())) {
+  if (!legacyIds.has(id.trim()) && !ID_RE.test(id.trim())) {
     errors.push(`row ${id}: ID "${id}" does not match ${ID_RE}`)
   }
   if (!techniqueSet.has(technique ?? '')) {
@@ -73,7 +78,7 @@ function validateRow(
 function validateMatrixRows(
   rows: readonly string[][],
   techniques: readonly string[],
-  specFileExists: (name: string) => boolean,
+  context: RowValidationContext,
 ): string[] {
   const techniqueSet = new Set(techniques)
   const errors: string[] = []
@@ -89,7 +94,7 @@ function validateMatrixRows(
       )
       continue
     }
-    errors.push(...validateRow(row, techniqueSet, specFileExists))
+    errors.push(...validateRow(row, techniqueSet, context))
   }
   return errors
 }
@@ -104,9 +109,32 @@ const REAL_SPEC_FILE = 'rate-limiting.spec.ts'
 const STATIC_SKIP_LINE_RE =
   /^\s*(test\.describe\.skip|test\.describe\.fixme|test\.skip|test\.fixme|it\.skip|describe\.skip)\(\s*(['"`])/
 
-/** True when the spec source holds at least one statically-skipped titled test or describe. */
-function hasStaticSkip(source: string): boolean {
-  return source.split(/\r\n|\n/).some((line) => STATIC_SKIP_LINE_RE.test(line))
+/** Matches a `// Vector <ID>`-style attribution comment, capturing the exact ID token. */
+const VECTOR_ATTRIBUTION_RE = /\bVector\s+([A-Za-z][\w-]*)\b/
+
+/** The vector ID a line attributes a skip to, or undefined when the line names none. */
+function attributedVectorId(line: string): string | undefined {
+  return line.match(VECTOR_ATTRIBUTION_RE)?.[1]
+}
+
+/**
+ * True when the static skip at `lines[skipIndex]` is attributed to `id` — its nearest
+ * preceding non-blank line names `id` via `Vector <id>`, or names no vector at all.
+ */
+function isSkipAttributedTo(lines: readonly string[], skipIndex: number, id: string): boolean {
+  for (let i = skipIndex - 1; i >= 0; i--) {
+    const line = lines[i].trim()
+    if (line === '') continue
+    const attributed = attributedVectorId(line)
+    return attributed === undefined || attributed === id
+  }
+  return true
+}
+
+/** True when the spec source holds a statically-skipped titled test or describe attributed to `id`. */
+function hasStaticSkipForId(source: string, id: string): boolean {
+  const lines = source.split(/\r\n|\n/)
+  return lines.some((line, i) => STATIC_SKIP_LINE_RE.test(line) && isSkipAttributedTo(lines, i, id))
 }
 
 /** IDs of 7-cell rows past `GAP` whose spec is still skipped — a skipped spec passes `e2e:redteam` while running nothing. */
@@ -118,12 +146,23 @@ function skippedSpecRowIds(
   return rows
     .filter((r) => r.length === 7 && r[4]?.trim() !== 'GAP')
     .filter((r) => specFileExists((r[3] ?? '').trim()))
-    .filter((r) => hasStaticSkip(readSpec((r[3] ?? '').trim())))
+    .filter((r) => hasStaticSkipForId(readSpec((r[3] ?? '').trim()), (r[0] ?? '').trim()))
     .map((r) => (r[0] ?? '').trim())
 }
 
 function realSpecFileExists(name: string): boolean {
   return fs.existsSync(path.join(REDTEAM_DIR, name))
+}
+
+/** IDs of 6-cell rows that are not in the legacy set — a new row skipping the Technique column. */
+function sixCellRowIdsOutsideLegacy(
+  rows: readonly string[][],
+  legacyIds: ReadonlySet<string>,
+): string[] {
+  return rows
+    .filter((r) => r.length === 6)
+    .map((r) => (r[0] ?? '').trim())
+    .filter((id) => !legacyIds.has(id))
 }
 
 /** A row that satisfies every rule. */
@@ -144,9 +183,25 @@ describe('validateMatrixRows — row-shape errors surfaced through parseMatrixRo
     const markdown = `${matrixWithRow(VALID_ROW)}\n${VALID_ROW.join(' | ')} |`
     const rows = parseMatrixRows(markdown)
     const techniques = readStringArray(TECHNIQUES_PATH)
-    const errors = validateMatrixRows(rows, techniques, realSpecFileExists)
+    const errors = validateMatrixRows(rows, techniques, { specFileExists: realSpecFileExists })
     expect(errors).toHaveLength(1)
     expect(errors[0]).toContain('1 cells, expected 7')
+  })
+})
+
+describe('sixCellRowIdsOutsideLegacy', () => {
+  it('flags a new 6-cell row whose ID is not in the legacy set', () => {
+    const row = VALID_ROW.slice(0, 6)
+    row[0] = 'ZZZ'
+    const rows = parseMatrixRows(matrixWithRow(row))
+    expect(sixCellRowIdsOutsideLegacy(rows, new Set(['A']))).toEqual(['ZZZ'])
+  })
+
+  it('accepts a 6-cell row whose ID is in the legacy set', () => {
+    const row = VALID_ROW.slice(0, 6)
+    row[0] = 'A'
+    const rows = parseMatrixRows(matrixWithRow(row))
+    expect(sixCellRowIdsOutsideLegacy(rows, new Set(['A']))).toEqual([])
   })
 })
 
@@ -157,16 +212,19 @@ describe('the real attack-surface matrix', () => {
     const markdown = fs.readFileSync(MATRIX_PATH, 'utf8')
     const techniques = readStringArray(TECHNIQUES_PATH)
     const rows = parseMatrixRows(markdown)
-    const errors = validateMatrixRows(rows, techniques, realSpecFileExists)
+    const legacyIds = new Set(readStringArray(LEGACY_ROW_IDS_PATH))
+    const errors = validateMatrixRows(rows, techniques, {
+      specFileExists: realSpecFileExists,
+      legacyIds,
+    })
     expect(errors).toEqual([])
   })
 
-  it('adds no row without a Technique column beyond the pre-existing ones', () => {
+  it('adds no 6-cell row outside the pre-existing legacy set', () => {
     const rows = parseMatrixRows(fs.readFileSync(MATRIX_PATH, 'utf8'))
     const legacyIds = readStringArray(LEGACY_ROW_IDS_PATH)
     expect(legacyIds.length).toBeGreaterThan(0)
-    const sixCellIds = rows.filter((r) => r.length === 6).map((r) => r[0] ?? '')
-    expect(sixCellIds.sort()).toEqual([...legacyIds].sort())
+    expect(sixCellRowIdsOutsideLegacy(rows, new Set(legacyIds))).toEqual([])
   })
 
   it('has no row past GAP whose spec is still skipped', () => {
@@ -215,6 +273,29 @@ describe('skippedSpecRowIds', () => {
     expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
   })
 
+  it('flags a skip attributed to this row by a preceding Vector comment', () => {
+    const source = "// Vector ZZ\ntest.skip('rejects a forged token', async () => {})"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
+  })
+
+  it('does not flag a skip attributed to a different vector', () => {
+    const source = "// Vector QQ\ntest.skip('rejects a forged token', async () => {})"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual([])
+  })
+
+  it('flags an unattributed skip', () => {
+    const source = "// resets fixture state\ntest.skip('rejects a forged token', async () => {})"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
+  })
+
+  it('does not let a Vector comment for a longer ID match a shorter row ID', () => {
+    const row = [...VALID_ROW]
+    row[0] = 'F'
+    row[4] = 'BLOCKED'
+    const source = "// Vector FW\ntest.skip('rejects a forged token', async () => {})"
+    expect(skippedSpecRowIds([row], () => source)).toEqual([])
+  })
+
   it('skips a row whose spec file does not exist instead of throwing', () => {
     expect(() =>
       skippedSpecRowIds(
@@ -237,20 +318,22 @@ describe('validateMatrixRows', () => {
   const techniques = readStringArray(TECHNIQUES_PATH)
 
   it('accepts a row whose cells all satisfy the closed rules', () => {
-    const errors = validateMatrixRows([VALID_ROW], techniques, realSpecFileExists)
+    const errors = validateMatrixRows([VALID_ROW], techniques, {
+      specFileExists: realSpecFileExists,
+    })
     expect(errors).toEqual([])
   })
 
   it('skips a 6-cell row with no Technique column even when its other cells are invalid prose', () => {
     const row = ['Z1', 'not a valid vector!!', 'HIGH', 'nonexistent.spec.ts', 'WRONG', 'prose']
-    const errors = validateMatrixRows([row], techniques, realSpecFileExists)
+    const errors = validateMatrixRows([row], techniques, { specFileExists: realSpecFileExists })
     expect(errors).toEqual([])
   })
 
   it('rejects a row whose Technique cell is empty', () => {
     const row = [...VALID_ROW]
     row[6] = ''
-    const errors = validateMatrixRows([row], techniques, realSpecFileExists)
+    const errors = validateMatrixRows([row], techniques, { specFileExists: realSpecFileExists })
     expect(errors).toHaveLength(1)
     expect(errors[0]).toContain('not in techniques.json')
   })
@@ -258,14 +341,14 @@ describe('validateMatrixRows', () => {
   it('rejects a Technique code in the wrong case', () => {
     const row = [...VALID_ROW]
     row[6] = 'Rate-Limit'
-    const errors = validateMatrixRows([row], techniques, realSpecFileExists)
+    const errors = validateMatrixRows([row], techniques, { specFileExists: realSpecFileExists })
     expect(errors).toHaveLength(1)
     expect(errors[0]).toContain('not in techniques.json')
   })
 
   it('rejects a row split by an unescaped pipe into more than 7 cells', () => {
     const row = [...VALID_ROW, 'leaked prose']
-    const errors = validateMatrixRows([row], techniques, realSpecFileExists)
+    const errors = validateMatrixRows([row], techniques, { specFileExists: realSpecFileExists })
     expect(errors).toHaveLength(1)
     expect(errors[0]).toContain('expected 7')
   })
@@ -274,21 +357,44 @@ describe('validateMatrixRows', () => {
     const legacy = ['A', 'legacy-vector', 'HIGH', 'x.spec.ts', 'prose', 'prose']
     const row = [...VALID_ROW]
     row[0] = 'A'
-    const errors = validateMatrixRows([legacy, row], techniques, realSpecFileExists)
+    const errors = validateMatrixRows([legacy, row], techniques, {
+      specFileExists: realSpecFileExists,
+    })
     expect(errors).toEqual(['row A: duplicate ID'])
   })
 
   it('rejects a new row whose ID is not 1-3 capital letters', () => {
     const row = [...VALID_ROW]
     row[0] = 'fv1'
-    const errors = validateMatrixRows([row], techniques, realSpecFileExists)
+    const errors = validateMatrixRows([row], techniques, { specFileExists: realSpecFileExists })
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).toContain('does not match')
+  })
+
+  it('accepts a converted legacy row whose ID is not 1-3 capital letters', () => {
+    const row = [...VALID_ROW]
+    row[0] = 'BX1'
+    const errors = validateMatrixRows([row], techniques, {
+      specFileExists: realSpecFileExists,
+      legacyIds: new Set(['BX1']),
+    })
+    expect(errors).toEqual([])
+  })
+
+  it('rejects a new 7-cell row whose non-standard ID is not in the legacy set', () => {
+    const row = [...VALID_ROW]
+    row[0] = 'fv1'
+    const errors = validateMatrixRows([row], techniques, {
+      specFileExists: realSpecFileExists,
+      legacyIds: new Set(['BX1']),
+    })
     expect(errors).toHaveLength(1)
     expect(errors[0]).toContain('does not match')
   })
 
   it('rejects a row with fewer than 6 cells instead of skipping it as pre-existing', () => {
     const row = VALID_ROW.slice(0, 5)
-    const errors = validateMatrixRows([row], techniques, realSpecFileExists)
+    const errors = validateMatrixRows([row], techniques, { specFileExists: realSpecFileExists })
     expect(errors).toHaveLength(1)
     expect(errors[0]).toContain('5 cells, expected 7')
   })
@@ -296,7 +402,7 @@ describe('validateMatrixRows', () => {
   it('rejects a technique code that is not in the closed list', () => {
     const row = [...VALID_ROW]
     row[6] = 'not-a-real-code'
-    const errors = validateMatrixRows([row], techniques, realSpecFileExists)
+    const errors = validateMatrixRows([row], techniques, { specFileExists: realSpecFileExists })
     expect(errors).toHaveLength(1)
     expect(errors[0]).toContain('not in techniques.json')
   })
@@ -304,7 +410,7 @@ describe('validateMatrixRows', () => {
   it('rejects a vector identifier containing spaces or punctuation outside the allowed set', () => {
     const row = [...VALID_ROW]
     row[1] = 'bad vector!'
-    const errors = validateMatrixRows([row], techniques, realSpecFileExists)
+    const errors = validateMatrixRows([row], techniques, { specFileExists: realSpecFileExists })
     expect(errors).toHaveLength(1)
     expect(errors[0]).toContain('does not match')
   })
@@ -312,7 +418,7 @@ describe('validateMatrixRows', () => {
   it('rejects a spec file cell naming more than one file', () => {
     const row = [...VALID_ROW]
     row[3] = `${REAL_SPEC_FILE} + other.spec.ts`
-    const errors = validateMatrixRows([row], techniques, realSpecFileExists)
+    const errors = validateMatrixRows([row], techniques, { specFileExists: realSpecFileExists })
     expect(errors).toHaveLength(1)
     expect(errors[0]).toContain('not a single *.spec.ts name')
   })
@@ -320,7 +426,7 @@ describe('validateMatrixRows', () => {
   it('rejects a spec file that does not exist in the redteam directory', () => {
     const row = [...VALID_ROW]
     row[3] = 'this-file-does-not-exist.spec.ts'
-    const errors = validateMatrixRows([row], techniques, realSpecFileExists)
+    const errors = validateMatrixRows([row], techniques, { specFileExists: realSpecFileExists })
     expect(errors).toHaveLength(1)
     expect(errors[0]).toContain('does not exist')
   })
@@ -328,7 +434,7 @@ describe('validateMatrixRows', () => {
   it('rejects a status outside the closed FIXED/GAP/MISSED/BLOCKED set', () => {
     const row = [...VALID_ROW]
     row[4] = 'PASSING'
-    const errors = validateMatrixRows([row], techniques, realSpecFileExists)
+    const errors = validateMatrixRows([row], techniques, { specFileExists: realSpecFileExists })
     expect(errors).toHaveLength(1)
     expect(errors[0]).toContain('is not one of FIXED, GAP, MISSED, BLOCKED')
   })
@@ -336,7 +442,7 @@ describe('validateMatrixRows', () => {
   it('rejects a notes cell that is neither empty nor a #N issue reference', () => {
     const row = [...VALID_ROW]
     row[5] = 'see the PR description'
-    const errors = validateMatrixRows([row], techniques, realSpecFileExists)
+    const errors = validateMatrixRows([row], techniques, { specFileExists: realSpecFileExists })
     expect(errors).toHaveLength(1)
     expect(errors[0]).toContain('is not empty or a #N issue reference')
   })
@@ -345,7 +451,7 @@ describe('validateMatrixRows', () => {
     const row = [...VALID_ROW]
     row[4] = 'GAP'
     row[5] = ''
-    const errors = validateMatrixRows([row], techniques, realSpecFileExists)
+    const errors = validateMatrixRows([row], techniques, { specFileExists: realSpecFileExists })
     expect(errors).toHaveLength(1)
     expect(errors[0]).toContain('requires a #N notes reference')
   })
@@ -354,7 +460,7 @@ describe('validateMatrixRows', () => {
     const row = [...VALID_ROW]
     row[4] = 'MISSED'
     row[5] = ''
-    const errors = validateMatrixRows([row], techniques, realSpecFileExists)
+    const errors = validateMatrixRows([row], techniques, { specFileExists: realSpecFileExists })
     expect(errors).toEqual([])
   })
 
@@ -362,7 +468,7 @@ describe('validateMatrixRows', () => {
     const row = [...VALID_ROW]
     row[4] = 'GAP'
     row[5] = '#1234'
-    const errors = validateMatrixRows([row], techniques, realSpecFileExists)
+    const errors = validateMatrixRows([row], techniques, { specFileExists: realSpecFileExists })
     expect(errors).toEqual([])
   })
 })

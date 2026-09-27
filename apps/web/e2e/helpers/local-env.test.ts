@@ -173,16 +173,44 @@ describe('assertLocalEnv', () => {
   })
 
   it('does not throw when no env files exist', () => {
-    expect(() => assertLocalEnv(dir)).not.toThrow()
+    expect(() => assertLocalEnv(dir, {})).not.toThrow()
   })
 
   it('throws naming the key when a hosted SUPABASE_URL is set', () => {
     writeFileSync(join(dir, '.env.local'), 'NEXT_PUBLIC_SUPABASE_URL=https://x.supabase.co\n')
-    expect(() => assertLocalEnv(dir)).toThrow(/NEXT_PUBLIC_SUPABASE_URL/)
+    expect(() => assertLocalEnv(dir, {})).toThrow(/NEXT_PUBLIC_SUPABASE_URL/)
   })
 
   it('throws naming RESEND_API_KEY when it is set', () => {
     writeFileSync(join(dir, '.env'), 'RESEND_API_KEY=re_abc123\n')
-    expect(() => assertLocalEnv(dir)).toThrow(/RESEND_API_KEY/)
+    expect(() => assertLocalEnv(dir, {})).toThrow(/RESEND_API_KEY/)
+  })
+
+  it('ignores a hosted SUPABASE_URL in the real process.env when an explicit env argument is given', () => {
+    const original = process.env.SUPABASE_URL
+    process.env.SUPABASE_URL = 'https://x.supabase.co'
+    try {
+      expect(() => assertLocalEnv(dir, {})).not.toThrow()
+    } finally {
+      if (original === undefined) {
+        delete process.env.SUPABASE_URL
+      } else {
+        process.env.SUPABASE_URL = original
+      }
+    }
+  })
+
+  it('defaults to process.env when no env argument is given', () => {
+    const original = process.env.RESEND_API_KEY
+    process.env.RESEND_API_KEY = 're_abc123'
+    try {
+      expect(() => assertLocalEnv(dir)).toThrow(/RESEND_API_KEY/)
+    } finally {
+      if (original === undefined) {
+        delete process.env.RESEND_API_KEY
+      } else {
+        process.env.RESEND_API_KEY = original
+      }
+    }
   })
 })

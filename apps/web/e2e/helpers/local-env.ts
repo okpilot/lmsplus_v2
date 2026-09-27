@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { parse } from 'dotenv'
 
 export type LocalEnvInput = {
   files: Record<string, string>
@@ -7,7 +8,6 @@ export type LocalEnvInput = {
 }
 
 const SUPABASE_URL_KEY_RE = /^[A-Z_]*SUPABASE_URL$/
-const KEY_RE = /^[A-Za-z_][A-Za-z0-9_]*$/
 
 const ENV_FILES = [
   '.env',
@@ -17,31 +17,6 @@ const ENV_FILES = [
   '.env.production',
   '.env.production.local',
 ]
-
-type ParsedLine = { key: string; value: string }
-
-/** Parses one dotenv line: optional `export`, optional quotes, `#` comments. */
-function parseLine(line: string): ParsedLine | null {
-  const trimmed = line.trim()
-  if (trimmed === '' || trimmed.startsWith('#')) return null
-  const withoutExport = trimmed.replace(/^export\s+/, '')
-  const eq = withoutExport.indexOf('=')
-  if (eq === -1) return null
-  const key = withoutExport.slice(0, eq).trim()
-  if (!KEY_RE.test(key)) return null
-  return { key, value: parseValue(withoutExport.slice(eq + 1).trim()) }
-}
-
-/** Strips a matching pair of quotes (ignoring anything past the close quote), or an unquoted trailing `#` comment. */
-function parseValue(raw: string): string {
-  const quote = raw[0]
-  if (quote === '"' || quote === "'") {
-    const closeIndex = raw.indexOf(quote, 1)
-    return closeIndex === -1 ? raw.slice(1) : raw.slice(1, closeIndex)
-  }
-  const hashIndex = raw.indexOf('#')
-  return (hashIndex === -1 ? raw : raw.slice(0, hashIndex)).trim()
-}
 
 /** True only for an `http:` URL whose hostname is localhost or 127.0.0.1. */
 function isLocalUrl(value: string): boolean {
@@ -66,10 +41,8 @@ function violationsForEntry(key: string, value: string): string[] {
 
 function violationsInFile(content: string, source: string): string[] {
   const violations: string[] = []
-  for (const rawLine of content.split(/\r\n|\n/)) {
-    const parsed = parseLine(rawLine)
-    if (!parsed) continue
-    for (const msg of violationsForEntry(parsed.key, parsed.value)) {
+  for (const [key, value] of Object.entries(parse(content))) {
+    for (const msg of violationsForEntry(key, value)) {
       violations.push(`${msg} in ${source}`)
     }
   }
@@ -97,14 +70,17 @@ export function localEnvViolations({ files, env }: LocalEnvInput): string[] {
   return violations
 }
 
-/** Throws if `webDir`'s env files or `process.env` carry a live-send or non-local-Supabase value. */
-export function assertLocalEnv(webDir: string): void {
+/** Throws if `webDir`'s env files or `env` carry a live-send or non-local-Supabase value. */
+export function assertLocalEnv(
+  webDir: string,
+  env: Record<string, string | undefined> = process.env,
+): void {
   const files: Record<string, string> = {}
   for (const name of ENV_FILES) {
     const filePath = join(webDir, name)
     if (existsSync(filePath)) files[name] = readFileSync(filePath, 'utf8')
   }
-  const violations = localEnvViolations({ files, env: process.env })
+  const violations = localEnvViolations({ files, env })
   if (violations.length > 0) {
     throw new Error(`assertLocalEnv: ${violations.join('; ')}`)
   }
