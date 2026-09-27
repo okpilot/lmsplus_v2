@@ -55,7 +55,7 @@
 
 import { expect, test } from '@playwright/test'
 import { createClient } from '@supabase/supabase-js'
-import { clearAllMessages, getLatestEmail } from '../helpers/mailpit'
+import { fetchRecoveryCode } from '../helpers/recovery-code'
 import {
   ensureLoginTestUser,
   getAdminClient,
@@ -80,15 +80,6 @@ function rawAnonClient() {
   return createClient(SUPABASE_URL, ANON_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
   })
-}
-
-/** Extract the /auth/confirm link from recovery email HTML (mirrors password-reset.spec.ts). */
-function extractConfirmLink(html: string): string {
-  const match = html.match(/href="([^"]*\/auth\/confirm[^"]*)"/)
-  if (match?.[1]) return match[1].replace(/&amp;/g, '&')
-  const fallback = html.match(/href="([^"]*\/auth\/v1\/verify[^"]*)"/)
-  if (fallback?.[1]) return fallback[1].replace(/&amp;/g, '&')
-  throw new Error('Could not extract confirm link from recovery email')
 }
 
 test.describe('Red Team: Temporary-password forced-change gate (Vector FT)', () => {
@@ -263,19 +254,22 @@ test.describe('Red Team: Temporary-password forced-change gate (Vector FT)', () 
       password: EXPIRED_PASSWORD,
       expiresInMs: -1_000,
     })
-    await clearAllMessages()
 
     // Drive the real forgot-password flow (same as password-reset.spec.ts) —
     // this reaches resetOwnPassword() through a normal form submission, no
     // Server Action wire protocol needed.
     await page.goto('/auth/forgot-password')
     await page.getByLabel('Email address').fill(email)
-    await page.getByRole('button', { name: /send reset email/i }).click()
-    await expect(page.getByText(/password reset email/i)).toBeVisible({ timeout: 10_000 })
+    await page.getByRole('button', { name: 'Send reset code' }).click()
+    await expect(
+      page.getByText(`If an account exists for ${email}, we sent a reset code to it.`),
+    ).toBeVisible({ timeout: 10_000 })
 
-    const sentEmail = await getLatestEmail(email)
-    const confirmLink = extractConfirmLink(sentEmail.HTML)
-    await page.goto(confirmLink)
+    // CI has no RESEND_API_KEY, so the app's own send fails closed while the
+    // page stays neutral either way — fetch the valid code via the admin API.
+    const code = await fetchRecoveryCode(email)
+    await page.getByLabel('Reset code').fill(code)
+    await page.getByRole('button', { name: 'Verify code' }).click()
     await expect(page).toHaveURL('/auth/reset-password', { timeout: 10_000 })
 
     await page.getByLabel('New password', { exact: true }).fill(NEW_PASSWORD)

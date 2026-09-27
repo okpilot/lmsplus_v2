@@ -36,11 +36,11 @@ The highest-value targets are:
 - Supabase Auth handles password hashing, session tokens, and expiry
 - Login via `signInWithPassword({ email, password })` → `/auth/login-complete` (server hop) → `record_login()` RPC (audit event) → the validated `next` destination (`safeNextPath`, same-app `/app` paths only), else `/app/dashboard`
 - Temporary password (Decision 100): while `users.temp_password_expires_at` is set, `proxy.ts` (`/app*`) and `/auth/login-complete` redirect to `/auth/set-password`; once past, they refuse in-app, sign out globally (Auth password unchanged) and redirect to `/?error=temp_password_expired`; a failed read fails closed (503 / sign-out); forgot-password completion (`resetOwnPassword`) and Settings `changePassword` refuse an expired account the same way. Only a successful self `updateUser` clears it, via service role (`clearTempPassword`), and `setOwnPassword` also signs out every other session afterward; only an admin Send/Resend of login instructions (`sendLoginInstructions`, `apps/web/app/app/admin/students/actions/send-login-instructions.ts`, via `issueTempPassword`/`armTempPassword`) arms/re-arms it for 7 days — the Auth password it sets is itself temporary. `create-student.ts` creates the account with no password and no expiry at all; it is armed only on the first send. Both writers live in `apps/web/lib/auth/temp-password-admin.ts` (service role), separate from the read-only `apps/web/lib/auth/temp-password.ts` so the proxy gate never loads the service-role client. An expired temp password stays a valid Auth credential at the raw API until an admin Resend — accepted, since every app-layer entry point refuses it regardless
-- Forgot password via `resetPasswordForEmail()` → recovery email with PKCE token → `/auth/confirm` (verifyOtp server-side) → `/auth/reset-password`
-- Recovery defense-in-depth: `/auth/callback` also supports `?next=/auth/reset-password` with allowlist validation (blocks open-redirect, protocol-relative URLs, malformed URLs)
+- Forgot password (Decision 103): `/auth/forgot-password` step 1 emails a code via `requestRecoveryCode()` (Resend, not the Supabase mailer); step 2 `verifyRecoveryCode()` calls `auth.verifyOtp({ type: 'recovery' })` server-side and sets the `__recovery_pending` cookie → `/auth/reset-password`. No link, no `/auth/confirm` route.
+- Recovery defense-in-depth: `/auth/callback` still supports `?next=/auth/reset-password` with allowlist validation (blocks open-redirect, protocol-relative URLs, malformed URLs), but no sender uses it since Decision 103
 - Password minimum length: 6 characters (enforced by Zod on client, Supabase on server)
 - **Production domain:** `https://lmsplus.app`
-- **Allowed redirect URLs:** `https://lmsplus.app/auth/callback`, `https://lmsplus.app/auth/confirm`, `http://localhost:3000/auth/callback`, `http://localhost:3000/auth/confirm`
+- **Allowed redirect URLs (local, `config.toml`):** `http://127.0.0.1:3000`, `http://localhost:3000/auth/callback`. **Prod (dashboard):** `https://lmsplus.app/auth/callback`, plus `https://lmsplus.app/auth/confirm` and `http://localhost:3000/auth/confirm`, both unused since Decision 103.
 - Auth redirect config lives in Supabase remote settings (Management API), NOT in `config.toml` (local dev only)
 
 ### Auth Callback Guard Ordering
@@ -650,7 +650,7 @@ Configure in Supabase dashboard (Auth → Rate Limits):
 | Endpoint | Limit |
 |----------|-------|
 | Sign-in attempts | 30 per hour per IP |
-| Password reset | 3 per hour per email |
+| Password reset | 3 per hour per account, enforced in-app via Auth `app_metadata` (Decision 103) |
 | Token verification | 10 per hour per IP |
 
 Proxy-level limiting (add to `apps/web/proxy.ts`):

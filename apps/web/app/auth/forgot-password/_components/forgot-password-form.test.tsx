@@ -1,15 +1,13 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ForgotPasswordForm } from './forgot-password-form'
 
-const mockResetPasswordForEmail = vi.fn()
-vi.mock('@repo/db/client', () => ({
-  createClient: () => ({
-    auth: {
-      resetPasswordForEmail: mockResetPasswordForEmail,
-    },
-  }),
+const mockRequestRecoveryCode = vi.fn()
+const mockVerifyRecoveryCode = vi.fn()
+vi.mock('../actions', () => ({
+  requestRecoveryCode: (...args: unknown[]) => mockRequestRecoveryCode(...args),
+  verifyRecoveryCode: (...args: unknown[]) => mockVerifyRecoveryCode(...args),
 }))
 
 vi.mock('next/link', () => ({
@@ -20,70 +18,78 @@ vi.mock('next/link', () => ({
   ),
 }))
 
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}))
+
 describe('ForgotPasswordForm', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.stubEnv('NEXT_PUBLIC_APP_URL', 'http://localhost:3000')
   })
 
   it('renders an email input and submit button', () => {
     render(<ForgotPasswordForm />)
     expect(screen.getByLabelText(/email address/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /send reset email/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /send reset code/i })).toBeInTheDocument()
   })
 
   it('shows a validation error for invalid email', async () => {
     render(<ForgotPasswordForm />)
     const form = screen
-      .getByRole('button', { name: /send reset email/i })
+      .getByRole('button', { name: /send reset code/i })
       .closest('form') as HTMLFormElement
     await userEvent.setup().type(screen.getByLabelText(/email address/i), 'bad')
     fireEvent.submit(form)
 
     expect(await screen.findByText(/please enter a valid email address/i)).toBeInTheDocument()
-    expect(mockResetPasswordForEmail).not.toHaveBeenCalled()
+    expect(mockRequestRecoveryCode).not.toHaveBeenCalled()
   })
 
-  it('calls resetPasswordForEmail with valid email', async () => {
-    mockResetPasswordForEmail.mockResolvedValue({ error: null })
+  it('calls requestRecoveryCode with the entered email', async () => {
+    mockRequestRecoveryCode.mockResolvedValue({ ok: true })
     const user = userEvent.setup()
     render(<ForgotPasswordForm />)
 
     await user.type(screen.getByLabelText(/email address/i), 'pilot@example.com')
-    await user.click(screen.getByRole('button', { name: /send reset email/i }))
+    await user.click(screen.getByRole('button', { name: /send reset code/i }))
 
-    await waitFor(() => {
-      expect(mockResetPasswordForEmail).toHaveBeenCalledWith(
-        'pilot@example.com',
-        expect.objectContaining({
-          redirectTo: 'http://localhost:3000/auth/reset-password',
-        }),
-      )
-    })
+    expect(mockRequestRecoveryCode).toHaveBeenCalledWith({ email: 'pilot@example.com' })
   })
 
-  it('shows success message after sending reset email', async () => {
-    mockResetPasswordForEmail.mockResolvedValue({ error: null })
+  it('shows the neutral code-sent message and a code field after requesting a code', async () => {
+    mockRequestRecoveryCode.mockResolvedValue({ ok: true })
     const user = userEvent.setup()
     render(<ForgotPasswordForm />)
 
     await user.type(screen.getByLabelText(/email address/i), 'pilot@example.com')
-    await user.click(screen.getByRole('button', { name: /send reset email/i }))
+    await user.click(screen.getByRole('button', { name: /send reset code/i }))
 
-    await waitFor(() => {
-      expect(screen.getByText(/password reset email/i)).toBeInTheDocument()
-    })
+    expect(
+      await screen.findByText(/if an account exists for.*we sent a reset code to it/i),
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText(/reset code/i)).toBeInTheDocument()
   })
 
-  it('shows an error when reset fails', async () => {
-    mockResetPasswordForEmail.mockResolvedValue({ error: { message: 'fail' } })
+  it('shows an error when the request itself is rejected', async () => {
+    mockRequestRecoveryCode.mockResolvedValue({ ok: false, error: 'Invalid email' })
     const user = userEvent.setup()
     render(<ForgotPasswordForm />)
 
     await user.type(screen.getByLabelText(/email address/i), 'pilot@example.com')
-    await user.click(screen.getByRole('button', { name: /send reset email/i }))
+    await user.click(screen.getByRole('button', { name: /send reset code/i }))
 
-    expect(await screen.findByText(/unable to send reset email/i)).toBeInTheDocument()
+    expect(await screen.findByText(/please enter a valid email address/i)).toBeInTheDocument()
+  })
+
+  it('shows an error when requestRecoveryCode throws an exception', async () => {
+    mockRequestRecoveryCode.mockRejectedValue(new Error('Network failure'))
+    const user = userEvent.setup()
+    render(<ForgotPasswordForm />)
+
+    await user.type(screen.getByLabelText(/email address/i), 'pilot@example.com')
+    await user.click(screen.getByRole('button', { name: /send reset code/i }))
+
+    expect(await screen.findByText(/unable to send reset code/i)).toBeInTheDocument()
   })
 
   it('renders a "Back to login" link', () => {
@@ -102,16 +108,5 @@ describe('ForgotPasswordForm', () => {
     render(<ForgotPasswordForm />)
     const link = screen.getByRole('link', { name: /privacy policy/i })
     expect(link).toHaveAttribute('href', '/legal/privacy')
-  })
-
-  it('shows an error when resetPasswordForEmail throws an exception', async () => {
-    mockResetPasswordForEmail.mockRejectedValue(new Error('Network failure'))
-    const user = userEvent.setup()
-    render(<ForgotPasswordForm />)
-
-    await user.type(screen.getByLabelText(/email address/i), 'pilot@example.com')
-    await user.click(screen.getByRole('button', { name: /send reset email/i }))
-
-    expect(await screen.findByText(/unable to send reset email/i)).toBeInTheDocument()
   })
 })
