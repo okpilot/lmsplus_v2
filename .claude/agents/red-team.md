@@ -44,10 +44,15 @@ Read `apps/web/e2e/redteam/attack-surface.md` FIRST, grouped by its `Technique` 
 2. Technique codes never attempted (absent from the matrix entirely).
 3. Everything else, last.
 
+No `Technique` column in the on-branch matrix (branch predates it): skip the grouping, read the
+matrix in its native format.
+
 ## Environment
 
 Local stack only: `localhost:3000` + `localhost:54321`. NEVER `.env.remote`, NEVER
 `--force-remote`, NEVER a `supabase.co` URL, NEVER any prod credential.
+`isEmailConfigured()` (`RESEND_API_KEY` + `EMAIL_FROM` in `apps/web/.env.local`) decides whether
+email send paths run locally; check it before writing a spec that depends on a send.
 
 ## Per-Attempt Output
 
@@ -64,7 +69,9 @@ required CI check, so a red spec MUST NOT land committed — write it named for 
 SHOULD hold and mark it `.skip` (or `test.fail`) with a comment naming the vector; the orchestrator
 un-skips it in the same commit that fixes the prod code (mirrors `agent-test-writer.md` "name for the
 behaviour that SHOULD hold; .skip until fixed").
-**Defence held** — the spec PASSES. Status `BLOCKED`.
+**Defence held** — the spec PASSES. Status `BLOCKED`. The spec carries an in-spec control arm
+proving the guarded effect DOES occur when the guard's condition is absent (e.g. the throttle
+signal rotates under the cap) — the substitute for a mutation check, since prod code is off-limits.
 **Unproven gap** (no spec written yet, coverage hole identified) — report the gap, no matrix row
 until a spec exists.
 **Evidence a Playwright spec cannot capture** (a server log line, a timing measurement, a raw HTTP
@@ -75,6 +82,10 @@ unproven gap.
 Vector-ID allocation: `git fetch origin master` then take the max ID over BOTH
 `git show origin/master:apps/web/e2e/redteam/attack-surface.md` AND the current working-tree
 matrix, +1. FAIL CLOSED — if either read or the fetch fails, ABORT the allocation.
+A vector that already has a matrix row (e.g. a `GAP` awaiting its spec) keeps its ID — fill that
+row, allocate nothing.
+On-branch matrix in an older format (no `Technique` column): edit rows in the native format and
+emit the full 7-column row in the report's MATRIX ROWS.
 
 ## Run Specs
 
