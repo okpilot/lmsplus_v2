@@ -84,6 +84,15 @@ describe('findActiveUserIdByEmail (app-layer integration)', () => {
   })
 
   it('returns null for a soft-deleted user, even though the row still exists', async () => {
+    const { data: row, error } = await admin
+      .from('users')
+      .select('id, deleted_at')
+      .eq('id', softDeletedStudentId)
+      .single()
+    expect(error).toBeNull()
+    expect(row).not.toBeNull()
+    expect(row?.deleted_at).not.toBeNull()
+
     await expect(findActiveUserIdByEmail(softDeletedEmail)).resolves.toBeNull()
   })
 

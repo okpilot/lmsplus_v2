@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ------------------------------------------------------------------
 
@@ -53,6 +53,10 @@ function buildChain(returnValue: unknown) {
 
 beforeEach(() => {
   vi.resetAllMocks()
+})
+
+afterEach(() => {
+  vi.useRealTimers()
 })
 
 describe('recentSends', () => {
@@ -181,7 +185,6 @@ describe('claimRecoverySlot', () => {
 
     await expect(claimRecoverySlot(USER_ID)).resolves.toEqual({ allowed: false })
     expect(mockUpdateUserById).not.toHaveBeenCalled()
-    vi.useRealTimers()
   })
 
   it('allows the send again once earlier timestamps have aged out of the window', async () => {
@@ -198,7 +201,6 @@ describe('claimRecoverySlot', () => {
     mockUpdateUserById.mockResolvedValue({ error: null })
 
     await expect(claimRecoverySlot(USER_ID)).resolves.toEqual({ allowed: true })
-    vi.useRealTimers()
   })
 
   it('refuses and logs when the user cannot be read', async () => {

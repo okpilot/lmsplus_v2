@@ -43,6 +43,7 @@ describe('fetchRecoveryCode', () => {
 
   afterEach(() => {
     vi.useRealTimers()
+    vi.unstubAllEnvs()
   })
 
   it('returns the OTP once the app send is detected (recovery_sent_at changes)', async () => {
@@ -64,7 +65,9 @@ describe('fetchRecoveryCode', () => {
     await expect(result).resolves.toBe('654321')
   })
 
-  it('returns the OTP after the settle window passes when the app never sends', async () => {
+  it('returns the OTP after the settle window passes when the app never sends and email is unconfigured', async () => {
+    vi.stubEnv('RESEND_API_KEY', '')
+    vi.stubEnv('EMAIL_FROM', '')
     vi.useFakeTimers()
     mockGetUserById.mockResolvedValue({ data: { user: { recovery_sent_at: null } }, error: null })
     mockGenerateLink.mockResolvedValue({
@@ -76,6 +79,21 @@ describe('fetchRecoveryCode', () => {
     await vi.advanceTimersByTimeAsync(3_000)
 
     await expect(result).resolves.toBe('111222')
+  })
+
+  it('throws when the settle window passes with no rotation while email sending is configured', async () => {
+    vi.stubEnv('RESEND_API_KEY', 'test-key')
+    vi.stubEnv('EMAIL_FROM', 'noreply@example.com')
+    vi.useFakeTimers()
+    mockGetUserById.mockResolvedValue({ data: { user: { recovery_sent_at: null } }, error: null })
+
+    const expectation = expect(fetchRecoveryCode(EMAIL)).rejects.toThrow(
+      'fetchRecoveryCode: app recovery send did not settle',
+    )
+    await vi.advanceTimersByTimeAsync(3_000)
+
+    await expectation
+    expect(mockGenerateLink).not.toHaveBeenCalled()
   })
 
   it('throws when generateLink errors', async () => {

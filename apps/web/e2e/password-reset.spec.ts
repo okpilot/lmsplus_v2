@@ -17,6 +17,13 @@ test.describe('password reset flow', () => {
     await resetRecoveryThrottle(LOGIN_TEST_EMAIL)
   })
 
+  // The happy-path test below resets LOGIN_TEST_EMAIL's password to a new value —
+  // restore it so the shared login account still authenticates with LOGIN_TEST_PASSWORD
+  // for every other spec that reuses it.
+  test.afterAll(async () => {
+    await ensureLoginTestUser()
+  })
+
   test('forgot password → code → reset password → dashboard', async ({ page }) => {
     // 1. Navigate to forgot-password page from login
     await page.goto('/')

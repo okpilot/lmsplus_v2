@@ -33,6 +33,12 @@ async function waitForAppSend(email: string): Promise<void> {
     await new Promise((r) => setTimeout(r, POLL_MS))
     if ((await readRecoverySentAt(userId)) !== before) return
   }
+  // Mirrors isEmailConfigured() (resend.ts) — when the app is actually configured to
+  // send, a settle window passing with no rotation means the app's send failed or
+  // never fired, not that email delivery is simply disabled (the CI/local fallback).
+  if (process.env.RESEND_API_KEY && process.env.EMAIL_FROM) {
+    throw new Error('fetchRecoveryCode: app recovery send did not settle')
+  }
 }
 
 async function readUserId(email: string): Promise<string> {

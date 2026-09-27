@@ -234,7 +234,7 @@ describe('verifyRecoveryCode', () => {
     expect(mockVerifyOtp).not.toHaveBeenCalled()
   })
 
-  it('runs the verification through the minimum-duration floor', async () => {
+  it('does not respond before 1.5 seconds have passed', async () => {
     mockVerifyOtp.mockResolvedValue({ error: null })
 
     await verifyRecoveryCode({ email: EMAIL, code: CODE })
