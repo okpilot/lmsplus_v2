@@ -1,10 +1,7 @@
 import { adminClient } from '@repo/db/admin'
 import { requireAdmin } from '@/lib/auth/require-admin'
+import { escapeLike } from '@/lib/utils/escape-like'
 import type { StudentFilters, StudentRow } from './types'
-
-function escapeLike(value: string): string {
-  return value.replaceAll(/[%_\\]/g, String.raw`\$&`)
-}
 
 export async function getStudentsList(filters: StudentFilters): Promise<StudentRow[]> {
   const { organizationId } = await requireAdmin()

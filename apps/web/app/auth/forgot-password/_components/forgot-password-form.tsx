@@ -1,12 +1,13 @@
 'use client'
 
-import { createClient } from '@repo/db/client'
 import Link from 'next/link'
 import { useState } from 'react'
 import { z } from 'zod'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { LoadingButton } from '@/components/ui/loading-button'
+import { requestRecoveryCode } from '../actions'
+import { RecoveryCodeForm } from './recovery-code-form'
 
 const EmailSchema = z.string().email('Please enter a valid email address')
 
@@ -28,17 +29,13 @@ export function ForgotPasswordForm() {
 
     setLoading(true)
     try {
-      const supabase = createClient()
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(result.data, {
-        redirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin}/auth/reset-password`,
-      })
-
-      if (resetError) {
-        setError('Unable to send reset email. Please try again.')
+      const response = await requestRecoveryCode({ email: result.data })
+      if (!response.ok) {
+        setError('Please enter a valid email address')
         return
       }
     } catch {
-      setError('Unable to send reset email. Please try again.')
+      setError('Unable to send reset code. Please try again.')
       return
     } finally {
       setLoading(false)
@@ -48,20 +45,7 @@ export function ForgotPasswordForm() {
   }
 
   if (sent) {
-    return (
-      <div className="space-y-4 text-center">
-        <p className="text-sm text-muted-foreground">
-          If an account exists for <strong>{email}</strong>, you will receive a password reset email
-          shortly.
-        </p>
-        <Link
-          href="/"
-          className="inline-block text-sm font-medium text-primary hover:underline underline-offset-4"
-        >
-          Back to login
-        </Link>
-      </div>
-    )
+    return <RecoveryCodeForm email={email} onRequestNewCode={() => setSent(false)} />
   }
 
   return (
@@ -82,7 +66,7 @@ export function ForgotPasswordForm() {
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       <LoadingButton type="submit" loading={loading} loadingText="Sending..." className="w-full">
-        Send reset email
+        Send reset code
       </LoadingButton>
 
       <p className="text-center text-sm">

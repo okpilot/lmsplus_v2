@@ -1,4 +1,5 @@
 import { requireAdmin } from '@/lib/auth/require-admin'
+import { escapeLike } from '@/lib/utils/escape-like'
 import type { QuestionFilters, QuestionRow, QuestionsListResult } from './types'
 
 export const PAGE_SIZE = 25
@@ -12,7 +13,7 @@ export async function getQuestionsList(filters: QuestionFilters): Promise<Questi
 
   const page = filters.page ?? 1
   const searchTerm = filters.search?.trim()
-  const escapedSearch = searchTerm ? `%${searchTerm.replace(/[%_\\]/g, '\\$&')}%` : null
+  const escapedSearch = searchTerm ? `%${escapeLike(searchTerm)}%` : null
 
   // Count first — PostgREST returns 416 (and null count) for out-of-range .range() requests.
   let countQ = supabase

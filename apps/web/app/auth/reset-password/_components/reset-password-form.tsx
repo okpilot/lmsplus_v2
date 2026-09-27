@@ -63,7 +63,7 @@ export function ResetPasswordForm() {
               href="/auth/forgot-password"
               className="text-sm font-medium text-primary hover:underline underline-offset-4"
             >
-              Request a new reset link
+              Request a new code
             </Link>
           )}
         </div>

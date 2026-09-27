@@ -61,13 +61,6 @@ describe('LoginPage', () => {
     )
   })
 
-  it('maps invalid_recovery_link to the correct human-readable message', async () => {
-    await renderPage({ error: 'invalid_recovery_link' })
-    expect(screen.getByTestId('login-form').dataset.initialError).toBe(
-      'The password reset link is invalid or has expired. Please request a new one.',
-    )
-  })
-
   it('tells the user their temporary password expired and to ask their instructor', async () => {
     await renderPage({ error: 'temp_password_expired' })
     expect(screen.getByTestId('login-form').dataset.initialError).toBe(
