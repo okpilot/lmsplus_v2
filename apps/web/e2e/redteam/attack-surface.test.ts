@@ -169,6 +169,8 @@ describe('parseMatrixRows', () => {
 })
 
 describe('the real attack-surface matrix', () => {
+  // Every committed row is 6-cell, so this validates no real row until the first 7-cell row lands;
+  // validateRow's rules are pinned by the validateMatrixRows fixtures below.
   it('has zero validation errors', () => {
     const markdown = fs.readFileSync(MATRIX_PATH, 'utf8')
     const techniques = JSON.parse(fs.readFileSync(TECHNIQUES_PATH, 'utf8')) as string[]

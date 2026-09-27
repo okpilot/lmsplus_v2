@@ -104,7 +104,7 @@ Plans, task lists, handovers, triage and eval notes go in `.work/` (gitignored).
 `Agent` returns an id immediately; the agent runs in the BACKGROUND and notifies you when done. Nothing makes the diagram below happen in the order it is drawn.
 - **"Complete" means every completion notification from the agents LAUNCHED is RECEIVED, never merely dispatched.** Read every result before triaging — a partial pool biases the triage.
 - **Never edit a file while an agent that can write it is in flight.** The loser's change vanishes with no error, no conflict, no failing gate. In round 1, **test-writer** and **e2e-writer** hold Write/Edit on disjoint paths (test-writer scoped to Vitest `*.test.*` files; e2e-writer scoped to non-`*.test.*` files under `apps/web/e2e/**` excluding `redteam/`); every agent still keeps `Bash`, which can write. Round 1 runs up to eight concurrently — this is the gate's sharpest edge. The collision set is SEVEN: `code-review (skill)` runs with its cwd in an isolated worktree, so its writes land there and not in the main tree. That is NOT a read-only guarantee — it keeps `Bash` like every agent — and the exemption holds only while it is dispatched the way `agent-code-review.md § Dispatch` mandates. **red-team** (opus) runs ALONE after the loop ends (once, plus one confirmation re-run after a proven exploit's fix) — it holds Write/Edit scoped to `apps/web/e2e/redteam/**` only, never concurrent with round 1 or round 2+.
-- **After each writer agent's result lands, run `git status --porcelain --untracked-files=all` and reject any path outside that writer's scope** (`§ Finding Validation` — an artifact check, not the agent's self-report) before trusting it as that round's/that post-loop run's output.
+- **After every writer in the batch has landed, run `git status --porcelain --untracked-files=all` and reject any path outside the UNION of their scopes** (`git status` cannot attribute a path to one of two concurrent writers) (`§ Finding Validation` — an artifact check, not the agent's self-report) before trusting it as that round's/that post-loop run's output.
 
 ### The gate — ONE loop over the branch diff, not a cycle per commit
 Commits inside a branch are scratch history; squash-merge discards them. Review the artifact that lands.
@@ -120,7 +120,7 @@ Execute ▼ commit freely — a commit triggers NOTHING
     ▼  (pre-push, per BRANCH)
 ROUND 1  implementation-critic + code-reviewer + semantic-reviewer + doc-updater
          + test-writer + deletion-reviewer + code-review (skill) + e2e-writer (conditional,
-         see § Trigger below) — ONE parallel batch, all on the branch diff.  code-review (skill)
+         trigger in agent-e2e-writer.md) — ONE parallel batch, all on the branch diff.  code-review (skill)
          is the built-in /code-review skill, dispatched as subagent_type code-review-skill in an
          isolated worktree on opus.
 ROUND 2+ code-reviewer + semantic-reviewer + deletion-reviewer + code-review (skill)

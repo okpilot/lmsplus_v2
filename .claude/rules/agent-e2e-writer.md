@@ -19,9 +19,10 @@ scope does not cover. Runs the specs to verify they pass before reporting.
 - Review spec titles — describe behavior, not implementation (`code-style.md` §7 Test Naming).
 - It and `test-writer` run CONCURRENTLY in round 1 on disjoint paths — `test-writer` owns Vitest
   `*.test.*` files, this agent owns non-`*.test.*` files under `apps/web/e2e/**`.
-- After the agent runs, check `git status --porcelain --untracked-files=all` and reject any path
-  outside `apps/web/e2e/**` excluding `redteam/`, or any `*.test.*` path — its write scope is brief-enforced, not
-  hook-enforced (same as `test-writer`).
+- After it AND `test-writer` have both landed, check `git status --porcelain --untracked-files=all` and
+  reject any path outside the union of their scopes: non-`*.test.*` files under `apps/web/e2e/**`
+  excluding `redteam/`, plus `test-writer`'s `*.test.*` files. Both scopes are brief-enforced, not
+  hook-enforced.
 
 ### NEVER
 - Let the agent modify production code. It writes specs only.
