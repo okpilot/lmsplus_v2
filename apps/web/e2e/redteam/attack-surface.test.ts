@@ -154,6 +154,14 @@ function validateMatrixRows(
 
 const REAL_SPEC_FILE = 'rate-limiting.spec.ts'
 
+/** IDs of 7-cell rows past `GAP` whose spec is still skipped — a skipped spec passes `e2e:redteam` while running nothing. */
+function skippedSpecRowIds(rows: string[][], readSpec: (name: string) => string): string[] {
+  return rows
+    .filter((r) => r.length === 7 && r[4]?.trim() !== 'GAP')
+    .filter((r) => /\.(skip|fixme)\(/.test(readSpec((r[3] ?? '').trim())))
+    .map((r) => (r[0] ?? '').trim())
+}
+
 function realSpecFileExists(name: string): boolean {
   return fs.existsSync(path.join(REDTEAM_DIR, name))
 }
@@ -216,6 +224,29 @@ describe('the real attack-surface matrix', () => {
     expect(legacyIds.length).toBeGreaterThan(0)
     const sixCellIds = rows.filter((r) => r.length === 6).map((r) => r[0] ?? '')
     expect(sixCellIds.sort()).toEqual([...legacyIds].sort())
+  })
+
+  it('has no row past GAP whose spec is still skipped', () => {
+    const rows = parseMatrixRows(fs.readFileSync(MATRIX_PATH, 'utf8'))
+    const readSpec = (name: string) => fs.readFileSync(path.join(REDTEAM_DIR, name), 'utf8')
+    expect(skippedSpecRowIds(rows, readSpec)).toEqual([])
+  })
+})
+
+describe('skippedSpecRowIds', () => {
+  const skipped = "test.skip('rejects a forged token', async () => {})"
+  const running = "test('rejects a forged token', async () => {})"
+
+  it('flags a BLOCKED row whose spec is still skipped', () => {
+    expect(skippedSpecRowIds([[...VALID_ROW].fill('BLOCKED', 4, 5)], () => skipped)).toEqual(['ZZ'])
+  })
+
+  it('accepts a BLOCKED row whose spec runs', () => {
+    expect(skippedSpecRowIds([[...VALID_ROW].fill('BLOCKED', 4, 5)], () => running)).toEqual([])
+  })
+
+  it('accepts a GAP row whose spec is skipped', () => {
+    expect(skippedSpecRowIds([[...VALID_ROW].fill('GAP', 4, 5)], () => skipped)).toEqual([])
   })
 })
 

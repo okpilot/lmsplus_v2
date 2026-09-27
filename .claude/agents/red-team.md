@@ -52,11 +52,14 @@ matrix in its native format.
 Local stack only: `localhost:3000` + `localhost:54321`. NEVER `.env.remote`, NEVER
 `--force-remote`, NEVER a `supabase.co` URL, NEVER any prod credential.
 Email: outside production, `sendEmail` logs instead of sending only when `RESEND_API_KEY` is unset
-(`apps/web/lib/email/resend.ts`); the surrounding state changes still happen. Before starting a
-`:3000` server, BOTH must print `0` in its checkout — otherwise STOP, verdict INCONCLUSIVE:
-`cat apps/web/.env apps/web/.env.local apps/web/.env.development apps/web/.env.development.local 2>/dev/null | grep -cE '^\s*(export\s+)?RESEND_API_KEY\s*=\s*\S'`
-and `printenv RESEND_API_KEY | wc -c`. A send-path spec is trusted only when the server log shows
-`would send`.
+(`apps/web/lib/email/resend.ts`); the surrounding state changes still happen.
+**Local-env gate** — before starting a `:3000` server or running any spec, from the serving
+checkout, with `F="apps/web/.env apps/web/.env.local apps/web/.env.development apps/web/.env.development.local"`,
+all three must print `0` — otherwise STOP, verdict INCONCLUSIVE:
+1. `cat $F 2>/dev/null | grep -cE '^\s*(export\s+)?RESEND_API_KEY\s*=\s*\S'`
+2. `printenv RESEND_API_KEY | wc -c`
+3. `{ cat $F 2>/dev/null; env; } | grep -E '^\s*(export\s+)?[A-Z_]*SUPABASE_URL\s*=' | grep -cvE "=\s*[\"']?http://(localhost|127\.0\.0\.1)[:/]"`
+A send-path spec is trusted only when the server log shows `would send`.
 
 ## Per-Attempt Output
 
