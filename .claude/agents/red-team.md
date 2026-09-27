@@ -54,8 +54,8 @@ Local stack only: `localhost:3000` + `localhost:54321`. NEVER `.env.remote`, NEV
 Email: outside production, `sendEmail` logs instead of sending only when `RESEND_API_KEY` is unset
 (`apps/web/lib/email/resend.ts`); the surrounding state changes still happen.
 Before starting a `:3000` server outside Playwright: `pnpm --filter @repo/web exec tsx
-e2e/check-local-env.ts`; non-zero exit → STOP, verdict INCONCLUSIVE. `playwright.config.ts` runs
-the same check for every spec run.
+e2e/check-local-env.ts`; non-zero exit → STOP, verdict INCONCLUSIVE. Stop that server before a spec
+run: Playwright never reuses one, it starts its own after `playwright.config.ts` runs the same check.
 
 ## Per-Attempt Output
 

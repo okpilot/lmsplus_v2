@@ -46,7 +46,18 @@ describe('skippedSpecRowIds', () => {
     expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
   })
 
-  it('does not flag an untitled skip inside a test body', () => {
+  it('flags a spec whose test body skips unconditionally', () => {
+    const source =
+      "test('rejects a forged token', async ({ page }) => {\n  test.skip(true, 'awaiting fix')\n})"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
+  })
+
+  it('flags a spec whose test body calls an argument-less skip', () => {
+    const source = "test('rejects a forged token', async () => {\n  test.skip()\n})"
+    expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual(['ZZ'])
+  })
+
+  it('does not flag a conditional untitled skip inside a test body', () => {
     const source =
       "test('rejects', async ({ browserName }) => {\n  test.skip(browserName === 'webkit')\n})"
     expect(skippedSpecRowIds([blockedRow()], () => source)).toEqual([])

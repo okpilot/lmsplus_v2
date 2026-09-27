@@ -4,11 +4,11 @@
 const STATIC_SKIP_LINE_RE =
   /^\s*(test\.describe\.skip|test\.describe\.fixme|test\.skip|test\.fixme|it\.skip|describe\.skip)\(\s*(['"`])/
 
-/** Matches an unconditional untitled `test.skip()` / `test.skip(true` — static only in a describe body. */
+/** Matches an unconditional untitled `test.skip()` / `test.skip(true` — static only directly in a describe or test body. */
 const UNTITLED_SKIP_LINE_RE = /^\s*test\.(skip|fixme)\(\s*(?:\)|true\b)/
 
-/** Matches a line opening a describe block's body. */
-const DESCRIBE_OPENER_RE = /\b(test\.)?describe(\.\w+)?\(/
+/** Matches a line opening a describe block's or a test's body. */
+const BLOCK_OPENER_RE = /\b(test\.)?describe(\.\w+)?\(|^\s*(test|it)(\.only)?\(\s*['"`]/
 
 /** The line holding the nearest unclosed `{` above `lines[index]`, or `null` at top level. */
 function enclosingOpener(lines: readonly string[], index: number): string | null {
@@ -22,12 +22,12 @@ function enclosingOpener(lines: readonly string[], index: number): string | null
   return null
 }
 
-/** True when `lines[index]` skips its whole block: a titled skip, or an untitled one in a describe body. */
+/** True when `lines[index]` skips its whole block: a titled skip, or an untitled one directly in a describe or test body. */
 function isStaticSkipLine(lines: readonly string[], index: number): boolean {
   if (STATIC_SKIP_LINE_RE.test(lines[index])) return true
   if (!UNTITLED_SKIP_LINE_RE.test(lines[index])) return false
   const opener = enclosingOpener(lines, index)
-  return opener === null || DESCRIBE_OPENER_RE.test(opener)
+  return opener === null || BLOCK_OPENER_RE.test(opener)
 }
 
 /** Matches a `// Vector <ID>`-style attribution comment, capturing the exact ID token. */
