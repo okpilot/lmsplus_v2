@@ -84,12 +84,12 @@ async function submitStep1(page: Page, email: string): Promise<{ copy: string; b
   return { copy: (await copy.textContent()) ?? '', body }
 }
 
-/** Returns the verify Server Action's server round-trip in milliseconds. */
-async function submitStep2(page: Page, code: string): Promise<number> {
+/** Returns the verify Server Action's response body and server round-trip. */
+async function submitStep2(page: Page, code: string): Promise<ActionResult> {
   await page.getByLabel('Reset code').fill(code)
-  const { ms } = await submitAction(page, 'Verify code')
+  const result = await submitAction(page, 'Verify code')
   await expect(page.getByText(GENERIC_VERIFY_ERROR)).toBeVisible({ timeout: 10_000 })
-  return ms
+  return result
 }
 
 test.describe('Vector FV — recovery-code enumeration and send throttle', () => {
@@ -123,13 +123,15 @@ test.describe('Vector FV — recovery-code enumeration and send throttle', () =>
     page,
   }) => {
     await submitStep1(page, LOGIN_TEST_EMAIL)
-    const knownMs = await submitStep2(page, '000000')
+    const known = await submitStep2(page, '000000')
 
     await submitStep1(page, UNKNOWN_EMAIL)
-    const unknownMs = await submitStep2(page, '123456')
+    const unknown = await submitStep2(page, '123456')
 
-    expect(knownMs).toBeGreaterThanOrEqual(VERIFY_FLOOR_MS)
-    expect(unknownMs).toBeGreaterThanOrEqual(VERIFY_FLOOR_MS)
+    expect(known.body).not.toBe('')
+    expect(known.body).toBe(unknown.body)
+    expect(known.ms).toBeGreaterThanOrEqual(VERIFY_FLOOR_MS)
+    expect(unknown.ms).toBeGreaterThanOrEqual(VERIFY_FLOOR_MS)
   })
 
   test('no recovery code is issued once the hourly send cap is reached', async ({ page }) => {
