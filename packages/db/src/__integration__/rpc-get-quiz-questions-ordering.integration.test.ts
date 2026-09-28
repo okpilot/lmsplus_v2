@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
 import { requireRpcResult, requireRpcRows } from './guards'
+import { orderingItem } from './ordering-item-id'
 import { seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
@@ -14,6 +15,10 @@ import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient }
 // canonical sequence and ordering_items itself is REVOKE-gated from `authenticated`
 // by omission from mig 094's column grant (N6). These behaviors only run when the
 // function EXECUTES against real rows; a `db reset` proves only that the body parses.
+//
+// Since #1045 (migration 20260928000100), an item's `id` must also equal
+// `ordering_item_id(text)` — enforced by `is_valid_ordering_items` — so the id ordering
+// itself cannot leak the canonical sequence (previously only a seed convention).
 
 async function insertQuestion(
   admin: SupabaseClient,
@@ -41,13 +46,15 @@ describe('RPC: get_quiz_questions — ordering delivery (shuffled, no answer key
   let orderingId: string
   let mcId: string
 
-  // Canonical sequence = ARRAY ORDER. IDs are OPAQUE (semantic codes, NOT 1..N) so
-  // the id ordering itself cannot leak the canonical sequence (seed invariant, N6).
+  // Canonical sequence = ARRAY ORDER. IDs are DERIVED from each item's own text
+  // (migration 20260928000100, #1045) — `is_valid_ordering_items` now requires
+  // `id = ordering_item_id(text)`, so the id ordering itself cannot leak the
+  // canonical sequence (there is no field left for an author to encode order into).
   const ORDERING_ITEMS: OrderingItem[] = [
-    { id: 'distress-prefix', text: 'MAYDAY MAYDAY MAYDAY' },
-    { id: 'callsign', text: 'Golf Bravo Charlie' },
-    { id: 'nature', text: 'engine failure' },
-    { id: 'intentions', text: 'forced landing' },
+    orderingItem('MAYDAY MAYDAY MAYDAY'),
+    orderingItem('Golf Bravo Charlie'),
+    orderingItem('engine failure'),
+    orderingItem('forced landing'),
   ]
 
   beforeAll(async () => {
@@ -273,215 +280,8 @@ describe('RPC: get_quiz_questions — ordering delivery (shuffled, no answer key
     expect(adminData?.ordering_items.map((i) => i.id)).toEqual(ORDERING_ITEMS.map((i) => i.id))
   })
 
-  it('rejects an ordering question whose items contain a duplicate id', async () => {
-    // mig 134 is_valid_ordering_items() CHECK: ordering_items must have non-empty,
-    // DISTINCT ids and non-empty text — the array order is the answer key, so a duplicate
-    // id is a non-permutation that get_quiz_questions could not render or grade. The DB
-    // rejects it at authoring (23514) rather than persist it. Regression guard for the
-    // CHANGE-1 CHECK (#998 CR #452) — without it a refactor dropping the helper from the
-    // columns_check would pass db reset + every CI gate silently.
-    const { error } = await admin.from('questions').insert({
-      organization_id: orgId,
-      bank_id: bankId,
-      subject_id: refs!.subjectId,
-      topic_id: refs!.topicId,
-      subtopic_id: null,
-      difficulty: 'medium',
-      status: 'active',
-      created_by: adminUserId,
-      question_type: 'ordering',
-      question_text: 'Malformed ordering — duplicate id',
-      ordering_items: [
-        { id: 'dup', text: 'first' },
-        { id: 'dup', text: 'second' },
-      ],
-      explanation_text: 'should not insert',
-    })
-    expect(error).not.toBeNull()
-    expect(error?.code).toBe('23514')
-  })
-
-  it('rejects an ordering question whose item has blank text', async () => {
-    // Same CHECK: each item needs non-empty text (the rendered label). (#998 CR #452)
-    const { error } = await admin.from('questions').insert({
-      organization_id: orgId,
-      bank_id: bankId,
-      subject_id: refs!.subjectId,
-      topic_id: refs!.topicId,
-      subtopic_id: null,
-      difficulty: 'medium',
-      status: 'active',
-      created_by: adminUserId,
-      question_type: 'ordering',
-      question_text: 'Malformed ordering — blank text',
-      ordering_items: [
-        { id: 'a', text: '' },
-        { id: 'b', text: 'Bravo' },
-      ],
-      explanation_text: 'should not insert',
-    })
-    expect(error).not.toBeNull()
-    expect(error?.code).toBe('23514')
-  })
-
-  it('rejects an ordering question whose item id is not a string', async () => {
-    // mig 134 is_valid_ordering_items() enforces jsonb_typeof(id/text) = 'string'.
-    // `->>` coerces a JSON number to text, so before the string-type check a numeric id
-    // like 42 would have passed as '42'. The app layer treats ids as strings throughout,
-    // so the DB rejects a non-string id at authoring (23514). Regression guard (#998 CR).
-    // The cast feeds a deliberately-malformed payload (number id) past the insert type;
-    // the assertion is on the RPC error, so no result-shape guard is needed here.
-    const malformedItems = [
-      { id: 42, text: 'first' },
-      { id: 'b', text: 'Bravo' },
-    ] as unknown as OrderingItem[]
-    const { error } = await admin.from('questions').insert({
-      organization_id: orgId,
-      bank_id: bankId,
-      subject_id: refs!.subjectId,
-      topic_id: refs!.topicId,
-      subtopic_id: null,
-      difficulty: 'medium',
-      status: 'active',
-      created_by: adminUserId,
-      question_type: 'ordering',
-      question_text: 'Malformed ordering — non-string id',
-      ordering_items: malformedItems,
-      explanation_text: 'should not insert',
-    })
-    expect(error).not.toBeNull()
-    expect(error?.code).toBe('23514')
-  })
-
-  it('rejects an ordering question whose item text is not a string', async () => {
-    // Symmetric to the non-string-id guard: jsonb_typeof(text) IS DISTINCT FROM 'string'.
-    // `->>` coerces a JSON number to text, so before the type check a numeric text like
-    // 42 would have passed the old blank-only check. Regression guard for the text side
-    // of the typeof clause (#998 CR) — distinct mechanism from the id-side test above.
-    const malformedItems = [
-      { id: 'a', text: 42 },
-      { id: 'b', text: 'Bravo' },
-    ] as unknown as OrderingItem[]
-    const { error } = await admin.from('questions').insert({
-      organization_id: orgId,
-      bank_id: bankId,
-      subject_id: refs!.subjectId,
-      topic_id: refs!.topicId,
-      subtopic_id: null,
-      difficulty: 'medium',
-      status: 'active',
-      created_by: adminUserId,
-      question_type: 'ordering',
-      question_text: 'Malformed ordering — non-string text',
-      ordering_items: malformedItems,
-      explanation_text: 'should not insert',
-    })
-    expect(error).not.toBeNull()
-    expect(error?.code).toBe('23514')
-  })
-
-  it('rejects an ordering question whose item id is whitespace-only', async () => {
-    // btrim(id) = '' guard: the old coalesce(id,'') = '' check missed '   ' (non-empty raw
-    // string, blank after trim). A whitespace-only id is not a usable stable key. Regression
-    // guard for the btrim clause (#998 CR) — distinct mechanism from the type guards above.
-    const { error } = await admin.from('questions').insert({
-      organization_id: orgId,
-      bank_id: bankId,
-      subject_id: refs!.subjectId,
-      topic_id: refs!.topicId,
-      subtopic_id: null,
-      difficulty: 'medium',
-      status: 'active',
-      created_by: adminUserId,
-      question_type: 'ordering',
-      question_text: 'Malformed ordering — whitespace-only id',
-      ordering_items: [
-        { id: '   ', text: 'Alpha' },
-        { id: 'b', text: 'Bravo' },
-      ],
-      explanation_text: 'should not insert',
-    })
-    expect(error).not.toBeNull()
-    expect(error?.code).toBe('23514')
-  })
-
-  it('rejects an ordering question whose item is missing the text key', async () => {
-    // Isolates the IS DISTINCT FROM 'string' (not <> 'string') operator choice: a missing
-    // text key makes e->'text' jsonb NULL, jsonb_typeof(...) SQL NULL, and NULL <> 'string'
-    // is NULL (not counted) — the element would slip through `<>`. IS DISTINCT FROM 'string'
-    // is TRUE for NULL, so it is rejected. Targets `text` (not `id`) on a DISTINCT-id pair so
-    // rejection comes ONLY from the typeof-text clause: the dedup clause keys on id (both
-    // present + distinct → passes) and btrim(NULL)='' is NULL (not counted). Regression guard
-    // for the operator choice — a swap to `<>` would let this row through (#998 CR).
-    const malformedItems = [{ id: 'a' }, { id: 'b', text: 'Bravo' }] as unknown as OrderingItem[]
-    const { error } = await admin.from('questions').insert({
-      organization_id: orgId,
-      bank_id: bankId,
-      subject_id: refs!.subjectId,
-      topic_id: refs!.topicId,
-      subtopic_id: null,
-      difficulty: 'medium',
-      status: 'active',
-      created_by: adminUserId,
-      question_type: 'ordering',
-      question_text: 'Malformed ordering — missing text key',
-      ordering_items: malformedItems,
-      explanation_text: 'should not insert',
-    })
-    expect(error).not.toBeNull()
-    expect(error?.code).toBe('23514')
-  })
-
-  it('rejects an ordering question whose ordering_items is a non-array JSON value', async () => {
-    // Totality of the columns_check (#998 CR): a non-array ordering_items (here a JSON
-    // object) must fail the CHECK cleanly with 23514 — NOT raise a raw 22023 from an
-    // unguarded jsonb_array_length. The branch emptiness checks use `= '[]'::jsonb` and
-    // the ordering length check CASE-wraps its argument, so jsonb_array_length never runs
-    // on a non-array. A 22023 here (instead of 23514) means the totality guard regressed.
-    const malformedItems = { not: 'an-array' } as unknown as OrderingItem[]
-    const { error } = await admin.from('questions').insert({
-      organization_id: orgId,
-      bank_id: bankId,
-      subject_id: refs!.subjectId,
-      topic_id: refs!.topicId,
-      subtopic_id: null,
-      difficulty: 'medium',
-      status: 'active',
-      created_by: adminUserId,
-      question_type: 'ordering',
-      question_text: 'Malformed ordering — non-array ordering_items',
-      ordering_items: malformedItems,
-      explanation_text: 'should not insert',
-    })
-    expect(error).not.toBeNull()
-    expect(error?.code).toBe('23514')
-  })
-
-  it('rejects an ordering item that carries answer-bearing metadata beyond id and text', async () => {
-    // Exact-shape guard (#998 CR round 2): the canonical array order IS the answer key,
-    // so an item must store ONLY {id,text} — a stray `correct`/`position`/`correct_order`
-    // key could smuggle answer metadata into the sensitive column. The CHECK's
-    // `(e - 'id' - 'text') <> '{}'` clause rejects it at authoring (23514). The delivery
-    // RPC already strips to {id,text}, so this is defense-in-depth at the write boundary.
-    const malformedItems = [
-      { id: 'a', text: 'Alpha', correct: true },
-      { id: 'b', text: 'Bravo' },
-    ] as unknown as OrderingItem[]
-    const { error } = await admin.from('questions').insert({
-      organization_id: orgId,
-      bank_id: bankId,
-      subject_id: refs!.subjectId,
-      topic_id: refs!.topicId,
-      subtopic_id: null,
-      difficulty: 'medium',
-      status: 'active',
-      created_by: adminUserId,
-      question_type: 'ordering',
-      question_text: 'Malformed ordering — extra key on item',
-      ordering_items: malformedItems,
-      explanation_text: 'should not insert',
-    })
-    expect(error).not.toBeNull()
-    expect(error?.code).toBe('23514')
-  })
+  // `is_valid_ordering_items()` write-path CHECK rejection/acceptance tests (duplicate id,
+  // blank/whitespace-only text, hand/order-encoding/cross-item ids, type guards, extra keys) live
+  // in the sibling file questions-ordering-items-check.integration.test.ts (code-style.md §1
+  // file-size cap) — this file's own scope stays the RPC delivery behavior (shuffle, no-leak).
 })

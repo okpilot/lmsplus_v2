@@ -26,6 +26,13 @@
  * so this gate rejects a 51-step question the DB would accept. Do not describe the two as mirrored
  * — if 50 is ever meant to be a server invariant it has to be added to the CHECK.
  *
+ * Since #1045 (migration `20260928000100_ordering_items_derived_ids.sql`), `is_valid_ordering_items`
+ * ALSO enforces `id = ordering_item_id(text)` server-side — the exact contract `buildOrderingItems`
+ * already implements via `deriveContentId` (content-ids.ts). This one IS a mirror, and it is
+ * coupled: a future `ID_VERSION` bump in content-ids.ts changes what `buildOrderingItems` derives,
+ * so it must land in the same change as a migration updating `ordering_item_id`'s SQL body to
+ * match — otherwise every re-import fails the CHECK (by design; see content-ids.ts header).
+ *
  * Keep this file flat in scripts/ — knip's apps/web entry glob is `scripts/*.ts`.
  */
 
