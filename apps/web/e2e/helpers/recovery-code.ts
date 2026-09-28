@@ -41,7 +41,7 @@ async function waitForAppSend(email: string): Promise<void> {
   }
 }
 
-async function readUserId(email: string): Promise<string> {
+export async function readUserId(email: string): Promise<string> {
   const { data, error } = await getAdminClient()
     .from('users')
     .select('id')

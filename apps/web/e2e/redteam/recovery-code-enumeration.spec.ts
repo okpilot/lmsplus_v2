@@ -17,7 +17,7 @@
  */
 
 import { expect, type Page, test } from '@playwright/test'
-import { resetRecoveryThrottle } from '../helpers/recovery-code'
+import { readUserId, resetRecoveryThrottle } from '../helpers/recovery-code'
 import { ensureLoginTestUser, getAdminClient, LOGIN_TEST_EMAIL } from '../helpers/supabase'
 
 test.use({ storageState: { cookies: [], origins: [] } })
@@ -27,17 +27,8 @@ const UNKNOWN_EMAIL = 'e2e-redteam-fv-unknown@lmsplus.local'
 const NEUTRAL_COPY_RE = /If an account exists for .*, we sent a reset code to it\./
 const GENERIC_VERIFY_ERROR = 'That code is invalid or has expired.'
 const SEND_SETTLE_MS = 5_000
-
-async function readUserId(email: string): Promise<string> {
-  const { data, error } = await getAdminClient()
-    .from('users')
-    .select('id')
-    .eq('email', email)
-    .maybeSingle<{ id: string }>()
-  if (error) throw new Error(`readUserId (${email}): ${error.message}`)
-  if (!data) throw new Error(`readUserId: no user row for ${email}`)
-  return data.id
-}
+// `VERIFY_MIN_DURATION_MS` in `app/auth/forgot-password/actions.ts`.
+const VERIFY_FLOOR_MS = 1_500
 
 /** Number of sends `claimRecoverySlot` has recorded for the account. */
 async function readSendCount(userId: string): Promise<number> {
@@ -66,10 +57,13 @@ async function submitStep1(page: Page, email: string): Promise<string> {
   return (await copy.textContent()) ?? ''
 }
 
-async function submitStep2(page: Page, code: string): Promise<void> {
+/** Returns the milliseconds from submit to the error being shown. */
+async function submitStep2(page: Page, code: string): Promise<number> {
   await page.getByLabel('Reset code').fill(code)
+  const started = Date.now()
   await page.getByRole('button', { name: 'Verify code' }).click()
   await expect(page.getByText(GENERIC_VERIFY_ERROR)).toBeVisible({ timeout: 10_000 })
+  return Date.now() - started
 }
 
 test.describe('Vector FV — recovery-code enumeration and send throttle', () => {
@@ -97,14 +91,17 @@ test.describe('Vector FV — recovery-code enumeration and send throttle', () =>
     )
   })
 
-  test('step 2 shows the same error for a wrong code and for an unregistered email', async ({
+  test('step 2 shows the same error, no sooner than the floor, for a wrong code and for an unregistered email', async ({
     page,
   }) => {
     await submitStep1(page, LOGIN_TEST_EMAIL)
-    await submitStep2(page, '000000')
+    const knownMs = await submitStep2(page, '000000')
 
     await submitStep1(page, UNKNOWN_EMAIL)
-    await submitStep2(page, '123456')
+    const unknownMs = await submitStep2(page, '123456')
+
+    expect(knownMs).toBeGreaterThanOrEqual(VERIFY_FLOOR_MS)
+    expect(unknownMs).toBeGreaterThanOrEqual(VERIFY_FLOOR_MS)
   })
 
   test('no recovery code is issued once the hourly send cap is reached', async ({ page }) => {
