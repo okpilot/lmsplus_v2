@@ -6,9 +6,13 @@
 -- ordering_item_id(text) computes 'o1' || first 8 hex chars of sha256(utf8(normalize(text))),
 -- normalize = trim, collapse internal whitespace runs to one space, lowercase — BYTE-IDENTICAL
 -- to apps/web/scripts/content-ids.ts `deriveContentId('o', [text])` (same ID_VERSION '1', same
--- DIGEST_CHARS 8). Verified 2026-09-28: `deriveContentId('o', ['  Mayday  MAYDAY mayday '])` and
--- this SQL function both return 'o1459c75a5' for the same input. is_valid_ordering_items() below
--- then requires `id = ordering_item_id(text)` exactly, so an id carries no information beyond
+-- DIGEST_CHARS 8). "Whitespace" is spelled out as JS's `\s` / `String.prototype.trim` set
+-- (WhiteSpace + LineTerminator, incl. NBSP, U+2000-U+200A, U+3000, U+2028/9, BOM U+FEFF), not
+-- PostgreSQL's locale-dependent `\s` / `[:space:]`, which omits U+FEFF. Collapsing every run to
+-- one space and then trimming spaces equals JS trim-then-collapse.
+-- Pinned by apps/web/scripts/content-ids.integration.test.ts. Verified 2026-09-28:
+-- `deriveContentId('o', ['  Mayday  MAYDAY mayday '])` and this SQL function both return
+-- 'o1459c75a5'. is_valid_ordering_items() below then requires `id = ordering_item_id(text)` exactly, so an id carries no information beyond
 -- the text the student sees — there is no field left for an author to encode order into.
 --
 -- IMMUTABLE despite calling convert_to (STABLE, per `SELECT provolatile FROM pg_proc WHERE
@@ -48,13 +52,16 @@ CREATE OR REPLACE FUNCTION ordering_item_id(p_text text)
 RETURNS text
 LANGUAGE sql
 IMMUTABLE
+PARALLEL SAFE
 SET search_path = public
 AS $$
   SELECT 'o1' || left(
     encode(
       sha256(
         convert_to(
-          lower(regexp_replace(btrim(p_text, E' \t\n\r\f\v'), '\s+', ' ', 'g')),
+          lower(btrim(regexp_replace(
+            p_text, '[\t\n\v\f\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]+', ' ', 'g'
+          ))),
           'UTF8'
         )
       ),
@@ -73,10 +80,10 @@ REVOKE EXECUTE ON FUNCTION ordering_item_id(text) FROM PUBLIC, anon;
 -- DROP/ADD needed there since the CHECK calls this function by name).
 --
 -- Two textual changes from the prior body, every other rule unchanged:
---   1. `btrim(e->>'text') = ''` -> `(e->>'text') !~ '[^[:space:]]'` — btrim only strips spaces,
+--   1. `btrim(e->>'text') = ''` -> `(e->>'text') !~ '[^<ws>]'` — btrim only strips spaces,
 --      so a tab/newline/form-feed-only text previously passed the blank guard. The regex rejects
---      any string with no non-whitespace character (also rejects the empty string, subsuming the
---      old rule).
+--      any string with no character outside ordering_item_id's whitespace set (also rejects the
+--      empty string, subsuming the old rule).
 --   2. `btrim(e->>'id') = ''` -> `(e->>'id') IS DISTINCT FROM ordering_item_id(e->>'text')` — the
 --      id must equal the hash derived from this item's OWN text. ordering_item_id's output is
 --      always non-blank ('o1' + 8 hex chars), so this subsumes the old blank-id guard too, and
@@ -95,7 +102,7 @@ AS $$
                   OR jsonb_typeof(e->'id') IS DISTINCT FROM 'string'
                   OR jsonb_typeof(e->'text') IS DISTINCT FROM 'string'
                   OR (e->>'id') IS DISTINCT FROM ordering_item_id(e->>'text')
-                  OR (e->>'text') !~ '[^[:space:]]'
+                  OR (e->>'text') !~ '[^\t\n\v\f\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]'
                   -- Exact shape: reject extra keys (#998 CR). The canonical array
                   -- order IS the answer key, so an item must not carry answer-bearing
                   -- metadata (correct, position, correct_order, …). CASE-wrapped so a

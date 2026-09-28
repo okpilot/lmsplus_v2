@@ -219,6 +219,22 @@ describe('CHECK: is_valid_ordering_items (questions_question_type_columns_check)
     expect(error?.code).toBe('23514')
   })
 
+  it('rejects an ordering question whose item text is only NBSP and BOM characters', async () => {
+    const unicodeBlank = '\u00A0\uFEFF'
+    const { error } = await admin.from('questions').insert(
+      baseRow({
+        question_text: 'Malformed ordering — NBSP/BOM-only text',
+        ordering_items: [
+          { id: orderingItemId(unicodeBlank), text: unicodeBlank },
+          orderingItem('Bravo'),
+        ],
+        explanation_text: 'should not insert',
+      }),
+    )
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  })
+
   it('accepts an ordering item whose text has mixed case, internal double spaces, and surrounding whitespace when the id is derived from its NORMALIZED form', async () => {
     // Positive control for R1: normalization (trim, collapse whitespace runs, lowercase) is
     // part of the contract, not just the digest — this proves a legitimately-authored id
