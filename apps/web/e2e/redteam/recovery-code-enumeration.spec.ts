@@ -16,7 +16,7 @@
  * Out of scope: per-account / per-IP verify limiting (#760).
  */
 
-import { expect, type Page, test } from '@playwright/test'
+import { expect, type Page, type Response, test } from '@playwright/test'
 import { readRecoverySentAt, readUserId, resetRecoveryThrottle } from '../helpers/recovery-code'
 import { ensureLoginTestUser, getAdminClient, LOGIN_TEST_EMAIL } from '../helpers/supabase'
 
@@ -48,13 +48,18 @@ async function seedSends(userId: string, count: number): Promise<void> {
   if (error) throw new Error(`seedSends: ${error.message}`)
 }
 
+function isServerAction(response: Response): boolean {
+  return (
+    response.request().method() === 'POST' &&
+    response.request().headers()['next-action'] !== undefined
+  )
+}
+
 /** Returns the rendered copy and the raw Server Action response body. */
 async function submitStep1(page: Page, email: string): Promise<{ copy: string; body: string }> {
   await page.goto('/auth/forgot-password')
   await page.getByLabel('Email address').fill(email)
-  const action = page.waitForResponse(
-    (r) => r.request().method() === 'POST' && r.request().headers()['next-action'] !== undefined,
-  )
+  const action = page.waitForResponse(isServerAction)
   await page.getByRole('button', { name: 'Send reset code' }).click()
   const body = await (await action).text()
   const copy = page.getByText(NEUTRAL_COPY_RE)
@@ -62,13 +67,15 @@ async function submitStep1(page: Page, email: string): Promise<{ copy: string; b
   return { copy: (await copy.textContent()) ?? '', body }
 }
 
-/** Returns the milliseconds from submit to the error being shown. */
+/** Returns the Server Action's request-to-response-end duration in milliseconds. */
 async function submitStep2(page: Page, code: string): Promise<number> {
   await page.getByLabel('Reset code').fill(code)
-  const started = Date.now()
+  const action = page.waitForResponse(isServerAction)
   await page.getByRole('button', { name: 'Verify code' }).click()
+  const response = await action
+  await response.finished()
   await expect(page.getByText(GENERIC_VERIFY_ERROR)).toBeVisible({ timeout: 10_000 })
-  return Date.now() - started
+  return response.request().timing().responseEnd
 }
 
 test.describe('Vector FV — recovery-code enumeration and send throttle', () => {
