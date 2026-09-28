@@ -16,7 +16,7 @@
  * Out of scope: per-account / per-IP verify limiting (#760).
  */
 
-import { expect, type Page, type Response, test } from '@playwright/test'
+import { expect, type Page, type Request, test } from '@playwright/test'
 import { readRecoverySentAt, readUserId, resetRecoveryThrottle } from '../helpers/recovery-code'
 import { ensureLoginTestUser, getAdminClient, LOGIN_TEST_EMAIL } from '../helpers/supabase'
 
@@ -48,34 +48,48 @@ async function seedSends(userId: string, count: number): Promise<void> {
   if (error) throw new Error(`seedSends: ${error.message}`)
 }
 
-function isServerAction(response: Response): boolean {
-  return (
-    response.request().method() === 'POST' &&
-    response.request().headers()['next-action'] !== undefined
-  )
+type ActionResult = { body: string; ms: number }
+
+function isServerAction(request: Request): boolean {
+  return request.method() === 'POST' && request.headers()['next-action'] !== undefined
+}
+
+/**
+ * Clicks `button` and returns the Server Action's response body and server round-trip in
+ * milliseconds, both taken in the test process so a client-side re-render cannot discard them.
+ */
+async function submitAction(page: Page, button: string): Promise<ActionResult> {
+  let captured: ActionResult | undefined
+  await page.route('**/*', async (route) => {
+    if (!isServerAction(route.request())) return route.fallback()
+    const start = Date.now()
+    const response = await route.fetch()
+    const body = await response.text()
+    captured = { body, ms: Date.now() - start }
+    await route.fulfill({ response, body })
+  })
+  await page.getByRole('button', { name: button }).click()
+  await expect.poll(() => captured, { timeout: 10_000 }).toBeDefined()
+  await page.unroute('**/*')
+  return captured as ActionResult
 }
 
 /** Returns the rendered copy and the raw Server Action response body. */
 async function submitStep1(page: Page, email: string): Promise<{ copy: string; body: string }> {
   await page.goto('/auth/forgot-password')
   await page.getByLabel('Email address').fill(email)
-  const action = page.waitForResponse(isServerAction)
-  await page.getByRole('button', { name: 'Send reset code' }).click()
-  const body = await (await action).text()
+  const { body } = await submitAction(page, 'Send reset code')
   const copy = page.getByText(NEUTRAL_COPY_RE)
   await expect(copy).toBeVisible({ timeout: 10_000 })
   return { copy: (await copy.textContent()) ?? '', body }
 }
 
-/** Returns the Server Action's request-to-response-end duration in milliseconds. */
+/** Returns the verify Server Action's server round-trip in milliseconds. */
 async function submitStep2(page: Page, code: string): Promise<number> {
   await page.getByLabel('Reset code').fill(code)
-  const action = page.waitForResponse(isServerAction)
-  await page.getByRole('button', { name: 'Verify code' }).click()
-  const response = await action
-  await response.finished()
+  const { ms } = await submitAction(page, 'Verify code')
   await expect(page.getByText(GENERIC_VERIFY_ERROR)).toBeVisible({ timeout: 10_000 })
-  return response.request().timing().responseEnd
+  return ms
 }
 
 test.describe('Vector FV — recovery-code enumeration and send throttle', () => {
