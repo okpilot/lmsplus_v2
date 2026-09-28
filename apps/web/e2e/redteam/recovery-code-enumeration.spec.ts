@@ -13,7 +13,7 @@
  *          `claimRecoverySlot` caps sends at `MAX_RECOVERY_CODES_PER_HOUR`; the
  *          link-based `/auth/confirm` route no longer exists.
  *
- * Out of scope: per-account / per-IP verify limiting (#760).
+ * Out of scope: per-account / per-IP verify limiting.
  */
 
 import { expect, type Page, type Request, test } from '@playwright/test'
