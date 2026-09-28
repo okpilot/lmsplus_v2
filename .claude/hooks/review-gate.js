@@ -16,6 +16,20 @@ const fs = require('node:fs')
 const path = require('node:path')
 
 const GATE_FILE = path.join(process.cwd(), '.claude', 'review-gate.json')
+const EXEMPT_DIRS = ['.claude', 'docs', path.join('apps', 'web', 'e2e')]
+const WORKTREES_DIR = path.resolve(process.cwd(), '.claude', 'worktrees') + path.sep
+
+/** The checkout holding `filePath`: its worktree under .claude/worktrees/, else the main tree. */
+function checkoutRoot(filePath) {
+  if (!filePath.startsWith(WORKTREES_DIR)) return process.cwd()
+  return WORKTREES_DIR + filePath.slice(WORKTREES_DIR.length).split(path.sep)[0]
+}
+
+/** True when `filePath` sits in an exempt directory of its own checkout. */
+function inExemptDir(filePath) {
+  const root = checkoutRoot(filePath)
+  return EXEMPT_DIRS.some((dir) => filePath.startsWith(path.resolve(root, dir) + path.sep))
+}
 
 // Read stdin (tool input JSON)
 let input = ''
@@ -44,15 +58,11 @@ process.stdin.on('end', () => {
     process.exit(0)
   }
 
+  // Collapse `..` segments so an exempt substring cannot mask a production target.
+  filePath = path.resolve(filePath)
+
   // Allow edits to non-production files
-  if (
-    filePath.includes('.test.') ||
-    filePath.includes('/.claude/') ||
-    filePath.includes('\\.claude\\') ||
-    filePath.includes('/docs/') ||
-    filePath.includes('\\docs\\') ||
-    filePath.endsWith('.md')
-  ) {
+  if (filePath.includes('.test.') || inExemptDir(filePath) || filePath.endsWith('.md')) {
     process.exit(0)
   }
 

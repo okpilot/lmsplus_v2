@@ -1,8 +1,10 @@
 import { resolve } from 'node:path'
 import { defineConfig, devices } from '@playwright/test'
 import { config } from 'dotenv'
+import { assertLocalEnv } from './scripts/local-env'
 
 config({ path: resolve(__dirname, '.env.local') })
+assertLocalEnv(__dirname)
 
 export default defineConfig({
   testDir: './e2e',
@@ -74,7 +76,6 @@ export default defineConfig({
   webServer: {
     command: process.env.CI ? 'pnpm start' : 'pnpm dev',
     port: 3000,
-    reuseExistingServer: !process.env.CI,
     timeout: 60_000,
   },
 })

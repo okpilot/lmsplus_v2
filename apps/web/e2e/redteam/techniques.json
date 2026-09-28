@@ -1,0 +1,18 @@
+[
+  "answer-oracle",
+  "auth-bypass",
+  "cookie-state",
+  "cross-tenant",
+  "enumeration",
+  "idor",
+  "input-injection",
+  "mass-assignment",
+  "open-redirect",
+  "privilege-escalation",
+  "race",
+  "rate-limit",
+  "rls-bypass",
+  "sibling-guard-gap",
+  "soft-delete-bypass",
+  "timing"
+]

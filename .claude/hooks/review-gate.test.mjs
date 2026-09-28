@@ -53,6 +53,11 @@ function runHook(stdin, cwd) {
   return runNode('review-gate.js', [HOOK], { input: stdin, cwd, timeout: TIMEOUT_MS })
 }
 
+/** Hook stdin payload for an Edit/Write of filePath. */
+function payload(filePath) {
+  return JSON.stringify({ tool_input: { file_path: filePath } })
+}
+
 // --- No gate file ---
 
 // CONTROL: green
@@ -103,7 +108,7 @@ test('allows a /.claude/ path edit even when the gate is active', () => {
   const dir = makeDir()
   try {
     withGate(dir)
-    const r = runHook('{"tool_input":{"file_path":"/project/.claude/review-gate.json"}}', dir)
+    const r = runHook(payload(path.join(dir, '.claude', 'review-gate.json')), dir)
     assert.equal(r.status, 0)
   } finally {
     cleanup(dir)
@@ -114,7 +119,70 @@ test('allows a /docs/ path edit even when the gate is active', () => {
   const dir = makeDir()
   try {
     withGate(dir)
-    const r = runHook('{"tool_input":{"file_path":"/project/docs/plan.md"}}', dir)
+    const r = runHook(payload(path.join(dir, 'docs', 'diagram.svg')), dir)
+    assert.equal(r.status, 0)
+  } finally {
+    cleanup(dir)
+  }
+})
+
+// GROUP: review-gate-e2e-always-blocks
+test('allows a spec.ts edit under apps/web/e2e/ even when the gate is active', () => {
+  const dir = makeDir()
+  try {
+    withGate(dir)
+    const r = runHook(payload(path.join(dir, 'apps', 'web', 'e2e', 'admin-students.spec.ts')), dir)
+    assert.equal(r.status, 0)
+  } finally {
+    cleanup(dir)
+  }
+})
+
+// GROUP: review-gate-no-path-normalization
+test('blocks a production target reached through an exempt directory via ..', () => {
+  const dir = makeDir()
+  try {
+    withGate(dir)
+    const r = runHook(payload(`${dir}/apps/web/e2e/../app/app/quiz/actions/submit.ts`), dir)
+    assert.equal(r.status, 2)
+  } finally {
+    cleanup(dir)
+  }
+})
+
+// GROUP: review-gate-exempt-dirs-unanchored
+test('blocks a production file outside the repo root whose path contains apps/web/e2e/', () => {
+  const dir = makeDir()
+  try {
+    withGate(dir)
+    const r = runHook(payload('/vendor/apps/web/e2e/production.ts'), dir)
+    assert.equal(r.status, 2)
+  } finally {
+    cleanup(dir)
+  }
+})
+
+// GROUP: review-gate-worktrees-exempt
+test('blocks a production file inside a .claude/worktrees/ checkout when the gate is active', () => {
+  const dir = makeDir()
+  try {
+    withGate(dir)
+    const r = runHook(
+      payload(path.join(dir, '.claude', 'worktrees', 'wt', 'apps', 'web', 'lib', 'foo.ts')),
+      dir,
+    )
+    assert.equal(r.status, 2)
+  } finally {
+    cleanup(dir)
+  }
+})
+
+// GROUP: review-gate-worktree-exempt-dirs-blocked
+test('allows a docs edit inside a .claude/worktrees/ checkout when the gate is active', () => {
+  const dir = makeDir()
+  try {
+    withGate(dir)
+    const r = runHook(payload(path.join(dir, '.claude', 'worktrees', 'wt', 'docs', 'x.ts')), dir)
     assert.equal(r.status, 0)
   } finally {
     cleanup(dir)

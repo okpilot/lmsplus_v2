@@ -23,7 +23,7 @@ State what is true. Delete the rest.
 2. **NEVER explore the codebase yourself when subagents can do it** — Explore agents (Sonnet) do it. Reading one known file or a simple symbol grep is exempt (§ When NOT to use subagents).
 3. **ALWAYS delegate execution** — parallel when independent; worktree isolation for risky changes.
 4. **ALWAYS read every subagent result first** — no fire-and-forget.
-5. **ALWAYS run the pre-push review gate** — once per branch, all seven reviewers in round 1. No exemption.
+5. **ALWAYS run the pre-push review gate** — once per branch, all seven core reviewers in round 1, plus e2e-writer when triggered. No exemption.
 
 ### Your workflow for any non-trivial task:
 ```
@@ -151,17 +151,18 @@ met, same commit. Verify redundancy, never infer from the resolved version:
 ONE loop per BRANCH over `git diff origin/master...HEAD`.
 A commit triggers NOTHING. Full mechanics: `agent-workflow.md § Pre-Push Review Gate`.
 
-**Round 1** — seven reviewers, ONE parallel dispatch:
+**Round 1** — seven reviewers, plus e2e-writer when triggered, ONE parallel dispatch:
 1. **implementation-critic** (sonnet) — branch diff vs the validated plan
 2. **code-reviewer** (sonnet) — diff vs `.claude/rules/code-style.md`
 3. **semantic-reviewer** (sonnet) — deep logic/security/consistency review
 4. **doc-updater** (haiku) — reports doc edits; YOU apply them (no Write/Edit tool)
-5. **test-writer** (sonnet) — missing tests, writes + runs them (sole agent with repo Write/Edit, scoped to test files)
+5. **test-writer** (sonnet) — missing tests, writes + runs them (Write/Edit scoped to Vitest `*.test.*` files, incl. under `apps/web/e2e/` outside `redteam/`)
 6. **deletion-reviewer** (sonnet) — reports what the diff can delete with no loss, each with `EVIDENCE:`; read-only
 7. **code-review (skill)** (opus) — the built-in `/code-review` skill, dispatched as `subagent_type: code-review-skill` in an isolated worktree
+8. **e2e-writer** (sonnet) — when the branch diff touches `apps/web/app/**`, `apps/web/components/**` or `apps/web/proxy.ts`: writes/updates Playwright specs under `apps/web/e2e/` excluding `redteam/` (Write/Edit scoped to that path)
 
 **Round 2+** — code-reviewer + semantic-reviewer + deletion-reviewer + code-review (skill).
-doc-updater and test-writer PRODUCE rather than gate; re-run either only when the
+doc-updater, test-writer and e2e-writer PRODUCE rather than gate; re-run any of them only when the
 fixup added surface it has not seen.
 
 **Async.** WAIT for a completion notification from every agent LAUNCHED, read ALL results, validate
@@ -176,11 +177,14 @@ Then ONCE per branch, after the loop ends:
 
 Security files touched (migrations, db/src, quiz/actions, auth, proxy.ts, security.md — full set
 in `agent-workflow.md § Red-Team Agent Trigger`, +`apps/web/e2e/redteam/`) → also run:
-8. **red-team** (sonnet) — maps diff to specs, flags gaps; `pnpm --filter @repo/web e2e:redteam` if affected
+9. **red-team** (opus) — the attacker: attacks the local stack, proves each exploit by writing +
+   running a failing spec under `apps/web/e2e/redteam/` (Write/Edit scoped to that path); a proven
+   exploit's prod fix is a fixup that re-enters the review loop as a fresh loop (its own 3-round
+   ceiling); `/fullpush` step 7b confirms its spec now passes
 
 Rules changed (`code-style.md`, `.claude/rules/security.md`, `docs/security.md`, `biome.json`,
 `CLAUDE.md`, or a new **or changed** `.claude/hooks/*.mjs` guard — see `agent-coderabbit-sync.md`) → also run:
-9. **coderabbit-sync** (haiku) — keeps `.coderabbit.yaml` aligned
+10. **coderabbit-sync** (haiku) — keeps `.coderabbit.yaml` aligned
 
 **Triage discipline.** Fix every validated CRITICAL and ISSUE (`agent-semantic-reviewer.md`). The
 ONE bounded case: a wording REFINEMENT on prose this loop's own fixup just wrote is logged, not

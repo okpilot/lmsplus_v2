@@ -99,6 +99,7 @@ const EXPECTED_CORE = [
   'code-reviewer',
   'deletion-reviewer',
   'doc-updater',
+  'e2e-writer',
   'implementation-critic',
   'semantic-reviewer',
   'test-writer',
@@ -115,6 +116,7 @@ const EXPECTED_ROLES = {
   'deletion-reviewer': 'gate-round',
   'implementation-critic': 'gate-round',
   'code-review-skill': 'gate-round',
+  'e2e-writer': 'gate-round',
   'red-team': 'conditional',
   'coderabbit-sync': 'conditional',
   'plan-critic': 'pre-execution',
@@ -190,9 +192,13 @@ JSON.stringify(declaredPrePush) === JSON.stringify(actualPrePush)
 const writers = Object.entries(spec.agents)
   .filter(([, a]) => a.write)
   .map(([n]) => n)
-writers.length === 1 && writers[0] === 'test-writer'
-  ? pass('exactly one write-capable agent: test-writer')
-  : fail(`expected only test-writer to be write-capable; got: ${writers.join(', ') || '(none)'}`)
+  .sort()
+const EXPECTED_WRITERS = ['e2e-writer', 'red-team', 'test-writer']
+JSON.stringify(writers) === JSON.stringify(EXPECTED_WRITERS)
+  ? pass(`write-capable agents are exactly: ${writers.join(', ')}`)
+  : fail(
+      `write-capable agents are [${writers.join(', ') || '(none)'}], expected [${EXPECTED_WRITERS.join(', ')}]`,
+    )
 
 const TOP_LEVEL_KEYS = [
   '_',

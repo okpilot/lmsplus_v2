@@ -13,7 +13,7 @@ Run the adversarial security test suite against local Supabase.
 ## Prerequisites
 
 1. Local Supabase must be running: `npx supabase start`
-2. Next.js dev server must be running: `pnpm dev` (only needed for PKCE test)
+2. `:3000` must be free — Playwright starts its own server and never reuses a running one
 3. Test data must be seeded (specs handle this automatically)
 
 ## Steps
@@ -26,14 +26,14 @@ added. Derive the baseline at runtime from two live sources:
 - **Expected per-spec status** — the source of truth is the `## Vector-to-Spec
   Mapping` table in
   `apps/web/e2e/redteam/attack-surface.md` (the `Status`
-  column). The cells are free-form prose, not a fixed enum — the runner is you,
+  column). In a 6-cell row the cells are free-form prose, not a fixed enum — the runner is you,
   an agent, not a regex, so judge each row's posture from the **leading
   word(s)** of its `Status` cell by meaning, ignoring trailing commit refs,
   quotes, or a vector-ID prefix (e.g. `CK2 COVERED` → treat as `COVERED`). Two
   buckets (representative, not exhaustive — bucket new statuses by meaning):
   - **Defense should hold → spec expected to PASS:** statuses that read as
     covered or enforced — `COVERED` (incl. `COVERED AT INTEGRATION LAYER`,
-    `FULLY COVERED`), `PASSING`, `FIXED`, `ENFORCED`, `HARDENED`, `DB-CAPPED`.
+    `FULLY COVERED`), `PASSING`, `FIXED`, `BLOCKED`, `MISSED`, `ENFORCED`, `HARDENED`, `DB-CAPPED`.
   - **Known gap, or assessed-safe with no spec → no PASS expected:** `GAP`,
     `DOCUMENTED GAP`, `PARTIAL`, `TBD`, `INTENTIONAL`, and the `ASSESSED …`
     family (`ASSESSED LOW`, `ASSESSED NON-ISSUE`, `ASSESSED IMPROVED`) — these
@@ -82,4 +82,6 @@ normal; a `skipped` spec corresponds to a known-gap row. Then surface three
 
 Update the `## Vector-to-Spec Mapping` table (and Lessons Learned, if a vector
 changed) in `apps/web/e2e/redteam/attack-surface.md` to reflect
-this run — closing the read → run → compare → write loop.
+this run — closing the read → run → compare → write loop. A 7-cell row's Status is exactly
+`FIXED`, `GAP`, `MISSED` or `BLOCKED` and its Notes empty or `#N` (`attack-surface.test.ts` rejects
+anything else).

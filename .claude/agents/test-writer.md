@@ -27,6 +27,8 @@ Write Vitest tests for new TypeScript code. You read source files, understand wh
 - Never test implementation details (internal function names, private methods)
 - Mock all external dependencies (Supabase, fetch, timers)
 - Co-locate: `src/actions.ts` → `src/actions.test.ts`
+- Skip non-`*.test.*` files under `apps/web/e2e/**` (Playwright specs, helpers) — `e2e-writer` and
+  `red-team` own them. Vitest `*.test.*` files there, outside `redteam/`, are yours.
 
 ## Test naming pattern
 ```typescript
