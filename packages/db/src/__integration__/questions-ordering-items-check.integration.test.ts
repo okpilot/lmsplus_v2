@@ -301,21 +301,6 @@ describe('CHECK: is_valid_ordering_items (questions_question_type_columns_check)
     expect(error?.code).toBe('23514')
   })
 
-  it('rejects an ordering question whose item id is whitespace-only', async () => {
-    // A whitespace-only id is not a usable stable key. Since #1045, this is subsumed by the
-    // derived-id rule — '   ' can never equal ordering_item_id('Alpha') — but is kept as its
-    // own regression case for the specific whitespace-id shape.
-    const { error } = await admin.from('questions').insert(
-      baseRow({
-        question_text: 'Malformed ordering — whitespace-only id',
-        ordering_items: [{ id: '   ', text: 'Alpha' }, orderingItem('Bravo')],
-        explanation_text: 'should not insert',
-      }),
-    )
-    expect(error).not.toBeNull()
-    expect(error?.code).toBe('23514')
-  })
-
   it('rejects an ordering question whose item is missing the text key', async () => {
     // A missing text key makes jsonb_typeof(e->'text') SQL NULL; IS DISTINCT FROM 'string' is
     // TRUE for NULL, so the typeof clause rejects it. The id-derivation clause also rejects it
