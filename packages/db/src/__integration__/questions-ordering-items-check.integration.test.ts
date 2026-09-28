@@ -262,6 +262,8 @@ describe('CHECK: is_valid_ordering_items (questions_question_type_columns_check)
     // `->>` coerces a JSON number to text, so before the string-type check a numeric id
     // like 42 would have passed as '42'. The app layer treats ids as strings throughout,
     // so the DB rejects a non-string id at authoring (23514). Regression guard (#998 CR).
+    // Since #1045 the id-derivation clause also rejects it: a non-string id can never equal an
+    // ordering_item_id() string, so this case cannot isolate the id typeof clause.
     // The cast feeds a deliberately-malformed payload (number id) past the insert type;
     // the assertion is on the RPC error, so no result-shape guard is needed here.
     const malformedItems = [
@@ -285,7 +287,7 @@ describe('CHECK: is_valid_ordering_items (questions_question_type_columns_check)
     // 42 would have passed the old blank-only check. Regression guard for the text side
     // of the typeof clause (#998 CR) — distinct mechanism from the id-side test above.
     const malformedItems = [
-      { id: 'a', text: 42 },
+      { id: orderingItemId('42'), text: 42 },
       orderingItem('Bravo'),
     ] as unknown as OrderingItem[]
     const { error } = await admin.from('questions').insert(
@@ -315,12 +317,10 @@ describe('CHECK: is_valid_ordering_items (questions_question_type_columns_check)
   })
 
   it('rejects an ordering question whose item is missing the text key', async () => {
-    // Isolates the IS DISTINCT FROM 'string' (not <> 'string') operator choice: a missing
-    // text key makes e->'text' jsonb NULL, jsonb_typeof(...) SQL NULL, and NULL <> 'string'
-    // is NULL (not counted) — the element would slip through `<>`. IS DISTINCT FROM 'string'
-    // is TRUE for NULL, so it is rejected. Since #1045 the id-derivation clause also
-    // independently rejects this row (ordering_item_id(NULL) is NULL, 'a' IS DISTINCT FROM
-    // NULL is true) — both mechanisms are legitimate defenses over the same malformed row.
+    // A missing text key makes jsonb_typeof(e->'text') SQL NULL; IS DISTINCT FROM 'string' is
+    // TRUE for NULL, so the typeof clause rejects it. The id-derivation clause also rejects it
+    // (ordering_item_id(NULL) is NULL, and any id IS DISTINCT FROM NULL), so this case cannot
+    // isolate the IS DISTINCT FROM vs <> operator choice.
     const malformedItems = [{ id: 'a' }, orderingItem('Bravo')] as unknown as OrderingItem[]
     const { error } = await admin.from('questions').insert(
       baseRow({

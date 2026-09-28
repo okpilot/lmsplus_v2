@@ -35,9 +35,9 @@ describe("deriveContentId('o', [text]) vs SQL ordering_item_id(text)", () => {
     ['non-ASCII letters (accented)', 'niveau de vol élevé'],
     ['non-ASCII letters (cyrillic)', 'высота полёта'],
     ['em dash and curly quotes', 'position — “five miles” north'],
-    ['non-breaking space (NBSP, U+00A0)', 'engine failure'],
-    ['em space (U+2003)', 'engine failure'],
-    ['ideographic space (U+3000)', 'engine　failure'],
+    ['non-breaking space (NBSP, U+00A0)', 'engine\u00A0failure'],
+    ['em space (U+2003)', 'engine\u2003failure'],
+    ['ideographic space (U+3000)', 'engine\u3000failure'],
     ['vertical tab', 'engine\u000Bfailure'],
     ['form feed', 'engine\u000Cfailure'],
     ['leading/trailing NBSP', '\u00A0engine failure\u00A0'],
@@ -46,6 +46,8 @@ describe("deriveContentId('o', [text]) vs SQL ordering_item_id(text)", () => {
     ['leading BOM (U+FEFF)', '\uFEFFengine failure'],
     ['internal BOM (U+FEFF)', 'engine\uFEFFfailure'],
     ["'v' at both ends", 'vacate via v'],
+    ['uppercase Greek with final sigma', 'ΟΔΟΣ ΑΕΡΟΣ'],
+    ['uppercase dotted I', 'İSTANBUL'],
   ])('matches for %s', async (_label, text) => {
     expect(await sqlOrderingItemId(text)).toBe(deriveContentId('o', [text]))
   })

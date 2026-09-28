@@ -9,7 +9,9 @@
 -- DIGEST_CHARS 8). "Whitespace" is spelled out as JS's `\s` / `String.prototype.trim` set
 -- (WhiteSpace + LineTerminator, incl. NBSP, U+2000-U+200A, U+3000, U+2028/9, BOM U+FEFF), not
 -- PostgreSQL's locale-dependent `\s` / `[:space:]`, which omits U+FEFF. Collapsing every run to
--- one space and then trimming spaces equals JS trim-then-collapse.
+-- one space and then trimming spaces equals JS trim-then-collapse. lower() runs under the ICU
+-- collation "und-x-icu", which matches JS toLowerCase() (final sigma, dotted I) whatever the
+-- database's default collation provider is.
 -- Pinned by apps/web/scripts/content-ids.integration.test.ts. Verified 2026-09-28:
 -- `deriveContentId('o', ['  Mayday  MAYDAY mayday '])` and this SQL function both return
 -- 'o1459c75a5'. is_valid_ordering_items() below then requires `id = ordering_item_id(text)` exactly, so an id carries no information beyond
@@ -61,7 +63,7 @@ AS $$
         convert_to(
           lower(btrim(regexp_replace(
             p_text, '[\t\n\v\f\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]+', ' ', 'g'
-          ))),
+          )) COLLATE "und-x-icu"),
           'UTF8'
         )
       ),
@@ -121,7 +123,7 @@ $$;
 
 -- ------------------------------------------------------------------
 -- CREATE OR REPLACE does not re-validate existing rows against the tightened rule — prove it
--- here instead. Prod evidence (read-only probe, 2026-09-28): 12 active ordering questions / 62
+-- here instead. Prod evidence (read-only probe, 2026-09-28): 12 active ordering questions / 60
 -- items, every id already equals this exact derivation, no whitespace-only text, zero
 -- soft-deleted ordering rows — so this is expected to raise on nothing, anywhere. No
 -- `deleted_at IS NULL` filter: a soft-deleted row's ordering_items must satisfy the CHECK too,

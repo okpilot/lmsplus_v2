@@ -24,8 +24,9 @@
  * For the `o` (ordering-item) prefix specifically: since #1045, the database CHECK-enforces
  * `id = ordering_item_id(text)` (migration `20260928000100_ordering_items_derived_ids.sql`,
  * `is_valid_ordering_items`), a SQL re-implementation of this exact `normalizeForId` + SHA-256 +
- * `DIGEST_CHARS` contract. A change here that is not paired with a matching migration change to
- * `ordering_item_id`'s SQL body makes every future `ordering` import fail the CHECK — by design
+ * `DIGEST_CHARS` contract, and `packages/db/src/__integration__/ordering-item-id.ts` is a third
+ * copy for DB integration fixtures. A change here that is not paired with a matching migration
+ * change to `ordering_item_id`'s SQL body (and that fixture helper) makes every future `ordering` import fail the CHECK — by design
  * (fail-closed), not a bug to work around client-side.
  *
  * Keep this file flat in scripts/ — knip's apps/web entry glob is `scripts/*.ts`.
