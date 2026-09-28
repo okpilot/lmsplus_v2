@@ -133,6 +133,7 @@ test.describe('Red Team: ordering item ids derived from text (Vector FX)', () =>
       .from('questions')
       .select('id', { count: 'exact', head: true })
       .like('question_number', `${MARKER_LIKE.slice(0, -1)} ${label}%`)
+      .is('deleted_at', null)
     if (error) throw new Error(`count ${label}: ${error.message}`)
     return count ?? 0
   }
