@@ -41,7 +41,7 @@ async function waitForAppSend(email: string): Promise<void> {
   }
 }
 
-async function readUserId(email: string): Promise<string> {
+export async function readUserId(email: string): Promise<string> {
   const { data, error } = await getAdminClient()
     .from('users')
     .select('id')
@@ -52,7 +52,7 @@ async function readUserId(email: string): Promise<string> {
   return data.id
 }
 
-async function readRecoverySentAt(userId: string): Promise<string | null> {
+export async function readRecoverySentAt(userId: string): Promise<string | null> {
   const { data, error } = await getAdminClient().auth.admin.getUserById(userId)
   if (error) throw new Error(`fetchRecoveryCode getUserById: ${error.message}`)
   return data.user?.recovery_sent_at ?? null
