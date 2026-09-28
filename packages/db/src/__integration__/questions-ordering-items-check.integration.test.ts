@@ -189,7 +189,7 @@ describe('CHECK: is_valid_ordering_items (questions_question_type_columns_check)
 
   it('rejects an ordering question whose item text is tab-only', async () => {
     // R3 (#1045): btrim() only strips spaces — a tab-only text previously passed the blank
-    // guard. `!~ '[^[:space:]]'` rejects any string with no non-whitespace character.
+    // guard. The migration rejects any text with no character outside its whitespace set.
     const tabOnly = '\t\t'
     const { error } = await admin.from('questions').insert(
       baseRow({

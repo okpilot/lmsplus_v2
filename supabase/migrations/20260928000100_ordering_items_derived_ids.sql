@@ -101,7 +101,7 @@ AS $$
                WHERE jsonb_typeof(e) <> 'object'
                   OR jsonb_typeof(e->'id') IS DISTINCT FROM 'string'
                   OR jsonb_typeof(e->'text') IS DISTINCT FROM 'string'
-                  OR (e->>'id') IS DISTINCT FROM ordering_item_id(e->>'text')
+                  OR (e->>'id') IS DISTINCT FROM public.ordering_item_id(e->>'text')
                   OR (e->>'text') !~ '[^\t\n\v\f\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]'
                   -- Exact shape: reject extra keys (#998 CR). The canonical array
                   -- order IS the answer key, so an item must not carry answer-bearing
