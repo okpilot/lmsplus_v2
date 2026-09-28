@@ -889,6 +889,9 @@ reviews:
           - Direct SELECT * FROM questions or .select('*') on questions table
           - Returning raw options JSONB with correct:true to student-facing code
           - Any path that bypasses get_quiz_questions() RPC for active quiz sessions
+          - An `ordering` item id not equal to `ordering_item_id(text)` (fixtures included), or
+            an ordering delivery that is not a uniform `ORDER BY random()` shuffle — the stored
+            array order IS the answer key (docs/security.md, #1045)
           EXCEPTION: Post-session report queries (e.g. getQuizReport) that SELECT
           questions server-side and strip the correct field before returning to the
           client are acceptable. The student has already answered — showing the correct
