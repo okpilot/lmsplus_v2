@@ -17,7 +17,7 @@
  */
 
 import { expect, type Page, test } from '@playwright/test'
-import { readUserId, resetRecoveryThrottle } from '../helpers/recovery-code'
+import { readRecoverySentAt, readUserId, resetRecoveryThrottle } from '../helpers/recovery-code'
 import { ensureLoginTestUser, getAdminClient, LOGIN_TEST_EMAIL } from '../helpers/supabase'
 
 test.use({ storageState: { cookies: [], origins: [] } })
@@ -48,13 +48,18 @@ async function seedSends(userId: string, count: number): Promise<void> {
   if (error) throw new Error(`seedSends: ${error.message}`)
 }
 
-async function submitStep1(page: Page, email: string): Promise<string> {
+/** Returns the rendered copy and the raw Server Action response body. */
+async function submitStep1(page: Page, email: string): Promise<{ copy: string; body: string }> {
   await page.goto('/auth/forgot-password')
   await page.getByLabel('Email address').fill(email)
+  const action = page.waitForResponse(
+    (r) => r.request().method() === 'POST' && r.request().headers()['next-action'] !== undefined,
+  )
   await page.getByRole('button', { name: 'Send reset code' }).click()
+  const body = await (await action).text()
   const copy = page.getByText(NEUTRAL_COPY_RE)
   await expect(copy).toBeVisible({ timeout: 10_000 })
-  return (await copy.textContent()) ?? ''
+  return { copy: (await copy.textContent()) ?? '', body }
 }
 
 /** Returns the milliseconds from submit to the error being shown. */
@@ -82,12 +87,14 @@ test.describe('Vector FV — recovery-code enumeration and send throttle', () =>
   test('step 1 shows the same copy for a registered and an unregistered email', async ({
     page,
   }) => {
-    const knownCopy = await submitStep1(page, LOGIN_TEST_EMAIL)
-    const unknownCopy = await submitStep1(page, UNKNOWN_EMAIL)
+    const known = await submitStep1(page, LOGIN_TEST_EMAIL)
+    const unknown = await submitStep1(page, UNKNOWN_EMAIL)
 
-    expect(knownCopy).toContain(LOGIN_TEST_EMAIL)
-    expect(knownCopy.replace(LOGIN_TEST_EMAIL, '<email>')).toBe(
-      unknownCopy.replace(UNKNOWN_EMAIL, '<email>'),
+    expect(known.body).not.toBe('')
+    expect(known.body).toBe(unknown.body)
+    expect(known.copy).toContain(LOGIN_TEST_EMAIL)
+    expect(known.copy.replace(LOGIN_TEST_EMAIL, '<email>')).toBe(
+      unknown.copy.replace(UNKNOWN_EMAIL, '<email>'),
     )
   })
 
@@ -110,17 +117,23 @@ test.describe('Vector FV — recovery-code enumeration and send throttle', () =>
     test.skip(!!process.env.CI, 'send path is unreachable under `next start` without email')
     const userId = await readUserId(LOGIN_TEST_EMAIL)
 
-    // Control: under the cap the send is recorded.
+    // Control: under the cap the send is recorded and a code is issued.
+    const issuedBefore = await readRecoverySentAt(userId)
     await submitStep1(page, LOGIN_TEST_EMAIL)
     await expect
       .poll(() => readSendCount(userId), { timeout: SEND_SETTLE_MS, intervals: [250] })
       .toBe(1)
+    await expect
+      .poll(() => readRecoverySentAt(userId), { timeout: SEND_SETTLE_MS, intervals: [250] })
+      .not.toBe(issuedBefore)
 
-    // At the cap: nothing more is recorded.
+    // At the cap: nothing more is recorded and no code is issued.
     await seedSends(userId, 3)
+    const issuedAtCap = await readRecoverySentAt(userId)
     await submitStep1(page, LOGIN_TEST_EMAIL)
     await page.waitForTimeout(SEND_SETTLE_MS)
     expect(await readSendCount(userId)).toBe(3)
+    expect(await readRecoverySentAt(userId)).toBe(issuedAtCap)
   })
 
   test('the removed link-based recovery route returns 404', async ({ page }) => {
