@@ -55,16 +55,17 @@ vi.mock('./session-recovery-prompt', () => ({
   ),
 }))
 
-const { mockReplace, mockClearActiveSession } = vi.hoisted(() => ({
+const { mockReplace, mockClearIfCurrent } = vi.hoisted(() => ({
   mockReplace: vi.fn(),
-  mockClearActiveSession: vi.fn(),
+  mockClearIfCurrent: vi.fn(),
 }))
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ replace: mockReplace }) }))
 
 vi.mock('../_utils/quiz-session-storage', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../_utils/quiz-session-storage')>()),
-  clearActiveSession: (userId: string) => mockClearActiveSession(userId),
+  clearActiveSessionIfCurrent: (userId: string, sessionId: string) =>
+    mockClearIfCurrent(userId, sessionId),
 }))
 
 vi.mock('@/components/ui/skeleton', () => ({
@@ -459,13 +460,11 @@ describe('QuizSessionLoader — dismiss', () => {
     'clears the local session and leaves for %s without discarding',
     async (examMode, path) => {
       const base = makeBootstrapBase()
-      mockUseSessionBootstrap.mockReturnValue({
-        ...base,
-        recovery: { ...makeRecovery(), mode: 'exam', examMode },
-      })
+      const recovery = { ...makeRecovery(), mode: 'exam' as const, examMode }
+      mockUseSessionBootstrap.mockReturnValue({ ...base, recovery })
       render(<QuizSessionLoader userId="user-1" />)
       await userEvent.click(screen.getByRole('button', { name: 'dismiss' }))
-      expect(mockClearActiveSession).toHaveBeenCalledWith('user-1')
+      expect(mockClearIfCurrent).toHaveBeenCalledWith('user-1', recovery.sessionId)
       expect(base.clearRecovery).toHaveBeenCalledTimes(1)
       expect(mockReplace).toHaveBeenCalledWith(path)
       expect(base.recoveryActions.handleDiscard).not.toHaveBeenCalled()

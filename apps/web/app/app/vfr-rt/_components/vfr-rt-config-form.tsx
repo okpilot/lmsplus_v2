@@ -1,13 +1,11 @@
 'use client'
 
 import { ModeToggle } from '@/app/app/quiz/_components/mode-toggle'
-import { QuestionCount } from '@/app/app/quiz/_components/question-count'
 import { QuestionFilters } from '@/app/app/quiz/_components/question-filters'
-import { StartButton } from '@/app/app/quiz/_components/start-button'
-import { TopicTree } from '@/app/app/quiz/_components/topic-tree'
 import { useQuizConfig } from '@/app/app/quiz/_hooks/use-quiz-config'
 import type { SubjectOption, TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
 import { VfrRtExamPanel } from './vfr-rt-exam-panel'
+import { VfrRtPracticeSections } from './vfr-rt-practice-sections'
 
 type VfrRtConfigFormProps = {
   userId: string
@@ -42,7 +40,6 @@ export function VfrRtConfigForm({
     initialMode: 'study',
     initialTopics,
   })
-  const hasTopics = config.topicTree.topics.length > 0
   const isExam = config.mode === 'exam'
 
   return (
@@ -69,55 +66,7 @@ export function VfrRtConfigForm({
       </div>
 
       {isExam && <VfrRtExamPanel userId={userId} subjectId={subjectId} subjects={subjects} />}
-
-      {!isExam && hasTopics && (
-        <>
-          <div className="rounded-xl border border-border bg-card p-6">
-            <TopicTree
-              topics={config.topicTree.topics}
-              checkedTopics={config.topicTree.checkedTopics}
-              checkedSubtopics={config.topicTree.checkedSubtopics}
-              onToggleTopic={config.topicTree.toggleTopic}
-              onToggleSubtopic={config.topicTree.toggleSubtopic}
-              onSelectAll={config.topicTree.selectAll}
-              totalQuestions={config.topicTree.totalQuestions}
-              allSelected={config.topicTree.allSelected}
-              filteredByTopic={config.filteredByTopic}
-              filteredBySubtopic={config.filteredBySubtopic}
-              showCode={false}
-            />
-          </div>
-          <div className="rounded-xl border border-border bg-card p-6">
-            <QuestionCount
-              value={config.count}
-              max={config.availableCount}
-              onValueChange={config.setCount}
-            />
-          </div>
-        </>
-      )}
-
-      {!isExam && config.error && (
-        <p role="alert" className="text-sm text-destructive">
-          {config.error}
-        </p>
-      )}
-      {!isExam && config.authError && (
-        <p role="alert" className="text-sm text-destructive">
-          Session expired. Please refresh the page.
-        </p>
-      )}
-
-      {!isExam && (
-        <StartButton
-          disabled={
-            config.availableCount === 0 || config.loading || config.isPending || config.authError
-          }
-          loading={config.loading}
-          label="Start Practice"
-          onClick={config.handleStart}
-        />
-      )}
+      {!isExam && <VfrRtPracticeSections config={config} />}
     </div>
   )
 }

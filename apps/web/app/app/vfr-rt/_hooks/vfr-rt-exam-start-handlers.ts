@@ -41,18 +41,9 @@ function isSameExam(existing: ActiveSession | null, sessionId: string): existing
   return existing?.sessionId === sessionId && existing.examMode === 'vfr_rt_exam'
 }
 
-/**
- * Writes the sessionStorage handoff and seeds the localStorage active session (so a
- * reload before the first answer shows the recovery prompt). Returns false on a storage
- * failure so the caller surfaces a message instead of navigating to an empty session.
- */
-function writeHandoff(
-  deps: VfrRtExamStartDeps,
-  result: StartSuccess,
-  resume: ActiveSession | null,
-): boolean {
+function buildHandoffBase(deps: VfrRtExamStartDeps, result: StartSuccess) {
   const subject = deps.subjects.find((s) => s.id === deps.subjectId)
-  const base = {
+  return {
     userId: deps.userId,
     sessionId: result.sessionId,
     questionIds: result.questionIds,
@@ -64,6 +55,25 @@ function writeHandoff(
     passMark: VFR_RT_EXAM_PASS_MARK,
     startedAt: result.startedAt,
   }
+}
+
+/** Seeds the localStorage active session with an empty answer buffer. */
+function seedActiveSession(base: ReturnType<typeof buildHandoffBase>) {
+  const questions = base.questionIds.map((id) => ({ id }))
+  writeActiveSession(buildActiveSession({ ...base, questions }, new Map(), 0))
+}
+
+/**
+ * Writes the sessionStorage handoff and seeds the localStorage active session (so a
+ * reload before the first answer shows the recovery prompt). Returns false on a storage
+ * failure so the caller surfaces a message instead of navigating to an empty session.
+ */
+function writeHandoff(
+  deps: VfrRtExamStartDeps,
+  result: StartSuccess,
+  resume: ActiveSession | null,
+): boolean {
+  const base = buildHandoffBase(deps, result)
   try {
     sessionStorage.setItem(
       sessionHandoffKey(deps.userId),
@@ -81,10 +91,7 @@ function writeHandoff(
     console.warn('[use-vfr-rt-exam-start] sessionStorage handoff failed:', err)
     return false
   }
-  if (!resume) {
-    const questions = result.questionIds.map((id) => ({ id }))
-    writeActiveSession(buildActiveSession({ ...base, questions }, new Map(), 0))
-  }
+  if (!resume) seedActiveSession(base)
   return true
 }
 

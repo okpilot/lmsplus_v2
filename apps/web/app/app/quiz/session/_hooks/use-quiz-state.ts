@@ -28,7 +28,6 @@ export function useQuizState(opts: QuizStateOpts) {
   currentIndexRef.current = nav.currentIndex
   const question = opts.questions[nav.currentIndex]
   const questionId = question?.id ?? ''
-
   const getQId = () => questionId
   const getStart = () => nav.answerStartTime.current
 
