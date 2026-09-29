@@ -15,7 +15,6 @@ type VfrRtConfigFormProps = {
   subjects: SubjectOption[]
   initialTopics: TopicWithSubtopics[]
   examAvailable: boolean
-  examTimeLimitSeconds: number | null
 }
 
 /**
@@ -35,7 +34,6 @@ export function VfrRtConfigForm({
   subjects,
   initialTopics,
   examAvailable,
-  examTimeLimitSeconds,
 }: Readonly<VfrRtConfigFormProps>) {
   const config = useQuizConfig({
     userId,
@@ -70,14 +68,7 @@ export function VfrRtConfigForm({
         )}
       </div>
 
-      {isExam && (
-        <VfrRtExamPanel
-          userId={userId}
-          subjectId={subjectId}
-          subjects={subjects}
-          timeLimitSeconds={examTimeLimitSeconds}
-        />
-      )}
+      {isExam && <VfrRtExamPanel userId={userId} subjectId={subjectId} subjects={subjects} />}
 
       {!isExam && hasTopics && (
         <>

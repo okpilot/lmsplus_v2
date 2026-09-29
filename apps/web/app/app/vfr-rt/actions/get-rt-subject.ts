@@ -14,8 +14,6 @@ export type RtSubjectData = {
   topics: TopicWithSubtopics[]
   // The student's org has an enabled exam_config for RT (getExamEnabledSubjects; error → false).
   examAvailable: boolean
-  // The RT exam_config time limit in seconds; null when no enabled exam config exists.
-  examTimeLimitSeconds: number | null
 }
 
 /** Throws on failure (page-critical); logs the raw DB error and throws a generic message
@@ -73,6 +71,5 @@ export async function getRtSubjectData(): Promise<RtSubjectData> {
     subjects,
     topics,
     examAvailable: rtExam !== undefined,
-    examTimeLimitSeconds: rtExam?.timeLimitSeconds ?? null,
   }
 }

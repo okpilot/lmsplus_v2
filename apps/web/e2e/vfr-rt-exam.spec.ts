@@ -192,6 +192,7 @@ test.describe('VFR RT mock exam', () => {
     await expect(page.getByText('Resume your VFR RT Mock Exam?')).toBeVisible({ timeout: 15_000 })
     await expect(page.getByRole('button', { name: 'Discard' })).toHaveCount(0)
     await page.getByRole('button', { name: 'Resume' }).click()
+    await expect(page).toHaveURL(/\/app\/quiz\/session/)
     await expect(page.getByText(/Question \d/).first()).toBeVisible({ timeout: 15_000 })
 
     // Both answered questions are still locked after the resume.

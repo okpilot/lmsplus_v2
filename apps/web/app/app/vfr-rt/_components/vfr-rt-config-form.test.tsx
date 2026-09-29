@@ -16,9 +16,7 @@ vi.mock('@/app/app/quiz/_hooks/use-quiz-config', () => ({
 }))
 
 vi.mock('./vfr-rt-exam-panel', () => ({
-  VfrRtExamPanel: ({ timeLimitSeconds }: { timeLimitSeconds: number | null }) => (
-    <div data-testid="exam-panel" data-time-limit={String(timeLimitSeconds)} />
-  ),
+  VfrRtExamPanel: () => <div data-testid="exam-panel" />,
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -36,7 +34,6 @@ function renderForm(
     subjects?: typeof SUBJECTS
     initialTopics?: typeof INITIAL_TOPICS
     examAvailable?: boolean
-    examTimeLimitSeconds?: number | null
   } = {},
 ) {
   return render(
@@ -46,7 +43,6 @@ function renderForm(
       subjects={overrides.subjects ?? SUBJECTS}
       initialTopics={overrides.initialTopics ?? INITIAL_TOPICS}
       examAvailable={overrides.examAvailable ?? false}
-      examTimeLimitSeconds={overrides.examTimeLimitSeconds ?? null}
     />,
   )
 }
@@ -155,12 +151,6 @@ describe('VfrRtConfigForm — mode toggle', () => {
     expect(screen.getByTestId('exam-panel')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /start practice/i })).toBeNull()
     expect(screen.queryByText('Unanswered')).toBeNull()
-  })
-
-  it('passes the configured exam time limit to the exam panel', () => {
-    mockUseQuizConfig.mockReturnValue(buildMockConfig({ mode: 'exam' }))
-    renderForm({ examAvailable: true, examTimeLimitSeconds: 1800 })
-    expect(screen.getByTestId('exam-panel')).toHaveAttribute('data-time-limit', '1800')
   })
 
   it('does not show the exam panel in study mode', () => {
