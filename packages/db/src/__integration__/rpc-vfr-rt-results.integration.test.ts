@@ -23,6 +23,7 @@ import { cleanupTestData } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
 import { requireRpcResult } from './guards'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
+import { getP3Subtopics, P3_SUBTOPIC_CODES } from './vfr-rt-part3-helpers'
 
 const admin = getAdminClient()
 const suffix = fixtureSuffix()
@@ -163,6 +164,7 @@ async function seedPool(opts: {
       return { id, blanks }
     }),
   )
+  const p3Subtopics = await getP3Subtopics(p3TopicId)
   const mcQs: McQ[] = await Promise.all(
     Array.from({ length: 8 }, async (_, i) => {
       const id = await insertQ({
@@ -170,6 +172,7 @@ async function seedPool(opts: {
         bank_id: bankId,
         subject_id: rtSubjectId,
         topic_id: p3TopicId,
+        subtopic_id: p3Subtopics[P3_SUBTOPIC_CODES[Math.floor(i / 2)]!],
         question_text: `MC res ${base} ${i} ${suffix}?`,
         // explanation_text is NOT NULL by schema (initial_schema.sql) — only
         // explanation_image_url can be null, asserted in the passthrough test.

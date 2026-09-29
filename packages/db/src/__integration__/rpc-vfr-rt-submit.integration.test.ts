@@ -28,6 +28,8 @@ import { cleanupTestData } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
 import { requireRpcResult, requireRpcRows } from './guards'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
+import { getP3Subtopics, P3_SUBTOPIC_CODES } from './vfr-rt-part3-helpers'
+import { forceEndSession } from './vfr-rt-part3-org'
 
 const admin = getAdminClient()
 const suffix = fixtureSuffix()
@@ -172,6 +174,7 @@ async function insertMcQuestion(
   adminId: string,
   rtSubjectId: string,
   p3TopicId: string,
+  subtopicId: string,
   idx: number,
 ): Promise<McQuestion> {
   const { data, error } = await admin
@@ -181,6 +184,7 @@ async function insertMcQuestion(
       bank_id: bankId,
       subject_id: rtSubjectId,
       topic_id: p3TopicId,
+      subtopic_id: subtopicId,
       question_text: `MC submit ${idx} ${suffix}?`,
       explanation_text: `MC submit explanation ${idx}`,
       question_type: 'multiple_choice',
@@ -261,9 +265,19 @@ beforeAll(async () => {
       insertDfQuestion(orgId, bankId, adminUserId, rtSubjectId, refs.p2TopicId, 400 + i),
     ),
   )
+  // 2 MC in EACH seeded P3 subtopic (start samples 2 per subtopic).
+  const p3Subtopics = await getP3Subtopics(refs.p3TopicId)
   mcQuestions = await Promise.all(
     Array.from({ length: 8 }, (_, i) =>
-      insertMcQuestion(orgId, bankId, adminUserId, rtSubjectId, refs.p3TopicId, 400 + i),
+      insertMcQuestion(
+        orgId,
+        bankId,
+        adminUserId,
+        rtSubjectId,
+        refs.p3TopicId,
+        p3Subtopics[P3_SUBTOPIC_CODES[Math.floor(i / 2)]!],
+        400 + i,
+      ),
     ),
   )
 
@@ -294,24 +308,6 @@ async function startSession(): Promise<{ sessionId: string; questionIds: string[
   )
   if (!r.session_id) throw new Error('startSession: no session_id in result')
   return { sessionId: r.session_id, questionIds: r.question_ids }
-}
-
-/** Force-end a session so the next startSession creates a new one. */
-async function forceEndSession(sessionId: string): Promise<void> {
-  const { data, error } = await admin
-    .from('quiz_sessions')
-    .update({
-      ended_at: new Date().toISOString(),
-      correct_count: 0,
-      score_percentage: 0,
-      passed: false,
-    })
-    .eq('id', sessionId)
-    .select('id')
-  if (error) throw new Error(`forceEndSession: ${error.message}`)
-  // §5 zero-row observability: this helper always targets exactly one row —
-  // a silent zero-row no-op means the next startSession resumes a stale session.
-  if ((data?.length ?? 0) === 0) throw new Error('forceEndSession: no session row matched')
 }
 
 /** Build an all-correct answers payload for the given session's question list.

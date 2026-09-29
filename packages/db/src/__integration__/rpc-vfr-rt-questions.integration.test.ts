@@ -13,10 +13,10 @@ import {
   ensureBank,
   getRtRefs,
   insertDialogFillQuestion,
-  insertMcQuestion,
   insertShortAnswerQuestion,
   suffix,
 } from './vfr-rt-helpers'
+import { seedP3Pool } from './vfr-rt-part3-helpers'
 
 // ─── get_vfr_rt_exam_questions ────────────────────────────────────────────────
 
@@ -107,19 +107,16 @@ describe('RPC: get_vfr_rt_exam_questions', () => {
         }),
       )
     }
-    mcIds = []
-    for (let i = 0; i < 8; i++) {
-      mcIds.push(
-        await insertMcQuestion({
-          orgId,
-          bankId,
-          adminId: adminUserId,
-          rtSubjectId,
-          p3TopicId,
-          idx: 200 + i,
-        }),
-      )
-    }
+    // 2 MC in EACH seeded P3 subtopic (start samples 2 per subtopic).
+    const mcBySubtopic = await seedP3Pool({
+      orgId,
+      bankId,
+      adminId: adminUserId,
+      rtSubjectId,
+      p3TopicId,
+      idxBase: 200,
+    })
+    mcIds = Object.values(mcBySubtopic).flat()
     saId = saIds[0]!
     dfId = dfIds[0]!
     mcId = mcIds[0]!

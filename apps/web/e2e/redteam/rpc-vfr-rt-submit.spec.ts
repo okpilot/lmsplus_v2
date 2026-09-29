@@ -34,6 +34,8 @@ import {
   buildVfrRtAnswers,
   cleanupVfrRtPool,
   seedVfrRtPool,
+  VFR_RT_CORRECT_ROWS,
+  VFR_RT_CORRECT_ROWS_PART2_WRONG,
   type VfrRtPool,
 } from './helpers/seed-vfr-rt-pool'
 
@@ -292,9 +294,9 @@ test.describe('Red Team: submit_vfr_rt_exam_answers RPC — success / output con
     expect(questions.length).toBe(25)
 
     const answers = buildVfrRtAnswers(questions, { failPart2 })
-    // Non-vacuous: one answer per question — guards a silent unknown-type skip
-    // in the helper that would otherwise under-count the graded payload.
-    expect(answers.length).toBe(questions.length)
+    // Non-vacuous: every question carries an answer (ordering / diagram_label send one entry
+    // per slot / zone) — guards a silent unknown-type skip in the helper.
+    expect(new Set(answers.map((a) => a.question_id)).size).toBe(questions.length)
     return { started, answers }
   }
 
@@ -313,7 +315,7 @@ test.describe('Red Team: submit_vfr_rt_exam_answers RPC — success / output con
     expect(result.part2_pct).toBe(100)
     expect(result.part3_pct).toBe(100)
     expect(result.passed_overall).toBe(true)
-    expect(result.correct_count).toBe(25)
+    expect(result.correct_count).toBe(VFR_RT_CORRECT_ROWS)
     expect(result.total_questions).toBe(25)
     // passed_per_part is results-only (mig 115) — the submit scalar contract
     // (mig 129) must NOT leak it. This is the trap.
@@ -337,7 +339,7 @@ test.describe('Red Team: submit_vfr_rt_exam_answers RPC — success / output con
     expect(readErr).toBeNull()
     expect(row?.ended_at).not.toBeNull()
     expect(row?.passed).toBe(true)
-    expect(row?.correct_count).toBe(25)
+    expect(row?.correct_count).toBe(VFR_RT_CORRECT_ROWS)
   })
 
   test('scores part 2 at exactly zero when every dialog_fill answer is wrong', async () => {
@@ -355,7 +357,7 @@ test.describe('Red Team: submit_vfr_rt_exam_answers RPC — success / output con
     expect(result.part2_pct).toBe(0) // §7 zero-case: exact equality, not a bound
     expect(result.part3_pct).toBe(100)
     expect(result.passed_overall).toBe(false)
-    expect(result.correct_count).toBe(16)
+    expect(result.correct_count).toBe(VFR_RT_CORRECT_ROWS_PART2_WRONG)
     expect(result.total_questions).toBe(25)
     expect(submitRaw).not.toHaveProperty('passed_per_part')
 

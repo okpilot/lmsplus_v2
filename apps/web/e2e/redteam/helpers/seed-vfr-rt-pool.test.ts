@@ -70,6 +70,13 @@ beforeEach(() => {
 //   2. easa_subjects (resolve RT subject id)
 //   3. exam_configs (soft-delete the org's RT config)
 
+const P3_SUBTOPICS = ['P3_NUMBERS', 'P3_EMERGENCY', 'P3_POSREP', 'P3_PATTERN'].map((code, n) => ({
+  id: `sub-${n}`,
+  code,
+}))
+// One id per built Part 3 row: ordering is row 3 (P3_EMERGENCY), diagram row 7 (P3_PATTERN).
+const P3_INSERTED = Array.from({ length: 8 }, (_, i) => ({ id: `p3-${i}` }))
+
 describe('cleanupVfrRtPool — no-op silence', () => {
   it('does not throw or log when no pool rows and no config match', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
@@ -147,9 +154,10 @@ describe('cleanupVfrRtPool — error paths', () => {
 //   3. question_banks  (ensureBank lookup — mocked as a reuse, no insert)
 //   4. questions       (SA insert)
 //   5. questions       (DF insert)
-//   6. questions       (MC insert)
-//   7. exam_configs    (ensureRtExamConfig lookup)
-//   8. exam_configs    (insert OR normalize UPDATE, only reached per-branch)
+//   6. easa_subtopics  (Part 3 subtopic resolution)
+//   7. questions       (Part 3 insert)
+//   8. exam_configs    (ensureRtExamConfig lookup)
+//   9. exam_configs    (insert OR normalize UPDATE, only reached per-branch)
 function mockSeedPoolChainThroughQuestions() {
   mockFrom
     .mockReturnValueOnce(buildChain({ data: { id: 'rt-subject' }, error: null })) // easa_subjects
@@ -166,7 +174,8 @@ function mockSeedPoolChainThroughQuestions() {
     .mockReturnValueOnce(buildChain({ data: { id: 'bank-1' }, error: null })) // question_banks: reuse existing
     .mockReturnValueOnce(buildChain({ data: [{ id: 'sa-1' }], error: null })) // questions: SA insert
     .mockReturnValueOnce(buildChain({ data: [{ id: 'df-1' }], error: null })) // questions: DF insert
-    .mockReturnValueOnce(buildChain({ data: [{ id: 'mc-1' }], error: null })) // questions: MC insert
+    .mockReturnValueOnce(buildChain({ data: P3_SUBTOPICS, error: null })) // easa_subtopics
+    .mockReturnValueOnce(buildChain({ data: P3_INSERTED, error: null })) // questions: Part 3 insert
 }
 
 describe('seedVfrRtPool — exam_config ownership tracking', () => {
@@ -224,9 +233,9 @@ describe('seedVfrRtPool — exam_config ownership tracking', () => {
       time_limit_seconds: VFR_RT_TIME_LIMIT_SECONDS,
       pass_mark: VFR_RT_PASS_MARK,
     })
-    // 7 from() calls total: 6 base (subjects/topics/bank/sa/df/mc) + 1 exam_configs lookup.
-    // No 8th call for a normalize UPDATE — confirms needsNormalize=false skips the mutation.
-    expect(mockFrom).toHaveBeenCalledTimes(7)
+    // 8 from() calls total: 7 base (subjects/topics/bank/sa/df/subtopics/part3) + 1 exam_configs lookup.
+    // No 9th call for a normalize UPDATE — confirms needsNormalize=false skips the mutation.
+    expect(mockFrom).toHaveBeenCalledTimes(8)
   })
 
   it('returns configCreated=false and captures the pre-normalize settings when the exam_configs lookup finds an existing row', async () => {
@@ -256,6 +265,21 @@ describe('seedVfrRtPool — exam_config ownership tracking', () => {
       time_limit_seconds: 1500,
       pass_mark: 70,
     })
+  })
+})
+
+describe('seedVfrRtPool — Part 3 pool', () => {
+  it('returns Part 3 ids in allIds alongside SA and DF ids', async () => {
+    mockSeedPoolChainThroughQuestions()
+    mockFrom.mockReturnValueOnce(buildChain({ data: null, error: null }))
+    mockFrom.mockReturnValueOnce(buildChain({ data: { id: 'cfg-new' }, error: null }))
+
+    const pool = await seedVfrRtPool({ admin: adminMock, orgId: 'org-1', adminUserId: 'admin-1' })
+
+    expect(pool.mcIds).toEqual(['p3-0', 'p3-1', 'p3-2', 'p3-4', 'p3-5', 'p3-6'])
+    expect(pool.orderingIds).toEqual(['p3-3'])
+    expect(pool.diagramIds).toEqual(['p3-7'])
+    expect(pool.allIds).toEqual(['sa-1', 'df-1', ...pool.mcIds, 'p3-3', 'p3-7'])
   })
 })
 
@@ -410,8 +434,23 @@ describe('buildVfrRtAnswers', () => {
     expect(mc?.selected_option_id).toBe(VFR_RT_MC_CORRECT)
   })
 
+  it('builds one entry per slot for an ordering question, in canonical stored order', () => {
+    const answers = buildVfrRtAnswers([{ id: 'o-1', question_type: 'ordering' }])
+    expect(answers.map((a) => a.blank_index)).toEqual([0, 1, 2, 3])
+    expect(new Set(answers.map((a) => a.selected_option_id)).size).toBe(4)
+    expect(answers.every((a) => a.question_id === 'o-1')).toBe(true)
+  })
+
+  it('builds one entry per zone for a diagram_label question, with distinct blank indexes', () => {
+    const answers = buildVfrRtAnswers([{ id: 'd-1', question_type: 'diagram_label' }])
+    expect(answers).toHaveLength(3)
+    expect(new Set(answers.map((a) => a.blank_index)).size).toBe(3)
+    expect(new Set(answers.map((a) => a.response_text)).size).toBe(3)
+    expect(new Set(answers.map((a) => a.selected_option_id)).size).toBe(3)
+  })
+
   it('throws on a question_type outside the RT pool', () => {
-    expect(() => buildVfrRtAnswers([{ id: 'x-1', question_type: 'diagram_label' }])).toThrow(
+    expect(() => buildVfrRtAnswers([{ id: 'x-1', question_type: 'numeric' }])).toThrow(
       /unsupported question_type/,
     )
   })

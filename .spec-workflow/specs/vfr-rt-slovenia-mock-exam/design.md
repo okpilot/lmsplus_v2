@@ -211,7 +211,7 @@ flowchart TD
 - INSERT one `easa_subjects` row: `code='RT', name='VFR Radiotelephony (Slovenia)', short='RT', sort_order=...`. Use `ON CONFLICT (code) DO NOTHING` — `easa_subjects` has `UNIQUE(code)` (mig 001).
 - INSERT three `easa_topics` rows under that subject: codes `'P1_ACRONYMS'`, `'P2_DIALOG'`, `'P3_MC'`, names matching the briefing PDF parts.
 - For the topics INSERT use `ON CONFLICT (subject_id, code) DO NOTHING` — `easa_topics` has `UNIQUE (subject_id, code)`, NOT `UNIQUE(code)` alone (mig 001 line 67). A bare `ON CONFLICT (code)` would fail at migration time with "there is no unique or exclusion constraint matching the ON CONFLICT specification". Resolve the subject's UUID first via a CTE or via `(SELECT id FROM easa_subjects WHERE code = 'RT')` subquery in each topic INSERT.
-- No subtopics in v1.
+- Part 3 samples per subtopic (Decision 107); Parts 1 and 2 have no subtopics.
 - (Questions themselves are NOT inserted via migration — those are admin-authored via the editor or bulk-imported separately; the migration creates the syllabus skeleton.)
 
 ### Migration `098_exam_configs_parts_config.sql`
@@ -231,8 +231,8 @@ flowchart TD
   4. Auto-complete in-flight + overdue: `PERFORM complete_overdue_exam_session(...)` for this student.
   5. Check for an active `vfr_rt_exam` for this student — if found, return its current state (idempotent resume).
   6. Sample 8 `short_answer` IDs from the VFR RT subject's Part 1 topic (`question_type = 'short_answer' AND topic_id = <P1>` ordered by `random()`).
-  7. Sample 9 `dialog_fill` IDs from Part 2 topic. Sample 8 `multiple_choice` IDs from Part 3 topic.
-  8. `IF v_p1_count < 8 OR v_p2_count < 9 OR v_p3_count < 8 RAISE 'insufficient_questions_for_vfr_rt_exam' USING DETAIL = jsonb_build_object('p1_have', v_p1_count, 'p2_have', v_p2_count, 'p3_have', v_p3_count)::text;`
+  7. Sample 9 `dialog_fill` IDs from Part 2 topic. Sample 2 IDs per Part 3 subtopic (multiple_choice / ordering / diagram_label), grouped by subtopic sort_order.
+  8. `IF v_p1_count < 8 OR v_p2_count < 9 OR` any Part 3 subtopic has `< 2` questions (or there are none) `RAISE 'insufficient_questions_for_vfr_rt_exam'` with DETAIL `{p1_have, p2_have, p3_have, p3_subtopics, p3_short: [{subtopic, have, need}]}` (migration 20260929000200).
   9. Build the flat `question_ids` array preserving Part-1, Part-2, Part-3 order; set `parts = {p1_end: 8, p2_end: 17, p3_end: 25}`.
   10. INSERT `quiz_sessions` with `mode = 'vfr_rt_exam'`, `subject_id = p_subject_id`, `config = jsonb_build_object('question_ids', v_ids, 'parts', v_parts)`, `time_limit_seconds = 1800`, `total_questions = 25`.
   11. INSERT `audit_events` row `'vfr_rt_exam.started'`. The `actor_role` subquery on `users` filters `deleted_at IS NULL` (security.md §10).
@@ -263,20 +263,22 @@ flowchart TD
     { "question_id": uuid, "selected_option_id": "a"|"b"|"c"|"d" },  // Part 3 MC
     { "question_id": uuid, "response_text": "Aircraft" },              // Part 1 short_answer
     { "question_id": uuid, "blank_index": 0, "response_text": "S5-ABC" },  // Part 2 dialog_fill
+    { "question_id": uuid, "selected_option_id": item_id, "blank_index": slot },  // Part 3 ordering
+    { "question_id": uuid, "selected_option_id": label_id, "response_text": zone_id, "blank_index": n },  // Part 3 diagram_label
     ...
   ]
   ```
 - Body sequence:
   1. Auth check (security.md §7).
   2. SELECT the session FOR UPDATE; check ownership, mode='vfr_rt_exam', `deleted_at IS NULL`.
-  3. Idempotency: when `ended_at IS NOT NULL` the call becomes a pure re-read — a `v_already_ended` flag skips the answer-INSERT loop, session UPDATE, and audit INSERT; per-part percentages are recomputed from the persisted `quiz_session_answers` rows and `correct_count`/`passed` are re-read from the session row, returning the prior result with no writes (mig 100 body — no early RETURN; the recompute-from-rows path is the single source of truth).
+  3. Idempotency: when `ended_at IS NOT NULL` the call becomes a pure re-read — a `v_already_ended` flag skips the answer-INSERT loop, session UPDATE, and audit INSERT; per-part percentages come from the terminal `vfr_rt_exam.completed` / `.expired` audit-event metadata (falling back to `_vfr_rt_exam_part_scores`) and `correct_count`/`passed` are re-read from the session row, returning the prior result with no writes.
   3b. Timer-expiry guard (ADDED 2026-06-10 — pattern parity with `batch_submit_quiz`, `20260601000001` L99–115): `IF time_limit_seconds IS NOT NULL AND started_at IS NOT NULL AND now() > started_at + (time_limit_seconds + 30) * interval '1 second'` (both columns are nullable — null guards per the blueprint, see mig 100 body) THEN mark the session expired instead of grading — UPDATE `ended_at = now(), correct_count = 0, score_percentage = 0, passed = false`, INSERT `'vfr_rt_exam.expired'` audit event, RETURN the expired result shape. Without this, a student could hold the submit past the 30-minute limit indefinitely (the overdue sweep is lazy); Error Scenario 3's "next request is intercepted" promise requires it.
   4. Validate input: every entry's `question_id` MUST be in `config.question_ids`; reject extraneous IDs.
   5. For each entry, look up the question's `question_type`, `canonical_answer`, `accepted_synonyms` (short_answer), `options` (MC), or `blanks_config` (dialog_fill).
   6. Score per entry using the same `normalize_answer(text)` helper as the TS module (defined in this migration or in a sibling `09X_normalize_answer_fn.sql`).
   7. INSERT one `quiz_session_answers` row per entry (per blank for dialog_fill).
   8. INSERT one `student_responses` row per entry.
-  9. Compute per-part scores: Part 1 = correct_short_answers / 8 × 100, Part 2 = mean(task_scores) × 100 where task_score = correct_blanks / total_blanks per question, Part 3 = correct_mc / 8 × 100.
+  9. Compute per-part scores: Part 1 = correct_short_answers / 8 × 100, Part 2 = mean(task_scores) × 100 where task_score = correct_blanks / total_blanks per question, Part 3 = mean of per-question credit × 100 (MC 0/1; ordering / diagram_label correct slots or zones ÷ total) — `_vfr_rt_exam_part_scores`.
   10. `passed_overall := (p1 >= 75 AND p2 >= 75 AND p3 >= 75)`.
   11. UPDATE `quiz_sessions` SET `ended_at = now()`, `correct_count = total_correct`, `score_percentage = mean(p1,p2,p3)` (informational; pass uses per-part), `passed = v_passed`.
   12. INSERT `audit_events` row `'vfr_rt_exam.completed'` with metadata `{ part1_pct, part2_pct, part3_pct, passed_overall, total_questions: 25 }`.
@@ -324,7 +326,7 @@ flowchart TD
 - **Required for Phase C results page.** Per-part percentages are NOT persisted on `quiz_sessions` (only the aggregate `score_percentage`), and the canonical answers needed for post-submit review are privilege-blocked for students (mig 094) and stripped by `get_vfr_rt_exam_questions` (mig 099b) unconditionally. A fresh load of `/app/vfr-rt-exam/results/<id>` therefore needs a dedicated read RPC. Precedent: `get_report_correct_options` (`supabase/migrations/20260316231503_report_correct_options_orderby_and_history.sql`) — the existing gated correct-answer reveal for MC reports.
 - `CREATE OR REPLACE FUNCTION get_vfr_rt_exam_results(p_session_id uuid) RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public`.
 - Guards, in order: `auth.uid()` NULL → RAISE `'not_authenticated'`; session fetch `WHERE id = p_session_id AND student_id = auth.uid() AND mode = 'vfr_rt_exam' AND deleted_at IS NULL AND ended_at IS NOT NULL` → not found RAISE `'Session not found, not owned, or not completed'` (exact wording — capital S — matches `get_report_correct_options` line 25, whose message is pinned by `rpc-report.spec.ts`). The explicit `student_id = auth.uid()` scope is mandatory: `quiz_sessions` has multiple permissive SELECT policies, so RLS alone over-scopes (security.md "Multiple Permissive RLS SELECT Policies" rule / `docs/security.md` §3).
-- Returns: `jsonb_build_object('part1_pct', ..., 'part2_pct', ..., 'part3_pct', ..., 'passed_overall', ..., 'passed_per_part', ..., 'correct_count', ..., 'total_questions', 25, 'questions', [...])`. Per-part percentages are **recomputed** from `quiz_session_answers` JOIN `questions.question_type` using the same formulas as mig 100 (unanswered defaults to 0) — single source of truth, no per-part persistence needed.
+- Returns: `jsonb_build_object('part1_pct', ..., 'part2_pct', ..., 'part3_pct', ..., 'passed_overall', ..., 'passed_per_part', ..., 'correct_count', ..., 'total_questions', 25, 'questions', [...])`. Per-part percentages are read from the terminal `vfr_rt_exam.completed` / `.expired` audit-event metadata, frozen at grading time; an event without them falls back to `_vfr_rt_exam_part_scores` (unanswered defaults to 0).
 - Each `questions[]` entry: `question_id`, `question_type`, `question_text`, the student's answer(s) (`selected_option_id`, or per-blank `response_text` + `blank_index`), per-row `is_correct`, and the **revealed key**: `canonical_answer` + `accepted_synonyms` (short_answer), per-blank `canonical` + `synonyms` from `blanks_config` (dialog_fill), the correct option id (multiple_choice). The reveal is safe ONLY because the `ended_at IS NOT NULL` guard above rejects every pre-completion call.
 - The `questions` lookups go via the session's `config.question_ids` / the session's own `quiz_session_answers` rows — the immutable write-once exception applies (`docs/security.md` §15), and soft-deleted questions are still returned for completed sessions (historical-record posture, same as `getQuizReportQuestions`).
 

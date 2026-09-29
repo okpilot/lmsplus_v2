@@ -4,6 +4,8 @@ import { AnswerEntry, toRpcAnswer } from './_answer-mapping'
 const MC_Q = '00000000-0000-4000-a000-000000000011'
 const SHORT_Q = '00000000-0000-4000-a000-000000000022'
 const DIALOG_Q = '00000000-0000-4000-a000-000000000033'
+const ORDER_Q = '00000000-0000-4000-a000-000000000044'
+const DIAGRAM_Q = '00000000-0000-4000-a000-000000000055'
 
 // ---- AnswerEntry union validation ------------------------------------------
 
@@ -94,6 +96,44 @@ describe('AnswerEntry — schema validation', () => {
     const result = AnswerEntry.safeParse({ selectedOptionId: 'a' })
     expect(result.success).toBe(false)
   })
+
+  it('accepts an ordering entry placing an item id in a slot', () => {
+    const result = AnswerEntry.safeParse({
+      questionId: ORDER_Q,
+      selectedOptionId: 'o17692c3ad',
+      blankIndex: 2,
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts a diagram entry placing a label on a zone', () => {
+    const result = AnswerEntry.safeParse({
+      questionId: DIAGRAM_Q,
+      selectedOptionId: 'lbl-alpha',
+      responseText: 'zone-nw',
+      blankIndex: 0,
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects a diagram entry with an empty zone id', () => {
+    const result = AnswerEntry.safeParse({
+      questionId: DIAGRAM_Q,
+      selectedOptionId: 'lbl-alpha',
+      responseText: '',
+      blankIndex: 0,
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects an ordering entry with an empty item id', () => {
+    const result = AnswerEntry.safeParse({
+      questionId: ORDER_Q,
+      selectedOptionId: '',
+      blankIndex: 0,
+    })
+    expect(result.success).toBe(false)
+  })
 })
 
 // ---- toRpcAnswer snake_case mapping ----------------------------------------
@@ -165,5 +205,34 @@ describe('toRpcAnswer', () => {
   it('does not include blank_index on short-answer entries', () => {
     const result = toRpcAnswer({ questionId: SHORT_Q, responseText: 'x' })
     expect(result).not.toHaveProperty('blank_index')
+  })
+
+  it('maps an ordering entry to question_id + selected_option_id + blank_index', () => {
+    expect(
+      toRpcAnswer({ questionId: ORDER_Q, selectedOptionId: 'o17692c3ad', blankIndex: 3 }),
+    ).toEqual({
+      question_id: ORDER_Q,
+      selected_option_id: 'o17692c3ad',
+      blank_index: 3,
+      response_time_ms: 0,
+    })
+  })
+
+  it('maps a diagram entry to label, zone and blank_index', () => {
+    expect(
+      toRpcAnswer({
+        questionId: DIAGRAM_Q,
+        selectedOptionId: 'lbl-alpha',
+        responseText: 'zone-nw',
+        blankIndex: 1,
+        responseTimeMs: 500,
+      }),
+    ).toEqual({
+      question_id: DIAGRAM_Q,
+      selected_option_id: 'lbl-alpha',
+      response_text: 'zone-nw',
+      blank_index: 1,
+      response_time_ms: 500,
+    })
   })
 })

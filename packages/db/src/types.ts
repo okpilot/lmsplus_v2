@@ -1550,15 +1550,18 @@ export type Database = {
         Args: { p_session_id: string }
         Returns: {
           blanks_safe: Json
+          diagram_config_public: Json
           dialog_template: string
           difficulty: string
           id: string
           options: Json
+          ordering_items_shuffled: Json
           question_image_url: string
           question_number: string
           question_text: string
           question_type: string
           subject_code: string
+          subtopic_code: string
           topic_code: string
         }[]
       }

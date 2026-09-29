@@ -92,6 +92,7 @@ export async function insertMcQuestion(opts: {
   adminId: string
   rtSubjectId: string
   p3TopicId: string
+  subtopicId?: string
   idx: number
 }): Promise<string> {
   const { data, error } = await admin
@@ -101,6 +102,7 @@ export async function insertMcQuestion(opts: {
       bank_id: opts.bankId,
       subject_id: opts.rtSubjectId,
       topic_id: opts.p3TopicId,
+      subtopic_id: opts.subtopicId ?? null,
       question_text: `MC question ${opts.idx} ${suffix}?`,
       explanation_text: `MC explanation ${opts.idx}`,
       question_type: 'multiple_choice',
