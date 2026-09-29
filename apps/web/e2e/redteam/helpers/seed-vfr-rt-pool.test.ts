@@ -70,6 +70,11 @@ beforeEach(() => {
 //   2. easa_subjects (resolve RT subject id)
 //   3. exam_configs (soft-delete the org's RT config)
 
+const P3_SUBTOPICS = ['P3_NUMBERS', 'P3_EMERGENCY', 'P3_POSREP', 'P3_PATTERN'].map((code, n) => ({
+  id: `sub-${n}`,
+  code,
+}))
+
 describe('cleanupVfrRtPool — no-op silence', () => {
   it('does not throw or log when no pool rows and no config match', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
@@ -167,7 +172,7 @@ function mockSeedPoolChainThroughQuestions() {
     .mockReturnValueOnce(buildChain({ data: { id: 'bank-1' }, error: null })) // question_banks: reuse existing
     .mockReturnValueOnce(buildChain({ data: [{ id: 'sa-1' }], error: null })) // questions: SA insert
     .mockReturnValueOnce(buildChain({ data: [{ id: 'df-1' }], error: null })) // questions: DF insert
-    .mockReturnValueOnce(buildChain({ data: [{ id: 'sub-1', code: 'P3_NUMBERS' }], error: null })) // easa_subtopics
+    .mockReturnValueOnce(buildChain({ data: P3_SUBTOPICS, error: null })) // easa_subtopics
     .mockReturnValueOnce(buildChain({ data: [{ id: 'mc-1' }, { id: 'mc-2' }], error: null })) // questions: Part 3 insert
 }
 

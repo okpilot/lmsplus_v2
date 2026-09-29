@@ -198,6 +198,9 @@
 | FV | forgot-password-recovery-code-enumeration | MEDIUM | recovery-code-enumeration.spec.ts | BLOCKED | #1383 | enumeration |
 | FW | gotrue-direct-auth-api-enumeration | MEDIUM | gotrue-direct-enumeration.spec.ts | GAP | #1389 | enumeration |
 | FX | ordering-item-id-not-derived-from-text | HIGH | ordering-item-derived-ids.spec.ts | BLOCKED |  | answer-oracle |
+| FY | get_vfr_rt_exam_questions-part3-ordering-diagram-key-strip | HIGH | rpc-vfr-rt-part3-integrity.spec.ts | BLOCKED |  | answer-oracle |
+| FZ | submit_vfr_rt_exam_answers-ordering-forged-permutation | HIGH | rpc-vfr-rt-part3-integrity.spec.ts | BLOCKED |  | input-injection |
+| GA | submit_vfr_rt_exam_answers-diagram-forged-placement | HIGH | rpc-vfr-rt-part3-integrity.spec.ts | BLOCKED |  | input-injection |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 

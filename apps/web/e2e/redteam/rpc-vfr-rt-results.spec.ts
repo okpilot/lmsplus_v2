@@ -285,9 +285,9 @@ test.describe('Red Team: get_vfr_rt_exam_results RPC — success / output contra
     expect(questions.length).toBe(25)
 
     const answers = buildVfrRtAnswers(questions, { failPart2: opts.failPart2 })
-    // Non-vacuous: one answer per question — guards a silent unknown-type skip
-    // in the helper that would otherwise under-count the graded payload.
-    expect(answers.length).toBe(questions.length)
+    // Non-vacuous: every question carries an answer (ordering / diagram_label send one entry
+    // per slot / zone) — guards a silent unknown-type skip in the helper.
+    expect(new Set(answers.map((a) => a.question_id)).size).toBe(questions.length)
     const { data: submitRaw, error: submitErr } = await victimClient.rpc(
       'submit_vfr_rt_exam_answers',
       { p_session_id: started.session_id, p_answers: answers },
