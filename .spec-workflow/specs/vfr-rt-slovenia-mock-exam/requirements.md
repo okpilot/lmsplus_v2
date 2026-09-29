@@ -9,7 +9,7 @@ The official exam structure (per VictorOne's `English_Phraseology_Exam_Briefing_
 - **30-minute total timer**, free navigation, edit-before-submit.
 - **Part 1 — Aviation Acronyms** — 8 acronyms drawn at random from a closed list of 40. Student writes the meaning; acceptable-list normalized match.
 - **Part 2 — Fill-in-the-Blank** — 9 short multi-turn ATC/pilot dialog tasks. Each task contains N blanks with canonical answers. Score per task is the mean of its blanks; Part 2 score is the mean of its 9 tasks.
-- **Part 3 — Multiple-Choice** — 8 questions on number transmission, MAYDAY/PAN-PAN sequencing, position-report sequencing, traffic-pattern parts.
+- **Part 3** — 2 random questions from each Part 3 subtopic (number transmission, MAYDAY/PAN-PAN sequencing, position reports, traffic-pattern parts), any of multiple_choice / ordering / diagram_label (Decision 107).
 - **Pass criterion**: ≥75% on EACH of the three parts (per-part, not aggregate).
 
 This is v1: just the mock-exam feature. Course-model refactor and per-part practice drills are deferred to a future spec. VFR RT content lives in a dedicated `easa_subjects` row created via seed, alongside the existing PPL subjects — no course-tagging changes yet.
@@ -57,7 +57,7 @@ Steering doc `product.md` lists "in-house mock exam fidelity" as a foundational 
 3. WHEN `passed_overall = true` THEN ALL three parts are ≥75%.
 4. WHEN Part 1 (acronyms, short_answer) is graded THEN each acronym is scored 0 or 1 by acceptable-list normalized match (case-insensitive, whitespace/punctuation/hyphen collapsed; NO diacritic folding). Part 1 score = correct / 8.
 5. WHEN Part 2 (dialog_fill) is graded THEN for each of the 9 tasks: task score = (blanks correct / blanks total) using the same normalized matching rule per-blank. Part 2 score = mean of the 9 task scores.
-6. WHEN Part 3 (multiple_choice) is graded THEN each MC question is 0 or 1 by selected-option-id match. Part 3 score = correct / 8.
+6. WHEN Part 3 is graded THEN an MC question scores 0 or 1 by selected-option-id match, and an ordering / diagram_label question scores correct slots (zones) ÷ items (zones). Part 3 score = mean over its questions.
 7. WHEN any unanswered question or unanswered blank exists at submission time THEN it scores 0 (no penalty escalation, no partial credit for "almost right").
 8. WHEN the report page is rendered THEN it shows per-part scores, the 75% threshold line for each part, which parts failed, and the per-question/per-task breakdown so the student can review wrong answers.
 
@@ -67,7 +67,7 @@ Steering doc `product.md` lists "in-house mock exam fidelity" as a foundational 
 
 #### Acceptance Criteria
 
-1. WHEN a `vfr_rt_exam` session starts THEN the RPC samples exactly 8 `short_answer` questions, 9 `dialog_fill` questions, and 8 `multiple_choice` questions from the VFR RT subject, mode `random()` per attempt.
+1. WHEN a `vfr_rt_exam` session starts THEN the RPC samples exactly 8 `short_answer` questions, 9 `dialog_fill` questions, and 2 questions from each Part 3 subtopic (multiple_choice / ordering / diagram_label, grouped by subtopic) from the VFR RT subject, mode `random()` per attempt.
 2. WHEN sampling THEN duplicate question IDs across the three parts are prevented at the SQL level (per-part DISTINCT is guaranteed by `ORDER BY random() LIMIT`).
 3. WHEN the sample is complete THEN the IDs are stored in `quiz_sessions.config.question_ids` as a flat ordered array (Part 1 first, then Part 2, then Part 3) for `get_quiz_questions()` lookup — and `config.parts` records the **exclusive** end-index boundaries (`{p1_end: 8, p2_end: 17, p3_end: 25}` where Part 1 = `question_ids.slice(0, 8)`, Part 2 = `slice(8, 17)`, Part 3 = `slice(17, 25)`).
 4. WHEN the pool for any part is smaller than the required count THEN the RPC raises `insufficient_questions_for_vfr_rt_exam` with a structured detail (which part was short, how many were available) — mirrors the existing `insufficient_questions_for_exam` pattern from `start_internal_exam_session`.

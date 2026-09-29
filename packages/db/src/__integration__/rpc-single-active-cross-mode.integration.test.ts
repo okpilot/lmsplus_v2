@@ -9,9 +9,9 @@ import {
   ensureBank,
   getRtRefs,
   insertDialogFillQuestion,
-  insertMcQuestion,
   insertShortAnswerQuestion,
 } from './vfr-rt-helpers'
+import { seedP3Pool } from './vfr-rt-part3-helpers'
 
 // Cross-mode single-active-session guard (#1011): verifies that
 // start_internal_exam_session (mig 20260629000400) and
@@ -193,16 +193,15 @@ describe('Cross-mode single-active-session guard (internal_exam + vfr_rt_exam)',
         idx: 300 + i,
       })
     }
-    for (let i = 0; i < 8; i++) {
-      await insertMcQuestion({
-        orgId,
-        bankId,
-        adminId: adminUserId,
-        rtSubjectId,
-        p3TopicId,
-        idx: 300 + i,
-      })
-    }
+    // 2 MC in EACH seeded P3 subtopic (start samples 2 per subtopic).
+    await seedP3Pool({
+      orgId,
+      bankId,
+      adminId: adminUserId,
+      rtSubjectId,
+      p3TopicId,
+      idxBase: 300,
+    })
 
     // parts_config omitted — the RPC falls back to briefing-package defaults
     // (P1=8 SA, P2=9 DF, P3=8 MC) via COALESCE. Different subject from the

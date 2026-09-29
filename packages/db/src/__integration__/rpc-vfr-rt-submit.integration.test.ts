@@ -28,6 +28,7 @@ import { cleanupTestData } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
 import { requireRpcResult, requireRpcRows } from './guards'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
+import { getP3Subtopics, P3_SUBTOPIC_CODES } from './vfr-rt-part3-helpers'
 
 const admin = getAdminClient()
 const suffix = fixtureSuffix()
@@ -172,6 +173,7 @@ async function insertMcQuestion(
   adminId: string,
   rtSubjectId: string,
   p3TopicId: string,
+  subtopicId: string,
   idx: number,
 ): Promise<McQuestion> {
   const { data, error } = await admin
@@ -181,6 +183,7 @@ async function insertMcQuestion(
       bank_id: bankId,
       subject_id: rtSubjectId,
       topic_id: p3TopicId,
+      subtopic_id: subtopicId,
       question_text: `MC submit ${idx} ${suffix}?`,
       explanation_text: `MC submit explanation ${idx}`,
       question_type: 'multiple_choice',
@@ -261,9 +264,19 @@ beforeAll(async () => {
       insertDfQuestion(orgId, bankId, adminUserId, rtSubjectId, refs.p2TopicId, 400 + i),
     ),
   )
+  // 2 MC in EACH seeded P3 subtopic (start samples 2 per subtopic).
+  const p3Subtopics = await getP3Subtopics(refs.p3TopicId)
   mcQuestions = await Promise.all(
     Array.from({ length: 8 }, (_, i) =>
-      insertMcQuestion(orgId, bankId, adminUserId, rtSubjectId, refs.p3TopicId, 400 + i),
+      insertMcQuestion(
+        orgId,
+        bankId,
+        adminUserId,
+        rtSubjectId,
+        refs.p3TopicId,
+        p3Subtopics[P3_SUBTOPIC_CODES[Math.floor(i / 2)]!],
+        400 + i,
+      ),
     ),
   )
 

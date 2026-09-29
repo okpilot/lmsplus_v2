@@ -1,8 +1,9 @@
 /**
  * VFR RT pool seed helper for red-team E2E specs (#873/#825).
  *
- * Seeds a VFR-RT-capable question pool (8 short_answer + 9 dialog_fill +
- * 8 multiple_choice, all in the globally-seeded RT subject, mig 097) plus an
+ * Seeds a VFR-RT-capable question pool (8 short_answer + 9 dialog_fill + 8 Part 3
+ * questions: 2 per P3_MC subtopic, see seed-vfr-rt-part3.ts, all in the
+ * globally-seeded RT subject, mig 097) plus an
  * enabled exam_configs row, so `start_vfr_rt_exam_session` succeeds in the
  * red-team environment. Success-path VFR-RT vectors (DN/DO/DQ/DR/DT etc.)
  * import this instead of admin-inserting raw sessions.
@@ -22,20 +23,21 @@
  * resolve them by code, never create or delete them.
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
+import {
+  buildPart3Answer,
+  seedPart3Pool,
+  VFR_RT_MC_CORRECT,
+  VFR_RT_P3_CORRECT_ROWS,
+  VFR_RT_P3_COUNT,
+  VFR_RT_POOL_MARKER,
+} from './seed-vfr-rt-part3'
 
-/**
- * Marker prefix used in `question_text` for pool-created questions.
- * Uses a hyphen, not an underscore: `_` is a single-char wildcard in SQL LIKE,
- * so `[E2E_VFRRT]%` would over-match in cleanupVfrRtPool. `[`, `]`, and `-` are
- * all literal in PostgreSQL LIKE, so this prefix matches exactly.
- */
-const VFR_RT_POOL_MARKER = '[E2E-VFRRT]'
+// Re-exported for the specs that assert the MC answer key.
+export { VFR_RT_MC_CORRECT }
 /** Uniform canonical answer for every short_answer question in the pool. */
 export const VFR_RT_SA_ANSWER = 'alpha'
 /** Uniform blank-0 canonical answer for every dialog_fill question in the pool. */
 export const VFR_RT_DF_ANSWER = 'S5-ABC'
-/** Correct option id for every multiple_choice question in the pool. */
-export const VFR_RT_MC_CORRECT = 'b'
 
 // Per-type pool sizes. The exam samples these per part; total_questions is derived
 // from their sum so the 8/9/8 counts and the exam_config total can't drift apart
@@ -44,8 +46,10 @@ export const VFR_RT_MC_CORRECT = 'b'
 // and the exam_config values below are consumed by seed-vfr-rt-pool.test.ts.
 const VFR_RT_SA_COUNT = 8
 const VFR_RT_DF_COUNT = 9
-const VFR_RT_MC_COUNT = 8
-export const VFR_RT_POOL_SIZE = VFR_RT_SA_COUNT + VFR_RT_DF_COUNT + VFR_RT_MC_COUNT
+export const VFR_RT_POOL_SIZE = VFR_RT_SA_COUNT + VFR_RT_DF_COUNT + VFR_RT_P3_COUNT
+/** correct_count (correct answer rows) of a fully-correct submission, and with Part 2 all wrong. */
+export const VFR_RT_CORRECT_ROWS = VFR_RT_SA_COUNT + VFR_RT_DF_COUNT + VFR_RT_P3_CORRECT_ROWS
+export const VFR_RT_CORRECT_ROWS_PART2_WRONG = VFR_RT_SA_COUNT + VFR_RT_P3_CORRECT_ROWS
 /** Canonical VFR-RT exam_config values — the single source of truth for the seed,
  * the normalize-on-reuse check, and the tests (avoids drift on 1800/75 literals). */
 export const VFR_RT_TIME_LIMIT_SECONDS = 1800
@@ -67,6 +71,8 @@ export type VfrRtPool = {
   saIds: string[]
   dfIds: string[]
   mcIds: string[]
+  orderingIds: string[]
+  diagramIds: string[]
   allIds: string[]
 }
 
@@ -170,30 +176,6 @@ function buildDfRows(base: QuestionBase): Record<string, unknown>[] {
     dialog_template: `[atc] Cleared to land. {{0|${VFR_RT_DF_ANSWER};S5-XYZ}} report base.`,
     blanks_config: [{ index: 0, canonical: VFR_RT_DF_ANSWER, synonyms: ['S5-XYZ'] }],
     options: [],
-    difficulty: 'medium',
-    status: 'active',
-    created_by: base.createdBy,
-  }))
-}
-
-function buildMcRows(base: QuestionBase): Record<string, unknown>[] {
-  return Array.from({ length: VFR_RT_MC_COUNT }, (_, i) => ({
-    organization_id: base.orgId,
-    bank_id: base.bankId,
-    subject_id: base.subjectId,
-    topic_id: base.topicId,
-    question_text: `${VFR_RT_POOL_MARKER} MC question ${i}?`,
-    explanation_text: `MC explanation ${i}`,
-    question_type: 'multiple_choice',
-    options: [
-      { id: 'a', text: `Option A ${i}` },
-      { id: 'b', text: `Option B ${i}` },
-      { id: 'c', text: `Option C ${i}` },
-      { id: 'd', text: `Option D ${i}` },
-    ],
-    // MC answer key in its own REVOKE-gated column (#823, mig 111).
-    correct_option_id: VFR_RT_MC_CORRECT,
-    blanks_config: [],
     difficulty: 'medium',
     status: 'active',
     created_by: base.createdBy,
@@ -328,7 +310,7 @@ async function ensureRtExamConfig(
 // ─── public API ───────────────────────────────────────────────────────────────
 
 /**
- * Seed a VFR-RT question pool (8 SA + 9 DF + 8 MC) and an enabled exam_config
+ * Seed a VFR-RT question pool (8 SA + 9 DF + 8 Part 3) and an enabled exam_config
  * for the given org, all in the globally-seeded RT subject (mig 097). Idempotent
  * on the exam_config; questions are always inserted fresh (call cleanupVfrRtPool
  * first, or in an afterEach, to avoid accumulation across runs).
@@ -344,7 +326,11 @@ export async function seedVfrRtPool(opts: {
   const base = { orgId, bankId, subjectId: refs.rtSubjectId, createdBy: adminUserId }
   const saIds = await insertRows(admin, buildSaRows({ ...base, topicId: refs.p1TopicId }))
   const dfIds = await insertRows(admin, buildDfRows({ ...base, topicId: refs.p2TopicId }))
-  const mcIds = await insertRows(admin, buildMcRows({ ...base, topicId: refs.p3TopicId }))
+  const p3 = await seedPart3Pool({
+    admin,
+    base: { ...base, topicId: refs.p3TopicId },
+    insert: (rows) => insertRows(admin, rows),
+  })
   const config = await ensureRtExamConfig(admin, orgId, refs.rtSubjectId)
   return {
     subjectId: refs.rtSubjectId,
@@ -353,8 +339,8 @@ export async function seedVfrRtPool(opts: {
     configPrior: config.prior,
     saIds,
     dfIds,
-    mcIds,
-    allIds: [...saIds, ...dfIds, ...mcIds],
+    ...p3,
+    allIds: [...saIds, ...dfIds, ...p3.mcIds, ...p3.orderingIds, ...p3.diagramIds],
   }
 }
 
@@ -489,8 +475,8 @@ export async function cleanupVfrRtPool(opts: {
  * session's questions (as returned by get_vfr_rt_exam_questions). Each entry
  * carries only the fields the submit RPC's per-type validation allows
  * (mig 129): short_answer → response_text; dialog_fill → response_text +
- * blank_index; multiple_choice → selected_option_id. Uniform pool answers make
- * every entry correct by default.
+ * blank_index; Part 3 types → buildPart3Answer (multiple_choice, ordering,
+ * diagram_label). Uniform pool answers make every entry correct by default.
  *
  * @param opts.failPart2 — when true, every dialog_fill answer is wrong (drives
  *   part2_pct to 0) while Part 1 (SA) and Part 3 (MC) stay correct.
@@ -511,14 +497,10 @@ export function buildVfrRtAnswers(
         response_text: failPart2 ? 'WRONG' : VFR_RT_DF_ANSWER,
         response_time_ms: 1000,
       })
-    } else if (q.question_type === 'multiple_choice') {
-      answers.push({
-        question_id: q.id,
-        selected_option_id: VFR_RT_MC_CORRECT,
-        response_time_ms: 1000,
-      })
     } else {
-      throw new Error(`buildVfrRtAnswers: unsupported question_type ${q.question_type}`)
+      const p3 = buildPart3Answer(q)
+      if (!p3) throw new Error(`buildVfrRtAnswers: unsupported question_type ${q.question_type}`)
+      answers.push(...p3)
     }
   }
   return answers

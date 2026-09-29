@@ -119,7 +119,7 @@
     "apps/web/e2e/redteam/helpers/audit-helpers.ts": 201,
     "apps/web/e2e/redteam/helpers/force-token-refresh.ts": 224,
     "apps/web/e2e/redteam/helpers/get-study-questions-eo-setup.ts": 387,
-    "apps/web/e2e/redteam/helpers/seed-vfr-rt-pool.ts": 525,
+    "apps/web/e2e/redteam/helpers/seed-vfr-rt-pool.ts": 507,
     "apps/web/e2e/redteam/questions-direct-write.spec.ts": 574,
     "apps/web/e2e/redteam/rpc-admin-report-answer-keys-idor.spec.ts": 546,
     "apps/web/e2e/redteam/rpc-report-answer-keys.spec.ts": 727,
@@ -140,10 +140,10 @@
     "packages/db/src/__integration__/rpc-record-internal-exam-code-emailed.integration.test.ts": 501,
     "packages/db/src/__integration__/rpc-start-session.integration.test.ts": 509,
     "packages/db/src/__integration__/rpc-vfr-rt-constraint-regression.integration.test.ts": 630,
-    "packages/db/src/__integration__/rpc-vfr-rt-questions.integration.test.ts": 661,
-    "packages/db/src/__integration__/rpc-vfr-rt-results.integration.test.ts": 839,
-    "packages/db/src/__integration__/rpc-vfr-rt-start.integration.test.ts": 570,
-    "packages/db/src/__integration__/rpc-vfr-rt-submit.integration.test.ts": 911,
+    "packages/db/src/__integration__/rpc-vfr-rt-questions.integration.test.ts": 658,
+    "packages/db/src/__integration__/rpc-vfr-rt-results.integration.test.ts": 842,
+    "packages/db/src/__integration__/rpc-vfr-rt-start.integration.test.ts": 569,
+    "packages/db/src/__integration__/rpc-vfr-rt-submit.integration.test.ts": 924,
     "supabase/migrations/20260311000001_initial_schema.sql": 447,
     "supabase/migrations/20260406000004_populate_last_active_at.sql": 331,
     "supabase/migrations/20260411000005_exam_config_security_fixes.sql": 433,
@@ -159,7 +159,9 @@
     "supabase/migrations/20260702000400_check_non_mc_answer_diagram_label.sql": 379,
     "supabase/migrations/20260702000600_batch_submit_quiz_diagram_label.sql": 431,
     "supabase/migrations/20260815000200_check_non_mc_answer_fuzzy.sql": 380,
-    "supabase/migrations/20260815000300_submit_vfr_rt_fuzzy.sql": 351
+    "supabase/migrations/20260815000300_submit_vfr_rt_fuzzy.sql": 351,
+    "supabase/migrations/20260929000200_start_vfr_rt_exam_session_part3_subtopics.sql": 317,
+    "supabase/migrations/20260929000400_submit_vfr_rt_exam_answers_part3_types.sql": 385
   },
   "_coverage": "COVERAGE BOUNDARY, stated because an unstated one is the drift this file exists to stop: `.mjs` matches no rule, so every `.claude/hooks/*.mjs` guard \u2014 including the one that enforces this file \u2014 is ungraded. That is deliberate (hook scripts are infrastructure, and the carve-out previously lived only in agent-memory prose), but it is a gap in coverage rather than an entry in excludeGlobs, and the two are not the same thing. Their co-located *.test.mjs files ARE graded, under the test-file rule."
 }

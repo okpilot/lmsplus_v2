@@ -31,10 +31,13 @@ import {
   VICTIM_EMAIL,
   VICTIM_PASSWORD,
 } from './helpers/seed-users'
+import { VFR_RT_DIAGRAM_ANSWER, VFR_RT_ORDERING_KEY_IDS } from './helpers/seed-vfr-rt-part3'
 import {
   buildVfrRtAnswers,
   cleanupVfrRtPool,
   seedVfrRtPool,
+  VFR_RT_CORRECT_ROWS,
+  VFR_RT_CORRECT_ROWS_PART2_WRONG,
   VFR_RT_MC_CORRECT,
   type VfrRtPool,
 } from './helpers/seed-vfr-rt-pool'
@@ -187,6 +190,11 @@ type ResultQuestion = {
     canonical_answer?: string
     accepted_synonyms?: unknown
     blanks?: unknown
+    correct_order?: unknown
+    items?: unknown
+    answer?: unknown
+    zones?: unknown
+    labels?: unknown
   }
 }
 type VfrRtResults = {
@@ -304,7 +312,7 @@ test.describe('Red Team: get_vfr_rt_exam_results RPC — success / output contra
     expect(results.part3_pct).toBe(100)
     expect(results.passed_overall).toBe(true)
     expect(results.passed_per_part).toEqual({ part1: true, part2: true, part3: true })
-    expect(results.correct_count).toBe(25)
+    expect(results.correct_count).toBe(VFR_RT_CORRECT_ROWS)
     expect(results.total_questions).toBe(25)
 
     // Full review payload: one entry per session question, each carrying the
@@ -323,6 +331,13 @@ test.describe('Red Team: get_vfr_rt_exam_results RPC — success / output contra
         expect(Array.isArray(q.key.accepted_synonyms)).toBe(true)
       } else if (q.question_type === 'dialog_fill') {
         expect(Array.isArray(q.key.blanks)).toBe(true)
+      } else if (q.question_type === 'ordering') {
+        expect(q.key.correct_order).toEqual(VFR_RT_ORDERING_KEY_IDS)
+        expect(Array.isArray(q.key.items)).toBe(true)
+      } else if (q.question_type === 'diagram_label') {
+        expect(q.key.answer).toEqual(VFR_RT_DIAGRAM_ANSWER)
+        expect(Array.isArray(q.key.zones)).toBe(true)
+        expect(Array.isArray(q.key.labels)).toBe(true)
       } else {
         throw new Error(`Unhandled question_type in answer-key assertion: ${q.question_type}`)
       }
@@ -346,7 +361,7 @@ test.describe('Red Team: get_vfr_rt_exam_results RPC — success / output contra
     expect(results.part3_pct).toBe(100)
     expect(results.passed_overall).toBe(false)
     expect(results.passed_per_part).toEqual({ part1: true, part2: false, part3: true })
-    expect(results.correct_count).toBe(16)
+    expect(results.correct_count).toBe(VFR_RT_CORRECT_ROWS_PART2_WRONG)
     expect(results.total_questions).toBe(25)
 
     // The dialog_fill rows are present but graded incorrect (non-vacuous).

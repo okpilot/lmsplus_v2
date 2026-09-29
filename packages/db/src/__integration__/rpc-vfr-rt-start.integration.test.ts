@@ -22,10 +22,10 @@ import {
   ensureBank,
   getRtRefs,
   insertDialogFillQuestion,
-  insertMcQuestion,
   insertShortAnswerQuestion,
   suffix,
 } from './vfr-rt-helpers'
+import { seedP3Pool } from './vfr-rt-part3-helpers'
 
 // ─── normalize_answer ─────────────────────────────────────────────────────────
 
@@ -198,16 +198,15 @@ describe('RPC: start_vfr_rt_exam_session', () => {
         idx: i,
       })
     }
-    for (let i = 0; i < 8; i++) {
-      await insertMcQuestion({
-        orgId,
-        bankId,
-        adminId: adminUserId,
-        rtSubjectId,
-        p3TopicId,
-        idx: i,
-      })
-    }
+    // 2 MC in EACH seeded P3 subtopic (start samples 2 per subtopic).
+    await seedP3Pool({
+      orgId,
+      bankId,
+      adminId: adminUserId,
+      rtSubjectId,
+      p3TopicId,
+      idxBase: 0,
+    })
 
     // Seed an enabled exam_configs row for this org + RT subject
     const { error: ecErr } = await admin.from('exam_configs').insert({

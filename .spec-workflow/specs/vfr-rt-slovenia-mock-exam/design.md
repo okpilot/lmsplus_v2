@@ -211,7 +211,7 @@ flowchart TD
 - INSERT one `easa_subjects` row: `code='RT', name='VFR Radiotelephony (Slovenia)', short='RT', sort_order=...`. Use `ON CONFLICT (code) DO NOTHING` — `easa_subjects` has `UNIQUE(code)` (mig 001).
 - INSERT three `easa_topics` rows under that subject: codes `'P1_ACRONYMS'`, `'P2_DIALOG'`, `'P3_MC'`, names matching the briefing PDF parts.
 - For the topics INSERT use `ON CONFLICT (subject_id, code) DO NOTHING` — `easa_topics` has `UNIQUE (subject_id, code)`, NOT `UNIQUE(code)` alone (mig 001 line 67). A bare `ON CONFLICT (code)` would fail at migration time with "there is no unique or exclusion constraint matching the ON CONFLICT specification". Resolve the subject's UUID first via a CTE or via `(SELECT id FROM easa_subjects WHERE code = 'RT')` subquery in each topic INSERT.
-- No subtopics in v1.
+- Part 3 samples per subtopic (Decision 107); Parts 1 and 2 have no subtopics.
 - (Questions themselves are NOT inserted via migration — those are admin-authored via the editor or bulk-imported separately; the migration creates the syllabus skeleton.)
 
 ### Migration `098_exam_configs_parts_config.sql`
@@ -231,7 +231,7 @@ flowchart TD
   4. Auto-complete in-flight + overdue: `PERFORM complete_overdue_exam_session(...)` for this student.
   5. Check for an active `vfr_rt_exam` for this student — if found, return its current state (idempotent resume).
   6. Sample 8 `short_answer` IDs from the VFR RT subject's Part 1 topic (`question_type = 'short_answer' AND topic_id = <P1>` ordered by `random()`).
-  7. Sample 9 `dialog_fill` IDs from Part 2 topic. Sample 8 `multiple_choice` IDs from Part 3 topic.
+  7. Sample 9 `dialog_fill` IDs from Part 2 topic. Sample 2 IDs per Part 3 subtopic (multiple_choice / ordering / diagram_label), grouped by subtopic sort_order.
   8. `IF v_p1_count < 8 OR v_p2_count < 9 OR v_p3_count < 8 RAISE 'insufficient_questions_for_vfr_rt_exam' USING DETAIL = jsonb_build_object('p1_have', v_p1_count, 'p2_have', v_p2_count, 'p3_have', v_p3_count)::text;`
   9. Build the flat `question_ids` array preserving Part-1, Part-2, Part-3 order; set `parts = {p1_end: 8, p2_end: 17, p3_end: 25}`.
   10. INSERT `quiz_sessions` with `mode = 'vfr_rt_exam'`, `subject_id = p_subject_id`, `config = jsonb_build_object('question_ids', v_ids, 'parts', v_parts)`, `time_limit_seconds = 1800`, `total_questions = 25`.
@@ -276,7 +276,7 @@ flowchart TD
   6. Score per entry using the same `normalize_answer(text)` helper as the TS module (defined in this migration or in a sibling `09X_normalize_answer_fn.sql`).
   7. INSERT one `quiz_session_answers` row per entry (per blank for dialog_fill).
   8. INSERT one `student_responses` row per entry.
-  9. Compute per-part scores: Part 1 = correct_short_answers / 8 × 100, Part 2 = mean(task_scores) × 100 where task_score = correct_blanks / total_blanks per question, Part 3 = correct_mc / 8 × 100.
+  9. Compute per-part scores: Part 1 = correct_short_answers / 8 × 100, Part 2 = mean(task_scores) × 100 where task_score = correct_blanks / total_blanks per question, Part 3 = mean of per-question credit × 100 (MC 0/1; ordering / diagram_label correct slots or zones ÷ total) — `_vfr_rt_exam_part_scores`.
   10. `passed_overall := (p1 >= 75 AND p2 >= 75 AND p3 >= 75)`.
   11. UPDATE `quiz_sessions` SET `ended_at = now()`, `correct_count = total_correct`, `score_percentage = mean(p1,p2,p3)` (informational; pass uses per-part), `passed = v_passed`.
   12. INSERT `audit_events` row `'vfr_rt_exam.completed'` with metadata `{ part1_pct, part2_pct, part3_pct, passed_overall, total_questions: 25 }`.
