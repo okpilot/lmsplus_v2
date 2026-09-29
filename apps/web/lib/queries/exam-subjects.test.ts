@@ -15,7 +15,7 @@ vi.mock('@repo/db/server', () => ({
 // ---- Subject under test ---------------------------------------------------
 
 import type { ExamSubjectOption } from './exam-subjects'
-import { getExamEnabledSubjects } from './exam-subjects'
+import { getExamEnabledSubjects, getMockExamSubjects } from './exam-subjects'
 
 // ---- Helpers --------------------------------------------------------------
 
@@ -234,5 +234,30 @@ describe('getExamEnabledSubjects', () => {
     expect(result).toHaveLength(2)
     expect(result[0]!.code).toBe('MET')
     expect(result[1]!.code).toBe('AGK')
+  })
+})
+
+describe('getMockExamSubjects', () => {
+  const row = (id: string, code: string) => ({
+    subject_id: id,
+    total_questions: 30,
+    time_limit_seconds: 1800,
+    pass_mark: 75,
+    easa_subjects: { id, code, name: code, short: code },
+  })
+
+  it('omits the RT subject from the Practice Exam list', async () => {
+    mockFrom.mockReturnValue(buildChain({ data: [row('s1', 'MET'), row('s2', 'RT')], error: null }))
+
+    const result = await getMockExamSubjects()
+
+    expect(result.map((s) => s.code)).toEqual(['MET'])
+  })
+
+  it('returns an empty list when the exam-config query fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockFrom.mockReturnValue(buildChain({ data: null, error: { message: 'boom' } }))
+
+    await expect(getMockExamSubjects()).resolves.toEqual([])
   })
 })

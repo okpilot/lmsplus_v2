@@ -11,7 +11,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
-import { type QuizMode as DbQuizMode, MODE_LABELS } from '@/lib/constants/exam-modes'
+import {
+  type QuizMode as DbQuizMode,
+  isDiscardableExamMode,
+  MODE_LABELS,
+} from '@/lib/constants/exam-modes'
 import type { SessionMode } from '../../session-types'
 
 type SessionRecoveryPromptProps = Readonly<{
@@ -21,6 +25,8 @@ type SessionRecoveryPromptProps = Readonly<{
   onResume: () => void
   onSave: () => void
   onDiscard: () => void
+  // Local-only exit for modes the server refuses to discard (never calls discardQuiz).
+  onDismiss?: () => void
   loading: boolean
   error: string | null
   mode?: SessionMode
@@ -34,12 +40,14 @@ export function SessionRecoveryPrompt({
   onResume,
   onSave,
   onDiscard,
+  onDismiss,
   loading,
   error,
   mode,
   examMode,
 }: SessionRecoveryPromptProps) {
   const isExam = mode === 'exam'
+  const canDiscard = isDiscardableExamMode(examMode)
   const examLabel = MODE_LABELS[examMode ?? 'mock_exam'] ?? 'Exam'
   return (
     <div className="mx-auto mt-16 max-w-md rounded-lg border border-border bg-card p-6 shadow-sm">
@@ -78,37 +86,48 @@ export function SessionRecoveryPrompt({
             Save for Later
           </button>
         )}
-        <AlertDialog>
-          <AlertDialogTrigger
-            render={
-              <button
-                type="button"
-                disabled={loading}
-                className="rounded-lg border border-destructive/30 px-4 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
-              />
-            }
+        {canDiscard ? (
+          <AlertDialog>
+            <AlertDialogTrigger
+              render={
+                <button
+                  type="button"
+                  disabled={loading}
+                  className="rounded-lg border border-destructive/30 px-4 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
+                />
+              }
+            >
+              Discard
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  {isExam ? `Discard ${examLabel}?` : 'Discard quiz session?'}
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  {isExam
+                    ? `This will permanently discard your ${examLabel} session. You cannot undo this action.`
+                    : 'This will permanently discard your progress. You cannot undo this action.'}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction variant="destructive" onClick={onDiscard}>
+                  Discard
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        ) : (
+          <button
+            type="button"
+            onClick={onDismiss}
+            disabled={loading}
+            className="rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
           >
-            Discard
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>
-                {isExam ? `Discard ${examLabel}?` : 'Discard quiz session?'}
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                {isExam
-                  ? `This will permanently discard your ${examLabel} session. You cannot undo this action.`
-                  : 'This will permanently discard your progress. You cannot undo this action.'}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction variant="destructive" onClick={onDiscard}>
-                Discard
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+            Dismiss
+          </button>
+        )}
       </div>
     </div>
   )

@@ -152,3 +152,23 @@ describe('SessionRecoveryPrompt — exam mode', () => {
     expect(screen.getByRole('button', { name: /save for later/i })).toBeInTheDocument()
   })
 })
+
+describe('SessionRecoveryPrompt — non-discardable exam modes', () => {
+  it.each(['vfr_rt_exam', 'internal_exam'] as const)(
+    'offers Dismiss instead of Discard for %s',
+    async (examMode) => {
+      const props = makeProps({ mode: 'exam', examMode, onDismiss: vi.fn() })
+      render(<SessionRecoveryPrompt {...props} />)
+      expect(screen.queryByRole('button', { name: /^discard$/i })).not.toBeInTheDocument()
+      await userEvent.click(screen.getByRole('button', { name: /^dismiss$/i }))
+      expect(props.onDismiss).toHaveBeenCalledTimes(1)
+      expect(props.onDiscard).not.toHaveBeenCalled()
+    },
+  )
+
+  it('keeps Discard and hides Dismiss for a practice exam', () => {
+    render(<SessionRecoveryPrompt {...makeProps({ mode: 'exam', examMode: 'mock_exam' })} />)
+    expect(screen.getByRole('button', { name: /^discard$/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^dismiss$/i })).not.toBeInTheDocument()
+  })
+})

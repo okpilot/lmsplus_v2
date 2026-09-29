@@ -8,11 +8,11 @@ import type { DraftAnswer } from '../../types'
 // answersRef.current must alias answers — that's the production invariant
 // (use-exam-answer-buffer keeps the ref pointing at the live Map). Keeping the
 // mocks aligned prevents buffer-sync regressions from being silently masked.
-const { mockConfirmAnswer, mockAnswers, mockAnswersRef } = vi.hoisted(() => {
+const { mockRecordAnswer, mockAnswers, mockAnswersRef } = vi.hoisted(() => {
   const mockAnswers = new Map<string, DraftAnswer>()
   const mockAnswersRef = { current: mockAnswers }
   return {
-    mockConfirmAnswer: vi.fn(),
+    mockRecordAnswer: vi.fn(),
     mockAnswers,
     mockAnswersRef,
   }
@@ -22,7 +22,7 @@ vi.mock('./use-exam-answer-buffer', () => ({
   useExamAnswerBuffer: () => ({
     answers: mockAnswers,
     answersRef: mockAnswersRef,
-    confirmAnswer: mockConfirmAnswer,
+    recordAnswer: mockRecordAnswer,
   }),
 }))
 
@@ -176,15 +176,15 @@ describe('useExamPipeline — handleSelectAnswer', () => {
     expect(ret).toBeInstanceOf(Promise)
   })
 
-  it('calls confirmAnswer with the provided option id', async () => {
-    mockConfirmAnswer.mockReturnValue(true)
+  it('records the provided option id as the selected option', async () => {
+    mockRecordAnswer.mockReturnValue(true)
     const { result } = renderHook(() => useExamPipeline(makeOpts()))
     await result.current.handleSelectAnswer('opt-y')
-    expect(mockConfirmAnswer).toHaveBeenCalledWith('opt-y')
+    expect(mockRecordAnswer).toHaveBeenCalledWith({ selectedOptionId: 'opt-y' })
   })
 
-  it('resolves to the value returned by confirmAnswer', async () => {
-    mockConfirmAnswer.mockReturnValue(false)
+  it('resolves to false when the buffer reports the answer already locked', async () => {
+    mockRecordAnswer.mockReturnValue(false)
     const { result } = renderHook(() => useExamPipeline(makeOpts()))
     const resolved = await result.current.handleSelectAnswer('opt-z')
     expect(resolved).toBe(false)
@@ -296,21 +296,42 @@ describe('useExamPipeline — answers forwarding', () => {
   })
 })
 
-// ---- non-MC noop handlers --------------------------------------------------
+// ---- non-MC handlers -------------------------------------------------------
 
-describe('useExamPipeline — non-MC noop handlers', () => {
+describe('useExamPipeline — non-MC handlers', () => {
   it.each([
-    ['handleTextAnswer', 'cleared to land'],
-    ['handleDialogFillAnswer', [{ index: 0, text: 'cleared' }]],
-    ['handleOrderingAnswer', ['item-a', 'item-b']],
-    ['handleDiagramLabelAnswer', [{ zoneId: 'z1', labelId: 'l1' }]],
-  ] as const)('%s resolves to false without touching checkpoint or submit', async (key, arg) => {
-    const { result } = renderHook(() => useExamPipeline(makeOpts()))
+    ['handleTextAnswer', 'cleared to land', { responseText: 'cleared to land' }],
+    [
+      'handleDialogFillAnswer',
+      [{ index: 0, text: 'cleared' }],
+      { blankAnswers: [{ index: 0, text: 'cleared' }] },
+    ],
+    ['handleOrderingAnswer', ['item-a', 'item-b'], { order: ['item-a', 'item-b'] }],
+    [
+      'handleDiagramLabelAnswer',
+      [{ zoneId: 'z1', labelId: 'l1' }],
+      { mapping: [{ zoneId: 'z1', labelId: 'l1' }] },
+    ],
+  ] as const)('%s records the answer and checkpoints', async (key, arg, draft) => {
+    mockRecordAnswer.mockReturnValue(true)
+    const opts = makeOpts()
+    const { result } = renderHook(() => useExamPipeline(opts))
     const handler = result.current[key] as (a: unknown) => Promise<boolean>
     const resolved = await handler(arg)
+    expect(resolved).toBe(true)
+    expect(mockRecordAnswer).toHaveBeenCalledWith(draft)
+    expect(mockCheckpoint).toHaveBeenCalledWith(
+      mockAnswersRef.current,
+      opts.currentIndexRef.current,
+    )
+  })
+
+  it('skips checkpoint when a non-MC answer is already locked', async () => {
+    mockRecordAnswer.mockReturnValue(false)
+    const { result } = renderHook(() => useExamPipeline(makeOpts()))
+    const resolved = await result.current.handleTextAnswer('again')
     expect(resolved).toBe(false)
     expect(mockCheckpoint).not.toHaveBeenCalled()
-    expect(mockConfirmAnswer).not.toHaveBeenCalled()
   })
 })
 
@@ -318,7 +339,7 @@ describe('useExamPipeline — non-MC noop handlers', () => {
 
 describe('useExamPipeline — persistence', () => {
   it('calls checkpoint with mode=exam after a new answer is confirmed', async () => {
-    mockConfirmAnswer.mockReturnValue(true)
+    mockRecordAnswer.mockReturnValue(true)
     const opts = makeOpts()
     const { result } = renderHook(() => useExamPipeline(opts))
 
@@ -332,7 +353,7 @@ describe('useExamPipeline — persistence', () => {
   })
 
   it('skips checkpoint when the answer was already locked (confirmAnswer returns false)', async () => {
-    mockConfirmAnswer.mockReturnValue(false)
+    mockRecordAnswer.mockReturnValue(false)
     const { result } = renderHook(() => useExamPipeline(makeOpts()))
 
     await result.current.handleSelectAnswer('opt-a')

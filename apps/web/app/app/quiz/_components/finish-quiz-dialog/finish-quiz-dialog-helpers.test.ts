@@ -70,6 +70,19 @@ describe('deriveFinishDialogView', () => {
   })
 })
 
+describe('deriveFinishDialogView — VFR RT exam', () => {
+  it('allows dismiss but blocks discard for a VFR RT exam still in progress', () => {
+    const view = deriveFinishDialogView({
+      answeredCount: 5,
+      totalQuestions: 5,
+      isExam: true,
+      examMode: 'vfr_rt_exam',
+    })
+    expect(view.canDismiss).toBe(true)
+    expect(view.canDiscard).toBe(false)
+  })
+})
+
 describe('getSubmitButtonLabel', () => {
   it('shows a submitting label while the submit is in flight', () => {
     expect(

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { EXAM_MODES, isExamMode, MODE_LABELS, type QuizMode } from './exam-modes'
+import {
+  EXAM_MODES,
+  isDiscardableExamMode,
+  isExamMode,
+  MODE_LABELS,
+  type QuizMode,
+} from './exam-modes'
 
 describe('MODE_LABELS', () => {
   it('provides a label for every quiz_sessions.mode value', () => {
@@ -61,5 +67,15 @@ describe('isExamMode', () => {
 
   it('includes the VFR RT exam mode in the exam-mode set', () => {
     expect(EXAM_MODES).toContain('vfr_rt_exam')
+  })
+})
+
+describe('isDiscardableExamMode', () => {
+  it.each(['internal_exam', 'vfr_rt_exam'])('refuses discard for %s', (mode) => {
+    expect(isDiscardableExamMode(mode)).toBe(false)
+  })
+
+  it.each(['mock_exam', 'quick_quiz', 'discovery', undefined])('allows discard for %s', (mode) => {
+    expect(isDiscardableExamMode(mode)).toBe(true)
   })
 })

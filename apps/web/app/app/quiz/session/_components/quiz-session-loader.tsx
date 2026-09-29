@@ -1,13 +1,17 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useSessionBootstrap } from '../_hooks/use-session-bootstrap'
 import { clampIndex } from '../_utils/clamp-index'
+import { getDismissTarget } from '../_utils/dismiss-target'
+import { clearActiveSession } from '../_utils/quiz-session-storage'
 import { QuizSession } from './quiz-session'
 import { SessionRecoveryPrompt } from './session-recovery-prompt'
 
 export function QuizSessionLoader({ userId }: Readonly<{ userId: string }>) {
   const bs = useSessionBootstrap(userId)
+  const router = useRouter()
 
   if (bs.recovery) {
     return (
@@ -25,6 +29,12 @@ export function QuizSessionLoader({ userId }: Readonly<{ userId: string }>) {
         onDiscard={() => {
           bs.clearRecovery()
           bs.recoveryActions.handleDiscard()
+        }}
+        onDismiss={() => {
+          const target = getDismissTarget(bs.recovery?.examMode)
+          clearActiveSession(userId)
+          bs.clearRecovery()
+          if (target) router.replace(target)
         }}
         loading={bs.recoveryActions.loading || bs.resumeLoading}
         error={bs.resumeError ?? bs.recoveryActions.error}

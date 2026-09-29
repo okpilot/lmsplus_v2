@@ -664,7 +664,7 @@ describe('QuizMainPanel', () => {
       expect(input).toHaveAttribute('data-is-correct', '')
     })
 
-    it('shows an unsupported-type notice for a non-MC question in exam mode', () => {
+    it('renders the short-answer input without an alert for a non-MC question in exam mode', () => {
       const s = makeState({
         isExam: true,
         question: {
@@ -683,10 +683,10 @@ describe('QuizMainPanel', () => {
         },
       } as Partial<QuizState>)
       render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
-      expect(screen.queryByTestId('short-answer-input')).not.toBeInTheDocument()
-      expect(screen.getByRole('alert')).toHaveTextContent(
-        'This question type is not yet supported in exam mode.',
-      )
+      expect(screen.getByTestId('short-answer-input')).toBeInTheDocument()
+      expect(screen.getByTestId('short-answer-input')).toBeEnabled()
+      expect(screen.queryByText(/not yet supported/i)).not.toBeInTheDocument()
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     })
 
     it('locks dialog-fill submission when an answer already exists', () => {

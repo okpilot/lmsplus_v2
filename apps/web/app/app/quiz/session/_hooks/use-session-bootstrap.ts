@@ -39,7 +39,7 @@ export function useSessionBootstrap(userId: string) {
     setSession(data)
     // Questions + flags load in parallel; the session renders only once BOTH have
     // settled (QuizSession mounts once — the flag seed cannot be applied late).
-    loadSessionData(data.questionIds)
+    loadSessionData(data.questionIds, data)
       .then((r) => {
         if (!r.success) return setError(r.error)
         clearSessionHandoff(userId)

@@ -3,9 +3,14 @@ import type { TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockFrom, mockGetTopicsWithSubtopics } = vi.hoisted(() => ({
+const { mockFrom, mockGetTopicsWithSubtopics, mockGetExamEnabledSubjects } = vi.hoisted(() => ({
   mockFrom: vi.fn(),
   mockGetTopicsWithSubtopics: vi.fn(),
+  mockGetExamEnabledSubjects: vi.fn(),
+}))
+
+vi.mock('@/lib/queries/exam-subjects', () => ({
+  getExamEnabledSubjects: (...args: unknown[]) => mockGetExamEnabledSubjects(...args),
 }))
 
 vi.mock('@repo/db/server', () => ({
@@ -54,6 +59,7 @@ const TOPIC: TopicWithSubtopics = {
 beforeEach(() => {
   vi.resetAllMocks()
   mockGetTopicsWithSubtopics.mockResolvedValue([TOPIC])
+  mockGetExamEnabledSubjects.mockResolvedValue([])
 })
 
 // ---- Happy path -----------------------------------------------------------
@@ -113,6 +119,37 @@ describe('getRtSubjectData — happy path', () => {
       'topics query failed',
     )
     consoleSpy.mockRestore()
+  })
+})
+
+// ---- Exam availability ----------------------------------------------------
+
+describe('getRtSubjectData — exam availability', () => {
+  it('reports the exam available when the RT subject has an enabled exam config', async () => {
+    mockFrom.mockReturnValue(buildChain({ data: { id: SUBJECT_ID }, error: null }))
+    mockGetExamEnabledSubjects.mockResolvedValue([{ id: SUBJECT_ID, code: 'RT' }])
+
+    const result = await getRtSubjectData()
+
+    expect(result.examAvailable).toBe(true)
+  })
+
+  it('reports the exam unavailable when only other subjects have an enabled exam config', async () => {
+    mockFrom.mockReturnValue(buildChain({ data: { id: SUBJECT_ID }, error: null }))
+    mockGetExamEnabledSubjects.mockResolvedValue([{ id: 'other-subject', code: 'MET' }])
+
+    const result = await getRtSubjectData()
+
+    expect(result.examAvailable).toBe(false)
+  })
+
+  it('reports the exam unavailable when the exam-config query failed and returned no subjects', async () => {
+    mockFrom.mockReturnValue(buildChain({ data: { id: SUBJECT_ID }, error: null }))
+    mockGetExamEnabledSubjects.mockResolvedValue([])
+
+    const result = await getRtSubjectData()
+
+    expect(result.examAvailable).toBe(false)
   })
 })
 

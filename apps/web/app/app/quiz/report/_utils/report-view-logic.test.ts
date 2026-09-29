@@ -94,6 +94,20 @@ describe('canonicalReportBasePath', () => {
     expect(mockRedirect).not.toHaveBeenCalled()
   })
 
+  it('returns /app/vfr-rt/report without redirecting when a vfr_rt_exam summary is viewed under the vfr-rt namespace', () => {
+    const summary = makeSummary({ subjectCode: 'RT', mode: 'vfr_rt_exam' })
+    expect(canonicalReportBasePath(summary, 'vfr-rt', '1')).toBe('/app/vfr-rt/report')
+    expect(mockRedirect).not.toHaveBeenCalled()
+  })
+
+  it('redirects a vfr_rt_exam summary viewed under the quiz namespace to /app/vfr-rt/report', () => {
+    const summary = makeSummary({ subjectCode: 'RT', mode: 'vfr_rt_exam' })
+    expect(() => canonicalReportBasePath(summary, 'quiz', '1')).toThrow()
+    expect(mockRedirect).toHaveBeenCalledWith(
+      `/app/vfr-rt/report?session=${VALID_SESSION_ID}&page=1`,
+    )
+  })
+
   it('returns /app/quiz/report without redirecting when a non-RT summary is viewed under the quiz namespace', () => {
     const summary = makeSummary({ subjectCode: null })
     const result = canonicalReportBasePath(summary, 'quiz', '1')

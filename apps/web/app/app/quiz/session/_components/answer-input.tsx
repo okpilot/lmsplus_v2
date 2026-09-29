@@ -18,12 +18,6 @@ type AnswerInputProps = {
 function AnswerControl(props: AnswerInputProps & { question: Question }) {
   const { s, question } = props
 
-  if (s.isExam && question.question_type !== 'multiple_choice') {
-    return (
-      <UnsupportedQuestionType message="This question type is not yet supported in exam mode." />
-    )
-  }
-
   switch (question.question_type) {
     case 'multiple_choice':
       return <McAnswer {...props} />

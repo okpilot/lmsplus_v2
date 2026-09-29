@@ -8,6 +8,7 @@ import {
   handleSaveSession,
   handleSubmitSession,
 } from './quiz-submit'
+import { handleSubmitVfrRtExamSession } from './quiz-submit-vfr-rt'
 
 /** Which finish-dialog action is currently in flight, or null when idle. */
 export type QuizPendingAction = 'submit' | 'save' | 'discard' | null
@@ -53,6 +54,7 @@ export function buildHandleSubmit(
     pendingQuestionIdRef: React.RefObject<Set<string>>
     navFallbackTimer: React.RefObject<ReturnType<typeof setTimeout> | null>
     setShowFinishDialog: (v: boolean) => void
+    questions: SessionQuestion[]
     isExam?: boolean
     examMode?: DbQuizMode
   },
@@ -66,19 +68,31 @@ export function buildHandleSubmit(
       pending.size > 0
         ? new Map([...deps.answersRef.current].filter(([qId]) => !pending.has(qId)))
         : deps.answersRef.current
-    await handleSubmitSession({
-      userId: deps.userId,
-      sessionId: deps.sessionId,
-      answers: safeAnswers,
-      draftId: deps.draftId,
-      isExam: deps.isExam,
-      examMode: deps.examMode,
-      onSuccess: () => {
-        deps.submitted.current = true
-        deps.setShowFinishDialog(false)
-      },
-      ...sharedFor('submit'),
-    }).finally(() => {
+    const onSuccess = () => {
+      deps.submitted.current = true
+      deps.setShowFinishDialog(false)
+    }
+    const submission =
+      deps.examMode === 'vfr_rt_exam'
+        ? handleSubmitVfrRtExamSession({
+            userId: deps.userId,
+            sessionId: deps.sessionId,
+            answers: safeAnswers,
+            questions: deps.questions,
+            onSuccess,
+            ...sharedFor('submit'),
+          })
+        : handleSubmitSession({
+            userId: deps.userId,
+            sessionId: deps.sessionId,
+            answers: safeAnswers,
+            draftId: deps.draftId,
+            isExam: deps.isExam,
+            examMode: deps.examMode,
+            onSuccess,
+            ...sharedFor('submit'),
+          })
+    await submission.finally(() => {
       // If submit rejected/threw before any setSubmitting(false), release the re-entry lock
       // so the student can retry. On success onSuccess set submitted.current = true first, so
       // the lock intentionally stays engaged here (terminal — navigating to the report).

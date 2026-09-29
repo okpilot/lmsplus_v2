@@ -204,3 +204,46 @@ describe('useExamAnswerBuffer — answersRef stays in sync with answers state', 
     expect(result.current.answersRef.current.get(Q1)).toEqual(result.current.answers.get(Q1))
   })
 })
+
+// ---- recordAnswer — non-MC drafts ------------------------------------------
+
+describe('useExamAnswerBuffer — recordAnswer', () => {
+  it.each([
+    [{ responseText: 'cleared' }],
+    [{ blankAnswers: [{ index: 0, text: 'cleared' }] }],
+    [{ order: ['a', 'b'] }],
+    [{ mapping: [{ zoneId: 'z1', labelId: 'l1' }] }],
+  ])('records a non-MC draft with an elapsed response time', async (draft) => {
+    const opts = makeOpts(Q1, Date.now() - 1500)
+    const { result } = renderHook(() => useExamAnswerBuffer(opts))
+    let returned: boolean | undefined
+    await act(async () => {
+      returned = result.current.recordAnswer(draft)
+    })
+    expect(returned).toBe(true)
+    expect(result.current.answers.get(Q1)).toMatchObject(draft)
+    expect(result.current.answers.get(Q1)?.responseTimeMs).toBeGreaterThanOrEqual(1500)
+  })
+
+  it('keeps the first answer when a second is recorded for the same question', async () => {
+    const { result } = renderHook(() => useExamAnswerBuffer(makeOpts(Q1)))
+    let second: boolean | undefined
+    await act(async () => {
+      result.current.recordAnswer({ responseText: 'first' })
+      second = result.current.recordAnswer({ responseText: 'second' })
+    })
+    expect(second).toBe(false)
+    expect(result.current.answers.get(Q1)?.responseText).toBe('first')
+  })
+
+  it('rejects a non-MC draft when an MC answer already locked the question', async () => {
+    const { result } = renderHook(() => useExamAnswerBuffer(makeOpts(Q1)))
+    let returned: boolean | undefined
+    await act(async () => {
+      result.current.confirmAnswer('opt-a')
+      returned = result.current.recordAnswer({ order: ['a'] })
+    })
+    expect(returned).toBe(false)
+    expect(result.current.answers.get(Q1)?.order).toBeUndefined()
+  })
+})

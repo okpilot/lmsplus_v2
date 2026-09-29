@@ -15,6 +15,10 @@ vi.mock('@/app/app/quiz/_hooks/use-quiz-config', () => ({
   useQuizConfig: (...args: unknown[]) => mockUseQuizConfig(...args),
 }))
 
+vi.mock('./vfr-rt-exam-panel', () => ({
+  VfrRtExamPanel: () => <div data-testid="exam-panel" />,
+}))
+
 // ---- Subject under test ---------------------------------------------------
 
 import { VfrRtConfigForm } from './vfr-rt-config-form'
@@ -26,7 +30,11 @@ const SUBJECTS = [{ id: SUBJECT_ID, code: 'RT', name: 'VFR RT', short: 'RT', que
 const INITIAL_TOPICS: TopicWithSubtopics[] = []
 
 function renderForm(
-  overrides: { subjects?: typeof SUBJECTS; initialTopics?: typeof INITIAL_TOPICS } = {},
+  overrides: {
+    subjects?: typeof SUBJECTS
+    initialTopics?: typeof INITIAL_TOPICS
+    examAvailable?: boolean
+  } = {},
 ) {
   return render(
     <VfrRtConfigForm
@@ -34,6 +42,7 @@ function renderForm(
       subjectId={SUBJECT_ID}
       subjects={overrides.subjects ?? SUBJECTS}
       initialTopics={overrides.initialTopics ?? INITIAL_TOPICS}
+      examAvailable={overrides.examAvailable ?? false}
     />,
   )
 }
@@ -126,9 +135,27 @@ describe('VfrRtConfigForm — mode toggle', () => {
     expect(screen.getByRole('button', { name: /discovery/i })).toBeDisabled()
   })
 
-  it('renders Practice Exam disabled', () => {
-    renderForm()
+  it('renders Practice Exam disabled when the org has no enabled RT exam config', () => {
+    renderForm({ examAvailable: false })
     expect(screen.getByRole('button', { name: /practice exam/i })).toBeDisabled()
+  })
+
+  it('renders Practice Exam enabled when the org has an enabled RT exam config', () => {
+    renderForm({ examAvailable: true })
+    expect(screen.getByRole('button', { name: /practice exam/i })).not.toBeDisabled()
+  })
+
+  it('shows the exam panel instead of the practice start button in exam mode', () => {
+    mockUseQuizConfig.mockReturnValue(buildMockConfig({ mode: 'exam' }))
+    renderForm({ examAvailable: true })
+    expect(screen.getByTestId('exam-panel')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /start practice/i })).toBeNull()
+    expect(screen.queryByText('Unanswered')).toBeNull()
+  })
+
+  it('does not show the exam panel in study mode', () => {
+    renderForm({ examAvailable: true })
+    expect(screen.queryByTestId('exam-panel')).toBeNull()
   })
 })
 

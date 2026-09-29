@@ -7,12 +7,14 @@ import { StartButton } from '@/app/app/quiz/_components/start-button'
 import { TopicTree } from '@/app/app/quiz/_components/topic-tree'
 import { useQuizConfig } from '@/app/app/quiz/_hooks/use-quiz-config'
 import type { SubjectOption, TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
+import { VfrRtExamPanel } from './vfr-rt-exam-panel'
 
 type VfrRtConfigFormProps = {
   userId: string
   subjectId: string
   subjects: SubjectOption[]
   initialTopics: TopicWithSubtopics[]
+  examAvailable: boolean
 }
 
 /**
@@ -23,14 +25,15 @@ type VfrRtConfigFormProps = {
  * handoff derives subjectName/subjectCode from `subjects.find(s => s.id ===
  * subjectId)` inside useQuizStart. `initialTopics` seeds the topic tree from
  * the RSC fetch — no client mount-time load.
- * Discovery and Practice Exam are present-but-disabled; Study is the only
- * available mode until Discovery's non-MC backend lands in a later slice.
+ * Discovery is present-but-disabled. Practice Exam is enabled when the org has an
+ * enabled RT exam_config; its body is VfrRtExamPanel instead of the practice filters.
  */
 export function VfrRtConfigForm({
   userId,
   subjectId,
   subjects,
   initialTopics,
+  examAvailable,
 }: Readonly<VfrRtConfigFormProps>) {
   const config = useQuizConfig({
     userId,
@@ -40,6 +43,7 @@ export function VfrRtConfigForm({
     initialTopics,
   })
   const hasTopics = config.topicTree.topics.length > 0
+  const isExam = config.mode === 'exam'
 
   return (
     <div className="space-y-4">
@@ -47,22 +51,26 @@ export function VfrRtConfigForm({
         <ModeToggle
           value={config.mode}
           onValueChange={config.setMode}
-          examAvailable={false}
+          examAvailable={examAvailable}
           discoveryAvailable={false}
         />
-        <QuestionFilters
-          value={config.filters}
-          onValueChange={config.setFilters}
-          calcMode={config.calcMode}
-          onCalcModeChange={config.setCalcMode}
-          imageMode={config.imageMode}
-          onImageModeChange={config.setImageMode}
-          unseenLabel="Unanswered"
-          showCalcImageToggles={false}
-        />
+        {!isExam && (
+          <QuestionFilters
+            value={config.filters}
+            onValueChange={config.setFilters}
+            calcMode={config.calcMode}
+            onCalcModeChange={config.setCalcMode}
+            imageMode={config.imageMode}
+            onImageModeChange={config.setImageMode}
+            unseenLabel="Unanswered"
+            showCalcImageToggles={false}
+          />
+        )}
       </div>
 
-      {hasTopics && (
+      {isExam && <VfrRtExamPanel userId={userId} subjectId={subjectId} subjects={subjects} />}
+
+      {!isExam && hasTopics && (
         <>
           <div className="rounded-xl border border-border bg-card p-6">
             <TopicTree
@@ -89,25 +97,27 @@ export function VfrRtConfigForm({
         </>
       )}
 
-      {config.error && (
+      {!isExam && config.error && (
         <p role="alert" className="text-sm text-destructive">
           {config.error}
         </p>
       )}
-      {config.authError && (
+      {!isExam && config.authError && (
         <p role="alert" className="text-sm text-destructive">
           Session expired. Please refresh the page.
         </p>
       )}
 
-      <StartButton
-        disabled={
-          config.availableCount === 0 || config.loading || config.isPending || config.authError
-        }
-        loading={config.loading}
-        label="Start Practice"
-        onClick={config.handleStart}
-      />
+      {!isExam && (
+        <StartButton
+          disabled={
+            config.availableCount === 0 || config.loading || config.isPending || config.authError
+          }
+          loading={config.loading}
+          label="Start Practice"
+          onClick={config.handleStart}
+        />
+      )}
     </div>
   )
 }

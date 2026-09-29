@@ -2,6 +2,7 @@ import { useRouter } from 'next/navigation'
 import { useRef } from 'react'
 import type { QuizStateOpts } from '../../session-types'
 import type { AnswerFeedback } from '../../types'
+import { buildExamAnswerHandlers } from './exam-answer-handlers'
 import { useExamAnswerBuffer } from './use-exam-answer-buffer'
 import { useQuizPersistence } from './use-quiz-persistence'
 import { useQuizSubmit } from './use-quiz-submit'
@@ -27,7 +28,7 @@ export function useExamPipeline(opts: {
 
   // initialAnswers flows to both study and exam pipelines (both instantiated in use-quiz-state.ts);
   // p = isExam ? exam : study gates which is surfaced, so seeding the unused pipeline is harmless.
-  const { answers, answersRef, confirmAnswer } = useExamAnswerBuffer({
+  const { answers, answersRef, recordAnswer } = useExamAnswerBuffer({
     getQuestionId: opts.getQuestionId,
     getAnswerStartTime: opts.getAnswerStartTime,
     initialAnswers: opts.quizOpts.initialAnswers,
@@ -49,20 +50,10 @@ export function useExamPipeline(opts: {
     examMode: opts.quizOpts.examMode,
   })
 
-  function handleSelectAnswer(id: string): Promise<boolean> {
-    const recorded = confirmAnswer(id)
-    if (recorded) {
-      checkpoint(answersRef.current, opts.currentIndexRef.current)
-    }
-    return Promise.resolve(recorded)
-  }
-
-  // Non-MC types (short_answer / dialog_fill / ordering / diagram_label) are
-  // practice-only — the check_non_mc_answer RPC rejects exam-mode sessions, and
-  // exam questions are MC. These exist only to keep the exam/study pipeline
-  // return shapes unioned (use-quiz-state.ts: `p = isExam ? exam : study`).
-  // They are never reached: QuizMainPanel renders non-MC inputs only in study mode.
-  const noopNonMcHandler = (): Promise<boolean> => Promise.resolve(false)
+  const handlers = buildExamAnswerHandlers({
+    recordAnswer,
+    checkpoint: () => checkpoint(answersRef.current, opts.currentIndexRef.current),
+  })
 
   return {
     answers,
@@ -70,11 +61,7 @@ export function useExamPipeline(opts: {
     // Exam answers are buffered locally (no per-answer RPC), so there is never
     // an in-flight answer to show a spinner for.
     answering: false,
-    handleSelectAnswer,
-    handleTextAnswer: noopNonMcHandler,
-    handleDialogFillAnswer: noopNonMcHandler,
-    handleOrderingAnswer: noopNonMcHandler,
-    handleDiagramLabelAnswer: noopNonMcHandler,
+    ...handlers,
     navigateTo: opts.navigateTo,
     navigate: opts.navigate,
     submitted: submit.submitted,

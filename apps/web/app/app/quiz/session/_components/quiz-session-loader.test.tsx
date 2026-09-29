@@ -48,8 +48,23 @@ vi.mock('./session-recovery-prompt', () => ({
       <button type="button" onClick={props.onDiscard as () => void}>
         discard
       </button>
+      <button type="button" onClick={props.onDismiss as () => void}>
+        dismiss
+      </button>
     </div>
   ),
+}))
+
+const { mockReplace, mockClearActiveSession } = vi.hoisted(() => ({
+  mockReplace: vi.fn(),
+  mockClearActiveSession: vi.fn(),
+}))
+
+vi.mock('next/navigation', () => ({ useRouter: () => ({ replace: mockReplace }) }))
+
+vi.mock('../_utils/quiz-session-storage', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../_utils/quiz-session-storage')>()),
+  clearActiveSession: (userId: string) => mockClearActiveSession(userId),
 }))
 
 vi.mock('@/components/ui/skeleton', () => ({
@@ -432,4 +447,28 @@ describe('QuizSessionLoader — answer filtering', () => {
     expect(() => render(<QuizSessionLoader userId="user-1" />)).not.toThrow()
     expect(screen.getByTestId('quiz-session')).toBeInTheDocument()
   })
+})
+
+// ---- Dismiss (non-discardable exam modes) -----------------------------------
+
+describe('QuizSessionLoader — dismiss', () => {
+  it.each([
+    ['vfr_rt_exam', '/app/vfr-rt'],
+    ['internal_exam', '/app/internal-exam'],
+  ] as const)(
+    'clears the local session and leaves for %s without discarding',
+    async (examMode, path) => {
+      const base = makeBootstrapBase()
+      mockUseSessionBootstrap.mockReturnValue({
+        ...base,
+        recovery: { ...makeRecovery(), mode: 'exam', examMode },
+      })
+      render(<QuizSessionLoader userId="user-1" />)
+      await userEvent.click(screen.getByRole('button', { name: 'dismiss' }))
+      expect(mockClearActiveSession).toHaveBeenCalledWith('user-1')
+      expect(base.clearRecovery).toHaveBeenCalledTimes(1)
+      expect(mockReplace).toHaveBeenCalledWith(path)
+      expect(base.recoveryActions.handleDiscard).not.toHaveBeenCalled()
+    },
+  )
 })

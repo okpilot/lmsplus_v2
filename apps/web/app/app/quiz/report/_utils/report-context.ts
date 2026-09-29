@@ -16,7 +16,15 @@ export function isVfrRtPracticeReport(mode: string, subjectCode: string | null):
   return mode === 'quick_quiz' && subjectCode === RT_SUBJECT_CODE
 }
 
+// True for any VFR RT report (practice or mock exam) — selects the vfr-rt report namespace.
+export function isVfrRtReport(mode: string, subjectCode: string | null): boolean {
+  return isVfrRtPracticeReport(mode, subjectCode) || mode === 'vfr_rt_exam'
+}
+
 export function getReportContext(mode: string, subjectCode: string | null): ReportContext {
+  if (mode === 'vfr_rt_exam') {
+    return { noun: 'VFR RT Mock Exam', backHref: '/app/vfr-rt', backLabel: 'Back to VFR RT' }
+  }
   if (isVfrRtPracticeReport(mode, subjectCode)) {
     return {
       noun: 'VFR RT Practice',

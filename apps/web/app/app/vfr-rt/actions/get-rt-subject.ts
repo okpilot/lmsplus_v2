@@ -1,6 +1,7 @@
 'use server'
 
 import { createServerSupabaseClient } from '@repo/db/server'
+import { getExamEnabledSubjects } from '@/lib/queries/exam-subjects'
 import type { SubjectOption, TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
 import { getTopicsWithSubtopics } from '@/lib/queries/quiz-subject-queries'
 
@@ -11,6 +12,8 @@ export type RtSubjectData = {
   // from it. Built here (data layer) so the RSC stays pure composition.
   subjects: SubjectOption[]
   topics: TopicWithSubtopics[]
+  // The student's org has an enabled exam_config for RT (getExamEnabledSubjects; error → false).
+  examAvailable: boolean
 }
 
 /**
@@ -38,14 +41,22 @@ export async function getRtSubjectData(): Promise<RtSubjectData> {
   }
 
   let topics: TopicWithSubtopics[] = []
-  try {
-    topics = await getTopicsWithSubtopics(subject.id)
-  } catch (topicsError) {
+  const [topicsResult, examSubjects] = await Promise.all([
+    getTopicsWithSubtopics(subject.id).then(
+      (t) => ({ ok: true as const, topics: t }),
+      (e: unknown) => ({ ok: false as const, error: e }),
+    ),
+    getExamEnabledSubjects(),
+  ])
+  if (topicsResult.ok) {
+    topics = topicsResult.topics
+  } else {
     console.error(
       '[getRtSubjectData] Topics fetch failed:',
-      topicsError instanceof Error ? topicsError.message : topicsError,
+      topicsResult.error instanceof Error ? topicsResult.error.message : topicsResult.error,
     )
   }
+  const examAvailable = examSubjects.some((s) => s.id === subject.id)
 
   const subjects: SubjectOption[] = [
     {
@@ -57,5 +68,5 @@ export async function getRtSubjectData(): Promise<RtSubjectData> {
     },
   ]
 
-  return { id: subject.id, subjects, topics }
+  return { id: subject.id, subjects, topics, examAvailable }
 }

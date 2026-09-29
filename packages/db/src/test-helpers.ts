@@ -18,3 +18,4 @@ export {
   getAnonClient,
   getAuthenticatedClient,
 } from './__integration__/setup'
+export { createPart3Org, type Part3Org, startPart3Exam } from './__integration__/vfr-rt-part3-org'

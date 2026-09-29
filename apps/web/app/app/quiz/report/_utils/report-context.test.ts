@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getReportContext, isVfrRtPracticeReport } from './report-context'
+import { getReportContext, isVfrRtPracticeReport, isVfrRtReport } from './report-context'
 
 describe('getReportContext', () => {
   it('reads as a practice session for an RT subject in quick_quiz mode', () => {
@@ -30,11 +30,11 @@ describe('getReportContext', () => {
     expect(ctx.backLabel).toBe('Start Another Quiz')
   })
 
-  it('falls through to a quiz for an RT subject in an exam mode', () => {
+  it('reads as a VFR RT Mock Exam that links back to VFR RT for a vfr_rt_exam session', () => {
     const ctx = getReportContext('vfr_rt_exam', 'RT')
-    expect(ctx.noun).toBe('Quiz')
-    expect(ctx.backHref).toBe('/app/quiz')
-    expect(ctx.backLabel).toBe('Start Another Quiz')
+    expect(ctx.noun).toBe('VFR RT Mock Exam')
+    expect(ctx.backHref).toBe('/app/vfr-rt')
+    expect(ctx.backLabel).toBe('Back to VFR RT')
   })
 })
 
@@ -57,5 +57,17 @@ describe('isVfrRtPracticeReport', () => {
 
   it('is false when the subject code is null', () => {
     expect(isVfrRtPracticeReport('quick_quiz', null)).toBe(false)
+  })
+})
+
+describe('isVfrRtReport', () => {
+  it('is true for RT practice and for a vfr_rt_exam session', () => {
+    expect(isVfrRtReport('quick_quiz', 'RT')).toBe(true)
+    expect(isVfrRtReport('vfr_rt_exam', 'RT')).toBe(true)
+  })
+
+  it('is false for other modes and non-RT quick quizzes', () => {
+    expect(isVfrRtReport('mock_exam', 'RT')).toBe(false)
+    expect(isVfrRtReport('quick_quiz', 'MET')).toBe(false)
   })
 })
