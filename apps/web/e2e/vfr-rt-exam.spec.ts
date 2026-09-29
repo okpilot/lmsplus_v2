@@ -11,7 +11,7 @@ import { cleanupStudentActiveSessions, getAdminClient, TEST_EMAIL } from './help
 import { getEgmontOrgId } from './redteam/helpers/seed-core'
 import { cleanupVfrRtPool, seedVfrRtPool, type VfrRtPool } from './redteam/helpers/seed-vfr-rt-pool'
 
-test.use({ storageState: 'e2e/.auth/user.json' })
+test.use({ storageState: 'e2e/.auth/user.json', viewport: { width: 1280, height: 1000 } })
 
 type AnswerType = 'short_answer' | 'dialog_fill' | 'multiple_choice' | 'ordering' | 'diagram_label'
 
@@ -74,7 +74,7 @@ async function dragChipOntoFirstZone(page: Page): Promise<void> {
     steps: 15,
   })
   await page.mouse.up()
-  await expect(zone).toContainText(/\S/)
+  await expect(zone.locator(DIAGRAM_CHIP)).toHaveCount(1)
 }
 
 /** Answers the visible question and asserts it locks with no correctness feedback. */
@@ -108,7 +108,7 @@ async function answerAndAssertLocked(page: Page, type: AnswerType): Promise<void
 }
 
 async function nextQuestion(page: Page): Promise<void> {
-  await page.getByRole('button', { name: /Next/ }).click()
+  await page.getByRole('button', { name: 'Next ›' }).click()
 }
 
 async function finishAndSubmit(page: Page): Promise<void> {
