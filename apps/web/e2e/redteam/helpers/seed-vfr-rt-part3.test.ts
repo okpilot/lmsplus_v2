@@ -129,7 +129,15 @@ describe('seedPart3Pool', () => {
   it('throws when no subtopics resolve', async () => {
     const admin = adminWithSubtopics({ data: [], error: null })
     await expect(seedPart3Pool({ admin, base: BASE, insert: vi.fn() })).rejects.toThrow(
-      /no P3_MC subtopics/,
+      /want 4 P3_MC subtopics, got 0/,
+    )
+  })
+
+  it('throws when the database holds more Part 3 subtopics than the pool constants cover', async () => {
+    const extra = [...SUBTOPICS, { id: 'sub-extra', code: 'P3_EXTRA' }]
+    const admin = adminWithSubtopics({ data: extra, error: null })
+    await expect(seedPart3Pool({ admin, base: BASE, insert: vi.fn() })).rejects.toThrow(
+      /want 4 P3_MC subtopics, got 5/,
     )
   })
 

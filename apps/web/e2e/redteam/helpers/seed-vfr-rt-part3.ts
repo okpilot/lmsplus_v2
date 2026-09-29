@@ -132,15 +132,15 @@ async function resolveP3Subtopics(
     .select('id, code')
     .eq('topic_id', topicId)
   if (error) throw new Error(`resolveP3Subtopics: ${error.message}`)
-  if (!Array.isArray(data) || data.length === 0)
-    throw new Error('resolveP3Subtopics: no P3_MC subtopics — run mig 097')
+  const n = Array.isArray(data) ? data.length : 0
+  const want = VFR_RT_P3_SUBTOPIC_COUNT
+  if (n !== want) throw new Error(`resolveP3Subtopics: want ${want} P3_MC subtopics, got ${n}`)
   return data as Array<{ id: string; code: string }>
 }
 
 /**
- * Seed Part 3 for the fixture's own org: >= 2 questions in every real P3_MC subtopic,
- * including at least one ordering and one diagram_label. `insert` returns created ids
- * in row order.
+ * Seed Part 3 for the fixture's own org: >= 2 questions in every real P3_MC subtopic, with at
+ * least one ordering and one diagram_label. `insert` returns created ids in row order.
  */
 export async function seedPart3Pool(opts: {
   admin: SupabaseClient
