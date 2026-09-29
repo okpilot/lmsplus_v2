@@ -84,6 +84,7 @@ BEGIN
         v_org_id, v_student_id, v_actor_role,
         'vfr_rt_exam.expired', 'quiz_session', p_session_id,
         jsonb_build_object('total_questions', v_total, 'answered_count', 0, 'correct_count', 0,
+                           'part1_pct', 0, 'part2_pct', 0, 'part3_pct', 0,
                            'passed', false, 'reason', 'submission past grace period')
       );
       RETURN jsonb_build_object(

@@ -52,11 +52,26 @@ BEGIN
     RAISE EXCEPTION 'session_config_malformed';
   END IF;
 
-  -- Per-part percentages: shared helper (frozen-ID §15 carve-out; no
-  -- q.organization_id filter — post-completion historical read bounded by the
-  -- student_id ownership guard and the write-once config).
-  SELECT s.p1, s.p2, s.p3 INTO v_p1, v_p2, v_p3
-  FROM public._vfr_rt_exam_part_scores(p_session_id, v_config) s;
+  -- Per-part percentages: the values frozen at grading time in the terminal
+  -- audit event (vfr_rt_exam.completed / .expired), so a later question-content
+  -- edit cannot change an ended result. An event without them falls back to the
+  -- shared helper (frozen-ID §15 carve-out; no q.organization_id filter — post-completion
+  -- historical read bounded by the student_id ownership guard and the
+  -- write-once config).
+  SELECT (ae.metadata->>'part1_pct')::numeric,
+         (ae.metadata->>'part2_pct')::numeric,
+         (ae.metadata->>'part3_pct')::numeric
+  INTO v_p1, v_p2, v_p3
+  FROM audit_events ae
+  WHERE ae.resource_type = 'quiz_session'
+    AND ae.resource_id = p_session_id
+    AND ae.event_type IN ('vfr_rt_exam.completed', 'vfr_rt_exam.expired')
+  ORDER BY ae.created_at DESC
+  LIMIT 1;
+  IF v_p1 IS NULL OR v_p2 IS NULL OR v_p3 IS NULL THEN
+    SELECT s.p1, s.p2, s.p3 INTO v_p1, v_p2, v_p3
+    FROM public._vfr_rt_exam_part_scores(p_session_id, v_config) s;
+  END IF;
 
   SELECT count(*) FILTER (WHERE qsa.is_correct)::int
   INTO v_correct

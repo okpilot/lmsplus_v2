@@ -64,7 +64,7 @@ const TYPES_BY_SUBTOPIC: Record<string, Part3Type[]> = {
   P3_PATTERN: ['multiple_choice', 'diagram_label'],
 }
 
-export type Part3Base = {
+type Part3Base = {
   orgId: string
   bankId: string
   subjectId: string
@@ -72,7 +72,7 @@ export type Part3Base = {
   createdBy: string
 }
 
-export type Part3Ids = { mcIds: string[]; orderingIds: string[]; diagramIds: string[] }
+type Part3Ids = { mcIds: string[]; orderingIds: string[]; diagramIds: string[] }
 
 // Every row carries the SAME key set: a batched PostgREST insert nulls a key a row omits
 // (it does not apply the column DEFAULT), and ordering_items is NOT NULL.

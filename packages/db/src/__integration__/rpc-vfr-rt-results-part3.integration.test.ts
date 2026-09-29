@@ -132,6 +132,39 @@ describe('get_vfr_rt_exam_results — Part 3 ordering and diagram', () => {
     expect(Number(res.part3_pct)).toBe(77.08)
     expect(Number(res.part3_pct)).toBe(submittedPart3)
   })
+
+  it('keeps the graded part 3 score after the diagram question gains a zone', async () => {
+    const { data: before, error: readErr } = await admin
+      .from('questions')
+      .select('diagram_config')
+      .eq('id', org.diagram.id)
+      .single()
+    if (readErr) throw new Error(`diagram read: ${readErr.message}`)
+    const original = before.diagram_config as {
+      zones: unknown[]
+      labels: unknown[]
+      answer: unknown[]
+    }
+    const edited = {
+      ...original,
+      zones: [...original.zones, { id: 'zx', x: 0, y: 0, w: 0.1, h: 0.1 }],
+      labels: [...original.labels, { id: 'lx', text: 'Extra' }],
+      answer: [...original.answer, { zone_id: 'zx', label_id: 'lx' }],
+    }
+    const { error: editErr } = await admin
+      .from('questions')
+      .update({ diagram_config: edited })
+      .eq('id', org.diagram.id)
+    if (editErr) throw new Error(`diagram edit: ${editErr.message}`)
+    try {
+      const { data } = await call()
+      expect(Number(requireRpcResult<Results>(data, 'get_vfr_rt_exam_results').part3_pct)).toBe(
+        submittedPart3,
+      )
+    } finally {
+      await admin.from('questions').update({ diagram_config: original }).eq('id', org.diagram.id)
+    }
+  })
 })
 
 describe('complete_overdue_exam_session — Part 3 scoring via the part-score helper', () => {
@@ -202,5 +235,14 @@ describe('complete_overdue_exam_session — Part 3 scoring via the part-score he
       .single()
     expect(session?.ended_at).not.toBeNull()
     expect(Number(session?.score_percentage)).toBe(29.63)
+
+    const { data: events, error: evErr } = await admin
+      .from('audit_events')
+      .select('metadata')
+      .eq('resource_id', sessionId)
+      .eq('event_type', 'vfr_rt_exam.expired')
+    expect(evErr).toBeNull()
+    expect(events).toHaveLength(1)
+    expect(Number((events![0]!.metadata as { part3_pct: number | string }).part3_pct)).toBe(88.89)
   })
 })

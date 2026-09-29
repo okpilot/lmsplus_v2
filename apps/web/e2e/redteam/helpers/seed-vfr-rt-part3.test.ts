@@ -1,6 +1,14 @@
-import { describe, expect, it } from 'vitest'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import { describe, expect, it, vi } from 'vitest'
 import { deriveContentId } from '../../../scripts/content-ids'
-import { buildPart3Answer, buildPart3Rows, VFR_RT_P3_COUNT } from './seed-vfr-rt-part3'
+import {
+  buildPart3Answer,
+  buildPart3Rows,
+  seedPart3Pool,
+  VFR_RT_MC_CORRECT,
+  VFR_RT_P3_CORRECT_ROWS,
+  VFR_RT_P3_COUNT,
+} from './seed-vfr-rt-part3'
 
 const BASE = { orgId: 'org', bankId: 'bank', subjectId: 'subj', topicId: 'topic', createdBy: 'u' }
 const SUBTOPICS = ['P3_NUMBERS', 'P3_EMERGENCY', 'P3_POSREP', 'P3_PATTERN'].map((code, i) => ({
@@ -67,5 +75,66 @@ describe('buildPart3Rows — batched insert shape', () => {
   it('gives every row the same key set so PostgREST nulls no NOT NULL column', () => {
     const rows = buildPart3Rows(BASE, SUBTOPICS).map((r) => Object.keys(r.row).sort().join(','))
     expect(new Set(rows).size).toBe(1)
+  })
+})
+
+describe('buildPart3Answer — per type', () => {
+  it('answers a multiple_choice question with the correct option', () => {
+    expect(buildPart3Answer({ id: 'q', question_type: 'multiple_choice' })).toEqual([
+      { question_id: 'q', response_time_ms: 1000, selected_option_id: VFR_RT_MC_CORRECT },
+    ])
+  })
+
+  it('answers a diagram_label question with one zone/label pair per zone', () => {
+    const cfg = buildPart3Rows(BASE, SUBTOPICS).find((r) => r.type === 'diagram_label')?.row
+      .diagram_config as { answer: Array<{ zone_id: string; label_id: string }> }
+    const answers = buildPart3Answer({ id: 'q', question_type: 'diagram_label' })
+    expect(answers?.map((a) => [a.response_text, a.selected_option_id])).toEqual(
+      cfg.answer.map((a) => [a.zone_id, a.label_id]),
+    )
+    expect(answers?.map((a) => a.blank_index)).toEqual([0, 1, 2])
+  })
+})
+
+describe('VFR_RT_P3_CORRECT_ROWS', () => {
+  it('equals the answer rows a fully-correct Part 3 submission writes', () => {
+    const total = buildPart3Rows(BASE, SUBTOPICS).reduce(
+      (n, r) => n + (buildPart3Answer({ id: 'q', question_type: r.type as string })?.length ?? 0),
+      0,
+    )
+    expect(VFR_RT_P3_CORRECT_ROWS).toBe(total)
+  })
+})
+
+function adminWithSubtopics(result: { data: unknown; error: { message: string } | null }) {
+  const chain = { select: vi.fn(), eq: vi.fn() }
+  chain.select.mockReturnValue(chain)
+  chain.eq.mockResolvedValue(result)
+  return { from: vi.fn().mockReturnValue(chain) } as unknown as SupabaseClient
+}
+
+describe('seedPart3Pool', () => {
+  it('groups the inserted ids by question type in row order', async () => {
+    const admin = adminWithSubtopics({ data: SUBTOPICS, error: null })
+    const insert = vi.fn(async (rows: Record<string, unknown>[]) => rows.map((_, i) => `id-${i}`))
+    const ids = await seedPart3Pool({ admin, base: BASE, insert })
+    const built = buildPart3Rows(BASE, SUBTOPICS)
+    const expectIds = (t: string) => built.flatMap((b, i) => (b.type === t ? [`id-${i}`] : []))
+    expect(ids.orderingIds).toEqual(expectIds('ordering'))
+    expect(ids.diagramIds).toEqual(expectIds('diagram_label'))
+    expect(ids.mcIds).toEqual(expectIds('multiple_choice'))
+    expect(ids.orderingIds).toHaveLength(1)
+  })
+
+  it('throws when no subtopics resolve', async () => {
+    const admin = adminWithSubtopics({ data: [], error: null })
+    await expect(seedPart3Pool({ admin, base: BASE, insert: vi.fn() })).rejects.toThrow(
+      /no P3_MC subtopics/,
+    )
+  })
+
+  it('throws when the subtopic lookup errors', async () => {
+    const admin = adminWithSubtopics({ data: null, error: { message: 'boom' } })
+    await expect(seedPart3Pool({ admin, base: BASE, insert: vi.fn() })).rejects.toThrow(/boom/)
   })
 })

@@ -137,7 +137,9 @@ BEGIN
       'score',           v_score,
       'passed',          v_passed,
       'reason',          v_reason
-    )
+    ) || CASE WHEN v_mode = 'vfr_rt_exam'
+              THEN jsonb_build_object('part1_pct', v_p1, 'part2_pct', v_p2, 'part3_pct', v_p3)
+              ELSE '{}'::jsonb END
   );
 
   RETURN jsonb_build_object(

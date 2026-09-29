@@ -10,7 +10,7 @@ import { admin, insertMcQuestion, suffix } from './vfr-rt-helpers'
 
 /** The seeded P3_MC subtopics in sort_order. Resolved BY CODE, never mutated by tests. */
 export const P3_SUBTOPIC_CODES = ['P3_NUMBERS', 'P3_EMERGENCY', 'P3_POSREP', 'P3_PATTERN'] as const
-export type P3SubtopicCode = (typeof P3_SUBTOPIC_CODES)[number]
+type P3SubtopicCode = (typeof P3_SUBTOPIC_CODES)[number]
 
 /** Resolve the four seeded P3_MC subtopic ids by code. Throws if any is missing. */
 export async function getP3Subtopics(p3TopicId: string): Promise<Record<P3SubtopicCode, string>> {
@@ -91,27 +91,31 @@ export type DiagramFixture = {
   answer: Array<{ zone_id: string; label_id: string }>
 }
 
+function buildDiagramConfig(idx: number): Omit<DiagramFixture, 'id'> {
+  const n = `${idx}-${suffix}`
+  const zoneA = { id: `zone-a-${n}`, x: 0.1, y: 0.1, w: 0.2, h: 0.2 }
+  const zoneB = { id: `zone-b-${n}`, x: 0.6, y: 0.1, w: 0.2, h: 0.2 }
+  const zoneC = { id: `zone-c-${n}`, x: 0.1, y: 0.6, w: 0.2, h: 0.2 }
+  const one = { id: `lbl-one-${n}`, text: `Upwind ${idx}` }
+  const two = { id: `lbl-two-${n}`, text: `Crosswind ${idx}` }
+  const three = { id: `lbl-three-${n}`, text: `Downwind ${idx}` }
+  const four = { id: `lbl-four-${n}`, text: `Base ${idx} (unused)` }
+  return {
+    zones: [zoneA, zoneB, zoneC],
+    labels: [one, two, three, four],
+    answer: [
+      { zone_id: zoneA.id, label_id: one.id },
+      { zone_id: zoneB.id, label_id: two.id },
+      { zone_id: zoneC.id, label_id: three.id },
+    ],
+  }
+}
+
 /** Insert an active diagram_label question with 3 zones and 4 labels (1 distractor). */
 export async function insertDiagramQuestion(
   opts: OrgFixture & { topicId: string; subtopicId: string; idx: number },
 ): Promise<DiagramFixture> {
-  const n = `${opts.idx}-${suffix}`
-  const zones = [
-    { id: `zone-a-${n}`, x: 0.1, y: 0.1, w: 0.2, h: 0.2 },
-    { id: `zone-b-${n}`, x: 0.6, y: 0.1, w: 0.2, h: 0.2 },
-    { id: `zone-c-${n}`, x: 0.1, y: 0.6, w: 0.2, h: 0.2 },
-  ]
-  const labels = [
-    { id: `lbl-one-${n}`, text: `Upwind ${opts.idx}` },
-    { id: `lbl-two-${n}`, text: `Crosswind ${opts.idx}` },
-    { id: `lbl-three-${n}`, text: `Downwind ${opts.idx}` },
-    { id: `lbl-four-${n}`, text: `Base ${opts.idx} (unused)` },
-  ]
-  const answer = [
-    { zone_id: zones[0]!.id, label_id: labels[0]!.id },
-    { zone_id: zones[1]!.id, label_id: labels[1]!.id },
-    { zone_id: zones[2]!.id, label_id: labels[2]!.id },
-  ]
+  const { zones, labels, answer } = buildDiagramConfig(opts.idx)
   const { data, error } = await admin
     .from('questions')
     .insert({
