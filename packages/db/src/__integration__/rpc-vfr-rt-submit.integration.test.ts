@@ -29,6 +29,7 @@ import { fixtureSuffix } from './fixture-suffix'
 import { requireRpcResult, requireRpcRows } from './guards'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 import { getP3Subtopics, P3_SUBTOPIC_CODES } from './vfr-rt-part3-helpers'
+import { forceEndSession } from './vfr-rt-part3-org'
 
 const admin = getAdminClient()
 const suffix = fixtureSuffix()
@@ -307,24 +308,6 @@ async function startSession(): Promise<{ sessionId: string; questionIds: string[
   )
   if (!r.session_id) throw new Error('startSession: no session_id in result')
   return { sessionId: r.session_id, questionIds: r.question_ids }
-}
-
-/** Force-end a session so the next startSession creates a new one. */
-async function forceEndSession(sessionId: string): Promise<void> {
-  const { data, error } = await admin
-    .from('quiz_sessions')
-    .update({
-      ended_at: new Date().toISOString(),
-      correct_count: 0,
-      score_percentage: 0,
-      passed: false,
-    })
-    .eq('id', sessionId)
-    .select('id')
-  if (error) throw new Error(`forceEndSession: ${error.message}`)
-  // §5 zero-row observability: this helper always targets exactly one row —
-  // a silent zero-row no-op means the next startSession resumes a stale session.
-  if ((data?.length ?? 0) === 0) throw new Error('forceEndSession: no session row matched')
 }
 
 /** Build an all-correct answers payload for the given session's question list.

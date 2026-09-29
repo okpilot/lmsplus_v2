@@ -138,10 +138,7 @@ async function resolveP3Subtopics(
   return data as Array<{ id: string; code: string }>
 }
 
-/**
- * Seed Part 3 for the fixture's own org: >= 2 questions in every real P3_MC subtopic, with at
- * least one ordering and one diagram_label. `insert` returns created ids in row order.
- */
+/** Seed Part 3 for the fixture's org: >= 2 per real P3_MC subtopic, incl. ordering + diagram. */
 export async function seedPart3Pool(opts: {
   admin: SupabaseClient
   base: Part3Base
@@ -150,6 +147,8 @@ export async function seedPart3Pool(opts: {
   const subtopics = await resolveP3Subtopics(opts.admin, opts.base.topicId)
   const built = buildPart3Rows(opts.base, subtopics)
   const ids = await opts.insert(built.map((b) => b.row))
+  if (ids.length !== built.length)
+    throw new Error(`seedPart3Pool: ${ids.length} ids, ${built.length} rows`)
   const idsOf = (type: Part3Type) => ids.filter((_, i) => built[i]?.type === type)
   return {
     mcIds: idsOf('multiple_choice'),

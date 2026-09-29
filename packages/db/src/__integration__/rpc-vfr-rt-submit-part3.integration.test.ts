@@ -187,7 +187,7 @@ describe('submit_vfr_rt_exam_answers — Part 3 ordering and diagram grading', (
 
     // The MC entry is processed BEFORE the forged ordering entry raises.
     const { error } = await submit(session_id, [mc, ...orderingEntries(q, forged)])
-    expect(error).not.toBeNull()
+    expect(error?.message).toContain('ordering item id o1deadbeef not found')
     expect(await rowCount('quiz_session_answers', session_id)).toBe(0)
     expect(await rowCount('student_responses', session_id)).toBe(0)
     expect(await endedAt(session_id)).toBeNull()
@@ -214,12 +214,21 @@ describe('submit_vfr_rt_exam_answers — Part 3 ordering and diagram grading', (
     expect(await rowCount('quiz_session_answers', session_id)).toBe(written)
   })
 
-  it('returns numeric part scores when replaying an exam that ended without a terminal audit event', async () => {
+  it('recomputes part scores from the answer rows when replaying an exam that ended without a terminal audit event', async () => {
     const { session_id } = await startPart3Exam(org)
+    const { error: insErr } = await admin.from('quiz_session_answers').insert({
+      session_id,
+      question_id: org.mcIds[0]!,
+      selected_option_id: 'b',
+      is_correct: true,
+      response_time_ms: 1000,
+    })
+    expect(insErr).toBeNull()
     await forceEndSession(session_id)
     const { data, error } = await submit(session_id, [])
     expect(error).toBeNull()
     const res = requireRpcResult<SubmitResult>(data, 'replay')
-    expect([res.part1_pct, res.part2_pct, res.part3_pct]).toEqual([0, 0, 0])
+    // 1 correct MC of 8 Part 3 questions = 12.5; raw values, so a NULL would fail too.
+    expect([res.part1_pct, res.part2_pct, res.part3_pct]).toEqual([0, 0, 12.5])
   })
 })

@@ -1,6 +1,7 @@
--- get_vfr_rt_exam_results: scores via _vfr_rt_exam_part_scores; the answer key
--- gains ordering ({correct_order, items}) and diagram_label ({answer, zones,
--- labels}). Guards, including the ended_at gate, unchanged.
+-- get_vfr_rt_exam_results: part scores come from the terminal audit event
+-- metadata, falling back to _vfr_rt_exam_part_scores; the answer key gains
+-- ordering ({correct_order, items}) and diagram_label ({answer, zones, labels}).
+-- Guards, including the ended_at gate, unchanged.
 
 CREATE OR REPLACE FUNCTION get_vfr_rt_exam_results(p_session_id uuid)
 RETURNS jsonb

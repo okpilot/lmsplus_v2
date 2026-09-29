@@ -74,6 +74,8 @@ const P3_SUBTOPICS = ['P3_NUMBERS', 'P3_EMERGENCY', 'P3_POSREP', 'P3_PATTERN'].m
   id: `sub-${n}`,
   code,
 }))
+// One id per built Part 3 row: ordering is row 3 (P3_EMERGENCY), diagram row 7 (P3_PATTERN).
+const P3_INSERTED = Array.from({ length: 8 }, (_, i) => ({ id: `p3-${i}` }))
 
 describe('cleanupVfrRtPool — no-op silence', () => {
   it('does not throw or log when no pool rows and no config match', async () => {
@@ -173,7 +175,7 @@ function mockSeedPoolChainThroughQuestions() {
     .mockReturnValueOnce(buildChain({ data: [{ id: 'sa-1' }], error: null })) // questions: SA insert
     .mockReturnValueOnce(buildChain({ data: [{ id: 'df-1' }], error: null })) // questions: DF insert
     .mockReturnValueOnce(buildChain({ data: P3_SUBTOPICS, error: null })) // easa_subtopics
-    .mockReturnValueOnce(buildChain({ data: [{ id: 'mc-1' }, { id: 'mc-2' }], error: null })) // questions: Part 3 insert
+    .mockReturnValueOnce(buildChain({ data: P3_INSERTED, error: null })) // questions: Part 3 insert
 }
 
 describe('seedVfrRtPool — exam_config ownership tracking', () => {
@@ -274,9 +276,10 @@ describe('seedVfrRtPool — Part 3 pool', () => {
 
     const pool = await seedVfrRtPool({ admin: adminMock, orgId: 'org-1', adminUserId: 'admin-1' })
 
-    expect(pool.mcIds).toEqual(['mc-1', 'mc-2'])
-    expect(pool.orderingIds).toEqual([])
-    expect(pool.allIds).toEqual(['sa-1', 'df-1', 'mc-1', 'mc-2'])
+    expect(pool.mcIds).toEqual(['p3-0', 'p3-1', 'p3-2', 'p3-4', 'p3-5', 'p3-6'])
+    expect(pool.orderingIds).toEqual(['p3-3'])
+    expect(pool.diagramIds).toEqual(['p3-7'])
+    expect(pool.allIds).toEqual(['sa-1', 'df-1', ...pool.mcIds, 'p3-3', 'p3-7'])
   })
 })
 

@@ -1,5 +1,6 @@
 -- complete_overdue_exam_session: the vfr_rt_exam branch scores via
--- _vfr_rt_exam_part_scores. Everything else unchanged.
+-- _vfr_rt_exam_part_scores and adds part1_pct/part2_pct/part3_pct to the
+-- vfr_rt_exam.expired audit metadata. Everything else unchanged.
 
 CREATE OR REPLACE FUNCTION complete_overdue_exam_session(p_session_id uuid)
 RETURNS jsonb

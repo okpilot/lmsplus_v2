@@ -1,6 +1,8 @@
 -- submit_vfr_rt_exam_answers: grades ordering and diagram_label questions and
--- scores the parts through _vfr_rt_exam_part_scores. Every other guard and
--- branch is unchanged.
+-- scores the parts through _vfr_rt_exam_part_scores. Replay returns the part
+-- scores from the terminal vfr_rt_exam.completed/.expired audit event, falling
+-- back to the helper; correct_count counts only config.question_ids rows. Every
+-- other guard and branch is unchanged.
 --
 -- Entry shapes: ordering = {question_id, selected_option_id: item id,
 -- blank_index: slot}; diagram_label = {question_id, selected_option_id: label id,

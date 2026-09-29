@@ -47,6 +47,7 @@ describe('buildPart3Rows', () => {
       answer: Array<{ zone_id: string; label_id: string }>
     }
     const labelIds = new Set(cfg.labels.map((l) => l.id))
+    expect(cfg.zones.length).toBeGreaterThan(0)
     expect(cfg.zones.some((z) => labelIds.has(z.id))).toBe(false)
     expect(cfg.answer).toHaveLength(cfg.zones.length)
     expect(new Set(cfg.answer.map((a) => a.label_id)).size).toBe(cfg.zones.length)
@@ -139,6 +140,12 @@ describe('seedPart3Pool', () => {
     await expect(seedPart3Pool({ admin, base: BASE, insert: vi.fn() })).rejects.toThrow(
       /want 4 P3_MC subtopics, got 5/,
     )
+  })
+
+  it('throws when the insert returns fewer ids than rows', async () => {
+    const admin = adminWithSubtopics({ data: SUBTOPICS, error: null })
+    const insert = vi.fn(async () => ['id-0', 'id-1'])
+    await expect(seedPart3Pool({ admin, base: BASE, insert })).rejects.toThrow(/2 ids, 8 rows/)
   })
 
   it('throws when the subtopic lookup errors', async () => {
