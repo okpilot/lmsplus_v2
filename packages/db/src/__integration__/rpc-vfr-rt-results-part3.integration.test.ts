@@ -40,6 +40,7 @@ describe('get_vfr_rt_exam_results — Part 3 ordering and diagram', () => {
       (typeof org.ordering)[number],
       (typeof org.ordering)[number],
     ]
+    // Fixed fixture sizes (vfr-rt-part3-helpers): 4 ordering items, 3 zones, 4 labels, 4 MC ids.
     const slot = (q: typeof ord0, order: number[]) =>
       order.map((from, s) => ({
         question_id: q.id,
@@ -104,6 +105,7 @@ describe('get_vfr_rt_exam_results — Part 3 ordering and diagram', () => {
     for (const entry of ordering) {
       const fixture = org.ordering.find((o) => o.id === entry.question_id)
       expect(fixture).toBeDefined()
+      // toBeDefined above guarantees fixture.
       expect(entry.key).toEqual({
         correct_order: fixture!.items.map((i) => i.id),
         items: fixture!.items,
@@ -117,6 +119,7 @@ describe('get_vfr_rt_exam_results — Part 3 ordering and diagram', () => {
       (q) => q.question_type === 'diagram_label',
     )
     expect(entry).toBeDefined()
+    // toBeDefined above guarantees entry.
     expect(entry!.key).toEqual({
       answer: org.diagram.answer,
       zones: org.diagram.zones,
@@ -186,6 +189,7 @@ describe('complete_overdue_exam_session — Part 3 scoring via the part-score he
   })
 
   it('scores answered ordering, diagram and multiple-choice questions of an overdue exam', async () => {
+    // Fixed fixture sizes (vfr-rt-part3-helpers): 4 ordering items, 3 zones, 4 labels, 4 MC ids.
     const ord = org.ordering[0]!
     const d = org.diagram
     const mcId = org.mcIds[0]!
@@ -251,6 +255,7 @@ describe('complete_overdue_exam_session — Part 3 scoring via the part-score he
       .eq('event_type', 'vfr_rt_exam.expired')
     expect(evErr).toBeNull()
     expect(events).toHaveLength(1)
+    // toHaveLength(1) above guarantees events[0].
     expect(Number((events![0]!.metadata as { part3_pct: number | string }).part3_pct)).toBe(88.89)
   })
 })

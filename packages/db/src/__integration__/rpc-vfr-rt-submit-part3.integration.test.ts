@@ -80,6 +80,7 @@ describe('submit_vfr_rt_exam_answers — Part 3 ordering and diagram grading', (
 
   it('scores Part 3 as the mean of per-question credit, counting partial ordering and diagram credit', async () => {
     const { session_id } = await startPart3Exam(org)
+    // Fixed fixture sizes (vfr-rt-part3-helpers): 4 ordering items, 3 zones, 4 labels, 4 MC ids.
     const [ord0, ord1, ord2] = org.ordering as [OrderingFixture, OrderingFixture, OrderingFixture]
     const d = org.diagram
     const a = ids(ord0)
@@ -109,6 +110,7 @@ describe('submit_vfr_rt_exam_answers — Part 3 ordering and diagram grading', (
 
   it('gives a single correctly placed zone one third of a diagram question, storing the server zone ordinal', async () => {
     const { session_id } = await startPart3Exam(org)
+    // Fixed fixture sizes (vfr-rt-part3-helpers): 4 ordering items, 3 zones, 4 labels, 4 MC ids.
     const d = org.diagram
     const { data, error } = await submit(session_id, [
       {
@@ -135,6 +137,7 @@ describe('submit_vfr_rt_exam_answers — Part 3 ordering and diagram grading', (
 
   it('rejects an ordering answer that is not a complete permutation and writes nothing', async () => {
     const { session_id } = await startPart3Exam(org)
+    // Fixed fixture sizes (vfr-rt-part3-helpers): 4 ordering items, 3 zones, 4 labels, 4 MC ids.
     const q = org.ordering[0]!
     expect(await endedAt(session_id)).toBeNull()
     expect(await rowCount('quiz_session_answers', session_id)).toBe(0)
@@ -152,6 +155,7 @@ describe('submit_vfr_rt_exam_answers — Part 3 ordering and diagram grading', (
 
   it('rejects a diagram answer that fills the same zone twice and writes nothing', async () => {
     const { session_id } = await startPart3Exam(org)
+    // Fixed fixture sizes (vfr-rt-part3-helpers): 4 ordering items, 3 zones, 4 labels, 4 MC ids.
     const d = org.diagram
     expect(await rowCount('quiz_session_answers', session_id)).toBe(0)
 
@@ -180,6 +184,7 @@ describe('submit_vfr_rt_exam_answers — Part 3 ordering and diagram grading', (
 
   it('rolls back the whole call when an ordering entry names an unknown item id', async () => {
     const { session_id } = await startPart3Exam(org)
+    // Fixed fixture sizes (vfr-rt-part3-helpers): 4 ordering items, 3 zones, 4 labels, 4 MC ids.
     const q = org.ordering[0]!
     const mc = { question_id: org.mcIds[0]!, selected_option_id: 'b' }
     const forged = [...ids(q).slice(0, 3), 'o1deadbeef']
@@ -215,6 +220,7 @@ describe('submit_vfr_rt_exam_answers — Part 3 ordering and diagram grading', (
   })
 
   it('recomputes part scores from the answer rows when replaying an exam that ended without a terminal audit event', async () => {
+    // Fixed fixture sizes (vfr-rt-part3-helpers): 4 ordering items, 3 zones, 4 labels, 4 MC ids.
     const { session_id } = await startPart3Exam(org)
     const { error: insErr } = await admin.from('quiz_session_answers').insert({
       session_id,

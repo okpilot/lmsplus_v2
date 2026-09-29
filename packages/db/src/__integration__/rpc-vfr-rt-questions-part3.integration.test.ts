@@ -42,6 +42,7 @@ describe('get_vfr_rt_exam_questions — Part 3 ordering and diagram serving', ()
     for (const row of rows) {
       const fixture = org.ordering.find((o) => o.id === row.id)
       expect(fixture).toBeDefined()
+      // toBeDefined above guarantees fixture.
       const items = row.ordering_items_shuffled ?? []
       expect(items).toHaveLength(fixture!.items.length)
       for (const it of items) expect(Object.keys(it).sort()).toEqual(['id', 'text'])
@@ -66,6 +67,7 @@ describe('get_vfr_rt_exam_questions — Part 3 ordering and diagram serving', ()
   it('serves a diagram without its answer: zones {id,x,y,w,h} in stored order, shuffled labels', async () => {
     const row = (await fetchRows()).find((r) => r.question_type === 'diagram_label')
     expect(row).toBeDefined()
+    // toBeDefined above guarantees row.
     const cfg = row!.diagram_config_public
     expect(cfg).not.toBeNull()
     expect(Object.keys(cfg ?? {}).sort()).toEqual(['image_ref', 'labels', 'zones'])
