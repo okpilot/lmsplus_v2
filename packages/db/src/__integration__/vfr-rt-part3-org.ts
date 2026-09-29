@@ -168,7 +168,7 @@ export async function startPart3Exam(org: Part3Org): Promise<StartResult> {
 
 /** Force-end an active session so the next start creates a fresh one. */
 export async function forceEndSession(sessionId: string): Promise<void> {
-  const { error } = await admin
+  const { data, error } = await admin
     .from('quiz_sessions')
     .update({
       ended_at: new Date().toISOString(),
@@ -177,5 +177,7 @@ export async function forceEndSession(sessionId: string): Promise<void> {
       passed: false,
     })
     .eq('id', sessionId)
+    .select('id')
   if (error) throw new Error(`forceEndSession: ${error.message}`)
+  if (!data?.length) throw new Error(`forceEndSession: no session ${sessionId}`)
 }

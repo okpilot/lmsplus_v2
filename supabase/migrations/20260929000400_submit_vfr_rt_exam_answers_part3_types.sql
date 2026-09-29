@@ -325,15 +325,19 @@ BEGIN
     v_correct_count := coalesce(v_correct_count, 0);
     v_passed        := coalesce(v_passed, false);
     -- Part scores frozen in the terminal audit event, as get_vfr_rt_exam_results reads them.
-    SELECT coalesce((ae.metadata->>'part1_pct')::numeric, v_p1),
-           coalesce((ae.metadata->>'part2_pct')::numeric, v_p2),
-           coalesce((ae.metadata->>'part3_pct')::numeric, v_p3)
+    SELECT (ae.metadata->>'part1_pct')::numeric,
+           (ae.metadata->>'part2_pct')::numeric,
+           (ae.metadata->>'part3_pct')::numeric
     INTO v_p1, v_p2, v_p3
     FROM audit_events ae
     WHERE ae.resource_type = 'quiz_session' AND ae.resource_id = p_session_id
       AND ae.event_type IN ('vfr_rt_exam.completed', 'vfr_rt_exam.expired')
     ORDER BY ae.created_at DESC
     LIMIT 1;
+    IF v_p1 IS NULL OR v_p2 IS NULL OR v_p3 IS NULL THEN
+      SELECT s.p1, s.p2, s.p3 INTO v_p1, v_p2, v_p3
+      FROM public._vfr_rt_exam_part_scores(p_session_id, v_config) s;
+    END IF;
     -- #839: re-emit expired:true on idempotent replay (the fresh timer-expiry path
     -- above returns it). Match ANY '<mode>.expired' audit event for this already-owned
     -- session (resource_id = p_session_id, scoped by the FOR UPDATE owner SELECT above).

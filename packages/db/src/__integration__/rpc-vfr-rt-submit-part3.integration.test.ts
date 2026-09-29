@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { requireRpcResult } from './guards'
 import { admin } from './vfr-rt-helpers'
 import type { DiagramFixture, OrderingFixture } from './vfr-rt-part3-helpers'
-import { createPart3Org, type Part3Org, startPart3Exam } from './vfr-rt-part3-org'
+import { createPart3Org, forceEndSession, type Part3Org, startPart3Exam } from './vfr-rt-part3-org'
 
 type SubmitResult = {
   session_id: string
@@ -212,5 +212,14 @@ describe('submit_vfr_rt_exam_answers — Part 3 ordering and diagram grading', (
     expect(second.data).toEqual(first.data)
     expect(Number((second.data as SubmitResult).part3_pct)).toBeGreaterThan(0)
     expect(await rowCount('quiz_session_answers', session_id)).toBe(written)
+  })
+
+  it('returns numeric part scores when replaying an exam that ended without a terminal audit event', async () => {
+    const { session_id } = await startPart3Exam(org)
+    await forceEndSession(session_id)
+    const { data, error } = await submit(session_id, [])
+    expect(error).toBeNull()
+    const res = requireRpcResult<SubmitResult>(data, 'replay')
+    expect([res.part1_pct, res.part2_pct, res.part3_pct]).toEqual([0, 0, 0])
   })
 })
