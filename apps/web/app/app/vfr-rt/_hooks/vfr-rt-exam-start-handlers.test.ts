@@ -172,13 +172,16 @@ describe('buildVfrRtExamStartHandler', () => {
     expect(deps.inFlight.current).toBe(false)
   })
 
-  it('clears an unrelated unfinished session after the overwrite is confirmed', async () => {
+  it('replaces an unrelated unfinished session with the new exam after the overwrite is confirmed', async () => {
     mockReadActiveSession.mockReturnValue(existingSession())
     vi.spyOn(globalThis, 'confirm').mockReturnValue(true)
 
     await buildVfrRtExamStartHandler(buildDeps())()
 
-    expect(mockClearActiveSession).toHaveBeenCalledWith('user-1')
+    expect(mockWriteActiveSession).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: SESSION_ID }),
+    )
+    expect(mockClearActiveSession).not.toHaveBeenCalled()
     expect(mockDiscardQuiz).not.toHaveBeenCalled()
   })
 

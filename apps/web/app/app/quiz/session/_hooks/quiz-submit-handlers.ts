@@ -48,6 +48,43 @@ export function buildSharedFor(deps: BaseDeps) {
   })
 }
 
+type SubmitDeps = Parameters<typeof buildHandleSubmit>[0]
+
+/** Runs the mode-specific submit: vfr_rt_exam has its own per-type submit, everything else
+ * goes through handleSubmitSession. */
+function dispatchSubmission(
+  deps: SubmitDeps,
+  sharedFor: ReturnType<typeof buildSharedFor>,
+  answers: Map<string, DraftAnswer>,
+  onSuccess: () => void,
+) {
+  const common = { userId: deps.userId, sessionId: deps.sessionId, answers, onSuccess }
+  if (deps.examMode === 'vfr_rt_exam') {
+    return handleSubmitVfrRtExamSession({
+      ...common,
+      questions: deps.questions,
+      ...sharedFor('submit'),
+    })
+  }
+  return handleSubmitSession({
+    ...common,
+    draftId: deps.draftId,
+    isExam: deps.isExam,
+    examMode: deps.examMode,
+    ...sharedFor('submit'),
+  })
+}
+
+/** Arms the hard-navigation fallback for a soft nav that never unmounts this component. */
+function armNavFallback(deps: SubmitDeps) {
+  if (deps.navFallbackTimer.current) clearTimeout(deps.navFallbackTimer.current)
+  deps.navFallbackTimer.current = setTimeout(() => {
+    // Soft nav didn't unmount us → it was cancelled (#909). Hard-navigate to the
+    // same destination; safe even if it fires after a slow-but-successful nav.
+    window.location.assign(examReportUrl(deps.examMode, deps.sessionId))
+  }, NAV_FALLBACK_MS)
+}
+
 export function buildHandleSubmit(
   deps: BaseDeps & {
     answersRef: React.RefObject<Map<string, DraftAnswer>>
@@ -72,40 +109,13 @@ export function buildHandleSubmit(
       deps.submitted.current = true
       deps.setShowFinishDialog(false)
     }
-    const submission =
-      deps.examMode === 'vfr_rt_exam'
-        ? handleSubmitVfrRtExamSession({
-            userId: deps.userId,
-            sessionId: deps.sessionId,
-            answers: safeAnswers,
-            questions: deps.questions,
-            onSuccess,
-            ...sharedFor('submit'),
-          })
-        : handleSubmitSession({
-            userId: deps.userId,
-            sessionId: deps.sessionId,
-            answers: safeAnswers,
-            draftId: deps.draftId,
-            isExam: deps.isExam,
-            examMode: deps.examMode,
-            onSuccess,
-            ...sharedFor('submit'),
-          })
-    await submission.finally(() => {
+    await dispatchSubmission(deps, sharedFor, safeAnswers, onSuccess).finally(() => {
       // If submit rejected/threw before any setSubmitting(false), release the re-entry lock
       // so the student can retry. On success onSuccess set submitted.current = true first, so
       // the lock intentionally stays engaged here (terminal — navigating to the report).
       if (!deps.submitted.current) deps.inFlight.current = false
     })
-    if (deps.submitted.current) {
-      if (deps.navFallbackTimer.current) clearTimeout(deps.navFallbackTimer.current)
-      deps.navFallbackTimer.current = setTimeout(() => {
-        // Soft nav didn't unmount us → it was cancelled (#909). Hard-navigate to the
-        // same destination; safe even if it fires after a slow-but-successful nav.
-        window.location.assign(examReportUrl(deps.examMode, deps.sessionId))
-      }, NAV_FALLBACK_MS)
-    }
+    if (deps.submitted.current) armNavFallback(deps)
   }
 }
 

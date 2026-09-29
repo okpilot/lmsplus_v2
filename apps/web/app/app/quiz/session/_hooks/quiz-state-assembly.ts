@@ -1,4 +1,5 @@
 import type { SessionQuestion } from '@/app/app/_types/session'
+import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
 import type { DraftAnswer } from '../../types'
 import type { useAnswerPipeline } from './use-answer-pipeline'
 import type { useExamPipeline } from './use-exam-state'
@@ -17,13 +18,24 @@ export type AssembleQuizStateInput = {
   togglePin: () => void
   p: ActivePipeline
   isExam: boolean
+  examMode?: DbQuizMode
 }
 
 /** Pure assembly of the useQuizState() return shape from already-computed values.
  * No hook calls — every input is a value or a callback the caller derived via hooks. */
 export function assembleQuizState(input: AssembleQuizStateInput) {
-  const { nav, question, questionId, answers, questionIds, pinnedQuestions, togglePin, p, isExam } =
-    input
+  const {
+    nav,
+    question,
+    questionId,
+    answers,
+    questionIds,
+    pinnedQuestions,
+    togglePin,
+    p,
+    isExam,
+    examMode,
+  } = input
   return {
     currentIndex: nav.currentIndex,
     seenIndices: nav.seenIndices,
@@ -47,6 +59,7 @@ export function assembleQuizState(input: AssembleQuizStateInput) {
     togglePin,
     error: p.error,
     isExam,
+    examMode,
     submitting: p.submitting,
     pendingAction: p.pendingAction,
     answering: p.answering,

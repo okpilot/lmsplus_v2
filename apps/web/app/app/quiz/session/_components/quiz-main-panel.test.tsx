@@ -667,6 +667,7 @@ describe('QuizMainPanel', () => {
     it('renders the short-answer input without an alert for a non-MC question in exam mode', () => {
       const s = makeState({
         isExam: true,
+        examMode: 'vfr_rt_exam',
         question: {
           id: 'q-sa',
           question_text: 'What does ATC say?',
@@ -683,7 +684,6 @@ describe('QuizMainPanel', () => {
         },
       } as Partial<QuizState>)
       render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
-      expect(screen.getByTestId('short-answer-input')).toBeInTheDocument()
       expect(screen.getByTestId('short-answer-input')).toBeEnabled()
       expect(screen.queryByText(/not yet supported/i)).not.toBeInTheDocument()
       expect(screen.queryByRole('alert')).not.toBeInTheDocument()

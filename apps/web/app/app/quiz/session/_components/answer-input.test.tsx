@@ -237,3 +237,39 @@ describe('AnswerInput — diagram_label question config guard', () => {
     )
   })
 })
+
+describe('AnswerInput — exam-mode question type support', () => {
+  it.each(['mock_exam', 'internal_exam'] as const)(
+    'shows an unsupported notice for a non-MC question in %s',
+    (examMode) => {
+      render(
+        <AnswerInput
+          s={makeOrderingState(
+            [
+              { id: 'a', text: 'A' },
+              { id: 'b', text: 'B' },
+            ],
+            { isExam: true, examMode },
+          )}
+        />,
+      )
+      expect(screen.getByRole('alert')).toHaveTextContent('not yet supported in exam mode')
+      expect(screen.queryByTestId('ordering-input')).not.toBeInTheDocument()
+    },
+  )
+
+  it('renders a non-MC question in vfr_rt_exam', () => {
+    render(
+      <AnswerInput
+        s={makeOrderingState(
+          [
+            { id: 'a', text: 'A' },
+            { id: 'b', text: 'B' },
+          ],
+          { isExam: true, examMode: 'vfr_rt_exam' },
+        )}
+      />,
+    )
+    expect(screen.getByTestId('ordering-input')).toBeInTheDocument()
+  })
+})

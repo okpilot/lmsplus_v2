@@ -69,5 +69,6 @@ export function useQuizState(opts: QuizStateOpts) {
     togglePin: () => togglePinById(questionId),
     p,
     isExam,
+    examMode: opts.examMode,
   })
 }

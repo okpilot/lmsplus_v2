@@ -127,11 +127,14 @@ describe('getRtSubjectData — happy path', () => {
 describe('getRtSubjectData — exam availability', () => {
   it('reports the exam available when the RT subject has an enabled exam config', async () => {
     mockFrom.mockReturnValue(buildChain({ data: { id: SUBJECT_ID }, error: null }))
-    mockGetExamEnabledSubjects.mockResolvedValue([{ id: SUBJECT_ID, code: 'RT' }])
+    mockGetExamEnabledSubjects.mockResolvedValue([
+      { id: SUBJECT_ID, code: 'RT', timeLimitSeconds: 1800 },
+    ])
 
     const result = await getRtSubjectData()
 
     expect(result.examAvailable).toBe(true)
+    expect(result.examTimeLimitSeconds).toBe(1800)
   })
 
   it('reports the exam unavailable when only other subjects have an enabled exam config', async () => {
@@ -141,6 +144,7 @@ describe('getRtSubjectData — exam availability', () => {
     const result = await getRtSubjectData()
 
     expect(result.examAvailable).toBe(false)
+    expect(result.examTimeLimitSeconds).toBeNull()
   })
 
   it('reports the exam unavailable when the exam-config query failed and returned no subjects', async () => {

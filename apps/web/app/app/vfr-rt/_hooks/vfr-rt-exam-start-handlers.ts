@@ -4,7 +4,6 @@ import { sessionHandoffKey } from '@/app/app/quiz/session/_utils/quiz-session-ha
 import {
   type ActiveSession,
   buildActiveSession,
-  clearActiveSession,
   readActiveSession,
   writeActiveSession,
 } from '@/app/app/quiz/session/_utils/quiz-session-storage'
@@ -14,7 +13,7 @@ import { startVfrRtExam } from '../../vfr-rt-exam/actions/start'
 type AppRouterInstance = ReturnType<typeof useRouter>
 
 /** The start RPC returns no pass mark; the runner needs one — every VFR RT part requires 75%. */
-export const VFR_RT_EXAM_PASS_MARK = 75
+const VFR_RT_EXAM_PASS_MARK = 75
 
 export type UseVfrRtExamStartOpts = {
   userId: string
@@ -106,7 +105,6 @@ export function buildVfrRtExamStartHandler(deps: VfrRtExamStartDeps) {
       if (!writeHandoff(deps, result, resume)) {
         return failStart(deps, 'Unable to start the exam right now. Please try again.')
       }
-      if (existing && !resume) clearActiveSession(deps.userId)
       // Terminal success: the lock stays engaged while router.push unmounts the form.
       deps.router.push('/app/quiz/session')
     } catch {
