@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
+import { orderingItem } from './ordering-item-id'
 import { seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient } from './setup'
 
@@ -23,10 +24,7 @@ import { createTestOrg, createTestUser, getAdminClient } from './setup'
 const BLANK_REQUIRED_MSG = /blank_index is required for ordering/i
 const BLANK_FORBIDDEN_MSG = /blank_index must be NULL/i
 
-const ITEMS = [
-  { id: 'tr-a', text: 'MAYDAY MAYDAY MAYDAY' },
-  { id: 'tr-b', text: 'Golf Bravo Charlie' },
-]
+const ITEMS = [orderingItem('MAYDAY MAYDAY MAYDAY'), orderingItem('Golf Bravo Charlie')]
 const ITEM_0_TEXT = ITEMS[0]!.text
 const ITEM_1_TEXT = ITEMS[1]!.text
 

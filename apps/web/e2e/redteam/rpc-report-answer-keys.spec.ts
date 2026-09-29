@@ -34,6 +34,7 @@
 
 import { expect, test } from '@playwright/test'
 import { createClient } from '@supabase/supabase-js'
+import { deriveContentId } from '../../scripts/content-ids'
 import { getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
 import {
@@ -87,11 +88,10 @@ const DIALOG_BLANKS = [
   { index: 0, canonical: 'cleared to land', synonyms: [] as string[] },
   { index: 1, canonical: 'two seven', synonyms: ['27'] },
 ]
-const ORDER_ITEMS = [
-  { id: 'ord-a', text: 'MAYDAY MAYDAY MAYDAY' },
-  { id: 'ord-b', text: 'Golf Bravo Charlie' },
-  { id: 'ord-c', text: 'engine failure' },
-]
+// Ids derived from each item's own text (#1045) — the DB CHECK now rejects a hand id.
+const ORDER_ITEMS = ['MAYDAY MAYDAY MAYDAY', 'Golf Bravo Charlie', 'engine failure'].map(
+  (text) => ({ id: deriveContentId('o', [text]), text }),
+)
 const ORDER_CANONICAL_TEXTS = ORDER_ITEMS.map((i) => i.text)
 
 // diagram_label fixture (mig 156): get_report_answer_keys returns one row PER ZONE —

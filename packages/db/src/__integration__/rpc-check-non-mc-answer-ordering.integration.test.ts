@@ -3,6 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData, clearActiveSessions } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
 import { requireRpcResult } from './guards'
+import { orderingItem } from './ordering-item-id'
 import { seedReferenceData } from './seed'
 import {
   createTestOrg,
@@ -58,12 +59,12 @@ describe('RPC: check_non_mc_answer — ordering grading + guards', () => {
   let orderingId: string
   let saId: string
 
-  // Canonical sequence = ARRAY ORDER. Opaque ids (not 1..N).
+  // Canonical sequence = ARRAY ORDER. Ids derived from each item's own text (#1045).
   const ITEMS = [
-    { id: 'item-w', text: 'MAYDAY MAYDAY MAYDAY' },
-    { id: 'item-x', text: 'Golf Bravo Charlie' },
-    { id: 'item-y', text: 'engine failure' },
-    { id: 'item-z', text: 'forced landing' },
+    orderingItem('MAYDAY MAYDAY MAYDAY'),
+    orderingItem('Golf Bravo Charlie'),
+    orderingItem('engine failure'),
+    orderingItem('forced landing'),
   ]
   const CANONICAL_IDS = ITEMS.map((i) => i.id)
   const SA_CANONICAL = 'wilco'

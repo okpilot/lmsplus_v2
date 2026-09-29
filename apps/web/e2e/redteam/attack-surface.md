@@ -197,6 +197,7 @@
 | FU | Consent cookie left on a shared browser by user A satisfies the consent gate for user B (#1377) | HIGH | consent-cookie-user-binding.spec.ts | COVERED — `proxy.ts` builds the expected value from the signed-in user's id (`buildConsentCookieValue(user.id)`) and reads only the `__consent_u` cookie (the old `__consent` is ignored); in one browser context, a consented user signs out and a user with zero `user_consents` rows (asserted first) signs in → `/app/dashboard` ends on `/consent`. Silent-refresh control: a consented user holding an old two-segment cookie reaches `/app/dashboard` via `/auth/consent-refresh` without `/consent`. `/auth/consent-refresh` is in the proxy matcher, so the recovery-pending gate applies to it. | Pre-existing (cookie was `<tos>:<privacy>` only, never cleared on sign-out); found in the PR #1373 manual eval |
 | FV | forgot-password-recovery-code-enumeration | MEDIUM | recovery-code-enumeration.spec.ts | BLOCKED | #1383 | enumeration |
 | FW | gotrue-direct-auth-api-enumeration | MEDIUM | gotrue-direct-enumeration.spec.ts | GAP | #1389 | enumeration |
+| FX | ordering-item-id-not-derived-from-text | HIGH | ordering-item-derived-ids.spec.ts | BLOCKED |  | answer-oracle |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 

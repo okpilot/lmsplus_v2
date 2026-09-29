@@ -48,3 +48,6 @@ export const E2E_REDTEAM_TW_PASSWORD = 'redteam-tenantwrite-2026!'
 // into that spec's fixture quiz_sessions as `config.e2e_marker` — sessions carry no
 // question_number, so the pre-sweep reaches them on that JSON key instead. Sweep BOTH.
 export const E2E_REDTEAM_FK_MARKER = '[E2E_REDTEAM_FK]'
+// ordering derived-id CHECK spec (Vector FX, #1045): marks the ordering fixture questions it
+// inserts so cleanup/maintenance can target them by question_number.
+export const E2E_REDTEAM_FX_MARKER = '[E2E_REDTEAM_FX]'

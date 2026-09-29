@@ -3,6 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData, clearActiveSessions } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
 import { requireRpcResult } from './guards'
+import { orderingItem } from './ordering-item-id'
 import { seedReferenceData } from './seed'
 import {
   createTestOrg,
@@ -60,13 +61,13 @@ describe('RPC: batch_submit_quiz — ordering dispatch + partial credit + helper
   let orderingId: string
 
   // A 5-item ordering question — used for the 3-of-5 partial-credit assertion.
-  // Canonical sequence = ARRAY ORDER. Opaque ids (not 1..N).
+  // Canonical sequence = ARRAY ORDER. Ids derived from each item's own text (#1045).
   const ITEMS = [
-    { id: 'oi-a', text: 'MAYDAY MAYDAY MAYDAY' },
-    { id: 'oi-b', text: 'callsign Golf Bravo Charlie' },
-    { id: 'oi-c', text: 'nature engine failure' },
-    { id: 'oi-d', text: 'position five miles north' },
-    { id: 'oi-e', text: 'intentions forced landing' },
+    orderingItem('MAYDAY MAYDAY MAYDAY'),
+    orderingItem('callsign Golf Bravo Charlie'),
+    orderingItem('nature engine failure'),
+    orderingItem('position five miles north'),
+    orderingItem('intentions forced landing'),
   ]
   const CANONICAL_IDS = ITEMS.map((i) => i.id)
   const ITEM_TEXT = new Map(ITEMS.map((i) => [i.id, i.text]))
