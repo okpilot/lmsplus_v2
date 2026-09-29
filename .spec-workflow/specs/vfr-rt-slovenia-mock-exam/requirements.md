@@ -58,7 +58,7 @@ Steering doc `product.md` lists "in-house mock exam fidelity" as a foundational 
 4. WHEN Part 1 (acronyms, short_answer) is graded THEN each acronym is scored 0 or 1 by acceptable-list normalized match (case-insensitive, whitespace/punctuation/hyphen collapsed; NO diacritic folding). Part 1 score = correct / 8.
 5. WHEN Part 2 (dialog_fill) is graded THEN for each of the 9 tasks: task score = (blanks correct / blanks total) using the same normalized matching rule per-blank. Part 2 score = mean of the 9 task scores.
 6. WHEN Part 3 is graded THEN an MC question scores 0 or 1 by selected-option-id match, and an ordering / diagram_label question scores correct slots (zones) ÷ items (zones). Part 3 score = mean over its questions.
-7. WHEN any unanswered question, blank, slot or zone exists at submission time THEN it scores 0 (no penalty escalation).
+7. WHEN any unanswered question, blank, or diagram-label zone exists at submission time THEN it scores 0 (no penalty escalation). WHEN an ordering answer is present but is not a complete permutation of its items THEN the submission is rejected with `invalid_answer_entry`.
 8. WHEN the report page is rendered THEN it shows per-part scores, the 75% threshold line for each part, which parts failed, and the per-question/per-task breakdown so the student can review wrong answers.
 
 ### Requirement 4 — Mock sampling (8 + 9 + 8, frozen at session start)
