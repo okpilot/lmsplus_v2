@@ -48,7 +48,7 @@ const DIAGRAM_ANSWER = [
   { zone_id: 'zone-sw', label_id: 'lbl-charlie' },
 ]
 const DIAGRAM_CONFIG = {
-  image_ref: 'rwy-27-09-lh-pattern',
+  image_ref: 'rwy-2709-lh-pattern',
   zones: DIAGRAM_ZONES,
   labels: DIAGRAM_LABELS,
   answer: DIAGRAM_ANSWER,
