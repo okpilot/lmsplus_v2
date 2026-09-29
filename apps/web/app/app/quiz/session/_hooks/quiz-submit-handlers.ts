@@ -52,12 +52,17 @@ type SubmitDeps = Parameters<typeof buildHandleSubmit>[0]
 
 /** Runs the mode-specific submit: vfr_rt_exam has its own per-type submit, everything else
  * goes through handleSubmitSession. */
-function dispatchSubmission(
-  deps: SubmitDeps,
-  sharedFor: ReturnType<typeof buildSharedFor>,
-  answers: Map<string, DraftAnswer>,
-  onSuccess: () => void,
-) {
+function dispatchSubmission({
+  deps,
+  sharedFor,
+  answers,
+  onSuccess,
+}: {
+  deps: SubmitDeps
+  sharedFor: ReturnType<typeof buildSharedFor>
+  answers: Map<string, DraftAnswer>
+  onSuccess: () => void
+}) {
   const common = { userId: deps.userId, sessionId: deps.sessionId, answers, onSuccess }
   if (deps.examMode === 'vfr_rt_exam') {
     return handleSubmitVfrRtExamSession({
@@ -109,7 +114,7 @@ export function buildHandleSubmit(
       deps.submitted.current = true
       deps.setShowFinishDialog(false)
     }
-    await dispatchSubmission(deps, sharedFor, safeAnswers, onSuccess).finally(() => {
+    await dispatchSubmission({ deps, sharedFor, answers: safeAnswers, onSuccess }).finally(() => {
       // If submit rejected/threw before any setSubmitting(false), release the re-entry lock
       // so the student can retry. On success onSuccess set submitted.current = true first, so
       // the lock intentionally stays engaged here (terminal — navigating to the report).
