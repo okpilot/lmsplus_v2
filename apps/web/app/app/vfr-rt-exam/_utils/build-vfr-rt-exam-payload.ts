@@ -71,10 +71,9 @@ function diagramEntries(q: SessionQuestion, a: DraftAnswer): Entry[] | null {
   }))
 }
 
-const BUILDERS: Record<
-  SessionQuestion['question_type'],
-  (q: SessionQuestion, a: DraftAnswer) => Entry[] | null
-> = {
+type Builder = (q: SessionQuestion, a: DraftAnswer) => Entry[] | null
+
+const BUILDERS: Record<SessionQuestion['question_type'], Builder> = {
   multiple_choice: mcEntries,
   short_answer: shortEntries,
   dialog_fill: dialogEntries,
@@ -97,7 +96,10 @@ export function buildVfrRtExamPayload(
   for (const [questionId, answer] of answers) {
     const question = byId.get(questionId)
     if (!question) continue
-    const entries = BUILDERS[question.question_type](question, answer)
+    // Fail closed on loader drift: an unknown type would otherwise throw and strand Submit.
+    const build = BUILDERS[question.question_type] as Builder | undefined
+    if (!build) continue
+    const entries = build(question, answer)
     if (entries === null) continue
     if (!entries.every((e) => AnswerEntry.safeParse(e).success)) continue
     payload.push(...entries)

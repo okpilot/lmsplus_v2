@@ -79,6 +79,16 @@ describe('buildVfrRtExamPayload', () => {
     expect(build([mc], { [id(99)]: { selectedOptionId: 'a' } })).toEqual([])
   })
 
+  it('drops an answer for a question of an unknown type instead of throwing', () => {
+    const unknown = { ...short, question_type: 'numeric' } as unknown as SessionQuestion
+    expect(
+      build([unknown, mc], {
+        [short.id]: { responseText: 'x' },
+        [mc.id]: { selectedOptionId: 'a' },
+      }),
+    ).toHaveLength(1)
+  })
+
   it('drops a multiple-choice answer whose option is not among the delivered options', () => {
     expect(build([mc], { [mc.id]: { selectedOptionId: 'd' } })).toEqual([])
   })

@@ -25,7 +25,7 @@ export type QuizQuestionRow = {
   diagram_config_public: unknown
 }
 
-export type LoadedQuestion = {
+type LoadedQuestion = {
   id: string
   question_text: string
   question_image_url: string | null
