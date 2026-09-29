@@ -7,38 +7,41 @@ type VfrRtPracticeSectionsProps = {
   config: ReturnType<typeof useQuizConfig>
 }
 
-/** Topic tree, question count, errors and start button for a Practice (non-exam) VFR RT run. */
-export function VfrRtPracticeSections({ config }: Readonly<VfrRtPracticeSectionsProps>) {
-  const hasTopics = config.topicTree.topics.length > 0
+type Config = ReturnType<typeof useQuizConfig>
+
+function TopicSection({ config }: Readonly<{ config: Config }>) {
+  const t = config.topicTree
   return (
     <>
-      {hasTopics && (
-        <>
-          <div className="rounded-xl border border-border bg-card p-6">
-            <TopicTree
-              topics={config.topicTree.topics}
-              checkedTopics={config.topicTree.checkedTopics}
-              checkedSubtopics={config.topicTree.checkedSubtopics}
-              onToggleTopic={config.topicTree.toggleTopic}
-              onToggleSubtopic={config.topicTree.toggleSubtopic}
-              onSelectAll={config.topicTree.selectAll}
-              totalQuestions={config.topicTree.totalQuestions}
-              allSelected={config.topicTree.allSelected}
-              filteredByTopic={config.filteredByTopic}
-              filteredBySubtopic={config.filteredBySubtopic}
-              showCode={false}
-            />
-          </div>
-          <div className="rounded-xl border border-border bg-card p-6">
-            <QuestionCount
-              value={config.count}
-              max={config.availableCount}
-              onValueChange={config.setCount}
-            />
-          </div>
-        </>
-      )}
+      <div className="rounded-xl border border-border bg-card p-6">
+        <TopicTree
+          topics={t.topics}
+          checkedTopics={t.checkedTopics}
+          checkedSubtopics={t.checkedSubtopics}
+          onToggleTopic={t.toggleTopic}
+          onToggleSubtopic={t.toggleSubtopic}
+          onSelectAll={t.selectAll}
+          totalQuestions={t.totalQuestions}
+          allSelected={t.allSelected}
+          filteredByTopic={config.filteredByTopic}
+          filteredBySubtopic={config.filteredBySubtopic}
+          showCode={false}
+        />
+      </div>
+      <div className="rounded-xl border border-border bg-card p-6">
+        <QuestionCount
+          value={config.count}
+          max={config.availableCount}
+          onValueChange={config.setCount}
+        />
+      </div>
+    </>
+  )
+}
 
+function ConfigErrors({ config }: Readonly<{ config: Config }>) {
+  return (
+    <>
       {config.error && (
         <p role="alert" className="text-sm text-destructive">
           {config.error}
@@ -49,11 +52,20 @@ export function VfrRtPracticeSections({ config }: Readonly<VfrRtPracticeSections
           Session expired. Please refresh the page.
         </p>
       )}
+    </>
+  )
+}
 
+/** Topic tree, question count, errors and start button for a Practice (non-exam) VFR RT run. */
+export function VfrRtPracticeSections({ config }: Readonly<VfrRtPracticeSectionsProps>) {
+  const disabled =
+    config.availableCount === 0 || config.loading || config.isPending || config.authError
+  return (
+    <>
+      {config.topicTree.topics.length > 0 && <TopicSection config={config} />}
+      <ConfigErrors config={config} />
       <StartButton
-        disabled={
-          config.availableCount === 0 || config.loading || config.isPending || config.authError
-        }
+        disabled={disabled}
         loading={config.loading}
         label="Start Practice"
         onClick={config.handleStart}
