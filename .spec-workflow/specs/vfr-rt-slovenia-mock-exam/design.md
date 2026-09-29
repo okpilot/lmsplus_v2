@@ -232,7 +232,7 @@ flowchart TD
   5. Check for an active `vfr_rt_exam` for this student — if found, return its current state (idempotent resume).
   6. Sample 8 `short_answer` IDs from the VFR RT subject's Part 1 topic (`question_type = 'short_answer' AND topic_id = <P1>` ordered by `random()`).
   7. Sample 9 `dialog_fill` IDs from Part 2 topic. Sample 2 IDs per Part 3 subtopic (multiple_choice / ordering / diagram_label), grouped by subtopic sort_order.
-  8. `IF v_p1_count < 8 OR v_p2_count < 9 OR v_p3_count < 8 RAISE 'insufficient_questions_for_vfr_rt_exam' USING DETAIL = jsonb_build_object('p1_have', v_p1_count, 'p2_have', v_p2_count, 'p3_have', v_p3_count)::text;`
+  8. `IF v_p1_count < 8 OR v_p2_count < 9 OR` any Part 3 subtopic has `< 2` questions (or there are none) `RAISE 'insufficient_questions_for_vfr_rt_exam'` with DETAIL `{p1_have, p2_have, p3_have, p3_subtopics, p3_short: [{subtopic, have, need}]}` (migration 20260929000200).
   9. Build the flat `question_ids` array preserving Part-1, Part-2, Part-3 order; set `parts = {p1_end: 8, p2_end: 17, p3_end: 25}`.
   10. INSERT `quiz_sessions` with `mode = 'vfr_rt_exam'`, `subject_id = p_subject_id`, `config = jsonb_build_object('question_ids', v_ids, 'parts', v_parts)`, `time_limit_seconds = 1800`, `total_questions = 25`.
   11. INSERT `audit_events` row `'vfr_rt_exam.started'`. The `actor_role` subquery on `users` filters `deleted_at IS NULL` (security.md §10).

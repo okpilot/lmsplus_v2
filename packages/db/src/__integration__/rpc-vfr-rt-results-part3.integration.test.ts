@@ -133,7 +133,7 @@ describe('get_vfr_rt_exam_results — Part 3 ordering and diagram', () => {
     expect(Number(res.part3_pct)).toBe(submittedPart3)
   })
 
-  it('keeps the graded part 3 score after the diagram question gains a zone', async () => {
+  it('keeps the graded part 3 score on results and submit replay after the diagram question gains a zone', async () => {
     const { data: before, error: readErr } = await admin
       .from('questions')
       .select('diagram_config')
@@ -161,6 +161,14 @@ describe('get_vfr_rt_exam_results — Part 3 ordering and diagram', () => {
       expect(Number(requireRpcResult<Results>(data, 'get_vfr_rt_exam_results').part3_pct)).toBe(
         submittedPart3,
       )
+      const replay = await org.studentClient.rpc('submit_vfr_rt_exam_answers', {
+        p_session_id: sessionId,
+        p_answers: [],
+      })
+      expect(replay.error).toBeNull()
+      expect(
+        Number(requireRpcResult<{ part3_pct: number | string }>(replay.data, 'replay').part3_pct),
+      ).toBe(submittedPart3)
     } finally {
       await admin.from('questions').update({ diagram_config: original }).eq('id', org.diagram.id)
     }
