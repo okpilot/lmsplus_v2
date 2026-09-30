@@ -16,7 +16,9 @@ vi.mock('@/app/app/quiz/_hooks/use-quiz-config', () => ({
 }))
 
 vi.mock('./vfr-rt-exam-panel', () => ({
-  VfrRtExamPanel: () => <div data-testid="exam-panel" />,
+  VfrRtExamPanel: ({ questionCount }: { questionCount: number | null }) => (
+    <div data-testid="exam-panel" data-question-count={questionCount ?? ''} />
+  ),
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -34,6 +36,7 @@ function renderForm(
     subjects?: typeof SUBJECTS
     initialTopics?: typeof INITIAL_TOPICS
     examAvailable?: boolean
+    questionCount?: number | null
   } = {},
 ) {
   return render(
@@ -42,7 +45,10 @@ function renderForm(
       subjectId={SUBJECT_ID}
       subjects={overrides.subjects ?? SUBJECTS}
       initialTopics={overrides.initialTopics ?? INITIAL_TOPICS}
-      examAvailable={overrides.examAvailable ?? false}
+      exam={{
+        available: overrides.examAvailable ?? false,
+        questionCount: overrides.questionCount ?? null,
+      }}
     />,
   )
 }
@@ -151,6 +157,12 @@ describe('VfrRtConfigForm — mode toggle', () => {
     expect(screen.getByTestId('exam-panel')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /start practice/i })).toBeNull()
     expect(screen.queryByText('Unanswered')).toBeNull()
+  })
+
+  it('passes the exam question count to the exam panel', () => {
+    mockUseQuizConfig.mockReturnValue(buildMockConfig({ mode: 'exam' }))
+    renderForm({ examAvailable: true, questionCount: 25 })
+    expect(screen.getByTestId('exam-panel')).toHaveAttribute('data-question-count', '25')
   })
 
   it('does not show the exam panel in study mode', () => {

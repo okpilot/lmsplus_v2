@@ -15,8 +15,15 @@ import { VfrRtExamPanel } from './vfr-rt-exam-panel'
 
 const SUBJECTS = [{ id: 's-rt', code: 'RT', name: 'VFR RT', short: 'RT', questionCount: 3 }]
 
-function renderPanel() {
-  return render(<VfrRtExamPanel userId="user-1" subjectId="s-rt" subjects={SUBJECTS} />)
+function renderPanel(questionCount: number | null = null) {
+  return render(
+    <VfrRtExamPanel
+      userId="user-1"
+      subjectId="s-rt"
+      subjects={SUBJECTS}
+      questionCount={questionCount}
+    />,
+  )
 }
 
 beforeEach(() => {
@@ -34,6 +41,17 @@ describe('VfrRtExamPanel', () => {
     expect(screen.getByText('30 min')).toBeInTheDocument()
     expect(screen.getByText('3')).toBeInTheDocument()
     expect(screen.getByText('75%')).toBeInTheDocument()
+  })
+
+  it('shows the total question count when it is known', () => {
+    renderPanel(25)
+    expect(screen.getByText('25')).toBeInTheDocument()
+    expect(screen.getByText('Questions')).toBeInTheDocument()
+  })
+
+  it('hides the question count when it is not known', () => {
+    renderPanel(null)
+    expect(screen.queryByText('Questions')).toBeNull()
   })
 
   it('shows the fixed 30 minute time limit', () => {

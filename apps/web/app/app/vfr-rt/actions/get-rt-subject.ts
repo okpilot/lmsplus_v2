@@ -4,6 +4,7 @@ import { createServerSupabaseClient } from '@repo/db/server'
 import { getExamEnabledSubjects } from '@/lib/queries/exam-subjects'
 import type { SubjectOption, TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
 import { getTopicsWithSubtopics } from '@/lib/queries/quiz-subject-queries'
+import { getVfrRtExamQuestionCount } from '@/lib/queries/vfr-rt-exam-question-count'
 
 export type RtSubjectData = {
   id: string
@@ -12,8 +13,9 @@ export type RtSubjectData = {
   // from it. Built here (data layer) so the RSC stays pure composition.
   subjects: SubjectOption[]
   topics: TopicWithSubtopics[]
-  // The student's org has an enabled exam_config for RT (getExamEnabledSubjects; error → false).
-  examAvailable: boolean
+  // available: the student's org has an enabled exam_config for RT (getExamEnabledSubjects; error → false).
+  // questionCount: total questions the exam will draw; null when unavailable or not derivable.
+  exam: { available: boolean; questionCount: number | null }
 }
 
 /** Throws on failure (page-critical); logs the raw DB error and throws a generic message
@@ -56,7 +58,8 @@ export async function getRtSubjectData(): Promise<RtSubjectData> {
     fetchTopicsOrEmpty(id),
     getExamEnabledSubjects(),
   ])
-  const rtExam = examSubjects.find((s) => s.id === id)
+  const available = examSubjects.some((s) => s.id === id)
+  const questionCount = available ? await getVfrRtExamQuestionCount(id) : null
   const subjects: SubjectOption[] = [
     {
       id,
@@ -70,6 +73,6 @@ export async function getRtSubjectData(): Promise<RtSubjectData> {
     id,
     subjects,
     topics,
-    examAvailable: rtExam !== undefined,
+    exam: { available, questionCount },
   }
 }

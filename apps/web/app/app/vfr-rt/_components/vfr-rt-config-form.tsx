@@ -12,7 +12,7 @@ type VfrRtConfigFormProps = {
   subjectId: string
   subjects: SubjectOption[]
   initialTopics: TopicWithSubtopics[]
-  examAvailable: boolean
+  exam: { available: boolean; questionCount: number | null }
 }
 
 /**
@@ -31,7 +31,7 @@ export function VfrRtConfigForm({
   subjectId,
   subjects,
   initialTopics,
-  examAvailable,
+  exam,
 }: Readonly<VfrRtConfigFormProps>) {
   const config = useQuizConfig({
     userId,
@@ -48,7 +48,7 @@ export function VfrRtConfigForm({
         <ModeToggle
           value={config.mode}
           onValueChange={config.setMode}
-          examAvailable={examAvailable}
+          examAvailable={exam.available}
           discoveryAvailable={false}
         />
         {!isExam && (
@@ -65,7 +65,14 @@ export function VfrRtConfigForm({
         )}
       </div>
 
-      {isExam && <VfrRtExamPanel userId={userId} subjectId={subjectId} subjects={subjects} />}
+      {isExam && (
+        <VfrRtExamPanel
+          userId={userId}
+          subjectId={subjectId}
+          subjects={subjects}
+          questionCount={exam.questionCount}
+        />
+      )}
       {!isExam && <VfrRtPracticeSections config={config} />}
     </div>
   )

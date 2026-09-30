@@ -7,7 +7,7 @@ import { VfrRtConfigForm } from './vfr-rt-config-form'
  * initial topic-tree state. Lives inside a Suspense boundary in page.tsx.
  */
 export async function VfrRtSetup({ userId }: Readonly<{ userId: string }>) {
-  const { id, subjects, topics, examAvailable } = await getRtSubjectData()
+  const { id, subjects, topics, exam } = await getRtSubjectData()
 
   return (
     <VfrRtConfigForm
@@ -15,7 +15,7 @@ export async function VfrRtSetup({ userId }: Readonly<{ userId: string }>) {
       subjectId={id}
       subjects={subjects}
       initialTopics={topics}
-      examAvailable={examAvailable}
+      exam={exam}
     />
   )
 }
