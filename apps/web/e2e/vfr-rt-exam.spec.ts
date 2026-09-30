@@ -2,16 +2,22 @@
  * E2E — VFR RT mock exam in the shared quiz runner (PR3a).
  *
  * Seeds an RT pool + enabled RT exam_config into the e2e org (Egmont) for the shared
- * e2e student (e2e/.auth/user.json). workers=1 in playwright.config.ts, so the seeded
- * config never overlaps another spec; afterAll soft-deletes the pool.
+ * e2e student. workers=1 in playwright.config.ts, so the seeded config never overlaps
+ * another spec; afterAll soft-deletes the pool. Signs in per test: settings.spec.ts
+ * resets this student's password, which revokes the session saved in e2e/.auth/user.json.
  */
 
 import { expect, type Page, test } from '@playwright/test'
-import { cleanupStudentActiveSessions, getAdminClient, TEST_EMAIL } from './helpers/supabase'
+import {
+  cleanupStudentActiveSessions,
+  getAdminClient,
+  TEST_EMAIL,
+  TEST_PASSWORD,
+} from './helpers/supabase'
 import { getEgmontOrgId } from './redteam/helpers/seed-core'
 import { cleanupVfrRtPool, seedVfrRtPool, type VfrRtPool } from './redteam/helpers/seed-vfr-rt-pool'
 
-test.use({ storageState: 'e2e/.auth/user.json', viewport: { width: 1280, height: 1000 } })
+test.use({ storageState: { cookies: [], origins: [] }, viewport: { width: 1280, height: 1000 } })
 
 type AnswerType = 'short_answer' | 'dialog_fill' | 'multiple_choice' | 'ordering' | 'diagram_label'
 
@@ -134,8 +140,13 @@ test.describe('VFR RT mock exam', () => {
     pool = await seedVfrRtPool({ admin, orgId, adminUserId: data.id })
   })
 
-  test.beforeEach(async () => {
+  test.beforeEach(async ({ page }) => {
     await cleanupStudentActiveSessions(TEST_EMAIL)
+    await page.goto('/')
+    await page.getByLabel('Email address').fill(TEST_EMAIL)
+    await page.getByLabel('Password', { exact: true }).fill(TEST_PASSWORD)
+    await page.getByRole('button', { name: 'Sign in' }).click()
+    await page.waitForURL('**/app/dashboard', { timeout: 15_000 })
   })
 
   test.afterAll(async () => {
