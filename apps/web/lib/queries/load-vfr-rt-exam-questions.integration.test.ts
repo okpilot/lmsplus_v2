@@ -60,9 +60,12 @@ describe('loadVfrRtExamQuestions (app-layer integration)', () => {
   })
 
   it("fails for another student's session", async () => {
+    const own = await startPart3Exam(otherOrg)
     await signInAs(otherOrg.studentEmail, otherOrg.studentPassword)
+    const control = await loadVfrRtExamQuestions({ sessionId: own.session_id })
+    expect(control.success).toBe(true)
     const result = await loadVfrRtExamQuestions({ sessionId: session.session_id })
-    expect(result.success).toBe(false)
+    expect(result).toEqual({ success: false, error: 'Failed to load questions. Please try again.' })
   })
 
   it('fails for a non-uuid session id', async () => {
