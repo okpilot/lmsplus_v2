@@ -103,8 +103,9 @@ describe('StudentFormDialog — create', () => {
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith('Invalid input')
     })
+    // toast.error fires inside the transition; the button reads "Saving..." until it commits.
+    expect(await screen.findByRole('button', { name: 'Create Student' })).toBeInTheDocument()
     expect(screen.queryByText('Student created.')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Create Student' })).toBeInTheDocument()
   })
 
   it('shows a generic error toast when createStudent throws', async () => {
