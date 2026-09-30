@@ -183,17 +183,17 @@
 
 ## Phase C — Student UI (shared quiz runner, Decision 108)
 
-- [ ] **C.1 Entry** — `/app/vfr-rt` ModeToggle "Practice Exam" enabled when the org has an enabled RT `exam_configs` row; `VfrRtExamPanel` calls `startVfrRtExam` and hands off to `/app/quiz/session` (`mode: 'exam'`, `examMode: 'vfr_rt_exam'`). RT is hidden from the `/app/quiz` Practice Exam subject list.
+- [x] **C.1 Entry** — `/app/vfr-rt` ModeToggle "Practice Exam" enabled when the org has an enabled RT `exam_configs` row; `VfrRtExamPanel` calls `startVfrRtExam` and hands off to `/app/quiz/session` (`mode: 'exam'`, `examMode: 'vfr_rt_exam'`). RT is hidden from the `/app/quiz` Practice Exam subject list.
   - _Requirements: R2, R3, NFR-Usability_
 
-- [ ] **C.2 Shared runner loads the exam** — `examMode === 'vfr_rt_exam'` loads via `get_vfr_rt_exam_questions` (`loadVfrRtExamQuestions`), including reload / resume.
+- [x] **C.2 Shared runner loads the exam** — `examMode === 'vfr_rt_exam'` loads via `get_vfr_rt_exam_questions` (`loadVfrRtExamQuestions`), including reload / resume.
   - _Test_: reload mid-flow (Vitest + Playwright) per `code-style.md` §7.
   - _Requirements: R2, R4.5, NFR-Reliability_
 
-- [ ] **C.3 Non-MC answers in exam mode** — short_answer, dialog_fill, ordering, diagram_label use the shared inputs; an answer locks on Submit Answer; no feedback during the exam.
+- [x] **C.3 Non-MC answers in exam mode** — short_answer, dialog_fill, ordering, diagram_label use the shared inputs; an answer locks on Submit Answer; no feedback during the exam.
   - _Requirements: R1, R5, NFR-Security_
 
-- [ ] **C.4 Submit** — `buildVfrRtExamPayload` drops any question whose answer the RPC would reject (incomplete ordering permutation, unknown zone/label/option); empty → `submitEmptyExamSession`; else `submitVfrRtExam`; a failed submit keeps the session. Lands on `/app/vfr-rt/report?session=<id>`. Discard hidden; the resume prompt offers a local-only Dismiss.
+- [x] **C.4 Submit** — `buildVfrRtExamPayload` drops any question whose answer the RPC would reject (incomplete ordering permutation, unknown zone/label/option); empty → `submitEmptyExamSession`; else `submitVfrRtExam`; a failed submit keeps the session. Lands on `/app/vfr-rt/report?session=<id>`. Discard hidden; the resume prompt offers a local-only Dismiss.
   - _Requirements: R2.2, R3, R4_
 
 - [ ] **C.5 Part percentages on the report** — PR3b: `get_vfr_rt_exam_results` part1/2/3 %, per-part pass at 75%; no `correct_count` of `total_questions`.
