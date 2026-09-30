@@ -107,8 +107,11 @@ async function answerAndAssertLocked(page: Page, type: AnswerType): Promise<void
     await expect(submit).toHaveCount(0)
   } else {
     await dragChipOntoFirstZone(page)
-    await submit.click()
-    await expect(submit).toHaveCount(0)
+    // dnd-kit swallows clicks for 50ms after a drop; retry until the answer locks.
+    await expect(async () => {
+      if ((await submit.count()) > 0) await submit.click({ timeout: 1_000 })
+      await expect(submit).toHaveCount(0, { timeout: 1_000 })
+    }).toPass({ timeout: 10_000 })
   }
   await expect(page.getByText(/^(Correct|Incorrect)$/)).toHaveCount(0)
 }
