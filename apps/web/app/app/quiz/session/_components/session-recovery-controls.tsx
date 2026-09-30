@@ -22,7 +22,22 @@ type DiscardControlProps = Readonly<{
   onDiscard: () => void
 }>
 
+/** Discard dialog wording: exams name the exam, study sessions refer to progress. */
+export function discardCopy(isExam: boolean, examLabel: string) {
+  if (!isExam) {
+    return {
+      title: 'Discard quiz session?',
+      description: 'This will permanently discard your progress. You cannot undo this action.',
+    }
+  }
+  return {
+    title: `Discard ${examLabel}?`,
+    description: `This will permanently discard your ${examLabel} session. You cannot undo this action.`,
+  }
+}
+
 export function DiscardControl({ isExam, examLabel, loading, onDiscard }: DiscardControlProps) {
+  const copy = discardCopy(isExam, examLabel)
   return (
     <AlertDialog>
       <AlertDialogTrigger
@@ -38,14 +53,8 @@ export function DiscardControl({ isExam, examLabel, loading, onDiscard }: Discar
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>
-            {isExam ? `Discard ${examLabel}?` : 'Discard quiz session?'}
-          </AlertDialogTitle>
-          <AlertDialogDescription>
-            {isExam
-              ? `This will permanently discard your ${examLabel} session. You cannot undo this action.`
-              : 'This will permanently discard your progress. You cannot undo this action.'}
-          </AlertDialogDescription>
+          <AlertDialogTitle>{copy.title}</AlertDialogTitle>
+          <AlertDialogDescription>{copy.description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
