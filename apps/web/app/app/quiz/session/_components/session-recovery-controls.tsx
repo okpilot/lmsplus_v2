@@ -36,7 +36,12 @@ export function discardCopy(isExam: boolean, examLabel: string) {
   }
 }
 
-export function DiscardControl({ isExam, examLabel, loading, onDiscard }: DiscardControlProps) {
+export function DiscardControl({
+  isExam,
+  examLabel,
+  loading,
+  onDiscard,
+}: Readonly<DiscardControlProps>) {
   const copy = discardCopy(isExam, examLabel)
   return (
     <AlertDialog>
@@ -72,7 +77,7 @@ type DismissControlProps = Readonly<{
   onDismiss?: () => void
 }>
 
-export function DismissControl({ loading, onDismiss }: DismissControlProps) {
+export function DismissControl({ loading, onDismiss }: Readonly<DismissControlProps>) {
   return (
     <AlertDialog>
       <AlertDialogTrigger
