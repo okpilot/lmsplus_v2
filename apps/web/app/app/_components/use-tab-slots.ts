@@ -1,9 +1,11 @@
 import { type RefObject, useEffect, useState } from 'react'
 import { TAB_MIN_WIDTH } from './split-tabs'
 
-/** Number of tab slots that fit the element's width; unbounded until measured. */
+export const DEFAULT_TAB_SLOTS = 5
+
+/** Number of tab slots that fit the element's width; DEFAULT_TAB_SLOTS until measured. */
 export function useTabSlots(ref: RefObject<HTMLElement | null>): number {
-  const [slots, setSlots] = useState(Number.POSITIVE_INFINITY)
+  const [slots, setSlots] = useState(DEFAULT_TAB_SLOTS)
 
   useEffect(() => {
     const el = ref.current

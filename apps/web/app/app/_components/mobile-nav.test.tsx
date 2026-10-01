@@ -30,7 +30,7 @@ describe('MobileNav', () => {
     renderMobileNav()
     expect(screen.getByText('Dashboard')).toBeInTheDocument()
     expect(screen.getByText('Quiz')).toBeInTheDocument()
-    expect(screen.getByText('Reports')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'More' })).toBeInTheDocument()
   })
 
   it('highlights the active tab matching the current pathname', () => {

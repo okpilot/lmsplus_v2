@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { useTabSlots } from './use-tab-slots'
+import { DEFAULT_TAB_SLOTS, useTabSlots } from './use-tab-slots'
 
 type Callback = (entries: { contentRect: { width: number } }[]) => void
 
@@ -9,10 +9,10 @@ afterEach(() => {
 })
 
 describe('useTabSlots', () => {
-  it('is unbounded when ResizeObserver is unavailable', () => {
+  it('falls back to the default slot count when ResizeObserver is unavailable', () => {
     const el = document.createElement('nav')
     const { result } = renderHook(() => useTabSlots({ current: el }))
-    expect(result.current).toBe(Number.POSITIVE_INFINITY)
+    expect(result.current).toBe(DEFAULT_TAB_SLOTS)
   })
 
   it('returns how many 64px slots fit the measured width', () => {

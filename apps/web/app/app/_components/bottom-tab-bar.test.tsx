@@ -29,6 +29,13 @@ function stubResizeObserver() {
   )
 }
 
+function renderMeasured(width: number, userRole = 'student') {
+  stubResizeObserver()
+  const result = renderTabBar(userRole)
+  act(() => observerCallback?.([{ contentRect: { width } }]))
+  return result
+}
+
 function renderTabBar(userRole = 'student') {
   return render(
     <UserProvider displayName="Test User" userRole={userRole}>
@@ -49,7 +56,7 @@ afterEach(() => {
 
 describe('BottomTabBar', () => {
   it('renders every student navigation tab including Settings when all fit', () => {
-    renderTabBar()
+    renderMeasured(1000)
     for (const label of ['Dashboard', 'Quiz', 'VFR RT', 'Internal Exam', 'Reports', 'Settings']) {
       expect(screen.getByRole('link', { name: label })).toBeInTheDocument()
     }
@@ -58,32 +65,32 @@ describe('BottomTabBar', () => {
   })
 
   it('shows admin items for admin users', () => {
-    renderTabBar('admin')
+    renderMeasured(1000, 'admin')
     expect(screen.getByText('Syllabus')).toBeInTheDocument()
   })
 
   it('marks the tab matching the current pathname as the current page', () => {
     mockUsePathname.mockReturnValue('/app/quiz')
-    renderTabBar()
+    renderMeasured(1000)
     expect(screen.getByRole('link', { name: 'Quiz' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('link', { name: 'Dashboard' })).not.toHaveAttribute('aria-current')
   })
 
   it('marks the parent tab as current when on a sub-path', () => {
     mockUsePathname.mockReturnValue('/app/quiz/session')
-    renderTabBar()
+    renderMeasured(1000)
     expect(screen.getByRole('link', { name: 'Quiz' })).toHaveAttribute('aria-current', 'page')
   })
 
   it('styles the active tab stronger than inactive ones', () => {
     mockUsePathname.mockReturnValue('/app/quiz')
-    renderTabBar()
+    renderMeasured(1000)
     expect(screen.getByRole('link', { name: 'Quiz' }).className).toContain('font-medium')
     expect(screen.getByRole('link', { name: 'Dashboard' }).className).not.toContain('font-medium')
   })
 
   it('links point to correct routes', () => {
-    renderTabBar()
+    renderMeasured(1000)
     expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute(
       'href',
       '/app/dashboard',
@@ -96,12 +103,7 @@ describe('BottomTabBar', () => {
   })
 
   describe('when the bar is too narrow for every item', () => {
-    function narrow(width: number) {
-      stubResizeObserver()
-      const result = renderTabBar()
-      act(() => observerCallback?.([{ contentRect: { width } }]))
-      return result
-    }
+    const narrow = (width: number) => renderMeasured(width)
 
     it('shows a More button and moves the overflow into a sheet', async () => {
       narrow(320)
@@ -146,6 +148,61 @@ describe('BottomTabBar', () => {
         </UserProvider>,
       )
       expect(screen.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument()
+    })
+
+    it('closes the sheet when a sheet link is tapped', async () => {
+      narrow(320)
+      const user = userEvent.setup({ delay: null })
+      await user.click(screen.getByRole('button', { name: 'More' }))
+      await user.click(screen.getByRole('link', { name: 'Settings' }))
+      expect(screen.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument()
+    })
+
+    it('closes the sheet when the current page link in it is tapped', async () => {
+      mockUsePathname.mockReturnValue('/app/settings')
+      narrow(320)
+      const user = userEvent.setup({ delay: null })
+      await user.click(screen.getByRole('button', { name: 'More' }))
+      await user.click(screen.getByRole('link', { name: 'Settings' }))
+      expect(screen.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument()
+    })
+
+    it('moves focus to the first sheet link when the sheet opens', async () => {
+      narrow(320)
+      await userEvent.setup({ delay: null }).click(screen.getByRole('button', { name: 'More' }))
+      const first = document.querySelector('ul a')
+      expect(first).not.toBeNull()
+      expect(first).toHaveFocus()
+    })
+
+    it('returns focus to More after Escape closes the sheet', async () => {
+      narrow(320)
+      const user = userEvent.setup({ delay: null })
+      const more = screen.getByRole('button', { name: 'More' })
+      await user.click(more)
+      await user.keyboard('{Escape}')
+      expect(more).toHaveFocus()
+    })
+
+    it('places the sheet after the More button in DOM order', async () => {
+      narrow(320)
+      const more = screen.getByRole('button', { name: 'More' })
+      await userEvent.setup({ delay: null }).click(more)
+      const sheet = document.querySelector('ul')
+      expect(sheet).not.toBeNull()
+      expect(
+        more.compareDocumentPosition(sheet as Node) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
+    })
+
+    it('stays closed after widening and narrowing again', async () => {
+      narrow(320)
+      const user = userEvent.setup({ delay: null })
+      await user.click(screen.getByRole('button', { name: 'More' }))
+      act(() => observerCallback?.([{ contentRect: { width: 1000 } }]))
+      act(() => observerCallback?.([{ contentRect: { width: 320 } }]))
+      expect(screen.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'More' })).toHaveAttribute('aria-expanded', 'false')
     })
 
     it('marks More as active when the current page is in the sheet', () => {
