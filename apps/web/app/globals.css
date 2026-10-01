@@ -54,7 +54,9 @@
   --color-caution: var(--caution);
   --color-caution-soft: var(--caution-soft);
   --color-caution-ring: var(--caution-ring);
-  --font-mono: var(--app-font-mono);
+  --font-mono:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+    monospace;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -97,9 +99,6 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
-  --app-font-mono:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
-    monospace;
   --brand: oklch(0.77 0.14 58);
   --brand-text: oklch(0.6 0.14 52);
   --brand-foreground: oklch(0.18 0.03 60);
@@ -191,9 +190,6 @@
   --destructive: var(--bad);
   --canvas: oklch(0.963 0.006 255);
   --surface: oklch(1 0 0);
-  --app-font-mono:
-    var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    "Liberation Mono", "Courier New", monospace;
 }
 
 .dark [data-look="v2"] {
@@ -212,10 +208,6 @@
   --ring: oklch(0.7 0.016 255);
   --canvas: oklch(0.15 0.01 260);
   --surface: oklch(0.21 0.013 260);
-}
-
-[data-look="v2"] :is(code, kbd, samp, pre) {
-  font-family: var(--app-font-mono);
 }
 
 @keyframes look-shimmer {
