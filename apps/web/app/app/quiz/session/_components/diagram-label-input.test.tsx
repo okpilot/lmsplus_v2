@@ -220,7 +220,7 @@ describe('DiagramLabelInput', () => {
     expect(onSubmit).toHaveBeenCalledWith([{ zoneId: 'z1', labelId: 'l1' }])
   })
 
-  it('submits an empty mapping when nothing was placed', async () => {
+  it('disables Submit and does not submit until a label is placed', async () => {
     const onSubmit = vi.fn()
     render(
       <DiagramLabelInput
@@ -231,8 +231,12 @@ describe('DiagramLabelInput', () => {
         disabled={false}
       />,
     )
-    await userEvent.click(screen.getByRole('button', { name: /submit answer/i }))
-    expect(onSubmit).toHaveBeenCalledWith([])
+    const submit = screen.getByRole('button', { name: /submit answer/i })
+    expect(submit).toBeDisabled()
+    await userEvent.click(submit)
+    expect(onSubmit).not.toHaveBeenCalled()
+    fireDragEnd('l1', 'z1')
+    expect(screen.getByRole('button', { name: /submit answer/i })).toBeEnabled()
   })
 
   it('shows a spinner and disables Submit while the answer is being checked', () => {

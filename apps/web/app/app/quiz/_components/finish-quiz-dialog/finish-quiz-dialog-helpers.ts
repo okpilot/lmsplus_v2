@@ -1,4 +1,8 @@
-import { type QuizMode as DbQuizMode, MODE_LABELS } from '@/lib/constants/exam-modes'
+import {
+  type QuizMode as DbQuizMode,
+  isDiscardableExamMode,
+  MODE_LABELS,
+} from '@/lib/constants/exam-modes'
 
 // Hook-free helpers + public types for useFinishQuizDialog. Split out of
 // use-finish-quiz-dialog.ts to keep that hook file under the 80-line hook cap
@@ -56,7 +60,7 @@ export function deriveFinishDialogView(opts: {
   // Internal exams DO allow dismissing the dialog (student returns to attempt) — discard
   // is the only thing internal_exam disallows. That's gated separately via canDiscard.
   const canDismiss = !(timeExpired && isExam)
-  const canDiscard = canDismiss && !isInternalExam
+  const canDiscard = canDismiss && isDiscardableExamMode(isExam ? examMode : undefined)
   return { unanswered, isInternalExam, examLabel, title, canDismiss, canDiscard }
 }
 

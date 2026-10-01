@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import type { QuizReportSummary } from '@/lib/queries/quiz-report-types'
-import { isVfrRtPracticeReport } from './report-context'
+import { isVfrRtReport } from './report-context'
 
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -19,7 +19,7 @@ export function canonicalReportBasePath(
   current: ReportNamespace,
   pageParam: string | undefined,
 ): string {
-  const canonical: ReportNamespace = isVfrRtPracticeReport(summary.mode, summary.subjectCode)
+  const canonical: ReportNamespace = isVfrRtReport(summary.mode, summary.subjectCode)
     ? 'vfr-rt'
     : 'quiz'
   const basePath = canonical === 'vfr-rt' ? '/app/vfr-rt/report' : '/app/quiz/report'

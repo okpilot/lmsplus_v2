@@ -1,0 +1,7 @@
+import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
+
+/** Report route per exam mode; every other mode uses `/app/quiz/report`. */
+export const EXAM_REPORT_PATHS: Partial<Record<DbQuizMode, string>> = {
+  internal_exam: '/app/internal-exam/report',
+  vfr_rt_exam: '/app/vfr-rt/report',
+}

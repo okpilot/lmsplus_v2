@@ -3,9 +3,20 @@ import type { TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockFrom, mockGetTopicsWithSubtopics } = vi.hoisted(() => ({
-  mockFrom: vi.fn(),
-  mockGetTopicsWithSubtopics: vi.fn(),
+const { mockFrom, mockGetTopicsWithSubtopics, mockGetExamEnabledSubjects, mockGetCount } =
+  vi.hoisted(() => ({
+    mockFrom: vi.fn(),
+    mockGetTopicsWithSubtopics: vi.fn(),
+    mockGetExamEnabledSubjects: vi.fn(),
+    mockGetCount: vi.fn(),
+  }))
+
+vi.mock('@/lib/queries/exam-subjects', () => ({
+  getExamEnabledSubjects: (...args: unknown[]) => mockGetExamEnabledSubjects(...args),
+}))
+
+vi.mock('@/lib/queries/vfr-rt-exam-question-count', () => ({
+  getVfrRtExamQuestionCount: (...args: unknown[]) => mockGetCount(...args),
 }))
 
 vi.mock('@repo/db/server', () => ({
@@ -54,6 +65,8 @@ const TOPIC: TopicWithSubtopics = {
 beforeEach(() => {
   vi.resetAllMocks()
   mockGetTopicsWithSubtopics.mockResolvedValue([TOPIC])
+  mockGetExamEnabledSubjects.mockResolvedValue([])
+  mockGetCount.mockResolvedValue(null)
 })
 
 // ---- Happy path -----------------------------------------------------------
@@ -113,6 +126,58 @@ describe('getRtSubjectData — happy path', () => {
       'topics query failed',
     )
     consoleSpy.mockRestore()
+  })
+})
+
+// ---- Exam availability ----------------------------------------------------
+
+describe('getRtSubjectData — exam availability', () => {
+  it('reports the exam available when the RT subject has an enabled exam config', async () => {
+    mockFrom.mockReturnValue(buildChain({ data: { id: SUBJECT_ID }, error: null }))
+    mockGetExamEnabledSubjects.mockResolvedValue([{ id: SUBJECT_ID, code: 'RT' }])
+
+    const result = await getRtSubjectData()
+
+    expect(result.exam.available).toBe(true)
+  })
+
+  it('reports the derived question count when the exam is available', async () => {
+    mockFrom.mockReturnValue(buildChain({ data: { id: SUBJECT_ID }, error: null }))
+    mockGetExamEnabledSubjects.mockResolvedValue([{ id: SUBJECT_ID, code: 'RT' }])
+    mockGetCount.mockResolvedValue(25)
+
+    const result = await getRtSubjectData()
+
+    expect(result.exam.questionCount).toBe(25)
+    expect(mockGetCount).toHaveBeenCalledWith(SUBJECT_ID)
+  })
+
+  it('reports no question count and skips the count query when the exam is unavailable', async () => {
+    mockFrom.mockReturnValue(buildChain({ data: { id: SUBJECT_ID }, error: null }))
+    mockGetCount.mockResolvedValue(25)
+
+    const result = await getRtSubjectData()
+
+    expect(result.exam).toEqual({ available: false, questionCount: null })
+    expect(mockGetCount).not.toHaveBeenCalled()
+  })
+
+  it('reports the exam unavailable when only other subjects have an enabled exam config', async () => {
+    mockFrom.mockReturnValue(buildChain({ data: { id: SUBJECT_ID }, error: null }))
+    mockGetExamEnabledSubjects.mockResolvedValue([{ id: 'other-subject', code: 'MET' }])
+
+    const result = await getRtSubjectData()
+
+    expect(result.exam.available).toBe(false)
+  })
+
+  it('reports the exam unavailable when the exam-config query failed and returned no subjects', async () => {
+    mockFrom.mockReturnValue(buildChain({ data: { id: SUBJECT_ID }, error: null }))
+    mockGetExamEnabledSubjects.mockResolvedValue([])
+
+    const result = await getRtSubjectData()
+
+    expect(result.exam.available).toBe(false)
   })
 })
 

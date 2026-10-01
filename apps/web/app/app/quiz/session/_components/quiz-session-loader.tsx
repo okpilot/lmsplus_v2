@@ -1,13 +1,16 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useSessionBootstrap } from '../_hooks/use-session-bootstrap'
-import { clampIndex } from '../_utils/clamp-index'
+import { dismissRecovery } from '../_utils/dismiss-recovery'
+import { restrictDraftToQuestions } from '../_utils/restrict-draft-to-questions'
 import { QuizSession } from './quiz-session'
 import { SessionRecoveryPrompt } from './session-recovery-prompt'
 
 export function QuizSessionLoader({ userId }: Readonly<{ userId: string }>) {
   const bs = useSessionBootstrap(userId)
+  const router = useRouter()
 
   if (bs.recovery) {
     return (
@@ -26,6 +29,14 @@ export function QuizSessionLoader({ userId }: Readonly<{ userId: string }>) {
           bs.clearRecovery()
           bs.recoveryActions.handleDiscard()
         }}
+        onDismiss={() =>
+          dismissRecovery({
+            userId,
+            recovery: bs.recovery,
+            clearRecovery: bs.clearRecovery,
+            replace: (path) => router.replace(path),
+          })
+        }
         loading={bs.recoveryActions.loading || bs.resumeLoading}
         error={bs.resumeError ?? bs.recoveryActions.error}
       />
@@ -58,26 +69,7 @@ export function QuizSessionLoader({ userId }: Readonly<{ userId: string }>) {
     )
   }
 
-  const questionIdSet = new Set(bs.questions.map((q) => q.id))
-
-  const filteredAnswers = (() => {
-    if (!bs.session.draftAnswers) return bs.session.draftAnswers
-    return Object.fromEntries(
-      Object.entries(bs.session.draftAnswers).filter(([key]) => questionIdSet.has(key)),
-    )
-  })()
-
-  const filteredFeedback = (() => {
-    if (!bs.session.draftFeedback) return undefined
-    return new Map(
-      Object.entries(bs.session.draftFeedback).filter(([key]) => questionIdSet.has(key)),
-    )
-  })()
-
-  const clampedIndex =
-    bs.session.draftCurrentIndex != null
-      ? clampIndex(bs.session.draftCurrentIndex, bs.questions.length)
-      : undefined
+  const draft = restrictDraftToQuestions(bs.session, bs.questions)
 
   return (
     <QuizSession
@@ -85,9 +77,9 @@ export function QuizSessionLoader({ userId }: Readonly<{ userId: string }>) {
       sessionId={bs.session.sessionId}
       questions={bs.questions}
       initialFlaggedIds={bs.flaggedIds}
-      initialAnswers={filteredAnswers}
-      initialFeedback={filteredFeedback}
-      initialIndex={clampedIndex}
+      initialAnswers={draft.answers}
+      initialFeedback={draft.feedback}
+      initialIndex={draft.index}
       draftId={bs.session.draftId}
       subjectName={bs.session.subjectName}
       subjectCode={bs.session.subjectCode}

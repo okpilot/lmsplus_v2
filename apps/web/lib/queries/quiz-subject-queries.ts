@@ -39,7 +39,8 @@ export const getSubjectsWithCounts = cache(async (): Promise<SubjectOption[]> =>
   }
 
   // The `code !== 'RT'` filter below is picker-only BY DESIGN (R1.3), and R1.4 requires it
-  // stay a SINGLE centralized filter — it has no siblings and must not grow any. RT is
+  // stay a SINGLE centralized filter. One sibling: getMockExamSubjects (exam-subjects.ts), because
+  // the VFR RT exam is started only from /app/vfr-rt. RT is
   // deliberately still listed by dashboard.ts and progress.ts; that asymmetry reads like a
   // parity gap and is not one. Rationale + accepted KPI consequences: open question 6 in
   // `git show 417b825a:.spec-workflow/specs/vfr-rt-training/design.md`, CLOSED 2026-08-11.
@@ -52,7 +53,7 @@ export const getSubjectsWithCounts = cache(async (): Promise<SubjectOption[]> =>
       questionCount: countMap.get(s.id) ?? 0,
     }))
     .filter((s) => s.questionCount > 0) // hide zero-count subjects
-    .filter((s) => s.code !== 'RT') // picker-only — see the note above; do not add siblings
+    .filter((s) => s.code !== 'RT') // picker-only — see the note above
 })
 
 export async function getTopicsForSubject(subjectId: string): Promise<TopicOption[]> {

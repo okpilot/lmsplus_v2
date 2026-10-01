@@ -1,5 +1,6 @@
 import type { SessionQuestion } from '@/app/app/_types/session'
 import { loadSessionQuestions } from '@/lib/queries/load-session-questions'
+import { loadVfrRtExamQuestions } from '@/lib/queries/load-vfr-rt-exam-questions'
 import { getFlaggedIds } from '../../actions/flag'
 import { readSessionHandoff, type SessionData } from '../_utils/quiz-session-handoff'
 import { type ActiveSession, toSessionData } from '../_utils/quiz-session-storage'
@@ -67,10 +68,16 @@ function fetchFlaggedIdsBounded(questionIds: string[]): Promise<string[]> {
  * than rejecting, so awaiting both together (Promise.all) would not short-circuit
  * and would stall a known error behind the flag fetch's full timeout.
  */
-export async function loadSessionData(questionIds: string[]): Promise<SessionLoadResult> {
+export async function loadSessionData(
+  questionIds: string[],
+  source?: Pick<SessionData, 'sessionId' | 'examMode'>,
+): Promise<SessionLoadResult> {
   const flagsPromise = fetchFlaggedIdsBounded(questionIds)
   try {
-    const questionsResult = await loadSessionQuestions(questionIds)
+    const questionsResult =
+      source?.examMode === 'vfr_rt_exam'
+        ? await loadVfrRtExamQuestions({ sessionId: source.sessionId })
+        : await loadSessionQuestions(questionIds)
     if (!questionsResult.success) return { success: false, error: questionsResult.error }
     const flaggedIds = await flagsPromise
     return { success: true, questions: questionsResult.questions, flaggedIds }
@@ -104,7 +111,7 @@ export function buildRecoveryResume(
     inFlightRef.current = true // set before the async load kicks off (code-style §6)
     set.setResumeLoading(true)
     set.setResumeError(null)
-    loadSessionData(recovery.questionIds)
+    loadSessionData(recovery.questionIds, recovery)
       .then((r) => {
         if (!r.success) {
           set.setResumeError(r.error)

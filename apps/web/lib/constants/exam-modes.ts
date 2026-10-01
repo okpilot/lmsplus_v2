@@ -17,6 +17,11 @@ export const EXAM_MODES = ['mock_exam', 'internal_exam', 'vfr_rt_exam'] as const
 export const isExamMode = (mode: string): mode is 'mock_exam' | 'internal_exam' | 'vfr_rt_exam' =>
   (EXAM_MODES as readonly string[]).includes(mode)
 
+// Mirrors NON_DISCARDABLE_MODES in app/app/quiz/actions/_discard-guard.ts — the server
+// refuses discard for these, so the UI must never offer it.
+export const isDiscardableExamMode = (mode: string | undefined): boolean =>
+  mode !== 'internal_exam' && mode !== 'vfr_rt_exam'
+
 // Positive allowlist of practice (answer-revealing, ungraded) session modes. Single
 // source of truth for the "never touch a graded exam" boundary used by the save-time
 // session close (draft-helpers), the resume validator (resume-helpers), the

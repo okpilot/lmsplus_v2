@@ -18,12 +18,6 @@ type AnswerInputProps = {
 function AnswerControl(props: AnswerInputProps & { question: Question }) {
   const { s, question } = props
 
-  if (s.isExam && question.question_type !== 'multiple_choice') {
-    return (
-      <UnsupportedQuestionType message="This question type is not yet supported in exam mode." />
-    )
-  }
-
   switch (question.question_type) {
     case 'multiple_choice':
       return <McAnswer {...props} />
@@ -46,5 +40,16 @@ function AnswerControl(props: AnswerInputProps & { question: Question }) {
 export function AnswerInput(props: AnswerInputProps) {
   const question = props.s.question
   if (!question) return null
+  // mock_exam/internal_exam start RPCs do not filter by question_type and their submit path
+  // has no per-type sanitiser — only vfr_rt_exam supports non-MC questions in exam mode.
+  if (
+    props.s.isExam &&
+    props.s.examMode !== 'vfr_rt_exam' &&
+    question.question_type !== 'multiple_choice'
+  ) {
+    return (
+      <UnsupportedQuestionType message="This question type is not yet supported in exam mode." />
+    )
+  }
   return <AnswerControl {...props} question={question} />
 }

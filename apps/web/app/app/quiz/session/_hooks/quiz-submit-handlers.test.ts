@@ -5,13 +5,21 @@ import type { AnswerFeedback, DraftAnswer } from '../../types'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockHandleSubmitSession, mockHandleSaveSession, mockHandleDiscardSession } = vi.hoisted(
-  () => ({
-    mockHandleSubmitSession: vi.fn(),
-    mockHandleSaveSession: vi.fn(),
-    mockHandleDiscardSession: vi.fn(),
-  }),
-)
+const {
+  mockHandleSubmitSession,
+  mockHandleSaveSession,
+  mockHandleDiscardSession,
+  mockHandleSubmitVfrRtExamSession,
+} = vi.hoisted(() => ({
+  mockHandleSubmitSession: vi.fn(),
+  mockHandleSaveSession: vi.fn(),
+  mockHandleDiscardSession: vi.fn(),
+  mockHandleSubmitVfrRtExamSession: vi.fn(),
+}))
+
+vi.mock('./quiz-submit-vfr-rt', () => ({
+  handleSubmitVfrRtExamSession: (...args: unknown[]) => mockHandleSubmitVfrRtExamSession(...args),
+}))
 
 vi.mock('./quiz-submit', () => ({
   handleSubmitSession: (...args: unknown[]) => mockHandleSubmitSession(...args),
@@ -65,6 +73,7 @@ beforeEach(() => {
   mockHandleSubmitSession.mockResolvedValue(undefined)
   mockHandleSaveSession.mockResolvedValue(undefined)
   mockHandleDiscardSession.mockResolvedValue(undefined)
+  mockHandleSubmitVfrRtExamSession.mockResolvedValue(undefined)
 })
 
 // ---- buildSharedFor — setSubmitting → pendingAction mapping ----------------
@@ -144,6 +153,7 @@ describe('buildHandleSubmit', () => {
       pendingQuestionIdRef: { current: new Set<string>() },
       navFallbackTimer: { current: null as ReturnType<typeof setTimeout> | null },
       setShowFinishDialog: vi.fn(),
+      questions: [] as SessionQuestion[],
       ...overrides,
     }
   }
@@ -155,6 +165,16 @@ describe('buildHandleSubmit', () => {
     const call = mockHandleSubmitSession.mock.calls[0]?.[0] as Record<string, unknown>
     expect(call.userId).toBe(USER_ID)
     expect(call.sessionId).toBe(SESSION_ID)
+  })
+
+  it('routes a vfr_rt_exam submit to the VFR RT handler with the delivered questions', async () => {
+    const questions = [{ id: 'q1' }] as SessionQuestion[]
+    const deps = makeSubmitDeps({ examMode: 'vfr_rt_exam', isExam: true, questions })
+    await buildHandleSubmit(deps)()
+    const call = mockHandleSubmitVfrRtExamSession.mock.calls[0]?.[0] as Record<string, unknown>
+    expect(call.questions).toBe(questions)
+    expect(call.sessionId).toBe(SESSION_ID)
+    expect(mockHandleSubmitSession).not.toHaveBeenCalled()
   })
 
   it('is a no-op when inFlight is already true', async () => {

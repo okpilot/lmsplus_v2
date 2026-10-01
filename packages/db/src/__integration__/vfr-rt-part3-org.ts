@@ -31,6 +31,8 @@ export type Part3Org = {
   orgId: string
   adminId: string
   studentId: string
+  studentEmail: string
+  studentPassword: string
   userIds: string[]
   studentClient: SupabaseClient
   rtSubjectId: string
@@ -73,7 +75,14 @@ async function createPart3Users(tag: string) {
     role: 'student',
   })
   const studentClient = await getAuthenticatedClient({ email: email('student'), password })
-  return { orgId, adminId, studentId, studentClient }
+  return {
+    orgId,
+    adminId,
+    studentId,
+    studentClient,
+    studentEmail: email('student'),
+    studentPassword: password,
+  }
 }
 
 type RtRefs = Awaited<ReturnType<typeof getRtRefs>>
@@ -131,7 +140,8 @@ async function insertRtExamConfig(orgId: string, rtSubjectId: string) {
 
 export async function createPart3Org(tag: string): Promise<Part3Org> {
   const refs = await getRtRefs()
-  const { orgId, adminId, studentId, studentClient } = await createPart3Users(tag)
+  const { orgId, adminId, studentId, studentClient, studentEmail, studentPassword } =
+    await createPart3Users(tag)
   const userIds = [adminId, studentId]
   const cleanup = () => cleanupTestData({ admin, orgId, userIds })
   try {
@@ -144,6 +154,8 @@ export async function createPart3Org(tag: string): Promise<Part3Org> {
       orgId,
       adminId,
       studentId,
+      studentEmail,
+      studentPassword,
       userIds,
       studentClient,
       rtSubjectId: refs.rtSubjectId,

@@ -13,13 +13,13 @@ export function useExamAnswerBuffer(opts: UseExamAnswerBufferOpts) {
   )
   const answersRef = useRef(answers)
 
-  const confirmAnswer = useCallback(
-    (optionId: string): boolean => {
+  const recordAnswer = useCallback(
+    (draft: Omit<DraftAnswer, 'responseTimeMs'>): boolean => {
       const questionId = opts.getQuestionId()
       if (answersRef.current.has(questionId)) return false // already locked
       const elapsed = Date.now() - opts.getAnswerStartTime()
       const next = new Map(answersRef.current).set(questionId, {
-        selectedOptionId: optionId,
+        ...draft,
         responseTimeMs: elapsed,
       })
       answersRef.current = next
@@ -29,5 +29,10 @@ export function useExamAnswerBuffer(opts: UseExamAnswerBufferOpts) {
     [opts],
   )
 
-  return { answers, answersRef, confirmAnswer }
+  const confirmAnswer = useCallback(
+    (optionId: string): boolean => recordAnswer({ selectedOptionId: optionId }),
+    [recordAnswer],
+  )
+
+  return { answers, answersRef, confirmAnswer, recordAnswer }
 }

@@ -9,6 +9,7 @@ import { deleteDraft } from '../../actions/draft-delete'
 import { submitEmptyExamSession } from '../../actions/submit-empty-exam'
 import type { AnswerFeedback, DraftAnswer } from '../../types'
 import { clearActiveSession } from '../_utils/quiz-session-storage'
+import { EXAM_REPORT_PATHS } from './exam-report-paths'
 import { fanOutAnswer } from './quiz-submit-fanout'
 
 type AppRouterInstance = ReturnType<typeof useRouter>
@@ -20,9 +21,8 @@ type SetSubmitting = (v: boolean) => void
  * fallback in use-quiz-submit covers the rare case cleanup exceeds this. */
 const DRAFT_CLEANUP_TIMEOUT_MS = 2500
 
-/** Report URL for a finished session. Internal exams have their own report namespace. */
 export function examReportUrl(examMode: DbQuizMode | undefined, sessionId: string): string {
-  const path = examMode === 'internal_exam' ? '/app/internal-exam/report' : '/app/quiz/report'
+  const path = (examMode && EXAM_REPORT_PATHS[examMode]) || '/app/quiz/report'
   return `${path}?session=${sessionId}`
 }
 

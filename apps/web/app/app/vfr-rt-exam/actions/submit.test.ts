@@ -197,7 +197,7 @@ describe('submitVfrRtExam — happy path', () => {
     expect(result.success).toBe(true)
     if (!result.success) return
     expect(result.session_id).toBe(SESSION_ID)
-    expect(result.redirect_to).toBe(`/app/vfr-rt-exam/results/${SESSION_ID}`)
+    expect(result.redirect_to).toBe(`/app/vfr-rt/report?session=${SESSION_ID}`)
     // Guard against a regression that drops the answers before the RPC call —
     // the mocked RPC would otherwise let an empty payload pass silently.
     expect(mockRpc.mock.calls[0]?.[2]?.p_answers).toHaveLength(1)
@@ -217,7 +217,7 @@ describe('submitVfrRtExam — happy path', () => {
     expect(result.success).toBe(true)
     if (!result.success) return
     expect(result.expired).toBe(true)
-    expect(result.redirect_to).toBe(`/app/vfr-rt-exam/results/${SESSION_ID}`)
+    expect(result.redirect_to).toBe(`/app/vfr-rt/report?session=${SESSION_ID}`)
   })
 
   it('succeeds when the RPC payload arrives as a single-row array', async () => {

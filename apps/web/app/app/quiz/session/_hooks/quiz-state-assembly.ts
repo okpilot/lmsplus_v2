@@ -1,4 +1,5 @@
 import type { SessionQuestion } from '@/app/app/_types/session'
+import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
 import type { DraftAnswer } from '../../types'
 import type { useAnswerPipeline } from './use-answer-pipeline'
 import type { useExamPipeline } from './use-exam-state'
@@ -17,13 +18,35 @@ export type AssembleQuizStateInput = {
   togglePin: () => void
   p: ActivePipeline
   isExam: boolean
+  examMode?: DbQuizMode
+}
+
+/** Answer-entry callbacks, passed through from the active pipeline. */
+function answerHandlers(p: ActivePipeline) {
+  return {
+    handleSelectAnswer: p.handleSelectAnswer,
+    handleTextAnswer: p.handleTextAnswer,
+    handleDialogFillAnswer: p.handleDialogFillAnswer,
+    handleOrderingAnswer: p.handleOrderingAnswer,
+    handleDiagramLabelAnswer: p.handleDiagramLabelAnswer,
+  }
+}
+
+/** Submit/save/discard callbacks and finish-dialog state from the active pipeline. */
+function submitControls(p: ActivePipeline) {
+  return {
+    handleSubmit: p.handleSubmit,
+    handleSave: p.handleSave,
+    handleDiscard: p.handleDiscard,
+    showFinishDialog: p.showFinishDialog,
+    setShowFinishDialog: p.setShowFinishDialog,
+  }
 }
 
 /** Pure assembly of the useQuizState() return shape from already-computed values.
  * No hook calls — every input is a value or a callback the caller derived via hooks. */
 export function assembleQuizState(input: AssembleQuizStateInput) {
-  const { nav, question, questionId, answers, questionIds, pinnedQuestions, togglePin, p, isExam } =
-    input
+  const { nav, question, questionId, answers, pinnedQuestions, p } = input
   return {
     currentIndex: nav.currentIndex,
     seenIndices: nav.seenIndices,
@@ -32,28 +55,21 @@ export function assembleQuizState(input: AssembleQuizStateInput) {
     answeredCount: answers.size,
     existingAnswer: answers.get(questionId),
     currentFeedback: p.feedback.get(questionId) ?? null,
-    questionIds,
+    questionIds: input.questionIds,
     answeredIds: new Set(answers.keys()),
     feedback: p.feedback,
     pinnedQuestions,
     isPinned: pinnedQuestions.has(questionId),
-    handleSelectAnswer: p.handleSelectAnswer,
-    handleTextAnswer: p.handleTextAnswer,
-    handleDialogFillAnswer: p.handleDialogFillAnswer,
-    handleOrderingAnswer: p.handleOrderingAnswer,
-    handleDiagramLabelAnswer: p.handleDiagramLabelAnswer,
+    ...answerHandlers(p),
     navigateTo: p.navigateTo,
     navigate: p.navigate,
-    togglePin,
+    togglePin: input.togglePin,
     error: p.error,
-    isExam,
+    isExam: input.isExam,
+    examMode: input.examMode,
     submitting: p.submitting,
     pendingAction: p.pendingAction,
     answering: p.answering,
-    handleSubmit: p.handleSubmit,
-    handleSave: p.handleSave,
-    handleDiscard: p.handleDiscard,
-    showFinishDialog: p.showFinishDialog,
-    setShowFinishDialog: p.setShowFinishDialog,
+    ...submitControls(p),
   }
 }

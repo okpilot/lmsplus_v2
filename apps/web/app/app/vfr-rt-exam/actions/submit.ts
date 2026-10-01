@@ -64,7 +64,7 @@ export async function submitVfrRtExam(raw: unknown): Promise<SubmitVfrRtExamResu
     return {
       success: true,
       session_id: parsed.data.sessionId,
-      redirect_to: `/app/vfr-rt-exam/results/${parsed.data.sessionId}`,
+      redirect_to: `/app/vfr-rt/report?session=${parsed.data.sessionId}`,
       // Surface timer-expiry so Phase C can show a "time's up" confirmation
       // without a separate DB read; absent on the normal grade path.
       ...(result.data.expired ? { expired: true } : {}),

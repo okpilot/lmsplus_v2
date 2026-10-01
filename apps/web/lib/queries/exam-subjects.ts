@@ -49,3 +49,9 @@ export async function getExamEnabledSubjects(): Promise<ExamSubjectOption[]> {
       }
     })
 }
+
+/** Subjects offered in the /app/quiz Practice Exam list. The VFR RT exam starts only from /app/vfr-rt. */
+export async function getMockExamSubjects(): Promise<ExamSubjectOption[]> {
+  const subjects = await getExamEnabledSubjects()
+  return subjects.filter((s) => s.code !== 'RT')
+}

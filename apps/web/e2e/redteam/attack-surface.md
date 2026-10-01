@@ -201,6 +201,8 @@
 | FY | get_vfr_rt_exam_questions-part3-ordering-diagram-key-strip | HIGH | rpc-vfr-rt-part3-integrity.spec.ts | BLOCKED |  | answer-oracle |
 | FZ | submit_vfr_rt_exam_answers-ordering-forged-permutation | HIGH | rpc-vfr-rt-part3-integrity.spec.ts | BLOCKED |  | input-injection |
 | GA | submit_vfr_rt_exam_answers-diagram-forged-placement | HIGH | rpc-vfr-rt-part3-integrity.spec.ts | BLOCKED |  | input-injection |
+| GB | loadVfrRtExamQuestions-foreign-session-replay | HIGH | server-action-vfr-rt-exam-questions.spec.ts | BLOCKED |  | idor |
+| GC | loadVfrRtExamQuestions-mid-exam-key-strip | HIGH | server-action-vfr-rt-exam-questions.spec.ts | BLOCKED |  | answer-oracle |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
