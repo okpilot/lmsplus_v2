@@ -1,6 +1,7 @@
-import { existsSync, readdirSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join, relative, sep } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 
 type Boundary = 'error' | 'loading'
 
@@ -48,20 +49,46 @@ function pageDirs(dir: string): string[] {
   )
 }
 
-function missingBoundaries(): Record<string, Boundary[]> {
+function missingBoundaries(root: string): Record<string, Boundary[]> {
   const gaps: Record<string, Boundary[]> = {}
-  for (const dir of pageDirs(APP_DIR)) {
+  for (const dir of pageDirs(root)) {
     const missing = (['error', 'loading'] as const).filter(
       (b) => !existsSync(join(dir, `${b}.tsx`)),
     )
-    if (missing.length > 0) gaps[relative(APP_DIR, dir).split(sep).join('/') || '.'] = missing
+    if (missing.length > 0) gaps[relative(root, dir).split(sep).join('/') || '.'] = missing
   }
   return gaps
 }
 
+const fixtureRoots: string[] = []
+
+function fixtureTree(files: string[]): string {
+  const root = mkdtempSync(join(tmpdir(), 'segment-boundaries-'))
+  fixtureRoots.push(root)
+  for (const file of files) {
+    mkdirSync(join(root, file, '..'), { recursive: true })
+    writeFileSync(join(root, file), '')
+  }
+  return root
+}
+
 describe('page segment boundaries', () => {
+  afterAll(() => {
+    for (const root of fixtureRoots) rmSync(root, { recursive: true, force: true })
+  })
+
   it('gives every page directory its own error.tsx and loading.tsx, except the listed gaps', () => {
     expect(pageDirs(APP_DIR).length).toBeGreaterThan(0)
-    expect(missingBoundaries()).toEqual(KNOWN_GAPS)
+    expect(missingBoundaries(APP_DIR)).toEqual(KNOWN_GAPS)
+  })
+
+  it('reports a new page directory that lacks its boundary files', () => {
+    const root = fixtureTree(['a/page.tsx', 'a/error.tsx', 'a/loading.tsx', 'b/page.tsx'])
+    expect(missingBoundaries(root)).toEqual({ b: ['error', 'loading'] })
+  })
+
+  it('reports nothing for a listed directory once its boundary files exist', () => {
+    const root = fixtureTree(['a/page.tsx', 'a/error.tsx', 'a/loading.tsx'])
+    expect(missingBoundaries(root)).toEqual({})
   })
 })
