@@ -20,6 +20,14 @@ describe('MarkdownText', () => {
     expect(el.tagName).toBe('STRONG')
   })
 
+  it('renders inline code from markdown', () => {
+    render(<MarkdownText>{'press `Ctrl`'}</MarkdownText>)
+    const el = screen.getByText('Ctrl')
+    expect(el.tagName).toBe('CODE')
+    expect(el).toHaveClass('font-medium')
+    expect(el).not.toHaveClass('font-mono')
+  })
+
   it('applies custom className', () => {
     const { container } = render(<MarkdownText className="text-sm text-red-500">Test</MarkdownText>)
     const wrapper = container.firstElementChild
