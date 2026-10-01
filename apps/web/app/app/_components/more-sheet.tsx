@@ -82,6 +82,7 @@ export function useMoreSheet(
     if (!hasHidden) setOpen(false)
   }, [hasHidden])
 
+  const close = useCallback(() => setOpen(false), [])
   const dismiss = useCallback(() => {
     setOpen(false)
     moreRef.current?.focus()
@@ -96,7 +97,7 @@ export function useMoreSheet(
     return () => window.removeEventListener('keydown', onKey)
   }, [sheetOpen, dismiss])
 
-  return { sheetOpen, setOpen, dismiss }
+  return { sheetOpen, setOpen, close, dismiss }
 }
 
 type MoreButtonProps = {

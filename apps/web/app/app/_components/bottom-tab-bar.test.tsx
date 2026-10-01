@@ -167,6 +167,15 @@ describe('BottomTabBar', () => {
       expect(screen.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument()
     })
 
+    it('closes the sheet when the visible tab for the current page is tapped', async () => {
+      narrow(320)
+      const user = userEvent.setup({ delay: null })
+      await user.click(screen.getByRole('button', { name: 'More' }))
+      expect(screen.getByRole('link', { name: 'Settings' })).toBeInTheDocument()
+      await user.click(screen.getByRole('link', { name: 'Dashboard' }))
+      expect(screen.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument()
+    })
+
     it('moves focus to the first sheet link when the sheet opens', async () => {
       narrow(320)
       await userEvent.setup({ delay: null }).click(screen.getByRole('button', { name: 'More' }))
