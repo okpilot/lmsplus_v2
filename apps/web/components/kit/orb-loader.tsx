@@ -23,7 +23,7 @@ function usePrefersReducedMotion() {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
 }
 
-export type OrbState = NonNullable<ComponentProps<typeof ThinkingOrb>['state']>
+type OrbState = NonNullable<ComponentProps<typeof ThinkingOrb>['state']>
 
 type OrbLoaderProps = {
   size?: 20 | 32 | 64
