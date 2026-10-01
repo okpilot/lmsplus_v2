@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { type RefObject, useEffect, useRef, useState } from 'react'
+import { type RefObject, useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { NavIcon } from './nav-icon'
 import type { NavItem } from './nav-items'
@@ -20,9 +20,14 @@ function MoreIcon() {
   )
 }
 
-type SheetProps = { hidden: NavItem[]; activeHref?: string; onClose: () => void }
+type SheetProps = {
+  hidden: NavItem[]
+  activeHref?: string
+  onClose: () => void
+  onDismiss: () => void
+}
 
-export function MoreSheet({ hidden, activeHref, onClose }: Readonly<SheetProps>) {
+export function MoreSheet({ hidden, activeHref, onClose, onDismiss }: Readonly<SheetProps>) {
   const listRef = useRef<HTMLUListElement>(null)
 
   useEffect(() => {
@@ -35,7 +40,7 @@ export function MoreSheet({ hidden, activeHref, onClose }: Readonly<SheetProps>)
         variant="ghost"
         aria-label="Close menu"
         className="fixed inset-0 z-30 size-auto cursor-default rounded-none bg-foreground/10"
-        onClick={onClose}
+        onClick={onDismiss}
       />
       <ul
         ref={listRef}
@@ -60,7 +65,7 @@ export function MoreSheet({ hidden, activeHref, onClose }: Readonly<SheetProps>)
   )
 }
 
-/** Open state of the More sheet; closes on route change, Escape (refocusing More), and when nothing overflows. */
+/** Open state of the More sheet; closes on route change, Escape or `dismiss` (refocusing More), and when nothing overflows. */
 export function useMoreSheet(
   pathname: string,
   hasHidden: boolean,
@@ -76,18 +81,21 @@ export function useMoreSheet(
     if (!hasHidden) setOpen(false)
   }, [hasHidden])
 
+  const dismiss = useCallback(() => {
+    setOpen(false)
+    moreRef.current?.focus()
+  }, [moreRef])
+
   useEffect(() => {
     if (!sheetOpen) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      setOpen(false)
-      moreRef.current?.focus()
+      if (e.key === 'Escape') dismiss()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [sheetOpen, moreRef])
+  }, [sheetOpen, dismiss])
 
-  return { sheetOpen, setOpen }
+  return { sheetOpen, setOpen, dismiss }
 }
 
 type MoreButtonProps = {

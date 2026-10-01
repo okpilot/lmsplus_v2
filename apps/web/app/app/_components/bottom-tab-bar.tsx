@@ -30,7 +30,7 @@ export function BottomTabBar() {
   const moreRef = useRef<HTMLButtonElement>(null)
   const slots = useTabSlots(ref)
   const { visible, hidden, activeHref, moreActive } = useTabBarModel(pathname, userRole, slots)
-  const { sheetOpen, setOpen } = useMoreSheet(pathname, hidden.length > 0, moreRef)
+  const { sheetOpen, setOpen, dismiss } = useMoreSheet(pathname, hidden.length > 0, moreRef)
 
   return (
     <>
@@ -52,7 +52,12 @@ export function BottomTabBar() {
         )}
       </nav>
       {sheetOpen && (
-        <MoreSheet hidden={hidden} activeHref={activeHref} onClose={() => setOpen(false)} />
+        <MoreSheet
+          hidden={hidden}
+          activeHref={activeHref}
+          onClose={() => setOpen(false)}
+          onDismiss={dismiss}
+        />
       )}
     </>
   )

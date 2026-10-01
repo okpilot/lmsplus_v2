@@ -184,6 +184,18 @@ describe('BottomTabBar', () => {
       expect(more).toHaveFocus()
     })
 
+    it('returns focus to More when the sheet is closed from the keyboard via Close menu', async () => {
+      narrow(320)
+      const user = userEvent.setup({ delay: null })
+      const more = screen.getByRole('button', { name: 'More' })
+      await user.click(more)
+      await user.tab({ shift: true })
+      expect(screen.getByRole('button', { name: 'Close menu' })).toHaveFocus()
+      await user.keyboard('{Enter}')
+      expect(screen.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument()
+      expect(more).toHaveFocus()
+    })
+
     it('places the sheet after the More button in DOM order', async () => {
       narrow(320)
       const more = screen.getByRole('button', { name: 'More' })
