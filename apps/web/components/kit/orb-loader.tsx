@@ -1,6 +1,6 @@
 'use client'
 
-import { useSyncExternalStore } from 'react'
+import { type ComponentProps, useSyncExternalStore } from 'react'
 import { ThinkingOrb } from 'thinking-orbs'
 
 const QUERY = '(prefers-reduced-motion: reduce)'
@@ -23,22 +23,15 @@ function usePrefersReducedMotion() {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
 }
 
+export type OrbState = NonNullable<ComponentProps<typeof ThinkingOrb>['state']>
+
 type OrbLoaderProps = {
   size?: 20 | 32 | 64
   label: string
-  state?:
-    | 'working'
-    | 'searching'
-    | 'solving'
-    | 'listening'
-    | 'connecting'
-    | 'weaving'
-    | 'composing'
-    | 'breathing'
-    | 'shaping'
+  state?: OrbState
 }
 
-export function OrbLoader({ size = 20, label, state = 'working' }: Readonly<OrbLoaderProps>) {
+export function OrbLoader({ size = 20, label, state = 'solving' }: Readonly<OrbLoaderProps>) {
   const reducedMotion = usePrefersReducedMotion()
   return (
     <span role="status" aria-label={label} className="inline-flex items-center justify-center">
@@ -46,7 +39,7 @@ export function OrbLoader({ size = 20, label, state = 'working' }: Readonly<OrbL
         state={state}
         size={size}
         theme="auto"
-        color="#3b4250"
+        dotSize={1.5}
         paused={reducedMotion}
         aria-hidden
       />
