@@ -35,7 +35,7 @@ export function PendingButton({
       className={className}
     >
       <span aria-hidden="true" className="inline-flex">
-        <OrbLoader size={20} label={pendingLabel} state="solving" />
+        <OrbLoader label={pendingLabel} />
       </span>
       <span>{pendingLabel}</span>
     </Button>
