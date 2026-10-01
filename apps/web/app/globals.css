@@ -41,9 +41,20 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   --font-sans: var(--font-sans);
-  --font-mono:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
-    monospace;
+  --color-brand: var(--brand);
+  --color-brand-text: var(--brand-text);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-ring: var(--surface-ring);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+  --color-caution: var(--caution);
+  --color-caution-soft: var(--caution-soft);
+  --color-caution-ring: var(--caution-ring);
+  --font-mono: var(--app-font-mono);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -86,6 +97,25 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --app-font-mono:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+    monospace;
+  --brand: oklch(0.77 0.14 58);
+  --brand-text: oklch(0.6 0.14 52);
+  --brand-foreground: oklch(0.18 0.03 60);
+  --canvas: var(--background);
+  --surface: var(--card);
+  --surface-ring: oklch(0 0 0 / 0.07);
+  --surface-highlight: inset 0 1px 0 0 rgb(255 255 255 / 0.9);
+  --surface-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 10px 30px -14px rgb(0 0 0 / 0.14);
+  --surface-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.06);
+  --ok: oklch(0.56 0.12 155);
+  --ok-soft: oklch(0.56 0.12 155 / 0.1);
+  --bad: oklch(0.57 0.16 25);
+  --bad-soft: oklch(0.57 0.16 25 / 0.09);
+  --caution: oklch(0.55 0.11 85);
+  --caution-soft: oklch(0.86 0.12 95 / 0.35);
+  --caution-ring: oklch(0.75 0.13 90 / 0.5);
 }
 
 .dark {
@@ -121,6 +151,89 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  --brand: oklch(0.79 0.12 60);
+  --brand-text: oklch(0.82 0.11 62);
+  --brand-foreground: oklch(0.18 0.03 60);
+  --canvas: var(--background);
+  --surface: var(--card);
+  --surface-ring: oklch(1 0 0 / 0.08);
+  --surface-highlight: inset 0 1px 0 0 rgb(255 255 255 / 0.07);
+  --surface-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 30px -14px rgb(0 0 0 / 0.6);
+  --surface-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.35);
+  --ok: oklch(0.78 0.13 155);
+  --ok-soft: oklch(0.78 0.13 155 / 0.12);
+  --bad: oklch(0.74 0.14 25);
+  --bad-soft: oklch(0.74 0.14 25 / 0.12);
+  --caution: oklch(0.88 0.13 92);
+  --caution-soft: oklch(0.88 0.13 92 / 0.1);
+  --caution-ring: oklch(0.88 0.13 92 / 0.3);
+}
+
+/* Redesign look (#1416): opt-in per screen via <LookScope>. */
+[data-look="v2"] {
+  --background: oklch(0.992 0.002 255);
+  --foreground: oklch(0.16 0.012 260);
+  --card: oklch(1 0 0);
+  --card-foreground: var(--foreground);
+  --popover: oklch(1 0 0);
+  --popover-foreground: var(--foreground);
+  --primary: oklch(0.16 0.012 260);
+  --primary-foreground: oklch(0.992 0.002 255);
+  --secondary: oklch(0.963 0.006 255);
+  --secondary-foreground: var(--foreground);
+  --muted: oklch(0.963 0.006 255);
+  --muted-foreground: oklch(0.55 0.016 255);
+  --accent: oklch(0.963 0.006 255);
+  --accent-foreground: var(--foreground);
+  --border: oklch(0.92 0.007 255);
+  --input: oklch(0.92 0.007 255);
+  --ring: oklch(0.55 0.016 255);
+  --destructive: var(--bad);
+  --canvas: oklch(0.963 0.006 255);
+  --surface: oklch(1 0 0);
+  --app-font-mono:
+    var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+}
+
+.dark [data-look="v2"] {
+  --background: oklch(0.15 0.01 260);
+  --foreground: oklch(0.97 0.005 250);
+  --card: oklch(0.21 0.013 260);
+  --popover: oklch(0.21 0.013 260);
+  --primary: oklch(0.97 0.005 250);
+  --primary-foreground: oklch(0.15 0.01 260);
+  --secondary: oklch(0.25 0.013 260);
+  --muted: oklch(0.25 0.013 260);
+  --muted-foreground: oklch(0.7 0.016 255);
+  --accent: oklch(0.25 0.013 260);
+  --border: oklch(0.95 0.02 255 / 10%);
+  --input: oklch(0.95 0.02 255 / 15%);
+  --ring: oklch(0.7 0.016 255);
+  --canvas: oklch(0.15 0.01 260);
+  --surface: oklch(0.21 0.013 260);
+}
+
+[data-look="v2"] :is(code, kbd, samp, pre) {
+  font-family: var(--app-font-mono);
+}
+
+@keyframes look-shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes look-appear {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @layer base {

@@ -12,7 +12,8 @@
         "app/**/actions/*.ts",
         "app/**/route.ts",
         "app/globals.css",
-        "scripts/*.ts"
+        "scripts/*.ts",
+        "components/kit/*.tsx"
       ],
       "project": ["**/*.{ts,tsx}"],
       "ignoreDependencies": ["@repo/ui"]
