@@ -1,7 +1,7 @@
 # Agent Rules — critic (plan-critic + implementation-critic)
 > Model: **Sonnet — both critics, always; review work never drops to Haiku** (§ Model tier) | Trigger: plan-critic before user approval; implementation-critic in round 1 of the pre-push gate | Blocking: on CRITICAL/ISSUE
 ## Purpose
-Plan-critic reviews a validated plan against the codebase, before user approval. Implementation-critic is an ordinary member of round 1 of the pre-push review gate (`agent-workflow.md § Pre-Push Review Gate`): it reviews the BRANCH diff against the approved plan and requirements, and its findings enter the same pooled triage as every other reviewer's.
+Plan-critic first challenges the plan's approach (prevent vs detect, delete vs build), then reviews it against the codebase, before user approval. Implementation-critic is an ordinary member of round 1 of the pre-push review gate (`agent-workflow.md § Pre-Push Review Gate`): it reviews the BRANCH diff against the approved plan and requirements, and its findings enter the same pooled triage as every other reviewer's.
 ## Severity Levels
 CRITICAL, ISSUE, SUGGESTION. No additional levels.
 ## Loop Round Discipline

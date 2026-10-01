@@ -10,7 +10,7 @@ Enter planning mode for the next task.
 5. **Create spec** — if 3+ files affected, create a spec via spec-workflow MCP (`spec-workflow-guide`). Skip for small changes.
 6. **Break into steps** — ordered by dependency, identify files to create vs modify
 7. **Run plan validation** — impact analysis, contract check, pattern scan, doc/schema check, security surface (see `agent-workflow.md § Plan Validation`)
-8. **Plan-critic review** — run plan-critic agent to challenge the plan. Skip for single-file changes under 10 lines.
+8. **Plan-critic review** — run plan-critic agent to challenge the plan: approach first (prevent vs detect, delete vs build), then details. Skip for single-file changes under 10 lines.
 9. **Present to user** — concise plan with files, risks, and validation results. Confirm before executing.
 10. **Flag blockers** — dependencies, open questions, or risks that need resolution before work starts.
 
