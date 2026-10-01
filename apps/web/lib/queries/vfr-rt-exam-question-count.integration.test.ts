@@ -12,7 +12,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { fixtureSuffix, signInAs } from '@/lib/integration-support/harness'
 import { getVfrRtExamQuestionCount } from './vfr-rt-exam-question-count'
 
-const suffix = fixtureSuffix().slice(0, 6)
+const suffix = fixtureSuffix()
 const admin = getAdminClient()
 const PASSWORD = 'test-pass-123'
 let org: Part3Org

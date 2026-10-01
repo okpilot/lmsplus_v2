@@ -12,7 +12,7 @@ import { getVfrRtExamQuestionCount } from './vfr-rt-exam-question-count'
 
 // ---- Helpers --------------------------------------------------------------
 
-function buildChain(returnValue: unknown) {
+function buildChain(returnValue: unknown, calls?: unknown[][]) {
   const awaitable: Record<string, unknown> = {
     // biome-ignore lint/suspicious/noThenProperty: intentional thenable for Supabase chain mock
     then: (resolve: (v: unknown) => void, reject: (e: unknown) => void) =>
@@ -21,14 +21,18 @@ function buildChain(returnValue: unknown) {
   return new Proxy(awaitable, {
     get(target, prop) {
       if (prop === 'then') return target.then
-      return (..._args: unknown[]) => buildChain(returnValue)
+      return (...args: unknown[]) => {
+        calls?.push([prop, ...args])
+        return buildChain(returnValue, calls)
+      }
     },
   })
 }
 
 type Stub = { data?: unknown; error?: { message: string } | null; count?: number | null }
 
-function stubTables(tables: { config: Stub; topic?: Stub; subtopics?: Stub }) {
+function stubTables(tables: { config: Stub; topic?: Stub; subtopics?: Stub }): unknown[][] {
+  const topicCalls: unknown[][] = []
   const byTable: Record<string, Stub | undefined> = {
     exam_configs: tables.config,
     easa_topics: tables.topic ?? { data: { id: 'topic-3' }, error: null },
@@ -37,8 +41,10 @@ function stubTables(tables: { config: Stub; topic?: Stub; subtopics?: Stub }) {
   mockFrom.mockImplementation((table: string) => {
     const stub = byTable[table]
     if (!stub) throw new Error(`unexpected table ${table}`)
-    return buildChain({ data: null, error: null, count: null, ...stub })
+    const calls = table === 'easa_topics' ? topicCalls : undefined
+    return buildChain({ data: null, error: null, count: null, ...stub }, calls)
   })
+  return topicCalls
 }
 
 const config = (parts_config: unknown): Stub => ({ data: { parts_config }, error: null })
@@ -74,8 +80,9 @@ describe('getVfrRtExamQuestionCount', () => {
   })
 
   it('looks the Part 3 topic up by the configured topic code', async () => {
-    stubTables({ config: config({ part3: { topic_code: 'P3_CUSTOM' } }) })
+    const topicCalls = stubTables({ config: config({ part3: { topic_code: 'P3_CUSTOM' } }) })
     expect(await getVfrRtExamQuestionCount('s1')).toBe(8 + 9 + 12)
+    expect(topicCalls).toContainEqual(['eq', 'code', 'P3_CUSTOM'])
   })
 
   it('returns null when the subject has no enabled exam config', async () => {

@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { fixtureSuffix, signInAs } from '@/lib/integration-support/harness'
 import { loadVfrRtExamQuestions } from './load-vfr-rt-exam-questions'
 
-const suffix = fixtureSuffix().slice(0, 6)
+const suffix = fixtureSuffix()
 let org: Part3Org
 let otherOrg: Part3Org
 let session: Awaited<ReturnType<typeof startPart3Exam>>
