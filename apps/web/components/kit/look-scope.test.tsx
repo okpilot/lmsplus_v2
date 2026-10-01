@@ -1,12 +1,29 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { LookScope } from './look-scope'
 
 describe('LookScope', () => {
-  it('marks its wrapper with the redesign look attribute', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('marks its wrapper with the redesign look attribute when the switch is on', () => {
+    vi.stubEnv('NEXT_PUBLIC_REDESIGN_LOOK', 'on')
     render(<LookScope>content</LookScope>)
     expect(screen.getByText('content')).toHaveAttribute('data-look', 'v2')
+  })
+
+  it('leaves the redesign look off when the switch is unset', () => {
+    vi.stubEnv('NEXT_PUBLIC_REDESIGN_LOOK', undefined)
+    render(<LookScope>content</LookScope>)
+    expect(screen.getByText('content')).not.toHaveAttribute('data-look')
+  })
+
+  it('leaves the redesign look off for any value other than on', () => {
+    vi.stubEnv('NEXT_PUBLIC_REDESIGN_LOOK', 'true')
+    render(<LookScope>content</LookScope>)
+    expect(screen.getByText('content')).not.toHaveAttribute('data-look')
   })
 
   it('renders its children', () => {
