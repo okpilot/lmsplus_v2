@@ -1,9 +1,9 @@
 export type ReportContext = { noun: string; backHref: string; backLabel: string }
 
 // VFR RT Practice sessions are ordinary quiz_sessions rows scoped to the 'RT' subject
-// and started via /app/vfr-rt, which mints mode='quick_quiz'. Keying off that exact mode
-// (not a broad "any non-exam RT session") keeps every other practice mode in the default
-// "Quiz" branch. The VFR RT mock exam (mode='vfr_rt_exam') has its own branch below.
+// and started via /app/vfr-rt, which mints mode='quick_quiz'. getReportContext returns the
+// RT practice context only for mode === 'quick_quiz' on the RT subject, the mock-exam context
+// for mode === 'vfr_rt_exam', and the "Quiz" context for any other mode.
 // NB: we check quick_quiz specifically rather than PRACTICE_MODES.includes(mode) because
 // the other PRACTICE_MODES entry, 'smart_review', is dead FSRS plumbing (removed from the
 // product; cleanup tracked in #1104) — quick_quiz is the only reachable RT practice mode.
