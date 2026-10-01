@@ -96,7 +96,7 @@ export function SubjectRow({ subject }: Readonly<Props>) {
           <ChevronRight className={`size-4 transition-transform ${open ? 'rotate-90' : ''}`} />
         </CollapsibleTrigger>
 
-        <span className="w-12 font-mono text-sm font-semibold">{subject.code}</span>
+        <span className="w-12 tabular-nums text-sm font-semibold">{subject.code}</span>
         <span className="flex-1 text-sm">{subject.name}</span>
         <span className="text-xs text-muted-foreground">{subject.short}</span>
         <Badge variant="secondary" className="text-xs">

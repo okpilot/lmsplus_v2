@@ -43,7 +43,7 @@ export function DistributionEditor({ topics, distributions, onChange }: Readonly
         <div key={topic.id}>
           <div className="grid grid-cols-[1fr_80px_80px] items-center gap-2 py-1">
             <span className="text-sm">
-              <span className="mr-1 font-mono text-xs text-muted-foreground">{topic.code}</span>
+              <span className="mr-1 tabular-nums text-xs text-muted-foreground">{topic.code}</span>
               {topic.name}
             </span>
             <input

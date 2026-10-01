@@ -69,7 +69,7 @@ export function KeyboardLegend({ isExam = false }: Readonly<{ isExam?: boolean }
               {shortcuts.map((s) => (
                 <li key={s.action} className="flex items-center justify-between gap-3 text-xs">
                   <span className="text-muted-foreground">{s.action}</span>
-                  <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px]">
+                  <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-medium text-[11px]">
                     {s.keys}
                   </kbd>
                 </li>

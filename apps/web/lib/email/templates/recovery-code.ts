@@ -29,7 +29,7 @@ export function recoveryCodeEmail({ code }: RecoveryCodeEmailArgs): EmailContent
   <body style="font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; line-height: 1.5;">
     <p>Hello,</p>
     <p>Use this code to reset your LMS Plus password:</p>
-    <p style="font-size: 28px; font-weight: bold; letter-spacing: 4px; font-family: 'Courier New', monospace;">${esc(code)}</p>
+    <p style="font-size: 28px; font-weight: bold; letter-spacing: 4px;">${esc(code)}</p>
     <p>This code expires in 1 hour.</p>
     <p style="color: #6b7280; font-size: 13px;">If you did not ask to reset your password, you can safely ignore this email.</p>
   </body>

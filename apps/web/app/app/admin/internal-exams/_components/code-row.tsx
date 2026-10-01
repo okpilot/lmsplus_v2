@@ -41,7 +41,7 @@ export function CodeRow({
           {ds}
         </Badge>
       </TableCell>
-      <TableCell className="font-mono text-sm">{r.code}</TableCell>
+      <TableCell className="font-medium tracking-wider tabular-nums text-sm">{r.code}</TableCell>
       <TableCell>{r.studentName || r.studentEmail || '—'}</TableCell>
       <TableCell>{r.subjectName || '—'}</TableCell>
       <TableCell className="text-xs text-muted-foreground">{formatAbsolute(r.issuedAt)}</TableCell>

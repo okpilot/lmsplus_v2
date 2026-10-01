@@ -41,7 +41,7 @@ describe('IssuedCodePanel', () => {
     }
   })
 
-  it('displays the issued code in large monospace text', () => {
+  it('displays the issued code in large bold text', () => {
     render(<IssuedCodePanel {...PROPS} />)
     expect(screen.getByTestId('issued-code-value')).toHaveTextContent('ABCD2345')
   })
