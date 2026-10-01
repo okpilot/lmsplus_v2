@@ -1,63 +1,53 @@
 'use client'
 
-import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { NavIcon } from './nav-icon'
-import { ADMIN_NAV_ITEMS, NAV_ITEMS, type NavItem } from './nav-items'
+import { SectionLabel } from '@/components/kit/section-label'
+import { ADMIN_NAV_ITEMS, isActivePath, type NavItem, SIDEBAR_GROUPS } from './nav-items'
+import { SidebarFooter } from './sidebar-footer'
+import { SidebarItem } from './sidebar-item'
+import { Wordmark } from './wordmark'
 
 type SidebarNavProps = {
   userRole?: string
-  collapsed: boolean
-  onToggle: () => void
+  displayName: string
 }
 
-export function SidebarNav({ userRole, collapsed, onToggle }: Readonly<SidebarNavProps>) {
-  const pathname = usePathname()
-  const isAdmin = userRole === 'admin'
+function NavGroup({
+  label,
+  items,
+  pathname,
+}: Readonly<{ label: string; items: NavItem[]; pathname: string }>) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <SectionLabel className="px-2.5 pb-1">{label}</SectionLabel>
+      {items.map((item) => (
+        <SidebarItem key={item.href} item={item} active={isActivePath(pathname, item.href)} />
+      ))}
+    </div>
+  )
+}
 
-  function renderLink(item: NavItem) {
-    const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
-    return (
-      <Link
-        key={item.href}
-        href={item.href}
-        className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-          isActive
-            ? 'bg-primary/10 text-primary'
-            : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-        } ${collapsed ? 'justify-center px-2' : ''}`}
-      >
-        {item.icon && <NavIcon name={item.icon} />}
-        <span className={collapsed ? 'sr-only' : undefined}>{item.label}</span>
-      </Link>
-    )
-  }
+export function SidebarNav({ userRole, displayName }: Readonly<SidebarNavProps>) {
+  const pathname = usePathname()
+  const groups =
+    userRole === 'admin'
+      ? [...SIDEBAR_GROUPS, { label: 'Admin', items: ADMIN_NAV_ITEMS }]
+      : SIDEBAR_GROUPS
 
   return (
-    <nav className="flex flex-col gap-1">
-      {NAV_ITEMS.map(renderLink)}
-
-      {isAdmin && (
-        <>
-          <div className={`mt-4 mb-1 border-t border-border pt-3 ${collapsed ? 'mx-2' : 'mx-3'}`}>
-            <span
-              className={`text-xs font-semibold uppercase tracking-wider text-muted-foreground ${collapsed ? 'sr-only' : ''}`}
-            >
-              Admin
-            </span>
-          </div>
-          {ADMIN_NAV_ITEMS.map(renderLink)}
-        </>
-      )}
-
-      <button
-        type="button"
-        onClick={onToggle}
-        className="mt-4 flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground"
-        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+    <div className="flex h-full w-full flex-col gap-7 px-3 py-6">
+      <span className="px-2.5">
+        <Wordmark />
+      </span>
+      <nav
+        aria-label="Main navigation"
+        className="flex min-h-0 flex-1 flex-col gap-7 overflow-y-auto"
       >
-        {collapsed ? '→' : '← Collapse'}
-      </button>
-    </nav>
+        {groups.map((group) => (
+          <NavGroup key={group.label} {...group} pathname={pathname} />
+        ))}
+      </nav>
+      <SidebarFooter displayName={displayName} />
+    </div>
   )
 }

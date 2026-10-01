@@ -2,6 +2,7 @@
 
 import { useTheme } from 'next-themes'
 import { useEffect, useState } from 'react'
+import { Button } from '@/components/ui/button'
 
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme()
@@ -9,21 +10,20 @@ export function ThemeToggle() {
 
   useEffect(() => setMounted(true), [])
 
-  if (!mounted) return <div className="h-8 w-8" />
+  if (!mounted) return <div className="size-8" />
 
   return (
-    <button
-      type="button"
+    <Button
+      variant="ghost"
+      size="icon"
       onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-      className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground"
       aria-label="Toggle theme"
+      className="text-muted-foreground"
     >
       {theme === 'dark' ? (
         <svg
           aria-hidden="true"
           xmlns="http://www.w3.org/2000/svg"
-          width="16"
-          height="16"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -45,8 +45,6 @@ export function ThemeToggle() {
         <svg
           aria-hidden="true"
           xmlns="http://www.w3.org/2000/svg"
-          width="16"
-          height="16"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -57,6 +55,6 @@ export function ThemeToggle() {
           <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
         </svg>
       )}
-    </button>
+    </Button>
   )
 }

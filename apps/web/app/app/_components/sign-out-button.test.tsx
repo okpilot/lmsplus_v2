@@ -72,4 +72,16 @@ describe('SignOutButton', () => {
       expect(mockRouterPush).toHaveBeenCalledWith('/')
     })
   })
+
+  it('signs out and redirects from the sidebar row variant too', async () => {
+    const user = userEvent.setup()
+    render(<SignOutButton variant="row" />)
+
+    await user.click(screen.getByRole('button', { name: 'Sign out' }))
+
+    expect(mockSignOut).toHaveBeenCalledOnce()
+    await vi.waitFor(() => {
+      expect(mockRouterPush).toHaveBeenCalledWith('/')
+    })
+  })
 })

@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -181,5 +181,37 @@ describe('AppLayout — auth redirect', () => {
       // redirect may throw internally
     }
     expect(mockRedirect).toHaveBeenCalledWith('/')
+  })
+})
+
+describe('AppLayout — redesign look scope', () => {
+  async function renderForRole() {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'u1', email: 'ada@example.com' } },
+      error: null,
+    })
+    mockFrom.mockReturnValue(
+      buildChain({
+        data: { full_name: 'Ada Pilot', email: 'ada@example.com', role: 'student' },
+        error: null,
+      }),
+    )
+    await renderLayout()
+    return screen.getByTestId('app-shell').closest('[data-look]')
+  }
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('renders the shell inside the v2 look scope when the redesign look is on', async () => {
+    vi.stubEnv('NEXT_PUBLIC_REDESIGN_LOOK', 'on')
+    const scope = await renderForRole()
+    expect(scope).toHaveAttribute('data-look', 'v2')
+  })
+
+  it('renders the shell without the v2 look when the redesign look is unset', async () => {
+    vi.stubEnv('NEXT_PUBLIC_REDESIGN_LOOK', '')
+    expect(await renderForRole()).toBeNull()
   })
 })
