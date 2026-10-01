@@ -31,7 +31,15 @@
       "preset": "recommended",
       "correctness": {
         "noUnusedVariables": "error",
-        "noUnusedImports": "error"
+        "noUnusedImports": "error",
+        "noRestrictedElements": {
+          "level": "error",
+          "options": {
+            "elements": {
+              "button": "Use Button from @/components/ui/button."
+            }
+          }
+        }
       },
       "suspicious": {
         "noExplicitAny": "error",
@@ -72,6 +80,9 @@
           },
           "style": {
             "noNonNullAssertion": "off"
+          },
+          "correctness": {
+            "noRestrictedElements": "off"
           }
         }
       }
@@ -91,6 +102,70 @@
         "rules": {
           "style": {
             "noRestrictedImports": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "apps/web/components/ui/**",
+        "apps/web/app/app/admin/error.tsx",
+        "apps/web/app/app/admin/exam-config/_components/subject-config-card.tsx",
+        "apps/web/app/app/admin/internal-exams/_components/internal-exams-tabs.tsx",
+        "apps/web/app/app/_components/answer-options.tsx",
+        "apps/web/app/app/_components/feedback-panel.tsx",
+        "apps/web/app/app/_components/sidebar-nav.tsx",
+        "apps/web/app/app/_components/sign-out-button.tsx",
+        "apps/web/app/app/_components/theme-toggle.tsx",
+        "apps/web/app/app/dashboard/_components/heatmap-header.tsx",
+        "apps/web/app/app/dashboard/_components/info-tooltip.tsx",
+        "apps/web/app/app/internal-exam/_components/internal-exam-tabs.tsx",
+        "apps/web/app/app/internal-exam/_components/recovery-banner.tsx",
+        "apps/web/app/app/progress/_components/subject-breakdown.tsx",
+        "apps/web/app/app/quiz/_components/active-practice-banner.tsx",
+        "apps/web/app/app/quiz/_components/comments-tab.tsx",
+        "apps/web/app/app/quiz/_components/draft-card.tsx",
+        "apps/web/app/app/quiz/_components/expired-exam-notice.tsx",
+        "apps/web/app/app/quiz/_components/filter-pill.tsx",
+        "apps/web/app/app/quiz/_components/finish-quiz-dialog/confirm-panel.tsx",
+        "apps/web/app/app/quiz/_components/finish-quiz-dialog/dialog-footer.tsx",
+        "apps/web/app/app/quiz/_components/mode-toggle.tsx",
+        "apps/web/app/app/quiz/_components/question-count.tsx",
+        "apps/web/app/app/quiz/_components/question-filter-toggles.tsx",
+        "apps/web/app/app/quiz/_components/question-grid-squares.tsx",
+        "apps/web/app/app/quiz/_components/question-tabs.tsx",
+        "apps/web/app/app/quiz/_components/quiz-recovery-banner.tsx",
+        "apps/web/app/app/quiz/_components/quiz-tabs.tsx",
+        "apps/web/app/app/quiz/_components/resume-exam-banner.tsx",
+        "apps/web/app/app/quiz/_components/start-button.tsx",
+        "apps/web/app/app/quiz/_components/statistics-tab.tsx",
+        "apps/web/app/app/quiz/_components/subject-select.tsx",
+        "apps/web/app/app/quiz/_components/topic-row.tsx",
+        "apps/web/app/app/quiz/report/_components/report-question-row.tsx",
+        "apps/web/app/app/quiz/session/_components/diagram-label-chip.tsx",
+        "apps/web/app/app/quiz/session/_components/diagram-label-input.tsx",
+        "apps/web/app/app/quiz/session/_components/dialog-fill-input.tsx",
+        "apps/web/app/app/quiz/session/_components/keyboard-legend.tsx",
+        "apps/web/app/app/quiz/session/_components/ordering-input-item.tsx",
+        "apps/web/app/app/quiz/session/_components/ordering-input.tsx",
+        "apps/web/app/app/quiz/session/_components/quiz-controls.tsx",
+        "apps/web/app/app/quiz/session/_components/quiz-nav-bar.tsx",
+        "apps/web/app/app/quiz/session/_components/quiz-session-header.tsx",
+        "apps/web/app/app/quiz/session/_components/session-recovery-controls.tsx",
+        "apps/web/app/app/quiz/session/_components/session-recovery-prompt.tsx",
+        "apps/web/app/app/quiz/session/_components/short-answer-input.tsx",
+        "apps/web/app/app/settings/_components/change-password-form.tsx",
+        "apps/web/app/auth/forgot-password/_components/recovery-code-form.tsx",
+        "apps/web/app/_components/login-form.tsx",
+        "apps/web/app/error.tsx",
+        "apps/web/app/global-error.tsx",
+        "apps/web/components/auth/new-password-fields.tsx",
+        "apps/web/components/sortable-table-head.tsx"
+      ],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noRestrictedElements": "off"
           }
         }
       }
