@@ -52,7 +52,7 @@ Validation: ✓ Impact [N callers, conflicts] ✓ Contracts [N test files, M nee
 ### Plan-Critic Review (runs AFTER plan validation, BEFORE user approval)
 Run plan-critic (sonnet) via the Agent tool after validation, before presenting the plan to the user.
 **Inputs:** the validated plan text, plus the source files in "Files to change" / "Files affected".
-**Approach first:** plan-critic re-challenges the approach before details (`plan-critic.md § Approach Check`); a named simpler route is CRITICAL.
+**Approach first:** plan-critic re-challenges the approach before details (`plan-critic.md § Approach Check`).
 **One run, not rounds.** plan-critic runs **ONCE**. Fix APPLY-worthy findings and proceed; an unresolvable ISSUE or CRITICAL escalates to the user instead of another round. A heavy redraft is a new plan with its own single run. `agent-critic.md § Loop Round Discipline` governs the pre-push gate's reviewers, not plan-critic.
 **Skip condition:** single-file changes under 10 lines.
 **Timeout:** warn past 60s for plans up to 10 files, 120s beyond.
