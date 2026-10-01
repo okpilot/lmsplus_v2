@@ -83,6 +83,13 @@ Default to Server Components. Add `'use client'` only at the lowest component th
 ✅ Page (server) → Section (server) → InteractiveButton (client)
 ❌ Page (client) → everything is client-side rendered
 ```
+### UI Rules — Redesign (#1416)
+Enforced by prevention, not a text-matching guard (Decision 111).
+- Font is Geist only. `apps/web/app/globals.css` maps `--font-mono` to `--font-sans` and sets `code`/`kbd`/`samp`/`pre` to `font-family: inherit`. Use `tabular-nums` where digits must align.
+- Raw `<button>` outside `apps/web/components/ui/**` — use the shadcn `Button`. Biome `noRestrictedElements` (error). Files that had one before the rule are listed off in a `biome.json` override; Phase 2 removes each as its screen is redone. Known limit: Biome does not report a listed file that no longer has a raw `<button>`.
+- Reduced motion: one global `prefers-reduced-motion: reduce` rule in `apps/web/app/globals.css`. No per-class `motion-reduce:` needed.
+- Every page directory (one with `page.tsx`) has its own `error.tsx` and `loading.tsx`. `apps/web/app/segment-boundaries.test.ts` fails on a new gap and on a listed gap that is fixed.
+- Tailwind palette colour classes (e.g. `bg-red-500`) — use theme tokens. Phase 2 removes the palette from the theme.
 
 ---
 ## 3. Function Rules

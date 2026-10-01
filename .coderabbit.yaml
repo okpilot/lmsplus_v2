@@ -60,6 +60,7 @@ reviews:
         - Data fetching via imported async functions, not inline queries.
         - No direct Supabase client usage.
         - Props (params/searchParams) must be wrapped in Readonly<…> (SonarCloud typescript:S6759 — not Biome-enforceable).
+        - The page's directory needs its own error.tsx and loading.tsx (apps/web/app/segment-boundaries.test.ts lists pre-existing gaps; a new page directory must not be added to it).
 
     # App Router layouts
     - path: "apps/web/app/**/layout.tsx"
@@ -82,12 +83,14 @@ reviews:
         - Click handlers on static elements need paired keyboard handlers (Biome useKeyWithClickEvents).
         - Static elements must not have interaction handlers without an appropriate role (Biome noStaticElementInteractions).
         - Component props must be wrapped in Readonly<…> (immutable props contract; SonarCloud typescript:S6759 — not Biome-enforceable).
+        - UI rules (code-style.md §2, Decision 111): Geist only, no monospace font (font-mono, monospace, Courier, Geist Mono) — use tabular-nums; theme colour tokens, not Tailwind palette classes (e.g. bg-red-500); no per-class motion-reduce: needed (globals.css handles reduced motion).
 
     # Shared component library (shadcn/ui + custom wrappers)
     - path: "apps/web/components/**/*.tsx"
       instructions: |
         Reusable React component. Enforce:
         - Component props must be wrapped in Readonly<…> (immutable props contract; SonarCloud typescript:S6759 — not Biome-enforceable).
+        - UI rules (code-style.md §2, Decision 111): Geist only, no monospace font (font-mono, monospace, Courier, Geist Mono) — use tabular-nums; theme colour tokens, not Tailwind palette classes (e.g. bg-red-500); no per-class motion-reduce: needed (globals.css handles reduced motion).
 
     # Server Actions — validated mutations
     - path: "apps/web/app/**/actions.ts"
