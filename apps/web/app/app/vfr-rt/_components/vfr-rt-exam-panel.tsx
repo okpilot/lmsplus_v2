@@ -22,6 +22,27 @@ const PARAMETERS = [
 // Static class names so Tailwind can see them.
 const GRID_COLS = { 3: 'grid-cols-3', 4: 'grid-cols-4' } as const
 
+function ExamParameters({ questionCount }: Readonly<{ questionCount: number | null }>) {
+  const parameters =
+    questionCount === null
+      ? PARAMETERS
+      : [{ value: String(questionCount), label: 'Questions' }, ...PARAMETERS]
+  const gridCols = parameters.length === 4 ? GRID_COLS[4] : GRID_COLS[3]
+  return (
+    <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
+      <h3 className="text-sm font-semibold">VFR RT Mock Exam Parameters</h3>
+      <div className={`grid ${gridCols} gap-3 text-center`}>
+        {parameters.map((p) => (
+          <div key={p.label}>
+            <div className="text-lg font-semibold">{p.value}</div>
+            <div className="text-xs text-muted-foreground">{p.label}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export function VfrRtExamPanel({
   userId,
   subjectId,
@@ -29,25 +50,9 @@ export function VfrRtExamPanel({
   questionCount,
 }: Readonly<VfrRtExamPanelProps>) {
   const { loading, error, handleStart } = useVfrRtExamStart({ userId, subjectId, subjects })
-  const parameters =
-    questionCount === null
-      ? PARAMETERS
-      : [{ value: String(questionCount), label: 'Questions' }, ...PARAMETERS]
-  const gridCols = parameters.length === 4 ? GRID_COLS[4] : GRID_COLS[3]
-
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
-        <h3 className="text-sm font-semibold">VFR RT Mock Exam Parameters</h3>
-        <div className={`grid ${gridCols} gap-3 text-center`}>
-          {parameters.map((p) => (
-            <div key={p.label}>
-              <div className="text-lg font-semibold">{p.value}</div>
-              <div className="text-xs text-muted-foreground">{p.label}</div>
-            </div>
-          ))}
-        </div>
-      </div>
+      <ExamParameters questionCount={questionCount} />
       {error && (
         <p role="alert" className="text-sm text-destructive">
           {error}
