@@ -1,0 +1,95 @@
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+vi.mock('thinking-orbs', () => ({
+  ThinkingOrb: () => <span data-testid="orb" />,
+}))
+
+import { PendingButton } from './pending-button'
+
+describe('PendingButton', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+    window.matchMedia = vi.fn().mockImplementation(() => ({
+      matches: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })) as unknown as typeof window.matchMedia
+  })
+
+  it('renders its children and stays enabled when idle', () => {
+    render(
+      <PendingButton pending={false} pendingLabel="Saving…" variant="brand">
+        Save
+      </PendingButton>,
+    )
+    const button = screen.getByRole('button', { name: 'Save' })
+    expect(button).toBeEnabled()
+    expect(button).not.toHaveAttribute('aria-busy')
+  })
+
+  it('announces the pending label once while pending', () => {
+    render(
+      <PendingButton pending pendingLabel="Saving…">
+        Save
+      </PendingButton>,
+    )
+    expect(screen.getByRole('button', { name: 'Saving…' })).toBeInTheDocument()
+    expect(screen.queryByText('Save')).toBeNull()
+  })
+
+  it('switches to the outline style while pending', () => {
+    render(
+      <PendingButton pending pendingLabel="Saving…" variant="brand">
+        Save
+      </PendingButton>,
+    )
+    const button = screen.getByRole('button')
+    expect(button).toHaveClass('bg-background')
+    expect(button).not.toHaveClass('bg-brand')
+  })
+
+  it('is disabled and busy while pending', () => {
+    render(
+      <PendingButton pending pendingLabel="Saving…">
+        Save
+      </PendingButton>,
+    )
+    const button = screen.getByRole('button')
+    expect(button).toHaveAttribute('aria-disabled', 'true')
+    expect(button).toHaveAttribute('aria-busy', 'true')
+  })
+
+  it('keeps full opacity while pending so it does not look faded', () => {
+    render(
+      <PendingButton pending pendingLabel="Saving…">
+        Save
+      </PendingButton>,
+    )
+    expect(screen.getByRole('button')).not.toHaveAttribute('disabled')
+  })
+
+  it('does not fire onClick from the keyboard while pending', async () => {
+    const onClick = vi.fn()
+    render(
+      <PendingButton pending pendingLabel="Saving…" onClick={onClick}>
+        Save
+      </PendingButton>,
+    )
+    screen.getByRole('button').focus()
+    await userEvent.keyboard('{Enter}')
+    expect(onClick).not.toHaveBeenCalled()
+  })
+
+  it('does not fire onClick while pending', async () => {
+    const onClick = vi.fn()
+    render(
+      <PendingButton pending pendingLabel="Saving…" onClick={onClick}>
+        Save
+      </PendingButton>,
+    )
+    await userEvent.click(screen.getByRole('button'))
+    expect(onClick).not.toHaveBeenCalled()
+  })
+})
