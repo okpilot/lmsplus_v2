@@ -42,7 +42,7 @@ export function loginInstructionsEmail({
     <p>${fullName ? `Hello ${esc(fullName)},` : 'Hello,'}</p>
     <p>Your login details for LMS Plus are below.</p>
     <p>Email: <strong>${esc(email)}</strong></p>
-    <p>Temporary password: <strong style="font-weight: bold; letter-spacing: 2px;">${esc(tempPassword)}</strong></p>
+    <p>Temporary password: <strong style="letter-spacing: 2px;">${esc(tempPassword)}</strong></p>
     <p>This temporary password expires on <strong>${esc(expiry)} (UTC)</strong>. You will be asked to choose your own password when you log in.</p>
     <p>
       <a href="${esc(loginUrl)}" style="display: inline-block; background: #2563eb; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: bold;">Go to login</a>
