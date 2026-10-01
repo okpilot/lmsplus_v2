@@ -23,14 +23,19 @@ function TabLink({ item, active }: Readonly<{ item: NavItem; active: boolean }>)
   )
 }
 
-export function BottomTabBar() {
+function useBottomTabBar() {
   const pathname = usePathname()
   const { userRole } = useUser()
   const ref = useRef<HTMLElement>(null)
   const moreRef = useRef<HTMLButtonElement>(null)
-  const slots = useTabSlots(ref)
-  const { visible, hidden, activeHref, moreActive } = useTabBarModel(pathname, userRole, slots)
-  const { sheetOpen, setOpen, dismiss } = useMoreSheet(pathname, hidden.length > 0, moreRef)
+  const model = useTabBarModel(pathname, userRole, useTabSlots(ref))
+  const sheet = useMoreSheet(pathname, model.hidden.length > 0, moreRef)
+  return { ref, moreRef, ...model, ...sheet }
+}
+
+export function BottomTabBar() {
+  const { ref, moreRef, visible, hidden, activeHref, moreActive, sheetOpen, setOpen, dismiss } =
+    useBottomTabBar()
 
   return (
     <>
