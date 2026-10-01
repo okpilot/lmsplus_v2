@@ -96,7 +96,7 @@ export function TopicRow({ topic, subjectId }: Readonly<Props>) {
           <ChevronRight className={`size-3.5 transition-transform ${open ? 'rotate-90' : ''}`} />
         </CollapsibleTrigger>
 
-        <span className="w-16 font-mono text-sm">{topic.code}</span>
+        <span className="w-16 tabular-nums text-sm">{topic.code}</span>
         <span className="flex-1 text-sm">{topic.name}</span>
         <Badge variant="secondary" className="text-xs">
           {topic.questionCount} Q

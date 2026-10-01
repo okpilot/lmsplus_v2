@@ -145,7 +145,7 @@ export function CodeEntryModal({
               inputMode="text"
               maxLength={CODE_LENGTH}
               placeholder="ABC23XYZ"
-              className="font-mono tracking-widest uppercase"
+              className="tabular-nums tracking-widest uppercase"
               aria-invalid={error !== null}
             />
             {error ? (

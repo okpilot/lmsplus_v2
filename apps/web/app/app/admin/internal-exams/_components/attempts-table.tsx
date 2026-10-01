@@ -108,7 +108,7 @@ function AttemptRow({ row: r }: Readonly<{ row: InternalExamAttemptRow }>) {
       <TableCell>{r.subjectName || '—'}</TableCell>
       <TableCell className="text-xs text-muted-foreground">{formatAbsolute(r.startedAt)}</TableCell>
       <TableCell className="text-xs text-muted-foreground">{formatAbsolute(r.endedAt)}</TableCell>
-      <TableCell className="font-mono text-sm">{formatScore(r.scorePercentage)}</TableCell>
+      <TableCell className="tabular-nums text-sm">{formatScore(r.scorePercentage)}</TableCell>
       <TableCell>
         {passed === null ? (
           <span className="text-muted-foreground">—</span>

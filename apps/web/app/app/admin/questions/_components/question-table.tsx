@@ -69,7 +69,7 @@ export function QuestionTable({
                   aria-label={`Select question ${q.question_number ?? q.id}`}
                 />
               </TableCell>
-              <TableCell className="font-mono text-xs text-muted-foreground">
+              <TableCell className="tabular-nums text-xs text-muted-foreground">
                 {q.question_number ?? '\u2014'}
               </TableCell>
               <TableCell className="max-w-[400px]">

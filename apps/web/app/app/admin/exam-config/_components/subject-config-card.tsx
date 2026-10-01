@@ -45,7 +45,7 @@ export function SubjectConfigCard({ subject, onEdit }: Readonly<Props>) {
         className="flex min-w-0 flex-1 items-center justify-between p-4 text-left"
       >
         <div className="flex items-center gap-3">
-          <span className="rounded bg-muted px-2 py-1 font-mono text-xs font-medium text-muted-foreground">
+          <span className="rounded bg-muted px-2 py-1 tabular-nums text-xs font-medium text-muted-foreground">
             {subject.code}
           </span>
           <span className="font-medium">{subject.name}</span>

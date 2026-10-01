@@ -94,7 +94,7 @@ function ReportRow({ row: r }: Readonly<{ row: InternalExamHistoryEntry }>) {
       <TableCell className="tabular-nums">#{r.attemptNumber}</TableCell>
       <TableCell className="text-xs text-muted-foreground">{formatAbsolute(r.startedAt)}</TableCell>
       <TableCell className="text-xs text-muted-foreground">{formatAbsolute(r.endedAt)}</TableCell>
-      <TableCell className="font-mono text-sm">{formatScore(r.scorePercentage)}</TableCell>
+      <TableCell className="tabular-nums text-sm">{formatScore(r.scorePercentage)}</TableCell>
       <TableCell>
         {r.passed === null ? (
           <span className="text-muted-foreground">—</span>

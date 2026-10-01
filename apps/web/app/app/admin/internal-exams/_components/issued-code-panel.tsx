@@ -67,7 +67,7 @@ export function IssuedCodePanel({ codeId, code, expiresAt, onDismiss }: Readonly
             New code issued
           </p>
           <p
-            className="font-mono text-3xl font-bold tracking-widest"
+            className="tabular-nums text-3xl font-bold tracking-widest"
             data-testid="issued-code-value"
           >
             {code}

@@ -42,7 +42,7 @@ export function internalExamCodeEmail({
     <p>${studentName ? `Hello ${esc(studentName)},` : 'Hello,'}</p>
     <p>You have been issued an access code for your <strong>${esc(subjectName)}</strong> internal exam.</p>
     <p>Enter this code at the exam page to begin:</p>
-    <p style="font-size: 28px; font-weight: bold; letter-spacing: 4px; font-family: 'Courier New', monospace; background: #f4f4f5; padding: 16px 24px; border-radius: 8px; display: inline-block;">${esc(code)}</p>
+    <p style="font-size: 28px; font-weight: bold; letter-spacing: 4px; background: #f4f4f5; padding: 16px 24px; border-radius: 8px; display: inline-block;">${esc(code)}</p>
     <p>This code expires on <strong>${esc(expiry)} (UTC)</strong>.</p>
     <p>
       <a href="${esc(examUrl)}" style="display: inline-block; background: #2563eb; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: bold;">Go to exam</a>
