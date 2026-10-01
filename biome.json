@@ -169,6 +169,16 @@
           }
         }
       }
+    },
+    {
+      "includes": ["apps/web/app/globals.css"],
+      "linter": {
+        "rules": {
+          "complexity": {
+            "noImportantStyles": "off"
+          }
+        }
+      }
     }
   ]
 }
