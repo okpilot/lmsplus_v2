@@ -42,7 +42,7 @@ export function BottomTabBar() {
       <nav
         ref={ref}
         aria-label="Bottom navigation"
-        className="fixed inset-x-0 bottom-0 z-40 flex border-t border-foreground/[0.06] bg-canvas/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 flex h-[calc(3.5rem+env(safe-area-inset-bottom))] border-t border-foreground/[0.06] bg-canvas/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
       >
         {visible.map((item) => (
           <TabLink key={item.href} item={item} active={item.href === activeHref} />

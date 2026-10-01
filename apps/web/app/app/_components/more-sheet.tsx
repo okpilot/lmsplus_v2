@@ -7,7 +7,8 @@ import { NavIcon } from './nav-icon'
 import type { NavItem } from './nav-items'
 
 const SHEET_ID = 'bottom-more-sheet'
-export const SLOT = 'flex min-w-0 flex-1 flex-col items-center gap-1 px-1 py-2 text-[11px]'
+export const SLOT =
+  'flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 text-[11px]'
 export const tone = (on: boolean) => (on ? 'font-medium text-foreground' : 'text-foreground/55')
 
 function MoreIcon() {

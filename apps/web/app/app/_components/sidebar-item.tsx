@@ -7,7 +7,7 @@ const INACTIVE = 'text-foreground/65 hover:bg-foreground/[0.04]'
 const ACTIVE = 'bg-surface font-medium text-foreground ring-1 ring-surface-ring'
 
 /** Class for non-link rows (Button) that must align with SidebarItem. */
-export const ROW_CLASS = `${ROW_BASE} w-full justify-start font-normal ${INACTIVE}`
+export const ROW_CLASS = `${ROW_BASE} w-full justify-start border-0 font-normal ${INACTIVE}`
 
 export function RowIcon({ paths }: Readonly<{ paths: string[] }>) {
   return (
