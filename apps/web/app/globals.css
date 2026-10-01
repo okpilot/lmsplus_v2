@@ -168,7 +168,13 @@
 
 /* Redesign look (#1416): opt-in per screen via <LookScope>. Portalled overlays follow it while a scope is on the page. */
 [data-look="v2"],
-:root:has([data-look="v2"]) :is([data-slot="dialog-content"], [data-slot="alert-dialog-content"], [data-slot="select-content"], [data-sonner-toaster]) {
+:root:has([data-look="v2"])
+  :is(
+    [data-slot="dialog-content"],
+    [data-slot="alert-dialog-content"],
+    [data-slot="select-content"],
+    [data-sonner-toaster]
+  ) {
   --background: oklch(0.992 0.002 255);
   --foreground: oklch(0.16 0.012 260);
   --card: oklch(1 0 0);
@@ -192,7 +198,13 @@
 }
 
 .dark [data-look="v2"],
-.dark:has([data-look="v2"]) :is([data-slot="dialog-content"], [data-slot="alert-dialog-content"], [data-slot="select-content"], [data-sonner-toaster]) {
+.dark:has([data-look="v2"])
+  :is(
+    [data-slot="dialog-content"],
+    [data-slot="alert-dialog-content"],
+    [data-slot="select-content"],
+    [data-sonner-toaster]
+  ) {
   --background: oklch(0.15 0.01 260);
   --foreground: oklch(0.97 0.005 250);
   --card: oklch(0.21 0.013 260);
