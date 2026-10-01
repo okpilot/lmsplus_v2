@@ -29,15 +29,25 @@ describe('PendingButton', () => {
     expect(button).not.toHaveAttribute('aria-busy')
   })
 
-  it('shows the pending label with a status while pending', () => {
+  it('announces the pending label once while pending', () => {
     render(
       <PendingButton pending pendingLabel="Saving…">
         Save
       </PendingButton>,
     )
-    expect(screen.getByRole('status', { name: 'Saving…' })).toBeInTheDocument()
-    expect(screen.getByText('Saving…')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Saving…' })).toBeInTheDocument()
     expect(screen.queryByText('Save')).toBeNull()
+  })
+
+  it('switches to the outline style while pending', () => {
+    render(
+      <PendingButton pending pendingLabel="Saving…" variant="brand">
+        Save
+      </PendingButton>,
+    )
+    const button = screen.getByRole('button')
+    expect(button).toHaveClass('bg-background')
+    expect(button).not.toHaveClass('bg-brand')
   })
 
   it('is disabled and busy while pending', () => {

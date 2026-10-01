@@ -9,7 +9,7 @@ export function Shimmer({ className }: Readonly<{ className?: string }>) {
         className,
       )}
     >
-      <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-foreground/[0.06] to-transparent [animation:look-shimmer_2.8s_ease-in-out_infinite] motion-reduce:hidden" />
+      <span className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/[0.06] to-transparent [animation:look-shimmer_2.8s_ease-in-out_infinite] motion-reduce:hidden" />
     </div>
   )
 }

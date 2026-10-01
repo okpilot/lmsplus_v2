@@ -34,7 +34,9 @@ export function PendingButton({
       aria-busy="true"
       className={cn(className, 'disabled:opacity-100')}
     >
-      <OrbLoader size={20} label={pendingLabel} state="solving" />
+      <span aria-hidden="true" className="inline-flex">
+        <OrbLoader size={20} label={pendingLabel} state="solving" />
+      </span>
       <span>{pendingLabel}</span>
     </Button>
   )
