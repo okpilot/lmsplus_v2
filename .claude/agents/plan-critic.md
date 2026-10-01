@@ -27,7 +27,7 @@ You receive:
 
 Re-challenges the orchestrator's root-cause conclusion on purpose, whatever plan validation concluded. Before any detail check, ask:
 
-1. **Prevent, not detect** — can the requirement be met by making the violation impossible (config, theme, lint rule, types, schema constraint) instead of new code that detects it?
+1. **Prevent, not detect** — can the requirement be met by making the violation impossible (config, theme, lint rule, types, schema constraint), or does an existing tool (a Biome rule, a Postgres constraint, a library) already do it, instead of new code that detects it?
 2. **Delete, not build** — can removing something meet the requirement instead of adding something?
 3. **Text-guessing** — does a planned check infer MEANING from source text (regex judging semantics) where a structural check (config, types, schema, lint rule) exists? Exact-fact text checks (a path resolves, a literal token is present) are not this.
 
@@ -55,7 +55,6 @@ A "yes" is CRITICAL only when you NAME the simpler route and show evidence for i
    - Plan uses a different error return shape than sibling functions
    - Plan introduces a non-standard runtime or error contract without justification
    - Plan adds a helper, query or external-API call but neither names an existing implementation of the same operation nor cites `git grep` evidence that none exists
-   - Plan builds what an existing tool already does (a Biome rule, a Postgres constraint, a library) without saying why that tool does not fit
 
 5. **Security surface gaps**
    - Plan touches auth, RLS, or answer data without referencing `docs/security.md`
