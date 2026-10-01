@@ -3,7 +3,6 @@
 import type * as React from 'react'
 
 import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
 import { OrbLoader } from './orb-loader'
 
 type PendingButtonProps = React.ComponentProps<typeof Button> & {
@@ -31,8 +30,9 @@ export function PendingButton({
       {...buttonProps}
       variant="outline"
       disabled
+      focusableWhenDisabled
       aria-busy="true"
-      className={cn(className, 'disabled:opacity-100')}
+      className={className}
     >
       <span aria-hidden="true" className="inline-flex">
         <OrbLoader size={20} label={pendingLabel} state="solving" />

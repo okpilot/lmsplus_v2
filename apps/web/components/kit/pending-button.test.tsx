@@ -57,7 +57,7 @@ describe('PendingButton', () => {
       </PendingButton>,
     )
     const button = screen.getByRole('button')
-    expect(button).toBeDisabled()
+    expect(button).toHaveAttribute('aria-disabled', 'true')
     expect(button).toHaveAttribute('aria-busy', 'true')
   })
 
@@ -67,7 +67,19 @@ describe('PendingButton', () => {
         Save
       </PendingButton>,
     )
-    expect(screen.getByRole('button')).toHaveClass('disabled:opacity-100')
+    expect(screen.getByRole('button')).not.toHaveAttribute('disabled')
+  })
+
+  it('does not fire onClick from the keyboard while pending', async () => {
+    const onClick = vi.fn()
+    render(
+      <PendingButton pending pendingLabel="Saving…" onClick={onClick}>
+        Save
+      </PendingButton>,
+    )
+    screen.getByRole('button').focus()
+    await userEvent.keyboard('{Enter}')
+    expect(onClick).not.toHaveBeenCalled()
   })
 
   it('does not fire onClick while pending', async () => {
