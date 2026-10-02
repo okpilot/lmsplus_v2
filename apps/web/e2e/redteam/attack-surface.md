@@ -203,6 +203,9 @@
 | GA | submit_vfr_rt_exam_answers-diagram-forged-placement | HIGH | rpc-vfr-rt-part3-integrity.spec.ts | BLOCKED |  | input-injection |
 | GB | loadVfrRtExamQuestions-foreign-session-replay | HIGH | server-action-vfr-rt-exam-questions.spec.ts | BLOCKED |  | idor |
 | GC | loadVfrRtExamQuestions-mid-exam-key-strip | HIGH | server-action-vfr-rt-exam-questions.spec.ts | BLOCKED |  | answer-oracle |
+| GD | get_daily_subjects-same-org-instructor-admin-self-scope | HIGH | rpc-daily-subjects-scope.spec.ts | BLOCKED |  | rls-bypass |
+| GE | get_daily_subjects-cross-org-admin-isolation | HIGH | rpc-daily-subjects-scope.spec.ts | BLOCKED |  | cross-tenant |
+| GF | get_daily_subjects-soft-deleted-caller-gate | MEDIUM | rpc-daily-subjects-scope.spec.ts | BLOCKED |  | sibling-guard-gap |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
