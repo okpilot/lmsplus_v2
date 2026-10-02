@@ -80,7 +80,7 @@ describe('RPC: get_daily_subjects', () => {
     return requireRpcRows<DailySubjectRow>(data, 'get_daily_subjects')
   }
 
-  beforeAll(async () => {
+  async function createUsers() {
     orgId = await createTestOrg({
       admin,
       name: `Test Org DailySubj ${suffix}`,
@@ -103,7 +103,20 @@ describe('RPC: get_daily_subjects', () => {
       role: 'student',
     })
     userIds.push(victimId)
+  }
 
+  async function readResponseDay(questionId: string): Promise<string> {
+    const { data, error } = await admin
+      .from('student_responses')
+      .select('created_at')
+      .eq('student_id', studentId)
+      .eq('question_id', questionId)
+      .single()
+    if (error || !data) throw new Error(`read response day: ${error?.message}`)
+    return utcDay(data.created_at as string)
+  }
+
+  async function seedCallerResponses() {
     const a = await seedSubject('DA')
     refsA = a.refs
     questionsA = a.questionIds
@@ -122,15 +135,10 @@ describe('RPC: get_daily_subjects', () => {
     await insertResponse(victimId, questionsVictim[0] as string)
 
     // Read the seeded day back from the DB once; tests assert against this stored value.
-    const { data: seeded, error: seededErr } = await admin
-      .from('student_responses')
-      .select('created_at')
-      .eq('student_id', studentId)
-      .eq('question_id', questionsA[0] as string)
-      .single()
-    if (seededErr || !seeded) throw new Error(`read seeded day: ${seededErr?.message}`)
-    seededDay = utcDay(seeded.created_at as string)
+    seededDay = await readResponseDay(questionsA[0] as string)
+  }
 
+  async function seedBoundaryFixtures() {
     // Subject answered ONLY three days before the seeded day (window-boundary fixture).
     const old = await seedSubject('DO')
     refsOld = old.refs
@@ -145,6 +153,30 @@ describe('RPC: get_daily_subjects', () => {
     refsDel = del.refs
     questionsDel = del.questionIds
     await insertResponse(studentId, questionsDel[0] as string)
+  }
+
+  // The DB's current day, read at call time: get_daily_activity(p_days: 1) returns exactly today.
+  async function dbToday(): Promise<string> {
+    const { data, error } = await studentClient.rpc('get_daily_activity', {
+      p_student_id: studentId,
+      p_days: 1,
+    })
+    expect(error).toBeNull()
+    const rows = requireRpcRows<{ day: string }>(data, 'get_daily_activity')
+    expect(rows).toHaveLength(1)
+    return (rows[0] as { day: string }).day
+  }
+
+  function daysBetween(fromDay: string, toDay: string): number {
+    return Math.round(
+      (Date.parse(`${toDay}T00:00:00Z`) - Date.parse(`${fromDay}T00:00:00Z`)) / 86_400_000,
+    )
+  }
+
+  beforeAll(async () => {
+    await createUsers()
+    await seedCallerResponses()
+    await seedBoundaryFixtures()
   })
 
   afterAll(async () => {
@@ -231,9 +263,14 @@ describe('RPC: get_daily_subjects', () => {
   })
 
   it('excludes a day just outside the lookback window and includes it once the window widens', async () => {
-    const narrow = await dailySubjects(3)
-    expect(narrow.map((r) => r.day)).not.toContain(backdatedDay)
-    const wide = await dailySubjects(4)
+    // Window start is CURRENT_DATE - (p_days - 1), evaluated at call time: derive n from the DB's
+    // current day so a midnight rollover after beforeAll cannot shift the boundary.
+    const n = daysBetween(backdatedDay, await dbToday())
+    expect(n).toBeGreaterThanOrEqual(3)
+    expect(n + 1).toBeLessThanOrEqual(365)
+    const narrow = await dailySubjects(n)
+    expect(narrow).not.toContainEqual({ day: backdatedDay, subject_id: refsOld?.subjectId })
+    const wide = await dailySubjects(n + 1)
     expect(wide).toContainEqual({ day: backdatedDay, subject_id: refsOld?.subjectId })
   })
 
@@ -254,8 +291,10 @@ describe('RPC: get_daily_subjects', () => {
     })
 
     it('drops a subject once its only answered question is soft-deleted', async () => {
+      // The DD response's own day; window 7 survives a midnight rollover since seeding.
+      const delDay = await readResponseDay(questionsDel[0] as string)
       const before = await dailySubjects(7)
-      expect(before).toContainEqual({ day: seededDay, subject_id: refsDel?.subjectId })
+      expect(before).toContainEqual({ day: delDay, subject_id: refsDel?.subjectId })
 
       const { data: deleted, error: delErr } = await admin
         .from('questions')
