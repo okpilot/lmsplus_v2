@@ -42,13 +42,26 @@ async function dailySubjects(client: Client) {
   return (data ?? []) as { day: string; subject_id: string }[]
 }
 
+// Victim payload contract: every row is (ISO day, uuid subject) and every seeded subject appears.
+function expectVictimRows(rows: { day: string; subject_id: string }[], subjectIds: string[]) {
+  expect(subjectIds.length).toBeGreaterThan(0)
+  for (const row of rows) {
+    expect(row.day).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(row.subject_id).toMatch(/^[0-9a-f-]{36}$/)
+  }
+  const returned = new Set(rows.map((r) => r.subject_id))
+  for (const id of subjectIds) expect(returned.has(id)).toBe(true)
+}
+
 test.describe('Red Team: get_daily_subjects scope', () => {
   let victimUserId: string
+  let victimSubjectIds: string[]
   let victimClient: Client
 
   test.beforeAll(async () => {
     const fixture = await seedVictimResponses()
     victimUserId = fixture.victimUserId
+    victimSubjectIds = fixture.subjectIds
     const victim = await seedRedTeamStudent()
     victimClient = await createAuthenticatedClient(victim.email, victim.password)
   })
@@ -56,7 +69,7 @@ test.describe('Red Team: get_daily_subjects scope', () => {
   test('GD: same-org instructor and admin read none of the victim practised subjects', async () => {
     // Control: the victim's own call returns rows, so an empty result below is isolation.
     const own = await dailySubjects(victimClient)
-    expect(own.length).toBeGreaterThan(0)
+    expectVictimRows(own, victimSubjectIds)
 
     const instructor = await seedRedTeamInstructor()
     const orgAdmin = await seedRedTeamAdmin()
@@ -83,7 +96,7 @@ test.describe('Red Team: get_daily_subjects scope', () => {
 
   test('GE: cross-org admin reads none of the victim practised subjects', async () => {
     const own = await dailySubjects(victimClient)
-    expect(own.length).toBeGreaterThan(0)
+    expectVictimRows(own, victimSubjectIds)
 
     const crossAdmin = await seedCrossOrgAdmin()
     expect(await ownResponseCount(crossAdmin.adminUserId)).toBe(0)
@@ -110,7 +123,7 @@ test.describe('Red Team: get_daily_subjects scope', () => {
     test('GF: a soft-deleted caller holding a live JWT is rejected', async () => {
       // Control: the same client reads rows while active.
       const before = await dailySubjects(victimClient)
-      expect(before.length).toBeGreaterThan(0)
+      expectVictimRows(before, victimSubjectIds)
 
       const { data: deleted, error: delErr } = await getAdminClient()
         .from('users')

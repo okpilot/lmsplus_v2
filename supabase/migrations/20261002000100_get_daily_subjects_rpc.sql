@@ -19,6 +19,7 @@ BEGIN
     JOIN questions q ON q.id = sr.question_id
     WHERE sr.student_id = auth.uid()
       AND sr.created_at::date >= CURRENT_DATE - (p_days - 1)
+      AND sr.created_at::date <= CURRENT_DATE
     ORDER BY 1, 2;
 END;
 $$;

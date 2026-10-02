@@ -31,6 +31,7 @@ describe('RPC: get_daily_subjects', () => {
   // Day of the beforeAll inserts, read back from the DB once (never recomputed per test).
   let seededDay = ''
   let backdatedDay = ''
+  let futureDay = ''
   const userIds: string[] = []
   const suffix = fixtureSuffix()
   const studentEmail = `student-dailysubj-${suffix}@test.local`
@@ -147,6 +148,10 @@ describe('RPC: get_daily_subjects', () => {
     backdated.setUTCDate(backdated.getUTCDate() - 3)
     backdatedDay = backdated.toISOString().slice(0, 10)
     await insertResponse(studentId, questionsOld[0] as string, backdated.toISOString())
+    const future = new Date(`${seededDay}T12:00:00Z`)
+    future.setUTCDate(future.getUTCDate() + 3)
+    futureDay = future.toISOString().slice(0, 10)
+    await insertResponse(studentId, questionsOld[1] as string, future.toISOString())
 
     // Subject answered only today, only via one question (soft-delete fixture).
     const del = await seedSubject('DD')
@@ -279,6 +284,13 @@ describe('RPC: get_daily_subjects', () => {
       return
     }
     throw new Error('DB day changed during both attempts')
+  })
+
+  it('excludes a response dated after today', async () => {
+    expect(futureDay > (await dbToday())).toBe(true)
+    const rows = await dailySubjects(365)
+    expect(rows.length).toBeGreaterThan(0)
+    expect(rows.map((r) => r.day)).not.toContain(futureDay)
   })
 
   describe('soft-deleted question', () => {
