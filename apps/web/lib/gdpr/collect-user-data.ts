@@ -10,6 +10,7 @@ import {
   fetchUserSessionAnswers,
   fetchUserSessions,
 } from './collect-user-data-queries'
+import { fetchUserProgress } from './collect-user-progress-query'
 import type { GdprExportPayload, GdprExportWarning } from './types'
 
 // User-safe wording for a failed section — surfaced in the export's `warnings`. The raw
@@ -53,6 +54,7 @@ export async function collectUserData(
     commentsResult,
     consentsResult,
     auditResult,
+    progressResult,
   ] = await Promise.all([
     supabase
       .from('users')
@@ -66,6 +68,7 @@ export async function collectUserData(
     fetchUserComments(supabase, userId),
     fetchUserConsents(supabase, userId),
     fetchUserAuditEvents(supabase, userId),
+    fetchUserProgress(supabase, userId),
   ])
 
   if (userResult.error || !userResult.data) {
@@ -84,6 +87,7 @@ export async function collectUserData(
     ['question_comments', commentsResult],
     ['user_consents', consentsResult],
     ['audit_events', auditResult],
+    ['quiz_progress', progressResult],
   ] as const
   const warnings = collectSectionWarnings(queryResults)
 
@@ -125,6 +129,7 @@ export async function collectUserData(
     user: userResult.data,
     quiz_sessions: sessionsResult.data,
     quiz_answers: answers,
+    quiz_progress: progressResult.data,
     student_responses: responsesResult.data,
     fsrs_cards: fsrsResult.data,
     flagged_questions: flaggedQuestions,

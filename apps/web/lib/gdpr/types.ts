@@ -44,6 +44,14 @@ export type GdprExportPayload = {
     response_time_ms: number
     answered_at: string
   }>
+  quiz_progress: Array<{
+    session_id: string
+    question_id: string
+    answer: unknown
+    time_spent_ms: number
+    answered_at: string | null
+    updated_at: string
+  }>
   student_responses: Array<{
     question_id: string
     selected_option_id: string | null

@@ -297,6 +297,24 @@ describe('RPC: quiz progress — save answer, position and read', () => {
     expect(progress.pinned_question_ids).toEqual([f.mcIds[0]])
   })
 
+  it('refuses a null pin and keeps the stored pins unchanged', async () => {
+    const sessionId = await startPractice(f, 'quick_quiz', f.mcIds.slice(0, 3))
+    const call = (pins: Array<string | null>) =>
+      f.student.rpc('save_quiz_position', {
+        p_session_id: sessionId,
+        p_current_index: 0,
+        p_pinned_question_ids: pins,
+        p_device_id: DEVICE,
+      })
+    expect((await call([f.mcIds[0]!])).error).toBeNull()
+    expect((await load(sessionId)).pinned_question_ids).toEqual([f.mcIds[0]])
+
+    expect((await call([null])).error?.message).toContain('question_not_in_session')
+    expect((await call([f.mcIds[1]!, null])).error?.message).toContain('question_not_in_session')
+
+    expect((await load(sessionId)).pinned_question_ids).toEqual([f.mcIds[0]])
+  })
+
   it.each(['smart_review', 'mock_exam', 'internal_exam', 'vfr_rt_exam'] as const)(
     'accepts progress writes in %s mode',
     async (mode) => {

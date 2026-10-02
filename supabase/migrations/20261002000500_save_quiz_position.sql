@@ -28,6 +28,10 @@ BEGIN
     RAISE EXCEPTION 'invalid_position';
   END IF;
 
+  IF EXISTS (SELECT 1 FROM unnest(COALESCE(p_pinned_question_ids, '{}'::uuid[])) AS pin WHERE pin IS NULL) THEN
+    RAISE EXCEPTION 'question_not_in_session';
+  END IF;
+
   v_pins := ARRAY(SELECT DISTINCT pin FROM unnest(COALESCE(p_pinned_question_ids, '{}'::uuid[])) AS pin);
   IF EXISTS (
     SELECT 1 FROM unnest(v_pins) AS pin WHERE NOT (v_ids @> to_jsonb(pin::text))
