@@ -1411,6 +1411,13 @@ export type Database = {
           total: number
         }[]
       }
+      get_daily_subjects: {
+        Args: { p_days: number }
+        Returns: {
+          day: string
+          subject_id: string
+        }[]
+      }
       get_filtered_question_counts: {
         Args: {
           p_calc_mode?: string
