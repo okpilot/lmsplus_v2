@@ -63,7 +63,7 @@ describe('RPC: quiz progress — closed sessions, ownership, takeover, privilege
     expect(claim.error?.message, 'claim_quiz_session').toContain(token)
     const rows = await progressRows(f, sessionId)
     expect(rows).toHaveLength(1)
-    expect(rows[0]!.question_id).toBe(f.mcIds[0])
+    expect(rows[0]?.question_id).toBe(f.mcIds[0])
   }
 
   it('refuses every write on an ended session but still serves the saved progress', async () => {
@@ -291,7 +291,7 @@ describe('RPC: quiz progress — closed sessions, ownership, takeover, privilege
 
     const rows = await progressRows(f, sessionId)
     expect(rows).toHaveLength(1)
-    expect(rows[0]!.answer).toEqual({ selected_option_id: 'a' })
+    expect(rows[0]?.answer).toEqual({ selected_option_id: 'a' })
   })
 
   it('denies anonymous callers and every call to the internal helpers', async () => {

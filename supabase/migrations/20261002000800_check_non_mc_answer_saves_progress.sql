@@ -1,7 +1,7 @@
 -- Cross-device resume (#1026) PR 1: check_non_mc_answer also saves progress. Body, guards, tokens and
 -- return payloads identical to 20260815000200; the only additions are the trailing params
--- p_device_id / p_time_spent_ms (defaulted: old callers keep working) and the _save_progress_row call
--- (step 8b). Signature changes, so DROP the old one first.
+-- p_device_id / p_time_spent_ms (defaulted: old callers keep working) and the validated _save_progress_row call after grading
+-- (step 10). Signature changes, so DROP the old one first.
 --
 -- SIZE: one single CREATE FUNCTION over the 300-line cap — the code-style.md §1 exception for a
 -- single unsplittable DDL object.
@@ -57,6 +57,7 @@ DECLARE
   v_blank_results      jsonb;
   v_blank_result_row   jsonb;
   v_answer             jsonb;
+  v_result             jsonb;
 BEGIN
   -- ── 1. Auth guard ────────────────────────────────────────────────────────
   IF v_student_id IS NULL THEN
@@ -142,23 +143,6 @@ BEGIN
     RAISE EXCEPTION 'unsupported_question_type';
   END IF;
 
-  -- ── 8b. Cross-device resume (#1026): persist the answer in the same call ─
-  -- Built from the raw params; any later raise (answer_type_mismatch, invalid_blank_index, ...)
-  -- rolls this write back, so only an answer that grades is stored. No shape validation here:
-  -- the grading branches own the existing tokens. Raises session_taken_over / invalid_answer
-  -- (> 8 KiB) / invalid_time_spent.
-  v_answer := CASE v_qtype
-    WHEN 'short_answer'  THEN jsonb_build_object('response_text', p_response_text)
-    WHEN 'dialog_fill'   THEN jsonb_build_object('blanks', p_blank_answers)
-    WHEN 'ordering'      THEN jsonb_build_object('order', p_order)
-    WHEN 'diagram_label' THEN jsonb_build_object('mapping', p_mapping)
-  END;
-  IF v_answer IS NOT NULL THEN
-    PERFORM _save_progress_row(
-      p_session_id, p_question_id, v_student_id, v_answer, p_time_spent_ms, p_device_id
-    );
-  END IF;
-
   -- ── 9. Grade by question type ─────────────────────────────────────────────
 
   IF v_qtype = 'short_answer' THEN
@@ -183,7 +167,7 @@ BEGIN
       )
     ));
 
-    RETURN jsonb_build_object(
+    v_result := jsonb_build_object(
       'is_correct',           v_is_correct,
       'correct_answer',       v_canonical,
       'blanks',               NULL,
@@ -263,7 +247,7 @@ BEGIN
       WHERE (e->>'blank_index') ~ '^\d{1,4}$'
     ) = jsonb_array_length(v_blanks);
 
-    RETURN jsonb_build_object(
+    v_result := jsonb_build_object(
       'is_correct',           v_is_correct,
       'correct_answer',       NULL,
       'blanks',               v_blank_results,
@@ -306,7 +290,7 @@ BEGIN
     INTO v_correct_order
     FROM jsonb_array_elements(v_ordering_items) WITH ORDINALITY AS ord(elem, idx);
 
-    RETURN jsonb_build_object(
+    v_result := jsonb_build_object(
       'is_correct',           v_is_correct,
       'correct_answer',       NULL,
       'blanks',               NULL,
@@ -367,7 +351,7 @@ BEGIN
     -- locally — same posture as ordering's revealed id-only correct_order.
     v_correct_mapping := v_diagram_config->'answer';
 
-    RETURN jsonb_build_object(
+    v_result := jsonb_build_object(
       'is_correct',           v_is_correct,
       'correct_answer',       NULL,
       'blanks',               NULL,
@@ -380,6 +364,26 @@ BEGIN
   ELSE
     RAISE EXCEPTION 'unsupported_question_type';
   END IF;
+
+  -- ── 10. Cross-device resume (#1026): persist the graded answer in the same call ─
+  -- Runs after every guard and grading branch, so every pre-existing token fires first. The answer
+  -- is built from the raw params and must match the canonical stored shape, else invalid_answer.
+  -- Also raises session_taken_over / invalid_answer (> 8 KiB) / invalid_time_spent. A raise rolls
+  -- back the whole call, so a graded result is never returned for a refused save.
+  v_answer := CASE v_qtype
+    WHEN 'short_answer'  THEN jsonb_build_object('response_text', p_response_text)
+    WHEN 'dialog_fill'   THEN jsonb_build_object('blanks', p_blank_answers)
+    WHEN 'ordering'      THEN jsonb_build_object('order', p_order)
+    WHEN 'diagram_label' THEN jsonb_build_object('mapping', p_mapping)
+  END;
+  IF NOT COALESCE(_validate_progress_answer(v_answer, v_qtype), false) THEN
+    RAISE EXCEPTION 'invalid_answer';
+  END IF;
+  PERFORM _save_progress_row(
+    p_session_id, p_question_id, v_student_id, v_answer, p_time_spent_ms, p_device_id
+  );
+
+  RETURN v_result;
 END;
 $$;
 

@@ -3,12 +3,12 @@ import { clearActiveSessions } from './cleanup'
 import { requireRpcResult } from './guards'
 import {
   insertSession,
-  ORDER_ITEMS,
   type ProgressFixture,
   progressRows,
   setupProgressFixture,
   startPractice,
 } from './quiz-progress-fixture'
+import { ORDER_ITEMS } from './quiz-progress-questions'
 
 type Progress = {
   status: string
@@ -68,7 +68,7 @@ describe('RPC: quiz progress — save answer, position and read', () => {
       answer: { selected_option_id: 'c' },
       time_spent_ms: 4200,
     })
-    expect(rows[0]!.answered_at).not.toBeNull()
+    expect(rows[0]?.answered_at).not.toBeNull()
 
     const progress = await load(sessionId)
     expect(progress.status).toBe('open')
@@ -91,7 +91,7 @@ describe('RPC: quiz progress — save answer, position and read', () => {
 
     expect((await save(sessionId, f.mcIds[0]!, { selected_option_id: 'd' }, 9000)).error).toBeNull()
     rows = await progressRows(f, sessionId)
-    expect(rows[0]!.time_spent_ms).toBe(9000)
+    expect(rows[0]?.time_spent_ms).toBe(9000)
   })
 
   it('exposes no answer key or correctness in the progress payload', async () => {
@@ -105,7 +105,7 @@ describe('RPC: quiz progress — save answer, position and read', () => {
     for (const forbidden of ['correct', 'is_correct', 'explanation', 'canonical']) {
       expect(serialised).not.toContain(forbidden)
     }
-    expect(Object.keys(progress.answers[0]!).sort()).toEqual([
+    expect(Object.keys(progress.answers[0] ?? {}).sort()).toEqual([
       'answer',
       'answered_at',
       'question_id',
@@ -170,6 +170,40 @@ describe('RPC: quiz progress — save answer, position and read', () => {
     expect(await progressRows(f, sessionId)).toHaveLength(0)
   })
 
+  it.each([
+    ['multiple_choice'],
+    ['short_answer'],
+    ['dialog_fill'],
+    ['ordering'],
+    ['diagram_label'],
+  ])('refuses an empty answer object for a %s question and stores nothing', async (type) => {
+    const idByType: Record<string, string> = {
+      multiple_choice: f.mcIds[0] ?? '',
+      short_answer: f.shortId,
+      dialog_fill: f.dialogId,
+      ordering: f.orderingId,
+      diagram_label: f.diagramId,
+    }
+    const questionId = idByType[type] ?? ''
+    const sessionId = await startPractice(f, 'quick_quiz', [questionId])
+    const { error } = await save(sessionId, questionId, {})
+    expect(error?.message).toContain('invalid_answer')
+    const { data: session } = await f.admin
+      .from('quiz_sessions')
+      .select('id')
+      .eq('id', sessionId)
+      .single()
+    expect(session?.id).toBe(sessionId)
+    expect(await progressRows(f, sessionId)).toHaveLength(0)
+  })
+
+  it('refuses a multiple-choice option outside a to d', async () => {
+    const sessionId = await startPractice(f, 'quick_quiz', [f.mcIds[0] ?? ''])
+    const { error } = await save(sessionId, f.mcIds[0] ?? '', { selected_option_id: 'z' })
+    expect(error?.message).toContain('invalid_answer')
+    expect(await progressRows(f, sessionId)).toHaveLength(0)
+  })
+
   it('refuses an answer larger than 8 KiB', async () => {
     const sessionId = await startPractice(f, 'quick_quiz', [f.shortId])
     const ok = await save(sessionId, f.shortId, { response_text: 'x'.repeat(100) })
@@ -177,7 +211,7 @@ describe('RPC: quiz progress — save answer, position and read', () => {
     const { error } = await save(sessionId, f.shortId, { response_text: 'x'.repeat(9000) })
     expect(error?.message).toContain('invalid_answer')
     const rows = await progressRows(f, sessionId)
-    expect(rows[0]!.answer).toEqual({ response_text: 'x'.repeat(100) })
+    expect(rows[0]?.answer).toEqual({ response_text: 'x'.repeat(100) })
   })
 
   it('refuses a time outside 0 to 24 hours and a missing time', async () => {

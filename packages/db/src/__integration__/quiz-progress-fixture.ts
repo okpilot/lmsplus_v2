@@ -2,48 +2,35 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
 import { requireRpcResult } from './guards'
-import { orderingItem } from './ordering-item-id'
-import { seedQuestions, seedReferenceData } from './seed'
+import { seedTypedQuestions, type TypedQuestionIds } from './quiz-progress-questions'
+import { seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
-export const PASSWORD = 'test-pass-123'
-export const ORDER_ITEMS = [orderingItem('first call'), orderingItem('second call')]
+const PASSWORD = 'test-pass-123'
 
-export type ProgressFixture = {
+export type ProgressFixture = TypedQuestionIds & {
   admin: SupabaseClient
   orgId: string
   studentId: string
   otherStudentId: string
   student: SupabaseClient
   other: SupabaseClient
-  /** Five multiple_choice questions (correct option 'b'). */
-  mcIds: string[]
-  shortId: string
-  dialogId: string
-  orderingId: string
-  diagramId: string
   teardown: () => Promise<void>
 }
 
 type Refs = Awaited<ReturnType<typeof seedReferenceData>>
 
-async function insertQuestion(admin: SupabaseClient, row: Record<string, unknown>) {
-  const { data, error } = await admin.from('questions').insert(row).select('id').single()
-  if (error) throw new Error(`insertQuestion: ${error.message}`)
-  return requireRpcResult<{ id: string }>(data, 'insertQuestion').id
-}
+type SeededUser = { id: string; email: string }
 
-/** Org + two students + one question of every type, for the quiz-progress suites. */
-export async function setupProgressFixture(tag: string): Promise<ProgressFixture> {
-  const admin = getAdminClient()
-  const suffix = fixtureSuffix()
-  const userIds: string[] = []
+/** Org + admin + two students; collects ids for teardown. */
+async function seedProgressUsers(admin: SupabaseClient, tag: string, suffix: string) {
   const orgId = await createTestOrg({
     admin,
     name: `Test Org ${tag} ${suffix}`,
     slug: `test-${tag}-${suffix}`,
   })
-  const mk = async (role: 'admin' | 'student', name: string) => {
+  const userIds: string[] = []
+  const mk = async (role: 'admin' | 'student', name: string): Promise<SeededUser> => {
     const email = `${name}-${tag}-${suffix}@test.local`
     const id = await createTestUser({ admin, orgId, email, password: PASSWORD, role })
     userIds.push(id)
@@ -52,6 +39,14 @@ export async function setupProgressFixture(tag: string): Promise<ProgressFixture
   const adminUser = await mk('admin', 'admin')
   const a = await mk('student', 'studenta')
   const b = await mk('student', 'studentb')
+  return { orgId, userIds, adminUser, a, b }
+}
+
+/** Org + two students + one question of every type, for the quiz-progress suites. */
+export async function setupProgressFixture(tag: string): Promise<ProgressFixture> {
+  const admin = getAdminClient()
+  const suffix = fixtureSuffix()
+  const { orgId, userIds, adminUser, a, b } = await seedProgressUsers(admin, tag, suffix)
   const refs: Refs = await seedReferenceData({
     admin,
     subjectCode: `P${suffix}`,
@@ -59,58 +54,7 @@ export async function setupProgressFixture(tag: string): Promise<ProgressFixture
     topicCode: `P${suffix}-01`,
     topicName: `Progress Topic ${suffix}`,
   })
-  const seeded = await seedQuestions({
-    admin,
-    orgId,
-    createdBy: adminUser.id,
-    subjectId: refs.subjectId,
-    topicId: refs.topicId,
-    count: 5,
-  })
-  const base = {
-    organization_id: orgId,
-    bank_id: seeded.bankId,
-    subject_id: refs.subjectId,
-    topic_id: refs.topicId,
-    subtopic_id: null,
-    difficulty: 'medium',
-    status: 'active',
-    created_by: adminUser.id,
-  }
-  const shortId = await insertQuestion(admin, {
-    ...base,
-    question_type: 'short_answer',
-    question_text: 'Acknowledge?',
-    canonical_answer: 'wilco',
-    explanation_text: 'SA explanation',
-  })
-  const dialogId = await insertQuestion(admin, {
-    ...base,
-    question_type: 'dialog_fill',
-    question_text: 'Dialog',
-    dialog_template: '[atc] {{0|cleared}} to land.',
-    blanks_config: [{ index: 0, canonical: 'cleared', synonyms: [] }],
-    explanation_text: 'DF explanation',
-  })
-  const orderingId = await insertQuestion(admin, {
-    ...base,
-    question_type: 'ordering',
-    question_text: 'Sequence',
-    ordering_items: ORDER_ITEMS,
-    explanation_text: 'Ordering explanation',
-  })
-  const diagramId = await insertQuestion(admin, {
-    ...base,
-    question_type: 'diagram_label',
-    question_text: 'Label the circuit',
-    diagram_config: {
-      image_ref: 'rwy-27-09-lh-pattern',
-      zones: [{ id: 'zone-1', x: 0.1, y: 0.1, w: 0.1, h: 0.1 }],
-      labels: [{ id: 'lbl-1', text: 'Downwind' }],
-      answer: [{ zone_id: 'zone-1', label_id: 'lbl-1' }],
-    },
-    explanation_text: 'Diagram explanation',
-  })
+  const questions = await seedTypedQuestions({ admin, orgId, adminId: adminUser.id, refs })
   return {
     admin,
     orgId,
@@ -118,11 +62,7 @@ export async function setupProgressFixture(tag: string): Promise<ProgressFixture
     otherStudentId: b.id,
     student: await getAuthenticatedClient({ email: a.email, password: PASSWORD }),
     other: await getAuthenticatedClient({ email: b.email, password: PASSWORD }),
-    mcIds: seeded.questionIds,
-    shortId,
-    dialogId,
-    orderingId,
-    diagramId,
+    ...questions,
     teardown: async () => {
       await cleanupTestData({ admin, orgId, userIds })
       await cleanupReferenceData({ admin, refs: [refs] })
@@ -130,7 +70,7 @@ export async function setupProgressFixture(tag: string): Promise<ProgressFixture
   }
 }
 
-export type SessionMode = 'mock_exam' | 'internal_exam' | 'vfr_rt_exam' | 'discovery'
+type SessionMode = 'mock_exam' | 'internal_exam' | 'vfr_rt_exam' | 'discovery'
 
 /** Insert a session through the service role (exam / discovery modes have no student start path). */
 export async function insertSession(opts: {
@@ -183,11 +123,32 @@ export async function progressRows(f: ProgressFixture, sessionId: string) {
     .eq('session_id', sessionId)
   if (error) throw new Error(`progressRows: ${error.message}`)
   if (!Array.isArray(data)) throw new Error('progressRows: unexpected response shape')
-  return data as Array<{
-    question_id: string
-    student_id: string
-    answer: unknown
-    time_spent_ms: number
-    answered_at: string | null
-  }>
+  return data.map(toProgressRow)
+}
+
+type ProgressRow = {
+  question_id: string
+  student_id: string
+  answer: unknown
+  time_spent_ms: number
+  answered_at: string | null
+}
+
+function toProgressRow(row: unknown): ProgressRow {
+  if (typeof row !== 'object' || row === null) throw new Error('progressRows: row is not an object')
+  const r = row as Record<string, unknown>
+  if (typeof r.question_id !== 'string' || typeof r.student_id !== 'string') {
+    throw new Error('progressRows: row ids are not strings')
+  }
+  if (typeof r.time_spent_ms !== 'number') throw new Error('progressRows: bad time_spent_ms')
+  if (r.answered_at !== null && typeof r.answered_at !== 'string') {
+    throw new Error('progressRows: bad answered_at')
+  }
+  return {
+    question_id: r.question_id,
+    student_id: r.student_id,
+    answer: r.answer,
+    time_spent_ms: r.time_spent_ms,
+    answered_at: r.answered_at,
+  }
 }

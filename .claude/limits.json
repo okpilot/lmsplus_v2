@@ -160,7 +160,7 @@
     "supabase/migrations/20260815000300_submit_vfr_rt_fuzzy.sql": 351,
     "supabase/migrations/20260929000200_start_vfr_rt_exam_session_part3_subtopics.sql": 317,
     "supabase/migrations/20260929000400_submit_vfr_rt_exam_answers_part3_types.sql": 402,
-    "supabase/migrations/20261002000800_check_non_mc_answer_saves_progress.sql": 388
+    "supabase/migrations/20261002000800_check_non_mc_answer_saves_progress.sql": 392
   },
   "_coverage": "COVERAGE BOUNDARY, stated because an unstated one is the drift this file exists to stop: `.mjs` matches no rule, so every `.claude/hooks/*.mjs` guard \u2014 including the one that enforces this file \u2014 is ungraded. That is deliberate (hook scripts are infrastructure, and the carve-out previously lived only in agent-memory prose), but it is a gap in coverage rather than an entry in excludeGlobs, and the two are not the same thing. Their co-located *.test.mjs files ARE graded, under the test-file rule."
 }

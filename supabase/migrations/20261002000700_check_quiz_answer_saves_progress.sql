@@ -1,6 +1,7 @@
 -- Cross-device resume (#1026) PR 1: check_quiz_answer also saves progress. Body, guards, tokens and
 -- return payload identical to 20260619000700; the only additions are the trailing params
--- p_device_id / p_time_spent_ms (defaulted: old callers keep working) and the _save_progress_row call.
+-- p_device_id / p_time_spent_ms (defaulted: old callers keep working) and the validated
+-- _save_progress_row call after grading.
 -- Signature changes, so DROP the old one and re-grant.
 
 DROP FUNCTION check_quiz_answer(uuid, text, uuid);
@@ -79,17 +80,6 @@ BEGIN
     RAISE EXCEPTION 'question % does not belong to session %', p_question_id, p_session_id;
   END IF;
 
-  -- Cross-device resume (#1026): persist the answer in the same call. A NULL selection
-  -- (viewed, unanswered) writes nothing. Raises session_taken_over / invalid_time_spent;
-  -- any later raise below rolls this write back.
-  IF p_selected_option_id IS NOT NULL THEN
-    PERFORM _save_progress_row(
-      p_session_id, p_question_id, v_student_id,
-      jsonb_build_object('selected_option_id', p_selected_option_id),
-      p_time_spent_ms, p_device_id
-    );
-  END IF;
-
   -- Fetch correct option and explanation.
   -- §15 carve-out (same posture as batch_submit_quiz): no deleted_at filter — the
   -- question is fetched via the immutable write-once quiz_sessions.config.question_ids
@@ -111,6 +101,24 @@ BEGIN
   END IF;
 
   v_is_correct := (p_selected_option_id = v_correct_option_id);
+
+  -- Cross-device resume (#1026): persist the graded answer in the same call, after every guard and
+  -- grading step. A NULL selection (viewed, unanswered) writes nothing. A malformed answer raises
+  -- invalid_answer; session_taken_over / invalid_time_spent also raise here. A raise rolls back the
+  -- whole call, so a graded result is never returned for a refused save.
+  IF p_selected_option_id IS NOT NULL THEN
+    IF NOT COALESCE(
+         _validate_progress_answer(
+           jsonb_build_object('selected_option_id', p_selected_option_id), 'multiple_choice'),
+         false) THEN
+      RAISE EXCEPTION 'invalid_answer';
+    END IF;
+    PERFORM _save_progress_row(
+      p_session_id, p_question_id, v_student_id,
+      jsonb_build_object('selected_option_id', p_selected_option_id),
+      p_time_spent_ms, p_device_id
+    );
+  END IF;
 
   RETURN jsonb_build_object(
     'is_correct',           v_is_correct,

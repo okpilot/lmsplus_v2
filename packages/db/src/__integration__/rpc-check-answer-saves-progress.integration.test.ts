@@ -3,12 +3,12 @@ import { clearActiveSessions } from './cleanup'
 import { requireRpcResult } from './guards'
 import {
   insertSession,
-  ORDER_ITEMS,
   type ProgressFixture,
   progressRows,
   setupProgressFixture,
   startPractice,
 } from './quiz-progress-fixture'
+import { ORDER_ITEMS } from './quiz-progress-questions'
 
 const DEVICE_A = '11111111-1111-4111-8111-111111111111'
 const DEVICE_B = '22222222-2222-4222-8222-222222222222'
@@ -130,6 +130,26 @@ describe('RPC: answer checks also save progress', () => {
     expect(await progressRows(f, sessionId)).toHaveLength(0)
   })
 
+  it.each([
+    ['dialog_fill', 'a blank entry with an extra key'],
+    ['ordering', 'numeric order entries'],
+  ])('refuses to check a %s answer with %s and saves nothing', async (type) => {
+    const questionId = type === 'dialog_fill' ? f.dialogId : f.orderingId
+    const sessionId = await startPractice(f, 'quick_quiz', [questionId])
+    const shape =
+      type === 'dialog_fill'
+        ? { p_blank_answers: [{ blank_index: 0, response_text: 'cleared', extra: 1 }] }
+        : { p_order: [1, 2] }
+    const { data, error } = await f.student.rpc('check_non_mc_answer', {
+      p_question_id: questionId,
+      p_session_id: sessionId,
+      ...shape,
+    })
+    expect(data).toBeNull()
+    expect(error?.message).toContain('invalid_answer')
+    expect(await progressRows(f, sessionId)).toHaveLength(0)
+  })
+
   it('works for a student calling the old argument list of both check RPCs', async () => {
     const sessionId = await startPractice(f, 'quick_quiz', [f.mcIds[0]!, f.shortId])
     const mc = await f.student.rpc('check_quiz_answer', {
@@ -206,7 +226,7 @@ describe('RPC: answer checks also save progress', () => {
     }
     const rows = await progressRows(f, sessionId)
     expect(rows).toHaveLength(1)
-    expect(rows[0]!.answer).toEqual({ selected_option_id: 'a' })
+    expect(rows[0]?.answer).toEqual({ selected_option_id: 'a' })
   })
 
   it('refuses a time outside 0 to 24 hours on a check and saves nothing', async () => {
@@ -245,6 +265,6 @@ describe('RPC: answer checks also save progress', () => {
     expect(own.error).toBeNull()
     const rows = await progressRows(f, sessionId)
     expect(rows).toHaveLength(1)
-    expect(rows[0]!.student_id).toBe(f.studentId)
+    expect(rows[0]?.student_id).toBe(f.studentId)
   })
 })
