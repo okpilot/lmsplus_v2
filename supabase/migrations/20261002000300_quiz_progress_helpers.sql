@@ -18,7 +18,8 @@ BEGIN
   END IF;
 
   IF p_question_type = 'multiple_choice' THEN
-    RETURN v_keys = ARRAY['selected_option_id'] AND (p_answer->>'selected_option_id') ~ '^[a-d]$';
+    RETURN v_keys = ARRAY['selected_option_id'] AND jsonb_typeof(p_answer->'selected_option_id') = 'string'
+      AND (p_answer->>'selected_option_id') ~ '^[a-d]$';
   ELSIF p_question_type = 'short_answer' THEN
     RETURN v_keys = ARRAY['response_text'] AND jsonb_typeof(p_answer->'response_text') = 'string';
   ELSIF p_question_type = 'dialog_fill' THEN

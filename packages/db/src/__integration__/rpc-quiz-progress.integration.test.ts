@@ -153,6 +153,7 @@ describe('RPC: quiz progress — save answer, position and read', () => {
       [f.mcIds[0]!, { response_text: 'a' }],
       [f.mcIds[0]!, { selected_option_id: 'a', extra: 1 }],
       [f.mcIds[0]!, { selected_option_id: 7 }],
+      [f.mcIds[0]!, { selected_option_id: null }],
       [f.shortId, { selected_option_id: 'a' }],
       [f.dialogId, { blanks: [{ blank_index: 'x', response_text: 'cleared' }] }],
       [f.dialogId, { blanks: [{ blank_index: 0 }] }],
