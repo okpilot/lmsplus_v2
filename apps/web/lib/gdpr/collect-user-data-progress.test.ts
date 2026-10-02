@@ -96,7 +96,7 @@ beforeEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('collectUserData — session-scoped progress and session columns', () => {
+describe('collectUserData — progress and session columns', () => {
   it('includes the student in-progress answers and timings in the export', async () => {
     const payload = await collectUserData(
       makeClient({ kind: 'rows', rows: [PROGRESS] }).client,
@@ -130,13 +130,14 @@ describe('collectUserData — session-scoped progress and session columns', () =
     })
   })
 
-  it('does not read progress and exports an empty section when the student has no sessions', async () => {
+  it('exports progress even when the student has no non-discarded sessions', async () => {
     const { client, tables } = makeClient({ kind: 'rows', rows: [PROGRESS] }, [])
 
     const payload = await collectUserData(client, 'user-1')
 
-    expect(payload.quiz_progress).toEqual([])
+    expect(payload.quiz_sessions).toEqual([])
+    expect(payload.quiz_progress).toEqual([PROGRESS])
     expect(payload.warnings).toEqual([])
-    expect(tables).not.toContain('quiz_session_progress')
+    expect(tables).toContain('quiz_session_progress')
   })
 })

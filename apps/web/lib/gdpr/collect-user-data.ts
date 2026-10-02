@@ -40,38 +40,37 @@ function collectSectionWarnings(
 type QueryError = { message: string } | null
 
 async function fetchPrimarySections(supabase: SupabaseClient<Database>, userId: string) {
-  const [user, sessions, responses, fsrs, flags, comments, consents, audit] = await Promise.all([
-    supabase
-      .from('users')
-      .select('id, email, full_name, role, created_at, last_active_at')
-      .eq('id', userId)
-      .single(),
-    fetchUserSessions(supabase, userId),
-    fetchUserResponses(supabase, userId),
-    fetchUserFsrsCards(supabase, userId),
-    fetchUserFlaggedQuestions(supabase, userId),
-    fetchUserComments(supabase, userId),
-    fetchUserConsents(supabase, userId),
-    fetchUserAuditEvents(supabase, userId),
-  ])
-  return { user, sessions, responses, fsrs, flags, comments, consents, audit }
+  const [user, sessions, responses, fsrs, flags, comments, consents, audit, progress] =
+    await Promise.all([
+      supabase
+        .from('users')
+        .select('id, email, full_name, role, created_at, last_active_at')
+        .eq('id', userId)
+        .single(),
+      fetchUserSessions(supabase, userId),
+      fetchUserResponses(supabase, userId),
+      fetchUserFsrsCards(supabase, userId),
+      fetchUserFlaggedQuestions(supabase, userId),
+      fetchUserComments(supabase, userId),
+      fetchUserConsents(supabase, userId),
+      fetchUserAuditEvents(supabase, userId),
+      fetchUserProgress(supabase, userId),
+    ])
+  return { user, sessions, responses, fsrs, flags, comments, consents, audit, progress }
 }
 
 /**
- * Phase 2: session-scoped sections, keyed by the export's own (non-discarded) session ids so the
- * answers and progress sections cover exactly the sessions listed in `quiz_sessions`.
+ * Phase 2: session-scoped answers, keyed by the export's own (non-discarded) session ids so the
+ * answers section covers exactly the sessions listed in `quiz_sessions`.
  */
 async function fetchSessionScopedSections(
   supabase: SupabaseClient<Database>,
   sessionIds: string[],
 ) {
-  const empty = { data: [], error: null as QueryError }
-  if (sessionIds.length === 0) return { answers: empty, progress: empty }
-  const [answers, progress] = await Promise.all([
-    fetchUserSessionAnswers(supabase, sessionIds),
-    fetchUserProgress(supabase, sessionIds),
-  ])
-  return { answers, progress }
+  if (sessionIds.length === 0) {
+    return { answers: { data: [], error: null as QueryError } }
+  }
+  return { answers: await fetchUserSessionAnswers(supabase, sessionIds) }
 }
 
 // View columns are typed nullable (Postgres view artifact); the backing table enforces NOT NULL,
@@ -116,8 +115,8 @@ function buildWarnings(r: Primary, scoped: Scoped): GdprExportWarning[] {
     )
     warnings.push({ section: 'quiz_answers', message: SECTION_FAILED_MESSAGE })
   }
-  if (scoped.progress.error) {
-    console.error('[collectUserData] quiz_progress query failed:', scoped.progress.error.message)
+  if (r.progress.error) {
+    console.error('[collectUserData] quiz_progress query failed:', r.progress.error.message)
     warnings.push({ section: 'quiz_progress', message: SECTION_FAILED_MESSAGE })
   }
   return warnings
@@ -134,7 +133,7 @@ function buildPayload(
     user,
     quiz_sessions: r.sessions.data,
     quiz_answers: scoped.answers.data,
-    quiz_progress: scoped.progress.data,
+    quiz_progress: r.progress.data,
     student_responses: r.responses.data,
     fsrs_cards: r.fsrs.data,
     flagged_questions: keepCompleteFlags(r.flags.data),

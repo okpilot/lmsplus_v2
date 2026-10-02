@@ -130,9 +130,10 @@ describe('collectUserData quiz progress (app-layer integration)', () => {
     const payload = await collectUserData(await createServerSupabaseClient(), studentAId)
 
     expect(payload.warnings).toEqual([])
-    expect(payload.quiz_progress).toHaveLength(1)
-    expect(payload.quiz_progress[0]).toMatchObject({
-      session_id: sessionA,
+    expect(payload.quiz_progress.map((r) => r.session_id).sort()).toEqual(
+      [sessionA, discardedSessionA].sort(),
+    )
+    expect(payload.quiz_progress.find((r) => r.session_id === sessionA)).toMatchObject({
       question_id: questionId,
       answer: { selected_option_id: 'a' },
       time_spent_ms: 1111,
@@ -147,7 +148,7 @@ describe('collectUserData quiz progress (app-layer integration)', () => {
     expect(payload.quiz_progress[0]?.time_spent_ms).toBe(2222)
   })
 
-  it('does not export progress that belongs to a discarded session', async () => {
+  it('exports progress that belongs to a discarded session of the student', async () => {
     const { data: stored, error } = await admin
       .from('quiz_session_progress')
       .select('time_spent_ms')
@@ -157,8 +158,24 @@ describe('collectUserData quiz progress (app-layer integration)', () => {
 
     const payload = await collectUserData(admin, studentAId)
 
-    expect(payload.quiz_progress.map((r) => r.session_id)).toEqual([sessionA])
-    expect(payload.quiz_progress.map((r) => r.session_id)).not.toContain(discardedSessionA)
+    expect(payload.quiz_progress.map((r) => r.session_id)).toContain(discardedSessionA)
+    expect(
+      payload.quiz_progress.find((r) => r.session_id === discardedSessionA)?.time_spent_ms,
+    ).toBe(3333)
     expect(payload.quiz_sessions.map((s) => s.id)).not.toContain(discardedSessionA)
+  })
+
+  it("does not export another student's progress through the service-role client", async () => {
+    const { data: other, error } = await admin
+      .from('quiz_session_progress')
+      .select('session_id')
+      .eq('student_id', studentBId)
+    expect(error).toBeNull()
+    expect(other?.map((r) => r.session_id)).toEqual([sessionB])
+
+    const payload = await collectUserData(admin, studentAId)
+
+    expect(payload.quiz_progress.length).toBeGreaterThan(0)
+    expect(payload.quiz_progress.map((r) => r.session_id)).not.toContain(sessionB)
   })
 })
