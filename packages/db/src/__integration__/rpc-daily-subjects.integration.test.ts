@@ -21,15 +21,22 @@ describe('RPC: get_daily_subjects', () => {
   let refsA: Awaited<ReturnType<typeof seedReferenceData>> | null = null
   let refsB: Awaited<ReturnType<typeof seedReferenceData>> | null = null
   let refsVictim: Awaited<ReturnType<typeof seedReferenceData>> | null = null
+  let refsOld: Awaited<ReturnType<typeof seedReferenceData>> | null = null
+  let refsDel: Awaited<ReturnType<typeof seedReferenceData>> | null = null
   let questionsA: string[] = []
   let questionsB: string[] = []
   let questionsVictim: string[] = []
+  let questionsOld: string[] = []
+  let questionsDel: string[] = []
+  // Day of the beforeAll inserts, read back from the DB once (never recomputed per test).
+  let seededDay = ''
+  let backdatedDay = ''
   const userIds: string[] = []
   const suffix = fixtureSuffix()
   const studentEmail = `student-dailysubj-${suffix}@test.local`
   const victimEmail = `victim-dailysubj-${suffix}@test.local`
 
-  async function insertResponse(studentUuid: string, questionId: string) {
+  async function insertResponse(studentUuid: string, questionId: string, createdAt?: string) {
     const { error } = await admin.from('student_responses').insert({
       student_id: studentUuid,
       question_id: questionId,
@@ -38,6 +45,7 @@ describe('RPC: get_daily_subjects', () => {
       response_time_ms: 1000,
       // satisfies student_responses_answer_shape_check (selected_option_id NULL, response_text set)
       response_text: 'test',
+      ...(createdAt ? { created_at: createdAt } : {}),
     })
     if (error) throw new Error(`seed student_responses: ${error.message}`)
   }
@@ -61,9 +69,15 @@ describe('RPC: get_daily_subjects', () => {
     return { refs, questionIds }
   }
 
-  function todayUtc(): string {
-    // CURRENT_DATE in the DB session is UTC; created_at defaults to now().
-    return new Date().toISOString().slice(0, 10)
+  function utcDay(isoTimestamp: string): string {
+    // The DB session is UTC, so created_at::date is the UTC calendar day.
+    return new Date(isoTimestamp).toISOString().slice(0, 10)
+  }
+
+  async function dailySubjects(days: number): Promise<DailySubjectRow[]> {
+    const { data, error } = await studentClient.rpc('get_daily_subjects', { p_days: days })
+    expect(error).toBeNull()
+    return requireRpcRows<DailySubjectRow>(data, 'get_daily_subjects')
   }
 
   beforeAll(async () => {
@@ -106,6 +120,31 @@ describe('RPC: get_daily_subjects', () => {
     await insertResponse(studentId, questionsB[0] as string)
     // Victim: a response in a subject the caller never answered.
     await insertResponse(victimId, questionsVictim[0] as string)
+
+    // Read the seeded day back from the DB once; tests assert against this stored value.
+    const { data: seeded, error: seededErr } = await admin
+      .from('student_responses')
+      .select('created_at')
+      .eq('student_id', studentId)
+      .eq('question_id', questionsA[0] as string)
+      .single()
+    if (seededErr || !seeded) throw new Error(`read seeded day: ${seededErr?.message}`)
+    seededDay = utcDay(seeded.created_at as string)
+
+    // Subject answered ONLY three days before the seeded day (window-boundary fixture).
+    const old = await seedSubject('DO')
+    refsOld = old.refs
+    questionsOld = old.questionIds
+    const backdated = new Date(`${seededDay}T12:00:00Z`)
+    backdated.setUTCDate(backdated.getUTCDate() - 3)
+    backdatedDay = backdated.toISOString().slice(0, 10)
+    await insertResponse(studentId, questionsOld[0] as string, backdated.toISOString())
+
+    // Subject answered only today, only via one question (soft-delete fixture).
+    const del = await seedSubject('DD')
+    refsDel = del.refs
+    questionsDel = del.questionIds
+    await insertResponse(studentId, questionsDel[0] as string)
   })
 
   afterAll(async () => {
@@ -121,7 +160,13 @@ describe('RPC: get_daily_subjects', () => {
       try {
         await cleanupReferenceData({
           admin,
-          refs: [refsA ?? undefined, refsB ?? undefined, refsVictim ?? undefined],
+          refs: [
+            refsA ?? undefined,
+            refsB ?? undefined,
+            refsVictim ?? undefined,
+            refsOld ?? undefined,
+            refsDel ?? undefined,
+          ],
         })
       } catch (e) {
         errors.push(`cleanupReferenceData: ${e instanceof Error ? e.message : String(e)}`)
@@ -131,18 +176,14 @@ describe('RPC: get_daily_subjects', () => {
   })
 
   it('returns every subject the student answered today', async () => {
-    const { data, error } = await studentClient.rpc('get_daily_subjects', { p_days: 7 })
-    expect(error).toBeNull()
-    const rows = requireRpcRows<DailySubjectRow>(data, 'get_daily_subjects')
-    const today = rows.filter((r) => r.day === todayUtc()).map((r) => r.subject_id)
+    const rows = await dailySubjects(7)
+    const today = rows.filter((r) => r.day === seededDay).map((r) => r.subject_id)
     expect(today).toContain(refsA?.subjectId)
     expect(today).toContain(refsB?.subjectId)
   })
 
   it('lists a subject once per day however many answers it has', async () => {
-    const { data, error } = await studentClient.rpc('get_daily_subjects', { p_days: 7 })
-    expect(error).toBeNull()
-    const rows = requireRpcRows<DailySubjectRow>(data, 'get_daily_subjects')
+    const rows = await dailySubjects(7)
     // Two answers were seeded in subject A; positive control that both exist.
     const { data: answers, error: ansErr } = await admin
       .from('student_responses')
@@ -151,7 +192,7 @@ describe('RPC: get_daily_subjects', () => {
       .in('question_id', questionsA)
     if (ansErr) throw new Error(`count answers: ${ansErr.message}`)
     expect((answers ?? []).length).toBe(2)
-    const matching = rows.filter((r) => r.day === todayUtc() && r.subject_id === refsA?.subjectId)
+    const matching = rows.filter((r) => r.day === seededDay && r.subject_id === refsA?.subjectId)
     expect(matching).toHaveLength(1)
   })
 
@@ -169,6 +210,68 @@ describe('RPC: get_daily_subjects', () => {
     const rows = requireRpcRows<DailySubjectRow>(data, 'get_daily_subjects')
     expect(rows.length).toBeGreaterThan(0)
     expect(rows.map((r) => r.subject_id)).not.toContain(refsVictim?.subjectId)
+  })
+
+  it('buckets days the same way as the daily activity chart', async () => {
+    const days = 7
+    const rows = await dailySubjects(days)
+    const { data, error } = await studentClient.rpc('get_daily_activity', {
+      p_student_id: studentId,
+      p_days: days,
+    })
+    expect(error).toBeNull()
+    const activity = requireRpcRows<{ day: string; total: number | string }>(
+      data,
+      'get_daily_activity',
+    )
+    const activeDays = new Set(activity.filter((a) => Number(a.total) > 0).map((a) => a.day))
+    const subjectDays = new Set(rows.map((r) => r.day))
+    expect(subjectDays.size).toBeGreaterThan(0)
+    expect([...subjectDays].sort()).toEqual([...activeDays].sort())
+  })
+
+  it('excludes a day just outside the lookback window and includes it once the window widens', async () => {
+    const narrow = await dailySubjects(3)
+    expect(narrow.map((r) => r.day)).not.toContain(backdatedDay)
+    const wide = await dailySubjects(4)
+    expect(wide).toContainEqual({ day: backdatedDay, subject_id: refsOld?.subjectId })
+  })
+
+  describe('soft-deleted question', () => {
+    let questionSoftDeleted = false
+
+    afterEach(async () => {
+      if (!questionSoftDeleted) return
+      const { data: restored, error: restoreErr } = await admin
+        .from('questions')
+        .update({ deleted_at: null })
+        .eq('id', questionsDel[0] as string)
+        .select('id')
+      if (restoreErr) throw new Error(`[question cleanup] restore failed: ${restoreErr.message}`)
+      if ((restored ?? []).length === 0)
+        throw new Error('[question cleanup] restore affected 0 rows')
+      questionSoftDeleted = false
+    })
+
+    it('drops a subject once its only answered question is soft-deleted', async () => {
+      const before = await dailySubjects(7)
+      expect(before).toContainEqual({ day: seededDay, subject_id: refsDel?.subjectId })
+
+      const { data: deleted, error: delErr } = await admin
+        .from('questions')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', questionsDel[0] as string)
+        .is('deleted_at', null)
+        .select('id')
+      if (delErr) throw new Error(`soft-delete question: ${delErr.message}`)
+      expect((deleted ?? []).length).toBe(1)
+      questionSoftDeleted = true
+
+      const after = await dailySubjects(7)
+      expect(after.map((r) => r.subject_id)).not.toContain(refsDel?.subjectId)
+      // The caller's other subjects are unaffected.
+      expect(after.map((r) => r.subject_id)).toContain(refsA?.subjectId)
+    })
   })
 
   describe('active-user gate', () => {
@@ -209,8 +312,11 @@ describe('RPC: get_daily_subjects', () => {
   })
 
   describe('lookback window bounds', () => {
-    it.each([0, 366])('rejects a lookback window of %i days', async (days) => {
-      const { data, error } = await studentClient.rpc('get_daily_subjects', { p_days: days })
+    it.each([0, 366, null])('rejects a lookback window of %s days', async (days) => {
+      // null is outside the typed signature (p_days: number); cast to reach the RPC's NULL guard.
+      const { data, error } = await studentClient.rpc('get_daily_subjects', {
+        p_days: days as unknown as number,
+      })
       expect(error).not.toBeNull()
       expect(error?.message ?? '').toContain('p_days must be between 1 and 365')
       expect(data).toBeNull()
