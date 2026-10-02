@@ -2843,7 +2843,7 @@ Returns one row per subject the caller has answered, with the most recent respon
 
 #### `get_daily_subjects` — distinct (day, subject) pairs practised by the calling student
 
-**Security:** `SECURITY INVOKER`. Explicit `sr.student_id = auth.uid()` (`docs/security.md` §3 Multiple Permissive SELECT Policies). Active-user gate present (`'user not found or inactive'`, `docs/security.md` §11c), unlike `get_student_last_practiced`. Unauthenticated → `'not authenticated'`. The `questions` JOIN is org + `deleted_at IS NULL` via RLS: a soft-deleted question drops out, so a day's subjects can be fewer than its answers.
+**Security:** `SECURITY INVOKER`. Explicit `sr.student_id = auth.uid()` (`docs/security.md` §3 Multiple Permissive SELECT Policies). Active-user gate present (`'user not found or inactive'`, `docs/security.md` §11c), unlike `get_student_last_practiced`. `anon` has no EXECUTE (permission denied); `'not authenticated'` fires only for `authenticated` with a NULL `auth.uid()`. The `questions` JOIN is org + `deleted_at IS NULL` via RLS: a soft-deleted question drops out, so a day's subjects can be fewer than its answers.
 
 **Parameters:** `p_days INT` — 1–365, else `'p_days must be between 1 and 365'`.
 

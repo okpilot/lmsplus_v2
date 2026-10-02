@@ -263,15 +263,22 @@ describe('RPC: get_daily_subjects', () => {
   })
 
   it('excludes a day just outside the lookback window and includes it once the window widens', async () => {
-    // Window start is CURRENT_DATE - (p_days - 1), evaluated at call time: derive n from the DB's
-    // current day so a midnight rollover after beforeAll cannot shift the boundary.
-    const n = daysBetween(backdatedDay, await dbToday())
-    expect(n).toBeGreaterThanOrEqual(3)
-    expect(n + 1).toBeLessThanOrEqual(365)
-    const narrow = await dailySubjects(n)
-    expect(narrow).not.toContainEqual({ day: backdatedDay, subject_id: refsOld?.subjectId })
-    const wide = await dailySubjects(n + 1)
-    expect(wide).toContainEqual({ day: backdatedDay, subject_id: refsOld?.subjectId })
+    // Window start is CURRENT_DATE - (p_days - 1), evaluated per call: retry when the DB day
+    // changes between deriving n and the last call.
+    const backdated = { day: backdatedDay, subject_id: refsOld?.subjectId }
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const today = await dbToday()
+      const n = daysBetween(backdatedDay, today)
+      expect(n).toBeGreaterThanOrEqual(3)
+      expect(n + 1).toBeLessThanOrEqual(365)
+      const narrow = await dailySubjects(n)
+      const wide = await dailySubjects(n + 1)
+      if ((await dbToday()) !== today) continue
+      expect(narrow).not.toContainEqual(backdated)
+      expect(wide).toContainEqual(backdated)
+      return
+    }
+    throw new Error('DB day changed during both attempts')
   })
 
   describe('soft-deleted question', () => {
