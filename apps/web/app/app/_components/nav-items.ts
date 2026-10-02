@@ -30,3 +30,23 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
   { href: '/app/admin/exam-config', label: 'Exam Config', icon: 'clipboard-check' },
   { href: '/app/admin/internal-exams', label: 'Internal Exams', icon: 'shield-check' },
 ]
+
+export function isActivePath(pathname: string, href: string): boolean {
+  return pathname === href || pathname.startsWith(`${href}/`)
+}
+
+function pickByHref(hrefs: string[]): NavItem[] {
+  return NAV_ITEMS.filter((item) => hrefs.includes(item.href))
+}
+
+export const SIDEBAR_GROUPS: { label: string; items: NavItem[] }[] = [
+  {
+    label: 'Learn',
+    items: pickByHref(['/app/dashboard', '/app/quiz', '/app/vfr-rt', '/app/internal-exam']),
+  },
+  { label: 'Progress', items: pickByHref(['/app/reports']) },
+]
+
+export const SETTINGS_ITEM: NavItem | undefined = NAV_ITEMS.find(
+  (item) => item.href === '/app/settings',
+)

@@ -23,7 +23,7 @@ afterEach(() => {
 })
 
 function renderToggle(theme: string) {
-  mockUseTheme.mockReturnValue({ theme, setTheme: mockSetTheme })
+  mockUseTheme.mockReturnValue({ resolvedTheme: theme, setTheme: mockSetTheme })
   // Use delay:null so userEvent does not fight with any timer state.
   const user = userEvent.setup({ delay: null })
   render(<ThemeToggle />)
@@ -37,19 +37,16 @@ describe('ThemeToggle', () => {
       expect(screen.getByRole('button', { name: /toggle theme/i })).toBeInTheDocument()
     })
 
-    it('shows the sun icon (circle element) when the theme is dark', () => {
+    it('shows the sun icon (several rays) when the theme is dark', () => {
       renderToggle('dark')
       const button = screen.getByRole('button', { name: /toggle theme/i })
-      // Sun icon SVG contains a <circle>; moon icon does not.
-      expect(button.querySelector('circle')).toBeInTheDocument()
+      expect(button.querySelectorAll('path').length).toBeGreaterThan(1)
     })
 
-    it('shows the moon icon (no circle element) when the theme is light', () => {
+    it('shows the moon icon (single path) when the theme is light', () => {
       renderToggle('light')
       const button = screen.getByRole('button', { name: /toggle theme/i })
-      // Moon icon has only a path — no circle.
-      expect(button.querySelector('circle')).toBeNull()
-      expect(button.querySelector('path')).toBeInTheDocument()
+      expect(button.querySelectorAll('path')).toHaveLength(1)
     })
 
     it('switches from dark to light when clicked in dark mode', async () => {

@@ -2,8 +2,12 @@
 
 import { createClient } from '@repo/db/client'
 import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/button'
+import { ROW_CLASS, RowIcon } from './sidebar-item'
 
-export function SignOutButton() {
+const EXIT = ['M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4', 'm16 17 5-5-5-5', 'M21 12H9']
+
+export function SignOutButton({ variant = 'button' }: Readonly<{ variant?: 'button' | 'row' }>) {
   const router = useRouter()
 
   async function handleSignOut() {
@@ -12,13 +16,18 @@ export function SignOutButton() {
     router.push('/')
   }
 
+  if (variant === 'row') {
+    return (
+      <Button variant="ghost" className={ROW_CLASS} onClick={handleSignOut}>
+        <RowIcon paths={EXIT} />
+        Sign out
+      </Button>
+    )
+  }
+
   return (
-    <button
-      type="button"
-      onClick={handleSignOut}
-      className="rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-    >
+    <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={handleSignOut}>
       Sign out
-    </button>
+    </Button>
   )
 }

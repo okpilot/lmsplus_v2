@@ -82,7 +82,7 @@ The primary competitive baseline is Aviationexam. LMS Plus differentiates by off
 
 3. **Immediate feedback over deferred review**: Students see whether each answer is correct immediately after submission, with explanations and images. This matches evidence-based learning principles and differentiates from exam-only tools that withhold feedback until the end.
 
-4. **Mobile-responsive by default**: Students study on phones between flights. Every view must work on mobile without horizontal scrolling. Bottom tab bar navigation on small screens, collapsible sidebar on desktop.
+4. **Mobile-responsive by default**: Students study on phones between flights. Every view must work on mobile without horizontal scrolling. Bottom tab bar navigation on small screens, fixed full-height sidebar on desktop.
 
 5. **Resilience over perfection**: Quiz sessions survive page refreshes, deployments, and network interruptions via localStorage checkpointing and draft persistence. A student should never lose progress due to a technical event.
 

@@ -11,7 +11,6 @@ const APP_DIR = __dirname
 // entries as screens are redone; a fixed directory must leave the list.
 const KNOWN_GAPS: Record<string, Boundary[]> = {
   '.': ['loading'],
-  app: ['error', 'loading'],
   'app/admin': ['loading'],
   'app/admin/dashboard': ['error'],
   'app/admin/dashboard/sessions/[id]': ['error', 'loading'],

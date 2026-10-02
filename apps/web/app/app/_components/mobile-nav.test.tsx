@@ -30,15 +30,15 @@ describe('MobileNav', () => {
     renderMobileNav()
     expect(screen.getByText('Dashboard')).toBeInTheDocument()
     expect(screen.getByText('Quiz')).toBeInTheDocument()
-    expect(screen.getByText('Reports')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'More' })).toBeInTheDocument()
   })
 
   it('highlights the active tab matching the current pathname', () => {
     mockUsePathname.mockReturnValue('/app/quiz')
     renderMobileNav()
     const quizLink = screen.getByText('Quiz').closest('a')
-    expect(quizLink?.className).toContain('text-primary')
+    expect(quizLink).toHaveAttribute('aria-current', 'page')
     const dashboardLink = screen.getByText('Dashboard').closest('a')
-    expect(dashboardLink?.className).not.toContain('text-primary')
+    expect(dashboardLink).not.toHaveAttribute('aria-current')
   })
 })
