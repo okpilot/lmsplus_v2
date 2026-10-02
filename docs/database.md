@@ -364,6 +364,8 @@ CREATE TABLE quiz_sessions (
 
 `current_index`, `pinned_question_ids`, `active_device_id`: no column UPDATE grant on `quiz_sessions` covers them (20260605000001) — written only by `save_quiz_position` / `claim_quiz_session`.
 
+**No student INSERT (migration `20261002000900`, red-team GK/GL, #1026):** policy `students_insert_sessions` is dropped and `INSERT` is revoked from `authenticated`. Rows are created only by the SECURITY DEFINER start RPCs. Student policies left: `students_select_sessions`, `students_update_sessions`.
+
 **Single-active-session invariant (mig 136, #1011 — Decision 49):** a global partial unique index enforces **at most one active session per student, across all modes**:
 
 ```sql
