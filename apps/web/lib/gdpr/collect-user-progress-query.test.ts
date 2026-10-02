@@ -45,11 +45,11 @@ beforeEach(() => {
 })
 
 describe('fetchUserProgress', () => {
-  it('returns the student progress rows', async () => {
+  it('returns the progress rows of the given sessions', async () => {
     mockFetchAllRows.mockResolvedValueOnce({ data: [ROW], error: null })
     const { client } = makeClient()
 
-    const result = await fetchUserProgress(client, 'user-1')
+    const result = await fetchUserProgress(client, ['sess-1'])
 
     expect(result).toEqual({ data: [ROW], error: null })
   })
@@ -58,13 +58,48 @@ describe('fetchUserProgress', () => {
     mockFetchAllRows.mockResolvedValueOnce({ data: [], error: { message: 'boom' } })
     const { client } = makeClient()
 
-    const result = await fetchUserProgress(client, 'user-1')
+    const result = await fetchUserProgress(client, ['sess-1'])
 
     expect(result.data).toEqual([])
     expect(result.error).toEqual({ message: 'boom' })
   })
 
-  it('scopes both the count and the page read to the student in a stable order', async () => {
+  it('issues no query and returns an empty section when there are no sessions', async () => {
+    const { client, calls } = makeClient()
+
+    const result = await fetchUserProgress(client, [])
+
+    expect(result).toEqual({ data: [], error: null })
+    expect(mockFetchAllRows).not.toHaveBeenCalled()
+    expect(calls).toEqual([])
+  })
+
+  it('discards earlier chunks when a later chunk fails', async () => {
+    const ids = Array.from({ length: 1001 }, (_, i) => `sess-${i}`)
+    mockFetchAllRows
+      .mockResolvedValueOnce({ data: [ROW], error: null })
+      .mockResolvedValueOnce({ data: [], error: { message: 'late' } })
+    const { client } = makeClient()
+
+    const result = await fetchUserProgress(client, ids)
+
+    expect(result).toEqual({ data: [], error: { message: 'late' } })
+  })
+
+  it('reads sessions in chunks of 1000 and concatenates the rows', async () => {
+    const ids = Array.from({ length: 1001 }, (_, i) => `sess-${i}`)
+    mockFetchAllRows
+      .mockResolvedValueOnce({ data: [ROW], error: null })
+      .mockResolvedValueOnce({ data: [{ ...ROW, session_id: 'sess-1000' }], error: null })
+    const { client } = makeClient()
+
+    const result = await fetchUserProgress(client, ids)
+
+    expect(mockFetchAllRows).toHaveBeenCalledTimes(2)
+    expect(result.data.map((r) => r.session_id)).toEqual(['sess-1', 'sess-1000'])
+  })
+
+  it('scopes both the count and the page read to the given sessions in a stable order', async () => {
     const { client, calls } = makeClient()
     mockFetchAllRows.mockImplementationOnce(
       async (count: () => unknown, page: (a: number, b: number) => unknown) => {
@@ -74,15 +109,15 @@ describe('fetchUserProgress', () => {
       },
     )
 
-    await fetchUserProgress(client, 'user-1')
+    await fetchUserProgress(client, ['sess-1', 'sess-2'])
 
     expect(calls.filter(([m]) => m === 'from').map(([, a]) => a[0])).toEqual([
       'quiz_session_progress',
       'quiz_session_progress',
     ])
-    expect(calls.filter(([m]) => m === 'eq').map(([, a]) => a)).toEqual([
-      ['student_id', 'user-1'],
-      ['student_id', 'user-1'],
+    expect(calls.filter(([m]) => m === 'in').map(([, a]) => a)).toEqual([
+      ['session_id', ['sess-1', 'sess-2']],
+      ['session_id', ['sess-1', 'sess-2']],
     ])
     expect(calls.filter(([m]) => m === 'order').map(([, a]) => a[0])).toEqual([
       'session_id',

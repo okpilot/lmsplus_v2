@@ -37,25 +37,10 @@ function collectSectionWarnings(
   return warnings
 }
 
-/**
- * Collects all data associated with a user for GDPR export.
- * Works with both user-scoped (RLS) and admin (service-role) clients.
- */
-export async function collectUserData(
-  supabase: SupabaseClient<Database>,
-  userId: string,
-): Promise<GdprExportPayload> {
-  const [
-    userResult,
-    sessionsResult,
-    responsesResult,
-    fsrsResult,
-    flagsResult,
-    commentsResult,
-    consentsResult,
-    auditResult,
-    progressResult,
-  ] = await Promise.all([
+type QueryError = { message: string } | null
+
+async function fetchPrimarySections(supabase: SupabaseClient<Database>, userId: string) {
+  const [user, sessions, responses, fsrs, flags, comments, consents, audit] = await Promise.all([
     supabase
       .from('users')
       .select('id, email, full_name, role, created_at, last_active_at')
@@ -68,76 +53,113 @@ export async function collectUserData(
     fetchUserComments(supabase, userId),
     fetchUserConsents(supabase, userId),
     fetchUserAuditEvents(supabase, userId),
-    fetchUserProgress(supabase, userId),
   ])
+  return { user, sessions, responses, fsrs, flags, comments, consents, audit }
+}
 
-  if (userResult.error || !userResult.data) {
-    throw new Error('User not found')
-  }
+/**
+ * Phase 2: session-scoped sections, keyed by the export's own (non-discarded) session ids so the
+ * answers and progress sections cover exactly the sessions listed in `quiz_sessions`.
+ */
+async function fetchSessionScopedSections(
+  supabase: SupabaseClient<Database>,
+  sessionIds: string[],
+) {
+  const empty = { data: [], error: null as QueryError }
+  if (sessionIds.length === 0) return { answers: empty, progress: empty }
+  const [answers, progress] = await Promise.all([
+    fetchUserSessionAnswers(supabase, sessionIds),
+    fetchUserProgress(supabase, sessionIds),
+  ])
+  return { answers, progress }
+}
 
-  // A failed read returns an EMPTY section (fetchAllRows discards partial pages on error); the
-  // export still returns rather than hard-failing so a transient outage never denies the data
-  // subject access. Each failure is logged AND recorded in `warnings` so the incompleteness is
-  // visible/machine-readable rather than a silently TRUNCATED section that looks complete (#668).
-  const queryResults = [
-    ['quiz_sessions', sessionsResult],
-    ['student_responses', responsesResult],
-    ['fsrs_cards', fsrsResult],
-    ['flagged_questions', flagsResult],
-    ['question_comments', commentsResult],
-    ['user_consents', consentsResult],
-    ['audit_events', auditResult],
-    ['quiz_progress', progressResult],
-  ] as const
-  const warnings = collectSectionWarnings(queryResults)
-
-  // Phase 2: fetch quiz answers using session IDs from phase 1. Skip when the sessions
-  // read failed — we can't resolve answer session IDs from a partial/empty set, and the
-  // explicit error guard also protects .map() if a future refactor returns data: null.
-  const sessionIds = sessionsResult.error ? [] : sessionsResult.data.map((s) => s.id)
-  let answers: GdprExportPayload['quiz_answers'] = []
-  let answersError: { message: string } | null = null
-
-  if (sessionIds.length > 0) {
-    const answersResult = await fetchUserSessionAnswers(supabase, sessionIds)
-    answers = answersResult.data
-    answersError = answersResult.error
-  }
-
-  if (answersError) {
-    console.error('[collectUserData] quiz_session_answers query failed:', answersError.message)
-    warnings.push({ section: 'quiz_answers', message: SECTION_FAILED_MESSAGE })
-  }
-
-  // View columns are typed nullable (Postgres view artifact); the backing table enforces NOT NULL,
-  // so this filter drops nothing in practice. If a future view change (e.g. a LEFT JOIN) introduces
-  // nulls, the dropped rows would silently shorten a legal export — the #668 failure mode — so log
-  // the count when it happens rather than returning a short section that looks complete.
-  const flaggedQuestions = flagsResult.data.filter(
+// View columns are typed nullable (Postgres view artifact); the backing table enforces NOT NULL,
+// so this filter drops nothing in practice. If a future view change (e.g. a LEFT JOIN) introduces
+// nulls, the dropped rows would silently shorten a legal export — the #668 failure mode — so log
+// the count when it happens rather than returning a short section that looks complete.
+function keepCompleteFlags(
+  rows: ReadonlyArray<{ question_id: string | null; flagged_at: string | null }>,
+) {
+  const kept = rows.filter(
     (f): f is { question_id: string; flagged_at: string } =>
       typeof f.question_id === 'string' && typeof f.flagged_at === 'string',
   )
-  if (flaggedQuestions.length < flagsResult.data.length) {
+  if (kept.length < rows.length) {
     console.error(
-      `[collectUserData] flagged_questions: dropped ${flagsResult.data.length - flaggedQuestions.length} row(s) with null fields — view drift?`,
+      `[collectUserData] flagged_questions: dropped ${rows.length - kept.length} row(s) with null fields — view drift?`,
     )
   }
+  return kept
+}
 
+type Primary = Awaited<ReturnType<typeof fetchPrimarySections>>
+type Scoped = Awaited<ReturnType<typeof fetchSessionScopedSections>>
+
+// A failed read returns an EMPTY section (fetchAllRows discards partial pages on error); the
+// export still returns rather than hard-failing so a transient outage never denies the data
+// subject access. Each failure is logged AND recorded in `warnings` (#668).
+function buildWarnings(r: Primary, scoped: Scoped): GdprExportWarning[] {
+  const warnings = collectSectionWarnings([
+    ['quiz_sessions', r.sessions],
+    ['student_responses', r.responses],
+    ['fsrs_cards', r.fsrs],
+    ['flagged_questions', r.flags],
+    ['question_comments', r.comments],
+    ['user_consents', r.consents],
+    ['audit_events', r.audit],
+  ])
+  if (scoped.answers.error) {
+    console.error(
+      '[collectUserData] quiz_session_answers query failed:',
+      scoped.answers.error.message,
+    )
+    warnings.push({ section: 'quiz_answers', message: SECTION_FAILED_MESSAGE })
+  }
+  if (scoped.progress.error) {
+    console.error('[collectUserData] quiz_progress query failed:', scoped.progress.error.message)
+    warnings.push({ section: 'quiz_progress', message: SECTION_FAILED_MESSAGE })
+  }
+  return warnings
+}
+
+function buildPayload(
+  r: Primary,
+  scoped: Scoped,
+  user: GdprExportPayload['user'],
+): GdprExportPayload {
   return {
     exported_at: new Date().toISOString(),
-    warnings,
-    user: userResult.data,
-    quiz_sessions: sessionsResult.data,
-    quiz_answers: answers,
-    quiz_progress: progressResult.data,
-    student_responses: responsesResult.data,
-    fsrs_cards: fsrsResult.data,
-    flagged_questions: flaggedQuestions,
-    question_comments: commentsResult.data,
-    user_consents: consentsResult.data,
-    audit_events: auditResult.data.map((e) => ({
+    warnings: buildWarnings(r, scoped),
+    user,
+    quiz_sessions: r.sessions.data,
+    quiz_answers: scoped.answers.data,
+    quiz_progress: scoped.progress.data,
+    student_responses: r.responses.data,
+    fsrs_cards: r.fsrs.data,
+    flagged_questions: keepCompleteFlags(r.flags.data),
+    question_comments: r.comments.data,
+    user_consents: r.consents.data,
+    audit_events: r.audit.data.map((e) => ({
       ...e,
       ip_address: typeof e.ip_address === 'string' ? e.ip_address : null,
     })),
   }
+}
+
+/**
+ * Collects all data associated with a user for GDPR export.
+ * Works with both user-scoped (RLS) and admin (service-role) clients.
+ */
+export async function collectUserData(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+): Promise<GdprExportPayload> {
+  const r = await fetchPrimarySections(supabase, userId)
+  if (r.user.error || !r.user.data) throw new Error('User not found')
+
+  // The sessions-read error guard also protects .map() if a future refactor returns data: null.
+  const sessionIds = r.sessions.error ? [] : r.sessions.data.map((s) => s.id)
+  const scoped = await fetchSessionScopedSections(supabase, sessionIds)
+  return buildPayload(r, scoped, r.user.data)
 }

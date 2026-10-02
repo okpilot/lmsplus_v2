@@ -33,6 +33,9 @@ export type GdprExportPayload = {
     score_percentage: number | null
     started_at: string
     ended_at: string | null
+    current_index: number
+    pinned_question_ids: string[]
+    active_device_id: string | null
   }>
   quiz_answers: Array<{
     session_id: string

@@ -29,8 +29,11 @@ let studentAId: string
 let studentBId: string
 let refs: ReferenceIds | undefined
 let questionId: string
+let discardedSessionA: string
 
-async function seedProgress(studentId: string, timeSpentMs: number) {
+// A discarded session is inserted already soft-deleted: a second live session would violate the
+// single-active-session index.
+async function seedProgress(studentId: string, timeSpentMs: number, discarded = false) {
   const { data: session, error: sErr } = await admin
     .from('quiz_sessions')
     .insert({
@@ -39,6 +42,7 @@ async function seedProgress(studentId: string, timeSpentMs: number) {
       mode: 'quick_quiz',
       config: { question_ids: [questionId] },
       total_questions: 1,
+      ...(discarded ? { deleted_at: new Date().toISOString() } : {}),
     })
     .select('id')
     .single()
@@ -89,6 +93,7 @@ describe('collectUserData quiz progress (app-layer integration)', () => {
     questionId = seeded.questionIds[0] as string
     sessionA = await seedProgress(studentAId, 1111)
     sessionB = await seedProgress(studentBId, 2222)
+    discardedSessionA = await seedProgress(studentAId, 3333, true)
   })
 
   afterAll(async () => {
@@ -117,7 +122,9 @@ describe('collectUserData quiz progress (app-layer integration)', () => {
       .select('session_id')
       .in('student_id', [studentAId, studentBId])
     expect(error).toBeNull()
-    expect(all?.map((r) => r.session_id).sort()).toEqual([sessionA, sessionB].sort())
+    expect(all?.map((r) => r.session_id).sort()).toEqual(
+      [sessionA, sessionB, discardedSessionA].sort(),
+    )
 
     await signInAs(emailA, password)
     const payload = await collectUserData(await createServerSupabaseClient(), studentAId)
@@ -138,5 +145,20 @@ describe('collectUserData quiz progress (app-layer integration)', () => {
     expect(payload.warnings).toEqual([])
     expect(payload.quiz_progress.map((r) => r.session_id)).toEqual([sessionB])
     expect(payload.quiz_progress[0]?.time_spent_ms).toBe(2222)
+  })
+
+  it('does not export progress that belongs to a discarded session', async () => {
+    const { data: stored, error } = await admin
+      .from('quiz_session_progress')
+      .select('time_spent_ms')
+      .eq('session_id', discardedSessionA)
+    expect(error).toBeNull()
+    expect(stored).toHaveLength(1)
+
+    const payload = await collectUserData(admin, studentAId)
+
+    expect(payload.quiz_progress.map((r) => r.session_id)).toEqual([sessionA])
+    expect(payload.quiz_progress.map((r) => r.session_id)).not.toContain(discardedSessionA)
+    expect(payload.quiz_sessions.map((s) => s.id)).not.toContain(discardedSessionA)
   })
 })

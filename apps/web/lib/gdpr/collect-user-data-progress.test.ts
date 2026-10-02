@@ -21,6 +21,21 @@ const PROGRESS = {
   updated_at: '2026-03-01T10:00:01Z',
 }
 
+const SESSION = {
+  id: 'sess-1',
+  mode: 'quick_quiz',
+  subject_id: null,
+  topic_id: null,
+  total_questions: 5,
+  correct_count: 2,
+  score_percentage: 40,
+  started_at: '2026-03-01T09:00:00Z',
+  ended_at: null,
+  current_index: 3,
+  pinned_question_ids: ['q-1', 'q-2'],
+  active_device_id: 'dev-1',
+}
+
 type Mode = { kind: 'rows'; rows: unknown[] } | { kind: 'pageError'; message: string }
 
 /** Proxy chain: count (head) selects resolve a count, page selects resolve rows or an error. */
@@ -64,20 +79,29 @@ function makeChain(mode: Mode) {
   return new Proxy({} as Record<string, unknown>, handler)
 }
 
-function makeClient(progress: Mode) {
-  return {
-    from: (table: string) =>
-      makeChain(table === 'quiz_session_progress' ? progress : { kind: 'rows', rows: [] }),
+function makeClient(progress: Mode, sessions: unknown[] = [SESSION]) {
+  const tables: string[] = []
+  const client = {
+    from: (table: string) => {
+      tables.push(table)
+      if (table === 'quiz_session_progress') return makeChain(progress)
+      if (table === 'quiz_sessions') return makeChain({ kind: 'rows', rows: sessions })
+      return makeChain({ kind: 'rows', rows: [] })
+    },
   } as unknown as SupabaseClient<Database>
+  return { client, tables }
 }
 
 beforeEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('collectUserData — quiz progress section', () => {
+describe('collectUserData — session-scoped progress and session columns', () => {
   it('includes the student in-progress answers and timings in the export', async () => {
-    const payload = await collectUserData(makeClient({ kind: 'rows', rows: [PROGRESS] }), 'user-1')
+    const payload = await collectUserData(
+      makeClient({ kind: 'rows', rows: [PROGRESS] }).client,
+      'user-1',
+    )
 
     expect(payload.quiz_progress).toEqual([PROGRESS])
     expect(payload.warnings).toEqual([])
@@ -87,12 +111,32 @@ describe('collectUserData — quiz progress section', () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
     const payload = await collectUserData(
-      makeClient({ kind: 'pageError', message: 'boom' }),
+      makeClient({ kind: 'pageError', message: 'boom' }).client,
       'user-1',
     )
 
     expect(payload.quiz_progress).toEqual([])
     expect(payload.warnings.map((w) => w.section)).toEqual(['quiz_progress'])
     expect(errSpy).toHaveBeenCalledWith('[collectUserData] quiz_progress query failed:', 'boom')
+  })
+
+  it('exports the resume position, pinned questions and active device on each session', async () => {
+    const payload = await collectUserData(makeClient({ kind: 'rows', rows: [] }).client, 'user-1')
+
+    expect(payload.quiz_sessions[0]).toMatchObject({
+      current_index: 3,
+      pinned_question_ids: ['q-1', 'q-2'],
+      active_device_id: 'dev-1',
+    })
+  })
+
+  it('does not read progress and exports an empty section when the student has no sessions', async () => {
+    const { client, tables } = makeClient({ kind: 'rows', rows: [PROGRESS] }, [])
+
+    const payload = await collectUserData(client, 'user-1')
+
+    expect(payload.quiz_progress).toEqual([])
+    expect(payload.warnings).toEqual([])
+    expect(tables).not.toContain('quiz_session_progress')
   })
 })
