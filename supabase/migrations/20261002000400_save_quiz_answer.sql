@@ -38,7 +38,8 @@ BEGIN
     RAISE EXCEPTION 'question_not_in_session';
   END IF;
 
-  IF p_answer IS NULL OR octet_length(p_answer::text) > 8192
+  -- 131072 covers the Zod caps: 50 diagram mapping pairs of two 200-char ids (6 B/char worst case).
+  IF p_answer IS NULL OR octet_length(p_answer::text) > 131072
      OR NOT _validate_progress_answer(p_answer, v_qtype) THEN
     RAISE EXCEPTION 'invalid_answer';
   END IF;

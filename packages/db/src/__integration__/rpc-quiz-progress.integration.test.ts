@@ -204,14 +204,18 @@ describe('RPC: quiz progress — save answer, position and read', () => {
     expect(await progressRows(f, sessionId)).toHaveLength(0)
   })
 
-  it('refuses an answer larger than 8 KiB', async () => {
+  it('accepts a multi-byte answer at exactly 128 KiB and refuses one a byte over', async () => {
+    // stored text is {"response_text": "<text>"}: 21 bytes of wrapper, 2 bytes per Cyrillic char
+    const cap = 131072
+    const fill = 'ж'.repeat((cap - 21 - 1) / 2)
     const sessionId = await startPractice(f, 'quick_quiz', [f.shortId])
-    const ok = await save(sessionId, f.shortId, { response_text: 'x'.repeat(100) })
+    const atCap = `${fill}x`
+    const ok = await save(sessionId, f.shortId, { response_text: atCap })
     expect(ok.error).toBeNull()
-    const { error } = await save(sessionId, f.shortId, { response_text: 'x'.repeat(9000) })
+    const { error } = await save(sessionId, f.shortId, { response_text: `${atCap}x` })
     expect(error?.message).toContain('invalid_answer')
     const rows = await progressRows(f, sessionId)
-    expect(rows[0]?.answer).toEqual({ response_text: 'x'.repeat(100) })
+    expect(rows[0]?.answer).toEqual({ response_text: atCap })
   })
 
   it('refuses a time outside 0 to 24 hours and a missing time', async () => {

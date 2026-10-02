@@ -38,40 +38,54 @@ export async function seedTypedQuestions(opts: {
     topicId: refs.topicId,
     count: 5,
   })
-  const base = {
-    organization_id: orgId,
-    bank_id: seeded.bankId,
-    subject_id: refs.subjectId,
-    topic_id: refs.topicId,
+  const base = baseRow({ orgId, adminId, bankId: seeded.bankId, refs })
+  const ids: Record<string, string> = {}
+  for (const [key, spec] of Object.entries(TYPED_SPECS)) {
+    ids[key] = await insertQuestion(admin, { ...base, ...spec })
+  }
+  return {
+    mcIds: seeded.questionIds,
+    shortId: ids.shortId ?? '',
+    dialogId: ids.dialogId ?? '',
+    orderingId: ids.orderingId ?? '',
+    diagramId: ids.diagramId ?? '',
+  }
+}
+
+function baseRow(o: { orgId: string; adminId: string; bankId: string; refs: Refs }) {
+  return {
+    organization_id: o.orgId,
+    bank_id: o.bankId,
+    subject_id: o.refs.subjectId,
+    topic_id: o.refs.topicId,
     subtopic_id: null,
     difficulty: 'medium',
     status: 'active',
-    created_by: adminId,
+    created_by: o.adminId,
   }
-  const shortId = await insertQuestion(admin, {
-    ...base,
+}
+
+const TYPED_SPECS: Record<string, Record<string, unknown>> = {
+  shortId: {
     question_type: 'short_answer',
     question_text: 'Acknowledge?',
     canonical_answer: 'wilco',
     explanation_text: 'SA explanation',
-  })
-  const dialogId = await insertQuestion(admin, {
-    ...base,
+  },
+  dialogId: {
     question_type: 'dialog_fill',
     question_text: 'Dialog',
     dialog_template: '[atc] {{0|cleared}} to land.',
     blanks_config: [{ index: 0, canonical: 'cleared', synonyms: [] }],
     explanation_text: 'DF explanation',
-  })
-  const orderingId = await insertQuestion(admin, {
-    ...base,
+  },
+  orderingId: {
     question_type: 'ordering',
     question_text: 'Sequence',
     ordering_items: ORDER_ITEMS,
     explanation_text: 'Ordering explanation',
-  })
-  const diagramId = await insertQuestion(admin, {
-    ...base,
+  },
+  diagramId: {
     question_type: 'diagram_label',
     question_text: 'Label the circuit',
     diagram_config: {
@@ -81,6 +95,5 @@ export async function seedTypedQuestions(opts: {
       answer: [{ zone_id: 'zone-1', label_id: 'lbl-1' }],
     },
     explanation_text: 'Diagram explanation',
-  })
-  return { mcIds: seeded.questionIds, shortId, dialogId, orderingId, diagramId }
+  },
 }

@@ -368,7 +368,7 @@ BEGIN
   -- ── 10. Cross-device resume (#1026): persist the graded answer in the same call ─
   -- Runs after every guard and grading branch, so every pre-existing token fires first. The answer
   -- is built from the raw params and must match the canonical stored shape, else invalid_answer.
-  -- Also raises session_taken_over / invalid_answer (> 8 KiB) / invalid_time_spent. A raise rolls
+  -- Also raises session_taken_over / invalid_answer (> 128 KiB) / invalid_time_spent. A raise rolls
   -- back the whole call, so a graded result is never returned for a refused save.
   v_answer := CASE v_qtype
     WHEN 'short_answer'  THEN jsonb_build_object('response_text', p_response_text)

@@ -138,7 +138,8 @@ BEGIN
   IF p_student_id IS DISTINCT FROM v_uid THEN
     RAISE EXCEPTION 'session_not_found';
   END IF;
-  IF p_answer IS NULL OR octet_length(p_answer::text) > 8192 THEN
+  -- 131072 covers the Zod caps: 50 diagram mapping pairs of two 200-char ids (6 B/char worst case).
+  IF p_answer IS NULL OR octet_length(p_answer::text) > 131072 THEN
     RAISE EXCEPTION 'invalid_answer';
   END IF;
   IF p_time_spent_ms IS NOT NULL AND (p_time_spent_ms < 0 OR p_time_spent_ms > 86400000) THEN
