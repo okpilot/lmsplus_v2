@@ -907,6 +907,7 @@ verb_noun pattern:
   get_student_mastery_stats  ← read, student: per-(subject) and per-(subject,topic) mastery counts (total=active questions, correct=distinct correct to non-deleted any-status questions); replaces client-side aggregation that truncated at the PostgREST 1000-row cap (#540, umbrella #668)
   get_student_streak         ← read, student: current + best daily-practice streak (all-time), computed in Postgres via gaps-and-islands over DISTINCT UTC response dates; replaces client-side computeStreaks over a .limit(10000) read that truncated at the 1000-row cap (#668)
   get_student_last_practiced ← read, student: most recent response timestamp per subject (all responses); retires the client-side questionSubjectMap + truncated questions read (#668)
+  get_daily_subjects         ← read, student: distinct (day, subject_id) pairs the caller answered in the last p_days days (1-365); dashboard day tooltip; active-user gate
   get_student_profile_stats  ← read, student: completed-session count + average score (single-row COUNT + AVG over own non-deleted, ended, non-null-score quiz_sessions); replaces the client-side count/average that truncated at the PostgREST 1000-row cap (#668 P2, profile.ts)
   record_auth_event          ← write, audit: records auth-related events (user.password_changed, user.password_reset, user.deactivated, user.created) after Server Action mutations. Self-defending: whitelist + role/org checks + best-effort (audit failure does not surface to caller). EXECUTE granted to authenticated, invoked through the acting user's client (not service role) so auth.uid() is the real actor.
   record_consent             ← write, GDPR: inserts one consent row for the caller; idempotent for accepted=true via an EXISTS pre-check on (user_id, document_type, document_version) (mig 085, #386)
@@ -2837,6 +2838,18 @@ Returns one row per subject the caller has answered, with the most recent respon
 **Migration:** `20260521000006_dashboard_secondary_stats_rpcs.sql`
 
 **Rationale:** Replaces client-side last-practiced attribution over a `.limit(5000)` read (ignored above the 1000-row cap) that falsely NULLed `lastPracticedAt` for subjects answered outside the most-recent ~1000 responses, and retires the coupled truncated `questions` read (the `questionSubjectMap`) deferred from PR #674 (#668).
+
+---
+
+#### `get_daily_subjects` — distinct (day, subject) pairs practised by the calling student
+
+**Security:** `SECURITY INVOKER`. Explicit `sr.student_id = auth.uid()` (`docs/security.md` §3 Multiple Permissive SELECT Policies). Active-user gate present (`'user not found or inactive'`, `docs/security.md` §11c). `anon` has no EXECUTE (permission denied); `'not authenticated'` fires only for `authenticated` with a NULL `auth.uid()`. The `questions` JOIN is org + `deleted_at IS NULL` via RLS: a soft-deleted question drops out, so a day's subjects can be fewer than its answers.
+
+**Parameters:** `p_days INT` — 1–365, else `'p_days must be between 1 and 365'`.
+
+**Returns:** `TABLE(day DATE, subject_id UUID)` — `DISTINCT`, ordered by day then subject. Day bucketing is `created_at::date` over `CURRENT_DATE - (p_days - 1)` .. today, identical to `get_daily_activity`. Days with no answers produce no row.
+
+**Migration:** `20261002000100_get_daily_subjects_rpc.sql`
 
 ---
 
