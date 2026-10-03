@@ -21,7 +21,7 @@ export const SaveDraftInput = z
       z.string(),
       z
         .object({
-          selectedOptionId: z.string().trim().min(1).optional(),
+          selectedOptionId: z.enum(['a', 'b', 'c', 'd']).optional(),
           responseText: z.string().trim().min(1).max(500).optional(),
           blankAnswers: z
             .array(

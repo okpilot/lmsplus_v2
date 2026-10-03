@@ -6,8 +6,10 @@ import type { GdprExportPayload } from './types'
 type ProgressRow = GdprExportPayload['quiz_progress'][number]
 
 /**
- * The student's own progress rows, discarded quizzes included. Scoped by `student_id` because
- * the admin client bypasses RLS; partial data is discarded on error (the caller logs it).
+ * The student's own progress rows, discarded quizzes included — so a row's `session_id` can be
+ * absent from the export's `quiz_sessions`, which omits discarded sessions. Scoped by
+ * `student_id` because the admin client bypasses RLS; partial data is discarded on error (the
+ * caller logs it).
  */
 export function fetchUserProgress(supabase: SupabaseClient<Database>, userId: string) {
   return fetchAllRows<ProgressRow>(
