@@ -11,7 +11,7 @@ const NOT_ACTIVE = 'Your account is no longer active.'
 const BAD_ANSWER = 'This answer could not be saved. Please review it and try again.'
 const BAD_PROGRESS = 'Your progress could not be saved. Reload the page and try again.'
 const NO_QUESTION = 'That question is not part of this session.'
-const SIGN_IN = 'Your sign-in has expired. Please sign in again.'
+export const SIGN_IN = 'Your sign-in has expired. Please sign in again.'
 const NO_FEATURE = 'This session type does not support saving progress.'
 const DAMAGED = 'This session is damaged and cannot save progress. Please start a new one.'
 

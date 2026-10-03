@@ -11,7 +11,7 @@ import {
 } from './check-non-mc-answer-dispatch'
 import { verifySessionMembership } from './check-non-mc-answer-helpers'
 import { CheckNonMcAnswerSchema } from './check-non-mc-answer-schema'
-import { mapMembershipError } from './progress-error-messages'
+import { mapMembershipError, SIGN_IN } from './progress-error-messages'
 
 export async function checkNonMcAnswer(raw: unknown): Promise<CheckNonMcAnswerResult> {
   const supabase = await createServerSupabaseClient()
@@ -19,7 +19,7 @@ export async function checkNonMcAnswer(raw: unknown): Promise<CheckNonMcAnswerRe
     data: { user },
     error: authError,
   } = await supabase.auth.getUser()
-  if (authError || !user) return { success: false, error: 'Not authenticated' }
+  if (authError || !user) return { success: false, error: SIGN_IN }
 
   let parsed: z.infer<typeof CheckNonMcAnswerSchema>
   try {

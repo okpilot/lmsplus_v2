@@ -2,11 +2,12 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import { rpc } from '@/lib/supabase-rpc'
+import { SIGN_IN } from './progress-error-messages'
 import { type ProgressResult, toAnswerJson, toProgressResult } from './quiz-progress-helpers'
 import { ClaimInput, SaveAnswerInput, SavePositionInput } from './quiz-progress-schema'
 
 const INVALID: ProgressResult = { success: false, error: 'Invalid input' }
-const UNAUTHENTICATED: ProgressResult = { success: false, error: 'Not authenticated' }
+const UNAUTHENTICATED: ProgressResult = { success: false, error: SIGN_IN }
 
 async function authedClient() {
   const supabase = await createServerSupabaseClient()

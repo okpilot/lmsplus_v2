@@ -128,7 +128,10 @@ describe('checkNonMcAnswer', () => {
   it('returns failure when the user is not authenticated', async () => {
     mockGetUser.mockResolvedValue({ data: { user: null } })
     const result = await checkNonMcAnswer(SHORT_INPUT)
-    expect(result).toEqual({ success: false, error: 'Not authenticated' })
+    expect(result).toEqual({
+      success: false,
+      error: 'Your sign-in has expired. Please sign in again.',
+    })
   })
 
   it('rejects a short_answer payload with an empty response text', async () => {

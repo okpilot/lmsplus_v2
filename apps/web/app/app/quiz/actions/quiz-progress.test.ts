@@ -10,6 +10,7 @@ vi.mock('@/lib/supabase-rpc', () => ({
   rpc: (...args: unknown[]) => mockRpc(...args),
 }))
 
+import { isDisplayableProgressError } from './progress-error-messages'
 import { claimQuizSession, saveQuizAnswer, saveQuizPosition } from './quiz-progress'
 
 const SESSION = '00000000-0000-4000-a000-000000000099'
@@ -61,9 +62,22 @@ describe('saveQuizAnswer', () => {
     mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
     expect(await saveQuizAnswer(answerInput)).toEqual({
       success: false,
-      error: 'Not authenticated',
+      error: 'Your sign-in has expired. Please sign in again.',
     })
     expect(mockRpc).not.toHaveBeenCalled()
+  })
+
+  it('tells the student to sign in again when the sign-in has expired', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
+    const results = [
+      await saveQuizAnswer(answerInput),
+      await saveQuizPosition(positionInput),
+      await claimQuizSession({ sessionId: SESSION, deviceId: DEVICE }),
+    ]
+    for (const r of results) {
+      expect(r.success).toBe(false)
+      expect(isDisplayableProgressError(r.success ? '' : r.error)).toBe(true)
+    }
   })
 
   it('tells the student the quiz is open elsewhere when another tab holds it', async () => {

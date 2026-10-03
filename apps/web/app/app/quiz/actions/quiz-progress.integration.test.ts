@@ -357,7 +357,7 @@ describe('quiz progress actions (app-layer integration)', () => {
   it('rejects an unauthenticated caller', async () => {
     expect(await claimQuizSession({ sessionId: OUTSIDE_QUESTION, deviceId: DEVICE_A })).toEqual({
       success: false,
-      error: 'Not authenticated',
+      error: 'Your sign-in has expired. Please sign in again.',
     })
   })
 })

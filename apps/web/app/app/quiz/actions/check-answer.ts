@@ -5,7 +5,7 @@ import { z } from 'zod'
 import type { CheckAnswerResult } from '../types'
 import { gradeAnswer, verifySessionMembership } from './check-answer-helpers'
 import { TimeSpentMs } from './check-non-mc-answer-schema'
-import { mapMembershipError } from './progress-error-messages'
+import { mapMembershipError, SIGN_IN } from './progress-error-messages'
 
 const CheckAnswerSchema = z.object({
   questionId: z.uuid(),
@@ -22,7 +22,7 @@ export async function checkAnswer(raw: unknown): Promise<CheckAnswerResult> {
     data: { user },
     error: authError,
   } = await supabase.auth.getUser()
-  if (authError || !user) return { success: false, error: 'Not authenticated' }
+  if (authError || !user) return { success: false, error: SIGN_IN }
 
   let parsed: z.infer<typeof CheckAnswerSchema>
   try {

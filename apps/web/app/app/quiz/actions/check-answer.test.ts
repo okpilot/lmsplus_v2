@@ -89,7 +89,7 @@ describe('checkAnswer', () => {
     })
     expect(result.success).toBe(false)
     if (result.success) return
-    expect(result.error).toBe('Not authenticated')
+    expect(result.error).toBe('Your sign-in has expired. Please sign in again.')
   })
 
   it('returns failure when authentication fails', async () => {
@@ -104,7 +104,7 @@ describe('checkAnswer', () => {
     })
     expect(result.success).toBe(false)
     if (result.success) return
-    expect(result.error).toBe('Not authenticated')
+    expect(result.error).toBe('Your sign-in has expired. Please sign in again.')
   })
 
   it('returns failure for a non-UUID question id', async () => {
