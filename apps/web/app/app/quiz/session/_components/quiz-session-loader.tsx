@@ -8,6 +8,24 @@ import { restrictDraftToQuestions } from '../_utils/restrict-draft-to-questions'
 import { QuizSession } from './quiz-session'
 import { SessionRecoveryPrompt } from './session-recovery-prompt'
 
+function LoaderSkeleton() {
+  return (
+    <div className="mx-auto max-w-2xl space-y-6">
+      <Skeleton className="h-1.5 w-full rounded-full" />
+      <div className="space-y-4">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-20 w-full rounded-md" />
+      </div>
+      <div className="space-y-2">
+        <Skeleton className="h-12 w-full rounded-lg" />
+        <Skeleton className="h-12 w-full rounded-lg" />
+        <Skeleton className="h-12 w-full rounded-lg" />
+        <Skeleton className="h-12 w-full rounded-lg" />
+      </div>
+    </div>
+  )
+}
+
 export function QuizSessionLoader({ userId }: Readonly<{ userId: string }>) {
   const bs = useSessionBootstrap(userId)
   const router = useRouter()
@@ -52,21 +70,7 @@ export function QuizSessionLoader({ userId }: Readonly<{ userId: string }>) {
   }
 
   if (!bs.session || !bs.questions) {
-    return (
-      <div className="mx-auto max-w-2xl space-y-6">
-        <Skeleton className="h-1.5 w-full rounded-full" />
-        <div className="space-y-4">
-          <Skeleton className="h-4 w-32" />
-          <Skeleton className="h-20 w-full rounded-md" />
-        </div>
-        <div className="space-y-2">
-          <Skeleton className="h-12 w-full rounded-lg" />
-          <Skeleton className="h-12 w-full rounded-lg" />
-          <Skeleton className="h-12 w-full rounded-lg" />
-          <Skeleton className="h-12 w-full rounded-lg" />
-        </div>
-      </div>
-    )
+    return <LoaderSkeleton />
   }
 
   const draft = restrictDraftToQuestions(bs.session, bs.questions)

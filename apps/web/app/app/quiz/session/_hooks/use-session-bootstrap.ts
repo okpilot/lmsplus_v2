@@ -32,7 +32,7 @@ export function useSessionBootstrap(userId: string) {
       return
     }
     setters.setSession(data)
-    // Questions, flags and the claim load in parallel; QuizSession mounts once, after all settle.
+    // Flags, questions, then the claim; QuizSession mounts once, after all settle.
     loadSessionData(data.questionIds, data)
       .then((r) => applyInitialLoad(r, userId, setters))
       // Error-path net (as in buildRecoveryResume): a throwing setter must not strand the skeleton.

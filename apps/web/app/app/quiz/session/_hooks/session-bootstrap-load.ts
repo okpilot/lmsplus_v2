@@ -68,22 +68,17 @@ function fetchFlaggedIdsBounded(questionIds: string[]): Promise<string[]> {
  * load-failure message here, so this function never rejects.
  *
  * Next.js dispatches Server Actions one at a time per client, so the requests are
- * queued, not parallel. The claim is started first (its bounded timeout already runs
- * while it waits), then the cosmetic flag fetch. The questions result is awaited first so a failure
- * returns immediately: loadSessionQuestions RESOLVES `{ success: false }` rather
- * than rejecting, so awaiting both together (Promise.all) would not short-circuit
+ * queued, not parallel. The cosmetic flag fetch is started first, then the questions
+ * are awaited; only after they load does the claim start (non-discovery), so a failed
+ * load never claims the session away from the student's other tab. A failure returns
+ * immediately: loadSessionQuestions RESOLVES `{ success: false }` rather than
+ * rejecting, so awaiting everything together (Promise.all) would not short-circuit
  * and would stall a known error behind the flag fetch's full timeout.
  */
 export async function loadSessionData(
   questionIds: string[],
   source?: Pick<SessionData, 'sessionId' | 'examMode' | 'mode'>,
 ): Promise<SessionLoadResult> {
-  // Claim first: Server Actions are dispatched one at a time, so a slow flag fetch ahead of
-  // it would eat the claim's bounded timeout. Never rejects; Discovery saves nothing.
-  const claimPromise =
-    source && source.mode !== 'discovery'
-      ? claimQuizDeviceBounded(source.sessionId)
-      : Promise.resolve(null)
   const flagsPromise = fetchFlaggedIdsBounded(questionIds)
   try {
     const questionsResult =
@@ -91,6 +86,11 @@ export async function loadSessionData(
         ? await loadVfrRtExamQuestions({ sessionId: source.sessionId })
         : await loadSessionQuestions(questionIds)
     if (!questionsResult.success) return { success: false, error: questionsResult.error }
+    // Never rejects; Discovery saves nothing, so it never claims.
+    const claimPromise =
+      source && source.mode !== 'discovery'
+        ? claimQuizDeviceBounded(source.sessionId)
+        : Promise.resolve(null)
     const flaggedIds = await flagsPromise
     const claimError = (await claimPromise) ?? undefined
     return { success: true, questions: questionsResult.questions, flaggedIds, claimError }

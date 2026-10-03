@@ -32,11 +32,25 @@ describe('loadSessionData — claim', () => {
     expect(mockClaim).toHaveBeenCalledWith('s1')
   })
 
-  it('starts the claim before the flag fetch', async () => {
+  it('sends no claim when the questions fail to load', async () => {
+    mockLoadQuestions.mockResolvedValue({ success: false, error: 'bad' })
+    const r = await loadSessionData(['q1'], { sessionId: 's1', mode: 'study' })
+    expect(r).toEqual({ success: false, error: 'bad' })
+    expect(mockClaim).not.toHaveBeenCalled()
+  })
+
+  it('sends no claim when the questions load throws', async () => {
+    mockLoadQuestions.mockRejectedValue(new Error('boom'))
+    const r = await loadSessionData(['q1'], { sessionId: 's1', mode: 'study' })
+    expect(r).toMatchObject({ success: false })
+    expect(mockClaim).not.toHaveBeenCalled()
+  })
+
+  it('sends the claim after the questions load', async () => {
     await loadSessionData(['q1'], { sessionId: 's1', mode: 'study' })
-    const claimOrder = mockClaim.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY
-    const flagsOrder = mockGetFlagged.mock.invocationCallOrder[0] ?? 0
-    expect(claimOrder).toBeLessThan(flagsOrder)
+    const loadOrder = mockLoadQuestions.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY
+    const claimOrder = mockClaim.mock.invocationCallOrder[0] ?? 0
+    expect(claimOrder).toBeGreaterThan(loadOrder)
   })
 
   it('does not claim in discovery mode', async () => {

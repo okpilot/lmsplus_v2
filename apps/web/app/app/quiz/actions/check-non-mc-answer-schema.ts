@@ -11,7 +11,7 @@ const MAX_DIALOG_BLANKS = 50
 export const TimeSpentMs = z.number().int().min(0).max(86_400_000)
 
 // Optional progress-save metadata the check RPCs forward as p_device_id / p_time_spent_ms.
-export const ProgressMetaShape = {
+const ProgressMetaShape = {
   deviceId: z.uuid().optional(),
   timeSpentMs: TimeSpentMs.optional(),
 }
