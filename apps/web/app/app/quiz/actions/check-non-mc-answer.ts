@@ -11,6 +11,7 @@ import {
 } from './check-non-mc-answer-dispatch'
 import { verifySessionMembership } from './check-non-mc-answer-helpers'
 import { CheckNonMcAnswerSchema } from './check-non-mc-answer-schema'
+import { mapMembershipError } from './progress-error-messages'
 
 export async function checkNonMcAnswer(raw: unknown): Promise<CheckNonMcAnswerResult> {
   const supabase = await createServerSupabaseClient()
@@ -33,19 +34,13 @@ export async function checkNonMcAnswer(raw: unknown): Promise<CheckNonMcAnswerRe
   }
   const { questionId, sessionId } = parsed
 
-  const membershipError = await verifySessionMembership(supabase, {
-    sessionId,
-    userId: user.id,
-    questionId,
-  })
-  // #1190 AC3: three of verifySessionMembership's FOUR returns were silent — what made a
-  // discarded-session runner undiagnosable. Logged here because that helper is at 210/200 lines
-  // (§1); `membershipError` (sanitized, never a raw DB message) names which CLASS fired.
-  // Caveats: two of the silent three both emit 'Session not found' (PGRST116 vs the unreachable
-  // null-row floor); and the fourth already logs there, so that fault emits two lines.
-  if (membershipError) {
-    console.error('[checkNonMcAnswer] Membership failed:', membershipError, questionId, sessionId)
-    return { success: false, error: membershipError }
+  const membership = mapMembershipError(
+    await verifySessionMembership(supabase, { sessionId, userId: user.id, questionId }),
+  )
+  if (membership) {
+    // #1190 AC3: names which membership failure class fired; the message is sanitized, never a raw DB one.
+    console.error('[checkNonMcAnswer] Membership failed:', membership.error, questionId, sessionId)
+    return membership
   }
 
   if ('responseText' in parsed) return checkShortAnswer(supabase, parsed)

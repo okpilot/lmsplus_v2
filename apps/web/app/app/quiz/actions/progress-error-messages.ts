@@ -6,7 +6,6 @@
 
 // INVARIANT: keys must not be substrings of one another — mapProgressRpcError matches via
 // message.includes(key), so an overlapping key would make iteration order decide the mapping.
-// Exported so a co-located test can assert the invariant holds as keys are added.
 const NOT_FOUND = 'This session could not be found.'
 const NOT_ACTIVE = 'Your account is no longer active.'
 const BAD_ANSWER = 'This answer could not be saved. Please review it and try again.'
@@ -16,6 +15,7 @@ const SIGN_IN = 'Your sign-in has expired. Please sign in again.'
 const NO_FEATURE = 'This session type does not support saving progress.'
 const DAMAGED = 'This session is damaged and cannot save progress. Please start a new one.'
 
+// Exported so a co-located test can assert the invariant holds as keys are added.
 export const PROGRESS_ERROR_MESSAGES: Record<string, string> = {
   not_authenticated: SIGN_IN,
   'not authenticated': SIGN_IN,

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { _resetQuizDeviceId, getQuizDeviceId, QUIZ_DEVICE_ID_KEY } from './quiz-device-id'
+import { _resetQuizDeviceId, getQuizDeviceId } from './quiz-device-id'
 
 const V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 
@@ -14,38 +14,27 @@ afterEach(() => {
 })
 
 describe('getQuizDeviceId', () => {
-  it('creates a uuid, persists it in sessionStorage and returns the same one afterwards', () => {
-    const id = getQuizDeviceId()
-    expect(id).toMatch(V4)
-    expect(sessionStorage.getItem(QUIZ_DEVICE_ID_KEY)).toBe(id)
-    expect(getQuizDeviceId()).toBe(id)
-  })
-
-  it('reuses the id already stored for this tab', () => {
-    const stored = '11111111-1111-4111-8111-111111111111'
-    sessionStorage.setItem(QUIZ_DEVICE_ID_KEY, stored)
-    expect(getQuizDeviceId()).toBe(stored)
-  })
-
-  it('replaces a stored value that is not a uuid', () => {
-    sessionStorage.setItem(QUIZ_DEVICE_ID_KEY, 'garbage')
-    expect(getQuizDeviceId()).toMatch(V4)
-  })
-
-  it('builds a v4-shaped id when crypto.randomUUID is unavailable', () => {
-    vi.stubGlobal('crypto', {})
-    expect(getQuizDeviceId()).toMatch(V4)
-  })
-
-  it('keeps one stable in-memory id when sessionStorage throws', () => {
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
-      throw new Error('denied')
-    })
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new Error('denied')
-    })
+  it('creates a uuid and returns the same one for the rest of the page load', () => {
     const id = getQuizDeviceId()
     expect(id).toMatch(V4)
     expect(getQuizDeviceId()).toBe(id)
+  })
+
+  it('does not persist the id, so a duplicated tab cannot share it', () => {
+    getQuizDeviceId()
+    expect(sessionStorage.length).toBe(0)
+  })
+
+  it('ignores a uuid planted in sessionStorage by a duplicated tab', () => {
+    const copied = '11111111-1111-4111-8111-111111111111'
+    sessionStorage.setItem('quiz-device-id', copied)
+    expect(getQuizDeviceId()).not.toBe(copied)
+  })
+
+  it('builds a v4-shaped id from getRandomValues when crypto.randomUUID is unavailable', () => {
+    const getRandomValues = vi.fn((a: Uint8Array) => a.fill(0xff))
+    vi.stubGlobal('crypto', { getRandomValues })
+    expect(getQuizDeviceId()).toBe('ffffffff-ffff-4fff-bfff-ffffffffffff')
+    expect(getRandomValues).toHaveBeenCalledOnce()
   })
 })

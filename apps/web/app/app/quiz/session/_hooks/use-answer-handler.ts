@@ -63,7 +63,7 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
       try {
         result = await input.check(questionId)
       } catch (err) {
-        handleAnswerError(
+        handleAnswerError({
           questionId,
           lockedRef,
           pendingQuestionIdRef,
@@ -71,8 +71,8 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
           setAnswers,
           setError,
           onAnswerReverted,
-          checkErrorMessage(err),
-        )
+          message: checkErrorMessage(err),
+        })
         return false
       }
       const nextFeedback = recordAnswerFeedback(questionId, result, feedbackRef, setFeedback)

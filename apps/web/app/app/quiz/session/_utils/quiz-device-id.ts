@@ -1,8 +1,3 @@
-/** sessionStorage key holding this browser tab's device id for quiz progress saves. */
-export const QUIZ_DEVICE_ID_KEY = 'quiz-device-id'
-
-const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-
 let cached: string | null = null
 
 /** @internal Test-only reset for the module-level cache. */
@@ -10,44 +5,25 @@ export function _resetQuizDeviceId() {
   cached = null
 }
 
-function randomHex(): string {
-  return Math.floor(Math.random() * 16).toString(16)
-}
-
-/** v4-shaped uuid for origins where crypto.randomUUID is unavailable (non-secure context). */
+/** v4-shaped uuid from crypto.getRandomValues, which works without a secure context. */
 function fallbackUuid(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) =>
-    c === 'x' ? randomHex() : (8 + Math.floor(Math.random() * 4)).toString(16),
-  )
+  const b = crypto.getRandomValues(new Uint8Array(16))
+  b[6] = ((b[6] ?? 0) & 0x0f) | 0x40
+  b[8] = ((b[8] ?? 0) & 0x3f) | 0x80
+  const h = Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('')
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`
 }
 
 function generateUuid(): string {
-  return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-    ? crypto.randomUUID()
-    : fallbackUuid()
-}
-
-function readStored(): string | null {
-  try {
-    const stored = sessionStorage.getItem(QUIZ_DEVICE_ID_KEY)
-    return stored && UUID_V4.test(stored) ? stored : null
-  } catch {
-    return null
-  }
+  return typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : fallbackUuid()
 }
 
 /**
- * Per-browser-tab device id (sessionStorage is tab-scoped). Falls back to an in-memory id when
- * storage throws. Call from handlers/effects/loaders only — SSR has no sessionStorage.
+ * Device id for quiz progress saves: one per page load, held in module memory only. It is never
+ * persisted — a duplicated tab copies sessionStorage, which would make two tabs share one id and
+ * hide takeover. A reload gets a new id and re-claims the session on load.
  */
 export function getQuizDeviceId(): string {
-  if (cached) return cached
-  const id = readStored() ?? generateUuid()
-  try {
-    sessionStorage.setItem(QUIZ_DEVICE_ID_KEY, id)
-  } catch {
-    // Storage unavailable — the module cache keeps the id stable for this page load.
-  }
-  cached = id
-  return id
+  cached ??= generateUuid()
+  return cached
 }
