@@ -1,6 +1,5 @@
 import { isDisplayableProgressError } from '../../actions/progress-error-messages'
 import { saveQuizAnswer, saveQuizPosition } from '../../actions/quiz-progress'
-import type { ProgressResult } from '../../actions/quiz-progress-helpers'
 import type { DraftAnswer } from '../../types'
 import { withTakeoverCheck } from './claim-quiz-device'
 import { isTakenOver } from './session-takeover'
@@ -83,14 +82,7 @@ export function fireProgressSave(opts: {
 }): void {
   if (isTakenOver(opts.sessionId)) return
   const save = opts.kind === 'answer' ? saveQuizAnswer : saveQuizPosition
-  let pending: Promise<ProgressResult>
-  try {
-    pending = withTakeoverCheck(opts.sessionId, () => save(opts.input))
-  } catch (err) {
-    console.warn(`[progress-save] ${opts.kind} save failed (best-effort):`, err)
-    return
-  }
-  pending
+  withTakeoverCheck(opts.sessionId, () => save(opts.input))
     .then((r) => {
       if (r.success) return opts.onSuccess()
       if (isDisplayableProgressError(r.error)) return opts.onMappedError(r.error)
