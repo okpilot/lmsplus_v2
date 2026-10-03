@@ -152,7 +152,13 @@ test.describe('Red Team: discarded exam revive (Vector GP)', () => {
     expect((await discardOwn(practiceId)).error).toBeNull()
 
     // The defence that SHOULD hold: the discarded exam stays discarded.
-    await student.from('quiz_sessions').update({ deleted_at: null }).eq('id', examId)
+    const revive = await student
+      .from('quiz_sessions')
+      .update({ deleted_at: null })
+      .eq('id', examId)
+      .select('id')
+    expect(revive.error).toBeNull()
+    expect(revive.data).toEqual([])
     expect((await readExam(examId)).deleted_at).not.toBeNull()
 
     const submit = await student.rpc('batch_submit_quiz', {

@@ -214,7 +214,7 @@ describe('RPC: save a quiz for later on the same session id', () => {
       p_device_id: DEVICE_A,
       p_time_spent_ms: 500,
     })
-    expect(check.error).not.toBeNull()
+    expect(check.error?.message).toMatch(/session not found or not owned/)
     expect(await state(saved)).toEqual(before)
     expect(await progressRows(f, saved)).toHaveLength(1)
   })
