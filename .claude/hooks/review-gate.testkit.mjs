@@ -38,7 +38,7 @@ export function makeRepo() {
   return dir
 }
 
-export const lockPath = (dir) => path.join(dir, '.claude', 'review-gate.lock')
+const lockPath = (dir) => path.join(dir, '.claude', 'review-gate.lock')
 
 /** Set the lock. */
 export const arm = (dir) => writeFileSync(lockPath(dir), '')
