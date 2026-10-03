@@ -11,23 +11,15 @@ DECLARE
   v_session quiz_sessions;
   v_saved   int;
 BEGIN
-  IF v_uid IS NULL THEN
-    RAISE EXCEPTION 'not_authenticated';
-  END IF;
-
-  PERFORM 1 FROM users u WHERE u.id = v_uid AND u.deleted_at IS NULL;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'user_not_found_or_inactive';
-  END IF;
-
-  -- Idempotent: a retried save of an already-saved session succeeds without touching the row.
-  PERFORM 1 FROM quiz_sessions qs
-  WHERE qs.id = p_session_id AND qs.student_id = v_uid AND qs.saved_at IS NOT NULL;
-  IF FOUND THEN
-    RETURN;
-  END IF;
-
-  v_session := _lock_session_for_progress(p_session_id, p_device_id);
+  -- Idempotent: a retried or concurrent save of an already-saved session succeeds without touching it.
+  BEGIN
+    v_session := _lock_session_for_progress(p_session_id, p_device_id);
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM = 'session_saved' THEN
+      RETURN;
+    END IF;
+    RAISE;
+  END;
 
   IF v_session.mode NOT IN ('quick_quiz', 'smart_review') THEN
     RAISE EXCEPTION 'unsupported_session_mode';
