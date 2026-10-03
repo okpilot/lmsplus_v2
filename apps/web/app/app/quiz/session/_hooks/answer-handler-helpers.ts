@@ -2,7 +2,7 @@ import { checkAnswer } from '../../actions/check-answer'
 import { checkNonMcAnswer } from '../../actions/check-non-mc-answer'
 import { isDisplayableProgressError } from '../../actions/progress-error-messages'
 import type { AnswerFeedback, CheckNonMcAnswerResult, DraftAnswer } from '../../types'
-import { withClaimRetry } from '../_utils/claim-quiz-device'
+import { withTakeoverCheck } from '../_utils/claim-quiz-device'
 import { clampTimeSpent } from '../_utils/progress-save'
 import { getQuizDeviceId } from '../_utils/quiz-device-id'
 import { isTakenOver } from '../_utils/session-takeover'
@@ -61,7 +61,7 @@ function attemptSelect(deps: HandlerDeps, optionId: string): Promise<boolean> {
   return deps.runAttempt({
     draft: { selectedOptionId: optionId, responseTimeMs },
     check: async (questionId) => {
-      const r = await withClaimRetry(deps.sessionId, () =>
+      const r = await withTakeoverCheck(deps.sessionId, () =>
         checkAnswer({
           questionId,
           selectedOptionId: optionId,
@@ -90,7 +90,7 @@ function attemptNonMc(deps: HandlerDeps, attempt: NonMcAttempt): Promise<boolean
     check: (questionId) =>
       checkNonMc(
         attempt.questionType,
-        withClaimRetry(deps.sessionId, () =>
+        withTakeoverCheck(deps.sessionId, () =>
           checkNonMcAnswer({
             questionId,
             ...progressMeta(deps.sessionId, responseTimeMs),

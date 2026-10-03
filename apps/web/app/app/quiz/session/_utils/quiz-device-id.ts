@@ -21,7 +21,7 @@ function generateUuid(): string {
 /**
  * Device id for quiz progress saves: one per page load, held in module memory only. It is never
  * persisted — a duplicated tab copies sessionStorage, which would make two tabs share one id and
- * hide takeover. A reload gets a new id and re-claims the session on load.
+ * hide takeover. A reload gets a new id and claims the session on load.
  */
 export function getQuizDeviceId(): string {
   cached ??= generateUuid()

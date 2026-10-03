@@ -3,7 +3,6 @@
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'
-import { yieldClaim } from '../_utils/claim-quiz-device'
 import { clearTakenOver, onPeerClaim, onTakenOver } from '../_utils/session-takeover'
 
 type TakeoverExitOpts = { enabled: boolean; sessionId: string; probe: () => void }
@@ -25,10 +24,7 @@ export function useTakeoverExit({ enabled, sessionId, probe }: Readonly<Takeover
       toast.info('This quiz continued in another tab or device.')
       router.replace('/app/quiz')
     })
-    const offPeer = onPeerClaim(sessionId, () => {
-      yieldClaim(sessionId)
-      probeRef.current()
-    })
+    const offPeer = onPeerClaim(sessionId, () => probeRef.current())
     return () => {
       offTakeover()
       offPeer()

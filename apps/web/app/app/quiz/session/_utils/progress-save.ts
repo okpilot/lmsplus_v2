@@ -2,7 +2,7 @@ import { isDisplayableProgressError } from '../../actions/progress-error-message
 import { saveQuizAnswer, saveQuizPosition } from '../../actions/quiz-progress'
 import type { ProgressResult } from '../../actions/quiz-progress-helpers'
 import type { DraftAnswer } from '../../types'
-import { withClaimRetry } from './claim-quiz-device'
+import { withTakeoverCheck } from './claim-quiz-device'
 import { isTakenOver } from './session-takeover'
 
 const MAX_TIME_SPENT_MS = 86_400_000
@@ -85,7 +85,7 @@ export function fireProgressSave(opts: {
   const save = opts.kind === 'answer' ? saveQuizAnswer : saveQuizPosition
   let pending: Promise<ProgressResult>
   try {
-    pending = withClaimRetry(opts.sessionId, () => save(opts.input))
+    pending = withTakeoverCheck(opts.sessionId, () => save(opts.input))
   } catch (err) {
     console.warn(`[progress-save] ${opts.kind} save failed (best-effort):`, err)
     return
