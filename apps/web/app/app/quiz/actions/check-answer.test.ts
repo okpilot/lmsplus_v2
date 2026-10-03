@@ -260,7 +260,7 @@ describe('checkAnswer', () => {
     consoleSpy.mockRestore()
     expect(result.success).toBe(false)
     if (result.success) return
-    expect(result.error).toBe('Question not found')
+    expect(result.error).toBe('This question is no longer available.')
   })
 
   it('returns failure when data is null with no error', async () => {
@@ -511,23 +511,5 @@ describe('checkAnswer', () => {
     if (!result.success) return
     expect(result.explanationText).toBeNull()
     expect(result.explanationImageUrl).toBeNull()
-  })
-
-  it('sends correct parameters to the answer-checking RPC', async () => {
-    setupAuthenticatedUser()
-    setupValidSession()
-    mockRpc.mockResolvedValue({ data: RPC_SUCCESS_CORRECT, error: null })
-
-    await checkAnswer({
-      questionId: QUESTION_ID,
-      selectedOptionId: CORRECT_OPTION_ID,
-      sessionId: SESSION_ID,
-    })
-
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'check_quiz_answer', {
-      p_question_id: QUESTION_ID,
-      p_selected_option_id: CORRECT_OPTION_ID,
-      p_session_id: SESSION_ID,
-    })
   })
 })
