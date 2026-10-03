@@ -175,7 +175,8 @@ describe('collectUserData quiz progress (app-layer integration)', () => {
 
     const payload = await collectUserData(admin, studentAId)
 
-    expect(payload.quiz_progress.length).toBeGreaterThan(0)
-    expect(payload.quiz_progress.map((r) => r.session_id)).not.toContain(sessionB)
+    expect(payload.quiz_progress.map((r) => r.session_id).sort()).toEqual(
+      [sessionA, discardedSessionA].sort(),
+    )
   })
 })

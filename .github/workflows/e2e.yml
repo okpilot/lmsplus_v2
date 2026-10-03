@@ -125,7 +125,7 @@ jobs:
                 ('quiz_drafts','INSERT'), ('quiz_drafts','UPDATE'), ('quiz_drafts','DELETE'),
                 ('question_comments','INSERT'), ('question_comments','DELETE'),
                 ('questions','INSERT'), ('questions','UPDATE'),
-                ('quiz_sessions','INSERT'), ('quiz_sessions','UPDATE'),
+                ('quiz_sessions','UPDATE'),
                 ('users','UPDATE')
             ),
             relations AS (

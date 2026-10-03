@@ -82,7 +82,7 @@ test.describe('Red Team: quiz_sessions direct INSERT (Vectors GK/GL)', () => {
         config: { question_ids: [], e2e_marker: E2E_REDTEAM_SI_MARKER },
       })
       .select('id')
-    expect(error).not.toBeNull()
+    expect(error?.code).toBe('42501')
     expect(data).toBeNull()
     expect(await markedRows()).toEqual([])
   })
@@ -106,7 +106,7 @@ test.describe('Red Team: quiz_sessions direct INSERT (Vectors GK/GL)', () => {
         config: { question_ids: [], e2e_marker: E2E_REDTEAM_SI_MARKER },
       })
       .select('id')
-    expect(error).not.toBeNull()
+    expect(error?.code).toBe('42501')
     expect(data).toBeNull()
     expect(await markedRows()).toEqual([])
   })

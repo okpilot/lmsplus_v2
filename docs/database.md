@@ -458,6 +458,7 @@ CREATE TABLE quiz_session_progress (
   updated_at    timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (session_id, question_id)
 );
+CREATE INDEX idx_quiz_session_progress_student ON quiz_session_progress(student_id);
 -- RLS: ENABLE + FORCE. One policy: quiz_session_progress_select_own FOR SELECT TO authenticated USING (student_id = auth.uid()).
 -- REVOKE ALL FROM PUBLIC, anon, authenticated; GRANT SELECT TO authenticated. No DML grant, no INSERT/UPDATE/DELETE policy.
 -- Writes: save_quiz_answer / save_quiz_position / check_quiz_answer / check_non_mc_answer (via _save_progress_row) only.

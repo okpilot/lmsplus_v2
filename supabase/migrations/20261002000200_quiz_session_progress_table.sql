@@ -14,6 +14,8 @@ CREATE TABLE quiz_session_progress (
   PRIMARY KEY (session_id, question_id)
 );
 
+CREATE INDEX idx_quiz_session_progress_student ON quiz_session_progress(student_id);
+
 COMMENT ON TABLE quiz_session_progress IS
   'In-progress answer per (session, question) for cross-device resume. answer NULL = viewed, unanswered. Never holds correctness or an answer key. Rows are never deleted; lifecycle follows quiz_sessions. Written only by save_quiz_answer / save_quiz_position / check_quiz_answer / check_non_mc_answer.';
 
