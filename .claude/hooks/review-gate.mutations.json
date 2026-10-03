@@ -119,6 +119,13 @@
       "replace": "process.env.REVIEW_GATE_ROOT || path.join(__dirname, '..', '..')",
       "expectRed": ["blocks an armed edit when the hook runs from an agent worktree copy"],
       "note": "The root comes from the hook's own location — a worktree copy of the hook looks for the lock in the worktree and finds none."
+    },
+    {
+      "id": "review-gate-arms-any-role",
+      "find": "ARMING_ROLES.has(pipeline.agents?.[subagentType]?.role)",
+      "replace": "true",
+      "expectRed": ["leaves the state unchanged when a non-gate agent is dispatched"],
+      "note": "Every dispatch sets the lock, whatever its role — a non-gate agent arms the gate."
     }
   ]
 }

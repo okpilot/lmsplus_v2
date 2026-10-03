@@ -64,7 +64,7 @@ function onAgent(subagentType) {
     fs.rmSync(LOCK, { force: true })
     return
   }
-  if (!subagentType || !isArmingRole(subagentType)) return
+  if (!isArmingRole(subagentType)) return
   fs.writeFileSync(LOCK, '')
 }
 

@@ -104,6 +104,7 @@ test('sets the lock again when the next round dispatches a reviewer', () => {
   }
 })
 
+// GROUP: review-gate-arms-any-role
 test('leaves the state unchanged when a non-gate agent is dispatched', () => {
   const dir = makeDir()
   try {
