@@ -314,7 +314,7 @@ test('logs a failed lock update and leaves the lock unset when pipeline.json is 
   }
 })
 
-// GROUP: review-gate-fallback-root-wrong
+// GROUP: review-gate-fallback-root-wrong, review-gate-no-arm
 test('sets the lock beside the hook when git cannot resolve the repo', () => {
   const dir = makeDir()
   try {

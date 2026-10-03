@@ -37,7 +37,8 @@
       "expectRed": [
         "sets the lock when a gate-round agent is dispatched",
         "sets the lock when a conditional agent is dispatched",
-        "sets the lock again when the next round dispatches a reviewer"
+        "sets the lock again when the next round dispatches a reviewer",
+        "sets the lock beside the hook when git cannot resolve the repo"
       ],
       "note": "A gate-round or conditional dispatch writes no lock — the round never locks edits."
     },
