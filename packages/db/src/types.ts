@@ -1077,6 +1077,7 @@ export type Database = {
           organization_id: string
           passed: boolean | null
           pinned_question_ids: string[]
+          saved_at: string | null
           score_percentage: number | null
           started_at: string
           student_id: string
@@ -1098,6 +1099,7 @@ export type Database = {
           organization_id: string
           passed?: boolean | null
           pinned_question_ids?: string[]
+          saved_at?: string | null
           score_percentage?: number | null
           started_at?: string
           student_id: string
@@ -1119,6 +1121,7 @@ export type Database = {
           organization_id?: string
           passed?: boolean | null
           pinned_question_ids?: string[]
+          saved_at?: string | null
           score_percentage?: number | null
           started_at?: string
           student_id?: string
@@ -1467,6 +1470,7 @@ export type Database = {
           organization_id: string
           passed: boolean | null
           pinned_question_ids: string[]
+          saved_at: string | null
           score_percentage: number | null
           started_at: string
           student_id: string
@@ -1567,6 +1571,7 @@ export type Database = {
         Args: { p_blanks: Json }
         Returns: boolean
       }
+      discard_saved_quiz: { Args: { p_session_id: string }; Returns: undefined }
       get_admin_dashboard_kpis: {
         Args: { p_range_days?: number }
         Returns: Json
@@ -1883,6 +1888,10 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: undefined
       }
+      resume_saved_quiz: {
+        Args: { p_device_id: string; p_session_id: string }
+        Returns: undefined
+      }
       save_quiz_answer: {
         Args: {
           p_answer: Json
@@ -1891,6 +1900,10 @@ export type Database = {
           p_session_id: string
           p_time_spent_ms: number
         }
+        Returns: undefined
+      }
+      save_quiz_for_later: {
+        Args: { p_device_id: string; p_session_id: string }
         Returns: undefined
       }
       save_quiz_position: {
