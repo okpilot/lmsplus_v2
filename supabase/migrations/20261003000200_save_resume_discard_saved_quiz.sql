@@ -26,6 +26,7 @@ BEGIN
   END IF;
 
   PERFORM pg_advisory_xact_lock(hashtext(v_uid::text));
+  -- No deleted_at filter: saved rows are soft-deleted by design (CHECK quiz_sessions_saved_requires_deleted).
   SELECT count(*) INTO v_saved
   FROM quiz_sessions qs
   WHERE qs.student_id = v_uid AND qs.saved_at IS NOT NULL;
@@ -60,6 +61,7 @@ BEGIN
     RAISE EXCEPTION 'user_not_found_or_inactive';
   END IF;
 
+  -- No deleted_at filter: the target is a saved, soft-deleted row; saved_at IS NULL is refused below.
   SELECT qs.* INTO v_session
   FROM quiz_sessions qs
   WHERE qs.id = p_session_id AND qs.student_id = v_uid
