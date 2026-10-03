@@ -1,8 +1,8 @@
 import { useRouter } from 'next/navigation'
 import { useRef } from 'react'
 import type { QuizStateOpts } from '../../session-types'
-import type { AnswerFeedback } from '../../types'
-import { buildExamAnswerHandlers } from './exam-answer-handlers'
+import type { AnswerFeedback, DraftAnswer } from '../../types'
+import { buildExamAnswerHandlers, pickExamSubmitControls } from './exam-answer-handlers'
 import { useExamAnswerBuffer } from './use-exam-answer-buffer'
 import { useQuizPersistence } from './use-quiz-persistence'
 import { useQuizSubmit } from './use-quiz-submit'
@@ -19,6 +19,7 @@ export function useExamPipeline(opts: {
   currentIndexRef: React.RefObject<number>
   navigateTo: (idx: number) => void
   navigate: (delta: number) => void
+  onAnswerRecorded?: (draft: Omit<DraftAnswer, 'responseTimeMs'>) => void
 }) {
   const router = useRouter()
   const emptyFeedbackRef = useRef<Map<string, AnswerFeedback>>(new Map())
@@ -53,6 +54,7 @@ export function useExamPipeline(opts: {
   const handlers = buildExamAnswerHandlers({
     recordAnswer,
     checkpoint: () => checkpoint(answersRef.current, opts.currentIndexRef.current),
+    onRecorded: opts.onAnswerRecorded,
   })
 
   return {
@@ -64,14 +66,6 @@ export function useExamPipeline(opts: {
     ...handlers,
     navigateTo: opts.navigateTo,
     navigate: opts.navigate,
-    submitted: submit.submitted,
-    error: submit.error,
-    submitting: submit.submitting,
-    pendingAction: submit.pendingAction,
-    handleSubmit: submit.handleSubmit,
-    handleSave: submit.handleSave,
-    handleDiscard: submit.handleDiscard,
-    showFinishDialog: submit.showFinishDialog,
-    setShowFinishDialog: submit.setShowFinishDialog,
+    ...pickExamSubmitControls(submit),
   }
 }

@@ -1,9 +1,6 @@
 // Three roles for the checkAnswer Server Action: the session-ownership check, the
 // check_quiz_answer call (which reads the answer key), and a runtime guard on its result.
-// Hoisted out of check-answer.ts for code-style.md §3, NOT §1: that file was 82/100 lines on
-// master, so the file cap was never the constraint — its `checkAnswer` body was 51 against the
-// 30-line cap. That body is now at exactly 30/30, i.e. ZERO headroom, so the next step added
-// to it must be extracted too; do not read this file's 43-line parent as spare room. The
+// Hoisted out of check-answer.ts for code-style.md §3 (function length), not §1. The
 // non-MC path splits the same way but across two files — helpers for the ownership check,
 // dispatch for the RPC calls; this merges both.
 //
@@ -19,6 +16,7 @@
 import type { createServerSupabaseClient } from '@repo/db/server'
 import { rpc } from '@/lib/supabase-rpc'
 import type { CheckAnswerResult } from '../types'
+import { mapProgressRpcError } from './progress-error-messages'
 
 // Declared locally, matching twelve other files under apps/web (draft-helpers.ts,
 // resume-helpers.ts, resume.ts, check-non-mc-answer-helpers.ts, lib/supabase-rpc.ts and more).
@@ -87,17 +85,25 @@ export async function verifySessionMembership(
  */
 export async function gradeAnswer(
   supabase: SupabaseClient,
-  opts: { questionId: string; selectedOptionId: string; sessionId: string },
+  opts: {
+    questionId: string
+    selectedOptionId: string
+    sessionId: string
+    deviceId?: string
+    timeSpentMs?: number
+  },
 ): Promise<CheckAnswerResult> {
   const { data, error } = await rpc<CheckAnswerRpcResult>(supabase, 'check_quiz_answer', {
     p_question_id: opts.questionId,
     p_selected_option_id: opts.selectedOptionId,
     p_session_id: opts.sessionId,
+    p_device_id: opts.deviceId ?? null,
+    p_time_spent_ms: opts.timeSpentMs ?? null,
   })
 
   if (error || !isCheckAnswerRpcResult(data)) {
     console.error('[checkAnswer] RPC error:', error?.message)
-    return { success: false, error: 'Question not found' }
+    return { success: false, error: mapProgressRpcError(error?.message, 'Question not found') }
   }
 
   return {

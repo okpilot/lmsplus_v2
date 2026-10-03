@@ -154,11 +154,13 @@ describe('useAnswerHandler — successful answer selection', () => {
       await result.current.handleSelectAnswer(OPT_A)
     })
 
-    expect(mockCheckAnswer).toHaveBeenCalledWith({
-      questionId: Q1_ID,
-      selectedOptionId: OPT_A,
-      sessionId: SESSION_ID,
-    })
+    expect(mockCheckAnswer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        questionId: Q1_ID,
+        selectedOptionId: OPT_A,
+        sessionId: SESSION_ID,
+      }),
+    )
   })
 })
 

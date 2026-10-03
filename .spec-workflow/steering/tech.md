@@ -42,7 +42,7 @@ lmsplusv2/
 - **Server Components by default** -- data fetching happens server-side, no `useEffect` for data loading.
 - **Server Actions only for mutations** -- no API route handlers for mutations. Route handlers (`route.ts`) reserved for webhooks and external consumers.
 - **ACID via Postgres RPCs** -- any multi-table operation runs in a single Postgres function (`batch_submit_quiz`, `start_quiz_session`, `record_consent`, etc.). No multi-step application-level transactions.
-- **Deferred quiz writes** -- answers accumulate in client state, then `batch_submit_quiz()` RPC submits atomically on finish.
+- **Server-saved quiz progress** -- each answer and position is saved to `quiz_session_progress` as the student works (`save_quiz_answer`, `save_quiz_position`, one active device per session via `claim_quiz_session`); `batch_submit_quiz()` grades atomically on finish.
 - **Feature-based folder organisation** -- co-located `_components/`, `_hooks/`, `actions.ts`, `types.ts` per route segment.
 - **Defense in depth** -- proxy guard + Server Action guard + RLS + DB triggers + RPC auth checks. No layer trusts another.
 

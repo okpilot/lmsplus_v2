@@ -764,7 +764,7 @@ Any Server Action that operates on a quiz session or its questions must verify *
 3. `quiz_sessions.deleted_at IS NULL` — session is not discarded
 4. `questionId IN session.config.question_ids` — question belongs to this session
 
-**Enforced in:** `checkAnswer`, `fetchExplanation` (commit 306f44a, 2026-03-13). The `batch_submit_quiz` RPC enforces the same four checks at the SQL layer.
+**Enforced in:** `checkAnswer`, `fetchExplanation` (commit 306f44a, 2026-03-13). The `batch_submit_quiz` RPC enforces the same four checks at the SQL layer. `saveQuizAnswer`, `saveQuizPosition` and `claimQuizSession` run no app-side pre-select: their RPCs enforce checks 1–3 in `_lock_session_for_progress`; `saveQuizAnswer` and `saveQuizPosition` enforce check 4 by raising `question_not_in_session` (`claimQuizSession` takes no question id).
 
 **Runtime guard:** When reading `config.question_ids` from the DB, use `Array.isArray()` before `.includes()` — the `as unknown as` TypeScript cast provides no runtime guarantee against malformed JSONB.
 

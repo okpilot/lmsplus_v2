@@ -4,11 +4,16 @@ import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import type { CheckAnswerResult } from '../types'
 import { gradeAnswer, verifySessionMembership } from './check-answer-helpers'
+import { TimeSpentMs } from './check-non-mc-answer-schema'
+import { mapMembershipError, SIGN_IN } from './progress-error-messages'
 
 const CheckAnswerSchema = z.object({
   questionId: z.uuid(),
   selectedOptionId: z.enum(['a', 'b', 'c', 'd']),
   sessionId: z.uuid(),
+  // Progress save forwarded to check_quiz_answer (p_device_id / p_time_spent_ms).
+  deviceId: z.uuid().optional(),
+  timeSpentMs: TimeSpentMs.optional(),
 })
 
 export async function checkAnswer(raw: unknown): Promise<CheckAnswerResult> {
@@ -17,7 +22,7 @@ export async function checkAnswer(raw: unknown): Promise<CheckAnswerResult> {
     data: { user },
     error: authError,
   } = await supabase.auth.getUser()
-  if (authError || !user) return { success: false, error: 'Not authenticated' }
+  if (authError || !user) return { success: false, error: SIGN_IN }
 
   let parsed: z.infer<typeof CheckAnswerSchema>
   try {
@@ -29,15 +34,16 @@ export async function checkAnswer(raw: unknown): Promise<CheckAnswerResult> {
     console.error('[checkAnswer] Invalid input')
     return { success: false, error: 'Invalid input' }
   }
-  const { questionId, selectedOptionId, sessionId } = parsed
 
   // Verify session belongs to this user, is active, and contains the question.
-  const membershipError = await verifySessionMembership(supabase, {
-    sessionId,
-    userId: user.id,
-    questionId,
-  })
-  if (membershipError) return { success: false, error: membershipError }
+  const membership = mapMembershipError(
+    await verifySessionMembership(supabase, {
+      sessionId: parsed.sessionId,
+      userId: user.id,
+      questionId: parsed.questionId,
+    }),
+  )
+  if (membership) return membership
 
-  return gradeAnswer(supabase, { questionId, selectedOptionId, sessionId })
+  return gradeAnswer(supabase, parsed)
 }
