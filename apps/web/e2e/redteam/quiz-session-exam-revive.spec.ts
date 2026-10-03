@@ -95,8 +95,8 @@ test.describe('Red Team: discarded exam revive (Vector GP)', () => {
     if (errors.length > 0) throw new Error(`afterEach: ${errors.join('; ')}`)
   })
 
-  test('a student cannot revive a discarded exam after keying its questions in practice', async () => {
-    const { data: exam, error: examErr } = await admin
+  const seedExam = async (): Promise<string> => {
+    const { data, error } = await admin
       .from('quiz_sessions')
       .insert({
         organization_id: orgId,
@@ -108,36 +108,28 @@ test.describe('Red Team: discarded exam revive (Vector GP)', () => {
       })
       .select('id')
       .single()
-    if (examErr || !isRecord(exam) || typeof exam.id !== 'string')
-      throw new Error(`seed exam: ${examErr?.message ?? 'bad shape'}`)
-    const examId = exam.id
+    if (error || !isRecord(data) || typeof data.id !== 'string')
+      throw new Error(`seed exam: ${error?.message ?? 'bad shape'}`)
+    return data.id
+  }
 
-    // Control: the invariant refuses a practice quiz while the exam is open.
-    const blocked = await student.rpc('start_quiz_session', {
+  const startPractice = () =>
+    student.rpc('start_quiz_session', {
       p_mode: 'quick_quiz',
       p_subject_id: null,
       p_topic_id: null,
       p_question_ids: qids,
     })
-    expect(blocked.error?.message).toBe('another_session_active')
 
-    // Discard the exam the way the app does (direct deleted_at write).
-    const discard = await student
+  // The app's discard path: a direct deleted_at write by the owner.
+  const discardOwn = (sessionId: string) =>
+    student
       .from('quiz_sessions')
       .update({ deleted_at: new Date().toISOString() })
-      .eq('id', examId)
+      .eq('id', sessionId)
       .select('id')
-    expect(discard.error).toBeNull()
-    expect(discard.data).toHaveLength(1)
 
-    const practice = await student.rpc('start_quiz_session', {
-      p_mode: 'quick_quiz',
-      p_subject_id: null,
-      p_topic_id: null,
-      p_question_ids: qids,
-    })
-    expect(practice.error).toBeNull()
-    const practiceId = practice.data as string
+  const keyQuestions = async (practiceId: string): Promise<Record<string, string>> => {
     const keys: Record<string, string> = {}
     for (const qid of qids) {
       const r = await student.rpc('check_quiz_answer', {
@@ -149,17 +141,28 @@ test.describe('Red Team: discarded exam revive (Vector GP)', () => {
       expect(isRecord(r.data) && typeof r.data.correct_option_id === 'string').toBe(true)
       keys[qid] = (r.data as { correct_option_id: string }).correct_option_id
     }
-    const dropPractice = await student
-      .from('quiz_sessions')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('id', practiceId)
-      .select('id')
-    expect(dropPractice.error).toBeNull()
+    return keys
+  }
+
+  test('a student cannot revive a discarded exam after keying its questions in practice', async () => {
+    const examId = await seedExam()
+
+    // Control: the invariant refuses a practice quiz while the exam is open.
+    expect((await startPractice()).error?.message).toBe('another_session_active')
+
+    const discard = await discardOwn(examId)
+    expect(discard.error).toBeNull()
+    expect(discard.data).toHaveLength(1)
+
+    const practice = await startPractice()
+    expect(practice.error).toBeNull()
+    const practiceId = practice.data as string
+    const keys = await keyQuestions(practiceId)
+    expect((await discardOwn(practiceId)).error).toBeNull()
 
     // The defence that SHOULD hold: the discarded exam stays discarded.
     await student.from('quiz_sessions').update({ deleted_at: null }).eq('id', examId)
-    const examRow = await readExam(examId)
-    expect(examRow.deleted_at).not.toBeNull()
+    expect((await readExam(examId)).deleted_at).not.toBeNull()
 
     const submit = await student.rpc('batch_submit_quiz', {
       p_session_id: examId,

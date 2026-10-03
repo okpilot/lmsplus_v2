@@ -98,6 +98,33 @@ test.describe('Red Team: saved quizzes (Vectors GM/GN/GO)', () => {
     return isRecord(r.data) ? r.data.status : undefined
   }
 
+  const resume = (sessionId: string) =>
+    victim.rpc('resume_saved_quiz', { p_session_id: sessionId, p_device_id: DEVICE_A })
+
+  const grade = (sessionId: string, deviceId?: string) =>
+    victim.rpc('check_quiz_answer', {
+      p_question_id: q1,
+      p_selected_option_id: 'a',
+      p_session_id: sessionId,
+      ...(deviceId ? { p_device_id: deviceId } : {}),
+    })
+
+  // Every direct-UPDATE revive route the owner holds is refused.
+  const expectDirectReviveRefused = async (sessionId: string): Promise<void> => {
+    const reviveDeleted = await victim
+      .from('quiz_sessions')
+      .update({ deleted_at: null })
+      .eq('id', sessionId)
+      .select('id')
+    // students_update_sessions reaches live rows only (mig 20261003000400): zero rows, no error.
+    expect(reviveDeleted.error).toBeNull()
+    expect(reviveDeleted.data).toEqual([])
+    for (const patch of [{ saved_at: null }, { deleted_at: null, saved_at: null }]) {
+      const r = await victim.from('quiz_sessions').update(patch).eq('id', sessionId).select('id')
+      expect(r.error?.code).toBe('42501')
+    }
+  }
+
   test.beforeAll(async () => {
     admin = getAdminClient()
     const seed = await seedRedTeamUsers()
@@ -163,26 +190,11 @@ test.describe('Red Team: saved quizzes (Vectors GM/GN/GO)', () => {
     expect(before.saved_at).not.toBeNull()
     expect(await status(victim, sessionId)).toBe('saved')
 
-    const reviveDeleted = await victim
-      .from('quiz_sessions')
-      .update({ deleted_at: null })
-      .eq('id', sessionId)
-      .select('id')
-    // students_update_sessions reaches live rows only (mig 20261003000400): zero rows, no error.
-    expect(reviveDeleted.error).toBeNull()
-    expect(reviveDeleted.data).toEqual([])
-    for (const patch of [{ saved_at: null }, { deleted_at: null, saved_at: null }]) {
-      const r = await victim.from('quiz_sessions').update(patch).eq('id', sessionId).select('id')
-      expect(r.error?.code).toBe('42501')
-    }
+    await expectDirectReviveRefused(sessionId)
     expect(await readRow(sessionId)).toEqual(before)
 
     // Control: the RPC path revives the same id.
-    const resume = await victim.rpc('resume_saved_quiz', {
-      p_session_id: sessionId,
-      p_device_id: DEVICE_A,
-    })
-    expect(resume.error).toBeNull()
+    expect((await resume(sessionId)).error).toBeNull()
     const after = await readRow(sessionId)
     expect(after).toEqual({
       deleted_at: null,
@@ -209,33 +221,16 @@ test.describe('Red Team: saved quizzes (Vectors GM/GN/GO)', () => {
       active_device_id: null,
     })
 
-    const resume = await victim.rpc('resume_saved_quiz', {
-      p_session_id: savedId,
-      p_device_id: DEVICE_A,
-    })
-    expect(resume.error?.message).toBe('another_session_active')
-    const oracle = await victim.rpc('check_quiz_answer', {
-      p_question_id: q1,
-      p_selected_option_id: 'a',
-      p_session_id: savedId,
-    })
+    expect((await resume(savedId)).error?.message).toBe('another_session_active')
+    const oracle = await grade(savedId)
     expect(oracle.data).toBeNull()
     expect(oracle.error?.message).toMatch(/session not found or not owned/)
     expect(await status(victim, savedId)).toBe('saved')
 
     // Control: with the exam gone, the same resume and grading succeed.
     await clearActive(victimUserId)
-    const resumed = await victim.rpc('resume_saved_quiz', {
-      p_session_id: savedId,
-      p_device_id: DEVICE_A,
-    })
-    expect(resumed.error).toBeNull()
-    const graded = await victim.rpc('check_quiz_answer', {
-      p_question_id: q1,
-      p_selected_option_id: 'a',
-      p_session_id: savedId,
-      p_device_id: DEVICE_A,
-    })
+    expect((await resume(savedId)).error).toBeNull()
+    const graded = await grade(savedId, DEVICE_A)
     expect(graded.error).toBeNull()
     expect(isRecord(graded.data) && typeof graded.data.correct_option_id === 'string').toBe(true)
   })
@@ -263,11 +258,7 @@ test.describe('Red Team: saved quizzes (Vectors GM/GN/GO)', () => {
     const after = await readRow(savedId)
     expect(after.saved_at).toBeNull()
     expect(after.deleted_at).not.toBeNull()
-    const resume = await victim.rpc('resume_saved_quiz', {
-      p_session_id: savedId,
-      p_device_id: DEVICE_A,
-    })
-    expect(resume.error?.message).toBe('session_not_saved')
+    expect((await resume(savedId)).error?.message).toBe('session_not_saved')
     expect(await status(victim, savedId)).toBe('discarded')
   })
 })
