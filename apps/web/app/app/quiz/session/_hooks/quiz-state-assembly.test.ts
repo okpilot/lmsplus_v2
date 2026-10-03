@@ -45,6 +45,20 @@ function makeInput(overrides: Partial<AssembleQuizStateInput> = {}): AssembleQui
 }
 
 describe('assembleQuizState', () => {
+  it('shows a background save error in the session panel but not as a submit error', () => {
+    const state = assembleQuizState(makeInput({ saveError: 'Your progress could not be saved.' }))
+    expect(state.error).toBe('Your progress could not be saved.')
+    expect(state.submitError).toBeNull()
+  })
+
+  it('reports a check failure as both the panel error and the submit error', () => {
+    const state = assembleQuizState(
+      makeInput({ p: makePipeline({ error: 'Failed to submit.' }), saveError: 'Not saved.' }),
+    )
+    expect(state.error).toBe('Failed to submit.')
+    expect(state.submitError).toBe('Failed to submit.')
+  })
+
   it('carries currentIndex and seenIndices through from nav', () => {
     const state = assembleQuizState(
       makeInput({ nav: { currentIndex: 2, seenIndices: new Set([0, 1, 2]) } }),

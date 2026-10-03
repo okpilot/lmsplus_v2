@@ -4,6 +4,7 @@ import {
   type AttemptInput,
   buildAnswerHandlers,
   type CheckResult,
+  checkErrorMessage,
   handleAnswerError,
   recordAnswerFeedback,
 } from './answer-handler-helpers'
@@ -55,15 +56,15 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
     })
     pendingQuestionIdRef.current.add(questionId)
     setInFlightAnswers((n) => n + 1)
-    // finally guarantees the counter is decremented on every exit path (RPC
-    // error, success, or a throw from recordAnswerFeedback), so `answering`
-    // can never get stuck positive.
+    // finally decrements the counter on every exit path (RPC error, success, or a
+    // throw from recordAnswerFeedback), so `answering` never sticks positive.
     try {
       let result: CheckResult
       try {
         result = await input.check(questionId)
-      } catch {
-        handleAnswerError(
+      } catch (err) {
+        handleAnswerError({
+          sessionId,
           questionId,
           lockedRef,
           pendingQuestionIdRef,
@@ -71,7 +72,8 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
           setAnswers,
           setError,
           onAnswerReverted,
-        )
+          message: checkErrorMessage(err),
+        })
         return false
       }
       const nextFeedback = recordAnswerFeedback(questionId, result, feedbackRef, setFeedback)
@@ -83,18 +85,16 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
       }
       return true
     } finally {
-      // Both run on every exit path. Decrementing the counter keeps `answering`
-      // from sticking positive; clearing the in-flight marker keeps this question
-      // from orphaning in pendingQuestionIdRef (which would drop it from submit) if
-      // recordAnswerFeedback ever throws. Idempotent on the error path —
-      // handleAnswerError already deleted it; Set.delete of an absent key is a no-op.
+      // Both run on every exit path: the counter can't stick positive, and the in-flight
+      // marker can't orphan in pendingQuestionIdRef (which would drop it from submit) if
+      // recordAnswerFeedback throws. Idempotent on the error path
+      // (Set.delete of an absent key is a no-op).
       pendingQuestionIdRef.current.delete(questionId)
       setInFlightAnswers((n) => Math.max(0, n - 1))
     }
   }
 
   const handlers = buildAnswerHandlers({ sessionId, getAnswerStartTime, runAttempt })
-
   // Clear ref lock reactively after state update propagates — not data fetching
   useEffect(() => {
     for (const locked of lockedRef.current) {

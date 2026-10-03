@@ -49,10 +49,14 @@ beforeEach(() => {
 describe('checkDialogFillAnswer', () => {
   it('maps a successful RPC result to the client dialog_fill shape', async () => {
     mockRpc.mockResolvedValue({ data: DIALOG_RPC_RESULT, error: null })
-    const result = await checkDialogFillAnswer(FAKE_SUPABASE, QUESTION_ID, SESSION_ID, [
-      { index: 0, text: 'cleared' },
-      { index: 1, text: 'runway 27' },
-    ])
+    const result = await checkDialogFillAnswer(FAKE_SUPABASE, {
+      questionId: QUESTION_ID,
+      sessionId: SESSION_ID,
+      blankAnswers: [
+        { index: 0, text: 'cleared' },
+        { index: 1, text: 'runway 27' },
+      ],
+    })
     expect(result).toEqual({
       success: true,
       questionType: 'dialog_fill',
@@ -68,12 +72,16 @@ describe('checkDialogFillAnswer', () => {
 
   it('translates client blank indices to the RPC blank_index/response_text shape', async () => {
     mockRpc.mockResolvedValue({ data: DIALOG_RPC_RESULT, error: null })
-    await checkDialogFillAnswer(FAKE_SUPABASE, QUESTION_ID, SESSION_ID, [
-      { index: 0, text: 'cleared' },
-    ])
+    await checkDialogFillAnswer(FAKE_SUPABASE, {
+      questionId: QUESTION_ID,
+      sessionId: SESSION_ID,
+      blankAnswers: [{ index: 0, text: 'cleared' }],
+    })
     expect(mockRpc).toHaveBeenCalledWith(FAKE_SUPABASE, 'check_non_mc_answer', {
       p_question_id: QUESTION_ID,
       p_session_id: SESSION_ID,
+      p_device_id: null,
+      p_time_spent_ms: null,
       p_blank_answers: [{ blank_index: 0, response_text: 'cleared' }],
     })
   })
@@ -81,9 +89,11 @@ describe('checkDialogFillAnswer', () => {
   it('returns a generic failure and logs when the RPC errors', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     mockRpc.mockResolvedValue({ data: null, error: { message: 'boom' } })
-    const result = await checkDialogFillAnswer(FAKE_SUPABASE, QUESTION_ID, SESSION_ID, [
-      { index: 0, text: 'cleared' },
-    ])
+    const result = await checkDialogFillAnswer(FAKE_SUPABASE, {
+      questionId: QUESTION_ID,
+      sessionId: SESSION_ID,
+      blankAnswers: [{ index: 0, text: 'cleared' }],
+    })
     expect(result).toEqual({ success: false, error: 'Could not check answer' })
     expect(consoleSpy).toHaveBeenCalledWith('[checkNonMcAnswer] dialog_fill RPC error:', 'boom')
     consoleSpy.mockRestore()
@@ -91,9 +101,11 @@ describe('checkDialogFillAnswer', () => {
 
   it('returns a generic failure when the RPC result has an unexpected shape', async () => {
     mockRpc.mockResolvedValue({ data: DIAGRAM_RPC_RESULT, error: null })
-    const result = await checkDialogFillAnswer(FAKE_SUPABASE, QUESTION_ID, SESSION_ID, [
-      { index: 0, text: 'cleared' },
-    ])
+    const result = await checkDialogFillAnswer(FAKE_SUPABASE, {
+      questionId: QUESTION_ID,
+      sessionId: SESSION_ID,
+      blankAnswers: [{ index: 0, text: 'cleared' }],
+    })
     expect(result).toEqual({ success: false, error: 'Could not check answer' })
   })
 })
@@ -101,9 +113,11 @@ describe('checkDialogFillAnswer', () => {
 describe('checkDiagramLabelAnswer', () => {
   it('maps a successful RPC result to the client diagram_label shape', async () => {
     mockRpc.mockResolvedValue({ data: DIAGRAM_RPC_RESULT, error: null })
-    const result = await checkDiagramLabelAnswer(FAKE_SUPABASE, QUESTION_ID, SESSION_ID, [
-      { zoneId: 'z1', labelId: 'l1' },
-    ])
+    const result = await checkDiagramLabelAnswer(FAKE_SUPABASE, {
+      questionId: QUESTION_ID,
+      sessionId: SESSION_ID,
+      mapping: [{ zoneId: 'z1', labelId: 'l1' }],
+    })
     expect(result).toEqual({
       success: true,
       questionType: 'diagram_label',
@@ -119,13 +133,19 @@ describe('checkDiagramLabelAnswer', () => {
 
   it('sends p_mapping with the zone_id/label_id snake_case shape', async () => {
     mockRpc.mockResolvedValue({ data: DIAGRAM_RPC_RESULT, error: null })
-    await checkDiagramLabelAnswer(FAKE_SUPABASE, QUESTION_ID, SESSION_ID, [
-      { zoneId: 'z1', labelId: 'l1' },
-      { zoneId: 'z2', labelId: 'l2' },
-    ])
+    await checkDiagramLabelAnswer(FAKE_SUPABASE, {
+      questionId: QUESTION_ID,
+      sessionId: SESSION_ID,
+      mapping: [
+        { zoneId: 'z1', labelId: 'l1' },
+        { zoneId: 'z2', labelId: 'l2' },
+      ],
+    })
     expect(mockRpc).toHaveBeenCalledWith(FAKE_SUPABASE, 'check_non_mc_answer', {
       p_question_id: QUESTION_ID,
       p_session_id: SESSION_ID,
+      p_device_id: null,
+      p_time_spent_ms: null,
       p_mapping: [
         { zone_id: 'z1', label_id: 'l1' },
         { zone_id: 'z2', label_id: 'l2' },
@@ -136,9 +156,11 @@ describe('checkDiagramLabelAnswer', () => {
   it('returns a generic failure and logs when the RPC errors', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     mockRpc.mockResolvedValue({ data: null, error: { message: 'boom' } })
-    const result = await checkDiagramLabelAnswer(FAKE_SUPABASE, QUESTION_ID, SESSION_ID, [
-      { zoneId: 'z1', labelId: 'l1' },
-    ])
+    const result = await checkDiagramLabelAnswer(FAKE_SUPABASE, {
+      questionId: QUESTION_ID,
+      sessionId: SESSION_ID,
+      mapping: [{ zoneId: 'z1', labelId: 'l1' }],
+    })
     expect(result).toEqual({ success: false, error: 'Could not check answer' })
     expect(consoleSpy).toHaveBeenCalledWith('[checkNonMcAnswer] diagram_label RPC error:', 'boom')
     consoleSpy.mockRestore()
@@ -146,9 +168,11 @@ describe('checkDiagramLabelAnswer', () => {
 
   it('returns a generic failure when the RPC result has an unexpected shape', async () => {
     mockRpc.mockResolvedValue({ data: DIALOG_RPC_RESULT, error: null })
-    const result = await checkDiagramLabelAnswer(FAKE_SUPABASE, QUESTION_ID, SESSION_ID, [
-      { zoneId: 'z1', labelId: 'l1' },
-    ])
+    const result = await checkDiagramLabelAnswer(FAKE_SUPABASE, {
+      questionId: QUESTION_ID,
+      sessionId: SESSION_ID,
+      mapping: [{ zoneId: 'z1', labelId: 'l1' }],
+    })
     expect(result).toEqual({ success: false, error: 'Could not check answer' })
   })
 
@@ -157,9 +181,11 @@ describe('checkDiagramLabelAnswer', () => {
       data: { ...DIAGRAM_RPC_RESULT, correct_mapping: [] },
       error: null,
     })
-    const result = await checkDiagramLabelAnswer(FAKE_SUPABASE, QUESTION_ID, SESSION_ID, [
-      { zoneId: 'z1', labelId: 'l1' },
-    ])
+    const result = await checkDiagramLabelAnswer(FAKE_SUPABASE, {
+      questionId: QUESTION_ID,
+      sessionId: SESSION_ID,
+      mapping: [{ zoneId: 'z1', labelId: 'l1' }],
+    })
     expect(result).toEqual({ success: false, error: 'Could not check answer' })
   })
 })

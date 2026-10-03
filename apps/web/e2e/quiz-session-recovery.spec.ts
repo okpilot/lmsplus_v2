@@ -60,9 +60,11 @@ async function startAndAbandonQuiz(
     await answerBtns.first().click()
     await page.getByRole('button', { name: 'Submit Answer' }).first().click()
 
-    // Wait for the answer to be processed (Next button appears)
+    // Submit stays visible while the check is in flight; it unmounts once feedback is recorded.
+    await expect(page.getByRole('button', { name: 'Submit Answer' })).toHaveCount(0, {
+      timeout: 10_000,
+    })
     const nextBtn = page.getByRole('button', { name: 'Next ›' })
-    await nextBtn.waitFor({ state: 'visible', timeout: 10_000 })
 
     if (i < answerCount - 1) {
       await nextBtn.click()

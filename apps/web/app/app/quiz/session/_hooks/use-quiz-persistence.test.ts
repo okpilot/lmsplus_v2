@@ -13,6 +13,7 @@ vi.mock('../_utils/quiz-session-storage', () => ({
   buildActiveSession: (...args: unknown[]) => mockBuildActiveSession(...args),
 }))
 
+import { _resetSessionTakeover, markTakenOver } from '../_utils/session-takeover'
 import { useQuizPersistence } from './use-quiz-persistence'
 
 const makeOpts = (userId = 'user-1', mode?: QuizStateOpts['mode']): QuizStateOpts => ({
@@ -27,6 +28,7 @@ const makeAnswers = (): Map<string, DraftAnswer> => new Map()
 describe('useQuizPersistence', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    _resetSessionTakeover()
     mockBuildActiveSession.mockReturnValue({ mock: 'session' })
   })
 
@@ -144,5 +146,14 @@ describe('useQuizPersistence', () => {
       0,
       undefined,
     )
+  })
+
+  it('writes no checkpoint once the session was taken over', () => {
+    const { result } = renderHook(() => useQuizPersistence(makeOpts()))
+    markTakenOver('session-1')
+
+    result.current.checkpoint(makeAnswers(), 1)
+
+    expect(mockWriteActiveSession).not.toHaveBeenCalled()
   })
 })

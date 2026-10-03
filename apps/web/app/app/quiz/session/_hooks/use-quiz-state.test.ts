@@ -35,8 +35,14 @@ vi.mock('./quiz-submit', () => ({
 vi.mock('./use-pinned-questions', () => ({
   usePinnedQuestions: () => ({
     pinnedQuestions: new Set<string>(),
-    togglePin: vi.fn(),
+    pinnedRef: { current: new Set<string>() },
+    togglePin: vi.fn(() => new Set<string>()),
   }),
+}))
+
+vi.mock('../../actions/quiz-progress', () => ({
+  saveQuizAnswer: () => Promise.resolve({ success: true }),
+  saveQuizPosition: () => Promise.resolve({ success: true }),
 }))
 
 vi.mock('../../_hooks/use-navigation-guard', () => ({

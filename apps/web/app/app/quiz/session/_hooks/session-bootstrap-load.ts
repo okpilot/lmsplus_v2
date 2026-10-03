@@ -2,11 +2,16 @@ import type { SessionQuestion } from '@/app/app/_types/session'
 import { loadSessionQuestions } from '@/lib/queries/load-session-questions'
 import { loadVfrRtExamQuestions } from '@/lib/queries/load-vfr-rt-exam-questions'
 import { getFlaggedIds } from '../../actions/flag'
-import { readSessionHandoff, type SessionData } from '../_utils/quiz-session-handoff'
+import { claimQuizDeviceBounded } from '../_utils/claim-quiz-device'
+import {
+  clearSessionHandoff,
+  readSessionHandoff,
+  type SessionData,
+} from '../_utils/quiz-session-handoff'
 import { type ActiveSession, toSessionData } from '../_utils/quiz-session-storage'
 
 export type SessionLoadResult =
-  | { success: true; questions: SessionQuestion[]; flaggedIds: string[] }
+  | { success: true; questions: SessionQuestion[]; flaggedIds: string[]; claimError?: string }
   | { success: false; error: string }
 
 // Module-level handoff cache (owned here rather than in use-session-bootstrap so the
@@ -53,7 +58,7 @@ function fetchFlaggedIdsBounded(questionIds: string[]): Promise<string[]> {
 }
 
 /**
- * Loads the session's questions and the student's flagged question ids in parallel.
+ * Loads the session's questions, the student's flagged question ids and the tab's claim.
  *
  * Only the questions fetch decides success/error (and stays unbounded — the
  * questions are required data). The flag fetch is individually caught and
@@ -62,15 +67,17 @@ function fetchFlaggedIdsBounded(questionIds: string[]): Promise<string[]> {
  * block the session. A loadSessionQuestions rejection is mapped to the generic
  * load-failure message here, so this function never rejects.
  *
- * The flag fetch is kicked off BEFORE the questions await, so the success path
- * still overlaps both requests. The questions result is awaited first so a failure
- * returns immediately: loadSessionQuestions RESOLVES `{ success: false }` rather
- * than rejecting, so awaiting both together (Promise.all) would not short-circuit
+ * Next.js dispatches Server Actions one at a time per client, so the requests are
+ * queued, not parallel. The cosmetic flag fetch is started first, then the questions
+ * are awaited; only after they load does the claim start (non-discovery), so a failed
+ * load never claims the session away from the student's other tab. A failure returns
+ * immediately: loadSessionQuestions RESOLVES `{ success: false }` rather than
+ * rejecting, so awaiting everything together (Promise.all) would not short-circuit
  * and would stall a known error behind the flag fetch's full timeout.
  */
 export async function loadSessionData(
   questionIds: string[],
-  source?: Pick<SessionData, 'sessionId' | 'examMode'>,
+  source?: Pick<SessionData, 'sessionId' | 'examMode' | 'mode'>,
 ): Promise<SessionLoadResult> {
   const flagsPromise = fetchFlaggedIdsBounded(questionIds)
   try {
@@ -79,8 +86,14 @@ export async function loadSessionData(
         ? await loadVfrRtExamQuestions({ sessionId: source.sessionId })
         : await loadSessionQuestions(questionIds)
     if (!questionsResult.success) return { success: false, error: questionsResult.error }
+    // Never rejects; Discovery saves nothing, so it never claims.
+    const claimPromise =
+      source && source.mode !== 'discovery'
+        ? claimQuizDeviceBounded(source.sessionId)
+        : Promise.resolve(null)
     const flaggedIds = await flagsPromise
-    return { success: true, questions: questionsResult.questions, flaggedIds }
+    const claimError = (await claimPromise) ?? undefined
+    return { success: true, questions: questionsResult.questions, flaggedIds, claimError }
   } catch {
     return { success: false, error: 'Failed to load questions. Please try again.' }
   }
@@ -93,6 +106,22 @@ type RecoverySetters = {
   setRecovery: (r: ActiveSession | null) => void
   setResumeLoading: (v: boolean) => void
   setResumeError: (e: string | null) => void
+  setClaimError: (e: string | null) => void
+}
+
+function applyRecoverySuccess(
+  r: Extract<SessionLoadResult, { success: true }>,
+  recovery: ActiveSession,
+  set: RecoverySetters,
+) {
+  set.setSession(toSessionData(recovery))
+  set.setFlaggedIds(r.flaggedIds)
+  set.setClaimError(r.claimError ?? null)
+  set.setQuestions(r.questions)
+  set.setResumeLoading(false)
+  // Terminal success: setRecovery(null) unmounts the recovery screen, so the ref
+  // intentionally stays set — a late duplicate trigger can never re-fire (§6).
+  set.setRecovery(null)
 }
 
 /**
@@ -119,13 +148,7 @@ export function buildRecoveryResume(
           inFlightRef.current = false // retryable failure — release the lock
           return
         }
-        set.setSession(toSessionData(recovery))
-        set.setFlaggedIds(r.flaggedIds)
-        set.setQuestions(r.questions)
-        set.setResumeLoading(false)
-        // Terminal success: setRecovery(null) unmounts the recovery screen, so the ref
-        // intentionally stays set — a late duplicate trigger can never re-fire (§6).
-        set.setRecovery(null)
+        applyRecoverySuccess(r, recovery, set)
       })
       .catch(() => {
         // loadSessionData is documented never to reject; this is the §5 error-path
@@ -136,4 +159,22 @@ export function buildRecoveryResume(
         set.setResumeError('Failed to load questions. Please try again.')
       })
   }
+}
+
+/**
+ * Applies a settled initial load: error → setError; success → clears the handoff and seeds
+ * flags, claim error and questions (questions last — the session mounts once they are set).
+ */
+export function applyInitialLoad(
+  r: SessionLoadResult,
+  userId: string,
+  set: Pick<RecoverySetters, 'setFlaggedIds' | 'setQuestions' | 'setClaimError'> & {
+    setError: (e: string) => void
+  },
+) {
+  if (!r.success) return set.setError(r.error)
+  clearSessionHandoff(userId)
+  set.setFlaggedIds(r.flaggedIds)
+  set.setClaimError(r.claimError ?? null)
+  set.setQuestions(r.questions)
 }

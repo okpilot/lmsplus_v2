@@ -2,17 +2,16 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import type { z } from 'zod'
-import { rpc } from '@/lib/supabase-rpc'
 import type { CheckNonMcAnswerResult } from '../types'
-import { checkDiagramLabelAnswer, checkDialogFillAnswer } from './check-non-mc-answer-dispatch'
 import {
-  isOrderingRpcResult,
-  isShortAnswerRpcResult,
-  type OrderingRpcResult,
-  type ShortAnswerRpcResult,
-  verifySessionMembership,
-} from './check-non-mc-answer-helpers'
+  checkDiagramLabelAnswer,
+  checkDialogFillAnswer,
+  checkOrderingAnswer,
+  checkShortAnswer,
+} from './check-non-mc-answer-dispatch'
+import { verifySessionMembership } from './check-non-mc-answer-helpers'
 import { CheckNonMcAnswerSchema } from './check-non-mc-answer-schema'
+import { mapMembershipError, SIGN_IN } from './progress-error-messages'
 
 export async function checkNonMcAnswer(raw: unknown): Promise<CheckNonMcAnswerResult> {
   const supabase = await createServerSupabaseClient()
@@ -20,7 +19,7 @@ export async function checkNonMcAnswer(raw: unknown): Promise<CheckNonMcAnswerRe
     data: { user },
     error: authError,
   } = await supabase.auth.getUser()
-  if (authError || !user) return { success: false, error: 'Not authenticated' }
+  if (authError || !user) return { success: false, error: SIGN_IN }
 
   let parsed: z.infer<typeof CheckNonMcAnswerSchema>
   try {
@@ -35,64 +34,17 @@ export async function checkNonMcAnswer(raw: unknown): Promise<CheckNonMcAnswerRe
   }
   const { questionId, sessionId } = parsed
 
-  const membershipError = await verifySessionMembership(supabase, {
-    sessionId,
-    userId: user.id,
-    questionId,
-  })
-  // #1190 AC3: three of verifySessionMembership's FOUR returns were silent — what made a
-  // discarded-session runner undiagnosable. Logged here because that helper is at 210/200 lines
-  // (§1); `membershipError` (sanitized, never a raw DB message) names which CLASS fired.
-  // Caveats: two of the silent three both emit 'Session not found' (PGRST116 vs the unreachable
-  // null-row floor); and the fourth already logs there, so that fault emits two lines.
-  if (membershipError) {
-    console.error('[checkNonMcAnswer] Membership failed:', membershipError, questionId, sessionId)
-    return { success: false, error: membershipError }
+  const membership = mapMembershipError(
+    await verifySessionMembership(supabase, { sessionId, userId: user.id, questionId }),
+  )
+  if (membership) {
+    // #1190 AC3: names which membership failure class fired; the message is sanitized, never a raw DB one.
+    console.error('[checkNonMcAnswer] Membership failed:', membership.error, questionId, sessionId)
+    return membership
   }
 
-  if ('responseText' in parsed) {
-    const { data, error } = await rpc<ShortAnswerRpcResult>(supabase, 'check_non_mc_answer', {
-      p_question_id: questionId,
-      p_session_id: sessionId,
-      p_response_text: parsed.responseText,
-    })
-    if (error || !isShortAnswerRpcResult(data)) {
-      console.error('[checkNonMcAnswer] short_answer RPC error:', error?.message)
-      return { success: false, error: 'Could not check answer' }
-    }
-    return {
-      success: true,
-      questionType: 'short_answer',
-      isCorrect: data.is_correct,
-      correctAnswer: data.correct_answer,
-      explanationText: data.explanation_text,
-      explanationImageUrl: data.explanation_image_url,
-    }
-  }
-
-  if ('order' in parsed) {
-    const { data, error } = await rpc<OrderingRpcResult>(supabase, 'check_non_mc_answer', {
-      p_question_id: questionId,
-      p_session_id: sessionId,
-      p_order: parsed.order,
-    })
-    if (error || !isOrderingRpcResult(data)) {
-      console.error('[checkNonMcAnswer] ordering RPC error:', error?.message)
-      return { success: false, error: 'Could not check answer' }
-    }
-    return {
-      success: true,
-      questionType: 'ordering',
-      isCorrect: data.is_correct,
-      correctOrder: data.correct_order,
-      explanationText: data.explanation_text,
-      explanationImageUrl: data.explanation_image_url,
-    }
-  }
-
-  if ('mapping' in parsed) {
-    return checkDiagramLabelAnswer(supabase, questionId, sessionId, parsed.mapping)
-  }
-
-  return checkDialogFillAnswer(supabase, questionId, sessionId, parsed.blankAnswers)
+  if ('responseText' in parsed) return checkShortAnswer(supabase, parsed)
+  if ('order' in parsed) return checkOrderingAnswer(supabase, parsed)
+  if ('mapping' in parsed) return checkDiagramLabelAnswer(supabase, parsed)
+  return checkDialogFillAnswer(supabase, parsed)
 }

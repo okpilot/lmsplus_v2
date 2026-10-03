@@ -116,11 +116,13 @@ describe('buildAnswerHandlers — handleSelectAnswer', () => {
 
     await handlers.handleSelectAnswer('opt-b')
 
-    expect(mockCheckAnswer).toHaveBeenCalledWith({
-      questionId: Q_ID,
-      selectedOptionId: 'opt-b',
-      sessionId: SESSION_ID,
-    })
+    expect(mockCheckAnswer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        questionId: Q_ID,
+        selectedOptionId: 'opt-b',
+        sessionId: SESSION_ID,
+      }),
+    )
   })
 
   it('returns multiple-choice feedback for a selected option', async () => {
@@ -175,11 +177,13 @@ describe('buildAnswerHandlers — handleTextAnswer', () => {
 
     await handlers.handleTextAnswer('roger')
 
-    expect(mockCheckNonMcAnswer).toHaveBeenCalledWith({
-      questionId: Q_ID,
-      sessionId: SESSION_ID,
-      responseText: 'roger',
-    })
+    expect(mockCheckNonMcAnswer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        questionId: Q_ID,
+        sessionId: SESSION_ID,
+        responseText: 'roger',
+      }),
+    )
   })
 
   it('returns short-answer feedback after a successful check', async () => {
@@ -207,7 +211,7 @@ describe('buildAnswerHandlers — handleTextAnswer', () => {
   it('throws when checkNonMcAnswer returns success: false', async () => {
     mockCheckNonMcAnswer.mockResolvedValue({ success: false, error: 'Could not check answer' })
     const runAttempt = vi.fn(async (input: AttemptInput): Promise<boolean> => {
-      await expect(input.check(Q_ID)).rejects.toThrow('check failed')
+      await expect(input.check(Q_ID)).rejects.toThrow('Could not check answer')
       return false
     })
     const handlers = buildAnswerHandlers({
@@ -260,11 +264,13 @@ describe('buildAnswerHandlers — handleDialogFillAnswer', () => {
 
     await handlers.handleDialogFillAnswer(BLANK_ANSWERS)
 
-    expect(mockCheckNonMcAnswer).toHaveBeenCalledWith({
-      questionId: Q_ID,
-      sessionId: SESSION_ID,
-      blankAnswers: BLANK_ANSWERS,
-    })
+    expect(mockCheckNonMcAnswer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        questionId: Q_ID,
+        sessionId: SESSION_ID,
+        blankAnswers: BLANK_ANSWERS,
+      }),
+    )
   })
 
   it('returns dialog-fill feedback with per-blank results', async () => {
@@ -291,7 +297,7 @@ describe('buildAnswerHandlers — handleDialogFillAnswer', () => {
   it('throws when checkNonMcAnswer returns success: false', async () => {
     mockCheckNonMcAnswer.mockResolvedValue({ success: false, error: 'Could not check answer' })
     const runAttempt = vi.fn(async (input: AttemptInput): Promise<boolean> => {
-      await expect(input.check(Q_ID)).rejects.toThrow('check failed')
+      await expect(input.check(Q_ID)).rejects.toThrow('Could not check answer')
       return false
     })
     const handlers = buildAnswerHandlers({
@@ -412,11 +418,13 @@ describe('buildAnswerHandlers — handleOrderingAnswer', () => {
 
     await handlers.handleOrderingAnswer(ORDER_PAYLOAD)
 
-    expect(mockCheckNonMcAnswer).toHaveBeenCalledWith({
-      questionId: Q_ID,
-      sessionId: SESSION_ID,
-      order: ORDER_PAYLOAD,
-    })
+    expect(mockCheckNonMcAnswer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        questionId: Q_ID,
+        sessionId: SESSION_ID,
+        order: ORDER_PAYLOAD,
+      }),
+    )
   })
 
   it('returns ordering feedback with the canonical order', async () => {
@@ -444,7 +452,7 @@ describe('buildAnswerHandlers — handleOrderingAnswer', () => {
   it('fails the submission when validation is unsuccessful', async () => {
     mockCheckNonMcAnswer.mockResolvedValue({ success: false, error: 'Could not check answer' })
     const runAttempt = vi.fn(async (input: AttemptInput): Promise<boolean> => {
-      await expect(input.check(Q_ID)).rejects.toThrow('check failed')
+      await expect(input.check(Q_ID)).rejects.toThrow('Could not check answer')
       return false
     })
     const handlers = buildAnswerHandlers({
@@ -493,11 +501,13 @@ describe('buildAnswerHandlers — handleDiagramLabelAnswer', () => {
 
     await handlers.handleDiagramLabelAnswer(MAPPING_PAYLOAD)
 
-    expect(mockCheckNonMcAnswer).toHaveBeenCalledWith({
-      questionId: Q_ID,
-      sessionId: SESSION_ID,
-      mapping: MAPPING_PAYLOAD,
-    })
+    expect(mockCheckNonMcAnswer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        questionId: Q_ID,
+        sessionId: SESSION_ID,
+        mapping: MAPPING_PAYLOAD,
+      }),
+    )
   })
 
   it('returns diagram_label feedback with the canonical mapping', async () => {
@@ -527,7 +537,7 @@ describe('buildAnswerHandlers — handleDiagramLabelAnswer', () => {
   it('fails the submission when validation is unsuccessful', async () => {
     mockCheckNonMcAnswer.mockResolvedValue({ success: false, error: 'Could not check answer' })
     const runAttempt = vi.fn(async (input: AttemptInput): Promise<boolean> => {
-      await expect(input.check(Q_ID)).rejects.toThrow('check failed')
+      await expect(input.check(Q_ID)).rejects.toThrow('Could not check answer')
       return false
     })
     const handlers = buildAnswerHandlers({

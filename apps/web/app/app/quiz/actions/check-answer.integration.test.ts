@@ -297,6 +297,6 @@ describe('checkAnswer (app-layer integration)', () => {
 
     expect(result.success).toBe(false)
     if (result.success) throw new Error('expected failure')
-    expect(result.error).toBe('Not authenticated')
+    expect(result.error).toBe('Your sign-in has expired. Please sign in again.')
   })
 })

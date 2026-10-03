@@ -128,7 +128,10 @@ describe('checkNonMcAnswer', () => {
   it('returns failure when the user is not authenticated', async () => {
     mockGetUser.mockResolvedValue({ data: { user: null } })
     const result = await checkNonMcAnswer(SHORT_INPUT)
-    expect(result).toEqual({ success: false, error: 'Not authenticated' })
+    expect(result).toEqual({
+      success: false,
+      error: 'Your sign-in has expired. Please sign in again.',
+    })
   })
 
   it('rejects a short_answer payload with an empty response text', async () => {
@@ -214,6 +217,8 @@ describe('checkNonMcAnswer', () => {
     expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'check_non_mc_answer', {
       p_question_id: QUESTION_ID,
       p_session_id: SESSION_ID,
+      p_device_id: null,
+      p_time_spent_ms: null,
       p_response_text: 'cleared to land',
     })
   })
@@ -244,6 +249,8 @@ describe('checkNonMcAnswer', () => {
     expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'check_non_mc_answer', {
       p_question_id: QUESTION_ID,
       p_session_id: SESSION_ID,
+      p_device_id: null,
+      p_time_spent_ms: null,
       p_blank_answers: [
         { blank_index: 0, response_text: 'cleared' },
         { blank_index: 1, response_text: 'runway 27' },
@@ -274,6 +281,8 @@ describe('checkNonMcAnswer', () => {
     expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'check_non_mc_answer', {
       p_question_id: QUESTION_ID,
       p_session_id: SESSION_ID,
+      p_device_id: null,
+      p_time_spent_ms: null,
       p_order: ['item-c', 'item-a', 'item-b'],
     })
   })
@@ -311,6 +320,8 @@ describe('checkNonMcAnswer', () => {
     expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'check_non_mc_answer', {
       p_question_id: QUESTION_ID,
       p_session_id: SESSION_ID,
+      p_device_id: null,
+      p_time_spent_ms: null,
       p_mapping: [
         { zone_id: 'z1', label_id: 'l1' },
         { zone_id: 'z2', label_id: 'l2' },

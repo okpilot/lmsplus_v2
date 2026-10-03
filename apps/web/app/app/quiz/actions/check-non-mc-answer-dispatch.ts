@@ -11,27 +11,94 @@ import {
   type DialogFillRpcResult,
   isDiagramRpcResult,
   isDialogFillRpcResult,
+  isOrderingRpcResult,
+  isShortAnswerRpcResult,
+  type OrderingRpcResult,
+  type ShortAnswerRpcResult,
   type SupabaseClient,
   toClientBlanks,
   toRpcBlankAnswers,
 } from './check-non-mc-answer-helpers'
-import type { DiagramMappingEntry } from './diagram-validation'
+import type {
+  DiagramCheckInput,
+  DialogFillCheckInput,
+  OrderingCheckInput,
+  ShortAnswerCheckInput,
+} from './check-non-mc-answer-schema'
+import { mapProgressRpcError } from './progress-error-messages'
 
-/** 4 params: supabase client, question id, session id, blank answers — each a distinct domain role */
+const CHECK_FAILED = 'Could not check answer'
+
+// Args common to every branch; p_device_id / p_time_spent_ms drive the in-RPC progress save.
+function baseArgs(input: {
+  questionId: string
+  sessionId: string
+  deviceId?: string
+  timeSpentMs?: number
+}) {
+  return {
+    p_question_id: input.questionId,
+    p_session_id: input.sessionId,
+    p_device_id: input.deviceId ?? null,
+    p_time_spent_ms: input.timeSpentMs ?? null,
+  }
+}
+
+export async function checkShortAnswer(
+  supabase: SupabaseClient,
+  input: ShortAnswerCheckInput,
+): Promise<CheckNonMcAnswerResult> {
+  const { data, error } = await rpc<ShortAnswerRpcResult>(supabase, 'check_non_mc_answer', {
+    ...baseArgs(input),
+    p_response_text: input.responseText,
+  })
+  if (error || !isShortAnswerRpcResult(data)) {
+    console.error('[checkNonMcAnswer] short_answer RPC error:', error?.message)
+    return { success: false, error: mapProgressRpcError(error?.message, CHECK_FAILED) }
+  }
+  return {
+    success: true,
+    questionType: 'short_answer',
+    isCorrect: data.is_correct,
+    correctAnswer: data.correct_answer,
+    explanationText: data.explanation_text,
+    explanationImageUrl: data.explanation_image_url,
+  }
+}
+
+export async function checkOrderingAnswer(
+  supabase: SupabaseClient,
+  input: OrderingCheckInput,
+): Promise<CheckNonMcAnswerResult> {
+  const { data, error } = await rpc<OrderingRpcResult>(supabase, 'check_non_mc_answer', {
+    ...baseArgs(input),
+    p_order: input.order,
+  })
+  if (error || !isOrderingRpcResult(data)) {
+    console.error('[checkNonMcAnswer] ordering RPC error:', error?.message)
+    return { success: false, error: mapProgressRpcError(error?.message, CHECK_FAILED) }
+  }
+  return {
+    success: true,
+    questionType: 'ordering',
+    isCorrect: data.is_correct,
+    correctOrder: data.correct_order,
+    explanationText: data.explanation_text,
+    explanationImageUrl: data.explanation_image_url,
+  }
+}
+
 export async function checkDialogFillAnswer(
   supabase: SupabaseClient,
-  questionId: string,
-  sessionId: string,
-  blankAnswers: { index: number; text: string }[],
+  input: DialogFillCheckInput,
 ): Promise<CheckNonMcAnswerResult> {
   const { data, error } = await rpc<DialogFillRpcResult>(supabase, 'check_non_mc_answer', {
-    p_question_id: questionId,
-    p_session_id: sessionId,
-    p_blank_answers: toRpcBlankAnswers(blankAnswers),
+    ...baseArgs(input),
+    p_blank_answers: toRpcBlankAnswers(input.blankAnswers),
   })
   if (error || !isDialogFillRpcResult(data)) {
     console.error('[checkNonMcAnswer] dialog_fill RPC error:', error?.message)
-    return { success: false, error: 'Could not check answer' }
+    return { success: false, error: mapProgressRpcError(error?.message, CHECK_FAILED) }
   }
   return {
     success: true,
@@ -43,21 +110,17 @@ export async function checkDialogFillAnswer(
   }
 }
 
-/** 4 params: supabase client, question id, session id, zone/label mapping — each a distinct domain role */
 export async function checkDiagramLabelAnswer(
   supabase: SupabaseClient,
-  questionId: string,
-  sessionId: string,
-  mapping: DiagramMappingEntry[],
+  input: DiagramCheckInput,
 ): Promise<CheckNonMcAnswerResult> {
   const { data, error } = await rpc<DiagramRpcResult>(supabase, 'check_non_mc_answer', {
-    p_question_id: questionId,
-    p_session_id: sessionId,
-    p_mapping: mapping.map((m) => ({ zone_id: m.zoneId, label_id: m.labelId })),
+    ...baseArgs(input),
+    p_mapping: input.mapping.map((m) => ({ zone_id: m.zoneId, label_id: m.labelId })),
   })
   if (error || !isDiagramRpcResult(data)) {
     console.error('[checkNonMcAnswer] diagram_label RPC error:', error?.message)
-    return { success: false, error: 'Could not check answer' }
+    return { success: false, error: mapProgressRpcError(error?.message, CHECK_FAILED) }
   }
   return {
     success: true,

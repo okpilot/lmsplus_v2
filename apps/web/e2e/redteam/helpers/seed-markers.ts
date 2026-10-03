@@ -60,3 +60,5 @@ export const E2E_REDTEAM_SI_MARKER = '[E2E_REDTEAM_SI]'
 export const E2E_REDTEAM_SQ_MARKER = '[E2E_REDTEAM_SQ]'
 // exam-revive spec (Vector GP): written into the fixture mock_exam as `config.e2e_marker`.
 export const E2E_REDTEAM_ER_MARKER = '[E2E_REDTEAM_ER]'
+// quiz-progress Server Action spec (Vectors GQ-GS, #1026 PR 2a): written into fixture quiz_sessions as `config.e2e_marker`.
+export const E2E_REDTEAM_QA_MARKER = '[E2E_REDTEAM_QA]'
