@@ -4,7 +4,8 @@ import { claimQuizSession } from '../../actions/quiz-progress'
 import { getQuizDeviceId } from './quiz-device-id'
 import { announceClaim, clearTakenOver, markTakenOver } from './session-takeover'
 
-// Claiming is a background nicety: if it hangs, the session loads anyway after this window.
+// The session loads anyway after this window. A tab whose claim never lands is kicked on its
+// first write.
 export const CLAIM_TIMEOUT_MS = 3000
 
 type ClaimResult = Awaited<ReturnType<typeof claimQuizSession>>
