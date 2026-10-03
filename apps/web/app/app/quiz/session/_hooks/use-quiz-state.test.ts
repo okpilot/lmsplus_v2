@@ -55,6 +55,7 @@ vi.mock('../../actions/check-answer', () => ({
 
 vi.mock('./use-quiz-persistence', () => ({
   useQuizPersistence: () => ({ checkpoint: mockCheckpoint }),
+  useInitialCheckpoint: () => {},
 }))
 
 // ---- Subject under test ---------------------------------------------------

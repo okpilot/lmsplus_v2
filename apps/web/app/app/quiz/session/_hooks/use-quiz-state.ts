@@ -7,6 +7,7 @@ import { assembleQuizState } from './quiz-state-assembly'
 import { useAnswerPipeline } from './use-answer-pipeline'
 import { useExamPipeline } from './use-exam-state'
 import { useProgressSync } from './use-progress-sync'
+import { useInitialCheckpoint } from './use-quiz-persistence'
 
 export type QuizState = ReturnType<typeof useQuizState>
 
@@ -15,6 +16,7 @@ export function useQuizState(opts: QuizStateOpts) {
   const router = useRouter()
   const sync = useProgressSync(opts)
   const { nav, currentIndexRef } = sync
+  useInitialCheckpoint(opts, currentIndexRef)
   const [studyAnswers, setStudyAnswers] = useState<Map<string, DraftAnswer>>(() =>
     opts.initialAnswers ? new Map(Object.entries(opts.initialAnswers)) : new Map(),
   )
