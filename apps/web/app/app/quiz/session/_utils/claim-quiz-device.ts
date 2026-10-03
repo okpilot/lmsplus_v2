@@ -49,7 +49,7 @@ export function claimQuizDeviceBounded(sessionId: string): Promise<string | null
  * After a takeover error: claims once more unless this tab's own claim already succeeded
  * (then the takeover is genuine). Resolves true when the re-claim succeeded. Never rejects.
  */
-export async function reclaimIfUnowned(sessionId: string): Promise<boolean> {
+async function reclaimIfUnowned(sessionId: string): Promise<boolean> {
   if (!lastClaim || lastClaim.sessionId !== sessionId) return false
   if (await lastClaim.owned) return false
   const owned = startClaim(sessionId).then((r) => r?.success === true)

@@ -66,6 +66,8 @@ export function assembleQuizState(input: AssembleQuizStateInput) {
     navigate: p.navigate,
     togglePin: input.togglePin,
     error: p.error ?? input.saveError ?? null,
+    // The finish dialog reports submit/check failures only, never a background save or claim error.
+    submitError: p.error ?? null,
     isExam: input.isExam,
     examMode: input.examMode,
     submitting: p.submitting,

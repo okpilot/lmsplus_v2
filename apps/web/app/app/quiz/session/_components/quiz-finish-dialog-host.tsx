@@ -33,7 +33,7 @@ export function QuizFinishDialogHost({
       totalQuestions={totalQuestions}
       submitting={s.submitting}
       pendingAction={s.pendingAction}
-      error={s.error}
+      error={s.submitError}
       onSubmit={s.handleSubmit}
       onCancel={() => s.setShowFinishDialog(false)}
       onSave={s.handleSave}
