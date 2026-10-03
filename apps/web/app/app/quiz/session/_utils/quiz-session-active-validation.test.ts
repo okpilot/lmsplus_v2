@@ -14,7 +14,7 @@ const makeSession = (overrides: Partial<ActiveSession> = {}): ActiveSession => (
   userId: USER_ID,
   sessionId: 'sess-001',
   questionIds: ['q1', 'q2'],
-  answers: { q1: { selectedOptionId: 'opt-a', responseTimeMs: 1000 } },
+  answers: { q1: { selectedOptionId: 'a', responseTimeMs: 1000 } },
   currentIndex: 1,
   savedAt: Date.now(),
   ...overrides,

@@ -54,7 +54,7 @@ describe('rowToDraftData — session_config', () => {
 
 describe('rowToDraftData — answers normalization', () => {
   it('preserves a well-formed answers record', () => {
-    const answers = { q1: { selectedOptionId: 'opt-a', responseTimeMs: 4000 } }
+    const answers = { q1: { selectedOptionId: 'a', responseTimeMs: 4000 } }
     const draft = rowToDraftData(buildRow({ answers }))
     expect(draft.answers).toEqual(answers)
   })
@@ -87,7 +87,7 @@ describe('rowToDraftData — answers normalization', () => {
     // Array.isArray is a distinct branch: typeof [] === 'object', so it passes the
     // non-object check; only the isArray guard catches it.
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const draft = rowToDraftData(buildRow({ answers: ['opt-a'] }))
+    const draft = rowToDraftData(buildRow({ answers: ['a'] }))
     expect(draft.answers).toEqual({})
     expect(consoleSpy).toHaveBeenCalledWith(
       '[toDraftAnswerRecord] Malformed answers value on draft',
@@ -101,14 +101,14 @@ describe('rowToDraftData — answers normalization', () => {
     const draft = rowToDraftData(
       buildRow({
         answers: {
-          q1: { selectedOptionId: 'opt-a', responseTimeMs: 4000 },
+          q1: { selectedOptionId: 'a', responseTimeMs: 4000 },
           q2: { responseTimeMs: 4000 }, // missing an answer payload — malformed
         },
       }),
     )
     // The valid answer survives; only the corrupt entry is dropped — a single bad
     // row must not wipe the student's saved work on resume.
-    expect(draft.answers).toEqual({ q1: { selectedOptionId: 'opt-a', responseTimeMs: 4000 } })
+    expect(draft.answers).toEqual({ q1: { selectedOptionId: 'a', responseTimeMs: 4000 } })
     expect(consoleSpy).toHaveBeenCalledWith(
       '[toDraftAnswerRecord] Skipping malformed answer entry on draft',
       'draft-1',
@@ -125,7 +125,7 @@ describe('rowToDraftData — feedback normalization', () => {
         feedback: {
           q1: {
             isCorrect: true,
-            correctOptionId: 'opt-a',
+            correctOptionId: 'a',
             explanationText: 'why',
             explanationImageUrl: null,
           },
@@ -136,7 +136,7 @@ describe('rowToDraftData — feedback normalization', () => {
       q1: {
         questionType: 'multiple_choice',
         isCorrect: true,
-        correctOptionId: 'opt-a',
+        correctOptionId: 'a',
         explanationText: 'why',
         explanationImageUrl: null,
       },

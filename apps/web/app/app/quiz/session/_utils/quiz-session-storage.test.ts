@@ -39,7 +39,7 @@ const makeSession = (overrides?: Partial<ActiveSession>): ActiveSession => ({
   userId: USER_ID,
   sessionId: 'sess-123',
   questionIds: ['q1', 'q2', 'q3'],
-  answers: { q1: { selectedOptionId: 'opt-a', responseTimeMs: 1200 } },
+  answers: { q1: { selectedOptionId: 'a', responseTimeMs: 1200 } },
   currentIndex: 1,
   subjectName: 'Meteorology',
   subjectCode: 'MET',
@@ -294,7 +294,7 @@ describe('writeActiveSession + readActiveSession', () => {
         q1: {
           questionType: 'multiple_choice',
           isCorrect: true,
-          correctOptionId: 'opt-a',
+          correctOptionId: 'a',
           explanationText: 'Because lift.',
           explanationImageUrl: null,
         },
@@ -318,7 +318,7 @@ describe('writeActiveSession + readActiveSession', () => {
       answers: {},
       feedback: {
         q1: {
-          correctOptionId: 'opt-a',
+          correctOptionId: 'a',
           explanationText: null,
           explanationImageUrl: null,
           // isCorrect omitted
@@ -344,7 +344,7 @@ describe('writeActiveSession + readActiveSession', () => {
       feedback: {
         q1: {
           isCorrect: 'yes', // should be boolean
-          correctOptionId: 'opt-a',
+          correctOptionId: 'a',
           explanationText: null,
           explanationImageUrl: null,
         },
@@ -369,7 +369,7 @@ describe('writeActiveSession + readActiveSession', () => {
       feedback: {
         q1: {
           isCorrect: false,
-          correctOptionId: 'opt-b',
+          correctOptionId: 'b',
           explanationText: 42, // should be string or null
           explanationImageUrl: null,
         },
@@ -694,7 +694,7 @@ describe('buildActiveSession', () => {
       subjectCode: 'NAV',
       draftId: 'draft-99',
     }
-    const answers = new Map([['q1', { selectedOptionId: 'opt-b', responseTimeMs: 800 }]])
+    const answers = new Map([['q1', { selectedOptionId: 'b', responseTimeMs: 800 }]])
 
     const result = buildActiveSession(opts, answers, 1)
 
@@ -702,7 +702,7 @@ describe('buildActiveSession', () => {
       userId: USER_ID,
       sessionId: 'sess-xyz',
       questionIds: ['q1', 'q2'],
-      answers: { q1: { selectedOptionId: 'opt-b', responseTimeMs: 800 } },
+      answers: { q1: { selectedOptionId: 'b', responseTimeMs: 800 } },
       currentIndex: 1,
       subjectName: 'Navigation',
       subjectCode: 'NAV',
@@ -740,7 +740,7 @@ describe('buildActiveSession', () => {
         {
           questionType: 'multiple_choice' as const,
           isCorrect: true,
-          correctOptionId: 'opt-a',
+          correctOptionId: 'a',
           explanationText: 'Because lift.',
           explanationImageUrl: null,
         },
@@ -750,7 +750,7 @@ describe('buildActiveSession', () => {
         {
           questionType: 'multiple_choice' as const,
           isCorrect: false,
-          correctOptionId: 'opt-b',
+          correctOptionId: 'b',
           explanationText: null,
           explanationImageUrl: null,
         },
@@ -763,14 +763,14 @@ describe('buildActiveSession', () => {
       q1: {
         questionType: 'multiple_choice',
         isCorrect: true,
-        correctOptionId: 'opt-a',
+        correctOptionId: 'a',
         explanationText: 'Because lift.',
         explanationImageUrl: null,
       },
       q2: {
         questionType: 'multiple_choice',
         isCorrect: false,
-        correctOptionId: 'opt-b',
+        correctOptionId: 'b',
         explanationText: null,
         explanationImageUrl: null,
       },
