@@ -15,7 +15,8 @@
         "blocks a production target reached through an exempt directory via ..",
         "blocks a production file whose path contains apps/web/e2e/ below another directory",
         "blocks a production file inside a .claude/worktrees/ checkout when the gate is armed",
-        "still blocks on a corrupt gate state file"
+        "still blocks on a corrupt gate state file",
+        "blocks an armed production edit when the session cwd is a subdirectory"
       ],
       "note": "Forces the block helper to exit 0 instead of 2 — the reason is printed but the edit is no longer blocked."
     },
@@ -42,7 +43,10 @@
       "id": "review-gate-no-unlock",
       "find": "state.branches[branch].unlocked = true",
       "replace": "state.branches[branch].unlocked = false",
-      "expectRed": ["unlocks the branch when plan-critic is dispatched after a round"],
+      "expectRed": [
+        "unlocks the branch when plan-critic is dispatched after a round",
+        "unlocks after plan-critic when the state file was unreadable"
+      ],
       "note": "A plan-critic dispatch leaves the branch armed."
     },
     {
@@ -58,7 +62,8 @@
       "replace": "if (false) process.exit(0)",
       "expectRed": [
         "unlocks the branch when plan-critic is dispatched after a round",
-        "allows a production edit when the branch is unlocked"
+        "allows a production edit when the branch is unlocked",
+        "unlocks after plan-critic when the state file was unreadable"
       ],
       "note": "The edit check no longer honours unlocked: true."
     },
