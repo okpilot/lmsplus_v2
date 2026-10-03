@@ -216,6 +216,9 @@
 | GN | resume_saved_quiz-during-active-exam | HIGH | rpc-saved-quiz.spec.ts | BLOCKED |  | answer-oracle |
 | GO | saved-quiz-rpcs-foreign-session | HIGH | rpc-saved-quiz.spec.ts | BLOCKED |  | idor |
 | GP | quiz_sessions-discarded-exam-direct-revive-oracle | HIGH | quiz-session-exam-revive.spec.ts | BLOCKED |  | soft-delete-bypass |
+| GQ | quiz-progress-server-actions-foreign-session | HIGH | server-action-quiz-progress.spec.ts | BLOCKED |  | idor |
+| GR | checkAnswer-omitted-deviceId-after-takeover | MEDIUM | server-action-quiz-progress.spec.ts | BLOCKED |  | auth-bypass |
+| GS | claim_quiz_session-parallel-claims-single-writer | MEDIUM | server-action-quiz-progress.spec.ts | BLOCKED |  | race |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
