@@ -16,7 +16,10 @@
         "blocks a production file whose path contains apps/web/e2e/ below another directory",
         "blocks a production file inside a .claude/worktrees/ checkout when the gate is armed",
         "still blocks on a corrupt gate state file",
-        "blocks an armed production edit when the session cwd is a subdirectory"
+        "blocks an armed production edit when the session cwd is a subdirectory",
+        "blocks an armed production edit inside an agent worktree on its own branch",
+        "allows a root .coderabbit.yaml edit but blocks a nested one while armed",
+        "blocks an armed edit when the hook runs from an agent worktree copy"
       ],
       "note": "Forces the block helper to exit 0 instead of 2 — the reason is printed but the edit is no longer blocked."
     },
@@ -53,7 +56,10 @@
       "id": "review-gate-ignores-branch",
       "find": "const entry = state.branches[branch]",
       "replace": "const entry = Object.values(state.branches)[0]",
-      "expectRed": ["allows a production edit when the armed entry belongs to another branch"],
+      "expectRed": [
+        "allows a production edit when the armed entry belongs to another branch",
+        "allows an edit inside a human worktree whose branch is not under review"
+      ],
       "note": "The edit check reads the first entry of any branch instead of the current branch's."
     },
     {
@@ -94,7 +100,9 @@
       "replace": "filePath.includes(path.sep + dir + path.sep)",
       "expectRed": [
         "blocks a production file whose path contains apps/web/e2e/ below another directory",
-        "blocks a production file inside a .claude/worktrees/ checkout when the gate is armed"
+        "blocks a production file inside a .claude/worktrees/ checkout when the gate is armed",
+        "blocks an armed production edit inside an agent worktree on its own branch",
+        "blocks an armed edit when the hook runs from an agent worktree copy"
       ],
       "note": "Matches an exempt directory anywhere in the path instead of under its checkout root — <root>/vendor/apps/web/e2e/x.ts, and any worktree file under .claude/, is let through."
     },
@@ -103,7 +111,9 @@
       "find": "  if (!filePath.startsWith(WORKTREES_DIR)) return REPO_ROOT\n",
       "replace": "  return REPO_ROOT\n",
       "expectRed": [
-        "blocks a production file inside a .claude/worktrees/ checkout when the gate is armed"
+        "blocks a production file inside a .claude/worktrees/ checkout when the gate is armed",
+        "blocks an armed production edit inside an agent worktree on its own branch",
+        "blocks an armed edit when the hook runs from an agent worktree copy"
       ],
       "note": "Drops the worktree carve-out — a production file inside .claude/worktrees/ passes as an exempt .claude path."
     },
@@ -129,6 +139,44 @@
       "replace": "const GATE_FILE = path.join(process.cwd(), '.claude', 'review-gate.json')",
       "expectRed": ["blocks an armed production edit when the session cwd is a subdirectory"],
       "note": "The gate state is read from the session cwd — an edit after a Bash cd into a subdirectory finds no state and passes."
+    },
+    {
+      "id": "review-gate-agent-worktree-own-branch",
+      "find": "return path.basename(root).startsWith('agent-') ? REPO_ROOT : root",
+      "replace": "return root",
+      "expectRed": [
+        "blocks an armed production edit inside an agent worktree on its own branch",
+        "blocks an armed edit when the hook runs from an agent worktree copy"
+      ],
+      "note": "An agent worktree is gated by its own throwaway branch, which has no entry — the edit passes."
+    },
+    {
+      "id": "review-gate-all-worktrees-main-branch",
+      "find": "return path.basename(root).startsWith('agent-') ? REPO_ROOT : root",
+      "replace": "return REPO_ROOT",
+      "expectRed": ["allows an edit inside a human worktree whose branch is not under review"],
+      "note": "Every worktree is gated by the main checkout's branch — a human worktree on an unreviewed branch is blocked."
+    },
+    {
+      "id": "review-gate-coderabbit-not-exempt",
+      "find": "const EXEMPT_FILES = ['.coderabbit.yaml']",
+      "replace": "const EXEMPT_FILES = []",
+      "expectRed": ["allows a root .coderabbit.yaml edit but blocks a nested one while armed"],
+      "note": "No file exemption — the .coderabbit.yaml edit coderabbit-sync requires is blocked while armed."
+    },
+    {
+      "id": "review-gate-exempt-files-unanchored",
+      "find": "filePath === path.join(checkoutRoot(filePath), f)",
+      "replace": "filePath.endsWith(path.sep + f)",
+      "expectRed": ["allows a root .coderabbit.yaml edit but blocks a nested one while armed"],
+      "note": "Matches an exempt file name anywhere — a nested vendor/.coderabbit.yaml passes."
+    },
+    {
+      "id": "review-gate-root-from-dirname",
+      "find": "process.env.REVIEW_GATE_ROOT || mainCheckoutRoot()",
+      "replace": "process.env.REVIEW_GATE_ROOT || path.join(__dirname, '..', '..')",
+      "expectRed": ["blocks an armed edit when the hook runs from an agent worktree copy"],
+      "note": "The root comes from the hook's own location — a worktree copy of the hook looks for state in the worktree and finds none."
     }
   ]
 }

@@ -5,7 +5,15 @@
 // input contract and gate-state behaviour, not just the pattern matching.
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
@@ -403,6 +411,78 @@ test('blocks an armed production edit when the session cwd is a subdirectory', (
     const env = { ...process.env, REVIEW_GATE_ROOT: dir }
     const input = payload(path.join(dir, 'apps', 'web', 'lib', 'foo.ts'))
     const r = runNode('review-gate.js', [HOOK], { input, cwd: sub, timeout: TIMEOUT_MS, env })
+    assert.equal(r.status, 2)
+  } finally {
+    cleanup(dir)
+  }
+})
+
+// --- Worktrees and exempt files ---
+
+/** `git` in the temp repo `dir`, with a throwaway identity. */
+const gitIn = (dir, ...args) =>
+  execFileSync('git', ['-C', dir, '-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {
+    stdio: 'ignore',
+  })
+
+/** Add a worktree `name` under .claude/worktrees/ on a new branch; returns its path. */
+function addWorktree(dir, name, branch) {
+  const wt = path.join(dir, '.claude', 'worktrees', name)
+  gitIn(dir, 'worktree', 'add', '-q', '-b', branch, wt)
+  return wt
+}
+
+// GROUP: review-gate-agent-worktree-own-branch, review-gate-always-passes, review-gate-worktrees-exempt, review-gate-exempt-dirs-unanchored
+test('blocks an armed production edit inside an agent worktree on its own branch', () => {
+  const dir = makeDir()
+  try {
+    withState(dir, { [BRANCH]: false })
+    const wt = addWorktree(dir, 'agent-x', 'worktree-agent-x')
+    assert.equal(runHook(payload(path.join(wt, 'src', 'a.ts')), dir).status, 2)
+  } finally {
+    cleanup(dir)
+  }
+})
+
+// GROUP: review-gate-all-worktrees-main-branch, review-gate-ignores-branch
+test('allows an edit inside a human worktree whose branch is not under review', () => {
+  const dir = makeDir()
+  try {
+    withState(dir, { [BRANCH]: false })
+    const wt = addWorktree(dir, 'human', 'feat/other')
+    assert.equal(runHook(payload(path.join(wt, 'src', 'a.ts')), dir).status, 0)
+  } finally {
+    cleanup(dir)
+  }
+})
+
+// GROUP: review-gate-coderabbit-not-exempt, review-gate-exempt-files-unanchored, review-gate-always-passes
+test('allows a root .coderabbit.yaml edit but blocks a nested one while armed', () => {
+  const dir = makeDir()
+  try {
+    withState(dir, { [BRANCH]: false })
+    assert.equal(runHook(payload(path.join(dir, '.coderabbit.yaml')), dir).status, 0)
+    assert.equal(runHook(payload(path.join(dir, 'vendor', '.coderabbit.yaml')), dir).status, 2)
+  } finally {
+    cleanup(dir)
+  }
+})
+
+// GROUP: review-gate-root-from-dirname, review-gate-agent-worktree-own-branch, review-gate-always-passes, review-gate-worktrees-exempt, review-gate-exempt-dirs-unanchored
+test('blocks an armed edit when the hook runs from an agent worktree copy', () => {
+  const dir = makeDir()
+  try {
+    mkdirSync(path.join(dir, '.claude', 'hooks'))
+    copyFileSync(HOOK, path.join(dir, '.claude', 'hooks', 'review-gate.js'))
+    gitIn(dir, 'add', '.claude/pipeline.json', '.claude/hooks/review-gate.js')
+    gitIn(dir, 'commit', '-q', '-m', 'hook')
+    withState(dir, { [BRANCH]: false })
+    const wt = addWorktree(dir, 'agent-x', 'worktree-agent-x')
+    const env = { ...process.env }
+    delete env.REVIEW_GATE_ROOT
+    const copy = path.join(wt, '.claude', 'hooks', 'review-gate.js')
+    const input = payload(path.join(wt, 'src', 'a.ts'))
+    const r = runNode('review-gate.js', [copy], { input, cwd: dir, timeout: TIMEOUT_MS, env })
     assert.equal(r.status, 2)
   } finally {
     cleanup(dir)

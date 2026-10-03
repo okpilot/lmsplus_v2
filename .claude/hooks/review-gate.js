@@ -7,25 +7,48 @@
 //   PreToolUse Edit|Write blocks (exit 2) a production path while the branch is armed.
 //
 // State .claude/review-gate.json (gitignored): { "branches": { "<name>": { "unlocked": <bool> } } }
+// Edits under `.claude/worktrees/agent-*` are gated by the main checkout's branch entry.
+// `.coderabbit.yaml` at a checkout root is exempt, like `.claude/` and `docs/`.
 // Roles come from .claude/pipeline.json `agents.<type>.role`. Bash redirects bypass the gate.
 
 const { execFileSync } = require('node:child_process')
 const fs = require('node:fs')
 const path = require('node:path')
 
+/** Main checkout root, found through git's common dir so a worktree copy of this hook resolves it too. */
+function mainCheckoutRoot() {
+  try {
+    const gitDir = execFileSync(
+      'git',
+      ['-C', __dirname, 'rev-parse', '--path-format=absolute', '--git-common-dir'],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
+    ).trim()
+    return path.dirname(gitDir)
+  } catch {
+    return path.join(__dirname, '..', '..')
+  }
+}
+
 /** `REVIEW_GATE_ROOT` points the test suite at a fixture pipeline.json. */
 // biome-ignore lint/suspicious/noUndeclaredEnvVars: not a Turborepo task — runs outside turbo.
-const REPO_ROOT = process.env.REVIEW_GATE_ROOT || path.join(__dirname, '..', '..')
+const REPO_ROOT = process.env.REVIEW_GATE_ROOT || mainCheckoutRoot()
 const PIPELINE_PATH = path.join(REPO_ROOT, '.claude', 'pipeline.json')
 const ARMING_ROLES = new Set(['gate-round', 'conditional'])
 const GATE_FILE = path.join(REPO_ROOT, '.claude', 'review-gate.json')
 const EXEMPT_DIRS = ['.claude', 'docs', path.join('apps', 'web', 'e2e')]
+const EXEMPT_FILES = ['.coderabbit.yaml']
 const WORKTREES_DIR = path.resolve(REPO_ROOT, '.claude', 'worktrees') + path.sep
 
 /** The checkout holding `filePath`: its worktree under .claude/worktrees/, else the main tree. */
 function checkoutRoot(filePath) {
   if (!filePath.startsWith(WORKTREES_DIR)) return REPO_ROOT
   return WORKTREES_DIR + filePath.slice(WORKTREES_DIR.length).split(path.sep)[0]
+}
+
+/** Checkout whose branch gates `filePath`: an agent worktree answers to the main checkout. */
+function gateBranchRoot(filePath) {
+  const root = checkoutRoot(filePath)
+  return path.basename(root).startsWith('agent-') ? REPO_ROOT : root
 }
 
 /** True when `filePath` sits in an exempt directory of its own checkout. */
@@ -109,6 +132,7 @@ function onEdit(filePath) {
   filePath = path.resolve(filePath)
 
   if (!filePath.startsWith(REPO_ROOT + path.sep)) process.exit(0)
+  if (EXEMPT_FILES.some((f) => filePath === path.join(checkoutRoot(filePath), f))) process.exit(0)
   if (filePath.includes('.test.') || inExemptDir(filePath) || filePath.endsWith('.md')) {
     process.exit(0)
   }
@@ -119,7 +143,7 @@ function onEdit(filePath) {
   } catch {
     block('production edit while the review gate state is unreadable.')
   }
-  const branch = readBranch(checkoutRoot(filePath))
+  const branch = readBranch(gateBranchRoot(filePath))
   if (!branch) block('production edit while the branch cannot be read.')
   const entry = state.branches[branch]
   if (!entry) process.exit(0)
