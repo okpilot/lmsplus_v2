@@ -96,7 +96,7 @@ describe('fireProgressSave', () => {
   it('routes an answer save to saveQuizAnswer and reports success', async () => {
     mockSaveAnswer.mockResolvedValue({ success: true })
     const h = handlers()
-    fireProgressSave({ kind: 'answer', input: { a: 1 }, ...h })
+    fireProgressSave({ kind: 'answer', sessionId: 's', input: { a: 1 }, ...h })
     await settle()
     expect(mockSaveAnswer).toHaveBeenCalledWith({ a: 1 })
     expect(h.onSuccess).toHaveBeenCalledTimes(1)
@@ -104,7 +104,7 @@ describe('fireProgressSave', () => {
 
   it('routes a position save to saveQuizPosition', async () => {
     mockSavePosition.mockResolvedValue({ success: true })
-    fireProgressSave({ kind: 'position', input: { p: 1 }, ...handlers() })
+    fireProgressSave({ kind: 'position', sessionId: 's', input: { p: 1 }, ...handlers() })
     await settle()
     expect(mockSavePosition).toHaveBeenCalledWith({ p: 1 })
     expect(mockSaveAnswer).not.toHaveBeenCalled()
@@ -113,7 +113,7 @@ describe('fireProgressSave', () => {
   it('shows mapped failure copy to the student', async () => {
     mockSavePosition.mockResolvedValue({ success: false, error: MAPPED })
     const h = handlers()
-    fireProgressSave({ kind: 'position', input: {}, ...h })
+    fireProgressSave({ kind: 'position', sessionId: 's', input: {}, ...h })
     await settle()
     expect(h.onMappedError).toHaveBeenCalledWith(MAPPED)
   })
@@ -122,7 +122,7 @@ describe('fireProgressSave', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     mockSavePosition.mockResolvedValue({ success: false, error: 'Could not save progress' })
     const h = handlers()
-    fireProgressSave({ kind: 'position', input: {}, ...h })
+    fireProgressSave({ kind: 'position', sessionId: 's', input: {}, ...h })
     await settle()
     expect(h.onMappedError).not.toHaveBeenCalled()
     expect(warn).toHaveBeenCalled()
@@ -132,7 +132,7 @@ describe('fireProgressSave', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     mockSaveAnswer.mockRejectedValue(new Error('offline'))
     const h = handlers()
-    fireProgressSave({ kind: 'answer', input: {}, ...h })
+    fireProgressSave({ kind: 'answer', sessionId: 's', input: {}, ...h })
     await settle()
     expect(h.onMappedError).not.toHaveBeenCalled()
     expect(warn).toHaveBeenCalled()
@@ -143,6 +143,8 @@ describe('fireProgressSave', () => {
     mockSaveAnswer.mockImplementation(() => {
       throw new Error('boom')
     })
-    expect(() => fireProgressSave({ kind: 'answer', input: {}, ...handlers() })).not.toThrow()
+    expect(() =>
+      fireProgressSave({ kind: 'answer', sessionId: 's', input: {}, ...handlers() }),
+    ).not.toThrow()
   })
 })

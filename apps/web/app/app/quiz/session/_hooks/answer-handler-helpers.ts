@@ -2,6 +2,7 @@ import { checkAnswer } from '../../actions/check-answer'
 import { checkNonMcAnswer } from '../../actions/check-non-mc-answer'
 import { isDisplayableProgressError } from '../../actions/progress-error-messages'
 import type { AnswerFeedback, CheckNonMcAnswerResult, DraftAnswer } from '../../types'
+import { withClaimRetry } from '../_utils/claim-quiz-device'
 import { clampTimeSpent } from '../_utils/progress-save'
 import { getQuizDeviceId } from '../_utils/quiz-device-id'
 
@@ -59,11 +60,13 @@ function attemptSelect(deps: HandlerDeps, optionId: string): Promise<boolean> {
   return deps.runAttempt({
     draft: { selectedOptionId: optionId, responseTimeMs },
     check: async (questionId) => {
-      const r = await checkAnswer({
-        questionId,
-        selectedOptionId: optionId,
-        ...progressMeta(deps.sessionId, responseTimeMs),
-      })
+      const r = await withClaimRetry(deps.sessionId, () =>
+        checkAnswer({
+          questionId,
+          selectedOptionId: optionId,
+          ...progressMeta(deps.sessionId, responseTimeMs),
+        }),
+      )
       if (!r.success) throw new Error(r.error)
       // Strip the server-action success flag so it doesn't leak into the
       // persisted AnswerFeedback (which carries no `success` field).
@@ -86,11 +89,13 @@ function attemptNonMc(deps: HandlerDeps, attempt: NonMcAttempt): Promise<boolean
     check: (questionId) =>
       checkNonMc(
         attempt.questionType,
-        checkNonMcAnswer({
-          questionId,
-          ...progressMeta(deps.sessionId, responseTimeMs),
-          ...attempt.answer,
-        }),
+        withClaimRetry(deps.sessionId, () =>
+          checkNonMcAnswer({
+            questionId,
+            ...progressMeta(deps.sessionId, responseTimeMs),
+            ...attempt.answer,
+          }),
+        ),
       ),
   })
 }

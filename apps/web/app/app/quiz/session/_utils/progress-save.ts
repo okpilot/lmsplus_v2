@@ -2,6 +2,7 @@ import { isDisplayableProgressError } from '../../actions/progress-error-message
 import { saveQuizAnswer, saveQuizPosition } from '../../actions/quiz-progress'
 import type { ProgressResult } from '../../actions/quiz-progress-helpers'
 import type { DraftAnswer } from '../../types'
+import { withClaimRetry } from './claim-quiz-device'
 
 const MAX_TIME_SPENT_MS = 86_400_000
 
@@ -74,6 +75,7 @@ type SaveKind = 'answer' | 'position'
  */
 export function fireProgressSave(opts: {
   kind: SaveKind
+  sessionId: string
   input: unknown
   onSuccess: () => void
   onMappedError: (message: string) => void
@@ -81,7 +83,7 @@ export function fireProgressSave(opts: {
   const save = opts.kind === 'answer' ? saveQuizAnswer : saveQuizPosition
   let pending: Promise<ProgressResult>
   try {
-    pending = save(opts.input)
+    pending = withClaimRetry(opts.sessionId, () => save(opts.input))
   } catch (err) {
     console.warn(`[progress-save] ${opts.kind} save failed (best-effort):`, err)
     return

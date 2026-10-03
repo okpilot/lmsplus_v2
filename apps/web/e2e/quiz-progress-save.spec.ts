@@ -27,6 +27,24 @@ async function startStudyQuiz(page: Page): Promise<number> {
   return total
 }
 
+// Submit stays visible while the check is in flight; it unmounts once feedback is recorded.
+async function waitForFeedback(page: Page): Promise<void> {
+  await expect(page.getByRole('button', { name: 'Submit Answer' })).toHaveCount(0, {
+    timeout: 10_000,
+  })
+}
+
+async function savedLocalAnswerCount(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const key = Object.keys(localStorage).find((k) => k.startsWith('quiz-active-session:'))
+    if (!key) return -1
+    const parsed: unknown = JSON.parse(localStorage.getItem(key) ?? 'null')
+    if (typeof parsed !== 'object' || parsed === null || !('answers' in parsed)) return -1
+    const answers = (parsed as { answers: unknown }).answers
+    return typeof answers === 'object' && answers !== null ? Object.keys(answers).length : -1
+  })
+}
+
 async function readServerProgress(): Promise<ProgressSnapshot | null> {
   const admin = getAdminClient()
   const { data: student, error: studentError } = await admin
@@ -78,8 +96,8 @@ test.describe('Quiz progress saved to the server', () => {
     await answerBtns.first().waitFor({ state: 'visible' })
     await answerBtns.first().click()
     await page.getByRole('button', { name: 'Submit Answer' }).first().click()
+    await waitForFeedback(page)
     const next = page.getByRole('button', { name: 'Next ›' })
-    await next.waitFor({ state: 'visible', timeout: 10_000 })
 
     // In progress: the answer reaches quiz_session_progress without any explicit save.
     await expect
@@ -92,17 +110,15 @@ test.describe('Quiz progress saved to the server', () => {
       .poll(async () => (await readServerProgress())?.currentIndex, { timeout: 10_000 })
       .toBe(1)
 
-    // Reload mid-flow: server progress is intact and the app resumes via the recovery banner.
+    // Reload mid-flow: server progress is intact and Resume returns to the saved question.
     await page.reload()
-    await expect(page).toHaveURL(/\/app\/quiz(\/session)?$/)
-    const after = await readServerProgress()
-    expect(after).toEqual({ currentIndex: 1, answeredCount: 1 })
-
-    // Exit: discarding the session ends the active row; nothing stays active server-side.
-    await page.goto('/app/quiz')
-    await expect(page).toHaveURL(/\/app\/quiz$/)
-    await cleanupStudentActiveSessions(TEST_EMAIL)
-    expect(await readServerProgress()).toBeNull()
+    await expect(page).toHaveURL(/\/app\/quiz\/session$/)
+    await expect(page.getByRole('heading', { name: 'Resume your quiz?' })).toBeVisible({
+      timeout: 10_000,
+    })
+    await page.getByRole('button', { name: 'Resume' }).click()
+    await expect(page.getByText(`Question 2 of ${total}`)).toBeVisible({ timeout: 10_000 })
+    expect(await readServerProgress()).toEqual({ currentIndex: 1, answeredCount: 1 })
   })
 
   test('a second tab taking over the session shows the taken-over message on the first tab', async ({
@@ -114,8 +130,8 @@ test.describe('Quiz progress saved to the server', () => {
     await firstAnswers.first().waitFor({ state: 'visible' })
     await firstAnswers.first().click()
     await page.getByRole('button', { name: 'Submit Answer' }).first().click()
+    await waitForFeedback(page)
     const next = page.getByRole('button', { name: 'Next ›' })
-    await next.waitFor({ state: 'visible', timeout: 10_000 })
     await next.click()
     await expect(page.getByText(`Question 2 of ${total}`)).toBeVisible()
 
@@ -137,6 +153,8 @@ test.describe('Quiz progress saved to the server', () => {
     await expect(page.getByText(/open in another tab or device/i)).toBeVisible({
       timeout: 10_000,
     })
+    // The rejected answer is not left in the local copy a later resume reads.
+    expect(await savedLocalAnswerCount(page)).toBe(1)
     await second.close()
   })
 })

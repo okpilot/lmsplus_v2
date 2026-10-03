@@ -20,6 +20,7 @@ export function sendPositionSave(opts: PositionSaveOpts): void {
   const { leaving } = opts
   fireProgressSave({
     kind: 'position',
+    sessionId: opts.sessionId,
     input: buildPositionInput({
       sessionId: opts.sessionId,
       deviceId: getQuizDeviceId(),
@@ -54,6 +55,7 @@ export function sendAnswerSave(opts: AnswerSaveOpts): void {
   if (!input) return
   fireProgressSave({
     kind: 'answer',
+    sessionId: opts.sessionId,
     input,
     onSuccess: opts.onSuccess,
     onMappedError: opts.onMappedError,
