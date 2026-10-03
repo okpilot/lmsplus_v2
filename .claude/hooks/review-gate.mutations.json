@@ -1,34 +1,80 @@
 {
-  "_": "Planted red/green controls linked by GROUP marker to the two spawned tests that already drove the guard's exit code before this file existed.",
+  "_": "Planted red/green controls linked by GROUP marker to the spawned tests that drive the guard's exit code.",
   "target": ".claude/hooks/review-gate.js",
   "suites": [".claude/hooks/review-gate.test.mjs"],
   "mutations": [
     {
       "id": "review-gate-always-passes",
-      "find": "then delete .claude/review-gate.json to unlock edits.\\n`,\n  )\n  process.exit(2)",
-      "replace": "then delete .claude/review-gate.json to unlock edits.\\n`,\n  )\n  process.exit(0)",
+      "find": "  process.exit(2)\n}",
+      "replace": "  process.exit(0)\n}",
       "expectRed": [
-        "blocks a production file edit and surfaces findings when the gate is active",
-        "still blocks on a corrupt gate file, substituting a parse-error message",
+        "blocks a production edit after a review round until plan-critic is dispatched",
+        "arms the branch when a gate-round agent is dispatched",
+        "arms the branch when a conditional agent is dispatched",
+        "arms the branch again when the next round dispatches a reviewer",
         "blocks a production target reached through an exempt directory via ..",
-        "blocks a production file outside the repo root whose path contains apps/web/e2e/",
-        "blocks a production file inside a .claude/worktrees/ checkout when the gate is active"
+        "blocks a production file whose path contains apps/web/e2e/ below another directory",
+        "blocks a production file inside a .claude/worktrees/ checkout when the gate is armed",
+        "still blocks on a corrupt gate state file"
       ],
-      "note": "Forces the active-gate branch to exit 0 instead of 2 — findings are printed but the edit is no longer blocked. Reddens the corrupt-gate-file test too: it falls through to the same blocking branch once its own JSON.parse catch substitutes the parse-error message."
+      "note": "Forces the block helper to exit 0 instead of 2 — the reason is printed but the edit is no longer blocked."
     },
     {
       "id": "review-gate-always-blocks",
-      "find": "  // No gate file = no restrictions\n  if (!fs.existsSync(GATE_FILE)) {\n    process.exit(0)\n  }",
-      "replace": "  // No gate file = no restrictions\n  if (false) {\n    process.exit(0)\n  }",
-      "expectRed": ["allows any edit when no gate file is present"],
-      "note": "Removes the early no-gate-file return — the hook falls through to the blocking path, whose own catch turns a missing gate file into '(could not parse gate file)' and still blocks."
+      "find": "  if (!fs.existsSync(GATE_FILE)) process.exit(0)\n\n  // Collapse",
+      "replace": "  if (false) process.exit(0)\n\n  // Collapse",
+      "expectRed": ["allows any edit when no gate state exists"],
+      "note": "Removes the early no-state-file return — the hook falls through to loadState, whose read of the missing file throws and blocks."
+    },
+    {
+      "id": "review-gate-no-arm",
+      "find": "state.branches[branch] = { unlocked: false }",
+      "replace": "state.branches[branch] = { unlocked: true }",
+      "expectRed": [
+        "arms the branch when a gate-round agent is dispatched",
+        "arms the branch when a conditional agent is dispatched",
+        "arms the branch again when the next round dispatches a reviewer",
+        "keeps the other branches entries when a dispatch arms the current branch"
+      ],
+      "note": "A gate-round or conditional dispatch writes an unlocked entry — the round never arms the branch."
+    },
+    {
+      "id": "review-gate-no-unlock",
+      "find": "state.branches[branch].unlocked = true",
+      "replace": "state.branches[branch].unlocked = false",
+      "expectRed": ["unlocks the branch when plan-critic is dispatched after a round"],
+      "note": "A plan-critic dispatch leaves the branch armed."
+    },
+    {
+      "id": "review-gate-ignores-branch",
+      "find": "const entry = state.branches[branch]",
+      "replace": "const entry = Object.values(state.branches)[0]",
+      "expectRed": ["allows a production edit when the armed entry belongs to another branch"],
+      "note": "The edit check reads the first entry of any branch instead of the current branch's."
+    },
+    {
+      "id": "review-gate-unlock-ignored",
+      "find": "if (entry.unlocked === true) process.exit(0)",
+      "replace": "if (false) process.exit(0)",
+      "expectRed": [
+        "unlocks the branch when plan-critic is dispatched after a round",
+        "allows a production edit when the branch is unlocked"
+      ],
+      "note": "The edit check no longer honours unlocked: true."
+    },
+    {
+      "id": "review-gate-outside-repo-blocked",
+      "find": "if (!filePath.startsWith(process.cwd() + path.sep)) process.exit(0)",
+      "replace": "if (false) process.exit(0)",
+      "expectRed": ["allows a production file outside the repo root when the gate is armed"],
+      "note": "A path outside the repo root (a scratch clone) is checked like a production file."
     },
     {
       "id": "review-gate-e2e-always-blocks",
       "find": "const EXEMPT_DIRS = ['.claude', 'docs', path.join('apps', 'web', 'e2e')]",
       "replace": "const EXEMPT_DIRS = ['.claude', 'docs']",
-      "expectRed": ["allows a spec.ts edit under apps/web/e2e/ even when the gate is active"],
-      "note": "Removes the apps/web/e2e/ allowance — a spec edit under apps/web/e2e/ is blocked again while the gate is active, even though e2e-writer/red-team need to write there."
+      "expectRed": ["allows a spec.ts edit under apps/web/e2e/ even when the gate is armed"],
+      "note": "Removes the apps/web/e2e/ allowance — a spec edit under apps/web/e2e/ is blocked again while the gate is armed, even though e2e-writer/red-team need to write there."
     },
     {
       "id": "review-gate-no-path-normalization",
@@ -42,17 +88,17 @@
       "find": "filePath.startsWith(path.resolve(root, dir) + path.sep)",
       "replace": "filePath.includes(path.sep + dir + path.sep)",
       "expectRed": [
-        "blocks a production file outside the repo root whose path contains apps/web/e2e/",
-        "blocks a production file inside a .claude/worktrees/ checkout when the gate is active"
+        "blocks a production file whose path contains apps/web/e2e/ below another directory",
+        "blocks a production file inside a .claude/worktrees/ checkout when the gate is armed"
       ],
-      "note": "Matches an exempt directory anywhere in the path instead of under its checkout root — /vendor/apps/web/e2e/production.ts, and any worktree file under .claude/, is let through."
+      "note": "Matches an exempt directory anywhere in the path instead of under its checkout root — <root>/vendor/apps/web/e2e/x.ts, and any worktree file under .claude/, is let through."
     },
     {
       "id": "review-gate-worktrees-exempt",
       "find": "  if (!filePath.startsWith(WORKTREES_DIR)) return process.cwd()\n",
       "replace": "  return process.cwd()\n",
       "expectRed": [
-        "blocks a production file inside a .claude/worktrees/ checkout when the gate is active"
+        "blocks a production file inside a .claude/worktrees/ checkout when the gate is armed"
       ],
       "note": "Drops the worktree carve-out — a production file inside .claude/worktrees/ passes as an exempt .claude path."
     },
@@ -61,7 +107,7 @@
       "find": "return EXEMPT_DIRS.some(",
       "replace": "return !filePath.startsWith(WORKTREES_DIR) && EXEMPT_DIRS.some(",
       "expectRed": [
-        "allows a docs edit inside a .claude/worktrees/ checkout when the gate is active"
+        "allows a docs edit inside a .claude/worktrees/ checkout when the gate is armed"
       ],
       "note": "Denies every exemption inside a worktree — the worktree's own docs/, .claude/ and apps/web/e2e/ files are blocked."
     }

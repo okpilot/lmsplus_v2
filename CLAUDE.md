@@ -33,7 +33,7 @@ State what is true. Delete the rest.
 4. Spec → 3+ files (spec-workflow MCP)
 5. Plan
 6. Validate → plan vs codebase (below)
-7. Plan-critic → skip single-file <10 lines
+7. Plan-critic → skip single-file <10 lines, except a fixup after a review round
 8. Approve
 9. Execute → parallel subagents; commit freely, a commit triggers nothing
 10. Pre-push gate → ONE loop over the branch diff (§ Pre-push review gate)

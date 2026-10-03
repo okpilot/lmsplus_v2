@@ -16,7 +16,7 @@ Draft plan (files to change, approach, risks)
     ├─► Impact analysis / Contract check / Pattern scan / Doc-schema check / Security surface
     │     (table below — What each validation step does)
     ▼
-Validated plan (affected files, test updates, doc updates, risks) ▼ Plan-critic review — ONE run (skip for single-file < 10 lines)
+Validated plan (affected files, test updates, doc updates, risks) ▼ Plan-critic review — ONE run (skip for single-file < 10 lines, except a fixup after a review round)
     ├─► fix APPLY findings ─► proceed. No rounds: a plan is prose (agent-critic.md § Model tier)
     └─► unresolvable ISSUE or CRITICAL ─► STOP, hand off to the user (§ NEVER forbids
           executing with either one open — not CRITICAL alone)
@@ -54,7 +54,7 @@ Run plan-critic (sonnet) via the Agent tool after validation, before presenting 
 **Inputs:** the validated plan text, plus the source files in "Files to change" / "Files affected".
 **Approach first:** plan-critic re-challenges the approach before details (`plan-critic.md § Approach Check`).
 **One run, not rounds.** plan-critic runs **ONCE**. Fix APPLY-worthy findings and proceed; an unresolvable ISSUE or CRITICAL escalates to the user instead of another round. A heavy redraft is a new plan with its own single run. `agent-critic.md § Loop Round Discipline` governs the pre-push gate's reviewers, not plan-critic.
-**Skip condition:** single-file changes under 10 lines.
+**Skip condition:** single-file changes under 10 lines, except a fixup after a review round.
 **Timeout:** warn past 60s for plans up to 10 files, 120s beyond.
 ### DO
 - Run validation for EVERY multi-file change. No shortcuts.
@@ -150,7 +150,7 @@ then ONCE per branch, in this order:
 update spec tasks.md ([ ] → [x]) ▼ /fullpush ▼ push (security-auditor, fail-closed)
 ```
 **Never re-run to chase a clean round; always re-run after a fix.** A round reads a CHANGED artifact or it buys nothing.
-**The gate owns `.claude/review-gate.json`** (`.claude/hooks/review-gate.js`): write it when validated ISSUE/CRITICAL findings are open, delete it when the round ENDS — the fixup commit landing is the usual trigger, but a round whose findings are ALL skipped-with-reason produces no commit and still has to clear it. A stale gate file blocks production edits made through Edit or Write, and nothing else clears it: the hook only READS the file. `.claude/settings.json` routes `Bash` to `guard-bash.js`, which does not read the gate file — so a Bash redirect writes production files straight past a live gate.
+**`.claude/hooks/review-gate.js` writes the gate state** on dispatch: a gate-round/conditional agent arms the current branch, a plan-critic dispatch unlocks it. While armed, a production Edit/Write is blocked. A Bash redirect bypasses it.
 
 ### Implementation-Critic (a member of round 1)
 Runs on the branch diff against the validated plan and requirements (spec or plan output). No staged-diff scope, no exemption, and no revision sub-loop — its findings enter the same pooled triage as every other reviewer's, and the loop ceiling is the only round limit that applies to it.
@@ -194,7 +194,7 @@ A reviewer's ISSUE/CRITICAL is a hypothesis. Validate before editing:
    does NOT prevent recurrence — only the artifact check does.
 2. **Check implications** — what callers/tests/docs break if the fix is applied? Read them.
 3. **Decide** — real issue, false positive, or valid concern needing a different fix.
-4. **If the fix changes the plan** — re-validate the changed parts first.
+4. **If the fix changes the plan** — re-validate the changed parts first. After a round, every production fixup, any size, gets a fixup plan and one plan-critic run first; `review-gate.js` blocks the Edit/Write until then. The size rules below decide WHETHER to apply a fix, never whether to plan it.
 
 ## Apply-vs-Defer Discipline (MANDATORY before push)
 > **Default: apply. Defer is the exception.** Sort everything on the local machine before pushing. Don't push with a queue of unfinished business.

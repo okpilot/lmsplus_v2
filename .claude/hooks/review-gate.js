@@ -1,20 +1,23 @@
 #!/usr/bin/env node
-// review-gate.js — Blocks production file edits when reviewer findings are pending validation.
+// review-gate.js — after a review round, blocks production Edit/Write until plan-critic is dispatched.
 //
-// Flow:
-// 1. A pre-push gate round leaves validated ISSUE/CRITICAL findings open → the gate
-//    writes .claude/review-gate.json
-// 2. This hook fires on Edit/Write → checks if gate file exists → blocks production edits
-// 3. The round ends → the gate deletes the file → edits unlocked. Usually that is the fixup
-//    commit landing; a round whose findings are ALL skipped-with-reason produces no commit
-//    and must still clear it. This hook never deletes — it only reads.
+// Wired twice in .claude/settings.json:
+//   PostToolUse Agent     a gate-round/conditional dispatch arms the current branch;
+//                         a plan-critic dispatch unlocks it. Always exits 0.
+//   PreToolUse Edit|Write blocks (exit 2) a production path while the branch is armed.
 //
-// Gate file format (.claude/review-gate.json):
-// { "findings": [{ "agent": "semantic-reviewer", "severity": "ISSUE", "file": "foo.ts", "summary": "..." }] }
+// State .claude/review-gate.json (gitignored): { "branches": { "<name>": { "unlocked": <bool> } } }
+// Roles come from .claude/pipeline.json `agents.<type>.role`. Bash redirects bypass the gate.
 
+const { execFileSync } = require('node:child_process')
 const fs = require('node:fs')
 const path = require('node:path')
 
+/** `REVIEW_GATE_ROOT` points the test suite at a fixture pipeline.json. */
+// biome-ignore lint/suspicious/noUndeclaredEnvVars: not a Turborepo task — runs outside turbo.
+const REPO_ROOT = process.env.REVIEW_GATE_ROOT || path.join(__dirname, '..', '..')
+const PIPELINE_PATH = path.join(REPO_ROOT, '.claude', 'pipeline.json')
+const ARMING_ROLES = new Set(['gate-round', 'conditional'])
 const GATE_FILE = path.join(process.cwd(), '.claude', 'review-gate.json')
 const EXEMPT_DIRS = ['.claude', 'docs', path.join('apps', 'web', 'e2e')]
 const WORKTREES_DIR = path.resolve(process.cwd(), '.claude', 'worktrees') + path.sep
@@ -31,13 +34,98 @@ function inExemptDir(filePath) {
   return EXEMPT_DIRS.some((dir) => filePath.startsWith(path.resolve(root, dir) + path.sep))
 }
 
-// Read stdin (tool input JSON)
+/** Current branch of the checkout at `root`; `null` on a git fault. */
+function readBranch(root) {
+  try {
+    return execFileSync('git', ['-C', root, 'rev-parse', '--abbrev-ref', 'HEAD'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim()
+  } catch {
+    return null
+  }
+}
+
+/** Parsed gate state; throws when the file is missing, unparseable or mis-shaped. */
+function loadState() {
+  const state = JSON.parse(fs.readFileSync(GATE_FILE, 'utf8'))
+  if (typeof state?.branches !== 'object' || state.branches === null) throw new Error('bad shape')
+  return state
+}
+
+/** Atomic state write. */
+function saveState(state) {
+  fs.mkdirSync(path.dirname(GATE_FILE), { recursive: true })
+  const tmp = `${GATE_FILE}.${process.pid}.tmp`
+  fs.writeFileSync(tmp, JSON.stringify(state), 'utf8')
+  fs.renameSync(tmp, GATE_FILE)
+}
+
+/** True when pipeline.json gives `subagentType` an arming role. */
+function isArmingRole(subagentType) {
+  const pipeline = JSON.parse(fs.readFileSync(PIPELINE_PATH, 'utf8'))
+  return ARMING_ROLES.has(pipeline.agents?.[subagentType]?.role)
+}
+
+/** Apply an accepted Agent dispatch to the gate state. */
+function onAgent(subagentType) {
+  const branch = readBranch(process.cwd())
+  if (!branch) return
+  if (subagentType === 'plan-critic') {
+    const state = fs.existsSync(GATE_FILE) ? loadState() : null
+    if (state?.branches[branch]) state.branches[branch].unlocked = true
+    if (state) saveState(state)
+    return
+  }
+  if (!subagentType || !isArmingRole(subagentType)) return
+  let state = { branches: {} }
+  try {
+    state = loadState()
+  } catch {}
+  state.branches[branch] = { unlocked: false }
+  saveState(state)
+}
+
+/** Exit 2 with `reason`. */
+function block(reason) {
+  process.stderr.write(
+    `BLOCKED: ${reason}\nPlan the fixup (validated findings, proposed fix per finding), then dispatch plan-critic.\n`,
+  )
+  process.exit(2)
+}
+
+/** Edit/Write check for `filePath`. */
+function onEdit(filePath) {
+  if (!fs.existsSync(GATE_FILE)) process.exit(0)
+
+  // Collapse `..` segments so an exempt substring cannot mask a production target.
+  filePath = path.resolve(filePath)
+
+  if (!filePath.startsWith(process.cwd() + path.sep)) process.exit(0)
+  if (filePath.includes('.test.') || inExemptDir(filePath) || filePath.endsWith('.md')) {
+    process.exit(0)
+  }
+
+  let state
+  try {
+    state = loadState()
+  } catch {
+    block('production edit while the review gate state is unreadable.')
+  }
+  const branch = readBranch(checkoutRoot(filePath))
+  if (!branch) block('production edit while the branch cannot be read.')
+  const entry = state.branches[branch]
+  if (!entry) process.exit(0)
+  if (entry.unlocked === true) process.exit(0)
+  block(`production edit after a review round on branch ${branch}.`)
+}
+
 let input = ''
 process.stdin.setEncoding('utf8')
 // A stream error would otherwise exit 1 (undocumented for PreToolUse hooks) with no
 // stderr signal — make the fail-open explicit and observable instead.
 process.stdin.on('error', (err) => {
-  process.stderr.write(`[review-gate] stdin error — allowing edit: ${err.message}\n`, () =>
+  process.stderr.write(`[review-gate] stdin error — allowing: ${err.message}\n`, () =>
     process.exit(0),
   )
 })
@@ -45,38 +133,19 @@ process.stdin.on('data', (chunk) => {
   input += chunk
 })
 process.stdin.on('end', () => {
-  let filePath = ''
+  let parsed
   try {
-    const parsed = JSON.parse(input)
-    filePath = parsed.tool_input?.file_path || ''
+    parsed = JSON.parse(input)
   } catch {
     process.exit(0) // Can't parse input, allow
   }
-
-  // No gate file = no restrictions
-  if (!fs.existsSync(GATE_FILE)) {
+  if (parsed?.tool_name === 'Agent') {
+    try {
+      onAgent(parsed.tool_input?.subagent_type)
+    } catch (err) {
+      process.stderr.write(`[review-gate] state update failed: ${err.message}\n`)
+    }
     process.exit(0)
   }
-
-  // Collapse `..` segments so an exempt substring cannot mask a production target.
-  filePath = path.resolve(filePath)
-
-  // Allow edits to non-production files
-  if (filePath.includes('.test.') || inExemptDir(filePath) || filePath.endsWith('.md')) {
-    process.exit(0)
-  }
-
-  // Production file edit while gate is active — block it
-  let findings = ''
-  try {
-    const gate = JSON.parse(fs.readFileSync(GATE_FILE, 'utf8'))
-    findings = gate.findings.map((f) => `  - [${f.severity}] ${f.agent}: ${f.summary}`).join('\n')
-  } catch {
-    findings = '  (could not parse gate file)'
-  }
-
-  process.stderr.write(
-    `BLOCKED: Production file edit while reviewer findings are pending validation.\n\nUnvalidated findings:\n${findings}\n\nTo proceed: validate each finding (analyze the claim, check implications),\nthen delete .claude/review-gate.json to unlock edits.\n`,
-  )
-  process.exit(2)
+  onEdit(parsed?.tool_input?.file_path || '')
 })
