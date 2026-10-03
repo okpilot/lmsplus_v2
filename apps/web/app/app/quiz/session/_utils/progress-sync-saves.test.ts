@@ -7,7 +7,7 @@ vi.mock('./progress-save', async (orig) => ({
   fireProgressSave: (...a: unknown[]) => mockFire(...a),
 }))
 
-import { sendAnswerSave, sendPositionSave } from './progress-sync-saves'
+import { buildRunnerSaves, sendAnswerSave, sendPositionSave } from './progress-sync-saves'
 import { _resetQuizDeviceId } from './quiz-device-id'
 
 const SESSION = '00000000-0000-4000-a000-000000000001'
@@ -72,6 +72,45 @@ describe('sendAnswerSave', () => {
 
   it('saves nothing for a draft that carries no answer', () => {
     sendAnswerSave({ sessionId: SESSION, questionId: QID, draft: {}, startedAt: 0, ...handlers })
+    expect(mockFire).not.toHaveBeenCalled()
+  })
+})
+
+describe('buildRunnerSaves', () => {
+  const deps = (enabled: boolean, question?: { id: string }) => ({
+    sessionId: SESSION,
+    enabled,
+    currentQuestion: () => question,
+    visitStartedAt: () => 1_000_000,
+    ...handlers,
+  })
+
+  it('records the time spent on the question being left', () => {
+    buildRunnerSaves(deps(true, { id: QID })).savePosition(3, new Set(), true)
+    expect(mockFire).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.objectContaining({
+          currentIndex: 3,
+          leaving: { questionId: QID, timeSpentMs: 5000 },
+        }),
+      }),
+    )
+  })
+
+  it('saves the answer for the question on screen', () => {
+    buildRunnerSaves(deps(true, { id: QID })).saveAnswer({ selectedOptionId: 'b' })
+    expect(mockFire).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'answer',
+        input: expect.objectContaining({ questionId: QID }),
+      }),
+    )
+  })
+
+  it('saves nothing when saving is disabled', () => {
+    const saves = buildRunnerSaves(deps(false, { id: QID }))
+    saves.savePosition(1, new Set(), true)
+    saves.saveAnswer({ selectedOptionId: 'b' })
     expect(mockFire).not.toHaveBeenCalled()
   })
 })

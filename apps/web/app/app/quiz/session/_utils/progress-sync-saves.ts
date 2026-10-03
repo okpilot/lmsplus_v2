@@ -61,3 +61,31 @@ export function sendAnswerSave(opts: AnswerSaveOpts): void {
     onMappedError: opts.onMappedError,
   })
 }
+
+type RunnerSaveDeps = SaveHandlers & {
+  sessionId: string
+  /** False for Discovery, which saves nothing. */
+  enabled: boolean
+  /** The question on screen; it is the one being left by a position save. */
+  currentQuestion: () => { id: string } | undefined
+  visitStartedAt: () => number
+}
+
+/** The quiz runner's position and answer saves. */
+export function buildRunnerSaves(deps: RunnerSaveDeps) {
+  const { enabled, currentQuestion, visitStartedAt, ...base } = deps
+  return {
+    savePosition(target: number, pins: Set<string>, leaving: boolean) {
+      if (!enabled) return
+      const left = currentQuestion()
+      const visit =
+        leaving && left ? { questionId: left.id, startedAt: visitStartedAt() } : undefined
+      sendPositionSave({ ...base, target, pins, leaving: visit })
+    },
+    saveAnswer(draft: Omit<DraftAnswer, 'responseTimeMs'>) {
+      const question = currentQuestion()
+      if (!enabled || !question) return
+      sendAnswerSave({ ...base, questionId: question.id, draft, startedAt: visitStartedAt() })
+    },
+  }
+}
