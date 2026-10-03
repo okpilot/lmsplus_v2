@@ -79,7 +79,7 @@ test('sets the lock when a conditional agent is dispatched', () => {
   }
 })
 
-// GROUP: review-gate-no-unlock
+// GROUP: review-gate-no-unlock, review-gate-plan-critic-arms
 test('clears the lock when plan-critic is dispatched after a round', () => {
   const dir = makeDir()
   try {
@@ -116,6 +116,7 @@ test('leaves the state unchanged when a non-gate agent is dispatched', () => {
   }
 })
 
+// GROUP: review-gate-plan-critic-arms
 test('writes no state when plan-critic is dispatched before any round', () => {
   const dir = makeDir()
   try {

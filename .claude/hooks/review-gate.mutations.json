@@ -50,6 +50,16 @@
       "note": "A plan-critic dispatch leaves the lock in place — edits stay blocked."
     },
     {
+      "id": "review-gate-plan-critic-arms",
+      "find": "fs.rmSync(LOCK, { force: true })",
+      "replace": "fs.writeFileSync(LOCK, '')",
+      "expectRed": [
+        "clears the lock when plan-critic is dispatched after a round",
+        "writes no state when plan-critic is dispatched before any round"
+      ],
+      "note": "A plan-critic dispatch sets the lock instead of clearing it."
+    },
+    {
       "id": "review-gate-outside-repo-blocked",
       "find": "if (!filePath.startsWith(REPO_ROOT + path.sep)) process.exit(0)",
       "replace": "if (false) process.exit(0)",
