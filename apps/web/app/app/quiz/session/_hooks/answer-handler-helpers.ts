@@ -1,6 +1,9 @@
 import { checkAnswer } from '../../actions/check-answer'
 import { checkNonMcAnswer } from '../../actions/check-non-mc-answer'
+import { isDisplayableProgressError } from '../../actions/progress-error-messages'
 import type { AnswerFeedback, DraftAnswer } from '../../types'
+import { clampTimeSpent } from '../_utils/progress-save'
+import { getQuizDeviceId } from '../_utils/quiz-device-id'
 
 // CheckResult is the already-shaped discriminated feedback the handlers build
 // from each Server Action result (MC / short_answer / dialog_fill). It is
@@ -8,6 +11,15 @@ import type { AnswerFeedback, DraftAnswer } from '../../types'
 // directly — the per-type construction lives in these builders, keyed off the
 // questionType tag.
 export type CheckResult = AnswerFeedback
+
+const GENERIC_CHECK_ERROR = 'Failed to check answer. Please try again.'
+
+/** Student-facing copy for a failed check: mapped server copy, else the generic message. */
+export function checkErrorMessage(err: unknown): string {
+  return err instanceof Error && isDisplayableProgressError(err.message)
+    ? err.message
+    : GENERIC_CHECK_ERROR
+}
 
 // One per-answer attempt: optimistic draft + a check that returns the
 // already-shaped discriminated feedback, or throws on failure.
@@ -25,13 +37,23 @@ export function buildAnswerHandlers(deps: {
   runAttempt: (input: AttemptInput) => Promise<boolean>
 }) {
   const { sessionId, getAnswerStartTime, runAttempt } = deps
+  // Progress meta every check call carries: the tab's device id and this visit's elapsed time.
+  const meta = (ms: number) => ({
+    sessionId,
+    deviceId: getQuizDeviceId(),
+    timeSpentMs: clampTimeSpent(ms),
+  })
 
   function handleSelectAnswer(optionId: string): Promise<boolean> {
     const responseTimeMs = Date.now() - getAnswerStartTime()
     return runAttempt({
       draft: { selectedOptionId: optionId, responseTimeMs },
       check: async (questionId) => {
-        const r = await checkAnswer({ questionId, selectedOptionId: optionId, sessionId })
+        const r = await checkAnswer({
+          questionId,
+          selectedOptionId: optionId,
+          ...meta(responseTimeMs),
+        })
         if (!r.success) throw new Error(r.error)
         // Strip the server-action success flag so it doesn't leak into the
         // persisted AnswerFeedback (which carries no `success` field).
@@ -46,8 +68,13 @@ export function buildAnswerHandlers(deps: {
     return runAttempt({
       draft: { responseText: text, responseTimeMs },
       check: async (questionId) => {
-        const r = await checkNonMcAnswer({ questionId, sessionId, responseText: text })
-        if (!r.success || r.questionType !== 'short_answer') throw new Error('check failed')
+        const r = await checkNonMcAnswer({
+          questionId,
+          ...meta(responseTimeMs),
+          responseText: text,
+        })
+        if (!r.success) throw new Error(r.error)
+        if (r.questionType !== 'short_answer') throw new Error('check failed')
         // feedback already carries questionType; drop the success flag.
         const { success: _success, ...feedback } = r
         return feedback
@@ -62,8 +89,9 @@ export function buildAnswerHandlers(deps: {
     return runAttempt({
       draft: { blankAnswers, responseTimeMs },
       check: async (questionId) => {
-        const r = await checkNonMcAnswer({ questionId, sessionId, blankAnswers })
-        if (!r.success || r.questionType !== 'dialog_fill') throw new Error('check failed')
+        const r = await checkNonMcAnswer({ questionId, ...meta(responseTimeMs), blankAnswers })
+        if (!r.success) throw new Error(r.error)
+        if (r.questionType !== 'dialog_fill') throw new Error('check failed')
         // feedback already carries questionType; drop the success flag.
         const { success: _success, ...feedback } = r
         return feedback
@@ -76,8 +104,9 @@ export function buildAnswerHandlers(deps: {
     return runAttempt({
       draft: { order, responseTimeMs },
       check: async (questionId) => {
-        const r = await checkNonMcAnswer({ questionId, sessionId, order })
-        if (!r.success || r.questionType !== 'ordering') throw new Error('check failed')
+        const r = await checkNonMcAnswer({ questionId, ...meta(responseTimeMs), order })
+        if (!r.success) throw new Error(r.error)
+        if (r.questionType !== 'ordering') throw new Error('check failed')
         // feedback already carries questionType; drop the success flag.
         const { success: _success, ...feedback } = r
         return feedback
@@ -92,8 +121,9 @@ export function buildAnswerHandlers(deps: {
     return runAttempt({
       draft: { mapping, responseTimeMs },
       check: async (questionId) => {
-        const r = await checkNonMcAnswer({ questionId, sessionId, mapping })
-        if (!r.success || r.questionType !== 'diagram_label') throw new Error('check failed')
+        const r = await checkNonMcAnswer({ questionId, ...meta(responseTimeMs), mapping })
+        if (!r.success) throw new Error(r.error)
+        if (r.questionType !== 'diagram_label') throw new Error('check failed')
         // feedback already carries questionType; drop the success flag.
         const { success: _success, ...feedback } = r
         return feedback
@@ -136,6 +166,7 @@ export function handleAnswerError(
   setAnswers: React.Dispatch<React.SetStateAction<Map<string, DraftAnswer>>>,
   setError: React.Dispatch<React.SetStateAction<string | null>>,
   onAnswerReverted?: (answers: Map<string, DraftAnswer>) => void,
+  message: string = GENERIC_CHECK_ERROR,
 ) {
   pendingQuestionIdRef.current.delete(questionId)
   lockedRef.current.delete(questionId)
@@ -150,5 +181,5 @@ export function handleAnswerError(
   } catch (err) {
     console.warn('[use-answer-handler] Revert checkpoint failed (best-effort):', err)
   }
-  setError('Failed to check answer. Please try again.')
+  setError(message)
 }

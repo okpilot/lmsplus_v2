@@ -40,6 +40,7 @@ function makeSetters() {
     setRecovery: vi.fn(),
     setResumeLoading: vi.fn(),
     setResumeError: vi.fn(),
+    setClaimError: vi.fn(),
   }
 }
 

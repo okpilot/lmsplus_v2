@@ -32,3 +32,25 @@ describe('usePinnedQuestions', () => {
     expect(result.current.pinnedQuestions.has('q2')).toBe(true)
   })
 })
+
+describe('usePinnedQuestions — returned set', () => {
+  it('returns the resulting set and keeps the ref current before the next render', () => {
+    const { result } = renderHook(() => usePinnedQuestions())
+    let next = new Set<string>()
+    act(() => {
+      next = result.current.togglePin('q1')
+    })
+    expect([...next]).toEqual(['q1'])
+    expect([...result.current.pinnedRef.current]).toEqual(['q1'])
+  })
+
+  it('reflects two toggles in one tick', () => {
+    const { result } = renderHook(() => usePinnedQuestions())
+    let next = new Set<string>()
+    act(() => {
+      result.current.togglePin('q1')
+      next = result.current.togglePin('q2')
+    })
+    expect([...next].sort()).toEqual(['q1', 'q2'])
+  })
+})

@@ -29,6 +29,8 @@ export type QuizStateOpts = {
   timeLimitSeconds?: number
   passMark?: number
   startedAt?: string
+  /** Mapped error copy from the on-load claim (quiz-progress claim), shown until a save succeeds. */
+  initialSaveError?: string | null
 }
 
 export type QuizSessionProps = QuizStateOpts & {

@@ -1,9 +1,10 @@
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import type { SessionQuestion } from '@/app/app/_types/session'
-import { clearSessionHandoff, type SessionData } from '../_utils/quiz-session-handoff'
+import type { SessionData } from '../_utils/quiz-session-handoff'
 import { type ActiveSession, readActiveSession } from '../_utils/quiz-session-storage'
 import {
+  applyInitialLoad,
   buildRecoveryResume,
   dropCachedSession,
   loadSessionData,
@@ -22,6 +23,7 @@ export function useSessionBootstrap(userId: string) {
   const [recovery, setRecovery] = useState<ActiveSession | null>(null)
   const [resumeLoading, setResumeLoading] = useState(false)
   const [resumeError, setResumeError] = useState<string | null>(null)
+  const [claimError, setClaimError] = useState<string | null>(null)
   const recoveryActions = useSessionRecovery(recovery, userId)
 
   useEffect(() => {
@@ -37,25 +39,27 @@ export function useSessionBootstrap(userId: string) {
       return
     }
     setSession(data)
-    // Questions + flags load in parallel; the session renders only once BOTH have
-    // settled (QuizSession mounts once — the flag seed cannot be applied late).
+    // Questions, flags and the claim load in parallel; QuizSession mounts once, after all settle.
     loadSessionData(data.questionIds, data)
-      .then((r) => {
-        if (!r.success) return setError(r.error)
-        clearSessionHandoff(userId)
-        setFlaggedIds(r.flaggedIds)
-        setQuestions(r.questions)
-      })
-      // loadSessionData is documented never to reject, so this mirrors the error-path
-      // net buildRecoveryResume already attaches to the SAME promise — without it a
-      // throwing setter strands the loader on the skeleton with error still null.
+      .then((r) =>
+        applyInitialLoad(r, userId, { setError, setFlaggedIds, setQuestions, setClaimError }),
+      )
+      // Error-path net (as in buildRecoveryResume): a throwing setter must not strand the skeleton.
       .catch(() => setError('Failed to load questions. Please try again.'))
   }, [router, userId])
 
   const resumeInFlightRef = useRef(false)
   const handleRecoveryResume = buildRecoveryResume(
     recovery,
-    { setSession, setQuestions, setFlaggedIds, setRecovery, setResumeLoading, setResumeError },
+    {
+      setSession,
+      setQuestions,
+      setFlaggedIds,
+      setRecovery,
+      setResumeLoading,
+      setResumeError,
+      setClaimError,
+    },
     resumeInFlightRef,
   )
 
@@ -67,6 +71,7 @@ export function useSessionBootstrap(userId: string) {
     recovery,
     resumeLoading,
     resumeError,
+    claimError,
     recoveryActions,
     handleRecoveryResume,
     clearRecovery: () => setRecovery(null),

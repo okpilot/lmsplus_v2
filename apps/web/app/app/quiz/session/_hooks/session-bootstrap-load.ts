@@ -2,11 +2,16 @@ import type { SessionQuestion } from '@/app/app/_types/session'
 import { loadSessionQuestions } from '@/lib/queries/load-session-questions'
 import { loadVfrRtExamQuestions } from '@/lib/queries/load-vfr-rt-exam-questions'
 import { getFlaggedIds } from '../../actions/flag'
-import { readSessionHandoff, type SessionData } from '../_utils/quiz-session-handoff'
+import { claimQuizDeviceBounded } from '../_utils/claim-quiz-device'
+import {
+  clearSessionHandoff,
+  readSessionHandoff,
+  type SessionData,
+} from '../_utils/quiz-session-handoff'
 import { type ActiveSession, toSessionData } from '../_utils/quiz-session-storage'
 
 export type SessionLoadResult =
-  | { success: true; questions: SessionQuestion[]; flaggedIds: string[] }
+  | { success: true; questions: SessionQuestion[]; flaggedIds: string[]; claimError?: string }
   | { success: false; error: string }
 
 // Module-level handoff cache (owned here rather than in use-session-bootstrap so the
@@ -70,9 +75,14 @@ function fetchFlaggedIdsBounded(questionIds: string[]): Promise<string[]> {
  */
 export async function loadSessionData(
   questionIds: string[],
-  source?: Pick<SessionData, 'sessionId' | 'examMode'>,
+  source?: Pick<SessionData, 'sessionId' | 'examMode' | 'mode'>,
 ): Promise<SessionLoadResult> {
   const flagsPromise = fetchFlaggedIdsBounded(questionIds)
+  // Claim this tab for the session in parallel (bounded, never rejects); Discovery saves nothing.
+  const claimPromise =
+    source && source.mode !== 'discovery'
+      ? claimQuizDeviceBounded(source.sessionId)
+      : Promise.resolve(null)
   try {
     const questionsResult =
       source?.examMode === 'vfr_rt_exam'
@@ -80,7 +90,8 @@ export async function loadSessionData(
         : await loadSessionQuestions(questionIds)
     if (!questionsResult.success) return { success: false, error: questionsResult.error }
     const flaggedIds = await flagsPromise
-    return { success: true, questions: questionsResult.questions, flaggedIds }
+    const claimError = (await claimPromise) ?? undefined
+    return { success: true, questions: questionsResult.questions, flaggedIds, claimError }
   } catch {
     return { success: false, error: 'Failed to load questions. Please try again.' }
   }
@@ -93,6 +104,7 @@ type RecoverySetters = {
   setRecovery: (r: ActiveSession | null) => void
   setResumeLoading: (v: boolean) => void
   setResumeError: (e: string | null) => void
+  setClaimError: (e: string | null) => void
 }
 
 /**
@@ -121,6 +133,7 @@ export function buildRecoveryResume(
         }
         set.setSession(toSessionData(recovery))
         set.setFlaggedIds(r.flaggedIds)
+        set.setClaimError(r.claimError ?? null)
         set.setQuestions(r.questions)
         set.setResumeLoading(false)
         // Terminal success: setRecovery(null) unmounts the recovery screen, so the ref
@@ -136,4 +149,22 @@ export function buildRecoveryResume(
         set.setResumeError('Failed to load questions. Please try again.')
       })
   }
+}
+
+/**
+ * Applies a settled initial load: error → setError; success → clears the handoff and seeds
+ * flags, claim error and questions (questions last — the session mounts once they are set).
+ */
+export function applyInitialLoad(
+  r: SessionLoadResult,
+  userId: string,
+  set: Pick<RecoverySetters, 'setFlaggedIds' | 'setQuestions' | 'setClaimError'> & {
+    setError: (e: string) => void
+  },
+) {
+  if (!r.success) return set.setError(r.error)
+  clearSessionHandoff(userId)
+  set.setFlaggedIds(r.flaggedIds)
+  set.setClaimError(r.claimError ?? null)
+  set.setQuestions(r.questions)
 }

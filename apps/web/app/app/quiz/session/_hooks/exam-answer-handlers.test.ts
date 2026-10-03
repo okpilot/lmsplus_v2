@@ -47,3 +47,24 @@ describe('buildExamAnswerHandlers', () => {
     expect(checkpoint).not.toHaveBeenCalled()
   })
 })
+
+describe('buildExamAnswerHandlers — onRecorded', () => {
+  it('reports a newly recorded draft after the checkpoint', async () => {
+    const order: string[] = []
+    checkpoint.mockImplementation(() => order.push('checkpoint'))
+    const onRecorded = vi.fn(() => order.push('recorded'))
+    recordAnswer.mockReturnValue(true)
+    const h = buildExamAnswerHandlers({ recordAnswer, checkpoint, onRecorded })
+    await h.handleSelectAnswer('opt-a')
+    expect(onRecorded).toHaveBeenCalledWith({ selectedOptionId: 'opt-a' })
+    expect(order).toEqual(['checkpoint', 'recorded'])
+  })
+
+  it('stays silent when the answer was already locked', async () => {
+    const onRecorded = vi.fn()
+    recordAnswer.mockReturnValue(false)
+    const h = buildExamAnswerHandlers({ recordAnswer, checkpoint, onRecorded })
+    await h.handleSelectAnswer('opt-a')
+    expect(onRecorded).not.toHaveBeenCalled()
+  })
+})

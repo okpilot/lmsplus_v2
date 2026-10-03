@@ -16,6 +16,7 @@ export type AssembleQuizStateInput = {
   questionIds: string[]
   pinnedQuestions: Set<string>
   togglePin: () => void
+  saveError?: string | null
   p: ActivePipeline
   isExam: boolean
   examMode?: DbQuizMode
@@ -64,7 +65,7 @@ export function assembleQuizState(input: AssembleQuizStateInput) {
     navigateTo: p.navigateTo,
     navigate: p.navigate,
     togglePin: input.togglePin,
-    error: p.error,
+    error: p.error ?? input.saveError ?? null,
     isExam: input.isExam,
     examMode: input.examMode,
     submitting: p.submitting,
