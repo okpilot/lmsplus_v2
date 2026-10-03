@@ -357,14 +357,23 @@ CREATE TABLE quiz_sessions (
   -- Cross-device resume (#1026, mig 20261002000200):
   current_index       INT NOT NULL DEFAULT 0 CHECK (current_index >= 0),
   pinned_question_ids UUID[] NOT NULL DEFAULT '{}',
-  active_device_id    UUID NULL         -- device that owns writes; NULL = unclaimed
+  active_device_id    UUID NULL,        -- device that owns writes; NULL = unclaimed
+  -- Saved for later (#1026 PR 1b, mig 20261003000100):
+  saved_at            TIMESTAMPTZ NULL  -- set together with deleted_at by save_quiz_for_later; NULL = not saved
   -- No updated_at: only ended_at is set once, on completion
 );
 ```
 
 `current_index`, `pinned_question_ids`, `active_device_id`: no column UPDATE grant on `quiz_sessions` covers them (20260605000001) — written only by `save_quiz_position` / `claim_quiz_session`.
 
-**No student INSERT (migration `20261002000900`, red-team GK/GL, #1026):** policy `students_insert_sessions` is dropped and `INSERT` is revoked from `authenticated`. Rows are created only by the SECURITY DEFINER start RPCs. Student policies left: `students_select_sessions`, `students_update_sessions`.
+**Saved for later (migration `20261003000100`, #1026 PR 1b):** a saved quiz is the same `quiz_sessions` row, soft-deleted (`deleted_at` set) with `saved_at` set. `saved_at` has no column UPDATE grant — written only by `save_quiz_for_later` / `resume_saved_quiz` / `discard_saved_quiz`. Constraints:
+- `CHECK (saved_at IS NULL OR deleted_at IS NOT NULL)` — keeps a saved row soft-deleted for every writer.
+- `CHECK (saved_at IS NULL OR (mode IN ('quick_quiz','smart_review') AND ended_at IS NULL))` — practice modes, unended rows only.
+- Partial index `idx_quiz_sessions_saved ON quiz_sessions(student_id) WHERE saved_at IS NOT NULL`.
+
+Cap: 20 saved sessions per student, enforced in `save_quiz_for_later`. Separate from the 20-draft `quiz_drafts` cap (trigger `check_draft_limit`) until PR 3 retires `quiz_drafts`.
+
+**No student INSERT (migration `20261002000900`, red-team GK/GL, #1026):** policy `students_insert_sessions` is dropped and `INSERT` is revoked from `authenticated`. Rows are created only by the SECURITY DEFINER start RPCs. Student policies left: `students_select_sessions`, `students_update_sessions`. `students_update_sessions` reaches live rows only: `USING (student_id = auth.uid() AND ended_at IS NULL AND deleted_at IS NULL)` (migration `20261003000400`, red-team GP) — a student cannot revive a discarded or saved session.
 
 **Single-active-session invariant (mig 136, #1011 — Decision 49):** a global partial unique index enforces **at most one active session per student, across all modes**:
 
@@ -854,7 +863,7 @@ ORDER BY deleted_at DESC;
 | `questions` | Yes | Retired questions still referenced in historical responses |
 | `courses` | Yes | Archived courses still referenced in historical sessions |
 | `lessons` | Yes | Retired lessons still referenced in historical sessions |
-| `quiz_sessions` | Yes | Sessions can be discarded (soft-deleted via `deleted_at`) |
+| `quiz_sessions` | Yes | Sessions can be discarded (soft-deleted via `deleted_at`). A saved-for-later quiz is a soft-deleted row with `saved_at` set; `resume_saved_quiz` clears both, `discard_saved_quiz` clears `saved_at` |
 | `quiz_session_answers` | No | Immutable |
 | `quiz_session_progress` | No | Rows are never deleted; lifecycle follows `quiz_sessions` (soft delete). `ON DELETE CASCADE` on `session_id` serves test-teardown hard-deletes only |
 | `student_responses` | No | Immutable |
@@ -928,8 +937,11 @@ verb_noun pattern:
   save_quiz_answer           ← write, student: store one in-progress answer in quiz_session_progress (latest wins, time = GREATEST); `(p_session_id, p_question_id, p_answer jsonb, p_time_spent_ms int, p_device_id uuid)`, returns void; guards via `_lock_session_for_progress`; `p_question_id = ANY(config.question_ids)` membership check before the `questions` read (§15 carve-out); raises `question_not_in_session` / `invalid_time_spent` / `invalid_answer` / `session_config_malformed` (migration 20261002000400, #1026)
   save_quiz_position         ← write, student: set `quiz_sessions.current_index` + `pinned_question_ids`, optional time for the question being left (answer untouched); `(p_session_id, p_current_index, p_pinned_question_ids uuid[], p_device_id, p_question_id DEFAULT NULL, p_time_spent_ms DEFAULT NULL)`; raises `invalid_position` / `question_not_in_session` / `invalid_time_spent` / `session_config_malformed` (migration 20261002000500, #1026)
   claim_quiz_session         ← write, student: set `quiz_sessions.active_device_id` (takeover — every `_lock_session_for_progress` guard except the device check); `(p_session_id, p_device_id)`, returns void; raises `invalid_device` on NULL device (migration 20261002000600, #1026)
-  get_quiz_progress          ← read, student, STABLE: `{status: open|ended|discarded, mode, current_index, pinned_question_ids, active_device_id, answers[{question_id, answer, time_spent_ms, answered_at}]}`; own sessions only (`student_id = auth.uid()`), works for ended/discarded; no answer key, no correctness; raises `not_authenticated` / `user_not_found_or_inactive` / `session_not_found` (migration 20261002000600, #1026)
-  _lock_session_for_progress / _validate_progress_answer / _save_progress_row ← internal helpers, EXECUTE revoked from PUBLIC/anon/authenticated (migration 20261002000300, #1026): `_lock_session_for_progress` = shared guard set + `FOR UPDATE` session lock (raises `not_authenticated`, `user_not_found_or_inactive`, `session_not_found`, `session_discarded`, `session_ended`, `unsupported_session_mode`, `session_expired`, `session_taken_over`); `_validate_progress_answer` = per-question-type answer-shape check; `_save_progress_row` = validated upsert for callers that already checked membership (the check RPCs)
+  save_quiz_for_later        ← write, student: park an open practice quiz — `UPDATE quiz_sessions SET deleted_at = now(), saved_at = now(), active_device_id = NULL`; `(p_session_id, p_device_id)`, returns void; guards via `_lock_session_for_progress`; practice modes only; max 20 saved per student under `pg_advisory_xact_lock(hashtext(student_id::text))`; idempotent when the caller's row already has `saved_at` set; raises `unsupported_session_mode` / `saved_quiz_limit_reached` (migration 20261003000200, #1026)
+  resume_saved_quiz          ← write, student: revive a saved quiz on the same session id — `UPDATE … SET deleted_at = NULL, saved_at = NULL, active_device_id = p_device_id`; `(p_session_id, p_device_id)`, returns void; arbiter is `uq_one_active_session_per_student` (`unique_violation` → `another_session_active`); also soft-deletes the caller's abandoned `discovery` rows; raises `invalid_device` (NULL device) / `not_authenticated` / `user_not_found_or_inactive` / `session_not_found` / `session_not_saved` (migration 20261003000200, #1026)
+  discard_saved_quiz         ← write, student: `UPDATE quiz_sessions SET saved_at = NULL` on the caller's saved row (row stays soft-deleted); `(p_session_id)`, returns void; raises `not_authenticated` / `user_not_found_or_inactive` / `session_not_found` (also when the row is not saved) (migration 20261003000200, #1026)
+  get_quiz_progress          ← read, student, STABLE: `{status: open|ended|saved|discarded, mode, current_index, pinned_question_ids, active_device_id, answers[{question_id, answer, time_spent_ms, answered_at}]}`; own sessions only (`student_id = auth.uid()`), works for ended/saved/discarded; no answer key, no correctness; raises `not_authenticated` / `user_not_found_or_inactive` / `session_not_found` (migrations 20261002000600, 20261003000300, #1026)
+  _lock_session_for_progress / _validate_progress_answer / _save_progress_row ← internal helpers, EXECUTE revoked from PUBLIC/anon/authenticated (migration 20261002000300, #1026): `_lock_session_for_progress` = shared guard set + `FOR UPDATE` session lock (raises `not_authenticated`, `user_not_found_or_inactive`, `session_not_found`, `session_saved` (migration 20261003000300, checked before `session_discarded`), `session_discarded`, `session_ended`, `unsupported_session_mode`, `session_expired`, `session_taken_over`); `_validate_progress_answer` = per-question-type answer-shape check; `_save_progress_row` = validated upsert for callers that already checked membership (the check RPCs)
   soft_delete_question       ← write, sets deleted_at
   get_student_progress       ← read, aggregated progress view
   get_daily_activity         ← read, analytics: daily answer counts (zero-filled); active-user gate added mig 20260824000300
