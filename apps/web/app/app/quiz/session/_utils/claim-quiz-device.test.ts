@@ -170,6 +170,32 @@ describe('withClaimRetry', () => {
     await withClaimRetry('s', call)
     expect(isTakenOver('s')).toBe(false)
   })
+
+  it('retries a concurrent call that failed while another call re-claimed', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    let landReclaim: (r: { success: boolean }) => void = () => {}
+    mockClaim
+      .mockResolvedValueOnce({ success: false, error: 'Could not save progress' })
+      .mockReturnValueOnce(new Promise((resolve) => (landReclaim = resolve)))
+    await claimQuizDeviceBounded('s')
+    let failSecond: (r: typeof taken) => void = () => {}
+    const second = vi
+      .fn()
+      .mockReturnValueOnce(new Promise((resolve) => (failSecond = resolve)))
+      .mockResolvedValueOnce({ success: true })
+    const first = withClaimRetry(
+      's',
+      vi.fn().mockResolvedValueOnce(taken).mockResolvedValueOnce({ success: true }),
+    )
+    const concurrent = withClaimRetry('s', second)
+    await vi.waitFor(() => expect(mockClaim).toHaveBeenCalledTimes(2))
+    failSecond(taken)
+    landReclaim({ success: true })
+    await expect(first).resolves.toEqual({ success: true })
+    await expect(concurrent).resolves.toEqual({ success: true })
+    expect(mockClaim).toHaveBeenCalledTimes(2)
+    expect(isTakenOver('s')).toBe(false)
+  })
 })
 
 describe('claim ownership', () => {

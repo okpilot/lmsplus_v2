@@ -55,11 +55,14 @@ export function claimQuizDeviceBounded(sessionId: string): Promise<string | null
 
 /**
  * After a takeover error: claims once more unless this tab's own claim already succeeded
- * (then the takeover is genuine). Resolves true when the re-claim succeeded. Never rejects.
+ * (then the takeover is genuine). A claim started after the failed call was sent decides
+ * instead. Resolves true when the call should be retried. Never rejects.
  */
-async function reclaimIfUnowned(sessionId: string): Promise<boolean> {
-  if (!lastClaim || lastClaim.sessionId !== sessionId) return false
-  if (await lastClaim.owned) return false
+async function reclaimIfUnowned(sessionId: string, seen: typeof lastClaim): Promise<boolean> {
+  const claim = lastClaim
+  if (!claim || claim.sessionId !== sessionId) return false
+  if (claim !== seen) return claim.owned
+  if (await claim.owned) return false
   const owned = trackOwned(sessionId, startClaim(sessionId))
   lastClaim = { sessionId, owned }
   return owned
@@ -75,9 +78,10 @@ export async function withClaimRetry<R extends { success: boolean; error?: strin
   sessionId: string,
   call: () => Promise<R>,
 ): Promise<R> {
+  const seen = lastClaim
   const first = await call()
   if (first.success || !isTakeoverError(first.error)) return first
-  const final = (await reclaimIfUnowned(sessionId)) ? await call() : first
+  const final = (await reclaimIfUnowned(sessionId, seen)) ? await call() : first
   if (!final.success && isTakeoverError(final.error)) markTakenOver(sessionId)
   return final
 }
