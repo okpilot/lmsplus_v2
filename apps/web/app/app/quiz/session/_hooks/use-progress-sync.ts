@@ -30,7 +30,6 @@ export function useProgressSync(opts: QuizStateOpts) {
     sessionId: opts.sessionId,
     probe: () => savePosition(currentIndexRef.current, pinnedRef.current, false),
   })
-
   function navigateTo(index: number) {
     if (index >= 0 && index < opts.questions.length) savePosition(index, pinnedRef.current, true)
     nav.navigateTo(index)
