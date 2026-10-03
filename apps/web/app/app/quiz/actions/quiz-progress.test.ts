@@ -10,7 +10,7 @@ vi.mock('@/lib/supabase-rpc', () => ({
   rpc: (...args: unknown[]) => mockRpc(...args),
 }))
 
-import { isDisplayableProgressError } from './progress-error-messages'
+import { isDisplayableProgressError, SIGN_IN } from './progress-error-messages'
 import { claimQuizSession, saveQuizAnswer, saveQuizPosition } from './quiz-progress'
 
 const SESSION = '00000000-0000-4000-a000-000000000099'
@@ -75,9 +75,9 @@ describe('saveQuizAnswer', () => {
       await claimQuizSession({ sessionId: SESSION, deviceId: DEVICE }),
     ]
     for (const r of results) {
-      expect(r.success).toBe(false)
-      expect(isDisplayableProgressError(r.success ? '' : r.error)).toBe(true)
+      expect(r).toEqual({ success: false, error: SIGN_IN })
     }
+    expect(isDisplayableProgressError(SIGN_IN)).toBe(true)
   })
 
   it('tells the student the quiz is open elsewhere when another tab holds it', async () => {
