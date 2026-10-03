@@ -1,3 +1,4 @@
+import { withTimeout } from '@/lib/utils/with-timeout'
 import { isDisplayableProgressError } from '../../actions/progress-error-messages'
 import { claimQuizSession } from '../../actions/quiz-progress'
 import { getQuizDeviceId } from './quiz-device-id'
@@ -11,10 +12,6 @@ export const CLAIM_TIMEOUT_MS = 3000
  * Never rejects.
  */
 export function claimQuizDeviceBounded(sessionId: string): Promise<string | null> {
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const timeout = new Promise<null>((resolve) => {
-    timer = setTimeout(() => resolve(null), CLAIM_TIMEOUT_MS)
-  })
   const claim = (async () => claimQuizSession({ sessionId, deviceId: getQuizDeviceId() }))()
     .then((r) => {
       if (r.success) return null
@@ -26,5 +23,5 @@ export function claimQuizDeviceBounded(sessionId: string): Promise<string | null
       console.warn('[claimQuizDevice] claim failed (best-effort):', err)
       return null
     })
-  return Promise.race([claim, timeout]).finally(() => clearTimeout(timer))
+  return withTimeout(claim, CLAIM_TIMEOUT_MS, null)
 }
