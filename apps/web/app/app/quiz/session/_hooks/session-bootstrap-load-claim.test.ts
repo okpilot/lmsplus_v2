@@ -32,6 +32,13 @@ describe('loadSessionData — claim', () => {
     expect(mockClaim).toHaveBeenCalledWith('s1')
   })
 
+  it('starts the claim before the flag fetch', async () => {
+    await loadSessionData(['q1'], { sessionId: 's1', mode: 'study' })
+    const claimOrder = mockClaim.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY
+    const flagsOrder = mockGetFlagged.mock.invocationCallOrder[0] ?? 0
+    expect(claimOrder).toBeLessThan(flagsOrder)
+  })
+
   it('does not claim in discovery mode', async () => {
     await loadSessionData(['q1'], { sessionId: 's1', mode: 'discovery' })
     expect(mockClaim).not.toHaveBeenCalled()

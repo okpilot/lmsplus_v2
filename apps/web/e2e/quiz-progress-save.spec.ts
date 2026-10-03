@@ -119,7 +119,7 @@ test.describe('Quiz progress saved to the server', () => {
     await next.click()
     await expect(page.getByText(`Question 2 of ${total}`)).toBeVisible()
 
-    // Second tab = new sessionStorage = new device id; loading the session claims it.
+    // Second tab = new page load = new in-memory device id; loading the session claims it.
     const second = await context.newPage()
     await second.goto('/app/quiz')
     await expect(second).toHaveURL(/\/app\/quiz$/)

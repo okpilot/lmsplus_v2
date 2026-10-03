@@ -58,7 +58,7 @@ function fetchFlaggedIdsBounded(questionIds: string[]): Promise<string[]> {
 }
 
 /**
- * Loads the session's questions and the student's flagged question ids in parallel.
+ * Loads the session's questions, the student's flagged question ids and the tab's claim.
  *
  * Only the questions fetch decides success/error (and stays unbounded — the
  * questions are required data). The flag fetch is individually caught and
@@ -67,8 +67,9 @@ function fetchFlaggedIdsBounded(questionIds: string[]): Promise<string[]> {
  * block the session. A loadSessionQuestions rejection is mapped to the generic
  * load-failure message here, so this function never rejects.
  *
- * The flag fetch is kicked off BEFORE the questions await, so the success path
- * still overlaps both requests. The questions result is awaited first so a failure
+ * Next.js dispatches Server Actions one at a time per client, so the requests are
+ * queued, not parallel. The claim is started first (its bounded timeout already runs
+ * while it waits), then the cosmetic flag fetch. The questions result is awaited first so a failure
  * returns immediately: loadSessionQuestions RESOLVES `{ success: false }` rather
  * than rejecting, so awaiting both together (Promise.all) would not short-circuit
  * and would stall a known error behind the flag fetch's full timeout.
@@ -77,12 +78,13 @@ export async function loadSessionData(
   questionIds: string[],
   source?: Pick<SessionData, 'sessionId' | 'examMode' | 'mode'>,
 ): Promise<SessionLoadResult> {
-  const flagsPromise = fetchFlaggedIdsBounded(questionIds)
-  // Claim this tab for the session in parallel (bounded, never rejects); Discovery saves nothing.
+  // Claim first: Server Actions are dispatched one at a time, so a slow flag fetch ahead of
+  // it would eat the claim's bounded timeout. Never rejects; Discovery saves nothing.
   const claimPromise =
     source && source.mode !== 'discovery'
       ? claimQuizDeviceBounded(source.sessionId)
       : Promise.resolve(null)
+  const flagsPromise = fetchFlaggedIdsBounded(questionIds)
   try {
     const questionsResult =
       source?.examMode === 'vfr_rt_exam'
@@ -105,6 +107,21 @@ type RecoverySetters = {
   setResumeLoading: (v: boolean) => void
   setResumeError: (e: string | null) => void
   setClaimError: (e: string | null) => void
+}
+
+function applyRecoverySuccess(
+  r: Extract<SessionLoadResult, { success: true }>,
+  recovery: ActiveSession,
+  set: RecoverySetters,
+) {
+  set.setSession(toSessionData(recovery))
+  set.setFlaggedIds(r.flaggedIds)
+  set.setClaimError(r.claimError ?? null)
+  set.setQuestions(r.questions)
+  set.setResumeLoading(false)
+  // Terminal success: setRecovery(null) unmounts the recovery screen, so the ref
+  // intentionally stays set — a late duplicate trigger can never re-fire (§6).
+  set.setRecovery(null)
 }
 
 /**
@@ -131,14 +148,7 @@ export function buildRecoveryResume(
           inFlightRef.current = false // retryable failure — release the lock
           return
         }
-        set.setSession(toSessionData(recovery))
-        set.setFlaggedIds(r.flaggedIds)
-        set.setClaimError(r.claimError ?? null)
-        set.setQuestions(r.questions)
-        set.setResumeLoading(false)
-        // Terminal success: setRecovery(null) unmounts the recovery screen, so the ref
-        // intentionally stays set — a late duplicate trigger can never re-fire (§6).
-        set.setRecovery(null)
+        applyRecoverySuccess(r, recovery, set)
       })
       .catch(() => {
         // loadSessionData is documented never to reject; this is the §5 error-path

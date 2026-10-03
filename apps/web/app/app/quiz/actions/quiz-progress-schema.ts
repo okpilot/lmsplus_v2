@@ -43,6 +43,3 @@ export const SavePositionInput = z
 export const ClaimInput = z.object({ sessionId: z.uuid(), deviceId: z.uuid() }).strict()
 
 export type ProgressAnswerInput = z.infer<typeof ProgressAnswer>
-export type SaveAnswerInputType = z.infer<typeof SaveAnswerInput>
-export type SavePositionInputType = z.infer<typeof SavePositionInput>
-export type ClaimInputType = z.infer<typeof ClaimInput>
