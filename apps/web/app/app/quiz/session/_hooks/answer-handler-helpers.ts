@@ -141,6 +141,10 @@ export function handleAnswerError(opts: AnswerErrorOpts) {
   const { questionId, lockedRef, pendingQuestionIdRef, answersRef } = opts
   pendingQuestionIdRef.current.delete(questionId)
   lockedRef.current.delete(questionId)
+  // The checkpoint gets a map built now: React may run the updater below only after this returns.
+  const reverted = new Map(answersRef.current)
+  reverted.delete(questionId)
+  answersRef.current = reverted
   opts.setAnswers((p) => {
     const m = new Map(p)
     m.delete(questionId)
@@ -148,7 +152,7 @@ export function handleAnswerError(opts: AnswerErrorOpts) {
     return m
   })
   try {
-    opts.onAnswerReverted?.(answersRef.current)
+    opts.onAnswerReverted?.(reverted)
   } catch (err) {
     console.warn('[use-answer-handler] Revert checkpoint failed (best-effort):', err)
   }

@@ -14,7 +14,7 @@ vi.mock('../../actions/check-non-mc-answer', () => ({
 
 import { _resetQuizDeviceId, getQuizDeviceId } from '../_utils/quiz-device-id'
 import type { AttemptInput } from './answer-handler-helpers'
-import { buildAnswerHandlers, checkErrorMessage } from './answer-handler-helpers'
+import { buildAnswerHandlers, checkErrorMessage, handleAnswerError } from './answer-handler-helpers'
 
 const SESSION_ID = '00000000-0000-4000-b000-000000000001'
 const Q_ID = '00000000-0000-4000-b000-000000000011'
@@ -85,5 +85,30 @@ describe('checkErrorMessage', () => {
   it('falls back to the generic message for unmapped or non-Error failures', () => {
     expect(checkErrorMessage(new Error('Could not check answer'))).toBe(GENERIC)
     expect(checkErrorMessage('boom')).toBe(GENERIC)
+  })
+})
+
+describe('handleAnswerError', () => {
+  it('checkpoints the answers without the failed draft even when React defers the state update', () => {
+    const OTHER = '00000000-0000-4000-b000-000000000012'
+    const draft = { selectedOptionId: 'a', responseTimeMs: 1 }
+    const answersRef = {
+      current: new Map([
+        [OTHER, draft],
+        [Q_ID, draft],
+      ]),
+    }
+    const onAnswerReverted = vi.fn()
+    handleAnswerError({
+      questionId: Q_ID,
+      lockedRef: { current: new Set([Q_ID]) },
+      pendingQuestionIdRef: { current: new Set([Q_ID]) },
+      answersRef,
+      setAnswers: vi.fn(), // never runs the updater, as when React batches it
+      setError: vi.fn(),
+      onAnswerReverted,
+    })
+    const saved = onAnswerReverted.mock.calls[0]?.[0] as Map<string, unknown>
+    expect([...saved.keys()]).toEqual([OTHER])
   })
 })
