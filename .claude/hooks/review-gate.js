@@ -6,6 +6,7 @@
 //   PreToolUse Edit|Write blocks (exit 2) a production path while the lock is set.
 //
 // Lock: .claude/review-gate.lock (gitignored). Present = set. One lock for every session and branch.
+// The orchestrator deletes it when the review loop ends (agent-workflow.md § Pre-Push Review Gate).
 // Blocks non-exempt paths under the project folder, including every `.claude/worktrees/*` checkout.
 // A failed lock write is logged to stderr and leaves the lock unset.
 // Paths are compared as spelled: files outside the project folder, a path reaching the project

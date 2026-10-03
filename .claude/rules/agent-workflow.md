@@ -150,7 +150,7 @@ then ONCE per branch, in this order:
 update spec tasks.md ([ ] → [x]) ▼ /fullpush ▼ push (security-auditor, fail-closed)
 ```
 **Never re-run to chase a clean round; always re-run after a fix.** A round reads a CHANGED artifact or it buys nothing.
-**`.claude/hooks/review-gate.js` writes the gate state** on dispatch: a gate-round/conditional agent sets one repo-wide lock, a plan-critic dispatch clears it. While set, a production Edit/Write is blocked. A Bash redirect bypasses it.
+**`.claude/hooks/review-gate.js` writes the gate state** on dispatch: a gate-round/conditional agent sets one repo-wide lock, a plan-critic dispatch clears it. While set, a production Edit/Write is blocked. A Bash redirect bypasses it. When the last round and the post-loop conditionals have reported clean, the orchestrator deletes it: `rm -f "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/.claude/review-gate.lock"` (`/fullpush` step 11 repeats it).
 
 ### Implementation-Critic (a member of round 1)
 Runs on the branch diff against the validated plan and requirements (spec or plan output). No staged-diff scope, no exemption, and no revision sub-loop — its findings enter the same pooled triage as every other reviewer's, and the loop ceiling is the only round limit that applies to it.
