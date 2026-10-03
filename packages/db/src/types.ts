@@ -445,6 +445,7 @@ export type Database = {
           consumed_at: string | null
           consumed_session_id: string | null
           deleted_at: string | null
+          emailed_at: string | null
           expires_at: string
           id: string
           issued_at: string
@@ -461,6 +462,7 @@ export type Database = {
           consumed_at?: string | null
           consumed_session_id?: string | null
           deleted_at?: string | null
+          emailed_at?: string | null
           expires_at: string
           id?: string
           issued_at?: string
@@ -477,6 +479,7 @@ export type Database = {
           consumed_at?: string | null
           consumed_session_id?: string | null
           deleted_at?: string | null
+          emailed_at?: string | null
           expires_at?: string
           id?: string
           issued_at?: string
@@ -765,6 +768,7 @@ export type Database = {
           created_by: string
           deleted_at: string | null
           deleted_by: string | null
+          diagram_config: Json | null
           dialog_template: string | null
           difficulty: string
           explanation_image_url: string | null
@@ -773,6 +777,7 @@ export type Database = {
           id: string
           lo_reference: string | null
           options: Json
+          ordering_items: Json
           organization_id: string
           question_image_url: string | null
           question_number: string | null
@@ -795,6 +800,7 @@ export type Database = {
           created_by: string
           deleted_at?: string | null
           deleted_by?: string | null
+          diagram_config?: Json | null
           dialog_template?: string | null
           difficulty: string
           explanation_image_url?: string | null
@@ -803,6 +809,7 @@ export type Database = {
           id?: string
           lo_reference?: string | null
           options?: Json
+          ordering_items?: Json
           organization_id: string
           question_image_url?: string | null
           question_number?: string | null
@@ -825,6 +832,7 @@ export type Database = {
           created_by?: string
           deleted_at?: string | null
           deleted_by?: string | null
+          diagram_config?: Json | null
           dialog_template?: string | null
           difficulty?: string
           explanation_image_url?: string | null
@@ -833,6 +841,7 @@ export type Database = {
           id?: string
           lo_reference?: string | null
           options?: Json
+          ordering_items?: Json
           organization_id?: string
           question_image_url?: string | null
           question_number?: string | null
@@ -1002,17 +1011,72 @@ export type Database = {
           },
         ]
       }
+      quiz_session_progress: {
+        Row: {
+          answer: Json | null
+          answered_at: string | null
+          question_id: string
+          session_id: string
+          student_id: string
+          time_spent_ms: number
+          updated_at: string
+        }
+        Insert: {
+          answer?: Json | null
+          answered_at?: string | null
+          question_id: string
+          session_id: string
+          student_id: string
+          time_spent_ms?: number
+          updated_at?: string
+        }
+        Update: {
+          answer?: Json | null
+          answered_at?: string | null
+          question_id?: string
+          session_id?: string
+          student_id?: string
+          time_spent_ms?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'quiz_session_progress_question_id_fkey'
+            columns: ['question_id']
+            isOneToOne: false
+            referencedRelation: 'questions'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'quiz_session_progress_session_id_fkey'
+            columns: ['session_id']
+            isOneToOne: false
+            referencedRelation: 'quiz_sessions'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'quiz_session_progress_student_id_fkey'
+            columns: ['student_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       quiz_sessions: {
         Row: {
+          active_device_id: string | null
           config: Json
           correct_count: number
           created_at: string
+          current_index: number
           deleted_at: string | null
           ended_at: string | null
           id: string
           mode: string
           organization_id: string
           passed: boolean | null
+          pinned_question_ids: string[]
           score_percentage: number | null
           started_at: string
           student_id: string
@@ -1022,15 +1086,18 @@ export type Database = {
           total_questions: number
         }
         Insert: {
+          active_device_id?: string | null
           config?: Json
           correct_count?: number
           created_at?: string
+          current_index?: number
           deleted_at?: string | null
           ended_at?: string | null
           id?: string
           mode: string
           organization_id: string
           passed?: boolean | null
+          pinned_question_ids?: string[]
           score_percentage?: number | null
           started_at?: string
           student_id: string
@@ -1040,15 +1107,18 @@ export type Database = {
           total_questions?: number
         }
         Update: {
+          active_device_id?: string | null
           config?: Json
           correct_count?: number
           created_at?: string
+          current_index?: number
           deleted_at?: string | null
           ended_at?: string | null
           id?: string
           mode?: string
           organization_id?: string
           passed?: boolean | null
+          pinned_question_ids?: string[]
           score_percentage?: number | null
           started_at?: string
           student_id?: string
@@ -1302,6 +1372,7 @@ export type Database = {
           p_calc_mode?: string
           p_filters: string[]
           p_has_image?: string
+          p_question_type?: string
           p_subject_id: string
           p_subtopic_ids: string[]
           p_topic_ids: string[]
@@ -1310,6 +1381,128 @@ export type Database = {
           id: string
           subtopic_id: string
           topic_id: string
+        }[]
+      }
+      _grade_record_diagram_label: {
+        Args: {
+          p_diagram_config: Json
+          p_label_id: string
+          p_org_id: string
+          p_question_id: string
+          p_response_time: number
+          p_session_id: string
+          p_student_id: string
+          p_zone_id: string
+        }
+        Returns: number
+      }
+      _grade_record_dialog_fill: {
+        Args: {
+          p_blank_index: number
+          p_blanks_config: Json
+          p_org_id: string
+          p_question_id: string
+          p_response_text: string
+          p_response_time: number
+          p_session_id: string
+          p_student_id: string
+        }
+        Returns: number
+      }
+      _grade_record_mc: {
+        Args: {
+          p_correct_option: string
+          p_options: Json
+          p_org_id: string
+          p_question_id: string
+          p_response_time: number
+          p_selected: string
+          p_session_id: string
+          p_student_id: string
+        }
+        Returns: number
+      }
+      _grade_record_ordering: {
+        Args: {
+          p_item_id: string
+          p_ordering_items: Json
+          p_org_id: string
+          p_question_id: string
+          p_response_time: number
+          p_session_id: string
+          p_slot: number
+          p_student_id: string
+        }
+        Returns: number
+      }
+      _grade_record_short_answer: {
+        Args: {
+          p_canonical: string
+          p_org_id: string
+          p_question_id: string
+          p_response_text: string
+          p_response_time: number
+          p_session_id: string
+          p_student_id: string
+          p_synonyms: string[]
+        }
+        Returns: number
+      }
+      _lock_session_for_progress: {
+        Args: {
+          p_check_device?: boolean
+          p_device_id: string
+          p_session_id: string
+        }
+        Returns: {
+          active_device_id: string | null
+          config: Json
+          correct_count: number
+          created_at: string
+          current_index: number
+          deleted_at: string | null
+          ended_at: string | null
+          id: string
+          mode: string
+          organization_id: string
+          passed: boolean | null
+          pinned_question_ids: string[]
+          score_percentage: number | null
+          started_at: string
+          student_id: string
+          subject_id: string | null
+          time_limit_seconds: number | null
+          topic_id: string | null
+          total_questions: number
+        }
+        SetofOptions: {
+          from: '*'
+          to: 'quiz_sessions'
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      _save_progress_row: {
+        Args: {
+          p_answer: Json
+          p_device_id: string
+          p_question_id: string
+          p_session_id: string
+          p_student_id: string
+          p_time_spent_ms: number
+        }
+        Returns: undefined
+      }
+      _validate_progress_answer: {
+        Args: { p_answer: Json; p_question_type: string }
+        Returns: boolean
+      }
+      _vfr_rt_exam_part_scores: {
+        Args: { p_config: Json; p_session_id: string }
+        Returns: {
+          p1: number
+          p2: number
+          p3: number
         }[]
       }
       answer_matches: {
@@ -1330,19 +1523,29 @@ export type Database = {
       check_non_mc_answer: {
         Args: {
           p_blank_answers?: Json
+          p_device_id?: string
+          p_mapping?: Json
+          p_order?: Json
           p_question_id: string
           p_response_text?: string
           p_session_id: string
+          p_time_spent_ms?: number
         }
         Returns: Json
       }
       check_quiz_answer: {
         Args: {
+          p_device_id?: string
           p_question_id: string
           p_selected_option_id: string
           p_session_id: string
+          p_time_spent_ms?: number
         }
         Returns: Json
+      }
+      claim_quiz_session: {
+        Args: { p_device_id: string; p_session_id: string }
+        Returns: undefined
       }
       complete_empty_exam_session: {
         Args: { p_session_id: string }
@@ -1359,6 +1562,10 @@ export type Database = {
           score_percentage: number
           total_questions: number
         }[]
+      }
+      dialog_fill_blanks_delimiter_free: {
+        Args: { p_blanks: Json }
+        Returns: boolean
       }
       get_admin_dashboard_kpis: {
         Args: { p_range_days?: number }
@@ -1382,6 +1589,15 @@ export type Database = {
           mastery: number
           session_count: number
           total_count: number
+        }[]
+      }
+      get_admin_report_answer_keys: {
+        Args: { p_session_id: string }
+        Returns: {
+          answer_key: string
+          blank_index: number
+          question_id: string
+          question_type: string
         }[]
       }
       get_admin_report_correct_options: {
@@ -1423,6 +1639,7 @@ export type Database = {
           p_calc_mode?: string
           p_filters: string[]
           p_has_image?: string
+          p_question_type?: string
           p_subject_id: string
           p_subtopic_ids: string[]
           p_topic_ids: string[]
@@ -1439,7 +1656,7 @@ export type Database = {
           accepted_synonyms: string[]
           blanks_config: Json
           canonical_answer: string
-          correct_option_id: string | null
+          correct_option_id: string
           dialog_template: string
         }[]
       }
@@ -1452,17 +1669,20 @@ export type Database = {
           topic_id: string
         }[]
       }
+      get_quiz_progress: { Args: { p_session_id: string }; Returns: Json }
       get_quiz_questions: {
         Args: { p_question_ids: string[] }
         Returns: {
           blanks_safe: Json
-          difficulty: string
+          diagram_config_public: Json
           dialog_template: string
+          difficulty: string
           explanation_image_url: string
           explanation_text: string
           id: string
           lo_reference: string
           options: Json
+          ordering_items_shuffled: Json
           question_image_url: string
           question_number: string
           question_text: string
@@ -1478,12 +1698,22 @@ export type Database = {
           p_count: number
           p_filters: string[]
           p_has_image?: string
+          p_question_type?: string
           p_subject_id: string
           p_subtopic_ids: string[]
           p_topic_ids: string[]
         }
         Returns: {
           id: string
+        }[]
+      }
+      get_report_answer_keys: {
+        Args: { p_session_id: string }
+        Returns: {
+          answer_key: string
+          blank_index: number
+          question_id: string
+          question_type: string
         }[]
       }
       get_report_correct_options: {
@@ -1543,6 +1773,23 @@ export type Database = {
           current_streak: number
         }[]
       }
+      get_study_questions: {
+        Args: { p_question_ids: string[] }
+        Returns: {
+          correct_option_id: string
+          difficulty: string
+          explanation_image_url: string
+          explanation_text: string
+          id: string
+          options: Json
+          question_image_url: string
+          question_number: string
+          question_text: string
+          subject_code: string
+          subtopic_name: string
+          topic_name: string
+        }[]
+      }
       get_subject_scores: {
         Args: { p_limit?: number; p_student_id: string }
         Returns: {
@@ -1574,6 +1821,8 @@ export type Database = {
       }
       get_vfr_rt_exam_results: { Args: { p_session_id: string }; Returns: Json }
       is_admin: { Args: never; Returns: boolean }
+      is_valid_diagram_config: { Args: { p_config: Json }; Returns: boolean }
+      is_valid_ordering_items: { Args: { p_items: Json }; Returns: boolean }
       issue_internal_exam_code: {
         Args: { p_student_id: string; p_subject_id: string }
         Returns: {
@@ -1610,6 +1859,7 @@ export type Database = {
         }[]
       }
       normalize_answer: { Args: { '': string }; Returns: string }
+      ordering_item_id: { Args: { p_text: string }; Returns: string }
       record_auth_event: {
         Args: { p_event_type: string; p_metadata?: Json; p_resource_id: string }
         Returns: undefined
@@ -1624,8 +1874,40 @@ export type Database = {
         }
         Returns: undefined
       }
+      record_internal_exam_code_emailed: {
+        Args: { p_code_id: string }
+        Returns: undefined
+      }
       record_login: { Args: never; Returns: undefined }
-      record_login_instructions_sent: { Args: { p_user_id: string }; Returns: undefined }
+      record_login_instructions_sent: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
+      save_quiz_answer: {
+        Args: {
+          p_answer: Json
+          p_device_id: string
+          p_question_id: string
+          p_session_id: string
+          p_time_spent_ms: number
+        }
+        Returns: undefined
+      }
+      save_quiz_position: {
+        Args: {
+          p_current_index: number
+          p_device_id: string
+          p_pinned_question_ids: string[]
+          p_question_id?: string
+          p_session_id: string
+          p_time_spent_ms?: number
+        }
+        Returns: undefined
+      }
+      start_discovery_session: {
+        Args: { p_question_ids: string[]; p_subject_id: string }
+        Returns: string
+      }
       start_exam_session: { Args: { p_subject_id: string }; Returns: Json }
       start_internal_exam_session: {
         Args: { p_code: string }

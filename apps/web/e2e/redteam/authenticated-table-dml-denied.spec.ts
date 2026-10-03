@@ -47,7 +47,8 @@ import { deriveTableSpecs, NIL_UUID, type TableSpec } from './helpers/table-spec
 type Command = 'insert' | 'update' | 'delete'
 
 // Closed set — one row per REVOKE statement in
-// supabase/migrations/20260925000300_least_privilege_table_grants.sql.
+// supabase/migrations/20260925000300_least_privilege_table_grants.sql and
+// 20261002000900_revoke_student_quiz_session_insert.sql.
 const REVOKED_CELLS: Array<{ table: string; commands: Command[] }> = [
   { table: 'audit_events', commands: ['insert', 'update', 'delete'] },
   { table: 'courses', commands: ['insert', 'update', 'delete'] },
@@ -65,7 +66,7 @@ const REVOKED_CELLS: Array<{ table: string; commands: Command[] }> = [
   { table: 'exam_configs', commands: ['delete'] },
   { table: 'flagged_questions', commands: ['delete'] },
   { table: 'questions', commands: ['delete'] },
-  { table: 'quiz_sessions', commands: ['delete'] },
+  { table: 'quiz_sessions', commands: ['insert', 'delete'] },
 ]
 
 test.describe('Red Team: Authenticated Table-Level DML Denied on Revoked Cells', () => {

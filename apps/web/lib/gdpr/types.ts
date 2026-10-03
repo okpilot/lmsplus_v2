@@ -33,6 +33,9 @@ export type GdprExportPayload = {
     score_percentage: number | null
     started_at: string
     ended_at: string | null
+    current_index: number
+    pinned_question_ids: string[]
+    active_device_id: string | null
   }>
   quiz_answers: Array<{
     session_id: string
@@ -43,6 +46,14 @@ export type GdprExportPayload = {
     is_correct: boolean
     response_time_ms: number
     answered_at: string
+  }>
+  quiz_progress: Array<{
+    session_id: string
+    question_id: string
+    answer: unknown
+    time_spent_ms: number
+    answered_at: string | null
+    updated_at: string
   }>
   student_responses: Array<{
     question_id: string

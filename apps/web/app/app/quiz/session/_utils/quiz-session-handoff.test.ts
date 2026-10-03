@@ -68,7 +68,7 @@ describe('readSessionHandoff', () => {
     const data = {
       sessionId: 'sess-2',
       questionIds: ['q1', 'q2'],
-      draftAnswers: { q1: { selectedOptionId: 'opt-a', responseTimeMs: 500 } },
+      draftAnswers: { q1: { selectedOptionId: 'a', responseTimeMs: 500 } },
       draftCurrentIndex: 1,
       draftId: 'draft-7',
       subjectName: 'Meteorology',
@@ -200,7 +200,7 @@ describe('readSessionHandoff', () => {
       draftFeedback: {
         q1: {
           isCorrect: true,
-          correctOptionId: 'opt-a',
+          correctOptionId: 'a',
           explanationText: 'Correct!',
           explanationImageUrl: null,
         },
@@ -218,7 +218,7 @@ describe('readSessionHandoff', () => {
       questionIds: ['q1'],
       draftFeedback: {
         q1: {
-          correctOptionId: 'opt-a',
+          correctOptionId: 'a',
           explanationText: null,
           explanationImageUrl: null,
         },
@@ -249,7 +249,7 @@ describe('readSessionHandoff', () => {
       draftFeedback: {
         q1: {
           isCorrect: 'true', // should be boolean
-          correctOptionId: 'opt-a',
+          correctOptionId: 'a',
           explanationText: null,
           explanationImageUrl: null,
         },
@@ -366,12 +366,12 @@ const DRAFT: DraftData = {
   id: 'draft-9',
   sessionId: 'old-sess',
   questionIds: ['q1', 'q2'],
-  answers: { q1: { selectedOptionId: 'opt-a', responseTimeMs: 800 } },
+  answers: { q1: { selectedOptionId: 'a', responseTimeMs: 800 } },
   feedback: {
     q1: {
       questionType: 'multiple_choice',
       isCorrect: true,
-      correctOptionId: 'opt-a',
+      correctOptionId: 'a',
       explanationText: null,
       explanationImageUrl: null,
     },

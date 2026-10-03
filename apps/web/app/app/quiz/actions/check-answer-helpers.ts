@@ -79,8 +79,8 @@ export async function verifySessionMembership(
  * boundary.
  *
  * Callers should run verifySessionMembership first, but the security boundary does not
- * depend on it: mig `20260619000700` (the latest check_quiz_answer — traced through the
- * `20260313000029` DROP+CREATE) self-guards with a strict superset — auth.uid() null
+ * depend on it: mig `20261002000700` (the latest check_quiz_answer — a DROP+CREATE to the
+ * 5-arg signature) self-guards with a strict superset — auth.uid() null
  * check, active-user gate, the same four ownership predicates, a practice-mode-only guard,
  * and its own question_ids membership test, all before the key is read. Skipping the
  * helper costs error granularity, never the guard.

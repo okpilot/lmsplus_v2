@@ -31,7 +31,7 @@ export function fetchUserSessions(supabase: SupabaseClient<Database>, userId: st
       supabase
         .from('quiz_sessions')
         .select(
-          'id, mode, subject_id, topic_id, total_questions, correct_count, score_percentage, started_at, ended_at',
+          'id, mode, subject_id, topic_id, total_questions, correct_count, score_percentage, started_at, ended_at, current_index, pinned_question_ids, active_device_id',
         )
         .eq('student_id', userId)
         .is('deleted_at', null)

@@ -31,7 +31,7 @@ const VALID_DRAFT_INPUT = {
   sessionId: SESSION_ID,
   questionIds: [Q1_ID, Q2_ID],
   answers: {
-    [Q1_ID]: { selectedOptionId: 'opt-a', responseTimeMs: 2000 },
+    [Q1_ID]: { selectedOptionId: 'a', responseTimeMs: 2000 },
   },
   currentIndex: 1,
 }
@@ -42,7 +42,7 @@ const DRAFT_ROW = {
   organization_id: ORG_ID,
   session_config: { sessionId: SESSION_ID },
   question_ids: [Q1_ID, Q2_ID],
-  answers: { [Q1_ID]: { selectedOptionId: 'opt-a', responseTimeMs: 2000 } },
+  answers: { [Q1_ID]: { selectedOptionId: 'a', responseTimeMs: 2000 } },
   current_index: 1,
   created_at: '2026-03-12T00:00:00Z',
   updated_at: '2026-03-12T00:00:00Z',
@@ -285,11 +285,11 @@ describe('saveDraft', () => {
     if (!result.success) expect(result.error).toBe('Invalid input')
   })
 
-  it('rejects a draft whose selectedOptionId is whitespace-only', async () => {
+  it.each(['   ', 'e'])('rejects a draft selectedOptionId of %j', async (selectedOptionId) => {
     setupAuthenticatedUser()
     const result = await saveDraft({
       ...VALID_DRAFT_INPUT,
-      answers: { [Q1_ID]: { selectedOptionId: '   ', responseTimeMs: 2000 } },
+      answers: { [Q1_ID]: { selectedOptionId, responseTimeMs: 2000 } },
     })
     expect(result).toEqual({ success: false, error: 'Invalid input' })
   })
@@ -900,8 +900,8 @@ describe('saveDraft', () => {
     const result = await saveDraft({
       ...VALID_DRAFT_INPUT,
       answers: {
-        [Q1_ID]: { selectedOptionId: 'opt-a', responseTimeMs: 1000 },
-        [staleQuestionId]: { selectedOptionId: 'opt-b', responseTimeMs: 500 },
+        [Q1_ID]: { selectedOptionId: 'a', responseTimeMs: 1000 },
+        [staleQuestionId]: { selectedOptionId: 'b', responseTimeMs: 500 },
       },
     })
     expect(result.success).toBe(false)

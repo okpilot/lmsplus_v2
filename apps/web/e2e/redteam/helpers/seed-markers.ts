@@ -51,3 +51,8 @@ export const E2E_REDTEAM_FK_MARKER = '[E2E_REDTEAM_FK]'
 // ordering derived-id CHECK spec (Vector FX, #1045): marks the ordering fixture questions it
 // inserts so cleanup/maintenance can target them by question_number.
 export const E2E_REDTEAM_FX_MARKER = '[E2E_REDTEAM_FX]'
+// quiz-progress spec (Vectors GG-GJ, #1026): written into fixture quiz_sessions as `config.e2e_marker`.
+export const E2E_REDTEAM_QP_MARKER = '[E2E_REDTEAM_QP]'
+// quiz_sessions direct-INSERT spec (Vectors GK/GL): written into the attacker's probe rows as
+// `config.e2e_marker` so cleanup soft-deletes any row the INSERT manages to land.
+export const E2E_REDTEAM_SI_MARKER = '[E2E_REDTEAM_SI]'

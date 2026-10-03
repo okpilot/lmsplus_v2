@@ -11,10 +11,10 @@ export function isNonEmptyString(value: unknown): value is string {
 }
 
 // Stricter than isNonEmptyString: rejects whitespace-only strings too. Scoped
-// to the three ID-shaped fields below (selectedOptionId, order/correctOrder
-// elements) — these values are compared/looked-up as ids downstream, where a
-// whitespace-only string is corrupt data, not a valid id. isNonEmptyString
-// keeps its broader existing semantics for its other call sites.
+// to the ID-shaped order/correctOrder elements below — these values are
+// compared/looked-up as ids downstream, where a whitespace-only string is
+// corrupt data, not a valid id. isNonEmptyString keeps its broader existing
+// semantics for its other call sites.
 const isNonBlankString = (s: unknown): s is string => typeof s === 'string' && s.trim().length > 0
 
 function isNullableString(v: unknown): boolean {
@@ -36,6 +36,9 @@ function isValidBlankAnswers(v: unknown): boolean {
   )
 }
 
+// Mirrors draft-schema.ts selectedOptionId z.enum and the DB MC option-id CHECK.
+const MC_OPTION_IDS: ReadonlySet<unknown> = new Set(['a', 'b', 'c', 'd'])
+
 export function isValidDraftAnswer(v: unknown): boolean {
   if (typeof v !== 'object' || v === null) return false
   const r = v as Record<string, unknown>
@@ -54,7 +57,7 @@ export function isValidDraftAnswer(v: unknown): boolean {
   ) {
     return false
   }
-  if (hasSelectedOption) return isNonBlankString(r.selectedOptionId)
+  if (hasSelectedOption) return MC_OPTION_IDS.has(r.selectedOptionId as string)
   if (hasResponseText) return isNonEmptyString(r.responseText)
   if (hasOrder) {
     return (

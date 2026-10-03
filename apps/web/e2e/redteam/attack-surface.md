@@ -206,6 +206,12 @@
 | GD | get_daily_subjects-same-org-instructor-admin-self-scope | HIGH | rpc-daily-subjects-scope.spec.ts | BLOCKED |  | rls-bypass |
 | GE | get_daily_subjects-cross-org-admin-isolation | HIGH | rpc-daily-subjects-scope.spec.ts | BLOCKED |  | cross-tenant |
 | GF | get_daily_subjects-soft-deleted-caller-gate | MEDIUM | rpc-daily-subjects-scope.spec.ts | BLOCKED |  | sibling-guard-gap |
+| GG | quiz-progress-rpcs-foreign-session | HIGH | rpc-quiz-progress-isolation.spec.ts | BLOCKED |  | idor |
+| GH | quiz_session_progress-direct-dml-and-helper-execute | HIGH | rpc-quiz-progress-isolation.spec.ts | BLOCKED |  | rls-bypass |
+| GI | check_quiz_answer-taken-over-device-save | MEDIUM | rpc-quiz-progress-isolation.spec.ts | BLOCKED |  | auth-bypass |
+| GJ | get_quiz_progress-exam-mode-no-correctness | HIGH | rpc-quiz-progress-isolation.spec.ts | BLOCKED |  | answer-oracle |
+| GK | quiz_sessions-direct-insert-forged-completed-exam | HIGH | quiz-session-direct-insert.spec.ts | BLOCKED |  | mass-assignment |
+| GL | quiz_sessions-direct-insert-foreign-org | HIGH | quiz-session-direct-insert.spec.ts | BLOCKED |  | cross-tenant |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 

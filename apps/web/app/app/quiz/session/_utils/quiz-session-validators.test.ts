@@ -42,11 +42,11 @@ describe('isNonEmptyString', () => {
 })
 describe('isValidDraftAnswer', () => {
   it('returns true for a well-formed draft answer', () => {
-    expect(isValidDraftAnswer({ selectedOptionId: 'opt-a', responseTimeMs: 1200 })).toBe(true)
+    expect(isValidDraftAnswer({ selectedOptionId: 'a', responseTimeMs: 1200 })).toBe(true)
   })
 
   it('returns true when responseTimeMs is 0', () => {
-    expect(isValidDraftAnswer({ selectedOptionId: 'opt-b', responseTimeMs: 0 })).toBe(true)
+    expect(isValidDraftAnswer({ selectedOptionId: 'b', responseTimeMs: 0 })).toBe(true)
   })
 
   it('returns false when selectedOptionId is missing', () => {
@@ -54,19 +54,19 @@ describe('isValidDraftAnswer', () => {
   })
 
   it('returns false when responseTimeMs is missing', () => {
-    expect(isValidDraftAnswer({ selectedOptionId: 'opt-a' })).toBe(false)
+    expect(isValidDraftAnswer({ selectedOptionId: 'a' })).toBe(false)
   })
 
   it('returns false when selectedOptionId is a number', () => {
     expect(isValidDraftAnswer({ selectedOptionId: 42, responseTimeMs: 500 })).toBe(false)
   })
 
-  it('rejects a whitespace-only selectedOptionId', () => {
-    expect(isValidDraftAnswer({ selectedOptionId: '   ', responseTimeMs: 500 })).toBe(false)
+  it.each(['   ', 'e'])('rejects a selectedOptionId of %j', (selectedOptionId) => {
+    expect(isValidDraftAnswer({ selectedOptionId, responseTimeMs: 500 })).toBe(false)
   })
 
   it('returns false when responseTimeMs is a string', () => {
-    expect(isValidDraftAnswer({ selectedOptionId: 'opt-a', responseTimeMs: 'fast' })).toBe(false)
+    expect(isValidDraftAnswer({ selectedOptionId: 'a', responseTimeMs: 'fast' })).toBe(false)
   })
 
   it('returns false for null', () => {
@@ -74,11 +74,11 @@ describe('isValidDraftAnswer', () => {
   })
 
   it('returns false for a non-object primitive', () => {
-    expect(isValidDraftAnswer('opt-a')).toBe(false)
+    expect(isValidDraftAnswer('a')).toBe(false)
   })
 
   it('returns false for an array', () => {
-    expect(isValidDraftAnswer(['opt-a', 500])).toBe(false)
+    expect(isValidDraftAnswer(['a', 500])).toBe(false)
   })
 
   it('accepts a short_answer draft carrying responseText', () => {
@@ -193,7 +193,7 @@ describe('isValidDraftAnswer', () => {
     expect(
       isValidDraftAnswer({
         order: ['item-a', 'item-b'],
-        selectedOptionId: 'opt-a',
+        selectedOptionId: 'a',
         responseTimeMs: 1500,
       }),
     ).toBe(false)
@@ -235,7 +235,7 @@ describe('isValidDraftAnswer', () => {
   it('rejects a draft carrying two answer payloads at once', () => {
     expect(
       isValidDraftAnswer({
-        selectedOptionId: 'opt-a',
+        selectedOptionId: 'a',
         responseText: 'cleared to land',
         responseTimeMs: 1500,
       }),
@@ -245,7 +245,7 @@ describe('isValidDraftAnswer', () => {
   it('rejects a hybrid draft carrying both a selected option and blank answers', () => {
     expect(
       isValidDraftAnswer({
-        selectedOptionId: 'opt-a',
+        selectedOptionId: 'a',
         blankAnswers: [{ index: 0, text: 'x' }],
         responseTimeMs: 1500,
       }),
@@ -253,18 +253,18 @@ describe('isValidDraftAnswer', () => {
   })
 
   it('rejects a fractional responseTimeMs', () => {
-    expect(isValidDraftAnswer({ selectedOptionId: 'opt-a', responseTimeMs: 12.5 })).toBe(false)
+    expect(isValidDraftAnswer({ selectedOptionId: 'a', responseTimeMs: 12.5 })).toBe(false)
   })
 
   it('rejects a negative responseTimeMs', () => {
-    expect(isValidDraftAnswer({ selectedOptionId: 'opt-a', responseTimeMs: -1 })).toBe(false)
+    expect(isValidDraftAnswer({ selectedOptionId: 'a', responseTimeMs: -1 })).toBe(false)
   })
 })
 
 describe('isValidFeedbackEntry', () => {
   const validEntry = {
     isCorrect: true,
-    correctOptionId: 'opt-a',
+    correctOptionId: 'a',
     explanationText: 'Because lift.',
     explanationImageUrl: null,
   }
@@ -615,8 +615,8 @@ describe('isValidRecordOf', () => {
     expect(
       isValidRecordOf(
         {
-          q1: { selectedOptionId: 'opt-a', responseTimeMs: 500 },
-          q2: { selectedOptionId: 'opt-b', responseTimeMs: 200 },
+          q1: { selectedOptionId: 'a', responseTimeMs: 500 },
+          q2: { selectedOptionId: 'b', responseTimeMs: 200 },
         },
         isValidDraftAnswer,
       ),
@@ -627,7 +627,7 @@ describe('isValidRecordOf', () => {
     expect(
       isValidRecordOf(
         {
-          q1: { selectedOptionId: 'opt-a', responseTimeMs: 500 },
+          q1: { selectedOptionId: 'a', responseTimeMs: 500 },
           q2: { responseTimeMs: 200 }, // missing selectedOptionId
         },
         isValidDraftAnswer,
@@ -828,7 +828,7 @@ describe('hasValidOptionalFields', () => {
   it('returns false when a draftAnswers entry has responseTimeMs as a string', () => {
     expect(
       hasValidOptionalFields(
-        { draftAnswers: { q1: { selectedOptionId: 'opt-a', responseTimeMs: 'fast' } } },
+        { draftAnswers: { q1: { selectedOptionId: 'a', responseTimeMs: 'fast' } } },
         QUESTION_COUNT,
       ),
     ).toBe(false)
@@ -843,8 +843,8 @@ describe('hasValidOptionalFields', () => {
       hasValidOptionalFields(
         {
           draftAnswers: {
-            q1: { selectedOptionId: 'opt-a', responseTimeMs: 500 },
-            q2: { selectedOptionId: 'opt-b', responseTimeMs: 300 },
+            q1: { selectedOptionId: 'a', responseTimeMs: 500 },
+            q2: { selectedOptionId: 'b', responseTimeMs: 300 },
           },
         },
         QUESTION_COUNT,
@@ -873,7 +873,7 @@ describe('hasValidOptionalFields', () => {
           draftFeedback: {
             q1: {
               isCorrect: true,
-              correctOptionId: 'opt-a',
+              correctOptionId: 'a',
               explanationText: 'Correct.',
               explanationImageUrl: null,
             },
@@ -891,7 +891,7 @@ describe('hasValidOptionalFields', () => {
           draftFeedback: {
             q1: {
               isCorrect: false,
-              correctOptionId: 'opt-b',
+              correctOptionId: 'b',
               explanationText: null,
               explanationImageUrl: null,
             },
@@ -916,7 +916,7 @@ describe('hasValidOptionalFields', () => {
         {
           draftFeedback: {
             q1: {
-              correctOptionId: 'opt-a',
+              correctOptionId: 'a',
               explanationText: null,
               explanationImageUrl: null,
             },
@@ -934,7 +934,7 @@ describe('hasValidOptionalFields', () => {
           draftFeedback: {
             q1: {
               isCorrect: 'yes',
-              correctOptionId: 'opt-a',
+              correctOptionId: 'a',
               explanationText: null,
               explanationImageUrl: null,
             },
