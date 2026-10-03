@@ -14,7 +14,6 @@
         "sets the lock again when the next round dispatches a reviewer",
         "blocks a production target reached through an exempt directory via ..",
         "blocks a production file whose path contains apps/web/e2e/ below another directory",
-        "blocks a production file inside a .claude/worktrees/ checkout when the gate is armed",
         "blocks a production edit in any worktree under .claude/worktrees while locked",
         "allows a root .coderabbit.yaml edit but blocks a nested one while armed",
         "blocks an armed edit when the hook runs from an agent worktree copy"
@@ -27,8 +26,7 @@
       "replace": "  if (!fs.existsSync(LOCK)) block('no lock')\n",
       "expectRed": [
         "allows any edit when no gate state exists",
-        "clears the lock when plan-critic is dispatched after a round",
-        "allows a production edit when the lock is not set"
+        "clears the lock when plan-critic is dispatched after a round"
       ],
       "note": "The early no-lock return blocks instead of allowing — an edit with no lock is refused."
     },
@@ -77,7 +75,6 @@
       "replace": "filePath.includes(path.sep + dir + path.sep)",
       "expectRed": [
         "blocks a production file whose path contains apps/web/e2e/ below another directory",
-        "blocks a production file inside a .claude/worktrees/ checkout when the gate is armed",
         "blocks a production edit in any worktree under .claude/worktrees while locked",
         "blocks an armed edit when the hook runs from an agent worktree copy"
       ],
@@ -88,7 +85,6 @@
       "find": "  if (!filePath.startsWith(WORKTREES_DIR)) return REPO_ROOT\n",
       "replace": "  return REPO_ROOT\n",
       "expectRed": [
-        "blocks a production file inside a .claude/worktrees/ checkout when the gate is armed",
         "blocks a production edit in any worktree under .claude/worktrees while locked",
         "blocks an armed edit when the hook runs from an agent worktree copy"
       ],

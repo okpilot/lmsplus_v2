@@ -125,15 +125,6 @@ test('writes no state when plan-critic is dispatched before any round', () => {
   }
 })
 
-test('allows a production edit when the lock is not set', () => {
-  const dir = makeDir()
-  try {
-    assert.equal(prodEdit(dir).status, 0)
-  } finally {
-    cleanup(dir)
-  }
-})
-
 // GROUP: review-gate-outside-repo-blocked
 test('allows a production file outside the repo root when the gate is armed', () => {
   const dir = makeDir()
@@ -207,20 +198,6 @@ test('blocks a production file whose path contains apps/web/e2e/ below another d
   try {
     arm(dir)
     const r = runHook(payload(path.join(dir, 'vendor', 'apps', 'web', 'e2e', 'x.ts')), dir)
-    assert.equal(r.status, 2)
-  } finally {
-    cleanup(dir)
-  }
-})
-
-// GROUP: review-gate-worktrees-exempt
-test('blocks a production file inside a .claude/worktrees/ checkout when the gate is armed', () => {
-  const dir = makeDir()
-  try {
-    arm(dir)
-    const wt = path.join(dir, '.claude', 'worktrees', 'wt')
-    mkdirSync(wt, { recursive: true })
-    const r = runHook(payload(path.join(wt, 'apps', 'web', 'lib', 'foo.ts')), dir)
     assert.equal(r.status, 2)
   } finally {
     cleanup(dir)
