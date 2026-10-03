@@ -32,9 +32,9 @@ function mainCheckoutRoot() {
   }
 }
 
-/** `REVIEW_GATE_ROOT` points the test suite at a fixture pipeline.json. */
+/** `REVIEW_GATE_ROOT` points the test suite at a fixture pipeline.json. Resolved: git prints `/` on Windows. */
 // biome-ignore lint/suspicious/noUndeclaredEnvVars: not a Turborepo task — runs outside turbo.
-const REPO_ROOT = process.env.REVIEW_GATE_ROOT || mainCheckoutRoot()
+const REPO_ROOT = path.resolve(process.env.REVIEW_GATE_ROOT || mainCheckoutRoot())
 const PIPELINE_PATH = path.join(REPO_ROOT, '.claude', 'pipeline.json')
 const ARMING_ROLES = new Set(['gate-round', 'conditional'])
 const LOCK = path.join(REPO_ROOT, '.claude', 'review-gate.lock')
