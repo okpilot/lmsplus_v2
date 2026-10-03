@@ -194,7 +194,7 @@ A reviewer's ISSUE/CRITICAL is a hypothesis. Validate before editing:
    does NOT prevent recurrence — only the artifact check does.
 2. **Check implications** — what callers/tests/docs break if the fix is applied? Read them.
 3. **Decide** — real issue, false positive, or valid concern needing a different fix.
-4. **If the fix changes the plan** — re-validate the changed parts first. After a round, every production fixup, any size, gets a fixup plan and one plan-critic run first; `review-gate.js` blocks the Edit/Write until then. The size rules below decide WHETHER to apply a fix, never whether to plan it.
+4. **If the fix changes the plan** — re-validate the changed parts first. After a round, every production fixup, any size, gets a fixup plan and one plan-critic run first; `review-gate.js` blocks the Edit/Write until plan-critic is dispatched. The size rules below decide WHETHER to apply a fix, never whether to plan it.
 
 ## Apply-vs-Defer Discipline (MANDATORY before push)
 > **Default: apply. Defer is the exception.** Sort everything on the local machine before pushing. Don't push with a queue of unfinished business.
