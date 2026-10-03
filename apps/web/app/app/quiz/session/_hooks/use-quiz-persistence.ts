@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback } from 'react'
 import type { QuizStateOpts } from '../../session-types'
 import type { AnswerFeedback, DraftAnswer } from '../../types'
 import { buildActiveSession, writeActiveSession } from '../_utils/quiz-session-storage'
@@ -18,19 +18,4 @@ export function useQuizPersistence(opts: QuizStateOpts) {
     [opts],
   )
   return { checkpoint }
-}
-
-/**
- * Writes the starting state once on mount. Start and Resume leave no local copy until the
- * first answer, so a reload or a takeover kick in that window would lose the Resume option.
- */
-export function useInitialCheckpoint(opts: QuizStateOpts, currentIndexRef: { current: number }) {
-  const { checkpoint } = useQuizPersistence(opts)
-  const doneRef = useRef(false)
-  useEffect(() => {
-    if (doneRef.current) return
-    doneRef.current = true
-    const answers = new Map(Object.entries(opts.initialAnswers ?? {}))
-    checkpoint(answers, currentIndexRef.current, opts.initialFeedback)
-  }, [checkpoint, opts, currentIndexRef])
 }

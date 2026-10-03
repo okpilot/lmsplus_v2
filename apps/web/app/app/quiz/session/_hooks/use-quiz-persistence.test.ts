@@ -14,7 +14,7 @@ vi.mock('../_utils/quiz-session-storage', () => ({
 }))
 
 import { _resetSessionTakeover, markTakenOver } from '../_utils/session-takeover'
-import { useInitialCheckpoint, useQuizPersistence } from './use-quiz-persistence'
+import { useQuizPersistence } from './use-quiz-persistence'
 
 const makeOpts = (userId = 'user-1', mode?: QuizStateOpts['mode']): QuizStateOpts => ({
   userId,
@@ -153,47 +153,6 @@ describe('useQuizPersistence', () => {
     markTakenOver('session-1')
 
     result.current.checkpoint(makeAnswers(), 1)
-
-    expect(mockWriteActiveSession).not.toHaveBeenCalled()
-  })
-})
-
-describe('useInitialCheckpoint', () => {
-  beforeEach(() => {
-    vi.resetAllMocks()
-    _resetSessionTakeover()
-    mockBuildActiveSession.mockReturnValue({ mock: 'session' })
-  })
-
-  const answer: DraftAnswer = { selectedOptionId: 'b', responseTimeMs: 900 }
-
-  it('saves the resumed answers and position as soon as the quiz opens', () => {
-    const opts: QuizStateOpts = { ...makeOpts('user-1', 'study'), initialAnswers: { q1: answer } }
-
-    renderHook(() => useInitialCheckpoint(opts, { current: 3 }))
-
-    expect(mockBuildActiveSession).toHaveBeenCalledWith(
-      opts,
-      new Map([['q1', answer]]),
-      3,
-      undefined,
-    )
-    expect(mockWriteActiveSession).toHaveBeenCalledTimes(1)
-  })
-
-  it('saves only once across re-renders', () => {
-    const opts = makeOpts('user-1', 'study')
-    const indexRef = { current: 0 }
-    const { rerender } = renderHook(() => useInitialCheckpoint(opts, indexRef))
-
-    indexRef.current = 2
-    rerender()
-
-    expect(mockWriteActiveSession).toHaveBeenCalledTimes(1)
-  })
-
-  it('saves nothing for discovery', () => {
-    renderHook(() => useInitialCheckpoint(makeOpts('user-1', 'discovery'), { current: 0 }))
 
     expect(mockWriteActiveSession).not.toHaveBeenCalled()
   })
