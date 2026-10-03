@@ -13,6 +13,7 @@
 
 import { expect, test } from '@playwright/test'
 import { getAdminClient } from '../helpers/supabase'
+import { clearOpenSessions } from './helpers/clear-open-sessions'
 import { createAuthenticatedClient } from './helpers/redteam-client'
 import { E2E_REDTEAM_ER_MARKER } from './helpers/seed-markers'
 import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers } from './helpers/seed-users'
@@ -28,17 +29,7 @@ test.describe('Red Team: discarded exam revive (Vector GP)', () => {
   let studentId: string
   let qids: string[]
 
-  const clearActive = async (): Promise<void> => {
-    const { data, error } = await admin
-      .from('quiz_sessions')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('student_id', studentId)
-      .is('ended_at', null)
-      .is('deleted_at', null)
-      .select('id')
-    if (error) throw new Error(`clearActive: ${error.message}`)
-    if ((data?.length ?? 0) > 0) console.info(`[exam-revive] cleared ${data?.length} session(s)`)
-  }
+  const clearActive = () => clearOpenSessions(admin, studentId, 'exam-revive')
 
   const readExam = async (examId: string) => {
     const { data, error } = await admin

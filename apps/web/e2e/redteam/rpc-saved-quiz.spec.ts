@@ -16,6 +16,7 @@
 
 import { expect, test } from '@playwright/test'
 import { getAdminClient } from '../helpers/supabase'
+import { clearOpenSessions } from './helpers/clear-open-sessions'
 import { createAuthenticatedClient } from './helpers/redteam-client'
 import { E2E_REDTEAM_SQ_MARKER } from './helpers/seed-markers'
 import {
@@ -42,17 +43,7 @@ test.describe('Red Team: saved quizzes (Vectors GM/GN/GO)', () => {
   let q1: string
   let q2: string
 
-  const clearActive = async (studentId: string): Promise<void> => {
-    const { data, error } = await admin
-      .from('quiz_sessions')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('student_id', studentId)
-      .is('ended_at', null)
-      .is('deleted_at', null)
-      .select('id')
-    if (error) throw new Error(`clearActive: ${error.message}`)
-    if ((data?.length ?? 0) > 0) console.info(`[saved-quiz] cleared ${data?.length} session(s)`)
-  }
+  const clearActive = (studentId: string) => clearOpenSessions(admin, studentId, 'saved-quiz')
 
   const seedSession = async (studentId: string, mode: 'quick_quiz' | 'mock_exam') => {
     const { data, error } = await admin
