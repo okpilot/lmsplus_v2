@@ -285,17 +285,14 @@ describe('saveDraft', () => {
     if (!result.success) expect(result.error).toBe('Invalid input')
   })
 
-  it.each(['   ', 'e'])(
-    'rejects a draft whose selectedOptionId is %j',
-    async (selectedOptionId) => {
-      setupAuthenticatedUser()
-      const result = await saveDraft({
-        ...VALID_DRAFT_INPUT,
-        answers: { [Q1_ID]: { selectedOptionId, responseTimeMs: 2000 } },
-      })
-      expect(result).toEqual({ success: false, error: 'Invalid input' })
-    },
-  )
+  it.each(['   ', 'e'])('rejects a draft selectedOptionId of %j', async (selectedOptionId) => {
+    setupAuthenticatedUser()
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      answers: { [Q1_ID]: { selectedOptionId, responseTimeMs: 2000 } },
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
 
   it('validates that answers have non-negative responseTimeMs', async () => {
     setupAuthenticatedUser()
