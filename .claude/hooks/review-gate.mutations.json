@@ -14,10 +14,10 @@
         "arms the branch when a gate-round agent is dispatched",
         "arms the branch when a conditional agent is dispatched",
         "arms the branch again when the next round dispatches a reviewer",
+        "a concurrent arm on another branch cannot unarm this branch",
         "blocks a production target reached through an exempt directory via ..",
         "blocks a production file whose path contains apps/web/e2e/ below another directory",
         "blocks a production file inside a .claude/worktrees/ checkout when the gate is armed",
-        "still blocks on a corrupt gate state file",
         "blocks an armed production edit when the session cwd is a subdirectory",
         "blocks an armed production edit inside an agent worktree on its own branch",
         "allows a root .coderabbit.yaml edit but blocks a nested one while armed",
@@ -27,15 +27,15 @@
     },
     {
       "id": "review-gate-always-blocks",
-      "find": "  if (!fs.existsSync(GATE_FILE)) process.exit(0)\n\n  // Collapse",
-      "replace": "  if (false) process.exit(0)\n\n  // Collapse",
+      "find": "  if (!fs.existsSync(GATE_DIR)) process.exit(0)\n",
+      "replace": "  if (!fs.existsSync(GATE_DIR)) block('no gate state')\n",
       "expectRed": ["allows any edit when no gate state exists"],
-      "note": "Removes the early no-state-file return — the hook falls through to loadState, whose read of the missing file throws and blocks."
+      "note": "The early no-gate-directory return blocks instead of allowing — an edit with no gate state is refused."
     },
     {
       "id": "review-gate-no-arm",
-      "find": "state.branches[branch] = { unlocked: false }",
-      "replace": "state.branches[branch] = { unlocked: true }",
+      "find": "fs.writeFileSync(markerFile(branch), branch, 'utf8')",
+      "replace": "void branch",
       "expectRed": [
         "arms the branch of the worktree the reviewer was dispatched from",
         "arms the main branch when dispatched from a subdirectory of the main checkout",
@@ -45,44 +45,44 @@
         "arms the branch when a gate-round agent is dispatched",
         "arms the branch when a conditional agent is dispatched",
         "arms the branch again when the next round dispatches a reviewer",
-        "keeps the other branches entries when a dispatch arms the current branch"
+        "arming one branch leaves another branch's marker in place"
       ],
-      "note": "A gate-round or conditional dispatch writes an unlocked entry — the round never arms the branch."
+      "note": "A gate-round or conditional dispatch writes no marker — the round never arms the branch."
     },
     {
       "id": "review-gate-no-unlock",
-      "find": "state.branches[branch].unlocked = true",
-      "replace": "state.branches[branch].unlocked = false",
+      "find": "fs.rmSync(markerFile(branch), { force: true })",
+      "replace": "void branch",
       "expectRed": [
         "unlocks only the dispatching worktree branch",
-        "unlocks the branch when plan-critic is dispatched after a round",
-        "unlocks after plan-critic when the state file was unreadable"
+        "unlocks the branch when plan-critic is dispatched after a round"
       ],
-      "note": "A plan-critic dispatch leaves the branch armed."
+      "note": "A plan-critic dispatch leaves the marker in place — the branch stays armed."
     },
     {
-      "id": "review-gate-ignores-branch",
-      "find": "const entry = state.branches[branch]",
-      "replace": "const entry = Object.values(state.branches)[0]",
+      "id": "review-gate-shared-state-file",
+      "find": "createHash('sha1').update(branch)",
+      "replace": "createHash('sha1').update('')",
       "expectRed": [
         "arms the branch of the worktree the reviewer was dispatched from",
         "unlocks only the dispatching worktree branch",
-        "allows a production edit when the armed entry belongs to another branch",
-        "allows an edit inside a human worktree whose branch is not under review"
+        "arms the main branch when dispatched from a subdirectory of the main checkout",
+        "arms the main branch when dispatched from an agent worktree",
+        "arms the main branch when dispatched from a directory outside the repo",
+        "arms the main branch when the dispatch payload carries a non-string cwd",
+        "blocks a production edit after a review round until plan-critic is dispatched",
+        "arms the branch when a gate-round agent is dispatched",
+        "arming one branch leaves another branch's marker in place",
+        "a concurrent arm on another branch cannot unarm this branch",
+        "blocks a production target reached through an exempt directory via ..",
+        "blocks a production file whose path contains apps/web/e2e/ below another directory",
+        "blocks a production file inside a .claude/worktrees/ checkout when the gate is armed",
+        "blocks an armed production edit when the session cwd is a subdirectory",
+        "blocks an armed production edit inside an agent worktree on its own branch",
+        "allows a root .coderabbit.yaml edit but blocks a nested one while armed",
+        "blocks an armed edit when the hook runs from an agent worktree copy"
       ],
-      "note": "The edit check reads the first entry of any branch instead of the current branch's."
-    },
-    {
-      "id": "review-gate-unlock-ignored",
-      "find": "if (entry.unlocked === true) process.exit(0)",
-      "replace": "if (false) process.exit(0)",
-      "expectRed": [
-        "unlocks only the dispatching worktree branch",
-        "unlocks the branch when plan-critic is dispatched after a round",
-        "unlocks after plan-critic when the state file was unreadable",
-        "allows a production edit when the branch is unlocked"
-      ],
-      "note": "The edit check no longer honours unlocked: true."
+      "note": "The marker name ignores the branch — every branch shares one marker, so one branch's arm or unlock changes another's."
     },
     {
       "id": "review-gate-outside-repo-blocked",
@@ -125,6 +125,7 @@
       "expectRed": [
         "arms the branch of the worktree the reviewer was dispatched from",
         "unlocks only the dispatching worktree branch",
+        "a concurrent arm on another branch cannot unarm this branch",
         "blocks a production file inside a .claude/worktrees/ checkout when the gate is armed",
         "blocks an armed production edit inside an agent worktree on its own branch",
         "blocks an armed edit when the hook runs from an agent worktree copy"
@@ -141,21 +142,11 @@
       "note": "Denies every exemption inside a worktree — the worktree's own docs/, .claude/ and apps/web/e2e/ files are blocked."
     },
     {
-      "id": "review-gate-unreadable-unlock-skipped",
-      "find": "    try {\n      state = loadState()\n    } catch {\n      // Drops",
-      "replace": "    try {\n      state = loadState()\n    } finally {\n      // Drops",
-      "expectRed": [
-        "unlocks only the dispatching worktree branch",
-        "unlocks after plan-critic when the state file was unreadable"
-      ],
-      "note": "A plan-critic dispatch no longer repairs an unreadable state file — the throw escapes, nothing is saved and the edit stays blocked."
-    },
-    {
       "id": "review-gate-cwd-keyed",
-      "find": "const GATE_FILE = path.join(REPO_ROOT, '.claude', 'review-gate.json')",
-      "replace": "const GATE_FILE = path.join(process.cwd(), '.claude', 'review-gate.json')",
+      "find": "const GATE_DIR = path.join(REPO_ROOT, '.claude', 'review-gate')",
+      "replace": "const GATE_DIR = path.join(process.cwd(), '.claude', 'review-gate')",
       "expectRed": ["blocks an armed production edit when the session cwd is a subdirectory"],
-      "note": "The gate state is read from the session cwd — an edit after a Bash cd into a subdirectory finds no state and passes."
+      "note": "The gate state directory is read from the session cwd — an edit after a Bash cd into a subdirectory finds no state and passes."
     },
     {
       "id": "review-gate-agent-worktree-own-branch",
@@ -175,6 +166,7 @@
       "expectRed": [
         "arms the branch of the worktree the reviewer was dispatched from",
         "unlocks only the dispatching worktree branch",
+        "a concurrent arm on another branch cannot unarm this branch",
         "allows an edit inside a human worktree whose branch is not under review"
       ],
       "note": "Every worktree is gated by the main checkout's branch — a human worktree on an unreviewed branch is blocked."
@@ -206,7 +198,8 @@
       "replace": "const branch = readBranch(REPO_ROOT)",
       "expectRed": [
         "arms the branch of the worktree the reviewer was dispatched from",
-        "unlocks only the dispatching worktree branch"
+        "unlocks only the dispatching worktree branch",
+        "a concurrent arm on another branch cannot unarm this branch"
       ],
       "note": "A dispatch arms and unlocks the main checkout's branch whatever worktree the session is in."
     },

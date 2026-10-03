@@ -4,22 +4,24 @@
 // on STDIN — the channel the harness actually uses — so these tests pin the
 // input contract and gate-state behaviour, not just the pattern matching.
 import assert from 'node:assert/strict'
-import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync, realpathSync } from 'node:fs'
 import path from 'node:path'
 import { test } from 'node:test'
 import {
   addWorktree,
+  arm,
   BRANCH,
   cleanup,
   dispatch,
+  dispatchFrom,
+  gateDir,
   gitIn,
   HOOK,
+  isArmed,
   makeDir,
   payload,
   prodEdit,
-  readState,
   runHook,
-  statePath,
   TIMEOUT_MS,
   withState,
 } from './review-gate.testkit.mjs'
@@ -62,7 +64,7 @@ test('arms the branch when a gate-round agent is dispatched', () => {
   const dir = makeDir()
   try {
     assert.equal(dispatch(dir, 'semantic-reviewer').status, 0)
-    assert.deepEqual(readState(dir), { branches: { [BRANCH]: { unlocked: false } } })
+    assert.equal(isArmed(dir, BRANCH), true)
     assert.equal(prodEdit(dir).status, 2)
   } finally {
     cleanup(dir)
@@ -92,18 +94,6 @@ test('unlocks the branch when plan-critic is dispatched after a round', () => {
   }
 })
 
-// GROUP: review-gate-unreadable-unlock-skipped
-test('unlocks after plan-critic when the state file was unreadable', () => {
-  const dir = makeDir()
-  try {
-    writeFileSync(statePath(dir), JSON.stringify({ findings: [] }), 'utf8')
-    assert.equal(dispatch(dir, 'plan-critic').status, 0)
-    assert.equal(prodEdit(dir).status, 0)
-  } finally {
-    cleanup(dir)
-  }
-})
-
 // GROUP: review-gate-no-arm
 test('arms the branch again when the next round dispatches a reviewer', () => {
   const dir = makeDir()
@@ -123,7 +113,7 @@ test('leaves the state unchanged when a non-gate agent is dispatched', () => {
     withState(dir, { [BRANCH]: true })
     assert.equal(dispatch(dir, 'Explore').status, 0)
     assert.equal(dispatch(dir).status, 0)
-    assert.deepEqual(readState(dir), { branches: { [BRANCH]: { unlocked: true } } })
+    assert.equal(isArmed(dir, BRANCH), false)
   } finally {
     cleanup(dir)
   }
@@ -133,21 +123,33 @@ test('writes no state when plan-critic is dispatched before any round', () => {
   const dir = makeDir()
   try {
     assert.equal(dispatch(dir, 'plan-critic').status, 0)
-    assert.equal(existsSync(statePath(dir)), false)
+    assert.equal(isArmed(dir, BRANCH), false)
   } finally {
     cleanup(dir)
   }
 })
 
-test('keeps the other branches entries when a dispatch arms the current branch', () => {
+test("arming one branch leaves another branch's marker in place", () => {
   const dir = makeDir()
   try {
-    withState(dir, { 'feat/other': true })
+    arm(dir, 'feat/other')
     dispatch(dir, 'semantic-reviewer')
-    assert.deepEqual(readState(dir).branches, {
-      'feat/other': { unlocked: true },
-      [BRANCH]: { unlocked: false },
-    })
+    assert.equal(isArmed(dir, 'feat/other'), true)
+    assert.equal(isArmed(dir, BRANCH), true)
+  } finally {
+    cleanup(dir)
+  }
+})
+
+// GROUP: review-gate-shared-state-file
+test('a concurrent arm on another branch cannot unarm this branch', () => {
+  const dir = realpathSync(makeDir())
+  try {
+    arm(dir, BRANCH)
+    const human = realpathSync(addWorktree(dir, 'human', 'feat/other'))
+    assert.equal(dispatchFrom(dir, 'semantic-reviewer', human).status, 0)
+    assert.equal(dispatchFrom(dir, 'plan-critic', human).status, 0)
+    assert.equal(prodEdit(dir).status, 2)
   } finally {
     cleanup(dir)
   }
@@ -155,7 +157,7 @@ test('keeps the other branches entries when a dispatch arms the current branch',
 
 // --- Per-branch state ---
 
-// GROUP: review-gate-ignores-branch
+// GROUP: review-gate-shared-state-file
 test('allows a production edit when the armed entry belongs to another branch', () => {
   const dir = makeDir()
   try {
@@ -166,7 +168,6 @@ test('allows a production edit when the armed entry belongs to another branch', 
   }
 })
 
-// GROUP: review-gate-unlock-ignored
 test('allows a production edit when the branch is unlocked', () => {
   const dir = makeDir()
   try {
@@ -204,7 +205,7 @@ test('allows a /.claude/ path edit even when the gate is armed', () => {
   const dir = makeDir()
   try {
     withState(dir, { [BRANCH]: false })
-    assert.equal(runHook(payload(statePath(dir)), dir).status, 0)
+    assert.equal(runHook(payload(path.join(gateDir(dir), 'x')), dir).status, 0)
   } finally {
     cleanup(dir)
   }
@@ -315,30 +316,6 @@ test('fails open on empty stdin (exit 0)', () => {
   }
 })
 
-test('never blocks an Agent event when the state file is corrupt', () => {
-  const dir = makeDir()
-  try {
-    writeFileSync(statePath(dir), 'not valid json {', 'utf8')
-    assert.equal(dispatch(dir, 'plan-critic').status, 0)
-  } finally {
-    cleanup(dir)
-  }
-})
-
-// --- Corrupt state ---
-
-test('still blocks on a corrupt gate state file', () => {
-  const dir = makeDir()
-  try {
-    writeFileSync(statePath(dir), 'not valid json {', 'utf8')
-    const r = prodEdit(dir)
-    assert.equal(r.status, 2)
-    assert.match(r.stderr, /unreadable/)
-  } finally {
-    cleanup(dir)
-  }
-})
-
 // --- Repo-root keying ---
 
 // GROUP: review-gate-cwd-keyed
@@ -371,7 +348,7 @@ test('blocks an armed production edit inside an agent worktree on its own branch
   }
 })
 
-// GROUP: review-gate-all-worktrees-main-branch, review-gate-ignores-branch
+// GROUP: review-gate-all-worktrees-main-branch, review-gate-shared-state-file
 test('allows an edit inside a human worktree whose branch is not under review', () => {
   const dir = makeDir()
   try {

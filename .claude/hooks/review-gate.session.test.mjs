@@ -8,9 +8,9 @@ import {
   addWorktree,
   cleanup,
   dispatchFrom,
+  isArmed,
   makeDir,
   payload,
-  readState,
   runHook,
   withState,
 } from './review-gate.testkit.mjs'
@@ -30,7 +30,8 @@ test('arms the branch of the worktree the reviewer was dispatched from', () => {
   const { dir, human } = makeRepo()
   try {
     assert.equal(dispatchFrom(dir, 'semantic-reviewer', human).status, 0)
-    assert.deepEqual(readState(dir), { branches: { [OTHER]: { unlocked: false } } })
+    assert.equal(isArmed(dir, OTHER), true)
+    assert.equal(isArmed(dir, MAIN), false)
     assert.equal(runHook(payload(path.join(human, 'src', 'a.ts')), dir).status, 2)
     assert.equal(runHook(payload(path.join(dir, 'src', 'a.ts')), dir).status, 0)
   } finally {
@@ -44,9 +45,8 @@ test('unlocks only the dispatching worktree branch', () => {
   try {
     withState(dir, { [MAIN]: false, [OTHER]: false })
     assert.equal(dispatchFrom(dir, 'plan-critic', human).status, 0)
-    assert.deepEqual(readState(dir), {
-      branches: { [MAIN]: { unlocked: false }, [OTHER]: { unlocked: true } },
-    })
+    assert.equal(isArmed(dir, MAIN), true)
+    assert.equal(isArmed(dir, OTHER), false)
     assert.equal(runHook(payload(path.join(human, 'src', 'a.ts')), dir).status, 0)
     assert.equal(runHook(payload(path.join(dir, 'src', 'a.ts')), dir).status, 2)
   } finally {
@@ -60,7 +60,7 @@ test('arms the main branch when dispatched from a subdirectory of the main check
     const sub = path.join(dir, 'apps', 'web')
     mkdirSync(sub, { recursive: true })
     assert.equal(dispatchFrom(dir, 'semantic-reviewer', sub).status, 0)
-    assert.deepEqual(readState(dir), { branches: { [MAIN]: { unlocked: false } } })
+    assert.equal(isArmed(dir, MAIN), true)
   } finally {
     cleanup(dir)
   }
@@ -71,7 +71,7 @@ test('arms the main branch when dispatched from an agent worktree', () => {
   try {
     const agent = addWorktree(dir, 'agent-x', 'worktree-agent-x')
     assert.equal(dispatchFrom(dir, 'semantic-reviewer', agent).status, 0)
-    assert.deepEqual(readState(dir), { branches: { [MAIN]: { unlocked: false } } })
+    assert.equal(isArmed(dir, MAIN), true)
   } finally {
     cleanup(dir)
   }
@@ -81,7 +81,7 @@ test('arms the main branch when dispatched from a directory outside the repo', (
   const { dir } = makeRepo()
   try {
     assert.equal(dispatchFrom(dir, 'semantic-reviewer', '/nonexistent/elsewhere').status, 0)
-    assert.deepEqual(readState(dir), { branches: { [MAIN]: { unlocked: false } } })
+    assert.equal(isArmed(dir, MAIN), true)
   } finally {
     cleanup(dir)
   }
@@ -92,7 +92,7 @@ test('arms the main branch when the dispatch payload carries a non-string cwd', 
   const { dir } = makeRepo()
   try {
     assert.equal(dispatchFrom(dir, 'semantic-reviewer', 42).status, 0)
-    assert.deepEqual(readState(dir), { branches: { [MAIN]: { unlocked: false } } })
+    assert.equal(isArmed(dir, MAIN), true)
   } finally {
     cleanup(dir)
   }

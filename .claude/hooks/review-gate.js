@@ -6,13 +6,16 @@
 //                         a plan-critic dispatch unlocks it. Always exits 0.
 //   PreToolUse Edit|Write blocks (exit 2) a production path while the branch is armed.
 //
-// State .claude/review-gate.json (gitignored): { "branches": { "<name>": { "unlocked": <bool> } } }
+// State: one marker file per armed branch, .claude/review-gate/<sha1-hex(branch)> (gitignored). Present = armed.
+// Arm and unlock each touch only their own branch's marker. A detached HEAD shares one `HEAD` marker.
+// A failed arm write is logged to stderr and leaves the branch unarmed.
 // A dispatch arms the branch of the checkout the payload `cwd` is in (a `cd` into a worktree arms that worktree's branch).
 // Edits under `.claude/worktrees/agent-*` are gated by the main checkout's branch entry.
 // `.coderabbit.yaml` at a checkout root is exempt, like `.claude/` and `docs/`.
 // Roles come from .claude/pipeline.json `agents.<type>.role`. Bash redirects bypass the gate.
 
 const { execFileSync } = require('node:child_process')
+const { createHash } = require('node:crypto')
 const fs = require('node:fs')
 const path = require('node:path')
 
@@ -35,7 +38,7 @@ function mainCheckoutRoot() {
 const REPO_ROOT = process.env.REVIEW_GATE_ROOT || mainCheckoutRoot()
 const PIPELINE_PATH = path.join(REPO_ROOT, '.claude', 'pipeline.json')
 const ARMING_ROLES = new Set(['gate-round', 'conditional'])
-const GATE_FILE = path.join(REPO_ROOT, '.claude', 'review-gate.json')
+const GATE_DIR = path.join(REPO_ROOT, '.claude', 'review-gate')
 const EXEMPT_DIRS = ['.claude', 'docs', path.join('apps', 'web', 'e2e')]
 const EXEMPT_FILES = ['.coderabbit.yaml']
 const WORKTREES_DIR = path.resolve(REPO_ROOT, '.claude', 'worktrees') + path.sep
@@ -76,19 +79,9 @@ function readBranch(root) {
   }
 }
 
-/** Parsed gate state; throws when the file is missing, unparseable or mis-shaped. */
-function loadState() {
-  const state = JSON.parse(fs.readFileSync(GATE_FILE, 'utf8'))
-  if (typeof state?.branches !== 'object' || state.branches === null) throw new Error('bad shape')
-  return state
-}
-
-/** Atomic state write. */
-function saveState(state) {
-  fs.mkdirSync(path.dirname(GATE_FILE), { recursive: true })
-  const tmp = `${GATE_FILE}.${process.pid}.tmp`
-  fs.writeFileSync(tmp, JSON.stringify(state), 'utf8')
-  fs.renameSync(tmp, GATE_FILE)
+/** Marker file whose presence means `branch` is armed. */
+function markerFile(branch) {
+  return path.join(GATE_DIR, createHash('sha1').update(branch).digest('hex'))
 }
 
 /** True when pipeline.json gives `subagentType` an arming role. */
@@ -102,25 +95,12 @@ function onAgent(subagentType, cwd) {
   const branch = readBranch(sessionRoot(cwd))
   if (!branch) return
   if (subagentType === 'plan-critic') {
-    if (!fs.existsSync(GATE_FILE)) return
-    let state
-    try {
-      state = loadState()
-    } catch {
-      // Drops other branches' entries: the old file was unreadable anyway.
-      state = { branches: { [branch]: { unlocked: true } } }
-    }
-    if (state.branches[branch]) state.branches[branch].unlocked = true
-    saveState(state)
+    fs.rmSync(markerFile(branch), { force: true })
     return
   }
   if (!subagentType || !isArmingRole(subagentType)) return
-  let state = { branches: {} }
-  try {
-    state = loadState()
-  } catch {}
-  state.branches[branch] = { unlocked: false }
-  saveState(state)
+  fs.mkdirSync(GATE_DIR, { recursive: true })
+  fs.writeFileSync(markerFile(branch), branch, 'utf8')
 }
 
 /** Exit 2 with `reason`. */
@@ -133,7 +113,7 @@ function block(reason) {
 
 /** Edit/Write check for `filePath`. */
 function onEdit(filePath) {
-  if (!fs.existsSync(GATE_FILE)) process.exit(0)
+  if (!fs.existsSync(GATE_DIR)) process.exit(0)
 
   // Collapse `..` segments so an exempt substring cannot mask a production target.
   filePath = path.resolve(filePath)
@@ -144,17 +124,9 @@ function onEdit(filePath) {
     process.exit(0)
   }
 
-  let state
-  try {
-    state = loadState()
-  } catch {
-    block('production edit while the review gate state is unreadable.')
-  }
   const branch = readBranch(gateBranchRoot(filePath))
   if (!branch) block('production edit while the branch cannot be read.')
-  const entry = state.branches[branch]
-  if (!entry) process.exit(0)
-  if (entry.unlocked === true) process.exit(0)
+  if (!fs.existsSync(markerFile(branch))) process.exit(0)
   block(`production edit after a review round on branch ${branch}.`)
 }
 

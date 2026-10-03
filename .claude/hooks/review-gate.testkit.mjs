@@ -1,7 +1,8 @@
 // Shared fixtures for the review-gate suites (review-gate.test.mjs, review-gate.session.test.mjs).
 // Not a suite itself, no ci.yml step of its own; pattern: guard-agent-brief.testkit.mjs.
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -29,15 +30,25 @@ export function makeDir(branch = BRANCH) {
   return dir
 }
 
-export const statePath = (dir) => path.join(dir, '.claude', 'review-gate.json')
+export const gateDir = (dir) => path.join(dir, '.claude', 'review-gate')
 
-/** Write state: `branches` maps branch name to its `unlocked` flag. */
-export function withState(dir, branches) {
-  const entries = Object.entries(branches).map(([name, unlocked]) => [name, { unlocked }])
-  writeFileSync(statePath(dir), JSON.stringify({ branches: Object.fromEntries(entries) }), 'utf8')
+/** Marker file the hook keeps for `branch` (sha1 of the name), per the hook header. */
+export const markerPath = (dir, branch) =>
+  path.join(gateDir(dir), createHash('sha1').update(branch).digest('hex'))
+
+/** Arm `branch`: write its marker. */
+export function arm(dir, branch) {
+  mkdirSync(gateDir(dir), { recursive: true })
+  writeFileSync(markerPath(dir, branch), branch, 'utf8')
 }
 
-export const readState = (dir) => JSON.parse(readFileSync(statePath(dir), 'utf8'))
+/** Write state: `branches` maps branch name to its `unlocked` flag; a locked branch gets a marker. */
+export function withState(dir, branches) {
+  mkdirSync(gateDir(dir), { recursive: true })
+  for (const [name, unlocked] of Object.entries(branches)) if (!unlocked) arm(dir, name)
+}
+
+export const isArmed = (dir, branch) => existsSync(markerPath(dir, branch))
 
 /** Remove the temp dir. */
 export function cleanup(dir) {
