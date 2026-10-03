@@ -3,7 +3,8 @@
 -- saved_at has no column grant: written only by the save/resume/discard RPCs.
 ALTER TABLE quiz_sessions ADD COLUMN saved_at timestamptz NULL;
 
--- Blocks a direct student UPDATE deleted_at = NULL on a saved row (column grant + students_update_sessions).
+-- Keeps a saved row soft-deleted for every writer (a student's direct revive is refused by
+-- students_update_sessions, mig 20261003000400).
 ALTER TABLE quiz_sessions
   ADD CONSTRAINT quiz_sessions_saved_requires_deleted CHECK (saved_at IS NULL OR deleted_at IS NOT NULL);
 

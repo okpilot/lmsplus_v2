@@ -212,6 +212,10 @@
 | GJ | get_quiz_progress-exam-mode-no-correctness | HIGH | rpc-quiz-progress-isolation.spec.ts | BLOCKED |  | answer-oracle |
 | GK | quiz_sessions-direct-insert-forged-completed-exam | HIGH | quiz-session-direct-insert.spec.ts | BLOCKED |  | mass-assignment |
 | GL | quiz_sessions-direct-insert-foreign-org | HIGH | quiz-session-direct-insert.spec.ts | BLOCKED |  | cross-tenant |
+| GM | quiz_sessions-saved-row-direct-revive | HIGH | rpc-saved-quiz.spec.ts | BLOCKED |  | soft-delete-bypass |
+| GN | resume_saved_quiz-during-active-exam | HIGH | rpc-saved-quiz.spec.ts | BLOCKED |  | answer-oracle |
+| GO | saved-quiz-rpcs-foreign-session | HIGH | rpc-saved-quiz.spec.ts | BLOCKED |  | idor |
+| GP | quiz_sessions-discarded-exam-direct-revive-oracle | HIGH | quiz-session-exam-revive.spec.ts | BLOCKED |  | soft-delete-bypass |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 

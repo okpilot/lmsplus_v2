@@ -345,17 +345,18 @@ describe('RPC: save a quiz for later on the same session id', () => {
   })
 
   describe('table constraints on saved_at', () => {
-    it('rejects a student clearing deleted_at on a saved row', async () => {
+    it('does not let a student revive a saved row by clearing deleted_at directly', async () => {
       const saved = await savedQuiz()
       const before = await state(saved)
       expect(before.deleted_at).not.toBeNull()
 
-      const { error } = await f.student
+      const { data, error } = await f.student
         .from('quiz_sessions')
         .update({ deleted_at: null })
         .eq('id', saved)
         .select('id')
-      expect(error?.code).toBe(CHECK_VIOLATION)
+      expect(error).toBeNull()
+      expect(data).toEqual([])
       expect(await state(saved)).toEqual(before)
     })
 

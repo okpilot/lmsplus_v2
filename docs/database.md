@@ -367,13 +367,13 @@ CREATE TABLE quiz_sessions (
 `current_index`, `pinned_question_ids`, `active_device_id`: no column UPDATE grant on `quiz_sessions` covers them (20260605000001) — written only by `save_quiz_position` / `claim_quiz_session`.
 
 **Saved for later (migration `20261003000100`, #1026 PR 1b):** a saved quiz is the same `quiz_sessions` row, soft-deleted (`deleted_at` set) with `saved_at` set. `saved_at` has no column UPDATE grant — written only by `save_quiz_for_later` / `resume_saved_quiz` / `discard_saved_quiz`. Constraints:
-- `CHECK (saved_at IS NULL OR deleted_at IS NOT NULL)` — blocks a direct student `UPDATE deleted_at = NULL` on a saved row.
+- `CHECK (saved_at IS NULL OR deleted_at IS NOT NULL)` — keeps a saved row soft-deleted for every writer.
 - `CHECK (saved_at IS NULL OR (mode IN ('quick_quiz','smart_review') AND ended_at IS NULL))` — practice modes, unended rows only.
 - Partial index `idx_quiz_sessions_saved ON quiz_sessions(student_id) WHERE saved_at IS NOT NULL`.
 
 Cap: 20 saved sessions per student, enforced in `save_quiz_for_later`. Separate from the 20-draft `quiz_drafts` cap (trigger `check_draft_limit`) until PR 3 retires `quiz_drafts`.
 
-**No student INSERT (migration `20261002000900`, red-team GK/GL, #1026):** policy `students_insert_sessions` is dropped and `INSERT` is revoked from `authenticated`. Rows are created only by the SECURITY DEFINER start RPCs. Student policies left: `students_select_sessions`, `students_update_sessions`.
+**No student INSERT (migration `20261002000900`, red-team GK/GL, #1026):** policy `students_insert_sessions` is dropped and `INSERT` is revoked from `authenticated`. Rows are created only by the SECURITY DEFINER start RPCs. Student policies left: `students_select_sessions`, `students_update_sessions`. `students_update_sessions` reaches live rows only: `USING (student_id = auth.uid() AND ended_at IS NULL AND deleted_at IS NULL)` (migration `20261003000400`, red-team GP) — a student cannot revive a discarded or saved session.
 
 **Single-active-session invariant (mig 136, #1011 — Decision 49):** a global partial unique index enforces **at most one active session per student, across all modes**:
 

@@ -56,3 +56,7 @@ export const E2E_REDTEAM_QP_MARKER = '[E2E_REDTEAM_QP]'
 // quiz_sessions direct-INSERT spec (Vectors GK/GL): written into the attacker's probe rows as
 // `config.e2e_marker` so cleanup soft-deletes any row the INSERT manages to land.
 export const E2E_REDTEAM_SI_MARKER = '[E2E_REDTEAM_SI]'
+// saved-quiz spec (Vectors GM-GO, #1026 PR 1b): written into fixture quiz_sessions as `config.e2e_marker`.
+export const E2E_REDTEAM_SQ_MARKER = '[E2E_REDTEAM_SQ]'
+// exam-revive spec (Vector GP): written into the fixture mock_exam as `config.e2e_marker`.
+export const E2E_REDTEAM_ER_MARKER = '[E2E_REDTEAM_ER]'
