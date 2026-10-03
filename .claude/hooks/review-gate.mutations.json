@@ -64,7 +64,7 @@
     },
     {
       "id": "review-gate-outside-repo-blocked",
-      "find": "if (!filePath.startsWith(process.cwd() + path.sep)) process.exit(0)",
+      "find": "if (!filePath.startsWith(REPO_ROOT + path.sep)) process.exit(0)",
       "replace": "if (false) process.exit(0)",
       "expectRed": ["allows a production file outside the repo root when the gate is armed"],
       "note": "A path outside the repo root (a scratch clone) is checked like a production file."
@@ -95,8 +95,8 @@
     },
     {
       "id": "review-gate-worktrees-exempt",
-      "find": "  if (!filePath.startsWith(WORKTREES_DIR)) return process.cwd()\n",
-      "replace": "  return process.cwd()\n",
+      "find": "  if (!filePath.startsWith(WORKTREES_DIR)) return REPO_ROOT\n",
+      "replace": "  return REPO_ROOT\n",
       "expectRed": [
         "blocks a production file inside a .claude/worktrees/ checkout when the gate is armed"
       ],
@@ -110,6 +110,20 @@
         "allows a docs edit inside a .claude/worktrees/ checkout when the gate is armed"
       ],
       "note": "Denies every exemption inside a worktree — the worktree's own docs/, .claude/ and apps/web/e2e/ files are blocked."
+    },
+    {
+      "id": "review-gate-unreadable-unlock-skipped",
+      "find": "    try {\n      state = loadState()\n    } catch {\n      // Drops",
+      "replace": "    try {\n      state = loadState()\n    } finally {\n      // Drops",
+      "expectRed": ["unlocks after plan-critic when the state file was unreadable"],
+      "note": "A plan-critic dispatch no longer repairs an unreadable state file — the throw escapes, nothing is saved and the edit stays blocked."
+    },
+    {
+      "id": "review-gate-cwd-keyed",
+      "find": "const GATE_FILE = path.join(REPO_ROOT, '.claude', 'review-gate.json')",
+      "replace": "const GATE_FILE = path.join(process.cwd(), '.claude', 'review-gate.json')",
+      "expectRed": ["blocks an armed production edit when the session cwd is a subdirectory"],
+      "note": "The gate state is read from the session cwd — an edit after a Bash cd into a subdirectory finds no state and passes."
     }
   ]
 }

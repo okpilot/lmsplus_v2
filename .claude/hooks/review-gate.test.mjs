@@ -144,6 +144,18 @@ test('unlocks the branch when plan-critic is dispatched after a round', () => {
   }
 })
 
+// GROUP: review-gate-unreadable-unlock-skipped
+test('unlocks after plan-critic when the state file was unreadable', () => {
+  const dir = makeDir()
+  try {
+    writeFileSync(statePath(dir), JSON.stringify({ findings: [] }), 'utf8')
+    assert.equal(dispatch(dir, 'plan-critic').status, 0)
+    assert.equal(prodEdit(dir).status, 0)
+  } finally {
+    cleanup(dir)
+  }
+})
+
 // GROUP: review-gate-no-arm
 test('arms the branch again when the next round dispatches a reviewer', () => {
   const dir = makeDir()
@@ -374,6 +386,24 @@ test('still blocks on a corrupt gate state file', () => {
     const r = prodEdit(dir)
     assert.equal(r.status, 2)
     assert.match(r.stderr, /unreadable/)
+  } finally {
+    cleanup(dir)
+  }
+})
+
+// --- Repo-root keying ---
+
+// GROUP: review-gate-cwd-keyed
+test('blocks an armed production edit when the session cwd is a subdirectory', () => {
+  const dir = makeDir()
+  try {
+    withState(dir, { [BRANCH]: false })
+    const sub = path.join(dir, 'apps', 'web')
+    mkdirSync(sub, { recursive: true })
+    const env = { ...process.env, REVIEW_GATE_ROOT: dir }
+    const input = payload(path.join(dir, 'apps', 'web', 'lib', 'foo.ts'))
+    const r = runNode('review-gate.js', [HOOK], { input, cwd: sub, timeout: TIMEOUT_MS, env })
+    assert.equal(r.status, 2)
   } finally {
     cleanup(dir)
   }

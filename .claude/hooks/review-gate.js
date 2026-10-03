@@ -18,13 +18,13 @@ const path = require('node:path')
 const REPO_ROOT = process.env.REVIEW_GATE_ROOT || path.join(__dirname, '..', '..')
 const PIPELINE_PATH = path.join(REPO_ROOT, '.claude', 'pipeline.json')
 const ARMING_ROLES = new Set(['gate-round', 'conditional'])
-const GATE_FILE = path.join(process.cwd(), '.claude', 'review-gate.json')
+const GATE_FILE = path.join(REPO_ROOT, '.claude', 'review-gate.json')
 const EXEMPT_DIRS = ['.claude', 'docs', path.join('apps', 'web', 'e2e')]
-const WORKTREES_DIR = path.resolve(process.cwd(), '.claude', 'worktrees') + path.sep
+const WORKTREES_DIR = path.resolve(REPO_ROOT, '.claude', 'worktrees') + path.sep
 
 /** The checkout holding `filePath`: its worktree under .claude/worktrees/, else the main tree. */
 function checkoutRoot(filePath) {
-  if (!filePath.startsWith(WORKTREES_DIR)) return process.cwd()
+  if (!filePath.startsWith(WORKTREES_DIR)) return REPO_ROOT
   return WORKTREES_DIR + filePath.slice(WORKTREES_DIR.length).split(path.sep)[0]
 }
 
@@ -69,12 +69,19 @@ function isArmingRole(subagentType) {
 
 /** Apply an accepted Agent dispatch to the gate state. */
 function onAgent(subagentType) {
-  const branch = readBranch(process.cwd())
+  const branch = readBranch(REPO_ROOT)
   if (!branch) return
   if (subagentType === 'plan-critic') {
-    const state = fs.existsSync(GATE_FILE) ? loadState() : null
-    if (state?.branches[branch]) state.branches[branch].unlocked = true
-    if (state) saveState(state)
+    if (!fs.existsSync(GATE_FILE)) return
+    let state
+    try {
+      state = loadState()
+    } catch {
+      // Drops other branches' entries: the old file was unreadable anyway.
+      state = { branches: { [branch]: { unlocked: true } } }
+    }
+    if (state.branches[branch]) state.branches[branch].unlocked = true
+    saveState(state)
     return
   }
   if (!subagentType || !isArmingRole(subagentType)) return
@@ -101,7 +108,7 @@ function onEdit(filePath) {
   // Collapse `..` segments so an exempt substring cannot mask a production target.
   filePath = path.resolve(filePath)
 
-  if (!filePath.startsWith(process.cwd() + path.sep)) process.exit(0)
+  if (!filePath.startsWith(REPO_ROOT + path.sep)) process.exit(0)
   if (filePath.includes('.test.') || inExemptDir(filePath) || filePath.endsWith('.md')) {
     process.exit(0)
   }
