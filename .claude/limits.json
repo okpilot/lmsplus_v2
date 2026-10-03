@@ -87,7 +87,7 @@
     "apps/web/app/app/quiz/_hooks/use-exam-start.test.ts": 504,
     "apps/web/app/app/quiz/_hooks/use-quiz-config.test.ts": 727,
     "apps/web/app/app/quiz/_hooks/use-study-config.ts": 86,
-    "apps/web/app/app/quiz/actions/check-answer.test.ts": 539,
+    "apps/web/app/app/quiz/actions/check-answer.test.ts": 533,
     "apps/web/app/app/quiz/actions/check-non-mc-answer-helpers.test.ts": 529,
     "apps/web/app/app/quiz/actions/check-non-mc-answer-helpers.ts": 210,
     "apps/web/app/app/quiz/actions/draft.test.ts": 1230,

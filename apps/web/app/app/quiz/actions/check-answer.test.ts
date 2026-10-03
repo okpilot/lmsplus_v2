@@ -28,8 +28,8 @@ import { checkAnswer } from './check-answer'
 const USER_ID = '00000000-0000-4000-a000-000000000001'
 const QUESTION_ID = '00000000-0000-4000-a000-000000000011'
 const SESSION_ID = '00000000-0000-4000-a000-000000000099'
-const CORRECT_OPTION_ID = 'opt-correct'
-const WRONG_OPTION_ID = 'opt-wrong'
+const CORRECT_OPTION_ID = 'b'
+const WRONG_OPTION_ID = 'c'
 
 const RPC_SUCCESS_CORRECT = {
   is_correct: true,
@@ -117,21 +117,15 @@ describe('checkAnswer', () => {
     expect(result).toEqual({ success: false, error: 'Invalid input' })
   })
 
-  it('returns failure for an empty selected option id', async () => {
+  it.each([
+    ['empty', ''],
+    ['whitespace-only', '   '],
+    ['outside a-d', 'e'],
+  ])('rejects a selected option id that is %s', async (_label, selectedOptionId) => {
     setupAuthenticatedUser()
     const result = await checkAnswer({
       questionId: QUESTION_ID,
-      selectedOptionId: '',
-      sessionId: SESSION_ID,
-    })
-    expect(result).toEqual({ success: false, error: 'Invalid input' })
-  })
-
-  it('returns failure for a whitespace-only selected option id', async () => {
-    setupAuthenticatedUser()
-    const result = await checkAnswer({
-      questionId: QUESTION_ID,
-      selectedOptionId: '   ',
+      selectedOptionId,
       sessionId: SESSION_ID,
     })
     expect(result).toEqual({ success: false, error: 'Invalid input' })

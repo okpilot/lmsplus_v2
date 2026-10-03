@@ -1981,11 +1981,14 @@ Verifies a student's answer for a question during an active quiz session. Return
 - Validates config.question_ids is properly formed (explicit NULL check for the array key)
 - Returns only the correct option ID and explanation — never exposes the full options array
 - Used for immediate feedback during quiz sessions (answers are typically batched later via `batch_submit_quiz`)
+- Saves a non-NULL selection to `quiz_session_progress` after grading (mig `20261002000700`, #1026); raises `invalid_answer` / `session_taken_over` / `invalid_time_spent` from the save, which rolls back the whole call
 
 **Parameters:**
 - `p_question_id` — UUID of the question being answered
 - `p_selected_option_id` — the selected option ('a', 'b', 'c', or 'd')
 - `p_session_id` — UUID of the active quiz session (added in migration 029 for security hardening)
+- `p_device_id` — UUID of the active device (`DEFAULT NULL`)
+- `p_time_spent_ms` — time spent on the question in milliseconds (`DEFAULT NULL`)
 
 **Returns:**
 - `is_correct` — boolean indicating correctness
@@ -1994,10 +1997,14 @@ Verifies a student's answer for a question during an active quiz session. Return
 - `explanation_image_url` — optional explanation image URL
 
 ```sql
-CREATE OR REPLACE FUNCTION check_quiz_answer(
+DROP FUNCTION check_quiz_answer(uuid, text, uuid);
+
+CREATE FUNCTION check_quiz_answer(
   p_question_id        uuid,
   p_selected_option_id text,
-  p_session_id         uuid
+  p_session_id         uuid,
+  p_device_id          uuid DEFAULT NULL,
+  p_time_spent_ms      int  DEFAULT NULL
 )
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -2086,6 +2093,20 @@ BEGIN
 
   v_is_correct := (p_selected_option_id = v_correct_option_id);
 
+  IF p_selected_option_id IS NOT NULL THEN
+    IF NOT COALESCE(
+         _validate_progress_answer(
+           jsonb_build_object('selected_option_id', p_selected_option_id), 'multiple_choice'),
+         false) THEN
+      RAISE EXCEPTION 'invalid_answer';
+    END IF;
+    PERFORM _save_progress_row(
+      p_session_id, p_question_id, v_student_id,
+      jsonb_build_object('selected_option_id', p_selected_option_id),
+      p_time_spent_ms, p_device_id
+    );
+  END IF;
+
   RETURN jsonb_build_object(
     'is_correct',           v_is_correct,
     'correct_option_id',    v_correct_option_id,
@@ -2094,6 +2115,8 @@ BEGIN
   );
 END;
 $$;
+
+GRANT EXECUTE ON FUNCTION check_quiz_answer(uuid, text, uuid, uuid, int) TO authenticated;
 ```
 
 #### `check_non_mc_answer` — immediate-feedback grader for short_answer, dialog_fill, ordering, and diagram_label (migs 119/146/153)
@@ -2143,10 +2166,12 @@ Added in **mig 119** (supabase `20260621000200`, #697 Phase 2). Extended in **mi
 - `p_blank_answers` — array of `{blank_index, response_text}` objects (`dialog_fill` only; DEFAULT NULL)
 - `p_order` — array of item IDs in student's submitted sequence (`ordering` only; DEFAULT NULL)
 - `p_mapping` — array of `{zone_id, label_id}` the student placed (`diagram_label` only; DEFAULT NULL)
+- `p_device_id` — UUID of the active device (`DEFAULT NULL`)
+- `p_time_spent_ms` — time spent on the question in milliseconds (`DEFAULT NULL`)
 
-**Signature:**
+**Signature (mig `20261002000800`, #1026 — saves the answer to `quiz_session_progress` after grading):**
 ```sql
-DROP FUNCTION IF EXISTS check_non_mc_answer(uuid, uuid, text, jsonb, jsonb);
+DROP FUNCTION check_non_mc_answer(uuid, uuid, text, jsonb, jsonb, jsonb);
 
 CREATE FUNCTION check_non_mc_answer(
   p_question_id   uuid,
@@ -2154,7 +2179,9 @@ CREATE FUNCTION check_non_mc_answer(
   p_response_text text  DEFAULT NULL,
   p_blank_answers jsonb DEFAULT NULL,
   p_order         jsonb DEFAULT NULL,
-  p_mapping       jsonb DEFAULT NULL
+  p_mapping       jsonb DEFAULT NULL,
+  p_device_id     uuid  DEFAULT NULL,
+  p_time_spent_ms int   DEFAULT NULL
 )
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -2162,7 +2189,7 @@ SECURITY DEFINER
 SET search_path = public
 ```
 
-`GRANT EXECUTE ON FUNCTION check_non_mc_answer(uuid, uuid, text, jsonb, jsonb, jsonb) TO authenticated;`
+`GRANT EXECUTE ON FUNCTION check_non_mc_answer(uuid, uuid, text, jsonb, jsonb, jsonb, uuid, int) TO authenticated;`
 
 ---
 

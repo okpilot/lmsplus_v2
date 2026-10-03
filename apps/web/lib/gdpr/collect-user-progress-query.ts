@@ -9,11 +9,8 @@ type ProgressRow = GdprExportPayload['quiz_progress'][number]
  * The student's own progress rows, discarded quizzes included. Scoped by `student_id` because
  * the admin client bypasses RLS; partial data is discarded on error (the caller logs it).
  */
-export async function fetchUserProgress(
-  supabase: SupabaseClient<Database>,
-  userId: string,
-): Promise<{ data: ProgressRow[]; error: { message: string } | null }> {
-  const { data, error } = await fetchAllRows<ProgressRow>(
+export function fetchUserProgress(supabase: SupabaseClient<Database>, userId: string) {
+  return fetchAllRows<ProgressRow>(
     () =>
       supabase
         .from('quiz_session_progress')
@@ -29,6 +26,4 @@ export async function fetchUserProgress(
         .order('question_id')
         .range(from, to),
   )
-  if (error) return { data: [], error }
-  return { data, error: null }
 }

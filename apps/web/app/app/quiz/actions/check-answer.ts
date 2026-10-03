@@ -7,7 +7,7 @@ import { gradeAnswer, verifySessionMembership } from './check-answer-helpers'
 
 const CheckAnswerSchema = z.object({
   questionId: z.uuid(),
-  selectedOptionId: z.string().trim().min(1),
+  selectedOptionId: z.enum(['a', 'b', 'c', 'd']),
   sessionId: z.uuid(),
 })
 
