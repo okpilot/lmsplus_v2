@@ -7,6 +7,7 @@
 //   PreToolUse Edit|Write blocks (exit 2) a production path while the branch is armed.
 //
 // State .claude/review-gate.json (gitignored): { "branches": { "<name>": { "unlocked": <bool> } } }
+// A dispatch arms the branch of the checkout the payload `cwd` is in (a `cd` into a worktree arms that worktree's branch).
 // Edits under `.claude/worktrees/agent-*` are gated by the main checkout's branch entry.
 // `.coderabbit.yaml` at a checkout root is exempt, like `.claude/` and `docs/`.
 // Roles come from .claude/pipeline.json `agents.<type>.role`. Bash redirects bypass the gate.
@@ -51,6 +52,12 @@ function gateBranchRoot(filePath) {
   return path.basename(root).startsWith('agent-') ? REPO_ROOT : root
 }
 
+/** Checkout whose branch a dispatch from `cwd` arms; no usable `cwd` means the main checkout. */
+function sessionRoot(cwd) {
+  if (typeof cwd !== 'string' || cwd === '') return REPO_ROOT
+  return gateBranchRoot(path.join(path.resolve(cwd), '_'))
+}
+
 /** True when `filePath` sits in an exempt directory of its own checkout. */
 function inExemptDir(filePath) {
   const root = checkoutRoot(filePath)
@@ -91,8 +98,8 @@ function isArmingRole(subagentType) {
 }
 
 /** Apply an accepted Agent dispatch to the gate state. */
-function onAgent(subagentType) {
-  const branch = readBranch(REPO_ROOT)
+function onAgent(subagentType, cwd) {
+  const branch = readBranch(sessionRoot(cwd))
   if (!branch) return
   if (subagentType === 'plan-critic') {
     if (!fs.existsSync(GATE_FILE)) return
@@ -172,7 +179,7 @@ process.stdin.on('end', () => {
   }
   if (parsed?.tool_name === 'Agent') {
     try {
-      onAgent(parsed.tool_input?.subagent_type)
+      onAgent(parsed.tool_input?.subagent_type, parsed.cwd)
     } catch (err) {
       process.stderr.write(`[review-gate] state update failed: ${err.message}\n`)
     }

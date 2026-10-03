@@ -1,13 +1,15 @@
 {
   "_": "Planted red/green controls linked by GROUP marker to the spawned tests that drive the guard's exit code.",
   "target": ".claude/hooks/review-gate.js",
-  "suites": [".claude/hooks/review-gate.test.mjs"],
+  "suites": [".claude/hooks/review-gate.test.mjs", ".claude/hooks/review-gate.session.test.mjs"],
   "mutations": [
     {
       "id": "review-gate-always-passes",
       "find": "  process.exit(2)\n}",
       "replace": "  process.exit(0)\n}",
       "expectRed": [
+        "arms the branch of the worktree the reviewer was dispatched from",
+        "unlocks only the dispatching worktree branch",
         "blocks a production edit after a review round until plan-critic is dispatched",
         "arms the branch when a gate-round agent is dispatched",
         "arms the branch when a conditional agent is dispatched",
@@ -35,6 +37,11 @@
       "find": "state.branches[branch] = { unlocked: false }",
       "replace": "state.branches[branch] = { unlocked: true }",
       "expectRed": [
+        "arms the branch of the worktree the reviewer was dispatched from",
+        "arms the main branch when dispatched from a subdirectory of the main checkout",
+        "arms the main branch when dispatched from an agent worktree",
+        "arms the main branch when dispatched from a directory outside the repo",
+        "arms the main branch when the dispatch payload carries a non-string cwd",
         "arms the branch when a gate-round agent is dispatched",
         "arms the branch when a conditional agent is dispatched",
         "arms the branch again when the next round dispatches a reviewer",
@@ -47,6 +54,7 @@
       "find": "state.branches[branch].unlocked = true",
       "replace": "state.branches[branch].unlocked = false",
       "expectRed": [
+        "unlocks only the dispatching worktree branch",
         "unlocks the branch when plan-critic is dispatched after a round",
         "unlocks after plan-critic when the state file was unreadable"
       ],
@@ -57,6 +65,8 @@
       "find": "const entry = state.branches[branch]",
       "replace": "const entry = Object.values(state.branches)[0]",
       "expectRed": [
+        "arms the branch of the worktree the reviewer was dispatched from",
+        "unlocks only the dispatching worktree branch",
         "allows a production edit when the armed entry belongs to another branch",
         "allows an edit inside a human worktree whose branch is not under review"
       ],
@@ -67,9 +77,10 @@
       "find": "if (entry.unlocked === true) process.exit(0)",
       "replace": "if (false) process.exit(0)",
       "expectRed": [
+        "unlocks only the dispatching worktree branch",
         "unlocks the branch when plan-critic is dispatched after a round",
-        "allows a production edit when the branch is unlocked",
-        "unlocks after plan-critic when the state file was unreadable"
+        "unlocks after plan-critic when the state file was unreadable",
+        "allows a production edit when the branch is unlocked"
       ],
       "note": "The edit check no longer honours unlocked: true."
     },
@@ -99,6 +110,7 @@
       "find": "filePath.startsWith(path.resolve(root, dir) + path.sep)",
       "replace": "filePath.includes(path.sep + dir + path.sep)",
       "expectRed": [
+        "arms the branch of the worktree the reviewer was dispatched from",
         "blocks a production file whose path contains apps/web/e2e/ below another directory",
         "blocks a production file inside a .claude/worktrees/ checkout when the gate is armed",
         "blocks an armed production edit inside an agent worktree on its own branch",
@@ -111,6 +123,8 @@
       "find": "  if (!filePath.startsWith(WORKTREES_DIR)) return REPO_ROOT\n",
       "replace": "  return REPO_ROOT\n",
       "expectRed": [
+        "arms the branch of the worktree the reviewer was dispatched from",
+        "unlocks only the dispatching worktree branch",
         "blocks a production file inside a .claude/worktrees/ checkout when the gate is armed",
         "blocks an armed production edit inside an agent worktree on its own branch",
         "blocks an armed edit when the hook runs from an agent worktree copy"
@@ -130,7 +144,10 @@
       "id": "review-gate-unreadable-unlock-skipped",
       "find": "    try {\n      state = loadState()\n    } catch {\n      // Drops",
       "replace": "    try {\n      state = loadState()\n    } finally {\n      // Drops",
-      "expectRed": ["unlocks after plan-critic when the state file was unreadable"],
+      "expectRed": [
+        "unlocks only the dispatching worktree branch",
+        "unlocks after plan-critic when the state file was unreadable"
+      ],
       "note": "A plan-critic dispatch no longer repairs an unreadable state file — the throw escapes, nothing is saved and the edit stays blocked."
     },
     {
@@ -145,6 +162,7 @@
       "find": "return path.basename(root).startsWith('agent-') ? REPO_ROOT : root",
       "replace": "return root",
       "expectRed": [
+        "arms the main branch when dispatched from an agent worktree",
         "blocks an armed production edit inside an agent worktree on its own branch",
         "blocks an armed edit when the hook runs from an agent worktree copy"
       ],
@@ -154,7 +172,11 @@
       "id": "review-gate-all-worktrees-main-branch",
       "find": "return path.basename(root).startsWith('agent-') ? REPO_ROOT : root",
       "replace": "return REPO_ROOT",
-      "expectRed": ["allows an edit inside a human worktree whose branch is not under review"],
+      "expectRed": [
+        "arms the branch of the worktree the reviewer was dispatched from",
+        "unlocks only the dispatching worktree branch",
+        "allows an edit inside a human worktree whose branch is not under review"
+      ],
       "note": "Every worktree is gated by the main checkout's branch — a human worktree on an unreviewed branch is blocked."
     },
     {
@@ -177,6 +199,23 @@
       "replace": "process.env.REVIEW_GATE_ROOT || path.join(__dirname, '..', '..')",
       "expectRed": ["blocks an armed edit when the hook runs from an agent worktree copy"],
       "note": "The root comes from the hook's own location — a worktree copy of the hook looks for state in the worktree and finds none."
+    },
+    {
+      "id": "review-gate-arms-main-not-session",
+      "find": "const branch = readBranch(sessionRoot(cwd))",
+      "replace": "const branch = readBranch(REPO_ROOT)",
+      "expectRed": [
+        "arms the branch of the worktree the reviewer was dispatched from",
+        "unlocks only the dispatching worktree branch"
+      ],
+      "note": "A dispatch arms and unlocks the main checkout's branch whatever worktree the session is in."
+    },
+    {
+      "id": "review-gate-cwd-type-unguarded",
+      "find": "typeof cwd !== 'string' || cwd === ''",
+      "replace": "!cwd",
+      "expectRed": ["arms the main branch when the dispatch payload carries a non-string cwd"],
+      "note": "A non-string payload cwd reaches path.resolve, which throws — the dispatch arms nothing."
     }
   ]
 }

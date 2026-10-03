@@ -4,86 +4,26 @@
 // on STDIN — the channel the harness actually uses — so these tests pin the
 // input contract and gate-state behaviour, not just the pattern matching.
 import assert from 'node:assert/strict'
-import { execFileSync } from 'node:child_process'
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs'
-import { tmpdir } from 'node:os'
+import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { test } from 'node:test'
-import { fileURLToPath } from 'node:url'
+import {
+  addWorktree,
+  BRANCH,
+  cleanup,
+  dispatch,
+  gitIn,
+  HOOK,
+  makeDir,
+  payload,
+  prodEdit,
+  readState,
+  runHook,
+  statePath,
+  TIMEOUT_MS,
+  withState,
+} from './review-gate.testkit.mjs'
 import { runNode } from './spawn.testkit.mjs'
-
-const HOOK = path.join(path.dirname(fileURLToPath(import.meta.url)), 'review-gate.js')
-const BRANCH = 'feat/work'
-
-const FIXTURE_PIPELINE = JSON.stringify({
-  agents: {
-    'semantic-reviewer': { role: 'gate-round' },
-    'red-team': { role: 'conditional' },
-    'plan-critic': { role: 'pre-execution' },
-  },
-})
-
-/** Temp git repo on branch `branch`, holding a fixture pipeline.json. */
-function makeDir(branch = BRANCH) {
-  const dir = mkdtempSync(path.join(tmpdir(), 'review-gate-test-'))
-  mkdirSync(path.join(dir, '.claude'))
-  writeFileSync(path.join(dir, '.claude', 'pipeline.json'), FIXTURE_PIPELINE, 'utf8')
-  const git = (...args) => execFileSync('git', ['-C', dir, ...args], { stdio: 'ignore' })
-  git('init', '-q')
-  git('checkout', '-q', '-b', branch)
-  git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '--allow-empty', '-m', 'init')
-  return dir
-}
-
-const statePath = (dir) => path.join(dir, '.claude', 'review-gate.json')
-
-/** Write state: `branches` maps branch name to its `unlocked` flag. */
-function withState(dir, branches) {
-  const entries = Object.entries(branches).map(([name, unlocked]) => [name, { unlocked }])
-  writeFileSync(statePath(dir), JSON.stringify({ branches: Object.fromEntries(entries) }), 'utf8')
-}
-
-const readState = (dir) => JSON.parse(readFileSync(statePath(dir), 'utf8'))
-
-/** Remove the temp dir. */
-function cleanup(dir) {
-  rmSync(dir, { recursive: true, force: true })
-}
-
-const TIMEOUT_MS = 5_000
-
-/**
- * Spawn the hook with the given stdin, running in cwd so the hook finds the gate state.
- *
- * runNode throws NO VERDICT on a signal, a timeout or a failed spawn — `status: null` otherwise
- * reaches `assert.equal(r.status, 2)` and reports a kill as a wrong exit code.
- */
-function runHook(stdin, cwd) {
-  const env = { ...process.env, REVIEW_GATE_ROOT: cwd }
-  return runNode('review-gate.js', [HOOK], { input: stdin, cwd, timeout: TIMEOUT_MS, env })
-}
-
-/** Hook stdin payload for an Edit/Write of filePath. */
-function payload(filePath) {
-  return JSON.stringify({ tool_name: 'Edit', tool_input: { file_path: filePath } })
-}
-
-/** Run a PostToolUse Agent event for `subagentType` (none when omitted). */
-function dispatch(dir, subagentType) {
-  const toolInput = subagentType ? { subagent_type: subagentType } : {}
-  return runHook(JSON.stringify({ tool_name: 'Agent', tool_input: toolInput }), dir)
-}
-
-/** Edit of a production file inside the repo. */
-const prodEdit = (dir) => runHook(payload(path.join(dir, 'apps', 'web', 'lib', 'foo.ts')), dir)
 
 // --- No gate state ---
 
@@ -418,19 +358,6 @@ test('blocks an armed production edit when the session cwd is a subdirectory', (
 })
 
 // --- Worktrees and exempt files ---
-
-/** `git` in the temp repo `dir`, with a throwaway identity. */
-const gitIn = (dir, ...args) =>
-  execFileSync('git', ['-C', dir, '-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {
-    stdio: 'ignore',
-  })
-
-/** Add a worktree `name` under .claude/worktrees/ on a new branch; returns its path. */
-function addWorktree(dir, name, branch) {
-  const wt = path.join(dir, '.claude', 'worktrees', name)
-  gitIn(dir, 'worktree', 'add', '-q', '-b', branch, wt)
-  return wt
-}
 
 // GROUP: review-gate-agent-worktree-own-branch, review-gate-always-passes, review-gate-worktrees-exempt, review-gate-exempt-dirs-unanchored
 test('blocks an armed production edit inside an agent worktree on its own branch', () => {
