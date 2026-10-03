@@ -36,7 +36,7 @@ Run every stage. Do not skip stages to save time — the gates exist to prevent 
 The review loop itself is stage 10 above — it IS the pre-push gate and it always reads the full branch diff, so there is no separate PR-level sweep.
 
 15. **`/fullpush`** — run the full self-audit + read-only lint + check-types + full test suite + build, plus conditional migration / e2e / **mandatory red-team** when those paths changed.
-16. **Push** — NEVER push to `master`; always a feature branch + PR. The pre-push hook (security-auditor + dep audit) must pass — NEVER bypass it.
+16. **Push** — NEVER push to `master`; always a feature branch + PR. The pre-push hook (security-auditor + dep audit) must pass — NEVER bypass it. After every successful push, with no further round pending, run `/fullpush` step 11 (delete the review-gate lock).
 17. **Open the PR** — descriptive title + body (summary, verification, deferred follow-ups). End the body with the Claude Code attribution line.
 
 ## Merge policy — ✅ MERGE WHEN, AND ONLY WHEN, ALL HOLD
