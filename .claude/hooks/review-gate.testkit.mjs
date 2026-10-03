@@ -1,7 +1,7 @@
 // Shared fixtures for the review-gate suite (review-gate.test.mjs).
 // Not a suite itself, no ci.yml step of its own; pattern: guard-agent-brief.testkit.mjs.
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -16,9 +16,9 @@ const FIXTURE_PIPELINE = JSON.stringify({
   },
 })
 
-/** Temp dir holding a fixture pipeline.json. */
+/** Temp dir holding a fixture pipeline.json. Resolved: git prints the common dir resolved (macOS /var -> /private/var). */
 export function makeDir() {
-  const dir = mkdtempSync(path.join(tmpdir(), 'review-gate-test-'))
+  const dir = realpathSync(mkdtempSync(path.join(tmpdir(), 'review-gate-test-')))
   mkdirSync(path.join(dir, '.claude'))
   writeFileSync(path.join(dir, '.claude', 'pipeline.json'), FIXTURE_PIPELINE, 'utf8')
   return dir
