@@ -114,7 +114,9 @@ describe('quiz progress actions (app-layer integration)', () => {
       topicId: refs.topicId,
       count: 1,
     })
-    outsideQuestionId = extra.questionIds[0] ?? OUTSIDE_QUESTION
+    const [seededOutside] = extra.questionIds
+    if (!seededOutside) throw new Error('beforeAll: no outside-session question was seeded')
+    outsideQuestionId = seededOutside
     studentClient = await getAuthenticatedClient({ email, password })
   })
 
@@ -155,6 +157,10 @@ describe('quiz progress actions (app-layer integration)', () => {
     const sessionId = await openSession()
     expect(await saveQuizAnswer(answerFor(sessionId, DEVICE_B))).toEqual({ success: true })
     expect((await sessionRow(sessionId)).active_device_id).toBeNull()
+    expect(await progressRow(sessionId, questionIds[0] as string)).toEqual({
+      answer: { selected_option_id: 'c' },
+      time_spent_ms: 1500,
+    })
   })
 
   it('refuses a save from a device that was taken over and keeps the claimed device data', async () => {
@@ -316,6 +322,16 @@ describe('quiz progress actions (app-layer integration)', () => {
     const sessionId = await openSession()
     await claimQuizSession({ sessionId, deviceId: DEVICE_A })
     await claimQuizSession({ sessionId, deviceId: DEVICE_B })
+    const ownerAnswer = { answer: { selected_option_id: 'a' }, time_spent_ms: 1500 }
+    expect(
+      await saveQuizAnswer(
+        answerFor(sessionId, DEVICE_B, {
+          questionId: questionIds[1],
+          answer: { selectedOptionId: 'a' },
+        }),
+      ),
+    ).toEqual({ success: true })
+    expect(await progressRow(sessionId, questionIds[1] as string)).toEqual(ownerAnswer)
     const result = await checkAnswer({
       questionId: questionIds[1],
       selectedOptionId: 'b',
@@ -327,7 +343,7 @@ describe('quiz progress actions (app-layer integration)', () => {
       success: false,
       error: expect.stringMatching(/another tab or device/i),
     })
-    expect(await progressRow(sessionId, questionIds[1] as string)).toBeNull()
+    expect(await progressRow(sessionId, questionIds[1] as string)).toEqual(ownerAnswer)
   })
 
   it('rejects malformed input', async () => {
