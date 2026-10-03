@@ -2,20 +2,17 @@
 // review-gate.js — after a review round, blocks production Edit/Write until plan-critic is dispatched.
 //
 // Wired twice in .claude/settings.json:
-//   PostToolUse Agent     a gate-round/conditional dispatch arms the current branch;
-//                         a plan-critic dispatch unlocks it. Always exits 0.
-//   PreToolUse Edit|Write blocks (exit 2) a production path while the branch is armed.
+//   PostToolUse Agent     a gate-round/conditional dispatch sets the lock; a plan-critic dispatch clears it. Always exits 0.
+//   PreToolUse Edit|Write blocks (exit 2) a production path while the lock is set.
 //
-// State: one marker file per armed branch, .claude/review-gate/<sha1-hex(branch)> (gitignored). Present = armed.
-// Arm and unlock each touch only their own branch's marker. A detached HEAD shares one `HEAD` marker.
-// A failed arm write is logged to stderr and leaves the branch unarmed.
-// A dispatch arms the branch of the checkout the payload `cwd` is in (a `cd` into a worktree arms that worktree's branch).
-// Edits under `.claude/worktrees/agent-*` are gated by the main checkout's branch entry.
+// Lock: .claude/review-gate.lock (gitignored). Present = set. One lock for every session and branch.
+// Blocks non-exempt paths under the project folder, including every `.claude/worktrees/*` checkout.
+// A failed lock write is logged to stderr and leaves the lock unset.
+// Files outside the project folder and Bash redirects are not gated.
 // `.coderabbit.yaml` at a checkout root is exempt, like `.claude/` and `docs/`.
-// Roles come from .claude/pipeline.json `agents.<type>.role`. Bash redirects bypass the gate.
+// Roles come from .claude/pipeline.json `agents.<type>.role`.
 
 const { execFileSync } = require('node:child_process')
-const { createHash } = require('node:crypto')
 const fs = require('node:fs')
 const path = require('node:path')
 
@@ -38,7 +35,7 @@ function mainCheckoutRoot() {
 const REPO_ROOT = process.env.REVIEW_GATE_ROOT || mainCheckoutRoot()
 const PIPELINE_PATH = path.join(REPO_ROOT, '.claude', 'pipeline.json')
 const ARMING_ROLES = new Set(['gate-round', 'conditional'])
-const GATE_DIR = path.join(REPO_ROOT, '.claude', 'review-gate')
+const LOCK = path.join(REPO_ROOT, '.claude', 'review-gate.lock')
 const EXEMPT_DIRS = ['.claude', 'docs', path.join('apps', 'web', 'e2e')]
 const EXEMPT_FILES = ['.coderabbit.yaml']
 const WORKTREES_DIR = path.resolve(REPO_ROOT, '.claude', 'worktrees') + path.sep
@@ -49,39 +46,10 @@ function checkoutRoot(filePath) {
   return WORKTREES_DIR + filePath.slice(WORKTREES_DIR.length).split(path.sep)[0]
 }
 
-/** Checkout whose branch gates `filePath`: an agent worktree answers to the main checkout. */
-function gateBranchRoot(filePath) {
-  const root = checkoutRoot(filePath)
-  return path.basename(root).startsWith('agent-') ? REPO_ROOT : root
-}
-
-/** Checkout whose branch a dispatch from `cwd` arms; no usable `cwd` means the main checkout. */
-function sessionRoot(cwd) {
-  if (typeof cwd !== 'string' || cwd === '') return REPO_ROOT
-  return gateBranchRoot(path.join(path.resolve(cwd), '_'))
-}
-
 /** True when `filePath` sits in an exempt directory of its own checkout. */
 function inExemptDir(filePath) {
   const root = checkoutRoot(filePath)
   return EXEMPT_DIRS.some((dir) => filePath.startsWith(path.resolve(root, dir) + path.sep))
-}
-
-/** Current branch of the checkout at `root`; `null` on a git fault. */
-function readBranch(root) {
-  try {
-    return execFileSync('git', ['-C', root, 'rev-parse', '--abbrev-ref', 'HEAD'], {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim()
-  } catch {
-    return null
-  }
-}
-
-/** Marker file whose presence means `branch` is armed. */
-function markerFile(branch) {
-  return path.join(GATE_DIR, createHash('sha1').update(branch).digest('hex'))
 }
 
 /** True when pipeline.json gives `subagentType` an arming role. */
@@ -90,17 +58,14 @@ function isArmingRole(subagentType) {
   return ARMING_ROLES.has(pipeline.agents?.[subagentType]?.role)
 }
 
-/** Apply an accepted Agent dispatch to the gate state. */
-function onAgent(subagentType, cwd) {
-  const branch = readBranch(sessionRoot(cwd))
-  if (!branch) return
+/** Apply an accepted Agent dispatch to the lock. */
+function onAgent(subagentType) {
   if (subagentType === 'plan-critic') {
-    fs.rmSync(markerFile(branch), { force: true })
+    fs.rmSync(LOCK, { force: true })
     return
   }
   if (!subagentType || !isArmingRole(subagentType)) return
-  fs.mkdirSync(GATE_DIR, { recursive: true })
-  fs.writeFileSync(markerFile(branch), branch, 'utf8')
+  fs.writeFileSync(LOCK, '')
 }
 
 /** Exit 2 with `reason`. */
@@ -113,7 +78,7 @@ function block(reason) {
 
 /** Edit/Write check for `filePath`. */
 function onEdit(filePath) {
-  if (!fs.existsSync(GATE_DIR)) process.exit(0)
+  if (!fs.existsSync(LOCK)) process.exit(0)
 
   // Collapse `..` segments so an exempt substring cannot mask a production target.
   filePath = path.resolve(filePath)
@@ -124,10 +89,7 @@ function onEdit(filePath) {
     process.exit(0)
   }
 
-  const branch = readBranch(gateBranchRoot(filePath))
-  if (!branch) block('production edit while the branch cannot be read.')
-  if (!fs.existsSync(markerFile(branch))) process.exit(0)
-  block(`production edit after a review round on branch ${branch}.`)
+  block('production edit after a review round.')
 }
 
 let input = ''
@@ -151,7 +113,7 @@ process.stdin.on('end', () => {
   }
   if (parsed?.tool_name === 'Agent') {
     try {
-      onAgent(parsed.tool_input?.subagent_type, parsed.cwd)
+      onAgent(parsed.tool_input?.subagent_type)
     } catch (err) {
       process.stderr.write(`[review-gate] state update failed: ${err.message}\n`)
     }

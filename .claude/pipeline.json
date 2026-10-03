@@ -194,7 +194,7 @@
     },
     ".claude/hooks/review-gate.js": {
       "base": "review-gate",
-      "suites": [".claude/hooks/review-gate.test.mjs", ".claude/hooks/review-gate.session.test.mjs"]
+      "suites": [".claude/hooks/review-gate.test.mjs"]
     },
     ".claude/pipeline.test.mjs": {
       "base": "pipeline",

@@ -1,14 +1,12 @@
-// Shared fixtures for the review-gate suites (review-gate.test.mjs, review-gate.session.test.mjs).
+// Shared fixtures for the review-gate suite (review-gate.test.mjs).
 // Not a suite itself, no ci.yml step of its own; pattern: guard-agent-brief.testkit.mjs.
 import { execFileSync } from 'node:child_process'
-import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { runNode } from './spawn.testkit.mjs'
 export const HOOK = path.join(path.dirname(fileURLToPath(import.meta.url)), 'review-gate.js')
-export const BRANCH = 'feat/work'
 
 const FIXTURE_PIPELINE = JSON.stringify({
   agents: {
@@ -18,37 +16,34 @@ const FIXTURE_PIPELINE = JSON.stringify({
   },
 })
 
-/** Temp git repo on branch `branch`, holding a fixture pipeline.json. */
-export function makeDir(branch = BRANCH) {
+/** Temp dir holding a fixture pipeline.json. */
+export function makeDir() {
   const dir = mkdtempSync(path.join(tmpdir(), 'review-gate-test-'))
   mkdirSync(path.join(dir, '.claude'))
   writeFileSync(path.join(dir, '.claude', 'pipeline.json'), FIXTURE_PIPELINE, 'utf8')
-  const git = (...args) => execFileSync('git', ['-C', dir, ...args], { stdio: 'ignore' })
-  git('init', '-q')
-  git('checkout', '-q', '-b', branch)
-  git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '--allow-empty', '-m', 'init')
   return dir
 }
 
-export const gateDir = (dir) => path.join(dir, '.claude', 'review-gate')
+/** `git` in the temp repo `dir`, with a throwaway identity. */
+export const gitIn = (dir, ...args) =>
+  execFileSync('git', ['-C', dir, '-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {
+    stdio: 'ignore',
+  })
 
-/** Marker file the hook keeps for `branch` (sha1 of the name), per the hook header. */
-export const markerPath = (dir, branch) =>
-  path.join(gateDir(dir), createHash('sha1').update(branch).digest('hex'))
-
-/** Arm `branch`: write its marker. */
-export function arm(dir, branch) {
-  mkdirSync(gateDir(dir), { recursive: true })
-  writeFileSync(markerPath(dir, branch), branch, 'utf8')
+/** Temp git repo with one commit, holding a fixture pipeline.json. */
+export function makeRepo() {
+  const dir = makeDir()
+  gitIn(dir, 'init', '-q')
+  gitIn(dir, 'commit', '-q', '--allow-empty', '-m', 'init')
+  return dir
 }
 
-/** Write state: `branches` maps branch name to its `unlocked` flag; a locked branch gets a marker. */
-export function withState(dir, branches) {
-  mkdirSync(gateDir(dir), { recursive: true })
-  for (const [name, unlocked] of Object.entries(branches)) if (!unlocked) arm(dir, name)
-}
+export const lockPath = (dir) => path.join(dir, '.claude', 'review-gate.lock')
 
-export const isArmed = (dir, branch) => existsSync(markerPath(dir, branch))
+/** Set the lock. */
+export const arm = (dir) => writeFileSync(lockPath(dir), '')
+
+export const isArmed = (dir) => existsSync(lockPath(dir))
 
 /** Remove the temp dir. */
 export function cleanup(dir) {
@@ -83,21 +78,9 @@ export function dispatch(dir, subagentType) {
 export const prodEdit = (dir) =>
   runHook(payload(path.join(dir, 'apps', 'web', 'lib', 'foo.ts')), dir)
 
-/** `git` in the temp repo `dir`, with a throwaway identity. */
-export const gitIn = (dir, ...args) =>
-  execFileSync('git', ['-C', dir, '-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {
-    stdio: 'ignore',
-  })
-
 /** Add a worktree `name` under .claude/worktrees/ on a new branch; returns its path. */
 export function addWorktree(dir, name, branch) {
   const wt = path.join(dir, '.claude', 'worktrees', name)
   gitIn(dir, 'worktree', 'add', '-q', '-b', branch, wt)
   return wt
-}
-
-/** Run a PostToolUse Agent event for `subagentType` with the payload `cwd` set to `cwd`. */
-export function dispatchFrom(dir, subagentType, cwd) {
-  const input = { tool_name: 'Agent', tool_input: { subagent_type: subagentType }, cwd }
-  return runHook(JSON.stringify(input), dir)
 }
