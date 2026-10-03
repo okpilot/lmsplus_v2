@@ -111,7 +111,7 @@ not close to the number of fields you meant to change, restore with `git checkou
 and redo it surgically. A reformat is semantically harmless, so nothing fails and review reads it
 as noise — the stat is the only thing that catches it.
 
-**Never mutate in place.** Work in a scratch copy or a throwaway worktree outside the project folder and outside /tmp.
+**Never mutate in place.** Work in a scratch copy or a throwaway worktree outside the project folder, so nothing survives.
 BEFORE mutating, record BOTH `git rev-parse HEAD` AND `git stash list --format='%H'` — two of the
 checks below are COMPARISONS, and a comparison with no captured baseline is satisfied by any later
 value. Record the stash IDENTITIES, not a count: a drop-and-push pair leaves the count unchanged.
