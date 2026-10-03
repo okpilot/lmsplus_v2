@@ -12,11 +12,13 @@ vi.mock('../../actions/quiz-progress', () => ({
   saveQuizPosition: (...a: unknown[]) => mockSavePosition(...a),
 }))
 
+import { _resetSessionTakeover } from '../_utils/session-takeover'
 import { useProgressSaves } from './use-progress-saves'
 
 const SESSION = '00000000-0000-4000-a000-000000000001'
 const Q = '00000000-0000-4000-a000-000000000011'
-const MAPPED = 'This quiz is open in another tab or device — reload this page to continue here.'
+const MAPPED = 'This session has already ended.'
+const TAKEN = 'This quiz is open in another tab or device — reload this page to continue here.'
 
 function setup(mode: QuizStateOpts['mode'] = 'study') {
   const opts = {
@@ -32,6 +34,7 @@ function setup(mode: QuizStateOpts['mode'] = 'study') {
 
 beforeEach(() => {
   vi.resetAllMocks()
+  _resetSessionTakeover()
   mockSaveAnswer.mockResolvedValue({ success: true })
   mockSavePosition.mockResolvedValue({ success: true })
 })
@@ -51,6 +54,13 @@ describe('useProgressSaves', () => {
     await act(async () => result.current.saveAnswer({ selectedOptionId: 'a' }))
     expect(result.current.saveError).toBe(MAPPED)
     await act(async () => result.current.saveAnswer({ selectedOptionId: 'b' }))
+    expect(result.current.saveError).toBeNull()
+  })
+
+  it('shows no save error when the server reports the session taken over', async () => {
+    mockSaveAnswer.mockResolvedValueOnce({ success: false, error: TAKEN })
+    const { result } = setup()
+    await act(async () => result.current.saveAnswer({ selectedOptionId: 'a' }))
     expect(result.current.saveError).toBeNull()
   })
 })

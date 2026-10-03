@@ -5,6 +5,7 @@ import type { AnswerFeedback, CheckNonMcAnswerResult, DraftAnswer } from '../../
 import { withClaimRetry } from '../_utils/claim-quiz-device'
 import { clampTimeSpent } from '../_utils/progress-save'
 import { getQuizDeviceId } from '../_utils/quiz-device-id'
+import { isTakenOver } from '../_utils/session-takeover'
 
 // CheckResult is the already-shaped discriminated feedback the handlers build
 // from each Server Action result (MC / short_answer / dialog_fill). It is
@@ -130,6 +131,7 @@ export function recordAnswerFeedback(
 }
 
 type AnswerErrorOpts = {
+  sessionId: string
   questionId: string
   lockedRef: React.MutableRefObject<Set<string>>
   pendingQuestionIdRef: React.MutableRefObject<Set<string>>
@@ -161,5 +163,6 @@ export function handleAnswerError(opts: AnswerErrorOpts) {
   } catch (err) {
     console.warn('[use-answer-handler] Revert checkpoint failed (best-effort):', err)
   }
+  if (isTakenOver(opts.sessionId)) return
   opts.setError(opts.message ?? GENERIC_CHECK_ERROR)
 }

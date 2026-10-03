@@ -7,12 +7,15 @@ const { mockSaveAnswer, mockSavePosition } = vi.hoisted(() => ({
   mockSavePosition: vi.fn(),
 }))
 
+vi.mock('next/navigation', () => ({ useRouter: () => ({ replace: vi.fn() }) }))
+vi.mock('sonner', () => ({ toast: { info: vi.fn() } }))
 vi.mock('../../actions/quiz-progress', () => ({
   saveQuizAnswer: (...a: unknown[]) => mockSaveAnswer(...a),
   saveQuizPosition: (...a: unknown[]) => mockSavePosition(...a),
 }))
 
 import { _resetQuizDeviceId } from '../_utils/quiz-device-id'
+import { _resetSessionTakeover } from '../_utils/session-takeover'
 import { useProgressSync } from './use-progress-sync'
 
 const SESSION = '00000000-0000-4000-a000-000000000001'
@@ -21,7 +24,7 @@ const Q = [
   '00000000-0000-4000-a000-000000000022',
   '00000000-0000-4000-a000-000000000033',
 ]
-const MAPPED = 'This quiz is open in another tab or device — reload this page to continue here.'
+const MAPPED = 'This session has already ended.'
 
 function opts(over: Partial<QuizStateOpts> = {}): QuizStateOpts {
   return {
@@ -39,6 +42,7 @@ beforeEach(() => {
   vi.resetAllMocks()
   sessionStorage.clear()
   _resetQuizDeviceId()
+  _resetSessionTakeover()
   mockSaveAnswer.mockResolvedValue({ success: true })
   mockSavePosition.mockResolvedValue({ success: true })
   vi.spyOn(Date, 'now').mockReturnValue(1_000_000)

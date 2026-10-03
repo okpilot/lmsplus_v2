@@ -3,6 +3,7 @@ import { saveQuizAnswer, saveQuizPosition } from '../../actions/quiz-progress'
 import type { ProgressResult } from '../../actions/quiz-progress-helpers'
 import type { DraftAnswer } from '../../types'
 import { withClaimRetry } from './claim-quiz-device'
+import { isTakenOver } from './session-takeover'
 
 const MAX_TIME_SPENT_MS = 86_400_000
 
@@ -80,6 +81,7 @@ export function fireProgressSave(opts: {
   onSuccess: () => void
   onMappedError: (message: string) => void
 }): void {
+  if (isTakenOver(opts.sessionId)) return
   const save = opts.kind === 'answer' ? saveQuizAnswer : saveQuizPosition
   let pending: Promise<ProgressResult>
   try {

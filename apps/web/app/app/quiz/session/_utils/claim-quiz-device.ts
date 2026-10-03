@@ -1,10 +1,8 @@
 import { withTimeout } from '@/lib/utils/with-timeout'
-import {
-  isDisplayableProgressError,
-  PROGRESS_ERROR_MESSAGES,
-} from '../../actions/progress-error-messages'
+import { isDisplayableProgressError, isTakeoverError } from '../../actions/progress-error-messages'
 import { claimQuizSession } from '../../actions/quiz-progress'
 import { getQuizDeviceId } from './quiz-device-id'
+import { announceClaim, clearTakenOver, markTakenOver } from './session-takeover'
 
 // Claiming is a background nicety: if it hangs, the session loads anyway after this window.
 export const CLAIM_TIMEOUT_MS = 3000
@@ -28,6 +26,16 @@ function startClaim(sessionId: string): Promise<ClaimResult | null> {
   )
 }
 
+/** Resolves whether the claim landed; a landed claim clears the taken-over flag and announces. */
+function trackOwned(sessionId: string, attempt: Promise<ClaimResult | null>): Promise<boolean> {
+  return attempt.then((r) => {
+    if (r?.success !== true) return false
+    clearTakenOver(sessionId)
+    announceClaim(sessionId)
+    return true
+  })
+}
+
 /**
  * Claims the session for this tab, bounded by CLAIM_TIMEOUT_MS. Resolves to the mapped error
  * copy for a displayable failure, else null (success, timeout, network or unmapped failure).
@@ -35,7 +43,7 @@ function startClaim(sessionId: string): Promise<ClaimResult | null> {
  */
 export function claimQuizDeviceBounded(sessionId: string): Promise<string | null> {
   const attempt = startClaim(sessionId)
-  lastClaim = { sessionId, owned: attempt.then((r) => r?.success === true) }
+  lastClaim = { sessionId, owned: trackOwned(sessionId, attempt) }
   const claim = attempt.then((r) => {
     if (!r || r.success) return null
     if (isDisplayableProgressError(r.error)) return r.error
@@ -52,9 +60,14 @@ export function claimQuizDeviceBounded(sessionId: string): Promise<string | null
 async function reclaimIfUnowned(sessionId: string): Promise<boolean> {
   if (!lastClaim || lastClaim.sessionId !== sessionId) return false
   if (await lastClaim.owned) return false
-  const owned = startClaim(sessionId).then((r) => r?.success === true)
+  const owned = trackOwned(sessionId, startClaim(sessionId))
   lastClaim = { sessionId, owned }
   return owned
+}
+
+/** Another tab claimed after this one: this tab must not re-claim on its next takeover error. */
+export function yieldClaim(sessionId: string): void {
+  if (lastClaim?.sessionId === sessionId) lastClaim = null
 }
 
 /** Runs `call`; on a takeover error with an unowned claim, re-claims and retries it once. */
@@ -62,7 +75,9 @@ export async function withClaimRetry<R extends { success: boolean; error?: strin
   sessionId: string,
   call: () => Promise<R>,
 ): Promise<R> {
-  const r = await call()
-  if (r.success || r.error !== PROGRESS_ERROR_MESSAGES.session_taken_over) return r
-  return (await reclaimIfUnowned(sessionId)) ? call() : r
+  const first = await call()
+  if (first.success || !isTakeoverError(first.error)) return first
+  const final = (await reclaimIfUnowned(sessionId)) ? await call() : first
+  if (!final.success && isTakeoverError(final.error)) markTakenOver(sessionId)
+  return final
 }

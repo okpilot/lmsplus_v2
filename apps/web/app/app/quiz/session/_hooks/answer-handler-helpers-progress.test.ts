@@ -13,6 +13,7 @@ vi.mock('../../actions/check-non-mc-answer', () => ({
 }))
 
 import { _resetQuizDeviceId, getQuizDeviceId } from '../_utils/quiz-device-id'
+import { _resetSessionTakeover, markTakenOver } from '../_utils/session-takeover'
 import type { AttemptInput } from './answer-handler-helpers'
 import { buildAnswerHandlers, checkErrorMessage, handleAnswerError } from './answer-handler-helpers'
 
@@ -37,6 +38,7 @@ beforeEach(() => {
   vi.resetAllMocks()
   sessionStorage.clear()
   _resetQuizDeviceId()
+  _resetSessionTakeover()
 })
 
 describe('check calls carry progress meta', () => {
@@ -100,6 +102,7 @@ describe('handleAnswerError', () => {
     }
     const onAnswerReverted = vi.fn()
     handleAnswerError({
+      sessionId: SESSION_ID,
       questionId: Q_ID,
       lockedRef: { current: new Set([Q_ID]) },
       pendingQuestionIdRef: { current: new Set([Q_ID]) },
@@ -110,5 +113,27 @@ describe('handleAnswerError', () => {
     })
     const saved = onAnswerReverted.mock.calls[0]?.[0] as Map<string, unknown>
     expect([...saved.keys()]).toEqual([OTHER])
+  })
+
+  it('rolls back the answer but shows no error once the session was taken over', () => {
+    markTakenOver(SESSION_ID)
+    const lockedRef = { current: new Set([Q_ID]) }
+    const answersRef = { current: new Map([[Q_ID, { selectedOptionId: 'a', responseTimeMs: 1 }]]) }
+    const setError = vi.fn()
+    const onAnswerReverted = vi.fn()
+    handleAnswerError({
+      sessionId: SESSION_ID,
+      questionId: Q_ID,
+      lockedRef,
+      pendingQuestionIdRef: { current: new Set([Q_ID]) },
+      answersRef,
+      setAnswers: vi.fn(),
+      setError,
+      onAnswerReverted,
+    })
+    expect(lockedRef.current.has(Q_ID)).toBe(false)
+    expect(answersRef.current.has(Q_ID)).toBe(false)
+    expect(onAnswerReverted).toHaveBeenCalledTimes(1)
+    expect(setError).not.toHaveBeenCalled()
   })
 })

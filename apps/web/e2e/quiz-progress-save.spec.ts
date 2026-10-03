@@ -34,17 +34,6 @@ async function waitForFeedback(page: Page): Promise<void> {
   })
 }
 
-async function savedLocalAnswerCount(page: Page): Promise<number> {
-  return page.evaluate(() => {
-    const key = Object.keys(localStorage).find((k) => k.startsWith('quiz-active-session:'))
-    if (!key) return -1
-    const parsed: unknown = JSON.parse(localStorage.getItem(key) ?? 'null')
-    if (typeof parsed !== 'object' || parsed === null || !('answers' in parsed)) return -1
-    const answers = (parsed as { answers: unknown }).answers
-    return typeof answers === 'object' && answers !== null ? Object.keys(answers).length : -1
-  })
-}
-
 async function readServerProgress(): Promise<ProgressSnapshot | null> {
   const admin = getAdminClient()
   const { data: student, error: studentError } = await admin
@@ -121,7 +110,7 @@ test.describe('Quiz progress saved to the server', () => {
     expect(await readServerProgress()).toEqual({ currentIndex: 1, answeredCount: 1 })
   })
 
-  test('a second tab taking over the session shows the taken-over message on the first tab', async ({
+  test('a second tab taking over the session sends the first tab back to the quiz picker with a toast', async ({
     page,
     context,
   }) => {
@@ -147,14 +136,11 @@ test.describe('Quiz progress saved to the server', () => {
       timeout: 10_000,
     })
 
-    // First tab keeps answering: the stale device is told to reload.
-    await firstAnswers.first().click()
-    await page.getByRole('button', { name: 'Submit Answer' }).first().click()
-    await expect(page.getByText(/open in another tab or device/i)).toBeVisible({
+    // No click on the first tab: it learns of the takeover and leaves the runner by itself.
+    await expect(page.getByText('This quiz continued in another tab or device.')).toBeVisible({
       timeout: 10_000,
     })
-    // The rejected answer is not left in the local copy a later resume reads.
-    expect(await savedLocalAnswerCount(page)).toBe(1)
+    await expect(page).toHaveURL(/\/app\/quiz$/, { timeout: 10_000 })
     await second.close()
   })
 })

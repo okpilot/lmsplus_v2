@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   isDisplayableProgressError,
+  isTakeoverError,
   mapMembershipError,
   mapProgressRpcError,
   PROGRESS_ERROR_MESSAGES,
@@ -89,5 +90,13 @@ describe('mapMembershipError', () => {
 
   it('returns null when the membership check passed', () => {
     expect(mapMembershipError(null)).toBeNull()
+  })
+})
+
+describe('isTakeoverError', () => {
+  it('recognises only the takeover copy', () => {
+    expect(isTakeoverError(PROGRESS_ERROR_MESSAGES.session_taken_over)).toBe(true)
+    expect(isTakeoverError(PROGRESS_ERROR_MESSAGES.session_expired)).toBe(false)
+    expect(isTakeoverError(undefined)).toBe(false)
   })
 })

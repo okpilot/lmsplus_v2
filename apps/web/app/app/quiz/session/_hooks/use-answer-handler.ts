@@ -64,6 +64,7 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
         result = await input.check(questionId)
       } catch (err) {
         handleAnswerError({
+          sessionId,
           questionId,
           lockedRef,
           pendingQuestionIdRef,
@@ -94,7 +95,6 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
   }
 
   const handlers = buildAnswerHandlers({ sessionId, getAnswerStartTime, runAttempt })
-
   // Clear ref lock reactively after state update propagates — not data fetching
   useEffect(() => {
     for (const locked of lockedRef.current) {

@@ -16,11 +16,13 @@ import {
   clampTimeSpent,
   fireProgressSave,
 } from './progress-save'
+import { _resetSessionTakeover, markTakenOver } from './session-takeover'
 
 const MAPPED = 'This session has already ended.'
 
 beforeEach(() => {
   vi.resetAllMocks()
+  _resetSessionTakeover()
 })
 
 describe('clampTimeSpent', () => {
@@ -100,6 +102,17 @@ describe('fireProgressSave', () => {
     await settle()
     expect(mockSaveAnswer).toHaveBeenCalledWith({ a: 1 })
     expect(h.onSuccess).toHaveBeenCalledTimes(1)
+  })
+
+  it('sends nothing once the session was taken over', async () => {
+    markTakenOver('s')
+    const h = handlers()
+    fireProgressSave({ kind: 'answer', sessionId: 's', input: {}, ...h })
+    fireProgressSave({ kind: 'position', sessionId: 's', input: {}, ...h })
+    await settle()
+    expect(mockSaveAnswer).not.toHaveBeenCalled()
+    expect(mockSavePosition).not.toHaveBeenCalled()
+    expect(h.onSuccess).not.toHaveBeenCalled()
   })
 
   it('routes a position save to saveQuizPosition', async () => {

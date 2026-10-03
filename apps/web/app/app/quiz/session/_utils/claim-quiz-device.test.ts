@@ -11,8 +11,18 @@ import {
   CLAIM_TIMEOUT_MS,
   claimQuizDeviceBounded,
   withClaimRetry,
+  yieldClaim,
 } from './claim-quiz-device'
 import { _resetQuizDeviceId } from './quiz-device-id'
+import { _resetSessionTakeover, isTakenOver, markTakenOver } from './session-takeover'
+
+class FakeChannel {
+  static posted: unknown[] = []
+  postMessage(m: unknown) {
+    FakeChannel.posted.push(m)
+  }
+  close() {}
+}
 
 const MAPPED = 'This session has already ended.'
 
@@ -21,10 +31,14 @@ beforeEach(() => {
   sessionStorage.clear()
   _resetQuizDeviceId()
   _resetClaimState()
+  _resetSessionTakeover()
+  vi.stubGlobal('BroadcastChannel', FakeChannel)
+  FakeChannel.posted.length = 0
 })
 
 afterEach(() => {
   vi.useRealTimers()
+  vi.unstubAllGlobals()
 })
 
 describe('claimQuizDeviceBounded', () => {
@@ -80,6 +94,17 @@ describe('withClaimRetry', () => {
     expect(call).toHaveBeenCalledTimes(2)
   })
 
+  it('does not re-claim after another tab claimed, even when this tab claim had failed', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    mockClaim.mockResolvedValue({ success: false, error: 'Could not save progress' })
+    await claimQuizDeviceBounded('s')
+    yieldClaim('s')
+    const call = vi.fn().mockResolvedValue(taken)
+    await expect(withClaimRetry('s', call)).resolves.toEqual(taken)
+    expect(mockClaim).toHaveBeenCalledTimes(1)
+    expect(isTakenOver('s')).toBe(true)
+  })
+
   it('does not re-claim when this tab claim succeeded', async () => {
     mockClaim.mockResolvedValue({ success: true })
     await claimQuizDeviceBounded('s')
@@ -126,5 +151,50 @@ describe('withClaimRetry', () => {
     await expect(withClaimRetry('other', call)).resolves.toEqual(taken)
     expect(mockClaim).toHaveBeenCalledTimes(1)
     expect(call).toHaveBeenCalledTimes(1)
+  })
+
+  it('marks the session taken over when the final result is a takeover error', async () => {
+    mockClaim.mockResolvedValue({ success: true })
+    await claimQuizDeviceBounded('s')
+    await withClaimRetry('s', vi.fn().mockResolvedValue(taken))
+    expect(isTakenOver('s')).toBe(true)
+  })
+
+  it('does not mark the session taken over when the retry succeeds', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    mockClaim
+      .mockResolvedValueOnce({ success: false, error: 'Could not save progress' })
+      .mockResolvedValueOnce({ success: true })
+    await claimQuizDeviceBounded('s')
+    const call = vi.fn().mockResolvedValueOnce(taken).mockResolvedValueOnce({ success: true })
+    await withClaimRetry('s', call)
+    expect(isTakenOver('s')).toBe(false)
+  })
+})
+
+describe('claim ownership', () => {
+  it('clears the taken-over flag and announces the claim when it succeeds', async () => {
+    markTakenOver('s')
+    mockClaim.mockResolvedValue({ success: true })
+    await claimQuizDeviceBounded('s')
+    expect(isTakenOver('s')).toBe(false)
+    expect(FakeChannel.posted).toEqual([{ sessionId: 's', deviceId: expect.any(String) }])
+  })
+
+  it('clears the taken-over flag when the claim succeeds after the timeout', async () => {
+    vi.useFakeTimers()
+    markTakenOver('s')
+    mockClaim.mockReturnValue(
+      new Promise((resolve) =>
+        setTimeout(() => resolve({ success: true }), CLAIM_TIMEOUT_MS + 500),
+      ),
+    )
+    const pending = claimQuizDeviceBounded('s')
+    await vi.advanceTimersByTimeAsync(CLAIM_TIMEOUT_MS)
+    await pending
+    expect(isTakenOver('s')).toBe(true)
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(isTakenOver('s')).toBe(false)
+    expect(FakeChannel.posted).toHaveLength(1)
   })
 })

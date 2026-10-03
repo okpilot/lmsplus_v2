@@ -59,6 +59,11 @@ export function mapProgressRpcError(message: string | undefined, fallback: strin
   return fallback
 }
 
+/** True for the copy shown when another tab or device holds the session. */
+export function isTakeoverError(message: string | undefined): boolean {
+  return message === PROGRESS_ERROR_MESSAGES.session_taken_over
+}
+
 /** True only for copy produced by the map above — safe to show the student verbatim. */
 export function isDisplayableProgressError(message: string): boolean {
   return DISPLAYABLE.has(message)
