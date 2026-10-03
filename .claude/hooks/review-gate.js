@@ -8,7 +8,8 @@
 // Lock: .claude/review-gate.lock (gitignored). Present = set. One lock for every session and branch.
 // Blocks non-exempt paths under the project folder, including every `.claude/worktrees/*` checkout.
 // A failed lock write is logged to stderr and leaves the lock unset.
-// Files outside the project folder and Bash redirects are not gated.
+// Paths are compared as spelled: files outside the project folder, a path reaching the project
+// through a symlink, and Bash redirects are not gated.
 // `.coderabbit.yaml` at a checkout root is exempt, like `.claude/` and `docs/`.
 // Roles come from .claude/pipeline.json `agents.<type>.role`.
 
