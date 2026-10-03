@@ -126,6 +126,22 @@
       "replace": "true",
       "expectRed": ["leaves the state unchanged when a non-gate agent is dispatched"],
       "note": "Every dispatch sets the lock, whatever its role — a non-gate agent arms the gate."
+    },
+    {
+      "id": "review-gate-agent-error-silent",
+      "find": "process.stderr.write(`[review-gate] state update failed: ${err.message}\\n`)",
+      "replace": "void err",
+      "expectRed": [
+        "logs a failed lock update and leaves the lock unset when pipeline.json is unreadable"
+      ],
+      "note": "A failed lock update is swallowed with no stderr signal."
+    },
+    {
+      "id": "review-gate-fallback-root-wrong",
+      "find": "return path.join(__dirname, '..', '..')",
+      "replace": "return path.join(__dirname, '..')",
+      "expectRed": ["sets the lock beside the hook when git cannot resolve the repo"],
+      "note": "Without git, the root resolves to .claude/ — pipeline.json is not found and no dispatch sets the lock."
     }
   ]
 }

@@ -4,7 +4,7 @@
 // on STDIN — the channel the harness actually uses — so these tests pin the
 // input contract and gate-state behaviour, not just the pattern matching.
 import assert from 'node:assert/strict'
-import { copyFileSync, mkdirSync } from 'node:fs'
+import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { test } from 'node:test'
 import {
@@ -295,6 +295,42 @@ test('blocks an armed edit when the hook runs from an agent worktree copy', () =
     const input = payload(path.join(wt, 'src', 'a.ts'))
     const r = runNode('review-gate.js', [copy], { input, cwd: dir, timeout: TIMEOUT_MS, env })
     assert.equal(r.status, 2)
+  } finally {
+    cleanup(dir)
+  }
+})
+
+// GROUP: review-gate-agent-error-silent
+test('logs a failed lock update and leaves the lock unset when pipeline.json is unreadable', () => {
+  const dir = makeDir()
+  try {
+    writeFileSync(path.join(dir, '.claude', 'pipeline.json'), '{', 'utf8')
+    const r = dispatch(dir, 'semantic-reviewer')
+    assert.equal(r.status, 0)
+    assert.match(r.stderr, /state update failed/)
+    assert.equal(isArmed(dir), false)
+  } finally {
+    cleanup(dir)
+  }
+})
+
+// GROUP: review-gate-fallback-root-wrong
+test('sets the lock beside the hook when git cannot resolve the repo', () => {
+  const dir = makeDir()
+  try {
+    mkdirSync(path.join(dir, '.claude', 'hooks'))
+    const copy = path.join(dir, '.claude', 'hooks', 'review-gate.js')
+    copyFileSync(HOOK, copy)
+    const env = { ...process.env, GIT_CEILING_DIRECTORIES: path.dirname(dir) }
+    for (const k of ['REVIEW_GATE_ROOT', 'GIT_DIR', 'GIT_COMMON_DIR', 'GIT_WORK_TREE'])
+      delete env[k]
+    const input = JSON.stringify({
+      tool_name: 'Agent',
+      tool_input: { subagent_type: 'semantic-reviewer' },
+    })
+    const r = runNode('review-gate.js', [copy], { input, cwd: dir, timeout: TIMEOUT_MS, env })
+    assert.equal(r.status, 0)
+    assert.equal(isArmed(dir), true)
   } finally {
     cleanup(dir)
   }
