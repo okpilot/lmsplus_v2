@@ -7,6 +7,7 @@
 //
 // Lock: .claude/review-gate.lock (gitignored). Present = set. One lock for every session and branch.
 // /fullpush step 11 deletes it after the push succeeds (agent-workflow.md § Pre-Push Review Gate).
+// Any session's plan-critic dispatch clears it; a lock no push clears blocks every session until deleted or the next plan-critic dispatch.
 // Blocks non-exempt paths under the project folder, including every `.claude/worktrees/*` checkout.
 // A failed lock write is logged to stderr and leaves the lock unset.
 // Paths are compared as spelled: files outside the project folder, a path reaching the project
