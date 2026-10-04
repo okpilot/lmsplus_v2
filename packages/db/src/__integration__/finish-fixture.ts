@@ -33,6 +33,7 @@ export const WRONG_MC = { selected_option_id: 'a' }
 
 export const secondsAgo = (s: number) => new Date(Date.now() - s * 1000).toISOString()
 
+/** Saves one answer through the real student RPC (save_quiz_answer). */
 export async function saveAnswer(
   f: ProgressFixture,
   sessionId: string,
