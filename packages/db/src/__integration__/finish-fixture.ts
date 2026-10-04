@@ -105,7 +105,7 @@ export async function backdateSession(f: ProgressFixture, sessionId: string, sec
   if (error) throw new Error(`backdateSession: ${error.message}`)
 }
 
-export async function finishSession(
+export function finishSession(
   client: SupabaseClient,
   sessionId: string,
   device: string | null = DEVICE,
