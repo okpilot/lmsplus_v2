@@ -62,3 +62,5 @@ export const E2E_REDTEAM_SQ_MARKER = '[E2E_REDTEAM_SQ]'
 export const E2E_REDTEAM_ER_MARKER = '[E2E_REDTEAM_ER]'
 // quiz-progress Server Action spec (Vectors GQ-GS, #1026 PR 2a): written into fixture quiz_sessions as `config.e2e_marker`.
 export const E2E_REDTEAM_QA_MARKER = '[E2E_REDTEAM_QA]'
+// finish-quiz-session spec (Vectors GU-GZ, #1026 PR 2c): written into fixture quiz_sessions as `config.e2e_marker`.
+export const E2E_REDTEAM_QF_MARKER = '[E2E_REDTEAM_QF]'
