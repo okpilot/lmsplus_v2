@@ -4,6 +4,7 @@ import {
   backdateSession,
   finishOk,
   insertDialogWithoutCanonical,
+  insertDialogWithTextIndex,
   insertRawProgress,
   insertTwoBlankDialog,
   insertTwoZoneDiagram,
@@ -33,12 +34,14 @@ describe('RPC: finish_quiz_session — grades the saved answers', () => {
   let dialog2Id: string
   let diagram2Id: string
   let defectDialogId: string
+  let textIndexDialogId: string
 
   beforeAll(async () => {
     f = await setupProgressFixture('finish')
     dialog2Id = await insertTwoBlankDialog(f)
     diagram2Id = await insertTwoZoneDiagram(f)
     defectDialogId = await insertDialogWithoutCanonical(f)
+    textIndexDialogId = await insertDialogWithTextIndex(f)
   })
   afterAll(async () => {
     await f.teardown()
@@ -291,6 +294,24 @@ describe('RPC: finish_quiz_session — grades the saved answers', () => {
       questionIds: [defectDialogId, mc(0)],
     })
     await insertRawProgress(f, sessionId, defectDialogId, {
+      blanks: [{ blank_index: 0, response_text: 'cleared' }],
+    })
+    await saveAnswer(f, sessionId, mc(0), RIGHT.mc)
+
+    const result = await finishOk(f, sessionId)
+
+    expect(Number(result.answered_count)).toBe(1)
+    expect(Number(result.score_percentage)).toBe(50)
+    expect((await answerRows(f, sessionId)).map((r) => r.question_id)).toEqual([mc(0)])
+  })
+
+  it('grades a question whose blank index is not a number as unanswered instead of failing the finish', async () => {
+    const sessionId = await insertSession({
+      f,
+      mode: 'mock_exam',
+      questionIds: [textIndexDialogId, mc(0)],
+    })
+    await insertRawProgress(f, sessionId, textIndexDialogId, {
       blanks: [{ blank_index: 0, response_text: 'cleared' }],
     })
     await saveAnswer(f, sessionId, mc(0), RIGHT.mc)

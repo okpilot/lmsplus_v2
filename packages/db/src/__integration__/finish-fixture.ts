@@ -183,3 +183,12 @@ export const insertDialogWithoutCanonical = (f: ProgressFixture) =>
     dialog_template: '[atc] {{0|cleared}} to land.',
     blanks_config: [{ index: 0, synonyms: [] }],
   })
+
+/** A dialog_fill whose blank index is not an integer (authoring defect no CHECK rejects). */
+export const insertDialogWithTextIndex = (f: ProgressFixture) =>
+  insertExtraQuestion(f, {
+    question_type: 'dialog_fill',
+    question_text: 'Defective dialog index',
+    dialog_template: '[atc] {{0|cleared}} to land.',
+    blanks_config: [{ index: 'x', canonical: 'cleared', synonyms: [] }],
+  })

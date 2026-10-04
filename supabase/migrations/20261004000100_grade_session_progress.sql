@@ -159,7 +159,7 @@ BEGIN
       ELSE
         RAISE EXCEPTION 'unsupported question type %', r.question_type;
       END IF;
-    EXCEPTION WHEN raise_exception THEN
+    EXCEPTION WHEN raise_exception OR data_exception OR integrity_constraint_violation THEN
       RAISE WARNING '[grade_session_progress] question % skipped: %', r.question_id, SQLERRM;
     END;
   END LOOP;
