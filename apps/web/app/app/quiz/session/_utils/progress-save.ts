@@ -3,6 +3,7 @@ import { saveQuizAnswer, saveQuizPosition } from '../../actions/quiz-progress'
 import type { DraftAnswer } from '../../types'
 import { withTakeoverCheck } from './claim-quiz-device'
 import { isTakenOver } from './session-takeover'
+import { withReconnect } from './with-reconnect'
 
 const MAX_TIME_SPENT_MS = 86_400_000
 
@@ -82,7 +83,7 @@ export function fireProgressSave(opts: {
 }): void {
   if (isTakenOver(opts.sessionId)) return
   const save = opts.kind === 'answer' ? saveQuizAnswer : saveQuizPosition
-  withTakeoverCheck(opts.sessionId, () => save(opts.input))
+  withTakeoverCheck(opts.sessionId, () => withReconnect(() => save(opts.input)))
     .then((r) => {
       if (r.success) return opts.onSuccess()
       if (isDisplayableProgressError(r.error)) return opts.onMappedError(r.error)

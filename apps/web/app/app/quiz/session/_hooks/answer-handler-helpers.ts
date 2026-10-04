@@ -3,9 +3,11 @@ import { checkNonMcAnswer } from '../../actions/check-non-mc-answer'
 import { isDisplayableProgressError } from '../../actions/progress-error-messages'
 import type { AnswerFeedback, CheckNonMcAnswerResult, DraftAnswer } from '../../types'
 import { withTakeoverCheck } from '../_utils/claim-quiz-device'
+import { getConnectionStatus } from '../_utils/connection-state'
 import { clampTimeSpent } from '../_utils/progress-save'
 import { getQuizDeviceId } from '../_utils/quiz-device-id'
 import { isTakenOver } from '../_utils/session-takeover'
+import { withReconnect } from '../_utils/with-reconnect'
 
 // CheckResult is the already-shaped discriminated feedback the handlers build
 // from each Server Action result (MC / short_answer / dialog_fill). It is
@@ -62,11 +64,13 @@ function attemptSelect(deps: HandlerDeps, optionId: string): Promise<boolean> {
     draft: { selectedOptionId: optionId, responseTimeMs },
     check: async (questionId) => {
       const r = await withTakeoverCheck(deps.sessionId, () =>
-        checkAnswer({
-          questionId,
-          selectedOptionId: optionId,
-          ...progressMeta(deps.sessionId, responseTimeMs),
-        }),
+        withReconnect(() =>
+          checkAnswer({
+            questionId,
+            selectedOptionId: optionId,
+            ...progressMeta(deps.sessionId, responseTimeMs),
+          }),
+        ),
       )
       if (!r.success) throw new Error(r.error)
       // Strip the server-action success flag so it doesn't leak into the
@@ -91,11 +95,13 @@ function attemptNonMc(deps: HandlerDeps, attempt: NonMcAttempt): Promise<boolean
       checkNonMc(
         attempt.questionType,
         withTakeoverCheck(deps.sessionId, () =>
-          checkNonMcAnswer({
-            questionId,
-            ...progressMeta(deps.sessionId, responseTimeMs),
-            ...attempt.answer,
-          }),
+          withReconnect(() =>
+            checkNonMcAnswer({
+              questionId,
+              ...progressMeta(deps.sessionId, responseTimeMs),
+              ...attempt.answer,
+            }),
+          ),
         ),
       ),
   })
@@ -145,6 +151,8 @@ type AnswerErrorOpts = {
 
 /** Rolls back optimistic answer state when checkAnswer fails. */
 export function handleAnswerError(opts: AnswerErrorOpts) {
+  // Signed out: the answer and its lock stay; the overlay blocks with a Sign in button.
+  if (getConnectionStatus() === 'signed-out') return
   const { questionId, lockedRef, pendingQuestionIdRef, answersRef } = opts
   pendingQuestionIdRef.current.delete(questionId)
   lockedRef.current.delete(questionId)

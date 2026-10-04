@@ -3,12 +3,14 @@
 import { QuestionGrid } from '../../_components/question-grid'
 import { QuestionTabs } from '../../_components/question-tabs'
 import type { QuizSessionProps } from '../../session-types'
+import { useConnectionState } from '../_hooks/use-connection-state'
 import { useFlaggedQuestions } from '../_hooks/use-flagged-questions'
 import { useQuizActiveTab } from '../_hooks/use-quiz-active-tab'
 import { useQuizKeyboard } from '../_hooks/use-quiz-keyboard'
 import { useQuizState } from '../_hooks/use-quiz-state'
 import { useQuizTimer } from '../_hooks/use-quiz-timer'
 import { useQuizUI } from '../_hooks/use-quiz-ui'
+import { ConnectionOverlay } from './connection-overlay'
 import { QuizFinishDialogHost } from './quiz-finish-dialog-host'
 import { QuizMainPanel } from './quiz-main-panel'
 import { QuizSessionFooter } from './quiz-session-footer'
@@ -22,6 +24,8 @@ export function QuizSession(props: Readonly<QuizSessionProps>) {
   const { flaggedIds, isFlagged, toggleFlag, isToggling } = useFlaggedQuestions(
     props.initialFlaggedIds ?? [],
   )
+  const { status: connection } = useConnectionState()
+  const blocked = connection === 'offline' || connection === 'signed-out'
   const effectiveTab = s.isExam ? 'question' : activeTab
   const { feedbackMap, pendingOptionId, handleSelectionChange, canSubmitAnswer } = useQuizUI({
     feedback: s.feedback,
@@ -39,8 +43,8 @@ export function QuizSession(props: Readonly<QuizSessionProps>) {
     optionIds: s.question?.options.map((o) => o.id) ?? [],
     currentIndex: s.currentIndex,
     isExam: s.isExam,
-    // Pause shortcuts only while the finish dialog is open; lightweight popovers (the keyboard legend) stay live — no destructive action, Escape-dismissable.
-    enabled: !s.showFinishDialog,
+    // Pause shortcuts while the finish dialog is open or the connection overlay blocks; lightweight popovers (the keyboard legend) stay live — no destructive action, Escape-dismissable.
+    enabled: !s.showFinishDialog && !blocked,
     onNavigate: s.navigate,
     onConfirm: s.handleSelectAnswer,
     onTab: setActiveTab,
@@ -127,6 +131,7 @@ export function QuizSession(props: Readonly<QuizSessionProps>) {
         examMode={props.examMode}
         timeExpired={timeExpired}
       />
+      <ConnectionOverlay />
     </div>
   )
 }

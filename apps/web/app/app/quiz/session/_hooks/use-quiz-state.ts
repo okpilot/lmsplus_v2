@@ -5,6 +5,7 @@ import type { QuizStateOpts } from '../../session-types'
 import type { DraftAnswer } from '../../types'
 import { assembleQuizState } from './quiz-state-assembly'
 import { useAnswerPipeline } from './use-answer-pipeline'
+import { useConnectionState } from './use-connection-state'
 import { useExamPipeline } from './use-exam-state'
 import { useProgressSync } from './use-progress-sync'
 
@@ -50,7 +51,9 @@ export function useQuizState(opts: QuizStateOpts) {
   const p = isExam ? exam : study
   const answers = isExam ? exam.answers : studyAnswers
   const initialSize = useRef(opts.initialAnswers ? Object.keys(opts.initialAnswers).length : 0)
-  useNavigationGuard(!isExam && answers.size > initialSize.current && !p.submitted.current)
+  const { pending } = useConnectionState()
+  const hasUnsavedStudy = !isExam && answers.size > initialSize.current && !p.submitted.current
+  useNavigationGuard(hasUnsavedStudy || pending > 0)
   const questionIds = useMemo(() => opts.questions.map((q) => q.id), [opts.questions])
 
   return assembleQuizState({

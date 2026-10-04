@@ -59,6 +59,11 @@ export function mapProgressRpcError(message: string | undefined, fallback: strin
   return fallback
 }
 
+/** True for the copy shown when the sign-in has expired. */
+export function isSignInError(message: string | undefined): boolean {
+  return message === SIGN_IN
+}
+
 /** True for the copy shown when another tab or device holds the session. */
 export function isTakeoverError(message: string | undefined): boolean {
   return message === PROGRESS_ERROR_MESSAGES.session_taken_over
