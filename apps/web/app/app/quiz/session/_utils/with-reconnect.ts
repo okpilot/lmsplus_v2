@@ -2,7 +2,9 @@ import { withTimeout } from '@/lib/utils/with-timeout'
 import { isSignInError, SIGN_IN } from '../../actions/progress-error-messages'
 import { classifyFailure } from './classify-failure'
 import {
+  _resetConnectionState,
   adjustPending,
+  getConnectionSnapshot,
   getConnectionStatus,
   markSaved,
   setConnectionStatus,
@@ -24,17 +26,19 @@ const SIGNED_OUT: SignedOutResult = { success: false, error: SIGN_IN }
 
 // One FIFO for the whole tab: every call takes its slot when issued, so issue order = landing order.
 let tail: Promise<unknown> = Promise.resolve()
-let waiting = 0
 let linkUp = true
 // A batch starts when the status goes offline and ends when the last waiting job settles.
 let batchOk = true
+// Jobs sleeping in backoff; resumeQueue wakes them.
+const wakers = new Set<() => void>()
 
 /** @internal Test-only reset for the module-level queue. */
 export function _resetWithReconnect() {
   tail = Promise.resolve()
-  waiting = 0
   linkUp = true
   batchOk = true
+  wakers.clear()
+  _resetConnectionState()
 }
 
 function isHandled(value: unknown): boolean {
@@ -65,7 +69,7 @@ async function attempt<T>(
     didThrow = true
     thrown = err
   }
-  const kind = await classifyFailure(didThrow && first ? thrown : undefined)
+  const kind = await classifyFailure(didThrow && first ? thrown : undefined, !didThrow)
   if (kind !== 'server') return { kind }
   return didThrow ? { kind: 'rethrow', err: thrown } : { kind: 'done', value: value as T }
 }
@@ -76,10 +80,12 @@ function waitForRetry(index: number): Promise<void> {
     const finish = () => {
       clearTimeout(timer)
       window.removeEventListener('online', finish)
+      wakers.delete(finish)
       resolve()
     }
     const timer = setTimeout(finish, delay)
     window.addEventListener('online', finish)
+    wakers.add(finish)
   })
 }
 
@@ -117,7 +123,7 @@ function landed<T>(result: Attempt<T>): boolean {
 }
 
 function endBatchIfIdle() {
-  if (waiting > 0 || getConnectionStatus() !== 'offline') return
+  if (getConnectionSnapshot().pending > 0 || getConnectionStatus() !== 'offline') return
   if (batchOk) markSaved()
   else setConnectionStatus('ok')
   batchOk = true
@@ -125,7 +131,6 @@ function endBatchIfIdle() {
 
 async function runJob<T>(fn: () => Promise<T>): Promise<T | SignedOutResult> {
   const result = await retryUntilSettled(fn)
-  waiting--
   adjustPending(-1)
   if (result.kind === 'signed-out') setConnectionStatus('signed-out')
   else {
@@ -133,6 +138,18 @@ async function runJob<T>(fn: () => Promise<T>): Promise<T | SignedOutResult> {
     endBatchIfIdle()
   }
   return settle(result)
+}
+
+/**
+ * Called when a session page mounts: wakes every job sleeping in backoff to resend now, and
+ * clears a stale offline or signed-out status when no job is pending. Jobs still pending keep
+ * their status.
+ */
+export function resumeQueue() {
+  linkUp = true
+  for (const wake of [...wakers]) wake()
+  const { status, pending } = getConnectionSnapshot()
+  if (pending === 0 && (status === 'offline' || status === 'signed-out')) setConnectionStatus('ok')
 }
 
 /**
@@ -149,8 +166,7 @@ export async function withReconnect<T extends ActionResult>(
   fn: () => Promise<T>,
 ): Promise<T | SignedOutResult> {
   if (getConnectionStatus() === 'signed-out') return SIGNED_OUT
-  const idle = waiting === 0
-  waiting++
+  const idle = getConnectionSnapshot().pending === 0
   adjustPending(1)
   const job = idle ? runJob(fn) : tail.then(() => runJob(fn))
   tail = job.catch(() => {})

@@ -11,11 +11,13 @@ import {
   _resetConnectionState,
   getConnectionSnapshot,
   getConnectionStatus,
+  setConnectionStatus,
 } from './connection-state'
 import {
   _resetWithReconnect,
   ATTEMPT_TIMEOUT_MS,
   BACKOFF_MS,
+  resumeQueue,
   withReconnect,
 } from './with-reconnect'
 
@@ -362,6 +364,59 @@ describe('withReconnect', () => {
     mockClassify.mockResolvedValue('server')
     const failure = { success: false as const, error: SIGN_IN }
     await expect(withReconnect(async () => failure)).resolves.toBe(failure)
+    expect(getConnectionStatus()).toBe('ok')
+  })
+
+  it('signs out without resending when the server refused the sign-in and the probe cannot reach the auth server', async () => {
+    mockClassify.mockImplementation(async (_thrown?: unknown, responded?: boolean) =>
+      responded ? 'signed-out' : 'offline',
+    )
+    const fn = vi.fn().mockResolvedValue({ success: false as const, error: SIGN_IN })
+    await expect(withReconnect(fn)).resolves.toEqual({ success: false, error: SIGN_IN })
+    expect(fn).toHaveBeenCalledTimes(1)
+    expect(getConnectionStatus()).toBe('signed-out')
+  })
+
+  it('tells the classifier the server responded only when the call returned a value', async () => {
+    mockClassify.mockResolvedValue('server')
+    await withReconnect(async () => ({}) as { success: boolean })
+    expect(mockClassify).toHaveBeenLastCalledWith(undefined, true)
+    await expect(withReconnect(() => Promise.reject(new Error('x')))).rejects.toThrow()
+    expect(mockClassify).toHaveBeenLastCalledWith(expect.any(Error), false)
+  })
+
+  it('resends a call sleeping in backoff as soon as the queue is resumed', async () => {
+    mockClassify.mockResolvedValue('offline')
+    const fn = vi.fn().mockRejectedValueOnce(new TypeError('x')).mockResolvedValue(OK)
+    const result = withReconnect(fn)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(fn).toHaveBeenCalledTimes(1)
+    resumeQueue()
+    await expect(result).resolves.toBe(OK)
+    expect(fn).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps the blocked status while a call is still pending after the queue is resumed', async () => {
+    mockClassify.mockResolvedValue('signed-out')
+    const gate: { release: () => void } = { release: () => {} }
+    const slow = new Promise<typeof OK>((resolve) => {
+      gate.release = () => resolve(OK)
+    })
+    const held = withReconnect(vi.fn().mockReturnValue(slow))
+    await vi.advanceTimersByTimeAsync(ATTEMPT_TIMEOUT_MS)
+    expect(getConnectionStatus()).toBe('offline')
+    resumeQueue()
+    expect(getConnectionStatus()).toBe('offline')
+    gate.release()
+    await held
+  })
+
+  it('clears a stale offline or signed-out status when nothing is pending', () => {
+    setConnectionStatus('offline')
+    resumeQueue()
+    expect(getConnectionStatus()).toBe('ok')
+    setConnectionStatus('signed-out')
+    resumeQueue()
     expect(getConnectionStatus()).toBe('ok')
   })
 })

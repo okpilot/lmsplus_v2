@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useLayoutEffect } from 'react'
+import { useEffect, useLayoutEffect, useState } from 'react'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -11,7 +11,9 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { useConnectionState } from '../_hooks/use-connection-state'
-import { getConnectionStatus, setConnectionStatus } from '../_utils/connection-state'
+import { resumeQueue } from '../_utils/with-reconnect'
+
+export const STALL_ESCAPE_MS = 60_000
 
 function signInHref(): string {
   const { pathname, search } = window.location
@@ -22,9 +24,9 @@ function signInHref(): string {
 export function ConnectionOverlay() {
   const { status } = useConnectionState()
 
-  // A stale 'signed-out' from an earlier session page must not block a new one; before paint.
+  // A stale block from an earlier session page must not stay on a new one; before paint.
   useLayoutEffect(() => {
-    if (getConnectionStatus() === 'signed-out') setConnectionStatus('ok')
+    resumeQueue()
   }, [])
 
   useEffect(() => {
@@ -42,12 +44,33 @@ export function ConnectionOverlay() {
           </AlertDialogTitle>
           <AlertDialogDescription>
             {signedOut
-              ? 'Sign in again to continue.'
+              ? 'Sign in again to continue. Answers not yet saved will need to be entered again.'
               : 'Keep this page open. Your answer will be sent when the connection returns.'}
           </AlertDialogDescription>
         </AlertDialogHeader>
         {signedOut && <Button onClick={() => window.location.assign(signInHref())}>Sign in</Button>}
+        {status === 'offline' && <ReloadEscape />}
       </AlertDialogContent>
     </AlertDialog>
+  )
+}
+
+/** After STALL_ESCAPE_MS offline, lets the student give up waiting; the leave prompt still warns. */
+function ReloadEscape() {
+  const [stalled, setStalled] = useState(false)
+  useEffect(() => {
+    const timer = setTimeout(() => setStalled(true), STALL_ESCAPE_MS)
+    return () => clearTimeout(timer)
+  }, [])
+  if (!stalled) return null
+  return (
+    <>
+      <p className="text-sm text-muted-foreground">
+        Still waiting? Reloading loses answers not yet sent.
+      </p>
+      <Button variant="outline" onClick={() => window.location.reload()}>
+        Reload page
+      </Button>
+    </>
   )
 }

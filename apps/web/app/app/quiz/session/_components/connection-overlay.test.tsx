@@ -1,6 +1,6 @@
 import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockToastSuccess } = vi.hoisted(() => ({ mockToastSuccess: vi.fn() }))
 
@@ -8,11 +8,12 @@ vi.mock('sonner', () => ({ toast: { success: (...a: unknown[]) => mockToastSucce
 
 import {
   _resetConnectionState,
+  adjustPending,
   getConnectionStatus,
   markSaved,
   setConnectionStatus,
 } from '../_utils/connection-state'
-import { ConnectionOverlay } from './connection-overlay'
+import { ConnectionOverlay, STALL_ESCAPE_MS } from './connection-overlay'
 
 const assign = vi.fn()
 
@@ -20,6 +21,10 @@ beforeEach(() => {
   vi.resetAllMocks()
   _resetConnectionState()
   vi.stubGlobal('location', { pathname: '/app/quiz/session', search: '?id=1', assign })
+})
+
+afterEach(() => {
+  vi.useRealTimers()
 })
 
 describe('ConnectionOverlay', () => {
@@ -52,7 +57,11 @@ describe('ConnectionOverlay', () => {
   it('offers a Sign in button that returns to the current page after sign-in', async () => {
     render(<ConnectionOverlay />)
     act(() => setConnectionStatus('signed-out'))
-    expect(screen.getByText('Sign in again to continue.')).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'Sign in again to continue. Answers not yet saved will need to be entered again.',
+      ),
+    ).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
     expect(assign).toHaveBeenCalledWith('/?next=%2Fapp%2Fquiz%2Fsession%3Fid%3D1')
   })
@@ -74,10 +83,35 @@ describe('ConnectionOverlay', () => {
     })
   })
 
-  it('keeps an offline status when a session page mounts', () => {
+  it('keeps an offline status when a session page mounts while a save is still unsent', () => {
     setConnectionStatus('offline')
+    adjustPending(1)
     render(<ConnectionOverlay />)
     expect(getConnectionStatus()).toBe('offline')
     expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+  })
+
+  it('offers a Reload page button only after the connection stays down for a minute', () => {
+    vi.useFakeTimers()
+    const reload = vi.fn()
+    vi.stubGlobal('location', { pathname: '/', search: '', assign, reload })
+    render(<ConnectionOverlay />)
+    act(() => setConnectionStatus('offline'))
+    act(() => vi.advanceTimersByTime(STALL_ESCAPE_MS - 1))
+    expect(screen.queryByRole('button', { name: 'Reload page' })).not.toBeInTheDocument()
+    act(() => vi.advanceTimersByTime(1))
+    expect(
+      screen.getByText('Still waiting? Reloading loses answers not yet sent.'),
+    ).toBeInTheDocument()
+    act(() => screen.getByRole('button', { name: 'Reload page' }).click())
+    expect(reload).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not offer Reload page on the signed-out block', () => {
+    vi.useFakeTimers()
+    render(<ConnectionOverlay />)
+    act(() => setConnectionStatus('signed-out'))
+    act(() => vi.advanceTimersByTime(STALL_ESCAPE_MS))
+    expect(screen.queryByRole('button', { name: 'Reload page' })).not.toBeInTheDocument()
   })
 })

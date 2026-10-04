@@ -37,9 +37,17 @@ async function probe(): Promise<FailureKind> {
  * TypeError (what a failed `fetch` throws) is offline without probing, since the link may have
  * recovered before the probe runs. Later attempts omit it so a client-bug TypeError cannot loop
  * silently forever. A server-answered error is a plain Error and keeps the probe path.
+ * `responded` is true when the call returned a value instead of throwing: the server was reached,
+ * so a probe that cannot decide (offline browser, fetch failure, timeout) → signed-out rather
+ * than offline, which would resend an answer the server already refused.
  */
-export async function classifyFailure(thrown?: unknown): Promise<FailureKind> {
+export async function classifyFailure(thrown?: unknown, responded = false): Promise<FailureKind> {
   if (thrown instanceof TypeError) return 'offline'
+  const kind = await decide()
+  return responded && kind === 'offline' ? 'signed-out' : kind
+}
+
+async function decide(): Promise<FailureKind> {
   if (typeof navigator !== 'undefined' && !navigator.onLine) return 'offline'
   const guarded = probe().catch((err): FailureKind => {
     console.warn('[classify-failure] auth probe threw (best-effort):', err)

@@ -102,4 +102,27 @@ describe('classifyFailure', () => {
     mockGetUser.mockRejectedValue(new Error('unexpected'))
     await expect(classifyFailure()).resolves.toBe('server')
   })
+
+  it('reports signed-out when the server answered but the auth probe times out', async () => {
+    vi.useFakeTimers()
+    mockGetUser.mockReturnValue(new Promise(() => {}))
+    const result = classifyFailure(undefined, true)
+    await vi.advanceTimersByTimeAsync(PROBE_TIMEOUT_MS)
+    await expect(result).resolves.toBe('signed-out')
+  })
+
+  it('reports signed-out when the server answered but the browser is offline', async () => {
+    setOnLine(false)
+    await expect(classifyFailure(undefined, true)).resolves.toBe('signed-out')
+  })
+
+  it('reports server when the server answered and the session is still good', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u' } }, error: null })
+    await expect(classifyFailure(undefined, true)).resolves.toBe('server')
+  })
+
+  it('reports signed-out when the server answered and there is no session', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
+    await expect(classifyFailure(undefined, true)).resolves.toBe('signed-out')
+  })
 })
