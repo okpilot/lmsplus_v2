@@ -31,6 +31,11 @@ test.describe('Red Team: progress resend after session end (Vector GT)', () => {
   let victimUserId: string
   let q1: string
   let q2: string
+  let q1Key: {
+    correct_option_id: string
+    explanation_text: string | null
+    explanation_image_url: string | null
+  }
 
   const seedSession = async () => {
     const { data, error } = await admin
@@ -115,6 +120,14 @@ test.describe('Red Team: progress resend after session end (Vector GT)', () => {
     if (!Array.isArray(data) || data.length < 2) throw new Error('need 2 active MC questions')
     q1 = data[0]?.id as string
     q2 = data[1]?.id as string
+    const key = await admin
+      .from('questions')
+      .select('correct_option_id, explanation_text, explanation_image_url')
+      .eq('id', q1)
+      .single()
+    if (key.error || typeof key.data?.correct_option_id !== 'string')
+      throw new Error(`beforeAll q1 key: ${key.error?.message ?? 'bad shape'}`)
+    q1Key = { ...key.data, correct_option_id: key.data.correct_option_id }
   })
 
   test.beforeEach(async () => {
@@ -132,20 +145,20 @@ test.describe('Red Team: progress resend after session end (Vector GT)', () => {
     if ((data?.length ?? 0) > 0) console.info(`[progress-late-resend] soft-deleted ${data?.length}`)
   })
 
-  test('GT: resent grade and saves landing after the session ended change nothing', async () => {
+  test('GT: identical and changed progress writes after the session ended are refused and change nothing', async () => {
     const sessionId = await seedSession()
     const claim = await victim.rpc('claim_quiz_session', {
       p_session_id: sessionId,
       p_device_id: DEVICE_A,
     })
-    expect(claim.error).toBeNull()
+    expect(claim).toMatchObject({ data: null, error: null })
 
-    // Control: on the open session each call lands.
+    // Control: on the open session each call lands and returns its documented payload.
     const ok = await grade(sessionId, 'a')
     expect(ok.error).toBeNull()
-    expect(isRecord(ok.data) && typeof ok.data.correct_option_id === 'string').toBe(true)
-    expect((await saveAnswer(sessionId, 'a')).error).toBeNull()
-    expect((await savePosition(sessionId, 1)).error).toBeNull()
+    expect(ok.data).toEqual({ is_correct: q1Key.correct_option_id === 'a', ...q1Key })
+    expect(await saveAnswer(sessionId, 'a')).toMatchObject({ data: null, error: null })
+    expect(await savePosition(sessionId, 1)).toMatchObject({ data: null, error: null })
     const before = await readProgress(sessionId)
     expect(before).toEqual(
       [
@@ -155,7 +168,7 @@ test.describe('Red Team: progress resend after session end (Vector GT)', () => {
     )
     expect((await readPosition(sessionId)).current_index).toBe(1)
 
-    // Another device ends the session.
+    // Set ended_at with the service-role client to simulate a session ended on another device.
     const { error: endErr } = await admin
       .from('quiz_sessions')
       .update({ ended_at: new Date().toISOString() })
@@ -163,11 +176,17 @@ test.describe('Red Team: progress resend after session end (Vector GT)', () => {
     if (endErr) throw new Error(`end session: ${endErr.message}`)
     expect((await readPosition(sessionId)).ended_at).not.toBeNull()
 
-    const lateGrade = await grade(sessionId, 'b')
-    expect(lateGrade.data).toBeNull()
-    expect(lateGrade.error?.message).toBe('session not found or not owned by this student')
-    expect((await saveAnswer(sessionId, 'b')).error?.message).toBe('session_ended')
-    expect((await savePosition(sessionId, 0)).error?.message).toBe('session_ended')
+    // Identical resends of the calls that landed, then changed inputs.
+    for (const [option, index] of [
+      ['a', 1],
+      ['b', 0],
+    ] as const) {
+      const lateGrade = await grade(sessionId, option)
+      expect(lateGrade.data).toBeNull()
+      expect(lateGrade.error?.message).toBe('session not found or not owned by this student')
+      expect((await saveAnswer(sessionId, option)).error?.message).toBe('session_ended')
+      expect((await savePosition(sessionId, index)).error?.message).toBe('session_ended')
+    }
 
     expect(await readProgress(sessionId)).toEqual(before)
     expect((await readPosition(sessionId)).current_index).toBe(1)

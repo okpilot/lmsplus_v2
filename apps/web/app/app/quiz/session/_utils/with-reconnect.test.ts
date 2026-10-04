@@ -203,7 +203,7 @@ describe('withReconnect', () => {
     expect(getConnectionSnapshot()).toEqual({ status: 'ok', pending: 0 })
   })
 
-  it('rethrows a server error on the first attempt as today', async () => {
+  it('rethrows a server error on the first attempt without blocking', async () => {
     mockClassify.mockResolvedValue('server')
     const boom = new Error('server exploded')
     await expect(withReconnect(() => Promise.reject(boom))).rejects.toBe(boom)
