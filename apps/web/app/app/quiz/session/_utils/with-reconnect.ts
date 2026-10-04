@@ -1,6 +1,6 @@
 import { withTimeout } from '@/lib/utils/with-timeout'
 import { isSignInError, SIGN_IN } from '../../actions/progress-error-messages'
-import { classifyFailure } from './classify-failure'
+import { classifyFailure, linkIsDown } from './classify-failure'
 import {
   _resetConnectionState,
   adjustPending,
@@ -27,7 +27,7 @@ const SIGNED_OUT: SignedOutResult = { success: false, error: SIGN_IN }
 // One FIFO for the whole tab: every call takes its slot when issued, so issue order = landing order.
 let tail: Promise<unknown> = Promise.resolve()
 let linkUp = true
-// A batch starts when the status goes offline and ends when the last waiting job settles.
+// A batch starts when the status goes offline or slow and ends when the last waiting job settles.
 let batchOk = true
 // Jobs sleeping in backoff; resumeQueue wakes them.
 const wakers = new Set<() => void>()
@@ -49,9 +49,18 @@ function isHandled(value: unknown): boolean {
 }
 
 async function awaitRequest<T>(request: Promise<T>): Promise<T> {
+  let settled = false
+  const markSettled = () => {
+    settled = true
+  }
+  request.then(markSettled, markSettled)
   const raced = await withTimeout<T | typeof TIMED_OUT>(request, ATTEMPT_TIMEOUT_MS, TIMED_OUT)
   if (raced !== TIMED_OUT) return raced
-  markOffline()
+  const down = await linkIsDown()
+  if (!settled) {
+    if (down) markOffline()
+    else markSlow()
+  }
   return await request
 }
 
@@ -69,7 +78,8 @@ async function attempt<T>(
     didThrow = true
     thrown = err
   }
-  const kind = await classifyFailure(didThrow && first ? thrown : undefined, !didThrow)
+  const responded = !(didThrow && thrown instanceof TypeError)
+  const kind = await classifyFailure(didThrow && first ? thrown : undefined, responded)
   if (kind !== 'server') return { kind }
   return didThrow ? { kind: 'rethrow', err: thrown } : { kind: 'done', value: value as T }
 }
@@ -90,9 +100,17 @@ function waitForRetry(index: number): Promise<void> {
 }
 
 function markOffline() {
-  if (getConnectionStatus() !== 'offline') batchOk = true
+  const status = getConnectionStatus()
+  if (status !== 'offline' && status !== 'slow') batchOk = true
   linkUp = false
   setConnectionStatus('offline')
+}
+
+function markSlow() {
+  const status = getConnectionStatus()
+  if (status === 'offline' || status === 'signed-out' || status === 'slow') return
+  batchOk = true
+  setConnectionStatus('slow')
 }
 
 async function retryUntilSettled<T>(fn: () => Promise<T>): Promise<Attempt<T>> {
@@ -123,7 +141,8 @@ function landed<T>(result: Attempt<T>): boolean {
 }
 
 function endBatchIfIdle() {
-  if (getConnectionSnapshot().pending > 0 || getConnectionStatus() !== 'offline') return
+  const status = getConnectionStatus()
+  if (getConnectionSnapshot().pending > 0 || (status !== 'offline' && status !== 'slow')) return
   if (batchOk) markSaved()
   else setConnectionStatus('ok')
   batchOk = true
@@ -142,23 +161,27 @@ async function runJob<T>(fn: () => Promise<T>): Promise<T | SignedOutResult> {
 
 /**
  * Called when a session page mounts: wakes every job sleeping in backoff to resend now, and
- * clears a stale offline or signed-out status when no job is pending. Jobs still pending keep
+ * clears a stale offline, slow or signed-out status when no job is pending. Jobs still pending keep
  * their status.
  */
 export function resumeQueue() {
   linkUp = true
   for (const wake of [...wakers]) wake()
   const { status, pending } = getConnectionSnapshot()
-  if (pending === 0 && (status === 'offline' || status === 'signed-out')) setConnectionStatus('ok')
+  if (pending === 0 && (status === 'offline' || status === 'slow' || status === 'signed-out')) {
+    setConnectionStatus('ok')
+  }
 }
 
 /**
  * Runs a Server Action call, FIFO with every other call in this tab. A network failure blocks
  * (status 'offline') and the call is resent on reconnect until it lands; an expired sign-in
  * resolves to a SIGN_IN failure; any other outcome passes through unchanged (a thrown server
- * error is rethrown). A request still open after ATTEMPT_TIMEOUT_MS shows the offline block while
- * the SAME request keeps being awaited until it settles; it is resent only after it fails. Next.js
- * runs Server Actions one at a time, so a resend could not go out before it anyway.
+ * error is rethrown). A request still open after ATTEMPT_TIMEOUT_MS shows a block while the SAME
+ * request keeps being awaited until it settles; it is resent only after it fails. The block is
+ * 'offline' when the link is definitely down, else 'slow' ("still saving"): Next.js runs Server
+ * Actions one at a time, so the wait may be time queued behind another action. A resend could
+ * not go out before it anyway.
  * Residual: a stalled socket the browser never fails keeps the quiz blocked until the browser
  * gives up on it.
  */

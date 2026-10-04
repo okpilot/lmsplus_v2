@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { useConnectionState } from '../_hooks/use-connection-state'
+import type { ConnectionStatus } from '../_utils/connection-state'
 import { resumeQueue } from '../_utils/with-reconnect'
 
 export const STALL_ESCAPE_MS = 60_000
@@ -20,7 +21,7 @@ function signInHref(): string {
   return `/?next=${encodeURIComponent(pathname + search)}`
 }
 
-/** Blocks the quiz while a save is unsent (offline) or the sign-in has expired. */
+/** Blocks the quiz while a save is unsent (offline or slow) or the sign-in has expired. */
 export function ConnectionOverlay() {
   const { status } = useConnectionState()
 
@@ -34,34 +35,45 @@ export function ConnectionOverlay() {
   }, [status])
 
   const signedOut = status === 'signed-out'
+  const waiting = status === 'offline' || status === 'slow'
   return (
     // Not dismissable: open is derived from the store; onOpenChange is deliberately ignored.
-    <AlertDialog open={status === 'offline' || signedOut}>
+    <AlertDialog open={waiting || signedOut}>
       <AlertDialogContent>
-        <OverlayCopy signedOut={signedOut} />
+        <OverlayCopy status={status} />
         {signedOut && <Button onClick={() => window.location.assign(signInHref())}>Sign in</Button>}
-        {status === 'offline' && <ReloadEscape />}
+        {waiting && <ReloadEscape />}
       </AlertDialogContent>
     </AlertDialog>
   )
 }
 
-function OverlayCopy({ signedOut }: Readonly<{ signedOut: boolean }>) {
+const COPY = {
+  offline: {
+    title: 'Connection lost — reconnecting…',
+    body: 'Keep this page open. Your answer will be sent when the connection returns.',
+  },
+  slow: {
+    title: 'Still saving…',
+    body: 'This is taking longer than usual. Keep this page open.',
+  },
+  'signed-out': {
+    title: 'Your sign-in has expired',
+    body: 'Sign in again to continue. Answers not yet saved will need to be entered again.',
+  },
+}
+
+function OverlayCopy({ status }: Readonly<{ status: ConnectionStatus }>) {
+  const copy = status === 'slow' || status === 'signed-out' ? COPY[status] : COPY.offline
   return (
     <AlertDialogHeader>
-      <AlertDialogTitle>
-        {signedOut ? 'Your sign-in has expired' : 'Connection lost — reconnecting…'}
-      </AlertDialogTitle>
-      <AlertDialogDescription>
-        {signedOut
-          ? 'Sign in again to continue. Answers not yet saved will need to be entered again.'
-          : 'Keep this page open. Your answer will be sent when the connection returns.'}
-      </AlertDialogDescription>
+      <AlertDialogTitle>{copy.title}</AlertDialogTitle>
+      <AlertDialogDescription>{copy.body}</AlertDialogDescription>
     </AlertDialogHeader>
   )
 }
 
-/** After STALL_ESCAPE_MS offline, lets the student give up waiting; the leave prompt still warns. */
+/** After STALL_ESCAPE_MS offline or slow, lets the student give up waiting; the leave prompt still warns. */
 function ReloadEscape() {
   const [stalled, setStalled] = useState(false)
   useEffect(() => {

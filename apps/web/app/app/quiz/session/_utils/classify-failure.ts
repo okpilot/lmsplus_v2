@@ -4,6 +4,8 @@ import { withTimeout } from '@/lib/utils/with-timeout'
 
 export type FailureKind = 'offline' | 'signed-out' | 'server'
 
+type Decision = FailureKind | 'unknown'
+
 export const PROBE_TIMEOUT_MS = 3000
 
 const SIGNED_OUT_CODES = new Set([
@@ -30,30 +32,37 @@ async function probe(): Promise<FailureKind> {
 
 /**
  * Decides why a Server Action call failed. Offline browser → offline; otherwise a bounded
- * browser-side auth probe: fetch failure or timeout → offline; missing session, 401/403 or a
- * dead refresh token → signed-out; no user and no error → signed-out; anything else → server.
+ * browser-side auth probe: fetch failure → offline; missing session, 401/403 or a dead refresh
+ * token → signed-out; no user and no error → signed-out; anything else → server. A probe that
+ * times out is undecided, not offline: undecided → server when `responded`, else offline.
  * The server's own SIGN_IN result is not trusted by itself — the browser probe decides.
  * `thrown` is the error the Server Action call threw, passed only on a job's FIRST attempt: a
  * TypeError (what a failed `fetch` throws) is offline without probing, since the link may have
  * recovered before the probe runs. Later attempts omit it so a client-bug TypeError cannot loop
  * silently forever. A server-answered error is a plain Error and keeps the probe path.
- * `responded` is true when the call returned a value instead of throwing: the server was reached,
- * so a probe that cannot decide (offline browser, fetch failure, timeout) → server, passing the
- * server's own answer through: no resend of an answer the server already refused, and no
- * sign-out on a server SIGN_IN that a transient auth failure can also produce. A truly expired
- * session then shows the inline sign-in error; the next call probes again.
+ * `responded` is true when the server answered: the call returned a value, or threw an error
+ * that is not a TypeError (a 5xx). An undecided probe then → server, passing the server's own
+ * answer through: no resend of an answer the server already gave, and no sign-out on a server
+ * SIGN_IN that a transient auth failure can also produce. A definite offline (offline browser,
+ * auth fetch failure) stays offline whatever `responded` is.
  */
 export async function classifyFailure(thrown?: unknown, responded = false): Promise<FailureKind> {
   if (thrown instanceof TypeError) return 'offline'
   const kind = await decide()
-  return responded && kind === 'offline' ? 'server' : kind
+  if (kind === 'unknown') return responded ? 'server' : 'offline'
+  return kind
 }
 
-async function decide(): Promise<FailureKind> {
+/** True only on definite evidence the link is down (offline browser or auth fetch failure). */
+export async function linkIsDown(): Promise<boolean> {
+  return (await decide()) === 'offline'
+}
+
+async function decide(): Promise<Decision> {
   if (typeof navigator !== 'undefined' && !navigator.onLine) return 'offline'
-  const guarded = probe().catch((err): FailureKind => {
+  const guarded = probe().catch((err): Decision => {
     console.warn('[classify-failure] auth probe threw (best-effort):', err)
     return 'server'
   })
-  return withTimeout(guarded, PROBE_TIMEOUT_MS, 'offline')
+  return withTimeout<Decision>(guarded, PROBE_TIMEOUT_MS, 'unknown')
 }

@@ -1,4 +1,4 @@
-export type ConnectionStatus = 'ok' | 'offline' | 'signed-out' | 'saved'
+export type ConnectionStatus = 'ok' | 'offline' | 'slow' | 'signed-out' | 'saved'
 export type ConnectionSnapshot = { status: ConnectionStatus; pending: number }
 
 const SAVED_VISIBLE_MS = 1500

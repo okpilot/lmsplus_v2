@@ -107,6 +107,36 @@ describe('ConnectionOverlay', () => {
     expect(reload).toHaveBeenCalledTimes(1)
   })
 
+  it('blocks with the still-saving message while a save is slow', () => {
+    render(<ConnectionOverlay />)
+    act(() => setConnectionStatus('slow'))
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+    expect(screen.getByText('Still saving…')).toBeInTheDocument()
+    expect(
+      screen.getByText('This is taking longer than usual. Keep this page open.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Sign in' })).not.toBeInTheDocument()
+  })
+
+  it('counts the Reload page minute from the first block when a slow save turns offline', () => {
+    vi.useFakeTimers()
+    render(<ConnectionOverlay />)
+    act(() => setConnectionStatus('slow'))
+    act(() => vi.advanceTimersByTime(STALL_ESCAPE_MS - 1))
+    act(() => setConnectionStatus('offline'))
+    expect(screen.queryByRole('button', { name: 'Reload page' })).not.toBeInTheDocument()
+    act(() => vi.advanceTimersByTime(1))
+    expect(screen.getByRole('button', { name: 'Reload page' })).toBeInTheDocument()
+  })
+
+  it('offers a Reload page button after a save stays slow for a minute', () => {
+    vi.useFakeTimers()
+    render(<ConnectionOverlay />)
+    act(() => setConnectionStatus('slow'))
+    act(() => vi.advanceTimersByTime(STALL_ESCAPE_MS))
+    expect(screen.getByRole('button', { name: 'Reload page' })).toBeInTheDocument()
+  })
+
   it('does not offer Reload page on the signed-out block', () => {
     vi.useFakeTimers()
     render(<ConnectionOverlay />)

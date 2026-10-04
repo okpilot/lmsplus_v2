@@ -1,9 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockClassify } = vi.hoisted(() => ({ mockClassify: vi.fn() }))
+const { mockClassify, mockLinkIsDown } = vi.hoisted(() => ({
+  mockClassify: vi.fn(),
+  mockLinkIsDown: vi.fn(),
+}))
 
 vi.mock('./classify-failure', () => ({
   classifyFailure: (...a: unknown[]) => mockClassify(...a),
+  linkIsDown: () => mockLinkIsDown(),
 }))
 
 import { SIGN_IN } from '../../actions/progress-error-messages'
@@ -281,6 +285,7 @@ describe('withReconnect', () => {
   })
 
   it('keeps awaiting a slow request without resending it and returns its result', async () => {
+    mockLinkIsDown.mockResolvedValue(true)
     mockClassify.mockResolvedValue('offline')
     const gate: { release: () => void } = { release: () => {} }
     const slow = new Promise<typeof OK>((resolve) => {
@@ -331,6 +336,7 @@ describe('withReconnect', () => {
   })
 
   it('does not resend a stalled request when the browser comes back online', async () => {
+    mockLinkIsDown.mockResolvedValue(true)
     mockClassify.mockResolvedValue('offline')
     const gate: { land: () => void } = { land: () => {} }
     const stalled = new Promise((resolve) => {
@@ -387,7 +393,22 @@ describe('withReconnect', () => {
     await withReconnect(async () => ({}) as { success: boolean })
     expect(mockClassify).toHaveBeenLastCalledWith(undefined, true)
     await expect(withReconnect(() => Promise.reject(new Error('x')))).rejects.toThrow()
-    expect(mockClassify).toHaveBeenLastCalledWith(expect.any(Error), false)
+    expect(mockClassify).toHaveBeenLastCalledWith(expect.any(Error), true)
+    await expect(withReconnect(() => Promise.reject(new TypeError('x')))).rejects.toThrow()
+    expect(mockClassify).toHaveBeenLastCalledWith(expect.any(TypeError), false)
+  })
+
+  it('tells the classifier the server responded when a later attempt throws a plain error', async () => {
+    mockClassify.mockResolvedValueOnce('offline').mockResolvedValue('server')
+    const fn = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('x'))
+      .mockRejectedValueOnce(new Error('500'))
+    const result = withReconnect(fn)
+    const settled = result.catch(() => {})
+    await vi.advanceTimersByTimeAsync(BACKOFF_MS[0] ?? 0)
+    await settled
+    expect(mockClassify).toHaveBeenLastCalledWith(undefined, true)
   })
 
   it('resends a call sleeping in backoff as soon as the queue is resumed', async () => {
@@ -402,6 +423,7 @@ describe('withReconnect', () => {
   })
 
   it('keeps the blocked status while a call is still pending after the queue is resumed', async () => {
+    mockLinkIsDown.mockResolvedValue(true)
     mockClassify.mockResolvedValue('signed-out')
     const gate: { release: () => void } = { release: () => {} }
     const slow = new Promise<typeof OK>((resolve) => {
@@ -416,8 +438,11 @@ describe('withReconnect', () => {
     await held
   })
 
-  it('clears a stale offline or signed-out status when nothing is pending', () => {
+  it('clears a stale offline, slow or signed-out status when nothing is pending', () => {
     setConnectionStatus('offline')
+    resumeQueue()
+    expect(getConnectionStatus()).toBe('ok')
+    setConnectionStatus('slow')
     resumeQueue()
     expect(getConnectionStatus()).toBe('ok')
     setConnectionStatus('signed-out')

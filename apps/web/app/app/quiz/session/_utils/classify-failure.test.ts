@@ -7,7 +7,7 @@ vi.mock('@repo/db/client', () => ({
   createClient: () => ({ auth: { getUser: (...a: unknown[]) => mockGetUser(...a) } }),
 }))
 
-import { classifyFailure, PROBE_TIMEOUT_MS } from './classify-failure'
+import { classifyFailure, linkIsDown, PROBE_TIMEOUT_MS } from './classify-failure'
 
 function setOnLine(value: boolean) {
   vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(value)
@@ -111,9 +111,25 @@ describe('classifyFailure', () => {
     await expect(result).resolves.toBe('server')
   })
 
-  it("passes the server's answer through when the server answered but the browser is offline", async () => {
+  it('still reports offline when the server answered but the browser is offline', async () => {
     setOnLine(false)
-    await expect(classifyFailure(undefined, true)).resolves.toBe('server')
+    await expect(classifyFailure(undefined, true)).resolves.toBe('offline')
+  })
+
+  it('reports offline when the server answered but the auth probe cannot reach the network', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: null },
+      error: new AuthRetryableFetchError('Failed to fetch', 0),
+    })
+    await expect(classifyFailure(undefined, true)).resolves.toBe('offline')
+  })
+
+  it('reports offline when the call failed without a server answer and the probe times out', async () => {
+    vi.useFakeTimers()
+    mockGetUser.mockReturnValue(new Promise(() => {}))
+    const result = classifyFailure(new Error('x'), false)
+    await vi.advanceTimersByTimeAsync(PROBE_TIMEOUT_MS)
+    await expect(result).resolves.toBe('offline')
   })
 
   it('reports server when the server answered and the session is still good', async () => {
@@ -124,5 +140,25 @@ describe('classifyFailure', () => {
   it('reports signed-out when the server answered and there is no session', async () => {
     mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
     await expect(classifyFailure(undefined, true)).resolves.toBe('signed-out')
+  })
+})
+
+describe('linkIsDown', () => {
+  it('is true when the browser is offline', async () => {
+    setOnLine(false)
+    await expect(linkIsDown()).resolves.toBe(true)
+  })
+
+  it('is false when the auth probe does not answer in time', async () => {
+    vi.useFakeTimers()
+    mockGetUser.mockReturnValue(new Promise(() => {}))
+    const result = linkIsDown()
+    await vi.advanceTimersByTimeAsync(PROBE_TIMEOUT_MS)
+    await expect(result).resolves.toBe(false)
+  })
+
+  it('is false when the auth probe reaches the server', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u' } }, error: null })
+    await expect(linkIsDown()).resolves.toBe(false)
   })
 })
