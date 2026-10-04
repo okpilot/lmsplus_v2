@@ -33,8 +33,13 @@ async function probe(): Promise<FailureKind> {
  * browser-side auth probe: fetch failure or timeout → offline; missing session, 401/403 or a
  * dead refresh token → signed-out; no user and no error → signed-out; anything else → server.
  * The server's own SIGN_IN result is not trusted by itself — the browser probe decides.
+ * `thrown` is the error the Server Action call threw, passed only on a job's FIRST attempt: a
+ * TypeError (what a failed `fetch` throws) is offline without probing, since the link may have
+ * recovered before the probe runs. Later attempts omit it so a client-bug TypeError cannot loop
+ * silently forever. A server-answered error is a plain Error and keeps the probe path.
  */
-export async function classifyFailure(): Promise<FailureKind> {
+export async function classifyFailure(thrown?: unknown): Promise<FailureKind> {
+  if (thrown instanceof TypeError) return 'offline'
   if (typeof navigator !== 'undefined' && !navigator.onLine) return 'offline'
   const guarded = probe().catch((err): FailureKind => {
     console.warn('[classify-failure] auth probe threw (best-effort):', err)

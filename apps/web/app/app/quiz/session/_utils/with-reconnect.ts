@@ -80,7 +80,10 @@ async function awaitRequest<T>(
   return Promise.race([request, abandon.promise])
 }
 
-async function attempt<T>(fn: () => Promise<T>): Promise<Attempt<T> | { kind: 'offline' }> {
+async function attempt<T>(
+  fn: () => Promise<T>,
+  first: boolean,
+): Promise<Attempt<T> | { kind: 'offline' }> {
   let value: T | undefined
   let thrown: unknown
   let didThrow = false
@@ -96,7 +99,7 @@ async function attempt<T>(fn: () => Promise<T>): Promise<Attempt<T> | { kind: 'o
   } finally {
     abandon.dispose()
   }
-  const kind = await classifyFailure()
+  const kind = await classifyFailure(didThrow && first ? thrown : undefined)
   if (kind !== 'server') return { kind }
   return didThrow ? { kind: 'rethrow', err: thrown } : { kind: 'done', value: value as T }
 }
@@ -122,10 +125,12 @@ function markOffline() {
 
 async function retryUntilSettled<T>(fn: () => Promise<T>): Promise<Attempt<T>> {
   let waits = 0
+  let first = true
   for (;;) {
     if (getConnectionStatus() === 'signed-out') return { kind: 'signed-out' }
     if (!linkUp) await waitForRetry(waits++)
-    const result = await attempt(fn)
+    const result = await attempt(fn, first)
+    first = false
     if (result.kind !== 'offline') {
       linkUp = true
       return result

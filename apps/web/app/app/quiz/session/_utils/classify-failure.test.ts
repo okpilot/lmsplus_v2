@@ -29,6 +29,17 @@ describe('classifyFailure', () => {
     expect(mockGetUser).not.toHaveBeenCalled()
   })
 
+  it('reports offline without probing when the call threw a TypeError', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u' } }, error: null })
+    await expect(classifyFailure(new TypeError('Failed to fetch'))).resolves.toBe('offline')
+    expect(mockGetUser).not.toHaveBeenCalled()
+  })
+
+  it('reports server when the call threw a plain error and the session is good', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u' } }, error: null })
+    await expect(classifyFailure(new Error('boom'))).resolves.toBe('server')
+  })
+
   it('reports offline when the auth probe fails on a retryable fetch error', async () => {
     mockGetUser.mockResolvedValue({
       data: { user: null },

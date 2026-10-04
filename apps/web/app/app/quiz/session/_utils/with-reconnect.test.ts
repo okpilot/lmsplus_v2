@@ -59,6 +59,31 @@ describe('withReconnect', () => {
     expect(getConnectionSnapshot()).toEqual({ status: 'saved', pending: 0 })
   })
 
+  it('resends a call that threw a TypeError even when the link already recovered', async () => {
+    mockClassify.mockImplementation(async (thrown?: unknown) =>
+      thrown instanceof TypeError ? 'offline' : 'server',
+    )
+    const fn = vi.fn().mockRejectedValueOnce(new TypeError('fetch failed')).mockResolvedValue(OK)
+    const result = withReconnect(fn)
+    await vi.advanceTimersByTimeAsync(0)
+    await vi.advanceTimersByTimeAsync(BACKOFF_MS[0] ?? 0)
+    await expect(result).resolves.toBe(OK)
+    expect(fn).toHaveBeenCalledTimes(2)
+  })
+
+  it('stops short-circuiting a thrown TypeError once the first attempt has been resent', async () => {
+    mockClassify.mockImplementation(async (thrown?: unknown) =>
+      thrown instanceof TypeError ? 'offline' : 'server',
+    )
+    const bug = new TypeError('client bug')
+    const fn = vi.fn().mockRejectedValue(bug)
+    const result = withReconnect(fn)
+    const settled = expect(result).rejects.toBe(bug)
+    await vi.advanceTimersByTimeAsync(BACKOFF_MS[0] ?? 0)
+    await settled
+    expect(fn).toHaveBeenCalledTimes(2)
+  })
+
   it('resends immediately when the online event fires before the backoff ends', async () => {
     mockClassify.mockResolvedValue('offline')
     const fn = vi.fn().mockRejectedValueOnce(new TypeError('fetch failed')).mockResolvedValue(OK)

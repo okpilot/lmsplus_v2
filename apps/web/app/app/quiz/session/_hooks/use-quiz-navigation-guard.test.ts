@@ -5,7 +5,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('../../_hooks/use-navigation-guard', () => ({ useNavigationGuard: vi.fn() }))
 
 import { useNavigationGuard } from '../../_hooks/use-navigation-guard'
-import { _resetConnectionState, adjustPending } from '../_utils/connection-state'
+import {
+  _resetConnectionState,
+  adjustPending,
+  setConnectionStatus,
+} from '../_utils/connection-state'
 import { useQuizNavigationGuard } from './use-quiz-navigation-guard'
 
 const guard = vi.mocked(useNavigationGuard)
@@ -43,6 +47,24 @@ describe('useQuizNavigationGuard', () => {
   it('blocks on an unsent save before the quiz is submitted', () => {
     renderHook(() => useQuizNavigationGuard(false, false))
     act(() => adjustPending(1))
+    expect(guard).toHaveBeenLastCalledWith(true)
+  })
+
+  it('does not block once the sign-in expired even with unsaved work and an unsent save', () => {
+    renderHook(() => useQuizNavigationGuard(true, false))
+    act(() => {
+      adjustPending(1)
+      setConnectionStatus('signed-out')
+    })
+    expect(guard).toHaveBeenLastCalledWith(false)
+  })
+
+  it('keeps blocking while offline with an unsent save', () => {
+    renderHook(() => useQuizNavigationGuard(false, false))
+    act(() => {
+      adjustPending(1)
+      setConnectionStatus('offline')
+    })
     expect(guard).toHaveBeenLastCalledWith(true)
   })
 })
