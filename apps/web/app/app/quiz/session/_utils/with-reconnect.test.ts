@@ -253,15 +253,51 @@ describe('withReconnect', () => {
     expect(getConnectionSnapshot()).toEqual({ status: 'ok', pending: 0 })
   })
 
-  it('treats a hung attempt as a failure and resends it', async () => {
+  it('keeps awaiting a slow request without resending it and returns its result', async () => {
     mockClassify.mockResolvedValue('offline')
-    const fn = vi
-      .fn()
-      .mockReturnValueOnce(new Promise(() => {}))
-      .mockResolvedValue(OK)
+    const gate: { release: () => void } = { release: () => {} }
+    const slow = new Promise<typeof OK>((resolve) => {
+      gate.release = () => resolve(OK)
+    })
+    const fn = vi.fn().mockReturnValue(slow)
     const result = withReconnect(fn)
     await vi.advanceTimersByTimeAsync(ATTEMPT_TIMEOUT_MS)
     expect(getConnectionStatus()).toBe('offline')
+    await vi.advanceTimersByTimeAsync(BACKOFF_MS.reduce((a, b) => a + b, 0))
+    expect(fn).toHaveBeenCalledTimes(1)
+    gate.release()
+    await expect(result).resolves.toBe(OK)
+    expect(fn).toHaveBeenCalledTimes(1)
+    expect(getConnectionSnapshot()).toEqual({ status: 'saved', pending: 0 })
+  })
+
+  it('starts a later call only after the slow request ahead of it has landed', async () => {
+    const gate: { release: () => void } = { release: () => {} }
+    const slow = new Promise<typeof OK>((resolve) => {
+      gate.release = () => resolve(OK)
+    })
+    const first = vi.fn().mockReturnValue(slow)
+    const second = vi.fn().mockResolvedValue(OK)
+    const a = withReconnect(first)
+    const b = withReconnect(second)
+    await vi.advanceTimersByTimeAsync(ATTEMPT_TIMEOUT_MS * 2)
+    expect(second).not.toHaveBeenCalled()
+    gate.release()
+    await Promise.all([a, b])
+    expect(second).toHaveBeenCalledTimes(1)
+  })
+
+  it('resends a slow request once after it finally fails offline', async () => {
+    mockClassify.mockResolvedValue('offline')
+    const gate: { fail: () => void } = { fail: () => {} }
+    const slow = new Promise<never>((_, reject) => {
+      gate.fail = () => reject(new TypeError('fetch failed'))
+    })
+    const fn = vi.fn().mockReturnValueOnce(slow).mockResolvedValue(OK)
+    const result = withReconnect(fn)
+    await vi.advanceTimersByTimeAsync(ATTEMPT_TIMEOUT_MS)
+    expect(fn).toHaveBeenCalledTimes(1)
+    gate.fail()
     await vi.advanceTimersByTimeAsync(BACKOFF_MS[0] ?? 0)
     await expect(result).resolves.toBe(OK)
     expect(fn).toHaveBeenCalledTimes(2)

@@ -50,7 +50,7 @@ export function useQuizState(opts: QuizStateOpts) {
   const p = isExam ? exam : study
   const answers = isExam ? exam.answers : studyAnswers
   const initialSize = useRef(opts.initialAnswers ? Object.keys(opts.initialAnswers).length : 0)
-  useQuizNavigationGuard(!isExam && answers.size > initialSize.current && !p.submitted.current)
+  useQuizNavigationGuard(!isExam && answers.size > initialSize.current, p.submitted.current)
   const questionIds = useMemo(() => opts.questions.map((q) => q.id), [opts.questions])
 
   return assembleQuizState({

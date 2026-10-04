@@ -49,9 +49,10 @@ async function attempt<T>(fn: () => Promise<T>): Promise<Attempt<T> | { kind: 'o
   let thrown: unknown
   let didThrow = false
   try {
-    const raced = await withTimeout<T | typeof TIMED_OUT>(fn(), ATTEMPT_TIMEOUT_MS, TIMED_OUT)
-    if (raced === TIMED_OUT) throw new Error('save attempt timed out')
-    value = raced
+    const request = fn()
+    const raced = await withTimeout<T | typeof TIMED_OUT>(request, ATTEMPT_TIMEOUT_MS, TIMED_OUT)
+    if (raced === TIMED_OUT) markOffline()
+    value = raced === TIMED_OUT ? await request : raced
     if (isHandled(value)) return { kind: 'done', value }
   } catch (err) {
     didThrow = true
@@ -129,8 +130,9 @@ async function runJob<T>(fn: () => Promise<T>): Promise<T | SignedOutResult> {
  * Runs a Server Action call, FIFO with every other call in this tab. A network failure blocks
  * (status 'offline') and the call is resent on reconnect until it lands; an expired sign-in
  * resolves to a SIGN_IN failure; any other outcome passes through unchanged (a thrown server
- * error is rethrown). Each attempt gives up after ATTEMPT_TIMEOUT_MS and is classified like a
- * thrown failure.
+ * error is rethrown). A request still open after ATTEMPT_TIMEOUT_MS shows the offline block while
+ * the SAME request is awaited; it is resent only after it has failed, so a request is never
+ * abandoned and landing order = issue order.
  */
 export async function withReconnect<T extends ActionResult>(
   fn: () => Promise<T>,

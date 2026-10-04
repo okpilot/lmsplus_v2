@@ -17,20 +17,32 @@ beforeEach(() => {
 
 describe('useQuizNavigationGuard', () => {
   it('does not block when nothing is unsaved or unsent', () => {
-    renderHook(() => useQuizNavigationGuard(false))
+    renderHook(() => useQuizNavigationGuard(false, false))
     expect(guard).toHaveBeenLastCalledWith(false)
   })
 
   it('blocks while the caller has unsaved work', () => {
-    renderHook(() => useQuizNavigationGuard(true))
+    renderHook(() => useQuizNavigationGuard(true, false))
     expect(guard).toHaveBeenLastCalledWith(true)
   })
 
   it('blocks while a progress save is unsent and releases when it lands', () => {
-    renderHook(() => useQuizNavigationGuard(false))
+    renderHook(() => useQuizNavigationGuard(false, false))
     act(() => adjustPending(1))
     expect(guard).toHaveBeenLastCalledWith(true)
     act(() => adjustPending(-1))
     expect(guard).toHaveBeenLastCalledWith(false)
+  })
+
+  it('does not block after the quiz is submitted even with a save still unsent', () => {
+    renderHook(() => useQuizNavigationGuard(true, true))
+    act(() => adjustPending(1))
+    expect(guard).toHaveBeenLastCalledWith(false)
+  })
+
+  it('blocks on an unsent save before the quiz is submitted', () => {
+    renderHook(() => useQuizNavigationGuard(false, false))
+    act(() => adjustPending(1))
+    expect(guard).toHaveBeenLastCalledWith(true)
   })
 })
