@@ -5,7 +5,7 @@ import {
   adjustPending,
   setConnectionStatus,
 } from '../_utils/connection-state'
-import { useConnectionState } from './use-connection-state'
+import { useConnectionBlocked, useConnectionState } from './use-connection-state'
 
 beforeEach(() => {
   vi.resetAllMocks()
@@ -21,5 +21,18 @@ describe('useConnectionState', () => {
       adjustPending(2)
     })
     expect(result.current).toEqual({ status: 'offline', pending: 2 })
+  })
+})
+
+describe('useConnectionBlocked', () => {
+  it('is true only while offline or signed out', () => {
+    const { result } = renderHook(() => useConnectionBlocked())
+    expect(result.current).toBe(false)
+    act(() => setConnectionStatus('offline'))
+    expect(result.current).toBe(true)
+    act(() => setConnectionStatus('signed-out'))
+    expect(result.current).toBe(true)
+    act(() => setConnectionStatus('saved'))
+    expect(result.current).toBe(false)
   })
 })

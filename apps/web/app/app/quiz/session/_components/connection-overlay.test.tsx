@@ -28,6 +28,11 @@ describe('ConnectionOverlay', () => {
     act(() => setConnectionStatus('offline'))
     expect(screen.getByRole('alertdialog')).toBeInTheDocument()
     expect(screen.getByText('Connection lost — reconnecting…')).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'Keep this page open. Your answer will be sent when the connection returns.',
+      ),
+    ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Sign in' })).not.toBeInTheDocument()
   })
 
@@ -42,7 +47,7 @@ describe('ConnectionOverlay', () => {
   it('offers a Sign in button that returns to the current page after sign-in', async () => {
     render(<ConnectionOverlay />)
     act(() => setConnectionStatus('signed-out'))
-    expect(screen.getByText('Your sign-in has expired. Please sign in again.')).toBeInTheDocument()
+    expect(screen.getByText('Sign in again to continue.')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
     expect(assign).toHaveBeenCalledWith('/?next=%2Fapp%2Fquiz%2Fsession%3Fid%3D1')
   })

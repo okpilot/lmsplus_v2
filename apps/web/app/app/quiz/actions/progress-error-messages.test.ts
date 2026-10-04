@@ -14,6 +14,12 @@ describe('mapProgressRpcError', () => {
     expect(msg).toMatch(/reload this page/i)
   })
 
+  it('tells the student a saved quiz must be resumed from saved quizzes', () => {
+    const msg = mapProgressRpcError('session_saved', 'fallback')
+    expect(msg).toMatch(/saved for later/i)
+    expect(isDisplayableProgressError(msg)).toBe(true)
+  })
+
   it('does not imply answers are lost when the time limit has passed', () => {
     const msg = mapProgressRpcError('session_expired', 'fallback')
     expect(msg).toMatch(/time limit/i)

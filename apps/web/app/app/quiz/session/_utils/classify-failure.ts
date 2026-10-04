@@ -1,32 +1,40 @@
 import { createClient } from '@repo/db/client'
-import { isAuthRetryableFetchError } from '@supabase/supabase-js'
+import { type AuthError, isAuthRetryableFetchError } from '@supabase/supabase-js'
 import { withTimeout } from '@/lib/utils/with-timeout'
-import { isSignInError } from '../../actions/progress-error-messages'
 
 export type FailureKind = 'offline' | 'signed-out' | 'server'
 
 export const PROBE_TIMEOUT_MS = 3000
 
-function isSignInResult(input: unknown): boolean {
-  if (typeof input !== 'object' || input === null) return false
-  const r = input as { success?: unknown; error?: unknown }
-  return r.success === false && typeof r.error === 'string' && isSignInError(r.error)
+const SIGNED_OUT_CODES = new Set([
+  'refresh_token_not_found',
+  'refresh_token_already_used',
+  'invalid_grant',
+  'session_not_found',
+])
+
+function isSignedOutError(error: AuthError): boolean {
+  if (error.name === 'AuthSessionMissingError') return true
+  if (error.status === 401 || error.status === 403) return true
+  return error.code !== undefined && SIGNED_OUT_CODES.has(error.code)
 }
 
 async function probe(): Promise<FailureKind> {
   const { data, error } = await createClient().auth.getUser()
-  if (error)
-    return isAuthRetryableFetchError(error) || error.status === 0 ? 'offline' : 'signed-out'
+  if (error) {
+    if (isAuthRetryableFetchError(error) || error.status === 0) return 'offline'
+    return isSignedOutError(error) ? 'signed-out' : 'server'
+  }
   return data.user ? 'server' : 'signed-out'
 }
 
 /**
- * Decides why a Server Action call failed. `input` is the thrown value or the malformed or
- * failed result. Offline browser → offline; otherwise a bounded browser-side auth probe:
- * fetch failure or timeout → offline, no user → signed-out, user present → server.
+ * Decides why a Server Action call failed. Offline browser → offline; otherwise a bounded
+ * browser-side auth probe: fetch failure or timeout → offline; missing session, 401/403 or a
+ * dead refresh token → signed-out; no user and no error → signed-out; anything else → server.
+ * The server's own SIGN_IN result is not trusted by itself — the browser probe decides.
  */
-export async function classifyFailure(input: unknown): Promise<FailureKind> {
-  if (isSignInResult(input)) return 'signed-out'
+export async function classifyFailure(): Promise<FailureKind> {
   if (typeof navigator !== 'undefined' && !navigator.onLine) return 'offline'
   const guarded = probe().catch((err): FailureKind => {
     console.warn('[classify-failure] auth probe threw (best-effort):', err)

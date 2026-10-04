@@ -1,13 +1,12 @@
 import { useRouter } from 'next/navigation'
 import { useMemo, useRef, useState } from 'react'
-import { useNavigationGuard } from '../../_hooks/use-navigation-guard'
 import type { QuizStateOpts } from '../../session-types'
 import type { DraftAnswer } from '../../types'
 import { assembleQuizState } from './quiz-state-assembly'
 import { useAnswerPipeline } from './use-answer-pipeline'
-import { useConnectionState } from './use-connection-state'
 import { useExamPipeline } from './use-exam-state'
 import { useProgressSync } from './use-progress-sync'
+import { useQuizNavigationGuard } from './use-quiz-navigation-guard'
 
 export type QuizState = ReturnType<typeof useQuizState>
 
@@ -51,9 +50,7 @@ export function useQuizState(opts: QuizStateOpts) {
   const p = isExam ? exam : study
   const answers = isExam ? exam.answers : studyAnswers
   const initialSize = useRef(opts.initialAnswers ? Object.keys(opts.initialAnswers).length : 0)
-  const { pending } = useConnectionState()
-  const hasUnsavedStudy = !isExam && answers.size > initialSize.current && !p.submitted.current
-  useNavigationGuard(hasUnsavedStudy || pending > 0)
+  useQuizNavigationGuard(!isExam && answers.size > initialSize.current && !p.submitted.current)
   const questionIds = useMemo(() => opts.questions.map((q) => q.id), [opts.questions])
 
   return assembleQuizState({

@@ -36,8 +36,8 @@ export function ConnectionOverlay() {
           </AlertDialogTitle>
           <AlertDialogDescription>
             {signedOut
-              ? 'Your sign-in has expired. Please sign in again.'
-              : 'Your answer is kept and will be sent automatically when the connection returns.'}
+              ? 'Sign in again to continue.'
+              : 'Keep this page open. Your answer will be sent when the connection returns.'}
           </AlertDialogDescription>
         </AlertDialogHeader>
         {signedOut && <Button onClick={() => window.location.assign(signInHref())}>Sign in</Button>}

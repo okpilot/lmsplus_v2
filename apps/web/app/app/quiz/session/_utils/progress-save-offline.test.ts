@@ -53,7 +53,7 @@ describe('fireProgressSave while the network is down', () => {
     expect(onSuccess).toHaveBeenCalledTimes(1)
   })
 
-  it('shows the sign-in copy through the mapped-error path when the sign-in expired', async () => {
+  it('shows no inline error behind the overlay when the sign-in expired', async () => {
     mockClassify.mockResolvedValue('signed-out')
     mockSaveAnswer.mockResolvedValue({ success: false, error: SIGN_IN })
     const onMappedError = vi.fn()
@@ -65,7 +65,23 @@ describe('fireProgressSave while the network is down', () => {
       onMappedError,
     })
     await vi.advanceTimersByTimeAsync(0)
-    expect(onMappedError).toHaveBeenCalledWith(SIGN_IN)
+    expect(onMappedError).not.toHaveBeenCalled()
     expect(getConnectionStatus()).toBe('signed-out')
+  })
+
+  it('shows the inline sign-in message when the browser still has a valid session', async () => {
+    mockClassify.mockResolvedValue('server')
+    mockSaveAnswer.mockResolvedValue({ success: false, error: SIGN_IN })
+    const onMappedError = vi.fn()
+    fireProgressSave({
+      kind: 'answer',
+      sessionId: 's',
+      input: {},
+      onSuccess: vi.fn(),
+      onMappedError,
+    })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(onMappedError).toHaveBeenCalledWith(SIGN_IN)
+    expect(getConnectionStatus()).toBe('ok')
   })
 })

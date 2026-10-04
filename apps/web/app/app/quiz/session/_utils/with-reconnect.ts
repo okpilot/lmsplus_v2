@@ -1,3 +1,4 @@
+import { withTimeout } from '@/lib/utils/with-timeout'
 import { isSignInError, SIGN_IN } from '../../actions/progress-error-messages'
 import { classifyFailure } from './classify-failure'
 import {
@@ -15,19 +16,25 @@ type Attempt<T> =
   | { kind: 'signed-out' }
 
 export const BACKOFF_MS = [2000, 4000, 8000, 10000]
+export const ATTEMPT_TIMEOUT_MS = 15_000
+
+const TIMED_OUT = Symbol('timed-out')
 
 const SIGNED_OUT: SignedOutResult = { success: false, error: SIGN_IN }
 
-// One FIFO for the whole tab: ops that failed offline resend in issue order, one at a time.
+// One FIFO for the whole tab: every call takes its slot when issued, so issue order = landing order.
 let tail: Promise<unknown> = Promise.resolve()
 let waiting = 0
 let linkUp = true
+// A batch starts when the status goes offline and ends when the last waiting job settles.
+let batchOk = true
 
 /** @internal Test-only reset for the module-level queue. */
 export function _resetWithReconnect() {
   tail = Promise.resolve()
   waiting = 0
   linkUp = true
+  batchOk = true
 }
 
 function isHandled(value: unknown): boolean {
@@ -42,13 +49,15 @@ async function attempt<T>(fn: () => Promise<T>): Promise<Attempt<T> | { kind: 'o
   let thrown: unknown
   let didThrow = false
   try {
-    value = await fn()
-    if (isHandled(value)) return { kind: 'done', value: value as T }
+    const raced = await withTimeout<T | typeof TIMED_OUT>(fn(), ATTEMPT_TIMEOUT_MS, TIMED_OUT)
+    if (raced === TIMED_OUT) throw new Error('save attempt timed out')
+    value = raced
+    if (isHandled(value)) return { kind: 'done', value }
   } catch (err) {
     didThrow = true
     thrown = err
   }
-  const kind = await classifyFailure(didThrow ? thrown : value)
+  const kind = await classifyFailure()
   if (kind !== 'server') return { kind }
   return didThrow ? { kind: 'rethrow', err: thrown } : { kind: 'done', value: value as T }
 }
@@ -66,16 +75,23 @@ function waitForRetry(index: number): Promise<void> {
   })
 }
 
+function markOffline() {
+  if (getConnectionStatus() !== 'offline') batchOk = true
+  linkUp = false
+  setConnectionStatus('offline')
+}
+
 async function retryUntilSettled<T>(fn: () => Promise<T>): Promise<Attempt<T>> {
-  for (let i = 0; ; i++) {
+  let waits = 0
+  for (;;) {
     if (getConnectionStatus() === 'signed-out') return { kind: 'signed-out' }
-    if (!linkUp) await waitForRetry(i)
+    if (!linkUp) await waitForRetry(waits++)
     const result = await attempt(fn)
     if (result.kind !== 'offline') {
       linkUp = true
       return result
     }
-    linkUp = false
+    markOffline()
   }
 }
 
@@ -85,42 +101,45 @@ function settle<T>(result: Attempt<T>): T | SignedOutResult {
   return result.value
 }
 
-async function runQueued<T>(fn: () => Promise<T>): Promise<T | SignedOutResult> {
-  const last = await retryUntilSettled(fn)
-  waiting--
-  adjustPending(-1)
-  if (last.kind === 'signed-out') setConnectionStatus('signed-out')
-  else if (waiting === 0) {
-    if (last.kind === 'done') markSaved()
-    else setConnectionStatus('ok')
-  }
-  return settle(last)
+function landed<T>(result: Attempt<T>): boolean {
+  if (result.kind !== 'done') return false
+  return (result.value as { success?: unknown } | null)?.success === true
 }
 
-function enqueue<T>(fn: () => Promise<T>): Promise<T | SignedOutResult> {
-  waiting++
-  adjustPending(1)
-  setConnectionStatus('offline')
-  const job = tail.then(() => runQueued(fn))
-  tail = job.catch(() => {})
-  return job
+function endBatchIfIdle() {
+  if (waiting > 0 || getConnectionStatus() !== 'offline') return
+  if (batchOk) markSaved()
+  else setConnectionStatus('ok')
+  batchOk = true
+}
+
+async function runJob<T>(fn: () => Promise<T>): Promise<T | SignedOutResult> {
+  const result = await retryUntilSettled(fn)
+  waiting--
+  adjustPending(-1)
+  if (result.kind === 'signed-out') setConnectionStatus('signed-out')
+  else {
+    if (!landed(result)) batchOk = false
+    endBatchIfIdle()
+  }
+  return settle(result)
 }
 
 /**
- * Runs a Server Action call. A network failure blocks (status 'offline') and the call is resent
- * on reconnect, FIFO, until it lands; an expired sign-in resolves to a SIGN_IN failure; any other
- * outcome passes through unchanged (a thrown server error is rethrown).
+ * Runs a Server Action call, FIFO with every other call in this tab. A network failure blocks
+ * (status 'offline') and the call is resent on reconnect until it lands; an expired sign-in
+ * resolves to a SIGN_IN failure; any other outcome passes through unchanged (a thrown server
+ * error is rethrown). Each attempt gives up after ATTEMPT_TIMEOUT_MS and is classified like a
+ * thrown failure.
  */
 export async function withReconnect<T extends ActionResult>(
   fn: () => Promise<T>,
 ): Promise<T | SignedOutResult> {
   if (getConnectionStatus() === 'signed-out') return SIGNED_OUT
-  if (waiting > 0) return enqueue(fn)
-  const first = await attempt(fn)
-  if (first.kind === 'offline') {
-    linkUp = false
-    return enqueue(fn)
-  }
-  if (first.kind === 'signed-out') setConnectionStatus('signed-out')
-  return settle(first)
+  const idle = waiting === 0
+  waiting++
+  adjustPending(1)
+  const job = idle ? runJob(fn) : tail.then(() => runJob(fn))
+  tail = job.catch(() => {})
+  return job
 }

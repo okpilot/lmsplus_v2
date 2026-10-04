@@ -12,7 +12,12 @@ import {
   getConnectionSnapshot,
   getConnectionStatus,
 } from './connection-state'
-import { _resetWithReconnect, BACKOFF_MS, withReconnect } from './with-reconnect'
+import {
+  _resetWithReconnect,
+  ATTEMPT_TIMEOUT_MS,
+  BACKOFF_MS,
+  withReconnect,
+} from './with-reconnect'
 
 const OK = { success: true as const }
 
@@ -105,6 +110,7 @@ describe('withReconnect', () => {
     maxInFlight = 0
     const c = withReconnect(make('c', false))
     await vi.advanceTimersByTimeAsync(BACKOFF_MS[0] ?? 0)
+    await vi.advanceTimersByTimeAsync(BACKOFF_MS[0] ?? 0)
     await Promise.all([a, b, c])
     expect(order).toEqual(['a', 'b', 'c'])
     expect(maxInFlight).toBe(1)
@@ -124,6 +130,7 @@ describe('withReconnect', () => {
     await vi.advanceTimersByTimeAsync(BACKOFF_MS[0] ?? 0)
     await a
     expect(getConnectionSnapshot()).toEqual({ status: 'offline', pending: 1 })
+    await vi.advanceTimersByTimeAsync(BACKOFF_MS[0] ?? 0)
     gate.release()
     await b
     expect(getConnectionStatus()).toBe('saved')
@@ -174,5 +181,96 @@ describe('withReconnect', () => {
   it('returns a malformed non-error result unchanged when the user is still signed in', async () => {
     mockClassify.mockResolvedValue('server')
     await expect(withReconnect(async () => ({}) as { success: boolean })).resolves.toEqual({})
+  })
+
+  it('keeps the status ok while calls succeed with the link up', async () => {
+    const seen: string[] = []
+    const a = withReconnect(async () => OK)
+    seen.push(getConnectionStatus())
+    const b = withReconnect(async () => OK)
+    seen.push(getConnectionStatus())
+    await Promise.all([a, b])
+    expect(seen).toEqual(['ok', 'ok'])
+    expect(getConnectionSnapshot()).toEqual({ status: 'ok', pending: 0 })
+  })
+
+  it('lands a later call after an earlier one that is still being classified', async () => {
+    let releaseProbe: (kind: string) => void = () => {}
+    mockClassify.mockReturnValueOnce(new Promise((resolve) => (releaseProbe = resolve)))
+    const order: string[] = []
+    const first = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('x'))
+      .mockImplementation(async () => {
+        order.push('first')
+        return OK
+      })
+    const second = vi.fn().mockImplementation(async () => {
+      order.push('second')
+      return OK
+    })
+    const a = withReconnect(first)
+    const b = withReconnect(second)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(second).not.toHaveBeenCalled()
+    releaseProbe('offline')
+    await vi.advanceTimersByTimeAsync(BACKOFF_MS[0] ?? 0)
+    await Promise.all([a, b])
+    expect(order).toEqual(['first', 'second'])
+  })
+
+  it('does not report saved when the resend is rejected by the server', async () => {
+    mockClassify.mockResolvedValue('offline')
+    const rejection = { success: false as const, error: 'This session has already ended.' }
+    const fn = vi.fn().mockRejectedValueOnce(new TypeError('x')).mockResolvedValue(rejection)
+    const result = withReconnect(fn)
+    await vi.advanceTimersByTimeAsync(BACKOFF_MS[0] ?? 0)
+    await expect(result).resolves.toBe(rejection)
+    expect(getConnectionSnapshot()).toEqual({ status: 'ok', pending: 0 })
+  })
+
+  it('does not report saved when one call in the batch is rejected', async () => {
+    mockClassify.mockResolvedValue('offline')
+    const rejection = { success: false as const, error: 'This session has already ended.' }
+    const a = withReconnect(
+      vi.fn().mockRejectedValueOnce(new TypeError('x')).mockResolvedValue(rejection),
+    )
+    const b = withReconnect(vi.fn().mockResolvedValue(OK))
+    await vi.advanceTimersByTimeAsync(BACKOFF_MS[0] ?? 0)
+    await Promise.all([a, b])
+    expect(getConnectionSnapshot()).toEqual({ status: 'ok', pending: 0 })
+  })
+
+  it('does not report saved when a resend throws a server error inside the batch', async () => {
+    mockClassify.mockResolvedValueOnce('offline').mockResolvedValue('server')
+    const boom = new Error('server exploded')
+    const a = withReconnect(vi.fn().mockRejectedValue(new TypeError('x')).mockRejectedValue(boom))
+    const b = withReconnect(vi.fn().mockResolvedValue(OK))
+    const assertion = expect(a).rejects.toBe(boom)
+    await vi.advanceTimersByTimeAsync(BACKOFF_MS[0] ?? 0)
+    await assertion
+    await b
+    expect(getConnectionSnapshot()).toEqual({ status: 'ok', pending: 0 })
+  })
+
+  it('treats a hung attempt as a failure and resends it', async () => {
+    mockClassify.mockResolvedValue('offline')
+    const fn = vi
+      .fn()
+      .mockReturnValueOnce(new Promise(() => {}))
+      .mockResolvedValue(OK)
+    const result = withReconnect(fn)
+    await vi.advanceTimersByTimeAsync(ATTEMPT_TIMEOUT_MS)
+    expect(getConnectionStatus()).toBe('offline')
+    await vi.advanceTimersByTimeAsync(BACKOFF_MS[0] ?? 0)
+    await expect(result).resolves.toBe(OK)
+    expect(fn).toHaveBeenCalledTimes(2)
+  })
+
+  it('returns the sign-in failure unchanged when the browser session is still valid', async () => {
+    mockClassify.mockResolvedValue('server')
+    const failure = { success: false as const, error: SIGN_IN }
+    await expect(withReconnect(async () => failure)).resolves.toBe(failure)
+    expect(getConnectionStatus()).toBe('ok')
   })
 })
