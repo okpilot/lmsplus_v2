@@ -64,7 +64,12 @@ const COPY = {
 }
 
 function OverlayCopy({ status }: Readonly<{ status: ConnectionStatus }>) {
-  const copy = status === 'slow' || status === 'signed-out' ? COPY[status] : COPY.offline
+  // Keep the last block's copy while the dialog fades out after status returns to ok/saved.
+  const [shown, setShown] = useState<keyof typeof COPY>('offline')
+  if ((status === 'offline' || status === 'slow' || status === 'signed-out') && status !== shown) {
+    setShown(status)
+  }
+  const copy = COPY[shown]
   return (
     <AlertDialogHeader>
       <AlertDialogTitle>{copy.title}</AlertDialogTitle>

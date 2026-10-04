@@ -58,11 +58,23 @@ test.describe('Quiz connection block: failures that are not a dropped link', () 
     await expect(overlay.getByText('Still saving…')).toBeVisible({ timeout: 10_000 })
     expect(await readServerAnsweredCount()).toBe(0)
 
+    // The closing overlay must not flash the connection-lost copy: the link never dropped.
+    await page.evaluate(() => {
+      const w = window as unknown as { __connectionLostShown?: boolean }
+      w.__connectionLostShown = false
+      new MutationObserver(() => {
+        if (document.body.textContent?.includes('Connection lost')) w.__connectionLostShown = true
+      }).observe(document.body, { childList: true, subtree: true, characterData: true })
+    })
     held.state.release()
     await expect(overlay).toBeHidden({ timeout: 15_000 })
     await expect(page.getByText('Saved ✓')).toBeVisible({ timeout: 10_000 })
     await expect.poll(readServerAnsweredCount, { timeout: 10_000 }).toBe(1)
     expect(held.state.posts).toBe(1)
+    const shown = await page.evaluate(
+      () => (window as unknown as { __connectionLostShown?: boolean }).__connectionLostShown,
+    )
+    expect(shown).toBe(false)
     await held.stop()
   })
 

@@ -1,5 +1,9 @@
 import { expect, test } from '@playwright/test'
-import { readServerAnsweredCount, startStudyQuiz } from './helpers/quiz-session'
+import {
+  clearQuizActiveSessionKeys,
+  readServerAnsweredCount,
+  startStudyQuiz,
+} from './helpers/quiz-session'
 import { cleanupStudentActiveSessions, TEST_EMAIL } from './helpers/supabase'
 
 test.use({ storageState: 'e2e/.auth/user.json' })
@@ -11,11 +15,7 @@ test.describe('Quiz blocks while an answer is unsent and resends on reconnect', 
 
   test.afterEach(async ({ page, context }) => {
     await context.setOffline(false)
-    await page.evaluate(() => {
-      for (const key of Object.keys(localStorage)) {
-        if (key.startsWith('quiz-active-session:')) localStorage.removeItem(key)
-      }
-    })
+    await clearQuizActiveSessionKeys(page)
     await cleanupStudentActiveSessions(TEST_EMAIL)
   })
 
