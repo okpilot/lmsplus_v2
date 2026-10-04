@@ -5,7 +5,6 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useSessionBootstrap } from '../_hooks/use-session-bootstrap'
 import { dismissRecovery } from '../_utils/dismiss-recovery'
 import { restrictDraftToQuestions } from '../_utils/restrict-draft-to-questions'
-import { ConnectionOverlay } from './connection-overlay'
 import { QuizSession } from './quiz-session'
 import { SessionRecoveryPrompt } from './session-recovery-prompt'
 
@@ -77,26 +76,23 @@ export function QuizSessionLoader({ userId }: Readonly<{ userId: string }>) {
   const draft = restrictDraftToQuestions(bs.session, bs.questions)
 
   return (
-    <>
-      <QuizSession
-        userId={userId}
-        sessionId={bs.session.sessionId}
-        questions={bs.questions}
-        initialFlaggedIds={bs.flaggedIds}
-        initialAnswers={draft.answers}
-        initialFeedback={draft.feedback}
-        initialIndex={draft.index}
-        draftId={bs.session.draftId}
-        subjectName={bs.session.subjectName}
-        subjectCode={bs.session.subjectCode}
-        mode={bs.session.mode}
-        examMode={bs.session.examMode}
-        timeLimitSeconds={bs.session.timeLimitSeconds}
-        passMark={bs.session.passMark}
-        startedAt={bs.session.startedAt}
-        initialSaveError={bs.claimError}
-      />
-      <ConnectionOverlay />
-    </>
+    <QuizSession
+      userId={userId}
+      sessionId={bs.session.sessionId}
+      questions={bs.questions}
+      initialFlaggedIds={bs.flaggedIds}
+      initialAnswers={draft.answers}
+      initialFeedback={draft.feedback}
+      initialIndex={draft.index}
+      draftId={bs.session.draftId}
+      subjectName={bs.session.subjectName}
+      subjectCode={bs.session.subjectCode}
+      mode={bs.session.mode}
+      examMode={bs.session.examMode}
+      timeLimitSeconds={bs.session.timeLimitSeconds}
+      passMark={bs.session.passMark}
+      startedAt={bs.session.startedAt}
+      initialSaveError={bs.claimError}
+    />
   )
 }

@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -6,7 +6,12 @@ const { mockToastSuccess } = vi.hoisted(() => ({ mockToastSuccess: vi.fn() }))
 
 vi.mock('sonner', () => ({ toast: { success: (...a: unknown[]) => mockToastSuccess(...a) } }))
 
-import { _resetConnectionState, markSaved, setConnectionStatus } from '../_utils/connection-state'
+import {
+  _resetConnectionState,
+  getConnectionStatus,
+  markSaved,
+  setConnectionStatus,
+} from '../_utils/connection-state'
 import { ConnectionOverlay } from './connection-overlay'
 
 const assign = vi.fn()
@@ -56,6 +61,23 @@ describe('ConnectionOverlay', () => {
     render(<ConnectionOverlay />)
     act(() => setConnectionStatus('offline'))
     await userEvent.keyboard('{Escape}')
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+  })
+
+  it('clears a stale signed-out status when a new session page mounts', async () => {
+    setConnectionStatus('signed-out')
+    render(<ConnectionOverlay />)
+    expect(getConnectionStatus()).toBe('ok')
+    await waitFor(() => {
+      const dialog = screen.queryByRole('alertdialog')
+      expect(dialog === null || dialog.hasAttribute('data-closed')).toBe(true)
+    })
+  })
+
+  it('keeps an offline status when a session page mounts', () => {
+    setConnectionStatus('offline')
+    render(<ConnectionOverlay />)
+    expect(getConnectionStatus()).toBe('offline')
     expect(screen.getByRole('alertdialog')).toBeInTheDocument()
   })
 })

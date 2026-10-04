@@ -17,8 +17,10 @@ type Attempt<T> =
 
 export const BACKOFF_MS = [2000, 4000, 8000, 10000]
 export const ATTEMPT_TIMEOUT_MS = 15_000
+export const ABANDON_AFTER_MS = 60_000
 
 const TIMED_OUT = Symbol('timed-out')
+const ABANDONED = Symbol('abandoned')
 
 const SIGNED_OUT: SignedOutResult = { success: false, error: SIGN_IN }
 
@@ -44,19 +46,55 @@ function isHandled(value: unknown): boolean {
   return !(r.success === false && typeof r.error === 'string' && isSignInError(r.error))
 }
 
+type Abandon = {
+  promise: Promise<typeof ABANDONED>
+  listen: () => void
+  dispose: () => void
+}
+
+// Fires at ABANDON_AFTER_MS from creation, or on `online` once listen() was called.
+function createAbandon(): Abandon {
+  let fire: () => void = () => {}
+  const promise = new Promise<typeof ABANDONED>((resolve) => {
+    fire = () => resolve(ABANDONED)
+  })
+  const timer = setTimeout(fire, ABANDON_AFTER_MS)
+  return {
+    promise,
+    listen: () => window.addEventListener('online', fire),
+    dispose: () => {
+      clearTimeout(timer)
+      window.removeEventListener('online', fire)
+    },
+  }
+}
+
+async function awaitRequest<T>(
+  request: Promise<T>,
+  abandon: Abandon,
+): Promise<T | typeof ABANDONED> {
+  const raced = await withTimeout<T | typeof TIMED_OUT>(request, ATTEMPT_TIMEOUT_MS, TIMED_OUT)
+  if (raced !== TIMED_OUT) return raced
+  markOffline()
+  abandon.listen()
+  return Promise.race([request, abandon.promise])
+}
+
 async function attempt<T>(fn: () => Promise<T>): Promise<Attempt<T> | { kind: 'offline' }> {
   let value: T | undefined
   let thrown: unknown
   let didThrow = false
+  const abandon = createAbandon()
   try {
-    const request = fn()
-    const raced = await withTimeout<T | typeof TIMED_OUT>(request, ATTEMPT_TIMEOUT_MS, TIMED_OUT)
-    if (raced === TIMED_OUT) markOffline()
-    value = raced === TIMED_OUT ? await request : raced
+    const outcome = await awaitRequest(fn(), abandon)
+    if (outcome === ABANDONED) return { kind: 'offline' }
+    value = outcome
     if (isHandled(value)) return { kind: 'done', value }
   } catch (err) {
     didThrow = true
     thrown = err
+  } finally {
+    abandon.dispose()
   }
   const kind = await classifyFailure()
   if (kind !== 'server') return { kind }
@@ -131,8 +169,12 @@ async function runJob<T>(fn: () => Promise<T>): Promise<T | SignedOutResult> {
  * (status 'offline') and the call is resent on reconnect until it lands; an expired sign-in
  * resolves to a SIGN_IN failure; any other outcome passes through unchanged (a thrown server
  * error is rethrown). A request still open after ATTEMPT_TIMEOUT_MS shows the offline block while
- * the SAME request is awaited; it is resent only after it has failed, so a request is never
- * abandoned and landing order = issue order.
+ * the SAME request keeps being awaited. It is abandoned (treated as offline, resent through the
+ * normal backoff) when the browser fires `online` after that point, or ABANDON_AFTER_MS after the
+ * attempt started: a socket stalled by a network change would otherwise block the quiz forever.
+ * Residual: an abandoned request that still lands later can land after its resend; both are
+ * latest-wins upserts of the same payload, so only a later-issued position save can be overtaken,
+ * inside that window.
  */
 export async function withReconnect<T extends ActionResult>(
   fn: () => Promise<T>,

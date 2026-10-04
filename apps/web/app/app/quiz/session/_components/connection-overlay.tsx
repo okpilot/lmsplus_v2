@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useLayoutEffect } from 'react'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { useConnectionState } from '../_hooks/use-connection-state'
+import { getConnectionStatus, setConnectionStatus } from '../_utils/connection-state'
 
 function signInHref(): string {
   const { pathname, search } = window.location
@@ -20,6 +21,11 @@ function signInHref(): string {
 /** Blocks the quiz while a save is unsent (offline) or the sign-in has expired. */
 export function ConnectionOverlay() {
   const { status } = useConnectionState()
+
+  // A stale 'signed-out' from an earlier session page must not block a new one; before paint.
+  useLayoutEffect(() => {
+    if (getConnectionStatus() === 'signed-out') setConnectionStatus('ok')
+  }, [])
 
   useEffect(() => {
     if (status === 'saved') toast.success('Saved ✓')
