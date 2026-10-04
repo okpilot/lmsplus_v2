@@ -29,7 +29,7 @@ BEGIN
   SELECT qs.config INTO v_config
   FROM quiz_sessions qs
   WHERE qs.id = p_session_id AND qs.student_id = p_student_id;
-  IF NOT FOUND OR v_config IS NULL OR jsonb_typeof(v_config->'question_ids') <> 'array' THEN
+  IF NOT FOUND OR v_config IS NULL OR jsonb_typeof(v_config->'question_ids') IS DISTINCT FROM 'array' THEN
     RAISE EXCEPTION 'session_config_malformed';
   END IF;
   v_ids := ARRAY(SELECT jsonb_array_elements_text(v_config->'question_ids'))::uuid[];

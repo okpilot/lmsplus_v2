@@ -26,7 +26,7 @@ DECLARE
   v_credit      numeric;
   v_pass_mark   int;
 BEGIN
-  IF p_config IS NULL OR jsonb_typeof(p_config->'question_ids') <> 'array' THEN
+  IF p_config IS NULL OR jsonb_typeof(p_config->'question_ids') IS DISTINCT FROM 'array' THEN
     RAISE EXCEPTION 'session_config_malformed';
   END IF;
   v_ids := ARRAY(SELECT jsonb_array_elements_text(p_config->'question_ids'))::uuid[];

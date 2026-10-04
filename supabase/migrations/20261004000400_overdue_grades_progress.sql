@@ -1,5 +1,5 @@
 -- complete_overdue_exam_session: completes an overdue exam by grading its saved answers
--- (quiz_session_progress) and scoring with _score_graded_session. Signature, errors and return keys unchanged.
+-- (quiz_session_progress) and scoring with _score_graded_session. Signature and return keys unchanged; also raises session_config_malformed when config.question_ids is not an array.
 
 CREATE OR REPLACE FUNCTION complete_overdue_exam_session(p_session_id uuid)
 RETURNS jsonb

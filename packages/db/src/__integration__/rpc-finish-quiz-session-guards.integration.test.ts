@@ -135,4 +135,18 @@ describe('RPC: finish_quiz_session — guards', () => {
     expect(error?.message).toContain('session_ended')
     expect(await progressRows(f, sessionId)).toHaveLength(1)
   })
+
+  it('refuses a session whose config has no question list instead of grading nothing', async () => {
+    const sessionId = await openSessionWithAnswer()
+    const { error: cfgErr } = await f.admin
+      .from('quiz_sessions')
+      .update({ config: { pass_mark: 75 } })
+      .eq('id', sessionId)
+    expect(cfgErr).toBeNull()
+
+    const { error } = await finishSession(f.student, sessionId, DEVICE)
+
+    expect(error?.message).toContain('session_config_malformed')
+    await expectUntouched(sessionId)
+  })
 })

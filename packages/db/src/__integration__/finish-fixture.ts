@@ -130,7 +130,7 @@ export async function insertExtraQuestion(f: ProgressFixture, spec: Record<strin
   const { data, error } = await f.admin
     .from('questions')
     .insert({
-      ...(base as Record<string, unknown>),
+      ...requireRpcResult<Record<string, unknown>>(base, 'insertExtraQuestion base'),
       subtopic_id: null,
       difficulty: 'medium',
       status: 'active',
