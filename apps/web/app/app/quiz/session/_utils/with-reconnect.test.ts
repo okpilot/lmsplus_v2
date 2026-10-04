@@ -22,6 +22,7 @@ import {
   ATTEMPT_TIMEOUT_MS,
   BACKOFF_MS,
   resumeQueue,
+  whenQueueIdle,
   withReconnect,
 } from './with-reconnect'
 
@@ -448,5 +449,33 @@ describe('withReconnect', () => {
     setConnectionStatus('signed-out')
     resumeQueue()
     expect(getConnectionStatus()).toBe('ok')
+  })
+})
+
+describe('whenQueueIdle', () => {
+  it('resolves at once when nothing is queued', async () => {
+    await expect(whenQueueIdle()).resolves.toBeUndefined()
+  })
+
+  it('resolves only after a queued save has settled', async () => {
+    mockClassify.mockResolvedValue('offline')
+    const gate: { release: () => void } = { release: () => {} }
+    const save = withReconnect(
+      () =>
+        new Promise<typeof OK>((resolve) => {
+          gate.release = () => resolve(OK)
+        }),
+    )
+    let idle = false
+    const waiting = whenQueueIdle().then(() => {
+      idle = true
+    })
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(idle).toBe(false)
+    gate.release()
+    await save
+    await waiting
+    expect(idle).toBe(true)
   })
 })

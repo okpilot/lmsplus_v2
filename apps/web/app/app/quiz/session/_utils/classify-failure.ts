@@ -21,10 +21,12 @@ function isSignedOutError(error: AuthError): boolean {
   return error.code !== undefined && SIGNED_OUT_CODES.has(error.code)
 }
 
-async function probe(): Promise<FailureKind> {
+async function probe(): Promise<Decision> {
   const { data, error } = await createClient().auth.getUser()
   if (error) {
-    if (isAuthRetryableFetchError(error) || error.status === 0) return 'offline'
+    if (error.status === 0) return 'offline'
+    // The Auth server answered with a 5xx: the link is up, so this is undecided, not offline.
+    if (isAuthRetryableFetchError(error)) return 'unknown'
     return isSignedOutError(error) ? 'signed-out' : 'server'
   }
   return data.user ? 'server' : 'signed-out'
@@ -32,7 +34,7 @@ async function probe(): Promise<FailureKind> {
 
 /**
  * Decides why a Server Action call failed. Offline browser → offline; otherwise a bounded
- * browser-side auth probe: fetch failure → offline; missing session, 401/403 or a dead refresh
+ * browser-side auth probe: fetch failure (no response, status 0) → offline; an Auth 5xx → undecided; missing session, 401/403 or a dead refresh
  * token → signed-out; no user and no error → signed-out; anything else → server. A probe that
  * times out is undecided, not offline: undecided → server when `responded`, else offline.
  * The server's own SIGN_IN result is not trusted by itself — the browser probe decides.
@@ -44,7 +46,7 @@ async function probe(): Promise<FailureKind> {
  * that is not a TypeError (a 5xx). An undecided probe then → server, passing the server's own
  * answer through: no resend of an answer the server already gave, and no sign-out on a server
  * SIGN_IN that a transient auth failure can also produce. A definite offline (offline browser,
- * auth fetch failure) stays offline whatever `responded` is.
+ * auth fetch with no response) stays offline whatever `responded` is.
  */
 export async function classifyFailure(thrown?: unknown, responded = false): Promise<FailureKind> {
   if (thrown instanceof TypeError) return 'offline'

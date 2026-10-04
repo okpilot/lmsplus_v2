@@ -2,6 +2,7 @@ import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.
 import type { SessionQuestion } from '@/app/app/_types/session'
 import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
 import type { AnswerFeedback, DraftAnswer } from '../../types'
+import { whenQueueIdle } from '../_utils/with-reconnect'
 import {
   examReportUrl,
   handleDiscardSession,
@@ -80,6 +81,14 @@ function dispatchSubmission({
   })
 }
 
+/** Shows the action as in flight, then waits for every queued save to settle, so the action
+ * cannot reach Next.js's action queue ahead of them. */
+async function waitForQueuedSaves(shared: ReturnType<ReturnType<typeof buildSharedFor>>) {
+  shared.setSubmitting(true)
+  shared.setError(null)
+  await whenQueueIdle()
+}
+
 /** Arms the hard-navigation fallback for a soft nav that never unmounts this component. */
 function armNavFallback(deps: SubmitDeps) {
   if (deps.navFallbackTimer.current) clearTimeout(deps.navFallbackTimer.current)
@@ -114,6 +123,7 @@ export function buildHandleSubmit(
       deps.submitted.current = true
       deps.setShowFinishDialog(false)
     }
+    await waitForQueuedSaves(sharedFor('submit'))
     await dispatchSubmission({ deps, sharedFor, answers: safeAnswers, onSuccess }).finally(() => {
       // If submit rejected/threw before any setSubmitting(false), release the re-entry lock
       // so the student can retry. On success onSuccess set submitted.current = true first, so
@@ -136,7 +146,8 @@ export function buildHandleSave(
   },
 ) {
   const sharedFor = buildSharedFor(deps)
-  return function handleSave() {
+  return async function handleSave() {
+    await waitForQueuedSaves(sharedFor('save'))
     const pending = deps.pendingQuestionIdRef.current
     const safeAnswers =
       pending.size > 0
@@ -159,7 +170,8 @@ export function buildHandleSave(
 
 export function buildHandleDiscard(deps: BaseDeps) {
   const sharedFor = buildSharedFor(deps)
-  return function handleDiscard() {
+  return async function handleDiscard() {
+    await waitForQueuedSaves(sharedFor('discard'))
     return handleDiscardSession({
       userId: deps.userId,
       sessionId: deps.sessionId,

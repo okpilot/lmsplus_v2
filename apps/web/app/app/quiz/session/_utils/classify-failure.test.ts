@@ -48,6 +48,22 @@ describe('classifyFailure', () => {
     await expect(classifyFailure()).resolves.toBe('offline')
   })
 
+  it('reports server when the auth probe fails with an HTTP 503 and the server answered', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: null },
+      error: new AuthRetryableFetchError('unavailable', 503),
+    })
+    await expect(classifyFailure(undefined, true)).resolves.toBe('server')
+  })
+
+  it('does not report a definite offline when the auth probe fails with an HTTP 503', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: null },
+      error: new AuthRetryableFetchError('unavailable', 503),
+    })
+    await expect(linkIsDown()).resolves.toBe(false)
+  })
+
   it('reports offline when the auth probe error has status 0', async () => {
     mockGetUser.mockResolvedValue({ data: { user: null }, error: { status: 0, name: 'X' } })
     await expect(classifyFailure()).resolves.toBe('offline')

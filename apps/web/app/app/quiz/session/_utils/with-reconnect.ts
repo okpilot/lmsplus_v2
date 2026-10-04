@@ -159,11 +159,8 @@ async function runJob<T>(fn: () => Promise<T>): Promise<T | SignedOutResult> {
   return settle(result)
 }
 
-/**
- * Called when a session page mounts: wakes every job sleeping in backoff to resend now, and
- * clears a stale offline, slow or signed-out status when no job is pending. Jobs still pending keep
- * their status.
- */
+/** Called on session-page mount: wakes jobs sleeping in backoff, and clears a stale offline, slow
+ * or signed-out status when no job is pending. */
 export function resumeQueue() {
   linkUp = true
   for (const wake of [...wakers]) wake()
@@ -171,6 +168,11 @@ export function resumeQueue() {
   if (pending === 0 && (status === 'offline' || status === 'slow' || status === 'signed-out')) {
     setConnectionStatus('ok')
   }
+}
+
+/** Resolves once every job queued so far has settled; a stalled save keeps the caller waiting. */
+export function whenQueueIdle(): Promise<void> {
+  return tail.then(() => {})
 }
 
 /**
