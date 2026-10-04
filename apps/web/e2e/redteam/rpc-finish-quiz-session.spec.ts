@@ -36,6 +36,11 @@ const DEVICE_B = '00000000-0000-4000-8000-0000000000fb'
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null
 
+const asRecord = (data: unknown): Record<string, unknown> => {
+  if (!isRecord(data)) throw new Error('finish: result is not an object')
+  return data
+}
+
 const resultIds = (data: unknown): string[] => {
   if (!isRecord(data) || !Array.isArray(data.results)) throw new Error('finish: bad shape')
   return data.results.map((r) => (isRecord(r) ? String(r.question_id) : '')).sort()
@@ -176,7 +181,7 @@ test.describe('Red Team: finish_quiz_session (Vectors GU-GZ)', () => {
     const own = await finish(victim, sessionId, null)
     expect(own.error).toBeNull()
     expect(resultIds(own.data)).toEqual([q1])
-    expect((own.data as Record<string, unknown>).correct_count).toBe(1)
+    expect(asRecord(own.data).correct_count).toBe(1)
     expect((await readSession(sessionId)).ended_at).not.toBeNull()
   })
 
@@ -213,11 +218,11 @@ test.describe('Red Team: finish_quiz_session (Vectors GU-GZ)', () => {
     for (const r of results) {
       expect(r.error).toBeNull()
       expect(resultIds(r.data)).toEqual([q1, q2].sort())
-      const d = r.data as Record<string, unknown>
+      const d = asRecord(r.data)
       expect(d.answered_count).toBe(2)
       expect(d.total_questions).toBe(2)
     }
-    const scores = results.map((r) => Number((r.data as Record<string, unknown>).score_percentage))
+    const scores = results.map((r) => Number(asRecord(r.data).score_percentage))
     expect(new Set(scores).size).toBe(1)
     expect(await countRows('quiz_session_answers', sessionId)).toBe(2)
     expect(await countRows('student_responses', sessionId)).toBe(2)
@@ -319,7 +324,7 @@ test.describe('Red Team: finish_quiz_session (Vectors GU-GZ)', () => {
 
     const r = await finish(victim, sessionId, null)
     expect(r.error).toBeNull()
-    const d = r.data as Record<string, unknown>
+    const d = asRecord(r.data)
     expect(d.expired).toBe(true)
     expect(d.answered_count).toBe(1)
     expect(resultIds(r.data)).toEqual([q1])

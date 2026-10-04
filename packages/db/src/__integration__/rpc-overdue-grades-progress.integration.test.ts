@@ -158,4 +158,103 @@ describe('RPC: complete_overdue_exam_session — grades the saved answers', () =
     expect(Number(second.answered_count)).toBe(Number(first.answered_count))
     expect(Number(second.score_percentage)).toBe(Number(first.score_percentage))
   })
+
+  /** Drops `question_ids` from the session's config so the question list is unusable. */
+  async function dropQuestionList(sessionId: string) {
+    const { error } = await f.admin
+      .from('quiz_sessions')
+      .update({ config: { pass_mark: 75 } })
+      .eq('id', sessionId)
+    if (error) throw new Error(`dropQuestionList: ${error.message}`)
+    const { data, error: readErr } = await f.admin
+      .from('quiz_sessions')
+      .select('config')
+      .eq('id', sessionId)
+      .single()
+    if (readErr) throw new Error(`dropQuestionList read: ${readErr.message}`)
+    const config = requireRpcResult<{ config: Record<string, unknown> }>(data, 'config read').config
+    expect('question_ids' in config).toBe(false)
+  }
+
+  it('completes an overdue exam whose config has no question list with score zero instead of failing', async () => {
+    const sessionId = await overdueSession('mock_exam', [mc(0), mc(1)])
+    await saveAnswer(f, sessionId, mc(0), RIGHT.mc)
+    await dropQuestionList(sessionId)
+    await backdateSession(f, sessionId, 200)
+
+    const result = await complete(sessionId)
+
+    expect(Number(result.score_percentage)).toBe(0)
+    expect(result.passed).toBe(false)
+    expect(Number(result.answered_count)).toBe(0)
+    const stored = await sessionRow(f, sessionId)
+    expect(stored.ended_at).not.toBeNull()
+    expect(Number(stored.score_percentage)).toBe(0)
+  })
+
+  it('completes an overdue VFR RT exam whose config has no question list and records zero parts', async () => {
+    const sessionId = await overdueSession('vfr_rt_exam', [f.shortId, f.dialogId, mc(0)])
+    await dropQuestionList(sessionId)
+    await backdateSession(f, sessionId, 2000)
+
+    const result = await complete(sessionId)
+
+    expect(result.passed).toBe(false)
+    expect(Number(result.score_percentage)).toBe(0)
+    expect((await sessionRow(f, sessionId)).ended_at).not.toBeNull()
+    const events = await auditMetadata(f, sessionId, 'vfr_rt_exam.expired')
+    expect(events).toHaveLength(1)
+    expect(events[0]?.reason).toBe('overdue_config_unusable')
+    expect([events[0]?.part1_pct, events[0]?.part2_pct, events[0]?.part3_pct].map(Number)).toEqual([
+      0, 0, 0,
+    ])
+  })
+
+  it('lets the student start a new exam after an overdue exam whose config has no question list', async () => {
+    const { data: base, error: baseErr } = await f.admin
+      .from('questions')
+      .select('subject_id, topic_id')
+      .eq('id', f.shortId)
+      .single()
+    if (baseErr) throw new Error(`base question: ${baseErr.message}`)
+    const { subject_id: subjectId, topic_id: topicId } = requireRpcResult<{
+      subject_id: string
+      topic_id: string
+    }>(base, 'base question')
+    const { data: cfg, error: cfgErr } = await f.admin
+      .from('exam_configs')
+      .insert({
+        organization_id: f.orgId,
+        subject_id: subjectId,
+        enabled: true,
+        total_questions: 1,
+        time_limit_seconds: 600,
+        pass_mark: 75,
+      })
+      .select('id')
+      .single()
+    if (cfgErr) throw new Error(`exam_configs: ${cfgErr.message}`)
+    const { error: distErr } = await f.admin.from('exam_config_distributions').insert({
+      exam_config_id: requireRpcResult<{ id: string }>(cfg, 'exam_configs').id,
+      topic_id: topicId,
+      subtopic_id: null,
+      question_count: 1,
+    })
+    if (distErr) throw new Error(`exam_config_distributions: ${distErr.message}`)
+    const oldId = await overdueSession('mock_exam', [mc(0), mc(1)])
+    const { error: subjErr } = await f.admin
+      .from('quiz_sessions')
+      .update({ subject_id: subjectId })
+      .eq('id', oldId)
+    if (subjErr) throw new Error(`set subject: ${subjErr.message}`)
+    await dropQuestionList(oldId)
+    await backdateSession(f, oldId, 200)
+
+    const { data, error } = await f.student.rpc('start_exam_session', { p_subject_id: subjectId })
+
+    expect(error).toBeNull()
+    const started = requireRpcResult<{ session_id: string }>(data, 'start_exam_session')
+    expect(started.session_id).not.toBe(oldId)
+    expect((await sessionRow(f, oldId)).ended_at).not.toBeNull()
+  })
 })

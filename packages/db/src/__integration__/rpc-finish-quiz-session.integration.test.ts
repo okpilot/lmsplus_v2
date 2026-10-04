@@ -1,6 +1,11 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { clearActiveSessions } from './cleanup'
 import {
+  insertDialogWithNullSynonyms,
+  insertDialogWithoutIndex,
+  insertMcKeyNotInOptions,
+} from './finish-broken-fixture'
+import {
   backdateSession,
   finishOk,
   insertDialogWithoutCanonical,
@@ -21,6 +26,7 @@ import {
   responseCount,
   sessionRow,
 } from './finish-readers'
+import { requireRpcResult } from './guards'
 import {
   insertSession,
   type ProgressFixture,
@@ -35,6 +41,9 @@ describe('RPC: finish_quiz_session — grades the saved answers', () => {
   let diagram2Id: string
   let defectDialogId: string
   let textIndexDialogId: string
+  let noIndexDialogId: string
+  let nullSynonymsDialogId: string
+  let brokenMcId: string
 
   beforeAll(async () => {
     f = await setupProgressFixture('finish')
@@ -42,6 +51,9 @@ describe('RPC: finish_quiz_session — grades the saved answers', () => {
     diagram2Id = await insertTwoZoneDiagram(f)
     defectDialogId = await insertDialogWithoutCanonical(f)
     textIndexDialogId = await insertDialogWithTextIndex(f)
+    noIndexDialogId = await insertDialogWithoutIndex(f)
+    nullSynonymsDialogId = await insertDialogWithNullSynonyms(f)
+    brokenMcId = await insertMcKeyNotInOptions(f)
   })
   afterAll(async () => {
     await f.teardown()
@@ -287,40 +299,98 @@ describe('RPC: finish_quiz_session — grades the saved answers', () => {
     })
   })
 
-  it('grades a question with a content defect as unanswered instead of failing the finish', async () => {
+  const brokenCases: Array<[string, () => string]> = [
+    ['a blank lacking a canonical answer', () => defectDialogId],
+    ['a blank whose index is not a number', () => textIndexDialogId],
+    ['a blank lacking an index', () => noIndexDialogId],
+    ['a blank whose synonyms are null', () => nullSynonymsDialogId],
+  ]
+
+  it.each(brokenCases)(
+    "leaves a dialog with %s out of a mock exam's score",
+    async (_title, build) => {
+      const brokenId = build()
+      const sessionId = await insertSession({
+        f,
+        mode: 'mock_exam',
+        questionIds: [brokenId, mc(0)],
+      })
+      await insertRawProgress(f, sessionId, brokenId, {
+        blanks: [{ blank_index: 0, response_text: 'cleared' }],
+      })
+      await saveAnswer(f, sessionId, mc(0), RIGHT.mc)
+
+      const result = await finishOk(f, sessionId)
+
+      expect(Number(result.answered_count)).toBe(1)
+      expect(Number(result.correct_count)).toBe(1)
+      expect(Number(result.score_percentage)).toBe(100)
+      expect(result.passed).toBe(true)
+      expect((await answerRows(f, sessionId)).map((r) => r.question_id)).toEqual([mc(0)])
+      expect(Number((await sessionRow(f, sessionId)).score_percentage)).toBe(100)
+    },
+  )
+
+  it('leaves a multiple-choice question whose key is not among its options out of the score, even when unanswered', async () => {
     const sessionId = await insertSession({
       f,
       mode: 'mock_exam',
-      questionIds: [defectDialogId, mc(0)],
-    })
-    await insertRawProgress(f, sessionId, defectDialogId, {
-      blanks: [{ blank_index: 0, response_text: 'cleared' }],
+      questionIds: [brokenMcId, mc(0)],
     })
     await saveAnswer(f, sessionId, mc(0), RIGHT.mc)
 
     const result = await finishOk(f, sessionId)
 
     expect(Number(result.answered_count)).toBe(1)
-    expect(Number(result.score_percentage)).toBe(50)
+    expect(Number(result.score_percentage)).toBe(100)
+    expect(result.passed).toBe(true)
     expect((await answerRows(f, sessionId)).map((r) => r.question_id)).toEqual([mc(0)])
   })
 
-  it('grades a question whose blank index is not a number as unanswered instead of failing the finish', async () => {
+  it('scores zero and fails a mock exam whose every question has broken bank data', async () => {
     const sessionId = await insertSession({
       f,
       mode: 'mock_exam',
-      questionIds: [textIndexDialogId, mc(0)],
+      questionIds: [brokenMcId, defectDialogId],
     })
-    await insertRawProgress(f, sessionId, textIndexDialogId, {
-      blanks: [{ blank_index: 0, response_text: 'cleared' }],
-    })
-    await saveAnswer(f, sessionId, mc(0), RIGHT.mc)
 
     const result = await finishOk(f, sessionId)
 
-    expect(Number(result.answered_count)).toBe(1)
-    expect(Number(result.score_percentage)).toBe(50)
-    expect((await answerRows(f, sessionId)).map((r) => r.question_id)).toEqual([mc(0)])
+    expect(Number(result.answered_count)).toBe(0)
+    expect(Number(result.score_percentage)).toBe(0)
+    expect(result.passed).toBe(false)
+    expect(await answerRows(f, sessionId)).toHaveLength(0)
+  })
+
+  it('scores a VFR RT part without its broken question, on finish and on the results page', async () => {
+    const ids = [f.shortId, defectDialogId, f.dialogId, mc(0)]
+    const sessionId = await insertSession({
+      f,
+      mode: 'vfr_rt_exam',
+      questionIds: ids,
+      timeLimitSeconds: 1800,
+    })
+    await saveAnswers(f, sessionId, [
+      [f.shortId, RIGHT.short],
+      [f.dialogId, RIGHT.dialog],
+      [mc(0), RIGHT.mc],
+    ])
+    await insertRawProgress(f, sessionId, defectDialogId, {
+      blanks: [{ blank_index: 0, response_text: 'cleared' }],
+    })
+
+    const result = await finishOk(f, sessionId)
+
+    expect(Number(result.part2_pct)).toBe(100)
+    const { data, error } = await f.student.rpc('get_vfr_rt_exam_results', {
+      p_session_id: sessionId,
+    })
+    expect(error).toBeNull()
+    const results = requireRpcResult<{ part2_pct: number | string }>(
+      data,
+      'get_vfr_rt_exam_results',
+    )
+    expect(Number(results.part2_pct)).toBe(100)
   })
 
   it('ignores saved progress for a question that is not part of the session', async () => {

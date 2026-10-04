@@ -1,5 +1,6 @@
 -- complete_overdue_exam_session: completes an overdue exam by grading its saved answers
--- (quiz_session_progress) and scoring with _score_graded_session. Signature and return keys unchanged; also raises session_config_malformed when config.question_ids is not an array.
+-- (quiz_session_progress) and scoring with _score_graded_session. Signature and return keys unchanged. Never raises on an unusable config.question_ids (the start RPCs
+-- PERFORM it): such a session completes with score 0 and reason overdue_config_unusable.
 
 CREATE OR REPLACE FUNCTION complete_overdue_exam_session(p_session_id uuid)
 RETURNS jsonb
@@ -79,10 +80,18 @@ BEGIN
     RAISE EXCEPTION 'session is not overdue';
   END IF;
 
-  PERFORM _grade_session_progress(p_session_id, v_student_id, v_org_id, v_mode);
-  SELECT s.answered_n, s.correct_n, s.score_pct, s.passed_flag, s.p1, s.p2, s.p3
-  INTO v_answered, v_correct_count, v_score, v_passed, v_p1, v_p2, v_p3
-  FROM _score_graded_session(p_session_id, v_mode, v_config, v_total) s;
+  BEGIN
+    PERFORM _grade_session_progress(p_session_id, v_student_id, v_org_id, v_mode);
+    SELECT s.answered_n, s.correct_n, s.score_pct, s.passed_flag, s.p1, s.p2, s.p3
+    INTO v_answered, v_correct_count, v_score, v_passed, v_p1, v_p2, v_p3
+    FROM _score_graded_session(p_session_id, v_mode, v_config, v_total) s;
+    v_reason := CASE WHEN v_answered > 0 THEN 'overdue_with_answers' ELSE 'overdue_zero_answers' END;
+  EXCEPTION WHEN raise_exception OR data_exception THEN
+    RAISE WARNING '[complete_overdue_exam_session] session % not graded: %', p_session_id, SQLERRM;
+    v_answered := 0; v_correct_count := 0; v_score := 0; v_passed := false;
+    v_p1 := 0; v_p2 := 0; v_p3 := 0;
+    v_reason := 'overdue_config_unusable';
+  END;
 
   UPDATE quiz_sessions
   SET ended_at = now(),
@@ -90,10 +99,6 @@ BEGIN
       score_percentage = v_score,
       passed = v_passed
   WHERE id = p_session_id;
-
-  v_reason := CASE WHEN v_answered > 0
-                   THEN 'overdue_with_answers'
-                   ELSE 'overdue_zero_answers' END;
 
   v_event_type := CASE v_mode
                     WHEN 'internal_exam' THEN 'internal_exam.expired'

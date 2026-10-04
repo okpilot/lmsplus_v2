@@ -1495,6 +1495,17 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      _question_is_broken: {
+        Args: {
+          p_blanks: Json
+          p_canonical: string
+          p_correct: string
+          p_options: Json
+          p_synonyms: string[]
+          p_type: string
+        }
+        Returns: boolean
+      }
       _save_progress_row: {
         Args: {
           p_answer: Json

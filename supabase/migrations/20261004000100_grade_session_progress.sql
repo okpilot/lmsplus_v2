@@ -1,6 +1,7 @@
 -- _grade_session_progress: grades a session's saved answers (quiz_session_progress) through the
 -- per-type graders, writing quiz_session_answers + student_responses. A question that cannot be
--- graded is skipped with a WARNING and counts unanswered. Internal helper; callers lock the session.
+-- graded is skipped with a WARNING and counts unanswered. A question with broken bank data
+-- (_question_is_broken) is not graded. Internal helper; callers lock the session.
 
 CREATE OR REPLACE FUNCTION _grade_session_progress(
   p_session_id uuid,
@@ -45,6 +46,8 @@ BEGIN
       AND p.student_id = p_student_id
       AND p.answer IS NOT NULL
       AND p.question_id = ANY(v_ids)
+      AND NOT _question_is_broken(q.question_type, q.options, q.correct_option_id,
+                                  q.canonical_answer, q.accepted_synonyms, q.blanks_config)
     ORDER BY p.question_id
   LOOP
     BEGIN

@@ -1,5 +1,6 @@
 -- _score_graded_session: scores a session from its graded quiz_session_answers rows with
 -- per-question partial credit; exams divide by total questions, practice by answered, VFR RT by part.
+-- A question with broken bank data (_question_is_broken) is left out of the credit and the total.
 -- Internal helper; callers authorize the session.
 
 CREATE OR REPLACE FUNCTION _score_graded_session(
@@ -25,6 +26,7 @@ DECLARE
   v_ids         uuid[];
   v_credit      numeric;
   v_pass_mark   int;
+  v_total       int;
 BEGIN
   IF p_config IS NULL OR jsonb_typeof(p_config->'question_ids') IS DISTINCT FROM 'array' THEN
     RAISE EXCEPTION 'session_config_malformed';
@@ -42,6 +44,8 @@ BEGIN
                 THEN greatest(jsonb_array_length(q.diagram_config->'zones'), 1)
                 ELSE 1 END AS total_blanks
     FROM questions q WHERE q.id = ANY(v_ids)
+      AND NOT _question_is_broken(q.question_type, q.options, q.correct_option_id,
+                                  q.canonical_answer, q.accepted_synonyms, q.blanks_config)
   ),
   graded AS (
     SELECT qsa.question_id,
@@ -59,10 +63,16 @@ BEGIN
   JOIN graded g ON g.question_id = sq.question_id;
 
   IF p_mode IN ('mock_exam', 'internal_exam') THEN
-    score_pct := CASE WHEN p_total > 0 THEN round((v_credit / p_total) * 100, 2) ELSE 0 END;
+    -- §15 carve-out: no deleted_at filter — immutable write-once config.question_ids (mig 079); docs/security.md §15, docs/database.md §3.
+    SELECT GREATEST(p_total - count(*)::int, 0) INTO v_total
+    FROM questions q
+    WHERE q.id = ANY(v_ids)
+      AND _question_is_broken(q.question_type, q.options, q.correct_option_id,
+                              q.canonical_answer, q.accepted_synonyms, q.blanks_config);
+    score_pct := CASE WHEN v_total > 0 THEN round((v_credit / v_total) * 100, 2) ELSE 0 END;
     v_pass_mark := (p_config->>'pass_mark')::int;
-    passed_flag := COALESCE(v_pass_mark IS NOT NULL AND score_pct >= v_pass_mark, false);
-    IF p_mode = 'mock_exam' AND answered_n < p_total THEN passed_flag := false; END IF;
+    passed_flag := COALESCE(v_total > 0 AND v_pass_mark IS NOT NULL AND score_pct >= v_pass_mark, false);
+    IF p_mode = 'mock_exam' AND answered_n < v_total THEN passed_flag := false; END IF;
   ELSIF p_mode = 'vfr_rt_exam' THEN
     SELECT s.p1, s.p2, s.p3 INTO p1, p2, p3
     FROM public._vfr_rt_exam_part_scores(p_session_id, p_config) s;
