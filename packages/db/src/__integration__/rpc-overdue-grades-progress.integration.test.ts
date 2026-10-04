@@ -190,6 +190,9 @@ describe('RPC: complete_overdue_exam_session — grades the saved answers', () =
     const stored = await sessionRow(f, sessionId)
     expect(stored.ended_at).not.toBeNull()
     expect(Number(stored.score_percentage)).toBe(0)
+    const events = await auditMetadata(f, sessionId, 'exam.expired')
+    expect(events).toHaveLength(1)
+    expect(events[0]?.reason).toBe('overdue_config_unusable')
   })
 
   it('completes an overdue VFR RT exam whose config has no question list and records zero parts', async () => {
