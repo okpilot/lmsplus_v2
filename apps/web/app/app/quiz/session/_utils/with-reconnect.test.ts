@@ -14,7 +14,6 @@ import {
 } from './connection-state'
 import {
   _resetWithReconnect,
-  ABANDON_AFTER_MS,
   ATTEMPT_TIMEOUT_MS,
   BACKOFF_MS,
   withReconnect,
@@ -329,77 +328,26 @@ describe('withReconnect', () => {
     expect(fn).toHaveBeenCalledTimes(2)
   })
 
-  it('resends a stalled request when the browser comes back online', async () => {
+  it('does not resend a stalled request when the browser comes back online', async () => {
     mockClassify.mockResolvedValue('offline')
-    const fn = vi
-      .fn()
-      .mockReturnValueOnce(new Promise(() => {}))
-      .mockResolvedValue(OK)
-    const result = withReconnect(fn)
-    await vi.advanceTimersByTimeAsync(ATTEMPT_TIMEOUT_MS)
-    expect(getConnectionStatus()).toBe('offline')
-    window.dispatchEvent(new Event('online'))
-    await vi.advanceTimersByTimeAsync(BACKOFF_MS[0] ?? 0)
-    await expect(result).resolves.toBe(OK)
-    expect(fn).toHaveBeenCalledTimes(2)
-    expect(getConnectionSnapshot()).toEqual({ status: 'saved', pending: 0 })
-  })
-
-  it('resends a stalled request once ABANDON_AFTER_MS has passed, and not before', async () => {
-    mockClassify.mockResolvedValue('offline')
-    const fn = vi
-      .fn()
-      .mockReturnValueOnce(new Promise(() => {}))
-      .mockResolvedValue(OK)
-    const result = withReconnect(fn)
-    await vi.advanceTimersByTimeAsync(ABANDON_AFTER_MS - 1)
-    expect(fn).toHaveBeenCalledTimes(1)
-    await vi.advanceTimersByTimeAsync(1)
-    await vi.advanceTimersByTimeAsync(BACKOFF_MS[0] ?? 0)
-    await expect(result).resolves.toBe(OK)
-    expect(fn).toHaveBeenCalledTimes(2)
-  })
-
-  it('ignores an online event that fires before the request has stalled', async () => {
-    mockClassify.mockResolvedValue('offline')
-    const fn = vi
-      .fn()
-      .mockReturnValueOnce(new Promise(() => {}))
-      .mockResolvedValue(OK)
-    const result = withReconnect(fn)
-    await vi.advanceTimersByTimeAsync(ATTEMPT_TIMEOUT_MS - 1)
-    window.dispatchEvent(new Event('online'))
-    await vi.advanceTimersByTimeAsync(1)
-    expect(fn).toHaveBeenCalledTimes(1)
-    await vi.advanceTimersByTimeAsync(ABANDON_AFTER_MS - ATTEMPT_TIMEOUT_MS)
-    await vi.advanceTimersByTimeAsync(BACKOFF_MS[0] ?? 0)
-    await expect(result).resolves.toBe(OK)
-    expect(fn).toHaveBeenCalledTimes(2)
-  })
-
-  it('raises no unhandled rejection when an abandoned request later fails', async () => {
-    mockClassify.mockResolvedValue('offline')
-    const gate: { fail: () => void } = { fail: () => {} }
-    const stalled = new Promise<never>((_, reject) => {
-      gate.fail = () => reject(new TypeError('fetch failed'))
+    const gate: { land: () => void } = { land: () => {} }
+    const stalled = new Promise((resolve) => {
+      gate.land = () => resolve(OK)
     })
-    const unhandled = vi.fn()
-    process.on('unhandledRejection', unhandled)
     const fn = vi.fn().mockReturnValueOnce(stalled).mockResolvedValue(OK)
     const result = withReconnect(fn)
     await vi.advanceTimersByTimeAsync(ATTEMPT_TIMEOUT_MS)
     window.dispatchEvent(new Event('online'))
-    await vi.advanceTimersByTimeAsync(BACKOFF_MS[0] ?? 0)
-    await result
-    gate.fail()
-    await vi.advanceTimersByTimeAsync(0)
-    process.off('unhandledRejection', unhandled)
-    expect(unhandled).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(fn).toHaveBeenCalledTimes(1)
+    expect(getConnectionStatus()).toBe('offline')
+    gate.land()
+    await expect(result).resolves.toBe(OK)
+    expect(fn).toHaveBeenCalledTimes(1)
+    expect(getConnectionSnapshot()).toEqual({ status: 'saved', pending: 0 })
   })
 
-  it('leaves no online listener or timer behind after an attempt settles', async () => {
-    const add = vi.spyOn(window, 'addEventListener')
-    const remove = vi.spyOn(window, 'removeEventListener')
+  it('leaves no timer behind after a stalled attempt settles', async () => {
     const fn = vi
       .fn()
       .mockReturnValueOnce(new Promise((r) => setTimeout(() => r(OK), ATTEMPT_TIMEOUT_MS + 1)))
@@ -407,9 +355,6 @@ describe('withReconnect', () => {
     await vi.advanceTimersByTimeAsync(ATTEMPT_TIMEOUT_MS + 1)
     await result
     await vi.runAllTimersAsync()
-    expect(add.mock.calls.filter(([t]) => t === 'online').length).toBe(
-      remove.mock.calls.filter(([t]) => t === 'online').length,
-    )
     expect(vi.getTimerCount()).toBe(0)
   })
 
