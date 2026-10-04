@@ -219,6 +219,7 @@
 | GQ | quiz-progress-server-actions-foreign-session | HIGH | server-action-quiz-progress.spec.ts | BLOCKED |  | idor |
 | GR | checkAnswer-omitted-deviceId-after-takeover | MEDIUM | server-action-quiz-progress.spec.ts | BLOCKED |  | auth-bypass |
 | GS | claim_quiz_session-parallel-claims-single-writer | MEDIUM | server-action-quiz-progress.spec.ts | BLOCKED |  | race |
+| GT | progress-rpcs-resend-after-session-end | MEDIUM | rpc-quiz-progress-late-resend.spec.ts | BLOCKED |  | race |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
