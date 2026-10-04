@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockSaveAnswer, mockSavePosition } = vi.hoisted(() => ({
+const { mockSaveAnswer, mockSavePosition, mockClassify } = vi.hoisted(() => ({
   mockSaveAnswer: vi.fn(),
   mockSavePosition: vi.fn(),
+  mockClassify: vi.fn(),
 }))
 
 vi.mock('../../actions/quiz-progress', () => ({
@@ -10,6 +11,11 @@ vi.mock('../../actions/quiz-progress', () => ({
   saveQuizPosition: (...a: unknown[]) => mockSavePosition(...a),
 }))
 
+vi.mock('./classify-failure', () => ({
+  classifyFailure: (...a: unknown[]) => mockClassify(...a),
+}))
+
+import { _resetConnectionState } from './connection-state'
 import {
   buildAnswerInput,
   buildPositionInput,
@@ -17,11 +23,15 @@ import {
   fireProgressSave,
 } from './progress-save'
 import { _resetSessionTakeover, markTakenOver } from './session-takeover'
+import { _resetWithReconnect } from './with-reconnect'
 
 const MAPPED = 'This session has already ended.'
 
 beforeEach(() => {
   vi.resetAllMocks()
+  mockClassify.mockResolvedValue('server')
+  _resetConnectionState()
+  _resetWithReconnect()
   _resetSessionTakeover()
 })
 

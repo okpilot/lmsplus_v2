@@ -1451,6 +1451,15 @@ export type Database = {
         }
         Returns: number
       }
+      _grade_session_progress: {
+        Args: {
+          p_mode: string
+          p_org_id: string
+          p_session_id: string
+          p_student_id: string
+        }
+        Returns: undefined
+      }
       _lock_session_for_progress: {
         Args: {
           p_check_device?: boolean
@@ -1486,6 +1495,17 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      _question_is_broken: {
+        Args: {
+          p_blanks: Json
+          p_canonical: string
+          p_correct: string
+          p_options: Json
+          p_synonyms: string[]
+          p_type: string
+        }
+        Returns: boolean
+      }
       _save_progress_row: {
         Args: {
           p_answer: Json
@@ -1496,6 +1516,23 @@ export type Database = {
           p_time_spent_ms: number
         }
         Returns: undefined
+      }
+      _score_graded_session: {
+        Args: {
+          p_config: Json
+          p_mode: string
+          p_session_id: string
+          p_total: number
+        }
+        Returns: {
+          answered_n: number
+          correct_n: number
+          p1: number
+          p2: number
+          p3: number
+          passed_flag: boolean
+          score_pct: number
+        }[]
       }
       _validate_progress_answer: {
         Args: { p_answer: Json; p_question_type: string }
@@ -1572,6 +1609,10 @@ export type Database = {
         Returns: boolean
       }
       discard_saved_quiz: { Args: { p_session_id: string }; Returns: undefined }
+      finish_quiz_session: {
+        Args: { p_device_id: string; p_session_id: string }
+        Returns: Json
+      }
       get_admin_dashboard_kpis: {
         Args: { p_range_days?: number }
         Returns: Json

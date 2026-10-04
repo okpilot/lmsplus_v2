@@ -220,6 +220,12 @@
 | GR | checkAnswer-omitted-deviceId-after-takeover | MEDIUM | server-action-quiz-progress.spec.ts | BLOCKED |  | auth-bypass |
 | GS | claim_quiz_session-parallel-claims-single-writer | MEDIUM | server-action-quiz-progress.spec.ts | BLOCKED |  | race |
 | GT | progress-rpcs-resend-after-session-end | MEDIUM | rpc-quiz-progress-late-resend.spec.ts | BLOCKED |  | race |
+| GU | finish_quiz_session-foreign-session | HIGH | rpc-finish-quiz-session.spec.ts | BLOCKED |  | idor |
+| GV | finish_quiz_session-taken-over-device | MEDIUM | rpc-finish-quiz-session.spec.ts | BLOCKED |  | auth-bypass |
+| GW | finish_quiz_session-concurrent-double-finish | MEDIUM | rpc-finish-quiz-session.spec.ts | BLOCKED |  | race |
+| GX | finish_quiz_session-discarded-or-saved-session | HIGH | rpc-finish-quiz-session.spec.ts | BLOCKED |  | soft-delete-bypass |
+| GY | _grade_session_progress-out-of-session-progress-row | HIGH | rpc-finish-quiz-session.spec.ts | BLOCKED |  | answer-oracle |
+| GZ | finish_quiz_session-post-grace-answer-graded | HIGH | rpc-finish-quiz-session.spec.ts | BLOCKED |  | race |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
