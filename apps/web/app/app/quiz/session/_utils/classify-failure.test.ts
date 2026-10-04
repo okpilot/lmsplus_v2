@@ -103,17 +103,17 @@ describe('classifyFailure', () => {
     await expect(classifyFailure()).resolves.toBe('server')
   })
 
-  it('reports signed-out when the server answered but the auth probe times out', async () => {
+  it("passes the server's answer through when the server answered but the auth probe times out", async () => {
     vi.useFakeTimers()
     mockGetUser.mockReturnValue(new Promise(() => {}))
     const result = classifyFailure(undefined, true)
     await vi.advanceTimersByTimeAsync(PROBE_TIMEOUT_MS)
-    await expect(result).resolves.toBe('signed-out')
+    await expect(result).resolves.toBe('server')
   })
 
-  it('reports signed-out when the server answered but the browser is offline', async () => {
+  it("passes the server's answer through when the server answered but the browser is offline", async () => {
     setOnLine(false)
-    await expect(classifyFailure(undefined, true)).resolves.toBe('signed-out')
+    await expect(classifyFailure(undefined, true)).resolves.toBe('server')
   })
 
   it('reports server when the server answered and the session is still good', async () => {

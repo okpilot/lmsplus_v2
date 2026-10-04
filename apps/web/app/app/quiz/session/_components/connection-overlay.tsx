@@ -38,20 +38,26 @@ export function ConnectionOverlay() {
     // Not dismissable: open is derived from the store; onOpenChange is deliberately ignored.
     <AlertDialog open={status === 'offline' || signedOut}>
       <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>
-            {signedOut ? 'Your sign-in has expired' : 'Connection lost — reconnecting…'}
-          </AlertDialogTitle>
-          <AlertDialogDescription>
-            {signedOut
-              ? 'Sign in again to continue. Answers not yet saved will need to be entered again.'
-              : 'Keep this page open. Your answer will be sent when the connection returns.'}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
+        <OverlayCopy signedOut={signedOut} />
         {signedOut && <Button onClick={() => window.location.assign(signInHref())}>Sign in</Button>}
         {status === 'offline' && <ReloadEscape />}
       </AlertDialogContent>
     </AlertDialog>
+  )
+}
+
+function OverlayCopy({ signedOut }: Readonly<{ signedOut: boolean }>) {
+  return (
+    <AlertDialogHeader>
+      <AlertDialogTitle>
+        {signedOut ? 'Your sign-in has expired' : 'Connection lost — reconnecting…'}
+      </AlertDialogTitle>
+      <AlertDialogDescription>
+        {signedOut
+          ? 'Sign in again to continue. Answers not yet saved will need to be entered again.'
+          : 'Keep this page open. Your answer will be sent when the connection returns.'}
+      </AlertDialogDescription>
+    </AlertDialogHeader>
   )
 }
 

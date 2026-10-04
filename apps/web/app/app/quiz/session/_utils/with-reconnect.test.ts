@@ -367,14 +367,19 @@ describe('withReconnect', () => {
     expect(getConnectionStatus()).toBe('ok')
   })
 
-  it('signs out without resending when the server refused the sign-in and the probe cannot reach the auth server', async () => {
+  it('ends an offline block without Saved when a queued call returns a refused sign-in', async () => {
     mockClassify.mockImplementation(async (_thrown?: unknown, responded?: boolean) =>
-      responded ? 'signed-out' : 'offline',
+      responded ? 'server' : 'offline',
     )
-    const fn = vi.fn().mockResolvedValue({ success: false as const, error: SIGN_IN })
-    await expect(withReconnect(fn)).resolves.toEqual({ success: false, error: SIGN_IN })
-    expect(fn).toHaveBeenCalledTimes(1)
-    expect(getConnectionStatus()).toBe('signed-out')
+    const refused = { success: false as const, error: SIGN_IN }
+    const fn = vi.fn().mockRejectedValueOnce(new TypeError('x')).mockResolvedValue(refused)
+    const result = withReconnect(fn)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(getConnectionStatus()).toBe('offline')
+    await vi.advanceTimersByTimeAsync(BACKOFF_MS[0] ?? 0)
+    await expect(result).resolves.toBe(refused)
+    expect(fn).toHaveBeenCalledTimes(2)
+    expect(getConnectionSnapshot()).toEqual({ status: 'ok', pending: 0 })
   })
 
   it('tells the classifier the server responded only when the call returned a value', async () => {

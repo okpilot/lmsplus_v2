@@ -38,13 +38,15 @@ async function probe(): Promise<FailureKind> {
  * recovered before the probe runs. Later attempts omit it so a client-bug TypeError cannot loop
  * silently forever. A server-answered error is a plain Error and keeps the probe path.
  * `responded` is true when the call returned a value instead of throwing: the server was reached,
- * so a probe that cannot decide (offline browser, fetch failure, timeout) → signed-out rather
- * than offline, which would resend an answer the server already refused.
+ * so a probe that cannot decide (offline browser, fetch failure, timeout) → server, passing the
+ * server's own answer through: no resend of an answer the server already refused, and no
+ * sign-out on a server SIGN_IN that a transient auth failure can also produce. A truly expired
+ * session then shows the inline sign-in error; the next call probes again.
  */
 export async function classifyFailure(thrown?: unknown, responded = false): Promise<FailureKind> {
   if (thrown instanceof TypeError) return 'offline'
   const kind = await decide()
-  return responded && kind === 'offline' ? 'signed-out' : kind
+  return responded && kind === 'offline' ? 'server' : kind
 }
 
 async function decide(): Promise<FailureKind> {
