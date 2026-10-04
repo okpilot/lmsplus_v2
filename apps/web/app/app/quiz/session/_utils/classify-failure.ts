@@ -38,7 +38,7 @@ async function probe(): Promise<Decision> {
  * token → signed-out; no user and no error → signed-out; anything else → server. A probe that
  * times out is undecided, not offline: undecided → server when `responded`, else offline.
  * The server's own SIGN_IN result is not trusted by itself — the browser probe decides.
- * `thrown` is the error the Server Action call threw, passed only on a job's FIRST attempt: a
+ * `thrown` is the error the Server Action call threw, passed on a job's first attempts (with-reconnect bounds them): a
  * TypeError (what a failed `fetch` throws) is offline without probing, since the link may have
  * recovered before the probe runs. Later attempts omit it so a client-bug TypeError cannot loop
  * silently forever. A server-answered error is a plain Error and keeps the probe path.

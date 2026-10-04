@@ -105,6 +105,24 @@ describe('finish actions wait for queued saves', () => {
     expect(mockSubmit).toHaveBeenCalledTimes(1)
   })
 
+  it('submits an answer whose check settled during the wait but not one still pending', async () => {
+    const gate = openGate()
+    const deps = submitDeps()
+    const answer = { selectedOptionId: 'o', responseTimeMs: 1 } as DraftAnswer
+    deps.answersRef.current = new Map([
+      ['settled', answer],
+      ['stuck', answer],
+    ])
+    deps.pendingQuestionIdRef.current = new Set(['settled', 'stuck'])
+    const run = buildHandleSubmit(deps)()
+    await Promise.resolve()
+    deps.pendingQuestionIdRef.current.delete('settled')
+    gate.open()
+    await run
+    const submitted = mockSubmit.mock.calls[0]?.[0] as { answers: Map<string, DraftAnswer> }
+    expect([...submitted.answers.keys()]).toEqual(['settled'])
+  })
+
   it('holds save-for-later until queued saves have settled', async () => {
     const gate = openGate()
     const deps = saveDeps()

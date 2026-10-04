@@ -20,6 +20,7 @@ type Attempt<T> =
 export const BACKOFF_MS = [2000, 4000, 8000, 10000]
 export const ATTEMPT_TIMEOUT_MS = 15_000
 
+const TRUSTED_NETWORK_FAILS = 3
 const TIMED_OUT = Symbol('timed-out')
 
 const SIGNED_OUT: SignedOutResult = { success: false, error: SIGN_IN }
@@ -66,7 +67,7 @@ async function awaitRequest<T>(request: Promise<T>): Promise<T> {
 
 async function attempt<T>(
   fn: () => Promise<T>,
-  first: boolean,
+  trustTypeError: boolean,
 ): Promise<Attempt<T> | { kind: 'offline' }> {
   let value: T | undefined
   let thrown: unknown
@@ -79,7 +80,7 @@ async function attempt<T>(
     thrown = err
   }
   const responded = !(didThrow && thrown instanceof TypeError)
-  const kind = await classifyFailure(didThrow && first ? thrown : undefined, responded)
+  const kind = await classifyFailure(didThrow && trustTypeError ? thrown : undefined, responded)
   if (kind !== 'server') return { kind }
   return didThrow ? { kind: 'rethrow', err: thrown } : { kind: 'done', value: value as T }
 }
@@ -115,12 +116,10 @@ function markSlow() {
 
 async function retryUntilSettled<T>(fn: () => Promise<T>): Promise<Attempt<T>> {
   let waits = 0
-  let first = true
   for (;;) {
     if (getConnectionStatus() === 'signed-out') return { kind: 'signed-out' }
     if (!linkUp) await waitForRetry(waits++)
-    const result = await attempt(fn, first)
-    first = false
+    const result = await attempt(fn, waits < TRUSTED_NETWORK_FAILS)
     if (result.kind !== 'offline') {
       linkUp = true
       return result
@@ -183,7 +182,8 @@ export function whenQueueIdle(): Promise<void> {
  * request keeps being awaited until it settles; it is resent only after it fails. The block is
  * 'offline' when the link is definitely down, else 'slow' ("still saving"): Next.js runs Server
  * Actions one at a time, so the wait may be time queued behind another action. A resend could
- * not go out before it anyway.
+ * not go out before it anyway. A thrown TypeError is offline without a probe for a call's first TRUSTED_NETWORK_FAILS attempts,
+ * then the probe decides: a flapping link failing that often and probing up rethrows.
  * Residual: a stalled socket the browser never fails keeps the quiz blocked until the browser
  * gives up on it.
  */

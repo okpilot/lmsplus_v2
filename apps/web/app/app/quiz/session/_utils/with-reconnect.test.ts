@@ -77,7 +77,7 @@ describe('withReconnect', () => {
     expect(fn).toHaveBeenCalledTimes(2)
   })
 
-  it('stops short-circuiting a thrown TypeError once the first attempt has been resent', async () => {
+  it('resends a TypeError on the first three attempts but rethrows it on the fourth when the link is up', async () => {
     mockClassify.mockImplementation(async (thrown?: unknown) =>
       thrown instanceof TypeError ? 'offline' : 'server',
     )
@@ -85,9 +85,9 @@ describe('withReconnect', () => {
     const fn = vi.fn().mockRejectedValue(bug)
     const result = withReconnect(fn)
     const settled = expect(result).rejects.toBe(bug)
-    await vi.advanceTimersByTimeAsync(BACKOFF_MS[0] ?? 0)
+    for (const delay of [2000, 4000, 8000]) await vi.advanceTimersByTimeAsync(delay)
     await settled
-    expect(fn).toHaveBeenCalledTimes(2)
+    expect(fn).toHaveBeenCalledTimes(4)
   })
 
   it('resends immediately when the online event fires before the backoff ends', async () => {
@@ -399,7 +399,7 @@ describe('withReconnect', () => {
     expect(mockClassify).toHaveBeenLastCalledWith(expect.any(TypeError), false)
   })
 
-  it('tells the classifier the server responded when a later attempt throws a plain error', async () => {
+  it('tells the classifier the server responded when a resend throws a plain error', async () => {
     mockClassify.mockResolvedValueOnce('offline').mockResolvedValue('server')
     const fn = vi
       .fn()
@@ -409,7 +409,7 @@ describe('withReconnect', () => {
     const settled = result.catch(() => {})
     await vi.advanceTimersByTimeAsync(BACKOFF_MS[0] ?? 0)
     await settled
-    expect(mockClassify).toHaveBeenLastCalledWith(undefined, true)
+    expect(mockClassify).toHaveBeenLastCalledWith(expect.any(Error), true)
   })
 
   it('resends a call sleeping in backoff as soon as the queue is resumed', async () => {
