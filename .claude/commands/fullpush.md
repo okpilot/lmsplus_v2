@@ -162,6 +162,7 @@ After answering the checklist:
 
 9. **If an active spec exists**, confirm all completed tasks are checked off in `tasks.md` (`[ ]` → `[x]`). If any are missing, update before proceeding.
 10. **Ask for explicit push approval.** Never push without it.
+11. **After the approved push has succeeded** (pre-push hook passed), with no further round pending, clear the review-gate lock: `rm -f "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/.claude/review-gate.lock"`. A blocked or failed push leaves it set.
 
 ## What this gate does NOT cover (left to CI on purpose)
 

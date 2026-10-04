@@ -37,7 +37,7 @@ Thumbs.db
 
 # Claude Code local overrides
 .claude/settings.local.json
-.claude/review-gate.json
+.claude/review-gate.lock
 
 # Local notes (not part of project)
 performance-optimization-strategy.md

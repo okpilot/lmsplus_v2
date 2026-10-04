@@ -4,7 +4,6 @@
     ".claude/agents/test-writer.md@ec5fbb9d4db9aa92": "- Co-locate: `src/actions.ts` → `src/actions.test.ts`",
     ".claude/commands/fullpush.md@cb8369147620eb13": "6. **Migration validation (conditional)**: if `$CHANGED` (from 5b) includes `supabase/migrations/`, validate the migr...",
     ".claude/hooks/check-prose-claims.mjs@268bddd3d89eae24": "* corrected into a pointer. Excluded by exact path, not by prefix, so a future `.claude/run-log/` tree",
-    ".claude/hooks/review-gate.test.mjs@c12e4f8b911b6448": "/** Write a gate file inside dir/.claude/review-gate.json. */",
     ".coderabbit.yaml@8c19f0a9ecf7dc58": "# a docs/README.md would match too if one were ever added (none exists today). Reviewing",
     ".coderabbit.yaml@e3dd325cf4abef8b": "SECURITY DEFINER function must filter deleted_at IS NULL on any user/session/",
     ".spec-workflow/steering/tech.md@56656cd91dc8465d": "- **Linting**: Biome is the sole linter (no ESLint; the former `packages/eslint-config/` placeholder was removed)."

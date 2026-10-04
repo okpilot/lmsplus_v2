@@ -21,7 +21,7 @@ Run every stage. Do not skip stages to save time — the gates exist to prevent 
 3. **Interview** — surface scope/behavioral/priority ambiguities. Auto-skip per `agent-workflow.md` only when truly unambiguous; state "No ambiguities identified" explicitly. In autonomous mode, ask the user only when an ambiguity genuinely blocks correctness.
 4. **Spec** — create one via spec-workflow MCP if the change spans 3+ files or introduces a new pattern; skip for refactors/bug-fixes/<3 files (use a validated plan instead).
 5. **Plan + validate** — impact analysis, contract check, pattern scan, doc/schema check, security surface (`agent-workflow.md § Plan Validation`).
-6. **Plan-critic** — run the plan-critic agent **ONCE** (skip only for single-file <10-line changes). Fix its APPLY findings and proceed; there is no round floor and no ceiling (agent-critic.md § Model tier, 2026-08-24). Resolve CRITICAL directly; an ISSUE **or** CRITICAL you cannot resolve is NOT self-resolved — stop that item and leave it for the user in the handoff report. Both, because `agent-workflow.md` § NEVER forbids executing with either one still open.
+6. **Plan-critic** — run the plan-critic agent **ONCE** (skip only for single-file <10-line changes, except a fixup after a review round). Fix its APPLY findings and proceed; there is no round floor and no ceiling (agent-critic.md § Model tier, 2026-08-24). Resolve CRITICAL directly; an ISSUE **or** CRITICAL you cannot resolve is NOT self-resolved — stop that item and leave it for the user in the handoff report. Both, because `agent-workflow.md` § NEVER forbids executing with either one still open.
 7. **Approval** — the active `/goal` IS the approval. Do not block on user sign-off; record assumptions in the plan and proceed.
 8. **Execute** — delegate implementation to Sonnet subagents (parallel when independent, worktree isolation for risky parallel edits). Use the 5-section delegation template. Read every result.
 9. **Commit freely** — you create the commits. **A commit triggers NOTHING**; branch commits are scratch history the squash-merge discards. Let all hooks fire (the authoritative stage-to-command enumeration is `.claude/pipeline.json` `hooks`; unit tests deliberately do NOT run pre-commit; `/fullpush` runs them locally before the push; commit-msg includes the commit-claims guard, which blocks a message citing an unresolvable SHA). NEVER `--no-verify`. NEVER amend after a hook failure — make a new commit. End messages with the `Co-Authored-By` trailer.
@@ -36,7 +36,7 @@ Run every stage. Do not skip stages to save time — the gates exist to prevent 
 The review loop itself is stage 10 above — it IS the pre-push gate and it always reads the full branch diff, so there is no separate PR-level sweep.
 
 15. **`/fullpush`** — run the full self-audit + read-only lint + check-types + full test suite + build, plus conditional migration / e2e / **mandatory red-team** when those paths changed.
-16. **Push** — NEVER push to `master`; always a feature branch + PR. The pre-push hook (security-auditor + dep audit) must pass — NEVER bypass it.
+16. **Push** — NEVER push to `master`; always a feature branch + PR. The pre-push hook (security-auditor + dep audit) must pass — NEVER bypass it. After every successful push, with no further round pending, run `/fullpush` step 11 (delete the review-gate lock).
 17. **Open the PR** — descriptive title + body (summary, verification, deferred follow-ups). End the body with the Claude Code attribution line.
 
 ## Merge policy — ✅ MERGE WHEN, AND ONLY WHEN, ALL HOLD

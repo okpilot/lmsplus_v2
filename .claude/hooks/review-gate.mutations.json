@@ -1,34 +1,77 @@
 {
-  "_": "Planted red/green controls linked by GROUP marker to the two spawned tests that already drove the guard's exit code before this file existed.",
+  "_": "Planted red/green controls linked by GROUP marker to the spawned tests that drive the guard's exit code.",
   "target": ".claude/hooks/review-gate.js",
   "suites": [".claude/hooks/review-gate.test.mjs"],
   "mutations": [
     {
       "id": "review-gate-always-passes",
-      "find": "then delete .claude/review-gate.json to unlock edits.\\n`,\n  )\n  process.exit(2)",
-      "replace": "then delete .claude/review-gate.json to unlock edits.\\n`,\n  )\n  process.exit(0)",
+      "find": "  process.exit(2)\n}",
+      "replace": "  process.exit(0)\n}",
       "expectRed": [
-        "blocks a production file edit and surfaces findings when the gate is active",
-        "still blocks on a corrupt gate file, substituting a parse-error message",
+        "blocks a production edit after a review round until plan-critic is dispatched",
+        "sets the lock when a gate-round agent is dispatched",
+        "sets the lock when a conditional agent is dispatched",
+        "sets the lock again when the next round dispatches a reviewer",
         "blocks a production target reached through an exempt directory via ..",
-        "blocks a production file outside the repo root whose path contains apps/web/e2e/",
-        "blocks a production file inside a .claude/worktrees/ checkout when the gate is active"
+        "blocks a production file whose path contains apps/web/e2e/ below another directory",
+        "blocks a production edit in any worktree under .claude/worktrees while locked",
+        "allows a root .coderabbit.yaml edit but blocks a nested one while armed",
+        "blocks an armed edit when the hook runs from an agent worktree copy"
       ],
-      "note": "Forces the active-gate branch to exit 0 instead of 2 — findings are printed but the edit is no longer blocked. Reddens the corrupt-gate-file test too: it falls through to the same blocking branch once its own JSON.parse catch substitutes the parse-error message."
+      "note": "Forces the block helper to exit 0 instead of 2 — the reason is printed but the edit is no longer blocked."
     },
     {
       "id": "review-gate-always-blocks",
-      "find": "  // No gate file = no restrictions\n  if (!fs.existsSync(GATE_FILE)) {\n    process.exit(0)\n  }",
-      "replace": "  // No gate file = no restrictions\n  if (false) {\n    process.exit(0)\n  }",
-      "expectRed": ["allows any edit when no gate file is present"],
-      "note": "Removes the early no-gate-file return — the hook falls through to the blocking path, whose own catch turns a missing gate file into '(could not parse gate file)' and still blocks."
+      "find": "  if (!fs.existsSync(LOCK)) process.exit(0)\n",
+      "replace": "  if (!fs.existsSync(LOCK)) block('no lock')\n",
+      "expectRed": [
+        "allows any edit when no gate state exists",
+        "clears the lock when plan-critic is dispatched after a round"
+      ],
+      "note": "The early no-lock return blocks instead of allowing — an edit with no lock is refused."
+    },
+    {
+      "id": "review-gate-no-arm",
+      "find": "fs.writeFileSync(LOCK, '')",
+      "replace": "void LOCK",
+      "expectRed": [
+        "sets the lock when a gate-round agent is dispatched",
+        "sets the lock when a conditional agent is dispatched",
+        "sets the lock again when the next round dispatches a reviewer",
+        "sets the lock beside the hook when git cannot resolve the repo"
+      ],
+      "note": "A gate-round or conditional dispatch writes no lock — the round never locks edits."
+    },
+    {
+      "id": "review-gate-no-unlock",
+      "find": "fs.rmSync(LOCK, { force: true })",
+      "replace": "void LOCK",
+      "expectRed": ["clears the lock when plan-critic is dispatched after a round"],
+      "note": "A plan-critic dispatch leaves the lock in place — edits stay blocked."
+    },
+    {
+      "id": "review-gate-plan-critic-arms",
+      "find": "fs.rmSync(LOCK, { force: true })",
+      "replace": "fs.writeFileSync(LOCK, '')",
+      "expectRed": [
+        "clears the lock when plan-critic is dispatched after a round",
+        "writes no state when plan-critic is dispatched before any round"
+      ],
+      "note": "A plan-critic dispatch sets the lock instead of clearing it."
+    },
+    {
+      "id": "review-gate-outside-repo-blocked",
+      "find": "if (!filePath.startsWith(REPO_ROOT + path.sep)) process.exit(0)",
+      "replace": "if (false) process.exit(0)",
+      "expectRed": ["allows a production file outside the repo root when the gate is armed"],
+      "note": "A path outside the repo root (a scratch clone) is checked like a production file."
     },
     {
       "id": "review-gate-e2e-always-blocks",
       "find": "const EXEMPT_DIRS = ['.claude', 'docs', path.join('apps', 'web', 'e2e')]",
       "replace": "const EXEMPT_DIRS = ['.claude', 'docs']",
-      "expectRed": ["allows a spec.ts edit under apps/web/e2e/ even when the gate is active"],
-      "note": "Removes the apps/web/e2e/ allowance — a spec edit under apps/web/e2e/ is blocked again while the gate is active, even though e2e-writer/red-team need to write there."
+      "expectRed": ["allows a spec.ts edit under apps/web/e2e/ even when the gate is armed"],
+      "note": "Removes the apps/web/e2e/ allowance — a spec edit under apps/web/e2e/ is blocked again while the gate is armed, even though e2e-writer/red-team need to write there."
     },
     {
       "id": "review-gate-no-path-normalization",
@@ -42,17 +85,19 @@
       "find": "filePath.startsWith(path.resolve(root, dir) + path.sep)",
       "replace": "filePath.includes(path.sep + dir + path.sep)",
       "expectRed": [
-        "blocks a production file outside the repo root whose path contains apps/web/e2e/",
-        "blocks a production file inside a .claude/worktrees/ checkout when the gate is active"
+        "blocks a production file whose path contains apps/web/e2e/ below another directory",
+        "blocks a production edit in any worktree under .claude/worktrees while locked",
+        "blocks an armed edit when the hook runs from an agent worktree copy"
       ],
-      "note": "Matches an exempt directory anywhere in the path instead of under its checkout root — /vendor/apps/web/e2e/production.ts, and any worktree file under .claude/, is let through."
+      "note": "Matches an exempt directory anywhere in the path instead of under its checkout root — <root>/vendor/apps/web/e2e/x.ts, and any worktree file under .claude/, is let through."
     },
     {
       "id": "review-gate-worktrees-exempt",
-      "find": "  if (!filePath.startsWith(WORKTREES_DIR)) return process.cwd()\n",
-      "replace": "  return process.cwd()\n",
+      "find": "  if (!filePath.startsWith(WORKTREES_DIR)) return REPO_ROOT\n",
+      "replace": "  return REPO_ROOT\n",
       "expectRed": [
-        "blocks a production file inside a .claude/worktrees/ checkout when the gate is active"
+        "blocks a production edit in any worktree under .claude/worktrees while locked",
+        "blocks an armed edit when the hook runs from an agent worktree copy"
       ],
       "note": "Drops the worktree carve-out — a production file inside .claude/worktrees/ passes as an exempt .claude path."
     },
@@ -61,9 +106,53 @@
       "find": "return EXEMPT_DIRS.some(",
       "replace": "return !filePath.startsWith(WORKTREES_DIR) && EXEMPT_DIRS.some(",
       "expectRed": [
-        "allows a docs edit inside a .claude/worktrees/ checkout when the gate is active"
+        "allows a docs edit inside a .claude/worktrees/ checkout when the gate is armed"
       ],
       "note": "Denies every exemption inside a worktree — the worktree's own docs/, .claude/ and apps/web/e2e/ files are blocked."
+    },
+    {
+      "id": "review-gate-coderabbit-not-exempt",
+      "find": "const EXEMPT_FILES = ['.coderabbit.yaml']",
+      "replace": "const EXEMPT_FILES = []",
+      "expectRed": ["allows a root .coderabbit.yaml edit but blocks a nested one while armed"],
+      "note": "No file exemption — the .coderabbit.yaml edit coderabbit-sync requires is blocked while armed."
+    },
+    {
+      "id": "review-gate-exempt-files-unanchored",
+      "find": "filePath === path.join(checkoutRoot(filePath), f)",
+      "replace": "filePath.endsWith(path.sep + f)",
+      "expectRed": ["allows a root .coderabbit.yaml edit but blocks a nested one while armed"],
+      "note": "Matches an exempt file name anywhere — a nested vendor/.coderabbit.yaml passes."
+    },
+    {
+      "id": "review-gate-root-from-dirname",
+      "find": "process.env.REVIEW_GATE_ROOT || mainCheckoutRoot()",
+      "replace": "process.env.REVIEW_GATE_ROOT || path.join(__dirname, '..', '..')",
+      "expectRed": ["blocks an armed edit when the hook runs from an agent worktree copy"],
+      "note": "The root comes from the hook's own location — a worktree copy of the hook looks for the lock in the worktree and finds none."
+    },
+    {
+      "id": "review-gate-arms-any-role",
+      "find": "ARMING_ROLES.has(pipeline.agents?.[subagentType]?.role)",
+      "replace": "true",
+      "expectRed": ["leaves the state unchanged when a non-gate agent is dispatched"],
+      "note": "Every dispatch sets the lock, whatever its role — a non-gate agent arms the gate."
+    },
+    {
+      "id": "review-gate-agent-error-silent",
+      "find": "process.stderr.write(`[review-gate] state update failed: ${err.message}\\n`)",
+      "replace": "void err",
+      "expectRed": [
+        "logs a failed lock update and leaves the lock unset when pipeline.json is unreadable"
+      ],
+      "note": "A failed lock update is swallowed with no stderr signal."
+    },
+    {
+      "id": "review-gate-fallback-root-wrong",
+      "find": "return path.join(__dirname, '..', '..')",
+      "replace": "return path.join(__dirname, '..')",
+      "expectRed": ["sets the lock beside the hook when git cannot resolve the repo"],
+      "note": "Without git, the root resolves to .claude/ — pipeline.json is not found and no dispatch sets the lock."
     }
   ]
 }
