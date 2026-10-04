@@ -13,6 +13,8 @@ const { mockHandleSubmitSession, mockHandleSaveSession, mockHandleDiscardSession
   }),
 )
 
+vi.mock('../_utils/with-reconnect', () => ({ whenQueueIdle: () => Promise.resolve() }))
+
 vi.mock('./quiz-submit', () => ({
   handleSubmitSession: (...args: unknown[]) => mockHandleSubmitSession(...args),
   handleSaveSession: (...args: unknown[]) => mockHandleSaveSession(...args),

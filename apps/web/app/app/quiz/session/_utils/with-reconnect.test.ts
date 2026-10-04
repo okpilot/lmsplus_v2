@@ -454,7 +454,9 @@ describe('withReconnect', () => {
 
 describe('whenQueueIdle', () => {
   it('resolves at once when nothing is queued', async () => {
-    await expect(whenQueueIdle()).resolves.toBeUndefined()
+    const idle = whenQueueIdle()
+    await vi.advanceTimersByTimeAsync(0)
+    await expect(idle).resolves.toBeUndefined()
   })
 
   it('resolves only after a queued save has settled', async () => {
@@ -475,7 +477,21 @@ describe('whenQueueIdle', () => {
     expect(idle).toBe(false)
     gate.release()
     await save
+    expect(idle).toBe(false)
+    await vi.advanceTimersByTimeAsync(0)
     await waiting
     expect(idle).toBe(true)
+  })
+
+  it('resolves only after the saving caller has finished its own follow-up work', async () => {
+    const order: string[] = []
+    const save = withReconnect(() => Promise.resolve(OK))
+    void save.then(async () => {
+      for (let i = 0; i < 5; i++) await Promise.resolve()
+      order.push('follow-up')
+    })
+    void whenQueueIdle().then(() => order.push('idle'))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(order).toEqual(['follow-up', 'idle'])
   })
 })

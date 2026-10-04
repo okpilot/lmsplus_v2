@@ -169,9 +169,9 @@ export function resumeQueue() {
   }
 }
 
-/** Resolves once every job queued so far has settled; a stalled save keeps the caller waiting. */
+/** Resolves once every queued job has settled and their microtask follow-up has run; a stalled save keeps the caller waiting. */
 export function whenQueueIdle(): Promise<void> {
-  return tail.then(() => {})
+  return tail.then(() => new Promise<void>((resolve) => setTimeout(resolve, 0)))
 }
 
 /**
