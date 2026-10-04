@@ -1,4 +1,5 @@
 import { requireAuthUser } from '@/lib/auth/require-auth-user'
+import { ConnectionOverlay } from './_components/connection-overlay'
 import { QuizSessionLoader } from './_components/quiz-session-loader'
 
 export const dynamic = 'force-dynamic'
@@ -9,6 +10,7 @@ export default async function QuizSessionPage() {
   return (
     <main>
       <QuizSessionLoader key={user.id} userId={user.id} />
+      <ConnectionOverlay />
     </main>
   )
 }

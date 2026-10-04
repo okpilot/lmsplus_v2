@@ -2,6 +2,7 @@ import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.
 import type { SessionQuestion } from '@/app/app/_types/session'
 import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
 import type { AnswerFeedback, DraftAnswer } from '../../types'
+import { whenQueueIdle } from '../_utils/with-reconnect'
 import {
   examReportUrl,
   handleDiscardSession,
@@ -80,6 +81,21 @@ function dispatchSubmission({
   })
 }
 
+/** Shows the action as in flight, then waits for every queued save to settle, so the action
+ * cannot reach Next.js's action queue ahead of them. */
+async function waitForQueuedSaves(shared: ReturnType<ReturnType<typeof buildSharedFor>>) {
+  shared.setSubmitting(true)
+  shared.setError(null)
+  await whenQueueIdle()
+}
+
+/** Answers whose check is still pending are left out: they have no recorded outcome yet.
+ * Read it AFTER waitForQueuedSaves so a check that settled during the wait is included. */
+function withoutPendingAnswers(answers: Map<string, DraftAnswer>, pending: Set<string>) {
+  if (pending.size === 0) return answers
+  return new Map([...answers].filter(([qId]) => !pending.has(qId)))
+}
+
 /** Arms the hard-navigation fallback for a soft nav that never unmounts this component. */
 function armNavFallback(deps: SubmitDeps) {
   if (deps.navFallbackTimer.current) clearTimeout(deps.navFallbackTimer.current)
@@ -105,15 +121,15 @@ export function buildHandleSubmit(
   return async function handleSubmit() {
     if (deps.inFlight.current || deps.submitted.current) return
     deps.inFlight.current = true
-    const pending = deps.pendingQuestionIdRef.current
-    const safeAnswers =
-      pending.size > 0
-        ? new Map([...deps.answersRef.current].filter(([qId]) => !pending.has(qId)))
-        : deps.answersRef.current
     const onSuccess = () => {
       deps.submitted.current = true
       deps.setShowFinishDialog(false)
     }
+    await waitForQueuedSaves(sharedFor('submit'))
+    const safeAnswers = withoutPendingAnswers(
+      deps.answersRef.current,
+      deps.pendingQuestionIdRef.current,
+    )
     await dispatchSubmission({ deps, sharedFor, answers: safeAnswers, onSuccess }).finally(() => {
       // If submit rejected/threw before any setSubmitting(false), release the re-entry lock
       // so the student can retry. On success onSuccess set submitted.current = true first, so
@@ -136,12 +152,12 @@ export function buildHandleSave(
   },
 ) {
   const sharedFor = buildSharedFor(deps)
-  return function handleSave() {
-    const pending = deps.pendingQuestionIdRef.current
-    const safeAnswers =
-      pending.size > 0
-        ? new Map([...deps.answersRef.current].filter(([qId]) => !pending.has(qId)))
-        : deps.answersRef.current
+  return async function handleSave() {
+    await waitForQueuedSaves(sharedFor('save'))
+    const safeAnswers = withoutPendingAnswers(
+      deps.answersRef.current,
+      deps.pendingQuestionIdRef.current,
+    )
     return handleSaveSession({
       userId: deps.userId,
       sessionId: deps.sessionId,
@@ -159,7 +175,8 @@ export function buildHandleSave(
 
 export function buildHandleDiscard(deps: BaseDeps) {
   const sharedFor = buildSharedFor(deps)
-  return function handleDiscard() {
+  return async function handleDiscard() {
+    await waitForQueuedSaves(sharedFor('discard'))
     return handleDiscardSession({
       userId: deps.userId,
       sessionId: deps.sessionId,

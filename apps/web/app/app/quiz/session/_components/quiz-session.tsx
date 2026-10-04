@@ -5,10 +5,10 @@ import { QuestionTabs } from '../../_components/question-tabs'
 import type { QuizSessionProps } from '../../session-types'
 import { useFlaggedQuestions } from '../_hooks/use-flagged-questions'
 import { useQuizActiveTab } from '../_hooks/use-quiz-active-tab'
-import { useQuizKeyboard } from '../_hooks/use-quiz-keyboard'
 import { useQuizState } from '../_hooks/use-quiz-state'
 import { useQuizTimer } from '../_hooks/use-quiz-timer'
 import { useQuizUI } from '../_hooks/use-quiz-ui'
+import { useUnblockedQuizKeyboard } from '../_hooks/use-unblocked-quiz-keyboard'
 import { QuizFinishDialogHost } from './quiz-finish-dialog-host'
 import { QuizMainPanel } from './quiz-main-panel'
 import { QuizSessionFooter } from './quiz-session-footer'
@@ -35,7 +35,7 @@ export function QuizSession(props: Readonly<QuizSessionProps>) {
     s.setShowFinishDialog,
   )
 
-  const { highlightedOptionId } = useQuizKeyboard({
+  const { highlightedOptionId } = useUnblockedQuizKeyboard({
     optionIds: s.question?.options.map((o) => o.id) ?? [],
     currentIndex: s.currentIndex,
     isExam: s.isExam,

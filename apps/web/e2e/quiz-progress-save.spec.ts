@@ -1,31 +1,10 @@
 import { expect, type Page, test } from '@playwright/test'
+import { startStudyQuiz } from './helpers/quiz-session'
 import { cleanupStudentActiveSessions, getAdminClient, TEST_EMAIL } from './helpers/supabase'
 
 test.use({ storageState: 'e2e/.auth/user.json' })
 
 type ProgressSnapshot = { currentIndex: number; answeredCount: number }
-
-async function startStudyQuiz(page: Page): Promise<number> {
-  await page.goto('/app/quiz')
-  await expect(page.getByRole('heading', { name: 'Quiz' })).toBeVisible()
-  await page.getByRole('button', { name: 'Study', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Study', exact: true })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  )
-  const trigger = page.locator('[data-testid="subject-trigger"]')
-  await trigger.waitFor({ state: 'visible' })
-  await trigger.click()
-  await page.locator('[data-testid="subject-option"]').first().click()
-  await page.getByRole('button', { name: 'All' }).click()
-  const text = await page.getByText(/of \d+ selected/).textContent()
-  const total = Number(text?.match(/of (\d+) selected/)?.[1] ?? 0)
-  expect(total).toBeGreaterThanOrEqual(3)
-  await page.getByRole('button', { name: 'Start Quiz' }).click()
-  await page.waitForURL('**/app/quiz/session', { timeout: 10_000 })
-  await expect(page.getByText(`Question 1 of ${total}`)).toBeVisible({ timeout: 10_000 })
-  return total
-}
 
 // Submit stays visible while the check is in flight; it unmounts once feedback is recorded.
 async function waitForFeedback(page: Page): Promise<void> {

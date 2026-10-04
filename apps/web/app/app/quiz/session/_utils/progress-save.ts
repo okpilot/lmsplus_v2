@@ -2,7 +2,9 @@ import { isDisplayableProgressError } from '../../actions/progress-error-message
 import { saveQuizAnswer, saveQuizPosition } from '../../actions/quiz-progress'
 import type { DraftAnswer } from '../../types'
 import { withTakeoverCheck } from './claim-quiz-device'
+import { getConnectionStatus } from './connection-state'
 import { isTakenOver } from './session-takeover'
+import { withReconnect } from './with-reconnect'
 
 const MAX_TIME_SPENT_MS = 86_400_000
 
@@ -82,9 +84,11 @@ export function fireProgressSave(opts: {
 }): void {
   if (isTakenOver(opts.sessionId)) return
   const save = opts.kind === 'answer' ? saveQuizAnswer : saveQuizPosition
-  withTakeoverCheck(opts.sessionId, () => save(opts.input))
+  withTakeoverCheck(opts.sessionId, () => withReconnect(() => save(opts.input)))
     .then((r) => {
       if (r.success) return opts.onSuccess()
+      // The overlay already says the sign-in expired; no second message behind it.
+      if (getConnectionStatus() === 'signed-out') return
       if (isDisplayableProgressError(r.error)) return opts.onMappedError(r.error)
       console.warn(`[progress-save] ${opts.kind} save failed (best-effort):`, r.error)
     })

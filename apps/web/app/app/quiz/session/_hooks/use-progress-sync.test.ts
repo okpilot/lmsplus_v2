@@ -68,10 +68,11 @@ describe('useProgressSync — navigation', () => {
     expect(result.current.nav.currentIndex).toBe(2)
   })
 
-  it('saves relative navigation against the live current index', () => {
+  it('saves relative navigation against the live current index', async () => {
     const { result } = renderHook(() => useProgressSync(opts()))
     act(() => result.current.nav.navigate(1))
     act(() => result.current.nav.navigate(1))
+    await act(settle)
     expect(mockSavePosition.mock.calls.map((c) => c[0].currentIndex)).toEqual([1, 2])
     expect(mockSavePosition.mock.calls[1]?.[0].leaving.questionId).toBe(Q[1])
   })
@@ -84,10 +85,11 @@ describe('useProgressSync — navigation', () => {
     expect(result.current.nav.currentIndex).toBe(0)
   })
 
-  it('sends every call with the same tab device id', () => {
+  it('sends every call with the same tab device id', async () => {
     const { result } = renderHook(() => useProgressSync(opts()))
     act(() => result.current.nav.navigate(1))
     act(() => result.current.saveAnswer({ selectedOptionId: 'a' }))
+    await act(settle)
     expect(mockSavePosition.mock.calls[0]?.[0].deviceId).toBe(
       mockSaveAnswer.mock.calls[0]?.[0].deviceId,
     )
@@ -104,10 +106,11 @@ describe('useProgressSync — pins', () => {
     expect(result.current.pinnedQuestions.has(Q[0] as string)).toBe(true)
   })
 
-  it('carries existing pins on the next navigation', () => {
+  it('carries existing pins on the next navigation', async () => {
     const { result } = renderHook(() => useProgressSync(opts()))
     act(() => result.current.togglePin(Q[1] as string))
     act(() => result.current.nav.navigate(1))
+    await act(settle)
     expect(mockSavePosition.mock.calls[1]?.[0].pinnedQuestionIds).toEqual([Q[1]])
   })
 })
