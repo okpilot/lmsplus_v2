@@ -231,6 +231,7 @@
 | HC | resumeQuizSession-forged-draft-seed | MEDIUM | quiz-draft-resume-seed.spec.ts | BLOCKED |  | input-injection |
 | HD | quiz-session-id-route-foreign-ended-discarded-saved | MEDIUM | quiz-session-id-route-enumeration.spec.ts | BLOCKED |  | enumeration |
 | HE | quiz-session-id-route-crafted-id-redirect | MEDIUM | quiz-session-id-route-enumeration.spec.ts | BLOCKED |  | open-redirect |
+| HF | resumeQuizSession-draft-seed-fanout | LOW | quiz-draft-resume-seed-fanout.spec.ts | BLOCKED |  | rate-limit |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 

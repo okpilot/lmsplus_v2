@@ -62,6 +62,21 @@ function toSaveAnswerArgs(
   }
 }
 
+/** The draft's answers for questions in the session; one RPC per entry, so the rest are dropped. */
+function sessionAnswers(ctx: ResumeContext): [string, unknown][] {
+  if (typeof ctx.answers !== 'object' || ctx.answers === null) return []
+  const inSession = new Set(ctx.questionIds)
+  const all = Object.entries(ctx.answers)
+  const kept = all.filter(([questionId]) => inSession.has(questionId))
+  if (kept.length < all.length) {
+    console.warn(
+      '[resumeQuizSession] Draft answers outside the session dropped:',
+      all.length - kept.length,
+    )
+  }
+  return kept
+}
+
 /** Writes the draft's answers, then its position (clamped to [0, last question]), to the session. */
 export async function seedSessionFromDraft(
   supabase: SupabaseClient,
@@ -69,9 +84,7 @@ export async function seedSessionFromDraft(
   ctx: ResumeContext,
 ): Promise<boolean> {
   const deviceId = crypto.randomUUID()
-  const answers =
-    typeof ctx.answers === 'object' && ctx.answers !== null ? Object.entries(ctx.answers) : []
-  for (const entry of answers) {
+  for (const entry of sessionAnswers(ctx)) {
     const args = toSaveAnswerArgs(sessionId, deviceId, entry)
     if (!args) {
       console.warn('[resumeQuizSession] Malformed draft answer skipped for question', entry[0])

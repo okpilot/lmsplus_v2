@@ -158,9 +158,26 @@ describe('seedSessionFromDraft', () => {
     expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('skipped'), Q1)
   })
 
+  it('saves only answers for questions in the session, however many others the draft holds', async () => {
+    const foreign = Array.from(
+      { length: 5 },
+      (_, i) => `00000000-0000-4000-a000-0000000009${String(i).padStart(2, '0')}`,
+    )
+    const answers = Object.fromEntries([
+      [Q1, { selectedOptionId: 'a', responseTimeMs: 1 }],
+      ...foreign.map((id) => [id, { selectedOptionId: 'a', responseTimeMs: 1 }]),
+    ])
+    expect(await seedSessionFromDraft({} as Client, SESSION, ctx({ answers }))).toBe(true)
+    expect(rpcCalls('save_quiz_answer').map((a) => a.p_question_id)).toEqual([Q1])
+    expect(console.warn).toHaveBeenCalledTimes(1)
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('dropped'), 5)
+  })
+
   it('skips an answer keyed by a non-uuid question id', async () => {
     const answers = { nope: { selectedOptionId: 'a', responseTimeMs: 1 } }
-    expect(await seedSessionFromDraft({} as Client, SESSION, ctx({ answers }))).toBe(true)
+    expect(
+      await seedSessionFromDraft({} as Client, SESSION, ctx({ answers, questionIds: ['nope'] })),
+    ).toBe(true)
     expect(rpcCalls('save_quiz_answer')).toHaveLength(0)
   })
 
