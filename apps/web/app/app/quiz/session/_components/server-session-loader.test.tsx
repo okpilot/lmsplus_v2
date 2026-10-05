@@ -150,4 +150,30 @@ describe('ServerSessionLoader', () => {
     render(<ServerSessionLoader userId="u1" entry={ENTRY} />)
     expect(mockUpload).toHaveBeenLastCalledWith(expect.objectContaining({ claimed: false }))
   })
+
+  it('tells the upload when the claim failed', () => {
+    mockBootstrap.mockReturnValue({
+      questions: Q,
+      flaggedIds: [],
+      claimError: 'Another tab',
+      error: null,
+    })
+
+    render(<ServerSessionLoader userId="u1" entry={ENTRY} />)
+
+    expect(mockUpload).toHaveBeenLastCalledWith(expect.objectContaining({ claimFailed: true }))
+  })
+
+  it('still mounts the runner when the claim failed', () => {
+    mockBootstrap.mockReturnValue({
+      questions: Q,
+      flaggedIds: [],
+      claimError: 'Another tab',
+      error: null,
+    })
+
+    render(<ServerSessionLoader userId="u1" entry={ENTRY} />)
+
+    expect(screen.getByTestId('quiz-session')).toBeInTheDocument()
+  })
 })

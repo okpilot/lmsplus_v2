@@ -31,6 +31,7 @@ export function ServerSessionLoader({
     questionIds,
     serverAnswers: entry.seed.answers,
     claimed: !!bs.questions && !bs.claimError,
+    claimFailed: !!bs.claimError,
   })
 
   if (bs.error) return <LoadError message={bs.error} />

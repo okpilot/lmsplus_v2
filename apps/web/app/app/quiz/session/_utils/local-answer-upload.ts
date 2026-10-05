@@ -36,34 +36,55 @@ export function findLocalOnlyAnswers(opts: FindOpts): Record<string, DraftAnswer
   )
 }
 
-/** Saves each answer in order; skips one the server refuses, false at a session-wide failure. Never throws. */
+export type UploadResult = {
+  /** Question ids the server accepted. */
+  saved: string[]
+  /** False when a session-wide failure (or a throw) stopped the upload. */
+  complete: boolean
+}
+
+type SaveOutcome = 'saved' | 'skipped' | 'failed'
+
+async function saveOne(opts: {
+  sessionId: string
+  deviceId: string
+  questionId: string
+  draft: DraftAnswer
+}): Promise<SaveOutcome> {
+  const input = buildAnswerInput({ ...opts, timeSpentMs: opts.draft.responseTimeMs })
+  if (!input) return 'skipped'
+  const result = await withTakeoverCheck(opts.sessionId, () =>
+    withReconnect(() => saveQuizAnswer(input)),
+  )
+  if (result.success) return 'saved'
+  if (!SKIPPABLE.has(result.error)) return 'failed'
+  console.warn('[local-answer-upload] rejected answer skipped for question', opts.questionId)
+  return 'skipped'
+}
+
+/**
+ * Saves each answer in order; skips one the server refuses, stops at a session-wide failure.
+ * `onSaved` reports each accepted id as it lands. Never throws.
+ */
 export async function uploadLocalAnswers(opts: {
   sessionId: string
   answers: Record<string, DraftAnswer>
-}): Promise<boolean> {
+  onSaved?: (questionId: string) => void
+}): Promise<UploadResult> {
   const deviceId = getQuizDeviceId()
+  const saved: string[] = []
   try {
     for (const [questionId, draft] of Object.entries(opts.answers)) {
-      const input = buildAnswerInput({
-        sessionId: opts.sessionId,
-        deviceId,
-        questionId,
-        draft,
-        timeSpentMs: draft.responseTimeMs,
-      })
-      if (!input) continue
-      const result = await withTakeoverCheck(opts.sessionId, () =>
-        withReconnect(() => saveQuizAnswer(input)),
-      )
-      if (!result.success && SKIPPABLE.has(result.error)) {
-        console.warn('[local-answer-upload] rejected answer skipped for question', questionId)
-        continue
+      const outcome = await saveOne({ sessionId: opts.sessionId, deviceId, questionId, draft })
+      if (outcome === 'failed') return { saved, complete: false }
+      if (outcome === 'saved') {
+        saved.push(questionId)
+        opts.onSaved?.(questionId)
       }
-      if (!result.success) return false
     }
-    return true
+    return { saved, complete: true }
   } catch (err) {
     console.warn('[local-answer-upload] upload failed (will retry next load):', err)
-    return false
+    return { saved, complete: false }
   }
 }

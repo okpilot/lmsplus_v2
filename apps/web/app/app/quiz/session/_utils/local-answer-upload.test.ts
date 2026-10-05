@@ -96,9 +96,9 @@ describe('findLocalOnlyAnswers', () => {
 
 describe('uploadLocalAnswers', () => {
   it('saves each local answer with its visit time for the session', async () => {
-    const ok = await uploadLocalAnswers({ sessionId: 's1', answers: { q1: A, q2: B } })
+    const result = await uploadLocalAnswers({ sessionId: 's1', answers: { q1: A, q2: B } })
 
-    expect(ok).toBe(true)
+    expect(result).toEqual({ saved: ['q1', 'q2'], complete: true })
     expect(mockSave).toHaveBeenCalledTimes(2)
     expect(mockSave).toHaveBeenCalledWith({
       sessionId: 's1',
@@ -112,28 +112,39 @@ describe('uploadLocalAnswers', () => {
     )
   })
 
-  it('stops and reports failure at a session-wide refusal', async () => {
-    mockSave.mockResolvedValueOnce({
+  it('reports each saved question to the caller as soon as the server accepts it', async () => {
+    const onSaved = vi.fn()
+
+    await uploadLocalAnswers({ sessionId: 's1', answers: { q1: A, q2: B }, onSaved })
+
+    expect(onSaved.mock.calls).toEqual([['q1'], ['q2']])
+  })
+
+  it('stops at a session-wide refusal and keeps the answers saved before it', async () => {
+    mockSave.mockResolvedValueOnce({ success: true }).mockResolvedValueOnce({
       success: false,
       error: PROGRESS_ERROR_MESSAGES.session_taken_over,
     })
 
-    const ok = await uploadLocalAnswers({ sessionId: 's1', answers: { q1: A, q2: B } })
+    const result = await uploadLocalAnswers({
+      sessionId: 's1',
+      answers: { q1: A, q2: B, q3: A },
+    })
 
-    expect(ok).toBe(false)
-    expect(mockSave).toHaveBeenCalledTimes(1)
+    expect(result).toEqual({ saved: ['q1'], complete: false })
+    expect(mockSave).toHaveBeenCalledTimes(2)
   })
 
   it.each([
     PROGRESS_ERROR_MESSAGES.invalid_answer,
     PROGRESS_ERROR_MESSAGES.question_not_in_session,
     'Invalid input',
-  ])('skips an answer the server rejects (%s) and uploads the rest', async (error) => {
+  ])('leaves out an answer the server rejects (%s) and uploads the rest', async (error) => {
     mockSave.mockResolvedValueOnce({ success: false, error })
 
-    const ok = await uploadLocalAnswers({ sessionId: 's1', answers: { q1: A, q2: B } })
+    const result = await uploadLocalAnswers({ sessionId: 's1', answers: { q1: A, q2: B } })
 
-    expect(ok).toBe(true)
+    expect(result).toEqual({ saved: ['q2'], complete: true })
     expect(mockSave).toHaveBeenCalledTimes(2)
     expect(mockSave).toHaveBeenLastCalledWith(expect.objectContaining({ questionId: 'q2' }))
   })
@@ -144,20 +155,25 @@ describe('uploadLocalAnswers', () => {
       error: PROGRESS_ERROR_MESSAGES.invalid_device,
     })
 
-    const ok = await uploadLocalAnswers({ sessionId: 's1', answers: { q1: A, q2: B } })
+    const result = await uploadLocalAnswers({ sessionId: 's1', answers: { q1: A, q2: B } })
 
-    expect(ok).toBe(false)
+    expect(result).toEqual({ saved: [], complete: false })
     expect(mockSave).toHaveBeenCalledTimes(1)
   })
 
-  it('reports failure when a save throws', async () => {
-    mockSave.mockRejectedValueOnce(new Error('network'))
+  it('reports an incomplete upload with the answers saved so far when a save throws', async () => {
+    mockSave.mockResolvedValueOnce({ success: true }).mockRejectedValueOnce(new Error('network'))
 
-    expect(await uploadLocalAnswers({ sessionId: 's1', answers: { q1: A } })).toBe(false)
+    const result = await uploadLocalAnswers({ sessionId: 's1', answers: { q1: A, q2: B } })
+
+    expect(result).toEqual({ saved: ['q1'], complete: false })
   })
 
-  it('reports success for an empty set without calling the server', async () => {
-    expect(await uploadLocalAnswers({ sessionId: 's1', answers: {} })).toBe(true)
+  it('reports a complete upload for an empty set without calling the server', async () => {
+    expect(await uploadLocalAnswers({ sessionId: 's1', answers: {} })).toEqual({
+      saved: [],
+      complete: true,
+    })
     expect(mockSave).not.toHaveBeenCalled()
   })
 })
