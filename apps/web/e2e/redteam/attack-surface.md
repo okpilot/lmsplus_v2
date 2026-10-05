@@ -228,6 +228,8 @@
 | GZ | finish_quiz_session-post-grace-answer-graded | HIGH | rpc-finish-quiz-session.spec.ts | BLOCKED |  | race |
 | HA | quiz-session-id-route-foreign-session | HIGH | quiz-session-id-route.spec.ts | BLOCKED |  | idor |
 | HB | quiz-session-id-route-exam-no-correctness-or-recheck | HIGH | quiz-session-id-route.spec.ts | BLOCKED |  | answer-oracle |
+| HD | quiz-session-id-route-foreign-ended-discarded-saved | MEDIUM | quiz-session-id-route-enumeration.spec.ts | BLOCKED |  | enumeration |
+| HE | quiz-session-id-route-crafted-id-redirect | MEDIUM | quiz-session-id-route-enumeration.spec.ts | BLOCKED |  | open-redirect |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
