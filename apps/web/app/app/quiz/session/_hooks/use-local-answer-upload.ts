@@ -22,9 +22,9 @@ type Answers = Record<string, DraftAnswer>
 
 /**
  * Returns the server answers plus the answers only this browser held that the server has since
- * accepted (null until that is known, at most UPLOAD_WAIT_MS after the upload starts). After the
- * claim, uploads the local-only answers once and clears the local copy only when the upload
- * completed within the wait.
+ * accepted (null until the upload has finished or stopped). After the claim, uploads the
+ * local-only answers once; it sends no further answers after UPLOAD_WAIT_MS, and the local copy is
+ * cleared only when every answer was sent.
  */
 export function useLocalAnswerUpload(opts: Readonly<Opts>) {
   const { userId, sessionId, questionIds, serverAnswers, claimed, claimFailed } = opts

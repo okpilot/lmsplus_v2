@@ -5,7 +5,7 @@ type Answers = Record<string, DraftAnswer>
 
 /**
  * Holds the one-time outcome of the local-answer upload: the server answers plus the local-only
- * answers the server accepted. First settle wins; later calls (a late upload) are ignored.
+ * answers the server accepted. First settle wins; later calls are ignored.
  */
 export function useUploadSettle(seedRef: RefObject<{ serverAnswers: Answers }>) {
   const [settled, setSettled] = useState<Answers | null>(null)

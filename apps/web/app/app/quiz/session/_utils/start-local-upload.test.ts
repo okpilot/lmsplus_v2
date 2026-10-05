@@ -35,38 +35,73 @@ describe('startLocalUpload', () => {
     expect(mockClear).toHaveBeenCalledWith('u', 's')
   })
 
-  it('settles with the ids saved so far once the wait limit passes', async () => {
-    mockUpload.mockImplementation((o: { onSaved: (id: string) => void }) => {
-      o.onSaved('q2')
-      return new Promise(() => {})
-    })
+  it('does not open the runner at the wait limit while a save is still in progress', async () => {
+    mockUpload.mockImplementation(() => new Promise(() => {}))
     const settle = vi.fn()
 
     startLocalUpload({ userId: 'u', sessionId: 's', answers: { q2: B }, settle })
     await vi.advanceTimersByTimeAsync(UPLOAD_WAIT_MS)
 
-    expect(settle).toHaveBeenCalledWith(['q2'])
-    expect(mockClear).not.toHaveBeenCalled()
+    expect(settle).not.toHaveBeenCalled()
   })
 
-  it('keeps the local copy and settles once when the upload completes after the wait limit', async () => {
+  it('settles once with the answer whose save was in progress when it returns after the wait limit', async () => {
     let finish: (r: { saved: string[]; complete: boolean }) => void = () => {}
-    mockUpload.mockImplementation((o: { onSaved: (id: string) => void }) => {
-      o.onSaved('q2')
-      return new Promise((resolve) => {
-        finish = resolve
-      })
-    })
+    mockUpload.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve
+        }),
+    )
     const settle = vi.fn()
 
     startLocalUpload({ userId: 'u', sessionId: 's', answers: { q2: B, q3: B }, settle })
     await vi.advanceTimersByTimeAsync(UPLOAD_WAIT_MS)
-    finish({ saved: ['q2', 'q3'], complete: true })
+    finish({ saved: ['q2'], complete: false })
     await vi.advanceTimersByTimeAsync(0)
 
     expect(settle).toHaveBeenCalledTimes(1)
     expect(settle).toHaveBeenCalledWith(['q2'])
     expect(mockClear).not.toHaveBeenCalled()
+  })
+
+  it('clears the local copy before opening the runner when the upload completes after the wait limit', async () => {
+    let finish: (r: { saved: string[]; complete: boolean }) => void = () => {}
+    mockUpload.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve
+        }),
+    )
+    const order: string[] = []
+    mockClear.mockImplementation(() => order.push('clear'))
+    const settle = vi.fn(() => order.push('settle'))
+
+    startLocalUpload({ userId: 'u', sessionId: 's', answers: { q2: B }, settle })
+    await vi.advanceTimersByTimeAsync(UPLOAD_WAIT_MS)
+    finish({ saved: ['q2'], complete: true })
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(order).toEqual(['clear', 'settle'])
+  })
+
+  it('settles with the ids saved so far when the upload rejects after the wait limit', async () => {
+    let fail: (e: Error) => void = () => {}
+    mockUpload.mockImplementation((o: { onSaved: (id: string) => void }) => {
+      o.onSaved('q2')
+      return new Promise((_, reject) => {
+        fail = reject
+      })
+    })
+    const settle = vi.fn()
+
+    startLocalUpload({ userId: 'u', sessionId: 's', answers: { q2: B }, settle })
+    await vi.advanceTimersByTimeAsync(UPLOAD_WAIT_MS)
+    fail(new Error('network'))
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(settle).toHaveBeenCalledTimes(1)
+    expect(settle).toHaveBeenCalledWith(['q2'])
   })
 
   it('stops saving the next queued answer once the wait limit passes', async () => {

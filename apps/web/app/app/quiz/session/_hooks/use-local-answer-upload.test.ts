@@ -162,27 +162,30 @@ describe('useLocalAnswerUpload', () => {
     expect(result.current.answers).toEqual({ q1: A, q2: B })
   })
 
-  it('stops waiting after the wait limit and shows what the server saved so far', async () => {
+  it('keeps the runner closed after the wait limit until the save in progress returns, then shows it', async () => {
     vi.useFakeTimers()
     mockRead.mockReturnValue(local({ answers: { q2: B, q3: C } }))
+    let finish: (r: { saved: string[]; complete: boolean }) => void = () => {}
     mockUpload.mockImplementation((o: { onSaved: (id: string) => void }) => {
       o.onSaved('q2')
-      return new Promise(() => {})
+      return new Promise((r) => {
+        finish = r
+      })
     })
 
     const { result } = renderHook(() => useLocalAnswerUpload(props()))
     await settle()
-    expect(result.current.answers).toBeNull()
-
     await act(async () => {
       await vi.advanceTimersByTimeAsync(UPLOAD_WAIT_MS)
     })
+    expect(result.current.answers).toBeNull()
+    await act(async () => finish({ saved: ['q2'], complete: false }))
 
     expect(result.current.answers).toEqual({ q1: A, q2: B })
     expect(mockClear).not.toHaveBeenCalled()
   })
 
-  it('keeps the copy the open quiz now writes when an upload finishes after the wait limit', async () => {
+  it('shows the answers an upload finishing after the wait limit saved and clears the copy first', async () => {
     vi.useFakeTimers()
     mockRead.mockReturnValue(local())
     let finish: (r: typeof DONE) => void = () => {}
@@ -196,30 +199,11 @@ describe('useLocalAnswerUpload', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(UPLOAD_WAIT_MS)
     })
-    expect(result.current.answers).toEqual(SERVER)
+    expect(result.current.answers).toBeNull()
     await act(async () => finish(DONE))
 
-    expect(result.current.answers).toEqual(SERVER)
-    expect(mockClear).not.toHaveBeenCalled()
-  })
-
-  it('keeps the first outcome when the upload finishes after the wait limit', async () => {
-    vi.useFakeTimers()
-    mockRead.mockReturnValue(local())
-    let finish: (r: typeof DONE) => void = () => {}
-    mockUpload.mockReturnValue(
-      new Promise((r) => {
-        finish = r
-      }),
-    )
-
-    const { result } = renderHook(() => useLocalAnswerUpload(props()))
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(UPLOAD_WAIT_MS)
-    })
-    await act(async () => finish(DONE))
-
-    expect(result.current.answers).not.toHaveProperty('q2')
+    expect(result.current.answers).toHaveProperty('q2')
+    expect(mockClear).toHaveBeenCalledTimes(1)
   })
 
   it('shows the server answers and uploads nothing when the claim failed after the copy was read', async () => {
