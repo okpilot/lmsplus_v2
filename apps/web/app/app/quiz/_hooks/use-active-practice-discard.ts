@@ -38,9 +38,9 @@ export function useActivePracticeDiscard(
     setLoading(true)
     setError(null)
     // Clear regardless of the Server Action's outcome — respect discard intent even when it
-    // fails (mirrors discardQuizSession in quiz-submit.ts). This banner is DB-backed while the
-    // recovery banner is localStorage-backed, so leaving the key behind is what let a discarded
-    // session keep offering Resume (#1190).
+    // fails (mirrors discardQuizSession in quiz-submit.ts). This banner is DB-backed; the
+    // localStorage key is separate, and a surviving key once let a discarded session keep
+    // offering Resume (#1190).
     //
     // Guarded on the id: this banner is SERVER-rendered and never revalidated on focus, so a
     // stale tab can hold an old sessionId while localStorage has moved on to a newer session,
@@ -49,11 +49,7 @@ export function useActivePracticeDiscard(
     // grep it rather than trusting a list here. The only clears that stay unguarded are the
     // ones that never hold a snapshot: quiz-submit.ts runs inside the runner that owns the
     // session, and the two start handlers clear the OLD entry deliberately when opening a new
-    // one. (An earlier draft of this comment also exempted use-session-recovery.ts on the
-    // grounds that it "clears the entry it just read" — it never reads storage at all, its
-    // session arrives as a mount-time prop, and both its clears are now guarded too. Three
-    // successive versions of this enumeration were wrong, which is why the rule above is
-    // stated as a grep rather than a list.) The single-active-session invariant
+    // one. The single-active-session invariant
     // (docs/security.md §11d, mig 136) rules out two CONCURRENTLY live sessions but not a
     // stale render. In the #1190 case the two ids are equal, so this does not weaken the fix;
     // readActiveSession purges a malformed, cross-user or >7-day entry itself, so the false

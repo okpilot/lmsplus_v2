@@ -25,7 +25,7 @@ export function buildDiscardHandler(deps: ResumeExamDeps) {
     deps.setLoading(true)
     deps.setError(null)
     // Clear regardless of outcome — respect discard intent even when the Server Action fails
-    // (mirrors discardQuizSession in quiz-submit.ts); a surviving key is what let a discarded
+    // (mirrors discardQuizSession in quiz-submit.ts); a surviving key once let a discarded
     // session keep offering Resume (#1190). Guarded on the id because this banner is
     // server-rendered and never revalidated, so a stale tab could otherwise wipe a NEWER
     // session's answer buffer — for a mock_exam that is a graded attempt. See the fuller note

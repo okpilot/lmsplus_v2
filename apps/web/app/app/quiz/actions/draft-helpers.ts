@@ -12,11 +12,11 @@ export const MAX_DRAFTS = 20
 /**
  * Park a saved draft's underlying practice session: soft-delete the `quiz_sessions`
  * row so it stops tripping the single-active-session guard (#1011) and the
- * "unfinished session" banner (#1085). Best-effort — the draft is already saved, so
- * a failure here only leaves the pre-fix state (a lingering active session), never
- * loses the draft. Positive practice-mode allowlist: this must NEVER soft-delete a
- * graded exam (`internal_exam` / `vfr_rt_exam` / `mock_exam`) — a student could
- * otherwise abandon a graded exam via a crafted saveDraft call (the discard path
+ * "unfinished session" banner (#1085). Best-effort — a failure here only leaves the
+ * pre-fix state (a lingering active session); the draft stays intact. Positive
+ * practice-mode allowlist: this must NEVER soft-delete a graded exam (`internal_exam` /
+ * `vfr_rt_exam` / `mock_exam`) — a student could otherwise abandon a graded exam by
+ * resuming a crafted draft whose session id names one (the discard path
  * blocks this via NON_DISCARDABLE_MODES; we use a stricter positive allowlist).
  */
 export async function closePracticeSessionForDraft(
