@@ -120,6 +120,11 @@ describe('seedSessionFromDraft', () => {
     expect(rpcCalls('save_quiz_position')[0]?.p_current_index).toBe(2)
   })
 
+  it('seeds position 0 when the draft holds a negative position', async () => {
+    await seedSessionFromDraft({} as Client, SESSION, ctx({ currentIndex: -3 }))
+    expect(rpcCalls('save_quiz_position')[0]?.p_current_index).toBe(0)
+  })
+
   it('seeds the position of a draft with no answers', async () => {
     expect(await seedSessionFromDraft({} as Client, SESSION, ctx({ answers: null }))).toBe(true)
     expect(rpcCalls('save_quiz_answer')).toHaveLength(0)

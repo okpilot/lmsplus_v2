@@ -20,7 +20,12 @@ import {
   signInAs,
 } from '@/lib/integration-support/harness'
 import { claimQuizSession } from './quiz-progress'
-import { discardSavedQuiz, resumeSavedQuiz, saveQuizForLater } from './saved-quiz'
+import {
+  checkSavedQuizRoom,
+  discardSavedQuiz,
+  resumeSavedQuiz,
+  saveQuizForLater,
+} from './saved-quiz'
 
 const admin = getAdminClient()
 const suffix = fixtureSuffix()
@@ -31,6 +36,7 @@ const DEVICE_B = '00000000-0000-4000-a000-00000000bbb2'
 
 let orgId: string
 let studentId: string
+let otherStudentId: string | null = null
 let refs: ReferenceIds
 let questionIds: string[]
 let studentClient: Awaited<ReturnType<typeof getAuthenticatedClient>>
@@ -56,11 +62,11 @@ async function sessionRow(sessionId: string) {
   return data
 }
 
-async function insertSavedRows(count: number): Promise<void> {
+async function insertSavedRows(count: number, owner: string = studentId): Promise<void> {
   const now = new Date().toISOString()
   const rows = Array.from({ length: count }, () => ({
     organization_id: orgId,
-    student_id: studentId,
+    student_id: owner,
     mode: 'quick_quiz',
     config: { question_ids: questionIds },
     total_questions: questionIds.length,
@@ -118,7 +124,11 @@ describe('saved quiz actions (app-layer integration)', () => {
   afterAll(async () => {
     const errors: string[] = []
     try {
-      await cleanupTestData({ admin, orgId, userIds: [studentId] })
+      await cleanupTestData({
+        admin,
+        orgId,
+        userIds: [studentId, ...(otherStudentId ? [otherStudentId] : [])],
+      })
     } catch (e) {
       errors.push(`cleanupTestData: ${e instanceof Error ? e.message : String(e)}`)
     }
@@ -167,6 +177,34 @@ describe('saved quiz actions (app-layer integration)', () => {
       error: expect.stringMatching(/20 saved quizzes/i),
     })
     expect(await sessionRow(sessionId)).toMatchObject({ saved_at: null, deleted_at: null })
+  })
+
+  it('reports room for a start at 19 saved quizzes and refuses at 20, leaving a saved quiz untouched', async () => {
+    const savedId = await openSession()
+    await saveQuizForLater({ sessionId: savedId, deviceId: DEVICE_A })
+    await insertSavedRows(18)
+    expect(await checkSavedQuizRoom()).toEqual({ success: true })
+
+    await insertSavedRows(1)
+    expect(await checkSavedQuizRoom()).toEqual({
+      success: false,
+      error: expect.stringMatching(/20 saved quizzes/i),
+    })
+    expect((await sessionRow(savedId)).saved_at).not.toBeNull()
+  })
+
+  it("does not count another student's saved quizzes toward the cap", async () => {
+    otherStudentId = await createTestUser({
+      admin,
+      orgId,
+      email: `int-saved-other-${suffix}@test.local`,
+      password,
+      role: 'student',
+    })
+    await insertSavedRows(20, otherStudentId)
+    await signInAs(email, password)
+
+    expect(await checkSavedQuizRoom()).toEqual({ success: true })
   })
 
   it('refuses to resume while another session is open and keeps the quiz saved', async () => {

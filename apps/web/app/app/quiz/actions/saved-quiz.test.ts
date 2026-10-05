@@ -1,9 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockGetUser, mockRpc } = vi.hoisted(() => ({ mockGetUser: vi.fn(), mockRpc: vi.fn() }))
+const { mockGetUser, mockRpc, mockCount, mockEq } = vi.hoisted(() => ({
+  mockGetUser: vi.fn(),
+  mockRpc: vi.fn(),
+  mockCount: vi.fn(),
+  mockEq: vi.fn(),
+}))
 
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({ auth: { getUser: mockGetUser } }),
+  createServerSupabaseClient: async () => ({
+    auth: { getUser: mockGetUser },
+    from: () => ({
+      select: () => ({
+        eq: (...a: unknown[]) => {
+          mockEq(...a)
+          return { not: (...n: unknown[]) => mockCount(...n) }
+        },
+      }),
+    }),
+  }),
 }))
 
 vi.mock('@/lib/supabase-rpc', () => ({
@@ -11,7 +26,12 @@ vi.mock('@/lib/supabase-rpc', () => ({
 }))
 
 import { SIGN_IN } from './progress-error-messages'
-import { discardSavedQuiz, resumeSavedQuiz, saveQuizForLater } from './saved-quiz'
+import {
+  checkSavedQuizRoom,
+  discardSavedQuiz,
+  resumeSavedQuiz,
+  saveQuizForLater,
+} from './saved-quiz'
 
 const SESSION = '00000000-0000-4000-a000-000000000099'
 const DEVICE = '00000000-0000-4000-a000-0000000000d1'
@@ -21,6 +41,7 @@ beforeEach(() => {
   vi.spyOn(console, 'error').mockImplementation(() => {})
   mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } }, error: null })
   mockRpc.mockResolvedValue({ data: null, error: null })
+  mockCount.mockResolvedValue({ count: 0, error: null })
 })
 
 describe('saveQuizForLater', () => {
@@ -144,5 +165,35 @@ describe('discardSavedQuiz', () => {
       error: SIGN_IN,
     })
     expect(mockRpc).not.toHaveBeenCalled()
+  })
+})
+
+describe('checkSavedQuizRoom', () => {
+  it('allows a start while the student is under the saved-quiz cap', async () => {
+    mockCount.mockResolvedValue({ count: 19, error: null })
+    expect(await checkSavedQuizRoom()).toEqual({ success: true })
+    expect(mockEq).toHaveBeenCalledWith('student_id', 'u1')
+  })
+
+  it('tells the student when the saved-quiz cap is already reached', async () => {
+    mockCount.mockResolvedValue({ count: 20, error: null })
+    expect(await checkSavedQuizRoom()).toEqual({
+      success: false,
+      error: expect.stringMatching(/20 saved quizzes/i),
+    })
+  })
+
+  it('returns a generic message and logs when the count query fails', async () => {
+    mockCount.mockResolvedValue({ count: null, error: { message: 'relation secret_table failed' } })
+    const result = await checkSavedQuizRoom()
+    expect(result).toEqual({ success: false, error: expect.any(String) })
+    expect(JSON.stringify(result)).not.toContain('secret_table')
+    expect(console.error).toHaveBeenCalled()
+  })
+
+  it('rejects an unauthenticated caller without querying', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
+    expect(await checkSavedQuizRoom()).toEqual({ success: false, error: SIGN_IN })
+    expect(mockCount).not.toHaveBeenCalled()
   })
 })

@@ -63,7 +63,7 @@ function toFeedbackEntry(e: unknown): AnswerFeedback | null {
       // localStorage path in quiz-session-validators isValidDialogFillFeedback):
       // a single malformed blank voids the whole record rather than casting a
       // partially-typed array through. `length > 0` matches that validator, the
-      // save schema (draft-schema .min(1)) and the RPC guard (isDialogFillRpcResult)
+      // draft save schema that wrote these legacy rows (since removed, .min(1)) and the RPC guard (isDialogFillRpcResult)
       // — an empty blanks array is corrupt, since dialog_fill always grades ≥1 blank.
       return Array.isArray(r.blanks) && r.blanks.length > 0 && r.blanks.every(isDialogBlankResult)
         ? { questionType: 'dialog_fill', blanks: r.blanks as DialogBlankResult[], ...base }
@@ -71,7 +71,7 @@ function toFeedbackEntry(e: unknown): AnswerFeedback | null {
     case 'ordering':
       // Sibling-validator parity (agent-semantic-reviewer.md, count=3): mirror the
       // ordering branch of isValidFeedbackEntry (sessionStorage rehydrate) + the
-      // draft-schema save union (.min(2) + unique) — a correctOrder array of ≥2
+      // removed draft save union that wrote these legacy rows (.min(2) + unique) — a correctOrder array of ≥2
       // unique non-empty strings (an ordering question always has ≥2 items, and the
       // canonical order is a permutation so the ids are unique). Without this case the
       // load path returned null for ordering and toFeedbackRecord discarded the

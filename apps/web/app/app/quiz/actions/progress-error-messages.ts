@@ -14,6 +14,8 @@ const BAD_PROGRESS = 'Your progress could not be saved. Reload the page and try 
 const NO_QUESTION = 'That question is not part of this session.'
 export const SIGN_IN = 'Your sign-in has expired. Please sign in again.'
 const NO_FEATURE = 'This session type does not support saving progress.'
+export const SAVED_QUIZ_LIMIT =
+  'You can keep up to 20 saved quizzes. Discard one before saving another.'
 const DAMAGED = 'This session is damaged and cannot save progress. Please start a new one.'
 
 // Exported so a co-located test can assert the invariant holds as keys are added.
@@ -28,8 +30,7 @@ export const PROGRESS_ERROR_MESSAGES: Record<string, string> = {
   session_ended: 'This session has already ended.',
   session_saved: 'This quiz was saved for later. Resume it from your saved quizzes.',
   session_not_saved: 'This quiz is not in your saved quizzes.',
-  saved_quiz_limit_reached:
-    'You can keep up to 20 saved quizzes. Discard one before saving another.',
+  saved_quiz_limit_reached: SAVED_QUIZ_LIMIT,
   another_session_active: 'You already have an active session. Finish, save or discard it first.',
   unsupported_session_mode: NO_FEATURE,
   session_expired:

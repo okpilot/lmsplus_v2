@@ -485,11 +485,8 @@ async function seed() {
   // FIVE, because two separate things depend on the count and the larger one wins:
   //   - `current_index: 2` below is an INDEX, so it needs at least 3 ids to be in range;
   //   - checklist item 19 hardcodes "progress bar (2/5)", which assumes exactly 5.
-  // The read path does NOT bounds-check: `rowToDraftData` passes `current_index` through, and
-  // `loadDraftForResume` selects only question_ids + session_config. `draft-schema.ts` rejects
-  // `currentIndex >= questionIds.length` on the WRITE path only (its sole consumer is
-  // `saveDraft`), so an out-of-range draft loads fine and then strands the student: the runner
-  // resumes past the end and their next save is rejected as invalid input.
+  // Resume clamps the index: `resume-seed.ts` seeds position
+  // `max(0, min(current_index, question_ids.length - 1))`, so an out-of-range draft still resumes.
   if (draftQuestionIds.length < 5) {
     throw new Error(`Draft seed needs >= 5 questions, got ${draftQuestionIds.length}`)
   }

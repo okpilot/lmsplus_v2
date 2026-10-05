@@ -14,7 +14,7 @@ export type SavedQuizSession = {
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
 // The server caps saved quizzes at 20 per student (save_quiz_for_later); the bound is explicit.
-const MAX_SAVED_QUIZZES = 20
+export const MAX_SAVED_QUIZZES = 20
 
 type SavedRow = {
   id: string

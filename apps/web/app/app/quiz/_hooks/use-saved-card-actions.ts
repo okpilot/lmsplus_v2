@@ -1,5 +1,6 @@
 import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
+import { isDisplayableProgressError } from '../actions/progress-error-messages'
 import { discardSavedQuiz, resumeSavedQuiz } from '../actions/saved-quiz'
 import { getQuizDeviceId } from '../session/_utils/quiz-device-id'
 
@@ -27,7 +28,9 @@ function useResume(sessionId: string, setError: SetError) {
     setError(null)
     try {
       const result = await resumeSavedQuiz({ sessionId, deviceId: getQuizDeviceId() })
-      if (!result.success) return fail(result.error)
+      if (!result.success) {
+        return fail(isDisplayableProgressError(result.error) ? result.error : RESUME_ERROR)
+      }
     } catch {
       return fail(RESUME_ERROR)
     }
@@ -50,7 +53,7 @@ function useDelete(sessionId: string, setError: SetError) {
     try {
       const result = await discardSavedQuiz({ sessionId })
       if (result.success) return router.refresh()
-      setError(result.error)
+      setError(isDisplayableProgressError(result.error) ? result.error : DISCARD_ERROR)
     } catch {
       setError(DISCARD_ERROR)
     } finally {

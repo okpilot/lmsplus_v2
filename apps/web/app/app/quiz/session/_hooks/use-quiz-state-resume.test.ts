@@ -14,7 +14,6 @@ vi.mock('../../actions/quiz-progress', () => ({
 }))
 vi.mock('../../actions/check-answer', () => ({ checkAnswer: vi.fn() }))
 vi.mock('../../_hooks/use-navigation-guard', () => ({ useNavigationGuard: vi.fn() }))
-vi.mock('./use-quiz-persistence', () => ({ useQuizPersistence: () => ({ checkpoint: vi.fn() }) }))
 
 import { useQuizState } from './use-quiz-state'
 

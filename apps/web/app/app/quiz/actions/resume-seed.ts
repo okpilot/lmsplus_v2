@@ -62,7 +62,7 @@ function toSaveAnswerArgs(
   }
 }
 
-/** Writes the draft's answers, then its position (clamped to the question count), to the session. */
+/** Writes the draft's answers, then its position (clamped to [0, last question]), to the session. */
 export async function seedSessionFromDraft(
   supabase: SupabaseClient,
   sessionId: string,
@@ -89,7 +89,7 @@ export async function seedSessionFromDraft(
   }
   const { error } = await rpc<null>(supabase, 'save_quiz_position', {
     p_session_id: sessionId,
-    p_current_index: Math.min(ctx.currentIndex, ctx.questionIds.length - 1),
+    p_current_index: Math.max(0, Math.min(ctx.currentIndex, ctx.questionIds.length - 1)),
     p_pinned_question_ids: [],
     p_device_id: deviceId,
   })

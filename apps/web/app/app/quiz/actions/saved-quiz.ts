@@ -2,8 +2,9 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
+import { MAX_SAVED_QUIZZES } from '@/lib/queries/load-saved-quizzes'
 import { rpc } from '@/lib/supabase-rpc'
-import { SIGN_IN } from './progress-error-messages'
+import { SAVED_QUIZ_LIMIT, SIGN_IN } from './progress-error-messages'
 import { type ProgressResult, toProgressResult } from './quiz-progress-helpers'
 
 const SaveInput = z.object({ sessionId: z.uuid(), deviceId: z.uuid() }).strict()
@@ -12,13 +13,41 @@ const DiscardInput = z.object({ sessionId: z.uuid() }).strict()
 const INVALID: ProgressResult = { success: false, error: 'Invalid input' }
 const UNAUTHENTICATED: ProgressResult = { success: false, error: SIGN_IN }
 
-async function authedClient() {
+async function authedUser() {
   const supabase = await createServerSupabaseClient()
   const {
     data: { user },
     error,
   } = await supabase.auth.getUser()
-  return error || !user ? null : supabase
+  return error || !user ? null : { supabase, uid: user.id }
+}
+
+async function authedClient() {
+  return (await authedUser())?.supabase ?? null
+}
+
+/**
+ * Pre-flight for the blocked-start flow: refuses when the student already holds the saved-quiz
+ * cap, so nothing is claimed first. save_quiz_for_later still enforces the cap; this only avoids
+ * a takeover that the refused save would leave behind. Saved rows are soft-deleted by design,
+ * so there is no deleted_at filter.
+ */
+export async function checkSavedQuizRoom(): Promise<ProgressResult> {
+  const auth = await authedUser()
+  if (!auth) return UNAUTHENTICATED
+  const { count, error } = await auth.supabase
+    .from('quiz_sessions')
+    .select('id', { count: 'exact', head: true })
+    .eq('student_id', auth.uid)
+    .not('saved_at', 'is', null)
+  if (error) {
+    console.error('[checkSavedQuizRoom] Count error:', error.message)
+    return { success: false, error: 'Could not check your saved quizzes' }
+  }
+  if ((count ?? 0) >= MAX_SAVED_QUIZZES) {
+    return { success: false, error: SAVED_QUIZ_LIMIT }
+  }
+  return { success: true }
 }
 
 /** Parks the open practice quiz as saved on the same session id. A retried save succeeds. */

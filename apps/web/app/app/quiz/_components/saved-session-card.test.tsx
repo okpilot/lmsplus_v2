@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { PROGRESS_ERROR_MESSAGES } from '../actions/progress-error-messages'
 
 const { mockResume, mockDiscard, mockPush, mockRefresh, mockDeviceId } = vi.hoisted(() => ({
   mockResume: vi.fn(),
@@ -55,11 +56,16 @@ describe('SavedSessionCard', () => {
   })
 
   it('shows the mapped error and stays on the page when resume fails', async () => {
-    mockResume.mockResolvedValue({ success: false, error: 'Finish your open quiz first.' })
+    mockResume.mockResolvedValue({
+      success: false,
+      error: PROGRESS_ERROR_MESSAGES.another_session_active,
+    })
     render(<SavedSessionCard session={SAVED} />)
     fireEvent.click(screen.getByTestId('resume-saved-session'))
 
-    expect(await screen.findByText('Finish your open quiz first.')).toBeInTheDocument()
+    expect(
+      await screen.findByText(PROGRESS_ERROR_MESSAGES.another_session_active ?? ''),
+    ).toBeInTheDocument()
     expect(mockPush).not.toHaveBeenCalled()
   })
 
@@ -101,11 +107,16 @@ describe('SavedSessionCard', () => {
   })
 
   it('shows the mapped error and does not refresh when discard fails', async () => {
-    mockDiscard.mockResolvedValue({ success: false, error: 'Could not discard.' })
+    mockDiscard.mockResolvedValue({
+      success: false,
+      error: PROGRESS_ERROR_MESSAGES.session_not_saved,
+    })
     render(<SavedSessionCard session={SAVED} />)
     fireEvent.click(screen.getByTestId('delete-saved-session'))
 
-    expect(await screen.findByText('Could not discard.')).toBeInTheDocument()
+    expect(
+      await screen.findByText(PROGRESS_ERROR_MESSAGES.session_not_saved ?? ''),
+    ).toBeInTheDocument()
     expect(mockRefresh).not.toHaveBeenCalled()
   })
 })

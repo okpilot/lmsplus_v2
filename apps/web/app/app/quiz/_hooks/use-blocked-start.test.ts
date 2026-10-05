@@ -1,9 +1,10 @@
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockClaim, mockSave, mockDeviceId } = vi.hoisted(() => ({
+const { mockClaim, mockSave, mockRoom, mockDeviceId } = vi.hoisted(() => ({
   mockClaim: vi.fn(),
   mockSave: vi.fn(),
+  mockRoom: vi.fn(),
   mockDeviceId: vi.fn(),
 }))
 
@@ -12,6 +13,7 @@ vi.mock('../actions/quiz-progress', () => ({
 }))
 vi.mock('../actions/saved-quiz', () => ({
   saveQuizForLater: (...args: unknown[]) => mockSave(...args),
+  checkSavedQuizRoom: (...args: unknown[]) => mockRoom(...args),
 }))
 vi.mock('../session/_utils/quiz-device-id', () => ({
   getQuizDeviceId: () => mockDeviceId(),
@@ -27,6 +29,7 @@ beforeEach(() => {
   mockDeviceId.mockReturnValue(DEVICE)
   mockClaim.mockResolvedValue({ success: true })
   mockSave.mockResolvedValue({ success: true })
+  mockRoom.mockResolvedValue({ success: true })
 })
 
 function renderWithOffer() {
@@ -57,6 +60,19 @@ describe('useBlockedStart', () => {
     expect(mockClaim).toHaveBeenCalledWith({ sessionId: 'blocker-1', deviceId: DEVICE })
     expect(mockSave).toHaveBeenCalledWith({ sessionId: 'blocker-1', deviceId: DEVICE })
     expect(result.current.offer).toBeNull()
+  })
+
+  it('shows the limit copy and neither takes over nor saves when the saved quizzes are full', async () => {
+    mockRoom.mockResolvedValue({ success: false, error: 'You can keep up to 20 saved quizzes.' })
+    const start = vi.fn()
+    const { result } = renderWithOffer()
+
+    await act(async () => result.current.accept(start))
+
+    expect(result.current.error).toBe('You can keep up to 20 saved quizzes.')
+    expect(mockClaim).not.toHaveBeenCalled()
+    expect(mockSave).not.toHaveBeenCalled()
+    expect(start).not.toHaveBeenCalled()
   })
 
   it('shows the claim error and does not save or start when the takeover fails', async () => {
