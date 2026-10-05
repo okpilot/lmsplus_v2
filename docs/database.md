@@ -551,7 +551,7 @@ CREATE TABLE quiz_drafts (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   student_id      UUID NOT NULL REFERENCES users(id),
   organization_id UUID NOT NULL REFERENCES organizations(id),
-  session_config  JSONB NOT NULL DEFAULT '{}',  -- { sessionId, subjectName?, subjectCode? } — sessionId repointed on resume (#1085)
+  session_config  JSONB NOT NULL DEFAULT '{}',  -- { sessionId, subjectName?, subjectCode? } — resume seeds a fresh session from the draft, then deletes the draft
   question_ids    UUID[] NOT NULL,
   answers         JSONB NOT NULL DEFAULT '{}',   -- Record<questionId, { selectedOptionId, responseTimeMs }>
   feedback        JSONB NULL,                    -- Record<questionId, { isCorrect, correctOptionId, explanationText, explanationImageUrl }>
