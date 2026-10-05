@@ -1,11 +1,14 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockPush, mockStartInternalExam, mockGetActivePracticeSession } = vi.hoisted(() => ({
-  mockPush: vi.fn(),
-  mockStartInternalExam: vi.fn(),
-  mockGetActivePracticeSession: vi.fn(),
-}))
+const { mockPush, mockStartInternalExam, mockGetActivePracticeSession, mockRoom } = vi.hoisted(
+  () => ({
+    mockPush: vi.fn(),
+    mockStartInternalExam: vi.fn(),
+    mockGetActivePracticeSession: vi.fn(),
+    mockRoom: vi.fn(),
+  }),
+)
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mockPush }) }))
 vi.mock('../actions/start-internal-exam', () => ({
@@ -19,6 +22,7 @@ vi.mock('@/app/app/quiz/actions/quiz-progress', () => ({
 }))
 vi.mock('@/app/app/quiz/actions/saved-quiz', () => ({
   saveQuizForLater: vi.fn().mockResolvedValue({ success: true }),
+  checkSavedQuizRoom: (...args: unknown[]) => mockRoom(...args),
 }))
 
 import { useCodeEntryStart } from './use-code-entry-start'
@@ -113,5 +117,29 @@ describe('useCodeEntryStart', () => {
 
     expect(result.current.error).toBeNull()
     expect(result.current.blocked.offer).toBeNull()
+  })
+
+  it('clears an earlier save-for-later error when the dialog is reset', async () => {
+    mockStartInternalExam.mockResolvedValue({
+      success: false,
+      error: 'Another session is active',
+      blocked: true,
+    })
+    mockGetActivePracticeSession.mockResolvedValue({
+      success: true,
+      session: { sessionId: 'blocker-1', subjectName: 'Air Law' },
+    })
+    mockRoom.mockResolvedValue({ success: false, error: 'You can keep up to 20 saved quizzes.' })
+    const { result } = renderHook(() => useCodeEntryStart('ABCD2345'))
+    act(() => result.current.start())
+    await waitFor(() => expect(result.current.blocked.offer).not.toBeNull())
+    await act(async () => result.current.blocked.onAccept())
+    await waitFor(() =>
+      expect(result.current.blocked.error).toBe('You can keep up to 20 saved quizzes.'),
+    )
+
+    act(() => result.current.reset())
+
+    expect(result.current.blocked.error).toBeNull()
   })
 })

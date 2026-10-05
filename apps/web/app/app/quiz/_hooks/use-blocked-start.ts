@@ -57,7 +57,13 @@ export function useBlockedStart() {
     }
   }
 
-  return { offer, setOffer, saving, error, accept }
+  // An offer shown or hidden from outside starts with no error from an earlier accept.
+  function showOffer(next: BlockedOffer | null) {
+    setError(null)
+    setOffer(next)
+  }
+
+  return { offer, setOffer: showOffer, saving, error, accept }
 }
 
 /** The alert's view of the blocked-start state, with accept bound to the start to re-run. */

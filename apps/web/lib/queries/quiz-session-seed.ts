@@ -2,7 +2,7 @@ import type { DiagramMappingEntry } from '@/app/app/quiz/actions/diagram-validat
 import { clampIndex } from '@/app/app/quiz/session/_utils/clamp-index'
 import type { DraftAnswer } from '@/app/app/quiz/types'
 
-export type ProgressRow = { question_id: string; answer: unknown; time_spent_ms: number }
+type ProgressRow = { question_id: string; answer: unknown; time_spent_ms: number }
 
 export type SessionSeed = {
   answers: Record<string, DraftAnswer>

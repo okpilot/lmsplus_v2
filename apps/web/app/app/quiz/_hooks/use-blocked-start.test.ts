@@ -133,4 +133,19 @@ describe('useBlockedStart', () => {
     expect(mockClaim).not.toHaveBeenCalled()
     expect(start).not.toHaveBeenCalled()
   })
+
+  it('clears an earlier error when a new offer is shown or the offer is hidden', async () => {
+    mockRoom.mockResolvedValue({ success: false, error: 'You can keep up to 20 saved quizzes.' })
+    const { result } = renderWithOffer()
+    await act(async () => result.current.accept(vi.fn()))
+    expect(result.current.error).toBe('You can keep up to 20 saved quizzes.')
+
+    act(() => result.current.setOffer(OFFER))
+    expect(result.current.error).toBeNull()
+
+    await act(async () => result.current.accept(vi.fn()))
+    expect(result.current.error).toBe('You can keep up to 20 saved quizzes.')
+    act(() => result.current.setOffer(null))
+    expect(result.current.error).toBeNull()
+  })
 })
