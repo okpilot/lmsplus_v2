@@ -1,17 +1,13 @@
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockBootstrap, mockUpload, quizProps } = vi.hoisted(() => ({
+const { mockBootstrap, quizProps } = vi.hoisted(() => ({
   mockBootstrap: vi.fn(),
-  mockUpload: vi.fn(),
   quizProps: { current: null as Record<string, unknown> | null },
 }))
 
 vi.mock('../_hooks/use-server-session-bootstrap', () => ({
   useServerSessionBootstrap: (...a: unknown[]) => mockBootstrap(...a),
-}))
-vi.mock('../_hooks/use-local-answer-upload', () => ({
-  useLocalAnswerUpload: (...a: unknown[]) => mockUpload(...a),
 }))
 vi.mock('./quiz-session', () => ({
   QuizSession: (p: Record<string, unknown>) => {
@@ -46,9 +42,6 @@ beforeEach(() => {
   vi.resetAllMocks()
   quizProps.current = null
   mockBootstrap.mockReturnValue({ questions: Q, flaggedIds: ['q1'], claimError: null, error: null })
-  mockUpload.mockImplementation(({ serverAnswers }: { serverAnswers: unknown }) => ({
-    answers: serverAnswers,
-  }))
 })
 
 describe('ServerSessionLoader', () => {
@@ -76,14 +69,6 @@ describe('ServerSessionLoader', () => {
     render(<ServerSessionLoader userId="u1" entry={ENTRY} />)
 
     expect(screen.getByRole('alert')).toHaveTextContent('No questions found')
-  })
-
-  it('waits for the local copy to be read before mounting the runner', () => {
-    mockUpload.mockReturnValue({ answers: null })
-
-    render(<ServerSessionLoader userId="u1" entry={ENTRY} />)
-
-    expect(screen.queryByTestId('quiz-session')).not.toBeInTheDocument()
   })
 
   it('continues where the student left off', () => {
@@ -135,33 +120,6 @@ describe('ServerSessionLoader', () => {
     render(<ServerSessionLoader userId="u1" entry={ENTRY} />)
 
     expect(quizProps.current?.initialSaveError).toBe('Another tab')
-  })
-
-  it('uploads local answers only after a claim that landed without error', () => {
-    render(<ServerSessionLoader userId="u1" entry={ENTRY} />)
-    expect(mockUpload).toHaveBeenLastCalledWith(expect.objectContaining({ claimed: true }))
-
-    mockBootstrap.mockReturnValue({
-      questions: Q,
-      flaggedIds: [],
-      claimError: 'Another tab',
-      error: null,
-    })
-    render(<ServerSessionLoader userId="u1" entry={ENTRY} />)
-    expect(mockUpload).toHaveBeenLastCalledWith(expect.objectContaining({ claimed: false }))
-  })
-
-  it('tells the upload when the claim failed', () => {
-    mockBootstrap.mockReturnValue({
-      questions: Q,
-      flaggedIds: [],
-      claimError: 'Another tab',
-      error: null,
-    })
-
-    render(<ServerSessionLoader userId="u1" entry={ENTRY} />)
-
-    expect(mockUpload).toHaveBeenLastCalledWith(expect.objectContaining({ claimFailed: true }))
   })
 
   it('still mounts the runner when the claim failed', () => {
