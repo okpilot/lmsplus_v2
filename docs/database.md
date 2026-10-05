@@ -371,7 +371,7 @@ CREATE TABLE quiz_sessions (
 - `CHECK (saved_at IS NULL OR (mode IN ('quick_quiz','smart_review') AND ended_at IS NULL))` — practice modes, unended rows only.
 - Partial index `idx_quiz_sessions_saved ON quiz_sessions(student_id) WHERE saved_at IS NOT NULL`.
 
-Cap: 20 saved sessions per student, enforced in `save_quiz_for_later`. Separate from the 20-draft `quiz_drafts` cap (trigger `check_draft_limit`) until PR 3 retires `quiz_drafts`.
+Cap: 20 saved sessions per student, enforced in `save_quiz_for_later`. Separate from the 20-draft `quiz_drafts` cap (trigger `check_draft_limit`). Since #1026 PR 3 the app writes no new `quiz_drafts` rows; existing ones resume into a new session and are deleted.
 
 **No student INSERT (migration `20261002000900`, red-team GK/GL, #1026):** policy `students_insert_sessions` is dropped and `INSERT` is revoked from `authenticated`. Rows are created only by the SECURITY DEFINER start RPCs. Student policies left: `students_select_sessions`, `students_update_sessions`. `students_update_sessions` reaches live rows only: `USING (student_id = auth.uid() AND ended_at IS NULL AND deleted_at IS NULL)` (migration `20261003000400`, red-team GP) — a student cannot revive a discarded or saved session.
 
