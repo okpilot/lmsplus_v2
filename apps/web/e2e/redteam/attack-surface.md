@@ -232,6 +232,11 @@
 | HD | quiz-session-id-route-foreign-ended-discarded-saved | MEDIUM | quiz-session-id-route-enumeration.spec.ts | BLOCKED |  | enumeration |
 | HE | quiz-session-id-route-crafted-id-redirect | MEDIUM | quiz-session-id-route-enumeration.spec.ts | BLOCKED |  | open-redirect |
 | HF | resumeQuizSession-draft-seed-fanout | LOW | quiz-draft-resume-seed-fanout.spec.ts | BLOCKED |  | rate-limit |
+| HG | recheckRestoredAnswers-foreign-session | HIGH | server-action-recheck-answers.spec.ts | BLOCKED |  | idor |
+| HH | recheckRestoredAnswers-exam-session-key | HIGH | server-action-recheck-answers.spec.ts | BLOCKED |  | answer-oracle |
+| HI | recheckRestoredAnswers-taken-over-device | MEDIUM | server-action-recheck-answers.spec.ts | BLOCKED |  | auth-bypass |
+| HJ | recheckRestoredAnswers-batch-over-cap | MEDIUM | server-action-recheck-answers.spec.ts | BLOCKED |  | rate-limit |
+| HK | recheckRestoredAnswers-timeSpentMs-or-foreign-question-item | MEDIUM | server-action-recheck-answers.spec.ts | BLOCKED |  | mass-assignment |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 

@@ -69,3 +69,5 @@ export const E2E_REDTEAM_QR_MARKER = '[E2E_REDTEAM_QR]'
 // draft-resume seed specs (Vectors HC, HF, #1026 PR 3): written into fixture quiz_sessions as
 // `config.e2e_marker` and into fixture quiz_drafts as `session_config.subjectName`.
 export const E2E_REDTEAM_DS_MARKER = '[E2E_REDTEAM_DS]'
+// recheck-restored-answers spec (Vectors HG-HK): written into fixture quiz_sessions as `config.e2e_marker`.
+export const E2E_REDTEAM_RC_MARKER = '[E2E_REDTEAM_RC]'
