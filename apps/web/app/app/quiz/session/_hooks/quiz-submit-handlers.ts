@@ -2,6 +2,9 @@ import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.
 import type { SessionQuestion } from '@/app/app/_types/session'
 import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
 import type { DraftAnswer } from '../../types'
+import { getConnectionStatus } from '../_utils/connection-state'
+import { resendUnsavedAnswers } from '../_utils/progress-sync-saves'
+import { isTakenOver } from '../_utils/session-takeover'
 import { whenQueueIdle } from '../_utils/with-reconnect'
 import { reportUrl } from './exam-report-paths'
 import { handleDiscardSession, handleSaveSession, handleSubmitSession } from './quiz-submit'
@@ -136,15 +139,34 @@ export function buildHandleSubmit(
   }
 }
 
+const UNSAVED_ANSWERS_ERROR =
+  'Some answers have not saved yet. Check your connection and try again.'
+
+/** Re-sends failed answer saves; when one still fails, shows why and stops the save. */
+async function resendOrStop(deps: BaseDeps, shared: ReturnType<ReturnType<typeof buildSharedFor>>) {
+  let mapped: string | null = null
+  const saved = await resendUnsavedAnswers({
+    sessionId: deps.sessionId,
+    onMappedError: (m) => {
+      mapped = m
+    },
+  })
+  if (saved) return true
+  // The takeover and sign-in overlays already explain why; no message behind them.
+  if (!isTakenOver(deps.sessionId) && getConnectionStatus() !== 'signed-out') {
+    shared.setError(mapped ?? UNSAVED_ANSWERS_ERROR)
+  }
+  shared.setSubmitting(false)
+  return false
+}
+
 export function buildHandleSave(deps: BaseDeps) {
   const sharedFor = buildSharedFor(deps)
   return async function handleSave() {
-    await waitForQueuedSaves(sharedFor('save'))
-    return handleSaveSession({
-      userId: deps.userId,
-      sessionId: deps.sessionId,
-      ...sharedFor('save'),
-    })
+    const shared = sharedFor('save')
+    await waitForQueuedSaves(shared)
+    if (!(await resendOrStop(deps, shared))) return
+    return handleSaveSession({ userId: deps.userId, sessionId: deps.sessionId, ...shared })
   }
 }
 

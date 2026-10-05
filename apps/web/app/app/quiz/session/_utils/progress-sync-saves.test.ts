@@ -7,8 +7,14 @@ vi.mock('./progress-save', async (orig) => ({
   fireProgressSave: (...a: unknown[]) => mockFire(...a),
 }))
 
-import { buildRunnerSaves, sendAnswerSave, sendPositionSave } from './progress-sync-saves'
+import {
+  buildRunnerSaves,
+  resendUnsavedAnswers,
+  sendAnswerSave,
+  sendPositionSave,
+} from './progress-sync-saves'
 import { _resetQuizDeviceId } from './quiz-device-id'
+import { _resetUnsavedAnswers } from './unsaved-answers'
 
 const SESSION = '00000000-0000-4000-a000-000000000001'
 const QID = '00000000-0000-4000-a000-000000000011'
@@ -16,7 +22,9 @@ const handlers = { onSuccess: vi.fn(), onMappedError: vi.fn() }
 
 beforeEach(() => {
   vi.resetAllMocks()
+  mockFire.mockResolvedValue(true)
   _resetQuizDeviceId()
+  _resetUnsavedAnswers()
   vi.spyOn(Date, 'now').mockReturnValue(1_005_000)
 })
 
@@ -112,5 +120,50 @@ describe('buildRunnerSaves', () => {
     saves.savePosition(1, new Set(), true)
     saves.saveAnswer({ selectedOptionId: 'b' })
     expect(mockFire).not.toHaveBeenCalled()
+  })
+})
+
+describe('resendUnsavedAnswers', () => {
+  const settle = () => new Promise((r) => setTimeout(r, 0))
+  const send = (answer: string) =>
+    sendAnswerSave({
+      sessionId: SESSION,
+      questionId: QID,
+      draft: { selectedOptionId: answer },
+      startedAt: 1_000_000,
+      ...handlers,
+    })
+  const sentInput = (n: number) =>
+    (mockFire.mock.calls[n]?.[0] as { input: unknown } | undefined)?.input
+  const resend = () => resendUnsavedAnswers({ sessionId: SESSION, onMappedError: vi.fn() })
+
+  it('re-sends a failed answer save with the same input and resolves true when it lands', async () => {
+    mockFire.mockResolvedValueOnce(false)
+    send('a')
+    await settle()
+    const original = sentInput(0)
+    mockFire.mockResolvedValueOnce(true)
+    await expect(resend()).resolves.toBe(true)
+    expect(mockFire).toHaveBeenCalledTimes(2)
+    expect(sentInput(1)).toBe(original)
+  })
+
+  it('resolves false when the re-sent save fails again', async () => {
+    mockFire.mockResolvedValue(false)
+    send('a')
+    await settle()
+    await expect(resend()).resolves.toBe(false)
+  })
+
+  it('resolves true and sends nothing when no answer save failed', async () => {
+    await expect(resend()).resolves.toBe(true)
+    expect(mockFire).not.toHaveBeenCalled()
+  })
+
+  it('does not re-send an answer save that landed', async () => {
+    send('a')
+    await settle()
+    await resend()
+    expect(mockFire).toHaveBeenCalledTimes(1)
   })
 })

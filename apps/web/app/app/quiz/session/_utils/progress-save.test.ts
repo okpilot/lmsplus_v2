@@ -170,4 +170,37 @@ describe('fireProgressSave', () => {
       fireProgressSave({ kind: 'answer', sessionId: 's', input: {}, ...handlers() }),
     ).not.toThrow()
   })
+
+  it('resolves true when the save succeeded', async () => {
+    mockSaveAnswer.mockResolvedValue({ success: true })
+    await expect(
+      fireProgressSave({ kind: 'answer', sessionId: 's', input: {}, ...handlers() }),
+    ).resolves.toBe(true)
+  })
+
+  it('resolves false when the save failed', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    mockSaveAnswer.mockResolvedValue({ success: false, error: 'Could not save progress' })
+    await expect(
+      fireProgressSave({ kind: 'answer', sessionId: 's', input: {}, ...handlers() }),
+    ).resolves.toBe(false)
+  })
+
+  it('resolves false when the save throws', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    mockSaveAnswer.mockImplementation(() => {
+      throw new Error('boom')
+    })
+    await expect(
+      fireProgressSave({ kind: 'answer', sessionId: 's', input: {}, ...handlers() }),
+    ).resolves.toBe(false)
+  })
+
+  it('resolves false without sending once the session was taken over', async () => {
+    markTakenOver('s')
+    await expect(
+      fireProgressSave({ kind: 'answer', sessionId: 's', input: {}, ...handlers() }),
+    ).resolves.toBe(false)
+    expect(mockSaveAnswer).not.toHaveBeenCalled()
+  })
 })

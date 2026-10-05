@@ -72,25 +72,31 @@ export function buildPositionInput(opts: PositionInputOpts) {
 type SaveKind = 'answer' | 'position'
 
 /**
- * Fire-and-forget progress save. Never throws and is never awaited by callers. A mapped
- * (displayable) failure goes to onMappedError; anything else is a console.warn only.
+ * Fire-and-forget progress save. Never throws or rejects; callers may ignore the result. Resolves
+ * true only when the save succeeded. A mapped (displayable) failure goes to onMappedError;
+ * anything else is a console.warn only.
  */
-export function fireProgressSave(opts: {
+export async function fireProgressSave(opts: {
   kind: SaveKind
   sessionId: string
   input: unknown
   onSuccess: () => void
   onMappedError: (message: string) => void
-}): void {
-  if (isTakenOver(opts.sessionId)) return
+}): Promise<boolean> {
+  if (isTakenOver(opts.sessionId)) return false
   const save = opts.kind === 'answer' ? saveQuizAnswer : saveQuizPosition
-  withTakeoverCheck(opts.sessionId, () => withReconnect(() => save(opts.input)))
-    .then((r) => {
-      if (r.success) return opts.onSuccess()
-      // The overlay already says the sign-in expired; no second message behind it.
-      if (getConnectionStatus() === 'signed-out') return
-      if (isDisplayableProgressError(r.error)) return opts.onMappedError(r.error)
-      console.warn(`[progress-save] ${opts.kind} save failed (best-effort):`, r.error)
-    })
-    .catch((err) => console.warn(`[progress-save] ${opts.kind} save failed (best-effort):`, err))
+  try {
+    const r = await withTakeoverCheck(opts.sessionId, () => withReconnect(() => save(opts.input)))
+    if (r.success) {
+      opts.onSuccess()
+      return true
+    }
+    // The overlay already says the sign-in expired; no second message behind it.
+    if (getConnectionStatus() === 'signed-out') return false
+    if (isDisplayableProgressError(r.error)) opts.onMappedError(r.error)
+    else console.warn(`[progress-save] ${opts.kind} save failed (best-effort):`, r.error)
+  } catch (err) {
+    console.warn(`[progress-save] ${opts.kind} save failed (best-effort):`, err)
+  }
+  return false
 }

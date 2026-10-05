@@ -1,6 +1,7 @@
 import type { DraftAnswer } from '../../types'
 import { buildAnswerInput, buildPositionInput, fireProgressSave } from './progress-save'
 import { getQuizDeviceId } from './quiz-device-id'
+import { failedAnswers, settleAnswerSend, trackAnswerSend } from './unsaved-answers'
 
 type SaveHandlers = {
   onSuccess: () => void
@@ -53,13 +54,35 @@ export function sendAnswerSave(opts: AnswerSaveOpts): void {
     timeSpentMs: Date.now() - opts.startedAt,
   })
   if (!input) return
-  fireProgressSave({
+  const { sessionId, questionId } = opts
+  trackAnswerSend({ sessionId, questionId, input })
+  void fireProgressSave({
     kind: 'answer',
-    sessionId: opts.sessionId,
+    sessionId,
     input,
     onSuccess: opts.onSuccess,
     onMappedError: opts.onMappedError,
-  })
+  }).then((ok) => settleAnswerSend({ sessionId, questionId, input, ok }))
+}
+
+/** Re-sends, one at a time, the answer saves that failed; true when none is left unsaved. */
+export async function resendUnsavedAnswers(opts: {
+  sessionId: string
+  onMappedError: (message: string) => void
+}): Promise<boolean> {
+  const { sessionId } = opts
+  for (const { questionId, input } of failedAnswers(sessionId)) {
+    trackAnswerSend({ sessionId, questionId, input })
+    const ok = await fireProgressSave({
+      kind: 'answer',
+      sessionId,
+      input,
+      onSuccess: () => {},
+      onMappedError: opts.onMappedError,
+    })
+    settleAnswerSend({ sessionId, questionId, input, ok })
+  }
+  return failedAnswers(sessionId).length === 0
 }
 
 type RunnerSaveDeps = SaveHandlers & {
