@@ -1,3 +1,4 @@
+import { readUserId } from './recovery-code'
 import { cleanupStudentActiveSessions, getAdminClient } from './supabase'
 
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
@@ -11,19 +12,6 @@ export function sessionIdFromUrl(url: string): string {
   return match[1]
 }
 
-async function lookupStudentId(email: string): Promise<string> {
-  const { data, error } = await getAdminClient()
-    .from('users')
-    .select('id')
-    .eq('email', email)
-    .maybeSingle()
-  if (error) throw new Error(`lookupStudentId (${email}): ${error.message}`)
-  if (!data) throw new Error(`lookupStudentId: no user ${email}`)
-  return data.id
-}
-
-export { lookupStudentId }
-
 /**
  * Clears the saved marker on every saved session of the student. The save RPC counts rows with
  * `saved_at` set whether or not they are soft-deleted, and refuses past 20, so a spec that saves
@@ -31,7 +19,7 @@ export { lookupStudentId }
  */
 export async function cleanupStudentSavedSessions(studentEmail: string): Promise<void> {
   const admin = getAdminClient()
-  const studentId = await lookupStudentId(studentEmail)
+  const studentId = await readUserId(studentEmail)
   const { data, error } = await admin
     .from('quiz_sessions')
     .update({ saved_at: null })

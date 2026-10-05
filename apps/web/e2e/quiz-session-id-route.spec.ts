@@ -17,7 +17,6 @@ import {
   submitFirstOption,
 } from './helpers/quiz-session'
 import {
-  lookupStudentId,
   readAnsweredQuestionIds,
   readSessionQuestionIds,
   readSessionRow,
@@ -27,6 +26,7 @@ import {
   sessionIdFromUrl,
   setSavedVisitTime,
 } from './helpers/quiz-session-id'
+import { readUserId } from './helpers/recovery-code'
 import {
   cleanupStudentActiveSessions,
   ensureLoginTestUser,
@@ -396,7 +396,7 @@ test.describe('Quiz session addressed by id', () => {
     const sessionId = sessionIdFromUrl(sessionUrl)
     const [firstQuestionId] = await readSessionQuestionIds(sessionId)
     if (!firstQuestionId) throw new Error('session has no questions')
-    const userId = await lookupStudentId(TEST_EMAIL)
+    const userId = await readUserId(TEST_EMAIL)
     const key = `quiz-active-session:${userId}`
     expect(await readAnsweredQuestionIds(sessionId)).toEqual([])
     await page.evaluate(

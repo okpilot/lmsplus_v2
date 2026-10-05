@@ -1,12 +1,12 @@
 import { expect, type Page, test } from '@playwright/test'
 import { startStudyQuiz, submitFirstOption } from './helpers/quiz-session'
 import {
-  lookupStudentId,
   readSessionRow,
   resetStudentQuizSessions,
   SESSION_ID_URL,
   sessionIdFromUrl,
 } from './helpers/quiz-session-id'
+import { readUserId } from './helpers/recovery-code'
 import { TEST_EMAIL } from './helpers/supabase'
 
 test.use({ storageState: 'e2e/.auth/user.json' })
@@ -101,7 +101,7 @@ test.describe('Quiz Session Recovery', () => {
     page,
   }) => {
     const { sessionId } = await startAndAbandonQuiz(page, 2)
-    const userId = await lookupStudentId(TEST_EMAIL)
+    const userId = await readUserId(TEST_EMAIL)
     const key = `quiz-active-session:${userId}`
     await page.evaluate((k) => localStorage.setItem(k, '{}'), key)
     await expect(page.getByText('Unfinished Quick Quiz session', { exact: true })).toBeVisible()

@@ -58,6 +58,21 @@ type DraftLoadResult = { ok: true; draft: DraftForResume } | { ok: false; error:
 // is re-narrowed at the read site below before use.
 type RawDraftConfig = { sessionId?: unknown; subjectName?: unknown; subjectCode?: unknown }
 
+function toResumeDraft(
+  draft: { question_ids: string[]; answers: unknown; current_index: number },
+  config: RawDraftConfig,
+  sessionId: string,
+): DraftForResume {
+  return {
+    questionIds: draft.question_ids,
+    sessionId,
+    answers: draft.answers,
+    currentIndex: draft.current_index,
+    subjectName: typeof config.subjectName === 'string' ? config.subjectName : undefined,
+    subjectCode: typeof config.subjectCode === 'string' ? config.subjectCode : undefined,
+  }
+}
+
 /**
  * Fetch + validate the draft row: its question_ids and the ORIGINAL session id/labels
  * from session_config. Split out of loadResumeContext to keep both under the §3
@@ -87,17 +102,7 @@ async function loadDraftForResume(
   if (typeof config.sessionId !== 'string') {
     return { ok: false, error: 'This saved quiz is missing its session reference.' }
   }
-  return {
-    ok: true,
-    draft: {
-      questionIds: draft.question_ids,
-      sessionId: config.sessionId,
-      answers: draft.answers,
-      currentIndex: draft.current_index,
-      subjectName: typeof config.subjectName === 'string' ? config.subjectName : undefined,
-      subjectCode: typeof config.subjectCode === 'string' ? config.subjectCode : undefined,
-    },
-  }
+  return { ok: true, draft: toResumeDraft(draft, config, config.sessionId) }
 }
 
 type OriginalSession = { mode: string; subject_id: string | null; topic_id: string | null }

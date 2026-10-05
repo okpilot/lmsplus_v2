@@ -62,14 +62,10 @@ export async function resumeQuizSession(raw: unknown): Promise<ResumeQuizResult>
     } = await supabase.auth.getUser()
     if (authError || !user) return { success: false, error: 'Not authenticated' }
 
-    let input: { draftId: string }
-    try {
-      input = ResumeInput.parse(raw)
-    } catch {
-      return { success: false, error: 'Invalid input' }
-    }
+    const parsed = ResumeInput.safeParse(raw)
+    if (!parsed.success) return { success: false, error: 'Invalid input' }
 
-    const loaded = await loadResumeContext(supabase, input.draftId, user.id)
+    const loaded = await loadResumeContext(supabase, parsed.data.draftId, user.id)
     if (!loaded.ok) return { success: false, error: loaded.error }
     const { ctx } = loaded
 
@@ -79,7 +75,7 @@ export async function resumeQuizSession(raw: unknown): Promise<ResumeQuizResult>
     if (!started.ok) return { success: false, error: started.error }
 
     // Seed the new session from the draft and delete the draft; on failure the draft is kept.
-    const ids = { draftId: input.draftId, userId: user.id, sessionId: started.sessionId }
+    const ids = { draftId: parsed.data.draftId, userId: user.id, sessionId: started.sessionId }
     if (!(await finishResume(supabase, ids, ctx))) {
       return { success: false, error: 'Failed to resume this saved quiz. Please try again.' }
     }

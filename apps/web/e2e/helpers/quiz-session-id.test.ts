@@ -83,13 +83,13 @@ describe('cleanupStudentSavedSessions', () => {
   it('throws when the student lookup fails', async () => {
     mockTables({ users: { data: null, error: { message: 'boom' } } })
     await expect(cleanupStudentSavedSessions('a@b.c')).rejects.toThrow(
-      'lookupStudentId (a@b.c): boom',
+      'fetchRecoveryCode user (a@b.c): boom',
     )
   })
 
   it('throws when the student does not exist', async () => {
     mockTables({ users: { data: null, error: null } })
-    await expect(cleanupStudentSavedSessions('a@b.c')).rejects.toThrow('no user a@b.c')
+    await expect(cleanupStudentSavedSessions('a@b.c')).rejects.toThrow('no user row for a@b.c')
   })
 
   it('throws when clearing the saved marker fails', async () => {
