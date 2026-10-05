@@ -20,8 +20,8 @@ export type ResumeQuizResult =
  * Mint the fresh practice session for a resume: auto-heal the draft's original session
  * (soft-delete it if a legacy pre-#1085 draft left it active — a true no-op for a post-fix
  * draft, whose session is already parked), then call start_quiz_session with the draft's
- * exact questions. Must precede any re-point: start_quiz_session blocks on ANY active
- * session, including this draft's own, so the heal has to run first.
+ * exact questions. The heal runs first: start_quiz_session blocks on ANY active session,
+ * including this draft's own.
  */
 async function startResumedSession(
   supabase: SupabaseClient,
