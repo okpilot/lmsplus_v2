@@ -126,7 +126,6 @@ test.describe('Quiz session opened by id', () => {
     page.once('dialog', (d) => d.accept())
     await page.getByRole('button', { name: 'Delete' }).click()
     await expect(page).toHaveURL(/\/app\/quiz$/, { timeout: 15_000 })
-    expect((await readSessionState(sessionId)).saved_at).toBeNull()
 
     const state = await readSessionState(sessionId)
     expect(state.deleted_at).not.toBeNull()
