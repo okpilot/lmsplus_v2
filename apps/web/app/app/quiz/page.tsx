@@ -17,6 +17,7 @@ export default async function QuizPage() {
   const {
     drafts,
     savedSessions,
+    savedTabCount,
     savedLookupFailed,
     examLookupFailed,
     activeExams,
@@ -59,7 +60,7 @@ export default async function QuizPage() {
 
       <div className="mx-auto max-w-xl">
         <QuizTabs
-          draftCount={drafts.length + savedSessions.length}
+          draftCount={savedTabCount}
           newQuizContent={
             <Suspense fallback={<div className="h-64 animate-pulse rounded-lg bg-muted" />}>
               <SubjectsSection userId={user.id} />

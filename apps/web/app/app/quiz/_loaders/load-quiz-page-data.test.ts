@@ -62,6 +62,7 @@ describe('loadQuizPageData', () => {
 
     expect(data.drafts).toEqual([DRAFT])
     expect(data.savedSessions).toEqual([SAVED_SESSION])
+    expect(data.savedTabCount).toBe(2)
     expect(mockLoadSavedQuizzes).toHaveBeenCalledWith('user-1')
     expect(data.examLookupFailed).toBe(false)
     expect(data.activeExams).toEqual([EXAM_SESSION])
@@ -98,6 +99,7 @@ describe('loadQuizPageData', () => {
     expect(data.savedSessions).toEqual([])
     expect(data.savedLookupFailed).toBe(true)
     expect(data.drafts).toEqual([DRAFT])
+    expect(data.savedTabCount).toBe(1)
     expect(console.error).toHaveBeenCalled()
   })
 

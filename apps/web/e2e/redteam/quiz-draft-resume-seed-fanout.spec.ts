@@ -92,7 +92,6 @@ test.describe('Red Team: draft resume seed fan-out (HF)', () => {
     if (errors.length > 0) throw new Error(`afterEach: ${errors.join('; ')}`)
   })
 
-  // .skip until seedSessionFromDraft drops draft answers outside ctx.questionIds before the RPC loop.
   test('HF: junk draft answers outside the draft questions do not each cost a seed write', async ({
     browser,
   }) => {

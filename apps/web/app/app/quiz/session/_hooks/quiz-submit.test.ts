@@ -732,7 +732,7 @@ describe('handleSaveSession', () => {
     expect(mockClearActiveSession).not.toHaveBeenCalled()
   })
 
-  it('writes no draft row when saving for later', async () => {
+  it('skips legacy draft cleanup when the saved session carries no draft', async () => {
     await handleSaveSession(makeOpts())
     expect(mockDeleteDraft).not.toHaveBeenCalled()
   })

@@ -220,7 +220,7 @@ describe('resumeQuizSession (app-layer integration)', () => {
     expect(start.success).toBe(true)
     if (!start.success) throw new Error(start.error)
     const [q0] = start.questionIds
-    // An answer for a question outside the session is refused by the progress RPC and skipped.
+    // An answer for a question outside the session is dropped before seeding; no RPC call carries it.
     const outsider = '00000000-0000-4000-a000-0000000000ff'
     const draftId = await seedDraft({
       studentId: studentAId,

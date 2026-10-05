@@ -147,6 +147,12 @@ test.describe('Red Team: legacy draft resume seeding (HC)', () => {
       ])
       await page.goto('/app/quiz')
       await page.getByRole('tab', { name: /Saved Quizzes/ }).click()
+      const { data: before, error: bErr } = await admin
+        .from('quiz_drafts')
+        .select('id')
+        .eq('id', draft.id)
+      if (bErr) throw new Error(`read draft before resume: ${bErr.message}`)
+      expect(before).toHaveLength(1)
       await page.getByRole('button', { name: 'Resume', exact: true }).first().click()
       await page.waitForURL(SESSION_URL, { timeout: 20_000 })
       const newSessionId = SESSION_URL.exec(page.url())?.[1] as string

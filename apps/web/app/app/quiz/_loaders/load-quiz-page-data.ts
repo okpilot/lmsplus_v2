@@ -9,6 +9,8 @@ import type { DraftData } from '../types'
 export type QuizPageData = {
   drafts: DraftData[]
   savedSessions: SavedQuizSession[]
+  /** Drafts plus saved sessions: the Saved Quizzes tab badge. */
+  savedTabCount: number
   savedLookupFailed: boolean
   examLookupFailed: boolean
   activeExams: ActiveExamSession[]
@@ -48,6 +50,7 @@ export async function loadQuizPageData(userId: string): Promise<QuizPageData> {
   return {
     drafts,
     ...saved,
+    savedTabCount: drafts.length + saved.savedSessions.length,
     examLookupFailed: !examResult.success,
     activeExams: examResult.success ? examResult.sessions : [],
     orphanedIds: examResult.success ? examResult.orphanedSessionIds : [],

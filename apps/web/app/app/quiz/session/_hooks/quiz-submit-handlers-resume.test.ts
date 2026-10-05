@@ -79,7 +79,7 @@ beforeEach(() => {
 })
 
 describe('finishing a resumed session', () => {
-  it('a resumed practice session submits every seeded answer plus new ones to batchSubmitQuiz', async () => {
+  it('a resumed practice session submits every seeded answer plus new ones on finish', async () => {
     const { result } = renderHook(() =>
       useQuizState({
         userId: 'u',

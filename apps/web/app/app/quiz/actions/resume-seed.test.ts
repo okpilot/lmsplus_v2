@@ -252,7 +252,11 @@ describe('discardMintedSession', () => {
   it('logs when the rollback matched no row', async () => {
     const client = clientFor({ quiz_sessions: chain({ data: [], error: null }, 'select') })
     await discardMintedSession(client, SESSION, USER)
-    expect(console.error).toHaveBeenCalled()
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining('orphan'),
+      SESSION,
+      undefined,
+    )
   })
 })
 

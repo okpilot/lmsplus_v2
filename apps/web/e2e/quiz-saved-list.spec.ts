@@ -104,6 +104,7 @@ test.describe('Saved quizzes list', () => {
     await saveCurrentQuizForLater(page)
     await page.getByTestId('tab-saved').click()
     await expect(page.getByTestId('delete-saved-session')).toBeVisible()
+    const saved = await readSavedSession()
 
     page.once('dialog', (d) => d.accept())
     await page.getByTestId('delete-saved-session').click()
@@ -113,7 +114,21 @@ test.describe('Saved quizzes list', () => {
     await page.reload()
     await page.getByTestId('tab-saved').click()
     await expect(page.getByTestId('tab-saved')).toBeVisible()
+    // The Saved tab rendered: its empty state, or a remaining draft card.
+    await expect(
+      page
+        .getByText(/No saved quizzes/)
+        .or(page.getByTestId('draft-progress'))
+        .first(),
+    ).toBeVisible()
     await expect(page.getByTestId('resume-saved-session')).toHaveCount(0)
     await expect(page.getByTestId('delete-saved-session')).toHaveCount(0)
+    const { data, error } = await getAdminClient()
+      .from('quiz_sessions')
+      .select('saved_at')
+      .eq('id', saved.id)
+      .single()
+    if (error) throw new Error(error.message)
+    expect(data.saved_at).toBeNull()
   })
 })
