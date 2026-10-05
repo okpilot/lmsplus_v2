@@ -1,4 +1,8 @@
-import { progressColor } from './draft-card'
+export function progressColor(pct: number): string {
+  if (pct >= 90) return 'text-green-600'
+  if (pct < 50) return 'text-amber-500'
+  return 'text-primary'
+}
 
 /** Answered-of-total line with a percentage and a progress bar. */
 export function SavedSessionProgress({
@@ -16,7 +20,11 @@ export function SavedSessionProgress({
         <span className={`font-medium ${progressColor(progress)}`}>{Math.round(progress)}%</span>
       </div>
       <div className="h-1 rounded-full bg-muted">
-        <div className="h-1 rounded-full bg-primary" style={{ width: `${progress}%` }} />
+        <div
+          data-testid="draft-progress"
+          className="h-1 rounded-full bg-primary transition-all"
+          style={{ width: `${progress}%` }}
+        />
       </div>
     </div>
   )

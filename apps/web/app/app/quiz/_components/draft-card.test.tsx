@@ -26,7 +26,7 @@ vi.mock('next/navigation', () => ({
 // ---- Subject under test ---------------------------------------------------
 
 import type { DraftData } from '../types'
-import { DraftCard, progressColor } from './draft-card'
+import { DraftCard } from './draft-card'
 
 // ---- Fixtures -------------------------------------------------------------
 
@@ -59,25 +59,6 @@ beforeEach(() => {
   })
   // Default confirm to true
   vi.spyOn(window, 'confirm').mockReturnValue(true)
-})
-
-// ---- progressColor --------------------------------------------------------
-
-describe('progressColor', () => {
-  it('returns green class when progress is 90 or above', () => {
-    expect(progressColor(90)).toBe('text-green-600')
-    expect(progressColor(100)).toBe('text-green-600')
-  })
-
-  it('returns amber class when progress is below 50', () => {
-    expect(progressColor(0)).toBe('text-amber-500')
-    expect(progressColor(49)).toBe('text-amber-500')
-  })
-
-  it('returns primary class when progress is between 50 and 89', () => {
-    expect(progressColor(50)).toBe('text-primary')
-    expect(progressColor(89)).toBe('text-primary')
-  })
 })
 
 // ---- Rendering ------------------------------------------------------------

@@ -10,6 +10,7 @@ vi.mock('./supabase', () => ({
 }))
 
 import {
+  cleanupSavedSessions,
   clearQuizActiveSessionKeys,
   isServerActionPost,
   readServerAnsweredCount,
@@ -157,5 +158,44 @@ describe('clearQuizActiveSessionKeys', () => {
     await clearQuizActiveSessionKeys(page as never)
     vi.unstubAllGlobals()
     expect(Object.keys(store)).toEqual(['other'])
+  })
+})
+
+describe('cleanupSavedSessions', () => {
+  it('throws when the student lookup fails', async () => {
+    mockTables({ users: { data: null, error: { message: 'boom' } } })
+    await expect(cleanupSavedSessions('s@x')).rejects.toThrow('cleanupSavedSessions student: boom')
+  })
+
+  it('does nothing when the student does not exist', async () => {
+    const log = vi.spyOn(console, 'log')
+    mockTables({
+      users: { data: null, error: null },
+      quiz_sessions: { data: null, error: { message: 'must not be called' } },
+    })
+    await expect(cleanupSavedSessions('s@x')).resolves.toBeUndefined()
+    expect(log).not.toHaveBeenCalled()
+  })
+
+  it('throws when clearing the saved markers fails', async () => {
+    mockTables({ users: OK_STUDENT, quiz_sessions: { data: null, error: { message: 'denied' } } })
+    await expect(cleanupSavedSessions('s@x')).rejects.toThrow('cleanupSavedSessions: denied')
+  })
+
+  it('stays silent when no session was saved', async () => {
+    const log = vi.spyOn(console, 'log')
+    mockTables({ users: OK_STUDENT, quiz_sessions: { data: [], error: null } })
+    await cleanupSavedSessions('s@x')
+    expect(log).not.toHaveBeenCalled()
+  })
+
+  it('logs how many saved markers it cleared', async () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined)
+    mockTables({
+      users: OK_STUDENT,
+      quiz_sessions: { data: [{ id: 'a' }, { id: 'b' }], error: null },
+    })
+    await cleanupSavedSessions('s@x')
+    expect(log).toHaveBeenCalledWith('[cleanupSavedSessions] cleared 2 saved marker(s)')
   })
 })

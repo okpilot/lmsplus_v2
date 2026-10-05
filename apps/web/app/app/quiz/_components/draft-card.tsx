@@ -5,12 +5,7 @@ import { useRef, useState } from 'react'
 import { deleteDraft } from '../actions/draft-delete'
 import { resumeQuizSession } from '../actions/resume'
 import type { DraftData } from '../types'
-
-export function progressColor(pct: number): string {
-  if (pct >= 90) return 'text-green-600'
-  if (pct < 50) return 'text-amber-500'
-  return 'text-primary'
-}
+import { SavedSessionProgress } from './saved-session-progress'
 
 export function DraftCard({ draft }: Readonly<{ draft: DraftData }>) {
   const router = useRouter()
@@ -21,7 +16,6 @@ export function DraftCard({ draft }: Readonly<{ draft: DraftData }>) {
 
   const answeredCount = Object.keys(draft.answers).length
   const totalCount = draft.questionIds.length
-  const progress = totalCount > 0 ? (answeredCount / totalCount) * 100 : 0
   const subjectLabel = draft.subjectName ?? 'Unknown subject'
   const dateLabel = draft.createdAt
     ? `${new Date(draft.createdAt).toLocaleString('en-GB', {
@@ -112,21 +106,7 @@ export function DraftCard({ draft }: Readonly<{ draft: DraftData }>) {
           </button>
         </div>
       </div>
-      <div className="space-y-1">
-        <div className="flex justify-between text-xs">
-          <span className="text-muted-foreground">
-            {answeredCount} of {totalCount} answered
-          </span>
-          <span className={`font-medium ${progressColor(progress)}`}>{Math.round(progress)}%</span>
-        </div>
-        <div className="h-1 rounded-full bg-muted">
-          <div
-            data-testid="draft-progress"
-            className="h-1 rounded-full bg-primary transition-all"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-      </div>
+      <SavedSessionProgress answered={answeredCount} total={totalCount} />
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   )
