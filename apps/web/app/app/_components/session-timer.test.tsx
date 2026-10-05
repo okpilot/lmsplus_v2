@@ -37,4 +37,17 @@ describe('SessionTimer', () => {
     const el = container.firstElementChild
     expect(el?.className).toContain('text-red-500')
   })
+
+  it('starts from the active time already spent', () => {
+    render(<SessionTimer initialElapsedMs={125_000} />)
+    expect(screen.getByText('02:05')).toBeInTheDocument()
+  })
+
+  it('keeps counting on top of the active time already spent', () => {
+    render(<SessionTimer initialElapsedMs={59_000} />)
+    act(() => {
+      vi.advanceTimersByTime(2000)
+    })
+    expect(screen.getByText('01:01')).toBeInTheDocument()
+  })
 })

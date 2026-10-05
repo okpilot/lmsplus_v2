@@ -1,8 +1,9 @@
 // RPC error token → user message for the quiz-progress writes: save_quiz_answer,
-// save_quiz_position, claim_quiz_session, and the progress save inside check_quiz_answer /
-// check_non_mc_answer. Latest definitions: supabase/migrations/20261002000300 (helpers),
-// …0400, …0500, …0600, …0700, …0800 and 20261003000300 (`session_saved`). The check RPCs also
-// raise legacy SPACED strings — mapped here too. No `'use server'` — imported by actions.
+// save_quiz_position, claim_quiz_session, the saved-quiz RPCs and the progress save inside
+// check_quiz_answer / check_non_mc_answer. Latest definitions: supabase/migrations/20261002000300
+// (helpers), …0400, …0500, …0600, …0700, …0800, 20261003000200 (save/resume/discard saved quiz)
+// and 20261003000300 (`session_saved`). The check RPCs also raise legacy SPACED strings — mapped
+// here too. No `'use server'` — imported by actions.
 
 // INVARIANT: keys must not be substrings of one another — mapProgressRpcError matches via
 // message.includes(key), so an overlapping key would make iteration order decide the mapping.
@@ -13,6 +14,8 @@ const BAD_PROGRESS = 'Your progress could not be saved. Reload the page and try 
 const NO_QUESTION = 'That question is not part of this session.'
 export const SIGN_IN = 'Your sign-in has expired. Please sign in again.'
 const NO_FEATURE = 'This session type does not support saving progress.'
+export const SAVED_QUIZ_LIMIT =
+  'You can keep up to 20 saved quizzes. Discard one before saving another.'
 const DAMAGED = 'This session is damaged and cannot save progress. Please start a new one.'
 
 // Exported so a co-located test can assert the invariant holds as keys are added.
@@ -26,6 +29,9 @@ export const PROGRESS_ERROR_MESSAGES: Record<string, string> = {
   session_discarded: 'This session was discarded.',
   session_ended: 'This session has already ended.',
   session_saved: 'This quiz was saved for later. Resume it from your saved quizzes.',
+  session_not_saved: 'This quiz is not in your saved quizzes.',
+  saved_quiz_limit_reached: SAVED_QUIZ_LIMIT,
+  another_session_active: 'You already have an active session. Finish, save or discard it first.',
   unsupported_session_mode: NO_FEATURE,
   session_expired:
     'The time limit for this session has passed. Finish the session to submit your answers.',

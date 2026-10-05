@@ -169,3 +169,16 @@ describe('useProgressSync — save error', () => {
     expect(result.current.nav.currentIndex).toBe(1)
   })
 })
+
+describe('useProgressSync — seeded pins', () => {
+  it('shows the pins the server saved and keeps them in the next position save', () => {
+    const { result } = renderHook(() =>
+      useProgressSync(opts({ initialPinnedIds: [Q[1] as string] })),
+    )
+    expect([...result.current.pinnedQuestions]).toEqual([Q[1]])
+    act(() => result.current.nav.navigateTo(2))
+    expect(mockSavePosition).toHaveBeenCalledWith(
+      expect.objectContaining({ pinnedQuestionIds: [Q[1]] }),
+    )
+  })
+})

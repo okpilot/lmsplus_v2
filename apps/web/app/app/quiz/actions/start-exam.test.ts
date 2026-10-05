@@ -147,6 +147,19 @@ describe('startExamSession — RPC error messages', () => {
     )
   })
 
+  it('flags the start as blocked when another session is already active', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'another_session_active' } })
+    const result = await startExamSession({ subjectId: VALID_SUBJECT_ID })
+    expect(result).toMatchObject({ success: false, blocked: true })
+  })
+
+  it('does not flag the start as blocked for an unrelated failure', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'unexpected db failure' } })
+    const result = await startExamSession({ subjectId: VALID_SUBJECT_ID })
+    expect(result.success).toBe(false)
+    expect(result).not.toHaveProperty('blocked', true)
+  })
+
   it('returns a generic failure for an unknown RPC error', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'unexpected db failure' } })
     const result = await startExamSession({ subjectId: VALID_SUBJECT_ID })

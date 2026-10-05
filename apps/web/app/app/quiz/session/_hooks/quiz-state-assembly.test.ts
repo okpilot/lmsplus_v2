@@ -38,6 +38,7 @@ function makeInput(overrides: Partial<AssembleQuizStateInput> = {}): AssembleQui
     questionIds: ['q1', 'q2'],
     pinnedQuestions: new Set<string>(),
     togglePin: vi.fn(),
+    feedback: new Map(),
     p: makePipeline(),
     isExam: false,
     ...overrides,
@@ -88,16 +89,12 @@ describe('assembleQuizState', () => {
     expect(state.existingAnswer).toBeUndefined()
   })
 
-  it('returns currentFeedback from the pipeline feedback map, or null when absent', () => {
-    const feedback = new Map([['q1', { isCorrect: true }]])
-    const state = assembleQuizState(
-      makeInput({ questionId: 'q1', p: makePipeline({ feedback: feedback as never }) }),
-    )
+  it('returns currentFeedback from the merged feedback map, or null when absent', () => {
+    const feedback = new Map([['q1', { isCorrect: true }]]) as never
+    const state = assembleQuizState(makeInput({ questionId: 'q1', feedback }))
     expect(state.currentFeedback).toEqual({ isCorrect: true })
 
-    const noFeedbackState = assembleQuizState(
-      makeInput({ questionId: 'q9', p: makePipeline({ feedback: feedback as never }) }),
-    )
+    const noFeedbackState = assembleQuizState(makeInput({ questionId: 'q9', feedback }))
     expect(noFeedbackState.currentFeedback).toBeNull()
   })
 
@@ -145,7 +142,8 @@ describe('assembleQuizState', () => {
 
   it('forwards the answer handlers from the pipeline unchanged', () => {
     const p = makePipeline()
-    const state = assembleQuizState(makeInput({ p }))
+    const input = makeInput({ p })
+    const state = assembleQuizState(input)
     expect(state.handleSelectAnswer).toBe(p.handleSelectAnswer)
     expect(state.handleTextAnswer).toBe(p.handleTextAnswer)
     expect(state.handleDialogFillAnswer).toBe(p.handleDialogFillAnswer)
@@ -158,7 +156,7 @@ describe('assembleQuizState', () => {
     expect(state.navigateTo).toBe(p.navigateTo)
     expect(state.error).toBe(p.error)
     expect(state.answering).toBe(p.answering)
-    expect(state.feedback).toBe(p.feedback)
+    expect(state.feedback).toBe(input.feedback)
   })
 
   it('passes the question object through unchanged', () => {

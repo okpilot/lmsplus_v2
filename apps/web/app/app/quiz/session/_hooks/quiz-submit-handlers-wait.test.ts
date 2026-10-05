@@ -15,7 +15,6 @@ vi.mock('./quiz-submit', () => ({
   handleSubmitSession: (...a: unknown[]) => mockSubmit(...a),
   handleSaveSession: (...a: unknown[]) => mockSave(...a),
   handleDiscardSession: (...a: unknown[]) => mockDiscard(...a),
-  examReportUrl: () => '/app/quiz/report',
 }))
 vi.mock('../_utils/with-reconnect', () => ({ whenQueueIdle: () => mockWhenQueueIdle() }))
 

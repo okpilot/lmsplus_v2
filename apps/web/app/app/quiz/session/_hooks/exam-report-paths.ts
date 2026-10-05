@@ -5,3 +5,8 @@ export const EXAM_REPORT_PATHS: Partial<Record<DbQuizMode, string>> = {
   internal_exam: '/app/internal-exam/report',
   vfr_rt_exam: '/app/vfr-rt/report',
 }
+
+/** Report URL of a finished session, whatever its mode. */
+export function reportUrl(mode: DbQuizMode | undefined, sessionId: string): string {
+  return `${(mode && EXAM_REPORT_PATHS[mode]) ?? '/app/quiz/report'}?session=${sessionId}`
+}

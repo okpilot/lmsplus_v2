@@ -19,9 +19,6 @@ vi.mock('./quiz-submit', () => ({
   handleSubmitSession: (...args: unknown[]) => mockHandleSubmitSession(...args),
   handleSaveSession: (...args: unknown[]) => mockHandleSaveSession(...args),
   handleDiscardSession: (...args: unknown[]) => mockHandleDiscardSession(...args),
-  // Pure URL builder — use the real behaviour so the safety-net assertions are meaningful.
-  examReportUrl: (examMode: string | undefined, sessionId: string) =>
-    `${examMode === 'internal_exam' ? '/app/internal-exam/report' : '/app/quiz/report'}?session=${sessionId}`,
 }))
 
 const { mockRouterPush } = vi.hoisted(() => ({

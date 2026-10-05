@@ -7,13 +7,11 @@ import {
   readActiveSession,
   writeActiveSession,
 } from '@/app/app/quiz/session/_utils/quiz-session-storage'
+import { VFR_RT_EXAM_PASS_MARK } from '@/lib/constants/exam-modes'
 import type { SubjectOption } from '@/lib/queries/quiz-query-types'
 import { startVfrRtExam } from '../../vfr-rt-exam/actions/start'
 
 type AppRouterInstance = ReturnType<typeof useRouter>
-
-/** The start RPC returns no pass mark; the runner needs one — every VFR RT part requires 75%. */
-const VFR_RT_EXAM_PASS_MARK = 75
 
 export type UseVfrRtExamStartOpts = {
   userId: string

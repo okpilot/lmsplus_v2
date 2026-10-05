@@ -29,3 +29,6 @@ export const isDiscardableExamMode = (mode: string | undefined): boolean =>
 // one-time orphan cleanup script — keep those in lockstep by importing this, not
 // re-inlining the literal.
 export const PRACTICE_MODES = ['quick_quiz', 'smart_review'] as const
+
+/** Every VFR RT exam part requires 75%; the start RPC returns no pass mark, so the runner uses this. */
+export const VFR_RT_EXAM_PASS_MARK = 75

@@ -2,8 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react'
 
-export function SessionTimer({ className }: Readonly<{ className?: string }>) {
-  const startedAtRef = useRef(Date.now())
+export function SessionTimer({
+  className,
+  initialElapsedMs = 0,
+}: Readonly<{ className?: string; initialElapsedMs?: number }>) {
+  const startedAtRef = useRef(Date.now() - initialElapsedMs)
   const [now, setNow] = useState(Date.now())
 
   useEffect(() => {

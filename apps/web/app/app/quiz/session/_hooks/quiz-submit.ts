@@ -9,7 +9,7 @@ import { deleteDraft } from '../../actions/draft-delete'
 import { submitEmptyExamSession } from '../../actions/submit-empty-exam'
 import type { AnswerFeedback, DraftAnswer } from '../../types'
 import { clearActiveSession } from '../_utils/quiz-session-storage'
-import { EXAM_REPORT_PATHS } from './exam-report-paths'
+import { reportUrl } from './exam-report-paths'
 import { fanOutAnswer } from './quiz-submit-fanout'
 
 type AppRouterInstance = ReturnType<typeof useRouter>
@@ -20,11 +20,6 @@ type SetSubmitting = (v: boolean) => void
 /** Max time to wait for best-effort draft cleanup before navigating. The hard-nav
  * fallback in use-quiz-submit covers the rare case cleanup exceeds this. */
 const DRAFT_CLEANUP_TIMEOUT_MS = 2500
-
-export function examReportUrl(examMode: DbQuizMode | undefined, sessionId: string): string {
-  const path = (examMode && EXAM_REPORT_PATHS[examMode]) || '/app/quiz/report'
-  return `${path}?session=${sessionId}`
-}
 
 export async function submitQuizSession(
   sessionId: string,
@@ -160,7 +155,7 @@ export async function handleSubmitSession(opts: {
       // with "Submitting…" (#568). Await it so push is the last statement with nothing
       // in flight — matching the batch-submit path (submitQuizSession).
       await clearDeploymentPin().catch(() => {})
-      opts.router.push(examReportUrl(opts.examMode, opts.sessionId))
+      opts.router.push(reportUrl(opts.examMode, opts.sessionId))
     } else {
       console.error('[handleSubmitSession] submitEmptyExamSession failed:', result.error)
       clearActiveSession(opts.userId)
@@ -179,7 +174,7 @@ export async function handleSubmitSession(opts: {
   const r = await submitQuizSession(opts.sessionId, opts.answers, opts.userId, opts.draftId)
   if (r.success) {
     opts.onSuccess()
-    opts.router.push(examReportUrl(opts.examMode, opts.sessionId))
+    opts.router.push(reportUrl(opts.examMode, opts.sessionId))
   } else {
     opts.setError(r.error)
     opts.setSubmitting(false)

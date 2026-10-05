@@ -54,3 +54,24 @@ describe('usePinnedQuestions — returned set', () => {
     expect([...next].sort()).toEqual(['q1', 'q2'])
   })
 })
+
+describe('usePinnedQuestions — initial pins', () => {
+  it('starts with the pins the server saved', () => {
+    const { result } = renderHook(() => usePinnedQuestions(['q1', 'q2']))
+    expect([...result.current.pinnedQuestions].sort()).toEqual(['q1', 'q2'])
+  })
+
+  it('seeds the ref a position save reads, not only the rendered set', () => {
+    const { result } = renderHook(() => usePinnedQuestions(['q1']))
+    expect([...result.current.pinnedRef.current]).toEqual(['q1'])
+  })
+
+  it('keeps a saved pin when another question is pinned', () => {
+    const { result } = renderHook(() => usePinnedQuestions(['q1']))
+    let next = new Set<string>()
+    act(() => {
+      next = result.current.togglePin('q2')
+    })
+    expect([...next].sort()).toEqual(['q1', 'q2'])
+  })
+})

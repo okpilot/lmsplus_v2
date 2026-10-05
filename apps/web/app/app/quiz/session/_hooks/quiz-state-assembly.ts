@@ -1,6 +1,6 @@
 import type { SessionQuestion } from '@/app/app/_types/session'
 import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
-import type { DraftAnswer } from '../../types'
+import type { AnswerFeedback, DraftAnswer } from '../../types'
 import type { useAnswerPipeline } from './use-answer-pipeline'
 import type { useExamPipeline } from './use-exam-state'
 
@@ -17,6 +17,8 @@ export type AssembleQuizStateInput = {
   pinnedQuestions: Set<string>
   togglePin: () => void
   saveError?: string | null
+  /** The pipeline's feedback with restored (re-checked) feedback merged under it. */
+  feedback: Map<string, AnswerFeedback>
   p: ActivePipeline
   isExam: boolean
   examMode?: DbQuizMode
@@ -55,10 +57,10 @@ export function assembleQuizState(input: AssembleQuizStateInput) {
     questionId,
     answeredCount: answers.size,
     existingAnswer: answers.get(questionId),
-    currentFeedback: p.feedback.get(questionId) ?? null,
+    currentFeedback: input.feedback.get(questionId) ?? null,
     questionIds: input.questionIds,
     answeredIds: new Set(answers.keys()),
-    feedback: p.feedback,
+    feedback: input.feedback,
     pinnedQuestions,
     isPinned: pinnedQuestions.has(questionId),
     ...answerHandlers(p),

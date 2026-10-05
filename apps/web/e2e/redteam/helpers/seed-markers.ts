@@ -64,3 +64,5 @@ export const E2E_REDTEAM_ER_MARKER = '[E2E_REDTEAM_ER]'
 export const E2E_REDTEAM_QA_MARKER = '[E2E_REDTEAM_QA]'
 // finish-quiz-session spec (Vectors GU-GZ, #1026 PR 2c): written into fixture quiz_sessions as `config.e2e_marker`.
 export const E2E_REDTEAM_QF_MARKER = '[E2E_REDTEAM_QF]'
+// quiz-session id-route specs (#1026 PR 3): written into fixture quiz_sessions as `config.e2e_marker`.
+export const E2E_REDTEAM_QR_MARKER = '[E2E_REDTEAM_QR]'

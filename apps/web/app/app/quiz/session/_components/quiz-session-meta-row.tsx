@@ -11,6 +11,7 @@ type QuizSessionMetaRowProps = {
   timeLimitSeconds?: number
   timerStart: number
   onTimeExpired: () => void
+  initialActiveMs?: number
 }
 
 export function QuizSessionMetaRow({
@@ -21,6 +22,7 @@ export function QuizSessionMetaRow({
   timeLimitSeconds,
   timerStart,
   onTimeExpired,
+  initialActiveMs,
 }: Readonly<QuizSessionMetaRowProps>) {
   return (
     <div className="flex items-center justify-between text-sm">
@@ -38,7 +40,7 @@ export function QuizSessionMetaRow({
         )
       ) : (
         <span className="hidden md:inline">
-          <SessionTimer className="text-sm" />
+          <SessionTimer className="text-sm" initialElapsedMs={initialActiveMs} />
         </span>
       )}
       <span className="text-xs text-muted-foreground">
