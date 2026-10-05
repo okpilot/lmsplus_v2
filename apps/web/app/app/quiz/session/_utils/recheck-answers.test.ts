@@ -91,7 +91,7 @@ describe('recheckAnswers', () => {
     expect(result.size).toBe(60)
   })
 
-  it('queues every call before the first settles, so a later answer save cannot be overwritten', async () => {
+  it('sends the next call only after the previous one settles, so a new answer waits behind one call', async () => {
     const releases: (() => void)[] = []
     mockAction.mockImplementation(
       () =>
@@ -102,21 +102,36 @@ describe('recheckAnswers', () => {
 
     const pending = recheckAnswers({ sessionId: 's1', restorable: restorable(60) })
     await Promise.resolve()
+    expect(mockAction).toHaveBeenCalledTimes(1)
 
-    expect(mockAction).toHaveBeenCalledTimes(3)
-    for (const release of releases) release()
+    for (let call = 0; call < 3; call++) {
+      releases[call]?.()
+      await vi.waitFor(() => expect(mockAction.mock.calls.length).toBeGreaterThan(call))
+    }
     await pending
+    expect(mockAction).toHaveBeenCalledTimes(3)
   })
 
-  it('keeps the feedback of the calls that succeed when one is refused', async () => {
+  it('stops after a refused call and keeps the feedback graded before it', async () => {
     mockAction
       .mockResolvedValueOnce({ success: true, feedback: { q0: MC_FEEDBACK } })
       .mockResolvedValueOnce({ success: false, error: 'This session has already ended.' })
-      .mockResolvedValueOnce({ success: true, feedback: { q50: MC_FEEDBACK } })
 
-    const result = await recheckAnswers({ sessionId: 's1', restorable: restorable(60) })
+    const result = await recheckAnswers({ sessionId: 's1', restorable: restorable(80) })
 
-    expect([...result.keys()].sort()).toEqual(['q0', 'q50'])
+    expect(mockAction).toHaveBeenCalledTimes(2)
+    expect([...result.keys()]).toEqual(['q0'])
+  })
+
+  it('stops after a call throws and keeps the feedback graded before it', async () => {
+    mockAction
+      .mockResolvedValueOnce({ success: true, feedback: { q0: MC_FEEDBACK } })
+      .mockRejectedValueOnce(new Error('network'))
+
+    const result = await recheckAnswers({ sessionId: 's1', restorable: restorable(80) })
+
+    expect(mockAction).toHaveBeenCalledTimes(2)
+    expect([...result.keys()]).toEqual(['q0'])
   })
 
   it('gives no feedback when the call throws', async () => {

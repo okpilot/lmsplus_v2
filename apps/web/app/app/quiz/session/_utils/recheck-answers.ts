@@ -32,21 +32,26 @@ function chunk(items: Record<string, unknown>[]): Record<string, unknown>[][] {
 
 /**
  * Grades every restored practice answer, RECHECK_CHUNK per call, to get its feedback back.
- * Every call joins the action queue at once, so an answer saved later runs after all of them
- * and no re-check can overwrite it. Sends no visit time, so stored time is untouched. Keeps
- * the feedback of the calls that succeed; never throws.
+ * One call at a time, so a new answer save waits behind one call at most; no re-check can
+ * overwrite it, because a restored question refuses a new answer. Sends no visit time, so
+ * stored time is untouched. A call landing after finish is refused by the ended session.
+ * Stops at the first refused or failed call and keeps what was graded; never throws.
  */
 export async function recheckAnswers(opts: Opts): Promise<Map<string, AnswerFeedback>> {
   const out = new Map<string, AnswerFeedback>()
   const deviceId = getQuizDeviceId()
-  const calls = chunk(buildItems({ ...opts, deviceId })).map((answers) =>
-    withTakeoverCheck(opts.sessionId, () =>
-      withReconnect(() => recheckRestoredAnswers({ sessionId: opts.sessionId, deviceId, answers })),
-    ),
-  )
-  for (const r of await Promise.allSettled(calls)) {
-    if (r.status !== 'fulfilled' || !r.value.success) continue
-    for (const [id, fb] of Object.entries(r.value.feedback)) out.set(id, fb)
+  try {
+    for (const answers of chunk(buildItems({ ...opts, deviceId }))) {
+      const r = await withTakeoverCheck(opts.sessionId, () =>
+        withReconnect(() =>
+          recheckRestoredAnswers({ sessionId: opts.sessionId, deviceId, answers }),
+        ),
+      )
+      if (!r.success) break
+      for (const [id, fb] of Object.entries(r.feedback)) out.set(id, fb)
+    }
+  } catch {
+    return out
   }
   return out
 }

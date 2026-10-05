@@ -39,19 +39,30 @@ export async function readSessionQuestionIds(
   return new Set(Array.isArray(ids) ? ids.filter((id) => typeof id === 'string') : [])
 }
 
+type Base = { questionId: string; sessionId: string; deviceId: string }
+
+/** Sends one answer to the check matching its type. */
+function dispatchGrade(supabase: SupabaseClient, item: RecheckItem, base: Base) {
+  if ('selectedOptionId' in item) {
+    return gradeAnswer(supabase, { ...base, selectedOptionId: item.selectedOptionId })
+  }
+  if ('responseText' in item) {
+    return checkShortAnswer(supabase, { ...base, responseText: item.responseText })
+  }
+  if ('order' in item) return checkOrderingAnswer(supabase, { ...base, order: item.order })
+  if ('mapping' in item) {
+    return checkDiagramLabelAnswer(supabase, { ...base, mapping: item.mapping })
+  }
+  return checkDialogFillAnswer(supabase, { ...base, blankAnswers: item.blankAnswers })
+}
+
 async function gradeItem(supabase: SupabaseClient, opts: GradeOpts): Promise<Graded> {
   const { item, sessionId, deviceId } = opts
-  const base = { questionId: item.questionId, sessionId, deviceId }
-  const r =
-    'selectedOptionId' in item
-      ? await gradeAnswer(supabase, { ...base, selectedOptionId: item.selectedOptionId })
-      : 'responseText' in item
-        ? await checkShortAnswer(supabase, { ...base, responseText: item.responseText })
-        : 'order' in item
-          ? await checkOrderingAnswer(supabase, { ...base, order: item.order })
-          : 'mapping' in item
-            ? await checkDiagramLabelAnswer(supabase, { ...base, mapping: item.mapping })
-            : await checkDialogFillAnswer(supabase, { ...base, blankAnswers: item.blankAnswers })
+  const r = await dispatchGrade(supabase, item, {
+    questionId: item.questionId,
+    sessionId,
+    deviceId,
+  })
   if (!r.success) return { ok: false, error: r.error }
   const { success: _success, ...rest } = r
   return {
