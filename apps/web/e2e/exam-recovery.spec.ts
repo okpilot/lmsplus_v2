@@ -9,11 +9,11 @@
  *   e2e-test@lmsplus.local user (shared auth) belongs to the Egmont Aviation
  *   org and sees the MET exam config seeded by either script.
  *
- * These tests lock down Bugs C + D from PR #523 Phase 2:
- *   Bug C — page.reload() on /app/quiz/session during exam mode redirected to
- *            /app/quiz instead of rehydrating from localStorage.
- *   Bug D — navigating to /app/quiz mid-exam showed no resume banner because
- *            getActiveExamSession used deleted_at filter incorrectly.
+ * These tests lock down Bugs C + D from PR #523 Phase 2, on the server-held flow of #1026:
+ *   Bug C — page.reload() mid-exam must reopen the exam, not bounce to /app/quiz. The exam's
+ *            URL is /app/quiz/session/<id>; the server holds its answers and position.
+ *   Bug D — navigating to /app/quiz mid-exam must show the resume banner, whose link opens
+ *            the same session URL.
  *
  * Both specs use test.setTimeout(90_000) to cover the 60s MET timer and avoid
  * Playwright's default 30s ceiling during the exam session setup phase.
@@ -22,6 +22,8 @@
  */
 
 import { expect, type Page, test } from '@playwright/test'
+import { readServerAnsweredCount } from './helpers/quiz-session'
+import { SESSION_ID_URL } from './helpers/quiz-session-id'
 import { getAdminClient, TEST_EMAIL } from './helpers/supabase'
 
 test.use({ storageState: 'e2e/.auth/user.json' })
@@ -29,7 +31,7 @@ test.use({ storageState: 'e2e/.auth/user.json' })
 /**
  * Helper: navigate to /app/quiz, switch to Practice Exam mode, select the MET
  * subject (code "050"), and click "Start Practice Exam".
- * Waits until /app/quiz/session is loaded and Question 1 is visible.
+ * Waits until /app/quiz/session/<id> is loaded and Question 1 is visible.
  */
 async function startMETExam(page: Page): Promise<void> {
   await page.goto('/app/quiz')
@@ -73,47 +75,27 @@ async function startMETExam(page: Page): Promise<void> {
   await startButton.click()
 
   // Wait for session
-  await page.waitForURL(/\/app\/quiz\/session/, { timeout: 15_000 })
+  await page.waitForURL(SESSION_ID_URL, { timeout: 15_000 })
   await expect(page.getByText('Question 1')).toBeVisible({ timeout: 10_000 })
 }
 
 /**
- * Helper: answer the current question by clicking the first available answer
- * button and waiting for the exam buffer to record it (Next arrow becomes active
- * or the answered count in the header increments).
- *
- * In exam mode there is no per-answer submit button — selecting an option records
- * it immediately via the exam answer buffer. We wait for the option to appear
- * visually selected (aria-pressed or a checked variant class) as the UI signal.
+ * Helper: answer the current question. In exam mode the answer is only recorded once
+ * "Confirm Answer" is pressed; the confirmed option locks (disabled, no correctness shown).
  */
 async function answerCurrentQuestion(page: Page): Promise<void> {
-  // In exam mode, answer buttons are plain option buttons (span.rounded-full marker).
-  // Click first option. The exam buffer confirms it synchronously.
-  const answerBtns = page.locator('button:has(span.rounded-full)')
-  await answerBtns.first().waitFor({ state: 'visible', timeout: 10_000 })
-  const firstOption = answerBtns.first()
+  const firstOption = page.locator('button:has(span.rounded-full)').first()
+  await firstOption.waitFor({ state: 'visible', timeout: 10_000 })
   await firstOption.click()
-
-  // Wait for the clicked option to carry data-selected="true" — set by AnswerOptions
-  // (answer-options.tsx line 82) when isSelected && !showResult, i.e. the
-  // pre-confirmation pending-selection state set synchronously on click (the exam
-  // buffer itself only commits on Confirm). This is deterministic and replaces the
-  // former page.waitForTimeout(300) flake-risk.
   await expect(firstOption).toHaveAttribute('data-selected', 'true')
+  await page.getByRole('button', { name: 'Confirm Answer' }).click()
+  await expect(firstOption).toBeDisabled()
 }
 
 test.describe('practice exam — refresh recovery', () => {
   test.setTimeout(90_000)
 
-  test.afterEach(async ({ page }) => {
-    // Best-effort cleanup of exam localStorage key so tests don't bleed into each other.
-    // The key format is quiz-active-session:<userId>.
-    await page.evaluate(() => {
-      for (const key of Object.keys(localStorage)) {
-        if (key.startsWith('quiz-active-session:')) localStorage.removeItem(key)
-      }
-    })
-
+  test.afterEach(async () => {
     // Soft-delete any leftover server-side mock_exam quiz_sessions for the shared
     // test user so the next spec doesn't see a stale "Resume Practice Exam" banner
     // (which would race with the regular "Resume" banner and trip strict-mode locator).
@@ -150,83 +132,51 @@ test.describe('practice exam — refresh recovery', () => {
     if (errors.length > 0) throw new Error(`afterEach: ${errors.join('; ')}`)
   })
 
-  // ── 1. Warm in-tab refresh rehydrates from localStorage ────────────────────
+  // ── 1. Reload reopens the same exam from the server ────────────────────────
 
-  test('resumes seamlessly after page reload with answers buffered to localStorage', async ({
+  test('reloading mid-exam reopens the same exam URL with the confirmed answer locked', async ({
     page,
   }) => {
     await startMETExam(page)
-
-    // Answer one question so there is state worth recovering
+    const sessionUrl = page.url()
     await answerCurrentQuestion(page)
+    await expect.poll(readServerAnsweredCount, { timeout: 10_000 }).toBe(1)
 
-    // Force a full page reload — this is the Bug C regression path.
-    // Before Phase 2 fix: reload redirected to /app/quiz.
-    // After Phase 2 fix: session rehydrates from localStorage handoff and stays
-    // on /app/quiz/session.
+    // Bug C regression path: reload used to redirect to /app/quiz.
     await page.reload()
 
-    // Race the two valid post-reload outcomes by visible content rather than URL:
-    // page.waitForURL matches the URL at the START of navigation, so reloading
-    // /app/quiz/session resolves true even when the page subsequently bounces
-    // back to /app/quiz showing the resume banner. Using locator.or() lets us
-    // wait for whichever surface stabilises and branch on what is actually
-    // visible. (First use of locator.or() in this codebase — Playwright ≥1.33.)
-    const questionText = page.getByText(/Question \d/)
-    const resumeBanner = page.getByText('Practice Exam in progress')
-    await expect(questionText.or(resumeBanner)).toBeVisible({ timeout: 15_000 })
-
-    if (await resumeBanner.isVisible().catch(() => false)) {
-      // Bug D path: server-side resume banner (localStorage handoff was lost or
-      // the session-page rehydrate path is not engaged). Clicking Resume must
-      // land back on /app/quiz/session with the question content visible.
-      await page.getByRole('button', { name: 'Resume Practice Exam' }).click()
-      await page.waitForURL(/\/app\/quiz\/session/, { timeout: 10_000 })
-      await expect(page.getByText(/Question \d/)).toBeVisible({ timeout: 10_000 })
-    }
-    // else: Bug C path — questionText was already visible after reload, so the
-    // session page rehydrated from the localStorage handoff. The earlier
-    // expect(...or...).toBeVisible() already proved the assertion.
+    await expect(page).toHaveURL(sessionUrl)
+    await expect(page.getByText(/Question 1 of/)).toBeVisible({ timeout: 15_000 })
+    await expect(page.locator('button:has(span.rounded-full)').first()).toBeDisabled()
+    await expect(page.getByText('Practice Exam in progress')).toHaveCount(0)
   })
 
-  // ── 2. Resume banner on /app/quiz when localStorage is cleared mid-exam ────
+  // ── 2. Resume banner on /app/quiz when the browser storage is cleared ──────
 
-  test('shows a Resume Practice Exam banner on /app/quiz when localStorage is cleared mid-exam', async ({
+  test('shows a Resume Practice Exam banner on /app/quiz when browser storage is cleared mid-exam', async ({
     page,
   }) => {
     await startMETExam(page)
-
-    // Answer one question to create a server-side active session
+    const sessionUrl = page.url()
     await answerCurrentQuestion(page)
+    await expect.poll(readServerAnsweredCount, { timeout: 10_000 }).toBe(1)
 
-    // Simulate "lost tab" by clearing localStorage — this removes the local
-    // recovery data but the server-side quiz_sessions row remains 'active'.
+    // Simulate a lost tab: nothing is left in this browser, the server row remains open.
     await page.evaluate(() => {
-      for (const key of Object.keys(localStorage)) {
-        if (key.startsWith('quiz-active-session:')) localStorage.removeItem(key)
-      }
+      localStorage.clear()
+      sessionStorage.clear()
     })
 
-    // Also clear sessionStorage handoff so there's no warm resume path
-    await page.evaluate(() => {
-      for (const key of Object.keys(sessionStorage)) {
-        if (key.startsWith('quiz-session:')) sessionStorage.removeItem(key)
-      }
-    })
-
-    // Navigate to /app/quiz — the page re-fetches getActiveExamSession server-side.
-    // Phase 2 fix: getActiveExamSession correctly finds the active session.
-    // Bug D regression: before the fix, the deleted_at filter was incorrectly
-    // applied and returned no sessions, so the banner was never shown.
+    // Bug D regression: the banner comes from the server (getActiveExamSession).
     await page.goto('/app/quiz')
     await expect(page.getByRole('heading', { name: 'Quiz' })).toBeVisible()
-
-    // The "Practice Exam in progress" banner must be visible
     await expect(page.getByText('Practice Exam in progress')).toBeVisible({ timeout: 10_000 })
 
-    // Click "Resume Practice Exam" — must navigate to /app/quiz/session
-    await page.getByRole('button', { name: 'Resume Practice Exam' }).click()
-    await page.waitForURL(/\/app\/quiz\/session/, { timeout: 10_000 })
-    await expect(page.getByText(/Question \d/)).toBeVisible({ timeout: 10_000 })
+    // The Resume link opens the exam's own URL, with the answer still in place.
+    await page.getByRole('link', { name: 'Resume Practice Exam' }).click()
+    await page.waitForURL(SESSION_ID_URL, { timeout: 10_000 })
+    expect(page.url()).toBe(sessionUrl)
+    await expect(page.getByText(/Question 1 of/)).toBeVisible({ timeout: 10_000 })
+    await expect(page.locator('button:has(span.rounded-full)').first()).toBeDisabled()
   })
 })

@@ -1,7 +1,9 @@
 import { expect, type Page } from '@playwright/test'
+import { SESSION_ID_URL } from './quiz-session-id'
 import { getAdminClient, TEST_EMAIL } from './supabase'
 
-export async function startStudyQuiz(page: Page): Promise<number> {
+/** Starts a Study quiz on the first subject: every question, or the `preset` count button. Returns the quiz length. */
+export async function startStudyQuiz(page: Page, preset?: number): Promise<number> {
   await page.goto('/app/quiz')
   await expect(page.getByRole('heading', { name: 'Quiz' })).toBeVisible()
   await page.getByRole('button', { name: 'Study', exact: true }).click()
@@ -13,12 +15,13 @@ export async function startStudyQuiz(page: Page): Promise<number> {
   await trigger.waitFor({ state: 'visible' })
   await trigger.click()
   await page.locator('[data-testid="subject-option"]').first().click()
-  await page.getByRole('button', { name: 'All' }).click()
+  await page.getByRole('button', { name: preset ? String(preset) : 'All', exact: !!preset }).click()
   const text = await page.getByText(/of \d+ selected/).textContent()
-  const total = Number(text?.match(/of (\d+) selected/)?.[1] ?? 0)
-  expect(total).toBeGreaterThanOrEqual(3)
+  const available = Number(text?.match(/of (\d+) selected/)?.[1] ?? 0)
+  expect(available).toBeGreaterThanOrEqual(preset ?? 3)
+  const total = preset ?? available
   await page.getByRole('button', { name: 'Start Quiz' }).click()
-  await page.waitForURL('**/app/quiz/session', { timeout: 10_000 })
+  await page.waitForURL(SESSION_ID_URL, { timeout: 10_000 })
   await expect(page.getByText(`Question 1 of ${total}`)).toBeVisible({ timeout: 10_000 })
   return total
 }
