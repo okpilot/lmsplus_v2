@@ -31,6 +31,22 @@ type DiscardOnlyProps = {
 
 type Props = NormalProps | DiscardOnlyProps
 
+function ResumeLink({ sessionId, loading }: Readonly<{ sessionId: string; loading: boolean }>) {
+  return (
+    <Link
+      href={`/app/quiz/session/${sessionId}`}
+      aria-disabled={loading || undefined}
+      tabIndex={loading ? -1 : undefined}
+      onClick={(e) => {
+        if (loading) e.preventDefault()
+      }}
+      className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-600 aria-disabled:pointer-events-none aria-disabled:opacity-50"
+    >
+      Resume Practice Exam
+    </Link>
+  )
+}
+
 export function ResumeExamBanner({ userId, exam, discardOnly, sessionId }: Readonly<Props>) {
   const activeSessionId = discardOnly ? sessionId : exam.sessionId
   const { loading, error, discarded, handleDiscard } = useResumeExamActions({
@@ -57,19 +73,7 @@ export function ResumeExamBanner({ userId, exam, discardOnly, sessionId }: Reado
         </p>
       )}
       <div className="mt-3 flex gap-2">
-        {!discardOnly && (
-          <Link
-            href={`/app/quiz/session/${activeSessionId}`}
-            aria-disabled={loading || undefined}
-            tabIndex={loading ? -1 : undefined}
-            onClick={(e) => {
-              if (loading) e.preventDefault()
-            }}
-            className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-600 aria-disabled:pointer-events-none aria-disabled:opacity-50"
-          >
-            Resume Practice Exam
-          </Link>
-        )}
+        {!discardOnly && <ResumeLink sessionId={activeSessionId} loading={loading} />}
         <AlertDialog>
           <AlertDialogTrigger
             render={

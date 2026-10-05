@@ -303,6 +303,8 @@ test.describe('Quiz session addressed by id', () => {
     await page.goto('/app/quiz')
     const banner = page.getByText(`session for ${subject}`)
     await expect(banner).toBeVisible()
+    const ownerRaw = await page.context().request.get(sessionUrl)
+    expect(await ownerRaw.text()).toContain(firstQuestionId)
 
     const stranger = await openStrangerContext(browser)
     const raw = await stranger.context().request.get(sessionUrl)
