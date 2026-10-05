@@ -19,7 +19,7 @@ type PositionSaveOpts = SaveHandlers & {
 /** Fires the background position save; `leaving` adds the left question's visit time. */
 export function sendPositionSave(opts: PositionSaveOpts): void {
   const { leaving } = opts
-  fireProgressSave({
+  void fireProgressSave({
     kind: 'position',
     sessionId: opts.sessionId,
     input: buildPositionInput({
@@ -65,23 +65,25 @@ export function sendAnswerSave(opts: AnswerSaveOpts): void {
   }).then((ok) => settleAnswerSend({ sessionId, questionId, input, ok }))
 }
 
-/** Re-sends, one at a time, the answer saves that failed; true when none is left unsaved. */
+/** Re-sends the answer saves that failed; true when none is left unsaved. */
 export async function resendUnsavedAnswers(opts: {
   sessionId: string
   onMappedError: (message: string) => void
 }): Promise<boolean> {
   const { sessionId } = opts
-  for (const { questionId, input } of failedAnswers(sessionId)) {
-    trackAnswerSend({ sessionId, questionId, input })
-    const ok = await fireProgressSave({
-      kind: 'answer',
-      sessionId,
-      input,
-      onSuccess: () => {},
-      onMappedError: opts.onMappedError,
-    })
-    settleAnswerSend({ sessionId, questionId, input, ok })
-  }
+  await Promise.all(
+    failedAnswers(sessionId).map(async ({ questionId, input }) => {
+      trackAnswerSend({ sessionId, questionId, input })
+      const ok = await fireProgressSave({
+        kind: 'answer',
+        sessionId,
+        input,
+        onSuccess: () => {},
+        onMappedError: opts.onMappedError,
+      })
+      settleAnswerSend({ sessionId, questionId, input, ok })
+    }),
+  )
   return failedAnswers(sessionId).length === 0
 }
 

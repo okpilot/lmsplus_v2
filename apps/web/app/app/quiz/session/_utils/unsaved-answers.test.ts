@@ -67,6 +67,7 @@ describe('unsaved answers', () => {
     const input = { a: 1 }
     trackAnswerSend({ sessionId: S, questionId: Q, input })
     settleAnswerSend({ sessionId: S, questionId: Q, input, ok: false })
+    expect(failedAnswers(S)).toEqual([{ questionId: Q, input }])
     expect(failedAnswers('session-2')).toEqual([])
   })
 })

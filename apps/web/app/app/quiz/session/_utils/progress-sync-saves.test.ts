@@ -18,6 +18,7 @@ import { _resetUnsavedAnswers } from './unsaved-answers'
 
 const SESSION = '00000000-0000-4000-a000-000000000001'
 const QID = '00000000-0000-4000-a000-000000000011'
+const QID2 = '00000000-0000-4000-a000-000000000012'
 const handlers = { onSuccess: vi.fn(), onMappedError: vi.fn() }
 
 beforeEach(() => {
@@ -142,6 +143,7 @@ describe('resendUnsavedAnswers', () => {
     send('a')
     await settle()
     const original = sentInput(0)
+    expect(original).toBeDefined()
     mockFire.mockResolvedValueOnce(true)
     await expect(resend()).resolves.toBe(true)
     expect(mockFire).toHaveBeenCalledTimes(2)
@@ -153,6 +155,40 @@ describe('resendUnsavedAnswers', () => {
     send('a')
     await settle()
     await expect(resend()).resolves.toBe(false)
+    expect(mockFire).toHaveBeenCalledTimes(2)
+  })
+
+  const sendSecond = () =>
+    sendAnswerSave({
+      sessionId: SESSION,
+      questionId: QID2,
+      draft: { selectedOptionId: 'b' },
+      startedAt: 1_000_000,
+      ...handlers,
+    })
+
+  it('re-sends failed answers for two questions with their own inputs and resolves true when both land', async () => {
+    mockFire.mockResolvedValueOnce(false).mockResolvedValueOnce(false)
+    send('a')
+    sendSecond()
+    await settle()
+    const [first, second] = [sentInput(0), sentInput(1)]
+    expect(first).not.toEqual(second)
+    mockFire.mockResolvedValue(true)
+    await expect(resend()).resolves.toBe(true)
+    expect(mockFire).toHaveBeenCalledTimes(4)
+    expect(sentInput(2)).toBe(first)
+    expect(sentInput(3)).toBe(second)
+  })
+
+  it('resolves false when one of two re-sent answers still fails', async () => {
+    mockFire.mockResolvedValueOnce(false).mockResolvedValueOnce(false)
+    send('a')
+    sendSecond()
+    await settle()
+    mockFire.mockResolvedValueOnce(true).mockResolvedValueOnce(false)
+    await expect(resend()).resolves.toBe(false)
+    expect(mockFire).toHaveBeenCalledTimes(4)
   })
 
   it('resolves true and sends nothing when no answer save failed', async () => {

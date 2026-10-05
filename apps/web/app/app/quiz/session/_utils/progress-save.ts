@@ -73,8 +73,9 @@ type SaveKind = 'answer' | 'position'
 
 /**
  * Fire-and-forget progress save. Never throws or rejects; callers may ignore the result. Resolves
- * true only when the save succeeded. A mapped (displayable) failure goes to onMappedError;
- * anything else is a console.warn only.
+ * true only when the save succeeded. A taken-over session and a signed-out user resolve false with
+ * no warning; a mapped (displayable) failure goes to onMappedError; any other failure is a
+ * console.warn.
  */
 export async function fireProgressSave(opts: {
   kind: SaveKind

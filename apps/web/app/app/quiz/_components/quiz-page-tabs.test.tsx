@@ -51,7 +51,7 @@ describe('QuizPageTabs', () => {
     expect(screen.getByTestId('badge').textContent).toBe('3')
   })
 
-  it('passes drafts, saved sessions and the lookup-failed flag to the saved list', () => {
+  it('lists two drafts and one saved session and marks the saved lookup as failed', () => {
     render(<QuizPageTabs {...props} />)
     const card = screen.getByTestId('saved-card')
     expect(card.getAttribute('data-drafts')).toBe('2')
