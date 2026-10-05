@@ -53,7 +53,7 @@ export async function recheckAnswers(opts: Opts): Promise<Map<string, AnswerFeed
       if (r.done) break
     }
   } catch {
-    return out
+    // A failed call ends the batch; keep what was graded so far.
   }
   return out
 }

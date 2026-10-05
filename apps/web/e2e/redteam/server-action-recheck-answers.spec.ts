@@ -16,6 +16,7 @@
  */
 
 import { type BrowserContext, expect, test } from '@playwright/test'
+import { RECHECK_CHUNK as CHUNK } from '../../app/app/quiz/actions/recheck-answers-schema'
 import { buildConsentCookieValue } from '../../lib/consent/check-consent'
 import { CONSENT_COOKIE } from '../../lib/consent/versions'
 import { cleanupStudentActiveSessions, getAdminClient } from '../helpers/supabase'
@@ -36,7 +37,6 @@ const OTHER_DEVICE = '00000000-0000-4000-8000-0000000000d2'
 const VICTIM_DEVICE = '00000000-0000-4000-8000-0000000000d3'
 const KEY = 'correctOptionId'
 const TAKEN_OVER = 'open in another tab or device'
-const CHUNK = 25
 
 type Mode = 'quick_quiz' | 'mock_exam'
 type Captured = { headers: Record<string, string>; id: string }

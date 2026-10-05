@@ -139,39 +139,64 @@ describe('recheckRestoredAnswers (app-layer integration)', () => {
 
   const DEVICE_ID = '00000000-0000-4000-a000-0000000000d1'
 
+  async function readProgress(sessionId: string) {
+    const { data, error } = await admin
+      .from('quiz_session_progress')
+      .select('question_id, answer, updated_at')
+      .eq('session_id', sessionId)
+      .order('question_id')
+    if (error) throw new Error(`read progress: ${error.message}`)
+    return data ?? []
+  }
+
   it('grades every restored answer of the callers own session and reveals the key', async () => {
+    const [q0, q1] = questionIds
+    if (!q0 || !q1) throw new Error('seedQuestions returned fewer than 2 ids')
     await signInAs(emailA, password)
 
     const result = await recheckRestoredAnswers({
       sessionId: sessionIdA,
       deviceId: DEVICE_ID,
       answers: [
-        { questionId: questionIds[0], selectedOptionId: 'b' },
-        { questionId: questionIds[1], selectedOptionId: 'a' },
+        { questionId: q0, selectedOptionId: 'b' },
+        { questionId: q1, selectedOptionId: 'a' },
       ],
     })
 
     expect(result.success).toBe(true)
     if (!result.success) throw new Error(result.error)
-    expect(Object.keys(result.feedback).sort()).toEqual([questionIds[0], questionIds[1]].sort())
-    expect(result.feedback[questionIds[0]]).toMatchObject({ isCorrect: true, correctOptionId: 'b' })
-    expect(result.feedback[questionIds[1]]).toMatchObject({
+    expect(Object.keys(result.feedback).sort()).toEqual([q0, q1].sort())
+    expect(result.feedback[q0]).toMatchObject({ isCorrect: true, correctOptionId: 'b' })
+    expect(result.feedback[q1]).toMatchObject({
       isCorrect: false,
       correctOptionId: 'b',
     })
   })
 
   it('grades nothing for another students session', async () => {
-    // Non-vacuous: the test above shows the same answers grade for the owner.
-    await signInAs(emailB, password)
+    const q0 = questionIds[0]
+    if (!q0) throw new Error('seedQuestions returned no id')
+    const answers = [{ questionId: q0, selectedOptionId: 'c' }]
+    await signInAs(emailA, password)
+    const own = await recheckRestoredAnswers({
+      sessionId: sessionIdA,
+      deviceId: DEVICE_ID,
+      answers,
+    })
+    if (!own.success) throw new Error(own.error)
+    expect(own.feedback[q0]).toBeDefined()
+    const before = await readProgress(sessionIdA)
+    expect(before.length).toBeGreaterThan(0)
 
+    await signInAs(emailB, password)
     const result = await recheckRestoredAnswers({
       sessionId: sessionIdA,
       deviceId: DEVICE_ID,
-      answers: [{ questionId: questionIds[0], selectedOptionId: 'b' }],
+      answers: [{ questionId: q0, selectedOptionId: 'b' }],
     })
 
     expect(result).toEqual({ success: true, feedback: {}, done: true })
+    expect(await readProgress(sessionIdA)).toEqual(before)
   })
 
   it('drops an answer for a question outside the session', async () => {
@@ -207,17 +232,57 @@ describe('recheckRestoredAnswers (app-layer integration)', () => {
       subjectId: refs.subjectId,
       topicId: refs.topicId,
     })
+    await signInAs(emailA, password)
+    const answers = [{ questionId: questionIds[0], selectedOptionId: 'b' }]
+    const open = await recheckRestoredAnswers({
+      sessionId: endedSessionId,
+      deviceId: DEVICE_ID,
+      answers,
+    })
+    if (!open.success) throw new Error(open.error)
+    expect(Object.keys(open.feedback)).toEqual([questionIds[0]])
     const { error: endErr } = await admin
       .from('quiz_sessions')
       .update({ ended_at: new Date().toISOString() })
       .eq('id', endedSessionId)
     if (endErr) throw new Error(`end session: ${endErr.message}`)
-    await signInAs(emailA, password)
 
     const result = await recheckRestoredAnswers({
       sessionId: endedSessionId,
       deviceId: DEVICE_ID,
       answers: [{ questionId: questionIds[0], selectedOptionId: 'b' }],
+    })
+
+    expect(result).toEqual({ success: true, feedback: {}, done: true })
+  })
+
+  it('grades nothing once the session is soft-deleted', async () => {
+    await clearActiveSessions({ admin, studentIds: [studentAId] })
+    const { sessionId: deletedSessionId } = await seedOpenSession({
+      studentClient: studentAClient,
+      questionIds,
+      subjectId: refs.subjectId,
+      topicId: refs.topicId,
+    })
+    await signInAs(emailA, password)
+    const answers = [{ questionId: questionIds[0], selectedOptionId: 'b' }]
+    const open = await recheckRestoredAnswers({
+      sessionId: deletedSessionId,
+      deviceId: DEVICE_ID,
+      answers,
+    })
+    if (!open.success) throw new Error(open.error)
+    expect(Object.keys(open.feedback)).toEqual([questionIds[0]])
+    const { error: delErr } = await admin
+      .from('quiz_sessions')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', deletedSessionId)
+    if (delErr) throw new Error(`soft-delete session: ${delErr.message}`)
+
+    const result = await recheckRestoredAnswers({
+      sessionId: deletedSessionId,
+      deviceId: DEVICE_ID,
+      answers,
     })
 
     expect(result).toEqual({ success: true, feedback: {}, done: true })
