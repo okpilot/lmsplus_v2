@@ -55,7 +55,6 @@ vi.mock('../_utils/quiz-session-storage', () => ({
 // ---- Subject under test ---------------------------------------------------
 
 import {
-  examReportUrl,
   handleDiscardSession,
   handleSaveSession,
   handleSubmitSession,
@@ -123,24 +122,6 @@ beforeEach(() => {
   mockDeleteDraft.mockResolvedValue({ success: true })
   mockClearDeploymentPin.mockResolvedValue(undefined)
   mockSubmitEmptyExamSession.mockResolvedValue({ success: true, sessionId: SESSION_ID })
-})
-
-// ---- examReportUrl -------------------------------------------------------
-
-describe('examReportUrl', () => {
-  it('points internal exams at the internal-exam report namespace', () => {
-    expect(examReportUrl('internal_exam', SESSION_ID)).toBe(
-      `/app/internal-exam/report?session=${SESSION_ID}`,
-    )
-  })
-
-  it('points practice exams at the quiz report namespace', () => {
-    expect(examReportUrl('mock_exam', SESSION_ID)).toBe(`/app/quiz/report?session=${SESSION_ID}`)
-  })
-
-  it('points study mode at the quiz report namespace when no mode is given', () => {
-    expect(examReportUrl(undefined, SESSION_ID)).toBe(`/app/quiz/report?session=${SESSION_ID}`)
-  })
 })
 
 // ---- submitQuizSession ---------------------------------------------------

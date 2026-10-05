@@ -27,8 +27,6 @@ vi.mock('./quiz-submit', () => ({
   handleSubmitSession: (...args: unknown[]) => mockHandleSubmitSession(...args),
   handleSaveSession: (...args: unknown[]) => mockHandleSaveSession(...args),
   handleDiscardSession: (...args: unknown[]) => mockHandleDiscardSession(...args),
-  examReportUrl: (examMode: string | undefined, sessionId: string) =>
-    `${examMode === 'internal_exam' ? '/app/internal-exam/report' : '/app/quiz/report'}?session=${sessionId}`,
 }))
 
 // ---- Subject under test ---------------------------------------------------
