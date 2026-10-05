@@ -229,6 +229,14 @@ test.describe('Red Team: quiz session read path by id (HA, HB)', () => {
         const page = await ctx.newPage()
         // An aborted action response may never settle its body, so collect bodies as they arrive.
         const actionBodies: string[] = []
+        // checkAnswer from the re-check: q1 and selectedOptionId, no timeSpentMs (saves carry it).
+        const requestBodies: string[] = []
+        const isRecheck = (b: string) =>
+          b.includes(q1) && b.includes('selectedOptionId') && !b.includes('timeSpentMs')
+        page.on('request', (r) => {
+          if (r.method() === 'POST' && r.headers()['next-action'])
+            requestBodies.push(r.postData() ?? '')
+        })
         page.on('response', (r) => {
           if (r.request().method() === 'POST' && r.request().headers()['next-action'])
             r.text().then(
@@ -242,8 +250,10 @@ test.describe('Red Team: quiz session read path by id (HA, HB)', () => {
           await expect
             .poll(() => actionBodies.some((b) => b.includes('isCorrect')), { timeout: 10_000 })
             .toBe(true)
+          expect(requestBodies.some(isRecheck)).toBe(true)
         } else {
           await page.waitForTimeout(3_000)
+          expect(requestBodies.some(isRecheck)).toBe(false)
           expect(actionBodies.length).toBeGreaterThan(0)
           for (const b of actionBodies) for (const t of KEY_TOKENS) expect(b, t).not.toContain(t)
         }
