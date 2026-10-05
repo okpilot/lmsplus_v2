@@ -272,8 +272,9 @@ describe('buildHandleSave', () => {
   it('does not hand the old draft to the save, so saving cannot remove it', async () => {
     const handleSave = buildHandleSave(makeBaseDeps({ draftId: 'draft-1' }))
     await handleSave()
+    expect(mockHandleSaveSession).toHaveBeenCalledTimes(1)
     const call = mockHandleSaveSession.mock.calls[0]?.[0] as Record<string, unknown>
-    expect(call.draftId).toBeUndefined()
+    expect(call).not.toHaveProperty('draftId')
   })
 
   it('sends no answers or progress, because the server session already holds them', async () => {
