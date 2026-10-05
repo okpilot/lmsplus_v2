@@ -73,3 +73,25 @@ export async function clearQuizActiveSessionKeys(page: Page): Promise<void> {
     }
   })
 }
+
+/** Saved rows are soft-deleted already, so cleanupStudentActiveSessions cannot see them. */
+export async function cleanupSavedSessions(studentEmail: string): Promise<void> {
+  const admin = getAdminClient()
+  const { data: student, error: studentError } = await admin
+    .from('users')
+    .select('id')
+    .eq('email', studentEmail)
+    .maybeSingle()
+  if (studentError) throw new Error(`cleanupSavedSessions student: ${studentError.message}`)
+  if (!student) return
+  const { data, error } = await admin
+    .from('quiz_sessions')
+    .update({ saved_at: null })
+    .eq('student_id', student.id)
+    .not('saved_at', 'is', null)
+    .select('id')
+  if (error) throw new Error(`cleanupSavedSessions: ${error.message}`)
+  if ((data?.length ?? 0) > 0) {
+    console.log(`[cleanupSavedSessions] cleared ${data?.length} saved marker(s)`)
+  }
+}

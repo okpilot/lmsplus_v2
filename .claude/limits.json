@@ -105,7 +105,7 @@
     "apps/web/app/app/quiz/session/_hooks/use-answer-handler.ts": 113,
     "apps/web/app/app/quiz/session/_hooks/use-answer-pipeline.ts": 81,
     "apps/web/app/app/quiz/session/_hooks/use-quiz-keyboard.ts": 84,
-    "apps/web/app/app/quiz/session/_hooks/use-quiz-state.test.ts": 928,
+    "apps/web/app/app/quiz/session/_hooks/use-quiz-state.test.ts": 927,
     "apps/web/app/app/quiz/session/_hooks/use-session-bootstrap.test.ts": 800,
     "apps/web/app/app/quiz/session/_utils/quiz-session-storage.test.ts": 895,
     "apps/web/app/app/quiz/session/_utils/quiz-session-validators.test.ts": 1038,

@@ -103,14 +103,22 @@ export async function discardMintedSession(
   sessionId: string,
   userId: string,
 ): Promise<void> {
-  const { data, error } = await supabase
-    .from('quiz_sessions')
-    .update({ deleted_at: new Date().toISOString() })
-    .eq('id', sessionId)
-    .eq('student_id', userId)
-    .select('id')
-  if (error || (data?.length ?? 0) === 0) {
-    console.error('[resumeQuizSession] Rollback left an orphan session:', sessionId, error?.message)
+  try {
+    const { data, error } = await supabase
+      .from('quiz_sessions')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', sessionId)
+      .eq('student_id', userId)
+      .select('id')
+    if (error || (data?.length ?? 0) === 0) {
+      console.error(
+        '[resumeQuizSession] Rollback left an orphan session:',
+        sessionId,
+        error?.message,
+      )
+    }
+  } catch (err) {
+    console.error('[resumeQuizSession] Rollback threw:', err)
   }
 }
 
@@ -132,15 +140,23 @@ async function deleteSeededDraft(
 }
 
 /**
- * Seeds the new session, then deletes the draft. On any failure the draft is kept and the new
- * session is soft-deleted, so a retry starts clean.
+ * Seeds the new session, then deletes the draft. A failed or thrown seed keeps the draft and
+ * soft-deletes the new session (a thrown seed rethrows the original error after the discard). A
+ * thrown draft delete propagates WITHOUT a discard: the server may already have deleted the draft,
+ * so the seeded session must stay.
  */
 export async function finishResume(
   supabase: SupabaseClient,
   ids: { draftId: string; userId: string; sessionId: string },
   ctx: ResumeContext,
 ): Promise<boolean> {
-  const seeded = await seedSessionFromDraft(supabase, ids.sessionId, ctx)
+  let seeded: boolean
+  try {
+    seeded = await seedSessionFromDraft(supabase, ids.sessionId, ctx)
+  } catch (err) {
+    await discardMintedSession(supabase, ids.sessionId, ids.userId)
+    throw err
+  }
   if (seeded && (await deleteSeededDraft(supabase, ids.draftId, ids.userId))) return true
   await discardMintedSession(supabase, ids.sessionId, ids.userId)
   return false

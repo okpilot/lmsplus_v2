@@ -219,6 +219,19 @@ describe('discardMintedSession', () => {
     expect(console.error).toHaveBeenCalledWith(expect.stringContaining('orphan'), SESSION, 'boom')
   })
 
+  it('resolves without throwing when the rollback update rejects', async () => {
+    const client = {
+      from: vi.fn(() => {
+        throw new Error('network down')
+      }),
+    } as unknown as Client
+    await expect(discardMintedSession(client, SESSION, USER)).resolves.toBeUndefined()
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining('Rollback threw'),
+      expect.any(Error),
+    )
+  })
+
   it('logs when the rollback matched no row', async () => {
     const client = clientFor({ quiz_sessions: chain({ data: [], error: null }, 'select') })
     await discardMintedSession(client, SESSION, USER)
@@ -265,5 +278,40 @@ describe('finishResume', () => {
     })
     expect(await finishResume(client, ids, ctx())).toBe(false)
     expect(client.from).toHaveBeenCalledWith('quiz_sessions')
+  })
+
+  it('discards the new session and rethrows the original error when the seed throws', async () => {
+    const boom = new Error('seed transport failure')
+    mockRpc.mockRejectedValue(boom)
+    const client = clientFor({
+      quiz_drafts: chain({ data: [{ id: DRAFT }], error: null }, 'select'),
+      quiz_sessions: chain({ data: [{ id: SESSION }], error: null }, 'select'),
+    })
+    await expect(finishResume(client, ids, ctx())).rejects.toBe(boom)
+    expect(client.from).toHaveBeenCalledWith('quiz_sessions')
+    expect(client.from).not.toHaveBeenCalledWith('quiz_drafts')
+  })
+
+  it('rethrows the original seed error when the discard also fails', async () => {
+    const boom = new Error('seed transport failure')
+    mockRpc.mockRejectedValue(boom)
+    const client = {
+      from: vi.fn(() => {
+        throw new Error('discard failed')
+      }),
+    } as unknown as Client
+    await expect(finishResume(client, ids, ctx())).rejects.toBe(boom)
+  })
+
+  it('keeps the seeded session when the draft delete throws', async () => {
+    const boom = new Error('delete transport failure')
+    const client = {
+      from: vi.fn((table: string) => {
+        if (table === 'quiz_drafts') throw boom
+        return chain({ data: [{ id: SESSION }], error: null }, 'select')
+      }),
+    } as unknown as Client
+    await expect(finishResume(client, ids, ctx())).rejects.toBe(boom)
+    expect(client.from).not.toHaveBeenCalledWith('quiz_sessions')
   })
 })
