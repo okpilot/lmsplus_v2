@@ -7,7 +7,7 @@ type Opts = {
   enabled: boolean
   sessionId: string
   questionId: string
-  /** The answers seeded from the server: the only ones eligible for a re-check. */
+  /** The answers the runner was seeded with (server or local draft): the only ones eligible for a re-check. */
   restorable: Record<string, DraftAnswer> | undefined
   answers: Map<string, DraftAnswer>
   feedback: Map<string, AnswerFeedback>
