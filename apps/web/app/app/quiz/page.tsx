@@ -16,13 +16,15 @@ export default async function QuizPage() {
   const user = await requireAuthUser()
   const {
     drafts,
+    savedSessions,
+    savedLookupFailed,
     examLookupFailed,
     activeExams,
     orphanedIds,
     expiredIds,
     practiceLookupFailed,
     activePractice,
-  } = await loadQuizPageData()
+  } = await loadQuizPageData(user.id)
 
   return (
     <main className="space-y-6">
@@ -33,7 +35,11 @@ export default async function QuizPage() {
         </p>
       </div>
 
-      <LookupErrorAlerts examFailed={examLookupFailed} practiceFailed={practiceLookupFailed} />
+      <LookupErrorAlerts
+        examFailed={examLookupFailed}
+        practiceFailed={practiceLookupFailed}
+        savedFailed={savedLookupFailed}
+      />
 
       {activeExams.map((exam) => (
         <ResumeExamBanner key={exam.sessionId} userId={user.id} exam={exam} />
@@ -53,13 +59,13 @@ export default async function QuizPage() {
 
       <div className="mx-auto max-w-xl">
         <QuizTabs
-          draftCount={drafts.length}
+          draftCount={drafts.length + savedSessions.length}
           newQuizContent={
             <Suspense fallback={<div className="h-64 animate-pulse rounded-lg bg-muted" />}>
               <SubjectsSection userId={user.id} />
             </Suspense>
           }
-          savedDraftContent={<SavedDraftCard drafts={drafts} userId={user.id} />}
+          savedDraftContent={<SavedDraftCard drafts={drafts} savedSessions={savedSessions} />}
         />
       </div>
     </main>

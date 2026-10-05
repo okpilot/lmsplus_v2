@@ -2,7 +2,6 @@
 // to keep the action file under the 100-line cap (code-style.md §1) and each function
 // under the 30-line rule (§3). No `'use server'` — these are invoked by the action.
 import type { createServerSupabaseClient } from '@repo/db/server'
-import type { Database, Json } from '@repo/db/types'
 import { PRACTICE_MODES } from '@/lib/constants/exam-modes'
 
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
@@ -15,6 +14,9 @@ export type ResumeContext = {
   topicId: string | null
   subjectName?: string
   subjectCode?: string
+  // Client-written JSONB; seedSessionFromDraft re-validates every entry.
+  answers: unknown
+  currentIndex: number
 }
 
 type ContextResult = { ok: true; ctx: ResumeContext } | { ok: false; error: string }
@@ -45,6 +47,8 @@ function validateSessionForResume(session: {
 type DraftForResume = {
   questionIds: string[]
   sessionId: string
+  answers: unknown
+  currentIndex: number
   subjectName?: string
   subjectCode?: string
 }
@@ -53,6 +57,21 @@ type DraftLoadResult = { ok: true; draft: DraftForResume } | { ok: false; error:
 // Untrusted shape of quiz_drafts.session_config (client-written JSONB) — every field
 // is re-narrowed at the read site below before use.
 type RawDraftConfig = { sessionId?: unknown; subjectName?: unknown; subjectCode?: unknown }
+
+function toResumeDraft(
+  draft: { question_ids: string[]; answers: unknown; current_index: number },
+  config: RawDraftConfig,
+  sessionId: string,
+): DraftForResume {
+  return {
+    questionIds: draft.question_ids,
+    sessionId,
+    answers: draft.answers,
+    currentIndex: draft.current_index,
+    subjectName: typeof config.subjectName === 'string' ? config.subjectName : undefined,
+    subjectCode: typeof config.subjectCode === 'string' ? config.subjectCode : undefined,
+  }
+}
 
 /**
  * Fetch + validate the draft row: its question_ids and the ORIGINAL session id/labels
@@ -67,7 +86,7 @@ async function loadDraftForResume(
 ): Promise<DraftLoadResult> {
   const { data: draft, error: draftErr } = await supabase
     .from('quiz_drafts')
-    .select('question_ids, session_config')
+    .select('question_ids, session_config, answers, current_index')
     .eq('id', draftId)
     .eq('student_id', userId)
     .maybeSingle()
@@ -83,15 +102,7 @@ async function loadDraftForResume(
   if (typeof config.sessionId !== 'string') {
     return { ok: false, error: 'This saved quiz is missing its session reference.' }
   }
-  return {
-    ok: true,
-    draft: {
-      questionIds: draft.question_ids,
-      sessionId: config.sessionId,
-      subjectName: typeof config.subjectName === 'string' ? config.subjectName : undefined,
-      subjectCode: typeof config.subjectCode === 'string' ? config.subjectCode : undefined,
-    },
-  }
+  return { ok: true, draft: toResumeDraft(draft, config, config.sessionId) }
 }
 
 type OriginalSession = { mode: string; subject_id: string | null; topic_id: string | null }
@@ -139,7 +150,8 @@ export async function loadResumeContext(
 ): Promise<ContextResult> {
   const draftResult = await loadDraftForResume(supabase, draftId, userId)
   if (!draftResult.ok) return draftResult
-  const { questionIds, sessionId, subjectName, subjectCode } = draftResult.draft
+  const { questionIds, sessionId, subjectName, subjectCode, answers, currentIndex } =
+    draftResult.draft
 
   const sessionResult = await loadOriginalSession(supabase, sessionId, userId)
   if (!sessionResult.ok) return sessionResult
@@ -155,43 +167,8 @@ export async function loadResumeContext(
       topicId: session.topic_id,
       subjectName,
       subjectCode,
+      answers,
+      currentIndex,
     },
-  }
-}
-
-/**
- * Point the draft at the freshly-minted session id, preserving the subject labels
- * used by the draft card + handoff (session_config is written wholesale, not merged,
- * so a bare `{ sessionId }` would drop the labels). Non-fatal: the new session works
- * this run even if the pointer write fails — the draft self-heals on the next resume.
- */
-export async function repointDraftSession(
-  supabase: SupabaseClient,
-  draftId: string,
-  userId: string,
-  ctx: ResumeContext,
-  newSessionId: string,
-): Promise<void> {
-  const payload: Database['public']['Tables']['quiz_drafts']['Update'] = {
-    session_config: {
-      sessionId: newSessionId,
-      subjectName: ctx.subjectName,
-      subjectCode: ctx.subjectCode,
-    } as Json,
-  }
-  const { data, error } = await supabase
-    .from('quiz_drafts')
-    .update(payload)
-    .eq('id', draftId)
-    .eq('student_id', userId)
-    .select('id')
-  if (error) {
-    console.error('[resumeQuizSession] Draft re-point error:', error.message)
-    return
-  }
-  // Non-fatal: a zero-row re-point means the draft self-heals on the next resume, but
-  // log it for parity with closePracticeSessionForDraft's §5 observability.
-  if ((data?.length ?? 0) === 0) {
-    console.error('[resumeQuizSession] Draft re-point matched no row for draft', draftId)
   }
 }

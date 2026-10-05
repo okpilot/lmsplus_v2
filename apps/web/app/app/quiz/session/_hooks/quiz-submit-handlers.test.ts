@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SessionQuestion } from '@/app/app/_types/session'
 import { createMockRouter } from '@/lib/test-support/mock-router'
-import type { AnswerFeedback, DraftAnswer } from '../../types'
+import type { DraftAnswer } from '../../types'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -261,37 +261,27 @@ describe('buildHandleSubmit', () => {
 // ---- buildHandleSave ---------------------------------------------------------
 
 describe('buildHandleSave', () => {
-  function makeSaveDeps(overrides = {}) {
-    return {
-      ...makeBaseDeps(),
-      questions: [{ id: 'q1' }] as SessionQuestion[],
-      answersRef: {
-        current: new Map<string, DraftAnswer>([
-          ['q1', { selectedOptionId: 'a', responseTimeMs: 1 }],
-        ]),
-      },
-      feedbackRef: { current: new Map<string, AnswerFeedback>() },
-      currentIndexRef: { current: 0 },
-      pendingQuestionIdRef: { current: new Set<string>() },
-      ...overrides,
-    }
-  }
-
   it('delegates to handleSaveSession with userId/sessionId', async () => {
-    const deps = makeSaveDeps()
-    const handleSave = buildHandleSave(deps)
+    const handleSave = buildHandleSave(makeBaseDeps())
     await handleSave()
     const call = mockHandleSaveSession.mock.calls[0]?.[0] as Record<string, unknown>
     expect(call.userId).toBe(USER_ID)
     expect(call.sessionId).toBe(SESSION_ID)
   })
 
-  it('excludes pending question ids from the saved answers', async () => {
-    const deps = makeSaveDeps({ pendingQuestionIdRef: { current: new Set(['q1']) } })
-    const handleSave = buildHandleSave(deps)
+  it('passes the legacy draft id so a successful save can remove it', async () => {
+    const handleSave = buildHandleSave(makeBaseDeps({ draftId: 'draft-1' }))
     await handleSave()
-    const call = mockHandleSaveSession.mock.calls[0]?.[0] as { answers: Map<string, DraftAnswer> }
-    expect(call.answers.size).toBe(0)
+    const call = mockHandleSaveSession.mock.calls[0]?.[0] as Record<string, unknown>
+    expect(call.draftId).toBe('draft-1')
+  })
+
+  it('sends no answers or progress, because the server session already holds them', async () => {
+    const handleSave = buildHandleSave(makeBaseDeps())
+    await handleSave()
+    const call = mockHandleSaveSession.mock.calls[0]?.[0] as Record<string, unknown>
+    expect(call).not.toHaveProperty('answers')
+    expect(call).not.toHaveProperty('questions')
   })
 })
 

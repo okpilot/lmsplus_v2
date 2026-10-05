@@ -1,7 +1,7 @@
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime'
 import type { SessionQuestion } from '@/app/app/_types/session'
 import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
-import type { AnswerFeedback, DraftAnswer } from '../../types'
+import type { DraftAnswer } from '../../types'
 import { whenQueueIdle } from '../_utils/with-reconnect'
 import { reportUrl } from './exam-report-paths'
 import { handleDiscardSession, handleSaveSession, handleSubmitSession } from './quiz-submit'
@@ -136,34 +136,14 @@ export function buildHandleSubmit(
   }
 }
 
-export function buildHandleSave(
-  deps: BaseDeps & {
-    questions: SessionQuestion[]
-    answersRef: React.RefObject<Map<string, DraftAnswer>>
-    feedbackRef: React.RefObject<Map<string, AnswerFeedback>>
-    currentIndexRef: React.RefObject<number>
-    pendingQuestionIdRef: React.RefObject<Set<string>>
-    subjectName?: string
-    subjectCode?: string
-  },
-) {
+export function buildHandleSave(deps: BaseDeps) {
   const sharedFor = buildSharedFor(deps)
   return async function handleSave() {
     await waitForQueuedSaves(sharedFor('save'))
-    const safeAnswers = withoutPendingAnswers(
-      deps.answersRef.current,
-      deps.pendingQuestionIdRef.current,
-    )
     return handleSaveSession({
       userId: deps.userId,
       sessionId: deps.sessionId,
-      questions: deps.questions,
-      answers: safeAnswers,
-      feedback: deps.feedbackRef.current,
-      currentIndex: deps.currentIndexRef.current,
       draftId: deps.draftId,
-      subjectName: deps.subjectName,
-      subjectCode: deps.subjectCode,
       ...sharedFor('save'),
     })
   }

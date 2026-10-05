@@ -5,7 +5,8 @@ import { z } from 'zod'
 import { rpc } from '@/lib/supabase-rpc'
 import { closePracticeSessionForDraft } from './draft-helpers'
 import { mapResumeRpcError } from './resume-error-messages'
-import { loadResumeContext, type ResumeContext, repointDraftSession } from './resume-helpers'
+import { loadResumeContext, type ResumeContext } from './resume-helpers'
+import { finishResume } from './resume-seed'
 
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
@@ -61,14 +62,10 @@ export async function resumeQuizSession(raw: unknown): Promise<ResumeQuizResult>
     } = await supabase.auth.getUser()
     if (authError || !user) return { success: false, error: 'Not authenticated' }
 
-    let input: { draftId: string }
-    try {
-      input = ResumeInput.parse(raw)
-    } catch {
-      return { success: false, error: 'Invalid input' }
-    }
+    const parsed = ResumeInput.safeParse(raw)
+    if (!parsed.success) return { success: false, error: 'Invalid input' }
 
-    const loaded = await loadResumeContext(supabase, input.draftId, user.id)
+    const loaded = await loadResumeContext(supabase, parsed.data.draftId, user.id)
     if (!loaded.ok) return { success: false, error: loaded.error }
     const { ctx } = loaded
 
@@ -77,7 +74,11 @@ export async function resumeQuizSession(raw: unknown): Promise<ResumeQuizResult>
     const started = await startResumedSession(supabase, ctx, user.id)
     if (!started.ok) return { success: false, error: started.error }
 
-    await repointDraftSession(supabase, input.draftId, user.id, ctx, started.sessionId)
+    // Seed the new session from the draft and delete the draft; on failure the draft is kept.
+    const ids = { draftId: parsed.data.draftId, userId: user.id, sessionId: started.sessionId }
+    if (!(await finishResume(supabase, ids, ctx))) {
+      return { success: false, error: 'Failed to resume this saved quiz. Please try again.' }
+    }
     return { success: true, sessionId: started.sessionId, questionIds: ctx.questionIds }
   } catch (err) {
     console.error('[resumeQuizSession] Uncaught error:', err)
