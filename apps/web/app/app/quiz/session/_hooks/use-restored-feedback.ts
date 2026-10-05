@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { AnswerFeedback, DraftAnswer } from '../../types'
-import { recheckAnswer } from '../_utils/recheck-answer'
+import { recheckAnswers } from '../_utils/recheck-answers'
 
 type Opts = {
   /** Practice modes only; an exam never re-checks. */
   enabled: boolean
   sessionId: string
-  questionId: string
   /** The answers the runner was seeded with (server or local draft): the only ones eligible for a re-check. */
   restorable: Record<string, DraftAnswer> | undefined
   answers: Map<string, DraftAnswer>
@@ -14,24 +13,27 @@ type Opts = {
 }
 
 /**
- * Gets the feedback of a restored practice answer back by re-checking it once, when its question
- * is first on screen. A failed re-check leaves the question answered without feedback. Returns
- * the restored feedback merged under the live feedback.
+ * Gets the feedback of every restored practice answer back by grading them all once, on mount,
+ * so each navigator button is coloured before its question is visited. A failed grading leaves
+ * the answers without feedback and is not retried. Returns the restored feedback merged under
+ * the live feedback.
  */
 export function useRestoredFeedback(opts: Readonly<Opts>): Map<string, AnswerFeedback> {
-  const { enabled, sessionId, questionId, restorable, answers, feedback } = opts
+  const { enabled, sessionId, restorable, answers, feedback } = opts
   const [restored, setRestored] = useState<Map<string, AnswerFeedback>>(new Map())
-  const attemptedRef = useRef<Set<string>>(new Set())
-  const draft = restorable?.[questionId]
-  const eligible = enabled && !!draft && answers.has(questionId) && !feedback.has(questionId)
+  const startedRef = useRef(false)
+  const hasRestorable = !!restorable && Object.keys(restorable).length > 0
 
   useEffect(() => {
-    if (!eligible || !draft || attemptedRef.current.has(questionId)) return
-    attemptedRef.current.add(questionId)
-    recheckAnswer({ sessionId, questionId, answer: draft })
-      .then((fb) => fb && setRestored((prev) => new Map(prev).set(questionId, fb)))
+    if (!enabled || !hasRestorable || !restorable || startedRef.current) return
+    startedRef.current = true
+    recheckAnswers({ sessionId, restorable })
+      .then(setRestored)
       .catch(() => undefined)
-  }, [eligible, draft, sessionId, questionId])
+  }, [enabled, hasRestorable, restorable, sessionId])
 
-  return useMemo(() => new Map([...restored, ...feedback]), [restored, feedback])
+  return useMemo(() => {
+    const kept = [...restored].filter(([id]) => answers.has(id))
+    return new Map([...kept, ...feedback])
+  }, [restored, answers, feedback])
 }

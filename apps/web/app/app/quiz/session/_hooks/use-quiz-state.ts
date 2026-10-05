@@ -44,7 +44,7 @@ export function useQuizState(opts: QuizStateOpts) {
 
   const p = isExam ? exam : study
   const answers = isExam ? exam.answers : studyAnswers
-  const { questionIds, feedback } = useQuizStateExtras({ opts, isExam, questionId, answers, p })
+  const { questionIds, feedback } = useQuizStateExtras({ opts, isExam, answers, p })
 
   return assembleQuizState({
     feedback,

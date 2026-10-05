@@ -4,8 +4,8 @@ import type { AnswerFeedback, DraftAnswer } from '../../types'
 
 const { mockRecheck } = vi.hoisted(() => ({ mockRecheck: vi.fn() }))
 
-vi.mock('../_utils/recheck-answer', () => ({
-  recheckAnswer: (...a: unknown[]) => mockRecheck(...a),
+vi.mock('../_utils/recheck-answers', () => ({
+  recheckAnswers: (...a: unknown[]) => mockRecheck(...a),
 }))
 
 import { useRestoredFeedback } from './use-restored-feedback'
@@ -21,6 +21,7 @@ const FEEDBACK: AnswerFeedback = {
   explanationText: null,
   explanationImageUrl: null,
 }
+const WRONG: AnswerFeedback = { ...FEEDBACK, isCorrect: false, correctOptionId: 'c' }
 
 type Props = Parameters<typeof useRestoredFeedback>[0]
 
@@ -28,7 +29,6 @@ function props(over: Partial<Props> = {}): Props {
   return {
     enabled: true,
     sessionId: SESSION,
-    questionId: Q1,
     restorable: { [Q1]: ANSWER, [Q2]: ANSWER },
     answers: new Map([
       [Q1, ANSWER],
@@ -43,61 +43,43 @@ const settle = () => act(async () => {})
 
 beforeEach(() => {
   vi.resetAllMocks()
-  mockRecheck.mockResolvedValue(FEEDBACK)
+  mockRecheck.mockResolvedValue(
+    new Map([
+      [Q1, FEEDBACK],
+      [Q2, WRONG],
+    ]),
+  )
 })
 
 describe('useRestoredFeedback', () => {
-  it('re-checks the question on screen and returns its feedback', async () => {
+  it('gives every restored answer its feedback on mount without any visit', async () => {
     const { result } = renderHook((p: Props) => useRestoredFeedback(p), {
       initialProps: props(),
     })
     await settle()
 
-    expect(mockRecheck).toHaveBeenCalledWith({
-      sessionId: SESSION,
-      questionId: Q1,
-      answer: ANSWER,
-    })
     expect(result.current.get(Q1)).toEqual(FEEDBACK)
+    expect(result.current.get(Q2)).toEqual(WRONG)
   })
 
-  it('re-checks each question once however often it is shown', async () => {
+  it('grades the restored answers in a single call however often it re-renders', async () => {
     const { rerender } = renderHook((p: Props) => useRestoredFeedback(p), {
       initialProps: props(),
     })
     await settle()
-    rerender(props({ questionId: Q2 }))
+    rerender(props())
     await settle()
-    rerender(props({ questionId: Q1 }))
-    await settle()
-    rerender(props({ questionId: Q2 }))
+    rerender(props({ feedback: new Map([[Q1, FEEDBACK]]) }))
     await settle()
 
-    expect(mockRecheck).toHaveBeenCalledTimes(2)
+    expect(mockRecheck).toHaveBeenCalledTimes(1)
+    expect(mockRecheck).toHaveBeenCalledWith({
+      sessionId: SESSION,
+      restorable: { [Q1]: ANSWER, [Q2]: ANSWER },
+    })
   })
 
-  it('does not re-check a question that already has feedback', async () => {
-    renderHook(() => useRestoredFeedback(props({ feedback: new Map([[Q1, FEEDBACK]]) })))
-    await settle()
-
-    expect(mockRecheck).not.toHaveBeenCalled()
-  })
-
-  it('does not re-check an answer given in this tab', async () => {
-    renderHook(() => useRestoredFeedback(props({ restorable: {} })))
-    await settle()
-
-    expect(mockRecheck).not.toHaveBeenCalled()
-  })
-
-  it('does not re-check an unanswered question', async () => {
-    renderHook(() => useRestoredFeedback(props({ answers: new Map(), restorable: {} })))
-    await settle()
-
-    expect(mockRecheck).not.toHaveBeenCalled()
-  })
-
-  it('never re-checks when the mode is not a practice mode', async () => {
+  it('never grades when the mode is not a practice mode', async () => {
     const { result } = renderHook(() => useRestoredFeedback(props({ enabled: false })))
     await settle()
 
@@ -105,8 +87,16 @@ describe('useRestoredFeedback', () => {
     expect(result.current.size).toBe(0)
   })
 
-  it('leaves the question answered without feedback when the re-check fails, and does not retry', async () => {
-    mockRecheck.mockResolvedValue(null)
+  it('does not grade when nothing was restored', async () => {
+    renderHook(() => useRestoredFeedback(props({ restorable: {} })))
+    renderHook(() => useRestoredFeedback(props({ restorable: undefined })))
+    await settle()
+
+    expect(mockRecheck).not.toHaveBeenCalled()
+  })
+
+  it('leaves every answer without feedback when grading fails, and does not retry', async () => {
+    mockRecheck.mockResolvedValue(new Map())
     const { result, rerender } = renderHook((p: Props) => useRestoredFeedback(p), {
       initialProps: props(),
     })
@@ -114,11 +104,11 @@ describe('useRestoredFeedback', () => {
     rerender(props())
     await settle()
 
-    expect(result.current.has(Q1)).toBe(false)
+    expect(result.current.size).toBe(0)
     expect(mockRecheck).toHaveBeenCalledTimes(1)
   })
 
-  it('treats a rejected re-check like a failed one', async () => {
+  it('treats a rejected grading call like a failed one', async () => {
     mockRecheck.mockRejectedValue(new Error('network'))
     const { result } = renderHook(() => useRestoredFeedback(props()))
     await settle()
@@ -135,5 +125,6 @@ describe('useRestoredFeedback', () => {
     rerender(props({ feedback: new Map([[Q1, live]]) }))
 
     expect(result.current.get(Q1)).toEqual(live)
+    expect(result.current.get(Q2)).toEqual(WRONG)
   })
 })

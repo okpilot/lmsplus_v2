@@ -37,7 +37,6 @@ function run(o: { opts: QuizStateOpts; isExam?: boolean; answers: Map<string, Dr
     useQuizStateExtras({
       opts: o.opts,
       isExam: o.isExam ?? false,
-      questionId: 'q2',
       answers: o.answers,
       p: { feedback, submitted: { current: false } },
     }),
@@ -65,7 +64,6 @@ describe('useQuizStateExtras', () => {
       expect.objectContaining({
         enabled: true,
         sessionId: 's1',
-        questionId: 'q2',
         restorable: { q1: A },
         answers,
       }),
