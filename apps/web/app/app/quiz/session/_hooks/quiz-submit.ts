@@ -8,7 +8,7 @@ import { saveQuizForLater } from '../../actions/saved-quiz'
 import { submitEmptyExamSession } from '../../actions/submit-empty-exam'
 import type { DraftAnswer } from '../../types'
 import { getQuizDeviceId } from '../_utils/quiz-device-id'
-import { clearActiveSession } from '../_utils/quiz-session-storage'
+import { clearActiveSessionIfCurrent } from '../_utils/quiz-session-storage'
 import { reportUrl } from './exam-report-paths'
 import { fanOutAnswer } from './quiz-submit-fanout'
 
@@ -26,7 +26,7 @@ export async function submitQuizSession(
   try {
     const result = await batchSubmitQuiz({ sessionId, answers: answerArray })
     if (!result.success) return { success: false as const, error: result.error }
-    clearActiveSession(userId)
+    clearActiveSessionIfCurrent(userId, sessionId)
     // #909: a Server Action response triggers an App Router revalidation that cancels a
     // pending soft navigation. Await cleanup so router.push (in handleSubmitSession) runs
     // with nothing in flight.
@@ -42,7 +42,7 @@ export async function discardQuizSession(
   router: AppRouterInstance,
   userId: string,
 ): Promise<ActionResult> {
-  clearActiveSession(userId) // Always clear — respect discard intent even if Server Action fails
+  clearActiveSessionIfCurrent(userId, sessionId) // Always clear — respect discard intent even if Server Action fails
   // Await before the later router.push so the Server Action revalidation can't cancel the
   // soft navigation (#909 — same race the submit paths fix).
   await clearDeploymentPin().catch(() => {})
@@ -91,7 +91,7 @@ export async function handleSubmitSession(opts: {
     }
     if (result.success) {
       opts.onSuccess()
-      clearActiveSession(opts.userId)
+      clearActiveSessionIfCurrent(opts.userId, opts.sessionId)
       // clearDeploymentPin is a Server Action — its response triggers an App Router
       // revalidation. If it is still in flight when router.push runs, that revalidation
       // cancels the pending soft navigation, stranding the student on the session page
@@ -101,7 +101,7 @@ export async function handleSubmitSession(opts: {
       opts.router.push(reportUrl(opts.examMode, opts.sessionId))
     } else {
       console.error('[handleSubmitSession] submitEmptyExamSession failed:', result.error)
-      clearActiveSession(opts.userId)
+      clearActiveSessionIfCurrent(opts.userId, opts.sessionId)
       await clearDeploymentPin().catch(() => {})
       await discardQuiz({ sessionId: opts.sessionId }).catch((err) =>
         console.error('[handleSubmitSession] discardQuiz fallback failed:', err),
@@ -140,7 +140,7 @@ export async function handleSaveSession(opts: {
       deviceId: getQuizDeviceId(),
     })
     if (r.success) {
-      clearActiveSession(opts.userId)
+      clearActiveSessionIfCurrent(opts.userId, opts.sessionId)
       // Await so the Server Action revalidation can't cancel the soft navigation (#909).
       await clearDeploymentPin().catch(() => {})
       opts.router.push('/app/quiz')

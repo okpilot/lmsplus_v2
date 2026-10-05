@@ -10,7 +10,7 @@ const { mockRead, mockClear, mockUpload } = vi.hoisted(() => ({
 
 vi.mock('../_utils/quiz-session-storage', () => ({
   readActiveSession: (...a: unknown[]) => mockRead(...a),
-  clearActiveSession: (...a: unknown[]) => mockClear(...a),
+  clearActiveSessionIfCurrent: (...a: unknown[]) => mockClear(...a),
 }))
 vi.mock('../_utils/local-answer-upload', async (orig) => ({
   ...(await orig<typeof import('../_utils/local-answer-upload')>()),
@@ -89,7 +89,7 @@ describe('useLocalAnswerUpload', () => {
 
     expect(mockUpload).toHaveBeenCalledTimes(1)
     expect(mockUpload).toHaveBeenCalledWith({ sessionId: 's1', answers: { q2: B } })
-    expect(mockClear).toHaveBeenCalledWith('u1')
+    expect(mockClear).toHaveBeenCalledWith('u1', 's1')
   })
 
   it('keeps the local copy when an upload fails', async () => {
@@ -129,6 +129,6 @@ describe('useLocalAnswerUpload', () => {
     await settle()
 
     expect(mockUpload).not.toHaveBeenCalled()
-    expect(mockClear).toHaveBeenCalledWith('u1')
+    expect(mockClear).toHaveBeenCalledWith('u1', 's1')
   })
 })

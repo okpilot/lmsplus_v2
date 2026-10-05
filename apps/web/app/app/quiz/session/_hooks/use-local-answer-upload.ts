@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { DraftAnswer } from '../../types'
 import { findLocalOnlyAnswers, uploadLocalAnswers } from '../_utils/local-answer-upload'
-import { clearActiveSession, readActiveSession } from '../_utils/quiz-session-storage'
+import { clearActiveSessionIfCurrent, readActiveSession } from '../_utils/quiz-session-storage'
 
 type Opts = {
   userId: string
@@ -40,7 +40,9 @@ export function useLocalAnswerUpload(opts: Readonly<Opts>) {
     const upload = pending
       ? uploadLocalAnswers({ sessionId, answers: localOnly })
       : Promise.resolve(true)
-    upload.then((ok) => (ok ? clearActiveSession(userId) : undefined)).catch(() => undefined)
+    upload
+      .then((ok) => (ok ? clearActiveSessionIfCurrent(userId, sessionId) : undefined))
+      .catch(() => undefined)
   }, [claimed, localOnly, userId, sessionId])
 
   return { answers: localOnly === null ? null : { ...localOnly, ...serverAnswers } }

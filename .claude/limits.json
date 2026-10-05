@@ -101,7 +101,7 @@
     "apps/web/app/app/quiz/session/_hooks/use-answer-handler.ts": 113,
     "apps/web/app/app/quiz/session/_hooks/use-quiz-keyboard.ts": 84,
     "apps/web/app/app/quiz/session/_hooks/use-quiz-state.test.ts": 632,
-    "apps/web/app/app/quiz/session/_utils/quiz-session-storage.test.ts": 646,
+    "apps/web/app/app/quiz/session/_utils/quiz-session-storage.test.ts": 611,
     "apps/web/app/app/quiz/session/_utils/quiz-session-validators.test.ts": 1038,
     "apps/web/app/app/quiz/types.ts": 224,
     "apps/web/components/ui/alert-dialog.tsx": 168,

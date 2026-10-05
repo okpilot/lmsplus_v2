@@ -57,10 +57,6 @@ export function readActiveSession(userId: string): ActiveSession | null {
   }
 }
 
-export function clearActiveSession(userId: string): void {
-  safeRemove(userId)
-}
-
 /**
  * Clears the entry only when it still refers to `sessionId`; returns whether it did.
  *

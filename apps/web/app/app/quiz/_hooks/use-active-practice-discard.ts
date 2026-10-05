@@ -45,11 +45,7 @@ export function useActivePracticeDiscard(
     // Guarded on the id: this banner is SERVER-rendered and never revalidated on focus, so a
     // stale tab can hold an old sessionId while localStorage has moved on to a newer session,
     // and an unguarded userId-keyed clear would destroy that newer session's answers. Every
-    // clear that acts on a snapshot read EARLIER goes through clearActiveSessionIfCurrent —
-    // grep it rather than trusting a list here. The only clears that stay unguarded are the
-    // ones that never hold a snapshot: quiz-submit.ts runs inside the runner that owns the
-    // session, and the two start handlers clear the OLD entry deliberately when opening a new
-    // one. The single-active-session invariant
+    // clear goes through clearActiveSessionIfCurrent. The single-active-session invariant
     // (docs/security.md §11d, mig 136) rules out two CONCURRENTLY live sessions but not a
     // stale render. In the #1190 case the two ids are equal, so this does not weaken the fix;
     // readActiveSession purges a malformed, cross-user or >7-day entry itself, so the false

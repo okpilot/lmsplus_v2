@@ -1,10 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ActiveSession } from './quiz-session-storage'
-import {
-  clearActiveSession,
-  clearActiveSessionIfCurrent,
-  readActiveSession,
-} from './quiz-session-storage'
+import { clearActiveSessionIfCurrent, readActiveSession } from './quiz-session-storage'
 
 const USER_ID = 'test-user-id'
 const STORAGE_KEY = `quiz-active-session:${USER_ID}`
@@ -573,37 +569,6 @@ describe('readActiveSession', () => {
 
     expect(result).not.toBeNull()
     expect(result?.mode).toBeUndefined()
-  })
-})
-
-// ---- clearActiveSession ------------------------------------------------------
-
-describe('clearActiveSession', () => {
-  let mockStorage: ReturnType<typeof makeLocalStorageMock>
-
-  beforeEach(() => {
-    vi.resetAllMocks()
-    mockStorage = makeLocalStorageMock()
-    Object.defineProperty(globalThis, 'localStorage', {
-      value: mockStorage,
-      writable: true,
-      configurable: true,
-    })
-  })
-
-  it('removes the key from localStorage', () => {
-    const session = makeSession()
-    writeActiveSession(session)
-
-    clearActiveSession(USER_ID)
-
-    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
-    expect(mockStorage._store.has(STORAGE_KEY)).toBe(false)
-  })
-
-  it('is safe when the key does not exist', () => {
-    expect(() => clearActiveSession(USER_ID)).not.toThrow()
-    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
   })
 })
 

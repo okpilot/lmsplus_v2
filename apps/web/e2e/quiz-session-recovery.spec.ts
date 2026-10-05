@@ -180,4 +180,24 @@ test.describe('Quiz Session Recovery', () => {
     await page.getByTestId('tab-saved').click()
     await expect(page.getByTestId('resume-saved-session')).toHaveCount(0)
   })
+
+  test('declining Delete on the Saved quiz page keeps the saved quiz and its page', async ({
+    page,
+  }) => {
+    const { sessionId, sessionUrl, total } = await startAndAbandonQuiz(page, 2)
+    await page.goto(sessionUrl)
+    await expect(page.getByText(`Question 2 of ${total}`)).toBeVisible({ timeout: 10_000 })
+    await saveForLater(page)
+    await page.goto(sessionUrl)
+    await expect(page.getByRole('heading', { name: 'Saved quiz' })).toBeVisible()
+
+    page.once('dialog', (dialog) => void dialog.dismiss())
+    await page.getByRole('button', { name: 'Delete', exact: true }).click()
+
+    await expect(page.getByRole('heading', { name: 'Saved quiz' })).toBeVisible()
+    expect(page.url()).toBe(sessionUrl)
+    expect((await readSessionRow(sessionId)).savedAt).not.toBeNull()
+    await page.reload()
+    await expect(page.getByRole('heading', { name: 'Saved quiz' })).toBeVisible()
+  })
 })

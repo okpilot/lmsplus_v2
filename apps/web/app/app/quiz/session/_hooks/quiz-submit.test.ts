@@ -45,7 +45,7 @@ const { mockClearActiveSession } = vi.hoisted(() => ({
 }))
 
 vi.mock('../_utils/quiz-session-storage', () => ({
-  clearActiveSession: mockClearActiveSession,
+  clearActiveSessionIfCurrent: mockClearActiveSession,
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -186,7 +186,7 @@ describe('submitQuizSession', () => {
 
     await submitQuizSession(SESSION_ID, TWO_ANSWERS, USER_ID)
 
-    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
+    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID, SESSION_ID)
     expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
   })
 
@@ -420,7 +420,7 @@ describe('handleSubmitSession', () => {
   it('clears active session on successful zero-answer exam completion', async () => {
     const opts = makeOpts({ answers: new Map(), isExam: true })
     await handleSubmitSession(opts)
-    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
+    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID, SESSION_ID)
     expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
   })
 
@@ -486,7 +486,7 @@ describe('handleSubmitSession', () => {
     mockDiscardQuiz.mockResolvedValue({ success: true })
     const opts = makeOpts({ answers: new Map(), isExam: true })
     await handleSubmitSession(opts)
-    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
+    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID, SESSION_ID)
     expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
     expect(mockDiscardQuiz).toHaveBeenCalledWith({
       sessionId: SESSION_ID,
@@ -502,7 +502,7 @@ describe('handleSubmitSession', () => {
     mockDiscardQuiz.mockResolvedValue({ success: true })
     const opts = makeOpts({ answers: new Map(), isExam: true })
     await handleSubmitSession(opts)
-    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
+    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID, SESSION_ID)
     expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
     expect(opts.setError).toHaveBeenCalledWith('Session not found.')
   })
@@ -517,7 +517,7 @@ describe('handleSubmitSession', () => {
     try {
       const opts = makeOpts({ answers: new Map(), isExam: true })
       await handleSubmitSession(opts)
-      expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
+      expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID, SESSION_ID)
       expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
       expect(opts.router.push).toHaveBeenCalledWith('/app/quiz')
     } finally {
@@ -535,7 +535,7 @@ describe('handleSubmitSession', () => {
     try {
       const opts = makeOpts({ answers: new Map(), isExam: true })
       await handleSubmitSession(opts)
-      expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
+      expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID, SESSION_ID)
       expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
       expect(opts.router.push).toHaveBeenCalledWith('/app/quiz')
       expect(opts.setError).toHaveBeenCalledWith('Something went wrong. Please try again.')
@@ -673,7 +673,7 @@ describe('handleDiscardSession', () => {
   })
 })
 
-// ---- discardQuizSession — clearActiveSession calls -----------------------
+// ---- discardQuizSession — clearActiveSessionIfCurrent calls -----------------------
 
 describe('discardQuizSession', () => {
   it('clears active session before calling the discard Server Action', async () => {
@@ -684,7 +684,7 @@ describe('discardQuizSession', () => {
       discardQuizSession(SESSION_ID, mockRouter as never, USER_ID),
     )
 
-    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
+    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID, SESSION_ID)
     expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
   })
 
@@ -696,8 +696,8 @@ describe('discardQuizSession', () => {
       discardQuizSession(SESSION_ID, mockRouter as never, USER_ID),
     )
 
-    // clearActiveSession is called before the Server Action — discard intent is respected
-    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
+    // clearActiveSessionIfCurrent is called before the Server Action — discard intent is respected
+    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID, SESSION_ID)
     expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
   })
 })
