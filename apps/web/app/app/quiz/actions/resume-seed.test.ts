@@ -320,7 +320,7 @@ describe('finishResume', () => {
     await expect(finishResume(client, ids, ctx())).rejects.toBe(boom)
   })
 
-  it('keeps the seeded session when the draft delete throws', async () => {
+  it('keeps and opens the seeded session when the draft delete throws', async () => {
     const boom = new Error('delete transport failure')
     const client = {
       from: vi.fn((table: string) => {
@@ -328,7 +328,8 @@ describe('finishResume', () => {
         return chain({ data: [{ id: SESSION }], error: null }, 'select')
       }),
     } as unknown as Client
-    await expect(finishResume(client, ids, ctx())).rejects.toBe(boom)
+    await expect(finishResume(client, ids, ctx())).resolves.toBe(true)
     expect(client.from).not.toHaveBeenCalledWith('quiz_sessions')
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('Draft delete threw'), boom)
   })
 })

@@ -155,8 +155,8 @@ async function deleteSeededDraft(
 /**
  * Seeds the new session, then deletes the draft. A failed or thrown seed keeps the draft and
  * soft-deletes the new session (a thrown seed rethrows the original error after the discard). A
- * thrown draft delete propagates WITHOUT a discard: the server may already have deleted the draft,
- * so the seeded session must stay.
+ * thrown draft delete is logged and returns true: the server may already have deleted the draft,
+ * so the student goes into the seeded session. If the draft survives, its card stays listed.
  */
 export async function finishResume(
   supabase: SupabaseClient,
@@ -170,7 +170,20 @@ export async function finishResume(
     await discardMintedSession(supabase, ids.sessionId, ids.userId)
     throw err
   }
-  if (seeded && (await deleteSeededDraft(supabase, ids.draftId, ids.userId))) return true
+  if (seeded && (await deleteDraftKeepingSession(supabase, ids))) return true
   await discardMintedSession(supabase, ids.sessionId, ids.userId)
   return false
+}
+
+/** Deletes the seeded draft; a throw counts as deleted, so the seeded session is kept. */
+async function deleteDraftKeepingSession(
+  supabase: SupabaseClient,
+  ids: { draftId: string; userId: string },
+): Promise<boolean> {
+  try {
+    return await deleteSeededDraft(supabase, ids.draftId, ids.userId)
+  } catch (err) {
+    console.error('[resumeQuizSession] Draft delete threw; keeping the seeded session:', err)
+    return true
+  }
 }
