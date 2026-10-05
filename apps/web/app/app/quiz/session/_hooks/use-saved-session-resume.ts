@@ -1,5 +1,6 @@
 import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
+import { clearDeploymentPin } from '../../actions/clear-deployment-pin'
 import { discardSavedQuiz, resumeSavedQuiz } from '../../actions/saved-quiz'
 import { getQuizDeviceId } from '../_utils/quiz-device-id'
 
@@ -13,7 +14,7 @@ function useGuardedRun() {
   const [error, setError] = useState<string | null>(null)
   const inFlight = useRef(false)
 
-  async function run(call: () => Promise<Outcome>, onDone: () => void) {
+  async function run(call: () => Promise<Outcome>, onDone: () => unknown) {
     if (inFlight.current) return
     inFlight.current = true
     setLoading(true)
@@ -49,7 +50,10 @@ export function useSavedSessionResume(sessionId: string) {
       if (!window.confirm('Delete this saved quiz? This cannot be undone.')) return
       return run(
         () => discardSavedQuiz({ sessionId }),
-        () => router.push('/app/quiz'),
+        async () => {
+          await clearDeploymentPin().catch(() => {})
+          router.push('/app/quiz')
+        },
       )
     },
   }

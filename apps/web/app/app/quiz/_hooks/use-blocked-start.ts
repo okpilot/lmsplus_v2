@@ -57,7 +57,6 @@ export function useBlockedStart() {
     }
   }
 
-  // An offer shown or hidden from outside starts with no error from an earlier accept.
   function showOffer(next: BlockedOffer | null) {
     setError(null)
     setOffer(next)
