@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { toAnswerJson } from '@/app/app/quiz/actions/quiz-progress-helpers'
 import type { DraftAnswer } from '@/app/app/quiz/types'
+import { deriveContentId } from '@/scripts/content-ids'
 import { buildSessionSeed } from './quiz-session-seed'
 
 const Q1 = '11111111-1111-4111-8111-111111111111'
@@ -24,7 +25,10 @@ describe('buildSessionSeed', () => {
     ['multiple choice', { selectedOptionId: 'c' }],
     ['short answer', { responseText: 'QNH' }],
     ['dialog fill', { blankAnswers: [{ index: 0, text: 'roger' }] }],
-    ['ordering', { order: ['x', 'y', 'z'] }],
+    [
+      'ordering',
+      { order: ['MAYDAY', 'callsign', 'distress'].map((t) => deriveContentId('o', [t])) },
+    ],
     ['diagram label', { mapping: [{ zoneId: 'z1', labelId: 'l1' }] }],
   ])('restores a saved %s answer exactly as the student gave it', (_label, answer) => {
     const saved = toAnswerJson(answer as Parameters<typeof toAnswerJson>[0])
