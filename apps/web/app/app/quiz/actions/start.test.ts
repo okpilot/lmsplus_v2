@@ -98,6 +98,29 @@ describe('startQuizSession', () => {
     )
   })
 
+  it('flags the start as blocked when another session is already active', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetRandomQuestionIds.mockResolvedValue(['q1', 'q2'])
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'another_session_active' } })
+    const result = await startQuizSession({
+      subjectId: '00000000-0000-4000-a000-000000000001',
+      count: 5,
+    })
+    expect(result).toMatchObject({ success: false, blocked: true })
+  })
+
+  it('does not flag the start as blocked for an unrelated failure', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetRandomQuestionIds.mockResolvedValue(['q1', 'q2'])
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'unexpected db failure' } })
+    const result = await startQuizSession({
+      subjectId: '00000000-0000-4000-a000-000000000001',
+      count: 5,
+    })
+    expect(result.success).toBe(false)
+    expect(result).not.toHaveProperty('blocked', true)
+  })
+
   it('returns success with sessionId and questionIds on happy path', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockGetRandomQuestionIds.mockResolvedValue(['q1', 'q2', 'q3'])

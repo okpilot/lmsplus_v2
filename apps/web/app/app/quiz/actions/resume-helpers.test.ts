@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mapResumeRpcError, RESUME_ERROR_MESSAGES } from './resume-error-messages'
-import type { ResumeContext } from './resume-helpers'
-import { loadResumeContext, repointDraftSession } from './resume-helpers'
+import { loadResumeContext } from './resume-helpers'
 
 describe('mapResumeRpcError', () => {
   it('tells the user to resolve their other active session when one is already active', () => {
@@ -71,13 +70,6 @@ function makeLoadClient(draftResult: unknown, sessionResult?: unknown): FakeClie
   return { from: fromFn } as unknown as FakeClient
 }
 
-/** Build a client whose `update` chain resolves via `.select()`. */
-function makeRepointClient(result: unknown): Parameters<typeof repointDraftSession>[0] {
-  return {
-    from: vi.fn().mockReturnValue(buildChain(result, 'select')),
-  } as unknown as Parameters<typeof repointDraftSession>[0]
-}
-
 // ---- Fixtures ---------------------------------------------------------------
 
 const DRAFT_ID = '00000000-0000-4000-a000-000000000050'
@@ -89,20 +81,14 @@ const TOPIC_ID = '00000000-0000-4000-a000-000000000011'
 const DRAFT_ROW = {
   question_ids: ['00000000-0000-4000-a000-000000000099'],
   session_config: { sessionId: SESSION_ID, subjectName: 'Meteorology', subjectCode: 'MET' },
+  answers: {
+    '00000000-0000-4000-a000-000000000099': { selectedOptionId: 'b', responseTimeMs: 900 },
+  },
+  current_index: 0,
 }
 
 const QUICK_QUIZ_SESSION = { mode: 'quick_quiz', subject_id: SUBJECT_ID, topic_id: TOPIC_ID }
 const SMART_REVIEW_SESSION = { mode: 'smart_review', subject_id: null, topic_id: null }
-
-const RESUME_CTX: ResumeContext = {
-  oldSessionId: SESSION_ID,
-  questionIds: DRAFT_ROW.question_ids,
-  mode: 'quick_quiz',
-  subjectId: SUBJECT_ID,
-  topicId: TOPIC_ID,
-  subjectName: 'Meteorology',
-  subjectCode: 'MET',
-}
 
 // ---- loadResumeContext ------------------------------------------------------
 
@@ -262,46 +248,18 @@ describe('loadResumeContext', () => {
       subjectCode: 'MET',
     })
   })
-})
 
-// ---- repointDraftSession ----------------------------------------------------
-
-describe('repointDraftSession', () => {
-  it('logs a DB error and returns without rethrowing', async () => {
-    const client = makeRepointClient({ data: null, error: { message: 're-point rls error' } })
-    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-
-    await expect(
-      repointDraftSession(client, DRAFT_ID, USER_ID, RESUME_CTX, SESSION_ID),
-    ).resolves.toBeUndefined()
-    expect(errSpy).toHaveBeenCalledWith(
-      '[resumeQuizSession] Draft re-point error:',
-      're-point rls error',
+  it('carries the draft answers and position for seeding the new session', async () => {
+    const client = makeLoadClient(
+      { data: { ...DRAFT_ROW, current_index: 4 }, error: null },
+      { data: QUICK_QUIZ_SESSION, error: null },
     )
-  })
 
-  it('logs when no draft row is updated by the re-point', async () => {
-    // Zero-row update = draft was concurrently deleted; the new session still works
-    // for this run but the log surfaces the gap for observability.
-    const client = makeRepointClient({ data: [], error: null })
-    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await loadResumeContext(client, DRAFT_ID, USER_ID)
 
-    await repointDraftSession(client, DRAFT_ID, USER_ID, RESUME_CTX, SESSION_ID)
-
-    expect(errSpy).toHaveBeenCalledWith(
-      '[resumeQuizSession] Draft re-point matched no row for draft',
-      DRAFT_ID,
-    )
-  })
-
-  it('returns silently when the draft pointer is updated successfully', async () => {
-    const client = makeRepointClient({ data: [{ id: DRAFT_ID }], error: null })
-    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
-    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-
-    await repointDraftSession(client, DRAFT_ID, USER_ID, RESUME_CTX, SESSION_ID)
-
-    expect(logSpy).not.toHaveBeenCalled()
-    expect(errSpy).not.toHaveBeenCalled()
+    expect(result.ok).toBe(true)
+    if (!result.ok) throw new Error(result.error)
+    expect(result.ctx.answers).toEqual(DRAFT_ROW.answers)
+    expect(result.ctx.currentIndex).toBe(4)
   })
 })

@@ -20,6 +20,25 @@ describe('mapProgressRpcError', () => {
     expect(isDisplayableProgressError(msg)).toBe(true)
   })
 
+  it('tells the student the saved-quiz cap has been reached', () => {
+    const msg = mapProgressRpcError('saved_quiz_limit_reached', 'fallback')
+    expect(msg).toMatch(/20 saved quizzes/i)
+    expect(isDisplayableProgressError(msg)).toBe(true)
+  })
+
+  it('tells the student a quiz that is not saved cannot be resumed', () => {
+    const msg = mapProgressRpcError('session_not_saved', 'fallback')
+    expect(msg).toMatch(/not (in your )?saved/i)
+    expect(msg).not.toBe(mapProgressRpcError('session_saved', 'fallback'))
+    expect(isDisplayableProgressError(msg)).toBe(true)
+  })
+
+  it('tells the student another session is open when resuming a saved quiz', () => {
+    const msg = mapProgressRpcError('another_session_active', 'fallback')
+    expect(msg).toMatch(/active session/i)
+    expect(isDisplayableProgressError(msg)).toBe(true)
+  })
+
   it('does not imply answers are lost when the time limit has passed', () => {
     const msg = mapProgressRpcError('session_expired', 'fallback')
     expect(msg).toMatch(/time limit/i)

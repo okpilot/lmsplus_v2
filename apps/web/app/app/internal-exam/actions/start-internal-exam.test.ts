@@ -165,6 +165,19 @@ describe('startInternalExam — RPC error messages', () => {
     )
   })
 
+  it('flags the start as blocked when another session is already active', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'another_session_active' } })
+    const result = await startInternalExam({ code: VALID_CODE })
+    expect(result).toMatchObject({ success: false, blocked: true })
+  })
+
+  it('does not flag the start as blocked for an unrelated failure', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'unexpected db failure' } })
+    const result = await startInternalExam({ code: VALID_CODE })
+    expect(result.success).toBe(false)
+    expect(result).not.toHaveProperty('blocked', true)
+  })
+
   it('maps insufficient_questions_for_exam to a domain-specific message', async () => {
     mockRpc.mockResolvedValue({
       data: null,
