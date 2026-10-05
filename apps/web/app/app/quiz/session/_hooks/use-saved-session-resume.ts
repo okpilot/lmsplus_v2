@@ -45,10 +45,12 @@ export function useSavedSessionResume(sessionId: string) {
         () => resumeSavedQuiz({ sessionId, deviceId: getQuizDeviceId() }),
         () => router.refresh(),
       ),
-    discard: () =>
-      run(
+    discard: () => {
+      if (!window.confirm('Delete this saved quiz? This cannot be undone.')) return
+      return run(
         () => discardSavedQuiz({ sessionId }),
         () => router.push('/app/quiz'),
-      ),
+      )
+    },
   }
 }

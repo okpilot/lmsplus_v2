@@ -23,6 +23,12 @@ vi.mock('@/app/app/quiz/_components/resume-exam-banner', () => ({
   ),
 }))
 
+vi.mock('@/app/app/quiz/_components/expired-exam-notice', () => ({
+  ExpiredExamNotice: ({ sessionId }: { sessionId: string }) => (
+    <div data-testid="expired-notice">{sessionId}</div>
+  ),
+}))
+
 import { VfrRtActiveBanners } from './vfr-rt-active-banners'
 
 beforeEach(() => {
@@ -68,6 +74,17 @@ describe('VfrRtActiveBanners', () => {
       'exam-1',
       'orphan-1',
     ])
+  })
+
+  it('tells the student a Practice Exam ran out of time and was submitted', async () => {
+    mockGetActiveExamSession.mockResolvedValue({
+      success: true,
+      sessions: [],
+      orphanedSessionIds: [],
+      expiredSessionIds: ['expired-1'],
+    })
+    await renderBanners()
+    expect(screen.getByTestId('expired-notice')).toHaveTextContent('expired-1')
   })
 
   it('tells the student when a lookup fails instead of hiding the banner silently', async () => {

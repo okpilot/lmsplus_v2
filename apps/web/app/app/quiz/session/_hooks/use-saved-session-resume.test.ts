@@ -21,6 +21,7 @@ beforeEach(() => {
   vi.resetAllMocks()
   mockResume.mockResolvedValue({ success: true })
   mockDiscard.mockResolvedValue({ success: true })
+  vi.spyOn(window, 'confirm').mockReturnValue(true)
 })
 
 describe('useSavedSessionResume', () => {
@@ -82,6 +83,18 @@ describe('useSavedSessionResume', () => {
 
     expect(mockDiscard).toHaveBeenCalledWith({ sessionId: 's1' })
     expect(mockPush).toHaveBeenCalledWith('/app/quiz')
+  })
+
+  it('keeps the saved quiz when the student cancels the delete', async () => {
+    vi.mocked(window.confirm).mockReturnValue(false)
+    const { result } = renderHook(() => useSavedSessionResume('s1'))
+
+    await act(async () => {
+      await result.current.discard()
+    })
+
+    expect(mockDiscard).not.toHaveBeenCalled()
+    expect(mockPush).not.toHaveBeenCalled()
   })
 
   it('shows the error and stays when the delete is refused', async () => {

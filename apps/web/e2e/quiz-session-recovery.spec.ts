@@ -172,6 +172,7 @@ test.describe('Quiz Session Recovery', () => {
     await page.goto(sessionUrl)
     await expect(page.getByRole('heading', { name: 'Saved quiz' })).toBeVisible()
 
+    page.once('dialog', (dialog) => void dialog.accept())
     await page.getByRole('button', { name: 'Delete', exact: true }).click()
 
     await page.waitForURL(/\/app\/quiz$/, { timeout: 10_000 })
