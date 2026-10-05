@@ -35,7 +35,8 @@ function chunk(items: Record<string, unknown>[]): Record<string, unknown>[][] {
  * One call at a time, so a new answer save waits behind one call at most; no re-check can
  * overwrite it, because a restored question refuses a new answer. Sends no visit time, so
  * stored time is untouched. A call landing after finish is refused by the ended session.
- * Stops at the first refused or failed call and keeps what was graded; never throws.
+ * Stops after a refused or failed call, or once the server reports the session done, and keeps
+ * what was graded; never throws.
  */
 export async function recheckAnswers(opts: Opts): Promise<Map<string, AnswerFeedback>> {
   const out = new Map<string, AnswerFeedback>()
@@ -49,6 +50,7 @@ export async function recheckAnswers(opts: Opts): Promise<Map<string, AnswerFeed
       )
       if (!r.success) break
       for (const [id, fb] of Object.entries(r.feedback)) out.set(id, fb)
+      if (r.done) break
     }
   } catch {
     return out

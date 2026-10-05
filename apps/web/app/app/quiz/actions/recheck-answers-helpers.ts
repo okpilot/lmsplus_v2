@@ -77,20 +77,28 @@ const ENDS_BATCH = [
   'session_ended',
   'session_saved',
   'unsupported_session_mode',
+  'session_config_malformed',
+  'session_expired',
 ].map((token) => PROGRESS_ERROR_MESSAGES[token])
 
-/** Errors the caller must see: the tab lost the session, or the sign-in expired. */
+/** Errors the caller must see: the tab lost the session, the sign-in expired, or the account is inactive. */
 function isFatal(error: string): boolean {
-  return error === SIGN_IN || error === PROGRESS_ERROR_MESSAGES.session_taken_over
+  return (
+    error === SIGN_IN ||
+    error === PROGRESS_ERROR_MESSAGES.session_taken_over ||
+    error === PROGRESS_ERROR_MESSAGES.user_not_found_or_inactive
+  )
 }
 
 type BatchOpts = { raw: unknown[]; allowed: Set<string>; sessionId: string; deviceId: string }
 
-/** Grades the answers one by one; stops at the first error that applies to the whole session. */
-export async function gradeBatch(
-  supabase: SupabaseClient,
-  opts: BatchOpts,
-): Promise<{ feedback: Record<string, AnswerFeedback>; fatal: string | null }> {
+type BatchResult = { feedback: Record<string, AnswerFeedback>; fatal: string | null; done: boolean }
+
+/**
+ * Grades the answers one by one; stops at the first error that applies to the whole session.
+ * `done` means the session can grade nothing more, so the caller sends no further batch.
+ */
+export async function gradeBatch(supabase: SupabaseClient, opts: BatchOpts): Promise<BatchResult> {
   const feedback: Record<string, AnswerFeedback> = {}
   for (const raw of opts.raw) {
     const parsed = RecheckItemSchema.safeParse(raw)
@@ -113,8 +121,8 @@ export async function gradeBatch(
       continue
     }
     console.error('[recheckRestoredAnswers] Grading failed:', item.questionId, graded.error)
-    if (isFatal(graded.error)) return { feedback, fatal: graded.error }
-    if (ENDS_BATCH.includes(graded.error)) break
+    if (isFatal(graded.error)) return { feedback, fatal: graded.error, done: true }
+    if (ENDS_BATCH.includes(graded.error)) return { feedback, fatal: null, done: true }
   }
-  return { feedback, fatal: null }
+  return { feedback, fatal: null, done: false }
 }

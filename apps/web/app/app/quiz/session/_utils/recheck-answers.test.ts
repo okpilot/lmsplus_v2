@@ -34,7 +34,7 @@ beforeEach(() => vi.resetAllMocks())
 
 describe('recheckAnswers', () => {
   it('sends the restored answers without any visit time so stored time is untouched', async () => {
-    mockAction.mockResolvedValue({ success: true, feedback: { q1: MC_FEEDBACK } })
+    mockAction.mockResolvedValue({ success: true, done: false, feedback: { q1: MC_FEEDBACK } })
 
     const result = await recheckAnswers({
       sessionId: 's1',
@@ -57,7 +57,7 @@ describe('recheckAnswers', () => {
   })
 
   it('skips a draft that carries no answer', async () => {
-    mockAction.mockResolvedValue({ success: true, feedback: {} })
+    mockAction.mockResolvedValue({ success: true, done: false, feedback: {} })
 
     await recheckAnswers({
       sessionId: 's1',
@@ -96,7 +96,7 @@ describe('recheckAnswers', () => {
     mockAction.mockImplementation(
       () =>
         new Promise((resolve) => {
-          releases.push(() => resolve({ success: true, feedback: {} }))
+          releases.push(() => resolve({ success: true, done: false, feedback: {} }))
         }),
     )
 
@@ -114,7 +114,7 @@ describe('recheckAnswers', () => {
 
   it('stops after a refused call and keeps the feedback graded before it', async () => {
     mockAction
-      .mockResolvedValueOnce({ success: true, feedback: { q0: MC_FEEDBACK } })
+      .mockResolvedValueOnce({ success: true, done: false, feedback: { q0: MC_FEEDBACK } })
       .mockResolvedValueOnce({ success: false, error: 'This session has already ended.' })
 
     const result = await recheckAnswers({ sessionId: 's1', restorable: restorable(80) })
@@ -125,12 +125,21 @@ describe('recheckAnswers', () => {
 
   it('stops after a call throws and keeps the feedback graded before it', async () => {
     mockAction
-      .mockResolvedValueOnce({ success: true, feedback: { q0: MC_FEEDBACK } })
+      .mockResolvedValueOnce({ success: true, done: false, feedback: { q0: MC_FEEDBACK } })
       .mockRejectedValueOnce(new Error('network'))
 
     const result = await recheckAnswers({ sessionId: 's1', restorable: restorable(80) })
 
     expect(mockAction).toHaveBeenCalledTimes(2)
+    expect([...result.keys()]).toEqual(['q0'])
+  })
+
+  it('keeps the feedback of a call that reports the session done, then stops', async () => {
+    mockAction.mockResolvedValueOnce({ success: true, done: true, feedback: { q0: MC_FEEDBACK } })
+
+    const result = await recheckAnswers({ sessionId: 's1', restorable: restorable(60) })
+
+    expect(mockAction).toHaveBeenCalledTimes(1)
     expect([...result.keys()]).toEqual(['q0'])
   })
 

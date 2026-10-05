@@ -95,6 +95,7 @@ describe('recheckRestoredAnswers', () => {
 
     expect(result).toEqual({
       success: true,
+      done: false,
       feedback: {
         [Q1]: {
           questionType: 'multiple_choice',
@@ -170,6 +171,7 @@ describe('recheckRestoredAnswers', () => {
     const result = await recheckRestoredAnswers(input([mc(Q1), mc(Q2)]))
 
     expect(Object.keys((result as { feedback: object }).feedback)).toEqual([Q2])
+    expect(result).toMatchObject({ success: true, done: false })
   })
 
   it('fails with the takeover message and stops grading when another tab took the session', async () => {
@@ -190,6 +192,25 @@ describe('recheckRestoredAnswers', () => {
 
     expect(mockRpc).toHaveBeenCalledTimes(2)
     expect(Object.keys((result as { feedback: object }).feedback)).toEqual([Q1])
+    expect(result).toMatchObject({ success: true, done: true })
+  })
+
+  it('stops grading a damaged session and reports the batch done', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'session_config_malformed' } })
+
+    const result = await recheckRestoredAnswers(input([mc(Q1), mc(Q2)]))
+
+    expect(mockRpc).toHaveBeenCalledTimes(1)
+    expect(result).toEqual({ success: true, done: true, feedback: {} })
+  })
+
+  it('fails with the account message and stops grading when the account is no longer active', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'user not found or inactive' } })
+
+    const result = await recheckRestoredAnswers(input([mc(Q1), mc(Q2)]))
+
+    expect(result).toEqual({ success: false, error: expect.stringContaining('no longer active') })
+    expect(mockRpc).toHaveBeenCalledTimes(1)
   })
 
   it('returns no feedback for a session that is not the caller’s', async () => {
@@ -199,7 +220,7 @@ describe('recheckRestoredAnswers', () => {
 
     const result = await recheckRestoredAnswers(input([mc(Q1)]))
 
-    expect(result).toEqual({ success: true, feedback: {} })
+    expect(result).toEqual({ success: true, done: true, feedback: {} })
     expect(mockRpc).not.toHaveBeenCalled()
   })
 

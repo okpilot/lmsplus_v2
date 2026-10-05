@@ -171,7 +171,7 @@ describe('recheckRestoredAnswers (app-layer integration)', () => {
       answers: [{ questionId: questionIds[0], selectedOptionId: 'b' }],
     })
 
-    expect(result).toEqual({ success: true, feedback: {} })
+    expect(result).toEqual({ success: true, feedback: {}, done: true })
   })
 
   it('drops an answer for a question outside the session', async () => {
@@ -220,6 +220,6 @@ describe('recheckRestoredAnswers (app-layer integration)', () => {
       answers: [{ questionId: questionIds[0], selectedOptionId: 'b' }],
     })
 
-    expect(result).toEqual({ success: true, feedback: {} })
+    expect(result).toEqual({ success: true, feedback: {}, done: true })
   })
 })

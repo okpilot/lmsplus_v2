@@ -7,7 +7,7 @@ import { gradeBatch, readSessionQuestionIds } from './recheck-answers-helpers'
 import { RecheckEnvelopeSchema } from './recheck-answers-schema'
 
 type RecheckResult =
-  | { success: true; feedback: Record<string, AnswerFeedback> }
+  | { success: true; feedback: Record<string, AnswerFeedback>; done: boolean }
   | { success: false; error: string }
 
 /**
@@ -30,14 +30,14 @@ export async function recheckRestoredAnswers(raw: unknown): Promise<RecheckResul
   const { sessionId, deviceId, answers } = parsed.data
 
   const allowed = await readSessionQuestionIds(supabase, { sessionId, userId: user.id })
-  if (allowed === null) return { success: true, feedback: {} }
+  if (allowed === null) return { success: true, feedback: {}, done: true }
   if (!(allowed instanceof Set)) return { success: false, error: allowed.error }
 
-  const { feedback, fatal } = await gradeBatch(supabase, {
+  const { feedback, fatal, done } = await gradeBatch(supabase, {
     raw: answers,
     allowed,
     sessionId,
     deviceId,
   })
-  return fatal ? { success: false, error: fatal } : { success: true, feedback }
+  return fatal ? { success: false, error: fatal } : { success: true, feedback, done }
 }
