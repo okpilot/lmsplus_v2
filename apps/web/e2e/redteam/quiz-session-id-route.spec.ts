@@ -227,24 +227,25 @@ test.describe('Red Team: quiz session read path by id (HA, HB)', () => {
         for (const token of KEY_TOKENS) expect(body, token).not.toContain(token)
 
         const page = await ctx.newPage()
-        const actionBodies: Promise<string>[] = []
+        // An aborted action response may never settle its body, so collect bodies as they arrive.
+        const actionBodies: string[] = []
         page.on('response', (r) => {
           if (r.request().method() === 'POST' && r.request().headers()['next-action'])
-            actionBodies.push(r.text().catch(() => ''))
+            r.text().then(
+              (t) => actionBodies.push(t),
+              () => undefined,
+            )
         })
         await page.goto(url)
         await expect(page.getByText(/Question 1 of 2/)).toBeVisible({ timeout: 15_000 })
         if (mode === 'quick_quiz') {
           await expect
-            .poll(async () =>
-              (await Promise.all(actionBodies)).some((b) => b.includes('isCorrect')),
-            )
+            .poll(() => actionBodies.some((b) => b.includes('isCorrect')), { timeout: 10_000 })
             .toBe(true)
         } else {
           await page.waitForTimeout(3_000)
-          const bodies = await Promise.all(actionBodies)
-          expect(bodies.length).toBeGreaterThan(0)
-          for (const b of bodies) for (const t of KEY_TOKENS) expect(b, t).not.toContain(t)
+          expect(actionBodies.length).toBeGreaterThan(0)
+          for (const b of actionBodies) for (const t of KEY_TOKENS) expect(b, t).not.toContain(t)
         }
         await page.close()
       } finally {
