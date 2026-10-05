@@ -22,10 +22,8 @@ vi.mock('../_utils/quiz-session-handoff', async (importOriginal) => {
   }
 })
 
-import { type ActiveSession, toSessionData } from '../_utils/quiz-session-storage'
 import {
   _resetCachedSession,
-  buildRecoveryResume,
   dropCachedSession,
   FLAG_FETCH_TIMEOUT_MS,
   loadSessionData,
@@ -185,147 +183,6 @@ describe('readBootstrapSession', () => {
 
     mockReadSessionHandoff.mockReturnValue(null)
     expect(readBootstrapSession(OTHER_USER_ID)).toBeNull()
-  })
-})
-
-// ---- buildRecoveryResume ---------------------------------------------------
-
-describe('buildRecoveryResume', () => {
-  const RECOVERY: ActiveSession = {
-    userId: USER_ID,
-    sessionId: SESSION_DATA.sessionId,
-    questionIds: QUESTION_IDS,
-    answers: {},
-    currentIndex: 0,
-    savedAt: Date.now(),
-  }
-
-  function buildSetters() {
-    return {
-      setSession: vi.fn(),
-      setQuestions: vi.fn(),
-      setFlaggedIds: vi.fn(),
-      setRecovery: vi.fn(),
-      setResumeLoading: vi.fn(),
-      setResumeError: vi.fn(),
-      setClaimError: vi.fn(),
-    }
-  }
-
-  /** Let the handler's internal load promise chain settle (real timers). */
-  const flushAsync = () => new Promise((resolve) => setTimeout(resolve, 0))
-
-  it('does nothing when there is no session to resume', async () => {
-    const set = buildSetters()
-
-    buildRecoveryResume(null, set, { current: false })()
-    await flushAsync()
-
-    expect(mockLoadSessionQuestions).not.toHaveBeenCalled()
-    for (const setter of Object.values(set)) {
-      expect(setter).not.toHaveBeenCalled()
-    }
-  })
-
-  it('surfaces the error and keeps the recovery prompt open when the resume load fails', async () => {
-    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_FAILURE)
-    mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [] })
-    const set = buildSetters()
-
-    buildRecoveryResume(RECOVERY, set, { current: false })()
-    await flushAsync()
-
-    expect(set.setResumeError).toHaveBeenCalledWith('RPC error')
-    expect(set.setResumeLoading).toHaveBeenLastCalledWith(false)
-    // The prompt stays open so the user can retry or discard — recovery is NOT cleared.
-    expect(set.setRecovery).not.toHaveBeenCalled()
-    expect(set.setSession).not.toHaveBeenCalled()
-    expect(set.setQuestions).not.toHaveBeenCalled()
-  })
-
-  it('hydrates the session, questions, and flags after a successful resume', async () => {
-    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
-    mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [Q1.id] })
-    const set = buildSetters()
-
-    buildRecoveryResume(RECOVERY, set, { current: false })()
-    await flushAsync()
-
-    expect(set.setSession).toHaveBeenCalledWith(toSessionData(RECOVERY))
-    expect(set.setQuestions).toHaveBeenCalledWith([Q1, Q2])
-    expect(set.setFlaggedIds).toHaveBeenCalledWith([Q1.id])
-    expect(set.setResumeLoading).toHaveBeenLastCalledWith(false)
-    expect(set.setRecovery).toHaveBeenCalledWith(null)
-    expect(set.setResumeError).not.toHaveBeenCalledWith(expect.any(String))
-  })
-
-  it('loads the session only once when Resume fires twice in the same tick', async () => {
-    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
-    mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [] })
-    const handler = buildRecoveryResume(RECOVERY, buildSetters(), { current: false })
-
-    // e.g. a double-click before React commits the loading state.
-    handler()
-    handler()
-    await flushAsync()
-
-    expect(mockLoadSessionQuestions).toHaveBeenCalledTimes(1)
-  })
-
-  it('allows a retry after a failed resume', async () => {
-    mockLoadSessionQuestions.mockResolvedValueOnce(QUESTIONS_FAILURE)
-    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
-    mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [] })
-    const set = buildSetters()
-    const handler = buildRecoveryResume(RECOVERY, set, { current: false })
-
-    handler()
-    await flushAsync()
-    handler()
-    await flushAsync()
-
-    expect(mockLoadSessionQuestions).toHaveBeenCalledTimes(2)
-    expect(set.setSession).toHaveBeenCalledWith(toSessionData(RECOVERY))
-  })
-
-  it('recovers and allows a retry when applying the resumed session fails', async () => {
-    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
-    mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [] })
-    const set = buildSetters()
-    // loadSessionData never rejects by design — exercise the handler's catch net by
-    // making a success-path setter throw on the first attempt only.
-    set.setQuestions.mockImplementationOnce(() => {
-      throw new Error('boom')
-    })
-    const handler = buildRecoveryResume(RECOVERY, set, { current: false })
-
-    handler()
-    await flushAsync()
-
-    expect(set.setResumeError).toHaveBeenCalledWith('Failed to load questions. Please try again.')
-    expect(set.setResumeLoading).toHaveBeenLastCalledWith(false)
-    expect(set.setRecovery).not.toHaveBeenCalled()
-
-    // The catch released the lock, so a retry loads again and completes normally.
-    handler()
-    await flushAsync()
-
-    expect(mockLoadSessionQuestions).toHaveBeenCalledTimes(2)
-    expect(set.setRecovery).toHaveBeenCalledWith(null)
-  })
-
-  it('ignores a late duplicate Resume after a successful resume', async () => {
-    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
-    mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [] })
-    const handler = buildRecoveryResume(RECOVERY, buildSetters(), { current: false })
-
-    handler()
-    await flushAsync()
-    // The recovery screen unmounts on success; a stray queued trigger must not re-load.
-    handler()
-    await flushAsync()
-
-    expect(mockLoadSessionQuestions).toHaveBeenCalledTimes(1)
   })
 })
 

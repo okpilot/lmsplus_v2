@@ -8,7 +8,6 @@ import { VfrRtExamPanel } from './vfr-rt-exam-panel'
 import { VfrRtPracticeSections } from './vfr-rt-practice-sections'
 
 type VfrRtConfigFormProps = {
-  userId: string
   subjectId: string
   subjects: SubjectOption[]
   initialTopics: TopicWithSubtopics[]
@@ -27,14 +26,12 @@ type VfrRtConfigFormProps = {
  * enabled RT exam_config; its body is VfrRtExamPanel instead of the practice filters.
  */
 export function VfrRtConfigForm({
-  userId,
   subjectId,
   subjects,
   initialTopics,
   exam,
 }: Readonly<VfrRtConfigFormProps>) {
   const config = useQuizConfig({
-    userId,
     subjects,
     initialSubjectId: subjectId,
     initialMode: 'study',
@@ -67,7 +64,6 @@ export function VfrRtConfigForm({
 
       {isExam && (
         <VfrRtExamPanel
-          userId={userId}
           subjectId={subjectId}
           subjects={subjects}
           questionCount={exam.questionCount}

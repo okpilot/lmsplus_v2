@@ -1,16 +1,15 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockRouterPush, mockRouterRefresh } = vi.hoisted(() => ({
-  mockRouterPush: vi.fn(),
+const { mockRouterRefresh } = vi.hoisted(() => ({
   mockRouterRefresh: vi.fn(),
 }))
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockRouterPush, refresh: mockRouterRefresh }),
+  useRouter: () => ({ refresh: mockRouterRefresh }),
 }))
 
 const { mockDiscardQuiz } = vi.hoisted(() => ({
@@ -20,17 +19,6 @@ const { mockDiscardQuiz } = vi.hoisted(() => ({
 vi.mock('../actions/discard', () => ({
   discardQuiz: (...args: unknown[]) => mockDiscardQuiz(...args),
 }))
-
-vi.mock('../session/_utils/quiz-session-handoff', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../session/_utils/quiz-session-handoff')>()
-  return {
-    ...actual,
-    sessionHandoffKey: (userId: string) => `quiz-session:${userId}`,
-  }
-})
-
-// Import the real readSessionHandoff for round-trip test
-import { readSessionHandoff } from '../session/_utils/quiz-session-handoff'
 
 // ---- Subject under test ---------------------------------------------------
 
@@ -52,18 +40,6 @@ const EXAM: ActiveExamSession = {
 
 const USER_ID = 'user-test'
 
-// ---- Session storage helpers ---------------------------------------------
-
-const originalSessionStorage = globalThis.sessionStorage
-
-afterEach(() => {
-  Object.defineProperty(globalThis, 'sessionStorage', {
-    value: originalSessionStorage,
-    writable: true,
-    configurable: true,
-  })
-})
-
 beforeEach(() => {
   vi.resetAllMocks()
   mockDiscardQuiz.mockResolvedValue({ success: true })
@@ -78,9 +54,9 @@ describe('ResumeExamBanner — rendering', () => {
     expect(screen.getByText(/air law/i)).toBeInTheDocument()
   })
 
-  it('renders Resume Practice Exam and Discard buttons', () => {
+  it('renders a Resume Practice Exam link and a Discard button', () => {
     render(<ResumeExamBanner userId={USER_ID} exam={EXAM} />)
-    expect(screen.getByRole('button', { name: /resume practice exam/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /resume practice exam/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^discard$/i })).toBeInTheDocument()
   })
 
@@ -94,83 +70,15 @@ describe('ResumeExamBanner — rendering', () => {
 // ---- Resume ---------------------------------------------------------------
 
 describe('ResumeExamBanner — Resume', () => {
-  it('writes a complete handoff payload (all 9 fields) to sessionStorage then navigates', async () => {
-    const mockSetItem = vi.fn()
-    Object.defineProperty(globalThis, 'sessionStorage', {
-      value: { setItem: mockSetItem, getItem: vi.fn(), removeItem: vi.fn() },
-      writable: true,
-      configurable: true,
-    })
-
+  it('links Resume to the session page for this exam, without touching storage', async () => {
+    const setItem = vi.spyOn(Storage.prototype, 'setItem')
     render(<ResumeExamBanner userId={USER_ID} exam={EXAM} />)
-    await userEvent.click(screen.getByRole('button', { name: /resume practice exam/i }))
 
-    expect(mockSetItem).toHaveBeenCalledWith(
-      `quiz-session:${USER_ID}`,
-      expect.stringContaining('sess-exam-001'),
+    expect(screen.getByRole('link', { name: /resume practice exam/i })).toHaveAttribute(
+      'href',
+      '/app/quiz/session/sess-exam-001',
     )
-    const stored = JSON.parse(mockSetItem.mock.calls[0]?.[1] as string)
-    expect(stored).toEqual({
-      userId: USER_ID,
-      sessionId: 'sess-exam-001',
-      mode: 'exam',
-      questionIds: ['q-1', 'q-2'],
-      timeLimitSeconds: 3600,
-      passMark: 75,
-      subjectName: 'Air Law',
-      subjectCode: 'ALW',
-      startedAt: '2026-04-27T10:00:00.000Z',
-    })
-    expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session')
-  })
-
-  it('round-trip: handoff written by banner passes isValidSessionData (readSessionHandoff returns non-null)', async () => {
-    // This is the integration contract the bug broke: the banner must write a payload
-    // that readSessionHandoff accepts. Previously questionIds:[] caused immediate discard.
-    const store = new Map<string, string>()
-    Object.defineProperty(globalThis, 'sessionStorage', {
-      value: {
-        setItem: vi.fn((k: string, v: string) => store.set(k, v)),
-        getItem: vi.fn((k: string) => store.get(k) ?? null),
-        removeItem: vi.fn((k: string) => store.delete(k)),
-      },
-      writable: true,
-      configurable: true,
-    })
-
-    render(<ResumeExamBanner userId={USER_ID} exam={EXAM} />)
-    await userEvent.click(screen.getByRole('button', { name: /resume practice exam/i }))
-
-    const result = readSessionHandoff(USER_ID)
-    expect(result).not.toBeNull()
-    expect(result?.sessionId).toBe('sess-exam-001')
-    expect(result?.questionIds).toEqual(['q-1', 'q-2'])
-    expect(result?.mode).toBe('exam')
-    expect(result?.timeLimitSeconds).toBe(3600)
-    expect(result?.passMark).toBe(75)
-    expect(result?.subjectName).toBe('Air Law')
-    expect(result?.subjectCode).toBe('ALW')
-    expect(result?.startedAt).toBe('2026-04-27T10:00:00.000Z')
-  })
-
-  it('shows an error and does not navigate when sessionStorage.setItem throws', async () => {
-    Object.defineProperty(globalThis, 'sessionStorage', {
-      value: {
-        setItem: vi.fn(() => {
-          throw new DOMException('QuotaExceededError')
-        }),
-        getItem: vi.fn(),
-        removeItem: vi.fn(),
-      },
-      writable: true,
-      configurable: true,
-    })
-
-    render(<ResumeExamBanner userId={USER_ID} exam={EXAM} />)
-    await userEvent.click(screen.getByRole('button', { name: /resume practice exam/i }))
-
-    expect(screen.getByRole('alert')).toHaveTextContent(/unable to resume/i)
-    expect(mockRouterPush).not.toHaveBeenCalled()
+    expect(setItem).not.toHaveBeenCalled()
   })
 })
 
@@ -179,7 +87,7 @@ describe('ResumeExamBanner — Resume', () => {
 describe('ResumeExamBanner — discardOnly', () => {
   it('hides the Resume button when discardOnly is true', () => {
     render(<ResumeExamBanner userId={USER_ID} sessionId="sess-orphan" discardOnly />)
-    expect(screen.queryByRole('button', { name: /resume practice exam/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /resume practice exam/i })).not.toBeInTheDocument()
   })
 
   it('shows the orphan-specific title copy', () => {

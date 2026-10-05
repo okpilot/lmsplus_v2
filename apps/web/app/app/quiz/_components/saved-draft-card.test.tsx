@@ -17,6 +17,7 @@ vi.mock('../actions/resume', () => ({
   resumeQuizSession: (...args: unknown[]) => mockResumeQuizSession(...args),
 }))
 
+import type { SavedQuizSession } from '@/lib/queries/load-saved-quizzes'
 import type { DraftData } from '../types'
 import { SavedDraftCard } from './saved-draft-card'
 
@@ -45,6 +46,16 @@ const DRAFT_2: DraftData = {
   createdAt: '2026-03-13T10:00:00Z',
 }
 
+const SAVED: SavedQuizSession = {
+  sessionId: 'saved-1',
+  mode: 'quick_quiz',
+  savedAt: '2026-10-04T09:00:00Z',
+  subjectName: 'Air Law',
+  subjectCode: 'ALW',
+  totalCount: 10,
+  answeredCount: 4,
+}
+
 describe('SavedDraftCard', () => {
   beforeEach(() => {
     vi.resetAllMocks()
@@ -58,62 +69,65 @@ describe('SavedDraftCard', () => {
   })
 
   it('shows empty state when drafts array is empty', () => {
-    render(<SavedDraftCard userId="user-1" drafts={[]} />)
+    render(<SavedDraftCard drafts={[]} savedSessions={[]} />)
     expect(screen.getByText(/no saved quizzes/i)).toBeInTheDocument()
   })
 
   it('displays subject name', () => {
-    render(<SavedDraftCard userId="user-1" drafts={[DRAFT]} />)
+    render(<SavedDraftCard drafts={[DRAFT]} savedSessions={[]} />)
     expect(screen.getByText('Principles of Flight')).toBeInTheDocument()
   })
 
   it('displays progress count', () => {
-    render(<SavedDraftCard userId="user-1" drafts={[DRAFT]} />)
+    render(<SavedDraftCard drafts={[DRAFT]} savedSessions={[]} />)
     expect(screen.getByText('2 of 5 answered')).toBeInTheDocument()
     expect(screen.getByText('40%')).toBeInTheDocument()
   })
 
   it('displays date', () => {
-    render(<SavedDraftCard userId="user-1" drafts={[DRAFT]} />)
+    render(<SavedDraftCard drafts={[DRAFT]} savedSessions={[]} />)
     // Date format depends on locale, just check it renders something
     expect(screen.getByText(/2026/)).toBeInTheDocument()
   })
 
   it('shows "Unknown subject" fallback when subjectName is missing', () => {
     const draft = { ...DRAFT, subjectName: undefined, subjectCode: undefined }
-    render(<SavedDraftCard userId="user-1" drafts={[draft]} />)
+    render(<SavedDraftCard drafts={[draft]} savedSessions={[]} />)
     expect(screen.getByText('Unknown subject')).toBeInTheDocument()
   })
 
   it('renders multiple draft cards', () => {
-    render(<SavedDraftCard userId="user-1" drafts={[DRAFT, DRAFT_2]} />)
+    render(<SavedDraftCard drafts={[DRAFT, DRAFT_2]} savedSessions={[]} />)
     expect(screen.getByText('Principles of Flight')).toBeInTheDocument()
     expect(screen.getByText('Air Law')).toBeInTheDocument()
     expect(screen.getAllByTestId('resume-draft')).toHaveLength(2)
     expect(screen.getAllByTestId('delete-draft')).toHaveLength(2)
   })
 
-  it('stores the handoff with the new session id and draftId, then navigates on resume', async () => {
-    const spy = vi.spyOn(Object.getPrototypeOf(sessionStorage), 'setItem')
-    render(<SavedDraftCard userId="user-1" drafts={[DRAFT]} />)
+  it('navigates to /app/quiz/session/<newId> on resume of an old draft', async () => {
+    render(<SavedDraftCard drafts={[DRAFT]} savedSessions={[]} />)
     fireEvent.click(screen.getByTestId('resume-draft'))
 
-    await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session'))
-    // Handoff carries the freshly-minted session id from resume, not the draft's stale one.
-    expect(spy).toHaveBeenCalledWith(
-      'quiz-session:user-1',
-      expect.stringContaining('"sessionId":"sess-1-new"'),
-    )
-    expect(spy).toHaveBeenCalledWith(
-      'quiz-session:user-1',
-      expect.stringContaining('"draftId":"draft-1"'),
-    )
-    spy.mockRestore()
+    await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session/sess-1-new'))
+  })
+
+  it('lists server-saved sessions together with old drafts', () => {
+    render(<SavedDraftCard drafts={[DRAFT]} savedSessions={[SAVED]} />)
+    expect(screen.getAllByTestId('resume-draft')).toHaveLength(1)
+    expect(screen.getAllByTestId('resume-saved-session')).toHaveLength(1)
+    expect(screen.getByText('Air Law')).toBeInTheDocument()
+  })
+
+  it('shows the empty state only when there are no drafts and no saved sessions', () => {
+    const { rerender } = render(<SavedDraftCard drafts={[]} savedSessions={[SAVED]} />)
+    expect(screen.queryByText(/no saved quizzes/i)).not.toBeInTheDocument()
+    rerender(<SavedDraftCard drafts={[]} savedSessions={[]} />)
+    expect(screen.getByText(/no saved quizzes/i)).toBeInTheDocument()
   })
 
   it('does not call deleteDraft when the user cancels the confirmation dialog', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(false)
-    render(<SavedDraftCard userId="user-1" drafts={[DRAFT]} />)
+    render(<SavedDraftCard drafts={[DRAFT]} savedSessions={[]} />)
     fireEvent.click(screen.getByTestId('delete-draft'))
 
     // Allow any async effects to flush
@@ -122,7 +136,7 @@ describe('SavedDraftCard', () => {
   })
 
   it('calls deleteDraft with draftId and refreshes on delete', async () => {
-    render(<SavedDraftCard userId="user-1" drafts={[DRAFT]} />)
+    render(<SavedDraftCard drafts={[DRAFT]} savedSessions={[]} />)
     fireEvent.click(screen.getByTestId('delete-draft'))
 
     await waitFor(() => {
@@ -135,7 +149,7 @@ describe('SavedDraftCard', () => {
 
   it('shows error when delete fails', async () => {
     mockDeleteDraft.mockResolvedValue({ success: false })
-    render(<SavedDraftCard userId="user-1" drafts={[DRAFT]} />)
+    render(<SavedDraftCard drafts={[DRAFT]} savedSessions={[]} />)
     fireEvent.click(screen.getByTestId('delete-draft'))
 
     await waitFor(() => {

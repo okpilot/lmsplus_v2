@@ -17,7 +17,11 @@ export function useProgressSync(opts: QuizStateOpts) {
     totalQuestions: opts.questions.length,
     initialIndex: opts.initialIndex,
   })
-  const { pinnedQuestions, pinnedRef, togglePin: togglePinById } = usePinnedQuestions()
+  const {
+    pinnedQuestions,
+    pinnedRef,
+    togglePin: togglePinById,
+  } = usePinnedQuestions(opts.initialPinnedIds)
   const currentIndexRef = useRef(nav.currentIndex)
   currentIndexRef.current = nav.currentIndex
   const { saveError, savePosition, saveAnswer } = useProgressSaves({

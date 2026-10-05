@@ -19,9 +19,6 @@ vi.mock('./quiz-submit', () => ({
   handleSubmitSession: (...args: unknown[]) => mockHandleSubmitSession(...args),
   handleSaveSession: (...args: unknown[]) => mockHandleSaveSession(...args),
   handleDiscardSession: (...args: unknown[]) => mockHandleDiscardSession(...args),
-  // Pure URL builder — use the real behaviour so the safety-net assertions are meaningful.
-  examReportUrl: (examMode: string | undefined, sessionId: string) =>
-    `${examMode === 'internal_exam' ? '/app/internal-exam/report' : '/app/quiz/report'}?session=${sessionId}`,
 }))
 
 const { mockRouterPush } = vi.hoisted(() => ({
@@ -196,14 +193,6 @@ describe('useQuizSubmit — handleSubmit delegation', () => {
     expect(call.userId).toBe(USER_ID)
     expect(call.sessionId).toBe(SESSION_ID)
   })
-
-  it('submits with the optional draftId from opts when provided', async () => {
-    const { result } = renderHook(() => useQuizSubmit(makeDefaultOpts({ draftId: 'draft-99' })))
-    await act(async () => result.current.handleSubmit())
-
-    const call = mockHandleSubmitSession.mock.calls[0]?.[0] as Record<string, unknown>
-    expect(call.draftId).toBe('draft-99')
-  })
 })
 
 // ---- handleSave ----------------------------------------------------------
@@ -216,38 +205,6 @@ describe('useQuizSubmit — handleSave', () => {
     const call = mockHandleSaveSession.mock.calls[0]?.[0] as Record<string, unknown>
     expect(call.userId).toBe(USER_ID)
     expect(call.sessionId).toBe(SESSION_ID)
-  })
-
-  it('excludes pending answers from the saved map', async () => {
-    const answers = new Map<string, DraftAnswer>([
-      [Q1, SAMPLE_ANSWER],
-      [Q2, { selectedOptionId: 'opt-b', responseTimeMs: 300 }],
-    ])
-    const { result } = renderHook(() =>
-      useQuizSubmit(
-        makeDefaultOpts({
-          answersRef: { current: answers },
-          pendingQuestionIdRef: makePendingRef([Q2]),
-        }),
-      ),
-    )
-    await act(async () => result.current.handleSave())
-
-    const call = mockHandleSaveSession.mock.calls[0]?.[0] as Record<string, unknown>
-    const saved = call.answers as Map<string, DraftAnswer>
-    expect(saved.size).toBe(1)
-    expect(saved.has(Q1)).toBe(true)
-    expect(saved.has(Q2)).toBe(false)
-  })
-
-  it('passes all answers when pending set is empty', async () => {
-    const answers = new Map<string, DraftAnswer>([[Q1, SAMPLE_ANSWER]])
-    const ref = { current: answers }
-    const { result } = renderHook(() => useQuizSubmit(makeDefaultOpts({ answersRef: ref })))
-    await act(async () => result.current.handleSave())
-
-    const call = mockHandleSaveSession.mock.calls[0]?.[0] as Record<string, unknown>
-    expect(call.answers).toBe(answers)
   })
 })
 

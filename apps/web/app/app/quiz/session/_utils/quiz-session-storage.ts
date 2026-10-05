@@ -2,7 +2,6 @@ import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
 import type { SessionMode } from '../../session-types'
 import type { AnswerFeedback, DraftAnswer } from '../../types'
 import { isValidActiveSession } from './quiz-session-active-validation'
-import type { SessionData } from './quiz-session-handoff'
 
 // The localStorage active session may ONLY hold resumable modes. Discovery is ephemeral
 // (never persisted — readActiveSession rejects a persisted 'discovery'), so its mode must
@@ -31,35 +30,6 @@ export type ActiveSession = {
   startedAt?: string // ISO string from quiz_sessions.started_at; required for exam mode
   timeLimitSeconds?: number
   passMark?: number
-}
-
-/** Build the sessionStorage handoff payload for resuming a session. */
-export function buildHandoffPayload(userId: string, s: ActiveSession) {
-  return {
-    userId,
-    sessionId: s.sessionId,
-    questionIds: s.questionIds,
-    draftAnswers: s.answers,
-    draftFeedback: s.feedback,
-    draftCurrentIndex: s.currentIndex,
-    draftId: s.draftId,
-    subjectName: s.subjectName,
-    subjectCode: s.subjectCode,
-    mode: s.mode,
-    examMode: s.examMode,
-    timeLimitSeconds: s.timeLimitSeconds,
-    passMark: s.passMark,
-    startedAt: s.startedAt,
-  }
-}
-
-export function writeActiveSession(data: ActiveSession): void {
-  try {
-    localStorage.setItem(storageKey(data.userId), JSON.stringify(data))
-  } catch (err) {
-    // Private browsing SecurityError or QuotaExceededError — never block quiz
-    console.warn('[quiz-session-storage] Write failed:', err)
-  }
 }
 
 function safeRemove(userId: string): void {
@@ -108,63 +78,4 @@ export function clearActiveSessionIfCurrent(userId: string, sessionId: string): 
   if (readActiveSession(userId)?.sessionId !== sessionId) return false
   safeRemove(userId)
   return true
-}
-
-/** Convert an ActiveSession (localStorage recovery) to SessionData (hook state). */
-export function toSessionData(r: ActiveSession): SessionData {
-  return {
-    sessionId: r.sessionId,
-    questionIds: r.questionIds,
-    draftAnswers: r.answers,
-    draftFeedback: r.feedback,
-    draftCurrentIndex: r.currentIndex,
-    draftId: r.draftId,
-    subjectName: r.subjectName,
-    subjectCode: r.subjectCode,
-    mode: r.mode,
-    examMode: r.examMode,
-    startedAt: r.startedAt,
-    timeLimitSeconds: r.timeLimitSeconds,
-    passMark: r.passMark,
-  }
-}
-
-type BuildOpts = {
-  userId: string
-  sessionId: string
-  questions: Array<{ id: string }>
-  subjectName?: string
-  subjectCode?: string
-  draftId?: string
-  mode?: SessionMode
-  examMode?: DbQuizMode
-  startedAt?: string
-  timeLimitSeconds?: number
-  passMark?: number
-}
-
-export function buildActiveSession(
-  opts: BuildOpts,
-  answers: Map<string, DraftAnswer>,
-  currentIndex: number,
-  feedback?: Map<string, AnswerFeedback>,
-): ActiveSession {
-  return {
-    userId: opts.userId,
-    sessionId: opts.sessionId,
-    questionIds: opts.questions.map((q) => q.id),
-    answers: Object.fromEntries(answers),
-    feedback: feedback ? Object.fromEntries(feedback) : undefined,
-    currentIndex,
-    subjectName: opts.subjectName,
-    subjectCode: opts.subjectCode,
-    draftId: opts.draftId,
-    savedAt: Date.now(),
-    // Coerce never-reached 'discovery' to undefined — persisted shape stays resumable-only.
-    mode: opts.mode === 'discovery' ? undefined : opts.mode,
-    examMode: opts.examMode,
-    startedAt: opts.startedAt,
-    timeLimitSeconds: opts.timeLimitSeconds,
-    passMark: opts.passMark,
-  }
 }

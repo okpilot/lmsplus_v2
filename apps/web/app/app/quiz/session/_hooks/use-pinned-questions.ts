@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 
-export function usePinnedQuestions() {
-  const [pinnedQuestions, setPinnedQuestions] = useState<Set<string>>(new Set())
+export function usePinnedQuestions(initialIds?: readonly string[]) {
+  const [pinnedQuestions, setPinnedQuestions] = useState<Set<string>>(() => new Set(initialIds))
   // Mirror (code-style §6): a position save reads the pins from a callback that can run
   // before the next render commits.
   const pinnedRef = useRef(pinnedQuestions)

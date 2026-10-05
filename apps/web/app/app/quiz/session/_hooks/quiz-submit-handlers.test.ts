@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SessionQuestion } from '@/app/app/_types/session'
 import { createMockRouter } from '@/lib/test-support/mock-router'
-import type { AnswerFeedback, DraftAnswer } from '../../types'
+import type { DraftAnswer } from '../../types'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -27,8 +27,6 @@ vi.mock('./quiz-submit', () => ({
   handleSubmitSession: (...args: unknown[]) => mockHandleSubmitSession(...args),
   handleSaveSession: (...args: unknown[]) => mockHandleSaveSession(...args),
   handleDiscardSession: (...args: unknown[]) => mockHandleDiscardSession(...args),
-  examReportUrl: (examMode: string | undefined, sessionId: string) =>
-    `${examMode === 'internal_exam' ? '/app/internal-exam/report' : '/app/quiz/report'}?session=${sessionId}`,
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -60,7 +58,6 @@ function makeBaseDeps(overrides: Partial<Parameters<typeof buildSharedFor>[0]> =
     userId: USER_ID,
     sessionId: SESSION_ID,
     router: createMockRouter(),
-    draftId: undefined,
     setPendingAction: vi.fn(),
     setError: vi.fn(),
     submitted: { current: false },
@@ -263,50 +260,27 @@ describe('buildHandleSubmit', () => {
 // ---- buildHandleSave ---------------------------------------------------------
 
 describe('buildHandleSave', () => {
-  function makeSaveDeps(overrides = {}) {
-    return {
-      ...makeBaseDeps(),
-      questions: [{ id: 'q1' }] as SessionQuestion[],
-      answersRef: {
-        current: new Map<string, DraftAnswer>([
-          ['q1', { selectedOptionId: 'a', responseTimeMs: 1 }],
-        ]),
-      },
-      feedbackRef: { current: new Map<string, AnswerFeedback>() },
-      currentIndexRef: { current: 0 },
-      pendingQuestionIdRef: { current: new Set<string>() },
-      ...overrides,
-    }
-  }
-
-  it('delegates to handleSaveSession with userId/sessionId', async () => {
-    const deps = makeSaveDeps()
-    const handleSave = buildHandleSave(deps)
+  it('delegates to handleSaveSession with userId/sessionId and no answer payload', async () => {
+    const handleSave = buildHandleSave(makeBaseDeps())
     await handleSave()
     const call = mockHandleSaveSession.mock.calls[0]?.[0] as Record<string, unknown>
     expect(call.userId).toBe(USER_ID)
     expect(call.sessionId).toBe(SESSION_ID)
-  })
-
-  it('excludes pending question ids from the saved answers', async () => {
-    const deps = makeSaveDeps({ pendingQuestionIdRef: { current: new Set(['q1']) } })
-    const handleSave = buildHandleSave(deps)
-    await handleSave()
-    const call = mockHandleSaveSession.mock.calls[0]?.[0] as { answers: Map<string, DraftAnswer> }
-    expect(call.answers.size).toBe(0)
+    expect(call).not.toHaveProperty('answers')
+    expect(call).not.toHaveProperty('feedback')
+    expect(call).not.toHaveProperty('questions')
   })
 })
 
 // ---- buildHandleDiscard -------------------------------------------------------
 
 describe('buildHandleDiscard', () => {
-  it('delegates to handleDiscardSession with userId/sessionId/draftId', async () => {
-    const deps = makeBaseDeps({ draftId: 'draft-1' })
+  it('delegates to handleDiscardSession with userId/sessionId', async () => {
+    const deps = makeBaseDeps()
     const handleDiscard = buildHandleDiscard(deps)
     await handleDiscard()
     const call = mockHandleDiscardSession.mock.calls[0]?.[0] as Record<string, unknown>
     expect(call.userId).toBe(USER_ID)
     expect(call.sessionId).toBe(SESSION_ID)
-    expect(call.draftId).toBe('draft-1')
   })
 })

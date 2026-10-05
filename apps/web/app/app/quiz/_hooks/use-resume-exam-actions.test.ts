@@ -1,121 +1,43 @@
 import { act, renderHook } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockRouterPush, mockRouterRefresh, mockDiscardQuiz } = vi.hoisted(() => ({
-  mockRouterPush: vi.fn(),
+const { mockRouterRefresh, mockDiscardQuiz } = vi.hoisted(() => ({
   mockRouterRefresh: vi.fn(),
   mockDiscardQuiz: vi.fn(),
 }))
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockRouterPush, refresh: mockRouterRefresh }),
+  useRouter: () => ({ refresh: mockRouterRefresh }),
 }))
 
 vi.mock('../actions/discard', () => ({
   discardQuiz: (...args: unknown[]) => mockDiscardQuiz(...args),
 }))
 
-vi.mock('../session/_utils/quiz-session-handoff', () => ({
-  sessionHandoffKey: (userId: string) => `quiz-session:${userId}`,
-}))
-
 // ---- Subject under test ---------------------------------------------------
 
-import type { ActiveExamSession } from '../actions/get-active-exam-session'
 import { useResumeExamActions } from './use-resume-exam-actions'
 
 // ---- Fixtures -------------------------------------------------------------
 
-const EXAM: ActiveExamSession = {
-  sessionId: 'sess-exam-001',
-  subjectId: 'subj-aaa',
-  subjectName: 'Air Law',
-  subjectCode: 'ALW',
-  startedAt: '2026-04-27T10:00:00.000Z',
-  timeLimitSeconds: 3600,
-  passMark: 75,
-  questionIds: ['q-1', 'q-2'],
-}
-
+const SESSION_ID = 'sess-exam-001'
 const USER_ID = 'user-test'
 
 function renderActions(opts?: Partial<Parameters<typeof useResumeExamActions>[0]>) {
   return renderHook(() =>
     useResumeExamActions({
       userId: USER_ID,
-      exam: EXAM,
-      activeSessionId: EXAM.sessionId,
+      activeSessionId: SESSION_ID,
       ...opts,
     }),
   )
 }
 
-// ---- Session storage helpers ---------------------------------------------
-
-const originalSessionStorage = globalThis.sessionStorage
-let mockSetItem: ReturnType<typeof vi.fn>
-
 beforeEach(() => {
   vi.resetAllMocks()
   mockDiscardQuiz.mockResolvedValue({ success: true })
-  mockSetItem = vi.fn()
-  Object.defineProperty(globalThis, 'sessionStorage', {
-    value: { setItem: mockSetItem, getItem: vi.fn(), removeItem: vi.fn() },
-    writable: true,
-    configurable: true,
-  })
-})
-
-afterEach(() => {
-  Object.defineProperty(globalThis, 'sessionStorage', {
-    value: originalSessionStorage,
-    writable: true,
-    configurable: true,
-  })
-})
-
-// ---- Resume ---------------------------------------------------------------
-
-describe('useResumeExamActions — resume', () => {
-  it('preserves the exam details and opens the session page', () => {
-    const { result } = renderActions()
-
-    act(() => result.current.handleResume())
-
-    expect(mockSetItem).toHaveBeenCalledWith(
-      `quiz-session:${USER_ID}`,
-      expect.stringContaining('sess-exam-001'),
-    )
-    const stored = JSON.parse(mockSetItem.mock.calls[0]?.[1] as string)
-    expect(stored).toEqual({
-      userId: USER_ID,
-      sessionId: 'sess-exam-001',
-      mode: 'exam',
-      questionIds: ['q-1', 'q-2'],
-      timeLimitSeconds: 3600,
-      passMark: 75,
-      subjectName: 'Air Law',
-      subjectCode: 'ALW',
-      startedAt: '2026-04-27T10:00:00.000Z',
-    })
-    expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session')
-  })
-
-  it('shows an error and stays on the current page when resume preparation fails', () => {
-    mockSetItem.mockImplementation(() => {
-      throw new DOMException('QuotaExceededError')
-    })
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const { result } = renderActions()
-
-    act(() => result.current.handleResume())
-
-    expect(result.current.error).toMatch(/unable to resume/i)
-    expect(mockRouterPush).not.toHaveBeenCalled()
-    warnSpy.mockRestore()
-  })
 })
 
 // ---- Discard --------------------------------------------------------------
@@ -128,7 +50,7 @@ describe('useResumeExamActions — discard', () => {
       await result.current.handleDiscard()
     })
 
-    expect(mockDiscardQuiz).toHaveBeenCalledWith({ sessionId: 'sess-exam-001' })
+    expect(mockDiscardQuiz).toHaveBeenCalledWith({ sessionId: SESSION_ID })
     expect(result.current.discarded).toBe(true)
     expect(mockRouterRefresh).toHaveBeenCalledTimes(1)
   })
@@ -167,17 +89,14 @@ describe('useResumeExamActions — discard', () => {
     expect(result.current.discarded).toBe(true)
   })
 
-  it('discards a stuck session that carries no resumable exam data', async () => {
-    // The discardOnly banner (page.tsx renders <ResumeExamBanner discardOnly />) passes
-    // exam: undefined, so this is a live production path — the stuck-session case where
-    // there is nothing to resume, only to discard.
-    const { result } = renderActions({ exam: undefined })
+  it('discards a stuck session by id', async () => {
+    const { result } = renderActions({ activeSessionId: 'sess-orphan' })
 
     await act(async () => {
       await result.current.handleDiscard()
     })
 
-    expect(mockDiscardQuiz).toHaveBeenCalledWith({ sessionId: EXAM.sessionId })
+    expect(mockDiscardQuiz).toHaveBeenCalledWith({ sessionId: 'sess-orphan' })
     expect(result.current.discarded).toBe(true)
   })
 

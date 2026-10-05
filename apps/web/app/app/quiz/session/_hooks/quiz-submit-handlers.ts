@@ -1,14 +1,10 @@
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime'
 import type { SessionQuestion } from '@/app/app/_types/session'
 import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
-import type { AnswerFeedback, DraftAnswer } from '../../types'
+import type { DraftAnswer } from '../../types'
 import { whenQueueIdle } from '../_utils/with-reconnect'
-import {
-  examReportUrl,
-  handleDiscardSession,
-  handleSaveSession,
-  handleSubmitSession,
-} from './quiz-submit'
+import { reportUrl } from './exam-report-paths'
+import { handleDiscardSession, handleSaveSession, handleSubmitSession } from './quiz-submit'
 import { handleSubmitVfrRtExamSession } from './quiz-submit-vfr-rt'
 
 /** Which finish-dialog action is currently in flight, or null when idle. */
@@ -23,7 +19,6 @@ type BaseDeps = {
   userId: string
   sessionId: string
   router: AppRouterInstance
-  draftId?: string
   setPendingAction: (v: QuizPendingAction) => void
   setError: (e: string | null) => void
   submitted: React.RefObject<boolean>
@@ -74,7 +69,6 @@ function dispatchSubmission({
   }
   return handleSubmitSession({
     ...common,
-    draftId: deps.draftId,
     isExam: deps.isExam,
     examMode: deps.examMode,
     ...sharedFor('submit'),
@@ -102,7 +96,7 @@ function armNavFallback(deps: SubmitDeps) {
   deps.navFallbackTimer.current = setTimeout(() => {
     // Soft nav didn't unmount us → it was cancelled (#909). Hard-navigate to the
     // same destination; safe even if it fires after a slow-but-successful nav.
-    window.location.assign(examReportUrl(deps.examMode, deps.sessionId))
+    window.location.assign(reportUrl(deps.examMode, deps.sessionId))
   }, NAV_FALLBACK_MS)
 }
 
@@ -140,34 +134,13 @@ export function buildHandleSubmit(
   }
 }
 
-export function buildHandleSave(
-  deps: BaseDeps & {
-    questions: SessionQuestion[]
-    answersRef: React.RefObject<Map<string, DraftAnswer>>
-    feedbackRef: React.RefObject<Map<string, AnswerFeedback>>
-    currentIndexRef: React.RefObject<number>
-    pendingQuestionIdRef: React.RefObject<Set<string>>
-    subjectName?: string
-    subjectCode?: string
-  },
-) {
+export function buildHandleSave(deps: BaseDeps) {
   const sharedFor = buildSharedFor(deps)
   return async function handleSave() {
     await waitForQueuedSaves(sharedFor('save'))
-    const safeAnswers = withoutPendingAnswers(
-      deps.answersRef.current,
-      deps.pendingQuestionIdRef.current,
-    )
     return handleSaveSession({
       userId: deps.userId,
       sessionId: deps.sessionId,
-      questions: deps.questions,
-      answers: safeAnswers,
-      feedback: deps.feedbackRef.current,
-      currentIndex: deps.currentIndexRef.current,
-      draftId: deps.draftId,
-      subjectName: deps.subjectName,
-      subjectCode: deps.subjectCode,
       ...sharedFor('save'),
     })
   }
@@ -180,7 +153,6 @@ export function buildHandleDiscard(deps: BaseDeps) {
     return handleDiscardSession({
       userId: deps.userId,
       sessionId: deps.sessionId,
-      draftId: deps.draftId,
       ...sharedFor('discard'),
     })
   }

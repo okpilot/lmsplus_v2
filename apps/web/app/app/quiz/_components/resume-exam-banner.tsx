@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,9 +33,8 @@ type Props = NormalProps | DiscardOnlyProps
 
 export function ResumeExamBanner({ userId, exam, discardOnly, sessionId }: Readonly<Props>) {
   const activeSessionId = discardOnly ? sessionId : exam.sessionId
-  const { loading, error, discarded, handleResume, handleDiscard } = useResumeExamActions({
+  const { loading, error, discarded, handleDiscard } = useResumeExamActions({
     userId,
-    exam: discardOnly ? undefined : exam,
     activeSessionId,
   })
 
@@ -58,14 +58,12 @@ export function ResumeExamBanner({ userId, exam, discardOnly, sessionId }: Reado
       )}
       <div className="mt-3 flex gap-2">
         {!discardOnly && (
-          <button
-            type="button"
-            onClick={handleResume}
-            disabled={loading}
-            className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-600 disabled:opacity-50"
+          <Link
+            href={`/app/quiz/session/${activeSessionId}`}
+            className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-600"
           >
             Resume Practice Exam
-          </button>
+          </Link>
         )}
         <AlertDialog>
           <AlertDialogTrigger

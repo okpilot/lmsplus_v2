@@ -1,43 +1,14 @@
-'use client'
-
-import { useRouter } from 'next/navigation'
-import { sessionHandoffKey } from '../../quiz/session/_utils/quiz-session-handoff'
+import Link from 'next/link'
 import type { ActiveInternalExamSession } from '../actions/get-active-internal-exam-session'
 
 type Props = {
-  userId: string
   session: ActiveInternalExamSession
 }
 
-export function RecoveryBanner({ userId, session }: Readonly<Props>) {
-  const router = useRouter()
+export function RecoveryBanner({ session }: Readonly<Props>) {
   const subtitle = session.subjectName
     ? `${session.subjectName} — session in progress`
     : 'Session in progress'
-
-  function handleResume() {
-    try {
-      sessionStorage.setItem(
-        sessionHandoffKey(userId),
-        JSON.stringify({
-          userId,
-          sessionId: session.sessionId,
-          questionIds: session.questionIds,
-          subjectName: session.subjectName,
-          subjectCode: session.subjectCode,
-          mode: 'exam',
-          examMode: 'internal_exam',
-          timeLimitSeconds: session.timeLimitSeconds,
-          passMark: session.passMark,
-          startedAt: session.startedAt,
-        }),
-      )
-    } catch (err) {
-      console.error('[recovery-banner] sessionStorage handoff failed:', err)
-      // Fall through — quiz-session-loader has its own error UX.
-    }
-    router.push('/app/quiz/session')
-  }
 
   return (
     <div
@@ -50,14 +21,13 @@ export function RecoveryBanner({ userId, session }: Readonly<Props>) {
       </p>
       <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>
       <div className="mt-3">
-        <button
-          type="button"
-          onClick={handleResume}
+        <Link
+          href={`/app/quiz/session/${session.sessionId}`}
           className="inline-flex items-center rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-600"
           data-testid="resume-internal-exam-link"
         >
           Resume internal exam
-        </button>
+        </Link>
       </div>
     </div>
   )

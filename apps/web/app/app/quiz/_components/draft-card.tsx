@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
 import { deleteDraft } from '../actions/draft-delete'
 import { resumeQuizSession } from '../actions/resume'
-import { writeResumeHandoff } from '../session/_utils/quiz-session-handoff'
 import type { DraftData } from '../types'
 
 export function progressColor(pct: number): string {
@@ -13,7 +12,7 @@ export function progressColor(pct: number): string {
   return 'text-primary'
 }
 
-export function DraftCard({ draft, userId }: Readonly<{ draft: DraftData; userId: string }>) {
+export function DraftCard({ draft }: Readonly<{ draft: DraftData }>) {
   const router = useRouter()
   const [deleting, setDeleting] = useState(false)
   const [resuming, setResuming] = useState(false)
@@ -66,12 +65,8 @@ export function DraftCard({ draft, userId }: Readonly<{ draft: DraftData; userId
       failResume(result.error)
       return
     }
-    if (!writeResumeHandoff(userId, result.sessionId, draft)) {
-      failResume('Unable to resume right now. Please try again.')
-      return
-    }
     // Terminal navigation is the last statement; ref intentionally NOT reset (success).
-    router.push('/app/quiz/session')
+    router.push(`/app/quiz/session/${result.sessionId}`)
   }
 
   async function handleDelete() {

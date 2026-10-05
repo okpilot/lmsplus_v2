@@ -121,6 +121,7 @@ vi.mock('./study-config-form', () => ({
 
 // ---- Subject under test ---------------------------------------------------
 
+import type { BlockedStartState } from '../_hooks/use-blocked-start'
 import { QuizConfigForm } from './quiz-config-form'
 
 // ---- Fixtures -------------------------------------------------------------
@@ -175,8 +176,24 @@ function buildDefaultConfig() {
     isPending: false,
     handleSubjectChange: vi.fn(),
     handleStart: vi.fn(),
+    blocked: IDLE_BLOCKED,
   }
 }
+
+const IDLE_BLOCKED: BlockedStartState = {
+  offer: null,
+  saving: false,
+  error: null,
+  onAccept: vi.fn(),
+}
+
+const examStart = (over: Record<string, unknown> = {}) => ({
+  loading: false,
+  error: null,
+  handleStart: vi.fn(),
+  blocked: IDLE_BLOCKED,
+  ...over,
+})
 
 // ---- Tests ----------------------------------------------------------------
 
@@ -184,7 +201,7 @@ describe('QuizConfigForm', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     mockUseQuizConfig.mockReturnValue(buildDefaultConfig())
-    mockUseExamStart.mockReturnValue({ loading: false, error: null, handleStart: vi.fn() })
+    mockUseExamStart.mockReturnValue(examStart())
   })
 
   it('renders without crashing', () => {
@@ -421,11 +438,7 @@ describe('QuizConfigForm', () => {
 
   it('renders the exam-mode error paragraph with role="alert"', () => {
     mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ mode: 'exam' }))
-    mockUseExamStart.mockReturnValue({
-      loading: false,
-      error: 'No exam config found for this subject',
-      handleStart: vi.fn(),
-    })
+    mockUseExamStart.mockReturnValue(examStart({ error: 'No exam config found for this subject' }))
     render(
       <QuizConfigForm userId="test-user-id" subjects={SUBJECTS} examSubjects={EXAM_SUBJECTS} />,
     )
@@ -436,7 +449,7 @@ describe('QuizConfigForm', () => {
 
   it('does not render a role="alert" element when there are no errors in exam mode', () => {
     mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ mode: 'exam' }))
-    mockUseExamStart.mockReturnValue({ loading: false, error: null, handleStart: vi.fn() })
+    mockUseExamStart.mockReturnValue(examStart())
     render(
       <QuizConfigForm userId="test-user-id" subjects={SUBJECTS} examSubjects={EXAM_SUBJECTS} />,
     )
@@ -455,7 +468,7 @@ describe('QuizConfigForm', () => {
   it('enables Start Practice Exam after the exam form selects a subject and runs handleStart on click', async () => {
     const handleStart = vi.fn()
     mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ mode: 'exam' }))
-    mockUseExamStart.mockReturnValue({ loading: false, error: null, handleStart })
+    mockUseExamStart.mockReturnValue(examStart({ handleStart }))
     const user = userEvent.setup()
     render(
       <QuizConfigForm userId="test-user-id" subjects={SUBJECTS} examSubjects={EXAM_SUBJECTS} />,
@@ -467,5 +480,19 @@ describe('QuizConfigForm', () => {
 
     await user.click(screen.getByRole('button', { name: 'Start Practice Exam' }))
     expect(handleStart).toHaveBeenCalledOnce()
+  })
+
+  it('offers to save the open practice quiz and start the new quiz when the start is blocked', () => {
+    mockUseQuizConfig.mockReturnValue(
+      makeDefaultConfig({
+        subjectId: 'sub-1',
+        error: 'Another session is active',
+        blocked: { ...IDLE_BLOCKED, offer: { sessionId: 'b-1', subjectName: 'Air Law' } },
+      }),
+    )
+    render(<QuizConfigForm userId="test-user-id" subjects={SUBJECTS} examSubjects={[]} />)
+    expect(
+      screen.getByRole('button', { name: 'Save quiz for later and start quiz' }),
+    ).toBeInTheDocument()
   })
 })

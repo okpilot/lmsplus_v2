@@ -29,7 +29,9 @@ function renderSquare(i: number, opts: BuildSquaresOpts) {
   const isCorrect = feedback ? feedback.isCorrect : null
   const isFlagged = flaggedIds.has(qId)
   const isPinned = pinnedIds.has(qId)
-  const isAnsweredInExam = isExamMode && !isCurrent && (answeredIds?.has(qId) ?? false)
+  // Exam: answered squares stay neutral. Practice: an answer whose feedback has not arrived yet.
+  const isAnswered = !isCurrent && (answeredIds?.has(qId) ?? false)
+  const isAnsweredInExam = isAnswered && (isExamMode === true || !feedback)
   const isSeen = !isCurrent && (seenIds?.has(i) ?? false)
   if ((filter === 'flagged' && !isFlagged) || (filter === 'pinned' && !isPinned)) return null
   return (

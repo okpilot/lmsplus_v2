@@ -8,7 +8,6 @@ import {
   readSessionHandoff,
   type SessionData,
 } from '../_utils/quiz-session-handoff'
-import { type ActiveSession, toSessionData } from '../_utils/quiz-session-storage'
 
 export type SessionLoadResult =
   | { success: true; questions: SessionQuestion[]; flaggedIds: string[]; claimError?: string }
@@ -99,68 +98,6 @@ export async function loadSessionData(
   }
 }
 
-type RecoverySetters = {
-  setSession: (s: SessionData) => void
-  setQuestions: (q: SessionQuestion[]) => void
-  setFlaggedIds: (ids: string[]) => void
-  setRecovery: (r: ActiveSession | null) => void
-  setResumeLoading: (v: boolean) => void
-  setResumeError: (e: string | null) => void
-  setClaimError: (e: string | null) => void
-}
-
-function applyRecoverySuccess(
-  r: Extract<SessionLoadResult, { success: true }>,
-  recovery: ActiveSession,
-  set: RecoverySetters,
-) {
-  set.setSession(toSessionData(recovery))
-  set.setFlaggedIds(r.flaggedIds)
-  set.setClaimError(r.claimError ?? null)
-  set.setQuestions(r.questions)
-  set.setResumeLoading(false)
-  // Terminal success: setRecovery(null) unmounts the recovery screen, so the ref
-  // intentionally stays set — a late duplicate trigger can never re-fire (§6).
-  set.setRecovery(null)
-}
-
-/**
- * Builds the recovery-prompt Resume handler. Rebuilt each render so it closes over
- * the current `recovery` state (mirrors the quiz-recovery-handlers.ts builders).
- */
-export function buildRecoveryResume(
-  recovery: ActiveSession | null,
-  set: RecoverySetters,
-  inFlightRef: React.RefObject<boolean>,
-) {
-  return function handleRecoveryResume() {
-    // Synchronous one-shot re-entry guard (code-style §6): `resumeLoading` is async
-    // React state, so two same-tick triggers could both pass a loading check.
-    if (!recovery || inFlightRef.current) return
-    inFlightRef.current = true // set before the async load kicks off (code-style §6)
-    set.setResumeLoading(true)
-    set.setResumeError(null)
-    loadSessionData(recovery.questionIds, recovery)
-      .then((r) => {
-        if (!r.success) {
-          set.setResumeError(r.error)
-          set.setResumeLoading(false)
-          inFlightRef.current = false // retryable failure — release the lock
-          return
-        }
-        applyRecoverySuccess(r, recovery, set)
-      })
-      .catch(() => {
-        // loadSessionData is documented never to reject; this is the §5 error-path
-        // net so a broken invariant (or a throwing setter) can never permanently
-        // strand the Resume lock.
-        inFlightRef.current = false
-        set.setResumeLoading(false)
-        set.setResumeError('Failed to load questions. Please try again.')
-      })
-  }
-}
-
 /**
  * Applies a settled initial load: error → setError; success → clears the handoff and seeds
  * flags, claim error and questions (questions last — the session mounts once they are set).
@@ -168,7 +105,10 @@ export function buildRecoveryResume(
 export function applyInitialLoad(
   r: SessionLoadResult,
   userId: string,
-  set: Pick<RecoverySetters, 'setFlaggedIds' | 'setQuestions' | 'setClaimError'> & {
+  set: {
+    setFlaggedIds: (ids: string[]) => void
+    setQuestions: (q: SessionQuestion[]) => void
+    setClaimError: (e: string | null) => void
     setError: (e: string) => void
   },
 ) {

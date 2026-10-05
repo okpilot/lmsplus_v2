@@ -1,38 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ActionResult } from '@/lib/action-result'
 
-const { mockDiscardQuiz, mockSessionStorageSetItem } = vi.hoisted(() => ({
+const { mockDiscardQuiz } = vi.hoisted(() => ({
   mockDiscardQuiz: vi.fn<() => Promise<ActionResult>>(),
-  mockSessionStorageSetItem: vi.fn<(key: string, value: string) => void>(),
 }))
 
 vi.mock('../actions/discard', () => ({ discardQuiz: mockDiscardQuiz }))
-vi.mock('../session/_utils/quiz-session-handoff', () => ({
-  sessionHandoffKey: (userId: string) => `quiz-session:${userId}`,
-}))
 
 import { createMockRouter } from '@/lib/test-support/mock-router'
-import type { ActiveExamSession } from '../actions/get-active-exam-session'
-import {
-  buildDiscardHandler,
-  buildResumeHandler,
-  type ResumeExamDeps,
-} from './resume-exam-handlers'
+import { buildDiscardHandler, type ResumeExamDeps } from './resume-exam-handlers'
 
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
-
-const EXAM: ActiveExamSession = {
-  sessionId: 'sess-exam-001',
-  subjectId: 'subj-aaa',
-  subjectName: 'Air Law',
-  subjectCode: 'ALW',
-  startedAt: '2026-04-27T10:00:00.000Z',
-  timeLimitSeconds: 3600,
-  passMark: 75,
-  questionIds: ['q-1', 'q-2'],
-}
 
 const STORAGE_KEY = 'quiz-active-session:user-1'
 
@@ -67,8 +47,7 @@ let router: ResumeExamDeps['router']
 function makeDeps(overrides: Partial<ResumeExamDeps> = {}): ResumeExamDeps {
   return {
     userId: 'user-1',
-    exam: EXAM,
-    activeSessionId: EXAM.sessionId,
+    activeSessionId: 'sess-exam-001',
     router,
     setLoading,
     setError,
@@ -82,70 +61,10 @@ beforeEach(() => {
   vi.resetAllMocks()
   discardingRef = { current: false }
   localStorage.clear()
-  Object.defineProperty(globalThis, 'sessionStorage', {
-    value: { setItem: mockSessionStorageSetItem, getItem: vi.fn(), removeItem: vi.fn() },
-    writable: true,
-    configurable: true,
-  })
   setLoading = vi.fn()
   setError = vi.fn()
   setDiscarded = vi.fn()
   router = createMockRouter()
-})
-
-// ---------------------------------------------------------------------------
-// buildResumeHandler
-// ---------------------------------------------------------------------------
-
-describe('buildResumeHandler', () => {
-  it('preserves the exam details and opens the session page', () => {
-    const handle = buildResumeHandler(makeDeps({ userId: 'user-42' }))
-    handle()
-
-    expect(mockSessionStorageSetItem.mock.calls[0]?.[0]).toBe('quiz-session:user-42')
-    const stored = JSON.parse(mockSessionStorageSetItem.mock.calls[0]?.[1] as string)
-    expect(stored).toEqual({
-      userId: 'user-42',
-      sessionId: 'sess-exam-001',
-      mode: 'exam',
-      questionIds: ['q-1', 'q-2'],
-      timeLimitSeconds: 3600,
-      passMark: 75,
-      subjectName: 'Air Law',
-      subjectCode: 'ALW',
-      startedAt: '2026-04-27T10:00:00.000Z',
-    })
-    expect(router.push).toHaveBeenCalledWith('/app/quiz/session')
-  })
-
-  it('does nothing when there is no exam to resume', () => {
-    const handle = buildResumeHandler(makeDeps({ exam: undefined }))
-    handle()
-
-    expect(mockSessionStorageSetItem).not.toHaveBeenCalled()
-    expect(router.push).not.toHaveBeenCalled()
-  })
-
-  it('shows an error and stays on the current page when resume preparation fails', () => {
-    mockSessionStorageSetItem.mockImplementationOnce(() => {
-      throw new DOMException('QuotaExceededError')
-    })
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
-
-    const handle = buildResumeHandler(makeDeps())
-    handle()
-
-    expect(setError).toHaveBeenCalledWith('Unable to resume right now. Please try again.')
-    expect(router.push).not.toHaveBeenCalled()
-    warnSpy.mockRestore()
-  })
-
-  it('does not set an error on a successful resume', () => {
-    const handle = buildResumeHandler(makeDeps())
-    handle()
-
-    expect(setError).not.toHaveBeenCalled()
-  })
 })
 
 // ---------------------------------------------------------------------------

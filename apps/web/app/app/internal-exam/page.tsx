@@ -5,7 +5,7 @@ import { InternalExamContent } from './_components/internal-exam-content'
 export const dynamic = 'force-dynamic'
 
 export default async function InternalExamPage() {
-  const user = await requireAuthUser()
+  await requireAuthUser()
 
   return (
     <main className="space-y-6">
@@ -16,7 +16,7 @@ export default async function InternalExamPage() {
         </p>
       </div>
       <Suspense fallback={<InternalExamFallback />}>
-        <InternalExamContent userId={user.id} />
+        <InternalExamContent />
       </Suspense>
     </main>
   )

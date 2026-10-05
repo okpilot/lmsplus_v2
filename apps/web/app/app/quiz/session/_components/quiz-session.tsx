@@ -63,6 +63,7 @@ export function QuizSession(props: Readonly<QuizSessionProps>) {
         onTabChange={setActiveTab}
         onTimeExpired={handleTimeExpired}
         onFinishClick={() => s.setShowFinishDialog(true)}
+        initialActiveMs={props.initialActiveMs}
       />
       <div className="px-4 pt-4 pb-32 md:px-8 md:pb-24">
         <div className="mx-auto max-w-3xl space-y-4">
@@ -74,7 +75,7 @@ export function QuizSession(props: Readonly<QuizSessionProps>) {
             questionIds={s.questionIds}
             // Discovery's navigator is driven by `seenIds` (visited = green), not its pre-marked feedback.
             feedbackMap={s.isExam || isDiscovery ? new Map() : feedbackMap}
-            answeredIds={s.isExam ? s.answeredIds : undefined}
+            answeredIds={s.answeredIds}
             seenIds={isDiscovery ? s.seenIndices : undefined}
             isExamMode={s.isExam}
             onNavigate={s.navigateTo}
@@ -92,6 +93,7 @@ export function QuizSession(props: Readonly<QuizSessionProps>) {
             timeLimitSeconds={props.timeLimitSeconds}
             timerStart={timerStart}
             onTimeExpired={handleTimeExpired}
+            initialActiveMs={props.initialActiveMs}
           />
           <QuizMainPanel
             s={s}

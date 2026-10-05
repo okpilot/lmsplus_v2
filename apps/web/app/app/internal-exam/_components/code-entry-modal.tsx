@@ -1,7 +1,7 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
-import { useRef, useState, useTransition } from 'react'
+import { useState } from 'react'
+import { BlockedStartAlert } from '@/app/app/quiz/_components/blocked-start-alert'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -14,13 +14,11 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { LoadingButton } from '@/components/ui/loading-button'
-import { sessionHandoffKey } from '../../quiz/session/_utils/quiz-session-handoff'
-import { startInternalExam } from '../actions/start-internal-exam'
+import { useCodeEntryStart } from '../_hooks/use-code-entry-start'
 
 type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
-  userId: string
   subjectName: string
   subjectShort: string
 }
@@ -40,77 +38,25 @@ function sanitize(input: string): string {
   return out
 }
 
-export function CodeEntryModal({
-  open,
-  onOpenChange,
-  userId,
-  subjectName,
-  subjectShort,
-}: Readonly<Props>) {
-  const router = useRouter()
+export function CodeEntryModal({ open, onOpenChange, subjectName, subjectShort }: Readonly<Props>) {
   const [code, setCode] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [isPending, startTransition] = useTransition()
-  const startedRef = useRef(false)
+  const { error, setError, isPending, start, reset, blocked } = useCodeEntryStart(code)
 
   function handleClose(next: boolean) {
     if (!next) {
       setCode('')
-      setError(null)
+      reset()
     }
     onOpenChange(next)
   }
 
   function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
-    if (startedRef.current) return
-    setError(null)
     if (!ALLOWED_RE.test(code)) {
       setError(`Code must be ${CODE_LENGTH} characters (letters and digits, no I/O/0/1).`)
       return
     }
-    startedRef.current = true
-    startTransition(async () => {
-      try {
-        const result = await startInternalExam({ code })
-        if (result.success) {
-          try {
-            sessionStorage.setItem(
-              sessionHandoffKey(userId),
-              JSON.stringify({
-                userId,
-                sessionId: result.sessionId,
-                questionIds: result.questionIds,
-                subjectName,
-                subjectCode: subjectShort,
-                mode: 'exam',
-                examMode: 'internal_exam',
-                timeLimitSeconds: result.timeLimitSeconds,
-                passMark: result.passMark,
-                startedAt: result.startedAt,
-              }),
-            )
-          } catch (storageErr) {
-            console.error('[code-entry-modal] sessionStorage handoff failed:', storageErr)
-            // Internal exam cannot be discarded by design — surface the error
-            // and let the recovery banner handle resume on next visit.
-            startedRef.current = false
-            setError(
-              'Unable to start internal exam right now. Please try again or refresh the page.',
-            )
-            return
-          }
-          // Terminal — do not reset startedRef; the exam has started.
-          router.push('/app/quiz/session')
-          return
-        }
-        startedRef.current = false
-        setError(result.error)
-      } catch {
-        startedRef.current = false
-        setError('Something went wrong. Please try again.')
-      }
-    })
+    start()
   }
 
   const isValid = ALLOWED_RE.test(code)
@@ -148,11 +94,7 @@ export function CodeEntryModal({
               className="tabular-nums tracking-widest uppercase"
               aria-invalid={error !== null}
             />
-            {error ? (
-              <p role="alert" className="text-xs text-destructive">
-                {error}
-              </p>
-            ) : null}
+            <BlockedStartAlert message={error} blocked={blocked} startLabel="exam" />
           </div>
           <DialogFooter>
             <Button

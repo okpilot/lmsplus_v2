@@ -364,3 +364,33 @@ describe('QuestionGrid — mobile collapse', () => {
     expect(screen.queryByTestId('grid-toggle-mobile')).not.toBeInTheDocument()
   })
 })
+
+describe('QuestionGrid — practice answer awaiting feedback', () => {
+  it('shows an answered practice question without feedback as answered, not green or red', () => {
+    renderGrid({ answeredIds: new Set(['q2']) })
+
+    expect(desktopBtn(1).className).toContain('bg-muted-foreground/60')
+    expect(desktopBtn(1).className).not.toContain('bg-green-500')
+  })
+
+  it('colours an answered practice question by its feedback once it arrives', () => {
+    renderGrid({
+      answeredIds: new Set(['q2']),
+      feedbackMap: new Map([['q2', { isCorrect: true }]]),
+    })
+
+    expect(desktopBtn(1).className).toContain('bg-green-500')
+  })
+
+  it('leaves an unanswered practice question outlined', () => {
+    renderGrid({ answeredIds: new Set(['q2']) })
+
+    expect(desktopBtn(2).className).toContain('border-border')
+  })
+
+  it('keeps the current question highlighted even when it is answered', () => {
+    renderGrid({ currentIndex: 1, answeredIds: new Set(['q2']) })
+
+    expect(desktopBtn(1).className).toContain('bg-primary')
+  })
+})

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SessionQuestion } from '@/app/app/_types/session'
 import { createMockRouter } from '@/lib/test-support/mock-router'
-import type { AnswerFeedback, DraftAnswer } from '../../types'
+import type { DraftAnswer } from '../../types'
 
 const { mockSubmit, mockSave, mockDiscard, mockWhenQueueIdle } = vi.hoisted(() => ({
   mockSubmit: vi.fn(),
@@ -15,7 +15,6 @@ vi.mock('./quiz-submit', () => ({
   handleSubmitSession: (...a: unknown[]) => mockSubmit(...a),
   handleSaveSession: (...a: unknown[]) => mockSave(...a),
   handleDiscardSession: (...a: unknown[]) => mockDiscard(...a),
-  examReportUrl: () => '/app/quiz/report',
 }))
 vi.mock('../_utils/with-reconnect', () => ({ whenQueueIdle: () => mockWhenQueueIdle() }))
 
@@ -36,7 +35,6 @@ function baseDeps() {
     userId: 'u',
     sessionId: 's',
     router: createMockRouter(),
-    draftId: undefined,
     setPendingAction: vi.fn(),
     setError: vi.fn(),
     submitted: { current: false },
@@ -52,17 +50,6 @@ function submitDeps() {
     navFallbackTimer: { current: null as ReturnType<typeof setTimeout> | null },
     setShowFinishDialog: vi.fn(),
     questions: [] as SessionQuestion[],
-  }
-}
-
-function saveDeps() {
-  return {
-    ...baseDeps(),
-    questions: [] as SessionQuestion[],
-    answersRef: { current: new Map<string, DraftAnswer>() },
-    feedbackRef: { current: new Map<string, AnswerFeedback>() },
-    currentIndexRef: { current: 0 },
-    pendingQuestionIdRef: { current: new Set<string>() },
   }
 }
 
@@ -125,7 +112,7 @@ describe('finish actions wait for queued saves', () => {
 
   it('holds save-for-later until queued saves have settled', async () => {
     const gate = openGate()
-    const deps = saveDeps()
+    const deps = baseDeps()
     const run = buildHandleSave(deps)()
     await Promise.resolve()
     expect(mockSave).not.toHaveBeenCalled()

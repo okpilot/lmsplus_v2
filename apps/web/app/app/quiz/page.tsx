@@ -3,7 +3,6 @@ import { requireAuthUser } from '@/lib/auth/require-auth-user'
 import { ActivePracticeBanner } from './_components/active-practice-banner'
 import { ExpiredExamNotice } from './_components/expired-exam-notice'
 import { LookupErrorAlerts } from './_components/lookup-error-alerts'
-import { QuizRecoveryBanner } from './_components/quiz-recovery-banner'
 import { QuizTabs } from './_components/quiz-tabs'
 import { ResumeExamBanner } from './_components/resume-exam-banner'
 import { SavedDraftCard } from './_components/saved-draft-card'
@@ -16,13 +15,14 @@ export default async function QuizPage() {
   const user = await requireAuthUser()
   const {
     drafts,
+    savedSessions,
     examLookupFailed,
     activeExams,
     orphanedIds,
     expiredIds,
     practiceLookupFailed,
     activePractice,
-  } = await loadQuizPageData()
+  } = await loadQuizPageData(user.id)
 
   return (
     <main className="space-y-6">
@@ -49,17 +49,15 @@ export default async function QuizPage() {
 
       {activePractice && <ActivePracticeBanner userId={user.id} session={activePractice} />}
 
-      <QuizRecoveryBanner userId={user.id} />
-
       <div className="mx-auto max-w-xl">
         <QuizTabs
-          draftCount={drafts.length}
+          draftCount={drafts.length + savedSessions.length}
           newQuizContent={
             <Suspense fallback={<div className="h-64 animate-pulse rounded-lg bg-muted" />}>
               <SubjectsSection userId={user.id} />
             </Suspense>
           }
-          savedDraftContent={<SavedDraftCard drafts={drafts} userId={user.id} />}
+          savedDraftContent={<SavedDraftCard drafts={drafts} savedSessions={savedSessions} />}
         />
       </div>
     </main>

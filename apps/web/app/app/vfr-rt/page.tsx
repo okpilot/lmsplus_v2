@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
-import { QuizRecoveryBanner } from '@/app/app/quiz/_components/quiz-recovery-banner'
 import { QuizTabs } from '@/app/app/quiz/_components/quiz-tabs'
 import { requireAuthUser } from '@/lib/auth/require-auth-user'
+import { VfrRtActiveBanners } from './_components/vfr-rt-active-banners'
 import { VfrRtSavedPlaceholder } from './_components/vfr-rt-saved-placeholder'
 import { VfrRtSetup } from './_components/vfr-rt-setup'
 
@@ -19,7 +19,7 @@ export default async function VfrRtPage() {
         </p>
       </div>
 
-      <QuizRecoveryBanner userId={user.id} />
+      <VfrRtActiveBanners userId={user.id} />
 
       <div className="mx-auto max-w-xl">
         <QuizTabs
@@ -29,7 +29,7 @@ export default async function VfrRtPage() {
           ariaLabel="Practice options"
           newQuizContent={
             <Suspense fallback={<div className="h-64 animate-pulse rounded-lg bg-muted" />}>
-              <VfrRtSetup userId={user.id} />
+              <VfrRtSetup />
             </Suspense>
           }
           savedDraftContent={<VfrRtSavedPlaceholder />}

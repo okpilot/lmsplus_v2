@@ -1,11 +1,11 @@
 'use client'
 
+import { BlockedStartAlert } from '@/app/app/quiz/_components/blocked-start-alert'
 import { StartButton } from '@/app/app/quiz/_components/start-button'
 import type { SubjectOption } from '@/lib/queries/quiz-query-types'
 import { useVfrRtExamStart } from '../_hooks/use-vfr-rt-exam-start'
 
 type VfrRtExamPanelProps = {
-  userId: string
   subjectId: string
   subjects: SubjectOption[]
   // Total questions the exam draws (server-derived); null hides the cell.
@@ -44,20 +44,18 @@ function ExamParameters({ questionCount }: Readonly<{ questionCount: number | nu
 }
 
 export function VfrRtExamPanel({
-  userId,
   subjectId,
   subjects,
   questionCount,
 }: Readonly<VfrRtExamPanelProps>) {
-  const { loading, error, handleStart } = useVfrRtExamStart({ userId, subjectId, subjects })
+  const { loading, error, handleStart, blocked } = useVfrRtExamStart({
+    subjectId,
+    subjects,
+  })
   return (
     <div className="space-y-4">
       <ExamParameters questionCount={questionCount} />
-      {error && (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
-      )}
+      <BlockedStartAlert message={error} blocked={blocked} startLabel="the exam" />
       <StartButton
         disabled={false}
         loading={loading}

@@ -9,7 +9,6 @@ import { MyReportsTab } from './my-reports-tab'
 type Props = {
   available: AvailableInternalExam[]
   history: InternalExamHistoryEntry[]
-  userId: string
 }
 
 type TabKey = 'available' | 'reports'
@@ -20,7 +19,7 @@ function readTabParam(value: string | null): TabKey {
   return value === 'reports' ? 'reports' : 'available'
 }
 
-export function InternalExamTabs({ available, history, userId }: Readonly<Props>) {
+export function InternalExamTabs({ available, history }: Readonly<Props>) {
   const searchParams = useSearchParams()
   const tabParam = searchParams.get('tab')
   const [tab, setTab] = useState<TabKey>(readTabParam(tabParam))
@@ -83,11 +82,7 @@ export function InternalExamTabs({ available, history, userId }: Readonly<Props>
         aria-labelledby={`tab-${tab}`}
         data-testid={`tabpanel-${tab}`}
       >
-        {tab === 'available' ? (
-          <AvailableTab rows={available} userId={userId} />
-        ) : (
-          <MyReportsTab rows={history} />
-        )}
+        {tab === 'available' ? <AvailableTab rows={available} /> : <MyReportsTab rows={history} />}
       </div>
     </div>
   )

@@ -21,6 +21,9 @@ export type QuizStateOpts = {
   initialAnswers?: Record<string, DraftAnswer>
   initialFeedback?: Map<string, AnswerFeedback>
   initialIndex?: number
+  /** Pins and active time saved on the server, for a session opened by id. */
+  initialPinnedIds?: readonly string[]
+  initialActiveMs?: number
   draftId?: string
   subjectName?: string
   subjectCode?: string
@@ -51,7 +54,6 @@ export type AnswerPipelineOpts = QuizStateOpts & {
 }
 
 export type UseQuizStartOpts = {
-  userId: string
   subjectId: string
   subjects: import('@/lib/queries/quiz-query-types').SubjectOption[]
   count: number

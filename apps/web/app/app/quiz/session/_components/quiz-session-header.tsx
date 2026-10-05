@@ -25,6 +25,8 @@ type QuizSessionHeaderProps = {
   onTabChange: (tab: QuestionTab) => void
   onTimeExpired: () => void
   onFinishClick: () => void
+  /** Active time already spent (ms); the untimed clock continues from it. */
+  initialActiveMs?: number
 }
 
 export function QuizSessionHeader({
@@ -40,6 +42,7 @@ export function QuizSessionHeader({
   onTabChange,
   onTimeExpired,
   onFinishClick,
+  initialActiveMs,
 }: Readonly<QuizSessionHeaderProps>) {
   const handleDiscoveryExit = useDiscoveryExit()
   const finishLabel = isExam ? `Finish ${MODE_LABELS[examMode ?? 'mock_exam']}` : 'Finish Test'
@@ -69,7 +72,10 @@ export function QuizSessionHeader({
             )}
           </>
         ) : (
-          <SessionTimer className="text-sm text-muted-foreground md:hidden" />
+          <SessionTimer
+            className="text-sm text-muted-foreground md:hidden"
+            initialElapsedMs={initialActiveMs}
+          />
         )}
       </div>
       {!isExam && (
