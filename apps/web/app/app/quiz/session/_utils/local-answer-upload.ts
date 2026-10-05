@@ -64,17 +64,20 @@ async function saveOne(opts: {
 
 /**
  * Saves each answer in order; skips one the server refuses, stops at a session-wide failure.
- * `onSaved` reports each accepted id as it lands. Never throws.
+ * `onSaved` reports each accepted id as it lands. `shouldStop` is checked before each save; when it
+ * returns true the upload ends incomplete without sending the rest. Never throws.
  */
 export async function uploadLocalAnswers(opts: {
   sessionId: string
   answers: Record<string, DraftAnswer>
   onSaved?: (questionId: string) => void
+  shouldStop?: () => boolean
 }): Promise<UploadResult> {
   const deviceId = getQuizDeviceId()
   const saved: string[] = []
   try {
     for (const [questionId, draft] of Object.entries(opts.answers)) {
+      if (opts.shouldStop?.()) return { saved, complete: false }
       const outcome = await saveOne({ sessionId: opts.sessionId, deviceId, questionId, draft })
       if (outcome === 'failed') return { saved, complete: false }
       if (outcome === 'saved') {

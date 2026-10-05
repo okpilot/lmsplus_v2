@@ -122,6 +122,7 @@ export async function loadQuizSessionState(
   if (rowRes.error) fail('session query', rowRes.error.message)
   const progress = ProgressPayload.safeParse(progressRes.data)
   if (!progress.success) return fail('progress shape', progress.error.message)
+  if (progress.data.mode === 'discovery') return NOT_FOUND
   if (progress.data.status === 'discarded') return { kind: 'discarded' }
   if (progress.data.status === 'ended') return { kind: 'ended', mode: progress.data.mode }
   const row = SessionRow.safeParse(rowRes.data)

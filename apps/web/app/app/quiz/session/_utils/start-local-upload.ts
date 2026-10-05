@@ -19,13 +19,14 @@ export function startLocalUpload(opts: {
   const savedIds = new Set<string>()
   // After the wait the mounted runner owns the local copy, so a late completion must not clear it.
   let timedOut = false
+  const onSaved = (id: string) => savedIds.add(id)
   const timer = setTimeout(() => {
     timedOut = true
     settle([...savedIds])
   }, UPLOAD_WAIT_MS)
   const upload =
     Object.keys(answers).length > 0
-      ? uploadLocalAnswers({ sessionId, answers, onSaved: (id) => savedIds.add(id) })
+      ? uploadLocalAnswers({ sessionId, answers, onSaved, shouldStop: () => timedOut })
       : Promise.resolve({ saved: [] as string[], complete: true })
   upload
     .then((result) => {

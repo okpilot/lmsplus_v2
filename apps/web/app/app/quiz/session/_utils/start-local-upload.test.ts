@@ -69,6 +69,20 @@ describe('startLocalUpload', () => {
     expect(mockClear).not.toHaveBeenCalled()
   })
 
+  it('stops saving the next queued answer once the wait limit passes', async () => {
+    let shouldStop: () => boolean = () => false
+    mockUpload.mockImplementation((o: { shouldStop: () => boolean }) => {
+      shouldStop = o.shouldStop
+      return new Promise(() => {})
+    })
+
+    startLocalUpload({ userId: 'u', sessionId: 's', answers: { q2: B }, settle: vi.fn() })
+    expect(shouldStop()).toBe(false)
+    await vi.advanceTimersByTimeAsync(UPLOAD_WAIT_MS)
+
+    expect(shouldStop()).toBe(true)
+  })
+
   it('does not call the server for an empty set and clears the copy', async () => {
     const settle = vi.fn()
 

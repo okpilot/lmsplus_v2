@@ -120,6 +120,23 @@ describe('uploadLocalAnswers', () => {
     expect(onSaved.mock.calls).toEqual([['q1'], ['q2']])
   })
 
+  it('sends no further answer once a stop is requested and reports the upload incomplete', async () => {
+    let stop = false
+    mockSave.mockImplementation(async () => {
+      stop = true
+      return { success: true }
+    })
+
+    const result = await uploadLocalAnswers({
+      sessionId: 's1',
+      answers: { q1: A, q2: B },
+      shouldStop: () => stop,
+    })
+
+    expect(mockSave).toHaveBeenCalledTimes(1)
+    expect(result).toEqual({ saved: ['q1'], complete: false })
+  })
+
   it('stops at a session-wide refusal and keeps the answers saved before it', async () => {
     mockSave.mockResolvedValueOnce({ success: true }).mockResolvedValueOnce({
       success: false,

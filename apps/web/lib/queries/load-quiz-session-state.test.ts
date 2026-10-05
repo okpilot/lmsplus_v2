@@ -155,6 +155,12 @@ describe('loadQuizSessionState', () => {
     expect(await loadQuizSessionState(SESSION, USER)).toEqual({ kind: 'not_found' })
   })
 
+  it('reports not found for an ended discovery session', async () => {
+    setup({ rpc: progress({ status: 'ended', mode: 'discovery' }) })
+
+    expect(await loadQuizSessionState(SESSION, USER)).toEqual({ kind: 'not_found' })
+  })
+
   it('reports not found when the session row is hidden from the student', async () => {
     setup({ row: null })
 
