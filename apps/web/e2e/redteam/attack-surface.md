@@ -226,6 +226,9 @@
 | GX | finish_quiz_session-discarded-or-saved-session | HIGH | rpc-finish-quiz-session.spec.ts | BLOCKED |  | soft-delete-bypass |
 | GY | _grade_session_progress-out-of-session-progress-row | HIGH | rpc-finish-quiz-session.spec.ts | BLOCKED |  | answer-oracle |
 | GZ | finish_quiz_session-post-grace-answer-graded | HIGH | rpc-finish-quiz-session.spec.ts | BLOCKED |  | race |
+| HA | quiz-session-id-route-foreign-session | HIGH | quiz-session-id-route.spec.ts | BLOCKED |  | idor |
+| HB | quiz-session-id-route-exam-no-correctness-or-recheck | HIGH | quiz-session-id-route.spec.ts | BLOCKED |  | answer-oracle |
+| HC | resumeQuizSession-forged-draft-seed | MEDIUM | quiz-draft-resume-seed.spec.ts | BLOCKED |  | input-injection |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
