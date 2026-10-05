@@ -1,31 +1,14 @@
-import { Suspense } from 'react'
 import { requireAuthUser } from '@/lib/auth/require-auth-user'
-import { ActivePracticeBanner } from './_components/active-practice-banner'
-import { ExpiredExamNotice } from './_components/expired-exam-notice'
 import { LookupErrorAlerts } from './_components/lookup-error-alerts'
-import { QuizRecoveryBanner } from './_components/quiz-recovery-banner'
-import { QuizTabs } from './_components/quiz-tabs'
-import { ResumeExamBanner } from './_components/resume-exam-banner'
-import { SavedDraftCard } from './_components/saved-draft-card'
-import { SubjectsSection } from './_components/subjects-section'
+import { QuizPageBanners } from './_components/quiz-page-banners'
+import { QuizPageTabs } from './_components/quiz-page-tabs'
 import { loadQuizPageData } from './_loaders/load-quiz-page-data'
 
 export const dynamic = 'force-dynamic'
 
 export default async function QuizPage() {
   const user = await requireAuthUser()
-  const {
-    drafts,
-    savedSessions,
-    savedTabCount,
-    savedLookupFailed,
-    examLookupFailed,
-    activeExams,
-    orphanedIds,
-    expiredIds,
-    practiceLookupFailed,
-    activePractice,
-  } = await loadQuizPageData(user.id)
+  const data = await loadQuizPageData(user.id)
 
   return (
     <main className="space-y-6">
@@ -37,44 +20,14 @@ export default async function QuizPage() {
       </div>
 
       <LookupErrorAlerts
-        examFailed={examLookupFailed}
-        practiceFailed={practiceLookupFailed}
-        savedFailed={savedLookupFailed}
+        examFailed={data.examLookupFailed}
+        practiceFailed={data.practiceLookupFailed}
+        savedFailed={data.savedLookupFailed}
       />
 
-      {activeExams.map((exam) => (
-        <ResumeExamBanner key={exam.sessionId} userId={user.id} exam={exam} />
-      ))}
+      <QuizPageBanners userId={user.id} {...data} />
 
-      {orphanedIds.map((sessionId) => (
-        <ResumeExamBanner key={sessionId} userId={user.id} sessionId={sessionId} discardOnly />
-      ))}
-
-      {expiredIds.map((sessionId) => (
-        <ExpiredExamNotice key={sessionId} sessionId={sessionId} />
-      ))}
-
-      {activePractice && <ActivePracticeBanner userId={user.id} session={activePractice} />}
-
-      <QuizRecoveryBanner userId={user.id} />
-
-      <div className="mx-auto max-w-xl">
-        <QuizTabs
-          draftCount={savedTabCount}
-          newQuizContent={
-            <Suspense fallback={<div className="h-64 animate-pulse rounded-lg bg-muted" />}>
-              <SubjectsSection userId={user.id} />
-            </Suspense>
-          }
-          savedDraftContent={
-            <SavedDraftCard
-              drafts={drafts}
-              savedSessions={savedSessions}
-              savedLookupFailed={savedLookupFailed}
-            />
-          }
-        />
-      </div>
+      <QuizPageTabs userId={user.id} {...data} />
     </main>
   )
 }
