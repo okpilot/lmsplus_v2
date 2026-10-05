@@ -142,7 +142,7 @@ export function buildHandleSubmit(
 const UNSAVED_ANSWERS_ERROR =
   'Some answers have not saved yet. Check your connection and try again.'
 
-/** Re-sends failed answer saves; when one still fails, shows why and stops the save. */
+/** Re-sends failed answer saves; stops the save when one still fails or the server sent a message. */
 async function resendOrStop(deps: BaseDeps, shared: ReturnType<ReturnType<typeof buildSharedFor>>) {
   let mapped: string | null = null
   const saved = await resendUnsavedAnswers({
@@ -151,7 +151,7 @@ async function resendOrStop(deps: BaseDeps, shared: ReturnType<ReturnType<typeof
       mapped = m
     },
   })
-  if (saved) return true
+  if (saved && mapped === null) return true
   // The takeover and sign-in overlays already explain why; no message behind them.
   if (!isTakenOver(deps.sessionId) && getConnectionStatus() !== 'signed-out') {
     shared.setError(mapped ?? UNSAVED_ANSWERS_ERROR)

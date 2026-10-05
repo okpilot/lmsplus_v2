@@ -328,6 +328,20 @@ describe('buildHandleSave with unsaved answers', () => {
     expect(mockHandleSaveSession).not.toHaveBeenCalled()
   })
 
+  it('shows the message and does not save the quiz when the re-send settles but reported one', async () => {
+    mockResend.mockImplementation(async (o: { onMappedError: (m: string) => void }) => {
+      o.onMappedError('This answer could not be saved. Please review it and try again.')
+      return true
+    })
+    const deps = makeBaseDeps()
+    await buildHandleSave(deps)()
+    expect(deps.setError).toHaveBeenLastCalledWith(
+      'This answer could not be saved. Please review it and try again.',
+    )
+    expect(mockHandleSaveSession).not.toHaveBeenCalled()
+    expect(deps.setPendingAction).toHaveBeenLastCalledWith(null)
+  })
+
   it('shows no error when the session was taken over, and still does not save', async () => {
     mockResend.mockResolvedValue(false)
     mockIsTakenOver.mockReturnValue(true)

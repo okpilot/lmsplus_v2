@@ -15,6 +15,11 @@ vi.mock('./classify-failure', () => ({
   classifyFailure: (...a: unknown[]) => mockClassify(...a),
 }))
 
+import {
+  INVALID_INPUT,
+  PROGRESS_ERROR_MESSAGES,
+  SIGN_IN,
+} from '../../actions/progress-error-messages'
 import { _resetConnectionState } from './connection-state'
 import {
   buildAnswerInput,
@@ -171,36 +176,67 @@ describe('fireProgressSave', () => {
     ).not.toThrow()
   })
 
-  it('resolves true when the save succeeded', async () => {
+  const fire = () => fireProgressSave({ kind: 'answer', sessionId: 's', input: {}, ...handlers() })
+
+  it('reports saved when the save succeeded', async () => {
     mockSaveAnswer.mockResolvedValue({ success: true })
-    await expect(
-      fireProgressSave({ kind: 'answer', sessionId: 's', input: {}, ...handlers() }),
-    ).resolves.toBe(true)
+    await expect(fire()).resolves.toBe('saved')
   })
 
-  it('resolves false when the save failed', async () => {
+  it('reports rejected and shows the copy when the server refuses with a mapped message', async () => {
+    mockSaveAnswer.mockResolvedValue({ success: false, error: MAPPED })
+    const h = handlers()
+    await expect(
+      fireProgressSave({ kind: 'answer', sessionId: 's', input: {}, ...h }),
+    ).resolves.toBe('rejected')
+    expect(h.onMappedError).toHaveBeenCalledWith(MAPPED)
+  })
+
+  it('reports rejected when the server refuses the input as invalid', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    mockSaveAnswer.mockResolvedValue({ success: false, error: INVALID_INPUT })
+    await expect(fire()).resolves.toBe('rejected')
+  })
+
+  it('reports failed for an unmapped failure', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {})
     mockSaveAnswer.mockResolvedValue({ success: false, error: 'Could not save progress' })
-    await expect(
-      fireProgressSave({ kind: 'answer', sessionId: 's', input: {}, ...handlers() }),
-    ).resolves.toBe(false)
+    await expect(fire()).resolves.toBe('failed')
   })
 
-  it('resolves false when the save throws', async () => {
+  it('reports failed when the save throws', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {})
     mockSaveAnswer.mockImplementation(() => {
       throw new Error('boom')
     })
-    await expect(
-      fireProgressSave({ kind: 'answer', sessionId: 's', input: {}, ...handlers() }),
-    ).resolves.toBe(false)
+    await expect(fire()).resolves.toBe('failed')
   })
 
-  it('resolves false without sending once the session was taken over', async () => {
+  it('reports failed without sending once the session was taken over', async () => {
     markTakenOver('s')
-    await expect(
-      fireProgressSave({ kind: 'answer', sessionId: 's', input: {}, ...handlers() }),
-    ).resolves.toBe(false)
+    await expect(fire()).resolves.toBe('failed')
     expect(mockSaveAnswer).not.toHaveBeenCalled()
+  })
+
+  it('reports failed and shows nothing when the server reports a takeover', async () => {
+    mockSaveAnswer.mockResolvedValue({
+      success: false,
+      error: PROGRESS_ERROR_MESSAGES.session_taken_over,
+    })
+    const h = handlers()
+    await expect(
+      fireProgressSave({ kind: 'answer', sessionId: 's', input: {}, ...h }),
+    ).resolves.toBe('failed')
+    expect(h.onMappedError).not.toHaveBeenCalled()
+  })
+
+  it('reports failed and shows nothing when the sign-in expired', async () => {
+    mockClassify.mockResolvedValue('signed-out')
+    mockSaveAnswer.mockResolvedValue({ success: false, error: SIGN_IN })
+    const h = handlers()
+    await expect(
+      fireProgressSave({ kind: 'answer', sessionId: 's', input: {}, ...h }),
+    ).resolves.toBe('failed')
+    expect(h.onMappedError).not.toHaveBeenCalled()
   })
 })

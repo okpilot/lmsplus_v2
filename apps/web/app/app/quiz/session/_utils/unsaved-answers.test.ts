@@ -17,14 +17,14 @@ describe('unsaved answers', () => {
   it('lists an answer whose save failed', () => {
     const input = { a: 1 }
     trackAnswerSend({ sessionId: S, questionId: Q, input })
-    settleAnswerSend({ sessionId: S, questionId: Q, input, ok: false })
+    settleAnswerSend({ sessionId: S, questionId: Q, input, settled: false })
     expect(failedAnswers(S)).toEqual([{ questionId: Q, input }])
   })
 
   it('does not list an answer whose save landed', () => {
     const input = { a: 1 }
     trackAnswerSend({ sessionId: S, questionId: Q, input })
-    settleAnswerSend({ sessionId: S, questionId: Q, input, ok: true })
+    settleAnswerSend({ sessionId: S, questionId: Q, input, settled: true })
     expect(failedAnswers(S)).toEqual([])
   })
 
@@ -37,10 +37,10 @@ describe('unsaved answers', () => {
     const older = { a: 1 }
     const newer = { a: 2 }
     trackAnswerSend({ sessionId: S, questionId: Q, input: older })
-    settleAnswerSend({ sessionId: S, questionId: Q, input: older, ok: false })
+    settleAnswerSend({ sessionId: S, questionId: Q, input: older, settled: false })
     trackAnswerSend({ sessionId: S, questionId: Q, input: newer })
     expect(failedAnswers(S)).toEqual([])
-    settleAnswerSend({ sessionId: S, questionId: Q, input: newer, ok: false })
+    settleAnswerSend({ sessionId: S, questionId: Q, input: newer, settled: false })
     expect(failedAnswers(S)).toEqual([{ questionId: Q, input: newer }])
   })
 
@@ -49,7 +49,7 @@ describe('unsaved answers', () => {
     const newer = { a: 2 }
     trackAnswerSend({ sessionId: S, questionId: Q, input: older })
     trackAnswerSend({ sessionId: S, questionId: Q, input: newer })
-    settleAnswerSend({ sessionId: S, questionId: Q, input: older, ok: false })
+    settleAnswerSend({ sessionId: S, questionId: Q, input: older, settled: false })
     expect(failedAnswers(S)).toEqual([])
   })
 
@@ -58,15 +58,15 @@ describe('unsaved answers', () => {
     const newer = { a: 2 }
     trackAnswerSend({ sessionId: S, questionId: Q, input: older })
     trackAnswerSend({ sessionId: S, questionId: Q, input: newer })
-    settleAnswerSend({ sessionId: S, questionId: Q, input: newer, ok: false })
-    settleAnswerSend({ sessionId: S, questionId: Q, input: older, ok: true })
+    settleAnswerSend({ sessionId: S, questionId: Q, input: newer, settled: false })
+    settleAnswerSend({ sessionId: S, questionId: Q, input: older, settled: true })
     expect(failedAnswers(S)).toEqual([{ questionId: Q, input: newer }])
   })
 
   it('keeps sessions separate', () => {
     const input = { a: 1 }
     trackAnswerSend({ sessionId: S, questionId: Q, input })
-    settleAnswerSend({ sessionId: S, questionId: Q, input, ok: false })
+    settleAnswerSend({ sessionId: S, questionId: Q, input, settled: false })
     expect(failedAnswers(S)).toEqual([{ questionId: Q, input }])
     expect(failedAnswers('session-2')).toEqual([])
   })

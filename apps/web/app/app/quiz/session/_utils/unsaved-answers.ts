@@ -16,12 +16,12 @@ export function trackAnswerSend(opts: SendKey): void {
   entries.set(opts.sessionId, forSession)
 }
 
-/** Records how a send ended; ignored unless it is still the latest send for the question. */
-export function settleAnswerSend(opts: SendKey & { ok: boolean }): void {
+/** Records how a send ended (`settled`: saved, or rejected for good); ignored unless it is still the latest send for the question. */
+export function settleAnswerSend(opts: SendKey & { settled: boolean }): void {
   const forSession = entries.get(opts.sessionId)
   const entry = forSession?.get(opts.questionId)
   if (!forSession || !entry || entry.input !== opts.input) return
-  if (opts.ok) forSession.delete(opts.questionId)
+  if (opts.settled) forSession.delete(opts.questionId)
   else entry.failed = true
 }
 

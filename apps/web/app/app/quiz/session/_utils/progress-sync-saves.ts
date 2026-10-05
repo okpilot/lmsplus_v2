@@ -62,7 +62,9 @@ export function sendAnswerSave(opts: AnswerSaveOpts): void {
     input,
     onSuccess: opts.onSuccess,
     onMappedError: opts.onMappedError,
-  }).then((ok) => settleAnswerSend({ sessionId, questionId, input, ok }))
+  }).then((outcome) =>
+    settleAnswerSend({ sessionId, questionId, input, settled: outcome !== 'failed' }),
+  )
 }
 
 /** Re-sends the answer saves that failed; true when none is left unsaved. */
@@ -74,14 +76,14 @@ export async function resendUnsavedAnswers(opts: {
   await Promise.all(
     failedAnswers(sessionId).map(async ({ questionId, input }) => {
       trackAnswerSend({ sessionId, questionId, input })
-      const ok = await fireProgressSave({
+      const outcome = await fireProgressSave({
         kind: 'answer',
         sessionId,
         input,
         onSuccess: () => {},
         onMappedError: opts.onMappedError,
       })
-      settleAnswerSend({ sessionId, questionId, input, ok })
+      settleAnswerSend({ sessionId, questionId, input, settled: outcome !== 'failed' })
     }),
   )
   return failedAnswers(sessionId).length === 0
