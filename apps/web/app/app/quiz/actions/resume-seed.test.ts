@@ -279,22 +279,24 @@ describe('finishResume', () => {
     expect(client.from).toHaveBeenCalledWith('quiz_sessions')
   })
 
-  it('soft-deletes the new session when the draft delete fails', async () => {
+  it('keeps and opens the seeded session when the draft delete fails', async () => {
     const client = clientFor({
       quiz_drafts: chain({ data: null, error: { message: 'boom' } }, 'select'),
       quiz_sessions: chain({ data: [{ id: SESSION }], error: null }, 'select'),
     })
-    expect(await finishResume(client, ids, ctx())).toBe(false)
-    expect(client.from).toHaveBeenCalledWith('quiz_sessions')
+    expect(await finishResume(client, ids, ctx())).toBe(true)
+    expect(client.from).not.toHaveBeenCalledWith('quiz_sessions')
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('Draft delete'), 'boom')
   })
 
-  it('soft-deletes the new session when the draft was already gone', async () => {
+  it('keeps and opens the seeded session when the draft was already gone', async () => {
     const client = clientFor({
       quiz_drafts: chain({ data: [], error: null }, 'select'),
       quiz_sessions: chain({ data: [{ id: SESSION }], error: null }, 'select'),
     })
-    expect(await finishResume(client, ids, ctx())).toBe(false)
-    expect(client.from).toHaveBeenCalledWith('quiz_sessions')
+    expect(await finishResume(client, ids, ctx())).toBe(true)
+    expect(client.from).not.toHaveBeenCalledWith('quiz_sessions')
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('Draft already gone'), DRAFT)
   })
 
   it('discards the new session and rethrows the original error when the seed throws', async () => {
