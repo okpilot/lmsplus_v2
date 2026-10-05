@@ -12,6 +12,7 @@ vi.mock('./claim-quiz-device', () => ({
 vi.mock('./with-reconnect', () => ({ withReconnect: (fn: () => unknown) => fn() }))
 vi.mock('./quiz-device-id', () => ({ getQuizDeviceId: () => 'device-1' }))
 
+import { PROGRESS_ERROR_MESSAGES } from '../../actions/progress-error-messages'
 import type { DraftAnswer } from '../../types'
 import { findLocalOnlyAnswers, uploadLocalAnswers } from './local-answer-upload'
 import type { ActiveSession } from './quiz-session-storage'
@@ -111,8 +112,37 @@ describe('uploadLocalAnswers', () => {
     )
   })
 
-  it('stops and reports failure at the first answer the server refuses', async () => {
-    mockSave.mockResolvedValueOnce({ success: false, error: 'x' })
+  it('stops and reports failure at a session-wide refusal', async () => {
+    mockSave.mockResolvedValueOnce({
+      success: false,
+      error: PROGRESS_ERROR_MESSAGES.session_taken_over,
+    })
+
+    const ok = await uploadLocalAnswers({ sessionId: 's1', answers: { q1: A, q2: B } })
+
+    expect(ok).toBe(false)
+    expect(mockSave).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    PROGRESS_ERROR_MESSAGES.invalid_answer,
+    PROGRESS_ERROR_MESSAGES.question_not_in_session,
+    'Invalid input',
+  ])('skips an answer the server rejects (%s) and uploads the rest', async (error) => {
+    mockSave.mockResolvedValueOnce({ success: false, error })
+
+    const ok = await uploadLocalAnswers({ sessionId: 's1', answers: { q1: A, q2: B } })
+
+    expect(ok).toBe(true)
+    expect(mockSave).toHaveBeenCalledTimes(2)
+    expect(mockSave).toHaveBeenLastCalledWith(expect.objectContaining({ questionId: 'q2' }))
+  })
+
+  it('stops at a progress error that may apply to the whole session', async () => {
+    mockSave.mockResolvedValueOnce({
+      success: false,
+      error: PROGRESS_ERROR_MESSAGES.invalid_device,
+    })
 
     const ok = await uploadLocalAnswers({ sessionId: 's1', answers: { q1: A, q2: B } })
 
