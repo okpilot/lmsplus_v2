@@ -143,7 +143,6 @@ export function buildHandleSave(deps: BaseDeps) {
     return handleSaveSession({
       userId: deps.userId,
       sessionId: deps.sessionId,
-      draftId: deps.draftId,
       ...sharedFor('save'),
     })
   }

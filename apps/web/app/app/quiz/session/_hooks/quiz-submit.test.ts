@@ -732,30 +732,12 @@ describe('handleSaveSession', () => {
     expect(mockClearActiveSession).not.toHaveBeenCalled()
   })
 
-  it('skips legacy draft cleanup when the saved session carries no draft', async () => {
-    await handleSaveSession(makeOpts())
+  it('keeps any old draft when the quiz is saved for later', async () => {
+    // A runner resumed before the server-progress seed holds the draft answers only client-side.
+    const withDraft = { ...makeOpts(), draftId: DRAFT_ID }
+    await handleSaveSession(withDraft as Parameters<typeof handleSaveSession>[0])
     expect(mockDeleteDraft).not.toHaveBeenCalled()
-  })
-
-  it('deletes the legacy draft after a successful save when the runner carries one', async () => {
-    await handleSaveSession(makeOpts({ draftId: DRAFT_ID }))
-    expect(mockDeleteDraft).toHaveBeenCalledWith({ draftId: DRAFT_ID })
-    expect(mockDeleteDraft).toHaveBeenCalledTimes(1)
     expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz')
-  })
-
-  it('keeps the legacy draft when the save is refused', async () => {
-    mockSaveQuizForLater.mockResolvedValue({ success: false, error: 'Not allowed' })
-    await handleSaveSession(makeOpts({ draftId: DRAFT_ID }))
-    expect(mockDeleteDraft).not.toHaveBeenCalled()
-  })
-
-  it('still navigates when the legacy draft cleanup fails', async () => {
-    mockDeleteDraft.mockRejectedValue(new Error('cleanup failure'))
-    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    await handleSaveSession(makeOpts({ draftId: DRAFT_ID }))
-    expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz')
-    spy.mockRestore()
   })
 })
 

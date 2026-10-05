@@ -269,11 +269,11 @@ describe('buildHandleSave', () => {
     expect(call.sessionId).toBe(SESSION_ID)
   })
 
-  it('passes the legacy draft id so a successful save can remove it', async () => {
+  it('does not hand the old draft to the save, so saving cannot remove it', async () => {
     const handleSave = buildHandleSave(makeBaseDeps({ draftId: 'draft-1' }))
     await handleSave()
     const call = mockHandleSaveSession.mock.calls[0]?.[0] as Record<string, unknown>
-    expect(call.draftId).toBe('draft-1')
+    expect(call.draftId).toBeUndefined()
   })
 
   it('sends no answers or progress, because the server session already holds them', async () => {

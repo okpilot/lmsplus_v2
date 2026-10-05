@@ -149,7 +149,6 @@ export async function handleSaveSession(opts: {
   userId: string
   sessionId: string
   router: AppRouterInstance
-  draftId?: string
   setSubmitting: SetSubmitting
   setError: SetError
 }) {
@@ -162,8 +161,8 @@ export async function handleSaveSession(opts: {
     })
     if (r.success) {
       clearActiveSession(opts.userId)
-      // A runner resumed from a legacy draft would otherwise leave a draft card AND a saved card.
-      if (opts.draftId) await deleteDraftBounded(opts.draftId, 'handleSaveSession')
+      // Any legacy draft is kept: a runner resumed from it before the server-progress seed
+      // holds its answers only client-side, and the save parks server progress only.
       // Await so the Server Action revalidation can't cancel the soft navigation (#909).
       await clearDeploymentPin().catch(() => {})
       opts.router.push('/app/quiz')

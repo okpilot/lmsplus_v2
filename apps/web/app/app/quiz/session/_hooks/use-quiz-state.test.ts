@@ -457,23 +457,6 @@ describe('useQuizState — handleSave', () => {
 
     expect(result.current.error).toBe('Failed to save draft')
   })
-
-  it('includes draft id when saving existing draft', async () => {
-    const DRAFT_ID = '00000000-0000-4000-a000-000000000050'
-    const { result } = renderHook(() =>
-      useQuizState({
-        userId: 'test-user-id',
-        sessionId: SESSION_ID,
-        questions: THREE_QUESTIONS,
-        draftId: DRAFT_ID,
-      }),
-    )
-    await act(async () => result.current.handleSave())
-
-    expect(mockHandleSaveSession).toHaveBeenCalledWith(
-      expect.objectContaining({ draftId: DRAFT_ID }),
-    )
-  })
 })
 
 // ---- Discard session ------------------------------------------------------

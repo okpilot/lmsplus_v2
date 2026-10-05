@@ -125,6 +125,11 @@ describe('SavedDraftCard', () => {
     expect(screen.getByText(/no saved quizzes/i)).toBeInTheDocument()
   })
 
+  it('hides the empty state when saved quizzes failed to load', () => {
+    render(<SavedDraftCard drafts={[]} savedSessions={[]} savedLookupFailed />)
+    expect(screen.queryByText(/no saved quizzes/i)).not.toBeInTheDocument()
+  })
+
   it('does not call deleteDraft when the user cancels the confirmation dialog', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(false)
     render(<SavedDraftCard drafts={[DRAFT]} savedSessions={[]} />)
