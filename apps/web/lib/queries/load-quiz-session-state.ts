@@ -35,7 +35,7 @@ const SessionRow = z.object({
   easa_subjects: z.object({ name: z.string(), short: z.string() }).nullable(),
 })
 
-export type SessionStateData = {
+type SessionStateData = {
   sessionId: string
   mode: Exclude<QuizMode, 'discovery'>
   questionIds: string[]
@@ -47,7 +47,7 @@ export type SessionStateData = {
   subjectCode?: string
 }
 
-export type QuizSessionState =
+type QuizSessionState =
   | { kind: 'not_found' }
   | { kind: 'discarded' }
   | { kind: 'ended'; mode: QuizMode }

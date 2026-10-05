@@ -290,7 +290,7 @@ test.describe('Quiz session addressed by id', () => {
     await startStudyQuiz(page)
     const sessionUrl = page.url()
     const sessionId = sessionIdFromUrl(sessionUrl)
-    await answerCurrent(page)
+    const chosen = await answerCurrent(page)
     await expect.poll(readServerAnsweredCount, { timeout: 10_000 }).toBe(1)
     const subject = await readSessionSubjectName(sessionId)
     const [firstQuestionId] = await readSessionQuestionIds(sessionId)
@@ -299,7 +299,7 @@ test.describe('Quiz session addressed by id', () => {
     // Non-vacuous: the owner sees the quiz, the answer and the subject.
     await page.goto(sessionUrl)
     await expect(page.getByText(/Question 1 of/)).toBeVisible({ timeout: 10_000 })
-    await expect(page.locator(OPTION).first()).toHaveClass(RESULT_CLASS, { timeout: 10_000 })
+    await expect(page.getByTestId(chosen)).toHaveClass(RESULT_CLASS, { timeout: 10_000 })
     await page.goto('/app/quiz')
     const banner = page.getByText(`session for ${subject}`)
     await expect(banner).toBeVisible()

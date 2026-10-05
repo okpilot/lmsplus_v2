@@ -47,7 +47,7 @@ function toMapping(v: unknown): DiagramMappingEntry[] | null {
 }
 
 /** Inverse of toAnswerJson (quiz-progress-helpers): the stored jsonb back to a draft; null when unrecognised. */
-export function fromAnswerJson(a: unknown): AnswerBody | null {
+function fromAnswerJson(a: unknown): AnswerBody | null {
   if (!isRecord(a)) return null
   if (typeof a.selected_option_id === 'string' && /^[a-d]$/.test(a.selected_option_id)) {
     return { selectedOptionId: a.selected_option_id }

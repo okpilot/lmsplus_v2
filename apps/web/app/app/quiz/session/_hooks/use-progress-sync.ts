@@ -17,11 +17,7 @@ export function useProgressSync(opts: QuizStateOpts) {
     totalQuestions: opts.questions.length,
     initialIndex: opts.initialIndex,
   })
-  const {
-    pinnedQuestions,
-    pinnedRef,
-    togglePin: togglePinById,
-  } = usePinnedQuestions(opts.initialPinnedIds)
+  const pins = usePinnedQuestions(opts.initialPinnedIds)
   const currentIndexRef = useRef(nav.currentIndex)
   currentIndexRef.current = nav.currentIndex
   const { saveError, savePosition, saveAnswer } = useProgressSaves({
@@ -32,18 +28,18 @@ export function useProgressSync(opts: QuizStateOpts) {
   useTakeoverExit({
     enabled: opts.mode !== 'discovery',
     sessionId: opts.sessionId,
-    probe: () => savePosition(currentIndexRef.current, pinnedRef.current, false),
+    probe: () => savePosition(currentIndexRef.current, pins.pinnedRef.current, false),
   })
   function navigateTo(index: number) {
-    if (index >= 0 && index < opts.questions.length) savePosition(index, pinnedRef.current, true)
+    if (index >= 0 && index < opts.questions.length)
+      savePosition(index, pins.pinnedRef.current, true)
     nav.navigateTo(index)
   }
-
   return {
     nav: { ...nav, navigateTo, navigate: (d: number) => navigateTo(currentIndexRef.current + d) },
     currentIndexRef,
-    pinnedQuestions,
-    togglePin: (id: string) => savePosition(currentIndexRef.current, togglePinById(id), false),
+    pinnedQuestions: pins.pinnedQuestions,
+    togglePin: (id: string) => savePosition(currentIndexRef.current, pins.togglePin(id), false),
     saveAnswer,
     saveError,
   }
