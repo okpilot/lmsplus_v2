@@ -1,13 +1,11 @@
 import { useRouter } from 'next/navigation'
-import { useMemo, useRef, useState } from 'react'
 import type { QuizStateOpts } from '../../session-types'
-import type { DraftAnswer } from '../../types'
 import { assembleQuizState } from './quiz-state-assembly'
 import { useAnswerPipeline } from './use-answer-pipeline'
 import { useExamPipeline } from './use-exam-state'
 import { useProgressSync } from './use-progress-sync'
-import { useQuizNavigationGuard } from './use-quiz-navigation-guard'
-import { useRestoredFeedback } from './use-restored-feedback'
+import { useQuizStateExtras } from './use-quiz-state-extras'
+import { useStudyAnswers } from './use-study-answers'
 
 export type QuizState = ReturnType<typeof useQuizState>
 
@@ -16,11 +14,7 @@ export function useQuizState(opts: QuizStateOpts) {
   const router = useRouter()
   const sync = useProgressSync(opts)
   const { nav, currentIndexRef } = sync
-  const [studyAnswers, setStudyAnswers] = useState<Map<string, DraftAnswer>>(() =>
-    opts.initialAnswers ? new Map(Object.entries(opts.initialAnswers)) : new Map(),
-  )
-  const studyAnswersRef = useRef(studyAnswers)
-  studyAnswersRef.current = studyAnswers
+  const { studyAnswers, setStudyAnswers, studyAnswersRef } = useStudyAnswers(opts.initialAnswers)
   const question = opts.questions[nav.currentIndex]
   const questionId = question?.id ?? ''
   const getQId = () => questionId
@@ -50,18 +44,7 @@ export function useQuizState(opts: QuizStateOpts) {
 
   const p = isExam ? exam : study
   const answers = isExam ? exam.answers : studyAnswers
-  const initialSize = useRef(opts.initialAnswers ? Object.keys(opts.initialAnswers).length : 0)
-  useQuizNavigationGuard(!isExam && answers.size > initialSize.current, p.submitted.current)
-  const questionIds = useMemo(() => opts.questions.map((q) => q.id), [opts.questions])
-
-  const feedback = useRestoredFeedback({
-    enabled: opts.mode === 'study',
-    sessionId: opts.sessionId,
-    questionId,
-    restorable: opts.initialAnswers,
-    answers,
-    feedback: p.feedback,
-  })
+  const { questionIds, feedback } = useQuizStateExtras({ opts, isExam, questionId, answers, p })
 
   return assembleQuizState({
     feedback,

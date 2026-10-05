@@ -6,8 +6,8 @@ import { clearActiveSessionIfCurrent } from './quiz-session-storage'
 /** Longest the runner waits for the upload; it keeps running in the background after that. */
 export const UPLOAD_WAIT_MS = 10_000
 
-export type Answers = Record<string, DraftAnswer>
-export type Settle = (savedIds: readonly string[]) => void
+type Answers = Record<string, DraftAnswer>
+type Settle = (savedIds: readonly string[]) => void
 
 export function startLocalUpload(opts: {
   userId: string
@@ -17,18 +17,25 @@ export function startLocalUpload(opts: {
 }) {
   const { userId, sessionId, answers, settle } = opts
   const savedIds = new Set<string>()
-  const timer = setTimeout(() => settle([...savedIds]), UPLOAD_WAIT_MS)
+  // After the wait the mounted runner owns the local copy, so a late completion must not clear it.
+  let timedOut = false
+  const timer = setTimeout(() => {
+    timedOut = true
+    settle([...savedIds])
+  }, UPLOAD_WAIT_MS)
   const upload =
     Object.keys(answers).length > 0
       ? uploadLocalAnswers({ sessionId, answers, onSaved: (id) => savedIds.add(id) })
       : Promise.resolve({ saved: [] as string[], complete: true })
   upload
     .then((result) => {
+      if (timedOut) return
       clearTimeout(timer)
       settle(result.saved)
       if (result.complete) clearActiveSessionIfCurrent(userId, sessionId)
     })
     .catch(() => {
+      if (timedOut) return
       clearTimeout(timer)
       settle([...savedIds])
     })

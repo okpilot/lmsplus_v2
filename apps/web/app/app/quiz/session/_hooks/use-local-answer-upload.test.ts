@@ -182,7 +182,7 @@ describe('useLocalAnswerUpload', () => {
     expect(mockClear).not.toHaveBeenCalled()
   })
 
-  it('still clears the copy when an upload finishes complete after the wait limit', async () => {
+  it('keeps the copy the open quiz now writes when an upload finishes after the wait limit', async () => {
     vi.useFakeTimers()
     mockRead.mockReturnValue(local())
     let finish: (r: typeof DONE) => void = () => {}
@@ -200,7 +200,7 @@ describe('useLocalAnswerUpload', () => {
     await act(async () => finish(DONE))
 
     expect(result.current.answers).toEqual(SERVER)
-    expect(mockClear).toHaveBeenCalledWith('u1', 's1')
+    expect(mockClear).not.toHaveBeenCalled()
   })
 
   it('keeps the first outcome when the upload finishes after the wait limit', async () => {

@@ -1,10 +1,11 @@
 // Merges and uploads the legacy localStorage copy of this session's answers
 // (removal tracked in #1453).
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { DraftAnswer } from '../../types'
 import { findLocalOnlyAnswers } from '../_utils/local-answer-upload'
 import { readActiveSession } from '../_utils/quiz-session-storage'
 import { startLocalUpload } from '../_utils/start-local-upload'
+import { useUploadSettle } from './use-upload-settle'
 
 type Opts = {
   userId: string
@@ -23,28 +24,16 @@ type Answers = Record<string, DraftAnswer>
  * Returns the server answers plus the answers only this browser held that the server has since
  * accepted (null until that is known, at most UPLOAD_WAIT_MS after the upload starts). After the
  * claim, uploads the local-only answers once and clears the local copy only when the upload
- * completed.
+ * completed within the wait.
  */
 export function useLocalAnswerUpload(opts: Readonly<Opts>) {
   const { userId, sessionId, questionIds, serverAnswers, claimed, claimFailed } = opts
   const [localOnly, setLocalOnly] = useState<Answers | null>(null)
-  const [settled, setSettled] = useState<Answers | null>(null)
   const startedRef = useRef(false)
-  const settledRef = useRef(false)
-  const localRef = useRef<Answers>({})
   // The load-time seed: the local copy is read once on mount, not whenever these change identity.
   const seedRef = useRef({ serverAnswers, questionIds })
   seedRef.current = { serverAnswers, questionIds }
-
-  // First outcome wins; later calls (a late upload after the wait limit) are ignored.
-  const settle = useCallback((savedIds: readonly string[]) => {
-    if (settledRef.current) return
-    settledRef.current = true
-    const local = Object.fromEntries(
-      Object.entries(localRef.current).filter(([id]) => savedIds.includes(id)),
-    )
-    setSettled({ ...local, ...seedRef.current.serverAnswers })
-  }, [])
+  const { settled, settle, localRef } = useUploadSettle(seedRef)
 
   useEffect(() => {
     const stored = readActiveSession(userId)
@@ -52,7 +41,7 @@ export function useLocalAnswerUpload(opts: Readonly<Opts>) {
     localRef.current = found
     setLocalOnly(found)
     if (Object.keys(found).length === 0) settle([])
-  }, [userId, sessionId, settle])
+  }, [userId, sessionId, settle, localRef])
 
   useEffect(() => {
     if (localOnly === null || startedRef.current) return

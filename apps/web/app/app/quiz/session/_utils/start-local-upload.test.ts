@@ -49,6 +49,26 @@ describe('startLocalUpload', () => {
     expect(mockClear).not.toHaveBeenCalled()
   })
 
+  it('keeps the local copy and settles once when the upload completes after the wait limit', async () => {
+    let finish: (r: { saved: string[]; complete: boolean }) => void = () => {}
+    mockUpload.mockImplementation((o: { onSaved: (id: string) => void }) => {
+      o.onSaved('q2')
+      return new Promise((resolve) => {
+        finish = resolve
+      })
+    })
+    const settle = vi.fn()
+
+    startLocalUpload({ userId: 'u', sessionId: 's', answers: { q2: B, q3: B }, settle })
+    await vi.advanceTimersByTimeAsync(UPLOAD_WAIT_MS)
+    finish({ saved: ['q2', 'q3'], complete: true })
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(settle).toHaveBeenCalledTimes(1)
+    expect(settle).toHaveBeenCalledWith(['q2'])
+    expect(mockClear).not.toHaveBeenCalled()
+  })
+
   it('does not call the server for an empty set and clears the copy', async () => {
     const settle = vi.fn()
 
