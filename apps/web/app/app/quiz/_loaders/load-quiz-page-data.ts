@@ -9,12 +9,25 @@ import type { DraftData } from '../types'
 export type QuizPageData = {
   drafts: DraftData[]
   savedSessions: SavedQuizSession[]
+  savedLookupFailed: boolean
   examLookupFailed: boolean
   activeExams: ActiveExamSession[]
   orphanedIds: string[]
   expiredIds: string[]
   practiceLookupFailed: boolean
   activePractice: ActivePracticeSession | null
+}
+
+/** A saved-list failure degrades to an empty list plus a flag, as the sibling lookups do. */
+async function loadSavedOrDegrade(
+  userId: string,
+): Promise<{ savedSessions: SavedQuizSession[]; savedLookupFailed: boolean }> {
+  try {
+    return { savedSessions: await loadSavedQuizzes(userId), savedLookupFailed: false }
+  } catch (error) {
+    console.error('[loadQuizPageData] Saved quizzes lookup failed:', error)
+    return { savedSessions: [], savedLookupFailed: true }
+  }
 }
 
 /**
@@ -25,16 +38,16 @@ export type QuizPageData = {
  * actions resolve auth internally; the saved-sessions query takes the caller id.
  */
 export async function loadQuizPageData(userId: string): Promise<QuizPageData> {
-  const [{ drafts }, savedSessions, examResult, practiceResult] = await Promise.all([
+  const [{ drafts }, saved, examResult, practiceResult] = await Promise.all([
     loadDrafts(),
-    loadSavedQuizzes(userId),
+    loadSavedOrDegrade(userId),
     getActiveExamSession(),
     getActivePracticeSession(),
   ])
 
   return {
     drafts,
-    savedSessions,
+    ...saved,
     examLookupFailed: !examResult.success,
     activeExams: examResult.success ? examResult.sessions : [],
     orphanedIds: examResult.success ? examResult.orphanedSessionIds : [],

@@ -5,17 +5,15 @@ import { getQuizDeviceId } from '../_utils/quiz-device-id'
 
 const GENERIC = 'Something went wrong. Please try again.'
 
-/** Resume / delete of a saved quiz. A synchronous ref guards re-entry from a double click. */
-export function useSavedSessionResume(sessionId: string) {
-  const router = useRouter()
+type Outcome = { success: true } | { success: false; error: string }
+
+/** Runs one action at a time; a synchronous ref guards re-entry from a double click. */
+function useGuardedRun() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const inFlight = useRef(false)
 
-  async function run(
-    call: () => Promise<{ success: true } | { success: false; error: string }>,
-    onDone: () => void,
-  ) {
+  async function run(call: () => Promise<Outcome>, onDone: () => void) {
     if (inFlight.current) return
     inFlight.current = true
     setLoading(true)
@@ -30,6 +28,14 @@ export function useSavedSessionResume(sessionId: string) {
     inFlight.current = false
     setLoading(false)
   }
+
+  return { loading, error, run }
+}
+
+/** Resume / delete of a saved quiz. */
+export function useSavedSessionResume(sessionId: string) {
+  const router = useRouter()
+  const { loading, error, run } = useGuardedRun()
 
   return {
     loading,

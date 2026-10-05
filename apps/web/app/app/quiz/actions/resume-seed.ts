@@ -9,6 +9,15 @@ import type { ResumeContext } from './resume-helpers'
 
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
+// Tokens save_quiz_answer raises for ONE bad answer (20261002000400). Any other token — session
+// state, takeover, transport — says the whole seed cannot proceed and aborts it.
+const SKIPPABLE_TOKENS = new Set([
+  'invalid_answer',
+  'invalid_time_spent',
+  'question_not_in_session',
+])
+const MAX_TIME_SPENT_MS = 86_400_000
+
 const PAYLOAD_KEYS = ['selectedOptionId', 'responseText', 'blankAnswers', 'order', 'mapping']
 
 type SaveAnswerArgs = {
@@ -17,6 +26,12 @@ type SaveAnswerArgs = {
   p_answer: Record<string, unknown>
   p_time_spent_ms: number
   p_device_id: string
+}
+
+/** The draft's client-written visit time as an integer the RPC accepts: [0, 24 h], else 0. */
+function clampTimeSpentMs(raw: unknown): number {
+  if (typeof raw !== 'number' || Number.isNaN(raw)) return 0
+  return Math.min(MAX_TIME_SPENT_MS, Math.max(0, Math.trunc(raw)))
 }
 
 /** Draft answer (camelCase, client-written JSONB) → validated RPC args, or null when malformed. */
@@ -35,7 +50,7 @@ function toSaveAnswerArgs(
     questionId,
     deviceId,
     answer: { [key]: draftAnswer[key] },
-    timeSpentMs: draftAnswer.responseTimeMs,
+    timeSpentMs: clampTimeSpentMs(draftAnswer.responseTimeMs),
   })
   if (!parsed.success) return null
   return {
@@ -59,10 +74,14 @@ export async function seedSessionFromDraft(
   for (const entry of answers) {
     const args = toSaveAnswerArgs(sessionId, deviceId, entry)
     if (!args) {
-      console.error('[resumeQuizSession] Malformed draft answer for question', entry[0])
-      return false
+      console.warn('[resumeQuizSession] Malformed draft answer skipped for question', entry[0])
+      continue
     }
     const { error } = await rpc<null>(supabase, 'save_quiz_answer', args)
+    if (error && SKIPPABLE_TOKENS.has(error.message)) {
+      console.warn('[resumeQuizSession] Rejected draft answer skipped for question', entry[0])
+      continue
+    }
     if (error) {
       console.error('[resumeQuizSession] Seed answer error:', error.message)
       return false

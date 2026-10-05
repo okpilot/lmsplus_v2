@@ -4,7 +4,7 @@ import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import { rpc } from '@/lib/supabase-rpc'
 import type { StartExamResult } from '../types'
-import { blockedFlag, type WithBlocked } from './_blocked-start'
+import { blockedFailure, type WithBlocked } from './_blocked-start'
 
 const StartExamInput = z.object({
   subjectId: z.uuid(),
@@ -49,14 +49,8 @@ export async function startExamSession(raw: unknown): Promise<WithBlocked<StartE
       const rpcMessage = error?.message ?? 'unknown RPC error'
       console.error('[startExamSession] RPC error:', rpcMessage)
 
-      if (blockedFlag(rpcMessage).blocked) {
-        return {
-          success: false,
-          error:
-            'You already have an active session. Finish or discard it before starting a new one.',
-          blocked: true,
-        }
-      }
+      const blocked = blockedFailure(rpcMessage)
+      if (blocked) return blocked
       if (rpcMessage.includes('already in progress')) {
         return {
           success: false,

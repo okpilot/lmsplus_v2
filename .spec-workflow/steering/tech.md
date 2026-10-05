@@ -51,7 +51,7 @@ lmsplusv2/
 - **Primary storage**: Supabase (managed Postgres). 17+ tables with RLS on every table. Soft delete (`deleted_at`) on all mutable tables.
 - **File storage**: Supabase Storage (`question-images` bucket). Access model — including which
   operations are org-scoped — is `docs/security.md` §13; do not restate it here.
-- **Client-side persistence**: localStorage for quiz session recovery (7-day staleness, private-mode safe).
+- **Client-side persistence**: none for quiz answers. An open quiz lives on the server (`quiz_session_progress`, plus position and pins on `quiz_sessions`); any device continues from `/app/quiz/session/<id>`. Only the Discovery start uses a tab-scoped sessionStorage handoff. A one-time upload of legacy `quiz-active-session:<userId>` answers remains until #1453.
 - **Caching**: Turborepo build cache. Vercel edge cache for static assets. No application-level Redis.
 - **Data formats**: JSON/JSONB (question options, session config, audit metadata), SQL for all persistence.
 
@@ -169,7 +169,7 @@ lmsplusv2/
 - **Expected load**: Class sizes up to 10 students per ATO. Multi-tenant but not high-scale initially.
 - **Availability**: Vercel serverless with edge network. Supabase managed Postgres with daily backups (7-day retention).
 - **Idempotency**: All INSERTs use `ON CONFLICT DO NOTHING` or upsert. Safe to retry on network failure.
-- **Session recovery**: localStorage checkpoints with 7-day staleness. Recoverable on page refresh or deployment.
+- **Session recovery**: server-side. An open session loads by id from `get_quiz_progress` (answers, position, pins, time); a saved session resumes on the same id via `resume_saved_quiz`.
 
 ## Technical Decisions & Rationale
 
@@ -179,7 +179,7 @@ Decisions: `docs/decisions.md` (one line each).
 
 - **No real-time features**: No WebSocket/Realtime subscriptions. All data fetching is request-response via Server Components or Server Actions.
 - **Single-org assumption**: Comment visibility and some RLS policies assume single-org deployment. Multi-tenancy scoping deferred.
-- **No offline mode**: Quiz progress persists to localStorage for recovery, but the app requires an internet connection.
+- **No offline mode**: quiz progress is saved to the server as the student works; a failed save blocks the quiz until the connection returns.
 - **jsdom limitation**: Pre-hydration state (disabled button, skeleton) is not testable in jsdom -- `useEffect` runs synchronously in `act()`.
 - **No rate limiting at application layer**: Relies on Supabase Auth rate limits and `record_login()` RPC 60s rate limit. No Vercel/upstash rate limiting on API or auth routes yet.
 - **EASA subject seed data**: Full taxonomy tree completeness unconfirmed -- currently 9 PPL(A) subjects imported.

@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { getRandomQuestionIds } from '@/lib/queries/quiz-session-queries'
 import { rpc } from '@/lib/supabase-rpc'
 import type { StartQuizResult } from '../types'
-import { blockedFlag, type WithBlocked } from './_blocked-start'
+import { blockedFailure, type WithBlocked } from './_blocked-start'
 
 const StartQuizInput = z.object({
   subjectId: z.uuid(),
@@ -57,14 +57,8 @@ export async function startQuizSession(raw: unknown): Promise<WithBlocked<StartQ
 
     if (error || !sessionId) {
       console.error('[startQuizSession] RPC error:', error?.message)
-      if (blockedFlag(error?.message).blocked) {
-        return {
-          success: false,
-          error:
-            'You already have an active session. Finish or discard it before starting a new one.',
-          blocked: true,
-        }
-      }
+      const blocked = blockedFailure(error?.message)
+      if (blocked) return blocked
       return { success: false, error: 'Failed to start session' }
     }
 

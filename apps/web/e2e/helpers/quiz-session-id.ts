@@ -5,9 +5,6 @@ const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
 /** `/app/quiz/session/<uuid>`, the runner's address, and nothing after the id. */
 export const SESSION_ID_URL = new RegExp(`/app/quiz/session/${UUID}$`)
 
-/** Glob form of {@link SESSION_ID_URL} for `page.waitForURL` / `page.route`. */
-export const SESSION_ID_GLOB = '**/app/quiz/session/*'
-
 export function sessionIdFromUrl(url: string): string {
   const match = new RegExp(`/app/quiz/session/(${UUID})(?:$|[?#])`).exec(url)
   if (!match?.[1]) throw new Error(`not a quiz session id URL: ${url}`)

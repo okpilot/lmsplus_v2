@@ -1,10 +1,8 @@
 import { Suspense } from 'react'
 import { requireAuthUser } from '@/lib/auth/require-auth-user'
-import { ActivePracticeBanner } from './_components/active-practice-banner'
-import { ExpiredExamNotice } from './_components/expired-exam-notice'
 import { LookupErrorAlerts } from './_components/lookup-error-alerts'
+import { QuizPageBanners } from './_components/quiz-page-banners'
 import { QuizTabs } from './_components/quiz-tabs'
-import { ResumeExamBanner } from './_components/resume-exam-banner'
 import { SavedDraftCard } from './_components/saved-draft-card'
 import { SubjectsSection } from './_components/subjects-section'
 import { loadQuizPageData } from './_loaders/load-quiz-page-data'
@@ -16,6 +14,7 @@ export default async function QuizPage() {
   const {
     drafts,
     savedSessions,
+    savedLookupFailed,
     examLookupFailed,
     activeExams,
     orphanedIds,
@@ -33,21 +32,19 @@ export default async function QuizPage() {
         </p>
       </div>
 
-      <LookupErrorAlerts examFailed={examLookupFailed} practiceFailed={practiceLookupFailed} />
+      <LookupErrorAlerts
+        examFailed={examLookupFailed}
+        practiceFailed={practiceLookupFailed}
+        savedFailed={savedLookupFailed}
+      />
 
-      {activeExams.map((exam) => (
-        <ResumeExamBanner key={exam.sessionId} userId={user.id} exam={exam} />
-      ))}
-
-      {orphanedIds.map((sessionId) => (
-        <ResumeExamBanner key={sessionId} userId={user.id} sessionId={sessionId} discardOnly />
-      ))}
-
-      {expiredIds.map((sessionId) => (
-        <ExpiredExamNotice key={sessionId} sessionId={sessionId} />
-      ))}
-
-      {activePractice && <ActivePracticeBanner userId={user.id} session={activePractice} />}
+      <QuizPageBanners
+        userId={user.id}
+        activeExams={activeExams}
+        orphanedIds={orphanedIds}
+        expiredIds={expiredIds}
+        activePractice={activePractice}
+      />
 
       <div className="mx-auto max-w-xl">
         <QuizTabs

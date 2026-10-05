@@ -1,6 +1,5 @@
 import { createServerSupabaseClient } from '@repo/db/server'
-import { z } from 'zod'
-import { rpc } from '@/lib/supabase-rpc'
+import { fetchAllRows, toPageResult } from '@/lib/supabase-paginate'
 
 export type SavedQuizSession = {
   sessionId: string
@@ -17,8 +16,6 @@ type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 // The server caps saved quizzes at 20 per student (save_quiz_for_later); the bound is explicit.
 const MAX_SAVED_QUIZZES = 20
 
-const ProgressPayload = z.object({ answers: z.array(z.unknown()) })
-
 type SavedRow = {
   id: string
   mode: string
@@ -32,18 +29,46 @@ function countQuestions(config: unknown): number {
   return Array.isArray(ids) ? ids.length : 0
 }
 
-async function countAnswered(supabase: SupabaseClient, sessionId: string): Promise<number> {
-  const { data, error } = await rpc<unknown>(supabase, 'get_quiz_progress', {
-    p_session_id: sessionId,
-  })
+type ProgressRow = { session_id: string }
+
+/**
+ * Answered rows per saved session in one paginated read. A viewed-only progress row (answer
+ * NULL, written by save_quiz_position) is not an answer. Own-row SELECT policy scopes the read;
+ * the explicit student_id predicate stays for rule 11.
+ */
+async function countAnsweredBySession(
+  supabase: SupabaseClient,
+  userId: string,
+  sessionIds: string[],
+): Promise<Map<string, number>> {
+  const { data, error } = await fetchAllRows<ProgressRow>(
+    () =>
+      supabase
+        .from('quiz_session_progress')
+        .select('*', { count: 'exact', head: true })
+        .eq('student_id', userId)
+        .in('session_id', sessionIds)
+        .not('answer', 'is', null),
+    async (from, to) => {
+      const page = await supabase
+        .from('quiz_session_progress')
+        .select('session_id')
+        .eq('student_id', userId)
+        .in('session_id', sessionIds)
+        .not('answer', 'is', null)
+        .order('session_id', { ascending: true })
+        .order('question_id', { ascending: true })
+        .range(from, to)
+      return toPageResult<ProgressRow>(page.data, page.error, 'quiz_session_progress')
+    },
+  )
   if (error) throw new Error(`Failed to fetch saved quiz progress: ${error.message}`)
-  const parsed = ProgressPayload.safeParse(data)
-  if (!parsed.success)
-    throw new Error('Failed to fetch saved quiz progress: unexpected progress payload')
-  return parsed.data.answers.length
+  const counts = new Map<string, number>()
+  for (const row of data) counts.set(row.session_id, (counts.get(row.session_id) ?? 0) + 1)
+  return counts
 }
 
-async function toSavedQuiz(supabase: SupabaseClient, row: SavedRow): Promise<SavedQuizSession> {
+function toSavedQuiz(row: SavedRow, answeredCount: number): SavedQuizSession {
   const subject = row.easa_subjects as { name?: unknown; short?: unknown } | null
   return {
     sessionId: row.id,
@@ -52,7 +77,7 @@ async function toSavedQuiz(supabase: SupabaseClient, row: SavedRow): Promise<Sav
     subjectName: typeof subject?.name === 'string' ? subject.name : 'Unknown subject',
     subjectCode: typeof subject?.short === 'string' ? subject.short : '',
     totalCount: countQuestions(row.config),
-    answeredCount: await countAnswered(supabase, row.id),
+    answeredCount,
   }
 }
 
@@ -71,5 +96,12 @@ export async function loadSavedQuizzes(userId: string): Promise<SavedQuizSession
     .order('saved_at', { ascending: false })
     .limit(MAX_SAVED_QUIZZES)
   if (error) throw new Error(`Failed to fetch saved quizzes: ${error.message}`)
-  return Promise.all((data ?? []).map((row) => toSavedQuiz(supabase, row)))
+  const rows = data ?? []
+  if (rows.length === 0) return []
+  const answered = await countAnsweredBySession(
+    supabase,
+    userId,
+    rows.map((r) => r.id),
+  )
+  return rows.map((row) => toSavedQuiz(row, answered.get(row.id) ?? 0))
 }

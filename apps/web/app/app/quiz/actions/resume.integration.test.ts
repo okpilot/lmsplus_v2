@@ -69,20 +69,6 @@ async function parkSession(sessionId: string): Promise<void> {
   if (error) throw new Error(`parkSession: ${error.message}`)
 }
 
-async function quickQuizRows(studentId: string) {
-  const { data, error } = await admin
-    .from('quiz_sessions')
-    .select('id, deleted_at, ended_at')
-    .eq('student_id', studentId)
-    .eq('mode', 'quick_quiz')
-  if (error) throw new Error(`quickQuizRows: ${error.message}`)
-  return data ?? []
-}
-
-async function quickQuizIds(studentId: string): Promise<string[]> {
-  return (await quickQuizRows(studentId)).map((r) => r.id)
-}
-
 async function draftExists(draftId: string): Promise<boolean> {
   const { data, error } = await admin.from('quiz_drafts').select('id').eq('id', draftId)
   if (error) throw new Error(`draftExists: ${error.message}`)
@@ -224,7 +210,7 @@ describe('resumeQuizSession (app-layer integration)', () => {
     expect(await draftExists(draftId)).toBe(false)
   })
 
-  it('keeps the draft and soft-deletes the new session when seeding fails', async () => {
+  it('resumes without a draft answer the session refuses and drops that answer', async () => {
     await signInAs(emailA, password)
     const start = await startQuizSession({
       subjectId: refs.subjectId,
@@ -233,29 +219,31 @@ describe('resumeQuizSession (app-layer integration)', () => {
     })
     expect(start.success).toBe(true)
     if (!start.success) throw new Error(start.error)
-    // An answer for a question outside the session makes the progress RPC refuse it.
+    const [q0] = start.questionIds
+    // An answer for a question outside the session is refused by the progress RPC and skipped.
     const outsider = '00000000-0000-4000-a000-0000000000ff'
     const draftId = await seedDraft({
       studentId: studentAId,
       sessionId: start.sessionId,
       questionIds: start.questionIds,
-      answers: { [outsider]: { selectedOptionId: 'a', responseTimeMs: 100 } },
+      answers: {
+        [outsider]: { selectedOptionId: 'a', responseTimeMs: 100 },
+        [q0 as string]: { selectedOptionId: 'c', responseTimeMs: 1200 },
+      },
     })
     await parkSession(start.sessionId)
 
-    const before = await quickQuizIds(studentAId)
-
     const resume = await resumeQuizSession({ draftId })
-    expect(resume.success).toBe(false)
-    if (resume.success) throw new Error('expected failure')
-    expect(resume.error).not.toMatch(/question_not_in_session|rpc|postgres/i)
-    expect(await draftExists(draftId)).toBe(true)
+    expect(resume.success).toBe(true)
+    if (!resume.success) throw new Error(resume.error)
 
-    // Non-vacuous: a new session WAS minted, and it is soft-deleted, never active.
-    const minted = (await quickQuizRows(studentAId)).filter((r) => !before.includes(r.id))
-    expect(minted).toHaveLength(1)
-    expect(minted[0]?.deleted_at).not.toBeNull()
-    expect(minted[0]?.ended_at).toBeNull()
+    const { data: rows, error } = await admin
+      .from('quiz_session_progress')
+      .select('question_id')
+      .eq('session_id', resume.sessionId)
+    if (error) throw new Error(error.message)
+    expect(rows?.map((r) => r.question_id)).toEqual([q0])
+    expect(await draftExists(draftId)).toBe(false)
   })
 
   it('fails cleanly and creates no session when a saved question is no longer available', async () => {

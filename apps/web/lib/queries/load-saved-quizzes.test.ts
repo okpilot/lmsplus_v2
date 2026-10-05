@@ -1,16 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockFrom, mockRpc, calls } = vi.hoisted(() => ({
+const { mockFrom, calls } = vi.hoisted(() => ({
   mockFrom: vi.fn(),
-  mockRpc: vi.fn(),
   calls: [] as [string, unknown[]][],
 }))
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({ from: mockFrom }),
-}))
-vi.mock('@/lib/supabase-rpc', () => ({
-  rpc: (...args: unknown[]) => mockRpc(...args),
 }))
 
 import { loadSavedQuizzes } from './load-saved-quizzes'
@@ -40,11 +36,50 @@ const ROW = {
   easa_subjects: { name: 'Air Law', short: 'ALW' },
 }
 
+type ProgressMock = {
+  rows?: { session_id: string }[]
+  count?: number | null
+  countError?: { message: string }
+  pageError?: { message: string }
+}
+
+function progressChain(opts: ProgressMock) {
+  const rows = opts.rows ?? []
+  let isCount = false
+  const target: Record<string, unknown> = {
+    // biome-ignore lint/suspicious/noThenProperty: intentional thenable for Supabase chain mock
+    then: (resolve: (v: unknown) => void, reject: (e: unknown) => void) => {
+      const result = isCount
+        ? {
+            count: opts.count === undefined ? rows.length : opts.count,
+            error: opts.countError ?? null,
+          }
+        : { data: opts.pageError ? null : rows, error: opts.pageError ?? null }
+      return Promise.resolve(result).then(resolve, reject)
+    },
+  }
+  return new Proxy(target, {
+    get(t, prop) {
+      if (prop === 'then') return t.then
+      return (...args: unknown[]) => {
+        calls.push([`progress.${String(prop)}`, args])
+        if (prop === 'select' && (args[1] as { head?: boolean } | undefined)?.head) isCount = true
+        return new Proxy(target, this)
+      }
+    },
+  })
+}
+
+function setup(sessions: unknown, progress: ProgressMock = {}) {
+  mockFrom.mockImplementation((table: string) =>
+    table === 'quiz_session_progress' ? progressChain(progress) : chain(sessions),
+  )
+}
+
 beforeEach(() => {
   vi.resetAllMocks()
   calls.length = 0
-  mockFrom.mockReturnValue(chain({ data: [ROW], error: null }))
-  mockRpc.mockResolvedValue({ data: { answers: [{}, {}] }, error: null })
+  setup({ data: [ROW], error: null }, { rows: [{ session_id: 's-1' }, { session_id: 's-1' }] })
 })
 
 describe('loadSavedQuizzes', () => {
@@ -56,12 +91,9 @@ describe('loadSavedQuizzes', () => {
     expect(calls).toContainEqual(['not', ['saved_at', 'is', null]])
   })
 
-  it('maps the row to the saved-quiz view model with the answered count from the server', async () => {
+  it('maps the row to the saved-quiz view model with the answered count', async () => {
     const result = await loadSavedQuizzes('user-1')
 
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_quiz_progress', {
-      p_session_id: 's-1',
-    })
     expect(result).toEqual([
       {
         sessionId: 's-1',
@@ -75,31 +107,54 @@ describe('loadSavedQuizzes', () => {
     ])
   })
 
-  it('returns an empty list without calling the progress RPC when nothing is saved', async () => {
-    mockFrom.mockReturnValue(chain({ data: [], error: null }))
+  it('counts only progress rows that hold an answer', async () => {
+    await loadSavedQuizzes('user-1')
+
+    expect(calls).toContainEqual(['progress.not', ['answer', 'is', null]])
+    expect(calls).toContainEqual(['progress.eq', ['student_id', 'user-1']])
+  })
+
+  it('reads progress once for all saved sessions and splits the counts per session', async () => {
+    const second = { ...ROW, id: 's-2' }
+    setup(
+      { data: [ROW, second], error: null },
+      { rows: [{ session_id: 's-1' }, { session_id: 's-2' }, { session_id: 's-2' }] },
+    )
+
+    const result = await loadSavedQuizzes('user-1')
+
+    expect(result.map((r) => r.answeredCount)).toEqual([1, 2])
+    expect(mockFrom.mock.calls.filter(([t]) => t === 'quiz_session_progress')).toHaveLength(2)
+    expect(calls.filter(([k, a]) => k === 'progress.in' && Array.isArray(a[1]))).toHaveLength(2)
+  })
+
+  it('skips the progress read when nothing is saved', async () => {
+    setup({ data: [], error: null })
     expect(await loadSavedQuizzes('user-1')).toEqual([])
-    expect(mockRpc).not.toHaveBeenCalled()
+    expect(mockFrom).not.toHaveBeenCalledWith('quiz_session_progress')
   })
 
   it('throws when the sessions query fails', async () => {
-    mockFrom.mockReturnValue(chain({ data: null, error: { message: 'boom' } }))
+    setup({ data: null, error: { message: 'boom' } })
     await expect(loadSavedQuizzes('user-1')).rejects.toThrow('Failed to fetch saved quizzes: boom')
   })
 
-  it('throws when the progress RPC fails', async () => {
-    mockRpc.mockResolvedValue({ data: null, error: { message: 'session_not_found' } })
+  it('throws when a progress page fails after a successful count', async () => {
+    setup({ data: [ROW], error: null }, { count: 2, pageError: { message: 'page boom' } })
     await expect(loadSavedQuizzes('user-1')).rejects.toThrow(
-      'Failed to fetch saved quiz progress: session_not_found',
+      'Failed to fetch saved quiz progress: page boom',
     )
   })
 
-  it('throws when the progress payload has an unknown shape', async () => {
-    mockRpc.mockResolvedValue({ data: { answers: 'nope' }, error: null })
-    await expect(loadSavedQuizzes('user-1')).rejects.toThrow(/unexpected progress payload/i)
+  it('throws when the progress count fails', async () => {
+    setup({ data: [ROW], error: null }, { countError: { message: 'count boom' } })
+    await expect(loadSavedQuizzes('user-1')).rejects.toThrow(
+      'Failed to fetch saved quiz progress: count boom',
+    )
   })
 
   it('falls back to a placeholder subject when the embed is missing', async () => {
-    mockFrom.mockReturnValue(chain({ data: [{ ...ROW, easa_subjects: null }], error: null }))
+    setup({ data: [{ ...ROW, easa_subjects: null }], error: null })
     const [session] = await loadSavedQuizzes('user-1')
     expect(session?.subjectName).toBe('Unknown subject')
     expect(session?.subjectCode).toBe('')

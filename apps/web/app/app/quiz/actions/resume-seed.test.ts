@@ -53,6 +53,7 @@ function ctx(over: Partial<ResumeContext> = {}): ResumeContext {
 beforeEach(() => {
   vi.resetAllMocks()
   vi.spyOn(console, 'error').mockImplementation(() => {})
+  vi.spyOn(console, 'warn').mockImplementation(() => {})
   mockRpc.mockResolvedValue({ data: null, error: null })
 })
 
@@ -125,8 +126,8 @@ describe('seedSessionFromDraft', () => {
     expect(rpcCalls('save_quiz_position')).toHaveLength(1)
   })
 
-  it('stops and reports failure when an answer save fails', async () => {
-    mockRpc.mockResolvedValue({ data: null, error: { message: 'invalid_answer' } })
+  it('stops and reports failure when an answer save fails on a taken-over session', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'session_taken_over' } })
     const answers = {
       [Q1]: { selectedOptionId: 'a', responseTimeMs: 1 },
       [Q2]: { selectedOptionId: 'b', responseTimeMs: 1 },
@@ -141,16 +142,57 @@ describe('seedSessionFromDraft', () => {
     expect(await seedSessionFromDraft({} as Client, SESSION, ctx())).toBe(false)
   })
 
-  it('reports failure without calling the RPC for a malformed draft answer', async () => {
-    const answers = { [Q1]: { selectedOptionId: 'zzz', responseTimeMs: 1 } }
-    expect(await seedSessionFromDraft({} as Client, SESSION, ctx({ answers }))).toBe(false)
-    expect(mockRpc).not.toHaveBeenCalled()
+  it('skips a malformed draft answer, logs it and still seeds the rest', async () => {
+    const answers = {
+      [Q1]: { selectedOptionId: 'zzz', responseTimeMs: 1 },
+      [Q2]: { selectedOptionId: 'b', responseTimeMs: 1 },
+    }
+    expect(await seedSessionFromDraft({} as Client, SESSION, ctx({ answers }))).toBe(true)
+    expect(rpcCalls('save_quiz_answer')).toHaveLength(1)
+    expect(rpcCalls('save_quiz_answer')[0]?.p_question_id).toBe(Q2)
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('skipped'), Q1)
   })
 
-  it('reports failure for an answer keyed by a non-uuid question id', async () => {
+  it('skips an answer keyed by a non-uuid question id', async () => {
     const answers = { nope: { selectedOptionId: 'a', responseTimeMs: 1 } }
-    expect(await seedSessionFromDraft({} as Client, SESSION, ctx({ answers }))).toBe(false)
-    expect(mockRpc).not.toHaveBeenCalled()
+    expect(await seedSessionFromDraft({} as Client, SESSION, ctx({ answers }))).toBe(true)
+    expect(rpcCalls('save_quiz_answer')).toHaveLength(0)
+  })
+
+  it.each(['invalid_answer', 'invalid_time_spent', 'question_not_in_session'])(
+    'skips an answer the progress RPC rejects with %s and keeps seeding',
+    async (token) => {
+      mockRpc.mockResolvedValueOnce({ data: null, error: { message: token } })
+      const answers = {
+        [Q1]: { selectedOptionId: 'a', responseTimeMs: 1 },
+        [Q2]: { selectedOptionId: 'b', responseTimeMs: 1 },
+      }
+      expect(await seedSessionFromDraft({} as Client, SESSION, ctx({ answers }))).toBe(true)
+      expect(rpcCalls('save_quiz_answer')).toHaveLength(2)
+      expect(rpcCalls('save_quiz_position')).toHaveLength(1)
+    },
+  )
+
+  it.each(['session_taken_over', 'session_config_malformed', 'connection reset'])(
+    'aborts the seed when the progress RPC fails with %s',
+    async (token) => {
+      mockRpc.mockResolvedValue({ data: null, error: { message: token } })
+      const answers = { [Q1]: { selectedOptionId: 'a', responseTimeMs: 1 } }
+      expect(await seedSessionFromDraft({} as Client, SESSION, ctx({ answers }))).toBe(false)
+    },
+  )
+
+  it.each([
+    [-5, 0],
+    [999_999_999, 86_400_000],
+    [12.7, 12],
+    [Number.NaN, 0],
+    ['slow', 0],
+    [undefined, 0],
+  ])('sends a draft response time of %s as %s ms', async (given, sent) => {
+    const answers = { [Q1]: { selectedOptionId: 'a', responseTimeMs: given } }
+    expect(await seedSessionFromDraft({} as Client, SESSION, ctx({ answers }))).toBe(true)
+    expect(rpcCalls('save_quiz_answer')[0]?.p_time_spent_ms).toBe(sent)
   })
 })
 

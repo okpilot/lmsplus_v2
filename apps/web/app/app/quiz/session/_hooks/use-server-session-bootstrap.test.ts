@@ -68,4 +68,17 @@ describe('useServerSessionBootstrap', () => {
 
     await waitFor(() => expect(result.current.error).toMatch(/Failed to load/))
   })
+
+  it('does not reload the session when re-rendered with an equal question list', async () => {
+    const { rerender, result } = renderHook(
+      ({ ids }: { ids: string[] }) =>
+        useServerSessionBootstrap({ sessionId: 's1', questionIds: ids, mode: 'quick_quiz' }),
+      { initialProps: { ids: ['q1', 'q2'] } },
+    )
+    await waitFor(() => expect(result.current.questions).not.toBeNull())
+
+    rerender({ ids: ['q1', 'q2'] })
+
+    expect(mockLoad).toHaveBeenCalledTimes(1)
+  })
 })

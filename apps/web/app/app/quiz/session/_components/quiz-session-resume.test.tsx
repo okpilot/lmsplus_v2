@@ -118,4 +118,12 @@ describe('QuizSession — resumed from the server', () => {
     expect(seen.grid?.answeredIds).toEqual(new Set(['q2']))
     expect(seen.grid?.isExamMode).toBe(false)
   })
+
+  it('leaves answered squares to the visited colouring in Discovery', () => {
+    mockState.mockReturnValue(state({ seenIndices: new Set([1]) }))
+    renderIt({ mode: 'discovery' })
+
+    expect(seen.grid?.answeredIds).toBeUndefined()
+    expect(seen.grid?.seenIds).toEqual(new Set([1]))
+  })
 })

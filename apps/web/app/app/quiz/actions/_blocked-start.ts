@@ -10,3 +10,15 @@ export type WithBlocked<T> = T extends { success: false } ? T & { blocked?: true
 export function blockedFlag(rpcMessage: string | undefined): { blocked?: true } {
   return rpcMessage?.includes(ANOTHER_SESSION_ACTIVE) ? { blocked: true } : {}
 }
+
+const BLOCKED_MESSAGE =
+  'You already have an active session. Finish or discard it before starting a new one.'
+
+/** The blocked failure result for the single-active-session token, or null for any other error. */
+export function blockedFailure(
+  rpcMessage: string | undefined,
+): { success: false; error: string; blocked: true } | null {
+  return blockedFlag(rpcMessage).blocked
+    ? { success: false, error: BLOCKED_MESSAGE, blocked: true }
+    : null
+}

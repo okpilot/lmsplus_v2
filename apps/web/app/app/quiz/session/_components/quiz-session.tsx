@@ -1,6 +1,5 @@
 'use client'
 
-import { QuestionGrid } from '../../_components/question-grid'
 import { QuestionTabs } from '../../_components/question-tabs'
 import type { QuizSessionProps } from '../../session-types'
 import { useFlaggedQuestions } from '../_hooks/use-flagged-questions'
@@ -12,6 +11,7 @@ import { useUnblockedQuizKeyboard } from '../_hooks/use-unblocked-quiz-keyboard'
 import { QuizFinishDialogHost } from './quiz-finish-dialog-host'
 import { QuizMainPanel } from './quiz-main-panel'
 import { QuizSessionFooter } from './quiz-session-footer'
+import { QuizSessionGrid } from './quiz-session-grid'
 import { QuizSessionHeader } from './quiz-session-header'
 import { QuizSessionMetaRow } from './quiz-session-meta-row'
 
@@ -67,18 +67,12 @@ export function QuizSession(props: Readonly<QuizSessionProps>) {
       />
       <div className="px-4 pt-4 pb-32 md:px-8 md:pb-24">
         <div className="mx-auto max-w-3xl space-y-4">
-          <QuestionGrid
+          <QuizSessionGrid
+            s={s}
+            isDiscovery={isDiscovery}
             totalQuestions={props.questions.length}
-            currentIndex={s.currentIndex}
-            pinnedIds={s.pinnedQuestions}
             flaggedIds={flaggedIds}
-            questionIds={s.questionIds}
-            // Discovery's navigator is driven by `seenIds` (visited = green), not its pre-marked feedback.
-            feedbackMap={s.isExam || isDiscovery ? new Map() : feedbackMap}
-            answeredIds={s.answeredIds}
-            seenIds={isDiscovery ? s.seenIndices : undefined}
-            isExamMode={s.isExam}
-            onNavigate={s.navigateTo}
+            feedbackMap={feedbackMap}
           />
           {!s.isExam && (
             <div className="md:hidden">

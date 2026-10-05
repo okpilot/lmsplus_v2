@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { SessionQuestion } from '@/app/app/_types/session'
 import type { QuizMode } from '@/lib/constants/exam-modes'
 import { toRunnerMode } from '../_utils/session-runner-mode'
@@ -29,16 +29,19 @@ function toLoaded(r: SessionLoadResult): Loaded {
 /** Mount bootstrap of a server-loaded session: questions, flags, then the tab's claim. */
 export function useServerSessionBootstrap({ sessionId, questionIds, mode }: Readonly<Opts>) {
   const [state, setState] = useState<Loaded>(PENDING)
+  // A fresh array identity on an RSC refresh must not refetch and re-claim the session.
+  const questionIdsRef = useRef(questionIds)
+  questionIdsRef.current = questionIds
 
   useEffect(() => {
     let cancelled = false
-    loadSessionData(questionIds, { sessionId, ...toRunnerMode(mode) })
+    loadSessionData(questionIdsRef.current, { sessionId, ...toRunnerMode(mode) })
       .then((r) => !cancelled && setState(toLoaded(r)))
       .catch(() => !cancelled && setState({ ...PENDING, error: LOAD_FAILED }))
     return () => {
       cancelled = true
     }
-  }, [sessionId, questionIds, mode])
+  }, [sessionId, mode])
 
   return state
 }

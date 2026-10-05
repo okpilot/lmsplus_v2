@@ -1,26 +1,18 @@
-import { useRouter } from 'next/navigation'
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useRef } from 'react'
 import type { QuizStateOpts } from '../../session-types'
-import type { DraftAnswer } from '../../types'
 import { assembleQuizState } from './quiz-state-assembly'
-import { useAnswerPipeline } from './use-answer-pipeline'
 import { useExamPipeline } from './use-exam-state'
 import { useProgressSync } from './use-progress-sync'
 import { useQuizNavigationGuard } from './use-quiz-navigation-guard'
 import { useRestoredFeedback } from './use-restored-feedback'
+import { useStudyPipeline } from './use-study-pipeline'
 
 export type QuizState = ReturnType<typeof useQuizState>
 
 export function useQuizState(opts: QuizStateOpts) {
   const isExam = opts.mode === 'exam'
-  const router = useRouter()
   const sync = useProgressSync(opts)
   const { nav, currentIndexRef } = sync
-  const [studyAnswers, setStudyAnswers] = useState<Map<string, DraftAnswer>>(() =>
-    opts.initialAnswers ? new Map(Object.entries(opts.initialAnswers)) : new Map(),
-  )
-  const studyAnswersRef = useRef(studyAnswers)
-  studyAnswersRef.current = studyAnswers
   const question = opts.questions[nav.currentIndex]
   const questionId = question?.id ?? ''
   const getQId = () => questionId
@@ -35,17 +27,9 @@ export function useQuizState(opts: QuizStateOpts) {
     navigate: nav.navigate,
     onAnswerRecorded: sync.saveAnswer,
   })
-  const study = useAnswerPipeline({
-    ...opts,
+  const { pipeline: study, answers: studyAnswers } = useStudyPipeline(opts, sync, {
     getQuestionId: getQId,
     getAnswerStartTime: getStart,
-    getCurrentIndex: () => nav.currentIndex,
-    answers: studyAnswers,
-    setAnswers: setStudyAnswers,
-    answersRef: studyAnswersRef,
-    currentIndexRef,
-    navigateTo: nav.navigateTo,
-    router,
   })
 
   const p = isExam ? exam : study

@@ -89,8 +89,19 @@ describe('loadQuizPageData', () => {
     expect(data.activePractice).toBeNull()
   })
 
-  it('fails the page load when the saved quizzes cannot be read', async () => {
+  it('degrades to an empty saved list and flags the failure when the saved lookup throws', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
     mockLoadSavedQuizzes.mockRejectedValue(new Error('Failed to fetch saved quizzes: boom'))
-    await expect(loadQuizPageData('user-1')).rejects.toThrow('Failed to fetch saved quizzes')
+
+    const data = await loadQuizPageData('user-1')
+
+    expect(data.savedSessions).toEqual([])
+    expect(data.savedLookupFailed).toBe(true)
+    expect(data.drafts).toEqual([DRAFT])
+    expect(console.error).toHaveBeenCalled()
+  })
+
+  it('does not flag a saved lookup failure when the lookup succeeds', async () => {
+    expect((await loadQuizPageData('user-1')).savedLookupFailed).toBe(false)
   })
 })

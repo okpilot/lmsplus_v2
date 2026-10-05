@@ -1,21 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog'
 import { MODE_LABELS } from '@/lib/constants/exam-modes'
 import { useActivePracticeDiscard } from '../_hooks/use-active-practice-discard'
 import type { ActivePracticeSession } from '../actions/get-active-practice-session'
+import { ActivePracticeDiscardDialog } from './active-practice-discard-dialog'
 
 // Banner for an active practice session detected server-side. Resume opens the session
 // page, which loads the answers from the server; Discard clears the session.
@@ -29,7 +18,6 @@ export function ActivePracticeBanner({
     session.sessionId,
     userId,
   )
-  const [open, setOpen] = useState(false)
 
   if (discarded) return null
 
@@ -49,50 +37,13 @@ export function ActivePracticeBanner({
         >
           Resume
         </Link>
-        <AlertDialog
-          open={open}
-          onOpenChange={(next) => {
-            // Keep the dialog open while a discard is in flight so the confirm
-            // can't be dismissed mid-request; clear any stale error on close.
-            if (loading) return
-            setOpen(next)
-            if (!next) clearError()
-          }}
-        >
-          <AlertDialogTrigger
-            render={
-              <button
-                type="button"
-                disabled={loading}
-                className="rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
-              />
-            }
-          >
-            Discard
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Discard {modeLabel} session?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will permanently discard your {modeLabel} progress. You cannot undo this
-                action.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            {/* Render the error inside the dialog: the AlertDialogAction does not
-                close the popup, so a banner-level alert would sit behind the overlay. */}
-            {error && (
-              <p role="alert" className="text-xs text-destructive">
-                {error}
-              </p>
-            )}
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
-              <AlertDialogAction variant="destructive" disabled={loading} onClick={discard}>
-                Discard
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <ActivePracticeDiscardDialog
+          modeLabel={modeLabel}
+          loading={loading}
+          error={error}
+          onDiscard={discard}
+          onClearError={clearError}
+        />
       </div>
     </div>
   )

@@ -3,7 +3,11 @@
 // Saved rows are soft-deleted by design, so the helper must read past deleted_at. A second
 // student's saved quiz must never appear (the explicit student_id predicate, security rule 11).
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
-import { claimQuizSession, saveQuizAnswer } from '@/app/app/quiz/actions/quiz-progress'
+import {
+  claimQuizSession,
+  saveQuizAnswer,
+  saveQuizPosition,
+} from '@/app/app/quiz/actions/quiz-progress'
 import { saveQuizForLater } from '@/app/app/quiz/actions/saved-quiz'
 import { seedOpenSession } from '@/lib/integration-support/fixtures'
 import {
@@ -35,7 +39,7 @@ let studentB: string
 let refs: ReferenceIds
 let questionIds: string[]
 
-async function saveOpenQuizFor(email: string, answers: number): Promise<string> {
+async function saveOpenQuizFor(email: string, answers: number, viewedOnly = 0): Promise<string> {
   const client = await getAuthenticatedClient({ email, password })
   const { sessionId } = await seedOpenSession({
     studentClient: client,
@@ -54,6 +58,16 @@ async function saveOpenQuizFor(email: string, answers: number): Promise<string> 
       timeSpentMs: 1000,
     })
     expect(saved).toEqual({ success: true })
+  }
+  for (const questionId of questionIds.slice(answers, answers + viewedOnly)) {
+    const left = await saveQuizPosition({
+      sessionId,
+      deviceId: DEVICE,
+      currentIndex: 0,
+      pinnedQuestionIds: [],
+      leaving: { questionId, timeSpentMs: 500 },
+    })
+    expect(left).toEqual({ success: true })
   }
   expect(await saveQuizForLater({ sessionId, deviceId: DEVICE })).toEqual({ success: true })
   return sessionId
@@ -126,6 +140,14 @@ describe('loadSavedQuizzes (app-layer integration)', () => {
       totalCount: 3,
       answeredCount: 2,
     })
+  })
+
+  it('does not count a question that was only viewed as answered', async () => {
+    await saveOpenQuizFor(emailA, 1, 2)
+
+    const [saved] = await loadSavedQuizzes(studentA)
+
+    expect(saved?.answeredCount).toBe(1)
   })
 
   it("does not list another student's saved quiz", async () => {
