@@ -18,13 +18,14 @@ type ButtonsProps = {
 }
 
 function SavedSessionButtons({ resuming, deleting, onResume, onDelete }: Readonly<ButtonsProps>) {
+  const busy = resuming || deleting
   return (
     <div className="flex shrink-0 gap-2">
       <Button
         type="button"
         data-testid="resume-saved-session"
         onClick={onResume}
-        disabled={resuming}
+        disabled={busy}
         aria-busy={resuming || undefined}
       >
         {resuming ? 'Resuming...' : 'Resume'}
@@ -34,7 +35,7 @@ function SavedSessionButtons({ resuming, deleting, onResume, onDelete }: Readonl
         variant="outline"
         data-testid="delete-saved-session"
         onClick={onDelete}
-        disabled={deleting}
+        disabled={busy}
       >
         {deleting ? 'Deleting...' : 'Delete'}
       </Button>

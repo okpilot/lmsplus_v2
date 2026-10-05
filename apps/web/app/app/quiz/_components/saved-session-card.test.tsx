@@ -119,4 +119,17 @@ describe('SavedSessionCard', () => {
     ).toBeInTheDocument()
     expect(mockRefresh).not.toHaveBeenCalled()
   })
+  it('keeps Delete unavailable while a resume is in flight', async () => {
+    mockResume.mockReturnValue(new Promise(() => {}))
+    render(<SavedSessionCard session={SAVED} />)
+    fireEvent.click(screen.getByTestId('resume-saved-session'))
+    await waitFor(() => expect(screen.getByTestId('delete-saved-session')).toBeDisabled())
+  })
+
+  it('keeps Resume unavailable while a delete is in flight', async () => {
+    mockDiscard.mockReturnValue(new Promise(() => {}))
+    render(<SavedSessionCard session={SAVED} />)
+    fireEvent.click(screen.getByTestId('delete-saved-session'))
+    await waitFor(() => expect(screen.getByTestId('resume-saved-session')).toBeDisabled())
+  })
 })

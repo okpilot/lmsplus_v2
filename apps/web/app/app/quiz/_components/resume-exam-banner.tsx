@@ -60,7 +60,12 @@ export function ResumeExamBanner({ userId, exam, discardOnly, sessionId }: Reado
         {!discardOnly && (
           <Link
             href={`/app/quiz/session/${activeSessionId}`}
-            className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-600"
+            aria-disabled={loading || undefined}
+            tabIndex={loading ? -1 : undefined}
+            onClick={(e) => {
+              if (loading) e.preventDefault()
+            }}
+            className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-600 aria-disabled:pointer-events-none aria-disabled:opacity-50"
           >
             Resume Practice Exam
           </Link>

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -79,6 +79,22 @@ describe('ResumeExamBanner — Resume', () => {
       '/app/quiz/session/sess-exam-001',
     )
     expect(setItem).not.toHaveBeenCalled()
+  })
+})
+
+describe('ResumeExamBanner — Resume during a discard', () => {
+  it('blocks the Resume link when the dialog is cancelled while the discard is in flight', async () => {
+    mockDiscardQuiz.mockReturnValue(new Promise(() => {}))
+    render(<ResumeExamBanner userId={USER_ID} exam={EXAM} />)
+    await userEvent.click(screen.getByRole('button', { name: /^discard$/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^discard$/i, hidden: false }))
+    await waitFor(() => expect(mockDiscardQuiz).toHaveBeenCalled())
+    await userEvent.click(screen.getByRole('button', { name: /^cancel$/i }))
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+
+    const link = screen.getByRole('link', { name: /resume practice exam/i })
+    expect(link).toHaveAttribute('aria-disabled', 'true')
+    expect(fireEvent.click(link)).toBe(false)
   })
 })
 

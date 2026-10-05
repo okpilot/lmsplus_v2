@@ -2,14 +2,21 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockRouterPush, mockStartInternalExam, mockGetActivePracticeSession, mockClaim, mockSave } =
-  vi.hoisted(() => ({
-    mockRouterPush: vi.fn(),
-    mockStartInternalExam: vi.fn(),
-    mockGetActivePracticeSession: vi.fn(),
-    mockClaim: vi.fn(),
-    mockSave: vi.fn(),
-  }))
+const {
+  mockRouterPush,
+  mockStartInternalExam,
+  mockGetActivePracticeSession,
+  mockClaim,
+  mockSave,
+  mockCheckRoom,
+} = vi.hoisted(() => ({
+  mockCheckRoom: vi.fn(),
+  mockRouterPush: vi.fn(),
+  mockStartInternalExam: vi.fn(),
+  mockGetActivePracticeSession: vi.fn(),
+  mockClaim: vi.fn(),
+  mockSave: vi.fn(),
+}))
 
 vi.mock('@/app/app/quiz/actions/get-active-practice-session', () => ({
   getActivePracticeSession: (...args: unknown[]) => mockGetActivePracticeSession(...args),
@@ -19,6 +26,7 @@ vi.mock('@/app/app/quiz/actions/quiz-progress', () => ({
 }))
 vi.mock('@/app/app/quiz/actions/saved-quiz', () => ({
   saveQuizForLater: (...args: unknown[]) => mockSave(...args),
+  checkSavedQuizRoom: (...args: unknown[]) => mockCheckRoom(...args),
 }))
 
 vi.mock('next/navigation', () => ({
@@ -60,6 +68,7 @@ describe('CodeEntryModal', () => {
     vi.resetAllMocks()
     mockClaim.mockResolvedValue({ success: true })
     mockSave.mockResolvedValue({ success: true })
+    mockCheckRoom.mockResolvedValue({ success: true })
   })
 
   it('disables the submit button when the input is empty', () => {
