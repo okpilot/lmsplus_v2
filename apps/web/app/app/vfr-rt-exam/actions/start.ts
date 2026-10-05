@@ -2,6 +2,7 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
+import { blockedFlag, type WithBlocked } from '@/app/app/quiz/actions/_blocked-start'
 import { rpc } from '@/lib/supabase-rpc'
 import { START_VFR_RT_EXAM_ERROR_MESSAGES } from './_error-messages'
 
@@ -25,7 +26,7 @@ const RpcResultSchema = z.object({
 
 type StartRpcResult = z.infer<typeof RpcResultSchema>
 
-export type StartVfrRtExamResult =
+export type StartVfrRtExamResult = WithBlocked<
   | {
       success: true
       sessionId: string
@@ -35,6 +36,7 @@ export type StartVfrRtExamResult =
       startedAt: string
     }
   | { success: false; error: string }
+>
 
 function mapRpcError(message: string): string {
   for (const [token, friendly] of START_VFR_RT_EXAM_ERROR_MESSAGES) {
@@ -64,7 +66,7 @@ export async function startVfrRtExam(raw: unknown): Promise<StartVfrRtExamResult
 
     if (error) {
       console.error('[startVfrRtExam] RPC error:', error.message)
-      return { success: false, error: mapRpcError(error.message) }
+      return { success: false, error: mapRpcError(error.message), ...blockedFlag(error.message) }
     }
 
     const row: unknown = Array.isArray(data) ? data[0] : data

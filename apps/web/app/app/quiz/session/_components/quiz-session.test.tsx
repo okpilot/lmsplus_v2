@@ -12,15 +12,6 @@ vi.mock('../../actions/batch-submit', () => ({
   batchSubmitQuiz: (...args: unknown[]) => mockBatchSubmitQuiz(...args),
 }))
 
-const mockDeleteDraft = vi.fn()
-const mockSaveDraft = vi.fn()
-vi.mock('../../actions/draft', () => ({
-  saveDraft: (...args: unknown[]) => mockSaveDraft(...args),
-}))
-vi.mock('../../actions/draft-delete', () => ({
-  deleteDraft: (...args: unknown[]) => mockDeleteDraft(...args),
-}))
-
 const mockDiscardQuiz = vi.fn()
 vi.mock('../../actions/discard', () => ({
   discardQuiz: (...args: unknown[]) => mockDiscardQuiz(...args),
@@ -362,8 +353,6 @@ const mcFeedback = (correctOptionId: string) =>
 describe('QuizSession', () => {
   beforeEach(() => {
     vi.resetAllMocks()
-    mockDeleteDraft.mockResolvedValue({ success: true })
-    mockSaveDraft.mockResolvedValue({ success: true })
     mockDiscardQuiz.mockResolvedValue({ success: true })
     mockEndDiscovery.mockResolvedValue({ success: true })
     mockCheckAnswer.mockResolvedValue({

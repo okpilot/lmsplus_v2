@@ -289,7 +289,7 @@
  * leak that answer's length before the student types (the same reason blanks_safe ships index-only).
  *
  * `max-width: 100%` is what keeps a long answer inside the transcript: a blank accepts 200
- * characters (draft-schema.ts), and without the cap the estimated `--blank-w` (or the measured
+ * characters (BlankAnswersField in check-non-mc-answer-schema.ts), and without the cap the estimated `--blank-w` (or the measured
  * `field-sizing` width) pushes the dialog panel into horizontal overflow. It belongs on BOTH
  * rules — the `@supports` block replaces `width`, so a cap on the base rule alone does nothing
  * where `field-sizing` is supported. It pairs with `min-w-0` on the span wrapping the input in

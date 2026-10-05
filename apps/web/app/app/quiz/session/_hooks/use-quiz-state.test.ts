@@ -19,6 +19,9 @@ const {
   mockCheckpoint: vi.fn(),
 }))
 
+vi.mock('./use-restored-feedback', () => ({
+  useRestoredFeedback: (o: { feedback: unknown }) => o.feedback,
+}))
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockRouterPush }),
 }))

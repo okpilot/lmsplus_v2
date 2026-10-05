@@ -7,6 +7,7 @@ import { useAnswerPipeline } from './use-answer-pipeline'
 import { useExamPipeline } from './use-exam-state'
 import { useProgressSync } from './use-progress-sync'
 import { useQuizNavigationGuard } from './use-quiz-navigation-guard'
+import { useRestoredFeedback } from './use-restored-feedback'
 
 export type QuizState = ReturnType<typeof useQuizState>
 
@@ -53,7 +54,17 @@ export function useQuizState(opts: QuizStateOpts) {
   useQuizNavigationGuard(!isExam && answers.size > initialSize.current, p.submitted.current)
   const questionIds = useMemo(() => opts.questions.map((q) => q.id), [opts.questions])
 
+  const feedback = useRestoredFeedback({
+    enabled: opts.mode === 'study',
+    sessionId: opts.sessionId,
+    questionId,
+    restorable: opts.initialAnswers,
+    answers,
+    feedback: p.feedback,
+  })
+
   return assembleQuizState({
+    feedback,
     nav,
     question,
     questionId,

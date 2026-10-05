@@ -19,18 +19,29 @@ type BuildSquaresOpts = {
   seenIds?: Set<number>
 }
 
-/** Renders a single navigator square, or `null` when the active filter hides it. */
-function renderSquare(i: number, opts: BuildSquaresOpts) {
-  const { currentIndex, filter, questionIds, flaggedIds, pinnedIds } = opts
-  const { feedbackMap, onNavigate, isExamMode, answeredIds, seenIds } = opts
+function squareFlags(i: number, opts: BuildSquaresOpts) {
+  const { currentIndex, questionIds, flaggedIds, pinnedIds } = opts
+  const { feedbackMap, isExamMode, answeredIds, seenIds } = opts
   const qId = questionIds[i] ?? ''
   const isCurrent = i === currentIndex
   const feedback = feedbackMap.get(qId)
   const isCorrect = feedback ? feedback.isCorrect : null
   const isFlagged = flaggedIds.has(qId)
   const isPinned = pinnedIds.has(qId)
-  const isAnsweredInExam = isExamMode && !isCurrent && (answeredIds?.has(qId) ?? false)
+  // Exam: answered squares stay neutral. Practice: an answer whose feedback has not arrived yet.
+  const isAnswered = !isCurrent && (answeredIds?.has(qId) ?? false)
+  const isAnsweredInExam = isAnswered && (isExamMode === true || !feedback)
   const isSeen = !isCurrent && (seenIds?.has(i) ?? false)
+  return { qId, isCurrent, isCorrect, isFlagged, isPinned, isAnsweredInExam, isSeen }
+}
+
+/** Renders a single navigator square, or `null` when the active filter hides it. */
+function renderSquare(i: number, opts: BuildSquaresOpts) {
+  const { filter, onNavigate } = opts
+  const { qId, isCurrent, isCorrect, isFlagged, isPinned, isAnsweredInExam, isSeen } = squareFlags(
+    i,
+    opts,
+  )
   if ((filter === 'flagged' && !isFlagged) || (filter === 'pinned' && !isPinned)) return null
   return (
     <button

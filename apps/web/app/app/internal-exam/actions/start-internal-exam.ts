@@ -2,6 +2,7 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
+import { blockedFlag, type WithBlocked } from '@/app/app/quiz/actions/_blocked-start'
 import { rpc } from '@/lib/supabase-rpc'
 import { START_INTERNAL_EXAM_ERROR_MESSAGES } from './_error-messages'
 
@@ -19,7 +20,7 @@ const RpcRowSchema = z.object({
 
 type RpcRow = z.infer<typeof RpcRowSchema>
 
-export type StartInternalExamResult =
+export type StartInternalExamResult = WithBlocked<
   | {
       success: true
       sessionId: string
@@ -29,6 +30,7 @@ export type StartInternalExamResult =
       startedAt: string
     }
   | { success: false; error: string }
+>
 
 function mapRpcError(message: string): string {
   for (const [token, friendly] of START_INTERNAL_EXAM_ERROR_MESSAGES) {
@@ -58,7 +60,7 @@ export async function startInternalExam(raw: unknown): Promise<StartInternalExam
 
     if (error) {
       console.error('[startInternalExam] RPC error:', error.message)
-      return { success: false, error: mapRpcError(error.message) }
+      return { success: false, error: mapRpcError(error.message), ...blockedFlag(error.message) }
     }
 
     const row: unknown = Array.isArray(data) ? data[0] : data
