@@ -36,14 +36,16 @@ async function parkSessionAsSaved(sessionId: string): Promise<void> {
   if ((data?.length ?? 0) === 0) throw new Error('parkSessionAsSaved: no row updated')
 }
 
-async function readSavedAt(sessionId: string): Promise<string | null> {
+async function readSessionState(
+  sessionId: string,
+): Promise<{ deleted_at: string | null; saved_at: string | null }> {
   const { data, error } = await getAdminClient()
     .from('quiz_sessions')
-    .select('saved_at')
+    .select('deleted_at, saved_at')
     .eq('id', sessionId)
     .single()
-  if (error) throw new Error(`readSavedAt: ${error.message}`)
-  return data.saved_at
+  if (error) throw new Error(`readSessionState: ${error.message}`)
+  return data
 }
 
 /** Saved rows are soft-deleted already, so cleanupStudentActiveSessions cannot see them. */
@@ -103,14 +105,14 @@ test.describe('Quiz session opened by id', () => {
     await page.reload()
     await expect(page).toHaveURL(new RegExp(`/app/quiz/session/${sessionId}$`))
     await expect(page.getByRole('heading', { name: 'Saved quiz' })).toBeVisible()
-    expect(await readSavedAt(sessionId)).not.toBeNull()
+    expect((await readSessionState(sessionId)).saved_at).not.toBeNull()
 
     await page.getByRole('button', { name: 'Resume' }).click()
     await expect(page.getByText(new RegExp(`Question \\d+ of ${total}`))).toBeVisible({
       timeout: 15_000,
     })
     await expect(page).toHaveURL(new RegExp(`/app/quiz/session/${sessionId}$`))
-    expect(await readSavedAt(sessionId)).toBeNull()
+    expect((await readSessionState(sessionId)).saved_at).toBeNull()
   })
 
   test('deletes a saved quiz and returns to the quiz page', async ({ page }) => {
@@ -124,8 +126,11 @@ test.describe('Quiz session opened by id', () => {
     page.once('dialog', (d) => d.accept())
     await page.getByRole('button', { name: 'Delete' }).click()
     await expect(page).toHaveURL(/\/app\/quiz$/, { timeout: 15_000 })
-    expect(await readSavedAt(sessionId)).toBeNull()
+    expect((await readSessionState(sessionId)).saved_at).toBeNull()
 
+    const state = await readSessionState(sessionId)
+    expect(state.deleted_at).not.toBeNull()
+    expect(state.saved_at).toBeNull()
     await page.goto(`/app/quiz/session/${sessionId}`)
     await expect(page).toHaveURL(/\/app\/quiz$/)
   })
@@ -158,6 +163,9 @@ test.describe('Quiz session opened by id', () => {
     expect(await readServerAnsweredCount()).toBe(1)
 
     await cleanupStudentActiveSessions(TEST_EMAIL)
+    const state = await readSessionState(sessionId)
+    expect(state.deleted_at).not.toBeNull()
+    expect(state.saved_at).toBeNull()
     await page.goto(sessionUrl)
     await expect(page).toHaveURL(/\/app\/quiz$/)
     await expect(page.getByRole('heading', { name: 'Quiz' })).toBeVisible()

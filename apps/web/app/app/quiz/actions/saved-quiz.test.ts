@@ -45,7 +45,7 @@ beforeEach(() => {
 })
 
 describe('saveQuizForLater', () => {
-  it('saves the quiz through the RPC with snake_case arguments', async () => {
+  it('saves the quiz for later on the caller device', async () => {
     expect(await saveQuizForLater({ sessionId: SESSION, deviceId: DEVICE })).toEqual({
       success: true,
     })

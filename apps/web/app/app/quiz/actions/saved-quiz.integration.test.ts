@@ -194,10 +194,11 @@ describe('saved quiz actions (app-layer integration)', () => {
   })
 
   it("does not count another student's saved quizzes toward the cap", async () => {
+    const otherEmail = `int-saved-other-${suffix}@test.local`
     otherStudentId = await createTestUser({
       admin,
       orgId,
-      email: `int-saved-other-${suffix}@test.local`,
+      email: otherEmail,
       password,
       role: 'student',
     })
@@ -205,6 +206,12 @@ describe('saved quiz actions (app-layer integration)', () => {
     await signInAs(email, password)
 
     expect(await checkSavedQuizRoom()).toEqual({ success: true })
+
+    await signInAs(otherEmail, password)
+    expect(await checkSavedQuizRoom()).toEqual({
+      success: false,
+      error: expect.stringMatching(/20 saved quizzes/i),
+    })
   })
 
   it('refuses to resume while another session is open and keeps the quiz saved', async () => {

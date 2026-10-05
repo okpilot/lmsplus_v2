@@ -208,6 +208,6 @@ describe('loadQuizSessionState', () => {
   it('leaves the pass mark out of a practice session', async () => {
     setup({ row: row({ config: { question_ids: [Q1, Q2], pass_mark: 80 } }) })
 
-    expect(await loadQuizSessionState(SESSION, USER)).not.toHaveProperty('passMark', 80)
+    expect(await loadQuizSessionState(SESSION, USER)).toHaveProperty('passMark', undefined)
   })
 })

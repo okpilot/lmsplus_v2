@@ -163,12 +163,20 @@ describe('loadSavedQuizzes (app-layer integration)', () => {
 
   it('does not list an open quiz that was never saved', async () => {
     const client = await getAuthenticatedClient({ email: emailA, password })
-    await seedOpenSession({
+    const { sessionId } = await seedOpenSession({
       studentClient: client,
       questionIds,
       subjectId: refs.subjectId,
       topicId: refs.topicId,
     })
+    const { data: row, error } = await admin
+      .from('quiz_sessions')
+      .select('id, saved_at, deleted_at')
+      .eq('id', sessionId)
+      .single()
+    if (error) throw new Error(`read seeded session: ${error.message}`)
+    expect(row.saved_at).toBeNull()
+    expect(row.deleted_at).toBeNull()
     await signInAs(emailA, password)
 
     expect(await loadSavedQuizzes(studentA)).toEqual([])

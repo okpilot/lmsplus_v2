@@ -25,7 +25,8 @@ type SavedRow = {
 }
 
 function countQuestions(config: unknown): number {
-  const ids = (config as { question_ids?: unknown } | null)?.question_ids
+  if (typeof config !== 'object' || config === null) return 0
+  const ids = (config as Record<string, unknown>).question_ids
   return Array.isArray(ids) ? ids.length : 0
 }
 

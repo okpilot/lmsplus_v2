@@ -128,6 +128,18 @@ describe('loadSavedQuizzes', () => {
     expect(calls.filter(([k, a]) => k === 'progress.in' && Array.isArray(a[1]))).toHaveLength(2)
   })
 
+  it.each([
+    ['null', null],
+    ['a string', 'x'],
+    ['a non-array question list', { question_ids: 'x' }],
+  ])('counts no questions when the stored config is %s', async (_label, config) => {
+    setup({ data: [{ ...ROW, config }], error: null })
+
+    const result = await loadSavedQuizzes('user-1')
+
+    expect(result.map((r) => r.totalCount)).toEqual([0])
+  })
+
   it('skips the progress read when nothing is saved', async () => {
     setup({ data: [], error: null })
     expect(await loadSavedQuizzes('user-1')).toEqual([])
