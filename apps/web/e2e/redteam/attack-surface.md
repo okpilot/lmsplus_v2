@@ -238,6 +238,9 @@
 | HJ | recheckRestoredAnswers-batch-over-cap | MEDIUM | server-action-recheck-answers.spec.ts | BLOCKED |  | rate-limit |
 | HK | recheckRestoredAnswers-timeSpentMs-or-foreign-question-item | MEDIUM | server-action-recheck-answers.spec.ts | BLOCKED |  | mass-assignment |
 | HL | save_quiz_for_later-cap-after-claim-blocked-start | MEDIUM | rpc-saved-quiz-cap-blocked-start.spec.ts | BLOCKED |  | rate-limit |
+| HM | finish_quiz_session-vfr-rt-ordering-forged-progress | HIGH | rpc-finish-vfr-rt-forged-progress.spec.ts | BLOCKED |  | input-injection |
+| HN | finish_quiz_session-vfr-rt-diagram-forged-progress | HIGH | rpc-finish-vfr-rt-forged-progress.spec.ts | BLOCKED |  | input-injection |
+| HO | finishQuizSession-foreign-or-unauth-session | HIGH | server-action-finish-quiz.spec.ts | BLOCKED |  | idor |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
