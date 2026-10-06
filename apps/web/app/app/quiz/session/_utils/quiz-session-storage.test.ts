@@ -9,7 +9,6 @@ import {
 
 const USER_ID = 'test-user-id'
 const STORAGE_KEY = `quiz-active-session:${USER_ID}`
-const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
 
 // ---- localStorage mock -------------------------------------------------------
 // jsdom's localStorage may not extend Storage.prototype (--localstorage-file mode),
@@ -35,12 +34,6 @@ function makeLocalStorageMock() {
 const makeSession = (overrides?: Partial<ActiveSession>): ActiveSession => ({
   userId: USER_ID,
   sessionId: 'sess-123',
-  questionIds: ['q1', 'q2', 'q3'],
-  answers: { q1: { selectedOptionId: 'a', responseTimeMs: 1200 } },
-  currentIndex: 1,
-  subjectName: 'Meteorology',
-  subjectCode: 'MET',
-  savedAt: Date.now(),
   ...overrides,
 })
 
@@ -64,515 +57,49 @@ describe('readActiveSession', () => {
     })
   })
 
-  it('round-trips a session correctly', () => {
-    const session = makeSession()
-    writeActiveSession(session)
-    const result = readActiveSession(USER_ID)
-    expect(result).toEqual(session)
+  it('returns the stored session', () => {
+    writeActiveSession(makeSession())
+    expect(readActiveSession(USER_ID)).toEqual(makeSession())
   })
 
   it('returns null when key is missing', () => {
-    const result = readActiveSession(USER_ID)
-    expect(result).toBeNull()
+    expect(readActiveSession(USER_ID)).toBeNull()
   })
 
   it('returns null and removes key when JSON is malformed', () => {
     mockStorage._store.set(STORAGE_KEY, '{{not valid json}}')
 
-    const result = readActiveSession(USER_ID)
-
-    expect(result).toBeNull()
-    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
-  })
-
-  it('returns null and removes key when data is stale (>7 days)', () => {
-    const now = 1_700_000_000_000
-    vi.spyOn(Date, 'now').mockReturnValue(now)
-
-    const staleSession = makeSession({ savedAt: now - SEVEN_DAYS_MS - 1 })
-    mockStorage._store.set(STORAGE_KEY, JSON.stringify(staleSession))
-
-    const result = readActiveSession(USER_ID)
-
-    expect(result).toBeNull()
-    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
-  })
-
-  it('returns data when session is fresh (<7 days)', () => {
-    const now = 1_700_000_000_000
-    vi.spyOn(Date, 'now').mockReturnValue(now)
-
-    const freshSession = makeSession({ savedAt: now - SEVEN_DAYS_MS + 1000 })
-    mockStorage._store.set(STORAGE_KEY, JSON.stringify(freshSession))
-
-    const result = readActiveSession(USER_ID)
-
-    expect(result).toEqual(freshSession)
-  })
-
-  it('returns null and removes key when required field sessionId is missing', () => {
-    const broken = {
-      userId: USER_ID,
-      questionIds: ['q1'],
-      savedAt: Date.now(),
-      currentIndex: 0,
-      answers: {},
-    }
-    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
-
-    const result = readActiveSession(USER_ID)
-
-    expect(result).toBeNull()
-    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
-  })
-
-  it('returns null and removes key when questionIds is not an array', () => {
-    const broken = {
-      userId: USER_ID,
-      sessionId: 'sess-1',
-      questionIds: 'not-an-array',
-      savedAt: Date.now(),
-      currentIndex: 0,
-      answers: {},
-    }
-    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
-
-    const result = readActiveSession(USER_ID)
-
-    expect(result).toBeNull()
+    expect(readActiveSession(USER_ID)).toBeNull()
     expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
   })
 
   it('returns null and removes key when userId does not match', () => {
-    const otherUserSession = makeSession({ userId: 'other-user-id' })
-    mockStorage._store.set(STORAGE_KEY, JSON.stringify(otherUserSession))
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(makeSession({ userId: 'other-user-id' })))
 
-    const result = readActiveSession(USER_ID)
-
-    expect(result).toBeNull()
+    expect(readActiveSession(USER_ID)).toBeNull()
     expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
   })
 
-  it('returns null when questionIds contains non-string items', () => {
-    const broken = {
-      userId: USER_ID,
-      sessionId: 'sess-1',
-      questionIds: ['q1', 42, 'q3'],
-      savedAt: Date.now(),
-      currentIndex: 0,
-      answers: {},
-    }
-    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
-
-    const result = readActiveSession(USER_ID)
-
-    expect(result).toBeNull()
-    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
-  })
-
-  it('returns null when questionIds contains empty strings', () => {
-    const broken = {
-      userId: USER_ID,
-      sessionId: 'sess-1',
-      questionIds: ['q1', '', 'q3'],
-      savedAt: Date.now(),
-      currentIndex: 0,
-      answers: {},
-    }
-    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
-
-    const result = readActiveSession(USER_ID)
-
-    expect(result).toBeNull()
-    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
-  })
-
-  it('returns null when an answer value has wrong shape', () => {
-    const broken = {
-      userId: USER_ID,
-      sessionId: 'sess-1',
-      questionIds: ['q1'],
-      savedAt: Date.now(),
-      currentIndex: 0,
-      answers: { q1: { selectedOptionId: 123, responseTimeMs: 'not-a-number' } },
-    }
-    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
-
-    const result = readActiveSession(USER_ID)
-
-    expect(result).toBeNull()
-    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
-  })
-
-  it('returns null when an answer value is missing selectedOptionId', () => {
-    const broken = {
-      userId: USER_ID,
-      sessionId: 'sess-1',
-      questionIds: ['q1'],
-      savedAt: Date.now(),
-      currentIndex: 0,
-      answers: { q1: { responseTimeMs: 500 } },
-    }
-    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
-
-    const result = readActiveSession(USER_ID)
-
-    expect(result).toBeNull()
-    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
-  })
-
-  it('returns null when questionIds is an empty array', () => {
-    const broken = {
-      userId: USER_ID,
-      sessionId: 'sess-1',
-      questionIds: [],
-      savedAt: Date.now(),
-      currentIndex: 0,
-      answers: {},
-    }
-    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
-
-    const result = readActiveSession(USER_ID)
-
-    expect(result).toBeNull()
-    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
-  })
-
-  it('returns null when currentIndex is negative', () => {
-    const broken = {
-      userId: USER_ID,
-      sessionId: 'sess-1',
-      questionIds: ['q1'],
-      savedAt: Date.now(),
-      currentIndex: -1,
-      answers: {},
-    }
-    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
-
-    const result = readActiveSession(USER_ID)
-
-    expect(result).toBeNull()
-    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
-  })
-
-  it('returns null when currentIndex exceeds questionIds length', () => {
-    const broken = {
-      userId: USER_ID,
-      sessionId: 'sess-1',
-      questionIds: ['q1'],
-      savedAt: Date.now(),
-      currentIndex: 5,
-      answers: {},
-    }
-    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
-
-    const result = readActiveSession(USER_ID)
-
-    expect(result).toBeNull()
-    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
-  })
-
-  it('returns null when currentIndex is a float', () => {
-    const broken = {
-      userId: USER_ID,
-      sessionId: 'sess-1',
-      questionIds: ['q1', 'q2'],
-      savedAt: Date.now(),
-      currentIndex: 1.5,
-      answers: {},
-    }
-    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
-
-    const result = readActiveSession(USER_ID)
-
-    expect(result).toBeNull()
-    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
-  })
-
-  it('accepts valid feedback entries and returns the session', () => {
-    const session = makeSession({
-      feedback: {
-        q1: {
-          questionType: 'multiple_choice',
-          isCorrect: true,
-          correctOptionId: 'a',
-          explanationText: 'Because lift.',
-          explanationImageUrl: null,
-        },
-      },
-    })
-    mockStorage._store.set(STORAGE_KEY, JSON.stringify(session))
-
-    const result = readActiveSession(USER_ID)
-
-    expect(result).not.toBeNull()
-    expect(result?.feedback?.q1?.isCorrect).toBe(true)
-  })
-
-  it('returns null and removes key when a feedback entry is missing isCorrect', () => {
-    const broken = {
-      userId: USER_ID,
-      sessionId: 'sess-1',
-      questionIds: ['q1'],
-      savedAt: Date.now(),
-      currentIndex: 0,
-      answers: {},
-      feedback: {
-        q1: {
-          correctOptionId: 'a',
-          explanationText: null,
-          explanationImageUrl: null,
-          // isCorrect omitted
-        },
-      },
-    }
-    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
-
-    const result = readActiveSession(USER_ID)
-
-    expect(result).toBeNull()
-    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
-  })
-
-  it('returns null and removes key when a feedback entry has wrong type for isCorrect', () => {
-    const broken = {
-      userId: USER_ID,
-      sessionId: 'sess-1',
-      questionIds: ['q1'],
-      savedAt: Date.now(),
-      currentIndex: 0,
-      answers: {},
-      feedback: {
-        q1: {
-          isCorrect: 'yes', // should be boolean
-          correctOptionId: 'a',
-          explanationText: null,
-          explanationImageUrl: null,
-        },
-      },
-    }
-    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
-
-    const result = readActiveSession(USER_ID)
-
-    expect(result).toBeNull()
-    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
-  })
-
-  it('returns null and removes key when a feedback entry has explanationText as a number', () => {
-    const broken = {
-      userId: USER_ID,
-      sessionId: 'sess-1',
-      questionIds: ['q1'],
-      savedAt: Date.now(),
-      currentIndex: 0,
-      answers: {},
-      feedback: {
-        q1: {
-          isCorrect: false,
-          correctOptionId: 'b',
-          explanationText: 42, // should be string or null
-          explanationImageUrl: null,
-        },
-      },
-    }
-    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
-
-    const result = readActiveSession(USER_ID)
-
-    expect(result).toBeNull()
-    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
-  })
-
-  it('accepts sessions with an empty feedback object', () => {
-    const session = makeSession({ feedback: {} })
-    mockStorage._store.set(STORAGE_KEY, JSON.stringify(session))
-
-    const result = readActiveSession(USER_ID)
-
-    expect(result).not.toBeNull()
-  })
-
-  it('round-trips a session with mode: exam', () => {
-    const session = makeSession({
-      mode: 'exam',
-      startedAt: '2026-04-27T12:00:00.000Z',
-      timeLimitSeconds: 1800,
-      passMark: 75,
-    })
-    writeActiveSession(session)
-
-    const result = readActiveSession(USER_ID)
-
-    expect(result).not.toBeNull()
-    expect(result?.mode).toBe('exam')
-    expect(result?.startedAt).toBe('2026-04-27T12:00:00.000Z')
-    expect(result?.timeLimitSeconds).toBe(1800)
-    expect(result?.passMark).toBe(75)
-  })
-
-  it('rejects mode: exam entries that lack startedAt', () => {
-    const broken = makeSession({ mode: 'exam', timeLimitSeconds: 1800 })
-    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
-
-    const result = readActiveSession(USER_ID)
-
-    expect(result).toBeNull()
-    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
-  })
-
-  it('rejects mode: exam entries that lack timeLimitSeconds', () => {
-    const broken = makeSession({ mode: 'exam', startedAt: '2026-04-27T12:00:00.000Z' })
-    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
-
-    const result = readActiveSession(USER_ID)
-
-    expect(result).toBeNull()
-    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
-  })
-
-  it('accepts mode: exam entries with both startedAt and timeLimitSeconds present', () => {
-    const valid = makeSession({
-      mode: 'exam',
-      startedAt: '2026-04-27T12:00:00.000Z',
-      timeLimitSeconds: 1800,
-    })
-    mockStorage._store.set(STORAGE_KEY, JSON.stringify(valid))
-
-    const result = readActiveSession(USER_ID)
-
-    expect(result).not.toBeNull()
-    expect(result?.mode).toBe('exam')
-  })
-
-  // The active-session firewall only resumes 'study'/'exam' from localStorage.
-  // 'discovery' is now a valid SessionMode for the ephemeral handoff path, but it is
-  // still rejected here because Discovery is browse-only and never persists — a stored
-  // mode: 'discovery' is a stale/tampered payload. null is the most realistic
-  // tampered-JSON shape; a number covers non-string garbage.
   it.each([
-    { label: "the string 'discovery' (still firewalled — never persists)", mode: 'discovery' },
-    { label: 'a null', mode: null },
-    { label: 'a non-string number', mode: 42 },
-  ])('rejects a persisted session whose mode is $label', ({ mode }) => {
-    const tampered = JSON.stringify({ ...makeSession(), mode })
-    mockStorage._store.set(STORAGE_KEY, tampered)
+    { label: 'missing', entry: { userId: USER_ID } },
+    { label: 'empty', entry: { userId: USER_ID, sessionId: '' } },
+    { label: 'not a string', entry: { userId: USER_ID, sessionId: 123 } },
+  ])('returns null and removes key when sessionId is $label', ({ entry }) => {
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(entry))
 
-    const result = readActiveSession(USER_ID)
-
-    expect(result).toBeNull()
+    expect(readActiveSession(USER_ID)).toBeNull()
     expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
   })
 
-  it('accepts a persisted session with mode: study', () => {
-    const valid = makeSession({ mode: 'study' })
-    mockStorage._store.set(STORAGE_KEY, JSON.stringify(valid))
+  it.each([
+    { label: 'null', raw: 'null' },
+    { label: 'a string', raw: '"text"' },
+    { label: 'a number', raw: '42' },
+  ])('returns null and removes key when the entry is $label', ({ raw }) => {
+    mockStorage._store.set(STORAGE_KEY, raw)
 
-    const result = readActiveSession(USER_ID)
-
-    expect(result).not.toBeNull()
-    expect(result?.mode).toBe('study')
-  })
-
-  it('rejects mode: exam entries where startedAt is an unparseable string', () => {
-    const broken = makeSession({
-      mode: 'exam',
-      startedAt: 'not-a-date',
-      timeLimitSeconds: 1800,
-    })
-    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
-
-    const result = readActiveSession(USER_ID)
-
-    expect(result).toBeNull()
+    expect(readActiveSession(USER_ID)).toBeNull()
     expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
-  })
-
-  it('rejects exam sessions where startedAt is a number instead of an ISO string', () => {
-    // Epoch-ms corruption: a writer stored Date.now() instead of new Date().toISOString().
-    const broken = makeSession({
-      mode: 'exam',
-      startedAt: 1714219200000 as unknown as string,
-      timeLimitSeconds: 1800,
-    })
-    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
-
-    const result = readActiveSession(USER_ID)
-
-    expect(result).toBeNull()
-    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
-  })
-
-  it('rejects exam sessions with a zero-second time limit', () => {
-    const broken = makeSession({
-      mode: 'exam',
-      startedAt: '2026-04-27T12:00:00.000Z',
-      timeLimitSeconds: 0,
-    })
-    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
-
-    const result = readActiveSession(USER_ID)
-
-    expect(result).toBeNull()
-    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
-  })
-
-  it('rejects exam sessions with a null time limit value', () => {
-    const broken = makeSession({
-      mode: 'exam',
-      startedAt: '2026-04-27T12:00:00.000Z',
-      timeLimitSeconds: 60,
-    }) as unknown as Record<string, unknown>
-    broken.timeLimitSeconds = null
-    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
-
-    const result = readActiveSession(USER_ID)
-
-    expect(result).toBeNull()
-    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
-  })
-
-  it('rejects exam sessions with a negative time limit', () => {
-    const broken = makeSession({
-      mode: 'exam',
-      startedAt: '2026-04-27T12:00:00.000Z',
-      timeLimitSeconds: -1,
-    })
-    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
-
-    const result = readActiveSession(USER_ID)
-
-    expect(result).toBeNull()
-    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
-  })
-
-  it('rejects exam sessions when timeLimitSeconds overflows to Infinity', () => {
-    // 1e309 parses to Infinity; JSON.stringify({x: Infinity}) drops to null,
-    // so we serialise via makeSession with a sentinel and substitute the raw literal.
-    const base = makeSession({
-      mode: 'exam',
-      startedAt: '2026-04-27T12:00:00.000Z',
-      timeLimitSeconds: '__OVERFLOW__' as unknown as number,
-    })
-    const brokenJson = JSON.stringify(base).replace('"__OVERFLOW__"', '1e309')
-    mockStorage._store.set(STORAGE_KEY, brokenJson)
-
-    const result = readActiveSession(USER_ID)
-
-    expect(result).toBeNull()
-    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
-  })
-
-  it('round-trips a session without mode field (backward compat)', () => {
-    const legacySession = makeSession()
-    const raw = { ...legacySession } as Record<string, unknown>
-    delete raw.mode
-    mockStorage._store.set(STORAGE_KEY, JSON.stringify(raw))
-
-    const result = readActiveSession(USER_ID)
-
-    expect(result).not.toBeNull()
-    expect(result?.mode).toBeUndefined()
   })
 })
 

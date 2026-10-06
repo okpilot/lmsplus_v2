@@ -43,13 +43,10 @@ export function useActivePracticeDiscard(
     // offering Resume (#1190).
     //
     // Guarded on the id: this banner is SERVER-rendered and never revalidated on focus, so a
-    // stale tab can hold an old sessionId while localStorage has moved on to a newer session,
-    // and an unguarded userId-keyed clear would destroy that newer session's answers. Every
-    // clear goes through clearActiveSessionIfCurrent. The single-active-session invariant
-    // (docs/security.md §11d, mig 136) rules out two CONCURRENTLY live sessions but not a
-    // stale render. In the #1190 case the two ids are equal, so this does not weaken the fix;
-    // readActiveSession purges a malformed, cross-user or >7-day entry itself, so the false
-    // branch never leaves garbage behind.
+    // stale tab can hold an old sessionId. Guarded on the id so a stale banner never clears a
+    // legacy key that names another session. In the #1190 case the two ids are equal, so this
+    // does not weaken the fix; readActiveSession purges an entry that is malformed, cross-user
+    // or lacks a sessionId.
     clearActiveSessionIfCurrent(userId, sessionId)
     try {
       const result = await discardQuiz({ sessionId })

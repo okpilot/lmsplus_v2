@@ -16,8 +16,7 @@ import { buildDiscardHandler, type ResumeExamDeps } from './resume-exam-handlers
 
 const STORAGE_KEY = 'quiz-active-session:user-1'
 
-// Must satisfy isValidActiveSession, whose exam branch also requires startedAt and a positive
-// timeLimitSeconds. readActiveSession PURGES anything malformed, so a minimal { sessionId }
+// readActiveSession PURGES anything malformed, so a minimal { sessionId }
 // stub would be dropped by the read and the assertions would pass vacuously.
 function storedSession(sessionId: string) {
   return JSON.stringify({

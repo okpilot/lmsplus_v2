@@ -5,7 +5,7 @@ type RecordAnswer = (draft: Omit<DraftAnswer, 'responseTimeMs'>) => boolean
 
 /**
  * Exam-mode answer handlers: each buffers the answer write-once (no server
- * call, no feedback) and report it when recorded. Names and signatures match
+ * call, no feedback) and reports it when recorded. Names and signatures match
  * the study pipeline's handlers (answer-handler-helpers.ts).
  */
 export function buildExamAnswerHandlers(deps: {

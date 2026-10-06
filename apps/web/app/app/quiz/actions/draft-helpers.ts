@@ -24,10 +24,8 @@ export async function closePracticeSessionForDraft(
   sessionId: string,
   userId: string,
 ): Promise<void> {
-  // Fully best-effort: the draft is already saved, so this must NEVER surface as a
-  // save failure — swallow both query errors AND thrown exceptions (network etc.),
-  // logging for observability. Rethrowing would make the caller's outer catch report
-  // failure for a draft that was actually persisted.
+  // Fully best-effort: resume must not fail because closing the old session failed —
+  // swallow query errors and thrown exceptions, logging for observability.
   try {
     const { data, error } = await supabase
       .from('quiz_sessions')
