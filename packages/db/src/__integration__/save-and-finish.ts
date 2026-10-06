@@ -2,9 +2,6 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { DEVICE, type FinishResult } from './finish-fixture'
 import { requireRpcResult } from './guards'
 
-/** Device id every seed save/finish call presents (no start RPC pins a device). */
-export const SEED_DEVICE = DEVICE
-
 export type SeedAnswer = {
   questionId: string
   answer: unknown
@@ -37,7 +34,7 @@ export async function saveSeedAnswers(
       p_question_id: a.questionId,
       p_answer: a.answer,
       p_time_spent_ms: a.timeSpentMs ?? 1000,
-      p_device_id: SEED_DEVICE,
+      p_device_id: DEVICE,
     })
     if (error) throw new Error(`save_quiz_answer: ${error.message}`)
   }
@@ -50,7 +47,7 @@ export async function finishSeedSession(
 ): Promise<FinishResult> {
   const { data, error } = await client.rpc('finish_quiz_session', {
     p_session_id: sessionId,
-    p_device_id: SEED_DEVICE,
+    p_device_id: DEVICE,
   })
   if (error) throw new Error(`finish_quiz_session: ${error.message}`)
   return requireRpcResult<FinishResult>(data, 'finish_quiz_session')

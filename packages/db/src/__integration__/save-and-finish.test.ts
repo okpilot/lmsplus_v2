@@ -1,12 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import {
-  finishSeedSession,
-  P,
-  SEED_DEVICE,
-  saveAndFinish,
-  saveSeedAnswers,
-} from './save-and-finish'
+import { DEVICE } from './finish-fixture'
+import { finishSeedSession, P, saveAndFinish, saveSeedAnswers } from './save-and-finish'
 
 const mockRpc = vi.hoisted(() => vi.fn())
 const client = { rpc: mockRpc } as unknown as SupabaseClient
@@ -42,7 +37,7 @@ describe('saveSeedAnswers', () => {
       p_question_id: 'q1',
       p_answer: { selected_option_id: 'a' },
       p_time_spent_ms: 1000,
-      p_device_id: SEED_DEVICE,
+      p_device_id: DEVICE,
     })
     expect(mockRpc.mock.calls[1]?.[1]).toMatchObject({ p_time_spent_ms: 42 })
   })
@@ -62,7 +57,7 @@ describe('finishSeedSession', () => {
     await expect(finishSeedSession(client, 's1')).resolves.toEqual({ score_percentage: 100 })
     expect(mockRpc).toHaveBeenCalledWith('finish_quiz_session', {
       p_session_id: 's1',
-      p_device_id: SEED_DEVICE,
+      p_device_id: DEVICE,
     })
   })
 
