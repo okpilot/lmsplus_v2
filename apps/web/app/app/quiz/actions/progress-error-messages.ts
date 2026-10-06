@@ -12,6 +12,8 @@ const NOT_ACTIVE = 'Your account is no longer active.'
 const BAD_ANSWER = 'This answer could not be saved. Please review it and try again.'
 const BAD_PROGRESS = 'Your progress could not be saved. Reload the page and try again.'
 const NO_QUESTION = 'That question is not part of this session.'
+/** Copy the progress actions return when Zod rejects the input. */
+export const INVALID_INPUT = 'Invalid input'
 export const SIGN_IN = 'Your sign-in has expired. Please sign in again.'
 const NO_FEATURE = 'This session type does not support saving progress.'
 export const SAVED_QUIZ_LIMIT =

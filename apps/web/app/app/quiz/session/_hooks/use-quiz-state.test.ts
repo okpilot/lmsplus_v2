@@ -28,7 +28,6 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('./quiz-submit', () => ({
   submitQuizSession: vi.fn(),
-  saveQuizDraft: vi.fn(),
   discardQuizSession: vi.fn(),
   handleSubmitSession: (...args: unknown[]) => mockHandleSubmitSession(...args),
   handleSaveSession: (...args: unknown[]) => mockHandleSaveSession(...args),
@@ -432,23 +431,14 @@ describe('useQuizState — handleSubmit', () => {
 // ---- Save draft -----------------------------------------------------------
 
 describe('useQuizState — handleSave', () => {
-  it('saves current progress with correct quiz data', async () => {
+  it('saves the session for this student', async () => {
     const { result } = renderHook(() =>
-      useQuizState({
-        userId: 'test-user-id',
-        sessionId: SESSION_ID,
-        questions: THREE_QUESTIONS,
-        initialIndex: 1,
-      }),
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
     await act(async () => result.current.handleSave())
 
     expect(mockHandleSaveSession).toHaveBeenCalledWith(
-      expect.objectContaining({
-        sessionId: SESSION_ID,
-        questions: THREE_QUESTIONS,
-        currentIndex: 1,
-      }),
+      expect.objectContaining({ userId: 'test-user-id', sessionId: SESSION_ID }),
     )
   })
 
@@ -466,43 +456,6 @@ describe('useQuizState — handleSave', () => {
     await act(async () => result.current.handleSave())
 
     expect(result.current.error).toBe('Failed to save draft')
-  })
-
-  it('includes draft id when saving existing draft', async () => {
-    const DRAFT_ID = '00000000-0000-4000-a000-000000000050'
-    const { result } = renderHook(() =>
-      useQuizState({
-        userId: 'test-user-id',
-        sessionId: SESSION_ID,
-        questions: THREE_QUESTIONS,
-        draftId: DRAFT_ID,
-      }),
-    )
-    await act(async () => result.current.handleSave())
-
-    expect(mockHandleSaveSession).toHaveBeenCalledWith(
-      expect.objectContaining({ draftId: DRAFT_ID }),
-    )
-  })
-
-  it('includes subject metadata when saving', async () => {
-    const { result } = renderHook(() =>
-      useQuizState({
-        userId: 'test-user-id',
-        sessionId: SESSION_ID,
-        questions: THREE_QUESTIONS,
-        subjectName: 'Air Law',
-        subjectCode: 'ALW',
-      }),
-    )
-    await act(async () => result.current.handleSave())
-
-    expect(mockHandleSaveSession).toHaveBeenCalledWith(
-      expect.objectContaining({
-        subjectName: 'Air Law',
-        subjectCode: 'ALW',
-      }),
-    )
   })
 })
 

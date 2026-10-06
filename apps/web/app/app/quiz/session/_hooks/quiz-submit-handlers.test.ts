@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SessionQuestion } from '@/app/app/_types/session'
 import { createMockRouter } from '@/lib/test-support/mock-router'
-import type { AnswerFeedback, DraftAnswer } from '../../types'
+import type { DraftAnswer } from '../../types'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -19,6 +19,22 @@ const {
 
 vi.mock('./quiz-submit-vfr-rt', () => ({
   handleSubmitVfrRtExamSession: (...args: unknown[]) => mockHandleSubmitVfrRtExamSession(...args),
+}))
+
+const { mockResend, mockIsTakenOver, mockGetStatus } = vi.hoisted(() => ({
+  mockResend: vi.fn(),
+  mockIsTakenOver: vi.fn(),
+  mockGetStatus: vi.fn(),
+}))
+
+vi.mock('../_utils/progress-sync-saves', () => ({
+  resendUnsavedAnswers: (...a: unknown[]) => mockResend(...a),
+}))
+vi.mock('../_utils/session-takeover', () => ({
+  isTakenOver: (...a: unknown[]) => mockIsTakenOver(...a),
+}))
+vi.mock('../_utils/connection-state', () => ({
+  getConnectionStatus: () => mockGetStatus(),
 }))
 
 vi.mock('../_utils/with-reconnect', () => ({ whenQueueIdle: () => Promise.resolve() }))
@@ -70,6 +86,9 @@ function makeBaseDeps(overrides: Partial<Parameters<typeof buildSharedFor>[0]> =
 beforeEach(() => {
   vi.resetAllMocks()
   mockLocationAssign.mockReset()
+  mockResend.mockResolvedValue(true)
+  mockIsTakenOver.mockReturnValue(false)
+  mockGetStatus.mockReturnValue('ok')
   mockHandleSubmitSession.mockResolvedValue(undefined)
   mockHandleSaveSession.mockResolvedValue(undefined)
   mockHandleDiscardSession.mockResolvedValue(undefined)
@@ -261,37 +280,90 @@ describe('buildHandleSubmit', () => {
 // ---- buildHandleSave ---------------------------------------------------------
 
 describe('buildHandleSave', () => {
-  function makeSaveDeps(overrides = {}) {
-    return {
-      ...makeBaseDeps(),
-      questions: [{ id: 'q1' }] as SessionQuestion[],
-      answersRef: {
-        current: new Map<string, DraftAnswer>([
-          ['q1', { selectedOptionId: 'a', responseTimeMs: 1 }],
-        ]),
-      },
-      feedbackRef: { current: new Map<string, AnswerFeedback>() },
-      currentIndexRef: { current: 0 },
-      pendingQuestionIdRef: { current: new Set<string>() },
-      ...overrides,
-    }
-  }
-
   it('delegates to handleSaveSession with userId/sessionId', async () => {
-    const deps = makeSaveDeps()
-    const handleSave = buildHandleSave(deps)
+    const handleSave = buildHandleSave(makeBaseDeps())
     await handleSave()
     const call = mockHandleSaveSession.mock.calls[0]?.[0] as Record<string, unknown>
     expect(call.userId).toBe(USER_ID)
     expect(call.sessionId).toBe(SESSION_ID)
   })
 
-  it('excludes pending question ids from the saved answers', async () => {
-    const deps = makeSaveDeps({ pendingQuestionIdRef: { current: new Set(['q1']) } })
-    const handleSave = buildHandleSave(deps)
+  it('does not hand the old draft to the save, so saving cannot remove it', async () => {
+    const handleSave = buildHandleSave(makeBaseDeps({ draftId: 'draft-1' }))
     await handleSave()
-    const call = mockHandleSaveSession.mock.calls[0]?.[0] as { answers: Map<string, DraftAnswer> }
-    expect(call.answers.size).toBe(0)
+    expect(mockHandleSaveSession).toHaveBeenCalledTimes(1)
+    const call = mockHandleSaveSession.mock.calls[0]?.[0] as Record<string, unknown>
+    expect(call).not.toHaveProperty('draftId')
+  })
+
+  it('sends no answers or progress, because the server session already holds them', async () => {
+    const handleSave = buildHandleSave(makeBaseDeps())
+    await handleSave()
+    const call = mockHandleSaveSession.mock.calls[0]?.[0] as Record<string, unknown>
+    expect(call).not.toHaveProperty('answers')
+    expect(call).not.toHaveProperty('questions')
+  })
+})
+
+describe('buildHandleSave with unsaved answers', () => {
+  const UNSAVED = 'Some answers have not saved yet. Check your connection and try again.'
+
+  it('shows the unsaved-answers error, does not save the quiz and clears the pending state', async () => {
+    mockResend.mockResolvedValue(false)
+    const deps = makeBaseDeps()
+    await buildHandleSave(deps)()
+    expect(deps.setError).toHaveBeenLastCalledWith(UNSAVED)
+    expect(mockHandleSaveSession).not.toHaveBeenCalled()
+    expect(deps.setPendingAction).toHaveBeenLastCalledWith(null)
+  })
+
+  it("shows the server's message when the re-send got one", async () => {
+    mockResend.mockImplementation(async (o: { onMappedError: (m: string) => void }) => {
+      o.onMappedError('This session has already ended.')
+      return false
+    })
+    const deps = makeBaseDeps()
+    await buildHandleSave(deps)()
+    expect(deps.setError).toHaveBeenLastCalledWith('This session has already ended.')
+    expect(mockHandleSaveSession).not.toHaveBeenCalled()
+  })
+
+  it('shows the message and does not save the quiz when the re-send settles but reported one', async () => {
+    mockResend.mockImplementation(async (o: { onMappedError: (m: string) => void }) => {
+      o.onMappedError('This answer could not be saved. Please review it and try again.')
+      return true
+    })
+    const deps = makeBaseDeps()
+    await buildHandleSave(deps)()
+    expect(deps.setError).toHaveBeenLastCalledWith(
+      'This answer could not be saved. Please review it and try again.',
+    )
+    expect(mockHandleSaveSession).not.toHaveBeenCalled()
+    expect(deps.setPendingAction).toHaveBeenLastCalledWith(null)
+  })
+
+  it('shows no error when the session was taken over, and still does not save', async () => {
+    mockResend.mockResolvedValue(false)
+    mockIsTakenOver.mockReturnValue(true)
+    const deps = makeBaseDeps()
+    await buildHandleSave(deps)()
+    expect(deps.setError).toHaveBeenLastCalledWith(null)
+    expect(mockHandleSaveSession).not.toHaveBeenCalled()
+  })
+
+  it('shows no error when signed out, and still does not save', async () => {
+    mockResend.mockResolvedValue(false)
+    mockGetStatus.mockReturnValue('signed-out')
+    const deps = makeBaseDeps()
+    await buildHandleSave(deps)()
+    expect(deps.setError).toHaveBeenLastCalledWith(null)
+    expect(mockHandleSaveSession).not.toHaveBeenCalled()
+  })
+
+  it('saves the quiz when every failed answer re-sends', async () => {
+    mockResend.mockResolvedValue(true)
+    await buildHandleSave(makeBaseDeps())()
+    expect(mockHandleSaveSession).toHaveBeenCalledTimes(1)
   })
 })
 

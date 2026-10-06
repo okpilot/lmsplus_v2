@@ -4,16 +4,10 @@ import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
 import { deleteDraft } from '../actions/draft-delete'
 import { resumeQuizSession } from '../actions/resume'
-import { writeResumeHandoff } from '../session/_utils/quiz-session-handoff'
 import type { DraftData } from '../types'
+import { SavedSessionProgress } from './saved-session-progress'
 
-export function progressColor(pct: number): string {
-  if (pct >= 90) return 'text-green-600'
-  if (pct < 50) return 'text-amber-500'
-  return 'text-primary'
-}
-
-export function DraftCard({ draft, userId }: Readonly<{ draft: DraftData; userId: string }>) {
+export function DraftCard({ draft }: Readonly<{ draft: DraftData }>) {
   const router = useRouter()
   const [deleting, setDeleting] = useState(false)
   const [resuming, setResuming] = useState(false)
@@ -22,7 +16,6 @@ export function DraftCard({ draft, userId }: Readonly<{ draft: DraftData; userId
 
   const answeredCount = Object.keys(draft.answers).length
   const totalCount = draft.questionIds.length
-  const progress = totalCount > 0 ? (answeredCount / totalCount) * 100 : 0
   const subjectLabel = draft.subjectName ?? 'Unknown subject'
   const dateLabel = draft.createdAt
     ? `${new Date(draft.createdAt).toLocaleString('en-GB', {
@@ -66,12 +59,8 @@ export function DraftCard({ draft, userId }: Readonly<{ draft: DraftData; userId
       failResume(result.error)
       return
     }
-    if (!writeResumeHandoff(userId, result.sessionId, draft)) {
-      failResume('Unable to resume right now. Please try again.')
-      return
-    }
     // Terminal navigation is the last statement; ref intentionally NOT reset (success).
-    router.push('/app/quiz/session')
+    router.push(`/app/quiz/session/${result.sessionId}`)
   }
 
   async function handleDelete() {
@@ -117,21 +106,7 @@ export function DraftCard({ draft, userId }: Readonly<{ draft: DraftData; userId
           </button>
         </div>
       </div>
-      <div className="space-y-1">
-        <div className="flex justify-between text-xs">
-          <span className="text-muted-foreground">
-            {answeredCount} of {totalCount} answered
-          </span>
-          <span className={`font-medium ${progressColor(progress)}`}>{Math.round(progress)}%</span>
-        </div>
-        <div className="h-1 rounded-full bg-muted">
-          <div
-            data-testid="draft-progress"
-            className="h-1 rounded-full bg-primary transition-all"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-      </div>
+      <SavedSessionProgress answered={answeredCount} total={totalCount} />
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   )

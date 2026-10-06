@@ -4,13 +4,13 @@ import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import { MAX_SAVED_QUIZZES } from '@/lib/queries/load-saved-quizzes'
 import { rpc } from '@/lib/supabase-rpc'
-import { SAVED_QUIZ_LIMIT, SIGN_IN } from './progress-error-messages'
+import { INVALID_INPUT, SAVED_QUIZ_LIMIT, SIGN_IN } from './progress-error-messages'
 import { type ProgressResult, toProgressResult } from './quiz-progress-helpers'
 
 const SaveInput = z.object({ sessionId: z.uuid(), deviceId: z.uuid() }).strict()
 const DiscardInput = z.object({ sessionId: z.uuid() }).strict()
 
-const INVALID: ProgressResult = { success: false, error: 'Invalid input' }
+const INVALID: ProgressResult = { success: false, error: INVALID_INPUT }
 const UNAUTHENTICATED: ProgressResult = { success: false, error: SIGN_IN }
 
 async function authedUser() {

@@ -18,9 +18,11 @@ function LookupAlert({ children }: Readonly<{ children: ReactNode }>) {
 export function LookupErrorAlerts({
   examFailed,
   practiceFailed,
+  savedFailed = false,
 }: Readonly<{
   examFailed: boolean
   practiceFailed: boolean
+  savedFailed?: boolean
 }>) {
   return (
     <>
@@ -34,6 +36,12 @@ export function LookupErrorAlerts({
         <LookupAlert>
           We couldn&apos;t check for an unfinished practice session right now. Please refresh — if
           the issue persists, contact support.
+        </LookupAlert>
+      )}
+      {savedFailed && (
+        <LookupAlert>
+          We couldn&apos;t load your saved quizzes right now. Please refresh — if the issue
+          persists, contact support.
         </LookupAlert>
       )}
     </>

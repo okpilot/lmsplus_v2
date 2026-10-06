@@ -1,4 +1,4 @@
-import { isDisplayableProgressError } from '../../actions/progress-error-messages'
+import { INVALID_INPUT, isDisplayableProgressError } from '../../actions/progress-error-messages'
 import { saveQuizAnswer, saveQuizPosition } from '../../actions/quiz-progress'
 import type { DraftAnswer } from '../../types'
 import { withTakeoverCheck } from './claim-quiz-device'
@@ -71,26 +71,42 @@ export function buildPositionInput(opts: PositionInputOpts) {
 
 type SaveKind = 'answer' | 'position'
 
+type SaveOutcome = 'saved' | 'rejected' | 'failed'
+
 /**
- * Fire-and-forget progress save. Never throws and is never awaited by callers. A mapped
- * (displayable) failure goes to onMappedError; anything else is a console.warn only.
+ * Fire-and-forget progress save. Never throws or rejects; callers may ignore the result. Resolves:
+ * - 'saved': the save succeeded.
+ * - 'rejected': the server refused this input for good; re-sending cannot change it. A mapped
+ *   failure goes to onMappedError.
+ * - 'failed': anything else (transient failure, throw, taken-over session, signed-out user). A
+ *   taken-over session and a signed-out user warn nothing; other failures console.warn.
  */
-export function fireProgressSave(opts: {
+export async function fireProgressSave(opts: {
   kind: SaveKind
   sessionId: string
   input: unknown
   onSuccess: () => void
   onMappedError: (message: string) => void
-}): void {
-  if (isTakenOver(opts.sessionId)) return
+}): Promise<SaveOutcome> {
+  if (isTakenOver(opts.sessionId)) return 'failed'
   const save = opts.kind === 'answer' ? saveQuizAnswer : saveQuizPosition
-  withTakeoverCheck(opts.sessionId, () => withReconnect(() => save(opts.input)))
-    .then((r) => {
-      if (r.success) return opts.onSuccess()
-      // The overlay already says the sign-in expired; no second message behind it.
-      if (getConnectionStatus() === 'signed-out') return
-      if (isDisplayableProgressError(r.error)) return opts.onMappedError(r.error)
-      console.warn(`[progress-save] ${opts.kind} save failed (best-effort):`, r.error)
-    })
-    .catch((err) => console.warn(`[progress-save] ${opts.kind} save failed (best-effort):`, err))
+  try {
+    const r = await withTakeoverCheck(opts.sessionId, () => withReconnect(() => save(opts.input)))
+    if (r.success) {
+      opts.onSuccess()
+      return 'saved'
+    }
+    if (isTakenOver(opts.sessionId)) return 'failed'
+    // The overlay already says the sign-in expired; no second message behind it.
+    if (getConnectionStatus() === 'signed-out') return 'failed'
+    if (isDisplayableProgressError(r.error)) {
+      opts.onMappedError(r.error)
+      return 'rejected'
+    }
+    console.warn(`[progress-save] ${opts.kind} save failed (best-effort):`, r.error)
+    return r.error === INVALID_INPUT ? 'rejected' : 'failed'
+  } catch (err) {
+    console.warn(`[progress-save] ${opts.kind} save failed (best-effort):`, err)
+    return 'failed'
+  }
 }

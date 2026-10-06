@@ -1,6 +1,7 @@
 import type { DraftAnswer } from '../../types'
 import { buildAnswerInput, buildPositionInput, fireProgressSave } from './progress-save'
 import { getQuizDeviceId } from './quiz-device-id'
+import { failedAnswers, settleAnswerSend, trackAnswerSend } from './unsaved-answers'
 
 type SaveHandlers = {
   onSuccess: () => void
@@ -18,7 +19,7 @@ type PositionSaveOpts = SaveHandlers & {
 /** Fires the background position save; `leaving` adds the left question's visit time. */
 export function sendPositionSave(opts: PositionSaveOpts): void {
   const { leaving } = opts
-  fireProgressSave({
+  void fireProgressSave({
     kind: 'position',
     sessionId: opts.sessionId,
     input: buildPositionInput({
@@ -53,13 +54,39 @@ export function sendAnswerSave(opts: AnswerSaveOpts): void {
     timeSpentMs: Date.now() - opts.startedAt,
   })
   if (!input) return
-  fireProgressSave({
+  const { sessionId, questionId } = opts
+  trackAnswerSend({ sessionId, questionId, input })
+  void fireProgressSave({
     kind: 'answer',
-    sessionId: opts.sessionId,
+    sessionId,
     input,
     onSuccess: opts.onSuccess,
     onMappedError: opts.onMappedError,
-  })
+  }).then((outcome) =>
+    settleAnswerSend({ sessionId, questionId, input, settled: outcome !== 'failed' }),
+  )
+}
+
+/** Re-sends the answer saves that failed; true when none is left unsaved. */
+export async function resendUnsavedAnswers(opts: {
+  sessionId: string
+  onMappedError: (message: string) => void
+}): Promise<boolean> {
+  const { sessionId } = opts
+  await Promise.all(
+    failedAnswers(sessionId).map(async ({ questionId, input }) => {
+      trackAnswerSend({ sessionId, questionId, input })
+      const outcome = await fireProgressSave({
+        kind: 'answer',
+        sessionId,
+        input,
+        onSuccess: () => {},
+        onMappedError: opts.onMappedError,
+      })
+      settleAnswerSend({ sessionId, questionId, input, settled: outcome !== 'failed' })
+    }),
+  )
+  return failedAnswers(sessionId).length === 0
 }
 
 type RunnerSaveDeps = SaveHandlers & {

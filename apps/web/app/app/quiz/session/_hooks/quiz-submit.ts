@@ -4,10 +4,11 @@ import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
 import { batchSubmitQuiz } from '../../actions/batch-submit'
 import { clearDeploymentPin } from '../../actions/clear-deployment-pin'
 import { discardQuiz } from '../../actions/discard'
-import { saveDraft } from '../../actions/draft'
 import { deleteDraft } from '../../actions/draft-delete'
+import { saveQuizForLater } from '../../actions/saved-quiz'
 import { submitEmptyExamSession } from '../../actions/submit-empty-exam'
-import type { AnswerFeedback, DraftAnswer } from '../../types'
+import type { DraftAnswer } from '../../types'
+import { getQuizDeviceId } from '../_utils/quiz-device-id'
 import { clearActiveSession } from '../_utils/quiz-session-storage'
 import { reportUrl } from './exam-report-paths'
 import { fanOutAnswer } from './quiz-submit-fanout'
@@ -20,6 +21,17 @@ type SetSubmitting = (v: boolean) => void
 /** Max time to wait for best-effort draft cleanup before navigating. The hard-nav
  * fallback in use-quiz-submit covers the rare case cleanup exceeds this. */
 const DRAFT_CLEANUP_TIMEOUT_MS = 2500
+
+/** Best-effort legacy-draft cleanup, bounded so an auth/DB stall can't hang the caller. */
+async function deleteDraftBounded(draftId: string, caller: string) {
+  let cleanupTimer: ReturnType<typeof setTimeout> | undefined
+  await Promise.race([
+    deleteDraft({ draftId }).catch((e) => console.error(`[${caller}] Draft cleanup failed:`, e)),
+    new Promise<void>((resolve) => {
+      cleanupTimer = setTimeout(resolve, DRAFT_CLEANUP_TIMEOUT_MS)
+    }),
+  ]).finally(() => clearTimeout(cleanupTimer))
+}
 
 export async function submitQuizSession(
   sessionId: string,
@@ -37,17 +49,7 @@ export async function submitQuizSession(
     // with nothing in flight. Bound the draft-delete wait so an auth/DB stall can't hang
     // submit — the hard-nav fallback (use-quiz-submit) covers a timeout.
     await clearDeploymentPin().catch(() => {})
-    if (draftId) {
-      let cleanupTimer: ReturnType<typeof setTimeout> | undefined
-      await Promise.race([
-        deleteDraft({ draftId }).catch((e) =>
-          console.error('[submitQuizSession] Draft cleanup failed:', e),
-        ),
-        new Promise<void>((resolve) => {
-          cleanupTimer = setTimeout(resolve, DRAFT_CLEANUP_TIMEOUT_MS)
-        }),
-      ]).finally(() => clearTimeout(cleanupTimer))
-    }
+    if (draftId) await deleteDraftBounded(draftId, 'submitQuizSession')
     return result
   } catch {
     return { success: false as const, error: 'Something went wrong. Please try again.' }
@@ -69,44 +71,6 @@ export async function discardQuizSession(
     if (!result.success) return result
     router.push('/app/quiz')
     return { success: true }
-  } catch {
-    return { success: false as const, error: 'Something went wrong. Please try again.' }
-  }
-}
-
-export async function saveQuizDraft(opts: {
-  userId: string
-  sessionId: string
-  questionIds: string[]
-  answers: Map<string, DraftAnswer>
-  feedback?: Map<string, AnswerFeedback>
-  currentIndex: number
-  router: AppRouterInstance
-  draftId?: string
-  subjectName?: string
-  subjectCode?: string
-}) {
-  const answerObj = Object.fromEntries(opts.answers)
-  const feedbackObj = opts.feedback ? Object.fromEntries(opts.feedback) : undefined
-  try {
-    const result = await saveDraft({
-      draftId: opts.draftId,
-      sessionId: opts.sessionId,
-      questionIds: opts.questionIds,
-      answers: answerObj,
-      feedback: feedbackObj,
-      currentIndex: opts.currentIndex,
-      subjectName: opts.subjectName,
-      subjectCode: opts.subjectCode,
-    })
-    if (result.success) {
-      clearActiveSession(opts.userId)
-      // Await so the Server Action revalidation can't cancel the soft navigation (#909).
-      await clearDeploymentPin().catch(() => {})
-      opts.router.push('/app/quiz')
-      return { success: true as const }
-    }
-    return { success: false as const, error: result.error }
   } catch {
     return { success: false as const, error: 'Something went wrong. Please try again.' }
   }
@@ -184,35 +148,31 @@ export async function handleSubmitSession(opts: {
 export async function handleSaveSession(opts: {
   userId: string
   sessionId: string
-  questions: Array<{ id: string }>
-  answers: Map<string, DraftAnswer>
-  feedback?: Map<string, AnswerFeedback>
-  currentIndex: number
   router: AppRouterInstance
-  draftId: string | undefined
-  subjectName: string | undefined
-  subjectCode: string | undefined
   setSubmitting: SetSubmitting
   setError: SetError
 }) {
   opts.setSubmitting(true)
   opts.setError(null)
-  const r = await saveQuizDraft({
-    userId: opts.userId,
-    sessionId: opts.sessionId,
-    questionIds: opts.questions.map((q) => q.id),
-    answers: opts.answers,
-    feedback: opts.feedback,
-    currentIndex: opts.currentIndex,
-    router: opts.router,
-    draftId: opts.draftId,
-    subjectName: opts.subjectName,
-    subjectCode: opts.subjectCode,
-  })
-  if (!r.success) {
+  try {
+    const r = await saveQuizForLater({
+      sessionId: opts.sessionId,
+      deviceId: getQuizDeviceId(),
+    })
+    if (r.success) {
+      clearActiveSession(opts.userId)
+      // Any legacy draft is kept: a runner resumed from it before the server-progress seed
+      // holds its answers only client-side, and the save parks server progress only.
+      // Await so the Server Action revalidation can't cancel the soft navigation (#909).
+      await clearDeploymentPin().catch(() => {})
+      opts.router.push('/app/quiz')
+      return
+    }
     opts.setError(r.error)
-    opts.setSubmitting(false)
+  } catch {
+    opts.setError('Something went wrong. Please try again.')
   }
+  opts.setSubmitting(false)
 }
 
 export async function handleDiscardSession(opts: {

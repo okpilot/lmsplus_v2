@@ -1,14 +1,14 @@
-// App-layer integration tier (#925 §7) — resumeQuizSession + the saveDraft
-// session-close (#1085).
+// App-layer integration tier (#925 §7) — resumeQuizSession (#1085, #1026).
 //
-// Exercises the real Server Actions against real Postgres under real RLS. Validates:
-//  - Saving a draft PARKS the practice session (soft-deletes the quiz_sessions row),
-//    and resuming mints a FRESH active session from the draft's questions.
-//  - The save-side soft-delete is scoped to practice modes: a crafted saveDraft citing
-//    a graded exam session must NOT abandon it (non-vacuous — a real exam session is
-//    seeded and asserted to survive).
+// Exercises the real Server Action against real Postgres under real RLS. Drafts are seeded
+// through the admin client, except one test that drives saveDraft directly. Validates:
+//  - Resuming mints a FRESH active session from the draft's questions, seeds its progress
+//    rows and position from the draft, then deletes the draft.
+//  - A seed failure keeps the draft and soft-deletes the freshly minted session.
 //  - Resume of a draft whose question is no longer available fails cleanly and creates
-//    no session.
+//    no session; graded-exam drafts are refused.
+//  - A crafted saveDraft citing a live graded exam cannot soft-delete it.
+import type { Json } from '@repo/db/types'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import {
   cleanupReferenceData,
@@ -39,19 +39,45 @@ const emailB = `int-resume-b-${suffix}@test.local`
 const password = 'test-pass-123'
 let refs: ReferenceIds
 
-async function latestDraftId(studentId: string): Promise<string> {
+async function seedDraft(opts: {
+  studentId: string
+  sessionId: string
+  questionIds: string[]
+  answers?: Record<string, unknown>
+  currentIndex?: number
+}): Promise<string> {
   const { data, error } = await admin
     .from('quiz_drafts')
+    .insert({
+      organization_id: orgId,
+      student_id: opts.studentId,
+      question_ids: opts.questionIds,
+      answers: (opts.answers ?? {}) as Json,
+      current_index: opts.currentIndex ?? 0,
+      session_config: { sessionId: opts.sessionId },
+    })
     .select('id')
-    .eq('student_id', studentId)
-    .order('created_at', { ascending: false })
-    .limit(1)
     .single()
-  if (error) throw new Error(`latestDraftId: ${error.message}`)
+  if (error) throw new Error(`seedDraft: ${error.message}`)
   return data.id
 }
 
-describe('resumeQuizSession + saveDraft session-close (app-layer integration)', () => {
+/** What save-for-later used to do: park the draft's practice session (soft-delete). */
+async function parkSession(sessionId: string): Promise<void> {
+  const { error } = await admin
+    .from('quiz_sessions')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', sessionId)
+  if (error) throw new Error(`parkSession: ${error.message}`)
+}
+
+async function draftExists(draftId: string): Promise<boolean> {
+  const { data, error } = await admin.from('quiz_drafts').select('id').eq('id', draftId)
+  if (error) throw new Error(`draftExists: ${error.message}`)
+  return (data?.length ?? 0) > 0
+}
+
+describe('resumeQuizSession (app-layer integration)', () => {
   beforeAll(async () => {
     orgId = await createTestOrg({
       admin,
@@ -104,8 +130,8 @@ describe('resumeQuizSession + saveDraft session-close (app-layer integration)', 
 
   // Two isolated cleanup steps (code-style §7): clear active sessions so the
   // single-active unique index doesn't block the next test's start, and hard-delete
-  // drafts (quiz_drafts is hard-delete-by-design, no deleted_at column) so latestDraftId
-  // resolves this test's own draft.
+  // drafts (quiz_drafts is hard-delete-by-design, no deleted_at column) so a draft
+  // never leaks into the next test.
   afterEach(async () => {
     const errors: string[] = []
     try {
@@ -125,7 +151,7 @@ describe('resumeQuizSession + saveDraft session-close (app-layer integration)', 
     if (errors.length > 0) throw new Error(`afterEach: ${errors.join('; ')}`)
   })
 
-  it('parks the session on save and starts a fresh active session on resume', async () => {
+  it('seeds the fresh session from the draft answers and position, then deletes the draft', async () => {
     await signInAs(emailA, password)
     const start = await startQuizSession({
       subjectId: refs.subjectId,
@@ -135,53 +161,91 @@ describe('resumeQuizSession + saveDraft session-close (app-layer integration)', 
     expect(start.success).toBe(true)
     if (!start.success) throw new Error(start.error)
     const oldSessionId = start.sessionId
-
-    const save = await saveDraft({
+    const [q0, q1] = start.questionIds
+    const draftId = await seedDraft({
+      studentId: studentAId,
       sessionId: oldSessionId,
       questionIds: start.questionIds,
-      answers: {},
-      currentIndex: 0,
-      feedback: {},
+      answers: {
+        [q0 as string]: { selectedOptionId: 'c', responseTimeMs: 1200 },
+        [q1 as string]: { selectedOptionId: 'a', responseTimeMs: 800 },
+      },
+      currentIndex: 1,
     })
-    expect(save.success).toBe(true)
+    await parkSession(oldSessionId)
+    expect(await draftExists(draftId)).toBe(true)
 
-    // Save parked the original session (soft-deleted) so it no longer blocks new starts.
-    const { data: parked, error: pErr } = await admin
-      .from('quiz_sessions')
-      .select('deleted_at')
-      .eq('id', oldSessionId)
-      .single()
-    if (pErr) throw new Error(pErr.message)
-    expect(parked.deleted_at).not.toBeNull()
-
-    const draftId = await latestDraftId(studentAId)
     const resume = await resumeQuizSession({ draftId })
     expect(resume.success).toBe(true)
     if (!resume.success) throw new Error(resume.error)
     expect(resume.sessionId).not.toBe(oldSessionId)
 
-    // The resumed session is a genuinely active practice session.
     const { data: fresh, error: fErr } = await admin
       .from('quiz_sessions')
-      .select('mode, ended_at, deleted_at')
+      .select('mode, ended_at, deleted_at, current_index')
       .eq('id', resume.sessionId)
       .single()
     if (fErr) throw new Error(fErr.message)
-    expect(fresh.mode).toBe('quick_quiz')
-    expect(fresh.ended_at).toBeNull()
-    expect(fresh.deleted_at).toBeNull()
+    expect(fresh).toEqual({
+      mode: 'quick_quiz',
+      ended_at: null,
+      deleted_at: null,
+      current_index: 1,
+    })
 
-    // The draft now points at the new session id.
-    const { data: repointed, error: rErr } = await admin
-      .from('quiz_drafts')
-      .select('session_config')
-      .eq('id', draftId)
-      .single()
+    const { data: rows, error: rErr } = await admin
+      .from('quiz_session_progress')
+      .select('question_id, answer, time_spent_ms')
+      .eq('session_id', resume.sessionId)
     if (rErr) throw new Error(rErr.message)
-    // Guard the cast (§5): a null JSONB column would throw an opaque TypeError instead
-    // of a clean assertion failure on a regression.
-    expect(repointed.session_config).not.toBeNull()
-    expect((repointed.session_config as { sessionId: string }).sessionId).toBe(resume.sessionId)
+    expect(rows?.length).toBe(2)
+    expect(rows).toContainEqual({
+      question_id: q0,
+      answer: { selected_option_id: 'c' },
+      time_spent_ms: 1200,
+    })
+    expect(rows).toContainEqual({
+      question_id: q1,
+      answer: { selected_option_id: 'a' },
+      time_spent_ms: 800,
+    })
+    expect(await draftExists(draftId)).toBe(false)
+  })
+
+  it('resumes without a draft answer the session refuses and drops that answer', async () => {
+    await signInAs(emailA, password)
+    const start = await startQuizSession({
+      subjectId: refs.subjectId,
+      topicIds: [refs.topicId],
+      count: 3,
+    })
+    expect(start.success).toBe(true)
+    if (!start.success) throw new Error(start.error)
+    const [q0] = start.questionIds
+    // An answer for a question outside the session is dropped before seeding; no RPC call carries it.
+    const outsider = '00000000-0000-4000-a000-0000000000ff'
+    const draftId = await seedDraft({
+      studentId: studentAId,
+      sessionId: start.sessionId,
+      questionIds: start.questionIds,
+      answers: {
+        [outsider]: { selectedOptionId: 'a', responseTimeMs: 100 },
+        [q0 as string]: { selectedOptionId: 'c', responseTimeMs: 1200 },
+      },
+    })
+    await parkSession(start.sessionId)
+
+    const resume = await resumeQuizSession({ draftId })
+    expect(resume.success).toBe(true)
+    if (!resume.success) throw new Error(resume.error)
+
+    const { data: rows, error } = await admin
+      .from('quiz_session_progress')
+      .select('question_id')
+      .eq('session_id', resume.sessionId)
+    if (error) throw new Error(error.message)
+    expect(rows?.map((r) => r.question_id)).toEqual([q0])
+    expect(await draftExists(draftId)).toBe(false)
   })
 
   it('keeps a graded exam session active when a draft cites it (practice-mode allowlist)', async () => {
@@ -230,15 +294,12 @@ describe('resumeQuizSession + saveDraft session-close (app-layer integration)', 
     })
     expect(start.success).toBe(true)
     if (!start.success) throw new Error(start.error)
-    const save = await saveDraft({
+    const draftId = await seedDraft({
+      studentId: studentAId,
       sessionId: start.sessionId,
       questionIds: start.questionIds,
-      answers: {},
-      currentIndex: 0,
-      feedback: {},
     })
-    expect(save.success).toBe(true)
-    const draftId = await latestDraftId(studentAId)
+    await parkSession(start.sessionId)
 
     // Deactivate one of the draft's questions → start_quiz_session's active-question
     // check drops the count and raises invalid_question_ids on resume.
@@ -291,15 +352,11 @@ describe('resumeQuizSession + saveDraft session-close (app-layer integration)', 
       .single()
     if (exErr) throw new Error(`seed exam session: ${exErr.message}`)
 
-    const save = await saveDraft({
+    const draftId = await seedDraft({
+      studentId: studentBId,
       sessionId: exam.id,
       questionIds,
-      answers: {},
-      currentIndex: 0,
-      feedback: {},
     })
-    expect(save.success).toBe(true)
-    const draftId = await latestDraftId(studentBId)
 
     const resume = await resumeQuizSession({ draftId })
     expect(resume.success).toBe(false)
@@ -337,15 +394,12 @@ describe('resumeQuizSession + saveDraft session-close (app-layer integration)', 
     })
     expect(start.success).toBe(true)
     if (!start.success) throw new Error(start.error)
-    const save = await saveDraft({
+    const draftId = await seedDraft({
+      studentId: studentAId,
       sessionId: start.sessionId,
       questionIds: start.questionIds,
-      answers: {},
-      currentIndex: 0,
-      feedback: {},
     })
-    expect(save.success).toBe(true)
-    const draftId = await latestDraftId(studentAId)
+    await parkSession(start.sessionId)
 
     // The student now ALSO has a live graded exam. Resume's own draft is a valid practice
     // draft, so it clears validateSessionForResume — but start_quiz_session must refuse to
