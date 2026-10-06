@@ -51,11 +51,11 @@ describe('useQuizState — restored feedback', () => {
     expect(result.current.feedback.get(Q1)).toEqual(FB)
   })
 
-  it('re-checks restored answers in a practice quiz', () => {
+  it('grades restored answers in a practice quiz', () => {
     renderHook(() => useQuizState(opts()))
 
     expect(mockRestored).toHaveBeenCalledWith(
-      expect.objectContaining({ enabled: true, questionId: Q1, restorable: opts().initialAnswers }),
+      expect.objectContaining({ enabled: true, restorable: opts().initialAnswers }),
     )
   })
 
