@@ -1,6 +1,6 @@
 export const MODE_LABELS = {
-  smart_review: 'Smart Review',
-  quick_quiz: 'Quick Quiz',
+  smart_review: 'Study',
+  quick_quiz: 'Study',
   mock_exam: 'Practice Exam',
   internal_exam: 'Internal Exam',
   vfr_rt_exam: 'VFR RT Mock Exam',
@@ -11,6 +11,8 @@ export const MODE_LABELS = {
 } as const
 
 export type QuizMode = keyof typeof MODE_LABELS
+
+export const modeLabel = (mode: string): string => MODE_LABELS[mode as QuizMode] ?? mode
 
 export const EXAM_MODES = ['mock_exam', 'internal_exam', 'vfr_rt_exam'] as const
 

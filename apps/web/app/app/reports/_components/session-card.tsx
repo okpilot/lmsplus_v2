@@ -1,9 +1,9 @@
 import Link from 'next/link'
-import { isExamMode } from '@/lib/constants/exam-modes'
+import { isExamMode, MODE_LABELS, modeLabel, type QuizMode } from '@/lib/constants/exam-modes'
 import type { SessionReport } from '@/lib/queries/reports'
 import { formatCorrectFraction } from '@/lib/utils/format-correct-fraction'
 import { scoreColor } from '@/lib/utils/score-color'
-import { formatDate, formatDurationMinutes, MODE_LABELS } from './reports-utils'
+import { formatDate, formatDurationMinutes } from './reports-utils'
 
 export function SessionCard({ session: s }: Readonly<{ session: SessionReport }>) {
   const exam = isExamMode(s.mode)
@@ -26,10 +26,10 @@ export function SessionCard({ session: s }: Readonly<{ session: SessionReport }>
         Mode:{' '}
         {exam ? (
           <span className="font-semibold uppercase text-amber-600">
-            {MODE_LABELS[s.mode] ?? MODE_LABELS.mock_exam}
+            {MODE_LABELS[s.mode as QuizMode] ?? MODE_LABELS.mock_exam}
           </span>
         ) : (
-          <span className="font-medium">{MODE_LABELS[s.mode] ?? s.mode}</span>
+          <span className="font-medium">{modeLabel(s.mode)}</span>
         )}
         <span className="ml-3">
           Correct: {formatCorrectFraction(s.correctCount, s.answeredItems)}

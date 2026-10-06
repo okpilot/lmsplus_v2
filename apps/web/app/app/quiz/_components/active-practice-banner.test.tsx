@@ -48,15 +48,15 @@ beforeEach(() => {
 // ---- Rendering ------------------------------------------------------------
 
 describe('ActivePracticeBanner — rendering', () => {
-  it('names the Quick Quiz mode and subject in the notice', () => {
+  it('names the Study mode and subject in the notice', () => {
     render(<ActivePracticeBanner userId={USER_ID} session={SESSION} />)
-    expect(screen.getByText(/^unfinished quick quiz session$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^unfinished study session$/i)).toBeInTheDocument()
     expect(screen.getByText(/air law/i)).toBeInTheDocument()
   })
 
-  it('names the Smart Review mode in the notice', () => {
+  it('names a Smart Review session as Study in the notice', () => {
     render(<ActivePracticeBanner userId={USER_ID} session={SMART_REVIEW_SESSION} />)
-    expect(screen.getByText(/^unfinished smart review session$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^unfinished study session$/i)).toBeInTheDocument()
   })
 
   it('offers a Resume link to the session page and a Discard control', () => {
@@ -84,7 +84,7 @@ describe('ActivePracticeBanner — Discard', () => {
     // wait for that observable success state rather than asserting synchronously.
     await waitFor(() => expect(mockRouterRefresh).toHaveBeenCalledTimes(1))
     await waitFor(() =>
-      expect(screen.queryByText(/^unfinished quick quiz session$/i)).not.toBeInTheDocument(),
+      expect(screen.queryByText(/^unfinished study session$/i)).not.toBeInTheDocument(),
     )
   })
 
@@ -100,7 +100,7 @@ describe('ActivePracticeBanner — Discard', () => {
     const alert = await screen.findByRole('alert')
     expect(alert).toBeVisible()
     expect(alert).toHaveTextContent('Session not found')
-    expect(screen.getByText(/^unfinished quick quiz session$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^unfinished study session$/i)).toBeInTheDocument()
     expect(mockRouterRefresh).not.toHaveBeenCalled()
   })
 

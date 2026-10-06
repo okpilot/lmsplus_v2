@@ -1,14 +1,10 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { MODE_LABELS, type QuizMode } from '@/lib/constants/exam-modes'
+import { modeLabel } from '@/lib/constants/exam-modes'
 import type { SavedQuizSession } from '@/lib/queries/load-saved-quizzes'
 import { useSavedCardActions } from '../_hooks/use-saved-card-actions'
 import { SavedSessionProgress } from './saved-session-progress'
-
-function modeLabel(mode: string): string {
-  return MODE_LABELS[mode as QuizMode] ?? mode
-}
 
 type ButtonsProps = {
   resuming: boolean

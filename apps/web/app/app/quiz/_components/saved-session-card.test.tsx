@@ -42,7 +42,7 @@ describe('SavedSessionCard', () => {
   it('shows the subject, the mode and how many questions are answered', () => {
     render(<SavedSessionCard session={SAVED} />)
     expect(screen.getByText('Air Law')).toBeInTheDocument()
-    expect(screen.getByText('Quick Quiz')).toBeInTheDocument()
+    expect(screen.getByText('Study')).toBeInTheDocument()
     expect(screen.getByText('4 of 10 answered')).toBeInTheDocument()
     expect(screen.getByText('40%')).toBeInTheDocument()
   })
