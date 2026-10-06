@@ -130,7 +130,7 @@
     "packages/db/src/__integration__/rpc-start-session.integration.test.ts": 509,
     "packages/db/src/__integration__/rpc-vfr-rt-constraint-regression.integration.test.ts": 630,
     "packages/db/src/__integration__/rpc-vfr-rt-questions.integration.test.ts": 658,
-    "packages/db/src/__integration__/rpc-vfr-rt-results.integration.test.ts": 826,
+    "packages/db/src/__integration__/rpc-vfr-rt-results.integration.test.ts": 825,
     "packages/db/src/__integration__/rpc-vfr-rt-start.integration.test.ts": 569,
     "packages/db/src/__integration__/rpc-vfr-rt-submit.integration.test.ts": 907,
     "supabase/migrations/20260311000001_initial_schema.sql": 447,

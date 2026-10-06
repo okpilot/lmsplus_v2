@@ -113,6 +113,11 @@ export async function buildMcProgressAnswers(
   if (error || !Array.isArray(questions)) {
     throw new Error(`buildMcProgressAnswers questions: ${error?.message ?? 'unexpected shape'}`)
   }
+  if (questions.length !== ids.length) {
+    throw new Error(
+      `buildMcProgressAnswers: session pins ${ids.length} questions, read returned ${questions.length}`,
+    )
+  }
   return questions.map((raw) => ({
     question_id: (raw as { id: string }).id,
     answer: { selected_option_id: firstOptionId(raw) },

@@ -137,6 +137,12 @@ describe('buildMcProgressAnswers', () => {
     await expect(buildMcProgressAnswers(adminMock, 'sess-1')).rejects.toThrow(/is not a-d/)
   })
 
+  it('throws when a pinned question is missing from the read', async () => {
+    mockReads({ question_ids: ['q1', 'q2'] }, [{ id: 'q1', options: [{ id: 'a' }] }])
+
+    await expect(buildMcProgressAnswers(adminMock, 'sess-1')).rejects.toThrow(/read returned 1/)
+  })
+
   it('throws when config.question_ids is not an array', async () => {
     mockFrom.mockReturnValueOnce(thenable({ data: { config: { question_ids: 'x' } }, error: null }))
 

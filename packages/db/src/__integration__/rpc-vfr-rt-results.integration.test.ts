@@ -221,14 +221,13 @@ function fixtureAnswers(questionIds: string[], wrongDialogs: boolean): SeedAnswe
   const mcById = Object.fromEntries(mcQs.map((q) => [q.id, q]))
   const answers: SeedAnswer[] = []
   for (const qId of questionIds) {
-    const sa = saById[qId]
-    const df = dfById[qId]
-    const mc = mcById[qId]
+    const [sa, df, mc] = [saById[qId], dfById[qId], mcById[qId]]
     if (sa) answers.push({ questionId: qId, answer: P.short(sa.canonical), timeSpentMs: 0 })
     else if (df) {
       const blanks = df.blanks.map((b) => (wrongDialogs ? 'WRONG_XYZ' : b.canonical))
       answers.push({ questionId: qId, answer: P.dialog(blanks), timeSpentMs: 0 })
     } else if (mc) answers.push({ questionId: qId, answer: P.mc(mc.correctOption), timeSpentMs: 0 })
+    else throw new Error(`fixtureAnswers: ${qId} is not a seeded pool question`)
   }
   return answers
 }

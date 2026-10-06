@@ -13,12 +13,7 @@
 
 import { expect, test } from '@playwright/test'
 import { cleanupStudentActiveSessions, getAdminClient } from '../helpers/supabase'
-import {
-  backdateSession,
-  expectAuditRow,
-  fetchActiveQuestionIds,
-  readAuditReason,
-} from './helpers/audit-helpers'
+import { backdateSession, expectAuditRow, fetchActiveQuestionIds } from './helpers/audit-helpers'
 import { cleanupFixtures, createFixtureTracker } from './helpers/cleanup'
 import { buildMcProgressAnswers } from './helpers/finish-session'
 import { createAuthenticatedClient } from './helpers/redteam-client'
@@ -119,7 +114,13 @@ test.describe('Red Team: legacy submit RPC audit completeness (Vector HM)', () =
     expect(error).toBeNull()
     expect((data as { expired?: boolean } | null)?.expired).toBeUndefined()
     await expectAuditRow(admin, 'exam.completed', studentId, testStart, sessionId)
-    expect(await readAuditReason(admin, 'exam.expired', sessionId)).toBeUndefined()
+    const { data: expiredRows, error: expiredErr } = await admin
+      .from('audit_events')
+      .select('id')
+      .eq('event_type', 'exam.expired')
+      .eq('resource_id', sessionId)
+    if (expiredErr) throw new Error(`read exam.expired rows: ${expiredErr.message}`)
+    expect(expiredRows).toHaveLength(0)
   })
 
   test('batch_submit_quiz on a mock_exam past grace writes exam.expired', async () => {

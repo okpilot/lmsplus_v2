@@ -148,7 +148,8 @@ test.describe('Red Team: discarded exam revive (Vector GP)', () => {
 
     const practice = await startPractice()
     expect(practice.error).toBeNull()
-    const practiceId = practice.data as string
+    if (typeof practice.data !== 'string') throw new Error('start practice: no session id')
+    const practiceId = practice.data
     await keyQuestions(practiceId)
     expect((await discardOwn(practiceId)).error).toBeNull()
 
@@ -171,10 +172,13 @@ test.describe('Red Team: discarded exam revive (Vector GP)', () => {
   test('a student cannot batch-submit keyed answers to a discarded exam', async () => {
     const examId = await seedExam()
     expect((await discardOwn(examId)).data).toHaveLength(1)
+    const deletedAt = (await readExam(examId)).deleted_at
+    expect(deletedAt).not.toBeNull()
 
     const practice = await startPractice()
     expect(practice.error).toBeNull()
-    const practiceId = practice.data as string
+    if (typeof practice.data !== 'string') throw new Error('start practice: no session id')
+    const practiceId = practice.data
     const keys = await keyQuestions(practiceId)
     expect((await discardOwn(practiceId)).error).toBeNull()
 
@@ -189,7 +193,9 @@ test.describe('Red Team: discarded exam revive (Vector GP)', () => {
     })
     expect(submit.data).toBeNull()
     expect(submit.error?.message).toMatch(/session not found or not accessible/)
-    expect((await readExam(examId)).ended_at).toBeNull()
+    const after = await readExam(examId)
+    expect(after.ended_at).toBeNull()
+    expect(after.deleted_at).toBe(deletedAt)
 
     // CONTROL: the same keyed answers grade on a live exam.
     const liveId = await seedExam()
