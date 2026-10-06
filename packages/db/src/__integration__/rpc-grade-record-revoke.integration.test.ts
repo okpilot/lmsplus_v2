@@ -17,8 +17,9 @@ import {
 // separately grants anon/authenticated via ALTER DEFAULT PRIVILEGES, so REVOKE FROM PUBLIC
 // alone is insufficient — every API role must be named).
 // The helpers trust their p_student_id/p_session_id/p_org_id args with no auth.uid() check
-// of their own — they are reached only through _grade_session_progress (finish_quiz_session,
-// complete_overdue_exam_session), which owns the authorization. This REVOKE only takes
+// of their own — their callers (_grade_session_progress via finish_quiz_session and
+// complete_overdue_exam_session; batch_submit_quiz; submit_vfr_rt_exam_answers) own the
+// authorization. This REVOKE only takes
 // effect at EXECUTION via PostgREST — a `db reset` proves only that the REVOKE statement
 // parsed, not that the grant table was actually updated.
 

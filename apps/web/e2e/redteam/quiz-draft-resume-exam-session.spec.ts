@@ -2,7 +2,7 @@
  * Red Team Spec: a forged draft cannot turn resume into a way to hide a graded exam — Vector EV
  *
  * EV (privilege-escalation): the app no longer writes quiz_drafts (#1026 PR 3). A legacy/forged
- *     draft row seeded by service role, standing in for a pre-REVOKE student write, has
+ *     draft row, seeded by service role (any writer: resume must not trust the row), has
  *     session_config.sessionId naming the student's own FINISHED internal_exam; the student clicks Resume. Resume
  *     soft-deletes the draft's original session before minting a new one; reaching that step would
  *     hide the graded result. Resume must refuse, leave the exam row untouched, mint nothing and

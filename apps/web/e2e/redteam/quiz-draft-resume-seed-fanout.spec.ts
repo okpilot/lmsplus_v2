@@ -2,8 +2,8 @@
  * Red Team Spec: resuming a forged quiz_drafts row costs at most one seed write per draft question
  * (#1026 PR 3) — Vector HF
  *
- * HF (rate-limit): a legacy/forged quiz_drafts row seeded by service role, standing in for a
- *     pre-REVOKE student write (the answers JSONB has no size cap), carries JUNK_KEYS answers keyed
+ * HF (rate-limit): a legacy/forged quiz_drafts row, seeded by service role (any writer: the
+ *     resume guards must not trust the row) (the answers JSONB has no size cap), carries JUNK_KEYS answers keyed
  *     by random uuids outside the draft's questions; the student then resumes it once through the UI. Seeding must not issue one
  *     save_quiz_answer round-trip per junk key: the resume completes inside RESUME_BUDGET_MS.
  *     CONTROL: the one valid in-session answer IS seeded into the new session.

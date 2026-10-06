@@ -2,8 +2,8 @@
  * Red Team Spec: resuming a legacy quiz_drafts row seeds a new session on the server (#1026 PR 3) —
  * Vector HC
  *
- * HC (input-injection): a legacy/forged quiz_drafts row seeded by service role, standing in for a
- *     pre-REVOKE student write, carries an answer for a question outside the draft, a malformed
+ * HC (input-injection): a legacy/forged quiz_drafts row, seeded by service role (any writer: the
+ *     resume guards must not trust the row), carries an answer for a question outside the draft, a malformed
  *     answer and an out-of-range position; the student then resumes it through the UI. Only the valid in-session
  *     answer reaches quiz_session_progress, the position is clamped, the draft is deleted.
  *     CONTROL: the valid in-session answer IS seeded into the new session.

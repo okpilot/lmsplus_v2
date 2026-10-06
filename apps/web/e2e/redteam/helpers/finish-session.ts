@@ -1,7 +1,7 @@
 /**
  * Seeding through the student progress path (#1026): save_quiz_answer per
- * question, then finish_quiz_session grades the saved progress. Replaces the
- * retired one-shot batch RPCs wherever a spec only needs a graded/ended session.
+ * question, then finish_quiz_session grades the saved progress. Used instead of
+ * the one-shot batch RPCs wherever a spec only needs a graded/ended session.
  *
  * Save BEFORE any backdating: save_quiz_answer refuses a session past
  * time_limit + 30s. No claim step is needed — the device is only checked once a
