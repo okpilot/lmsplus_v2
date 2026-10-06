@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDate, formatDurationMinutes, MODE_LABELS } from './reports-utils'
+import { formatDate, formatDurationMinutes } from './reports-utils'
 
 describe('formatDate', () => {
   it('formats an ISO date string as "D Mon YYYY" in en-GB locale', () => {
@@ -37,24 +37,5 @@ describe('formatDurationMinutes', () => {
   it('renders long sessions with an hours unit instead of raw minutes', () => {
     // 1629 min = 27 h 9 m — the reported raw-minutes case
     expect(formatDurationMinutes(1629)).toBe('27h 9m')
-  })
-})
-
-describe('MODE_LABELS', () => {
-  it('maps smart_review to "Study"', () => {
-    expect(MODE_LABELS.smart_review).toBe('Study')
-  })
-
-  it('maps quick_quiz to "Study"', () => {
-    expect(MODE_LABELS.quick_quiz).toBe('Study')
-  })
-
-  it('maps mock_exam to "Practice Exam"', () => {
-    expect(MODE_LABELS.mock_exam).toBe('Practice Exam')
-  })
-
-  it('returns undefined for unknown mode keys', () => {
-    const key = 'unknown_mode'
-    expect(MODE_LABELS[key]).toBeUndefined()
   })
 })

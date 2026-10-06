@@ -1,6 +1,6 @@
 export const MODE_LABELS = {
-  smart_review: 'Smart Review',
-  quick_quiz: 'Quick Quiz',
+  smart_review: 'Study',
+  quick_quiz: 'Study',
   mock_exam: 'Practice Exam',
   internal_exam: 'Internal Exam',
   vfr_rt_exam: 'VFR RT Mock Exam',
@@ -12,9 +12,13 @@ export const MODE_LABELS = {
 
 export type QuizMode = keyof typeof MODE_LABELS
 
+export const modeLabel = (mode: string): string => MODE_LABELS[mode as QuizMode] ?? mode
+
 export const EXAM_MODES = ['mock_exam', 'internal_exam', 'vfr_rt_exam'] as const
 
-export const isExamMode = (mode: string): mode is 'mock_exam' | 'internal_exam' | 'vfr_rt_exam' =>
+export type ExamMode = (typeof EXAM_MODES)[number]
+
+export const isExamMode = (mode: string): mode is ExamMode =>
   (EXAM_MODES as readonly string[]).includes(mode)
 
 // Mirrors NON_DISCARDABLE_MODES in app/app/quiz/actions/_discard-guard.ts — the server

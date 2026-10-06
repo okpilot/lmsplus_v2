@@ -5,7 +5,7 @@ import { ActivePracticeDiscardDialog } from './active-practice-discard-dialog'
 
 function setup(over: Partial<React.ComponentProps<typeof ActivePracticeDiscardDialog>> = {}) {
   const props = {
-    modeLabel: 'Quick Quiz',
+    modeLabel: 'Study',
     loading: false,
     error: null,
     onDiscard: vi.fn(),
@@ -21,9 +21,9 @@ describe('ActivePracticeDiscardDialog', () => {
 
   it('asks for confirmation naming the mode before discarding', async () => {
     const p = setup()
-    expect(screen.queryByText('Discard Quick Quiz session?')).toBeNull()
+    expect(screen.queryByText('Discard Study session?')).toBeNull()
     await userEvent.click(screen.getByRole('button', { name: 'Discard' }))
-    expect(screen.getByText('Discard Quick Quiz session?')).toBeInTheDocument()
+    expect(screen.getByText('Discard Study session?')).toBeInTheDocument()
     expect(p.onDiscard).not.toHaveBeenCalled()
   })
 
@@ -54,7 +54,7 @@ describe('ActivePracticeDiscardDialog', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Discard' }))
     p.view.rerender(<ActivePracticeDiscardDialog {...p} loading />)
     await userEvent.keyboard('{Escape}')
-    expect(screen.getByText('Discard Quick Quiz session?')).toBeInTheDocument()
+    expect(screen.getByText('Discard Study session?')).toBeInTheDocument()
     expect(p.onClearError).not.toHaveBeenCalled()
   })
 })

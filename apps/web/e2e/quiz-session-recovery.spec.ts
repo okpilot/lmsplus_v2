@@ -82,7 +82,7 @@ test.describe('Quiz Session Recovery', () => {
   }) => {
     const { sessionUrl, total } = await startAndAbandonQuiz(page, 2)
 
-    await expect(page.getByText('Unfinished Quick Quiz session', { exact: true })).toBeVisible()
+    await expect(page.getByText('Unfinished Study session', { exact: true })).toBeVisible()
     await page.getByRole('link', { name: 'Resume', exact: true }).click()
 
     await page.waitForURL(SESSION_ID_URL, { timeout: 10_000 })
@@ -104,7 +104,7 @@ test.describe('Quiz Session Recovery', () => {
     const userId = await readUserId(TEST_EMAIL)
     const key = `quiz-active-session:${userId}`
     await page.evaluate((k) => localStorage.setItem(k, '{}'), key)
-    await expect(page.getByText('Unfinished Quick Quiz session', { exact: true })).toBeVisible()
+    await expect(page.getByText('Unfinished Study session', { exact: true })).toBeVisible()
     expect((await readSessionRow(sessionId)).deletedAt).toBeNull()
 
     // Discard opens a confirmation dialog, then the dialog's own Discard confirms.
@@ -115,7 +115,7 @@ test.describe('Quiz Session Recovery', () => {
       .getByRole('button', { name: /^Discard$/ })
       .click()
 
-    await expect(page.getByText('Unfinished Quick Quiz session', { exact: true })).toHaveCount(0)
+    await expect(page.getByText('Unfinished Study session', { exact: true })).toHaveCount(0)
     await expect.poll(async () => (await readSessionRow(sessionId)).deletedAt).not.toBeNull()
     expect(await page.evaluate((k) => localStorage.getItem(k), key)).toBeNull()
   })
