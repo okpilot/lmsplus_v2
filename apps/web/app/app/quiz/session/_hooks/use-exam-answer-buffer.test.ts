@@ -34,14 +34,14 @@ describe('useExamAnswerBuffer — initial state', () => {
   })
 })
 
-// ---- confirmAnswer — happy path -------------------------------------------
+// ---- recordAnswer — selected option happy path ---------------------------
 
-describe('useExamAnswerBuffer — confirmAnswer', () => {
+describe('useExamAnswerBuffer — recordAnswer (selected option)', () => {
   it('returns true and records the answer on first confirmation', async () => {
     const { result } = renderHook(() => useExamAnswerBuffer(makeOpts(Q1)))
     let returned: boolean | undefined
     await act(async () => {
-      returned = await result.current.confirmAnswer('opt-a')
+      returned = await result.current.recordAnswer({ selectedOptionId: 'opt-a' })
     })
     expect(returned).toBe(true)
     expect(result.current.answers.size).toBe(1)
@@ -53,7 +53,7 @@ describe('useExamAnswerBuffer — confirmAnswer', () => {
     const opts = makeOpts(Q1, start)
     const { result } = renderHook(() => useExamAnswerBuffer(opts))
     await act(async () => {
-      await result.current.confirmAnswer('opt-a')
+      await result.current.recordAnswer({ selectedOptionId: 'opt-a' })
     })
     const recorded = result.current.answers.get(Q1)
     expect(recorded?.responseTimeMs).toBeGreaterThanOrEqual(2000)
@@ -71,7 +71,7 @@ describe('useExamAnswerBuffer — confirmAnswer', () => {
     const { result } = renderHook(() => useExamAnswerBuffer(opts))
 
     await act(async () => {
-      await result.current.confirmAnswer('opt-a')
+      await result.current.recordAnswer({ selectedOptionId: 'opt-a' })
     })
 
     // Switch to Q2
@@ -79,7 +79,7 @@ describe('useExamAnswerBuffer — confirmAnswer', () => {
     currentStart = Date.now() - 500
 
     await act(async () => {
-      await result.current.confirmAnswer('opt-b')
+      await result.current.recordAnswer({ selectedOptionId: 'opt-b' })
     })
 
     expect(result.current.answers.size).toBe(2)
@@ -95,12 +95,12 @@ describe('useExamAnswerBuffer — lock semantics', () => {
     const { result } = renderHook(() => useExamAnswerBuffer(makeOpts(Q1)))
 
     await act(async () => {
-      await result.current.confirmAnswer('opt-a')
+      await result.current.recordAnswer({ selectedOptionId: 'opt-a' })
     })
 
     let secondReturn: boolean | undefined
     await act(async () => {
-      secondReturn = await result.current.confirmAnswer('opt-b')
+      secondReturn = await result.current.recordAnswer({ selectedOptionId: 'opt-b' })
     })
 
     expect(secondReturn).toBe(false)
@@ -113,7 +113,7 @@ describe('useExamAnswerBuffer — lock semantics', () => {
     const { result } = renderHook(() => useExamAnswerBuffer(makeOpts(Q1)))
 
     await act(async () => {
-      await result.current.confirmAnswer('opt-a')
+      await result.current.recordAnswer({ selectedOptionId: 'opt-a' })
     })
 
     // answersRef must have been updated synchronously (before React re-render)
@@ -129,8 +129,8 @@ describe('useExamAnswerBuffer — lock semantics', () => {
 
     await act(async () => {
       // Fire both without awaiting between them
-      const p1 = result.current.confirmAnswer('opt-a')
-      const p2 = result.current.confirmAnswer('opt-b')
+      const p1 = result.current.recordAnswer({ selectedOptionId: 'opt-a' })
+      const p2 = result.current.recordAnswer({ selectedOptionId: 'opt-b' })
       ;[firstReturn, secondReturn] = await Promise.all([p1, p2])
     })
 
@@ -164,7 +164,7 @@ describe('useExamAnswerBuffer — initialAnswers hydration', () => {
     const { result } = renderHook(() => useExamAnswerBuffer(opts))
     let returned: boolean | undefined
     await act(async () => {
-      returned = result.current.confirmAnswer('opt-b')
+      returned = result.current.recordAnswer({ selectedOptionId: 'opt-b' })
     })
     expect(returned).toBe(false)
     expect(result.current.answers.get(Q1)?.selectedOptionId).toBe('opt-a')
@@ -181,7 +181,7 @@ describe('useExamAnswerBuffer — initialAnswers hydration', () => {
     const { result } = renderHook(() => useExamAnswerBuffer(opts))
     let returned: boolean | undefined
     await act(async () => {
-      returned = result.current.confirmAnswer('opt-c')
+      returned = result.current.recordAnswer({ selectedOptionId: 'opt-c' })
     })
     expect(returned).toBe(true)
     expect(result.current.answers.size).toBe(2)
@@ -196,7 +196,7 @@ describe('useExamAnswerBuffer — answersRef stays in sync with answers state', 
     const { result } = renderHook(() => useExamAnswerBuffer(makeOpts(Q1)))
 
     await act(async () => {
-      await result.current.confirmAnswer('opt-c')
+      await result.current.recordAnswer({ selectedOptionId: 'opt-c' })
     })
 
     // Both references must agree
@@ -240,7 +240,7 @@ describe('useExamAnswerBuffer — recordAnswer', () => {
     const { result } = renderHook(() => useExamAnswerBuffer(makeOpts(Q1)))
     let returned: boolean | undefined
     await act(async () => {
-      result.current.confirmAnswer('opt-a')
+      result.current.recordAnswer({ selectedOptionId: 'opt-a' })
       returned = result.current.recordAnswer({ order: ['a'] })
     })
     expect(returned).toBe(false)
@@ -254,7 +254,7 @@ describe('useExamAnswerBuffer — dropAnswer', () => {
   it('removes the answer and lets the question be answered again', () => {
     const { result } = renderHook(() => useExamAnswerBuffer(makeOpts(Q1)))
     act(() => {
-      result.current.confirmAnswer('opt-a')
+      result.current.recordAnswer({ selectedOptionId: 'opt-a' })
     })
     act(() => {
       result.current.dropAnswer(Q1)
