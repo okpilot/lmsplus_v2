@@ -71,3 +71,5 @@ export const E2E_REDTEAM_QR_MARKER = '[E2E_REDTEAM_QR]'
 export const E2E_REDTEAM_DS_MARKER = '[E2E_REDTEAM_DS]'
 // recheck-restored-answers spec (Vectors HG-HK): written into fixture quiz_sessions as `config.e2e_marker`.
 export const E2E_REDTEAM_RC_MARKER = '[E2E_REDTEAM_RC]'
+// blocked-start saved-cap spec (Vector HL): written into fixture quiz_sessions as `config.e2e_marker`.
+export const E2E_REDTEAM_BS_MARKER = '[E2E_REDTEAM_BS]'

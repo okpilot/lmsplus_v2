@@ -237,6 +237,7 @@
 | HI | recheckRestoredAnswers-taken-over-device | MEDIUM | server-action-recheck-answers.spec.ts | BLOCKED |  | auth-bypass |
 | HJ | recheckRestoredAnswers-batch-over-cap | MEDIUM | server-action-recheck-answers.spec.ts | BLOCKED |  | rate-limit |
 | HK | recheckRestoredAnswers-timeSpentMs-or-foreign-question-item | MEDIUM | server-action-recheck-answers.spec.ts | BLOCKED |  | mass-assignment |
+| HL | save_quiz_for_later-cap-after-claim-blocked-start | MEDIUM | rpc-saved-quiz-cap-blocked-start.spec.ts | BLOCKED |  | rate-limit |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
