@@ -27,6 +27,7 @@ import {
   sessionIdFromUrl,
   setSavedVisitTime,
 } from './helpers/quiz-session-id'
+import { readUserId } from './helpers/recovery-code'
 import {
   cleanupStudentActiveSessions,
   ensureLoginTestUser,
@@ -359,6 +360,39 @@ test.describe('Quiz session addressed by id', () => {
     expect((await readSessionRow(oldId)).savedAt).not.toBeNull()
     await openSavedTab(page)
     await expect(page.getByTestId('resume-saved-session')).toHaveCount(1)
+  })
+
+  test('opening a session removes a stale local copy of a different session and keeps the quiz open after reload', async ({
+    page,
+  }) => {
+    await startStudyQuiz(page)
+    const sessionId = sessionIdFromUrl(page.url())
+    const userId = await readUserId(TEST_EMAIL)
+    const key = `quiz-active-session:${userId}`
+    // A VALID copy: an invalid one is purged by the read guard whatever the session id.
+    await page.evaluate(
+      ([k, uid]) =>
+        localStorage.setItem(
+          k,
+          JSON.stringify({
+            userId: uid,
+            sessionId: 'stale-other-session',
+            questionIds: ['q-stale'],
+            answers: {},
+            currentIndex: 0,
+            savedAt: Date.now(),
+          }),
+        ),
+      [key, userId] as const,
+    )
+
+    await page.goto(`/app/quiz/session/${sessionId}`)
+    await expect(page.locator(OPTION).first()).toBeVisible({ timeout: 10_000 })
+    await expect.poll(() => page.evaluate((k) => localStorage.getItem(k), key)).toBeNull()
+
+    await page.reload()
+    await expect(page.locator(OPTION).first()).toBeVisible({ timeout: 10_000 })
+    expect(sessionIdFromUrl(page.url())).toBe(sessionId)
   })
 
   test('a blocked start takes over a quiz open in another browser context and saves it', async ({
