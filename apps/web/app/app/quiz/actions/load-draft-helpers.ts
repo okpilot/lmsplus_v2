@@ -59,8 +59,8 @@ function toFeedbackEntry(e: unknown): AnswerFeedback | null {
         ? { questionType: 'short_answer', correctAnswer: r.correctAnswer as string | null, ...base }
         : null
     case 'dialog_fill':
-      // Deep per-element blanks check applied here too (symmetric with the
-      // localStorage path in quiz-session-validators isValidDialogFillFeedback):
+      // Deep per-element blanks check applied here too (symmetric with
+      // quiz-session-validators isValidDialogFillFeedback):
       // a single malformed blank voids the whole record rather than casting a
       // partially-typed array through. `length > 0` matches that validator, the
       // draft save schema that wrote these legacy rows (since removed, .min(1)) and the RPC guard (isDialogFillRpcResult)

@@ -16,6 +16,7 @@
 import { expect, test } from '@playwright/test'
 import { buildConsentCookieValue } from '../../lib/consent/check-consent'
 import { CONSENT_COOKIE } from '../../lib/consent/versions'
+import { cleanupStudentSavedSessions } from '../helpers/quiz-session-id'
 import { cleanupStudentActiveSessions, getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
 import { E2E_REDTEAM_DS_MARKER } from './helpers/seed-markers'
@@ -85,6 +86,8 @@ test.describe('Red Team: forged draft resume against a graded exam (EV)', () => 
   }
 
   test.beforeEach(async () => {
+    // A saved session renders its own Resume button ahead of the draft card.
+    await cleanupStudentSavedSessions(VICTIM_EMAIL)
     await cleanupStudentActiveSessions(VICTIM_EMAIL)
     await clearDrafts()
   })

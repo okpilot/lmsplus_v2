@@ -5,8 +5,8 @@
  * guard on the QUESTION's own zones/labels/answer arrays. This module is the
  * app/client-layer guard on the STUDENT'S SUBMITTED mapping — the
  * {zoneId, labelId} placements a student makes — shared by the Zod schemas
- * (check-non-mc-answer-schema.ts, quiz-progress-schema.ts), the localStorage
- * rehydrate guard (quiz-session-validators.ts), and the DB-draft resume guard
+ * (check-non-mc-answer-schema.ts, quiz-progress-schema.ts), the answer/feedback
+ * validators (quiz-session-validators.ts), and the DB-draft resume guard
  * (load-draft-helpers.ts) so they stay in sync without hand-maintained parity
  * comments (mirrors the role ordering-validation.ts plays for `order`).
  */
