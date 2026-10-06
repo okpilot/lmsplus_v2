@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { claimQuizSession } from '../actions/quiz-progress'
 import { checkSavedQuizRoom, saveQuizForLater } from '../actions/saved-quiz'
-import { clearActiveSessionById } from '../session/_utils/clear-active-session-copies'
+import { clearActiveSessionById } from '../session/_utils/clear-active-session-by-id'
 import { getQuizDeviceId } from '../session/_utils/quiz-device-id'
 import type { BlockedOffer } from './start-handler-shared'
 

@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import type { SessionQuestion } from '@/app/app/_types/session'
 import type { QuizMode } from '@/lib/constants/exam-modes'
-import { clearActiveSessionsExcept } from '../_utils/clear-active-session-copies'
+import { clearActiveSession, readActiveSession } from '../_utils/quiz-session-storage'
 import { toRunnerMode } from '../_utils/session-runner-mode'
 import { loadSessionData, type SessionLoadResult } from './session-bootstrap-load'
 
-type Opts = { sessionId: string; questionIds: string[]; mode: QuizMode }
+type Opts = { userId: string; sessionId: string; questionIds: string[]; mode: QuizMode }
 
 type Loaded = {
   questions: SessionQuestion[] | null
@@ -28,18 +28,29 @@ function toLoaded(r: SessionLoadResult): Loaded {
 }
 
 /** Mount bootstrap of a server-loaded session: questions, flags, then the tab's claim. */
-export function useServerSessionBootstrap({ sessionId, questionIds, mode }: Readonly<Opts>) {
+/** The opened session is the student's only active one (docs/security.md §11d): a local copy of another is stale. */
+function dropStaleLocalCopy(userId: string, sessionId: string): void {
+  if (readActiveSession(userId)?.sessionId !== sessionId) clearActiveSession(userId)
+}
+
+export function useServerSessionBootstrap({
+  userId,
+  sessionId,
+  questionIds,
+  mode,
+}: Readonly<Opts>) {
   const [state, setState] = useState<Loaded>(PENDING)
   // A fresh array identity on an RSC refresh must not refetch and re-claim the session.
   const questionIdsRef = useRef(questionIds)
   questionIdsRef.current = questionIds
+  const userIdRef = useRef(userId)
+  userIdRef.current = userId
 
   useEffect(() => {
     let cancelled = false
     loadSessionData(questionIdsRef.current, { sessionId, ...toRunnerMode(mode) })
       .then((r) => {
-        // The opened session is the student's only active one (docs/security.md §11d).
-        if (r.success) clearActiveSessionsExcept(sessionId)
+        if (r.success) dropStaleLocalCopy(userIdRef.current, sessionId)
         if (!cancelled) setState(toLoaded(r))
       })
       .catch(() => !cancelled && setState({ ...PENDING, error: LOAD_FAILED }))

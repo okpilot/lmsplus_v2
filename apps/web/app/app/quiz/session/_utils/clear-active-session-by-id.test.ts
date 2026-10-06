@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { clearActiveSessionById, clearActiveSessionsExcept } from './clear-active-session-copies'
+import { clearActiveSessionById } from './clear-active-session-by-id'
 
 const store = (userId: string, sessionId: string) =>
   localStorage.setItem(`quiz-active-session:${userId}`, JSON.stringify({ userId, sessionId }))
@@ -40,17 +40,5 @@ describe('clearActiveSessionById', () => {
     store('u1', 's1')
     expect(() => clearActiveSessionById('s1')).not.toThrow()
     spy.mockRestore()
-  })
-})
-
-describe('clearActiveSessionsExcept', () => {
-  it('removes copies of every other session and keeps the given one', () => {
-    store('u1', 'old')
-    store('u2', 'keep')
-    localStorage.setItem('other-key', JSON.stringify({ sessionId: 'old' }))
-    clearActiveSessionsExcept('keep')
-    expect(localStorage.getItem('quiz-active-session:u1')).toBeNull()
-    expect(localStorage.getItem('quiz-active-session:u2')).not.toBeNull()
-    expect(localStorage.getItem('other-key')).not.toBeNull()
   })
 })
