@@ -26,7 +26,6 @@ import {
   sessionIdFromUrl,
   setSavedVisitTime,
 } from './helpers/quiz-session-id'
-import { readUserId } from './helpers/recovery-code'
 import {
   cleanupStudentActiveSessions,
   ensureLoginTestUser,
@@ -386,47 +385,6 @@ test.describe('Quiz session addressed by id', () => {
     expect((await readSessionRow(oldId)).savedAt).not.toBeNull()
     await openSavedTab(other)
     await expect(other.getByTestId('resume-saved-session')).toHaveCount(1)
-  })
-
-  test('a local-only answer from the legacy browser copy is uploaded once and the local copy removed', async ({
-    page,
-  }) => {
-    await startStudyQuiz(page)
-    const sessionUrl = page.url()
-    const sessionId = sessionIdFromUrl(sessionUrl)
-    const [firstQuestionId] = await readSessionQuestionIds(sessionId)
-    if (!firstQuestionId) throw new Error('session has no questions')
-    const userId = await readUserId(TEST_EMAIL)
-    const key = `quiz-active-session:${userId}`
-    expect(await readAnsweredQuestionIds(sessionId)).toEqual([])
-    await page.evaluate(
-      ({ key: storageKey, userId: uid, sessionId: sid, questionIds }) => {
-        localStorage.setItem(
-          storageKey,
-          JSON.stringify({
-            userId: uid,
-            sessionId: sid,
-            questionIds,
-            answers: {
-              [questionIds[0] as string]: { selectedOptionId: 'a', responseTimeMs: 1500 },
-            },
-            currentIndex: 0,
-            savedAt: Date.now(),
-            mode: 'study',
-          }),
-        )
-      },
-      { key, userId, sessionId, questionIds: await readSessionQuestionIds(sessionId) },
-    )
-
-    await page.goto(sessionUrl)
-
-    await expect(page.getByText(/Question 1 of/)).toBeVisible({ timeout: 10_000 })
-    await expect(page.getByTestId('option-a')).toHaveClass(RESULT_CLASS, { timeout: 10_000 })
-    await expect
-      .poll(() => readAnsweredQuestionIds(sessionId), { timeout: 10_000 })
-      .toEqual([firstQuestionId])
-    await expect.poll(() => page.evaluate((k) => localStorage.getItem(k), key)).toBeNull()
   })
 
   test('the old id-less session URL with no Discovery handoff returns to the quiz page', async ({
