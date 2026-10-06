@@ -1,5 +1,6 @@
 import { expect, type Page, test } from '@playwright/test'
 import { clearQuizActiveSessionKeys, startStudyQuiz } from './helpers/quiz-session'
+import { SESSION_ID_URL } from './helpers/quiz-session-id'
 import { cleanupStudentActiveSessions, TEST_EMAIL } from './helpers/supabase'
 
 test.use({ storageState: 'e2e/.auth/user.json' })
@@ -39,12 +40,7 @@ test.describe('Quiz restored answer feedback', () => {
 
     // Reload mid-flow: resume lands on question 2; question 1 is never revisited.
     await page.reload()
-    await expect(page).toHaveURL(/\/app\/quiz\/session$/)
-    await expect(page.getByRole('heading', { name: 'Resume your quiz?' })).toBeVisible({
-      timeout: 10_000,
-    })
-    await page.getByRole('button', { name: 'Resume' }).click()
-    await expect(page).toHaveURL(/\/app\/quiz\/session$/)
+    await expect(page).toHaveURL(SESSION_ID_URL)
     await expect(page.getByText(`Question 2 of ${total}`)).toBeVisible({ timeout: 10_000 })
 
     await expect(gridButton(page, 0)).toHaveClass(GRADED_CLASS, { timeout: 10_000 })
