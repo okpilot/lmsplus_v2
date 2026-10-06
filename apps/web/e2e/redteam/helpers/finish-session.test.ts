@@ -62,14 +62,6 @@ describe('saveSeedAnswers', () => {
     expect(mockRpc.mock.calls[1]?.[1]).toMatchObject({ p_question_id: 'q2' })
   })
 
-  it('uses the caller-supplied device id', async () => {
-    mockRpc.mockResolvedValue({ data: null, error: null })
-
-    await saveSeedAnswers(client, 'sess-1', ANSWERS.slice(0, 1), 'dev-x')
-
-    expect(mockRpc.mock.calls[0]?.[1]).toMatchObject({ p_device_id: 'dev-x' })
-  })
-
   it('stops at the first failed save and names the RPC', async () => {
     mockRpc
       .mockResolvedValueOnce({ data: null, error: { message: 'session_discarded' } })

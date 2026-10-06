@@ -39,7 +39,6 @@ export async function saveSeedAnswers(
   client: RpcClient,
   sessionId: string,
   answers: SeedAnswer[],
-  deviceId: string = SEED_DEVICE_ID,
 ): Promise<void> {
   for (const a of answers) {
     const { error } = await client.rpc('save_quiz_answer', {
@@ -47,19 +46,15 @@ export async function saveSeedAnswers(
       p_question_id: a.question_id,
       p_answer: a.answer,
       p_time_spent_ms: SEED_TIME_SPENT_MS,
-      p_device_id: deviceId,
+      p_device_id: SEED_DEVICE_ID,
     })
     if (error) throw new Error(`save_quiz_answer failed: ${error.message}`)
   }
 }
 
 /** Call finish_quiz_session and hand back the raw result so a spec can assert on it. */
-export function finishSeedSession(
-  client: RpcClient,
-  sessionId: string,
-  deviceId: string = SEED_DEVICE_ID,
-): PromiseLike<RpcResult> {
-  return client.rpc('finish_quiz_session', { p_session_id: sessionId, p_device_id: deviceId })
+export function finishSeedSession(client: RpcClient, sessionId: string): PromiseLike<RpcResult> {
+  return client.rpc('finish_quiz_session', { p_session_id: sessionId, p_device_id: SEED_DEVICE_ID })
 }
 
 /** Save every answer, then finish; throws on a save failure, returns the finish result. */
