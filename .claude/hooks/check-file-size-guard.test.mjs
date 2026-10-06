@@ -52,8 +52,8 @@ const lines = (n) => `${'x\n'.repeat(n)}`
 
 // GROUP: countlines-returns-raw-part-count
 test('counts a newline-terminated file the way wc -l does', () => {
-  // MUTATION: return parts.length unconditionally → 101 here, and the real
-  // batch-submit.ts (which sits exactly at its cap) starts failing.
+  // MUTATION: return parts.length unconditionally → 101 here, and any file sitting
+  // exactly at its cap starts failing.
   assert.equal(countLines('a\nb\nc\n'), 3)
   assert.equal(countLines(lines(100)), 100)
 })
@@ -70,9 +70,9 @@ test('counts an empty file as zero lines, not one', () => {
 })
 
 test('a file exactly at its limit is not a violation', () => {
-  // The boundary that made counting semantics load-bearing. batch-submit.ts is real.
+  // The boundary that made counting semantics load-bearing.
   const limits = fixture()
-  const files = ['a/batch-submit.ts']
+  const files = ['a/at-cap.ts']
   const read = () => `'use server'\n${lines(99)}`
   const { regressions } = evaluate(files, read, limits)
   assert.equal(countLines(read()), 100)
