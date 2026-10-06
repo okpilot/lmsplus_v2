@@ -13,6 +13,7 @@ const IDS = ['q1', 'q2']
 
 beforeEach(() => {
   vi.resetAllMocks()
+  localStorage.clear()
   mockLoad.mockResolvedValue({
     success: true,
     questions: [{ id: 'q1' }],
@@ -80,5 +81,28 @@ describe('useServerSessionBootstrap', () => {
     rerender({ ids: ['q1', 'q2'] })
 
     expect(mockLoad).toHaveBeenCalledTimes(1)
+  })
+
+  it("drops this browser's copies of other sessions once the session loads", async () => {
+    localStorage.setItem('quiz-active-session:u1', JSON.stringify({ sessionId: 'old' }))
+    localStorage.setItem('quiz-active-session:u2', JSON.stringify({ sessionId: 's1' }))
+    const { result } = renderHook(() =>
+      useServerSessionBootstrap({ sessionId: 's1', questionIds: IDS, mode: 'quick_quiz' }),
+    )
+
+    await waitFor(() => expect(result.current.questions).not.toBeNull())
+    expect(localStorage.getItem('quiz-active-session:u1')).toBeNull()
+    expect(localStorage.getItem('quiz-active-session:u2')).not.toBeNull()
+  })
+
+  it('keeps local copies when the session fails to load', async () => {
+    mockLoad.mockResolvedValue({ success: false, error: 'No questions found' })
+    localStorage.setItem('quiz-active-session:u1', JSON.stringify({ sessionId: 'old' }))
+    const { result } = renderHook(() =>
+      useServerSessionBootstrap({ sessionId: 's1', questionIds: IDS, mode: 'quick_quiz' }),
+    )
+
+    await waitFor(() => expect(result.current.error).toBe('No questions found'))
+    expect(localStorage.getItem('quiz-active-session:u1')).not.toBeNull()
   })
 })

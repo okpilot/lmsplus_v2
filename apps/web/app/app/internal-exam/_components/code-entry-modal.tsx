@@ -43,6 +43,7 @@ export function CodeEntryModal({ open, onOpenChange, subjectName, subjectShort }
   const { error, setError, isPending, start, reset, blocked } = useCodeEntryStart(code)
 
   function handleClose(next: boolean) {
+    if (!next && isPending) return
     if (!next) {
       setCode('')
       reset()
@@ -88,7 +89,7 @@ export function CodeEntryModal({ open, onOpenChange, subjectName, subjectShort }
                 reset()
                 setCode(sanitize(e.target.value))
               }}
-              disabled={blocked.saving || isPending}
+              disabled={isPending}
               autoComplete="off"
               autoCapitalize="characters"
               spellCheck={false}

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { SessionQuestion } from '@/app/app/_types/session'
 import type { QuizMode } from '@/lib/constants/exam-modes'
+import { clearActiveSessionsExcept } from '../_utils/clear-active-session-copies'
 import { toRunnerMode } from '../_utils/session-runner-mode'
 import { loadSessionData, type SessionLoadResult } from './session-bootstrap-load'
 
@@ -36,7 +37,11 @@ export function useServerSessionBootstrap({ sessionId, questionIds, mode }: Read
   useEffect(() => {
     let cancelled = false
     loadSessionData(questionIdsRef.current, { sessionId, ...toRunnerMode(mode) })
-      .then((r) => !cancelled && setState(toLoaded(r)))
+      .then((r) => {
+        // The opened session is the student's only active one (docs/security.md §11d).
+        if (r.success) clearActiveSessionsExcept(sessionId)
+        if (!cancelled) setState(toLoaded(r))
+      })
       .catch(() => !cancelled && setState({ ...PENDING, error: LOAD_FAILED }))
     return () => {
       cancelled = true

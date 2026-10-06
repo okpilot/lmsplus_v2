@@ -11,6 +11,7 @@
 import { readFileSync } from 'node:fs'
 import { type Browser, type BrowserContext, expect, type Page, test } from '@playwright/test'
 import {
+  clearQuizActiveSessionKeys,
   isServerActionPost,
   readServerAnsweredCount,
   startStudyQuiz,
@@ -116,11 +117,7 @@ test.describe('Quiz session addressed by id', () => {
   test.afterEach(async ({ page }) => {
     const errors: string[] = []
     try {
-      await page.evaluate(() => {
-        for (const key of Object.keys(localStorage)) {
-          if (key.startsWith('quiz-active-session:')) localStorage.removeItem(key)
-        }
-      })
+      await clearQuizActiveSessionKeys(page)
     } catch (e) {
       errors.push(e instanceof Error ? e.message : String(e))
     }

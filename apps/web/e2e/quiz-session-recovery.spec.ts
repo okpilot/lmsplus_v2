@@ -1,5 +1,9 @@
 import { expect, type Page, test } from '@playwright/test'
-import { startStudyQuiz, submitFirstOption } from './helpers/quiz-session'
+import {
+  clearQuizActiveSessionKeys,
+  startStudyQuiz,
+  submitFirstOption,
+} from './helpers/quiz-session'
 import {
   readSessionRow,
   resetStudentQuizSessions,
@@ -59,11 +63,7 @@ test.describe('Quiz Session Recovery', () => {
   test.afterEach(async ({ page }) => {
     const errors: string[] = []
     try {
-      await page.evaluate(() => {
-        for (const key of Object.keys(localStorage)) {
-          if (key.startsWith('quiz-active-session:')) localStorage.removeItem(key)
-        }
-      })
+      await clearQuizActiveSessionKeys(page)
     } catch (e) {
       errors.push(e instanceof Error ? e.message : String(e))
     }

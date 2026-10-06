@@ -39,8 +39,21 @@ vi.mock('../actions/start-internal-exam', () => ({
 
 // Render Base UI Dialog as a plain div so jsdom can drive it deterministically.
 vi.mock('@/components/ui/dialog', () => ({
-  Dialog: ({ open, children }: { open: boolean; children: React.ReactNode }) =>
-    open ? <div data-testid="dialog">{children}</div> : null,
+  Dialog: ({
+    open,
+    onOpenChange,
+    children,
+  }: {
+    open: boolean
+    onOpenChange: (next: boolean) => void
+    children: React.ReactNode
+  }) =>
+    open ? (
+      <div data-testid="dialog">
+        <button type="button" data-testid="dialog-dismiss" onClick={() => onOpenChange(false)} />
+        {children}
+      </div>
+    ) : null,
   DialogContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DialogTitle: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
@@ -287,5 +300,28 @@ describe('CodeEntryModal', () => {
     // Lock resets after a throw — second attempt must proceed.
     form.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }))
     await waitFor(() => expect(mockStartInternalExam).toHaveBeenCalledTimes(2))
+  })
+
+  it('cannot be cancelled or dismissed while the open practice quiz is being saved', async () => {
+    mockStartInternalExam.mockResolvedValueOnce({
+      success: false,
+      error: 'Another session is active',
+      blocked: true,
+    })
+    mockGetActivePracticeSession.mockResolvedValue({
+      success: true,
+      session: { sessionId: 'blocker-1', subjectName: 'Meteorology' },
+    })
+    mockClaim.mockReturnValue(new Promise(() => {}))
+    const { onOpenChange } = renderModal()
+    await userEvent.type(screen.getByTestId('code-input'), 'ABCD2345')
+    await userEvent.click(screen.getByRole('button', { name: /start exam/i }))
+    await userEvent.click(
+      await screen.findByRole('button', { name: /save quiz for later and start exam/i }),
+    )
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /cancel/i })).toBeDisabled())
+    await userEvent.click(screen.getByTestId('dialog-dismiss'))
+    expect(onOpenChange).not.toHaveBeenCalled()
   })
 })

@@ -29,5 +29,11 @@ export function useVfrRtExamStart(opts: UseVfrRtExamStartOpts) {
     inFlight,
   })
 
-  return { loading, error, handleStart, blocked: toBlockedStartState(blockedStart, handleStart) }
+  return {
+    // Busy while the blocking quiz is being saved: a second start would no-op the offer's re-run.
+    loading: loading || blockedStart.saving,
+    error,
+    handleStart,
+    blocked: toBlockedStartState(blockedStart, handleStart),
+  }
 }

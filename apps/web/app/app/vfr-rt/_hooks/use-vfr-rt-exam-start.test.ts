@@ -1,4 +1,4 @@
-import { act, renderHook } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockPush, mockStartVfrRtExam, mockGetActivePracticeSession } = vi.hoisted(() => ({
@@ -12,6 +12,11 @@ vi.mock('@/app/app/quiz/actions/get-active-practice-session', () => ({
 }))
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mockPush }) }))
+
+vi.mock('@/app/app/quiz/actions/saved-quiz', () => ({
+  checkSavedQuizRoom: () => new Promise(() => {}),
+  saveQuizForLater: vi.fn(),
+}))
 vi.mock('../../vfr-rt-exam/actions/start', () => ({
   startVfrRtExam: (...args: unknown[]) => mockStartVfrRtExam(...args),
 }))
@@ -94,5 +99,25 @@ describe('useVfrRtExamStart', () => {
     })
 
     expect(result.current.blocked.offer).toEqual({ sessionId: 'blocker-1', subjectName: 'Air Law' })
+  })
+
+  it('stays busy while the blocking quiz is being saved for later', async () => {
+    mockStartVfrRtExam.mockResolvedValue({
+      success: false as const,
+      error: 'Another session is active',
+      blocked: true,
+    })
+    mockGetActivePracticeSession.mockResolvedValue({
+      success: true,
+      session: { sessionId: 'blocker-1', subjectName: 'Air Law' },
+    })
+    const { result } = renderHook(() => useVfrRtExamStart(OPTS))
+    await act(async () => result.current.handleStart())
+    expect(result.current.loading).toBe(false)
+
+    act(() => result.current.blocked.onAccept())
+
+    await waitFor(() => expect(result.current.blocked.saving).toBe(true))
+    expect(result.current.loading).toBe(true)
   })
 })

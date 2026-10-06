@@ -55,7 +55,8 @@ export function useCodeEntryStart(code: string) {
   return {
     error,
     setError,
-    isPending,
+    // Pending while the blocking quiz is being saved: the offer then re-runs this start.
+    isPending: isPending || blockedStart.saving,
     start,
     reset,
     blocked: toBlockedStartState(blockedStart, start),

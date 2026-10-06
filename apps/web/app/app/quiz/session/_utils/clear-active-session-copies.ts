@@ -11,8 +11,7 @@ function storedSessionId(key: string): unknown {
   }
 }
 
-/** Removes this browser's local copy of `sessionId`, whichever user key holds it. Best effort. */
-export function clearActiveSessionById(sessionId: string): void {
+function clearCopies(matches: (storedId: unknown) => boolean): void {
   try {
     const keys: string[] = []
     for (let i = 0; i < localStorage.length; i++) {
@@ -20,9 +19,19 @@ export function clearActiveSessionById(sessionId: string): void {
       if (key?.startsWith(ACTIVE_SESSION_KEY_PREFIX)) keys.push(key)
     }
     for (const key of keys) {
-      if (storedSessionId(key) === sessionId) localStorage.removeItem(key)
+      if (matches(storedSessionId(key))) localStorage.removeItem(key)
     }
   } catch {
     // Private browsing SecurityError — nothing stored to clear.
   }
+}
+
+/** Removes this browser's local copy of `sessionId`, whichever user key holds it. Best effort. */
+export function clearActiveSessionById(sessionId: string): void {
+  clearCopies((id) => id === sessionId)
+}
+
+/** Removes every local copy except `sessionId`'s: once it is open, any other copy is stale. */
+export function clearActiveSessionsExcept(sessionId: string): void {
+  clearCopies((id) => id !== sessionId)
 }
