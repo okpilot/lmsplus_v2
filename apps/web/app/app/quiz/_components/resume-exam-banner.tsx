@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,11 +31,30 @@ type DiscardOnlyProps = {
 
 type Props = NormalProps | DiscardOnlyProps
 
+export function ResumeLink({
+  sessionId,
+  loading,
+  children,
+}: Readonly<{ sessionId: string; loading: boolean; children: React.ReactNode }>) {
+  return (
+    <Link
+      href={`/app/quiz/session/${sessionId}`}
+      aria-disabled={loading || undefined}
+      tabIndex={loading ? -1 : undefined}
+      onClick={(e) => {
+        if (loading) e.preventDefault()
+      }}
+      className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-600 aria-disabled:pointer-events-none aria-disabled:opacity-50"
+    >
+      {children}
+    </Link>
+  )
+}
+
 export function ResumeExamBanner({ userId, exam, discardOnly, sessionId }: Readonly<Props>) {
   const activeSessionId = discardOnly ? sessionId : exam.sessionId
-  const { loading, error, discarded, handleResume, handleDiscard } = useResumeExamActions({
+  const { loading, error, discarded, handleDiscard } = useResumeExamActions({
     userId,
-    exam: discardOnly ? undefined : exam,
     activeSessionId,
   })
 
@@ -58,14 +78,9 @@ export function ResumeExamBanner({ userId, exam, discardOnly, sessionId }: Reado
       )}
       <div className="mt-3 flex gap-2">
         {!discardOnly && (
-          <button
-            type="button"
-            onClick={handleResume}
-            disabled={loading}
-            className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-600 disabled:opacity-50"
-          >
+          <ResumeLink sessionId={activeSessionId} loading={loading}>
             Resume Practice Exam
-          </button>
+          </ResumeLink>
         )}
         <AlertDialog>
           <AlertDialogTrigger

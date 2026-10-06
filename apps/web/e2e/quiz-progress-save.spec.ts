@@ -1,5 +1,6 @@
 import { expect, type Page, test } from '@playwright/test'
 import { startStudyQuiz } from './helpers/quiz-session'
+import { SESSION_ID_URL } from './helpers/quiz-session-id'
 import { cleanupStudentActiveSessions, getAdminClient, TEST_EMAIL } from './helpers/supabase'
 
 test.use({ storageState: 'e2e/.auth/user.json' })
@@ -78,14 +79,12 @@ test.describe('Quiz progress saved to the server', () => {
       .poll(async () => (await readServerProgress())?.currentIndex, { timeout: 10_000 })
       .toBe(1)
 
-    // Reload mid-flow: server progress is intact and Resume returns to the saved question.
+    // Reload mid-flow: server progress is intact and the same URL reopens the saved question.
+    const sessionUrl = page.url()
     await page.reload()
-    await expect(page).toHaveURL(/\/app\/quiz\/session$/)
-    await expect(page.getByRole('heading', { name: 'Resume your quiz?' })).toBeVisible({
-      timeout: 10_000,
-    })
-    await page.getByRole('button', { name: 'Resume' }).click()
+    await expect(page).toHaveURL(sessionUrl)
     await expect(page.getByText(`Question 2 of ${total}`)).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByRole('heading', { name: 'Resume your quiz?' })).toHaveCount(0)
     expect(await readServerProgress()).toEqual({ currentIndex: 1, answeredCount: 1 })
   })
 
@@ -107,10 +106,10 @@ test.describe('Quiz progress saved to the server', () => {
     const second = await context.newPage()
     await second.goto('/app/quiz')
     await expect(second).toHaveURL(/\/app\/quiz$/)
-    const resume = second.getByRole('button', { name: 'Resume' }).first()
+    const resume = second.getByRole('link', { name: 'Resume', exact: true })
     await resume.waitFor({ state: 'visible', timeout: 10_000 })
     await resume.click()
-    await second.waitForURL('**/app/quiz/session', { timeout: 10_000 })
+    await second.waitForURL(SESSION_ID_URL, { timeout: 10_000 })
     await expect(second.getByText(new RegExp(`Question \\d+ of ${total}`))).toBeVisible({
       timeout: 10_000,
     })

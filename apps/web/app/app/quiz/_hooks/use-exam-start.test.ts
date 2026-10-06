@@ -1,41 +1,29 @@
-import { act, renderHook } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockRouterPush, mockStartExamSession, mockSessionStorageSetItem } = vi.hoisted(() => ({
+const { mockRouterPush, mockStartExamSession, mockGetActivePracticeSession } = vi.hoisted(() => ({
   mockRouterPush: vi.fn(),
   mockStartExamSession: vi.fn(),
-  mockSessionStorageSetItem: vi.fn(),
+  mockGetActivePracticeSession: vi.fn(),
 }))
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockRouterPush }),
 }))
 
+vi.mock('../actions/saved-quiz', () => ({
+  checkSavedQuizRoom: () => new Promise(() => {}),
+  saveQuizForLater: vi.fn(),
+}))
+
 vi.mock('../actions/start-exam', () => ({
   startExamSession: (...args: unknown[]) => mockStartExamSession(...args),
 }))
 
-const { mockDiscardQuiz } = vi.hoisted(() => ({
-  mockDiscardQuiz: vi.fn(),
-}))
-
-vi.mock('../actions/discard', () => ({
-  discardQuiz: (...args: unknown[]) => mockDiscardQuiz(...args),
-}))
-
-const { mockReadActiveSession, mockClearActiveSession } = vi.hoisted(() => ({
-  mockReadActiveSession: vi.fn(),
-  mockClearActiveSession: vi.fn(),
-}))
-
-vi.mock('../session/_utils/quiz-session-storage', () => ({
-  readActiveSession: (userId: string) => mockReadActiveSession(userId),
-  clearActiveSession: mockClearActiveSession,
-}))
-vi.mock('../session/_utils/quiz-session-handoff', () => ({
-  sessionHandoffKey: (userId: string) => `quiz-session:${userId}`,
+vi.mock('../actions/get-active-practice-session', () => ({
+  getActivePracticeSession: (...args: unknown[]) => mockGetActivePracticeSession(...args),
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -44,7 +32,6 @@ import { useExamStart } from './use-exam-start'
 
 // ---- Fixtures -------------------------------------------------------------
 
-const USER_ID = 'test-user-id'
 const SUBJECT_ID = '00000000-0000-4000-a000-000000000010'
 const SESSION_ID = '00000000-0000-4000-a000-000000000001'
 const Q1_ID = '00000000-0000-4000-a000-000000000011'
@@ -63,7 +50,6 @@ const EXAM_SUBJECTS = [
 ]
 
 const DEFAULT_OPTS = {
-  userId: USER_ID,
   subjectId: SUBJECT_ID,
   examSubjects: EXAM_SUBJECTS,
 }
@@ -80,34 +66,11 @@ const SUCCESS_RESULT = {
   startedAt: STARTED_AT,
 }
 
-const EXISTING_SESSION = {
-  sessionId: 'old-sess',
-  questionIds: ['q9'],
-  answers: {},
-  currentIndex: 0,
-  subjectName: 'Meteorology',
-  savedAt: Date.now(),
-}
-
-function readStoredSessionPayload(): Record<string, unknown> {
-  const storedJson = mockSessionStorageSetItem.mock.calls[0]?.[1]
-  if (typeof storedJson !== 'string') throw new Error('Expected sessionStorage payload')
-  return JSON.parse(storedJson) as Record<string, unknown>
-}
-
 // ---- Lifecycle ------------------------------------------------------------
 
 beforeEach(() => {
   vi.resetAllMocks()
-  Object.defineProperty(globalThis, 'sessionStorage', {
-    value: { setItem: mockSessionStorageSetItem, getItem: vi.fn(), removeItem: vi.fn() },
-    writable: true,
-  })
   mockStartExamSession.mockResolvedValue(SUCCESS_RESULT)
-  // Default: no existing session
-  mockReadActiveSession.mockReturnValue(null)
-  // Default: discard cleanup succeeds (used only on the handoff-failure path)
-  mockDiscardQuiz.mockResolvedValue({ success: true })
 })
 
 // ---- Initial state -------------------------------------------------------
@@ -186,155 +149,17 @@ describe('useExamStart — handleStart happy path', () => {
     expect(mockStartExamSession).toHaveBeenCalledWith({ subjectId: SUBJECT_ID })
   })
 
-  it('carries the started exam into the runner', async () => {
+  it('navigates to /app/quiz/session/<id>, never calls sessionStorage.setItem, never reads localStorage', async () => {
+    const setItem = vi.spyOn(Storage.prototype, 'setItem')
+    const getItem = vi.spyOn(Storage.prototype, 'getItem')
     const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))
     await act(async () => result.current.handleStart())
 
-    expect(mockSessionStorageSetItem).toHaveBeenCalledWith(
-      `quiz-session:${USER_ID}`,
-      expect.stringContaining(SESSION_ID),
-    )
-  })
-
-  it('includes mode exam in sessionStorage payload', async () => {
-    const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))
-    await act(async () => result.current.handleStart())
-    expect(readStoredSessionPayload().mode).toBe('exam')
-  })
-
-  it('includes subjectName and subjectCode in sessionStorage when subject is found', async () => {
-    const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))
-    await act(async () => result.current.handleStart())
-    const stored = readStoredSessionPayload()
-    expect(stored.subjectName).toBe('Air Law')
-    expect(stored.subjectCode).toBe('ALW')
-  })
-
-  it('includes timeLimitSeconds and passMark in sessionStorage from RPC result', async () => {
-    const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))
-    await act(async () => result.current.handleStart())
-    const stored = readStoredSessionPayload()
-    expect(stored.timeLimitSeconds).toBe(3600)
-    expect(stored.passMark).toBe(75)
-  })
-
-  it('includes startedAt in sessionStorage from RPC result (deadline base)', async () => {
-    const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))
-    await act(async () => result.current.handleStart())
-    expect(readStoredSessionPayload().startedAt).toBe(STARTED_AT)
-  })
-
-  it('navigates to /app/quiz/session after a successful start', async () => {
-    const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))
-    await act(async () => result.current.handleStart())
-    expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session')
-  })
-
-  it('does not call clearActiveSession when no existing session is present', async () => {
-    mockReadActiveSession.mockReturnValue(null)
-    const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))
-    await act(async () => result.current.handleStart())
-    expect(mockClearActiveSession).not.toHaveBeenCalled()
+    expect(mockRouterPush).toHaveBeenCalledWith(`/app/quiz/session/${SESSION_ID}`)
+    expect(setItem).not.toHaveBeenCalled()
+    expect(getItem).not.toHaveBeenCalled()
   })
 })
-
-// ---- handleStart — existing session guard --------------------------------
-
-describe('useExamStart — existing session guard', () => {
-  it('prompts the user when an active session exists before starting', async () => {
-    mockReadActiveSession.mockReturnValue(EXISTING_SESSION)
-    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(true)
-
-    const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))
-    await act(async () => result.current.handleStart())
-
-    expect(confirmSpy).toHaveBeenCalledTimes(1)
-    confirmSpy.mockRestore()
-  })
-
-  it('includes subject name in the confirmation message when it is set', async () => {
-    mockReadActiveSession.mockReturnValue(EXISTING_SESSION)
-    let capturedMsg = ''
-    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockImplementation((msg) => {
-      capturedMsg = msg as string
-      return true
-    })
-
-    const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))
-    await act(async () => result.current.handleStart())
-
-    expect(capturedMsg).toContain('Meteorology')
-    confirmSpy.mockRestore()
-  })
-
-  it('omits the subject name suffix in confirmation when subjectName is absent', async () => {
-    mockReadActiveSession.mockReturnValue({ ...EXISTING_SESSION, subjectName: undefined })
-    let capturedMsg = ''
-    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockImplementation((msg) => {
-      capturedMsg = msg as string
-      return true
-    })
-
-    const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))
-    await act(async () => result.current.handleStart())
-
-    // Should not contain a parenthesized suffix like "(Meteorology)"
-    expect(capturedMsg).not.toMatch(/\(/)
-    confirmSpy.mockRestore()
-  })
-
-  it('aborts the start when the user cancels the confirmation', async () => {
-    mockReadActiveSession.mockReturnValue(EXISTING_SESSION)
-    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(false)
-
-    const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))
-    await act(async () => result.current.handleStart())
-
-    expect(mockStartExamSession).not.toHaveBeenCalled()
-    expect(mockRouterPush).not.toHaveBeenCalled()
-    confirmSpy.mockRestore()
-  })
-
-  it('starts the exam on a retry after the user first cancels the confirmation', async () => {
-    mockReadActiveSession.mockReturnValue(EXISTING_SESSION)
-    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(false)
-
-    const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))
-    await act(async () => result.current.handleStart())
-    expect(mockStartExamSession).not.toHaveBeenCalled()
-
-    // The cancelled attempt must not lock the user out — confirming now starts the exam.
-    confirmSpy.mockReturnValue(true)
-    await act(async () => result.current.handleStart())
-    expect(mockStartExamSession).toHaveBeenCalledTimes(1)
-    confirmSpy.mockRestore()
-  })
-
-  it('proceeds with start and clears the old session when user confirms', async () => {
-    mockReadActiveSession.mockReturnValue(EXISTING_SESSION)
-    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(true)
-
-    const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))
-    await act(async () => result.current.handleStart())
-
-    expect(mockStartExamSession).toHaveBeenCalledTimes(1)
-    expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
-    confirmSpy.mockRestore()
-  })
-
-  it('does not show a confirmation when no existing session is present', async () => {
-    mockReadActiveSession.mockReturnValue(null)
-    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(true)
-
-    const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))
-    await act(async () => result.current.handleStart())
-
-    expect(confirmSpy).not.toHaveBeenCalled()
-    confirmSpy.mockRestore()
-  })
-})
-
-// ---- handleStart — failure paths ----------------------------------------
 
 describe('useExamStart — handleStart failure paths', () => {
   it('sets error state when startExamSession returns a failure result', async () => {
@@ -362,100 +187,6 @@ describe('useExamStart — handleStart failure paths', () => {
     expect(result.current.loading).toBe(false)
   })
 
-  it('sets a specific error message when sessionStorage write fails', async () => {
-    mockSessionStorageSetItem.mockImplementation(() => {
-      throw new DOMException('QuotaExceededError')
-    })
-
-    const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))
-    await act(async () => result.current.handleStart())
-
-    expect(result.current.error).toBe('Unable to start Practice Exam right now. Please try again.')
-    expect(result.current.loading).toBe(false)
-  })
-
-  it('does not navigate when sessionStorage write fails', async () => {
-    mockSessionStorageSetItem.mockImplementation(() => {
-      throw new DOMException('QuotaExceededError')
-    })
-
-    const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))
-    await act(async () => result.current.handleStart())
-
-    expect(mockRouterPush).not.toHaveBeenCalled()
-  })
-
-  it('does not clear the existing session when sessionStorage write fails', async () => {
-    mockReadActiveSession.mockReturnValue(EXISTING_SESSION)
-    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(true)
-    mockSessionStorageSetItem.mockImplementation(() => {
-      throw new DOMException('QuotaExceededError')
-    })
-
-    const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))
-    await act(async () => result.current.handleStart())
-
-    expect(mockClearActiveSession).not.toHaveBeenCalled()
-    confirmSpy.mockRestore()
-  })
-
-  it('soft-deletes the orphaned exam when sessionStorage write fails', async () => {
-    mockSessionStorageSetItem.mockImplementation(() => {
-      throw new DOMException('QuotaExceededError')
-    })
-
-    const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))
-    await act(async () => result.current.handleStart())
-
-    // Server already created result.sessionId; without this discard the next
-    // start would hit 'an exam session is already in progress for this subject'.
-    expect(mockDiscardQuiz).toHaveBeenCalledWith({ sessionId: SESSION_ID })
-  })
-
-  it('still surfaces the correct user-facing error when the orphan discard itself fails', async () => {
-    mockSessionStorageSetItem.mockImplementation(() => {
-      throw new DOMException('QuotaExceededError')
-    })
-    mockDiscardQuiz.mockResolvedValue({ success: false, error: 'Not found' })
-
-    const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))
-    await act(async () => result.current.handleStart())
-
-    // The discard failure must not swallow the user-facing error
-    expect(result.current.error).toBe('Unable to start Practice Exam right now. Please try again.')
-    expect(result.current.loading).toBe(false)
-    expect(mockRouterPush).not.toHaveBeenCalled()
-  })
-
-  it('still surfaces the correct user-facing error when the orphan discard throws', async () => {
-    mockSessionStorageSetItem.mockImplementation(() => {
-      throw new DOMException('QuotaExceededError')
-    })
-    const cleanupErr = new Error('discard network failure')
-    mockDiscardQuiz.mockRejectedValue(cleanupErr)
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-
-    try {
-      const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))
-      await act(async () => result.current.handleStart())
-
-      // A thrown rejection from discardQuiz must NOT bubble to the outer catch —
-      // the user must see the same handoff-failure error and loading must clear.
-      expect(result.current.error).toBe(
-        'Unable to start Practice Exam right now. Please try again.',
-      )
-      expect(result.current.loading).toBe(false)
-      expect(mockRouterPush).not.toHaveBeenCalled()
-      expect(errorSpy).toHaveBeenCalledWith(
-        '[use-exam-start] orphan discard threw for session',
-        SESSION_ID,
-        cleanupErr,
-      )
-    } finally {
-      errorSpy.mockRestore()
-    }
-  })
-
   it('sets a generic error message when startExamSession throws', async () => {
     mockStartExamSession.mockRejectedValue(new Error('network timeout'))
 
@@ -475,30 +206,43 @@ describe('useExamStart — handleStart failure paths', () => {
     expect(mockRouterPush).not.toHaveBeenCalled()
   })
 
-  it('does not clear the existing session when startExamSession returns a failure', async () => {
-    mockReadActiveSession.mockReturnValue(EXISTING_SESSION)
-    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(true)
+  it('offers to save the blocking practice quiz when the start is blocked', async () => {
     mockStartExamSession.mockResolvedValue({
       success: false as const,
-      error: 'A Practice Exam is already in progress for this subject.',
+      error: 'Another session is active',
+      blocked: true,
+    })
+    mockGetActivePracticeSession.mockResolvedValue({
+      success: true,
+      session: { sessionId: 'blocker-1', subjectName: 'Meteorology' },
     })
 
     const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))
     await act(async () => result.current.handleStart())
 
-    expect(mockClearActiveSession).not.toHaveBeenCalled()
-    confirmSpy.mockRestore()
+    expect(result.current.blocked.offer).toEqual({
+      sessionId: 'blocker-1',
+      subjectName: 'Meteorology',
+    })
   })
 
-  it('does not clear the existing session when startExamSession throws', async () => {
-    mockReadActiveSession.mockReturnValue(EXISTING_SESSION)
-    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(true)
-    mockStartExamSession.mockRejectedValue(new Error('network timeout'))
-
+  it('stays busy while the blocking quiz is being saved for later', async () => {
+    mockStartExamSession.mockResolvedValue({
+      success: false as const,
+      error: 'Another session is active',
+      blocked: true,
+    })
+    mockGetActivePracticeSession.mockResolvedValue({
+      success: true,
+      session: { sessionId: 'blocker-1', subjectName: 'Air Law' },
+    })
     const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))
     await act(async () => result.current.handleStart())
+    expect(result.current.loading).toBe(false)
 
-    expect(mockClearActiveSession).not.toHaveBeenCalled()
-    confirmSpy.mockRestore()
+    act(() => result.current.blocked.onAccept())
+
+    await waitFor(() => expect(result.current.blocked.saving).toBe(true))
+    expect(result.current.loading).toBe(true)
   })
 })

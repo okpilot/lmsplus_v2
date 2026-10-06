@@ -59,10 +59,13 @@ describe('ActivePracticeBanner — rendering', () => {
     expect(screen.getByText(/^unfinished smart review session$/i)).toBeInTheDocument()
   })
 
-  it('offers a Discard control but no Resume control', () => {
+  it('offers a Resume link to the session page and a Discard control', () => {
     render(<ActivePracticeBanner userId={USER_ID} session={SESSION} />)
+    expect(screen.getByRole('link', { name: /resume/i })).toHaveAttribute(
+      'href',
+      '/app/quiz/session/sess-prac-001',
+    )
     expect(screen.getByRole('button', { name: /^discard$/i })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /resume/i })).not.toBeInTheDocument()
   })
 })
 
@@ -123,6 +126,21 @@ describe('ActivePracticeBanner — Discard', () => {
     await userEvent.click(screen.getByRole('button', { name: /^discard$/i, hidden: false }))
 
     await waitFor(() => expect(screen.getByRole('button', { name: /^cancel$/i })).toBeDisabled())
+  })
+
+  it('disables the Resume link while a discard is in flight', async () => {
+    mockDiscardQuiz.mockReturnValue(new Promise(() => {}))
+
+    render(<ActivePracticeBanner userId={USER_ID} session={SESSION} />)
+    await userEvent.click(screen.getByRole('button', { name: /^discard$/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^discard$/i, hidden: false }))
+
+    await waitFor(() =>
+      expect(screen.getByRole('link', { name: /resume/i, hidden: true })).toHaveAttribute(
+        'aria-disabled',
+        'true',
+      ),
+    )
   })
 
   it('submits a single discard when confirm is double-clicked before the first settles', async () => {

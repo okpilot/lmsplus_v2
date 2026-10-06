@@ -54,7 +54,7 @@ describe('InternalExamContent', () => {
   it('shows the error banner when available exams fail to load', async () => {
     mockListAvailableInternalExams.mockResolvedValue({ success: false, data: [] })
 
-    const jsx = await InternalExamContent({ userId: 'u1' })
+    const jsx = await InternalExamContent()
     render(jsx)
 
     expect(screen.getByRole('alert')).toBeInTheDocument()
@@ -64,7 +64,7 @@ describe('InternalExamContent', () => {
   it('shows the error banner when exam history fails to load', async () => {
     mockListMyInternalExamHistory.mockResolvedValue({ success: false, data: [] })
 
-    const jsx = await InternalExamContent({ userId: 'u1' })
+    const jsx = await InternalExamContent()
     render(jsx)
 
     expect(screen.getByRole('alert')).toBeInTheDocument()
@@ -76,7 +76,7 @@ describe('InternalExamContent', () => {
     // a mid-exam recovery failure would leave the student no signal at all.
     mockGetActiveSession.mockResolvedValue({ success: false, error: 'rpc failed' })
 
-    const jsx = await InternalExamContent({ userId: 'u1' })
+    const jsx = await InternalExamContent()
     render(jsx)
 
     expect(screen.getByRole('alert')).toBeInTheDocument()
@@ -84,7 +84,7 @@ describe('InternalExamContent', () => {
   })
 
   it('does not show the error banner when all data loads successfully', async () => {
-    const jsx = await InternalExamContent({ userId: 'u1' })
+    const jsx = await InternalExamContent()
     render(jsx)
 
     expect(screen.queryByRole('alert')).toBeNull()
@@ -93,7 +93,7 @@ describe('InternalExamContent', () => {
   it('still renders the tabs when all data loads successfully but is empty', async () => {
     // A genuinely-empty result must not suppress the tabs — the tabs render an
     // "enrol" prompt for the student when there are no exams.
-    const jsx = await InternalExamContent({ userId: 'u1' })
+    const jsx = await InternalExamContent()
     render(jsx)
 
     expect(screen.queryByRole('alert')).toBeNull()
@@ -106,7 +106,7 @@ describe('InternalExamContent', () => {
     // separate UX refinement tracked in #720.
     mockListAvailableInternalExams.mockResolvedValue({ success: false, data: [] })
 
-    const jsx = await InternalExamContent({ userId: 'u1' })
+    const jsx = await InternalExamContent()
     render(jsx)
 
     expect(screen.getByRole('alert')).toBeInTheDocument()
@@ -121,7 +121,7 @@ describe('InternalExamContent', () => {
       expiredSessionIds: [],
     })
 
-    const jsx = await InternalExamContent({ userId: 'u1' })
+    const jsx = await InternalExamContent()
     render(jsx)
 
     expect(screen.getByTestId('recovery-banner')).toBeInTheDocument()
@@ -131,7 +131,7 @@ describe('InternalExamContent', () => {
     vi.useFakeTimers()
     mockListAvailableInternalExams.mockReturnValue(new Promise(() => {}))
 
-    const componentPromise = InternalExamContent({ userId: 'u1' })
+    const componentPromise = InternalExamContent()
     // 1 ms past the component's load timeout, so the timer has fired.
     const pastTimeoutMs = INTERNAL_EXAM_LOAD_TIMEOUT_MS + 1
     await vi.advanceTimersByTimeAsync(pastTimeoutMs)

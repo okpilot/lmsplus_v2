@@ -4,6 +4,8 @@
  * retryable failure must release that lock in the same place it surfaces the error.
  */
 
+import { getActivePracticeSession } from '../actions/get-active-practice-session'
+
 export type StartFailureState = {
   setLoading: (v: boolean) => void
   setError: (e: string | null) => void
@@ -22,18 +24,32 @@ export function failStart(state: StartFailureState, message: string): void {
   state.inFlight.current = false
 }
 
+export type BlockedOffer = { sessionId: string; subjectName: string }
+
+type BlockedAwareState = StartFailureState & {
+  setBlocked: (offer: BlockedOffer | null) => void
+}
+
 /**
- * Prompts before overwriting an unfinished session. Returns true when there is no
- * session to lose or the user confirmed. Callers set their re-entry lock only AFTER
- * this returns true — a cancelled confirm must stay retryable.
+ * A start refused with `blocked` means another session is open. When that session is a
+ * practice quiz, offer to save it for later; any other blocker (an exam) gets the message only.
  */
-export function confirmStartOverwrite(
-  existing: { subjectName?: string } | null,
-  activityNoun: string,
-): boolean {
-  if (!existing) return true
-  const suffix = existing.subjectName ? ` (${existing.subjectName})` : ''
-  return globalThis.confirm(
-    `You have an unfinished session${suffix}. Starting ${activityNoun} will lose it. Continue?`,
-  )
+async function offerBlockerSave(setBlocked: BlockedAwareState['setBlocked']): Promise<void> {
+  try {
+    const active = await getActivePracticeSession()
+    if (active.success && active.session) {
+      setBlocked({ sessionId: active.session.sessionId, subjectName: active.session.subjectName })
+    }
+  } catch (err) {
+    console.warn('[start-handler-shared] blocker lookup failed:', err)
+  }
+}
+
+/** Retryable start failure from a start action result, with the blocked-start offer. */
+export async function reportStartFailure(
+  state: BlockedAwareState,
+  result: { error: string; blocked?: true },
+): Promise<void> {
+  if (result.blocked) await offerBlockerSave(state.setBlocked)
+  failStart(state, result.error)
 }

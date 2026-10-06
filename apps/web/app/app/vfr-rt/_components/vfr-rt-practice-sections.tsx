@@ -1,3 +1,4 @@
+import { BlockedStartAlert } from '@/app/app/quiz/_components/blocked-start-alert'
 import { QuestionCount } from '@/app/app/quiz/_components/question-count'
 import { StartButton } from '@/app/app/quiz/_components/start-button'
 import { TopicTree } from '@/app/app/quiz/_components/topic-tree'
@@ -42,11 +43,7 @@ function TopicSection({ config }: Readonly<{ config: Config }>) {
 function ConfigErrors({ config }: Readonly<{ config: Config }>) {
   return (
     <>
-      {config.error && (
-        <p role="alert" className="text-sm text-destructive">
-          {config.error}
-        </p>
-      )}
+      <BlockedStartAlert message={config.error} blocked={config.blocked} startLabel="quiz" />
       {config.authError && (
         <p role="alert" className="text-sm text-destructive">
           Session expired. Please refresh the page.

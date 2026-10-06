@@ -22,7 +22,7 @@ export function ServerSessionLoader({
   entry,
 }: Readonly<{ userId: string; entry: SessionEntry }>) {
   const { sessionId, mode, questionIds } = entry
-  const bs = useServerSessionBootstrap({ sessionId, questionIds, mode })
+  const bs = useServerSessionBootstrap({ userId, sessionId, questionIds, mode })
 
   if (bs.error) return <LoadError message={bs.error} />
   if (!bs.questions) return <Skeleton className="mx-auto h-40 w-full max-w-2xl" />

@@ -1,43 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-// ---- Mocks ----------------------------------------------------------------
-
-const { mockRouterPush, mockStartQuizSession, mockSessionStorageSetItem, mockDiscardQuiz } =
-  vi.hoisted(() => ({
-    mockRouterPush: vi.fn(),
-    mockStartQuizSession: vi.fn(),
-    mockSessionStorageSetItem: vi.fn(),
-    mockDiscardQuiz: vi.fn(),
-  }))
+const { mockRouterPush, mockStartQuizSession, mockReportStartFailure } = vi.hoisted(() => ({
+  mockRouterPush: vi.fn(),
+  mockStartQuizSession: vi.fn(),
+  mockReportStartFailure: vi.fn(),
+}))
 
 vi.mock('../actions/start', () => ({
   startQuizSession: (...args: unknown[]) => mockStartQuizSession(...args),
 }))
 
-vi.mock('../actions/discard', () => ({
-  discardQuiz: (...args: unknown[]) => mockDiscardQuiz(...args),
+vi.mock('./start-handler-shared', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./start-handler-shared')>()),
+  reportStartFailure: (...args: unknown[]) => mockReportStartFailure(...args),
 }))
-
-const { mockReadActiveSession, mockClearActiveSession } = vi.hoisted(() => ({
-  mockReadActiveSession: vi.fn(),
-  mockClearActiveSession: vi.fn(),
-}))
-
-vi.mock('../session/_utils/quiz-session-storage', () => ({
-  readActiveSession: () => mockReadActiveSession(),
-  clearActiveSession: mockClearActiveSession,
-}))
-vi.mock('../session/_utils/quiz-session-handoff', () => ({
-  sessionHandoffKey: (userId: string) => `quiz-session:${userId}`,
-}))
-
-// ---- Subject under test ---------------------------------------------------
 
 import { createMockRouter } from '@/lib/test-support/mock-router'
 import type { CalcMode, ImageMode, QuestionFilterValue } from '../types'
 import { buildQuizStartHandler, type QuizStartDeps } from './quiz-start-handlers'
-
-// ---- Fixtures -------------------------------------------------------------
 
 const SUBJECT_ID = '00000000-0000-4000-a000-000000000010'
 const SESSION_ID = '00000000-0000-4000-a000-000000000001'
@@ -48,18 +28,8 @@ const SUCCESS_RESULT = {
   questionIds: ['q-1', 'q-2'],
 }
 
-const EXISTING_SESSION = {
-  sessionId: 'old-sess',
-  questionIds: ['q9'],
-  answers: {},
-  currentIndex: 0,
-  subjectName: 'Meteorology',
-  savedAt: Date.now(),
-}
-
 function makeDeps(overrides: Partial<QuizStartDeps> = {}): QuizStartDeps {
   return {
-    userId: 'test-user-id',
     subjectId: SUBJECT_ID,
     subjects: [{ id: SUBJECT_ID, code: '010', name: 'Air Law', short: 'ALW', questionCount: 50 }],
     count: 10,
@@ -75,178 +45,84 @@ function makeDeps(overrides: Partial<QuizStartDeps> = {}): QuizStartDeps {
     loading: false,
     setLoading: vi.fn(),
     setError: vi.fn(),
+    setBlocked: vi.fn(),
     inFlight: { current: false },
     ...overrides,
   }
 }
 
-// ---- Lifecycle ------------------------------------------------------------
+let setItemSpy: ReturnType<typeof vi.spyOn>
+let getItemSpy: ReturnType<typeof vi.spyOn>
 
 beforeEach(() => {
   vi.resetAllMocks()
-  Object.defineProperty(globalThis, 'sessionStorage', {
-    value: { setItem: mockSessionStorageSetItem, getItem: vi.fn(), removeItem: vi.fn() },
-    writable: true,
-  })
   mockStartQuizSession.mockResolvedValue(SUCCESS_RESULT)
-  mockReadActiveSession.mockReturnValue(null)
-  mockDiscardQuiz.mockResolvedValue({ success: true })
+  setItemSpy = vi.spyOn(Storage.prototype, 'setItem')
+  getItemSpy = vi.spyOn(Storage.prototype, 'getItem')
 })
 
-// ---- Same-tick re-entry ----------------------------------------------------
+describe('buildQuizStartHandler — navigation', () => {
+  it('navigates to /app/quiz/session/<id>, never calls sessionStorage.setItem, never reads localStorage', async () => {
+    await buildQuizStartHandler(makeDeps())()
+
+    expect(mockRouterPush).toHaveBeenCalledWith(`/app/quiz/session/${SESSION_ID}`)
+    expect(setItemSpy).not.toHaveBeenCalled()
+    expect(getItemSpy).not.toHaveBeenCalled()
+  })
+
+  it('sends the selected subject, count and filters to the start action', async () => {
+    await buildQuizStartHandler(makeDeps({ count: 80, maxQuestions: 20 }))()
+
+    expect(mockStartQuizSession).toHaveBeenCalledWith(
+      expect.objectContaining({ subjectId: SUBJECT_ID, count: 20, filters: ['all'] }),
+    )
+  })
+
+  it('clears a previous blocked offer when a new start begins', async () => {
+    const deps = makeDeps()
+    await buildQuizStartHandler(deps)()
+    expect(deps.setBlocked).toHaveBeenCalledWith(null)
+  })
+
+  it('ignores further start attempts after a successful start navigates away', async () => {
+    const handleStart = buildQuizStartHandler(makeDeps())
+    await handleStart()
+    await handleStart()
+    expect(mockStartQuizSession).toHaveBeenCalledTimes(1)
+    expect(mockRouterPush).toHaveBeenCalledTimes(1)
+  })
+})
 
 describe('buildQuizStartHandler — same-tick re-entry', () => {
   it('starts only one session when invoked twice in the same tick', async () => {
     const handleStart = buildQuizStartHandler(makeDeps())
-    const first = handleStart()
-    const second = handleStart()
-    await Promise.all([first, second])
+    await Promise.all([handleStart(), handleStart()])
     expect(mockStartQuizSession).toHaveBeenCalledTimes(1)
   })
 })
 
-// ---- Confirm cancel stays retryable ----------------------------------------
-
-describe('buildQuizStartHandler — confirm cancel stays retryable', () => {
-  it('starts the quiz on a retry after the user first cancels the confirmation', async () => {
-    mockReadActiveSession.mockReturnValue(EXISTING_SESSION)
-    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(false)
-    const handleStart = buildQuizStartHandler(makeDeps())
-
-    await handleStart()
-    expect(mockStartQuizSession).not.toHaveBeenCalled()
-
-    confirmSpy.mockReturnValue(true)
-    await handleStart()
-    expect(mockStartQuizSession).toHaveBeenCalledTimes(1)
-    // The overwritten session must actually be cleared for this user.
-    expect(mockClearActiveSession).toHaveBeenCalledWith('test-user-id')
-    confirmSpy.mockRestore()
-  })
-})
-
-// ---- Retryable failures release the guard ----------------------------------
-
-describe('buildQuizStartHandler — retryable failures', () => {
-  it('allows a second attempt after the server rejects the start', async () => {
-    mockStartQuizSession.mockResolvedValue({ success: false as const, error: 'No questions' })
+describe('buildQuizStartHandler — failures', () => {
+  it('reports a rejected start, including the blocked flag, and stays on the form', async () => {
+    const failure = { success: false as const, error: 'Another session is active', blocked: true }
+    mockStartQuizSession.mockResolvedValue(failure)
     const deps = makeDeps()
-    const handleStart = buildQuizStartHandler(deps)
 
-    await handleStart()
-    await handleStart()
+    await buildQuizStartHandler(deps)()
 
-    expect(mockStartQuizSession).toHaveBeenCalledTimes(2)
-    expect(deps.inFlight.current).toBe(false)
+    expect(mockReportStartFailure).toHaveBeenCalledWith(deps, failure)
+    expect(mockRouterPush).not.toHaveBeenCalled()
   })
 
   it('allows a second attempt after the start throws', async () => {
-    mockStartQuizSession.mockRejectedValue(new Error('network timeout'))
+    mockStartQuizSession.mockRejectedValueOnce(new Error('network timeout'))
     const deps = makeDeps()
     const handleStart = buildQuizStartHandler(deps)
 
     await handleStart()
-
     expect(deps.inFlight.current).toBe(false)
     expect(deps.setError).toHaveBeenCalledWith('Something went wrong. Please try again.')
 
     await handleStart()
     expect(mockStartQuizSession).toHaveBeenCalledTimes(2)
-  })
-
-  it('discards the orphaned session and allows a retry when the handoff write fails', async () => {
-    mockSessionStorageSetItem.mockImplementation(() => {
-      throw new DOMException('QuotaExceededError')
-    })
-    const deps = makeDeps()
-    const handleStart = buildQuizStartHandler(deps)
-
-    await handleStart()
-
-    expect(mockDiscardQuiz).toHaveBeenCalledWith({ sessionId: SESSION_ID })
-    expect(mockRouterPush).not.toHaveBeenCalled()
-    expect(deps.inFlight.current).toBe(false)
-    expect(deps.setError).toHaveBeenCalledWith('Unable to start quiz right now. Please try again.')
-
-    await handleStart()
-    expect(mockStartQuizSession).toHaveBeenCalledTimes(2)
-  })
-
-  it('still allows a retry when the orphan cleanup itself throws', async () => {
-    mockSessionStorageSetItem.mockImplementation(() => {
-      throw new DOMException('QuotaExceededError')
-    })
-    mockDiscardQuiz.mockRejectedValue(new Error('discard network failure'))
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-
-    try {
-      const deps = makeDeps()
-      const handleStart = buildQuizStartHandler(deps)
-
-      await handleStart()
-
-      expect(deps.inFlight.current).toBe(false)
-      expect(deps.setError).toHaveBeenCalledWith(
-        'Unable to start quiz right now. Please try again.',
-      )
-
-      await handleStart()
-      expect(mockStartQuizSession).toHaveBeenCalledTimes(2)
-    } finally {
-      errorSpy.mockRestore()
-    }
-  })
-
-  it('logs the server error when the orphan discard reports failure', async () => {
-    mockSessionStorageSetItem.mockImplementation(() => {
-      throw new DOMException('QuotaExceededError')
-    })
-    mockDiscardQuiz.mockResolvedValue({ success: false as const, error: 'session not found' })
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-
-    try {
-      const handleStart = buildQuizStartHandler(makeDeps())
-      await handleStart()
-
-      expect(errorSpy).toHaveBeenCalledWith(
-        '[use-quiz-start] orphan discard failed for session',
-        SESSION_ID,
-        'session not found',
-      )
-    } finally {
-      errorSpy.mockRestore()
-    }
-  })
-})
-
-// ---- Terminal success keeps the guard engaged --------------------------------
-
-describe('buildQuizStartHandler — terminal success', () => {
-  it('ignores further start attempts after a successful start navigates away', async () => {
-    const deps = makeDeps()
-    const handleStart = buildQuizStartHandler(deps)
-
-    await handleStart()
-    expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session')
-
-    await handleStart()
-    expect(mockStartQuizSession).toHaveBeenCalledTimes(1)
-    expect(mockRouterPush).toHaveBeenCalledTimes(1)
-  })
-
-  it("writes the handoff under the current user key with this session's questions before navigating", async () => {
-    const deps = makeDeps()
-    const handleStart = buildQuizStartHandler(deps)
-
-    await handleStart()
-
-    expect(mockSessionStorageSetItem).toHaveBeenCalledTimes(1)
-    const [key, rawPayload] = mockSessionStorageSetItem.mock.calls[0] ?? []
-    expect(key).toBe('quiz-session:test-user-id')
-    expect(JSON.parse(rawPayload)).toMatchObject({
-      userId: 'test-user-id',
-      sessionId: SESSION_ID,
-      questionIds: ['q-1', 'q-2'],
-    })
   })
 })
