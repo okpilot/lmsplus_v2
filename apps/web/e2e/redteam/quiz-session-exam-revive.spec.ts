@@ -167,4 +167,35 @@ test.describe('Red Team: discarded exam revive (Vector GP)', () => {
     expect(finish.error?.message).toMatch(/session_discarded/)
     expect((await readExam(examId)).ended_at).toBeNull()
   })
+
+  test('a student cannot batch-submit keyed answers to a discarded exam', async () => {
+    const examId = await seedExam()
+    expect((await discardOwn(examId)).data).toHaveLength(1)
+
+    const practice = await startPractice()
+    expect(practice.error).toBeNull()
+    const practiceId = practice.data as string
+    const keys = await keyQuestions(practiceId)
+    expect((await discardOwn(practiceId)).error).toBeNull()
+
+    const keyed = qids.map((qid) => ({
+      question_id: qid,
+      selected_option: keys[qid],
+      response_time_ms: 1000,
+    }))
+    const submit = await student.rpc('batch_submit_quiz', {
+      p_session_id: examId,
+      p_answers: keyed,
+    })
+    expect(submit.data).toBeNull()
+    expect(submit.error?.message).toMatch(/session not found or not accessible/)
+    expect((await readExam(examId)).ended_at).toBeNull()
+
+    // CONTROL: the same keyed answers grade on a live exam.
+    const liveId = await seedExam()
+    const live = await student.rpc('batch_submit_quiz', { p_session_id: liveId, p_answers: keyed })
+    expect(live.error).toBeNull()
+    expect((live.data as { correct_count?: number } | null)?.correct_count).toBe(qids.length)
+    expect((await readExam(liveId)).ended_at).not.toBeNull()
+  })
 })

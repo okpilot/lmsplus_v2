@@ -238,6 +238,7 @@
 | HJ | recheckRestoredAnswers-batch-over-cap | MEDIUM | server-action-recheck-answers.spec.ts | BLOCKED |  | rate-limit |
 | HK | recheckRestoredAnswers-timeSpentMs-or-foreign-question-item | MEDIUM | server-action-recheck-answers.spec.ts | BLOCKED |  | mass-assignment |
 | HL | save_quiz_for_later-cap-after-claim-blocked-start | MEDIUM | rpc-saved-quiz-cap-blocked-start.spec.ts | BLOCKED |  | rate-limit |
+| HM | batch_submit_quiz-submit_vfr_rt_exam_answers-audit-completeness | MEDIUM | audit-completeness-legacy-submit.spec.ts | BLOCKED |  | sibling-guard-gap |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
