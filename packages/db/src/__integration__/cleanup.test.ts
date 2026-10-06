@@ -262,16 +262,24 @@ describe('cleanupTestData', () => {
     expect(mockDeleteUser).toHaveBeenNthCalledWith(2, 'u-2')
   })
 
-  it('throws when the quiz_sessions id lookup fails (cannot scope child delete)', async () => {
+  it('finishes the remaining cleanup, then throws, when the quiz_sessions id lookup fails', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     mockFrom
-      .mockReturnValueOnce(buildChain({ data: [], error: null })) // audit_events
       .mockReturnValueOnce(buildChain({ data: [], error: null })) // fsrs_cards
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // audit_events
       .mockReturnValueOnce(buildChain({ data: [], error: null })) // student_responses
       .mockReturnValueOnce(buildChain({ data: null, error: { message: 'lookup boom' } })) // lookup fails
+      .mockReturnValue(buildChain({ data: [], error: null })) // every later step
+    mockDeleteUser.mockResolvedValue({ error: null })
 
     await expect(
       cleanupTestData({ admin: adminForTestData, orgId: 'org-1', userIds: ['u-1'] }),
-    ).rejects.toThrow(/cleanupTestData: quiz_sessions lookup failed/)
+    ).rejects.toThrow('cleanupTestData: quiz_sessions lookup failed: lookup boom')
+    expect(mockFrom).not.toHaveBeenCalledWith('quiz_session_answers')
+    expect(mockFrom).toHaveBeenCalledWith('users')
+    expect(mockFrom).toHaveBeenCalledWith('organizations')
+    expect(mockDeleteUser).toHaveBeenCalledWith('u-1')
+    consoleSpy.mockRestore()
   })
 
   it('logs and continues (does not throw) when a table delete errors', async () => {
@@ -415,6 +423,9 @@ describe('clearActiveSessions', () => {
     expect(sessions).toBeDefined()
     expect(sessions?.calls).toContainEqual({ method: 'eq', args: ['organization_id', 'org-1'] })
     expect(sessions?.calls.some((c) => c.method === 'in')).toBe(false)
+    const update = sessions?.calls.find((c) => c.method === 'update')
+    expect(update).toBeDefined()
+    expect(update?.args[0]).toHaveProperty('deleted_at')
   })
 
   it('scopes the update to the defined student ids only', async () => {

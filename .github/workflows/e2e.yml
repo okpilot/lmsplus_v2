@@ -323,7 +323,7 @@ jobs:
       # #1236: integration tests intermittently lose a request to Kong ("An invalid response was
       # received from the upstream server"). Dump the stack's logs on failure to find the upstream cause.
       - name: Dump Supabase container logs
-        if: failure()
+        if: ${{ !success() }}
         run: |
           docker ps -a --format 'table {{.Names}}\t{{.Status}}' | grep -i supabase || true
           for name in $(docker ps -a --format '{{.Names}}' | grep -E '^supabase_(kong|rest|auth|db)_'); do

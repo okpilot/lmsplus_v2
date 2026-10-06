@@ -87,7 +87,7 @@ export async function cleanupTestData(opts: {
   if (ids.length > 0) {
     await deleteOrLog('fsrs_cards', admin.from('fsrs_cards').delete().in('student_id', ids))
   }
-  if (orgId) await deleteOrgFixtures(admin, orgId)
+  const lookupError = orgId ? await deleteOrgFixtures(admin, orgId) : null
   if (ids.length > 0) await deleteOrLog('users', admin.from('users').delete().in('id', ids))
   if (orgId) {
     await deleteOrLog('organizations', admin.from('organizations').delete().eq('id', orgId))
@@ -97,10 +97,11 @@ export async function cleanupTestData(opts: {
   for (const uid of ids) {
     await deleteOrLog(`auth user ${uid}`, admin.auth.admin.deleteUser(uid))
   }
+  if (lookupError) throw new Error(`cleanupTestData: quiz_sessions lookup failed: ${lookupError}`)
 }
 
-/** Org-scoped fixture rows, in FK-safe order. */
-async function deleteOrgFixtures(admin: SupabaseClient, orgId: string) {
+/** Org-scoped fixture rows, in FK-safe order. Returns the session-lookup error, if any. */
+async function deleteOrgFixtures(admin: SupabaseClient, orgId: string): Promise<string | null> {
   await deleteOrLog(
     'audit_events',
     admin.from('audit_events').delete().eq('organization_id', orgId),
@@ -109,12 +110,29 @@ async function deleteOrgFixtures(admin: SupabaseClient, orgId: string) {
     'student_responses',
     admin.from('student_responses').delete().eq('organization_id', orgId),
   )
+  const lookupError = await deleteSessionRows(admin, orgId)
+  await deleteOrLog('questions', admin.from('questions').delete().eq('organization_id', orgId))
+  await deleteOrLog(
+    'question_banks',
+    admin.from('question_banks').delete().eq('organization_id', orgId),
+  )
+  await deleteOrLog(
+    'exam_configs',
+    admin.from('exam_configs').delete().eq('organization_id', orgId),
+  )
+  return lookupError
+}
+
+/** Session answers, then sessions. Skips both and returns the message when the id lookup fails. */
+async function deleteSessionRows(admin: SupabaseClient, orgId: string): Promise<string | null> {
   const { data: sessionIds, error: sessionIdsErr } = await admin
     .from('quiz_sessions')
     .select('id')
     .eq('organization_id', orgId)
-  if (sessionIdsErr)
-    throw new Error(`cleanupTestData: quiz_sessions lookup failed: ${sessionIdsErr.message}`)
+  if (sessionIdsErr) {
+    console.error(`cleanupTestData: quiz_sessions lookup failed: ${sessionIdsErr.message}`)
+    return sessionIdsErr.message
+  }
   await deleteOrLog(
     'quiz_session_answers',
     admin
@@ -126,15 +144,7 @@ async function deleteOrgFixtures(admin: SupabaseClient, orgId: string) {
     'quiz_sessions',
     admin.from('quiz_sessions').delete().eq('organization_id', orgId),
   )
-  await deleteOrLog('questions', admin.from('questions').delete().eq('organization_id', orgId))
-  await deleteOrLog(
-    'question_banks',
-    admin.from('question_banks').delete().eq('organization_id', orgId),
-  )
-  await deleteOrLog(
-    'exam_configs',
-    admin.from('exam_configs').delete().eq('organization_id', orgId),
-  )
+  return null
 }
 
 /**
