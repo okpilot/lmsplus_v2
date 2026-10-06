@@ -23,9 +23,10 @@ const GENERIC = 'Failed to check answer. Please try again.'
 
 function harness(startedAgoMs: number) {
   const attempts: AttemptInput[] = []
+  const startedAt = Date.now() - startedAgoMs
   const handlers = buildAnswerHandlers({
     sessionId: SESSION_ID,
-    getAnswerStartTime: () => Date.now() - startedAgoMs,
+    getAnswerStartTime: () => startedAt,
     runAttempt: async (a) => {
       attempts.push(a)
       return true
