@@ -7,7 +7,7 @@ import { useTakeoverExit } from './use-takeover-exit'
 
 /**
  * Owns navigation, pins and the background server saves of the quiz runner. Callers never await
- * a save and a failed save never blocks navigation or local buffering. Next.js dispatches Server
+ * a save and a failed save never blocks navigation. Next.js dispatches Server
  * Actions one at a time per client, so a save still in flight can delay the next answer check
  * by one round trip. Discovery saves nothing. navigateTo saves BEFORE nav resets the answer timer,
  * capturing the leaving question's visit time.

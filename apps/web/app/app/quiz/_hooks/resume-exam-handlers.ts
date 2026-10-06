@@ -25,14 +25,9 @@ export function buildDiscardHandler(deps: ResumeExamDeps) {
     deps.setLoading(true)
     deps.setError(null)
     // Clear regardless of outcome — respect discard intent even when the Server Action fails
-    // (mirrors discardQuizSession in quiz-submit.ts); a surviving key once let a discarded
-    // session keep offering Resume (#1190). Guarded on the id because this banner is
-    // server-rendered and never revalidated, so a stale tab could otherwise wipe a NEWER
-    // session's answer buffer — for a mock_exam that is a graded attempt. See the fuller note
-    // in use-active-practice-discard.ts; the single-active-session invariant (docs/security.md
-    // §11d, mig 136) rules out concurrent sessions, not a stale render. Until #1026 lands
-    // server-side checkpointing, a transient discard failure
-    // still loses the local buffer for THIS session, which is the established repo trade.
+    // (mirrors discardQuizSession in quiz-submit.ts). Guarded on the id: this banner is
+    // server-rendered and never revalidated, so a stale tab must not clear a legacy entry
+    // naming a NEWER session.
     clearActiveSessionIfCurrent(deps.userId, deps.activeSessionId)
     try {
       const result = await discardQuiz({ sessionId: deps.activeSessionId })

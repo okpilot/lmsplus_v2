@@ -8,8 +8,8 @@ import { ResumeLink } from './resume-exam-banner'
 
 // Banner for an active practice session detected server-side. Resume opens the session
 // page, which loads the answers from the server; Discard clears the session.
-// `userId` is required (not optional) so a caller cannot silently skip the localStorage
-// clear the discard depends on — matching ResumeExamBanner.
+// `userId` is required (not optional) so a caller cannot silently skip clearing the legacy
+// localStorage entry — matching ResumeExamBanner.
 export function ActivePracticeBanner({
   userId,
   session,

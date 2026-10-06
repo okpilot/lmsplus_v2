@@ -17,7 +17,7 @@ async function tryFree(sessionId: string): Promise<string | null> {
   if (!claim.success) return claim.error
   const saved = await saveQuizForLater({ sessionId, deviceId })
   if (!saved.success) return saved.error
-  // Else /app/quiz offers the saved quiz for recovery until the new session's first checkpoint.
+  // Drop a legacy local copy that still names the saved session.
   clearActiveSessionById(sessionId)
   return null
 }
