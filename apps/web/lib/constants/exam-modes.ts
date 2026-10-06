@@ -16,7 +16,9 @@ export const modeLabel = (mode: string): string => MODE_LABELS[mode as QuizMode]
 
 export const EXAM_MODES = ['mock_exam', 'internal_exam', 'vfr_rt_exam'] as const
 
-export const isExamMode = (mode: string): mode is 'mock_exam' | 'internal_exam' | 'vfr_rt_exam' =>
+export type ExamMode = (typeof EXAM_MODES)[number]
+
+export const isExamMode = (mode: string): mode is ExamMode =>
   (EXAM_MODES as readonly string[]).includes(mode)
 
 // Mirrors NON_DISCARDABLE_MODES in app/app/quiz/actions/_discard-guard.ts — the server
