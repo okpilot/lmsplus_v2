@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/nextjs'
+import { SENTRY_DATA_COLLECTION } from './sentry-data-collection'
 
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
@@ -6,7 +7,7 @@ Sentry.init({
   replaysSessionSampleRate: 0.1,
   replaysOnErrorSampleRate: 1.0,
   integrations: [Sentry.replayIntegration()],
-  dataCollection: { httpBodies: [] },
+  dataCollection: SENTRY_DATA_COLLECTION,
   enabled: process.env.NODE_ENV === 'production',
 })
 
