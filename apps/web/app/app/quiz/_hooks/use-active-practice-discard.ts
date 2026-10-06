@@ -43,8 +43,8 @@ export function useActivePracticeDiscard(
     // offering Resume (#1190).
     //
     // Guarded on the id: this banner is SERVER-rendered and never revalidated on focus, so a
-    // stale tab can hold an old sessionId. Guarded on the id so a stale banner never clears a
-    // legacy key that names another session. In the #1190 case the two ids are equal, so this
+    // stale tab can hold an old sessionId, and must never clear a legacy key that names
+    // another session. In the #1190 case the two ids are equal, so this
     // does not weaken the fix; readActiveSession purges an entry that is malformed, cross-user
     // or lacks a sessionId.
     clearActiveSessionIfCurrent(userId, sessionId)

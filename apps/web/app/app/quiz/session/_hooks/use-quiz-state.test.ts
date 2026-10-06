@@ -23,7 +23,6 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('./quiz-submit', () => ({
   submitQuizSession: vi.fn(),
-  saveQuizDraft: vi.fn(),
   discardQuizSession: vi.fn(),
   handleSubmitSession: (...args: unknown[]) => mockHandleSubmitSession(...args),
   handleSaveSession: (...args: unknown[]) => mockHandleSaveSession(...args),
