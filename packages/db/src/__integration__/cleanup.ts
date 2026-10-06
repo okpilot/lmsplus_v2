@@ -30,7 +30,7 @@ export async function clearActiveSessions(opts: {
   if (!orgId && !opts.studentIds?.length) {
     throw new Error('clearActiveSessions: provide orgId or a non-empty studentIds')
   }
-  if (!orgId && studentIds?.length === 0) return
+  if (studentIds?.length === 0) return
   let query = admin
     .from('quiz_sessions')
     .update({ deleted_at: new Date().toISOString() })

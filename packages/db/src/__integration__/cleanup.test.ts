@@ -389,6 +389,17 @@ describe('clearActiveSessions', () => {
     expect(mockFrom).not.toHaveBeenCalled()
   })
 
+  it('leaves the rest of the org alone when every student id is undefined', async () => {
+    mockFrom.mockImplementation(() => {
+      throw new Error('from() must not be called')
+    })
+
+    await expect(
+      clearActiveSessions({ admin, orgId: 'org-1', studentIds: [undefined] }),
+    ).resolves.toBeUndefined()
+    expect(mockFrom).not.toHaveBeenCalled()
+  })
+
   it('throws when neither orgId nor studentIds is supplied', async () => {
     await expect(clearActiveSessions({ admin })).rejects.toThrow(
       'clearActiveSessions: provide orgId or a non-empty studentIds',
