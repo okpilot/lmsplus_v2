@@ -3,11 +3,11 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { SortableTableHead } from '@/components/sortable-table-head'
-import { isExamMode } from '@/lib/constants/exam-modes'
+import { type ExamMode, isExamMode, MODE_LABELS, modeLabel } from '@/lib/constants/exam-modes'
 import type { SessionReport, SortDir, SortKey } from '@/lib/queries/reports'
 import { formatCorrectFraction } from '@/lib/utils/format-correct-fraction'
 import { scoreColor } from '@/lib/utils/score-color'
-import { formatDate, formatDurationMinutes, MODE_LABELS } from './reports-utils'
+import { formatDate, formatDurationMinutes } from './reports-utils'
 
 type Props = Readonly<{
   sessions: SessionReport[]
@@ -62,7 +62,6 @@ export function SessionTable({ sessions, sort, dir, onSort }: Props) {
 
 function SessionRow({ session: s }: Readonly<{ session: SessionReport }>) {
   const router = useRouter()
-  const exam = isExamMode(s.mode)
   const score = s.scorePercentage == null ? '\u2014' : `${Math.round(s.scorePercentage)}%`
   const color = s.scorePercentage == null ? undefined : scoreColor(s.scorePercentage)
   const href = `/app/quiz/report?session=${s.id}`
@@ -87,10 +86,10 @@ function SessionRow({ session: s }: Readonly<{ session: SessionReport }>) {
         </Link>
       </td>
       <td className="px-4 py-3">
-        {exam ? (
+        {isExamMode(s.mode) ? (
           <ExamBadge mode={s.mode} />
         ) : (
-          <span className="text-muted-foreground">{MODE_LABELS[s.mode] ?? s.mode}</span>
+          <span className="text-muted-foreground">{modeLabel(s.mode)}</span>
         )}
       </td>
       <td className="px-4 py-3 tabular-nums">
@@ -106,10 +105,10 @@ function SessionRow({ session: s }: Readonly<{ session: SessionReport }>) {
   )
 }
 
-function ExamBadge({ mode }: Readonly<{ mode: string }>) {
+function ExamBadge({ mode }: Readonly<{ mode: ExamMode }>) {
   return (
     <span className="inline-block rounded-sm border border-amber-400 bg-amber-50 px-1.5 py-0.5 text-[11px] font-semibold uppercase leading-none tracking-wide text-amber-600">
-      {MODE_LABELS[mode] ?? MODE_LABELS.mock_exam}
+      {MODE_LABELS[mode]}
     </span>
   )
 }

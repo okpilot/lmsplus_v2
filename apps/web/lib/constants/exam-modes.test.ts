@@ -4,6 +4,7 @@ import {
   isDiscardableExamMode,
   isExamMode,
   MODE_LABELS,
+  modeLabel,
   type QuizMode,
 } from './exam-modes'
 
@@ -25,8 +26,8 @@ describe('MODE_LABELS', () => {
   })
 
   it('renders the expected human-readable label per mode', () => {
-    expect(MODE_LABELS.smart_review).toBe('Smart Review')
-    expect(MODE_LABELS.quick_quiz).toBe('Quick Quiz')
+    expect(MODE_LABELS.smart_review).toBe('Study')
+    expect(MODE_LABELS.quick_quiz).toBe('Study')
     expect(MODE_LABELS.mock_exam).toBe('Practice Exam')
     expect(MODE_LABELS.internal_exam).toBe('Internal Exam')
     expect(MODE_LABELS.vfr_rt_exam).toBe('VFR RT Mock Exam')
@@ -77,5 +78,16 @@ describe('isDiscardableExamMode', () => {
 
   it.each(['mock_exam', 'quick_quiz', 'discovery', undefined])('allows discard for %s', (mode) => {
     expect(isDiscardableExamMode(mode)).toBe(true)
+  })
+})
+
+describe('modeLabel', () => {
+  it('labels both practice modes "Study", matching the mode picker', () => {
+    expect(modeLabel('quick_quiz')).toBe('Study')
+    expect(modeLabel('smart_review')).toBe('Study')
+  })
+
+  it('falls back to the raw mode for an unmapped mode', () => {
+    expect(modeLabel('nonexistent_mode')).toBe('nonexistent_mode')
   })
 })
