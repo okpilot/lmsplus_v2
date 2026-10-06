@@ -150,6 +150,56 @@ describe('CodeEntryModal', () => {
     expect(mockSave).toHaveBeenCalledWith(expect.objectContaining({ sessionId: 'blocker-1' }))
   })
 
+  it('withdraws the save-and-start offer when the code is edited, and starts only the new code', async () => {
+    mockStartInternalExam
+      .mockResolvedValueOnce({ success: false, error: 'Another session is active', blocked: true })
+      .mockResolvedValueOnce({ success: true, sessionId: 'sess-new' })
+    mockGetActivePracticeSession.mockResolvedValue({
+      success: true,
+      session: { sessionId: 'blocker-1', subjectName: 'Meteorology' },
+    })
+    renderModal()
+    const input = screen.getByTestId('code-input')
+    await userEvent.type(input, 'ABCD2345')
+    await userEvent.click(screen.getByRole('button', { name: /start exam/i }))
+    await screen.findByRole('button', { name: /save quiz for later and start exam/i })
+
+    await userEvent.type(input, '{Backspace}9')
+
+    expect(
+      screen.queryByRole('button', { name: /save quiz for later and start exam/i }),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText('Another session is active')).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /start exam/i }))
+    await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session/sess-new'))
+    expect(mockStartInternalExam).toHaveBeenLastCalledWith({ code: 'ABCD2349' })
+    expect(mockClaim).not.toHaveBeenCalled()
+    expect(mockSave).not.toHaveBeenCalled()
+  })
+
+  it('locks the code input while the open practice quiz is being saved', async () => {
+    mockStartInternalExam.mockResolvedValueOnce({
+      success: false,
+      error: 'Another session is active',
+      blocked: true,
+    })
+    mockGetActivePracticeSession.mockResolvedValue({
+      success: true,
+      session: { sessionId: 'blocker-1', subjectName: 'Meteorology' },
+    })
+    mockClaim.mockReturnValue(new Promise(() => {}))
+    renderModal()
+    const input = screen.getByTestId('code-input')
+    await userEvent.type(input, 'ABCD2345')
+    await userEvent.click(screen.getByRole('button', { name: /start exam/i }))
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: /save quiz for later and start exam/i }),
+    )
+
+    await waitFor(() => expect(input).toBeDisabled())
+  })
+
   it('renders the action error with role="alert" and does not navigate on failure', async () => {
     mockStartInternalExam.mockResolvedValue({ success: false, error: 'This code has expired.' })
     renderModal()

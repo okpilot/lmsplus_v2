@@ -84,7 +84,11 @@ export function CodeEntryModal({ open, onOpenChange, subjectName, subjectShort }
               id="internal-exam-code"
               data-testid="code-input"
               value={code}
-              onChange={(e) => setCode(sanitize(e.target.value))}
+              onChange={(e) => {
+                reset()
+                setCode(sanitize(e.target.value))
+              }}
+              disabled={blocked.saving || isPending}
               autoComplete="off"
               autoCapitalize="characters"
               spellCheck={false}

@@ -26,7 +26,7 @@ export function failStart(state: StartFailureState, message: string): void {
 
 export type BlockedOffer = { sessionId: string; subjectName: string }
 
-export type BlockedAwareState = StartFailureState & {
+type BlockedAwareState = StartFailureState & {
   setBlocked: (offer: BlockedOffer | null) => void
 }
 
