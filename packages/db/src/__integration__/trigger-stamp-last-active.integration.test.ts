@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
+import { finishSeedSession, P, saveSeedAnswers } from './save-and-finish'
 import { seedQuestions, seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
@@ -16,7 +17,7 @@ import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient }
  *
  * Two behaviours verified here:
  *
- *  1. Student completes their own session via batch_submit_quiz →
+ *  1. Student completes their own session via finish_quiz_session →
  *     last_active_at must be updated.
  *
  *  2. Service-role direct ended_at write (auth.uid() = NULL in that context) →
@@ -93,7 +94,7 @@ describe('trigger: stamp_last_active_on_session_complete', () => {
     await cleanupReferenceData({ admin, refs: [refs] })
   })
 
-  it('stamps last_active_at when a student completes their own session via batch_submit_quiz', async () => {
+  it('stamps last_active_at when a student completes their own session via finish_quiz_session', async () => {
     // Zero the stamp first so the before/after comparison is unambiguous.
     const { error: zeroErr } = await admin
       .from('users')
@@ -128,21 +129,14 @@ describe('trigger: stamp_last_active_on_session_complete', () => {
       throw new Error('seeded question has no correct_option_id')
     }
 
-    // Submit via batch_submit_quiz (the live completion path, not the deprecated RPC).
-    // The trigger fires inside this call — auth.uid() is the student's JWT subject.
+    // Save the answer first; the trigger fires inside finish_quiz_session — auth.uid() is the
+    // student's JWT subject.
+    await saveSeedAnswers(studentClient, sessionId, [
+      { questionId, answer: P.mc(correctOptionId), timeSpentMs: 3000 },
+    ])
     const t_before = new Date()
-    const { error: submitErr } = await studentClient.rpc('batch_submit_quiz', {
-      p_session_id: sessionId,
-      p_answers: [
-        {
-          question_id: questionId,
-          selected_option: correctOptionId,
-          response_time_ms: 3000,
-        },
-      ],
-    })
+    await finishSeedSession(studentClient, sessionId)
     const t_after = new Date()
-    expect(submitErr).toBeNull()
 
     // The trigger must have written last_active_at between t_before and t_after.
     const { data: userRow, error: readErr } = await admin

@@ -2,9 +2,9 @@
  * Red Team Spec: resuming a legacy quiz_drafts row seeds a new session on the server (#1026 PR 3) —
  * Vector HC
  *
- * HC (input-injection): the student writes their own quiz_drafts row directly (the RLS policy
- *     still permits it) carrying an answer for a question outside the draft, a malformed answer
- *     and an out-of-range position, then resumes it through the UI. Only the valid in-session
+ * HC (input-injection): a legacy/forged quiz_drafts row seeded by service role, standing in for a
+ *     pre-REVOKE student write, carries an answer for a question outside the draft, a malformed
+ *     answer and an out-of-range position; the student then resumes it through the UI. Only the valid in-session
  *     answer reaches quiz_session_progress, the position is clamped, the draft is deleted.
  *     CONTROL: the valid in-session answer IS seeded into the new session.
  *
@@ -15,7 +15,6 @@ import { expect, test } from '@playwright/test'
 import { buildConsentCookieValue } from '../../lib/consent/check-consent'
 import { CONSENT_COOKIE } from '../../lib/consent/versions'
 import { cleanupStudentActiveSessions, getAdminClient } from '../helpers/supabase'
-import { createAuthenticatedClient } from './helpers/redteam-client'
 import { E2E_REDTEAM_DS_MARKER } from './helpers/seed-markers'
 import { seedRedTeamUsers, VICTIM_EMAIL, VICTIM_PASSWORD } from './helpers/seed-users'
 
@@ -112,8 +111,7 @@ test.describe('Red Team: legacy draft resume seeding (HC)', () => {
     if (parkErr || !isRecord(parked) || typeof parked.id !== 'string')
       throw new Error(`park session: ${parkErr?.message ?? 'bad shape'}`)
 
-    const victim = await createAuthenticatedClient(VICTIM_EMAIL, VICTIM_PASSWORD)
-    const { data: draft, error: draftErr } = await victim
+    const { data: draft, error: draftErr } = await admin
       .from('quiz_drafts')
       .insert({
         student_id: victimUserId,

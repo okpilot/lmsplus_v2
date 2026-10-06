@@ -10,8 +10,8 @@
 // item-level denominator the two admin list surfaces (#990) need.
 //
 // Model: admin-quiz-report.integration.test.ts's dialog_fill fixture shape
-// (same insertQuestion/start_quiz_session/batch_submit_quiz recipe). This
-// helper runs on adminClient (service-role, no RLS), so unlike that file there
+// (same insertQuestion/start_quiz_session/save_quiz_answer+finish_quiz_session recipe).
+// This helper runs on adminClient (service-role, no RLS), so unlike that file there
 // is no admin sign-in or cross-org isolation dimension here — scoping is the
 // caller's responsibility via the sessionIds it passes in.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -23,7 +23,9 @@ import {
   fixtureSuffix,
   getAdminClient,
   getAuthenticatedClient,
+  P,
   type ReferenceIds,
+  saveAndFinish,
   seedReferenceData,
 } from '@/lib/integration-support/harness'
 import type { AnswerCountClient } from '@/lib/queries/answered-item-counts'
@@ -154,31 +156,13 @@ describe('fetchAnsweredItemCounts (app-layer integration)', () => {
       throw new Error('start_quiz_session (1): no session id')
     multiBlankSessionId = multiBlankStart
 
-    const { error: multiBlankSubmitErr } = await studentClient.rpc('batch_submit_quiz', {
-      p_session_id: multiBlankSessionId,
-      p_answers: [
-        {
-          question_id: dialogFillId,
-          blank_index: 0,
-          response_text: 'cleared',
-          response_time_ms: 1000,
-        },
-        {
-          question_id: dialogFillId,
-          blank_index: 1,
-          response_text: 'runway two seven',
-          response_time_ms: 1000,
-        },
-        {
-          question_id: dialogFillId,
-          blank_index: 2,
-          response_text: 'wind calm',
-          response_time_ms: 1000,
-        },
-      ],
-    })
-    if (multiBlankSubmitErr)
-      throw new Error(`batch_submit_quiz (1): ${multiBlankSubmitErr.message}`)
+    await saveAndFinish(studentClient, multiBlankSessionId, [
+      {
+        questionId: dialogFillId,
+        answer: P.dialog(['cleared', 'runway two seven', 'wind calm']),
+        timeSpentMs: 1000,
+      },
+    ])
 
     // Session 2: one short_answer question, answered — 1 answer row, 1 question.
     // Started AFTER session 1 ends (single-active-session invariant).
@@ -196,18 +180,9 @@ describe('fetchAnsweredItemCounts (app-layer integration)', () => {
       throw new Error('start_quiz_session (2): no session id')
     singleItemSessionId = singleItemStart
 
-    const { error: singleItemSubmitErr } = await studentClient.rpc('batch_submit_quiz', {
-      p_session_id: singleItemSessionId,
-      p_answers: [
-        {
-          question_id: shortAnswerId,
-          response_text: 'mayday mayday mayday',
-          response_time_ms: 2000,
-        },
-      ],
-    })
-    if (singleItemSubmitErr)
-      throw new Error(`batch_submit_quiz (2): ${singleItemSubmitErr.message}`)
+    await saveAndFinish(studentClient, singleItemSessionId, [
+      { questionId: shortAnswerId, answer: P.short('mayday mayday mayday'), timeSpentMs: 2000 },
+    ])
 
     // Session 3: started but never answered — zero quiz_session_answers rows.
     // Started AFTER session 2 ends, left active; cleanupTestData hard-deletes

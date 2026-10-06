@@ -6,8 +6,9 @@
  */
 
 import type { getAdminClient } from '../../helpers/supabase'
-import { buildAnswersForSession, fetchActiveQuestionIds } from './audit-helpers'
+import { fetchActiveQuestionIds } from './audit-helpers'
 import type { FixtureTracker } from './cleanup'
+import { buildMcProgressAnswers, finishSeedSession, saveSeedAnswers } from './finish-session'
 import { createAuthenticatedClient } from './redteam-client'
 import { VICTIM_EMAIL, VICTIM_PASSWORD } from './seed-users'
 
@@ -34,12 +35,14 @@ export async function seedVictimCompletedSession(
   tracker.sessions.add(seedSessionId)
 
   try {
-    const seedAnswers = await buildAnswersForSession(adminClient, seedSessionId)
-    const { error: submitErr } = await victimClient.rpc('batch_submit_quiz', {
-      p_session_id: seedSessionId,
-      p_answers: seedAnswers,
+    const seedAnswers = await buildMcProgressAnswers(adminClient, seedSessionId)
+    await saveSeedAnswers(victimClient, seedSessionId, seedAnswers).catch((e: unknown) => {
+      throw new Error(`unauth seed: ${e instanceof Error ? e.message : String(e)}`)
     })
-    if (submitErr) throw new Error(`unauth seed: batch_submit_quiz failed: ${submitErr.message}`)
+    const { error: finishErr } = await finishSeedSession(victimClient, seedSessionId)
+    if (finishErr) {
+      throw new Error(`unauth seed: finish_quiz_session failed: ${finishErr.message}`)
+    }
   } catch (e) {
     throw await composeSeedFailure(adminClient, seedSessionId, e)
   }

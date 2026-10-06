@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
 import { requireRpcResult, requireRpcRows } from './guards'
+import { P, saveAndFinish } from './save-and-finish'
 import { seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
@@ -160,7 +161,8 @@ describe('RPC: get_report_answer_keys — diagram_label per-zone keys (2-hop res
   }, 30_000)
 
   /** Start + fully-and-correctly answer the diagram question through
-   *  batch_submit_quiz (sets ended_at → completed), returning the session id. */
+   *  save_quiz_answer + finish_quiz_session (sets ended_at → completed), returning the
+   *  session id. */
   async function completeDiagramSession(client: SupabaseClient): Promise<string> {
     const { data: sd, error: startErr } = await client.rpc('start_quiz_session', {
       p_mode: 'quick_quiz',
@@ -171,22 +173,12 @@ describe('RPC: get_report_answer_keys — diagram_label per-zone keys (2-hop res
     if (startErr) throw new Error(`startSession: ${startErr.message}`)
     if (typeof sd !== 'string') throw new Error('startSession: no session id')
     const sessionId = sd
-    const answers = CONFIG.zones.map((zone, i) => {
+    const mapping = CONFIG.zones.map((zone) => {
       const entry = CONFIG.answer.find((a) => a.zone_id === zone.id)
       if (!entry) throw new Error(`missing answer for zone ${zone.id}`)
-      return {
-        question_id: diagramId,
-        selected_option: entry.label_id,
-        response_text: zone.id,
-        blank_index: i,
-        response_time_ms: 1000,
-      }
+      return { zone_id: zone.id, label_id: entry.label_id }
     })
-    const { error: submitErr } = await client.rpc('batch_submit_quiz', {
-      p_session_id: sessionId,
-      p_answers: answers,
-    })
-    if (submitErr) throw new Error(`batch_submit_quiz: ${submitErr.message}`)
+    await saveAndFinish(client, sessionId, [{ questionId: diagramId, answer: P.diagram(mapping) }])
     return sessionId
   }
 

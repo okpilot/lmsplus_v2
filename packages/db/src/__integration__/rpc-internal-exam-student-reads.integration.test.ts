@@ -3,6 +3,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
 import { requireRpcResult, requireRpcRows } from './guards'
+import { P, saveAndFinish } from './save-and-finish'
 import { seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
@@ -203,15 +204,9 @@ describe('RPC: internal-exam student reads — DISTINCT answered_count + active-
     // question — if it did not, every count assertion below would be measuring something else.
     expect(firstRow.question_ids).toEqual([dfId])
 
-    const { error: submitErr } = await studentClient.rpc('batch_submit_quiz', {
-      p_session_id: examSessionId,
-      p_answers: [
-        { question_id: dfId, blank_index: 0, response_text: DF_B0, response_time_ms: 1000 },
-        { question_id: dfId, blank_index: 1, response_text: DF_B1, response_time_ms: 1000 },
-        { question_id: dfId, blank_index: 2, response_text: DF_B2, response_time_ms: 1000 },
-      ],
-    })
-    if (submitErr) throw new Error(`batch_submit_quiz: ${submitErr.message}`)
+    await saveAndFinish(studentClient, examSessionId, [
+      { questionId: dfId, answer: P.dialog([DF_B0, DF_B1, DF_B2]) },
+    ])
 
     // A second code, left unconsumed, so list_my_active_internal_exam_codes has a row to
     // return — otherwise its gate test's positive control would be vacuous.

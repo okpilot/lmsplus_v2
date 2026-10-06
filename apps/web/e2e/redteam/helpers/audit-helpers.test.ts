@@ -50,7 +50,7 @@ vi.mock('@playwright/test', () => ({
 }))
 
 // Must import AFTER vi.mock calls (vitest hoists them automatically).
-import { expectAuditRow, expectCompletionMetadata } from './audit-helpers'
+import { expectAuditRow, expectCompletionMetadata, readAuditReason } from './audit-helpers'
 
 // ---------------------------------------------------------------------------
 // buildChain — mirrors the project-wide pattern (see seed.test.ts / proxy.test.ts)
@@ -182,5 +182,31 @@ describe('expectCompletionMetadata', () => {
         sessionId: 'sess-1',
       }),
     ).rejects.toThrow(/answered_count/)
+  })
+})
+
+describe('readAuditReason', () => {
+  it('returns the metadata reason of the matching audit event', async () => {
+    mockFrom.mockReturnValueOnce(
+      buildChain({ data: { metadata: { reason: 'submission past grace period' } }, error: null }),
+    )
+
+    await expect(readAuditReason(adminMock, 'exam.expired', 'sess-1')).resolves.toBe(
+      'submission past grace period',
+    )
+  })
+
+  it('returns undefined when no audit event matches', async () => {
+    mockFrom.mockReturnValueOnce(buildChain({ data: null, error: null }))
+
+    await expect(readAuditReason(adminMock, 'exam.expired', 'sess-1')).resolves.toBeUndefined()
+  })
+
+  it('throws when the query fails', async () => {
+    mockFrom.mockReturnValueOnce(buildChain({ data: null, error: { message: 'down' } }))
+
+    await expect(readAuditReason(adminMock, 'exam.expired', 'sess-1')).rejects.toThrow(
+      /readAuditReason exam\.expired: down/,
+    )
   })
 })

@@ -4,7 +4,7 @@
  * Chain: active mock_exam → student discards it (column grant on deleted_at,
  * students_update_sessions) → start_quiz_session(quick_quiz) with the exam's question_ids →
  * check_quiz_answer returns correct_option_id → practice discarded → exam revived with
- * UPDATE deleted_at = NULL → batch_submit_quiz scores the keyed answers.
+ * UPDATE deleted_at = NULL → finish_quiz_session grades the keyed answers.
  * The single-active-session invariant (docs/security.md §11d) stops a practice quiz while the exam
  * is open; the revive step lets the exam leave and re-enter that invariant.
  *
@@ -14,6 +14,7 @@
 import { expect, test } from '@playwright/test'
 import { getAdminClient } from '../helpers/supabase'
 import { clearOpenSessions } from './helpers/clear-open-sessions'
+import { finishSeedSession } from './helpers/finish-session'
 import { createAuthenticatedClient } from './helpers/redteam-client'
 import { E2E_REDTEAM_ER_MARKER } from './helpers/seed-markers'
 import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers } from './helpers/seed-users'
@@ -148,7 +149,7 @@ test.describe('Red Team: discarded exam revive (Vector GP)', () => {
     const practice = await startPractice()
     expect(practice.error).toBeNull()
     const practiceId = practice.data as string
-    const keys = await keyQuestions(practiceId)
+    await keyQuestions(practiceId)
     expect((await discardOwn(practiceId)).error).toBeNull()
 
     // The defence that SHOULD hold: the discarded exam stays discarded.
@@ -161,16 +162,9 @@ test.describe('Red Team: discarded exam revive (Vector GP)', () => {
     expect(revive.data).toEqual([])
     expect((await readExam(examId)).deleted_at).not.toBeNull()
 
-    const submit = await student.rpc('batch_submit_quiz', {
-      p_session_id: examId,
-      p_answers: qids.map((qid) => ({
-        question_id: qid,
-        selected_option: keys[qid],
-        response_time_ms: 1000,
-      })),
-    })
-    expect(submit.data).toBeNull()
-    expect(submit.error?.message).toMatch(/session not found or not accessible/)
+    const finish = await finishSeedSession(student, examId)
+    expect(finish.data).toBeNull()
+    expect(finish.error?.message).toMatch(/session_discarded/)
     expect((await readExam(examId)).ended_at).toBeNull()
   })
 })

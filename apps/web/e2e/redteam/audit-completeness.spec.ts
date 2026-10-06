@@ -21,13 +21,19 @@ import { expect, test } from '@playwright/test'
 import { getAdminClient } from '../helpers/supabase'
 import {
   backdateSession,
-  buildAnswersForSession,
   expectAuditRow,
   expectCompletionMetadata,
   fetchActiveQuestionIds,
   issueCodeViaRpc,
+  readAuditReason,
 } from './helpers/audit-helpers'
 import { cleanupFixtures, createFixtureTracker } from './helpers/cleanup'
+import {
+  buildMcProgressAnswers,
+  finishSeedSession,
+  saveAndFinish,
+  saveSeedAnswers,
+} from './helpers/finish-session'
 import { createAuthenticatedClient } from './helpers/redteam-client'
 import { ensureExamConfig, pickSubjectWithQuestions } from './helpers/seed-quiz'
 import {
@@ -40,8 +46,8 @@ import {
 } from './helpers/seed-users'
 
 /**
- * Assert the full within-time-limit `batch_submit_quiz` return contract (#818, §7).
- * The success path (mig 20260610000450) returns the grade fields but NO `expired`
+ * Assert the full within-time-limit `finish_quiz_session` return contract (#818, §7).
+ * The success path (mig 20261004000300) returns the grade fields but NO `expired`
  * key — only the past-grace path sets `expired: true` — so on a within-time submit
  * `expired` must be `undefined` (the submit was NOT flagged expired), and the
  * documented success payload must be present and well-typed.
@@ -51,7 +57,7 @@ function expectWithinTimeSubmitContract(submitData: unknown, expectedAnswered: n
   // the payload is null/array/primitive rather than silently asserting on undefined.
   if (submitData === null || typeof submitData !== 'object' || Array.isArray(submitData)) {
     throw new Error(
-      `expected a batch_submit_quiz object payload, got: ${JSON.stringify(submitData)}`,
+      `expected a finish_quiz_session object payload, got: ${JSON.stringify(submitData)}`,
     )
   }
   const r = submitData as {
@@ -145,7 +151,7 @@ test.describe('Red Team: Audit Event Completeness', () => {
     if (errors.length > 0) throw new Error(`afterEach: ${errors.join('; ')}`)
   })
 
-  test('writes quiz_session.batch_submitted on quick_quiz batch submit', async () => {
+  test('writes quiz_session.batch_submitted on quick_quiz finish', async () => {
     const testStart = new Date().toISOString()
 
     const questionIds = await fetchActiveQuestionIds(admin, { orgId, subjectId, topicId, limit: 1 })
@@ -164,12 +170,9 @@ test.describe('Red Team: Audit Event Completeness', () => {
     }
     tracker.sessions.add(sessionId)
 
-    const answers = await buildAnswersForSession(admin, sessionId)
-    const { error: submitErr } = await studentClient.rpc('batch_submit_quiz', {
-      p_session_id: sessionId,
-      p_answers: answers,
-    })
-    expect(submitErr).toBeNull()
+    const answers = await buildMcProgressAnswers(admin, sessionId)
+    const { error: finishErr } = await saveAndFinish(studentClient, sessionId, answers)
+    expect(finishErr).toBeNull()
 
     await expectAuditRow(admin, 'quiz_session.batch_submitted', studentUserId, testStart, sessionId)
   })
@@ -188,7 +191,7 @@ test.describe('Red Team: Audit Event Completeness', () => {
     await expectAuditRow(admin, 'exam.started', studentUserId, testStart, sessionId)
   })
 
-  test('writes exam.completed on mock_exam batch submit within time limit', async () => {
+  test('writes exam.completed on mock_exam finish within time limit', async () => {
     const testStart = new Date().toISOString()
 
     const { data: startData, error: startErr } = await studentClient.rpc('start_exam_session', {
@@ -200,13 +203,10 @@ test.describe('Red Team: Audit Event Completeness', () => {
     if (!sessionId) throw new Error('no sessionId')
     tracker.sessions.add(sessionId)
 
-    const answers = await buildAnswersForSession(admin, sessionId)
-    const { data: submitData, error: submitErr } = await studentClient.rpc('batch_submit_quiz', {
-      p_session_id: sessionId,
-      p_answers: answers,
-    })
-    expect(submitErr).toBeNull()
-    expectWithinTimeSubmitContract(submitData, answers.length)
+    const answers = await buildMcProgressAnswers(admin, sessionId)
+    const finish = await saveAndFinish(studentClient, sessionId, answers)
+    expect(finish.error).toBeNull()
+    expectWithinTimeSubmitContract(finish.data, answers.length)
 
     await expectAuditRow(admin, 'exam.completed', studentUserId, testStart, sessionId)
     await expectCompletionMetadata(admin, {
@@ -317,17 +317,18 @@ test.describe('Red Team: Audit Event Completeness', () => {
     if (!sessionId) throw new Error('no sessionId')
     tracker.sessions.add(sessionId)
 
+    // Save BEFORE backdating: save_quiz_answer refuses a session past its grace period.
+    await saveSeedAnswers(studentClient, sessionId, await buildMcProgressAnswers(admin, sessionId))
     await backdateSession(admin, sessionId)
 
-    const answers = await buildAnswersForSession(admin, sessionId)
-    const { data: submitData, error: submitErr } = await studentClient.rpc('batch_submit_quiz', {
-      p_session_id: sessionId,
-      p_answers: answers,
-    })
-    expect(submitErr).toBeNull()
-    expect((submitData as { expired?: boolean } | null)?.expired).toBe(true)
+    const finish = await finishSeedSession(studentClient, sessionId)
+    expect(finish.error).toBeNull()
+    expect((finish.data as { expired?: boolean } | null)?.expired).toBe(true)
 
     await expectAuditRow(admin, 'exam.expired', studentUserId, testStart, sessionId)
+    expect(await readAuditReason(admin, 'exam.expired', sessionId)).toBe(
+      'submission past grace period',
+    )
   })
 
   test('writes internal_exam.code_issued when admin issues a code (actor=admin)', async () => {
@@ -426,7 +427,7 @@ test.describe('Red Team: Audit Event Completeness', () => {
     await expectAuditRow(admin, 'internal_exam.started', studentUserId, testStart, row.session_id)
   })
 
-  test('writes internal_exam.completed when internal_exam batch submits within time limit', async () => {
+  test('writes internal_exam.completed when internal_exam finishes within time limit', async () => {
     const testStart = new Date().toISOString()
 
     const { code } = await issueCodeViaRpc(
@@ -446,13 +447,10 @@ test.describe('Red Team: Audit Event Completeness', () => {
     if (!sessionId) throw new Error('no sessionId')
     tracker.sessions.add(sessionId)
 
-    const answers = await buildAnswersForSession(admin, sessionId)
-    const { data: submitData, error: submitErr } = await studentClient.rpc('batch_submit_quiz', {
-      p_session_id: sessionId,
-      p_answers: answers,
-    })
-    expect(submitErr).toBeNull()
-    expectWithinTimeSubmitContract(submitData, answers.length)
+    const answers = await buildMcProgressAnswers(admin, sessionId)
+    const finish = await saveAndFinish(studentClient, sessionId, answers)
+    expect(finish.error).toBeNull()
+    expectWithinTimeSubmitContract(finish.data, answers.length)
 
     await expectAuditRow(admin, 'internal_exam.completed', studentUserId, testStart, sessionId)
     await expectCompletionMetadata(admin, {
@@ -483,16 +481,17 @@ test.describe('Red Team: Audit Event Completeness', () => {
     if (!sessionId) throw new Error('no sessionId')
     tracker.sessions.add(sessionId)
 
+    // Save BEFORE backdating: save_quiz_answer refuses a session past its grace period.
+    await saveSeedAnswers(studentClient, sessionId, await buildMcProgressAnswers(admin, sessionId))
     await backdateSession(admin, sessionId)
 
-    const answers = await buildAnswersForSession(admin, sessionId)
-    const { data: submitData, error: submitErr } = await studentClient.rpc('batch_submit_quiz', {
-      p_session_id: sessionId,
-      p_answers: answers,
-    })
-    expect(submitErr).toBeNull()
-    expect((submitData as { expired?: boolean } | null)?.expired).toBe(true)
+    const finish = await finishSeedSession(studentClient, sessionId)
+    expect(finish.error).toBeNull()
+    expect((finish.data as { expired?: boolean } | null)?.expired).toBe(true)
 
     await expectAuditRow(admin, 'internal_exam.expired', studentUserId, testStart, sessionId)
+    expect(await readAuditReason(admin, 'internal_exam.expired', sessionId)).toBe(
+      'submission past grace period',
+    )
   })
 })

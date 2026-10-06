@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
 import { requireRpcResult, requireRpcRows } from './guards'
+import { P, type SeedAnswer, saveAndFinish } from './save-and-finish'
 import { seedReferenceData } from './seed'
 import {
   createTestOrg,
@@ -191,14 +192,14 @@ describe('RPC: get_report_answer_keys — non-MC report keys + guards', () => {
 
   /**
    * Start a quick_quiz session for the given question ids, answer them through
-   * batch_submit_quiz (which writes quiz_session_answers AND sets ended_at →
-   * completed session), and return the session id. The report RPC reads the
+   * save_quiz_answer + finish_quiz_session (which writes quiz_session_answers AND
+   * sets ended_at → completed session), and return the session id. The report RPC reads the
    * answered questions of a completed, owned session.
    */
   async function completeSession(
     client: SupabaseClient,
     qIds: string[],
-    answers: Array<Record<string, unknown>>,
+    answers: SeedAnswer[],
   ): Promise<string> {
     const { data: sd, error: startErr } = await client.rpc('start_quiz_session', {
       p_mode: 'quick_quiz',
@@ -211,11 +212,7 @@ describe('RPC: get_report_answer_keys — non-MC report keys + guards', () => {
     if (typeof sd !== 'string') throw new Error('startSession: no session id')
     const sessionId = sd
 
-    const { error: submitErr } = await client.rpc('batch_submit_quiz', {
-      p_session_id: sessionId,
-      p_answers: answers,
-    })
-    if (submitErr) throw new Error(`batch_submit_quiz: ${submitErr.message}`)
+    await saveAndFinish(client, sessionId, answers)
     return sessionId
   }
 
@@ -224,7 +221,7 @@ describe('RPC: get_report_answer_keys — non-MC report keys + guards', () => {
     const sessionId = await completeSession(
       studentClient,
       [saId],
-      [{ question_id: saId, response_text: SA_CANONICAL, response_time_ms: 4000 }],
+      [{ questionId: saId, answer: P.short(SA_CANONICAL), timeSpentMs: 4000 }],
     )
     const { data, error } = await studentClient.rpc('get_report_answer_keys', {
       p_session_id: sessionId,
@@ -245,11 +242,7 @@ describe('RPC: get_report_answer_keys — non-MC report keys + guards', () => {
     const sessionId = await completeSession(
       studentClient,
       [dfId],
-      [
-        { question_id: dfId, blank_index: 0, response_text: DF_B0, response_time_ms: 1000 },
-        { question_id: dfId, blank_index: 1, response_text: DF_B1, response_time_ms: 1000 },
-        { question_id: dfId, blank_index: 2, response_text: DF_B2, response_time_ms: 1000 },
-      ],
+      [{ questionId: dfId, answer: P.dialog([DF_B0, DF_B1, DF_B2]), timeSpentMs: 1000 }],
     )
     const { data, error } = await studentClient.rpc('get_report_answer_keys', {
       p_session_id: sessionId,
@@ -275,7 +268,7 @@ describe('RPC: get_report_answer_keys — non-MC report keys + guards', () => {
     const sessionId = await completeSession(
       studentClient,
       [dfId],
-      [{ question_id: dfId, blank_index: 0, response_text: DF_B0, response_time_ms: 1000 }],
+      [{ questionId: dfId, answer: P.dialog([DF_B0]), timeSpentMs: 1000 }],
     )
     const { data, error } = await studentClient.rpc('get_report_answer_keys', {
       p_session_id: sessionId,
@@ -294,7 +287,7 @@ describe('RPC: get_report_answer_keys — non-MC report keys + guards', () => {
     const sessionId = await completeSession(
       studentClient,
       [mcId],
-      [{ question_id: mcId, selected_option: 'b', response_time_ms: 2000 }],
+      [{ questionId: mcId, answer: P.mc('b'), timeSpentMs: 2000 }],
     )
     const { data, error } = await studentClient.rpc('get_report_answer_keys', {
       p_session_id: sessionId,
@@ -310,11 +303,9 @@ describe('RPC: get_report_answer_keys — non-MC report keys + guards', () => {
       studentClient,
       [mcId, saId, dfId],
       [
-        { question_id: mcId, selected_option: 'b', response_time_ms: 1000 },
-        { question_id: saId, response_text: SA_CANONICAL, response_time_ms: 1000 },
-        { question_id: dfId, blank_index: 0, response_text: DF_B0, response_time_ms: 1000 },
-        { question_id: dfId, blank_index: 1, response_text: DF_B1, response_time_ms: 1000 },
-        { question_id: dfId, blank_index: 2, response_text: DF_B2, response_time_ms: 1000 },
+        { questionId: mcId, answer: P.mc('b'), timeSpentMs: 1000 },
+        { questionId: saId, answer: P.short(SA_CANONICAL), timeSpentMs: 1000 },
+        { questionId: dfId, answer: P.dialog([DF_B0, DF_B1, DF_B2]), timeSpentMs: 1000 },
       ],
     )
     const { data, error } = await studentClient.rpc('get_report_answer_keys', {
@@ -336,7 +327,7 @@ describe('RPC: get_report_answer_keys — non-MC report keys + guards', () => {
     const sessionId = await completeSession(
       studentClient,
       [saId],
-      [{ question_id: saId, response_text: SA_CANONICAL, response_time_ms: 4000 }],
+      [{ questionId: saId, answer: P.short(SA_CANONICAL), timeSpentMs: 4000 }],
     )
     const anon = getAnonClient()
     // mig 20260925000400 revokes anon EXECUTE on every public function, so the
@@ -364,7 +355,7 @@ describe('RPC: get_report_answer_keys — non-MC report keys + guards', () => {
     const sessionId = await completeSession(
       delClient,
       [saId],
-      [{ question_id: saId, response_text: SA_CANONICAL, response_time_ms: 4000 }],
+      [{ questionId: saId, answer: P.short(SA_CANONICAL), timeSpentMs: 4000 }],
     )
     const { error: delErr } = await admin
       .from('users')
@@ -394,7 +385,7 @@ describe('RPC: get_report_answer_keys — non-MC report keys + guards', () => {
     const sessionId = await completeSession(
       studentClient,
       [saId],
-      [{ question_id: saId, response_text: SA_CANONICAL, response_time_ms: 4000 }],
+      [{ questionId: saId, answer: P.short(SA_CANONICAL), timeSpentMs: 4000 }],
     )
     // Non-vacuity: confirm via service-role that the session truly carries an
     // answered short_answer question (so the attacker's empty/rejected result is
