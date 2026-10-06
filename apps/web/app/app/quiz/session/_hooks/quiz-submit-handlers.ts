@@ -24,6 +24,8 @@ type BaseDeps = {
   setError: (e: string | null) => void
   submitted: React.RefObject<boolean>
   inFlight: React.RefObject<boolean>
+  /** Exam only: removes an answer the server rejected from the local buffer. */
+  dropAnswer?: (questionId: string) => void
 }
 
 /** Builds the per-action `{ router, setSubmitting, setError }` bundle handleSubmitSession /
@@ -137,6 +139,7 @@ async function resendOrStop(deps: BaseDeps, shared: ReturnType<ReturnType<typeof
     onMappedError: (m) => {
       mapped = m
     },
+    onRejected: deps.dropAnswer,
   })
   if (saved && mapped === null) return true
   // The takeover and sign-in overlays already explain why; no message behind them.

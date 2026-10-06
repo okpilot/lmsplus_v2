@@ -4,14 +4,20 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn() } }))
 
-import { _resetConnectionState, getConnectionStatus } from '../_utils/connection-state'
+import {
+  _resetConnectionState,
+  getConnectionSnapshot,
+  getConnectionStatus,
+} from '../_utils/connection-state'
 import { _resetRefusedSave, refusedAnswerHold } from '../_utils/refused-save'
+import { _resetWithReconnect, withReconnect } from '../_utils/with-reconnect'
 import { ConnectionOverlay } from './connection-overlay'
 
 beforeEach(() => {
   vi.resetAllMocks()
   _resetConnectionState()
   _resetRefusedSave()
+  _resetWithReconnect()
 })
 
 async function holdAnswer() {
@@ -63,5 +69,45 @@ describe('ConnectionOverlay with a refused answer save', () => {
     await holdAnswer()
     await userEvent.keyboard('{Escape}')
     expect(screen.getByText('Your answer was not saved')).toBeInTheDocument()
+  })
+})
+
+describe('ConnectionOverlay mounted while an earlier page left a refused save open', () => {
+  const TRANSIENT = { success: false as const, error: 'boom' }
+  const OK = { success: true as const }
+
+  async function holdUntilBlocked() {
+    vi.useFakeTimers()
+    try {
+      const hold = refusedAnswerHold()
+      const save = withReconnect(async () => TRANSIENT, hold)
+      const later = vi.fn().mockResolvedValue(OK)
+      const next = withReconnect(later)
+      await vi.advanceTimersByTimeAsync(10_000)
+      expect(getConnectionStatus()).toBe('save-failed')
+      return { hold, save, later, next }
+    } finally {
+      vi.useRealTimers()
+    }
+  }
+
+  it('settles the held save as skipped without showing the not-saved dialog', async () => {
+    const { hold, save, next } = await holdUntilBlocked()
+    render(<ConnectionOverlay />)
+    await expect(save).resolves.toBe(TRANSIENT)
+    await next
+    expect(hold.skipped).toBe(true)
+    expect(screen.queryByText('Your answer was not saved')).not.toBeInTheDocument()
+    expect(getConnectionStatus()).toBe('ok')
+    expect(getConnectionStatus()).not.toBe('saved')
+    expect(getConnectionSnapshot().pending).toBe(0)
+  })
+
+  it('runs the saves queued behind the held one', async () => {
+    const { later, next } = await holdUntilBlocked()
+    expect(later).not.toHaveBeenCalled()
+    render(<ConnectionOverlay />)
+    await expect(next).resolves.toBe(OK)
+    expect(later).toHaveBeenCalledTimes(1)
   })
 })

@@ -20,6 +20,7 @@ export function useQuizSubmit(opts: {
   router: AppRouterInstance
   isExam?: boolean
   examMode?: DbQuizMode
+  dropAnswer?: (questionId: string) => void
 }) {
   const submitted = useRef(false)
   // Synchronous one-shot re-entry guard for handleSubmit (multi-source: timer/click/keyboard).

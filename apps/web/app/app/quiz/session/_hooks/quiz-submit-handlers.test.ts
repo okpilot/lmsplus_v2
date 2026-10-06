@@ -302,6 +302,46 @@ describe('buildHandleSubmit with unsaved answers', () => {
   })
 })
 
+describe('buildHandleSubmit with a rejected re-sent answer', () => {
+  const makeDeps = () => ({
+    ...makeBaseDeps({ dropAnswer: vi.fn() }),
+    answersRef: { current: new Map<string, DraftAnswer>() },
+    navFallbackTimer: { current: null as ReturnType<typeof setTimeout> | null },
+    setShowFinishDialog: vi.fn(),
+  })
+
+  it('drops the rejected answer from the exam buffer and stops with the server message', async () => {
+    mockResend.mockImplementation(
+      async (o: { onMappedError: (m: string) => void; onRejected: (id: string) => void }) => {
+        o.onMappedError('This answer could not be saved. Please review it and try again.')
+        o.onRejected('q1')
+        return true
+      },
+    )
+    const deps = makeDeps()
+    await buildHandleSubmit(deps)()
+    expect(deps.dropAnswer).toHaveBeenCalledWith('q1')
+    expect(deps.setError).toHaveBeenLastCalledWith(
+      'This answer could not be saved. Please review it and try again.',
+    )
+    expect(mockHandleSubmitSession).not.toHaveBeenCalled()
+  })
+
+  it('drops a skipped answer before Finish goes on to submit', async () => {
+    const deps = makeDeps()
+    mockResend.mockImplementation(async (o: { onRejected: (id: string) => void }) => {
+      o.onRejected('q1')
+      return true
+    })
+    mockHandleSubmitSession.mockImplementation(async () => {
+      expect(deps.dropAnswer).toHaveBeenCalledWith('q1')
+    })
+    await buildHandleSubmit(deps)()
+    expect(mockHandleSubmitSession).toHaveBeenCalledTimes(1)
+    expect(deps.dropAnswer).toHaveBeenCalledTimes(1)
+  })
+})
+
 // ---- buildHandleSave ---------------------------------------------------------
 
 describe('buildHandleSave', () => {
@@ -380,6 +420,19 @@ describe('buildHandleSave with unsaved answers', () => {
   it('saves the quiz when every failed answer re-sends', async () => {
     mockResend.mockResolvedValue(true)
     await buildHandleSave(makeBaseDeps())()
+    expect(mockHandleSaveSession).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('buildHandleSave with a rejected re-sent answer', () => {
+  it('drops the rejected answer from the exam buffer', async () => {
+    mockResend.mockImplementation(async (o: { onRejected: (id: string) => void }) => {
+      o.onRejected('q1')
+      return true
+    })
+    const dropAnswer = vi.fn()
+    await buildHandleSave(makeBaseDeps({ dropAnswer }))()
+    expect(dropAnswer).toHaveBeenCalledWith('q1')
     expect(mockHandleSaveSession).toHaveBeenCalledTimes(1)
   })
 })

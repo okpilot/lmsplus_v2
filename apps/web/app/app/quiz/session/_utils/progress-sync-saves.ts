@@ -77,6 +77,8 @@ export function sendAnswerSave(opts: AnswerSaveOpts): Promise<SaveOutcome | unde
 export async function resendUnsavedAnswers(opts: {
   sessionId: string
   onMappedError: (message: string) => void
+  /** Called with the question id of each re-sent answer the server rejected for good. */
+  onRejected?: (questionId: string) => void
 }): Promise<boolean> {
   const { sessionId } = opts
   await Promise.all(
@@ -90,6 +92,7 @@ export async function resendUnsavedAnswers(opts: {
         onMappedError: opts.onMappedError,
       })
       settleAnswerSend({ sessionId, questionId, input, settled: outcome !== 'failed' })
+      if (outcome === 'rejected') opts.onRejected?.(questionId)
     }),
   )
   return failedAnswers(sessionId).length === 0

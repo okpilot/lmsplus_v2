@@ -40,6 +40,7 @@ export function useExamPipeline(opts: {
     router,
     isExam: true,
     examMode: opts.quizOpts.examMode,
+    dropAnswer,
   })
 
   const handlers = buildExamAnswerHandlers({

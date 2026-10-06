@@ -244,6 +244,30 @@ describe('resendUnsavedAnswers', () => {
     expect(mockFire).toHaveBeenCalledTimes(2)
   })
 
+  it('reports the question whose re-sent answer the server rejected', async () => {
+    mockFire.mockResolvedValueOnce('failed')
+    send('a')
+    await settle()
+    mockFire.mockResolvedValueOnce('rejected')
+    const onRejected = vi.fn()
+    await resendUnsavedAnswers({ sessionId: SESSION, onMappedError: vi.fn(), onRejected })
+    expect(onRejected).toHaveBeenCalledTimes(1)
+    expect(onRejected).toHaveBeenCalledWith(QID)
+  })
+
+  it.each(['saved', 'failed'] as const)(
+    'does not report a question whose re-sent answer %s',
+    async (outcome) => {
+      mockFire.mockResolvedValueOnce('failed')
+      send('a')
+      await settle()
+      mockFire.mockResolvedValueOnce(outcome)
+      const onRejected = vi.fn()
+      await resendUnsavedAnswers({ sessionId: SESSION, onMappedError: vi.fn(), onRejected })
+      expect(onRejected).not.toHaveBeenCalled()
+    },
+  )
+
   it('resolves true and sends nothing when no answer save failed', async () => {
     await expect(resend()).resolves.toBe(true)
     expect(mockFire).not.toHaveBeenCalled()

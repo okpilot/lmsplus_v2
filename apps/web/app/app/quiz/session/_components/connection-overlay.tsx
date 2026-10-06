@@ -12,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { useConnectionState } from '../_hooks/use-connection-state'
 import type { ConnectionStatus } from '../_utils/connection-state'
+import { skipRefusedSave } from '../_utils/refused-save'
 import { resumeQueue } from '../_utils/with-reconnect'
 import { SaveFailedActions } from './save-failed-actions'
 
@@ -28,6 +29,7 @@ export function ConnectionOverlay() {
 
   // A stale block from an earlier session page must not stay on a new one; before paint.
   useLayoutEffect(() => {
+    skipRefusedSave()
     resumeQueue()
   }, [])
 
