@@ -19,6 +19,7 @@
 
 import { type BrowserContext, expect, type Page, test } from '@playwright/test'
 import { signInAsAdmin } from './helpers/admin-supabase'
+import { isServerActionPost } from './helpers/quiz-session'
 import { SESSION_ID_URL } from './helpers/quiz-session-id'
 import {
   cleanupInternalExamStudentActiveSessions,
@@ -99,8 +100,10 @@ test.describe('internal exam — refresh resume', () => {
       // Confirming is what records the answer on the server; selection alone does not.
       const firstOption = page.locator('button:has(span.rounded-full)').first()
       await firstOption.click()
+      const answerSaved = page.waitForResponse((response) => isServerActionPost(response.request()))
       await page.getByRole('button', { name: 'Confirm Answer' }).click()
       await expect(firstOption).toBeDisabled()
+      expect((await answerSaved).ok()).toBe(true)
 
       await page.reload()
 
