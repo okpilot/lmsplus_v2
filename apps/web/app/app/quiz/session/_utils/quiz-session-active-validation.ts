@@ -46,7 +46,7 @@ function hasSaneSavedAt(savedAt: number): boolean {
 // readActiveSession can purge it once (rather than per-branch).
 //
 // Deliberately narrower than the sibling isValidSessionData, which routes optional fields
-// through hasValidOptionalFields. NOT validated here: subjectName, subjectCode, draftId,
+// through hasValidOptionalFields. NOT validated here: subjectName, subjectCode,
 // examMode, passMark — plus startedAt and timeLimitSeconds outside exam mode, where
 // hasValidExamTimerFields short-circuits. So `data is ActiveSession` asserts more than it
 // checks. Tolerable because the app no longer writes this entry (only legacy keys are read or

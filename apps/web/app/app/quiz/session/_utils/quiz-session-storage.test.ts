@@ -40,7 +40,6 @@ const makeSession = (overrides?: Partial<ActiveSession>): ActiveSession => ({
   currentIndex: 1,
   subjectName: 'Meteorology',
   subjectCode: 'MET',
-  draftId: 'draft-abc',
   savedAt: Date.now(),
   ...overrides,
 })

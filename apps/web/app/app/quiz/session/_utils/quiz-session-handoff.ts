@@ -12,7 +12,6 @@ export type SessionData = {
   draftAnswers?: Record<string, DraftAnswer>
   draftFeedback?: Record<string, AnswerFeedback>
   draftCurrentIndex?: number
-  draftId?: string
   subjectName?: string
   subjectCode?: string
   mode?: SessionMode

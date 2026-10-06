@@ -268,7 +268,6 @@ describe('isValidSessionData', () => {
       questionIds: ['q1', 'q2'],
       draftAnswers: {},
       draftCurrentIndex: 0,
-      draftId: 'draft-1',
       subjectName: 'Met',
       subjectCode: 'MET',
     }

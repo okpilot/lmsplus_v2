@@ -51,7 +51,7 @@ lmsplusv2/
 - **Primary storage**: Supabase (managed Postgres). 17+ tables with RLS on every table. Soft delete (`deleted_at`) on all mutable tables.
 - **File storage**: Supabase Storage (`question-images` bucket). Access model — including which
   operations are org-scoped — is `docs/security.md` §13; do not restate it here.
-- **Client-side persistence**: none for quiz answers. An open quiz lives on the server (`quiz_session_progress`, plus position and pins on `quiz_sessions`); any device continues from `/app/quiz/session/<id>`. Only the Discovery start uses a tab-scoped sessionStorage handoff. A one-time upload of legacy `quiz-active-session:<userId>` answers remains until #1453.
+- **Client-side persistence**: none for quiz answers. An open quiz lives on the server (`quiz_session_progress`, plus position and pins on `quiz_sessions`); any device continues from `/app/quiz/session/<id>`. Only the Discovery start uses a tab-scoped sessionStorage handoff. Legacy `quiz-active-session:<userId>` copies are read only to decide whether to clear them; their answers are not uploaded.
 - **Caching**: Turborepo build cache. Vercel edge cache for static assets. No application-level Redis.
 - **Data formats**: JSON/JSONB (question options, session config, audit metadata), SQL for all persistence.
 

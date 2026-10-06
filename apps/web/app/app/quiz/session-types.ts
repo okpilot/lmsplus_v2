@@ -24,7 +24,6 @@ export type QuizStateOpts = {
   /** Pins and active time saved on the server, for a session opened by id. */
   initialPinnedIds?: readonly string[]
   initialActiveMs?: number
-  draftId?: string
   subjectName?: string
   subjectCode?: string
   mode?: SessionMode

@@ -64,7 +64,6 @@ describe('readSessionHandoff', () => {
       questionIds: ['q1', 'q2'],
       draftAnswers: { q1: { selectedOptionId: 'a', responseTimeMs: 500 } },
       draftCurrentIndex: 1,
-      draftId: 'draft-7',
       subjectName: 'Meteorology',
       subjectCode: 'MET',
     }
@@ -149,16 +148,6 @@ describe('readSessionHandoff', () => {
   it('rejects payload when draftCurrentIndex is a string', () => {
     const key = sessionHandoffKey(USER_ID)
     const data = { sessionId: 'sess-1', questionIds: ['q1'], draftCurrentIndex: 'not-a-number' }
-    mockSession._store.set(key, JSON.stringify(data))
-    vi.spyOn(console, 'error').mockImplementation(() => undefined)
-
-    expect(readSessionHandoff(USER_ID)).toBeNull()
-    expect(mockSession.removeItem).toHaveBeenCalledWith(key)
-  })
-
-  it('rejects payload when draftId is an empty string', () => {
-    const key = sessionHandoffKey(USER_ID)
-    const data = { sessionId: 'sess-1', questionIds: ['q1'], draftId: '' }
     mockSession._store.set(key, JSON.stringify(data))
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
 

@@ -1,5 +1,4 @@
 import type { DiagramMappingEntry } from '@/app/app/quiz/actions/diagram-validation'
-import type { ActionResult } from '@/lib/action-result'
 
 export type SubmitRpcResult = {
   is_correct: boolean
@@ -192,8 +191,6 @@ export type DraftData = {
   subjectCode?: string
   createdAt?: string
 }
-
-export type DraftResult = ActionResult
 
 export type LoadDraftsResult = { drafts: DraftData[] }
 

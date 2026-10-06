@@ -21,7 +21,6 @@ vi.mock('./quiz-session', () => ({
     <div
       data-testid="quiz-session"
       data-session-id={props.sessionId as string}
-      data-draft-id={(props.draftId as string | undefined) ?? ''}
       data-mode={(props.mode as string | undefined) ?? ''}
       data-pass-mark={typeof props.passMark === 'number' ? String(props.passMark) : ''}
       data-started-at={(props.startedAt as string | undefined) ?? ''}
@@ -69,7 +68,6 @@ function makeSession(): SessionData {
     questionIds: ['q1', 'q2', 'q3'],
     draftAnswers: { q1: { selectedOptionId: 'opt-a', responseTimeMs: 500 } },
     draftCurrentIndex: 1,
-    draftId: 'legacy-draft',
     subjectName: 'Meteorology',
     subjectCode: 'MET',
   }
@@ -335,17 +333,5 @@ describe('QuizSessionLoader — answer filtering', () => {
     })
     expect(() => render(<QuizSessionLoader userId="user-1" />)).not.toThrow()
     expect(screen.getByTestId('quiz-session')).toBeInTheDocument()
-  })
-})
-
-describe('QuizSessionLoader — Discovery only', () => {
-  it('does not pass a legacy draft id to the quiz', () => {
-    mockUseSessionBootstrap.mockReturnValue({
-      ...makeBootstrapBase(),
-      session: makeSession(),
-      questions: makeQuestions(),
-    })
-    render(<QuizSessionLoader userId="user-1" />)
-    expect(screen.getByTestId('quiz-session')).toHaveAttribute('data-draft-id', '')
   })
 })

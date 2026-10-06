@@ -665,7 +665,6 @@ describe('hasValidOptionalFields', () => {
         {
           draftAnswers: undefined,
           draftCurrentIndex: undefined,
-          draftId: undefined,
           subjectName: undefined,
           subjectCode: undefined,
         },
@@ -733,18 +732,6 @@ describe('hasValidOptionalFields', () => {
     )
   })
 
-  it('returns true when draftId is a non-empty string', () => {
-    expect(hasValidOptionalFields({ draftId: 'draft-abc' }, QUESTION_COUNT)).toBe(true)
-  })
-
-  it('returns false when draftId is an empty string', () => {
-    expect(hasValidOptionalFields({ draftId: '' }, QUESTION_COUNT)).toBe(false)
-  })
-
-  it('returns false when draftId is a number', () => {
-    expect(hasValidOptionalFields({ draftId: 123 }, QUESTION_COUNT)).toBe(false)
-  })
-
   it('returns true when subjectName is a non-empty string', () => {
     expect(hasValidOptionalFields({ subjectName: 'Meteorology' }, QUESTION_COUNT)).toBe(true)
   })
@@ -793,7 +780,6 @@ describe('hasValidOptionalFields', () => {
         {
           draftAnswers: { q1: { selectedOptionId: 'a', responseTimeMs: 200 } },
           draftCurrentIndex: 2,
-          draftId: 'draft-1',
           subjectName: 'Navigation',
           subjectCode: 'NAV',
         },
@@ -808,7 +794,6 @@ describe('hasValidOptionalFields', () => {
         {
           draftAnswers: {},
           draftCurrentIndex: QUESTION_COUNT, // invalid — equals questionCount
-          draftId: 'draft-1',
           subjectName: 'Navigation',
           subjectCode: 'NAV',
         },

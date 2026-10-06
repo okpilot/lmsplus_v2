@@ -77,7 +77,6 @@ function makeQuizOpts(overrides: Partial<QuizStateOpts> = {}): QuizStateOpts {
     userId: USER_ID,
     sessionId: SESSION_ID,
     questions: [{ id: Q1 } as QuizStateOpts['questions'][0]],
-    draftId: 'draft-1',
     subjectName: 'Meteorology',
     subjectCode: 'MET',
     ...overrides,

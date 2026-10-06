@@ -20,7 +20,6 @@ export type ActiveSession = {
   currentIndex: number
   subjectName?: string
   subjectCode?: string
-  draftId?: string
   savedAt: number // Date.now()
   // Resumable-only — never 'discovery' (see ResumableSessionMode above).
   mode?: ResumableSessionMode

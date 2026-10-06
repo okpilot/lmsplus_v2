@@ -519,7 +519,7 @@ describe('useQuizState — showFinishDialog', () => {
 describe('useQuizState — exam mode initial answer recovery', () => {
   it('reflects pre-loaded answers in answeredCount when mode is exam', () => {
     // This is the reload/recovery regression guard for #575.
-    // On page reload the session-recovery flow passes initialAnswers back to useQuizState
+    // On page reload the server read path passes initialAnswers back to useQuizState
     // with mode="exam". Before the fix, useExamAnswerBuffer ignored initialAnswers and
     // answeredCount was always 0, causing the answer buffer to reset on every refresh.
     const { result } = renderHook(() =>

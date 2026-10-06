@@ -10,7 +10,7 @@ type BuildDiscoveryHandoffOpts = {
 /**
  * The sessionStorage handoff payload Discovery writes for the real quiz session
  * runner. Shape matches what `readSessionHandoff`/`isValidSessionData` validate
- * (mirrors `buildHandoffPayload`'s output keys), plus `mode: 'discovery'`.
+ *, plus `mode: 'discovery'`.
  */
 export type DiscoveryHandoff = {
   userId: string
