@@ -62,4 +62,25 @@ describe('Finish after the student continued without a held answer save', () => 
     expect(saved).toBe(true)
     expect(mockSaveAnswer).toHaveBeenCalledTimes(3)
   })
+
+  it('has nothing left to resend when the save kept throwing', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    mockSaveAnswer.mockRejectedValue(new Error('server blew up'))
+    sendAnswerSave({
+      sessionId: SESSION,
+      questionId: QID,
+      draft: { selectedOptionId: 'a' },
+      startedAt: Date.now(),
+      onSuccess: vi.fn(),
+      onMappedError: vi.fn(),
+    })
+    await vi.advanceTimersByTimeAsync(6000)
+    skipRefusedSave()
+    await vi.advanceTimersByTimeAsync(0)
+
+    const saved = await resendUnsavedAnswers({ sessionId: SESSION, onMappedError: vi.fn() })
+
+    expect(saved).toBe(true)
+    expect(mockSaveAnswer).toHaveBeenCalledTimes(3)
+  })
 })

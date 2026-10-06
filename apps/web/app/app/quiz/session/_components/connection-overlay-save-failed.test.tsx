@@ -8,11 +8,6 @@ import { _resetConnectionState, getConnectionStatus } from '../_utils/connection
 import { _resetRefusedSave, refusedAnswerHold } from '../_utils/refused-save'
 import { ConnectionOverlay } from './connection-overlay'
 
-const REFUSED = {
-  success: false as const,
-  error: 'This answer could not be saved. Please review it and try again.',
-}
-
 beforeEach(() => {
   vi.resetAllMocks()
   _resetConnectionState()
@@ -20,7 +15,15 @@ beforeEach(() => {
 })
 
 async function holdAnswer() {
-  const pending = refusedAnswerHold()(REFUSED)
+  const hold = refusedAnswerHold()
+  vi.useFakeTimers()
+  for (const delay of [2000, 4000]) {
+    const retried = hold({ kind: 'thrown' })
+    await vi.advanceTimersByTimeAsync(delay)
+    await retried
+  }
+  vi.useRealTimers()
+  const pending = hold({ kind: 'thrown' })
   await act(async () => {})
   return { pending }
 }
@@ -32,7 +35,7 @@ describe('ConnectionOverlay with a refused answer save', () => {
     expect(screen.getByRole('alertdialog')).toBeInTheDocument()
     expect(screen.getByText('Your answer was not saved')).toBeInTheDocument()
     expect(
-      screen.getByText('Try again, or continue without it — it will then count as unanswered.'),
+      screen.getByText('Try again, or continue without saving this answer.'),
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Continue without it' })).toBeInTheDocument()

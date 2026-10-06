@@ -17,10 +17,10 @@ import {
   getConnectionStatus,
   setConnectionStatus,
 } from './connection-state'
+import { BACKOFF_MS } from './retry-wait'
 import {
   _resetWithReconnect,
   ATTEMPT_TIMEOUT_MS,
-  BACKOFF_MS,
   whenQueueIdle,
   withReconnect,
 } from './with-reconnect'
@@ -66,7 +66,7 @@ describe('withReconnect hold', () => {
     const { hold, resolvers } = holdControl()
     const result = withReconnect(fn, hold)
     await vi.advanceTimersByTimeAsync(0)
-    expect(hold).toHaveBeenCalledWith(REFUSED)
+    expect(hold).toHaveBeenCalledWith({ kind: 'value', value: REFUSED })
     resolvers[0]?.('retry')
     await vi.advanceTimersByTimeAsync(0)
     expect(fn).toHaveBeenCalledTimes(2)
@@ -105,7 +105,27 @@ describe('withReconnect hold', () => {
   it('passes a successful result to the hold too', async () => {
     const hold = vi.fn().mockResolvedValue('done')
     await withReconnect(async () => OK, hold)
-    expect(hold).toHaveBeenCalledWith(OK)
+    expect(hold).toHaveBeenCalledWith({ kind: 'value', value: OK })
+  })
+
+  it('offers a thrown server response to the hold and resends it on retry', async () => {
+    const boom = new Error('server blew up')
+    const fn = vi.fn().mockRejectedValueOnce(boom).mockResolvedValue(OK)
+    const { hold, resolvers } = holdControl()
+    const result = withReconnect(fn, hold)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(hold).toHaveBeenCalledWith({ kind: 'thrown' })
+    resolvers[0]?.('retry')
+    await vi.advanceTimersByTimeAsync(0)
+    expect(fn).toHaveBeenCalledTimes(2)
+    resolvers[1]?.('done')
+    await expect(result).resolves.toBe(OK)
+  })
+
+  it('rethrows the server error to the caller when the hold answers done on a thrown save', async () => {
+    const boom = new Error('server blew up')
+    const hold = vi.fn().mockResolvedValue('done')
+    await expect(withReconnect(() => Promise.reject(boom), hold)).rejects.toBe(boom)
   })
 
   it('ends signed out when the sign-in expires after Try again', async () => {

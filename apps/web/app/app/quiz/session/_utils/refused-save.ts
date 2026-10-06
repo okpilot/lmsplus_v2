@@ -1,22 +1,9 @@
-import {
-  isDisplayableProgressError,
-  PROGRESS_ERROR_MESSAGES,
-} from '../../actions/progress-error-messages'
+import { INVALID_INPUT, isDisplayableProgressError } from '../../actions/progress-error-messages'
 import { setConnectionStatus } from './connection-state'
 
 type Verdict = 'retry' | 'done'
-export type RefusalClass = 'transient' | 'per-answer' | 'session-wide'
 
 const RETRY_DELAYS_MS = [2000, 4000]
-
-// Copy of a refusal of ONE answer that a resend cannot change. Progress copy is shared with
-// `invalid_position` / `invalid_device`, which save_quiz_answer never raises.
-const PER_ANSWER = new Set([
-  PROGRESS_ERROR_MESSAGES.invalid_answer,
-  PROGRESS_ERROR_MESSAGES.question_not_in_session,
-  PROGRESS_ERROR_MESSAGES.invalid_time_spent,
-  'Invalid input',
-])
 
 let choose: ((verdict: Verdict) => void) | null = null
 
@@ -25,10 +12,9 @@ export function _resetRefusedSave() {
   choose = null
 }
 
-/** Splits a failed answer save: unmapped copy is transient, the per-answer set is held, other mapped copy is session-wide. */
-export function refusalClass(error: string): RefusalClass {
-  if (PER_ANSWER.has(error)) return 'per-answer'
-  return isDisplayableProgressError(error) ? 'session-wide' : 'transient'
+/** True for a failed answer save whose cause is unmapped copy: a resend may succeed. Mapped refusals and a failed input parse are final and shown inline. */
+export function isTransientRefusal(error: string): boolean {
+  return !isDisplayableProgressError(error) && error !== INVALID_INPUT
 }
 
 function chosen(): Promise<Verdict> {
@@ -52,20 +38,25 @@ export function skipRefusedSave() {
   choose?.('done')
 }
 
-type AnswerHold = ((value: { success: boolean; error?: string }) => Promise<Verdict>) & {
+type SaveResult = { success: boolean; error?: string }
+
+type AnswerHold = ((
+  outcome: { kind: 'value'; value: SaveResult } | { kind: 'thrown' },
+) => Promise<Verdict>) & {
   /** True once the student chose Continue without it for this save. */
   skipped: boolean
 }
 
-/** Builds the `hold` for ONE answer save: retry a transient refusal twice, then wait for the student. */
+/** Builds the `hold` for ONE answer save: retry a transient failure (unmapped refusal or a thrown save) twice, then wait for the student. */
 export function refusedAnswerHold(): AnswerHold {
   let retries = 0
   const hold: AnswerHold = Object.assign(
-    async (value: { success: boolean; error?: string }): Promise<Verdict> => {
-      if (value.success || typeof value.error !== 'string') return 'done'
-      const kind = refusalClass(value.error)
-      if (kind === 'session-wide') return 'done'
-      const delay = kind === 'transient' ? RETRY_DELAYS_MS[retries] : undefined
+    async (outcome: Parameters<AnswerHold>[0]): Promise<Verdict> => {
+      if (outcome.kind === 'value') {
+        const { success, error } = outcome.value
+        if (success || typeof error !== 'string' || !isTransientRefusal(error)) return 'done'
+      }
+      const delay = RETRY_DELAYS_MS[retries]
       if (delay === undefined) {
         const verdict = await chosen()
         if (verdict === 'done') hold.skipped = true

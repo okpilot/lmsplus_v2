@@ -35,36 +35,81 @@ beforeEach(() => {
 })
 
 describe('fireProgressSave with a refused save', () => {
-  it('holds an answer save the server refuses until the student chooses', async () => {
+  it('shows a mapped per-answer refusal inline without blocking the quiz', async () => {
     mockSaveAnswer.mockResolvedValue({ success: false, error: BAD_ANSWER })
-    fireProgressSave({ kind: 'answer', sessionId: 's', input: {}, ...handlers() })
-    await flush()
-    expect(getConnectionStatus()).toBe('save-failed')
-    skipRefusedSave()
-  })
-
-  it('resends the answer when the student chooses Try again', async () => {
-    mockSaveAnswer
-      .mockResolvedValueOnce({ success: false, error: BAD_ANSWER })
-      .mockResolvedValue({ success: true })
     const h = handlers()
-    fireProgressSave({ kind: 'answer', sessionId: 's', input: { a: 1 }, ...h })
-    await flush()
-    retryRefusedSave()
-    await flush()
-    expect(mockSaveAnswer).toHaveBeenCalledTimes(2)
-    expect(h.onSuccess).toHaveBeenCalledTimes(1)
+    const outcome = await fireProgressSave({
+      kind: 'answer',
+      sessionId: 's',
+      input: {},
+      ...h,
+    })
+    expect(outcome).toBe('rejected')
+    expect(h.onMappedError).toHaveBeenCalledWith(BAD_ANSWER)
+    expect(mockSaveAnswer).toHaveBeenCalledTimes(1)
     expect(getConnectionStatus()).not.toBe('save-failed')
   })
 
-  it('shows the refusal copy after the student continues without the answer', async () => {
-    mockSaveAnswer.mockResolvedValue({ success: false, error: BAD_ANSWER })
-    const h = handlers()
-    fireProgressSave({ kind: 'answer', sessionId: 's', input: {}, ...h })
-    await flush()
+  it('holds an answer save with unmapped refusal copy until the student chooses', async () => {
+    vi.useFakeTimers()
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    mockSaveAnswer.mockResolvedValue({ success: false, error: 'Could not save progress' })
+    fireProgressSave({ kind: 'answer', sessionId: 's', input: {}, ...handlers() })
+    await vi.advanceTimersByTimeAsync(6000)
+    expect(getConnectionStatus()).toBe('save-failed')
     skipRefusedSave()
-    await flush()
-    expect(h.onMappedError).toHaveBeenCalledWith(BAD_ANSWER)
+    vi.useRealTimers()
+  })
+
+  it('resends the answer when the student chooses Try again', async () => {
+    vi.useFakeTimers()
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    mockSaveAnswer
+      .mockResolvedValueOnce({ success: false, error: 'Could not save progress' })
+      .mockResolvedValueOnce({ success: false, error: 'Could not save progress' })
+      .mockResolvedValueOnce({ success: false, error: 'Could not save progress' })
+      .mockResolvedValue({ success: true })
+    const h = handlers()
+    fireProgressSave({ kind: 'answer', sessionId: 's', input: { a: 1 }, ...h })
+    await vi.advanceTimersByTimeAsync(6000)
+    retryRefusedSave()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(mockSaveAnswer).toHaveBeenCalledTimes(4)
+    expect(h.onSuccess).toHaveBeenCalledTimes(1)
+    expect(getConnectionStatus()).not.toBe('save-failed')
+    vi.useRealTimers()
+  })
+
+  it('treats an answer save that keeps throwing as settled once the student continues without it', async () => {
+    vi.useFakeTimers()
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    mockSaveAnswer.mockRejectedValue(new Error('server blew up'))
+    const h = handlers()
+    const pending = fireProgressSave({ kind: 'answer', sessionId: 's', input: {}, ...h })
+    await vi.advanceTimersByTimeAsync(6000)
+    expect(getConnectionStatus()).toBe('save-failed')
+    skipRefusedSave()
+    await expect(pending).resolves.toBe('rejected')
+    expect(h.onMappedError).not.toHaveBeenCalled()
+    expect(mockSaveAnswer).toHaveBeenCalledTimes(3)
+    vi.useRealTimers()
+  })
+
+  it('saves the answer when a throwing save succeeds after Try again', async () => {
+    vi.useFakeTimers()
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    mockSaveAnswer
+      .mockRejectedValueOnce(new Error('x'))
+      .mockRejectedValueOnce(new Error('x'))
+      .mockRejectedValueOnce(new Error('x'))
+      .mockResolvedValue({ success: true })
+    const h = handlers()
+    const pending = fireProgressSave({ kind: 'answer', sessionId: 's', input: {}, ...h })
+    await vi.advanceTimersByTimeAsync(6000)
+    retryRefusedSave()
+    await expect(pending).resolves.toBe('saved')
+    expect(h.onSuccess).toHaveBeenCalledTimes(1)
+    vi.useRealTimers()
   })
 
   it('does not hold a position save the server refuses', async () => {

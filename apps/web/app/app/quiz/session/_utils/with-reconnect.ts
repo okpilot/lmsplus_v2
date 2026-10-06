@@ -9,6 +9,7 @@ import {
   markSaved,
   setConnectionStatus,
 } from './connection-state'
+import type { Hold } from './hold-types'
 import { clearRetryWaiters, waitForRetry, wakeRetryWaiters } from './retry-wait'
 
 type ActionResult = { success: boolean; error?: string }
@@ -18,11 +19,11 @@ type Attempt<T> =
   | { kind: 'rethrow'; err: unknown }
   | { kind: 'signed-out' }
 
-export { BACKOFF_MS } from './retry-wait'
 export const ATTEMPT_TIMEOUT_MS = 15_000
 
 const TRUSTED_NETWORK_FAILS = 3
 const TIMED_OUT = Symbol('timed-out')
+const THROWN = { kind: 'thrown' as const }
 
 const SIGNED_OUT: SignedOutResult = { success: false, error: SIGN_IN }
 
@@ -132,12 +133,12 @@ function endBatchIfIdle() {
   batchOk = true
 }
 
-/** Asked once a call settled: 'retry' resends the SAME call in the SAME queue slot. */
-export type Hold<T> = (value: T) => Promise<'retry' | 'done'>
-
 async function settleWithHold<T>(fn: () => Promise<T>, hold?: Hold<T>): Promise<Attempt<T>> {
   let result = await retryUntilSettled(fn)
-  while (hold && result.kind === 'done' && (await hold(result.value)) === 'retry') {
+  while (hold && result.kind !== 'signed-out') {
+    const outcome =
+      result.kind === 'done' ? { kind: 'value' as const, value: result.value } : THROWN
+    if ((await hold(outcome)) !== 'retry') break
     result = await retryUntilSettled(fn)
   }
   return result

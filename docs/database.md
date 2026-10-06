@@ -1649,11 +1649,7 @@ Atomically reads the subject's `exam_configs` row, randomly selects questions pe
 
 #### `complete_empty_exam_session` — close a zero-answer exam session (timer or manual)
 
-Completes a `mock_exam`, `internal_exam`, or `vfr_rt_exam` session that has zero answers recorded. Sets `correct_count = 0`, `score_percentage = 0`, `passed = false`, and `ended_at = now()`. On RPC success the caller (`submitEmptyExamSession` in `apps/web/app/app/quiz/session/_hooks/quiz-submit.ts`) routes the student to `/app/quiz/report?session=<id>` showing 0% / FAIL; on RPC failure the caller falls back to `/app/quiz` so the student is not stranded mid-flow.
-
-**Purpose:** Called by `submitEmptyExamSession` Server Action in two scenarios:
-1. Timer fires and `answers.size === 0` (student ran out of time without answering)
-2. Student manually finishes before the deadline with zero answers recorded
+Completes a `mock_exam`, `internal_exam`, or `vfr_rt_exam` session that has zero answers recorded. Sets `correct_count = 0`, `score_percentage = 0`, `passed = false`, and `ended_at = now()`. No app caller since #1026 PR 2d: `finish_quiz_session` ends zero-answer exams.
 
 **Audit event branching (migration 053):** The RPC determines the actual deadline state and audits accordingly:
 - **Deadline passed (beyond +30s grace)** → `exam.expired` (or `internal_exam.expired` / `vfr_rt_exam.expired`) event with reason "timed out with no answers"

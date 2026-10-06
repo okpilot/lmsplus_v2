@@ -81,7 +81,7 @@ type SaveOutcome = 'saved' | 'rejected' | 'failed'
  *   failure goes to onMappedError.
  * - 'failed': anything else (transient failure, throw, taken-over session, signed-out user). A
  *   taken-over session and a signed-out user warn nothing; other failures console.warn.
- * An answer save carries a refused-save hold (refused-save.ts): a refused answer is retried or held,
+ * An answer save carries a refused-save hold (refused-save.ts): a transient failure (unmapped refusal or a thrown save) is retried or held,
  * with the save queue, until the student picks Try again or Continue without it.
  */
 export async function fireProgressSave(opts: {
@@ -115,6 +115,7 @@ export async function fireProgressSave(opts: {
     return r.error === INVALID_INPUT ? 'rejected' : 'failed'
   } catch (err) {
     console.warn(`[progress-save] ${opts.kind} save failed (best-effort):`, err)
-    return 'failed'
+    // Continue without it settles the answer: Finish must not resend it.
+    return hold?.skipped ? 'rejected' : 'failed'
   }
 }

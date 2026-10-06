@@ -62,7 +62,7 @@ const COPY = {
   },
   'save-failed': {
     title: 'Your answer was not saved',
-    body: 'Try again, or continue without it — it will then count as unanswered.',
+    body: 'Try again, or continue without saving this answer.',
   },
   'signed-out': {
     title: 'Your sign-in has expired',

@@ -39,7 +39,6 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
   const [inFlightAnswers, setInFlightAnswers] = useState(0)
   const answering = inFlightAnswers > 0
   const lockedRef = useRef<Set<string>>(new Set())
-  const pendingQuestionIdRef = useRef<Set<string>>(new Set())
   const answersRef = useRef(answers)
   answersRef.current = answers
   const feedbackRef = useRef(feedback)
@@ -54,7 +53,6 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
       answersRef.current = next
       return next
     })
-    pendingQuestionIdRef.current.add(questionId)
     setInFlightAnswers((n) => n + 1)
     // finally decrements the counter on every exit path (RPC error, success, or a
     // throw from recordAnswerFeedback), so `answering` never sticks positive.
@@ -67,7 +65,6 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
           sessionId,
           questionId,
           lockedRef,
-          pendingQuestionIdRef,
           answersRef,
           setAnswers,
           setError,
@@ -85,11 +82,6 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
       }
       return true
     } finally {
-      // Both run on every exit path: the counter can't stick positive, and the in-flight
-      // marker can't orphan in pendingQuestionIdRef (which would drop it from submit) if
-      // recordAnswerFeedback throws. Idempotent on the error path
-      // (Set.delete of an absent key is a no-op).
-      pendingQuestionIdRef.current.delete(questionId)
       setInFlightAnswers((n) => Math.max(0, n - 1))
     }
   }
@@ -108,6 +100,5 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
     answering,
     ...handlers,
     clearError: () => setError(null),
-    pendingQuestionIdRef,
   }
 }

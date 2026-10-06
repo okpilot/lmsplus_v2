@@ -17,10 +17,10 @@ import {
   getConnectionStatus,
   setConnectionStatus,
 } from './connection-state'
+import { BACKOFF_MS } from './retry-wait'
 import {
   _resetWithReconnect,
   ATTEMPT_TIMEOUT_MS,
-  BACKOFF_MS,
   resumeQueue,
   whenQueueIdle,
   withReconnect,
