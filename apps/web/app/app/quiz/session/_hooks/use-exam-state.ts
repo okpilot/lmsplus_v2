@@ -2,13 +2,14 @@ import { useRouter } from 'next/navigation'
 import { useRef } from 'react'
 import type { QuizStateOpts } from '../../session-types'
 import type { AnswerFeedback, DraftAnswer } from '../../types'
+import type { SaveOutcome } from '../_utils/progress-save'
 import { buildExamAnswerHandlers, pickExamSubmitControls } from './exam-answer-handlers'
 import { useExamAnswerBuffer } from './use-exam-answer-buffer'
 import { useQuizSubmit } from './use-quiz-submit'
 
 /**
  * Exam-mode answer pipeline: buffers answers locally (no per-answer RPC),
- * delegates batch submit to useQuizSubmit.
+ * delegates Finish, Save and Discard to useQuizSubmit.
  */
 export function useExamPipeline(opts: {
   quizOpts: QuizStateOpts
@@ -17,14 +18,16 @@ export function useExamPipeline(opts: {
   currentIndexRef: React.RefObject<number>
   navigateTo: (idx: number) => void
   navigate: (delta: number) => void
-  onAnswerRecorded?: (draft: Omit<DraftAnswer, 'responseTimeMs'>) => void
+  onAnswerRecorded?: (
+    draft: Omit<DraftAnswer, 'responseTimeMs'>,
+  ) => Promise<SaveOutcome | undefined>
 }) {
   const router = useRouter()
   const emptyFeedbackRef = useRef<Map<string, AnswerFeedback>>(new Map())
 
   // initialAnswers flows to both study and exam pipelines (both instantiated in use-quiz-state.ts);
   // p = isExam ? exam : study gates which is surfaced, so seeding the unused pipeline is harmless.
-  const { answers, answersRef, recordAnswer } = useExamAnswerBuffer({
+  const { answers, answersRef, recordAnswer, dropAnswer } = useExamAnswerBuffer({
     getQuestionId: opts.getQuestionId,
     getAnswerStartTime: opts.getAnswerStartTime,
     initialAnswers: opts.quizOpts.initialAnswers,
@@ -41,6 +44,8 @@ export function useExamPipeline(opts: {
 
   const handlers = buildExamAnswerHandlers({
     recordAnswer,
+    getQuestionId: opts.getQuestionId,
+    dropAnswer,
     onRecorded: opts.onAnswerRecorded,
   })
 

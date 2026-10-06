@@ -247,3 +247,25 @@ describe('useExamAnswerBuffer — recordAnswer', () => {
     expect(result.current.answers.get(Q1)?.order).toBeUndefined()
   })
 })
+
+// ---- dropAnswer -------------------------------------------------------------
+
+describe('useExamAnswerBuffer — dropAnswer', () => {
+  it('removes the answer and lets the question be answered again', () => {
+    const { result } = renderHook(() => useExamAnswerBuffer(makeOpts(Q1)))
+    act(() => {
+      result.current.confirmAnswer('opt-a')
+    })
+    act(() => {
+      result.current.dropAnswer(Q1)
+    })
+    expect(result.current.answers.has(Q1)).toBe(false)
+    expect(result.current.answersRef.current.has(Q1)).toBe(false)
+    let returned: boolean | undefined
+    act(() => {
+      returned = result.current.recordAnswer({ selectedOptionId: 'opt-b' })
+    })
+    expect(returned).toBe(true)
+    expect(result.current.answers.get(Q1)?.selectedOptionId).toBe('opt-b')
+  })
+})

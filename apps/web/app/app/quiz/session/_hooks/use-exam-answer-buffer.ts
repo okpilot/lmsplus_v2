@@ -34,5 +34,12 @@ export function useExamAnswerBuffer(opts: UseExamAnswerBufferOpts) {
     [recordAnswer],
   )
 
-  return { answers, answersRef, confirmAnswer, recordAnswer }
+  const dropAnswer = useCallback((questionId: string) => {
+    const next = new Map(answersRef.current)
+    next.delete(questionId)
+    answersRef.current = next
+    setAnswers(next)
+  }, [])
+
+  return { answers, answersRef, confirmAnswer, recordAnswer, dropAnswer }
 }

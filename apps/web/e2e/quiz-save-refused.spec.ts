@@ -132,5 +132,12 @@ test.describe('Quiz answer save refused by the server', () => {
     await expect(page.getByText('Question 2')).toBeVisible()
     await expect(page).toHaveURL(sessionUrl)
     expect(await readServerAnsweredCount()).toBe(0)
+
+    // The dropped answer is unlocked: Question 1 can be answered again.
+    await page.getByRole('button', { name: '‹ Previous' }).click()
+    await expect(page.getByText('Question 1')).toBeVisible()
+    const options = page.locator('button:has(span.rounded-full)')
+    await expect(options.first()).toBeEnabled()
+    await expect(page.locator('[data-selected="true"]')).toHaveCount(0)
   })
 })

@@ -72,7 +72,7 @@ export function buildPositionInput(opts: PositionInputOpts) {
 
 type SaveKind = 'answer' | 'position'
 
-type SaveOutcome = 'saved' | 'rejected' | 'failed'
+export type SaveOutcome = 'saved' | 'rejected' | 'failed'
 
 /**
  * Fire-and-forget progress save. Never throws or rejects; callers may ignore the result. Resolves:
