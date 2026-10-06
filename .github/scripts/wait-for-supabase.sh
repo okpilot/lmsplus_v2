@@ -30,6 +30,8 @@
 # them; Kong typically boots in well under 30s on GitHub runners). Each probe is capped at
 # 5s via curl --max-time, so a wedged-but-listening endpoint is bounded (worst case ~313s:
 # 45 × 5s + 44 × 2s) rather than hanging the job.
+# When the Kong reload runs (default), a second wait of up to 5 probes adds at most 33s
+# (5 × 5s + 4 × 2s).
 set -euo pipefail
 
 HEALTH_URL="${SUPABASE_HEALTH_URL:-http://localhost:54321/auth/v1/health}"
