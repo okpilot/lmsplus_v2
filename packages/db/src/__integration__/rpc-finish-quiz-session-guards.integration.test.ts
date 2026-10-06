@@ -3,7 +3,7 @@ import { clearActiveSessions } from './cleanup'
 import {
   claimSession,
   DEVICE,
-  finishOk,
+  finishSeedSession,
   finishSession,
   OTHER_DEVICE,
   RIGHT,
@@ -121,7 +121,7 @@ describe('RPC: finish_quiz_session — guards', () => {
   it('refuses further answer saves once the session is finished', async () => {
     const sessionId = await startPractice(f, 'quick_quiz', [mc(0), mc(1)])
     await saveAnswer(f, sessionId, mc(0), RIGHT.mc)
-    await finishOk(f, sessionId)
+    await finishSeedSession(f.student, sessionId)
     expect((await sessionRow(f, sessionId)).ended_at).not.toBeNull()
 
     const { error } = await f.student.rpc('save_quiz_answer', {

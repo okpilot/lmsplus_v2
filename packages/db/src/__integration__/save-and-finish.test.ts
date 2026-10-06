@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { DEVICE } from './finish-fixture'
-import { finishSeedSession, P, saveAndFinish, saveSeedAnswers } from './save-and-finish'
+import { DEVICE, finishSeedSession } from './finish-fixture'
+import { P, saveAndFinish, saveSeedAnswers } from './save-and-finish'
 
 const mockRpc = vi.hoisted(() => vi.fn())
 const client = { rpc: mockRpc } as unknown as SupabaseClient

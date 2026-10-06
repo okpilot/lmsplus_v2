@@ -1,8 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { finishSeedSession } from './finish-fixture'
 import { fixtureSuffix } from './fixture-suffix'
-import { finishSeedSession, P, saveSeedAnswers } from './save-and-finish'
+import { P, saveSeedAnswers } from './save-and-finish'
 import { seedQuestions, seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 

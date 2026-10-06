@@ -7,7 +7,7 @@ import {
 } from './finish-broken-fixture'
 import {
   backdateSession,
-  finishOk,
+  finishSeedSession,
   insertDialogWithoutCanonical,
   insertDialogWithTextIndex,
   insertRawProgress,
@@ -79,7 +79,7 @@ describe('RPC: finish_quiz_session — grades the saved answers', () => {
       expect(await progressRows(f, sessionId)).toHaveLength(3)
       expect(await answerRows(f, sessionId)).toHaveLength(0)
 
-      const result = await finishOk(f, sessionId)
+      const result = await finishSeedSession(f.student, sessionId)
 
       expect(result.total_questions).toBe(3)
       expect(Number(result.answered_count)).toBe(2)
@@ -102,7 +102,7 @@ describe('RPC: finish_quiz_session — grades the saved answers', () => {
     ])
     expect(await fsrsQuestionIds(f, [mc(0), mc(1), mc(2)])).toEqual([])
 
-    await finishOk(f, sessionId)
+    await finishSeedSession(f.student, sessionId)
 
     expect((await fsrsQuestionIds(f, [mc(0), mc(1), mc(2)])).sort()).toEqual([mc(0), mc(1)].sort())
   })
@@ -128,7 +128,7 @@ describe('RPC: finish_quiz_session — grades the saved answers', () => {
       [f.diagramId, RIGHT.diagram],
     ])
 
-    const result = await finishOk(f, sessionId)
+    const result = await finishSeedSession(f.student, sessionId)
 
     expect(result.total_questions).toBe(9)
     expect(Number(result.answered_count)).toBe(5)
@@ -151,7 +151,7 @@ describe('RPC: finish_quiz_session — grades the saved answers', () => {
       ],
     })
 
-    const result = await finishOk(f, sessionId)
+    const result = await finishSeedSession(f.student, sessionId)
 
     expect(Number(result.answered_count)).toBe(1)
     expect(Number(result.correct_count)).toBe(1)
@@ -176,7 +176,7 @@ describe('RPC: finish_quiz_session — grades the saved answers', () => {
       [f.diagramId, RIGHT.diagram],
     ])
 
-    const result = await finishOk(f, sessionId)
+    const result = await finishSeedSession(f.student, sessionId)
 
     expect(result.session_id).toBe(sessionId)
     expect(Number(result.part1_pct)).toBe(100)
@@ -193,12 +193,12 @@ describe('RPC: finish_quiz_session — grades the saved answers', () => {
   it('returns the stored result on a second finish and writes nothing new', async () => {
     const sessionId = await insertSession({ f, mode: 'mock_exam', questionIds: [mc(0), mc(1)] })
     await saveAnswer(f, sessionId, mc(0), RIGHT.mc)
-    const first = await finishOk(f, sessionId)
+    const first = await finishSeedSession(f.student, sessionId)
     expect(Number(first.score_percentage)).toBe(50)
     const rowsBefore = await answerRows(f, sessionId)
     expect(rowsBefore).toHaveLength(1)
 
-    const second = await finishOk(f, sessionId)
+    const second = await finishSeedSession(f.student, sessionId)
 
     expect(Number(second.score_percentage)).toBe(50)
     expect(Number(second.answered_count)).toBe(Number(first.answered_count))
@@ -219,7 +219,7 @@ describe('RPC: finish_quiz_session — grades the saved answers', () => {
     await saveAnswer(f, sessionId, mc(0), RIGHT.mc)
     await backdateSession(f, sessionId, 200)
 
-    const result = await finishOk(f, sessionId)
+    const result = await finishSeedSession(f.student, sessionId)
 
     expect(result.expired).toBe(true)
     expect(Number(result.answered_count)).toBe(1)
@@ -290,7 +290,7 @@ describe('RPC: finish_quiz_session — grades the saved answers', () => {
       await saveAnswer(f, sessionId, mc(0), RIGHT.mc)
       expect((await progressRows(f, sessionId)).map((r) => r.question_id)).toContain(questionId)
 
-      const result = await finishOk(f, sessionId)
+      const result = await finishSeedSession(f.student, sessionId)
 
       expect(Number(result.answered_count)).toBe(1)
       expect(Number(result.score_percentage)).toBe(50)
@@ -320,7 +320,7 @@ describe('RPC: finish_quiz_session — grades the saved answers', () => {
       })
       await saveAnswer(f, sessionId, mc(0), RIGHT.mc)
 
-      const result = await finishOk(f, sessionId)
+      const result = await finishSeedSession(f.student, sessionId)
 
       expect(Number(result.answered_count)).toBe(1)
       expect(Number(result.correct_count)).toBe(1)
@@ -339,7 +339,7 @@ describe('RPC: finish_quiz_session — grades the saved answers', () => {
     })
     await saveAnswer(f, sessionId, mc(0), RIGHT.mc)
 
-    const result = await finishOk(f, sessionId)
+    const result = await finishSeedSession(f.student, sessionId)
 
     expect(Number(result.answered_count)).toBe(1)
     expect(Number(result.score_percentage)).toBe(100)
@@ -354,7 +354,7 @@ describe('RPC: finish_quiz_session — grades the saved answers', () => {
       questionIds: [brokenMcId, defectDialogId],
     })
 
-    const result = await finishOk(f, sessionId)
+    const result = await finishSeedSession(f.student, sessionId)
 
     expect(Number(result.answered_count)).toBe(0)
     expect(Number(result.score_percentage)).toBe(0)
@@ -379,7 +379,7 @@ describe('RPC: finish_quiz_session — grades the saved answers', () => {
       blanks: [{ blank_index: 0, response_text: 'cleared' }],
     })
 
-    const result = await finishOk(f, sessionId)
+    const result = await finishSeedSession(f.student, sessionId)
 
     expect(Number(result.part2_pct)).toBe(100)
     const { data, error } = await f.student.rpc('get_vfr_rt_exam_results', {
@@ -399,7 +399,7 @@ describe('RPC: finish_quiz_session — grades the saved answers', () => {
     await insertRawProgress(f, sessionId, mc(2), RIGHT.mc)
     expect(await progressRows(f, sessionId)).toHaveLength(2)
 
-    const result = await finishOk(f, sessionId)
+    const result = await finishSeedSession(f.student, sessionId)
 
     expect(Number(result.answered_count)).toBe(1)
     expect(Number(result.score_percentage)).toBe(50)
@@ -411,7 +411,7 @@ describe('RPC: finish_quiz_session — grades the saved answers', () => {
     await saveAnswer(f, sessionId, mc(0), RIGHT.mc)
     expect(await fsrsQuestionIds(f, [mc(0)])).toEqual([])
 
-    await finishOk(f, sessionId)
+    await finishSeedSession(f.student, sessionId)
 
     expect(await fsrsQuestionIds(f, [mc(0)])).toEqual([mc(0)])
   })
@@ -421,7 +421,7 @@ describe('RPC: finish_quiz_session — grades the saved answers', () => {
     await saveAnswer(f, sessionId, mc(0), WRONG_MC)
     expect(await fsrsQuestionIds(f, [mc(0)])).toEqual([])
 
-    await finishOk(f, sessionId)
+    await finishSeedSession(f.student, sessionId)
 
     expect(await fsrsQuestionIds(f, [mc(0)])).toEqual([mc(0)])
   })
@@ -440,7 +440,7 @@ describe('RPC: finish_quiz_session — grades the saved answers', () => {
     const before = await progressRows(f, sessionId)
     expect(before).toHaveLength(2)
 
-    await finishOk(f, sessionId)
+    await finishSeedSession(f.student, sessionId)
 
     expect((await answerRows(f, sessionId)).map((r) => r.question_id)).toContain(mc(0))
     expect(await fsrsQuestionIds(f, [mc(0)])).toEqual([])

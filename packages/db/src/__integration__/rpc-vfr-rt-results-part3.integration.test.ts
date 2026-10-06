@@ -4,8 +4,9 @@
  * the new types, and an overdue auto-completion scores them through the shared part-score helper.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { finishSeedSession } from './finish-fixture'
 import { requireRpcResult } from './guards'
-import { finishSeedSession, P, type SeedAnswer, saveAndFinish } from './save-and-finish'
+import { P, type SeedAnswer, saveAndFinish } from './save-and-finish'
 import { admin } from './vfr-rt-helpers'
 import { createPart3Org, type Part3Org, startPart3Exam } from './vfr-rt-part3-org'
 

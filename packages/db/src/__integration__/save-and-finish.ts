@@ -1,6 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { DEVICE, type FinishResult } from './finish-fixture'
-import { requireRpcResult } from './guards'
+import { DEVICE, type FinishResult, finishSeedSession } from './finish-fixture'
 
 export type SeedAnswer = {
   questionId: string
@@ -38,19 +37,6 @@ export async function saveSeedAnswers(
     })
     if (error) throw new Error(`save_quiz_answer: ${error.message}`)
   }
-}
-
-/** Finishes a session through finish_quiz_session. Throws on error. */
-export async function finishSeedSession(
-  client: SupabaseClient,
-  sessionId: string,
-): Promise<FinishResult> {
-  const { data, error } = await client.rpc('finish_quiz_session', {
-    p_session_id: sessionId,
-    p_device_id: DEVICE,
-  })
-  if (error) throw new Error(`finish_quiz_session: ${error.message}`)
-  return requireRpcResult<FinishResult>(data, 'finish_quiz_session')
 }
 
 /** Saves the answers, then finishes the session. Save BEFORE any backdating. */
