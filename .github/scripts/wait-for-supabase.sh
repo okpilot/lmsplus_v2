@@ -86,6 +86,6 @@ disable_kong_upstream_keepalive() {
 wait_until_ready "$MAX_ATTEMPTS" || exit 1
 if [ "${SUPABASE_KONG_RELOAD:-true}" = true ]; then
   disable_kong_upstream_keepalive
-  # The reload swaps Kong's workers; probe again so no test request lands mid-swap.
+  # Confirm the API still answers after the reload.
   wait_until_ready 5 || exit 1
 fi
