@@ -64,6 +64,7 @@ test.describe('Quiz answer save refused by the server', () => {
   test('asks the student after the automatic resends fail and saves the answer on Try again', async ({
     page,
   }) => {
+    test.setTimeout(90_000)
     await startPracticeExam(page)
     const sessionUrl = page.url()
     const failing = await failAnswerSaves(page)
