@@ -27,12 +27,12 @@ function toLoaded(r: SessionLoadResult): Loaded {
   }
 }
 
-/** Mount bootstrap of a server-loaded session: questions, flags, then the tab's claim. */
 /** The opened session is the student's only active one (docs/security.md §11d): a local copy of another is stale. */
 function dropStaleLocalCopy(userId: string, sessionId: string): void {
   if (readActiveSession(userId)?.sessionId !== sessionId) clearActiveSession(userId)
 }
 
+/** Mount bootstrap of a server-loaded session: questions, flags, then the tab's claim. */
 export function useServerSessionBootstrap({
   userId,
   sessionId,
