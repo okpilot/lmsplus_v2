@@ -119,7 +119,9 @@ describe('resetStudentQuizSessions', () => {
   it('still clears saved markers when the active-session cleanup fails', async () => {
     mockCleanupActive.mockRejectedValue(new Error('active failed'))
     mockTables({ users: OK_STUDENT, quiz_sessions: { data: [], error: null } })
-    await expect(resetStudentQuizSessions('a@b.c')).rejects.toThrow('active failed')
+    await expect(resetStudentQuizSessions('a@b.c')).rejects.toThrow(
+      /^resetStudentQuizSessions: active failed$/,
+    )
     expect(mockGetAdminClient).toHaveBeenCalled()
   })
 

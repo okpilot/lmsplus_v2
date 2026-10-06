@@ -31,7 +31,11 @@ type DiscardOnlyProps = {
 
 type Props = NormalProps | DiscardOnlyProps
 
-function ResumeLink({ sessionId, loading }: Readonly<{ sessionId: string; loading: boolean }>) {
+export function ResumeLink({
+  sessionId,
+  loading,
+  children,
+}: Readonly<{ sessionId: string; loading: boolean; children: React.ReactNode }>) {
   return (
     <Link
       href={`/app/quiz/session/${sessionId}`}
@@ -42,7 +46,7 @@ function ResumeLink({ sessionId, loading }: Readonly<{ sessionId: string; loadin
       }}
       className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-600 aria-disabled:pointer-events-none aria-disabled:opacity-50"
     >
-      Resume Practice Exam
+      {children}
     </Link>
   )
 }
@@ -73,7 +77,11 @@ export function ResumeExamBanner({ userId, exam, discardOnly, sessionId }: Reado
         </p>
       )}
       <div className="mt-3 flex gap-2">
-        {!discardOnly && <ResumeLink sessionId={activeSessionId} loading={loading} />}
+        {!discardOnly && (
+          <ResumeLink sessionId={activeSessionId} loading={loading}>
+            Resume Practice Exam
+          </ResumeLink>
+        )}
         <AlertDialog>
           <AlertDialogTrigger
             render={

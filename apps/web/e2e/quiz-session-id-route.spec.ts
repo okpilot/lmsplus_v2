@@ -29,7 +29,6 @@ import {
 } from './helpers/quiz-session-id'
 import { readUserId } from './helpers/recovery-code'
 import {
-  cleanupStudentActiveSessions,
   ensureLoginTestUser,
   LOGIN_TEST_EMAIL,
   LOGIN_TEST_PASSWORD,
@@ -442,7 +441,6 @@ test.describe('Quiz session addressed by id', () => {
     await page.waitForURL(/\/app\/quiz\/session$/, { timeout: 15_000 })
     await expect(page.getByText(/Question 1 of/)).toBeVisible({ timeout: 10_000 })
     await expect(page.getByRole('button', { name: 'Exit' })).toBeVisible()
-    await cleanupStudentActiveSessions(TEST_EMAIL)
   })
 
   test('finishing after a resume in a second browser context submits every answer and the report shows them', async ({

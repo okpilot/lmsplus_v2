@@ -128,6 +128,21 @@ describe('ActivePracticeBanner — Discard', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: /^cancel$/i })).toBeDisabled())
   })
 
+  it('disables the Resume link while a discard is in flight', async () => {
+    mockDiscardQuiz.mockReturnValue(new Promise(() => {}))
+
+    render(<ActivePracticeBanner userId={USER_ID} session={SESSION} />)
+    await userEvent.click(screen.getByRole('button', { name: /^discard$/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^discard$/i, hidden: false }))
+
+    await waitFor(() =>
+      expect(screen.getByRole('link', { name: /resume/i, hidden: true })).toHaveAttribute(
+        'aria-disabled',
+        'true',
+      ),
+    )
+  })
+
   it('submits a single discard when confirm is double-clicked before the first settles', async () => {
     // Keep the first discard pending so both synchronous clicks observe the same
     // render. A loading-state-only guard would let both through (setState is batched,

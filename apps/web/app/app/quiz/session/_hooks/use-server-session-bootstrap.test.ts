@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockLoad } = vi.hoisted(() => ({ mockLoad: vi.fn() }))
@@ -122,6 +122,20 @@ describe('useServerSessionBootstrap', () => {
     const { result } = renderHook(() => useServerSessionBootstrap({ ...OPTS, userId: 'u1' }))
 
     await waitFor(() => expect(result.current.error).toBe('No questions found'))
+    expect(localStorage.getItem('quiz-active-session:u1')).not.toBeNull()
+  })
+
+  it('keeps the local copy when the hook unmounts before the load resolves', async () => {
+    let resolveLoad!: (v: unknown) => void
+    mockLoad.mockReturnValue(new Promise((res) => (resolveLoad = res)))
+    seed('u1', 'old')
+    const { unmount } = renderHook(() => useServerSessionBootstrap({ ...OPTS, userId: 'u1' }))
+    unmount()
+
+    await act(async () => {
+      resolveLoad({ success: true, questions: [], flaggedIds: [] })
+    })
+
     expect(localStorage.getItem('quiz-active-session:u1')).not.toBeNull()
   })
 })

@@ -1,10 +1,10 @@
 'use client'
 
-import Link from 'next/link'
 import { MODE_LABELS } from '@/lib/constants/exam-modes'
 import { useActivePracticeDiscard } from '../_hooks/use-active-practice-discard'
 import type { ActivePracticeSession } from '../actions/get-active-practice-session'
 import { ActivePracticeDiscardDialog } from './active-practice-discard-dialog'
+import { ResumeLink } from './resume-exam-banner'
 
 // Banner for an active practice session detected server-side. Resume opens the session
 // page, which loads the answers from the server; Discard clears the session.
@@ -31,12 +31,9 @@ export function ActivePracticeBanner({
         it to start something new.
       </p>
       <div className="mt-3 flex gap-2">
-        <Link
-          href={`/app/quiz/session/${session.sessionId}`}
-          className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-600"
-        >
+        <ResumeLink sessionId={session.sessionId} loading={loading}>
           Resume
-        </Link>
+        </ResumeLink>
         <ActivePracticeDiscardDialog
           modeLabel={modeLabel}
           loading={loading}

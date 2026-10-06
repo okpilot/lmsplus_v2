@@ -50,8 +50,9 @@ export function useServerSessionBootstrap({
     let cancelled = false
     loadSessionData(questionIdsRef.current, { sessionId, ...toRunnerMode(mode) })
       .then((r) => {
+        if (cancelled) return
         if (r.success) dropStaleLocalCopy(userIdRef.current, sessionId)
-        if (!cancelled) setState(toLoaded(r))
+        setState(toLoaded(r))
       })
       .catch(() => !cancelled && setState({ ...PENDING, error: LOAD_FAILED }))
     return () => {

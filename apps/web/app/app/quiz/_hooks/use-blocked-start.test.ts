@@ -63,25 +63,6 @@ describe('useBlockedStart', () => {
     expect(result.current.offer).toBeNull()
   })
 
-  it('drops the saved quiz from this browser so it is not offered for recovery', async () => {
-    localStorage.setItem('quiz-active-session:u1', JSON.stringify({ sessionId: 'blocker-1' }))
-    const { result } = renderWithOffer()
-
-    await act(async () => result.current.accept(vi.fn()))
-
-    expect(localStorage.getItem('quiz-active-session:u1')).toBeNull()
-  })
-
-  it('keeps the quiz in this browser when saving it fails', async () => {
-    mockSave.mockResolvedValue({ success: false, error: 'Too many saved quizzes' })
-    localStorage.setItem('quiz-active-session:u1', JSON.stringify({ sessionId: 'blocker-1' }))
-    const { result } = renderWithOffer()
-
-    await act(async () => result.current.accept(vi.fn()))
-
-    expect(localStorage.getItem('quiz-active-session:u1')).not.toBeNull()
-  })
-
   it('shows the limit copy and neither takes over nor saves when the saved quizzes are full', async () => {
     mockRoom.mockResolvedValue({ success: false, error: 'You can keep up to 20 saved quizzes.' })
     const start = vi.fn()
@@ -167,5 +148,18 @@ describe('useBlockedStart', () => {
     expect(result.current.error).toBe('You can keep up to 20 saved quizzes.')
     act(() => result.current.setOffer(null))
     expect(result.current.error).toBeNull()
+  })
+
+  it('logs a rejected start without showing the generic error', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const start = vi.fn().mockRejectedValue(new Error('start boom'))
+    const { result } = renderWithOffer()
+
+    await act(async () => result.current.accept(start))
+
+    expect(log).toHaveBeenCalled()
+    expect(result.current.error).toBeNull()
+    expect(result.current.offer).toBeNull()
+    expect(result.current.saving).toBe(false)
   })
 })

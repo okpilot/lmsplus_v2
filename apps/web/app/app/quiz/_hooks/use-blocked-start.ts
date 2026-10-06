@@ -1,8 +1,5 @@
 import { useRef, useState } from 'react'
-import { claimQuizSession } from '../actions/quiz-progress'
-import { checkSavedQuizRoom, saveQuizForLater } from '../actions/saved-quiz'
-import { clearActiveSessionById } from '../session/_utils/clear-active-session-by-id'
-import { getQuizDeviceId } from '../session/_utils/quiz-device-id'
+import { freeActiveSlot } from './free-active-slot'
 import type { BlockedOffer } from './start-handler-shared'
 
 export type BlockedStartState = {
@@ -12,23 +9,13 @@ export type BlockedStartState = {
   onAccept: () => void
 }
 
-const GENERIC_ERROR = 'Something went wrong. Please try again.'
-
-/** room check → claim → save for later: frees the single active-session slot. */
-async function freeActiveSlot(sessionId: string): Promise<string | null> {
-  // Checked first: a refused save after the claim would already have taken the quiz over.
-  const room = await checkSavedQuizRoom()
-  if (!room.success) return room.error
-  const deviceId = getQuizDeviceId()
-  // The student is taking the quiz over: without the claim, saving raises
-  // `session_taken_over` when another device holds it.
-  const claim = await claimQuizSession({ sessionId, deviceId })
-  if (!claim.success) return claim.error
-  const saved = await saveQuizForLater({ sessionId, deviceId })
-  if (!saved.success) return saved.error
-  // Else /app/quiz offers the saved quiz for recovery until the new session's first checkpoint.
-  clearActiveSessionById(sessionId)
-  return null
+/** Runs the re-run start; a rejection is logged, never shown as the hook's error. */
+async function runStart(start: () => unknown): Promise<void> {
+  try {
+    await start()
+  } catch (e) {
+    console.error('[blockedStart] start failed:', e instanceof Error ? e.message : String(e))
+  }
 }
 
 /**
@@ -48,17 +35,12 @@ export function useBlockedStart() {
     busyRef.current = true
     setSaving(true)
     setError(null)
-    try {
-      const failure = await freeActiveSlot(offer.sessionId)
-      if (failure) return setError(failure)
-      setOffer(null)
-      await start()
-    } catch {
-      setError(GENERIC_ERROR)
-    } finally {
-      busyRef.current = false
-      setSaving(false)
-    }
+    const failure = await freeActiveSlot(offer.sessionId)
+    busyRef.current = false
+    setSaving(false)
+    if (failure) return setError(failure)
+    setOffer(null)
+    await runStart(start)
   }
 
   function showOffer(next: BlockedOffer | null) {
