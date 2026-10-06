@@ -406,6 +406,17 @@ describe('clearActiveSessions', () => {
     )
   })
 
+  it('clears every active session in the org when given an empty studentIds list', async () => {
+    const recorded = recordQueries()
+
+    await clearActiveSessions({ admin, orgId: 'org-1', studentIds: [] })
+
+    const sessions = recorded.find((r) => r.table === 'quiz_sessions')
+    expect(sessions).toBeDefined()
+    expect(sessions?.calls).toContainEqual({ method: 'eq', args: ['organization_id', 'org-1'] })
+    expect(sessions?.calls.some((c) => c.method === 'in')).toBe(false)
+  })
+
   it('scopes the update to the defined student ids only', async () => {
     const recorded = recordQueries()
 
