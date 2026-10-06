@@ -22,7 +22,7 @@ vi.mock('@supabase/supabase-js', () => ({
 
 // vitest hoists the vi.mock calls above this import — the module gets the
 // mocked createClient and stubbed env vars before its top-level code runs.
-import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { cleanupReferenceData, cleanupTestData, clearActiveSessions } from './cleanup'
 
 // ---------------------------------------------------------------------------
 // buildChain — Proxy-based thenable that forwards every method call back to
@@ -227,13 +227,13 @@ const adminForTestData = {
 } as unknown as Parameters<typeof cleanupTestData>[0]['admin']
 
 describe('cleanupTestData', () => {
-  // The from() call order in cleanupTestData: audit_events, fsrs_cards,
+  // The from() call order in cleanupTestData: fsrs_cards, audit_events,
   // student_responses, quiz_sessions (id lookup), quiz_session_answers,
   // quiz_sessions (delete), questions, question_banks, exam_configs, users, organizations.
   function queueAllDeletesOk() {
     mockFrom
-      .mockReturnValueOnce(buildChain({ data: [], error: null })) // audit_events
       .mockReturnValueOnce(buildChain({ data: [], error: null })) // fsrs_cards
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // audit_events
       .mockReturnValueOnce(buildChain({ data: [], error: null })) // student_responses
       .mockReturnValueOnce(buildChain({ data: [{ id: 'sess-1' }], error: null })) // quiz_sessions lookup
       .mockReturnValueOnce(buildChain({ data: [], error: null })) // quiz_session_answers
@@ -251,7 +251,8 @@ describe('cleanupTestData', () => {
 
     await cleanupTestData({ admin: adminForTestData, orgId: 'org-1', userIds: ['u-1', 'u-2'] })
 
-    expect(mockFrom).toHaveBeenNthCalledWith(1, 'audit_events')
+    expect(mockFrom).toHaveBeenNthCalledWith(1, 'fsrs_cards')
+    expect(mockFrom).toHaveBeenNthCalledWith(2, 'audit_events')
     expect(mockFrom).toHaveBeenNthCalledWith(4, 'quiz_sessions') // id lookup before child delete
     expect(mockFrom).toHaveBeenNthCalledWith(5, 'quiz_session_answers')
     expect(mockFrom).toHaveBeenNthCalledWith(9, 'exam_configs') // exam_configs before users/org
@@ -261,16 +262,24 @@ describe('cleanupTestData', () => {
     expect(mockDeleteUser).toHaveBeenNthCalledWith(2, 'u-2')
   })
 
-  it('throws when the quiz_sessions id lookup fails (cannot scope child delete)', async () => {
+  it('finishes the remaining cleanup, then throws, when the quiz_sessions id lookup fails', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     mockFrom
-      .mockReturnValueOnce(buildChain({ data: [], error: null })) // audit_events
       .mockReturnValueOnce(buildChain({ data: [], error: null })) // fsrs_cards
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // audit_events
       .mockReturnValueOnce(buildChain({ data: [], error: null })) // student_responses
       .mockReturnValueOnce(buildChain({ data: null, error: { message: 'lookup boom' } })) // lookup fails
+      .mockReturnValue(buildChain({ data: [], error: null })) // every later step
+    mockDeleteUser.mockResolvedValue({ error: null })
 
     await expect(
       cleanupTestData({ admin: adminForTestData, orgId: 'org-1', userIds: ['u-1'] }),
-    ).rejects.toThrow(/cleanupTestData: quiz_sessions lookup failed/)
+    ).rejects.toThrow('cleanupTestData: quiz_sessions lookup failed: lookup boom')
+    expect(mockFrom).not.toHaveBeenCalledWith('quiz_session_answers')
+    expect(mockFrom).toHaveBeenCalledWith('users')
+    expect(mockFrom).toHaveBeenCalledWith('organizations')
+    expect(mockDeleteUser).toHaveBeenCalledWith('u-1')
+    consoleSpy.mockRestore()
   })
 
   it('logs and continues (does not throw) when a table delete errors', async () => {
@@ -305,5 +314,125 @@ describe('cleanupTestData', () => {
     ).resolves.toBeUndefined()
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('auth user u-1 delete failed'))
     consoleSpy.mockRestore()
+  })
+})
+
+// Records every query-builder call per table so a test can see which ids reached `.in()`.
+type Recorded = { table: string; calls: Array<{ method: string; args: unknown[] }> }
+
+function recordQueries(): Recorded[] {
+  const recorded: Recorded[] = []
+  mockFrom.mockImplementation((table: string) => {
+    const entry: Recorded = { table, calls: [] }
+    recorded.push(entry)
+    const chain: unknown = new Proxy(
+      {},
+      {
+        get(_t, prop) {
+          if (prop === 'then') {
+            return (resolve: (v: unknown) => void) => resolve({ data: [], error: null })
+          }
+          return (...args: unknown[]) => {
+            entry.calls.push({ method: String(prop), args })
+            return chain
+          }
+        },
+      },
+    )
+    return chain
+  })
+  return recorded
+}
+
+function inArgs(recorded: Recorded[], table: string): unknown[] {
+  return recorded.find((r) => r.table === table)?.calls.find((c) => c.method === 'in')?.args ?? []
+}
+
+describe('cleanupTestData with ids a failed beforeAll never assigned', () => {
+  it('issues no query when orgId and every user id are undefined', async () => {
+    mockFrom.mockImplementation(() => {
+      throw new Error('from() must not be called')
+    })
+
+    await expect(
+      cleanupTestData({ admin: adminForTestData, orgId: undefined, userIds: [undefined] }),
+    ).resolves.toBeUndefined()
+    expect(mockFrom).not.toHaveBeenCalled()
+    expect(mockDeleteUser).not.toHaveBeenCalled()
+  })
+
+  it('deletes only the defined user ids when one id is undefined', async () => {
+    const recorded = recordQueries()
+    mockDeleteUser.mockResolvedValue({ error: null })
+
+    await cleanupTestData({ admin: adminForTestData, orgId: 'org-1', userIds: ['u-1', undefined] })
+
+    expect(inArgs(recorded, 'users')).toEqual(['id', ['u-1']])
+    expect(inArgs(recorded, 'fsrs_cards')).toEqual(['student_id', ['u-1']])
+    expect(mockDeleteUser).toHaveBeenCalledTimes(1)
+    expect(mockDeleteUser).toHaveBeenCalledWith('u-1')
+  })
+
+  it('leaves every org-scoped table alone when the org was never created', async () => {
+    const recorded = recordQueries()
+    mockDeleteUser.mockResolvedValue({ error: null })
+
+    await cleanupTestData({ admin: adminForTestData, orgId: undefined, userIds: ['u-1'] })
+
+    expect(recorded.map((r) => r.table)).toEqual(['fsrs_cards', 'users'])
+    expect(mockDeleteUser).toHaveBeenCalledTimes(1)
+    expect(mockDeleteUser).toHaveBeenCalledWith('u-1')
+  })
+})
+
+describe('clearActiveSessions', () => {
+  const admin = { from: mockFrom } as unknown as Parameters<typeof clearActiveSessions>[0]['admin']
+
+  it('issues no query when every student id is undefined and no orgId is given', async () => {
+    mockFrom.mockImplementation(() => {
+      throw new Error('from() must not be called')
+    })
+
+    await expect(clearActiveSessions({ admin, studentIds: [undefined] })).resolves.toBeUndefined()
+    expect(mockFrom).not.toHaveBeenCalled()
+  })
+
+  it('leaves the rest of the org alone when every student id is undefined', async () => {
+    mockFrom.mockImplementation(() => {
+      throw new Error('from() must not be called')
+    })
+
+    await expect(
+      clearActiveSessions({ admin, orgId: 'org-1', studentIds: [undefined] }),
+    ).resolves.toBeUndefined()
+    expect(mockFrom).not.toHaveBeenCalled()
+  })
+
+  it('throws when neither orgId nor studentIds is supplied', async () => {
+    await expect(clearActiveSessions({ admin })).rejects.toThrow(
+      'clearActiveSessions: provide orgId or a non-empty studentIds',
+    )
+  })
+
+  it('clears every active session in the org when given an empty studentIds list', async () => {
+    const recorded = recordQueries()
+
+    await clearActiveSessions({ admin, orgId: 'org-1', studentIds: [] })
+
+    const sessions = recorded.find((r) => r.table === 'quiz_sessions')
+    expect(sessions).toBeDefined()
+    expect(sessions?.calls).toContainEqual({ method: 'eq', args: ['organization_id', 'org-1'] })
+    expect(sessions?.calls.some((c) => c.method === 'in')).toBe(false)
+    const update = sessions?.calls.find((c) => c.method === 'update')
+    expect(update).toBeDefined()
+    expect(update?.args[0]).toHaveProperty('deleted_at')
+  })
+
+  it('scopes the update to the defined student ids only', async () => {
+    const recorded = recordQueries()
+
+    await clearActiveSessions({ admin, studentIds: ['u-1', undefined] })
+
+    expect(inArgs(recorded, 'quiz_sessions')).toEqual(['student_id', ['u-1']])
   })
 })

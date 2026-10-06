@@ -69,7 +69,18 @@ export async function createTestUser(opts: {
     full_name: opts.fullName ?? opts.email.split('@')[0],
     role: opts.role,
   })
-  if (userError) throw new Error(`createTestUser public: ${userError.message}`)
+  if (userError) {
+    console.error('[createTestUser] public.users insert failed:', userError.message)
+    const { error: rollbackErr } = await opts.admin.auth.admin.deleteUser(userId)
+    if (rollbackErr) {
+      console.error(
+        '[createTestUser] Rollback failed — orphaned auth user:',
+        userId,
+        rollbackErr.message,
+      )
+    }
+    throw new Error(`createTestUser public: ${userError.message}`)
+  }
 
   return userId
 }
