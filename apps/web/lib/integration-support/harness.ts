@@ -59,10 +59,12 @@ export async function signInAs(email: string, password: string): Promise<void> {
  */
 export async function clearActiveSessions(opts: {
   admin: SupabaseClient
-  studentIds: string[]
+  studentIds: Array<string | undefined>
   label?: string
 }): Promise<number> {
-  const { admin, studentIds, label } = opts
+  const { admin, label } = opts
+  const studentIds = opts.studentIds.filter((id): id is string => id != null)
+  if (studentIds.length === 0) return 0
   const { data, error } = await admin
     .from('quiz_sessions')
     .update({ deleted_at: new Date().toISOString() })
