@@ -87,7 +87,7 @@ const DiagramInput = z
     // A diagram mapping is a partial injective function zoneId -> labelId — distinct
     // zoneId AND distinct labelId (a chip is consumed on placement), but (unlike ordering)
     // NOT required to be complete (Decision 52). Shared schema — parity with the
-    // save-draft sibling (draft-schema.ts).
+    // save sibling (quiz-progress-schema.ts).
     mapping: DiagramMappingSchema,
     ...ProgressMetaShape,
   })

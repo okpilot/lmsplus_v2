@@ -293,7 +293,7 @@ describe('rowToDraftData — feedback normalization', () => {
 
   it('rejects an ordering entry whose correctOrder has only one item', () => {
     // Four-way parity: min-2 guard in isValidFeedbackEntry (sessionStorage rehydrate),
-    // the save schema (draft-schema .min(2)), the RPC guard, and toFeedbackEntry here.
+    // the removed draft save schema that wrote legacy rows (.min(2)), the RPC guard, and toFeedbackEntry here.
     // A single-item correctOrder is corrupt data — voided on load so resume is clean.
     const draft = rowToDraftData(
       buildRow({

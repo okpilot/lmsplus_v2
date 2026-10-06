@@ -1,9 +1,7 @@
 import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BootstrapState } from '../_hooks/use-session-bootstrap'
 import type { SessionData } from '../_utils/quiz-session-handoff'
-import type { ActiveSession } from '../_utils/quiz-session-storage'
 
 // ---- Mocks ------------------------------------------------------------------
 // useSessionBootstrap is known to hang vitest when rendered for real (issue #422).
@@ -23,6 +21,7 @@ vi.mock('./quiz-session', () => ({
     <div
       data-testid="quiz-session"
       data-session-id={props.sessionId as string}
+      data-draft-id={(props.draftId as string | undefined) ?? ''}
       data-mode={(props.mode as string | undefined) ?? ''}
       data-pass-mark={typeof props.passMark === 'number' ? String(props.passMark) : ''}
       data-started-at={(props.startedAt as string | undefined) ?? ''}
@@ -35,38 +34,6 @@ vi.mock('./quiz-session', () => ({
       }
     />
   ),
-}))
-
-vi.mock('./session-recovery-prompt', () => ({
-  SessionRecoveryPrompt: (props: Record<string, unknown>) => (
-    <div data-testid="recovery-prompt">
-      <button type="button" onClick={props.onResume as () => void}>
-        resume
-      </button>
-      <button type="button" onClick={props.onSave as () => void}>
-        save
-      </button>
-      <button type="button" onClick={props.onDiscard as () => void}>
-        discard
-      </button>
-      <button type="button" onClick={props.onDismiss as () => void}>
-        dismiss
-      </button>
-    </div>
-  ),
-}))
-
-const { mockReplace, mockClearIfCurrent } = vi.hoisted(() => ({
-  mockReplace: vi.fn(),
-  mockClearIfCurrent: vi.fn(),
-}))
-
-vi.mock('next/navigation', () => ({ useRouter: () => ({ replace: mockReplace }) }))
-
-vi.mock('../_utils/quiz-session-storage', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../_utils/quiz-session-storage')>()),
-  clearActiveSessionIfCurrent: (userId: string, sessionId: string) =>
-    mockClearIfCurrent(userId, sessionId),
 }))
 
 vi.mock('@/components/ui/skeleton', () => ({
@@ -86,29 +53,13 @@ import { QuizSessionLoader } from './quiz-session-loader'
 
 // ---- Factories --------------------------------------------------------------
 
-function makeRecoveryActions(): BootstrapState['recoveryActions'] {
-  return {
-    loading: false,
-    error: null,
-    handleSave: vi.fn(),
-    handleDiscard: vi.fn(),
-  }
-}
-
 function makeBootstrapBase(): BootstrapState {
   return {
     session: null,
     questions: null,
     flaggedIds: [],
     error: null,
-    recovery: null,
-    resumeLoading: false,
-    resumeError: null,
     claimError: null,
-    recoveryActions: makeRecoveryActions(),
-    handleRecoveryResume: vi.fn(),
-    clearRecovery: vi.fn(),
-    clearResumeError: vi.fn(),
   }
 }
 
@@ -118,7 +69,7 @@ function makeSession(): SessionData {
     questionIds: ['q1', 'q2', 'q3'],
     draftAnswers: { q1: { selectedOptionId: 'opt-a', responseTimeMs: 500 } },
     draftCurrentIndex: 1,
-    draftId: 'draft-1',
+    draftId: 'legacy-draft',
     subjectName: 'Meteorology',
     subjectCode: 'MET',
   }
@@ -155,20 +106,6 @@ function makeQuestions() {
       diagram_config: null,
     },
   ]
-}
-
-function makeRecovery(): ActiveSession {
-  return {
-    userId: 'user-1',
-    sessionId: 'sess-recovered',
-    questionIds: ['q1', 'q2'],
-    answers: { q1: { selectedOptionId: 'opt-a', responseTimeMs: 300 } },
-    currentIndex: 0,
-    subjectName: 'Navigation',
-    subjectCode: 'NAV',
-    draftId: 'draft-old',
-    savedAt: Date.now(),
-  }
 }
 
 // ---- Tests ------------------------------------------------------------------
@@ -239,71 +176,6 @@ describe('QuizSessionLoader — error state', () => {
     render(<QuizSessionLoader userId="user-1" />)
     expect(screen.queryByTestId('skeleton')).not.toBeInTheDocument()
     expect(screen.queryByTestId('quiz-session')).not.toBeInTheDocument()
-  })
-})
-
-// ---- Recovery prompt --------------------------------------------------------
-
-describe('QuizSessionLoader — recovery prompt', () => {
-  it('renders SessionRecoveryPrompt when recovery session is present', () => {
-    mockUseSessionBootstrap.mockReturnValue({
-      ...makeBootstrapBase(),
-      recovery: makeRecovery(),
-    })
-    render(<QuizSessionLoader userId="user-1" />)
-    expect(screen.getByTestId('recovery-prompt')).toBeInTheDocument()
-  })
-
-  it('does not render QuizSession or skeleton while showing recovery prompt', () => {
-    mockUseSessionBootstrap.mockReturnValue({
-      ...makeBootstrapBase(),
-      recovery: makeRecovery(),
-    })
-    render(<QuizSessionLoader userId="user-1" />)
-    expect(screen.queryByTestId('quiz-session')).not.toBeInTheDocument()
-    expect(screen.queryByTestId('skeleton')).not.toBeInTheDocument()
-  })
-
-  it('calls handleRecoveryResume when Resume is clicked', async () => {
-    const handleRecoveryResume = vi.fn()
-    mockUseSessionBootstrap.mockReturnValue({
-      ...makeBootstrapBase(),
-      recovery: makeRecovery(),
-      handleRecoveryResume,
-    })
-    render(<QuizSessionLoader userId="user-1" />)
-    await userEvent.click(screen.getByRole('button', { name: /resume/i }))
-    expect(handleRecoveryResume).toHaveBeenCalledTimes(1)
-  })
-
-  it('calls clearResumeError and recoveryActions.handleSave when Save is clicked', async () => {
-    const clearResumeError = vi.fn()
-    const handleSave = vi.fn()
-    mockUseSessionBootstrap.mockReturnValue({
-      ...makeBootstrapBase(),
-      recovery: makeRecovery(),
-      clearResumeError,
-      recoveryActions: { ...makeRecoveryActions(), handleSave },
-    })
-    render(<QuizSessionLoader userId="user-1" />)
-    await userEvent.click(screen.getByRole('button', { name: /save/i }))
-    expect(clearResumeError).toHaveBeenCalledTimes(1)
-    expect(handleSave).toHaveBeenCalledTimes(1)
-  })
-
-  it('calls clearRecovery and recoveryActions.handleDiscard when Discard is clicked', async () => {
-    const clearRecovery = vi.fn()
-    const handleDiscard = vi.fn()
-    mockUseSessionBootstrap.mockReturnValue({
-      ...makeBootstrapBase(),
-      recovery: makeRecovery(),
-      clearRecovery,
-      recoveryActions: { ...makeRecoveryActions(), handleDiscard },
-    })
-    render(<QuizSessionLoader userId="user-1" />)
-    await userEvent.click(screen.getByRole('button', { name: /discard/i }))
-    expect(clearRecovery).toHaveBeenCalledTimes(1)
-    expect(handleDiscard).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -466,24 +338,14 @@ describe('QuizSessionLoader — answer filtering', () => {
   })
 })
 
-// ---- Dismiss (non-discardable exam modes) -----------------------------------
-
-describe('QuizSessionLoader — dismiss', () => {
-  it.each([
-    ['vfr_rt_exam', '/app/vfr-rt'],
-    ['internal_exam', '/app/internal-exam'],
-  ] as const)(
-    'clears the local session and leaves for %s without discarding',
-    async (examMode, path) => {
-      const base = makeBootstrapBase()
-      const recovery = { ...makeRecovery(), mode: 'exam' as const, examMode }
-      mockUseSessionBootstrap.mockReturnValue({ ...base, recovery })
-      render(<QuizSessionLoader userId="user-1" />)
-      await userEvent.click(screen.getByRole('button', { name: 'dismiss' }))
-      expect(mockClearIfCurrent).toHaveBeenCalledWith('user-1', recovery.sessionId)
-      expect(base.clearRecovery).toHaveBeenCalledTimes(1)
-      expect(mockReplace).toHaveBeenCalledWith(path)
-      expect(base.recoveryActions.handleDiscard).not.toHaveBeenCalled()
-    },
-  )
+describe('QuizSessionLoader — Discovery only', () => {
+  it('does not pass a legacy draft id to the quiz', () => {
+    mockUseSessionBootstrap.mockReturnValue({
+      ...makeBootstrapBase(),
+      session: makeSession(),
+      questions: makeQuestions(),
+    })
+    render(<QuizSessionLoader userId="user-1" />)
+    expect(screen.getByTestId('quiz-session')).toHaveAttribute('data-draft-id', '')
+  })
 })

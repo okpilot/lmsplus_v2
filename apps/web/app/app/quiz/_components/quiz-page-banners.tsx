@@ -1,7 +1,6 @@
 import type { QuizPageData } from '../_loaders/load-quiz-page-data'
 import { ActivePracticeBanner } from './active-practice-banner'
 import { ExpiredExamNotice } from './expired-exam-notice'
-import { QuizRecoveryBanner } from './quiz-recovery-banner'
 import { ResumeExamBanner } from './resume-exam-banner'
 
 export function QuizPageBanners({
@@ -31,8 +30,6 @@ export function QuizPageBanners({
       ))}
 
       {activePractice && <ActivePracticeBanner userId={userId} session={activePractice} />}
-
-      <QuizRecoveryBanner userId={userId} />
     </>
   )
 }

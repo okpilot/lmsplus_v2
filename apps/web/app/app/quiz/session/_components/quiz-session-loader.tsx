@@ -1,12 +1,9 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useSessionBootstrap } from '../_hooks/use-session-bootstrap'
-import { dismissRecovery } from '../_utils/dismiss-recovery'
 import { restrictDraftToQuestions } from '../_utils/restrict-draft-to-questions'
 import { QuizSession } from './quiz-session'
-import { SessionRecoveryPrompt } from './session-recovery-prompt'
 
 function LoaderSkeleton() {
   return (
@@ -28,38 +25,6 @@ function LoaderSkeleton() {
 
 export function QuizSessionLoader({ userId }: Readonly<{ userId: string }>) {
   const bs = useSessionBootstrap(userId)
-  const router = useRouter()
-
-  if (bs.recovery) {
-    return (
-      <SessionRecoveryPrompt
-        subjectName={bs.recovery.subjectName}
-        answeredCount={Object.keys(bs.recovery.answers).length}
-        totalCount={bs.recovery.questionIds.length}
-        mode={bs.recovery.mode}
-        examMode={bs.recovery.examMode}
-        onResume={bs.handleRecoveryResume}
-        onSave={() => {
-          bs.clearResumeError()
-          bs.recoveryActions.handleSave()
-        }}
-        onDiscard={() => {
-          bs.clearRecovery()
-          bs.recoveryActions.handleDiscard()
-        }}
-        onDismiss={() =>
-          dismissRecovery({
-            userId,
-            recovery: bs.recovery,
-            clearRecovery: bs.clearRecovery,
-            replace: (path) => router.replace(path),
-          })
-        }
-        loading={bs.recoveryActions.loading || bs.resumeLoading}
-        error={bs.resumeError ?? bs.recoveryActions.error}
-      />
-    )
-  }
 
   if (bs.error) {
     return (
@@ -84,7 +49,6 @@ export function QuizSessionLoader({ userId }: Readonly<{ userId: string }>) {
       initialAnswers={draft.answers}
       initialFeedback={draft.feedback}
       initialIndex={draft.index}
-      draftId={bs.session.draftId}
       subjectName={bs.session.subjectName}
       subjectCode={bs.session.subjectCode}
       mode={bs.session.mode}

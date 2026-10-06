@@ -30,7 +30,7 @@ vi.mock('../../actions/clear-deployment-pin', () => ({
   clearDeploymentPin: (...a: unknown[]) => mockClearDeploymentPin(...a),
 }))
 vi.mock('../_utils/quiz-session-storage', () => ({
-  clearActiveSession: (...a: unknown[]) => mockClearActiveSession(...a),
+  clearActiveSessionIfCurrent: (...a: unknown[]) => mockClearActiveSession(...a),
 }))
 
 import { handleSubmitVfrRtExamSession } from './quiz-submit-vfr-rt'
@@ -76,7 +76,7 @@ describe('handleSubmitVfrRtExamSession', () => {
       answers: [{ questionId: Q_ID, selectedOptionId: 'a', responseTimeMs: 5 }],
     })
     expect(opts.onSuccess).toHaveBeenCalled()
-    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
+    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID, SESSION_ID)
     expect(opts.router.push).toHaveBeenCalledWith(`/app/vfr-rt/report?session=${SESSION_ID}`)
   })
 

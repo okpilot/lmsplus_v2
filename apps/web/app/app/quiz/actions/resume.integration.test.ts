@@ -1,13 +1,12 @@
 // App-layer integration tier (#925 §7) — resumeQuizSession (#1085, #1026).
 //
 // Exercises the real Server Action against real Postgres under real RLS. Drafts are seeded
-// through the admin client, except one test that drives saveDraft directly. Validates:
+// through the admin client (the draft-writing action is gone). Validates:
 //  - Resuming mints a FRESH active session from the draft's questions, seeds its progress
 //    rows and position from the draft, then deletes the draft.
 //  - A seed failure keeps the draft and soft-deletes the freshly minted session.
 //  - Resume of a draft whose question is no longer available fails cleanly and creates
 //    no session; graded-exam drafts are refused.
-//  - A crafted saveDraft citing a live graded exam cannot soft-delete it.
 import type { Json } from '@repo/db/types'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import {
@@ -23,7 +22,6 @@ import {
   seedReferenceData,
   signInAs,
 } from '@/lib/integration-support/harness'
-import { saveDraft } from './draft'
 import { resumeQuizSession } from './resume'
 import { startQuizSession } from './start'
 
@@ -222,7 +220,7 @@ describe('resumeQuizSession (app-layer integration)', () => {
     expect(start.success).toBe(true)
     if (!start.success) throw new Error(start.error)
     const [q0] = start.questionIds
-    // An answer for a question outside the session is dropped before seeding; no RPC call carries it.
+    // An answer for a question outside the session is refused by the progress RPC and skipped.
     const outsider = '00000000-0000-4000-a000-0000000000ff'
     const draftId = await seedDraft({
       studentId: studentAId,
@@ -246,43 +244,6 @@ describe('resumeQuizSession (app-layer integration)', () => {
     if (error) throw new Error(error.message)
     expect(rows?.map((r) => r.question_id)).toEqual([q0])
     expect(await draftExists(draftId)).toBe(false)
-  })
-
-  it('keeps a graded exam session active when a draft cites it (practice-mode allowlist)', async () => {
-    await signInAs(emailB, password)
-    // Non-vacuous: seed a REAL active internal_exam session and assert it is active first.
-    const { data: exam, error: exErr } = await admin
-      .from('quiz_sessions')
-      .insert({
-        organization_id: orgId,
-        student_id: studentBId,
-        mode: 'internal_exam',
-        subject_id: refs.subjectId,
-        config: { question_ids: questionIds },
-        total_questions: questionIds.length,
-      })
-      .select('id, deleted_at')
-      .single()
-    if (exErr) throw new Error(`seed exam session: ${exErr.message}`)
-    expect(exam.deleted_at).toBeNull()
-
-    // A crafted saveDraft citing the exam session must not be able to abandon it.
-    const save = await saveDraft({
-      sessionId: exam.id,
-      questionIds,
-      answers: {},
-      currentIndex: 0,
-      feedback: {},
-    })
-    expect(save.success).toBe(true)
-
-    const { data: after, error: aErr } = await admin
-      .from('quiz_sessions')
-      .select('deleted_at')
-      .eq('id', exam.id)
-      .single()
-    if (aErr) throw new Error(aErr.message)
-    expect(after.deleted_at).toBeNull()
   })
 
   it('fails cleanly and creates no session when a saved question is no longer available', async () => {

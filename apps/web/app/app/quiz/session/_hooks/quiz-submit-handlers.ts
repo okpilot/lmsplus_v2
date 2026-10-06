@@ -22,7 +22,6 @@ type BaseDeps = {
   userId: string
   sessionId: string
   router: AppRouterInstance
-  draftId?: string
   setPendingAction: (v: QuizPendingAction) => void
   setError: (e: string | null) => void
   submitted: React.RefObject<boolean>
@@ -73,7 +72,6 @@ function dispatchSubmission({
   }
   return handleSubmitSession({
     ...common,
-    draftId: deps.draftId,
     isExam: deps.isExam,
     examMode: deps.examMode,
     ...sharedFor('submit'),
@@ -177,7 +175,6 @@ export function buildHandleDiscard(deps: BaseDeps) {
     return handleDiscardSession({
       userId: deps.userId,
       sessionId: deps.sessionId,
-      draftId: deps.draftId,
       ...sharedFor('discard'),
     })
   }

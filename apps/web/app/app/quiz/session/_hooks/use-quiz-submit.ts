@@ -2,7 +2,7 @@ import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.
 import { useEffect, useRef, useState } from 'react'
 import type { SessionQuestion } from '@/app/app/_types/session'
 import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
-import type { AnswerFeedback, DraftAnswer } from '../../types'
+import type { DraftAnswer } from '../../types'
 import {
   buildHandleDiscard,
   buildHandleSave,
@@ -19,13 +19,8 @@ export function useQuizSubmit(opts: {
   sessionId: string
   questions: SessionQuestion[]
   answersRef: React.RefObject<Map<string, DraftAnswer>>
-  feedbackRef: React.RefObject<Map<string, AnswerFeedback>>
-  currentIndexRef: React.RefObject<number>
   pendingQuestionIdRef: React.RefObject<Set<string>>
   router: AppRouterInstance
-  draftId?: string
-  subjectName?: string
-  subjectCode?: string
   isExam?: boolean
   examMode?: DbQuizMode
 }) {

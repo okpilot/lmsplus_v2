@@ -1,9 +1,5 @@
 import { expect, type Page, test } from '@playwright/test'
-import {
-  clearQuizActiveSessionKeys,
-  startStudyQuiz,
-  submitFirstOption,
-} from './helpers/quiz-session'
+import { startStudyQuiz, submitFirstOption } from './helpers/quiz-session'
 import {
   readSessionRow,
   resetStudentQuizSessions,
@@ -63,7 +59,11 @@ test.describe('Quiz Session Recovery', () => {
   test.afterEach(async ({ page }) => {
     const errors: string[] = []
     try {
-      await clearQuizActiveSessionKeys(page)
+      await page.evaluate(() => {
+        for (const key of Object.keys(localStorage)) {
+          if (key.startsWith('quiz-active-session:')) localStorage.removeItem(key)
+        }
+      })
     } catch (e) {
       errors.push(e instanceof Error ? e.message : String(e))
     }
@@ -107,13 +107,8 @@ test.describe('Quiz Session Recovery', () => {
     await expect(page.getByText('Unfinished Quick Quiz session', { exact: true })).toBeVisible()
     expect((await readSessionRow(sessionId)).deletedAt).toBeNull()
 
-    // The legacy local-copy banner can show its own Discard beside this one until slice 4.
-    const banner = page
-      .locator('div')
-      .filter({ has: page.getByText('Unfinished Quick Quiz session', { exact: true }) })
-      .last()
     // Discard opens a confirmation dialog, then the dialog's own Discard confirms.
-    await banner.getByRole('button', { name: /^Discard$/ }).click()
+    await page.getByRole('button', { name: /^Discard$/ }).click()
     await expect(page.getByRole('alertdialog')).toBeVisible()
     await page
       .getByRole('alertdialog')

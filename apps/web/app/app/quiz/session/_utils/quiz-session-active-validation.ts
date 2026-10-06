@@ -49,10 +49,10 @@ function hasSaneSavedAt(savedAt: number): boolean {
 // through hasValidOptionalFields. NOT validated here: subjectName, subjectCode, draftId,
 // examMode, passMark — plus startedAt and timeLimitSeconds outside exam mode, where
 // hasValidExamTimerFields short-circuits. So `data is ActiveSession` asserts more than it
-// checks. Tolerable because the app's sole writer is buildActiveSession and JSON.stringify
-// drops undefined keys; a hand-edited localStorage entry can still carry any of them, which
-// is self-inflicted only (the userId guard holds and React escapes strings). Validate the
-// full list above — not just the first five — if a second writer ever appears.
+// checks. Tolerable because the app no longer writes this entry (only legacy keys are read or
+// cleared); a stale or hand-edited localStorage entry can still carry any of them, which is
+// self-inflicted only (the userId guard holds and React escapes strings). Validate the full
+// list above — not just the first five — if a writer ever returns.
 export function isValidActiveSession(data: unknown, userId: string): data is ActiveSession {
   if (typeof data !== 'object' || data === null) return false
   const d = data as Record<string, unknown>

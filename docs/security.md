@@ -869,6 +869,8 @@ SECURITY DEFINER functions accrue defensive guards over time, one migration at a
 
 **Saved quizzes (#1026 PR 1b):** a saved quiz is a soft-deleted row (`saved_at` set), so it is outside the index and the invariant. `resume_saved_quiz` is the only path that clears `deleted_at` on it; its UPDATE is arbitrated by `uq_one_active_session_per_student` and raises `another_session_active` when another session is active. A student cannot revive any soft-deleted row directly: `students_update_sessions` reaches live rows only (`deleted_at IS NULL`, migration `20261003000400`, red-team GP). CHECK `(saved_at IS NULL OR deleted_at IS NOT NULL)` keeps a saved row soft-deleted for every writer.
 
+**Read path (#1026 PR 3):** `/app/quiz/session/<id>` loads through `get_quiz_progress` (raises `session_not_found` for a session the caller does not own) and an authed `quiz_sessions` read carrying an explicit `.eq('student_id', userId)` (rule 11); the id is uuid-validated before any query; the payload carries no answer key and no correctness. A resumed practice answer is re-checked through `check_quiz_answer` / `check_non_mc_answer`, which refuse exam modes; exam modes never re-check. The Saved tab reads only the caller's own `quiz_sessions` and `quiz_session_progress` rows (RLS own-row SELECT plus the explicit `student_id` predicate).
+
 **Behavioral consequence:** a student can no longer run a practice/Discovery quiz and an exam simultaneously. See `docs/decisions.md` Decision 49 and §4 item 6.
 
 ---

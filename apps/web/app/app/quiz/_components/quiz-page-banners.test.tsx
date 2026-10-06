@@ -21,11 +21,6 @@ vi.mock('./active-practice-banner', () => ({
     <div data-testid="practice" data-user={p.userId} />
   ),
 }))
-vi.mock('./quiz-recovery-banner', () => ({
-  QuizRecoveryBanner: (p: { userId: string }) => (
-    <div data-testid="recovery" data-user={p.userId} />
-  ),
-}))
 
 import { QuizPageBanners } from './quiz-page-banners'
 
@@ -80,10 +75,5 @@ describe('QuizPageBanners', () => {
   it('renders no practice banner when no practice session is active', () => {
     render(<QuizPageBanners {...props()} />)
     expect(screen.queryByTestId('practice')).toBeNull()
-  })
-
-  it('always renders the recovery banner for the user', () => {
-    render(<QuizPageBanners {...props()} />)
-    expect(screen.getByTestId('recovery').getAttribute('data-user')).toBe('u1')
   })
 })
