@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import type { AvailableInternalExam } from '../queries'
 import { CodeEntryModal } from './code-entry-modal'
 
-type Props = { rows: AvailableInternalExam[]; userId: string }
+type Props = { rows: AvailableInternalExam[] }
 
 function formatAbsolute(iso: string): string {
   const d = new Date(iso)
@@ -26,7 +26,7 @@ function formatRelative(iso: string, now: Date = new Date()): string {
   return `in ${days} d`
 }
 
-export function AvailableTab({ rows, userId }: Readonly<Props>) {
+export function AvailableTab({ rows }: Readonly<Props>) {
   const [selected, setSelected] = useState<AvailableInternalExam | null>(null)
 
   if (rows.length === 0) {
@@ -77,7 +77,6 @@ export function AvailableTab({ rows, userId }: Readonly<Props>) {
         onOpenChange={(next) => {
           if (!next) setSelected(null)
         }}
-        userId={userId}
         subjectName={selected?.subjectName ?? ''}
         subjectShort={selected?.subjectShort ?? ''}
       />

@@ -2,9 +2,31 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockRouterPush, mockStartInternalExam } = vi.hoisted(() => ({
+const {
+  mockRouterPush,
+  mockStartInternalExam,
+  mockGetActivePracticeSession,
+  mockClaim,
+  mockSave,
+  mockCheckRoom,
+} = vi.hoisted(() => ({
+  mockCheckRoom: vi.fn(),
   mockRouterPush: vi.fn(),
   mockStartInternalExam: vi.fn(),
+  mockGetActivePracticeSession: vi.fn(),
+  mockClaim: vi.fn(),
+  mockSave: vi.fn(),
+}))
+
+vi.mock('@/app/app/quiz/actions/get-active-practice-session', () => ({
+  getActivePracticeSession: (...args: unknown[]) => mockGetActivePracticeSession(...args),
+}))
+vi.mock('@/app/app/quiz/actions/quiz-progress', () => ({
+  claimQuizSession: (...args: unknown[]) => mockClaim(...args),
+}))
+vi.mock('@/app/app/quiz/actions/saved-quiz', () => ({
+  saveQuizForLater: (...args: unknown[]) => mockSave(...args),
+  checkSavedQuizRoom: (...args: unknown[]) => mockCheckRoom(...args),
 }))
 
 vi.mock('next/navigation', () => ({
@@ -34,7 +56,6 @@ function renderModal(open = true) {
     <CodeEntryModal
       open={open}
       onOpenChange={onOpenChange}
-      userId="user-1"
       subjectName="Air Law"
       subjectShort="ALW"
     />,
@@ -45,10 +66,9 @@ function renderModal(open = true) {
 describe('CodeEntryModal', () => {
   beforeEach(() => {
     vi.resetAllMocks()
-    // The successful-start path writes 'quiz-session:<userId>' into sessionStorage.
-    // Clear so cases that run after it don't inherit the seed and assert against
-    // stale state.
-    sessionStorage.clear()
+    mockClaim.mockResolvedValue({ success: true })
+    mockSave.mockResolvedValue({ success: true })
+    mockCheckRoom.mockResolvedValue({ success: true })
   })
 
   it('disables the submit button when the input is empty', () => {
@@ -96,35 +116,38 @@ describe('CodeEntryModal', () => {
     await waitFor(() => expect(mockStartInternalExam).toHaveBeenCalledWith({ code: 'ABCD2345' }))
   })
 
-  it('writes the session handoff payload and navigates to /app/quiz/session on success', async () => {
-    mockStartInternalExam.mockResolvedValue({
-      success: true,
-      sessionId: 'sess-abc',
-      questionIds: ['q-1', 'q-2'],
-      timeLimitSeconds: 1800,
-      passMark: 75,
-      startedAt: '2026-04-29T10:00:00.000Z',
-    })
+  it('navigates to /app/quiz/session/<id> on success without writing sessionStorage', async () => {
+    const setItem = vi.spyOn(Storage.prototype, 'setItem')
+    mockStartInternalExam.mockResolvedValue({ success: true, sessionId: 'sess-abc' })
     renderModal()
     const input = screen.getByTestId('code-input') as HTMLInputElement
     await userEvent.type(input, 'ABCD2345')
     await userEvent.click(screen.getByRole('button', { name: /start exam/i }))
 
-    await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session'))
-    const stored = sessionStorage.getItem('quiz-session:user-1')
-    expect(stored).not.toBeNull()
-    const payload = JSON.parse(stored as string)
-    expect(payload).toMatchObject({
-      userId: 'user-1',
-      sessionId: 'sess-abc',
-      mode: 'exam',
-      examMode: 'internal_exam',
-      questionIds: ['q-1', 'q-2'],
-      timeLimitSeconds: 1800,
-      passMark: 75,
-      subjectName: 'Air Law',
-      subjectCode: 'ALW',
+    await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session/sess-abc'))
+    expect(setItem).not.toHaveBeenCalled()
+  })
+
+  it('offers to save the open practice quiz when the start is blocked, then starts', async () => {
+    mockStartInternalExam
+      .mockResolvedValueOnce({ success: false, error: 'Another session is active', blocked: true })
+      .mockResolvedValueOnce({ success: true, sessionId: 'sess-abc' })
+    mockGetActivePracticeSession.mockResolvedValue({
+      success: true,
+      session: { sessionId: 'blocker-1', subjectName: 'Meteorology' },
     })
+    renderModal()
+    await userEvent.type(screen.getByTestId('code-input'), 'ABCD2345')
+    await userEvent.click(screen.getByRole('button', { name: /start exam/i }))
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: /save quiz for later and start exam/i }),
+    )
+
+    await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session/sess-abc'))
+    expect(mockStartInternalExam).toHaveBeenCalledTimes(2)
+    expect(mockClaim).toHaveBeenCalledWith(expect.objectContaining({ sessionId: 'blocker-1' }))
+    expect(mockSave).toHaveBeenCalledWith(expect.objectContaining({ sessionId: 'blocker-1' }))
   })
 
   it('renders the action error with role="alert" and does not navigate on failure', async () => {
@@ -214,48 +237,5 @@ describe('CodeEntryModal', () => {
     // Lock resets after a throw — second attempt must proceed.
     form.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }))
     await waitFor(() => expect(mockStartInternalExam).toHaveBeenCalledTimes(2))
-  })
-
-  it('shows an error and allows a retry when sessionStorage write fails after a successful action response', async () => {
-    // The action succeeds but sessionStorage.setItem throws (e.g. quota exceeded or
-    // private-browsing restriction). The lock must reset (startedRef.current = false)
-    // so the student can retry, and the error banner must be shown.
-    mockStartInternalExam.mockResolvedValue({
-      success: true,
-      sessionId: 'sess-abc',
-      questionIds: ['q-1'],
-      timeLimitSeconds: 1800,
-      passMark: 75,
-      startedAt: '2026-04-29T10:00:00.000Z',
-    })
-    // mockImplementationOnce throws on the FIRST setItem only; the retry's setItem
-    // falls through to the real impl. restore in finally so an assertion failure
-    // before the end can't leak the global prototype spy into later tests.
-    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => {
-      throw new DOMException('QuotaExceededError')
-    })
-
-    try {
-      renderModal()
-      const input = screen.getByTestId('code-input') as HTMLInputElement
-      await userEvent.type(input, 'ABCD2345')
-
-      const form = screen.getByTestId('code-entry-form')
-      form.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }))
-
-      // Error banner shown — router must NOT have been called (no navigation on handoff failure).
-      await waitFor(() =>
-        expect(screen.getByRole('alert')).toHaveTextContent(/unable to start internal exam/i),
-      )
-      expect(mockRouterPush).not.toHaveBeenCalled()
-      expect(mockStartInternalExam).toHaveBeenCalledTimes(1)
-
-      // Lock is reset — student can retry; this time sessionStorage succeeds.
-      form.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }))
-      await waitFor(() => expect(mockStartInternalExam).toHaveBeenCalledTimes(2))
-      await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session'))
-    } finally {
-      setItemSpy.mockRestore()
-    }
   })
 })

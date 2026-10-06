@@ -3,10 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockRouterPush, mockStartQuizSession, mockSessionStorageSetItem } = vi.hoisted(() => ({
+const { mockRouterPush, mockStartQuizSession, mockGetActivePracticeSession } = vi.hoisted(() => ({
   mockRouterPush: vi.fn(),
   mockStartQuizSession: vi.fn(),
-  mockSessionStorageSetItem: vi.fn(),
+  mockGetActivePracticeSession: vi.fn(),
 }))
 
 vi.mock('next/navigation', () => ({
@@ -17,17 +17,8 @@ vi.mock('../actions/start', () => ({
   startQuizSession: (...args: unknown[]) => mockStartQuizSession(...args),
 }))
 
-const { mockReadActiveSession, mockClearActiveSession } = vi.hoisted(() => ({
-  mockReadActiveSession: vi.fn(),
-  mockClearActiveSession: vi.fn(),
-}))
-
-vi.mock('../session/_utils/quiz-session-storage', () => ({
-  readActiveSession: () => mockReadActiveSession(),
-  clearActiveSession: mockClearActiveSession,
-}))
-vi.mock('../session/_utils/quiz-session-handoff', () => ({
-  sessionHandoffKey: (userId: string) => `quiz-session:${userId}`,
+vi.mock('../actions/get-active-practice-session', () => ({
+  getActivePracticeSession: (...args: unknown[]) => mockGetActivePracticeSession(...args),
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -52,7 +43,6 @@ const mockTopicTree = {
 }
 
 const DEFAULT_OPTS = {
-  userId: 'test-user-id',
   subjectId: SUBJECT_ID,
   subjects: SUBJECTS,
   count: 10,
@@ -69,28 +59,13 @@ const SUCCESS_RESULT = {
   questionIds: [Q1_ID, Q2_ID],
 }
 
-const EXISTING_SESSION = {
-  sessionId: 'old-sess',
-  questionIds: ['q9'],
-  answers: {},
-  currentIndex: 0,
-  subjectName: 'Meteorology',
-  savedAt: Date.now(),
-}
-
 // ---- Lifecycle ------------------------------------------------------------
 
 beforeEach(() => {
   vi.resetAllMocks()
-  Object.defineProperty(globalThis, 'sessionStorage', {
-    value: { setItem: mockSessionStorageSetItem, getItem: vi.fn(), removeItem: vi.fn() },
-    writable: true,
-  })
   mockStartQuizSession.mockResolvedValue(SUCCESS_RESULT)
   mockTopicTree.getSelectedTopicIds.mockReturnValue(['topic-1'])
   mockTopicTree.getSelectedSubtopicIds.mockReturnValue(['sub-1'])
-  // Default: no existing session
-  mockReadActiveSession.mockReturnValue(null)
 })
 
 // ---- Initial state -------------------------------------------------------
@@ -258,112 +233,10 @@ describe('useQuizStart — handleStart happy path', () => {
     expect(mockStartQuizSession).toHaveBeenCalledWith(expect.objectContaining({ count: 1 }))
   })
 
-  it('carries the started session into the runner', async () => {
+  it('navigates to /app/quiz/session/<id> after a successful start', async () => {
     const { result } = renderHook(() => useQuizStart(DEFAULT_OPTS))
     await act(async () => result.current.handleStart())
-
-    expect(mockSessionStorageSetItem).toHaveBeenCalledWith(
-      'quiz-session:test-user-id',
-      expect.stringContaining(SESSION_ID),
-    )
-  })
-
-  it('includes subjectName and subjectCode in sessionStorage when subject is found', async () => {
-    const { result } = renderHook(() => useQuizStart(DEFAULT_OPTS))
-    await act(async () => result.current.handleStart())
-
-    const storedJson = mockSessionStorageSetItem.mock.calls[0]?.[1] as string
-    const stored = JSON.parse(storedJson) as Record<string, unknown>
-    expect(stored.subjectName).toBe('Air Law')
-    expect(stored.subjectCode).toBe('ALW')
-  })
-
-  it('navigates to /app/quiz/session after a successful start', async () => {
-    const { result } = renderHook(() => useQuizStart(DEFAULT_OPTS))
-    await act(async () => result.current.handleStart())
-    expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session')
-  })
-})
-
-// ---- handleStart — existing session guard --------------------------------
-
-describe('useQuizStart — existing session guard', () => {
-  it('prompts the user when an active session exists before starting', async () => {
-    mockReadActiveSession.mockReturnValue(EXISTING_SESSION)
-    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(true)
-
-    const { result } = renderHook(() => useQuizStart(DEFAULT_OPTS))
-    await act(async () => result.current.handleStart())
-
-    expect(confirmSpy).toHaveBeenCalledTimes(1)
-    expect(confirmSpy).toHaveBeenCalledWith(expect.stringContaining('Meteorology'))
-    confirmSpy.mockRestore()
-  })
-
-  it('includes subject name in the confirmation message when it is set', async () => {
-    mockReadActiveSession.mockReturnValue(EXISTING_SESSION)
-    let capturedMsg = ''
-    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockImplementation((msg) => {
-      capturedMsg = msg as string
-      return true
-    })
-
-    const { result } = renderHook(() => useQuizStart(DEFAULT_OPTS))
-    await act(async () => result.current.handleStart())
-
-    expect(capturedMsg).toContain('Meteorology')
-    confirmSpy.mockRestore()
-  })
-
-  it('aborts the start when the user cancels the confirmation', async () => {
-    mockReadActiveSession.mockReturnValue(EXISTING_SESSION)
-    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(false)
-
-    const { result } = renderHook(() => useQuizStart(DEFAULT_OPTS))
-    await act(async () => result.current.handleStart())
-
-    expect(mockStartQuizSession).not.toHaveBeenCalled()
-    expect(mockRouterPush).not.toHaveBeenCalled()
-    confirmSpy.mockRestore()
-  })
-
-  it('starts the quiz on a retry after the user first cancels the confirmation', async () => {
-    mockReadActiveSession.mockReturnValue(EXISTING_SESSION)
-    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(false)
-
-    const { result } = renderHook(() => useQuizStart(DEFAULT_OPTS))
-    await act(async () => result.current.handleStart())
-    expect(mockStartQuizSession).not.toHaveBeenCalled()
-
-    // The cancelled attempt must not lock the user out — confirming now starts the quiz.
-    confirmSpy.mockReturnValue(true)
-    await act(async () => result.current.handleStart())
-    expect(mockStartQuizSession).toHaveBeenCalledTimes(1)
-    confirmSpy.mockRestore()
-  })
-
-  it('clears the existing session and continues start when user confirms', async () => {
-    mockReadActiveSession.mockReturnValue(EXISTING_SESSION)
-    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(true)
-
-    const { result } = renderHook(() => useQuizStart(DEFAULT_OPTS))
-    await act(async () => result.current.handleStart())
-
-    expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
-    expect(mockStartQuizSession).toHaveBeenCalledTimes(1)
-    confirmSpy.mockRestore()
-  })
-
-  it('does not show a confirmation when no existing session is present', async () => {
-    mockReadActiveSession.mockReturnValue(null)
-    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(true)
-
-    const { result } = renderHook(() => useQuizStart(DEFAULT_OPTS))
-    await act(async () => result.current.handleStart())
-
-    expect(confirmSpy).not.toHaveBeenCalled()
-    expect(mockClearActiveSession).not.toHaveBeenCalled()
-    confirmSpy.mockRestore()
+    expect(mockRouterPush).toHaveBeenCalledWith(`/app/quiz/session/${SESSION_ID}`)
   })
 })
 
@@ -414,49 +287,24 @@ describe('useQuizStart — handleStart failure path', () => {
     expect(mockRouterPush).not.toHaveBeenCalled()
   })
 
-  it('preserves the existing session when startQuizSession returns a failure result', async () => {
-    mockReadActiveSession.mockReturnValue(EXISTING_SESSION)
-    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(true)
+  it('offers to save the blocking practice quiz when the start is blocked', async () => {
     mockStartQuizSession.mockResolvedValue({
       success: false as const,
-      error: 'No questions available for this selection',
+      error: 'Another session is active',
+      blocked: true,
+    })
+    mockGetActivePracticeSession.mockResolvedValue({
+      success: true,
+      session: { sessionId: 'blocker-1', subjectName: 'Meteorology' },
     })
 
     const { result } = renderHook(() => useQuizStart(DEFAULT_OPTS))
     await act(async () => result.current.handleStart())
 
-    // clearActiveSession must NOT have been called — the new quiz failed, so the
-    // existing session data should still be recoverable
-    expect(mockClearActiveSession).not.toHaveBeenCalled()
-    confirmSpy.mockRestore()
-  })
-
-  it('preserves the existing session when startQuizSession throws', async () => {
-    mockReadActiveSession.mockReturnValue(EXISTING_SESSION)
-    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(true)
-    mockStartQuizSession.mockRejectedValue(new Error('network timeout'))
-
-    const { result } = renderHook(() => useQuizStart(DEFAULT_OPTS))
-    await act(async () => result.current.handleStart())
-
-    expect(mockClearActiveSession).not.toHaveBeenCalled()
-    confirmSpy.mockRestore()
-  })
-
-  it('preserves the existing session when sessionStorage throws after a successful start', async () => {
-    mockReadActiveSession.mockReturnValue(EXISTING_SESSION)
-    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(true)
-    mockStartQuizSession.mockResolvedValue(SUCCESS_RESULT)
-    mockSessionStorageSetItem.mockImplementation(() => {
-      throw new DOMException('QuotaExceededError')
+    expect(result.current.blocked.offer).toEqual({
+      sessionId: 'blocker-1',
+      subjectName: 'Meteorology',
     })
-
-    const { result } = renderHook(() => useQuizStart(DEFAULT_OPTS))
-    await act(async () => result.current.handleStart())
-
-    expect(mockClearActiveSession).not.toHaveBeenCalled()
-    expect(mockRouterPush).not.toHaveBeenCalled()
-    expect(result.current.error).toMatch(/unable to start/i)
-    confirmSpy.mockRestore()
+    expect(result.current.error).toBe('Another session is active')
   })
 })

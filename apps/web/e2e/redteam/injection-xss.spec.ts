@@ -171,7 +171,7 @@ async function startStudentSessionFor(
   expect(error).toBeNull()
   // Explicit guard, not a bare `as string` cast: if a future change weakens the
   // expect above, a null/non-string sessionId would otherwise propagate silently
-  // into seedSessionHandoff and surface as a misleading redirect-to-/app/quiz
+  // into the /app/quiz/session/<id> URL and surface as a misleading redirect-to-/app/quiz
   // (looks like a UI bug, not a missing-RPC-return bug). (#636)
   if (!sessionId || typeof sessionId !== 'string') {
     throw new Error(
@@ -179,27 +179,6 @@ async function startStudentSessionFor(
     )
   }
   return { sessionId, questionIds: [qid] }
-}
-
-// The /app/quiz/session page reads its session from sessionStorage (handoff
-// set by the Start Quiz click on /app/quiz). Calling start_quiz_session via
-// RPC creates the DB row but the UI does not hydrate from the server, so we
-// inject the handoff payload directly to bypass the UI flow.
-async function seedSessionHandoff(
-  page: Page,
-  userId: string,
-  sessionId: string,
-  questionIds: string[],
-): Promise<void> {
-  await page.evaluate(
-    ({ userId, sessionId, questionIds }) => {
-      sessionStorage.setItem(
-        `quiz-session:${userId}`,
-        JSON.stringify({ userId, sessionId, questionIds, mode: 'study' }),
-      )
-    },
-    { userId, sessionId, questionIds },
-  )
 }
 
 test.describe('Red Team: OWASP A05 — XSS in cross-user rendering', () => {
@@ -308,19 +287,17 @@ test.describe('Red Team: OWASP A05 — XSS in cross-user rendering', () => {
     test(`student quiz session sanitizes question_text payload ${payload.name}`, async ({
       page,
     }) => {
-      const { sessionId, questionIds } = await bootStudentSession('question_text', payload)
+      const { sessionId } = await bootStudentSession('question_text', payload)
       await loginAs(page, TEST_EMAIL, TEST_PASSWORD)
-      await seedSessionHandoff(page, studentUserId, sessionId, questionIds)
-      await page.goto('/app/quiz/session')
+      await page.goto(`/app/quiz/session/${sessionId}`)
       await expect(page.getByText(/Question 1/)).toBeVisible({ timeout: 15_000 })
       await assertSanitized(page, page.locator('main'))
     })
 
     test(`feedback panel sanitizes explanation_text payload ${payload.name}`, async ({ page }) => {
-      const { sessionId, questionIds } = await bootStudentSession('explanation_text', payload)
+      const { sessionId } = await bootStudentSession('explanation_text', payload)
       await loginAs(page, TEST_EMAIL, TEST_PASSWORD)
-      await seedSessionHandoff(page, studentUserId, sessionId, questionIds)
-      await page.goto('/app/quiz/session')
+      await page.goto(`/app/quiz/session/${sessionId}`)
       await expect(page.getByText(/Question 1/)).toBeVisible({ timeout: 15_000 })
       const answerBtns = page.locator('button:has(span.rounded-full)')
       await answerBtns.first().waitFor({ state: 'visible', timeout: 10_000 })

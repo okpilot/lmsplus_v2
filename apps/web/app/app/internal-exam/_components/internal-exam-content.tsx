@@ -9,11 +9,7 @@ import { RecoveryBanner } from './recovery-banner'
 // banner renders instead.
 export const INTERNAL_EXAM_LOAD_TIMEOUT_MS = 10_000
 
-type Props = {
-  userId: string
-}
-
-export async function InternalExamContent({ userId }: Readonly<Props>) {
+export async function InternalExamContent() {
   const [availableResult, historyResult, activeResult] = await Promise.all([
     withTimeout(listAvailableInternalExams(), INTERNAL_EXAM_LOAD_TIMEOUT_MS, {
       success: false,
@@ -47,13 +43,9 @@ export async function InternalExamContent({ userId }: Readonly<Props>) {
         </div>
       )}
       {activeSessions.map((session) => (
-        <RecoveryBanner key={session.sessionId} userId={userId} session={session} />
+        <RecoveryBanner key={session.sessionId} session={session} />
       ))}
-      <InternalExamTabs
-        available={availableResult.data}
-        history={historyResult.data}
-        userId={userId}
-      />
+      <InternalExamTabs available={availableResult.data} history={historyResult.data} />
     </div>
   )
 }

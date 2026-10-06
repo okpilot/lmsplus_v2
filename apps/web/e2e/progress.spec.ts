@@ -1,7 +1,14 @@
 import { expect, test } from '@playwright/test'
+import { SESSION_ID_URL } from './helpers/quiz-session-id'
+import { cleanupStudentActiveSessions, TEST_EMAIL } from './helpers/supabase'
 
 // Use saved auth state from setup
 test.use({ storageState: 'e2e/.auth/user.json' })
+
+// A quiz left open by an earlier spec would block this spec's start (single active session).
+test.beforeEach(async () => {
+  await cleanupStudentActiveSessions(TEST_EMAIL)
+})
 
 test('progress page shows mastery data', async ({ page }) => {
   // Navigate to progress
@@ -36,7 +43,7 @@ test('progress page updates after completing a quiz', async ({ page }) => {
   await page.getByRole('button', { name: '10' }).click()
 
   await page.getByRole('button', { name: 'Start Quiz' }).click()
-  await page.waitForURL('**/app/quiz/session', { timeout: 10_000 })
+  await page.waitForURL(SESSION_ID_URL, { timeout: 10_000 })
   await expect(page.getByText('Question 1')).toBeVisible({ timeout: 10_000 })
 
   // Answer all 10 questions (deferred writes — no per-answer feedback)

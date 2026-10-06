@@ -41,7 +41,6 @@ function renderForm(
 ) {
   return render(
     <VfrRtConfigForm
-      userId="user-1"
       subjectId={SUBJECT_ID}
       subjects={overrides.subjects ?? SUBJECTS}
       initialTopics={overrides.initialTopics ?? INITIAL_TOPICS}
@@ -102,6 +101,7 @@ function buildMockConfig(overrides: Record<string, unknown> = {}) {
     isPending: false,
     handleSubjectChange: vi.fn(),
     handleStart: mockHandleStart,
+    blocked: { offer: null, saving: false, error: null, onAccept: vi.fn() },
     ...overrides,
   }
 }

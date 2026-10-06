@@ -50,14 +50,15 @@ test.describe('Quiz blocks while an answer is unsent and resends on reconnect', 
     })
     await expect.poll(readServerAnsweredCount, { timeout: 10_000 }).toBe(1)
 
-    // Post-exit + reload mid-flow: the saved answer survives and the quiz resumes.
+    // Post-exit + reload mid-flow: the same session URL reopens the quiz with the saved answer.
+    const sessionUrl = page.url()
     await page.reload()
-    await expect(page).toHaveURL(/\/app\/quiz\/session$/)
-    await expect(page.getByRole('heading', { name: 'Resume your quiz?' })).toBeVisible({
+    await expect(page).toHaveURL(sessionUrl)
+    await expect(page.getByText(`Question 1 of ${total}`)).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByRole('heading', { name: 'Resume your quiz?' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Submit Answer' })).toHaveCount(0, {
       timeout: 10_000,
     })
-    await page.getByRole('button', { name: 'Resume' }).click()
-    await expect(page.getByText(`Question 1 of ${total}`)).toBeVisible({ timeout: 10_000 })
     expect(await readServerAnsweredCount()).toBe(1)
   })
 })

@@ -54,7 +54,6 @@ export type AnswerPipelineOpts = QuizStateOpts & {
 }
 
 export type UseQuizStartOpts = {
-  userId: string
   subjectId: string
   subjects: import('@/lib/queries/quiz-query-types').SubjectOption[]
   count: number

@@ -5,6 +5,7 @@ import type { ExamSubjectOption } from '@/lib/queries/exam-subjects'
 import type { SubjectOption } from '@/lib/queries/quiz-query-types'
 import { useExamStart } from '../_hooks/use-exam-start'
 import { useQuizConfig } from '../_hooks/use-quiz-config'
+import { BlockedStartAlert } from './blocked-start-alert'
 import { DiscoveryModePanel } from './discovery-mode-panel'
 import { ExamConfigForm } from './exam-config-form'
 import { ModeToggle } from './mode-toggle'
@@ -21,11 +22,11 @@ type QuizConfigFormProps = {
 }
 
 export function QuizConfigForm({ userId, subjects, examSubjects }: Readonly<QuizConfigFormProps>) {
-  const config = useQuizConfig({ userId, subjects })
+  const config = useQuizConfig({ subjects })
   const isExam = config.mode === 'exam'
 
   const [examSubjectId, setExamSubjectId] = useState('')
-  const exam = useExamStart({ userId, subjectId: examSubjectId, examSubjects })
+  const exam = useExamStart({ subjectId: examSubjectId, examSubjects })
 
   if (config.mode === 'discovery')
     return (
@@ -107,17 +108,12 @@ export function QuizConfigForm({ userId, subjects, examSubjects }: Readonly<Quiz
         </>
       )}
 
-      {/* Error messages — both modes */}
-      {isExam && exam.error && (
-        <p role="alert" className="text-sm text-destructive">
-          {exam.error}
-        </p>
-      )}
-      {!isExam && config.error && (
-        <p role="alert" className="text-sm text-destructive">
-          {config.error}
-        </p>
-      )}
+      {/* Start failures and the blocked-start offer — both modes */}
+      <BlockedStartAlert
+        message={isExam ? exam.error : config.error}
+        blocked={isExam ? exam.blocked : config.blocked}
+        startLabel={isExam ? 'exam' : 'quiz'}
+      />
       {!isExam && config.authError && (
         <p role="alert" className="text-sm text-destructive">
           Session expired. Please refresh the page.

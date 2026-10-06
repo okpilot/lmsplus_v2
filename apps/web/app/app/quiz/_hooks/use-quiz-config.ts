@@ -8,13 +8,11 @@ import { useQuizStart } from './use-quiz-start'
 import { useTopicTree } from './use-topic-tree'
 
 export function useQuizConfig({
-  userId,
   subjects,
   initialSubjectId,
   initialMode,
   initialTopics,
 }: {
-  userId: string
   subjects: SubjectOption[]
   initialSubjectId?: string
   initialMode?: QuizMode
@@ -30,8 +28,7 @@ export function useQuizConfig({
     filteredBySubtopic: fc.filteredBySubtopic,
     topicTree,
   })
-  const { loading, error, handleStart } = useQuizStart({
-    userId,
+  const { loading, error, handleStart, blocked } = useQuizStart({
     subjectId: st.subjectId,
     subjects,
     count: st.count,
@@ -74,5 +71,6 @@ export function useQuizConfig({
     isPending: topicTree.isPending || fc.isFilterPending,
     handleSubjectChange: st.handleSubjectChange,
     handleStart,
+    blocked,
   }
 }

@@ -8,6 +8,8 @@
  */
 
 import { expect, type Page, test } from '@playwright/test'
+import { readServerAnsweredCount } from './helpers/quiz-session'
+import { readSessionRow, SESSION_ID_URL, sessionIdFromUrl } from './helpers/quiz-session-id'
 import {
   cleanupStudentActiveSessions,
   getAdminClient,
@@ -34,7 +36,7 @@ async function startExam(page: Page): Promise<void> {
   await examMode.click()
   await expect(examMode).toHaveAttribute('aria-pressed', 'true')
   await page.getByRole('button', { name: 'Start VFR RT Mock Exam' }).click()
-  await page.waitForURL(/\/app\/quiz\/session/, { timeout: 20_000 })
+  await page.waitForURL(SESSION_ID_URL, { timeout: 20_000 })
   await expect(page.getByText(/Question \d/).first()).toBeVisible({ timeout: 15_000 })
 }
 
@@ -193,23 +195,29 @@ test.describe('VFR RT mock exam', () => {
     await expect(page.getByRole('img', { name: /Score:/ })).toBeVisible()
   })
 
-  test('resumes a reloaded exam with its locked answers and no way to discard it', async ({
+  test('a reloaded exam reopens on its own URL with locked answers, and Start again returns to it', async ({
     page,
   }) => {
     await startExam(page)
+    const sessionUrl = page.url()
     for (let i = 0; i < 2; i++) {
       await answerAndAssertLocked(page, await detectType(page))
       if (i === 0) await nextQuestion(page)
     }
+    // Saves are asynchronous: reload only once the server holds both answers and the position.
+    await expect.poll(readServerAnsweredCount, { timeout: 15_000 }).toBe(2)
+    await expect
+      .poll(async () => (await readSessionRow(sessionIdFromUrl(sessionUrl))).currentIndex, {
+        timeout: 15_000,
+      })
+      .toBe(1)
 
     await page.reload()
-    await expect(page.getByText('Resume your VFR RT Mock Exam?')).toBeVisible({ timeout: 15_000 })
-    await expect(page.getByRole('button', { name: 'Discard' })).toHaveCount(0)
-    await page.getByRole('button', { name: 'Resume' }).click()
-    await expect(page).toHaveURL(/\/app\/quiz\/session/)
+    await expect(page).toHaveURL(sessionUrl)
     await expect(page.getByText(/Question \d/).first()).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByText('Resume your VFR RT Mock Exam?')).toHaveCount(0)
 
-    // Both answered questions are still locked after the resume.
+    // Both answered questions are still locked after the reload.
     const prev = page.getByRole('button', { name: /Previous/ })
     while (await prev.isEnabled()) await prev.click()
     for (let i = 0; i < 2; i++) {
@@ -217,6 +225,16 @@ test.describe('VFR RT mock exam', () => {
       await expect(page.locator(SHORT_ANSWER)).toHaveValue('alpha')
       if (i === 0) await nextQuestion(page)
     }
+
+    // The exam cannot be discarded; the way back in is Start again, which returns the open exam.
+    await page.goto('/app/vfr-rt')
+    await expect(page.getByRole('button', { name: 'Discard' })).toHaveCount(0)
+    const examMode = page.getByRole('button', { name: 'Practice Exam', exact: true })
+    await expect(examMode).toBeEnabled({ timeout: 10_000 })
+    await examMode.click()
+    await page.getByRole('button', { name: 'Start VFR RT Mock Exam' }).click()
+    await page.waitForURL(sessionUrl, { timeout: 20_000 })
+    await expect(page.getByText(/Question \d/).first()).toBeVisible({ timeout: 15_000 })
 
     await finishAndSubmit(page)
     await expect(page.getByRole('heading', { name: 'VFR RT Mock Exam Results' })).toBeVisible({

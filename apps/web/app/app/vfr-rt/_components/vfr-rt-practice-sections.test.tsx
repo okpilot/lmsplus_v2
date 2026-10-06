@@ -22,6 +22,7 @@ function makeConfig(over: Partial<Record<string, unknown>> = {}): Config {
     authError: false,
     error: null,
     handleStart: vi.fn(),
+    blocked: { offer: null, saving: false, error: null, onAccept: vi.fn() },
     ...over,
   } as unknown as Config
 }

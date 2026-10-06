@@ -1,7 +1,5 @@
 import type { useRouter } from 'next/navigation'
 import { discardQuiz } from '../actions/discard'
-import type { ActiveExamSession } from '../actions/get-active-exam-session'
-import { sessionHandoffKey } from '../session/_utils/quiz-session-handoff'
 import { clearActiveSessionIfCurrent } from '../session/_utils/quiz-session-storage'
 
 type AppRouterInstance = ReturnType<typeof useRouter>
@@ -10,41 +8,12 @@ type SetState<T> = (v: T) => void
 
 export type ResumeExamDeps = {
   userId: string
-  exam?: ActiveExamSession
   activeSessionId: string
   router: AppRouterInstance
   setLoading: SetState<boolean>
   setError: SetState<string | null>
   setDiscarded: SetState<boolean>
   discardingRef: React.RefObject<boolean>
-}
-
-export function buildResumeHandler(deps: ResumeExamDeps) {
-  return function handleResume() {
-    const { exam, userId } = deps
-    if (!exam) return
-    try {
-      sessionStorage.setItem(
-        sessionHandoffKey(userId),
-        JSON.stringify({
-          userId,
-          sessionId: exam.sessionId,
-          mode: 'exam',
-          questionIds: exam.questionIds,
-          timeLimitSeconds: exam.timeLimitSeconds,
-          passMark: exam.passMark,
-          subjectName: exam.subjectName,
-          subjectCode: exam.subjectCode,
-          startedAt: exam.startedAt,
-        }),
-      )
-    } catch (err) {
-      console.warn('[resume-exam-banner] Handoff write failed:', err)
-      deps.setError('Unable to resume right now. Please try again.')
-      return
-    }
-    deps.router.push('/app/quiz/session')
-  }
 }
 
 export function buildDiscardHandler(deps: ResumeExamDeps) {
@@ -56,7 +25,7 @@ export function buildDiscardHandler(deps: ResumeExamDeps) {
     deps.setLoading(true)
     deps.setError(null)
     // Clear regardless of outcome — respect discard intent even when the Server Action fails
-    // (mirrors discardQuizSession in quiz-submit.ts); a surviving key is what let a discarded
+    // (mirrors discardQuizSession in quiz-submit.ts); a surviving key once let a discarded
     // session keep offering Resume (#1190). Guarded on the id because this banner is
     // server-rendered and never revalidated, so a stale tab could otherwise wipe a NEWER
     // session's answer buffer — for a mock_exam that is a graded attempt. See the fuller note

@@ -59,10 +59,13 @@ describe('ActivePracticeBanner — rendering', () => {
     expect(screen.getByText(/^unfinished smart review session$/i)).toBeInTheDocument()
   })
 
-  it('offers a Discard control but no Resume control', () => {
+  it('offers a Resume link to the session page and a Discard control', () => {
     render(<ActivePracticeBanner userId={USER_ID} session={SESSION} />)
+    expect(screen.getByRole('link', { name: /resume/i })).toHaveAttribute(
+      'href',
+      '/app/quiz/session/sess-prac-001',
+    )
     expect(screen.getByRole('button', { name: /^discard$/i })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /resume/i })).not.toBeInTheDocument()
   })
 })
 

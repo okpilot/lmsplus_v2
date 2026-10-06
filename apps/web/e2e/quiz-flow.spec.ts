@@ -1,7 +1,14 @@
 import { expect, test } from '@playwright/test'
+import { SESSION_ID_URL } from './helpers/quiz-session-id'
+import { cleanupStudentActiveSessions, TEST_EMAIL } from './helpers/supabase'
 
 // Use saved auth state from setup
 test.use({ storageState: 'e2e/.auth/user.json' })
+
+// A quiz left open by an earlier spec would block this spec's start (single active session).
+test.beforeEach(async () => {
+  await cleanupStudentActiveSessions(TEST_EMAIL)
+})
 
 test('quiz flow: configure → answer questions → view results → dashboard', async ({ page }) => {
   // 1. Navigate to quiz config
@@ -28,7 +35,7 @@ test('quiz flow: configure → answer questions → view results → dashboard',
   await page.getByRole('button', { name: 'Start Quiz' }).click()
 
   // 5. Wait for quiz session to load
-  await page.waitForURL('**/app/quiz/session', { timeout: 10_000 })
+  await page.waitForURL(SESSION_ID_URL, { timeout: 10_000 })
   await expect(page.getByText('Question 1')).toBeVisible({ timeout: 10_000 })
 
   // 6. Answer all 10 questions (deferred writes — no per-answer feedback)

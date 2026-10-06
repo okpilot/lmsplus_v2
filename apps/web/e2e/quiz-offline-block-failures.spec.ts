@@ -6,6 +6,7 @@ import {
   startStudyQuiz,
   submitFirstOption,
 } from './helpers/quiz-session'
+import { SESSION_ID_URL } from './helpers/quiz-session-id'
 import { cleanupStudentActiveSessions, TEST_EMAIL, TEST_PASSWORD } from './helpers/supabase'
 
 test.use({ storageState: 'e2e/.auth/user.json' })
@@ -146,7 +147,8 @@ test.describe('Quiz connection block: sign-in expiry, finishing and leaving', ()
     context,
   }) => {
     const total = await startStudyQuiz(page)
-    // Question 1 is saved first, so the tab holds a local checkpoint to resume from.
+    const sessionPath = new URL(page.url()).pathname
+    // Question 1 is saved first, so the server holds an answer to resume from.
     await submitFirstOption(page)
     await expect.poll(readServerAnsweredCount, { timeout: 10_000 }).toBe(1)
     await page.getByRole('button', { name: 'Next ›' }).click()
@@ -172,19 +174,19 @@ test.describe('Quiz connection block: sign-in expiry, finishing and leaving', ()
     await overlay.getByRole('button', { name: 'Sign in' }).click()
     await page.waitForURL(/\/\?next=/, { timeout: 15_000 })
     const next = new URL(page.url()).searchParams.get('next')
-    expect(next).toBe('/app/quiz/session')
-    expect(page.url()).toContain(`next=${encodeURIComponent('/app/quiz/session')}`)
+    expect(next).toBe(sessionPath)
+    expect(page.url()).toContain(`next=${encodeURIComponent(sessionPath)}`)
     expect(dialogs).not.toContain('beforeunload')
 
     await page.getByLabel('Email address').fill(TEST_EMAIL)
     await page.getByLabel('Password', { exact: true }).fill(TEST_PASSWORD)
     await page.getByRole('button', { name: 'Sign in' }).click()
-    await page.waitForURL('**/app/quiz/session', { timeout: 20_000 })
-    await expect(page.getByRole('heading', { name: 'Resume your quiz?' })).toBeVisible({
+    await page.waitForURL(SESSION_ID_URL, { timeout: 20_000 })
+    expect(new URL(page.url()).pathname).toBe(sessionPath)
+    await expect(page.getByText(new RegExp(`Question \\d+ of ${total}`))).toBeVisible({
       timeout: 10_000,
     })
-    await page.getByRole('button', { name: 'Resume' }).click()
-    await expect(page.getByText(/Question \d+ of /)).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByRole('heading', { name: 'Resume your quiz?' })).toHaveCount(0)
     expect(await readServerAnsweredCount()).toBe(1)
   })
 
@@ -204,7 +206,7 @@ test.describe('Quiz connection block: sign-in expiry, finishing and leaving', ()
     // The finish waits behind the unsent save: still on the session page, one POST so far.
     await expect(page.getByRole('button', { name: 'Submitting...' }).first()).toBeVisible()
     expect(held.state.posts).toBe(1)
-    await expect(page).toHaveURL(/\/app\/quiz\/session$/)
+    await expect(page).toHaveURL(SESSION_ID_URL)
 
     held.state.release()
     await page.waitForURL('**/app/quiz/report**', { timeout: 20_000 })
@@ -260,6 +262,6 @@ test.describe('Quiz connection block: sign-in expiry, finishing and leaving', ()
     await dialog.dismiss()
 
     expect(page.isClosed()).toBe(false)
-    await expect(page).toHaveURL(/\/app\/quiz\/session$/)
+    await expect(page).toHaveURL(SESSION_ID_URL)
   })
 })

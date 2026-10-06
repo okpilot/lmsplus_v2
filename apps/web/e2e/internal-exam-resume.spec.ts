@@ -2,8 +2,9 @@
  * E2E spec — Internal Exam mid-session resume.
  *
  * Covers: a student starts an internal exam, reloads the browser tab mid-flow,
- * and is restored to /app/quiz/session via the sessionStorage handoff. If the
- * handoff was lost, the recovery banner on /app/internal-exam is the fallback.
+ * and the same /app/quiz/session/<id> URL reopens the exam with its answers from
+ * the server. With nothing left in the browser, the recovery banner on
+ * /app/internal-exam links to that URL.
  *
  * Seed dependency: apps/web/scripts/seed-exam-eval.ts. Assumes admin
  * (admin@lmsplus.local) and the dedicated internal-exam student fixture
@@ -18,6 +19,7 @@
 
 import { type BrowserContext, expect, type Page, test } from '@playwright/test'
 import { signInAsAdmin } from './helpers/admin-supabase'
+import { SESSION_ID_URL } from './helpers/quiz-session-id'
 import {
   cleanupInternalExamStudentActiveSessions,
   INTERNAL_EXAM_STUDENT_EMAIL,
@@ -70,7 +72,7 @@ async function startInternalExamAsStudent(page: Page, code: string): Promise<voi
   await expect(page.getByTestId('code-entry-form')).toBeVisible()
   await page.getByTestId('code-input').fill(code)
   await page.getByRole('button', { name: 'Start exam' }).click()
-  await page.waitForURL(/\/app\/quiz\/session/, { timeout: 15_000 })
+  await page.waitForURL(SESSION_ID_URL, { timeout: 15_000 })
   await expect(page.getByText(/Question \d/)).toBeVisible({ timeout: 10_000 })
 }
 
@@ -83,7 +85,7 @@ test.describe('internal exam — refresh resume', () => {
     await cleanupInternalExamStudentActiveSessions(adminClient)
   })
 
-  test('reloading mid-session restores the session page (or surfaces the recovery banner)', async ({
+  test('reloading mid-session reopens the same exam URL with the confirmed answer locked', async ({
     page: adminPage,
     context: adminCtx,
   }) => {
@@ -92,31 +94,20 @@ test.describe('internal exam — refresh resume', () => {
     const { context: studentCtx, page } = await openStudentContext(adminCtx.browser())
     try {
       await startInternalExamAsStudent(page, code)
+      const sessionUrl = page.url()
 
-      // Buffer one answer so there's state worth recovering. The Confirm
-      // step is what writes the answer into sessionStorage and the buffered
-      // state — selection alone leaves the buffer empty.
-      await page.locator('button:has(span.rounded-full)').first().click()
+      // Confirming is what records the answer on the server; selection alone does not.
+      const firstOption = page.locator('button:has(span.rounded-full)').first()
+      await firstOption.click()
       await page.getByRole('button', { name: 'Confirm Answer' }).click()
-      await page.waitForTimeout(300)
+      await expect(firstOption).toBeDisabled()
 
-      // Force a full reload — sessionStorage survives in-tab reloads, so the
-      // session page should rehydrate via the handoff. If the handoff is lost
-      // (e.g. fresh tab), /app/quiz/session falls back to SessionRecoveryPrompt
-      // ("Resume your … Exam?"). The /app/internal-exam page is a separate
-      // recovery surface tested in the next spec.
       await page.reload()
 
-      const questionText = page.getByText(/Question \d/)
-      const recoveryPrompt = page.getByRole('heading', { name: /Resume your/i })
-      await expect(questionText.or(recoveryPrompt)).toBeVisible({ timeout: 15_000 })
-
-      if (await recoveryPrompt.isVisible().catch(() => false)) {
-        // Cold-rehydrate path — click Resume to re-enter the active session.
-        await page.getByRole('button', { name: 'Resume' }).click()
-        await expect(page.getByText(/Question \d/)).toBeVisible({ timeout: 10_000 })
-      }
-      // Otherwise: warm rehydrate path — the question is already visible.
+      await expect(page).toHaveURL(sessionUrl)
+      await expect(page.getByText(/Question \d/)).toBeVisible({ timeout: 15_000 })
+      await expect(page.getByRole('heading', { name: /Resume your/i })).toHaveCount(0)
+      await expect(page.locator('button:has(span.rounded-full)').first()).toBeDisabled()
     } finally {
       await studentCtx.tracing
         .stop({ path: test.info().outputPath('student-trace.zip') })
@@ -134,13 +125,13 @@ test.describe('internal exam — refresh resume', () => {
     const { context: studentCtx, page } = await openStudentContext(adminCtx.browser())
     try {
       await startInternalExamAsStudent(page, code)
+      const sessionUrl = page.url()
 
-      // Clear the warm sessionStorage handoff so only the server-side active
-      // session remains. The /app/internal-exam page must surface a banner.
+      // Leave nothing in the browser so only the server-side active session remains.
+      // The /app/internal-exam page must surface a banner.
       await page.evaluate(() => {
-        for (const key of Object.keys(sessionStorage)) {
-          if (key.startsWith('quiz-session:')) sessionStorage.removeItem(key)
-        }
+        localStorage.clear()
+        sessionStorage.clear()
       })
 
       await page.goto('/app/internal-exam')
@@ -149,9 +140,10 @@ test.describe('internal exam — refresh resume', () => {
         timeout: 10_000,
       })
 
-      // Resume button navigates back to the session page.
+      // The Resume link opens the exam's own session URL.
       await page.getByTestId('resume-internal-exam-link').click()
-      await page.waitForURL(/\/app\/quiz\/session/, { timeout: 10_000 })
+      await page.waitForURL(SESSION_ID_URL, { timeout: 10_000 })
+      expect(page.url()).toBe(sessionUrl)
       await expect(page.getByText(/Question \d/)).toBeVisible({ timeout: 10_000 })
     } finally {
       await studentCtx.tracing

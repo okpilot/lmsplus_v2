@@ -89,7 +89,7 @@ async function startQuizCapturing(page: Page): Promise<Captured> {
   await page.locator('[data-testid="subject-option"]').first().click()
   await page.getByRole('button', { name: 'All' }).click()
   await page.getByRole('button', { name: 'Start Quiz' }).click()
-  await page.waitForURL(`**${SESSION_PATH}`, { timeout: 15_000 })
+  await page.waitForURL(new RegExp(`${SESSION_PATH}/[0-9a-f-]{36}$`), { timeout: 15_000 })
   await expect(page.getByText(/Question 1 of \d+/)).toBeVisible({ timeout: 15_000 })
   const answers = page.locator('button:has(span.rounded-full)')
   await answers.first().click()

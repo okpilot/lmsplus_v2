@@ -1,275 +1,203 @@
 import { expect, type Page, test } from '@playwright/test'
-import { cleanupStudentActiveSessions, TEST_EMAIL } from './helpers/supabase'
+import { startStudyQuiz, submitFirstOption } from './helpers/quiz-session'
+import {
+  readSessionRow,
+  resetStudentQuizSessions,
+  SESSION_ID_URL,
+  sessionIdFromUrl,
+} from './helpers/quiz-session-id'
+import { readUserId } from './helpers/recovery-code'
+import { TEST_EMAIL } from './helpers/supabase'
 
 test.use({ storageState: 'e2e/.auth/user.json' })
 
+type Abandoned = { sessionId: string; sessionUrl: string; total: number }
+
 /**
- * Start a quiz with all available questions, answer `answerCount` of them,
- * then navigate away. Leaves recovery data in localStorage.
- * Returns the total question count for assertions.
+ * Starts a quiz with every available question, answers `answerCount` of them, then leaves the
+ * runner. The session stays open on the server: it is what the Unfinished banner offers back.
  */
-async function startAndAbandonQuiz(
-  page: Page,
-  answerCount: number,
-): Promise<{ totalQuestions: number }> {
-  await page.goto('/app/quiz')
-
-  // Clear stale recovery data
-  await page.evaluate(() => {
-    for (const key of Object.keys(localStorage)) {
-      if (key.startsWith('quiz-active-session:')) localStorage.removeItem(key)
-    }
-  })
-  await page.reload()
-  await expect(page.getByRole('heading', { name: 'Quiz' })).toBeVisible()
-
-  // The quiz page defaults to Discovery (flashcards) — switch to the scored Study quiz.
-  await page.getByRole('button', { name: 'Study', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Study', exact: true })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  )
-
-  // Configure: select first subject, all available questions
-  const subjectTrigger = page.locator('[data-testid="subject-trigger"]')
-  await subjectTrigger.waitFor({ state: 'visible' })
-  await subjectTrigger.click()
-  await page.locator('[data-testid="subject-option"]').first().click()
-
-  // Use "All" button (never disabled, works regardless of question count)
-  await page.getByRole('button', { name: 'All' }).click()
-
-  // Read total from "of N selected" text and verify enough questions exist
-  const selectedText = await page.getByText(/of \d+ selected/).textContent()
-  const totalQuestions = Number(selectedText?.match(/of (\d+) selected/)?.[1] ?? 0)
-  expect(totalQuestions).toBeGreaterThanOrEqual(
-    answerCount + 1,
-    `Need at least ${answerCount + 1} questions (found ${totalQuestions}) for this test`,
-  )
-
-  await page.getByRole('button', { name: 'Start Quiz' }).click()
-
-  // Wait for quiz session to load
-  await page.waitForURL('**/app/quiz/session', { timeout: 10_000 })
-  await expect(page.getByText('Question 1')).toBeVisible({ timeout: 10_000 })
-
-  // Answer questions (must be < totalQuestions so Next button always appears)
+async function startAndAbandonQuiz(page: Page, answerCount: number): Promise<Abandoned> {
+  const total = await startStudyQuiz(page)
+  expect(total).toBeGreaterThanOrEqual(answerCount + 1)
+  const sessionUrl = page.url()
   for (let i = 0; i < answerCount; i++) {
-    const answerBtns = page.locator('button:has(span.rounded-full)')
-    await answerBtns.first().waitFor({ state: 'visible' })
-    await answerBtns.first().click()
-    await page.getByRole('button', { name: 'Submit Answer' }).first().click()
-
+    await submitFirstOption(page)
     // Submit stays visible while the check is in flight; it unmounts once feedback is recorded.
     await expect(page.getByRole('button', { name: 'Submit Answer' })).toHaveCount(0, {
       timeout: 10_000,
     })
-    const nextBtn = page.getByRole('button', { name: 'Next ›' })
-
-    if (i < answerCount - 1) {
-      await nextBtn.click()
-    }
+    if (i < answerCount - 1) await page.getByRole('button', { name: 'Next ›' }).click()
   }
+  const sessionId = sessionIdFromUrl(sessionUrl)
+  await expect
+    .poll(async () => (await readSessionRow(sessionId)).currentIndex, { timeout: 10_000 })
+    .toBe(answerCount - 1)
 
-  // Abandon: navigate away — localStorage recovery data persists
   await page.goto('/app/quiz')
   await expect(page.getByRole('heading', { name: 'Quiz' })).toBeVisible()
+  return { sessionId, sessionUrl, total }
+}
 
-  return { totalQuestions }
+async function saveForLater(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Finish Test' }).click()
+  await expect(page.getByRole('dialog', { name: 'Finish quiz' })).toBeVisible()
+  await page.getByRole('button', { name: 'Save for Later' }).click()
+  await page.waitForURL(/\/app\/quiz$/, { timeout: 15_000 })
 }
 
 test.describe('Quiz Session Recovery', () => {
-  // The user.json identity (TEST_EMAIL) is shared across this project's specs and
-  // each test abandons a quiz, leaving an active quiz_sessions row. Under the
-  // single-active-session invariant (#1011) a leftover active session makes the
-  // next test's Start Quiz fail with `another_session_active`. Soft-delete any
-  // active session BEFORE each test so every test starts from a clean baseline.
+  // The user.json identity (TEST_EMAIL) is shared across this project's specs and each test
+  // abandons a quiz, leaving an open quiz_sessions row. Under the single-active-session
+  // invariant (#1011) a leftover one makes the next Start Quiz fail with
+  // `another_session_active`, and saved sessions count toward the 20-quiz cap. Clear both
+  // before and after each test.
   test.beforeEach(async () => {
-    await cleanupStudentActiveSessions(TEST_EMAIL)
+    await resetStudentQuizSessions(TEST_EMAIL)
   })
 
   test.afterEach(async ({ page }) => {
-    await page.evaluate(() => {
-      for (const key of Object.keys(localStorage)) {
-        if (key.startsWith('quiz-active-session:')) localStorage.removeItem(key)
-      }
-    })
+    const errors: string[] = []
+    try {
+      await page.evaluate(() => {
+        for (const key of Object.keys(localStorage)) {
+          if (key.startsWith('quiz-active-session:')) localStorage.removeItem(key)
+        }
+      })
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
+    }
+    try {
+      await resetStudentQuizSessions(TEST_EMAIL)
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
+    }
+    if (errors.length > 0) throw new Error(`afterEach: ${errors.join('; ')}`)
   })
 
-  // ── 1. Recovery banner: resume ────────────────────────────────────
+  // ── 1. Unfinished banner: resume ──────────────────────────────────
 
-  test('recovery banner appears after abandoning quiz and resume restores state', async ({
+  test('the Unfinished banner shows the abandoned quiz and Resume reopens it at its last position', async ({
     page,
   }) => {
-    const { totalQuestions } = await startAndAbandonQuiz(page, 2)
+    const { sessionUrl, total } = await startAndAbandonQuiz(page, 2)
 
-    // Recovery banner should show correct progress
-    await expect(page.getByText('Unfinished quiz found')).toBeVisible()
-    await expect(
-      page.getByText(new RegExp(`2 of ${totalQuestions} questions answered`)),
-    ).toBeVisible()
+    await expect(page.getByText('Unfinished Quick Quiz session', { exact: true })).toBeVisible()
+    await page.getByRole('link', { name: 'Resume', exact: true }).click()
 
-    // Click Resume
-    await page.getByRole('button', { name: 'Resume' }).click()
-
-    // Should navigate to session page at last answered question (Q2)
-    await page.waitForURL('**/app/quiz/session', { timeout: 10_000 })
-    await expect(page.getByText(`Question 2 of ${totalQuestions}`)).toBeVisible({ timeout: 10_000 })
+    await page.waitForURL(SESSION_ID_URL, { timeout: 10_000 })
+    expect(page.url()).toBe(sessionUrl)
+    await expect(page.getByText(`Question 2 of ${total}`)).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByRole('heading', { name: 'Resume your quiz?' })).toHaveCount(0)
 
     // Can continue to the next unanswered question
     await page.getByRole('button', { name: 'Next ›' }).click()
-    await expect(page.getByText(`Question 3 of ${totalQuestions}`)).toBeVisible()
+    await expect(page.getByText(`Question 3 of ${total}`)).toBeVisible()
   })
 
-  // ── 2. Recovery banner: discard ───────────────────────────────────
+  // ── 2. Unfinished banner: discard ─────────────────────────────────
 
-  test('discard from recovery banner clears session data', async ({ page }) => {
-    await startAndAbandonQuiz(page, 2)
+  test('Discard from the Unfinished banner discards the session and clears the legacy local copy', async ({
+    page,
+  }) => {
+    const { sessionId } = await startAndAbandonQuiz(page, 2)
+    const userId = await readUserId(TEST_EMAIL)
+    const key = `quiz-active-session:${userId}`
+    await page.evaluate((k) => localStorage.setItem(k, '{}'), key)
+    await expect(page.getByText('Unfinished Quick Quiz session', { exact: true })).toBeVisible()
+    expect((await readSessionRow(sessionId)).deletedAt).toBeNull()
 
-    await expect(page.getByText('Unfinished quiz found')).toBeVisible()
-
-    // The server-side ActivePracticeBanner (#1011) also renders a "Discard" button
-    // for the abandoned session, so scope the click to the localStorage recovery
-    // banner (the one with "Unfinished quiz found") to avoid a strict-mode match.
-    const recoveryBanner = page.getByText('Unfinished quiz found').locator('..')
-
-    // Click Discard — opens confirmation dialog, then confirm
-    await recoveryBanner.getByRole('button', { name: /^Discard$/i }).click()
+    // Discard opens a confirmation dialog, then the dialog's own Discard confirms.
+    await page.getByRole('button', { name: /^Discard$/ }).click()
     await expect(page.getByRole('alertdialog')).toBeVisible()
     await page
       .getByRole('alertdialog')
-      .getByRole('button', { name: /^Discard$/i })
+      .getByRole('button', { name: /^Discard$/ })
       .click()
 
-    // Banner should disappear
-    await expect(page.getByText('Unfinished quiz found')).not.toBeVisible()
-
-    // localStorage should be cleared
-    const hasRecovery = await page.evaluate(() =>
-      Object.keys(localStorage).some((k) => k.startsWith('quiz-active-session:')),
-    )
-    expect(hasRecovery).toBe(false)
+    await expect(page.getByText('Unfinished Quick Quiz session', { exact: true })).toHaveCount(0)
+    await expect.poll(async () => (await readSessionRow(sessionId)).deletedAt).not.toBeNull()
+    expect(await page.evaluate((k) => localStorage.getItem(k), key)).toBeNull()
   })
 
-  // ── 3. Recovery banner: save for later ────────────────────────────
+  // ── 3. Saved tab: delete ──────────────────────────────────────────
 
-  test('save for later from recovery banner saves draft and clears data', async ({ page }) => {
-    await startAndAbandonQuiz(page, 2)
+  test('Delete in the Saved tab removes a saved quiz and frees its saved slot', async ({
+    page,
+  }) => {
+    const { sessionId, total } = await startAndAbandonQuiz(page, 2)
+    await page.goto(`/app/quiz/session/${sessionId}`)
+    await expect(page.getByText(`Question 2 of ${total}`)).toBeVisible({ timeout: 10_000 })
+    await saveForLater(page)
+    await page.getByTestId('tab-saved').click()
+    await expect(page.getByText(`2 of ${total} answered`)).toBeVisible()
+    expect((await readSessionRow(sessionId)).savedAt).not.toBeNull()
 
-    await expect(page.getByText('Unfinished quiz found')).toBeVisible()
+    page.once('dialog', (dialog) => void dialog.accept())
+    await page.getByTestId('delete-saved-session').click()
 
-    // Click Save for Later
-    await page.getByRole('button', { name: 'Save for Later' }).click()
-
-    // Banner should disappear after the draft is saved
-    await expect(page.getByText('Unfinished quiz found')).not.toBeVisible({ timeout: 10_000 })
-
-    // localStorage should be cleared
-    const hasRecovery = await page.evaluate(() =>
-      Object.keys(localStorage).some((k) => k.startsWith('quiz-active-session:')),
-    )
-    expect(hasRecovery).toBe(false)
+    await expect(page.getByTestId('resume-saved-session')).toHaveCount(0)
+    await expect.poll(async () => (await readSessionRow(sessionId)).savedAt).toBeNull()
   })
 
-  // ── 4. Confirm dialog on new quiz start ───────────────────────────
+  // ── 4. Saved session URL: the Saved quiz page ─────────────────────
 
-  test('confirm dialog when starting new quiz with existing recovery data', async ({ page }) => {
-    await startAndAbandonQuiz(page, 2)
+  test('opening the URL of a saved quiz shows its Saved quiz page and Resume reopens it', async ({
+    page,
+  }) => {
+    const { sessionId, sessionUrl, total } = await startAndAbandonQuiz(page, 2)
+    await page.goto(sessionUrl)
+    await expect(page.getByText(`Question 2 of ${total}`)).toBeVisible({ timeout: 10_000 })
+    await saveForLater(page)
 
-    await expect(page.getByText('Unfinished quiz found')).toBeVisible()
+    await page.goto(sessionUrl)
+    await expect(page.getByRole('heading', { name: 'Saved quiz' })).toBeVisible()
+    await expect(page.getByText(`2 of ${total} answered`)).toBeVisible()
+    await page.getByRole('button', { name: 'Resume', exact: true }).click()
 
-    // The fresh quiz page defaults to Discovery (flashcards) — switch to the scored Study quiz.
-    await page.getByRole('button', { name: 'Study', exact: true }).click()
-    await expect(page.getByRole('button', { name: 'Study', exact: true })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    )
-
-    // Configure a new quiz
-    const subjectTrigger = page.locator('[data-testid="subject-trigger"]')
-    await subjectTrigger.waitFor({ state: 'visible' })
-    await subjectTrigger.click()
-    await page.locator('[data-testid="subject-option"]').first().click()
-    await page.getByRole('button', { name: 'All' }).click()
-
-    // First attempt: Playwright auto-dismisses confirm (returns false) → stays on page
-    await page.getByRole('button', { name: 'Start Quiz' }).click()
-    await expect(page).toHaveURL(/\/app\/quiz$/)
-    await expect(page.getByText('Unfinished quiz found')).toBeVisible()
-
-    // This test verifies the localStorage confirm dialog gates a new-quiz start —
-    // a flow independent of the DB session. The abandoned session is still active
-    // in the DB, so under the single-active-session invariant (#1011) the accepted
-    // second start would otherwise raise `another_session_active`. Soft-delete the
-    // abandoned DB session (leaving localStorage intact, so the confirm still
-    // fires) to isolate the dialog behaviour this test targets.
-    await cleanupStudentActiveSessions(TEST_EMAIL)
-
-    // Second attempt: accept the confirm → starts new quiz
-    page.once('dialog', (d) => d.accept())
-    await page.getByRole('button', { name: 'Start Quiz' }).click()
-    await page.waitForURL('**/app/quiz/session', { timeout: 10_000 })
-    await expect(page.getByText('Question 1')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText(`Question 2 of ${total}`)).toBeVisible({ timeout: 10_000 })
+    expect(page.url()).toBe(sessionUrl)
+    expect((await readSessionRow(sessionId)).savedAt).toBeNull()
   })
 
-  // ── 5. Session page: recovery prompt + resume ─────────────────────
+  // ── 5. Saved session URL: delete ──────────────────────────────────
 
-  test('session page shows recovery prompt and resume works', async ({ page }) => {
-    const { totalQuestions } = await startAndAbandonQuiz(page, 2)
+  test('Delete on the Saved quiz page returns to the quiz page without the quiz', async ({
+    page,
+  }) => {
+    const { sessionId, sessionUrl, total } = await startAndAbandonQuiz(page, 2)
+    await page.goto(sessionUrl)
+    await expect(page.getByText(`Question 2 of ${total}`)).toBeVisible({ timeout: 10_000 })
+    await saveForLater(page)
+    await page.goto(sessionUrl)
+    await expect(page.getByRole('heading', { name: 'Saved quiz' })).toBeVisible()
 
-    // Clear sessionStorage to simulate closed tab / new tab
-    await page.evaluate(() => {
-      for (const key of Object.keys(sessionStorage)) {
-        if (key.startsWith('quiz-session:')) sessionStorage.removeItem(key)
-      }
-    })
+    page.once('dialog', (dialog) => void dialog.accept())
+    await page.getByRole('button', { name: 'Delete', exact: true }).click()
 
-    // Navigate directly to session page
-    await page.goto('/app/quiz/session')
-
-    // Should show the in-page recovery prompt
-    await expect(page.getByRole('heading', { name: 'Resume your quiz?' })).toBeVisible({
-      timeout: 10_000,
-    })
-    await expect(
-      page.getByText(new RegExp(`2 of ${totalQuestions} questions answered`)),
-    ).toBeVisible()
-
-    // Click Resume — loads questions and renders quiz at saved position
-    await page.getByRole('button', { name: 'Resume' }).click()
-    await expect(page.getByText(`Question 2 of ${totalQuestions}`)).toBeVisible({ timeout: 10_000 })
-
-    // Can continue to next question
-    await page.getByRole('button', { name: 'Next ›' }).click()
-    await expect(page.getByText(`Question 3 of ${totalQuestions}`)).toBeVisible()
+    await page.waitForURL(/\/app\/quiz$/, { timeout: 10_000 })
+    await expect.poll(async () => (await readSessionRow(sessionId)).savedAt).toBeNull()
+    await page.getByTestId('tab-saved').click()
+    await expect(page.getByTestId('resume-saved-session')).toHaveCount(0)
   })
 
-  // ── 6. Session page: recovery prompt + discard ────────────────────
+  test('declining Delete on the Saved quiz page keeps the saved quiz and its page', async ({
+    page,
+  }) => {
+    const { sessionId, sessionUrl, total } = await startAndAbandonQuiz(page, 2)
+    await page.goto(sessionUrl)
+    await expect(page.getByText(`Question 2 of ${total}`)).toBeVisible({ timeout: 10_000 })
+    await saveForLater(page)
+    await page.goto(sessionUrl)
+    await expect(page.getByRole('heading', { name: 'Saved quiz' })).toBeVisible()
 
-  test('session page recovery discard redirects to quiz config', async ({ page }) => {
-    await startAndAbandonQuiz(page, 2)
+    page.once('dialog', (dialog) => void dialog.dismiss())
+    await page.getByRole('button', { name: 'Delete', exact: true }).click()
 
-    await page.evaluate(() => {
-      for (const key of Object.keys(sessionStorage)) {
-        if (key.startsWith('quiz-session:')) sessionStorage.removeItem(key)
-      }
-    })
-    await page.goto('/app/quiz/session')
-
-    await expect(page.getByRole('heading', { name: 'Resume your quiz?' })).toBeVisible({
-      timeout: 10_000,
-    })
-
-    // Click Discard — opens confirmation dialog, then confirm
-    await page.getByRole('button', { name: /^Discard$/i }).click()
-    await expect(page.getByRole('alertdialog')).toBeVisible()
-    await page
-      .getByRole('alertdialog')
-      .getByRole('button', { name: /^Discard$/i })
-      .click()
-    await page.waitForURL('**/app/quiz', { timeout: 10_000 })
-
-    // No recovery banner (data was cleared)
-    await expect(page.getByText('Unfinished quiz found')).not.toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Saved quiz' })).toBeVisible()
+    expect(page.url()).toBe(sessionUrl)
+    expect((await readSessionRow(sessionId)).savedAt).not.toBeNull()
+    await page.reload()
+    await expect(page.getByRole('heading', { name: 'Saved quiz' })).toBeVisible()
   })
 })

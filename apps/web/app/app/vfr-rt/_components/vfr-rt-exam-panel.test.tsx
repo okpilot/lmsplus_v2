@@ -13,16 +13,13 @@ vi.mock('../_hooks/use-vfr-rt-exam-start', () => ({
 
 import { VfrRtExamPanel } from './vfr-rt-exam-panel'
 
+const IDLE = { offer: null, saving: false, error: null, onAccept: vi.fn() }
+
 const SUBJECTS = [{ id: 's-rt', code: 'RT', name: 'VFR RT', short: 'RT', questionCount: 3 }]
 
 function renderPanel(questionCount: number | null = null) {
   return render(
-    <VfrRtExamPanel
-      userId="user-1"
-      subjectId="s-rt"
-      subjects={SUBJECTS}
-      questionCount={questionCount}
-    />,
+    <VfrRtExamPanel subjectId="s-rt" subjects={SUBJECTS} questionCount={questionCount} />,
   )
 }
 
@@ -32,6 +29,7 @@ beforeEach(() => {
     loading: false,
     error: null,
     handleStart: mockHandleStart,
+    blocked: IDLE,
   })
 })
 
@@ -69,7 +67,6 @@ describe('VfrRtExamPanel', () => {
   it('passes the user, subject id and subjects to the start hook', () => {
     renderPanel()
     expect(mockUseVfrRtExamStart).toHaveBeenCalledWith({
-      userId: 'user-1',
       subjectId: 's-rt',
       subjects: SUBJECTS,
     })
@@ -80,6 +77,7 @@ describe('VfrRtExamPanel', () => {
       loading: false,
       error: 'No exam configured',
       handleStart: mockHandleStart,
+      blocked: IDLE,
     })
     renderPanel()
     expect(screen.getByRole('alert')).toHaveTextContent('No exam configured')
@@ -90,8 +88,26 @@ describe('VfrRtExamPanel', () => {
       loading: true,
       error: null,
       handleStart: mockHandleStart,
+      blocked: IDLE,
     })
     renderPanel()
     expect(screen.getByRole('button', { name: /starting/i })).toBeDisabled()
+  })
+
+  it('offers to save the open practice quiz when the start is blocked', async () => {
+    const onAccept = vi.fn()
+    mockUseVfrRtExamStart.mockReturnValue({
+      loading: false,
+      error: 'Another session is active',
+      handleStart: mockHandleStart,
+      blocked: { ...IDLE, onAccept, offer: { sessionId: 'b-1', subjectName: 'Air Law' } },
+    })
+    renderPanel()
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Save quiz for later and start the exam' }),
+    )
+
+    expect(onAccept).toHaveBeenCalledTimes(1)
   })
 })

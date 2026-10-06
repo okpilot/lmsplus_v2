@@ -1,5 +1,18 @@
-import { describe, expect, it, vi } from 'vitest'
-import { confirmStartOverwrite, failStart } from './start-handler-shared'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const { mockGetActivePracticeSession } = vi.hoisted(() => ({
+  mockGetActivePracticeSession: vi.fn(),
+}))
+
+vi.mock('../actions/get-active-practice-session', () => ({
+  getActivePracticeSession: (...args: unknown[]) => mockGetActivePracticeSession(...args),
+}))
+
+import { failStart, reportStartFailure } from './start-handler-shared'
+
+beforeEach(() => {
+  vi.resetAllMocks()
+})
 
 // ---- failStart -------------------------------------------------------------
 
@@ -19,37 +32,56 @@ describe('failStart', () => {
   })
 })
 
-// ---- confirmStartOverwrite ---------------------------------------------------
+// ---- reportStartFailure ------------------------------------------------------
 
-describe('confirmStartOverwrite', () => {
-  it('proceeds without prompting when there is no unfinished session', () => {
-    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(true)
-    expect(confirmStartOverwrite(null, 'a new quiz')).toBe(true)
-    expect(confirmSpy).not.toHaveBeenCalled()
-    confirmSpy.mockRestore()
+function makeState() {
+  return {
+    setLoading: vi.fn(),
+    setError: vi.fn(),
+    setBlocked: vi.fn(),
+    inFlight: { current: true },
+  }
+}
+
+describe('reportStartFailure', () => {
+  it('shows the message without looking up a blocker when the start was not blocked', async () => {
+    const state = makeState()
+    await reportStartFailure(state, { error: 'No questions available' })
+    expect(state.setError).toHaveBeenCalledWith('No questions available')
+    expect(mockGetActivePracticeSession).not.toHaveBeenCalled()
+    expect(state.setBlocked).not.toHaveBeenCalled()
+    expect(state.inFlight.current).toBe(false)
   })
 
-  it('names the unfinished session subject and the new activity in the prompt', () => {
-    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(true)
-    expect(confirmStartOverwrite({ subjectName: 'Meteorology' }, 'an exam')).toBe(true)
-    // 'unfinished session' is intentionally generic — it covers both quiz and exam overwrites.
-    expect(confirmSpy).toHaveBeenCalledWith(expect.stringContaining('unfinished session'))
-    expect(confirmSpy).toHaveBeenCalledWith(expect.stringContaining('(Meteorology)'))
-    expect(confirmSpy).toHaveBeenCalledWith(expect.stringContaining('an exam'))
-    confirmSpy.mockRestore()
+  it('offers to save the open practice quiz when the start is blocked by one', async () => {
+    mockGetActivePracticeSession.mockResolvedValue({
+      success: true,
+      session: { sessionId: 'blocker-1', subjectName: 'Air Law' },
+    })
+    const state = makeState()
+    await reportStartFailure(state, { error: 'Another session is active', blocked: true })
+    expect(state.setBlocked).toHaveBeenCalledWith({
+      sessionId: 'blocker-1',
+      subjectName: 'Air Law',
+    })
+    expect(state.setError).toHaveBeenCalledWith('Another session is active')
+    expect(state.inFlight.current).toBe(false)
   })
 
-  it('omits the subject suffix when the unfinished session has no subject name', () => {
-    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(true)
-    confirmStartOverwrite({}, 'a new quiz')
-    expect(confirmSpy).toHaveBeenCalledTimes(1)
-    expect(confirmSpy.mock.calls[0]?.[0]).not.toMatch(/\(/)
-    confirmSpy.mockRestore()
+  it('offers nothing when the blocker is not a practice session', async () => {
+    mockGetActivePracticeSession.mockResolvedValue({ success: true, session: null })
+    const state = makeState()
+    await reportStartFailure(state, { error: 'Another session is active', blocked: true })
+    expect(state.setBlocked).not.toHaveBeenCalled()
+    expect(state.setError).toHaveBeenCalledWith('Another session is active')
   })
 
-  it('blocks the start when the user declines the prompt', () => {
-    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(false)
-    expect(confirmStartOverwrite({ subjectName: 'Air Law' }, 'a new quiz')).toBe(false)
-    confirmSpy.mockRestore()
+  it('still shows the message when the blocker lookup fails', async () => {
+    mockGetActivePracticeSession.mockRejectedValue(new Error('network'))
+    const state = makeState()
+    await reportStartFailure(state, { error: 'Another session is active', blocked: true })
+    expect(state.setBlocked).not.toHaveBeenCalled()
+    expect(state.setError).toHaveBeenCalledWith('Another session is active')
+    expect(state.inFlight.current).toBe(false)
   })
 })
