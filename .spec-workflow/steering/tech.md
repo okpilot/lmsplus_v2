@@ -23,7 +23,7 @@ Multi-tenant SaaS web application for EASA PPL aviation training. Serves Approve
 - **Supabase JS (`@supabase/supabase-js`, `@supabase/ssr`)**: Typed Postgres client, auth helpers, storage SDK.
 - **Zod**: Runtime input validation on every Server Action and API route.
 - **next-themes**: Dark mode via `attribute="class"`, system preference default.
-- **@sentry/nextjs v10**: Error tracking with source maps, 10% trace sampling, tunnel route.
+- **@sentry/nextjs v11**: Error tracking with source maps, 10% trace sampling, tunnel route.
 - **@dnd-kit** (`@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities`): Accessible, touch-capable drag-and-drop for the VFR RT Part-3 `ordering`/`diagram_label` question types. Sensors: PointerSensor, TouchSensor (delay 250ms / tolerance 5px, iPad), KeyboardSensor.
 - **Turborepo**: Monorepo orchestration with task caching and dependency graphs.
 
@@ -67,7 +67,7 @@ lmsplusv2/
 
 ### Monitoring & Dashboard Technologies
 
-- **Error tracking**: Sentry (`@sentry/nextjs` v10) with error boundaries and 10% trace sampling.
+- **Error tracking**: Sentry (`@sentry/nextjs` v11) with error boundaries and 10% trace sampling.
 - **CI dashboards**: GitHub Actions for all pipelines. Codecov and SonarCloud dashboards for coverage/quality.
 - **Lighthouse CI**: Performance/accessibility audits on PRs (min scores: a11y 0.9, best-practices 0.9, SEO 0.85).
 - **State management**: React Server Components (server state) + React hooks (client state). No Redux or external state library.
