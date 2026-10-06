@@ -320,6 +320,22 @@ jobs:
       - name: Run app-layer integration tests
         run: pnpm --filter @repo/web test:integration
 
+      # #1236: integration tests intermittently lose a request to Kong ("An invalid response was
+      # received from the upstream server"). Dump the stack's logs on failure to find the upstream cause.
+      - name: Dump Supabase container logs
+        if: failure()
+        run: |
+          docker ps -a --format 'table {{.Names}}\t{{.Status}}' | grep -i supabase || true
+          for name in $(docker ps -a --format '{{.Names}}' | grep -E '^supabase_(kong|rest|auth|db)_'); do
+            echo "::group::${name} (restarts/OOMKilled: $(docker inspect --format '{{.RestartCount}} {{.State.OOMKilled}}' "$name"))"
+            case "$name" in
+              # Drop 2xx/3xx/4xx access lines; keep 5xx and the error log.
+              supabase_kong_*) docker logs "$name" 2>&1 | grep -vE '" [234][0-9]{2} ' | tail -300 || true ;;
+              *) docker logs "$name" 2>&1 | tail -300 || true ;;
+            esac
+            echo "::endgroup::"
+          done
+
   e2e-tests:
     name: E2E Tests (Playwright)
     runs-on: ubuntu-latest
