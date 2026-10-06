@@ -71,13 +71,20 @@ disable_kong_upstream_keepalive() {
     echo "::error::no supabase_kong_* container to reload"
     exit 1
   fi
-  if ! docker exec -e KONG_UPSTREAM_KEEPALIVE_POOL_SIZE=0 "$kong" kong reload; then
+  # The template path must match the --nginx-conf the CLI starts Kong with:
+  # docker inspect <kong> --format '{{json .Config.Cmd}}'
+  if ! docker exec -e KONG_UPSTREAM_KEEPALIVE_POOL_SIZE=0 "$kong" \
+    kong reload --nginx-conf /home/kong/custom_nginx.template; then
     echo "::error::kong reload failed"
     docker logs --tail 50 "$kong" || true
     exit 1
   fi
   if ! docker exec "$kong" grep -q '^upstream_keepalive_pool_size = 0$' /usr/local/kong/.kong_env; then
     echo "::error::Kong upstream keepalive pool is still enabled after reload"
+    exit 1
+  fi
+  if ! docker exec "$kong" grep -q 'listen 0.0.0.0:8088' /usr/local/kong/nginx.conf; then
+    echo "::error::Kong reload dropped the CLI's email_templates server (:8088)"
     exit 1
   fi
   echo "✓ Kong upstream keepalive pool disabled"
