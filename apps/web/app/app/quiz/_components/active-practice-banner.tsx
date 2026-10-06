@@ -9,7 +9,7 @@ import { ActivePracticeDiscardDialog } from './active-practice-discard-dialog'
 // Banner for an active practice session detected server-side. Resume opens the session
 // page, which loads the answers from the server; Discard clears the session.
 // `userId` is required (not optional) so a caller cannot silently skip the localStorage
-// clear the discard depends on (until #1453) — matching ResumeExamBanner.
+// clear the discard depends on — matching ResumeExamBanner.
 export function ActivePracticeBanner({
   userId,
   session,

@@ -26,6 +26,7 @@ const DEVICE = 'device-1'
 
 beforeEach(() => {
   vi.resetAllMocks()
+  localStorage.clear()
   mockDeviceId.mockReturnValue(DEVICE)
   mockClaim.mockResolvedValue({ success: true })
   mockSave.mockResolvedValue({ success: true })
@@ -60,6 +61,25 @@ describe('useBlockedStart', () => {
     expect(mockClaim).toHaveBeenCalledWith({ sessionId: 'blocker-1', deviceId: DEVICE })
     expect(mockSave).toHaveBeenCalledWith({ sessionId: 'blocker-1', deviceId: DEVICE })
     expect(result.current.offer).toBeNull()
+  })
+
+  it('drops the saved quiz from this browser so it is not offered for recovery', async () => {
+    localStorage.setItem('quiz-active-session:u1', JSON.stringify({ sessionId: 'blocker-1' }))
+    const { result } = renderWithOffer()
+
+    await act(async () => result.current.accept(vi.fn()))
+
+    expect(localStorage.getItem('quiz-active-session:u1')).toBeNull()
+  })
+
+  it('keeps the quiz in this browser when saving it fails', async () => {
+    mockSave.mockResolvedValue({ success: false, error: 'Too many saved quizzes' })
+    localStorage.setItem('quiz-active-session:u1', JSON.stringify({ sessionId: 'blocker-1' }))
+    const { result } = renderWithOffer()
+
+    await act(async () => result.current.accept(vi.fn()))
+
+    expect(localStorage.getItem('quiz-active-session:u1')).not.toBeNull()
   })
 
   it('shows the limit copy and neither takes over nor saves when the saved quizzes are full', async () => {

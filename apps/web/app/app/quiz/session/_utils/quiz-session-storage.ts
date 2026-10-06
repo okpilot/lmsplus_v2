@@ -9,7 +9,8 @@ import type { SessionData } from './quiz-session-handoff'
 // not be representable in the stored shape. SessionData (the handoff) stays broad.
 type ResumableSessionMode = Extract<SessionMode, 'study' | 'exam'>
 
-const storageKey = (userId: string) => `quiz-active-session:${userId}`
+export const ACTIVE_SESSION_KEY_PREFIX = 'quiz-active-session:'
+const storageKey = (userId: string) => `${ACTIVE_SESSION_KEY_PREFIX}${userId}`
 
 export type ActiveSession = {
   userId: string

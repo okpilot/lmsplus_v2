@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { claimQuizSession } from '../actions/quiz-progress'
 import { checkSavedQuizRoom, saveQuizForLater } from '../actions/saved-quiz'
+import { clearActiveSessionById } from '../session/_utils/clear-active-session-by-id'
 import { getQuizDeviceId } from '../session/_utils/quiz-device-id'
 import type { BlockedOffer } from './start-handler-shared'
 
@@ -24,7 +25,10 @@ async function freeActiveSlot(sessionId: string): Promise<string | null> {
   const claim = await claimQuizSession({ sessionId, deviceId })
   if (!claim.success) return claim.error
   const saved = await saveQuizForLater({ sessionId, deviceId })
-  return saved.success ? null : saved.error
+  if (!saved.success) return saved.error
+  // Else /app/quiz offers the saved quiz for recovery until the new session's first checkpoint.
+  clearActiveSessionById(sessionId)
+  return null
 }
 
 /**
