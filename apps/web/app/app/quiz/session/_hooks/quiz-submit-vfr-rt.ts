@@ -5,7 +5,7 @@ import { submitVfrRtExam } from '@/app/app/vfr-rt-exam/actions/submit'
 import { clearDeploymentPin } from '../../actions/clear-deployment-pin'
 import { submitEmptyExamSession } from '../../actions/submit-empty-exam'
 import type { DraftAnswer } from '../../types'
-import { clearActiveSession } from '../_utils/quiz-session-storage'
+import { clearActiveSessionIfCurrent } from '../_utils/quiz-session-storage'
 import { reportUrl } from './exam-report-paths'
 
 const GENERIC_ERROR = 'Something went wrong. Please try again.'
@@ -46,7 +46,7 @@ export async function handleSubmitVfrRtExamSession(opts: {
     return
   }
   opts.onSuccess()
-  clearActiveSession(opts.userId)
+  clearActiveSessionIfCurrent(opts.userId, opts.sessionId)
   // Await so the Server Action revalidation cannot cancel the soft navigation (#568).
   await clearDeploymentPin().catch(() => {})
   opts.router.push(reportUrl('vfr_rt_exam', opts.sessionId))

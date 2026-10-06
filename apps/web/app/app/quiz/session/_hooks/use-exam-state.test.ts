@@ -26,14 +26,6 @@ vi.mock('./use-exam-answer-buffer', () => ({
   }),
 }))
 
-const { mockCheckpoint } = vi.hoisted(() => ({
-  mockCheckpoint: vi.fn(),
-}))
-
-vi.mock('./use-quiz-persistence', () => ({
-  useQuizPersistence: () => ({ checkpoint: mockCheckpoint }),
-}))
-
 const {
   mockSubmitted,
   mockHandleSubmit,
@@ -85,7 +77,6 @@ function makeQuizOpts(overrides: Partial<QuizStateOpts> = {}): QuizStateOpts {
     userId: USER_ID,
     sessionId: SESSION_ID,
     questions: [{ id: Q1 } as QuizStateOpts['questions'][0]],
-    draftId: 'draft-1',
     subjectName: 'Meteorology',
     subjectCode: 'MET',
     ...overrides,
@@ -207,9 +198,6 @@ describe('useExamPipeline — submission metadata forwarding', () => {
   it.each([
     ['userId', 'u-forwarded'],
     ['sessionId', 'sess-forwarded'],
-    ['draftId', 'draft-forwarded'],
-    ['subjectName', 'Air Law'],
-    ['subjectCode', 'ALW'],
   ] as const)('passes %s to the submit hook', (field, value) => {
     renderHook(() => useExamPipeline(makeOpts({ [field]: value } as Partial<QuizStateOpts>)))
     expect(mockUseQuizSubmit).toHaveBeenCalledWith(expect.objectContaining({ [field]: value }))
@@ -312,7 +300,7 @@ describe('useExamPipeline — non-MC handlers', () => {
       [{ zoneId: 'z1', labelId: 'l1' }],
       { mapping: [{ zoneId: 'z1', labelId: 'l1' }] },
     ],
-  ] as const)('%s records the answer and checkpoints', async (key, arg, draft) => {
+  ] as const)('%s records the answer', async (key, arg, draft) => {
     mockRecordAnswer.mockReturnValue(true)
     const opts = makeOpts()
     const { result } = renderHook(() => useExamPipeline(opts))
@@ -320,44 +308,12 @@ describe('useExamPipeline — non-MC handlers', () => {
     const resolved = await handler(arg)
     expect(resolved).toBe(true)
     expect(mockRecordAnswer).toHaveBeenCalledWith(draft)
-    expect(mockCheckpoint).toHaveBeenCalledWith(
-      mockAnswersRef.current,
-      opts.currentIndexRef.current,
-    )
   })
 
-  it('skips checkpoint when a non-MC answer is already locked', async () => {
+  it('resolves false when a non-MC answer is already locked', async () => {
     mockRecordAnswer.mockReturnValue(false)
     const { result } = renderHook(() => useExamPipeline(makeOpts()))
     const resolved = await result.current.handleTextAnswer('again')
     expect(resolved).toBe(false)
-    expect(mockCheckpoint).not.toHaveBeenCalled()
-  })
-})
-
-// ---- persistence ---------------------------------------------------------
-
-describe('useExamPipeline — persistence', () => {
-  it('calls checkpoint with mode=exam after a new answer is confirmed', async () => {
-    mockRecordAnswer.mockReturnValue(true)
-    const opts = makeOpts()
-    const { result } = renderHook(() => useExamPipeline(opts))
-
-    await result.current.handleSelectAnswer('opt-a')
-
-    expect(mockCheckpoint).toHaveBeenCalledTimes(1)
-    expect(mockCheckpoint).toHaveBeenCalledWith(
-      mockAnswersRef.current,
-      opts.currentIndexRef.current,
-    )
-  })
-
-  it('skips checkpoint when the answer was already locked (confirmAnswer returns false)', async () => {
-    mockRecordAnswer.mockReturnValue(false)
-    const { result } = renderHook(() => useExamPipeline(makeOpts()))
-
-    await result.current.handleSelectAnswer('opt-a')
-
-    expect(mockCheckpoint).not.toHaveBeenCalled()
   })
 })

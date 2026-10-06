@@ -36,7 +36,7 @@ function isValidBlankAnswers(v: unknown): boolean {
   )
 }
 
-// Mirrors draft-schema.ts selectedOptionId z.enum and the DB MC option-id CHECK.
+// Mirrors the quiz-progress-schema.ts selectedOptionId z.enum and the DB MC option-id CHECK.
 const MC_OPTION_IDS: ReadonlySet<unknown> = new Set(['a', 'b', 'c', 'd'])
 
 export function isValidDraftAnswer(v: unknown): boolean {
@@ -144,7 +144,6 @@ export function hasValidOptionalFields(d: Record<string, unknown>, questionCount
       'draftCurrentIndex',
       (v) => Number.isInteger(v) && (v as number) >= 0 && (v as number) < questionCount,
     ) &&
-    isOptionalFieldValid(d, 'draftId', (v) => isNonEmptyString(v)) &&
     isOptionalFieldValid(d, 'subjectName', (v) => typeof v === 'string') &&
     isOptionalFieldValid(d, 'subjectCode', (v) => typeof v === 'string') &&
     isOptionalFieldValid(d, 'mode', (v) => v === 'study' || v === 'exam' || v === 'discovery') &&

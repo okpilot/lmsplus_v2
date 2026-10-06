@@ -193,14 +193,6 @@ describe('useQuizSubmit — handleSubmit delegation', () => {
     expect(call.userId).toBe(USER_ID)
     expect(call.sessionId).toBe(SESSION_ID)
   })
-
-  it('submits with the optional draftId from opts when provided', async () => {
-    const { result } = renderHook(() => useQuizSubmit(makeDefaultOpts({ draftId: 'draft-99' })))
-    await act(async () => result.current.handleSubmit())
-
-    const call = mockHandleSubmitSession.mock.calls[0]?.[0] as Record<string, unknown>
-    expect(call.draftId).toBe('draft-99')
-  })
 })
 
 // ---- handleSave ----------------------------------------------------------

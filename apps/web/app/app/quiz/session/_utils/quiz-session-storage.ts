@@ -1,13 +1,4 @@
-import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
-import type { SessionMode } from '../../session-types'
-import type { AnswerFeedback, DraftAnswer } from '../../types'
-import { isValidActiveSession } from './quiz-session-active-validation'
-import type { SessionData } from './quiz-session-handoff'
-
-// The localStorage active session may ONLY hold resumable modes. Discovery is ephemeral
-// (never persisted — readActiveSession rejects a persisted 'discovery'), so its mode must
-// not be representable in the stored shape. SessionData (the handoff) stays broad.
-type ResumableSessionMode = Extract<SessionMode, 'study' | 'exam'>
+import { isNonEmptyString } from './quiz-session-validators'
 
 export const ACTIVE_SESSION_KEY_PREFIX = 'quiz-active-session:'
 const storageKey = (userId: string) => `${ACTIVE_SESSION_KEY_PREFIX}${userId}`
@@ -15,52 +6,6 @@ const storageKey = (userId: string) => `${ACTIVE_SESSION_KEY_PREFIX}${userId}`
 export type ActiveSession = {
   userId: string
   sessionId: string
-  questionIds: string[]
-  answers: Record<string, DraftAnswer>
-  feedback?: Record<string, AnswerFeedback>
-  currentIndex: number
-  subjectName?: string
-  subjectCode?: string
-  draftId?: string
-  savedAt: number // Date.now()
-  // Resumable-only — never 'discovery' (see ResumableSessionMode above).
-  mode?: ResumableSessionMode
-  // DB-level exam mode (mock_exam | internal_exam). Display-only; drives badge label and
-  // UI gating (e.g. hides Discard for internal_exam). Defaults to mock_exam when absent.
-  examMode?: DbQuizMode
-  // Exam-mode refresh recovery: timer needs deadline-relative state, independent of SessionData.
-  startedAt?: string // ISO string from quiz_sessions.started_at; required for exam mode
-  timeLimitSeconds?: number
-  passMark?: number
-}
-
-/** Build the sessionStorage handoff payload for resuming a session. */
-export function buildHandoffPayload(userId: string, s: ActiveSession) {
-  return {
-    userId,
-    sessionId: s.sessionId,
-    questionIds: s.questionIds,
-    draftAnswers: s.answers,
-    draftFeedback: s.feedback,
-    draftCurrentIndex: s.currentIndex,
-    draftId: s.draftId,
-    subjectName: s.subjectName,
-    subjectCode: s.subjectCode,
-    mode: s.mode,
-    examMode: s.examMode,
-    timeLimitSeconds: s.timeLimitSeconds,
-    passMark: s.passMark,
-    startedAt: s.startedAt,
-  }
-}
-
-export function writeActiveSession(data: ActiveSession): void {
-  try {
-    localStorage.setItem(storageKey(data.userId), JSON.stringify(data))
-  } catch (err) {
-    // Private browsing SecurityError or QuotaExceededError — never block quiz
-    console.warn('[quiz-session-storage] Write failed:', err)
-  }
 }
 
 function safeRemove(userId: string): void {
@@ -71,16 +16,22 @@ function safeRemove(userId: string): void {
   }
 }
 
+function isActiveSession(data: unknown, userId: string): data is ActiveSession {
+  if (typeof data !== 'object' || data === null) return false
+  const entry = data as Record<string, unknown>
+  return entry.userId === userId && isNonEmptyString(entry.sessionId)
+}
+
 export function readActiveSession(userId: string): ActiveSession | null {
   try {
     const raw = localStorage.getItem(storageKey(userId))
     if (!raw) return null
     const data: unknown = JSON.parse(raw)
-    if (!isValidActiveSession(data, userId)) {
+    if (!isActiveSession(data, userId)) {
       safeRemove(userId)
       return null
     }
-    return data
+    return { userId: data.userId, sessionId: data.sessionId }
   } catch {
     // Malformed JSON or other error
     safeRemove(userId)
@@ -93,79 +44,11 @@ export function clearActiveSession(userId: string): void {
 }
 
 /**
- * Clears the entry only when it still refers to `sessionId`; returns whether it did.
- *
- * The key is userId-scoped but every caller acts on a session it read EARLIER — at mount, or
- * from a server render that is never revalidated. In between, storage can have moved on to a
- * newer session: starting one clears the old key and writes its own, so a second tab, or a
- * discard on a stale banner, would otherwise destroy the newer session's answer buffer with a
- * blind userId-keyed clear. The single-active-session invariant (docs/security.md §11d, mig
- * 136) rules out two CONCURRENTLY live sessions, not a stale render of a finished one.
- *
- * Callers that must not ACT on a stale snapshot (rather than merely avoid clearing it) should
- * branch on the return value — false means the snapshot they hold is no longer current.
+ * Clears a legacy entry only when it names `sessionId`, so a stale tab never clears one that
+ * names another session. Returns whether it cleared.
  */
 export function clearActiveSessionIfCurrent(userId: string, sessionId: string): boolean {
   if (readActiveSession(userId)?.sessionId !== sessionId) return false
   safeRemove(userId)
   return true
-}
-
-/** Convert an ActiveSession (localStorage recovery) to SessionData (hook state). */
-export function toSessionData(r: ActiveSession): SessionData {
-  return {
-    sessionId: r.sessionId,
-    questionIds: r.questionIds,
-    draftAnswers: r.answers,
-    draftFeedback: r.feedback,
-    draftCurrentIndex: r.currentIndex,
-    draftId: r.draftId,
-    subjectName: r.subjectName,
-    subjectCode: r.subjectCode,
-    mode: r.mode,
-    examMode: r.examMode,
-    startedAt: r.startedAt,
-    timeLimitSeconds: r.timeLimitSeconds,
-    passMark: r.passMark,
-  }
-}
-
-type BuildOpts = {
-  userId: string
-  sessionId: string
-  questions: Array<{ id: string }>
-  subjectName?: string
-  subjectCode?: string
-  draftId?: string
-  mode?: SessionMode
-  examMode?: DbQuizMode
-  startedAt?: string
-  timeLimitSeconds?: number
-  passMark?: number
-}
-
-export function buildActiveSession(
-  opts: BuildOpts,
-  answers: Map<string, DraftAnswer>,
-  currentIndex: number,
-  feedback?: Map<string, AnswerFeedback>,
-): ActiveSession {
-  return {
-    userId: opts.userId,
-    sessionId: opts.sessionId,
-    questionIds: opts.questions.map((q) => q.id),
-    answers: Object.fromEntries(answers),
-    feedback: feedback ? Object.fromEntries(feedback) : undefined,
-    currentIndex,
-    subjectName: opts.subjectName,
-    subjectCode: opts.subjectCode,
-    draftId: opts.draftId,
-    savedAt: Date.now(),
-    // Coerce never-reached 'discovery' to undefined — persisted shape stays resumable-only.
-    mode: opts.mode === 'discovery' ? undefined : opts.mode,
-    examMode: opts.examMode,
-    startedAt: opts.startedAt,
-    timeLimitSeconds: opts.timeLimitSeconds,
-    passMark: opts.passMark,
-  }
 }

@@ -1,15 +1,9 @@
-import { useRef } from 'react'
 import type { AnswerPipelineOpts } from '../../session-types'
-import type { AnswerFeedback } from '../../types'
 import { buildPersistenceNavigation } from './build-persistence-navigation'
 import { useAnswerHandler } from './use-answer-handler'
-import { useQuizPersistence } from './use-quiz-persistence'
 import { useQuizSubmit } from './use-quiz-submit'
 
 export function useAnswerPipeline(opts: AnswerPipelineOpts) {
-  const { checkpoint } = useQuizPersistence(opts)
-  const feedbackRef = useRef<Map<string, AnswerFeedback>>(opts.initialFeedback ?? new Map())
-
   const {
     feedback,
     error: answerError,
@@ -28,13 +22,7 @@ export function useAnswerPipeline(opts: AnswerPipelineOpts) {
     answers: opts.answers,
     setAnswers: opts.setAnswers,
     initialFeedback: opts.initialFeedback,
-    onAnswerRecorded: (a, fb) => {
-      feedbackRef.current = fb
-      checkpoint(a, opts.getCurrentIndex(), fb)
-    },
-    onAnswerReverted: (a) => checkpoint(a, opts.getCurrentIndex(), feedbackRef.current),
   })
-  feedbackRef.current = feedback
   const {
     submitted,
     error: submitError,
@@ -45,23 +33,14 @@ export function useAnswerPipeline(opts: AnswerPipelineOpts) {
     sessionId: opts.sessionId,
     questions: opts.questions,
     answersRef: opts.answersRef,
-    feedbackRef,
-    currentIndexRef: opts.currentIndexRef,
     pendingQuestionIdRef,
     router: opts.router,
-    draftId: opts.draftId,
-    subjectName: opts.subjectName,
-    subjectCode: opts.subjectCode,
   })
   const { navigateTo, navigate } = buildPersistenceNavigation({
-    checkpoint,
     navigateTo: opts.navigateTo,
     getCurrentIndex: opts.getCurrentIndex,
     clearAnswerError,
     clearSubmitError,
-    answersRef: opts.answersRef,
-    feedbackRef,
-    pendingQuestionIdRef,
   })
 
   return {

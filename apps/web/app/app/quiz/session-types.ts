@@ -9,9 +9,7 @@ import type {
 
 // The modes a quiz SESSION can render in. Discovery reuses the exact session runner
 // (browse-only, pre-marked correct option, nothing scored) via an ephemeral handoff,
-// so it is a valid SessionMode. It never PERSISTS, however: the localStorage
-// active-session firewall (session/_utils/quiz-session-storage.ts readActiveSession)
-// still rejects a persisted mode: 'discovery'.
+// so it is a valid SessionMode. It is never written to localStorage.
 export type SessionMode = QuizMode
 
 export type QuizStateOpts = {
@@ -24,7 +22,6 @@ export type QuizStateOpts = {
   /** Pins and active time saved on the server, for a session opened by id. */
   initialPinnedIds?: readonly string[]
   initialActiveMs?: number
-  draftId?: string
   subjectName?: string
   subjectCode?: string
   mode?: SessionMode

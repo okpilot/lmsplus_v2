@@ -35,7 +35,6 @@ function baseDeps() {
     userId: 'u',
     sessionId: 's',
     router: createMockRouter(),
-    draftId: undefined,
     setPendingAction: vi.fn(),
     setError: vi.fn(),
     submitted: { current: false },

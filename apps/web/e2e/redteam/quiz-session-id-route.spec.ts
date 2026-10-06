@@ -227,7 +227,6 @@ test.describe('Red Team: quiz session read path by id (HA, HB)', () => {
         for (const token of KEY_TOKENS) expect(body, token).not.toContain(token)
 
         const page = await ctx.newPage()
-        // An aborted action response may never settle its body, so collect bodies as they arrive.
         const actionBodies: string[] = []
         // checkAnswer from the re-check: q1 and selectedOptionId, no timeSpentMs (saves carry it).
         const requestBodies: string[] = []
@@ -237,12 +236,14 @@ test.describe('Red Team: quiz session read path by id (HA, HB)', () => {
           if (r.method() === 'POST' && r.headers()['next-action'])
             requestBodies.push(r.postData() ?? '')
         })
-        page.on('response', (r) => {
-          if (r.request().method() === 'POST' && r.request().headers()['next-action'])
-            r.text().then(
-              (t) => actionBodies.push(t),
-              () => undefined,
-            )
+        // The browser cancels an action response body once it has decoded the result, so a
+        // 'response' listener's r.text() can reject. Read the body from the route instead.
+        await page.route('**/app/quiz/session/*', async (route) => {
+          const req = route.request()
+          if (req.method() !== 'POST' || !req.headers()['next-action']) return route.continue()
+          const res = await route.fetch()
+          actionBodies.push(await res.text())
+          return route.fulfill({ response: res })
         })
         await page.goto(url)
         await expect(page.getByText(/Question 1 of 2/)).toBeVisible({ timeout: 15_000 })

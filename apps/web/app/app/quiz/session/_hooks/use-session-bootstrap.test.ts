@@ -1,42 +1,25 @@
 /**
- * Tests for the pure exports from use-session-bootstrap.
- *
- * NOTE: useSessionBootstrap itself was previously untestable (hung vitest due to
- * sessionStorage + async effects + useRouter interactions, tracked in #422).
- * With all external dependencies mocked it is now fully testable — the hang was
- * caused by useSessionRecovery's real saveDraft/router interactions.
+ * useSessionBootstrap serves only Discovery: a handoff with mode 'discovery' loads, anything else
+ * (no handoff, or a non-discovery handoff) is cleared and sent back to /app/quiz.
  */
 
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-// ---- Mocks ----------------------------------------------------------------
-
 const {
   mockLoadSessionQuestions,
   mockGetFlaggedIds,
   mockReadSessionHandoff,
-  mockReadActiveSession,
-  mockClearActiveSession,
   mockClearSessionHandoff,
-  mockToSessionData,
   mockRouter,
-} = vi.hoisted(() => {
-  // The router object MUST be stable across renders. useEffect depends on [router, userId],
-  // so a new object literal on each render would cause the effect to re-run after every
-  // state update, re-setting recovery and blocking clearRecovery / setRecovery(null).
-  const router = { replace: vi.fn() }
-  return {
-    mockLoadSessionQuestions: vi.fn(),
-    mockGetFlaggedIds: vi.fn(),
-    mockReadSessionHandoff: vi.fn(),
-    mockReadActiveSession: vi.fn(),
-    mockClearActiveSession: vi.fn(),
-    mockClearSessionHandoff: vi.fn(),
-    mockToSessionData: vi.fn(),
-    mockRouter: router,
-  }
-})
+} = vi.hoisted(() => ({
+  mockLoadSessionQuestions: vi.fn(),
+  mockGetFlaggedIds: vi.fn(),
+  mockReadSessionHandoff: vi.fn(),
+  mockClearSessionHandoff: vi.fn(),
+  // Stable object: the bootstrap effect depends on [router, userId].
+  mockRouter: { replace: vi.fn() },
+}))
 
 vi.mock('@/lib/queries/load-session-questions', () => ({
   loadSessionQuestions: (...args: unknown[]) => mockLoadSessionQuestions(...args),
@@ -45,16 +28,6 @@ vi.mock('@/lib/queries/load-session-questions', () => ({
 vi.mock('../../actions/flag', () => ({
   getFlaggedIds: (...args: unknown[]) => mockGetFlaggedIds(...args),
 }))
-
-vi.mock('../_utils/quiz-session-storage', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../_utils/quiz-session-storage')>()
-  return {
-    ...actual,
-    readActiveSession: (...args: unknown[]) => mockReadActiveSession(...args),
-    clearActiveSession: mockClearActiveSession,
-    toSessionData: (...args: unknown[]) => mockToSessionData(...args),
-  }
-})
 
 vi.mock('../_utils/quiz-session-handoff', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../_utils/quiz-session-handoff')>()
@@ -65,149 +38,54 @@ vi.mock('../_utils/quiz-session-handoff', async (importOriginal) => {
   }
 })
 
-vi.mock('./use-session-recovery', () => ({
-  useSessionRecovery: () => ({
-    loading: false,
-    error: null,
-    handleSave: vi.fn(),
-    handleDiscard: vi.fn(),
-  }),
-}))
-
-vi.mock('next/navigation', () => ({
-  // Return the same stable object every call — useEffect depends on [router, userId],
-  // so returning a new literal on each render would re-fire the effect on every state change.
-  useRouter: () => mockRouter,
-}))
-
-// ---- Subject under test ---------------------------------------------------
+vi.mock('next/navigation', () => ({ useRouter: () => mockRouter }))
 
 import { isValidSessionData } from '../_utils/quiz-session-handoff'
 import { _resetCachedSession } from './session-bootstrap-load'
 import { useSessionBootstrap } from './use-session-bootstrap'
-
-// ---- Fixtures -------------------------------------------------------------
 
 const USER_ID = 'user-abc'
 const SESSION_ID = 'sess-00000001'
 const Q1 = { id: 'q-00000001', text: 'Question 1', options: [] }
 const Q2 = { id: 'q-00000002', text: 'Question 2', options: [] }
 
-const HANDOFF_DATA = { sessionId: SESSION_ID, questionIds: [Q1.id, Q2.id] }
-const ACTIVE_SESSION = {
-  userId: USER_ID,
+const HANDOFF_DATA = {
   sessionId: SESSION_ID,
   questionIds: [Q1.id, Q2.id],
-  answers: {},
-  currentIndex: 0,
-  savedAt: Date.now(),
+  mode: 'discovery' as const,
 }
-const SESSION_DATA = { sessionId: SESSION_ID, questionIds: [Q1.id, Q2.id] }
 const QUESTIONS_SUCCESS = { success: true as const, questions: [Q1, Q2] }
 const QUESTIONS_FAILURE = { success: false as const, error: 'RPC error' }
-
-// ---- Lifecycle -----------------------------------------------------------
 
 beforeEach(() => {
   vi.resetAllMocks()
   _resetCachedSession()
-  // Default: no session data in storage
   mockReadSessionHandoff.mockReturnValue(null)
-  mockReadActiveSession.mockReturnValue(null)
-  mockToSessionData.mockReturnValue(SESSION_DATA)
-  // Default: no flags for this student — the common case for every existing test.
   mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [] })
 })
 
-// ---- No session data ----------------------------------------------------
-
-describe('useSessionBootstrap — no session data', () => {
-  it('redirects to /app/quiz when neither handoff nor active session exists', () => {
+describe('useSessionBootstrap — handoff that cannot be served', () => {
+  it('replaces with /app/quiz when there is no handoff', () => {
     renderHook(() => useSessionBootstrap(USER_ID))
     expect(mockRouter.replace).toHaveBeenCalledWith('/app/quiz')
-  })
-
-  it('does not call loadSessionQuestions when there is nothing to load', () => {
-    renderHook(() => useSessionBootstrap(USER_ID))
     expect(mockLoadSessionQuestions).not.toHaveBeenCalled()
   })
 
-  it('redirects to /app/quiz when readActiveSession rejects a stale exam entry (pre-deploy, no startedAt)', () => {
-    // readActiveSession strips exam entries that lack startedAt/timeLimitSeconds and
-    // returns null. The bootstrap must then fall through to router.replace('/app/quiz')
-    // rather than showing the recovery prompt for invalid data.
-    // This mirrors the storage guard added in c656868 to handle pre-deploy localStorage.
-    mockReadActiveSession.mockReturnValue(null) // storage guard already rejected it
+  it('clears a non-discovery handoff and replaces with /app/quiz', () => {
+    mockReadSessionHandoff.mockReturnValue({ ...HANDOFF_DATA, mode: 'study' })
     renderHook(() => useSessionBootstrap(USER_ID))
+    expect(mockClearSessionHandoff).toHaveBeenCalledWith(USER_ID)
     expect(mockRouter.replace).toHaveBeenCalledWith('/app/quiz')
-    expect(mockClearActiveSession).not.toHaveBeenCalled() // caller must not double-clear
-  })
-})
-
-// ---- Recovery banner path -----------------------------------------------
-
-describe('useSessionBootstrap — active session triggers recovery', () => {
-  it('sets recovery when an active session exists in storage and there is no handoff', () => {
-    mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
-
-    const { result } = renderHook(() => useSessionBootstrap(USER_ID))
-
-    expect(result.current.recovery).toEqual(ACTIVE_SESSION)
-  })
-
-  it('does not redirect when an active session is found', () => {
-    mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
-
-    renderHook(() => useSessionBootstrap(USER_ID))
-
-    expect(mockRouter.replace).not.toHaveBeenCalled()
-  })
-
-  it('does not call loadSessionQuestions on mount when recovery is shown', () => {
-    mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
-
-    renderHook(() => useSessionBootstrap(USER_ID))
-
     expect(mockLoadSessionQuestions).not.toHaveBeenCalled()
   })
 
-  it('handoff takes priority over active session', async () => {
-    mockReadSessionHandoff.mockReturnValue(HANDOFF_DATA)
-    mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
-    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
-
-    const { result } = renderHook(() => useSessionBootstrap(USER_ID))
-
-    await waitFor(() => expect(result.current.questions).not.toBeNull())
-
-    // Recovery was NOT set — handoff wins
-    expect(result.current.recovery).toBeNull()
-  })
-
-  it('shows recovery for an exam-mode active session (no toast, no redirect)', () => {
-    // Bug 3a: an in-tab refresh during a Practice Exam must rehydrate from
-    // localStorage instead of being bumped to /app/quiz. The categorical
-    // exam-reject was removed; pre-ship entries (without startedAt) are now
-    // rejected at storage.ts:readActiveSession time, so anything that reaches
-    // here is a valid resumable exam.
-    const examActive = {
-      ...ACTIVE_SESSION,
-      mode: 'exam' as const,
-      startedAt: '2026-04-27T12:00:00.000Z',
-      timeLimitSeconds: 1800,
-      passMark: 75,
-    }
-    mockReadActiveSession.mockReturnValue(examActive)
-
-    const { result } = renderHook(() => useSessionBootstrap(USER_ID))
-
-    expect(result.current.recovery).toEqual(examActive)
-    expect(mockRouter.replace).not.toHaveBeenCalled()
-    expect(mockClearActiveSession).not.toHaveBeenCalled()
+  it('clears a handoff with no mode and replaces with /app/quiz', () => {
+    mockReadSessionHandoff.mockReturnValue({ sessionId: SESSION_ID, questionIds: [Q1.id] })
+    renderHook(() => useSessionBootstrap(USER_ID))
+    expect(mockClearSessionHandoff).toHaveBeenCalledWith(USER_ID)
+    expect(mockRouter.replace).toHaveBeenCalledWith('/app/quiz')
   })
 })
-
-// ---- Handoff path -------------------------------------------------------
 
 describe('useSessionBootstrap — handoff success path', () => {
   it('loads questions from the handoff questionIds', async () => {
@@ -241,17 +119,6 @@ describe('useSessionBootstrap — handoff success path', () => {
     await waitFor(() => expect(result.current.questions).not.toBeNull())
 
     expect(mockClearSessionHandoff).toHaveBeenCalledWith(USER_ID)
-  })
-
-  it('does NOT call clearActiveSession on handoff success', async () => {
-    mockReadSessionHandoff.mockReturnValue(HANDOFF_DATA)
-    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
-
-    const { result } = renderHook(() => useSessionBootstrap(USER_ID))
-
-    await waitFor(() => expect(result.current.questions).not.toBeNull())
-
-    expect(mockClearActiveSession).not.toHaveBeenCalled()
   })
 
   it('surfaces a load error when applying the loaded session throws', async () => {
@@ -383,285 +250,6 @@ describe('useSessionBootstrap — flagged ids', () => {
     await waitFor(() => expect(result.current.questions).not.toBeNull())
     expect(result.current.flaggedIds).toEqual([Q2.id])
   })
-
-  it('exposes the flagged ids after a successful recovery resume', async () => {
-    mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
-    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
-    mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [Q2.id] })
-
-    const { result } = renderHook(() => useSessionBootstrap(USER_ID))
-
-    await act(async () => {
-      result.current.handleRecoveryResume()
-    })
-
-    await waitFor(() => expect(result.current.questions).not.toBeNull())
-
-    expect(result.current.flaggedIds).toEqual([Q2.id])
-    expect(mockGetFlaggedIds).toHaveBeenCalledWith({ questionIds: ACTIVE_SESSION.questionIds })
-  })
-})
-
-// ---- handleRecoveryResume -----------------------------------------------
-
-describe('useSessionBootstrap — handleRecoveryResume', () => {
-  it('is a no-op when recovery is null', async () => {
-    const { result } = renderHook(() => useSessionBootstrap(USER_ID))
-
-    await act(async () => {
-      result.current.handleRecoveryResume()
-    })
-
-    expect(mockLoadSessionQuestions).not.toHaveBeenCalled()
-  })
-
-  it('loads questions using the recovery questionIds', async () => {
-    mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
-    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
-
-    const { result } = renderHook(() => useSessionBootstrap(USER_ID))
-
-    await act(async () => {
-      result.current.handleRecoveryResume()
-    })
-
-    expect(mockLoadSessionQuestions).toHaveBeenCalledWith(ACTIVE_SESSION.questionIds)
-  })
-
-  it('sets questions on successful resume', async () => {
-    mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
-    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
-
-    const { result } = renderHook(() => useSessionBootstrap(USER_ID))
-
-    await act(async () => {
-      result.current.handleRecoveryResume()
-    })
-
-    await waitFor(() => expect(result.current.questions).not.toBeNull())
-
-    expect(result.current.questions).toEqual([Q1, Q2])
-  })
-
-  it('does NOT call clearActiveSession on resume success', async () => {
-    mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
-    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
-
-    const { result } = renderHook(() => useSessionBootstrap(USER_ID))
-
-    await act(async () => {
-      result.current.handleRecoveryResume()
-    })
-
-    await waitFor(() => expect(result.current.questions).not.toBeNull())
-
-    expect(mockClearActiveSession).not.toHaveBeenCalled()
-  })
-
-  it('sets resumeLoading to false after a successful resume', async () => {
-    mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
-    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
-
-    const { result } = renderHook(() => useSessionBootstrap(USER_ID))
-
-    await act(async () => {
-      result.current.handleRecoveryResume()
-    })
-
-    await waitFor(() => expect(result.current.resumeLoading).toBe(false))
-  })
-
-  it('clears recovery after a successful resume', async () => {
-    mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
-    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
-
-    const { result } = renderHook(() => useSessionBootstrap(USER_ID))
-
-    // Wait for recovery to be populated by the mount effect before calling resume
-    await waitFor(() => expect(result.current.recovery).not.toBeNull())
-
-    await act(async () => {
-      result.current.handleRecoveryResume()
-    })
-
-    await waitFor(() => expect(result.current.recovery).toBeNull())
-  })
-
-  it('sets resumeError when questions fail to load', async () => {
-    mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
-    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_FAILURE)
-
-    const { result } = renderHook(() => useSessionBootstrap(USER_ID))
-
-    await act(async () => {
-      result.current.handleRecoveryResume()
-    })
-
-    await waitFor(() => expect(result.current.resumeError).not.toBeNull())
-
-    expect(result.current.resumeError).toBe('RPC error')
-  })
-
-  it('sets a generic resumeError when loadSessionQuestions throws', async () => {
-    mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
-    mockLoadSessionQuestions.mockRejectedValue(new Error('network'))
-
-    const { result } = renderHook(() => useSessionBootstrap(USER_ID))
-
-    await act(async () => {
-      result.current.handleRecoveryResume()
-    })
-
-    await waitFor(() => expect(result.current.resumeError).not.toBeNull())
-
-    expect(result.current.resumeError).toBe('Failed to load questions. Please try again.')
-  })
-
-  it('resets resumeLoading to false after a failed resume', async () => {
-    mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
-    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_FAILURE)
-
-    const { result } = renderHook(() => useSessionBootstrap(USER_ID))
-
-    await act(async () => {
-      result.current.handleRecoveryResume()
-    })
-
-    await waitFor(() => expect(result.current.resumeLoading).toBe(false))
-  })
-})
-
-// ---- Bug-3a lifecycle: exam-mode refresh-recovery ----------------------
-// Lifecycle integration test per code-style.md §7:
-// entry path → recovery set → user clicks Resume → loadSessionQuestions →
-// toSessionData produces session with exam fields → QuizSession can reconstruct timer.
-
-describe('useSessionBootstrap — exam-mode refresh-recovery lifecycle (Bug 3a)', () => {
-  const EXAM_ACTIVE: typeof ACTIVE_SESSION & {
-    mode: 'exam'
-    startedAt: string
-    timeLimitSeconds: number
-    passMark: number
-  } = {
-    ...ACTIVE_SESSION,
-    mode: 'exam' as const,
-    startedAt: '2026-04-27T12:00:00.000Z',
-    timeLimitSeconds: 1800,
-    passMark: 75,
-  }
-
-  const EXAM_SESSION_DATA = {
-    ...SESSION_DATA,
-    mode: 'exam' as const,
-    startedAt: '2026-04-27T12:00:00.000Z',
-    timeLimitSeconds: 1800,
-    passMark: 75,
-  }
-
-  it('sets recovery with exam fields when readActiveSession returns an exam-mode entry', () => {
-    mockReadActiveSession.mockReturnValue(EXAM_ACTIVE)
-
-    const { result } = renderHook(() => useSessionBootstrap(USER_ID))
-
-    expect(result.current.recovery).toEqual(EXAM_ACTIVE)
-    expect(result.current.recovery?.startedAt).toBe('2026-04-27T12:00:00.000Z')
-    expect(result.current.recovery?.timeLimitSeconds).toBe(1800)
-    expect(result.current.recovery?.passMark).toBe(75)
-  })
-
-  it('does not redirect and does not clear localStorage when exam recovery is pending', () => {
-    mockReadActiveSession.mockReturnValue(EXAM_ACTIVE)
-
-    renderHook(() => useSessionBootstrap(USER_ID))
-
-    expect(mockRouter.replace).not.toHaveBeenCalled()
-    expect(mockClearActiveSession).not.toHaveBeenCalled()
-  })
-
-  it('produces a session with startedAt/timeLimitSeconds/passMark after handleRecoveryResume succeeds', async () => {
-    // Full Bug-3a lifecycle: refresh → readActiveSession returns exam entry →
-    // recovery shown → user clicks Resume → loadSessionQuestions → toSessionData
-    // propagates exam fields → session state carries them for the loader to forward.
-    mockReadActiveSession.mockReturnValue(EXAM_ACTIVE)
-    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
-    mockToSessionData.mockReturnValue(EXAM_SESSION_DATA)
-
-    const { result } = renderHook(() => useSessionBootstrap(USER_ID))
-
-    await waitFor(() => expect(result.current.recovery).not.toBeNull())
-
-    await act(async () => {
-      result.current.handleRecoveryResume()
-    })
-
-    await waitFor(() => expect(result.current.session).not.toBeNull())
-
-    expect(result.current.session?.mode).toBe('exam')
-    expect(result.current.session?.startedAt).toBe('2026-04-27T12:00:00.000Z')
-    expect(result.current.session?.timeLimitSeconds).toBe(1800)
-    expect(result.current.session?.passMark).toBe(75)
-    // Recovery must be cleared after successful resume
-    expect(result.current.recovery).toBeNull()
-    // toSessionData must have been called with the exam ActiveSession
-    expect(mockToSessionData).toHaveBeenCalledWith(EXAM_ACTIVE)
-  })
-
-  it('loads questions using the exam session questionIds on resume', async () => {
-    mockReadActiveSession.mockReturnValue(EXAM_ACTIVE)
-    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
-    mockToSessionData.mockReturnValue(EXAM_SESSION_DATA)
-
-    const { result } = renderHook(() => useSessionBootstrap(USER_ID))
-
-    await waitFor(() => expect(result.current.recovery).not.toBeNull())
-
-    await act(async () => {
-      result.current.handleRecoveryResume()
-    })
-
-    await waitFor(() => expect(result.current.questions).not.toBeNull())
-
-    expect(mockLoadSessionQuestions).toHaveBeenCalledWith(EXAM_ACTIVE.questionIds)
-  })
-})
-
-// ---- clearRecovery / clearResumeError -----------------------------------
-
-describe('useSessionBootstrap — clearRecovery', () => {
-  it('sets recovery to null', async () => {
-    mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
-
-    const { result } = renderHook(() => useSessionBootstrap(USER_ID))
-
-    expect(result.current.recovery).toEqual(ACTIVE_SESSION)
-
-    act(() => {
-      result.current.clearRecovery()
-    })
-
-    expect(result.current.recovery).toBeNull()
-  })
-})
-
-describe('useSessionBootstrap — clearResumeError', () => {
-  it('sets resumeError to null', async () => {
-    mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
-    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_FAILURE)
-
-    const { result } = renderHook(() => useSessionBootstrap(USER_ID))
-
-    await act(async () => {
-      result.current.handleRecoveryResume()
-    })
-
-    await waitFor(() => expect(result.current.resumeError).not.toBeNull())
-
-    act(() => {
-      result.current.clearResumeError()
-    })
-
-    expect(result.current.resumeError).toBeNull()
-  })
 })
 
 // ---- isValidSessionData --------------------------------------------------
@@ -680,7 +268,6 @@ describe('isValidSessionData', () => {
       questionIds: ['q1', 'q2'],
       draftAnswers: {},
       draftCurrentIndex: 0,
-      draftId: 'draft-1',
       subjectName: 'Met',
       subjectCode: 'MET',
     }

@@ -5,16 +5,16 @@
  * guard on the QUESTION's own zones/labels/answer arrays. This module is the
  * app/client-layer guard on the STUDENT'S SUBMITTED mapping — the
  * {zoneId, labelId} placements a student makes — shared by the Zod schemas
- * (check-non-mc-answer-schema.ts, draft-schema.ts), the localStorage
- * rehydrate guard (quiz-session-validators.ts), and the DB-draft resume guard
+ * (check-non-mc-answer-schema.ts, quiz-progress-schema.ts), the answer/feedback
+ * validators (quiz-session-validators.ts), and the DB-draft resume guard
  * (load-draft-helpers.ts) so they stay in sync without hand-maintained parity
  * comments (mirrors the role ordering-validation.ts plays for `order`).
  */
 import { z } from 'zod'
 
 // Shared Zod fragment for a single submitted zone/label id. `.trim()` before
-// min/max so a whitespace-only token can't pass `min(1)` — keeps the save-draft
-// (draft-schema.ts) and grade (check-non-mc-answer-schema.ts) sibling schemas at
+// min/max so a whitespace-only token can't pass `min(1)` — keeps the save
+// (quiz-progress-schema.ts) and grade (check-non-mc-answer-schema.ts) sibling schemas at
 // parity, and matches isDiagramMappingEntry's `.trim().length > 0` runtime guard.
 export const diagramIdSchema = z.string().trim().min(1).max(200)
 
@@ -55,7 +55,7 @@ export function isValidDiagramMapping(mapping: DiagramMappingEntry[]): boolean {
 /**
  * Shared Zod schema for a submitted diagram mapping array — the single
  * source for the {zoneId, labelId}[] shape, so the bound + dedup rule can't
- * drift between the save-draft schema (draft-schema.ts) and the grade schema
+ * drift between the save schema (quiz-progress-schema.ts) and the grade schema
  * (check-non-mc-answer-schema.ts).
  */
 export const DiagramMappingSchema = z

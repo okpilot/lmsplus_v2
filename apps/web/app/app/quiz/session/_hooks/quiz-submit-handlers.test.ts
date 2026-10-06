@@ -74,7 +74,6 @@ function makeBaseDeps(overrides: Partial<Parameters<typeof buildSharedFor>[0]> =
     userId: USER_ID,
     sessionId: SESSION_ID,
     router: createMockRouter(),
-    draftId: undefined,
     setPendingAction: vi.fn(),
     setError: vi.fn(),
     submitted: { current: false },
@@ -288,14 +287,6 @@ describe('buildHandleSave', () => {
     expect(call.sessionId).toBe(SESSION_ID)
   })
 
-  it('does not hand the old draft to the save, so saving cannot remove it', async () => {
-    const handleSave = buildHandleSave(makeBaseDeps({ draftId: 'draft-1' }))
-    await handleSave()
-    expect(mockHandleSaveSession).toHaveBeenCalledTimes(1)
-    const call = mockHandleSaveSession.mock.calls[0]?.[0] as Record<string, unknown>
-    expect(call).not.toHaveProperty('draftId')
-  })
-
   it('sends no answers or progress, because the server session already holds them', async () => {
     const handleSave = buildHandleSave(makeBaseDeps())
     await handleSave()
@@ -370,13 +361,12 @@ describe('buildHandleSave with unsaved answers', () => {
 // ---- buildHandleDiscard -------------------------------------------------------
 
 describe('buildHandleDiscard', () => {
-  it('delegates to handleDiscardSession with userId/sessionId/draftId', async () => {
-    const deps = makeBaseDeps({ draftId: 'draft-1' })
+  it('delegates to handleDiscardSession with userId/sessionId', async () => {
+    const deps = makeBaseDeps()
     const handleDiscard = buildHandleDiscard(deps)
     await handleDiscard()
     const call = mockHandleDiscardSession.mock.calls[0]?.[0] as Record<string, unknown>
     expect(call.userId).toBe(USER_ID)
     expect(call.sessionId).toBe(SESSION_ID)
-    expect(call.draftId).toBe('draft-1')
   })
 })

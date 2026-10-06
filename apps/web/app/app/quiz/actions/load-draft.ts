@@ -19,9 +19,8 @@ export async function loadDrafts(): Promise<LoadDraftsResult> {
       .select('*')
       .eq('student_id', user.id)
       .order('updated_at', { ascending: false })
-      // Deliberate bound matching the insert-time cap enforced in insertNewDraft
-      // (draft-helpers.ts: rejects count >= MAX_DRAFTS). Makes the read bound
-      // explicit instead of relying on PostgREST's implicit max_rows truncation.
+      // Deliberate bound matching the insert-time cap enforced by the enforce_draft_limit
+      // trigger. Makes the read bound explicit instead of relying on PostgREST's implicit max_rows truncation.
       .limit(MAX_DRAFTS)
 
     if (error) {

@@ -29,7 +29,7 @@ const SESSION_ID = 'sess-prac-001'
 const USER_ID = 'user-prac-001'
 const STORAGE_KEY = `quiz-active-session:${USER_ID}`
 
-// Must satisfy isValidActiveSession: readActiveSession PURGES anything malformed, so a
+// readActiveSession PURGES anything malformed, so a
 // minimal { sessionId } stub would be dropped by the read itself and every assertion below
 // would pass whether or not the discard cleared anything.
 function storedSession(sessionId: string) {

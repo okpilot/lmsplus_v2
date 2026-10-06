@@ -4,12 +4,11 @@ import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
 import { batchSubmitQuiz } from '../../actions/batch-submit'
 import { clearDeploymentPin } from '../../actions/clear-deployment-pin'
 import { discardQuiz } from '../../actions/discard'
-import { deleteDraft } from '../../actions/draft-delete'
 import { saveQuizForLater } from '../../actions/saved-quiz'
 import { submitEmptyExamSession } from '../../actions/submit-empty-exam'
 import type { DraftAnswer } from '../../types'
 import { getQuizDeviceId } from '../_utils/quiz-device-id'
-import { clearActiveSession } from '../_utils/quiz-session-storage'
+import { clearActiveSessionIfCurrent } from '../_utils/quiz-session-storage'
 import { reportUrl } from './exam-report-paths'
 import { fanOutAnswer } from './quiz-submit-fanout'
 
@@ -18,38 +17,20 @@ type AppRouterInstance = ReturnType<typeof useRouter>
 type SetError = (e: string | null) => void
 type SetSubmitting = (v: boolean) => void
 
-/** Max time to wait for best-effort draft cleanup before navigating. The hard-nav
- * fallback in use-quiz-submit covers the rare case cleanup exceeds this. */
-const DRAFT_CLEANUP_TIMEOUT_MS = 2500
-
-/** Best-effort legacy-draft cleanup, bounded so an auth/DB stall can't hang the caller. */
-async function deleteDraftBounded(draftId: string, caller: string) {
-  let cleanupTimer: ReturnType<typeof setTimeout> | undefined
-  await Promise.race([
-    deleteDraft({ draftId }).catch((e) => console.error(`[${caller}] Draft cleanup failed:`, e)),
-    new Promise<void>((resolve) => {
-      cleanupTimer = setTimeout(resolve, DRAFT_CLEANUP_TIMEOUT_MS)
-    }),
-  ]).finally(() => clearTimeout(cleanupTimer))
-}
-
 export async function submitQuizSession(
   sessionId: string,
   answers: Map<string, DraftAnswer>,
   userId: string,
-  draftId?: string,
 ) {
   const answerArray = Array.from(answers.entries()).flatMap(([qId, a]) => fanOutAnswer(qId, a))
   try {
     const result = await batchSubmitQuiz({ sessionId, answers: answerArray })
     if (!result.success) return { success: false as const, error: result.error }
-    clearActiveSession(userId)
+    clearActiveSessionIfCurrent(userId, sessionId)
     // #909: a Server Action response triggers an App Router revalidation that cancels a
     // pending soft navigation. Await cleanup so router.push (in handleSubmitSession) runs
-    // with nothing in flight. Bound the draft-delete wait so an auth/DB stall can't hang
-    // submit — the hard-nav fallback (use-quiz-submit) covers a timeout.
+    // with nothing in flight.
     await clearDeploymentPin().catch(() => {})
-    if (draftId) await deleteDraftBounded(draftId, 'submitQuizSession')
     return result
   } catch {
     return { success: false as const, error: 'Something went wrong. Please try again.' }
@@ -60,14 +41,13 @@ export async function discardQuizSession(
   sessionId: string,
   router: AppRouterInstance,
   userId: string,
-  draftId?: string,
 ): Promise<ActionResult> {
-  clearActiveSession(userId) // Always clear — respect discard intent even if Server Action fails
+  clearActiveSessionIfCurrent(userId, sessionId) // Always clear — respect discard intent even if Server Action fails
   // Await before the later router.push so the Server Action revalidation can't cancel the
   // soft navigation (#909 — same race the submit paths fix).
   await clearDeploymentPin().catch(() => {})
   try {
-    const result = await discardQuiz({ sessionId, draftId })
+    const result = await discardQuiz({ sessionId })
     if (!result.success) return result
     router.push('/app/quiz')
     return { success: true }
@@ -80,7 +60,6 @@ export async function handleSubmitSession(opts: {
   userId: string
   sessionId: string
   answers: Map<string, DraftAnswer>
-  draftId: string | undefined
   router: AppRouterInstance
   setSubmitting: SetSubmitting
   setError: SetError
@@ -112,7 +91,7 @@ export async function handleSubmitSession(opts: {
     }
     if (result.success) {
       opts.onSuccess()
-      clearActiveSession(opts.userId)
+      clearActiveSessionIfCurrent(opts.userId, opts.sessionId)
       // clearDeploymentPin is a Server Action — its response triggers an App Router
       // revalidation. If it is still in flight when router.push runs, that revalidation
       // cancels the pending soft navigation, stranding the student on the session page
@@ -122,9 +101,9 @@ export async function handleSubmitSession(opts: {
       opts.router.push(reportUrl(opts.examMode, opts.sessionId))
     } else {
       console.error('[handleSubmitSession] submitEmptyExamSession failed:', result.error)
-      clearActiveSession(opts.userId)
+      clearActiveSessionIfCurrent(opts.userId, opts.sessionId)
       await clearDeploymentPin().catch(() => {})
-      await discardQuiz({ sessionId: opts.sessionId, draftId: opts.draftId }).catch((err) =>
+      await discardQuiz({ sessionId: opts.sessionId }).catch((err) =>
         console.error('[handleSubmitSession] discardQuiz fallback failed:', err),
       )
       opts.setError(result.error)
@@ -135,7 +114,7 @@ export async function handleSubmitSession(opts: {
   }
   opts.setSubmitting(true)
   opts.setError(null)
-  const r = await submitQuizSession(opts.sessionId, opts.answers, opts.userId, opts.draftId)
+  const r = await submitQuizSession(opts.sessionId, opts.answers, opts.userId)
   if (r.success) {
     opts.onSuccess()
     opts.router.push(reportUrl(opts.examMode, opts.sessionId))
@@ -145,6 +124,7 @@ export async function handleSubmitSession(opts: {
   }
 }
 
+/** Parks the quiz on its own session id, then returns to the quiz list. A failure keeps the quiz open. */
 export async function handleSaveSession(opts: {
   userId: string
   sessionId: string
@@ -160,9 +140,7 @@ export async function handleSaveSession(opts: {
       deviceId: getQuizDeviceId(),
     })
     if (r.success) {
-      clearActiveSession(opts.userId)
-      // Any legacy draft is kept: a runner resumed from it before the server-progress seed
-      // holds its answers only client-side, and the save parks server progress only.
+      clearActiveSessionIfCurrent(opts.userId, opts.sessionId)
       // Await so the Server Action revalidation can't cancel the soft navigation (#909).
       await clearDeploymentPin().catch(() => {})
       opts.router.push('/app/quiz')
@@ -179,13 +157,12 @@ export async function handleDiscardSession(opts: {
   userId: string
   sessionId: string
   router: AppRouterInstance
-  draftId: string | undefined
   setSubmitting: SetSubmitting
   setError: SetError
 }) {
   opts.setSubmitting(true)
   opts.setError(null)
-  const r = await discardQuizSession(opts.sessionId, opts.router, opts.userId, opts.draftId)
+  const r = await discardQuizSession(opts.sessionId, opts.router, opts.userId)
   if (!r.success) {
     opts.setError(r.error)
     opts.setSubmitting(false)

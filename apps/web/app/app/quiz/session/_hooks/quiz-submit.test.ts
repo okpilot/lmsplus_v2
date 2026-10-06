@@ -4,14 +4,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const {
   mockBatchSubmitQuiz,
-  mockDeleteDraft,
   mockSaveQuizForLater,
   mockDiscardQuiz,
   mockRouterPush,
   mockSubmitEmptyExamSession,
 } = vi.hoisted(() => ({
   mockBatchSubmitQuiz: vi.fn(),
-  mockDeleteDraft: vi.fn(),
   mockSaveQuizForLater: vi.fn(),
   mockDiscardQuiz: vi.fn(),
   mockRouterPush: vi.fn(),
@@ -26,9 +24,6 @@ vi.mock('../../actions/saved-quiz', () => ({
   saveQuizForLater: (...args: unknown[]) => mockSaveQuizForLater(...args),
 }))
 vi.mock('../_utils/quiz-device-id', () => ({ getQuizDeviceId: () => DEVICE_ID }))
-vi.mock('../../actions/draft-delete', () => ({
-  deleteDraft: (...args: unknown[]) => mockDeleteDraft(...args),
-}))
 vi.mock('../../actions/discard', () => ({
   discardQuiz: (...args: unknown[]) => mockDiscardQuiz(...args),
 }))
@@ -50,7 +45,7 @@ const { mockClearActiveSession } = vi.hoisted(() => ({
 }))
 
 vi.mock('../_utils/quiz-session-storage', () => ({
-  clearActiveSession: mockClearActiveSession,
+  clearActiveSessionIfCurrent: mockClearActiveSession,
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -67,9 +62,8 @@ import {
 const SESSION_ID = '00000000-0000-4000-a000-000000000001'
 const Q1_ID = '00000000-0000-4000-a000-000000000011'
 const Q2_ID = '00000000-0000-4000-a000-000000000022'
-const DRAFT_ID = '00000000-0000-4000-a000-000000000050'
+const DEVICE_ID = '00000000-0000-4000-a000-0000000000d1'
 const USER_ID = 'test-user-id'
-const DEVICE_ID = 'device-1'
 
 function makeAnswers(
   entries: Array<
@@ -120,7 +114,6 @@ function makeDeferred<T>() {
 
 beforeEach(() => {
   vi.resetAllMocks()
-  mockDeleteDraft.mockResolvedValue({ success: true })
   mockClearDeploymentPin.mockResolvedValue(undefined)
   mockSubmitEmptyExamSession.mockResolvedValue({ success: true, sessionId: SESSION_ID })
 })
@@ -155,23 +148,6 @@ describe('submitQuizSession', () => {
     })
   })
 
-  it('cleans up saved draft after successful submission', async () => {
-    mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
-
-    await submitQuizSession(SESSION_ID, TWO_ANSWERS, USER_ID, DRAFT_ID)
-
-    expect(mockDeleteDraft).toHaveBeenCalledWith({ draftId: DRAFT_ID })
-    expect(mockDeleteDraft).toHaveBeenCalledTimes(1)
-  })
-
-  it('skips draft cleanup when no draft exists', async () => {
-    mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
-
-    await submitQuizSession(SESSION_ID, TWO_ANSWERS, USER_ID)
-
-    expect(mockDeleteDraft).not.toHaveBeenCalled()
-  })
-
   it('returns failure when batch submission fails', async () => {
     mockBatchSubmitQuiz.mockResolvedValue({
       success: false,
@@ -182,14 +158,6 @@ describe('submitQuizSession', () => {
 
     expect(result.success).toBe(false)
     if (!result.success) expect(result.error).toBe('session not found')
-  })
-
-  it('preserves saved draft when submission fails', async () => {
-    mockBatchSubmitQuiz.mockResolvedValue({ success: false, error: 'session not found' })
-
-    await submitQuizSession(SESSION_ID, TWO_ANSWERS, USER_ID, DRAFT_ID)
-
-    expect(mockDeleteDraft).not.toHaveBeenCalled()
   })
 
   it('returns generic failure when submission throws unexpectedly', async () => {
@@ -218,7 +186,7 @@ describe('submitQuizSession', () => {
 
     await submitQuizSession(SESSION_ID, TWO_ANSWERS, USER_ID)
 
-    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
+    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID, SESSION_ID)
     expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
   })
 
@@ -351,45 +319,6 @@ describe('submitQuizSession', () => {
       answers: [],
     })
   })
-
-  it('logs error when draft cleanup fails after successful submit', async () => {
-    mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
-    const cleanupError = new Error('draft cleanup network failure')
-    mockDeleteDraft.mockRejectedValue(cleanupError)
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-
-    try {
-      const result = await submitQuizSession(SESSION_ID, TWO_ANSWERS, USER_ID, DRAFT_ID)
-
-      // Submit still succeeds despite cleanup failure
-      expect(result.success).toBe(true)
-
-      expect(consoleSpy).toHaveBeenCalledWith(
-        '[submitQuizSession] Draft cleanup failed:',
-        cleanupError,
-      )
-    } finally {
-      consoleSpy.mockRestore()
-    }
-  })
-
-  it('still returns success when draft cleanup stalls beyond the configured timeout', async () => {
-    mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
-    // deleteDraft never resolves — simulates an auth/DB stall.
-    mockDeleteDraft.mockReturnValue(new Promise(() => {}))
-
-    vi.useFakeTimers()
-    try {
-      const pending = submitQuizSession(SESSION_ID, TWO_ANSWERS, USER_ID, DRAFT_ID)
-      // Advance past DRAFT_CLEANUP_TIMEOUT_MS (2500 ms) so the timeout leg of
-      // Promise.race wins, unblocking submitQuizSession to return the result.
-      await vi.runAllTimersAsync()
-      const result = await pending
-      expect(result.success).toBe(true)
-    } finally {
-      vi.useRealTimers()
-    }
-  })
 })
 
 // ---- handleSubmitSession -------------------------------------------------
@@ -400,7 +329,6 @@ describe('handleSubmitSession', () => {
       userId: USER_ID,
       sessionId: SESSION_ID,
       answers: TWO_ANSWERS,
-      draftId: undefined,
       router: makeRouter() as never,
       setSubmitting: vi.fn(),
       setError: vi.fn(),
@@ -431,23 +359,6 @@ describe('handleSubmitSession', () => {
     const opts = makeOpts({ isExam: true, examMode: 'internal_exam' })
     await handleSubmitSession(opts)
     expect(opts.router.push).toHaveBeenCalledWith(`/app/internal-exam/report?session=${SESSION_ID}`)
-  })
-
-  it('does not navigate to the report until draft cleanup has settled', async () => {
-    mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
-    const deferred = makeDeferred<{ success: true }>()
-    mockDeleteDraft.mockReturnValue(deferred.promise)
-    const opts = makeOpts({ draftId: DRAFT_ID })
-
-    const pending = handleSubmitSession(opts)
-    // Let batch-submit + clearDeploymentPin resolve, but deleteDraft is still in flight.
-    await Promise.resolve()
-    await Promise.resolve()
-    expect(opts.router.push).not.toHaveBeenCalled()
-
-    deferred.resolve({ success: true })
-    await pending
-    expect(opts.router.push).toHaveBeenCalledWith(`/app/quiz/report?session=${SESSION_ID}`)
   })
 
   it('does not navigate on a zero-answer exam until deployment-pin cleanup has settled', async () => {
@@ -509,7 +420,7 @@ describe('handleSubmitSession', () => {
   it('clears active session on successful zero-answer exam completion', async () => {
     const opts = makeOpts({ answers: new Map(), isExam: true })
     await handleSubmitSession(opts)
-    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
+    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID, SESSION_ID)
     expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
   })
 
@@ -575,11 +486,10 @@ describe('handleSubmitSession', () => {
     mockDiscardQuiz.mockResolvedValue({ success: true })
     const opts = makeOpts({ answers: new Map(), isExam: true })
     await handleSubmitSession(opts)
-    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
+    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID, SESSION_ID)
     expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
     expect(mockDiscardQuiz).toHaveBeenCalledWith({
       sessionId: SESSION_ID,
-      draftId: undefined,
     })
     expect(opts.router.push).toHaveBeenCalledWith('/app/quiz')
   })
@@ -592,7 +502,7 @@ describe('handleSubmitSession', () => {
     mockDiscardQuiz.mockResolvedValue({ success: true })
     const opts = makeOpts({ answers: new Map(), isExam: true })
     await handleSubmitSession(opts)
-    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
+    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID, SESSION_ID)
     expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
     expect(opts.setError).toHaveBeenCalledWith('Session not found.')
   })
@@ -607,27 +517,9 @@ describe('handleSubmitSession', () => {
     try {
       const opts = makeOpts({ answers: new Map(), isExam: true })
       await handleSubmitSession(opts)
-      expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
+      expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID, SESSION_ID)
       expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
       expect(opts.router.push).toHaveBeenCalledWith('/app/quiz')
-    } finally {
-      consoleSpy.mockRestore()
-    }
-  })
-
-  it('discards the draft and clears the submitting flag when the empty-submit fallback fails', async () => {
-    mockSubmitEmptyExamSession.mockResolvedValue({ success: false, error: 'X' })
-    mockDiscardQuiz.mockResolvedValue({ success: true })
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    try {
-      const opts = makeOpts({ answers: new Map(), isExam: true, draftId: DRAFT_ID })
-      await handleSubmitSession(opts)
-      expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
-      expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
-      expect(mockDiscardQuiz).toHaveBeenCalledWith({ sessionId: SESSION_ID, draftId: DRAFT_ID })
-      expect(opts.setError).toHaveBeenCalledWith('X')
-      expect(opts.router.push).toHaveBeenCalledWith('/app/quiz')
-      expect(opts.setSubmitting).toHaveBeenLastCalledWith(false)
     } finally {
       consoleSpy.mockRestore()
     }
@@ -643,14 +535,13 @@ describe('handleSubmitSession', () => {
     try {
       const opts = makeOpts({ answers: new Map(), isExam: true })
       await handleSubmitSession(opts)
-      expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
+      expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID, SESSION_ID)
       expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
       expect(opts.router.push).toHaveBeenCalledWith('/app/quiz')
       expect(opts.setError).toHaveBeenCalledWith('Something went wrong. Please try again.')
       expect(opts.setSubmitting).toHaveBeenLastCalledWith(false)
       expect(mockDiscardQuiz).toHaveBeenCalledWith({
         sessionId: SESSION_ID,
-        draftId: undefined,
       })
     } finally {
       consoleSpy.mockRestore()
@@ -694,7 +585,7 @@ describe('handleSaveSession', () => {
   it('clears the active session, clears the pin and returns to the quiz list on success', async () => {
     const opts = makeOpts()
     await handleSaveSession(opts)
-    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
+    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID, SESSION_ID)
     expect(mockClearDeploymentPin).toHaveBeenCalledTimes(1)
     expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz')
     expect(opts.setError).not.toHaveBeenCalledWith(expect.any(String))
@@ -731,14 +622,6 @@ describe('handleSaveSession', () => {
     expect(mockRouterPush).not.toHaveBeenCalled()
     expect(mockClearActiveSession).not.toHaveBeenCalled()
   })
-
-  it('keeps any old draft when the quiz is saved for later', async () => {
-    // A runner resumed before the server-progress seed holds the draft answers only client-side.
-    const withDraft = { ...makeOpts(), draftId: DRAFT_ID }
-    await handleSaveSession(withDraft as Parameters<typeof handleSaveSession>[0])
-    expect(mockDeleteDraft).not.toHaveBeenCalled()
-    expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz')
-  })
 })
 
 // ---- handleDiscardSession ------------------------------------------------
@@ -749,7 +632,6 @@ describe('handleDiscardSession', () => {
       userId: USER_ID,
       sessionId: SESSION_ID,
       router: makeRouter() as never,
-      draftId: undefined,
       setSubmitting: vi.fn(),
       setError: vi.fn(),
       ...overrides,
@@ -786,16 +668,9 @@ describe('handleDiscardSession', () => {
     expect(opts.setError).toHaveBeenCalledWith('Something went wrong. Please try again.')
     expect(opts.setSubmitting).toHaveBeenLastCalledWith(false)
   })
-
-  it('includes draft id when discarding', async () => {
-    mockDiscardQuiz.mockResolvedValue({ success: true })
-    const opts = makeOpts({ draftId: DRAFT_ID })
-    await handleDiscardSession(opts)
-    expect(mockDiscardQuiz).toHaveBeenCalledWith(expect.objectContaining({ draftId: DRAFT_ID }))
-  })
 })
 
-// ---- discardQuizSession — clearActiveSession calls -----------------------
+// ---- discardQuizSession — clearActiveSessionIfCurrent calls -----------------------
 
 describe('discardQuizSession', () => {
   it('clears active session before calling the discard Server Action', async () => {
@@ -806,7 +681,7 @@ describe('discardQuizSession', () => {
       discardQuizSession(SESSION_ID, mockRouter as never, USER_ID),
     )
 
-    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
+    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID, SESSION_ID)
     expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
   })
 
@@ -818,8 +693,8 @@ describe('discardQuizSession', () => {
       discardQuizSession(SESSION_ID, mockRouter as never, USER_ID),
     )
 
-    // clearActiveSession is called before the Server Action — discard intent is respected
-    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
+    // clearActiveSessionIfCurrent is called before the Server Action — discard intent is respected
+    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID, SESSION_ID)
     expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
   })
 })

@@ -16,8 +16,8 @@ export const RESUME_ERROR_MESSAGES: Record<string, string> = {
     'This saved quiz’s questions are no longer available — it may be out of date.',
   no_questions_provided:
     'This saved quiz’s questions are no longer available — it may be out of date.',
-  // Unreachable for a draft saved after the schema cap (.max(500)), but mapped for RPC
-  // error-token completeness (agent-semantic-reviewer.md) — a legacy row could carry >500 ids.
+  // Mapped for RPC error-token completeness (agent-semantic-reviewer.md): a legacy draft, or one
+  // a student inserts directly, can carry >500 ids.
   too_many_questions:
     'This saved quiz has too many questions and can’t be resumed. Please contact support.',
 }

@@ -7,7 +7,6 @@ vi.mock('../../actions/quiz-progress', () => ({
   saveQuizAnswer: () => Promise.resolve({ success: true }),
   saveQuizPosition: () => Promise.resolve({ success: true }),
 }))
-vi.mock('./use-quiz-persistence', () => ({ useQuizPersistence: () => ({ checkpoint: vi.fn() }) }))
 
 import { useNavigationGuard } from '../../_hooks/use-navigation-guard'
 import { _resetConnectionState, adjustPending } from '../_utils/connection-state'
