@@ -1,5 +1,6 @@
 import { INVALID_INPUT, isDisplayableProgressError } from '../../actions/progress-error-messages'
 import { setConnectionStatus } from './connection-state'
+import type { Hold } from './hold-types'
 
 type Verdict = 'retry' | 'done'
 
@@ -40,9 +41,7 @@ export function skipRefusedSave() {
 
 type SaveResult = { success: boolean; error?: string }
 
-type AnswerHold = ((
-  outcome: { kind: 'value'; value: SaveResult } | { kind: 'thrown' },
-) => Promise<Verdict>) & {
+type AnswerHold = Hold<SaveResult> & {
   /** True once the student chose Continue without it for this save. */
   skipped: boolean
 }
