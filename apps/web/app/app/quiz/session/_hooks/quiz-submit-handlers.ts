@@ -1,5 +1,4 @@
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime'
-import type { SessionQuestion } from '@/app/app/_types/session'
 import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
 import type { DraftAnswer } from '../../types'
 import { getConnectionStatus } from '../_utils/connection-state'
@@ -8,7 +7,6 @@ import { isTakenOver } from '../_utils/session-takeover'
 import { whenQueueIdle } from '../_utils/with-reconnect'
 import { reportUrl } from './exam-report-paths'
 import { handleDiscardSession, handleSaveSession, handleSubmitSession } from './quiz-submit'
-import { handleSubmitVfrRtExamSession } from './quiz-submit-vfr-rt'
 
 /** Which finish-dialog action is currently in flight, or null when idle. */
 export type QuizPendingAction = 'submit' | 'save' | 'discard' | null
@@ -49,8 +47,7 @@ export function buildSharedFor(deps: BaseDeps) {
 
 type SubmitDeps = Parameters<typeof buildHandleSubmit>[0]
 
-/** Runs the mode-specific submit: vfr_rt_exam has its own per-type submit, everything else
- * goes through handleSubmitSession. */
+/** Runs the submit through handleSubmitSession, which finishes the session on the server. */
 function dispatchSubmission({
   deps,
   sharedFor,
@@ -62,16 +59,11 @@ function dispatchSubmission({
   answers: Map<string, DraftAnswer>
   onSuccess: () => void
 }) {
-  const common = { userId: deps.userId, sessionId: deps.sessionId, answers, onSuccess }
-  if (deps.examMode === 'vfr_rt_exam') {
-    return handleSubmitVfrRtExamSession({
-      ...common,
-      questions: deps.questions,
-      ...sharedFor('submit'),
-    })
-  }
   return handleSubmitSession({
-    ...common,
+    userId: deps.userId,
+    sessionId: deps.sessionId,
+    answers,
+    onSuccess,
     isExam: deps.isExam,
     examMode: deps.examMode,
     ...sharedFor('submit'),
@@ -84,13 +76,6 @@ async function waitForQueuedSaves(shared: ReturnType<ReturnType<typeof buildShar
   shared.setSubmitting(true)
   shared.setError(null)
   await whenQueueIdle()
-}
-
-/** Answers whose check is still pending are left out: they have no recorded outcome yet.
- * Read it AFTER waitForQueuedSaves so a check that settled during the wait is included. */
-function withoutPendingAnswers(answers: Map<string, DraftAnswer>, pending: Set<string>) {
-  if (pending.size === 0) return answers
-  return new Map([...answers].filter(([qId]) => !pending.has(qId)))
 }
 
 /** Arms the hard-navigation fallback for a soft nav that never unmounts this component. */
@@ -106,10 +91,8 @@ function armNavFallback(deps: SubmitDeps) {
 export function buildHandleSubmit(
   deps: BaseDeps & {
     answersRef: React.RefObject<Map<string, DraftAnswer>>
-    pendingQuestionIdRef: React.RefObject<Set<string>>
     navFallbackTimer: React.RefObject<ReturnType<typeof setTimeout> | null>
     setShowFinishDialog: (v: boolean) => void
-    questions: SessionQuestion[]
     isExam?: boolean
     examMode?: DbQuizMode
   },
@@ -122,12 +105,18 @@ export function buildHandleSubmit(
       deps.submitted.current = true
       deps.setShowFinishDialog(false)
     }
-    await waitForQueuedSaves(sharedFor('submit'))
-    const safeAnswers = withoutPendingAnswers(
-      deps.answersRef.current,
-      deps.pendingQuestionIdRef.current,
-    )
-    await dispatchSubmission({ deps, sharedFor, answers: safeAnswers, onSuccess }).finally(() => {
+    const shared = sharedFor('submit')
+    await waitForQueuedSaves(shared)
+    if (!(await resendOrStop(deps, shared))) {
+      deps.inFlight.current = false
+      return
+    }
+    await dispatchSubmission({
+      deps,
+      sharedFor,
+      answers: deps.answersRef.current,
+      onSuccess,
+    }).finally(() => {
       // If submit rejected/threw before any setSubmitting(false), release the re-entry lock
       // so the student can retry. On success onSuccess set submitted.current = true first, so
       // the lock intentionally stays engaged here (terminal — navigating to the report).

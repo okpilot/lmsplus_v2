@@ -41,8 +41,8 @@ test.describe('practice exam — auto-submit on timer expiry', () => {
   // /app/quiz/report. Root cause: clearDeploymentPin() (a Server Action) was invoked
   // AFTER router.push in the empty-exam path; the Server Action's App Router
   // revalidation cancelled the pending soft navigation. Fixed by firing
-  // clearDeploymentPin BEFORE push (quiz-submit.ts), matching the batch_submit_quiz
-  // path that always navigated correctly.
+  // clearDeploymentPin BEFORE push (quiz-submit.ts), matching the
+  // non-empty submit path that always navigated correctly.
   test('lands on the report page with 0% / FAIL when the timer expires with no answers', async ({
     page,
   }) => {

@@ -3,6 +3,7 @@ import { saveQuizAnswer, saveQuizPosition } from '../../actions/quiz-progress'
 import type { DraftAnswer } from '../../types'
 import { withTakeoverCheck } from './claim-quiz-device'
 import { getConnectionStatus } from './connection-state'
+import { refusedAnswerHold } from './refused-save'
 import { isTakenOver } from './session-takeover'
 import { withReconnect } from './with-reconnect'
 
@@ -80,6 +81,8 @@ type SaveOutcome = 'saved' | 'rejected' | 'failed'
  *   failure goes to onMappedError.
  * - 'failed': anything else (transient failure, throw, taken-over session, signed-out user). A
  *   taken-over session and a signed-out user warn nothing; other failures console.warn.
+ * An answer save carries a refused-save hold (refused-save.ts): a refused answer is retried or held,
+ * with the save queue, until the student picks Try again or Continue without it.
  */
 export async function fireProgressSave(opts: {
   kind: SaveKind
@@ -90,8 +93,11 @@ export async function fireProgressSave(opts: {
 }): Promise<SaveOutcome> {
   if (isTakenOver(opts.sessionId)) return 'failed'
   const save = opts.kind === 'answer' ? saveQuizAnswer : saveQuizPosition
+  const hold = opts.kind === 'answer' ? refusedAnswerHold() : undefined
   try {
-    const r = await withTakeoverCheck(opts.sessionId, () => withReconnect(() => save(opts.input)))
+    const r = await withTakeoverCheck(opts.sessionId, () =>
+      withReconnect(() => save(opts.input), hold),
+    )
     if (r.success) {
       opts.onSuccess()
       return 'saved'
@@ -104,6 +110,8 @@ export async function fireProgressSave(opts: {
       return 'rejected'
     }
     console.warn(`[progress-save] ${opts.kind} save failed (best-effort):`, r.error)
+    // Continue without it settles the answer: Finish must not resend it.
+    if (hold?.skipped) return 'rejected'
     return r.error === INVALID_INPUT ? 'rejected' : 'failed'
   } catch (err) {
     console.warn(`[progress-save] ${opts.kind} save failed (best-effort):`, err)

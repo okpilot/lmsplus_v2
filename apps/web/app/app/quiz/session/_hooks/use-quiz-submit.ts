@@ -1,6 +1,5 @@
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime'
 import { useEffect, useRef, useState } from 'react'
-import type { SessionQuestion } from '@/app/app/_types/session'
 import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
 import type { DraftAnswer } from '../../types'
 import {
@@ -17,9 +16,7 @@ export { NAV_FALLBACK_MS }
 export function useQuizSubmit(opts: {
   userId: string
   sessionId: string
-  questions: SessionQuestion[]
   answersRef: React.RefObject<Map<string, DraftAnswer>>
-  pendingQuestionIdRef: React.RefObject<Set<string>>
   router: AppRouterInstance
   isExam?: boolean
   examMode?: DbQuizMode

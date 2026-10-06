@@ -1,25 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { SessionQuestion } from '@/app/app/_types/session'
 import { createMockRouter } from '@/lib/test-support/mock-router'
 import type { DraftAnswer } from '../../types'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const {
-  mockHandleSubmitSession,
-  mockHandleSaveSession,
-  mockHandleDiscardSession,
-  mockHandleSubmitVfrRtExamSession,
-} = vi.hoisted(() => ({
-  mockHandleSubmitSession: vi.fn(),
-  mockHandleSaveSession: vi.fn(),
-  mockHandleDiscardSession: vi.fn(),
-  mockHandleSubmitVfrRtExamSession: vi.fn(),
-}))
-
-vi.mock('./quiz-submit-vfr-rt', () => ({
-  handleSubmitVfrRtExamSession: (...args: unknown[]) => mockHandleSubmitVfrRtExamSession(...args),
-}))
+const { mockHandleSubmitSession, mockHandleSaveSession, mockHandleDiscardSession } = vi.hoisted(
+  () => ({
+    mockHandleSubmitSession: vi.fn(),
+    mockHandleSaveSession: vi.fn(),
+    mockHandleDiscardSession: vi.fn(),
+  }),
+)
 
 const { mockResend, mockIsTakenOver, mockGetStatus } = vi.hoisted(() => ({
   mockResend: vi.fn(),
@@ -91,7 +82,6 @@ beforeEach(() => {
   mockHandleSubmitSession.mockResolvedValue(undefined)
   mockHandleSaveSession.mockResolvedValue(undefined)
   mockHandleDiscardSession.mockResolvedValue(undefined)
-  mockHandleSubmitVfrRtExamSession.mockResolvedValue(undefined)
 })
 
 // ---- buildSharedFor — setSubmitting → pendingAction mapping ----------------
@@ -168,10 +158,8 @@ describe('buildHandleSubmit', () => {
           ['q1', { selectedOptionId: 'a', responseTimeMs: 1 }],
         ]),
       },
-      pendingQuestionIdRef: { current: new Set<string>() },
       navFallbackTimer: { current: null as ReturnType<typeof setTimeout> | null },
       setShowFinishDialog: vi.fn(),
-      questions: [] as SessionQuestion[],
       ...overrides,
     }
   }
@@ -185,14 +173,13 @@ describe('buildHandleSubmit', () => {
     expect(call.sessionId).toBe(SESSION_ID)
   })
 
-  it('routes a vfr_rt_exam submit to the VFR RT handler with the delivered questions', async () => {
-    const questions = [{ id: 'q1' }] as SessionQuestion[]
-    const deps = makeSubmitDeps({ examMode: 'vfr_rt_exam', isExam: true, questions })
+  it('sends a vfr_rt_exam submit through handleSubmitSession with its exam mode', async () => {
+    const deps = makeSubmitDeps({ examMode: 'vfr_rt_exam', isExam: true })
     await buildHandleSubmit(deps)()
-    const call = mockHandleSubmitVfrRtExamSession.mock.calls[0]?.[0] as Record<string, unknown>
-    expect(call.questions).toBe(questions)
+    const call = mockHandleSubmitSession.mock.calls[0]?.[0] as Record<string, unknown>
+    expect(call.examMode).toBe('vfr_rt_exam')
+    expect(call.isExam).toBe(true)
     expect(call.sessionId).toBe(SESSION_ID)
-    expect(mockHandleSubmitSession).not.toHaveBeenCalled()
   })
 
   it('is a no-op when inFlight is already true', async () => {
@@ -209,20 +196,15 @@ describe('buildHandleSubmit', () => {
     expect(mockHandleSubmitSession).not.toHaveBeenCalled()
   })
 
-  it('excludes pending question ids from the submitted answers', async () => {
-    const deps = makeSubmitDeps({
-      answersRef: {
-        current: new Map<string, DraftAnswer>([
-          ['q1', { selectedOptionId: 'a', responseTimeMs: 1 }],
-          ['q2', { selectedOptionId: 'b', responseTimeMs: 2 }],
-        ]),
-      },
-      pendingQuestionIdRef: { current: new Set(['q2']) },
-    })
-    const handleSubmit = buildHandleSubmit(deps)
-    await handleSubmit()
+  it('submits the full answer map', async () => {
+    const answers = new Map<string, DraftAnswer>([
+      ['q1', { selectedOptionId: 'a', responseTimeMs: 1 }],
+      ['q2', { selectedOptionId: 'b', responseTimeMs: 2 }],
+    ])
+    const deps = makeSubmitDeps({ answersRef: { current: answers } })
+    await buildHandleSubmit(deps)()
     const call = mockHandleSubmitSession.mock.calls[0]?.[0] as { answers: Map<string, DraftAnswer> }
-    expect([...call.answers.keys()]).toEqual(['q1'])
+    expect([...call.answers.keys()]).toEqual(['q1', 'q2'])
   })
 
   it('closes the finish dialog and marks submitted when the session handler reports success', async () => {
@@ -273,6 +255,50 @@ describe('buildHandleSubmit', () => {
         `/app/internal-exam/report?session=${SESSION_ID}`,
       )
     })
+  })
+})
+
+describe('buildHandleSubmit with unsaved answers', () => {
+  const UNSAVED = 'Some answers have not saved yet. Check your connection and try again.'
+  const makeDeps = () => ({
+    ...makeBaseDeps(),
+    answersRef: { current: new Map<string, DraftAnswer>() },
+    navFallbackTimer: { current: null as ReturnType<typeof setTimeout> | null },
+    setShowFinishDialog: vi.fn(),
+  })
+
+  it('shows the unsaved-answers error, does not submit and lets Finish be pressed again', async () => {
+    mockResend.mockResolvedValue(false)
+    const deps = makeDeps()
+    await buildHandleSubmit(deps)()
+    expect(deps.setError).toHaveBeenLastCalledWith(UNSAVED)
+    expect(mockHandleSubmitSession).not.toHaveBeenCalled()
+    expect(deps.setPendingAction).toHaveBeenLastCalledWith(null)
+    expect(deps.inFlight.current).toBe(false)
+  })
+
+  it('submits when every failed answer re-sends', async () => {
+    mockResend.mockResolvedValue(true)
+    await buildHandleSubmit(makeDeps())()
+    expect(mockHandleSubmitSession).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows no error when the session was taken over, and still does not submit', async () => {
+    mockResend.mockResolvedValue(false)
+    mockIsTakenOver.mockReturnValue(true)
+    const deps = makeDeps()
+    await buildHandleSubmit(deps)()
+    expect(deps.setError).toHaveBeenLastCalledWith(null)
+    expect(mockHandleSubmitSession).not.toHaveBeenCalled()
+  })
+
+  it('shows no error when signed out, and still does not submit', async () => {
+    mockResend.mockResolvedValue(false)
+    mockGetStatus.mockReturnValue('signed-out')
+    const deps = makeDeps()
+    await buildHandleSubmit(deps)()
+    expect(deps.setError).toHaveBeenLastCalledWith(null)
+    expect(mockHandleSubmitSession).not.toHaveBeenCalled()
   })
 })
 

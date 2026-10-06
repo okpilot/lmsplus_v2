@@ -202,12 +202,6 @@ describe('useExamPipeline — submission metadata forwarding', () => {
     renderHook(() => useExamPipeline(makeOpts({ [field]: value } as Partial<QuizStateOpts>)))
     expect(mockUseQuizSubmit).toHaveBeenCalledWith(expect.objectContaining({ [field]: value }))
   })
-
-  it('passes questions to the submit hook', () => {
-    const questions = [{ id: 'q-forward' }] as QuizStateOpts['questions']
-    renderHook(() => useExamPipeline(makeOpts({ questions })))
-    expect(mockUseQuizSubmit).toHaveBeenCalledWith(expect.objectContaining({ questions }))
-  })
 })
 
 // ---- navigation forwarding -----------------------------------------------

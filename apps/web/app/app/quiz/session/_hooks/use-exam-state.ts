@@ -21,7 +21,6 @@ export function useExamPipeline(opts: {
 }) {
   const router = useRouter()
   const emptyFeedbackRef = useRef<Map<string, AnswerFeedback>>(new Map())
-  const emptyPendingRef = useRef(new Set<string>())
 
   // initialAnswers flows to both study and exam pipelines (both instantiated in use-quiz-state.ts);
   // p = isExam ? exam : study gates which is surfaced, so seeding the unused pipeline is harmless.
@@ -34,9 +33,7 @@ export function useExamPipeline(opts: {
   const submit = useQuizSubmit({
     userId: opts.quizOpts.userId,
     sessionId: opts.quizOpts.sessionId,
-    questions: opts.quizOpts.questions,
     answersRef,
-    pendingQuestionIdRef: emptyPendingRef,
     router,
     isExam: true,
     examMode: opts.quizOpts.examMode,

@@ -25,10 +25,10 @@ type Props = Readonly<{ summary: QuizReportSummary }>
  * defect — both copies were wrong identically — it only doubled the fix.
  *
  * `correctFraction` divides ITEM by ITEM. `quiz_sessions.correct_count` is written
- * item-level by every writer (`batch_submit_quiz` sums correct blank rows;
- * `submit_vfr_rt_exam_answers` and `complete_overdue_exam_session` count correct answer
- * rows), so dividing it by the QUESTION-level `total_questions` produced a numerator larger
- * than its denominator on real exams. `answeredItems === 0` renders an em dash rather than
+ * item-level by every writer (`finish_quiz_session` and `complete_overdue_exam_session`
+ * both score through `_score_graded_session`, which counts correct answer rows), so dividing
+ * it by the QUESTION-level `total_questions` produced a numerator larger than its denominator
+ * on real exams. `answeredItems === 0` renders an em dash rather than
  * "0 / 0" — the timer-expiry path zeroes the counts and inserts no answer rows at all.
  *
  * `skipped` renders an em dash whenever `answeredQuestions` exceeds `totalQuestions` — a

@@ -27,7 +27,7 @@ export function extractPassMark(config: unknown): number | null {
   return pm
 }
 
-// 30s grace window mirrors batch_submit_quiz (mig 047) and Layer 1 RPC
+// 30s grace window mirrors finish_quiz_session (mig 20261004000300) and Layer 1 RPC
 // (mig 052). A TS-only check that fires sooner would call complete_overdue
 // which RAISEs 'session is not overdue' and routes the row to the orphaned
 // banner — diverging UI from the truth on the server.
