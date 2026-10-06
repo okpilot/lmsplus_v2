@@ -9,8 +9,9 @@ vi.mock('@sentry/nextjs', () => ({
   captureRouterTransitionStart: vi.fn(),
 }))
 
-// @sentry/core 11.4.0 build/cjs/vendor/getIpAddress.js ipHeaderNames
-const IP_HEADER_NAMES = [
+// @sentry/core 11.4.0 build/cjs/vendor/getIpAddress.js ipHeaderNames, plus Vercel's
+// identifying and geolocation headers (vercel.com/docs/headers/request-headers).
+const IDENTIFYING_HEADER_NAMES = [
   'X-Client-IP',
   'X-Forwarded-For',
   'Fly-Client-IP',
@@ -23,6 +24,15 @@ const IP_HEADER_NAMES = [
   'Forwarded-For',
   'Forwarded',
   'X-Vercel-Forwarded-For',
+  'x-vercel-ip-country',
+  'x-vercel-ip-country-region',
+  'x-vercel-ip-city',
+  'x-vercel-ip-postal-code',
+  'x-vercel-ip-latitude',
+  'x-vercel-ip-longitude',
+  'x-vercel-ip-timezone',
+  'x-vercel-proxied-for',
+  'x-vercel-ja4-digest',
 ]
 
 describe('Sentry init options', () => {
@@ -57,7 +67,7 @@ describe('Sentry data-collection policy', () => {
     expect(SENTRY_DATA_COLLECTION.httpBodies).toEqual([])
   })
 
-  it.each(IP_HEADER_NAMES)('drops the %s header', (header) => {
+  it.each(IDENTIFYING_HEADER_NAMES)('drops the %s header', (header) => {
     const headers = SENTRY_DATA_COLLECTION.httpHeaders
     if (typeof headers !== 'object' || !('deny' in headers)) throw new Error('expected a deny list')
     expect(headers.deny.some((term) => header.toLowerCase().includes(term))).toBe(true)

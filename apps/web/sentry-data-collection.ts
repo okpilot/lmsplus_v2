@@ -6,7 +6,8 @@ type DataCollection = NonNullable<NonNullable<Parameters<typeof init>[0]>['dataC
 export const SENTRY_DATA_COLLECTION = {
   userInfo: false,
   cookies: false,
-  // Substrings matching every IP-carrying header Sentry reads (@sentry/core vendor/getIpAddress.js).
-  httpHeaders: { deny: ['forwarded', 'client-ip', 'connecting-ip', 'real-ip'] },
+  // Substrings matching every IP-carrying header Sentry reads (@sentry/core vendor/getIpAddress.js)
+  // and every Vercel header (IP, geolocation, TLS fingerprint, region).
+  httpHeaders: { deny: ['forwarded', 'client-ip', 'connecting-ip', 'real-ip', 'x-vercel-'] },
   httpBodies: [],
 } satisfies DataCollection
