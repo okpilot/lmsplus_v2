@@ -1,4 +1,5 @@
-import { Flag, Loader2, Pin } from 'lucide-react'
+import { Flag, Pin } from 'lucide-react'
+import { BusyLabel } from '@/components/ui/busy-label'
 
 type QuizControlsProps = {
   isPinned: boolean
@@ -46,8 +47,7 @@ export function QuizControls({
           className="mb-3 w-full rounded-lg bg-primary py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 md:hidden"
         >
           <span className="inline-flex items-center justify-center gap-2">
-            {submitting && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
-            {isExam ? 'Confirm Answer' : 'Submit Answer'}
+            <BusyLabel busy={submitting}>{isExam ? 'Confirm Answer' : 'Submit Answer'}</BusyLabel>
           </span>
         </button>
       )}

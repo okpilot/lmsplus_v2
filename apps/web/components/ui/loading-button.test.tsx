@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
+import { simulateTranslator } from '@/lib/test-support/simulate-translator'
 import { LoadingButton } from './loading-button'
 
 describe('LoadingButton', () => {
@@ -94,5 +95,12 @@ describe('LoadingButton', () => {
     // underlying Button rather than being swallowed.
     expect(button.className).toContain('border-border')
     expect(button.className).toContain('h-7')
+  })
+
+  it('starts loading on a translated page', () => {
+    const { container, rerender } = render(<LoadingButton>Save</LoadingButton>)
+    simulateTranslator(container)
+    expect(() => rerender(<LoadingButton loading>Save</LoadingButton>)).not.toThrow()
+    expect(container.querySelector('.animate-spin')).not.toBeNull()
   })
 })

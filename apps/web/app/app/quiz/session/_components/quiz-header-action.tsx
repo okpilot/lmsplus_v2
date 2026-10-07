@@ -1,6 +1,6 @@
 'use client'
 
-import { Loader2 } from 'lucide-react'
+import { BusyLabel } from '@/components/ui/busy-label'
 import { Button } from '@/components/ui/button'
 import { type QuizMode as DbQuizMode, MODE_LABELS } from '@/lib/constants/exam-modes'
 import { useDiscoveryExit } from '../_hooks/use-discovery-exit'
@@ -42,8 +42,7 @@ export function QuizHeaderAction({
       className="shrink-0"
     >
       <span className="inline-flex items-center justify-center gap-2">
-        {submitting && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
-        {finishLabel}
+        <BusyLabel busy={submitting}>{finishLabel}</BusyLabel>
       </span>
     </Button>
   )
