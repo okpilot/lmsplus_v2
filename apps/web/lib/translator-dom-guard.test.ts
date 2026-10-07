@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { simulateTranslator } from '@/lib/test-support/simulate-translator'
 import { installTranslatorDomGuard } from './translator-dom-guard'
 
@@ -6,8 +6,10 @@ const originalRemoveChild = Node.prototype.removeChild
 const originalInsertBefore = Node.prototype.insertBefore
 
 let uninstall: () => void
+const onFallback = vi.fn()
 beforeEach(() => {
-  uninstall = installTranslatorDomGuard()
+  onFallback.mockReset()
+  uninstall = installTranslatorDomGuard(onFallback)
 })
 afterEach(() => {
   uninstall()
@@ -28,6 +30,36 @@ describe('translator DOM guard', () => {
     simulateTranslator(root)
     expect(() => p.removeChild(textNode)).not.toThrow()
     expect(p.textContent).toBe('Hello')
+  })
+
+  it('removes the translator wrapper around a child React unmounts', () => {
+    const { root, p, textNode } = paragraph('Hello')
+    const wrapper = document.createElement('font')
+    p.replaceChild(wrapper, textNode)
+    wrapper.appendChild(textNode)
+
+    expect(p.removeChild(textNode)).toBe(textNode)
+    expect(root.querySelectorAll('font')).toHaveLength(0)
+    expect(p.textContent).toBe('')
+  })
+
+  it('reports each kind of tolerated DOM mismatch once', () => {
+    const one = document.createElement('div')
+    one.removeChild(document.createElement('span'))
+    one.removeChild(document.createElement('span'))
+    one.insertBefore(document.createElement('i'), document.createTextNode('stray'))
+    one.insertBefore(document.createElement('i'), document.createTextNode('stray'))
+
+    expect(onFallback.mock.calls).toEqual([['remove'], ['insert']])
+  })
+
+  it('does not report ordinary DOM calls', () => {
+    const root = document.createElement('div')
+    const a = document.createElement('a')
+    root.insertBefore(a, null)
+    root.removeChild(a)
+
+    expect(onFallback).not.toHaveBeenCalled()
   })
 
   it('inserts before the translator wrapper when the reference node was wrapped', () => {
