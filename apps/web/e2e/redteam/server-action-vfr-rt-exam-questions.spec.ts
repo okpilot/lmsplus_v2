@@ -31,6 +31,7 @@ import {
   VFR_RT_SA_ANSWER,
   type VfrRtPool,
 } from './helpers/seed-vfr-rt-pool'
+import { postServerAction, signInViaForm } from './server-action-capture'
 
 const BASE_URL = 'http://localhost:3000'
 const SESSION_PATH = '/app/quiz/session'
@@ -55,13 +56,7 @@ async function signIn(
   creds: { email: string; password: string; userId: string },
 ) {
   const page = await context.newPage()
-  await page.goto('/')
-  await page.getByLabel('Email address').fill(creds.email)
-  await page.getByLabel('Password', { exact: true }).fill(creds.password)
-  await Promise.all([
-    page.waitForURL(/\/(app\/dashboard|consent)(?:\?.*)?$/, { timeout: 15_000 }),
-    page.getByRole('button', { name: 'Sign in' }).click(),
-  ])
+  await signInViaForm(page, creds)
   await context.addCookies([
     { name: CONSENT_COOKIE, value: buildConsentCookieValue(creds.userId), url: BASE_URL },
   ])
@@ -100,17 +95,13 @@ async function startExamCapturingLoad(page: Page): Promise<CapturedAction & { re
 
 /** Replays the captured Server Action as `context`'s user with a chosen sessionId. */
 async function replay(context: BrowserContext, action: CapturedAction, sessionId: string) {
-  const headers: Record<string, string> = {}
-  for (const [k, v] of Object.entries(action.headers)) {
-    if (!['cookie', 'content-length', 'host'].includes(k.toLowerCase())) headers[k] = v
-  }
-  headers.origin = BASE_URL
-  const res = await context.request.post(`${BASE_URL}${SESSION_PATH}`, {
-    headers,
-    data: JSON.stringify([{ sessionId }]),
-    maxRedirects: 0,
+  return postServerAction(context.request, {
+    url: `${BASE_URL}${SESSION_PATH}`,
+    headers: action.headers,
+    id: action.headers['next-action'] ?? '',
+    origin: BASE_URL,
+    arg: { sessionId },
   })
-  return res.text()
 }
 
 test.describe('Red Team: loadVfrRtExamQuestions Server Action (GB, GC)', () => {
@@ -176,7 +167,8 @@ test.describe('Red Team: loadVfrRtExamQuestions Server Action (GB, GC)', () => {
       .is('deleted_at', null)
       .single()
     expect(error).toBeNull()
-    const id = (data as { id: string }).id
+    if (typeof data?.id !== 'string') throw new Error('activeExamId: session id is not a string')
+    const id = data.id
     createdSessionIds.add(id)
     return id
   }

@@ -11,7 +11,7 @@
  * Status: Expected to PASS.
  */
 
-import { type BrowserContext, expect, test } from '@playwright/test'
+import { type Browser, type BrowserContext, expect, test } from '@playwright/test'
 import { buildConsentCookieValue } from '../../lib/consent/check-consent'
 import { CONSENT_COOKIE } from '../../lib/consent/versions'
 import { cleanupStudentActiveSessions, getAdminClient } from '../helpers/supabase'
@@ -23,6 +23,7 @@ import {
   seedRedTeamUsers,
   VICTIM_EMAIL,
 } from './helpers/seed-users'
+import { postServerAction, signInViaForm, watchServerActions } from './server-action-capture'
 
 const BASE_URL = 'http://localhost:3000'
 const SESSION_PATH = '/app/quiz/session'
@@ -31,11 +32,6 @@ const ATTACKER_DEVICE = '00000000-0000-4000-8000-0000000000d1'
 type Captured = { headers: Record<string, string>; id: string }
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null
-
-const REFERENCE_RES = [
-  /createServerReference\)?\(\s*"([0-9a-f]{40,})"[^"]*?"(\w+)"\s*\)/g,
-  /"([0-9a-f]{40,})":\{"name":"(\w+)"\}/g,
-]
 
 test.describe('Red Team: discardQuiz Server Action (EF, HT)', () => {
   test.setTimeout(120_000)
@@ -99,31 +95,16 @@ test.describe('Red Team: discardQuiz Server Action (EF, HT)', () => {
     return data
   }
 
-  const replayHeaders = () => {
-    const headers: Record<string, string> = {}
-    for (const [k, v] of Object.entries(cap.headers)) {
-      if (!['cookie', 'content-length', 'host'].includes(k.toLowerCase())) headers[k] = v
-    }
-    headers['next-action'] = cap.id
-    headers.origin = BASE_URL
-    return headers
-  }
-
-  const invoke = async (arg: Record<string, unknown>): Promise<string> => {
-    const res = await ctx.request.post(`${BASE_URL}${SESSION_PATH}`, {
-      headers: replayHeaders(),
-      data: JSON.stringify([arg]),
-      maxRedirects: 0,
+  const invoke = (arg: Record<string, unknown>) =>
+    postServerAction(ctx.request, {
+      url: `${BASE_URL}${SESSION_PATH}`,
+      headers: cap.headers,
+      id: cap.id,
+      origin: BASE_URL,
+      arg,
     })
-    return res.text()
-  }
 
-  test.beforeAll(async ({ browser }) => {
-    admin = getAdminClient()
-    const seed = await seedRedTeamUsers()
-    orgId = seed.orgId
-    victimUserId = seed.victimUserId
-    attackerUserId = seed.attackerUserId
+  const loadQuestionIds = async (): Promise<[string, string]> => {
     const { data, error } = await admin
       .from('questions')
       .select('id')
@@ -134,11 +115,14 @@ test.describe('Red Team: discardQuiz Server Action (EF, HT)', () => {
       .order('id')
       .limit(2)
     if (error) throw new Error(`beforeAll questions: ${error.message}`)
-    if (!Array.isArray(data) || data.length < 2) throw new Error('need 2 active MC questions')
-    q1 = data[0]?.id as string
-    q2 = data[1]?.id as string
+    const [a, b] = (data ?? []).map((r) => r.id)
+    if (typeof a !== 'string' || !a || typeof b !== 'string' || !b)
+      throw new Error('need 2 active MC questions with string ids')
+    return [a, b]
+  }
 
-    // Capture the action id + replay headers from the attacker's own session page.
+  /** Signs the attacker in, opens their own session and reads the discardQuiz action off it. */
+  const captureDiscardAction = async (browser: Browser) => {
     await cleanupStudentActiveSessions(ATTACKER_EMAIL)
     const sessionId = await seedSession({ studentId: attackerUserId, mode: 'mock_exam' })
     const client = await createAuthenticatedClient(ATTACKER_EMAIL, ATTACKER_PASSWORD)
@@ -152,40 +136,27 @@ test.describe('Red Team: discardQuiz Server Action (EF, HT)', () => {
       { name: CONSENT_COOKIE, value: buildConsentCookieValue(attackerUserId), url: BASE_URL },
     ])
     const page = await ctx.newPage()
-    await page.goto('/')
-    await page.getByLabel('Email address').fill(ATTACKER_EMAIL)
-    await page.getByLabel('Password', { exact: true }).fill(ATTACKER_PASSWORD)
-    await Promise.all([
-      page.waitForURL(/\/(app\/dashboard|consent)(?:\?.*)?$/, { timeout: 15_000 }),
-      page.getByRole('button', { name: 'Sign in' }).click(),
-    ])
-    const ids = new Map<string, string>()
-    const scripts: Promise<void>[] = []
-    let headers: Record<string, string> | undefined
-    page.on('response', (res) => {
-      if (!res.url().includes('/_next/') || !res.url().split('?')[0]?.endsWith('.js')) return
-      scripts.push(
-        res
-          .text()
-          .then((js) => {
-            for (const re of REFERENCE_RES)
-              for (const m of js.matchAll(re)) if (m[1] && m[2]) ids.set(m[2], m[1])
-          })
-          .catch(() => {}),
-      )
-    })
-    page.on('request', (req) => {
-      const h = req.headers()
-      if (req.method() === 'POST' && h['next-action'] && !headers) headers = h
-    })
+    await signInViaForm(page, { email: ATTACKER_EMAIL, password: ATTACKER_PASSWORD })
+    const watch = watchServerActions(page)
     await page.goto(`${SESSION_PATH}/${sessionId}`)
     await expect(page.getByText(/Question 1 of 2/)).toBeVisible({ timeout: 15_000 })
-    await expect.poll(() => headers !== undefined, { timeout: 10_000 }).toBe(true)
-    await Promise.all(scripts)
+    await expect.poll(() => watch.headers() !== undefined, { timeout: 10_000 }).toBe(true)
+    const ids = await watch.settle()
     await page.close()
     const id = ids.get('discardQuiz')
+    const headers = watch.headers()
     if (!headers || !id) throw new Error('discardQuiz action not captured')
     cap = { headers, id }
+  }
+
+  test.beforeAll(async ({ browser }) => {
+    admin = getAdminClient()
+    const seed = await seedRedTeamUsers()
+    orgId = seed.orgId
+    victimUserId = seed.victimUserId
+    attackerUserId = seed.attackerUserId
+    ;[q1, q2] = await loadQuestionIds()
+    await captureDiscardAction(browser)
   })
 
   test.afterAll(async () => {
