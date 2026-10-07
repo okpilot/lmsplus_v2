@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mockFrom = vi.hoisted(() => vi.fn())
 const mockCreateAuthenticatedClient = vi.hoisted(() => vi.fn())
 const mockFetchActiveQuestionIds = vi.hoisted(() => vi.fn())
-const mockBuildAnswersForSession = vi.hoisted(() => vi.fn())
+const mockBuildMcProgressAnswers = vi.hoisted(() => vi.fn())
 const mockRpc = vi.hoisted(() => vi.fn())
 
 vi.mock('../../helpers/supabase', () => ({
@@ -25,7 +25,11 @@ vi.mock('./redteam-client', () => ({
 
 vi.mock('./audit-helpers', () => ({
   fetchActiveQuestionIds: mockFetchActiveQuestionIds,
-  buildAnswersForSession: mockBuildAnswersForSession,
+}))
+
+vi.mock('./finish-session', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./finish-session')>()),
+  buildMcProgressAnswers: mockBuildMcProgressAnswers,
 }))
 
 import type { getAdminClient } from '../../helpers/supabase'
@@ -80,8 +84,8 @@ let tracker: FixtureTracker
 function setupCommonMocks() {
   mockCreateAuthenticatedClient.mockResolvedValue(VICTIM_CLIENT)
   mockFetchActiveQuestionIds.mockResolvedValue(['question-id-1'])
-  mockBuildAnswersForSession.mockResolvedValue([
-    { question_id: 'question-id-1', selected_option_id: 'opt-1' },
+  mockBuildMcProgressAnswers.mockResolvedValue([
+    { question_id: 'question-id-1', answer: { selected_option_id: 'a' } },
   ])
 }
 
@@ -94,13 +98,19 @@ describe('seedVictimCompletedSession', () => {
   it('returns the started session id and tracks it for cleanup', async () => {
     setupCommonMocks()
     mockRpc
-      .mockResolvedValueOnce({ data: 'victim-session-id', error: null })
-      .mockResolvedValueOnce({ data: null, error: null })
+      .mockResolvedValueOnce({ data: 'victim-session-id', error: null }) // start
+      .mockResolvedValueOnce({ data: null, error: null }) // save
+      .mockResolvedValueOnce({ data: null, error: null }) // finish
 
     const sessionId = await seedVictimCompletedSession(adminMock, IDS, tracker)
 
     expect(sessionId).toBe('victim-session-id')
     expect(tracker.sessions.has('victim-session-id')).toBe(true)
+    expect(mockRpc.mock.calls.map((c) => c[0])).toEqual([
+      'start_quiz_session',
+      'save_quiz_answer',
+      'finish_quiz_session',
+    ])
   })
 
   it('throws when start_quiz_session RPC fails', async () => {
@@ -123,20 +133,21 @@ describe('seedVictimCompletedSession', () => {
     )
   })
 
-  it('throws when batch_submit_quiz RPC fails', async () => {
+  it('throws when finish_quiz_session RPC fails', async () => {
     setupCommonMocks()
     mockFrom.mockReturnValueOnce(buildChain({ data: [{ id: 'sess-ok' }], error: null })) // discard
 
     mockRpc
       .mockResolvedValueOnce({ data: 'sess-ok', error: null }) // start_quiz_session ok
+      .mockResolvedValueOnce({ data: null, error: null }) // save_quiz_answer ok
       .mockResolvedValueOnce({ data: null, error: { message: 'submit RPC error' } })
 
     await expect(seedVictimCompletedSession(adminMock, IDS, tracker)).rejects.toThrow(
-      /batch_submit_quiz failed.*submit RPC error/,
+      /unauth seed: finish_quiz_session failed.*submit RPC error/,
     )
   })
 
-  it('soft-deletes exactly the half-seeded session when batch_submit_quiz fails', async () => {
+  it('soft-deletes exactly the half-seeded session when finish_quiz_session fails', async () => {
     setupCommonMocks()
     const calls: ChainCall[] = []
     mockFrom.mockReturnValueOnce(
@@ -145,10 +156,11 @@ describe('seedVictimCompletedSession', () => {
 
     mockRpc
       .mockResolvedValueOnce({ data: 'sess-ok', error: null })
+      .mockResolvedValueOnce({ data: null, error: null }) // save_quiz_answer ok
       .mockResolvedValueOnce({ data: null, error: { message: 'submit RPC error' } })
 
     await expect(seedVictimCompletedSession(adminMock, IDS, tracker)).rejects.toThrow(
-      /batch_submit_quiz failed/,
+      /unauth seed: finish_quiz_session failed/,
     )
 
     // The started session is left open otherwise, and the caller never receives
@@ -163,12 +175,34 @@ describe('seedVictimCompletedSession', () => {
     expect(calls[3]?.args).toEqual(['id'])
   })
 
+  it('soft-deletes the half-seeded session when save_quiz_answer fails', async () => {
+    setupCommonMocks()
+    const calls: ChainCall[] = []
+    mockFrom.mockReturnValueOnce(
+      buildRecordingChain({ data: [{ id: 'sess-ok' }], error: null }, calls),
+    )
+
+    mockRpc
+      .mockResolvedValueOnce({ data: 'sess-ok', error: null })
+      .mockResolvedValueOnce({ data: null, error: { message: 'save RPC error' } })
+
+    await expect(seedVictimCompletedSession(adminMock, IDS, tracker)).rejects.toThrow(
+      /unauth seed: save_quiz_answer failed: save RPC error/,
+    )
+
+    expect(mockRpc.mock.calls.map((c) => c[0])).not.toContain('finish_quiz_session')
+    expect(mockFrom).toHaveBeenCalledWith('quiz_sessions')
+    expect(calls.map((c) => c.method)).toEqual(['update', 'eq', 'is', 'select'])
+    expect(calls[1]?.args).toEqual(['id', 'sess-ok'])
+  })
+
   it('keeps both the submit failure and the discard failure observable', async () => {
     setupCommonMocks()
     mockFrom.mockReturnValueOnce(buildChain({ data: null, error: { message: 'discard failed' } }))
 
     mockRpc
       .mockResolvedValueOnce({ data: 'sess-ok', error: null })
+      .mockResolvedValueOnce({ data: null, error: null }) // save_quiz_answer ok
       .mockResolvedValueOnce({ data: null, error: { message: 'submit RPC error' } })
 
     const err = (await seedVictimCompletedSession(adminMock, IDS, tracker).catch(
@@ -177,7 +211,7 @@ describe('seedVictimCompletedSession', () => {
 
     // `message` stays the submit failure's, so callers matching on it keep working.
     expect(err).toBeInstanceOf(AggregateError)
-    expect(err.message).toMatch(/batch_submit_quiz failed.*submit RPC error/)
+    expect(err.message).toMatch(/unauth seed: finish_quiz_session failed.*submit RPC error/)
     // The discard failure is composed in, not swallowed: without it the next run
     // hits `another_session_active` with no explanation of why.
     expect(err.errors).toHaveLength(2)

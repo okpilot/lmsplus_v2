@@ -1,0 +1,50 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
+import { DEVICE, type FinishResult, finishSeedSession } from './finish-fixture'
+
+export type SeedAnswer = {
+  questionId: string
+  answer: unknown
+  timeSpentMs?: number
+}
+
+/** Saved-answer payload builders, one per question type (exact keys the save RPC validates). */
+export const P = {
+  mc: (selectedOptionId: string) => ({ selected_option_id: selectedOptionId }),
+  short: (responseText: string) => ({ response_text: responseText }),
+  dialog: (blanks: string[]) => ({
+    blanks: blanks.map((responseText, blankIndex) => ({
+      blank_index: blankIndex,
+      response_text: responseText,
+    })),
+  }),
+  ordering: (itemIds: string[]) => ({ order: itemIds }),
+  diagram: (pairs: Array<{ zone_id: string; label_id: string }>) => ({ mapping: pairs }),
+}
+
+/** Saves seed answers through save_quiz_answer. Throws on the first error. */
+export async function saveSeedAnswers(
+  client: SupabaseClient,
+  sessionId: string,
+  answers: SeedAnswer[],
+) {
+  for (const a of answers) {
+    const { error } = await client.rpc('save_quiz_answer', {
+      p_session_id: sessionId,
+      p_question_id: a.questionId,
+      p_answer: a.answer,
+      p_time_spent_ms: a.timeSpentMs ?? 1000,
+      p_device_id: DEVICE,
+    })
+    if (error) throw new Error(`save_quiz_answer: ${error.message}`)
+  }
+}
+
+/** Saves the answers, then finishes the session. Save BEFORE any backdating. */
+export async function saveAndFinish(
+  client: SupabaseClient,
+  sessionId: string,
+  answers: SeedAnswer[],
+): Promise<FinishResult> {
+  await saveSeedAnswers(client, sessionId, answers)
+  return finishSeedSession(client, sessionId)
+}

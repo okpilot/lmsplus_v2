@@ -10,6 +10,7 @@
 // exposes one concern per export path.
 
 export { cleanupReferenceData, cleanupTestData, type ReferenceIds } from './__integration__/cleanup'
+export { P, saveAndFinish } from './__integration__/save-and-finish'
 export { seedQuestions, seedReferenceData } from './__integration__/seed'
 export {
   createTestOrg,

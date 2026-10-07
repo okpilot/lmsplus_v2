@@ -24,6 +24,7 @@
 
 import { expect, test } from '@playwright/test'
 import { cleanupStudentActiveSessions, getAdminClient } from '../helpers/supabase'
+import { saveAndFinish } from './helpers/finish-session'
 import { createAuthenticatedClient } from './helpers/redteam-client'
 import { ensureExamConfig, pickSubjectWithQuestions } from './helpers/seed-quiz'
 import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers } from './helpers/seed-users'
@@ -142,16 +143,12 @@ test.describe('Red Team: Session Race Condition', () => {
     const typedQuestions = questions as Question[]
     const answers = typedQuestions.map((q) => ({
       question_id: q.id,
-      selected_option: q.options[0]?.id ?? '',
-      response_time_ms: 3000,
+      answer: { selected_option_id: q.options[0]?.id ?? '' },
     }))
 
-    // Step 3: Submit answers via batch_submit (auto-completes the session)
-    const { error: batchError } = await attackerClient.rpc('batch_submit_quiz', {
-      p_session_id: sessionId,
-      p_answers: answers,
-    })
-    expect(batchError).toBeNull()
+    // Step 3: Save answers then finish (finish_quiz_session ends the session)
+    const { error: finishError } = await saveAndFinish(attackerClient, sessionId, answers)
+    expect(finishError).toBeNull()
 
     // Step 4: Attempt to soft-delete a completed session — simulates the
     //         losing side of a race where complete wins.

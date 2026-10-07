@@ -23,6 +23,7 @@
 
 import { expect, test } from '@playwright/test'
 import { cleanupStudentActiveSessions, getAdminClient } from '../helpers/supabase'
+import { buildVfrRtProgressAnswers, saveAndFinish } from './helpers/finish-session'
 import { createAuthenticatedClient } from './helpers/redteam-client'
 import {
   ATTACKER_EMAIL,
@@ -33,7 +34,6 @@ import {
 } from './helpers/seed-users'
 import { VFR_RT_DIAGRAM_ANSWER, VFR_RT_ORDERING_KEY_IDS } from './helpers/seed-vfr-rt-part3'
 import {
-  buildVfrRtAnswers,
   cleanupVfrRtPool,
   seedVfrRtPool,
   VFR_RT_CORRECT_ROWS,
@@ -284,16 +284,17 @@ test.describe('Red Team: get_vfr_rt_exam_results RPC — success / output contra
     const questions = questionsRaw as PoolQuestion[]
     expect(questions.length).toBe(25)
 
-    const answers = buildVfrRtAnswers(questions, { failPart2: opts.failPart2 })
-    // Non-vacuous: every question carries an answer (ordering / diagram_label send one entry
-    // per slot / zone) — guards a silent unknown-type skip in the helper.
+    const answers = buildVfrRtProgressAnswers(questions, { failPart2: opts.failPart2 })
+    // Non-vacuous: every question carries a saved answer — guards a silent unknown-type
+    // skip in the helper (ordering / diagram_label save one answer carrying every slot / zone).
     expect(new Set(answers.map((a) => a.question_id)).size).toBe(questions.length)
-    const { data: submitRaw, error: submitErr } = await victimClient.rpc(
-      'submit_vfr_rt_exam_answers',
-      { p_session_id: started.session_id, p_answers: answers },
+    const { data: finishRaw, error: finishErr } = await saveAndFinish(
+      victimClient,
+      started.session_id,
+      answers,
     )
-    expect(submitErr).toBeNull()
-    expect(submitRaw).not.toBeNull()
+    expect(finishErr).toBeNull()
+    expect(finishRaw).not.toBeNull()
 
     const { data: resultsRaw, error: resultsErr } = await victimClient.rpc(
       'get_vfr_rt_exam_results',

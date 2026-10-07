@@ -4,6 +4,7 @@ import { cleanupReferenceData, cleanupTestData } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
 import { requireRpcResult, requireRpcRows } from './guards'
 import { orderingItem } from './ordering-item-id'
+import { P, saveAndFinish } from './save-and-finish'
 import { seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
@@ -135,8 +136,8 @@ describe('RPC: get_report_answer_keys — ordering per-slot keys', () => {
     if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   }, 30_000)
 
-  /** Start + answer the ordering question through batch_submit_quiz (sets ended_at →
-   *  completed), returning the session id. */
+  /** Start + answer the ordering question through save_quiz_answer + finish_quiz_session
+   *  (sets ended_at → completed), returning the session id. */
   async function completeOrderingSession(client: SupabaseClient): Promise<string> {
     const { data: sd, error: startErr } = await client.rpc('start_quiz_session', {
       p_mode: 'quick_quiz',
@@ -147,17 +148,9 @@ describe('RPC: get_report_answer_keys — ordering per-slot keys', () => {
     if (startErr) throw new Error(`startSession: ${startErr.message}`)
     if (typeof sd !== 'string') throw new Error('startSession: no session id')
     const sessionId = sd
-    const answers = CANONICAL_IDS.map((id, i) => ({
-      question_id: orderingId,
-      selected_option: id,
-      blank_index: i,
-      response_time_ms: 1000,
-    }))
-    const { error: submitErr } = await client.rpc('batch_submit_quiz', {
-      p_session_id: sessionId,
-      p_answers: answers,
-    })
-    if (submitErr) throw new Error(`batch_submit_quiz: ${submitErr.message}`)
+    await saveAndFinish(client, sessionId, [
+      { questionId: orderingId, answer: P.ordering(CANONICAL_IDS) },
+    ])
     return sessionId
   }
 

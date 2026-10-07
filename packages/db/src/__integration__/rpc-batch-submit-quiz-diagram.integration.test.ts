@@ -21,7 +21,7 @@ import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient }
 //     complete-permutation check),
 //   * REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated on
 //     _grade_record_diagram_label is covered separately
-//     (rpc-grade-record-diagram-revoke.integration.test.ts).
+//     (rpc-grade-record-revoke.integration.test.ts).
 
 type Zone = { id: string; x: number; y: number; w: number; h: number }
 type Label = { id: string; text: string }

@@ -114,8 +114,11 @@ export function finishSession(
   return client.rpc('finish_quiz_session', { p_session_id: sessionId, p_device_id: device })
 }
 
-export async function finishOk(f: ProgressFixture, sessionId: string): Promise<FinishResult> {
-  const { data, error } = await finishSession(f.student, sessionId)
+export async function finishSeedSession(
+  client: SupabaseClient,
+  sessionId: string,
+): Promise<FinishResult> {
+  const { data, error } = await finishSession(client, sessionId)
   if (error) throw new Error(`finish_quiz_session: ${error.message}`)
   return requireRpcResult<FinishResult>(data, 'finish_quiz_session')
 }

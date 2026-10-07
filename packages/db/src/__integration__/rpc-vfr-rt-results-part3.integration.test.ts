@@ -4,7 +4,9 @@
  * the new types, and an overdue auto-completion scores them through the shared part-score helper.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { finishSeedSession } from './finish-fixture'
 import { requireRpcResult } from './guards'
+import { P, type SeedAnswer, saveAndFinish } from './save-and-finish'
 import { admin } from './vfr-rt-helpers'
 import { createPart3Org, type Part3Org, startPart3Exam } from './vfr-rt-part3-org'
 
@@ -41,43 +43,26 @@ describe('get_vfr_rt_exam_results — Part 3 ordering and diagram', () => {
       (typeof org.ordering)[number],
     ]
     // Fixed fixture sizes (vfr-rt-part3-helpers): 4 ordering items, 3 zones, 4 labels, 4 MC ids.
-    const slot = (q: typeof ord0, order: number[]) =>
-      order.map((from, s) => ({
-        question_id: q.id,
-        selected_option_id: q.items[from]!.id,
-        blank_index: s,
-      }))
-    const d = org.diagram
-    const { data, error } = await org.studentClient.rpc('submit_vfr_rt_exam_answers', {
-      p_session_id: sessionId,
-      p_answers: [
-        ...org.mcIds.map((id) => ({ question_id: id, selected_option_id: 'b' })),
-        ...slot(ord0, [0, 1, 2, 3]),
-        ...slot(ord1, [1, 0, 2, 3]),
-        {
-          question_id: d.id,
-          selected_option_id: d.labels[0]!.id,
-          response_text: d.zones[0]!.id,
-          blank_index: 0,
-        },
-        {
-          question_id: d.id,
-          selected_option_id: d.labels[1]!.id,
-          response_text: d.zones[1]!.id,
-          blank_index: 1,
-        },
-        {
-          question_id: d.id,
-          selected_option_id: d.labels[3]!.id,
-          response_text: d.zones[2]!.id,
-          blank_index: 2,
-        },
-      ],
+    const slot = (q: typeof ord0, order: number[]): SeedAnswer => ({
+      questionId: q.id,
+      answer: P.ordering(order.map((from) => q.items[from]!.id)),
     })
-    if (error) throw new Error(`submit: ${error.message}`)
-    submittedPart3 = Number(
-      requireRpcResult<{ part3_pct: number | string }>(data, 'submit').part3_pct,
-    )
+    const d = org.diagram
+    const answers: SeedAnswer[] = [
+      ...org.mcIds.map((id) => ({ questionId: id, answer: P.mc('b') })),
+      slot(ord0, [0, 1, 2, 3]),
+      slot(ord1, [1, 0, 2, 3]),
+      {
+        questionId: d.id,
+        answer: P.diagram([
+          { zone_id: d.zones[0]!.id, label_id: d.labels[0]!.id },
+          { zone_id: d.zones[1]!.id, label_id: d.labels[1]!.id },
+          { zone_id: d.zones[2]!.id, label_id: d.labels[3]!.id },
+        ]),
+      },
+    ]
+    const result = await saveAndFinish(org.studentClient, sessionId, answers)
+    submittedPart3 = Number(result.part3_pct)
   })
   afterAll(async () => {
     await org?.cleanup()
@@ -128,7 +113,7 @@ describe('get_vfr_rt_exam_results — Part 3 ordering and diagram', () => {
     expect(entry!.answers.map((a) => a.is_correct)).toEqual([true, true, false])
   })
 
-  it('scores part 3 over multiple-choice, ordering and diagram questions, matching the submit result', async () => {
+  it('scores part 3 over multiple-choice, ordering and diagram questions, matching the finish result', async () => {
     const { data } = await call()
     const res = requireRpcResult<Results>(data, 'get_vfr_rt_exam_results')
     // (4 MC + 1 + 0.5 + 0 + 2/3) / 8 questions
@@ -136,7 +121,7 @@ describe('get_vfr_rt_exam_results — Part 3 ordering and diagram', () => {
     expect(Number(res.part3_pct)).toBe(submittedPart3)
   })
 
-  it('keeps the graded part 3 score on results and submit replay after the diagram question gains a zone', async () => {
+  it('keeps the graded part 3 score on results and finish replay after the diagram question gains a zone', async () => {
     const { data: before, error: readErr } = await admin
       .from('questions')
       .select('diagram_config')
@@ -164,14 +149,8 @@ describe('get_vfr_rt_exam_results — Part 3 ordering and diagram', () => {
       expect(Number(requireRpcResult<Results>(data, 'get_vfr_rt_exam_results').part3_pct)).toBe(
         submittedPart3,
       )
-      const replay = await org.studentClient.rpc('submit_vfr_rt_exam_answers', {
-        p_session_id: sessionId,
-        p_answers: [],
-      })
-      expect(replay.error).toBeNull()
-      expect(
-        Number(requireRpcResult<{ part3_pct: number | string }>(replay.data, 'replay').part3_pct),
-      ).toBe(submittedPart3)
+      const replay = await finishSeedSession(org.studentClient, sessionId)
+      expect(Number(replay.part3_pct)).toBe(submittedPart3)
     } finally {
       await admin.from('questions').update({ diagram_config: original }).eq('id', org.diagram.id)
     }

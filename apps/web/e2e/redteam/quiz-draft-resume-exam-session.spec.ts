@@ -1,13 +1,13 @@
 /**
  * Red Team Spec: a forged draft cannot turn resume into a way to hide a graded exam — Vector EV
  *
- * EV (privilege-escalation): the app no longer writes quiz_drafts (#1026 PR 3), yet RLS still lets
- *     a student INSERT/UPDATE their own row. The student forges a draft whose
- *     session_config.sessionId names their own FINISHED internal_exam and clicks Resume. Resume
+ * EV (privilege-escalation): the app no longer writes quiz_drafts (#1026 PR 3). A legacy/forged
+ *     draft row, seeded by service role (any writer: resume must not trust the row), has
+ *     session_config.sessionId naming the student's own FINISHED internal_exam; the student clicks Resume. Resume
  *     soft-deletes the draft's original session before minting a new one; reaching that step would
  *     hide the graded result. Resume must refuse, leave the exam row untouched, mint nothing and
  *     keep the draft.
- *     CONTROL: the same draft re-pointed (by the student's own UPDATE) at a parked quick_quiz
+ *     CONTROL: the same draft re-pointed (by service role) at a parked quick_quiz
  *     resumes into a new session.
  *
  * Status: Expected to PASS.
@@ -18,7 +18,6 @@ import { buildConsentCookieValue } from '../../lib/consent/check-consent'
 import { CONSENT_COOKIE } from '../../lib/consent/versions'
 import { cleanupStudentSavedSessions } from '../helpers/quiz-session-id'
 import { cleanupStudentActiveSessions, getAdminClient } from '../helpers/supabase'
-import { createAuthenticatedClient } from './helpers/redteam-client'
 import { E2E_REDTEAM_DS_MARKER } from './helpers/seed-markers'
 import { seedRedTeamUsers, VICTIM_EMAIL, VICTIM_PASSWORD } from './helpers/seed-users'
 
@@ -154,8 +153,7 @@ test.describe('Red Team: forged draft resume against a graded exam (EV)', () => 
     })
     examIds.add(examId)
 
-    const victim = await createAuthenticatedClient(VICTIM_EMAIL, VICTIM_PASSWORD)
-    const { data: draft, error: draftErr } = await victim
+    const { data: draft, error: draftErr } = await admin
       .from('quiz_drafts')
       .insert({
         student_id: victimUserId,
@@ -218,12 +216,12 @@ test.describe('Red Team: forged draft resume against a graded exam (EV)', () => 
       if (kErr) throw new Error(`read draft: ${kErr.message}`)
       expect(kept).toHaveLength(1)
 
-      // CONTROL: the student re-points the same draft at a parked quick_quiz; resume now mints.
+      // CONTROL: the same draft is re-pointed at a parked quick_quiz; resume now mints.
       const parkedId = await insertSession({
         mode: 'quick_quiz',
         deleted_at: new Date().toISOString(),
       })
-      const { data: repointed, error: rpErr } = await victim
+      const { data: repointed, error: rpErr } = await admin
         .from('quiz_drafts')
         .update({ session_config: { sessionId: parkedId, subjectName: E2E_REDTEAM_DS_MARKER } })
         .eq('id', draft.id)

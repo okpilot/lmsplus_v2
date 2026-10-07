@@ -38,55 +38,20 @@ export async function fetchActiveQuestionIds(
   return data.map((row) => row.id)
 }
 
-/**
- * Build an answers array for a given session by reading config.question_ids
- * and fetching each question's first option via the service-role client.
- */
-export async function buildAnswersForSession(
+/** `metadata.reason` of the session's audit event of `eventType` (undefined when absent). */
+export async function readAuditReason(
   admin: AdminClient,
+  eventType: string,
   sessionId: string,
-): Promise<unknown[]> {
-  const { data: session, error: sErr } = await admin
-    .from('quiz_sessions')
-    .select('config')
-    .eq('id', sessionId)
-    .single()
-  if (sErr || !session) throw new Error(`buildAnswers session: ${sErr?.message}`)
-  const rawIds = (session.config as { question_ids?: unknown })?.question_ids
-  if (!Array.isArray(rawIds)) {
-    throw new Error(`buildAnswers: config.question_ids is not an array: ${JSON.stringify(rawIds)}`)
-  }
-  const ids = rawIds.filter((v): v is string => typeof v === 'string')
-  if (ids.length === 0) throw new Error('buildAnswers: session has no question_ids')
-
-  // Service role can read full questions including options for grading shape.
-  const { data: questions, error: qErr } = await admin
-    .from('questions')
-    .select('id, options')
-    .in('id', ids)
-  if (qErr || !questions) throw new Error(`buildAnswers questions: ${qErr?.message}`)
-  if (!Array.isArray(questions)) {
-    throw new Error(`buildAnswers: unexpected questions shape: ${JSON.stringify(questions)}`)
-  }
-  return questions.map((raw) => {
-    const q = raw as unknown as { id: unknown; options: unknown }
-    if (typeof q.id !== 'string') {
-      throw new Error(`buildAnswers: unexpected question id shape: ${JSON.stringify(q.id)}`)
-    }
-    if (!Array.isArray(q.options)) {
-      throw new Error(`buildAnswers: question ${q.id} options is not an array`)
-    }
-    const firstOpt = q.options[0] as { id?: unknown } | undefined
-    const optionId = typeof firstOpt?.id === 'string' ? firstOpt.id : undefined
-    if (!optionId) {
-      throw new Error(`buildAnswers: question ${q.id} has no options`)
-    }
-    return {
-      question_id: q.id,
-      selected_option: optionId,
-      response_time_ms: 1500,
-    }
-  })
+): Promise<unknown> {
+  const { data, error } = await admin
+    .from('audit_events')
+    .select('metadata')
+    .eq('event_type', eventType)
+    .eq('resource_id', sessionId)
+    .maybeSingle()
+  if (error) throw new Error(`readAuditReason ${eventType}: ${error.message}`)
+  return (data?.metadata as { reason?: unknown } | null | undefined)?.reason
 }
 
 /**
@@ -155,7 +120,7 @@ export async function expectCompletionMetadata(
 /**
  * Backdate a quiz_session so that it appears past the grace period:
  * 60s time_limit, started 91s ago → triggers the expired audit path on
- * the next batch_submit_quiz or complete_empty_exam_session call.
+ * the next finish_quiz_session or complete_empty_exam_session call.
  * Uses service-role (exempt from the immutable-columns trigger, mig 20260502000001).
  */
 export async function backdateSession(admin: AdminClient, sessionId: string): Promise<void> {

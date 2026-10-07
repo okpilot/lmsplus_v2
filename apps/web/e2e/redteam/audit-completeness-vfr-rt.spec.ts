@@ -4,7 +4,7 @@
  * Pins the VFR-RT audit_events.event_type literals to the flows that emit them,
  * so a future CREATE OR REPLACE can't silently rename or drop them:
  *   - vfr_rt_exam.started   ← start_vfr_rt_exam_session (mig 140)
- *   - vfr_rt_exam.completed ← submit_vfr_rt_exam_answers, fresh completion (mig 129)
+ *   - vfr_rt_exam.completed ← finish_quiz_session, fresh completion (mig 20261004000300)
  *   - vfr_rt_exam.completed ← complete_empty_exam_session, non-overdue empty session (mig 102 L264)
  *   - vfr_rt_exam.expired   ← complete_overdue_exam_session on a vfr_rt session (mig 102 L140)
  *
@@ -20,9 +20,10 @@ import { expect, test } from '@playwright/test'
 import { cleanupStudentActiveSessions, getAdminClient } from '../helpers/supabase'
 import { expectAuditRow } from './helpers/audit-helpers'
 import { cleanupFixtures, createFixtureTracker } from './helpers/cleanup'
+import { buildVfrRtProgressAnswers, saveAndFinish } from './helpers/finish-session'
 import { createAuthenticatedClient } from './helpers/redteam-client'
 import { seedRedTeamUsers, VICTIM_EMAIL, VICTIM_PASSWORD } from './helpers/seed-users'
-import { buildVfrRtAnswers, cleanupVfrRtPool, seedVfrRtPool } from './helpers/seed-vfr-rt-pool'
+import { cleanupVfrRtPool, seedVfrRtPool } from './helpers/seed-vfr-rt-pool'
 
 async function startTrackedVfrRtSession(
   client: Awaited<ReturnType<typeof createAuthenticatedClient>>,
@@ -101,7 +102,7 @@ test.describe('Red Team: Audit Event Completeness — VFR RT (Vector DP, #873)',
     await expectAuditRow(admin, 'vfr_rt_exam.started', victimUserId, testStart, sessionId)
   })
 
-  test('writes vfr_rt_exam.completed on submit_vfr_rt_exam_answers within time limit', async () => {
+  test('writes vfr_rt_exam.completed on finish_quiz_session within time limit', async () => {
     await cleanupStudentActiveSessions(VICTIM_EMAIL)
 
     const sessionId = await startTrackedVfrRtSession(victimClient, pool.subjectId, tracker)
@@ -114,14 +115,13 @@ test.describe('Red Team: Audit Event Completeness — VFR RT (Vector DP, #873)',
     if (!Array.isArray(questions)) {
       throw new Error(`get_vfr_rt_exam_questions returned non-array: ${JSON.stringify(questions)}`)
     }
-    const answers = buildVfrRtAnswers(questions as Array<{ id: string; question_type: string }>)
+    const answers = buildVfrRtProgressAnswers(
+      questions as Array<{ id: string; question_type: string }>,
+    )
 
     const testStart = new Date().toISOString()
-    const { error: submitErr } = await victimClient.rpc('submit_vfr_rt_exam_answers', {
-      p_session_id: sessionId,
-      p_answers: answers,
-    })
-    expect(submitErr).toBeNull()
+    const { error: finishErr } = await saveAndFinish(victimClient, sessionId, answers)
+    expect(finishErr).toBeNull()
 
     await expectAuditRow(admin, 'vfr_rt_exam.completed', victimUserId, testStart, sessionId)
   })

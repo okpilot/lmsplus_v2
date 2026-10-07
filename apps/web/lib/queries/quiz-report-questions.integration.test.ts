@@ -14,7 +14,9 @@ import {
   fixtureSuffix,
   getAdminClient,
   getAuthenticatedClient,
+  P,
   type ReferenceIds,
+  saveAndFinish,
   seedQuestions,
   seedReferenceData,
   signInAs,
@@ -345,7 +347,7 @@ describe('getQuizReportQuestions — non-MC report (app-layer integration)', () 
 
     nmStudentClient = await getAuthenticatedClient({ email: nmEmail, password: nmPassword })
 
-    // Start a session over the two non-MC questions, then batch-submit answers:
+    // Start a session over the two non-MC questions, then save + finish answers:
     // short_answer correct, dialog blank 2 wrong (partial credit).
     const { data: startData, error: startErr } = await nmStudentClient.rpc('start_quiz_session', {
       p_mode: 'quick_quiz',
@@ -357,21 +359,10 @@ describe('getQuizReportQuestions — non-MC report (app-layer integration)', () 
     if (typeof startData !== 'string') throw new Error('start_quiz_session: no session id')
     nmSessionId = startData
 
-    const { error: batchErr } = await nmStudentClient.rpc('batch_submit_quiz', {
-      p_session_id: nmSessionId,
-      p_answers: [
-        { question_id: shortAnswerId, response_text: SA_CANONICAL, response_time_ms: 4000 },
-        { question_id: dialogFillId, blank_index: 0, response_text: DF_B0, response_time_ms: 1000 },
-        { question_id: dialogFillId, blank_index: 1, response_text: DF_B1, response_time_ms: 1000 },
-        {
-          question_id: dialogFillId,
-          blank_index: 2,
-          response_text: 'wrong',
-          response_time_ms: 1000,
-        },
-      ],
-    })
-    if (batchErr) throw new Error(`batch_submit_quiz: ${batchErr.message}`)
+    await saveAndFinish(nmStudentClient, nmSessionId, [
+      { questionId: shortAnswerId, answer: P.short(SA_CANONICAL), timeSpentMs: 4000 },
+      { questionId: dialogFillId, answer: P.dialog([DF_B0, DF_B1, 'wrong']), timeSpentMs: 1000 },
+    ])
   })
 
   afterAll(async () => {

@@ -7,7 +7,7 @@
  *   - non-owner → same guard error
  *   - wrong mode session → same guard error
  *   - soft-deleted caller → user_not_found_or_inactive (mig 103 gate, #838)
- *   - passing session: per-part pcts match submit result; revealed key present
+ *   - passing session: per-part pcts match the finish result; revealed key present
  *   - passing session: explanation_text / explanation_image_url revealed per
  *     question post-completion (mig 106), with ≥2 distinct non-null fixture
  *     values per field and null passthrough for questions seeded without them
@@ -22,6 +22,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupTestData } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
 import { requireRpcResult } from './guards'
+import { P, type SeedAnswer, saveAndFinish } from './save-and-finish'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 import { getP3Subtopics, P3_SUBTOPIC_CODES } from './vfr-rt-part3-helpers'
 
@@ -213,6 +214,24 @@ let passingSessionId: string
 let failingSessionId: string // Part 2 fail
 const userIds: string[] = []
 
+/** One saved answer per question (a dialog_fill saves all its blanks in one payload). */
+function fixtureAnswers(questionIds: string[], wrongDialogs: boolean): SeedAnswer[] {
+  const saById = Object.fromEntries(saQs.map((q) => [q.id, q]))
+  const dfById = Object.fromEntries(dfQs.map((q) => [q.id, q]))
+  const mcById = Object.fromEntries(mcQs.map((q) => [q.id, q]))
+  const answers: SeedAnswer[] = []
+  for (const qId of questionIds) {
+    const [sa, df, mc] = [saById[qId], dfById[qId], mcById[qId]]
+    if (sa) answers.push({ questionId: qId, answer: P.short(sa.canonical), timeSpentMs: 0 })
+    else if (df) {
+      const blanks = df.blanks.map((b) => (wrongDialogs ? 'WRONG_XYZ' : b.canonical))
+      answers.push({ questionId: qId, answer: P.dialog(blanks), timeSpentMs: 0 })
+    } else if (mc) answers.push({ questionId: qId, answer: P.mc(mc.correctOption), timeSpentMs: 0 })
+    else throw new Error(`fixtureAnswers: ${qId} is not a seeded pool question`)
+  }
+  return answers
+}
+
 beforeAll(async () => {
   const refs = await getRtRefs()
   rtSubjectId = refs.rtSubjectId
@@ -280,25 +299,7 @@ beforeAll(async () => {
     )
     passingSessionId = r.session_id
 
-    const saById = Object.fromEntries(saQs.map((q) => [q.id, q]))
-    const dfById = Object.fromEntries(dfQs.map((q) => [q.id, q]))
-    const mcById = Object.fromEntries(mcQs.map((q) => [q.id, q]))
-    const answers: object[] = []
-    for (const qId of r.question_ids) {
-      if (saById[qId]) {
-        answers.push({ question_id: qId, response_text: saById[qId]!.canonical })
-      } else if (dfById[qId]) {
-        for (const b of dfById[qId]!.blanks)
-          answers.push({ question_id: qId, blank_index: b.index, response_text: b.canonical })
-      } else if (mcById[qId]) {
-        answers.push({ question_id: qId, selected_option_id: mcById[qId]!.correctOption })
-      }
-    }
-    const { error: subErr } = await studentClient.rpc('submit_vfr_rt_exam_answers', {
-      p_session_id: passingSessionId,
-      p_answers: answers,
-    })
-    if (subErr) throw new Error(`submit passing: ${subErr.message}`)
+    await saveAndFinish(studentClient, passingSessionId, fixtureAnswers(r.question_ids, false))
   }
 
   // ── Fixture B: Part 2 fail session ───────────────────────────────────────
@@ -313,25 +314,7 @@ beforeAll(async () => {
     )
     failingSessionId = r.session_id
 
-    const saById = Object.fromEntries(saQs.map((q) => [q.id, q]))
-    const dfById = Object.fromEntries(dfQs.map((q) => [q.id, q]))
-    const mcById = Object.fromEntries(mcQs.map((q) => [q.id, q]))
-    const answers: object[] = []
-    for (const qId of r.question_ids) {
-      if (saById[qId]) {
-        answers.push({ question_id: qId, response_text: saById[qId]!.canonical })
-      } else if (dfById[qId]) {
-        for (const b of dfById[qId]!.blanks)
-          answers.push({ question_id: qId, blank_index: b.index, response_text: 'WRONG_XYZ' })
-      } else if (mcById[qId]) {
-        answers.push({ question_id: qId, selected_option_id: mcById[qId]!.correctOption })
-      }
-    }
-    const { error: subErr } = await studentClient.rpc('submit_vfr_rt_exam_answers', {
-      p_session_id: failingSessionId,
-      p_answers: answers,
-    })
-    if (subErr) throw new Error(`submit failing: ${subErr.message}`)
+    await saveAndFinish(studentClient, failingSessionId, fixtureAnswers(r.question_ids, true))
   }
 })
 

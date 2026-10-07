@@ -146,13 +146,17 @@ test.describe('Red Team: recheckRestoredAnswers (HG, HH, HI, HJ, HK)', () => {
       .limit(50)
     if (error) throw new Error(`beforeAll questions: ${error.message}`)
     const rows = (data ?? []) as Array<{ id: string; subject_id: string }>
-    const first = rows[0]
-    const same = rows.filter((r) => r.id !== first?.id && r.subject_id === first?.subject_id)
-    if (!first || same.length < 2) throw new Error('need 3 active MC questions in one subject')
-    q1 = first.id
-    q2 = same[0]?.id as string
-    q3 = same[1]?.id as string
-    subjectId = first.subject_id
+    // Other specs leave stray questions in other subjects; pick a subject that has three.
+    const bySubject = new Map<string, string[]>()
+    for (const r of rows)
+      bySubject.set(r.subject_id, [...(bySubject.get(r.subject_id) ?? []), r.id])
+    const picked = [...bySubject.entries()].find(([, ids]) => ids.length >= 3)
+    if (!picked) throw new Error('need 3 active MC questions in one subject')
+    const [pickedSubject, [first, second, third]] = picked
+    q1 = first as string
+    q2 = second as string
+    q3 = third as string
+    subjectId = pickedSubject
 
     // Capture the action id + replay headers from the attacker's own restored-session page.
     await cleanupStudentActiveSessions(ATTACKER_EMAIL)

@@ -14,6 +14,7 @@
 
 import { expect, test } from '@playwright/test'
 import { cleanupStudentActiveSessions, getAdminClient } from '../helpers/supabase'
+import { buildVfrRtProgressAnswers, saveAndFinish } from './helpers/finish-session'
 import { createAuthenticatedClient } from './helpers/redteam-client'
 import { seedRedTeamUsers, VICTIM_EMAIL, VICTIM_PASSWORD } from './helpers/seed-users'
 import { VFR_RT_DIAGRAM_ANSWER, VFR_RT_ORDERING_KEY_IDS } from './helpers/seed-vfr-rt-part3'
@@ -162,8 +163,12 @@ test.describe('Red Team: VFR RT Part 3 ordering / diagram_label integrity', () =
     expect(wire).not.toContain('correct_option_id')
 
     // CONTROL: the key exists and is served once the session has ended.
-    const { error: subErr } = await submit(sessionId, buildVfrRtAnswers(questions))
-    expect(subErr).toBeNull()
+    const { error: finErr } = await saveAndFinish(
+      student,
+      sessionId,
+      buildVfrRtProgressAnswers(questions),
+    )
+    expect(finErr).toBeNull()
     const { data: res, error: resErr } = await student.rpc('get_vfr_rt_exam_results', {
       p_session_id: sessionId,
     })

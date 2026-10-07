@@ -2,9 +2,9 @@
  * Red Team Spec: resuming a forged quiz_drafts row costs at most one seed write per draft question
  * (#1026 PR 3) — Vector HF
  *
- * HF (rate-limit): the student writes their own quiz_drafts row directly (RLS permits it; the
- *     answers JSONB has no size cap) carrying JUNK_KEYS answers keyed by random uuids outside the
- *     draft's questions, then resumes it once through the UI. Seeding must not issue one
+ * HF (rate-limit): a legacy/forged quiz_drafts row, seeded by service role (any writer: the
+ *     resume guards must not trust the row) (the answers JSONB has no size cap), carries JUNK_KEYS answers keyed
+ *     by random uuids outside the draft's questions; the student then resumes it once through the UI. Seeding must not issue one
  *     save_quiz_answer round-trip per junk key: the resume completes inside RESUME_BUDGET_MS.
  *     CONTROL: the one valid in-session answer IS seeded into the new session.
  *
@@ -15,7 +15,6 @@ import { expect, test } from '@playwright/test'
 import { buildConsentCookieValue } from '../../lib/consent/check-consent'
 import { CONSENT_COOKIE } from '../../lib/consent/versions'
 import { cleanupStudentActiveSessions, getAdminClient } from '../helpers/supabase'
-import { createAuthenticatedClient } from './helpers/redteam-client'
 import { E2E_REDTEAM_DS_MARKER } from './helpers/seed-markers'
 import { seedRedTeamUsers, VICTIM_EMAIL, VICTIM_PASSWORD } from './helpers/seed-users'
 
@@ -115,8 +114,7 @@ test.describe('Red Team: draft resume seed fan-out (HF)', () => {
     for (let i = 0; i < JUNK_KEYS; i++) {
       answers[crypto.randomUUID()] = { selectedOptionId: 'a', responseTimeMs: 5 }
     }
-    const victim = await createAuthenticatedClient(VICTIM_EMAIL, VICTIM_PASSWORD)
-    const { data: draft, error: draftErr } = await victim
+    const { data: draft, error: draftErr } = await admin
       .from('quiz_drafts')
       .insert({
         student_id: victimUserId,
