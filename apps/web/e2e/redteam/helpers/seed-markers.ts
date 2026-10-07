@@ -73,3 +73,5 @@ export const E2E_REDTEAM_DS_MARKER = '[E2E_REDTEAM_DS]'
 export const E2E_REDTEAM_RC_MARKER = '[E2E_REDTEAM_RC]'
 // blocked-start saved-cap spec (Vector HL): written into fixture quiz_sessions as `config.e2e_marker`.
 export const E2E_REDTEAM_BS_MARKER = '[E2E_REDTEAM_BS]'
+// quiz-draft cross-student delete spec (Vector HQ, #1463): written into fixture quiz_drafts as `session_config.subjectName`.
+export const E2E_REDTEAM_DD_MARKER = '[E2E_REDTEAM_DD]'
