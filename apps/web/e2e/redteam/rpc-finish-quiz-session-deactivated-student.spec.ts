@@ -97,6 +97,21 @@ test.describe('Red Team: finish_quiz_session deactivated student (Vector HR)', (
   const finish = (sessionId: string) =>
     victim.rpc('finish_quiz_session', { p_session_id: sessionId, p_device_id: null })
 
+  const seedFinishedOverdue = async () => {
+    const overdueId = await seedSession({ timeLimit: 60 })
+    expect((await save(overdueId, q1, q1Key)).error).toBeNull()
+    const { error: backErr } = await admin
+      .from('quiz_sessions')
+      .update({ started_at: new Date(Date.now() - 600_000).toISOString() })
+      .eq('id', overdueId)
+    expect(backErr).toBeNull()
+    const first = await finish(overdueId)
+    expect(first.error).toBeNull()
+    expect(isRecord(first.data) && first.data.expired).toBe(true)
+    expect(resultKeys(first.data)).toEqual([q1Key])
+    return { overdueId, first }
+  }
+
   test.beforeAll(async () => {
     admin = getAdminClient()
     const seed = await seedRedTeamUsers()
@@ -176,17 +191,7 @@ test.describe('Red Team: finish_quiz_session deactivated student (Vector HR)', (
   })
 
   test('HR: a deactivated student cannot re-read a finished session or its keys', async () => {
-    const overdueId = await seedSession({ timeLimit: 60 })
-    expect((await save(overdueId, q1, q1Key)).error).toBeNull()
-    const { error: backErr } = await admin
-      .from('quiz_sessions')
-      .update({ started_at: new Date(Date.now() - 600_000).toISOString() })
-      .eq('id', overdueId)
-    expect(backErr).toBeNull()
-    const first = await finish(overdueId)
-    expect(first.error).toBeNull()
-    expect(isRecord(first.data) && first.data.expired).toBe(true)
-    expect(resultKeys(first.data)).toEqual([q1Key])
+    const { overdueId, first } = await seedFinishedOverdue()
     const before = await readSession(overdueId)
     expect(before.ended_at).not.toBeNull()
 
