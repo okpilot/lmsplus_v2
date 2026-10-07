@@ -45,6 +45,7 @@ describe('buildReplayHeaders', () => {
   it('drops cookie, content-length and host whatever their casing', () => {
     const out = buildReplayHeaders(captured, 'new', 'http://localhost:3000')
     const keys = Object.keys(out).map((k) => k.toLowerCase())
+    expect(keys).toContain('accept')
     expect(keys).not.toContain('cookie')
     expect(keys).not.toContain('content-length')
     expect(keys).not.toContain('host')
