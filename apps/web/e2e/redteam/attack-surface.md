@@ -242,6 +242,8 @@
 | HN | finish_quiz_session-vfr-rt-diagram-forged-progress | HIGH | rpc-finish-vfr-rt-forged-progress.spec.ts | BLOCKED |  | input-injection |
 | HO | finishQuizSession-foreign-or-unauth-session | HIGH | server-action-finish-quiz.spec.ts | BLOCKED |  | idor |
 | HP | batch_submit_quiz-submit_vfr_rt_exam_answers-audit-completeness | MEDIUM | audit-completeness-legacy-submit.spec.ts | BLOCKED |  | sibling-guard-gap |
+| HR | finish_quiz_session-deactivated-student-finish-or-replay | MEDIUM | rpc-finish-quiz-session-deactivated-student.spec.ts | BLOCKED |  | sibling-guard-gap |
+| HS | internal-helpers-authenticated-execute | HIGH | authenticated-internal-helper-execute-denied.spec.ts | BLOCKED |  | privilege-escalation |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
