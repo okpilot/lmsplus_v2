@@ -113,6 +113,38 @@ describe('RPC: finish_quiz_session — expired sessions', () => {
     expect(await auditMetadata(f, sessionId, 'vfr_rt_exam.expired')).toHaveLength(1)
   })
 
+  it('returns a passing expired VFR RT result again on a second finish when every part is correct', async () => {
+    const sessionId = await insertSession({
+      f,
+      mode: 'vfr_rt_exam',
+      questionIds: [f.shortId, f.dialogId, mc(0)],
+      timeLimitSeconds: 1800,
+    })
+    await saveAnswers(f, sessionId, [
+      [f.shortId, RIGHT.short],
+      [f.dialogId, RIGHT.dialog],
+      [mc(0), RIGHT.mc],
+    ])
+    await backdateSession(f, sessionId, 2000)
+
+    const first = await finishSeedSession(f.student, sessionId)
+
+    expect(first.expired).toBe(true)
+    expect(scalars(first)).toMatchObject({
+      part1: 100,
+      part2: 100,
+      part3: 100,
+      passedOverall: true,
+    })
+
+    const second = await finishSeedSession(f.student, sessionId)
+
+    expect(scalars(second)).toEqual(scalars(first))
+    expect(resultsByQuestion(second)).toEqual(resultsByQuestion(first))
+    expect(await answerRows(f, sessionId)).toHaveLength(3)
+    expect(await auditMetadata(f, sessionId, 'vfr_rt_exam.expired')).toHaveLength(1)
+  })
+
   it('recomputes the VFR RT part scores from the graded answers when a finished session has no terminal audit event', async () => {
     const sessionId = await insertSession({
       f,

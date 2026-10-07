@@ -115,9 +115,16 @@ test.describe('Red Team: finish_quiz_session deactivated student (Vector HR)', (
       .limit(2)
     if (error) throw new Error(`beforeAll questions: ${error.message}`)
     if (!Array.isArray(data) || data.length < 2) throw new Error('need 2 active MC questions')
-    q1 = data[0]?.id as string
-    q2 = data[1]?.id as string
-    q1Key = data[0]?.correct_option_id as string
+    const [row1, row2] = data
+    if (typeof row1?.id !== 'string' || !row1.id)
+      throw new Error('beforeAll questions: q1 id missing')
+    if (typeof row2?.id !== 'string' || !row2.id)
+      throw new Error('beforeAll questions: q2 id missing')
+    if (typeof row1.correct_option_id !== 'string' || !row1.correct_option_id)
+      throw new Error('beforeAll questions: q1 correct_option_id missing')
+    q1 = row1.id
+    q2 = row2.id
+    q1Key = row1.correct_option_id
   })
 
   test.beforeEach(async () => {
@@ -196,9 +203,16 @@ test.describe('Red Team: finish_quiz_session deactivated student (Vector HR)', (
     await setVictimDeleted(false)
     const again = await finish(overdueId)
     expect(again.error).toBeNull()
-    expect(resultKeys(again.data)).toEqual([q1Key])
+    expect(again.data).toEqual(first.data)
     const overdueOk = await victim.rpc('complete_overdue_exam_session', { p_session_id: overdueId })
     expect(overdueOk.error).toBeNull()
-    expect(isRecord(overdueOk.data) && Number(overdueOk.data.answered_count)).toBe(1)
+    const stored = await readSession(overdueId)
+    const replayed = overdueOk.data
+    if (!isRecord(replayed)) throw new Error('complete_overdue_exam_session: bad shape')
+    expect(replayed.session_id).toBe(overdueId)
+    expect(Number(replayed.score_percentage)).toBe(Number(stored.score_percentage))
+    expect(replayed.passed).toBe(stored.passed ?? false)
+    expect(replayed.total_questions).toBe(2)
+    expect(Number(replayed.answered_count)).toBe(1)
   })
 })
