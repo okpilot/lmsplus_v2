@@ -318,4 +318,40 @@ describe('RPC: complete_quiz_session', () => {
       }
     }
   })
+
+  it.each(['mock_exam', 'internal_exam'] as const)(
+    'refuses to close an active %s session ungraded',
+    async (mode) => {
+      // Exam sessions start via dedicated RPCs, so admin-insert the row directly.
+      const { data: sessRow, error: sessErr } = await admin
+        .from('quiz_sessions')
+        .insert({
+          organization_id: orgId,
+          student_id: studentId,
+          mode,
+          subject_id: refs.subjectId,
+          config: { question_ids: [questionIds[0]] },
+          total_questions: 1,
+          started_at: new Date().toISOString(),
+        })
+        .select('id')
+        .single<{ id: string }>()
+      if (sessErr) throw new Error(`exam session insert: ${sessErr.message}`)
+      const examSessionId = sessRow.id
+
+      const { error } = await studentClient.rpc('complete_quiz_session', {
+        p_session_id: examSessionId,
+      })
+      expect(error?.message).toMatch(/unsupported_session_mode/)
+
+      const { data: row, error: readErr } = await admin
+        .from('quiz_sessions')
+        .select('ended_at')
+        .eq('id', examSessionId)
+        .single()
+      expect(readErr).toBeNull()
+      expect(row).not.toBeNull()
+      expect(row?.ended_at).toBeNull()
+    },
+  )
 })
