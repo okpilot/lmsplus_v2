@@ -17,12 +17,10 @@ import {
 // PUBLIC by default AND Supabase separately grants anon/authenticated via ALTER DEFAULT
 // PRIVILEGES, so REVOKE FROM PUBLIC alone is insufficient — every API role must be named).
 // The helpers trust their p_student_id/p_session_id/p_org_id args with no auth.uid() check
-// of their own — their callers (finish_quiz_session and complete_overdue_exam_session) own the
-// authorization. This REVOKE only takes effect at EXECUTION via PostgREST — a `db reset`
+// of their own — their callers own the authorization. Derive them:
+// `grep -ln '_grade_record_\|_grade_session_progress(\|_score_graded_session(' supabase/migrations/*.sql`.
+// This REVOKE only takes effect at EXECUTION via PostgREST — a `db reset`
 // proves only that the REVOKE statement parsed, not that the grant table was actually updated.
-// _vfr_rt_exam_part_scores is not listed: it is SECURITY INVOKER and authenticated has no
-// SELECT on questions, so a PostgREST call is denied by the table privilege whatever its
-// EXECUTE grant.
 
 const DUMMY_ID = '00000000-0000-0000-0000-000000000000'
 const ORDERING_ITEMS = [orderingItem('MAYDAY MAYDAY MAYDAY'), orderingItem('callsign Golf Bravo')]
@@ -196,6 +194,20 @@ describe('RPC: internal grading and scoring helpers — REVOKE FROM PUBLIC/anon/
       const { error } = await getAnonClient().rpc(fn, payload)
       expect(error, `${fn} must be uncallable by anon`).not.toBeNull()
       expect(isDenied(error), `anon ${fn} error was ${error?.code}: ${error?.message}`).toBe(true)
+    },
+  )
+
+  // SECURITY INVOKER: with EXECUTE granted its body still fails 42501 on a revoked questions
+  // column, so isDenied() passes either way — only the message names the EXECUTE denial.
+  it.each(['authenticated', 'anon'] as const)(
+    'prevents a %s caller from executing _vfr_rt_exam_part_scores directly',
+    async (role) => {
+      const payload = { p_session_id: DUMMY_ID, p_config: {} }
+      await expectHelperSignatureResolves('_vfr_rt_exam_part_scores', payload)
+      const client = role === 'anon' ? getAnonClient() : studentClient
+      const { error } = await client.rpc('_vfr_rt_exam_part_scores', payload)
+      expect(error?.code).toBe('42501')
+      expect(error?.message).toMatch(/permission denied for function _vfr_rt_exam_part_scores/)
     },
   )
 })
