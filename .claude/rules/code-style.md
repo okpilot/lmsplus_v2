@@ -546,11 +546,11 @@ A **terminal navigation** (`router.push`/`replace`, `window.location.assign` to 
 ```ts
 // ❌ WRONG — a Server Action fired AFTER the terminal navigation can cancel the soft-nav
 router.replace('/app/quiz')
-discardQuiz({ sessionId, draftId }).catch(() => {})
+discardQuiz({ sessionId }).catch(() => {})
 
 // ✅ CORRECT — await the critical mutation; non-critical cleanup fires before; nav is last
 clearDeploymentPin().catch(() => {})                       // non-critical: fire before nav
-await discardQuiz({ sessionId, draftId }).catch(() => {})  // critical: await to settle (best-effort)
+await discardQuiz({ sessionId }).catch(() => {})           // critical: await to settle (best-effort)
 router.replace('/app/quiz')                                // terminal nav: last statement
 
 // ✅ CORRECT — no critical mutation; non-critical cleanup fires before, nav is last (save path)

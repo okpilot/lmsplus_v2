@@ -18,12 +18,8 @@ import { rpc } from '@/lib/supabase-rpc'
 import type { CheckAnswerResult } from '../types'
 import { mapProgressRpcError } from './progress-error-messages'
 
-// Declared locally, matching twelve other files under apps/web (draft-helpers.ts,
-// resume-helpers.ts, resume.ts, check-non-mc-answer-helpers.ts, lib/supabase-rpc.ts and more).
-// Ten of them name it `SupabaseClient`; `_discard-guard.ts` and `_flag-guard.ts` declare the
-// same expression as `ServerSupabaseClient`. The codebase re-declares this one-line derived
-// type rather than sharing it — only check-non-mc-answer-helpers.ts exports it, and nothing
-// imports that.
+// Declared locally, as elsewhere in apps/web. Sites:
+// git grep -nE '^(export )?type \w+ = Awaited<ReturnType<typeof createServerSupabaseClient>>' -- apps/web
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
 /**
