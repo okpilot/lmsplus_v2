@@ -22,10 +22,18 @@ describe('BusyLabel', () => {
   })
 
   it('toggles the spinner and label on a translated page', () => {
-    const { container, rerender } = render(<BusyLabel busy={false}>Save</BusyLabel>)
+    const idle = (
+      <BusyLabel busy={false}>
+        <svg />
+        Save
+      </BusyLabel>
+    )
+    const { container, rerender } = render(idle)
     simulateTranslator(container)
     expect(() => rerender(<BusyLabel busy>Saving...</BusyLabel>)).not.toThrow()
-    expect(() => rerender(<BusyLabel busy={false}>Save</BusyLabel>)).not.toThrow()
+    expect(container.textContent).toBe('Saving...')
+    expect(() => rerender(idle)).not.toThrow()
+    expect(container.textContent).toBe('Save')
     expect(container.querySelector('.animate-spin')).toBeNull()
   })
 })
