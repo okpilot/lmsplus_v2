@@ -22,7 +22,6 @@ import {
   signInAs,
 } from '@/lib/integration-support/harness'
 import { checkAnswer } from './check-answer'
-import { completeQuiz } from './complete'
 
 const admin = getAdminClient()
 const suffix = fixtureSuffix()
@@ -258,7 +257,15 @@ describe('checkAnswer (app-layer integration)', () => {
     })
     await signInAs(emailA, password)
     // End the session first.
-    await completeQuiz({ sessionId: endedSessionId })
+    const { data: ended, error: endError } = await admin
+      .from('quiz_sessions')
+      .update({ ended_at: new Date().toISOString() })
+      .eq('id', endedSessionId)
+      .is('ended_at', null)
+      .is('deleted_at', null)
+      .select('id')
+    expect(endError).toBeNull()
+    expect(ended).toHaveLength(1)
 
     // Now attempt checkAnswer on the ended session.
     const result = await checkAnswer({
