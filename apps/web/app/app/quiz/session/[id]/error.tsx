@@ -7,17 +7,17 @@ import { Button } from '@/components/ui/button'
 
 export default function QuizSessionError({
   error,
-  reset,
+  retry,
 }: Readonly<{
   error: Error & { digest?: string }
-  reset: () => void
+  retry: () => void
 }>) {
   useEffect(() => {
     Sentry.captureException(error)
   }, [error])
 
   return (
-    <ErrorState action={<Button onClick={reset}>Try again</Button>}>
+    <ErrorState action={<Button onClick={retry}>Try again</Button>}>
       This quiz could not be loaded.
     </ErrorState>
   )

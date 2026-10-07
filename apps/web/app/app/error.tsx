@@ -7,17 +7,17 @@ import { Button } from '@/components/ui/button'
 
 export default function AppError({
   error,
-  reset,
+  retry,
 }: Readonly<{
   error: Error & { digest?: string }
-  reset: () => void
+  retry: () => void
 }>) {
   useEffect(() => {
     Sentry.captureException(error)
   }, [error])
 
   return (
-    <ErrorState action={<Button onClick={reset}>Try again</Button>}>
+    <ErrorState action={<Button onClick={retry}>Try again</Button>}>
       An unexpected error occurred.
     </ErrorState>
   )

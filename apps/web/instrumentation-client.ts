@@ -1,5 +1,8 @@
 import * as Sentry from '@sentry/nextjs'
+import { installTranslatorDomGuard } from './lib/translator-dom-guard'
 import { SENTRY_DATA_COLLECTION } from './sentry-data-collection'
+
+installTranslatorDomGuard()
 
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
