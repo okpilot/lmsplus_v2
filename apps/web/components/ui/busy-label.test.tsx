@@ -16,6 +16,11 @@ describe('BusyLabel', () => {
     expect(container.querySelector('.animate-spin')).toHaveAttribute('aria-hidden', 'true')
   })
 
+  it('keeps the label out of the layout so icon children sit beside their text', () => {
+    const { container } = render(<BusyLabel busy={false}>Save</BusyLabel>)
+    expect(container.querySelector('span')).toHaveClass('contents')
+  })
+
   it('toggles the spinner and label on a translated page', () => {
     const { container, rerender } = render(<BusyLabel busy={false}>Save</BusyLabel>)
     simulateTranslator(container)
