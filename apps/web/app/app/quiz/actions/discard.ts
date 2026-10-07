@@ -3,11 +3,10 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import type { ActionResult } from '@/lib/action-result'
-import { cleanupDiscardedDraft, discardBlockedError } from './_discard-guard'
+import { discardBlockedError } from './_discard-guard'
 
 const DiscardQuizInput = z.object({
   sessionId: z.uuid(),
-  draftId: z.uuid().optional(),
 })
 
 export async function discardQuiz(raw: unknown): Promise<ActionResult> {
@@ -19,7 +18,7 @@ export async function discardQuiz(raw: unknown): Promise<ActionResult> {
     } = await supabase.auth.getUser()
     if (authError || !user) return { success: false, error: 'Not authenticated' }
 
-    let input: { sessionId: string; draftId?: string }
+    let input: { sessionId: string }
     try {
       input = DiscardQuizInput.parse(raw)
     } catch {
@@ -85,8 +84,6 @@ export async function discardQuiz(raw: unknown): Promise<ActionResult> {
       'soft-deleted for user',
       user.id,
     )
-
-    if (input.draftId) await cleanupDiscardedDraft(supabase, input.draftId, user.id)
 
     return { success: true }
   } catch (err) {

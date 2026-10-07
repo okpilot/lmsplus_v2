@@ -29,6 +29,7 @@ import {
   VICTIM_EMAIL,
   VICTIM_PASSWORD,
 } from './helpers/seed-users'
+import { postServerAction, signInViaForm, watchServerActions } from './server-action-capture'
 
 const BASE_URL = 'http://localhost:3000'
 const SESSION_PATH = '/app/quiz/session'
@@ -42,11 +43,6 @@ type Mode = 'quick_quiz' | 'mock_exam'
 type Captured = { headers: Record<string, string>; id: string }
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null
-
-const REFERENCE_RES = [
-  /createServerReference\)?\(\s*"([0-9a-f]{40,})"[^"]*?"(\w+)"\s*\)/g,
-  /"([0-9a-f]{40,})":\{"name":"(\w+)"\}/g,
-]
 
 test.describe('Red Team: recheckRestoredAnswers (HG, HH, HI, HJ, HK)', () => {
   test.setTimeout(120_000)
@@ -91,20 +87,14 @@ test.describe('Red Team: recheckRestoredAnswers (HG, HH, HI, HJ, HK)', () => {
     return data ?? []
   }
 
-  const invoke = async (arg: Record<string, unknown>): Promise<string> => {
-    const headers: Record<string, string> = {}
-    for (const [k, v] of Object.entries(cap.headers)) {
-      if (!['cookie', 'content-length', 'host'].includes(k.toLowerCase())) headers[k] = v
-    }
-    headers['next-action'] = cap.id
-    headers.origin = BASE_URL
-    const res = await ctx.request.post(`${BASE_URL}${SESSION_PATH}`, {
-      headers,
-      data: JSON.stringify([arg]),
-      maxRedirects: 0,
+  const invoke = (arg: Record<string, unknown>) =>
+    postServerAction(ctx.request, {
+      url: `${BASE_URL}${SESSION_PATH}`,
+      headers: cap.headers,
+      id: cap.id,
+      origin: BASE_URL,
+      arg,
     })
-    return res.text()
-  }
 
   const attackerClient = () => createAuthenticatedClient(ATTACKER_EMAIL, ATTACKER_PASSWORD)
 
@@ -153,9 +143,11 @@ test.describe('Red Team: recheckRestoredAnswers (HG, HH, HI, HJ, HK)', () => {
     const picked = [...bySubject.entries()].find(([, ids]) => ids.length >= 3)
     if (!picked) throw new Error('need 3 active MC questions in one subject')
     const [pickedSubject, [first, second, third]] = picked
-    q1 = first as string
-    q2 = second as string
-    q3 = third as string
+    if (typeof first !== 'string' || typeof second !== 'string' || typeof third !== 'string')
+      throw new Error('picked subject lacks three string question ids')
+    q1 = first
+    q2 = second
+    q3 = third
     subjectId = pickedSubject
 
     // Capture the action id + replay headers from the attacker's own restored-session page.
@@ -166,38 +158,15 @@ test.describe('Red Team: recheckRestoredAnswers (HG, HH, HI, HJ, HK)', () => {
       { name: CONSENT_COOKIE, value: buildConsentCookieValue(attackerUserId), url: BASE_URL },
     ])
     const page = await ctx.newPage()
-    await page.goto('/')
-    await page.getByLabel('Email address').fill(ATTACKER_EMAIL)
-    await page.getByLabel('Password', { exact: true }).fill(ATTACKER_PASSWORD)
-    await Promise.all([
-      page.waitForURL(/\/(app\/dashboard|consent)(?:\?.*)?$/, { timeout: 15_000 }),
-      page.getByRole('button', { name: 'Sign in' }).click(),
-    ])
-    const ids = new Map<string, string>()
-    const scripts: Promise<void>[] = []
-    let headers: Record<string, string> | undefined
-    page.on('response', (res) => {
-      if (!res.url().includes('/_next/') || !res.url().split('?')[0]?.endsWith('.js')) return
-      scripts.push(
-        res
-          .text()
-          .then((js) => {
-            for (const re of REFERENCE_RES)
-              for (const m of js.matchAll(re)) if (m[1] && m[2]) ids.set(m[2], m[1])
-          })
-          .catch(() => {}),
-      )
-    })
-    page.on('request', (req) => {
-      const h = req.headers()
-      if (req.method() === 'POST' && h['next-action'] && !headers) headers = h
-    })
+    await signInViaForm(page, { email: ATTACKER_EMAIL, password: ATTACKER_PASSWORD })
+    const watch = watchServerActions(page)
     await page.goto(`${SESSION_PATH}/${sessionId}`)
     await expect(page.getByText(/Question 1 of 2/)).toBeVisible({ timeout: 15_000 })
-    await expect.poll(() => headers !== undefined, { timeout: 10_000 }).toBe(true)
-    await Promise.all(scripts)
+    await expect.poll(() => watch.headers() !== undefined, { timeout: 10_000 }).toBe(true)
+    const ids = await watch.settle()
     await page.close()
     const id = ids.get('recheckRestoredAnswers')
+    const headers = watch.headers()
     if (!headers || !id) throw new Error('recheckRestoredAnswers action not captured')
     cap = { headers, id }
   })

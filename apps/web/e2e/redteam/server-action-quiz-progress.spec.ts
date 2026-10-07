@@ -27,6 +27,7 @@ import {
   VICTIM_EMAIL,
   VICTIM_PASSWORD,
 } from './helpers/seed-users'
+import { postServerAction, signInViaForm, watchServerActions } from './server-action-capture'
 
 const BASE_URL = 'http://localhost:3000'
 const SESSION_PATH = '/app/quiz/session'
@@ -40,46 +41,15 @@ type Captured = { headers: Record<string, string>; ids: Map<string, string> }
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null
 
-// Client-bundle action references: production `createServerReference("<id>", …, "<name>")`,
-// dev (turbopack) `/* __next_internal_action_entry_do_not_use__ [{"<id>":{"name":"<name>"}}…`.
-const REFERENCE_RES = [
-  /createServerReference\)?\(\s*"([0-9a-f]{40,})"[^"]*?"(\w+)"\s*\)/g,
-  /"([0-9a-f]{40,})":\{"name":"(\w+)"\}/g,
-]
-
 async function signIn(context: BrowserContext, creds: { email: string; password: string }) {
   const page = await context.newPage()
-  await page.goto('/')
-  await page.getByLabel('Email address').fill(creds.email)
-  await page.getByLabel('Password', { exact: true }).fill(creds.password)
-  await Promise.all([
-    page.waitForURL(/\/(app\/dashboard|consent)(?:\?.*)?$/, { timeout: 15_000 }),
-    page.getByRole('button', { name: 'Sign in' }).click(),
-  ])
+  await signInViaForm(page, creds)
   return page
 }
 
 /** Starts a quiz through the UI, answers Q1, moves to Q2; returns action ids + replay headers. */
 async function startQuizCapturing(page: Page): Promise<Captured> {
-  const ids = new Map<string, string>()
-  const scripts: Promise<void>[] = []
-  let headers: Record<string, string> | undefined
-  page.on('response', (res) => {
-    if (!res.url().includes('/_next/') || !res.url().split('?')[0]?.endsWith('.js')) return
-    scripts.push(
-      res
-        .text()
-        .then((js) => {
-          for (const re of REFERENCE_RES)
-            for (const m of js.matchAll(re)) if (m[1] && m[2]) ids.set(m[2], m[1])
-        })
-        .catch(() => {}),
-    )
-  })
-  page.on('request', (req) => {
-    const h = req.headers()
-    if (req.method() === 'POST' && h['next-action'] && !headers) headers = h
-  })
+  const watch = watchServerActions(page)
   await page.goto('/app/quiz')
   await expect(page.getByRole('heading', { name: 'Quiz' })).toBeVisible({ timeout: 15_000 })
   await page.getByRole('button', { name: 'Study', exact: true }).click()
@@ -98,7 +68,8 @@ async function startQuizCapturing(page: Page): Promise<Captured> {
   await next.waitFor({ state: 'visible', timeout: 10_000 })
   await next.click()
   await expect(page.getByText(/Question 2 of \d+/)).toBeVisible()
-  await Promise.all(scripts)
+  const ids = await watch.settle()
+  const headers = watch.headers()
   if (!headers) throw new Error('no Server Action request observed')
   return { headers, ids }
 }
@@ -111,18 +82,13 @@ async function invoke(
 ): Promise<string> {
   const id = cap.ids.get(name)
   if (!id) throw new Error(`action id for ${name} not found`)
-  const headers: Record<string, string> = {}
-  for (const [k, v] of Object.entries(cap.headers)) {
-    if (!['cookie', 'content-length', 'host'].includes(k.toLowerCase())) headers[k] = v
-  }
-  headers['next-action'] = id
-  headers.origin = BASE_URL
-  const res = await context.request.post(`${BASE_URL}${SESSION_PATH}`, {
-    headers,
-    data: JSON.stringify([arg]),
-    maxRedirects: 0,
+  return postServerAction(context.request, {
+    url: `${BASE_URL}${SESSION_PATH}`,
+    headers: cap.headers,
+    id,
+    origin: BASE_URL,
+    arg,
   })
-  return res.text()
 }
 
 test.describe('Red Team: quiz-progress Server Actions (GQ, GR, GS)', () => {
@@ -204,8 +170,11 @@ test.describe('Red Team: quiz-progress Server Actions (GQ, GR, GS)', () => {
       .limit(2)
     if (error) throw new Error(`beforeAll questions: ${error.message}`)
     if (!Array.isArray(data) || data.length < 2) throw new Error('need 2 active MC questions')
-    q1 = data[0]?.id as string
-    q2 = data[1]?.id as string
+    const [r1, r2] = data
+    if (typeof r1?.id !== 'string' || !r1.id || typeof r2?.id !== 'string' || !r2.id)
+      throw new Error('questions rows lack string ids')
+    q1 = r1.id
+    q2 = r2.id
   })
 
   test.beforeEach(async () => {
