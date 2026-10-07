@@ -11,17 +11,18 @@ import {
   getAuthenticatedClient,
 } from './setup'
 
-// The _grade_record_* helpers (mc, short_answer, dialog_fill, ordering, diagram_label) are
-// internal per-answer grade+record helpers — REVOKE EXECUTE ... FROM PUBLIC, anon,
-// authenticated (`CREATE FUNCTION` grants EXECUTE to PUBLIC by default AND Supabase
-// separately grants anon/authenticated via ALTER DEFAULT PRIVILEGES, so REVOKE FROM PUBLIC
-// alone is insufficient — every API role must be named).
+// The _grade_record_* helpers (mc, short_answer, dialog_fill, ordering, diagram_label) and the
+// session-level helpers (_grade_session_progress, _score_graded_session) are internal helpers —
+// REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated (`CREATE FUNCTION` grants EXECUTE to
+// PUBLIC by default AND Supabase separately grants anon/authenticated via ALTER DEFAULT
+// PRIVILEGES, so REVOKE FROM PUBLIC alone is insufficient — every API role must be named).
 // The helpers trust their p_student_id/p_session_id/p_org_id args with no auth.uid() check
-// of their own — their callers (_grade_session_progress via finish_quiz_session and
-// complete_overdue_exam_session; batch_submit_quiz; submit_vfr_rt_exam_answers) own the
-// authorization. This REVOKE only takes
-// effect at EXECUTION via PostgREST — a `db reset` proves only that the REVOKE statement
-// parsed, not that the grant table was actually updated.
+// of their own — their callers (finish_quiz_session and complete_overdue_exam_session) own the
+// authorization. This REVOKE only takes effect at EXECUTION via PostgREST — a `db reset`
+// proves only that the REVOKE statement parsed, not that the grant table was actually updated.
+// _vfr_rt_exam_part_scores is not listed: it is SECURITY INVOKER and authenticated has no
+// SELECT on questions, so a PostgREST call is denied by the table privilege whatever its
+// EXECUTE grant.
 
 const DUMMY_ID = '00000000-0000-0000-0000-000000000000'
 const ORDERING_ITEMS = [orderingItem('MAYDAY MAYDAY MAYDAY'), orderingItem('callsign Golf Bravo')]
@@ -100,6 +101,24 @@ const HELPERS: Array<{ fn: string; args: (ids: Ids) => Record<string, unknown> }
       p_response_time: 0,
     }),
   },
+  {
+    fn: '_grade_session_progress',
+    args: ({ studentId, orgId }) => ({
+      p_session_id: DUMMY_ID,
+      p_student_id: studentId,
+      p_org_id: orgId,
+      p_mode: 'mock_exam',
+    }),
+  },
+  {
+    fn: '_score_graded_session',
+    args: () => ({
+      p_session_id: DUMMY_ID,
+      p_mode: 'mock_exam',
+      p_config: {},
+      p_total: 1,
+    }),
+  },
 ]
 
 function isDenied(error: { code?: string; message?: string } | null): boolean {
@@ -113,7 +132,7 @@ function isDenied(error: { code?: string; message?: string } | null): boolean {
   )
 }
 
-describe('RPC: _grade_record_* helpers — REVOKE FROM PUBLIC/anon/authenticated', () => {
+describe('RPC: internal grading and scoring helpers — REVOKE FROM PUBLIC/anon/authenticated', () => {
   const admin = getAdminClient()
   let orgId = ''
   let studentId = ''
