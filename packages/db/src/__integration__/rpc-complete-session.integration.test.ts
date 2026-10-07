@@ -207,10 +207,8 @@ describe('RPC: complete_quiz_session', () => {
     // Mig 104 (PR #830) added FOR UPDATE to the session-ownership SELECT so two
     // concurrent completions serialize: the winner sets ended_at, then the
     // loser's re-evaluated WHERE (ended_at IS NULL) no longer matches and it
-    // raises. Unlike batch_submit_quiz there is no idempotent re-entry path, so
-    // the loser fails rather than returning cached scalars. Vector G
-    // (session-race-condition.spec.ts) covers the mechanically identical
-    // batch_submit_quiz lock; this is the complete_quiz_session analog (#842).
+    // raises. There is no idempotent re-entry path here, so
+    // the loser fails rather than returning cached scalars (#842).
     // Non-flaky by design: the partition holds even if the two calls happen to
     // run sequentially (first wins, second hits the already-completed guard).
     const sessionId = await startAndAnswer({
@@ -268,7 +266,7 @@ describe('RPC: complete_quiz_session', () => {
 
   it('rejects a soft-deleted caller before completing the session', async () => {
     // Mig 104 (PR #830) adds an explicit active-user gate right after the auth
-    // check, mirroring batch_submit_quiz (mig 095c) — a soft-deleted caller is
+    // check, mirroring the sibling session RPCs (e.g. mig 095c) — a soft-deleted caller is
     // rejected before any session read. The deleted_at-filtered audit
     // actor_role subquery (security.md rule 10) remains as defense-in-depth
     // behind the gate.

@@ -9,7 +9,7 @@
  * NULL) was satisfied. Every authenticated in-org user satisfies the latter, so
  * the role gate never bound: any student or instructor could author, edit or
  * hard-DELETE questions via direct PostgREST — including rewriting
- * `correct_option_id`, the stored MC answer key that batch_submit_quiz grades
+ * `correct_option_id`, the stored MC answer key that finish_quiz_session grades
  * against. The key is SELECT-revoked from `authenticated` (mig
  * 20260619000100:151) but its UPDATE privilege never was, so the attacker did
  * not need to READ the key to make their own answer the correct one.

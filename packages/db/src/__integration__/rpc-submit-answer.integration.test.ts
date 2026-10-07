@@ -352,7 +352,7 @@ describe('RPC: submit_quiz_answer', () => {
 
   it('rejects a soft-deleted caller', async () => {
     // Mig 095b (PR #830) adds an explicit active-user gate right after the
-    // auth check, mirroring batch_submit_quiz (mig 095c).
+    // auth check, mirroring the sibling session RPCs (e.g. mig 095c).
     const sessionId = await startSession()
 
     // Soft-delete the student mid-session.

@@ -215,7 +215,7 @@ test.describe('Red Team: get_report_correct_options RPC', () => {
   })
 
   // Cleanup note: the new answer row is scoped to the session seeded above, which
-  // afterEach soft-deletes (mirrors session-replay.spec.ts — parent soft-delete is
+  // afterEach soft-deletes (parent soft-delete is
   // sufficient; the immutable quiz_session_answers row is never hard-deleted and
   // cannot pollute other specs once its session is soft-deleted).
 
@@ -228,7 +228,7 @@ test.describe('Red Team: get_report_correct_options RPC', () => {
     // (mig 114 / 20260619000400, PR #856) — the active-user gate fires right after
     // the auth.uid() check, BEFORE the session-ownership check, so the rejection is
     // independent of session validity. Mirrors the BJ soft-deleted-user pattern in
-    // server-action-unauthenticated.spec.ts (start_quiz_session / batch_submit_quiz).
+    // server-action-unauthenticated.spec.ts (start_quiz_session).
     //
     // CRITICAL — victimUserId is the SHARED red-team victim used by every spec in
     // the run. The afterEach restores deleted_at = null (only when the flag is set)

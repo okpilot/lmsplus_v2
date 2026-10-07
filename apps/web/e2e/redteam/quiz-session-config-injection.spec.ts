@@ -4,7 +4,7 @@
  * Attack: Student calls `start_exam_session` to obtain an active mock_exam session,
  *         then directly UPDATEs `quiz_sessions.config` (or other write-once columns)
  *         via PostgREST to swap question_ids before submitting answers. Without DB
- *         column-immutability, batch_submit_quiz would score the student against the
+ *         column-immutability, finish_quiz_session would score the student against the
  *         substituted set.
  *
  * Defense: Migration 079 installs `trg_quiz_sessions_immutable_columns`, a

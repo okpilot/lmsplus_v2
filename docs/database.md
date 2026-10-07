@@ -822,20 +822,19 @@ See `docs/security.md` §3.
 
 ### Scoring Soft-Deleted Questions
 
-When a student submits quiz answers in `batch_submit_quiz`, the RPC may need to score a question that was soft-deleted *after* the quiz session started. This is safe because:
+`finish_quiz_session` may need to grade, score or replay a question that was soft-deleted *after* the quiz session started. This is safe because:
 
 1. **Membership was validated at session start** — `quiz_sessions.config.question_ids` was locked when the session began, before the question could be deleted. Enforced by trigger `trg_quiz_sessions_immutable_columns` (migration 079).
 2. **Explanations are preserved** — the question record still exists (soft-deleted, not hard-deleted), so we can still retrieve explanation text and images.
 3. **Historical integrity** — we score the response as it was when the student answered, not based on the question's current (deleted) state.
 
-**Implementation:** `batch_submit_quiz` does NOT filter `WHERE deleted_at IS NULL` on the `questions` JOIN when replaying completed sessions. This is safe because:
-- The idempotent replay path uses `quiz_session_answers.question_id` to fetch the questions (a write-once immutable FK link), so the accessible question set is bounded by the student's completed session's immutable answer record.
-- If a question was soft-deleted *after* the student answered it, the reply must still show all the student's prior answers—including the now-deleted question—for consistency (answered_count from the session row must match the actual result set length, else the UI diverges).
-- Migration `20260619000250` (PR #856) refined the §15 carve-out: removed the `AND q.deleted_at IS NULL` filter from the replay JOIN, added inline documentation explaining the write-once FK boundary.
+**Implementation:** `_grade_session_progress` and `_score_graded_session` read `questions` via the frozen `config.question_ids` with no `deleted_at` filter, and `finish_quiz_session` builds `results` by joining `quiz_session_answers` to `questions` on the write-once `question_id` FK, also without it. This is safe because:
+- The accessible question set is bounded by the session's immutable `config.question_ids` and its append-only `quiz_session_answers` record.
+- A question soft-deleted *after* the student answered it must still appear in `results`, else the result set diverges from `answered_count` (distinct `quiz_session_answers.question_id`).
 
 See security.md §15 for the full list of carve-outs and their immutable-column justifications.
 
-**Other functions sharing this carve-out** (see security.md §15 for the full list, as of 2026-08-30 — re-derive from that section rather than trusting this enumeration to stay current): `check_quiz_answer` (mig 117), `save_quiz_answer` (mig 20261002000400 / #1026 — reads `questions.question_type` via the frozen `config.question_ids`, after the membership check), `submit_quiz_answer` (mig 123), `check_non_mc_answer` (migs 119/146/153 — widened for `ordering`/`diagram_label`), `batch_submit_quiz` (migs 120/121/155 — its dispatch temp-table fetch and DISTINCT-question score aggregation read `questions` via the frozen `config.question_ids`, in addition to the replay path described above), and `submit_vfr_rt_exam_answers` / `get_vfr_rt_exam_questions` / `get_vfr_rt_exam_results` read `questions` via the same frozen `config.question_ids`. `get_report_correct_options`, `get_admin_report_correct_options` (mig 114), `get_report_answer_keys` (migs 133/149/156), and `get_admin_report_answer_keys` (migration 20260824000100) instead read `questions` via `quiz_session_answers.question_id` — a write-once FK on the immutable, append-only `quiz_session_answers` table — so a completed-session report still reveals the key (correct-option ID for MC; canonical answers for non-MC short_answer/dialog_fill per-blank; per-slot canonical item text for ordering, mig 149; per-zone canonical label text for diagram_label via a 2-hop resolve, mig 156) for a question soft-deleted after it was answered. `submit_quiz_answer` (mig 123, #855) also shares this carve-out: it verifies `p_question_id = ANY(config.question_ids)` before its questions read, so a question soft-deleted mid-session stays submittable for a fresh graded answer — aligned with `check_quiz_answer`'s immediate-feedback posture. (Previously, mig 112, it filtered `q.deleted_at IS NULL`, which diverged from `check_quiz_answer`: a student could get correct/incorrect feedback via `check_quiz_answer` on a question that `submit_quiz_answer` would then refuse to record. Option 1 of #855 — carve-out both — resolved the inconsistency.)
+**Other functions sharing this carve-out** (see security.md §15 for the full list, as of 2026-08-30 — re-derive from that section rather than trusting this enumeration to stay current): `check_quiz_answer` (mig 117), `save_quiz_answer` (mig 20261002000400 / #1026 — reads `questions.question_type` via the frozen `config.question_ids`, after the membership check), `submit_quiz_answer` (mig 123), `check_non_mc_answer` (migs 119/146/153 — widened for `ordering`/`diagram_label`), `finish_quiz_session` / `_grade_session_progress` / `_score_graded_session` (migs `20261004000100` / `20261004000200` / `20261004000300` — described above), and `get_vfr_rt_exam_questions` / `get_vfr_rt_exam_results` read `questions` via the same frozen `config.question_ids`. `get_report_correct_options`, `get_admin_report_correct_options` (mig 114), `get_report_answer_keys` (migs 133/149/156), and `get_admin_report_answer_keys` (migration 20260824000100) instead read `questions` via `quiz_session_answers.question_id` — a write-once FK on the immutable, append-only `quiz_session_answers` table — so a completed-session report still reveals the key (correct-option ID for MC; canonical answers for non-MC short_answer/dialog_fill per-blank; per-slot canonical item text for ordering, mig 149; per-zone canonical label text for diagram_label via a 2-hop resolve, mig 156) for a question soft-deleted after it was answered. `submit_quiz_answer` (mig 123, #855) also shares this carve-out: it verifies `p_question_id = ANY(config.question_ids)` before its questions read, so a question soft-deleted mid-session stays submittable for a fresh graded answer — aligned with `check_quiz_answer`'s immediate-feedback posture. (Previously, mig 112, it filtered `q.deleted_at IS NULL`, which diverged from `check_quiz_answer`: a student could get correct/incorrect feedback via `check_quiz_answer` on a question that `submit_quiz_answer` would then refuse to record. Option 1 of #855 — carve-out both — resolved the inconsistency.)
 
 ```sql
 -- ✅ CORRECT — SECURITY DEFINER RPC can score questions soft-deleted mid-quiz
@@ -912,13 +911,11 @@ verb_noun pattern:
   check_quiz_answer                ← read, verify MC answer + return explanation (immediate feedback); reads from questions.correct_option_id (mig 117, #823); practice-mode only (smart_review/quick_quiz); also saves the answer to quiz_session_progress AFTER grading (trailing `p_device_id uuid DEFAULT NULL, p_time_spent_ms int DEFAULT NULL`, signature 5-arg via DROP+CREATE, migration 20261002000700 / #1026) — answer shape validated via `_validate_progress_answer` (raises `invalid_answer`), NULL selection writes nothing
   check_non_mc_answer              ← read, verify short_answer, dialog_fill, ordering, or diagram_label answer (immediate feedback); returns canonical + per-blank results / revealed canonical order / revealed canonical zone->label mapping; §15 carve-out; practice-mode only (smart_review/quick_quiz); SECURITY DEFINER; widened for ordering in mig 146 (+p_order param); widened for diagram_label in mig 153 (+p_mapping param, 6-arg signature, DROP+CREATE — CREATE OR REPLACE cannot change the arg list); sibling of check_quiz_answer (mig 119, #697 Phases 2/5/6); also saves the answer to quiz_session_progress AFTER grading (trailing `p_device_id uuid DEFAULT NULL, p_time_spent_ms int DEFAULT NULL`, 8-arg signature via DROP+CREATE, migration 20261002000800 / #1026) — answer shape validated via `_validate_progress_answer` (raises `invalid_answer`)
   submit_quiz_answer         ← write, atomic: single answer + response log + last_was_correct; idempotent dup-gate (mig 112, #856); reads from questions.correct_option_id (mig 112, #823); §15 frozen-config carve-out — no deleted_at filter on the question lookup (mig 123, #855)
-  batch_submit_quiz          ← write, atomic: all answers + session complete + score + audit (mig 121, #697 Phase 2); per-type dispatch to internal helpers (_grade_record_mc/_short_answer/_dialog_fill/_ordering/_diagram_label, migs 120/147/154, REVOKE EXECUTE FROM PUBLIC, anon, authenticated); DISTINCT-question partial-credit scoring for dialog_fill + ordering + diagram_label (Decision 47/51/52; ordering stores per-slot rows [mig 148], diagram_label stores per-zone rows [mig 155] — INVERTED self-defence vs ordering: distinct zone_id/label_id is the integrity key, partial submission + unused distractor labels are explicitly allowed); last_active_at stamped by trigger on quiz_sessions.ended_at update (mig 092); reads from questions.correct_option_id for MC grading (mig 121, #823); no app caller since #1026 PR 2d
   start_quiz_session         ← write, atomic: session + locked question set; validates p_question_ids (raises 'no_questions_provided' / 'invalid_question_ids' / 'too_many_questions' when array length > 500); single-active-session guard raises 'another_session_active' if any other-mode active session exists (mig 141, #1011)
   start_discovery_session    ← write, student: create the real ephemeral 'discovery' (Study Mode/Discovery) session row; persists the MC id set in config.question_ids; validates p_question_ids (mirrors start_quiz_session); single-active-session guard raises 'another_session_active' (mig 137, #1011); ephemeral + non-resumable (localStorage firewall rejects 'discovery') + nothing-scored; torn down by the endDiscovery Server Action (soft-delete) on Exit or auto-soft-deleted by the next start RPC; SECURITY DEFINER, EXECUTE TO authenticated
   start_exam_session         ← write, atomic: read exam config + random question selection + session creation (mock_exam mode); auto-completes overdue same-subject session before duplicate-active guard; single-active-session guard raises 'another_session_active' if a non-mock-exam active session exists (mig 138, #1011); maps unique_violation to friendly domain error (mig 088, #754); returns started_at
   upsert_exam_config         ← write, atomic: upsert exam_configs + replace exam_config_distributions (admin-only, SECURITY DEFINER)
   complete_overdue_exam_session ← write, atomic: close past-deadline mock_exam OR internal_exam OR vfr_rt_exam session, grades saved `quiz_session_progress` answers via `_grade_session_progress` then scores via `_score_graded_session`; never raises on an unusable config.question_ids (the start RPCs PERFORM it): such a session completes with score 0 and audit reason `overdue_config_unusable` (migration 20261004000400, #1026), audit exam.expired / internal_exam.expired / vfr_rt_exam.expired (idempotent; widened in mig 063 / 20260429000008, extended for vfr_rt_exam in mig 102; last_active_at stamped by trigger on quiz_sessions.ended_at update; mig 092)
-  complete_empty_exam_session ← write, atomic: 0-answer exam expiry → 0%/FAIL + audit (idempotent; widened for vfr_rt_exam in mig 102; last_active_at stamped by trigger on quiz_sessions.ended_at update; mig 092)
   issue_internal_exam_code   ← write, admin-only: generate 8-char single-use code, 24h validity, 5-retry collision handling, audit internal_exam.code_issued
   start_internal_exam_session ← write, student: validate & consume code, auto-complete overdue prior session, build question set from exam config, atomic code consumption via WHERE-clause race guard; single-active-session guard raises 'another_session_active' if a non-internal-exam active session exists (mig 139, #1011)
   void_internal_exam_code    ← write, admin-only: void unconsumed code or active session (sets session.passed = false), audit internal_exam.code_voided
@@ -928,11 +925,10 @@ verb_noun pattern:
   list_my_internal_exam_history ← read, student: own internal_exam quiz_sessions history; computes per-subject `attempt_number` via row_number() in SQL (closes #579); `answered_count` counts DISTINCT questions and active-user gate added, both mig 20260824000200
   start_vfr_rt_exam_session  ← write, student: VFR Radiotelephony mock exam start; samples 3 parts (short_answer, dialog_fill, and Part 3 = 2 random questions per Part 3 subtopic of type multiple_choice / ordering / diagram_label, grouped by subtopic sort_order — migration 20260929000200), reads exam_configs.parts_config (mig 099); idempotent resume for in-flight sessions (mig 099); single-active-session guard raises 'another_session_active' if a non-vfr_rt_exam active session exists (mig 140, #1011)
   get_vfr_rt_exam_questions  ← read, student: type-aware, answer-key-stripped question reads for a caller-owned vfr_rt_exam session (p_session_id); derives question IDs server-side from the session's frozen config.question_ids, callable in-flight AND post-exam; strips canonicals/synonyms/dialog_template details + explanation fields, shuffles MC options (mig 099b; session-derived signature + explanation strip in mig 105, #833/#840); dialog_fill strip delimiter-hardened (mig 127) behind the mig-125 delimiter CHECK (#951); ordering items shuffled `{id,text}` and diagram_label zones + shuffled labels without `answer`, plus subtopic_code (migration 20260929000300)
-  submit_vfr_rt_exam_answers ← write, atomic: submit array of typed answers (one per blank), normalize + grade per-blank via answer_matches (mig 160 — typo-tolerant, digits exact), compute per-part pcts ≥75% pass rule, audit vfr_rt_exam.completed / vfr_rt_exam.expired (mig 100); idempotent replay on already-ended session detects expiry via audit-event lookup and re-adds expired:true (mig 129, #839); reads from questions.correct_option_id for MC grading (mig 113, #823); ordering / diagram_label graded per slot / zone via _grade_record_ordering / _grade_record_diagram_label with partial credit, part scores via _vfr_rt_exam_part_scores (migration 20260929000400); no app caller since #1026 PR 2d
   get_study_questions        ← read, student: MC questions WITH the correct_option_id answer key + explanation, for Study Mode self-paced practice (UI label: **Discovery** — first/default segment of the New Quiz ModeToggle; RPC name stays `get_study_questions`); no score (this RPC reads keys only — the discovery-backed Study flow now has its own active `mode='discovery'` session row via start_discovery_session, mig 137/#1011); DELIBERATE answer-key exposure (mig 135, feat/study-mode-mc); org/active-user + deleted_at + status=active filters required (§15 carve-out does NOT apply — reads by arbitrary caller-supplied p_question_ids, not immutable frozen config); raises active_exam_session when the caller has a live mock/internal/vfr_rt exam (mid-exam answer-oracle guard, mirrors check_quiz_answer mig 117; red-team EO6); the guard is deny-by-default `mode NOT IN ('smart_review','quick_quiz','discovery')` so the caller's own discovery session does not block its key reads (mig 142, #1011); returns options in STORED order (no shuffle); SECURITY DEFINER, EXECUTE TO authenticated
   get_vfr_rt_exam_results    ← read, student: fetch completion-time answer key + per-question explanations + grading breakdown per part (mig 103; explanations added in mig 106, #840); gated to owner + ended session only — the single post-completion reveal point for answer keys (reads from questions.correct_option_id, mig 115, #823); ordering key {correct_order, items}, diagram_label key {answer, zones, labels} (migration 20260929000500)
   get_question_authoring_fields ← read, admin-only: fetch answer-key columns (canonical_answer, accepted_synonyms, dialog_template, blanks_config, correct_option_id) for the question authoring UI; privilege-layer complement to column REVOKE (mig 094b / 114, #823); returns correct_option_id for MC questions
-  _vfr_rt_exam_part_scores   ← read (STABLE SQL helper, EXECUTE revoked from PUBLIC/anon/authenticated): per-part percentages of a vfr_rt_exam session from stored quiz_session_answers; per-question credit = LEAST(correct rows ÷ blanks / items / zones, 1); a question with broken bank data (`_question_is_broken`) is left out of its part, but a part whose every question is broken still scores 0 (#1450) (migration 20261004000060); called by submit_vfr_rt_exam_answers, _score_graded_session (finish_quiz_session, complete_overdue_exam_session), and get_vfr_rt_exam_results as its fallback (migration 20260929000100)
+  _vfr_rt_exam_part_scores   ← read (STABLE SQL helper, EXECUTE revoked from PUBLIC/anon/authenticated): per-part percentages of a vfr_rt_exam session from stored quiz_session_answers; per-question credit = LEAST(correct rows ÷ blanks / items / zones, 1); a question with broken bank data (`_question_is_broken`) is left out of its part, but a part whose every question is broken still scores 0 (#1450) (migration 20261004000060); called by _score_graded_session (finish_quiz_session, complete_overdue_exam_session), finish_quiz_session (ended-session replay fallback), and get_vfr_rt_exam_results as its fallback (migration 20260929000100)
   normalize_answer           ← read (IMMUTABLE SQL helper): normalize free-text answer for grading (trim, lowercase, collapse hyphens/underscores, strip punctuation, trim again to remove stray edge spaces, preserve diacritics); callers: `git grep -n 'normalize_answer(' -- supabase/migrations` (mig 101, final trim added mig 128 / #921)
   answer_matches             ← read (IMMUTABLE, PARALLEL SAFE plpgsql helper): typo-tolerant comparison of a student answer against a candidate (canonical or synonym) — exact after normalization, plus Levenshtein ≤ 1 for CANDIDATE words of 5+ characters (the floor reads the candidate, so a shorter student token can still match a longer candidate — `answer_matches('limb','climb')` is true; single adjacent transposition counted as 1 edit, whole-answer budget 2), and **any token containing a digit must match exactly**; normalizes BOTH arguments itself (normalize_answer is idempotent); reads no table, so it is not an answer oracle; EXECUTE REVOKEd from PUBLIC, anon, authenticated — reachable only as the postgres owner from the four SECURITY DEFINER text graders, plus service_role (mig 158)
   complete_quiz_session      ← write, atomic: session end + score + audit (DEPRECATED for new code — use finish_quiz_session; still supported for legacy modes (smart_review, quick_quiz, mock_exam, internal_exam); last_active_at now stamped by trigger on all completion paths, mig 092; legacy-mode whitelist rejects vfr_rt_exam with unsupported_session_mode, mig 104 #838; active-user gate rejects soft-deleted callers + FOR UPDATE session lock against double-completion, mig 104 PR #830)
@@ -944,8 +940,8 @@ verb_noun pattern:
   discard_saved_quiz         ← write, student: `UPDATE quiz_sessions SET saved_at = NULL` on the caller's saved row (row stays soft-deleted); `(p_session_id)`, returns void; raises `not_authenticated` / `user_not_found_or_inactive` / `session_not_found` (also when the row is not saved) (migration 20261003000200, #1026)
   get_quiz_progress          ← read, student, STABLE: `{status: open|ended|saved|discarded, mode, current_index, pinned_question_ids, active_device_id, answers[{question_id, answer, time_spent_ms, answered_at}]}`; own sessions only (`student_id = auth.uid()`), works for ended/saved/discarded; no answer key, no correctness; raises `not_authenticated` / `user_not_found_or_inactive` / `session_not_found` (migrations 20261002000600, 20261003000300, #1026)
   _lock_session_for_progress / _validate_progress_answer / _save_progress_row ← internal helpers, EXECUTE revoked from PUBLIC/anon/authenticated (migration 20261002000300, #1026): `_lock_session_for_progress` = shared guard set + `FOR UPDATE` session lock (raises `not_authenticated`, `user_not_found_or_inactive`, `session_not_found`, `session_saved` (migration 20261003000300, checked before `session_discarded`), `session_discarded`, `session_ended`, `unsupported_session_mode`, `session_expired`, `session_taken_over`); `_validate_progress_answer` = per-question-type answer-shape check; `_save_progress_row` = validated upsert for callers that already checked membership (the check RPCs)
-  finish_quiz_session        ← write, student: end a quiz from its saved progress, every mode except discovery; `(p_session_id, p_device_id)`, returns `{results, total_questions, answered_count, correct_count, score_percentage, passed}` (+ `expired:true` past deadline + 30 s grace; vfr_rt_exam adds `session_id, part1_pct, part2_pct, part3_pct, passed_overall`); lock `student_id = auth.uid() FOR UPDATE` without a `deleted_at` filter; raises `not_authenticated`, `user_not_found_or_inactive`, `session_not_found`, `session_saved`, `session_discarded`, `unsupported_session_mode`, `session_taken_over`, `session_config_malformed` (config.question_ids not an array); an ended session replays its stored result (no device check, `answered_count` = distinct questions); audit as batch_submit_quiz / submit_vfr_rt_exam_answers, `<mode>.expired` with reason `submission past grace period` (migration 20261004000300, #1026)
-  _grade_session_progress / _score_graded_session ← internal helpers, EXECUTE revoked from PUBLIC/anon/authenticated (#1026): `_grade_session_progress` grades the caller's answered progress rows for `config.question_ids` through the five `_grade_record_*` graders (vfr_rt_exam MC inline, no fsrs write); an ordering that is not a full permutation, a diagram with a repeated zone/label, or a grader `RAISE`, data exception or constraint violation (SQLSTATE P0001, class 22, class 23) skips that question with a `RAISE WARNING` and it counts unanswered; a question with broken bank data is not graded (migration 20261004000100). `_score_graded_session` = DISTINCT-question partial credit (exams ÷ total_questions minus broken questions, practice ÷ answered; mock_exam incomplete fails; all questions broken → score 0, not passed) or vfr part scores (migration 20261004000200). `results` lists graded rows only. The legacy RPCs, still callable though no app path calls them since 2d: `batch_submit_quiz` aborts on a broken question whose grading raises and counts any other broken question wrong; `submit_vfr_rt_exam_answers` aborts on one whose grading raises and otherwise leaves it out of its part via `_vfr_rt_exam_part_scores`
+  finish_quiz_session        ← write, student: end a quiz from its saved progress, every mode except discovery; `(p_session_id, p_device_id)`, returns `{results, total_questions, answered_count, correct_count, score_percentage, passed}` (+ `expired:true` past deadline + 30 s grace; vfr_rt_exam adds `session_id, part1_pct, part2_pct, part3_pct, passed_overall`); lock `student_id = auth.uid() FOR UPDATE` without a `deleted_at` filter; raises `not_authenticated`, `user_not_found_or_inactive`, `session_not_found`, `session_saved`, `session_discarded`, `unsupported_session_mode`, `session_taken_over`, `session_config_malformed` (config.question_ids not an array); an ended session replays its stored result (no device check, `answered_count` = distinct questions); audit `exam.completed` / `internal_exam.completed` / `vfr_rt_exam.completed` / `quiz_session.batch_submitted` by mode, `*.expired` with reason `submission past grace period` (migration 20261004000300, #1026)
+  _grade_session_progress / _score_graded_session ← internal helpers, EXECUTE revoked from PUBLIC/anon/authenticated (#1026): `_grade_session_progress` grades the caller's answered progress rows for `config.question_ids` through the five `_grade_record_*` graders (vfr_rt_exam MC inline, no fsrs write); an ordering that is not a full permutation, a diagram with a repeated zone/label, or a grader `RAISE`, data exception or constraint violation (SQLSTATE P0001, class 22, class 23) skips that question with a `RAISE WARNING` and it counts unanswered; a question with broken bank data is not graded (migration 20261004000100). `_score_graded_session` = DISTINCT-question partial credit (exams ÷ total_questions minus broken questions, practice ÷ answered; mock_exam incomplete fails; all questions broken → score 0, not passed) or vfr part scores (migration 20261004000200). `results` lists graded rows only.
   _question_is_broken        ← read (IMMUTABLE SQL helper, EXECUTE revoked from PUBLIC/anon/authenticated): true when a question's own columns make it ungradable or unwinnable for every answer — MC key not among `options`; short_answer canonical and every synonym normalize to ''; dialog_fill blank not an object, `index` missing or not `^\d{1,4}$`, duplicate `index`, `canonical` NULL, `synonyms` present and not an array, or canonical and every synonym normalize to ''; ordering / diagram_label never (CHECK-enforced). Reads no answer (migration 20261004000050, #1026)
   soft_delete_question       ← write, sets deleted_at
   get_student_progress       ← read, aggregated progress view
@@ -1129,17 +1125,17 @@ GRANT EXECUTE ON FUNCTION get_quiz_questions(uuid[]) TO authenticated;
 
 **Randomization:** MC options, ordering items, and diagram_label labels are all returned in random order via `ORDER BY random()`. Types that don't own a given array return NULL for that column.
 
-#### `submit_quiz_answer` — atomic answer submission (deprecated: use `batch_submit_quiz`)
+#### `submit_quiz_answer` — atomic answer submission (deprecated: use `finish_quiz_session`)
 
-This RPC is superseded by `batch_submit_quiz` for new code. Kept for backwards compatibility.
+This RPC is superseded by `save_quiz_answer` + `finish_quiz_session` for new code. Kept for backwards compatibility.
 
 **Security (migration 036, updated mig 112 #823, hardened mig 112 PR #856, §15 carve-out mig 123 #855):**
 - Validates `p_question_id` is in the session's `config.question_ids` (migration 033). Prevents submitting answers for questions outside the session's question set.
 - Soft-delete guard (session only): the session lookup filters `qs.deleted_at IS NULL` so a discarded (soft-deleted) session is rejected. The **question** lookup, by contrast, omits the `deleted_at` filter under the §15 frozen-config carve-out (mig 123, #855) — a question valid at session start stays submittable even if soft-deleted mid-session, aligned with `check_quiz_answer`.
 - Option membership validation: verifies `p_selected_option` exists in the question's options JSONB array (which no longer carries `correct`, stripped by `trg_sanitize_question_options`). Prevents attackers from submitting arbitrary strings as option IDs.
 - Correctness check: reads `questions.correct_option_id` (mig 112 #823) instead of the old JSONB scan of options[].correct. Compares `p_selected_option` against `correct_option_id` to derive `is_correct`.
-- Mode whitelist (migration 095b, #838; narrowed in PR #830 cloud-CR review): rejects sessions whose `mode` is not in (`smart_review`, `quick_quiz`) with `unsupported_session_mode`. This RPC returns `is_correct`/`explanation`/`correct_option_id` immediately, so accepting exam-mode sessions would be a mid-exam answer oracle — exam submission goes exclusively through `batch_submit_quiz`; `vfr_rt_exam` goes through `submit_vfr_rt_exam_answers` (per-part grading, mig 100). Fail-closed: future modes must opt in explicitly.
-- Active-user gate (migration 095b, PR #830 cloud-CR review): soft-deleted callers are rejected with `user not found or inactive` right after the auth check, before any session read — mirrors `batch_submit_quiz` (mig 095c).
+- Mode whitelist (migration 095b, #838; narrowed in PR #830 cloud-CR review): rejects sessions whose `mode` is not in (`smart_review`, `quick_quiz`) with `unsupported_session_mode`. This RPC returns `is_correct`/`explanation`/`correct_option_id` immediately, so accepting exam-mode sessions would be a mid-exam answer oracle — exam completion goes through `finish_quiz_session`. Fail-closed: future modes must opt in explicitly.
+- Active-user gate (migration 095b, PR #830 cloud-CR review): soft-deleted callers are rejected with `user not found or inactive` right after the auth check, before any session read — mirrors `finish_quiz_session`.
 - **Idempotency gate (migration 112, #856):** A duplicate submission (same session + question, possibly different option) skips the answer row insert (ON CONFLICT DO NOTHING on blank_index-aware unique key) and re-reads the persisted `is_correct` instead of accepting the duplicate option. This preserves consistency between the stored answer and the FSRS state: a retry never flips `last_was_correct`, preventing divergence between the append-only answer log and the FSRS signal.
 
 > **⚠️ Abridged illustrative excerpt — NOT the deployed definition, does not compile as-is.** This snippet shows the core membership/correctness/idempotency flow only. It intentionally omits guards the live function carries (the active-user gate and the mode whitelist described above) and is missing variable declarations its body references (the active-user gate, mode-whitelist, and idempotency-branch locals, including `v_answer_inserted`). The authoritative, compiling definition is the latest `CREATE OR REPLACE FUNCTION submit_quiz_answer` migration (mig 123, #855; see the migration ledger and §15). A full fix would require transcribing that migration verbatim — declaring every referenced variable and including the active-user + mode-whitelist RAISE blocks — and re-syncing on every subsequent redefinition; the marker is kept instead to avoid a second source of truth that drifts.
@@ -1281,346 +1277,11 @@ END;
 $$;
 ```
 
-#### `batch_submit_quiz` — atomic batch submission (all-or-nothing)
+#### Completion audit events
 
-Submits all quiz answers in a single transaction. Replaces the per-answer `submit_quiz_answer` loop + separate `complete_quiz_session` call. Calculates scores and completes the session atomically — if any answer fails, the entire batch rolls back.
+**Audit metadata keys (migration 082):** The completion audit event records `answered_count` and `correct_count`, the `*_count` form shared with `complete_overdue_exam_session` and `finish_quiz_session`. (`start_exam_session` emits `exam.started` with pre-answer metadata only.) Migrations before 082 wrote the bare keys `answered` / `correct`; historical `audit_events` rows retain them (append-only, security.md rule 5).
 
-**Mig 121 (#697 Phase 2):** Redefined as a type-aware dispatcher supporting `multiple_choice`, `short_answer`, and `dialog_fill`. See Decision 47 in `docs/decisions.md`. Changes vs mig 112b: per-type dispatch to internal helpers; `_batch_questions` temp table widened to include `question_type`, `canonical_answer`, `accepted_synonyms`, `blanks_config`; duplicate guard keyed on `(question_id, blank_index)`; DISTINCT-question score aggregation.
-
-**Mig 148 (#697 Phase 5):** Extended to support `ordering` question type as a per-slot dispatcher (parallel to `dialog_fill` structure). Widened `_batch_questions` to include `ordering_items`. See Decision 51 in `docs/decisions.md`. Adds a **permutation completeness guard** before per-slot dispatch: for each ordering question, verifies `count(*) = N AND count(DISTINCT selected_option) = N` where N is the item count. This ensures a malformed payload (duplicate item ids across slots, subset-of-items, or out-of-catalogue ids) is rejected before any answer row reaches the immutable tables — the per-slot grader alone cannot see the whole answer set.
-
-**Mig 155 (#697 Phase 6):** Extended to support `diagram_label` as a per-zone dispatcher. Widened `_batch_questions` to include `diagram_config`. See Decision 52 in `docs/decisions.md`. Adds an **INVERTED self-defence check** — deliberately NOT a clone of ordering's complete-permutation guard, because `diagram_label` allows both partial submission (unanswered zones, same as a skipped MC question) and unused distractor labels (Decision 52), so cardinality is not the integrity key. Instead it verifies, per diagram_label question: every submitted zone_id (`response_text`) references a real zone on the question, no zone_id is submitted twice, and no label_id (`selected_option`) is submitted twice (a chip cannot be placed on two zones at once — "consume on place"). A submitted label_id that does not reference a real label is left to the per-zone grader (`_grade_record_diagram_label`, mig 154), which RAISEs and aborts the whole batch on a forged/garbage id.
-
-**Key behavior:**
-- Allows partial submissions. Study mode: score = `correct_credit / answered`. Exam mode: score = `correct_credit / total` (unanswered = wrong); incomplete mock_exam auto-fails regardless of score.
-- Enforces server-side time limit with 30-second grace period; beyond grace period, auto-ends session with zero score and returns `expired: true`.
-- `multiple_choice` — `_grade_record_mc` helper (mig 120): option-membership validation, writes quiz_session_answers + student_responses + fsrs_cards. MC guards are conditional (not forced for non-MC answers).
-- `short_answer` — `_grade_record_short_answer` helper (mig 120): normalizes via `normalize_answer()` and compares via `answer_matches()` (mig 158), writes quiz_session_answers + student_responses (blank_index = NULL, one row per question).
-- `dialog_fill` — `_grade_record_dialog_fill` helper (mig 120): one call per blank (blank_index required in payload); compares each blank's canonical/synonyms via `answer_matches()` (mig 158) — same typo tolerance as `short_answer`, changed in the same migration per sibling-parity; writes quiz_session_answers + student_responses per blank.
-- `ordering` — `_grade_record_ordering` helper (mig 147): one call per slot (slot in blank_index, item id in selected_option); writes quiz_session_answers + student_responses per slot. Permutation guard (mig 148) ensures completeness before any row is written.
-- `diagram_label` — `_grade_record_diagram_label` helper (mig 154): one call per submitted zone placement (zone id carried in `response_text`, label id carried in `selected_option` — `diagram_label` has no free-text response field, so `response_text` is repurposed to carry the target zone id, mirroring how `ordering` repurposes `selected_option` to carry an item id). `blank_index` is required on the entry only to satisfy the `(question_id, blank_index)` dup-guard (same as ordering's slot) but is **discarded before calling the grader** — the grader derives the true zone ordinal itself from `diagram_config.zones` (the single ordinal source, shared by `get_report_answer_keys` mig 156). `response_text` in the written row is overwritten with the placed label's display TEXT (resolved server-side), not the raw zone/label ids.
-- **Internal helpers (migs 120/147/154):** `_grade_record_mc/_short_answer/_dialog_fill/_ordering/_diagram_label` are each `SECURITY DEFINER SET search_path = public` with `REVOKE EXECUTE ON FUNCTION ... FROM PUBLIC, anon, authenticated` — not callable via PostgREST by anon/authenticated users (`FROM PUBLIC` alone is insufficient: Supabase default-grants EXECUTE to anon/authenticated separately; #952). The dispatcher is the single authorization boundary; `service_role` (trusted backend) retains EXECUTE. See Decision 47.
-- **DISTINCT-question score aggregation (migs 121/148/155, Decision 47/51/52):** a `dialog_fill`, `ordering`, or `diagram_label` question with N items/blanks/zones produces N `quiz_session_answers` rows but counts as one question. `v_correct_credit` (numeric) is the sum of per-question `LEAST(correct_rows / total_blanks, 1.0)` partial credit (for dialog_fill: blanks; for ordering: items; for diagram_label: `greatest(jsonb_array_length(diagram_config->'zones'), 1)`); `v_correct_count` (int) counts correct items (blank-rows / slot-rows / zone-rows) — `sum(correct_rows)` — unified with exam `submit_vfr_rt_exam_answers` (mig 132, #697 Phase 4). `v_answered` = DISTINCT question count (not row count). This matches `submit_vfr_rt_exam_answers` scoring so the same question type grades identically in practice and exam.
-- Returns `answered_count`, `correct_count`, `score_percentage`, `passed` (boolean, exam mode only), and `expired` (boolean). `expired` is absent on normal completion; on idempotent replay of an expired session (replay branch), detects expiry via audit-event lookup (`event_type LIKE '%.expired'` — matches any mode-keyed expiry event for the owned session) and re-adds the flag, ensuring a retry returns the same `expired:true` payload as the original (mig 130, #839).
-- **Active-user gate + cached `actor_role` (migration `20260430000012`):** after the `auth.uid()` check, the function loads the caller's role into `v_actor_role` from `users WHERE id = v_student_id AND deleted_at IS NULL`. `IF NOT FOUND` raises `'user not found or inactive'`. The cached local is reused in both audit INSERTs — closing the TOCTOU window (PR #599 CR root-cause fix).
-- **Legacy-mode whitelist (migration 095c, #838; unchanged in mig 121):** rejects sessions whose `mode` is not in (`smart_review`, `quick_quiz`, `mock_exam`, `internal_exam`) with `unsupported_session_mode` — a `vfr_rt_exam` session must submit answers via `submit_vfr_rt_exam_answers` (per-part grading, mig 100). Fail-closed: future modes must opt in explicitly.
-- **N+1 fix (migration 041; widened mig 121):** `CREATE TEMP TABLE _batch_questions` bulk-fetches all questions (now including `question_type`, `canonical_answer`, `accepted_synonyms`, `blanks_config`, `options`) before the answer loop. O(1) lookup per answer.
-
-No app caller since #1026 PR 2d: `finish_quiz_session` finishes these sessions.
-
-```sql
--- Migration 121 — type-aware dispatcher (MC + short_answer + dialog_fill)
-CREATE OR REPLACE FUNCTION batch_submit_quiz(
-  p_session_id uuid,
-  p_answers    jsonb
-)
-RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_student_id      uuid := auth.uid();
-  v_actor_role      text;
-  v_org_id          uuid;
-  v_config          jsonb;
-  v_mode            text;
-  v_answer          jsonb;
-  v_is_correct      boolean;
-  v_expl_text       text;
-  v_expl_image_url  text;
-  v_question_id     uuid;
-  v_results         jsonb := '[]'::jsonb;
-  v_total           int;
-  v_answered        int;
-  v_correct_count   int;     -- correct item (blank-row) count (integer; stored column)
-  v_correct_credit  numeric; -- partial-credit sum (numeric; score numerator — Decision 47)
-  v_score           numeric(5,2);
-  v_session_question_ids uuid[];
-  v_qid_text        text;
-  v_rt_text         text;
-  v_ended_at        timestamptz;
-  v_passed          boolean;
-  v_pass_mark       int;
-  v_time_limit      int;
-  v_started_at      timestamptz;
-  v_expired_event   text;
-  v_completed_event text;
-  -- per-answer dispatch variables (mig 121)
-  v_qtype           text;
-  v_selected        text;
-  v_response_text   text;
-  v_blank_text      text;
-  v_blank_index     int;
-  v_correct_option  text;
-  v_options         jsonb;
-  v_canonical       text;
-  v_synonyms        text[];
-  v_blanks          jsonb;
-  v_fraction        numeric;
-BEGIN
-  IF v_student_id IS NULL THEN RAISE EXCEPTION 'not authenticated'; END IF;
-
-  -- Active-caller gate (rule 7) — caches actor_role for audit INSERT (rule 10).
-  SELECT role INTO v_actor_role
-  FROM users WHERE id = v_student_id AND deleted_at IS NULL;
-  IF NOT FOUND THEN RAISE EXCEPTION 'user not found or inactive'; END IF;
-
-  -- Session ownership + FOR UPDATE (rule 11 — quiz_sessions has multiple
-  -- permissive SELECT policies; explicit student_id scope required).
-  SELECT qs.organization_id, qs.total_questions, qs.config, qs.ended_at,
-         qs.correct_count, qs.score_percentage, qs.mode,
-         qs.time_limit_seconds, qs.started_at, qs.passed
-  INTO v_org_id, v_total, v_config, v_ended_at, v_correct_count, v_score, v_mode,
-       v_time_limit, v_started_at, v_passed
-  FROM quiz_sessions qs
-  WHERE qs.id = p_session_id
-    AND qs.student_id = v_student_id
-    AND qs.deleted_at IS NULL
-  FOR UPDATE;
-  -- FOR UPDATE is acquired before the completed-session check intentionally:
-  -- it serializes concurrent retries so the second caller sees v_ended_at IS NOT NULL
-  -- and takes the replay path instead of double-writing. The read-only replay holds
-  -- the lock briefly (two SELECTs) — acceptable trade-off vs. a TOCTOU two-phase check.
-
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'session not found or not accessible';
-  END IF;
-
-  -- Idempotent replay: if session already completed, return existing results
-  -- Idempotent replay: if session already completed, return existing results
-  IF v_ended_at IS NOT NULL THEN
-    SELECT count(DISTINCT qsa.question_id)::int INTO v_answered
-    FROM quiz_session_answers qsa WHERE qsa.session_id = p_session_id;
-    -- §15 carve-out: no deleted_at filter — question_ids are immutable write-once.
-    SELECT jsonb_agg(jsonb_build_object(
-      'question_id',           qsa.question_id,
-      'is_correct',            qsa.is_correct,
-      'correct_option_id',     q.correct_option_id,
-      'explanation_text',      q.explanation_text,
-      'explanation_image_url', q.explanation_image_url
-    )) INTO v_results
-    FROM quiz_session_answers qsa
-    JOIN questions q ON q.id = qsa.question_id
-    WHERE qsa.session_id = p_session_id;
-    RETURN jsonb_build_object(
-      'results', COALESCE(v_results, '[]'::jsonb),
-      'total_questions', v_total, 'answered_count', v_answered,
-      'correct_count', v_correct_count, 'score_percentage', v_score, 'passed', v_passed
-    );
-  END IF;
-
-  -- Timer-expiry guard (30 s grace, parity with complete_overdue_exam_session).
-  IF v_time_limit IS NOT NULL AND v_started_at IS NOT NULL THEN
-    IF now() > v_started_at + (v_time_limit + 30) * interval '1 second' THEN
-      UPDATE quiz_sessions
-      SET ended_at = now(), correct_count = 0, score_percentage = 0, passed = false
-      WHERE id = p_session_id;
-      v_expired_event := CASE v_mode
-        WHEN 'internal_exam' THEN 'internal_exam.expired' ELSE 'exam.expired' END;
-      INSERT INTO audit_events
-        (organization_id, actor_id, actor_role, event_type, resource_type, resource_id, metadata)
-      VALUES (v_org_id, v_student_id, v_actor_role, v_expired_event, 'quiz_session', p_session_id,
-        jsonb_build_object('total_questions', v_total, 'reason', 'submission past grace period'));
-      RETURN jsonb_build_object('results', '[]'::jsonb, 'total_questions', v_total,
-        'answered_count', 0, 'correct_count', 0, 'score_percentage', 0,
-        'passed', false, 'expired', true);
-    END IF;
-  END IF;
-
-  IF v_config IS NULL OR v_config->'question_ids' IS NULL
-     OR jsonb_typeof(v_config->'question_ids') <> 'array' THEN
-    RAISE EXCEPTION 'session config is malformed — question_ids not set';
-  END IF;
-  v_session_question_ids :=
-    ARRAY(SELECT jsonb_array_elements_text(v_config->'question_ids'))::uuid[];
-
-  IF p_answers IS NULL OR jsonb_typeof(p_answers) <> 'array'
-     OR jsonb_array_length(p_answers) = 0 THEN
-    RAISE EXCEPTION 'answers must be a non-empty JSON array';
-  END IF;
-
-  -- Duplicate guard on (question_id, blank_index): MC/short_answer carry blank_index
-  -- NULL; dialog_fill has one entry per blank (mig 121).
-  IF (
-    SELECT count(*) <> count(DISTINCT
-      lower(coalesce(e->>'question_id', '')) || '#' || coalesce(
-        CASE WHEN e ? 'blank_index' AND (e->>'blank_index') ~ '^\d{1,4}$'
-             THEN ((e->>'blank_index')::int)::text
-             ELSE e->>'blank_index' END, ''))
-    FROM jsonb_array_elements(p_answers) AS e
-  ) THEN
-    RAISE EXCEPTION 'duplicate question_id (or question_id+blank_index) in answers payload';
-  END IF;
-
-  -- Bulk-fetch all questions (widened in mig 121 to include non-MC fields).
-  -- §15 carve-out: no deleted_at filter — IDs from immutable write-once config. See §3.
-  DROP TABLE IF EXISTS _batch_questions;
-  CREATE TEMP TABLE _batch_questions ON COMMIT DROP AS
-  SELECT q.id, q.question_type,
-         q.correct_option_id  AS correct_option,
-         q.canonical_answer,
-         q.accepted_synonyms,
-         q.blanks_config,
-         q.explanation_text,
-         q.explanation_image_url,
-         q.options
-  FROM questions q WHERE q.id = ANY(v_session_question_ids);
-
-  -- Per-answer dispatch loop (mig 121).
-  FOR v_answer IN SELECT * FROM jsonb_array_elements(p_answers)
-  LOOP
-    v_qid_text      := v_answer->>'question_id';
-    v_selected      := v_answer->>'selected_option';
-    v_response_text := v_answer->>'response_text';
-    v_blank_text    := v_answer->>'blank_index';
-    v_rt_text       := coalesce(v_answer->>'response_time_ms', '0');
-
-    IF v_qid_text IS NULL OR v_qid_text
-       !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
-      RAISE EXCEPTION 'invalid question_id format: %', coalesce(v_qid_text, 'NULL');
-    END IF;
-    IF v_rt_text !~ '^\d{1,9}$' THEN
-      RAISE EXCEPTION 'answer for question % has invalid response_time_ms', v_qid_text;
-    END IF;
-    v_question_id   := v_qid_text::uuid;
-    v_response_time := v_rt_text::int;
-    v_blank_index   := NULL;
-    IF v_blank_text IS NOT NULL AND v_blank_text ~ '^\d{1,4}$' THEN
-      v_blank_index := v_blank_text::int;
-    END IF;
-
-    IF NOT (v_question_id = ANY(v_session_question_ids)) THEN
-      RAISE EXCEPTION 'question % does not belong to session %', v_question_id, p_session_id;
-    END IF;
-
-    SELECT bq.question_type, bq.correct_option, bq.canonical_answer,
-           bq.accepted_synonyms, bq.blanks_config,
-           bq.explanation_text, bq.explanation_image_url, bq.options
-    INTO v_qtype, v_correct_option, v_canonical, v_synonyms, v_blanks,
-         v_expl_text, v_expl_image_url, v_options
-    FROM _batch_questions bq WHERE bq.id = v_question_id;
-    IF NOT FOUND THEN RAISE EXCEPTION 'question not found: %', v_question_id; END IF;
-
-    IF v_qtype = 'multiple_choice' THEN
-      v_fraction := _grade_record_mc(
-        p_session_id, v_student_id, v_org_id, v_question_id,
-        v_selected, v_correct_option, v_options, v_response_time);
-    ELSIF v_qtype = 'short_answer' THEN
-      v_fraction := _grade_record_short_answer(
-        p_session_id, v_student_id, v_org_id, v_question_id,
-        v_response_text, v_canonical, v_synonyms, v_response_time);
-    ELSIF v_qtype = 'dialog_fill' THEN
-      IF v_blank_index IS NULL THEN
-        RAISE EXCEPTION 'dialog_fill entry for question % missing blank_index', v_question_id;
-      END IF;
-      v_fraction := _grade_record_dialog_fill(
-        p_session_id, v_student_id, v_org_id, v_question_id,
-        v_blank_index, v_response_text, v_blanks, v_response_time);
-    ELSE
-      RAISE EXCEPTION 'unsupported question type % for question %', v_qtype, v_question_id;
-    END IF;
-
-    v_is_correct := (v_fraction = 1.0);
-    v_results := v_results || jsonb_build_object(
-      'question_id',           v_question_id,
-      'is_correct',            v_is_correct,
-      'correct_option_id',     v_correct_option,
-      'explanation_text',      v_expl_text,
-      'explanation_image_url', v_expl_image_url
-    );
-  END LOOP;
-
-  -- DISTINCT-question score aggregation (mig 121, Decision 47): dialog_fill folds
-  -- per-blank rows into partial credit. v_correct_credit (numeric) is the score
-  -- numerator; v_correct_count (int) is the correct item (blank-row) count,
-  -- unified with exam submit_vfr_rt_exam_answers (mig 132).
-  WITH session_questions AS (
-    SELECT q.id AS question_id,
-           CASE WHEN q.question_type = 'dialog_fill'
-                THEN greatest(jsonb_array_length(q.blanks_config), 1)
-                ELSE 1 END AS total_blanks
-    FROM questions q WHERE q.id = ANY(v_session_question_ids)
-  ),
-  graded AS (
-    SELECT qsa.question_id,
-           count(*) FILTER (WHERE qsa.is_correct)::int AS correct_rows
-    FROM quiz_session_answers qsa
-    WHERE qsa.session_id = p_session_id
-    GROUP BY qsa.question_id
-  )
-  SELECT
-    count(DISTINCT sq.question_id)::int,
-    coalesce(sum(LEAST(coalesce(g.correct_rows, 0)::numeric / sq.total_blanks, 1.0)), 0),
-    coalesce(sum(coalesce(g.correct_rows, 0)), 0)::int
-  INTO v_answered, v_correct_credit, v_correct_count
-  FROM session_questions sq
-  JOIN graded g ON g.question_id = sq.question_id;  -- only answered questions
-
-  IF v_mode IN ('mock_exam', 'internal_exam') THEN
-    v_score := CASE WHEN v_total > 0
-      THEN round((v_correct_credit / v_total) * 100, 2) ELSE 0 END;
-  ELSE
-    v_score := CASE WHEN v_answered > 0
-      THEN round((v_correct_credit / v_answered) * 100, 2) ELSE 0 END;
-  END IF;
-
-  IF v_mode IN ('mock_exam', 'internal_exam') THEN
-    v_pass_mark := (v_config->>'pass_mark')::int;
-    v_passed    := CASE WHEN v_pass_mark IS NOT NULL THEN (v_score >= v_pass_mark) ELSE false END;
-    IF v_mode = 'mock_exam' AND v_answered < v_total THEN v_passed := false; END IF;
-  END IF;
-
-  UPDATE quiz_sessions
-  SET ended_at = now(), correct_count = v_correct_count,
-      score_percentage = v_score, passed = v_passed
-  WHERE id = p_session_id;
-
-  -- Audit log
-  v_completed_event := CASE v_mode
-                         WHEN 'mock_exam'     THEN 'exam.completed'
-                         WHEN 'internal_exam' THEN 'internal_exam.completed'
-                         ELSE 'quiz_session.batch_submitted'
-                       END;
-  INSERT INTO audit_events
-    (organization_id, actor_id, actor_role, event_type, resource_type, resource_id, metadata)
-  VALUES (
-    v_org_id,
-    v_student_id,
-    v_actor_role,
-    v_completed_event,
-    'quiz_session',
-    p_session_id,
-    jsonb_build_object(
-      'total_questions', v_total,
-      'answered_count', v_answered,
-      'correct_count', v_correct_count,
-      'score', v_score,
-      'passed', v_passed
-    )
-  );
-
-  RETURN jsonb_build_object(
-    'results', v_results,
-    'total_questions', v_total,
-    'answered_count', v_answered,
-    'correct_count', v_correct_count,
-    'score_percentage', v_score,
-    'passed', v_passed
-  );
-END;
-$$;
-```
-
-**Audit metadata keys (migration 082):** The completion audit event records `answered_count` and `correct_count` — aligned with the other exam-outcome events `complete_overdue_exam_session` and `complete_empty_exam_session`, which use the `*_count` form. (`start_exam_session` emits `exam.started` with pre-answer metadata only — no answer counts.) Migrations before 082 wrote the bare keys `answered` / `correct` for this one RPC; historical `audit_events` rows retain those keys (the table is append-only — security.md rule 5 — so they are not rewritten). No code or red-team spec reads either key.
-
-**`exam.completed` event_type disambiguation (#571):** `exam.completed` is emitted by **two** RPCs and one event_type covers two distinct outcomes:
-- `batch_submit_quiz` — a full answer submission. Metadata carries real `answered_count` / `correct_count` / `score` and has **no** `reason` key.
-- `complete_empty_exam_session` — a zero-answer finish within the +30s grace window (see that RPC below; once the deadline passes, that RPC emits `exam.expired` with `reason = 'timed out with no answers'` instead, so the overdue case never reaches `exam.completed`). Metadata carries `answered_count = 0`, `correct_count = 0`, and `reason = 'completed with no answers'`.
-
-A consumer filtering `event_type = 'exam.completed'` must inspect metadata to separate them: the presence of the `reason` key (equivalently `answered_count = 0`) marks the zero-answer in-grace path. No distinct event_type was introduced because no current consumer depends on the distinction; revisit if an analytics or red-team query later needs to query the two outcomes separately.
-
-The same two-source pattern applies to the mode-branched variants: `internal_exam.completed` is emitted by `batch_submit_quiz` (full internal-exam submission) and `complete_empty_exam_session` (zero-answer in-grace); `vfr_rt_exam.completed` by `submit_vfr_rt_exam_answers` (mig 100 — metadata carries `part1_pct`/`part2_pct`/`part3_pct`/`passed_overall`, no `reason` key) and `complete_empty_exam_session`. In every mode, the presence of the `reason` key marks the zero-answer in-grace path.
+**Event types by mode:** `finish_quiz_session` emits `exam.completed` (`mock_exam`), `internal_exam.completed`, `vfr_rt_exam.completed` or `quiz_session.batch_submitted` (practice modes). Past the +30s grace it emits `exam.expired` / `internal_exam.expired` / `vfr_rt_exam.expired` with `reason = 'submission past grace period'`. `complete_overdue_exam_session` emits only the `*.expired` form, with `reason` `overdue_with_answers`, `overdue_zero_answers` or `overdue_config_unusable`. `vfr_rt_exam` events add `part1_pct` / `part2_pct` / `part3_pct`. Derive: `grep -n "event_type\|reason" supabase/migrations/20261004000300_finish_quiz_session.sql supabase/migrations/20261004000400_overdue_grades_progress.sql`.
 
 #### `start_exam_session` — initiate a `mock_exam` session for a subject
 
@@ -1628,7 +1289,7 @@ Atomically reads the subject's `exam_configs` row, randomly selects questions pe
 
 **Purpose:** Called by the `startExamSession` Server Action (`apps/web/app/app/quiz/actions/start-exam.ts`) when a student opens an exam for a subject. Single round-trip — no separate "create then fetch questions" sequence.
 
-**Auto-complete-then-guard sequence (migrations 050 / 052 / 054):** Before checking the duplicate-active-session guard, looks up any same-subject `mock_exam` session for this student past `started_at + (time_limit_seconds + 30 seconds)` and calls `complete_overdue_exam_session` on it. The +30s grace window matches `batch_submit_quiz` and `complete_overdue_exam_session` so all three RPCs agree on whether a session is overdue. A browser-crash exit during a previous attempt cannot indefinitely block the next one — the prior session is closed (with any buffered answers scored) before the duplicate guard runs.
+**Auto-complete-then-guard sequence (migrations 050 / 052 / 054):** Before checking the duplicate-active-session guard, looks up any same-subject `mock_exam` session for this student past `started_at + (time_limit_seconds + 30 seconds)` and calls `complete_overdue_exam_session` on it. The +30s grace window is the same in `finish_quiz_session` and `complete_overdue_exam_session`, so they agree on whether a session is overdue. A browser-crash exit during a previous attempt cannot indefinitely block the next one — the prior session is closed (with any buffered answers scored) before the duplicate guard runs.
 
 **Org-scope filter (CR 3152802436, migration 054):** Both the overdue-lookup SELECT and the duplicate-active-session EXISTS check filter on `organization_id = v_org_id`. Without this filter, a session created while the student belonged to a previous organization could match here after a transfer, blocking the user from starting an exam in their current org.
 
@@ -1649,35 +1310,11 @@ Atomically reads the subject's `exam_configs` row, randomly selects questions pe
 
 ---
 
-#### `complete_empty_exam_session` — close a zero-answer exam session (timer or manual)
-
-Completes a `mock_exam`, `internal_exam`, or `vfr_rt_exam` session that has zero answers recorded. Sets `correct_count = 0`, `score_percentage = 0`, `passed = false`, and `ended_at = now()`. No app caller since #1026 PR 2d: `finish_quiz_session` ends zero-answer exams.
-
-**Audit event branching (migration 053):** The RPC determines the actual deadline state and audits accordingly:
-- **Deadline passed (beyond +30s grace)** → `exam.expired` (or `internal_exam.expired` / `vfr_rt_exam.expired`) event with reason "timed out with no answers"
-- **Deadline not yet passed** → `exam.completed` (or `internal_exam.completed` / `vfr_rt_exam.completed`) event with reason "completed with no answers"
-
-This ensures the audit trail reflects what actually happened, not a hard-coded assumption.
-
-**Idempotency:** Safe to call twice. If `ended_at IS NOT NULL`, the function returns the real stored `score_percentage`, `passed`, and `answered_count` from `quiz_sessions` (not the hardcoded zeros). The `FOR UPDATE` lock already holds the row, so the re-read is safe and single-statement.
-
-**Security model (migration 049, patched by migrations 051 & 053):**
-- `auth.uid()` check — rejects unauthenticated callers.
-- Org-scope guard — reads `organization_id` from `users` with `deleted_at IS NULL`.
-- Ownership + org check — `FOR UPDATE` fetch requires `student_id = v_student_id AND organization_id = v_org_id AND deleted_at IS NULL`.
-- Mode guard — raises if session is not `mock_exam`, `internal_exam`, or `vfr_rt_exam` (widened in migrations `20260429000008` and `20260610001200` — see the extension notes under `complete_overdue_exam_session` below).
-- Audit log — appends an `*.expired` or `*.completed` event (mode-branched, see above) based on deadline state. The `actor_role` subquery enforces `deleted_at IS NULL` per security.md rule #10 (audit-event subqueries are independent SELECTs, not subordinate to outer guards).
-- `SECURITY DEFINER SET search_path = public` — required pattern for all security-definer RPCs.
-
-**Return shape:** `{ session_id, score_percentage, passed, total_questions, answered_count }`
-
----
-
 #### `complete_overdue_exam_session` — close a past-deadline exam (Layer 1)
 
 Completes a `mock_exam`, `internal_exam`, or `vfr_rt_exam` session whose deadline has passed. Grades the student's saved `quiz_session_progress` answers (`_grade_session_progress`, migration `20261004000400`), then scores every `quiz_session_answers` row with `_score_graded_session` — partial answers are honoured, NOT zeroed. Sets `ended_at`, `correct_count`, `score_percentage`, `passed` and writes an `exam.expired` (or `internal_exam.expired` / `vfr_rt_exam.expired`) audit event.
 
-**Grace window (migration 052):** The overdue threshold is `now() > started_at + (time_limit_seconds + 30 seconds)`, matching the grace window in `batch_submit_quiz`. This ensures the Layer 1 refresh check and the submit RPC never disagree on whether a session is overdue — a session within the grace window is not considered overdue by either path.
+**Grace window (migration 052):** The overdue threshold is `now() > started_at + (time_limit_seconds + 30 seconds)`, matching the grace window in `finish_quiz_session`. This ensures the Layer 1 refresh check and the finish RPC never disagree on whether a session is overdue — a session within the grace window is not considered overdue by either path.
 
 **Purpose (Layer 1, migration 050 / supabase 20260427000003):** Server-authoritative deadline enforcement. Called by:
 1. `start_exam_session` itself, before raising "already in progress" — guarantees a browser-crash exit during an exam cannot block the next attempt indefinitely AND records the score from saved answers.
@@ -1701,13 +1338,13 @@ Completes a `mock_exam`, `internal_exam`, or `vfr_rt_exam` session whose deadlin
 - Audit `actor_role` subquery enforces `deleted_at IS NULL` per security.md rule #10 (audit-event subqueries are independent SELECTs and must validate soft-delete unconditionally).
 - `SECURITY DEFINER SET search_path = public`.
 
-**Return shape:** `{ session_id, score_percentage, passed, total_questions, answered_count }` — identical to `complete_empty_exam_session` for caller symmetry.
+**Return shape:** `{ session_id, score_percentage, passed, total_questions, answered_count }`.
 
 **`start_exam_session` interaction:** Before raising the duplicate-active-session guard, `start_exam_session` looks up any same-subject `mock_exam` session past `started_at + (time_limit_seconds + 30 seconds)` and calls `complete_overdue_exam_session` on it. See the `start_exam_session` subsection above for the full sequence and the org-scope filter on the lookup.
 
-**Internal-exam extension (migration `20260429000008`):** `complete_overdue_exam_session` and `complete_empty_exam_session` were widened from `mode = 'mock_exam'` to `mode IN ('mock_exam', 'internal_exam')`. The audit `event_type` is branched: `internal_exam.expired` / `internal_exam.completed` for internal-exam sessions, the existing `exam.*` events for mock-exam sessions.
+**Internal-exam extension (migration `20260429000008`):** `complete_overdue_exam_session` was widened from `mode = 'mock_exam'` to `mode IN ('mock_exam', 'internal_exam')`. The audit `event_type` is branched: `internal_exam.expired` for internal-exam sessions, the existing `exam.*` events for mock-exam sessions.
 
-**VFR RT extension (migration `20260610001200` / mig 102):** Both helpers' mode guards were widened again to `mode IN ('mock_exam', 'internal_exam', 'vfr_rt_exam')`, and the audit `event_type` branching gained `vfr_rt_exam.expired` / `vfr_rt_exam.completed`. For a `vfr_rt_exam` session, `complete_overdue_exam_session` replaces the `pass_mark`-based score computation with the per-part grading branch: parts come from `_vfr_rt_exam_part_scores` (migration `20260929000600`; Part 1 = short_answer, Part 2 = dialog_fill, Part 3 = multiple_choice, ordering, diagram_label; per-question credit = correct rows ÷ blanks, items or zones, capped at 1; missing answers score 0), and are written to the `vfr_rt_exam.expired` audit metadata as `part1_pct` / `part2_pct` / `part3_pct`. `passed := (all three parts >= 75)`; the config `pass_mark` is not used. `score_percentage = round((p1 + p2 + p3) / 3, 2)` is informational only. Question rows are read via the write-once `config.question_ids` (immutable write-once exception, `docs/security.md` §15).
+**VFR RT extension (migration `20260610001200` / mig 102):** The mode guard was widened again to `mode IN ('mock_exam', 'internal_exam', 'vfr_rt_exam')`, and the audit `event_type` branching gained `vfr_rt_exam.expired`. For a `vfr_rt_exam` session, `complete_overdue_exam_session` replaces the `pass_mark`-based score computation with the per-part grading branch: parts come from `_vfr_rt_exam_part_scores` (migration `20260929000600`; Part 1 = short_answer, Part 2 = dialog_fill, Part 3 = multiple_choice, ordering, diagram_label; per-question credit = correct rows ÷ blanks, items or zones, capped at 1; missing answers score 0), and are written to the `vfr_rt_exam.expired` audit metadata as `part1_pct` / `part2_pct` / `part3_pct`. `passed := (all three parts >= 75)`; the config `pass_mark` is not used. `score_percentage = round((p1 + p2 + p3) / 3, 2)` is informational only. Question rows are read via the write-once `config.question_ids` (immutable write-once exception, `docs/security.md` §15).
 
 ---
 
@@ -1879,21 +1516,6 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
 
 ---
 
-#### `batch_submit_quiz` — internal-exam extension (migration `20260429000007`)
-
-`CREATE OR REPLACE` of the version in `056` (mock-exam pass-computation revision). Two changes:
-
-1. **All-answered guard restricted to `mock_exam`.** `internal_exam` is allowed to submit with `answered < total` (deliberate — internal exams support partial submission). Mock-exam still requires `answered_count = total_questions` after the +30s grace window.
-2. **Pass computation extended.** `passed` is computed for both `mock_exam` and `internal_exam` (`score_percentage >= pass_mark`); for partial internal-exam submissions an under-`pass_mark` score auto-fails.
-
-Audit `event_type` branches: `internal_exam.completed` for internal-exam sessions, `exam.completed` / `quiz_session.batch_submitted` for the existing modes.
-
-**Migration `20260430000009`:** adds `AND q.deleted_at IS NULL` to the idempotent replay JOIN on `questions` (security.md §10, closes #531). The bulk-fetch temp table SELECT scoped by `config.question_ids` remains unfiltered — see §3 carve-out.
-
-**Migration `20260430000012`:** adds a top-level active-user gate (`SELECT role INTO v_actor_role FROM users WHERE id = v_student_id AND deleted_at IS NULL` + `IF NOT FOUND RAISE 'user not found or inactive'`). Both audit INSERTs (timeout `exam.expired` / `internal_exam.expired`, completion `exam.completed` / `internal_exam.completed` / `quiz_session.batch_submitted`) read `v_actor_role` from the cached local instead of re-querying `users` — closes the TOCTOU window where a soft-delete between the gate and audit write would null the scalar subquery and abort the entire submission transaction (PR #599 CR root-cause fix). Co-mig: `20260430000010` makes the matching change for `start_quiz_session`.
-
----
-
 #### `get_report_correct_options` — correct option IDs for reports
 
 Returns correct option IDs for the questions answered in a completed session owned by the caller. The RPC derives that question set from `quiz_session_answers`, so the TypeScript layer never reads the raw `correct` boolean from options JSONB.
@@ -1988,12 +1610,12 @@ Verifies a student's answer for a question during an active quiz session. Return
 
 **Key behavior:**
 - Active-user gate: soft-deleted callers are rejected (closes issue #823 hardening)
-- Practice-mode guard: only `smart_review` and `quick_quiz` sessions are accepted; all other modes (`mock_exam`, `internal_exam`, `vfr_rt_exam`) are rejected with `unsupported_session_mode` (prevents a mid-exam answer oracle; exam modes use dedicated submit RPCs)
+- Practice-mode guard: only `smart_review` and `quick_quiz` sessions are accepted; all other modes (`mock_exam`, `internal_exam`, `vfr_rt_exam`) are rejected with `unsupported_session_mode` (prevents a mid-exam answer oracle; exam completion goes through `finish_quiz_session`)
 - Validates that the session belongs to the current student and is still active
 - Validates that the question belongs to the session's locked question set (via immutable config.question_ids)
 - Validates config.question_ids is properly formed (explicit NULL check for the array key)
 - Returns only the correct option ID and explanation — never exposes the full options array
-- Used for immediate feedback during quiz sessions (answers are typically batched later via `batch_submit_quiz`)
+- Used for immediate feedback during quiz sessions (the saved answers are graded later by `finish_quiz_session`)
 - Saves a non-NULL selection to `quiz_session_progress` after grading (mig `20261002000700`, #1026); raises `invalid_answer` / `session_taken_over` / `invalid_time_spent` from the save, which rolls back the whole call
 
 **Parameters:**
@@ -2142,7 +1764,7 @@ Added in **mig 119** (supabase `20260621000200`, #697 Phase 2). Extended in **mi
 1. Auth check — `auth.uid()` NULL raises `not_authenticated`.
 2. Active-caller gate — soft-deleted callers raise `user_not_found_or_inactive` before any session read.
 3. Session ownership — `quiz_sessions` has multiple permissive SELECT policies; explicit `qs.student_id = v_student_id` scope required (security.md §3 / rule 11).
-4. Practice-mode whitelist — only `smart_review` and `quick_quiz`; all others raise `unsupported_session_mode` (prevents a mid-exam answer oracle; exam grading goes through `submit_vfr_rt_exam_answers`).
+4. Practice-mode whitelist — only `smart_review` and `quick_quiz`; all others raise `unsupported_session_mode` (prevents a mid-exam answer oracle; exam grading goes through `finish_quiz_session`).
 5. Config-shape guard — explicit NULL check on `v_config->'question_ids'` before `jsonb_typeof`.
 6. Membership check — `p_question_id` must be in `config.question_ids`; **must precede the answer-key column read** (§15 ordering).
 7. Question row read (answer-key columns) — §15 carve-out: no `deleted_at` filter (accessed via immutable write-once `config.question_ids`; locked by `trg_quiz_sessions_immutable_columns`, mig 079).
@@ -2168,7 +1790,7 @@ Added in **mig 119** (supabase `20260621000200`, #697 Phase 2). Extended in **mi
 
 **Grading semantics:**
 - `short_answer` — `p_response_text` required, `p_blank_answers`, `p_order`, and `p_mapping` must be NULL. Compares against `canonical_answer` and `accepted_synonyms` via `answer_matches()` (mig 158) — case/whitespace/punctuation-insensitive through `normalize_answer()` (mig 101), and typo-tolerant except on tokens containing digits.
-- `dialog_fill` — `p_blank_answers` (jsonb array of `{blank_index, response_text}`) required, `p_response_text`, `p_order`, and `p_mapping` must be NULL. Top-level `is_correct` is true only when every blank in `blanks_config` was both answered AND correct (full-coverage denominator via `DISTINCT count` — mirrors the exam grader `submit_vfr_rt_exam_answers`, mig 100). Each blank is compared via `answer_matches()` (mig 158), same typo tolerance as `short_answer`.
+- `dialog_fill` — `p_blank_answers` (jsonb array of `{blank_index, response_text}`) required, `p_response_text`, `p_order`, and `p_mapping` must be NULL. Top-level `is_correct` is true only when every blank in `blanks_config` was both answered AND correct (full-coverage denominator via `DISTINCT count` — mirrors the exam grader `_grade_record_dialog_fill`). Each blank is compared via `answer_matches()` (mig 158), same typo tolerance as `short_answer`.
 - `ordering` — `p_order` (jsonb array of item IDs in the student's submitted sequence) required, `p_response_text`, `p_blank_answers`, and `p_mapping` must be NULL. Correct iff the submitted ID sequence equals the canonical stored array order of `ordering_items`, element-for-element (binary — partial credit is a batch-submit/report concern, not immediate feedback's signal). The revealed `correct_order` is an array of **canonical item IDs** (not texts) because two items may share display text; the client maps each id back to its text for display.
 - `diagram_label` — `p_mapping` (jsonb array of `{zone_id, label_id}` the student placed) required, `p_response_text`, `p_blank_answers`, and `p_order` must be NULL. Correctness is a **SET comparison** (order in the array is meaningless, unlike `ordering`): every zone must be covered exactly once (`jsonb_array_length(p_mapping) = jsonb_array_length(diagram_config.answer)` AND distinct `zone_id` count matches) and every submitted `{zone_id, label_id}` pair must match the canonical `diagram_config.answer` entry for that zone. The revealed `correct_mapping` is the raw `{zone_id, label_id}` answer array — the client already holds the full zones + labels arrays from the initial delivery (mig 152), so it resolves ids to display text/position locally, same posture as `ordering`'s revealed id-only `correct_order`.
 
@@ -3004,58 +2626,6 @@ Student-facing RPC (migration 099b, sibling of `get_quiz_questions`; redefined i
 - `Session not found or not owned` — session missing, not owned by the caller, wrong mode, or soft-deleted
 - `session_config_malformed` — session `config.question_ids` is null, missing, or not an array (family guard, migs 100/105)
 
-#### `submit_vfr_rt_exam_answers` — atomic VFR RT answers submission + grading
-
-Student-facing RPC (migration 100; latest body `20260929000400`). No app caller since #1026 PR 2d: `finish_quiz_session` finishes `vfr_rt_exam` sessions. Submits an array of typed answers (one per blank), normalizes + grades per-blank, computes per-part percentages, scores overall ≥75% pass rule per part, logs audit event.
-
-**Security:** `SECURITY DEFINER`, `SET search_path = public`. Auth check, student_id ownership scope (explicit `student_id = auth.uid()`, mandatory per security.md §3), session soft-delete filter, ended_at guard (idempotent replay).
-
-**Parameters:**
-- `p_session_id UUID` — the target vfr_rt_exam session
-- `p_answers JSONB` — array of answer objects; each object has `{question_id UUID, selected_option_id text?, response_text text?, blank_index int?, response_time_ms int?}`. One entry per (question_id, blank_index) — blank_index NULL for MC/short_answer, int for dialog_fill. Ordering: `{question_id, selected_option_id: item id, blank_index: slot}`, one per item. Diagram_label: `{question_id, selected_option_id: label id, response_text: zone id, blank_index}` (blank_index is a dedup key only; the stored value is the zone ordinal). response_time_ms optional (default 0).
-
-**Returns:** `jsonb` with keys:
-- `session_id UUID`
-- `part1_pct NUMERIC(5,2)`, `part2_pct NUMERIC(5,2)`, `part3_pct NUMERIC(5,2)` — per-part percentages (0–100)
-- `passed_overall BOOLEAN` — `v_p1 >= 75 AND v_p2 >= 75 AND v_p3 >= 75`
-- `correct_count INT` — count of correct answer rows (per-blank; dialog_fill may have multiple per question)
-- `total_questions INT` — session's total_questions (8+9+8 = 25 default)
-- `expired BOOLEAN` — present only if session expired past grace period; returns zeroed result if true
-
-**Grading:** `_vfr_rt_exam_part_scores` — per part, the mean of per-question credit × 100:
-- Part 1 (short_answer): 0/1
-- Part 2 (dialog_fill): correct blanks / total blanks
-- Part 3: multiple_choice 0/1; ordering / diagram_label correct slots / items, correct zones / zones
-- Unanswered questions contribute 0
-- A question with broken bank data (`_question_is_broken`) is left out of its part (migration `20261004000060`); a part whose every question is broken still scores 0 (#1450)
-
-**Answer normalization:** `normalize_answer(text)` helper (mig 101) — trim, lowercase, collapse hyphens/underscores, strip punctuation, preserve diacritics (Slovenian č/š/ž). **Matching** is `answer_matches()` (mig 158) against canonical_answer or any accepted_synonym: exact after normalization, plus a bounded spelling tolerance that never applies to a token containing a digit.
-
-**Timer expiry guard (design.md § Migration 100):** Submit past `started_at + time_limit_seconds + 30s` grace → expires the session (zeroed result, `expired: true`), logged as `vfr_rt_exam.expired`.
-
-**Idempotency:** On replay (session already ended), returns the part scores from the latest `vfr_rt_exam.completed` / `.expired` audit event metadata (falling back to `_vfr_rt_exam_part_scores` when absent); no writes. If the session expired (timer grace period), detects the expiry via the append-only `vfr_rt_exam.expired` audit event and re-adds `expired:true` to the JSONB return (mig 129, #839), ensuring a retry returns the same payload as the original. Also catches expiry via `complete_overdue_exam_session` / `complete_empty_exam_session` (same event_type).
-
-**Error codes:** (the RPC's own tokens — derive with `grep -o "RAISE EXCEPTION '[a-z_]*'" supabase/migrations/20260929000400_submit_vfr_rt_exam_answers_part3_types.sql | sort -u`)
-- `not_authenticated` — `auth.uid()` is null
-- `user_not_found_or_inactive` — caller is missing or soft-deleted
-- `session_not_found_or_not_accessible` — owner/mode/deleted check
-- `session_config_malformed` — session `config.question_ids` is null, missing, or not an array (mig 100 guard; pre-existing doc omission fixed alongside migs 105/106)
-- `invalid_answers_payload` — payload is null, not array, or empty
-- `invalid_answer_entry` — a payload entry is not an object, or carries a malformed `question_id` or `response_time_ms`; an ordering answer is not a complete permutation of its items; a diagram answer names an unknown zone or duplicates a zone/label placement (`DETAIL` names which)
-- `duplicate_answer_entry` — (question_id, blank_index) pair appears twice
-- `invalid_question_id_for_session` — question not in session's frozen question_ids
-- `answer_type_mismatch` — answer entry has wrong field set for question type
-- `invalid_option_for_question` — selected_option_id not in options array
-- `invalid_blank_index` — blank_index not in blanks_config array
-- `question_not_found` — a question id frozen into the session config no longer resolves (data error)
-- `unsupported_question_type` — the question's type is outside this RPC's dispatch (data error)
-- `question_missing_correct_option` — MC question has no correct option (data error)
-- `question_missing_canonical_answer` — short_answer question has no canonical_answer (data error, mig 160). Unreachable through `questions_question_type_columns_check`, which requires it non-null; kept for parity with migs 158/159.
-- `question_blank_missing_canonical` — a dialog_fill entry in blanks_config has no `canonical` (data error, mig 160). REACHABLE: no constraint covers a per-blank canonical key.
-- Raised by the grading helpers it calls (message text, no token): `_grade_record_ordering` — slot out of range, empty item id, `ordering item id % not found (or empty text) in question %`; `_grade_record_diagram_label` — unknown zone, zone out of range, `diagram label id % not found (or empty text) in question %`
-
-**Audit:** `vfr_rt_exam.completed` event on fresh submit (part pcts, passed_overall, total_questions). `vfr_rt_exam.expired` event on timer expiry.
-
 #### `get_vfr_rt_exam_results` — gated results/review read path for VFR RT exams
 
 Student-facing RPC (migration 103; redefined in migration `20260611000200` / mig 106, #840 — adds `explanation_text` / `explanation_image_url` to the per-question review payload; only functional delta). Fetches completion-time answer key + explanations + per-question grading breakdown. Requires session to be ended.
@@ -3177,12 +2747,11 @@ so a 2-edit tier would accept `runway serviceable`/`runway unserviceable`, `nort
 the eval case that prompted this feature, still matches: it is a single adjacent swap, carried by
 the transposition rule rather than by any 2-edit tier.
 
-**Callers (all four text graders, changed together per `docs/security.md` sibling-parity):**
+**Callers (all text graders, changed together per `docs/security.md` sibling-parity):**
 `_grade_record_short_answer`, `_grade_record_dialog_fill` (bodies from mig 120, repointed in mig
-158), `check_non_mc_answer` (body from mig `20260702000400`, repointed in mig 159),
-`submit_vfr_rt_exam_answers` (body from mig `20260623000800`, repointed in mig 160). If only some
+158), `check_non_mc_answer` (body from mig `20260702000400`, repointed in mig 159). If only some
 tolerated typos, the same answer would score in practice and fail in the exam — which is why the
-three migrations must be applied as a set.
+callers must be changed as a set.
 
 **Requires** the `fuzzystrmatch` extension (`extensions` schema; `levenshtein` is schema-qualified
 at the call site so no `search_path` widening is needed). Mig 158 asserts resolvability with a
@@ -3220,7 +2789,7 @@ If profile editing is needed in the future, use a `SECURITY DEFINER` RPC that ac
 | `trg_protect_users_sensitive_columns` | `users` | Blocks role/org/deleted_at changes (20260316000041) |
 | `trg_block_exam_config_reactivation` | `exam_configs` | Blocks `UPDATE SET deleted_at = NULL` (unconditional — no role exemption); enforces that reactivation goes through `upsert_exam_config`, whose UPDATE branch never writes `deleted_at` (mig 089, #755) |
 | `trg_sanitize_question_options` | `questions` | BEFORE INSERT OR UPDATE OF `options`: strips any `correct` key from the options JSONB, rebuilding the array as `{id,text}` only. Defense-in-depth: guarantees the MC answer key never re-enters the readable JSONB (it lives in `correct_option_id` column, mig 111, #823). Fires on every write, including raw PostgREST updates that bypass the app-layer Zod contract. |
-| `trg_stamp_last_active_on_session_complete` | `quiz_sessions` | AFTER UPDATE OF `ended_at`: stamps `users.last_active_at = now()` on the NULL→NOT NULL transition, guarded to the student who owns the session (`auth.uid() = NEW.student_id`). Fires on all four student-completion paths (`batch_submit_quiz`, `complete_overdue_exam_session`, `complete_empty_exam_session`, deprecated `complete_quiz_session`), and is skipped on admin voids (`void_internal_exam_code` with `auth.uid() = admin`). Centralizes the stamp operation outside of RPC bodies, closing the bug where only the deprecated path updated activity (mig 092, #532). |
+| `trg_stamp_last_active_on_session_complete` | `quiz_sessions` | AFTER UPDATE OF `ended_at`: stamps `users.last_active_at = now()` on the NULL→NOT NULL transition, guarded to the student who owns the session (`auth.uid() = NEW.student_id`). Fires on every student-completion path that sets `ended_at` (`finish_quiz_session`, `complete_overdue_exam_session`, deprecated `complete_quiz_session`), and is skipped on admin voids (`void_internal_exam_code` with `auth.uid() = admin`). Centralizes the stamp operation outside of RPC bodies, closing the bug where only the deprecated path updated activity (mig 092, #532). |
 
 ---
 
@@ -3288,4 +2857,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-10-07 (mig `20261004000500` / #1463: `quiz_drafts_student_all` replaced by SELECT-own + DELETE-own policies; INSERT/UPDATE revoked from `authenticated`) | Earlier 2026-10-02 (cross-device resume #1026, migs 20261002000200–800: `quiz_session_progress` table; `quiz_sessions` gains `current_index`, `pinned_question_ids`, `active_device_id`; RPCs `save_quiz_answer`, `save_quiz_position`, `claim_quiz_session`, `get_quiz_progress` + internal helpers; `check_quiz_answer` / `check_non_mc_answer` gain trailing `p_device_id`, `p_time_spent_ms` and save progress) | Earlier 2026-08-20 (mig `20260820000100` / #1175: `tenant_isolation` narrowed to `FOR SELECT` on organizations, question_banks, courses and lessons — §3's soft-delete policy example re-emitted in the `FOR SELECT` shape and §7's auditor note generalised to flag an unqualified tenant policy on ANY table. The §3 exception paragraph no longer ENUMERATES the policies that omit the `deleted_at` conjunct: it carries the `pg_policies` query that derives them, because two successive attempts to list them were both incomplete — see the note there on why the parenthesised `(deleted_at IS NULL)` form is load-bearing, a bare-substring match having silently excluded `internal_exam_codes`.) | Earlier 2026-08-18 (mig 20260818000100 / VFR RT Part 3: seeds four `easa_subtopics` rows under topic `P3_MC` of subject `RT` — `P3_NUMBERS`, `P3_EMERGENCY`, `P3_POSREP`, `P3_PATTERN` — so the RT subject subdivides Part 3 the way the core ECQB subjects subdivide into areas and subareas. Syllabus rows only: idempotent via `ON CONFLICT (topic_id, code) DO NOTHING` — the UNIQUE is `(topic_id, code)`, not `(code)` alone (declared inline on the `easa_subtopics` CREATE TABLE in `20260311000001_initial_schema.sql`; it is an unnamed table constraint, so there is no constraint name to cite), so a bare `ON CONFLICT (code)` would raise 42P10 — scoped by a JOIN on subject `RT` + topic `P3_MC`, and touching no `questions` row; question→subtopic assignment is done by the content importer, keyed on these codes. Parts 1 and 2 stay flat by design.) | Earlier 2026-08-15 (migs 158–160 / D56: `answer_matches` typo-tolerant comparison helper — new §4b section, all four text grader descriptions repointed, and the 879-line source migration split three ways for the code-style.md §1 size cap) | Earlier 2026-07-03 (app-layer save/resume drafts fix, #1085: quiz_drafts clarified as practice-session-only + soft-delete relationship documented; session_config comment notes sessionId repointing on resume; Decision 49 amended with save-for-later implementation details) | Earlier 2026-07-02 (migs 150–156 / VFR RT Training Phase 6 #697: `diagram_label` question type end-to-end — `questions.diagram_config` JSONB `{image_ref, zones:[{id,x,y,w,h}], labels:[{id,text}], answer:[{zone_id,label_id}]}` + `is_valid_diagram_config()` CHECK enforcing distinct non-blank zone/label ids, coords in [0,1], and answer covering every zone exactly once + question_type widening [mig 150]; blank_index write-invariant trigger widened to also admit diagram_label [mig 151]; `get_quiz_questions` delivers `{image_ref,zones,labels(shuffled)}` with `answer` omitted, 17th RETURNS TABLE column `diagram_config_public` [mig 152]; `check_non_mc_answer` widened to a 6-arg signature +`p_mapping` diagram_label grader (SET comparison, revealed `correct_mapping`) [mig 153]; new REVOKE-gated `_grade_record_diagram_label` per-zone helper deriving the zone ordinal server-side as the single ordinal authority [mig 154]; `batch_submit_quiz` diagram_label dispatch + INVERTED self-defence (distinct zone_id/label_id is the integrity key — partial submission + unused distractor labels explicitly allowed, unlike ordering's forced complete permutation) + partial-credit rollup [mig 155]; `get_report_answer_keys` per-zone canonical reveal via a 2-hop resolve (zone→answer entry→label text) [mig 156]. Decision 52 documented (inline SVG registry keyed by `image_ref`, distractors allowed, 9-zone RWY 27/09 LH pattern seed, general schema). Fixed stale doc drift from Phase 5: the `blank_index` write-invariant trigger note (§2 `quiz_session_answers`) and the `docs/security.md` §15 companion carve-out list had never been updated for mig 144's `ordering` widening — both corrected in this pass alongside the diagram_label addition.) | Earlier 2026-06-30 (migs 143–149 / VFR RT Training Phase 5 #697: `ordering` question type end-to-end — `questions.ordering_items` JSONB + `is_valid_ordering_items()` CHECK + question_type widening [mig 143]; blank_index write-invariant trigger widened to admit ordering [mig 144]; `get_quiz_questions` delivers items SHUFFLED, key hidden [mig 145]; `check_non_mc_answer` +`p_order` ordering grader [mig 146]; `_grade_record_ordering` REVOKE-gated per-slot helper [mig 147]; `batch_submit_quiz` ordering dispatch + DISTINCT-question partial-credit rollup [mig 148]; `get_report_answer_keys` per-slot canonical reveal [mig 149]; per-slot rows clone dialog_fill — Decision 51) | Earlier 2026-06-26 (migs 134–135 / feat/study-mode-mc: `get_random_question_ids` + `_filtered_question_pool` gain an optional `p_question_type text DEFAULT NULL` parameter [mig 134, backward-compatible — NULL preserves existing all-types behavior]; new `get_study_questions(p_question_ids uuid[])` SECURITY DEFINER RPC returns MC questions WITH `correct_option_id` answer key + explanation for self-paced study mode [mig 135]; guard set mirrors `get_quiz_questions` + `get_report_answer_keys` per security.md rules 1/7/9/11/12; options returned in STORED order [no shuffle]; §15 frozen-config carve-out does NOT apply — reads arbitrary caller-supplied IDs so `deleted_at IS NULL` is required; **mid-exam answer-oracle guard** — raises `active_exam_session` when the caller has a live mock/internal/vfr_rt exam session, since exams grade from the same MC pool with client-visible question IDs [mirrors check_quiz_answer mig 117; red-team EO6]; Decision 48) | Earlier 2026-06-24 (mig 131 / #828: `enforce_answer_blank_index_shape()` BEFORE INSERT trigger on quiz_session_answers + student_responses enforces `question_type = 'dialog_fill' ⇔ blank_index IS NOT NULL` via a cross-table question_type read the single-row CHECK cannot do; SECURITY INVOKER (repo trigger convention), no deleted_at filter (§15 frozen-config carve-out); closes the gap where a future inserter/admin-form/import bug persists a malformed blank_index; integration suite 211 +9 trigger tests) | Earlier 2026-06-24 (migs 129–130 / #839: submit_vfr_rt_exam_answers + batch_submit_quiz idempotent-replay branch restores `expired:true` via append-only audit-event lookup; detects expiry via the append-only `<mode>.expired` audit event (`event_type LIKE '%.expired'`, migs 129/130), also catches `complete_overdue_/complete_empty_exam_session` expiry; integration suite 202 +2 replay tests) | Earlier 2026-06-23 (mig 128 / #921: normalize_answer final trim to close stray edge spaces in grading, TS/SQL parity + integration test parity) | Earlier 2026-06-21 (VFR RT Phase 2 — migs 118–121, #697: get_quiz_questions widened to 15 RETURNS TABLE columns + active-user gate (mig 118); check_non_mc_answer NEW SECURITY DEFINER RPC — short_answer + dialog_fill immediate-feedback grader, practice-mode only, §15 carve-out (mig 119); batch_submit_quiz redefined as per-type dispatcher with internal helpers _grade_record_mc/_short_answer/_dialog_fill REVOKE EXECUTE FROM PUBLIC, anon, authenticated + DISTINCT-question partial-credit scoring, Decision 47 (migs 120–121)) | Earlier 2026-06-19 (PR #856 / #823 MC answer-key relocation, renumbered onto master: get_report_correct_options active-user gate (mig 114); submit_quiz_answer idempotency-gate + re-read on dup-submit + intentional-divergence doc (mig 112); submit_vfr_rt blank_index dup-key canonicalization (mig 113); check_quiz_answer active-user gate + practice-mode guard + null-check (mig 117); batch_submit_quiz replay JOIN removed deleted_at filter (mig 112b); correct_option_id column relocation migs 111–117; integration tests +2) | Earlier 2026-06-18 (mig 110, internal-exam code email feature: `record_internal_exam_code_emailed(p_code_id)` SECURITY DEFINER RPC for audit-event writes; guard set mirrors issue_/void_internal_exam_code per security.md rule 11b; audit payload event_type=`internal_exam.code_emailed` / resource_type=`internal_exam_code`; invoked from Server Action sendInternalExamCodeEmail) | Earlier 2026-06-14 (mig 109, #864: `p_has_image` {all|only|exclude} AND-restriction added to `_filtered_question_pool` / `get_random_question_ids` / `get_filtered_question_counts` via DROP-then-recreate, mirrors p_calc_mode pattern #837; filters on question_image_url presence) | Earlier 2026-06-11 (migs 107–108, #837: `questions.has_calculations` BOOLEAN column + `GRANT SELECT (has_calculations)` to authenticated; `p_calc_mode` {all|only|exclude} AND-restriction added to `_filtered_question_pool` / `get_random_question_ids` / `get_filtered_question_counts` via DROP-then-recreate) | Earlier 2026-06-11 (migs 105–106, #833/#840: get_vfr_rt_exam_questions redefined session-derived — `(p_session_id uuid)` signature, IDs from frozen config.question_ids, explanation fields removed; get_vfr_rt_exam_results gains explanation_text/explanation_image_url behind the ended_at gate) | Previous: 2026-06-10 (Phase A migrations 094–104: VFR RT schema + 6 new RPCs + legacy-RPC mode whitelist (mig 104 complete_quiz_session redefinition, #838); questions type+answer-key columns + column-level REVOKE/GRANT; quiz_session_answers + student_responses per-blank support + UNIQUE NULLS NOT DISTINCT; quiz_sessions mode+config; exam_configs parts_config; start_vfr_rt_exam_session, get_vfr_rt_exam_questions, submit_vfr_rt_exam_answers, get_vfr_rt_exam_results, get_question_authoring_fields, normalize_answer RPCs) | Companion: docs/security.md*
+*Last updated: 2026-10-07 (mig `20261004000600` / #1026 2e-b2b: `batch_submit_quiz`, `submit_vfr_rt_exam_answers`, `complete_empty_exam_session` dropped; `finish_quiz_session` + `complete_overdue_exam_session` are the completion paths) | Earlier 2026-10-07 (mig `20261004000500` / #1463: `quiz_drafts_student_all` replaced by SELECT-own + DELETE-own policies; INSERT/UPDATE revoked from `authenticated`) | Earlier 2026-10-02 (cross-device resume #1026, migs 20261002000200–800: `quiz_session_progress` table; `quiz_sessions` gains `current_index`, `pinned_question_ids`, `active_device_id`; RPCs `save_quiz_answer`, `save_quiz_position`, `claim_quiz_session`, `get_quiz_progress` + internal helpers; `check_quiz_answer` / `check_non_mc_answer` gain trailing `p_device_id`, `p_time_spent_ms` and save progress) | Earlier 2026-08-20 (mig `20260820000100` / #1175: `tenant_isolation` narrowed to `FOR SELECT` on organizations, question_banks, courses and lessons — §3's soft-delete policy example re-emitted in the `FOR SELECT` shape and §7's auditor note generalised to flag an unqualified tenant policy on ANY table. The §3 exception paragraph no longer ENUMERATES the policies that omit the `deleted_at` conjunct: it carries the `pg_policies` query that derives them, because two successive attempts to list them were both incomplete — see the note there on why the parenthesised `(deleted_at IS NULL)` form is load-bearing, a bare-substring match having silently excluded `internal_exam_codes`.) | Earlier 2026-08-18 (mig 20260818000100 / VFR RT Part 3: seeds four `easa_subtopics` rows under topic `P3_MC` of subject `RT` — `P3_NUMBERS`, `P3_EMERGENCY`, `P3_POSREP`, `P3_PATTERN` — so the RT subject subdivides Part 3 the way the core ECQB subjects subdivide into areas and subareas. Syllabus rows only: idempotent via `ON CONFLICT (topic_id, code) DO NOTHING` — the UNIQUE is `(topic_id, code)`, not `(code)` alone (declared inline on the `easa_subtopics` CREATE TABLE in `20260311000001_initial_schema.sql`; it is an unnamed table constraint, so there is no constraint name to cite), so a bare `ON CONFLICT (code)` would raise 42P10 — scoped by a JOIN on subject `RT` + topic `P3_MC`, and touching no `questions` row; question→subtopic assignment is done by the content importer, keyed on these codes. Parts 1 and 2 stay flat by design.) | Earlier 2026-08-15 (migs 158–160 / D56: `answer_matches` typo-tolerant comparison helper — new §4b section, all four text grader descriptions repointed, and the 879-line source migration split three ways for the code-style.md §1 size cap) | Earlier 2026-07-03 (app-layer save/resume drafts fix, #1085: quiz_drafts clarified as practice-session-only + soft-delete relationship documented; session_config comment notes sessionId repointing on resume; Decision 49 amended with save-for-later implementation details) | Earlier 2026-07-02 (migs 150–156 / VFR RT Training Phase 6 #697: `diagram_label` question type end-to-end — `questions.diagram_config` JSONB `{image_ref, zones:[{id,x,y,w,h}], labels:[{id,text}], answer:[{zone_id,label_id}]}` + `is_valid_diagram_config()` CHECK enforcing distinct non-blank zone/label ids, coords in [0,1], and answer covering every zone exactly once + question_type widening [mig 150]; blank_index write-invariant trigger widened to also admit diagram_label [mig 151]; `get_quiz_questions` delivers `{image_ref,zones,labels(shuffled)}` with `answer` omitted, 17th RETURNS TABLE column `diagram_config_public` [mig 152]; `check_non_mc_answer` widened to a 6-arg signature +`p_mapping` diagram_label grader (SET comparison, revealed `correct_mapping`) [mig 153]; new REVOKE-gated `_grade_record_diagram_label` per-zone helper deriving the zone ordinal server-side as the single ordinal authority [mig 154]; `batch_submit_quiz` diagram_label dispatch + INVERTED self-defence (distinct zone_id/label_id is the integrity key — partial submission + unused distractor labels explicitly allowed, unlike ordering's forced complete permutation) + partial-credit rollup [mig 155]; `get_report_answer_keys` per-zone canonical reveal via a 2-hop resolve (zone→answer entry→label text) [mig 156]. Decision 52 documented (inline SVG registry keyed by `image_ref`, distractors allowed, 9-zone RWY 27/09 LH pattern seed, general schema). Fixed stale doc drift from Phase 5: the `blank_index` write-invariant trigger note (§2 `quiz_session_answers`) and the `docs/security.md` §15 companion carve-out list had never been updated for mig 144's `ordering` widening — both corrected in this pass alongside the diagram_label addition.) | Earlier 2026-06-30 (migs 143–149 / VFR RT Training Phase 5 #697: `ordering` question type end-to-end — `questions.ordering_items` JSONB + `is_valid_ordering_items()` CHECK + question_type widening [mig 143]; blank_index write-invariant trigger widened to admit ordering [mig 144]; `get_quiz_questions` delivers items SHUFFLED, key hidden [mig 145]; `check_non_mc_answer` +`p_order` ordering grader [mig 146]; `_grade_record_ordering` REVOKE-gated per-slot helper [mig 147]; `batch_submit_quiz` ordering dispatch + DISTINCT-question partial-credit rollup [mig 148]; `get_report_answer_keys` per-slot canonical reveal [mig 149]; per-slot rows clone dialog_fill — Decision 51) | Earlier 2026-06-26 (migs 134–135 / feat/study-mode-mc: `get_random_question_ids` + `_filtered_question_pool` gain an optional `p_question_type text DEFAULT NULL` parameter [mig 134, backward-compatible — NULL preserves existing all-types behavior]; new `get_study_questions(p_question_ids uuid[])` SECURITY DEFINER RPC returns MC questions WITH `correct_option_id` answer key + explanation for self-paced study mode [mig 135]; guard set mirrors `get_quiz_questions` + `get_report_answer_keys` per security.md rules 1/7/9/11/12; options returned in STORED order [no shuffle]; §15 frozen-config carve-out does NOT apply — reads arbitrary caller-supplied IDs so `deleted_at IS NULL` is required; **mid-exam answer-oracle guard** — raises `active_exam_session` when the caller has a live mock/internal/vfr_rt exam session, since exams grade from the same MC pool with client-visible question IDs [mirrors check_quiz_answer mig 117; red-team EO6]; Decision 48) | Earlier 2026-06-24 (mig 131 / #828: `enforce_answer_blank_index_shape()` BEFORE INSERT trigger on quiz_session_answers + student_responses enforces `question_type = 'dialog_fill' ⇔ blank_index IS NOT NULL` via a cross-table question_type read the single-row CHECK cannot do; SECURITY INVOKER (repo trigger convention), no deleted_at filter (§15 frozen-config carve-out); closes the gap where a future inserter/admin-form/import bug persists a malformed blank_index; integration suite 211 +9 trigger tests) | Earlier 2026-06-24 (migs 129–130 / #839: submit_vfr_rt_exam_answers + batch_submit_quiz idempotent-replay branch restores `expired:true` via append-only audit-event lookup; detects expiry via the append-only `<mode>.expired` audit event (`event_type LIKE '%.expired'`, migs 129/130), also catches `complete_overdue_/complete_empty_exam_session` expiry; integration suite 202 +2 replay tests) | Earlier 2026-06-23 (mig 128 / #921: normalize_answer final trim to close stray edge spaces in grading, TS/SQL parity + integration test parity) | Earlier 2026-06-21 (VFR RT Phase 2 — migs 118–121, #697: get_quiz_questions widened to 15 RETURNS TABLE columns + active-user gate (mig 118); check_non_mc_answer NEW SECURITY DEFINER RPC — short_answer + dialog_fill immediate-feedback grader, practice-mode only, §15 carve-out (mig 119); batch_submit_quiz redefined as per-type dispatcher with internal helpers _grade_record_mc/_short_answer/_dialog_fill REVOKE EXECUTE FROM PUBLIC, anon, authenticated + DISTINCT-question partial-credit scoring, Decision 47 (migs 120–121)) | Earlier 2026-06-19 (PR #856 / #823 MC answer-key relocation, renumbered onto master: get_report_correct_options active-user gate (mig 114); submit_quiz_answer idempotency-gate + re-read on dup-submit + intentional-divergence doc (mig 112); submit_vfr_rt blank_index dup-key canonicalization (mig 113); check_quiz_answer active-user gate + practice-mode guard + null-check (mig 117); batch_submit_quiz replay JOIN removed deleted_at filter (mig 112b); correct_option_id column relocation migs 111–117; integration tests +2) | Earlier 2026-06-18 (mig 110, internal-exam code email feature: `record_internal_exam_code_emailed(p_code_id)` SECURITY DEFINER RPC for audit-event writes; guard set mirrors issue_/void_internal_exam_code per security.md rule 11b; audit payload event_type=`internal_exam.code_emailed` / resource_type=`internal_exam_code`; invoked from Server Action sendInternalExamCodeEmail) | Earlier 2026-06-14 (mig 109, #864: `p_has_image` {all|only|exclude} AND-restriction added to `_filtered_question_pool` / `get_random_question_ids` / `get_filtered_question_counts` via DROP-then-recreate, mirrors p_calc_mode pattern #837; filters on question_image_url presence) | Earlier 2026-06-11 (migs 107–108, #837: `questions.has_calculations` BOOLEAN column + `GRANT SELECT (has_calculations)` to authenticated; `p_calc_mode` {all|only|exclude} AND-restriction added to `_filtered_question_pool` / `get_random_question_ids` / `get_filtered_question_counts` via DROP-then-recreate) | Earlier 2026-06-11 (migs 105–106, #833/#840: get_vfr_rt_exam_questions redefined session-derived — `(p_session_id uuid)` signature, IDs from frozen config.question_ids, explanation fields removed; get_vfr_rt_exam_results gains explanation_text/explanation_image_url behind the ended_at gate) | Previous: 2026-06-10 (Phase A migrations 094–104: VFR RT schema + 6 new RPCs + legacy-RPC mode whitelist (mig 104 complete_quiz_session redefinition, #838); questions type+answer-key columns + column-level REVOKE/GRANT; quiz_session_answers + student_responses per-blank support + UNIQUE NULLS NOT DISTINCT; quiz_sessions mode+config; exam_configs parts_config; start_vfr_rt_exam_session, get_vfr_rt_exam_questions, submit_vfr_rt_exam_answers, get_vfr_rt_exam_results, get_question_authoring_fields, normalize_answer RPCs) | Companion: docs/security.md*

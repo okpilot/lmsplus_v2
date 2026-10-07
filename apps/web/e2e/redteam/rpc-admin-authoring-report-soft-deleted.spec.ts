@@ -62,7 +62,7 @@
  * The role half is NOT untested repo-wide — the Vitest integration tier already
  * asserts 'forbidden' for a student caller (derive the current set with
  * `grep -rln get_question_authoring_fields packages/db/src/__integration__/*.integration.test.ts`;
- * as of 2026-09-01 that is rpc-get-question-authoring-fields and rpc-vfr-rt-submit),
+ * as of 2026-10-07 that is rpc-get-question-authoring-fields and rpc-vfr-rt-mode-guards),
  * and the matrix's Vector DT row records that as COVERED AT INTEGRATION LAYER. What was missing is the E2E tier, which is
  * where this RPC family carries its other guard coverage. A regression dropping the
  * role half would leak correct_option_id / canonical_answer / accepted_synonyms /
