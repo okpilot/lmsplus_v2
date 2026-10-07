@@ -42,7 +42,9 @@ beforeEach(() => {
 describe('useProgressSaves', () => {
   it('saves nothing in discovery mode', () => {
     const { result } = setup('discovery')
-    act(() => result.current.saveAnswer({ selectedOptionId: 'a' }))
+    act(() => {
+      result.current.saveAnswer({ selectedOptionId: 'a' })
+    })
     act(() => result.current.savePosition(0, new Set(), false))
     expect(mockSaveAnswer).not.toHaveBeenCalled()
     expect(mockSavePosition).not.toHaveBeenCalled()

@@ -1,9 +1,8 @@
 /**
- * Red Team Spec: the legacy one-shot submit RPCs still write their audit events — Vector HM
+ * Red Team Spec: the legacy one-shot submit RPCs still write their audit events — Vector HP
  *
- * HM (sibling-guard-gap): batch_submit_quiz (apps/web/app/app/quiz/actions/batch-submit.ts) and
- *     submit_vfr_rt_exam_answers (apps/web/app/app/vfr-rt-exam/actions/submit.ts) stay GRANTed to
- *     authenticated beside finish_quiz_session. A completion through either must write the same
+ * HP (sibling-guard-gap): batch_submit_quiz and submit_vfr_rt_exam_answers have no app caller
+ *     but stay GRANTed to authenticated beside finish_quiz_session. A completion through either must write the same
  *     audit row as the finish path: quiz_session.batch_submitted, exam.completed, exam.expired,
  *     vfr_rt_exam.completed.
  *     CONTROL: the expired arm's within-grace sibling writes exam.completed, not exam.expired.
@@ -29,7 +28,7 @@ import { buildVfrRtAnswers, cleanupVfrRtPool, seedVfrRtPool } from './helpers/se
 
 type Client = Awaited<ReturnType<typeof createAuthenticatedClient>>
 
-test.describe('Red Team: legacy submit RPC audit completeness (Vector HM)', () => {
+test.describe('Red Team: legacy submit RPC audit completeness (Vector HP)', () => {
   let admin: ReturnType<typeof getAdminClient>
   let student: Client
   let victim: Client

@@ -1,5 +1,10 @@
 import type { DraftAnswer } from '../../types'
-import { buildAnswerInput, buildPositionInput, fireProgressSave } from './progress-save'
+import {
+  buildAnswerInput,
+  buildPositionInput,
+  fireProgressSave,
+  type SaveOutcome,
+} from './progress-save'
 import { getQuizDeviceId } from './quiz-device-id'
 import { failedAnswers, settleAnswerSend, trackAnswerSend } from './unsaved-answers'
 
@@ -44,8 +49,8 @@ type AnswerSaveOpts = SaveHandlers & {
   startedAt: number
 }
 
-/** Fires the background answer save; a draft carrying no answer saves nothing. */
-export function sendAnswerSave(opts: AnswerSaveOpts): void {
+/** Fires the background answer save and resolves its outcome; a draft carrying no answer saves nothing. */
+export function sendAnswerSave(opts: AnswerSaveOpts): Promise<SaveOutcome | undefined> {
   const input = buildAnswerInput({
     sessionId: opts.sessionId,
     deviceId: getQuizDeviceId(),
@@ -53,24 +58,27 @@ export function sendAnswerSave(opts: AnswerSaveOpts): void {
     draft: opts.draft,
     timeSpentMs: Date.now() - opts.startedAt,
   })
-  if (!input) return
+  if (!input) return Promise.resolve(undefined)
   const { sessionId, questionId } = opts
   trackAnswerSend({ sessionId, questionId, input })
-  void fireProgressSave({
+  return fireProgressSave({
     kind: 'answer',
     sessionId,
     input,
     onSuccess: opts.onSuccess,
     onMappedError: opts.onMappedError,
-  }).then((outcome) =>
-    settleAnswerSend({ sessionId, questionId, input, settled: outcome !== 'failed' }),
-  )
+  }).then((outcome) => {
+    settleAnswerSend({ sessionId, questionId, input, settled: outcome !== 'failed' })
+    return outcome
+  })
 }
 
 /** Re-sends the answer saves that failed; true when none is left unsaved. */
 export async function resendUnsavedAnswers(opts: {
   sessionId: string
   onMappedError: (message: string) => void
+  /** Called with the question id of each re-sent answer the server rejected for good. */
+  onRejected?: (questionId: string) => void
 }): Promise<boolean> {
   const { sessionId } = opts
   await Promise.all(
@@ -84,6 +92,7 @@ export async function resendUnsavedAnswers(opts: {
         onMappedError: opts.onMappedError,
       })
       settleAnswerSend({ sessionId, questionId, input, settled: outcome !== 'failed' })
+      if (outcome === 'rejected') opts.onRejected?.(questionId)
     }),
   )
   return failedAnswers(sessionId).length === 0
@@ -109,10 +118,15 @@ export function buildRunnerSaves(deps: RunnerSaveDeps) {
         leaving && left ? { questionId: left.id, startedAt: visitStartedAt() } : undefined
       sendPositionSave({ ...base, target, pins, leaving: visit })
     },
-    saveAnswer(draft: Omit<DraftAnswer, 'responseTimeMs'>) {
+    saveAnswer(draft: Omit<DraftAnswer, 'responseTimeMs'>): Promise<SaveOutcome | undefined> {
       const question = currentQuestion()
-      if (!enabled || !question) return
-      sendAnswerSave({ ...base, questionId: question.id, draft, startedAt: visitStartedAt() })
+      if (!enabled || !question) return Promise.resolve(undefined)
+      return sendAnswerSave({
+        ...base,
+        questionId: question.id,
+        draft,
+        startedAt: visitStartedAt(),
+      })
     },
   }
 }

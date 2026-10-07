@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { SessionQuestion } from '@/app/app/_types/session'
 import { createMockRouter } from '@/lib/test-support/mock-router'
 import type { DraftAnswer } from '../../types'
 
@@ -10,7 +9,6 @@ const { mockSubmit, mockSave, mockDiscard, mockWhenQueueIdle } = vi.hoisted(() =
   mockWhenQueueIdle: vi.fn(),
 }))
 
-vi.mock('./quiz-submit-vfr-rt', () => ({ handleSubmitVfrRtExamSession: vi.fn() }))
 vi.mock('./quiz-submit', () => ({
   handleSubmitSession: (...a: unknown[]) => mockSubmit(...a),
   handleSaveSession: (...a: unknown[]) => mockSave(...a),
@@ -46,10 +44,8 @@ function submitDeps() {
   return {
     ...baseDeps(),
     answersRef: { current: new Map<string, DraftAnswer>() },
-    pendingQuestionIdRef: { current: new Set<string>() },
     navFallbackTimer: { current: null as ReturnType<typeof setTimeout> | null },
     setShowFinishDialog: vi.fn(),
-    questions: [] as SessionQuestion[],
   }
 }
 
@@ -90,24 +86,6 @@ describe('finish actions wait for queued saves', () => {
     gate.open()
     await first
     expect(mockSubmit).toHaveBeenCalledTimes(1)
-  })
-
-  it('submits an answer whose check settled during the wait but not one still pending', async () => {
-    const gate = openGate()
-    const deps = submitDeps()
-    const answer = { selectedOptionId: 'o', responseTimeMs: 1 } as DraftAnswer
-    deps.answersRef.current = new Map([
-      ['settled', answer],
-      ['stuck', answer],
-    ])
-    deps.pendingQuestionIdRef.current = new Set(['settled', 'stuck'])
-    const run = buildHandleSubmit(deps)()
-    await Promise.resolve()
-    deps.pendingQuestionIdRef.current.delete('settled')
-    gate.open()
-    await run
-    const submitted = mockSubmit.mock.calls[0]?.[0] as { answers: Map<string, DraftAnswer> }
-    expect([...submitted.answers.keys()]).toEqual(['settled'])
   })
 
   it('holds save-for-later until queued saves have settled', async () => {

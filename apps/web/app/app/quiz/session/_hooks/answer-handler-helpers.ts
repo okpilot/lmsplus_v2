@@ -140,7 +140,6 @@ type AnswerErrorOpts = {
   sessionId: string
   questionId: string
   lockedRef: React.MutableRefObject<Set<string>>
-  pendingQuestionIdRef: React.MutableRefObject<Set<string>>
   /** Must be the same ref whose .current `setAnswers` writes back to — coupled, not independent. */
   answersRef: React.MutableRefObject<Map<string, DraftAnswer>>
   setAnswers: React.Dispatch<React.SetStateAction<Map<string, DraftAnswer>>>
@@ -153,8 +152,7 @@ type AnswerErrorOpts = {
 export function handleAnswerError(opts: AnswerErrorOpts) {
   // Signed out: the answer and its lock stay; the overlay blocks with a Sign in button.
   if (getConnectionStatus() === 'signed-out') return
-  const { questionId, lockedRef, pendingQuestionIdRef, answersRef } = opts
-  pendingQuestionIdRef.current.delete(questionId)
+  const { questionId, lockedRef, answersRef } = opts
   lockedRef.current.delete(questionId)
   // The checkpoint gets a map built now: React may run the updater below only after this returns.
   const reverted = new Map(answersRef.current)

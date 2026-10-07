@@ -29,10 +29,12 @@ export function useExamAnswerBuffer(opts: UseExamAnswerBufferOpts) {
     [opts],
   )
 
-  const confirmAnswer = useCallback(
-    (optionId: string): boolean => recordAnswer({ selectedOptionId: optionId }),
-    [recordAnswer],
-  )
+  const dropAnswer = useCallback((questionId: string) => {
+    const next = new Map(answersRef.current)
+    next.delete(questionId)
+    answersRef.current = next
+    setAnswers(next)
+  }, [])
 
-  return { answers, answersRef, confirmAnswer, recordAnswer }
+  return { answers, answersRef, recordAnswer, dropAnswer }
 }

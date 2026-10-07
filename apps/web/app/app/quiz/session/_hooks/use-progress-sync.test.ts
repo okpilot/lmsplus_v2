@@ -88,7 +88,9 @@ describe('useProgressSync — navigation', () => {
   it('sends every call with the same tab device id', async () => {
     const { result } = renderHook(() => useProgressSync(opts()))
     act(() => result.current.nav.navigate(1))
-    act(() => result.current.saveAnswer({ selectedOptionId: 'a' }))
+    act(() => {
+      result.current.saveAnswer({ selectedOptionId: 'a' })
+    })
     await act(settle)
     expect(mockSavePosition.mock.calls[0]?.[0].deviceId).toBe(
       mockSaveAnswer.mock.calls[0]?.[0].deviceId,
@@ -119,7 +121,9 @@ describe('useProgressSync — answers', () => {
   it('saves the answer for the current question with its elapsed time', () => {
     const { result } = renderHook(() => useProgressSync(opts({ mode: 'exam' })))
     vi.spyOn(Date, 'now').mockReturnValue(1_002_000)
-    act(() => result.current.saveAnswer({ selectedOptionId: 'b' }))
+    act(() => {
+      result.current.saveAnswer({ selectedOptionId: 'b' })
+    })
     expect(mockSaveAnswer).toHaveBeenCalledWith(
       expect.objectContaining({
         questionId: Q[0],
@@ -135,7 +139,9 @@ describe('useProgressSync — discovery', () => {
     const { result } = renderHook(() => useProgressSync(opts({ mode: 'discovery' })))
     act(() => result.current.nav.navigate(1))
     act(() => result.current.togglePin(Q[0] as string))
-    act(() => result.current.saveAnswer({ selectedOptionId: 'a' }))
+    act(() => {
+      result.current.saveAnswer({ selectedOptionId: 'a' })
+    })
     expect(mockSavePosition).not.toHaveBeenCalled()
     expect(mockSaveAnswer).not.toHaveBeenCalled()
     expect(result.current.nav.currentIndex).toBe(1)

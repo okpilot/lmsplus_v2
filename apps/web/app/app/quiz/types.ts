@@ -31,43 +31,6 @@ export type CompleteQuizResult =
   | { success: true; totalQuestions: number; correctCount: number; scorePercentage: number }
   | { success: false; error: string }
 
-type BatchAnswerResult = {
-  questionId: string
-  isCorrect: boolean
-  correctOptionId: string
-  explanationText: string | null
-  explanationImageUrl: string | null
-}
-
-export type BatchSubmitResult =
-  | {
-      success: true
-      totalQuestions: number
-      answeredCount: number
-      correctCount: number
-      scorePercentage: number
-      results: BatchAnswerResult[]
-      passed?: boolean | null
-      expired?: boolean
-    }
-  | { success: false; error: string }
-
-export type BatchRpcResult = {
-  results: {
-    question_id: string
-    is_correct: boolean
-    correct_option_id: string
-    explanation_text: string | null
-    explanation_image_url: string | null
-  }[]
-  total_questions: number
-  answered_count: number
-  correct_count: number
-  score_percentage: number
-  passed?: boolean | null
-  expired?: boolean
-}
-
 export type CheckAnswerResult =
   | {
       success: true
@@ -215,7 +178,3 @@ export type CalcMode = 'all' | 'only' | 'exclude'
 // Tri-state filter on whether a question carries an image (#864). Same shape as
 // CalcMode: 'only' = image questions only, 'exclude' = hide them, 'all' = default.
 export type ImageMode = 'all' | 'only' | 'exclude'
-
-export type CompleteEmptyExamResult =
-  | { success: true; sessionId: string }
-  | { success: false; error: string }

@@ -1,26 +1,14 @@
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const {
-  mockRouterPush,
-  mockBatchSubmitQuiz,
-  mockSubmitEmptyExamSession,
-  mockSubmitVfrRtExam,
-  mockCheckAnswer,
-} = vi.hoisted(() => ({
+const { mockRouterPush, mockFinishQuizSession, mockCheckAnswer } = vi.hoisted(() => ({
   mockRouterPush: vi.fn(),
-  mockBatchSubmitQuiz: vi.fn(),
-  mockSubmitEmptyExamSession: vi.fn(),
-  mockSubmitVfrRtExam: vi.fn(),
+  mockFinishQuizSession: vi.fn(),
   mockCheckAnswer: vi.fn(),
 }))
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mockRouterPush }) }))
-vi.mock('../../actions/batch-submit', () => ({ batchSubmitQuiz: mockBatchSubmitQuiz }))
-vi.mock('../../actions/submit-empty-exam', () => ({
-  submitEmptyExamSession: mockSubmitEmptyExamSession,
-}))
-vi.mock('@/app/app/vfr-rt-exam/actions/submit', () => ({ submitVfrRtExam: mockSubmitVfrRtExam }))
+vi.mock('../../actions/finish', () => ({ finishQuizSession: mockFinishQuizSession }))
 vi.mock('../../actions/clear-deployment-pin', () => ({
   clearDeploymentPin: () => Promise.resolve(),
 }))
@@ -67,8 +55,7 @@ const SEEDED = { [Q1_ID]: { selectedOptionId: 'a', responseTimeMs: 800 } }
 
 beforeEach(() => {
   vi.resetAllMocks()
-  mockBatchSubmitQuiz.mockResolvedValue({ success: true })
-  mockSubmitVfrRtExam.mockResolvedValue({ success: true })
+  mockFinishQuizSession.mockResolvedValue({ success: true })
   mockCheckAnswer.mockResolvedValue({
     success: true,
     isCorrect: true,
@@ -79,7 +66,7 @@ beforeEach(() => {
 })
 
 describe('finishing a resumed session', () => {
-  it('a resumed practice session submits every seeded answer plus new ones on finish', async () => {
+  it('a resumed practice session finishes on the server and opens the report', async () => {
     const { result } = renderHook(() =>
       useQuizState({
         userId: 'u',
@@ -93,49 +80,35 @@ describe('finishing a resumed session', () => {
     await act(async () => result.current.handleSelectAnswer('a'))
     await act(async () => result.current.handleSubmit())
 
-    const sent = mockBatchSubmitQuiz.mock.calls[0]?.[0] as {
-      sessionId: string
-      answers: { questionId: string }[]
-    }
-    expect(sent.sessionId).toBe(SESSION_ID)
-    expect(sent.answers.map((a) => a.questionId).sort()).toEqual([Q1_ID, Q2_ID].sort())
-  })
-
-  it('a resumed mock_exam with no new answers still submits the seeded answers (not complete_empty)', async () => {
-    const { result } = renderHook(() =>
-      useQuizState({
-        userId: 'u',
-        sessionId: SESSION_ID,
-        questions: QUESTIONS,
-        mode: 'exam',
-        examMode: 'mock_exam',
-        initialAnswers: SEEDED,
-      }),
+    expect(mockFinishQuizSession).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: SESSION_ID }),
     )
-    await act(async () => result.current.handleSubmit())
-
-    expect(mockSubmitEmptyExamSession).not.toHaveBeenCalled()
-    expect(mockBatchSubmitQuiz).toHaveBeenCalledWith({
-      sessionId: SESSION_ID,
-      answers: [expect.objectContaining({ questionId: Q1_ID, selectedOptionId: 'a' })],
-    })
+    expect(mockRouterPush).toHaveBeenCalledWith(`/app/quiz/report?session=${SESSION_ID}`)
   })
 
-  it('a resumed vfr_rt_exam passes the seeded answers to the exam submit', async () => {
-    const { result } = renderHook(() =>
-      useQuizState({
-        userId: 'u',
-        sessionId: SESSION_ID,
-        questions: QUESTIONS,
-        mode: 'exam',
-        examMode: 'vfr_rt_exam',
-        initialAnswers: SEEDED,
-      }),
-    )
-    await act(async () => result.current.handleSubmit())
+  it.each([
+    ['mock_exam', '/app/quiz/report'],
+    ['internal_exam', '/app/internal-exam/report'],
+    ['vfr_rt_exam', '/app/vfr-rt/report'],
+  ] as const)(
+    'a resumed %s finishes on the server and opens its report',
+    async (examMode, path) => {
+      const { result } = renderHook(() =>
+        useQuizState({
+          userId: 'u',
+          sessionId: SESSION_ID,
+          questions: QUESTIONS,
+          mode: 'exam',
+          examMode,
+          initialAnswers: SEEDED,
+        }),
+      )
+      await act(async () => result.current.handleSubmit())
 
-    expect(mockSubmitEmptyExamSession).not.toHaveBeenCalled()
-    const sent = mockSubmitVfrRtExam.mock.calls[0]?.[0] as { answers: unknown[] }
-    expect(sent.answers.length).toBeGreaterThan(0)
-  })
+      expect(mockFinishQuizSession).toHaveBeenCalledWith(
+        expect.objectContaining({ sessionId: SESSION_ID }),
+      )
+      expect(mockRouterPush).toHaveBeenCalledWith(`${path}?session=${SESSION_ID}`)
+    },
+  )
 })

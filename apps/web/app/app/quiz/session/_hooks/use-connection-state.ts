@@ -12,10 +12,12 @@ export function useConnectionState(): ConnectionSnapshot {
 
 function isBlocked(): boolean {
   const status = getConnectionStatus()
-  return status === 'offline' || status === 'slow' || status === 'signed-out'
+  return (
+    status === 'offline' || status === 'slow' || status === 'signed-out' || status === 'save-failed'
+  )
 }
 
-/** True while the connection overlay blocks the quiz (offline, slow or signed out). */
+/** True while the connection overlay blocks the quiz (offline, slow, signed out or an answer save held). */
 export function useConnectionBlocked(): boolean {
   return useSyncExternalStore(subscribeConnection, isBlocked, isBlocked)
 }

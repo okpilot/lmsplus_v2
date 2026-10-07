@@ -42,7 +42,7 @@ let studentAClient: Awaited<ReturnType<typeof getAuthenticatedClient>>
 let studentBClient: Awaited<ReturnType<typeof getAuthenticatedClient>>
 
 // Open session for A seeded in beforeAll for tests that share one without
-// mutating it (checkAnswer does not end the session — only complete/batch-submit do).
+// mutating it (checkAnswer does not end the session — only complete/finish do).
 let sessionIdA: string
 
 describe('checkAnswer (app-layer integration)', () => {

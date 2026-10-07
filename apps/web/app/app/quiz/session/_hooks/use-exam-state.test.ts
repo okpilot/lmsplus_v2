@@ -8,11 +8,12 @@ import type { DraftAnswer } from '../../types'
 // answersRef.current must alias answers — that's the production invariant
 // (use-exam-answer-buffer keeps the ref pointing at the live Map). Keeping the
 // mocks aligned prevents buffer-sync regressions from being silently masked.
-const { mockRecordAnswer, mockAnswers, mockAnswersRef } = vi.hoisted(() => {
+const { mockRecordAnswer, mockDropAnswer, mockAnswers, mockAnswersRef } = vi.hoisted(() => {
   const mockAnswers = new Map<string, DraftAnswer>()
   const mockAnswersRef = { current: mockAnswers }
   return {
     mockRecordAnswer: vi.fn(),
+    mockDropAnswer: vi.fn(),
     mockAnswers,
     mockAnswersRef,
   }
@@ -23,6 +24,7 @@ vi.mock('./use-exam-answer-buffer', () => ({
     answers: mockAnswers,
     answersRef: mockAnswersRef,
     recordAnswer: mockRecordAnswer,
+    dropAnswer: mockDropAnswer,
   }),
 }))
 
@@ -202,12 +204,6 @@ describe('useExamPipeline — submission metadata forwarding', () => {
     renderHook(() => useExamPipeline(makeOpts({ [field]: value } as Partial<QuizStateOpts>)))
     expect(mockUseQuizSubmit).toHaveBeenCalledWith(expect.objectContaining({ [field]: value }))
   })
-
-  it('passes questions to the submit hook', () => {
-    const questions = [{ id: 'q-forward' }] as QuizStateOpts['questions']
-    renderHook(() => useExamPipeline(makeOpts({ questions })))
-    expect(mockUseQuizSubmit).toHaveBeenCalledWith(expect.objectContaining({ questions }))
-  })
 })
 
 // ---- navigation forwarding -----------------------------------------------
@@ -315,5 +311,13 @@ describe('useExamPipeline — non-MC handlers', () => {
     const { result } = renderHook(() => useExamPipeline(makeOpts()))
     const resolved = await result.current.handleTextAnswer('again')
     expect(resolved).toBe(false)
+  })
+})
+
+describe('useExamPipeline — rejected re-sent answers', () => {
+  it('lets the submit hook drop an answer from the exam buffer', () => {
+    renderHook(() => useExamPipeline(makeOpts()))
+    const callArg = mockUseQuizSubmit.mock.calls[0]?.[0] as Record<string, unknown>
+    expect(callArg.dropAnswer).toBe(mockDropAnswer)
   })
 })

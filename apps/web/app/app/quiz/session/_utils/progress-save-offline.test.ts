@@ -17,8 +17,9 @@ vi.mock('./classify-failure', () => ({
 import { SIGN_IN } from '../../actions/progress-error-messages'
 import { _resetConnectionState, getConnectionStatus } from './connection-state'
 import { fireProgressSave } from './progress-save'
+import { BACKOFF_MS } from './retry-wait'
 import { _resetSessionTakeover } from './session-takeover'
-import { _resetWithReconnect, BACKOFF_MS } from './with-reconnect'
+import { _resetWithReconnect } from './with-reconnect'
 
 beforeEach(() => {
   vi.resetAllMocks()

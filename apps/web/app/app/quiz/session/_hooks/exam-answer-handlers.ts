@@ -1,23 +1,29 @@
 import type { DraftAnswer } from '../../types'
+import type { SaveOutcome } from '../_utils/progress-save'
 import type { useQuizSubmit } from './use-quiz-submit'
 
 type RecordAnswer = (draft: Omit<DraftAnswer, 'responseTimeMs'>) => boolean
 
 /**
  * Exam-mode answer handlers: each buffers the answer write-once (no server
- * call, no feedback) and reports it when recorded. Names and signatures match
+ * call, no feedback) and reports it when recorded; a rejected save unlocks it. Names and signatures match
  * the study pipeline's handlers (answer-handler-helpers.ts).
  */
 export function buildExamAnswerHandlers(deps: {
   recordAnswer: RecordAnswer
-  onRecorded?: (draft: Omit<DraftAnswer, 'responseTimeMs'>) => void
+  getQuestionId: () => string
+  dropAnswer: (questionId: string) => void
+  onRecorded?: (draft: Omit<DraftAnswer, 'responseTimeMs'>) => Promise<SaveOutcome | undefined>
 }) {
-  const { recordAnswer, onRecorded } = deps
+  const { recordAnswer, getQuestionId, dropAnswer, onRecorded } = deps
 
   function record(draft: Omit<DraftAnswer, 'responseTimeMs'>): Promise<boolean> {
+    const questionId = getQuestionId()
     const recorded = recordAnswer(draft)
     if (recorded) {
-      onRecorded?.(draft)
+      void Promise.resolve(onRecorded?.(draft)).then((outcome) => {
+        if (outcome === 'rejected') dropAnswer(questionId)
+      })
     }
     return Promise.resolve(recorded)
   }

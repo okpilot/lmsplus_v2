@@ -14,7 +14,6 @@ export function useAnswerPipeline(opts: AnswerPipelineOpts) {
     handleOrderingAnswer,
     handleDiagramLabelAnswer,
     clearError: clearAnswerError,
-    pendingQuestionIdRef,
   } = useAnswerHandler({
     sessionId: opts.sessionId,
     getQuestionId: opts.getQuestionId,
@@ -31,9 +30,7 @@ export function useAnswerPipeline(opts: AnswerPipelineOpts) {
   } = useQuizSubmit({
     userId: opts.userId,
     sessionId: opts.sessionId,
-    questions: opts.questions,
     answersRef: opts.answersRef,
-    pendingQuestionIdRef,
     router: opts.router,
   })
   const { navigateTo, navigate } = buildPersistenceNavigation({
