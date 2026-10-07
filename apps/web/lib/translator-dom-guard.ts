@@ -1,4 +1,4 @@
-export type DomGuardFallback = 'remove' | 'insert'
+type DomGuardFallback = 'remove' | 'insert'
 
 let activeUninstall: (() => void) | null = null
 
@@ -20,6 +20,8 @@ function reportOnce(onFallback: ((kind: DomGuardFallback) => void) | undefined) 
 /**
  * Browser translators wrap or replace React-owned text nodes with <font><font>, so React's later
  * removeChild/insertBefore hits a node that is no longer where it left it and throws.
+ * Limit: when the node was replaced (detached), removal leaves the translated text and an insert
+ * before it appends to the parent.
  * `onFallback` hears about each kind of tolerated mismatch once per install.
  */
 export function installTranslatorDomGuard(
