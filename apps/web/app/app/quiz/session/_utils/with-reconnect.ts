@@ -9,6 +9,8 @@ import {
   markSaved,
   setConnectionStatus,
 } from './connection-state'
+import type { Hold } from './hold-types'
+import { clearRetryWaiters, waitForRetry, wakeRetryWaiters } from './retry-wait'
 
 type ActionResult = { success: boolean; error?: string }
 type SignedOutResult = { success: false; error: string }
@@ -17,11 +19,11 @@ type Attempt<T> =
   | { kind: 'rethrow'; err: unknown }
   | { kind: 'signed-out' }
 
-export const BACKOFF_MS = [2000, 4000, 8000, 10000]
 export const ATTEMPT_TIMEOUT_MS = 15_000
 
 const TRUSTED_NETWORK_FAILS = 3
 const TIMED_OUT = Symbol('timed-out')
+const THROWN = { kind: 'thrown' as const }
 
 const SIGNED_OUT: SignedOutResult = { success: false, error: SIGN_IN }
 
@@ -30,15 +32,13 @@ let tail: Promise<unknown> = Promise.resolve()
 let linkUp = true
 // A batch starts when the status goes offline or slow and ends when the last waiting job settles.
 let batchOk = true
-// Jobs sleeping in backoff; resumeQueue wakes them.
-const wakers = new Set<() => void>()
 
 /** @internal Test-only reset for the module-level queue. */
 export function _resetWithReconnect() {
   tail = Promise.resolve()
   linkUp = true
   batchOk = true
-  wakers.clear()
+  clearRetryWaiters()
   _resetConnectionState()
 }
 
@@ -85,21 +85,6 @@ async function attempt<T>(
   return didThrow ? { kind: 'rethrow', err: thrown } : { kind: 'done', value: value as T }
 }
 
-function waitForRetry(index: number): Promise<void> {
-  const delay = BACKOFF_MS[Math.min(index, BACKOFF_MS.length - 1)]
-  return new Promise((resolve) => {
-    const finish = () => {
-      clearTimeout(timer)
-      window.removeEventListener('online', finish)
-      wakers.delete(finish)
-      resolve()
-    }
-    const timer = setTimeout(finish, delay)
-    window.addEventListener('online', finish)
-    wakers.add(finish)
-  })
-}
-
 function markOffline() {
   const status = getConnectionStatus()
   if (status !== 'offline' && status !== 'slow') batchOk = true
@@ -110,6 +95,7 @@ function markOffline() {
 function markSlow() {
   const status = getConnectionStatus()
   if (status === 'offline' || status === 'signed-out' || status === 'slow') return
+  if (status === 'save-failed') return // a held save owns the block
   batchOk = true
   setConnectionStatus('slow')
 }
@@ -147,8 +133,19 @@ function endBatchIfIdle() {
   batchOk = true
 }
 
-async function runJob<T>(fn: () => Promise<T>): Promise<T | SignedOutResult> {
-  const result = await retryUntilSettled(fn)
+async function settleWithHold<T>(fn: () => Promise<T>, hold?: Hold<T>): Promise<Attempt<T>> {
+  let result = await retryUntilSettled(fn)
+  while (hold && result.kind !== 'signed-out') {
+    const outcome =
+      result.kind === 'done' ? { kind: 'value' as const, value: result.value } : THROWN
+    if ((await hold(outcome)) !== 'retry') break
+    result = await retryUntilSettled(fn)
+  }
+  return result
+}
+
+async function runJob<T>(fn: () => Promise<T>, hold?: Hold<T>): Promise<T | SignedOutResult> {
+  const result = await settleWithHold(fn, hold)
   adjustPending(-1)
   if (result.kind === 'signed-out') setConnectionStatus('signed-out')
   else {
@@ -162,7 +159,7 @@ async function runJob<T>(fn: () => Promise<T>): Promise<T | SignedOutResult> {
  * or signed-out status when no job is pending. */
 export function resumeQueue() {
   linkUp = true
-  for (const wake of [...wakers]) wake()
+  wakeRetryWaiters()
   const { status, pending } = getConnectionSnapshot()
   if (pending === 0 && (status === 'offline' || status === 'slow' || status === 'signed-out')) {
     setConnectionStatus('ok')
@@ -184,16 +181,19 @@ export function whenQueueIdle(): Promise<void> {
  * Actions one at a time, so the wait may be time queued behind another action. A resend could
  * not go out before it anyway. A thrown TypeError is offline without a probe for a call's first TRUSTED_NETWORK_FAILS attempts,
  * then the probe decides: a flapping link failing that often and probing up rethrows.
+ * An optional `hold` sees each settled result and may ask for a resend in the same queue slot,
+ * so Finish and later saves wait behind it.
  * Residual: a stalled socket the browser never fails keeps the quiz blocked until the browser
  * gives up on it.
  */
 export async function withReconnect<T extends ActionResult>(
   fn: () => Promise<T>,
+  hold?: Hold<T>,
 ): Promise<T | SignedOutResult> {
   if (getConnectionStatus() === 'signed-out') return SIGNED_OUT
   const idle = getConnectionSnapshot().pending === 0
   adjustPending(1)
-  const job = idle ? runJob(fn) : tail.then(() => runJob(fn))
+  const job = idle ? runJob(fn, hold) : tail.then(() => runJob(fn, hold))
   tail = job.catch(() => {})
   return job
 }

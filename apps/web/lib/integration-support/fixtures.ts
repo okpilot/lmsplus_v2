@@ -130,7 +130,7 @@ export async function seedCompletedSession(opts: {
 /**
  * Drive start_quiz_session as the authenticated student to produce one OPEN
  * (not yet completed) quiz session, for lifecycle tests that act on an
- * in-progress session (submit / check / complete / batch-submit).
+ * in-progress session (submit / check / complete / finish).
  * seedCompletedSession builds on this (then submits + completes). Same
  * subject/topic CONTRACT as the file header. Returns the session id.
  */

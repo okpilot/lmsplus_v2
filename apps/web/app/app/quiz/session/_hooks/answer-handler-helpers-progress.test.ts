@@ -106,7 +106,6 @@ describe('handleAnswerError', () => {
       sessionId: SESSION_ID,
       questionId: Q_ID,
       lockedRef: { current: new Set([Q_ID]) },
-      pendingQuestionIdRef: { current: new Set([Q_ID]) },
       answersRef,
       setAnswers: vi.fn(), // never runs the updater, as when React batches it
       setError: vi.fn(),
@@ -126,7 +125,6 @@ describe('handleAnswerError', () => {
       sessionId: SESSION_ID,
       questionId: Q_ID,
       lockedRef,
-      pendingQuestionIdRef: { current: new Set([Q_ID]) },
       answersRef,
       setAnswers: vi.fn(),
       setError,

@@ -123,7 +123,6 @@ describe('handleAnswerError when signed out', () => {
     handleAnswerError({
       sessionId: SESSION_ID,
       questionId: Q_ID,
-      pendingQuestionIdRef: { current: new Set([Q_ID]) },
       ...o,
     })
     expect(o.lockedRef.current.has(Q_ID)).toBe(true)
@@ -137,7 +136,6 @@ describe('handleAnswerError when signed out', () => {
     handleAnswerError({
       sessionId: SESSION_ID,
       questionId: Q_ID,
-      pendingQuestionIdRef: { current: new Set([Q_ID]) },
       ...o,
       message: 'Failed to check answer. Please try again.',
     })

@@ -12,7 +12,9 @@ import {
 import { Button } from '@/components/ui/button'
 import { useConnectionState } from '../_hooks/use-connection-state'
 import type { ConnectionStatus } from '../_utils/connection-state'
+import { skipRefusedSave } from '../_utils/refused-save'
 import { resumeQueue } from '../_utils/with-reconnect'
+import { SaveFailedActions } from './save-failed-actions'
 
 export const STALL_ESCAPE_MS = 60_000
 
@@ -21,12 +23,13 @@ function signInHref(): string {
   return `/?next=${encodeURIComponent(pathname + search)}`
 }
 
-/** Blocks the quiz while a save is unsent (offline or slow) or the sign-in has expired. */
+/** Blocks the quiz while a save is unsent (offline or slow), a save was refused, or the sign-in has expired. */
 export function ConnectionOverlay() {
   const { status } = useConnectionState()
 
   // A stale block from an earlier session page must not stay on a new one; before paint.
   useLayoutEffect(() => {
+    skipRefusedSave()
     resumeQueue()
   }, [])
 
@@ -36,12 +39,14 @@ export function ConnectionOverlay() {
 
   const signedOut = status === 'signed-out'
   const waiting = status === 'offline' || status === 'slow'
+  const refused = status === 'save-failed'
   return (
     // Not dismissable: open is derived from the store; onOpenChange is deliberately ignored.
-    <AlertDialog open={waiting || signedOut}>
+    <AlertDialog open={waiting || signedOut || refused}>
       <AlertDialogContent>
         <OverlayCopy status={status} />
         {signedOut && <Button onClick={() => window.location.assign(signInHref())}>Sign in</Button>}
+        {refused && <SaveFailedActions />}
         {waiting && <ReloadEscape />}
       </AlertDialogContent>
     </AlertDialog>
@@ -57,16 +62,24 @@ const COPY = {
     title: 'Still saving…',
     body: 'This is taking longer than usual. Keep this page open.',
   },
+  'save-failed': {
+    title: 'Your answer was not saved',
+    body: 'Try again, or continue without saving this answer.',
+  },
   'signed-out': {
     title: 'Your sign-in has expired',
     body: 'Sign in again to continue. Answers not yet saved will need to be entered again.',
   },
 }
 
+function isBlockStatus(status: ConnectionStatus): status is keyof typeof COPY {
+  return status in COPY
+}
+
 function OverlayCopy({ status }: Readonly<{ status: ConnectionStatus }>) {
   // Keep the last block's copy while the dialog fades out after status returns to ok/saved.
   const [shown, setShown] = useState<keyof typeof COPY>('offline')
-  if ((status === 'offline' || status === 'slow' || status === 'signed-out') && status !== shown) {
+  if (isBlockStatus(status) && status !== shown) {
     setShown(status)
   }
   const copy = COPY[shown]

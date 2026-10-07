@@ -7,9 +7,14 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockRouterPush, replace: mockRouterReplace }),
 }))
 
-const mockBatchSubmitQuiz = vi.fn()
-vi.mock('../../actions/batch-submit', () => ({
-  batchSubmitQuiz: (...args: unknown[]) => mockBatchSubmitQuiz(...args),
+const mockFinishQuizSession = vi.fn()
+vi.mock('../../actions/finish', () => ({
+  finishQuizSession: (...args: unknown[]) => mockFinishQuizSession(...args),
+}))
+
+vi.mock('../../actions/quiz-progress', () => ({
+  saveQuizAnswer: () => Promise.resolve({ success: true }),
+  saveQuizPosition: () => Promise.resolve({ success: true }),
 }))
 
 const mockDiscardQuiz = vi.fn()
@@ -374,7 +379,7 @@ describe('QuizSession', () => {
   it('stores answer in state without submitting to server', () => {
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
     fireEvent.click(screen.getByTestId('option-a'))
-    expect(mockBatchSubmitQuiz).not.toHaveBeenCalled()
+    expect(mockFinishQuizSession).not.toHaveBeenCalled()
     // The selected option should be marked
     expect(screen.getByTestId('option-a').dataset.selected).toBe('true')
   })
@@ -437,14 +442,8 @@ describe('QuizSession', () => {
     expect(screen.getByTestId('dialog-answered')).toHaveTextContent('2')
   })
 
-  it('submits all answers and redirects to report page', async () => {
-    mockBatchSubmitQuiz.mockResolvedValue({
-      success: true,
-      totalQuestions: 3,
-      correctCount: 2,
-      scorePercentage: 66.7,
-      results: [],
-    })
+  it('finishes the session and redirects to the report page', async () => {
+    mockFinishQuizSession.mockResolvedValue({ success: true })
 
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
 
@@ -457,15 +456,9 @@ describe('QuizSession', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Submit Quiz' }))
 
     await waitFor(() => {
-      expect(mockBatchSubmitQuiz).toHaveBeenCalledWith({
-        sessionId: 'sess-1',
-        answers: [
-          expect.objectContaining({
-            questionId: 'q1',
-            selectedOptionId: 'a',
-          }),
-        ],
-      })
+      expect(mockFinishQuizSession).toHaveBeenCalledWith(
+        expect.objectContaining({ sessionId: 'sess-1' }),
+      )
     })
 
     await waitFor(() => {
@@ -473,8 +466,8 @@ describe('QuizSession', () => {
     })
   })
 
-  it('shows error when batch submission fails', async () => {
-    mockBatchSubmitQuiz.mockResolvedValue({
+  it('shows the error when finishing the session fails', async () => {
+    mockFinishQuizSession.mockResolvedValue({
       success: false,
       error: 'Server error occurred',
     })
@@ -644,7 +637,7 @@ describe('QuizSession', () => {
   it('disables the Finish Test button while a submission is in progress', async () => {
     // Use a promise that never resolves so submitting stays true
     let resolveSubmit!: (value: unknown) => void
-    mockBatchSubmitQuiz.mockImplementation(
+    mockFinishQuizSession.mockImplementation(
       () =>
         new Promise((resolve) => {
           resolveSubmit = resolve
@@ -667,19 +660,13 @@ describe('QuizSession', () => {
     })
 
     // Clean up — resolve the dangling promise
-    resolveSubmit({
-      success: true,
-      totalQuestions: 3,
-      correctCount: 1,
-      scorePercentage: 33,
-      results: [],
-    })
+    resolveSubmit({ success: true })
   })
 
   it('marks session expired even when submit is in flight', async () => {
-    // Keep batch submit pending so `s.submitting` stays true the whole time
+    // Keep the finish pending so `s.submitting` stays true the whole time
     let resolveSubmit!: (value: unknown) => void
-    mockBatchSubmitQuiz.mockImplementation(
+    mockFinishQuizSession.mockImplementation(
       () =>
         new Promise((resolve) => {
           resolveSubmit = resolve
@@ -702,13 +689,13 @@ describe('QuizSession', () => {
     fireEvent.click(screen.getByTestId('option-a'))
     fireEvent.click(screen.getByTestId('confirm-answer-btn'))
 
-    // Open dialog and click Submit so the batch submit is in flight (submitting=true).
+    // Open dialog and click Submit so the finish is in flight (submitting=true).
     // Pre-fix: when the timer fires later, handleTimeExpired's `s.submitting` guard
     // would short-circuit before setting autoSubmitFiredRef, so the dialog stayed
     // dismissible. Post-fix: the guard is dropped so the ref is set unconditionally.
     fireEvent.click(screen.getByRole('button', { name: 'Finish Practice Exam' }))
     fireEvent.click(screen.getByRole('button', { name: 'Submit Quiz' }))
-    await waitFor(() => expect(mockBatchSubmitQuiz).toHaveBeenCalled())
+    await waitFor(() => expect(mockFinishQuizSession).toHaveBeenCalled())
 
     // Time expires while the submit is in flight
     fireEvent.click(screen.getAllByTestId('trigger-expired')[0]!)

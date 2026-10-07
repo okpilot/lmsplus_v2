@@ -2,22 +2,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const {
-  mockBatchSubmitQuiz,
-  mockSaveQuizForLater,
-  mockDiscardQuiz,
-  mockRouterPush,
-  mockSubmitEmptyExamSession,
-} = vi.hoisted(() => ({
-  mockBatchSubmitQuiz: vi.fn(),
-  mockSaveQuizForLater: vi.fn(),
-  mockDiscardQuiz: vi.fn(),
-  mockRouterPush: vi.fn(),
-  mockSubmitEmptyExamSession: vi.fn(),
-}))
+const { mockFinishQuizSession, mockSaveQuizForLater, mockDiscardQuiz, mockRouterPush } = vi.hoisted(
+  () => ({
+    mockFinishQuizSession: vi.fn(),
+    mockSaveQuizForLater: vi.fn(),
+    mockDiscardQuiz: vi.fn(),
+    mockRouterPush: vi.fn(),
+  }),
+)
 
-vi.mock('../../actions/batch-submit', () => ({
-  batchSubmitQuiz: (...args: unknown[]) => mockBatchSubmitQuiz(...args),
+vi.mock('../../actions/finish', () => ({
+  finishQuizSession: (...args: unknown[]) => mockFinishQuizSession(...args),
 }))
 
 vi.mock('../../actions/saved-quiz', () => ({
@@ -26,10 +21,6 @@ vi.mock('../../actions/saved-quiz', () => ({
 vi.mock('../_utils/quiz-device-id', () => ({ getQuizDeviceId: () => DEVICE_ID }))
 vi.mock('../../actions/discard', () => ({
   discardQuiz: (...args: unknown[]) => mockDiscardQuiz(...args),
-}))
-
-vi.mock('../../actions/submit-empty-exam', () => ({
-  submitEmptyExamSession: (...args: unknown[]) => mockSubmitEmptyExamSession(...args),
 }))
 
 const { mockClearDeploymentPin } = vi.hoisted(() => ({
@@ -88,15 +79,6 @@ const TWO_ANSWERS = makeAnswers([
   [Q2_ID, { selectedOptionId: 'opt-c', responseTimeMs: 2000 }],
 ])
 
-const BATCH_SUCCESS = {
-  success: true as const,
-  totalQuestions: 2,
-  answeredCount: 2,
-  correctCount: 1,
-  scorePercentage: 50,
-  results: [],
-}
-
 function makeRouter() {
   return { push: mockRouterPush }
 }
@@ -115,209 +97,47 @@ function makeDeferred<T>() {
 beforeEach(() => {
   vi.resetAllMocks()
   mockClearDeploymentPin.mockResolvedValue(undefined)
-  mockSubmitEmptyExamSession.mockResolvedValue({ success: true, sessionId: SESSION_ID })
+  mockFinishQuizSession.mockResolvedValue({ success: true })
 })
 
 // ---- submitQuizSession ---------------------------------------------------
 
 describe('submitQuizSession', () => {
-  it('returns success after submitting all answers', async () => {
-    mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
+  it('finishes the session on the server for this device and returns success', async () => {
+    const result = await submitQuizSession(SESSION_ID, USER_ID)
 
-    const result = await submitQuizSession(SESSION_ID, TWO_ANSWERS, USER_ID)
-
-    expect(result.success).toBe(true)
-    if (result.success) {
-      expect(result.totalQuestions).toBe(2)
-      expect(result.correctCount).toBe(1)
-      expect(result.scorePercentage).toBe(50)
-    }
-  })
-
-  it('formats answers as the expected array shape', async () => {
-    mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
-
-    await submitQuizSession(SESSION_ID, TWO_ANSWERS, USER_ID)
-
-    expect(mockBatchSubmitQuiz).toHaveBeenCalledWith({
+    expect(result).toEqual({ success: true })
+    expect(mockFinishQuizSession).toHaveBeenCalledWith({
       sessionId: SESSION_ID,
-      answers: expect.arrayContaining([
-        { questionId: Q1_ID, selectedOptionId: 'opt-a', responseTimeMs: 1500 },
-        { questionId: Q2_ID, selectedOptionId: 'opt-c', responseTimeMs: 2000 },
-      ]),
+      deviceId: DEVICE_ID,
     })
   })
 
-  it('returns failure when batch submission fails', async () => {
-    mockBatchSubmitQuiz.mockResolvedValue({
-      success: false,
-      error: 'session not found',
-    })
+  it('returns the action error and keeps the session when the finish fails', async () => {
+    mockFinishQuizSession.mockResolvedValue({ success: false, error: 'session not found' })
 
-    const result = await submitQuizSession(SESSION_ID, TWO_ANSWERS, USER_ID)
+    const result = await submitQuizSession(SESSION_ID, USER_ID)
 
-    expect(result.success).toBe(false)
-    if (!result.success) expect(result.error).toBe('session not found')
+    expect(result).toEqual({ success: false, error: 'session not found' })
+    expect(mockClearActiveSession).not.toHaveBeenCalled()
+    expect(mockClearDeploymentPin).not.toHaveBeenCalled()
+    expect(mockDiscardQuiz).not.toHaveBeenCalled()
   })
 
-  it('returns generic failure when submission throws unexpectedly', async () => {
-    mockBatchSubmitQuiz.mockRejectedValue(new Error('network error'))
+  it('returns a generic failure when the finish throws unexpectedly', async () => {
+    mockFinishQuizSession.mockRejectedValue(new Error('network error'))
 
-    const result = await submitQuizSession(SESSION_ID, TWO_ANSWERS, USER_ID)
+    const result = await submitQuizSession(SESSION_ID, USER_ID)
 
-    expect(result.success).toBe(false)
-    if (!result.success) expect(result.error).toBe('Something went wrong. Please try again.')
-  })
-
-  it('submits an empty answers list when no answers recorded', async () => {
-    mockBatchSubmitQuiz.mockResolvedValue({ success: false, error: 'No answers' })
-
-    const result = await submitQuizSession(SESSION_ID, new Map(), USER_ID)
-
-    expect(mockBatchSubmitQuiz).toHaveBeenCalledWith({
-      sessionId: SESSION_ID,
-      answers: [],
-    })
-    expect(result.success).toBe(false)
-  })
-
-  it('clears active session from localStorage after successful submission', async () => {
-    mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
-
-    await submitQuizSession(SESSION_ID, TWO_ANSWERS, USER_ID)
-
-    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID, SESSION_ID)
-    expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
-  })
-
-  it('does not clear active session when submission fails', async () => {
-    mockBatchSubmitQuiz.mockResolvedValue({ success: false, error: 'session not found' })
-
-    await submitQuizSession(SESSION_ID, TWO_ANSWERS, USER_ID)
-
+    expect(result).toEqual({ success: false, error: 'Something went wrong. Please try again.' })
     expect(mockClearActiveSession).not.toHaveBeenCalled()
   })
 
-  it('submits a short_answer as a single entry with responseText', async () => {
-    mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
-    const shortAnswerMap = makeAnswers([[Q1_ID, { responseText: 'Paris', responseTimeMs: 1200 }]])
+  it('clears the active session from localStorage after a successful finish', async () => {
+    await submitQuizSession(SESSION_ID, USER_ID)
 
-    await submitQuizSession(SESSION_ID, shortAnswerMap, USER_ID)
-
-    expect(mockBatchSubmitQuiz).toHaveBeenCalledWith({
-      sessionId: SESSION_ID,
-      answers: [{ questionId: Q1_ID, responseText: 'Paris', responseTimeMs: 1200 }],
-    })
-  })
-
-  it('submits a dialog_fill as one entry per blank with blankIndex', async () => {
-    mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
-    const dialogFillMap = makeAnswers([
-      [
-        Q1_ID,
-        {
-          blankAnswers: [
-            { index: 0, text: 'north' },
-            { index: 1, text: 'south' },
-          ],
-          responseTimeMs: 2500,
-        },
-      ],
-    ])
-
-    await submitQuizSession(SESSION_ID, dialogFillMap, USER_ID)
-
-    expect(mockBatchSubmitQuiz).toHaveBeenCalledWith({
-      sessionId: SESSION_ID,
-      answers: [
-        { questionId: Q1_ID, blankIndex: 0, responseText: 'north', responseTimeMs: 2500 },
-        { questionId: Q1_ID, blankIndex: 1, responseText: 'south', responseTimeMs: 2500 },
-      ],
-    })
-  })
-
-  it('submits an ordering answer as one entry per slot with the item id and slot position', async () => {
-    mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
-    const orderingMap = makeAnswers([
-      [Q1_ID, { order: ['item-c', 'item-a', 'item-b'], responseTimeMs: 4000 }],
-    ])
-
-    await submitQuizSession(SESSION_ID, orderingMap, USER_ID)
-
-    expect(mockBatchSubmitQuiz).toHaveBeenCalledWith({
-      sessionId: SESSION_ID,
-      answers: [
-        { questionId: Q1_ID, selectedOptionId: 'item-c', blankIndex: 0, responseTimeMs: 4000 },
-        { questionId: Q1_ID, selectedOptionId: 'item-a', blankIndex: 1, responseTimeMs: 4000 },
-        { questionId: Q1_ID, selectedOptionId: 'item-b', blankIndex: 2, responseTimeMs: 4000 },
-      ],
-    })
-  })
-
-  it('emits no rows for an ordering question with an empty order', async () => {
-    // fanOutOrderingAnswer maps `(a.order ?? [])` — an empty array fans out to zero
-    // entries. The defensive Array.isArray(a.order) branch in fanOutAnswer routes
-    // ordering BEFORE the MC default, so an empty order must NOT produce a bogus
-    // `{ selectedOptionId: undefined }` row.
-    mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
-    const emptyOrderMap = makeAnswers([[Q1_ID, { order: [], responseTimeMs: 2000 }]])
-
-    await submitQuizSession(SESSION_ID, emptyOrderMap, USER_ID)
-
-    expect(mockBatchSubmitQuiz).toHaveBeenCalledWith({
-      sessionId: SESSION_ID,
-      answers: [],
-    })
-  })
-
-  it('submits a diagram_label answer as one entry per placed zone with the label/zone ids inverted', async () => {
-    mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
-    const diagramMap = makeAnswers([
-      [
-        Q1_ID,
-        {
-          mapping: [
-            { zoneId: 'z1', labelId: 'l1' },
-            { zoneId: 'z2', labelId: 'l2' },
-          ],
-          responseTimeMs: 3000,
-        },
-      ],
-    ])
-
-    await submitQuizSession(SESSION_ID, diagramMap, USER_ID)
-
-    expect(mockBatchSubmitQuiz).toHaveBeenCalledWith({
-      sessionId: SESSION_ID,
-      answers: [
-        {
-          questionId: Q1_ID,
-          selectedOptionId: 'l1',
-          responseText: 'z1',
-          blankIndex: 0,
-          responseTimeMs: 3000,
-        },
-        {
-          questionId: Q1_ID,
-          selectedOptionId: 'l2',
-          responseText: 'z2',
-          blankIndex: 1,
-          responseTimeMs: 3000,
-        },
-      ],
-    })
-  })
-
-  it('emits no rows for a diagram_label question with an empty mapping', async () => {
-    mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
-    const emptyMappingMap = makeAnswers([[Q1_ID, { mapping: [], responseTimeMs: 2000 }]])
-
-    await submitQuizSession(SESSION_ID, emptyMappingMap, USER_ID)
-
-    expect(mockBatchSubmitQuiz).toHaveBeenCalledWith({
-      sessionId: SESSION_ID,
-      answers: [],
-    })
+    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID, SESSION_ID)
+    expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -337,16 +157,15 @@ describe('handleSubmitSession', () => {
     }
   }
 
-  it('shows an error and lets the student retry when there are no answers to submit', async () => {
+  it('shows an error and lets the student retry when a practice quiz has no answers', async () => {
     const opts = makeOpts({ answers: new Map() })
     await handleSubmitSession(opts)
     expect(opts.setError).toHaveBeenCalledWith('No answers to submit.')
     expect(opts.setSubmitting).toHaveBeenCalledWith(false)
-    expect(mockBatchSubmitQuiz).not.toHaveBeenCalled()
+    expect(mockFinishQuizSession).not.toHaveBeenCalled()
   })
 
-  it('navigates to report page after successful submission', async () => {
-    mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
+  it('navigates to the report page after a successful finish', async () => {
     const opts = makeOpts()
     await handleSubmitSession(opts)
     expect(opts.onSuccess).toHaveBeenCalledTimes(1)
@@ -354,17 +173,22 @@ describe('handleSubmitSession', () => {
     expect(opts.setError).toHaveBeenCalledWith(null)
   })
 
-  it('navigates to /app/internal-exam/report after a successful internal-exam submission', async () => {
-    mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
+  it('navigates to /app/internal-exam/report after a successful internal-exam finish', async () => {
     const opts = makeOpts({ isExam: true, examMode: 'internal_exam' })
     await handleSubmitSession(opts)
     expect(opts.router.push).toHaveBeenCalledWith(`/app/internal-exam/report?session=${SESSION_ID}`)
   })
 
-  it('does not navigate on a zero-answer exam until deployment-pin cleanup has settled', async () => {
+  it('navigates to /app/vfr-rt/report after a successful VFR RT exam finish', async () => {
+    const opts = makeOpts({ isExam: true, examMode: 'vfr_rt_exam' })
+    await handleSubmitSession(opts)
+    expect(opts.router.push).toHaveBeenCalledWith(`/app/vfr-rt/report?session=${SESSION_ID}`)
+  })
+
+  it('does not navigate until deployment-pin cleanup has settled', async () => {
     const deferred = makeDeferred<undefined>()
     mockClearDeploymentPin.mockReturnValue(deferred.promise)
-    const opts = makeOpts({ answers: new Map(), isExam: true, examMode: 'internal_exam' })
+    const opts = makeOpts({ isExam: true, examMode: 'internal_exam' })
 
     const pending = handleSubmitSession(opts)
     await Promise.resolve()
@@ -376,24 +200,31 @@ describe('handleSubmitSession', () => {
     expect(opts.router.push).toHaveBeenCalledWith(`/app/internal-exam/report?session=${SESSION_ID}`)
   })
 
-  it('navigates to /app/internal-exam/report on zero-answer internal-exam timeout', async () => {
+  it('finishes an exam with no answers so the student lands on a 0% report', async () => {
     const opts = makeOpts({ answers: new Map(), isExam: true, examMode: 'internal_exam' })
     await handleSubmitSession(opts)
+    expect(mockFinishQuizSession).toHaveBeenCalledWith({
+      sessionId: SESSION_ID,
+      deviceId: DEVICE_ID,
+    })
+    expect(opts.onSuccess).toHaveBeenCalledTimes(1)
     expect(opts.router.push).toHaveBeenCalledWith(`/app/internal-exam/report?session=${SESSION_ID}`)
+    expect(mockDiscardQuiz).not.toHaveBeenCalled()
   })
 
-  it('shows error and stops loading when submission fails', async () => {
-    mockBatchSubmitQuiz.mockResolvedValue({ success: false, error: 'session discarded' })
-    const opts = makeOpts()
+  it('keeps the session, shows the error and lets the student retry when the finish fails', async () => {
+    mockFinishQuizSession.mockResolvedValue({ success: false, error: 'session discarded' })
+    const opts = makeOpts({ isExam: true, examMode: 'internal_exam' })
     await handleSubmitSession(opts)
     expect(opts.setError).toHaveBeenCalledWith('session discarded')
     expect(opts.setSubmitting).toHaveBeenLastCalledWith(false)
     expect(opts.onSuccess).not.toHaveBeenCalled()
     expect(opts.router.push).not.toHaveBeenCalled()
+    expect(mockDiscardQuiz).not.toHaveBeenCalled()
+    expect(mockClearActiveSession).not.toHaveBeenCalled()
   })
 
-  it('shows loading state before submitting', async () => {
-    mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
+  it('shows loading state before finishing', async () => {
     const setSubmittingOrder: boolean[] = []
     const setErrorOrder: Array<string | null> = []
     const opts = makeOpts({
@@ -403,149 +234,6 @@ describe('handleSubmitSession', () => {
     await handleSubmitSession(opts)
     expect(setSubmittingOrder[0]).toBe(true)
     expect(setErrorOrder[0]).toBeNull()
-  })
-
-  it('calls submitEmptyExamSession when exam times out with no answers', async () => {
-    const opts = makeOpts({ answers: new Map(), isExam: true })
-    await handleSubmitSession(opts)
-    expect(mockSubmitEmptyExamSession).toHaveBeenCalledWith({ sessionId: SESSION_ID })
-  })
-
-  it('redirects to report page with session id when exam times out with no answers', async () => {
-    const opts = makeOpts({ answers: new Map(), isExam: true })
-    await handleSubmitSession(opts)
-    expect(opts.router.push).toHaveBeenCalledWith(`/app/quiz/report?session=${SESSION_ID}`)
-  })
-
-  it('clears active session on successful zero-answer exam completion', async () => {
-    const opts = makeOpts({ answers: new Map(), isExam: true })
-    await handleSubmitSession(opts)
-    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID, SESSION_ID)
-    expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
-  })
-
-  it('fires clearDeploymentPin on successful zero-answer exam completion', async () => {
-    const opts = makeOpts({ answers: new Map(), isExam: true })
-    await handleSubmitSession(opts)
-    expect(mockClearDeploymentPin).toHaveBeenCalledTimes(1)
-  })
-
-  it('fires clearDeploymentPin when submitEmptyExamSession fails so the next session is not blocked', async () => {
-    mockSubmitEmptyExamSession.mockResolvedValue({ success: false, error: 'Session not found.' })
-    mockDiscardQuiz.mockResolvedValue({ success: true })
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    try {
-      const opts = makeOpts({ answers: new Map(), isExam: true })
-      await handleSubmitSession(opts)
-      expect(mockClearDeploymentPin).toHaveBeenCalledTimes(1)
-    } finally {
-      consoleSpy.mockRestore()
-    }
-  })
-
-  it('fires clearDeploymentPin when submitEmptyExamSession rejects so the next session is not blocked', async () => {
-    mockSubmitEmptyExamSession.mockRejectedValue(new Error('network'))
-    mockDiscardQuiz.mockResolvedValue({ success: true })
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    try {
-      const opts = makeOpts({ answers: new Map(), isExam: true })
-      await handleSubmitSession(opts)
-      expect(mockClearDeploymentPin).toHaveBeenCalledTimes(1)
-    } finally {
-      consoleSpy.mockRestore()
-    }
-  })
-
-  it('does not call discardQuiz on successful zero-answer exam completion', async () => {
-    const opts = makeOpts({ answers: new Map(), isExam: true })
-    await handleSubmitSession(opts)
-    expect(mockDiscardQuiz).not.toHaveBeenCalled()
-  })
-
-  it('invokes onSuccess and pushes to /app/quiz/report on zero-answer exam success', async () => {
-    const opts = makeOpts({ answers: new Map(), isExam: true })
-    await handleSubmitSession(opts)
-    expect(opts.onSuccess).toHaveBeenCalledTimes(1)
-    expect(opts.router.push).toHaveBeenCalledWith(`/app/quiz/report?session=${SESSION_ID}`)
-  })
-
-  it('sets setSubmitting(true) but not setError on successful zero-answer exam completion', async () => {
-    const opts = makeOpts({ answers: new Map(), isExam: true })
-    await handleSubmitSession(opts)
-    expect(opts.setError).not.toHaveBeenCalled()
-    // setSubmitting(true) fires to show loading; navigation takes over (no false call)
-    expect(opts.setSubmitting).toHaveBeenCalledWith(true)
-    expect(opts.setSubmitting).not.toHaveBeenCalledWith(false)
-  })
-
-  it('falls back to discard + /app/quiz when submitEmptyExamSession fails', async () => {
-    mockSubmitEmptyExamSession.mockResolvedValue({
-      success: false,
-      error: 'Session not found.',
-    })
-    mockDiscardQuiz.mockResolvedValue({ success: true })
-    const opts = makeOpts({ answers: new Map(), isExam: true })
-    await handleSubmitSession(opts)
-    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID, SESSION_ID)
-    expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
-    expect(mockDiscardQuiz).toHaveBeenCalledWith({
-      sessionId: SESSION_ID,
-    })
-    expect(opts.router.push).toHaveBeenCalledWith('/app/quiz')
-  })
-
-  it('sets error when submitEmptyExamSession fails', async () => {
-    mockSubmitEmptyExamSession.mockResolvedValue({
-      success: false,
-      error: 'Session not found.',
-    })
-    mockDiscardQuiz.mockResolvedValue({ success: true })
-    const opts = makeOpts({ answers: new Map(), isExam: true })
-    await handleSubmitSession(opts)
-    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID, SESSION_ID)
-    expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
-    expect(opts.setError).toHaveBeenCalledWith('Session not found.')
-  })
-
-  it('still redirects to /app/quiz when fallback discardQuiz throws', async () => {
-    mockSubmitEmptyExamSession.mockResolvedValue({
-      success: false,
-      error: 'Failed to complete Practice Exam.',
-    })
-    mockDiscardQuiz.mockRejectedValue(new Error('network'))
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    try {
-      const opts = makeOpts({ answers: new Map(), isExam: true })
-      await handleSubmitSession(opts)
-      expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID, SESSION_ID)
-      expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
-      expect(opts.router.push).toHaveBeenCalledWith('/app/quiz')
-    } finally {
-      consoleSpy.mockRestore()
-    }
-  })
-
-  it('routes to /app/quiz and clears submitting when submitEmptyExamSession rejects', async () => {
-    // RSC stream / network failures bypass the action's internal try/catch and
-    // surface as a rejected promise. Without our outer catch, the student would
-    // be stuck with the spinner spinning forever.
-    mockSubmitEmptyExamSession.mockRejectedValue(new Error('network'))
-    mockDiscardQuiz.mockResolvedValue({ success: true })
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    try {
-      const opts = makeOpts({ answers: new Map(), isExam: true })
-      await handleSubmitSession(opts)
-      expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID, SESSION_ID)
-      expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
-      expect(opts.router.push).toHaveBeenCalledWith('/app/quiz')
-      expect(opts.setError).toHaveBeenCalledWith('Something went wrong. Please try again.')
-      expect(opts.setSubmitting).toHaveBeenLastCalledWith(false)
-      expect(mockDiscardQuiz).toHaveBeenCalledWith({
-        sessionId: SESSION_ID,
-      })
-    } finally {
-      consoleSpy.mockRestore()
-    }
   })
 })
 

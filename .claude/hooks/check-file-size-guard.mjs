@@ -52,9 +52,8 @@ const KNOWN_FLAGS = new Set(['--stats', '--update-baseline'])
  * formatter enforces a final newline. Differs ONLY for a file lacking a trailing
  * newline, where this counts the final partial line and `wc -l` does not.
  *
- * Load-bearing, not a detail: `apps/web/app/app/quiz/actions/batch-submit.ts` sits EXACTLY
- * at its cap. A naive `split('\n').length` counts one line more and fails it; this passes
- * it. Two reasonable implementations disagree about a real file in this repo today.
+ * Load-bearing, not a detail: a file sitting EXACTLY at its cap passes here, while a naive
+ * `split('\n').length` counts one line more and fails it.
  */
 export function countLines(content) {
   if (content === '') return 0

@@ -13,6 +13,7 @@ import {
   markSaved,
   setConnectionStatus,
 } from '../_utils/connection-state'
+import { _resetRefusedSave } from '../_utils/refused-save'
 import { ConnectionOverlay, STALL_ESCAPE_MS } from './connection-overlay'
 
 const assign = vi.fn()
@@ -20,6 +21,7 @@ const assign = vi.fn()
 beforeEach(() => {
   vi.resetAllMocks()
   _resetConnectionState()
+  _resetRefusedSave()
   vi.stubGlobal('location', { pathname: '/app/quiz/session', search: '?id=1', assign })
 })
 

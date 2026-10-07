@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockSaveAnswer, mockSavePosition, mockClassify } = vi.hoisted(() => ({
   mockSaveAnswer: vi.fn(),
@@ -27,6 +27,7 @@ import {
   clampTimeSpent,
   fireProgressSave,
 } from './progress-save'
+import { _resetRefusedSave, retryRefusedSave, skipRefusedSave } from './refused-save'
 import { _resetSessionTakeover, markTakenOver } from './session-takeover'
 import { _resetWithReconnect } from './with-reconnect'
 
@@ -38,6 +39,7 @@ beforeEach(() => {
   _resetConnectionState()
   _resetWithReconnect()
   _resetSessionTakeover()
+  _resetRefusedSave()
 })
 
 describe('clampTimeSpent', () => {
@@ -158,9 +160,9 @@ describe('fireProgressSave', () => {
 
   it('only warns when the network call rejects', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    mockSaveAnswer.mockRejectedValue(new Error('offline'))
+    mockSavePosition.mockRejectedValue(new Error('offline'))
     const h = handlers()
-    fireProgressSave({ kind: 'answer', sessionId: 's', input: {}, ...h })
+    fireProgressSave({ kind: 'position', sessionId: 's', input: {}, ...h })
     await settle()
     expect(h.onMappedError).not.toHaveBeenCalled()
     expect(warn).toHaveBeenCalled()
@@ -178,6 +180,9 @@ describe('fireProgressSave', () => {
 
   const fire = () => fireProgressSave({ kind: 'answer', sessionId: 's', input: {}, ...handlers() })
 
+  const firePosition = () =>
+    fireProgressSave({ kind: 'position', sessionId: 's', input: {}, ...handlers() })
+
   it('reports saved when the save succeeded', async () => {
     mockSaveAnswer.mockResolvedValue({ success: true })
     await expect(fire()).resolves.toBe('saved')
@@ -194,22 +199,22 @@ describe('fireProgressSave', () => {
 
   it('reports rejected when the server refuses the input as invalid', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {})
-    mockSaveAnswer.mockResolvedValue({ success: false, error: INVALID_INPUT })
-    await expect(fire()).resolves.toBe('rejected')
+    mockSavePosition.mockResolvedValue({ success: false, error: INVALID_INPUT })
+    await expect(firePosition()).resolves.toBe('rejected')
   })
 
   it('reports failed for an unmapped failure', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {})
-    mockSaveAnswer.mockResolvedValue({ success: false, error: 'Could not save progress' })
-    await expect(fire()).resolves.toBe('failed')
+    mockSavePosition.mockResolvedValue({ success: false, error: 'Could not save progress' })
+    await expect(firePosition()).resolves.toBe('failed')
   })
 
-  it('reports failed when the save throws', async () => {
+  it('reports failed when a position save throws', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {})
-    mockSaveAnswer.mockImplementation(() => {
+    mockSavePosition.mockImplementation(() => {
       throw new Error('boom')
     })
-    await expect(fire()).resolves.toBe('failed')
+    await expect(firePosition()).resolves.toBe('failed')
   })
 
   it('reports failed without sending once the session was taken over', async () => {
@@ -238,5 +243,59 @@ describe('fireProgressSave', () => {
       fireProgressSave({ kind: 'answer', sessionId: 's', input: {}, ...h }),
     ).resolves.toBe('failed')
     expect(h.onMappedError).not.toHaveBeenCalled()
+  })
+})
+
+describe('fireProgressSave on a held answer save', () => {
+  const fireAnswer = () =>
+    fireProgressSave({
+      kind: 'answer',
+      sessionId: 's',
+      input: {},
+      onSuccess: vi.fn(),
+      onMappedError: vi.fn(),
+    })
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('shows a failed input parse inline instead of holding the answer', async () => {
+    mockSaveAnswer.mockResolvedValue({ success: false, error: INVALID_INPUT })
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const outcome = fireAnswer()
+    await vi.advanceTimersByTimeAsync(0)
+    await expect(outcome).resolves.toBe('rejected')
+    expect(mockSaveAnswer).toHaveBeenCalledTimes(1)
+  })
+
+  it('settles as rejected when the student continues without a persistent transient failure', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    mockSaveAnswer.mockResolvedValue({ success: false, error: 'Could not save progress' })
+    const outcome = fireAnswer()
+    await vi.advanceTimersByTimeAsync(2000)
+    await vi.advanceTimersByTimeAsync(4000)
+    expect(mockSaveAnswer).toHaveBeenCalledTimes(3)
+    skipRefusedSave()
+    await expect(outcome).resolves.toBe('rejected')
+    expect(mockSaveAnswer).toHaveBeenCalledTimes(3)
+  })
+
+  it('resends a held answer on Try again and reports saved once it lands', async () => {
+    mockSaveAnswer
+      .mockResolvedValueOnce({ success: false, error: 'Could not save progress' })
+      .mockResolvedValueOnce({ success: false, error: 'Could not save progress' })
+      .mockResolvedValueOnce({ success: false, error: 'Could not save progress' })
+      .mockResolvedValueOnce({ success: true })
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const outcome = fireAnswer()
+    await vi.advanceTimersByTimeAsync(6000)
+    retryRefusedSave()
+    await expect(outcome).resolves.toBe('saved')
+    expect(mockSaveAnswer).toHaveBeenCalledTimes(4)
   })
 })

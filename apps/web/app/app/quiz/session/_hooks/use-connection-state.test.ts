@@ -25,7 +25,7 @@ describe('useConnectionState', () => {
 })
 
 describe('useConnectionBlocked', () => {
-  it('is true only while offline, slow or signed out', () => {
+  it('is true only while offline, slow, signed out or an answer save is held', () => {
     const { result } = renderHook(() => useConnectionBlocked())
     expect(result.current).toBe(false)
     act(() => setConnectionStatus('offline'))
@@ -33,6 +33,8 @@ describe('useConnectionBlocked', () => {
     act(() => setConnectionStatus('slow'))
     expect(result.current).toBe(true)
     act(() => setConnectionStatus('signed-out'))
+    expect(result.current).toBe(true)
+    act(() => setConnectionStatus('save-failed'))
     expect(result.current).toBe(true)
     act(() => setConnectionStatus('saved'))
     expect(result.current).toBe(false)

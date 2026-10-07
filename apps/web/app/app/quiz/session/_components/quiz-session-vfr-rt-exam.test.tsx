@@ -10,7 +10,7 @@ vi.mock('../../actions/check-non-mc-answer', () => ({
   checkNonMcAnswer: (...args: unknown[]) => mockCheckNonMcAnswer(...args),
 }))
 vi.mock('../../actions/check-answer', () => ({ checkAnswer: vi.fn() }))
-vi.mock('../../actions/batch-submit', () => ({ batchSubmitQuiz: vi.fn() }))
+vi.mock('../../actions/finish', () => ({ finishQuizSession: vi.fn() }))
 vi.mock('../../actions/discard', () => ({ discardQuiz: vi.fn() }))
 vi.mock('../../actions/end-discovery', () => ({ endDiscovery: vi.fn() }))
 

@@ -79,9 +79,28 @@ describe('sendAnswerSave', () => {
     )
   })
 
-  it('saves nothing for a draft that carries no answer', () => {
-    sendAnswerSave({ sessionId: SESSION, questionId: QID, draft: {}, startedAt: 0, ...handlers })
+  it('saves nothing for a draft that carries no answer', async () => {
+    const outcome = sendAnswerSave({
+      sessionId: SESSION,
+      questionId: QID,
+      draft: {},
+      startedAt: 0,
+      ...handlers,
+    })
     expect(mockFire).not.toHaveBeenCalled()
+    expect(await outcome).toBeUndefined()
+  })
+
+  it('resolves the save outcome', async () => {
+    mockFire.mockResolvedValue('rejected')
+    const outcome = sendAnswerSave({
+      sessionId: SESSION,
+      questionId: QID,
+      draft: { selectedOptionId: 'a' },
+      startedAt: 1_000_000,
+      ...handlers,
+    })
+    expect(await outcome).toBe('rejected')
   })
 })
 
@@ -116,11 +135,18 @@ describe('buildRunnerSaves', () => {
     )
   })
 
-  it('saves nothing when saving is disabled', () => {
+  it('saves nothing when saving is disabled', async () => {
     const saves = buildRunnerSaves(deps(false, { id: QID }))
     saves.savePosition(1, new Set(), true)
-    saves.saveAnswer({ selectedOptionId: 'b' })
+    const outcome = saves.saveAnswer({ selectedOptionId: 'b' })
     expect(mockFire).not.toHaveBeenCalled()
+    expect(await outcome).toBeUndefined()
+  })
+
+  it('resolves the answer save outcome', async () => {
+    mockFire.mockResolvedValue('failed')
+    const outcome = buildRunnerSaves(deps(true, { id: QID })).saveAnswer({ selectedOptionId: 'b' })
+    expect(await outcome).toBe('failed')
   })
 })
 
@@ -217,6 +243,30 @@ describe('resendUnsavedAnswers', () => {
     await expect(resend()).resolves.toBe(true)
     expect(mockFire).toHaveBeenCalledTimes(2)
   })
+
+  it('reports the question whose re-sent answer the server rejected', async () => {
+    mockFire.mockResolvedValueOnce('failed')
+    send('a')
+    await settle()
+    mockFire.mockResolvedValueOnce('rejected')
+    const onRejected = vi.fn()
+    await resendUnsavedAnswers({ sessionId: SESSION, onMappedError: vi.fn(), onRejected })
+    expect(onRejected).toHaveBeenCalledTimes(1)
+    expect(onRejected).toHaveBeenCalledWith(QID)
+  })
+
+  it.each(['saved', 'failed'] as const)(
+    'does not report a question whose re-sent answer %s',
+    async (outcome) => {
+      mockFire.mockResolvedValueOnce('failed')
+      send('a')
+      await settle()
+      mockFire.mockResolvedValueOnce(outcome)
+      const onRejected = vi.fn()
+      await resendUnsavedAnswers({ sessionId: SESSION, onMappedError: vi.fn(), onRejected })
+      expect(onRejected).not.toHaveBeenCalled()
+    },
+  )
 
   it('resolves true and sends nothing when no answer save failed', async () => {
     await expect(resend()).resolves.toBe(true)
