@@ -1,8 +1,7 @@
 'use client'
 
-import { Loader2 } from 'lucide-react'
 import type { ComponentProps, ReactNode } from 'react'
-
+import { BusyLabel } from './busy-label'
 import { Button } from './button'
 
 type LoadingButtonProps = ComponentProps<typeof Button> & {
@@ -35,8 +34,7 @@ function LoadingButton({
 }: Readonly<LoadingButtonProps>) {
   return (
     <Button {...props} disabled={loading || disabled} aria-busy={loading || undefined}>
-      {loading && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
-      {loading ? (loadingText ?? children) : children}
+      <BusyLabel busy={loading}>{loading ? (loadingText ?? children) : children}</BusyLabel>
     </Button>
   )
 }
