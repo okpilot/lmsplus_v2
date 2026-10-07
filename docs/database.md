@@ -1662,7 +1662,7 @@ BEGIN
   END IF;
 
   -- Active-user gate: soft-deleted callers fail closed before the session read
-  -- (mirrors submit_quiz_answer / batch_submit_quiz, mig 095b/110)
+  -- (mirrors submit_quiz_answer)
   PERFORM 1
   FROM users
   WHERE id = v_student_id
@@ -1685,13 +1685,13 @@ BEGIN
   END IF;
 
   -- Practice-mode guard: reject mock_exam / internal_exam so this RPC cannot be used
-  -- as a mid-exam answer oracle (exam submission goes through batch_submit_quiz /
-  -- submit_vfr_rt_exam_answers, which never return the key mid-session)
+  -- as a mid-exam answer oracle (exam answers are graded by finish_quiz_session,
+  -- which never returns the key mid-session)
   IF v_mode NOT IN ('smart_review', 'quick_quiz') THEN
     RAISE EXCEPTION 'unsupported_session_mode';
   END IF;
 
-  -- Guard against malformed config (matches pattern in batch_submit_quiz).
+  -- Guard against malformed config.
   -- jsonb_typeof(v_config->'question_ids') is NULL when the key is absent, and
   -- NULL <> 'array' is NULL (not true) — so the explicit IS NULL check is required
   -- or jsonb_array_elements_text below would run on a missing key.
@@ -1708,7 +1708,7 @@ BEGIN
   END IF;
 
   -- Fetch correct option and explanation.
-  -- §15 carve-out (same posture as batch_submit_quiz): no deleted_at filter — the
+  -- §15 carve-out: no deleted_at filter — the
   -- question is fetched via the immutable write-once quiz_sessions.config.question_ids
   -- (membership verified above; locked at session start by trg_quiz_sessions_immutable_columns,
   -- mig 079), so a question soft-deleted mid-session must still be answerable for
