@@ -1,6 +1,6 @@
 'use client'
 
-import { Loader2 } from 'lucide-react'
+import { BusyLabel } from '@/components/ui/busy-label'
 
 type StartButtonProps = {
   disabled: boolean
@@ -28,8 +28,7 @@ export function StartButton({
       className="w-full rounded-[10px] bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
     >
       <span className="inline-flex items-center justify-center gap-2">
-        {loading && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
-        {loading ? loadingLabel : label}
+        <BusyLabel busy={loading}>{loading ? loadingLabel : label}</BusyLabel>
       </span>
     </button>
   )

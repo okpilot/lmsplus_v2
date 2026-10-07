@@ -1,7 +1,7 @@
 'use client'
 
-import { Loader2 } from 'lucide-react'
 import { useState } from 'react'
+import { BusyLabel } from '@/components/ui/busy-label'
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
 
@@ -119,8 +119,7 @@ export function AnswerOptions({
           className="mt-3 hidden w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 md:block"
         >
           <span className="inline-flex items-center justify-center gap-2">
-            {submitting && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
-            {isExam ? 'Confirm Answer' : 'Submit Answer'}
+            <BusyLabel busy={submitting}>{isExam ? 'Confirm Answer' : 'Submit Answer'}</BusyLabel>
           </span>
         </button>
       )}

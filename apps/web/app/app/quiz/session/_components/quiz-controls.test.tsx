@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { simulateTranslator } from '@/lib/test-support/simulate-translator'
 import { QuizControls } from './quiz-controls'
 
 type ControlProps = {
@@ -266,5 +267,28 @@ describe('QuizControls — Submit Answer button', () => {
   it('shows "Confirm Answer" label in exam mode', () => {
     renderControls({ showSubmit: true, isExam: true })
     expect(screen.getByRole('button', { name: /confirm answer/i })).toBeInTheDocument()
+  })
+})
+
+describe('QuizControls — translated page', () => {
+  it('shows the mobile submit spinner on a translated page', () => {
+    const props = {
+      isPinned: false,
+      isFlagged: false,
+      currentIndex: 1,
+      totalQuestions: 5,
+      showSubmit: true,
+      flagLoading: false,
+      onTogglePin: vi.fn(),
+      onToggleFlag: vi.fn(),
+      onPrev: vi.fn(),
+      onNext: vi.fn(),
+      onSubmitAnswer: vi.fn(),
+      isExam: false,
+    }
+    const { container, rerender } = render(<QuizControls {...props} submitting={false} />)
+    simulateTranslator(container)
+    expect(() => rerender(<QuizControls {...props} submitting />)).not.toThrow()
+    expect(screen.getByTestId('submit-answer-mobile').querySelector('.animate-spin')).not.toBeNull()
   })
 })

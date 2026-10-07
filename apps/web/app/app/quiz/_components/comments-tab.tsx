@@ -1,7 +1,7 @@
 'use client'
 
-import { Loader2 } from 'lucide-react'
 import { useRef, useState } from 'react'
+import { BusyLabel } from '@/components/ui/busy-label'
 import { useComments } from '../session/_hooks/use-comments'
 import { getAvatarColor, getInitials } from './comment-helpers'
 import { CommentsSkeleton } from './comments-skeleton'
@@ -128,8 +128,7 @@ export function CommentsTab({ questionId, currentUserId }: Readonly<CommentsTabP
           className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
           <span className="inline-flex items-center justify-center gap-2">
-            {submitting && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
-            {submitting ? 'Posting...' : 'Post'}
+            <BusyLabel busy={submitting}>{submitting ? 'Posting...' : 'Post'}</BusyLabel>
           </span>
         </button>
       </div>
