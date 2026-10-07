@@ -103,4 +103,25 @@ describe('LoadingButton', () => {
     expect(() => rerender(<LoadingButton loading>Save</LoadingButton>)).not.toThrow()
     expect(container.querySelector('.animate-spin')).not.toBeNull()
   })
+
+  it('swaps an icon label for its loading text on a translated page', () => {
+    const idle = (
+      <LoadingButton loadingText="Exporting...">
+        <svg data-testid="icon" />
+        Export
+      </LoadingButton>
+    )
+    const { container, rerender } = render(idle)
+    simulateTranslator(container)
+    expect(() =>
+      rerender(
+        <LoadingButton loading loadingText="Exporting...">
+          <svg data-testid="icon" />
+          Export
+        </LoadingButton>,
+      ),
+    ).not.toThrow()
+    expect(container.textContent).toContain('Exporting...')
+    expect(() => rerender(idle)).not.toThrow()
+  })
 })
