@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockSaveAnswer, mockSavePosition, mockClassify } = vi.hoisted(() => ({
   mockSaveAnswer: vi.fn(),
@@ -34,6 +34,8 @@ beforeEach(() => {
   _resetSessionTakeover()
 })
 
+afterEach(() => vi.useRealTimers())
+
 describe('fireProgressSave with a refused save', () => {
   it('shows a mapped per-answer refusal inline without blocking the quiz', async () => {
     mockSaveAnswer.mockResolvedValue({ success: false, error: BAD_ANSWER })
@@ -54,11 +56,13 @@ describe('fireProgressSave with a refused save', () => {
     vi.useFakeTimers()
     vi.spyOn(console, 'warn').mockImplementation(() => {})
     mockSaveAnswer.mockResolvedValue({ success: false, error: 'Could not save progress' })
-    fireProgressSave({ kind: 'answer', sessionId: 's', input: {}, ...handlers() })
+    const h = handlers()
+    const pending = fireProgressSave({ kind: 'answer', sessionId: 's', input: {}, ...h })
     await vi.advanceTimersByTimeAsync(6000)
     expect(getConnectionStatus()).toBe('save-failed')
     skipRefusedSave()
-    vi.useRealTimers()
+    await expect(pending).resolves.toBe('rejected')
+    expect(h.onMappedError).not.toHaveBeenCalled()
   })
 
   it('resends the answer when the student chooses Try again', async () => {

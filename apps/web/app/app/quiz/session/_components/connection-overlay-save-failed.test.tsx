@@ -99,7 +99,6 @@ describe('ConnectionOverlay mounted while an earlier page left a refused save op
     expect(hold.skipped).toBe(true)
     expect(screen.queryByText('Your answer was not saved')).not.toBeInTheDocument()
     expect(getConnectionStatus()).toBe('ok')
-    expect(getConnectionStatus()).not.toBe('saved')
     expect(getConnectionSnapshot().pending).toBe(0)
   })
 
