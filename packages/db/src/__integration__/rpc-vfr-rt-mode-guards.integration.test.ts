@@ -6,7 +6,7 @@
  * get_question_authoring_fields covers:
  *   - admin gets the four answer-key columns
  *   - student caller is rejected
- *   - cross-org admin is rejected
+ *   - cross-org admin gets zero rows
  *
  * Shared beforeAll seeds: RT subject (mig 097), 8 SA + 9 DF + 8 MC questions,
  * exam_configs row. Each it() that modifies state starts its own session so

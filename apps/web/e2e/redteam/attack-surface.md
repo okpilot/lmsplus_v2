@@ -198,8 +198,8 @@
 | FW | gotrue-direct-auth-api-enumeration | MEDIUM | gotrue-direct-enumeration.spec.ts | GAP | #1389 | enumeration |
 | FX | ordering-item-id-not-derived-from-text | HIGH | ordering-item-derived-ids.spec.ts | BLOCKED |  | answer-oracle |
 | FY | get_vfr_rt_exam_questions-part3-ordering-diagram-key-strip | HIGH | rpc-vfr-rt-part3-integrity.spec.ts | BLOCKED |  | answer-oracle |
-| FZ | finish_quiz_session-vfr-rt-ordering-forged-progress | HIGH | rpc-finish-vfr-rt-forged-progress.spec.ts | BLOCKED |  | input-injection |
-| GA | finish_quiz_session-vfr-rt-diagram-forged-progress | HIGH | rpc-finish-vfr-rt-forged-progress.spec.ts | BLOCKED |  | input-injection |
+| FZ | submit_vfr_rt_exam_answers-ordering-forged-permutation | HIGH | rpc-finish-vfr-rt-forged-progress.spec.ts | BLOCKED |  | input-injection |
+| GA | submit_vfr_rt_exam_answers-diagram-forged-placement | HIGH | rpc-finish-vfr-rt-forged-progress.spec.ts | BLOCKED |  | input-injection |
 | GB | loadVfrRtExamQuestions-foreign-session-replay | HIGH | server-action-vfr-rt-exam-questions.spec.ts | BLOCKED |  | idor |
 | GC | loadVfrRtExamQuestions-mid-exam-key-strip | HIGH | server-action-vfr-rt-exam-questions.spec.ts | BLOCKED |  | answer-oracle |
 | GD | get_daily_subjects-same-org-instructor-admin-self-scope | HIGH | rpc-daily-subjects-scope.spec.ts | BLOCKED |  | rls-bypass |
