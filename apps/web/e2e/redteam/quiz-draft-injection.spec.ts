@@ -12,6 +12,10 @@
  * holding real question IDs from the victim's org is rejected at the session-start
  * boundary, not merely at draft-save time.
  *
+ * Since mig 20261004000500 (#1463) students hold no INSERT/UPDATE grant on
+ * quiz_drafts: drafts are seeded through the service-role client here, and a
+ * student's direct write is refused at the privilege layer (42501).
+ *
  * Status: Expected to PASS (defenses should hold).
  * If any assertion fails, it indicates a cross-org question injection gap.
  */
@@ -140,8 +144,8 @@ test.describe('Red Team: Quiz Draft Question Injection', () => {
       answers: {},
     })
 
-    // RLS must reject: student_id in the row must match auth.uid()
-    expect(error).not.toBeNull()
+    // Privilege layer: authenticated holds no INSERT on quiz_drafts (mig 20261004000500)
+    expect(error?.code).toBe('42501')
   })
 
   test("attacker cannot read another student's quiz drafts", async () => {
@@ -185,12 +189,13 @@ test.describe('Red Team: Quiz Draft Question Injection', () => {
     const victimDraftId = seeded?.id
     expect(victimDraftId).toBeTruthy()
 
-    await attackerClient
+    const { error: updateError } = await attackerClient
       .from('quiz_drafts')
       .update({ question_ids: foreignQuestionIds })
       .eq('id', victimDraftId)
 
-    // RLS silently filters zero-row UPDATEs (error is null).
+    // Privilege layer: authenticated holds no UPDATE on quiz_drafts (mig 20261004000500).
+    expect(updateError?.code).toBe('42501')
     // Verify the victim's draft was NOT modified.
     const { data: afterUpdate } = await adminClient
       .from('quiz_drafts')
@@ -203,7 +208,7 @@ test.describe('Red Team: Quiz Draft Question Injection', () => {
   })
 
   test('advisory lock serializes concurrent draft inserts so the 20-draft cap cannot be exceeded (Vector BI — draft-limit TOCTOU)', async () => {
-    // Vector BI: a student fires N concurrent INSERT requests hoping the
+    // Vector BI: N concurrent INSERT requests (service role since #1463) hoping the
     // read-then-write gap lets multiple inserts slip through the trigger's
     // count >= 20 guard simultaneously.
     //
@@ -256,10 +261,26 @@ test.describe('Red Team: Quiz Draft Question Injection', () => {
       'pre-burst: victim must have exactly 19 active drafts for the TOCTOU test to be non-vacuous',
     ).toBe(19)
 
-    // --- Step 2: Fire 5 concurrent inserts via the victim's authenticated client ---
+    // --- Step 2: a student insert is refused at the privilege layer, count unchanged ---
+    // (#1463: students hold no INSERT grant; the trigger is reachable via service role only.)
+    const { error: victimInsertError } = await victimClient.from('quiz_drafts').insert({
+      student_id: victimUserId,
+      organization_id: orgId,
+      question_ids: [] as string[],
+      answers: {} as Record<string, never>,
+    })
+    expect(victimInsertError?.code, 'student draft insert must be refused (42501)').toBe('42501')
+    const { data: afterRefusedRows, error: afterRefusedError } = await adminClient
+      .from('quiz_drafts')
+      .select('id')
+      .eq('student_id', victimUserId)
+    expect(afterRefusedError).toBeNull()
+    expect(afterRefusedRows?.length, 'refused insert must leave the 19 seeded drafts').toBe(19)
+
+    // --- Step 2b: fire 5 concurrent service-role inserts for the victim ---
     const burstResults = await Promise.allSettled(
       Array.from({ length: 5 }, () =>
-        victimClient.from('quiz_drafts').insert({
+        adminClient.from('quiz_drafts').insert({
           student_id: victimUserId,
           organization_id: orgId,
           question_ids: [] as string[],
