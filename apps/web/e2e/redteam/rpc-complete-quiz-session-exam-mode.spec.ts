@@ -1,9 +1,9 @@
 /**
  * Red Team: complete_quiz_session on an exam-mode session (Vector HU).
  *
- * complete_quiz_session (mig 20260610001400) whitelists mock_exam and internal_exam. It
- * ends the session without grading quiz_session_progress, without the saved / device /
- * deadline checks finish_quiz_session runs, leaves `passed` NULL and writes
+ * Before mig 20261004000700, complete_quiz_session accepted mock_exam and internal_exam: it
+ * ended the session without grading quiz_session_progress, without the saved / device /
+ * deadline checks finish_quiz_session runs, left `passed` NULL and wrote
  * `quiz_session.completed` instead of an exam.* / internal_exam.* event.
  *
  * Expected: an exam session is refused (`unsupported_session_mode`) and stays open.
