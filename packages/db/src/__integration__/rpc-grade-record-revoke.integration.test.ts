@@ -11,17 +11,16 @@ import {
   getAuthenticatedClient,
 } from './setup'
 
-// The _grade_record_* helpers (mc, short_answer, dialog_fill, ordering, diagram_label) are
-// internal per-answer grade+record helpers — REVOKE EXECUTE ... FROM PUBLIC, anon,
-// authenticated (`CREATE FUNCTION` grants EXECUTE to PUBLIC by default AND Supabase
-// separately grants anon/authenticated via ALTER DEFAULT PRIVILEGES, so REVOKE FROM PUBLIC
-// alone is insufficient — every API role must be named).
+// The _grade_record_* helpers (mc, short_answer, dialog_fill, ordering, diagram_label) and the
+// session-level helpers (_grade_session_progress, _score_graded_session) are internal helpers —
+// REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated (`CREATE FUNCTION` grants EXECUTE to
+// PUBLIC by default AND Supabase separately grants anon/authenticated via ALTER DEFAULT
+// PRIVILEGES, so REVOKE FROM PUBLIC alone is insufficient — every API role must be named).
 // The helpers trust their p_student_id/p_session_id/p_org_id args with no auth.uid() check
-// of their own — their callers (_grade_session_progress via finish_quiz_session and
-// complete_overdue_exam_session; batch_submit_quiz; submit_vfr_rt_exam_answers) own the
-// authorization. This REVOKE only takes
-// effect at EXECUTION via PostgREST — a `db reset` proves only that the REVOKE statement
-// parsed, not that the grant table was actually updated.
+// of their own — their callers own the authorization. Derive them:
+// `grep -ln '_grade_record_\|_grade_session_progress(\|_score_graded_session(' supabase/migrations/*.sql`.
+// This REVOKE only takes effect at EXECUTION via PostgREST — a `db reset`
+// proves only that the REVOKE statement parsed, not that the grant table was actually updated.
 
 const DUMMY_ID = '00000000-0000-0000-0000-000000000000'
 const ORDERING_ITEMS = [orderingItem('MAYDAY MAYDAY MAYDAY'), orderingItem('callsign Golf Bravo')]
@@ -100,6 +99,24 @@ const HELPERS: Array<{ fn: string; args: (ids: Ids) => Record<string, unknown> }
       p_response_time: 0,
     }),
   },
+  {
+    fn: '_grade_session_progress',
+    args: ({ studentId, orgId }) => ({
+      p_session_id: DUMMY_ID,
+      p_student_id: studentId,
+      p_org_id: orgId,
+      p_mode: 'mock_exam',
+    }),
+  },
+  {
+    fn: '_score_graded_session',
+    args: () => ({
+      p_session_id: DUMMY_ID,
+      p_mode: 'mock_exam',
+      p_config: {},
+      p_total: 1,
+    }),
+  },
 ]
 
 function isDenied(error: { code?: string; message?: string } | null): boolean {
@@ -113,7 +130,7 @@ function isDenied(error: { code?: string; message?: string } | null): boolean {
   )
 }
 
-describe('RPC: _grade_record_* helpers — REVOKE FROM PUBLIC/anon/authenticated', () => {
+describe('RPC: internal grading and scoring helpers — REVOKE FROM PUBLIC/anon/authenticated', () => {
   const admin = getAdminClient()
   let orgId = ''
   let studentId = ''
@@ -177,6 +194,20 @@ describe('RPC: _grade_record_* helpers — REVOKE FROM PUBLIC/anon/authenticated
       const { error } = await getAnonClient().rpc(fn, payload)
       expect(error, `${fn} must be uncallable by anon`).not.toBeNull()
       expect(isDenied(error), `anon ${fn} error was ${error?.code}: ${error?.message}`).toBe(true)
+    },
+  )
+
+  // SECURITY INVOKER: with EXECUTE granted its body still fails 42501 on a revoked questions
+  // column, so isDenied() passes either way — only the message names the EXECUTE denial.
+  it.each(['authenticated', 'anon'] as const)(
+    'prevents a %s caller from executing _vfr_rt_exam_part_scores directly',
+    async (role) => {
+      const payload = { p_session_id: DUMMY_ID, p_config: {} }
+      await expectHelperSignatureResolves('_vfr_rt_exam_part_scores', payload)
+      const client = role === 'anon' ? getAnonClient() : studentClient
+      const { error } = await client.rpc('_vfr_rt_exam_part_scores', payload)
+      expect(error?.code).toBe('42501')
+      expect(error?.message).toMatch(/permission denied for function _vfr_rt_exam_part_scores/)
     },
   )
 })

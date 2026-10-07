@@ -277,6 +277,37 @@ describe('RPC: finish_quiz_session — grades the saved answers', () => {
           },
         }),
       ],
+      [
+        'an ordering whose second item is unknown after a valid first',
+        () => ({
+          questionId: f.orderingId,
+          answer: { order: [RIGHT.ordering.order[0], 'unknown-item'] },
+        }),
+      ],
+      [
+        'a dialog with one valid blank and one the question does not have',
+        () => ({
+          questionId: f.dialogId,
+          answer: {
+            blanks: [
+              { blank_index: 0, response_text: 'cleared' },
+              { blank_index: 7, response_text: 'cleared' },
+            ],
+          },
+        }),
+      ],
+      [
+        'a diagram with one valid zone and one the question does not have',
+        () => ({
+          questionId: diagram2Id,
+          answer: {
+            mapping: [
+              { zone_id: 'zn-a', label_id: 'lb-a' },
+              { zone_id: 'zone-9', label_id: 'lb-b' },
+            ],
+          },
+        }),
+      ],
     ]
 
     it.each(cases)('is graded as unanswered, not an error: %s', async (_title, build) => {
