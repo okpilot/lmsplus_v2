@@ -3216,7 +3216,7 @@ If profile editing is needed in the future, use a `SECURITY DEFINER` RPC that ac
 
 | Trigger | Table | Purpose |
 |---------|-------|---------|
-| `trg_enforce_draft_limit` | `quiz_drafts` | DB-enforced max drafts per student; fires only for service-role inserts since #1463 (migration 021; `SET search_path = public` added in `20260430000007` — closes #588; `20260430000011` adds `pg_advisory_xact_lock(hashtext(NEW.student_id::text))` to serialize the 20-draft cap check under concurrency — PR #599 CR root-cause fix) |
+| `check_draft_limit` | `quiz_drafts` | DB-enforced max drafts per student; fires only for service-role inserts since #1463 (migration 021; `SET search_path = public` added in `20260430000007` — closes #588; `20260430000011` adds `pg_advisory_xact_lock(hashtext(NEW.student_id::text))` to serialize the 20-draft cap check under concurrency — PR #599 CR root-cause fix) |
 | `trg_protect_users_sensitive_columns` | `users` | Blocks role/org/deleted_at changes (20260316000041) |
 | `trg_block_exam_config_reactivation` | `exam_configs` | Blocks `UPDATE SET deleted_at = NULL` (unconditional — no role exemption); enforces that reactivation goes through `upsert_exam_config`, whose UPDATE branch never writes `deleted_at` (mig 089, #755) |
 | `trg_sanitize_question_options` | `questions` | BEFORE INSERT OR UPDATE OF `options`: strips any `correct` key from the options JSONB, rebuilding the array as `{id,text}` only. Defense-in-depth: guarantees the MC answer key never re-enters the readable JSONB (it lives in `correct_option_id` column, mig 111, #823). Fires on every write, including raw PostgREST updates that bypass the app-layer Zod contract. |
