@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mapProgressRpcError } from '../../actions/progress-error-messages'
-import { _resetConnectionState, getConnectionStatus } from './connection-state'
+import { _resetConnectionState, getConnectionStatus, setConnectionStatus } from './connection-state'
 import {
   _resetRefusedSave,
   isTransientRefusal,
@@ -129,14 +129,31 @@ describe('refusedAnswerHold', () => {
     expect(holdB.skipped).toBe(false)
   })
 
-  it('clears the block and resends when the student chooses Try again', async () => {
+  it('shows Still saving while resending after the student chooses Try again', async () => {
     const hold = refusedAnswerHold()
     await exhaustRetries(hold)
     const pending = hold(value(refusal('x')))
     await vi.advanceTimersByTimeAsync(0)
     retryRefusedSave()
     await expect(pending).resolves.toBe('retry')
+    expect(getConnectionStatus()).toBe('slow')
+  })
+
+  it('replaces a stale offline banner with Still saving while an automatic resend waits', async () => {
+    setConnectionStatus('offline')
+    const pending = refusedAnswerHold()({ kind: 'thrown' })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(getConnectionStatus()).toBe('slow')
+    await vi.advanceTimersByTimeAsync(2000)
+    await expect(pending).resolves.toBe('retry')
+  })
+
+  it('leaves a clear status alone while an automatic resend waits', async () => {
+    const pending = refusedAnswerHold()({ kind: 'thrown' })
+    await vi.advanceTimersByTimeAsync(0)
     expect(getConnectionStatus()).toBe('ok')
+    await vi.advanceTimersByTimeAsync(2000)
+    await pending
   })
 
   it('clears the block and ends the job when the student chooses Continue without it', async () => {

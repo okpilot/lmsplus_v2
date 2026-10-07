@@ -48,12 +48,13 @@ describe('ConnectionOverlay with a refused answer save', () => {
     expect(screen.queryByRole('button', { name: 'Reload page' })).not.toBeInTheDocument()
   })
 
-  it('resends the save when the student presses Try again', async () => {
+  it('shows Still saving while the save is resent after the student presses Try again', async () => {
     render(<ConnectionOverlay />)
     const { pending } = await holdAnswer()
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
     await expect(pending).resolves.toBe('retry')
-    expect(getConnectionStatus()).toBe('ok')
+    expect(getConnectionStatus()).toBe('slow')
+    expect(await screen.findByText(/Still saving/)).toBeInTheDocument()
   })
 
   it('leaves the answer unsaved when the student presses Continue without it', async () => {

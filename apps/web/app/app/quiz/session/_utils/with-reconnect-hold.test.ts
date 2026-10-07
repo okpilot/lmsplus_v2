@@ -16,7 +16,9 @@ import {
   getConnectionSnapshot,
   getConnectionStatus,
   setConnectionStatus,
+  subscribeConnection,
 } from './connection-state'
+import { _resetRefusedSave, refusedAnswerHold } from './refused-save'
 import { BACKOFF_MS } from './retry-wait'
 import {
   _resetWithReconnect,
@@ -29,6 +31,13 @@ const OK = { success: true as const }
 const REFUSED = {
   success: false as const,
   error: 'This answer could not be saved. Please review it and try again.',
+}
+const UNMAPPED = { success: false as const, error: 'Could not save progress' }
+
+function statusHistory() {
+  const seen: string[] = []
+  subscribeConnection(() => seen.push(getConnectionStatus()))
+  return seen
 }
 
 function holdControl() {
@@ -48,6 +57,7 @@ beforeEach(() => {
   mockClassify.mockResolvedValue('server')
   _resetConnectionState()
   _resetWithReconnect()
+  _resetRefusedSave()
 })
 
 afterEach(() => {
@@ -172,5 +182,48 @@ describe('withReconnect hold', () => {
     await vi.advanceTimersByTimeAsync(0)
     expect(getConnectionStatus()).toBe('save-failed')
     settleRequest(REFUSED)
+  })
+
+  it('shows Still saving while a held save resends after an offline spell, then confirms the save', async () => {
+    mockClassify.mockResolvedValue('offline')
+    const fn = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('fetch failed'))
+      .mockResolvedValueOnce(UNMAPPED)
+      .mockResolvedValue(OK)
+    const result = withReconnect(fn, refusedAnswerHold())
+    await vi.advanceTimersByTimeAsync(0)
+    expect(getConnectionStatus()).toBe('offline')
+    await vi.advanceTimersByTimeAsync(BACKOFF_MS[0] ?? 0)
+    expect(getConnectionStatus()).toBe('slow')
+    await vi.advanceTimersByTimeAsync(2000)
+    await expect(result).resolves.toBe(OK)
+    expect(getConnectionStatus()).toBe('saved')
+  })
+
+  it('does not confirm a batch whose earlier save failed when a held resend drops offline again', async () => {
+    mockClassify.mockResolvedValue('offline')
+    const seen = statusHistory()
+    const first = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('fetch failed'))
+      .mockResolvedValue(REFUSED)
+    const second = vi
+      .fn()
+      .mockResolvedValueOnce(UNMAPPED)
+      .mockRejectedValueOnce(new TypeError('fetch failed'))
+      .mockResolvedValue(OK)
+    const firstResult = withReconnect(first)
+    const secondResult = withReconnect(second, refusedAnswerHold())
+    await vi.advanceTimersByTimeAsync(BACKOFF_MS[0] ?? 0)
+    await expect(firstResult).resolves.toBe(REFUSED)
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(getConnectionStatus()).toBe('offline')
+    await vi.advanceTimersByTimeAsync(BACKOFF_MS[0] ?? 0)
+    await expect(secondResult).resolves.toBe(OK)
+    expect(second).toHaveBeenCalledTimes(3)
+    expect(seen).toContain('slow')
+    expect(seen).not.toContain('saved')
+    expect(getConnectionStatus()).toBe('ok')
   })
 })

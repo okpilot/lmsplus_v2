@@ -1,5 +1,5 @@
 import { INVALID_INPUT, isDisplayableProgressError } from '../../actions/progress-error-messages'
-import { setConnectionStatus } from './connection-state'
+import { getConnectionStatus, setConnectionStatus } from './connection-state'
 import type { Hold } from './hold-types'
 
 type Verdict = 'retry' | 'done'
@@ -23,7 +23,7 @@ function chosen(): Promise<Verdict> {
   return new Promise((resolve) => {
     choose = (verdict) => {
       choose = null
-      setConnectionStatus('ok')
+      setConnectionStatus(verdict === 'retry' ? 'slow' : 'ok')
       resolve(verdict)
     }
   })
@@ -34,7 +34,7 @@ export function retryRefusedSave() {
   choose?.('retry')
 }
 
-/** The student pressed Continue without it: the held save is dropped. */
+/** The student pressed Continue without it: the held save is not sent again. */
 export function skipRefusedSave() {
   choose?.('done')
 }
@@ -62,6 +62,7 @@ export function refusedAnswerHold(): AnswerHold {
         return verdict
       }
       retries += 1
+      if (getConnectionStatus() === 'offline') setConnectionStatus('slow')
       await new Promise((resolve) => setTimeout(resolve, delay))
       return 'retry'
     },
