@@ -106,7 +106,8 @@ jobs:
           fi
 
       # Fails if anon holds ANY table privilege, or authenticated's INSERT/UPDATE/DELETE
-      # set diverges (either direction) from the mig 20260925000300 kept allowlist, or
+      # set diverges (either direction) from the mig 20260925000300 kept allowlist (narrowed by
+      # 20261002000900 and 20261004000500), or
       # authenticated holds TRUNCATE/REFERENCES/TRIGGER/MAINTAIN, on any public relation
       # or postgres default privilege, or anon holds EXECUTE on any public function
       # (mig 20260925000400, any owner).
@@ -123,7 +124,7 @@ jobs:
                 ('exam_config_distributions','INSERT'), ('exam_config_distributions','DELETE'),
                 ('flagged_questions','INSERT'), ('flagged_questions','UPDATE'),
                 ('fsrs_cards','INSERT'), ('fsrs_cards','UPDATE'), ('fsrs_cards','DELETE'),
-                ('quiz_drafts','INSERT'), ('quiz_drafts','UPDATE'), ('quiz_drafts','DELETE'),
+                ('quiz_drafts','DELETE'),
                 ('question_comments','INSERT'), ('question_comments','DELETE'),
                 ('questions','INSERT'), ('questions','UPDATE'),
                 ('quiz_sessions','UPDATE'),
