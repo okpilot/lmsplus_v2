@@ -17,6 +17,25 @@ function fontWrapperUnder(parent: Node, node: Node): Node | null {
   return null
 }
 
+/** True when `node` is the first child at every <font> layer between it and `parent`. */
+function leadsFontChain(parent: Node, node: Node): boolean {
+  for (let n: Node | null = node; n && n.parentNode !== parent; n = n.parentNode) {
+    if (n.previousSibling) return false
+  }
+  return true
+}
+
+/** Removes `child` from its <font> layer, then every layer left empty, up to `parent`. */
+function removeFromFontChain(parent: Node, child: Node, removeChild: Node['removeChild']) {
+  let layer: Node | null = child.parentNode
+  if (layer) removeChild.call(layer, child)
+  while (layer && layer !== parent && isFont(layer) && !layer.firstChild) {
+    const next: Node | null = layer.parentNode
+    if (next) removeChild.call(next, layer)
+    layer = next
+  }
+}
+
 function isDetachedText(node: Node): boolean {
   return node.parentNode === null && node.nodeType === Node.TEXT_NODE
 }
@@ -38,10 +57,9 @@ function guardRemove(removeChild: Node['removeChild'], report: Report) {
       report('remove')
       return child
     }
-    const wrapper = fontWrapperUnder(this, child)
-    if (!wrapper) return removeChild.apply(this, args) as T
+    if (!fontWrapperUnder(this, child)) return removeChild.apply(this, args) as T
     report('remove')
-    removeChild.call(this, wrapper)
+    removeFromFontChain(this, child, removeChild)
     return child
   }
 }
@@ -57,6 +75,8 @@ function guardInsert(insertBefore: Node['insertBefore'], report: Report) {
     const anchor = detached ? null : fontWrapperUnder(this, ref)
     if (!anchor && !detached) return insertBefore.apply(this, args) as T
     report('insert')
+    if (anchor && !leadsFontChain(this, ref))
+      return insertBefore.call(ref.parentNode, node, ref) as T
     return insertBefore.call(this, node, anchor) as T
   }
 }
@@ -64,7 +84,8 @@ function guardInsert(insertBefore: Node['insertBefore'], report: Report) {
 /**
  * Browser translators wrap React-owned text nodes in <font><font>, or replace them, so React's later
  * removeChild/insertBefore hits a node that is no longer where it left it and throws.
- * Tolerated: a node wrapped only in <font> layers (the wrapper is removed / inserted before), and a
+ * Tolerated: a node wrapped only in <font> layers (removal drops it and any layer left empty; an
+ * insert goes before the wrapper, or inside it when the node is not first there), and a
  * detached text node (removal is a no-op and leaves the translated text; an insert appends).
  * Every other mismatch throws natively. `onFallback` hears about each tolerated kind once per install.
  */

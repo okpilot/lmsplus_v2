@@ -62,6 +62,32 @@ describe('translator DOM guard', () => {
     expect(onFallback).not.toHaveBeenCalled()
   })
 
+  it('keeps the other text when React removes one of several nodes the translator wrapped together', () => {
+    const p = document.createElement('p')
+    const a = document.createTextNode('Hello ')
+    const b = document.createTextNode('Sasha')
+    const wrapper = document.createElement('font')
+    p.appendChild(wrapper)
+    wrapper.append(a, b)
+
+    p.removeChild(a)
+    expect(p.textContent).toBe('Sasha')
+    expect(() => p.removeChild(b)).not.toThrow()
+    expect(p.childNodes).toHaveLength(0)
+  })
+
+  it('keeps text order when inserting before a later node in a shared translator wrapper', () => {
+    const p = document.createElement('p')
+    const a = document.createTextNode('Hello ')
+    const b = document.createTextNode('Sasha')
+    const wrapper = document.createElement('font')
+    p.appendChild(wrapper)
+    wrapper.append(a, b)
+
+    p.insertBefore(document.createTextNode('dear '), b)
+    expect(p.textContent).toBe('Hello dear Sasha')
+  })
+
   it('inserts before the translator wrapper when the reference node was wrapped', () => {
     const root = document.createElement('div')
     const label = document.createElement('span')
