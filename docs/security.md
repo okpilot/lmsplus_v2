@@ -710,6 +710,9 @@ CREATE POLICY "audit_read_instructors" ON audit_events
 | `user.created` | Admin creates a new student account (via `createStudent` Server Action, recorded by `record_auth_event()` RPC) |
 | `user.login_instructions_sent` | Admin sends/resends login instructions (temp password) to a student or instructor (via `record_login_instructions_sent()` RPC, migration `20260925000100`) |
 | `quiz_session.started` | Student begins any quiz mode |
+| `quiz_session.saved` | Student parks an open practice quiz (`save_quiz_for_later`; none on an idempotent re-save) |
+| `quiz_session.resumed` | Student resumes a saved quiz or re-opens their own open practice quiz (`resume_saved_quiz`; metadata `already_active`) |
+| `quiz_session.saved_discarded` | Student discards a saved quiz (`discard_saved_quiz`) |
 | `quiz_session.batch_submitted` | Student finishes a practice session via `finish_quiz_session` (score recorded) |
 | `exam.started` | Mock exam begins |
 | `exam.completed` | Mock exam ends (score + pass/fail recorded) |

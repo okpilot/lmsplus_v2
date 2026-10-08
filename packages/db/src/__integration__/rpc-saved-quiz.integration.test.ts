@@ -175,6 +175,73 @@ describe('RPC: save a quiz for later on the same session id', () => {
     expect((await state(saved)).active_device_id).toBe(DEVICE_A)
   })
 
+  it('reopens an already-open quiz again and again for the same device', async () => {
+    const saved = await savedQuiz()
+    expect((await resume(f.student, saved, DEVICE_B)).error).toBeNull()
+    expect((await state(saved)).deleted_at).toBeNull()
+
+    expect((await resume(f.student, saved, DEVICE_B)).error).toBeNull()
+    expect(await state(saved)).toMatchObject({
+      deleted_at: null,
+      saved_at: null,
+      ended_at: null,
+      active_device_id: DEVICE_B,
+    })
+    expect(await progressRows(f, saved)).toHaveLength(1)
+  })
+
+  it('hands an already-open quiz to the resuming device and shuts out the previous one', async () => {
+    const saved = await savedQuiz()
+    expect((await resume(f.student, saved, DEVICE_A)).error).toBeNull()
+    expect((await state(saved)).active_device_id).toBe(DEVICE_A)
+
+    expect((await resume(f.student, saved, DEVICE_B)).error).toBeNull()
+    expect((await state(saved)).active_device_id).toBe(DEVICE_B)
+    expect((await answer(saved, DEVICE_A)).error?.message).toBe('session_taken_over')
+    expect((await answer(saved, DEVICE_B)).error).toBeNull()
+  })
+
+  it('reopens an open quiz that was never saved and claims the device', async () => {
+    const open = await startPractice(f, 'quick_quiz', f.mcIds.slice(0, 2))
+    const before = await state(open)
+    expect(before).toMatchObject({ deleted_at: null, saved_at: null, ended_at: null })
+
+    expect((await resume(f.student, open, DEVICE_B)).error).toBeNull()
+    expect(await state(open)).toMatchObject({
+      deleted_at: null,
+      saved_at: null,
+      ended_at: null,
+      active_device_id: DEVICE_B,
+    })
+  })
+
+  it('refuses to resume an open discovery session and leaves it open', async () => {
+    const discovery = await insertSession({
+      f,
+      mode: 'discovery',
+      questionIds: f.mcIds.slice(0, 2),
+    })
+    const before = await state(discovery)
+    expect(before.deleted_at).toBeNull()
+
+    expect((await resume(f.student, discovery, DEVICE_B)).error?.message).toBe('session_not_saved')
+    expect(await state(discovery)).toEqual(before)
+  })
+
+  it('refuses to resume an ended quiz and leaves it ended', async () => {
+    const id = await startPractice(f, 'quick_quiz', f.mcIds.slice(0, 2))
+    const { error: endError } = await f.admin
+      .from('quiz_sessions')
+      .update({ ended_at: new Date().toISOString() })
+      .eq('id', id)
+    expect(endError).toBeNull()
+    const before = await state(id)
+    expect(before.ended_at).not.toBeNull()
+
+    expect((await resume(f.student, id, DEVICE_B)).error?.message).toBe('session_not_saved')
+    expect(await state(id)).toEqual(before)
+  })
+
   it('clears an abandoned discovery session so it never blocks a resume', async () => {
     const saved = await savedQuiz()
     const discovery = await insertSession({
