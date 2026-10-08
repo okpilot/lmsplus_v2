@@ -5,6 +5,8 @@ const RELEASE_TIMEOUT_MS = 500
 
 /** The armed sentinel's listener teardown; null while no guard is armed. One runner exists at a time. */
 let armed: { remove: () => void } | null = null
+/** Set by an effect cleanup, cleared by the next arm: StrictMode's immediate re-arm keeps the record. */
+let clearPending = false
 
 /**
  * Pops the sentinel entry so a following `router.replace` leaves no dead entry behind. Resolves on
@@ -40,6 +42,7 @@ export function useBackGuard(active: boolean, onAttempt: () => void) {
   // Subscriptions only — no data fetching
   useEffect(() => {
     if (!active) return
+    clearPending = false
     const push = () => window.history.pushState(window.history.state, '')
     const armedPath = window.location.pathname
     const onPop = () => {
@@ -58,7 +61,10 @@ export function useBackGuard(active: boolean, onAttempt: () => void) {
     armed = mine
     return () => {
       mine.remove()
-      clearSentinelRecord()
+      clearPending = true
+      queueMicrotask(() => {
+        if (clearPending) clearSentinelRecord()
+      })
       if (armed === mine) armed = null
     }
   }, [active])

@@ -1,5 +1,5 @@
 import { renderHook } from '@testing-library/react'
-import { act } from 'react'
+import { act, StrictMode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { releaseBackGuard, useBackGuard } from './use-back-guard'
 
@@ -148,8 +148,15 @@ describe('sentinel idempotence across mounts', () => {
     expect(push).toHaveBeenCalledTimes(1)
   })
 
-  it('pushes a fresh sentinel when re-armed after the guard was unmounted', () => {
+  it('pushes one sentinel under StrictMode, whose simulated unmount re-arms at once', () => {
+    const push = vi.spyOn(window.history, 'pushState')
+    renderHook(() => useBackGuard(true, vi.fn()), { wrapper: StrictMode })
+    expect(push).toHaveBeenCalledTimes(1)
+  })
+
+  it('pushes a fresh sentinel when re-armed after the guard was unmounted', async () => {
     renderHook(() => useBackGuard(true, vi.fn())).unmount()
+    await Promise.resolve()
     const push = vi.spyOn(window.history, 'pushState')
     renderHook(() => useBackGuard(true, vi.fn()))
     expect(push).toHaveBeenCalledTimes(1)
