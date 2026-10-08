@@ -45,8 +45,8 @@ describe('translator DOM guard', () => {
 
   it('reports each kind of tolerated DOM mismatch once', () => {
     const one = document.createElement('div')
-    one.removeChild(document.createElement('span'))
-    one.removeChild(document.createElement('span'))
+    one.removeChild(document.createTextNode('gone'))
+    one.removeChild(document.createTextNode('gone'))
     one.insertBefore(document.createElement('i'), document.createTextNode('stray'))
     one.insertBefore(document.createElement('i'), document.createTextNode('stray'))
 
@@ -103,15 +103,71 @@ describe('translator DOM guard', () => {
     expect(Array.from(root.children)).toEqual([a, b, c])
   })
 
-  it('ignores removal of a node that belongs to an unrelated tree', () => {
+  it('still throws when removing a node that belongs to an unrelated tree', () => {
     const one = document.createElement('div')
     const two = document.createElement('div')
     const child = document.createElement('span')
     two.appendChild(child)
 
-    expect(() => one.removeChild(child)).not.toThrow()
-    expect(one.childNodes).toHaveLength(0)
+    expect(() => one.removeChild(child)).toThrow(/not a child/i)
     expect(two.firstChild).toBe(child)
+    expect(onFallback).not.toHaveBeenCalled()
+  })
+
+  it('still throws when removing a descendant nested inside an ordinary element', () => {
+    const root = document.createElement('div')
+    const section = document.createElement('section')
+    const deep = document.createElement('p')
+    section.appendChild(deep)
+    root.appendChild(section)
+
+    expect(() => root.removeChild(deep)).toThrow(/not a child/i)
+    expect(root.firstChild).toBe(section)
+    expect(section.firstChild).toBe(deep)
+  })
+
+  it('still throws when inserting before a descendant nested inside an ordinary element', () => {
+    const root = document.createElement('div')
+    const section = document.createElement('section')
+    const deep = document.createElement('p')
+    section.appendChild(deep)
+    root.appendChild(section)
+
+    expect(() => root.insertBefore(document.createElement('i'), deep)).toThrow()
+    expect(Array.from(root.childNodes)).toEqual([section])
+  })
+
+  it('still throws when the chain mixes a translator font with an ordinary element', () => {
+    const root = document.createElement('div')
+    const font = document.createElement('font')
+    const div = document.createElement('div')
+    const text = document.createTextNode('Hi')
+    div.appendChild(text)
+    font.appendChild(div)
+    root.appendChild(font)
+
+    expect(() => root.removeChild(text)).toThrow(/not a child/i)
+    expect(root.firstChild).toBe(font)
+  })
+
+  it('removes a double font wrapper and inserts before it', () => {
+    const { root, p, textNode } = paragraph('Hello')
+    const outer = document.createElement('font')
+    const inner = document.createElement('font')
+    p.replaceChild(outer, textNode)
+    outer.appendChild(inner)
+    inner.appendChild(textNode)
+    const icon = document.createElement('i')
+
+    p.insertBefore(icon, textNode)
+    expect(Array.from(p.childNodes)).toEqual([icon, outer])
+    p.removeChild(textNode)
+    expect(root.querySelectorAll('font')).toHaveLength(0)
+  })
+
+  it('still throws when removing a detached element', () => {
+    const one = document.createElement('div')
+    expect(() => one.removeChild(document.createElement('span'))).toThrow(/not a child/i)
   })
 
   it('restores the original DOM methods on uninstall', () => {
