@@ -1,8 +1,8 @@
 'use client'
 
 import type { QuizPendingAction } from '../../session/_hooks/use-quiz-submit'
-import { ConfirmPanel } from './confirm-panel'
-import { ExpiredNotice } from './expired-notice'
+import { DiscardConfirm, SubmitConfirm } from './dialog-confirms'
+import { DialogSummary, ErrorLine } from './dialog-summary'
 
 type DialogBodyProps = {
   answeredCount: number
@@ -46,49 +46,35 @@ export function DialogBody({
 }: Readonly<DialogBodyProps>) {
   return (
     <>
-      {timeExpired && isExam ? (
-        <ExpiredNotice submitting={submitting} countdown={countdown} />
-      ) : (
-        <p className="mt-3 text-sm text-muted-foreground">
-          You have answered {answeredCount} of {totalQuestions} questions.
-        </p>
-      )}
-      {pendingSelection && (
-        <p className="mt-3 text-sm font-medium text-caution">
-          You picked an answer on this question but haven't submitted it.
-        </p>
-      )}
+      <DialogSummary
+        answeredCount={answeredCount}
+        totalQuestions={totalQuestions}
+        submitting={submitting}
+        countdown={countdown}
+        isExam={isExam}
+        timeExpired={timeExpired}
+        pendingSelection={pendingSelection}
+      />
       {confirmingSubmit && unanswered > 0 && !timeExpired && (
-        <ConfirmPanel
-          message={`${unanswered} ${unanswered === 1 ? 'question is' : 'questions are'} unanswered${isExam ? ' and will be marked wrong.' : ' and will be skipped.'}`}
-          confirmLabel={pendingAction === 'submit' ? 'Submitting...' : 'Submit anyway'}
-          onConfirm={onSubmit}
-          onCancel={cancelSubmitConfirm}
+        <SubmitConfirm
+          unanswered={unanswered}
+          isExam={isExam}
           submitting={submitting}
-          busy={pendingAction === 'submit'}
-          variant="warning"
+          pendingAction={pendingAction}
+          onSubmit={onSubmit}
+          onCancel={cancelSubmitConfirm}
         />
       )}
       {confirmingDiscard && canDiscard && (
-        <ConfirmPanel
-          message={
-            isExam
-              ? "Are you sure? Your progress will be lost. This attempt won't count."
-              : 'Are you sure? Your progress will be lost.'
-          }
-          confirmLabel={pendingAction === 'discard' ? 'Discarding...' : 'Yes, discard'}
-          onConfirm={onDiscard}
-          onCancel={cancelDiscardConfirm}
+        <DiscardConfirm
+          isExam={isExam}
           submitting={submitting}
-          busy={pendingAction === 'discard'}
-          variant="destructive"
+          pendingAction={pendingAction}
+          onDiscard={onDiscard}
+          onCancel={cancelDiscardConfirm}
         />
       )}
-      {error && (
-        <p role="alert" className="mt-4 text-sm text-destructive">
-          {error}
-        </p>
-      )}
+      {error && <ErrorLine message={error} />}
     </>
   )
 }

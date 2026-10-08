@@ -19,6 +19,7 @@
 
 import { type BrowserContext, expect, type Page, test } from '@playwright/test'
 import { signInAsAdmin } from './helpers/admin-supabase'
+import { acceptBeforeUnload } from './helpers/before-unload'
 import { isServerActionPost } from './helpers/quiz-session'
 import { SESSION_ID_URL } from './helpers/quiz-session-id'
 import {
@@ -93,6 +94,8 @@ test.describe('internal exam — refresh resume', () => {
     const code = await issueCodeAsAdmin(adminPage, SUBJECT_LABEL_FRAGMENT)
 
     const { context: studentCtx, page } = await openStudentContext(adminCtx.browser())
+    // The runner arms a native leave prompt; an unhandled one cancels reload() and goto().
+    acceptBeforeUnload(page)
     try {
       await startInternalExamAsStudent(page, code)
       const sessionUrl = page.url()
@@ -126,6 +129,8 @@ test.describe('internal exam — refresh resume', () => {
     const code = await issueCodeAsAdmin(adminPage, SUBJECT_LABEL_FRAGMENT)
 
     const { context: studentCtx, page } = await openStudentContext(adminCtx.browser())
+    // The runner arms a native leave prompt; an unhandled one cancels reload() and goto().
+    acceptBeforeUnload(page)
     try {
       await startInternalExamAsStudent(page, code)
       const sessionUrl = page.url()

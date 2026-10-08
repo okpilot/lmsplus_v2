@@ -41,7 +41,10 @@ export function useBackGuard(active: boolean, onAttempt: () => void) {
   useEffect(() => {
     if (!active) return
     const push = () => window.history.pushState(window.history.state, '')
+    const armedPath = window.location.pathname
     const onPop = () => {
+      // Back already landed on another page: Next is navigating there and this runner unmounts.
+      if (window.location.pathname !== armedPath) return
       push()
       recordSentinel()
       attemptRef.current()
@@ -55,6 +58,7 @@ export function useBackGuard(active: boolean, onAttempt: () => void) {
     armed = mine
     return () => {
       mine.remove()
+      clearSentinelRecord()
       if (armed === mine) armed = null
     }
   }, [active])

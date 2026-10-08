@@ -2,7 +2,9 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   buildFinishDialogHandlers,
   deriveFinishDialogView,
+  getDiscardConfirmMessage,
   getSubmitButtonLabel,
+  getSubmitConfirmMessage,
 } from './finish-quiz-dialog-helpers'
 
 describe('deriveFinishDialogView', () => {
@@ -215,5 +217,31 @@ describe('buildFinishDialogHandlers', () => {
     const deps = makeDeps({ unanswered: 0 })
     buildFinishDialogHandlers(deps).handleSubmitClick()
     expect(deps.setConfirmingDiscard).toHaveBeenCalledWith(false)
+  })
+})
+
+describe('getSubmitConfirmMessage', () => {
+  it('says one question is unanswered and will be skipped in a quiz', () => {
+    expect(getSubmitConfirmMessage({ unanswered: 1, isExam: false })).toBe(
+      '1 question is unanswered and will be skipped.',
+    )
+  })
+
+  it('says several questions are unanswered and will be marked wrong in an exam', () => {
+    expect(getSubmitConfirmMessage({ unanswered: 3, isExam: true })).toBe(
+      '3 questions are unanswered and will be marked wrong.',
+    )
+  })
+})
+
+describe('getDiscardConfirmMessage', () => {
+  it('warns that progress will be lost in a quiz', () => {
+    expect(getDiscardConfirmMessage(false)).toBe('Are you sure? Your progress will be lost.')
+  })
+
+  it("warns the attempt won't count in an exam", () => {
+    expect(getDiscardConfirmMessage(true)).toBe(
+      "Are you sure? Your progress will be lost. This attempt won't count.",
+    )
   })
 })

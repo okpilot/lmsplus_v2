@@ -120,16 +120,18 @@ describe('releaseBackGuard', () => {
 })
 
 describe('sentinel idempotence across mounts', () => {
+  // Real reload skips effect cleanup, so the record outlives the first mount: keep it mounted.
   it('pushes no second sentinel when the guard re-arms on the entry it already pushed', () => {
     const push = vi.spyOn(window.history, 'pushState')
-    renderHook(() => useBackGuard(true, vi.fn())).unmount()
+    renderHook(() => useBackGuard(true, vi.fn()))
+    expect(window.sessionStorage.getItem('lms-back-guard')).not.toBeNull()
     renderHook(() => useBackGuard(true, vi.fn()))
     expect(push).toHaveBeenCalledTimes(1)
   })
 
   it('still reports Back after re-arming without a second push', () => {
     const onAttempt = vi.fn()
-    renderHook(() => useBackGuard(true, vi.fn())).unmount()
+    renderHook(() => useBackGuard(true, vi.fn()))
     renderHook(() => useBackGuard(true, onAttempt))
     act(() => popstate())
     expect(onAttempt).toHaveBeenCalledTimes(1)
@@ -146,16 +148,23 @@ describe('sentinel idempotence across mounts', () => {
     expect(push).toHaveBeenCalledTimes(1)
   })
 
-  it('clears the record when released with nothing armed', async () => {
+  it('pushes a fresh sentinel when re-armed after the guard was unmounted', () => {
     renderHook(() => useBackGuard(true, vi.fn())).unmount()
-    await releaseBackGuard()
     const push = vi.spyOn(window.history, 'pushState')
     renderHook(() => useBackGuard(true, vi.fn()))
     expect(push).toHaveBeenCalledTimes(1)
   })
 
+  it('clears the record when released with nothing armed', async () => {
+    renderHook(() => useBackGuard(true, vi.fn()))
+    expect(window.sessionStorage.getItem('lms-back-guard')).not.toBeNull()
+    await releaseBackGuard()
+    expect(window.sessionStorage.getItem('lms-back-guard')).toBeNull()
+  })
+
   it('pushes when the history length no longer matches the record', () => {
-    renderHook(() => useBackGuard(true, vi.fn())).unmount()
+    renderHook(() => useBackGuard(true, vi.fn()))
+    expect(window.sessionStorage.getItem('lms-back-guard')).not.toBeNull()
     window.history.pushState(window.history.state, '')
     const push = vi.spyOn(window.history, 'pushState')
     renderHook(() => useBackGuard(true, vi.fn()))
@@ -163,7 +172,7 @@ describe('sentinel idempotence across mounts', () => {
   })
 
   it('pushes when the record belongs to another path', () => {
-    renderHook(() => useBackGuard(true, vi.fn())).unmount()
+    renderHook(() => useBackGuard(true, vi.fn()))
     window.sessionStorage.setItem(
       'lms-back-guard',
       JSON.stringify({ path: '/elsewhere', len: window.history.length }),
@@ -171,5 +180,19 @@ describe('sentinel idempotence across mounts', () => {
     const push = vi.spyOn(window.history, 'pushState')
     renderHook(() => useBackGuard(true, vi.fn()))
     expect(push).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('Back landing on another page', () => {
+  afterEach(() => window.history.replaceState({ __NA: true }, '', '/'))
+
+  it('neither re-pushes nor reports when the popped entry is on a different path', () => {
+    const onAttempt = vi.fn()
+    renderHook(() => useBackGuard(true, onAttempt))
+    window.history.pushState({}, '', '/other')
+    const push = vi.spyOn(window.history, 'pushState')
+    act(() => popstate())
+    expect(push).not.toHaveBeenCalled()
+    expect(onAttempt).not.toHaveBeenCalled()
   })
 })

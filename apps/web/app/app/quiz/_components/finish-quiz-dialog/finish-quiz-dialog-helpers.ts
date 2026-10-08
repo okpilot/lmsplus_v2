@@ -118,3 +118,15 @@ export function buildFinishDialogHandlers(deps: {
     },
   }
 }
+
+export function getSubmitConfirmMessage(opts: { unanswered: number; isExam?: boolean }): string {
+  const noun = opts.unanswered === 1 ? 'question is' : 'questions are'
+  const fate = opts.isExam ? 'marked wrong' : 'skipped'
+  return `${opts.unanswered} ${noun} unanswered and will be ${fate}.`
+}
+
+export function getDiscardConfirmMessage(isExam?: boolean): string {
+  return isExam
+    ? "Are you sure? Your progress will be lost. This attempt won't count."
+    : 'Are you sure? Your progress will be lost.'
+}
