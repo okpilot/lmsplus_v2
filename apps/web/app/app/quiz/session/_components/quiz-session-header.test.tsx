@@ -21,7 +21,9 @@ vi.mock('../../actions/end-discovery', () => ({
 vi.mock('@/app/app/_components/session-timer', () => ({ SessionTimer: () => null }))
 vi.mock('@/app/app/_components/theme-toggle', () => ({ ThemeToggle: () => null }))
 vi.mock('../../_components/exam-countdown-timer', () => ({ ExamCountdownTimer: () => null }))
-vi.mock('../../_components/question-tabs', () => ({ QuestionTabs: () => null }))
+vi.mock('../../_components/question-tabs', () => ({
+  QuestionTabs: () => <div data-testid="question-tabs" />,
+}))
 vi.mock('./exam-session-header', () => ({ ExamBadge: () => null }))
 vi.mock('./keyboard-legend', () => ({ KeyboardLegend: () => null }))
 
@@ -67,5 +69,17 @@ describe('QuizSessionHeader — Discovery exit', () => {
 
     expect(baseProps.onFinishClick).toHaveBeenCalledTimes(1)
     expect(onExitClick).not.toHaveBeenCalled()
+  })
+})
+
+describe('QuizSessionHeader — desktop tabs', () => {
+  it('shows the question tabs outside exams', () => {
+    render(<QuizSessionHeader {...baseProps} />)
+    expect(screen.getByTestId('question-tabs')).toBeTruthy()
+  })
+
+  it('hides the question tabs in an exam', () => {
+    render(<QuizSessionHeader {...baseProps} isExam />)
+    expect(screen.queryByTestId('question-tabs')).toBeNull()
   })
 })
