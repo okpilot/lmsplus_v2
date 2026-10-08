@@ -56,7 +56,16 @@ describe('RPC: finish_quiz_session — practice sessions', () => {
     const outcomes = results.map((r) => r.error?.message ?? 'success')
     expect(outcomes, outcomes.join(' | ')).toEqual(['success', 'success'])
     const [a, b] = results.map((r) => r.data as Record<string, unknown>)
-    expect(a).toEqual(b)
+    // results is a jsonb_agg with no ORDER BY — compare it order-independently
+    const { results: aResults, ...aRest } = a ?? {}
+    const { results: bResults, ...bRest } = b ?? {}
+    expect(aRest).toEqual(bRest)
+    if (!Array.isArray(aResults) || !Array.isArray(bResults)) {
+      throw new Error('finish_quiz_session: results is not an array')
+    }
+    expect(aResults).toHaveLength(3)
+    expect(bResults).toHaveLength(3)
+    expect(bResults).toEqual(expect.arrayContaining(aResults))
     expect(Number(a?.correct_count)).toBe(2)
     expect(Number(a?.score_percentage)).toBe(66.67)
     expect((await sessionRow(f, sessionId)).ended_at).not.toBeNull()
