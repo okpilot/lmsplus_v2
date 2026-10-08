@@ -11,6 +11,7 @@ type CutHelpers = {
 type CutWindow = Window & {
   __cutDashboardStream?: boolean
   __cutCount?: number
+  __cutFailed?: number
   __cutHelpers?: CutHelpers
 }
 
@@ -29,9 +30,13 @@ function defineCutHelpers() {
   const cutAfterLine: CutHelpers['cutAfterLine'] = async (res) => {
     const buf = new Uint8Array(await res.arrayBuffer())
     let cut = Math.floor(buf.length * 0.6)
-    while (cut < buf.length && buf[cut] !== 10) cut++
+    while (cut >= 0 && buf[cut] !== 10) cut--
     const init = { status: res.status, statusText: res.statusText, headers: res.headers }
-    if (cut >= buf.length) return new Response(buf, init)
+    if (cut < 0) {
+      w.__cutFailed = buf.length
+      return new Response(buf, init)
+    }
+    w.__cutCount = (w.__cutCount || 0) + 1
     const body = new ReadableStream({
       start(controller) {
         controller.enqueue(buf.slice(0, cut + 1))
@@ -51,7 +56,6 @@ function installDashboardStreamCut() {
     const res = await origFetch(input, init)
     const helpers = w.__cutHelpers
     if (!helpers?.isTarget(input, init)) return res
-    w.__cutCount = (w.__cutCount || 0) + 1
     return helpers.cutAfterLine(res)
   }
 }
@@ -62,8 +66,11 @@ async function setCutArmed(page: Page, armed: boolean) {
   }, armed)
 }
 
-function cutCount(page: Page) {
-  return page.evaluate(() => (window as unknown as CutWindow).__cutCount ?? 0)
+function cutState(page: Page) {
+  return page.evaluate(() => {
+    const w = window as unknown as CutWindow
+    return { count: w.__cutCount ?? 0, failedBytes: w.__cutFailed }
+  })
 }
 
 function waitForDashboardRefetch(page: Page) {
@@ -92,8 +99,17 @@ test.describe('Failed soft navigation to the dashboard', () => {
 
     await setCutArmed(page, true)
     await nav.getByRole('link', { name: 'Dashboard' }).click()
+    await expect
+      .poll(async () => {
+        const s = await cutState(page)
+        return s.count > 0 || s.failedBytes !== undefined
+      })
+      .toBe(true)
+    expect(
+      (await cutState(page)).failedBytes,
+      'dashboard response had no line break to cut at',
+    ).toBeUndefined()
     await expect(page.getByText(ERROR_TEXT)).toBeVisible({ timeout: 15_000 })
-    expect(await cutCount(page)).toBeGreaterThan(0)
 
     await setCutArmed(page, false)
     const refetch = waitForDashboardRefetch(page)
