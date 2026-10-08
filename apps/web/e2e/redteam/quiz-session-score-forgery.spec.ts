@@ -2,7 +2,7 @@
  * Red Team Spec: quiz_sessions score forgery via direct UPDATE (#611, Vectors BL/BM/BN)
  *
  * A student tries to forge their own exam score by directly UPDATEing the scoring
- * columns of their active quiz_sessions row via PostgREST, bypassing batch_submit_quiz.
+ * columns of their active quiz_sessions row via PostgREST, bypassing finish_quiz_session.
  *
  * Defense (migration 20260605000001): `authenticated` is REVOKEd blanket UPDATE on
  * quiz_sessions and re-GRANTed UPDATE on every non-scoring, non-PK column (the 10

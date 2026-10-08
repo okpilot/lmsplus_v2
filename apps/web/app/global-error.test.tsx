@@ -45,17 +45,18 @@ describe('GlobalError', () => {
     expect(mockCaptureException).toHaveBeenLastCalledWith(secondError)
   })
 
+  it('refetches when the Try again button is clicked', async () => {
+    const user = userEvent.setup()
+    render(<GlobalError error={testError} retry={mockRetry} />)
+
+    await user.click(screen.getByRole('button', { name: /try again/i }))
+
+    expect(mockRetry).toHaveBeenCalledOnce()
+  })
+
   it('works with an error that carries a digest', () => {
     const digestError = Object.assign(new Error('Global digest error'), { digest: 'xyz789' })
     render(<GlobalError error={digestError} retry={mockRetry} />)
     expect(mockCaptureException).toHaveBeenCalledWith(digestError)
-  })
-
-  it('calls retry when the Try again button is clicked', async () => {
-    render(<GlobalError error={testError} retry={mockRetry} />)
-
-    await userEvent.setup().click(screen.getByRole('button', { name: /try again/i }))
-
-    expect(mockRetry).toHaveBeenCalledOnce()
   })
 })

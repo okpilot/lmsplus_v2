@@ -17,7 +17,7 @@ export default function QuizSessionError({
   }, [error])
 
   return (
-    <ErrorState action={<Button onClick={retry}>Try again</Button>}>
+    <ErrorState action={<Button onClick={() => retry()}>Try again</Button>}>
       This quiz could not be loaded.
     </ErrorState>
   )

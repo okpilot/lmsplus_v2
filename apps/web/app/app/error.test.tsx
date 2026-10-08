@@ -20,7 +20,7 @@ describe('AppError', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Something went wrong')
   })
 
-  it('retries when Try again is clicked', async () => {
+  it('refetches when Try again is clicked', async () => {
     const retry = vi.fn()
     render(<AppError error={new Error('boom')} retry={retry} />)
     await userEvent.setup({ delay: null }).click(screen.getByRole('button', { name: 'Try again' }))

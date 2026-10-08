@@ -17,7 +17,7 @@ export default function AppError({
   }, [error])
 
   return (
-    <ErrorState action={<Button onClick={retry}>Try again</Button>}>
+    <ErrorState action={<Button onClick={() => retry()}>Try again</Button>}>
       An unexpected error occurred.
     </ErrorState>
   )

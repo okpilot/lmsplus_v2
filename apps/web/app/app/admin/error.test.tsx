@@ -60,7 +60,7 @@ describe('AdminErrorPage', () => {
     expect(mockCaptureException).toHaveBeenLastCalledWith(secondError)
   })
 
-  it('calls retry when the "Try again" button is clicked', () => {
+  it('refetches when the "Try again" button is clicked', () => {
     const retry = vi.fn()
     render(<AdminErrorPage error={testError} retry={retry} />)
     fireEvent.click(screen.getByRole('button', { name: /try again/i }))

@@ -50,7 +50,7 @@ describe('ErrorPage', () => {
     expect(mockCaptureException).toHaveBeenLastCalledWith(secondError)
   })
 
-  it('calls retry when the Try again button is clicked', async () => {
+  it('refetches when the Try again button is clicked', async () => {
     const user = userEvent.setup()
     render(<ErrorPage error={testError} retry={mockRetry} />)
 

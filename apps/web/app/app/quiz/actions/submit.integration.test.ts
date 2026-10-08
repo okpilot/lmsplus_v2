@@ -4,7 +4,7 @@
 // real RLS. Validates correct/wrong answer paths, explanation image url field,
 // cross-user RLS isolation, Zod parse rejection, and unauthenticated rejection.
 // Each test that needs an open session calls seedOpenSession inside the test so
-// complete_quiz_session in one test cannot leave another test with an ended session.
+// finishing a session in one test cannot leave another test with an ended session.
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { seedOpenSession } from '@/lib/integration-support/fixtures'
 import {

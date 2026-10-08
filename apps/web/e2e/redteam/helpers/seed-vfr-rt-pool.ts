@@ -10,9 +10,8 @@
  *
  * Answers are UNIFORM per type — every short_answer's canonical is
  * VFR_RT_SA_ANSWER, every dialog_fill's blank-0 canonical is VFR_RT_DF_ANSWER,
- * every multiple_choice's key is VFR_RT_MC_CORRECT — so building a correct (or
- * deliberately Part-2-wrong) `p_answers` payload from the frozen question list
- * needs no per-question bookkeeping (see buildVfrRtAnswers).
+ * every multiple_choice's key is VFR_RT_MC_CORRECT — so a correct answer set
+ * needs no per-question bookkeeping.
  *
  * All seeded questions carry VFR_RT_POOL_MARKER at the start of question_text so
  * cleanupVfrRtPool can find them with a literal LIKE prefix (brackets are
@@ -24,7 +23,6 @@
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
 import {
-  buildPart3Answer,
   seedPart3Pool,
   VFR_RT_MC_CORRECT,
   VFR_RT_P3_CORRECT_ROWS,
@@ -468,40 +466,4 @@ export async function cleanupVfrRtPool(opts: {
   }
 
   if (errors.length > 0) throw new Error(`cleanupVfrRtPool: ${errors.join('; ')}`)
-}
-
-/**
- * Build a valid `p_answers` payload for submit_vfr_rt_exam_answers from a
- * session's questions (as returned by get_vfr_rt_exam_questions). Each entry
- * carries only the fields the submit RPC's per-type validation allows
- * (mig 129): short_answer → response_text; dialog_fill → response_text +
- * blank_index; Part 3 types → buildPart3Answer (multiple_choice, ordering,
- * diagram_label). Uniform pool answers make every entry correct by default.
- *
- * @param opts.failPart2 — when true, every dialog_fill answer is wrong (drives
- *   part2_pct to 0) while Part 1 (SA) and Part 3 (MC) stay correct.
- */
-export function buildVfrRtAnswers(
-  questions: Array<{ id: string; question_type: string }>,
-  opts?: { failPart2?: boolean },
-): Array<Record<string, unknown>> {
-  const failPart2 = opts?.failPart2 ?? false
-  const answers: Array<Record<string, unknown>> = []
-  for (const q of questions) {
-    if (q.question_type === 'short_answer') {
-      answers.push({ question_id: q.id, response_text: VFR_RT_SA_ANSWER, response_time_ms: 1000 })
-    } else if (q.question_type === 'dialog_fill') {
-      answers.push({
-        question_id: q.id,
-        blank_index: 0,
-        response_text: failPart2 ? 'WRONG' : VFR_RT_DF_ANSWER,
-        response_time_ms: 1000,
-      })
-    } else {
-      const p3 = buildPart3Answer(q)
-      if (!p3) throw new Error(`buildVfrRtAnswers: unsupported question_type ${q.question_type}`)
-      answers.push(...p3)
-    }
-  }
-  return answers
 }

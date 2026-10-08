@@ -520,14 +520,14 @@ reviews:
           does not bypass RLS — it re-runs as the owner, and under FORCE ROW LEVEL SECURITY not
           even the owner is exempt; the bypass comes from the owner's BYPASSRLS attribute.) Narrow carve-out: SELECTs fetching records by IDs
           stored in an immutable, write-once column may omit the filter. Examples include
-          (docs/security.md §15 is the authoritative list, not this enumeration): (a) batch_submit_quiz, submit_quiz_answer, check_quiz_answer,
-          check_non_mc_answer, save_quiz_answer, and submit_vfr_rt_exam_answers reading
+          (docs/security.md §15 is the authoritative list, not this enumeration): (a) finish_quiz_session (via _grade_session_progress and _score_graded_session),
+          submit_quiz_answer, check_quiz_answer, check_non_mc_answer, and save_quiz_answer reading
           questions via quiz_sessions.config.question_ids (written once at session start);
           (b) get_vfr_rt_exam_questions and get_vfr_rt_exam_results reading questions via the
           same frozen config.question_ids, with IDs derived server-side from the caller-owned
           session row, never from client input; (c) get_report_correct_options,
           get_admin_report_correct_options, get_report_answer_keys, and
-          get_admin_report_answer_keys reading questions via
+          get_admin_report_answer_keys, and finish_quiz_session's results join, reading questions via
           quiz_session_answers.question_id — a write-once FK on the immutable, append-only
           quiz_session_answers table. The write-once guarantee is enforced by
           trg_quiz_sessions_immutable_columns (mig 079). Any new carve-out

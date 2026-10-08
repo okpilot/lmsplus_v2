@@ -2,6 +2,7 @@
 // to keep the action file under the 100-line cap (code-style.md §1) and each function
 // under the 30-line rule (§3). No `'use server'` — these are invoked by the action.
 import type { createServerSupabaseClient } from '@repo/db/server'
+import { z } from 'zod'
 import { PRACTICE_MODES } from '@/lib/constants/exam-modes'
 
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
@@ -99,10 +100,11 @@ async function loadDraftForResume(
     return { ok: false, error: 'This saved quiz has no questions.' }
   }
   const config = (draft.session_config ?? {}) as RawDraftConfig
-  if (typeof config.sessionId !== 'string') {
+  const sessionId = z.uuid().safeParse(config.sessionId)
+  if (!sessionId.success) {
     return { ok: false, error: 'This saved quiz is missing its session reference.' }
   }
-  return { ok: true, draft: toResumeDraft(draft, config, config.sessionId) }
+  return { ok: true, draft: toResumeDraft(draft, config, sessionId.data) }
 }
 
 type OriginalSession = { mode: string; subject_id: string | null; topic_id: string | null }

@@ -1,14 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  buildVfrRtAnswers,
   cleanupVfrRtPool,
   seedVfrRtPool,
-  VFR_RT_DF_ANSWER,
-  VFR_RT_MC_CORRECT,
   VFR_RT_PASS_MARK,
   VFR_RT_POOL_SIZE,
-  VFR_RT_SA_ANSWER,
   VFR_RT_TIME_LIMIT_SECONDS,
 } from './seed-vfr-rt-pool'
 
@@ -400,58 +396,5 @@ describe('cleanupVfrRtPool — exam_config ownership branching', () => {
         },
       }),
     ).rejects.toThrow(/exam_config restore: restore boom/)
-  })
-})
-
-describe('buildVfrRtAnswers', () => {
-  const questions = [
-    { id: 'sa-1', question_type: 'short_answer' },
-    { id: 'df-1', question_type: 'dialog_fill' },
-    { id: 'mc-1', question_type: 'multiple_choice' },
-  ]
-
-  it('builds a correct answer per type carrying only the fields that type allows', () => {
-    const answers = buildVfrRtAnswers(questions)
-    expect(answers).toEqual([
-      { question_id: 'sa-1', response_text: VFR_RT_SA_ANSWER, response_time_ms: 1000 },
-      {
-        question_id: 'df-1',
-        blank_index: 0,
-        response_text: VFR_RT_DF_ANSWER,
-        response_time_ms: 1000,
-      },
-      { question_id: 'mc-1', selected_option_id: VFR_RT_MC_CORRECT, response_time_ms: 1000 },
-    ])
-  })
-
-  it('sends a wrong dialog_fill answer while keeping SA and MC correct when Part 2 should fail', () => {
-    const answers = buildVfrRtAnswers(questions, { failPart2: true })
-    const df = answers.find((a) => a.question_id === 'df-1')
-    const sa = answers.find((a) => a.question_id === 'sa-1')
-    const mc = answers.find((a) => a.question_id === 'mc-1')
-    expect(df?.response_text).toBe('WRONG')
-    expect(sa?.response_text).toBe(VFR_RT_SA_ANSWER)
-    expect(mc?.selected_option_id).toBe(VFR_RT_MC_CORRECT)
-  })
-
-  it('builds one entry per slot for an ordering question, in canonical stored order', () => {
-    const answers = buildVfrRtAnswers([{ id: 'o-1', question_type: 'ordering' }])
-    expect(answers.map((a) => a.blank_index)).toEqual([0, 1, 2, 3])
-    expect(new Set(answers.map((a) => a.selected_option_id)).size).toBe(4)
-    expect(answers.every((a) => a.question_id === 'o-1')).toBe(true)
-  })
-
-  it('builds one entry per zone for a diagram_label question, with distinct blank indexes', () => {
-    const answers = buildVfrRtAnswers([{ id: 'd-1', question_type: 'diagram_label' }])
-    expect(answers).toHaveLength(3)
-    expect(new Set(answers.map((a) => a.blank_index)).size).toBe(3)
-    expect(new Set(answers.map((a) => a.response_text)).size).toBe(3)
-    expect(new Set(answers.map((a) => a.selected_option_id)).size).toBe(3)
-  })
-
-  it('throws on a question_type outside the RT pool', () => {
-    expect(() => buildVfrRtAnswers([{ id: 'x-1', question_type: 'numeric' }])).toThrow(
-      /unsupported question_type/,
-    )
   })
 })
