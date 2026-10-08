@@ -159,6 +159,23 @@ describe('loadResumeContext', () => {
     expect(result.error).toBe('This saved quiz is missing its session reference.')
   })
 
+  it.each([[''], ['not-a-uuid']])(
+    'returns failure without looking up a session when the session reference is %j',
+    async (sessionId) => {
+      const client = makeLoadClient(
+        { data: { ...DRAFT_ROW, session_config: { sessionId } }, error: null },
+        { data: { mode: 'quick_quiz', subject_id: SUBJECT_ID, topic_id: null }, error: null },
+      )
+
+      const result = await loadResumeContext(client, DRAFT_ID, USER_ID)
+
+      expect(result.ok).toBe(false)
+      if (result.ok) throw new Error('expected failure')
+      expect(result.error).toBe('This saved quiz is missing its session reference.')
+      expect(client.from).toHaveBeenCalledTimes(1)
+    },
+  )
+
   it('returns failure when the session lookup query fails', async () => {
     const client = makeLoadClient(
       { data: DRAFT_ROW, error: null },

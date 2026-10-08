@@ -494,14 +494,30 @@ async function seed() {
   if (!draftAnswerQ1 || !draftAnswerQ2) {
     throw new Error('Draft seed needs >= 2 questions with ids')
   }
+  // The draft's original session: a parked (soft-deleted) quick_quiz. Resume reads its mode and
+  // subject, so a draft without one cannot resume.
+  const { data: parked, error: parkErr } = await db
+    .from('quiz_sessions')
+    .insert({
+      organization_id: org.id,
+      student_id: studentId,
+      mode: 'quick_quiz',
+      subject_id: firstSubjectId,
+      total_questions: draftQuestionIds.length,
+      config: { question_ids: draftQuestionIds },
+      deleted_at: new Date().toISOString(),
+    })
+    .select('id')
+    .single()
+  if (parkErr || !parked) throw new Error(`Draft session: ${parkErr?.message ?? 'no row'}`)
   const { error: draftErr } = await db.from('quiz_drafts').insert({
     student_id: studentId,
     organization_id: org.id,
     session_config: {
-      sessionId: '',
+      sessionId: parked.id,
       subjectName: firstSubjectName,
       subjectCode: firstSubjectCode,
-      mode: 'study',
+      mode: 'quick_quiz',
     },
     question_ids: draftQuestionIds,
     // DraftAnswer objects per isValidDraftAnswer (quiz-session-validators.ts) — bare
