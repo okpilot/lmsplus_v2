@@ -12,11 +12,12 @@ export const DISCOVERY_EXIT_TIMEOUT_MS = 3000
  * Returns `{ exit, leaving }`: the Discovery Exit handler plus a flag that is true from
  * the moment the exit starts, so the confirm dialog can lock while it is in flight.
  * `exit` runs a best-effort teardown of the active discovery row, then a terminal
- * navigation back to the quiz picker. The endDiscovery() call is awaited so the
- * Server Action settles before the terminal nav and cannot cancel the soft-nav
- * (code-style.md §6); we navigate regardless of its outcome, after DISCOVERY_EXIT_TIMEOUT_MS
- * at most, so a stalled request cannot hold the exit. Called with NO arg — the blanket
- * Exit-button teardown clears every active discovery row.
+ * navigation back to the quiz picker. The endDiscovery() call is awaited before the
+ * terminal nav (code-style.md §6) for DISCOVERY_EXIT_TIMEOUT_MS at most; we navigate
+ * regardless of its outcome. A call still pending then has its result ignored by Next's
+ * router action queue (the request still completes), so a stalled request cannot hold
+ * the exit. Called with NO arg — the blanket Exit-button teardown clears every active
+ * discovery row.
  *
  * replace (not push): the consumed handoff makes the session page un-resumable, so
  * Back must not be able to reopen the exited runner.
