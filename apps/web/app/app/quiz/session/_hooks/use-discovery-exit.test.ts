@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks -----------------------------------------------------------------
 
@@ -20,7 +20,7 @@ import { _resetRunnerExit, isRunnerExiting } from '../_utils/runner-exit'
 
 // ---- Subject under test ----------------------------------------------------
 
-import { useDiscoveryExit } from './use-discovery-exit'
+import { DISCOVERY_EXIT_TIMEOUT_MS, useDiscoveryExit } from './use-discovery-exit'
 
 // ---- Tests -----------------------------------------------------------------
 
@@ -29,6 +29,10 @@ describe('useDiscoveryExit', () => {
     vi.resetAllMocks()
     _resetRunnerExit()
     mockEndDiscovery.mockResolvedValue({ success: true })
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('does not navigate until the discovery teardown settles', async () => {
@@ -108,5 +112,19 @@ describe('useDiscoveryExit', () => {
     const { result } = renderHook(() => useDiscoveryExit())
     await result.current.exit()
     expect(exitingAtNav).toBe(true)
+  })
+
+  it('leaves for the quiz picker when the discovery teardown stalls', async () => {
+    vi.useFakeTimers()
+    mockEndDiscovery.mockReturnValue(new Promise(() => {}))
+    const { result } = renderHook(() => useDiscoveryExit())
+    void result.current.exit()
+
+    await vi.advanceTimersByTimeAsync(DISCOVERY_EXIT_TIMEOUT_MS - 1)
+    expect(mockReplace).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(1)
+    expect(mockReplace).toHaveBeenCalledWith('/app/quiz')
+    expect(isRunnerExiting()).toBe(true)
   })
 })

@@ -2,8 +2,11 @@
 
 import { useRouter } from 'next/navigation'
 import { useCallback, useRef, useState } from 'react'
+import { withTimeout } from '@/lib/utils/with-timeout'
 import { endDiscovery } from '../../actions/end-discovery'
 import { markRunnerExiting } from '../_utils/runner-exit'
+
+export const DISCOVERY_EXIT_TIMEOUT_MS = 3000
 
 /**
  * Returns `{ exit, leaving }`: the Discovery Exit handler plus a flag that is true from
@@ -11,8 +14,9 @@ import { markRunnerExiting } from '../_utils/runner-exit'
  * `exit` runs a best-effort teardown of the active discovery row, then a terminal
  * navigation back to the quiz picker. The endDiscovery() call is awaited so the
  * Server Action settles before the terminal nav and cannot cancel the soft-nav
- * (code-style.md §6); we navigate regardless of its outcome. Called with NO arg —
- * the blanket Exit-button teardown clears every active discovery row.
+ * (code-style.md §6); we navigate regardless of its outcome, after DISCOVERY_EXIT_TIMEOUT_MS
+ * at most, so a stalled request cannot hold the exit. Called with NO arg — the blanket
+ * Exit-button teardown clears every active discovery row.
  *
  * replace (not push): the consumed handoff makes the session page un-resumable, so
  * Back must not be able to reopen the exited runner.
@@ -30,7 +34,11 @@ export function useDiscoveryExit() {
     if (exitingRef.current) return
     exitingRef.current = true
     setLeaving(true)
-    await endDiscovery().catch(() => {})
+    await withTimeout(
+      endDiscovery().catch(() => undefined),
+      DISCOVERY_EXIT_TIMEOUT_MS,
+      undefined,
+    )
     markRunnerExiting()
     router.replace('/app/quiz')
   }, [router])
