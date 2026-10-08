@@ -3,7 +3,9 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockExit } = vi.hoisted(() => ({ mockExit: vi.fn() }))
-vi.mock('../_hooks/use-discovery-exit', () => ({ useDiscoveryExit: () => mockExit }))
+vi.mock('../_hooks/use-discovery-exit', () => ({
+  useDiscoveryExit: () => ({ exit: mockExit, leaving: false }),
+}))
 
 import { QuizHeaderAction } from './quiz-header-action'
 

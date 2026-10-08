@@ -1,4 +1,4 @@
-import { renderHook } from '@testing-library/react'
+import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks -----------------------------------------------------------------
@@ -41,7 +41,7 @@ describe('useDiscoveryExit', () => {
     )
 
     const { result } = renderHook(() => useDiscoveryExit())
-    const pending = result.current()
+    const pending = result.current.exit()
     // Let the handler reach its await — the nav must NOT have fired yet.
     await Promise.resolve()
     expect(mockEndDiscovery).toHaveBeenCalledTimes(1)
@@ -54,10 +54,32 @@ describe('useDiscoveryExit', () => {
     expect(mockReplace).toHaveBeenCalledWith('/app/quiz')
   })
 
+  it('reports leaving as soon as the exit starts, before the teardown resolves', async () => {
+    let resolveTeardown!: () => void
+    mockEndDiscovery.mockReturnValue(
+      new Promise<{ success: true }>((res) => {
+        resolveTeardown = () => res({ success: true })
+      }),
+    )
+    const { result } = renderHook(() => useDiscoveryExit())
+    expect(result.current.leaving).toBe(false)
+
+    let pending!: Promise<void>
+    act(() => {
+      pending = result.current.exit()
+    })
+    expect(result.current.leaving).toBe(true)
+
+    await act(async () => {
+      resolveTeardown()
+      await pending
+    })
+  })
+
   it('navigates back to the quiz picker even when the teardown rejects', async () => {
     mockEndDiscovery.mockRejectedValue(new Error('network'))
     const { result } = renderHook(() => useDiscoveryExit())
-    await result.current()
+    await result.current.exit()
 
     expect(mockEndDiscovery).toHaveBeenCalledTimes(1)
     expect(mockReplace).toHaveBeenCalledWith('/app/quiz')
@@ -68,7 +90,7 @@ describe('useDiscoveryExit', () => {
     // synchronous useRef one-shot guard (§6) must make the second call a no-op so
     // endDiscovery and the terminal nav each run exactly once.
     const { result } = renderHook(() => useDiscoveryExit())
-    await Promise.all([result.current(), result.current()])
+    await Promise.all([result.current.exit(), result.current.exit()])
 
     expect(mockEndDiscovery).toHaveBeenCalledTimes(1)
     expect(mockReplace).toHaveBeenCalledTimes(1)

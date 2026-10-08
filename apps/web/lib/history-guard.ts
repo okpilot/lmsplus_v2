@@ -12,7 +12,7 @@ const TOKEN_KEY = '__lms_nav_tok'
 const INDEX_KEY = '__lms_nav_idx'
 
 type Position = { token: string; index: number }
-export type PopDecision =
+type PopDecision =
   | { kind: 'adopt'; token: string; index: number }
   | { kind: 'move'; index: number; delta: number }
 

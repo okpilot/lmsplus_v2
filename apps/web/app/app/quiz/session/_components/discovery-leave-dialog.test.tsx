@@ -2,8 +2,10 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockExit } = vi.hoisted(() => ({ mockExit: vi.fn() }))
-vi.mock('../_hooks/use-discovery-exit', () => ({ useDiscoveryExit: () => mockExit }))
+const { mockExit, state } = vi.hoisted(() => ({ mockExit: vi.fn(), state: { leaving: false } }))
+vi.mock('../_hooks/use-discovery-exit', () => ({
+  useDiscoveryExit: () => ({ exit: mockExit, leaving: state.leaving }),
+}))
 
 import { DiscoveryLeaveDialog } from './discovery-leave-dialog'
 
@@ -14,7 +16,10 @@ function setup(open = true) {
 }
 
 describe('DiscoveryLeaveDialog', () => {
-  beforeEach(() => vi.resetAllMocks())
+  beforeEach(() => {
+    vi.resetAllMocks()
+    state.leaving = false
+  })
 
   it('asks whether to leave discovery and explains nothing is scored', () => {
     setup()
@@ -39,5 +44,30 @@ describe('DiscoveryLeaveDialog', () => {
     setup()
     await userEvent.click(screen.getByRole('button', { name: 'Leave' }))
     expect(mockExit).toHaveBeenCalledTimes(1)
+  })
+
+  it('closes the dialog on Escape while no exit is pending', async () => {
+    const { onOpenChange } = setup()
+    await userEvent.keyboard('{Escape}')
+    expect(onOpenChange).toHaveBeenCalledWith(false, expect.anything())
+  })
+
+  describe('while the exit is pending', () => {
+    beforeEach(() => {
+      state.leaving = true
+    })
+
+    it('keeps the dialog open on Escape', async () => {
+      const { onOpenChange } = setup()
+      await userEvent.keyboard('{Escape}')
+      expect(onOpenChange).not.toHaveBeenCalled()
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+    })
+
+    it('disables Stay and Leave', () => {
+      setup()
+      expect(screen.getByRole('button', { name: 'Stay' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: /Leave/ })).toBeDisabled()
+    })
   })
 })

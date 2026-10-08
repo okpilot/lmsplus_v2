@@ -1,11 +1,13 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useCallback, useRef } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { endDiscovery } from '../../actions/end-discovery'
 
 /**
- * Returns the Discovery Exit handler: best-effort teardown of the active discovery
+ * Returns `{ exit, leaving }`: the Discovery Exit handler plus a flag that is true from
+ * the moment the exit starts, so the confirm dialog can lock while it is in flight.
+ * `exit` is: best-effort teardown of the active discovery
  * row, then a terminal navigation back to the quiz picker. The endDiscovery() call
  * is awaited so the Server Action settles before the terminal nav and cannot cancel
  * the soft-nav (code-style.md §6); we navigate regardless of its outcome. Called
@@ -22,10 +24,13 @@ import { endDiscovery } from '../../actions/end-discovery'
 export function useDiscoveryExit() {
   const router = useRouter()
   const exitingRef = useRef(false)
-  return useCallback(async () => {
+  const [leaving, setLeaving] = useState(false)
+  const exit = useCallback(async () => {
     if (exitingRef.current) return
     exitingRef.current = true
+    setLeaving(true)
     await endDiscovery().catch(() => {})
     router.replace('/app/quiz')
   }, [router])
+  return { exit, leaving }
 }
