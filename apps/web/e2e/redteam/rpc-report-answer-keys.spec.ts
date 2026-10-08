@@ -297,9 +297,9 @@ test.describe('Red Team: get_report_answer_keys RPC (Vector EN)', () => {
     if (opts.completed) {
       row.ended_at = new Date().toISOString()
       row.score_percentage = 0
-      // quick_quiz leaves passed NULL in production: batch_submit_quiz's pass_mark
-      // block is mode-guarded to mock_exam/internal_exam (mig 132), so practice modes
-      // never set passed. (Irrelevant to get_report_answer_keys, which gates on
+      // quick_quiz leaves passed NULL in production: the pass_mark block in
+      // finish_quiz_session's scoring helper is mode-guarded to mock_exam/internal_exam
+      // (20261004000200), so practice modes never set passed. (Irrelevant to get_report_answer_keys, which gates on
       // ended_at only — but the seed matches the production completion shape.)
       row.passed = null
       row.correct_count = 0

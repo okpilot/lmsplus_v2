@@ -120,7 +120,7 @@ export async function expectCompletionMetadata(
 /**
  * Backdate a quiz_session so that it appears past the grace period:
  * 60s time_limit, started 91s ago → triggers the expired audit path on
- * the next finish_quiz_session or complete_empty_exam_session call.
+ * the next finish_quiz_session call.
  * Uses service-role (exempt from the immutable-columns trigger, mig 20260502000001).
  */
 export async function backdateSession(admin: AdminClient, sessionId: string): Promise<void> {

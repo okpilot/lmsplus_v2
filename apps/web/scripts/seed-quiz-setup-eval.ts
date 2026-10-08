@@ -222,6 +222,72 @@ async function uploadSampleImage(label: string, color: string): Promise<string> 
   return data.publicUrl
 }
 
+type DraftSeed = { studentId: string; orgId: string; questionIds: string[] }
+
+/** The draft's original session: a parked (soft-deleted) quick_quiz. Resume reads its mode and subject. */
+async function insertParkedSession(opts: DraftSeed & { subjectId: string }): Promise<string> {
+  const { data, error } = await db
+    .from('quiz_sessions')
+    .insert({
+      organization_id: opts.orgId,
+      student_id: opts.studentId,
+      mode: 'quick_quiz',
+      subject_id: opts.subjectId,
+      total_questions: opts.questionIds.length,
+      config: { question_ids: opts.questionIds },
+      deleted_at: new Date().toISOString(),
+    })
+    .select('id')
+    .single()
+  if (error || !data) throw new Error(`Draft session: ${error?.message ?? 'no row'}`)
+  return data.id
+}
+
+/** Draft with two answered questions, positioned on the third. */
+async function insertDraft(
+  opts: DraftSeed & { sessionId: string; subject: { name: string; code: string } },
+): Promise<void> {
+  const [q1, q2] = opts.questionIds
+  if (!q1 || !q2) throw new Error('Draft seed needs >= 2 questions with ids')
+  const { error } = await db.from('quiz_drafts').insert({
+    student_id: opts.studentId,
+    organization_id: opts.orgId,
+    session_config: {
+      sessionId: opts.sessionId,
+      subjectName: opts.subject.name,
+      subjectCode: opts.subject.code,
+      mode: 'quick_quiz',
+    },
+    question_ids: opts.questionIds,
+    // DraftAnswer objects per isValidDraftAnswer (quiz-session-validators.ts) — bare
+    // strings are skipped as malformed on load and the draft shows 0/N progress (#1119).
+    answers: {
+      [q1]: { selectedOptionId: 'b', responseTimeMs: 3000 },
+      [q2]: { selectedOptionId: 'a', responseTimeMs: 4500 },
+    },
+    current_index: 2,
+  })
+  if (error) throw new Error(`Draft: ${error.message}`)
+}
+
+/**
+ * Saved quiz draft resumable into a new session. Needs FIVE questions: `current_index: 2` needs at
+ * least 3 ids to be in range, and checklist item 19 hardcodes "progress bar (2/5)". Resume clamps
+ * the index (`resume-seed.ts`), so an out-of-range draft still resumes.
+ */
+async function seedSavedDraft(
+  opts: DraftSeed & { subject: { id: string; name: string; code: string } },
+): Promise<void> {
+  if (opts.questionIds.length < 5) {
+    throw new Error(`Draft seed needs >= 5 questions, got ${opts.questionIds.length}`)
+  }
+  const sessionId = await insertParkedSession({ ...opts, subjectId: opts.subject.id })
+  await insertDraft({ ...opts, sessionId })
+  console.log(
+    `  Saved draft: ${opts.questionIds.length} questions, 2 answered (${opts.subject.name})`,
+  )
+}
+
 async function seed() {
   console.log('Seeding Quiz Setup Redesign eval data...\n')
 
@@ -479,43 +545,12 @@ async function seed() {
   console.log(`  Flagged questions: ${flaggedIds.length}`)
 
   // 8. Saved quiz draft — partially completed quiz on first subject
-  const draftQuestionIds = firstSubjectQuestionIds.slice(0, 5)
-  // Fail fast if the seed data ever shrinks — [0]/[1] below would otherwise coerce
-  // to a literal "undefined" key and silently corrupt the draft's answers map.
-  // FIVE, because two separate things depend on the count and the larger one wins:
-  //   - `current_index: 2` below is an INDEX, so it needs at least 3 ids to be in range;
-  //   - checklist item 19 hardcodes "progress bar (2/5)", which assumes exactly 5.
-  // Resume clamps the index: `resume-seed.ts` seeds position
-  // `max(0, min(current_index, question_ids.length - 1))`, so an out-of-range draft still resumes.
-  if (draftQuestionIds.length < 5) {
-    throw new Error(`Draft seed needs >= 5 questions, got ${draftQuestionIds.length}`)
-  }
-  const [draftAnswerQ1, draftAnswerQ2] = draftQuestionIds
-  if (!draftAnswerQ1 || !draftAnswerQ2) {
-    throw new Error('Draft seed needs >= 2 questions with ids')
-  }
-  const { error: draftErr } = await db.from('quiz_drafts').insert({
-    student_id: studentId,
-    organization_id: org.id,
-    session_config: {
-      sessionId: '',
-      subjectName: firstSubjectName,
-      subjectCode: firstSubjectCode,
-      mode: 'study',
-    },
-    question_ids: draftQuestionIds,
-    // DraftAnswer objects per isValidDraftAnswer (quiz-session-validators.ts) — bare
-    // strings are skipped as malformed on load and the draft shows 0/N progress (#1119).
-    answers: {
-      [draftAnswerQ1]: { selectedOptionId: 'b', responseTimeMs: 3000 },
-      [draftAnswerQ2]: { selectedOptionId: 'a', responseTimeMs: 4500 },
-    },
-    current_index: 2,
+  await seedSavedDraft({
+    studentId,
+    orgId: org.id,
+    subject: { id: firstSubjectId, name: firstSubjectName, code: firstSubjectCode },
+    questionIds: firstSubjectQuestionIds.slice(0, 5),
   })
-  if (draftErr) throw new Error(`Draft: ${draftErr.message}`)
-  console.log(
-    `  Saved draft: ${draftQuestionIds.length} questions, 2 answered (${firstSubjectName})`,
-  )
 
   // Done
   console.log(`

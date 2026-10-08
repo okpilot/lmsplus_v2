@@ -6,8 +6,8 @@
  * easa_subtopics has no org column, so the rows are shared reference data: they are
  * resolved BY CODE here and never inserted, updated or deleted.
  *
- * Every pool question of a type is identical in content, so a correct `p_answers`
- * entry needs no per-question bookkeeping (see buildPart3Answer):
+ * Every pool question of a type is identical in content, so a correct answer
+ * needs no per-question bookkeeping:
  *  - ordering: items are the canonical texts below, ids derived from the text.
  *  - diagram_label: one fixed config; the answer key is the zone -> label map below.
  */
@@ -155,32 +155,6 @@ export async function seedPart3Pool(opts: {
     orderingIds: idsOf('ordering'),
     diagramIds: idsOf('diagram_label'),
   }
-}
-
-/** Correct `p_answers` entries for one Part 3 question, or null when the type is not Part 3. */
-export function buildPart3Answer(question: {
-  id: string
-  question_type: string
-}): Array<Record<string, unknown>> | null {
-  const base = { question_id: question.id, response_time_ms: 1000 }
-  if (question.question_type === 'multiple_choice')
-    return [{ ...base, selected_option_id: VFR_RT_MC_CORRECT }]
-  if (question.question_type === 'ordering')
-    // One entry per slot, item ids in canonical stored order.
-    return ORDERING_ITEMS.map((item, slot) => ({
-      ...base,
-      selected_option_id: item.id,
-      blank_index: slot,
-    }))
-  if (question.question_type === 'diagram_label')
-    // One entry per zone: label id + zone id, each with a distinct blank_index.
-    return DIAGRAM_ANSWER.map((a, i) => ({
-      ...base,
-      selected_option_id: a.label_id,
-      response_text: a.zone_id,
-      blank_index: i,
-    }))
-  return null
 }
 
 /** Answer-key shape get_vfr_rt_exam_results returns for the pool's ordering question. */
