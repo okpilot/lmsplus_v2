@@ -161,35 +161,52 @@ test.describe('Red Team: resume open row + saved-quiz audit (Vectors HU/HV)', ()
     if (errors.length > 0) throw new Error(`afterEach: ${errors.join('; ')}`)
   })
 
-  test('HU: an open exam, an ended or discarded row and a foreign open row cannot be claimed by resume', async () => {
-    const examId = await seedSession(victimUserId, { mode: 'mock_exam', device: DEVICE_A })
-    const examBefore = await readRow(examId)
-    expect(examBefore.active_device_id).toBe(DEVICE_A)
-    expect((await resume(victim, examId, DEVICE_B)).error?.message).toBe('session_not_saved')
-    expect(await readRow(examId)).toEqual(examBefore)
-    await clearOpenSessions(admin, victimUserId, 'resume-open')
+  type RowState = Awaited<ReturnType<typeof readRow>>
 
-    const endedId = await seedSession(victimUserId, { mode: 'quick_quiz', device: DEVICE_A })
-    await patchRow(endedId, { ended_at: new Date().toISOString() })
-    const endedBefore = await readRow(endedId)
-    expect(endedBefore.ended_at).not.toBeNull()
-    expect((await resume(victim, endedId, DEVICE_B)).error?.message).toBe('session_not_saved')
-    expect(await readRow(endedId)).toEqual(endedBefore)
+  const expectResumeRefused = async (opts: {
+    mode: 'quick_quiz' | 'mock_exam'
+    patch?: Record<string, string | null>
+    seeded: (row: RowState) => void
+  }) => {
+    const id = await seedSession(victimUserId, { mode: opts.mode, device: DEVICE_A })
+    if (opts.patch) await patchRow(id, opts.patch)
+    const before = await readRow(id)
+    opts.seeded(before)
+    expect((await resume(victim, id, DEVICE_B)).error?.message).toBe('session_not_saved')
+    expect(await readRow(id)).toEqual(before)
+    expect(await auditRows(id)).toEqual([])
+  }
 
-    const discardedId = await seedSession(victimUserId, { mode: 'quick_quiz', device: DEVICE_A })
-    await patchRow(discardedId, { deleted_at: new Date().toISOString() })
-    const discardedBefore = await readRow(discardedId)
-    expect(discardedBefore.deleted_at).not.toBeNull()
-    expect((await resume(victim, discardedId, DEVICE_B)).error?.message).toBe('session_not_saved')
-    expect(await readRow(discardedId)).toEqual(discardedBefore)
+  test('HU: an open exam row cannot be claimed by resume', async () => {
+    await expectResumeRefused({
+      mode: 'mock_exam',
+      seeded: (row) => expect(row.active_device_id).toBe(DEVICE_A),
+    })
+  })
 
+  test('HU: an ended practice row cannot be claimed by resume', async () => {
+    await expectResumeRefused({
+      mode: 'quick_quiz',
+      patch: { ended_at: new Date().toISOString() },
+      seeded: (row) => expect(row.ended_at).not.toBeNull(),
+    })
+  })
+
+  test('HU: a discarded practice row cannot be claimed by resume', async () => {
+    await expectResumeRefused({
+      mode: 'quick_quiz',
+      patch: { deleted_at: new Date().toISOString() },
+      seeded: (row) => expect(row.deleted_at).not.toBeNull(),
+    })
+  })
+
+  test('HU: a foreign open row is refused while the owner claims it and displaces the old device', async () => {
     const victimOpenId = await seedSession(victimUserId, { mode: 'quick_quiz', device: DEVICE_A })
     const foreign = await resume(attacker, victimOpenId, DEVICE_B)
     expect(foreign.data).toBeNull()
     expect(foreign.error?.message).toBe('session_not_found')
     expect((await readRow(victimOpenId)).active_device_id).toBe(DEVICE_A)
     expect(await auditRows(victimOpenId)).toEqual([])
-    for (const id of [examId, endedId, discardedId]) expect(await auditRows(id)).toEqual([])
 
     // Control: the owner's own open practice row is claimed, displacing DEVICE_A.
     expect((await resume(victim, victimOpenId, DEVICE_B)).error).toBeNull()
@@ -208,48 +225,39 @@ test.describe('Red Team: resume open row + saved-quiz audit (Vectors HU/HV)', ()
     expect(stale.error?.message).toBe('session_taken_over')
   })
 
-  test('HV: save, resume and discard each write one immutable audit row; refusals write none', async () => {
-    const sessionId = await seedSession(victimUserId, { mode: 'quick_quiz', device: DEVICE_A })
-    expect(await auditRows(sessionId)).toEqual([])
+  const save = (sessionId: string, device: string) =>
+    victim.rpc('save_quiz_for_later', { p_session_id: sessionId, p_device_id: device })
 
-    // Refused calls write nothing: a discard of an unsaved row, a foreign save/resume/discard.
-    expect(
-      (await victim.rpc('discard_saved_quiz', { p_session_id: sessionId })).error?.message,
-    ).toBe('session_not_found')
-    expect(
-      (
-        await attacker.rpc('save_quiz_for_later', {
-          p_session_id: sessionId,
-          p_device_id: DEVICE_A,
-        })
-      ).error?.message,
-    ).toBe('session_not_found')
-    expect(await auditRows(sessionId)).toEqual([])
+  const discard = (client: Client, sessionId: string) =>
+    client.rpc('discard_saved_quiz', { p_session_id: sessionId })
 
-    const save = () =>
-      victim.rpc('save_quiz_for_later', { p_session_id: sessionId, p_device_id: DEVICE_A })
-    expect((await save()).error).toBeNull()
-    expect((await save()).error).toBeNull()
-    expect(
-      (await attacker.rpc('resume_saved_quiz', { p_session_id: sessionId, p_device_id: DEVICE_B }))
-        .error?.message,
-    ).toBe('session_not_found')
-    expect(
-      (await attacker.rpc('discard_saved_quiz', { p_session_id: sessionId })).error?.message,
-    ).toBe('session_not_found')
+  const expectRefusedCallsWriteNothing = async (sessionId: string) => {
+    expect((await discard(victim, sessionId)).error?.message).toBe('session_not_found')
+    const foreignSave = await attacker.rpc('save_quiz_for_later', {
+      p_session_id: sessionId,
+      p_device_id: DEVICE_A,
+    })
+    expect(foreignSave.error?.message).toBe('session_not_found')
+    expect(await auditRows(sessionId)).toEqual([])
+  }
+
+  const expectSaveThenForeignRefusals = async (sessionId: string) => {
+    expect((await save(sessionId, DEVICE_A)).error).toBeNull()
+    expect((await save(sessionId, DEVICE_A)).error).toBeNull()
+    expect((await resume(attacker, sessionId, DEVICE_B)).error?.message).toBe('session_not_found')
+    expect((await discard(attacker, sessionId)).error?.message).toBe('session_not_found')
     expect((await auditRows(sessionId)).map((r) => r.event_type)).toEqual(['quiz_session.saved'])
+  }
 
+  const runResumeSaveDiscard = async (sessionId: string) => {
     expect((await resume(victim, sessionId, DEVICE_A)).error).toBeNull()
     expect((await resume(victim, sessionId, DEVICE_B)).error).toBeNull()
-    expect((await save()).error?.message).toBe('session_taken_over')
-    const saveB = await victim.rpc('save_quiz_for_later', {
-      p_session_id: sessionId,
-      p_device_id: DEVICE_B,
-    })
-    expect(saveB.error).toBeNull()
-    expect((await victim.rpc('discard_saved_quiz', { p_session_id: sessionId })).error).toBeNull()
+    expect((await save(sessionId, DEVICE_A)).error?.message).toBe('session_taken_over')
+    expect((await save(sessionId, DEVICE_B)).error).toBeNull()
+    expect((await discard(victim, sessionId)).error).toBeNull()
+  }
 
-    const rows = await auditRows(sessionId)
+  const expectAuditSequence = (rows: Awaited<ReturnType<typeof auditRows>>) => {
     expect(
       rows.map((r) => [r.event_type, isRecord(r.metadata) ? r.metadata.already_active : null]),
     ).toEqual([
@@ -264,8 +272,12 @@ test.describe('Red Team: resume open row + saved-quiz audit (Vectors HU/HV)', ()
       expect(r.actor_role).toBe('student')
       expect(r.organization_id).toBe(orgId)
     }
+  }
 
-    // Control: the owner reads the rows; tampering is a no-op.
+  const expectOwnerReadsAndCannotTamper = async (
+    sessionId: string,
+    rows: Awaited<ReturnType<typeof auditRows>>,
+  ) => {
     const own = await victim
       .from('audit_events')
       .select('id')
@@ -283,5 +295,17 @@ test.describe('Red Team: resume open row + saved-quiz audit (Vectors HU/HV)', ()
     const del = await victim.from('audit_events').delete().in('id', ids).select('id')
     expect(del.error === null ? del.data : []).toEqual([])
     expect(await auditRows(sessionId)).toEqual(rows)
+  }
+
+  test('HV: save, resume and discard each write one immutable audit row; refusals write none', async () => {
+    const sessionId = await seedSession(victimUserId, { mode: 'quick_quiz', device: DEVICE_A })
+    expect(await auditRows(sessionId)).toEqual([])
+    await expectRefusedCallsWriteNothing(sessionId)
+    await expectSaveThenForeignRefusals(sessionId)
+    await runResumeSaveDiscard(sessionId)
+    const rows = await auditRows(sessionId)
+    expectAuditSequence(rows)
+    // Control: the owner reads the rows; tampering is a no-op.
+    await expectOwnerReadsAndCannotTamper(sessionId, rows)
   })
 })
