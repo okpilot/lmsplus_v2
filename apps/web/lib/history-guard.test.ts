@@ -37,6 +37,7 @@ function pop(state: unknown) {
 }
 
 beforeEach(() => {
+  vi.useFakeTimers()
   listeners = []
   const add = window.addEventListener.bind(window)
   vi.spyOn(window, 'addEventListener').mockImplementation(((
@@ -53,6 +54,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.useRealTimers()
   for (const [type, fn] of listeners) window.removeEventListener(type, fn)
   proto.pushState = originals.push
   proto.replaceState = originals.replace
@@ -204,18 +206,69 @@ describe('armed Back and Forward', () => {
     expect(pop(stamped(1))).toHaveBeenCalledTimes(1)
   })
 
-  it('stops reverting after four consecutive reverts and accepts the landed entry', async () => {
+  it('keeps a five-step Back burst inside the runner', async () => {
+    const { armHistoryGuard } = await load()
+    for (const p of ['/a', '/b', '/c', '/d', '/e']) window.history.pushState({ __NA: true }, '', p)
+    const onAttempt = vi.fn()
+    armHistoryGuard(onAttempt)
+    for (const idx of [4, 3, 2, 1, 0, 1, 2]) expect(pop(stamped(idx))).not.toHaveBeenCalled()
+    expect(onAttempt).toHaveBeenCalledTimes(7)
+  })
+
+  it('guards a second burst after the first one overshot', async () => {
     const { armHistoryGuard } = await load()
     window.history.pushState({ __NA: true }, '', '/a')
     window.history.pushState({ __NA: true }, '', '/b')
     armHistoryGuard(vi.fn())
-    for (const idx of [1, 0, 1, 0]) pop(stamped(idx))
+    for (const idx of [1, 0, 1, 0, 1, 0, 1]) expect(pop(stamped(idx))).not.toHaveBeenCalled()
+  })
+
+  it('settles back to the rendered entry once the burst goes quiet', async () => {
+    const { armHistoryGuard } = await load()
+    window.history.pushState({ __NA: true }, '', '/a')
+    window.history.pushState({ __NA: true }, '', '/b')
+    armHistoryGuard(vi.fn())
+    for (const idx of [1, 0, 1, 0, 1, 0]) pop(stamped(idx))
     expect(go).toHaveBeenCalledTimes(4)
-    expect(pop(stamped(1))).toHaveBeenCalledTimes(1)
-    expect(go).toHaveBeenCalledTimes(4)
-    pop(stamped(2))
+    vi.advanceTimersByTime(100)
     expect(go).toHaveBeenCalledTimes(5)
-    expect(go).toHaveBeenLastCalledWith(-1)
+    expect(go).toHaveBeenLastCalledWith(2)
+    vi.advanceTimersByTime(1000)
+    expect(go).toHaveBeenCalledTimes(5)
+  })
+
+  it('cancels the pending settle when the rendered entry is reached', async () => {
+    const { armHistoryGuard } = await load()
+    window.history.pushState({ __NA: true }, '', '/a')
+    window.history.pushState({ __NA: true }, '', '/b')
+    armHistoryGuard(vi.fn())
+    for (const idx of [1, 0, 1, 0, 1]) pop(stamped(idx))
+    pop(stamped(2))
+    vi.advanceTimersByTime(1000)
+    expect(go).toHaveBeenCalledTimes(4)
+  })
+
+  it('drops a pending settle when the guard is disarmed', async () => {
+    const { armHistoryGuard } = await load()
+    window.history.pushState({ __NA: true }, '', '/a')
+    window.history.pushState({ __NA: true }, '', '/b')
+    const disarm = armHistoryGuard(vi.fn())
+    for (const idx of [1, 0, 1, 0, 1]) pop(stamped(idx))
+    disarm()
+    vi.advanceTimersByTime(1000)
+    expect(go).toHaveBeenCalledTimes(4)
+  })
+
+  it('stamps a push after a swallowed burst from the entry it landed on', async () => {
+    const { armHistoryGuard } = await load()
+    window.history.pushState({ __NA: true }, '', '/a')
+    window.history.pushState({ __NA: true }, '', '/b')
+    armHistoryGuard(vi.fn())
+    for (const idx of [1, 0, 1, 0, 0]) pop(stamped(idx))
+    window.history.pushState({ __NA: true }, '', '/c')
+    expect(window.history.state[INDEX_KEY]).toBe(1)
+    vi.advanceTimersByTime(1000)
+    expect(go).toHaveBeenCalledTimes(4)
   })
 
   it('restarts the revert count after the entry it left is reached again', async () => {

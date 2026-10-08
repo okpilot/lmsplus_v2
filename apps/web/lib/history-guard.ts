@@ -5,8 +5,9 @@
  * listener (see HistoryGuard), so `stopImmediatePropagation` keeps Next from traversing.
  * Every popstate is measured against the unchanged rendered index, so no "revert pending" state
  * exists to get stuck. `onAttempt` may fire once per event of a burst (callers are idempotent).
- * After MAX_REVERTS self-issued `go` calls without reaching the rendered entry (delta 0), the
- * landed entry is accepted, which bounds the ping-pong the reference library can loop in.
+ * After MAX_REVERTS self-issued `go` calls without reaching the rendered entry (delta 0), further
+ * events are still swallowed but no longer answered with `go`; once the queue is quiet for
+ * SETTLE_MS one `go` returns to the rendered entry. An armed guard never accepts a same-token entry.
  */
 const TOKEN_KEY = '__lms_nav_tok'
 const INDEX_KEY = '__lms_nav_idx'
@@ -20,7 +21,10 @@ let installed = false
 let position: Position = { token: '', index: 0 }
 let armed: (() => void) | null = null
 let reverts = 0
+let landed: number | null = null
+let settleTimer: ReturnType<typeof setTimeout> | undefined
 const MAX_REVERTS = 4
+const SETTLE_MS = 100
 
 const newToken = () =>
   Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) =>
@@ -43,26 +47,52 @@ export function decidePopState(state: unknown, current: Position): PopDecision {
   return { kind: 'move', index, delta: index - current.index }
 }
 
+function clearSettle() {
+  clearTimeout(settleTimer)
+  settleTimer = undefined
+  landed = null
+  reverts = 0
+}
+
+function scheduleSettle() {
+  clearTimeout(settleTimer)
+  settleTimer = setTimeout(() => {
+    settleTimer = undefined
+    reverts = 0
+    if (!armed || landed === null || landed === position.index) return
+    const delta = position.index - landed
+    landed = null
+    window.history.go(delta)
+  }, SETTLE_MS)
+}
+
 function handlePopState(event: PopStateEvent) {
   const d = decidePopState(event.state, position)
   if (d.kind === 'adopt') {
+    clearSettle()
     // In memory only: a stamp without Next's `__NA` makes Next reload on a later traversal.
     position = { token: d.token, index: d.index }
     return
   }
   if (d.delta === 0) {
-    reverts = 0
+    clearSettle()
     event.stopImmediatePropagation()
     return
   }
-  if (!armed || reverts >= MAX_REVERTS) {
-    reverts = 0
+  if (!armed) {
+    clearSettle()
     position = { token: position.token, index: d.index }
     return
   }
   event.stopImmediatePropagation()
-  reverts += 1
-  window.history.go(-d.delta)
+  if (reverts >= MAX_REVERTS) {
+    landed = d.index
+    scheduleSettle()
+  } else {
+    reverts += 1
+    landed = null
+    window.history.go(-d.delta)
+  }
   armed()
 }
 
@@ -75,6 +105,8 @@ function patchHistory() {
     [INDEX_KEY]: position.index,
   })
   window.history.pushState = function (state, unused, url) {
+    if (landed !== null) position = { token: position.token, index: landed }
+    clearSettle()
     position = { token: position.token, index: position.index + 1 }
     push.call(this, stamp(state), unused, url)
   }
@@ -107,6 +139,8 @@ export function installHistoryGuard() {
 export function armHistoryGuard(onAttempt: () => void): () => void {
   armed = onAttempt
   return () => {
-    if (armed === onAttempt) armed = null
+    if (armed !== onAttempt) return
+    armed = null
+    clearSettle()
   }
 }
