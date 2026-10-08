@@ -7,8 +7,7 @@
  *   - student caller is rejected
  *   - cross-org admin gets zero rows
  *
- * Shared beforeAll seeds: RT subject (mig 097), 8 SA + 9 DF + 8 MC questions,
- * exam_configs row.
+ * Shared beforeAll seeds: org, admin, student, question bank.
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -16,7 +15,6 @@ import { cleanupTestData } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
 import { requireRpcRows } from './guards'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
-import { getP3Subtopics, P3_SUBTOPIC_CODES } from './vfr-rt-part3-helpers'
 
 const admin = getAdminClient()
 const suffix = fixtureSuffix()
@@ -73,139 +71,18 @@ async function ensureBank(orgId: string, adminId: string): Promise<string> {
   return data.id as string
 }
 
-interface SaQuestion {
-  id: string
-  canonical: string
-}
-interface DfQuestion {
-  id: string
-  blanksConfig: Array<{ index: number; canonical: string; synonyms: string[] }>
-}
-interface McQuestion {
-  id: string
-  correctOption: string
-}
-
-async function insertSaQuestion(
-  orgId: string,
-  bankId: string,
-  adminId: string,
-  rtSubjectId: string,
-  p1TopicId: string,
-  idx: number,
-): Promise<SaQuestion> {
-  const canonical = `answer_sa_${idx}`
-  const { data, error } = await admin
-    .from('questions')
-    .insert({
-      organization_id: orgId,
-      bank_id: bankId,
-      subject_id: rtSubjectId,
-      topic_id: p1TopicId,
-      question_text: `SA submit ${idx} ${suffix}?`,
-      explanation_text: `SA submit explanation ${idx}`,
-      question_type: 'short_answer',
-      canonical_answer: canonical,
-      accepted_synonyms: [`syn_${idx}`],
-      options: [],
-      blanks_config: [],
-      difficulty: 'medium',
-      status: 'active',
-      created_by: adminId,
-    })
-    .select('id')
-    .single()
-  if (error) throw new Error(`insertSaQuestion: ${error.message}`)
-  return { id: data.id as string, canonical }
-}
-
-async function insertDfQuestion(
-  orgId: string,
-  bankId: string,
-  adminId: string,
-  rtSubjectId: string,
-  p2TopicId: string,
-  idx: number,
-): Promise<DfQuestion> {
-  const blanksConfig = [
-    { index: 0, canonical: `callsign_${idx}`, synonyms: [`cs_${idx}`] },
-    { index: 1, canonical: `level_${idx}`, synonyms: [`lv_${idx}`] },
-  ]
-  const template = `[atc] {{0|callsign_${idx};cs_${idx}}} descend to {{1|level_${idx};lv_${idx}}}.`
-  const { data, error } = await admin
-    .from('questions')
-    .insert({
-      organization_id: orgId,
-      bank_id: bankId,
-      subject_id: rtSubjectId,
-      topic_id: p2TopicId,
-      question_text: `DF submit ${idx} ${suffix}?`,
-      explanation_text: `DF submit explanation ${idx}`,
-      question_type: 'dialog_fill',
-      dialog_template: template,
-      blanks_config: blanksConfig,
-      options: [],
-      difficulty: 'medium',
-      status: 'active',
-      created_by: adminId,
-    })
-    .select('id')
-    .single()
-  if (error) throw new Error(`insertDfQuestion: ${error.message}`)
-  return { id: data.id as string, blanksConfig }
-}
-
-async function insertMcQuestion(
-  orgId: string,
-  bankId: string,
-  adminId: string,
-  rtSubjectId: string,
-  p3TopicId: string,
-  subtopicId: string,
-  idx: number,
-): Promise<McQuestion> {
-  const { data, error } = await admin
-    .from('questions')
-    .insert({
-      organization_id: orgId,
-      bank_id: bankId,
-      subject_id: rtSubjectId,
-      topic_id: p3TopicId,
-      subtopic_id: subtopicId,
-      question_text: `MC submit ${idx} ${suffix}?`,
-      explanation_text: `MC submit explanation ${idx}`,
-      question_type: 'multiple_choice',
-      options: [
-        { id: 'a', text: `A ${idx}` },
-        { id: 'b', text: `B ${idx}` },
-        { id: 'c', text: `C ${idx}` },
-        { id: 'd', text: `D ${idx}` },
-      ],
-      // MC answer key in its own REVOKE-gated column (#823, mig 111).
-      correct_option_id: 'b',
-      difficulty: 'medium',
-      status: 'active',
-      created_by: adminId,
-    })
-    .select('id')
-    .single()
-  if (error) throw new Error(`insertMcQuestion: ${error.message}`)
-  return { id: data.id as string, correctOption: 'b' }
-}
-
 // ─── shared fixture state ─────────────────────────────────────────────────────
 
 let orgId: string
 let adminUserId: string
-let studentId: string
 let studentClient: SupabaseClient
 let adminClient: SupabaseClient
-let rtSubjectId: string
+let refs: Awaited<ReturnType<typeof getRtRefs>>
+let bankId: string
 const userIds: string[] = []
 
 beforeAll(async () => {
-  const refs = await getRtRefs()
-  rtSubjectId = refs.rtSubjectId
+  refs = await getRtRefs()
 
   orgId = await createTestOrg({
     admin,
@@ -220,7 +97,7 @@ beforeAll(async () => {
     role: 'admin',
   })
   userIds.push(adminUserId)
-  studentId = await createTestUser({
+  const studentId = await createTestUser({
     admin,
     orgId,
     email: `student-rtsub-${suffix}@test.local`,
@@ -237,43 +114,7 @@ beforeAll(async () => {
     password: 'test-pass-123',
   })
 
-  const bankId = await ensureBank(orgId, adminUserId)
-
-  await Promise.all(
-    Array.from({ length: 8 }, (_, i) =>
-      insertSaQuestion(orgId, bankId, adminUserId, rtSubjectId, refs.p1TopicId, 400 + i),
-    ),
-  )
-  await Promise.all(
-    Array.from({ length: 9 }, (_, i) =>
-      insertDfQuestion(orgId, bankId, adminUserId, rtSubjectId, refs.p2TopicId, 400 + i),
-    ),
-  )
-  // 2 MC in EACH seeded P3 subtopic (start samples 2 per subtopic).
-  const p3Subtopics = await getP3Subtopics(refs.p3TopicId)
-  await Promise.all(
-    Array.from({ length: 8 }, (_, i) =>
-      insertMcQuestion(
-        orgId,
-        bankId,
-        adminUserId,
-        rtSubjectId,
-        refs.p3TopicId,
-        p3Subtopics[P3_SUBTOPIC_CODES[Math.floor(i / 2)]!],
-        400 + i,
-      ),
-    ),
-  )
-
-  const { error: ecErr } = await admin.from('exam_configs').insert({
-    organization_id: orgId,
-    subject_id: rtSubjectId,
-    enabled: true,
-    total_questions: 25,
-    time_limit_seconds: 1800,
-    pass_mark: 75,
-  })
-  if (ecErr) throw new Error(`exam_configs insert: ${ecErr.message}`)
+  bankId = await ensureBank(orgId, adminUserId)
 })
 
 afterAll(async () => {
@@ -286,16 +127,6 @@ describe('RPC: get_question_authoring_fields', () => {
   let saId: string
 
   beforeAll(async () => {
-    // Seed one SA question in the org's bank (bank was already created in the
-    // outer beforeAll for the submit tests)
-    const { data: bankRow } = await admin
-      .from('question_banks')
-      .select('id')
-      .eq('organization_id', orgId)
-      .is('deleted_at', null)
-      .maybeSingle()
-    const bankId = bankRow?.id as string
-    const refs = await getRtRefs()
     const { data, error } = await admin
       .from('questions')
       .insert({
