@@ -30,6 +30,12 @@ async function startMetExam(page: Page): Promise<void> {
 
 const historyLength = (page: Page) => page.evaluate(() => window.history.length)
 
+/** Back from a runner exit lands on the quiz picker, the entry before the runner. */
+async function expectQuizPicker(page: Page): Promise<void> {
+  await expect(page).toHaveURL(/\/app\/quiz$/, { timeout: 15_000 })
+  await expect(page.getByRole('button', { name: 'Study', exact: true })).toBeVisible()
+}
+
 async function startDiscovery(page: Page): Promise<void> {
   await page.goto('/app/quiz')
   await expect(page.getByRole('button', { name: 'Discovery', exact: true })).toHaveAttribute(
@@ -250,12 +256,17 @@ test.describe('Quiz leave guard', () => {
 
     await page.goBack()
 
+    await expectQuizPicker(page)
     await expect(page.getByText(`Question 1 of ${total}`)).toHaveCount(0)
     await expect(page.getByText('This session was discarded.')).toHaveCount(0)
   })
 
   test('Back from the practice exam report does not reopen the finished exam', async ({ page }) => {
     await startMetExam(page)
+    const first = page.locator(OPTION).first()
+    await first.click()
+    await page.getByRole('button', { name: 'Confirm Answer' }).click()
+    await expect(first).toBeDisabled()
     await page.getByRole('button', { name: 'Finish Practice Exam', exact: true }).click()
     const dialog = page.getByRole('dialog', { name: 'Finish Practice Exam' })
     await dialog.getByRole('button', { name: /^Submit/ }).click()
@@ -265,6 +276,7 @@ test.describe('Quiz leave guard', () => {
 
     await page.goBack()
 
+    await expectQuizPicker(page)
     await expect(page.getByText(/Question 1 of/)).toHaveCount(0)
   })
 })
