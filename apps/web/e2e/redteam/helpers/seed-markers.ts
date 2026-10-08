@@ -81,3 +81,6 @@ export const E2E_REDTEAM_DQ_MARKER = '[E2E_REDTEAM_DQ]'
 // legacy-completion-rpcs-dropped spec (Vector HW): marks the throwaway mock_exam sessions it
 // inserts (config.e2e_marker) so cleanup/maintenance can target them.
 export const E2E_REDTEAM_LC_MARKER = '[E2E_REDTEAM_LC]'
+// submit-quiz-answer-dropped spec (Vector HX): marks the throwaway mock_exam / quick_quiz sessions
+// it inserts (config.e2e_marker) so cleanup/maintenance can target them.
+export const E2E_REDTEAM_SX_MARKER = '[E2E_REDTEAM_SX]'
