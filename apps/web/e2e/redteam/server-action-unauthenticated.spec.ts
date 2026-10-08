@@ -202,18 +202,6 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
     expect(data ?? null).toBeNull()
   })
 
-  test('complete_empty_exam_session rejects unauthenticated callers (Vector AN, #557)', async () => {
-    // SECURITY DEFINER; mig 20260925000400 revokes anon EXECUTE, so the call is
-    // rejected at the privilege layer before the auth.uid() IS NULL guard, or the
-    // session ownership lookup, is ever reached — the session id need not exist.
-    const { data, error } = await unauthClient.rpc('complete_empty_exam_session', {
-      p_session_id: knownSessionId,
-    })
-    expect(error?.code).toBe('42501')
-    expect(error?.message ?? '').toMatch(FUNCTION_PERMISSION_DENIED)
-    expect(data ?? null).toBeNull()
-  })
-
   test('start_vfr_rt_exam_session rejects unauthenticated callers (Vector DN1, #825)', async () => {
     // SECURITY DEFINER; mig 20260925000400 revokes anon EXECUTE, so the call is
     // rejected at the privilege layer before the auth.uid() IS NULL guard (mig
@@ -234,19 +222,6 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
     // need not exist.
     const { data, error } = await unauthClient.rpc('get_vfr_rt_exam_questions', {
       p_session_id: knownSessionId,
-    })
-    expect(error?.code).toBe('42501')
-    expect(error?.message ?? '').toMatch(FUNCTION_PERMISSION_DENIED)
-    expect(data ?? null).toBeNull()
-  })
-
-  test('submit_vfr_rt_exam_answers rejects unauthenticated callers (Vector DQ1, #825)', async () => {
-    // SECURITY DEFINER; mig 20260925000400 revokes anon EXECUTE, so the call is
-    // rejected at the privilege layer before the auth.uid() IS NULL guard (mig
-    // 100), the session-ownership SELECT, or payload validation, is ever reached.
-    const { data, error } = await unauthClient.rpc('submit_vfr_rt_exam_answers', {
-      p_session_id: knownSessionId,
-      p_answers: [{ question_id: knownQuestionId, selected_option_id: 'a' }],
     })
     expect(error?.code).toBe('42501')
     expect(error?.message ?? '').toMatch(FUNCTION_PERMISSION_DENIED)
@@ -396,7 +371,7 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
 
   test.describe('soft-deleted user is rejected by quiz RPCs (#603 Vector BJ)', () => {
     // A student whose users.deleted_at is set (soft-deleted) holds a valid JWT.
-    // Both start_quiz_session and batch_submit_quiz must reject with
+    // start_quiz_session must reject with
     // 'user not found or inactive' (mig 20260430000010 + mig 20260430000012,
     // confirmed latest in mig 20260521000001 / mig 20260506000001) before reaching
     // any question-selection or answer-submission logic.
@@ -446,37 +421,6 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
         p_subject_id: knownSubjectId,
         p_topic_id: knownTopicId,
         p_question_ids: [knownQuestionId],
-      })
-      expect(error).not.toBeNull()
-      expect(error?.message ?? '').toBe('user not found or inactive')
-      expect(data ?? null).toBeNull()
-    })
-
-    test('batch_submit_quiz rejects a soft-deleted user with user-not-found error', async () => {
-      // Soft-delete the victim via admin.
-      const { data: deleted, error: delErr } = await adminClient
-        .from('users')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', victimUserId)
-        .is('deleted_at', null)
-        .select('id')
-      expect(delErr).toBeNull()
-      // Non-vacuous: confirm the update actually changed a row.
-      expect((deleted ?? []).length).toBeGreaterThan(0)
-      victimSoftDeleted = true
-
-      // Call batch_submit_quiz with a dummy session id. The user gate fires
-      // before the session ownership check, so the rejection is
-      // 'user not found or inactive' regardless of whether the session exists.
-      const { data, error } = await victimAuthClient.rpc('batch_submit_quiz', {
-        p_session_id: knownSessionId,
-        p_answers: [
-          {
-            question_id: knownQuestionId,
-            selected_option: '00000000-0000-4000-a000-0000000000ff',
-            response_time_ms: 1000,
-          },
-        ],
       })
       expect(error).not.toBeNull()
       expect(error?.message ?? '').toBe('user not found or inactive')

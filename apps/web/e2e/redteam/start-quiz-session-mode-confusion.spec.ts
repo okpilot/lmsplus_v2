@@ -7,7 +7,7 @@
  *         whitelist, this creates a quiz_sessions row whose mode column bypasses
  *         all exam_config validation performed by start_exam_session (mig 040)
  *         and start_internal_exam_session (mig 058). The attacker could then
- *         call batch_submit_quiz against a self-assembled question set,
+ *         finish that session against a self-assembled question set,
  *         effectively generating a fake exam report without completing a real
  *         exam.
  *

@@ -78,3 +78,6 @@ export const E2E_REDTEAM_DD_MARKER = '[E2E_REDTEAM_DD]'
 // discardQuiz Server Action spec (Vectors EF, HT): written into fixture quiz_sessions as
 // `config.e2e_marker` and into fixture quiz_drafts as `session_config.subjectName`.
 export const E2E_REDTEAM_DQ_MARKER = '[E2E_REDTEAM_DQ]'
+// legacy-completion-rpcs-dropped spec (Vector HW): marks the throwaway mock_exam sessions it
+// inserts (config.e2e_marker) so cleanup/maintenance can target them.
+export const E2E_REDTEAM_LC_MARKER = '[E2E_REDTEAM_LC]'

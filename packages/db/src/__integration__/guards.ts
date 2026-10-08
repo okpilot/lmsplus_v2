@@ -15,7 +15,7 @@
 /**
  * Assert an object-returning RPC / single-row `.select()` result is a non-null
  * object, then return it as `T`. Use for RPCs that return a JSONB object or a
- * single row (e.g. `get_vfr_rt_exam_results`, `submit_vfr_rt_exam_answers`).
+ * single row (e.g. `get_vfr_rt_exam_results`, `finish_quiz_session`).
  */
 export function requireRpcResult<T>(data: unknown, label: string): T {
   if (data === null || data === undefined || typeof data !== 'object' || Array.isArray(data)) {

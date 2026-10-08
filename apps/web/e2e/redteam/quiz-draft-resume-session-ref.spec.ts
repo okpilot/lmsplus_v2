@@ -1,8 +1,8 @@
 /**
  * Red Team Spec: a forged draft's session reference cannot reach another student's session or a
- * malformed id — Vector HW
+ * malformed id — Vector HX
  *
- * HW (idor): a legacy/forged quiz_drafts row, seeded by service role, has session_config.sessionId
+ * HX (idor): a legacy/forged quiz_drafts row, seeded by service role, has session_config.sessionId
  *     naming (1) ANOTHER student's ACTIVE quick_quiz, or (2) a non-uuid string. (1) pins the
  *     student-scoped original-session lookup; (2) pins the uuid check that runs before it. Resume
  *     must refuse, leave the foreign session active, mint nothing and keep the draft.
@@ -30,7 +30,7 @@ const SESSION_URL = /\/app\/quiz\/session\/([0-9a-f-]{36})$/
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null
 
-test.describe('Red Team: forged draft session reference (HW)', () => {
+test.describe('Red Team: forged draft session reference (HX)', () => {
   test.setTimeout(120_000)
 
   let admin: ReturnType<typeof getAdminClient>
@@ -206,7 +206,7 @@ test.describe('Red Team: forged draft session reference (HW)', () => {
     expect(await activeSessionIds(victimUserId)).toEqual([newSessionId])
   }
 
-  test('HW: resume refuses a draft naming another student’s active quiz and leaves it active', async ({
+  test('HX: resume refuses a draft naming another student’s active quiz and leaves it active', async ({
     browser,
   }) => {
     const foreignId = await insertSession({ student_id: otherUserId })
@@ -242,7 +242,7 @@ test.describe('Red Team: forged draft session reference (HW)', () => {
     }
   })
 
-  test('HW: resume refuses a draft whose session reference is not a uuid', async ({ browser }) => {
+  test('HX: resume refuses a draft whose session reference is not a uuid', async ({ browser }) => {
     const draftId = await forgeDraft('not-a-uuid')
     expect(await draftExists(draftId)).toBe(true)
     expect(await activeSessionIds(victimUserId)).toEqual([])
