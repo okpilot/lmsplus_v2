@@ -9,12 +9,12 @@ import QuizSessionError from './error'
 describe('QuizSessionError', () => {
   it('reports the error and lets the student try again', () => {
     const error = new Error('boom')
-    const reset = vi.fn()
+    const retry = vi.fn()
 
-    render(<QuizSessionError error={error} reset={reset} />)
+    render(<QuizSessionError error={error} retry={retry} />)
     fireEvent.click(screen.getByRole('button', { name: /try again/i }))
 
     expect(Sentry.captureException).toHaveBeenCalledWith(error)
-    expect(reset).toHaveBeenCalled()
+    expect(retry).toHaveBeenCalledOnce()
   })
 })
