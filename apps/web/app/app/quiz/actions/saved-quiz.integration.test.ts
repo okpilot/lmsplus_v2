@@ -227,14 +227,14 @@ describe('saved quiz actions (app-layer integration)', () => {
     expect((await sessionRow(saved)).saved_at).not.toBeNull()
   })
 
-  it('refuses to resume a session that was never saved', async () => {
+  it('reopens a session that is already open', async () => {
     const sessionId = await openSession()
-
-    expect(await resumeSavedQuiz({ sessionId, deviceId: DEVICE_A })).toEqual({
-      success: false,
-      error: expect.stringMatching(/not (in your )?saved/i),
-    })
     expect((await sessionRow(sessionId)).deleted_at).toBeNull()
+
+    expect(await resumeSavedQuiz({ sessionId, deviceId: DEVICE_A })).toEqual({ success: true })
+    const row = await sessionRow(sessionId)
+    expect(row.deleted_at).toBeNull()
+    expect(row.saved_at).toBeNull()
   })
 
   it('refuses to save a mock exam and leaves it open', async () => {
