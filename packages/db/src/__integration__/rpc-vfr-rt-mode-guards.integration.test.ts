@@ -299,10 +299,10 @@ async function startSession(): Promise<{ sessionId: string; questionIds: string[
 
 // ─── Legacy RPC mode whitelist (#838) ─────────────────────────────────────────
 //
-// Migs 095b/095c/104 add a fail-closed mode whitelist to the session RPCs: a
-// vfr_rt_exam session answered/completed via the MC path would bypass per-part
-// grading (mig 100). The happy paths live in rpc-submit-answer /
-// rpc-complete-session — those are what make these rejections non-vacuous.
+// Migs 095b/095c/104 add a fail-closed mode whitelist to submit_quiz_answer: a
+// vfr_rt_exam session answered via the MC path would bypass per-part grading
+// (mig 100). The happy path lives in rpc-submit-answer — that is what makes this
+// rejection non-vacuous.
 
 describe('RPC mode whitelist (#838) — vfr_rt_exam sessions are rejected by the MC-path RPCs', () => {
   it('submit_quiz_answer rejects a vfr_rt_exam session with unsupported_session_mode', async () => {
