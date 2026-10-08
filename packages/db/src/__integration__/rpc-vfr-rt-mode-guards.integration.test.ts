@@ -22,35 +22,21 @@ const suffix = fixtureSuffix()
 // ─── RT seed helpers (duplicated from rpc-vfr-rt-start — each file must be
 //     self-contained; tests run in separate Vitest workers) ──────────────────
 
-async function getRtRefs(): Promise<{
-  rtSubjectId: string
-  p1TopicId: string
-  p2TopicId: string
-  p3TopicId: string
-}> {
+async function getRtRefs(): Promise<{ rtSubjectId: string; p1TopicId: string }> {
   const { data: sub, error: subErr } = await admin
     .from('easa_subjects')
     .select('id')
     .eq('code', 'RT')
     .single()
   if (subErr || !sub) throw new Error('getRtRefs: RT subject not found')
-  const { data: topics, error: topErr } = await admin
+  const { data: topic, error: topErr } = await admin
     .from('easa_topics')
-    .select('id, code')
+    .select('id')
     .eq('subject_id', sub.id)
-    .in('code', ['P1_ACRONYMS', 'P2_DIALOG', 'P3_MC'])
-  if (topErr) throw new Error(`getRtRefs: ${topErr.message}`)
-  const byCode = Object.fromEntries(
-    (topics ?? []).map((t: { id: string; code: string }) => [t.code, t.id]),
-  )
-  if (!byCode.P1_ACRONYMS || !byCode.P2_DIALOG || !byCode.P3_MC)
-    throw new Error('getRtRefs: RT topics missing')
-  return {
-    rtSubjectId: sub.id,
-    p1TopicId: byCode.P1_ACRONYMS,
-    p2TopicId: byCode.P2_DIALOG,
-    p3TopicId: byCode.P3_MC,
-  }
+    .eq('code', 'P1_ACRONYMS')
+    .single()
+  if (topErr || !topic) throw new Error('getRtRefs: RT topic P1_ACRONYMS missing')
+  return { rtSubjectId: sub.id, p1TopicId: topic.id }
 }
 
 async function ensureBank(orgId: string, adminId: string): Promise<string> {
