@@ -32,8 +32,8 @@ export function QuizSession(props: Readonly<QuizSessionProps>) {
     optionIds: s.question?.options.map((o) => o.id) ?? [],
     currentIndex: s.currentIndex,
     isExam: s.isExam,
-    // Pause shortcuts only while the finish dialog is open; lightweight popovers (the keyboard legend) stay live — no destructive action, Escape-dismissable.
-    enabled: !s.showFinishDialog,
+    // Pause shortcuts while the finish or Discovery leave dialog is open; lightweight popovers (the keyboard legend) stay live — no destructive action, Escape-dismissable.
+    enabled: !s.showFinishDialog && !leave.discoveryConfirmOpen,
     onNavigate: s.navigate,
     onConfirm: s.handleSelectAnswer,
     onTab: setActiveTab,
