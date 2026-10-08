@@ -22,8 +22,8 @@
  *      (20260606000003_cache_actor_role_internal_exam.sql:71)
  *  - complete_overdue_exam_session → session not found or not accessible
  *      (20260429000008_extend_overdue_for_internal_exam.sql:52)
- *  - complete_empty_exam_session   → session not found or not accessible
- *      (20260429000008_extend_overdue_for_internal_exam.sql:189)
+ *  - finish_quiz_session           → session_not_found
+ *      (20261004000300_finish_quiz_session.sql:45)
  *  - void_internal_exam_code       → code_not_found (admin client; p_code_id uuid)
  *      (20260601000003_void_internal_exam_code_failfast_session.sql:84)
  *  - get_report_correct_options    → Session not found, not owned, or not completed
@@ -81,11 +81,11 @@ const PROBES: Probe[] = [
       client.rpc('complete_overdue_exam_session', { p_session_id: crypto.randomUUID() }),
   },
   {
-    title: 'complete_empty_exam_session is called with a non-existent session id',
+    title: 'finish_quiz_session is called with a non-existent session id',
     actor: 'student',
-    expected: /session not found or not accessible/i,
+    expected: /session_not_found/i,
     call: (client) =>
-      client.rpc('complete_empty_exam_session', { p_session_id: crypto.randomUUID() }),
+      client.rpc('finish_quiz_session', { p_session_id: crypto.randomUUID(), p_device_id: null }),
   },
   {
     title: 'void_internal_exam_code is called by an admin with a non-existent code id',

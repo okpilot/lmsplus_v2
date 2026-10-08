@@ -61,6 +61,23 @@ describe('RPC: finish_quiz_session — guards', () => {
     await expectUntouched(sessionId)
   })
 
+  it('refuses another student finishing a finished session and reveals no results', async () => {
+    const sessionId = await openSessionWithAnswer()
+    await finishSeedSession(f.student, sessionId)
+    const stored = await sessionRow(f, sessionId)
+    expect(stored.ended_at).not.toBeNull()
+    expect(await answerRows(f, sessionId)).toHaveLength(1)
+
+    const { data, error } = await finishSession(f.other, sessionId, DEVICE)
+
+    expect(error?.message).toContain('session_not_found')
+    expect(data).toBeNull()
+    expect(await answerRows(f, sessionId)).toHaveLength(1)
+    expect(Number((await sessionRow(f, sessionId)).score_percentage)).toBe(
+      Number(stored.score_percentage),
+    )
+  })
+
   it('refuses a session that does not exist', async () => {
     const { error } = await finishSession(f.student, '33333333-3333-4333-8333-333333333333')
     expect(error?.message).toContain('session_not_found')

@@ -549,7 +549,7 @@ async function seed(): Promise<void> {
   }
 
   // Part 3 — ordering (canonical sequence in ordering_items; delivered shuffled by
-  // get_quiz_questions; graded per-slot with partial credit by batch_submit_quiz)
+  // get_quiz_questions; graded per-slot with partial credit by _grade_session_progress)
   for (const q of ORDERING) {
     // Gated like the diagram insert below: the stored shape is composed here, so a fixture
     // that drifted (a blank step, two steps that normalize to one, fewer than MIN_ORDER_ITEMS)

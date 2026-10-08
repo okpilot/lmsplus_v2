@@ -255,16 +255,20 @@ describe('RPC: submit_quiz_answer', () => {
   it('rejects submission to completed session', async () => {
     const sessionId = await startSession([questionIds[0]!])
 
-    // Submit one answer then complete
+    // Submit one answer then end the session (state only; the test targets the submit guard)
     await studentClient.rpc('submit_quiz_answer', {
       p_session_id: sessionId,
       p_question_id: questionIds[0],
       p_selected_option: 'b',
       p_response_time_ms: 1000,
     })
-    await studentClient.rpc('complete_quiz_session', {
-      p_session_id: sessionId,
-    })
+    const { data: ended, error: endErr } = await admin
+      .from('quiz_sessions')
+      .update({ ended_at: new Date().toISOString() })
+      .eq('id', sessionId)
+      .select('id')
+    expect(endErr).toBeNull()
+    expect(ended).toHaveLength(1)
 
     // Try to submit another answer
     const { error } = await studentClient.rpc('submit_quiz_answer', {
@@ -352,7 +356,7 @@ describe('RPC: submit_quiz_answer', () => {
 
   it('rejects a soft-deleted caller', async () => {
     // Mig 095b (PR #830) adds an explicit active-user gate right after the
-    // auth check, mirroring batch_submit_quiz (mig 095c).
+    // auth check, mirroring the sibling session RPCs (e.g. mig 095c).
     const sessionId = await startSession()
 
     // Soft-delete the student mid-session.

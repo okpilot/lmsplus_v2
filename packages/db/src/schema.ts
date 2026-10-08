@@ -21,12 +21,6 @@ export const StartQuizSessionSchema = z.object({
 
 export type StartQuizSessionInput = z.infer<typeof StartQuizSessionSchema>
 
-export const CompleteQuizSessionSchema = z.object({
-  sessionId: z.uuid(),
-})
-
-export type CompleteQuizSessionInput = z.infer<typeof CompleteQuizSessionSchema>
-
 // --- Admin: Syllabus CRUD schemas ---
 
 export const UpsertSubjectSchema = z.object({

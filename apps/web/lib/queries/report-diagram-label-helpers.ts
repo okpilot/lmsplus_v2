@@ -5,7 +5,7 @@ import type { AnswerKeyEntry, AnswerRow } from './report-question-builder'
 // Resolve the zone order to render. Drive the zone set from the question's full
 // diagram_config.zones — get_report_answer_keys (mig 156) returns every zone —
 // so an omitted zone still renders as unplaced (placedLabel null, isCorrect
-// false). This matches batch_submit_quiz (mig 155), which scores diagram_label
+// false). This matches _score_graded_session, which scores diagram_label
 // questions against the config's total zone count, NOT the submitted-row
 // count. Fall back to the submitted rows only when no answer keys are present
 // (an all-MC session, or a keyless race) — preserves prior behavior (mirrors

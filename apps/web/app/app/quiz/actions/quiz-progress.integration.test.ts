@@ -21,7 +21,6 @@ import {
   signInAs,
 } from '@/lib/integration-support/harness'
 import { checkAnswer } from './check-answer'
-import { completeQuiz } from './complete'
 import { claimQuizSession, saveQuizAnswer, saveQuizPosition } from './quiz-progress'
 
 const admin = getAdminClient()
@@ -242,7 +241,15 @@ describe('quiz progress actions (app-layer integration)', () => {
 
   it('refuses saves on an ended session', async () => {
     const sessionId = await openSession()
-    await completeQuiz({ sessionId })
+    const { data: ended, error: endError } = await admin
+      .from('quiz_sessions')
+      .update({ ended_at: new Date().toISOString() })
+      .eq('id', sessionId)
+      .is('ended_at', null)
+      .is('deleted_at', null)
+      .select('id')
+    expect(endError).toBeNull()
+    expect(ended).toHaveLength(1)
     expect(await saveQuizAnswer(answerFor(sessionId, DEVICE_A))).toEqual({
       success: false,
       error: 'This session has already ended.',

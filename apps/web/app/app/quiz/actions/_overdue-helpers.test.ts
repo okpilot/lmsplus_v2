@@ -99,8 +99,8 @@ describe('extractPassMark', () => {
 
 // ---- isExamOverdue — 30s grace window ------------------------------------
 // The function returns true only after startedAt + timeLimitSeconds + 30s.
-// This mirrors batch_submit_quiz (mig 047) and complete_overdue_exam_session
-// (mig 052). Both TS and SQL must agree on this boundary.
+// This mirrors finish_quiz_session (mig 20261004000300) and
+// complete_overdue_exam_session (mig 052). Both TS and SQL must agree on this boundary.
 
 describe('isExamOverdue', () => {
   it('returns false when timeLimitSeconds is zero', () => {
