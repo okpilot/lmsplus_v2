@@ -204,7 +204,7 @@ test.describe('Quiz leave guard', () => {
     if (prompts() < 2) await expect(page).toHaveURL(sessionUrl)
   })
 
-  test('Save for later adds only the quiz list entry and Back does not reopen the runner', async ({
+  test('Save for later adds no history entry and Back does not reopen the runner', async ({
     page,
   }) => {
     const total = await startStudyQuiz(page)
@@ -215,7 +215,7 @@ test.describe('Quiz leave guard', () => {
     await page.getByRole('button', { name: 'Save for Later' }).click()
     await expect(page).toHaveURL(/\/app\/quiz$/, { timeout: 15_000 })
 
-    expect(await historyLength(page)).toBe(runnerEntries + 1)
+    expect(await historyLength(page)).toBe(runnerEntries)
     await page.goBack()
     await expect(page.getByText(`Question 1 of ${total}`)).toHaveCount(0)
   })
@@ -236,6 +236,35 @@ test.describe('Quiz leave guard', () => {
     await page.getByRole('button', { name: 'Save for Later' }).click()
     await expect(page).toHaveURL(/\/app\/quiz$/, { timeout: 15_000 })
 
-    expect(await historyLength(page)).toBe(runnerEntries + 1)
+    expect(await historyLength(page)).toBe(runnerEntries)
+  })
+
+  test('Back after discarding a study quiz does not show the discarded runner', async ({
+    page,
+  }) => {
+    const total = await startStudyQuiz(page)
+    await page.getByRole('button', { name: 'Finish Test' }).click()
+    await page.getByRole('button', { name: 'Discard Quiz' }).click()
+    await page.getByRole('button', { name: 'Yes, discard' }).click()
+    await expect(page).toHaveURL(/\/app\/quiz$/, { timeout: 15_000 })
+
+    await page.goBack()
+
+    await expect(page.getByText(`Question 1 of ${total}`)).toHaveCount(0)
+    await expect(page.getByText('This session was discarded.')).toHaveCount(0)
+  })
+
+  test('Back from the practice exam report does not reopen the finished exam', async ({ page }) => {
+    await startMetExam(page)
+    await page.getByRole('button', { name: 'Finish Practice Exam', exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: 'Finish Practice Exam' })
+    await dialog.getByRole('button', { name: /^Submit/ }).click()
+    const anyway = dialog.getByRole('button', { name: 'Submit anyway' })
+    if (await anyway.isVisible({ timeout: 2_000 }).catch(() => false)) await anyway.click()
+    await page.waitForURL(/\/app\/quiz\/report\?session=/, { timeout: 30_000 })
+
+    await page.goBack()
+
+    await expect(page.getByText(/Question 1 of/)).toHaveCount(0)
   })
 })

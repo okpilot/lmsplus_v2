@@ -462,7 +462,7 @@ describe('QuizSession', () => {
     })
 
     await waitFor(() => {
-      expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/report?session=sess-1')
+      expect(mockRouterReplace).toHaveBeenCalledWith('/app/quiz/report?session=sess-1')
     })
   })
 
@@ -631,7 +631,7 @@ describe('QuizSession', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Finish Practice Exam' }))
     fireEvent.click(screen.getByRole('button', { name: 'Discard Session' }))
     await waitFor(() => expect(mockDiscardQuiz).toHaveBeenCalledWith({ sessionId: 'sess-exam' }))
-    await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz'))
+    await waitFor(() => expect(mockRouterReplace).toHaveBeenCalledWith('/app/quiz'))
   })
 
   it('disables the Finish Test button while a submission is in progress', async () => {

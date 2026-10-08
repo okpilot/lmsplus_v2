@@ -4,13 +4,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // ---- Mocks ----------------------------------------------------------------
 
 const {
-  mockRouterPush,
+  mockRouterReplace,
   mockHandleSubmitSession,
   mockHandleSaveSession,
   mockHandleDiscardSession,
   mockCheckAnswer,
 } = vi.hoisted(() => ({
-  mockRouterPush: vi.fn(),
+  mockRouterReplace: vi.fn(),
   mockHandleSubmitSession: vi.fn(),
   mockHandleSaveSession: vi.fn(),
   mockHandleDiscardSession: vi.fn(),
@@ -18,7 +18,7 @@ const {
 }))
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockRouterPush }),
+  useRouter: () => ({ replace: mockRouterReplace }),
 }))
 
 vi.mock('./quiz-submit', () => ({
@@ -362,7 +362,7 @@ describe('useQuizState — handleSubmit empty-answers guard', () => {
     await act(async () => result.current.handleSubmit())
 
     expect(result.current.error).toBe('No answers to submit.')
-    expect(mockRouterPush).not.toHaveBeenCalled()
+    expect(mockRouterReplace).not.toHaveBeenCalled()
   })
 })
 
@@ -370,12 +370,12 @@ describe('useQuizState — handleSubmit', () => {
   it('navigates to the report page after a successful submission', async () => {
     mockHandleSubmitSession.mockImplementation(
       async (opts: {
-        router: { push: (url: string) => void }
+        router: { replace: (url: string) => void }
         sessionId: string
         onSuccess: () => void
       }) => {
         opts.onSuccess()
-        opts.router.push(`/app/quiz/report?session=${opts.sessionId}`)
+        opts.router.replace(`/app/quiz/report?session=${opts.sessionId}`)
       },
     )
 
@@ -389,7 +389,7 @@ describe('useQuizState — handleSubmit', () => {
     )
     await act(async () => result.current.handleSubmit())
 
-    expect(mockRouterPush).toHaveBeenCalledWith(`/app/quiz/report?session=${SESSION_ID}`)
+    expect(mockRouterReplace).toHaveBeenCalledWith(`/app/quiz/report?session=${SESSION_ID}`)
   })
 
   it('shows error when submission fails', async () => {
@@ -414,7 +414,7 @@ describe('useQuizState — handleSubmit', () => {
     await act(async () => result.current.handleSubmit())
 
     expect(result.current.error).toBe('Session expired')
-    expect(mockRouterPush).not.toHaveBeenCalled()
+    expect(mockRouterReplace).not.toHaveBeenCalled()
   })
 })
 

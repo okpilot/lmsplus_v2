@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockPipeline } = vi.hoisted(() => ({ mockPipeline: vi.fn() }))
 
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }))
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
+}))
 vi.mock('./use-answer-pipeline', () => ({
   useAnswerPipeline: (...a: unknown[]) => mockPipeline(...a),
 }))

@@ -56,12 +56,12 @@ vi.mock('./use-quiz-submit', () => ({
   useQuizSubmit: (...args: unknown[]) => mockUseQuizSubmit(...args),
 }))
 
-const { mockRouterPush } = vi.hoisted(() => ({
-  mockRouterPush: vi.fn(),
+const { mockRouterReplace } = vi.hoisted(() => ({
+  mockRouterReplace: vi.fn(),
 }))
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockRouterPush }),
+  useRouter: () => ({ replace: mockRouterReplace }),
 }))
 
 // ---- Subject under test (after mocks) ------------------------------------

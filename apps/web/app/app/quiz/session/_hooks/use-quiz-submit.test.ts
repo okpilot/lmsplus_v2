@@ -21,12 +21,12 @@ vi.mock('./quiz-submit', () => ({
   handleDiscardSession: (...args: unknown[]) => mockHandleDiscardSession(...args),
 }))
 
-const { mockRouterPush } = vi.hoisted(() => ({
-  mockRouterPush: vi.fn(),
+const { mockRouterReplace } = vi.hoisted(() => ({
+  mockRouterReplace: vi.fn(),
 }))
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockRouterPush }),
+  useRouter: () => ({ replace: mockRouterReplace }),
 }))
 
 // jsdom's window.location is not fully writable, so replace it with a mockable stub.
@@ -66,7 +66,7 @@ function makeDefaultOpts(overrides?: Partial<Parameters<typeof useQuizSubmit>[0]
     answersRef: makeAnswersRef([[Q1, SAMPLE_ANSWER]]),
     feedbackRef: makeFeedbackRef(),
     currentIndexRef: { current: 0 },
-    router: createMockRouter({ push: mockRouterPush }),
+    router: createMockRouter({ replace: mockRouterReplace }),
     ...overrides,
   }
 }

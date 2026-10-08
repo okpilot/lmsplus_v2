@@ -23,7 +23,7 @@ export async function submitQuizSession(sessionId: string, userId: string) {
     if (!result.success) return { success: false as const, error: result.error }
     clearActiveSessionIfCurrent(userId, sessionId)
     // #909: a Server Action response triggers an App Router revalidation that cancels a
-    // pending soft navigation. Await cleanup so router.push (in handleSubmitSession) runs
+    // pending soft navigation. Await cleanup so router.replace (in handleSubmitSession) runs
     // with nothing in flight.
     await clearDeploymentPin().catch(() => {})
     return { success: true as const }
@@ -38,14 +38,14 @@ export async function discardQuizSession(
   userId: string,
 ): Promise<ActionResult> {
   clearActiveSessionIfCurrent(userId, sessionId) // Always clear — respect discard intent even if Server Action fails
-  // Await before the later router.push so the Server Action revalidation can't cancel the
+  // Await before the later router.replace so the Server Action revalidation can't cancel the
   // soft navigation (#909 — same race the submit paths fix).
   await clearDeploymentPin().catch(() => {})
   try {
     const result = await discardQuiz({ sessionId })
     if (!result.success) return result
     markRunnerExiting()
-    router.push('/app/quiz')
+    router.replace('/app/quiz')
     return { success: true }
   } catch {
     return { success: false as const, error: 'Something went wrong. Please try again.' }
@@ -76,7 +76,7 @@ export async function handleSubmitSession(opts: {
   const r = await submitQuizSession(opts.sessionId, opts.userId)
   if (r.success) {
     opts.onSuccess()
-    opts.router.push(reportUrl(opts.examMode, opts.sessionId))
+    opts.router.replace(reportUrl(opts.examMode, opts.sessionId))
   } else {
     opts.setError(r.error)
     opts.setSubmitting(false)
@@ -103,7 +103,7 @@ export async function handleSaveSession(opts: {
       // Await so the Server Action revalidation can't cancel the soft navigation (#909).
       await clearDeploymentPin().catch(() => {})
       markRunnerExiting()
-      opts.router.push('/app/quiz')
+      opts.router.replace('/app/quiz')
       return
     }
     opts.setError(r.error)
@@ -127,5 +127,5 @@ export async function handleDiscardSession(opts: {
     opts.setError(r.error)
     opts.setSubmitting(false)
   }
-  // On success, router.push navigates away — no further state update needed
+  // On success, router.replace navigates away — no further state update needed
 }
