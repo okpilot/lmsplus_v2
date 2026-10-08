@@ -248,6 +248,7 @@
 | HT | discardQuiz-forged-draftId-foreign-draft-delete | MEDIUM | server-action-discard-quiz.spec.ts | BLOCKED |  | idor |
 | HU | resume_saved_quiz-open-row-claim-scope | HIGH | rpc-saved-quiz-resume-open-audit.spec.ts | BLOCKED |  | auth-bypass |
 | HV | saved-quiz-rpcs-audit-completeness | MEDIUM | rpc-saved-quiz-resume-open-audit.spec.ts | BLOCKED |  | sibling-guard-gap |
+| HW | resumeQuizSession-forged-draft-session-ref | MEDIUM | quiz-draft-resume-session-ref.spec.ts | BLOCKED |  | idor |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
