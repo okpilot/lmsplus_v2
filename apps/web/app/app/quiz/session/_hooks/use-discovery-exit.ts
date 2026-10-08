@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useCallback, useRef, useState } from 'react'
 import { endDiscovery } from '../../actions/end-discovery'
+import { markRunnerExiting } from '../_utils/runner-exit'
 
 /**
  * Returns `{ exit, leaving }`: the Discovery Exit handler plus a flag that is true from
@@ -30,6 +31,7 @@ export function useDiscoveryExit() {
     exitingRef.current = true
     setLeaving(true)
     await endDiscovery().catch(() => {})
+    markRunnerExiting()
     router.replace('/app/quiz')
   }, [router])
   return { exit, leaving }

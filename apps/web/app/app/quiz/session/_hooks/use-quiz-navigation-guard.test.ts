@@ -7,6 +7,7 @@ vi.mock('./use-back-guard', () => ({ useBackGuard: vi.fn() }))
 
 import { useNavigationGuard } from '../../_hooks/use-navigation-guard'
 import { _resetConnectionState, setConnectionStatus } from '../_utils/connection-state'
+import { _resetRunnerExit, markRunnerExiting } from '../_utils/runner-exit'
 import { useBackGuard } from './use-back-guard'
 import { useQuizNavigationGuard } from './use-quiz-navigation-guard'
 
@@ -16,6 +17,7 @@ const backGuard = vi.mocked(useBackGuard)
 beforeEach(() => {
   vi.resetAllMocks()
   _resetConnectionState()
+  _resetRunnerExit()
 })
 
 describe('useQuizNavigationGuard', () => {
@@ -52,6 +54,22 @@ describe('useQuizNavigationGuard', () => {
   it('keeps both guards armed while offline', () => {
     renderHook(() => useQuizNavigationGuard({ submitted: false, onAttempt: vi.fn() }))
     act(() => setConnectionStatus('offline'))
+    expect(beforeUnload).toHaveBeenLastCalledWith(true)
+    expect(backGuard).toHaveBeenLastCalledWith(true, expect.any(Function))
+  })
+
+  it('releases both guards once a confirmed exit begins', () => {
+    renderHook(() => useQuizNavigationGuard({ submitted: false, onAttempt: vi.fn() }))
+    act(() => markRunnerExiting())
+    expect(beforeUnload).toHaveBeenLastCalledWith(false)
+    expect(backGuard).toHaveBeenLastCalledWith(false, expect.any(Function))
+  })
+
+  it('arms both guards again for the next runner after the previous one unmounts', () => {
+    const first = renderHook(() => useQuizNavigationGuard({ submitted: false, onAttempt: vi.fn() }))
+    act(() => markRunnerExiting())
+    first.unmount()
+    renderHook(() => useQuizNavigationGuard({ submitted: false, onAttempt: vi.fn() }))
     expect(beforeUnload).toHaveBeenLastCalledWith(true)
     expect(backGuard).toHaveBeenLastCalledWith(true, expect.any(Function))
   })

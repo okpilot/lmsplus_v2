@@ -41,6 +41,7 @@ vi.mock('../_utils/quiz-session-storage', () => ({
 
 // ---- Subject under test ---------------------------------------------------
 
+import { _resetRunnerExit, isRunnerExiting } from '../_utils/runner-exit'
 import {
   handleDiscardSession,
   handleSaveSession,
@@ -96,6 +97,7 @@ function makeDeferred<T>() {
 
 beforeEach(() => {
   vi.resetAllMocks()
+  _resetRunnerExit()
   mockClearDeploymentPin.mockResolvedValue(undefined)
   mockFinishQuizSession.mockResolvedValue({ success: true })
 })
@@ -291,6 +293,28 @@ describe('handleSaveSession', () => {
     expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz')
   })
 
+  it('releases the leave guards only after the pin cleanup, right before returning to the list', async () => {
+    const deferred = makeDeferred<undefined>()
+    mockClearDeploymentPin.mockReturnValue(deferred.promise)
+    let exitingAtNav: boolean | undefined
+    mockRouterPush.mockImplementation(() => {
+      exitingAtNav = isRunnerExiting()
+    })
+    const run = handleSaveSession(makeOpts())
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(isRunnerExiting()).toBe(false)
+    deferred.resolve(undefined)
+    await run
+    expect(exitingAtNav).toBe(true)
+  })
+
+  it('keeps the leave guards armed when the save is refused', async () => {
+    mockSaveQuizForLater.mockResolvedValue({ success: false, error: 'Not allowed' })
+    await handleSaveSession(makeOpts())
+    expect(isRunnerExiting()).toBe(false)
+  })
+
   it('shows the error and stops loading when the save is refused', async () => {
     mockSaveQuizForLater.mockResolvedValue({ success: false, error: 'Not allowed' })
     const opts = makeOpts()
@@ -339,6 +363,22 @@ describe('handleDiscardSession', () => {
     const opts = makeOpts()
     await handleDiscardSession(opts)
     expect(opts.router.push).toHaveBeenCalledWith('/app/quiz')
+  })
+
+  it('releases the leave guards before returning to the list after a discard', async () => {
+    mockDiscardQuiz.mockResolvedValue({ success: true })
+    let exitingAtNav: boolean | undefined
+    mockRouterPush.mockImplementation(() => {
+      exitingAtNav = isRunnerExiting()
+    })
+    await handleDiscardSession(makeOpts())
+    expect(exitingAtNav).toBe(true)
+  })
+
+  it('keeps the leave guards armed when the discard fails', async () => {
+    mockDiscardQuiz.mockResolvedValue({ success: false, error: 'already discarded' })
+    await handleDiscardSession(makeOpts())
+    expect(isRunnerExiting()).toBe(false)
   })
 
   it('shows error and stops loading when discard fails', async () => {

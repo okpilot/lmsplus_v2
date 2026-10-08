@@ -8,6 +8,7 @@ import { saveQuizForLater } from '../../actions/saved-quiz'
 import type { DraftAnswer } from '../../types'
 import { getQuizDeviceId } from '../_utils/quiz-device-id'
 import { clearActiveSessionIfCurrent } from '../_utils/quiz-session-storage'
+import { markRunnerExiting } from '../_utils/runner-exit'
 import { reportUrl } from './exam-report-paths'
 
 type AppRouterInstance = ReturnType<typeof useRouter>
@@ -43,6 +44,7 @@ export async function discardQuizSession(
   try {
     const result = await discardQuiz({ sessionId })
     if (!result.success) return result
+    markRunnerExiting()
     router.push('/app/quiz')
     return { success: true }
   } catch {
@@ -100,6 +102,7 @@ export async function handleSaveSession(opts: {
       clearActiveSessionIfCurrent(opts.userId, opts.sessionId)
       // Await so the Server Action revalidation can't cancel the soft navigation (#909).
       await clearDeploymentPin().catch(() => {})
+      markRunnerExiting()
       opts.router.push('/app/quiz')
       return
     }

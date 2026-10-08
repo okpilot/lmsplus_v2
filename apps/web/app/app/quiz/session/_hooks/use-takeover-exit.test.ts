@@ -10,6 +10,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ replace: mockReplace }) 
 vi.mock('sonner', () => ({ toast: { info: (...a: unknown[]) => mockToastInfo(...a) } }))
 
 import { _resetQuizDeviceId } from '../_utils/quiz-device-id'
+import { _resetRunnerExit, isRunnerExiting } from '../_utils/runner-exit'
 import { _resetSessionTakeover, isTakenOver, markTakenOver } from '../_utils/session-takeover'
 import { useTakeoverExit } from './use-takeover-exit'
 
@@ -31,6 +32,7 @@ const peerClaim = () => new FakeChannel().postMessage({ sessionId: 's1', deviceI
 
 beforeEach(() => {
   vi.resetAllMocks()
+  _resetRunnerExit()
   sessionStorage.clear()
   _resetQuizDeviceId()
   _resetSessionTakeover()
@@ -90,5 +92,16 @@ describe('useTakeoverExit', () => {
     peerClaim()
     expect(mockReplace).not.toHaveBeenCalled()
     expect(probe).not.toHaveBeenCalled()
+  })
+
+  it('releases the leave guards before leaving after a takeover', async () => {
+    let exitingAtNav: boolean | undefined
+    mockReplace.mockImplementation(() => {
+      exitingAtNav = isRunnerExiting()
+    })
+    renderHook(() => useTakeoverExit({ enabled: true, sessionId: 's1', probe: vi.fn() }))
+    markTakenOver('s1')
+    await vi.waitFor(() => expect(mockReplace).toHaveBeenCalled())
+    expect(exitingAtNav).toBe(true)
   })
 })

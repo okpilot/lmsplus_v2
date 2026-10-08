@@ -16,6 +16,8 @@ vi.mock('../../actions/end-discovery', () => ({
   endDiscovery: (...args: unknown[]) => mockEndDiscovery(...args),
 }))
 
+import { _resetRunnerExit, isRunnerExiting } from '../_utils/runner-exit'
+
 // ---- Subject under test ----------------------------------------------------
 
 import { useDiscoveryExit } from './use-discovery-exit'
@@ -25,6 +27,7 @@ import { useDiscoveryExit } from './use-discovery-exit'
 describe('useDiscoveryExit', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    _resetRunnerExit()
     mockEndDiscovery.mockResolvedValue({ success: true })
   })
 
@@ -95,5 +98,15 @@ describe('useDiscoveryExit', () => {
     expect(mockEndDiscovery).toHaveBeenCalledTimes(1)
     expect(mockReplace).toHaveBeenCalledTimes(1)
     expect(mockReplace).toHaveBeenCalledWith('/app/quiz')
+  })
+
+  it('releases the leave guards before navigating away', async () => {
+    let exitingAtNav: boolean | undefined
+    mockReplace.mockImplementation(() => {
+      exitingAtNav = isRunnerExiting()
+    })
+    const { result } = renderHook(() => useDiscoveryExit())
+    await result.current.exit()
+    expect(exitingAtNav).toBe(true)
   })
 })
