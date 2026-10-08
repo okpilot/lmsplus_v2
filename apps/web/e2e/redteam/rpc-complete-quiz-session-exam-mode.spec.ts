@@ -1,7 +1,7 @@
 /**
  * Red Team: complete_quiz_session on an exam-mode session (Vector HU).
  *
- * Before mig 20261004000700, complete_quiz_session accepted mock_exam and internal_exam: it
+ * Before mig 20261008000300, complete_quiz_session accepted mock_exam and internal_exam: it
  * ended the session without grading quiz_session_progress, without the saved / device /
  * deadline checks finish_quiz_session runs, left `passed` NULL and wrote
  * `quiz_session.completed` instead of an exam.* / internal_exam.* event.
