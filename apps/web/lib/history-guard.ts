@@ -8,6 +8,8 @@
  * After MAX_REVERTS self-issued `go` calls without reaching the rendered entry (delta 0), further
  * events are still swallowed but no longer answered with `go`; once the queue is quiet for
  * SETTLE_MS one `go` returns to the rendered entry. An armed guard never accepts a same-token entry.
+ * pushState/replaceState made while the browser is off the rendered entry are held until it returns.
+ * Known limit: a held write without Next's `__NA` payload copies the earlier entry's state.
  */
 const TOKEN_KEY = '__lms_nav_tok'
 const INDEX_KEY = '__lms_nav_idx'
@@ -27,6 +29,9 @@ let at = 0
 let settleTimer: ReturnType<typeof setTimeout> | undefined
 const MAX_REVERTS = 4
 const SETTLE_MS = 100
+let queued: Array<() => void> = []
+let flushTimer: ReturnType<typeof setTimeout> | undefined
+const FLUSH_MS = 1000
 
 const newToken = () =>
   Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) =>
@@ -56,16 +61,54 @@ function clearSettle() {
   reverts = 0
 }
 
+/** Steps from the entry a capped burst parked on back to the rendered one. */
+function settle() {
+  reverts = 0
+  if (landed === null || landed === position.index) return
+  const delta = position.index - landed
+  landed = null
+  window.history.go(delta)
+}
+
 function scheduleSettle() {
   clearTimeout(settleTimer)
   settleTimer = setTimeout(() => {
     settleTimer = undefined
-    reverts = 0
-    if (!armed || landed === null || landed === position.index) return
-    const delta = position.index - landed
-    landed = null
-    window.history.go(delta)
+    if (armed) settle()
+    else reverts = 0
   }, SETTLE_MS)
+}
+
+function dropQueued() {
+  clearTimeout(flushTimer)
+  flushTimer = undefined
+  queued = []
+}
+
+function flushQueued() {
+  const writes = queued
+  dropQueued()
+  for (const write of writes) write()
+}
+
+function hold(write: () => void) {
+  queued.push(write)
+  flushTimer ??= setTimeout(() => {
+    flushTimer = undefined
+    at = position.index
+    flushQueued()
+  }, FLUSH_MS)
+}
+
+function revertOrPark(d: { index: number; delta: number }) {
+  if (reverts >= MAX_REVERTS) {
+    landed = d.index
+    scheduleSettle()
+    return
+  }
+  reverts += 1
+  landed = null
+  window.history.go(-d.delta)
 }
 
 function handlePopState(event: PopStateEvent) {
@@ -73,6 +116,7 @@ function handlePopState(event: PopStateEvent) {
   at = d.index
   if (d.kind === 'adopt') {
     clearSettle()
+    dropQueued()
     // In memory only: a stamp without Next's `__NA` makes Next reload on a later traversal.
     position = { token: d.token, index: d.index }
     return
@@ -80,22 +124,17 @@ function handlePopState(event: PopStateEvent) {
   if (d.delta === 0) {
     clearSettle()
     event.stopImmediatePropagation()
+    flushQueued()
     return
   }
   if (!armed) {
     clearSettle()
+    dropQueued()
     position = { token: position.token, index: d.index }
     return
   }
   event.stopImmediatePropagation()
-  if (reverts >= MAX_REVERTS) {
-    landed = d.index
-    scheduleSettle()
-  } else {
-    reverts += 1
-    landed = null
-    window.history.go(-d.delta)
-  }
+  revertOrPark(d)
   armed()
 }
 
@@ -108,13 +147,19 @@ function patchHistory() {
     [INDEX_KEY]: index,
   })
   window.history.pushState = function (state, unused, url) {
-    clearSettle()
-    at += 1
-    position = { token: position.token, index: at }
-    push.call(this, stamp(state, at), unused, url)
+    const write = () => {
+      clearSettle()
+      at += 1
+      position = { token: position.token, index: at }
+      push.call(this, stamp(state, at), unused, url)
+    }
+    if (at !== position.index) hold(write)
+    else write()
   }
   window.history.replaceState = function (state, unused, url) {
-    replace.call(this, stamp(state, at), unused, url)
+    const write = () => replace.call(this, stamp(state, at), unused, url)
+    if (at !== position.index) hold(write)
+    else write()
   }
   return replace
 }
@@ -145,6 +190,8 @@ export function armHistoryGuard(onAttempt: () => void): () => void {
   return () => {
     if (armed !== onAttempt) return
     armed = null
-    clearSettle()
+    clearTimeout(settleTimer)
+    settleTimer = undefined
+    settle()
   }
 }

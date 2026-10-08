@@ -98,25 +98,93 @@ describe('history stamping', () => {
     return mod
   }
 
-  it('stamps a replaced entry with the index the browser is on while a Back is being reverted', async () => {
+  it('holds a replace made while a Back is being reverted until the runner entry is back', async () => {
     await renderedAtTwo()
     pop(stamped(1))
+    protoReplace.mockClear()
     window.history.replaceState({ __NA: true }, '', '/x')
-    expect(window.history.state[INDEX_KEY]).toBe(1)
+    expect(window.location.pathname).toBe('/b')
+    expect(protoReplace).not.toHaveBeenCalled()
+    pop(stamped(2))
+    expect(window.location.pathname).toBe('/x')
+    expect(window.history.state[INDEX_KEY]).toBe(2)
   })
 
-  it('stamps a replaced entry with the landed index during a capped burst', async () => {
+  it('holds a replace made during a capped burst until the settle lands', async () => {
     await renderedAtTwo()
     for (const i of [1, 0, 1, 0, 0]) pop(stamped(i))
     window.history.replaceState({ __NA: true }, '', '/x')
-    expect(window.history.state[INDEX_KEY]).toBe(0)
+    expect(window.location.pathname).toBe('/b')
+    vi.advanceTimersByTime(100)
+    expect(go).toHaveBeenLastCalledWith(2)
+    pop(stamped(2))
+    expect(window.location.pathname).toBe('/x')
+    expect(window.history.state[INDEX_KEY]).toBe(2)
   })
 
-  it('stamps a push made while a revert is in flight from the entry the browser is on', async () => {
+  it('holds a push made while a revert is in flight and pushes it from the runner entry', async () => {
     await renderedAtTwo()
     pop(stamped(1))
     window.history.pushState({ __NA: true }, '', '/y')
+    expect(window.location.pathname).toBe('/b')
+    pop(stamped(2))
+    expect(window.location.pathname).toBe('/y')
+    expect(window.history.state[INDEX_KEY]).toBe(3)
+  })
+
+  it('applies held writes in the order they were made', async () => {
+    await renderedAtTwo()
+    pop(stamped(1))
+    window.history.pushState({ __NA: true }, '', '/y')
+    window.history.replaceState({ __NA: true }, '', '/z')
+    pop(stamped(2))
+    expect(window.location.pathname).toBe('/z')
+    expect(window.history.state[INDEX_KEY]).toBe(3)
+  })
+
+  it('applies a held write on its own when the browser never returns to the runner entry', async () => {
+    await renderedAtTwo()
+    pop(stamped(1))
+    window.history.replaceState({ __NA: true }, '', '/x')
+    expect(window.location.pathname).toBe('/b')
+    vi.advanceTimersByTime(1000)
+    expect(window.location.pathname).toBe('/x')
     expect(window.history.state[INDEX_KEY]).toBe(2)
+  })
+
+  it('drops held writes when an outside entry is adopted', async () => {
+    await renderedAtTwo()
+    pop(stamped(1))
+    window.history.replaceState({ __NA: true }, '', '/x')
+    pop({ __NA: true })
+    vi.advanceTimersByTime(1000)
+    expect(window.location.pathname).toBe('/b')
+  })
+
+  it('drops held writes when an unarmed guard lets a Back through', async () => {
+    const { armHistoryGuard } = await load()
+    window.history.pushState({ __NA: true }, '', '/a')
+    window.history.pushState({ __NA: true }, '', '/b')
+    const disarm = armHistoryGuard(vi.fn())
+    pop(stamped(1))
+    window.history.replaceState({ __NA: true }, '', '/x')
+    disarm()
+    pop(stamped(0))
+    vi.advanceTimersByTime(1000)
+    expect(window.location.pathname).toBe('/b')
+  })
+
+  it('keeps held writes when the guard is disarmed during a revert and applies them on return', async () => {
+    const { armHistoryGuard } = await load()
+    window.history.pushState({ __NA: true }, '', '/a')
+    window.history.pushState({ __NA: true }, '', '/b')
+    const disarm = armHistoryGuard(vi.fn())
+    pop(stamped(1))
+    window.history.replaceState({ __NA: true }, '', '/x')
+    disarm()
+    expect(go).toHaveBeenCalledTimes(1)
+    pop(stamped(2))
+    expect(window.location.pathname).toBe('/x')
   })
 
   it('restores the index and token from a reloaded entry', async () => {
@@ -277,27 +345,17 @@ describe('armed Back and Forward', () => {
     expect(go).toHaveBeenCalledTimes(4)
   })
 
-  it('drops a pending settle when the guard is disarmed', async () => {
+  it('returns to the runner entry when disarmed during a capped burst', async () => {
     const { armHistoryGuard } = await load()
     window.history.pushState({ __NA: true }, '', '/a')
     window.history.pushState({ __NA: true }, '', '/b')
     const disarm = armHistoryGuard(vi.fn())
     for (const idx of [1, 0, 1, 0, 1]) pop(stamped(idx))
     disarm()
+    expect(go).toHaveBeenCalledTimes(5)
+    expect(go).toHaveBeenLastCalledWith(1)
     vi.advanceTimersByTime(1000)
-    expect(go).toHaveBeenCalledTimes(4)
-  })
-
-  it('stamps a push after a swallowed burst from the entry it landed on', async () => {
-    const { armHistoryGuard } = await load()
-    window.history.pushState({ __NA: true }, '', '/a')
-    window.history.pushState({ __NA: true }, '', '/b')
-    armHistoryGuard(vi.fn())
-    for (const idx of [1, 0, 1, 0, 0]) pop(stamped(idx))
-    window.history.pushState({ __NA: true }, '', '/c')
-    expect(window.history.state[INDEX_KEY]).toBe(1)
-    vi.advanceTimersByTime(1000)
-    expect(go).toHaveBeenCalledTimes(4)
+    expect(go).toHaveBeenCalledTimes(5)
   })
 
   it('restarts the revert count after the entry it left is reached again', async () => {
