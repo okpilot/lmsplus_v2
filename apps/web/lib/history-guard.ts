@@ -22,7 +22,10 @@ let armed: (() => void) | null = null
 let reverts = 0
 const MAX_REVERTS = 4
 
-const newToken = () => Math.random().toString(36).slice(2)
+const newToken = () =>
+  Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) =>
+    b.toString(16).padStart(2, '0'),
+  ).join('')
 
 function stampOf(state: unknown): { token?: string; index: number } {
   if (typeof state !== 'object' || state === null) return { index: 0 }
