@@ -51,6 +51,26 @@ describe('useQuizNavigationGuard', () => {
     expect(onAttempt).toHaveBeenCalledTimes(1)
   })
 
+  it.each(['offline', 'slow', 'save-failed'] as const)(
+    'opens no dialog on Back while the connection is %s but keeps Back guarded',
+    (status) => {
+      const onAttempt = vi.fn()
+      renderHook(() => useQuizNavigationGuard({ submitted: false, onAttempt }))
+      act(() => setConnectionStatus(status))
+      expect(backGuard).toHaveBeenLastCalledWith(true, expect.any(Function))
+      backGuard.mock.lastCall?.[1]()
+      expect(onAttempt).not.toHaveBeenCalled()
+    },
+  )
+
+  it('reports a Back attempt while the connection just recovered', () => {
+    const onAttempt = vi.fn()
+    renderHook(() => useQuizNavigationGuard({ submitted: false, onAttempt }))
+    act(() => setConnectionStatus('saved'))
+    backGuard.mock.lastCall?.[1]()
+    expect(onAttempt).toHaveBeenCalledTimes(1)
+  })
+
   it('keeps both guards armed while offline', () => {
     renderHook(() => useQuizNavigationGuard({ submitted: false, onAttempt: vi.fn() }))
     act(() => setConnectionStatus('offline'))
