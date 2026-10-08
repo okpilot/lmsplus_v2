@@ -262,11 +262,13 @@ describe('RPC: submit_quiz_answer', () => {
       p_selected_option: 'b',
       p_response_time_ms: 1000,
     })
-    const { error: endErr } = await admin
+    const { data: ended, error: endErr } = await admin
       .from('quiz_sessions')
       .update({ ended_at: new Date().toISOString() })
       .eq('id', sessionId)
+      .select('id')
     expect(endErr).toBeNull()
+    expect(ended).toHaveLength(1)
 
     // Try to submit another answer
     const { error } = await studentClient.rpc('submit_quiz_answer', {

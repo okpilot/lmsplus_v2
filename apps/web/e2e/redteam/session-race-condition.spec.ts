@@ -24,7 +24,7 @@
 
 import { expect, test } from '@playwright/test'
 import { cleanupStudentActiveSessions, getAdminClient } from '../helpers/supabase'
-import { saveAndFinish } from './helpers/finish-session'
+import { SEED_DEVICE_ID, saveAndFinish } from './helpers/finish-session'
 import { createAuthenticatedClient } from './helpers/redteam-client'
 import { ensureExamConfig, pickSubjectWithQuestions } from './helpers/seed-quiz'
 import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers } from './helpers/seed-users'
@@ -211,7 +211,7 @@ test.describe('Red Team: Session Race Condition', () => {
     //         when deleted_at is set.
     const { error: finishError } = await attackerClient.rpc('finish_quiz_session', {
       p_session_id: sessionId,
-      p_device_id: '11111111-1111-4111-8111-111111111111',
+      p_device_id: SEED_DEVICE_ID,
     })
 
     // Step 4: Verify the session stayed discarded and was not ended

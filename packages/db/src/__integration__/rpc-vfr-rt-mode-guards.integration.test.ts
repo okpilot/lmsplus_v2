@@ -373,6 +373,7 @@ describe('RPC: get_question_authoring_fields', () => {
       blanks_config: unknown[]
     }>(data, 'get_question_authoring_fields')
     expect(rows).toHaveLength(1)
+    // toHaveLength(1) above guarantees rows[0] exists
     expect(rows[0]!.canonical_answer).toBe('visible_to_admin')
     expect(rows[0]!.accepted_synonyms).toContain('visible_syn')
   })
