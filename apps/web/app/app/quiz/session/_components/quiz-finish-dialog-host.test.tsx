@@ -7,17 +7,26 @@ vi.mock('../../_components/finish-quiz-dialog', () => ({
     open,
     isExam,
     examMode,
+    pendingSelection,
   }: {
     open: boolean
     isExam?: boolean
     examMode?: string
+    pendingSelection?: boolean
   }) => (
     <div
       data-testid="finish-dialog"
+      data-pending={String(!!pendingSelection)}
       data-open={String(open)}
       data-is-exam={isExam ? 'true' : 'false'}
       data-exam-mode={examMode ?? ''}
     />
+  ),
+}))
+
+vi.mock('./discovery-leave-dialog', () => ({
+  DiscoveryLeaveDialog: ({ open }: { open: boolean }) => (
+    <div data-testid="discovery-leave" data-open={String(open)} />
   ),
 }))
 
@@ -47,9 +56,13 @@ describe('QuizFinishDialogHost', () => {
         isDiscovery={false}
         totalQuestions={3}
         timeExpired={false}
+        pendingSelection
+        discoveryConfirmOpen={false}
+        onDiscoveryConfirmChange={vi.fn()}
       />,
     )
     const dialog = screen.getByTestId('finish-dialog')
+    expect(dialog).toHaveAttribute('data-pending', 'true')
     expect(dialog).toHaveAttribute('data-is-exam', 'false')
     expect(dialog).toHaveAttribute('data-exam-mode', '')
   })
@@ -81,15 +94,18 @@ describe('QuizFinishDialogHost', () => {
     expect(screen.getByTestId('finish-dialog')).toHaveAttribute('data-exam-mode', 'internal_exam')
   })
 
-  it('renders nothing in discovery mode', () => {
+  it('renders the Stay/Leave confirm, not the finish dialog, in discovery mode', () => {
     render(
       <QuizFinishDialogHost
         s={makeState({ isExam: false })}
         isDiscovery={true}
         totalQuestions={3}
         timeExpired={false}
+        discoveryConfirmOpen
+        onDiscoveryConfirmChange={vi.fn()}
       />,
     )
     expect(screen.queryByTestId('finish-dialog')).not.toBeInTheDocument()
+    expect(screen.getByTestId('discovery-leave')).toHaveAttribute('data-open', 'true')
   })
 })

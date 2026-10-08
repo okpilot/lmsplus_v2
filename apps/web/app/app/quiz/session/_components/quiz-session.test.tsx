@@ -889,7 +889,7 @@ describe('QuizSession', () => {
     expect(screen.queryByRole('button', { name: /finish/i })).not.toBeInTheDocument()
     const exitBtn = screen.getByRole('button', { name: 'Exit' })
     fireEvent.click(exitBtn)
-    // Exit awaits the discovery teardown before navigating (§6), so await the nav.
+    fireEvent.click(await screen.findByRole('button', { name: 'Leave' }))
     await waitFor(() => expect(mockRouterReplace).toHaveBeenCalledWith('/app/quiz'))
   })
 
@@ -904,8 +904,8 @@ describe('QuizSession', () => {
     fireEvent.click(screen.getAllByRole('button', { name: /Next/ })[0]!)
     expect(screen.getByTestId('option-c').dataset.selected).toBe('true')
     expect(screen.getByTestId('option-c').dataset.correct).toBe('true')
-    // Exit navigates away — the only way to leave discovery
     fireEvent.click(screen.getByRole('button', { name: 'Exit' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Leave' }))
     await waitFor(() => expect(mockRouterReplace).toHaveBeenCalledWith('/app/quiz'))
   })
 

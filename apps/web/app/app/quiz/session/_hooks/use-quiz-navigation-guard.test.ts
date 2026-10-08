@@ -3,16 +3,18 @@ import { act } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../../_hooks/use-navigation-guard', () => ({ useNavigationGuard: vi.fn() }))
+vi.mock('./use-back-guard', () => ({
+  useBackGuard: vi.fn(),
+  releaseBackGuard: vi.fn(),
+}))
 
 import { useNavigationGuard } from '../../_hooks/use-navigation-guard'
-import {
-  _resetConnectionState,
-  adjustPending,
-  setConnectionStatus,
-} from '../_utils/connection-state'
+import { _resetConnectionState, setConnectionStatus } from '../_utils/connection-state'
+import { useBackGuard } from './use-back-guard'
 import { useQuizNavigationGuard } from './use-quiz-navigation-guard'
 
-const guard = vi.mocked(useNavigationGuard)
+const beforeUnload = vi.mocked(useNavigationGuard)
+const backGuard = vi.mocked(useBackGuard)
 
 beforeEach(() => {
   vi.resetAllMocks()
@@ -20,51 +22,30 @@ beforeEach(() => {
 })
 
 describe('useQuizNavigationGuard', () => {
-  it('does not block when nothing is unsaved or unsent', () => {
-    renderHook(() => useQuizNavigationGuard(false, false))
-    expect(guard).toHaveBeenLastCalledWith(false)
+  it('arms both guards from the start, before any answer exists', () => {
+    const onAttempt = vi.fn()
+    renderHook(() => useQuizNavigationGuard({ submitted: false, onAttempt }))
+    expect(beforeUnload).toHaveBeenLastCalledWith(true)
+    expect(backGuard).toHaveBeenLastCalledWith(true, onAttempt)
   })
 
-  it('blocks while the caller has unsaved work', () => {
-    renderHook(() => useQuizNavigationGuard(true, false))
-    expect(guard).toHaveBeenLastCalledWith(true)
+  it('disarms both guards once the quiz is submitted', () => {
+    renderHook(() => useQuizNavigationGuard({ submitted: true, onAttempt: vi.fn() }))
+    expect(beforeUnload).toHaveBeenLastCalledWith(false)
+    expect(backGuard).toHaveBeenLastCalledWith(false, expect.any(Function))
   })
 
-  it('blocks while a progress save is unsent and releases when it lands', () => {
-    renderHook(() => useQuizNavigationGuard(false, false))
-    act(() => adjustPending(1))
-    expect(guard).toHaveBeenLastCalledWith(true)
-    act(() => adjustPending(-1))
-    expect(guard).toHaveBeenLastCalledWith(false)
+  it('disarms both guards once the sign-in expired', () => {
+    renderHook(() => useQuizNavigationGuard({ submitted: false, onAttempt: vi.fn() }))
+    act(() => setConnectionStatus('signed-out'))
+    expect(beforeUnload).toHaveBeenLastCalledWith(false)
+    expect(backGuard).toHaveBeenLastCalledWith(false, expect.any(Function))
   })
 
-  it('does not block after the quiz is submitted even with a save still unsent', () => {
-    renderHook(() => useQuizNavigationGuard(true, true))
-    act(() => adjustPending(1))
-    expect(guard).toHaveBeenLastCalledWith(false)
-  })
-
-  it('blocks on an unsent save before the quiz is submitted', () => {
-    renderHook(() => useQuizNavigationGuard(false, false))
-    act(() => adjustPending(1))
-    expect(guard).toHaveBeenLastCalledWith(true)
-  })
-
-  it('does not block once the sign-in expired even with unsaved work and an unsent save', () => {
-    renderHook(() => useQuizNavigationGuard(true, false))
-    act(() => {
-      adjustPending(1)
-      setConnectionStatus('signed-out')
-    })
-    expect(guard).toHaveBeenLastCalledWith(false)
-  })
-
-  it('keeps blocking while offline with an unsent save', () => {
-    renderHook(() => useQuizNavigationGuard(false, false))
-    act(() => {
-      adjustPending(1)
-      setConnectionStatus('offline')
-    })
-    expect(guard).toHaveBeenLastCalledWith(true)
+  it('keeps both guards armed while offline', () => {
+    renderHook(() => useQuizNavigationGuard({ submitted: false, onAttempt: vi.fn() }))
+    act(() => setConnectionStatus('offline'))
+    expect(beforeUnload).toHaveBeenLastCalledWith(true)
+    expect(backGuard).toHaveBeenLastCalledWith(true, expect.any(Function))
   })
 })

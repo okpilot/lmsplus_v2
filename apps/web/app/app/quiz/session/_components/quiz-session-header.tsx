@@ -24,6 +24,8 @@ type QuizSessionHeaderProps = {
   onTabChange: (tab: QuestionTab) => void
   onTimeExpired: () => void
   onFinishClick: () => void
+  /** Discovery only: opens the Stay / Leave confirm. */
+  onExitClick?: () => void
   /** Active time already spent (ms); the untimed clock continues from it. */
   initialActiveMs?: number
 }
@@ -41,6 +43,7 @@ export function QuizSessionHeader({
   onTabChange,
   onTimeExpired,
   onFinishClick,
+  onExitClick,
   initialActiveMs,
 }: Readonly<QuizSessionHeaderProps>) {
   return (
@@ -94,6 +97,7 @@ export function QuizSessionHeader({
           examMode={examMode}
           submitting={submitting}
           onFinishClick={onFinishClick}
+          onExitClick={onExitClick}
         />
       </div>
     </div>

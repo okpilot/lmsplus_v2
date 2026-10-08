@@ -65,6 +65,7 @@ function state(over: Record<string, unknown> = {}) {
     pinnedQuestions: new Set<string>(),
     feedback: new Map(),
     existingAnswer: undefined,
+    submitted: { current: false },
     showFinishDialog: false,
     setShowFinishDialog: vi.fn(),
     navigate: vi.fn(),

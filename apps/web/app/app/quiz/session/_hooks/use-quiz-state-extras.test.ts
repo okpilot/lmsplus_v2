@@ -3,14 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { QuizStateOpts } from '../../session-types'
 import type { AnswerFeedback, DraftAnswer } from '../../types'
 
-const { mockGuard, mockRestored } = vi.hoisted(() => ({
-  mockGuard: vi.fn(),
-  mockRestored: vi.fn(),
-}))
+const { mockRestored } = vi.hoisted(() => ({ mockRestored: vi.fn() }))
 
-vi.mock('./use-quiz-navigation-guard', () => ({
-  useQuizNavigationGuard: (...a: unknown[]) => mockGuard(...a),
-}))
 vi.mock('./use-restored-feedback', () => ({
   useRestoredFeedback: (...a: unknown[]) => mockRestored(...a),
 }))
@@ -18,7 +12,6 @@ vi.mock('./use-restored-feedback', () => ({
 import { useQuizStateExtras } from './use-quiz-state-extras'
 
 const A: DraftAnswer = { selectedOptionId: 'a', responseTimeMs: 100 }
-const B: DraftAnswer = { selectedOptionId: 'b', responseTimeMs: 200 }
 const merged = new Map<string, AnswerFeedback>()
 
 function opts(over: Record<string, unknown> = {}) {
@@ -31,14 +24,13 @@ function opts(over: Record<string, unknown> = {}) {
   } as unknown as QuizStateOpts
 }
 
-function run(o: { opts: QuizStateOpts; isExam?: boolean; answers: Map<string, DraftAnswer> }) {
+function run(o: { opts: QuizStateOpts; answers: Map<string, DraftAnswer> }) {
   const feedback = new Map<string, AnswerFeedback>()
   return renderHook(() =>
     useQuizStateExtras({
       opts: o.opts,
-      isExam: o.isExam ?? false,
       answers: o.answers,
-      p: { feedback, submitted: { current: false } },
+      p: { feedback },
     }),
   )
 }
@@ -74,36 +66,5 @@ describe('useQuizStateExtras', () => {
     run({ opts: opts({ mode: 'quick_quiz' }), answers: new Map() })
 
     expect(mockRestored).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }))
-  })
-
-  it('arms the leave guard once answers go beyond the initial count', () => {
-    run({
-      opts: opts(),
-      answers: new Map([
-        ['q1', A],
-        ['q2', B],
-      ]),
-    })
-
-    expect(mockGuard).toHaveBeenCalledWith(true, false)
-  })
-
-  it('does not arm the leave guard for only the initial answers', () => {
-    run({ opts: opts(), answers: new Map([['q1', A]]) })
-
-    expect(mockGuard).toHaveBeenCalledWith(false, false)
-  })
-
-  it('never arms the leave guard in an exam', () => {
-    run({
-      opts: opts({ mode: 'exam' }),
-      isExam: true,
-      answers: new Map([
-        ['q1', A],
-        ['q2', B],
-      ]),
-    })
-
-    expect(mockGuard).toHaveBeenCalledWith(false, false)
   })
 })

@@ -3,10 +3,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks -----------------------------------------------------------------
 
-const { mockReplace, mockEndDiscovery } = vi.hoisted(() => ({
+const { mockReplace, mockEndDiscovery, mockRelease } = vi.hoisted(() => ({
   mockReplace: vi.fn(),
   mockEndDiscovery: vi.fn(),
+  mockRelease: vi.fn(),
 }))
+
+vi.mock('./use-back-guard', () => ({ releaseBackGuard: () => mockRelease() }))
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: mockReplace }),
@@ -72,6 +75,25 @@ describe('useDiscoveryExit', () => {
 
     expect(mockEndDiscovery).toHaveBeenCalledTimes(1)
     expect(mockReplace).toHaveBeenCalledTimes(1)
+    expect(mockReplace).toHaveBeenCalledWith('/app/quiz')
+  })
+})
+
+describe('useDiscoveryExit sentinel release', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+    mockEndDiscovery.mockResolvedValue({ success: true })
+  })
+
+  it('pops the back-guard sentinel before replacing the route', async () => {
+    const order: string[] = []
+    mockRelease.mockImplementation(async () => {
+      order.push('release')
+    })
+    mockReplace.mockImplementation(() => order.push('replace'))
+    const { result } = renderHook(() => useDiscoveryExit())
+    await result.current()
+    expect(order).toEqual(['release', 'replace'])
     expect(mockReplace).toHaveBeenCalledWith('/app/quiz')
   })
 })

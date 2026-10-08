@@ -1,10 +1,13 @@
 import { renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockReplace, mockToastInfo } = vi.hoisted(() => ({
+const { mockReplace, mockToastInfo, mockRelease } = vi.hoisted(() => ({
   mockReplace: vi.fn(),
   mockToastInfo: vi.fn(),
+  mockRelease: vi.fn(),
 }))
+
+vi.mock('./use-back-guard', () => ({ releaseBackGuard: () => mockRelease() }))
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ replace: mockReplace }) }))
 vi.mock('sonner', () => ({ toast: { info: (...a: unknown[]) => mockToastInfo(...a) } }))
@@ -31,6 +34,7 @@ const peerClaim = () => new FakeChannel().postMessage({ sessionId: 's1', deviceI
 
 beforeEach(() => {
   vi.resetAllMocks()
+  mockRelease.mockResolvedValue(undefined)
   sessionStorage.clear()
   _resetQuizDeviceId()
   _resetSessionTakeover()
@@ -39,11 +43,23 @@ beforeEach(() => {
 })
 
 describe('useTakeoverExit', () => {
-  it('toasts and returns to the quiz picker when the session is taken over', () => {
+  it('toasts and returns to the quiz picker when the session is taken over', async () => {
     renderHook(() => useTakeoverExit({ enabled: true, sessionId: 's1', probe: vi.fn() }))
     markTakenOver('s1')
+    await vi.waitFor(() => expect(mockReplace).toHaveBeenCalled())
     expect(mockToastInfo).toHaveBeenCalledWith('This quiz continued in another tab or device.')
     expect(mockReplace).toHaveBeenCalledWith('/app/quiz')
+  })
+
+  it('pops the back-guard sentinel before leaving the runner', async () => {
+    const order: string[] = []
+    mockRelease.mockImplementation(async () => {
+      order.push('release')
+    })
+    mockReplace.mockImplementation(() => order.push('replace'))
+    renderHook(() => useTakeoverExit({ enabled: true, sessionId: 's1', probe: vi.fn() }))
+    markTakenOver('s1')
+    await vi.waitFor(() => expect(order).toEqual(['release', 'replace']))
   })
 
   it('probes the server when another tab of this browser claims the session', () => {
@@ -78,6 +94,7 @@ describe('useTakeoverExit', () => {
     unmount()
     markTakenOver('s1')
     peerClaim()
+    expect(mockRelease).not.toHaveBeenCalled()
     expect(mockReplace).not.toHaveBeenCalled()
     expect(probe).not.toHaveBeenCalled()
   })

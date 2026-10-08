@@ -4,6 +4,7 @@ import { QuestionTabs } from '../../_components/question-tabs'
 import type { QuizSessionProps } from '../../session-types'
 import { useFlaggedQuestions } from '../_hooks/use-flagged-questions'
 import { useQuizActiveTab } from '../_hooks/use-quiz-active-tab'
+import { useQuizLeaveGuard } from '../_hooks/use-quiz-leave-guard'
 import { useQuizState } from '../_hooks/use-quiz-state'
 import { useQuizTimer } from '../_hooks/use-quiz-timer'
 import { useQuizUI } from '../_hooks/use-quiz-ui'
@@ -27,6 +28,14 @@ export function QuizSession(props: Readonly<QuizSessionProps>) {
     feedback: s.feedback,
     currentIndex: s.currentIndex,
     activeTab: effectiveTab,
+    existingAnswer: s.existingAnswer,
+  })
+
+  const leave = useQuizLeaveGuard({
+    isDiscovery,
+    submitted: s.submitted,
+    setShowFinishDialog: s.setShowFinishDialog,
+    pendingOptionId,
     existingAnswer: s.existingAnswer,
   })
 
@@ -63,6 +72,7 @@ export function QuizSession(props: Readonly<QuizSessionProps>) {
         onTabChange={setActiveTab}
         onTimeExpired={handleTimeExpired}
         onFinishClick={() => s.setShowFinishDialog(true)}
+        onExitClick={leave.openExitConfirm}
         initialActiveMs={props.initialActiveMs}
       />
       <div className="px-4 pt-4 pb-32 md:px-8 md:pb-24">
@@ -122,6 +132,9 @@ export function QuizSession(props: Readonly<QuizSessionProps>) {
         totalQuestions={props.questions.length}
         examMode={props.examMode}
         timeExpired={timeExpired}
+        pendingSelection={leave.pendingSelection}
+        discoveryConfirmOpen={leave.discoveryConfirmOpen}
+        onDiscoveryConfirmChange={leave.setDiscoveryConfirmOpen}
       />
     </div>
   )

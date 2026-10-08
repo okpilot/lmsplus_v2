@@ -1,6 +1,7 @@
 'use client'
 
 import { BusyLabel } from '@/components/ui/busy-label'
+import { Button } from '@/components/ui/button'
 import type { QuizPendingAction } from '../../session/_hooks/use-quiz-submit'
 import { getSubmitButtonLabel } from './finish-quiz-dialog-helpers'
 
@@ -40,49 +41,56 @@ export function DialogFooter({
   const submitLabel = getSubmitButtonLabel({ isSubmitting, isExam, examLabel, answeredCount })
   return (
     <div className="mt-6 flex flex-col gap-2">
-      <button
+      <Button
         type="button"
+        size="lg"
         onClick={onSubmitClick}
         disabled={submitting || (answeredCount === 0 && !timeExpired)}
         aria-busy={isSubmitting || undefined}
-        className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+        className="w-full"
       >
         <span className="inline-flex items-center justify-center gap-2">
           <BusyLabel busy={isSubmitting}>{submitLabel}</BusyLabel>
         </span>
-      </button>
+      </Button>
       {!isExam && (
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="lg"
           onClick={onSave}
           disabled={submitting}
           aria-busy={isSaving || undefined}
-          className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
+          className="w-full"
         >
           <span className="inline-flex items-center justify-center gap-2">
             <BusyLabel busy={isSaving}>{isSaving ? 'Saving...' : 'Save for Later'}</BusyLabel>
           </span>
-        </button>
+        </Button>
       )}
       {canDiscard && (
-        <button
+        <Button
           type="button"
+          variant="destructive"
+          size="lg"
           onClick={onDiscardOpen}
           disabled={submitting}
-          className="w-full rounded-lg border border-destructive/30 bg-background px-4 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
+          className="w-full"
         >
           {isExam ? `Discard ${examLabel ?? 'Exam'}` : 'Discard Quiz'}
-        </button>
+        </Button>
       )}
       {canDismiss && (
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="lg"
           onClick={onClose}
           disabled={submitting}
-          className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
+          className="w-full"
         >
           {isExam ? `Return to ${examLabel ?? 'Exam'}` : 'Return to Quiz'}
-        </button>
+        </Button>
       )}
     </div>
   )

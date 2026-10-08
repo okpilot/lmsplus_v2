@@ -140,6 +140,11 @@ describe('assembleQuizState', () => {
     expect(state.showFinishDialog).toBe(true)
   })
 
+  it('exposes the pipeline submitted flag so the leave guard can disarm after submit', () => {
+    const p = makePipeline()
+    expect(assembleQuizState(makeInput({ p })).submitted).toBe(p.submitted)
+  })
+
   it('forwards the answer handlers from the pipeline unchanged', () => {
     const p = makePipeline()
     const input = makeInput({ p })

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { acceptBeforeUnload } from './helpers/before-unload'
 import {
   clearQuizActiveSessionKeys,
   readServerAnsweredCount,
@@ -7,6 +8,11 @@ import {
 import { cleanupStudentActiveSessions, TEST_EMAIL } from './helpers/supabase'
 
 test.use({ storageState: 'e2e/.auth/user.json' })
+
+// The runner arms a native leave prompt; an unhandled one cancels reload() and goto().
+test.beforeEach(({ page }) => {
+  acceptBeforeUnload(page)
+})
 
 test.describe('Quiz blocks while an answer is unsent and resends on reconnect', () => {
   test.beforeEach(async () => {

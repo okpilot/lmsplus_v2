@@ -1,4 +1,5 @@
 import { expect, type Page, test } from '@playwright/test'
+import { acceptBeforeUnload } from './helpers/before-unload'
 import {
   clearQuizActiveSessionKeys,
   startStudyQuiz,
@@ -14,6 +15,11 @@ import { readUserId } from './helpers/recovery-code'
 import { TEST_EMAIL } from './helpers/supabase'
 
 test.use({ storageState: 'e2e/.auth/user.json' })
+
+// The runner arms a native leave prompt; an unhandled one cancels reload() and goto().
+test.beforeEach(({ page }) => {
+  acceptBeforeUnload(page)
+})
 
 type Abandoned = { sessionId: string; sessionUrl: string; total: number }
 

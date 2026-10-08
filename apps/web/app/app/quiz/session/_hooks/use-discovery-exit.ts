@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useCallback, useRef } from 'react'
 import { endDiscovery } from '../../actions/end-discovery'
+import { releaseBackGuard } from './use-back-guard'
 
 /**
  * Returns the Discovery Exit handler: best-effort teardown of the active discovery
@@ -10,6 +11,8 @@ import { endDiscovery } from '../../actions/end-discovery'
  * is awaited so the Server Action settles before the terminal nav and cannot cancel
  * the soft-nav (code-style.md §6); we navigate regardless of its outcome. Called
  * with NO arg — the blanket Exit-button teardown clears every active discovery row.
+ *
+ * The leave guard's sentinel entry is popped before the replace, so no dead entry stays behind.
  *
  * replace (not push): the consumed handoff makes the session page un-resumable, so
  * Back must not be able to reopen the exited runner.
@@ -26,6 +29,7 @@ export function useDiscoveryExit() {
     if (exitingRef.current) return
     exitingRef.current = true
     await endDiscovery().catch(() => {})
+    await releaseBackGuard()
     router.replace('/app/quiz')
   }, [router])
 }
