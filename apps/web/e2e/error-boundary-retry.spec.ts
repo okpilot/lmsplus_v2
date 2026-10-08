@@ -30,7 +30,13 @@ test.describe('Failed soft navigation to the dashboard', () => {
         const buf = new Uint8Array(await res.arrayBuffer())
         let cut = Math.floor(buf.length * 0.6)
         while (cut < buf.length && buf[cut] !== 10) cut++
-        if (cut >= buf.length) return res
+        if (cut >= buf.length) {
+          return new Response(buf, {
+            status: res.status,
+            statusText: res.statusText,
+            headers: res.headers,
+          })
+        }
         const body = new ReadableStream({
           start(controller) {
             controller.enqueue(buf.slice(0, cut + 1))
