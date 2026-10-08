@@ -170,6 +170,27 @@ describe('translator DOM guard', () => {
     expect(() => one.removeChild(document.createElement('span'))).toThrow(/not a child/i)
   })
 
+  it('rejects insertBefore and removeChild with too few arguments exactly as the browser does', () => {
+    const p = document.createElement('p')
+    const loose = (fn: unknown) => fn as (this: Node, ...a: unknown[]) => unknown
+    const errorOf = (call: () => unknown) => {
+      try {
+        call()
+      } catch (e) {
+        return String(e)
+      }
+      return 'no throw'
+    }
+    const el = document.createElement('i')
+    expect(errorOf(() => loose(Node.prototype.insertBefore).call(p, el))).toBe(
+      errorOf(() => loose(originalInsertBefore).call(p, el)),
+    )
+    expect(errorOf(() => loose(Node.prototype.removeChild).call(p))).toBe(
+      errorOf(() => loose(originalRemoveChild).call(p)),
+    )
+    expect(p.childNodes.length).toBe(0)
+  })
+
   it('restores the original DOM methods on uninstall', () => {
     uninstall()
     expect(Node.prototype.removeChild).toBe(originalRemoveChild)

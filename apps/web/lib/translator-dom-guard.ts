@@ -31,14 +31,15 @@ function reportOnce(onFallback: Report | undefined): Report {
 }
 
 function guardRemove(removeChild: Node['removeChild'], report: Report) {
-  return function guardedRemoveChild<T extends Node>(this: Node, child: T) {
-    if (child.parentNode === this) return removeChild.call(this, child) as T
+  return function guardedRemoveChild<T extends Node>(this: Node, ...args: [child: T]) {
+    const [child] = args
+    if (child == null || child.parentNode === this) return removeChild.apply(this, args) as T
     if (isDetachedText(child)) {
       report('remove')
       return child
     }
     const wrapper = fontWrapperUnder(this, child)
-    if (!wrapper) return removeChild.call(this, child) as T
+    if (!wrapper) return removeChild.apply(this, args) as T
     report('remove')
     removeChild.call(this, wrapper)
     return child
@@ -46,11 +47,15 @@ function guardRemove(removeChild: Node['removeChild'], report: Report) {
 }
 
 function guardInsert(insertBefore: Node['insertBefore'], report: Report) {
-  return function guardedInsertBefore<T extends Node>(this: Node, node: T, ref: Node | null) {
-    if (!ref || ref.parentNode === this) return insertBefore.call(this, node, ref) as T
+  return function guardedInsertBefore<T extends Node>(
+    this: Node,
+    ...args: [node: T, ref: Node | null]
+  ) {
+    const [node, ref] = args
+    if (!ref || ref.parentNode === this) return insertBefore.apply(this, args) as T
     const detached = isDetachedText(ref)
     const anchor = detached ? null : fontWrapperUnder(this, ref)
-    if (!anchor && !detached) return insertBefore.call(this, node, ref) as T
+    if (!anchor && !detached) return insertBefore.apply(this, args) as T
     report('insert')
     return insertBefore.call(this, node, anchor) as T
   }
