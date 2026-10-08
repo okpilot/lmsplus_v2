@@ -5,10 +5,10 @@ import { useEffect } from 'react'
 
 export default function GlobalError({
   error,
-  reset,
+  retry,
 }: Readonly<{
   error: Error & { digest?: string }
-  reset: () => void
+  retry: () => void
 }>) {
   useEffect(() => {
     Sentry.captureException(error)
@@ -25,7 +25,7 @@ export default function GlobalError({
             </p>
             <button
               type="button"
-              onClick={reset}
+              onClick={() => retry()}
               className="mt-4 rounded-md bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
             >
               Try again
