@@ -34,29 +34,45 @@ test('translated login form keeps working: busy label and error message render, 
 
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'LMS Plus' })).toBeVisible()
-  // The shipped bundle installs the guard: removing a node the translator moved does not throw.
-  const removal = await page.evaluate(() => {
+  // The shipped bundle tolerates each translator shape React can hit: a detached text node, and a
+  // text node wrapped in <font><font> (removed via its wrapper; inserted before it).
+  const tolerated = await page.evaluate(() => {
+    const wrapped = (p: HTMLElement, text: string) => {
+      const node = document.createTextNode(text)
+      const outer = document.createElement('font')
+      const inner = document.createElement('font')
+      p.append(outer)
+      outer.appendChild(inner)
+      inner.appendChild(node)
+      return node
+    }
+    const p = document.createElement('p')
     try {
-      document.body.removeChild(document.createTextNode('moved'))
-      return 'no throw'
+      p.removeChild(document.createTextNode('detached'))
+      const first = wrapped(p, 'first')
+      const marker = document.createElement('i')
+      p.insertBefore(marker, first)
+      const insertedBefore = p.firstChild === marker
+      p.removeChild(first)
+      return { insertedBefore, left: p.childNodes.length }
     } catch (e) {
       return String(e)
     }
   })
-  expect(removal).toBe('no throw')
+  expect(tolerated).toEqual({ insertedBefore: true, left: 1 })
   await page.getByLabel('Email address').fill('translator-guard@example.invalid')
   await page.getByLabel('Password', { exact: true }).fill('wrong-password-1A!')
 
-  // Entry: translator wraps the button label, then the submit swaps it for the busy label.
+  // The flow below runs on a translated form and must stay usable; it does not reach the guard's
+  // fallbacks (BusyLabel and the error <p> are replaced as whole elements).
   await translateText(page, 'button[type="submit"]', 'Sign in')
   await page.getByRole('button', { name: 'Sign in' }).click()
 
-  // In progress -> exit: the rejection message is inserted next to the translated nodes.
   await expect(page.getByText('Invalid email or password.')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Sign in' })).toBeEnabled()
   expect(pageErrors).toEqual([])
 
-  // Translator wraps the error text; a second failed submit replaces/removes it.
+  // Translator wraps the error text; a second failed submit replaces it.
   await translateText(page, 'form', 'Invalid email or password.')
   await page.getByRole('button', { name: 'Sign in' }).click()
   await expect(page.getByText('Invalid email or password.')).toBeVisible()
