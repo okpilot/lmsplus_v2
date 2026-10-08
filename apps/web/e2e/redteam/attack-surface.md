@@ -244,6 +244,7 @@
 | HR | finish_quiz_session-deactivated-student-finish-or-replay | MEDIUM | rpc-finish-quiz-session-deactivated-student.spec.ts | BLOCKED |  | sibling-guard-gap |
 | HS | internal-helpers-authenticated-execute | HIGH | authenticated-internal-helper-execute-denied.spec.ts | BLOCKED |  | privilege-escalation |
 | HT | discardQuiz-forged-draftId-foreign-draft-delete | MEDIUM | server-action-discard-quiz.spec.ts | BLOCKED |  | idor |
+| HW | legacy-completion-rpcs-taken-over-exam-keyed-finish | HIGH | legacy-completion-rpcs-dropped.spec.ts | BLOCKED |  | sibling-guard-gap |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
