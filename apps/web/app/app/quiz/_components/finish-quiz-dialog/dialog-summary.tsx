@@ -39,7 +39,8 @@ export function DialogSummary({
   )
 }
 
-export function ErrorLine({ message }: Readonly<{ message: string }>) {
+export function ErrorLine({ message }: Readonly<{ message?: string | null }>) {
+  if (!message) return null
   return (
     <p role="alert" className="mt-4 text-sm text-destructive">
       {message}

@@ -55,26 +55,26 @@ export function DialogBody({
         timeExpired={timeExpired}
         pendingSelection={pendingSelection}
       />
-      {confirmingSubmit && unanswered > 0 && !timeExpired && (
-        <SubmitConfirm
-          unanswered={unanswered}
-          isExam={isExam}
-          submitting={submitting}
-          pendingAction={pendingAction}
-          onSubmit={onSubmit}
-          onCancel={cancelSubmitConfirm}
-        />
-      )}
-      {confirmingDiscard && canDiscard && (
-        <DiscardConfirm
-          isExam={isExam}
-          submitting={submitting}
-          pendingAction={pendingAction}
-          onDiscard={onDiscard}
-          onCancel={cancelDiscardConfirm}
-        />
-      )}
-      {error && <ErrorLine message={error} />}
+      <SubmitConfirm
+        confirming={confirmingSubmit}
+        timeExpired={timeExpired}
+        unanswered={unanswered}
+        isExam={isExam}
+        submitting={submitting}
+        pendingAction={pendingAction}
+        onSubmit={onSubmit}
+        onCancel={cancelSubmitConfirm}
+      />
+      <DiscardConfirm
+        confirming={confirmingDiscard}
+        canDiscard={canDiscard}
+        isExam={isExam}
+        submitting={submitting}
+        pendingAction={pendingAction}
+        onDiscard={onDiscard}
+        onCancel={cancelDiscardConfirm}
+      />
+      <ErrorLine message={error} />
     </>
   )
 }
