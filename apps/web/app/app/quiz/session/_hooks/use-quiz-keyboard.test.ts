@@ -22,8 +22,8 @@ function defaultOpts(overrides: Partial<Opts> = {}): Opts {
   }
 }
 
-function fireKey(key: string, target?: EventTarget) {
-  const init: KeyboardEventInit = { key, bubbles: true }
+function fireKey(key: string, target?: EventTarget, mods?: KeyboardEventInit) {
+  const init: KeyboardEventInit = { key, bubbles: true, ...mods }
   const event = new KeyboardEvent('keydown', init)
   if (target) {
     // Override the read-only `target` so isTypingTarget sees the right element.
@@ -302,5 +302,54 @@ describe('useQuizKeyboard — wrap-around highlight', () => {
       fireKey('ArrowDown')
     })
     expect(result.current.highlightedOptionId).toBe('opt-a')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Browser/OS chords must not trigger shortcuts
+// ---------------------------------------------------------------------------
+
+describe('useQuizKeyboard — modifier chords', () => {
+  it('does not change question when ArrowLeft is pressed with Alt (browser Back)', () => {
+    const opts = defaultOpts()
+    renderHook(() => useQuizKeyboard(opts))
+    act(() => {
+      fireKey('ArrowLeft', undefined, { altKey: true })
+    })
+    expect(opts.onNavigate).not.toHaveBeenCalled()
+  })
+
+  it('does not switch tabs when c is pressed with Ctrl or Meta (copy)', () => {
+    const opts = defaultOpts()
+    renderHook(() => useQuizKeyboard(opts))
+    act(() => {
+      fireKey('c', undefined, { ctrlKey: true })
+    })
+    expect(opts.onTab).not.toHaveBeenCalled()
+    act(() => {
+      fireKey('c', undefined, { metaKey: true })
+    })
+    expect(opts.onTab).not.toHaveBeenCalled()
+  })
+
+  it('does not submit when Enter is pressed with Ctrl', () => {
+    const opts = defaultOpts()
+    renderHook(() => useQuizKeyboard(opts))
+    act(() => {
+      fireKey('ArrowDown')
+    })
+    act(() => {
+      fireKey('Enter', undefined, { ctrlKey: true })
+    })
+    expect(opts.onConfirm).not.toHaveBeenCalled()
+  })
+
+  it('switches tabs when Q is pressed with Shift', () => {
+    const opts = defaultOpts()
+    renderHook(() => useQuizKeyboard(opts))
+    act(() => {
+      fireKey('Q', undefined, { shiftKey: true })
+    })
+    expect(opts.onTab).toHaveBeenCalledWith('question')
   })
 })
