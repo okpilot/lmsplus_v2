@@ -710,7 +710,7 @@ CREATE POLICY "audit_read_instructors" ON audit_events
 | `user.created` | Admin creates a new student account (via `createStudent` Server Action, recorded by `record_auth_event()` RPC) |
 | `user.login_instructions_sent` | Admin sends/resends login instructions (temp password) to a student or instructor (via `record_login_instructions_sent()` RPC, migration `20260925000100`) |
 | `quiz_session.started` | Student begins any quiz mode |
-| `quiz_session.completed` | Student finishes session (score recorded) |
+| `quiz_session.batch_submitted` | Student finishes a practice session via `finish_quiz_session` (score recorded) |
 | `exam.started` | Mock exam begins |
 | `exam.completed` | Mock exam ends (score + pass/fail recorded) |
 | `exam.expired` | Mock exam past deadline auto-completed (Layer 1) |

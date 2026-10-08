@@ -1588,14 +1588,6 @@ export type Database = {
         Args: { p_session_id: string }
         Returns: Json
       }
-      complete_quiz_session: {
-        Args: { p_session_id: string }
-        Returns: {
-          correct_count: number
-          score_percentage: number
-          total_questions: number
-        }[]
-      }
       dialog_fill_blanks_delimiter_free: {
         Args: { p_blanks: Json }
         Returns: boolean

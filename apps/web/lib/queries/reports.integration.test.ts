@@ -191,7 +191,7 @@ describe('getSessionReports (app-layer integration)', () => {
     if (!r.ok) throw new Error(r.error)
     expect(r.sessions.length).toBeGreaterThan(0)
     // Every seeded session answered all `questionIds.length` (3) questions
-    // (submitAnswerSequence answers one per question) — one quiz_session_answers row each,
+    // (saveAnswerSequence answers one per question) — one quiz_session_answers row each,
     // so answeredItems equals totalQuestions here (MC questions, no multi-item scale).
     //
     // PARTIAL VACUITY, stated deliberately (code-style.md §7): because the two are equal on

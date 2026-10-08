@@ -1,7 +1,7 @@
 // App-layer integration fixture helpers (#925) — session-dependent test data.
 //
 // These helpers drive the REAL SECURITY DEFINER RPC chain (start_quiz_session →
-// submit_quiz_answer × N → complete_quiz_session) AS THE AUTHENTICATED STUDENT.
+// save_quiz_answer × N → finish_quiz_session) AS THE AUTHENTICATED STUDENT.
 // The service-role admin client has auth.uid() = null, so calling RPCs via it
 // would cause every SECURITY DEFINER RPC to raise "user not found or inactive".
 // Every call here must use the studentClient returned by getAuthenticatedClient().
@@ -20,9 +20,11 @@ import type { getAuthenticatedClient } from '@/lib/integration-support/harness'
 
 type StudentClient = Awaited<ReturnType<typeof getAuthenticatedClient>>
 
-/** Submit the answer sequence for one session: 'b' (correct) for the first
+const SEED_DEVICE = '11111111-1111-4111-8111-111111111111' // practice: no claim, any uuid
+
+/** Save the answer sequence for one session: 'b' (correct) for the first
  *  `correctCount` questions, 'a' (wrong) for the rest. Throws on the first error. */
-async function submitAnswerSequence(opts: {
+async function saveAnswerSequence(opts: {
   studentClient: StudentClient
   sessionId: string
   questionIds: string[]
@@ -30,14 +32,15 @@ async function submitAnswerSequence(opts: {
 }): Promise<void> {
   const { studentClient, sessionId, questionIds, correctCount } = opts
   for (let i = 0; i < questionIds.length; i++) {
-    const { error: submitErr } = await studentClient.rpc('submit_quiz_answer', {
+    const { error: saveErr } = await studentClient.rpc('save_quiz_answer', {
       p_session_id: sessionId,
       p_question_id: questionIds[i],
-      p_selected_option: i < correctCount ? 'b' : 'a',
-      p_response_time_ms: 2000,
+      p_answer: { selected_option_id: i < correctCount ? 'b' : 'a' },
+      p_time_spent_ms: 2000,
+      p_device_id: SEED_DEVICE,
     })
-    if (submitErr) {
-      throw new Error(`seedCompletedSession submit_quiz_answer[${i}]: ${submitErr.message}`)
+    if (saveErr) {
+      throw new Error(`seedCompletedSession save_quiz_answer[${i}]: ${saveErr.message}`)
     }
   }
 }
@@ -47,8 +50,8 @@ async function submitAnswerSequence(opts: {
  * completed quiz session.
  *
  * - start_quiz_session   → session id (scalar)
- * - submit_quiz_answer × totalCount   ('b' for correct, 'a' for wrong)
- * - complete_quiz_session → row with total_questions, correct_count, score_percentage
+ * - save_quiz_answer × totalCount   ('b' for correct, 'a' for wrong)
+ * - finish_quiz_session → object with total_questions, correct_count, score_percentage
  *
  * Returns the DB-rounded scorePercentage so callers build expectations from the
  * actual stored value rather than a JS recomputation that may differ by rounding.
@@ -82,38 +85,35 @@ export async function seedCompletedSession(opts: {
     topicId: opts.topicId ?? null,
   })
 
-  await submitAnswerSequence({
+  await saveAnswerSequence({
     studentClient,
     sessionId,
     questionIds: qIds,
     correctCount,
   })
 
-  const { data: completeData, error: completeErr } = await studentClient.rpc(
-    'complete_quiz_session',
-    { p_session_id: sessionId },
-  )
-  if (completeErr) {
-    throw new Error(`seedCompletedSession complete_quiz_session: ${completeErr.message}`)
+  const { data: finishData, error: finishErr } = await studentClient.rpc('finish_quiz_session', {
+    p_session_id: sessionId,
+    p_device_id: SEED_DEVICE,
+  })
+  if (finishErr) {
+    throw new Error(`seedCompletedSession finish_quiz_session: ${finishErr.message}`)
   }
 
-  const rows = Array.isArray(completeData) ? completeData : []
-  const row = rows[0]
-  // complete_quiz_session is a single-row projection; pair the shape cast with a runtime
-  // guard (code-style §5) so a future RPC contract break surfaces as a clear error rather
-  // than Number(undefined) → NaN.
+  // finish_quiz_session returns one jsonb object; pair the shape cast with a runtime guard
+  // (code-style §5) so a future RPC contract break surfaces as a clear error rather than
+  // Number(undefined) → NaN.
   if (
-    typeof row !== 'object' ||
-    row === null ||
-    !('total_questions' in row) ||
-    !('correct_count' in row) ||
-    !('score_percentage' in row)
+    typeof finishData !== 'object' ||
+    finishData === null ||
+    Array.isArray(finishData) ||
+    !('total_questions' in finishData) ||
+    !('correct_count' in finishData) ||
+    !('score_percentage' in finishData)
   ) {
-    throw new TypeError(
-      'seedCompletedSession: complete_quiz_session returned an unexpected row shape',
-    )
+    throw new TypeError('seedCompletedSession: finish_quiz_session returned an unexpected shape')
   }
-  const { total_questions, correct_count, score_percentage } = row as {
+  const { total_questions, correct_count, score_percentage } = finishData as {
     total_questions: number
     correct_count: number
     score_percentage: number | string
@@ -130,8 +130,8 @@ export async function seedCompletedSession(opts: {
 /**
  * Drive start_quiz_session as the authenticated student to produce one OPEN
  * (not yet completed) quiz session, for lifecycle tests that act on an
- * in-progress session (submit / check / complete / finish).
- * seedCompletedSession builds on this (then submits + completes). Same
+ * in-progress session (submit / check / finish).
+ * seedCompletedSession builds on this (then saves + finishes). Same
  * subject/topic CONTRACT as the file header. Returns the session id.
  */
 export async function seedOpenSession(opts: {

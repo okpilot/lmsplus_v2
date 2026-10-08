@@ -206,14 +206,15 @@ test.describe('Red Team: Session Race Condition', () => {
       return
     }
 
-    // Step 3: Attempt to complete the now-discarded session.
-    //         complete_quiz_session checks `ended_at IS NULL` but does NOT check
-    //         `deleted_at IS NULL`, so it may succeed on a soft-deleted session.
-    const { error: completeError } = await attackerClient.rpc('complete_quiz_session', {
+    // Step 3: Attempt to finish the now-discarded session.
+    //         finish_quiz_session locks the row and raises session_discarded
+    //         when deleted_at is set.
+    const { error: finishError } = await attackerClient.rpc('finish_quiz_session', {
       p_session_id: sessionId,
+      p_device_id: '11111111-1111-4111-8111-111111111111',
     })
 
-    // Step 4: Verify the session stayed discarded regardless of completion outcome
+    // Step 4: Verify the session stayed discarded and was not ended
     const admin = getAdminClient()
     const { data: row, error: rowErr } = await admin
       .from('quiz_sessions')
@@ -221,19 +222,12 @@ test.describe('Red Team: Session Race Condition', () => {
       .eq('id', sessionId)
       .single()
 
-    // Session must still be soft-deleted no matter what
+    // Session must still be soft-deleted
     expect(rowErr).toBeNull()
     expect(row?.deleted_at).not.toBeNull()
 
-    if (completeError) {
-      // RPC rejected — session stayed discarded and not completed (ideal)
-      expect(row?.ended_at).toBeNull()
-    } else {
-      // RPC succeeded (ended_at was NULL so it passed the WHERE clause),
-      // but the discard (deleted_at) was NOT undone — both flags are set.
-      // This is acceptable: the session is still marked deleted.
-      expect(row?.ended_at).not.toBeNull()
-    }
+    expect(finishError?.message).toContain('session_discarded')
+    expect(row?.ended_at).toBeNull()
   })
 
   test('concurrent start_exam_session for the same subject yields exactly one active session and the rejected call signals already in progress (mig 088)', async () => {

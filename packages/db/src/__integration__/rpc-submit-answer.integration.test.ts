@@ -255,16 +255,18 @@ describe('RPC: submit_quiz_answer', () => {
   it('rejects submission to completed session', async () => {
     const sessionId = await startSession([questionIds[0]!])
 
-    // Submit one answer then complete
+    // Submit one answer then end the session (state only; the test targets the submit guard)
     await studentClient.rpc('submit_quiz_answer', {
       p_session_id: sessionId,
       p_question_id: questionIds[0],
       p_selected_option: 'b',
       p_response_time_ms: 1000,
     })
-    await studentClient.rpc('complete_quiz_session', {
-      p_session_id: sessionId,
-    })
+    const { error: endErr } = await admin
+      .from('quiz_sessions')
+      .update({ ended_at: new Date().toISOString() })
+      .eq('id', sessionId)
+    expect(endErr).toBeNull()
 
     // Try to submit another answer
     const { error } = await studentClient.rpc('submit_quiz_answer', {

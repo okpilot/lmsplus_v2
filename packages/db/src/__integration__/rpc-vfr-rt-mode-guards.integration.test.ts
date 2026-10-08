@@ -1,5 +1,5 @@
 /**
- * VFR RT exam mode guards: submit_quiz_answer and complete_quiz_session reject a
+ * VFR RT exam mode guards: submit_quiz_answer rejects a
  * vfr_rt_exam session with unsupported_session_mode (#838); get_question_authoring_fields
  * returns the answer-key columns to an in-org admin only.
  *
@@ -313,18 +313,6 @@ describe('RPC mode whitelist (#838) — vfr_rt_exam sessions are rejected by the
       p_question_id: questionIds[0],
       p_selected_option: 'a',
       p_response_time_ms: 1000,
-    })
-    expect(error).not.toBeNull()
-    expect(error?.message).toContain('unsupported_session_mode')
-
-    await forceEndSession(sessionId)
-  })
-
-  it('complete_quiz_session rejects a vfr_rt_exam session with unsupported_session_mode', async () => {
-    const { sessionId } = await startSession()
-
-    const { error } = await studentClient.rpc('complete_quiz_session', {
-      p_session_id: sessionId,
     })
     expect(error).not.toBeNull()
     expect(error?.message).toContain('unsupported_session_mode')

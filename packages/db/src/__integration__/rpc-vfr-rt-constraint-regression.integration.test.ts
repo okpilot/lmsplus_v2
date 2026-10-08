@@ -6,7 +6,6 @@
  * The UNIQUE on quiz_session_answers was widened from (session_id, question_id)
  * to (session_id, question_id, blank_index) NULLS NOT DISTINCT. The ON CONFLICT
  * clause in submit_quiz_answer (mig 095b) was updated to match.
- * complete_quiz_session reads the table but does not INSERT.
  *
  * The critical failure mode is invisible to `db reset` / `db push`: plpgsql
  * resolves ON CONFLICT inference at EXECUTION time, not at CREATE OR REPLACE time
@@ -135,48 +134,6 @@ describe('Constraint regression — answer-write idempotency after mig 095/095b'
       .eq('session_id', sessionId)
     expect(rowsErr).toBeNull()
     expect(answerRows).toHaveLength(1)
-  })
-
-  it('complete_quiz_session executes without 42P10 against the widened constraint', async () => {
-    // complete_quiz_session reads quiz_session_answers but never INSERTs into it,
-    // so it needs no ON CONFLICT update. This test confirms the function still
-    // executes cleanly after the schema widening (regression guard).
-    //
-    // We use submit_quiz_answer to answer questions here because it leaves the
-    // session open for the complete_quiz_session call below.
-    const { data: sessionData, error: startErr } = await studentClient.rpc('start_quiz_session', {
-      p_mode: 'quick_quiz',
-      p_subject_id: refs.subjectId,
-      p_topic_id: refs.topicId,
-      p_question_ids: questionIds.slice(0, 2),
-    })
-    expect(startErr).toBeNull()
-    if (typeof sessionData !== 'string')
-      throw new Error('start_quiz_session did not return a string')
-    const sessionId = sessionData
-
-    // Answer via submit_quiz_answer (one question at a time). The session stays
-    // open after each call — complete_quiz_session is what marks it ended.
-    const { error: ans1Err } = await studentClient.rpc('submit_quiz_answer', {
-      p_session_id: sessionId,
-      p_question_id: questionIds[0]!,
-      p_selected_option: 'b',
-      p_response_time_ms: 1000,
-    })
-    expect(ans1Err).toBeNull()
-    const { error: ans2Err } = await studentClient.rpc('submit_quiz_answer', {
-      p_session_id: sessionId,
-      p_question_id: questionIds[1]!,
-      p_selected_option: 'a',
-      p_response_time_ms: 1000,
-    })
-    expect(ans2Err).toBeNull()
-
-    const { error: completeErr } = await studentClient.rpc('complete_quiz_session', {
-      p_session_id: sessionId,
-    })
-    // The primary signal is no 42P10 error
-    expect(completeErr).toBeNull()
   })
 })
 
