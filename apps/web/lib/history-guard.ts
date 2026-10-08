@@ -3,6 +3,10 @@
  * entry is stamped with a per-tab token and its index; an armed popstate is cancelled by stepping
  * `history.go` back by the distance travelled. Installed before Next's own patch and popstate
  * listener (see HistoryGuard), so `stopImmediatePropagation` keeps Next from traversing.
+ * Every popstate is measured against the unchanged rendered index, so no "revert pending" state
+ * exists to get stuck. `onAttempt` may fire once per event of a burst (callers are idempotent).
+ * After MAX_REVERTS self-issued `go` calls without reaching the rendered entry (delta 0), the
+ * landed entry is accepted, which bounds the ping-pong the reference library can loop in.
  */
 const TOKEN_KEY = '__lms_nav_tok'
 const INDEX_KEY = '__lms_nav_idx'
@@ -15,7 +19,8 @@ export type PopDecision =
 let installed = false
 let position: Position = { token: '', index: 0 }
 let armed: (() => void) | null = null
-let reverting = false
+let reverts = 0
+const MAX_REVERTS = 4
 
 const newToken = () => Math.random().toString(36).slice(2)
 
@@ -37,26 +42,23 @@ export function decidePopState(state: unknown, current: Position): PopDecision {
 
 function handlePopState(event: PopStateEvent) {
   const d = decidePopState(event.state, position)
-  if (reverting) {
-    if (d.kind === 'move' && d.delta === 0) reverting = false
-    event.stopImmediatePropagation()
-    return
-  }
   if (d.kind === 'adopt') {
     // In memory only: a stamp without Next's `__NA` makes Next reload on a later traversal.
     position = { token: d.token, index: d.index }
     return
   }
   if (d.delta === 0) {
+    reverts = 0
     event.stopImmediatePropagation()
     return
   }
-  if (!armed) {
+  if (!armed || reverts >= MAX_REVERTS) {
+    reverts = 0
     position = { token: position.token, index: d.index }
     return
   }
   event.stopImmediatePropagation()
-  reverting = true
+  reverts += 1
   window.history.go(-d.delta)
   armed()
 }

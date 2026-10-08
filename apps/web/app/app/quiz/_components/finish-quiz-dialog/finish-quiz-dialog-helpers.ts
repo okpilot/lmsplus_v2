@@ -79,6 +79,24 @@ export function getSubmitButtonLabel(opts: {
   return 'Answer at least one question'
 }
 
+export function getSaveButtonLabel(opts: { isSaving: boolean }): string {
+  return opts.isSaving ? 'Saving...' : 'Save for Later'
+}
+
+export function getDiscardButtonLabel(opts: {
+  isExam?: boolean
+  examLabel?: string | null
+}): string {
+  return opts.isExam ? `Discard ${opts.examLabel ?? 'Exam'}` : 'Discard Quiz'
+}
+
+export function getReturnButtonLabel(opts: {
+  isExam?: boolean
+  examLabel?: string | null
+}): string {
+  return opts.isExam ? `Return to ${opts.examLabel ?? 'Exam'}` : 'Return to Quiz'
+}
+
 // Builds the dialog's click handlers over the hook's setters + derived state. No hooks —
 // mirrors the builder-factory pattern in session/_hooks/quiz-submit-handlers.ts.
 export function buildFinishDialogHandlers(deps: {

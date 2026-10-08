@@ -2,7 +2,10 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   buildFinishDialogHandlers,
   deriveFinishDialogView,
+  getDiscardButtonLabel,
   getDiscardConfirmMessage,
+  getReturnButtonLabel,
+  getSaveButtonLabel,
   getSubmitButtonLabel,
   getSubmitConfirmMessage,
 } from './finish-quiz-dialog-helpers'
@@ -243,5 +246,28 @@ describe('getDiscardConfirmMessage', () => {
     expect(getDiscardConfirmMessage(true)).toBe(
       "Are you sure? Your progress will be lost. This attempt won't count.",
     )
+  })
+})
+
+describe('footer button labels', () => {
+  it('shows a saving label only while the save is in flight', () => {
+    expect(getSaveButtonLabel({ isSaving: true })).toBe('Saving...')
+    expect(getSaveButtonLabel({ isSaving: false })).toBe('Save for Later')
+  })
+
+  it('labels the discard button with the exam label, defaulting to Exam', () => {
+    expect(getDiscardButtonLabel({ isExam: true, examLabel: 'Practice Exam' })).toBe(
+      'Discard Practice Exam',
+    )
+    expect(getDiscardButtonLabel({ isExam: true })).toBe('Discard Exam')
+    expect(getDiscardButtonLabel({ isExam: false })).toBe('Discard Quiz')
+  })
+
+  it('labels the return button with the exam label, defaulting to Exam', () => {
+    expect(getReturnButtonLabel({ isExam: true, examLabel: 'Practice Exam' })).toBe(
+      'Return to Practice Exam',
+    )
+    expect(getReturnButtonLabel({ isExam: true, examLabel: null })).toBe('Return to Exam')
+    expect(getReturnButtonLabel({ isExam: false })).toBe('Return to Quiz')
   })
 })

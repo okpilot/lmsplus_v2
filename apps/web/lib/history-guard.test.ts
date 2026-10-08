@@ -180,17 +180,53 @@ describe('armed Back and Forward', () => {
     expect(go).toHaveBeenCalledTimes(2)
   })
 
-  it('issues no second revert for a second Back while the first is pending', async () => {
+  it('reverts each event of a fast burst and stops at the entry it left', async () => {
     const { armHistoryGuard } = await load()
     window.history.pushState({ __NA: true }, '', '/a')
     window.history.pushState({ __NA: true }, '', '/b')
     const onAttempt = vi.fn()
     armHistoryGuard(onAttempt)
-    pop(stamped(1))
-    const second = pop(stamped(0))
-    expect(go).toHaveBeenCalledTimes(1)
-    expect(onAttempt).toHaveBeenCalledTimes(1)
-    expect(second).not.toHaveBeenCalled()
+    for (const idx of [1, 0, 1, 3]) expect(pop(stamped(idx))).not.toHaveBeenCalled()
+    expect(go.mock.calls.map((c: unknown[]) => c[0])).toEqual([1, 2, 1, -1])
+    expect(onAttempt).toHaveBeenCalledTimes(4)
+    expect(pop(stamped(2))).not.toHaveBeenCalled()
+    expect(go).toHaveBeenCalledTimes(4)
+  })
+
+  it('passes a later disarmed Back through after a fast burst', async () => {
+    const { armHistoryGuard } = await load()
+    window.history.pushState({ __NA: true }, '', '/a')
+    window.history.pushState({ __NA: true }, '', '/b')
+    const disarm = armHistoryGuard(vi.fn())
+    for (const idx of [1, 0, 1]) pop(stamped(idx))
+    pop(stamped(2))
+    disarm()
+    expect(pop(stamped(1))).toHaveBeenCalledTimes(1)
+  })
+
+  it('stops reverting after four consecutive reverts and accepts the landed entry', async () => {
+    const { armHistoryGuard } = await load()
+    window.history.pushState({ __NA: true }, '', '/a')
+    window.history.pushState({ __NA: true }, '', '/b')
+    armHistoryGuard(vi.fn())
+    for (const idx of [1, 0, 1, 0]) pop(stamped(idx))
+    expect(go).toHaveBeenCalledTimes(4)
+    expect(pop(stamped(1))).toHaveBeenCalledTimes(1)
+    expect(go).toHaveBeenCalledTimes(4)
+    pop(stamped(2))
+    expect(go).toHaveBeenCalledTimes(5)
+    expect(go).toHaveBeenLastCalledWith(-1)
+  })
+
+  it('restarts the revert count after the entry it left is reached again', async () => {
+    const { armHistoryGuard } = await load()
+    window.history.pushState({ __NA: true }, '', '/a')
+    window.history.pushState({ __NA: true }, '', '/b')
+    armHistoryGuard(vi.fn())
+    for (const idx of [1, 0, 1]) pop(stamped(idx))
+    pop(stamped(2))
+    for (const idx of [1, 0, 1, 0]) expect(pop(stamped(idx))).not.toHaveBeenCalled()
+    expect(go).toHaveBeenCalledTimes(7)
   })
 
   it('ignores a stray event for the entry it is already on', async () => {
