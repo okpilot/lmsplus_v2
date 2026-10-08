@@ -1971,20 +1971,6 @@ export type Database = {
         Args: { p_subject_id: string }
         Returns: Json
       }
-      submit_quiz_answer: {
-        Args: {
-          p_question_id: string
-          p_response_time_ms: number
-          p_selected_option: string
-          p_session_id: string
-        }
-        Returns: {
-          correct_option_id: string
-          explanation_image_url: string
-          explanation_text: string
-          is_correct: boolean
-        }[]
-      }
       upsert_exam_config: {
         Args: {
           p_distributions: Json

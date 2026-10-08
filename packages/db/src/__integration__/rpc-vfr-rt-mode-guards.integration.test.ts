@@ -1,7 +1,6 @@
 /**
- * VFR RT exam mode guards: submit_quiz_answer rejects a
- * vfr_rt_exam session with unsupported_session_mode (#838); get_question_authoring_fields
- * returns the answer-key columns to an in-org admin only.
+ * VFR RT exam mode guards: get_question_authoring_fields returns the answer-key
+ * columns to an in-org admin only.
  *
  * get_question_authoring_fields covers:
  *   - admin gets the four answer-key columns
@@ -9,17 +8,15 @@
  *   - cross-org admin gets zero rows
  *
  * Shared beforeAll seeds: RT subject (mig 097), 8 SA + 9 DF + 8 MC questions,
- * exam_configs row. Each it() that modifies state starts its own session so
- * tests stay isolated.
+ * exam_configs row.
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupTestData } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
-import { requireRpcResult, requireRpcRows } from './guards'
+import { requireRpcRows } from './guards'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 import { getP3Subtopics, P3_SUBTOPIC_CODES } from './vfr-rt-part3-helpers'
-import { forceEndSession } from './vfr-rt-part3-org'
 
 const admin = getAdminClient()
 const suffix = fixtureSuffix()
@@ -281,44 +278,6 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await cleanupTestData({ admin, orgId, userIds })
-})
-
-/** Start a fresh vfr_rt_exam session and return its id + the frozen question list. */
-async function startSession(): Promise<{ sessionId: string; questionIds: string[] }> {
-  const { data, error } = await studentClient.rpc('start_vfr_rt_exam_session', {
-    p_subject_id: rtSubjectId,
-  })
-  if (error) throw new Error(`startSession: ${error.message}`)
-  const r = requireRpcResult<{ session_id: string; question_ids: string[] }>(
-    data,
-    'start_vfr_rt_exam_session',
-  )
-  if (!r.session_id) throw new Error('startSession: no session_id in result')
-  return { sessionId: r.session_id, questionIds: r.question_ids }
-}
-
-// ─── Legacy RPC mode whitelist (#838) ─────────────────────────────────────────
-//
-// Migs 095b/095c/104 add a fail-closed mode whitelist to submit_quiz_answer: a
-// vfr_rt_exam session answered via the MC path would bypass per-part grading
-// (mig 100). The happy path lives in rpc-submit-answer — that is what makes this
-// rejection non-vacuous.
-
-describe('RPC mode whitelist (#838) — vfr_rt_exam sessions are rejected by the MC-path RPCs', () => {
-  it('submit_quiz_answer rejects a vfr_rt_exam session with unsupported_session_mode', async () => {
-    const { sessionId, questionIds } = await startSession()
-
-    const { error } = await studentClient.rpc('submit_quiz_answer', {
-      p_session_id: sessionId,
-      p_question_id: questionIds[0],
-      p_selected_option: 'a',
-      p_response_time_ms: 1000,
-    })
-    expect(error).not.toBeNull()
-    expect(error?.message).toContain('unsupported_session_mode')
-
-    await forceEndSession(sessionId)
-  })
 })
 
 // ─── get_question_authoring_fields ────────────────────────────────────────────

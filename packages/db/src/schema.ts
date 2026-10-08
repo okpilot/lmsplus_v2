@@ -3,15 +3,6 @@ import { z } from 'zod'
 // Note: z.uuid() returns ZodUUID (not ZodString) in Zod v4.
 // Inferred TS type is still `string`. Do not instanceof-check against ZodString.
 
-export const SubmitAnswerSchema = z.object({
-  sessionId: z.uuid(),
-  questionId: z.uuid(),
-  selectedOptionId: z.enum(['a', 'b', 'c', 'd']),
-  responseTimeMs: z.number().int().positive(),
-})
-
-export type SubmitAnswerInput = z.infer<typeof SubmitAnswerSchema>
-
 export const StartQuizSessionSchema = z.object({
   mode: z.enum(['smart_review', 'quick_quiz', 'mock_exam']),
   subjectId: z.uuid().nullable(),

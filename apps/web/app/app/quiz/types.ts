@@ -1,24 +1,7 @@
 import type { DiagramMappingEntry } from '@/app/app/quiz/actions/diagram-validation'
 
-export type SubmitRpcResult = {
-  is_correct: boolean
-  correct_option_id: string
-  explanation_text: string | null
-  explanation_image_url: string | null
-}[]
-
 export type StartQuizResult =
   | { success: true; sessionId: string; questionIds: string[] }
-  | { success: false; error: string }
-
-export type SubmitQuizAnswerResult =
-  | {
-      success: true
-      isCorrect: boolean
-      correctOptionId: string
-      explanationText: string | null
-      explanationImageUrl: string | null
-    }
   | { success: false; error: string }
 
 export type CheckAnswerResult =

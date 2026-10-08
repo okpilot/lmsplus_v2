@@ -1,16 +1,5 @@
 /**
- * A.11 — Constraint regression tests (migs 094, 095/095b/095c).
- *
- * ## mig 095/095b/095c — quiz_session_answers UNIQUE widening
- *
- * The UNIQUE on quiz_session_answers was widened from (session_id, question_id)
- * to (session_id, question_id, blank_index) NULLS NOT DISTINCT. The ON CONFLICT
- * clause in submit_quiz_answer (mig 095b) was updated to match.
- *
- * The critical failure mode is invisible to `db reset` / `db push`: plpgsql
- * resolves ON CONFLICT inference at EXECUTION time, not at CREATE OR REPLACE time
- * (code-style.md §5 / design.md § Migrations 095b+095c). A 42P10 only surfaces
- * when a student actually submits — which is exactly what these tests exercise.
+ * A.11 — Constraint regression tests (mig 094).
  *
  * ## mig 094 — questions_question_type_columns_check (accepted_synonyms tightening)
  *
@@ -24,118 +13,14 @@
  * a 23514 error) and a positive control (valid row inserts cleanly), confirming
  * the constraint fires correctly at execution time.
  */
-import type { SupabaseClient } from '@supabase/supabase-js'
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { cleanupReferenceData, cleanupTestData, clearActiveSessions } from './cleanup'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { cleanupReferenceData, cleanupTestData } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
-import { seedQuestions, seedReferenceData } from './seed'
-import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
+import { seedReferenceData } from './seed'
+import { createTestOrg, createTestUser, getAdminClient } from './setup'
 
 const admin = getAdminClient()
 const suffix = fixtureSuffix()
-
-describe('Constraint regression — answer-write idempotency after mig 095/095b', () => {
-  let orgId: string
-  let adminUserId: string
-  let studentClient: SupabaseClient
-  let questionIds: string[]
-  let refs: Awaited<ReturnType<typeof seedReferenceData>>
-  const userIds: string[] = []
-
-  beforeAll(async () => {
-    orgId = await createTestOrg({
-      admin,
-      name: `Test Org BatchReg ${suffix}`,
-      slug: `test-batchreg-${suffix}`,
-    })
-    adminUserId = await createTestUser({
-      admin,
-      orgId,
-      email: `admin-batchreg-${suffix}@test.local`,
-      password: 'test-pass-123',
-      role: 'admin',
-    })
-    userIds.push(adminUserId)
-    const studentId = await createTestUser({
-      admin,
-      orgId,
-      email: `student-batchreg-${suffix}@test.local`,
-      password: 'test-pass-123',
-      role: 'student',
-    })
-    userIds.push(studentId)
-    studentClient = await getAuthenticatedClient({
-      email: `student-batchreg-${suffix}@test.local`,
-      password: 'test-pass-123',
-    })
-    refs = await seedReferenceData({
-      admin,
-      subjectCode: `BR${suffix}`,
-      subjectName: `Batch Reg Subject ${suffix}`,
-      topicCode: `BR${suffix}-01`,
-      topicName: `Batch Reg Topic ${suffix}`,
-    })
-    const seeded = await seedQuestions({
-      admin,
-      orgId,
-      createdBy: adminUserId,
-      subjectId: refs.subjectId,
-      topicId: refs.topicId,
-      count: 3,
-    })
-    questionIds = seeded.questionIds
-  })
-
-  afterAll(async () => {
-    if (orgId) await cleanupTestData({ admin, orgId, userIds })
-    await cleanupReferenceData({ admin, refs: [refs] })
-  })
-
-  // Single-active-session invariant (#1011): submit_quiz_answer leaves its
-  // session active, so clear it before the next test's start_quiz_session
-  // raises `another_session_active`.
-  beforeEach(async () => {
-    if (orgId) await clearActiveSessions({ admin, orgId })
-  })
-
-  it('submit_quiz_answer called twice for the same question does not duplicate quiz_session_answers rows', async () => {
-    const { data: sessionData, error: startErr } = await studentClient.rpc('start_quiz_session', {
-      p_mode: 'quick_quiz',
-      p_subject_id: refs.subjectId,
-      p_topic_id: refs.topicId,
-      p_question_ids: [questionIds[2]!],
-    })
-    expect(startErr).toBeNull()
-    if (typeof sessionData !== 'string')
-      throw new Error('start_quiz_session did not return a string')
-    const sessionId = sessionData
-
-    // First submit
-    const { error: err1 } = await studentClient.rpc('submit_quiz_answer', {
-      p_session_id: sessionId,
-      p_question_id: questionIds[2]!,
-      p_selected_option: 'b',
-      p_response_time_ms: 1000,
-    })
-    expect(err1).toBeNull()
-
-    // Second submit — same question, ON CONFLICT DO NOTHING
-    const { error: err2 } = await studentClient.rpc('submit_quiz_answer', {
-      p_session_id: sessionId,
-      p_question_id: questionIds[2]!,
-      p_selected_option: 'b',
-      p_response_time_ms: 1000,
-    })
-    expect(err2).toBeNull()
-
-    const { data: answerRows, error: rowsErr } = await admin
-      .from('quiz_session_answers')
-      .select('id')
-      .eq('session_id', sessionId)
-    expect(rowsErr).toBeNull()
-    expect(answerRows).toHaveLength(1)
-  })
-})
 
 // ────────────────────────────────────────────────────────────────────────────
 // mig 094 — questions_question_type_columns_check (accepted_synonyms branches)

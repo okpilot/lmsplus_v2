@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
+import { P, saveAndFinish } from './save-and-finish'
 import { seedQuestions, seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
@@ -70,21 +71,18 @@ describe('RLS: immutable tables', () => {
     })
     questionIds = seeded.questionIds
 
-    // Start session and submit an answer
+    // Start session, save an answer, finish (answers and responses are written at finish)
     const { data } = await studentClient.rpc('start_quiz_session', {
       p_mode: 'quick_quiz',
       p_subject_id: null,
       p_topic_id: null,
-      p_question_ids: questionIds,
+      p_question_ids: [questionIds[0]],
     })
     sessionId = data as string
 
-    await studentClient.rpc('submit_quiz_answer', {
-      p_session_id: sessionId,
-      p_question_id: questionIds[0],
-      p_selected_option: 'b',
-      p_response_time_ms: 2000,
-    })
+    await saveAndFinish(studentClient, sessionId, [
+      { questionId: questionIds[0] as string, answer: P.mc('b'), timeSpentMs: 2000 },
+    ])
   })
 
   afterAll(async () => {

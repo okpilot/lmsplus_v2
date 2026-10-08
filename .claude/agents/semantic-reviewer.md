@@ -174,7 +174,7 @@ STRUCTURE only — this finding asserts a runtime consequence, so it needs a run
 Fix: Add the same `for (const cookie of response.cookies.getAll())` loop.
 
 [ISSUE] apps/web/app/app/quiz/actions.ts:45 — no auth check before RPC call
-`submitQuizAnswer` calls `supabase.rpc('submit_quiz_answer')` without first
+`finishQuizSession` calls `supabase.rpc('finish_quiz_session')` without first
 verifying `auth.uid()` is non-null. The RPC has its own auth check, but defense
 in depth requires the Server Action to check too.
 EVIDENCE: `sed -n '<range>p' <the file>` -> no `requireAuth` before the `.rpc(` call.

@@ -1,11 +1,10 @@
 /**
  * Red Team Spec: OWASP A05 — SQL/string fuzzing of RPC text parameters
  *
- * Issue #108. Covers three RPCs whose user-controlled `text` parameters could,
+ * Issue #108. Covers two RPCs whose user-controlled `text` parameters could,
  * if mishandled, allow string injection or length-based exhaustion:
  *  - start_internal_exam_session(p_code text)        — student-facing redeem
  *  - void_internal_exam_code(p_code_id uuid, p_reason text) — admin write
- *  - submit_quiz_answer(... p_selected_option text ...)     — student write
  *
  * For each RPC every payload is asserted to either (a) hit a documented guard
  * with the expected error message, or (b) be stored as plain text without
@@ -259,105 +258,6 @@ test.describe('Red Team: OWASP A05 SQL fuzzing — RPC text parameters', () => {
         expect(rowError).toBeNull()
         expect(row).not.toBeNull()
         expect(row?.voided_at ?? null).toBeNull()
-      })
-    }
-  })
-
-  test.describe('submit_quiz_answer — p_selected_option must match an option id on the question', () => {
-    let admin: ReturnType<typeof getAdminClient>
-    let studentClient: SupabaseClient
-    let subjectId: string
-    let topicId: string
-    let knownQuestionId: string
-    let activeSessionId: string | null = null
-
-    test.beforeAll(async () => {
-      admin = getAdminClient()
-
-      const seed = await seedRedTeamUsers()
-      const orgId = seed.orgId
-      studentClient = await createAuthenticatedClient(ATTACKER_EMAIL, ATTACKER_PASSWORD)
-
-      const picked = await pickSubjectWithQuestions(admin, { orgId })
-      subjectId = picked.subjectId
-      topicId = picked.topicId
-
-      // Pull one active question id in the picked subject + topic so the
-      // session config carries a real membership-eligible question.
-      const { data: questions, error: questionsError } = await admin
-        .from('questions')
-        .select('id')
-        .eq('organization_id', orgId)
-        .eq('subject_id', subjectId)
-        .eq('topic_id', topicId)
-        .eq('status', 'active')
-        .is('deleted_at', null)
-        .limit(1)
-      if (questionsError) throw new Error(`seed questions: ${questionsError.message}`)
-      if (!questions?.length)
-        throw new Error('seed questions: no active question for subject/topic')
-      knownQuestionId = questions[0].id
-    })
-
-    // Per-test session creation: a payload that happens to match a real
-    // option_id (extremely unlikely but possible for UUID-shaped fragments)
-    // would consume the question and break sibling tests if a single session
-    // were shared. Each test gets a fresh session.
-    test.beforeEach(async () => {
-      const { data: startData, error: startError } = await studentClient.rpc('start_quiz_session', {
-        p_mode: 'quick_quiz',
-        p_subject_id: subjectId,
-        p_topic_id: topicId,
-        p_question_ids: [knownQuestionId],
-      })
-      if (startError || !startData) throw new Error(`start_quiz_session: ${startError?.message}`)
-      activeSessionId = startData as string
-    })
-
-    test.afterEach(async () => {
-      const sessionToCleanup = activeSessionId
-      activeSessionId = null
-      if (!sessionToCleanup) return
-      const { data, error } = await admin
-        .from('quiz_sessions')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', sessionToCleanup)
-        .is('deleted_at', null)
-        .select('id')
-      if (error) {
-        throw new Error(`afterEach soft-delete session ${sessionToCleanup}: ${error.message}`)
-      }
-      if ((data?.length ?? 0) > 0) {
-        console.log(`[injection-sql] soft-deleted quiz_session ${sessionToCleanup}`)
-      }
-    })
-
-    for (const payload of DB_LAYER_PAYLOADS) {
-      test(`SQL-fragment p_selected_option (${payload.name}) is rejected as not a member of the question`, async () => {
-        const { data, error } = await studentClient.rpc('submit_quiz_answer', {
-          p_session_id: activeSessionId as string,
-          p_question_id: knownQuestionId,
-          p_selected_option: payload.value,
-          p_response_time_ms: 1000,
-        })
-
-        expect(error).not.toBeNull()
-        expect(error?.message ?? '').toMatch(/selected option does not belong/i)
-        expect(data).toBeNull()
-      })
-    }
-
-    for (const payload of TRANSPORT_LAYER_PAYLOADS) {
-      test(`control-character p_selected_option (${payload.name}) is rejected before persistence`, async () => {
-        const { data, error } = await studentClient.rpc('submit_quiz_answer', {
-          p_session_id: activeSessionId as string,
-          p_question_id: knownQuestionId,
-          p_selected_option: payload.value,
-          p_response_time_ms: 1000,
-        })
-
-        expect(error).not.toBeNull()
-        expect(data).toBeNull()
       })
     }
   })

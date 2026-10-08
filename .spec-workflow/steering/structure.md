@@ -112,8 +112,8 @@ feature/
 │   ├── use-feature.ts
 │   └── use-feature.test.ts
 ├── actions/              # Server Actions (one file per action or actions.ts)
-│   ├── submit.ts
-│   └── submit.test.ts
+│   ├── finish.ts
+│   └── finish.test.ts
 ├── types.ts              # Feature-scoped type definitions
 ├── page.tsx              # Route page (composition only — limits: .claude/limits.json)
 └── loading.tsx           # Suspense fallback
@@ -131,7 +131,7 @@ Directories prefixed with `_` (underscore) are not treated as route segments by 
 |----------|-----------|---------|
 | React component | `kebab-case.tsx` | `question-card.tsx` |
 | Hook | `use-*.ts` | `use-quiz-session.ts` |
-| Server Action | `actions.ts` or `kebab-case.ts` in `actions/` | `actions/submit.ts` |
+| Server Action | `actions.ts` or `kebab-case.ts` in `actions/` | `actions/finish.ts` |
 | Utility/helper | `kebab-case.ts` | `format-score.ts` |
 | Type definitions | `types.ts` | per feature folder |
 | Test file | `*.test.ts` or `*.test.tsx` | `question-card.test.tsx` |
@@ -147,10 +147,10 @@ Directories prefixed with `_` (underscore) are not treated as route segments by 
 | Type/interface | `PascalCase` | `type QuizSession = ...` |
 | Constants | `SCREAMING_SNAKE_CASE` | `MAX_QUIZ_QUESTIONS` |
 | Variables | `camelCase` | `const studentId = ...` |
-| Zod schemas | `PascalCase` + `Schema` suffix | `SubmitAnswerSchema` |
+| Zod schemas | `PascalCase` + `Schema` suffix | `StartQuizSessionSchema` |
 | Server Action results | `PascalCase` + `Result` suffix | `type SubmitAnswerResult` |
 | DB table names | `snake_case` (plural) | `quiz_sessions`, `student_responses` |
-| RPC function names | `snake_case` | `get_quiz_questions`, `submit_quiz_answer` |
+| RPC function names | `snake_case` | `get_quiz_questions`, `finish_quiz_session` |
 
 ### Prefer `type` over `interface`
 
@@ -289,8 +289,8 @@ Group by feature (quiz, dashboard, admin/students), not by type (components, hoo
 Every test file lives next to its source file. No `__tests__/` directories.
 
 ```
-actions/submit.ts
-actions/submit.test.ts
+actions/finish.ts
+actions/finish.test.ts
 _components/question-card.tsx
 _components/question-card.test.tsx
 ```
