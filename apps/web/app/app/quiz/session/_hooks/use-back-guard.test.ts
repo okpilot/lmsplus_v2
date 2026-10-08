@@ -7,6 +7,7 @@ const popstate = () => window.dispatchEvent(new PopStateEvent('popstate'))
 
 beforeEach(() => {
   vi.resetAllMocks()
+  window.sessionStorage.clear()
   window.history.replaceState({ __NA: true }, '')
 })
 
@@ -77,9 +78,9 @@ describe('releaseBackGuard', () => {
   it('pops the sentinel entry and resolves once the browser has gone back', async () => {
     const back = vi.spyOn(window.history, 'back').mockImplementation(() => {})
     const onAttempt = vi.fn()
-    const { result } = renderHook(() => useBackGuard(true, onAttempt))
+    renderHook(() => useBackGuard(true, onAttempt))
     let settled = false
-    const pending = result.current.release().then(() => {
+    const pending = releaseBackGuard().then(() => {
       settled = true
     })
     expect(back).toHaveBeenCalledTimes(1)
@@ -115,5 +116,60 @@ describe('releaseBackGuard', () => {
     await vi.advanceTimersByTimeAsync(500)
     await Promise.all([first, second])
     expect(back).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('sentinel idempotence across mounts', () => {
+  it('pushes no second sentinel when the guard re-arms on the entry it already pushed', () => {
+    const push = vi.spyOn(window.history, 'pushState')
+    renderHook(() => useBackGuard(true, vi.fn())).unmount()
+    renderHook(() => useBackGuard(true, vi.fn()))
+    expect(push).toHaveBeenCalledTimes(1)
+  })
+
+  it('still reports Back after re-arming without a second push', () => {
+    const onAttempt = vi.fn()
+    renderHook(() => useBackGuard(true, vi.fn())).unmount()
+    renderHook(() => useBackGuard(true, onAttempt))
+    act(() => popstate())
+    expect(onAttempt).toHaveBeenCalledTimes(1)
+  })
+
+  it('pushes a fresh sentinel after the previous one was released', async () => {
+    vi.spyOn(window.history, 'back').mockImplementation(() => {})
+    renderHook(() => useBackGuard(true, vi.fn()))
+    const pending = releaseBackGuard()
+    act(() => popstate())
+    await pending
+    const push = vi.spyOn(window.history, 'pushState')
+    renderHook(() => useBackGuard(true, vi.fn()))
+    expect(push).toHaveBeenCalledTimes(1)
+  })
+
+  it('clears the record when released with nothing armed', async () => {
+    renderHook(() => useBackGuard(true, vi.fn())).unmount()
+    await releaseBackGuard()
+    const push = vi.spyOn(window.history, 'pushState')
+    renderHook(() => useBackGuard(true, vi.fn()))
+    expect(push).toHaveBeenCalledTimes(1)
+  })
+
+  it('pushes when the history length no longer matches the record', () => {
+    renderHook(() => useBackGuard(true, vi.fn())).unmount()
+    window.history.pushState(window.history.state, '')
+    const push = vi.spyOn(window.history, 'pushState')
+    renderHook(() => useBackGuard(true, vi.fn()))
+    expect(push).toHaveBeenCalledTimes(1)
+  })
+
+  it('pushes when the record belongs to another path', () => {
+    renderHook(() => useBackGuard(true, vi.fn())).unmount()
+    window.sessionStorage.setItem(
+      'lms-back-guard',
+      JSON.stringify({ path: '/elsewhere', len: window.history.length }),
+    )
+    const push = vi.spyOn(window.history, 'pushState')
+    renderHook(() => useBackGuard(true, vi.fn()))
+    expect(push).toHaveBeenCalledTimes(1)
   })
 })

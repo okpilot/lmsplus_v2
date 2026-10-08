@@ -9,6 +9,7 @@ import type { DraftAnswer } from '../../types'
 import { getQuizDeviceId } from '../_utils/quiz-device-id'
 import { clearActiveSessionIfCurrent } from '../_utils/quiz-session-storage'
 import { reportUrl } from './exam-report-paths'
+import { releaseBackGuard } from './use-back-guard'
 
 type AppRouterInstance = ReturnType<typeof useRouter>
 
@@ -43,6 +44,7 @@ export async function discardQuizSession(
   try {
     const result = await discardQuiz({ sessionId })
     if (!result.success) return result
+    await releaseBackGuard()
     router.push('/app/quiz')
     return { success: true }
   } catch {
@@ -73,6 +75,7 @@ export async function handleSubmitSession(opts: {
   opts.setError(null)
   const r = await submitQuizSession(opts.sessionId, opts.userId)
   if (r.success) {
+    await releaseBackGuard()
     opts.onSuccess()
     opts.router.push(reportUrl(opts.examMode, opts.sessionId))
   } else {
@@ -100,6 +103,7 @@ export async function handleSaveSession(opts: {
       clearActiveSessionIfCurrent(opts.userId, opts.sessionId)
       // Await so the Server Action revalidation can't cancel the soft navigation (#909).
       await clearDeploymentPin().catch(() => {})
+      await releaseBackGuard()
       opts.router.push('/app/quiz')
       return
     }

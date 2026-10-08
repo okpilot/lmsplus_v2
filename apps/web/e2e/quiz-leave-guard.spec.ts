@@ -8,7 +8,7 @@
 
 import { expect, type Page, test } from '@playwright/test'
 import { acceptBeforeUnload } from './helpers/before-unload'
-import { startStudyQuiz, submitFirstOption } from './helpers/quiz-session'
+import { readServerAnsweredCount, startStudyQuiz, submitFirstOption } from './helpers/quiz-session'
 import { resetStudentQuizSessions, SESSION_ID_URL } from './helpers/quiz-session-id'
 import { TEST_EMAIL } from './helpers/supabase'
 
@@ -27,6 +27,8 @@ async function startMetExam(page: Page): Promise<void> {
   await page.waitForURL(SESSION_ID_URL, { timeout: 15_000 })
   await expect(page.getByText(/Question 1 of/)).toBeVisible({ timeout: 10_000 })
 }
+
+const historyLength = (page: Page) => page.evaluate(() => window.history.length)
 
 async function startDiscovery(page: Page): Promise<void> {
   await page.goto('/app/quiz')
@@ -178,5 +180,38 @@ test.describe('Quiz leave guard', () => {
 
     expect(prompts()).toBe(1)
     await expect(page.getByText(`Question 1 of ${total}`)).toBeVisible({ timeout: 10_000 })
+  })
+
+  test('Save for later leaves no extra history entry behind the quiz list', async ({ page }) => {
+    const total = await startStudyQuiz(page)
+    const runnerEntries = await historyLength(page)
+    await submitFirstOption(page)
+    await expect.poll(readServerAnsweredCount, { timeout: 15_000 }).toBe(1)
+    await page.getByRole('button', { name: 'Finish Test' }).click()
+    await page.getByRole('button', { name: 'Save for Later' }).click()
+    await expect(page).toHaveURL(/\/app\/quiz$/, { timeout: 15_000 })
+
+    expect(await historyLength(page)).toBeLessThanOrEqual(runnerEntries)
+    await page.goBack()
+    await expect(page.getByText(`Question 1 of ${total}`)).toHaveCount(0)
+  })
+
+  test('a reload mid-quiz does not stack a second history entry before Save for later', async ({
+    page,
+  }) => {
+    const total = await startStudyQuiz(page)
+    const runnerEntries = await historyLength(page)
+    const prompts = acceptBeforeUnload(page)
+    await submitFirstOption(page)
+    await expect.poll(readServerAnsweredCount, { timeout: 15_000 }).toBe(1)
+    await page.reload()
+    expect(prompts()).toBe(1)
+    await expect(page.getByText(`Question 1 of ${total}`)).toBeVisible({ timeout: 10_000 })
+
+    await page.getByRole('button', { name: 'Finish Test' }).click()
+    await page.getByRole('button', { name: 'Save for Later' }).click()
+    await expect(page).toHaveURL(/\/app\/quiz$/, { timeout: 15_000 })
+
+    expect(await historyLength(page)).toBeLessThanOrEqual(runnerEntries)
   })
 })

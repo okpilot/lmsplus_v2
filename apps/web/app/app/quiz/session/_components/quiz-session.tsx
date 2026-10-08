@@ -3,11 +3,9 @@
 import { QuestionTabs } from '../../_components/question-tabs'
 import type { QuizSessionProps } from '../../session-types'
 import { useFlaggedQuestions } from '../_hooks/use-flagged-questions'
-import { useQuizActiveTab } from '../_hooks/use-quiz-active-tab'
-import { useQuizLeaveGuard } from '../_hooks/use-quiz-leave-guard'
+import { useQuizRunnerUI } from '../_hooks/use-quiz-runner-ui'
 import { useQuizState } from '../_hooks/use-quiz-state'
 import { useQuizTimer } from '../_hooks/use-quiz-timer'
-import { useQuizUI } from '../_hooks/use-quiz-ui'
 import { useUnblockedQuizKeyboard } from '../_hooks/use-unblocked-quiz-keyboard'
 import { QuizFinishDialogHost } from './quiz-finish-dialog-host'
 import { QuizMainPanel } from './quiz-main-panel'
@@ -19,25 +17,11 @@ import { QuizSessionMetaRow } from './quiz-session-meta-row'
 export function QuizSession(props: Readonly<QuizSessionProps>) {
   const s = useQuizState(props)
   const isDiscovery = props.mode === 'discovery'
-  const { activeTab, setActiveTab } = useQuizActiveTab(s.currentIndex)
+  const ui = useQuizRunnerUI(s, isDiscovery)
+  const { activeTab, setActiveTab, effectiveTab, leave } = ui
   const { flaggedIds, isFlagged, toggleFlag, isToggling } = useFlaggedQuestions(
     props.initialFlaggedIds ?? [],
   )
-  const effectiveTab = s.isExam ? 'question' : activeTab
-  const { feedbackMap, pendingOptionId, handleSelectionChange, canSubmitAnswer } = useQuizUI({
-    feedback: s.feedback,
-    currentIndex: s.currentIndex,
-    activeTab: effectiveTab,
-    existingAnswer: s.existingAnswer,
-  })
-
-  const leave = useQuizLeaveGuard({
-    isDiscovery,
-    submitted: s.submitted,
-    setShowFinishDialog: s.setShowFinishDialog,
-    pendingOptionId,
-    existingAnswer: s.existingAnswer,
-  })
 
   const { timerStart, timeExpired, handleTimeExpired } = useQuizTimer(
     props.startedAt,
@@ -82,7 +66,7 @@ export function QuizSession(props: Readonly<QuizSessionProps>) {
             isDiscovery={isDiscovery}
             totalQuestions={props.questions.length}
             flaggedIds={flaggedIds}
-            feedbackMap={feedbackMap}
+            feedbackMap={ui.feedbackMap}
           />
           {!s.isExam && (
             <div className="md:hidden">
@@ -103,7 +87,7 @@ export function QuizSession(props: Readonly<QuizSessionProps>) {
             s={s}
             activeTab={effectiveTab}
             userId={props.userId}
-            onSelectionChange={handleSelectionChange}
+            onSelectionChange={ui.handleSelectionChange}
             keyboardHighlightedId={highlightedOptionId}
           />
         </div>
@@ -119,9 +103,9 @@ export function QuizSession(props: Readonly<QuizSessionProps>) {
         // MC-only: non-MC inputs own their own full-width submit, so the footer
         // button must not flash as an inert no-op while a non-MC answer is in flight.
         showSubmit={
-          canSubmitAnswer || (s.answering && s.question.question_type === 'multiple_choice')
+          ui.canSubmitAnswer || (s.answering && s.question.question_type === 'multiple_choice')
         }
-        pendingOptionId={pendingOptionId}
+        pendingOptionId={ui.pendingOptionId}
         examMode={props.examMode}
         onToggleFlag={() => toggleFlag(s.questionId)}
       />

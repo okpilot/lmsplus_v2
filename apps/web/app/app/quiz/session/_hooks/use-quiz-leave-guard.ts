@@ -22,14 +22,13 @@ export function useQuizLeaveGuard({
   existingAnswer,
 }: Readonly<Opts>) {
   const [discoveryConfirmOpen, setDiscoveryConfirmOpen] = useState(false)
-  const { release } = useQuizNavigationGuard({
+  useQuizNavigationGuard({
     submitted: submitted.current,
     onAttempt: () => (isDiscovery ? setDiscoveryConfirmOpen(true) : setShowFinishDialog(true)),
   })
   return {
     discoveryConfirmOpen,
     setDiscoveryConfirmOpen,
-    release,
     pendingSelection: pendingOptionId !== null && !existingAnswer,
     openExitConfirm: () => setDiscoveryConfirmOpen(true),
   }

@@ -1,10 +1,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockGuard, mockRelease } = vi.hoisted(() => ({
-  mockGuard: vi.fn(),
-  mockRelease: vi.fn(),
-}))
+const { mockGuard } = vi.hoisted(() => ({ mockGuard: vi.fn() }))
 vi.mock('./use-quiz-navigation-guard', () => ({
   useQuizNavigationGuard: (...a: unknown[]) => mockGuard(...a),
 }))
@@ -31,7 +28,6 @@ const attempt = () => mockGuard.mock.lastCall?.[0].onAttempt()
 
 beforeEach(() => {
   vi.resetAllMocks()
-  mockGuard.mockReturnValue({ release: mockRelease })
 })
 
 describe('useQuizLeaveGuard', () => {
@@ -74,11 +70,6 @@ describe('useQuizLeaveGuard', () => {
     submitted.current = true
     rerender({ ...args, submitted })
     expect(mockGuard).toHaveBeenLastCalledWith(expect.objectContaining({ submitted: true }))
-  })
-
-  it('exposes the guard release so programmatic exits can pop the sentinel', () => {
-    const { result } = setup()
-    expect(result.current.release).toBe(mockRelease)
   })
 
   it('flags a picked option that has not been submitted', () => {

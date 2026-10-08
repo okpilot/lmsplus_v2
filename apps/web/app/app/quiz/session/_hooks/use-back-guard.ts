@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { clearSentinelRecord, onOwnSentinel, recordSentinel } from './back-guard-record'
 
 const RELEASE_TIMEOUT_MS = 500
 
@@ -10,6 +11,7 @@ let armed: { remove: () => void } | null = null
  * the browser's popstate, or after a timeout if it never reports one. A no-op when nothing is armed.
  */
 export function releaseBackGuard(): Promise<void> {
+  clearSentinelRecord()
   const current = armed
   if (!current) return Promise.resolve()
   armed = null
@@ -41,10 +43,14 @@ export function useBackGuard(active: boolean, onAttempt: () => void) {
     const push = () => window.history.pushState(window.history.state, '')
     const onPop = () => {
       push()
+      recordSentinel()
       attemptRef.current()
     }
     const mine = { remove: () => window.removeEventListener('popstate', onPop) }
-    push()
+    if (!onOwnSentinel()) {
+      push()
+      recordSentinel()
+    }
     window.addEventListener('popstate', onPop)
     armed = mine
     return () => {
@@ -52,6 +58,4 @@ export function useBackGuard(active: boolean, onAttempt: () => void) {
       if (armed === mine) armed = null
     }
   }, [active])
-
-  return { release: releaseBackGuard }
 }

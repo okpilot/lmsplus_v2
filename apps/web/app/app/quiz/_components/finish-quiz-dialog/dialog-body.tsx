@@ -54,7 +54,7 @@ export function DialogBody({
         </p>
       )}
       {pendingSelection && (
-        <p className="mt-3 text-sm font-medium text-orange-600 dark:text-orange-400">
+        <p className="mt-3 text-sm font-medium text-caution">
           You picked an answer on this question but haven't submitted it.
         </p>
       )}

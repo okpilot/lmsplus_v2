@@ -15,5 +15,5 @@ export function useQuizNavigationGuard({ submitted, onAttempt }: Readonly<Opts>)
   const signedOut = useSyncExternalStore(subscribeConnection, isSignedOut, isSignedOut)
   const active = !signedOut && !submitted
   useNavigationGuard(active)
-  return useBackGuard(active, onAttempt)
+  useBackGuard(active, onAttempt)
 }
