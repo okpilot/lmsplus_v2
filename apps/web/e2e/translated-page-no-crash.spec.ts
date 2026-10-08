@@ -26,17 +26,12 @@ async function translateText(page: Page, selector: string, text: string) {
   )
 }
 
-test('translated login form keeps working: busy label and error message render, and survive a reload', async ({
-  page,
-}) => {
-  const pageErrors: string[] = []
-  page.on('pageerror', (e) => pageErrors.push(e.message))
-
-  await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'LMS Plus' })).toBeVisible()
-  // The shipped bundle tolerates each translator shape React can hit: a detached text node, and a
-  // text node wrapped in <font><font> (removed via its wrapper; inserted before it).
-  const tolerated = await page.evaluate(() => {
+/**
+ * Exercises the shipped guard on each translator shape React can hit: a detached text node, and a text
+ * node wrapped in <font><font> (an insert goes before the wrapper; removal leaves no empty wrapper).
+ */
+async function probeShippedGuard(page: Page) {
+  return page.evaluate(() => {
     const wrapped = (p: HTMLElement, text: string) => {
       const node = document.createTextNode(text)
       const outer = document.createElement('font')
@@ -59,7 +54,17 @@ test('translated login form keeps working: busy label and error message render, 
       return String(e)
     }
   })
-  expect(tolerated).toEqual({ insertedBefore: true, left: 1 })
+}
+
+test('translated login form keeps working: busy label and error message render, and survive a reload', async ({
+  page,
+}) => {
+  const pageErrors: string[] = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: 'LMS Plus' })).toBeVisible()
+  expect(await probeShippedGuard(page)).toEqual({ insertedBefore: true, left: 1 })
   await page.getByLabel('Email address').fill('translator-guard@example.invalid')
   await page.getByLabel('Password', { exact: true }).fill('wrong-password-1A!')
 

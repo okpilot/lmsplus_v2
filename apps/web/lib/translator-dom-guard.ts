@@ -97,10 +97,12 @@ export function installTranslatorDomGuard(onFallback?: Report): () => void {
   Node.prototype.removeChild = guardRemove(removeChild, report)
   Node.prototype.insertBefore = guardInsert(insertBefore, report)
 
-  activeUninstall = () => {
+  const uninstall = () => {
+    if (activeUninstall !== uninstall) return
     Node.prototype.removeChild = removeChild
     Node.prototype.insertBefore = insertBefore
     activeUninstall = null
   }
-  return activeUninstall
+  activeUninstall = uninstall
+  return uninstall
 }

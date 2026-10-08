@@ -217,6 +217,16 @@ describe('translator DOM guard', () => {
     expect(p.childNodes.length).toBe(0)
   })
 
+  it('ignores an uninstall from an earlier install', () => {
+    uninstall()
+    const second = installTranslatorDomGuard()
+    uninstall()
+    expect(Node.prototype.removeChild).not.toBe(originalRemoveChild)
+    second()
+    expect(Node.prototype.removeChild).toBe(originalRemoveChild)
+    uninstall = installTranslatorDomGuard()
+  })
+
   it('restores the original DOM methods on uninstall', () => {
     uninstall()
     expect(Node.prototype.removeChild).toBe(originalRemoveChild)
