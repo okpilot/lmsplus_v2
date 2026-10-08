@@ -5,7 +5,6 @@
  * so a future CREATE OR REPLACE can't silently rename or drop them:
  *   - vfr_rt_exam.started   ← start_vfr_rt_exam_session (mig 140)
  *   - vfr_rt_exam.completed ← finish_quiz_session, fresh completion (mig 20261004000300)
- *   - vfr_rt_exam.completed ← complete_empty_exam_session, non-overdue empty session (mig 102 L264)
  *   - vfr_rt_exam.expired   ← complete_overdue_exam_session on a vfr_rt session (mig 102 L140)
  *
  * A dedicated file (extracted from audit-completeness.spec.ts to keep both under
@@ -122,34 +121,6 @@ test.describe('Red Team: Audit Event Completeness — VFR RT (Vector DP, #873)',
     const testStart = new Date().toISOString()
     const { error: finishErr } = await saveAndFinish(victimClient, sessionId, answers)
     expect(finishErr).toBeNull()
-
-    await expectAuditRow(admin, 'vfr_rt_exam.completed', victimUserId, testStart, sessionId)
-  })
-
-  // Non-overdue empty completion path: complete_empty_exam_session on a fresh
-  // (within-time-limit) empty vfr_rt session emits vfr_rt_exam.completed — the
-  // ELSE branch of mig 102 (L264), symmetric to the overdue vfr_rt_exam.expired
-  // test below. Distinct emitter from submit_vfr_rt_exam_answers, so lock it too.
-  test('writes vfr_rt_exam.completed when complete_empty_exam_session runs on an empty vfr_rt session', async () => {
-    await cleanupStudentActiveSessions(VICTIM_EMAIL)
-
-    // Admin-insert an EMPTY, NON-overdue active vfr_rt session (started now, within
-    // the time limit → the non-overdue branch runs, emitting vfr_rt_exam.completed).
-    // config.question_ids empty drives the "completed with no answers" path.
-    // Service-role insert bypasses the immutable-columns trigger.
-    const sessionId = await seedAdminVfrRtSession({
-      admin,
-      orgId,
-      studentId: victimUserId,
-      startedAtMsAgo: 0,
-      tracker,
-    })
-
-    const testStart = new Date().toISOString()
-    const { error: completeErr } = await victimClient.rpc('complete_empty_exam_session', {
-      p_session_id: sessionId,
-    })
-    expect(completeErr).toBeNull()
 
     await expectAuditRow(admin, 'vfr_rt_exam.completed', victimUserId, testStart, sessionId)
   })

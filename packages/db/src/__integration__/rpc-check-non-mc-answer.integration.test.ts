@@ -573,7 +573,7 @@ describe('RPC: check_non_mc_answer — guards (EL) + output contract (EM)', () =
 
   it('returns false rather than raising on a token past the levenshtein limit', async () => {
     // extensions.levenshtein RAISES above 255 characters. responseText is Zod-capped at 500, and
-    // inside submit_vfr_rt_exam_answers an unguarded raise aborts the WHOLE exam submission, not
+    // an unguarded raise inside an exam-grading RPC aborts the WHOLE exam submission, not
     // one answer. Without the guard this call errors instead of returning.
     const { data, error } = await admin.rpc('answer_matches', {
       p_norm_response: 'a'.repeat(260),

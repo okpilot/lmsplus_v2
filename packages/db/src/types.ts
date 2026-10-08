@@ -1550,10 +1550,6 @@ export type Database = {
         Args: { p_candidate: string; p_norm_response: string }
         Returns: boolean
       }
-      batch_submit_quiz: {
-        Args: { p_answers: Json; p_session_id: string }
-        Returns: Json
-      }
       check_consent_status: {
         Args: { p_privacy_version: string; p_tos_version: string }
         Returns: {
@@ -1588,21 +1584,9 @@ export type Database = {
         Args: { p_device_id: string; p_session_id: string }
         Returns: undefined
       }
-      complete_empty_exam_session: {
-        Args: { p_session_id: string }
-        Returns: Json
-      }
       complete_overdue_exam_session: {
         Args: { p_session_id: string }
         Returns: Json
-      }
-      complete_quiz_session: {
-        Args: { p_session_id: string }
-        Returns: {
-          correct_count: number
-          score_percentage: number
-          total_questions: number
-        }[]
       }
       dialog_fill_blanks_delimiter_free: {
         Args: { p_blanks: Json }
@@ -2000,10 +1984,6 @@ export type Database = {
           explanation_text: string
           is_correct: boolean
         }[]
-      }
-      submit_vfr_rt_exam_answers: {
-        Args: { p_answers: Json; p_session_id: string }
-        Returns: Json
       }
       upsert_exam_config: {
         Args: {

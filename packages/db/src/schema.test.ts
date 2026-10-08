@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  CompleteQuizSessionSchema,
   DeleteSyllabusItemSchema,
   StartQuizSessionSchema,
   SubmitAnswerSchema,
@@ -63,19 +62,6 @@ describe('StartQuizSessionSchema', () => {
     ['unrecognised mode', { ...valid, mode: 'unknown_mode' }],
   ])('rejects %s', (_, payload) => {
     expect(StartQuizSessionSchema.safeParse(payload).success).toBe(false)
-  })
-})
-
-describe('CompleteQuizSessionSchema', () => {
-  it('accepts a valid UUID sessionId', () => {
-    expect(CompleteQuizSessionSchema.safeParse({ sessionId: VALID_UUID }).success).toBe(true)
-  })
-
-  it.each([
-    ['non-UUID sessionId', { sessionId: INVALID_UUID }],
-    ['missing sessionId', {}],
-  ])('rejects %s', (_, payload) => {
-    expect(CompleteQuizSessionSchema.safeParse(payload).success).toBe(false)
   })
 })
 
