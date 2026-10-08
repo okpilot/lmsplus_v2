@@ -74,7 +74,9 @@ test('translated login form keeps working: busy label and error message render, 
 
   // Translator wraps the error text; a second failed submit replaces it.
   await translateText(page, 'form', 'Invalid email or password.')
+  await expect(page.locator('form p font')).toHaveCount(2)
   await page.getByRole('button', { name: 'Sign in' }).click()
+  await expect(page.locator('form p font')).toHaveCount(0)
   await expect(page.getByText('Invalid email or password.')).toBeVisible()
   expect(pageErrors).toEqual([])
 
