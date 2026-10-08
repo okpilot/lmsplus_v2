@@ -81,4 +81,24 @@ describe('RPC: finish_quiz_session — practice sessions', () => {
     expect(error?.message).toMatch(/could not find the function|does not exist|schema cache/i)
     expect((await sessionRow(f, sessionId)).ended_at).toBeNull()
   })
+
+  it('no longer exposes the legacy submit_quiz_answer RPC', async () => {
+    const sessionId = await startPractice(f, 'quick_quiz', [mc(0)])
+
+    const { error } = await f.student.rpc('submit_quiz_answer', {
+      p_session_id: sessionId,
+      p_question_id: mc(0),
+      p_selected_option: RIGHT.mc.selected_option_id,
+      p_response_time_ms: 1000,
+    })
+
+    expect(error).not.toBeNull()
+    expect(error?.message).toMatch(/could not find the function|does not exist|schema cache/i)
+    const { data: answers, error: readError } = await f.admin
+      .from('quiz_session_answers')
+      .select('id')
+      .eq('session_id', sessionId)
+    expect(readError).toBeNull()
+    expect(answers).toEqual([])
+  })
 })
