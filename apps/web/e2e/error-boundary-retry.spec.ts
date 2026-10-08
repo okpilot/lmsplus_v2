@@ -2,27 +2,31 @@ import { expect, type Page, test } from '@playwright/test'
 
 test.use({ storageState: 'e2e/.auth/user.json' })
 
-type CutWindow = Window & { __cutDashboardStream?: boolean; __cutCount?: number }
-
 const ERROR_TEXT = 'An unexpected error occurred.'
 
-/** Runs in the page: while armed, a non-prefetch dashboard RSC response is cut mid-stream. */
-function installDashboardStreamCut() {
+type CutHelpers = {
+  isTarget: (input: RequestInfo | URL, init?: RequestInit) => boolean
+  cutAfterLine: (res: Response) => Promise<Response>
+}
+type CutWindow = Window & {
+  __cutDashboardStream?: boolean
+  __cutCount?: number
+  __cutHelpers?: CutHelpers
+}
+
+/** Init script 1: targets a non-prefetch dashboard RSC fetch while armed; cuts a body after a line. */
+function defineCutHelpers() {
   const w = window as unknown as CutWindow
-  const origFetch = window.fetch.bind(window)
-  const isPrefetch = (input: RequestInfo | URL, init?: RequestInit): boolean =>
-    new Headers(init?.headers).has('next-router-prefetch') ||
-    (input instanceof Request && input.headers.has('next-router-prefetch'))
-  const isTarget = (input: RequestInfo | URL, init?: RequestInit): boolean => {
-    const url = input instanceof Request ? input.url : String(input)
-    return (
-      w.__cutDashboardStream === true &&
-      url.includes('/app/dashboard') &&
-      url.includes('_rsc') &&
-      !isPrefetch(input, init)
-    )
+  const isTarget: CutHelpers['isTarget'] = (input, init) => {
+    const req = input instanceof Request ? input : null
+    const url = req ? req.url : String(input)
+    const prefetch =
+      new Headers(init?.headers).has('next-router-prefetch') ||
+      req?.headers.has('next-router-prefetch') === true
+    const route = url.includes('/app/dashboard') && url.includes('_rsc')
+    return w.__cutDashboardStream === true && route && !prefetch
   }
-  const cutAfterLine = async (res: Response): Promise<Response> => {
+  const cutAfterLine: CutHelpers['cutAfterLine'] = async (res) => {
     const buf = new Uint8Array(await res.arrayBuffer())
     let cut = Math.floor(buf.length * 0.6)
     while (cut < buf.length && buf[cut] !== 10) cut++
@@ -36,11 +40,19 @@ function installDashboardStreamCut() {
     })
     return new Response(body, init)
   }
+  w.__cutHelpers = { isTarget, cutAfterLine }
+}
+
+/** Init script 2: routes every fetch through the cut helpers. */
+function installDashboardStreamCut() {
+  const w = window as unknown as CutWindow
+  const origFetch = window.fetch.bind(window)
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     const res = await origFetch(input, init)
-    if (!isTarget(input, init)) return res
+    const helpers = w.__cutHelpers
+    if (!helpers?.isTarget(input, init)) return res
     w.__cutCount = (w.__cutCount || 0) + 1
-    return cutAfterLine(res)
+    return helpers.cutAfterLine(res)
   }
 }
 
@@ -66,6 +78,7 @@ function waitForDashboardRefetch(page: Page) {
 
 test.describe('Failed soft navigation to the dashboard', () => {
   test.beforeEach(async ({ page }) => {
+    await page.addInitScript(defineCutHelpers)
     await page.addInitScript(installDashboardStreamCut)
   })
 
@@ -87,6 +100,7 @@ test.describe('Failed soft navigation to the dashboard', () => {
     await page.getByRole('button', { name: 'Try again' }).click()
     await refetch
 
+    await expect(page).toHaveURL(/\/app\/dashboard$/)
     await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible()
     await expect(page.getByText(ERROR_TEXT)).toHaveCount(0)
   })
