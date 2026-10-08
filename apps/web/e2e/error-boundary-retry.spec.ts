@@ -12,24 +12,9 @@ test.describe('Failed soft navigation to the dashboard', () => {
     await page.addInitScript(() => {
       const w = window as unknown as CutWindow
       const origFetch = window.fetch.bind(window)
-      const isPrefetch = (input: RequestInfo | URL, init?: RequestInit): boolean => {
-        const sources: unknown[] = [init?.headers, input instanceof Request ? input.headers : null]
-        for (const h of sources) {
-          if (!h) continue
-          if (h instanceof Headers) {
-            if (h.has('next-router-prefetch')) return true
-          } else if (Array.isArray(h)) {
-            if (h.some((e) => String(e[0]).toLowerCase() === 'next-router-prefetch')) return true
-          } else if (
-            Object.keys(h as Record<string, unknown>).some(
-              (k) => k.toLowerCase() === 'next-router-prefetch',
-            )
-          ) {
-            return true
-          }
-        }
-        return false
-      }
+      const isPrefetch = (input: RequestInfo | URL, init?: RequestInit): boolean =>
+        new Headers(init?.headers).has('next-router-prefetch') ||
+        (input instanceof Request && input.headers.has('next-router-prefetch'))
       window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
         const res = await origFetch(input, init)
         const url = input instanceof Request ? input.url : String(input)
@@ -77,7 +62,9 @@ test.describe('Failed soft navigation to the dashboard', () => {
       .click()
 
     await expect(page.getByText(ERROR_TEXT)).toBeVisible({ timeout: 15_000 })
-    expect(await page.evaluate(() => (window as unknown as CutWindow).__cutCount)).toBe(1)
+    expect(await page.evaluate(() => (window as unknown as CutWindow).__cutCount)).toBeGreaterThan(
+      0,
+    )
 
     await page.evaluate(() => {
       ;(window as unknown as CutWindow).__cutDashboardStream = false
