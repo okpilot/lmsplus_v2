@@ -8,7 +8,7 @@
  *   - student caller is rejected
  *   - cross-org admin gets zero rows
  *
- * Shared beforeAll seeds: RT subject (mig 097), 8 SA + 9 DF + 8 MC questions,
+ * Shared beforeAll seeds: 8 SA + 9 DF + 8 MC questions,
  * exam_configs row. Each it() that modifies state starts its own session so
  * tests stay isolated.
  */
@@ -329,13 +329,15 @@ describe('RPC: get_question_authoring_fields', () => {
   beforeAll(async () => {
     // Seed one SA question in the org's bank (bank was already created in the
     // outer beforeAll for the submit tests)
-    const { data: bankRow } = await admin
+    const { data: bankRow, error: bankErr } = await admin
       .from('question_banks')
       .select('id')
       .eq('organization_id', orgId)
       .is('deleted_at', null)
       .maybeSingle()
-    const bankId = bankRow?.id as string
+    if (bankErr) throw new Error(`authoring field bank lookup: ${bankErr.message}`)
+    if (typeof bankRow?.id !== 'string') throw new Error('authoring field bank lookup: no bank row')
+    const bankId = bankRow.id
     const refs = await getRtRefs()
     const { data, error } = await admin
       .from('questions')
