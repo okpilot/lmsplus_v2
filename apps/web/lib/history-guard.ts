@@ -22,6 +22,8 @@ let position: Position = { token: '', index: 0 }
 let armed: (() => void) | null = null
 let reverts = 0
 let landed: number | null = null
+// Index of the entry the browser is on; differs from position.index while a revert is pending.
+let at = 0
 let settleTimer: ReturnType<typeof setTimeout> | undefined
 const MAX_REVERTS = 4
 const SETTLE_MS = 100
@@ -68,6 +70,7 @@ function scheduleSettle() {
 
 function handlePopState(event: PopStateEvent) {
   const d = decidePopState(event.state, position)
+  at = d.index
   if (d.kind === 'adopt') {
     clearSettle()
     // In memory only: a stamp without Next's `__NA` makes Next reload on a later traversal.
@@ -99,19 +102,19 @@ function handlePopState(event: PopStateEvent) {
 function patchHistory() {
   const push = window.history.pushState
   const replace = window.history.replaceState
-  const stamp = (state: unknown) => ({
+  const stamp = (state: unknown, index: number) => ({
     ...(state as object | null),
     [TOKEN_KEY]: position.token,
-    [INDEX_KEY]: position.index,
+    [INDEX_KEY]: index,
   })
   window.history.pushState = function (state, unused, url) {
-    if (landed !== null) position = { token: position.token, index: landed }
     clearSettle()
-    position = { token: position.token, index: position.index + 1 }
-    push.call(this, stamp(state), unused, url)
+    at += 1
+    position = { token: position.token, index: at }
+    push.call(this, stamp(state, at), unused, url)
   }
   window.history.replaceState = function (state, unused, url) {
-    replace.call(this, stamp(state), unused, url)
+    replace.call(this, stamp(state, at), unused, url)
   }
   return replace
 }
@@ -123,6 +126,7 @@ export function installHistoryGuard() {
   const current = window.history.state as unknown
   const { token, index } = stampOf(current)
   position = { token: token ?? newToken(), index }
+  at = index
   const replace = patchHistory()
   if (!token) {
     const stamped = {

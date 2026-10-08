@@ -90,6 +90,35 @@ describe('history stamping', () => {
     expect(window.history.state).toMatchObject({ __NA: true, tree: 'z', [INDEX_KEY]: 1 })
   })
 
+  async function renderedAtTwo() {
+    const mod = await load()
+    window.history.pushState({ __NA: true }, '', '/a')
+    window.history.pushState({ __NA: true }, '', '/b')
+    mod.armHistoryGuard(vi.fn())
+    return mod
+  }
+
+  it('stamps a replaced entry with the index the browser is on while a Back is being reverted', async () => {
+    await renderedAtTwo()
+    pop(stamped(1))
+    window.history.replaceState({ __NA: true }, '', '/x')
+    expect(window.history.state[INDEX_KEY]).toBe(1)
+  })
+
+  it('stamps a replaced entry with the landed index during a capped burst', async () => {
+    await renderedAtTwo()
+    for (const i of [1, 0, 1, 0, 0]) pop(stamped(i))
+    window.history.replaceState({ __NA: true }, '', '/x')
+    expect(window.history.state[INDEX_KEY]).toBe(0)
+  })
+
+  it('stamps a push made while a revert is in flight from the entry the browser is on', async () => {
+    await renderedAtTwo()
+    pop(stamped(1))
+    window.history.pushState({ __NA: true }, '', '/y')
+    expect(window.history.state[INDEX_KEY]).toBe(2)
+  })
+
   it('restores the index and token from a reloaded entry', async () => {
     window.history.replaceState({ __NA: true, [TOKEN_KEY]: 'tab', [INDEX_KEY]: 4 }, '', '/r')
     await load()
