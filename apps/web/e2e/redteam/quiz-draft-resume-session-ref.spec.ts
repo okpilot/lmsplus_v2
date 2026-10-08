@@ -3,10 +3,9 @@
  * malformed id — Vector HW
  *
  * HW (idor): a legacy/forged quiz_drafts row, seeded by service role, has session_config.sessionId
- *     naming (1) ANOTHER student's ACTIVE quick_quiz, or (2) a non-uuid string. Resume reads the
- *     original session and heals (soft-deletes) it before minting; reaching that step with a
- *     foreign id would park the other student's live quiz. Resume must refuse, leave the foreign
- *     session active, mint nothing and keep the draft.
+ *     naming (1) ANOTHER student's ACTIVE quick_quiz, or (2) a non-uuid string. (1) pins the
+ *     student-scoped original-session lookup; (2) pins the uuid check that runs before it. Resume
+ *     must refuse, leave the foreign session active, mint nothing and keep the draft.
  *     CONTROL: the same draft re-pointed at the victim's own parked quick_quiz resumes.
  *
  * Status: Expected to PASS.
@@ -24,6 +23,7 @@ import {
   VICTIM_EMAIL,
   VICTIM_PASSWORD,
 } from './helpers/seed-users'
+import { signInViaForm } from './server-action-capture'
 
 const BASE_URL = 'http://localhost:3000'
 const SESSION_URL = /\/app\/quiz\/session\/([0-9a-f-]{36})$/
@@ -190,16 +190,6 @@ test.describe('Red Team: forged draft session reference (HW)', () => {
     await page.getByRole('tab', { name: /Saved Quizzes/ }).click()
   }
 
-  async function signInVictim(page: Page): Promise<void> {
-    await page.goto('/')
-    await page.getByLabel('Email address').fill(VICTIM_EMAIL)
-    await page.getByLabel('Password', { exact: true }).fill(VICTIM_PASSWORD)
-    await Promise.all([
-      page.waitForURL(/\/(app\/dashboard|consent)(?:\?.*)?$/, { timeout: 15_000 }),
-      page.getByRole('button', { name: 'Sign in' }).click(),
-    ])
-  }
-
   async function resumeControl(page: Page, draftId: string): Promise<void> {
     const parkedId = await insertSession({
       student_id: victimUserId,
@@ -232,7 +222,7 @@ test.describe('Red Team: forged draft session reference (HW)', () => {
     ])
     try {
       const page = await ctx.newPage()
-      await signInVictim(page)
+      await signInViaForm(page, { email: VICTIM_EMAIL, password: VICTIM_PASSWORD })
       await openSavedQuizzes(page)
       await page.getByRole('button', { name: 'Resume', exact: true }).first().click()
       await expect(
@@ -263,7 +253,7 @@ test.describe('Red Team: forged draft session reference (HW)', () => {
     ])
     try {
       const page = await ctx.newPage()
-      await signInVictim(page)
+      await signInViaForm(page, { email: VICTIM_EMAIL, password: VICTIM_PASSWORD })
       await openSavedQuizzes(page)
       await page.getByRole('button', { name: 'Resume', exact: true }).first().click()
       await expect(page.getByText(/missing its session reference/i)).toBeVisible({
