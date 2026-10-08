@@ -182,7 +182,31 @@ test.describe('Quiz leave guard', () => {
     await expect(page.getByText(`Question 1 of ${total}`)).toBeVisible({ timeout: 10_000 })
   })
 
-  test('Save for later leaves no extra history entry behind the quiz list', async ({ page }) => {
+  test('Back after a reload never leaves the quiz silently', async ({ page }) => {
+    const total = await startStudyQuiz(page)
+    const prompts = acceptBeforeUnload(page)
+    await page.getByText(`Question 1 of ${total}`).click()
+    await page.reload()
+    expect(prompts()).toBe(1)
+    await expect(page.getByText(`Question 1 of ${total}`)).toBeVisible({ timeout: 10_000 })
+    // beforeunload needs user activation on the reloaded document.
+    await page.getByText(`Question 1 of ${total}`).click()
+    const sessionUrl = page.url()
+    const finishDialog = page.getByRole('dialog', { name: 'Finish Quiz' })
+
+    await page.goBack()
+
+    // Chromium keeps the earlier entry in this document, so the guard answers with the Finish
+    // dialog; an entry of an earlier document raises the native prompt instead.
+    await expect
+      .poll(async () => prompts() === 2 || (await finishDialog.isVisible()), { timeout: 15_000 })
+      .toBe(true)
+    if (prompts() < 2) await expect(page).toHaveURL(sessionUrl)
+  })
+
+  test('Save for later adds only the quiz list entry and Back does not reopen the runner', async ({
+    page,
+  }) => {
     const total = await startStudyQuiz(page)
     const runnerEntries = await historyLength(page)
     await submitFirstOption(page)
@@ -191,12 +215,12 @@ test.describe('Quiz leave guard', () => {
     await page.getByRole('button', { name: 'Save for Later' }).click()
     await expect(page).toHaveURL(/\/app\/quiz$/, { timeout: 15_000 })
 
-    expect(await historyLength(page)).toBeLessThanOrEqual(runnerEntries)
+    expect(await historyLength(page)).toBe(runnerEntries + 1)
     await page.goBack()
     await expect(page.getByText(`Question 1 of ${total}`)).toHaveCount(0)
   })
 
-  test('a reload mid-quiz does not stack a second history entry before Save for later', async ({
+  test('a reload mid-quiz does not stack extra history entries before Save for later', async ({
     page,
   }) => {
     const total = await startStudyQuiz(page)
@@ -212,6 +236,6 @@ test.describe('Quiz leave guard', () => {
     await page.getByRole('button', { name: 'Save for Later' }).click()
     await expect(page).toHaveURL(/\/app\/quiz$/, { timeout: 15_000 })
 
-    expect(await historyLength(page)).toBeLessThanOrEqual(runnerEntries)
+    expect(await historyLength(page)).toBe(runnerEntries + 1)
   })
 })

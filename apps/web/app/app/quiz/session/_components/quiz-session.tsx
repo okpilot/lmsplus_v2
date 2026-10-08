@@ -17,7 +17,7 @@ import { QuizSessionMetaRow } from './quiz-session-meta-row'
 export function QuizSession(props: Readonly<QuizSessionProps>) {
   const s = useQuizState(props)
   const isDiscovery = props.mode === 'discovery'
-  const ui = useQuizRunnerUI(s, { isDiscovery, sessionId: props.sessionId })
+  const ui = useQuizRunnerUI(s, { isDiscovery })
   const { activeTab, setActiveTab, effectiveTab, leave } = ui
   const { flaggedIds, isFlagged, toggleFlag, isToggling } = useFlaggedQuestions(
     props.initialFlaggedIds ?? [],

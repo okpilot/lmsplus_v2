@@ -1,212 +1,59 @@
 import { renderHook } from '@testing-library/react'
-import { act, StrictMode } from 'react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { releaseBackGuard, useBackGuard } from './use-back-guard'
+import { StrictMode } from 'react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const popstate = () => window.dispatchEvent(new PopStateEvent('popstate'))
+const { mockArm, mockDisarm } = vi.hoisted(() => ({ mockArm: vi.fn(), mockDisarm: vi.fn() }))
+vi.mock('@/lib/history-guard', () => ({ armHistoryGuard: mockArm }))
+
+import { useBackGuard } from './use-back-guard'
 
 beforeEach(() => {
   vi.resetAllMocks()
-  window.sessionStorage.clear()
-  window.history.replaceState({ __NA: true }, '')
-})
-
-afterEach(() => {
-  vi.useRealTimers()
+  mockArm.mockReturnValue(mockDisarm)
 })
 
 describe('useBackGuard', () => {
-  it('pushes one sentinel history entry carrying the current state while active', () => {
-    const push = vi.spyOn(window.history, 'pushState')
-    renderHook(() => useBackGuard(true, vi.fn(), 'k1'))
-    expect(push).toHaveBeenCalledTimes(1)
-    expect(push).toHaveBeenCalledWith({ __NA: true }, '')
+  it('arms the history guard while active', () => {
+    renderHook(() => useBackGuard(true, vi.fn()))
+    expect(mockArm).toHaveBeenCalledTimes(1)
+    expect(mockDisarm).not.toHaveBeenCalled()
   })
 
-  it('reports a back attempt and re-arms the sentinel', () => {
-    const onAttempt = vi.fn()
-    renderHook(() => useBackGuard(true, onAttempt, 'k1'))
-    const push = vi.spyOn(window.history, 'pushState')
-    act(() => popstate())
-    expect(onAttempt).toHaveBeenCalledTimes(1)
-    expect(push).toHaveBeenCalledTimes(1)
+  it('does not arm while inactive', () => {
+    renderHook(() => useBackGuard(false, vi.fn()))
+    expect(mockArm).not.toHaveBeenCalled()
   })
 
-  it('reports the latest handler without re-pushing the sentinel', () => {
+  it('disarms when it turns inactive and re-arms when it turns active again', () => {
+    const { rerender } = renderHook(({ active }) => useBackGuard(active, vi.fn()), {
+      initialProps: { active: true },
+    })
+    rerender({ active: false })
+    expect(mockDisarm).toHaveBeenCalledTimes(1)
+    rerender({ active: true })
+    expect(mockArm).toHaveBeenCalledTimes(2)
+  })
+
+  it('disarms on unmount', () => {
+    renderHook(() => useBackGuard(true, vi.fn())).unmount()
+    expect(mockDisarm).toHaveBeenCalledTimes(1)
+  })
+
+  it('reports an attempt to the latest callback without re-arming', () => {
     const first = vi.fn()
     const second = vi.fn()
-    const push = vi.spyOn(window.history, 'pushState')
-    const { rerender } = renderHook(({ cb }) => useBackGuard(true, cb, 'k1'), {
+    const { rerender } = renderHook(({ cb }) => useBackGuard(true, cb), {
       initialProps: { cb: first },
     })
     rerender({ cb: second })
-    expect(push).toHaveBeenCalledTimes(1)
-    act(() => popstate())
+    expect(mockArm).toHaveBeenCalledTimes(1)
+    mockArm.mock.lastCall?.[0]()
     expect(first).not.toHaveBeenCalled()
     expect(second).toHaveBeenCalledTimes(1)
   })
 
-  it('does nothing while inactive', () => {
-    const onAttempt = vi.fn()
-    const push = vi.spyOn(window.history, 'pushState')
-    renderHook(() => useBackGuard(false, onAttempt, 'k1'))
-    act(() => popstate())
-    expect(push).not.toHaveBeenCalled()
-    expect(onAttempt).not.toHaveBeenCalled()
-  })
-
-  it('stops reporting once it becomes inactive', () => {
-    const onAttempt = vi.fn()
-    const { rerender } = renderHook(({ active }) => useBackGuard(active, onAttempt, 'k1'), {
-      initialProps: { active: true },
-    })
-    rerender({ active: false })
-    act(() => popstate())
-    expect(onAttempt).not.toHaveBeenCalled()
-  })
-
-  it('stops reporting after unmount', () => {
-    const onAttempt = vi.fn()
-    const { unmount } = renderHook(() => useBackGuard(true, onAttempt, 'k1'))
-    unmount()
-    act(() => popstate())
-    expect(onAttempt).not.toHaveBeenCalled()
-  })
-})
-
-describe('releaseBackGuard', () => {
-  it('pops the sentinel entry and resolves once the browser has gone back', async () => {
-    const back = vi.spyOn(window.history, 'back').mockImplementation(() => {})
-    const onAttempt = vi.fn()
-    renderHook(() => useBackGuard(true, onAttempt, 'k1'))
-    let settled = false
-    const pending = releaseBackGuard().then(() => {
-      settled = true
-    })
-    expect(back).toHaveBeenCalledTimes(1)
-    await Promise.resolve()
-    expect(settled).toBe(false)
-    act(() => popstate())
-    await pending
-    expect(settled).toBe(true)
-    expect(onAttempt).not.toHaveBeenCalled()
-  })
-
-  it('resolves after the fallback timeout when the browser never reports the pop', async () => {
-    vi.useFakeTimers()
-    vi.spyOn(window.history, 'back').mockImplementation(() => {})
-    renderHook(() => useBackGuard(true, vi.fn(), 'k1'))
-    const pending = releaseBackGuard()
-    await vi.advanceTimersByTimeAsync(500)
-    await expect(pending).resolves.toBeUndefined()
-  })
-
-  it('resolves immediately without touching history when no guard is armed', async () => {
-    const back = vi.spyOn(window.history, 'back').mockImplementation(() => {})
-    await releaseBackGuard()
-    expect(back).not.toHaveBeenCalled()
-  })
-
-  it('pops the sentinel only once when called twice', async () => {
-    vi.useFakeTimers()
-    const back = vi.spyOn(window.history, 'back').mockImplementation(() => {})
-    renderHook(() => useBackGuard(true, vi.fn(), 'k1'))
-    const first = releaseBackGuard()
-    const second = releaseBackGuard()
-    await vi.advanceTimersByTimeAsync(500)
-    await Promise.all([first, second])
-    expect(back).toHaveBeenCalledTimes(1)
-  })
-})
-
-describe('sentinel idempotence across mounts', () => {
-  // Real reload skips effect cleanup, so the record outlives the first mount: keep it mounted.
-  it('pushes no second sentinel when the guard re-arms on the entry it already pushed', () => {
-    const push = vi.spyOn(window.history, 'pushState')
-    renderHook(() => useBackGuard(true, vi.fn(), 'k1'))
-    expect(window.sessionStorage.getItem('lms-back-guard')).not.toBeNull()
-    renderHook(() => useBackGuard(true, vi.fn(), 'k1'))
-    expect(push).toHaveBeenCalledTimes(1)
-  })
-
-  it('still reports Back after re-arming without a second push', () => {
-    const onAttempt = vi.fn()
-    renderHook(() => useBackGuard(true, vi.fn(), 'k1'))
-    renderHook(() => useBackGuard(true, onAttempt, 'k1'))
-    act(() => popstate())
-    expect(onAttempt).toHaveBeenCalledTimes(1)
-  })
-
-  it('pushes a sentinel when another session re-arms on the same path and history length', () => {
-    const push = vi.spyOn(window.history, 'pushState')
-    renderHook(() => useBackGuard(true, vi.fn(), 'session-a'))
-    renderHook(() => useBackGuard(true, vi.fn(), 'session-b'))
-    expect(push).toHaveBeenCalledTimes(2)
-  })
-
-  it('pushes a fresh sentinel after the previous one was released', async () => {
-    vi.spyOn(window.history, 'back').mockImplementation(() => {})
-    renderHook(() => useBackGuard(true, vi.fn(), 'k1'))
-    const pending = releaseBackGuard()
-    act(() => popstate())
-    await pending
-    const push = vi.spyOn(window.history, 'pushState')
-    renderHook(() => useBackGuard(true, vi.fn(), 'k1'))
-    expect(push).toHaveBeenCalledTimes(1)
-  })
-
-  it('pushes one sentinel under StrictMode, whose simulated unmount re-arms at once', () => {
-    const push = vi.spyOn(window.history, 'pushState')
-    renderHook(() => useBackGuard(true, vi.fn(), 'k1'), { wrapper: StrictMode })
-    expect(push).toHaveBeenCalledTimes(1)
-  })
-
-  it('pushes a fresh sentinel when re-armed after the guard was unmounted', async () => {
-    renderHook(() => useBackGuard(true, vi.fn(), 'k1')).unmount()
-    await Promise.resolve()
-    const push = vi.spyOn(window.history, 'pushState')
-    renderHook(() => useBackGuard(true, vi.fn(), 'k1'))
-    expect(push).toHaveBeenCalledTimes(1)
-  })
-
-  it('clears the record when released with nothing armed', async () => {
-    renderHook(() => useBackGuard(true, vi.fn(), 'k1'))
-    expect(window.sessionStorage.getItem('lms-back-guard')).not.toBeNull()
-    await releaseBackGuard()
-    expect(window.sessionStorage.getItem('lms-back-guard')).toBeNull()
-  })
-
-  it('pushes when the history length no longer matches the record', () => {
-    renderHook(() => useBackGuard(true, vi.fn(), 'k1'))
-    expect(window.sessionStorage.getItem('lms-back-guard')).not.toBeNull()
-    window.history.pushState(window.history.state, '')
-    const push = vi.spyOn(window.history, 'pushState')
-    renderHook(() => useBackGuard(true, vi.fn(), 'k1'))
-    expect(push).toHaveBeenCalledTimes(1)
-  })
-
-  it('pushes when the record belongs to another path', () => {
-    renderHook(() => useBackGuard(true, vi.fn(), 'k1'))
-    window.sessionStorage.setItem(
-      'lms-back-guard',
-      JSON.stringify({ path: '/elsewhere', len: window.history.length }),
-    )
-    const push = vi.spyOn(window.history, 'pushState')
-    renderHook(() => useBackGuard(true, vi.fn(), 'k1'))
-    expect(push).toHaveBeenCalledTimes(1)
-  })
-})
-
-describe('Back landing on another page', () => {
-  afterEach(() => window.history.replaceState({ __NA: true }, '', '/'))
-
-  it('neither re-pushes nor reports when the popped entry is on a different path', () => {
-    const onAttempt = vi.fn()
-    renderHook(() => useBackGuard(true, onAttempt, 'k1'))
-    window.history.pushState({}, '', '/other')
-    const push = vi.spyOn(window.history, 'pushState')
-    act(() => popstate())
-    expect(push).not.toHaveBeenCalled()
-    expect(onAttempt).not.toHaveBeenCalled()
+  it('ends up armed once after StrictMode re-runs the effect', () => {
+    renderHook(() => useBackGuard(true, vi.fn()), { wrapper: StrictMode })
+    expect(mockArm.mock.calls.length - mockDisarm.mock.calls.length).toBe(1)
   })
 })

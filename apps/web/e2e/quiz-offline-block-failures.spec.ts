@@ -174,19 +174,10 @@ test.describe('Quiz connection block: sign-in expiry, finishing and leaving', ()
     // Back stays guarded under the overlay: no navigation and no Finish dialog.
     const urlBefore = page.url()
     // Twice: a disarmed guard lets the second Back leave the session page.
-    // Counted after the guard's own listener ran, so each Back is settled before the next one.
-    await page.evaluate(() => {
-      const w = window as unknown as { __pops: number }
-      w.__pops = 0
-      window.addEventListener('popstate', () => {
-        w.__pops += 1
-      })
-    })
-    const pops = () => page.evaluate(() => (window as unknown as { __pops: number }).__pops)
     await page.goBack()
-    await expect.poll(pops).toBe(1)
+    await expect(overlay.getByText('Your sign-in has expired')).toBeVisible()
+    expect(page.url()).toBe(urlBefore)
     await page.goBack()
-    await expect.poll(pops).toBe(2)
     await expect(overlay.getByText('Your sign-in has expired')).toBeVisible()
     expect(page.url()).toBe(urlBefore)
     await expect(page.getByRole('dialog', { name: 'Finish Quiz' })).toHaveCount(0)

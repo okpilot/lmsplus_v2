@@ -14,7 +14,6 @@ function setup(over: Partial<Args> = {}) {
   const setShowFinishDialog = vi.fn()
   const args: Args = {
     isDiscovery: false,
-    sessionId: 'sess-1',
     submitted: { current: false },
     setShowFinishDialog,
     pendingOptionId: null,
