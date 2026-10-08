@@ -35,7 +35,7 @@ export function releaseBackGuard(): Promise<void> {
  * by re-pushing the sentinel. `pushState` is given the current state and no url: Next's patched
  * `pushState` then keeps its tree state and `onPopState` does not reload.
  */
-export function useBackGuard(active: boolean, onAttempt: () => void) {
+export function useBackGuard(active: boolean, onAttempt: () => void, key: string) {
   const attemptRef = useRef(onAttempt)
   attemptRef.current = onAttempt
 
@@ -49,13 +49,13 @@ export function useBackGuard(active: boolean, onAttempt: () => void) {
       // Back already landed on another page: Next is navigating there and this runner unmounts.
       if (window.location.pathname !== armedPath) return
       push()
-      recordSentinel()
+      recordSentinel(key)
       attemptRef.current()
     }
     const mine = { remove: () => window.removeEventListener('popstate', onPop) }
-    if (!onOwnSentinel()) {
+    if (!onOwnSentinel(key)) {
       push()
-      recordSentinel()
+      recordSentinel(key)
     }
     window.addEventListener('popstate', onPop)
     armed = mine
@@ -67,5 +67,5 @@ export function useBackGuard(active: boolean, onAttempt: () => void) {
       })
       if (armed === mine) armed = null
     }
-  }, [active])
+  }, [active, key])
 }

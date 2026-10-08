@@ -24,28 +24,40 @@ beforeEach(() => {
 describe('useQuizNavigationGuard', () => {
   it('arms both guards from the start, before any answer exists', () => {
     const onAttempt = vi.fn()
-    renderHook(() => useQuizNavigationGuard({ submitted: false, onAttempt }))
+    renderHook(() => useQuizNavigationGuard({ submitted: false, onAttempt, key: 'sess-1' }))
     expect(beforeUnload).toHaveBeenLastCalledWith(true)
-    expect(backGuard).toHaveBeenLastCalledWith(true, onAttempt)
+    expect(backGuard).toHaveBeenLastCalledWith(true, expect.any(Function), 'sess-1')
   })
 
   it('disarms both guards once the quiz is submitted', () => {
-    renderHook(() => useQuizNavigationGuard({ submitted: true, onAttempt: vi.fn() }))
+    renderHook(() => useQuizNavigationGuard({ submitted: true, onAttempt: vi.fn(), key: 'sess-1' }))
     expect(beforeUnload).toHaveBeenLastCalledWith(false)
-    expect(backGuard).toHaveBeenLastCalledWith(false, expect.any(Function))
+    expect(backGuard).toHaveBeenLastCalledWith(false, expect.any(Function), 'sess-1')
   })
 
-  it('disarms both guards once the sign-in expired', () => {
-    renderHook(() => useQuizNavigationGuard({ submitted: false, onAttempt: vi.fn() }))
+  it('drops only the refresh prompt once the sign-in expired and keeps Back guarded without a dialog', () => {
+    const onAttempt = vi.fn()
+    renderHook(() => useQuizNavigationGuard({ submitted: false, onAttempt, key: 'sess-1' }))
     act(() => setConnectionStatus('signed-out'))
     expect(beforeUnload).toHaveBeenLastCalledWith(false)
-    expect(backGuard).toHaveBeenLastCalledWith(false, expect.any(Function))
+    expect(backGuard).toHaveBeenLastCalledWith(true, expect.any(Function), 'sess-1')
+    backGuard.mock.lastCall?.[1]()
+    expect(onAttempt).not.toHaveBeenCalled()
+  })
+
+  it('reports a Back attempt while the sign-in is valid', () => {
+    const onAttempt = vi.fn()
+    renderHook(() => useQuizNavigationGuard({ submitted: false, onAttempt, key: 'sess-1' }))
+    backGuard.mock.lastCall?.[1]()
+    expect(onAttempt).toHaveBeenCalledTimes(1)
   })
 
   it('keeps both guards armed while offline', () => {
-    renderHook(() => useQuizNavigationGuard({ submitted: false, onAttempt: vi.fn() }))
+    renderHook(() =>
+      useQuizNavigationGuard({ submitted: false, onAttempt: vi.fn(), key: 'sess-1' }),
+    )
     act(() => setConnectionStatus('offline'))
     expect(beforeUnload).toHaveBeenLastCalledWith(true)
-    expect(backGuard).toHaveBeenLastCalledWith(true, expect.any(Function))
+    expect(backGuard).toHaveBeenLastCalledWith(true, expect.any(Function), 'sess-1')
   })
 })

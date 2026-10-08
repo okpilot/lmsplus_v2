@@ -3,6 +3,7 @@ import { useQuizNavigationGuard } from './use-quiz-navigation-guard'
 
 type Opts = {
   isDiscovery: boolean
+  sessionId: string
   submitted: { current: boolean }
   setShowFinishDialog: (open: boolean) => void
   pendingOptionId: string | null
@@ -16,6 +17,7 @@ type Opts = {
  */
 export function useQuizLeaveGuard({
   isDiscovery,
+  sessionId,
   submitted,
   setShowFinishDialog,
   pendingOptionId,
@@ -24,6 +26,7 @@ export function useQuizLeaveGuard({
   const [discoveryConfirmOpen, setDiscoveryConfirmOpen] = useState(false)
   useQuizNavigationGuard({
     submitted: submitted.current,
+    key: sessionId,
     onAttempt: () => (isDiscovery ? setDiscoveryConfirmOpen(true) : setShowFinishDialog(true)),
   })
   return {

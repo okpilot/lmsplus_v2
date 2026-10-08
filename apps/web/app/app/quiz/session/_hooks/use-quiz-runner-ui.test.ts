@@ -34,22 +34,33 @@ beforeEach(() => {
 
 describe('useQuizRunnerUI', () => {
   it('shows the chosen tab in study mode', () => {
-    const { result } = renderHook(() => useQuizRunnerUI(baseState, false))
+    const { result } = renderHook(() =>
+      useQuizRunnerUI(baseState, { isDiscovery: false, sessionId: 'sess-1' }),
+    )
     expect(result.current.effectiveTab).toBe('explanation')
     expect(mockUI).toHaveBeenCalledWith(expect.objectContaining({ activeTab: 'explanation' }))
   })
 
   it('pins the question tab in an exam', () => {
     const exam = { ...baseState, isExam: true } as QuizState
-    const { result } = renderHook(() => useQuizRunnerUI(exam, false))
+    const { result } = renderHook(() =>
+      useQuizRunnerUI(exam, { isDiscovery: false, sessionId: 'sess-1' }),
+    )
     expect(result.current.effectiveTab).toBe('question')
     expect(result.current.activeTab).toBe('explanation')
   })
 
   it('feeds the leave guard the picked-but-unsubmitted option and the discovery flag', () => {
-    const { result } = renderHook(() => useQuizRunnerUI(baseState, true))
+    const { result } = renderHook(() =>
+      useQuizRunnerUI(baseState, { isDiscovery: true, sessionId: 'sess-1' }),
+    )
     expect(mockLeave).toHaveBeenCalledWith(
-      expect.objectContaining({ isDiscovery: true, pendingOptionId: 'opt-1', setShowFinishDialog }),
+      expect.objectContaining({
+        isDiscovery: true,
+        sessionId: 'sess-1',
+        pendingOptionId: 'opt-1',
+        setShowFinishDialog,
+      }),
     )
     expect(result.current.leave.pendingSelection).toBe(true)
   })

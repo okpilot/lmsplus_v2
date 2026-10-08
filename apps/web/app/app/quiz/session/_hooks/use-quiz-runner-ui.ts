@@ -4,7 +4,10 @@ import type { QuizState } from './use-quiz-state'
 import { useQuizUI } from './use-quiz-ui'
 
 /** The runner's tab, answer-feedback and leave-guard wiring, kept out of the render body. */
-export function useQuizRunnerUI(s: QuizState, isDiscovery: boolean) {
+export function useQuizRunnerUI(
+  s: QuizState,
+  { isDiscovery, sessionId }: Readonly<{ isDiscovery: boolean; sessionId: string }>,
+) {
   const { activeTab, setActiveTab } = useQuizActiveTab(s.currentIndex)
   const effectiveTab = s.isExam ? 'question' : activeTab
   const quizUI = useQuizUI({
@@ -15,6 +18,7 @@ export function useQuizRunnerUI(s: QuizState, isDiscovery: boolean) {
   })
   const leave = useQuizLeaveGuard({
     isDiscovery,
+    sessionId,
     submitted: s.submitted,
     setShowFinishDialog: s.setShowFinishDialog,
     pendingOptionId: quizUI.pendingOptionId,

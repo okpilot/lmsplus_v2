@@ -5,15 +5,19 @@ import { useBackGuard } from './use-back-guard'
 
 const isSignedOut = () => getConnectionStatus() === 'signed-out'
 
-type Opts = { submitted: boolean; onAttempt: () => void }
+type Opts = { submitted: boolean; onAttempt: () => void; key: string }
 
 /**
  * Arms both leave guards for the whole life of the runner: the native prompt for refresh/close and
- * a Back/Forward interceptor calling `onAttempt`. Off after submit and once the sign-in expired.
+ * a Back/Forward interceptor calling `onAttempt`. Both are off after submit. Once the sign-in
+ * expired only the prompt drops (the Sign in hard-navigation must not trigger it); Back stays
+ * guarded so the sentinel entry is never orphaned, and the attempt opens no dialog under the overlay.
  */
-export function useQuizNavigationGuard({ submitted, onAttempt }: Readonly<Opts>) {
+export function useQuizNavigationGuard({ submitted, onAttempt, key }: Readonly<Opts>) {
   const signedOut = useSyncExternalStore(subscribeConnection, isSignedOut, isSignedOut)
-  const active = !signedOut && !submitted
-  useNavigationGuard(active)
-  useBackGuard(active, onAttempt)
+  useNavigationGuard(!signedOut && !submitted)
+  const guardedAttempt = () => {
+    if (!isSignedOut()) onAttempt()
+  }
+  useBackGuard(!submitted, guardedAttempt, key)
 }
