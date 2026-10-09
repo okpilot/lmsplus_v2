@@ -65,10 +65,12 @@ export function startVersionPolling(opts: PollingOptions): () => void {
   void fetchDeploymentVersion().then(seedBaseline)
   const timer = setInterval(run, opts.intervalMs)
   document.addEventListener('visibilitychange', run)
+  window.addEventListener('focus', run)
 
   return () => {
     stopped = true
     clearInterval(timer)
     document.removeEventListener('visibilitychange', run)
+    window.removeEventListener('focus', run)
   }
 }

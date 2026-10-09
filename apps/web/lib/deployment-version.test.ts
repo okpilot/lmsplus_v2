@@ -185,6 +185,20 @@ describe('startVersionPolling', () => {
     }
   })
 
+  it('checks for a new version when the window regains focus', async () => {
+    respond('v1')
+    const stop = start()
+    try {
+      await advance(0)
+      respond('v2')
+      window.dispatchEvent(new Event('focus'))
+      await advance(0)
+      expect(onNewVersion).toHaveBeenCalledOnce()
+    } finally {
+      stop()
+    }
+  })
+
   it('stops fetching after cleanup', async () => {
     respond('v1')
     const stop = start()
@@ -192,6 +206,7 @@ describe('startVersionPolling', () => {
     stop()
     mockFetch.mockClear()
     document.dispatchEvent(new Event('visibilitychange'))
+    window.dispatchEvent(new Event('focus'))
     await advance(INTERVAL * 3)
     expect(mockFetch).not.toHaveBeenCalled()
   })

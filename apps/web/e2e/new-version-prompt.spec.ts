@@ -1,5 +1,5 @@
 import { expect, type Page, test } from '@playwright/test'
-import { startStudyQuiz } from './helpers/quiz-session'
+import { startStudyQuiz, submitFirstOption } from './helpers/quiz-session'
 import { resetStudentQuizSessions, SESSION_ID_URL } from './helpers/quiz-session-id'
 import { TEST_EMAIL } from './helpers/supabase'
 
@@ -132,30 +132,70 @@ test.describe('New version prompt', () => {
   })
 })
 
+async function openDialog(page: Page, current: { value: string }) {
+  await mockVersion(page, current)
+  const baseline = page.waitForResponse('**/api/version')
+  await page.goto('/app/dashboard')
+  await baseline
+  current.value = 'dpl_b'
+  await expect(async () => {
+    await pollNow(page)
+    await expect(page.getByRole('alertdialog')).toBeVisible({ timeout: 500 })
+  }).toPass()
+}
+
+// Same steps as startStudyQuiz minus its page.goto, which would clear the pending prompt.
+async function startStudyQuizClientSide(page: Page) {
+  await page.locator('a[href="/app/quiz"]:visible').first().click()
+  await expect(page.getByRole('heading', { name: 'Quiz' })).toBeVisible()
+  await page.getByRole('button', { name: 'Study', exact: true }).click()
+  const trigger = page.locator('[data-testid="subject-trigger"]')
+  await trigger.waitFor({ state: 'visible' })
+  await trigger.click()
+  await page.locator('[data-testid="subject-option"]').first().click()
+  await page.getByRole('button', { name: 'All' }).click()
+  await page.getByRole('button', { name: 'Start Quiz' }).click()
+  await page.waitForURL(SESSION_ID_URL, { timeout: 10_000 })
+}
+
+async function finishQuiz(page: Page) {
+  await submitFirstOption(page)
+  await page.getByRole('button', { name: 'Finish Test' }).click()
+  await expect(page.getByRole('dialog', { name: 'Finish quiz' })).toBeVisible()
+  await page.getByRole('button', { name: 'Submit Quiz' }).click()
+  await page.getByRole('button', { name: 'Submit anyway' }).click()
+  await page.waitForURL('**/app/quiz/report**', { timeout: 10_000 })
+}
+
 test.describe('New version prompt during a live quiz', () => {
   test.afterEach(async () => {
     await resetStudentQuizSessions(TEST_EMAIL)
   })
 
-  test('hides a pending dialog on entering a quiz and stays silent through a reload', async ({
+  test('hides the reload banner during a quiz and restores it after the quiz ends', async ({
     page,
   }) => {
+    await openDialog(page, { value: 'dpl_a' })
+    await page.getByRole('button', { name: 'Later' }).click()
+    const banner = page.getByRole('status').filter({ hasText: BANNER_TEXT })
+    await expect(banner).toBeVisible()
+
+    await startStudyQuizClientSide(page)
+    await expect(page).toHaveURL(SESSION_ID_URL)
+    await expect(page.getByRole('alertdialog')).toHaveCount(0)
+    await expect(banner).toHaveCount(0)
+
+    await finishQuiz(page)
+    await expect(banner).toBeVisible()
+  })
+
+  test('stays silent through a reload during a quiz', async ({ page }) => {
     const current = { value: 'dpl_a' }
     await mockVersion(page, current)
     const baseline = page.waitForResponse('**/api/version')
-    await page.goto('/app/dashboard')
-    await baseline
-
-    current.value = 'dpl_b'
-    await expect(async () => {
-      await pollNow(page)
-      await expect(page.getByRole('alertdialog')).toBeVisible({ timeout: 500 })
-    }).toPass()
-
     await startStudyQuiz(page)
-    await expect(page).toHaveURL(SESSION_ID_URL)
-    await expect(page.getByRole('alertdialog')).toHaveCount(0)
-
+    await baseline
+    current.value = 'dpl_b'
     await pollSuppressed(page)
 
     const rebaselined = page.waitForResponse('**/api/version')
