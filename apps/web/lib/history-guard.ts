@@ -7,8 +7,8 @@
  * once per burst event (callers are idempotent). After MAX_REVERTS self-issued `go` calls without
  * reaching the rendered entry (delta 0), further events are swallowed, not answered with `go`; once
  * the queue is quiet for SETTLE_MS one `go` returns to the rendered entry. An armed guard never
- * accepts a same-token entry. pushState/replaceState made off the rendered entry are held until the
- * browser is back on it. Known limit: a held write lacking `__NA` copies the earlier state.
+ * accepts a same-token entry. Writes made off the rendered entry wait: written on return to it,
+ * dropped on a move elsewhere. Known limit: a held write lacking `__NA` copies the earlier state.
  */
 const TOKEN_KEY = '__lms_nav_tok'
 const INDEX_KEY = '__lms_nav_idx'

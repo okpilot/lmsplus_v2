@@ -1,10 +1,11 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { withTimeout } from '@/lib/utils/with-timeout'
 import { endDiscovery } from '../../actions/end-discovery'
 import { markRunnerExiting } from '../_utils/runner-exit'
+import { NAV_FALLBACK_MS } from './quiz-submit-handlers'
 
 export const DISCOVERY_EXIT_TIMEOUT_MS = 3000
 
@@ -16,8 +17,9 @@ export const DISCOVERY_EXIT_TIMEOUT_MS = 3000
  * terminal nav (code-style.md §6) for DISCOVERY_EXIT_TIMEOUT_MS at most; we navigate
  * regardless of its outcome. A call still pending then has its result ignored by Next's
  * router action queue (the request still completes), so a stalled request cannot hold
- * the exit. Called with NO arg — the blanket Exit-button teardown clears every active
- * discovery row.
+ * the exit. If the runner is still mounted NAV_FALLBACK_MS after the soft nav, a hard
+ * navigation to the same page follows (code-style.md §6). Called with NO arg — the
+ * blanket Exit-button teardown clears every active discovery row.
  *
  * replace (not push): the consumed handoff makes the session page un-resumable, so
  * Back must not be able to reopen the exited runner.
@@ -31,6 +33,8 @@ export function useDiscoveryExit() {
   const router = useRouter()
   const exitingRef = useRef(false)
   const [leaving, setLeaving] = useState(false)
+  const fallbackTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  useEffect(() => () => clearTimeout(fallbackTimer.current), [])
   const exit = useCallback(async () => {
     if (exitingRef.current) return
     exitingRef.current = true
@@ -42,6 +46,7 @@ export function useDiscoveryExit() {
     )
     markRunnerExiting()
     router.replace('/app/quiz')
+    fallbackTimer.current = setTimeout(() => window.location.assign('/app/quiz'), NAV_FALLBACK_MS)
   }, [router])
   return { exit, leaving }
 }

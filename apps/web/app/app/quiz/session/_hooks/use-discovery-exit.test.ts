@@ -17,6 +17,15 @@ vi.mock('../../actions/end-discovery', () => ({
 }))
 
 import { _resetRunnerExit, isRunnerExiting } from '../_utils/runner-exit'
+import { NAV_FALLBACK_MS } from './quiz-submit-handlers'
+
+// jsdom's window.location is not fully writable, so replace it with a mockable stub.
+// vi.resetAllMocks() does not reach a vi.fn() held only via defineProperty — reset it explicitly.
+const mockLocationAssign = vi.fn()
+Object.defineProperty(window, 'location', {
+  configurable: true,
+  value: { assign: mockLocationAssign },
+})
 
 // ---- Subject under test ----------------------------------------------------
 
@@ -28,6 +37,7 @@ describe('useDiscoveryExit', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     _resetRunnerExit()
+    mockLocationAssign.mockReset()
     mockEndDiscovery.mockResolvedValue({ success: true })
   })
 
@@ -126,5 +136,27 @@ describe('useDiscoveryExit', () => {
     await vi.advanceTimersByTimeAsync(1)
     expect(mockReplace).toHaveBeenCalledWith('/app/quiz')
     expect(isRunnerExiting()).toBe(true)
+  })
+
+  it('hard-navigates to the quiz picker when the soft navigation leaves the runner mounted', async () => {
+    vi.useFakeTimers()
+    const { result } = renderHook(() => useDiscoveryExit())
+    await act(async () => result.current.exit())
+    expect(mockReplace).toHaveBeenCalledWith('/app/quiz')
+
+    await vi.advanceTimersByTimeAsync(NAV_FALLBACK_MS - 1)
+    expect(mockLocationAssign).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(1)
+    expect(mockLocationAssign).toHaveBeenCalledWith('/app/quiz')
+  })
+
+  it('does not hard-navigate once the runner has left', async () => {
+    vi.useFakeTimers()
+    const { result, unmount } = renderHook(() => useDiscoveryExit())
+    await act(async () => result.current.exit())
+    unmount()
+
+    await vi.advanceTimersByTimeAsync(NAV_FALLBACK_MS + 1)
+    expect(mockLocationAssign).not.toHaveBeenCalled()
   })
 })
