@@ -79,4 +79,11 @@ describe('reloadOnceForStaleDeployment', () => {
     expect(reloadOnceForStaleDeployment()).toBe(false)
     expect(reload).not.toHaveBeenCalled()
   })
+
+  it('does not reload while the browser is offline', () => {
+    vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false)
+    expect(reloadOnceForStaleDeployment()).toBe(false)
+    expect(reload).not.toHaveBeenCalled()
+    expect(sessionStorage.getItem(KEY)).toBeNull()
+  })
 })

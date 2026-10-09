@@ -14,6 +14,7 @@ export function isStaleDeploymentError(error: unknown): boolean {
 
 export function reloadOnceForStaleDeployment(): boolean {
   if (isLiveSessionPath(window.location.pathname)) return false
+  if (!window.navigator.onLine) return false
   try {
     const last = Number(window.sessionStorage.getItem(RELOAD_KEY))
     if (last && Date.now() - last < RELOAD_COOLDOWN_MS) return false
