@@ -1,7 +1,6 @@
 'use client'
 
-import * as Sentry from '@sentry/nextjs'
-import { useEffect } from 'react'
+import { useBoundaryError } from '@/app/_hooks/use-boundary-error'
 
 export default function ErrorPage({
   error,
@@ -10,9 +9,7 @@ export default function ErrorPage({
   error: Error & { digest?: string }
   retry: () => void
 }>) {
-  useEffect(() => {
-    Sentry.captureException(error)
-  }, [error])
+  useBoundaryError(error)
 
   return (
     <div className="flex min-h-[50vh] items-center justify-center">

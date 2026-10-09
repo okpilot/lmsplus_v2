@@ -5,6 +5,7 @@ import { Geist } from 'next/font/google'
 import { Toaster } from '@/components/ui/sonner'
 import { cn } from '@/lib/utils'
 import { HistoryGuard } from './_components/history-guard'
+import { NewVersionPrompt } from './_components/new-version-prompt'
 import { ThemeProvider } from './_components/theme-provider'
 import './globals.css'
 
@@ -27,6 +28,7 @@ export default function RootLayout({
         <ThemeProvider>
           {children}
           <Toaster />
+          <NewVersionPrompt />
           <Analytics />
           <SpeedInsights />
         </ThemeProvider>
