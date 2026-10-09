@@ -11,8 +11,7 @@ type Opts = {
 
 /**
  * Turns Back/Forward into the right confirmation: the Finish dialog for study and exam, a Stay/Leave
- * confirm for discovery. `submitted` is a ref, so the guard disarms on the re-render that closes the
- * Finish dialog after a successful submit.
+ * confirm for discovery. A successful submit releases the guards by marking the runner as exiting.
  */
 export function useQuizLeaveGuard({
   isDiscovery,

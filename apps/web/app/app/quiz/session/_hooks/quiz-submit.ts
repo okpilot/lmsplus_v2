@@ -76,6 +76,7 @@ export async function handleSubmitSession(opts: {
   const r = await submitQuizSession(opts.sessionId, opts.userId)
   if (r.success) {
     opts.onSuccess()
+    markRunnerExiting()
     opts.router.replace(reportUrl(opts.examMode, opts.sessionId))
   } else {
     opts.setError(r.error)

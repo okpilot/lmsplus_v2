@@ -174,6 +174,15 @@ describe('handleSubmitSession', () => {
     expect(opts.setError).toHaveBeenCalledWith(null)
   })
 
+  it('releases the leave guards before navigating to the report', async () => {
+    const opts = makeOpts()
+    vi.mocked(opts.router.replace).mockImplementation(() => {
+      expect(isRunnerExiting()).toBe(true)
+    })
+    await handleSubmitSession(opts)
+    expect(opts.router.replace).toHaveBeenCalledTimes(1)
+  })
+
   it('navigates to /app/internal-exam/report after a successful internal-exam finish', async () => {
     const opts = makeOpts({ isExam: true, examMode: 'internal_exam' })
     await handleSubmitSession(opts)
@@ -228,6 +237,7 @@ describe('handleSubmitSession', () => {
     expect(opts.onSuccess).not.toHaveBeenCalled()
     expect(opts.router.replace).not.toHaveBeenCalled()
     expect(mockDiscardQuiz).not.toHaveBeenCalled()
+    expect(isRunnerExiting()).toBe(false)
     expect(mockClearActiveSession).not.toHaveBeenCalled()
   })
 
