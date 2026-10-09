@@ -3,7 +3,6 @@
 import { BusyLabel } from '@/components/ui/busy-label'
 import { Button } from '@/components/ui/button'
 import { type QuizMode as DbQuizMode, MODE_LABELS } from '@/lib/constants/exam-modes'
-import { useDiscoveryExit } from '../_hooks/use-discovery-exit'
 
 type Props = {
   isExam: boolean
@@ -11,6 +10,8 @@ type Props = {
   examMode?: DbQuizMode
   submitting: boolean
   onFinishClick: () => void
+  /** Discovery only: opens the Stay / Leave confirm. */
+  onExitClick?: () => void
 }
 
 /** The header's Finish button, or Exit in Discovery, which is browse-only. */
@@ -20,15 +21,13 @@ export function QuizHeaderAction({
   examMode,
   submitting,
   onFinishClick,
+  onExitClick,
 }: Readonly<Props>) {
-  const handleDiscoveryExit = useDiscoveryExit()
   const finishLabel = isExam ? `Finish ${MODE_LABELS[examMode ?? 'mock_exam']}` : 'Finish Test'
 
   if (isDiscovery) {
     return (
-      // replace (not push): the consumed handoff makes the session page
-      // un-resumable, so Back must not be able to reopen the exited runner.
-      <Button type="button" onClick={handleDiscoveryExit} className="shrink-0">
+      <Button type="button" onClick={onExitClick} className="shrink-0">
         Exit
       </Button>
     )

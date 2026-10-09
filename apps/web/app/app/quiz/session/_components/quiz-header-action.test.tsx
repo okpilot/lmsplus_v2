@@ -3,7 +3,9 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockExit } = vi.hoisted(() => ({ mockExit: vi.fn() }))
-vi.mock('../_hooks/use-discovery-exit', () => ({ useDiscoveryExit: () => mockExit }))
+vi.mock('../_hooks/use-discovery-exit', () => ({
+  useDiscoveryExit: () => ({ exit: mockExit, leaving: false }),
+}))
 
 import { QuizHeaderAction } from './quiz-header-action'
 
@@ -41,19 +43,22 @@ describe('QuizHeaderAction', () => {
     expect(btn).toHaveAttribute('aria-busy', 'true')
   })
 
-  it('shows Exit instead of Finish in Discovery and runs the exit handler', async () => {
+  it('shows Exit instead of Finish in Discovery and opens the exit confirm without leaving', async () => {
     const onFinishClick = vi.fn()
+    const onExitClick = vi.fn()
     render(
       <QuizHeaderAction
         isExam={false}
         isDiscovery
         submitting={false}
         onFinishClick={onFinishClick}
+        onExitClick={onExitClick}
       />,
     )
     expect(screen.queryByRole('button', { name: /Finish/ })).toBeNull()
     await userEvent.click(screen.getByRole('button', { name: 'Exit' }))
-    expect(mockExit).toHaveBeenCalledTimes(1)
+    expect(onExitClick).toHaveBeenCalledTimes(1)
     expect(onFinishClick).not.toHaveBeenCalled()
+    expect(mockExit).not.toHaveBeenCalled()
   })
 })

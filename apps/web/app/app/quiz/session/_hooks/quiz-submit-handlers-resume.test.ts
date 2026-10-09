@@ -1,13 +1,13 @@
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockRouterPush, mockFinishQuizSession, mockCheckAnswer } = vi.hoisted(() => ({
-  mockRouterPush: vi.fn(),
+const { mockRouterReplace, mockFinishQuizSession, mockCheckAnswer } = vi.hoisted(() => ({
+  mockRouterReplace: vi.fn(),
   mockFinishQuizSession: vi.fn(),
   mockCheckAnswer: vi.fn(),
 }))
 
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mockRouterPush }) }))
+vi.mock('next/navigation', () => ({ useRouter: () => ({ replace: mockRouterReplace }) }))
 vi.mock('../../actions/finish', () => ({ finishQuizSession: mockFinishQuizSession }))
 vi.mock('../../actions/clear-deployment-pin', () => ({
   clearDeploymentPin: () => Promise.resolve(),
@@ -83,7 +83,7 @@ describe('finishing a resumed session', () => {
     expect(mockFinishQuizSession).toHaveBeenCalledWith(
       expect.objectContaining({ sessionId: SESSION_ID }),
     )
-    expect(mockRouterPush).toHaveBeenCalledWith(`/app/quiz/report?session=${SESSION_ID}`)
+    expect(mockRouterReplace).toHaveBeenCalledWith(`/app/quiz/report?session=${SESSION_ID}`)
   })
 
   it.each([
@@ -108,7 +108,7 @@ describe('finishing a resumed session', () => {
       expect(mockFinishQuizSession).toHaveBeenCalledWith(
         expect.objectContaining({ sessionId: SESSION_ID }),
       )
-      expect(mockRouterPush).toHaveBeenCalledWith(`${path}?session=${SESSION_ID}`)
+      expect(mockRouterReplace).toHaveBeenCalledWith(`${path}?session=${SESSION_ID}`)
     },
   )
 })

@@ -3,10 +3,9 @@
 import { QuestionTabs } from '../../_components/question-tabs'
 import type { QuizSessionProps } from '../../session-types'
 import { useFlaggedQuestions } from '../_hooks/use-flagged-questions'
-import { useQuizActiveTab } from '../_hooks/use-quiz-active-tab'
+import { useQuizRunnerUI } from '../_hooks/use-quiz-runner-ui'
 import { useQuizState } from '../_hooks/use-quiz-state'
 import { useQuizTimer } from '../_hooks/use-quiz-timer'
-import { useQuizUI } from '../_hooks/use-quiz-ui'
 import { useUnblockedQuizKeyboard } from '../_hooks/use-unblocked-quiz-keyboard'
 import { QuizFinishDialogHost } from './quiz-finish-dialog-host'
 import { QuizMainPanel } from './quiz-main-panel'
@@ -18,17 +17,11 @@ import { QuizSessionMetaRow } from './quiz-session-meta-row'
 export function QuizSession(props: Readonly<QuizSessionProps>) {
   const s = useQuizState(props)
   const isDiscovery = props.mode === 'discovery'
-  const { activeTab, setActiveTab } = useQuizActiveTab(s.currentIndex)
+  const ui = useQuizRunnerUI(s, { isDiscovery })
+  const { activeTab, setActiveTab, effectiveTab, leave } = ui
   const { flaggedIds, isFlagged, toggleFlag, isToggling } = useFlaggedQuestions(
     props.initialFlaggedIds ?? [],
   )
-  const effectiveTab = s.isExam ? 'question' : activeTab
-  const { feedbackMap, pendingOptionId, handleSelectionChange, canSubmitAnswer } = useQuizUI({
-    feedback: s.feedback,
-    currentIndex: s.currentIndex,
-    activeTab: effectiveTab,
-    existingAnswer: s.existingAnswer,
-  })
 
   const { timerStart, timeExpired, handleTimeExpired } = useQuizTimer(
     props.startedAt,
@@ -39,8 +32,8 @@ export function QuizSession(props: Readonly<QuizSessionProps>) {
     optionIds: s.question?.options.map((o) => o.id) ?? [],
     currentIndex: s.currentIndex,
     isExam: s.isExam,
-    // Pause shortcuts only while the finish dialog is open; lightweight popovers (the keyboard legend) stay live — no destructive action, Escape-dismissable.
-    enabled: !s.showFinishDialog,
+    // Pause shortcuts while the finish or Discovery leave dialog is open; lightweight popovers (the keyboard legend) stay live — no destructive action, Escape-dismissable.
+    enabled: !s.showFinishDialog && !leave.discoveryConfirmOpen,
     onNavigate: s.navigate,
     onConfirm: s.handleSelectAnswer,
     onTab: setActiveTab,
@@ -63,6 +56,7 @@ export function QuizSession(props: Readonly<QuizSessionProps>) {
         onTabChange={setActiveTab}
         onTimeExpired={handleTimeExpired}
         onFinishClick={() => s.setShowFinishDialog(true)}
+        onExitClick={leave.openExitConfirm}
         initialActiveMs={props.initialActiveMs}
       />
       <div className="px-4 pt-4 pb-32 md:px-8 md:pb-24">
@@ -72,7 +66,7 @@ export function QuizSession(props: Readonly<QuizSessionProps>) {
             isDiscovery={isDiscovery}
             totalQuestions={props.questions.length}
             flaggedIds={flaggedIds}
-            feedbackMap={feedbackMap}
+            feedbackMap={ui.feedbackMap}
           />
           {!s.isExam && (
             <div className="md:hidden">
@@ -93,7 +87,7 @@ export function QuizSession(props: Readonly<QuizSessionProps>) {
             s={s}
             activeTab={effectiveTab}
             userId={props.userId}
-            onSelectionChange={handleSelectionChange}
+            onSelectionChange={ui.handleSelectionChange}
             keyboardHighlightedId={highlightedOptionId}
           />
         </div>
@@ -109,9 +103,9 @@ export function QuizSession(props: Readonly<QuizSessionProps>) {
         // MC-only: non-MC inputs own their own full-width submit, so the footer
         // button must not flash as an inert no-op while a non-MC answer is in flight.
         showSubmit={
-          canSubmitAnswer || (s.answering && s.question.question_type === 'multiple_choice')
+          ui.canSubmitAnswer || (s.answering && s.question.question_type === 'multiple_choice')
         }
-        pendingOptionId={pendingOptionId}
+        pendingOptionId={ui.pendingOptionId}
         examMode={props.examMode}
         onToggleFlag={() => toggleFlag(s.questionId)}
       />
@@ -122,6 +116,9 @@ export function QuizSession(props: Readonly<QuizSessionProps>) {
         totalQuestions={props.questions.length}
         examMode={props.examMode}
         timeExpired={timeExpired}
+        pendingSelection={leave.pendingSelection}
+        discoveryConfirmOpen={leave.discoveryConfirmOpen}
+        onDiscoveryConfirmChange={leave.setDiscoveryConfirmOpen}
       />
     </div>
   )

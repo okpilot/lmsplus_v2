@@ -38,6 +38,7 @@ function answerHandlers(p: ActivePipeline) {
 /** Submit/save/discard callbacks and finish-dialog state from the active pipeline. */
 function submitControls(p: ActivePipeline) {
   return {
+    submitted: p.submitted,
     handleSubmit: p.handleSubmit,
     handleSave: p.handleSave,
     handleDiscard: p.handleDiscard,

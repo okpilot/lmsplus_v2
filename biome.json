@@ -123,8 +123,6 @@
         "apps/web/app/app/quiz/_components/draft-card.tsx",
         "apps/web/app/app/quiz/_components/expired-exam-notice.tsx",
         "apps/web/app/app/quiz/_components/filter-pill.tsx",
-        "apps/web/app/app/quiz/_components/finish-quiz-dialog/confirm-panel.tsx",
-        "apps/web/app/app/quiz/_components/finish-quiz-dialog/dialog-footer.tsx",
         "apps/web/app/app/quiz/_components/mode-toggle.tsx",
         "apps/web/app/app/quiz/_components/question-count.tsx",
         "apps/web/app/app/quiz/_components/question-filter-toggles.tsx",

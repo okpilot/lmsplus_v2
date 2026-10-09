@@ -171,6 +171,17 @@ test.describe('Quiz connection block: sign-in expiry, finishing and leaving', ()
     ).toBeVisible()
     expect(await readServerAnsweredCount()).toBe(1)
 
+    // Back stays guarded under the overlay: no navigation and no Finish dialog.
+    const urlBefore = page.url()
+    // Twice: a disarmed guard lets the second Back leave the session page.
+    await page.goBack()
+    await expect(overlay.getByText('Your sign-in has expired')).toBeVisible()
+    expect(page.url()).toBe(urlBefore)
+    await page.goBack()
+    await expect(overlay.getByText('Your sign-in has expired')).toBeVisible()
+    expect(page.url()).toBe(urlBefore)
+    await expect(page.getByRole('dialog', { name: 'Finish Quiz' })).toHaveCount(0)
+
     await overlay.getByRole('button', { name: 'Sign in' }).click()
     await page.waitForURL(/\/\?next=/, { timeout: 15_000 })
     const next = new URL(page.url()).searchParams.get('next')

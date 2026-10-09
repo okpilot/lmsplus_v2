@@ -462,7 +462,7 @@ describe('QuizSession', () => {
     })
 
     await waitFor(() => {
-      expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/report?session=sess-1')
+      expect(mockRouterReplace).toHaveBeenCalledWith('/app/quiz/report?session=sess-1')
     })
   })
 
@@ -631,7 +631,7 @@ describe('QuizSession', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Finish Practice Exam' }))
     fireEvent.click(screen.getByRole('button', { name: 'Discard Session' }))
     await waitFor(() => expect(mockDiscardQuiz).toHaveBeenCalledWith({ sessionId: 'sess-exam' }))
-    await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz'))
+    await waitFor(() => expect(mockRouterReplace).toHaveBeenCalledWith('/app/quiz'))
   })
 
   it('disables the Finish Test button while a submission is in progress', async () => {
@@ -889,7 +889,7 @@ describe('QuizSession', () => {
     expect(screen.queryByRole('button', { name: /finish/i })).not.toBeInTheDocument()
     const exitBtn = screen.getByRole('button', { name: 'Exit' })
     fireEvent.click(exitBtn)
-    // Exit awaits the discovery teardown before navigating (§6), so await the nav.
+    fireEvent.click(await screen.findByRole('button', { name: 'Leave' }))
     await waitFor(() => expect(mockRouterReplace).toHaveBeenCalledWith('/app/quiz'))
   })
 
@@ -904,8 +904,8 @@ describe('QuizSession', () => {
     fireEvent.click(screen.getAllByRole('button', { name: /Next/ })[0]!)
     expect(screen.getByTestId('option-c').dataset.selected).toBe('true')
     expect(screen.getByTestId('option-c').dataset.correct).toBe('true')
-    // Exit navigates away — the only way to leave discovery
     fireEvent.click(screen.getByRole('button', { name: 'Exit' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Leave' }))
     await waitFor(() => expect(mockRouterReplace).toHaveBeenCalledWith('/app/quiz'))
   })
 

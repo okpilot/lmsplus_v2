@@ -2,9 +2,8 @@
 
 import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
 import type { QuizPendingAction } from '../session/_hooks/use-quiz-submit'
-import { ConfirmPanel } from './finish-quiz-dialog/confirm-panel'
+import { DialogBody } from './finish-quiz-dialog/dialog-body'
 import { DialogFooter } from './finish-quiz-dialog/dialog-footer'
-import { ExpiredNotice } from './finish-quiz-dialog/expired-notice'
 import { useFinishQuizDialog } from './finish-quiz-dialog/use-finish-quiz-dialog'
 
 type FinishQuizDialogProps = {
@@ -24,6 +23,8 @@ type FinishQuizDialogProps = {
   /** DB-level exam mode. Drives title and discard-button visibility. */
   examMode?: DbQuizMode
   timeExpired?: boolean
+  /** A picked option on the current question that was never submitted. */
+  pendingSelection?: boolean
 }
 
 export function FinishQuizDialog({
@@ -40,6 +41,7 @@ export function FinishQuizDialog({
   isExam,
   examMode,
   timeExpired,
+  pendingSelection,
 }: Readonly<FinishQuizDialogProps>) {
   const {
     countdown,
@@ -90,44 +92,25 @@ export function FinishQuizDialog({
         aria-label={title}
       >
         <h2 className="text-lg font-semibold text-foreground">{title}</h2>
-        {timeExpired && isExam ? (
-          <ExpiredNotice submitting={submitting} countdown={countdown} />
-        ) : (
-          <p className="mt-3 text-sm text-muted-foreground">
-            You have answered {answeredCount} of {totalQuestions} questions.
-          </p>
-        )}
-        {confirmingSubmit && unanswered > 0 && !timeExpired && (
-          <ConfirmPanel
-            message={`${unanswered} ${unanswered === 1 ? 'question is' : 'questions are'} unanswered${isExam ? ' and will be marked wrong.' : ' and will be skipped.'}`}
-            confirmLabel={pendingAction === 'submit' ? 'Submitting...' : 'Submit anyway'}
-            onConfirm={onSubmit}
-            onCancel={cancelSubmitConfirm}
-            submitting={submitting}
-            busy={pendingAction === 'submit'}
-            variant="warning"
-          />
-        )}
-        {confirmingDiscard && canDiscard && (
-          <ConfirmPanel
-            message={
-              isExam
-                ? "Are you sure? Your progress will be lost. This attempt won't count."
-                : 'Are you sure? Your progress will be lost.'
-            }
-            confirmLabel={pendingAction === 'discard' ? 'Discarding...' : 'Yes, discard'}
-            onConfirm={onDiscard}
-            onCancel={cancelDiscardConfirm}
-            submitting={submitting}
-            busy={pendingAction === 'discard'}
-            variant="destructive"
-          />
-        )}
-        {error && (
-          <p role="alert" className="mt-4 text-sm text-destructive">
-            {error}
-          </p>
-        )}
+        <DialogBody
+          answeredCount={answeredCount}
+          totalQuestions={totalQuestions}
+          submitting={submitting}
+          pendingAction={pendingAction}
+          error={error}
+          isExam={isExam}
+          timeExpired={timeExpired}
+          pendingSelection={pendingSelection}
+          countdown={countdown}
+          unanswered={unanswered}
+          confirmingSubmit={confirmingSubmit}
+          confirmingDiscard={confirmingDiscard}
+          canDiscard={canDiscard}
+          onSubmit={onSubmit}
+          onDiscard={onDiscard}
+          cancelSubmitConfirm={cancelSubmitConfirm}
+          cancelDiscardConfirm={cancelDiscardConfirm}
+        />
 
         <DialogFooter
           answeredCount={answeredCount}

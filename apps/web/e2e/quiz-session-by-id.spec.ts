@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { acceptBeforeUnload } from './helpers/before-unload'
 import {
   cleanupSavedSessions,
   readServerAnsweredCount,
@@ -8,6 +9,11 @@ import {
 import { cleanupStudentActiveSessions, getAdminClient, TEST_EMAIL } from './helpers/supabase'
 
 test.use({ storageState: 'e2e/.auth/user.json' })
+
+// This spec registers its own dialog listener, which takes over every dialog; accept beforeunload.
+test.beforeEach(({ page }) => {
+  acceptBeforeUnload(page)
+})
 
 async function readActiveSessionId(): Promise<string> {
   const admin = getAdminClient()

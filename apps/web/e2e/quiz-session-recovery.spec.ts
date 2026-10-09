@@ -1,4 +1,5 @@
 import { expect, type Page, test } from '@playwright/test'
+import { acceptBeforeUnload } from './helpers/before-unload'
 import {
   clearQuizActiveSessionKeys,
   startStudyQuiz,
@@ -14,6 +15,11 @@ import { readUserId } from './helpers/recovery-code'
 import { TEST_EMAIL } from './helpers/supabase'
 
 test.use({ storageState: 'e2e/.auth/user.json' })
+
+// This spec registers its own dialog listener, which takes over every dialog; accept beforeunload.
+test.beforeEach(({ page }) => {
+  acceptBeforeUnload(page)
+})
 
 type Abandoned = { sessionId: string; sessionUrl: string; total: number }
 

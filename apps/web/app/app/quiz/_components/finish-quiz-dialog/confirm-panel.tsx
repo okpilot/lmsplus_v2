@@ -1,5 +1,7 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
+
 type ConfirmPanelProps = {
   message: string
   confirmLabel: string
@@ -32,23 +34,18 @@ export function ConfirmPanel({
         {message}
       </p>
       <div className="mt-3 flex gap-2">
-        <button
+        <Button
           type="button"
+          variant={isWarn ? 'default' : 'destructive'}
           onClick={onConfirm}
           disabled={submitting}
           aria-busy={busy || undefined}
-          className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 ${isWarn ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-destructive text-destructive-foreground hover:bg-destructive/90'}`}
         >
           {confirmLabel}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          disabled={submitting}
-          className="rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
-        >
+        </Button>
+        <Button type="button" variant="outline" onClick={onCancel} disabled={submitting}>
           {isWarn ? 'Go back' : 'Cancel'}
-        </button>
+        </Button>
       </div>
     </div>
   )

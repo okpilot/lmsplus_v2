@@ -10,7 +10,8 @@ export function useConnectionState(): ConnectionSnapshot {
   return useSyncExternalStore(subscribeConnection, getConnectionSnapshot, getConnectionSnapshot)
 }
 
-function isBlocked(): boolean {
+/** Non-reactive read of the connection overlay's blocking predicate. */
+export function isConnectionBlocked(): boolean {
   const status = getConnectionStatus()
   return (
     status === 'offline' || status === 'slow' || status === 'signed-out' || status === 'save-failed'
@@ -19,5 +20,5 @@ function isBlocked(): boolean {
 
 /** True while the connection overlay blocks the quiz (offline, slow, signed out or an answer save held). */
 export function useConnectionBlocked(): boolean {
-  return useSyncExternalStore(subscribeConnection, isBlocked, isBlocked)
+  return useSyncExternalStore(subscribeConnection, isConnectionBlocked, isConnectionBlocked)
 }

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks -----------------------------------------------------------------
@@ -21,7 +21,9 @@ vi.mock('../../actions/end-discovery', () => ({
 vi.mock('@/app/app/_components/session-timer', () => ({ SessionTimer: () => null }))
 vi.mock('@/app/app/_components/theme-toggle', () => ({ ThemeToggle: () => null }))
 vi.mock('../../_components/exam-countdown-timer', () => ({ ExamCountdownTimer: () => null }))
-vi.mock('../../_components/question-tabs', () => ({ QuestionTabs: () => null }))
+vi.mock('../../_components/question-tabs', () => ({
+  QuestionTabs: () => <div data-testid="question-tabs" />,
+}))
 vi.mock('./exam-session-header', () => ({ ExamBadge: () => null }))
 vi.mock('./keyboard-legend', () => ({ KeyboardLegend: () => null }))
 
@@ -46,39 +48,38 @@ const baseProps = {
 // ---- Tests -----------------------------------------------------------------
 
 describe('QuizSessionHeader — Discovery exit', () => {
-  beforeEach(() => {
-    vi.resetAllMocks()
-    mockEndDiscovery.mockResolvedValue({ success: true })
-  })
+  beforeEach(() => vi.resetAllMocks())
 
-  it('ends the discovery session before navigating back to the quiz picker', async () => {
-    render(<QuizSessionHeader {...baseProps} isDiscovery />)
+  it('asks for confirmation instead of leaving when Exit is clicked', () => {
+    const onExitClick = vi.fn()
+    render(<QuizSessionHeader {...baseProps} isDiscovery onExitClick={onExitClick} />)
     fireEvent.click(screen.getByRole('button', { name: 'Exit' }))
 
-    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/app/quiz'))
-    expect(mockEndDiscovery).toHaveBeenCalledTimes(1)
-    // Teardown must run before the terminal navigation (code-style.md §6).
-    // safe: the waitFor + toHaveBeenCalledTimes(1) above confirm both mocks fired.
-    expect(mockEndDiscovery.mock.invocationCallOrder[0]).toBeLessThan(
-      mockReplace.mock.invocationCallOrder[0]!,
-    )
+    expect(onExitClick).toHaveBeenCalledTimes(1)
+    expect(mockReplace).not.toHaveBeenCalled()
+    expect(mockEndDiscovery).not.toHaveBeenCalled()
   })
 
-  it('navigates back even when the discovery teardown rejects', async () => {
-    mockEndDiscovery.mockRejectedValue(new Error('network'))
-    render(<QuizSessionHeader {...baseProps} isDiscovery />)
-    fireEvent.click(screen.getByRole('button', { name: 'Exit' }))
-
-    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/app/quiz'))
-  })
-
-  it('fires the Finish callback (not the discovery teardown) for a normal session', () => {
-    render(<QuizSessionHeader {...baseProps} isDiscovery={false} />)
+  it('fires the Finish callback (not the exit confirm) for a normal session', () => {
+    const onExitClick = vi.fn()
+    render(<QuizSessionHeader {...baseProps} isDiscovery={false} onExitClick={onExitClick} />)
     expect(screen.queryByRole('button', { name: 'Exit' })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: /Finish Test/ }))
 
     expect(baseProps.onFinishClick).toHaveBeenCalledTimes(1)
-    expect(mockEndDiscovery).not.toHaveBeenCalled()
+    expect(onExitClick).not.toHaveBeenCalled()
+  })
+})
+
+describe('QuizSessionHeader — desktop tabs', () => {
+  it('shows the question tabs outside exams', () => {
+    render(<QuizSessionHeader {...baseProps} />)
+    expect(screen.getByTestId('question-tabs')).toBeTruthy()
+  })
+
+  it('hides the question tabs in an exam', () => {
+    render(<QuizSessionHeader {...baseProps} isExam />)
+    expect(screen.queryByTestId('question-tabs')).toBeNull()
   })
 })

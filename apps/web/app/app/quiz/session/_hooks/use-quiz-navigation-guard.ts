@@ -1,17 +1,33 @@
-import { useSyncExternalStore } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 import { useNavigationGuard } from '../../_hooks/use-navigation-guard'
-import {
-  getConnectionSnapshot,
-  getConnectionStatus,
-  subscribeConnection,
-} from '../_utils/connection-state'
+import { getConnectionStatus, subscribeConnection } from '../_utils/connection-state'
+import { isRunnerExiting, resetRunnerExit, subscribeRunnerExit } from '../_utils/runner-exit'
+import { useBackGuard } from './use-back-guard'
+import { isConnectionBlocked } from './use-connection-state'
 
 const isSignedOut = () => getConnectionStatus() === 'signed-out'
-const hasPending = () => getConnectionSnapshot().pending > 0
 
-/** Warns before leaving while `hasUnsavedWork` or a progress save is unsent; never after submit or once the sign-in expired. */
-export function useQuizNavigationGuard(hasUnsavedWork: boolean, submitted: boolean): void {
+type Opts = { submitted: boolean; onAttempt: () => void }
+
+/**
+ * Arms both leave guards for the whole life of the runner: the native prompt for refresh/close and
+ * a Back/Forward interceptor calling `onAttempt`. Once the sign-in expired only the prompt drops
+ * (the Sign in hard-navigation must not trigger it). While the connection overlay is up, Back stays
+ * guarded and opens no dialog. A confirmed exit (Submit, Leave, Save, Discard, takeover) releases
+ * both before it navigates, so Next's full-page-load fallback cannot prompt again; `submitted` also
+ * releases them.
+ */
+export function useQuizNavigationGuard({ submitted, onAttempt }: Readonly<Opts>) {
   const signedOut = useSyncExternalStore(subscribeConnection, isSignedOut, isSignedOut)
-  const unsent = useSyncExternalStore(subscribeConnection, hasPending, hasPending)
-  useNavigationGuard(!signedOut && !submitted && (hasUnsavedWork || unsent))
+  const exiting = useSyncExternalStore(subscribeRunnerExit, isRunnerExiting, isRunnerExiting)
+  // Start guarded even if an unmounted runner's exit marked late; re-arm once this one is gone.
+  useEffect(() => {
+    resetRunnerExit()
+    return resetRunnerExit
+  }, [])
+  useNavigationGuard(!signedOut && !submitted && !exiting)
+  const guardedAttempt = () => {
+    if (!isConnectionBlocked()) onAttempt()
+  }
+  useBackGuard(!submitted && !exiting, guardedAttempt)
 }

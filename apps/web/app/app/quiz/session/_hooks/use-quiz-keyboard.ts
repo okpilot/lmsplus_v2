@@ -21,15 +21,14 @@ type UseQuizKeyboardOpts = {
  * Wires keyboard shortcuts for the quiz/exam runner: ← / → navigate, ↑ / ↓ move
  * the answer highlight, Enter submits the highlighted answer, and q / e / c / s open
  * the Question / Explanation / Comments / Stats tabs (study mode only). Shortcuts are
- * ignored while a text field is focused. Returns the highlighted option id so the
- * answer list can render a focus ring.
+ * ignored while a text field is focused or Alt, Ctrl or Meta is held. Returns the
+ * highlighted option id so the answer list can render a focus ring.
  */
 export function useQuizKeyboard(opts: UseQuizKeyboardOpts) {
   const [highlightedIndex, setHighlightedIndex] = useState(-1)
 
-  // Reset the answer highlight on question change. The effect body doesn't read
-  // currentIndex (it just clears to -1), so biome sees the dep as "unnecessary" —
-  // but it's the intentional trigger for the reset, hence the suppression.
+  // Reset the answer highlight on question change. The body doesn't read currentIndex,
+  // so biome sees the dep as "unnecessary"; it is the reset trigger, hence the suppression.
   // biome-ignore lint/correctness/useExhaustiveDependencies: currentIndex is the reset trigger, not a read value
   useEffect(() => {
     setHighlightedIndex(-1)
@@ -46,6 +45,7 @@ export function useQuizKeyboard(opts: UseQuizKeyboardOpts) {
     function onKeyDown(e: KeyboardEvent) {
       const o = optsRef.current
       if (o.enabled === false || isTypingTarget(e.target)) return
+      if (e.altKey || e.ctrlKey || e.metaKey) return
       const action = quizKeyAction(e.key, { isExam: o.isExam })
       if (!action) return
       switch (action.type) {

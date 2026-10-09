@@ -4,6 +4,7 @@ import type { Metadata } from 'next'
 import { Geist } from 'next/font/google'
 import { Toaster } from '@/components/ui/sonner'
 import { cn } from '@/lib/utils'
+import { HistoryGuard } from './_components/history-guard'
 import { ThemeProvider } from './_components/theme-provider'
 import './globals.css'
 
@@ -22,6 +23,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className={cn('font-sans', geist.variable)}>
       <body className="antialiased">
+        <HistoryGuard />
         <ThemeProvider>
           {children}
           <Toaster />

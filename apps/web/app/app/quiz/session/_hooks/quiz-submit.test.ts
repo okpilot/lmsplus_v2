@@ -2,14 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockFinishQuizSession, mockSaveQuizForLater, mockDiscardQuiz, mockRouterPush } = vi.hoisted(
-  () => ({
+const { mockFinishQuizSession, mockSaveQuizForLater, mockDiscardQuiz, mockRouterReplace } =
+  vi.hoisted(() => ({
     mockFinishQuizSession: vi.fn(),
     mockSaveQuizForLater: vi.fn(),
     mockDiscardQuiz: vi.fn(),
-    mockRouterPush: vi.fn(),
-  }),
-)
+    mockRouterReplace: vi.fn(),
+  }))
 
 vi.mock('../../actions/finish', () => ({
   finishQuizSession: (...args: unknown[]) => mockFinishQuizSession(...args),
@@ -41,6 +40,7 @@ vi.mock('../_utils/quiz-session-storage', () => ({
 
 // ---- Subject under test ---------------------------------------------------
 
+import { _resetRunnerExit, isRunnerExiting } from '../_utils/runner-exit'
 import {
   handleDiscardSession,
   handleSaveSession,
@@ -80,7 +80,7 @@ const TWO_ANSWERS = makeAnswers([
 ])
 
 function makeRouter() {
-  return { push: mockRouterPush }
+  return { replace: mockRouterReplace }
 }
 
 /** A promise whose resolution is controlled externally, for asserting call ordering. */
@@ -96,6 +96,7 @@ function makeDeferred<T>() {
 
 beforeEach(() => {
   vi.resetAllMocks()
+  _resetRunnerExit()
   mockClearDeploymentPin.mockResolvedValue(undefined)
   mockFinishQuizSession.mockResolvedValue({ success: true })
 })
@@ -169,20 +170,31 @@ describe('handleSubmitSession', () => {
     const opts = makeOpts()
     await handleSubmitSession(opts)
     expect(opts.onSuccess).toHaveBeenCalledTimes(1)
-    expect(opts.router.push).toHaveBeenCalledWith(`/app/quiz/report?session=${SESSION_ID}`)
+    expect(opts.router.replace).toHaveBeenCalledWith(`/app/quiz/report?session=${SESSION_ID}`)
     expect(opts.setError).toHaveBeenCalledWith(null)
+  })
+
+  it('releases the leave guards before navigating to the report', async () => {
+    const opts = makeOpts()
+    vi.mocked(opts.router.replace).mockImplementation(() => {
+      expect(isRunnerExiting()).toBe(true)
+    })
+    await handleSubmitSession(opts)
+    expect(opts.router.replace).toHaveBeenCalledTimes(1)
   })
 
   it('navigates to /app/internal-exam/report after a successful internal-exam finish', async () => {
     const opts = makeOpts({ isExam: true, examMode: 'internal_exam' })
     await handleSubmitSession(opts)
-    expect(opts.router.push).toHaveBeenCalledWith(`/app/internal-exam/report?session=${SESSION_ID}`)
+    expect(opts.router.replace).toHaveBeenCalledWith(
+      `/app/internal-exam/report?session=${SESSION_ID}`,
+    )
   })
 
   it('navigates to /app/vfr-rt/report after a successful VFR RT exam finish', async () => {
     const opts = makeOpts({ isExam: true, examMode: 'vfr_rt_exam' })
     await handleSubmitSession(opts)
-    expect(opts.router.push).toHaveBeenCalledWith(`/app/vfr-rt/report?session=${SESSION_ID}`)
+    expect(opts.router.replace).toHaveBeenCalledWith(`/app/vfr-rt/report?session=${SESSION_ID}`)
   })
 
   it('does not navigate until deployment-pin cleanup has settled', async () => {
@@ -193,11 +205,13 @@ describe('handleSubmitSession', () => {
     const pending = handleSubmitSession(opts)
     await Promise.resolve()
     await Promise.resolve()
-    expect(opts.router.push).not.toHaveBeenCalled()
+    expect(opts.router.replace).not.toHaveBeenCalled()
 
     deferred.resolve(undefined)
     await pending
-    expect(opts.router.push).toHaveBeenCalledWith(`/app/internal-exam/report?session=${SESSION_ID}`)
+    expect(opts.router.replace).toHaveBeenCalledWith(
+      `/app/internal-exam/report?session=${SESSION_ID}`,
+    )
   })
 
   it('finishes an exam with no answers so the student lands on a 0% report', async () => {
@@ -208,7 +222,9 @@ describe('handleSubmitSession', () => {
       deviceId: DEVICE_ID,
     })
     expect(opts.onSuccess).toHaveBeenCalledTimes(1)
-    expect(opts.router.push).toHaveBeenCalledWith(`/app/internal-exam/report?session=${SESSION_ID}`)
+    expect(opts.router.replace).toHaveBeenCalledWith(
+      `/app/internal-exam/report?session=${SESSION_ID}`,
+    )
     expect(mockDiscardQuiz).not.toHaveBeenCalled()
   })
 
@@ -219,8 +235,9 @@ describe('handleSubmitSession', () => {
     expect(opts.setError).toHaveBeenCalledWith('session discarded')
     expect(opts.setSubmitting).toHaveBeenLastCalledWith(false)
     expect(opts.onSuccess).not.toHaveBeenCalled()
-    expect(opts.router.push).not.toHaveBeenCalled()
+    expect(opts.router.replace).not.toHaveBeenCalled()
     expect(mockDiscardQuiz).not.toHaveBeenCalled()
+    expect(isRunnerExiting()).toBe(false)
     expect(mockClearActiveSession).not.toHaveBeenCalled()
   })
 
@@ -275,7 +292,7 @@ describe('handleSaveSession', () => {
     await handleSaveSession(opts)
     expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID, SESSION_ID)
     expect(mockClearDeploymentPin).toHaveBeenCalledTimes(1)
-    expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz')
+    expect(mockRouterReplace).toHaveBeenCalledWith('/app/quiz')
     expect(opts.setError).not.toHaveBeenCalledWith(expect.any(String))
   })
 
@@ -285,10 +302,32 @@ describe('handleSaveSession', () => {
     const run = handleSaveSession(makeOpts())
     await Promise.resolve()
     await Promise.resolve()
-    expect(mockRouterPush).not.toHaveBeenCalled()
+    expect(mockRouterReplace).not.toHaveBeenCalled()
     deferred.resolve(undefined)
     await run
-    expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz')
+    expect(mockRouterReplace).toHaveBeenCalledWith('/app/quiz')
+  })
+
+  it('releases the leave guards only after the pin cleanup, right before returning to the list', async () => {
+    const deferred = makeDeferred<undefined>()
+    mockClearDeploymentPin.mockReturnValue(deferred.promise)
+    let exitingAtNav: boolean | undefined
+    mockRouterReplace.mockImplementation(() => {
+      exitingAtNav = isRunnerExiting()
+    })
+    const run = handleSaveSession(makeOpts())
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(isRunnerExiting()).toBe(false)
+    deferred.resolve(undefined)
+    await run
+    expect(exitingAtNav).toBe(true)
+  })
+
+  it('keeps the leave guards armed when the save is refused', async () => {
+    mockSaveQuizForLater.mockResolvedValue({ success: false, error: 'Not allowed' })
+    await handleSaveSession(makeOpts())
+    expect(isRunnerExiting()).toBe(false)
   })
 
   it('shows the error and stops loading when the save is refused', async () => {
@@ -297,7 +336,7 @@ describe('handleSaveSession', () => {
     await handleSaveSession(opts)
     expect(opts.setError).toHaveBeenCalledWith('Not allowed')
     expect(opts.setSubmitting).toHaveBeenLastCalledWith(false)
-    expect(mockRouterPush).not.toHaveBeenCalled()
+    expect(mockRouterReplace).not.toHaveBeenCalled()
     expect(mockClearActiveSession).not.toHaveBeenCalled()
   })
 
@@ -307,7 +346,7 @@ describe('handleSaveSession', () => {
     await handleSaveSession(opts)
     expect(opts.setError).toHaveBeenCalledWith('Something went wrong. Please try again.')
     expect(opts.setSubmitting).toHaveBeenLastCalledWith(false)
-    expect(mockRouterPush).not.toHaveBeenCalled()
+    expect(mockRouterReplace).not.toHaveBeenCalled()
     expect(mockClearActiveSession).not.toHaveBeenCalled()
   })
 })
@@ -338,7 +377,23 @@ describe('handleDiscardSession', () => {
     mockDiscardQuiz.mockResolvedValue({ success: true })
     const opts = makeOpts()
     await handleDiscardSession(opts)
-    expect(opts.router.push).toHaveBeenCalledWith('/app/quiz')
+    expect(opts.router.replace).toHaveBeenCalledWith('/app/quiz')
+  })
+
+  it('releases the leave guards before returning to the list after a discard', async () => {
+    mockDiscardQuiz.mockResolvedValue({ success: true })
+    let exitingAtNav: boolean | undefined
+    mockRouterReplace.mockImplementation(() => {
+      exitingAtNav = isRunnerExiting()
+    })
+    await handleDiscardSession(makeOpts())
+    expect(exitingAtNav).toBe(true)
+  })
+
+  it('keeps the leave guards armed when the discard fails', async () => {
+    mockDiscardQuiz.mockResolvedValue({ success: false, error: 'already discarded' })
+    await handleDiscardSession(makeOpts())
+    expect(isRunnerExiting()).toBe(false)
   })
 
   it('shows error and stops loading when discard fails', async () => {
@@ -363,7 +418,7 @@ describe('handleDiscardSession', () => {
 describe('discardQuizSession', () => {
   it('clears active session before calling the discard Server Action', async () => {
     mockDiscardQuiz.mockResolvedValue({ success: true })
-    const mockRouter = { push: mockRouterPush }
+    const mockRouter = { replace: mockRouterReplace }
 
     await import('./quiz-submit').then(({ discardQuizSession }) =>
       discardQuizSession(SESSION_ID, mockRouter as never, USER_ID),
@@ -375,7 +430,7 @@ describe('discardQuizSession', () => {
 
   it('clears active session even when the discard Server Action fails', async () => {
     mockDiscardQuiz.mockResolvedValue({ success: false, error: 'already discarded' })
-    const mockRouter = { push: mockRouterPush }
+    const mockRouter = { replace: mockRouterReplace }
 
     await import('./quiz-submit').then(({ discardQuizSession }) =>
       discardQuizSession(SESSION_ID, mockRouter as never, USER_ID),
