@@ -106,7 +106,7 @@ test.describe('New version prompt during a live quiz', () => {
     await resetStudentQuizSessions(TEST_EMAIL)
   })
 
-  test('dismisses a pending toast on entering a quiz and stays silent until the user leaves it', async ({
+  test('dismisses a pending toast on entering a quiz and stays silent through a reload', async ({
     page,
   }) => {
     const current = { value: 'dpl_a' }
