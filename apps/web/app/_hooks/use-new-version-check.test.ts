@@ -1,9 +1,12 @@
-import { act, renderHook } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { renderHook } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { POLL_INTERVAL_MS, useNewVersionCheck } from './use-new-version-check'
 
-const { mockFetch, mockShow, mockDismiss, mockPathname } = vi.hoisted(() => ({
-  mockFetch: vi.fn(),
+type PollOpts = { isSuppressed: () => boolean; onNewVersion: () => void; intervalMs: number }
+
+const { mockStart, mockStop, mockShow, mockDismiss, mockPathname } = vi.hoisted(() => ({
+  mockStart: vi.fn(),
+  mockStop: vi.fn(),
   mockShow: vi.fn(),
   mockDismiss: vi.fn(),
   mockPathname: vi.fn(),
@@ -12,97 +15,50 @@ const { mockFetch, mockShow, mockDismiss, mockPathname } = vi.hoisted(() => ({
 vi.mock('next/navigation', () => ({ usePathname: mockPathname }))
 vi.mock('@/lib/deployment-version', async () => ({
   ...(await vi.importActual<typeof import('@/lib/deployment-version')>('@/lib/deployment-version')),
-  fetchDeploymentVersion: mockFetch,
+  startVersionPolling: mockStart,
   showNewVersionToast: mockShow,
   dismissNewVersionToast: mockDismiss,
 }))
 
-async function tick(ms = 0) {
-  await act(async () => {
-    await vi.advanceTimersByTimeAsync(ms)
-  })
+function polling(): PollOpts {
+  return mockStart.mock.calls[0]?.[0] as PollOpts
 }
 
 describe('useNewVersionCheck', () => {
   beforeEach(() => {
     vi.resetAllMocks()
-    vi.useFakeTimers()
     mockPathname.mockReturnValue('/app/dashboard')
-    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+    mockStart.mockReturnValue(mockStop)
   })
 
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-
-  it('shows the toast when the deployed version changes', async () => {
-    mockFetch.mockResolvedValueOnce('v1').mockResolvedValue('v2')
+  it('polls at the configured interval', () => {
     renderHook(() => useNewVersionCheck())
-    await tick()
-    await tick(POLL_INTERVAL_MS)
+    expect(mockStart).toHaveBeenCalledOnce()
+    expect(polling().intervalMs).toBe(POLL_INTERVAL_MS)
+  })
+
+  it('shows the toast when a new version is reported', () => {
+    renderHook(() => useNewVersionCheck())
+    polling().onNewVersion()
     expect(mockShow).toHaveBeenCalledOnce()
   })
 
-  it('stays silent while the version is unchanged', async () => {
-    mockFetch.mockResolvedValue('v1')
+  it('suppresses further checks once the toast is shown', () => {
     renderHook(() => useNewVersionCheck())
-    await tick()
-    await tick(POLL_INTERVAL_MS * 3)
-    expect(mockShow).not.toHaveBeenCalled()
+    expect(polling().isSuppressed()).toBe(false)
+    polling().onNewVersion()
+    expect(polling().isSuppressed()).toBe(true)
   })
 
-  it('shows the toast only once per change', async () => {
-    mockFetch.mockResolvedValueOnce('v1').mockResolvedValue('v2')
-    renderHook(() => useNewVersionCheck())
-    await tick()
-    await tick(POLL_INTERVAL_MS * 3)
-    expect(mockShow).toHaveBeenCalledOnce()
-  })
-
-  it('does not poll when the baseline version is unavailable', async () => {
-    mockFetch.mockResolvedValue(null)
-    renderHook(() => useNewVersionCheck())
-    await tick()
-    await tick(POLL_INTERVAL_MS * 3)
-    expect(mockFetch).toHaveBeenCalledOnce()
-    expect(mockShow).not.toHaveBeenCalled()
-  })
-
-  it('does not check while the tab is hidden', async () => {
-    mockFetch.mockResolvedValueOnce('v1').mockResolvedValue('v2')
-    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden')
-    renderHook(() => useNewVersionCheck())
-    await tick()
-    await tick(POLL_INTERVAL_MS * 2)
-    expect(mockShow).not.toHaveBeenCalled()
-  })
-
-  it('checks when the tab becomes visible again', async () => {
-    mockFetch.mockResolvedValueOnce('v1').mockResolvedValue('v2')
-    renderHook(() => useNewVersionCheck())
-    await tick()
-    await act(async () => {
-      document.dispatchEvent(new Event('visibilitychange'))
-      await vi.advanceTimersByTimeAsync(0)
-    })
-    expect(mockShow).toHaveBeenCalledOnce()
-  })
-
-  it('does not show the toast on a live quiz session page', async () => {
+  it('suppresses checks on a live quiz session page', () => {
     mockPathname.mockReturnValue('/app/quiz/session/abc')
-    mockFetch.mockResolvedValueOnce('v1').mockResolvedValue('v2')
     renderHook(() => useNewVersionCheck())
-    await tick()
-    await tick(POLL_INTERVAL_MS * 2)
-    expect(mockShow).not.toHaveBeenCalled()
+    expect(polling().isSuppressed()).toBe(true)
   })
 
-  it('dismisses the toast on entering a live session and shows it again after leaving', async () => {
-    mockFetch.mockResolvedValueOnce('v1').mockResolvedValue('v2')
+  it('dismisses the toast on entering a live session and allows it again after leaving', () => {
     const { rerender } = renderHook(() => useNewVersionCheck())
-    await tick()
-    await tick(POLL_INTERVAL_MS)
-    expect(mockShow).toHaveBeenCalledOnce()
+    polling().onNewVersion()
 
     mockPathname.mockReturnValue('/app/quiz/session/abc')
     rerender()
@@ -110,16 +66,12 @@ describe('useNewVersionCheck', () => {
 
     mockPathname.mockReturnValue('/app/dashboard')
     rerender()
-    await tick(POLL_INTERVAL_MS)
-    expect(mockShow).toHaveBeenCalledTimes(2)
+    expect(polling().isSuppressed()).toBe(false)
   })
 
-  it('stops polling after unmount', async () => {
-    mockFetch.mockResolvedValue('v1')
+  it('stops polling on unmount', () => {
     const { unmount } = renderHook(() => useNewVersionCheck())
-    await tick()
     unmount()
-    await tick(POLL_INTERVAL_MS * 3)
-    expect(mockFetch).toHaveBeenCalledOnce()
+    expect(mockStop).toHaveBeenCalledOnce()
   })
 })

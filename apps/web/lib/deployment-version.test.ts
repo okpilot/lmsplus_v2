@@ -1,10 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   dismissNewVersionToast,
   fetchDeploymentVersion,
   isLiveSessionPath,
   NEW_VERSION_TOAST_ID,
   showNewVersionToast,
+  startVersionPolling,
 } from './deployment-version'
 
 const { mockToast, mockDismiss } = vi.hoisted(() => {
@@ -99,5 +100,119 @@ describe('new version toast', () => {
   it('dismisses the toast by id', () => {
     dismissNewVersionToast()
     expect(mockDismiss).toHaveBeenCalledWith(NEW_VERSION_TOAST_ID)
+  })
+})
+
+describe('startVersionPolling', () => {
+  const INTERVAL = 1000
+  let suppressed: boolean
+  const onNewVersion = vi.fn()
+
+  function respond(version: string | null) {
+    mockFetch.mockResolvedValue({ ok: version !== null, json: async () => ({ version }) })
+  }
+
+  async function advance(ms: number) {
+    await vi.advanceTimersByTimeAsync(ms)
+  }
+
+  function start() {
+    return startVersionPolling({
+      isSuppressed: () => suppressed,
+      onNewVersion,
+      intervalMs: INTERVAL,
+    })
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    suppressed = false
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('reports a new version once the polled id differs from the baseline', async () => {
+    respond('v1')
+    const stop = start()
+    await advance(0)
+    respond('v2')
+    await advance(INTERVAL)
+    expect(onNewVersion).toHaveBeenCalledOnce()
+    stop()
+  })
+
+  it('stays silent while the polled id equals the baseline', async () => {
+    respond('v1')
+    const stop = start()
+    await advance(INTERVAL * 3)
+    expect(onNewVersion).not.toHaveBeenCalled()
+    stop()
+  })
+
+  it('takes the baseline from a later poll when the first fetch fails', async () => {
+    respond(null)
+    const stop = start()
+    await advance(0)
+    respond('v1')
+    await advance(INTERVAL)
+    expect(onNewVersion).not.toHaveBeenCalled()
+    respond('v2')
+    await advance(INTERVAL)
+    expect(onNewVersion).toHaveBeenCalledOnce()
+    stop()
+  })
+
+  it('does not report when suppression starts during the in-flight fetch', async () => {
+    respond('v1')
+    const stop = start()
+    await advance(0)
+    let release: (value: unknown) => void = () => {}
+    mockFetch.mockReturnValue(
+      new Promise((resolve) => {
+        release = resolve
+      }),
+    )
+    await advance(INTERVAL)
+    suppressed = true
+    release({ ok: true, json: async () => ({ version: 'v2' }) })
+    await advance(0)
+    expect(onNewVersion).not.toHaveBeenCalled()
+    stop()
+  })
+
+  it('does not fetch on a poll while the tab is hidden', async () => {
+    respond('v1')
+    const stop = start()
+    await advance(0)
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden')
+    mockFetch.mockClear()
+    await advance(INTERVAL * 2)
+    expect(mockFetch).not.toHaveBeenCalled()
+    stop()
+  })
+
+  it('checks immediately when the tab becomes visible', async () => {
+    respond('v1')
+    const stop = start()
+    await advance(0)
+    respond('v2')
+    document.dispatchEvent(new Event('visibilitychange'))
+    await advance(0)
+    expect(onNewVersion).toHaveBeenCalledOnce()
+    stop()
+  })
+
+  it('stops fetching after cleanup', async () => {
+    respond('v1')
+    const stop = start()
+    await advance(0)
+    stop()
+    mockFetch.mockClear()
+    document.dispatchEvent(new Event('visibilitychange'))
+    await advance(INTERVAL * 3)
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 })

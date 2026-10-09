@@ -1,6 +1,6 @@
 import { toast } from 'sonner'
 
-export const LIVE_SESSION_PREFIX = '/app/quiz/session'
+const LIVE_SESSION_PREFIX = '/app/quiz/session'
 export const NEW_VERSION_TOAST_ID = 'new-version'
 
 export function isLiveSessionPath(pathname: string): boolean {
@@ -30,4 +30,42 @@ export function showNewVersionToast(): void {
 
 export function dismissNewVersionToast(): void {
   toast.dismiss(NEW_VERSION_TOAST_ID)
+}
+
+type PollingOptions = {
+  isSuppressed: () => boolean
+  onNewVersion: () => void
+  intervalMs: number
+}
+
+export function startVersionPolling(opts: PollingOptions): () => void {
+  let baseline: string | null = null
+  let stopped = false
+
+  async function check() {
+    if (stopped || document.visibilityState !== 'visible' || opts.isSuppressed()) return
+    const latest = await fetchDeploymentVersion()
+    if (stopped || !latest || opts.isSuppressed()) return
+    if (baseline === null) {
+      // A late baseline may already be the new version; accepted.
+      baseline = latest
+      return
+    }
+    if (latest !== baseline) opts.onNewVersion()
+  }
+  const run = () => {
+    void check()
+  }
+
+  void fetchDeploymentVersion().then((version) => {
+    if (!stopped && baseline === null) baseline = version
+  })
+  const timer = setInterval(run, opts.intervalMs)
+  document.addEventListener('visibilitychange', run)
+
+  return () => {
+    stopped = true
+    clearInterval(timer)
+    document.removeEventListener('visibilitychange', run)
+  }
 }
