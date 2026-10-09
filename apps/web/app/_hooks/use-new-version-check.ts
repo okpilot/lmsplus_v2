@@ -1,36 +1,37 @@
 import { usePathname } from 'next/navigation'
-import { useEffect, useRef } from 'react'
-import {
-  dismissNewVersionToast,
-  isLiveSessionPath,
-  showNewVersionToast,
-  startVersionPolling,
-} from '@/lib/deployment-version'
+import { useEffect, useRef, useState } from 'react'
+import { isLiveSessionPath, startVersionPolling } from '@/lib/deployment-version'
 
 export const POLL_INTERVAL_MS = 60_000
+
+type Stage = 'none' | 'dialog' | 'banner'
 
 export function useNewVersionCheck() {
   const pathname = usePathname()
   const pathRef = useRef(pathname)
-  const shownRef = useRef(false)
+  const detectedRef = useRef(false)
+  const [stage, setStage] = useState<Stage>('none')
 
   useEffect(() => {
     pathRef.current = pathname
-    if (!isLiveSessionPath(pathname)) return
-    dismissNewVersionToast()
-    shownRef.current = false
   }, [pathname])
 
   useEffect(
     () =>
       startVersionPolling({
-        isSuppressed: () => shownRef.current || isLiveSessionPath(pathRef.current),
+        isSuppressed: () => detectedRef.current || isLiveSessionPath(pathRef.current),
         onNewVersion: () => {
-          shownRef.current = true
-          showNewVersionToast()
+          detectedRef.current = true
+          setStage('dialog')
         },
         intervalMs: POLL_INTERVAL_MS,
       }),
     [],
   )
+
+  return {
+    prompt: isLiveSessionPath(pathname) ? ('none' as const) : stage,
+    reload: () => window.location.reload(),
+    later: () => setStage('banner'),
+  }
 }

@@ -1,32 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  dismissNewVersionToast,
   fetchDeploymentVersion,
   isLiveSessionPath,
-  NEW_VERSION_TOAST_ID,
-  showNewVersionToast,
   startVersionPolling,
 } from './deployment-version'
 
-const { mockToast, mockDismiss } = vi.hoisted(() => {
-  const dismiss = vi.fn()
-  const toast = Object.assign(vi.fn(), { dismiss })
-  return { mockToast: toast, mockDismiss: dismiss }
-})
-
-vi.mock('sonner', () => ({ toast: mockToast }))
-
 const mockFetch = vi.fn()
-
-type ToastOptions = {
-  id: string
-  duration: number
-  action: { label: string; onClick: () => void }
-}
-
-function lastToastCall(): [string, ToastOptions] {
-  return mockToast.mock.calls[0] as [string, ToastOptions]
-}
 
 beforeEach(() => {
   vi.resetAllMocks()
@@ -75,31 +54,6 @@ describe('fetchDeploymentVersion', () => {
       },
     })
     expect(await fetchDeploymentVersion()).toBeNull()
-  })
-})
-
-describe('new version toast', () => {
-  it('shows a persistent toast with a Reload action', () => {
-    showNewVersionToast()
-    expect(mockToast).toHaveBeenCalledOnce()
-    const [message, options] = lastToastCall()
-    expect(message).toBe('A new version is available')
-    expect(options.id).toBe(NEW_VERSION_TOAST_ID)
-    expect(options.duration).toBe(Number.POSITIVE_INFINITY)
-    expect(options.action.label).toBe('Reload')
-  })
-
-  it('reloads the page when Reload is clicked', () => {
-    const reload = vi.fn()
-    vi.stubGlobal('location', { ...window.location, reload })
-    showNewVersionToast()
-    lastToastCall()[1].action.onClick()
-    expect(reload).toHaveBeenCalledOnce()
-  })
-
-  it('dismisses the toast by id', () => {
-    dismissNewVersionToast()
-    expect(mockDismiss).toHaveBeenCalledWith(NEW_VERSION_TOAST_ID)
   })
 })
 
