@@ -159,6 +159,32 @@ describe('startVersionPolling', () => {
     stop()
   })
 
+  it('sends one version request when the tab refocuses during a pending check', async () => {
+    respond('v1')
+    const stop = start()
+    try {
+      await advance(0)
+      let release: (value: unknown) => void = () => {}
+      mockFetch.mockReset()
+      mockFetch.mockReturnValue(
+        new Promise((resolve) => {
+          release = resolve
+        }),
+      )
+      document.dispatchEvent(new Event('visibilitychange'))
+      document.dispatchEvent(new Event('visibilitychange'))
+      await advance(0)
+      expect(mockFetch).toHaveBeenCalledTimes(1)
+      release({ ok: true, json: async () => ({ version: 'v1' }) })
+      await advance(0)
+      respond('v2')
+      await advance(INTERVAL)
+      expect(onNewVersion).toHaveBeenCalledOnce()
+    } finally {
+      stop()
+    }
+  })
+
   it('stops fetching after cleanup', async () => {
     respond('v1')
     const stop = start()

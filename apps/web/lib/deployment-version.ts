@@ -22,28 +22,47 @@ type PollingOptions = {
   intervalMs: number
 }
 
-export function startVersionPolling(opts: PollingOptions): () => void {
+type VersionCheck = {
+  check: () => Promise<void>
+  seedBaseline: (version: string | null) => void
+}
+
+function createVersionCheck(opts: PollingOptions, isStopped: () => boolean): VersionCheck {
   let baseline: string | null = null
-  let stopped = false
+  let inFlight = false
 
   async function check() {
-    if (stopped || document.visibilityState !== 'visible' || opts.isSuppressed()) return
-    const latest = await fetchDeploymentVersion()
-    if (stopped || !latest || opts.isSuppressed()) return
-    if (baseline === null) {
-      // A late baseline may already be the new version; accepted.
-      baseline = latest
+    if (inFlight || isStopped() || document.visibilityState !== 'visible' || opts.isSuppressed()) {
       return
     }
-    if (latest !== baseline) opts.onNewVersion()
+    inFlight = true
+    try {
+      const latest = await fetchDeploymentVersion()
+      if (isStopped() || !latest || opts.isSuppressed()) return
+      if (baseline === null) {
+        // A late baseline may already be the new version; accepted.
+        baseline = latest
+        return
+      }
+      if (latest !== baseline) opts.onNewVersion()
+    } finally {
+      inFlight = false
+    }
   }
+  const seedBaseline = (version: string | null) => {
+    if (!isStopped() && baseline === null) baseline = version
+  }
+  return { check, seedBaseline }
+}
+
+export function startVersionPolling(opts: PollingOptions): () => void {
+  let stopped = false
+  const { check, seedBaseline } = createVersionCheck(opts, () => stopped)
   const run = () => {
     void check()
   }
 
-  void fetchDeploymentVersion().then((version) => {
-    if (!stopped && baseline === null) baseline = version
-  })
+  void fetchDeploymentVersion().then(seedBaseline)
   const timer = setInterval(run, opts.intervalMs)
   document.addEventListener('visibilitychange', run)
 

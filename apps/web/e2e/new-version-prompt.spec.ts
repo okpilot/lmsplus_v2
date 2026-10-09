@@ -5,7 +5,6 @@ import { TEST_EMAIL } from './helpers/supabase'
 
 test.use({ storageState: 'e2e/.auth/user.json' })
 
-// Read-only flow: mocks GET /api/version, creates no rows, so there is nothing to clean up.
 const DIALOG_TITLE = 'A new version is available'
 const BANNER_TEXT = 'A new version is available.'
 

@@ -13,8 +13,7 @@ describe('GET /api/version', () => {
   })
 
   it('returns a null version when no deployment id is set', async () => {
-    vi.stubEnv('VERCEL_DEPLOYMENT_ID', '')
-    delete process.env.VERCEL_DEPLOYMENT_ID
+    vi.stubEnv('VERCEL_DEPLOYMENT_ID', undefined)
     const res = GET()
     expect(await res.json()).toEqual({ version: null })
   })
