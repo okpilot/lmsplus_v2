@@ -67,7 +67,9 @@ test.describe('New version prompt', () => {
       await expect(page.getByRole('alertdialog')).toBeVisible({ timeout: 500 })
     }).toPass()
 
+    const reloaded = page.waitForEvent('load')
     await page.getByRole('button', { name: 'Reload now' }).click()
+    await reloaded
     await expect(page).toHaveURL(/\/app\/dashboard/)
     await expect(page.getByRole('alertdialog')).toHaveCount(0)
   })
