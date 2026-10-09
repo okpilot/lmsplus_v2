@@ -159,4 +159,25 @@ describe('useDiscoveryExit', () => {
     await vi.advanceTimersByTimeAsync(NAV_FALLBACK_MS + 1)
     expect(mockLocationAssign).not.toHaveBeenCalled()
   })
+
+  it('does not navigate when the runner unmounts while the teardown is pending', async () => {
+    vi.useFakeTimers()
+    let resolveTeardown!: () => void
+    mockEndDiscovery.mockReturnValue(
+      new Promise<{ success: true }>((res) => {
+        resolveTeardown = () => res({ success: true })
+      }),
+    )
+    const { result, unmount } = renderHook(() => useDiscoveryExit())
+    const pending = result.current.exit()
+    await Promise.resolve()
+    expect(mockEndDiscovery).toHaveBeenCalledTimes(1)
+    unmount()
+    resolveTeardown()
+    await pending
+
+    await vi.advanceTimersByTimeAsync(NAV_FALLBACK_MS + 1)
+    expect(mockReplace).not.toHaveBeenCalled()
+    expect(mockLocationAssign).not.toHaveBeenCalled()
+  })
 })

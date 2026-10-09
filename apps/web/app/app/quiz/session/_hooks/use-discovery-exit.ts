@@ -18,7 +18,8 @@ export const DISCOVERY_EXIT_TIMEOUT_MS = 3000
  * regardless of its outcome. A call still pending then has its result ignored by Next's
  * router action queue (the request still completes), so a stalled request cannot hold
  * the exit. If the runner is still mounted NAV_FALLBACK_MS after the soft nav, a hard
- * navigation to the same page follows (code-style.md §6). Called with NO arg — the
+ * navigation to the same page follows (code-style.md §6). If the component using this hook
+ * unmounts during the teardown wait, the exit stops there and does not navigate. Called with NO arg — the
  * blanket Exit-button teardown clears every active discovery row.
  *
  * replace (not push): the consumed handoff makes the session page un-resumable, so
@@ -34,7 +35,14 @@ export function useDiscoveryExit() {
   const exitingRef = useRef(false)
   const [leaving, setLeaving] = useState(false)
   const fallbackTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  useEffect(() => () => clearTimeout(fallbackTimer.current), [])
+  const mountedRef = useRef(true)
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+      clearTimeout(fallbackTimer.current)
+    }
+  }, [])
   const exit = useCallback(async () => {
     if (exitingRef.current) return
     exitingRef.current = true
@@ -44,6 +52,7 @@ export function useDiscoveryExit() {
       DISCOVERY_EXIT_TIMEOUT_MS,
       undefined,
     )
+    if (!mountedRef.current) return
     markRunnerExiting()
     router.replace('/app/quiz')
     fallbackTimer.current = setTimeout(() => window.location.assign('/app/quiz'), NAV_FALLBACK_MS)
