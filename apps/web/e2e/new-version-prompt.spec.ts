@@ -25,7 +25,7 @@ async function pollAndSettle(page: Page) {
   await page.waitForTimeout(300)
 }
 
-// A live quiz suppresses the poll entirely: no version request is made and no toast shows.
+// A live quiz suppresses the poll: a triggered check makes no version request and no toast shows.
 async function pollSuppressed(page: Page) {
   let requested = 0
   const count = (r: { url(): string }) => {
@@ -127,7 +127,9 @@ test.describe('New version prompt during a live quiz', () => {
 
     await pollSuppressed(page)
 
+    const rebaselined = page.waitForResponse('**/api/version')
     await page.reload()
+    await rebaselined
     await expect(page).toHaveURL(SESSION_ID_URL)
     await pollSuppressed(page)
   })
