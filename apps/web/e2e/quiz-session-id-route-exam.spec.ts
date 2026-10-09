@@ -7,17 +7,11 @@
  */
 
 import { expect, type Page, test } from '@playwright/test'
-import { acceptBeforeUnload } from './helpers/before-unload'
 import { isServerActionPost, readServerAnsweredCount } from './helpers/quiz-session'
 import { resetStudentQuizSessions, SESSION_ID_URL } from './helpers/quiz-session-id'
 import { TEST_EMAIL } from './helpers/supabase'
 
 test.use({ storageState: 'e2e/.auth/user.json', viewport: { width: 1280, height: 900 } })
-
-// The runner arms a native leave prompt; an unhandled one cancels reload() and goto().
-test.beforeEach(({ page }) => {
-  acceptBeforeUnload(page)
-})
 
 const OPTION = '[data-testid^="option-"]'
 

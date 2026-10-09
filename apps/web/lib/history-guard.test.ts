@@ -164,15 +164,17 @@ describe('history stamping', () => {
     expect(window.history.state[INDEX_KEY]).toBe(2)
   })
 
-  it('flushes held writes after a bounded wait when the browser never returns', async () => {
+  it('keeps held writes off the earlier entry past the bounded wait until the browser returns', async () => {
     await renderedAtTwo()
     pop(stamped(1))
     originals.replace.call(window.history, stamped(1), '', '/a')
     window.history.replaceState({ __NA: true }, '', '/x')
-    vi.advanceTimersByTime(4000)
+    vi.advanceTimersByTime(10_000)
     expect(window.location.pathname).toBe('/a')
-    vi.advanceTimersByTime(1000)
+    expect(window.history.state[INDEX_KEY]).toBe(1)
+    pop(stamped(2))
     expect(window.location.pathname).toBe('/x')
+    expect(window.history.state[INDEX_KEY]).toBe(2)
   })
 
   it('drops held writes when an outside entry is adopted', async () => {

@@ -10,7 +10,6 @@
 
 import { readFileSync } from 'node:fs'
 import { type Browser, type BrowserContext, expect, type Page, test } from '@playwright/test'
-import { acceptBeforeUnload } from './helpers/before-unload'
 import {
   clearQuizActiveSessionKeys,
   isServerActionPost,
@@ -37,11 +36,6 @@ import {
 } from './helpers/supabase'
 
 test.use({ storageState: 'e2e/.auth/user.json', viewport: { width: 1280, height: 900 } })
-
-// The runner arms a native leave prompt; an unhandled one cancels reload() and goto().
-test.beforeEach(({ page }) => {
-  acceptBeforeUnload(page)
-})
 
 const OPTION = '[data-testid^="option-"]'
 const RESULT_CLASS = /border-(green-500|destructive)/

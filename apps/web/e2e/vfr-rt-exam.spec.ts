@@ -8,7 +8,6 @@
  */
 
 import { expect, type Page, test } from '@playwright/test'
-import { acceptBeforeUnload } from './helpers/before-unload'
 import { readServerAnsweredCount } from './helpers/quiz-session'
 import { readSessionRow, SESSION_ID_URL, sessionIdFromUrl } from './helpers/quiz-session-id'
 import {
@@ -21,11 +20,6 @@ import { getEgmontOrgId } from './redteam/helpers/seed-core'
 import { cleanupVfrRtPool, seedVfrRtPool, type VfrRtPool } from './redteam/helpers/seed-vfr-rt-pool'
 
 test.use({ storageState: { cookies: [], origins: [] }, viewport: { width: 1280, height: 1000 } })
-
-// The runner arms a native leave prompt; an unhandled one cancels reload() and goto().
-test.beforeEach(({ page }) => {
-  acceptBeforeUnload(page)
-})
 
 type AnswerType = 'short_answer' | 'dialog_fill' | 'multiple_choice' | 'ordering' | 'diagram_label'
 

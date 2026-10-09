@@ -1,5 +1,4 @@
 import { expect, type Page, test } from '@playwright/test'
-import { acceptBeforeUnload } from './helpers/before-unload'
 import {
   clearQuizActiveSessionKeys,
   isServerActionPost,
@@ -8,11 +7,6 @@ import {
 import { cleanupStudentActiveSessions, TEST_EMAIL } from './helpers/supabase'
 
 test.use({ storageState: 'e2e/.auth/user.json' })
-
-// The runner arms a native leave prompt; an unhandled one cancels reload() and goto().
-test.beforeEach(({ page }) => {
-  acceptBeforeUnload(page)
-})
 
 // Two automatic resends (2s, then 4s) run before the student is asked.
 const AUTO_RETRY_WINDOW_MS = 20_000

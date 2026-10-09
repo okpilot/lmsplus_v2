@@ -10,7 +10,7 @@ import { cleanupStudentActiveSessions, getAdminClient, TEST_EMAIL } from './help
 
 test.use({ storageState: 'e2e/.auth/user.json' })
 
-// The runner arms a native leave prompt; an unhandled one cancels reload() and goto().
+// This spec registers its own dialog listener, which takes over every dialog; accept beforeunload.
 test.beforeEach(({ page }) => {
   acceptBeforeUnload(page)
 })
