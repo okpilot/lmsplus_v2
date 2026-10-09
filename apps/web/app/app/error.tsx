@@ -1,7 +1,6 @@
 'use client'
 
-import * as Sentry from '@sentry/nextjs'
-import { useEffect } from 'react'
+import { useBoundaryError } from '@/app/_hooks/use-boundary-error'
 import { ErrorState } from '@/components/kit/error-state'
 import { Button } from '@/components/ui/button'
 
@@ -12,9 +11,7 @@ export default function AppError({
   error: Error & { digest?: string }
   retry: () => void
 }>) {
-  useEffect(() => {
-    Sentry.captureException(error)
-  }, [error])
+  useBoundaryError(error)
 
   return (
     <ErrorState action={<Button onClick={() => retry()}>Try again</Button>}>
