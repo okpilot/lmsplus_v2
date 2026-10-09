@@ -1,15 +1,14 @@
 /**
- * Back/Forward interception by history index, after LayerXcom/next-navigation-guard. Every history
- * entry is stamped with a per-tab token and its index; an armed popstate is cancelled by stepping
- * `history.go` back by the distance travelled. Installed before Next's own patch and popstate
- * listener (see HistoryGuard), so `stopImmediatePropagation` keeps Next from traversing.
- * Every popstate is measured against the unchanged rendered index, so no "revert pending" state
- * exists to get stuck. `onAttempt` may fire once per event of a burst (callers are idempotent).
- * After MAX_REVERTS self-issued `go` calls without reaching the rendered entry (delta 0), further
- * events are still swallowed but no longer answered with `go`; once the queue is quiet for
- * SETTLE_MS one `go` returns to the rendered entry. An armed guard never accepts a same-token entry.
- * pushState/replaceState made while the browser is off the rendered entry are held until it returns.
- * Known limit: a held write without Next's `__NA` payload copies the earlier entry's state.
+ * Back/Forward interception by history index, after LayerXcom/next-navigation-guard. Every entry is
+ * stamped with a per-tab token and its index; an armed popstate is cancelled by `history.go` back
+ * by the distance travelled. Installed before Next's patch and popstate listener (see HistoryGuard),
+ * so `stopImmediatePropagation` keeps Next from traversing. Every popstate is measured against the
+ * unchanged rendered index, so no "revert pending" state exists to get stuck. `onAttempt` may fire
+ * once per burst event (callers are idempotent). After MAX_REVERTS self-issued `go` calls without
+ * reaching the rendered entry (delta 0), further events are swallowed, not answered with `go`; once
+ * the queue is quiet for SETTLE_MS one `go` returns to the rendered entry. An armed guard never
+ * accepts a same-token entry. pushState/replaceState made off the rendered entry are held until it
+ * returns, or a bounded wait. Known limit: a held write lacking `__NA` copies the earlier state.
  */
 const TOKEN_KEY = '__lms_nav_tok'
 const INDEX_KEY = '__lms_nav_idx'
@@ -91,14 +90,28 @@ function flushQueued() {
   for (const write of writes) write()
 }
 
+/** Flushes held writes once the browser is on the rendered entry; after MAX_REVERTS checks, anyway. */
+function waitForReturn(waits: number) {
+  flushTimer = undefined
+  const { index, token } = stampOf(window.history.state)
+  if ((index !== position.index || token !== position.token) && waits < MAX_REVERTS) {
+    flushTimer = setTimeout(() => waitForReturn(waits + 1), FLUSH_MS)
+    return
+  }
+  at = position.index
+  flushQueued()
+}
+
 function hold(write: () => void) {
   queued.push(write)
-  flushTimer ??= setTimeout(() => {
-    flushTimer = undefined
-    at = position.index
-    flushQueued()
-  }, FLUSH_MS)
+  flushTimer ??= setTimeout(() => waitForReturn(0), FLUSH_MS)
 }
+
+const stamp = (state: unknown, index: number) => ({
+  ...(state as object | null),
+  [TOKEN_KEY]: position.token,
+  [INDEX_KEY]: index,
+})
 
 function revertOrPark(d: { index: number; delta: number }) {
   if (reverts >= MAX_REVERTS) {
@@ -141,11 +154,6 @@ function handlePopState(event: PopStateEvent) {
 function patchHistory() {
   const push = window.history.pushState
   const replace = window.history.replaceState
-  const stamp = (state: unknown, index: number) => ({
-    ...(state as object | null),
-    [TOKEN_KEY]: position.token,
-    [INDEX_KEY]: index,
-  })
   window.history.pushState = function (state, unused, url) {
     const write = () => {
       clearSettle()
@@ -174,12 +182,7 @@ export function installHistoryGuard() {
   at = index
   const replace = patchHistory()
   if (!token) {
-    const stamped = {
-      ...(current as object | null),
-      [TOKEN_KEY]: position.token,
-      [INDEX_KEY]: index,
-    }
-    replace.call(window.history, stamped, '', window.location.href)
+    replace.call(window.history, stamp(current, index), '', window.location.href)
   }
   window.addEventListener('popstate', handlePopState)
 }

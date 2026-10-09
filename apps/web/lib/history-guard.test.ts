@@ -142,7 +142,7 @@ describe('history stamping', () => {
     expect(window.history.state[INDEX_KEY]).toBe(3)
   })
 
-  it('applies a held write on its own when the browser never returns to the runner entry', async () => {
+  it('applies a held write when the return popstate never arrives', async () => {
     await renderedAtTwo()
     pop(stamped(1))
     window.history.replaceState({ __NA: true }, '', '/x')
@@ -150,6 +150,29 @@ describe('history stamping', () => {
     vi.advanceTimersByTime(1000)
     expect(window.location.pathname).toBe('/x')
     expect(window.history.state[INDEX_KEY]).toBe(2)
+  })
+
+  it('keeps held writes while the browser is still on the earlier entry', async () => {
+    await renderedAtTwo()
+    pop(stamped(1))
+    originals.replace.call(window.history, stamped(1), '', '/a')
+    window.history.replaceState({ __NA: true }, '', '/x')
+    vi.advanceTimersByTime(1000)
+    expect(window.location.pathname).toBe('/a')
+    pop(stamped(2))
+    expect(window.location.pathname).toBe('/x')
+    expect(window.history.state[INDEX_KEY]).toBe(2)
+  })
+
+  it('flushes held writes after a bounded wait when the browser never returns', async () => {
+    await renderedAtTwo()
+    pop(stamped(1))
+    originals.replace.call(window.history, stamped(1), '', '/a')
+    window.history.replaceState({ __NA: true }, '', '/x')
+    vi.advanceTimersByTime(4000)
+    expect(window.location.pathname).toBe('/a')
+    vi.advanceTimersByTime(1000)
+    expect(window.location.pathname).toBe('/x')
   })
 
   it('drops held writes when an outside entry is adopted', async () => {

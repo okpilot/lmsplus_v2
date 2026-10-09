@@ -58,10 +58,9 @@ describe('useQuizLeaveGuard', () => {
     expect(result.current.discoveryConfirmOpen).toBe(false)
   })
 
-  it('stays armed until the submit has landed', () => {
-    const { args } = setup()
+  it('arms the navigation guard before submission', () => {
+    setup()
     expect(mockGuard).toHaveBeenLastCalledWith(expect.objectContaining({ submitted: false }))
-    expect(args.submitted.current).toBe(false)
   })
 
   it('disarms on the first re-render after the quiz is submitted', () => {
