@@ -93,4 +93,13 @@ describe('useQuizNavigationGuard', () => {
     expect(beforeUnload).toHaveBeenLastCalledWith(true)
     expect(backGuard).toHaveBeenLastCalledWith(true, expect.any(Function))
   })
+
+  it('arms both guards for a new runner when an unmounted runner marked its exit late', () => {
+    const first = renderHook(() => useQuizNavigationGuard({ submitted: false, onAttempt: vi.fn() }))
+    first.unmount()
+    markRunnerExiting()
+    renderHook(() => useQuizNavigationGuard({ submitted: false, onAttempt: vi.fn() }))
+    expect(beforeUnload).toHaveBeenLastCalledWith(true)
+    expect(backGuard).toHaveBeenLastCalledWith(true, expect.any(Function))
+  })
 })

@@ -20,8 +20,11 @@ type Opts = { submitted: boolean; onAttempt: () => void }
 export function useQuizNavigationGuard({ submitted, onAttempt }: Readonly<Opts>) {
   const signedOut = useSyncExternalStore(subscribeConnection, isSignedOut, isSignedOut)
   const exiting = useSyncExternalStore(subscribeRunnerExit, isRunnerExiting, isRunnerExiting)
-  // Re-arm for the next runner once this one is gone.
-  useEffect(() => resetRunnerExit, [])
+  // Start guarded even if an unmounted runner's exit marked late; re-arm once this one is gone.
+  useEffect(() => {
+    resetRunnerExit()
+    return resetRunnerExit
+  }, [])
   useNavigationGuard(!signedOut && !submitted && !exiting)
   const guardedAttempt = () => {
     if (!isConnectionBlocked()) onAttempt()

@@ -29,7 +29,7 @@ export function markRunnerExiting(): void {
   set(true)
 }
 
-/** Re-arms the guards for the next runner; called when the runner unmounts. */
+/** Re-arms the guards; called when a runner mounts and when it unmounts. */
 export function resetRunnerExit(): void {
   set(false)
 }
