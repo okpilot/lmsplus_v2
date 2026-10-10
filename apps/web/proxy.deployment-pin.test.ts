@@ -62,6 +62,7 @@ describe('legacy __vdpl deployment pin cookie', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     MOCK_SESSION_RESPONSE.headers = new Headers()
+    // Armed so a regression to the old pin-setting code (it needs this id) goes red.
     process.env.VERCEL_DEPLOYMENT_ID = 'dpl_test_abc123'
     mockReadTempPasswordState.mockResolvedValue('none')
   })
