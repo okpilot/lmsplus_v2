@@ -259,7 +259,7 @@ describe('handleSaveSession', () => {
     expect(opts.setError).not.toHaveBeenCalledWith(expect.any(String))
   })
 
-  it('releases the leave guards right before returning to the list', async () => {
+  it('returns to the quiz list without a leave warning', async () => {
     let exitingAtNav: boolean | undefined
     mockRouterReplace.mockImplementation(() => {
       exitingAtNav = isRunnerExiting()
