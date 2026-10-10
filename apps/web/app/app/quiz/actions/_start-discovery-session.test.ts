@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks -----------------------------------------------------------------
 
-const { mockRpc } = vi.hoisted(() => ({ mockRpc: vi.fn() }))
+const { mockRpc, mockClearPin } = vi.hoisted(() => ({ mockRpc: vi.fn(), mockClearPin: vi.fn() }))
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({}),
@@ -11,6 +11,8 @@ vi.mock('@repo/db/server', () => ({
 vi.mock('@/lib/supabase-rpc', () => ({
   rpc: (...args: unknown[]) => mockRpc(...args),
 }))
+
+vi.mock('./clear-deployment-pin', () => ({ clearDeploymentPin: mockClearPin }))
 
 // ---- Subject under test ----------------------------------------------------
 
@@ -51,6 +53,20 @@ describe('createDiscoverySession', () => {
       p_subject_id: SUBJECT_ID,
       p_question_ids: IDS,
     })
+  })
+
+  it('expires the quiz deployment pin when a study session is created', async () => {
+    mockRpc.mockResolvedValue({ data: CREATED_ID, error: null })
+    await createDiscoverySession(SUBJECT_ID, IDS)
+    expect(mockClearPin).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the quiz deployment pin when the study session is not created', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'another_session_active' } })
+    await createDiscoverySession(SUBJECT_ID, IDS)
+    mockRpc.mockResolvedValue({ data: '', error: null })
+    await createDiscoverySession(SUBJECT_ID, IDS)
+    expect(mockClearPin).not.toHaveBeenCalled()
   })
 
   it('returns a sanitized error and no id when the RPC fails', async () => {

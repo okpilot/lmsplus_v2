@@ -31,6 +31,8 @@ vi.mock('./end-discovery', () => ({
   endDiscovery: (...args: unknown[]) => mockEndDiscovery(...args),
 }))
 
+vi.mock('./clear-deployment-pin', () => ({ clearDeploymentPin: async () => {} }))
+
 // ---- Subject under test ---------------------------------------------------
 
 import type { StudyQuestion } from '@/lib/queries/study-queries'

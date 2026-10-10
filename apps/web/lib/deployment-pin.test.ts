@@ -78,19 +78,15 @@ describe('deployment pin cookie', () => {
     expect(run({ pathname: '/app/dashboard' }).headers.get('set-cookie')).toBeNull()
   })
 
-  it('expires the session-scoped pin when a Server Action runs outside a quiz session', () => {
-    const header = run({ pathname: '/app/quiz', action: true }).headers.get('set-cookie') ?? ''
-    expect(header).toContain('__vdpl=;')
-    expect(header).toContain('Path=/app/quiz/session')
-    expect(header).toMatch(/Expires=Thu, 01 Jan 1970/)
+  it('leaves the session-scoped pin alone when a Server Action runs outside a quiz session', () => {
+    expect(run({ pathname: '/app/quiz', action: true }).headers.get('set-cookie')).toBeNull()
   })
 
-  it('expires a leftover site-wide pin rather than the scoped one when a Server Action carries it', () => {
+  it('still expires a leftover site-wide pin when a Server Action carries it', () => {
     const header =
       run({ pathname: '/app/quiz', action: true, pin: 'dpl_old' }).headers.get('set-cookie') ?? ''
     expect(header).toContain('__vdpl=;')
     expect(header).toContain('Path=/;')
-    expect(header).not.toContain('Path=/app/quiz/session')
   })
 
   it('keeps the pin when a Server Action runs inside a quiz session', () => {

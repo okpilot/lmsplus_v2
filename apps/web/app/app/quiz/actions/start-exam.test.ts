@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetUser, mockRpc } = vi.hoisted(() => ({
+const { mockGetUser, mockRpc, mockClearPin } = vi.hoisted(() => ({
+  mockClearPin: vi.fn(),
   mockGetUser: vi.fn(),
   mockRpc: vi.fn(),
 }))
@@ -16,6 +17,8 @@ vi.mock('@repo/db/server', () => ({
 vi.mock('@/lib/supabase-rpc', () => ({
   rpc: mockRpc,
 }))
+
+vi.mock('./clear-deployment-pin', () => ({ clearDeploymentPin: mockClearPin }))
 
 // ---- Subject under test ---------------------------------------------------
 
@@ -259,6 +262,20 @@ describe('startExamSession — happy path', () => {
     expect(result.timeLimitSeconds).toBe(3600)
     expect(result.passMark).toBe(75)
     expect(result.startedAt).toBe(VALID_STARTED_AT)
+  })
+
+  it('expires the quiz deployment pin when an exam starts', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockRpc.mockResolvedValue(RPC_SUCCESS)
+    await startExamSession({ subjectId: VALID_SUBJECT_ID })
+    expect(mockClearPin).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the quiz deployment pin when the exam fails to start', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'another_session_active' } })
+    await startExamSession({ subjectId: VALID_SUBJECT_ID })
+    expect(mockClearPin).not.toHaveBeenCalled()
   })
 
   it('passes p_subject_id to the start_exam_session RPC', async () => {

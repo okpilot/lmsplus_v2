@@ -3,12 +3,13 @@
  *
  * The proxy (`apps/web/lib/deployment-pin.ts` `syncDeploymentPin`) owns the pin:
  *   - a leftover site-wide (`Path=/`) pin reaching a non-session page is expired;
- *   - a Server Action (`next-action` header) on a non-session page expires the
- *     session-scoped (`Path=/app/quiz/session`) pin;
+ *   - a Server Action (`next-action` header) on a non-session page leaves the
+ *     session-scoped (`Path=/app/quiz/session`) pin alone: only the quiz start and
+ *     resume actions expire it, from their own response;
  *   - a pin on a quiz session page is never expired.
- * Attack: keep a stale pin alive outside quiz sessions, or unpin a live quiz with
- * a request that carries no `next-action` header (the form-POST shape a
- * cross-site page can send without a CORS preflight).
+ * Attack: keep a stale pin alive outside quiz sessions, or unpin a live quiz from
+ * another tab with any request outside the session (navigation, a form POST a
+ * cross-site page can send without a CORS preflight, or a Server Action).
  * Local runs have no VERCEL_DEPLOYMENT_ID, so the SET branch is unreachable here;
  * every expiry/keep branch is reachable and pinned below.
  * No DB rows are written: the consent cookie is forged for the attacker's own id
@@ -112,10 +113,11 @@ test.describe('Red Team: __vdpl pin lifecycle (Vector HY, #1506)', () => {
     expect(await jarPins(context)).toEqual([LIVE_SESSION_PREFIX])
   })
 
-  test('only a next-action request outside quiz sessions unpins a live quiz', async () => {
+  test('no request outside quiz sessions, Server Action included, unpins a live quiz', async () => {
     await addPin(context, LIVE_SESSION_PREFIX)
 
-    // Attack arm: navigation + header-less POST (cross-site form shape) must not unpin.
+    // Attack arm: navigation, header-less POST (cross-site form shape) and a Server Action
+    // POST from another tab must all leave the scoped pin alone.
     const nav = await context.request.get('/app/dashboard', { maxRedirects: 0 })
     expect(pinSetCookies(nav)).toEqual([])
     const formPost = await context.request.post('/app/dashboard', {
@@ -123,20 +125,11 @@ test.describe('Red Team: __vdpl pin lifecycle (Vector HY, #1506)', () => {
       form: { x: '1' },
     })
     expect(pinSetCookies(formPost)).toEqual([])
-    expect(await jarPins(context), 'pin must still be held before the control arm').toEqual([
-      LIVE_SESSION_PREFIX,
-    ])
-
-    // Control arm: a Server Action on a non-session page expires the scoped pin.
     const action = await context.request.post('/app/dashboard', {
       maxRedirects: 0,
       headers: ACTION_HEADERS,
     })
-    const cookies = pinSetCookies(action)
-    expect(cookies).toHaveLength(1)
-    expect(cookies[0]).toMatch(/^__vdpl=;/)
-    expect(cookies[0]).toMatch(new RegExp(`Path=${LIVE_SESSION_PREFIX}(;|$)`))
-    expect(cookies[0]).toMatch(/Expires=Thu, 01 Jan 1970/)
-    expect(await jarPins(context)).toEqual([])
+    expect(pinSetCookies(action)).toEqual([])
+    expect(await jarPins(context)).toEqual([LIVE_SESSION_PREFIX])
   })
 })

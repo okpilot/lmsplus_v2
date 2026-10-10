@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetUser, mockRpc } = vi.hoisted(() => ({
+const { mockGetUser, mockRpc, mockClearPin } = vi.hoisted(() => ({
+  mockClearPin: vi.fn(),
   mockGetUser: vi.fn(),
   mockRpc: vi.fn(),
 }))
@@ -15,6 +16,10 @@ vi.mock('@repo/db/server', () => ({
 
 vi.mock('@/lib/supabase-rpc', () => ({
   rpc: mockRpc,
+}))
+
+vi.mock('@/app/app/quiz/actions/clear-deployment-pin', () => ({
+  clearDeploymentPin: mockClearPin,
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -298,6 +303,18 @@ describe('startInternalExam — happy path', () => {
     expect(result.success).toBe(true)
     if (!result.success) return
     expect(result.sessionId).toBe(VALID_SESSION_ID)
+  })
+
+  it('expires the quiz deployment pin when an internal exam starts', async () => {
+    mockRpc.mockResolvedValue({ data: [RPC_SUCCESS_ROW], error: null })
+    await startInternalExam({ code: VALID_CODE })
+    expect(mockClearPin).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the quiz deployment pin when the internal exam fails to start', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'code_expired' } })
+    await startInternalExam({ code: VALID_CODE })
+    expect(mockClearPin).not.toHaveBeenCalled()
   })
 
   it('handles RPC returning a single object (not wrapped in array)', async () => {

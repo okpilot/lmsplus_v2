@@ -6,6 +6,7 @@ import { getRandomQuestionIds } from '@/lib/queries/quiz-session-queries'
 import { rpc } from '@/lib/supabase-rpc'
 import type { StartQuizResult } from '../types'
 import { blockedFailure, type WithBlocked } from './_blocked-start'
+import { clearDeploymentPin } from './clear-deployment-pin'
 
 const StartQuizInput = z.object({
   subjectId: z.uuid(),
@@ -62,6 +63,7 @@ export async function startQuizSession(raw: unknown): Promise<WithBlocked<StartQ
       return { success: false, error: 'Failed to start session' }
     }
 
+    await clearDeploymentPin()
     return { success: true, sessionId, questionIds }
   } catch (err) {
     console.error('[startQuizSession] Uncaught error:', err)

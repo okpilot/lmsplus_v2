@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { rpc } from '@/lib/supabase-rpc'
 import type { StartExamResult } from '../types'
 import { blockedFailure, type WithBlocked } from './_blocked-start'
+import { clearDeploymentPin } from './clear-deployment-pin'
 
 const StartExamInput = z.object({
   subjectId: z.uuid(),
@@ -76,6 +77,7 @@ export async function startExamSession(raw: unknown): Promise<WithBlocked<StartE
       return { success: false, error: 'Failed to start Practice Exam.' }
     }
 
+    await clearDeploymentPin()
     return {
       success: true,
       sessionId: parsed.data.session_id,
