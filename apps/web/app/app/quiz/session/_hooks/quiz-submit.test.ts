@@ -22,14 +22,6 @@ vi.mock('../../actions/discard', () => ({
   discardQuiz: (...args: unknown[]) => mockDiscardQuiz(...args),
 }))
 
-const { mockClearDeploymentPin } = vi.hoisted(() => ({
-  mockClearDeploymentPin: vi.fn().mockResolvedValue(undefined),
-}))
-
-vi.mock('../../actions/clear-deployment-pin', () => ({
-  clearDeploymentPin: mockClearDeploymentPin,
-}))
-
 const { mockClearActiveSession } = vi.hoisted(() => ({
   mockClearActiveSession: vi.fn(),
 }))
@@ -83,21 +75,11 @@ function makeRouter() {
   return { replace: mockRouterReplace }
 }
 
-/** A promise whose resolution is controlled externally, for asserting call ordering. */
-function makeDeferred<T>() {
-  let resolve!: (value: T) => void
-  const promise = new Promise<T>((res) => {
-    resolve = res
-  })
-  return { promise, resolve }
-}
-
 // ---- Lifecycle -----------------------------------------------------------
 
 beforeEach(() => {
   vi.resetAllMocks()
   _resetRunnerExit()
-  mockClearDeploymentPin.mockResolvedValue(undefined)
   mockFinishQuizSession.mockResolvedValue({ success: true })
 })
 
@@ -121,7 +103,6 @@ describe('submitQuizSession', () => {
 
     expect(result).toEqual({ success: false, error: 'session not found' })
     expect(mockClearActiveSession).not.toHaveBeenCalled()
-    expect(mockClearDeploymentPin).not.toHaveBeenCalled()
     expect(mockDiscardQuiz).not.toHaveBeenCalled()
   })
 
@@ -197,23 +178,6 @@ describe('handleSubmitSession', () => {
     expect(opts.router.replace).toHaveBeenCalledWith(`/app/vfr-rt/report?session=${SESSION_ID}`)
   })
 
-  it('does not navigate until deployment-pin cleanup has settled', async () => {
-    const deferred = makeDeferred<undefined>()
-    mockClearDeploymentPin.mockReturnValue(deferred.promise)
-    const opts = makeOpts({ isExam: true, examMode: 'internal_exam' })
-
-    const pending = handleSubmitSession(opts)
-    await Promise.resolve()
-    await Promise.resolve()
-    expect(opts.router.replace).not.toHaveBeenCalled()
-
-    deferred.resolve(undefined)
-    await pending
-    expect(opts.router.replace).toHaveBeenCalledWith(
-      `/app/internal-exam/report?session=${SESSION_ID}`,
-    )
-  })
-
   it('finishes an exam with no answers so the student lands on a 0% report', async () => {
     const opts = makeOpts({ answers: new Map(), isExam: true, examMode: 'internal_exam' })
     await handleSubmitSession(opts)
@@ -287,40 +251,20 @@ describe('handleSaveSession', () => {
     })
   })
 
-  it('clears the active session, clears the pin and returns to the quiz list on success', async () => {
+  it('clears the active session and returns to the quiz list on success', async () => {
     const opts = makeOpts()
     await handleSaveSession(opts)
     expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID, SESSION_ID)
-    expect(mockClearDeploymentPin).toHaveBeenCalledTimes(1)
     expect(mockRouterReplace).toHaveBeenCalledWith('/app/quiz')
     expect(opts.setError).not.toHaveBeenCalledWith(expect.any(String))
   })
 
-  it('does not navigate until the pin cleanup has settled', async () => {
-    const deferred = makeDeferred<undefined>()
-    mockClearDeploymentPin.mockReturnValue(deferred.promise)
-    const run = handleSaveSession(makeOpts())
-    await Promise.resolve()
-    await Promise.resolve()
-    expect(mockRouterReplace).not.toHaveBeenCalled()
-    deferred.resolve(undefined)
-    await run
-    expect(mockRouterReplace).toHaveBeenCalledWith('/app/quiz')
-  })
-
-  it('releases the leave guards only after the pin cleanup, right before returning to the list', async () => {
-    const deferred = makeDeferred<undefined>()
-    mockClearDeploymentPin.mockReturnValue(deferred.promise)
+  it('releases the leave guards right before returning to the list', async () => {
     let exitingAtNav: boolean | undefined
     mockRouterReplace.mockImplementation(() => {
       exitingAtNav = isRunnerExiting()
     })
-    const run = handleSaveSession(makeOpts())
-    await Promise.resolve()
-    await Promise.resolve()
-    expect(isRunnerExiting()).toBe(false)
-    deferred.resolve(undefined)
-    await run
+    await handleSaveSession(makeOpts())
     expect(exitingAtNav).toBe(true)
   })
 

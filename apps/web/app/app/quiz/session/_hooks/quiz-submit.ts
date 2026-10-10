@@ -1,7 +1,6 @@
 import type { useRouter } from 'next/navigation'
 import type { ActionResult } from '@/lib/action-result'
 import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
-import { clearDeploymentPin } from '../../actions/clear-deployment-pin'
 import { discardQuiz } from '../../actions/discard'
 import { finishQuizSession } from '../../actions/finish'
 import { saveQuizForLater } from '../../actions/saved-quiz'
@@ -22,10 +21,6 @@ export async function submitQuizSession(sessionId: string, userId: string) {
     const result = await finishQuizSession({ sessionId, deviceId: getQuizDeviceId() })
     if (!result.success) return { success: false as const, error: result.error }
     clearActiveSessionIfCurrent(userId, sessionId)
-    // #909: a Server Action response triggers an App Router revalidation that cancels a
-    // pending soft navigation. Await cleanup so router.replace (in handleSubmitSession) runs
-    // with nothing in flight.
-    await clearDeploymentPin().catch(() => {})
     return { success: true as const }
   } catch {
     return { success: false as const, error: 'Something went wrong. Please try again.' }
@@ -38,9 +33,6 @@ export async function discardQuizSession(
   userId: string,
 ): Promise<ActionResult> {
   clearActiveSessionIfCurrent(userId, sessionId) // Always clear — respect discard intent even if Server Action fails
-  // Await before the later router.replace so the Server Action revalidation can't cancel the
-  // soft navigation (#909 — same race the submit paths fix).
-  await clearDeploymentPin().catch(() => {})
   try {
     const result = await discardQuiz({ sessionId })
     if (!result.success) return result
@@ -101,8 +93,6 @@ export async function handleSaveSession(opts: {
     })
     if (r.success) {
       clearActiveSessionIfCurrent(opts.userId, opts.sessionId)
-      // Await so the Server Action revalidation can't cancel the soft navigation (#909).
-      await clearDeploymentPin().catch(() => {})
       markRunnerExiting()
       opts.router.replace('/app/quiz')
       return
