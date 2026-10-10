@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, type NextResponse } from 'next/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { buildConsentCookieValue } from '@/lib/consent/check-consent'
 import { CONSENT_COOKIE } from '@/lib/consent/versions'
@@ -102,6 +102,27 @@ describe('legacy __vdpl deployment pin cookie', () => {
     await proxy(request)
 
     expect(MOCK_SESSION_RESPONSE.cookies.delete).toHaveBeenCalledWith('__vdpl')
+  })
+
+  it('expires a leftover pin on a request redirected to login', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: null } })
+    const cookies = MOCK_SESSION_RESPONSE.cookies
+    const originalGetAll = cookies.getAll
+    const expired = { name: '__vdpl', value: '', path: '/', expires: new Date(0) }
+    const written: (typeof expired)[] = []
+    cookies.delete.mockImplementation(() => written.push(expired))
+    cookies.getAll = () => [...originalGetAll(), ...written] as ReturnType<typeof originalGetAll>
+
+    const request = new NextRequest(new URL('/app/dashboard', 'http://localhost:3000'))
+    request.cookies.set('__vdpl', 'old-deployment-id')
+
+    try {
+      const res = (await proxy(request)) as NextResponse
+      expect(res.status).toBe(307)
+      expect(res.cookies.get('__vdpl')?.expires).toEqual(new Date(0))
+    } finally {
+      cookies.getAll = originalGetAll
+    }
   })
 
   it('leaves cookies untouched when the request carries no pin', async () => {

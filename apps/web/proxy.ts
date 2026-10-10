@@ -71,6 +71,9 @@ export async function proxy(request: NextRequest): Promise<Response> {
     console.error('[proxy] getUser error:', authError.message)
   }
 
+  // Expire a leftover legacy deployment-pin cookie; nothing sets one any more.
+  if (request.cookies.has('__vdpl')) response.cookies.delete('__vdpl')
+
   const { pathname } = request.nextUrl
 
   function redirectWithCookies(url: URL) {
@@ -146,9 +149,6 @@ export async function proxy(request: NextRequest): Promise<Response> {
       return redirectWithCookies(new URL('/app/dashboard', request.url))
     }
   }
-
-  // Expire a leftover legacy deployment-pin cookie; nothing sets one any more.
-  if (request.cookies.has('__vdpl')) response.cookies.delete('__vdpl')
 
   // Redirect authenticated users away from login page to dashboard, or to the
   // path they originally requested (e.g. from an emailed /app/... link).
