@@ -49,7 +49,7 @@ describe('deployment pin cookie', () => {
   })
 
   it('keeps the existing pin when the request already carries one', () => {
-    expect(run({ pathname: SESSION_PATH, pin: 'dpl_old' }).cookies.get('__vdpl')).toBeUndefined()
+    expect(run({ pathname: SESSION_PATH, pin: 'dpl_old' }).headers.get('set-cookie')).toBeNull()
   })
 
   it('does not pin a signed-out user', () => {
@@ -78,19 +78,11 @@ describe('deployment pin cookie', () => {
     expect(run({ pathname: '/app/dashboard' }).headers.get('set-cookie')).toBeNull()
   })
 
-  it('keeps the pin on a quiz session page that already carries one', () => {
-    expect(run({ pathname: SESSION_PATH, pin: 'dpl_old' }).headers.get('set-cookie')).toBeNull()
-  })
-
   it('expires the session-scoped pin when a Server Action runs outside a quiz session', () => {
     const header = run({ pathname: '/app/quiz', action: true }).headers.get('set-cookie') ?? ''
     expect(header).toContain('__vdpl=;')
     expect(header).toContain('Path=/app/quiz/session')
     expect(header).toMatch(/Expires=Thu, 01 Jan 1970/)
-  })
-
-  it('sets no cookie on a plain page load outside quiz sessions', () => {
-    expect(run({ pathname: '/app/dashboard' }).headers.get('set-cookie')).toBeNull()
   })
 
   it('expires a leftover site-wide pin rather than the scoped one when a Server Action carries it', () => {
