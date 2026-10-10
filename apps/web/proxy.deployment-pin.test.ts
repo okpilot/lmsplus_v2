@@ -146,4 +146,21 @@ describe('__vdpl deployment pinning cookie', () => {
 
     expect(MOCK_SESSION_RESPONSE.cookies.delete).toHaveBeenCalledWith('__vdpl')
   })
+
+  it('expires the session-scoped __vdpl cookie when a Server Action fires outside quiz sessions', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+
+    const request = new NextRequest(new URL('/app/quiz', 'http://localhost:3000'), {
+      method: 'POST',
+      headers: { 'next-action': 'abc' },
+    })
+    request.cookies.set(CONSENT_COOKIE, buildConsentCookieValue('user-1'))
+
+    await proxy(request)
+
+    expect(MOCK_SESSION_RESPONSE.cookies.delete).toHaveBeenCalledWith({
+      name: '__vdpl',
+      path: '/app/quiz/session',
+    })
+  })
 })

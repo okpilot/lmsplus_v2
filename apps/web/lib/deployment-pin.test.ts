@@ -7,8 +7,11 @@ const DEPLOYMENT_ID = 'dpl_test_abc123'
 const USER = { id: 'user-1' } as User
 const SESSION_PATH = '/app/quiz/session/sess-1'
 
-function run(opts: { pathname: string; user?: User | null; pin?: string }) {
-  const request = new NextRequest(new URL(opts.pathname, 'http://localhost:3000'))
+function run(opts: { pathname: string; user?: User | null; pin?: string; action?: boolean }) {
+  const url = new URL(opts.pathname, 'http://localhost:3000')
+  const request = opts.action
+    ? new NextRequest(url, { method: 'POST', headers: { 'next-action': 'abc' } })
+    : new NextRequest(url)
   if (opts.pin) request.cookies.set('__vdpl', opts.pin)
   const response = NextResponse.next()
   syncDeploymentPin({
@@ -77,5 +80,29 @@ describe('deployment pin cookie', () => {
 
   it('keeps the pin on a quiz session page that already carries one', () => {
     expect(run({ pathname: SESSION_PATH, pin: 'dpl_old' }).headers.get('set-cookie')).toBeNull()
+  })
+
+  it('expires the session-scoped pin when a Server Action runs outside a quiz session', () => {
+    const header = run({ pathname: '/app/quiz', action: true }).headers.get('set-cookie') ?? ''
+    expect(header).toContain('__vdpl=;')
+    expect(header).toContain('Path=/app/quiz/session')
+    expect(header).toMatch(/Expires=Thu, 01 Jan 1970/)
+  })
+
+  it('sets no cookie on a plain page load outside quiz sessions', () => {
+    expect(run({ pathname: '/app/dashboard' }).headers.get('set-cookie')).toBeNull()
+  })
+
+  it('expires a leftover site-wide pin rather than the scoped one when a Server Action carries it', () => {
+    const header =
+      run({ pathname: '/app/quiz', action: true, pin: 'dpl_old' }).headers.get('set-cookie') ?? ''
+    expect(header).toContain('__vdpl=;')
+    expect(header).toContain('Path=/;')
+    expect(header).not.toContain('Path=/app/quiz/session')
+  })
+
+  it('keeps the pin when a Server Action runs inside a quiz session', () => {
+    const response = run({ pathname: SESSION_PATH, action: true, pin: 'dpl_old' })
+    expect(response.headers.get('set-cookie')).toBeNull()
   })
 })

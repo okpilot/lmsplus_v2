@@ -3,9 +3,12 @@ import type { NextRequest, NextResponse } from 'next/server'
 import { isLiveSessionPath, LIVE_SESSION_PREFIX } from './deployment-version'
 
 export const DEPLOYMENT_PIN_COOKIE = '__vdpl'
-export const DEPLOYMENT_PIN_MAX_AGE_SECONDS = 8 * 60 * 60
+const DEPLOYMENT_PIN_MAX_AGE_SECONDS = 8 * 60 * 60
 
-/** Pins quiz session pages to the current deployment (Skew Protection) and expires the pin elsewhere. */
+/**
+ * Pins quiz session pages to the current deployment (Skew Protection). A Server Action elsewhere
+ * expires the pin so the next quiz pins the current build; a leftover site-wide pin is expired.
+ */
 export function syncDeploymentPin(opts: {
   pathname: string
   user: User | null
@@ -16,6 +19,9 @@ export function syncDeploymentPin(opts: {
   const hasPin = request.cookies.has(DEPLOYMENT_PIN_COOKIE)
   if (!isLiveSessionPath(pathname)) {
     if (hasPin) response.cookies.delete(DEPLOYMENT_PIN_COOKIE)
+    else if (request.headers.has('next-action')) {
+      response.cookies.delete({ name: DEPLOYMENT_PIN_COOKIE, path: LIVE_SESSION_PREFIX })
+    }
     return
   }
   const deploymentId = process.env.VERCEL_DEPLOYMENT_ID
