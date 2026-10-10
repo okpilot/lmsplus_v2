@@ -70,7 +70,7 @@ describe('deployment pin cookie', () => {
   })
 
   it('expires a leftover pin for a signed-out visitor too', () => {
-    const response = run({ pathname: '/login', user: null, pin: 'dpl_old' })
+    const response = run({ pathname: '/', user: null, pin: 'dpl_old' })
     expect(response.headers.get('set-cookie') ?? '').toContain('__vdpl=;')
   })
 
