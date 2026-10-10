@@ -40,7 +40,7 @@ function createVersionCheck(opts: PollingOptions, isStopped: () => boolean): Ver
       const latest = await fetchDeploymentVersion()
       if (isStopped() || !latest || opts.isSuppressed()) return
       if (baseline === null) {
-        // A late baseline may already be the new version; accepted.
+        // Fallback without a build id: a late baseline may already be the new version; accepted.
         baseline = latest
         return
       }
@@ -62,7 +62,10 @@ export function startVersionPolling(opts: PollingOptions): () => void {
     void check()
   }
 
-  void fetchDeploymentVersion().then(seedBaseline)
+  // The build this tab runs; Next inlines it on Vercel (the literal must stay `process.env.NEXT_DEPLOYMENT_ID`).
+  const ownBuild = process.env.NEXT_DEPLOYMENT_ID
+  if (ownBuild) seedBaseline(ownBuild)
+  else void fetchDeploymentVersion().then(seedBaseline)
   const timer = setInterval(run, opts.intervalMs)
   document.addEventListener('visibilitychange', run)
   window.addEventListener('focus', run)
