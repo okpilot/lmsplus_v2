@@ -7,7 +7,7 @@ export const CURRENT_PRIVACY_VERSION = 'v1.0'
  *
  * Named `__consent_u` (not `__consent`) so a rollout never rewrites the
  * pre-existing `__consent` cookie: Vercel deployment pinning (`__vdpl`,
- * `apps/web/proxy.ts` `pinQuizSessionDeployment`) can keep an in-progress quiz
+ * `apps/web/lib/deployment-pin.ts` `syncDeploymentPin`) can keep an in-progress quiz
  * session on the OLD deployment, whose proxy still checks the old cookie name
  * and value. A same-named rewrite would bounce that pinned quiz to /consent
  * mid-session; a new name leaves the old cookie untouched for old deployments.
