@@ -144,7 +144,7 @@ reviews:
         - Critical mutations (discardQuiz, deleteDraft) MUST be awaited before the terminal
           navigation. Sequencing them before is insufficient — a slow action's revalidation can
           cancel the pending soft-nav and strand the user (#568, #909).
-        - Non-critical fire-and-forget cleanup (clearDeploymentPin) must at least be fired before
+        - Non-critical fire-and-forget cleanup (e.g. an analytics ping) must at least be fired before
           the navigation so the navigation stays the last statement.
         - Never invoke a Server Action after a terminal navigation (router.push/replace or
           window.location.assign).

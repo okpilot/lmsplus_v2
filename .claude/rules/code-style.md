@@ -542,19 +542,19 @@ The same applies to any scalar captured across a hook split (e.g. a `currentInde
 ### Await Server Actions Before Terminal Navigation
 A **terminal navigation** (`router.push`/`replace`, `window.location.assign` to a page the user can't return to) must be the **last statement** on its path. `router.refresh()` is not terminal — it revalidates in place, so a racing Server Action can't cancel it. Sequencing a Server Action before a terminal nav is not sufficient: a slow revalidation can still cancel the pending soft-nav even when invoked first.
 - **Critical mutations** (must settle before leaving, e.g. `discardQuiz`): **await** before the terminal navigation.
-- **Non-critical cleanup** (e.g. `clearDeploymentPin`): fire it before the nav at minimum; bound a slow one (`Promise.race` + timeout) and pair with a `window.location.assign` fallback.
+- **Non-critical cleanup** (e.g. an analytics ping — `logQuizExit`, illustrative): fire it before the nav at minimum; bound a slow one (`Promise.race` + timeout) and pair with a `window.location.assign` fallback.
 ```ts
 // ❌ WRONG — a Server Action fired AFTER the terminal navigation can cancel the soft-nav
 router.replace('/app/quiz')
 discardQuiz({ sessionId }).catch(() => {})
 
 // ✅ CORRECT — await the critical mutation; non-critical cleanup fires before; nav is last
-clearDeploymentPin().catch(() => {})                       // non-critical: fire before nav
+logQuizExit().catch(() => {})                              // non-critical: fire before nav
 await discardQuiz({ sessionId }).catch(() => {})           // critical: await to settle (best-effort)
 router.replace('/app/quiz')                                // terminal nav: last statement
 
 // ✅ CORRECT — no critical mutation; non-critical cleanup fires before, nav is last (save path)
-clearDeploymentPin().catch(() => {})
+logQuizExit().catch(() => {})
 router.push('/app/quiz')
 ```
 `.catch(() => {})` above is for **ordering**, not a success guarantee — best-effort cleanup navigates regardless of outcome. When success IS a precondition, branch on the error instead of swallowing it. A sync state update (e.g. `setLoading(false)`) between action and nav is fine — not a Server Action, doesn't displace the nav as the last effectful statement.

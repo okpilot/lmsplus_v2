@@ -38,10 +38,10 @@ test.describe('practice exam — auto-submit on timer expiry', () => {
   // Regression for #568: a 0-answer auto-submit used to hang on /app/quiz/session.
   // Server side completed correctly (ended_at set, score=0%, passed=false) and the
   // report RSC rendered 200 OK, but the frame URL never transitioned to
-  // /app/quiz/report. Root cause: clearDeploymentPin() (a Server Action) was invoked
+  // /app/quiz/report. Root cause: a Server Action was invoked
   // AFTER router.push in the empty-exam path; the Server Action's App Router
-  // revalidation cancelled the pending soft navigation. Fixed by firing
-  // clearDeploymentPin BEFORE push (quiz-submit.ts).
+  // revalidation cancelled the pending soft navigation. Fixed by awaiting every
+  // Server Action BEFORE push (quiz-submit.ts).
   test('lands on the report page with 0% / FAIL when the timer expires with no answers', async ({
     page,
   }) => {

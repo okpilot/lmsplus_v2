@@ -61,7 +61,7 @@ lmsplusv2/
 - **Supabase Storage**: Image upload for question images. Policy model: `docs/security.md`
   §13.
 - **Sentry**: Error tracking and performance monitoring. Source map upload during build.
-- **Vercel**: Hosting with Skew Protection (4hr max age). Serverless functions for Server Actions.
+- **Vercel**: Hosting with Skew Protection (7-day max age). Serverless functions for Server Actions.
 - **SonarCloud**: Static analysis with 80% new-code coverage gate.
 - **Codecov**: Coverage reporting with per-package flags (web, db).
 
@@ -118,7 +118,7 @@ lmsplusv2/
 
 ## Deployment & Distribution
 
-- **Target platform**: Vercel Pro (serverless, edge network). Skew Protection enabled with 4-hour max age.
+- **Target platform**: Vercel Pro (serverless, edge network). Skew Protection enabled with 7-day max age.
 - **Distribution**: SaaS -- users access via `https://lmsplus.app`.
 - **CI/CD pipelines** (GitHub Actions):
   - `ci.yml`: lint, type-check, coverage (Vitest + v8), Codecov upload, dependency audit -- every PR + push to master

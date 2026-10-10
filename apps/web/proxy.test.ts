@@ -140,7 +140,7 @@ describe('proxy', () => {
   it('ignores a cookie under the pre-rollout name and still requires the current-name cookie', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
     const request = makeRequest('/app/dashboard')
-    // A deployment pinned before the CONSENT_COOKIE rename (#1377 follow-up) never
+    // A deployment kept alive by Skew Protection from before the CONSENT_COOKIE rename (#1377 follow-up) never
     // rewrites this old-named cookie — the new deployment must not accept it either.
     request.cookies.set('__consent', buildConsentCookieValue('user-1'))
 

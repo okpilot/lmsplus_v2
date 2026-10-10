@@ -1,5 +1,4 @@
 import { createMiddlewareSupabaseClient } from '@repo/db/middleware'
-import type { User } from '@supabase/supabase-js'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { safeNextPath } from '@/lib/auth/safe-next-path'
@@ -56,25 +55,6 @@ function serviceUnavailable(response: NextResponse): NextResponse {
   return unavailable
 }
 
-/** Pins a mid-quiz session's `__vdpl` cookie so a deploy mid-quiz doesn't break Server Actions. */
-function pinQuizSessionDeployment(opts: {
-  pathname: string
-  user: User | null
-  request: NextRequest
-  response: NextResponse
-}): void {
-  const { pathname, user, request, response } = opts
-  if (!pathname.startsWith('/app/quiz/session') || !user) return
-  const deploymentId = process.env.VERCEL_DEPLOYMENT_ID
-  if (!deploymentId || request.cookies.get('__vdpl')) return
-  response.cookies.set('__vdpl', deploymentId, {
-    path: '/',
-    httpOnly: true,
-    sameSite: 'strict',
-    secure: process.env.NODE_ENV === 'production',
-  })
-}
-
 export async function proxy(request: NextRequest): Promise<Response> {
   // Cast needed: @playwright/test causes a duplicate next.js install with incompatible internal types
   const { supabase, response } = createMiddlewareSupabaseClient(
@@ -90,6 +70,9 @@ export async function proxy(request: NextRequest): Promise<Response> {
   if (authError) {
     console.error('[proxy] getUser error:', authError.message)
   }
+
+  // Expire a leftover legacy deployment-pin cookie; nothing sets one any more.
+  if (request.cookies.has('__vdpl')) response.cookies.delete('__vdpl')
 
   const { pathname } = request.nextUrl
 
@@ -166,8 +149,6 @@ export async function proxy(request: NextRequest): Promise<Response> {
       return redirectWithCookies(new URL('/app/dashboard', request.url))
     }
   }
-
-  pinQuizSessionDeployment({ pathname, user, request, response })
 
   // Redirect authenticated users away from login page to dashboard, or to the
   // path they originally requested (e.g. from an emailed /app/... link).

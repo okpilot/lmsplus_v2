@@ -86,6 +86,7 @@ describe('startVersionPolling', () => {
 
   afterEach(() => {
     vi.useRealTimers()
+    vi.unstubAllEnvs()
   })
 
   it('reports a new version once the polled id differs from the baseline', async () => {
@@ -95,6 +96,36 @@ describe('startVersionPolling', () => {
     respond('v2')
     await advance(INTERVAL)
     expect(onNewVersion).toHaveBeenCalledOnce()
+    stop()
+  })
+
+  it('reports a new version when the tab runs an older build than the server, even while suppressed at load', async () => {
+    vi.stubEnv('NEXT_DEPLOYMENT_ID', 'dpl_A')
+    respond('dpl_B')
+    suppressed = true
+    const stop = start()
+    await advance(INTERVAL)
+    suppressed = false
+    await advance(INTERVAL)
+    expect(onNewVersion).toHaveBeenCalledOnce()
+    stop()
+  })
+
+  it('takes the baseline from the build id without fetching it', async () => {
+    vi.stubEnv('NEXT_DEPLOYMENT_ID', 'dpl_A')
+    respond('dpl_A')
+    const stop = start()
+    await advance(0)
+    expect(mockFetch).not.toHaveBeenCalled()
+    stop()
+  })
+
+  it('falls back to fetching the baseline when the build id is empty', async () => {
+    vi.stubEnv('NEXT_DEPLOYMENT_ID', '')
+    respond('v1')
+    const stop = start()
+    await advance(0)
+    expect(mockFetch).toHaveBeenCalledOnce()
     stop()
   })
 

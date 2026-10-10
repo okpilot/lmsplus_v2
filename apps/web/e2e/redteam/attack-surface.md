@@ -248,6 +248,7 @@
 | HV | saved-quiz-rpcs-audit-completeness | MEDIUM | rpc-saved-quiz-resume-open-audit.spec.ts | BLOCKED |  | sibling-guard-gap |
 | HW | legacy-completion-rpcs-taken-over-exam-keyed-finish | HIGH | legacy-completion-rpcs-dropped.spec.ts | BLOCKED |  | sibling-guard-gap |
 | HX | resumeQuizSession-forged-draft-session-ref | MEDIUM | quiz-draft-resume-session-ref.spec.ts | BLOCKED |  | idor |
+| HY | proxy-legacy-__vdpl-expiry | LOW | deployment-pin-cookie.spec.ts | BLOCKED |  | cookie-state |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 

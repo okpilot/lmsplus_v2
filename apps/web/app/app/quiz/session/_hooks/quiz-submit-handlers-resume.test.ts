@@ -9,9 +9,6 @@ const { mockRouterReplace, mockFinishQuizSession, mockCheckAnswer } = vi.hoisted
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ replace: mockRouterReplace }) }))
 vi.mock('../../actions/finish', () => ({ finishQuizSession: mockFinishQuizSession }))
-vi.mock('../../actions/clear-deployment-pin', () => ({
-  clearDeploymentPin: () => Promise.resolve(),
-}))
 vi.mock('../../actions/discard', () => ({ discardQuiz: vi.fn() }))
 vi.mock('../../actions/check-answer', () => ({ checkAnswer: mockCheckAnswer }))
 vi.mock('../../actions/quiz-progress', () => ({
