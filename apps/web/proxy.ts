@@ -5,7 +5,6 @@ import { safeNextPath } from '@/lib/auth/safe-next-path'
 import { checkTempPasswordGate } from '@/lib/auth/temp-password-gate'
 import { checkConsentGate } from '@/lib/consent/consent-gate'
 import { CONSENT_COOKIE } from '@/lib/consent/versions'
-import { syncDeploymentPin } from '@/lib/deployment-pin'
 
 /** Sets `next` on a redirect target when a validated path is present, otherwise leaves the URL bare. */
 function withNext(url: URL, next: string | null): URL {
@@ -148,7 +147,8 @@ export async function proxy(request: NextRequest): Promise<Response> {
     }
   }
 
-  syncDeploymentPin({ pathname, user, request, response })
+  // Expire a leftover legacy deployment-pin cookie; nothing sets one any more.
+  if (request.cookies.has('__vdpl')) response.cookies.delete('__vdpl')
 
   // Redirect authenticated users away from login page to dashboard, or to the
   // path they originally requested (e.g. from an emailed /app/... link).

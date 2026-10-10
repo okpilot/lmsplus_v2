@@ -5,7 +5,7 @@ import { CONSENT_COOKIE } from '@/lib/consent/versions'
 import { proxy } from './proxy'
 
 // Split out of proxy.test.ts to stay under the test-file size cap — the
-// __vdpl deployment-pinning cookie is a self-contained concern with its own
+// legacy __vdpl cookie expiry is a self-contained concern with its own
 // beforeEach/afterEach, sharing only the module-level mock shape.
 
 const mockGetUser = vi.fn()
@@ -58,13 +58,11 @@ function makeConsentedRequest(pathname: string, userId = 'user-1', base = 'http:
   return request
 }
 
-describe('__vdpl deployment pinning cookie', () => {
-  const DEPLOYMENT_ID = 'dpl_test_abc123'
-
+describe('legacy __vdpl deployment pin cookie', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    vi.resetAllMocks()
     MOCK_SESSION_RESPONSE.headers = new Headers()
-    process.env.VERCEL_DEPLOYMENT_ID = DEPLOYMENT_ID
+    process.env.VERCEL_DEPLOYMENT_ID = 'dpl_test_abc123'
     mockReadTempPasswordState.mockResolvedValue('none')
   })
 
@@ -72,71 +70,29 @@ describe('__vdpl deployment pinning cookie', () => {
     delete process.env.VERCEL_DEPLOYMENT_ID
   })
 
-  it('sets __vdpl cookie with correct options when on quiz session path, user authenticated, deployment id set, and cookie absent', async () => {
+  it('never sets a pin on a session page', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
 
     await proxy(makeConsentedRequest('/app/quiz/session/sess-1'))
 
-    expect(MOCK_SESSION_RESPONSE.cookies.set).toHaveBeenCalledWith('__vdpl', DEPLOYMENT_ID, {
-      path: '/app/quiz/session',
-      maxAge: 8 * 60 * 60,
-      httpOnly: true,
-      sameSite: 'strict',
-      secure: process.env.NODE_ENV === 'production',
-    })
-  })
-
-  it('sets secure: false when NODE_ENV is not production (test environment)', async () => {
-    // NODE_ENV=test in Vitest — secure must be false so local dev cookies work
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
-
-    await proxy(makeConsentedRequest('/app/quiz/session/sess-1'))
-
-    const call = (MOCK_SESSION_RESPONSE.cookies.set.mock.calls as unknown[][]).find(
+    const vdplCall = (MOCK_SESSION_RESPONSE.cookies.set.mock.calls as unknown[][]).find(
       (c) => c[0] === '__vdpl',
-    ) as [string, string, Record<string, unknown>] | undefined
-    expect(call).toBeDefined()
-    expect(call?.[2]?.secure).toBe(false)
+    )
+    expect(vdplCall).toBeUndefined()
   })
 
-  it('does not set __vdpl cookie when it already exists on the request', async () => {
+  it('expires a leftover pin carried by a session-page request', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
 
     const request = makeConsentedRequest('/app/quiz/session/sess-1')
-    request.cookies.set('__vdpl', 'existing-deployment-id')
+    request.cookies.set('__vdpl', 'old-deployment-id')
 
     await proxy(request)
 
-    const vdplCall = (MOCK_SESSION_RESPONSE.cookies.set.mock.calls as unknown[][]).find(
-      (c) => c[0] === '__vdpl',
-    )
-    expect(vdplCall).toBeUndefined()
+    expect(MOCK_SESSION_RESPONSE.cookies.delete).toHaveBeenCalledWith('__vdpl')
   })
 
-  it('does not set __vdpl cookie when not on the quiz session path', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
-
-    await proxy(makeConsentedRequest('/app/dashboard'))
-
-    const vdplCall = (MOCK_SESSION_RESPONSE.cookies.set.mock.calls as unknown[][]).find(
-      (c) => c[0] === '__vdpl',
-    )
-    expect(vdplCall).toBeUndefined()
-  })
-
-  it('does not set __vdpl cookie when VERCEL_DEPLOYMENT_ID is not set', async () => {
-    delete process.env.VERCEL_DEPLOYMENT_ID
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
-
-    await proxy(makeConsentedRequest('/app/quiz/session/sess-1'))
-
-    const vdplCall = (MOCK_SESSION_RESPONSE.cookies.set.mock.calls as unknown[][]).find(
-      (c) => c[0] === '__vdpl',
-    )
-    expect(vdplCall).toBeUndefined()
-  })
-
-  it('expires a leftover __vdpl cookie on a page outside quiz sessions', async () => {
+  it('expires a leftover pin on a page outside quiz sessions', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
 
     const request = makeConsentedRequest('/app/dashboard')
@@ -145,5 +101,14 @@ describe('__vdpl deployment pinning cookie', () => {
     await proxy(request)
 
     expect(MOCK_SESSION_RESPONSE.cookies.delete).toHaveBeenCalledWith('__vdpl')
+  })
+
+  it('leaves cookies untouched when the request carries no pin', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+
+    await proxy(makeConsentedRequest('/app/dashboard'))
+
+    expect(MOCK_SESSION_RESPONSE.cookies.delete).not.toHaveBeenCalled()
+    expect(MOCK_SESSION_RESPONSE.cookies.set).not.toHaveBeenCalled()
   })
 })

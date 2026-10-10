@@ -3,7 +3,6 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import { blockedFlag, type WithBlocked } from '@/app/app/quiz/actions/_blocked-start'
-import { clearDeploymentPin } from '@/app/app/quiz/actions/clear-deployment-pin'
 import { rpc } from '@/lib/supabase-rpc'
 import { START_INTERNAL_EXAM_ERROR_MESSAGES } from './_error-messages'
 
@@ -73,7 +72,6 @@ export async function startInternalExam(raw: unknown): Promise<StartInternalExam
     }
 
     const result: RpcRow = rowParsed.data
-    await clearDeploymentPin()
     return {
       success: true,
       sessionId: result.session_id,

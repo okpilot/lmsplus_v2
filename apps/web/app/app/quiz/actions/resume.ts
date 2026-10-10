@@ -3,7 +3,6 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import { rpc } from '@/lib/supabase-rpc'
-import { clearDeploymentPin } from './clear-deployment-pin'
 import { closePracticeSessionForDraft } from './draft-helpers'
 import { mapResumeRpcError } from './resume-error-messages'
 import { loadResumeContext, type ResumeContext } from './resume-helpers'
@@ -80,7 +79,6 @@ export async function resumeQuizSession(raw: unknown): Promise<ResumeQuizResult>
     if (!(await finishResume(supabase, ids, ctx))) {
       return { success: false, error: 'Failed to resume this saved quiz. Please try again.' }
     }
-    await clearDeploymentPin()
     return { success: true, sessionId: started.sessionId, questionIds: ctx.questionIds }
   } catch (err) {
     console.error('[resumeQuizSession] Uncaught error:', err)

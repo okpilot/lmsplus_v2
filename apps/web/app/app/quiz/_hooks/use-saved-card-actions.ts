@@ -1,6 +1,5 @@
 import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
-import { clearDeploymentPin } from '../actions/clear-deployment-pin'
 import { isDisplayableProgressError } from '../actions/progress-error-messages'
 import { discardSavedQuiz, resumeSavedQuiz } from '../actions/saved-quiz'
 import { getQuizDeviceId } from '../session/_utils/quiz-device-id'
@@ -35,7 +34,6 @@ function useResume(sessionId: string, setError: SetError) {
     } catch {
       return fail(RESUME_ERROR)
     }
-    await clearDeploymentPin().catch(() => {})
     // Terminal navigation is the last statement; ref intentionally NOT reset (success).
     router.push(`/app/quiz/session/${sessionId}`)
   }

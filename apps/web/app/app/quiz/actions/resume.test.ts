@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockGetUser, mockRpc, mockLoad, mockHeal, mockFinish, mockClearPin } = vi.hoisted(() => ({
-  mockClearPin: vi.fn(),
+const { mockGetUser, mockRpc, mockLoad, mockHeal, mockFinish } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
   mockRpc: vi.fn(),
   mockLoad: vi.fn(),
@@ -18,8 +17,6 @@ vi.mock('./draft-helpers', () => ({
   closePracticeSessionForDraft: (...a: unknown[]) => mockHeal(...a),
 }))
 vi.mock('./resume-seed', () => ({ finishResume: (...a: unknown[]) => mockFinish(...a) }))
-
-vi.mock('./clear-deployment-pin', () => ({ clearDeploymentPin: mockClearPin }))
 
 import { resumeQuizSession } from './resume'
 
@@ -59,17 +56,6 @@ describe('resumeQuizSession', () => {
       { draftId: DRAFT, userId: USER, sessionId: NEW_SESSION },
       CTX,
     )
-  })
-
-  it('expires the quiz deployment pin when a saved draft resumes into a new session', async () => {
-    await resumeQuizSession({ draftId: DRAFT })
-    expect(mockClearPin).toHaveBeenCalledTimes(1)
-  })
-
-  it('keeps the quiz deployment pin when the draft fails to resume', async () => {
-    mockFinish.mockResolvedValue(false)
-    await resumeQuizSession({ draftId: DRAFT })
-    expect(mockClearPin).not.toHaveBeenCalled()
   })
 
   it('fails with a generic message and no sessionId when seeding fails', async () => {

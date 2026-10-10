@@ -2,8 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetUser, mockRpc, mockGetRandomQuestionIds, mockClearPin } = vi.hoisted(() => ({
-  mockClearPin: vi.fn(),
+const { mockGetUser, mockRpc, mockGetRandomQuestionIds } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
   mockRpc: vi.fn(),
   mockGetRandomQuestionIds: vi.fn(),
@@ -22,8 +21,6 @@ vi.mock('@/lib/supabase-rpc', () => ({
 vi.mock('@/lib/queries/quiz-session-queries', () => ({
   getRandomQuestionIds: mockGetRandomQuestionIds,
 }))
-
-vi.mock('./clear-deployment-pin', () => ({ clearDeploymentPin: mockClearPin }))
 
 // ---- Subject under test ---------------------------------------------------
 
@@ -136,22 +133,6 @@ describe('startQuizSession', () => {
     if (!result.success) return
     expect(result.sessionId).toBe('session-123')
     expect(result.questionIds).toEqual(['q1', 'q2', 'q3'])
-  })
-
-  it('expires the quiz deployment pin when a quiz starts', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
-    mockGetRandomQuestionIds.mockResolvedValue(['q1'])
-    mockRpc.mockResolvedValue({ data: 'session-123', error: null })
-    await startQuizSession({ subjectId: '00000000-0000-4000-a000-000000000001', count: 1 })
-    expect(mockClearPin).toHaveBeenCalledTimes(1)
-  })
-
-  it('keeps the quiz deployment pin when the session fails to start', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
-    mockGetRandomQuestionIds.mockResolvedValue(['q1'])
-    mockRpc.mockResolvedValue({ data: null, error: { message: 'another_session_active' } })
-    await startQuizSession({ subjectId: '00000000-0000-4000-a000-000000000001', count: 1 })
-    expect(mockClearPin).not.toHaveBeenCalled()
   })
 
   it('passes topicIds array to getRandomQuestionIds', async () => {

@@ -1,6 +1,5 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { rpc } from '@/lib/supabase-rpc'
-import { clearDeploymentPin } from './clear-deployment-pin'
 
 // Maps start_discovery_session RPC error tokens to sanitized domain messages.
 // another_session_active is the single-active-session guard (PR A); every other
@@ -37,8 +36,6 @@ export async function createDiscoverySession(
       console.error('[startStudy] start_discovery_session returned no session id')
       return { id: null, error: 'Failed to start study session' }
     }
-    // Runs before startStudy's final success; harmless when the start then fails.
-    await clearDeploymentPin()
     return { id: data, error: null }
   } catch (error) {
     // createServerSupabaseClient() (missing env) or the RPC transport can throw —

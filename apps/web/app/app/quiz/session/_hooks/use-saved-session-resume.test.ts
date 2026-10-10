@@ -1,9 +1,8 @@
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockResume, mockDiscard, mockRefresh, mockPush, mockClearPin } = vi.hoisted(() => ({
+const { mockResume, mockDiscard, mockRefresh, mockPush } = vi.hoisted(() => ({
   mockResume: vi.fn(),
-  mockClearPin: vi.fn(),
   mockDiscard: vi.fn(),
   mockRefresh: vi.fn(),
   mockPush: vi.fn(),
@@ -14,9 +13,6 @@ vi.mock('../../actions/saved-quiz', () => ({
   resumeSavedQuiz: (...a: unknown[]) => mockResume(...a),
   discardSavedQuiz: (...a: unknown[]) => mockDiscard(...a),
 }))
-vi.mock('../../actions/clear-deployment-pin', () => ({
-  clearDeploymentPin: () => mockClearPin(),
-}))
 vi.mock('../_utils/quiz-device-id', () => ({ getQuizDeviceId: () => 'device-1' }))
 
 import { useSavedSessionResume } from './use-saved-session-resume'
@@ -25,7 +21,6 @@ beforeEach(() => {
   vi.resetAllMocks()
   mockResume.mockResolvedValue({ success: true })
   mockDiscard.mockResolvedValue({ success: true })
-  mockClearPin.mockResolvedValue(undefined)
   vi.spyOn(window, 'confirm').mockReturnValue(true)
 })
 
@@ -39,7 +34,6 @@ describe('useSavedSessionResume', () => {
 
     expect(mockResume).toHaveBeenCalledWith({ sessionId: 's1', deviceId: 'device-1' })
     expect(mockRefresh).toHaveBeenCalledTimes(1)
-    expect(mockClearPin).not.toHaveBeenCalled()
   })
 
   it('shows the mapped error and stays put when the resume is refused', async () => {
@@ -88,30 +82,6 @@ describe('useSavedSessionResume', () => {
     })
 
     expect(mockDiscard).toHaveBeenCalledWith({ sessionId: 's1' })
-    expect(mockPush).toHaveBeenCalledWith('/app/quiz')
-  })
-
-  it('unpins the deployment before leaving for the quiz page after a delete', async () => {
-    const { result } = renderHook(() => useSavedSessionResume('s1'))
-
-    await act(async () => {
-      await result.current.discard()
-    })
-
-    expect(mockClearPin).toHaveBeenCalledTimes(1)
-    expect(mockClearPin.mock.invocationCallOrder[0]).toBeLessThan(
-      mockPush.mock.invocationCallOrder[0] ?? 0,
-    )
-  })
-
-  it('still returns to the quiz page when unpinning the deployment fails', async () => {
-    mockClearPin.mockRejectedValue(new Error('cookie'))
-    const { result } = renderHook(() => useSavedSessionResume('s1'))
-
-    await act(async () => {
-      await result.current.discard()
-    })
-
     expect(mockPush).toHaveBeenCalledWith('/app/quiz')
   })
 

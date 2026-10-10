@@ -1,6 +1,5 @@
 import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
-import { clearDeploymentPin } from '../../actions/clear-deployment-pin'
 import { discardSavedQuiz, resumeSavedQuiz } from '../../actions/saved-quiz'
 import { getQuizDeviceId } from '../_utils/quiz-device-id'
 
@@ -50,10 +49,7 @@ export function useSavedSessionResume(sessionId: string) {
       if (!window.confirm('Delete this saved quiz? This cannot be undone.')) return
       return run(
         () => discardSavedQuiz({ sessionId }),
-        async () => {
-          await clearDeploymentPin().catch(() => {})
-          router.push('/app/quiz')
-        },
+        () => router.push('/app/quiz'),
       )
     },
   }

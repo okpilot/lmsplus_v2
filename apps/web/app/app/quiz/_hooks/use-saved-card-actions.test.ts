@@ -1,8 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockResume, mockDiscard, mockPush, mockRefresh, mockClearPin } = vi.hoisted(() => ({
-  mockClearPin: vi.fn(),
+const { mockResume, mockDiscard, mockPush, mockRefresh } = vi.hoisted(() => ({
   mockResume: vi.fn(),
   mockDiscard: vi.fn(),
   mockPush: vi.fn(),
@@ -14,9 +13,6 @@ vi.mock('../actions/saved-quiz', () => ({
   resumeSavedQuiz: (...a: unknown[]) => mockResume(...a),
   discardSavedQuiz: (...a: unknown[]) => mockDiscard(...a),
 }))
-vi.mock('../actions/clear-deployment-pin', () => ({
-  clearDeploymentPin: (...a: unknown[]) => mockClearPin(...a),
-}))
 vi.mock('../session/_utils/quiz-device-id', () => ({ getQuizDeviceId: () => 'device-1' }))
 
 import { PROGRESS_ERROR_MESSAGES } from '../actions/progress-error-messages'
@@ -26,7 +22,6 @@ beforeEach(() => {
   vi.resetAllMocks()
   mockResume.mockResolvedValue({ success: true })
   mockDiscard.mockResolvedValue({ success: true })
-  mockClearPin.mockResolvedValue(undefined)
   vi.spyOn(window, 'confirm').mockReturnValue(true)
 })
 
@@ -38,36 +33,6 @@ describe('useSavedCardActions', () => {
 
     expect(mockResume).toHaveBeenCalledWith({ sessionId: 's1', deviceId: 'device-1' })
     expect(mockPush).toHaveBeenCalledWith('/app/quiz/session/s1')
-  })
-
-  it('expires the quiz deployment pin before opening a resumed saved session', async () => {
-    const order: string[] = []
-    mockClearPin.mockImplementation(async () => void order.push('clear'))
-    mockPush.mockImplementation(() => void order.push('push'))
-    const { result } = renderHook(() => useSavedCardActions('s1'))
-
-    await act(() => result.current.resume())
-
-    expect(mockClearPin).toHaveBeenCalledTimes(1)
-    expect(order).toEqual(['clear', 'push'])
-  })
-
-  it('still opens the resumed session when expiring the pin fails', async () => {
-    mockClearPin.mockRejectedValue(new Error('boom'))
-    const { result } = renderHook(() => useSavedCardActions('s1'))
-
-    await act(() => result.current.resume())
-
-    expect(mockPush).toHaveBeenCalledWith('/app/quiz/session/s1')
-  })
-
-  it('keeps the quiz deployment pin when the saved session fails to resume', async () => {
-    mockResume.mockResolvedValueOnce({ success: false, error: 'x' })
-    const { result } = renderHook(() => useSavedCardActions('s1'))
-
-    await act(() => result.current.resume())
-
-    expect(mockClearPin).not.toHaveBeenCalled()
   })
 
   it('resumes only once when resume is triggered twice in the same tick', async () => {
