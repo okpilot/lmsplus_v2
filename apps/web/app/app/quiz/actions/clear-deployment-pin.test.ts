@@ -25,6 +25,6 @@ describe('clearDeploymentPin', () => {
   it('deletes the __vdpl cookie', async () => {
     await clearDeploymentPin()
     expect(mockDelete).toHaveBeenCalledOnce()
-    expect(mockDelete).toHaveBeenCalledWith('__vdpl')
+    expect(mockDelete).toHaveBeenCalledWith({ name: '__vdpl', path: '/app/quiz/session' })
   })
 })

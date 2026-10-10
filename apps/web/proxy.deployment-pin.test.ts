@@ -36,6 +36,7 @@ const MOCK_SESSION_RESPONSE = {
       },
     ],
     set: vi.fn(),
+    delete: vi.fn(),
   },
   _isMockSessionResponse: true,
 }
@@ -77,7 +78,8 @@ describe('__vdpl deployment pinning cookie', () => {
     await proxy(makeConsentedRequest('/app/quiz/session/sess-1'))
 
     expect(MOCK_SESSION_RESPONSE.cookies.set).toHaveBeenCalledWith('__vdpl', DEPLOYMENT_ID, {
-      path: '/',
+      path: '/app/quiz/session',
+      maxAge: 8 * 60 * 60,
       httpOnly: true,
       sameSite: 'strict',
       secure: process.env.NODE_ENV === 'production',
@@ -132,5 +134,16 @@ describe('__vdpl deployment pinning cookie', () => {
       (c) => c[0] === '__vdpl',
     )
     expect(vdplCall).toBeUndefined()
+  })
+
+  it('expires a leftover __vdpl cookie on a page outside quiz sessions', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+
+    const request = makeConsentedRequest('/app/dashboard')
+    request.cookies.set('__vdpl', 'old-deployment-id')
+
+    await proxy(request)
+
+    expect(MOCK_SESSION_RESPONSE.cookies.delete).toHaveBeenCalledWith('__vdpl')
   })
 })

@@ -1,4 +1,4 @@
-const LIVE_SESSION_PREFIX = '/app/quiz/session'
+export const LIVE_SESSION_PREFIX = '/app/quiz/session'
 
 export function isLiveSessionPath(pathname: string): boolean {
   return pathname.startsWith(LIVE_SESSION_PREFIX)
