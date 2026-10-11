@@ -36,7 +36,7 @@ function FilterPill({
       className={cn(
         'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
         active
-          ? 'bg-primary/10 text-primary'
+          ? 'bg-primary/10 text-primary-text'
           : 'text-muted-foreground hover:bg-muted hover:text-foreground',
       )}
     >

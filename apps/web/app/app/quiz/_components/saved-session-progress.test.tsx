@@ -34,7 +34,7 @@ describe('progressColor', () => {
   })
 
   it('returns primary class when progress is between 50 and 89', () => {
-    expect(progressColor(50)).toBe('text-primary')
-    expect(progressColor(89)).toBe('text-primary')
+    expect(progressColor(50)).toBe('text-primary-text')
+    expect(progressColor(89)).toBe('text-primary-text')
   })
 })

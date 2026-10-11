@@ -29,7 +29,7 @@ export function QuestionTabs({ activeTab, onTabChange }: Readonly<QuestionTabsPr
             onClick={() => onTabChange(tab.value)}
             className={`px-2 py-2 text-xs font-medium transition-colors md:px-4 md:text-sm ${
               isActive
-                ? 'border-b-2 border-primary text-foreground'
+                ? 'border-b-2 border-primary-text text-foreground'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >

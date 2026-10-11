@@ -104,7 +104,7 @@ export function ReportQuestionRow({
                 type="button"
                 onClick={() => setExpanded((prev) => !prev)}
                 aria-expanded={expanded}
-                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                className="inline-flex items-center gap-1 text-xs font-medium text-primary-text hover:underline"
               >
                 {expanded ? 'Hide explanation' : 'Show explanation'}
                 {expanded ? (

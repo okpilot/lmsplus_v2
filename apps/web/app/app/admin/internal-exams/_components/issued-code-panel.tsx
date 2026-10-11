@@ -59,11 +59,11 @@ export function IssuedCodePanel({ codeId, code, expiresAt, onDismiss }: Readonly
     <section
       aria-label="Newly issued exam code"
       data-testid="issued-code-panel"
-      className="rounded-lg border-2 border-primary bg-primary/5 p-6"
+      className="rounded-lg border-2 border-primary-text bg-primary/5 p-6"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-2">
-          <p className="text-sm font-semibold uppercase tracking-wide text-primary">
+          <p className="text-sm font-semibold uppercase tracking-wide text-primary-text">
             New code issued
           </p>
           <p

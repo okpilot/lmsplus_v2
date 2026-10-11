@@ -11,15 +11,15 @@ type StatusNoteProps = {
 }
 
 const PANEL_CLASS = {
-  caution: 'bg-caution-soft ring-1 ring-caution-ring',
-  ok: 'bg-ok-soft',
-  bad: 'bg-bad-soft',
+  caution: 'bg-caution-soft',
+  ok: 'bg-success-soft',
+  bad: 'bg-danger-soft',
 } as const satisfies Record<Tone, string>
 
 const ICON_CLASS = {
   caution: 'text-caution',
-  ok: 'text-ok',
-  bad: 'text-bad',
+  ok: 'text-success',
+  bad: 'text-danger',
 } as const satisfies Record<Tone, string>
 
 const ICON = {

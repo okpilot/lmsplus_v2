@@ -141,7 +141,7 @@ function TabButton({
       data-tabkey={id}
       className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 ${
         active
-          ? 'border-primary text-primary'
+          ? 'border-primary-text text-primary-text'
           : 'border-transparent text-muted-foreground hover:text-foreground'
       }`}
     >
