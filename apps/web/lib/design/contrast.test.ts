@@ -25,4 +25,11 @@ describe('contrastRatio', () => {
     expect(half).toBeLessThan(solid)
     expect(half).toBeGreaterThan(1)
   })
+
+  it('composites a translucent background over the colour beneath it', () => {
+    const overWhite = contrastRatio('oklch(1 0 0)', 'oklch(0 0 0 / 50%)')
+    const overBlack = contrastRatio('oklch(1 0 0)', 'oklch(0 0 0 / 50%)', 'oklch(0 0 0)')
+    expect(overBlack).toBeCloseTo(21, 1)
+    expect(overWhite).toBeLessThan(overBlack)
+  })
 })

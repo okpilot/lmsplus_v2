@@ -35,9 +35,9 @@ function toRgb({ l, c, h, a }: Oklch, bg: Rgb): Rgb {
 const luminance = ([r, g, b]: Rgb) =>
   0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b)
 
-/** WCAG ratio of `fg` on `bg`; `bg` is composited over white if translucent. */
-export function contrastRatio(fg: string, bg: string): number {
-  const back = toRgb(parseOklch(bg), [1, 1, 1])
+/** WCAG ratio of `fg` on `bg`; a translucent `bg` is composited over `under` (default white). */
+export function contrastRatio(fg: string, bg: string, under = 'oklch(1 0 0)'): number {
+  const back = toRgb(parseOklch(bg), toRgb(parseOklch(under), [1, 1, 1]))
   const x = luminance(toRgb(parseOklch(fg), back))
   const y = luminance(back)
   return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05)
