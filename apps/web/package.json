@@ -14,6 +14,7 @@
     "test:watch": "vitest",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "import-questions": "tsx scripts/import-questions.ts",
+    "tokens:css": "tsx scripts/gen-tokens-css.ts",
     "e2e": "playwright test --project=e2e --project=admin-e2e",
     "e2e:ui": "playwright test --project=e2e --project=admin-e2e --ui",
     "e2e:headed": "playwright test --project=e2e --project=admin-e2e --headed",
