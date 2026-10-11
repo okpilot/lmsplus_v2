@@ -29,6 +29,8 @@ reviews:
     - "!**/.next/**"
     - "!**/coverage/**"
     - "!**/pnpm-lock.yaml"
+    # Generated from apps/web/lib/design (pnpm tokens:css); review the source.
+    - "!apps/web/app/tokens.css"
     # The red-team attack-surface map. Reviewing it burns a
     # cloud review on markdownlint nits (blank-line-after-heading, list spacing).
     # Excluded deliberately.
