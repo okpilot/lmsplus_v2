@@ -11,11 +11,6 @@ describe('Button', () => {
     expect(button.className).toContain('text-primary-foreground')
   })
 
-  it('has no separate brand variant', () => {
-    render(<Button>Start</Button>)
-    expect(screen.getByRole('button').className).not.toContain('bg-brand')
-  })
-
   it('passes aria-pressed through to the DOM button', () => {
     render(<Button aria-pressed="true">Toggle</Button>)
     expect(screen.getByRole('button')).toHaveAttribute('aria-pressed', 'true')

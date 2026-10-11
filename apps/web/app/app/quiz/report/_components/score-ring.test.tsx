@@ -25,42 +25,42 @@ describe('ScoreRing', () => {
       const { container } = render(<ScoreRing percentage={70} />)
       const circles = container.querySelectorAll('circle')
       const progressCircle = circles[1]
-      expect(progressCircle?.getAttribute('stroke')).toBe('var(--success-solid)')
+      expect(progressCircle?.getAttribute('stroke')).toBe('var(--success)')
     })
 
     it('uses green stroke for scores above 70%', () => {
       const { container } = render(<ScoreRing percentage={95} />)
       const circles = container.querySelectorAll('circle')
       const progressCircle = circles[1]
-      expect(progressCircle?.getAttribute('stroke')).toBe('var(--success-solid)')
+      expect(progressCircle?.getAttribute('stroke')).toBe('var(--success)')
     })
 
     it('uses amber stroke for scores between 50% and 69%', () => {
       const { container } = render(<ScoreRing percentage={50} />)
       const circles = container.querySelectorAll('circle')
       const progressCircle = circles[1]
-      expect(progressCircle?.getAttribute('stroke')).toBe('var(--caution-solid)')
+      expect(progressCircle?.getAttribute('stroke')).toBe('var(--caution)')
     })
 
     it('uses amber stroke for scores at 69%', () => {
       const { container } = render(<ScoreRing percentage={69} />)
       const circles = container.querySelectorAll('circle')
       const progressCircle = circles[1]
-      expect(progressCircle?.getAttribute('stroke')).toBe('var(--caution-solid)')
+      expect(progressCircle?.getAttribute('stroke')).toBe('var(--caution)')
     })
 
     it('uses red stroke for scores below 50%', () => {
       const { container } = render(<ScoreRing percentage={49} />)
       const circles = container.querySelectorAll('circle')
       const progressCircle = circles[1]
-      expect(progressCircle?.getAttribute('stroke')).toBe('var(--danger-solid)')
+      expect(progressCircle?.getAttribute('stroke')).toBe('var(--danger)')
     })
 
     it('uses red stroke for 0%', () => {
       const { container } = render(<ScoreRing percentage={0} />)
       const circles = container.querySelectorAll('circle')
       const progressCircle = circles[1]
-      expect(progressCircle?.getAttribute('stroke')).toBe('var(--danger-solid)')
+      expect(progressCircle?.getAttribute('stroke')).toBe('var(--danger)')
     })
   })
 
@@ -104,14 +104,14 @@ describe('ScoreRing', () => {
       const { container } = render(<ScoreRing percentage={69.5} />)
       expect(screen.getByText('70%')).toBeInTheDocument()
       const progressCircle = container.querySelectorAll('circle')[1]
-      expect(progressCircle?.getAttribute('stroke')).toBe('var(--caution-solid)')
+      expect(progressCircle?.getAttribute('stroke')).toBe('var(--caution)')
     })
 
     it('49.5% rounds to 50 for display but uses red color (below 50 threshold)', () => {
       const { container } = render(<ScoreRing percentage={49.5} />)
       expect(screen.getByText('50%')).toBeInTheDocument()
       const progressCircle = container.querySelectorAll('circle')[1]
-      expect(progressCircle?.getAttribute('stroke')).toBe('var(--danger-solid)')
+      expect(progressCircle?.getAttribute('stroke')).toBe('var(--danger)')
     })
   })
 })

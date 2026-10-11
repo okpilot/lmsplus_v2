@@ -43,6 +43,21 @@ describe('tokens.css', () => {
   })
 })
 
+describe('neutral fill', () => {
+  for (const theme of ['light', 'dark'] as const) {
+    for (const surface of ['background', 'card', 'popover', 'overlay'] as const) {
+      it(`muted stands apart from ${surface} in the ${theme} theme`, () => {
+        const palette = COLOURS[theme]
+        const ratio = contrastRatio(palette.muted, palette[surface])
+        expect(
+          ratio,
+          `muted vs ${surface} (${theme}) = ${ratio.toFixed(3)}`,
+        ).toBeGreaterThanOrEqual(1.08)
+      })
+    }
+  }
+})
+
 describe('colour contrast', () => {
   for (const theme of ['light', 'dark'] as const) {
     for (const [fg, bg, min] of CONTRAST_PAIRS) {
