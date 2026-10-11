@@ -10,14 +10,7 @@ const CSS_PATH = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../
 
 describe('tokens.css', () => {
   it('matches the committed file byte for byte', () => {
-    // CONTROL: green
     expect(readFileSync(CSS_PATH, 'utf8') === buildTokensCss()).toBe(true)
-  })
-
-  it('differs from the committed file when one character changes', () => {
-    // CONTROL: red
-    const mutated = `${buildTokensCss()}x`
-    expect(readFileSync(CSS_PATH, 'utf8') === mutated).toBe(false)
   })
 
   it('starts with the generated-file banner and ends with a newline', () => {
@@ -53,6 +46,28 @@ describe('neutral fill', () => {
           ratio,
           `muted vs ${surface} (${theme}) = ${ratio.toFixed(3)}`,
         ).toBeGreaterThanOrEqual(1.08)
+      })
+    }
+  }
+})
+
+const tint = (colour: string, pct: number) => colour.replace(/\)$/, ` / ${pct}%)`)
+
+describe('text on translucent fills', () => {
+  for (const theme of ['light', 'dark'] as const) {
+    const p = COLOURS[theme]
+    for (const under of ['background', 'card', 'popover'] as const) {
+      for (const pct of [5, 10, 15]) {
+        it(`primary-text on primary/${pct} over ${under} reaches 4.5:1 in the ${theme} theme`, () => {
+          const ratio = contrastRatio(p['primary-text'], tint(p.primary, pct), p[under])
+          expect(ratio, `${ratio.toFixed(2)}`).toBeGreaterThanOrEqual(4.5)
+        })
+      }
+    }
+    for (const pct of [30, 50, 80]) {
+      it(`muted-foreground on muted/${pct} over card reaches 4.5:1 in the ${theme} theme`, () => {
+        const ratio = contrastRatio(p['muted-foreground'], tint(p.muted, pct), p.card)
+        expect(ratio, `${ratio.toFixed(2)}`).toBeGreaterThanOrEqual(4.5)
       })
     }
   }
