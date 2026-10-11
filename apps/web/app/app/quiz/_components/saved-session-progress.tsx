@@ -1,7 +1,7 @@
 export function progressColor(pct: number): string {
   if (pct >= 90) return 'text-green-600'
   if (pct < 50) return 'text-amber-500'
-  return 'text-primary'
+  return 'text-primary-text'
 }
 
 /** Answered-of-total line with a percentage and a progress bar. */

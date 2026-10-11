@@ -46,7 +46,7 @@ export function MoreSheet({ hidden, activeHref, onClose, onDismiss }: Readonly<S
       <ul
         ref={listRef}
         id={SHEET_ID}
-        className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-40 rounded-t-2xl border-t border-foreground/[0.06] bg-surface px-2 py-2"
+        className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-40 rounded-t-2xl border-t border-foreground/[0.06] bg-card px-2 py-2"
       >
         {hidden.map((item) => (
           <li key={item.href}>

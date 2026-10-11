@@ -117,7 +117,7 @@ export function CommentsTab({ questionId, currentUserId }: Readonly<CommentsTabP
           onChange={(e) => setBody(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
           placeholder="Add a comment..."
-          className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+          className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:border-primary-text focus:outline-none"
           disabled={submitting}
         />
         <button

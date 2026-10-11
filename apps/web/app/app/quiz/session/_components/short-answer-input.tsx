@@ -78,7 +78,7 @@ export function ShortAnswerInput({
             ? 'border-green-500 bg-green-500/10'
             : showResult
               ? 'border-destructive bg-destructive/10'
-              : 'border-border focus:border-primary'
+              : 'border-border focus:border-primary-text'
         }`}
       />
 

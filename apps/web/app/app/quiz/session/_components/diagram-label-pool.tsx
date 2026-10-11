@@ -19,7 +19,7 @@ export function DiagramLabelPool({ labels, disabled }: DiagramLabelPoolProps) {
       ref={setNodeRef}
       data-testid="diagram-label-pool"
       className={`flex min-h-12 flex-wrap gap-2 rounded-lg border border-dashed p-3 ${
-        isOver ? 'border-primary' : 'border-border'
+        isOver ? 'border-primary-text' : 'border-border'
       }`}
     >
       {labels.length === 0 && (

@@ -93,7 +93,7 @@ describe('HeatmapCell', () => {
       const cell = screen.getByTestId(`heatmap-cell-${todayProps.day}`)
       const inner = cell.firstElementChild
       expect(inner?.className).toMatch(/ring-2/)
-      expect(inner?.className).toMatch(/ring-primary/)
+      expect(inner?.className).toMatch(/ring-ring/)
     })
 
     it('renders the day number with semibold foreground style', () => {

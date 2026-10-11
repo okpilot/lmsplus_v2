@@ -1,6 +1,5 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { redirect } from 'next/navigation'
-import { LookScope } from '@/components/kit/look-scope'
 import { AppShell } from './_components/app-shell'
 import { UserProvider } from './_components/user-context'
 
@@ -32,11 +31,9 @@ export default async function AppLayout({ children }: Readonly<{ children: React
 
   return (
     <UserProvider displayName={displayName} userRole={userRole}>
-      <LookScope>
-        <AppShell displayName={displayName} userRole={userRole}>
-          {children}
-        </AppShell>
-      </LookScope>
+      <AppShell displayName={displayName} userRole={userRole}>
+        {children}
+      </AppShell>
     </UserProvider>
   )
 }
