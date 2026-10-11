@@ -1,5 +1,5 @@
-export const MIN_VW = 360
-export const MAX_VW = 1240
+const MIN_VW = 360
+const MAX_VW = 1240
 
 const round = (n: number) => +n.toFixed(4)
 export const rem = (px: number) => `${round(px / 16)}rem`

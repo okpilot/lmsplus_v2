@@ -145,19 +145,19 @@ describe('SessionTable row color-coding', () => {
   it('colors the score cell green when score is >=70%', () => {
     render(<SessionTable {...SORT_PROPS} sessions={[makeSession({ scorePercentage: 80 })]} />)
     const scoreCell = screen.getByText('80%')
-    expect(scoreCell.style.color).toBe('var(--success-solid)')
+    expect(scoreCell.style.color).toBe('var(--success)')
   })
 
   it('colors the score cell amber when score is 50–69%', () => {
     render(<SessionTable {...SORT_PROPS} sessions={[makeSession({ scorePercentage: 60 })]} />)
     const scoreCell = screen.getByText('60%')
-    expect(scoreCell.style.color).toBe('var(--caution-solid)')
+    expect(scoreCell.style.color).toBe('var(--caution)')
   })
 
   it('colors the score cell red when score is below 50%', () => {
     render(<SessionTable {...SORT_PROPS} sessions={[makeSession({ scorePercentage: 40 })]} />)
     const scoreCell = screen.getByText('40%')
-    expect(scoreCell.style.color).toBe('var(--danger-solid)')
+    expect(scoreCell.style.color).toBe('var(--danger)')
   })
 
   it('applies no color to the score cell when scorePercentage is null', () => {

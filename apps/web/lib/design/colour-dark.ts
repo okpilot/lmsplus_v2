@@ -10,12 +10,12 @@ export const DARK: Record<ColourName, string> = {
   'popover-foreground': 'oklch(0.96 0.004 260)',
   overlay: 'oklch(0.28 0.013 260)',
   'overlay-foreground': 'oklch(0.96 0.004 260)',
-  // muted, secondary, accent: raised-surface tint (hover / neutral fill)
-  muted: 'oklch(0.25 0.013 260)',
+  // muted, secondary, accent: neutral fill above every surface (hover, skeleton)
+  muted: 'oklch(0.31 0.013 260)',
   'muted-foreground': 'oklch(0.72 0.019 260)',
-  secondary: 'oklch(0.25 0.013 260)',
+  secondary: 'oklch(0.31 0.013 260)',
   'secondary-foreground': 'oklch(0.96 0.004 260)',
-  accent: 'oklch(0.25 0.013 260)',
+  accent: 'oklch(0.31 0.013 260)',
   'accent-foreground': 'oklch(0.96 0.004 260)',
   border: 'oklch(0.95 0.019 260 / 10%)',
   input: 'oklch(0.58 0.019 260)',
