@@ -23,9 +23,13 @@ describe('tokens.css', () => {
 
   it('declares every colour in light, dark and the Tailwind theme', () => {
     const css = buildTokensCss()
+    const [lightPart, darkPart] = css.split('.dark {')
+    expect(darkPart, 'tokens.css has a .dark block').toBeDefined()
     for (const name of Object.keys(COLOURS.light)) {
-      expect(css).toContain(`  --${name}: ${COLOURS.light[name as keyof typeof COLOURS.light]};`)
-      expect(css).toContain(`  --${name}: ${COLOURS.dark[name as keyof typeof COLOURS.dark]};`)
+      expect(lightPart).toContain(
+        `  --${name}: ${COLOURS.light[name as keyof typeof COLOURS.light]};`,
+      )
+      expect(darkPart).toContain(`  --${name}: ${COLOURS.dark[name as keyof typeof COLOURS.dark]};`)
       expect(css).toContain(`  --color-${name}: var(--${name});`)
     }
   })
@@ -56,7 +60,7 @@ const tint = (colour: string, pct: number) => colour.replace(/\)$/, ` / ${pct}%)
 describe('text on translucent fills', () => {
   for (const theme of ['light', 'dark'] as const) {
     const p = COLOURS[theme]
-    for (const under of ['background', 'card', 'popover'] as const) {
+    for (const under of ['background', 'card', 'popover', 'muted', 'accent'] as const) {
       for (const pct of [5, 10, 15]) {
         it(`primary-text on primary/${pct} over ${under} reaches 4.5:1 in the ${theme} theme`, () => {
           const ratio = contrastRatio(p['primary-text'], tint(p.primary, pct), p[under])

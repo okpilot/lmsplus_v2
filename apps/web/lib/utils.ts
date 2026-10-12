@@ -1,6 +1,14 @@
 import { type ClassValue, clsx } from 'clsx'
 import { extendTailwindMerge } from 'tailwind-merge'
-import { CONTAINERS, EASING, RADIUS_KEYS, SPACING, TYPE_ROLES } from './design/scale'
+import {
+  CONTAINERS,
+  DURATIONS,
+  EASING,
+  RADIUS_KEYS,
+  SPACING,
+  TYPE_ROLES,
+  Z_INDEX,
+} from './design/scale'
 
 // Teach tailwind-merge the design-token names (text-caption, rounded-card, p-card, ...) so cn() merges them
 // as sizes, not colours.
@@ -12,6 +20,10 @@ const twMerge = extendTailwindMerge({
       radius: [...RADIUS_KEYS],
       container: Object.keys(CONTAINERS),
       ease: Object.keys(EASING),
+    },
+    classGroups: {
+      z: [{ z: Object.keys(Z_INDEX) }],
+      duration: [{ duration: Object.keys(DURATIONS) }],
     },
   },
 })
