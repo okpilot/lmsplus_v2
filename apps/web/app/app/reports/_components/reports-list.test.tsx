@@ -74,6 +74,11 @@ describe('ReportsList', () => {
     expect(screen.getByText(/no completed sessions yet/i)).toBeInTheDocument()
   })
 
+  it('shows the session table on a card surface', () => {
+    render(<ReportsList sessions={[makeSession()]} {...DEFAULT_PROPS} />)
+    expect(screen.getByRole('table').closest('.bg-card')).not.toBeNull()
+  })
+
   it('renders score for each session', () => {
     const sessions = [
       makeSession({ id: 's1', scorePercentage: 80 }),

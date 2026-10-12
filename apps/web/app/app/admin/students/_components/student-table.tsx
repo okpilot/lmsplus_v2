@@ -42,7 +42,7 @@ function formatDate(iso: string) {
 
 export function StudentTable({ students, onEdit, onToggleStatus, onExport }: Readonly<Props>) {
   return (
-    <div className="rounded-md border">
+    <div className="rounded-md border bg-card">
       <Table>
         <TableHeader>
           <TableRow>
