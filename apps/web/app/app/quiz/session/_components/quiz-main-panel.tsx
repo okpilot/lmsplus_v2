@@ -4,6 +4,8 @@ import type { QuizState } from '../_hooks/use-quiz-state'
 import { AnswerInput } from './answer-input'
 import { QuizTabContent } from './quiz-tab-content'
 
+const SURFACE = 'rounded-xl border border-border bg-card p-4 md:p-6'
+
 type QuizMainPanelProps = {
   s: QuizState
   activeTab: QuestionTab
@@ -23,14 +25,16 @@ export function QuizMainPanel({
 
   if (activeTab !== 'question') {
     return (
-      <QuizTabContent
-        activeTab={activeTab}
-        questionId={s.questionId}
-        existingAnswer={s.existingAnswer}
-        explanationText={s.question.explanation_text}
-        explanationImageUrl={s.question.explanation_image_url}
-        userId={userId}
-      />
+      <div className={SURFACE}>
+        <QuizTabContent
+          activeTab={activeTab}
+          questionId={s.questionId}
+          existingAnswer={s.existingAnswer}
+          explanationText={s.question.explanation_text}
+          explanationImageUrl={s.question.explanation_image_url}
+          userId={userId}
+        />
+      </div>
     )
   }
 
@@ -41,7 +45,7 @@ export function QuizMainPanel({
   const showsQuestionCard = s.question.question_type !== 'dialog_fill'
 
   return (
-    <div className="space-y-4">
+    <div className={`space-y-4 ${SURFACE}`}>
       {showsQuestionCard && (
         <QuestionCard
           questionText={s.question.question_text}
