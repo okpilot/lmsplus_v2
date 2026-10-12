@@ -29,7 +29,7 @@ export function QuestionCount({ value, max, onValueChange }: Readonly<QuestionCo
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-[13px] font-medium">Number of Questions</span>
-        <span className="text-sm font-semibold text-primary">{effectiveValue}</span>
+        <span className="text-sm font-semibold text-primary-text">{effectiveValue}</span>
       </div>
       <Slider
         value={[effectiveValue]}

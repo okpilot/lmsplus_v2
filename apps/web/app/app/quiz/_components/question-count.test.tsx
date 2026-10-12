@@ -42,7 +42,7 @@ describe('QuestionCount', () => {
 
   it('displays the current value in the count badge', () => {
     render(<QuestionCount value={25} max={100} onValueChange={vi.fn()} />)
-    // The count badge is a <span> with class text-primary — use getAllByText
+    // The count badge is a <span> with class text-primary-text — use getAllByText
     // and confirm at least one match is the badge span (not a preset button)
     const matches = screen.getAllByText('25')
     expect(matches.length).toBeGreaterThanOrEqual(1)

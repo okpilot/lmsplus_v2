@@ -88,11 +88,11 @@ export function RecoveryCodeForm({ email, onRequestNewCode }: RecoveryCodeFormPr
         <button
           type="button"
           onClick={onRequestNewCode}
-          className="font-medium text-primary hover:underline underline-offset-4"
+          className="font-medium text-primary-text hover:underline underline-offset-4"
         >
           Send a new code
         </button>
-        <Link href="/" className="text-muted-foreground hover:text-primary">
+        <Link href="/" className="text-muted-foreground hover:text-primary-text">
           Back to login
         </Link>
       </div>

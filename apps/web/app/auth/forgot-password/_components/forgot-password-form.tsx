@@ -70,17 +70,17 @@ export function ForgotPasswordForm() {
       </LoadingButton>
 
       <p className="text-center text-sm">
-        <Link href="/" className="text-muted-foreground hover:text-primary">
+        <Link href="/" className="text-muted-foreground hover:text-primary-text">
           Back to login
         </Link>
       </p>
 
       <p className="text-center text-xs text-muted-foreground">
-        <Link href="/legal/terms" className="hover:text-primary underline">
+        <Link href="/legal/terms" className="hover:text-primary-text underline">
           Terms of Service
         </Link>
         {' · '}
-        <Link href="/legal/privacy" className="hover:text-primary underline">
+        <Link href="/legal/privacy" className="hover:text-primary-text underline">
           Privacy Policy
         </Link>
       </p>
