@@ -30,7 +30,7 @@ describe('tokens.css', () => {
     }
   })
 
-  it('keeps the success fill equal to the dashboard bar green', () => {
+  it('pins the success fill at the approved dashboard green', () => {
     expect(COLOURS.light['success-solid']).toBe('oklch(0.72 0.15 150)')
     expect(COLOURS.dark['success-solid']).toBe('oklch(0.74 0.14 150)')
   })

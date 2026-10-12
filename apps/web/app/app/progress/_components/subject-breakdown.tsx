@@ -41,7 +41,7 @@ function SubjectRow({ subject }: Readonly<{ subject: SubjectDetail }>) {
           <div className="mt-1.5 flex items-center gap-3">
             <div className="h-1.5 flex-1 rounded-full bg-muted">
               <div
-                className="h-1.5 rounded-full bg-primary transition-all"
+                className="h-1.5 rounded-full bg-data-strong transition-all"
                 style={{ width: `${subject.masteryPercentage}%` }}
               />
             </div>
@@ -60,7 +60,7 @@ function SubjectRow({ subject }: Readonly<{ subject: SubjectDetail }>) {
               <div className="flex items-center gap-2">
                 <div className="h-1 w-20 rounded-full bg-muted">
                   <div
-                    className="h-1 rounded-full bg-primary transition-all"
+                    className="h-1 rounded-full bg-data-strong transition-all"
                     style={{ width: `${topic.masteryPercentage}%` }}
                   />
                 </div>

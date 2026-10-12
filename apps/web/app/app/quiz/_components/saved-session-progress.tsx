@@ -22,7 +22,7 @@ export function SavedSessionProgress({
       <div className="h-1 rounded-full bg-muted">
         <div
           data-testid="draft-progress"
-          className="h-1 rounded-full bg-primary transition-all"
+          className="h-1 rounded-full bg-data-strong transition-all"
           style={{ width: `${progress}%` }}
         />
       </div>
