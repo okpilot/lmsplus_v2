@@ -43,7 +43,7 @@ export function SessionHistoryTable({
     return (
       <div className="space-y-3">
         {header}
-        <p className="rounded-md border p-8 text-center text-sm text-muted-foreground">
+        <p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">
           No sessions found.
         </p>
       </div>
@@ -54,7 +54,7 @@ export function SessionHistoryTable({
     return (
       <div className="space-y-3">
         {header}
-        <p className="rounded-md border p-8 text-center text-sm text-muted-foreground">
+        <p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">
           No sessions on this page. Try going back to page 1.
         </p>
         <PaginationBar
@@ -70,7 +70,7 @@ export function SessionHistoryTable({
   return (
     <div className="space-y-3">
       {header}
-      <div className="rounded-md border">
+      <div className="rounded-md border bg-card">
         <Table>
           <TableHeader>
             <TableRow>

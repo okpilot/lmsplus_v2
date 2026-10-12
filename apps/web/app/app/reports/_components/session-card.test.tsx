@@ -62,6 +62,11 @@ describe('SessionCard', () => {
     expect(screen.getByRole('link')).toHaveAttribute('data-prefetch', 'false')
   })
 
+  it('shows the session on a card surface', () => {
+    render(<SessionCard session={makeSession()} />)
+    expect(screen.getByRole('link')).toHaveClass('bg-card')
+  })
+
   it('displays the subject name', () => {
     render(<SessionCard session={makeSession({ subjectName: 'Meteorology' })} />)
     expect(screen.getByText('Meteorology')).toBeInTheDocument()

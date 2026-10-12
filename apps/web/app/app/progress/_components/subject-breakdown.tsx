@@ -27,7 +27,7 @@ function SubjectRow({ subject }: Readonly<{ subject: SubjectDetail }>) {
   const [expanded, setExpanded] = useState(false)
 
   return (
-    <div className="rounded-lg border border-border">
+    <div className="rounded-lg border border-border bg-card">
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}

@@ -38,7 +38,7 @@ export function AttemptsTable({ rows, totalCount, pageSize }: Readonly<Props>) {
 
   return (
     <div className="space-y-3">
-      <div className="rounded-md border">
+      <div className="rounded-md border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
