@@ -1,6 +1,6 @@
 import { fluid, rem } from './fluid'
 
-export type TypeRole = {
+type TypeRole = {
   min: number
   max: number
   lineHeight: number
