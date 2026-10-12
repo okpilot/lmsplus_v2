@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation'
 import { Suspense } from 'react'
 import { SectionLabel } from '@/components/kit/section-label'
+import { Wordmark } from '@/components/kit/wordmark'
 import {
   ADMIN_NAV_ITEMS,
   isActivePath,
@@ -13,7 +14,6 @@ import {
 import { SidebarFooter } from './sidebar-footer'
 import { SidebarItem } from './sidebar-item'
 import { useUser } from './user-context'
-import { Wordmark } from './wordmark'
 
 const VFR_RT_HREF = '/app/vfr-rt'
 

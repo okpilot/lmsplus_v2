@@ -1,6 +1,6 @@
+import { Wordmark } from '@/components/kit/wordmark'
 import { SignOutButton } from './sign-out-button'
 import { ThemeToggle } from './theme-toggle'
-import { Wordmark } from './wordmark'
 
 export function PhoneTopBar() {
   return (
