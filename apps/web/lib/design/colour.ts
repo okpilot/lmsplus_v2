@@ -7,7 +7,7 @@ export const COLOURS: { light: Record<ColourName, string>; dark: Record<ColourNa
   dark: DARK,
 }
 
-export type ContrastPair = readonly [fg: ColourName, bg: ColourName, min: 3 | 4.5]
+type ContrastPair = readonly [fg: ColourName, bg: ColourName, min: 3 | 4.5]
 
 const STATUSES = ['success', 'danger', 'caution', 'info'] as const
 const TEXT = 4.5
