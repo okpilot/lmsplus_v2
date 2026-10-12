@@ -44,6 +44,7 @@ export const CONTRAST_PAIRS: readonly ContrastPair[] = [
   ['ring', 'card', NON_TEXT],
   ['data', 'card', NON_TEXT],
   ['data-strong', 'card', NON_TEXT],
+  ['data-strong', 'muted', NON_TEXT],
   ['data-goal', 'card', NON_TEXT],
   ['series-1', 'card', NON_TEXT],
   ['series-2', 'card', NON_TEXT],
