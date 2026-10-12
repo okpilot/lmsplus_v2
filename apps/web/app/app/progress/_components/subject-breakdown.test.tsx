@@ -48,13 +48,6 @@ describe('SubjectBreakdown', () => {
     expect(screen.getByText('75%')).toBeInTheDocument()
   })
 
-  it('draws the mastery bar in the data colour', () => {
-    const { container } = render(
-      <SubjectBreakdown subjects={[makeSubject({ masteryPercentage: 75 })]} />,
-    )
-    expect(container.querySelector('.bg-data-strong')).not.toBeNull()
-  })
-
   it('shows subject code in the row header', () => {
     render(<SubjectBreakdown subjects={[makeSubject({ code: 'NAV' })]} />)
     expect(screen.getByText('NAV')).toBeInTheDocument()

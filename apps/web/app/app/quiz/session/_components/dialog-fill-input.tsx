@@ -79,7 +79,7 @@ export function DialogFillInput({
 
   return (
     <div className="space-y-3">
-      <div ref={rootRef} className="space-y-1">
+      <div ref={rootRef} className="space-y-1 rounded-lg border border-border p-4">
         {lines.map((line, i) => (
           <DialogLine
             // Parsed lines are stable per template; index key is safe.

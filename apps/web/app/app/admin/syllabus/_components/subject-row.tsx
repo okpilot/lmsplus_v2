@@ -83,7 +83,7 @@ export function SubjectRow({ subject }: Readonly<Props>) {
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2">
+      <div className="flex items-center gap-2 rounded-lg border px-3 py-2">
         <CollapsibleTrigger
           render={
             <Button

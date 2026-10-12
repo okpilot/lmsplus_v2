@@ -14,7 +14,7 @@ export function SessionProgressBar({
       <div className="h-1.5 flex-1 rounded-full bg-muted">
         <div
           data-testid="progress-bar"
-          className="h-1.5 rounded-full bg-data-strong transition-all"
+          className="h-1.5 rounded-full bg-primary transition-all"
           style={{ width: `${((currentIndex + 1) / totalQuestions) * 100}%` }}
         />
       </div>

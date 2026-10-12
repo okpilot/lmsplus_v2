@@ -36,7 +36,7 @@ export function QuestionTable({
   const allSelected = questions.length > 0 && selectedIds.length === questions.length
 
   return (
-    <div className="rounded-md border bg-card">
+    <div className="rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>

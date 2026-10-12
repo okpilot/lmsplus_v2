@@ -12,7 +12,7 @@ export function SessionCard({ session: s }: Readonly<{ session: SessionReport }>
   return (
     <Link
       href={`/app/quiz/report?session=${s.id}`}
-      className="block rounded-lg border border-border bg-card px-4 py-3 transition-colors hover:bg-accent"
+      className="block rounded-lg border border-border px-4 py-3 transition-colors hover:bg-accent"
     >
       <div className="flex items-start justify-between">
         <p className="font-medium">{s.subjectName ?? '\u2014'}</p>

@@ -2,10 +2,10 @@
 
 import { usePathname } from 'next/navigation'
 import { SectionLabel } from '@/components/kit/section-label'
-import { Wordmark } from '@/components/kit/wordmark'
 import { ADMIN_NAV_ITEMS, isActivePath, type NavItem, SIDEBAR_GROUPS } from './nav-items'
 import { SidebarFooter } from './sidebar-footer'
 import { SidebarItem } from './sidebar-item'
+import { Wordmark } from './wordmark'
 
 type SidebarNavProps = {
   userRole?: string

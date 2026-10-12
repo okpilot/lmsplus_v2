@@ -55,7 +55,7 @@ export function StudentTableShell({ students, totalCount, filters }: Props) {
     return (
       <div className="space-y-3">
         {statusFilter}
-        <p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">
+        <p className="rounded-md border p-8 text-center text-sm text-muted-foreground">
           No students found.
         </p>
       </div>
@@ -66,7 +66,7 @@ export function StudentTableShell({ students, totalCount, filters }: Props) {
     return (
       <div className="space-y-3">
         {statusFilter}
-        <p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">
+        <p className="rounded-md border p-8 text-center text-sm text-muted-foreground">
           No students on this page. Try going back to page 1.
         </p>
         <PaginationBar
@@ -82,7 +82,7 @@ export function StudentTableShell({ students, totalCount, filters }: Props) {
   return (
     <div className="space-y-3">
       {statusFilter}
-      <div className="rounded-md border bg-card">
+      <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
