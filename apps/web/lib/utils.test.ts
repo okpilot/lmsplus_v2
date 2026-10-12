@@ -22,4 +22,12 @@ describe('cn', () => {
   it('lets a design-token container width replace a default width', () => {
     expect(cn('max-w-3xl', 'max-w-content')).toBe('max-w-content')
   })
+
+  it('lets a design-token layer replace a default z-index', () => {
+    expect(cn('z-40', 'z-nav')).toBe('z-nav')
+  })
+
+  it('lets a design-token duration replace a default duration', () => {
+    expect(cn('duration-200', 'duration-fast')).toBe('duration-fast')
+  })
 })

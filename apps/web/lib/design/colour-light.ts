@@ -20,7 +20,7 @@ export const LIGHT = {
   ring: 'oklch(0.52 0.14 52)',
   primary: 'oklch(0.77 0.14 58)',
   'primary-foreground': 'oklch(0.2 0.02 55)',
-  'primary-text': 'oklch(0.52 0.14 52)',
+  'primary-text': 'oklch(0.51 0.14 52)',
   success: 'oklch(0.5 0.125 155)',
   'success-soft': 'oklch(0.965 0.035 150)',
   'success-solid': 'oklch(0.72 0.15 150)',
