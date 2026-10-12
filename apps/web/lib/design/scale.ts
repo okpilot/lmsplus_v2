@@ -34,6 +34,7 @@ export const CONTAINERS = { content: '70rem', reading: '70ch' } as const
 
 // R2 · Soft.
 export const RADIUS = { base: rem(8), control: rem(8), card: rem(12), sheet: rem(16) } as const
+export const RADIUS_KEYS = ['control', 'card', 'sheet'] as const
 
 export const Z_INDEX = { sticky: 10, nav: 20, dropdown: 30, overlay: 40, toast: 50, banner: 60 }
 

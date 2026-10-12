@@ -5,6 +5,7 @@ import {
   DURATIONS,
   EASING,
   RADIUS,
+  RADIUS_KEYS,
   SPACING,
   STATE,
   spacingValue,
@@ -35,7 +36,7 @@ function themeDecls(): Decl[] {
   for (const [name, range] of Object.entries(SPACING))
     out.push([`--spacing-${name}`, spacingValue(range)])
   for (const [name, v] of Object.entries(CONTAINERS)) out.push([`--container-${name}`, v])
-  for (const k of ['control', 'card', 'sheet'] as const) out.push([`--radius-${k}`, RADIUS[k]])
+  for (const k of RADIUS_KEYS) out.push([`--radius-${k}`, RADIUS[k]])
   for (const [name, z] of Object.entries(Z_INDEX)) out.push([`--z-index-${name}`, z])
   for (const [name, ms] of Object.entries(DURATIONS))
     out.push([`--transition-duration-${name}`, `${ms}ms`])
