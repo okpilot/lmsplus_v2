@@ -12,10 +12,10 @@ describe('fluid', () => {
 
   it('evaluates to min at 360px and max at 1240px', () => {
     const m = /^clamp\(([\d.]+)rem, ([\d.]+)rem \+ ([\d.]+)vw, ([\d.]+)rem\)$/.exec(fluid(18, 22))
-    expect(m).not.toBeNull()
-    const [, min, intercept, slope, max] = (m as RegExpExecArray).map(Number)
+    if (!m) throw new Error('fluid() did not return a clamp() expression')
+    const [min, intercept, slope, max] = m.slice(1).map(Number) as [number, number, number, number]
     const at = (vw: number) =>
-      Math.min(max! * 16, Math.max(min! * 16, intercept! * 16 + (slope! / 100) * vw))
+      Math.min(max * 16, Math.max(min * 16, intercept * 16 + (slope / 100) * vw))
     expect(at(360)).toBeCloseTo(18, 1)
     expect(at(1240)).toBeCloseTo(22, 1)
   })

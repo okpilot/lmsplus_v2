@@ -10,7 +10,7 @@ const CSS_PATH = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../
 
 describe('tokens.css', () => {
   it('matches the committed file byte for byte', () => {
-    expect(readFileSync(CSS_PATH, 'utf8') === buildTokensCss()).toBe(true)
+    expect(readFileSync(CSS_PATH, 'utf8')).toBe(buildTokensCss())
   })
 
   it('starts with the generated-file banner and ends with a newline', () => {
