@@ -49,7 +49,7 @@ export function SessionSummary({
 
       <div className="h-2 w-full rounded-full bg-muted">
         <div
-          className="h-2 rounded-full bg-data-strong transition-all"
+          className="h-2 rounded-full bg-primary transition-all"
           style={{ width: `${scorePercentage}%` }}
         />
       </div>

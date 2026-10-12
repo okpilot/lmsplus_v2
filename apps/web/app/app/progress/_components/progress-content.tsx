@@ -19,7 +19,7 @@ export async function ProgressContent() {
         <p className="mt-1 text-4xl font-bold tabular-nums">{overallMastery}%</p>
         <div className="mt-3 h-2 w-full rounded-full bg-muted">
           <div
-            className="h-2 rounded-full bg-data-strong transition-all"
+            className="h-2 rounded-full bg-primary transition-all"
             style={{ width: `${overallMastery}%` }}
           />
         </div>

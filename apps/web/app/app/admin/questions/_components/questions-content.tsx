@@ -11,7 +11,7 @@ export async function QuestionsContent({ filters }: Readonly<Props>) {
 
   if (!result.ok) {
     return (
-      <div className="rounded-lg border border-destructive/50 bg-card p-8 text-center">
+      <div className="rounded-lg border border-destructive/50 p-8 text-center">
         <p className="text-sm text-destructive">Failed to load questions. Please try again.</p>
       </div>
     )

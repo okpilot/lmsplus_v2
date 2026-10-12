@@ -1,4 +1,3 @@
-import { AuthCard } from '@/components/kit/auth-card'
 import { safeNextPath } from '@/lib/auth/safe-next-path'
 import { LoginForm } from './_components/login-form'
 
@@ -25,10 +24,16 @@ export default async function LoginPage({ searchParams }: Readonly<Props>) {
 
   return (
     <main className="flex min-h-screen items-center justify-center px-4">
-      <AuthCard>
+      <div className="w-full max-w-[400px] md:rounded-lg md:border md:border-border md:p-8 md:shadow-sm">
+        <div className="mb-8 flex items-center justify-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
+            <span className="text-lg font-bold text-primary-foreground">L</span>
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight">LMS Plus</h1>
+        </div>
         <p className="mb-6 text-center text-sm text-muted-foreground">Sign in to your account</p>
         <LoginForm initialError={initialError} nextPath={safeNextPath(next)} />
-      </AuthCard>
+      </div>
     </main>
   )
 }

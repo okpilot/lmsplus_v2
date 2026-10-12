@@ -66,7 +66,7 @@ export function StudentTable({
   onExport,
 }: Readonly<Props>) {
   return (
-    <div className="rounded-md border bg-card">
+    <div className="rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>

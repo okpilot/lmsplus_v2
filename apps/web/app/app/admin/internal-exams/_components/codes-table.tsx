@@ -69,7 +69,7 @@ export function CodesTable({ rows, status, totalCount, pageSize }: Readonly<Prop
         </SelectContent>
       </Select>
 
-      <div className="rounded-md border bg-card">
+      <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>

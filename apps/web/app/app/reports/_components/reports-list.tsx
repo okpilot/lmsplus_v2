@@ -68,7 +68,7 @@ export function ReportsList({ sessions, page, totalCount, pageSize, sort, dir }:
       <p className="mb-2 hidden text-xs text-muted-foreground md:block">
         Click a column header to sort
       </p>
-      <div className="hidden rounded-lg border border-border bg-card md:block">
+      <div className="hidden rounded-lg border border-border md:block">
         <SessionTable sessions={sessions} sort={sort} dir={dir} onSort={handleSort} />
       </div>
 
