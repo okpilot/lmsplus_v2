@@ -31,4 +31,10 @@ describe('scoreColor', () => {
   it('uses raw percentage value without rounding — 69.9 is amber not green', () => {
     expect(scoreColor(69.9)).toBe('var(--caution)')
   })
+
+  it('returns the fill shade of each band for strokes and fills', () => {
+    expect(scoreColor(85, 'solid')).toBe('var(--success-solid)')
+    expect(scoreColor(60, 'solid')).toBe('var(--caution-solid)')
+    expect(scoreColor(10, 'solid')).toBe('var(--danger-solid)')
+  })
 })
