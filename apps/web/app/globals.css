@@ -134,7 +134,7 @@ body:has([data-slot="reload-banner"]) [data-sonner-toaster][data-y-position="bot
    a text-width toast would overflow or sit left. Keep it inside the gutter, right-aligned. */
 @media (max-width: 600px) {
   [data-sonner-toaster][data-x-position="right"] {
-    width: calc(100% - var(--mobile-offset-left) - var(--mobile-offset-right));
+    width: calc(100% - var(--mobile-offset-left, 1rem) - var(--mobile-offset-right, 1rem));
   }
   [data-sonner-toaster][data-x-position="right"] [data-sonner-toast] {
     left: auto;
