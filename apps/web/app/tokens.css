@@ -197,8 +197,8 @@
   --z-index-nav: 20;
   --z-index-overlay: 30;
   --z-index-dropdown: 40;
-  --z-index-banner: 50;
-  --z-index-toast: 60;
+  --z-index-toast: 50;
+  --z-index-banner: 60;
   --transition-duration-fast: 150ms;
   --transition-duration-base: 200ms;
   --transition-duration-slow: 300ms;
