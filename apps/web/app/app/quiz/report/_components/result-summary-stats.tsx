@@ -1,4 +1,4 @@
-import { Eyebrow } from '@/components/ui/heading'
+import { Stat } from '@/components/ui/stat'
 import type { QuizReportSummary } from '@/lib/queries/quiz-report-types'
 import { formatMsDuration } from './format-duration'
 import { ScoreRing } from './score-ring'
@@ -18,24 +18,19 @@ function formatDate(dateStr: string): string {
   })
 }
 
-/**
- * One label/value cell of the summary grid. Extracted because the identical
- * `<div><p label><p value></div>` shape appears in both the desktop and mobile
- * grids (code-style.md §2 extract-at-3), and inlining it nine times pushed the
- * render body past §3's 35-line composition bound.
- */
-function Stat({
+function SummaryStat({
   label,
   value,
   accent = false,
 }: Readonly<{ label: string; value: string | number; accent?: boolean }>) {
   return (
-    <div>
-      <Eyebrow>{label}</Eyebrow>
-      <p className={accent ? 'text-label font-medium text-success' : 'text-label font-medium'}>
-        {value}
-      </p>
-    </div>
+    <Stat
+      variant="plain"
+      size="text"
+      label={label}
+      value={value}
+      tone={accent ? 'success' : undefined}
+    />
   )
 }
 
@@ -58,11 +53,11 @@ export function DesktopStats({ summary, correctFraction, skipped, dateStr }: Sta
         <ScoreRing percentage={summary.scorePercentage} size={120} />
       </div>
       <div className="grid grid-cols-2 gap-x-8 gap-y-3 flex-1">
-        <Stat label="Subject" value={summary.subjectName ?? 'Mixed'} />
-        <Stat label="Date" value={formatDate(dateStr)} />
-        <Stat label="Correct" value={correctFraction} accent />
-        <Stat label="Time" value={formatDuration(summary.startedAt, summary.endedAt)} />
-        <Stat label="Skipped" value={skipped} />
+        <SummaryStat label="Subject" value={summary.subjectName ?? 'Mixed'} />
+        <SummaryStat label="Date" value={formatDate(dateStr)} />
+        <SummaryStat label="Correct" value={correctFraction} accent />
+        <SummaryStat label="Time" value={formatDuration(summary.startedAt, summary.endedAt)} />
+        <SummaryStat label="Skipped" value={skipped} />
       </div>
     </div>
   )
@@ -73,10 +68,10 @@ export function MobileStats({ summary, correctFraction, skipped }: StatsProps) {
     <div className="flex flex-col items-center gap-4 md:hidden">
       <ScoreRing percentage={summary.scorePercentage} size={90} />
       <div className="grid grid-cols-2 gap-4 w-full text-center">
-        <Stat label="Subject" value={summary.subjectName ?? 'Mixed'} />
-        <Stat label="Correct" value={correctFraction} accent />
-        <Stat label="Time" value={formatDuration(summary.startedAt, summary.endedAt)} />
-        <Stat label="Skipped" value={skipped} />
+        <SummaryStat label="Subject" value={summary.subjectName ?? 'Mixed'} />
+        <SummaryStat label="Correct" value={correctFraction} accent />
+        <SummaryStat label="Time" value={formatDuration(summary.startedAt, summary.endedAt)} />
+        <SummaryStat label="Skipped" value={skipped} />
       </div>
     </div>
   )

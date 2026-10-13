@@ -24,6 +24,16 @@ vi.mock('next/link', () => ({
 import AdminNotFound from './not-found'
 
 describe('AdminNotFound', () => {
+  it('centres the empty state in a gutter-padded grid', () => {
+    const { container } = render(<AdminNotFound />)
+    expect(container.firstElementChild).toHaveClass(
+      'grid',
+      'min-h-[50vh]',
+      'place-items-center',
+      'px-gutter',
+    )
+  })
+
   it('tells the admin the record does not exist', () => {
     render(<AdminNotFound />)
     expect(screen.getByRole('heading', { name: 'Not found' })).toBeInTheDocument()

@@ -36,6 +36,16 @@ import AdminErrorPage from './error'
 describe('AdminErrorPage', () => {
   const testError = new Error('Something exploded')
 
+  it('centres the boundary in a gutter-padded grid', () => {
+    const { container } = render(<AdminErrorPage error={testError} retry={vi.fn()} />)
+    expect(container.firstElementChild).toHaveClass(
+      'grid',
+      'min-h-[50vh]',
+      'place-items-center',
+      'px-gutter',
+    )
+  })
+
   it('renders the error heading', () => {
     render(<AdminErrorPage error={testError} retry={vi.fn()} />)
     expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('Something went wrong')

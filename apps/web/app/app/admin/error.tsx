@@ -15,7 +15,7 @@ export default function AdminErrorPage({
   useBoundaryError(error)
 
   return (
-    <div className="flex min-h-[50vh] items-center justify-center">
+    <div className="grid min-h-[50vh] place-items-center px-gutter">
       <ErrorScreen
         actionClassName="sm:flex-row"
         action={

@@ -308,9 +308,27 @@ describe('ResultSummary', () => {
       expect(screen.getByText('PASSED')).toHaveClass('bg-success-soft')
     })
 
-    it('renders summary labels in the overline style', () => {
+    it('renders each summary label and value together in a shared stat', () => {
       render(<ResultSummary summary={makeSummary()} />)
-      for (const label of screen.getAllByText('Skipped')) expect(label).toHaveClass('text-overline')
+      const skippedLabels = screen.getAllByText('Skipped')
+      expect(skippedLabels.length).toBeGreaterThan(0)
+      for (const label of skippedLabels) {
+        const stat = label.closest('[data-slot="stat"]')
+        expect(stat).not.toBeNull()
+        expect(stat?.textContent).toMatch(/^Skipped\S+/)
+      }
+    })
+
+    it('renders the Correct value in the success tone and other values in the default tone', () => {
+      render(<ResultSummary summary={makeSummary()} />)
+      for (const label of screen.getAllByText('Correct')) {
+        const value = label.closest('[data-slot="stat"]')?.querySelector('span')
+        expect(value).toHaveClass('text-success')
+      }
+      for (const label of screen.getAllByText('Skipped')) {
+        const value = label.closest('[data-slot="stat"]')?.querySelector('span')
+        expect(value).not.toHaveClass('text-success')
+      }
     })
 
     it('renders "VFR RT Mock Exam Complete" for vfr_rt_exam mode even on the RT subject', () => {
