@@ -83,7 +83,7 @@ describe('colour contrast', () => {
     for (const [fg, bg, min] of CONTRAST_PAIRS) {
       it(`${fg} on ${bg} reaches ${min}:1 in the ${theme} theme`, () => {
         const palette = COLOURS[theme]
-        const ratio = contrastRatio(palette[fg], palette[bg])
+        const ratio = contrastRatio(palette[fg], palette[bg], palette.background)
         expect(ratio, `${fg} on ${bg} (${theme}) = ${ratio.toFixed(2)}`).toBeGreaterThanOrEqual(min)
       })
     }
