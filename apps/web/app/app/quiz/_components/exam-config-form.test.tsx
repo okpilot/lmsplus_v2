@@ -128,6 +128,13 @@ describe('ExamConfigForm', () => {
       expect(screen.getByText('Pass Mark')).toBeInTheDocument()
     })
 
+    it('keeps the three parameter tiles in one row at every width', () => {
+      render(<ExamConfigForm {...buildProps({ subjectId: 'sub-1' })} />)
+      const grid = screen.getByText('Pass Mark').closest('.grid') as HTMLElement
+      expect(grid.className).toContain('grid-cols-3')
+      expect(grid.className).not.toMatch(/(sm|md|lg):grid-cols/)
+    })
+
     it('shows the Time Limit label', () => {
       render(<ExamConfigForm {...buildProps({ subjectId: 'sub-1' })} />)
       expect(screen.getByText('Time Limit')).toBeInTheDocument()

@@ -1,5 +1,5 @@
 import { Stat, StatGroup } from '@/components/ui/stat'
-import { InfoTooltip } from './info-tooltip'
+import { TileLabel } from './tile-label'
 
 const DAILY_GOAL = 50
 
@@ -10,134 +10,126 @@ type StatCardsProps = {
   bestStreak: number
 }
 
+const READINESS_TIP =
+  'Percentage of subjects where your mastery is 90% or above. Red: below 31%, amber: 31–70%, green: 71%+.'
+const TODAY_TIP =
+  'Questions answered today towards your daily goal of 50. Red: none yet, amber: in progress, green: goal reached.'
+const STREAK_TIP =
+  'Consecutive days with at least one question answered. Red: streak broken, amber: 1–6 days, green: 7+ days.'
+const HINT_CLASS = 'hidden md:flex md:flex-col'
+
 export function StatCards({
   examReadiness,
   questionsToday,
   currentStreak,
   bestStreak,
 }: Readonly<StatCardsProps>) {
-  const readinessPct =
-    examReadiness.totalCount > 0
-      ? Math.round((examReadiness.readyCount / examReadiness.totalCount) * 100)
-      : 0
-
-  const todayProgress = Math.min(Math.round((questionsToday / DAILY_GOAL) * 100), 100)
-  const remaining = Math.max(DAILY_GOAL - questionsToday, 0)
-
-  const projectionText = examReadiness.projectedDate
-    ? `Est. ready by ${examReadiness.projectedDate}`
-    : 'Keep practicing'
-
-  const readinessColor =
-    readinessPct >= 71 ? 'text-green-500' : readinessPct >= 31 ? 'text-amber-500' : 'text-red-500'
-  const todayColor =
-    questionsToday >= DAILY_GOAL
-      ? 'text-green-500'
-      : questionsToday > 0
-        ? 'text-amber-500'
-        : 'text-red-500'
-  const todayBarColor =
-    questionsToday >= DAILY_GOAL
-      ? 'bg-green-500'
-      : questionsToday > 0
-        ? 'bg-amber-500'
-        : 'bg-red-500'
-  const streakColor =
-    currentStreak >= 7 ? 'text-green-500' : currentStreak > 0 ? 'text-amber-500' : 'text-red-500'
-
   return (
-    <StatGroup columns={3} className="grid-cols-3 sm:grid-cols-3 gap-2 md:gap-4">
-      <Stat
-        size="compact"
-        label={
-          <TileLabel short="Readiness" full="Exam Readiness">
-            <InfoTooltip
-              label="What is Exam Readiness?"
-              title="Exam Readiness"
-              description="Percentage of subjects where your mastery is 90% or above. Red: below 31%, amber: 31–70%, green: 71%+."
-              align="left"
-            />
-          </TileLabel>
-        }
-        value={<span className={readinessColor}>{readinessPct}%</span>}
-        hint={
-          <>
-            <span className="hidden md:block">
-              {examReadiness.readyCount} / {examReadiness.totalCount} subjects at 90%+
-            </span>
-            <span className="hidden md:block">{projectionText}</span>
-          </>
-        }
-      />
-
-      <Stat
-        size="compact"
-        label={
-          <TileLabel short="Today" full="Questions Today">
-            <InfoTooltip
-              label="What is Questions Today?"
-              title="Questions Today"
-              description="Questions answered today towards your daily goal of 50. Red: none yet, amber: in progress, green: goal reached."
-              align="center"
-            />
-          </TileLabel>
-        }
-        value={
-          <span className={todayColor}>
-            {questionsToday} / {DAILY_GOAL}
-          </span>
-        }
-        hint={
-          <>
-            <span className="mt-1 hidden h-1.5 w-full max-w-[120px] overflow-hidden rounded-full bg-muted md:block">
-              <span
-                className={`block h-full rounded-full transition-all ${todayBarColor}`}
-                style={{ width: `${todayProgress}%` }}
-              />
-            </span>
-            <span className="hidden md:block">
-              {remaining > 0 ? `${remaining} more to hit your daily goal` : 'Daily goal reached!'}
-            </span>
-          </>
-        }
-      />
-
-      <Stat
-        size="compact"
-        label={
-          <TileLabel short="Streak" full="Study Streak">
-            <InfoTooltip
-              label="What is Study Streak?"
-              title="Study Streak"
-              description="Consecutive days with at least one question answered. Red: streak broken, amber: 1–6 days, green: 7+ days."
-            />
-          </TileLabel>
-        }
-        value={
-          <span className={streakColor}>
-            {currentStreak} {currentStreak === 1 ? 'day' : 'days'}
-          </span>
-        }
-        hint={
-          <span className="hidden md:block">
-            Best: {bestStreak} {bestStreak === 1 ? 'day' : 'days'} — keep going!
-          </span>
-        }
-      />
+    <StatGroup columns={3} className="gap-2 md:gap-4">
+      <ReadinessTile {...examReadiness} />
+      <TodayTile questionsToday={questionsToday} />
+      <StreakTile currentStreak={currentStreak} bestStreak={bestStreak} />
     </StatGroup>
   )
 }
 
-function TileLabel({
-  short,
-  full,
-  children,
-}: Readonly<{ short: string; full: string; children: React.ReactNode }>) {
+type Readiness = StatCardsProps['examReadiness']
+
+function ReadinessTile({ readyCount, totalCount, projectedDate }: Readonly<Readiness>) {
+  const pct = totalCount > 0 ? Math.round((readyCount / totalCount) * 100) : 0
+  const color = pct >= 71 ? 'text-green-500' : pct >= 31 ? 'text-amber-500' : 'text-red-500'
+  const projection = projectedDate ? `Est. ready by ${projectedDate}` : 'Keep practicing'
   return (
-    <span className="inline-flex items-center gap-1">
-      <span className="md:hidden">{short}</span>
-      <span className="hidden md:inline">{full}</span>
-      {children}
+    <Stat
+      size="compact"
+      label={
+        <TileLabel
+          short="Readiness"
+          full="Exam Readiness"
+          description={READINESS_TIP}
+          align="left"
+        />
+      }
+      value={<span className={color}>{pct}%</span>}
+      hintClassName={HINT_CLASS}
+      hint={
+        <>
+          <span className="block">
+            {readyCount} / {totalCount} subjects at 90%+
+          </span>
+          <span className="block">{projection}</span>
+        </>
+      }
+    />
+  )
+}
+
+function TodayTile({ questionsToday }: Readonly<{ questionsToday: number }>) {
+  const progress = Math.min(Math.round((questionsToday / DAILY_GOAL) * 100), 100)
+  const remaining = Math.max(DAILY_GOAL - questionsToday, 0)
+  const { color, barColor } = goalColors(questionsToday)
+  return (
+    <Stat
+      size="compact"
+      label={
+        <TileLabel short="Today" full="Questions Today" description={TODAY_TIP} align="center" />
+      }
+      value={
+        <span className={color}>
+          {questionsToday} / {DAILY_GOAL}
+        </span>
+      }
+      hintClassName={HINT_CLASS}
+      hint={
+        <>
+          <DailyGoalBar progress={progress} color={barColor} />
+          <span className="block">
+            {remaining > 0 ? `${remaining} more to hit your daily goal` : 'Daily goal reached!'}
+          </span>
+        </>
+      }
+    />
+  )
+}
+
+function StreakTile({
+  currentStreak,
+  bestStreak,
+}: Readonly<{ currentStreak: number; bestStreak: number }>) {
+  const color =
+    currentStreak >= 7 ? 'text-green-500' : currentStreak > 0 ? 'text-amber-500' : 'text-red-500'
+  return (
+    <Stat
+      size="compact"
+      label={<TileLabel short="Streak" full="Study Streak" description={STREAK_TIP} />}
+      value={
+        <span className={color}>
+          {currentStreak} {currentStreak === 1 ? 'day' : 'days'}
+        </span>
+      }
+      hintClassName={HINT_CLASS}
+      hint={
+        <span className="block">
+          Best: {bestStreak} {bestStreak === 1 ? 'day' : 'days'} — keep going!
+        </span>
+      }
+    />
+  )
+}
+
+function goalColors(questionsToday: number) {
+  if (questionsToday >= DAILY_GOAL) return { color: 'text-green-500', barColor: 'bg-green-500' }
+  if (questionsToday > 0) return { color: 'text-amber-500', barColor: 'bg-amber-500' }
+  return { color: 'text-red-500', barColor: 'bg-red-500' }
+}
+
+function DailyGoalBar({ progress, color }: Readonly<{ progress: number; color: string }>) {
+  return (
+    <span className="mt-1 block h-1.5 w-full max-w-[120px] overflow-hidden rounded-full bg-muted">
+      <span
+        className={`block h-full rounded-full transition-all ${color}`}
+        style={{ width: `${progress}%` }}
+      />
     </span>
   )
 }

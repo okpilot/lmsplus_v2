@@ -28,7 +28,7 @@ export default function AppError({
           <EmptyMedia variant="icon">
             <CircleX aria-hidden="true" />
           </EmptyMedia>
-          <EmptyTitle>Something went wrong</EmptyTitle>
+          <EmptyTitle as="h2">Something went wrong</EmptyTitle>
           <EmptyDescription>An unexpected error occurred.</EmptyDescription>
         </EmptyHeader>
         <EmptyContent>

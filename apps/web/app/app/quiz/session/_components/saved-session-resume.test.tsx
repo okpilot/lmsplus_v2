@@ -37,6 +37,15 @@ describe('SavedSessionResume', () => {
     expect(screen.getByText(/4 of 10/)).toBeInTheDocument()
   })
 
+  it('titles the page with a level-1 heading that inherits the centred alignment', () => {
+    renderIt()
+    const h1 = screen.getByRole('heading', { level: 1, name: 'Saved quiz' })
+    const wrapper = h1.parentElement as HTMLElement
+    expect(wrapper.className).not.toContain('flex')
+    expect(wrapper.parentElement?.className).toContain('text-center')
+    expect(wrapper.parentElement).toContainElement(wrapper)
+  })
+
   it('resumes the quiz on Resume', () => {
     renderIt()
     fireEvent.click(screen.getByRole('button', { name: /resume/i }))

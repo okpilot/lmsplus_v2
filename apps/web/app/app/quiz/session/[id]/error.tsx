@@ -27,7 +27,7 @@ export default function QuizSessionError({
         <EmptyMedia variant="icon">
           <CircleX aria-hidden="true" className="text-danger" />
         </EmptyMedia>
-        <EmptyTitle>Something went wrong</EmptyTitle>
+        <EmptyTitle as="h2">Something went wrong</EmptyTitle>
         <EmptyDescription>This quiz could not be loaded.</EmptyDescription>
       </EmptyHeader>
       <EmptyContent>

@@ -114,6 +114,25 @@ describe('StatCards', () => {
     ).toBeInTheDocument()
   })
 
+  it('keeps three tiles in one row at every width with a tighter gap on a phone', () => {
+    const { container } = render(<StatCards {...BASE_PROPS} />)
+    const grid = container.querySelector('.grid') as HTMLElement
+    expect(grid.className).toContain('grid-cols-3')
+    expect(grid.className).toContain('gap-2')
+    expect(grid.className).toContain('md:gap-4')
+    expect(grid.className).not.toMatch(/(sm|md|lg):grid-cols/)
+  })
+
+  it('hides every detail line on a phone and shows it from md up', () => {
+    const { container } = render(<StatCards {...BASE_PROPS} />)
+    const hints = container.querySelectorAll('[data-slot="stat"] > :last-child:not(.tabular-nums)')
+    expect(hints).toHaveLength(3)
+    for (const h of hints) {
+      expect(h.className).toContain('hidden')
+      expect(h.className).toContain('md:flex')
+    }
+  })
+
   it('shrinks every stat value below the sm breakpoint so three tiles fit a phone', () => {
     const { container } = render(<StatCards {...BASE_PROPS} />)
     const values = container.querySelectorAll('[data-slot="stat"] > span.tabular-nums')

@@ -124,15 +124,15 @@ describe('VfrRtExamPanel', () => {
   })
 
   it.each([
-    [null, 'grid-cols-3', 'lg:grid-cols-3'],
-    [25, 'grid-cols-4', 'lg:grid-cols-4'],
+    [null, 'grid-cols-3'],
+    [25, 'grid-cols-4'],
   ] as const)(
     'keeps the parameter tiles in one row at every width for question count %s',
-    (questionCount, base, large) => {
+    (questionCount, base) => {
       renderPanel(questionCount)
       const grid = screen.getByText('30 min').closest('.grid')
       const tokens = (grid?.className ?? '').split(/\s+/).filter((c) => c.includes('grid-cols'))
-      expect(tokens.sort()).toEqual([base, large, base.replace('grid', 'sm:grid')].sort())
+      expect(tokens).toEqual([base])
     },
   )
 })

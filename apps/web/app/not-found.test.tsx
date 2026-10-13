@@ -36,6 +36,13 @@ describe('NotFound', () => {
     expect(screen.getByRole('link', { name: 'Go to home' })).toHaveAttribute('href', '/')
   })
 
+  it('styles the way out as an outline button', () => {
+    render(<NotFound />)
+    const cls = screen.getByRole('link', { name: 'Go to home' }).className
+    expect(cls).toContain('border-border')
+    expect(cls).toContain('bg-background')
+  })
+
   it('presents the message inside the shared empty part under a level-2 heading', () => {
     const { container } = render(<NotFound />)
     expect(container.querySelector('[data-slot="empty"]')).not.toBeNull()

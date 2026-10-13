@@ -41,22 +41,23 @@ export function ProfileCard({
           <dd>{joinDate}</dd>
         </dl>
 
-        <div className="border-t pt-4">
-          <Heading level={3} className="mb-3">
-            Quiz Statistics
-          </Heading>
-          <StatGroup columns={3} className="grid-cols-3 sm:grid-cols-3">
-            <Stat variant="plain" size="compact" label="Sessions" value={stats.totalSessions} />
-            <Stat
-              variant="plain"
-              size="compact"
-              label="Avg. Score"
-              value={`${stats.averageScore}%`}
-            />
-            <Stat variant="plain" size="compact" label="Answered" value={stats.totalAnswered} />
-          </StatGroup>
-        </div>
+        <QuizStatistics stats={stats} />
       </CardContent>
     </Card>
+  )
+}
+
+function QuizStatistics({ stats }: Readonly<{ stats: ProfileStats }>) {
+  return (
+    <div className="border-t pt-4">
+      <Heading level={3} className="mb-3">
+        Quiz Statistics
+      </Heading>
+      <StatGroup columns={3}>
+        <Stat variant="plain" size="compact" label="Sessions" value={stats.totalSessions} />
+        <Stat variant="plain" size="compact" label="Avg. Score" value={`${stats.averageScore}%`} />
+        <Stat variant="plain" size="compact" label="Answered" value={stats.totalAnswered} />
+      </StatGroup>
+    </div>
   )
 }

@@ -1,5 +1,6 @@
 import { FileQuestion } from 'lucide-react'
 import Link from 'next/link'
+import { buttonVariants } from '@/components/ui/button'
 import {
   Empty,
   EmptyContent,
@@ -37,7 +38,7 @@ export default function NotFound() {
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
-          <Link href="/" className="inline-block rounded-md border px-4 py-2 hover:bg-muted">
+          <Link href="/" className={buttonVariants({ variant: 'outline' })}>
             Go to home
           </Link>
         </EmptyContent>

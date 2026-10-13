@@ -27,6 +27,11 @@ describe('AppError', () => {
     expect(retry).toHaveBeenCalledOnce()
   })
 
+  it('titles the failure with a level-2 heading', () => {
+    render(<AppError error={new Error('boom')} retry={vi.fn()} />)
+    expect(screen.getByRole('heading', { level: 2, name: 'Something went wrong' })).toBeVisible()
+  })
+
   it('presents the failure inside the shared empty part', () => {
     render(<AppError error={new Error('boom')} retry={vi.fn()} />)
     expect(screen.getByRole('alert')).toHaveAttribute('data-slot', 'empty')

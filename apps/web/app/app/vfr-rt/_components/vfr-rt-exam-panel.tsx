@@ -29,14 +29,7 @@ function ExamParameters({ questionCount }: Readonly<{ questionCount: number | nu
   return (
     <div className="space-y-stack">
       <Heading level={3}>VFR RT Mock Exam Parameters</Heading>
-      <StatGroup
-        columns={parameters.length === 4 ? 4 : 3}
-        className={
-          parameters.length === 4
-            ? 'grid-cols-4 sm:grid-cols-4 lg:grid-cols-4'
-            : 'grid-cols-3 sm:grid-cols-3 lg:grid-cols-3'
-        }
-      >
+      <StatGroup columns={parameters.length === 4 ? 4 : 3}>
         {parameters.map((p) => (
           <Stat variant="plain" key={p.label} label={p.label} value={p.value} />
         ))}

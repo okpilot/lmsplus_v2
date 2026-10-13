@@ -33,6 +33,13 @@ describe('ProfileCard', () => {
     expect(screen.queryByText('Organisation')).not.toBeInTheDocument()
   })
 
+  it('keeps the three statistics in one row at every width', () => {
+    render(<ProfileCard {...defaultProps} />)
+    const grid = screen.getByText('Sessions').closest('.grid') as HTMLElement
+    expect(grid.className).toContain('grid-cols-3')
+    expect(grid.className).not.toMatch(/(sm|md|lg):grid-cols/)
+  })
+
   it('renders total sessions stat', () => {
     render(<ProfileCard {...defaultProps} />)
     expect(screen.getByText('42')).toBeInTheDocument()

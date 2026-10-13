@@ -3,6 +3,15 @@ import { describe, expect, it } from 'vitest'
 
 import { Alert, AlertAction, AlertDescription, AlertTitle } from './alert'
 
+describe('AlertAction', () => {
+  it('sits at the trailing edge from sm up, not auto-placed into the first column', () => {
+    render(<AlertAction data-testid="a">Undo</AlertAction>)
+    const cls = screen.getByTestId('a').className
+    expect(cls).toContain('sm:col-start-[-2]')
+    expect(cls).not.toContain('sm:col-start-auto')
+  })
+})
+
 describe('Alert', () => {
   it('exposes role alert when the caller passes it', () => {
     render(<Alert role="alert">Boom</Alert>)

@@ -22,9 +22,10 @@ const statValue = cva('tabular-nums', {
 })
 
 const COLUMN_CLASS = {
-  2: '',
-  3: 'lg:grid-cols-3',
-  4: 'lg:grid-cols-4',
+  1: 'grid-cols-1',
+  2: 'grid-cols-2',
+  3: 'grid-cols-3',
+  4: 'grid-cols-4',
 } as const
 
 type StatProps = Readonly<{
@@ -35,20 +36,31 @@ type StatProps = Readonly<{
   size?: 'default' | 'compact'
   trend?: React.ReactNode
   hint?: React.ReactNode
+  hintClassName?: string
   /** `plain` drops the card, for a stat that already sits inside another surface. */
   variant?: 'card' | 'plain'
   className?: string
 }>
 
-function StatBody({ label, value, tone, size, trend, hint }: StatProps) {
+function StatLabel({ label, trend }: Readonly<Pick<StatProps, 'label' | 'trend'>>) {
+  const text = <span className="text-label text-muted-foreground">{label}</span>
+  if (!trend) return text
+  return (
+    <div className="flex items-start justify-between gap-inline">
+      {text}
+      {trend}
+    </div>
+  )
+}
+
+function StatBody({ label, value, tone, size, trend, hint, hintClassName }: StatProps) {
   return (
     <div data-slot="stat" className="flex flex-col gap-1">
-      <div className="flex items-start justify-between gap-inline">
-        <span className="text-label text-muted-foreground">{label}</span>
-        {trend}
-      </div>
+      <StatLabel label={label} trend={trend} />
       <span className={statValue({ tone, size })}>{value}</span>
-      {hint ? <span className="text-caption text-muted-foreground">{hint}</span> : null}
+      {hint ? (
+        <span className={cn('text-caption text-muted-foreground', hintClassName)}>{hint}</span>
+      ) : null}
     </div>
   )
 }
@@ -74,13 +86,8 @@ function StatGroup({
   columns = 2,
   className,
   ...props
-}: Readonly<React.ComponentProps<'div'> & { columns?: 2 | 3 | 4 }>) {
-  return (
-    <div
-      className={cn('grid gap-grid sm:grid-cols-2', COLUMN_CLASS[columns], className)}
-      {...props}
-    />
-  )
+}: Readonly<React.ComponentProps<'div'> & { columns?: 1 | 2 | 3 | 4 }>) {
+  return <div className={cn('grid gap-grid', COLUMN_CLASS[columns], className)} {...props} />
 }
 
 export { Stat, StatGroup }

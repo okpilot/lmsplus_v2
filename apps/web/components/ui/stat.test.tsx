@@ -41,20 +41,57 @@ describe('StatGroup', () => {
     render(<StatGroup data-testid="g">x</StatGroup>)
     const cls = screen.getByTestId('g').className
     expect(cls).toContain('gap-grid')
-    expect(cls).toContain('sm:grid-cols-2')
-    expect(cls).not.toContain('lg:grid-cols')
+    expect(cls).toContain('grid-cols-2')
+    expect(cls).not.toContain('sm:grid-cols-2')
   })
 
   it.each([
-    [3, 'lg:grid-cols-3'],
-    [4, 'lg:grid-cols-4'],
-  ] as const)('adds the large-screen column class for %i columns', (columns, cls) => {
+    [1, 'grid-cols-1'],
+    [2, 'grid-cols-2'],
+    [3, 'grid-cols-3'],
+    [4, 'grid-cols-4'],
+  ] as const)('sets the column count at every width for %i columns', (columns, cls) => {
     render(
       <StatGroup columns={columns} data-testid="g">
         x
       </StatGroup>,
     )
-    expect(screen.getByTestId('g').className).toContain(cls)
+    const cls_ = screen.getByTestId('g').className
+    expect(cls_).toContain(cls)
+    expect(cls_).not.toMatch(/(sm|md|lg):grid-cols/)
+  })
+
+  it('lets a caller className override the column count at a breakpoint', () => {
+    render(
+      <StatGroup columns={1} className="md:grid-cols-3" data-testid="g">
+        x
+      </StatGroup>,
+    )
+    expect(screen.getByTestId('g').className).toContain('grid-cols-1')
+    expect(screen.getByTestId('g').className).toContain('md:grid-cols-3')
+  })
+})
+
+describe('Stat label row', () => {
+  it('renders the label alone, so it inherits the parent text alignment, when there is no trend', () => {
+    render(<Stat label="Correct" value="7" />)
+    const label = screen.getByText('Correct')
+    expect(label.parentElement?.getAttribute('data-slot')).toBe('stat')
+    expect(document.querySelector('.justify-between')).toBeNull()
+  })
+
+  it('puts the label and trend on one row when a trend is given', () => {
+    render(<Stat label="Correct" value="7" trend={<span>+3</span>} />)
+    const row = screen.getByText('Correct').parentElement
+    expect(row?.className).toContain('justify-between')
+    expect(row).toContainElement(screen.getByText('+3'))
+  })
+
+  it('applies hintClassName to the hint wrapper', () => {
+    render(<Stat label="L" value="1" hint="vs last week" hintClassName="hidden md:flex" />)
+    const cls = screen.getByText('vs last week').className
+    expect(cls).toContain('hidden')
+    expect(cls).toContain('md:flex')
   })
 })
 

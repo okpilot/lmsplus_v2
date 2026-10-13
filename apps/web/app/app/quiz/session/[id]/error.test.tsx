@@ -18,6 +18,11 @@ describe('QuizSessionError', () => {
     expect(retry).toHaveBeenCalledOnce()
   })
 
+  it('titles the failure with a level-2 heading', () => {
+    render(<QuizSessionError error={new Error('boom')} retry={vi.fn()} />)
+    expect(screen.getByRole('heading', { level: 2, name: 'Something went wrong' })).toBeVisible()
+  })
+
   it('shows the load failure in an alert empty state', () => {
     render(<QuizSessionError error={new Error('boom')} retry={vi.fn()} />)
     expect(screen.getByRole('alert')).toHaveAttribute('data-slot', 'empty')
