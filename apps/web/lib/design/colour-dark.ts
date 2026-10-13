@@ -1,5 +1,7 @@
 import type { ColourName } from './colour-light'
 
+const DANGER = 'oklch(0.78 0.12 25)'
+
 // Dark theme. Same names as light; surfaces lift per level.
 export const DARK: Record<ColourName, string> = {
   background: 'oklch(0.2 0.012 260)',
@@ -27,7 +29,7 @@ export const DARK: Record<ColourName, string> = {
   'success-soft': 'oklch(0.29 0.04 150)',
   'success-solid': 'oklch(0.7 0.12 150)',
   'success-foreground': 'oklch(0.2 0.01 150)',
-  danger: 'oklch(0.78 0.12 25)',
+  danger: DANGER,
   'danger-soft': 'oklch(0.29 0.04 25)',
   'danger-solid': 'oklch(0.68 0.13 25)',
   'danger-foreground': 'oklch(0.2 0.01 25)',
@@ -40,7 +42,7 @@ export const DARK: Record<ColourName, string> = {
   'info-solid': 'oklch(0.7 0.1 195)',
   'info-foreground': 'oklch(0.2 0.01 195)',
   // destructive = danger text shade; foreground is the dark text colour on it
-  destructive: 'oklch(0.78 0.12 25)',
+  destructive: DANGER,
   'destructive-foreground': 'oklch(0.2 0.01 25)',
   data: 'oklch(0.6 0.019 260)',
   'data-strong': 'oklch(0.88 0.008 260)',

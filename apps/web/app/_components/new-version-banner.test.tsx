@@ -38,7 +38,8 @@ describe('NewVersionBanner', () => {
         disconnect() {}
       },
     )
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({ height: 54 } as DOMRect)
     render(<NewVersionBanner onReload={onReload} />)
-    expect(document.documentElement.style.getPropertyValue('--reload-banner-h')).toMatch(/px$/)
+    expect(document.documentElement.style.getPropertyValue('--reload-banner-h')).toBe('54px')
   })
 })

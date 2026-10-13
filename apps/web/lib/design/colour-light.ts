@@ -1,3 +1,5 @@
+const DANGER = 'oklch(0.5 0.17 25)'
+
 // Light theme. Grey G1 Slate, status C3 Vivid, accent single blue.
 export const LIGHT = {
   background: 'oklch(0.963 0.006 255)',
@@ -25,7 +27,7 @@ export const LIGHT = {
   'success-soft': 'oklch(0.965 0.035 150)',
   'success-solid': 'oklch(0.72 0.15 150)',
   'success-foreground': 'oklch(0.2 0.01 150)',
-  danger: 'oklch(0.5 0.17 25)',
+  danger: DANGER,
   'danger-soft': 'oklch(0.965 0.035 25)',
   'danger-solid': 'oklch(0.68 0.18 25)',
   'danger-foreground': 'oklch(0.2 0.01 25)',
@@ -38,7 +40,7 @@ export const LIGHT = {
   'info-solid': 'oklch(0.72 0.12 195)',
   'info-foreground': 'oklch(0.2 0.01 195)',
   // destructive = danger text shade; foreground is white on it
-  destructive: 'oklch(0.5 0.17 25)',
+  destructive: DANGER,
   'destructive-foreground': 'oklch(0.99 0 0)',
   data: 'oklch(0.635 0.009 255)',
   'data-strong': 'oklch(0.4 0.009 255)',
