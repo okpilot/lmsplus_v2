@@ -91,12 +91,12 @@ describe('colour contrast', () => {
 })
 
 describe('layers', () => {
-  it('stacks menus above dialogs and toasts above the reload banner', () => {
-    const { sticky, nav, overlay, dropdown, banner, toast } = Z_INDEX
-    expect([sticky, nav, overlay, dropdown, banner, toast]).toEqual(
-      [sticky, nav, overlay, dropdown, banner, toast].toSorted((a, b) => a - b),
+  it('stacks menus above dialogs and the reload banner above toasts', () => {
+    const { sticky, nav, overlay, dropdown, toast, banner } = Z_INDEX
+    expect([sticky, nav, overlay, dropdown, toast, banner]).toEqual(
+      [sticky, nav, overlay, dropdown, toast, banner].toSorted((a, b) => a - b),
     )
-    expect(Z_INDEX.toast).toBeGreaterThan(Z_INDEX.banner)
+    expect(Z_INDEX.banner).toBeGreaterThan(Z_INDEX.toast)
     expect(new Set(Object.values(Z_INDEX)).size).toBe(6)
   })
 })

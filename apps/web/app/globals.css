@@ -125,3 +125,14 @@
     max-width: 100%;
   }
 }
+
+/* Toasts sit above the reload banner on narrow screens and beside it from 48rem. */
+body:has([data-slot='reload-banner']) [data-sonner-toaster][data-y-position='bottom'] {
+  bottom: 5rem !important;
+}
+@media (width >= 48rem) {
+  body:has([data-slot='reload-banner']) [data-sonner-toaster][data-y-position='bottom'] {
+    bottom: 1rem !important;
+    right: calc(1rem + 20rem + 0.75rem) !important;
+  }
+}
