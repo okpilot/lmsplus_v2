@@ -6,7 +6,7 @@ import { MOON_PATHS, SUN_PATHS, useThemeSwitch } from './use-theme-switch'
 export function ThemeToggle() {
   const { mounted, isDark, toggle } = useThemeSwitch()
 
-  if (!mounted) return <div className="size-8" />
+  if (!mounted) return <div className="size-(--control-h)" />
 
   return (
     <Button

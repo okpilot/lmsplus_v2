@@ -126,13 +126,18 @@
   }
 }
 
-/* Toasts sit above the reload banner on narrow screens and beside it from 48rem. */
-body:has([data-slot='reload-banner']) [data-sonner-toaster][data-y-position='bottom'] {
-  bottom: 5rem !important;
+/* Toasts sit above the reload banner on narrow screens and beside it from 48rem.
+   The banner publishes --reload-banner-h (use-publish-height.ts). */
+:root {
+  --reload-banner-w: 20rem;
+}
+body:has([data-slot="reload-banner"]) [data-sonner-toaster][data-y-position="bottom"] {
+  bottom: calc(1rem + var(--reload-banner-h, 3.5rem) + 0.5rem) !important;
 }
 @media (width >= 48rem) {
-  body:has([data-slot='reload-banner']) [data-sonner-toaster][data-y-position='bottom'] {
+  body:has([data-slot="reload-banner"])
+    [data-sonner-toaster][data-y-position="bottom"][data-x-position="right"] {
     bottom: 1rem !important;
-    right: calc(1rem + 20rem + 0.75rem) !important;
+    right: calc(1rem + var(--reload-banner-w) + 0.75rem) !important;
   }
 }
