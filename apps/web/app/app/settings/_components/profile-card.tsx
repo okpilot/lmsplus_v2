@@ -46,9 +46,14 @@ export function ProfileCard({
             Quiz Statistics
           </Heading>
           <StatGroup columns={3} className="grid-cols-3 sm:grid-cols-3">
-            <Stat variant="plain" label="Sessions" value={stats.totalSessions} />
-            <Stat variant="plain" label="Avg. Score" value={`${stats.averageScore}%`} />
-            <Stat variant="plain" label="Answered" value={stats.totalAnswered} />
+            <Stat variant="plain" size="compact" label="Sessions" value={stats.totalSessions} />
+            <Stat
+              variant="plain"
+              size="compact"
+              label="Avg. Score"
+              value={`${stats.averageScore}%`}
+            />
+            <Stat variant="plain" size="compact" label="Answered" value={stats.totalAnswered} />
           </StatGroup>
         </div>
       </CardContent>

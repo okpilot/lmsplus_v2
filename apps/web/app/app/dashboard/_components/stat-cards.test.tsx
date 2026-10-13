@@ -113,4 +113,11 @@ describe('StatCards', () => {
       within(tile).getByRole('button', { name: 'What is Questions Today?' }),
     ).toBeInTheDocument()
   })
+
+  it('shrinks every stat value below the sm breakpoint so three tiles fit a phone', () => {
+    const { container } = render(<StatCards {...BASE_PROPS} />)
+    const values = container.querySelectorAll('[data-slot="stat"] > span.tabular-nums')
+    expect(values).toHaveLength(3)
+    for (const v of values) expect(v.className).toContain('sm:text-stat')
+  })
 })

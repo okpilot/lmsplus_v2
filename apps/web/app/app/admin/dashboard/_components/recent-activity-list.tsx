@@ -8,15 +8,21 @@ import { formatRelativeTime } from './student-table-helpers'
 
 type Props = Readonly<{ sessions: RecentSession[] }>
 
+function EmptyNote({ children }: Readonly<{ children: string }>) {
+  return (
+    <Empty>
+      <EmptyDescription>{children}</EmptyDescription>
+    </Empty>
+  )
+}
+
 export function RecentActivityList({ sessions }: Props) {
   return (
     <div className="rounded-xl border border-border bg-card p-4 space-y-4">
       <Heading level={2}>Recent Activity</Heading>
 
       {sessions.length === 0 ? (
-        <Empty>
-          <EmptyDescription>No sessions yet.</EmptyDescription>
-        </Empty>
+        <EmptyNote>No sessions yet.</EmptyNote>
       ) : (
         <div className="space-y-3">
           {sessions.map((session) => (

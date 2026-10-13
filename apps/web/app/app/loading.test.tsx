@@ -13,4 +13,11 @@ describe('AppLoading', () => {
     const { container } = render(<AppLoading />)
     expect(container.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(0)
   })
+
+  it('holds the skeleton back briefly so quick loads do not flash', () => {
+    const { container } = render(<AppLoading />)
+    const cls = container.firstElementChild?.className ?? ''
+    expect(cls).toContain('opacity-0')
+    expect(cls).toContain('look-appear_200ms_ease-out_400ms_forwards')
+  })
 })

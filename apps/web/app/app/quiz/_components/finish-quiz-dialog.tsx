@@ -1,5 +1,6 @@
 'use client'
 
+import { Heading } from '@/components/ui/heading'
 import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
 import type { QuizPendingAction } from '../session/_hooks/use-quiz-submit'
 import { DialogBody } from './finish-quiz-dialog/dialog-body'
@@ -91,7 +92,7 @@ export function FinishQuizDialog({
         }}
         aria-label={title}
       >
-        <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+        <Heading level={2}>{title}</Heading>
         <DialogBody
           answeredCount={answeredCount}
           totalQuestions={totalQuestions}

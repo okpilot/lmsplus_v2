@@ -16,9 +16,9 @@ export function getMasteryTone(value: number): MasteryTone {
 }
 
 const MASTERY_COLOR: Record<MasteryTone, string> = {
-  danger: 'text-red-600',
-  caution: 'text-amber-600',
-  success: 'text-green-600',
+  danger: 'text-danger',
+  caution: 'text-caution',
+  success: 'text-success',
 }
 
 export function getMasteryColor(value: number): string {

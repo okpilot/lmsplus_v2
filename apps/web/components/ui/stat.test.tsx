@@ -71,3 +71,27 @@ describe('Stat variants', () => {
     expect(screen.getByText('Sessions').closest('[data-slot="stat"]')).toHaveTextContent('3')
   })
 })
+
+describe('Stat size and overflow', () => {
+  it('lets overlays escape the card instead of clipping them', () => {
+    render(<Stat label="L" value="1" />)
+    const cls = document.querySelector('[data-slot="card"]')?.className ?? ''
+    expect(cls).toContain('overflow-visible')
+    expect(cls).not.toMatch(/(^|\s)overflow-hidden/)
+  })
+
+  it('uses the full stat size for the default value', () => {
+    render(<Stat label="L" value="1" />)
+    const cls = screen.getByText('1').className
+    expect(cls).toContain('text-stat')
+    expect(cls).not.toContain('text-heading')
+  })
+
+  it('shrinks the value on phones when compact', () => {
+    render(<Stat label="L" value="1" size="compact" />)
+    const cls = screen.getByText('1').className.split(/\s+/)
+    expect(cls).toContain('text-heading')
+    expect(cls).toContain('sm:text-stat')
+    expect(cls).not.toContain('text-stat')
+  })
+})

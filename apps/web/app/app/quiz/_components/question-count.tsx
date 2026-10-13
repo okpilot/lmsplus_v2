@@ -11,16 +11,20 @@ type QuestionCountProps = {
 
 const PRESETS = [10, 25, 50] as const
 
+function NoQuestions() {
+  return (
+    <Empty className="bg-transparent p-0">
+      <EmptyDescription>No questions available. Select at least one topic above.</EmptyDescription>
+    </Empty>
+  )
+}
+
 export function QuestionCount({ value, max, onValueChange }: Readonly<QuestionCountProps>) {
   if (max === 0) {
     return (
       <div className="space-y-3">
         <span className="text-[13px] font-medium">Number of Questions</span>
-        <Empty className="bg-transparent p-0">
-          <EmptyDescription>
-            No questions available. Select at least one topic above.
-          </EmptyDescription>
-        </Empty>
+        <NoQuestions />
       </div>
     )
   }

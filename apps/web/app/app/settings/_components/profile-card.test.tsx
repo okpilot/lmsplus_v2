@@ -73,4 +73,11 @@ describe('ProfileCard', () => {
       expect(tile).not.toHaveTextContent('student@example.com')
     }
   })
+
+  it('shrinks the quiz stat values below the sm breakpoint so three columns fit a phone', () => {
+    const { container } = render(<ProfileCard {...defaultProps} />)
+    const values = container.querySelectorAll('[data-slot="stat"] > span.tabular-nums')
+    expect(values).toHaveLength(3)
+    for (const v of values) expect(v.className).toContain('sm:text-stat')
+  })
 })

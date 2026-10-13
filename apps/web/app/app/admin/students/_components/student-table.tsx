@@ -68,7 +68,7 @@ export function StudentTable({ students, onEdit, onToggleStatus, onExport }: Rea
               </TableCell>
               <TableCell>
                 {s.deleted_at === null ? (
-                  <Badge variant="default" className="bg-green-600 text-xs hover:bg-green-600">
+                  <Badge tone="success" className="text-xs">
                     Active
                   </Badge>
                 ) : (

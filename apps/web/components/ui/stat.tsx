@@ -4,8 +4,12 @@ import type * as React from 'react'
 import { cn } from '@/lib/utils'
 import { Card, CardContent } from './card'
 
-const statValue = cva('text-stat tabular-nums', {
+const statValue = cva('tabular-nums', {
   variants: {
+    size: {
+      default: 'text-stat',
+      compact: 'text-heading sm:text-stat',
+    },
     tone: {
       default: 'text-foreground',
       success: 'text-success',
@@ -14,7 +18,7 @@ const statValue = cva('text-stat tabular-nums', {
       info: 'text-info',
     },
   },
-  defaultVariants: { tone: 'default' },
+  defaultVariants: { tone: 'default', size: 'default' },
 })
 
 const COLUMN_CLASS = {
@@ -27,6 +31,8 @@ type StatProps = Readonly<{
   label: React.ReactNode
   value: React.ReactNode
   tone?: 'success' | 'danger' | 'caution' | 'info'
+  /** `compact` shrinks the value below `sm`, for three-column rows at phone width. */
+  size?: 'default' | 'compact'
   trend?: React.ReactNode
   hint?: React.ReactNode
   /** `plain` drops the card, for a stat that already sits inside another surface. */
@@ -34,14 +40,14 @@ type StatProps = Readonly<{
   className?: string
 }>
 
-function StatBody({ label, value, tone, trend, hint }: StatProps) {
+function StatBody({ label, value, tone, size, trend, hint }: StatProps) {
   return (
     <div data-slot="stat" className="flex flex-col gap-1">
       <div className="flex items-start justify-between gap-inline">
         <span className="text-label text-muted-foreground">{label}</span>
         {trend}
       </div>
-      <span className={statValue({ tone })}>{value}</span>
+      <span className={statValue({ tone, size })}>{value}</span>
       {hint ? <span className="text-caption text-muted-foreground">{hint}</span> : null}
     </div>
   )
@@ -56,7 +62,7 @@ function Stat({ variant = 'card', className, ...props }: StatProps) {
     )
   }
   return (
-    <Card className={className}>
+    <Card className={cn('overflow-visible', className)}>
       <CardContent>
         <StatBody {...props} />
       </CardContent>

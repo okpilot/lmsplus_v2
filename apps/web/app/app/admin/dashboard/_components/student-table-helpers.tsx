@@ -52,7 +52,7 @@ export function StudentRow({ student, onClick }: StudentRowProps) {
       <TableCell className={getMasteryColor(student.mastery)}>{student.mastery}%</TableCell>
       <TableCell>
         {student.isActive ? (
-          <Badge className="bg-green-600 hover:bg-green-600">Active</Badge>
+          <Badge tone="success">Active</Badge>
         ) : (
           <Badge variant="destructive">Inactive</Badge>
         )}

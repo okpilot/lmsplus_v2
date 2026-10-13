@@ -122,4 +122,17 @@ describe('VfrRtExamPanel', () => {
       screen.getByRole('heading', { level: 3, name: 'VFR RT Mock Exam Parameters' }),
     ).toBeInTheDocument()
   })
+
+  it.each([
+    [null, 'grid-cols-3', 'lg:grid-cols-3'],
+    [25, 'grid-cols-4', 'lg:grid-cols-4'],
+  ] as const)(
+    'keeps the parameter tiles in one row at every width for question count %s',
+    (questionCount, base, large) => {
+      renderPanel(questionCount)
+      const grid = screen.getByText('30 min').closest('.grid')
+      const tokens = (grid?.className ?? '').split(/\s+/).filter((c) => c.includes('grid-cols'))
+      expect(tokens.sort()).toEqual([base, large, base.replace('grid', 'sm:grid')].sort())
+    },
+  )
 })

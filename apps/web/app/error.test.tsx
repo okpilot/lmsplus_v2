@@ -70,4 +70,12 @@ describe('ErrorPage', () => {
     expect(container.querySelector('[data-slot="empty"]')).not.toBeNull()
     expect(screen.getByRole('heading', { level: 2, name: /something went wrong/i })).toBeVisible()
   })
+
+  it('renders Try again with the shared button part', () => {
+    render(<ErrorPage error={testError} retry={mockRetry} />)
+    expect(screen.getByRole('button', { name: /try again/i })).toHaveAttribute(
+      'data-slot',
+      'button',
+    )
+  })
 })

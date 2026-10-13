@@ -110,21 +110,21 @@ describe('RecentActivityList', () => {
 
   it('applies green color class for a score of 80', () => {
     render(<RecentActivityList sessions={[makeSession({ scorePercentage: 80 })]} />)
-    // text-green-600 should be on the score span
+    // text-success should be on the score span
     const scoreEl = screen.getByText('80%')
-    expect(scoreEl.className).toContain('text-green-600')
+    expect(scoreEl.className).toContain('text-success')
   })
 
   it('applies amber color class for a score of 79', () => {
     render(<RecentActivityList sessions={[makeSession({ scorePercentage: 79 })]} />)
     const scoreEl = screen.getByText('79%')
-    expect(scoreEl.className).toContain('text-amber-600')
+    expect(scoreEl.className).toContain('text-caution')
   })
 
   it('applies red color class for a score below 50', () => {
     render(<RecentActivityList sessions={[makeSession({ scorePercentage: 49 })]} />)
     const scoreEl = screen.getByText('49%')
-    expect(scoreEl.className).toContain('text-red-600')
+    expect(scoreEl.className).toContain('text-danger')
   })
 
   it('shows a dash placeholder when scorePercentage is null', () => {

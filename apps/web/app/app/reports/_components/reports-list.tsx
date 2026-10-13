@@ -33,6 +33,18 @@ const SORT_OPTIONS = [
   { value: 'subject-desc', label: 'Subject (Z–A)' },
 ]
 
+function NoReports() {
+  return (
+    <Empty>
+      <EmptyHeader>
+        <EmptyDescription>
+          No completed sessions yet. Start a quiz or review to see your reports.
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  )
+}
+
 export function ReportsList({ sessions, page, totalCount, pageSize, sort, dir }: Readonly<Props>) {
   const updateParams = useUpdateSearchParams()
 
@@ -57,15 +69,7 @@ export function ReportsList({ sessions, page, totalCount, pageSize, sort, dir }:
   )
 
   if (sessions.length === 0 && totalCount === 0) {
-    return (
-      <Empty>
-        <EmptyHeader>
-          <EmptyDescription>
-            No completed sessions yet. Start a quiz or review to see your reports.
-          </EmptyDescription>
-        </EmptyHeader>
-      </Empty>
-    )
+    return <NoReports />
   }
 
   return (

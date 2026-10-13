@@ -157,6 +157,8 @@ describe('StudentRow', () => {
       </table>,
     )
     expect(screen.getByText('Active')).toBeInTheDocument()
+    expect(screen.getByText('Active').className).toContain('bg-success-soft')
+    expect(screen.getByText('Active').className).not.toContain('bg-green-600')
   })
 
   it('marks recent activity with a success-toned dot', () => {
@@ -269,7 +271,7 @@ describe('StudentRow', () => {
         </tbody>
       </table>,
     )
-    expect(screen.getByText('90%').className).toContain('text-green-600')
+    expect(screen.getByText('90%').className).toContain('text-success')
   })
 
   it('applies a red mastery colour class when mastery is below 50', () => {
@@ -280,6 +282,6 @@ describe('StudentRow', () => {
         </tbody>
       </table>,
     )
-    expect(screen.getByText('30%').className).toContain('text-red-600')
+    expect(screen.getByText('30%').className).toContain('text-danger')
   })
 })

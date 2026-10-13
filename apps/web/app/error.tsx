@@ -2,6 +2,7 @@
 
 import { CircleX } from 'lucide-react'
 import { useBoundaryError } from '@/app/_hooks/use-boundary-error'
+import { Button } from '@/components/ui/button'
 import {
   Empty,
   EmptyContent,
@@ -31,13 +32,9 @@ export default function ErrorPage({
           <EmptyDescription>An unexpected error occurred.</EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
-          <button
-            type="button"
-            onClick={() => retry()}
-            className="rounded-md bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
-          >
+          <Button type="button" onClick={() => retry()}>
             Try again
-          </button>
+          </Button>
         </EmptyContent>
       </Empty>
     </div>

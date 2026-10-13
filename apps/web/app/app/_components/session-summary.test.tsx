@@ -142,4 +142,24 @@ describe('SessionSummary', () => {
     expect(tileFor('Correct')?.querySelector('.text-success')).toHaveTextContent('7')
     expect(tileFor('Incorrect')?.querySelector('.text-danger')).toHaveTextContent('3')
   })
+
+  it.each([
+    [8, ['grid-cols-2', 'sm:grid-cols-4', 'lg:grid-cols-4']],
+    [10, ['grid-cols-3', 'sm:grid-cols-3', 'lg:grid-cols-3']],
+  ] as const)(
+    'lays the tiles out for the right column count when answered is %i of 10',
+    (answeredCount, expected) => {
+      render(
+        <SessionSummary
+          totalQuestions={10}
+          answeredCount={answeredCount}
+          correctCount={6}
+          scorePercentage={60}
+        />,
+      )
+      const grid = tileFor('Correct')?.closest('.grid')
+      const tokens = (grid?.className ?? '').split(/\s+/).filter((c) => c.includes('grid-cols'))
+      expect(tokens.sort()).toEqual([...expected].sort())
+    },
+  )
 })

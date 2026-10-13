@@ -11,15 +11,21 @@ function getBarColor(score: number): string {
   return 'bg-green-500'
 }
 
+function EmptyNote({ children }: Readonly<{ children: string }>) {
+  return (
+    <Empty>
+      <EmptyDescription>{children}</EmptyDescription>
+    </Empty>
+  )
+}
+
 export function WeakTopicsList({ topics }: Props) {
   return (
     <div className="rounded-xl border border-border bg-card p-4 space-y-4">
       <Heading level={2}>Weakest Topics</Heading>
 
       {topics.length === 0 ? (
-        <Empty>
-          <EmptyDescription>No quiz data yet.</EmptyDescription>
-        </Empty>
+        <EmptyNote>No quiz data yet.</EmptyNote>
       ) : (
         <ul className="space-y-4">
           {topics.map((topic) => (

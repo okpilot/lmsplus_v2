@@ -67,4 +67,4 @@ function AlertAction({ className, ...props }: Readonly<React.ComponentProps<'div
   )
 }
 
-export { Alert, AlertAction, AlertDescription, AlertTitle, alertVariants }
+export { Alert, AlertAction, AlertDescription, AlertTitle }

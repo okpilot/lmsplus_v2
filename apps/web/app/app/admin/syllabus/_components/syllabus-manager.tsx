@@ -13,6 +13,14 @@ type Props = {
   initialTree: SyllabusTree
 }
 
+function EmptyNote() {
+  return (
+    <Empty>
+      <EmptyDescription>No subjects yet. Add your first subject below.</EmptyDescription>
+    </Empty>
+  )
+}
+
 export function SyllabusManager({ initialTree }: Readonly<Props>) {
   const [isPending, startTransition] = useTransition()
 
@@ -37,11 +45,7 @@ export function SyllabusManager({ initialTree }: Readonly<Props>) {
 
   return (
     <div className="space-y-2">
-      {initialTree.length === 0 && !isPending && (
-        <Empty>
-          <EmptyDescription>No subjects yet. Add your first subject below.</EmptyDescription>
-        </Empty>
-      )}
+      {initialTree.length === 0 && !isPending && <EmptyNote />}
 
       {initialTree.map((subject) => (
         <SubjectRow key={subject.id} subject={subject} />

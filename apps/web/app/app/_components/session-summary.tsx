@@ -22,7 +22,14 @@ export function SessionSummary({
     <div className="mx-auto max-w-md space-y-6 text-center">
       <Stat variant="plain" label={`${label} Complete`} value={`${Math.round(scorePercentage)}%`} />
 
-      <StatGroup columns={4}>
+      <StatGroup
+        columns={4}
+        className={
+          skippedCount > 0
+            ? 'grid-cols-2 sm:grid-cols-4 lg:grid-cols-4'
+            : 'grid-cols-3 sm:grid-cols-3 lg:grid-cols-3'
+        }
+      >
         <Stat variant="plain" label="Correct" value={correctCount} tone="success" />
         <Stat variant="plain" label="Incorrect" value={incorrectCount} tone="danger" />
         {skippedCount > 0 && <Stat variant="plain" label="Skipped" value={skippedCount} />}

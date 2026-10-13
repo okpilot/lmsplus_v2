@@ -145,7 +145,6 @@
         "apps/web/app/app/settings/_components/change-password-form.tsx",
         "apps/web/app/auth/forgot-password/_components/recovery-code-form.tsx",
         "apps/web/app/_components/login-form.tsx",
-        "apps/web/app/error.tsx",
         "apps/web/app/global-error.tsx",
         "apps/web/components/auth/new-password-fields.tsx",
         "apps/web/components/sortable-table-head.tsx"

@@ -48,6 +48,7 @@ export function StatCards({
   return (
     <StatGroup columns={3} className="grid-cols-3 sm:grid-cols-3 gap-2 md:gap-4">
       <Stat
+        size="compact"
         label={
           <TileLabel short="Readiness" full="Exam Readiness">
             <InfoTooltip
@@ -70,6 +71,7 @@ export function StatCards({
       />
 
       <Stat
+        size="compact"
         label={
           <TileLabel short="Today" full="Questions Today">
             <InfoTooltip
@@ -101,6 +103,7 @@ export function StatCards({
       />
 
       <Stat
+        size="compact"
         label={
           <TileLabel short="Streak" full="Study Streak">
             <InfoTooltip
