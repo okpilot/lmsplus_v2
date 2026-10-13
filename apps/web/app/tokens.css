@@ -195,8 +195,8 @@
   --radius-sheet: 1rem;
   --z-index-sticky: 10;
   --z-index-nav: 20;
-  --z-index-dropdown: 30;
-  --z-index-overlay: 40;
+  --z-index-overlay: 30;
+  --z-index-dropdown: 40;
   --z-index-toast: 50;
   --z-index-banner: 60;
   --transition-duration-fast: 150ms;

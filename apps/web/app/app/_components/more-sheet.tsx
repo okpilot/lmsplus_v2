@@ -40,13 +40,13 @@ export function MoreSheet({ hidden, activeHref, onClose, onDismiss }: Readonly<S
       <Button
         variant="ghost"
         aria-label="Close menu"
-        className="fixed inset-0 z-30 size-auto cursor-default rounded-none bg-foreground/10"
+        className="fixed inset-0 z-sticky size-auto cursor-default rounded-none bg-foreground/10"
         onClick={onDismiss}
       />
       <ul
         ref={listRef}
         id={SHEET_ID}
-        className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-40 rounded-t-2xl border-t border-foreground/[0.06] bg-card px-2 py-2"
+        className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-nav rounded-t-2xl border-t border-foreground/[0.06] bg-card px-2 py-2"
       >
         {hidden.map((item) => (
           <li key={item.href}>
