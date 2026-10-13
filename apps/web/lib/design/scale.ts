@@ -36,7 +36,7 @@ export const CONTAINERS = { content: '70rem', reading: '70ch' } as const
 export const RADIUS = { base: rem(8), control: rem(8), card: rem(12), sheet: rem(16) } as const
 export const RADIUS_KEYS = ['control', 'card', 'sheet'] as const
 
-export const Z_INDEX = { sticky: 10, nav: 20, overlay: 30, dropdown: 40, toast: 50, banner: 60 }
+export const Z_INDEX = { sticky: 10, nav: 20, overlay: 30, dropdown: 40, banner: 50, toast: 60 }
 
 // M2 · Standard (ms).
 export const DURATIONS = { fast: 150, base: 200, slow: 300 }

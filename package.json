@@ -13,6 +13,7 @@
     "e2e": "turbo run e2e",
     "knip": "knip",
     "db:types": "pnpm dlx supabase@2.78.1 gen types typescript --local > packages/db/src/types.ts.tmp && mv packages/db/src/types.ts.tmp packages/db/src/types.ts || { rm -f packages/db/src/types.ts.tmp; exit 1; }; biome format --write packages/db/src/types.ts",
+    "tokens:css": "pnpm --filter @repo/web tokens:css",
     "preinstall": "npx only-allow pnpm"
   },
   "engines": {

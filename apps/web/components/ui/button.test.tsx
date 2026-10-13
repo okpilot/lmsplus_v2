@@ -31,5 +31,6 @@ describe('Button', () => {
     const { className } = screen.getByRole('button')
     expect(className).toContain(visual)
     expect(className).toContain('after:absolute')
+    expect(className).toContain('after:-inset-x-0.5')
   })
 })
