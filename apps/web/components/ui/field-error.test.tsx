@@ -36,4 +36,9 @@ describe('FieldError', () => {
     const { container } = render(<FieldError>{children}</FieldError>)
     expect(container).toBeEmptyDOMElement()
   })
+
+  it('renders nothing for a false child', () => {
+    const { container } = render(<FieldError>{false}</FieldError>)
+    expect(container).toBeEmptyDOMElement()
+  })
 })

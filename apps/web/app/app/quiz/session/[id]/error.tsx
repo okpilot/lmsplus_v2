@@ -1,16 +1,8 @@
 'use client'
 
-import { CircleX } from 'lucide-react'
+import { ErrorScreen } from '@/app/_components/error-screen'
 import { useBoundaryError } from '@/app/_hooks/use-boundary-error'
 import { Button } from '@/components/ui/button'
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from '@/components/ui/empty'
 
 export default function QuizSessionError({
   error,
@@ -22,19 +14,14 @@ export default function QuizSessionError({
   useBoundaryError(error)
 
   return (
-    <Empty role="alert">
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <CircleX aria-hidden="true" className="text-danger" />
-        </EmptyMedia>
-        <EmptyTitle as="h2">Something went wrong</EmptyTitle>
-        <EmptyDescription>This quiz could not be loaded.</EmptyDescription>
-      </EmptyHeader>
-      <EmptyContent>
+    <ErrorScreen
+      action={
         <Button type="button" onClick={() => retry()}>
           Try again
         </Button>
-      </EmptyContent>
-    </Empty>
+      }
+    >
+      This quiz could not be loaded.
+    </ErrorScreen>
   )
 }

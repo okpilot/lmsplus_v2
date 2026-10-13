@@ -1,7 +1,7 @@
 import { Heading } from '@/components/ui/heading'
+import { EmptyNote } from '../../_components/empty-note'
 import { getMasteryColor } from '../_lib/constants'
 import type { WeakTopic } from '../types'
-import { EmptyNote } from './empty-note'
 
 type Props = Readonly<{ topics: WeakTopic[] }>
 

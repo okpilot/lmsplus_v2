@@ -2,6 +2,7 @@ import { CircleAlert } from 'lucide-react'
 import type * as React from 'react'
 
 import { cn } from '@/lib/utils'
+import { isEmptyNode } from '@/lib/utils/is-empty-node'
 
 type FieldErrorProps = Readonly<{
   id?: string
@@ -11,7 +12,7 @@ type FieldErrorProps = Readonly<{
 }>
 
 function FieldError({ id, role, className, children }: FieldErrorProps) {
-  if (children === null || children === undefined || children === '') return null
+  if (isEmptyNode(children)) return null
   return (
     <p
       id={id}

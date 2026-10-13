@@ -1,0 +1,37 @@
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
+import { Button } from '@/components/ui/button'
+import { ErrorScreen } from './error-screen'
+
+describe('ErrorScreen', () => {
+  it('announces the failure with the default title and description', () => {
+    render(<ErrorScreen action={<Button>Retry</Button>}>Details here.</ErrorScreen>)
+    expect(screen.getByRole('alert')).toHaveAttribute('data-slot', 'empty')
+    expect(screen.getByRole('heading', { level: 2, name: 'Something went wrong' })).toBeVisible()
+    expect(screen.getByRole('alert')).toHaveTextContent('Details here.')
+  })
+
+  it('uses a caller title instead of the default', () => {
+    render(
+      <ErrorScreen title="Quiz unavailable" action={null}>
+        x
+      </ErrorScreen>,
+    )
+    expect(screen.getByRole('heading', { level: 2, name: 'Quiz unavailable' })).toBeVisible()
+  })
+
+  it('draws the icon in the danger tone and hides it from assistive tech', () => {
+    const { container } = render(<ErrorScreen action={null}>x</ErrorScreen>)
+    const svg = container.querySelector('svg')
+    expect(svg?.getAttribute('class')).toContain('text-danger')
+    expect(svg).toHaveAttribute('aria-hidden', 'true')
+  })
+
+  it('renders the action and lets it be clicked', async () => {
+    const onClick = vi.fn()
+    render(<ErrorScreen action={<Button onClick={onClick}>Retry</Button>}>x</ErrorScreen>)
+    await userEvent.setup({ delay: null }).click(screen.getByRole('button', { name: 'Retry' }))
+    expect(onClick).toHaveBeenCalledOnce()
+  })
+})

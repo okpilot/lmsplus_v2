@@ -27,7 +27,7 @@ const badgeVariants = cva(
       },
       shape: {
         default: '',
-        circle: 'size-6 justify-center rounded-full p-0',
+        circle: 'size-6 justify-center rounded-full p-0 [&>svg]:size-3.5!',
       },
     },
     compoundVariants: [

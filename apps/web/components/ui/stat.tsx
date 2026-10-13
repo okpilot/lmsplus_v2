@@ -2,6 +2,7 @@ import { cva } from 'class-variance-authority'
 import type * as React from 'react'
 
 import { cn } from '@/lib/utils'
+import { isEmptyNode } from '@/lib/utils/is-empty-node'
 import { Card, CardContent } from './card'
 
 const statValue = cva('tabular-nums', {
@@ -47,7 +48,7 @@ type StatProps = Readonly<{
 
 function StatLabel({ label, trend }: Readonly<Pick<StatProps, 'label' | 'trend'>>) {
   const text = <span className="text-label text-muted-foreground">{label}</span>
-  if (!trend) return text
+  if (isEmptyNode(trend)) return text
   return (
     <div className="flex items-start justify-between gap-inline">
       {text}
@@ -61,9 +62,9 @@ function StatBody({ label, value, tone, size, trend, hint, hintClassName }: Stat
     <div data-slot="stat" className="flex flex-col gap-1">
       <StatLabel label={label} trend={trend} />
       <span className={statValue({ tone, size })}>{value}</span>
-      {hint ? (
+      {isEmptyNode(hint) ? null : (
         <span className={cn('text-caption text-muted-foreground', hintClassName)}>{hint}</span>
-      ) : null}
+      )}
     </div>
   )
 }

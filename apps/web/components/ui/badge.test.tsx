@@ -60,4 +60,11 @@ describe('Badge soft variant without a tone', () => {
     expect(el.className).toContain('bg-muted')
     expect(el.className).toContain('text-foreground')
   })
+
+  it('keeps a 14px icon inside a circle badge instead of the base 12px', () => {
+    render(<Badge shape="circle">3</Badge>)
+    const cls = screen.getByText('3').className
+    expect(cls).toContain('[&>svg]:size-3.5!')
+    expect(cls).not.toContain('[&>svg]:size-3!')
+  })
 })

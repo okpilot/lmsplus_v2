@@ -1,9 +1,9 @@
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Heading } from '@/components/ui/heading'
+import { EmptyNote } from '../../_components/empty-note'
 import { getMasteryColor } from '../_lib/constants'
 import type { RecentSession } from '../types'
-import { EmptyNote } from './empty-note'
 import { formatRelativeTime } from './student-table-helpers'
 
 type Props = Readonly<{ sessions: RecentSession[] }>

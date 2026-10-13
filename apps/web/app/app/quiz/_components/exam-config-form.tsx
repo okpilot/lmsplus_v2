@@ -18,6 +18,24 @@ function formatTime(seconds: number): string {
   return `${m} min`
 }
 
+function ExamParametersPanel({ subject }: Readonly<{ subject: ExamSubjectOption }>) {
+  return (
+    <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
+      <Heading level={3}>Practice Exam Parameters</Heading>
+      <StatGroup columns={3}>
+        <Stat variant="plain" size="compact" label="Questions" value={subject.totalQuestions} />
+        <Stat
+          variant="plain"
+          size="compact"
+          label="Time Limit"
+          value={formatTime(subject.timeLimitSeconds)}
+        />
+        <Stat variant="plain" size="compact" label="Pass Mark" value={`${subject.passMark}%`} />
+      </StatGroup>
+    </div>
+  )
+}
+
 export function ExamConfigForm({
   examSubjects,
   subjectId,
@@ -37,31 +55,7 @@ export function ExamConfigForm({
     <>
       <SubjectSelect subjects={subjectOptions} value={subjectId} onValueChange={onSubjectChange} />
 
-      {selected && (
-        <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
-          <Heading level={3}>Practice Exam Parameters</Heading>
-          <StatGroup columns={3}>
-            <Stat
-              variant="plain"
-              size="compact"
-              label="Questions"
-              value={selected.totalQuestions}
-            />
-            <Stat
-              variant="plain"
-              size="compact"
-              label="Time Limit"
-              value={formatTime(selected.timeLimitSeconds)}
-            />
-            <Stat
-              variant="plain"
-              size="compact"
-              label="Pass Mark"
-              value={`${selected.passMark}%`}
-            />
-          </StatGroup>
-        </div>
-      )}
+      {selected && <ExamParametersPanel subject={selected} />}
     </>
   )
 }

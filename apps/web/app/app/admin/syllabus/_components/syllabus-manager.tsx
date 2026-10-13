@@ -2,8 +2,8 @@
 
 import { useTransition } from 'react'
 import { toast } from 'sonner'
-import { Empty, EmptyDescription } from '@/components/ui/empty'
 import { Heading } from '@/components/ui/heading'
+import { EmptyNote } from '../../_components/empty-note'
 import { upsertSubject } from '../actions/upsert-subject'
 import type { SyllabusTree } from '../types'
 import { InlineForm } from './inline-form'
@@ -11,14 +11,6 @@ import { SubjectRow } from './subject-row'
 
 type Props = {
   initialTree: SyllabusTree
-}
-
-function EmptyNote() {
-  return (
-    <Empty>
-      <EmptyDescription>No subjects yet. Add your first subject below.</EmptyDescription>
-    </Empty>
-  )
 }
 
 export function SyllabusManager({ initialTree }: Readonly<Props>) {
@@ -45,7 +37,9 @@ export function SyllabusManager({ initialTree }: Readonly<Props>) {
 
   return (
     <div className="space-y-2">
-      {initialTree.length === 0 && !isPending && <EmptyNote />}
+      {initialTree.length === 0 && !isPending && (
+        <EmptyNote>No subjects yet. Add your first subject below.</EmptyNote>
+      )}
 
       {initialTree.map((subject) => (
         <SubjectRow key={subject.id} subject={subject} />
