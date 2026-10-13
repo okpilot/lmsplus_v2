@@ -4,7 +4,7 @@ import { useCallback } from 'react'
 import { PaginationBar } from '@/app/app/_components/pagination-bar'
 import { useUpdateSearchParams } from '@/app/app/_hooks/use-update-search-params'
 import { SortableTableHead } from '@/components/sortable-table-head'
-import { Empty, EmptyDescription } from '@/components/ui/empty'
+import { EmptyNote } from '@/components/ui/empty'
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { SessionSort, StudentSession, StudentSessionFilters } from '../../../types'
 import { SESSIONS_PAGE_SIZE } from '../../../types'
@@ -43,9 +43,7 @@ export function SessionHistoryTable({
     return (
       <div className="space-y-3">
         {header}
-        <Empty>
-          <EmptyDescription>No sessions found.</EmptyDescription>
-        </Empty>
+        <EmptyNote>No sessions found.</EmptyNote>
       </div>
     )
   }
@@ -54,9 +52,7 @@ export function SessionHistoryTable({
     return (
       <div className="space-y-3">
         {header}
-        <Empty>
-          <EmptyDescription>No sessions on this page. Try going back to page 1.</EmptyDescription>
-        </Empty>
+        <EmptyNote>No sessions on this page. Try going back to page 1.</EmptyNote>
         <PaginationBar
           page={filters.page}
           totalCount={totalCount}

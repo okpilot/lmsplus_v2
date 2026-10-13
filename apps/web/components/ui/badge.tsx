@@ -48,7 +48,9 @@ type BadgeVariants = VariantProps<typeof badgeVariants>
 type BadgeLook =
   | { tone?: undefined; variant?: BadgeVariants['variant'] }
   | { tone: NonNullable<BadgeVariants['tone']>; variant?: 'soft' }
-type BadgeProps = useRender.ComponentProps<'span'> & Pick<BadgeVariants, 'shape'> & BadgeLook
+type BadgeProps = Readonly<
+  useRender.ComponentProps<'span'> & Pick<BadgeVariants, 'shape'> & BadgeLook
+>
 
 function Badge({ className, variant, tone, shape, render, ...props }: BadgeProps) {
   const resolvedVariant = variant ?? (tone ? 'soft' : 'default')

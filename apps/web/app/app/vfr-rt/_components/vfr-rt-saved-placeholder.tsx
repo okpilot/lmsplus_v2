@@ -1,9 +1,5 @@
-import { Empty, EmptyDescription } from '@/components/ui/empty'
+import { EmptyNote } from '@/components/ui/empty'
 
 export function VfrRtSavedPlaceholder() {
-  return (
-    <Empty>
-      <EmptyDescription>Saved practice sessions are coming soon.</EmptyDescription>
-    </Empty>
-  )
+  return <EmptyNote>Saved practice sessions are coming soon.</EmptyNote>
 }

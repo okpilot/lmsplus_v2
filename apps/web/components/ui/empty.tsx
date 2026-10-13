@@ -84,4 +84,12 @@ function EmptyContent({ className, ...props }: Readonly<React.ComponentProps<'di
   )
 }
 
-export { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle }
+function EmptyNote({ children }: Readonly<{ children: React.ReactNode }>) {
+  return (
+    <Empty>
+      <EmptyDescription>{children}</EmptyDescription>
+    </Empty>
+  )
+}
+
+export { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyNote, EmptyTitle }

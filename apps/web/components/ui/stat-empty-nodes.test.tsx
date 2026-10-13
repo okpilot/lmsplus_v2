@@ -13,14 +13,4 @@ describe('Stat empty optional nodes', () => {
     const { container } = render(<Stat label="L" value="1" hint={false} />)
     expect(container.querySelector('.text-caption')).toBeNull()
   })
-
-  it('renders a zero trend beside the label', () => {
-    render(<Stat label="L" value="1" trend={0} />)
-    expect(screen.getByText('0')).toBeInTheDocument()
-  })
-
-  it('keeps the label alone for a false trend', () => {
-    const { container } = render(<Stat label="L" value="1" trend={false} />)
-    expect(container.querySelector('.justify-between')).toBeNull()
-  })
 })

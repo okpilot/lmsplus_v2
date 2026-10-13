@@ -9,17 +9,9 @@ describe('PageHeader', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument()
   })
 
-  it('renders description, eyebrow and actions when given', () => {
-    render(
-      <PageHeader
-        title="T"
-        description="Desc"
-        eyebrow="Overline"
-        actions={<button type="button">Go</button>}
-      />,
-    )
+  it('renders description and actions when given', () => {
+    render(<PageHeader title="T" description="Desc" actions={<button type="button">Go</button>} />)
     expect(screen.getByText('Desc').tagName).toBe('P')
-    expect(screen.getByText('Overline')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Go' })).toBeInTheDocument()
   })
 
@@ -33,14 +25,7 @@ describe('PageHeader', () => {
     expect(container.querySelector('p')).toBeNull()
   })
 
-  it('places the eyebrow before the title in the document', () => {
-    render(<PageHeader title="T" eyebrow="Over" />)
-    const eyebrow = screen.getByText('Over')
-    const title = screen.getByRole('heading', { level: 1 })
-    expect(eyebrow.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-  })
-
-  it('omits description and eyebrow when not given', () => {
+  it('omits the description when not given', () => {
     const { container } = render(<PageHeader title="T" />)
     expect(container.querySelector('p')).toBeNull()
   })
@@ -73,10 +58,5 @@ describe('Eyebrow', () => {
     const el = screen.getByText('Over')
     expect(el.tagName).toBe('P')
     expect(el.className).toContain('text-overline')
-  })
-
-  it.each(['span', 'h2', 'h3'] as const)('renders as %s when asked', (as) => {
-    render(<Eyebrow as={as}>Over</Eyebrow>)
-    expect(screen.getByText('Over').tagName).toBe(as.toUpperCase())
   })
 })

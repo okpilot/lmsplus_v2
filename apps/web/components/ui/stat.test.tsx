@@ -20,9 +20,8 @@ describe('Stat', () => {
     expect(screen.getByText('1').className).toContain(`text-${tone}`)
   })
 
-  it('renders trend and hint when given', () => {
-    render(<Stat label="L" value="1" trend={<span>+3</span>} hint="vs last week" />)
-    expect(screen.getByText('+3')).toBeInTheDocument()
+  it('renders the hint when given', () => {
+    render(<Stat label="L" value="1" hint="vs last week" />)
     expect(screen.getByText('vs last week').className).toContain('text-caption')
   })
 
@@ -88,18 +87,11 @@ describe('StatGroup', () => {
 })
 
 describe('Stat label row', () => {
-  it('renders the label alone, so it inherits the parent text alignment, when there is no trend', () => {
+  it('renders the label alone, so it inherits the parent text alignment', () => {
     render(<Stat label="Correct" value="7" />)
     const label = screen.getByText('Correct')
     expect(label.parentElement?.getAttribute('data-slot')).toBe('stat')
     expect(document.querySelector('.justify-between')).toBeNull()
-  })
-
-  it('puts the label and trend on one row when a trend is given', () => {
-    render(<Stat label="Correct" value="7" trend={<span>+3</span>} />)
-    const row = screen.getByText('Correct').parentElement
-    expect(row?.className).toContain('justify-between')
-    expect(row).toContainElement(screen.getByText('+3'))
   })
 
   it('applies hintClassName to the hint wrapper', () => {

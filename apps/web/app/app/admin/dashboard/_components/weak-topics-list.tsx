@@ -1,5 +1,5 @@
+import { EmptyNote } from '@/components/ui/empty'
 import { Heading } from '@/components/ui/heading'
-import { EmptyNote } from '../../_components/empty-note'
 import { getMasteryColor } from '../_lib/constants'
 import type { WeakTopic } from '../types'
 

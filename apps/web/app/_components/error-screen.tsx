@@ -13,23 +13,25 @@ type ErrorScreenProps = Readonly<{
   title?: string
   children: React.ReactNode
   action: React.ReactNode
+  actionClassName?: string
 }>
 
 export function ErrorScreen({
   title = 'Something went wrong',
   children,
   action,
+  actionClassName,
 }: ErrorScreenProps) {
   return (
-    <Empty role="alert">
-      <EmptyHeader>
+    <Empty>
+      <EmptyHeader role="alert">
         <EmptyMedia variant="icon">
           <CircleX aria-hidden="true" className="text-danger" />
         </EmptyMedia>
         <EmptyTitle as="h2">{title}</EmptyTitle>
         <EmptyDescription>{children}</EmptyDescription>
       </EmptyHeader>
-      <EmptyContent>{action}</EmptyContent>
+      <EmptyContent className={actionClassName}>{action}</EmptyContent>
     </Empty>
   )
 }

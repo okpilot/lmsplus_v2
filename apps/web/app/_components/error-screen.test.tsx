@@ -7,7 +7,7 @@ import { ErrorScreen } from './error-screen'
 describe('ErrorScreen', () => {
   it('announces the failure with the default title and description', () => {
     render(<ErrorScreen action={<Button>Retry</Button>}>Details here.</ErrorScreen>)
-    expect(screen.getByRole('alert')).toHaveAttribute('data-slot', 'empty')
+    expect(screen.getByRole('alert')).toHaveAttribute('data-slot', 'empty-header')
     expect(screen.getByRole('heading', { level: 2, name: 'Something went wrong' })).toBeVisible()
     expect(screen.getByRole('alert')).toHaveTextContent('Details here.')
   })
@@ -26,6 +26,20 @@ describe('ErrorScreen', () => {
     const svg = container.querySelector('svg')
     expect(svg?.getAttribute('class')).toContain('text-danger')
     expect(svg).toHaveAttribute('aria-hidden', 'true')
+  })
+
+  it('keeps the action outside the alert so it is not announced', () => {
+    render(<ErrorScreen action={<Button>Retry</Button>}>x</ErrorScreen>)
+    expect(screen.getByRole('alert')).not.toContainElement(screen.getByRole('button'))
+  })
+
+  it('applies actionClassName to the action row', () => {
+    render(
+      <ErrorScreen action={<Button>Retry</Button>} actionClassName="sm:flex-row">
+        x
+      </ErrorScreen>,
+    )
+    expect(screen.getByRole('button').parentElement?.className).toContain('sm:flex-row')
   })
 
   it('renders the action and lets it be clicked', async () => {

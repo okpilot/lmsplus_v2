@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
+import { EmptyNote } from '@/components/ui/empty'
 import { Heading } from '@/components/ui/heading'
-import { EmptyNote } from '../../_components/empty-note'
 import { getMasteryColor } from '../_lib/constants'
 import type { RecentSession } from '../types'
 import { formatRelativeTime } from './student-table-helpers'

@@ -25,7 +25,7 @@ describe('QuizSessionError', () => {
 
   it('shows the load failure in an alert empty state', () => {
     render(<QuizSessionError error={new Error('boom')} retry={vi.fn()} />)
-    expect(screen.getByRole('alert')).toHaveAttribute('data-slot', 'empty')
+    expect(screen.getByRole('alert')).toHaveAttribute('data-slot', 'empty-header')
     expect(screen.getByRole('alert')).toHaveTextContent('This quiz could not be loaded.')
   })
 

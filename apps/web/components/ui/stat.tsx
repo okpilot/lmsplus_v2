@@ -36,7 +36,6 @@ type StatProps = Readonly<{
   tone?: 'success' | 'danger' | 'caution' | 'info'
   /** `compact` shrinks the value below `sm`, for three-column rows at phone width; `text` is for free-text values: body-size bold, wraps whole words. */
   size?: 'default' | 'compact' | 'text'
-  trend?: React.ReactNode
   hint?: React.ReactNode
   hintClassName?: string
   /** `plain` drops the card, for a stat that already sits inside another surface. */
@@ -46,21 +45,10 @@ type StatProps = Readonly<{
   contentClassName?: string
 }>
 
-function StatLabel({ label, trend }: Readonly<Pick<StatProps, 'label' | 'trend'>>) {
-  const text = <div className="text-label text-muted-foreground">{label}</div>
-  if (isEmptyNode(trend)) return text
-  return (
-    <div className="flex items-start justify-between gap-inline">
-      {text}
-      {trend}
-    </div>
-  )
-}
-
-function StatBody({ label, value, tone, size, trend, hint, hintClassName }: StatProps) {
+function StatBody({ label, value, tone, size, hint, hintClassName }: StatProps) {
   return (
     <div data-slot="stat" className="flex flex-col gap-1">
-      <StatLabel label={label} trend={trend} />
+      <div className="text-label text-muted-foreground">{label}</div>
       <span className={statValue({ tone, size })}>{value}</span>
       {isEmptyNode(hint) ? null : (
         <span className={cn('text-caption text-muted-foreground', hintClassName)}>{hint}</span>

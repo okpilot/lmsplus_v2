@@ -2,8 +2,8 @@
 
 import { useTransition } from 'react'
 import { toast } from 'sonner'
+import { EmptyNote } from '@/components/ui/empty'
 import { Heading } from '@/components/ui/heading'
-import { EmptyNote } from '../../_components/empty-note'
 import { upsertSubject } from '../actions/upsert-subject'
 import type { SyllabusTree } from '../types'
 import { InlineForm } from './inline-form'

@@ -1,7 +1,15 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from './empty'
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyNote,
+  EmptyTitle,
+} from './empty'
 
 describe('Empty', () => {
   it('passes role and testid through to the root', () => {
@@ -46,5 +54,15 @@ describe('Empty', () => {
     expect(screen.getByTestId('h')).toHaveAttribute('data-slot', 'empty-header')
     expect(screen.getByText('D')).toHaveAttribute('data-slot', 'empty-description')
     expect(screen.getByTestId('c')).toHaveAttribute('data-slot', 'empty-content')
+  })
+})
+
+describe('EmptyNote', () => {
+  it('shows the note as the description of an empty part', () => {
+    const { container } = render(<EmptyNote>No sessions yet.</EmptyNote>)
+    expect(container.querySelector('[data-slot="empty"]')).toContainElement(
+      screen.getByText('No sessions yet.'),
+    )
+    expect(screen.getByText('No sessions yet.')).toHaveAttribute('data-slot', 'empty-description')
   })
 })

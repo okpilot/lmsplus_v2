@@ -4,14 +4,13 @@ import { cn } from '@/lib/utils'
 import { isEmptyNode } from '@/lib/utils/is-empty-node'
 
 type EyebrowProps = Readonly<{
-  as?: 'p' | 'span' | 'h2' | 'h3'
   className?: string
   children: React.ReactNode
 }>
 
-function Eyebrow({ as: Tag = 'p', className, children }: EyebrowProps) {
+function Eyebrow({ className, children }: EyebrowProps) {
   return (
-    <Tag className={cn('text-overline uppercase text-muted-foreground', className)}>{children}</Tag>
+    <p className={cn('text-overline uppercase text-muted-foreground', className)}>{children}</p>
   )
 }
 
@@ -41,14 +40,12 @@ type PageHeaderProps = Readonly<{
   title: React.ReactNode
   description?: React.ReactNode
   actions?: React.ReactNode
-  eyebrow?: React.ReactNode
 }>
 
-function PageHeader({ title, description, actions, eyebrow }: PageHeaderProps) {
+function PageHeader({ title, description, actions }: PageHeaderProps) {
   return (
     <div className="flex flex-col gap-stack sm:flex-row sm:items-start sm:justify-between">
       <div className="flex flex-col gap-1">
-        {isEmptyNode(eyebrow) ? null : <Eyebrow>{eyebrow}</Eyebrow>}
         <h1 className="text-title font-semibold tracking-tight">{title}</h1>
         {isEmptyNode(description) ? null : (
           <p className="text-body text-muted-foreground">{description}</p>

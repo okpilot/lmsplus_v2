@@ -1,4 +1,4 @@
-import { Empty, EmptyDescription } from '@/components/ui/empty'
+import { EmptyNote } from '@/components/ui/empty'
 import { Stat, StatGroup } from '@/components/ui/stat'
 import { getMasteryTone } from '../_lib/constants'
 import type { DashboardKpis, TimeRange } from '../types'
@@ -17,11 +17,7 @@ function rangeLabel(range: TimeRange): string {
 
 export function KpiCards({ data, range }: Props) {
   if (data.totalStudents === 0) {
-    return (
-      <Empty>
-        <EmptyDescription>No students enrolled yet</EmptyDescription>
-      </Empty>
-    )
+    return <EmptyNote>No students enrolled yet</EmptyNote>
   }
 
   return (
