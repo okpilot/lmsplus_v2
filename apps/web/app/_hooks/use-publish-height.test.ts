@@ -32,6 +32,7 @@ function mountWithHeight(height: number) {
 const published = () => document.documentElement.style.getPropertyValue('--test-h')
 
 afterEach(() => {
+  disconnect.mockClear()
   vi.unstubAllGlobals()
   document.documentElement.style.removeProperty('--test-h')
   observerCallback = undefined
@@ -58,7 +59,7 @@ describe('usePublishHeight', () => {
     const { unmount } = mountWithHeight(54)
     unmount()
     expect(published()).toBe('')
-    expect(disconnect).toHaveBeenCalled()
+    expect(disconnect).toHaveBeenCalledOnce()
   })
 
   it('does nothing where ResizeObserver is unavailable', () => {
