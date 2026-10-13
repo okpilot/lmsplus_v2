@@ -38,11 +38,11 @@ export function SubjectSelect({ subjects, value, onValueChange }: Readonly<Subje
           )}
           <span className="text-muted-foreground">
             <ChevronDown
-              className={`h-4 w-4 transition-transform duration-150 ${open ? 'rotate-180' : ''}`}
+              className={`h-4 w-4 transition-transform duration-fast ${open ? 'rotate-180' : ''}`}
             />
           </span>
         </CollapsibleTrigger>
-        <CollapsibleContent className="overflow-hidden transition-[height] duration-150 ease-out data-[ending-style]:h-0 data-[starting-style]:h-0">
+        <CollapsibleContent className="overflow-hidden transition-[height] duration-fast ease-standard data-[ending-style]:h-0 data-[starting-style]:h-0">
           <div className="divide-y divide-border rounded-b-[10px] border border-t-0 border-border">
             {subjects.map((s) => (
               <button

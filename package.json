@@ -12,6 +12,7 @@
     "check-types": "turbo run check-types",
     "e2e": "turbo run e2e",
     "knip": "knip",
+    "tokens:css": "pnpm --filter @repo/web tokens:css",
     "preinstall": "npx only-allow pnpm"
   },
   "engines": {
