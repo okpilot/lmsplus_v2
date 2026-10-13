@@ -9,7 +9,7 @@ const statValue = cva('tabular-nums', {
     size: {
       default: 'text-stat',
       compact: 'text-heading sm:text-stat',
-      text: 'text-heading break-words',
+      text: 'text-body font-semibold break-words',
     },
     tone: {
       default: 'text-foreground',
@@ -33,7 +33,7 @@ type StatProps = Readonly<{
   label: React.ReactNode
   value: React.ReactNode
   tone?: 'success' | 'danger' | 'caution' | 'info'
-  /** `compact` shrinks the value below `sm`, for three-column rows at phone width; `text` is for free-text values. */
+  /** `compact` shrinks the value below `sm`, for three-column rows at phone width; `text` is for free-text values: body-size bold, wraps whole words. */
   size?: 'default' | 'compact' | 'text'
   trend?: React.ReactNode
   hint?: React.ReactNode

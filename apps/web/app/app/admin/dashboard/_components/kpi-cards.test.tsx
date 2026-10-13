@@ -139,11 +139,14 @@ describe('KpiCards', () => {
     expect(screen.getByText('Meteorology')).toBeInTheDocument()
   })
 
-  it('sets the weakest subject name at heading size so long names wrap inside the card', () => {
+  it('sets the weakest subject name body-size bold and wraps long names inside the card', () => {
     render(<KpiCards data={buildKpis()} range="30d" />)
     const value = screen.getByText('Meteorology')
-    expect(value.className).toContain('text-heading')
+    expect(value.className).toContain('text-body')
+    expect(value.className).toContain('font-semibold')
     expect(value.className).toContain('break-words')
+    expect(value.className).not.toContain('text-stat')
+    expect(value.className).not.toContain('text-heading')
   })
 
   it('renders an em dash when weakest subject is null', () => {

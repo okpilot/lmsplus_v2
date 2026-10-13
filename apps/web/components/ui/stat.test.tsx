@@ -140,12 +140,14 @@ describe('Stat sizes and padding', () => {
     expect(screen.getByText('30 min').className).toContain('sm:text-stat')
   })
 
-  it('sets free-text values at heading size and lets them break', () => {
+  it('sets free-text values body-size bold and wraps whole words', () => {
     render(<Stat label="L" value="Principles of Flight" size="text" />)
     const value = screen.getByText('Principles of Flight')
-    expect(value.className).toContain('text-heading')
+    expect(value.className).toContain('text-body')
+    expect(value.className).toContain('font-semibold')
     expect(value.className).toContain('break-words')
     expect(value.className).not.toContain('text-stat')
+    expect(value.className).not.toContain('text-heading')
   })
 
   it('applies contentClassName to the card content', () => {

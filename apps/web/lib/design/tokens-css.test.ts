@@ -69,12 +69,7 @@ describe('text on translucent fills', () => {
         })
       }
     }
-    // Dark destructive/20 over muted and accent measures 4.10:1, below 4.5; left out, not retuned.
-    const destructiveUnder =
-      theme === 'light'
-        ? (['background', 'card', 'popover', 'muted', 'accent'] as const)
-        : (['background', 'card', 'popover'] as const)
-    for (const under of destructiveUnder) {
+    for (const under of ['background', 'card', 'popover', 'muted', 'accent'] as const) {
       const pct = theme === 'light' ? 10 : 20
       it(`destructive on destructive/${pct} over ${under} reaches 4.5:1 in the ${theme} theme`, () => {
         const ratio = contrastRatio(p.destructive, tint(p.destructive, pct), p[under])
