@@ -17,6 +17,9 @@ const Toaster = ({ ...props }: Readonly<ToasterProps>) => {
     <Sonner
       theme={theme as ToasterProps['theme']}
       className="toaster group z-toast!"
+      expand
+      offset="1rem"
+      mobileOffset="1rem"
       icons={{
         success: <CircleCheckIcon className="size-4" />,
         info: <InfoIcon className="size-4" />,
@@ -34,7 +37,11 @@ const Toaster = ({ ...props }: Readonly<ToasterProps>) => {
       }
       toastOptions={{
         classNames: {
-          toast: 'cn-toast',
+          toast: 'w-fit! max-w-[min(var(--width),calc(100vw-2rem))]! gap-2!',
+          success: 'border-success-solid! [&_[data-icon]]:text-success',
+          error: 'border-danger-solid! [&_[data-icon]]:text-danger',
+          warning: 'border-caution-solid! [&_[data-icon]]:text-caution',
+          info: 'border-info-solid! [&_[data-icon]]:text-info',
         },
       }}
       {...props}
