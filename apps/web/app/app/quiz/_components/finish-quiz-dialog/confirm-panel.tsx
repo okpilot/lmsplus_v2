@@ -1,6 +1,6 @@
 'use client'
 
-import { Alert, AlertAction, AlertTitle } from '@/components/ui/alert'
+import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 
 type ConfirmPanelProps = {
@@ -28,7 +28,7 @@ export function ConfirmPanel({
   return (
     <Alert tone={isWarn ? 'caution' : 'danger'} className="mt-4">
       <AlertTitle>{message}</AlertTitle>
-      <AlertAction className="flex gap-2">
+      <div className="mt-3 flex gap-2">
         <Button
           type="button"
           variant={isWarn ? 'default' : 'destructive'}
@@ -41,7 +41,7 @@ export function ConfirmPanel({
         <Button type="button" variant="outline" onClick={onCancel} disabled={submitting}>
           {isWarn ? 'Go back' : 'Cancel'}
         </Button>
-      </AlertAction>
+      </div>
     </Alert>
   )
 }

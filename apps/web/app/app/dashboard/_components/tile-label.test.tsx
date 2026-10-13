@@ -9,4 +9,11 @@ describe('TileLabel', () => {
     expect(screen.getAllByText('Questions Today')[0]?.className).toContain('hidden md:inline')
     expect(screen.getByRole('button', { name: 'What is Questions Today?' })).toBeInTheDocument()
   })
+
+  it('uses the caption size on phones and the label size from md up', () => {
+    const { container } = render(<TileLabel short="S" full="Full" description="d" />)
+    const root = container.firstElementChild as HTMLElement
+    expect(root.className).toContain('text-caption')
+    expect(root.className).toContain('md:text-label')
+  })
 })

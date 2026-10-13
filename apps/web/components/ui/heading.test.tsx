@@ -25,6 +25,13 @@ describe('PageHeader', () => {
     expect(container.querySelector('p')).toBeNull()
   })
 
+  it('merges a caller className onto the header root', () => {
+    const { container } = render(<PageHeader title="T" className="sm:justify-center" />)
+    const root = container.firstElementChild as HTMLElement
+    expect(root.className).toContain('sm:justify-center')
+    expect(root.className).not.toContain('sm:justify-between')
+  })
+
   it('omits the description when not given', () => {
     const { container } = render(<PageHeader title="T" />)
     expect(container.querySelector('p')).toBeNull()

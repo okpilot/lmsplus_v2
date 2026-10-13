@@ -23,6 +23,9 @@ const alertVariants = cva(
   },
 )
 
+const toneText =
+  'group-data-[tone=info]/alert:text-info group-data-[tone=success]/alert:text-success group-data-[tone=caution]/alert:text-caution group-data-[tone=danger]/alert:text-danger'
+
 function Alert({
   className,
   tone,
@@ -30,7 +33,12 @@ function Alert({
   ...props
 }: Readonly<React.ComponentProps<'div'> & VariantProps<typeof alertVariants>>) {
   return (
-    <div data-slot="alert" className={cn(alertVariants({ tone, size }), className)} {...props} />
+    <div
+      data-slot="alert"
+      data-tone={tone ?? 'neutral'}
+      className={cn(alertVariants({ tone, size }), className)}
+      {...props}
+    />
   )
 }
 
@@ -38,7 +46,11 @@ function AlertTitle({ className, ...props }: Readonly<React.ComponentProps<'div'
   return (
     <div
       data-slot="alert-title"
-      className={cn('text-label font-semibold group-has-[>svg]/alert:col-start-2', className)}
+      className={cn(
+        'text-label font-semibold group-has-[>svg]/alert:col-start-2',
+        toneText,
+        className,
+      )}
       {...props}
     />
   )
@@ -48,7 +60,7 @@ function AlertDescription({ className, ...props }: Readonly<React.ComponentProps
   return (
     <div
       data-slot="alert-description"
-      className={cn('text-body group-has-[>svg]/alert:col-start-2', className)}
+      className={cn('text-body group-has-[>svg]/alert:col-start-2', toneText, className)}
       {...props}
     />
   )

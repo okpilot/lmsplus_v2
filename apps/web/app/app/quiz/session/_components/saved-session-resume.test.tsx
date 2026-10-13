@@ -40,10 +40,10 @@ describe('SavedSessionResume', () => {
   it('titles the page with a level-1 heading that inherits the centred alignment', () => {
     renderIt()
     const h1 = screen.getByRole('heading', { level: 1, name: 'Saved quiz' })
-    const wrapper = h1.parentElement as HTMLElement
-    expect(wrapper.className).not.toContain('flex')
-    expect(wrapper.parentElement?.className).toContain('text-center')
-    expect(wrapper.parentElement).toContainElement(wrapper)
+    const header = h1.parentElement?.parentElement as HTMLElement
+    expect(header.className).toContain('sm:justify-center')
+    expect(header.className).not.toContain('sm:justify-between')
+    expect(header.parentElement?.className).toContain('text-center')
   })
 
   it('resumes the quiz on Resume', () => {

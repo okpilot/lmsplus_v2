@@ -20,7 +20,7 @@ export function RecoveryBanner({ session }: Readonly<Props>) {
       className="mx-auto max-w-md"
     >
       <AlertTitle>You have an active internal exam in progress</AlertTitle>
-      <AlertDescription className="text-muted-foreground">{subtitle}</AlertDescription>
+      <AlertDescription className="text-muted-foreground!">{subtitle}</AlertDescription>
       <AlertAction>
         <Link
           href={`/app/quiz/session/${session.sessionId}`}

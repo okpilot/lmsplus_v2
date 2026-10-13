@@ -50,6 +50,47 @@ describe('Alert', () => {
     expect(el.className).not.toContain('bg-muted')
   })
 
+  it.each([
+    ['info', 'text-info'],
+    ['success', 'text-success'],
+    ['caution', 'text-caution'],
+    ['danger', 'text-danger'],
+  ] as const)('tints the %s title and description with the tone colour', (tone, cls) => {
+    render(
+      <Alert tone={tone} data-testid="a">
+        <AlertTitle>T</AlertTitle>
+        <AlertDescription>D</AlertDescription>
+      </Alert>,
+    )
+    expect(screen.getByTestId('a')).toHaveAttribute('data-tone', tone)
+    expect(screen.getByText('T').className).toContain(`group-data-[tone=${tone}]/alert:${cls}`)
+    expect(screen.getByText('D').className).toContain(`group-data-[tone=${tone}]/alert:${cls}`)
+  })
+
+  it('keeps the root text colour foreground so actions are not tinted', () => {
+    render(
+      <Alert tone="danger" data-testid="a">
+        x
+      </Alert>,
+    )
+    expect(screen.getByTestId('a').className).toContain('text-foreground')
+  })
+
+  it('marks the default tone as neutral', () => {
+    render(<Alert data-testid="a">x</Alert>)
+    expect(screen.getByTestId('a')).toHaveAttribute('data-tone', 'neutral')
+  })
+
+  it('keeps a caller muted description colour alongside the tone tint', () => {
+    render(
+      <Alert tone="info">
+        <AlertDescription className="text-muted-foreground">D</AlertDescription>
+      </Alert>,
+    )
+    const cls = screen.getByText('D').className
+    expect(cls).toContain('text-muted-foreground')
+  })
+
   it('uses tighter vertical padding in the compact size', () => {
     render(
       <Alert size="compact" data-testid="a">

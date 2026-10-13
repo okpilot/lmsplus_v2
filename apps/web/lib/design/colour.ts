@@ -21,6 +21,8 @@ const statusPairs = STATUSES.flatMap((s): ContrastPair[] => [
   [s, 'popover', TEXT],
   [s, 'overlay', TEXT],
   [s, `${s}-soft`, TEXT],
+  ['foreground', `${s}-soft`, TEXT],
+  ['muted-foreground', `${s}-soft`, TEXT],
   [`${s}-foreground`, `${s}-solid`, TEXT],
 ])
 

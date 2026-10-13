@@ -40,11 +40,17 @@ type PageHeaderProps = Readonly<{
   title: React.ReactNode
   description?: React.ReactNode
   actions?: React.ReactNode
+  className?: string
 }>
 
-function PageHeader({ title, description, actions }: PageHeaderProps) {
+function PageHeader({ title, description, actions, className }: PageHeaderProps) {
   return (
-    <div className="flex flex-col gap-stack sm:flex-row sm:items-start sm:justify-between">
+    <div
+      className={cn(
+        'flex flex-col gap-stack sm:flex-row sm:items-start sm:justify-between',
+        className,
+      )}
+    >
       <div className="flex flex-col gap-1">
         <h1 className="text-title font-semibold tracking-tight">{title}</h1>
         {isEmptyNode(description) ? null : (

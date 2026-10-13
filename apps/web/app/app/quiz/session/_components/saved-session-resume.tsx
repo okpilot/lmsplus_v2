@@ -2,6 +2,7 @@
 
 import { Button } from '@/components/ui/button'
 import { FieldError } from '@/components/ui/field-error'
+import { PageHeader } from '@/components/ui/heading'
 import { MODE_LABELS, type QuizMode } from '@/lib/constants/exam-modes'
 import { useSavedSessionResume } from '../_hooks/use-saved-session-resume'
 
@@ -24,12 +25,11 @@ export function SavedSessionResume({
 
   return (
     <div className="mx-auto max-w-md space-y-4 py-10 text-center">
-      <div className="space-y-1">
-        <h1 className="text-title font-semibold tracking-tight">Saved quiz</h1>
-        <p className="text-body text-muted-foreground">
-          {`${MODE_LABELS[mode]}${subjectName ? ` - ${subjectName}` : ''}: ${answeredCount} of ${totalCount} answered`}
-        </p>
-      </div>
+      <PageHeader
+        title="Saved quiz"
+        description={`${MODE_LABELS[mode]}${subjectName ? ` - ${subjectName}` : ''}: ${answeredCount} of ${totalCount} answered`}
+        className="text-center sm:justify-center"
+      />
       <FieldError role="alert" className="justify-center">
         {error}
       </FieldError>

@@ -14,14 +14,16 @@ export default function QuizSessionError({
   useBoundaryError(error)
 
   return (
-    <ErrorScreen
-      action={
-        <Button type="button" onClick={() => retry()}>
-          Try again
-        </Button>
-      }
-    >
-      This quiz could not be loaded.
-    </ErrorScreen>
+    <div className="grid min-h-[50vh] place-items-center px-gutter">
+      <ErrorScreen
+        action={
+          <Button type="button" onClick={() => retry()}>
+            Try again
+          </Button>
+        }
+      >
+        This quiz could not be loaded.
+      </ErrorScreen>
+    </div>
   )
 }
