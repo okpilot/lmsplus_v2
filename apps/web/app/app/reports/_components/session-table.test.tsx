@@ -114,6 +114,11 @@ describe('SessionTable', () => {
     expect(screen.getByText('Practice Exam')).toHaveClass('bg-caution-soft', 'text-caution')
   })
 
+  it('renders the exam badge uppercase', () => {
+    render(<SessionTable {...SORT_PROPS} sessions={[makeSession({ mode: 'mock_exam' })]} />)
+    expect(screen.getByText('Practice Exam')).toHaveClass('uppercase', 'tracking-wide')
+  })
+
   it('renders an Internal Exam badge for internal_exam mode', () => {
     render(<SessionTable {...SORT_PROPS} sessions={[makeSession({ mode: 'internal_exam' })]} />)
     expect(screen.getByText('Internal Exam')).toHaveClass('bg-caution-soft', 'text-caution')

@@ -129,7 +129,6 @@
         "apps/web/app/app/quiz/_components/quiz-tabs.tsx",
         "apps/web/app/app/quiz/_components/resume-exam-banner.tsx",
         "apps/web/app/app/quiz/_components/start-button.tsx",
-        "apps/web/app/app/quiz/_components/statistics-tab.tsx",
         "apps/web/app/app/quiz/_components/subject-select.tsx",
         "apps/web/app/app/quiz/_components/topic-row.tsx",
         "apps/web/app/app/quiz/report/_components/report-question-row.tsx",

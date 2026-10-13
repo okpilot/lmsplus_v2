@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
+import { TileLabel } from '@/app/app/dashboard/_components/tile-label'
 import { Stat, StatGroup } from './stat'
 
 describe('Stat', () => {
@@ -33,6 +34,20 @@ describe('Stat', () => {
   it('merges a custom className on the card', () => {
     render(<Stat label="L" value="1" className="custom" />)
     expect(document.querySelector('[data-slot="card"]')?.className).toContain('custom')
+  })
+})
+
+describe('Stat label markup', () => {
+  it('wraps the label in a block element so block children stay valid HTML', () => {
+    render(<Stat label="Score" value="1" />)
+    expect(screen.getByText('Score').tagName).toBe('DIV')
+  })
+
+  it('never nests a div or p inside a span when the label is a TileLabel', () => {
+    const { container } = render(
+      <Stat label={<TileLabel short="S" full="Score" description="Tip" />} value="1" />,
+    )
+    expect(container.querySelectorAll('span div, span p')).toHaveLength(0)
   })
 })
 

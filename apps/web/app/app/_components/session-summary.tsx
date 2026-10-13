@@ -23,8 +23,8 @@ export function SessionSummary({
       <Stat variant="plain" label={`${label} Complete`} value={`${Math.round(scorePercentage)}%`} />
 
       <StatGroup
-        columns={skippedCount > 0 ? 4 : 3}
-        className={skippedCount > 0 ? 'grid-cols-2 sm:grid-cols-4' : undefined}
+        columns={skippedCount > 0 ? 2 : 3}
+        className={skippedCount > 0 ? 'sm:grid-cols-4' : undefined}
       >
         <Stat variant="plain" size="compact" label="Correct" value={correctCount} tone="success" />
         <Stat

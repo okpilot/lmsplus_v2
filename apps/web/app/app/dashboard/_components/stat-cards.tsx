@@ -38,7 +38,7 @@ type Readiness = StatCardsProps['examReadiness']
 
 function ReadinessTile({ readyCount, totalCount, projectedDate }: Readonly<Readiness>) {
   const pct = totalCount > 0 ? Math.round((readyCount / totalCount) * 100) : 0
-  const color = pct >= 71 ? 'text-green-500' : pct >= 31 ? 'text-amber-500' : 'text-red-500'
+  const color = pct >= 71 ? 'text-success' : pct >= 31 ? 'text-caution' : 'text-danger'
   const projection = projectedDate ? `Est. ready by ${projectedDate}` : 'Keep practicing'
   return (
     <Stat
@@ -100,7 +100,7 @@ function StreakTile({
   bestStreak,
 }: Readonly<{ currentStreak: number; bestStreak: number }>) {
   const color =
-    currentStreak >= 7 ? 'text-green-500' : currentStreak > 0 ? 'text-amber-500' : 'text-red-500'
+    currentStreak >= 7 ? 'text-success' : currentStreak > 0 ? 'text-caution' : 'text-danger'
   return (
     <Stat
       size="compact"
@@ -122,9 +122,9 @@ function StreakTile({
 }
 
 function goalColors(questionsToday: number) {
-  if (questionsToday >= DAILY_GOAL) return { color: 'text-green-500', barColor: 'bg-green-500' }
-  if (questionsToday > 0) return { color: 'text-amber-500', barColor: 'bg-amber-500' }
-  return { color: 'text-red-500', barColor: 'bg-red-500' }
+  if (questionsToday >= DAILY_GOAL) return { color: 'text-success', barColor: 'bg-success-solid' }
+  if (questionsToday > 0) return { color: 'text-caution', barColor: 'bg-caution-solid' }
+  return { color: 'text-danger', barColor: 'bg-danger-solid' }
 }
 
 function DailyGoalBar({ progress, color }: Readonly<{ progress: number; color: string }>) {

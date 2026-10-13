@@ -1,6 +1,7 @@
 import type * as React from 'react'
 
 import { cn } from '@/lib/utils'
+import { isEmptyNode } from '@/lib/utils/is-empty-node'
 
 type EyebrowProps = Readonly<{
   as?: 'p' | 'span' | 'h2' | 'h3'
@@ -47,11 +48,15 @@ function PageHeader({ title, description, actions, eyebrow }: PageHeaderProps) {
   return (
     <div className="flex flex-col gap-stack sm:flex-row sm:items-start sm:justify-between">
       <div className="flex flex-col gap-1">
-        {eyebrow ? <Eyebrow>{eyebrow}</Eyebrow> : null}
+        {isEmptyNode(eyebrow) ? null : <Eyebrow>{eyebrow}</Eyebrow>}
         <h1 className="text-title font-semibold tracking-tight">{title}</h1>
-        {description ? <p className="text-body text-muted-foreground">{description}</p> : null}
+        {isEmptyNode(description) ? null : (
+          <p className="text-body text-muted-foreground">{description}</p>
+        )}
       </div>
-      {actions ? <div className="flex shrink-0 items-center gap-inline">{actions}</div> : null}
+      {isEmptyNode(actions) ? null : (
+        <div className="flex shrink-0 items-center gap-inline">{actions}</div>
+      )}
     </div>
   )
 }

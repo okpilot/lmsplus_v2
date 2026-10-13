@@ -44,14 +44,13 @@ const badgeVariants = cva(
   },
 )
 
-function Badge({
-  className,
-  variant,
-  tone,
-  shape,
-  render,
-  ...props
-}: useRender.ComponentProps<'span'> & VariantProps<typeof badgeVariants>) {
+type BadgeVariants = VariantProps<typeof badgeVariants>
+type BadgeLook =
+  | { tone?: undefined; variant?: BadgeVariants['variant'] }
+  | { tone: NonNullable<BadgeVariants['tone']>; variant?: 'soft' }
+type BadgeProps = useRender.ComponentProps<'span'> & Pick<BadgeVariants, 'shape'> & BadgeLook
+
+function Badge({ className, variant, tone, shape, render, ...props }: BadgeProps) {
   const resolvedVariant = variant ?? (tone ? 'soft' : 'default')
   return useRender({
     defaultTagName: 'span',

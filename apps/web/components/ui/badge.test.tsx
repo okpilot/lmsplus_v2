@@ -27,6 +27,7 @@ describe('Badge', () => {
 
   it('lets an explicit variant win over tone', () => {
     render(
+      // @ts-expect-error tone is only valid on the soft variant
       <Badge variant="destructive" tone="success">
         x
       </Badge>,
@@ -38,6 +39,7 @@ describe('Badge', () => {
 
   it('ignores tone classes on non-soft variants', () => {
     render(
+      // @ts-expect-error tone is only valid on the soft variant
       <Badge variant="outline" tone="danger">
         x
       </Badge>,

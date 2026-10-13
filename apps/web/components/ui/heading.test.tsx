@@ -23,6 +23,16 @@ describe('PageHeader', () => {
     expect(screen.getByRole('button', { name: 'Go' })).toBeInTheDocument()
   })
 
+  it('renders a zero description', () => {
+    render(<PageHeader title="T" description={0} />)
+    expect(screen.getByText('0').tagName).toBe('P')
+  })
+
+  it('omits the description paragraph when it is an empty string', () => {
+    const { container } = render(<PageHeader title="T" description="" />)
+    expect(container.querySelector('p')).toBeNull()
+  })
+
   it('places the eyebrow before the title in the document', () => {
     render(<PageHeader title="T" eyebrow="Over" />)
     const eyebrow = screen.getByText('Over')

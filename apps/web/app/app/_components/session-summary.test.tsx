@@ -177,4 +177,17 @@ describe('SessionSummary', () => {
       expect(tokens.sort()).toEqual([...expected].sort())
     },
   )
+
+  it('keeps a bare four-column class off the skipped grid so phones stay two-wide', () => {
+    render(
+      <SessionSummary
+        totalQuestions={10}
+        answeredCount={8}
+        correctCount={6}
+        scorePercentage={60}
+      />,
+    )
+    const grid = tileFor('Correct')?.closest('.grid')
+    expect((grid?.className ?? '').split(/\s+/)).not.toContain('grid-cols-4')
+  })
 })

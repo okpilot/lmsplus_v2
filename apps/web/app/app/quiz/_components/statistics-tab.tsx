@@ -1,6 +1,7 @@
 'use client'
 
 import { Alert, AlertAction, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
 import { Empty, EmptyDescription } from '@/components/ui/empty'
 import { Heading } from '@/components/ui/heading'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -46,13 +47,9 @@ function ErrorMessage({ message, onRetry }: Readonly<{ message: string; onRetry:
     <Alert tone="danger" className="my-4">
       <AlertDescription>{message}</AlertDescription>
       <AlertAction>
-        <button
-          type="button"
-          onClick={onRetry}
-          className="text-sm text-primary-text hover:underline"
-        >
+        <Button type="button" variant="link" size="sm" onClick={onRetry}>
           Retry
-        </button>
+        </Button>
       </AlertAction>
     </Alert>
   )

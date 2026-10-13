@@ -47,7 +47,7 @@ type StatProps = Readonly<{
 }>
 
 function StatLabel({ label, trend }: Readonly<Pick<StatProps, 'label' | 'trend'>>) {
-  const text = <span className="text-label text-muted-foreground">{label}</span>
+  const text = <div className="text-label text-muted-foreground">{label}</div>
   if (isEmptyNode(trend)) return text
   return (
     <div className="flex items-start justify-between gap-inline">

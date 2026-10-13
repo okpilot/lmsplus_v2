@@ -55,7 +55,7 @@ export function InfoTooltip({
       <div
         id={tooltipId}
         role="tooltip"
-        className={`absolute top-6 z-sticky w-48 rounded-lg border border-border bg-card p-3 text-xs text-muted-foreground shadow-md md:top-7 md:w-56 ${alignClass} ${open ? 'block' : 'hidden group-hover:md:block'}`}
+        className={`absolute top-6 z-sticky w-48 rounded-lg border border-border bg-card p-3 text-xs font-normal text-muted-foreground shadow-md md:top-7 md:w-56 ${alignClass} ${open ? 'block' : 'hidden group-hover:md:block'}`}
       >
         <p className="font-medium text-foreground">{title}</p>
         <p className="mt-1">{description}</p>

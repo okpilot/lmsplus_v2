@@ -12,7 +12,7 @@ export function TileLabel({
   align?: 'left' | 'center' | 'right'
 }>) {
   return (
-    <span className="inline-flex items-center gap-1">
+    <div className="flex items-center gap-1">
       <span className="md:hidden">{short}</span>
       <span className="hidden md:inline">{full}</span>
       <InfoTooltip
@@ -21,6 +21,6 @@ export function TileLabel({
         description={description}
         align={align}
       />
-    </span>
+    </div>
   )
 }

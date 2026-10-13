@@ -146,4 +146,32 @@ describe('StatCards', () => {
     expect(contents).toHaveLength(3)
     for (const c of contents) expect(c.className).toContain('px-3')
   })
+
+  it.each([
+    [50, 9, 'text-success'],
+    [10, 3, 'text-caution'],
+    [0, 0, 'text-danger'],
+  ] as const)(
+    'colours %i questions and a %i-day streak with %s',
+    (questionsToday, currentStreak, token) => {
+      const { container } = render(
+        <StatCards {...BASE_PROPS} questionsToday={questionsToday} currentStreak={currentStreak} />,
+      )
+      expect(container.querySelectorAll(`.${token}`).length).toBeGreaterThanOrEqual(2)
+    },
+  )
+
+  it('uses theme tokens, never the Tailwind palette, for tile colours', () => {
+    const { container } = render(<StatCards {...BASE_PROPS} />)
+    expect(container.innerHTML).not.toMatch(/(?:text|bg)-(?:green|amber|red)-500/)
+  })
+
+  it.each([
+    [50, 'bg-success-solid'],
+    [10, 'bg-caution-solid'],
+    [0, 'bg-danger-solid'],
+  ] as const)('fills the daily goal bar with %i questions using %s', (questionsToday, bar) => {
+    const { container } = render(<StatCards {...BASE_PROPS} questionsToday={questionsToday} />)
+    expect(container.querySelector(`.${bar}`)).not.toBeNull()
+  })
 })

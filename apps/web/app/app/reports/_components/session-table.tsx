@@ -88,7 +88,9 @@ function SessionRow({ session: s }: Readonly<{ session: SessionReport }>) {
       </td>
       <td className="px-4 py-3">
         {isExamMode(s.mode) ? (
-          <Badge tone="caution">{MODE_LABELS[s.mode]}</Badge>
+          <Badge tone="caution" className="uppercase tracking-wide">
+            {MODE_LABELS[s.mode]}
+          </Badge>
         ) : (
           <span className="text-muted-foreground">{modeLabel(s.mode)}</span>
         )}
