@@ -31,7 +31,7 @@ function ExamParameters({ questionCount }: Readonly<{ questionCount: number | nu
       <Heading level={3}>VFR RT Mock Exam Parameters</Heading>
       <StatGroup columns={parameters.length === 4 ? 4 : 3}>
         {parameters.map((p) => (
-          <Stat variant="plain" key={p.label} label={p.label} value={p.value} />
+          <Stat variant="plain" size="compact" key={p.label} label={p.label} value={p.value} />
         ))}
       </StatGroup>
     </div>

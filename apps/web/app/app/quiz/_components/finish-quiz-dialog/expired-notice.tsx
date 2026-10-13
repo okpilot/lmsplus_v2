@@ -1,11 +1,11 @@
 'use client'
 
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+
 type ExpiredNoticeProps = {
   submitting: boolean
   countdown: number
 }
-
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 
 export function ExpiredNotice({ submitting, countdown }: Readonly<ExpiredNoticeProps>) {
   return (

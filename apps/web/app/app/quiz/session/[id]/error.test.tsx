@@ -28,4 +28,9 @@ describe('QuizSessionError', () => {
     expect(screen.getByRole('alert')).toHaveAttribute('data-slot', 'empty')
     expect(screen.getByRole('alert')).toHaveTextContent('This quiz could not be loaded.')
   })
+
+  it('renders Try again as a non-submitting button', () => {
+    render(<QuizSessionError error={new Error('boom')} retry={vi.fn()} />)
+    expect(screen.getByRole('button', { name: /try again/i })).toHaveAttribute('type', 'button')
+  })
 })

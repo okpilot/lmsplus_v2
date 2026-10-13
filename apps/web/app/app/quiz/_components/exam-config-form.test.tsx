@@ -122,6 +122,13 @@ describe('ExamConfigForm', () => {
       expect(screen.getByText('20').closest('[data-slot="stat"]')).not.toBeNull()
     })
 
+    it('sets every parameter value at heading size so three columns fit a phone', () => {
+      render(<ExamConfigForm {...buildProps({ subjectId: 'sub-1' })} />)
+      for (const text of ['20', '50 min', '75%']) {
+        expect(screen.getByText(text, { exact: false }).className).toContain('text-heading')
+      }
+    })
+
     it('displays the pass mark percentage', () => {
       render(<ExamConfigForm {...buildProps({ subjectId: 'sub-1' })} />)
       expect(screen.getByText('75%')).toBeInTheDocument()

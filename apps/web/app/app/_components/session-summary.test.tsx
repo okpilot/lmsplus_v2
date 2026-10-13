@@ -89,6 +89,21 @@ describe('SessionSummary', () => {
     expect(tileFor('Incorrect')).toHaveTextContent('0')
   })
 
+  it('sets the count tiles at heading size so a four-column row fits a phone', () => {
+    render(
+      <SessionSummary
+        totalQuestions={10}
+        answeredCount={8}
+        correctCount={6}
+        scorePercentage={75}
+      />,
+    )
+    for (const label of ['Correct', 'Incorrect', 'Skipped', 'Answered']) {
+      const value = tileFor(label)?.querySelector('span.tabular-nums')
+      expect(value?.className, label).toContain('text-heading')
+    }
+  })
+
   it('shows skipped count and answered count when questions were skipped', () => {
     render(
       <SessionSummary

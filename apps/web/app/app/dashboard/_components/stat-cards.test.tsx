@@ -139,4 +139,11 @@ describe('StatCards', () => {
     expect(values).toHaveLength(3)
     for (const v of values) expect(v.className).toContain('sm:text-stat')
   })
+
+  it('tightens the tile padding at phone width so label and help icon stay inside', () => {
+    const { container } = render(<StatCards {...BASE_PROPS} />)
+    const contents = container.querySelectorAll('[data-slot="card-content"]')
+    expect(contents).toHaveLength(3)
+    for (const c of contents) expect(c.className).toContain('px-3')
+  })
 })

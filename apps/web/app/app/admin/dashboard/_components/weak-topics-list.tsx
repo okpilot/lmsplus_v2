@@ -1,7 +1,7 @@
-import { Empty, EmptyDescription } from '@/components/ui/empty'
 import { Heading } from '@/components/ui/heading'
 import { getMasteryColor } from '../_lib/constants'
 import type { WeakTopic } from '../types'
+import { EmptyNote } from './empty-note'
 
 type Props = Readonly<{ topics: WeakTopic[] }>
 
@@ -9,14 +9,6 @@ function getBarColor(score: number): string {
   if (score < 50) return 'bg-red-500'
   if (score < 80) return 'bg-amber-500'
   return 'bg-green-500'
-}
-
-function EmptyNote({ children }: Readonly<{ children: string }>) {
-  return (
-    <Empty>
-      <EmptyDescription>{children}</EmptyDescription>
-    </Empty>
-  )
 }
 
 export function WeakTopicsList({ topics }: Props) {

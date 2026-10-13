@@ -37,4 +37,14 @@ describe('AppError', () => {
     expect(screen.getByRole('alert')).toHaveAttribute('data-slot', 'empty')
     expect(screen.getByRole('alert')).toHaveTextContent('An unexpected error occurred.')
   })
+
+  it('draws the failure icon in the danger tone', () => {
+    const { container } = render(<AppError error={new Error('boom')} retry={vi.fn()} />)
+    expect(container.querySelector('svg')?.getAttribute('class')).toContain('text-danger')
+  })
+
+  it('renders Try again as a non-submitting button', () => {
+    render(<AppError error={new Error('boom')} retry={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'Try again' })).toHaveAttribute('type', 'button')
+  })
 })

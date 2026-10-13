@@ -54,6 +54,26 @@ describe('usePublishHeight', () => {
     expect(published()).toBe('76px')
   })
 
+  it('reads the observer entry border-box height without measuring layout', () => {
+    stubResizeObserver()
+    const { result } = mountWithHeight(54)
+    const el = result.current.current as HTMLElement
+    el.getBoundingClientRect = () => {
+      throw new Error('layout read')
+    }
+    act(() => observerCallback?.([{ borderBoxSize: [{ blockSize: 91 }] }]))
+    expect(published()).toBe('91px')
+  })
+
+  it('falls back to measuring the element when the entry has no border-box size', () => {
+    stubResizeObserver()
+    const { result } = mountWithHeight(54)
+    const el = result.current.current as HTMLElement
+    el.getBoundingClientRect = () => ({ height: 63 }) as DOMRect
+    act(() => observerCallback?.([{}]))
+    expect(published()).toBe('63px')
+  })
+
   it('removes the variable and stops observing on unmount', () => {
     stubResizeObserver()
     const { unmount } = mountWithHeight(54)

@@ -26,10 +26,18 @@ export function SessionSummary({
         columns={skippedCount > 0 ? 4 : 3}
         className={skippedCount > 0 ? 'grid-cols-2 sm:grid-cols-4' : undefined}
       >
-        <Stat variant="plain" label="Correct" value={correctCount} tone="success" />
-        <Stat variant="plain" label="Incorrect" value={incorrectCount} tone="danger" />
-        {skippedCount > 0 && <Stat variant="plain" label="Skipped" value={skippedCount} />}
-        <Stat variant="plain" label="Answered" value={answeredCount} />
+        <Stat variant="plain" size="compact" label="Correct" value={correctCount} tone="success" />
+        <Stat
+          variant="plain"
+          size="compact"
+          label="Incorrect"
+          value={incorrectCount}
+          tone="danger"
+        />
+        {skippedCount > 0 && (
+          <Stat variant="plain" size="compact" label="Skipped" value={skippedCount} />
+        )}
+        <Stat variant="plain" size="compact" label="Answered" value={answeredCount} />
       </StatGroup>
 
       <div className="h-2 w-full rounded-full bg-muted">

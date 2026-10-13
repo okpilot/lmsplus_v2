@@ -18,8 +18,10 @@ function ringGeometry(size: number, percentage: number) {
   }
 }
 
-function RingArc({ size, percentage }: Readonly<{ size: number; percentage: number }>) {
-  const { radius, circumference, clamped, offset } = ringGeometry(size, percentage)
+type Geometry = ReturnType<typeof ringGeometry>
+
+function RingArc({ size, geometry }: Readonly<{ size: number; geometry: Geometry }>) {
+  const { radius, circumference, clamped, offset } = geometry
   const common = { cx: size / 2, cy: size / 2, r: radius, fill: 'none', strokeWidth: 8 }
   return (
     <>
@@ -36,8 +38,8 @@ function RingArc({ size, percentage }: Readonly<{ size: number; percentage: numb
   )
 }
 
-function RingText({ size, percentage }: Readonly<{ size: number; percentage: number }>) {
-  const { clamped, rounded } = ringGeometry(size, percentage)
+function RingText({ size, geometry }: Readonly<{ size: number; geometry: Geometry }>) {
+  const { clamped, rounded } = geometry
   return (
     <text
       x="50%"
@@ -54,11 +56,11 @@ function RingText({ size, percentage }: Readonly<{ size: number; percentage: num
 }
 
 export function ScoreRing({ percentage, size = 120 }: Props) {
-  const { rounded } = ringGeometry(size, percentage)
+  const geometry = ringGeometry(size, percentage)
   return (
-    <svg width={size} height={size} role="img" aria-label={`Score: ${rounded}%`}>
-      <RingArc size={size} percentage={percentage} />
-      <RingText size={size} percentage={percentage} />
+    <svg width={size} height={size} role="img" aria-label={`Score: ${geometry.rounded}%`}>
+      <RingArc size={size} geometry={geometry} />
+      <RingText size={size} geometry={geometry} />
     </svg>
   )
 }

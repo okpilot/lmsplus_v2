@@ -16,6 +16,7 @@ const TODAY_TIP =
   'Questions answered today towards your daily goal of 50. Red: none yet, amber: in progress, green: goal reached.'
 const STREAK_TIP =
   'Consecutive days with at least one question answered. Red: streak broken, amber: 1–6 days, green: 7+ days.'
+const TILE_PADDING = 'px-3 md:px-card'
 const HINT_CLASS = 'hidden md:flex md:flex-col'
 
 export function StatCards({
@@ -42,6 +43,7 @@ function ReadinessTile({ readyCount, totalCount, projectedDate }: Readonly<Readi
   return (
     <Stat
       size="compact"
+      contentClassName={TILE_PADDING}
       label={
         <TileLabel
           short="Readiness"
@@ -71,6 +73,7 @@ function TodayTile({ questionsToday }: Readonly<{ questionsToday: number }>) {
   return (
     <Stat
       size="compact"
+      contentClassName={TILE_PADDING}
       label={
         <TileLabel short="Today" full="Questions Today" description={TODAY_TIP} align="center" />
       }
@@ -101,6 +104,7 @@ function StreakTile({
   return (
     <Stat
       size="compact"
+      contentClassName={TILE_PADDING}
       label={<TileLabel short="Streak" full="Study Streak" description={STREAK_TIP} />}
       value={
         <span className={color}>

@@ -52,3 +52,12 @@ describe('Badge', () => {
     expect(el.className).toContain('rounded-full')
   })
 })
+
+describe('Badge soft variant without a tone', () => {
+  it('falls back to the neutral soft look', () => {
+    render(<Badge variant="soft">x</Badge>)
+    const el = screen.getByText('x')
+    expect(el.className).toContain('bg-muted')
+    expect(el.className).toContain('text-foreground')
+  })
+})

@@ -26,13 +26,15 @@ export default function AppError({
       <Empty role="alert">
         <EmptyHeader>
           <EmptyMedia variant="icon">
-            <CircleX aria-hidden="true" />
+            <CircleX aria-hidden="true" className="text-danger" />
           </EmptyMedia>
           <EmptyTitle as="h2">Something went wrong</EmptyTitle>
           <EmptyDescription>An unexpected error occurred.</EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
-          <Button onClick={() => retry()}>Try again</Button>
+          <Button type="button" onClick={() => retry()}>
+            Try again
+          </Button>
         </EmptyContent>
       </Empty>
     </div>

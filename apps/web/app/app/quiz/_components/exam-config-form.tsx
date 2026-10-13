@@ -41,13 +41,24 @@ export function ExamConfigForm({
         <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
           <Heading level={3}>Practice Exam Parameters</Heading>
           <StatGroup columns={3}>
-            <Stat variant="plain" label="Questions" value={selected.totalQuestions} />
             <Stat
               variant="plain"
+              size="compact"
+              label="Questions"
+              value={selected.totalQuestions}
+            />
+            <Stat
+              variant="plain"
+              size="compact"
               label="Time Limit"
               value={formatTime(selected.timeLimitSeconds)}
             />
-            <Stat variant="plain" label="Pass Mark" value={`${selected.passMark}%`} />
+            <Stat
+              variant="plain"
+              size="compact"
+              label="Pass Mark"
+              value={`${selected.passMark}%`}
+            />
           </StatGroup>
         </div>
       )}

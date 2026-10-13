@@ -44,6 +44,7 @@ export function KpiCards({ data, range }: Props) {
       />
       <Stat
         label="Weakest Subject"
+        size="text"
         value={data.weakestSubject === null ? '—' : data.weakestSubject.name}
         hint={
           data.weakestSubject === null

@@ -132,3 +132,24 @@ describe('Stat size and overflow', () => {
     expect(cls).not.toContain('text-stat')
   })
 })
+
+describe('Stat sizes and padding', () => {
+  it('shrinks a compact value below the sm breakpoint', () => {
+    render(<Stat label="L" value="30 min" size="compact" />)
+    expect(screen.getByText('30 min').className).toContain('text-heading')
+    expect(screen.getByText('30 min').className).toContain('sm:text-stat')
+  })
+
+  it('sets free-text values at heading size and lets them break', () => {
+    render(<Stat label="L" value="Principles of Flight" size="text" />)
+    const value = screen.getByText('Principles of Flight')
+    expect(value.className).toContain('text-heading')
+    expect(value.className).toContain('break-words')
+    expect(value.className).not.toContain('text-stat')
+  })
+
+  it('applies contentClassName to the card content', () => {
+    render(<Stat label="L" value="1" contentClassName="px-3" />)
+    expect(document.querySelector('[data-slot="card-content"]')?.className).toContain('px-3')
+  })
+})

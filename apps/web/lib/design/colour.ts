@@ -19,6 +19,7 @@ const statusPairs = STATUSES.flatMap((s): ContrastPair[] => [
   [s, 'muted', TEXT],
   [s, 'accent', TEXT],
   [s, 'popover', TEXT],
+  [s, 'overlay', TEXT],
   [s, `${s}-soft`, TEXT],
   [`${s}-foreground`, `${s}-solid`, TEXT],
 ])
@@ -38,6 +39,9 @@ export const CONTRAST_PAIRS: readonly ContrastPair[] = [
   ['muted-foreground', 'muted', TEXT],
   ['primary-text', 'background', TEXT],
   ['primary-text', 'card', TEXT],
+  ['primary-text', 'popover', TEXT],
+  ['primary-text', 'overlay', TEXT],
+  ['primary-text', 'muted', TEXT],
   ['primary-foreground', 'primary', TEXT],
   ['destructive-foreground', 'destructive', TEXT],
   ...statusPairs,

@@ -8,9 +8,11 @@ export function usePublishHeight(name: string) {
     const el = ref.current
     if (!el || typeof ResizeObserver === 'undefined') return
     const root = document.documentElement
-    const publish = () => root.style.setProperty(name, `${el.getBoundingClientRect().height}px`)
-    publish()
-    const observer = new ResizeObserver(publish)
+    const set = (height: number) => root.style.setProperty(name, `${height}px`)
+    set(el.getBoundingClientRect().height)
+    const observer = new ResizeObserver((entries) => {
+      set(entries[0]?.borderBoxSize?.[0]?.blockSize ?? el.getBoundingClientRect().height)
+    })
     observer.observe(el)
     return () => {
       observer.disconnect()

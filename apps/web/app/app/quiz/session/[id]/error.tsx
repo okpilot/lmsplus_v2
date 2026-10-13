@@ -31,7 +31,9 @@ export default function QuizSessionError({
         <EmptyDescription>This quiz could not be loaded.</EmptyDescription>
       </EmptyHeader>
       <EmptyContent>
-        <Button onClick={() => retry()}>Try again</Button>
+        <Button type="button" onClick={() => retry()}>
+          Try again
+        </Button>
       </EmptyContent>
     </Empty>
   )

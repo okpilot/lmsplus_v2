@@ -1,20 +1,12 @@
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
-import { Empty, EmptyDescription } from '@/components/ui/empty'
 import { Heading } from '@/components/ui/heading'
 import { getMasteryColor } from '../_lib/constants'
 import type { RecentSession } from '../types'
+import { EmptyNote } from './empty-note'
 import { formatRelativeTime } from './student-table-helpers'
 
 type Props = Readonly<{ sessions: RecentSession[] }>
-
-function EmptyNote({ children }: Readonly<{ children: string }>) {
-  return (
-    <Empty>
-      <EmptyDescription>{children}</EmptyDescription>
-    </Empty>
-  )
-}
 
 export function RecentActivityList({ sessions }: Props) {
   return (

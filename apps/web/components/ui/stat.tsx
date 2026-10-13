@@ -9,6 +9,7 @@ const statValue = cva('tabular-nums', {
     size: {
       default: 'text-stat',
       compact: 'text-heading sm:text-stat',
+      text: 'text-heading break-words',
     },
     tone: {
       default: 'text-foreground',
@@ -32,14 +33,16 @@ type StatProps = Readonly<{
   label: React.ReactNode
   value: React.ReactNode
   tone?: 'success' | 'danger' | 'caution' | 'info'
-  /** `compact` shrinks the value below `sm`, for three-column rows at phone width. */
-  size?: 'default' | 'compact'
+  /** `compact` shrinks the value below `sm`, for three-column rows at phone width; `text` is for free-text values. */
+  size?: 'default' | 'compact' | 'text'
   trend?: React.ReactNode
   hint?: React.ReactNode
   hintClassName?: string
   /** `plain` drops the card, for a stat that already sits inside another surface. */
   variant?: 'card' | 'plain'
   className?: string
+  /** Extra classes for the card content, `card` variant only. */
+  contentClassName?: string
 }>
 
 function StatLabel({ label, trend }: Readonly<Pick<StatProps, 'label' | 'trend'>>) {
@@ -65,7 +68,7 @@ function StatBody({ label, value, tone, size, trend, hint, hintClassName }: Stat
   )
 }
 
-function Stat({ variant = 'card', className, ...props }: StatProps) {
+function Stat({ variant = 'card', className, contentClassName, ...props }: StatProps) {
   if (variant === 'plain') {
     return (
       <div className={cn('min-w-0', className)}>
@@ -75,7 +78,7 @@ function Stat({ variant = 'card', className, ...props }: StatProps) {
   }
   return (
     <Card className={cn('overflow-visible', className)}>
-      <CardContent>
+      <CardContent className={contentClassName}>
         <StatBody {...props} />
       </CardContent>
     </Card>

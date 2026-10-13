@@ -34,6 +34,11 @@ beforeEach(() => {
 })
 
 describe('VfrRtExamPanel', () => {
+  it('sets the parameter values at heading size so they stay on one line at phone width', () => {
+    renderPanel()
+    expect(screen.getByText('30 min').className).toContain('text-heading')
+  })
+
   it('states the time limit, part count and per-part pass mark', () => {
     renderPanel()
     expect(screen.getByText('30 min')).toBeInTheDocument()

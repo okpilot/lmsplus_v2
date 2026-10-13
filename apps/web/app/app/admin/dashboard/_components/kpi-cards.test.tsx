@@ -139,6 +139,13 @@ describe('KpiCards', () => {
     expect(screen.getByText('Meteorology')).toBeInTheDocument()
   })
 
+  it('sets the weakest subject name at heading size so long names wrap inside the card', () => {
+    render(<KpiCards data={buildKpis()} range="30d" />)
+    const value = screen.getByText('Meteorology')
+    expect(value.className).toContain('text-heading')
+    expect(value.className).toContain('break-words')
+  })
+
   it('renders an em dash when weakest subject is null', () => {
     render(<KpiCards data={buildKpis({ weakestSubject: null })} range="30d" />)
     // The em dash is rendered as the weakest subject value

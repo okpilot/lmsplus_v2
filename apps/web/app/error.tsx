@@ -23,10 +23,10 @@ export default function ErrorPage({
 
   return (
     <div className="grid min-h-[50vh] place-items-center px-gutter">
-      <Empty>
+      <Empty role="alert">
         <EmptyHeader>
           <EmptyMedia variant="icon">
-            <CircleX aria-hidden="true" />
+            <CircleX aria-hidden="true" className="text-danger" />
           </EmptyMedia>
           <EmptyTitle as="h2">Something went wrong</EmptyTitle>
           <EmptyDescription>An unexpected error occurred.</EmptyDescription>

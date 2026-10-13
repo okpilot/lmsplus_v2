@@ -78,4 +78,10 @@ describe('ErrorPage', () => {
       'button',
     )
   })
+
+  it('announces the failure as an alert with a danger-toned icon', () => {
+    const { container } = render(<ErrorPage error={testError} retry={mockRetry} />)
+    expect(screen.getByRole('alert')).toHaveAttribute('data-slot', 'empty')
+    expect(container.querySelector('svg')?.getAttribute('class')).toContain('text-danger')
+  })
 })
