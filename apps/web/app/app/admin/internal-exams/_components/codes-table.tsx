@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
+import { EmptyDescription } from '@/components/ui/empty'
 import {
   Select,
   SelectContent,
@@ -86,8 +87,8 @@ export function CodesTable({ rows, status, totalCount, pageSize }: Readonly<Prop
           <TableBody>
             {rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center text-sm text-muted-foreground">
-                  No codes found
+                <TableCell colSpan={8} className="p-section">
+                  <EmptyDescription className="text-center">No codes found</EmptyDescription>
                 </TableCell>
               </TableRow>
             ) : (

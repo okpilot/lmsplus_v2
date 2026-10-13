@@ -62,6 +62,14 @@ describe('SavedSessionResume', () => {
     renderIt()
 
     expect(screen.getByRole('alert')).toHaveTextContent('Finish your open quiz first.')
+    expect(screen.getByRole('alert')).toHaveAttribute('data-slot', 'field-error')
+  })
+
+  it('shows the saved-quiz heading as the page title', () => {
+    mockHook.mockReturnValue({ resume, discard, loading: false, error: null })
+    renderIt()
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Saved quiz' })).toHaveClass('text-title')
   })
 
   it('disables both actions while one is running', () => {

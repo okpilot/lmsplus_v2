@@ -1,5 +1,7 @@
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
+import { Empty, EmptyDescription } from '@/components/ui/empty'
+import { Heading } from '@/components/ui/heading'
 import { getMasteryColor } from '../_lib/constants'
 import type { RecentSession } from '../types'
 import { formatRelativeTime } from './student-table-helpers'
@@ -9,10 +11,12 @@ type Props = Readonly<{ sessions: RecentSession[] }>
 export function RecentActivityList({ sessions }: Props) {
   return (
     <div className="rounded-xl border border-border bg-card p-4 space-y-4">
-      <h2 className="text-lg font-semibold">Recent Activity</h2>
+      <Heading level={2}>Recent Activity</Heading>
 
       {sessions.length === 0 ? (
-        <p className="py-6 text-center text-sm text-muted-foreground">No sessions yet.</p>
+        <Empty>
+          <EmptyDescription>No sessions yet.</EmptyDescription>
+        </Empty>
       ) : (
         <div className="space-y-3">
           {sessions.map((session) => (

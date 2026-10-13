@@ -298,6 +298,21 @@ describe('ResultSummary', () => {
       expect(screen.getByText('FAILED')).toBeInTheDocument()
     })
 
+    it('renders FAILED as a danger badge and PASSED as a success badge', () => {
+      const { rerender } = render(
+        <ResultSummary summary={makeSummary({ mode: 'internal_exam', passed: false })} />,
+      )
+      expect(screen.getByText('FAILED')).toHaveAttribute('data-slot', 'badge')
+      expect(screen.getByText('FAILED')).toHaveClass('bg-danger-soft')
+      rerender(<ResultSummary summary={makeSummary({ mode: 'internal_exam', passed: true })} />)
+      expect(screen.getByText('PASSED')).toHaveClass('bg-success-soft')
+    })
+
+    it('renders summary labels in the overline style', () => {
+      render(<ResultSummary summary={makeSummary()} />)
+      for (const label of screen.getAllByText('Skipped')) expect(label).toHaveClass('text-overline')
+    })
+
     it('renders "VFR RT Mock Exam Complete" for vfr_rt_exam mode even on the RT subject', () => {
       // The exam-mode heading must win over the RT-practice noun branch — an RT-subject
       // exam session is not a practice session (getReportContext only applies to non-exam modes).

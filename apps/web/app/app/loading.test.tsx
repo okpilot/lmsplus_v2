@@ -8,4 +8,9 @@ describe('AppLoading', () => {
     expect(container.firstElementChild).toHaveAttribute('aria-busy', 'true')
     expect(screen.getByText('Loading')).toHaveClass('sr-only')
   })
+
+  it('renders skeleton placeholders for the page layout', () => {
+    const { container } = render(<AppLoading />)
+    expect(container.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(0)
+  })
 })

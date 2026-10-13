@@ -110,4 +110,16 @@ describe('VfrRtExamPanel', () => {
 
     expect(onAccept).toHaveBeenCalledTimes(1)
   })
+
+  it('renders each exam parameter as a stat tile', () => {
+    const { container } = renderPanel(25)
+    expect(container.querySelectorAll('[data-slot="stat"]')).toHaveLength(4)
+  })
+
+  it('titles the parameters block with a level-3 heading', () => {
+    renderPanel()
+    expect(
+      screen.getByRole('heading', { level: 3, name: 'VFR RT Mock Exam Parameters' }),
+    ).toBeInTheDocument()
+  })
 })

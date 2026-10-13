@@ -148,6 +148,19 @@ describe('VoidCodeDialog', () => {
     expect(toast.success).not.toHaveBeenCalled()
   })
 
+  it('shows the failure as a field error', async () => {
+    vi.mocked(voidInternalExamCode).mockResolvedValue({ success: false, error: 'Nope' })
+    const user = userEvent.setup({ delay: null })
+    render(<VoidCodeDialog codeId={CODE_ID} open={true} onOpenChange={vi.fn()} />)
+
+    await user.type(screen.getByLabelText('Reason'), 'reason')
+    await user.click(screen.getByRole('button', { name: 'Void code' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveAttribute('data-slot', 'field-error')
+    })
+  })
+
   it('shows generic error and keeps dialog open when action throws', async () => {
     vi.mocked(voidInternalExamCode).mockRejectedValue(new Error('Network'))
     const onOpenChange = vi.fn()

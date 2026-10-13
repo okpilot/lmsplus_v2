@@ -1,7 +1,11 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import { Badge } from '@/components/ui/badge'
 import { BusyLabel } from '@/components/ui/busy-label'
+import { Empty, EmptyDescription } from '@/components/ui/empty'
+import { FieldError } from '@/components/ui/field-error'
+import { Heading } from '@/components/ui/heading'
 import { useComments } from '../session/_hooks/use-comments'
 import { getAvatarColor, getInitials } from './comment-helpers'
 import { CommentsSkeleton } from './comments-skeleton'
@@ -43,18 +47,18 @@ export function CommentsTab({ questionId, currentUserId }: Readonly<CommentsTabP
   return (
     <div className="space-y-4 py-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Comments</h3>
+        <Heading level={3}>Comments</Heading>
         <span className="text-xs text-muted-foreground">
           {comments.length} comment{comments.length !== 1 ? 's' : ''}
         </span>
       </div>
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      <FieldError>{error}</FieldError>
 
       {comments.length === 0 && !error && (
-        <p className="py-4 text-center text-sm text-muted-foreground">
-          No comments yet. Be the first to comment.
-        </p>
+        <Empty className="bg-transparent py-4">
+          <EmptyDescription>No comments yet. Be the first to comment.</EmptyDescription>
+        </Empty>
       )}
 
       <div className="space-y-3">
@@ -75,11 +79,7 @@ export function CommentsTab({ questionId, currentUserId }: Readonly<CommentsTabP
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium">{name}</span>
-                  {isAdmin && (
-                    <span className="rounded-full bg-primary px-1.5 py-0.5 text-xs text-primary-foreground">
-                      LMS Plus
-                    </span>
-                  )}
+                  {isAdmin && <Badge>LMS Plus</Badge>}
                   <span className="text-xs text-muted-foreground">
                     {new Date(c.created_at).toLocaleDateString('en-GB', {
                       day: 'numeric',

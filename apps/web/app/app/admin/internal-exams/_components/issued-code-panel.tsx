@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Eyebrow } from '@/components/ui/heading'
 import { LoadingButton } from '@/components/ui/loading-button'
 import { formatExpiry } from '../_utils/format-expiry'
 import { sendInternalExamCodeEmail } from '../actions/send-code-email'
@@ -63,9 +64,7 @@ export function IssuedCodePanel({ codeId, code, expiresAt, onDismiss }: Readonly
     >
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-2">
-          <p className="text-sm font-semibold uppercase tracking-wide text-primary-text">
-            New code issued
-          </p>
+          <Eyebrow>New code issued</Eyebrow>
           <p
             className="tabular-nums text-3xl font-bold tracking-widest"
             data-testid="issued-code-value"

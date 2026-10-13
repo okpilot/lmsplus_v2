@@ -59,6 +59,12 @@ describe('ActivePracticeBanner — rendering', () => {
     expect(screen.getByText(/^unfinished study session$/i)).toBeInTheDocument()
   })
 
+  it('renders as a caution alert', () => {
+    render(<ActivePracticeBanner userId={USER_ID} session={SESSION} />)
+    const banner = screen.getByText(/^unfinished study session$/i).closest('[data-slot="alert"]')
+    expect(banner?.className).toContain('bg-caution-soft')
+  })
+
   it('offers a Resume link to the session page and a Discard control', () => {
     render(<ActivePracticeBanner userId={USER_ID} session={SESSION} />)
     expect(screen.getByRole('link', { name: /resume/i })).toHaveAttribute(

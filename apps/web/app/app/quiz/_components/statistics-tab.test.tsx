@@ -43,7 +43,7 @@ describe('StatisticsTab', () => {
     )
     render(<StatisticsTab questionId="q-1" hasAnswered={false} />)
     // Skeleton is visible while in-flight
-    expect(document.querySelector('.animate-pulse')).toBeInTheDocument()
+    expect(document.querySelector('[data-slot="skeleton"]')).toBeInTheDocument()
     resolve(defaultStats)
     await waitFor(() => {
       expect(screen.getByText('Times seen')).toBeInTheDocument()

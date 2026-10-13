@@ -1,5 +1,6 @@
 'use client'
 
+import { Empty, EmptyDescription } from '@/components/ui/empty'
 import type { SavedQuizSession } from '@/lib/queries/load-saved-quizzes'
 import type { DraftData } from '../types'
 import { DraftCard } from './draft-card'
@@ -19,11 +20,11 @@ export function SavedDraftCard({
   if (drafts.length === 0 && savedSessions.length === 0) {
     if (savedLookupFailed) return null
     return (
-      <div className="rounded-lg border border-dashed border-border p-6 text-center">
-        <p className="text-sm text-muted-foreground">
+      <Empty>
+        <EmptyDescription>
           No saved quizzes. Start a new quiz and use "Save for Later" to save your progress.
-        </p>
-      </div>
+        </EmptyDescription>
+      </Empty>
     )
   }
 

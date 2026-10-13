@@ -85,7 +85,7 @@ describe('ReportQuestionRow', () => {
   describe('status icon', () => {
     it('shows the Correct icon when the answer is correct', () => {
       render(<ReportQuestionRow question={makeQuestion({ isCorrect: true })} index={0} />)
-      expect(screen.getByRole('img', { name: 'Correct' })).toBeInTheDocument()
+      expect(screen.getByRole('img', { name: 'Correct' })).toHaveClass('bg-success-soft')
     })
 
     it('shows the Incorrect icon when the answer is wrong', () => {
@@ -95,7 +95,7 @@ describe('ReportQuestionRow', () => {
           index={0}
         />,
       )
-      expect(screen.getByRole('img', { name: 'Incorrect' })).toBeInTheDocument()
+      expect(screen.getByRole('img', { name: 'Incorrect' })).toHaveClass('bg-danger-soft')
     })
   })
 

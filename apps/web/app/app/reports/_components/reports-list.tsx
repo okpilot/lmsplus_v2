@@ -3,6 +3,7 @@
 import { useCallback } from 'react'
 import { PaginationBar } from '@/app/app/_components/pagination-bar'
 import { useUpdateSearchParams } from '@/app/app/_hooks/use-update-search-params'
+import { Empty, EmptyDescription, EmptyHeader } from '@/components/ui/empty'
 import {
   Select,
   SelectContent,
@@ -57,9 +58,13 @@ export function ReportsList({ sessions, page, totalCount, pageSize, sort, dir }:
 
   if (sessions.length === 0 && totalCount === 0) {
     return (
-      <p className="py-8 text-center text-sm text-muted-foreground">
-        No completed sessions yet. Start a quiz or review to see your reports.
-      </p>
+      <Empty>
+        <EmptyHeader>
+          <EmptyDescription>
+            No completed sessions yet. Start a quiz or review to see your reports.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     )
   }
 

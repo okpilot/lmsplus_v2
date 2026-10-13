@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
+import { EmptyDescription } from '@/components/ui/empty'
 import {
   Table,
   TableBody,
@@ -54,8 +55,8 @@ export function AttemptsTable({ rows, totalCount, pageSize }: Readonly<Props>) {
           <TableBody>
             {rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-sm text-muted-foreground">
-                  No attempts yet
+                <TableCell colSpan={7} className="p-section">
+                  <EmptyDescription className="text-center">No attempts yet</EmptyDescription>
                 </TableCell>
               </TableRow>
             ) : (

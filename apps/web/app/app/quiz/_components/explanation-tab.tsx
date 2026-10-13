@@ -1,3 +1,5 @@
+import { Empty, EmptyDescription } from '@/components/ui/empty'
+import { Eyebrow } from '@/components/ui/heading'
 import { MarkdownText } from '../../_components/markdown-text'
 import { ZoomableImage } from '../../_components/zoomable-image'
 
@@ -17,9 +19,7 @@ export function ExplanationTab({
       <ExplanationContent text={explanationText} imageUrl={explanationImageUrl} />
       {learningObjective && (
         <div className="rounded-lg bg-muted/50 p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Learning Objective
-          </p>
+          <Eyebrow>Learning Objective</Eyebrow>
           <p className="mt-1 text-sm">{learningObjective}</p>
         </div>
       )}
@@ -39,7 +39,9 @@ function ExplanationContent({
       {text ? (
         <MarkdownText className="text-sm text-muted-foreground">{text}</MarkdownText>
       ) : (
-        <p className="text-sm text-muted-foreground">No explanation available for this question.</p>
+        <Empty className="bg-transparent p-0">
+          <EmptyDescription>No explanation available for this question.</EmptyDescription>
+        </Empty>
       )}
     </>
   )

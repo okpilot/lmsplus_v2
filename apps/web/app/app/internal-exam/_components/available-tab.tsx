@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { Empty, EmptyDescription } from '@/components/ui/empty'
 import type { AvailableInternalExam } from '../queries'
 import { CodeEntryModal } from './code-entry-modal'
 
@@ -31,12 +32,11 @@ export function AvailableTab({ rows }: Readonly<Props>) {
 
   if (rows.length === 0) {
     return (
-      <div
-        className="rounded-lg border border-dashed border-border bg-muted/30 p-6 text-center text-sm text-muted-foreground"
-        data-testid="available-empty"
-      >
-        No internal exams available — your administrator will issue you a code when one is ready.
-      </div>
+      <Empty data-testid="available-empty">
+        <EmptyDescription>
+          No internal exams available — your administrator will issue you a code when one is ready.
+        </EmptyDescription>
+      </Empty>
     )
   }
 

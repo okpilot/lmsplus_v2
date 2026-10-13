@@ -1,3 +1,4 @@
+import { Empty, EmptyDescription, EmptyHeader } from '@/components/ui/empty'
 import type { SubjectProgress } from '@/lib/queries/dashboard'
 
 type SubjectGridProps = {
@@ -28,7 +29,13 @@ function getBarColor(mastery: number): string {
 
 export function SubjectGrid({ subjects }: Readonly<SubjectGridProps>) {
   if (subjects.length === 0) {
-    return <p className="text-sm text-muted-foreground">No subjects available yet.</p>
+    return (
+      <Empty>
+        <EmptyHeader>
+          <EmptyDescription>No subjects available yet.</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    )
   }
 
   return (

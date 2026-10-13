@@ -7,8 +7,20 @@ export const TIME_RANGE_OPTIONS: ReadonlyArray<{ value: TimeRange; label: string
   { value: 'all', label: 'All time' },
 ]
 
+export type MasteryTone = 'danger' | 'caution' | 'success'
+
+export function getMasteryTone(value: number): MasteryTone {
+  if (value < 50) return 'danger'
+  if (value < 80) return 'caution'
+  return 'success'
+}
+
+const MASTERY_COLOR: Record<MasteryTone, string> = {
+  danger: 'text-red-600',
+  caution: 'text-amber-600',
+  success: 'text-green-600',
+}
+
 export function getMasteryColor(value: number): string {
-  if (value < 50) return 'text-red-600'
-  if (value < 80) return 'text-amber-600'
-  return 'text-green-600'
+  return MASTERY_COLOR[getMasteryTone(value)]
 }

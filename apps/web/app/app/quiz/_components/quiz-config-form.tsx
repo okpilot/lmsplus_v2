@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { FieldError } from '@/components/ui/field-error'
 import type { ExamSubjectOption } from '@/lib/queries/exam-subjects'
 import type { SubjectOption } from '@/lib/queries/quiz-query-types'
 import { useExamStart } from '../_hooks/use-exam-start'
@@ -115,9 +116,7 @@ export function QuizConfigForm({ userId, subjects, examSubjects }: Readonly<Quiz
         startLabel={isExam ? 'exam' : 'quiz'}
       />
       {!isExam && config.authError && (
-        <p role="alert" className="text-sm text-destructive">
-          Session expired. Please refresh the page.
-        </p>
+        <FieldError role="alert">Session expired. Please refresh the page.</FieldError>
       )}
 
       {isExam ? (

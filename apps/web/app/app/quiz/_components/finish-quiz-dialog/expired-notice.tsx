@@ -5,20 +5,17 @@ type ExpiredNoticeProps = {
   countdown: number
 }
 
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+
 export function ExpiredNotice({ submitting, countdown }: Readonly<ExpiredNoticeProps>) {
   return (
-    <div
-      role="alert"
-      aria-live="assertive"
-      aria-atomic="true"
-      className="mt-3 rounded-lg border border-red-400/40 bg-red-500/10 p-4"
-    >
-      <p className="text-sm font-medium text-red-600 dark:text-red-400">
-        Time expired! Your answers will be submitted automatically.
-      </p>
+    <Alert tone="danger" role="alert" aria-live="assertive" aria-atomic="true" className="mt-3">
+      <AlertTitle>Time expired! Your answers will be submitted automatically.</AlertTitle>
       {!submitting && countdown > 0 && (
-        <p className="mt-1 text-xs text-muted-foreground">Auto-submitting in {countdown}s...</p>
+        <AlertDescription className="text-muted-foreground">
+          Auto-submitting in {countdown}s...
+        </AlertDescription>
       )}
-    </div>
+    </Alert>
   )
 }

@@ -1,15 +1,15 @@
 import { Suspense } from 'react'
+import { PageHeader } from '@/components/ui/heading'
+import { Skeleton } from '@/components/ui/skeleton'
 import { ExamConfigContent } from './_components/exam-config-content'
 
 export default function ExamConfigPage() {
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Exam Configuration</h1>
-        <p className="text-sm text-muted-foreground">
-          Configure practice exam parameters for each EASA PPL subject.
-        </p>
-      </div>
+      <PageHeader
+        title="Exam Configuration"
+        description="Configure practice exam parameters for each EASA PPL subject."
+      />
       <Suspense fallback={<ExamConfigFallback />}>
         <ExamConfigContent />
       </Suspense>
@@ -22,7 +22,7 @@ function ExamConfigFallback() {
     <div className="grid gap-4">
       {Array.from({ length: 9 }).map((_, i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton placeholders
-        <div key={i} className="h-20 animate-pulse rounded-lg bg-muted" />
+        <Skeleton key={i} className="h-20" />
       ))}
     </div>
   )

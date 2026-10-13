@@ -44,7 +44,7 @@ describe('SubjectGrid', () => {
 
   it('renders an empty state when there are no subjects', () => {
     render(<SubjectGrid subjects={[]} />)
-    expect(screen.getByText(/no subjects available/i)).toBeInTheDocument()
+    expect(screen.getByText(/no subjects available/i).closest('[data-slot="empty"]')).not.toBeNull()
   })
 
   it('renders a card for each subject with name, code, and mastery', () => {

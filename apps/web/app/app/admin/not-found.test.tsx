@@ -29,6 +29,11 @@ describe('AdminNotFound', () => {
     expect(screen.getByRole('heading', { name: 'Not found' })).toBeInTheDocument()
   })
 
+  it('renders the message inside the shared empty part', () => {
+    const { container } = render(<AdminNotFound />)
+    expect(container.querySelector('[data-slot="empty"]')).toHaveTextContent('Not found')
+  })
+
   it('returns the admin to the admin dashboard, not the student one', () => {
     render(<AdminNotFound />)
     expect(screen.getByRole('link', { name: 'Back to admin dashboard' })).toHaveAttribute(

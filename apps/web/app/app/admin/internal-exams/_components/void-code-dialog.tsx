@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { FieldError } from '@/components/ui/field-error'
 import { Label } from '@/components/ui/label'
 import { LoadingButton } from '@/components/ui/loading-button'
 import { Textarea } from '@/components/ui/textarea'
@@ -79,11 +80,7 @@ export function VoidCodeDialog({ codeId, open, onOpenChange }: Readonly<Props>) 
           />
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>{trimmed.length}/500</span>
-            {error ? (
-              <span role="alert" className="text-destructive">
-                {error}
-              </span>
-            ) : null}
+            <FieldError role="alert">{error}</FieldError>
           </div>
         </div>
         <DialogFooter>

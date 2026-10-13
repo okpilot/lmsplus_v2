@@ -62,6 +62,9 @@ describe('CommentsTab', () => {
   it('shows empty state when there are no comments', () => {
     render(<CommentsTab questionId="q-1" currentUserId={CURRENT_USER_ID} />)
     expect(screen.getByText('No comments yet. Be the first to comment.')).toBeInTheDocument()
+    expect(
+      screen.getByText('No comments yet. Be the first to comment.').closest('[data-slot="empty"]'),
+    ).not.toBeNull()
   })
 
   it('shows singular comment count label', () => {
@@ -97,6 +100,7 @@ describe('CommentsTab', () => {
     )
     render(<CommentsTab questionId="q-1" currentUserId={CURRENT_USER_ID} />)
     expect(screen.getByText('LMS Plus')).toBeInTheDocument()
+    expect(screen.getByText('LMS Plus')).toHaveAttribute('data-slot', 'badge')
   })
 
   it('does not show LMS Plus badge for student comments', () => {
@@ -165,13 +169,13 @@ describe('CommentsTab', () => {
   it('shows an error message when the hook reports an error', () => {
     mockUseComments.mockReturnValue(defaultHookState({ error: 'Failed to load comments' }))
     render(<CommentsTab questionId="q-1" currentUserId={CURRENT_USER_ID} />)
-    expect(screen.getByText('Failed to load comments')).toBeInTheDocument()
+    expect(screen.getByText('Failed to load comments')).toHaveAttribute('data-slot', 'field-error')
   })
 
   it('shows loading skeleton while comments are loading', () => {
     mockUseComments.mockReturnValue(defaultHookState({ isLoading: true }))
     render(<CommentsTab questionId="q-1" currentUserId={CURRENT_USER_ID} />)
-    expect(document.querySelector('.animate-pulse')).toBeInTheDocument()
+    expect(document.querySelector('[data-slot="skeleton"]')).toBeInTheDocument()
     // The main content form should not be rendered yet
     expect(screen.queryByPlaceholderText('Add a comment...')).not.toBeInTheDocument()
   })

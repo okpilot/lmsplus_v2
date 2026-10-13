@@ -16,32 +16,55 @@ const badgeVariants = cva(
         outline: 'border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground',
         ghost: 'hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50',
         link: 'text-primary-text underline-offset-4 hover:underline',
+        soft: '',
+      },
+      tone: {
+        neutral: '',
+        info: '',
+        success: '',
+        caution: '',
+        danger: '',
+      },
+      shape: {
+        default: '',
+        circle: 'size-6 justify-center rounded-full p-0',
       },
     },
+    compoundVariants: [
+      { variant: 'soft', tone: 'neutral', className: 'bg-muted text-muted-foreground' },
+      { variant: 'soft', tone: 'info', className: 'bg-info-soft text-info' },
+      { variant: 'soft', tone: 'success', className: 'bg-success-soft text-success' },
+      { variant: 'soft', tone: 'caution', className: 'bg-caution-soft text-caution' },
+      { variant: 'soft', tone: 'danger', className: 'bg-danger-soft text-danger' },
+    ],
     defaultVariants: {
       variant: 'default',
+      shape: 'default',
     },
   },
 )
 
 function Badge({
   className,
-  variant = 'default',
+  variant,
+  tone,
+  shape,
   render,
   ...props
 }: useRender.ComponentProps<'span'> & VariantProps<typeof badgeVariants>) {
+  const resolvedVariant = variant ?? (tone ? 'soft' : 'default')
   return useRender({
     defaultTagName: 'span',
     props: mergeProps<'span'>(
       {
-        className: cn(badgeVariants({ variant }), className),
+        className: cn(badgeVariants({ variant: resolvedVariant, tone, shape }), className),
       },
       props,
     ),
     render,
     state: {
       slot: 'badge',
-      variant,
+      variant: resolvedVariant,
     },
   })
 }

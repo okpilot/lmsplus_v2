@@ -1,3 +1,4 @@
+import { Stat, StatGroup } from '@/components/ui/stat'
 import { InfoTooltip } from './info-tooltip'
 
 const DAILY_GOAL = 50
@@ -45,78 +46,95 @@ export function StatCards({
     currentStreak >= 7 ? 'text-green-500' : currentStreak > 0 ? 'text-amber-500' : 'text-red-500'
 
   return (
-    <div className="grid grid-cols-3 gap-2 md:gap-4">
-      {/* Exam Readiness */}
-      <div className="relative rounded-xl border border-border bg-card p-2 text-center md:p-4">
-        <div className="flex items-center justify-center gap-1">
-          <p className="text-[10px] font-medium uppercase text-muted-foreground md:text-xs md:normal-case">
-            <span className="md:hidden">Readiness</span>
-            <span className="hidden md:inline">Exam Readiness</span>
-          </p>
-          <InfoTooltip
-            label="What is Exam Readiness?"
-            title="Exam Readiness"
-            description="Percentage of subjects where your mastery is 90% or above. Red: below 31%, amber: 31–70%, green: 71%+."
-            align="left"
-          />
-        </div>
-        <p className={`mt-0.5 text-xl font-bold md:mt-1 md:text-3xl ${readinessColor}`}>
-          {readinessPct}%
-        </p>
-        <p className="mt-1 hidden text-xs text-muted-foreground md:block">
-          {examReadiness.readyCount} / {examReadiness.totalCount} subjects at 90%+
-        </p>
-        <p className="mt-1 hidden text-xs text-muted-foreground md:block">{projectionText}</p>
-      </div>
+    <StatGroup columns={3} className="grid-cols-3 sm:grid-cols-3 gap-2 md:gap-4">
+      <Stat
+        label={
+          <TileLabel short="Readiness" full="Exam Readiness">
+            <InfoTooltip
+              label="What is Exam Readiness?"
+              title="Exam Readiness"
+              description="Percentage of subjects where your mastery is 90% or above. Red: below 31%, amber: 31–70%, green: 71%+."
+              align="left"
+            />
+          </TileLabel>
+        }
+        value={<span className={readinessColor}>{readinessPct}%</span>}
+        hint={
+          <>
+            <span className="hidden md:block">
+              {examReadiness.readyCount} / {examReadiness.totalCount} subjects at 90%+
+            </span>
+            <span className="hidden md:block">{projectionText}</span>
+          </>
+        }
+      />
 
-      {/* Questions Today */}
-      <div className="relative rounded-xl border border-border bg-card p-2 text-center md:p-4">
-        <div className="flex items-center justify-center gap-1">
-          <p className="text-[10px] font-medium uppercase text-muted-foreground md:text-xs md:normal-case">
-            <span className="md:hidden">Today</span>
-            <span className="hidden md:inline">Questions Today</span>
-          </p>
-          <InfoTooltip
-            label="What is Questions Today?"
-            title="Questions Today"
-            description="Questions answered today towards your daily goal of 50. Red: none yet, amber: in progress, green: goal reached."
-            align="center"
-          />
-        </div>
-        <p className={`mt-0.5 text-xl font-bold md:mt-1 md:text-3xl ${todayColor}`}>
-          {questionsToday} / {DAILY_GOAL}
-        </p>
-        <div className="mx-auto mt-2 hidden h-1.5 w-full max-w-[120px] overflow-hidden rounded-full bg-muted md:block">
-          <div
-            className={`h-full rounded-full transition-all ${todayBarColor}`}
-            style={{ width: `${todayProgress}%` }}
-          />
-        </div>
-        <p className="mt-1 hidden text-xs text-muted-foreground md:block">
-          {remaining > 0 ? `${remaining} more to hit your daily goal` : 'Daily goal reached!'}
-        </p>
-      </div>
+      <Stat
+        label={
+          <TileLabel short="Today" full="Questions Today">
+            <InfoTooltip
+              label="What is Questions Today?"
+              title="Questions Today"
+              description="Questions answered today towards your daily goal of 50. Red: none yet, amber: in progress, green: goal reached."
+              align="center"
+            />
+          </TileLabel>
+        }
+        value={
+          <span className={todayColor}>
+            {questionsToday} / {DAILY_GOAL}
+          </span>
+        }
+        hint={
+          <>
+            <span className="mt-1 hidden h-1.5 w-full max-w-[120px] overflow-hidden rounded-full bg-muted md:block">
+              <span
+                className={`block h-full rounded-full transition-all ${todayBarColor}`}
+                style={{ width: `${todayProgress}%` }}
+              />
+            </span>
+            <span className="hidden md:block">
+              {remaining > 0 ? `${remaining} more to hit your daily goal` : 'Daily goal reached!'}
+            </span>
+          </>
+        }
+      />
 
-      {/* Study Streak */}
-      <div className="relative rounded-xl border border-border bg-card p-2 text-center md:p-4">
-        <div className="flex items-center justify-center gap-1">
-          <p className="text-[10px] font-medium uppercase text-muted-foreground md:text-xs md:normal-case">
-            <span className="md:hidden">Streak</span>
-            <span className="hidden md:inline">Study Streak</span>
-          </p>
-          <InfoTooltip
-            label="What is Study Streak?"
-            title="Study Streak"
-            description="Consecutive days with at least one question answered. Red: streak broken, amber: 1–6 days, green: 7+ days."
-          />
-        </div>
-        <p className={`mt-0.5 text-xl font-bold md:mt-1 md:text-3xl ${streakColor}`}>
-          {currentStreak} {currentStreak === 1 ? 'day' : 'days'}
-        </p>
-        <p className="mt-1 hidden text-xs text-muted-foreground md:block">
-          Best: {bestStreak} {bestStreak === 1 ? 'day' : 'days'} — keep going!
-        </p>
-      </div>
-    </div>
+      <Stat
+        label={
+          <TileLabel short="Streak" full="Study Streak">
+            <InfoTooltip
+              label="What is Study Streak?"
+              title="Study Streak"
+              description="Consecutive days with at least one question answered. Red: streak broken, amber: 1–6 days, green: 7+ days."
+            />
+          </TileLabel>
+        }
+        value={
+          <span className={streakColor}>
+            {currentStreak} {currentStreak === 1 ? 'day' : 'days'}
+          </span>
+        }
+        hint={
+          <span className="hidden md:block">
+            Best: {bestStreak} {bestStreak === 1 ? 'day' : 'days'} — keep going!
+          </span>
+        }
+      />
+    </StatGroup>
+  )
+}
+
+function TileLabel({
+  short,
+  full,
+  children,
+}: Readonly<{ short: string; full: string; children: React.ReactNode }>) {
+  return (
+    <span className="inline-flex items-center gap-1">
+      <span className="md:hidden">{short}</span>
+      <span className="hidden md:inline">{full}</span>
+      {children}
+    </span>
   )
 }

@@ -5,6 +5,7 @@ import { useCallback } from 'react'
 import { PaginationBar } from '@/app/app/_components/pagination-bar'
 import { useUpdateSearchParams } from '@/app/app/_hooks/use-update-search-params'
 import { SortableTableHead } from '@/components/sortable-table-head'
+import { Empty, EmptyDescription } from '@/components/ui/empty'
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { DashboardFilters, DashboardStudent } from '../types'
 import { STUDENTS_PAGE_SIZE } from '../types'
@@ -55,9 +56,9 @@ export function StudentTableShell({ students, totalCount, filters }: Props) {
     return (
       <div className="space-y-3">
         {statusFilter}
-        <p className="rounded-md border p-8 text-center text-sm text-muted-foreground">
-          No students found.
-        </p>
+        <Empty>
+          <EmptyDescription>No students found.</EmptyDescription>
+        </Empty>
       </div>
     )
   }
@@ -66,9 +67,9 @@ export function StudentTableShell({ students, totalCount, filters }: Props) {
     return (
       <div className="space-y-3">
         {statusFilter}
-        <p className="rounded-md border p-8 text-center text-sm text-muted-foreground">
-          No students on this page. Try going back to page 1.
-        </p>
+        <Empty>
+          <EmptyDescription>No students on this page. Try going back to page 1.</EmptyDescription>
+        </Empty>
         <PaginationBar
           page={filters.page}
           totalCount={totalCount}

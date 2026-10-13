@@ -60,10 +60,10 @@ describe('ResumeExamBanner — rendering', () => {
     expect(screen.getByRole('button', { name: /^discard$/i })).toBeInTheDocument()
   })
 
-  it('renders with amber accent styling', () => {
+  it('renders as a caution alert', () => {
     render(<ResumeExamBanner userId={USER_ID} exam={EXAM} />)
-    const banner = screen.getByText(/practice exam in progress/i).closest('div.rounded-lg')
-    expect(banner?.className).toContain('amber')
+    const banner = screen.getByText(/practice exam in progress/i).closest('[data-slot="alert"]')
+    expect(banner?.className).toContain('bg-caution-soft')
   })
 })
 

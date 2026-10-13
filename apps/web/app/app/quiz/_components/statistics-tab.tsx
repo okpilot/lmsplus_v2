@@ -1,5 +1,9 @@
 'use client'
 
+import { Alert, AlertAction, AlertDescription } from '@/components/ui/alert'
+import { Empty, EmptyDescription } from '@/components/ui/empty'
+import { Heading } from '@/components/ui/heading'
+import { Skeleton } from '@/components/ui/skeleton'
 import type { QuestionStats } from '@/lib/queries/question-stats'
 import { useQuestionStats } from '../_hooks/use-question-stats'
 
@@ -20,27 +24,37 @@ function NotAnsweredMessage({ hasAnswered }: Readonly<{ hasAnswered: boolean }>)
   const message = hasAnswered
     ? 'No statistics available for this question yet.'
     : 'Answer this question to see statistics.'
-  return <div className="py-8 text-center text-sm text-muted-foreground">{message}</div>
+  return (
+    <Empty className="bg-transparent py-8">
+      <EmptyDescription>{message}</EmptyDescription>
+    </Empty>
+  )
 }
 
 function LoadingSkeleton() {
   return (
     <div className="space-y-3 py-4">
-      <div className="h-4 w-32 animate-pulse rounded bg-muted" />
-      <div className="h-4 w-48 animate-pulse rounded bg-muted" />
-      <div className="h-4 w-40 animate-pulse rounded bg-muted" />
+      <Skeleton className="h-4 w-32" />
+      <Skeleton className="h-4 w-48" />
+      <Skeleton className="h-4 w-40" />
     </div>
   )
 }
 
 function ErrorMessage({ message, onRetry }: Readonly<{ message: string; onRetry: () => void }>) {
   return (
-    <div className="space-y-2 py-8 text-center">
-      <p className="text-sm text-destructive">{message}</p>
-      <button type="button" onClick={onRetry} className="text-sm text-primary-text hover:underline">
-        Retry
-      </button>
-    </div>
+    <Alert tone="danger" className="my-4">
+      <AlertDescription>{message}</AlertDescription>
+      <AlertAction>
+        <button
+          type="button"
+          onClick={onRetry}
+          className="text-sm text-primary-text hover:underline"
+        >
+          Retry
+        </button>
+      </AlertAction>
+    </Alert>
   )
 }
 
@@ -50,7 +64,7 @@ function StatsDisplay({ stats }: Readonly<{ stats: QuestionStats }>) {
 
   return (
     <div className="space-y-3 py-4">
-      <h3 className="text-sm font-semibold">Your Statistics</h3>
+      <Heading level={3}>Your Statistics</Heading>
       <div className="divide-y divide-border rounded-lg border border-border">
         <StatRow label="Times seen" value={String(stats.timesSeen)} />
         <StatRow

@@ -38,7 +38,7 @@ export function StudentRow({ student, onClick }: StudentRowProps) {
         <div className="flex items-center gap-1.5">
           {student.hasRecentActivity && (
             <span
-              className="size-2 shrink-0 rounded-full bg-green-500"
+              className="size-2 shrink-0 rounded-full bg-success"
               title="Active in last 7 days"
             />
           )}

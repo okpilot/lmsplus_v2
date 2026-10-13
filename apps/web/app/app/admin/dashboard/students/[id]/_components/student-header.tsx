@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
+import { PageHeader } from '@/components/ui/heading'
 import { formatRelativeTime } from '../../../_components/student-table-helpers'
 import type { StudentDetail } from '../../../types'
 
@@ -16,20 +17,18 @@ export function StudentHeader({ student }: Props) {
         <span className="text-foreground">{student.fullName ?? 'Student'}</span>
       </nav>
 
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            {student.fullName ?? 'Unnamed Student'}
-          </h1>
-          <p className="text-sm text-muted-foreground">{student.email}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {student.deletedAt && <Badge variant="destructive">Inactive</Badge>}
-          <Badge variant="outline" className="capitalize">
-            {student.role}
-          </Badge>
-        </div>
-      </div>
+      <PageHeader
+        title={student.fullName ?? 'Unnamed Student'}
+        description={student.email}
+        actions={
+          <>
+            {student.deletedAt && <Badge variant="destructive">Inactive</Badge>}
+            <Badge variant="outline" className="capitalize">
+              {student.role}
+            </Badge>
+          </>
+        }
+      />
 
       <p className="text-xs text-muted-foreground">
         Last active: {formatRelativeTime(student.lastActiveAt)}

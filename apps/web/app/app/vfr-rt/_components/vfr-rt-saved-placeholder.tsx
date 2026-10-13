@@ -1,7 +1,9 @@
+import { Empty, EmptyDescription } from '@/components/ui/empty'
+
 export function VfrRtSavedPlaceholder() {
   return (
-    <div className="rounded-lg border border-dashed border-border p-6 text-center">
-      <p className="text-sm text-muted-foreground">Saved practice sessions are coming soon.</p>
-    </div>
+    <Empty>
+      <EmptyDescription>Saved practice sessions are coming soon.</EmptyDescription>
+    </Empty>
   )
 }

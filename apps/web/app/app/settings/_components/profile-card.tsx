@@ -1,4 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Heading } from '@/components/ui/heading'
+import { Stat, StatGroup } from '@/components/ui/stat'
 import type { ProfileStats } from '@/lib/queries/profile'
 
 type ProfileCardProps = {
@@ -40,23 +42,16 @@ export function ProfileCard({
         </dl>
 
         <div className="border-t pt-4">
-          <h3 className="mb-3 text-sm font-medium text-muted-foreground">Quiz Statistics</h3>
-          <div className="grid grid-cols-3 gap-4 text-center">
-            <StatBlock label="Sessions" value={stats.totalSessions} />
-            <StatBlock label="Avg. Score" value={`${stats.averageScore}%`} />
-            <StatBlock label="Answered" value={stats.totalAnswered} />
-          </div>
+          <Heading level={3} className="mb-3">
+            Quiz Statistics
+          </Heading>
+          <StatGroup columns={3} className="grid-cols-3 sm:grid-cols-3">
+            <Stat variant="plain" label="Sessions" value={stats.totalSessions} />
+            <Stat variant="plain" label="Avg. Score" value={`${stats.averageScore}%`} />
+            <Stat variant="plain" label="Answered" value={stats.totalAnswered} />
+          </StatGroup>
         </div>
       </CardContent>
     </Card>
-  )
-}
-
-function StatBlock({ label, value }: Readonly<{ label: string; value: string | number }>) {
-  return (
-    <div>
-      <p className="text-2xl font-bold">{value}</p>
-      <p className="text-xs text-muted-foreground">{label}</p>
-    </div>
   )
 }

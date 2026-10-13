@@ -35,4 +35,10 @@ describe('NotFound', () => {
     render(<NotFound />)
     expect(screen.getByRole('link', { name: 'Go to home' })).toHaveAttribute('href', '/')
   })
+
+  it('presents the message inside the shared empty part under a level-2 heading', () => {
+    const { container } = render(<NotFound />)
+    expect(container.querySelector('[data-slot="empty"]')).not.toBeNull()
+    expect(screen.getByRole('heading', { level: 2, name: 'Page not found' })).toBeVisible()
+  })
 })

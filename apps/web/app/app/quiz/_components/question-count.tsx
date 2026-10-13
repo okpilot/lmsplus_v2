@@ -1,5 +1,6 @@
 'use client'
 
+import { Empty, EmptyDescription } from '@/components/ui/empty'
 import { Slider } from '@/components/ui/slider'
 
 type QuestionCountProps = {
@@ -15,9 +16,11 @@ export function QuestionCount({ value, max, onValueChange }: Readonly<QuestionCo
     return (
       <div className="space-y-3">
         <span className="text-[13px] font-medium">Number of Questions</span>
-        <p className="text-sm text-muted-foreground">
-          No questions available. Select at least one topic above.
-        </p>
+        <Empty className="bg-transparent p-0">
+          <EmptyDescription>
+            No questions available. Select at least one topic above.
+          </EmptyDescription>
+        </Empty>
       </div>
     )
   }

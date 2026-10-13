@@ -69,6 +69,8 @@ describe('ServerSessionLoader', () => {
     render(<ServerSessionLoader userId="u1" entry={ENTRY} />)
 
     expect(screen.getByRole('alert')).toHaveTextContent('No questions found')
+    expect(screen.getByRole('alert')).toHaveAttribute('data-slot', 'alert')
+    expect(screen.getByRole('alert')).toHaveClass('bg-danger-soft')
   })
 
   it('continues where the student left off', () => {

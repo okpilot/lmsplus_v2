@@ -49,6 +49,18 @@ describe('RecentActivityList', () => {
     expect(screen.getByText('No sessions yet.')).toBeInTheDocument()
   })
 
+  it('shows the empty state in the shared empty part', () => {
+    const { container } = render(<RecentActivityList sessions={[]} />)
+    expect(container.querySelector('[data-slot="empty"]')).toHaveTextContent('No sessions yet.')
+  })
+
+  it('renders the section title as a heading', () => {
+    render(<RecentActivityList sessions={[]} />)
+    expect(screen.getByRole('heading', { level: 2, name: 'Recent Activity' })).toHaveClass(
+      'text-heading',
+    )
+  })
+
   it('does not render session links when sessions array is empty', () => {
     render(<RecentActivityList sessions={[]} />)
     expect(screen.queryByRole('link')).toBeNull()

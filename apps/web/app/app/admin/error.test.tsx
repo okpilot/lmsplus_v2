@@ -41,6 +41,11 @@ describe('AdminErrorPage', () => {
     expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('Something went wrong')
   })
 
+  it('renders the failure inside the shared empty part', () => {
+    const { container } = render(<AdminErrorPage error={testError} retry={vi.fn()} />)
+    expect(container.querySelector('[data-slot="empty"]')).toHaveTextContent('Something went wrong')
+  })
+
   it('renders the descriptive admin-area message', () => {
     render(<AdminErrorPage error={testError} retry={vi.fn()} />)
     expect(screen.getByText(/unexpected error occurred in the admin area/i)).toBeInTheDocument()

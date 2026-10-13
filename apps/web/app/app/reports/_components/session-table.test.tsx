@@ -111,12 +111,12 @@ describe('SessionTable', () => {
 
   it('renders a Practice Exam badge for mock_exam mode', () => {
     render(<SessionTable {...SORT_PROPS} sessions={[makeSession({ mode: 'mock_exam' })]} />)
-    expect(screen.getByText('Practice Exam')).toBeInTheDocument()
+    expect(screen.getByText('Practice Exam')).toHaveClass('bg-caution-soft', 'text-caution')
   })
 
   it('renders an Internal Exam badge for internal_exam mode', () => {
     render(<SessionTable {...SORT_PROPS} sessions={[makeSession({ mode: 'internal_exam' })]} />)
-    expect(screen.getByText('Internal Exam')).toBeInTheDocument()
+    expect(screen.getByText('Internal Exam')).toHaveClass('bg-caution-soft', 'text-caution')
   })
 
   it('renders mode label for non-exam modes', () => {

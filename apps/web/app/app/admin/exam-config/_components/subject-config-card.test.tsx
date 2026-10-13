@@ -96,6 +96,22 @@ describe('SubjectConfigCard', () => {
       expect(screen.getByRole('button', { name: 'Enabled' })).toBeTruthy()
     })
 
+    it('shows the enabled state as a success badge inside the toggle button', () => {
+      render(<SubjectConfigCard subject={subjectWithConfig} onEdit={vi.fn()} />)
+      const badge = screen
+        .getByRole('button', { name: 'Enabled' })
+        .querySelector('[data-slot="badge"]')
+      expect(badge).toHaveClass('bg-success-soft')
+    })
+
+    it('shows the disabled state as a neutral badge inside the toggle button', () => {
+      render(<SubjectConfigCard subject={subjectWithDisabledConfig} onEdit={vi.fn()} />)
+      const badge = screen
+        .getByRole('button', { name: 'Disabled' })
+        .querySelector('[data-slot="badge"]')
+      expect(badge).toHaveClass('bg-muted')
+    })
+
     it('shows "Disabled" toggle button when config exists but is disabled', () => {
       render(<SubjectConfigCard subject={subjectWithDisabledConfig} onEdit={vi.fn()} />)
       expect(screen.getByRole('button', { name: 'Disabled' })).toBeTruthy()

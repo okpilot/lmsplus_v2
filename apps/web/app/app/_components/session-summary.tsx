@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Stat, StatGroup } from '@/components/ui/stat'
 
 type SessionSummaryProps = {
   totalQuestions: number
@@ -19,33 +20,14 @@ export function SessionSummary({
 
   return (
     <div className="mx-auto max-w-md space-y-6 text-center">
-      <div>
-        <p className="text-sm text-muted-foreground">{label} Complete</p>
-        <p className="mt-2 text-5xl font-bold tabular-nums">{Math.round(scorePercentage)}%</p>
-      </div>
+      <Stat variant="plain" label={`${label} Complete`} value={`${Math.round(scorePercentage)}%`} />
 
-      <div className="flex justify-center gap-8 text-sm">
-        <div>
-          <p className="text-2xl font-semibold tabular-nums text-green-600">{correctCount}</p>
-          <p className="text-muted-foreground">Correct</p>
-        </div>
-        <div>
-          <p className="text-2xl font-semibold tabular-nums text-destructive">{incorrectCount}</p>
-          <p className="text-muted-foreground">Incorrect</p>
-        </div>
-        {skippedCount > 0 && (
-          <div>
-            <p className="text-2xl font-semibold tabular-nums text-muted-foreground">
-              {skippedCount}
-            </p>
-            <p className="text-muted-foreground">Skipped</p>
-          </div>
-        )}
-        <div>
-          <p className="text-2xl font-semibold tabular-nums">{answeredCount}</p>
-          <p className="text-muted-foreground">Answered</p>
-        </div>
-      </div>
+      <StatGroup columns={4}>
+        <Stat variant="plain" label="Correct" value={correctCount} tone="success" />
+        <Stat variant="plain" label="Incorrect" value={incorrectCount} tone="danger" />
+        {skippedCount > 0 && <Stat variant="plain" label="Skipped" value={skippedCount} />}
+        <Stat variant="plain" label="Answered" value={answeredCount} />
+      </StatGroup>
 
       <div className="h-2 w-full rounded-full bg-muted">
         <div

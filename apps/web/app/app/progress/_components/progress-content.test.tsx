@@ -97,4 +97,15 @@ describe('ProgressContent', () => {
 
     expect(screen.getByTestId('subject-breakdown')).toHaveAttribute('data-count', '2')
   })
+
+  it('shows overall mastery as a stat tile holding the progress bar and count', async () => {
+    mockGetProgressData.mockResolvedValue([makeSubject(10, 5)])
+
+    render(await ProgressContent())
+
+    const tile = screen.getByText('Overall Mastery').closest('[data-slot="card"]') as HTMLElement
+    expect(tile).toHaveTextContent('50%')
+    expect(tile).toHaveTextContent('5 / 10 questions mastered')
+    expect(tile.querySelector('[style*="width: 50%"]')).not.toBeNull()
+  })
 })

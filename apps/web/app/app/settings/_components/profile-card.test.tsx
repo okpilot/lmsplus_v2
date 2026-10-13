@@ -53,4 +53,24 @@ describe('ProfileCard', () => {
     // Date formatted as "15 January 2024" via en-GB locale
     expect(screen.getByText('15 January 2024')).toBeInTheDocument()
   })
+
+  it('renders Quiz Statistics as a level-3 heading', () => {
+    render(<ProfileCard {...defaultProps} />)
+    expect(screen.getByRole('heading', { level: 3, name: 'Quiz Statistics' })).toHaveClass(
+      'text-label',
+    )
+  })
+
+  it('renders each quiz statistic as a stat tile with its label', () => {
+    render(<ProfileCard {...defaultProps} />)
+    for (const [label, value] of [
+      ['Sessions', '42'],
+      ['Avg. Score', '78%'],
+      ['Answered', '630'],
+    ]) {
+      const tile = screen.getByText(label as string).closest('[data-slot="stat"]')
+      expect(tile).toHaveTextContent(value as string)
+      expect(tile).not.toHaveTextContent('student@example.com')
+    }
+  })
 })

@@ -26,4 +26,10 @@ describe('AppError', () => {
     await userEvent.setup({ delay: null }).click(screen.getByRole('button', { name: 'Try again' }))
     expect(retry).toHaveBeenCalledOnce()
   })
+
+  it('presents the failure inside the shared empty part', () => {
+    render(<AppError error={new Error('boom')} retry={vi.fn()} />)
+    expect(screen.getByRole('alert')).toHaveAttribute('data-slot', 'empty')
+    expect(screen.getByRole('alert')).toHaveTextContent('An unexpected error occurred.')
+  })
 })

@@ -30,7 +30,9 @@ function makeSubject(overrides: Partial<SubjectDetail> = {}): SubjectDetail {
 describe('SubjectBreakdown', () => {
   it('shows empty state message when subjects array is empty', () => {
     render(<SubjectBreakdown subjects={[]} />)
-    expect(screen.getByText(/no subjects with questions available yet/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(/no subjects with questions available yet/i).closest('[data-slot="empty"]'),
+    ).not.toBeNull()
   })
 
   it('renders a row for each subject', () => {

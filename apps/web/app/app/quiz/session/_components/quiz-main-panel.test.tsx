@@ -231,7 +231,7 @@ describe('QuizMainPanel', () => {
   it('shows error alert when s.error is set on the question tab', () => {
     const s = makeState({ error: 'Something went wrong' })
     render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
-    expect(screen.getByRole('alert')).toHaveTextContent('Something went wrong')
+    expect(screen.getByText('Something went wrong').parentElement).toHaveClass('bg-danger-soft')
   })
 
   it('does not render error alert when s.error is null', () => {

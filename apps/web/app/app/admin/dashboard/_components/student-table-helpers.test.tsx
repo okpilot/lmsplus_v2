@@ -159,6 +159,17 @@ describe('StudentRow', () => {
     expect(screen.getByText('Active')).toBeInTheDocument()
   })
 
+  it('marks recent activity with a success-toned dot', () => {
+    render(
+      <table>
+        <tbody>
+          <StudentRow student={buildStudent({ hasRecentActivity: true })} onClick={vi.fn()} />
+        </tbody>
+      </table>,
+    )
+    expect(screen.getByTitle('Active in last 7 days')).toHaveClass('bg-success')
+  })
+
   it('renders Inactive badge when student is not active', () => {
     render(
       <table>

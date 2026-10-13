@@ -2,6 +2,8 @@
 
 import { BlockedStartAlert } from '@/app/app/quiz/_components/blocked-start-alert'
 import { StartButton } from '@/app/app/quiz/_components/start-button'
+import { Heading } from '@/components/ui/heading'
+import { Stat, StatGroup } from '@/components/ui/stat'
 import type { SubjectOption } from '@/lib/queries/quiz-query-types'
 import { useVfrRtExamStart } from '../_hooks/use-vfr-rt-exam-start'
 
@@ -19,26 +21,19 @@ const PARAMETERS = [
   { value: '75%', label: 'Needed per Part' },
 ]
 
-// Static class names so Tailwind can see them.
-const GRID_COLS = { 3: 'grid-cols-3', 4: 'grid-cols-4' } as const
-
 function ExamParameters({ questionCount }: Readonly<{ questionCount: number | null }>) {
   const parameters =
     questionCount === null
       ? PARAMETERS
       : [{ value: String(questionCount), label: 'Questions' }, ...PARAMETERS]
-  const gridCols = parameters.length === 4 ? GRID_COLS[4] : GRID_COLS[3]
   return (
-    <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
-      <h3 className="text-sm font-semibold">VFR RT Mock Exam Parameters</h3>
-      <div className={`grid ${gridCols} gap-3 text-center`}>
+    <div className="space-y-stack">
+      <Heading level={3}>VFR RT Mock Exam Parameters</Heading>
+      <StatGroup columns={parameters.length === 4 ? 4 : 3}>
         {parameters.map((p) => (
-          <div key={p.label}>
-            <div className="text-lg font-semibold">{p.value}</div>
-            <div className="text-xs text-muted-foreground">{p.label}</div>
-          </div>
+          <Stat variant="plain" key={p.label} label={p.label} value={p.value} />
         ))}
-      </div>
+      </StatGroup>
     </div>
   )
 }

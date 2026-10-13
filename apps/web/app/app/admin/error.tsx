@@ -2,6 +2,14 @@
 
 import Link from 'next/link'
 import { useBoundaryError } from '@/app/_hooks/use-boundary-error'
+import { Button, buttonVariants } from '@/components/ui/button'
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from '@/components/ui/empty'
 
 export default function AdminErrorPage({
   error,
@@ -14,22 +22,20 @@ export default function AdminErrorPage({
 
   return (
     <div className="flex min-h-[50vh] items-center justify-center">
-      <div className="text-center space-y-4">
-        <h2 className="text-2xl font-bold">Something went wrong</h2>
-        <p className="text-muted-foreground">An unexpected error occurred in the admin area.</p>
-        <div className="flex gap-3 justify-center">
-          <button
-            type="button"
-            onClick={() => retry()}
-            className="rounded-md bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
-          >
+      <Empty>
+        <EmptyHeader>
+          <EmptyTitle as="h2">Something went wrong</EmptyTitle>
+          <EmptyDescription>An unexpected error occurred in the admin area.</EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent className="sm:flex-row">
+          <Button type="button" onClick={() => retry()}>
             Try again
-          </button>
-          <Link href="/app/dashboard" className="rounded-md border px-4 py-2 hover:bg-muted">
+          </Button>
+          <Link href="/app/dashboard" className={buttonVariants({ variant: 'outline' })}>
             Back to dashboard
           </Link>
-        </div>
-      </div>
+        </EmptyContent>
+      </Empty>
     </div>
   )
 }

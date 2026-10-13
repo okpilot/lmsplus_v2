@@ -1,3 +1,4 @@
+import { Eyebrow } from '@/components/ui/heading'
 import type { QuizReportSummary } from '@/lib/queries/quiz-report-types'
 import { formatMsDuration } from './format-duration'
 import { ScoreRing } from './score-ring'
@@ -30,8 +31,8 @@ function Stat({
 }: Readonly<{ label: string; value: string | number; accent?: boolean }>) {
   return (
     <div>
-      <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className={accent ? 'font-medium text-sm text-green-600' : 'font-medium text-sm'}>
+      <Eyebrow>{label}</Eyebrow>
+      <p className={accent ? 'text-label font-medium text-success' : 'text-label font-medium'}>
         {value}
       </p>
     </div>

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { StatCards } from './stat-cards'
 
@@ -96,5 +96,21 @@ describe('StatCards', () => {
   it('displays "0 days" (plural) when currentStreak is 0', () => {
     render(<StatCards {...BASE_PROPS} currentStreak={0} />)
     expect(screen.getByText('0 days')).toBeInTheDocument()
+  })
+
+  it('renders each metric as a stat tile with the label above the value', () => {
+    render(<StatCards {...BASE_PROPS} />)
+    for (const value of ['33%', '38 / 50', '12 days']) {
+      expect(screen.getByText(value).closest('[data-slot="card"]')).not.toBeNull()
+    }
+  })
+
+  it('keeps the daily-goal bar and tooltip trigger inside the Questions Today tile', () => {
+    render(<StatCards {...BASE_PROPS} />)
+    const tile = screen.getByText('38 / 50').closest('[data-slot="card"]') as HTMLElement
+    expect(tile.querySelector('[style*="width: 76%"]')).not.toBeNull()
+    expect(
+      within(tile).getByRole('button', { name: 'What is Questions Today?' }),
+    ).toBeInTheDocument()
   })
 })

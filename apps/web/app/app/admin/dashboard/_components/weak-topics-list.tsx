@@ -1,3 +1,5 @@
+import { Empty, EmptyDescription } from '@/components/ui/empty'
+import { Heading } from '@/components/ui/heading'
 import { getMasteryColor } from '../_lib/constants'
 import type { WeakTopic } from '../types'
 
@@ -12,10 +14,12 @@ function getBarColor(score: number): string {
 export function WeakTopicsList({ topics }: Props) {
   return (
     <div className="rounded-xl border border-border bg-card p-4 space-y-4">
-      <h2 className="text-lg font-semibold">Weakest Topics</h2>
+      <Heading level={2}>Weakest Topics</Heading>
 
       {topics.length === 0 ? (
-        <p className="py-6 text-center text-sm text-muted-foreground">No quiz data yet.</p>
+        <Empty>
+          <EmptyDescription>No quiz data yet.</EmptyDescription>
+        </Empty>
       ) : (
         <ul className="space-y-4">
           {topics.map((topic) => (

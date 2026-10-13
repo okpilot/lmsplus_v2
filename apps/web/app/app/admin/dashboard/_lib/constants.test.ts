@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getMasteryColor } from './constants'
+import { getMasteryColor, getMasteryTone } from './constants'
 
 describe('getMasteryColor', () => {
   it('returns red for values below 50', () => {
@@ -15,5 +15,18 @@ describe('getMasteryColor', () => {
   it('returns green for values 80 and above', () => {
     expect(getMasteryColor(80)).toBe('text-green-600')
     expect(getMasteryColor(100)).toBe('text-green-600')
+  })
+})
+
+describe('getMasteryTone', () => {
+  it.each([
+    [0, 'danger'],
+    [49, 'danger'],
+    [50, 'caution'],
+    [79, 'caution'],
+    [80, 'success'],
+    [100, 'success'],
+  ] as const)('rates %i%% mastery as %s', (value, tone) => {
+    expect(getMasteryTone(value)).toBe(tone)
   })
 })

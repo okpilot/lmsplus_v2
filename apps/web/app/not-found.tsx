@@ -1,4 +1,13 @@
+import { FileQuestion } from 'lucide-react'
 import Link from 'next/link'
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty'
 
 /**
  * Root 404 boundary.
@@ -16,16 +25,23 @@ import Link from 'next/link'
  */
 export default function NotFound() {
   return (
-    <div className="flex min-h-dvh items-center justify-center">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold">Page not found</h2>
-        <p className="mt-2 text-muted-foreground">
-          The page you are looking for does not exist or has moved.
-        </p>
-        <Link href="/" className="mt-4 inline-block rounded-md border px-4 py-2 hover:bg-muted">
-          Go to home
-        </Link>
-      </div>
+    <div className="grid min-h-dvh place-items-center px-gutter">
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <FileQuestion aria-hidden="true" />
+          </EmptyMedia>
+          <EmptyTitle as="h2">Page not found</EmptyTitle>
+          <EmptyDescription>
+            The page you are looking for does not exist or has moved.
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <Link href="/" className="inline-block rounded-md border px-4 py-2 hover:bg-muted">
+            Go to home
+          </Link>
+        </EmptyContent>
+      </Empty>
     </div>
   )
 }

@@ -119,6 +119,7 @@ describe('ExamConfigForm', () => {
       render(<ExamConfigForm {...buildProps({ subjectId: 'sub-1' })} />)
       expect(screen.getByText('20')).toBeInTheDocument()
       expect(screen.getByText('Questions')).toBeInTheDocument()
+      expect(screen.getByText('20').closest('[data-slot="stat"]')).not.toBeNull()
     })
 
     it('displays the pass mark percentage', () => {

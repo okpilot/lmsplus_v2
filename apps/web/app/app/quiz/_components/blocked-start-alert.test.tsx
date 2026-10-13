@@ -55,6 +55,11 @@ describe('BlockedStartAlert', () => {
     ).toBeDisabled()
   })
 
+  it('renders the start failure message as a field error', () => {
+    render(<BlockedStartAlert message="Start failed" blocked={BASE} startLabel="quiz" />)
+    expect(screen.getByRole('alert')).toHaveAttribute('data-slot', 'field-error')
+  })
+
   it('shows the takeover or save error', () => {
     render(
       <BlockedStartAlert
