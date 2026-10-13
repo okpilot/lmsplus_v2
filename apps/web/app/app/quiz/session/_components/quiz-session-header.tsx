@@ -47,7 +47,7 @@ export function QuizSessionHeader({
     // overlay still anchors to this element. NOTE: md:sticky relies on no
     // `overflow: hidden/auto/clip` on any scroll-container ancestor — if a parent
     // gains an overflow value, the header will silently stop pinning.
-    <div className="relative flex items-center justify-between border-b border-border px-4 py-2 md:sticky md:top-0 md:z-30 md:bg-background/90 md:backdrop-blur-sm">
+    <div className="relative flex items-center justify-between border-b border-border px-4 py-2 md:sticky md:top-0 md:z-nav md:bg-background/90 md:backdrop-blur-sm">
       <HeaderStatus
         isExam={isExam}
         examMode={examMode}

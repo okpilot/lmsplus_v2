@@ -15,4 +15,21 @@ describe('Button', () => {
     render(<Button aria-pressed="true">Toggle</Button>)
     expect(screen.getByRole('button')).toHaveAttribute('aria-pressed', 'true')
   })
+
+  it('sizes the default button with the control height', () => {
+    render(<Button>Start</Button>)
+    expect(screen.getByRole('button').className).toContain('h-(--control-h)')
+  })
+
+  it.each([
+    ['xs', 'h-6'],
+    ['sm', 'h-7'],
+    ['icon-xs', 'size-6'],
+    ['icon-sm', 'size-7'],
+  ] as const)('keeps the %s button visual size and adds a tap area', (size, visual) => {
+    render(<Button size={size}>x</Button>)
+    const { className } = screen.getByRole('button')
+    expect(className).toContain(visual)
+    expect(className).toContain('after:absolute')
+  })
 })

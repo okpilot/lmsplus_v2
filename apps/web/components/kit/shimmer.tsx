@@ -5,7 +5,7 @@ export function Shimmer({ className }: Readonly<{ className?: string }>) {
     <div
       aria-hidden="true"
       className={cn(
-        'relative overflow-hidden rounded-xl bg-foreground/[0.04] opacity-0 [animation:look-appear_200ms_ease-out_400ms_forwards] motion-reduce:opacity-100 motion-reduce:[animation:none]',
+        'relative overflow-hidden rounded-card bg-foreground/[0.04] opacity-0 [animation:look-appear_200ms_ease-out_400ms_forwards] motion-reduce:opacity-100 motion-reduce:[animation:none]',
         className,
       )}
     >
