@@ -25,4 +25,17 @@ describe('NewVersionBanner', () => {
     render(<NewVersionBanner onReload={onReload} />)
     expect(screen.getAllByRole('button')).toHaveLength(1)
   })
+
+  it('publishes its height so toasts can sit above it', () => {
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        disconnect() {}
+      },
+    )
+    render(<NewVersionBanner onReload={onReload} />)
+    expect(document.documentElement.style.getPropertyValue('--reload-banner-h')).toMatch(/px$/)
+    vi.unstubAllGlobals()
+  })
 })
