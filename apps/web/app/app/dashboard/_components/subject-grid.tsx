@@ -22,7 +22,7 @@ function getRelativeDate(dateStr: string | null): string {
   return `${diffMonths} month${diffMonths !== 1 ? 's' : ''} ago`
 }
 
-function getMasteryTone(mastery: number): StatusTone {
+function subjectTone(mastery: number): StatusTone {
   if (mastery < 50) return 'danger'
   if (mastery < 90) return 'caution'
   return 'success'
@@ -54,7 +54,7 @@ function SubjectCard({ subject }: Readonly<{ subject: SubjectProgress }>) {
       <p className="mt-1 font-medium">{subject.name}</p>
       <Meter
         value={subject.masteryPercentage}
-        tone={getMasteryTone(subject.masteryPercentage)}
+        tone={subjectTone(subject.masteryPercentage)}
         label={`${subject.name} mastery`}
         className="mt-3 h-1.5"
       />

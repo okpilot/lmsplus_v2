@@ -13,7 +13,7 @@ export function SessionProgressBar({
   return (
     <div className="flex items-center gap-3">
       <Progress
-        value={((currentIndex + 1) / totalQuestions) * 100}
+        value={totalQuestions > 0 ? ((currentIndex + 1) / totalQuestions) * 100 : 0}
         label="Quiz progress"
         className="h-1.5 flex-1"
       />
