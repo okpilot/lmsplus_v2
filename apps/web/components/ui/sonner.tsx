@@ -18,6 +18,14 @@ const ICONS: ToasterProps['icons'] = {
   loading: <Loader2Icon className="size-4 animate-spin" />,
 }
 
+// -0.5rem cancels the +0.5rem gap when no reload banner has published --reload-banner-h.
+const OFFSET = {
+  top: '1rem',
+  right: '1rem',
+  left: '1rem',
+  bottom: 'calc(1rem + var(--reload-banner-h, -0.5rem) + 0.5rem)',
+}
+
 const TOAST_CLASS_NAMES = {
   toast: 'w-fit! max-w-[min(var(--width),calc(100vw-2rem))]! gap-2!',
   success: 'border-success-solid! [&_[data-icon]]:text-success',
@@ -34,8 +42,8 @@ const Toaster = ({ ...props }: Readonly<ToasterProps>) => {
       theme={theme as ToasterProps['theme']}
       className="toaster group z-toast!"
       expand
-      offset="1rem"
-      mobileOffset="1rem"
+      offset={OFFSET}
+      mobileOffset={OFFSET}
       icons={ICONS}
       style={
         {

@@ -121,6 +121,18 @@ describe('BottomTabBar', () => {
       expect(more).toHaveAttribute('aria-controls', document.querySelector('ul')?.id)
     })
 
+    it('layers the backdrop below the tab bar and sheet, above page content', async () => {
+      narrow(320)
+      await userEvent.setup({ delay: null }).click(screen.getByRole('button', { name: 'More' }))
+      const backdrop = screen.getByRole('button', { name: 'Close menu' })
+      const nav = screen.getByRole('navigation')
+      const sheet = document.querySelector('ul') as HTMLElement
+      expect(backdrop.className).toContain('z-nav')
+      expect(backdrop.className).toContain('md:hidden')
+      expect(backdrop.compareDocumentPosition(nav) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(nav.compareDocumentPosition(sheet) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    })
+
     it('closes the sheet on Escape', async () => {
       narrow(320)
       const user = userEvent.setup({ delay: null })
@@ -198,8 +210,7 @@ describe('BottomTabBar', () => {
       const user = userEvent.setup({ delay: null })
       const more = screen.getByRole('button', { name: 'More' })
       await user.click(more)
-      await user.tab({ shift: true })
-      expect(screen.getByRole('button', { name: 'Close menu' })).toHaveFocus()
+      act(() => screen.getByRole('button', { name: 'Close menu' }).focus())
       await user.keyboard('{Enter}')
       expect(screen.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument()
       expect(more).toHaveFocus()

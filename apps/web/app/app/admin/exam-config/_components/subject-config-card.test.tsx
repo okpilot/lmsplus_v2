@@ -112,6 +112,13 @@ describe('SubjectConfigCard', () => {
       expect(badge).toHaveClass('bg-muted')
     })
 
+    it('extends the toggle tap area to 44px below lg without growing the badge', () => {
+      render(<SubjectConfigCard subject={subjectWithConfig} onEdit={vi.fn()} />)
+      const cls = screen.getByRole('button', { name: 'Enabled' }).className
+      expect(cls).toContain('after:-inset-y-3')
+      expect(cls).toContain('lg:after:hidden')
+    })
+
     it('shows "Disabled" toggle button when config exists but is disabled', () => {
       render(<SubjectConfigCard subject={subjectWithDisabledConfig} onEdit={vi.fn()} />)
       expect(screen.getByRole('button', { name: 'Disabled' })).toBeTruthy()

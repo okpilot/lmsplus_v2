@@ -56,11 +56,19 @@ describe('Badge', () => {
 })
 
 describe('Badge soft variant without a tone', () => {
-  it('falls back to the neutral soft look', () => {
+  it('matches the neutral tone look', () => {
     render(<Badge variant="soft">x</Badge>)
-    const el = screen.getByText('x')
-    expect(el.className).toContain('bg-muted')
-    expect(el.className).toContain('text-foreground')
+    render(
+      <Badge variant="soft" tone="neutral">
+        y
+      </Badge>,
+    )
+    const bare = screen.getByText('x').className.split(/\s+/)
+    const neutral = screen.getByText('y').className.split(/\s+/)
+    expect(bare).toContain('bg-muted')
+    expect(bare).toContain('text-muted-foreground')
+    expect(bare).not.toContain('text-foreground')
+    expect(neutral).toContain('text-muted-foreground')
   })
 
   it('keeps a 14px icon inside a circle badge instead of the base 12px', () => {

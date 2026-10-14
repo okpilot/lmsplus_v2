@@ -119,10 +119,6 @@
   }
 }
 
-/* Toasts sit above the reload banner. The banner publishes --reload-banner-h (use-publish-height.ts). */
-body:has([data-slot="reload-banner"]) [data-sonner-toaster][data-y-position="bottom"] {
-  bottom: calc(1rem + var(--reload-banner-h, 3.5rem) + 0.5rem) !important;
-}
 /* Below 600px sonner makes the toaster 100% wide plus its offsets and sets left: 0 on toasts;
    a text-width toast would overflow or sit left. Keep it inside the gutter, right-aligned. */
 @media (max-width: 600px) {

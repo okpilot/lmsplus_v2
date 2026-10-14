@@ -25,10 +25,9 @@ type SheetProps = {
   hidden: NavItem[]
   activeHref?: string
   onClose: () => void
-  onDismiss: () => void
 }
 
-export function MoreSheet({ hidden, activeHref, onClose, onDismiss }: Readonly<SheetProps>) {
+export function MoreSheet({ hidden, activeHref, onClose }: Readonly<SheetProps>) {
   const listRef = useRef<HTMLUListElement>(null)
 
   useEffect(() => {
@@ -37,12 +36,6 @@ export function MoreSheet({ hidden, activeHref, onClose, onDismiss }: Readonly<S
 
   return (
     <div className="md:hidden">
-      <Button
-        variant="ghost"
-        aria-label="Close menu"
-        className="fixed inset-0 z-sticky size-auto cursor-default rounded-none bg-foreground/10"
-        onClick={onDismiss}
-      />
       <ul
         ref={listRef}
         id={SHEET_ID}
@@ -63,6 +56,18 @@ export function MoreSheet({ hidden, activeHref, onClose, onDismiss }: Readonly<S
         ))}
       </ul>
     </div>
+  )
+}
+
+/** Rendered before the tab strip so DOM order puts it under the tab bar and sheet in the same layer. */
+export function MoreBackdrop({ onDismiss }: Readonly<{ onDismiss: () => void }>) {
+  return (
+    <Button
+      variant="ghost"
+      aria-label="Close menu"
+      className="fixed inset-0 z-nav size-auto cursor-default rounded-none bg-foreground/10 md:hidden"
+      onClick={onDismiss}
+    />
   )
 }
 

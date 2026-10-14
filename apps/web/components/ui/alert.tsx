@@ -71,7 +71,7 @@ function AlertAction({ className, ...props }: Readonly<React.ComponentProps<'div
     <div
       data-slot="alert-action"
       className={cn(
-        'col-span-full mt-1 sm:col-span-1 sm:col-start-[-2] sm:row-span-2 sm:row-start-1 sm:mt-0 sm:self-center sm:justify-self-end',
+        'col-span-full mt-1 sm:col-span-1 sm:col-start-[-2] sm:group-has-data-[slot=alert-title]/alert:row-span-2 sm:row-start-1 sm:mt-0 sm:self-center sm:justify-self-end',
         className,
       )}
       {...props}

@@ -1,5 +1,6 @@
 import { render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { DAILY_GOAL } from '../_lib/tile-tones'
 import { StatCards } from './stat-cards'
 
 const BASE_PROPS = {
@@ -45,6 +46,11 @@ describe('StatCards', () => {
       />,
     )
     expect(screen.getByText('Keep practicing')).toBeInTheDocument()
+  })
+
+  it('states the shared daily goal in the Today tooltip', () => {
+    const { container } = render(<StatCards {...BASE_PROPS} />)
+    expect(container.textContent).toContain(`daily goal of ${DAILY_GOAL}`)
   })
 
   it('displays questions today progress as N / 50', () => {

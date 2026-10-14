@@ -17,8 +17,7 @@ type StatCardsProps = {
 
 const READINESS_TIP =
   'Percentage of subjects where your mastery is 90% or above. Red: below 31%, amber: 31–70%, green: 71%+.'
-const TODAY_TIP =
-  'Questions answered today towards your daily goal of 50. Red: none yet, amber: in progress, green: goal reached.'
+const TODAY_TIP = `Questions answered today towards your daily goal of ${DAILY_GOAL}. Red: none yet, amber: in progress, green: goal reached.`
 const STREAK_TIP =
   'Consecutive days with at least one question answered. Red: streak broken, amber: 1–6 days, green: 7+ days.'
 const TILE_PADDING = 'px-3 md:px-card'

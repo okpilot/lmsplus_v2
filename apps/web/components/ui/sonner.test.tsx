@@ -35,6 +35,19 @@ describe('Toaster', () => {
     )
   })
 
+  it('lifts the bottom offset by the published reload-banner height on desktop and mobile', async () => {
+    render(<Toaster />)
+    act(() => {
+      toast('Lifted')
+    })
+    await screen.findByText('Lifted')
+    const toaster = toastFor('Lifted').closest('[data-sonner-toaster]') as HTMLElement
+    expect(toaster.style.getPropertyValue('--offset-bottom')).toContain('var(--reload-banner-h')
+    expect(toaster.style.getPropertyValue('--mobile-offset-bottom')).toContain(
+      'var(--reload-banner-h',
+    )
+  })
+
   it('lists several toasts one above the other instead of piling them', async () => {
     render(<Toaster />)
     act(() => {

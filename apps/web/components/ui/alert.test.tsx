@@ -10,6 +10,13 @@ describe('AlertAction', () => {
     expect(cls).toContain('sm:col-start-[-2]')
     expect(cls).not.toContain('sm:col-start-auto')
   })
+
+  it('spans two rows from sm up only when the alert has a title', () => {
+    render(<AlertAction data-testid="a">Undo</AlertAction>)
+    const classes = screen.getByTestId('a').className.split(/\s+/)
+    expect(classes).not.toContain('sm:row-span-2')
+    expect(classes).toContain('sm:group-has-data-[slot=alert-title]/alert:row-span-2')
+  })
 })
 
 describe('Alert', () => {
