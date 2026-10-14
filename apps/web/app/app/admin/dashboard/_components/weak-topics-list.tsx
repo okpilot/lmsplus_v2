@@ -1,14 +1,14 @@
 import { EmptyNote } from '@/components/ui/empty'
 import { Heading } from '@/components/ui/heading'
-import { getMasteryColor } from '../_lib/constants'
+import { getMasteryColor, getMasteryTone, type MasteryTone } from '../_lib/constants'
 import type { WeakTopic } from '../types'
 
 type Props = Readonly<{ topics: WeakTopic[] }>
 
-function getBarColor(score: number): string {
-  if (score < 50) return 'bg-red-500'
-  if (score < 80) return 'bg-amber-500'
-  return 'bg-green-500'
+const BAR_CLASS: Record<MasteryTone, string> = {
+  danger: 'bg-danger-solid',
+  caution: 'bg-caution-solid',
+  success: 'bg-success-solid',
 }
 
 export function WeakTopicsList({ topics }: Props) {
@@ -17,7 +17,9 @@ export function WeakTopicsList({ topics }: Props) {
       <Heading level={2}>Weakest Topics</Heading>
 
       {topics.length === 0 ? (
-        <EmptyNote>No quiz data yet.</EmptyNote>
+        <EmptyNote variant="inline" className="py-6 text-center">
+          No quiz data yet.
+        </EmptyNote>
       ) : (
         <ul className="space-y-4">
           {topics.map((topic) => (
@@ -42,7 +44,7 @@ export function WeakTopicsList({ topics }: Props) {
               </div>
               <div className="h-1.5 w-full rounded-full bg-muted">
                 <div
-                  className={`h-1.5 rounded-full transition-all ${getBarColor(topic.avgScore)}`}
+                  className={`h-1.5 rounded-full transition-all ${BAR_CLASS[getMasteryTone(topic.avgScore)]}`}
                   style={{ width: `${topic.avgScore}%` }}
                 />
               </div>

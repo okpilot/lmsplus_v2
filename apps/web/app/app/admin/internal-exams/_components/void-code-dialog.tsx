@@ -80,8 +80,8 @@ export function VoidCodeDialog({ codeId, open, onOpenChange }: Readonly<Props>) 
           />
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>{trimmed.length}/500</span>
-            <FieldError role="alert">{error}</FieldError>
           </div>
+          <FieldError role="alert">{error}</FieldError>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>

@@ -14,7 +14,9 @@ export function RecentActivityList({ sessions }: Props) {
       <Heading level={2}>Recent Activity</Heading>
 
       {sessions.length === 0 ? (
-        <EmptyNote>No sessions yet.</EmptyNote>
+        <EmptyNote variant="inline" className="py-6 text-center">
+          No sessions yet.
+        </EmptyNote>
       ) : (
         <div className="space-y-3">
           {sessions.map((session) => (

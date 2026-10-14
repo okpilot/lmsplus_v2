@@ -49,9 +49,11 @@ describe('RecentActivityList', () => {
     expect(screen.getByText('No sessions yet.')).toBeInTheDocument()
   })
 
-  it('shows the empty state in the shared empty part', () => {
-    const { container } = render(<RecentActivityList sessions={[]} />)
-    expect(container.querySelector('[data-slot="empty"]')).toHaveTextContent('No sessions yet.')
+  it('shows the empty note as centred inline text rather than a card', () => {
+    render(<RecentActivityList sessions={[]} />)
+    const note = screen.getByText('No sessions yet.')
+    expect(note.closest('[data-slot="empty"]')).toBeNull()
+    expect(note).toHaveClass('text-center')
   })
 
   it('renders the section title as a heading', () => {
