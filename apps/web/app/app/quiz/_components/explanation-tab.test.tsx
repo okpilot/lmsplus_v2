@@ -35,7 +35,7 @@ describe('ExplanationTab', () => {
       screen
         .getByText('No explanation available for this question.')
         .closest('[data-slot="empty"]'),
-    ).not.toBeNull()
+    ).toBeNull()
   })
 
   it('renders ZoomableImage when an explanation image URL is provided', () => {

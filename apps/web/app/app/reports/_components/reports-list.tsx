@@ -3,7 +3,7 @@
 import { useCallback } from 'react'
 import { PaginationBar } from '@/app/app/_components/pagination-bar'
 import { useUpdateSearchParams } from '@/app/app/_hooks/use-update-search-params'
-import { Empty, EmptyDescription, EmptyHeader } from '@/components/ui/empty'
+import { EmptyNote } from '@/components/ui/empty'
 import {
   Select,
   SelectContent,
@@ -35,13 +35,7 @@ const SORT_OPTIONS = [
 
 function NoReports() {
   return (
-    <Empty>
-      <EmptyHeader>
-        <EmptyDescription>
-          No completed sessions yet. Start a quiz or review to see your reports.
-        </EmptyDescription>
-      </EmptyHeader>
-    </Empty>
+    <EmptyNote>No completed sessions yet. Start a quiz or review to see your reports.</EmptyNote>
   )
 }
 

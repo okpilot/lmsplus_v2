@@ -161,6 +161,16 @@ describe('StatCards', () => {
     },
   )
 
+  it('colours each tile value directly, with no wrapper span', () => {
+    const { container } = render(
+      <StatCards {...BASE_PROPS} questionsToday={50} currentStreak={9} />,
+    )
+    const values = container.querySelectorAll('[data-slot="stat"] > span.tabular-nums')
+    expect(values).toHaveLength(3)
+    for (const v of values) expect(v.querySelector('span')).toBeNull()
+    expect(container.querySelectorAll('[data-slot="stat"] > span.text-success').length).toBe(2)
+  })
+
   it('uses theme tokens, never the Tailwind palette, for tile colours', () => {
     const { container } = render(<StatCards {...BASE_PROPS} />)
     expect(container.innerHTML).not.toMatch(/(?:text|bg)-(?:green|amber|red)-500/)

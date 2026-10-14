@@ -1,6 +1,6 @@
 'use client'
 
-import { Empty, EmptyDescription } from '@/components/ui/empty'
+import { EmptyNote } from '@/components/ui/empty'
 import { Slider } from '@/components/ui/slider'
 
 type QuestionCountProps = {
@@ -13,9 +13,7 @@ const PRESETS = [10, 25, 50] as const
 
 function NoQuestions() {
   return (
-    <Empty className="bg-transparent p-0">
-      <EmptyDescription>No questions available. Select at least one topic above.</EmptyDescription>
-    </Empty>
+    <EmptyNote variant="inline">No questions available. Select at least one topic above.</EmptyNote>
   )
 }
 

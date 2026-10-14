@@ -65,4 +65,18 @@ describe('EmptyNote', () => {
     )
     expect(screen.getByText('No sessions yet.')).toHaveAttribute('data-slot', 'empty-description')
   })
+
+  it('shows an inline note as bare muted text outside any empty card', () => {
+    render(
+      <EmptyNote variant="inline" className="py-4 text-center">
+        Nothing here.
+      </EmptyNote>,
+    )
+    const note = screen.getByText('Nothing here.')
+    expect(note.closest('[data-slot="empty"]')).toBeNull()
+    expect(note).toHaveAttribute('data-slot', 'empty-note')
+    expect(note.className).toContain('text-muted-foreground')
+    expect(note.className).toContain('py-4')
+    expect(note.className).toContain('text-center')
+  })
 })

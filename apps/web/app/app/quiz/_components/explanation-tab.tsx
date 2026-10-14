@@ -1,4 +1,4 @@
-import { Empty, EmptyDescription } from '@/components/ui/empty'
+import { EmptyNote } from '@/components/ui/empty'
 import { Eyebrow } from '@/components/ui/heading'
 import { MarkdownText } from '../../_components/markdown-text'
 import { ZoomableImage } from '../../_components/zoomable-image'
@@ -39,9 +39,7 @@ function ExplanationContent({
       {text ? (
         <MarkdownText className="text-sm text-muted-foreground">{text}</MarkdownText>
       ) : (
-        <Empty className="bg-transparent p-0">
-          <EmptyDescription>No explanation available for this question.</EmptyDescription>
-        </Empty>
+        <EmptyNote variant="inline">No explanation available for this question.</EmptyNote>
       )}
     </>
   )

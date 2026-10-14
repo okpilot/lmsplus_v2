@@ -12,6 +12,12 @@ describe('ErrorScreen', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Details here.')
   })
 
+  it('centres the card in a tall, gutter-padded area', () => {
+    const { container } = render(<ErrorScreen action={null}>x</ErrorScreen>)
+    expect(container.firstElementChild?.className).toContain('min-h-[50vh]')
+    expect(container.firstElementChild?.className).toContain('place-items-center')
+  })
+
   it('uses a caller title instead of the default', () => {
     render(
       <ErrorScreen title="Quiz unavailable" action={null}>

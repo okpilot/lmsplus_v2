@@ -175,4 +175,11 @@ describe('QuestionTable', () => {
     const selectAllCheckbox = screen.getByRole('checkbox', { name: 'Select all questions' })
     expect(selectAllCheckbox).not.toBeChecked()
   })
+
+  it('pads the actions cell to a 44px tap pitch below lg and compacts it from lg', () => {
+    render(<QuestionTable questions={[makeQuestion({ id: 'q-1' })]} {...DEFAULT_PROPS} />)
+    const cell = screen.getByTestId('edit-dialog-q-1').closest('td')
+    expect(cell?.className).toContain('py-2.5')
+    expect(cell?.className).toContain('lg:py-2')
+  })
 })

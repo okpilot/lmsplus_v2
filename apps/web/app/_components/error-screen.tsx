@@ -23,15 +23,17 @@ export function ErrorScreen({
   actionClassName,
 }: ErrorScreenProps) {
   return (
-    <Empty>
-      <EmptyHeader role="alert">
-        <EmptyMedia variant="icon">
-          <CircleX aria-hidden="true" className="text-danger" />
-        </EmptyMedia>
-        <EmptyTitle as="h2">{title}</EmptyTitle>
-        <EmptyDescription>{children}</EmptyDescription>
-      </EmptyHeader>
-      <EmptyContent className={actionClassName}>{action}</EmptyContent>
-    </Empty>
+    <div className="grid min-h-[50vh] place-items-center px-gutter">
+      <Empty>
+        <EmptyHeader role="alert">
+          <EmptyMedia variant="icon">
+            <CircleX aria-hidden="true" className="text-danger" />
+          </EmptyMedia>
+          <EmptyTitle as="h2">{title}</EmptyTitle>
+          <EmptyDescription>{children}</EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent className={actionClassName}>{action}</EmptyContent>
+      </Empty>
+    </div>
   )
 }

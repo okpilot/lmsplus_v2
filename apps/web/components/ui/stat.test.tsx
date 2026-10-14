@@ -30,6 +30,11 @@ describe('Stat', () => {
     expect(container.querySelector('.text-caption')).toBeNull()
   })
 
+  it('lets the card variant shrink inside a grid track', () => {
+    render(<Stat label="L" value="1" />)
+    expect(document.querySelector('[data-slot="card"]')?.className).toContain('min-w-0')
+  })
+
   it('merges a custom className on the card', () => {
     render(<Stat label="L" value="1" className="custom" />)
     expect(document.querySelector('[data-slot="card"]')?.className).toContain('custom')

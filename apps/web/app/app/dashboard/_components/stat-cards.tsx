@@ -1,7 +1,12 @@
 import { Stat, StatGroup } from '@/components/ui/stat'
+import { DAILY_GOAL, goalTone, readinessTone, streakTone, type TileTone } from '../_lib/tile-tones'
 import { TileLabel } from './tile-label'
 
-const DAILY_GOAL = 50
+const BAR_CLASS: Record<TileTone, string> = {
+  success: 'bg-success-solid',
+  caution: 'bg-caution-solid',
+  danger: 'bg-danger-solid',
+}
 
 type StatCardsProps = {
   examReadiness: { readyCount: number; totalCount: number; projectedDate: string | null }
@@ -38,11 +43,11 @@ type Readiness = StatCardsProps['examReadiness']
 
 function ReadinessTile({ readyCount, totalCount, projectedDate }: Readonly<Readiness>) {
   const pct = totalCount > 0 ? Math.round((readyCount / totalCount) * 100) : 0
-  const color = pct >= 71 ? 'text-success' : pct >= 31 ? 'text-caution' : 'text-danger'
   const projection = projectedDate ? `Est. ready by ${projectedDate}` : 'Keep practicing'
   return (
     <Stat
       size="compact"
+      tone={readinessTone(pct)}
       contentClassName={TILE_PADDING}
       label={
         <TileLabel
@@ -52,7 +57,7 @@ function ReadinessTile({ readyCount, totalCount, projectedDate }: Readonly<Readi
           align="left"
         />
       }
-      value={<span className={color}>{pct}%</span>}
+      value={`${pct}%`}
       hintClassName={HINT_CLASS}
       hint={
         <>
@@ -69,23 +74,20 @@ function ReadinessTile({ readyCount, totalCount, projectedDate }: Readonly<Readi
 function TodayTile({ questionsToday }: Readonly<{ questionsToday: number }>) {
   const progress = Math.min(Math.round((questionsToday / DAILY_GOAL) * 100), 100)
   const remaining = Math.max(DAILY_GOAL - questionsToday, 0)
-  const { color, barColor } = goalColors(questionsToday)
+  const tone = goalTone(questionsToday)
   return (
     <Stat
       size="compact"
+      tone={tone}
       contentClassName={TILE_PADDING}
       label={
         <TileLabel short="Today" full="Questions Today" description={TODAY_TIP} align="center" />
       }
-      value={
-        <span className={color}>
-          {questionsToday} / {DAILY_GOAL}
-        </span>
-      }
+      value={`${questionsToday} / ${DAILY_GOAL}`}
       hintClassName={HINT_CLASS}
       hint={
         <>
-          <DailyGoalBar progress={progress} color={barColor} />
+          <DailyGoalBar progress={progress} tone={tone} />
           <span className="block">
             {remaining > 0 ? `${remaining} more to hit your daily goal` : 'Daily goal reached!'}
           </span>
@@ -99,18 +101,13 @@ function StreakTile({
   currentStreak,
   bestStreak,
 }: Readonly<{ currentStreak: number; bestStreak: number }>) {
-  const color =
-    currentStreak >= 7 ? 'text-success' : currentStreak > 0 ? 'text-caution' : 'text-danger'
   return (
     <Stat
       size="compact"
+      tone={streakTone(currentStreak)}
       contentClassName={TILE_PADDING}
       label={<TileLabel short="Streak" full="Study Streak" description={STREAK_TIP} />}
-      value={
-        <span className={color}>
-          {currentStreak} {currentStreak === 1 ? 'day' : 'days'}
-        </span>
-      }
+      value={`${currentStreak} ${currentStreak === 1 ? 'day' : 'days'}`}
       hintClassName={HINT_CLASS}
       hint={
         <span className="block">
@@ -121,17 +118,11 @@ function StreakTile({
   )
 }
 
-function goalColors(questionsToday: number) {
-  if (questionsToday >= DAILY_GOAL) return { color: 'text-success', barColor: 'bg-success-solid' }
-  if (questionsToday > 0) return { color: 'text-caution', barColor: 'bg-caution-solid' }
-  return { color: 'text-danger', barColor: 'bg-danger-solid' }
-}
-
-function DailyGoalBar({ progress, color }: Readonly<{ progress: number; color: string }>) {
+function DailyGoalBar({ progress, tone }: Readonly<{ progress: number; tone: TileTone }>) {
   return (
     <span className="mt-1 block h-1.5 w-full max-w-[120px] overflow-hidden rounded-full bg-muted">
       <span
-        className={`block h-full rounded-full transition-all ${color}`}
+        className={`block h-full rounded-full transition-all ${BAR_CLASS[tone]}`}
         style={{ width: `${progress}%` }}
       />
     </span>

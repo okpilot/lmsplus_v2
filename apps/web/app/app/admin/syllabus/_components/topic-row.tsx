@@ -83,7 +83,7 @@ export function TopicRow({ topic, subjectId }: Readonly<Props>) {
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <div className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/50">
+      <div className="flex items-center gap-2 rounded-md px-2 py-2.5 lg:py-1.5 hover:bg-muted/50">
         <CollapsibleTrigger
           render={
             <Button

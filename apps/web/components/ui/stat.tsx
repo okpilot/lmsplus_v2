@@ -66,7 +66,7 @@ function Stat({ variant = 'card', className, contentClassName, ...props }: StatP
     )
   }
   return (
-    <Card className={cn('overflow-visible', className)}>
+    <Card className={cn('min-w-0 overflow-visible', className)}>
       <CardContent className={contentClassName}>
         <StatBody {...props} />
       </CardContent>

@@ -84,9 +84,23 @@ function EmptyContent({ className, ...props }: Readonly<React.ComponentProps<'di
   )
 }
 
-function EmptyNote({ children }: Readonly<{ children: React.ReactNode }>) {
+type EmptyNoteProps = Readonly<{
+  children: React.ReactNode
+  /** `inline` is bare muted text for a note inside another surface; `card` is its own surface. */
+  variant?: 'card' | 'inline'
+  className?: string
+}>
+
+function EmptyNote({ children, variant = 'card', className }: EmptyNoteProps) {
+  if (variant === 'inline') {
+    return (
+      <p data-slot="empty-note" className={cn('text-body text-muted-foreground', className)}>
+        {children}
+      </p>
+    )
+  }
   return (
-    <Empty>
+    <Empty className={className}>
       <EmptyDescription>{children}</EmptyDescription>
     </Empty>
   )

@@ -64,6 +64,9 @@ describe('StatisticsTab', () => {
     await waitFor(() => {
       expect(screen.getByText('No statistics available for this question yet.')).toBeInTheDocument()
     })
+    const note = screen.getByText('No statistics available for this question yet.')
+    expect(note.closest('[data-slot="empty"]')).toBeNull()
+    expect(note.className).toContain('text-center')
   })
 
   it('shows error message and retry button when fetch fails', async () => {

@@ -15,22 +15,20 @@ export default function AdminErrorPage({
   useBoundaryError(error)
 
   return (
-    <div className="grid min-h-[50vh] place-items-center px-gutter">
-      <ErrorScreen
-        actionClassName="sm:flex-row"
-        action={
-          <>
-            <Button type="button" onClick={() => retry()}>
-              Try again
-            </Button>
-            <Link href="/app/dashboard" className={buttonVariants({ variant: 'outline' })}>
-              Back to dashboard
-            </Link>
-          </>
-        }
-      >
-        An unexpected error occurred in the admin area.
-      </ErrorScreen>
-    </div>
+    <ErrorScreen
+      actionClassName="sm:flex-row"
+      action={
+        <>
+          <Button type="button" onClick={() => retry()}>
+            Try again
+          </Button>
+          <Link href="/app/dashboard" className={buttonVariants({ variant: 'outline' })}>
+            Back to dashboard
+          </Link>
+        </>
+      }
+    >
+      An unexpected error occurred in the admin area.
+    </ErrorScreen>
   )
 }

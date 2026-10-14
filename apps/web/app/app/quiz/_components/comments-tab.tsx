@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { BusyLabel } from '@/components/ui/busy-label'
-import { Empty, EmptyDescription } from '@/components/ui/empty'
+import { EmptyNote } from '@/components/ui/empty'
 import { FieldError } from '@/components/ui/field-error'
 import { Heading } from '@/components/ui/heading'
 import { useComments } from '../session/_hooks/use-comments'
@@ -56,9 +56,9 @@ export function CommentsTab({ questionId, currentUserId }: Readonly<CommentsTabP
       <FieldError>{error}</FieldError>
 
       {comments.length === 0 && !error && (
-        <Empty className="bg-transparent py-4">
-          <EmptyDescription>No comments yet. Be the first to comment.</EmptyDescription>
-        </Empty>
+        <EmptyNote variant="inline" className="py-4 text-center">
+          No comments yet. Be the first to comment.
+        </EmptyNote>
       )}
 
       <div className="space-y-3">

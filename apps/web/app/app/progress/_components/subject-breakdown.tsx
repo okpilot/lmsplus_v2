@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Empty, EmptyDescription, EmptyHeader } from '@/components/ui/empty'
+import { EmptyNote } from '@/components/ui/empty'
 import type { SubjectDetail } from '@/lib/queries/progress'
 
 type SubjectBreakdownProps = {
@@ -10,13 +10,7 @@ type SubjectBreakdownProps = {
 
 export function SubjectBreakdown({ subjects }: Readonly<SubjectBreakdownProps>) {
   if (subjects.length === 0) {
-    return (
-      <Empty>
-        <EmptyHeader>
-          <EmptyDescription>No subjects with questions available yet.</EmptyDescription>
-        </EmptyHeader>
-      </Empty>
-    )
+    return <EmptyNote>No subjects with questions available yet.</EmptyNote>
   }
 
   return (

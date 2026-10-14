@@ -62,9 +62,9 @@ describe('CommentsTab', () => {
   it('shows empty state when there are no comments', () => {
     render(<CommentsTab questionId="q-1" currentUserId={CURRENT_USER_ID} />)
     expect(screen.getByText('No comments yet. Be the first to comment.')).toBeInTheDocument()
-    expect(
-      screen.getByText('No comments yet. Be the first to comment.').closest('[data-slot="empty"]'),
-    ).not.toBeNull()
+    const note = screen.getByText('No comments yet. Be the first to comment.')
+    expect(note.closest('[data-slot="empty"]')).toBeNull()
+    expect(note.className).toContain('text-center')
   })
 
   it('shows singular comment count label', () => {

@@ -86,7 +86,7 @@ export function StudentTable({ students, onEdit, onToggleStatus, onExport }: Rea
               <TableCell>
                 <LoginInstructionsCell student={s} />
               </TableCell>
-              <TableCell>
+              <TableCell className="py-2.5 lg:py-2">
                 <div className="flex items-center gap-1">
                   <Button
                     variant="ghost"

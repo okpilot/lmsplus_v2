@@ -2,7 +2,7 @@
 
 import { Alert, AlertAction, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Empty, EmptyDescription } from '@/components/ui/empty'
+import { EmptyNote } from '@/components/ui/empty'
 import { Heading } from '@/components/ui/heading'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { QuestionStats } from '@/lib/queries/question-stats'
@@ -26,9 +26,9 @@ function NotAnsweredMessage({ hasAnswered }: Readonly<{ hasAnswered: boolean }>)
     ? 'No statistics available for this question yet.'
     : 'Answer this question to see statistics.'
   return (
-    <Empty className="bg-transparent py-8">
-      <EmptyDescription>{message}</EmptyDescription>
-    </Empty>
+    <EmptyNote variant="inline" className="py-8 text-center">
+      {message}
+    </EmptyNote>
   )
 }
 

@@ -14,16 +14,14 @@ export default function AppError({
   useBoundaryError(error)
 
   return (
-    <div className="grid min-h-[50vh] place-items-center px-gutter">
-      <ErrorScreen
-        action={
-          <Button type="button" onClick={() => retry()}>
-            Try again
-          </Button>
-        }
-      >
-        An unexpected error occurred.
-      </ErrorScreen>
-    </div>
+    <ErrorScreen
+      action={
+        <Button type="button" onClick={() => retry()}>
+          Try again
+        </Button>
+      }
+    >
+      An unexpected error occurred.
+    </ErrorScreen>
   )
 }
