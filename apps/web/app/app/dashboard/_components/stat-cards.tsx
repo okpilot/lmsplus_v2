@@ -1,5 +1,11 @@
 import { Stat, StatGroup } from '@/components/ui/stat'
-import { DAILY_GOAL, goalTone, readinessTone, streakTone, type TileTone } from '../_lib/tile-tones'
+import {
+  DAILY_GOAL,
+  progressTone,
+  readinessTone,
+  STREAK_TARGET,
+  type TileTone,
+} from '../_lib/tile-tones'
 import { TileLabel } from './tile-label'
 
 const BAR_CLASS: Record<TileTone, string> = {
@@ -18,8 +24,7 @@ type StatCardsProps = {
 const READINESS_TIP =
   'Percentage of subjects where your mastery is 90% or above. Red: below 31%, amber: 31–70%, green: 71%+.'
 const TODAY_TIP = `Questions answered today towards your daily goal of ${DAILY_GOAL}. Red: none yet, amber: in progress, green: goal reached.`
-const STREAK_TIP =
-  'Consecutive days with at least one question answered. Red: streak broken, amber: 1–6 days, green: 7+ days.'
+const STREAK_TIP = `Consecutive days with at least one question answered. Red: streak broken, amber: 1–${STREAK_TARGET - 1} days, green: ${STREAK_TARGET}+ days.`
 const TILE_PADDING = 'px-3 md:px-card'
 const HINT_CLASS = 'hidden md:flex md:flex-col'
 
@@ -73,7 +78,7 @@ function ReadinessTile({ readyCount, totalCount, projectedDate }: Readonly<Readi
 function TodayTile({ questionsToday }: Readonly<{ questionsToday: number }>) {
   const progress = Math.min(Math.round((questionsToday / DAILY_GOAL) * 100), 100)
   const remaining = Math.max(DAILY_GOAL - questionsToday, 0)
-  const tone = goalTone(questionsToday)
+  const tone = progressTone(questionsToday, DAILY_GOAL)
   return (
     <Stat
       size="compact"
@@ -103,7 +108,7 @@ function StreakTile({
   return (
     <Stat
       size="compact"
-      tone={streakTone(currentStreak)}
+      tone={progressTone(currentStreak, STREAK_TARGET)}
       contentClassName={TILE_PADDING}
       label={<TileLabel short="Streak" full="Study Streak" description={STREAK_TIP} />}
       value={`${currentStreak} ${currentStreak === 1 ? 'day' : 'days'}`}

@@ -59,13 +59,13 @@ export function MoreSheet({ hidden, activeHref, onClose }: Readonly<SheetProps>)
   )
 }
 
-/** Rendered before the tab strip so DOM order puts it under the tab bar and sheet in the same layer. */
+/** Sits under the tab bar and sheet (z-scrim), above page content. */
 export function MoreBackdrop({ onDismiss }: Readonly<{ onDismiss: () => void }>) {
   return (
     <Button
       variant="ghost"
       aria-label="Close menu"
-      className="fixed inset-0 z-nav size-auto cursor-default rounded-none bg-foreground/10 md:hidden"
+      className="fixed inset-0 z-scrim size-auto cursor-default rounded-none bg-foreground/10 md:hidden"
       onClick={onDismiss}
     />
   )

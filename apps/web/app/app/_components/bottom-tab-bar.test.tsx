@@ -127,10 +127,12 @@ describe('BottomTabBar', () => {
       const backdrop = screen.getByRole('button', { name: 'Close menu' })
       const nav = screen.getByRole('navigation')
       const sheet = document.querySelector('ul') as HTMLElement
-      expect(backdrop.className).toContain('z-nav')
+      expect(backdrop.className).toContain('z-scrim')
       expect(backdrop.className).toContain('md:hidden')
-      expect(backdrop.compareDocumentPosition(nav) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-      expect(nav.compareDocumentPosition(sheet) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(nav.compareDocumentPosition(backdrop) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(
+        backdrop.compareDocumentPosition(sheet) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
     })
 
     it('closes the sheet on Escape', async () => {
@@ -210,7 +212,8 @@ describe('BottomTabBar', () => {
       const user = userEvent.setup({ delay: null })
       const more = screen.getByRole('button', { name: 'More' })
       await user.click(more)
-      act(() => screen.getByRole('button', { name: 'Close menu' }).focus())
+      await user.tab({ shift: true })
+      expect(screen.getByRole('button', { name: 'Close menu' })).toHaveFocus()
       await user.keyboard('{Enter}')
       expect(screen.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument()
       expect(more).toHaveFocus()

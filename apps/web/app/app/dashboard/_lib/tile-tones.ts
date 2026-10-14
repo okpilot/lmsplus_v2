@@ -8,14 +8,10 @@ export function readinessTone(pct: number): TileTone {
   return 'danger'
 }
 
-export function goalTone(questionsToday: number): TileTone {
-  if (questionsToday >= DAILY_GOAL) return 'success'
-  if (questionsToday > 0) return 'caution'
-  return 'danger'
-}
+export const STREAK_TARGET = 7
 
-export function streakTone(days: number): TileTone {
-  if (days >= 7) return 'success'
-  if (days > 0) return 'caution'
+export function progressTone(value: number, target: number): TileTone {
+  if (value >= target) return 'success'
+  if (value > 0) return 'caution'
   return 'danger'
 }

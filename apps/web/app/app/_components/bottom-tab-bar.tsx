@@ -70,8 +70,8 @@ export function BottomTabBar() {
 
   return (
     <>
-      {bar.sheetOpen && <MoreBackdrop onDismiss={bar.dismiss} />}
       <TabStrip bar={bar} />
+      {bar.sheetOpen && <MoreBackdrop onDismiss={bar.dismiss} />}
       {bar.sheetOpen && (
         <MoreSheet hidden={bar.hidden} activeHref={bar.activeHref} onClose={bar.close} />
       )}

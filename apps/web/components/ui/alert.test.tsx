@@ -19,6 +19,31 @@ describe('AlertAction', () => {
   })
 })
 
+describe('AlertDescription', () => {
+  it('uses the muted foreground when muted, instead of the tone text', () => {
+    render(
+      <Alert tone="caution">
+        <AlertDescription muted data-testid="d">
+          Note
+        </AlertDescription>
+      </Alert>,
+    )
+    const cls = screen.getByTestId('d').className
+    expect(cls).toContain('text-muted-foreground')
+    expect(cls).not.toContain('alert:text-caution')
+  })
+
+  it('keeps the tone text by default', () => {
+    render(
+      <Alert tone="caution">
+        <AlertDescription data-testid="d">Note</AlertDescription>
+      </Alert>,
+    )
+    expect(screen.getByTestId('d').className).toContain('alert:text-caution')
+    expect(screen.getByTestId('d').className).not.toContain('text-muted-foreground')
+  })
+})
+
 describe('Alert', () => {
   it('exposes role alert when the caller passes it', () => {
     render(<Alert role="alert">Boom</Alert>)

@@ -12,9 +12,7 @@ export function ExpiredNotice({ submitting, countdown }: Readonly<ExpiredNoticeP
     <Alert tone="danger" role="alert" aria-live="assertive" aria-atomic="true" className="mt-3">
       <AlertTitle>Time expired! Your answers will be submitted automatically.</AlertTitle>
       {!submitting && countdown > 0 && (
-        <AlertDescription className="text-muted-foreground!">
-          Auto-submitting in {countdown}s...
-        </AlertDescription>
+        <AlertDescription muted>Auto-submitting in {countdown}s...</AlertDescription>
       )}
     </Alert>
   )

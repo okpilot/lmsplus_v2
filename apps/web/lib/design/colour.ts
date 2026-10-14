@@ -47,6 +47,7 @@ export const CONTRAST_PAIRS: readonly ContrastPair[] = [
   ['primary-foreground', 'primary', TEXT],
   ['destructive-foreground', 'destructive', TEXT],
   ...statusPairs,
+  ['danger', 'caution-soft', TEXT],
   ['input', 'background', NON_TEXT],
   ['input', 'card', NON_TEXT],
   ['input', 'popover', NON_TEXT],

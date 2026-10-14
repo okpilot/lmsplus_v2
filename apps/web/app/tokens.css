@@ -194,6 +194,7 @@
   --radius-card: 0.75rem;
   --radius-sheet: 1rem;
   --z-index-sticky: 10;
+  --z-index-scrim: 15;
   --z-index-nav: 20;
   --z-index-overlay: 30;
   --z-index-dropdown: 40;

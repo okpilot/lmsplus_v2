@@ -56,11 +56,19 @@ function AlertTitle({ className, ...props }: Readonly<React.ComponentProps<'div'
   )
 }
 
-function AlertDescription({ className, ...props }: Readonly<React.ComponentProps<'div'>>) {
+function AlertDescription({
+  className,
+  muted,
+  ...props
+}: Readonly<React.ComponentProps<'div'> & { muted?: boolean }>) {
   return (
     <div
       data-slot="alert-description"
-      className={cn('text-body group-has-[>svg]/alert:col-start-2', toneText, className)}
+      className={cn(
+        'text-body group-has-[>svg]/alert:col-start-2',
+        muted ? 'text-muted-foreground' : toneText,
+        className,
+      )}
       {...props}
     />
   )
