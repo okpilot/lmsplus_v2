@@ -36,6 +36,18 @@ const TOAST_CLASS_NAMES = {
   info: 'border-info-solid! [&_[data-icon]]:text-info',
 }
 
+type ToastClassNames = NonNullable<NonNullable<ToasterProps['toastOptions']>['classNames']>
+
+function mergeClassNames(caller: ToastClassNames = {}): ToastClassNames {
+  const keys = new Set([...Object.keys(TOAST_CLASS_NAMES), ...Object.keys(caller)])
+  const merged: ToastClassNames = {}
+  for (const key of keys as Set<keyof ToastClassNames>) {
+    const base = (TOAST_CLASS_NAMES as ToastClassNames)[key]
+    merged[key] = cn(base, caller[key])
+  }
+  return merged
+}
+
 const VARS = {
   '--normal-bg': 'var(--popover)',
   '--normal-text': 'var(--popover-foreground)',
@@ -58,7 +70,7 @@ const Toaster = ({ className, style, toastOptions, ...props }: Readonly<ToasterP
       style={{ ...VARS, ...style }}
       toastOptions={{
         ...toastOptions,
-        classNames: { ...TOAST_CLASS_NAMES, ...toastOptions?.classNames },
+        classNames: mergeClassNames(toastOptions?.classNames),
       }}
     />
   )

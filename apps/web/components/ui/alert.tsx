@@ -4,7 +4,7 @@ import type * as React from 'react'
 import { cn } from '@/lib/utils'
 
 const alertVariants = cva(
-  'group/alert relative grid w-full gap-x-inline gap-y-1 text-left text-foreground has-[>svg]:grid-cols-[auto_1fr] *:[svg]:row-span-2 *:[svg]:translate-y-0.5 *:[svg:not([class*=size-])]:size-4 sm:has-data-[slot=alert-action]:grid-cols-[1fr_auto] sm:has-data-[slot=alert-action]:has-[>svg]:grid-cols-[auto_1fr_auto]',
+  'group/alert relative grid w-full gap-x-inline gap-y-1 text-left text-foreground has-[>svg]:grid-cols-[auto_1fr] *:[svg]:row-span-2 *:[svg]:translate-y-0.5 *:[svg:not([class*=size-])]:size-4',
   {
     variants: {
       tone: {
@@ -78,10 +78,7 @@ function AlertAction({ className, ...props }: Readonly<React.ComponentProps<'div
   return (
     <div
       data-slot="alert-action"
-      className={cn(
-        'col-span-full mt-1 sm:col-span-1 sm:col-start-[-2] sm:group-has-data-[slot=alert-title]/alert:row-span-2 sm:row-start-1 sm:mt-0 sm:self-center sm:justify-self-end',
-        className,
-      )}
+      className={cn('col-span-full mt-2 group-has-[>svg]/alert:col-start-2', className)}
       {...props}
     />
   )

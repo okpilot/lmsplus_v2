@@ -4,18 +4,23 @@ import { describe, expect, it } from 'vitest'
 import { Alert, AlertAction, AlertDescription, AlertTitle } from './alert'
 
 describe('AlertAction', () => {
-  it('sits at the trailing edge from sm up, not auto-placed into the first column', () => {
-    render(<AlertAction data-testid="a">Undo</AlertAction>)
-    const cls = screen.getByTestId('a').className
-    expect(cls).toContain('sm:col-start-[-2]')
-    expect(cls).not.toContain('sm:col-start-auto')
-  })
-
-  it('spans two rows from sm up only when the alert has a title', () => {
+  it('always stacks below the alert text, spanning every column', () => {
     render(<AlertAction data-testid="a">Undo</AlertAction>)
     const classes = screen.getByTestId('a').className.split(/\s+/)
-    expect(classes).not.toContain('sm:row-span-2')
-    expect(classes).toContain('sm:group-has-data-[slot=alert-title]/alert:row-span-2')
+    expect(classes).toContain('col-span-full')
+    expect(classes.some((c) => c.startsWith('sm:'))).toBe(false)
+  })
+
+  it('aligns with the text column when the alert has an icon', () => {
+    render(<AlertAction data-testid="a">Undo</AlertAction>)
+    expect(screen.getByTestId('a').className.split(/\s+/)).toContain(
+      'group-has-[>svg]/alert:col-start-2',
+    )
+  })
+
+  it('keeps the root grid free of a side action column', () => {
+    render(<Alert data-testid="r">x</Alert>)
+    expect(screen.getByTestId('r').className).not.toMatch(/sm:has-data/)
   })
 })
 

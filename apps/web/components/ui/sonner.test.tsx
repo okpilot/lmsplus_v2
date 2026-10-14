@@ -54,6 +54,26 @@ describe('Toaster', () => {
     expect(toastFor('Kept outline').className).toContain('border-danger-solid!')
   })
 
+  it('keeps the base toast sizing when the caller adds its own toast class', async () => {
+    render(<Toaster toastOptions={{ classNames: { toast: 'x-extra' } }} />)
+    act(() => {
+      toast('Merged')
+    })
+    await screen.findByText('Merged')
+    expect(toastFor('Merged').className).toContain('w-fit!')
+    expect(toastFor('Merged').className).toContain('x-extra')
+  })
+
+  it('keeps the error outline when the caller adds its own error class', async () => {
+    render(<Toaster toastOptions={{ classNames: { error: 'x-err' } }} />)
+    act(() => {
+      toast.error('Merged error')
+    })
+    await screen.findByText('Merged error')
+    expect(toastFor('Merged error').className).toContain('border-danger-solid!')
+    expect(toastFor('Merged error').className).toContain('x-err')
+  })
+
   it('keeps the theme variables when the caller passes its own style', async () => {
     render(<Toaster style={{ color: 'red' }} />)
     act(() => {
