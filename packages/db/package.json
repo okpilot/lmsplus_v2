@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
-    "@supabase/supabase-js": "^2.117.2",
+    "@supabase/supabase-js": "^2.117.3",
     "zod": "^4.6.5"
   },
   "peerDependencies": {
@@ -31,11 +31,11 @@
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
-    "@types/node": "^26.6.3",
+    "@types/node": "^26.6.5",
     "@vitest/coverage-v8": "^5.0.3",
     "next": "^16.3.8",
     "typescript": "^6.0.3",
-    "vite": "^8.3.1",
+    "vite": "^8.3.4",
     "vitest": "^5.0.3"
   }
 }
