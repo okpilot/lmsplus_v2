@@ -14,7 +14,6 @@ describe('ExamConfigPage', () => {
     render(<ExamConfigPage />)
     expect(screen.getByRole('heading', { level: 1, name: 'Exam Configuration' })).toHaveClass(
       'text-title',
-      'font-semibold',
     )
   })
 

@@ -15,7 +15,6 @@ describe('QuestionsPage', () => {
     render(await QuestionsPage({ searchParams: Promise.resolve({}) }))
     expect(screen.getByRole('heading', { level: 1, name: 'Question Editor' })).toHaveClass(
       'text-title',
-      'font-semibold',
     )
   })
 })

@@ -82,9 +82,11 @@ describe('usePublishHeight', () => {
     expect(disconnect).toHaveBeenCalledOnce()
   })
 
-  it('does nothing where ResizeObserver is unavailable', () => {
+  it('publishes the initial height where ResizeObserver is unavailable and removes it on unmount', () => {
     vi.stubGlobal('ResizeObserver', undefined)
-    mountWithHeight(54)
+    const { unmount } = mountWithHeight(54)
+    expect(published()).toBe('54px')
+    unmount()
     expect(published()).toBe('')
   })
 })

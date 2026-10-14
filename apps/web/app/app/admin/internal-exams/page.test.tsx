@@ -18,7 +18,6 @@ describe('InternalExamsPage', () => {
     render(await InternalExamsPage({ searchParams: Promise.resolve({}) }))
     expect(screen.getByRole('heading', { level: 1, name: 'Internal Exams' })).toHaveClass(
       'text-title',
-      'font-semibold',
     )
   })
 })

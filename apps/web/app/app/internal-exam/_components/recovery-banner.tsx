@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { buttonVariants } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button-variants'
 import type { ActiveInternalExamSession } from '../actions/get-active-internal-exam-session'
 
 type Props = {

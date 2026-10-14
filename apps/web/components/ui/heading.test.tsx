@@ -39,6 +39,20 @@ describe('PageHeader', () => {
 })
 
 describe('Heading', () => {
+  it('takes the title and heading weights from the type tokens', () => {
+    render(
+      <>
+        <PageHeader title="Page" />
+        <Heading level={2}>Section</Heading>
+      </>,
+    )
+    for (const name of ['Page', 'Section']) {
+      const el = screen.getByRole('heading', { name })
+      expect(el).not.toHaveClass('font-semibold')
+      expect(el).not.toHaveClass('tracking-tight')
+    }
+  })
+
   it('renders level 2 as an h2', () => {
     render(<Heading level={2}>Sec</Heading>)
     expect(screen.getByRole('heading', { level: 2, name: 'Sec' }).className).toContain(

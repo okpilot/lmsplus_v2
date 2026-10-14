@@ -6,10 +6,11 @@ export function usePublishHeight(name: string) {
 
   useEffect(() => {
     const el = ref.current
-    if (!el || typeof ResizeObserver === 'undefined') return
+    if (!el) return
     const root = document.documentElement
     const set = (height: number) => root.style.setProperty(name, `${height}px`)
     set(el.getBoundingClientRect().height)
+    if (typeof ResizeObserver === 'undefined') return () => root.style.removeProperty(name)
     const observer = new ResizeObserver((entries) => {
       set(entries[0]?.borderBoxSize?.[0]?.blockSize ?? el.getBoundingClientRect().height)
     })

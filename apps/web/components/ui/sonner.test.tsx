@@ -35,6 +35,35 @@ describe('Toaster', () => {
     )
   })
 
+  it('keeps the stacking class when the caller adds its own class', async () => {
+    render(<Toaster className="custom-toaster" />)
+    act(() => {
+      toast('Classed')
+    })
+    await screen.findByText('Classed')
+    const toaster = toastFor('Classed').closest('[data-sonner-toaster]') as HTMLElement
+    expect(toaster).toHaveClass('z-toast!', 'custom-toaster')
+  })
+
+  it('keeps the tone outlines when the caller passes its own toast options', async () => {
+    render(<Toaster toastOptions={{ duration: 3000 }} />)
+    act(() => {
+      toast.error('Kept outline')
+    })
+    await screen.findByText('Kept outline')
+    expect(toastFor('Kept outline').className).toContain('border-danger-solid!')
+  })
+
+  it('keeps the theme variables when the caller passes its own style', async () => {
+    render(<Toaster style={{ color: 'red' }} />)
+    act(() => {
+      toast('Styled')
+    })
+    await screen.findByText('Styled')
+    const toaster = toastFor('Styled').closest('[data-sonner-toaster]') as HTMLElement
+    expect(toaster.style.getPropertyValue('--normal-bg')).toBe('var(--popover)')
+  })
+
   it('lifts the bottom offset by the published reload-banner height on desktop and mobile', async () => {
     render(<Toaster />)
     act(() => {

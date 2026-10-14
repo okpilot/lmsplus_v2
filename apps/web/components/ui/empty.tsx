@@ -55,13 +55,7 @@ type EmptyTitleProps = Readonly<
 >
 
 function EmptyTitle({ as: Tag = 'div', className, ...props }: EmptyTitleProps) {
-  return (
-    <Tag
-      data-slot="empty-title"
-      className={cn('text-heading font-semibold', className)}
-      {...props}
-    />
-  )
+  return <Tag data-slot="empty-title" className={cn('text-heading', className)} {...props} />
 }
 
 function EmptyDescription({ className, ...props }: Readonly<React.ComponentProps<'div'>>) {

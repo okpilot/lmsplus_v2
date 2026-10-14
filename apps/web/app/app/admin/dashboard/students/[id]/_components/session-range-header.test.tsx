@@ -18,7 +18,6 @@ describe('SessionRangeHeader', () => {
     render(<SessionRangeHeader range="30d" onRangeChange={vi.fn()} />)
     expect(screen.getByRole('heading', { level: 2, name: 'Session History' })).toHaveClass(
       'text-heading',
-      'font-semibold',
     )
   })
 })

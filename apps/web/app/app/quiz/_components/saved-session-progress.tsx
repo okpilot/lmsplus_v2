@@ -1,3 +1,5 @@
+import { Progress } from '@/components/ui/meter'
+
 export function progressColor(pct: number): string {
   if (pct >= 90) return 'text-green-600'
   if (pct < 50) return 'text-amber-500'
@@ -19,13 +21,7 @@ export function SavedSessionProgress({
         </span>
         <span className={`font-medium ${progressColor(progress)}`}>{Math.round(progress)}%</span>
       </div>
-      <div className="h-1 rounded-full bg-muted">
-        <div
-          data-testid="draft-progress"
-          className="h-1 rounded-full bg-primary transition-all"
-          style={{ width: `${progress}%` }}
-        />
-      </div>
+      <Progress value={progress} label="Answered questions" className="h-1" />
     </div>
   )
 }

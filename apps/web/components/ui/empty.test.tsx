@@ -21,6 +21,7 @@ describe('Empty', () => {
 
   it('renders a non-heading title by default', () => {
     render(<EmptyTitle>Nothing</EmptyTitle>)
+    expect(screen.getByText('Nothing')).not.toHaveClass('font-semibold')
     expect(screen.queryByRole('heading')).toBeNull()
     expect(screen.getByText('Nothing').className).toContain('text-heading')
   })

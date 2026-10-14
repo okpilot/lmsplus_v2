@@ -120,4 +120,17 @@ describe('SubjectBreakdown', () => {
     // No topic rows, just the expanded container
     expect(screen.queryByText('050-01')).not.toBeInTheDocument()
   })
+
+  it('shows each subject and expanded topic as a meter named for it', async () => {
+    const user = userEvent.setup()
+    render(<SubjectBreakdown subjects={[makeSubject({ masteryPercentage: 75 })]} />)
+    expect(
+      screen.getByRole('meter', { name: 'Aircraft General Knowledge mastery' }),
+    ).toHaveAttribute('aria-valuenow', '75')
+    await user.click(screen.getByRole('button', { name: /aircraft general knowledge/i }))
+    expect(screen.getByRole('meter', { name: 'Airframe mastery' })).toHaveAttribute(
+      'aria-valuenow',
+      '60',
+    )
+  })
 })

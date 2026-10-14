@@ -15,7 +15,6 @@ describe('SyllabusPage', () => {
     render(<SyllabusPage />)
     expect(screen.getByRole('heading', { level: 1, name: 'Syllabus Manager' })).toHaveClass(
       'text-title',
-      'font-semibold',
     )
   })
 })

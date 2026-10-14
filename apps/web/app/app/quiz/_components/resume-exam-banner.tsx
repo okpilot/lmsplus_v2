@@ -13,7 +13,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
-import { buttonVariants } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button-variants'
 import { FieldError } from '@/components/ui/field-error'
 import { cn } from '@/lib/utils'
 import { useResumeExamActions } from '../_hooks/use-resume-exam-actions'

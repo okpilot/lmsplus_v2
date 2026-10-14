@@ -14,7 +14,6 @@ describe('AdminReportHeader', () => {
     render(<AdminReportHeader studentId="s1" studentName="Alice" />)
     expect(screen.getByRole('heading', { level: 1, name: 'Quiz Results' })).toHaveClass(
       'text-title',
-      'font-semibold',
     )
   })
 

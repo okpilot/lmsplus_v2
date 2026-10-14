@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Meter } from '@/components/ui/meter'
 import { Stat, StatGroup } from '@/components/ui/stat'
 
 type SessionSummaryProps = {
@@ -40,12 +41,7 @@ export function SessionSummary({
         <Stat variant="plain" size="compact" label="Answered" value={answeredCount} />
       </StatGroup>
 
-      <div className="h-2 w-full rounded-full bg-muted">
-        <div
-          className="h-2 rounded-full bg-primary transition-all"
-          style={{ width: `${scorePercentage}%` }}
-        />
-      </div>
+      <Meter value={scorePercentage} label="Score" />
 
       <div className="flex justify-center gap-3">
         <Link

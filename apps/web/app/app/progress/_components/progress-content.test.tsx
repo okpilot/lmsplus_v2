@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SubjectDetail } from '@/lib/queries/progress'
 import { ProgressContent } from './progress-content'
@@ -106,6 +106,7 @@ describe('ProgressContent', () => {
     const tile = screen.getByText('Overall Mastery').closest('[data-slot="card"]') as HTMLElement
     expect(tile).toHaveTextContent('50%')
     expect(tile).toHaveTextContent('5 / 10 questions mastered')
-    expect(tile.querySelector('[style*="width: 50%"]')).not.toBeNull()
+    const meter = within(tile).getByRole('meter', { name: 'Overall mastery' })
+    expect(meter).toHaveAttribute('aria-valuenow', '50')
   })
 })

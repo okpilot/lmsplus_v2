@@ -20,38 +20,43 @@ export function RecentActivityList({ sessions }: Props) {
       ) : (
         <div className="space-y-3">
           {sessions.map((session) => (
-            <Link
-              key={session.sessionId}
-              href={`/app/admin/dashboard/sessions/${session.sessionId}`}
-              className="flex w-full items-center justify-between gap-3 text-sm text-left rounded-lg px-2 py-1.5 -mx-2 transition-colors hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
-            >
-              <div className="min-w-0 flex-1">
-                <p className="font-medium truncate">{session.studentName ?? 'Unknown student'}</p>
-                <p className="text-xs text-muted-foreground truncate">
-                  {session.subjectName ?? 'Unknown subject'}
-                </p>
-              </div>
-              <div className="shrink-0 flex items-center gap-2">
-                <Badge variant="outline" className="capitalize text-xs">
-                  {session.mode}
-                </Badge>
-                {session.scorePercentage !== null ? (
-                  <span
-                    className={`tabular-nums font-semibold ${getMasteryColor(session.scorePercentage)}`}
-                  >
-                    {Math.round(session.scorePercentage)}%
-                  </span>
-                ) : (
-                  <span className="text-muted-foreground">—</span>
-                )}
-                <span className="text-xs text-muted-foreground whitespace-nowrap">
-                  {formatRelativeTime(session.endedAt)}
-                </span>
-              </div>
-            </Link>
+            <ActivityRow key={session.sessionId} session={session} />
           ))}
         </div>
       )}
     </div>
+  )
+}
+
+function ActivityRow({ session }: Readonly<{ session: RecentSession }>) {
+  return (
+    <Link
+      href={`/app/admin/dashboard/sessions/${session.sessionId}`}
+      className="flex w-full items-center justify-between gap-3 text-sm text-left rounded-lg px-2 py-1.5 -mx-2 transition-colors hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+    >
+      <div className="min-w-0 flex-1">
+        <p className="font-medium truncate">{session.studentName ?? 'Unknown student'}</p>
+        <p className="text-xs text-muted-foreground truncate">
+          {session.subjectName ?? 'Unknown subject'}
+        </p>
+      </div>
+      <div className="shrink-0 flex items-center gap-2">
+        <Badge variant="outline" className="capitalize text-xs">
+          {session.mode}
+        </Badge>
+        {session.scorePercentage !== null ? (
+          <span
+            className={`tabular-nums font-semibold ${getMasteryColor(session.scorePercentage)}`}
+          >
+            {Math.round(session.scorePercentage)}%
+          </span>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )}
+        <span className="text-xs text-muted-foreground whitespace-nowrap">
+          {formatRelativeTime(session.endedAt)}
+        </span>
+      </div>
+    </Link>
   )
 }

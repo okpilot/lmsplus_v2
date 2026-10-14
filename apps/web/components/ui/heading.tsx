@@ -24,7 +24,7 @@ type HeadingProps = Readonly<{
 function Heading({ level, className, id, children }: HeadingProps) {
   if (level === 2) {
     return (
-      <h2 id={id} className={cn('text-heading font-semibold', className)}>
+      <h2 id={id} className={cn('text-heading', className)}>
         {children}
       </h2>
     )
@@ -52,7 +52,7 @@ function PageHeader({ title, description, actions, className }: PageHeaderProps)
       )}
     >
       <div className="flex flex-col gap-1">
-        <h1 className="text-title font-semibold tracking-tight">{title}</h1>
+        <h1 className="text-title">{title}</h1>
         {isEmptyNode(description) ? null : (
           <p className="text-body text-muted-foreground">{description}</p>
         )}

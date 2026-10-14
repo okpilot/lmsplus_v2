@@ -10,6 +10,8 @@ import {
 import { useTheme } from 'next-themes'
 import { Toaster as Sonner, type ToasterProps } from 'sonner'
 
+import { cn } from '@/lib/utils'
+
 const ICONS: ToasterProps['icons'] = {
   success: <CircleCheckIcon className="size-4" />,
   info: <InfoIcon className="size-4" />,
@@ -34,27 +36,30 @@ const TOAST_CLASS_NAMES = {
   info: 'border-info-solid! [&_[data-icon]]:text-info',
 }
 
-const Toaster = ({ ...props }: Readonly<ToasterProps>) => {
+const VARS = {
+  '--normal-bg': 'var(--popover)',
+  '--normal-text': 'var(--popover-foreground)',
+  '--normal-border': 'var(--border)',
+  '--border-radius': 'var(--radius)',
+} as React.CSSProperties
+
+const Toaster = ({ className, style, toastOptions, ...props }: Readonly<ToasterProps>) => {
   const { theme = 'system' } = useTheme()
 
   return (
     <Sonner
       theme={theme as ToasterProps['theme']}
-      className="toaster group z-toast!"
       expand
       offset={OFFSET}
       mobileOffset={OFFSET}
       icons={ICONS}
-      style={
-        {
-          '--normal-bg': 'var(--popover)',
-          '--normal-text': 'var(--popover-foreground)',
-          '--normal-border': 'var(--border)',
-          '--border-radius': 'var(--radius)',
-        } as React.CSSProperties
-      }
-      toastOptions={{ classNames: TOAST_CLASS_NAMES }}
       {...props}
+      className={cn('toaster group z-toast!', className)}
+      style={{ ...VARS, ...style }}
+      toastOptions={{
+        ...toastOptions,
+        classNames: { ...TOAST_CLASS_NAMES, ...toastOptions?.classNames },
+      }}
     />
   )
 }

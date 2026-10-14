@@ -124,7 +124,7 @@ test.describe('Saved quizzes list', () => {
     await expect(
       page
         .getByText(/No saved quizzes/)
-        .or(page.getByTestId('draft-progress'))
+        .or(page.getByRole('progressbar', { name: 'Answered questions' }))
         .first(),
     ).toBeVisible()
     await expect(page.getByTestId('resume-saved-session')).toHaveCount(0)

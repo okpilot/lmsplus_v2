@@ -187,7 +187,8 @@ describe('StatCards', () => {
     [10, 'bg-caution-solid'],
     [0, 'bg-danger-solid'],
   ] as const)('fills the daily goal bar with %i questions using %s', (questionsToday, bar) => {
-    const { container } = render(<StatCards {...BASE_PROPS} questionsToday={questionsToday} />)
-    expect(container.querySelector(`.${bar}`)).not.toBeNull()
+    render(<StatCards {...BASE_PROPS} questionsToday={questionsToday} />)
+    const meter = screen.getByRole('meter', { name: 'Daily goal progress' })
+    expect(meter.querySelector(`.${bar}`)).not.toBeNull()
   })
 })

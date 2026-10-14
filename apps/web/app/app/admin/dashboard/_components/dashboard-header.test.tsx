@@ -20,10 +20,7 @@ import { DashboardHeader } from './dashboard-header'
 describe('DashboardHeader', () => {
   it('renders the page title as a level-1 heading', () => {
     render(<DashboardHeader currentRange="30d" />)
-    expect(screen.getByRole('heading', { level: 1, name: 'Dashboard' })).toHaveClass(
-      'text-title',
-      'font-semibold',
-    )
+    expect(screen.getByRole('heading', { level: 1, name: 'Dashboard' })).toHaveClass('text-title')
   })
 
   it('renders the cohort description', () => {

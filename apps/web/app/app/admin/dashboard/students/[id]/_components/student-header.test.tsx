@@ -53,7 +53,7 @@ describe('StudentHeader', () => {
 
   it('renders the student name as a page title', () => {
     render(<StudentHeader student={makeStudent()} />)
-    expect(screen.getByRole('heading', { level: 1 })).toHaveClass('text-title', 'font-semibold')
+    expect(screen.getByRole('heading', { level: 1 })).toHaveClass('text-title')
   })
 
   it('renders "Unnamed Student" as the heading when fullName is null', () => {

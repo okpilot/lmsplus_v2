@@ -1,18 +1,7 @@
+import { Meter, type StatusTone } from '@/components/ui/meter'
 import { Stat, StatGroup } from '@/components/ui/stat'
-import {
-  DAILY_GOAL,
-  progressTone,
-  readinessTone,
-  STREAK_TARGET,
-  type TileTone,
-} from '../_lib/tile-tones'
+import { DAILY_GOAL, progressTone, readinessTone, STREAK_TARGET } from '../_lib/tile-tones'
 import { TileLabel } from './tile-label'
-
-const BAR_CLASS: Record<TileTone, string> = {
-  success: 'bg-success-solid',
-  caution: 'bg-caution-solid',
-  danger: 'bg-danger-solid',
-}
 
 type StatCardsProps = {
   examReadiness: { readyCount: number; totalCount: number; projectedDate: string | null }
@@ -122,13 +111,13 @@ function StreakTile({
   )
 }
 
-function DailyGoalBar({ progress, tone }: Readonly<{ progress: number; tone: TileTone }>) {
+function DailyGoalBar({ progress, tone }: Readonly<{ progress: number; tone: StatusTone }>) {
   return (
-    <span className="mt-1 block h-1.5 w-full max-w-[120px] overflow-hidden rounded-full bg-muted">
-      <span
-        className={`block h-full rounded-full transition-all ${BAR_CLASS[tone]}`}
-        style={{ width: `${progress}%` }}
-      />
-    </span>
+    <Meter
+      value={progress}
+      tone={tone}
+      label="Daily goal progress"
+      className="mt-1 h-1.5 max-w-[120px]"
+    />
   )
 }

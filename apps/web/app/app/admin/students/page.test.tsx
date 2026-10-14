@@ -14,7 +14,6 @@ describe('StudentsPage', () => {
     render(await StudentsPage({ searchParams: Promise.resolve({}) }))
     expect(screen.getByRole('heading', { level: 1, name: 'Student Management' })).toHaveClass(
       'text-title',
-      'font-semibold',
     )
   })
 

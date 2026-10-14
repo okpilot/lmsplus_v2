@@ -3,7 +3,8 @@
 import Link from 'next/link'
 import { ErrorScreen } from '@/app/_components/error-screen'
 import { useBoundaryError } from '@/app/_hooks/use-boundary-error'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { Button } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button-variants'
 
 export default function AdminErrorPage({
   error,

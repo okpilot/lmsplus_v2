@@ -7,7 +7,6 @@ describe('WeakTopicsList', () => {
     render(<WeakTopicsList topics={[]} />)
     expect(screen.getByRole('heading', { level: 2, name: 'Weakest Topics' })).toHaveClass(
       'text-heading',
-      'font-semibold',
     )
   })
 
@@ -36,9 +35,9 @@ describe('WeakTopicsList', () => {
         avgScore,
         studentCount: 2,
       }
-      const { container } = render(<WeakTopicsList topics={[topic]} />)
-      const bar = container.querySelector('li [style]')
-      expect(bar).toHaveClass(`bg-${tone}-solid`)
+      render(<WeakTopicsList topics={[topic]} />)
+      const meter = screen.getByRole('meter', { name: 'Topic average score' })
+      expect(meter.querySelector(`.bg-${tone}-solid`)).not.toBeNull()
       expect(screen.getByText(`${avgScore}%`)).toHaveClass(`text-${tone}`)
     },
   )

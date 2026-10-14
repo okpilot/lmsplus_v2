@@ -1,3 +1,4 @@
+import { Progress } from '@/components/ui/meter'
 import { SessionTimer } from './session-timer'
 
 type SessionProgressBarProps = {
@@ -11,13 +12,11 @@ export function SessionProgressBar({
 }: Readonly<SessionProgressBarProps>) {
   return (
     <div className="flex items-center gap-3">
-      <div className="h-1.5 flex-1 rounded-full bg-muted">
-        <div
-          data-testid="progress-bar"
-          className="h-1.5 rounded-full bg-primary transition-all"
-          style={{ width: `${((currentIndex + 1) / totalQuestions) * 100}%` }}
-        />
-      </div>
+      <Progress
+        value={((currentIndex + 1) / totalQuestions) * 100}
+        label="Quiz progress"
+        className="h-1.5 flex-1"
+      />
       <SessionTimer />
     </div>
   )

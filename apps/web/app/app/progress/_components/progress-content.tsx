@@ -1,3 +1,4 @@
+import { Meter } from '@/components/ui/meter'
 import { Stat } from '@/components/ui/stat'
 import { getProgressData } from '@/lib/queries/progress'
 import { getOverallMastery } from '../_lib/overall-mastery'
@@ -15,12 +16,7 @@ export async function ProgressContent() {
         value={`${overallMastery}%`}
         hint={
           <>
-            <span className="mt-2 block h-2 w-full rounded-full bg-muted">
-              <span
-                className="block h-2 rounded-full bg-primary transition-all"
-                style={{ width: `${overallMastery}%` }}
-              />
-            </span>
+            <Meter value={overallMastery} label="Overall mastery" className="mt-2" />
             <span className="mt-2 block">
               {masteredCount} / {totalQuestions} questions mastered
             </span>

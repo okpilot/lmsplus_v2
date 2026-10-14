@@ -190,4 +190,16 @@ describe('SessionSummary', () => {
     const grid = tileFor('Correct')?.closest('.grid')
     expect((grid?.className ?? '').split(/\s+/)).not.toContain('grid-cols-4')
   })
+
+  it('shows the score as a meter named Score', () => {
+    render(
+      <SessionSummary
+        totalQuestions={10}
+        answeredCount={8}
+        correctCount={6}
+        scorePercentage={75}
+      />,
+    )
+    expect(screen.getByRole('meter', { name: 'Score' })).toHaveAttribute('aria-valuenow', '75')
+  })
 })
