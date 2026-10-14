@@ -44,19 +44,20 @@ function ActivityRow({ session }: Readonly<{ session: RecentSession }>) {
         <Badge variant="outline" className="capitalize text-xs">
           {session.mode}
         </Badge>
-        {session.scorePercentage !== null ? (
-          <span
-            className={`tabular-nums font-semibold ${getMasteryColor(session.scorePercentage)}`}
-          >
-            {Math.round(session.scorePercentage)}%
-          </span>
-        ) : (
-          <span className="text-muted-foreground">—</span>
-        )}
+        <ActivityScore score={session.scorePercentage} />
         <span className="text-xs text-muted-foreground whitespace-nowrap">
           {formatRelativeTime(session.endedAt)}
         </span>
       </div>
     </Link>
+  )
+}
+
+function ActivityScore({ score }: Readonly<{ score: number | null }>) {
+  if (score === null) return <span className="text-muted-foreground">—</span>
+  return (
+    <span className={`tabular-nums font-semibold ${getMasteryColor(score)}`}>
+      {Math.round(score)}%
+    </span>
   )
 }
