@@ -296,6 +296,12 @@ describe('toggleFlag', () => {
 })
 
 describe('getFlaggedIds', () => {
+  it('verifies identity on the session client', async () => {
+    mockVerifySessionUser.mockResolvedValue(null)
+    await getFlaggedIds({ questionIds: [QUESTION_ID_A] })
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
+  })
+
   beforeEach(() => {
     vi.resetAllMocks()
   })

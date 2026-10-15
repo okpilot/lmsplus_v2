@@ -157,6 +157,12 @@ describe('getComments', () => {
 })
 
 describe('createComment', () => {
+  it('verifies identity on the session client', async () => {
+    mockVerifySessionUser.mockResolvedValue(null)
+    await createComment({ questionId: QUESTION_ID, body: 'A comment.' })
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
+  })
+
   beforeEach(() => {
     vi.resetAllMocks()
   })
@@ -254,6 +260,12 @@ describe('createComment', () => {
 })
 
 describe('deleteComment', () => {
+  it('verifies identity on the session client', async () => {
+    mockVerifySessionUser.mockResolvedValue(null)
+    await deleteComment({ commentId: COMMENT_ID })
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
+  })
+
   beforeEach(() => {
     vi.resetAllMocks()
   })

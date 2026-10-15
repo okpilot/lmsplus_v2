@@ -101,6 +101,12 @@ describe('saveQuizForLater', () => {
 })
 
 describe('resumeSavedQuiz', () => {
+  it('verifies identity on the session client', async () => {
+    mockVerifySessionUser.mockResolvedValue(null)
+    await resumeSavedQuiz({ sessionId: SESSION, deviceId: DEVICE })
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
+  })
+
   it('restores the quiz through the RPC on the caller device', async () => {
     expect(await resumeSavedQuiz({ sessionId: SESSION, deviceId: DEVICE })).toEqual({
       success: true,
@@ -146,6 +152,12 @@ describe('resumeSavedQuiz', () => {
 })
 
 describe('discardSavedQuiz', () => {
+  it('verifies identity on the session client', async () => {
+    mockVerifySessionUser.mockResolvedValue(null)
+    await discardSavedQuiz({ sessionId: SESSION })
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
+  })
+
   it('discards the saved quiz through the RPC', async () => {
     expect(await discardSavedQuiz({ sessionId: SESSION })).toEqual({ success: true })
     expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'discard_saved_quiz', {
@@ -180,6 +192,12 @@ describe('discardSavedQuiz', () => {
 })
 
 describe('checkSavedQuizRoom', () => {
+  it('verifies identity on the session client', async () => {
+    mockVerifySessionUser.mockResolvedValue(null)
+    await checkSavedQuizRoom()
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
+  })
+
   it('allows a start while the student is under the saved-quiz cap', async () => {
     mockCount.mockResolvedValue({ count: 19, error: null })
     expect(await checkSavedQuizRoom()).toEqual({ success: true })
