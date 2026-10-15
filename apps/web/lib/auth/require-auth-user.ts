@@ -1,18 +1,13 @@
-import { createServerSupabaseClient } from '@repo/db/server'
-import type { User } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
+import { getSessionUser } from '@/lib/auth/get-session-user'
+import type { SessionUser } from '@/lib/auth/verify-session-user'
 
 /**
  * Require an authenticated user in a Server Component or Server Action.
  * Redirects to `/` (the login page) if the session is missing or invalid.
  */
-export async function requireAuthUser(): Promise<User> {
-  const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-
-  if (authError || !user) redirect('/')
+export async function requireAuthUser(): Promise<SessionUser> {
+  const user = await getSessionUser()
+  if (!user) redirect('/')
   return user
 }

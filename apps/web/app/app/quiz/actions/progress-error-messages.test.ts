@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import {
   isDisplayableProgressError,
   isTakeoverError,
-  mapMembershipError,
   mapProgressRpcError,
   PROGRESS_ERROR_MESSAGES,
 } from './progress-error-messages'
@@ -102,19 +101,6 @@ describe('isDisplayableProgressError', () => {
 
   it('rejects a raw token', () => {
     expect(isDisplayableProgressError('session_taken_over')).toBe(false)
-  })
-})
-
-describe('mapMembershipError', () => {
-  it('wraps a membership message as an action failure', () => {
-    expect(mapMembershipError('Session not found')).toEqual({
-      success: false,
-      error: 'Session not found',
-    })
-  })
-
-  it('returns null when the membership check passed', () => {
-    expect(mapMembershipError(null)).toBeNull()
   })
 })
 

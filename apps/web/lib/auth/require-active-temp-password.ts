@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { redirect } from 'next/navigation'
 import { readTempPasswordState } from './temp-password'
+import { verifySessionUser } from './verify-session-user'
 
 /**
  * Shared guard for the set-password page: redirects to `/` when there is no
@@ -9,9 +10,7 @@ import { readTempPasswordState } from './temp-password'
  */
 export async function requireActiveTempPassword(nextPath: string | null): Promise<void> {
   const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await verifySessionUser(supabase)
   if (!user) redirect('/')
 
   const state = await readTempPasswordState(supabase, user.id)

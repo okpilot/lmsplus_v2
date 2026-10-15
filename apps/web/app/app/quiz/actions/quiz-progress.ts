@@ -1,6 +1,7 @@
 'use server'
 
 import { createServerSupabaseClient } from '@repo/db/server'
+import { verifySessionUser } from '@/lib/auth/verify-session-user'
 import { rpc } from '@/lib/supabase-rpc'
 import { INVALID_INPUT, SIGN_IN } from './progress-error-messages'
 import { type ProgressResult, toAnswerJson, toProgressResult } from './quiz-progress-helpers'
@@ -11,11 +12,7 @@ const UNAUTHENTICATED: ProgressResult = { success: false, error: SIGN_IN }
 
 async function authedClient() {
   const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser()
-  return error || !user ? null : supabase
+  return (await verifySessionUser(supabase)) ? supabase : null
 }
 
 export async function saveQuizAnswer(raw: unknown): Promise<ProgressResult> {

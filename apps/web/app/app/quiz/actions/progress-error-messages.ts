@@ -81,10 +81,3 @@ export function isTakeoverError(message: string | undefined): boolean {
 export function isDisplayableProgressError(message: string): boolean {
   return DISPLAYABLE.has(message)
 }
-
-/** Wraps a verifySessionMembership result as an action failure, or null when it passed. */
-export function mapMembershipError(
-  membershipError: string | null,
-): { success: false; error: string } | null {
-  return membershipError ? { success: false, error: membershipError } : null
-}

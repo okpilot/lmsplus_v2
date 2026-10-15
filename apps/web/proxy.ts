@@ -3,6 +3,7 @@ import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { safeNextPath } from '@/lib/auth/safe-next-path'
 import { checkTempPasswordGate } from '@/lib/auth/temp-password-gate'
+import { verifySessionUser } from '@/lib/auth/verify-session-user'
 import { checkConsentGate } from '@/lib/consent/consent-gate'
 import { CONSENT_COOKIE } from '@/lib/consent/versions'
 
@@ -61,15 +62,9 @@ export async function proxy(request: NextRequest): Promise<Response> {
     request as unknown as Parameters<typeof createMiddlewareSupabaseClient>[0],
   )
 
-  // Refresh session — must run on every request to keep tokens valid
-  // On auth error, treat as unauthenticated — proxy must not crash
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-  if (authError) {
-    console.error('[proxy] getUser error:', authError.message)
-  }
+  // Verified identity — getClaims (via the helper) calls getSession, which refreshes an expiring token. Must be the
+  // first call after client creation; a null user is unauthenticated, the proxy must not crash.
+  const user = await verifySessionUser(supabase)
 
   // Expire a leftover legacy deployment-pin cookie; nothing sets one any more.
   if (request.cookies.has('__vdpl')) response.cookies.delete('__vdpl')

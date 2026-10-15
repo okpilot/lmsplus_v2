@@ -2,18 +2,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetUser, mockRpc, mockFrom } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
-  mockRpc: vi.fn(),
-  mockFrom: vi.fn(),
-}))
+const { mockVerifySessionUser, mockRpc, mockFrom, mockClient } = vi.hoisted(() => {
+  const from = vi.fn()
+  return { mockVerifySessionUser: vi.fn(), mockRpc: vi.fn(), mockFrom: from, mockClient: { from } }
+})
 
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
-    from: mockFrom,
-  }),
+  createServerSupabaseClient: async () => mockClient,
 }))
+
+vi.mock('@/lib/auth/verify-session-user', () => ({ verifySessionUser: mockVerifySessionUser }))
 
 vi.mock('@/lib/supabase-rpc', () => ({
   rpc: (...args: unknown[]) => mockRpc(...args),
@@ -47,30 +45,12 @@ const RPC_SUCCESS_WRONG = {
 
 // ---- Helpers --------------------------------------------------------------
 
-function buildSessionChain(override: Record<string, unknown> = {}) {
-  const terminal = {
-    data: { config: { question_ids: [QUESTION_ID] } },
-    error: null,
-    ...override,
-  }
-  return {
-    select: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockReturnThis(),
-    is: vi.fn().mockReturnThis(),
-    single: vi.fn().mockReturnValue(terminal),
-  }
-}
-
 function setupAuthenticatedUser() {
-  mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } } })
+  mockVerifySessionUser.mockResolvedValue({ id: USER_ID, email: null })
 }
 
 function setupUnauthenticated() {
-  mockGetUser.mockResolvedValue({ data: { user: null } })
-}
-
-function setupValidSession() {
-  mockFrom.mockReturnValue(buildSessionChain())
+  mockVerifySessionUser.mockResolvedValue(null)
 }
 
 beforeEach(() => {
@@ -80,23 +60,20 @@ beforeEach(() => {
 // ---- checkAnswer ----------------------------------------------------------
 
 describe('checkAnswer', () => {
-  it('returns failure when user is not authenticated', async () => {
-    setupUnauthenticated()
-    const result = await checkAnswer({
+  it('verifies the caller on the client that grades the answer', async () => {
+    setupAuthenticatedUser()
+    mockRpc.mockResolvedValue({ data: RPC_SUCCESS_CORRECT, error: null })
+    await checkAnswer({
       questionId: QUESTION_ID,
       selectedOptionId: CORRECT_OPTION_ID,
       sessionId: SESSION_ID,
     })
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe('Your sign-in has expired. Please sign in again.')
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
+    expect(mockRpc).toHaveBeenCalledWith(mockClient, 'check_quiz_answer', expect.anything())
   })
 
-  it('returns failure when authentication fails', async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: null },
-      error: { message: 'JWT expired' },
-    })
+  it('returns failure when user is not authenticated', async () => {
+    setupUnauthenticated()
     const result = await checkAnswer({
       questionId: QUESTION_ID,
       selectedOptionId: CORRECT_OPTION_ID,
@@ -137,14 +114,21 @@ describe('checkAnswer', () => {
     expect(result).toEqual({ success: false, error: 'Invalid input' })
   })
 
-  it('returns failure when session does not belong to user', async () => {
+  it.each([
+    [
+      'the session is missing, foreign or ended',
+      'session_not_found',
+      'This session could not be found.',
+    ],
+    [
+      'the question is outside the session',
+      'question_not_in_session',
+      'That question is not part of this session.',
+    ],
+  ])('reports a clear failure when %s', async (_label, rpcMessage, expected) => {
     setupAuthenticatedUser()
-    // PGRST116 is what PostgREST returns for a no-row `.single()` — a cross-user or
-    // discarded session reaches the action this way, not as a code-less error.
+    mockRpc.mockResolvedValue({ data: null, error: { message: rpcMessage } })
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    mockFrom.mockReturnValue(
-      buildSessionChain({ data: null, error: { code: 'PGRST116', message: 'no rows' } }),
-    )
 
     const result = await checkAnswer({
       questionId: QUESTION_ID,
@@ -152,99 +136,29 @@ describe('checkAnswer', () => {
       sessionId: SESSION_ID,
     })
 
+    expect(consoleSpy).toHaveBeenCalledWith('[checkAnswer] RPC error:', rpcMessage, {
+      questionId: QUESTION_ID,
+      sessionId: SESSION_ID,
+    })
     consoleSpy.mockRestore()
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe('Session not found')
+    expect(result).toEqual({ success: false, error: expected })
   })
 
-  // Pairs with the test above: a transient DB fault must NOT be reported as a dead
-  // session. The two cases share a lookup path, so asserting only one of them would pass
-  // even if the PGRST116 branch were dropped and everything collapsed to one string.
-  it('reports a generic failure when the session lookup errors for any other reason', async () => {
+  it('does not read quiz_sessions before grading', async () => {
     setupAuthenticatedUser()
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    mockFrom.mockReturnValue(
-      buildSessionChain({ data: null, error: { code: '08006', message: 'connection failure' } }),
-    )
+    mockRpc.mockResolvedValue({ data: RPC_SUCCESS_CORRECT, error: null })
 
-    const result = await checkAnswer({
+    await checkAnswer({
       questionId: QUESTION_ID,
       selectedOptionId: CORRECT_OPTION_ID,
       sessionId: SESSION_ID,
     })
 
-    consoleSpy.mockRestore()
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe('Could not check answer')
-  })
-
-  it('returns failure when questionId is not in session', async () => {
-    setupAuthenticatedUser()
-    mockFrom.mockReturnValue(
-      buildSessionChain({ data: { config: { question_ids: ['other-question-id'] } } }),
-    )
-
-    const result = await checkAnswer({
-      questionId: QUESTION_ID,
-      selectedOptionId: CORRECT_OPTION_ID,
-      sessionId: SESSION_ID,
-    })
-
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe('Question not in session')
-  })
-
-  it('returns failure when question_ids in config is null', async () => {
-    setupAuthenticatedUser()
-    mockFrom.mockReturnValue(buildSessionChain({ data: { config: { question_ids: null } } }))
-
-    const result = await checkAnswer({
-      questionId: QUESTION_ID,
-      selectedOptionId: CORRECT_OPTION_ID,
-      sessionId: SESSION_ID,
-    })
-
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe('Question not in session')
-  })
-
-  it('returns failure when question_ids in config is a plain string', async () => {
-    setupAuthenticatedUser()
-    mockFrom.mockReturnValue(buildSessionChain({ data: { config: { question_ids: QUESTION_ID } } }))
-
-    const result = await checkAnswer({
-      questionId: QUESTION_ID,
-      selectedOptionId: CORRECT_OPTION_ID,
-      sessionId: SESSION_ID,
-    })
-
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe('Question not in session')
-  })
-
-  it('returns failure when config itself is null', async () => {
-    setupAuthenticatedUser()
-    mockFrom.mockReturnValue(buildSessionChain({ data: { config: null } }))
-
-    const result = await checkAnswer({
-      questionId: QUESTION_ID,
-      selectedOptionId: CORRECT_OPTION_ID,
-      sessionId: SESSION_ID,
-    })
-
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe('Question not in session')
+    expect(mockFrom).not.toHaveBeenCalled()
   })
 
   it('returns failure when the RPC returns an error', async () => {
     setupAuthenticatedUser()
-    setupValidSession()
     mockRpc.mockResolvedValue({
       data: null,
       error: { message: 'question not found or has no correct option' },
@@ -265,7 +179,6 @@ describe('checkAnswer', () => {
 
   it('returns failure when data is null with no error', async () => {
     setupAuthenticatedUser()
-    setupValidSession()
     mockRpc.mockResolvedValue({ data: null, error: null })
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
@@ -278,12 +191,11 @@ describe('checkAnswer', () => {
     consoleSpy.mockRestore()
     expect(result.success).toBe(false)
     if (result.success) return
-    expect(result.error).toBe('Question not found')
+    expect(result.error).toBe('Could not check answer')
   })
 
   it('returns failure when RPC returns a non-null primitive', async () => {
     setupAuthenticatedUser()
-    setupValidSession()
     mockRpc.mockResolvedValue({ data: 'unexpected-string', error: null })
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
@@ -296,12 +208,11 @@ describe('checkAnswer', () => {
     consoleSpy.mockRestore()
     expect(result.success).toBe(false)
     if (result.success) return
-    expect(result.error).toBe('Question not found')
+    expect(result.error).toBe('Could not check answer')
   })
 
   it('returns failure when RPC response is missing is_correct field', async () => {
     setupAuthenticatedUser()
-    setupValidSession()
     mockRpc.mockResolvedValue({
       data: {
         correct_option_id: CORRECT_OPTION_ID,
@@ -322,12 +233,11 @@ describe('checkAnswer', () => {
     consoleSpy.mockRestore()
     expect(result.success).toBe(false)
     if (result.success) return
-    expect(result.error).toBe('Question not found')
+    expect(result.error).toBe('Could not check answer')
   })
 
   it('returns failure when RPC returns is_correct as a string instead of boolean', async () => {
     setupAuthenticatedUser()
-    setupValidSession()
     mockRpc.mockResolvedValue({
       data: {
         is_correct: 'true',
@@ -348,12 +258,11 @@ describe('checkAnswer', () => {
     consoleSpy.mockRestore()
     expect(result.success).toBe(false)
     if (result.success) return
-    expect(result.error).toBe('Question not found')
+    expect(result.error).toBe('Could not check answer')
   })
 
   it('returns failure when RPC returns correct_option_id as null instead of string', async () => {
     setupAuthenticatedUser()
-    setupValidSession()
     mockRpc.mockResolvedValue({
       data: {
         is_correct: true,
@@ -374,12 +283,11 @@ describe('checkAnswer', () => {
     consoleSpy.mockRestore()
     expect(result.success).toBe(false)
     if (result.success) return
-    expect(result.error).toBe('Question not found')
+    expect(result.error).toBe('Could not check answer')
   })
 
   it('returns failure when RPC returns explanation_text as a number instead of string or null', async () => {
     setupAuthenticatedUser()
-    setupValidSession()
     mockRpc.mockResolvedValue({
       data: {
         is_correct: true,
@@ -400,12 +308,11 @@ describe('checkAnswer', () => {
     consoleSpy.mockRestore()
     expect(result.success).toBe(false)
     if (result.success) return
-    expect(result.error).toBe('Question not found')
+    expect(result.error).toBe('Could not check answer')
   })
 
   it('returns failure when RPC returns explanation_image_url as a number instead of string or null', async () => {
     setupAuthenticatedUser()
-    setupValidSession()
     mockRpc.mockResolvedValue({
       data: {
         is_correct: false,
@@ -426,12 +333,11 @@ describe('checkAnswer', () => {
     consoleSpy.mockRestore()
     expect(result.success).toBe(false)
     if (result.success) return
-    expect(result.error).toBe('Question not found')
+    expect(result.error).toBe('Could not check answer')
   })
 
   it('returns isCorrect true when selectedOptionId matches the correct option', async () => {
     setupAuthenticatedUser()
-    setupValidSession()
     mockRpc.mockResolvedValue({ data: RPC_SUCCESS_CORRECT, error: null })
 
     const result = await checkAnswer({
@@ -448,7 +354,6 @@ describe('checkAnswer', () => {
 
   it('returns isCorrect false when selectedOptionId does not match the correct option', async () => {
     setupAuthenticatedUser()
-    setupValidSession()
     mockRpc.mockResolvedValue({ data: RPC_SUCCESS_WRONG, error: null })
 
     const result = await checkAnswer({
@@ -465,7 +370,6 @@ describe('checkAnswer', () => {
 
   it('includes explanation text and image URL in a successful result', async () => {
     setupAuthenticatedUser()
-    setupValidSession()
     mockRpc.mockResolvedValue({
       data: {
         is_correct: true,
@@ -490,7 +394,6 @@ describe('checkAnswer', () => {
 
   it('returns null explanation fields when question has no explanation', async () => {
     setupAuthenticatedUser()
-    setupValidSession()
     mockRpc.mockResolvedValue({
       data: {
         is_correct: true,

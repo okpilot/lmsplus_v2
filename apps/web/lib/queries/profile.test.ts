@@ -2,15 +2,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetUser, mockFrom, mockRpc } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
+const { mockGetSessionUser, mockFrom, mockRpc } = vi.hoisted(() => ({
+  mockGetSessionUser: vi.fn(),
   mockFrom: vi.fn(),
   mockRpc: vi.fn(),
 }))
 
+vi.mock('@/lib/auth/get-session-user', () => ({
+  getSessionUser: () => mockGetSessionUser(),
+}))
+
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
     from: mockFrom,
   }),
 }))
@@ -29,7 +32,7 @@ const USER_ID = 'aaaaaaaa-0000-4000-a000-000000000001'
 const ORG_ID = 'bbbbbbbb-0000-4000-a000-000000000002'
 
 function mockAuthenticatedUser() {
-  mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } }, error: null })
+  mockGetSessionUser.mockResolvedValue({ id: USER_ID })
 }
 
 function buildChain(returnValue: unknown) {
@@ -104,17 +107,8 @@ beforeEach(() => {
 
 describe('getProfileData', () => {
   describe('auth guard', () => {
-    it('throws when auth returns an error', async () => {
-      mockGetUser.mockResolvedValue({
-        data: { user: null },
-        error: { message: 'token expired' },
-      })
-
-      await expect(getProfileData()).rejects.toThrow('Auth error: token expired')
-    })
-
     it('throws when no user is in the session', async () => {
-      mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
+      mockGetSessionUser.mockResolvedValue(null)
 
       await expect(getProfileData()).rejects.toThrow('Not authenticated')
     })

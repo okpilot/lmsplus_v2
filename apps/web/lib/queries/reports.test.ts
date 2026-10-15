@@ -1,14 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockGetUser, mockRpc, mockFetchAnsweredItemCounts } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
+const { mockGetSessionUser, mockRpc, mockFetchAnsweredItemCounts } = vi.hoisted(() => ({
+  mockGetSessionUser: vi.fn(),
   mockRpc: vi.fn(),
   mockFetchAnsweredItemCounts: vi.fn(),
 }))
 
+vi.mock('@/lib/auth/get-session-user', () => ({
+  getSessionUser: () => mockGetSessionUser(),
+}))
+
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
     rpc: mockRpc,
   }),
 }))
@@ -44,23 +47,14 @@ function makeRpcRow(overrides: Record<string, unknown> = {}) {
 describe('getSessionReports', () => {
   beforeEach(() => {
     vi.resetAllMocks()
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockGetSessionUser.mockResolvedValue({ id: 'user-1' })
     mockFetchAnsweredItemCounts.mockResolvedValue({ data: new Map(), error: null })
   })
 
   it('returns ok: false when not authenticated', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } })
+    mockGetSessionUser.mockResolvedValue(null)
     const result = await getSessionReports(DEFAULT_OPTS)
     expect(result).toMatchObject({ ok: false, error: 'Not authenticated' })
-  })
-
-  it('returns ok: false when getUser returns an auth error', async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: null },
-      error: { message: 'session expired' },
-    })
-    const result = await getSessionReports(DEFAULT_OPTS)
-    expect(result).toMatchObject({ ok: false, error: 'Authentication failed' })
   })
 
   it('returns empty sessions array when RPC returns no rows', async () => {
@@ -118,7 +112,6 @@ describe('getSessionReports', () => {
       ['sess-1'],
       expect.objectContaining({
         rpc: mockRpc,
-        auth: expect.objectContaining({ getUser: mockGetUser }),
       }),
     )
   })

@@ -2,15 +2,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetUser, mockFrom, mockRpc } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
+const { mockGetSessionUser, mockFrom, mockRpc } = vi.hoisted(() => ({
+  mockGetSessionUser: vi.fn(),
   mockFrom: vi.fn(),
   mockRpc: vi.fn(),
 }))
 
+vi.mock('@/lib/auth/get-session-user', () => ({
+  getSessionUser: () => mockGetSessionUser(),
+}))
+
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
     from: mockFrom,
   }),
 }))
@@ -41,22 +44,14 @@ function buildChain(returnValue: unknown) {
 
 beforeEach(() => {
   vi.resetAllMocks()
-  mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+  mockGetSessionUser.mockResolvedValue({ id: 'u1' })
   mockRpc.mockResolvedValue({ data: [], error: null })
 })
 
 describe('getProgressData', () => {
   it('throws when user is not authenticated', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } })
+    mockGetSessionUser.mockResolvedValue(null)
     await expect(getProgressData()).rejects.toThrow('Not authenticated')
-  })
-
-  it('throws when auth returns an error', async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: null },
-      error: { message: 'session not found' },
-    })
-    await expect(getProgressData()).rejects.toThrow('Auth error: session not found')
   })
 
   it('throws when the easa_subjects read returns an error', async () => {

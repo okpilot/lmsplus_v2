@@ -8,14 +8,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // refactored to NOT call `client.rpc`, this indirection breaks silently —
 // update the mock boundary here (e.g. `vi.mock('@/lib/supabase-rpc', ...)`)
 // when that happens.
-const { mockGetUser, mockRpc } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
+const { mockGetSessionUser, mockRpc } = vi.hoisted(() => ({
+  mockGetSessionUser: vi.fn(),
   mockRpc: vi.fn(),
+}))
+
+vi.mock('@/lib/auth/get-session-user', () => ({
+  getSessionUser: () => mockGetSessionUser(),
 }))
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
     rpc: mockRpc,
   }),
 }))
@@ -28,14 +31,14 @@ import { listAvailableInternalExams, listMyInternalExamHistory } from './queries
 
 beforeEach(() => {
   vi.resetAllMocks()
-  mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null })
+  mockGetSessionUser.mockResolvedValue({ id: 'user-1' })
 })
 
 // ---- listAvailableInternalExams ------------------------------------------
 
 describe('listAvailableInternalExams', () => {
   it('returns an empty array when no user is authenticated', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
+    mockGetSessionUser.mockResolvedValue(null)
     const result = await listAvailableInternalExams()
     expect(result).toEqual({ success: true, data: [] })
     expect(mockRpc).not.toHaveBeenCalled()
@@ -159,7 +162,7 @@ describe('listAvailableInternalExams', () => {
 
 describe('listMyInternalExamHistory', () => {
   it('returns an empty array when no user is authenticated', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
+    mockGetSessionUser.mockResolvedValue(null)
     const result = await listMyInternalExamHistory()
     expect(result).toEqual({ success: true, data: [] })
     expect(mockRpc).not.toHaveBeenCalled()

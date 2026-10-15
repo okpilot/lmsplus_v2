@@ -3,15 +3,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetUser, mockFrom, mockRedirect } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
+const { mockGetSessionUser, mockFrom, mockRedirect } = vi.hoisted(() => ({
+  mockGetSessionUser: vi.fn(),
   mockFrom: vi.fn(),
   mockRedirect: vi.fn(),
 }))
 
+vi.mock('@/lib/auth/get-session-user', () => ({
+  getSessionUser: () => mockGetSessionUser(),
+}))
+
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
     from: mockFrom,
   }),
 }))
@@ -95,10 +98,7 @@ describe('AppLayout — profile error fallback', () => {
   it('logs the error and falls back to student role when the profile read returns a DB error', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
-    mockGetUser.mockResolvedValue({
-      data: { user: { id: 'u1', email: 'ada@example.com' } },
-      error: null,
-    })
+    mockGetSessionUser.mockResolvedValue({ id: 'u1', email: 'ada@example.com' })
     mockFrom.mockReturnValue(buildChain({ data: null, error: { message: 'profile read failed' } }))
 
     await renderLayout()
@@ -119,10 +119,7 @@ describe('AppLayout — profile error fallback', () => {
 
 describe('AppLayout — happy path', () => {
   it('renders with displayName and userRole from the profile when the read succeeds', async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: { id: 'u1', email: 'ada@example.com' } },
-      error: null,
-    })
+    mockGetSessionUser.mockResolvedValue({ id: 'u1', email: 'ada@example.com' })
     mockFrom.mockReturnValue(
       buildChain({
         data: { full_name: 'Ada Pilot', email: 'ada@example.com', role: 'instructor' },
@@ -139,10 +136,7 @@ describe('AppLayout — happy path', () => {
   })
 
   it('falls back to user.email as displayName when full_name is null', async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: { id: 'u1', email: 'ada@example.com' } },
-      error: null,
-    })
+    mockGetSessionUser.mockResolvedValue({ id: 'u1', email: 'ada@example.com' })
     mockFrom.mockReturnValue(
       buildChain({
         data: { full_name: null, email: 'ada@example.com', role: 'student' },
@@ -157,8 +151,8 @@ describe('AppLayout — happy path', () => {
 })
 
 describe('AppLayout — auth redirect', () => {
-  it('calls redirect to / when getUser returns no user', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
+  it('calls redirect to / when there is no session user', async () => {
+    mockGetSessionUser.mockResolvedValue(null)
     // redirect is mocked as a no-op; the component will call it and then continue.
     // We cannot render the JSX after the redirect call because it never returns
     // in real Next.js — the mock allows us to assert the redirect call was made.
@@ -169,27 +163,11 @@ describe('AppLayout — auth redirect', () => {
     }
     expect(mockRedirect).toHaveBeenCalledWith('/')
   })
-
-  it('calls redirect to / when getUser returns an auth error', async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: null },
-      error: { message: 'session expired' },
-    })
-    try {
-      await AppLayout({ children: <span /> })
-    } catch {
-      // redirect may throw internally
-    }
-    expect(mockRedirect).toHaveBeenCalledWith('/')
-  })
 })
 
 describe('AppLayout — redesign look scope', () => {
   async function renderForRole() {
-    mockGetUser.mockResolvedValue({
-      data: { user: { id: 'u1', email: 'ada@example.com' } },
-      error: null,
-    })
+    mockGetSessionUser.mockResolvedValue({ id: 'u1', email: 'ada@example.com' })
     mockFrom.mockReturnValue(
       buildChain({
         data: { full_name: 'Ada Pilot', email: 'ada@example.com', role: 'student' },

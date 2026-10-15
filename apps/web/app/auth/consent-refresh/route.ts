@@ -2,6 +2,7 @@ import { createServerSupabaseClient } from '@repo/db/server'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { safeNextPath } from '@/lib/auth/safe-next-path'
+import { verifySessionUser } from '@/lib/auth/verify-session-user'
 import { checkConsentStatus } from '@/lib/consent/check-consent'
 import { setConsentCookie } from '@/lib/consent/consent-cookie'
 
@@ -13,9 +14,7 @@ import { setConsentCookie } from '@/lib/consent/consent-cookie'
  */
 export async function GET(request: NextRequest) {
   const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await verifySessionUser(supabase)
   if (!user) return NextResponse.redirect(new URL('/', request.url))
 
   const next = safeNextPath(new URL(request.url).searchParams.get('next'))

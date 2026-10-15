@@ -27,11 +27,10 @@ export function createMiddlewareSupabaseClient(request: NextRequest) {
         // response that carries one user's session token and serving it to another.
         headers?: Record<string, string>,
       ) {
-        // Write onto the SAME response object the caller already holds. setAll fires
-        // lazily during auth.getUser() — AFTER createMiddlewareSupabaseClient has
-        // returned — so reassigning `response` to a fresh NextResponse here would
-        // orphan it, silently dropping both the refreshed session cookies and the
-        // anti-cache headers below. Mutating in place keeps the reference live.
+        // Write onto the SAME response the caller holds. setAll fires lazily during
+        // auth.getClaims() → getSession() (via verifySessionUser in apps/web/proxy.ts), after
+        // createMiddlewareSupabaseClient returns; reassigning `response` would orphan it,
+        // dropping refreshed cookies and anti-cache headers. Mutating in place keeps it live.
         for (const { name, value } of cookiesToSet) {
           request.cookies.set(name, value)
         }

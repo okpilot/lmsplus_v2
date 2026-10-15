@@ -2,14 +2,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks -----------------------------------------------------------------
 
-const { mockGetUser, mockFrom } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
+const { mockGetSessionUser, mockFrom } = vi.hoisted(() => ({
+  mockGetSessionUser: vi.fn(),
   mockFrom: vi.fn(),
+}))
+
+vi.mock('@/lib/auth/get-session-user', () => ({
+  getSessionUser: () => mockGetSessionUser(),
 }))
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
     from: mockFrom,
   }),
 }))
@@ -43,7 +46,7 @@ const QUESTION_ID_A = '00000000-0000-4000-a000-000000000011'
 const QUESTION_ID_B = '00000000-0000-4000-a000-000000000022'
 
 function setupAuthenticatedUser() {
-  mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } }, error: null })
+  mockGetSessionUser.mockResolvedValue({ id: USER_ID })
 }
 
 // ---- Tests -----------------------------------------------------------------
@@ -61,14 +64,7 @@ describe('getFlaggedQuestionIds', () => {
   })
 
   it('returns an empty array when the user is not authenticated', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
-    const result = await getFlaggedQuestionIds([QUESTION_ID_A])
-    expect(result).toEqual([])
-    expect(mockFrom).not.toHaveBeenCalled()
-  })
-
-  it('returns an empty array when auth returns an error', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null }, error: { message: 'JWT expired' } })
+    mockGetSessionUser.mockResolvedValue(null)
     const result = await getFlaggedQuestionIds([QUESTION_ID_A])
     expect(result).toEqual([])
     expect(mockFrom).not.toHaveBeenCalled()

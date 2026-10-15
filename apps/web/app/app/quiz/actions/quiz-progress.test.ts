@@ -1,10 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockGetUser, mockRpc } = vi.hoisted(() => ({ mockGetUser: vi.fn(), mockRpc: vi.fn() }))
+const { mockVerifySessionUser, mockRpc, mockClient } = vi.hoisted(() => ({
+  mockClient: {},
+  mockVerifySessionUser: vi.fn(),
+  mockRpc: vi.fn(),
+}))
 
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({ auth: { getUser: mockGetUser } }),
+  createServerSupabaseClient: async () => mockClient,
 }))
+
+vi.mock('@/lib/auth/verify-session-user', () => ({ verifySessionUser: mockVerifySessionUser }))
 
 vi.mock('@/lib/supabase-rpc', () => ({
   rpc: (...args: unknown[]) => mockRpc(...args),
@@ -34,11 +40,17 @@ const positionInput = {
 beforeEach(() => {
   vi.resetAllMocks()
   vi.spyOn(console, 'error').mockImplementation(() => {})
-  mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } }, error: null })
+  mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
   mockRpc.mockResolvedValue({ data: null, error: null })
 })
 
 describe('saveQuizAnswer', () => {
+  it('verifies the caller on the client that saves the answer', async () => {
+    await saveQuizAnswer(answerInput)
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
+    expect(mockRpc).toHaveBeenCalledWith(mockClient, 'save_quiz_answer', expect.anything())
+  })
+
   it('saves the answer through the RPC with snake_case arguments', async () => {
     expect(await saveQuizAnswer(answerInput)).toEqual({ success: true })
     expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'save_quiz_answer', {
@@ -59,7 +71,7 @@ describe('saveQuizAnswer', () => {
   })
 
   it('rejects an unauthenticated caller without calling the RPC', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
+    mockVerifySessionUser.mockResolvedValue(null)
     expect(await saveQuizAnswer(answerInput)).toEqual({
       success: false,
       error: 'Your sign-in has expired. Please sign in again.',
@@ -68,7 +80,7 @@ describe('saveQuizAnswer', () => {
   })
 
   it('tells the student to sign in again when the sign-in has expired', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
+    mockVerifySessionUser.mockResolvedValue(null)
     const results = [
       await saveQuizAnswer(answerInput),
       await saveQuizPosition(positionInput),

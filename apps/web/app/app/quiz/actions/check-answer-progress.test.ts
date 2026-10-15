@@ -1,17 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockGetUser, mockRpc, mockFrom } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
+const { mockVerifySessionUser, mockRpc, mockClient } = vi.hoisted(() => ({
+  mockVerifySessionUser: vi.fn(),
   mockRpc: vi.fn(),
-  mockFrom: vi.fn(),
+  mockClient: { from: vi.fn() },
 }))
 
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
-    from: mockFrom,
-  }),
+  createServerSupabaseClient: async () => mockClient,
 }))
+
+vi.mock('@/lib/auth/verify-session-user', () => ({ verifySessionUser: mockVerifySessionUser }))
 
 vi.mock('@/lib/supabase-rpc', () => ({
   rpc: (...args: unknown[]) => mockRpc(...args),
@@ -33,20 +32,17 @@ const INPUT = { questionId: QUESTION_ID, selectedOptionId: 'b', sessionId: SESSI
 beforeEach(() => {
   vi.resetAllMocks()
   vi.spyOn(console, 'error').mockImplementation(() => {})
-  mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
-  mockFrom.mockReturnValue({
-    select: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockReturnThis(),
-    is: vi.fn().mockReturnThis(),
-    single: vi.fn().mockReturnValue({
-      data: { config: { question_ids: [QUESTION_ID] } },
-      error: null,
-    }),
-  })
+  mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
   mockRpc.mockResolvedValue({ data: RPC_RESULT, error: null })
 })
 
 describe('checkAnswer progress save', () => {
+  it('verifies the caller on the client that grades the answer', async () => {
+    await checkAnswer(INPUT)
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
+    expect(mockRpc).toHaveBeenCalledWith(mockClient, 'check_quiz_answer', expect.anything())
+  })
+
   it('forwards the device id and visit time to the RPC', async () => {
     await checkAnswer({ ...INPUT, deviceId: DEVICE_ID, timeSpentMs: 3200 })
     expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'check_quiz_answer', {
@@ -91,6 +87,6 @@ describe('checkAnswer progress save', () => {
 
   it('keeps the generic copy for an unrecognised RPC error', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'connection reset' } })
-    expect(await checkAnswer(INPUT)).toEqual({ success: false, error: 'Question not found' })
+    expect(await checkAnswer(INPUT)).toEqual({ success: false, error: 'Could not check answer' })
   })
 })

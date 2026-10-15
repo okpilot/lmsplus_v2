@@ -331,7 +331,7 @@ test.describe('Red Team: quiz-progress Server Actions (GQ, GR, GS)', () => {
         deviceId: VICTIM_DEVICE,
         timeSpentMs: 1,
       })
-      expect(check).toContain('Session not found')
+      expect(check).toContain('This session could not be found.')
       expect(check).not.toContain('isCorrect')
       expect(check).not.toContain('correctOptionId')
 

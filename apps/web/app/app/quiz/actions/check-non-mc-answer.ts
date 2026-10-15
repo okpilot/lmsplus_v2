@@ -2,6 +2,7 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import type { z } from 'zod'
+import { verifySessionUser } from '@/lib/auth/verify-session-user'
 import type { CheckNonMcAnswerResult } from '../types'
 import {
   checkDiagramLabelAnswer,
@@ -9,17 +10,12 @@ import {
   checkOrderingAnswer,
   checkShortAnswer,
 } from './check-non-mc-answer-dispatch'
-import { verifySessionMembership } from './check-non-mc-answer-helpers'
 import { CheckNonMcAnswerSchema } from './check-non-mc-answer-schema'
-import { mapMembershipError, SIGN_IN } from './progress-error-messages'
+import { SIGN_IN } from './progress-error-messages'
 
 export async function checkNonMcAnswer(raw: unknown): Promise<CheckNonMcAnswerResult> {
   const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-  if (authError || !user) return { success: false, error: SIGN_IN }
+  if (!(await verifySessionUser(supabase))) return { success: false, error: SIGN_IN }
 
   let parsed: z.infer<typeof CheckNonMcAnswerSchema>
   try {
@@ -32,16 +28,7 @@ export async function checkNonMcAnswer(raw: unknown): Promise<CheckNonMcAnswerRe
     console.error('[checkNonMcAnswer] Invalid input')
     return { success: false, error: 'Invalid input' }
   }
-  const { questionId, sessionId } = parsed
-
-  const membership = mapMembershipError(
-    await verifySessionMembership(supabase, { sessionId, userId: user.id, questionId }),
-  )
-  if (membership) {
-    // #1190 AC3: names which membership failure class fired; the message is sanitized, never a raw DB one.
-    console.error('[checkNonMcAnswer] Membership failed:', membership.error, questionId, sessionId)
-    return membership
-  }
+  // check_non_mc_answer is the session/ownership/membership guard.
 
   if ('responseText' in parsed) return checkShortAnswer(supabase, parsed)
   if ('order' in parsed) return checkOrderingAnswer(supabase, parsed)

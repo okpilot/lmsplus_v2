@@ -1,17 +1,15 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { redirect } from 'next/navigation'
 import { LookScope } from '@/components/kit/look-scope'
+import { getSessionUser } from '@/lib/auth/get-session-user'
 import { AppShell } from './_components/app-shell'
 import { UserProvider } from './_components/user-context'
 
 export default async function AppLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
+  const user = await getSessionUser()
 
-  if (authError || !user) redirect('/')
+  if (!user) redirect('/')
 
   const { data: profile, error: profileError } = await supabase
     .from('users')

@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@repo/db/server'
+import { getSessionUser } from '@/lib/auth/get-session-user'
 import { rpc } from '@/lib/supabase-rpc'
 
 export type ProfileData = {
@@ -19,11 +20,7 @@ type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
 export async function getProfileData(): Promise<ProfileData> {
   const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-  if (authError) throw new Error(`Auth error: ${authError.message}`)
+  const user = await getSessionUser()
   if (!user) throw new Error('Not authenticated')
 
   const [profile, stats] = await Promise.all([

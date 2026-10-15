@@ -14,8 +14,8 @@ import type { BrowserContext } from '@playwright/test'
  *     `.0`, `.1`, … chunks when the encoded value exceeds MAX_CHUNK_SIZE (3180).
  *   - The default `cookieEncoding` is `base64url`, so the value is
  *     `base64-<base64url(JSON.stringify(session))>` (@supabase/ssr cookies.js L190).
- *   - On the next request, proxy.ts calls `supabase.auth.getUser()` →
- *     `_getUser` → `_useSession` → `__loadSession`, which computes
+ *   - On the next request, proxy.ts calls `supabase.auth.getClaims()` (via
+ *     verifySessionUser), which calls `getSession()` → `_useSession` → `__loadSession`, which computes
  *     `hasExpired = expires_at*1000 - Date.now() < EXPIRY_MARGIN_MS` where
  *     `EXPIRY_MARGIN_MS = 90_000` (auth-js GoTrueClient.ts L2841, constants.ts).
  *     Pushing `expires_at` 200s into the past makes `hasExpired` true →

@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@repo/db/server'
+import { getSessionUser } from '@/lib/auth/get-session-user'
 import type { AnswerCountClient } from '@/lib/queries/answered-item-counts'
 import { fetchAnsweredItemCounts } from '@/lib/queries/answered-item-counts'
 import { toPageResult } from '@/lib/supabase-paginate'
@@ -60,14 +61,7 @@ const SORT_COLUMN_MAP: Record<SortKey, string> = {
  */
 export async function getSessionReports(opts: SessionReportsOpts): Promise<SessionReportsResult> {
   const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-  if (authError) {
-    console.error('[getSessionReports] Auth error:', authError.message)
-    return { ok: false, error: 'Authentication failed' }
-  }
+  const user = await getSessionUser()
   if (!user) {
     return { ok: false, error: 'Not authenticated' }
   }

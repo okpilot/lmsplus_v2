@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@repo/db/server'
+import { verifySessionUser } from '@/lib/auth/verify-session-user'
 
 export type QuestionStats = {
   timesSeen: number
@@ -9,11 +10,7 @@ export type QuestionStats = {
 
 export async function getQuestionStats(questionId: string): Promise<QuestionStats> {
   const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-  if (authError) throw new Error(`Auth error: ${authError.message}`)
+  const user = await verifySessionUser(supabase)
   if (!user) throw new Error('Not authenticated')
 
   const rows = await fetchResponses(supabase, user.id, questionId)

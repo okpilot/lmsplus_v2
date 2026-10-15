@@ -2,15 +2,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetUser, mockFrom, mockRpc } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
+const { mockGetSessionUser, mockFrom, mockRpc } = vi.hoisted(() => ({
+  mockGetSessionUser: vi.fn(),
   mockFrom: vi.fn(),
   mockRpc: vi.fn(),
 }))
 
+vi.mock('@/lib/auth/get-session-user', () => ({
+  getSessionUser: () => mockGetSessionUser(),
+}))
+
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
     from: mockFrom,
   }),
 }))
@@ -86,20 +89,12 @@ beforeEach(() => {
 
 describe('getDashboardData', () => {
   it('rejects unauthenticated requests', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } })
+    mockGetSessionUser.mockResolvedValue(null)
     await expect(getDashboardData()).rejects.toThrow('Not authenticated')
   })
 
-  it('throws when auth returns an error', async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: null },
-      error: { message: 'token expired' },
-    })
-    await expect(getDashboardData()).rejects.toThrow('Auth error: token expired')
-  })
-
   it('returns zeroed counters when the org has no subjects', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetSessionUser.mockResolvedValue({ id: 'u1' })
 
     mockFrom.mockImplementation((table: string) => {
       if (table === 'easa_subjects') return buildChain({ data: [] })
@@ -118,7 +113,7 @@ describe('getDashboardData', () => {
   })
 
   it('computes question counts and mastery per subject', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetSessionUser.mockResolvedValue({ id: 'u1' })
 
     setRpc({ mastery: [{ subject_id: 's1', topic_id: null, total: 2, correct: 1 }] })
 
@@ -142,7 +137,7 @@ describe('getDashboardData', () => {
   })
 
   it('attributes questions to the correct subject across multiple subjects', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetSessionUser.mockResolvedValue({ id: 'u1' })
 
     setRpc({
       mastery: [
@@ -172,7 +167,7 @@ describe('getDashboardData', () => {
   })
 
   it('excludes subjects with zero questions AND zero responses', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetSessionUser.mockResolvedValue({ id: 'u1' })
 
     mockFrom.mockImplementation((table: string) => {
       if (table === 'easa_subjects')
@@ -190,7 +185,7 @@ describe('getDashboardData', () => {
   })
 
   it('keeps subject when it has no active questions but the student has correct responses to it', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetSessionUser.mockResolvedValue({ id: 'u1' })
 
     // Orphan subject: 0 active questions, 1 correct response to a now-draft question.
     setRpc({
@@ -220,7 +215,7 @@ describe('getDashboardData', () => {
     // Central scenario for #540: subject has 2 active questions; the student answered one
     // now-draft question correctly. The RPC reports total = 2 (active only) and correct = 1
     // (correct response to a non-deleted, any-status question).
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetSessionUser.mockResolvedValue({ id: 'u1' })
 
     setRpc({ mastery: [{ subject_id: 's1', topic_id: null, total: 2, correct: 1 }] })
 
@@ -242,7 +237,7 @@ describe('getDashboardData', () => {
   })
 
   it('caps masteryPercentage at 100 when correct responses exceed the active question count', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetSessionUser.mockResolvedValue({ id: 'u1' })
 
     // 1 active question, 2 correct responses (one to a now-draft question) -> correct > total.
     setRpc({ mastery: [{ subject_id: 's1', topic_id: null, total: 1, correct: 2 }] })
@@ -264,7 +259,7 @@ describe('getDashboardData', () => {
   })
 
   it('counts questions answered today', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetSessionUser.mockResolvedValue({ id: 'u1' })
 
     mockFrom.mockImplementation((table: string) => {
       if (table === 'easa_subjects') return buildChain({ data: [] })
@@ -279,7 +274,7 @@ describe('getDashboardData', () => {
   it('surfaces the current and best streak from get_student_streak', async () => {
     // Streak semantics (gaps-and-islands over UTC dates) now live in SQL; the data layer
     // only wires the RPC result through to the dashboard payload.
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetSessionUser.mockResolvedValue({ id: 'u1' })
 
     setRpc({ streak: [{ current_streak: 3, best_streak: 5 }] })
 
@@ -295,7 +290,7 @@ describe('getDashboardData', () => {
   })
 
   it('reports a zero streak when the streak RPC returns no rows', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetSessionUser.mockResolvedValue({ id: 'u1' })
 
     setRpc({ streak: [] })
 
@@ -311,7 +306,7 @@ describe('getDashboardData', () => {
   })
 
   it('includes lastPracticedAt per subject from get_student_last_practiced', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetSessionUser.mockResolvedValue({ id: 'u1' })
 
     const practiceDate = '2026-03-17T14:00:00Z'
 
@@ -338,7 +333,7 @@ describe('getDashboardData', () => {
     // The RPC aggregates in Postgres, so a subject with 1366 correct responses is reported
     // in full — under the old client read these rows truncated at the 1000-row cap and the
     // subject showed 0% mastery (#540).
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetSessionUser.mockResolvedValue({ id: 'u1' })
 
     setRpc({ mastery: [{ subject_id: 's_tail', topic_id: null, total: 1366, correct: 1366 }] })
 
@@ -361,7 +356,7 @@ describe('getDashboardData', () => {
   })
 
   it('throws when the easa_subjects read returns an error', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetSessionUser.mockResolvedValue({ id: 'u1' })
 
     mockFrom.mockImplementation((table: string) => {
       if (table === 'easa_subjects')
@@ -374,7 +369,7 @@ describe('getDashboardData', () => {
   })
 
   it('throws when the student_responses count read errors instead of degrading to 0', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetSessionUser.mockResolvedValue({ id: 'u1' })
     mockFrom.mockImplementation((table: string) => {
       if (table === 'student_responses')
         return buildChain({ count: null, error: { message: 'boom' } })
@@ -398,7 +393,7 @@ describe('getDashboardData', () => {
   it('filters out all subjects when the mastery RPC returns null data without an error', async () => {
     // Array.isArray(null) → false → masteryBySubject stays empty → every subject gets
     // totalQuestions: 0, answeredCorrectly: 0, which fails the survival filter.
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetSessionUser.mockResolvedValue({ id: 'u1' })
 
     mockRpc.mockImplementation((_supabase: unknown, fn: string): Promise<RpcResult> => {
       if (fn === 'get_student_mastery_stats') {
@@ -429,7 +424,7 @@ describe('getDashboardData', () => {
     // A row whose total/correct do not coerce to finite numbers must be dropped, not
     // stored as NaN (which would poison masteryPercentage). The subject then has no
     // mastery counts and is filtered out.
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetSessionUser.mockResolvedValue({ id: 'u1' })
 
     setRpc({
       mastery: [{ subject_id: 's1', topic_id: null, total: 'abc', correct: 'def' }],
@@ -449,7 +444,7 @@ describe('getDashboardData', () => {
   })
 
   it('throws when the mastery stats RPC returns an error', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetSessionUser.mockResolvedValue({ id: 'u1' })
 
     mockRpc.mockImplementation((_supabase: unknown, fn: string): Promise<RpcResult> => {
       if (fn === 'get_student_mastery_stats') {
@@ -471,7 +466,7 @@ describe('getDashboardData', () => {
   })
 
   it('throws when the streak RPC returns an error', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetSessionUser.mockResolvedValue({ id: 'u1' })
 
     mockRpc.mockImplementation((_supabase: unknown, fn: string): Promise<RpcResult> => {
       if (fn === 'get_student_streak') {
@@ -490,7 +485,7 @@ describe('getDashboardData', () => {
   })
 
   it('throws when the last-practiced RPC returns an error', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetSessionUser.mockResolvedValue({ id: 'u1' })
 
     // last-practiced only runs when there is at least one surviving subject.
     mockRpc.mockImplementation((_supabase: unknown, fn: string): Promise<RpcResult> => {
@@ -521,7 +516,7 @@ describe('getDashboardData', () => {
   it('coerces bigint-as-string total and correct from the RPC into numbers', async () => {
     // PostgREST may return bigint columns as strings depending on driver version.
     // The MasteryRow type is `total: number | string` and production code calls Number().
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetSessionUser.mockResolvedValue({ id: 'u1' })
 
     setRpc({ mastery: [{ subject_id: 's1', topic_id: null, total: '6', correct: '3' }] })
 
@@ -546,7 +541,7 @@ describe('getDashboardData', () => {
     // The RPC returns both topic_id=null (subject-level) and topic_id!=null (topic-level) rows.
     // dashboard.ts uses the `continue` guard to skip topic-level rows. If those rows were
     // accidentally accumulated, totalQuestions and answeredCorrectly would be inflated.
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetSessionUser.mockResolvedValue({ id: 'u1' })
 
     setRpc({
       mastery: [
@@ -579,7 +574,7 @@ describe('getDashboardData', () => {
   it('returns active and orphan subjects together when both appear in the same RPC result', async () => {
     // One subject has active questions (total > 0); the other is an orphan
     // (total: 0, correct: 1 — answered a now-draft question). Both must appear in the output.
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetSessionUser.mockResolvedValue({ id: 'u1' })
 
     setRpc({
       mastery: [

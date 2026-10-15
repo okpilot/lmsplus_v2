@@ -1,15 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockGetUser, mockFrom } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
-  mockFrom: vi.fn(),
+const { mockVerifySessionUser, mockFrom, mockClient, mockCreateClient } = vi.hoisted(() => {
+  const mockFrom = vi.fn()
+  const mockClient = { from: mockFrom }
+  return {
+    mockVerifySessionUser: vi.fn(),
+    mockFrom,
+    mockClient,
+    mockCreateClient: vi.fn(async () => mockClient),
+  }
+})
+
+vi.mock('@/lib/auth/verify-session-user', () => ({
+  verifySessionUser: (client: unknown) => mockVerifySessionUser(client),
 }))
 
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
-    from: mockFrom,
-  }),
+  createServerSupabaseClient: () => mockCreateClient(),
 }))
 
 function buildChain(returnValue: unknown) {
@@ -31,20 +38,20 @@ import { getQuestionStats } from './question-stats'
 describe('getQuestionStats', () => {
   beforeEach(() => {
     vi.resetAllMocks()
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockCreateClient.mockImplementation(async () => mockClient)
+    mockVerifySessionUser.mockResolvedValue({ id: 'user-1' })
+  })
+
+  it('verifies identity on the same client it queries responses with', async () => {
+    mockFrom.mockReturnValue(buildChain({ data: [], error: null }))
+    await getQuestionStats('q-1')
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
+    expect(mockCreateClient).toHaveBeenCalledTimes(1)
   })
 
   it('throws when not authenticated', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } })
+    mockVerifySessionUser.mockResolvedValue(null)
     await expect(getQuestionStats('q-1')).rejects.toThrow('Not authenticated')
-  })
-
-  it('throws when auth returns an error', async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: null },
-      error: { message: 'invalid JWT' },
-    })
-    await expect(getQuestionStats('q-1')).rejects.toThrow('Auth error: invalid JWT')
   })
 
   it('returns distinct total and correct counts when responses exist', async () => {

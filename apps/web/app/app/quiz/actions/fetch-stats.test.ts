@@ -1,18 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockGetQuestionStats, mockGetUser } = vi.hoisted(() => ({
+const { mockGetQuestionStats } = vi.hoisted(() => ({
   mockGetQuestionStats: vi.fn(),
-  mockGetUser: vi.fn(),
 }))
 
 vi.mock('@/lib/queries/question-stats', () => ({
   getQuestionStats: mockGetQuestionStats,
-}))
-
-vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
-  }),
 }))
 
 import { fetchQuestionStats } from './fetch-stats'
@@ -20,7 +13,6 @@ import { fetchQuestionStats } from './fetch-stats'
 describe('fetchQuestionStats', () => {
   beforeEach(() => {
     vi.resetAllMocks()
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
   })
 
   it('returns stats for a valid question id', async () => {
@@ -59,24 +51,11 @@ describe('fetchQuestionStats', () => {
     expect(mockGetQuestionStats).not.toHaveBeenCalled()
   })
 
-  it('throws when user is not authenticated', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } })
+  it('rejects when the stats query reports no authenticated user', async () => {
+    mockGetQuestionStats.mockRejectedValue(new Error('Not authenticated'))
 
     await expect(fetchQuestionStats('00000000-0000-4000-a000-000000000001')).rejects.toThrow(
       'Not authenticated',
     )
-    expect(mockGetQuestionStats).not.toHaveBeenCalled()
-  })
-
-  it('throws when authentication fails', async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: null },
-      error: { message: 'session expired' },
-    })
-
-    await expect(fetchQuestionStats('00000000-0000-4000-a000-000000000001')).rejects.toThrow(
-      'Auth error',
-    )
-    expect(mockGetQuestionStats).not.toHaveBeenCalled()
   })
 })
