@@ -8,7 +8,12 @@ import { proxy } from './proxy'
 // legacy __vdpl cookie expiry is a self-contained concern with its own
 // beforeEach/afterEach, sharing only the module-level mock shape.
 
-const mockGetUser = vi.fn()
+const { mockVerifySessionUser } = vi.hoisted(() => ({ mockVerifySessionUser: vi.fn() }))
+
+vi.mock('@/lib/auth/verify-session-user', () => ({
+  verifySessionUser: mockVerifySessionUser,
+}))
+
 const mockFrom = vi.fn()
 const { mockReadTempPasswordState, mockSignOutExpiredTempPassword } = vi.hoisted(() => ({
   mockReadTempPasswordState: vi.fn(),
@@ -44,7 +49,7 @@ const MOCK_SESSION_RESPONSE = {
 vi.mock('@repo/db/middleware', () => ({
   createMiddlewareSupabaseClient: () => ({
     supabase: {
-      auth: { getUser: mockGetUser },
+      auth: {},
       from: mockFrom,
     },
     response: MOCK_SESSION_RESPONSE,
@@ -72,7 +77,7 @@ describe('legacy __vdpl deployment pin cookie', () => {
   })
 
   it('never sets a pin on a session page', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'user-1', email: null })
 
     await proxy(makeConsentedRequest('/app/quiz/session/sess-1'))
 
@@ -83,7 +88,7 @@ describe('legacy __vdpl deployment pin cookie', () => {
   })
 
   it('expires a leftover pin carried by a session-page request', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'user-1', email: null })
 
     const request = makeConsentedRequest('/app/quiz/session/sess-1')
     request.cookies.set('__vdpl', 'old-deployment-id')
@@ -94,7 +99,7 @@ describe('legacy __vdpl deployment pin cookie', () => {
   })
 
   it('expires a leftover pin on a page outside quiz sessions', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'user-1', email: null })
 
     const request = makeConsentedRequest('/app/dashboard')
     request.cookies.set('__vdpl', 'old-deployment-id')
@@ -105,7 +110,7 @@ describe('legacy __vdpl deployment pin cookie', () => {
   })
 
   it('expires a leftover pin on a request redirected to login', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } })
+    mockVerifySessionUser.mockResolvedValue(null)
     const cookies = MOCK_SESSION_RESPONSE.cookies
     const originalGetAll = cookies.getAll
     const expired = { name: '__vdpl', value: '', path: '/', expires: new Date(0) }
@@ -126,7 +131,7 @@ describe('legacy __vdpl deployment pin cookie', () => {
   })
 
   it('leaves cookies untouched when the request carries no pin', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'user-1', email: null })
 
     await proxy(makeConsentedRequest('/app/dashboard'))
 

@@ -4,7 +4,12 @@ import { buildConsentCookieValue } from '@/lib/consent/check-consent'
 import { CONSENT_COOKIE } from '@/lib/consent/versions'
 import { proxy } from './proxy'
 
-const mockGetUser = vi.fn()
+const { mockVerifySessionUser } = vi.hoisted(() => ({ mockVerifySessionUser: vi.fn() }))
+
+vi.mock('@/lib/auth/verify-session-user', () => ({
+  verifySessionUser: mockVerifySessionUser,
+}))
+
 const mockFrom = vi.fn()
 const { mockReadTempPasswordState, mockSignOutExpiredTempPassword } = vi.hoisted(() => ({
   mockReadTempPasswordState: vi.fn(),
@@ -39,7 +44,7 @@ const MOCK_SESSION_RESPONSE = {
 vi.mock('@repo/db/middleware', () => ({
   createMiddlewareSupabaseClient: () => ({
     supabase: {
-      auth: { getUser: mockGetUser },
+      auth: {},
       from: mockFrom,
     },
     response: MOCK_SESSION_RESPONSE,
@@ -93,7 +98,7 @@ describe('proxy', () => {
   })
 
   it('redirects unauthenticated requests for /app/dashboard to /', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } })
+    mockVerifySessionUser.mockResolvedValue(null)
 
     const response = await proxy(makeRequest('/app/dashboard'))
 
@@ -102,7 +107,7 @@ describe('proxy', () => {
   })
 
   it('redirects unauthenticated requests for nested /app/* paths to /', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } })
+    mockVerifySessionUser.mockResolvedValue(null)
 
     const response = await proxy(makeRequest('/app/quiz/1'))
 
@@ -111,7 +116,7 @@ describe('proxy', () => {
   })
 
   it('passes authenticated requests with consent cookie through to /app/* routes', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'user-1', email: null })
 
     const response = await proxy(makeConsentedRequest('/app/dashboard'))
 
@@ -120,7 +125,7 @@ describe('proxy', () => {
   })
 
   it('redirects authenticated users without consent cookie to the silent consent-refresh route', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'user-1', email: null })
 
     const response = await proxy(makeRequest('/app/dashboard'))
 
@@ -129,7 +134,7 @@ describe('proxy', () => {
   })
 
   it('redirects to consent-refresh when the cookie is bound to a different user id', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'user-1', email: null })
 
     const response = await proxy(makeConsentedRequest('/app/dashboard', 'someone-else'))
 
@@ -138,7 +143,7 @@ describe('proxy', () => {
   })
 
   it('ignores a cookie under the pre-rollout name and still requires the current-name cookie', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'user-1', email: null })
     const request = makeRequest('/app/dashboard')
     // A deployment kept alive by Skew Protection from before the CONSENT_COOKIE rename (#1377 follow-up) never
     // rewrites this old-named cookie — the new deployment must not accept it either.
@@ -151,7 +156,7 @@ describe('proxy', () => {
   })
 
   it('sends a recovery-pending session requesting consent-refresh to reset-password', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'user-1', email: null })
     const request = makeRequest('/auth/consent-refresh')
     request.cookies.set('__recovery_pending', '1')
 
@@ -162,7 +167,7 @@ describe('proxy', () => {
   })
 
   it('redirects authenticated users on / to /app/dashboard', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'user-1', email: null })
 
     const response = await proxy(makeRequest('/'))
 
@@ -171,7 +176,7 @@ describe('proxy', () => {
   })
 
   it('passes unauthenticated requests on / through to the login page', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } })
+    mockVerifySessionUser.mockResolvedValue(null)
 
     const response = await proxy(makeRequest('/'))
 
@@ -179,7 +184,7 @@ describe('proxy', () => {
   })
 
   it('copies session cookies onto the redirect to / when unauthenticated on /app/*', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } })
+    mockVerifySessionUser.mockResolvedValue(null)
 
     const response = await proxy(makeRequest('/app/dashboard'))
 
@@ -191,7 +196,7 @@ describe('proxy', () => {
   })
 
   it('copies session cookies onto the redirect to /app/dashboard when authenticated on /', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'user-1', email: null })
 
     const response = await proxy(makeRequest('/'))
 
@@ -200,44 +205,27 @@ describe('proxy', () => {
     expect(setCookie).toContain('sb-token=refreshed')
   })
 
-  it('redirects to / when authentication fails on an /app/* route', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    try {
-      mockGetUser.mockResolvedValue({
-        data: { user: null },
-        error: { message: 'session expired' },
-      })
+  it('redirects to / with the requested path when there is no verified user on an /app/* route', async () => {
+    mockVerifySessionUser.mockResolvedValue(null)
 
-      const response = await proxy(makeRequest('/app/dashboard'))
+    const response = await proxy(makeRequest('/app/quiz'))
 
-      expect(response.status).toBe(307)
-      expect(new URL(response.headers.get('location') ?? '').pathname).toBe('/')
-      expect(consoleSpy).toHaveBeenCalledWith('[proxy] getUser error:', 'session expired')
-    } finally {
-      consoleSpy.mockRestore()
-    }
+    expect(response.status).toBe(307)
+    const location = new URL(response.headers.get('location') ?? '')
+    expect(location.pathname).toBe('/')
+    expect(location.searchParams.get('next')).toBe('/app/quiz')
   })
 
-  it('does not redirect to /app/dashboard when authentication fails on /', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    try {
-      mockGetUser.mockResolvedValue({
-        data: { user: null },
-        error: { message: 'session expired' },
-      })
+  it('does not redirect to /app/dashboard when there is no verified user on /', async () => {
+    mockVerifySessionUser.mockResolvedValue(null)
 
-      const response = await proxy(makeRequest('/'))
+    const response = await proxy(makeRequest('/'))
 
-      // Auth error means user is null — no authenticated redirect, fall through to login page
-      expect(response).toBe(MOCK_SESSION_RESPONSE)
-      expect(consoleSpy).toHaveBeenCalledWith('[proxy] getUser error:', 'session expired')
-    } finally {
-      consoleSpy.mockRestore()
-    }
+    expect(response).toBe(MOCK_SESSION_RESPONSE)
   })
 
   it('redirects authenticated users with recovery cookie to /auth/reset-password', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'user-1', email: null })
 
     const request = makeRequest('/')
     request.cookies.set('__recovery_pending', '1')
@@ -250,7 +238,7 @@ describe('proxy', () => {
   })
 
   it('lets authenticated users stay on / when error query param is present', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'user-1', email: null })
 
     const response = await proxy(makeRequest('/?error=session_expired'))
 
@@ -259,7 +247,7 @@ describe('proxy', () => {
   })
 
   it('passes an admin user through to /app/admin routes', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'admin-1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'admin-1', email: null })
     mockFrom.mockReturnValue(buildChain({ data: { role: 'admin' }, error: null }))
 
     const response = await proxy(makeConsentedRequest('/app/admin/syllabus', 'admin-1'))
@@ -268,7 +256,7 @@ describe('proxy', () => {
   })
 
   it('sends a non-admin to the student dashboard instead of an admin route', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'student-1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'student-1', email: null })
     mockFrom.mockReturnValue(buildChain({ data: { role: 'student' }, error: null }))
 
     const response = await proxy(makeConsentedRequest('/app/admin/syllabus', 'student-1'))
@@ -285,7 +273,7 @@ describe('proxy', () => {
     // would still pass. RLS (`users_select`) already excludes soft-deleted rows, so
     // this pins the explicit defense-in-depth filter, not the enforcement itself.
     const calls: Array<[string, unknown[]]> = []
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'admin-1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'admin-1', email: null })
     mockFrom.mockReturnValue(buildChain({ data: { role: 'admin' }, error: null }, calls))
 
     await proxy(makeConsentedRequest('/app/admin/syllabus', 'admin-1'))
@@ -299,7 +287,7 @@ describe('proxy', () => {
     // optional-chain `profile?.role !== 'admin'` treats a missing row the same
     // as a non-admin role, so this must still bounce to the dashboard, not fall
     // through to the admin route or crash on `profile.role`.
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'ghost-1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'ghost-1', email: null })
     mockFrom.mockReturnValue(buildChain({ data: null, error: null }))
 
     const response = await proxy(makeConsentedRequest('/app/admin/syllabus', 'ghost-1'))
@@ -311,7 +299,7 @@ describe('proxy', () => {
   it('returns 503 when the admin role lookup fails', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
-      mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+      mockVerifySessionUser.mockResolvedValue({ id: 'user-1', email: null })
       mockFrom.mockReturnValue(buildChain({ data: null, error: { message: 'connection reset' } }))
 
       const response = await proxy(makeConsentedRequest('/app/admin/syllabus'))
@@ -331,7 +319,7 @@ describe('proxy', () => {
   it('preserves anti-cache headers on the login redirect', async () => {
     // A token refresh that ends in a redirect carries a fresh Set-Cookie; the
     // anti-cache headers must travel with it so a CDN cannot cache and replay it.
-    mockGetUser.mockResolvedValue({ data: { user: null } })
+    mockVerifySessionUser.mockResolvedValue(null)
     MOCK_SESSION_RESPONSE.headers.set(
       'cache-control',
       'private, no-cache, no-store, must-revalidate, max-age=0',
@@ -355,7 +343,7 @@ describe('proxy', () => {
   })
 
   it('preserves anti-cache headers when bouncing a non-admin off an admin route', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'student-1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'student-1', email: null })
     mockFrom.mockReturnValue(buildChain({ data: { role: 'student' }, error: null }))
     MOCK_SESSION_RESPONSE.headers.set('cache-control', 'private, no-store')
     try {
@@ -370,7 +358,7 @@ describe('proxy', () => {
 
   it('preserves anti-cache headers on the service-unavailable response', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'user-1', email: null })
     mockFrom.mockReturnValue(buildChain({ data: null, error: { message: 'connection reset' } }))
     MOCK_SESSION_RESPONSE.headers.set('cache-control', 'private, no-store')
     try {
@@ -386,7 +374,7 @@ describe('proxy', () => {
 
   describe('next redirect param', () => {
     it('carries the requested /app path as next when redirecting an unauthenticated request', async () => {
-      mockGetUser.mockResolvedValue({ data: { user: null } })
+      mockVerifySessionUser.mockResolvedValue(null)
 
       const response = await proxy(makeRequest('/app/internal-exam'))
 
@@ -396,7 +384,7 @@ describe('proxy', () => {
     })
 
     it('omits next when the unauthenticated request already targets /app/dashboard', async () => {
-      mockGetUser.mockResolvedValue({ data: { user: null } })
+      mockVerifySessionUser.mockResolvedValue(null)
 
       const response = await proxy(makeRequest('/app/dashboard'))
 
@@ -405,7 +393,7 @@ describe('proxy', () => {
     })
 
     it('carries next through the consent-gate redirect', async () => {
-      mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+      mockVerifySessionUser.mockResolvedValue({ id: 'user-1', email: null })
 
       const response = await proxy(makeRequest('/app/internal-exam'))
 
@@ -415,7 +403,7 @@ describe('proxy', () => {
     })
 
     it('sends an authenticated root request to the validated next path', async () => {
-      mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+      mockVerifySessionUser.mockResolvedValue({ id: 'user-1', email: null })
 
       const response = await proxy(makeRequest('/?next=%2Fapp%2Fquiz'))
 
@@ -423,7 +411,7 @@ describe('proxy', () => {
     })
 
     it('falls back to /app/dashboard when the authenticated next param is an open redirect', async () => {
-      mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+      mockVerifySessionUser.mockResolvedValue({ id: 'user-1', email: null })
 
       const response = await proxy(makeRequest('/?next=%2F%2Fevil.com'))
 

@@ -64,7 +64,7 @@ Every route under `/app/*` must be protected by `apps/web/proxy.ts`.
 Unauthenticated requests redirect to `/`. No exceptions. The only extra state carried is a `next`
 destination, validated by `safeNextPath()` (`apps/web/lib/auth/safe-next-path.ts`).
 
-**Identity lookup (#1412):** the proxy's `getUser()` runs once per matched request (catches server-side revocation). Downstream `/app` render code and the quiz answer path call `getSessionUser()` (`apps/web/lib/auth/get-session-user.ts`): `getClaims()` verifies signature and expiry locally against the JWKS (prod signing key ES256), memoized per render. On a `getClaims()` failure it falls back to `getUser()`. `requireAdmin()` keeps `getUser()`: it gates service-role writes.
+**Identity lookup (#1412):** the proxy and downstream `/app` render code and the quiz answer path call `verifySessionUser()` (`apps/web/lib/auth/verify-session-user.ts`; downstream via the per-render memoized `getSessionUser()`): `getClaims()` verifies signature and expiry locally against the JWKS (prod signing key ES256; local/CI HS256, where auth-js calls `getUser()` itself), falling back to `getUser()` when `getClaims()` fails. A signed-out or banned session's unexpired access token keeps passing the proxy for the rest of the access-token lifetime (≤ 1 h, `jwt_exp` 3600). Deactivation takes effect immediately only on SECURITY DEFINER RPC paths (active-user gates); page renders and direct RLS reads stay reachable until the token expires. `requireAdmin()` keeps `getUser()`: it gates service-role writes.
 
 ```ts
 // apps/web/proxy.ts — pattern required (Next.js 16 convention)

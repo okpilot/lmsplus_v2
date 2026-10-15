@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
-import { getSessionUser, type SessionUser } from '@/lib/auth/get-session-user'
+import { getSessionUser } from '@/lib/auth/get-session-user'
+import type { SessionUser } from '@/lib/auth/verify-session-user'
 
 /**
  * Require an authenticated user in a Server Component or Server Action.
