@@ -249,6 +249,8 @@
 | HW | legacy-completion-rpcs-taken-over-exam-keyed-finish | HIGH | legacy-completion-rpcs-dropped.spec.ts | BLOCKED |  | sibling-guard-gap |
 | HX | resumeQuizSession-forged-draft-session-ref | MEDIUM | quiz-draft-resume-session-ref.spec.ts | BLOCKED |  | idor |
 | HY | proxy-legacy-__vdpl-expiry | LOW | deployment-pin-cookie.spec.ts | BLOCKED |  | cookie-state |
+| HZ | checkAnswer-checkNonMcAnswer-no-action-membership-precheck | HIGH | check-answer-rpc-sole-guard.spec.ts | BLOCKED |  | answer-oracle |
+| IA | proxy-getClaims-forged-access-token | HIGH | proxy-forged-access-token.spec.ts | BLOCKED |  | auth-bypass |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 

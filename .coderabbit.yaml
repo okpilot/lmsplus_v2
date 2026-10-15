@@ -99,7 +99,7 @@ reviews:
         - 'use server' directive at top of file.
         - Max 100 lines. Split by feature area if exceeded.
         - ALL inputs validated with Zod schema (.parse()) before use.
-        - Auth check first: call requireAuth() and verify user before any mutation.
+        - Auth check first: verify the session identity (requireAuthUser() / verifySessionUser(), or getUser() where docs/security.md "Identity lookup" keeps it) before any mutation.
         - No service role key (adminClient) — that lives in packages/db/src/admin.ts only.
         - Explicit return types on all exported functions.
         - No `any` type — use `unknown` with narrowing.
