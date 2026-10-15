@@ -123,7 +123,7 @@ describe('unflagQuestion', () => {
     expect(result).toEqual({ success: true, flagged: false })
   })
 
-  it('returns a failure when the unflag changes no rows and the caller is deactivated', async () => {
+  it('reports the account as inactive when the unflag changes no rows and the caller is deactivated', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const supabase = makeSupabaseByTable({
       flagged_questions: { data: [], error: null },
@@ -132,7 +132,7 @@ describe('unflagQuestion', () => {
 
     const result = await unflagQuestion(supabase, USER_ID, QUESTION_ID)
 
-    expect(result).toEqual({ success: false, error: 'Failed to unflag' })
+    expect(result).toEqual({ success: false, error: 'Your account is no longer active.' })
   })
 
   it('returns a failure when the unflag changes no rows and the caller lookup errors', async () => {

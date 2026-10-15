@@ -5,6 +5,7 @@ import { z } from 'zod'
 import type { ActionResult } from '@/lib/action-result'
 import { verifySessionUser } from '@/lib/auth/verify-session-user'
 import { resolveZeroRowWrite } from './_caller-active'
+import { NOT_ACTIVE } from './progress-error-messages'
 
 // Optional payload. When sessionId is provided, the teardown is scoped to that one
 // row (the orphan-cleanup path in startStudy) so a slow failing request can never
@@ -25,6 +26,16 @@ function discoveryRowsQuery(supabase: ServerSupabaseClient, userId: string, sess
     .is('ended_at', null)
     .is('deleted_at', null)
   return sessionId ? query.eq('id', sessionId) : query
+}
+
+function zeroRowResult(supabase: ServerSupabaseClient, userId: string) {
+  return resolveZeroRowWrite<ActionResult, ActionResult>(supabase, {
+    userId,
+    tag: 'endDiscovery',
+    whenActive: { success: true },
+    whenInactive: { success: false, error: NOT_ACTIVE },
+    whenError: { success: false, error: 'Failed to exit discovery' },
+  })
 }
 
 /**
@@ -63,12 +74,7 @@ export async function endDiscovery(raw?: unknown): Promise<ActionResult> {
       console.log('[endDiscovery] Exited', data.length, 'discovery session(s)')
       return { success: true }
     }
-    return resolveZeroRowWrite<ActionResult, ActionResult>(supabase, {
-      userId: user.id,
-      tag: 'endDiscovery',
-      whenActive: { success: true },
-      whenInactive: { success: false, error: 'Failed to exit discovery' },
-    })
+    return zeroRowResult(supabase, user.id)
   } catch (err) {
     console.error('[endDiscovery] Uncaught error:', err)
     return { success: false, error: 'Something went wrong. Please try again.' }

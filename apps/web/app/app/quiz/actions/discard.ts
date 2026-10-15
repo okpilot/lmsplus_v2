@@ -10,6 +10,16 @@ import { NOT_ACTIVE } from './progress-error-messages'
 
 const NOT_FOUND: ActionResult = { success: false, error: 'Session not found or already discarded' }
 
+function zeroRowResult(supabase: Parameters<typeof resolveZeroRowWrite>[0], userId: string) {
+  return resolveZeroRowWrite<ActionResult, ActionResult>(supabase, {
+    userId,
+    tag: 'discardQuiz',
+    whenActive: NOT_FOUND,
+    whenInactive: { success: false, error: NOT_ACTIVE },
+    whenError: { success: false, error: 'Failed to discard quiz' },
+  })
+}
+
 function logBlockedDiscard(mode: string, sessionId: string, userId: string) {
   console.error('[discardQuiz] Rejected', mode, 'discard for session', sessionId, 'user', userId)
 }
@@ -73,12 +83,7 @@ export async function discardQuiz(raw: unknown): Promise<ActionResult> {
       return { success: false, error: 'Failed to discard quiz' }
     }
     if (!sessionData?.length) {
-      return resolveZeroRowWrite<ActionResult, ActionResult>(supabase, {
-        userId: user.id,
-        tag: 'discardQuiz',
-        whenActive: NOT_FOUND,
-        whenInactive: { success: false, error: NOT_ACTIVE },
-      })
+      return zeroRowResult(supabase, user.id)
     }
     console.log(
       '[discardQuiz] Success — session',

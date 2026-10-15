@@ -203,7 +203,7 @@ describe('endDiscovery (app-layer integration)', () => {
     expect(await readDeletedAt(sessionB)).toBeNull()
   })
 
-  it('returns failure and keeps the live discovery row when a deactivated student with a live token exits', async () => {
+  it('reports the account as inactive and keeps the live discovery row when a deactivated student with a live token exits', async () => {
     const studentBClient = await getAuthenticatedClient({ email: emailB, password })
     const sessionId = await seedDiscoverySession(studentBClient, questionIds.slice(0, 1))
     // Non-vacuity: the live row exists and is active before the refused write.
@@ -228,7 +228,7 @@ describe('endDiscovery (app-layer integration)', () => {
       restoreFailure = restoreError?.message
     }
     if (restoreFailure) throw new Error(`restore: ${restoreFailure}`)
-    expect(outcome).toEqual({ success: false, error: 'Failed to exit discovery' })
+    expect(outcome).toEqual({ success: false, error: 'Your account is no longer active.' })
     expect(await readDeletedAt(sessionId)).toBeNull()
   })
 })

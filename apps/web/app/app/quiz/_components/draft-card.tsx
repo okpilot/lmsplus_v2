@@ -74,8 +74,6 @@ export function DraftCard({ draft }: Readonly<{ draft: DraftData }>) {
     } else {
       setError('Failed to delete. Please try again.')
       setDeleting(false)
-      // Failed delete: row already gone (other tab) or account inactive; re-sync the list.
-      router.refresh()
     }
   }
 

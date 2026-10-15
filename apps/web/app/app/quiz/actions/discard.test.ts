@@ -190,11 +190,11 @@ describe('discardQuiz', () => {
     expect(result).toEqual({ success: false, error: 'Your account is no longer active.' })
   })
 
-  it('returns the account-inactive message when the update changes no rows and the caller lookup errors', async () => {
+  it('returns a generic discard failure, not the inactive message, when the caller lookup errors', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     mockZeroRowUpdate({ data: null, error: { message: 'boom', code: 'XX000' } })
     const result = await discardQuiz(ZERO_ROW_INPUT)
-    expect(result).toEqual({ success: false, error: 'Your account is no longer active.' })
+    expect(result).toEqual({ success: false, error: 'Failed to discard quiz' })
   })
 
   it('returns failure when the session is not found by the pre-fetch', async () => {

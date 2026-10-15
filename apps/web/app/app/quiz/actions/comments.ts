@@ -3,7 +3,9 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import { verifySessionUser } from '@/lib/auth/verify-session-user'
+import { resolveZeroRowWrite } from './_caller-active'
 import { COMMENT_SELECT, fetchQuestionComments } from './comment-queries'
+import { NOT_ACTIVE } from './progress-error-messages'
 
 const GetCommentsSchema = z.object({ questionId: z.uuid() })
 const CreateCommentSchema = z.object({
@@ -57,6 +59,19 @@ export async function createComment(raw: unknown) {
   return { success: true as const, comment: data }
 }
 
+type ServerSupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
+
+// Zero rows: comment already gone / not owned, or RLS refused a deactivated caller.
+function commentNotDeletedResult(supabase: ServerSupabaseClient, userId: string) {
+  return resolveZeroRowWrite(supabase, {
+    userId,
+    tag: 'deleteComment',
+    whenActive: { success: false as const, error: 'Comment not found or not owned' },
+    whenInactive: { success: false as const, error: NOT_ACTIVE },
+    whenError: { success: false as const, error: 'Failed to delete comment' },
+  })
+}
+
 export async function deleteComment(raw: unknown) {
   const supabase = await createServerSupabaseClient()
   const user = await verifySessionUser(supabase)
@@ -80,6 +95,6 @@ export async function deleteComment(raw: unknown) {
     console.error('[deleteComment]', error.message)
     return { success: false as const, error: 'Failed to delete comment' }
   }
-  if (!data?.length) return { success: false as const, error: 'Comment not found or not owned' }
+  if (!data?.length) return commentNotDeletedResult(supabase, user.id)
   return { success: true as const }
 }

@@ -3,6 +3,7 @@
 
 import type { createServerSupabaseClient } from '@repo/db/server'
 import { resolveZeroRowWrite } from './_caller-active'
+import { NOT_ACTIVE } from './progress-error-messages'
 
 type ServerSupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
@@ -62,6 +63,16 @@ export async function lookupAndToggleFlag(
     : flagQuestion(supabase, userId, questionId)
 }
 
+function unflagZeroRowResult(supabase: ServerSupabaseClient, userId: string) {
+  return resolveZeroRowWrite<FlagResult, FlagResult>(supabase, {
+    userId,
+    tag: 'toggleFlag',
+    whenActive: { success: true, flagged: false },
+    whenInactive: { success: false, error: NOT_ACTIVE },
+    whenError: { success: false, error: 'Failed to unflag' },
+  })
+}
+
 export async function unflagQuestion(
   supabase: ServerSupabaseClient,
   userId: string,
@@ -81,12 +92,7 @@ export async function unflagQuestion(
   }
   // Zero rows: unflagged concurrently, or RLS refused a deactivated caller (mig 20261015000100).
   if (!data?.length) {
-    return resolveZeroRowWrite<FlagResult, FlagResult>(supabase, {
-      userId,
-      tag: 'toggleFlag',
-      whenActive: { success: true, flagged: false },
-      whenInactive: { success: false, error: 'Failed to unflag' },
-    })
+    return unflagZeroRowResult(supabase, userId)
   }
   return { success: true, flagged: false }
 }

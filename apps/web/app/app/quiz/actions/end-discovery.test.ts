@@ -85,11 +85,11 @@ describe('endDiscovery', () => {
     expect(result).toEqual({ success: true })
   })
 
-  it('returns failure when zero rows change and the caller account is not visible', async () => {
+  it('reports the account as inactive when zero rows change and the caller account is not visible', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     mockZeroRowsThenUsersRead({ data: null, error: null })
     const result = await endDiscovery({})
-    expect(result).toEqual({ success: false, error: 'Failed to exit discovery' })
+    expect(result).toEqual({ success: false, error: 'Your account is no longer active.' })
   })
 
   it('returns failure when zero rows change and the account lookup errors', async () => {
