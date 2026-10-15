@@ -32,10 +32,6 @@ function setupAuthenticatedUser() {
   mockVerifySessionUser.mockResolvedValue({ id: USER_ID, email: null })
 }
 
-function setupUnauthenticated() {
-  mockVerifySessionUser.mockResolvedValue(null)
-}
-
 function mockChain() {
   const chain: Record<string, unknown> = {
     delete: vi.fn().mockReturnThis(),
@@ -59,12 +55,6 @@ describe('deleteDraft', () => {
     const result = await deleteDraft({ draftId: DRAFT_ID })
     expect(result).toEqual({ success: false })
     expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
-  })
-
-  it('returns failure when user is not authenticated', async () => {
-    setupUnauthenticated()
-    const result = await deleteDraft({ draftId: DRAFT_ID })
-    expect(result).toEqual({ success: false })
   })
 
   it('returns failure when draftId is not a valid UUID', async () => {

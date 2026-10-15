@@ -78,18 +78,18 @@ function setupAuthenticatedUser() {
 // ---- Tests -----------------------------------------------------------------
 
 describe('toggleFlag', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+  })
+
+  // ---- auth ----------------------------------------------------------------
+
   it('returns not-authenticated when the session has no verified user', async () => {
     mockVerifySessionUser.mockResolvedValue(null)
     const result = await toggleFlag({ questionId: QUESTION_ID_A })
     expect(result).toEqual({ success: false, error: 'Not authenticated' })
     expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
-
-  beforeEach(() => {
-    vi.resetAllMocks()
-  })
-
-  // ---- auth ----------------------------------------------------------------
 
   // ---- input validation ----------------------------------------------------
 
@@ -285,18 +285,18 @@ describe('toggleFlag', () => {
 })
 
 describe('getFlaggedIds', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+  })
+
+  // ---- auth ----------------------------------------------------------------
+
   it('returns an empty result when the session has no verified user', async () => {
     mockVerifySessionUser.mockResolvedValue(null)
     const result = await getFlaggedIds({ questionIds: [QUESTION_ID_A] })
     expect(result).toEqual({ success: true, flaggedIds: [] })
     expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
-
-  beforeEach(() => {
-    vi.resetAllMocks()
-  })
-
-  // ---- auth ----------------------------------------------------------------
 
   // ---- input validation ----------------------------------------------------
 
