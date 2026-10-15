@@ -8,6 +8,7 @@ const { mockGetSession, mockGetClaims, mockGetUser } = vi.hoisted(() => ({
 
 import { verifySessionUser } from './verify-session-user'
 
+// getUser stays on the client so a returning fallback fails the not-called assertions.
 const client = {
   auth: { getSession: mockGetSession, getClaims: mockGetClaims, getUser: mockGetUser },
 }
@@ -36,14 +37,10 @@ describe('verifySessionUser', () => {
     await expect(getSessionUser()).resolves.toEqual({ id: USER_ID, email: null })
   })
 
-  it('falls back to the verified user when claims verification yields no data', async () => {
+  it('returns null without a user lookup when claims verification yields no data', async () => {
     mockGetClaims.mockResolvedValue({ data: null, error: null })
-    mockGetUser.mockResolvedValue({
-      data: { user: { id: USER_ID, email: 'a@test.local' } },
-      error: null,
-    })
-    await expect(getSessionUser()).resolves.toEqual({ id: USER_ID, email: 'a@test.local' })
-    expect(mockGetUser).toHaveBeenCalledWith(TOKEN)
+    await expect(getSessionUser()).resolves.toBeNull()
+    expect(mockGetUser).not.toHaveBeenCalled()
   })
 
   it('returns null when the subject claim is missing', async () => {
@@ -90,66 +87,22 @@ describe('verifySessionUser', () => {
     expect(mockGetClaims).toHaveBeenCalledWith(TOKEN)
   })
 
-  it('falls back to the verified user when claims verification errors', async () => {
-    mockGetClaims.mockResolvedValue({ data: null, error: new Error('Invalid JWT signature') })
-    mockGetUser.mockResolvedValue({
-      data: { user: { id: USER_ID, email: 'a@test.local' } },
-      error: null,
-    })
-    await expect(getSessionUser()).resolves.toEqual({ id: USER_ID, email: 'a@test.local' })
-  })
-
-  it('falls back to the verified user when claims verification throws', async () => {
-    mockGetClaims.mockRejectedValue(new Error('JWKS fetch failed'))
-    mockGetUser.mockResolvedValue({
-      data: { user: { id: USER_ID, email: 'a@test.local' } },
-      error: null,
-    })
-    await expect(getSessionUser()).resolves.toEqual({ id: USER_ID, email: 'a@test.local' })
-  })
-
-  it('looks the user up by the session access token and reads the session once', async () => {
-    mockGetClaims.mockResolvedValue({ data: null, error: new Error('Invalid JWT signature') })
-    mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } }, error: null })
-    await getSessionUser()
-    expect(mockGetUser).toHaveBeenCalledWith(TOKEN)
-    expect(mockGetSession).toHaveBeenCalledTimes(1)
-  })
-
-  it('returns null when the fallback user lookup also fails', async () => {
-    mockGetClaims.mockResolvedValue({ data: null, error: new Error('Invalid JWT signature') })
-    mockGetUser.mockResolvedValue({ data: { user: null }, error: new Error('invalid claim') })
-    await expect(getSessionUser()).resolves.toBeNull()
-  })
-
-  it('returns null when the fallback finds no user', async () => {
-    mockGetClaims.mockResolvedValue({ data: null, error: new Error('Invalid JWT signature') })
-    mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
-    await expect(getSessionUser()).resolves.toBeNull()
-  })
-
-  it('returns null email when the fallback user has none', async () => {
-    mockGetClaims.mockResolvedValue({ data: null, error: new Error('Invalid JWT signature') })
-    mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } }, error: null })
-    await expect(getSessionUser()).resolves.toEqual({ id: USER_ID, email: null })
-  })
-
-  it('logs the claims failure before falling back', async () => {
+  it('returns null and logs without a user lookup when claims verification errors', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     mockGetClaims.mockResolvedValue({ data: null, error: new Error('Invalid JWT signature') })
-    mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
-    await getSessionUser()
+    await expect(getSessionUser()).resolves.toBeNull()
     expect(spy).toHaveBeenCalledWith(
       '[verifySessionUser] getClaims failed:',
       'Invalid JWT signature',
     )
+    expect(mockGetUser).not.toHaveBeenCalled()
   })
 
-  it('logs the user lookup failure when the fallback errors', async () => {
+  it('returns null and logs without a user lookup when claims verification throws', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    mockGetClaims.mockResolvedValue({ data: null, error: new Error('Invalid JWT signature') })
-    mockGetUser.mockResolvedValue({ data: { user: null }, error: new Error('invalid claim') })
-    await getSessionUser()
-    expect(spy).toHaveBeenCalledWith('[verifySessionUser] getUser failed:', 'invalid claim')
+    mockGetClaims.mockRejectedValue(new Error('JWKS fetch failed'))
+    await expect(getSessionUser()).resolves.toBeNull()
+    expect(spy).toHaveBeenCalledWith('[verifySessionUser] getClaims failed:', 'JWKS fetch failed')
+    expect(mockGetUser).not.toHaveBeenCalled()
   })
 })

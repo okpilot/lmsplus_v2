@@ -25,10 +25,7 @@ type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
  * the non-MC path keeps its RPC calls in check-non-mc-answer-dispatch.ts: it leaves
  * checkAnswer a pure orchestrator inside §3's boundary.
  *
- * The RPC is the session guard: mig `20261002000700` (the latest check_quiz_answer) checks
- * auth.uid(), the active-user gate, session ownership, practice mode and question_ids
- * membership before the key is read, raising 'session not found or not owned by this student' / 'question % does not belong to session %'
- * (mapped by mapProgressRpcError).
+ * The `check_quiz_answer` RPC (migration 20261002000700) is the session guard.
  */
 export async function gradeAnswer(
   supabase: SupabaseClient,
