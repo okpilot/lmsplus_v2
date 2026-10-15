@@ -1,10 +1,4 @@
--- flagged_questions_student_insert: WITH CHECK adds active-user check.
--- flagged_questions_student_update: USING adds active-user check.
--- question_comments_insert: WITH CHECK adds active-user check.
--- question_comments_delete_own: USING adds active-user check.
--- quiz_drafts_student_delete: USING adds active-user check.
--- students_update_sessions: USING adds active-user check.
--- fsrs_cards: students_own_cards (ALL) replaced by students_read_cards (SELECT); INSERT/UPDATE/DELETE revoked from authenticated.
+-- Student RLS writes require the caller's live users row; students only read fsrs_cards. #1412
 
 ALTER POLICY flagged_questions_student_insert ON public.flagged_questions
   WITH CHECK (

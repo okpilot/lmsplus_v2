@@ -20,7 +20,7 @@ const EndDiscoveryInput = z.object({ sessionId: z.uuid().optional() }).optional(
  * session can never strand and block other modes.
  *
  * Zero rows affected is a VALID no-op here (the row was abandoned, already cleared,
- * or never created) — unlike discardQuiz, it is not treated as an error.
+ * or never created, or RLS refused a deactivated caller) — unlike discardQuiz, it is not treated as an error.
  */
 export async function endDiscovery(raw?: unknown): Promise<ActionResult> {
   let input: { sessionId?: string } | undefined

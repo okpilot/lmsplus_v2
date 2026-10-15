@@ -178,11 +178,12 @@ describe('RLS: student writes require an active user', () => {
         .from('question_comments')
         .insert({ question_id: q0, user_id: studentId, body: `denied ${suffix}` })
       expect(error?.code).toBe('42501')
-      const { data } = await admin
+      const { data, error: readErr } = await admin
         .from('question_comments')
         .select('id')
         .eq('user_id', studentId)
         .eq('body', `denied ${suffix}`)
+      expect(readErr).toBeNull()
       expect(data).toHaveLength(0)
     })
 
@@ -193,16 +194,21 @@ describe('RLS: student writes require an active user', () => {
       const { data, error } = await student.from('quiz_drafts').delete().eq('id', id).select('id')
       expect(error).toBeNull()
       expect(data).toHaveLength(0)
-      const { data: after } = await admin.from('quiz_drafts').select('id').eq('id', id)
+      const { data: after, error: readErr } = await admin
+        .from('quiz_drafts')
+        .select('id')
+        .eq('id', id)
+      expect(readErr).toBeNull()
       expect(after).toHaveLength(1)
     })
 
     it('cannot discard its own live session', async () => {
-      const { data: before } = await admin
+      const { data: before, error: beforeErr } = await admin
         .from('quiz_sessions')
         .select('id, deleted_at, ended_at')
         .eq('id', sessionId)
         .single()
+      expect(beforeErr).toBeNull()
       expect(before).toMatchObject({ id: sessionId, deleted_at: null, ended_at: null })
       await setDeactivated(true)
 
@@ -213,11 +219,12 @@ describe('RLS: student writes require an active user', () => {
         .select('id')
       expect(error).toBeNull()
       expect(data).toHaveLength(0)
-      const { data: after } = await admin
+      const { data: after, error: readErr } = await admin
         .from('quiz_sessions')
         .select('deleted_at')
         .eq('id', sessionId)
         .single()
+      expect(readErr).toBeNull()
       expect((after as { deleted_at: string | null }).deleted_at).toBeNull()
     })
   })
@@ -314,10 +321,11 @@ describe('RLS: student writes require an active user', () => {
         expect(err?.message).toContain('permission denied for table')
       }
 
-      const { data: after } = await admin
+      const { data: after, error: afterErr } = await admin
         .from('fsrs_cards')
         .select('question_id, reps')
         .eq('student_id', studentId)
+      expect(afterErr).toBeNull()
       expect(after).toEqual([{ question_id: q0, reps: 0 }])
     })
   })
