@@ -153,7 +153,8 @@ test.describe('Red Team: student direct soft-delete of an in-progress exam sessi
     const id = await startInternalExam()
     expect(await deletedAt(id)).toEqual({ deleted_at: null, ended_at: null })
     const hit = await directDiscard(id)
-    expect(hit.error !== null || (hit.data ?? []).length === 0).toBe(true)
+    expect(hit.error).toBeNull()
+    expect(hit.data ?? []).toHaveLength(0)
     expect((await deletedAt(id))?.deleted_at).toBeNull()
   })
 
@@ -161,7 +162,8 @@ test.describe('Red Team: student direct soft-delete of an in-progress exam sessi
     const id = await adminInsertSession('vfr_rt_exam')
     expect(await deletedAt(id)).toEqual({ deleted_at: null, ended_at: null })
     const hit = await directDiscard(id)
-    expect(hit.error !== null || (hit.data ?? []).length === 0).toBe(true)
+    expect(hit.error).toBeNull()
+    expect(hit.data ?? []).toHaveLength(0)
     expect((await deletedAt(id))?.deleted_at).toBeNull()
   })
 
