@@ -1,4 +1,5 @@
--- Student RLS writes require the caller's live users row; students only read fsrs_cards. #1412
+-- Student RLS writes require the caller's live users row; students only read fsrs_cards;
+-- students cannot update internal_exam / vfr_rt_exam sessions directly. #1412
 
 ALTER POLICY flagged_questions_student_insert ON public.flagged_questions
   WITH CHECK (
@@ -37,6 +38,8 @@ ALTER POLICY students_update_sessions ON public.quiz_sessions
     student_id = auth.uid()
     AND ended_at IS NULL
     AND deleted_at IS NULL
+    -- Same set as NON_DISCARDABLE_MODES (apps/web/app/app/quiz/actions/_discard-guard.ts); red-team IE.
+    AND mode NOT IN ('internal_exam', 'vfr_rt_exam')
     AND EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid() AND u.deleted_at IS NULL)
   )
   WITH CHECK (student_id = auth.uid());

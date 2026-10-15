@@ -86,3 +86,5 @@ export const E2E_REDTEAM_HZ_MARKER = '[E2E_REDTEAM_HZ]'
 // deactivated-student direct RLS-write spec (Vector ID, #1412): comment body prefix, quiz_drafts
 // `session_config.e2e_marker`, quiz_sessions `config.e2e_marker`, users.full_name probe value.
 export const E2E_REDTEAM_ID_MARKER = '[E2E_REDTEAM_ID]'
+// student direct exam-session soft-delete spec (Vector IE): quiz_sessions `config.e2e_marker`.
+export const E2E_REDTEAM_IE_MARKER = '[E2E_REDTEAM_IE]'
