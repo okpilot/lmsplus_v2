@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@repo/db/server'
+import { getSessionUser } from '@/lib/auth/get-session-user'
 import { rpc } from '@/lib/supabase-rpc'
 
 function boundParam(value: number, min: number, max: number): number {
@@ -32,11 +33,7 @@ type SubjectScoreRow = {
 
 export async function getDailyActivity(days = 30): Promise<DailyActivity[]> {
   const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-  if (authError) throw new Error(`Auth error: ${authError.message}`)
+  const user = await getSessionUser()
   if (!user) throw new Error('Not authenticated')
 
   const safeDays = boundParam(days, 1, 365)
@@ -58,11 +55,7 @@ export async function getDailyActivity(days = 30): Promise<DailyActivity[]> {
 
 export async function getSubjectScores(limit = 5): Promise<SubjectScore[]> {
   const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-  if (authError) throw new Error(`Auth error: ${authError.message}`)
+  const user = await getSessionUser()
   if (!user) throw new Error('Not authenticated')
 
   const safeLimit = boundParam(limit, 1, 100)

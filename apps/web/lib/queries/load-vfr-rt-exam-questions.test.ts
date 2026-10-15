@@ -4,10 +4,14 @@ const { mockRpc } = vi.hoisted(() => ({ mockRpc: vi.fn() }))
 
 vi.mock('@/lib/supabase-rpc', () => ({ rpc: mockRpc }))
 
-const mockGetUser = vi.fn().mockResolvedValue({ data: { user: { id: 'user-1' } } })
+const mockGetSessionUser = vi.fn().mockResolvedValue({ id: 'user-1' })
+
+vi.mock('@/lib/auth/get-session-user', () => ({
+  getSessionUser: () => mockGetSessionUser(),
+}))
 
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({ auth: { getUser: mockGetUser } }),
+  createServerSupabaseClient: async () => ({}),
 }))
 
 import { loadVfrRtExamQuestions } from './load-vfr-rt-exam-questions'
@@ -30,7 +34,7 @@ const row = (id: string, extra: Record<string, unknown> = {}) => ({
 
 beforeEach(() => {
   vi.resetAllMocks()
-  mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+  mockGetSessionUser.mockResolvedValue({ id: 'user-1' })
   vi.spyOn(console, 'error').mockImplementation(() => {})
 })
 
@@ -38,21 +42,15 @@ describe('loadVfrRtExamQuestions', () => {
   it('rejects a non-uuid session id without touching the database', async () => {
     const result = await loadVfrRtExamQuestions({ sessionId: 'nope' })
     expect(result.success).toBe(false)
-    expect(mockGetUser).not.toHaveBeenCalled()
+    expect(mockGetSessionUser).not.toHaveBeenCalled()
     expect(mockRpc).not.toHaveBeenCalled()
   })
 
   it('returns Not authenticated when there is no user', async () => {
-    mockGetUser.mockResolvedValueOnce({ data: { user: null } })
+    mockGetSessionUser.mockResolvedValueOnce(null)
     const result = await loadVfrRtExamQuestions({ sessionId: SESSION_ID })
     expect(result).toEqual({ success: false, error: 'Not authenticated' })
     expect(mockRpc).not.toHaveBeenCalled()
-  })
-
-  it('returns Not authenticated when getUser errors', async () => {
-    mockGetUser.mockResolvedValueOnce({ data: { user: null }, error: { message: 'expired' } })
-    const result = await loadVfrRtExamQuestions({ sessionId: SESSION_ID })
-    expect(result).toEqual({ success: false, error: 'Not authenticated' })
   })
 
   it('returns a generic error and hides the RPC message', async () => {

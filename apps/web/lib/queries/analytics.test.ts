@@ -1,14 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockGetUser, mockRpc } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
+const { mockGetSessionUser, mockRpc } = vi.hoisted(() => ({
+  mockGetSessionUser: vi.fn(),
   mockRpc: vi.fn(),
 }))
 
+vi.mock('@/lib/auth/get-session-user', () => ({
+  getSessionUser: () => mockGetSessionUser(),
+}))
+
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
-  }),
+  createServerSupabaseClient: async () => ({}),
 }))
 
 vi.mock('@/lib/supabase-rpc', () => ({
@@ -20,7 +22,7 @@ import { getDailyActivity, getSubjectScores } from './analytics'
 describe('getDailyActivity', () => {
   beforeEach(() => {
     vi.resetAllMocks()
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockGetSessionUser.mockResolvedValue({ id: 'user-1' })
     mockRpc.mockResolvedValue({ data: [], error: null })
   })
 
@@ -38,16 +40,8 @@ describe('getDailyActivity', () => {
     expect(result).toEqual([{ day: '2026-03-01', total: 10, correct: 7, incorrect: 3 }])
   })
 
-  it('throws when auth returns an error', async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: null },
-      error: { message: 'Session expired' },
-    })
-    await expect(getDailyActivity()).rejects.toThrow('Auth error: Session expired')
-  })
-
   it('throws when not authenticated', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } })
+    mockGetSessionUser.mockResolvedValue(null)
     await expect(getDailyActivity()).rejects.toThrow('Not authenticated')
   })
 
@@ -121,7 +115,7 @@ describe('getDailyActivity', () => {
 describe('getSubjectScores', () => {
   beforeEach(() => {
     vi.resetAllMocks()
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockGetSessionUser.mockResolvedValue({ id: 'user-1' })
     mockRpc.mockResolvedValue({ data: [], error: null })
   })
 
@@ -195,16 +189,8 @@ describe('getSubjectScores', () => {
     })
   })
 
-  it('throws when auth returns an error', async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: null },
-      error: { message: 'JWT expired' },
-    })
-    await expect(getSubjectScores()).rejects.toThrow('Auth error: JWT expired')
-  })
-
   it('throws when not authenticated', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } })
+    mockGetSessionUser.mockResolvedValue(null)
     await expect(getSubjectScores()).rejects.toThrow('Not authenticated')
   })
 

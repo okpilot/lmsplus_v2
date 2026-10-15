@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@repo/db/server'
+import { getSessionUser } from '@/lib/auth/get-session-user'
 import { fetchAllRows, toPageResult } from '@/lib/supabase-paginate'
 import { fetchAllRpcRows } from '@/lib/supabase-rpc'
 import type { QuizReportQuestionsResult } from './quiz-report'
@@ -18,14 +19,7 @@ export async function getQuizReportQuestions(opts: {
   if (!sessionId) return { ok: false, error: 'Failed to load questions' }
   const supabase = await createServerSupabaseClient()
 
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-  if (authError) {
-    console.error('[getQuizReportQuestions] Auth error:', authError.message)
-    return { ok: false, error: 'Failed to load questions' }
-  }
+  const user = await getSessionUser()
   if (!user) return { ok: false, error: 'Failed to load questions' }
 
   // Verify session ownership and completion guard

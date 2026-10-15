@@ -223,7 +223,7 @@ describe('checkNonMcAnswer (app-layer integration)', () => {
     expect(result.blanks.find((b) => b.index === 1)?.isCorrect).toBe(false)
   })
 
-  it('returns Question not in session for a question outside the session', async () => {
+  it('reports the question as not part of the session for a question outside the session', async () => {
     // Non-vacuous: the success tests above prove in-session questions resolve.
     await signInAs(emailA, password)
     const result = await checkNonMcAnswer({
@@ -233,10 +233,10 @@ describe('checkNonMcAnswer (app-layer integration)', () => {
     })
     expect(result.success).toBe(false)
     if (result.success) throw new Error('expected failure')
-    expect(result.error).toBe('Question not in session')
+    expect(result.error).toBe('That question is not part of this session.')
   })
 
-  it('returns Session not found for another students session', async () => {
+  it('reports the session as missing for another students session', async () => {
     // Cross-user isolation. Non-vacuous: B can grade in B's own session (next test).
     await signInAs(emailB, password)
     const result = await checkNonMcAnswer({
@@ -246,7 +246,7 @@ describe('checkNonMcAnswer (app-layer integration)', () => {
     })
     expect(result.success).toBe(false)
     if (result.success) throw new Error('expected failure')
-    expect(result.error).toBe('Session not found')
+    expect(result.error).toBe('This session could not be found.')
   })
 
   it('resolves successfully for the authenticated students own session', async () => {

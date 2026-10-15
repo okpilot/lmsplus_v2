@@ -7,33 +7,6 @@ import { isUniquePermutation, MAX_ORDER_ITEMS, MIN_ORDER_ITEMS } from './orderin
 
 export type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
-// Defense-in-depth session ownership + membership check (mirrors check-answer.ts).
-// The RPC self-guards, but the action fails fast on a foreign/closed session or a
-// question outside it. Returns an error string on failure, null on success.
-export async function verifySessionMembership(
-  supabase: SupabaseClient,
-  opts: { sessionId: string; userId: string; questionId: string },
-): Promise<string | null> {
-  const { data: session, error } = await supabase
-    .from('quiz_sessions')
-    .select('config')
-    .eq('id', opts.sessionId)
-    .eq('student_id', opts.userId)
-    .is('ended_at', null)
-    .is('deleted_at', null)
-    .single()
-  if (error) {
-    if (error.code === 'PGRST116') return 'Session not found'
-    console.error('[checkNonMcAnswer] Session lookup error:', error.message)
-    return 'Could not check answer'
-  }
-  if (!session) return 'Session not found'
-  const config = (session as unknown as { config: { question_ids: unknown } }).config
-  const qIds = config?.question_ids
-  if (!Array.isArray(qIds) || !qIds.includes(opts.questionId)) return 'Question not in session'
-  return null
-}
-
 // Raw jsonb shape returned by check_non_mc_answer (mig 119).
 export type ShortAnswerRpcResult = {
   is_correct: boolean

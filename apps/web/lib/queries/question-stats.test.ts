@@ -1,13 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockGetUser, mockFrom } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
+const { mockGetSessionUser, mockFrom } = vi.hoisted(() => ({
+  mockGetSessionUser: vi.fn(),
   mockFrom: vi.fn(),
+}))
+
+vi.mock('@/lib/auth/get-session-user', () => ({
+  getSessionUser: () => mockGetSessionUser(),
 }))
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
     from: mockFrom,
   }),
 }))
@@ -31,20 +34,12 @@ import { getQuestionStats } from './question-stats'
 describe('getQuestionStats', () => {
   beforeEach(() => {
     vi.resetAllMocks()
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockGetSessionUser.mockResolvedValue({ id: 'user-1' })
   })
 
   it('throws when not authenticated', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } })
+    mockGetSessionUser.mockResolvedValue(null)
     await expect(getQuestionStats('q-1')).rejects.toThrow('Not authenticated')
-  })
-
-  it('throws when auth returns an error', async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: null },
-      error: { message: 'invalid JWT' },
-    })
-    await expect(getQuestionStats('q-1')).rejects.toThrow('Auth error: invalid JWT')
   })
 
   it('returns distinct total and correct counts when responses exist', async () => {

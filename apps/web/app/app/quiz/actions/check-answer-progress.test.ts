@@ -1,17 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockGetUser, mockRpc, mockFrom } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
+const { mockGetSessionUser, mockRpc, mockFrom } = vi.hoisted(() => ({
+  mockGetSessionUser: vi.fn(),
   mockRpc: vi.fn(),
   mockFrom: vi.fn(),
 }))
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
     from: mockFrom,
   }),
 }))
+
+vi.mock('@/lib/auth/get-session-user', () => ({ getSessionUser: mockGetSessionUser }))
 
 vi.mock('@/lib/supabase-rpc', () => ({
   rpc: (...args: unknown[]) => mockRpc(...args),
@@ -33,16 +34,7 @@ const INPUT = { questionId: QUESTION_ID, selectedOptionId: 'b', sessionId: SESSI
 beforeEach(() => {
   vi.resetAllMocks()
   vi.spyOn(console, 'error').mockImplementation(() => {})
-  mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
-  mockFrom.mockReturnValue({
-    select: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockReturnThis(),
-    is: vi.fn().mockReturnThis(),
-    single: vi.fn().mockReturnValue({
-      data: { config: { question_ids: [QUESTION_ID] } },
-      error: null,
-    }),
-  })
+  mockGetSessionUser.mockResolvedValue({ id: 'u1', email: null })
   mockRpc.mockResolvedValue({ data: RPC_RESULT, error: null })
 })
 

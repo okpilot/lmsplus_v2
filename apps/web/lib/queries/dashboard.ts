@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { cache } from 'react'
+import { getSessionUser } from '@/lib/auth/get-session-user'
 import { rpc } from '@/lib/supabase-rpc'
 import {
   applyLastPracticed,
@@ -31,11 +32,7 @@ export type SubjectProgress = {
 
 export const getDashboardData = cache(async (): Promise<DashboardData> => {
   const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-  if (authError) throw new Error(`Auth error: ${authError.message}`)
+  const user = await getSessionUser()
   if (!user) throw new Error('Not authenticated')
 
   const [subjects, responses, questionsToday, streakData] = await Promise.all([

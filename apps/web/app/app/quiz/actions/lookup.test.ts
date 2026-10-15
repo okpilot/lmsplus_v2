@@ -2,20 +2,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetUser, mockRpc, mockGetTopicsForSubject, mockGetSubtopicsForTopic } = vi.hoisted(
-  () => ({
-    mockGetUser: vi.fn(),
+const { mockGetSessionUser, mockRpc, mockGetTopicsForSubject, mockGetSubtopicsForTopic } =
+  vi.hoisted(() => ({
+    mockGetSessionUser: vi.fn(),
     mockRpc: vi.fn(),
     mockGetTopicsForSubject: vi.fn(),
     mockGetSubtopicsForTopic: vi.fn(),
-  }),
-)
+  }))
 
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
-  }),
+  createServerSupabaseClient: async () => ({}),
 }))
+
+vi.mock('@/lib/auth/get-session-user', () => ({ getSessionUser: mockGetSessionUser }))
 
 vi.mock('@/lib/supabase-rpc', () => ({
   rpc: (...args: unknown[]) => mockRpc(...args),
@@ -62,11 +61,11 @@ const SUBTOPIC_OPTIONS = [{ id: SUBTOPIC_ID, name: 'Lift', code: 'LIFT' }]
 // ---- Helpers --------------------------------------------------------------
 
 function setupAuthenticatedUser() {
-  mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } } })
+  mockGetSessionUser.mockResolvedValue({ id: USER_ID, email: null })
 }
 
 function setupUnauthenticated() {
-  mockGetUser.mockResolvedValue({ data: { user: null } })
+  mockGetSessionUser.mockResolvedValue(null)
 }
 
 beforeEach(() => {
@@ -182,15 +181,6 @@ describe('getFilteredCount — auth and validation', () => {
     expect(result).toMatchObject({ count: 0, error: 'auth' })
     // RPC must not be called when auth gate fails.
     expect(mockRpc).not.toHaveBeenCalled()
-  })
-
-  it('returns auth error when authentication fails', async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: null },
-      error: { message: 'JWT expired' },
-    })
-    const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['all'] })
-    expect(result).toMatchObject({ count: 0, error: 'auth' })
   })
 
   it('returns empty count and logs when subjectId is not a valid UUID', async () => {

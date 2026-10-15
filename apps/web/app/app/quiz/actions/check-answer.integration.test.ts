@@ -175,7 +175,7 @@ describe('checkAnswer (app-layer integration)', () => {
     expect(result.explanationImageUrl).toBe('https://test.local/expl.png')
   })
 
-  it('returns Session not found for a nonexistent session', async () => {
+  it('reports the session as missing for a nonexistent session', async () => {
     // Non-vacuous: the success test above proves A's real session resolves.
     await signInAs(emailA, password)
 
@@ -187,10 +187,10 @@ describe('checkAnswer (app-layer integration)', () => {
 
     expect(result.success).toBe(false)
     if (result.success) throw new Error('expected failure')
-    expect(result.error).toBe('Session not found')
+    expect(result.error).toBe('This session could not be found.')
   })
 
-  it('returns Session not found for another students session', async () => {
+  it('reports the session as missing for another students session', async () => {
     // Sign in as B and attempt to check against A's session.
     // Non-vacuous: B can successfully check answers in B's own session (see below).
     await signInAs(emailB, password)
@@ -203,7 +203,7 @@ describe('checkAnswer (app-layer integration)', () => {
 
     expect(result.success).toBe(false)
     if (result.success) throw new Error('expected failure')
-    expect(result.error).toBe('Session not found')
+    expect(result.error).toBe('This session could not be found.')
   })
 
   it('resolves successfully for the authenticated students own session', async () => {
@@ -223,7 +223,7 @@ describe('checkAnswer (app-layer integration)', () => {
     expect(result.success).toBe(true)
   })
 
-  it('returns Question not in session for a question outside the session', async () => {
+  it('reports the question as not part of the session for a question outside the session', async () => {
     // A's session contains questionIds[0..2] only. extraQuestionId was seeded
     // separately and never included in p_question_ids.
     await signInAs(emailA, password)
@@ -236,11 +236,11 @@ describe('checkAnswer (app-layer integration)', () => {
 
     expect(result.success).toBe(false)
     if (result.success) throw new Error('expected failure')
-    expect(result.error).toBe('Question not in session')
+    expect(result.error).toBe('That question is not part of this session.')
   })
 
-  it('returns Session not found for an ended session', async () => {
-    // The action guards .is('ended_at', null). An already-completed session
+  it('reports the session as missing for an ended session', async () => {
+    // The RPC only resolves active sessions. An already-completed session
     // must be rejected — checking an answer in a closed session must not be possible.
     // Non-vacuous: the success test above proves A's active session resolves.
     //
@@ -276,7 +276,7 @@ describe('checkAnswer (app-layer integration)', () => {
 
     expect(result.success).toBe(false)
     if (result.success) throw new Error('expected failure')
-    expect(result.error).toBe('Session not found')
+    expect(result.error).toBe('This session could not be found.')
   })
 
   it('rejects malformed input', async () => {

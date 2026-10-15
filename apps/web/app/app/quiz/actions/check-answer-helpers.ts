@@ -1,5 +1,5 @@
-// Three roles for the checkAnswer Server Action: the session-ownership check, the
-// check_quiz_answer call (which reads the answer key), and a runtime guard on its result.
+// Two roles for the checkAnswer Server Action: the check_quiz_answer call (which reads the
+// answer key) and a runtime guard on its result.
 // Hoisted out of check-answer.ts for code-style.md §3 (function length), not §1. The
 // non-MC path splits the same way but across two files — helpers for the ownership check,
 // dispatch for the RPC calls; this merges both.
@@ -23,61 +23,14 @@ import { mapProgressRpcError } from './progress-error-messages'
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
 /**
- * Defense-in-depth session ownership + membership check — the MC twin of
- * verifySessionMembership in check-non-mc-answer-helpers.ts, kept deliberately identical in
- * QUERY and DISPOSITION (same four §11a predicates, same PGRST116 split, same three return
- * strings). Logging PLACEMENT deliberately differs: this one logs inside the helper, the
- * non-MC one at its call site — see the note there for why. The RPC self-guards; this fails
- * fast on a foreign/closed session or a question outside it.
- *
- * Returns a user-facing error string on failure, null on success. Only PGRST116 (no row)
- * means the session is genuinely gone: `.single()` ERRORS on zero rows rather than
- * returning null, so collapsing every error into 'Session not found' would report a
- * transient DB fault as a dead session.
- */
-export async function verifySessionMembership(
-  supabase: SupabaseClient,
-  opts: { sessionId: string; userId: string; questionId: string },
-): Promise<string | null> {
-  const { data: session, error } = await supabase
-    .from('quiz_sessions')
-    .select('config')
-    .eq('id', opts.sessionId)
-    .eq('student_id', opts.userId)
-    .is('ended_at', null)
-    .is('deleted_at', null)
-    .single()
-  if (error) {
-    if (error.code === 'PGRST116') {
-      console.error('[checkAnswer] Session not found/not owned:', opts.questionId, opts.sessionId)
-      return 'Session not found'
-    }
-    console.error('[checkAnswer] Session lookup error:', error.message, error.code)
-    return 'Could not check answer'
-  }
-  // Defensive floor, unlogged and unreachable: .single() errors rather than returning null.
-  if (!session) return 'Session not found'
-  const config = (session as unknown as { config: { question_ids: unknown } }).config
-  const qIds = config?.question_ids
-  if (!Array.isArray(qIds) || !qIds.includes(opts.questionId)) {
-    console.error('[checkAnswer] Question not in session:', opts.questionId, opts.sessionId)
-    return 'Question not in session'
-  }
-  return null
-}
-
-/**
  * Calls check_quiz_answer and maps its result. Split from the action for the same reason
  * the non-MC path keeps its RPC calls in check-non-mc-answer-dispatch.ts: it leaves
- * checkAnswer a pure orchestrator (auth → validate → authorize → delegate) inside §3's
- * boundary.
+ * checkAnswer a pure orchestrator inside §3's boundary.
  *
- * Callers should run verifySessionMembership first, but the security boundary does not
- * depend on it: mig `20261002000700` (the latest check_quiz_answer — a DROP+CREATE to the
- * 5-arg signature) self-guards with a strict superset — auth.uid() null
- * check, active-user gate, the same four ownership predicates, a practice-mode-only guard,
- * and its own question_ids membership test, all before the key is read. Skipping the
- * helper costs error granularity, never the guard.
+ * The RPC is the session guard: mig `20261002000700` (the latest check_quiz_answer) checks
+ * auth.uid(), the active-user gate, session ownership, practice mode and question_ids
+ * membership before the key is read, raising session_not_found / question_not_in_session
+ * (mapped by mapProgressRpcError).
  */
 export async function gradeAnswer(
   supabase: SupabaseClient,

@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@repo/db/server'
+import { getSessionUser } from '@/lib/auth/get-session-user'
 import { fetchAllRows, toPageResult } from '@/lib/supabase-paginate'
 import type { DiagramLabelQuestion } from './quiz-report-diagram-types'
 import type { QuizReportSummary } from './quiz-report-types'
@@ -94,14 +95,7 @@ type SessionRow = {
 export async function getQuizReportSummary(sessionId: string): Promise<QuizReportSummary | null> {
   const supabase = await createServerSupabaseClient()
 
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-  if (authError) {
-    console.error('[getQuizReportSummary] Auth error:', authError.message)
-    return null
-  }
+  const user = await getSessionUser()
   if (!user) return null
 
   const { data: sessionData, error: sessionError } = await supabase

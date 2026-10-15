@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@repo/db/server'
+import { getSessionUser } from '@/lib/auth/get-session-user'
 import { rpc } from '@/lib/supabase-rpc'
 
 // SECURITY: code values are NEVER returned from this query. Admin distributes
@@ -90,9 +91,7 @@ export async function listAvailableInternalExams(): Promise<
   InternalExamQueryResult<AvailableInternalExam>
 > {
   const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getSessionUser()
   if (!user) return { success: true, data: [] }
 
   const { data, error } = await rpc<AvailableRpcRow[]>(
@@ -129,9 +128,7 @@ export async function listMyInternalExamHistory(): Promise<
   InternalExamQueryResult<InternalExamHistoryEntry>
 > {
   const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getSessionUser()
   if (!user) return { success: true, data: [] }
 
   const { data, error } = await rpc<HistoryRpcRow[]>(supabase, 'list_my_internal_exam_history', {})

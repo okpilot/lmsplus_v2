@@ -2,18 +2,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetUser, mockRpc, mockFrom } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
+const { mockGetSessionUser, mockRpc, mockFrom } = vi.hoisted(() => ({
+  mockGetSessionUser: vi.fn(),
   mockRpc: vi.fn(),
   mockFrom: vi.fn(),
 }))
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
     from: mockFrom,
   }),
 }))
+
+vi.mock('@/lib/auth/get-session-user', () => ({ getSessionUser: mockGetSessionUser }))
 
 vi.mock('@/lib/supabase-rpc', () => ({
   rpc: (...args: unknown[]) => mockRpc(...args),
@@ -98,26 +99,8 @@ const DIAGRAM_RPC_RESULT = {
 
 // ---- Helpers --------------------------------------------------------------
 
-function buildSessionChain(override: Record<string, unknown> = {}) {
-  const terminal = {
-    data: { config: { question_ids: [QUESTION_ID] } },
-    error: null,
-    ...override,
-  }
-  return {
-    select: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockReturnThis(),
-    is: vi.fn().mockReturnThis(),
-    single: vi.fn().mockReturnValue(terminal),
-  }
-}
-
 function setupAuthenticatedUser() {
-  mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } } })
-}
-
-function setupValidSession() {
-  mockFrom.mockReturnValue(buildSessionChain())
+  mockGetSessionUser.mockResolvedValue({ id: USER_ID, email: null })
 }
 
 beforeEach(() => {
@@ -126,7 +109,7 @@ beforeEach(() => {
 
 describe('checkNonMcAnswer', () => {
   it('returns failure when the user is not authenticated', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } })
+    mockGetSessionUser.mockResolvedValue(null)
     const result = await checkNonMcAnswer(SHORT_INPUT)
     expect(result).toEqual({
       success: false,
@@ -161,42 +144,35 @@ describe('checkNonMcAnswer', () => {
     expect(result).toEqual({ success: false, error: 'Invalid input' })
   })
 
-  it('returns failure when the session is not found', async () => {
+  it.each([
+    [
+      'the session is missing, foreign or ended',
+      'session_not_found',
+      'This session could not be found.',
+    ],
+    [
+      'the question is outside the session',
+      'question_not_in_session',
+      'That question is not part of this session.',
+    ],
+  ])('reports a clear failure when %s', async (_label, rpcMessage, expected) => {
     setupAuthenticatedUser()
-    mockFrom.mockReturnValue(
-      buildSessionChain({ data: null, error: { code: 'PGRST116', message: 'no rows' } }),
-    )
-    const result = await checkNonMcAnswer(SHORT_INPUT)
-    expect(result).toEqual({ success: false, error: 'Session not found' })
-  })
-
-  it('returns a generic failure and logs when the session lookup hits a real error', async () => {
-    setupAuthenticatedUser()
+    mockRpc.mockResolvedValue({ data: null, error: { message: rpcMessage } })
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    mockFrom.mockReturnValue(
-      buildSessionChain({ data: null, error: { code: '08006', message: 'connection failure' } }),
-    )
     const result = await checkNonMcAnswer(SHORT_INPUT)
-    expect(result).toEqual({ success: false, error: 'Could not check answer' })
-    expect(consoleSpy).toHaveBeenCalledWith(
-      '[checkNonMcAnswer] Session lookup error:',
-      'connection failure',
-    )
     consoleSpy.mockRestore()
+    expect(result).toEqual({ success: false, error: expected })
   })
 
-  it('returns failure when the question is not in the session', async () => {
+  it('does not read quiz_sessions before grading', async () => {
     setupAuthenticatedUser()
-    mockFrom.mockReturnValue(
-      buildSessionChain({ data: { config: { question_ids: ['some-other-id'] } } }),
-    )
-    const result = await checkNonMcAnswer(SHORT_INPUT)
-    expect(result).toEqual({ success: false, error: 'Question not in session' })
+    mockRpc.mockResolvedValue({ data: SHORT_RPC_RESULT, error: null })
+    await checkNonMcAnswer(SHORT_INPUT)
+    expect(mockFrom).not.toHaveBeenCalled()
   })
 
   it('grades a short_answer and returns the canonical answer', async () => {
     setupAuthenticatedUser()
-    setupValidSession()
     mockRpc.mockResolvedValue({ data: SHORT_RPC_RESULT, error: null })
     const result = await checkNonMcAnswer(SHORT_INPUT)
     expect(result).toEqual({
@@ -211,7 +187,6 @@ describe('checkNonMcAnswer', () => {
 
   it('sends p_response_text and leaves p_blank_answers unset for short_answer', async () => {
     setupAuthenticatedUser()
-    setupValidSession()
     mockRpc.mockResolvedValue({ data: SHORT_RPC_RESULT, error: null })
     await checkNonMcAnswer(SHORT_INPUT)
     expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'check_non_mc_answer', {
@@ -225,7 +200,6 @@ describe('checkNonMcAnswer', () => {
 
   it('grades a dialog_fill and maps per-blank results to the client shape', async () => {
     setupAuthenticatedUser()
-    setupValidSession()
     mockRpc.mockResolvedValue({ data: DIALOG_RPC_RESULT, error: null })
     const result = await checkNonMcAnswer(DIALOG_INPUT)
     expect(result).toEqual({
@@ -243,7 +217,6 @@ describe('checkNonMcAnswer', () => {
 
   it('translates client blank indices to the RPC blank_index/response_text shape', async () => {
     setupAuthenticatedUser()
-    setupValidSession()
     mockRpc.mockResolvedValue({ data: DIALOG_RPC_RESULT, error: null })
     await checkNonMcAnswer(DIALOG_INPUT)
     expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'check_non_mc_answer', {
@@ -260,7 +233,6 @@ describe('checkNonMcAnswer', () => {
 
   it('grades an ordering answer and returns the revealed canonical order', async () => {
     setupAuthenticatedUser()
-    setupValidSession()
     mockRpc.mockResolvedValue({ data: ORDERING_RPC_RESULT, error: null })
     const result = await checkNonMcAnswer(ORDERING_INPUT)
     expect(result).toEqual({
@@ -275,7 +247,6 @@ describe('checkNonMcAnswer', () => {
 
   it('sends p_order and leaves the other answer params unset for ordering', async () => {
     setupAuthenticatedUser()
-    setupValidSession()
     mockRpc.mockResolvedValue({ data: ORDERING_RPC_RESULT, error: null })
     await checkNonMcAnswer(ORDERING_INPUT)
     expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'check_non_mc_answer', {
@@ -296,7 +267,6 @@ describe('checkNonMcAnswer', () => {
 
   it('grades a diagram_label answer and returns the revealed canonical mapping', async () => {
     setupAuthenticatedUser()
-    setupValidSession()
     mockRpc.mockResolvedValue({ data: DIAGRAM_RPC_RESULT, error: null })
     const result = await checkNonMcAnswer(DIAGRAM_INPUT)
     expect(result).toEqual({
@@ -314,7 +284,6 @@ describe('checkNonMcAnswer', () => {
 
   it('sends p_mapping in the zone_id/label_id snake_case shape for diagram_label', async () => {
     setupAuthenticatedUser()
-    setupValidSession()
     mockRpc.mockResolvedValue({ data: DIAGRAM_RPC_RESULT, error: null })
     await checkNonMcAnswer(DIAGRAM_INPUT)
     expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'check_non_mc_answer', {
@@ -351,7 +320,6 @@ describe('checkNonMcAnswer', () => {
 
   it('returns a generic failure when the diagram_label RPC returns an unexpected shape', async () => {
     setupAuthenticatedUser()
-    setupValidSession()
     mockRpc.mockResolvedValue({ data: DIALOG_RPC_RESULT, error: null })
     const result = await checkNonMcAnswer(DIAGRAM_INPUT)
     expect(result).toEqual({ success: false, error: 'Could not check answer' })
@@ -359,7 +327,6 @@ describe('checkNonMcAnswer', () => {
 
   it('returns a generic failure when the ordering RPC returns an unexpected shape', async () => {
     setupAuthenticatedUser()
-    setupValidSession()
     mockRpc.mockResolvedValue({ data: DIALOG_RPC_RESULT, error: null })
     const result = await checkNonMcAnswer(ORDERING_INPUT)
     expect(result).toEqual({ success: false, error: 'Could not check answer' })
@@ -367,7 +334,6 @@ describe('checkNonMcAnswer', () => {
 
   it('returns a generic failure when the short_answer RPC errors', async () => {
     setupAuthenticatedUser()
-    setupValidSession()
     mockRpc.mockResolvedValue({ data: null, error: { message: 'boom' } })
     const result = await checkNonMcAnswer(SHORT_INPUT)
     expect(result).toEqual({ success: false, error: 'Could not check answer' })
@@ -375,7 +341,6 @@ describe('checkNonMcAnswer', () => {
 
   it('returns a generic failure when the short_answer RPC returns an unexpected shape', async () => {
     setupAuthenticatedUser()
-    setupValidSession()
     mockRpc.mockResolvedValue({ data: DIALOG_RPC_RESULT, error: null })
     const result = await checkNonMcAnswer(SHORT_INPUT)
     expect(result).toEqual({ success: false, error: 'Could not check answer' })

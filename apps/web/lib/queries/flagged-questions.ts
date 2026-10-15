@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@repo/db/server'
+import { getSessionUser } from '@/lib/auth/get-session-user'
 
 /**
  * Reads which of the given question IDs the current student has actively flagged.
@@ -13,11 +14,8 @@ export async function getFlaggedQuestionIds(questionIds: string[]): Promise<stri
   if (questionIds.length === 0) return []
 
   const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-  if (authError || !user) return []
+  const user = await getSessionUser()
+  if (!user) return []
 
   const { data, error } = await supabase
     .from('active_flagged_questions')

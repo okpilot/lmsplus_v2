@@ -2,6 +2,7 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
+import { getSessionUser } from '@/lib/auth/get-session-user'
 import { requireAuthUser } from '@/lib/auth/require-auth-user'
 import type {
   SubtopicOption,
@@ -99,13 +100,9 @@ export type FilteredCountResult = {
 
 export async function getFilteredCount(input: unknown): Promise<FilteredCountResult> {
   const empty: FilteredCountResult = { count: 0, byTopic: {}, bySubtopic: {} }
+  const user = await getSessionUser()
+  if (!user) return { ...empty, error: 'auth' }
   const supabase = await createServerSupabaseClient()
-
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-  if (authError || !user) return { ...empty, error: 'auth' }
 
   let parsed: z.infer<typeof FilteredCountSchema>
   try {

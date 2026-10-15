@@ -18,17 +18,18 @@ vi.mock('@/lib/supabase-paginate', async (importOriginal) => ({
   fetchAllRows: mockFetchAllRows,
 }))
 
-const mockGetUser = vi.fn().mockResolvedValue({
-  data: { user: { id: 'user-1' } },
-})
+const mockGetSessionUser = vi.fn().mockResolvedValue({ id: 'user-1' })
 
 const mockRpc = vi.fn()
+
+vi.mock('@/lib/auth/get-session-user', () => ({
+  getSessionUser: () => mockGetSessionUser(),
+}))
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({
     from: mockFrom,
     rpc: mockRpc,
-    auth: { getUser: mockGetUser },
   }),
 }))
 
@@ -84,17 +85,7 @@ beforeEach(() => {
 
 describe('getQuizReportSummary', () => {
   it('returns null when user is not authenticated', async () => {
-    mockGetUser.mockResolvedValueOnce({ data: { user: null } })
-    const result = await getQuizReportSummary('sess-1')
-    expect(result).toBeNull()
-    expect(mockFrom).not.toHaveBeenCalled()
-  })
-
-  it('returns null when auth returns an error', async () => {
-    mockGetUser.mockResolvedValueOnce({
-      data: { user: null },
-      error: { message: 'token expired' },
-    })
+    mockGetSessionUser.mockResolvedValueOnce(null)
     const result = await getQuizReportSummary('sess-1')
     expect(result).toBeNull()
     expect(mockFrom).not.toHaveBeenCalled()

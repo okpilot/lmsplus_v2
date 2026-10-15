@@ -1,10 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockGetUser, mockRpc } = vi.hoisted(() => ({ mockGetUser: vi.fn(), mockRpc: vi.fn() }))
+const { mockGetSessionUser, mockRpc } = vi.hoisted(() => ({
+  mockGetSessionUser: vi.fn(),
+  mockRpc: vi.fn(),
+}))
 
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({ auth: { getUser: mockGetUser } }),
+  createServerSupabaseClient: async () => ({}),
 }))
+
+vi.mock('@/lib/auth/get-session-user', () => ({ getSessionUser: mockGetSessionUser }))
 
 vi.mock('@/lib/supabase-rpc', () => ({
   rpc: (...args: unknown[]) => mockRpc(...args),
@@ -34,7 +39,7 @@ const positionInput = {
 beforeEach(() => {
   vi.resetAllMocks()
   vi.spyOn(console, 'error').mockImplementation(() => {})
-  mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } }, error: null })
+  mockGetSessionUser.mockResolvedValue({ id: 'u1', email: null })
   mockRpc.mockResolvedValue({ data: null, error: null })
 })
 
@@ -59,7 +64,7 @@ describe('saveQuizAnswer', () => {
   })
 
   it('rejects an unauthenticated caller without calling the RPC', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
+    mockGetSessionUser.mockResolvedValue(null)
     expect(await saveQuizAnswer(answerInput)).toEqual({
       success: false,
       error: 'Your sign-in has expired. Please sign in again.',
@@ -68,7 +73,7 @@ describe('saveQuizAnswer', () => {
   })
 
   it('tells the student to sign in again when the sign-in has expired', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
+    mockGetSessionUser.mockResolvedValue(null)
     const results = [
       await saveQuizAnswer(answerInput),
       await saveQuizPosition(positionInput),

@@ -11,14 +11,14 @@ vi.mock('@/lib/supabase-rpc', () => ({
   rpc: mockRpc,
 }))
 
-const mockGetUser = vi.fn().mockResolvedValue({
-  data: { user: { id: 'user-1' } },
-})
+const mockGetSessionUser = vi.fn().mockResolvedValue({ id: 'user-1' })
+
+vi.mock('@/lib/auth/get-session-user', () => ({
+  getSessionUser: () => mockGetSessionUser(),
+}))
 
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
-  }),
+  createServerSupabaseClient: async () => ({}),
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -33,19 +33,7 @@ beforeEach(() => {
 
 describe('loadSessionQuestions', () => {
   it('returns failure when user is not authenticated', async () => {
-    mockGetUser.mockResolvedValueOnce({ data: { user: null } })
-    const result = await loadSessionQuestions(['q1'])
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe('Not authenticated')
-    expect(mockRpc).not.toHaveBeenCalled()
-  })
-
-  it('returns failure when getUser returns an auth error', async () => {
-    mockGetUser.mockResolvedValueOnce({
-      data: { user: null },
-      error: { message: 'token expired' },
-    })
+    mockGetSessionUser.mockResolvedValueOnce(null)
     const result = await loadSessionQuestions(['q1'])
     expect(result.success).toBe(false)
     if (result.success) return
