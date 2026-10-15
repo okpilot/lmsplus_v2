@@ -251,6 +251,7 @@
 | HY | proxy-legacy-__vdpl-expiry | LOW | deployment-pin-cookie.spec.ts | BLOCKED |  | cookie-state |
 | HZ | checkAnswer-checkNonMcAnswer-no-action-membership-precheck | HIGH | check-answer-rpc-sole-guard.spec.ts | BLOCKED |  | answer-oracle |
 | IA | proxy-getClaims-forged-access-token | HIGH | proxy-forged-access-token.spec.ts | BLOCKED |  | auth-bypass |
+| IB | finishQuizSession-deactivated-banned-live-token | MEDIUM | server-action-deactivated-student-claims.spec.ts | BLOCKED |  | auth-bypass |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
