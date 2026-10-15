@@ -42,6 +42,7 @@ export async function getActiveInternalExamSession(): Promise<GetActiveInternalE
       .eq('id', user.id)
       .is('deleted_at', null)
       .maybeSingle()
+    if (!userErr && !userRow) return { success: false, error: 'Not authenticated' }
     if (userErr || !userRow?.organization_id) {
       console.error('[getActiveInternalExamSession] User lookup error:', userErr?.message)
       return { success: false, error: 'Failed to fetch active internal exam sessions.' }

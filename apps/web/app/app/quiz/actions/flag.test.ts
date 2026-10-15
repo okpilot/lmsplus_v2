@@ -75,10 +75,6 @@ function setupAuthenticatedUser() {
   mockVerifySessionUser.mockResolvedValue({ id: USER_ID, email: null })
 }
 
-function setupUnauthenticated() {
-  mockVerifySessionUser.mockResolvedValue(null)
-}
-
 // ---- Tests -----------------------------------------------------------------
 
 describe('toggleFlag', () => {
@@ -94,14 +90,6 @@ describe('toggleFlag', () => {
   })
 
   // ---- auth ----------------------------------------------------------------
-
-  it('returns not-authenticated error when no user is signed in', async () => {
-    setupUnauthenticated()
-
-    const result = await toggleFlag({ questionId: QUESTION_ID_A })
-
-    expect(result).toEqual({ success: false, error: 'Not authenticated' })
-  })
 
   // ---- input validation ----------------------------------------------------
 
@@ -309,14 +297,6 @@ describe('getFlaggedIds', () => {
   })
 
   // ---- auth ----------------------------------------------------------------
-
-  it('returns empty flaggedIds when no user is signed in', async () => {
-    setupUnauthenticated()
-
-    const result = await getFlaggedIds({ questionIds: [QUESTION_ID_A] })
-
-    expect(result).toEqual({ success: true, flaggedIds: [] })
-  })
 
   // ---- input validation ----------------------------------------------------
 

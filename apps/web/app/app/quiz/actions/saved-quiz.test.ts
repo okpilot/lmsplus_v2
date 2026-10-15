@@ -50,16 +50,6 @@ beforeEach(() => {
 })
 
 describe('saveQuizForLater', () => {
-  it('returns a sign-in-expired error when the session has no verified user', async () => {
-    mockVerifySessionUser.mockResolvedValue(null)
-    const result = await saveQuizForLater({ sessionId: SESSION, deviceId: DEVICE })
-    expect(result).toEqual({
-      success: false,
-      error: 'Your sign-in has expired. Please sign in again.',
-    })
-    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
-  })
-
   it('saves the quiz for later on the caller device', async () => {
     expect(await saveQuizForLater({ sessionId: SESSION, deviceId: DEVICE })).toEqual({
       success: true,
@@ -101,20 +91,11 @@ describe('saveQuizForLater', () => {
       error: SIGN_IN,
     })
     expect(mockRpc).not.toHaveBeenCalled()
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 })
 
 describe('resumeSavedQuiz', () => {
-  it('returns a sign-in-expired error when the session has no verified user', async () => {
-    mockVerifySessionUser.mockResolvedValue(null)
-    const result = await resumeSavedQuiz({ sessionId: SESSION, deviceId: DEVICE })
-    expect(result).toEqual({
-      success: false,
-      error: 'Your sign-in has expired. Please sign in again.',
-    })
-    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
-  })
-
   it('restores the quiz through the RPC on the caller device', async () => {
     expect(await resumeSavedQuiz({ sessionId: SESSION, deviceId: DEVICE })).toEqual({
       success: true,
@@ -156,20 +137,11 @@ describe('resumeSavedQuiz', () => {
       error: SIGN_IN,
     })
     expect(mockRpc).not.toHaveBeenCalled()
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 })
 
 describe('discardSavedQuiz', () => {
-  it('returns a sign-in-expired error when the session has no verified user', async () => {
-    mockVerifySessionUser.mockResolvedValue(null)
-    const result = await discardSavedQuiz({ sessionId: SESSION })
-    expect(result).toEqual({
-      success: false,
-      error: 'Your sign-in has expired. Please sign in again.',
-    })
-    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
-  })
-
   it('discards the saved quiz through the RPC', async () => {
     expect(await discardSavedQuiz({ sessionId: SESSION })).toEqual({ success: true })
     expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'discard_saved_quiz', {
@@ -200,20 +172,11 @@ describe('discardSavedQuiz', () => {
       error: SIGN_IN,
     })
     expect(mockRpc).not.toHaveBeenCalled()
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 })
 
 describe('checkSavedQuizRoom', () => {
-  it('returns a sign-in-expired error when the session has no verified user', async () => {
-    mockVerifySessionUser.mockResolvedValue(null)
-    const result = await checkSavedQuizRoom()
-    expect(result).toEqual({
-      success: false,
-      error: 'Your sign-in has expired. Please sign in again.',
-    })
-    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
-  })
-
   it('allows a start while the student is under the saved-quiz cap', async () => {
     mockCount.mockResolvedValue({ count: 19, error: null })
     expect(await checkSavedQuizRoom()).toEqual({ success: true })
@@ -240,5 +203,6 @@ describe('checkSavedQuizRoom', () => {
     mockVerifySessionUser.mockResolvedValue(null)
     expect(await checkSavedQuizRoom()).toEqual({ success: false, error: SIGN_IN })
     expect(mockCount).not.toHaveBeenCalled()
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 })

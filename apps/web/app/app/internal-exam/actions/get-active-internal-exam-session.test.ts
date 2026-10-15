@@ -90,6 +90,32 @@ describe('getActiveInternalExamSession — unauthenticated', () => {
     expect(result).toEqual({ success: false, error: 'Not authenticated' })
     expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
+
+  it('returns not-authenticated without logging when the caller has no active users row', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockFrom.mockReturnValue(buildChain({ data: null, error: null }))
+
+    const result = await getActiveInternalExamSession()
+
+    expect(result).toEqual({ success: false, error: 'Not authenticated' })
+    expect(errorSpy).not.toHaveBeenCalled()
+  })
+
+  it('returns a generic failure and logs when the users lookup errors', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockFrom.mockReturnValue(buildChain({ data: null, error: { message: 'boom' } }))
+
+    const result = await getActiveInternalExamSession()
+
+    expect(result).toEqual({
+      success: false,
+      error: 'Failed to fetch active internal exam sessions.',
+    })
+    expect(errorSpy).toHaveBeenCalledWith(
+      '[getActiveInternalExamSession] User lookup error:',
+      'boom',
+    )
+  })
 })
 
 describe('getActiveInternalExamSession — happy path', () => {
