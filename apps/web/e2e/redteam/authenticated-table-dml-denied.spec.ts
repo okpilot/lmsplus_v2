@@ -48,8 +48,9 @@ type Command = 'insert' | 'update' | 'delete'
 
 // Closed set — one row per REVOKE statement in
 // supabase/migrations/20260925000300_least_privilege_table_grants.sql,
-// 20261002000900_revoke_student_quiz_session_insert.sql and
-// 20261004000500_revoke_student_quiz_draft_writes.sql.
+// 20261002000900_revoke_student_quiz_session_insert.sql,
+// 20261004000500_revoke_student_quiz_draft_writes.sql and
+// 20261015000100_student_writes_require_active_user.sql.
 const REVOKED_CELLS: Array<{ table: string; commands: Command[] }> = [
   { table: 'audit_events', commands: ['insert', 'update', 'delete'] },
   { table: 'courses', commands: ['insert', 'update', 'delete'] },
@@ -69,6 +70,8 @@ const REVOKED_CELLS: Array<{ table: string; commands: Command[] }> = [
   { table: 'questions', commands: ['delete'] },
   { table: 'quiz_sessions', commands: ['insert', 'delete'] },
   { table: 'quiz_drafts', commands: ['insert', 'update'] },
+  // Vector IC (mig 20261015000100)
+  { table: 'fsrs_cards', commands: ['insert', 'update', 'delete'] },
 ]
 
 test.describe('Red Team: Authenticated Table-Level DML Denied on Revoked Cells', () => {
