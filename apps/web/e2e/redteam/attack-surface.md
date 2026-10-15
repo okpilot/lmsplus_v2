@@ -252,7 +252,7 @@
 | HZ | checkAnswer-checkNonMcAnswer-no-action-membership-precheck | HIGH | check-answer-rpc-sole-guard.spec.ts | BLOCKED |  | answer-oracle |
 | IA | proxy-getClaims-forged-access-token | HIGH | proxy-forged-access-token.spec.ts | BLOCKED |  | auth-bypass |
 | IB | finishQuizSession-deactivated-banned-live-token | MEDIUM | server-action-deactivated-student-claims.spec.ts | BLOCKED |  | auth-bypass |
-| IC | fsrs_cards-direct-student-write | MEDIUM | authenticated-table-dml-denied.spec.ts | BLOCKED |  | rls |
+| IC | fsrs_cards-direct-student-write | MEDIUM | authenticated-table-dml-denied.spec.ts | BLOCKED |  | rls-bypass |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
