@@ -83,6 +83,6 @@ describe('checkAnswer progress save', () => {
 
   it('keeps the generic copy for an unrecognised RPC error', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'connection reset' } })
-    expect(await checkAnswer(INPUT)).toEqual({ success: false, error: 'Question not found' })
+    expect(await checkAnswer(INPUT)).toEqual({ success: false, error: 'Could not check answer' })
   })
 })

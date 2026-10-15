@@ -178,7 +178,7 @@ describe('checkAnswer', () => {
     consoleSpy.mockRestore()
     expect(result.success).toBe(false)
     if (result.success) return
-    expect(result.error).toBe('Question not found')
+    expect(result.error).toBe('Could not check answer')
   })
 
   it('returns failure when RPC returns a non-null primitive', async () => {
@@ -195,7 +195,7 @@ describe('checkAnswer', () => {
     consoleSpy.mockRestore()
     expect(result.success).toBe(false)
     if (result.success) return
-    expect(result.error).toBe('Question not found')
+    expect(result.error).toBe('Could not check answer')
   })
 
   it('returns failure when RPC response is missing is_correct field', async () => {
@@ -220,7 +220,7 @@ describe('checkAnswer', () => {
     consoleSpy.mockRestore()
     expect(result.success).toBe(false)
     if (result.success) return
-    expect(result.error).toBe('Question not found')
+    expect(result.error).toBe('Could not check answer')
   })
 
   it('returns failure when RPC returns is_correct as a string instead of boolean', async () => {
@@ -245,7 +245,7 @@ describe('checkAnswer', () => {
     consoleSpy.mockRestore()
     expect(result.success).toBe(false)
     if (result.success) return
-    expect(result.error).toBe('Question not found')
+    expect(result.error).toBe('Could not check answer')
   })
 
   it('returns failure when RPC returns correct_option_id as null instead of string', async () => {
@@ -270,7 +270,7 @@ describe('checkAnswer', () => {
     consoleSpy.mockRestore()
     expect(result.success).toBe(false)
     if (result.success) return
-    expect(result.error).toBe('Question not found')
+    expect(result.error).toBe('Could not check answer')
   })
 
   it('returns failure when RPC returns explanation_text as a number instead of string or null', async () => {
@@ -295,7 +295,7 @@ describe('checkAnswer', () => {
     consoleSpy.mockRestore()
     expect(result.success).toBe(false)
     if (result.success) return
-    expect(result.error).toBe('Question not found')
+    expect(result.error).toBe('Could not check answer')
   })
 
   it('returns failure when RPC returns explanation_image_url as a number instead of string or null', async () => {
@@ -320,7 +320,7 @@ describe('checkAnswer', () => {
     consoleSpy.mockRestore()
     expect(result.success).toBe(false)
     if (result.success) return
-    expect(result.error).toBe('Question not found')
+    expect(result.error).toBe('Could not check answer')
   })
 
   it('returns isCorrect true when selectedOptionId matches the correct option', async () => {

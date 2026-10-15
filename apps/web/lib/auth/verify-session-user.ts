@@ -15,13 +15,26 @@ type AuthClient = {
  * therefore bounded by the access-token lifetime. Returns null when there is no valid session.
  */
 export async function verifySessionUser(supabase: AuthClient): Promise<SessionUser | null> {
-  const { data, error } = await supabase.auth.getSession()
-  if (error) {
-    console.error('[verifySessionUser] getSession failed:', error.message)
+  let token: string | undefined
+  try {
+    const { data, error } = await supabase.auth.getSession()
+    if (error) {
+      console.error('[verifySessionUser] getSession failed:', error.message)
+      return null
+    }
+    token = data.session?.access_token
+  } catch (err) {
+    console.error(
+      '[verifySessionUser] getSession failed:',
+      err instanceof Error ? err.message : err,
+    )
     return null
   }
-  const token = data.session?.access_token
   if (!token) return null
+  return verifyToken(supabase, token)
+}
+
+async function verifyToken(supabase: AuthClient, token: string): Promise<SessionUser | null> {
   try {
     const { data: verified, error: claimsError } = await supabase.auth.getClaims(token)
     if (claimsError) {
@@ -29,8 +42,8 @@ export async function verifySessionUser(supabase: AuthClient): Promise<SessionUs
       return null
     }
     if (!verified) return null
-    const { sub, email, role } = verified.claims
-    if (role !== 'authenticated') return null
+    const { sub, email, role, is_anonymous } = verified.claims
+    if (role !== 'authenticated' || is_anonymous === true) return null
     if (typeof sub !== 'string' || sub === '') return null
     return { id: sub, email: typeof email === 'string' ? email : null }
   } catch (err) {

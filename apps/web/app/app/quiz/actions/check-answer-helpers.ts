@@ -47,7 +47,7 @@ export async function gradeAnswer(
 
   if (error || !isCheckAnswerRpcResult(data)) {
     console.error('[checkAnswer] RPC error:', error?.message)
-    return { success: false, error: mapProgressRpcError(error?.message, 'Question not found') }
+    return { success: false, error: mapProgressRpcError(error?.message, 'Could not check answer') }
   }
 
   return {

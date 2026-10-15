@@ -71,6 +71,25 @@ describe('verifySessionUser', () => {
     expect(mockGetUser).not.toHaveBeenCalled()
   })
 
+  it('returns null for an anonymous session', async () => {
+    mockGetClaims.mockResolvedValue({
+      data: { claims: { sub: USER_ID, role: 'authenticated', is_anonymous: true } },
+      error: null,
+    })
+    await expect(getSessionUser()).resolves.toBeNull()
+  })
+
+  it('returns null and logs when reading the session throws, without verifying anything', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    mockGetSession.mockRejectedValue(new Error('storage unavailable'))
+    await expect(getSessionUser()).resolves.toBeNull()
+    expect(spy).toHaveBeenCalledWith(
+      '[verifySessionUser] getSession failed:',
+      'storage unavailable',
+    )
+    expect(mockGetClaims).not.toHaveBeenCalled()
+  })
+
   it('returns null and logs when reading the session fails, without verifying anything', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     mockGetSession.mockResolvedValue({
