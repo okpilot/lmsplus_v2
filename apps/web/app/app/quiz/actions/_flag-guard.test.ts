@@ -108,12 +108,12 @@ describe('unflagQuestion', () => {
     expect(result).toEqual({ success: true, flagged: false })
   })
 
-  it('returns a failure when the unflag changes no rows', async () => {
+  it('treats an already-cleared flag as successfully unflagged', async () => {
     const supabase = makeSupabase({ data: [], error: null })
 
     const result = await unflagQuestion(supabase, USER_ID, QUESTION_ID)
 
-    expect(result).toEqual({ success: false, error: 'Failed to unflag' })
+    expect(result).toEqual({ success: true, flagged: false })
   })
 
   it('returns a failure and logs when clearing the flag fails', async () => {

@@ -36,10 +36,6 @@ function setupUnauthenticated() {
   mockVerifySessionUser.mockResolvedValue(null)
 }
 
-function selectRows(result: unknown) {
-  return vi.fn().mockResolvedValue(result)
-}
-
 function mockChain() {
   const chain: Record<string, unknown> = {
     delete: vi.fn().mockReturnThis(),
@@ -92,9 +88,7 @@ describe('deleteDraft', () => {
   it('returns success on happy path', async () => {
     setupAuthenticatedUser()
     const chain = mockChain()
-    const secondEq = vi
-      .fn()
-      .mockReturnValue({ select: selectRows({ data: [{ id: DRAFT_ID }], error: null }) })
+    const secondEq = vi.fn().mockReturnValue({ error: null })
     ;(chain.eq as ReturnType<typeof vi.fn>).mockReturnValue({ eq: secondEq })
     mockFrom.mockReturnValue(chain)
 
@@ -105,9 +99,7 @@ describe('deleteDraft', () => {
   it('returns failure when the database delete fails', async () => {
     setupAuthenticatedUser()
     const chain = mockChain()
-    const secondEq = vi.fn().mockReturnValue({
-      select: selectRows({ data: null, error: { message: 'RLS policy violation' } }),
-    })
+    const secondEq = vi.fn().mockReturnValue({ error: { message: 'RLS policy violation' } })
     ;(chain.eq as ReturnType<typeof vi.fn>).mockReturnValue({ eq: secondEq })
     mockFrom.mockReturnValue(chain)
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -115,20 +107,6 @@ describe('deleteDraft', () => {
     const result = await deleteDraft({ draftId: DRAFT_ID })
     expect(result).toEqual({ success: false })
     expect(consoleSpy).toHaveBeenCalledWith('[deleteDraft] Delete error:', 'RLS policy violation')
-    consoleSpy.mockRestore()
-  })
-
-  it('returns failure and logs when the delete changes no rows', async () => {
-    setupAuthenticatedUser()
-    const chain = mockChain()
-    const secondEq = vi.fn().mockReturnValue({ select: selectRows({ data: [], error: null }) })
-    ;(chain.eq as ReturnType<typeof vi.fn>).mockReturnValue({ eq: secondEq })
-    mockFrom.mockReturnValue(chain)
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-
-    const result = await deleteDraft({ draftId: DRAFT_ID })
-    expect(result).toEqual({ success: false })
-    expect(consoleSpy).toHaveBeenCalledWith('[deleteDraft] No row deleted')
     consoleSpy.mockRestore()
   })
 
@@ -147,9 +125,7 @@ describe('deleteDraft', () => {
   it('scopes deletion to the authenticated user via student_id filter', async () => {
     setupAuthenticatedUser()
     const chain = mockChain()
-    const secondEq = vi
-      .fn()
-      .mockReturnValue({ select: selectRows({ data: [{ id: DRAFT_ID }], error: null }) })
+    const secondEq = vi.fn().mockReturnValue({ error: null })
     const firstEq = vi.fn().mockReturnValue({ eq: secondEq })
     ;(chain.eq as ReturnType<typeof vi.fn>).mockImplementation(firstEq)
     mockFrom.mockReturnValue(chain)

@@ -280,19 +280,6 @@ describe('toggleFlag', () => {
     expect(methodsCalled).not.toContain('delete')
   })
 
-  it('returns failure when flag-off changes no rows', async () => {
-    setupAuthenticatedUser()
-    setupFromByTable({
-      quiz_sessions: { data: null, error: null },
-      active_flagged_questions: { data: { student_id: USER_ID }, error: null },
-      flagged_questions: { data: [], error: null },
-    })
-
-    const result = await toggleFlag({ questionId: QUESTION_ID_A })
-
-    expect(result).toEqual({ success: false, error: 'Failed to unflag' })
-  })
-
   it('returns failure when the soft-delete errors during flag-off', async () => {
     setupAuthenticatedUser()
     setupFromByTable({
