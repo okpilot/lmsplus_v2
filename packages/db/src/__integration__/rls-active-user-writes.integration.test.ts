@@ -24,7 +24,6 @@ describe('RLS: student writes require an active user', () => {
   let q3: string
   let refs: Awaited<ReturnType<typeof seedReferenceData>>
   const userIds: string[] = []
-  const draftIds: string[] = []
 
   async function setDeactivated(deactivated: boolean) {
     const { error } = await admin
@@ -52,9 +51,7 @@ describe('RLS: student writes require an active user', () => {
       .select('id')
       .single()
     expect(error).toBeNull()
-    const id = (data as { id: string }).id
-    draftIds.push(id)
-    return id
+    return (data as { id: string }).id
   }
 
   async function seedFlag(questionId: string) {
