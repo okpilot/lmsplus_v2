@@ -110,7 +110,8 @@ export async function submitAnswer(input: unknown) {
 // ✅ CORRECT — orchestrator + focused helpers
 export async function submitAnswer(input: unknown) {
   const { questionId, sessionId, selectedOptionId } = SubmitAnswerSchema.parse(input)
-  const student = await verifySessionUser(await createServerSupabaseClient())
+  const supabase = await createServerSupabaseClient()
+  const student = await verifySessionUser(supabase)
   if (!student) return { success: false, error: 'Not authenticated' }
   const isCorrect = await checkAnswer(questionId, selectedOptionId)
   await updateFsrsState(student.id, questionId, isCorrect)
