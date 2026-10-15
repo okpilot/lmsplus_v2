@@ -202,4 +202,33 @@ describe('endDiscovery (app-layer integration)', () => {
     // Student B's concurrent discovery row remains active — the delete was id-scoped.
     expect(await readDeletedAt(sessionB)).toBeNull()
   })
+
+  it('returns failure and keeps the live discovery row when a deactivated student with a live token exits', async () => {
+    const studentBClient = await getAuthenticatedClient({ email: emailB, password })
+    const sessionId = await seedDiscoverySession(studentBClient, questionIds.slice(0, 1))
+    // Non-vacuity: the live row exists and is active before the refused write.
+    expect(await readDeletedAt(sessionId)).toBeNull()
+
+    // Deactivation hides the student's own users row (users_select) and RLS refuses the write.
+    await signInAs(emailB, password)
+    const { error: deactivateError } = await admin
+      .from('users')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', studentBId)
+    if (deactivateError) throw new Error(`deactivate: ${deactivateError.message}`)
+    let restoreFailure: string | undefined
+    let outcome: Awaited<ReturnType<typeof endDiscovery>> | undefined
+    try {
+      outcome = await endDiscovery()
+    } finally {
+      const { error: restoreError } = await admin
+        .from('users')
+        .update({ deleted_at: null })
+        .eq('id', studentBId)
+      restoreFailure = restoreError?.message
+    }
+    if (restoreFailure) throw new Error(`restore: ${restoreFailure}`)
+    expect(outcome).toEqual({ success: false, error: 'Failed to exit discovery' })
+    expect(await readDeletedAt(sessionId)).toBeNull()
+  })
 })

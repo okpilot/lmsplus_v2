@@ -161,15 +161,47 @@ describe('discardQuiz', () => {
     expect(result).toEqual({ success: false, error: 'cannot_discard_vfr_rt_exam' })
   })
 
-  it('returns failure when session not found or not owned (zero rows affected)', async () => {
+  function mockZeroRowUpdate(usersResult: unknown) {
+    mockFrom.mockImplementation((table: string) =>
+      table === 'users'
+        ? buildChain(usersResult)
+        : quizSessionsDualChain(
+            {
+              data: { id: '00000000-0000-4000-a000-000000000001', mode: 'quick_quiz' },
+              error: null,
+            },
+            { data: [], error: null },
+          ),
+    )
+  }
+
+  const ZERO_ROW_INPUT = { sessionId: '00000000-0000-4000-a000-000000000001' }
+
+  it('returns session-not-found when the update changes no rows and the caller is active', async () => {
+    mockZeroRowUpdate({ data: { id: 'user-1' }, error: null })
+    const result = await discardQuiz(ZERO_ROW_INPUT)
+    expect(result).toEqual({ success: false, error: 'Session not found or already discarded' })
+  })
+
+  it('returns the account-inactive message when the update changes no rows and the caller is deactivated', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockZeroRowUpdate({ data: null, error: null })
+    const result = await discardQuiz(ZERO_ROW_INPUT)
+    expect(result).toEqual({ success: false, error: 'Your account is no longer active.' })
+  })
+
+  it('returns the account-inactive message when the update changes no rows and the caller lookup errors', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockZeroRowUpdate({ data: null, error: { message: 'boom', code: 'XX000' } })
+    const result = await discardQuiz(ZERO_ROW_INPUT)
+    expect(result).toEqual({ success: false, error: 'Your account is no longer active.' })
+  })
+
+  it('returns failure when the session is not found by the pre-fetch', async () => {
     mockFrom.mockReturnValue(
       quizSessionsDualChain({ data: null, error: null }, { data: [], error: null }),
     )
-
-    const result = await discardQuiz({
-      sessionId: '00000000-0000-4000-a000-000000000001',
-    })
-
+    const result = await discardQuiz(ZERO_ROW_INPUT)
     expect(result).toEqual({ success: false, error: 'Session not found or already discarded' })
   })
 

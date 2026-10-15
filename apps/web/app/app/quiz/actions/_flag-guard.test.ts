@@ -24,6 +24,10 @@ function makeSupabase(returnValue: unknown): MockSupabase {
   return { from: () => buildChain(returnValue) } as unknown as MockSupabase
 }
 
+function makeSupabaseByTable(byTable: Record<string, unknown>): MockSupabase {
+  return { from: (table: string) => buildChain(byTable[table]) } as unknown as MockSupabase
+}
+
 // ---- Fixtures --------------------------------------------------------------
 
 const USER_ID = '00000000-0000-4000-a000-000000000001'
@@ -108,12 +112,39 @@ describe('unflagQuestion', () => {
     expect(result).toEqual({ success: true, flagged: false })
   })
 
-  it('treats an already-cleared flag as successfully unflagged', async () => {
-    const supabase = makeSupabase({ data: [], error: null })
+  it('treats an already-cleared flag as successfully unflagged for an active caller', async () => {
+    const supabase = makeSupabaseByTable({
+      flagged_questions: { data: [], error: null },
+      users: { data: { id: USER_ID }, error: null },
+    })
 
     const result = await unflagQuestion(supabase, USER_ID, QUESTION_ID)
 
     expect(result).toEqual({ success: true, flagged: false })
+  })
+
+  it('returns a failure when the unflag changes no rows and the caller is deactivated', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const supabase = makeSupabaseByTable({
+      flagged_questions: { data: [], error: null },
+      users: { data: null, error: null },
+    })
+
+    const result = await unflagQuestion(supabase, USER_ID, QUESTION_ID)
+
+    expect(result).toEqual({ success: false, error: 'Failed to unflag' })
+  })
+
+  it('returns a failure when the unflag changes no rows and the caller lookup errors', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const supabase = makeSupabaseByTable({
+      flagged_questions: { data: [], error: null },
+      users: { data: null, error: { message: 'boom', code: 'XX000' } },
+    })
+
+    const result = await unflagQuestion(supabase, USER_ID, QUESTION_ID)
+
+    expect(result).toEqual({ success: false, error: 'Failed to unflag' })
   })
 
   it('returns a failure and logs when clearing the flag fails', async () => {

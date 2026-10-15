@@ -2,6 +2,7 @@
 // Server Action cap from .claude/rules/code-style.md §1.
 
 import type { createServerSupabaseClient } from '@repo/db/server'
+import { resolveZeroRowWrite } from './_caller-active'
 
 type ServerSupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
@@ -78,8 +79,15 @@ export async function unflagQuestion(
     console.error('[toggleFlag] Unflag error:', error.message)
     return { success: false, error: 'Failed to unflag' }
   }
-  // Zero rows = already unflagged concurrently; still correct terminal state
-  if (!data?.length) return { success: true, flagged: false }
+  // Zero rows: unflagged concurrently, or RLS refused a deactivated caller (mig 20261015000100).
+  if (!data?.length) {
+    return resolveZeroRowWrite<FlagResult, FlagResult>(supabase, {
+      userId,
+      tag: 'toggleFlag',
+      whenActive: { success: true, flagged: false },
+      whenInactive: { success: false, error: 'Failed to unflag' },
+    })
+  }
   return { success: true, flagged: false }
 }
 

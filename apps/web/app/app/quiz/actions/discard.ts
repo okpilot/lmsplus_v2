@@ -4,7 +4,15 @@ import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import type { ActionResult } from '@/lib/action-result'
 import { verifySessionUser } from '@/lib/auth/verify-session-user'
+import { resolveZeroRowWrite } from './_caller-active'
 import { discardBlockedError } from './_discard-guard'
+import { NOT_ACTIVE } from './progress-error-messages'
+
+const NOT_FOUND: ActionResult = { success: false, error: 'Session not found or already discarded' }
+
+function logBlockedDiscard(mode: string, sessionId: string, userId: string) {
+  console.error('[discardQuiz] Rejected', mode, 'discard for session', sessionId, 'user', userId)
+}
 
 const DiscardQuizInput = z.object({
   sessionId: z.uuid(),
@@ -39,19 +47,10 @@ export async function discardQuiz(raw: unknown): Promise<ActionResult> {
       console.error('[discardQuiz] Session lookup error:', fetchError.message, fetchError.code)
       return { success: false, error: 'Failed to discard quiz' }
     }
-    if (!existing) {
-      return { success: false, error: 'Session not found or already discarded' }
-    }
+    if (!existing) return NOT_FOUND
     const blockedError = discardBlockedError(existing.mode)
     if (blockedError) {
-      console.error(
-        '[discardQuiz] Rejected',
-        existing.mode,
-        'discard for session',
-        input.sessionId,
-        'user',
-        user.id,
-      )
+      logBlockedDiscard(existing.mode, input.sessionId, user.id)
       return { success: false, error: blockedError }
     }
 
@@ -74,7 +73,12 @@ export async function discardQuiz(raw: unknown): Promise<ActionResult> {
       return { success: false, error: 'Failed to discard quiz' }
     }
     if (!sessionData?.length) {
-      return { success: false, error: 'Session not found or already discarded' }
+      return resolveZeroRowWrite<ActionResult, ActionResult>(supabase, {
+        userId: user.id,
+        tag: 'discardQuiz',
+        whenActive: NOT_FOUND,
+        whenInactive: { success: false, error: NOT_ACTIVE },
+      })
     }
     console.log(
       '[discardQuiz] Success — session',
