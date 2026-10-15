@@ -25,7 +25,7 @@ describe('verifySessionUser', () => {
 
   it('returns the id and email from verified claims', async () => {
     mockGetClaims.mockResolvedValue({
-      data: { claims: { sub: USER_ID, email: 'a@test.local' } },
+      data: { claims: { sub: USER_ID, role: 'authenticated', email: 'a@test.local' } },
       error: null,
     })
     await expect(getSessionUser()).resolves.toEqual({ id: USER_ID, email: 'a@test.local' })
@@ -33,7 +33,10 @@ describe('verifySessionUser', () => {
   })
 
   it('returns null email when the token carries none', async () => {
-    mockGetClaims.mockResolvedValue({ data: { claims: { sub: USER_ID } }, error: null })
+    mockGetClaims.mockResolvedValue({
+      data: { claims: { sub: USER_ID, role: 'authenticated' } },
+      error: null,
+    })
     await expect(getSessionUser()).resolves.toEqual({ id: USER_ID, email: null })
   })
 
@@ -43,13 +46,27 @@ describe('verifySessionUser', () => {
     expect(mockGetUser).not.toHaveBeenCalled()
   })
 
+  it.each([undefined, 'anon', 'service_role'])(
+    'returns null when the token is not a signed-in user session (role %s)',
+    async (role) => {
+      mockGetClaims.mockResolvedValue({ data: { claims: { sub: USER_ID, role } }, error: null })
+      await expect(getSessionUser()).resolves.toBeNull()
+    },
+  )
+
   it('returns null when the subject claim is missing', async () => {
-    mockGetClaims.mockResolvedValue({ data: { claims: { email: 'a@test.local' } }, error: null })
+    mockGetClaims.mockResolvedValue({
+      data: { claims: { role: 'authenticated', email: 'a@test.local' } },
+      error: null,
+    })
     await expect(getSessionUser()).resolves.toBeNull()
   })
 
   it('returns null when the subject claim is an empty string', async () => {
-    mockGetClaims.mockResolvedValue({ data: { claims: { sub: '' } }, error: null })
+    mockGetClaims.mockResolvedValue({
+      data: { claims: { sub: '', role: 'authenticated' } },
+      error: null,
+    })
     await expect(getSessionUser()).resolves.toBeNull()
     expect(mockGetUser).not.toHaveBeenCalled()
   })
@@ -82,7 +99,10 @@ describe('verifySessionUser', () => {
   })
 
   it('verifies exactly the session access token', async () => {
-    mockGetClaims.mockResolvedValue({ data: { claims: { sub: USER_ID } }, error: null })
+    mockGetClaims.mockResolvedValue({
+      data: { claims: { sub: USER_ID, role: 'authenticated' } },
+      error: null,
+    })
     await getSessionUser()
     expect(mockGetClaims).toHaveBeenCalledWith(TOKEN)
   })

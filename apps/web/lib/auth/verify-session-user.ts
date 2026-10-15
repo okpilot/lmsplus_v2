@@ -29,7 +29,8 @@ export async function verifySessionUser(supabase: AuthClient): Promise<SessionUs
       return null
     }
     if (!verified) return null
-    const { sub, email } = verified.claims
+    const { sub, email, role } = verified.claims
+    if (role !== 'authenticated') return null
     if (typeof sub !== 'string' || sub === '') return null
     return { id: sub, email: typeof email === 'string' ? email : null }
   } catch (err) {
