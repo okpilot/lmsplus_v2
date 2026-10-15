@@ -164,6 +164,8 @@ describe('QuizSessionLoader — error state', () => {
     render(<QuizSessionLoader userId="user-1" />)
     expect(screen.getByRole('alert')).toBeInTheDocument()
     expect(screen.getByRole('alert')).toHaveTextContent('Something went wrong.')
+    expect(screen.getByRole('alert')).toHaveAttribute('data-slot', 'alert')
+    expect(screen.getByRole('alert')).toHaveClass('bg-danger-soft')
   })
 
   it('does not render skeleton or QuizSession when there is an error', () => {

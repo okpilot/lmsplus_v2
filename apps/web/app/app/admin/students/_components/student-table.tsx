@@ -68,7 +68,7 @@ export function StudentTable({ students, onEdit, onToggleStatus, onExport }: Rea
               </TableCell>
               <TableCell>
                 {s.deleted_at === null ? (
-                  <Badge variant="default" className="bg-green-600 text-xs hover:bg-green-600">
+                  <Badge tone="success" className="text-xs">
                     Active
                   </Badge>
                 ) : (
@@ -86,7 +86,7 @@ export function StudentTable({ students, onEdit, onToggleStatus, onExport }: Rea
               <TableCell>
                 <LoginInstructionsCell student={s} />
               </TableCell>
-              <TableCell>
+              <TableCell className="py-2.5 lg:py-2">
                 <div className="flex items-center gap-1">
                   <Button
                     variant="ghost"

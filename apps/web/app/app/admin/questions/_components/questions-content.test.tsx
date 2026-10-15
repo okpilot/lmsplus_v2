@@ -106,6 +106,17 @@ describe('QuestionsContent', () => {
     expect(mockRedirect).not.toHaveBeenCalled()
   })
 
+  it('shows the load failure as a danger alert', async () => {
+    mockGetQuestionsList.mockResolvedValue({ ok: false, error: 'DB error' })
+
+    const element = await QuestionsContent({ filters: DEFAULT_FILTERS })
+    const { container } = render(element)
+
+    const alert = container.querySelector('[data-slot="alert"]')
+    expect(alert).toHaveTextContent('Failed to load questions. Please try again.')
+    expect(alert).toHaveClass('bg-danger-soft')
+  })
+
   // --- Redirect: page > totalPages ---
 
   it('redirects when page exceeds totalPages with non-zero totalCount', async () => {

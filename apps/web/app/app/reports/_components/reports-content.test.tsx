@@ -142,4 +142,13 @@ describe('ReportsContent', () => {
     expect(mockRedirect).toHaveBeenCalledWith(expect.stringContaining('dir=asc'))
     expect(mockRedirect).toHaveBeenCalledWith(expect.stringContaining('page=3'))
   })
+
+  it('shows the load failure inside a danger alert', async () => {
+    mockGetSessionReports.mockResolvedValue({ ok: false, error: 'x' })
+
+    render(await ReportsContent(DEFAULT_PROPS))
+
+    const alert = screen.getByText(/failed to load reports/i).closest('[data-slot="alert"]')
+    expect(alert).toHaveClass('bg-danger-soft')
+  })
 })

@@ -31,6 +31,11 @@ describe('ExplanationTab', () => {
   it('shows fallback message when explanation text is null', () => {
     render(<ExplanationTab explanationText={null} explanationImageUrl={null} />)
     expect(screen.getByText('No explanation available for this question.')).toBeInTheDocument()
+    expect(
+      screen
+        .getByText('No explanation available for this question.')
+        .closest('[data-slot="empty"]'),
+    ).toBeNull()
   })
 
   it('renders ZoomableImage when an explanation image URL is provided', () => {

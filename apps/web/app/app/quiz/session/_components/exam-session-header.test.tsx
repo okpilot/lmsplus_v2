@@ -19,6 +19,13 @@ describe('ExamBadge', () => {
     expect(screen.getByText('PRACTICE EXAM')).toBeInTheDocument()
   })
 
+  it('renders as a caution-toned badge', () => {
+    render(<ExamBadge mode="mock_exam" />)
+    const badge = screen.getByText('PRACTICE EXAM')
+    expect(badge).toHaveAttribute('data-slot', 'badge')
+    expect(badge).toHaveClass('bg-caution-soft')
+  })
+
   it('renders "INTERNAL EXAM" for internal_exam mode', () => {
     render(<ExamBadge mode="internal_exam" />)
     expect(screen.getByText('INTERNAL EXAM')).toBeInTheDocument()

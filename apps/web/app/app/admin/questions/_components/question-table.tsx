@@ -102,7 +102,7 @@ export function QuestionTable({
               <TableCell className="text-xs tabular-nums text-muted-foreground">
                 {formatDate(q.updated_at)}
               </TableCell>
-              <TableCell>
+              <TableCell className="py-2.5 lg:py-2">
                 <div className="flex items-center gap-1">
                   <QuestionFormDialog
                     tree={tree}

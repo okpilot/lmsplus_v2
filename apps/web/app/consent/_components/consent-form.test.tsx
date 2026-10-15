@@ -168,4 +168,21 @@ describe('ConsentForm', () => {
       })
     })
   })
+
+  it('renders the server error as a danger field error', async () => {
+    vi.mocked(recordConsent).mockResolvedValue({
+      success: false,
+      error: 'Failed to record consent',
+    })
+    const user = userEvent.setup()
+    render(<ConsentForm />)
+
+    await user.click(screen.getByLabelText('I accept the Terms of Service'))
+    await user.click(screen.getByLabelText('I accept the Privacy Policy'))
+    await user.click(screen.getByRole('button', { name: /continue/i }))
+
+    const error = await screen.findByRole('alert')
+    expect(error).toHaveAttribute('data-slot', 'field-error')
+    expect(error).toHaveClass('text-danger')
+  })
 })

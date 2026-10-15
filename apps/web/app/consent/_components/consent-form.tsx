@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { FieldError } from '@/components/ui/field-error'
 import { LoadingButton } from '@/components/ui/loading-button'
 import { recordConsent } from '../actions'
 import { ConsentCheckbox } from './consent-checkbox'
@@ -74,11 +75,7 @@ export function ConsentForm({ nextPath }: Readonly<ConsentFormProps>) {
             are used.
           </p>
 
-          {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
+          <FieldError role="alert">{error}</FieldError>
 
           <LoadingButton
             type="submit"

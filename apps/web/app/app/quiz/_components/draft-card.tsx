@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
+import { FieldError } from '@/components/ui/field-error'
 import { deleteDraft } from '../actions/draft-delete'
 import { resumeQuizSession } from '../actions/resume'
 import type { DraftData } from '../types'
@@ -107,7 +108,7 @@ export function DraftCard({ draft }: Readonly<{ draft: DraftData }>) {
         </div>
       </div>
       <SavedSessionProgress answered={answeredCount} total={totalCount} />
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      <FieldError>{error}</FieldError>
     </div>
   )
 }

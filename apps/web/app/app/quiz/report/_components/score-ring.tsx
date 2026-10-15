@@ -5,48 +5,62 @@ type Props = Readonly<{
   size?: number
 }>
 
-export function ScoreRing({ percentage, size = 120 }: Props) {
-  const clamped = Math.min(100, Math.max(0, percentage))
+function ringGeometry(size: number, percentage: number) {
   const radius = (size - 16) / 2
   const circumference = 2 * Math.PI * radius
-  const rounded = Math.round(clamped)
-  const offset = circumference - (clamped / 100) * circumference
-  const color = scoreColor(clamped)
-  const arcColor = scoreColor(clamped, 'solid')
+  const clamped = Math.min(100, Math.max(0, percentage))
+  return {
+    radius,
+    circumference,
+    clamped,
+    rounded: Math.round(clamped),
+    offset: circumference - (clamped / 100) * circumference,
+  }
+}
 
+type Geometry = ReturnType<typeof ringGeometry>
+
+function RingArc({ size, geometry }: Readonly<{ size: number; geometry: Geometry }>) {
+  const { radius, circumference, clamped, offset } = geometry
+  const common = { cx: size / 2, cy: size / 2, r: radius, fill: 'none', strokeWidth: 8 }
   return (
-    <svg width={size} height={size} role="img" aria-label={`Score: ${rounded}%`}>
+    <>
+      <circle {...common} stroke="var(--muted)" />
       <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        fill="none"
-        stroke="var(--muted)"
-        strokeWidth={8}
-      />
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        fill="none"
-        stroke={arcColor}
-        strokeWidth={8}
+        {...common}
+        stroke={scoreColor(clamped, 'solid')}
         strokeLinecap="round"
         strokeDasharray={circumference}
         strokeDashoffset={offset}
         transform={`rotate(-90 ${size / 2} ${size / 2})`}
       />
-      <text
-        x="50%"
-        y="50%"
-        dominantBaseline="middle"
-        textAnchor="middle"
-        fontSize={size * 0.22}
-        fontWeight="700"
-        fill={color}
-      >
-        {rounded}%
-      </text>
+    </>
+  )
+}
+
+function RingText({ size, geometry }: Readonly<{ size: number; geometry: Geometry }>) {
+  const { clamped, rounded } = geometry
+  return (
+    <text
+      x="50%"
+      y="50%"
+      dominantBaseline="middle"
+      textAnchor="middle"
+      fontSize={size * 0.22}
+      fontWeight="700"
+      fill={scoreColor(clamped)}
+    >
+      {rounded}%
+    </text>
+  )
+}
+
+export function ScoreRing({ percentage, size = 120 }: Props) {
+  const geometry = ringGeometry(size, percentage)
+  return (
+    <svg width={size} height={size} role="img" aria-label={`Score: ${geometry.rounded}%`}>
+      <RingArc size={size} geometry={geometry} />
+      <RingText size={size} geometry={geometry} />
     </svg>
   )
 }

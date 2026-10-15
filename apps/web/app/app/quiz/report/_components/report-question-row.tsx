@@ -4,6 +4,7 @@ import { Check, ChevronDown, ChevronUp, Flag, X } from 'lucide-react'
 import { useState } from 'react'
 import { MarkdownText } from '@/app/app/_components/markdown-text'
 import { ZoomableImage } from '@/app/app/_components/zoomable-image'
+import { Badge } from '@/components/ui/badge'
 import type { QuizReportQuestion } from '@/lib/queries/quiz-report'
 import { isQuestionAnswered } from '@/lib/queries/report-question-answered'
 import { formatMsDuration } from './format-duration'
@@ -33,21 +34,13 @@ export function ReportQuestionRow({
       <div className="flex items-start gap-3">
         <div className="mt-0.5 shrink-0">
           {question.isCorrect ? (
-            <span
-              role="img"
-              aria-label="Correct"
-              className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-green-100 text-green-600 dark:bg-green-900/30"
-            >
+            <Badge role="img" aria-label="Correct" tone="success" shape="circle">
               <Check size={14} strokeWidth={2.5} aria-hidden />
-            </span>
+            </Badge>
           ) : (
-            <span
-              role="img"
-              aria-label="Incorrect"
-              className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-100 text-destructive dark:bg-red-900/30"
-            >
+            <Badge role="img" aria-label="Incorrect" tone="danger" shape="circle">
               <X size={14} strokeWidth={2.5} aria-hidden />
-            </span>
+            </Badge>
           )}
         </div>
 

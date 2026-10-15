@@ -51,6 +51,11 @@ describe('StudentHeader', () => {
     expect(screen.getByText('alice@example.com')).toBeInTheDocument()
   })
 
+  it('renders the student name as a page title', () => {
+    render(<StudentHeader student={makeStudent()} />)
+    expect(screen.getByRole('heading', { level: 1 })).toHaveClass('text-title')
+  })
+
   it('renders "Unnamed Student" as the heading when fullName is null', () => {
     render(<StudentHeader student={makeStudent({ fullName: null })} />)
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Unnamed Student')

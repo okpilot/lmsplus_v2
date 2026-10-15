@@ -121,6 +121,20 @@ describe('BottomTabBar', () => {
       expect(more).toHaveAttribute('aria-controls', document.querySelector('ul')?.id)
     })
 
+    it('layers the backdrop below the tab bar and sheet, above page content', async () => {
+      narrow(320)
+      await userEvent.setup({ delay: null }).click(screen.getByRole('button', { name: 'More' }))
+      const backdrop = screen.getByRole('button', { name: 'Close menu' })
+      const nav = screen.getByRole('navigation')
+      const sheet = document.querySelector('ul') as HTMLElement
+      expect(backdrop.className).toContain('z-scrim')
+      expect(backdrop.className).toContain('md:hidden')
+      expect(nav.compareDocumentPosition(backdrop) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(
+        backdrop.compareDocumentPosition(sheet) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
+    })
+
     it('closes the sheet on Escape', async () => {
       narrow(320)
       const user = userEvent.setup({ delay: null })

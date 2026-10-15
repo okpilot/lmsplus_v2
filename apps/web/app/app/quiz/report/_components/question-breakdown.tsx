@@ -1,4 +1,5 @@
 import { PaginationBar } from '@/app/app/_components/pagination-bar'
+import { Heading } from '@/components/ui/heading'
 import type { QuizReportQuestion } from '@/lib/queries/quiz-report'
 import { ReportQuestionRow } from './report-question-row'
 
@@ -13,7 +14,7 @@ export function QuestionBreakdown({ questions, page, totalCount, pageSize }: Pro
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Question Breakdown</h2>
+        <Heading level={2}>Question Breakdown</Heading>
         <span className="text-sm text-muted-foreground">
           {totalCount} question{totalCount === 1 ? '' : 's'}
         </span>

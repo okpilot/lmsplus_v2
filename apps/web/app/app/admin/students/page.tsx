@@ -1,4 +1,6 @@
 import { Suspense } from 'react'
+import { PageHeader } from '@/components/ui/heading'
+import { Skeleton } from '@/components/ui/skeleton'
 import { StudentsContent } from './_components/students-content'
 import type { StudentFilters } from './types'
 
@@ -27,13 +29,11 @@ export default async function StudentsPage({ searchParams }: Readonly<PageProps>
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Student Management</h1>
-        <p className="text-sm text-muted-foreground">
-          Register and manage students on the platform.
-        </p>
-      </div>
-      <Suspense fallback={<div className="h-96 animate-pulse rounded-md bg-muted" />}>
+      <PageHeader
+        title="Student Management"
+        description="Register and manage students on the platform."
+      />
+      <Suspense fallback={<Skeleton className="h-96" />}>
         <StudentsContent filters={filters} />
       </Suspense>
     </div>

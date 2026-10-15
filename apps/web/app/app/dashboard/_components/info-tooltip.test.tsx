@@ -87,4 +87,9 @@ describe('InfoTooltip', () => {
     const panel = screen.getByText('Daily Activity').closest('div')
     expect(panel?.className).toMatch(/-translate-x-1\/2/)
   })
+
+  it('resets the tooltip panel to normal weight inside a label', () => {
+    render(<InfoTooltip label="What?" title="T" description="D" />)
+    expect(screen.getByRole('tooltip', { hidden: true }).className).toContain('font-normal')
+  })
 })

@@ -8,6 +8,10 @@ vi.mock('next/link', () => ({
   ),
 }))
 
+function tileFor(label: string) {
+  return screen.getByText(label).closest('[data-slot="stat"]')
+}
+
 describe('SessionSummary', () => {
   it('displays the rounded score percentage', () => {
     render(
@@ -82,8 +86,22 @@ describe('SessionSummary', () => {
         scorePercentage={100}
       />,
     )
-    const incorrectEl = screen.getByText('Incorrect').previousElementSibling
-    expect(incorrectEl?.textContent).toBe('0')
+    expect(tileFor('Incorrect')).toHaveTextContent('0')
+  })
+
+  it('sets the count tiles at heading size so a four-column row fits a phone', () => {
+    render(
+      <SessionSummary
+        totalQuestions={10}
+        answeredCount={8}
+        correctCount={6}
+        scorePercentage={75}
+      />,
+    )
+    for (const label of ['Correct', 'Incorrect', 'Skipped', 'Answered']) {
+      const value = tileFor(label)?.querySelector('span.tabular-nums')
+      expect(value?.className, label).toContain('text-heading')
+    }
   })
 
   it('shows skipped count and answered count when questions were skipped', () => {
@@ -97,8 +115,7 @@ describe('SessionSummary', () => {
     )
     expect(screen.getByText('Skipped')).toBeInTheDocument()
     // skippedCount = 10 - 8 = 2; use label sibling to disambiguate from incorrectCount (also 2)
-    const skippedEl = screen.getByText('Skipped').previousElementSibling
-    expect(skippedEl?.textContent).toBe('2')
+    expect(tileFor('Skipped')).toHaveTextContent('2')
     expect(screen.getByText('8')).toBeInTheDocument() // answeredCount
     expect(screen.getByText('Answered')).toBeInTheDocument()
   })
@@ -125,7 +142,64 @@ describe('SessionSummary', () => {
         scorePercentage={71.4}
       />,
     )
-    const incorrectEl = screen.getByText('Incorrect').previousElementSibling
-    expect(incorrectEl?.textContent).toBe('2')
+    expect(tileFor('Incorrect')).toHaveTextContent('2')
+  })
+
+  it('renders the correct and incorrect counts as stat tiles in success and danger tones', () => {
+    render(
+      <SessionSummary
+        totalQuestions={10}
+        answeredCount={10}
+        correctCount={7}
+        scorePercentage={70}
+      />,
+    )
+    expect(tileFor('Correct')?.querySelector('.text-success')).toHaveTextContent('7')
+    expect(tileFor('Incorrect')?.querySelector('.text-danger')).toHaveTextContent('3')
+  })
+
+  it.each([
+    [8, ['grid-cols-2', 'sm:grid-cols-4']],
+    [10, ['grid-cols-3']],
+  ] as const)(
+    'lays the tiles out for the right column count when answered is %i of 10',
+    (answeredCount, expected) => {
+      render(
+        <SessionSummary
+          totalQuestions={10}
+          answeredCount={answeredCount}
+          correctCount={6}
+          scorePercentage={60}
+        />,
+      )
+      const grid = tileFor('Correct')?.closest('.grid')
+      const tokens = (grid?.className ?? '').split(/\s+/).filter((c) => c.includes('grid-cols'))
+      expect(tokens.sort()).toEqual([...expected].sort())
+    },
+  )
+
+  it('keeps a bare four-column class off the skipped grid so phones stay two-wide', () => {
+    render(
+      <SessionSummary
+        totalQuestions={10}
+        answeredCount={8}
+        correctCount={6}
+        scorePercentage={60}
+      />,
+    )
+    const grid = tileFor('Correct')?.closest('.grid')
+    expect((grid?.className ?? '').split(/\s+/)).not.toContain('grid-cols-4')
+  })
+
+  it('shows the score as a meter named Score', () => {
+    render(
+      <SessionSummary
+        totalQuestions={10}
+        answeredCount={8}
+        correctCount={6}
+        scorePercentage={75}
+      />,
+    )
+    expect(screen.getByRole('meter', { name: 'Score' })).toHaveAttribute('aria-valuenow', '75')
   })
 })

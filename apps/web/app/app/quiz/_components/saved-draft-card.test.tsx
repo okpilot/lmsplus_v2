@@ -123,6 +123,7 @@ describe('SavedDraftCard', () => {
     expect(screen.queryByText(/no saved quizzes/i)).not.toBeInTheDocument()
     rerender(<SavedDraftCard drafts={[]} savedSessions={[]} />)
     expect(screen.getByText(/no saved quizzes/i)).toBeInTheDocument()
+    expect(screen.getByText(/no saved quizzes/i).closest('[data-slot="empty"]')).not.toBeNull()
   })
 
   it('hides the empty state when saved quizzes failed to load', () => {

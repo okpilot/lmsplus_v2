@@ -1,5 +1,6 @@
 'use client'
 
+import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { MODE_LABELS } from '@/lib/constants/exam-modes'
 import { useActivePracticeDiscard } from '../_hooks/use-active-practice-discard'
 import type { ActivePracticeSession } from '../actions/get-active-practice-session'
@@ -24,13 +25,13 @@ export function ActivePracticeBanner({
   const modeLabel = MODE_LABELS[session.mode]
 
   return (
-    <div className="mx-auto max-w-md rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 mb-4">
-      <p className="text-sm font-medium text-foreground">Unfinished {modeLabel} session</p>
-      <p className="mt-1 text-xs text-muted-foreground">
+    <Alert tone="caution" className="mx-auto mb-4 max-w-md">
+      <AlertTitle>Unfinished {modeLabel} session</AlertTitle>
+      <AlertDescription>
         You have an unfinished {modeLabel} session for {session.subjectName}. Resume it, or discard
         it to start something new.
-      </p>
-      <div className="mt-3 flex gap-2">
+      </AlertDescription>
+      <AlertAction className="flex gap-2">
         <ResumeLink sessionId={session.sessionId} loading={loading}>
           Resume
         </ResumeLink>
@@ -41,7 +42,7 @@ export function ActivePracticeBanner({
           onDiscard={discard}
           onClearError={clearError}
         />
-      </div>
-    </div>
+      </AlertAction>
+    </Alert>
   )
 }

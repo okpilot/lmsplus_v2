@@ -1,3 +1,4 @@
+import { Badge } from '@/components/ui/badge'
 import { isExamMode, MODE_LABELS, type QuizMode } from '@/lib/constants/exam-modes'
 import type { QuizReportSummary } from '@/lib/queries/quiz-report-types'
 import { formatCorrectFraction } from '@/lib/utils/format-correct-fraction'
@@ -5,15 +6,7 @@ import { getReportContext } from '../_utils/report-context'
 import { DesktopStats, MobileStats } from './result-summary-stats'
 
 function PassFailBadge({ passed }: Readonly<{ passed: boolean }>) {
-  return passed ? (
-    <span className="rounded-full border border-green-500/30 bg-green-500/10 px-3 py-1 text-sm font-semibold text-green-600 dark:text-green-400">
-      PASSED
-    </span>
-  ) : (
-    <span className="rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-sm font-semibold text-red-600 dark:text-red-400">
-      FAILED
-    </span>
-  )
+  return passed ? <Badge tone="success">PASSED</Badge> : <Badge tone="danger">FAILED</Badge>
 }
 
 type Props = Readonly<{ summary: QuizReportSummary }>

@@ -1,15 +1,13 @@
 import type { ReactNode } from 'react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 // Shared destructive alert used for both the active-exam and active-practice
 // server-side lookup-failure notices on the quiz page.
 function LookupAlert({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <div
-      role="alert"
-      className="mx-auto max-w-md rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive"
-    >
-      {children}
-    </div>
+    <Alert tone="danger" role="alert" className="mx-auto max-w-md">
+      <AlertDescription>{children}</AlertDescription>
+    </Alert>
   )
 }
 

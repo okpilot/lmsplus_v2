@@ -45,6 +45,11 @@ describe('MyReportsTab', () => {
     expect(screen.getByTestId('reports-empty')).toHaveTextContent(/no internal exam attempts yet/i)
   })
 
+  it('renders the empty state with the shared empty part', () => {
+    render(<MyReportsTab rows={[]} />)
+    expect(screen.getByTestId('reports-empty')).toHaveAttribute('data-slot', 'empty')
+  })
+
   it('renders the full subject name as a link to the report page with the session id', () => {
     render(<MyReportsTab rows={[baseRow]} />)
     const link = screen.getByRole('link', { name: 'Air Law' })

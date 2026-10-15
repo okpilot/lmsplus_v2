@@ -1,5 +1,6 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { DAILY_GOAL } from '../_lib/tile-tones'
 import { StatCards } from './stat-cards'
 
 const BASE_PROPS = {
@@ -45,6 +46,11 @@ describe('StatCards', () => {
       />,
     )
     expect(screen.getByText('Keep practicing')).toBeInTheDocument()
+  })
+
+  it('states the shared daily goal in the Today tooltip', () => {
+    const { container } = render(<StatCards {...BASE_PROPS} />)
+    expect(container.textContent).toContain(`daily goal of ${DAILY_GOAL}`)
   })
 
   it('displays questions today progress as N / 50', () => {
@@ -96,5 +102,93 @@ describe('StatCards', () => {
   it('displays "0 days" (plural) when currentStreak is 0', () => {
     render(<StatCards {...BASE_PROPS} currentStreak={0} />)
     expect(screen.getByText('0 days')).toBeInTheDocument()
+  })
+
+  it('renders each metric as a stat tile with the label above the value', () => {
+    render(<StatCards {...BASE_PROPS} />)
+    for (const value of ['33%', '38 / 50', '12 days']) {
+      expect(screen.getByText(value).closest('[data-slot="card"]')).not.toBeNull()
+    }
+  })
+
+  it('keeps the daily-goal bar and tooltip trigger inside the Questions Today tile', () => {
+    render(<StatCards {...BASE_PROPS} />)
+    const tile = screen.getByText('38 / 50').closest('[data-slot="card"]') as HTMLElement
+    expect(tile.querySelector('[style*="width: 76%"]')).not.toBeNull()
+    expect(
+      within(tile).getByRole('button', { name: 'What is Questions Today?' }),
+    ).toBeInTheDocument()
+  })
+
+  it('keeps three tiles in one row at every width with a tighter gap on a phone', () => {
+    const { container } = render(<StatCards {...BASE_PROPS} />)
+    const grid = container.querySelector('.grid') as HTMLElement
+    expect(grid.className).toContain('grid-cols-3')
+    expect(grid.className).toContain('gap-2')
+    expect(grid.className).toContain('md:gap-4')
+    expect(grid.className).not.toMatch(/(sm|md|lg):grid-cols/)
+  })
+
+  it('hides every detail line on a phone and shows it from md up', () => {
+    const { container } = render(<StatCards {...BASE_PROPS} />)
+    const hints = container.querySelectorAll('[data-slot="stat"] > :last-child:not(.tabular-nums)')
+    expect(hints).toHaveLength(3)
+    for (const h of hints) {
+      expect(h.className).toContain('hidden')
+      expect(h.className).toContain('md:flex')
+    }
+  })
+
+  it('shrinks every stat value below the sm breakpoint so three tiles fit a phone', () => {
+    const { container } = render(<StatCards {...BASE_PROPS} />)
+    const values = container.querySelectorAll('[data-slot="stat"] > span.tabular-nums')
+    expect(values).toHaveLength(3)
+    for (const v of values) expect(v.className).toContain('sm:text-stat')
+  })
+
+  it('tightens the tile padding at phone width so label and help icon stay inside', () => {
+    const { container } = render(<StatCards {...BASE_PROPS} />)
+    const contents = container.querySelectorAll('[data-slot="card-content"]')
+    expect(contents).toHaveLength(3)
+    for (const c of contents) expect(c.className).toContain('px-3')
+  })
+
+  it.each([
+    [50, 9, 'text-success'],
+    [10, 3, 'text-caution'],
+    [0, 0, 'text-danger'],
+  ] as const)(
+    'colours %i questions and a %i-day streak with %s',
+    (questionsToday, currentStreak, token) => {
+      const { container } = render(
+        <StatCards {...BASE_PROPS} questionsToday={questionsToday} currentStreak={currentStreak} />,
+      )
+      expect(container.querySelectorAll(`.${token}`).length).toBeGreaterThanOrEqual(2)
+    },
+  )
+
+  it('colours each tile value directly, with no wrapper span', () => {
+    const { container } = render(
+      <StatCards {...BASE_PROPS} questionsToday={50} currentStreak={9} />,
+    )
+    const values = container.querySelectorAll('[data-slot="stat"] > span.tabular-nums')
+    expect(values).toHaveLength(3)
+    for (const v of values) expect(v.querySelector('span')).toBeNull()
+    expect(container.querySelectorAll('[data-slot="stat"] > span.text-success').length).toBe(2)
+  })
+
+  it('uses theme tokens, never the Tailwind palette, for tile colours', () => {
+    const { container } = render(<StatCards {...BASE_PROPS} />)
+    expect(container.innerHTML).not.toMatch(/(?:text|bg)-(?:green|amber|red)-500/)
+  })
+
+  it.each([
+    [50, 'bg-success-solid'],
+    [10, 'bg-caution-solid'],
+    [0, 'bg-danger-solid'],
+  ] as const)('fills the daily goal bar with %i questions using %s', (questionsToday, bar) => {
+    render(<StatCards {...BASE_PROPS} questionsToday={questionsToday} />)
+    const meter = screen.getByRole('meter', { name: 'Daily goal progress' })
+    expect(meter.querySelector(`.${bar}`)).not.toBeNull()
   })
 })

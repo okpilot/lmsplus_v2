@@ -38,7 +38,7 @@ export function StudentRow({ student, onClick }: StudentRowProps) {
         <div className="flex items-center gap-1.5">
           {student.hasRecentActivity && (
             <span
-              className="size-2 shrink-0 rounded-full bg-green-500"
+              className="size-2 shrink-0 rounded-full bg-success"
               title="Active in last 7 days"
             />
           )}
@@ -52,7 +52,7 @@ export function StudentRow({ student, onClick }: StudentRowProps) {
       <TableCell className={getMasteryColor(student.mastery)}>{student.mastery}%</TableCell>
       <TableCell>
         {student.isActive ? (
-          <Badge className="bg-green-600 hover:bg-green-600">Active</Badge>
+          <Badge tone="success">Active</Badge>
         ) : (
           <Badge variant="destructive">Inactive</Badge>
         )}

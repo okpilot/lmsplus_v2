@@ -298,6 +298,39 @@ describe('ResultSummary', () => {
       expect(screen.getByText('FAILED')).toBeInTheDocument()
     })
 
+    it('renders FAILED as a danger badge and PASSED as a success badge', () => {
+      const { rerender } = render(
+        <ResultSummary summary={makeSummary({ mode: 'internal_exam', passed: false })} />,
+      )
+      expect(screen.getByText('FAILED')).toHaveAttribute('data-slot', 'badge')
+      expect(screen.getByText('FAILED')).toHaveClass('bg-danger-soft')
+      rerender(<ResultSummary summary={makeSummary({ mode: 'internal_exam', passed: true })} />)
+      expect(screen.getByText('PASSED')).toHaveClass('bg-success-soft')
+    })
+
+    it('renders each summary label and value together in a shared stat', () => {
+      render(<ResultSummary summary={makeSummary()} />)
+      const skippedLabels = screen.getAllByText('Skipped')
+      expect(skippedLabels.length).toBeGreaterThan(0)
+      for (const label of skippedLabels) {
+        const stat = label.closest('[data-slot="stat"]')
+        expect(stat).not.toBeNull()
+        expect(stat?.textContent).toMatch(/^Skipped\S+/)
+      }
+    })
+
+    it('renders the Correct value in the success tone and other values in the default tone', () => {
+      render(<ResultSummary summary={makeSummary()} />)
+      for (const label of screen.getAllByText('Correct')) {
+        const value = label.closest('[data-slot="stat"]')?.querySelector('span')
+        expect(value).toHaveClass('text-success')
+      }
+      for (const label of screen.getAllByText('Skipped')) {
+        const value = label.closest('[data-slot="stat"]')?.querySelector('span')
+        expect(value).not.toHaveClass('text-success')
+      }
+    })
+
     it('renders "VFR RT Mock Exam Complete" for vfr_rt_exam mode even on the RT subject', () => {
       // The exam-mode heading must win over the RT-practice noun branch — an RT-subject
       // exam session is not a practice session (getReportContext only applies to non-exam modes).

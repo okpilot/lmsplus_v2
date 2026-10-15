@@ -33,6 +33,13 @@ describe('ProfileCard', () => {
     expect(screen.queryByText('Organisation')).not.toBeInTheDocument()
   })
 
+  it('keeps the three statistics in one row at every width', () => {
+    render(<ProfileCard {...defaultProps} />)
+    const grid = screen.getByText('Sessions').closest('.grid') as HTMLElement
+    expect(grid.className).toContain('grid-cols-3')
+    expect(grid.className).not.toMatch(/(sm|md|lg):grid-cols/)
+  })
+
   it('renders total sessions stat', () => {
     render(<ProfileCard {...defaultProps} />)
     expect(screen.getByText('42')).toBeInTheDocument()
@@ -52,5 +59,32 @@ describe('ProfileCard', () => {
     render(<ProfileCard {...defaultProps} />)
     // Date formatted as "15 January 2024" via en-GB locale
     expect(screen.getByText('15 January 2024')).toBeInTheDocument()
+  })
+
+  it('renders Quiz Statistics as a level-3 heading', () => {
+    render(<ProfileCard {...defaultProps} />)
+    expect(screen.getByRole('heading', { level: 3, name: 'Quiz Statistics' })).toHaveClass(
+      'text-label',
+    )
+  })
+
+  it('renders each quiz statistic as a stat tile with its label', () => {
+    render(<ProfileCard {...defaultProps} />)
+    for (const [label, value] of [
+      ['Sessions', '42'],
+      ['Avg. Score', '78%'],
+      ['Answered', '630'],
+    ]) {
+      const tile = screen.getByText(label as string).closest('[data-slot="stat"]')
+      expect(tile).toHaveTextContent(value as string)
+      expect(tile).not.toHaveTextContent('student@example.com')
+    }
+  })
+
+  it('shrinks the quiz stat values below the sm breakpoint so three columns fit a phone', () => {
+    const { container } = render(<ProfileCard {...defaultProps} />)
+    const values = container.querySelectorAll('[data-slot="stat"] > span.tabular-nums')
+    expect(values).toHaveLength(3)
+    for (const v of values) expect(v.className).toContain('sm:text-stat')
   })
 })

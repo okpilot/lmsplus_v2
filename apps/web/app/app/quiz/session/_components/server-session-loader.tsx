@@ -1,6 +1,7 @@
 'use client'
 
 import type { SessionQuestion } from '@/app/app/_types/session'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { SessionEntry } from '@/lib/queries/load-quiz-session-state'
 import { useServerSessionBootstrap } from '../_hooks/use-server-session-bootstrap'
@@ -10,9 +11,9 @@ import { QuizSession } from './quiz-session'
 
 function LoadError({ message }: Readonly<{ message: string }>) {
   return (
-    <p role="alert" className="text-sm text-destructive">
-      {message}
-    </p>
+    <Alert role="alert" tone="danger" size="compact">
+      <AlertDescription>{message}</AlertDescription>
+    </Alert>
   )
 }
 

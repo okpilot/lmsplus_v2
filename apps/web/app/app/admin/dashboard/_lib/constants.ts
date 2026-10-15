@@ -1,3 +1,4 @@
+import type { StatusTone } from '@/components/ui/meter'
 import type { TimeRange } from '../types'
 
 export const TIME_RANGE_OPTIONS: ReadonlyArray<{ value: TimeRange; label: string }> = [
@@ -7,8 +8,18 @@ export const TIME_RANGE_OPTIONS: ReadonlyArray<{ value: TimeRange; label: string
   { value: 'all', label: 'All time' },
 ]
 
+export function getMasteryTone(value: number): StatusTone {
+  if (value < 50) return 'danger'
+  if (value < 80) return 'caution'
+  return 'success'
+}
+
+const MASTERY_COLOR: Record<StatusTone, string> = {
+  danger: 'text-danger',
+  caution: 'text-caution',
+  success: 'text-success',
+}
+
 export function getMasteryColor(value: number): string {
-  if (value < 50) return 'text-red-600'
-  if (value < 80) return 'text-amber-600'
-  return 'text-green-600'
+  return MASTERY_COLOR[getMasteryTone(value)]
 }

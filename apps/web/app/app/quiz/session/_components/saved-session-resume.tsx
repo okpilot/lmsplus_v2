@@ -1,6 +1,8 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
+import { FieldError } from '@/components/ui/field-error'
+import { PageHeader } from '@/components/ui/heading'
 import { MODE_LABELS, type QuizMode } from '@/lib/constants/exam-modes'
 import { useSavedSessionResume } from '../_hooks/use-saved-session-resume'
 
@@ -23,16 +25,14 @@ export function SavedSessionResume({
 
   return (
     <div className="mx-auto max-w-md space-y-4 py-10 text-center">
-      <h1 className="text-lg font-semibold">Saved quiz</h1>
-      <p className="text-sm text-muted-foreground">
-        {MODE_LABELS[mode]}
-        {subjectName ? ` - ${subjectName}` : ''}: {answeredCount} of {totalCount} answered
-      </p>
-      {error && (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
-      )}
+      <PageHeader
+        title="Saved quiz"
+        description={`${MODE_LABELS[mode]}${subjectName ? ` - ${subjectName}` : ''}: ${answeredCount} of ${totalCount} answered`}
+        className="text-center sm:justify-center"
+      />
+      <FieldError role="alert" className="justify-center">
+        {error}
+      </FieldError>
       <div className="flex justify-center gap-2">
         <Button onClick={resume} disabled={loading}>
           Resume

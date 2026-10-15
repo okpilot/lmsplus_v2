@@ -44,7 +44,7 @@ describe('SubjectGrid', () => {
 
   it('renders an empty state when there are no subjects', () => {
     render(<SubjectGrid subjects={[]} />)
-    expect(screen.getByText(/no subjects available/i)).toBeInTheDocument()
+    expect(screen.getByText(/no subjects available/i).closest('[data-slot="empty"]')).not.toBeNull()
   })
 
   it('renders a card for each subject with name, code, and mastery', () => {
@@ -54,24 +54,30 @@ describe('SubjectGrid', () => {
     expect(screen.getByText('75%')).toBeInTheDocument()
   })
 
-  it('uses bg-amber-500 for mastery between 50-89%', () => {
+  it('uses bg-caution-solid for mastery between 50-89%', () => {
     render(<SubjectGrid subjects={[SUBJECT_MET]} />)
     // 75% => amber
-    const bar = screen.getByText('Meteorology').closest('div')?.querySelector('.bg-amber-500')
+    const bar = screen
+      .getByRole('meter', { name: 'Meteorology mastery' })
+      .querySelector('.bg-caution-solid')
     expect(bar).toBeInTheDocument()
   })
 
-  it('uses bg-red-500 for mastery below 50%', () => {
+  it('uses bg-danger-solid for mastery below 50%', () => {
     render(<SubjectGrid subjects={[SUBJECT_ALW]} />)
     // 25% => red
-    const bar = screen.getByText('Air Law').closest('div')?.querySelector('.bg-red-500')
+    const bar = screen
+      .getByRole('meter', { name: 'Air Law mastery' })
+      .querySelector('.bg-danger-solid')
     expect(bar).toBeInTheDocument()
   })
 
-  it('uses bg-green-500 for mastery at or above 90%', () => {
+  it('uses bg-success-solid for mastery at or above 90%', () => {
     render(<SubjectGrid subjects={[SUBJECT_COM]} />)
     // 92% => green
-    const bar = screen.getByText('Communications').closest('div')?.querySelector('.bg-green-500')
+    const bar = screen
+      .getByRole('meter', { name: 'Communications mastery' })
+      .querySelector('.bg-success-solid')
     expect(bar).toBeInTheDocument()
   })
 

@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { SortableTableHead } from '@/components/sortable-table-head'
+import { Badge } from '@/components/ui/badge'
 import { type ExamMode, isExamMode, MODE_LABELS, modeLabel } from '@/lib/constants/exam-modes'
 import type { SessionReport, SortDir, SortKey } from '@/lib/queries/reports'
 import { formatCorrectFraction } from '@/lib/utils/format-correct-fraction'
@@ -107,8 +108,8 @@ function SessionRow({ session: s }: Readonly<{ session: SessionReport }>) {
 
 function ExamBadge({ mode }: Readonly<{ mode: ExamMode }>) {
   return (
-    <span className="inline-block rounded-sm border border-amber-400 bg-amber-50 px-1.5 py-0.5 text-[11px] font-semibold uppercase leading-none tracking-wide text-amber-600">
+    <Badge tone="caution" className="uppercase tracking-wide">
       {MODE_LABELS[mode]}
-    </span>
+    </Badge>
   )
 }
