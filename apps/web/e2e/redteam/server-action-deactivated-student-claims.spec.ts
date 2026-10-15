@@ -16,7 +16,7 @@
  * Status: Expected to PASS.
  */
 
-import { type BrowserContext, expect, test } from '@playwright/test'
+import { type Browser, type BrowserContext, expect, test } from '@playwright/test'
 import { SIGN_IN } from '../../app/app/quiz/actions/progress-error-messages'
 import { buildConsentCookieValue } from '../../lib/consent/check-consent'
 import { CONSENT_COOKIE } from '../../lib/consent/versions'
@@ -88,11 +88,14 @@ test.describe('Red Team: deactivated student Server Action replay (IB)', () => {
     return data
   }
 
-  const setDeactivated = async (on: boolean) => {
-    const { error: banErr } = await admin.auth.admin.updateUserById(studentId, {
+  const banStudent = async (on: boolean) => {
+    const { error } = await admin.auth.admin.updateUserById(studentId, {
       ban_duration: on ? BAN : 'none',
     })
-    if (banErr) throw new Error(`ban(${on}): ${banErr.message}`)
+    if (error) throw new Error(`ban(${on}): ${error.message}`)
+  }
+
+  const markStudentDeleted = async (on: boolean) => {
     const { data, error } = await admin
       .from('users')
       .update({ deleted_at: on ? new Date().toISOString() : null })
@@ -100,7 +103,27 @@ test.describe('Red Team: deactivated student Server Action replay (IB)', () => {
       .select('id')
     if (error) throw new Error(`users.deleted_at(${on}): ${error.message}`)
     if ((data?.length ?? 0) === 0) throw new Error(`users.deleted_at(${on}): 0 rows`)
-    deactivated = on
+  }
+
+  // On: flag first so a half-applied ban is still restored. Off: both steps attempted,
+  // the flag clears only when both succeed.
+  const setDeactivated = async (on: boolean) => {
+    if (on) {
+      deactivated = true
+      await banStudent(true)
+      await markStudentDeleted(true)
+      return
+    }
+    const errors: string[] = []
+    for (const step of [() => banStudent(false), () => markStudentDeleted(false)]) {
+      try {
+        await step()
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      }
+    }
+    if (errors.length > 0) throw new Error(errors.join('; '))
+    deactivated = false
   }
 
   const invoke = (sessionId: string) =>
@@ -112,11 +135,7 @@ test.describe('Red Team: deactivated student Server Action replay (IB)', () => {
       arg: { sessionId, deviceId: DEVICE },
     })
 
-  test.beforeAll(async ({ browser }) => {
-    admin = getAdminClient()
-    const seed = await seedRedTeamUsers()
-    orgId = seed.orgId
-    studentId = seed.attackerUserId
+  const pickQuestions = async () => {
     const { data, error } = await admin
       .from('questions')
       .select('id, correct_option_id')
@@ -137,9 +156,9 @@ test.describe('Red Team: deactivated student Server Action replay (IB)', () => {
     q1 = r1.id
     q2 = r2.id
     q1Key = r1.correct_option_id
+  }
 
-    await cleanupStudentActiveSessions(ATTACKER_EMAIL)
-    const sessionId = await claimedSession()
+  const captureFinishAction = async (browser: Browser, sessionId: string) => {
     ctx = await browser.newContext({ storageState: undefined })
     await ctx.addCookies([
       { name: CONSENT_COOKIE, value: buildConsentCookieValue(studentId), url: BASE_URL },
@@ -156,11 +175,32 @@ test.describe('Red Team: deactivated student Server Action replay (IB)', () => {
     const headers = watch.headers()
     if (!headers || !id) throw new Error('finishQuizSession action not captured')
     cap = { headers, id }
+  }
+
+  test.beforeAll(async ({ browser }) => {
+    admin = getAdminClient()
+    const seed = await seedRedTeamUsers()
+    orgId = seed.orgId
+    studentId = seed.attackerUserId
+    await pickQuestions()
+    await cleanupStudentActiveSessions(ATTACKER_EMAIL)
+    await captureFinishAction(browser, await claimedSession())
   })
 
   test.afterAll(async () => {
-    await ctx?.close()
-    await cleanupStudentActiveSessions(ATTACKER_EMAIL)
+    const errors: string[] = []
+    try {
+      if (deactivated) await setDeactivated(false)
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
+    }
+    try {
+      await ctx?.close()
+      await cleanupStudentActiveSessions(ATTACKER_EMAIL)
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
+    }
+    if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   })
 
   test.afterEach(async () => {
@@ -169,8 +209,6 @@ test.describe('Red Team: deactivated student Server Action replay (IB)', () => {
       if (deactivated) await setDeactivated(false)
     } catch (e) {
       errors.push(e instanceof Error ? e.message : String(e))
-    } finally {
-      deactivated = false
     }
     try {
       const { data, error } = await admin

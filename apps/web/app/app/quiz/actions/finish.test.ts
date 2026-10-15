@@ -33,9 +33,13 @@ beforeEach(() => {
 })
 
 describe('finishQuizSession', () => {
-  it('verifies identity on the session client', async () => {
+  it('returns a sign-in-expired error when the session has no verified user', async () => {
     mockVerifySessionUser.mockResolvedValue(null)
-    await finishQuizSession({ sessionId: SESSION, deviceId: DEVICE })
+    const result = await finishQuizSession({ sessionId: SESSION, deviceId: DEVICE })
+    expect(result).toEqual({
+      success: false,
+      error: 'Your sign-in has expired. Please sign in again.',
+    })
     expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 

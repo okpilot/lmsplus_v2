@@ -137,15 +137,16 @@ describe('recordConsent', () => {
       expect(mockSetConsentCookie).not.toHaveBeenCalled()
     })
 
-    it('verifies identity on the same client that records the consent', async () => {
+    it('records consent for the user verified on the session client', async () => {
       mockAuthenticatedUser()
       mockRpcSuccess()
 
-      await recordConsent({
+      const result = await recordConsent({
         acceptedTos: true,
         acceptedPrivacy: true,
       })
 
+      expect(result.success).toBe(true)
       expect(mockVerifySessionUser).toHaveBeenCalledWith(client)
     })
 

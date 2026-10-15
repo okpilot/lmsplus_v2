@@ -241,6 +241,14 @@ describe('DraftCard — Delete', () => {
     )
   })
 
+  it('refreshes the list after a failed delete so a stale card disappears', async () => {
+    mockDeleteDraft.mockResolvedValue({ success: false })
+    render(<DraftCard draft={DRAFT} />)
+    fireEvent.click(screen.getByTestId('delete-draft'))
+
+    await waitFor(() => expect(mockRouterRefresh).toHaveBeenCalledTimes(1))
+  })
+
   it('re-enables the delete button after a failed delete', async () => {
     mockDeleteDraft.mockResolvedValue({ success: false })
     render(<DraftCard draft={DRAFT} />)

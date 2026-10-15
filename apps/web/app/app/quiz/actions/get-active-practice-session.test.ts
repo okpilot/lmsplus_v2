@@ -56,9 +56,10 @@ beforeEach(() => {
 // ---- Tests -----------------------------------------------------------------
 
 describe('getActivePracticeSession — unauthenticated', () => {
-  it('verifies identity on the session client', async () => {
+  it('returns not-authenticated when the session has no verified user', async () => {
     mockVerifySessionUser.mockResolvedValue(null)
-    await getActivePracticeSession()
+    const result = await getActivePracticeSession()
+    expect(result).toEqual({ success: false, error: 'Not authenticated' })
     expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 

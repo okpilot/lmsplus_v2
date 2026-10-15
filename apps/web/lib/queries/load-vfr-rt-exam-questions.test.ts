@@ -43,9 +43,10 @@ beforeEach(() => {
 })
 
 describe('loadVfrRtExamQuestions', () => {
-  it('verifies identity on the same client it loads questions with', async () => {
+  it('reports no questions found for the verified session user when the RPC returns none', async () => {
     mockRpc.mockResolvedValue({ data: [], error: null })
-    await loadVfrRtExamQuestions({ sessionId: SESSION_ID })
+    const result = await loadVfrRtExamQuestions({ sessionId: SESSION_ID })
+    expect(result).toEqual({ success: false, error: 'No questions found' })
     expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
     expect(mockRpc.mock.calls[0]?.[0]).toBe(mockClient)
     expect(mockCreateClient).toHaveBeenCalledTimes(1)

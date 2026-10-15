@@ -74,6 +74,7 @@ export function DraftCard({ draft }: Readonly<{ draft: DraftData }>) {
     } else {
       setError('Failed to delete. Please try again.')
       setDeleting(false)
+      router.refresh()
     }
   }
 

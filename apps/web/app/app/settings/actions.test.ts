@@ -106,11 +106,11 @@ describe('updateDisplayName', () => {
   })
 
   describe('auth guard', () => {
-    it('verifies identity on the session client', async () => {
+    it('returns not-authenticated when the session has no verified user', async () => {
       mockVerifySessionUser.mockResolvedValue(null)
 
-      await updateDisplayName({ fullName: 'Alice' })
-
+      const result = await updateDisplayName({ fullName: 'Alice' })
+      expect(result).toEqual({ success: false, error: 'Not authenticated' })
       expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
     })
 

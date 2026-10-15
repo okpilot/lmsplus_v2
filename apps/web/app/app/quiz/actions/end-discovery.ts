@@ -20,7 +20,8 @@ const EndDiscoveryInput = z.object({ sessionId: z.uuid().optional() }).optional(
  * session can never strand and block other modes.
  *
  * Zero rows affected is a VALID no-op here (the row was abandoned, already cleared,
- * or never created) — unlike discardQuiz, it is not treated as an error.
+ * or never created) unless the caller is deactivated: RLS then refuses the write
+ * silently, so a zero-row result with no visible own users row is a failure.
  */
 export async function endDiscovery(raw?: unknown): Promise<ActionResult> {
   let input: { sessionId?: string } | undefined
@@ -55,10 +56,25 @@ export async function endDiscovery(raw?: unknown): Promise<ActionResult> {
     const affected = data?.length ?? 0
     if (affected > 0) {
       console.log('[endDiscovery] Exited', affected, 'discovery session(s)')
+      return { success: true }
     }
-    return { success: true }
+    return await confirmCallerActive(supabase, user.id)
   } catch (err) {
     console.error('[endDiscovery] Uncaught error:', err)
     return { success: false, error: 'Something went wrong. Please try again.' }
   }
+}
+
+// users_select hides deactivated accounts, so no visible own row means RLS refused the write.
+async function confirmCallerActive(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+  userId: string,
+): Promise<ActionResult> {
+  const { data, error } = await supabase.from('users').select('id').eq('id', userId).maybeSingle()
+  if (error) {
+    console.error('[endDiscovery] Caller lookup error:', error.message, error.code)
+    return { success: false, error: 'Failed to exit discovery' }
+  }
+  if (!data) return { success: false, error: 'Failed to exit discovery' }
+  return { success: true }
 }

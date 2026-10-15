@@ -81,14 +81,6 @@ afterEach(() => {
 // ---- Tests ----------------------------------------------------------------
 
 describe('getActiveInternalExamSession — unauthenticated', () => {
-  it('verifies identity on the session client', async () => {
-    mockFrom.mockImplementation(withUserChain(buildChain({ data: [], error: null })))
-
-    await getActiveInternalExamSession()
-
-    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
-  })
-
   it('returns error when no user is in the session', async () => {
     mockVerifySessionUser.mockResolvedValue(null)
     mockFrom.mockImplementation(withUserChain(buildChain({ data: [], error: null })))
@@ -96,6 +88,7 @@ describe('getActiveInternalExamSession — unauthenticated', () => {
     const result = await getActiveInternalExamSession()
 
     expect(result).toEqual({ success: false, error: 'Not authenticated' })
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 })
 

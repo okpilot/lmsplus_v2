@@ -202,4 +202,27 @@ describe('endDiscovery (app-layer integration)', () => {
     // Student B's concurrent discovery row remains active — the delete was id-scoped.
     expect(await readDeletedAt(sessionB)).toBeNull()
   })
+
+  it('returns failure when a deactivated student with a live token has no discovery row to clear', async () => {
+    // Student B holds a live token; deactivation hides their own users row (users_select).
+    await signInAs(emailB, password)
+    const { error: deactivateError } = await admin
+      .from('users')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', studentBId)
+    if (deactivateError) throw new Error(`deactivate: ${deactivateError.message}`)
+    let restoreFailure: string | undefined
+    let outcome: Awaited<ReturnType<typeof endDiscovery>> | undefined
+    try {
+      outcome = await endDiscovery()
+    } finally {
+      const { error: restoreError } = await admin
+        .from('users')
+        .update({ deleted_at: null })
+        .eq('id', studentBId)
+      restoreFailure = restoreError?.message
+    }
+    if (restoreFailure) throw new Error(`restore: ${restoreFailure}`)
+    expect(outcome).toEqual({ success: false, error: 'Failed to exit discovery' })
+  })
 })

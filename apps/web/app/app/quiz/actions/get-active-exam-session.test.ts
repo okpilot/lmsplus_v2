@@ -73,9 +73,10 @@ afterEach(() => {
 // ---- Tests ----------------------------------------------------------------
 
 describe('getActiveExamSession — unauthenticated', () => {
-  it('verifies identity on the session client', async () => {
+  it('returns not-authenticated when the session has no verified user', async () => {
     mockVerifySessionUser.mockResolvedValue(null)
-    await getActiveExamSession()
+    const result = await getActiveExamSession()
+    expect(result).toEqual({ success: false, error: 'Not authenticated' })
     expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 

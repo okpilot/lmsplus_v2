@@ -32,9 +32,10 @@ beforeEach(() => {
 })
 
 describe('submitQuizAnswer', () => {
-  it('verifies identity on the session client', async () => {
+  it('returns not-authenticated when the session has no verified user', async () => {
     mockVerifySessionUser.mockResolvedValue(null)
-    await submitQuizAnswer(validInput)
+    const result = await submitQuizAnswer(validInput)
+    expect(result).toEqual({ success: false, error: 'Not authenticated' })
     expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 

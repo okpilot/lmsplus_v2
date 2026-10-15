@@ -78,8 +78,8 @@ export async function unflagQuestion(
     console.error('[toggleFlag] Unflag error:', error.message)
     return { success: false, error: 'Failed to unflag' }
   }
-  // Zero rows = already unflagged concurrently; still correct terminal state
-  if (!data?.length) return { success: true, flagged: false }
+  // Zero rows: already unflagged, or RLS refused the write
+  if (!data?.length) return { success: false, error: 'Failed to unflag' }
   return { success: true, flagged: false }
 }
 

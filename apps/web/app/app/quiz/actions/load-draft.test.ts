@@ -59,9 +59,10 @@ beforeEach(() => {
 })
 
 describe('loadDrafts', () => {
-  it('verifies identity on the session client', async () => {
+  it('returns an empty result when the session has no verified user', async () => {
     mockVerifySessionUser.mockResolvedValue(null)
-    await loadDrafts()
+    const result = await loadDrafts()
+    expect(result).toEqual({ drafts: [] })
     expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 

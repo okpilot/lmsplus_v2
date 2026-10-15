@@ -82,9 +82,10 @@ function setupUnauthenticated() {
 // ---- Tests -----------------------------------------------------------------
 
 describe('toggleFlag', () => {
-  it('verifies identity on the session client', async () => {
+  it('returns not-authenticated when the session has no verified user', async () => {
     mockVerifySessionUser.mockResolvedValue(null)
-    await toggleFlag({ questionId: QUESTION_ID_A })
+    const result = await toggleFlag({ questionId: QUESTION_ID_A })
+    expect(result).toEqual({ success: false, error: 'Not authenticated' })
     expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 
@@ -279,6 +280,19 @@ describe('toggleFlag', () => {
     expect(methodsCalled).not.toContain('delete')
   })
 
+  it('returns failure when flag-off changes no rows', async () => {
+    setupAuthenticatedUser()
+    setupFromByTable({
+      quiz_sessions: { data: null, error: null },
+      active_flagged_questions: { data: { student_id: USER_ID }, error: null },
+      flagged_questions: { data: [], error: null },
+    })
+
+    const result = await toggleFlag({ questionId: QUESTION_ID_A })
+
+    expect(result).toEqual({ success: false, error: 'Failed to unflag' })
+  })
+
   it('returns failure when the soft-delete errors during flag-off', async () => {
     setupAuthenticatedUser()
     setupFromByTable({
@@ -296,9 +310,10 @@ describe('toggleFlag', () => {
 })
 
 describe('getFlaggedIds', () => {
-  it('verifies identity on the session client', async () => {
+  it('returns an empty result when the session has no verified user', async () => {
     mockVerifySessionUser.mockResolvedValue(null)
-    await getFlaggedIds({ questionIds: [QUESTION_ID_A] })
+    const result = await getFlaggedIds({ questionIds: [QUESTION_ID_A] })
+    expect(result).toEqual({ success: true, flaggedIds: [] })
     expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 

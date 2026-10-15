@@ -51,9 +51,10 @@ beforeEach(() => {
 })
 
 describe('resumeQuizSession', () => {
-  it('verifies identity on the session client', async () => {
+  it('returns not-authenticated when the session has no verified user', async () => {
     mockVerifySessionUser.mockResolvedValue(null)
-    await resumeQuizSession({ draftId: DRAFT })
+    const result = await resumeQuizSession({ draftId: DRAFT })
+    expect(result).toEqual({ success: false, error: 'Not authenticated' })
     expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 
