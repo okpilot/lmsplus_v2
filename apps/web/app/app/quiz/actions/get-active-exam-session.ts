@@ -1,6 +1,7 @@
 'use server'
 
 import { createServerSupabaseClient } from '@repo/db/server'
+import { verifySessionUser } from '@/lib/auth/verify-session-user'
 import { rpc } from '@/lib/supabase-rpc'
 import {
   extractPassMark,
@@ -32,11 +33,8 @@ export type GetActiveExamSessionResult =
 export async function getActiveExamSession(): Promise<GetActiveExamSessionResult> {
   try {
     const supabase = await createServerSupabaseClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-    if (authError || !user) return { success: false, error: 'Not authenticated' }
+    const user = await verifySessionUser(supabase)
+    if (!user) return { success: false, error: 'Not authenticated' }
 
     const { data, error } = await supabase
       .from('quiz_sessions')

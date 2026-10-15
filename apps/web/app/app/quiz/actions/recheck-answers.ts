@@ -1,6 +1,7 @@
 'use server'
 
 import { createServerSupabaseClient } from '@repo/db/server'
+import { verifySessionUser } from '@/lib/auth/verify-session-user'
 import type { AnswerFeedback } from '../types'
 import { SIGN_IN } from './progress-error-messages'
 import { gradeBatch, readSessionQuestionIds } from './recheck-answers-helpers'
@@ -16,11 +17,8 @@ type RecheckResult =
  */
 export async function recheckRestoredAnswers(raw: unknown): Promise<RecheckResult> {
   const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-  if (authError || !user) return { success: false, error: SIGN_IN }
+  const user = await verifySessionUser(supabase)
+  if (!user) return { success: false, error: SIGN_IN }
 
   const parsed = RecheckEnvelopeSchema.safeParse(raw)
   if (!parsed.success) {

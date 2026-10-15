@@ -40,7 +40,7 @@ lmsplusv2/                          # Monorepo root (Turborepo + pnpm)
 │       │   └── legal/              # Terms, privacy policy
 │       ├── lib/                    # Shared logic (not components)
 │       │   ├── audit/              # Auth audit-event recording
-│       │   ├── auth/               # Auth guards (requireAuth, requireAdmin)
+│       │   ├── auth/               # Auth guards (verifySessionUser, requireAuthUser, requireAdmin)
 │       │   ├── consent/            # Consent helpers
 │       │   ├── constants/          # Shared constants (exam modes)
 │       │   ├── email/              # Email sending (Resend) + templates
@@ -143,7 +143,7 @@ Directories prefixed with `_` (underscore) are not treated as route segments by 
 | Category | Convention | Example |
 |----------|-----------|---------|
 | Component export | `PascalCase` | `export function QuestionCard` |
-| Function/method | `camelCase` | `submitAnswer`, `requireAuth` |
+| Function/method | `camelCase` | `submitAnswer`, `requireAuthUser` |
 | Type/interface | `PascalCase` | `type QuizSession = ...` |
 | Constants | `SCREAMING_SNAKE_CASE` | `MAX_QUIZ_QUESTIONS` |
 | Variables | `camelCase` | `const studentId = ...` |
@@ -205,8 +205,8 @@ The service role client (`admin.ts`) must never be imported outside `packages/db
 
 // 1. Imports
 import { z } from 'zod'
-import { createClient } from '@repo/db/server'
-import { requireAuth } from '@/lib/auth/require-auth-user'
+import { createServerSupabaseClient } from '@repo/db/server'
+import { verifySessionUser } from '@/lib/auth/verify-session-user'
 
 // 2. Validation schema
 const SubmitSchema = z.object({
@@ -220,8 +220,9 @@ export type SubmitResult = { success: true; isCorrect: boolean } | { success: fa
 // 4. Action function — orchestrator pattern
 export async function submitAnswer(input: unknown): Promise<SubmitResult> {
   const parsed = SubmitSchema.parse(input)         // validate first
-  const { user } = await requireAuth()              // auth second
-  const supabase = await createClient()             // client third
+  const supabase = await createServerSupabaseClient() // client second
+  const user = await verifySessionUser(supabase)       // auth third
+  if (!user) return { success: false, error: 'Not authenticated' }
   // ... core logic (delegate to helpers if > 30 lines)
   return { success: true, isCorrect: true }
 }
@@ -271,7 +272,7 @@ export default async function DashboardPage() {
 ### Function organization
 
 1. Input validation (Zod `.parse()`)
-2. Auth check (`requireAuth()` / `requireAdmin()`)
+2. Auth check (`verifySessionUser()` / `requireAuthUser()` / `requireAdmin()`)
 3. Core logic (delegate to named helpers if complex)
 4. Error handling (log server-side, return generic message to client)
 5. Return result
@@ -341,7 +342,7 @@ Owns reusable shadcn/ui components used across the app. Components here are pres
 | Subdirectory | Responsibility |
 |-------------|----------------|
 | `lib/audit/` | Auth audit-event recording (`record_auth_event`) |
-| `lib/auth/` | Auth guards (`requireAuth`, `requireAdmin`) |
+| `lib/auth/` | Auth guards (`verifySessionUser`, `requireAuthUser`, `requireAdmin`) |
 | `lib/constants/` | Shared constants (exam modes) |
 | `lib/email/` | Transactional email (Resend client + templates) |
 | `lib/grading/` | Answer normalization for grading |

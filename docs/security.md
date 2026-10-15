@@ -64,7 +64,7 @@ Every route under `/app/*` must be protected by `apps/web/proxy.ts`.
 Unauthenticated requests redirect to `/`. No exceptions. The only extra state carried is a `next`
 destination, validated by `safeNextPath()` (`apps/web/lib/auth/safe-next-path.ts`).
 
-**Identity lookup (#1412):** the proxy, the answer-check and progress-save actions, the `/auth/consent-refresh` route, the consent action (`recordConsent`), the set-password guard (`requireActiveTempPassword`) and the `/app` code converted so far call `verifySessionUser()` (`apps/web/lib/auth/verify-session-user.ts`; render code via the per-render memoized `getSessionUser()`; set: `git grep -n 'verifySessionUser\|getSessionUser' -- apps/web ':!*.test.*'`): `getClaims()` verifies signature and expiry locally against the JWKS (the signing key is per stack, read it from the stack's JWKS (locally `curl -s http://localhost:54321/auth/v1/.well-known/jwks.json`): prod and the local stack publish an ES256 key; for a symmetric or missing `alg`, a token header without `kid`, or a `kid` absent from the JWKS, `getClaims()` calls `getUser()` itself). A page, route or action the proxy forces a user to must use the proxy's identity check, except the set-password and reset-password actions, which keep `getUser()`. A signed-out or banned session's unexpired access token keeps passing the proxy for the rest of the access-token lifetime (≤ 1 h; prod Auth config `jwt_exp` 3600, local `supabase/config.toml` `jwt_expiry` 3600). Deactivation takes effect immediately on SECURITY DEFINER RPC paths (active-user gates) and on RLS reads whose policies filter `deleted_at`; page renders and RLS reads on tables whose policies do not stay reachable until the token expires. `requireAdmin()` keeps `getUser()`.
+**Identity lookup (#1412):** server code verifies identity with `verifySessionUser()` (`apps/web/lib/auth/verify-session-user.ts`; render code via the per-render memoized `getSessionUser()`; set: `git grep -n 'verifySessionUser\|getSessionUser' -- apps/web ':!*.test.*'`): `getClaims()` verifies signature and expiry locally against the JWKS (the signing key is per stack, read it from the stack's JWKS (locally `curl -s http://localhost:54321/auth/v1/.well-known/jwks.json`): prod and the local stack publish an ES256 key; for a symmetric or missing `alg`, a token header without `kid`, or a `kid` absent from the JWKS, `getClaims()` calls `getUser()` itself). `getUser()` stays in the set-password and reset-password actions, the password-change and GDPR actions (`apps/web/app/app/settings/`), the login routes (`auth/callback`, `auth/login-complete`) and `requireAdmin()`; the browser probe in `classify-failure.ts` calls the browser client's `getUser()` (set: `git grep -n 'auth.getUser()' -- apps/web ':!*.test.*' ':!apps/web/e2e/**'`). A page, route or action the proxy forces a user to must use the proxy's identity check, except the set-password and reset-password actions. A signed-out or banned session's unexpired access token keeps passing the proxy for the rest of the access-token lifetime (≤ 1 h; prod Auth config `jwt_exp` 3600, local `supabase/config.toml` `jwt_expiry` 3600). Deactivation takes effect immediately on SECURITY DEFINER RPC paths (active-user gates) and on RLS reads whose policies filter `deleted_at`; page renders and RLS reads on tables whose policies do not stay reachable until the token expires.
 
 ```ts
 // apps/web/proxy.ts — pattern required (Next.js 16 convention)
@@ -909,12 +909,12 @@ We store student PII: email address, full name, learning history, exam scores.
 
 ## 13. Tenant Scoping (Auth ≠ Scope)
 
-**Rule: After `requireAuth()` / `requireAdmin()`, scope every query and mutation to the actor's tenant ID (`student_id` or `organization_id`). Authentication confirms identity; it does not scope the data set.**
+**Rule: After `requireAuthUser()` / `requireAdmin()`, scope every query and mutation to the actor's tenant ID (`student_id` or `organization_id`). Authentication confirms identity; it does not scope the data set.**
 
 This applies to:
 - Student-facing queries: add `.eq('student_id', userId)` or equivalent
 - Admin operations via `adminClient` (service role, RLS bypassed): add `.eq('organization_id', organizationId)`
-- Query functions called from Server Components: add `requireAdmin()` or `requireAuth()` as the first line — the function must be self-defending regardless of where it's called from
+- Query functions called from Server Components: add `requireAdmin()` or `requireAuthUser()` as the first line — the function must be self-defending regardless of where it's called from
 
 ```ts
 // ❌ WRONG — authenticated but unscoped

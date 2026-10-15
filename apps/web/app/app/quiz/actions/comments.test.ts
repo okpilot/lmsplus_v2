@@ -2,17 +2,20 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks -----------------------------------------------------------------
 
-const { mockGetUser, mockFrom, mockFetchQuestionComments } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
+const { mockVerifySessionUser, mockFrom, mockFetchQuestionComments } = vi.hoisted(() => ({
+  mockVerifySessionUser: vi.fn(),
   mockFrom: vi.fn(),
   mockFetchQuestionComments: vi.fn(),
 }))
 
+const mockClient = vi.hoisted(() => ({ from: mockFrom }))
+
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
-    from: mockFrom,
-  }),
+  createServerSupabaseClient: async () => mockClient,
+}))
+
+vi.mock('@/lib/auth/verify-session-user', () => ({
+  verifySessionUser: mockVerifySessionUser,
 }))
 
 vi.mock('./comment-queries', async () => {
@@ -60,20 +63,22 @@ const COMMENT_ROW = {
 }
 
 function setupAuthenticatedUser() {
-  mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } }, error: null })
+  mockVerifySessionUser.mockResolvedValue({ id: USER_ID, email: null })
 }
 
 function setupUnauthenticated() {
-  mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
-}
-
-function setupAuthError() {
-  mockGetUser.mockResolvedValue({ data: { user: null }, error: { message: 'JWT expired' } })
+  mockVerifySessionUser.mockResolvedValue(null)
 }
 
 // ---- Tests -----------------------------------------------------------------
 
 describe('getComments', () => {
+  it('verifies identity on the session client', async () => {
+    mockVerifySessionUser.mockResolvedValue(null)
+    await getComments({ questionId: QUESTION_ID })
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
+  })
+
   beforeEach(() => {
     vi.resetAllMocks()
   })
@@ -160,14 +165,6 @@ describe('createComment', () => {
 
   it('returns not-authenticated error when no user is signed in', async () => {
     setupUnauthenticated()
-
-    const result = await createComment({ questionId: QUESTION_ID, body: 'A comment.' })
-
-    expect(result).toEqual({ success: false, error: 'Not authenticated' })
-  })
-
-  it('returns not-authenticated error when auth returns an error', async () => {
-    setupAuthError()
 
     const result = await createComment({ questionId: QUESTION_ID, body: 'A comment.' })
 
@@ -265,14 +262,6 @@ describe('deleteComment', () => {
 
   it('returns not-authenticated error when no user is signed in', async () => {
     setupUnauthenticated()
-
-    const result = await deleteComment({ commentId: COMMENT_ID })
-
-    expect(result).toEqual({ success: false, error: 'Not authenticated' })
-  })
-
-  it('returns not-authenticated error when auth returns an error', async () => {
-    setupAuthError()
 
     const result = await deleteComment({ commentId: COMMENT_ID })
 

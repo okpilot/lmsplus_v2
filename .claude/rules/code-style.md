@@ -110,7 +110,7 @@ export async function submitAnswer(input: unknown) {
 // ✅ CORRECT — orchestrator + focused helpers
 export async function submitAnswer(input: unknown) {
   const { questionId, sessionId, selectedOptionId } = SubmitAnswerSchema.parse(input)
-  const student = await requireAuth()
+  const student = await requireAuthUser()
   const isCorrect = await checkAnswer(questionId, selectedOptionId)
   await updateFsrsState(student.id, questionId, isCorrect)
   await logAuditEvent({ type: 'quiz.answer_submitted', actorId: student.id, ... })

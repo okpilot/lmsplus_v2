@@ -2,6 +2,7 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
+import { verifySessionUser } from '@/lib/auth/verify-session-user'
 import { rpc } from '@/lib/supabase-rpc'
 import type { StartExamResult } from '../types'
 import { blockedFailure, type WithBlocked } from './_blocked-start'
@@ -27,11 +28,7 @@ type StartExamRpcResult = z.infer<typeof StartExamRpcResultSchema>
 export async function startExamSession(raw: unknown): Promise<WithBlocked<StartExamResult>> {
   try {
     const supabase = await createServerSupabaseClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-    if (authError || !user) return { success: false, error: 'Not authenticated' }
+    if (!(await verifySessionUser(supabase))) return { success: false, error: 'Not authenticated' }
 
     let input: z.infer<typeof StartExamInput>
     try {

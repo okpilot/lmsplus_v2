@@ -2,6 +2,7 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
+import { verifySessionUser } from '@/lib/auth/verify-session-user'
 import { findActiveInternalExamSession, lookupAndToggleFlag } from './_flag-guard'
 
 const ToggleFlagSchema = z.object({ questionId: z.uuid() })
@@ -12,11 +13,8 @@ type GetFlaggedResult = { success: true; flaggedIds: string[] } | { success: fal
 
 export async function toggleFlag(raw: unknown): Promise<FlagResult> {
   const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-  if (authError || !user) return { success: false, error: 'Not authenticated' }
+  const user = await verifySessionUser(supabase)
+  if (!user) return { success: false, error: 'Not authenticated' }
 
   let parsed: z.infer<typeof ToggleFlagSchema>
   try {
@@ -40,11 +38,8 @@ export async function toggleFlag(raw: unknown): Promise<FlagResult> {
 
 export async function getFlaggedIds(raw: unknown): Promise<GetFlaggedResult> {
   const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-  if (authError || !user) return { success: true, flaggedIds: [] }
+  const user = await verifySessionUser(supabase)
+  if (!user) return { success: true, flaggedIds: [] }
 
   let parsed: z.infer<typeof GetFlaggedIdsSchema>
   try {

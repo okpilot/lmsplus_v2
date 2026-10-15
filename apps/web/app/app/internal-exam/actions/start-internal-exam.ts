@@ -3,6 +3,7 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import { blockedFlag, type WithBlocked } from '@/app/app/quiz/actions/_blocked-start'
+import { verifySessionUser } from '@/lib/auth/verify-session-user'
 import { rpc } from '@/lib/supabase-rpc'
 import { START_INTERNAL_EXAM_ERROR_MESSAGES } from './_error-messages'
 
@@ -42,11 +43,7 @@ function mapRpcError(message: string): string {
 export async function startInternalExam(raw: unknown): Promise<StartInternalExamResult> {
   try {
     const supabase = await createServerSupabaseClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-    if (authError || !user) return { success: false, error: 'Not authenticated' }
+    if (!(await verifySessionUser(supabase))) return { success: false, error: 'Not authenticated' }
 
     const parsed = StartInternalExamInput.safeParse(raw)
     if (!parsed.success) {

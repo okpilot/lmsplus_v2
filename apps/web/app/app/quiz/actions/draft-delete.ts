@@ -2,6 +2,7 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
+import { verifySessionUser } from '@/lib/auth/verify-session-user'
 
 const DeleteDraftInput = z.object({
   draftId: z.uuid(),
@@ -10,11 +11,8 @@ const DeleteDraftInput = z.object({
 export async function deleteDraft(raw: unknown): Promise<{ success: boolean }> {
   try {
     const supabase = await createServerSupabaseClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-    if (authError || !user) return { success: false }
+    const user = await verifySessionUser(supabase)
+    if (!user) return { success: false }
 
     let draftId: string
     try {

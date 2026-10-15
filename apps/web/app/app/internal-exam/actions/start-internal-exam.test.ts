@@ -2,15 +2,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetUser, mockRpc } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
+const { mockVerifySessionUser, mockRpc, mockClient } = vi.hoisted(() => ({
+  mockVerifySessionUser: vi.fn(),
   mockRpc: vi.fn(),
+  mockClient: {},
 }))
 
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
-  }),
+  createServerSupabaseClient: async () => mockClient,
+}))
+
+vi.mock('@/lib/auth/verify-session-user', () => ({
+  verifySessionUser: mockVerifySessionUser,
 }))
 
 vi.mock('@/lib/supabase-rpc', () => ({
@@ -49,22 +52,17 @@ beforeEach(() => {
 
 describe('startInternalExam — authentication', () => {
   it('returns failure when the user is not authenticated', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } })
+    mockVerifySessionUser.mockResolvedValue(null)
     const result = await startInternalExam({ code: VALID_CODE })
     expect(result.success).toBe(false)
     if (result.success) return
     expect(result.error).toBe('Not authenticated')
   })
 
-  it('returns failure when authentication returns an error', async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: null },
-      error: { message: 'session expired' },
-    })
-    const result = await startInternalExam({ code: VALID_CODE })
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe('Not authenticated')
+  it('verifies identity on the session client', async () => {
+    mockVerifySessionUser.mockResolvedValue(null)
+    await startInternalExam({ code: VALID_CODE })
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 })
 
@@ -72,7 +70,7 @@ describe('startInternalExam — authentication', () => {
 
 describe('startInternalExam — input validation', () => {
   beforeEach(() => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
   })
 
   it('returns failure when code is missing', async () => {
@@ -101,7 +99,7 @@ describe('startInternalExam — input validation', () => {
 
 describe('startInternalExam — RPC error messages', () => {
   beforeEach(() => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
   })
 
   it('maps code_not_found to a unified generic message', async () => {
@@ -242,7 +240,7 @@ describe('startInternalExam — RPC error messages', () => {
 
 describe('startInternalExam — RPC payload validation', () => {
   beforeEach(() => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
   })
 
   it('returns failure when RPC returns null data without an error', async () => {
@@ -289,7 +287,7 @@ describe('startInternalExam — RPC payload validation', () => {
 
 describe('startInternalExam — happy path', () => {
   beforeEach(() => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
   })
 
   it('returns sessionId on success when RPC returns a TABLE (array)', async () => {
@@ -321,7 +319,7 @@ describe('startInternalExam — happy path', () => {
 
 describe('startInternalExam — uncaught errors', () => {
   it('returns a generic error and logs when an unexpected exception is thrown', async () => {
-    mockGetUser.mockRejectedValue(new Error('network failure'))
+    mockVerifySessionUser.mockRejectedValue(new Error('network failure'))
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
       const result = await startInternalExam({ code: VALID_CODE })

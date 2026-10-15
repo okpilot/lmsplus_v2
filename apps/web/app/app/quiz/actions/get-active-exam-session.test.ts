@@ -2,17 +2,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetUser, mockFrom, mockRpc } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
+const { mockVerifySessionUser, mockFrom, mockRpc } = vi.hoisted(() => ({
+  mockVerifySessionUser: vi.fn(),
   mockFrom: vi.fn(),
   mockRpc: vi.fn(),
 }))
 
+const mockClient = vi.hoisted(() => ({ from: mockFrom }))
+
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
-    from: mockFrom,
-  }),
+  createServerSupabaseClient: async () => mockClient,
+}))
+
+vi.mock('@/lib/auth/verify-session-user', () => ({
+  verifySessionUser: mockVerifySessionUser,
 }))
 
 vi.mock('@/lib/supabase-rpc', () => ({
@@ -59,7 +62,7 @@ beforeEach(() => {
   vi.resetAllMocks()
   vi.useFakeTimers()
   vi.setSystemTime(NOW_MS)
-  mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null })
+  mockVerifySessionUser.mockResolvedValue({ id: 'user-1', email: null })
   mockRpc.mockResolvedValue({ data: null, error: null })
 })
 
@@ -70,17 +73,14 @@ afterEach(() => {
 // ---- Tests ----------------------------------------------------------------
 
 describe('getActiveExamSession — unauthenticated', () => {
-  it('returns error when auth error is present', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null }, error: { message: 'no session' } })
-    mockFrom.mockReturnValue(buildChain({ data: [], error: null }))
-
-    const result = await getActiveExamSession()
-
-    expect(result).toEqual({ success: false, error: 'Not authenticated' })
+  it('verifies identity on the session client', async () => {
+    mockVerifySessionUser.mockResolvedValue(null)
+    await getActiveExamSession()
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 
-  it('returns error when user is null without auth error', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
+  it('returns error when no user is signed in', async () => {
+    mockVerifySessionUser.mockResolvedValue(null)
     mockFrom.mockReturnValue(buildChain({ data: [], error: null }))
 
     const result = await getActiveExamSession()

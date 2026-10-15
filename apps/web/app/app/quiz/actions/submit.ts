@@ -3,16 +3,13 @@
 import { SubmitAnswerSchema } from '@repo/db/schema'
 import { createServerSupabaseClient } from '@repo/db/server'
 import type { z } from 'zod'
+import { verifySessionUser } from '@/lib/auth/verify-session-user'
 import { rpc } from '@/lib/supabase-rpc'
 import type { SubmitQuizAnswerResult, SubmitRpcResult } from '../types'
 
 export async function submitQuizAnswer(raw: unknown): Promise<SubmitQuizAnswerResult> {
   const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-  if (authError || !user) return { success: false, error: 'Not authenticated' }
+  if (!(await verifySessionUser(supabase))) return { success: false, error: 'Not authenticated' }
 
   let input: z.infer<typeof SubmitAnswerSchema>
   try {

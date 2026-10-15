@@ -2,17 +2,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetUser, mockFrom, mockRevalidatePath } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
-  mockFrom: vi.fn(),
-  mockRevalidatePath: vi.fn(),
-}))
+const { mockVerifySessionUser, mockFrom, mockRevalidatePath, mockClient } = vi.hoisted(() => {
+  const mockFrom = vi.fn()
+  return {
+    mockVerifySessionUser: vi.fn(),
+    mockFrom,
+    mockRevalidatePath: vi.fn(),
+    mockClient: { from: mockFrom },
+  }
+})
 
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
-    from: mockFrom,
-  }),
+  createServerSupabaseClient: async () => mockClient,
+}))
+
+vi.mock('@/lib/auth/verify-session-user', () => ({
+  verifySessionUser: mockVerifySessionUser,
 }))
 
 vi.mock('next/cache', () => ({ revalidatePath: mockRevalidatePath }))
@@ -26,10 +31,7 @@ import { updateDisplayName } from './actions'
 const USER_ID = 'aaaaaaaa-0000-4000-a000-000000000001'
 
 function mockAuthenticatedUser() {
-  mockGetUser.mockResolvedValue({
-    data: { user: { id: USER_ID, email: 'test@example.com' } },
-    error: null,
-  })
+  mockVerifySessionUser.mockResolvedValue({ id: USER_ID, email: 'test@example.com' })
 }
 
 function buildUpdateChain({
@@ -57,7 +59,7 @@ beforeEach(() => {
 describe('updateDisplayName', () => {
   describe('input validation (runs before auth)', () => {
     afterEach(() => {
-      expect(mockGetUser).not.toHaveBeenCalled()
+      expect(mockVerifySessionUser).not.toHaveBeenCalled()
     })
 
     it('returns failure when fullName is missing', async () => {
@@ -104,21 +106,16 @@ describe('updateDisplayName', () => {
   })
 
   describe('auth guard', () => {
-    it('returns failure when auth returns an error', async () => {
-      mockGetUser.mockResolvedValue({
-        data: { user: null },
-        error: { message: 'JWT expired' },
-      })
+    it('verifies identity on the session client', async () => {
+      mockVerifySessionUser.mockResolvedValue(null)
 
-      const result = await updateDisplayName({ fullName: 'Alice' })
+      await updateDisplayName({ fullName: 'Alice' })
 
-      expect(result.success).toBe(false)
-      if (result.success) return
-      expect(result.error).toBe('Not authenticated')
+      expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
     })
 
     it('returns failure when no user is in the session', async () => {
-      mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
+      mockVerifySessionUser.mockResolvedValue(null)
 
       const result = await updateDisplayName({ fullName: 'Alice' })
 

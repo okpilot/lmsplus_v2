@@ -2,16 +2,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetUser, mockFrom } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
+const { mockVerifySessionUser, mockFrom } = vi.hoisted(() => ({
+  mockVerifySessionUser: vi.fn(),
   mockFrom: vi.fn(),
 }))
 
+const mockClient = vi.hoisted(() => ({ from: mockFrom }))
+
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
-    from: mockFrom,
-  }),
+  createServerSupabaseClient: async () => mockClient,
+}))
+
+vi.mock('@/lib/auth/verify-session-user', () => ({
+  verifySessionUser: mockVerifySessionUser,
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -26,11 +29,11 @@ const DRAFT_ID = '00000000-0000-4000-a000-000000000050'
 // ---- Helpers --------------------------------------------------------------
 
 function setupAuthenticatedUser() {
-  mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } } })
+  mockVerifySessionUser.mockResolvedValue({ id: USER_ID, email: null })
 }
 
 function setupUnauthenticated() {
-  mockGetUser.mockResolvedValue({ data: { user: null } })
+  mockVerifySessionUser.mockResolvedValue(null)
 }
 
 function mockChain() {
@@ -51,17 +54,14 @@ beforeEach(() => {
 // ---- deleteDraft -----------------------------------------------------------
 
 describe('deleteDraft', () => {
-  it('returns failure when user is not authenticated', async () => {
-    setupUnauthenticated()
-    const result = await deleteDraft({ draftId: DRAFT_ID })
-    expect(result).toEqual({ success: false })
+  it('verifies identity on the session client', async () => {
+    mockVerifySessionUser.mockResolvedValue(null)
+    await deleteDraft({ draftId: DRAFT_ID })
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 
-  it('returns failure when authentication fails', async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: null },
-      error: { message: 'JWT expired' },
-    })
+  it('returns failure when user is not authenticated', async () => {
+    setupUnauthenticated()
     const result = await deleteDraft({ draftId: DRAFT_ID })
     expect(result).toEqual({ success: false })
   })

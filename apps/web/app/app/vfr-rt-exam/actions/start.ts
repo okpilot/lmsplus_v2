@@ -3,6 +3,7 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import { blockedFlag, type WithBlocked } from '@/app/app/quiz/actions/_blocked-start'
+import { verifySessionUser } from '@/lib/auth/verify-session-user'
 import { rpc } from '@/lib/supabase-rpc'
 import { START_VFR_RT_EXAM_ERROR_MESSAGES } from './_error-messages'
 
@@ -48,11 +49,7 @@ function mapRpcError(message: string): string {
 export async function startVfrRtExam(raw: unknown): Promise<StartVfrRtExamResult> {
   try {
     const supabase = await createServerSupabaseClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-    if (authError || !user) return { success: false, error: 'Not authenticated' }
+    if (!(await verifySessionUser(supabase))) return { success: false, error: 'Not authenticated' }
 
     const parsed = StartVfrRtExamInput.safeParse(raw)
     if (!parsed.success) {

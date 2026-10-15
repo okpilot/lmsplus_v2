@@ -3,6 +3,7 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import type { ActionResult } from '@/lib/action-result'
+import { verifySessionUser } from '@/lib/auth/verify-session-user'
 import { discardBlockedError } from './_discard-guard'
 
 const DiscardQuizInput = z.object({
@@ -12,11 +13,8 @@ const DiscardQuizInput = z.object({
 export async function discardQuiz(raw: unknown): Promise<ActionResult> {
   try {
     const supabase = await createServerSupabaseClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-    if (authError || !user) return { success: false, error: 'Not authenticated' }
+    const user = await verifySessionUser(supabase)
+    if (!user) return { success: false, error: 'Not authenticated' }
 
     let input: { sessionId: string }
     try {

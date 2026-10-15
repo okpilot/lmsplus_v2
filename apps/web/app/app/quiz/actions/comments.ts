@@ -2,6 +2,7 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
+import { verifySessionUser } from '@/lib/auth/verify-session-user'
 import { COMMENT_SELECT, fetchQuestionComments } from './comment-queries'
 
 const GetCommentsSchema = z.object({ questionId: z.uuid() })
@@ -13,10 +14,7 @@ const DeleteCommentSchema = z.object({ commentId: z.uuid() })
 
 export async function getComments(raw: unknown) {
   const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { success: true as const, comments: [] }
+  if (!(await verifySessionUser(supabase))) return { success: true as const, comments: [] }
 
   let parsed: z.infer<typeof GetCommentsSchema>
   try {
@@ -36,11 +34,8 @@ export async function getComments(raw: unknown) {
 
 export async function createComment(raw: unknown) {
   const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-  if (authError || !user) return { success: false as const, error: 'Not authenticated' }
+  const user = await verifySessionUser(supabase)
+  if (!user) return { success: false as const, error: 'Not authenticated' }
 
   let parsed: z.infer<typeof CreateCommentSchema>
   try {
@@ -64,11 +59,8 @@ export async function createComment(raw: unknown) {
 
 export async function deleteComment(raw: unknown) {
   const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-  if (authError || !user) return { success: false as const, error: 'Not authenticated' }
+  const user = await verifySessionUser(supabase)
+  if (!user) return { success: false as const, error: 'Not authenticated' }
 
   let parsed: z.infer<typeof DeleteCommentSchema>
   try {

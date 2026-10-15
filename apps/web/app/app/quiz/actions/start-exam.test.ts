@@ -2,15 +2,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetUser, mockRpc } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
+const { mockVerifySessionUser, mockRpc } = vi.hoisted(() => ({
+  mockVerifySessionUser: vi.fn(),
   mockRpc: vi.fn(),
 }))
 
+const mockClient = vi.hoisted(() => ({}))
+
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
-  }),
+  createServerSupabaseClient: async () => mockClient,
+}))
+
+vi.mock('@/lib/auth/verify-session-user', () => ({
+  verifySessionUser: mockVerifySessionUser,
 }))
 
 vi.mock('@/lib/supabase-rpc', () => ({
@@ -55,19 +59,14 @@ beforeEach(() => {
 // ---- Auth -----------------------------------------------------------------
 
 describe('startExamSession — authentication', () => {
-  it('returns failure when the user is not authenticated', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } })
-    const result = await startExamSession({ subjectId: VALID_SUBJECT_ID })
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe('Not authenticated')
+  it('verifies identity on the session client', async () => {
+    mockVerifySessionUser.mockResolvedValue(null)
+    await startExamSession({ subjectId: VALID_SUBJECT_ID })
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 
-  it('returns failure when authentication returns an error', async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: null },
-      error: { message: 'session expired' },
-    })
+  it('returns failure when the user is not authenticated', async () => {
+    mockVerifySessionUser.mockResolvedValue(null)
     const result = await startExamSession({ subjectId: VALID_SUBJECT_ID })
     expect(result.success).toBe(false)
     if (result.success) return
@@ -79,7 +78,7 @@ describe('startExamSession — authentication', () => {
 
 describe('startExamSession — input validation', () => {
   it('returns failure when subjectId is missing', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
     const result = await startExamSession({})
     expect(result.success).toBe(false)
     if (result.success) return
@@ -87,7 +86,7 @@ describe('startExamSession — input validation', () => {
   })
 
   it('returns failure when subjectId is not a valid UUID', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
     const result = await startExamSession({ subjectId: 'not-a-uuid' })
     expect(result.success).toBe(false)
     if (result.success) return
@@ -95,7 +94,7 @@ describe('startExamSession — input validation', () => {
   })
 
   it('returns failure for completely invalid input', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
     const result = await startExamSession(null)
     expect(result.success).toBe(false)
     if (result.success) return
@@ -107,7 +106,7 @@ describe('startExamSession — input validation', () => {
 
 describe('startExamSession — RPC error messages', () => {
   beforeEach(() => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
   })
 
   it('returns a domain-specific error when a Practice Exam is already in progress', async () => {
@@ -181,7 +180,7 @@ describe('startExamSession — RPC error messages', () => {
 
 describe('startExamSession — RPC payload validation', () => {
   beforeEach(() => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
   })
 
   it('returns a generic failure when the RPC payload is missing session_id', async () => {
@@ -247,7 +246,7 @@ describe('startExamSession — RPC payload validation', () => {
 
 describe('startExamSession — happy path', () => {
   it('returns exam session data on success', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
     mockRpc.mockResolvedValue(RPC_SUCCESS)
 
     const result = await startExamSession({ subjectId: VALID_SUBJECT_ID })
@@ -262,7 +261,7 @@ describe('startExamSession — happy path', () => {
   })
 
   it('passes p_subject_id to the start_exam_session RPC', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
     mockRpc.mockResolvedValue(RPC_SUCCESS)
 
     await startExamSession({ subjectId: VALID_SUBJECT_ID })
@@ -277,7 +276,7 @@ describe('startExamSession — happy path', () => {
 
 describe('startExamSession — uncaught errors', () => {
   it('returns a generic error and logs when an unexpected exception is thrown', async () => {
-    mockGetUser.mockRejectedValue(new Error('network failure'))
+    mockVerifySessionUser.mockRejectedValue(new Error('network failure'))
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
       const result = await startExamSession({ subjectId: VALID_SUBJECT_ID })

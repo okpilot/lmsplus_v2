@@ -2,6 +2,7 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
+import { verifySessionUser } from '@/lib/auth/verify-session-user'
 import { rpc } from '@/lib/supabase-rpc'
 import { mapProgressRpcError, SIGN_IN } from './progress-error-messages'
 import type { ProgressResult } from './quiz-progress-helpers'
@@ -18,11 +19,7 @@ export async function finishQuizSession(raw: unknown): Promise<ProgressResult> {
   const parsed = FinishInput.safeParse(raw)
   if (!parsed.success) return { success: false, error: 'Invalid input' }
   const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-  if (authError || !user) return { success: false, error: SIGN_IN }
+  if (!(await verifySessionUser(supabase))) return { success: false, error: SIGN_IN }
   const { error } = await rpc<unknown>(supabase, 'finish_quiz_session', {
     p_session_id: parsed.data.sessionId,
     p_device_id: parsed.data.deviceId,

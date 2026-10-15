@@ -42,7 +42,7 @@ You receive:
 ### 2. Security (mirrors .coderabbit.yaml pre_merge_checks)
 - **Answer exposure:** Any path that returns `options[].correct` to student-facing code without going through `get_quiz_questions()` RPC
 - **Secret leaks:** JWT tokens, service role keys, `sbp_`, `eyJ`, `-----BEGIN` in source files
-- **Auth gaps:** Server Actions or API routes missing auth checks (`requireAuth()` or `auth.uid()`)
+- **Auth gaps:** Server Actions or API routes missing auth checks (`verifySessionUser()`, `requireAuthUser()` or `auth.uid()`)
 - **Input validation:** Server Actions accepting `unknown` input without Zod `.parse()`
 - **RLS gaps:** New tables without ENABLE ROW LEVEL SECURITY + FORCE ROW LEVEL SECURITY
 - **Hard deletes:** DELETE on mutable tables instead of `UPDATE SET deleted_at = now()`
@@ -177,8 +177,8 @@ Fix: Add the same `for (const cookie of response.cookies.getAll())` loop.
 `submitQuizAnswer` calls `supabase.rpc('submit_quiz_answer')` without first
 verifying `auth.uid()` is non-null. The RPC has its own auth check, but defense
 in depth requires the Server Action to check too.
-EVIDENCE: `sed -n '<range>p' <the file>` -> no `requireAuth` before the `.rpc(` call.
-Fix: Add `const user = await requireAuth()` before the RPC call.
+EVIDENCE: `sed -n '<range>p' <the file>` -> no `verifySessionUser` before the `.rpc(` call.
+Fix: Add `if (!(await verifySessionUser(supabase))) return { success: false, error: 'Not authenticated' }` before the RPC call.
 
 [SUGGESTION] apps/web/proxy.ts:21 — forward only expected params
 `callbackUrl.search = searchParams.toString()` forwards all query params to

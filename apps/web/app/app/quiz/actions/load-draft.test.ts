@@ -2,16 +2,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetUser, mockFrom } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
+const { mockVerifySessionUser, mockFrom } = vi.hoisted(() => ({
+  mockVerifySessionUser: vi.fn(),
   mockFrom: vi.fn(),
 }))
 
+const mockClient = vi.hoisted(() => ({ from: mockFrom }))
+
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
-    from: mockFrom,
-  }),
+  createServerSupabaseClient: async () => mockClient,
+}))
+
+vi.mock('@/lib/auth/verify-session-user', () => ({
+  verifySessionUser: mockVerifySessionUser,
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -56,19 +59,14 @@ beforeEach(() => {
 })
 
 describe('loadDrafts', () => {
-  it('returns empty drafts when user is not authenticated', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } })
-
-    const result = await loadDrafts()
-
-    expect(result).toEqual({ drafts: [] })
+  it('verifies identity on the session client', async () => {
+    mockVerifySessionUser.mockResolvedValue(null)
+    await loadDrafts()
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 
-  it('returns empty drafts when authentication fails', async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: null },
-      error: { message: 'session expired' },
-    })
+  it('returns empty drafts when user is not authenticated', async () => {
+    mockVerifySessionUser.mockResolvedValue(null)
 
     const result = await loadDrafts()
 
@@ -76,7 +74,7 @@ describe('loadDrafts', () => {
   })
 
   it('returns empty drafts when the DB query returns an error', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } } })
+    mockVerifySessionUser.mockResolvedValue({ id: USER_ID, email: null })
     mockFrom.mockReturnValue(
       buildSelectChain({ data: null, error: { message: 'DB connection error' } }),
     )
@@ -87,7 +85,7 @@ describe('loadDrafts', () => {
   })
 
   it('returns empty drafts when the DB returns no rows', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } } })
+    mockVerifySessionUser.mockResolvedValue({ id: USER_ID, email: null })
     mockFrom.mockReturnValue(buildSelectChain({ data: [], error: null }))
 
     const result = await loadDrafts()
@@ -96,7 +94,7 @@ describe('loadDrafts', () => {
   })
 
   it('maps a valid draft row to DraftData with all fields', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } } })
+    mockVerifySessionUser.mockResolvedValue({ id: USER_ID, email: null })
     mockFrom.mockReturnValue(buildSelectChain({ data: [buildDraftRow()], error: null }))
 
     const result = await loadDrafts()
@@ -115,7 +113,7 @@ describe('loadDrafts', () => {
   })
 
   it('bounds the read to the MAX_DRAFTS cap', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } } })
+    mockVerifySessionUser.mockResolvedValue({ id: USER_ID, email: null })
     const chain = buildSelectChain({ data: [buildDraftRow()], error: null })
     mockFrom.mockReturnValue(chain)
 
@@ -125,7 +123,7 @@ describe('loadDrafts', () => {
   })
 
   it('normalizes legacy untagged MC feedback to the tagged multiple_choice variant', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } } })
+    mockVerifySessionUser.mockResolvedValue({ id: USER_ID, email: null })
     // Pre-discriminant drafts persisted MC feedback with no `questionType`.
     const feedbackData = {
       q1: {
@@ -147,7 +145,7 @@ describe('loadDrafts', () => {
   })
 
   it('maps tagged short_answer and dialog_fill feedback on recovery', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } } })
+    mockVerifySessionUser.mockResolvedValue({ id: USER_ID, email: null })
     const feedbackData = {
       q1: {
         questionType: 'short_answer',
@@ -174,7 +172,7 @@ describe('loadDrafts', () => {
   })
 
   it('returns feedback as undefined when the feedback column is null', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } } })
+    mockVerifySessionUser.mockResolvedValue({ id: USER_ID, email: null })
     mockFrom.mockReturnValue(
       buildSelectChain({ data: [buildDraftRow({ feedback: null })], error: null }),
     )
@@ -185,7 +183,7 @@ describe('loadDrafts', () => {
   })
 
   it('returns feedback as undefined when the feedback column is absent from the row', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } } })
+    mockVerifySessionUser.mockResolvedValue({ id: USER_ID, email: null })
     // buildDraftRow does not include feedback by default
     mockFrom.mockReturnValue(buildSelectChain({ data: [buildDraftRow()], error: null }))
 
@@ -196,7 +194,7 @@ describe('loadDrafts', () => {
 
   it('includes feedback even when session_config is malformed', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } } })
+    mockVerifySessionUser.mockResolvedValue({ id: USER_ID, email: null })
     const feedbackData = {
       q1: {
         isCorrect: false,
@@ -221,7 +219,7 @@ describe('loadDrafts', () => {
   })
 
   it('maps a valid draft row with no optional subject fields', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } } })
+    mockVerifySessionUser.mockResolvedValue({ id: USER_ID, email: null })
     mockFrom.mockReturnValue(
       buildSelectChain({
         data: [buildDraftRow({ session_config: { sessionId: 'sess-xyz' } })],
@@ -238,7 +236,7 @@ describe('loadDrafts', () => {
 
   it('returns sessionId as empty string when session_config is null', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } } })
+    mockVerifySessionUser.mockResolvedValue({ id: USER_ID, email: null })
     mockFrom.mockReturnValue(
       buildSelectChain({ data: [buildDraftRow({ session_config: null })], error: null }),
     )
@@ -255,7 +253,7 @@ describe('loadDrafts', () => {
 
   it('returns sessionId as empty string when session_config is missing sessionId', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } } })
+    mockVerifySessionUser.mockResolvedValue({ id: USER_ID, email: null })
     mockFrom.mockReturnValue(
       buildSelectChain({
         data: [buildDraftRow({ session_config: { subjectName: 'Navigation' } })],
@@ -273,7 +271,7 @@ describe('loadDrafts', () => {
 
   it('returns sessionId as empty string when session_config is a non-object primitive', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } } })
+    mockVerifySessionUser.mockResolvedValue({ id: USER_ID, email: null })
     mockFrom.mockReturnValue(
       buildSelectChain({
         data: [buildDraftRow({ session_config: 'malformed-string' })],
@@ -290,7 +288,7 @@ describe('loadDrafts', () => {
 
   it('preserves other draft fields even when session_config is malformed', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } } })
+    mockVerifySessionUser.mockResolvedValue({ id: USER_ID, email: null })
     mockFrom.mockReturnValue(
       buildSelectChain({
         data: [buildDraftRow({ session_config: null, current_index: 3 })],
@@ -309,7 +307,7 @@ describe('loadDrafts', () => {
 
   it('returns empty drafts when an unexpected error is thrown', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    mockGetUser.mockRejectedValue(new Error('Unexpected failure'))
+    mockVerifySessionUser.mockRejectedValue(new Error('Unexpected failure'))
 
     const result = await loadDrafts()
 

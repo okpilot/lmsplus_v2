@@ -1,12 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockGetUser, mockRpc } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
+const { mockVerifySessionUser, mockRpc } = vi.hoisted(() => ({
+  mockVerifySessionUser: vi.fn(),
   mockRpc: vi.fn(),
 }))
 
+const mockClient = vi.hoisted(() => ({}))
+
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({ auth: { getUser: mockGetUser } }),
+  createServerSupabaseClient: async () => mockClient,
+}))
+
+vi.mock('@/lib/auth/verify-session-user', () => ({
+  verifySessionUser: mockVerifySessionUser,
 }))
 
 vi.mock('@/lib/supabase-rpc', () => ({
@@ -22,11 +28,17 @@ const DEVICE = '00000000-0000-4000-a000-0000000000d1'
 beforeEach(() => {
   vi.resetAllMocks()
   vi.spyOn(console, 'error').mockImplementation(() => {})
-  mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } }, error: null })
+  mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
   mockRpc.mockResolvedValue({ data: {}, error: null })
 })
 
 describe('finishQuizSession', () => {
+  it('verifies identity on the session client', async () => {
+    mockVerifySessionUser.mockResolvedValue(null)
+    await finishQuizSession({ sessionId: SESSION, deviceId: DEVICE })
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
+  })
+
   it('finishes the session through the RPC with snake_case arguments', async () => {
     expect(await finishQuizSession({ sessionId: SESSION, deviceId: DEVICE })).toEqual({
       success: true,
@@ -47,7 +59,7 @@ describe('finishQuizSession', () => {
   })
 
   it('asks the student to sign in again when there is no user', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
+    mockVerifySessionUser.mockResolvedValue(null)
     expect(await finishQuizSession({ sessionId: SESSION, deviceId: DEVICE })).toEqual({
       success: false,
       error: SIGN_IN,

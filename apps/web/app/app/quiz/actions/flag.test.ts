@@ -2,16 +2,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks -----------------------------------------------------------------
 
-const { mockGetUser, mockFrom } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
+const { mockVerifySessionUser, mockFrom } = vi.hoisted(() => ({
+  mockVerifySessionUser: vi.fn(),
   mockFrom: vi.fn(),
 }))
 
+const mockClient = vi.hoisted(() => ({ from: mockFrom }))
+
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
-    from: mockFrom,
-  }),
+  createServerSupabaseClient: async () => mockClient,
+}))
+
+vi.mock('@/lib/auth/verify-session-user', () => ({
+  verifySessionUser: mockVerifySessionUser,
 }))
 
 // ---- Subject under test ----------------------------------------------------
@@ -69,20 +72,22 @@ const QUESTION_ID_A = '00000000-0000-4000-a000-000000000011'
 const QUESTION_ID_B = '00000000-0000-4000-a000-000000000022'
 
 function setupAuthenticatedUser() {
-  mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } }, error: null })
+  mockVerifySessionUser.mockResolvedValue({ id: USER_ID, email: null })
 }
 
 function setupUnauthenticated() {
-  mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
-}
-
-function setupAuthError() {
-  mockGetUser.mockResolvedValue({ data: { user: null }, error: { message: 'JWT expired' } })
+  mockVerifySessionUser.mockResolvedValue(null)
 }
 
 // ---- Tests -----------------------------------------------------------------
 
 describe('toggleFlag', () => {
+  it('verifies identity on the session client', async () => {
+    mockVerifySessionUser.mockResolvedValue(null)
+    await toggleFlag({ questionId: QUESTION_ID_A })
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
+  })
+
   beforeEach(() => {
     vi.resetAllMocks()
   })
@@ -91,14 +96,6 @@ describe('toggleFlag', () => {
 
   it('returns not-authenticated error when no user is signed in', async () => {
     setupUnauthenticated()
-
-    const result = await toggleFlag({ questionId: QUESTION_ID_A })
-
-    expect(result).toEqual({ success: false, error: 'Not authenticated' })
-  })
-
-  it('returns not-authenticated error when auth returns an error', async () => {
-    setupAuthError()
 
     const result = await toggleFlag({ questionId: QUESTION_ID_A })
 
@@ -307,14 +304,6 @@ describe('getFlaggedIds', () => {
 
   it('returns empty flaggedIds when no user is signed in', async () => {
     setupUnauthenticated()
-
-    const result = await getFlaggedIds({ questionIds: [QUESTION_ID_A] })
-
-    expect(result).toEqual({ success: true, flaggedIds: [] })
-  })
-
-  it('returns empty flaggedIds when auth returns an error', async () => {
-    setupAuthError()
 
     const result = await getFlaggedIds({ questionIds: [QUESTION_ID_A] })
 
