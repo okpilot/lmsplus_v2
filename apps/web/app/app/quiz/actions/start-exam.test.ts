@@ -65,14 +65,6 @@ describe('startExamSession — authentication', () => {
     expect(result).toEqual({ success: false, error: 'Not authenticated' })
     expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
-
-  it('returns failure when the user is not authenticated', async () => {
-    mockVerifySessionUser.mockResolvedValue(null)
-    const result = await startExamSession({ subjectId: VALID_SUBJECT_ID })
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe('Not authenticated')
-  })
 })
 
 // ---- Input validation -----------------------------------------------------

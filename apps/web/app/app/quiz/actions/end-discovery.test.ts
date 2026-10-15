@@ -44,22 +44,16 @@ function buildChain(returnValue: unknown) {
 // ---- Tests -----------------------------------------------------------------
 
 describe('endDiscovery', () => {
-  it('returns not-authenticated when the session has no verified user', async () => {
-    mockVerifySessionUser.mockResolvedValue(null)
-    const result = await endDiscovery()
-    expect(result).toEqual({ success: false, error: 'Not authenticated' })
-    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
-  })
-
   beforeEach(() => {
     vi.resetAllMocks()
     mockVerifySessionUser.mockResolvedValue({ id: 'user-1', email: null })
   })
 
-  it('returns not-authenticated error when no user is signed in', async () => {
+  it('returns not-authenticated when the session has no verified user', async () => {
     mockVerifySessionUser.mockResolvedValue(null)
     const result = await endDiscovery()
     expect(result).toEqual({ success: false, error: 'Not authenticated' })
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 
   it('returns invalid-input error when a non-object payload is passed', async () => {

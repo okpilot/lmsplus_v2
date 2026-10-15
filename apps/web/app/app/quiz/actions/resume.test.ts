@@ -87,14 +87,6 @@ describe('resumeQuizSession', () => {
     expect(mockFinish).not.toHaveBeenCalled()
   })
 
-  it('rejects an unauthenticated caller', async () => {
-    mockVerifySessionUser.mockResolvedValue(null)
-    expect(await resumeQuizSession({ draftId: DRAFT })).toEqual({
-      success: false,
-      error: 'Not authenticated',
-    })
-  })
-
   it('rejects a non-uuid draft id', async () => {
     expect(await resumeQuizSession({ draftId: 'nope' })).toEqual({
       success: false,

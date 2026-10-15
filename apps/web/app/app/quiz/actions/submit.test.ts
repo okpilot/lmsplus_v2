@@ -32,13 +32,6 @@ beforeEach(() => {
 })
 
 describe('submitQuizAnswer', () => {
-  it('returns not-authenticated when the session has no verified user', async () => {
-    mockVerifySessionUser.mockResolvedValue(null)
-    const result = await submitQuizAnswer(validInput)
-    expect(result).toEqual({ success: false, error: 'Not authenticated' })
-    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
-  })
-
   const validInput = {
     sessionId: '00000000-0000-4000-a000-000000000001',
     questionId: '00000000-0000-4000-a000-000000000002',
@@ -46,12 +39,11 @@ describe('submitQuizAnswer', () => {
     responseTimeMs: 3000,
   }
 
-  it('returns failure when user is not authenticated', async () => {
+  it('returns not-authenticated when the session has no verified user', async () => {
     mockVerifySessionUser.mockResolvedValue(null)
     const result = await submitQuizAnswer(validInput)
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe('Not authenticated')
+    expect(result).toEqual({ success: false, error: 'Not authenticated' })
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 
   it('surfaces an answer submission failure', async () => {

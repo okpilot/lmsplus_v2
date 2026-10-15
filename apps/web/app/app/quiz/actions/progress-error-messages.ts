@@ -8,7 +8,7 @@
 // INVARIANT: keys must not be substrings of one another — mapProgressRpcError matches via
 // message.includes(key), so an overlapping key would make iteration order decide the mapping.
 const NOT_FOUND = 'This session could not be found.'
-const NOT_ACTIVE = 'Your account is no longer active.'
+export const NOT_ACTIVE = 'Your account is no longer active.'
 const BAD_ANSWER = 'This answer could not be saved. Please review it and try again.'
 const BAD_PROGRESS = 'Your progress could not be saved. Reload the page and try again.'
 const NO_QUESTION = 'That question is not part of this session.'

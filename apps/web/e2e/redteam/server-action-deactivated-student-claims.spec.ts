@@ -10,14 +10,15 @@
  * user_not_found_or_inactive, the session stays open and ungraded.
  *
  * The action body running (a `"success":false` RSC payload without the SIGN_IN message, not a proxy
- * redirect) pins that the banned token passes verifySessionUser; the unchanged session pins the RPC gate.
+ * redirect) pins that the banned token passes verifySessionUser; the account-not-active message and
+ * the unchanged session pin the RPC gate.
  * CONTROL: the same cookies, after the student is restored, finish and grade the session.
  *
  * Status: Expected to PASS.
  */
 
 import { type Browser, type BrowserContext, expect, test } from '@playwright/test'
-import { SIGN_IN } from '../../app/app/quiz/actions/progress-error-messages'
+import { NOT_ACTIVE, SIGN_IN } from '../../app/app/quiz/actions/progress-error-messages'
 import { buildConsentCookieValue } from '../../lib/consent/check-consent'
 import { CONSENT_COOKIE } from '../../lib/consent/versions'
 import { cleanupStudentActiveSessions, getAdminClient } from '../helpers/supabase'
@@ -238,6 +239,7 @@ test.describe('Red Team: deactivated student Server Action replay (IB)', () => {
     await setDeactivated(true)
     const refused = await invoke(sessionId)
     expect(refused).toContain('"success":false')
+    expect(refused).toContain(NOT_ACTIVE)
     expect(refused).not.toContain(SIGN_IN)
     expect(refused).not.toContain('"success":true')
     const held = await readSession(sessionId)

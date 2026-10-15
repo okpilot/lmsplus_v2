@@ -41,13 +41,6 @@ function buildChain(returnValue: unknown) {
 // ---- Tests -----------------------------------------------------------------
 
 describe('discardQuiz', () => {
-  it('returns not-authenticated when the session has no verified user', async () => {
-    mockVerifySessionUser.mockResolvedValue(null)
-    const result = await discardQuiz({ sessionId: '00000000-0000-4000-a000-000000000001' })
-    expect(result).toEqual({ success: false, error: 'Not authenticated' })
-    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
-  })
-
   beforeEach(() => {
     vi.resetAllMocks()
     mockVerifySessionUser.mockResolvedValue({ id: 'user-1', email: null })
@@ -55,14 +48,11 @@ describe('discardQuiz', () => {
 
   // ---- auth ----------------------------------------------------------------
 
-  it('returns not-authenticated error when no user is signed in', async () => {
+  it('returns not-authenticated when the session has no verified user', async () => {
     mockVerifySessionUser.mockResolvedValue(null)
-
-    const result = await discardQuiz({
-      sessionId: '00000000-0000-4000-a000-000000000001',
-    })
-
+    const result = await discardQuiz({ sessionId: '00000000-0000-4000-a000-000000000001' })
     expect(result).toEqual({ success: false, error: 'Not authenticated' })
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 
   // ---- input validation ----------------------------------------------------

@@ -62,15 +62,6 @@ describe('getActivePracticeSession — unauthenticated', () => {
     expect(result).toEqual({ success: false, error: 'Not authenticated' })
     expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
-
-  it('returns not-authenticated when no user is signed in', async () => {
-    mockVerifySessionUser.mockResolvedValue(null)
-    mockFrom.mockReturnValue(buildChain({ data: [], error: null }))
-
-    const result = await getActivePracticeSession()
-
-    expect(result).toEqual({ success: false, error: 'Not authenticated' })
-  })
 })
 
 describe('getActivePracticeSession — happy path', () => {

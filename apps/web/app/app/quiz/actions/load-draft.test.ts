@@ -66,14 +66,6 @@ describe('loadDrafts', () => {
     expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 
-  it('returns empty drafts when user is not authenticated', async () => {
-    mockVerifySessionUser.mockResolvedValue(null)
-
-    const result = await loadDrafts()
-
-    expect(result).toEqual({ drafts: [] })
-  })
-
   it('returns empty drafts when the DB query returns an error', async () => {
     mockVerifySessionUser.mockResolvedValue({ id: USER_ID, email: null })
     mockFrom.mockReturnValue(

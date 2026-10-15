@@ -47,17 +47,6 @@ describe('startQuizSession', () => {
     expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 
-  it('returns failure when user is not authenticated', async () => {
-    mockVerifySessionUser.mockResolvedValue(null)
-    const result = await startQuizSession({
-      subjectId: '00000000-0000-4000-a000-000000000001',
-      count: 5,
-    })
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe('Not authenticated')
-  })
-
   it('returns failure when no questions are available', async () => {
     mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
     mockGetRandomQuestionIds.mockResolvedValue([])

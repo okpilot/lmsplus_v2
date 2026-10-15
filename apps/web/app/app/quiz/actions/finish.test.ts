@@ -20,7 +20,6 @@ vi.mock('@/lib/supabase-rpc', () => ({
 }))
 
 import { finishQuizSession } from './finish'
-import { SIGN_IN } from './progress-error-messages'
 
 const SESSION = '00000000-0000-4000-a000-000000000099'
 const DEVICE = '00000000-0000-4000-a000-0000000000d1'
@@ -41,6 +40,7 @@ describe('finishQuizSession', () => {
       error: 'Your sign-in has expired. Please sign in again.',
     })
     expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
+    expect(mockRpc).not.toHaveBeenCalled()
   })
 
   it('finishes the session through the RPC with snake_case arguments', async () => {
@@ -59,15 +59,6 @@ describe('finishQuizSession', () => {
     ['an unexpected extra field', { sessionId: SESSION, deviceId: DEVICE, extra: 1 }],
   ])('rejects %s without calling the RPC', async (_label, input) => {
     expect(await finishQuizSession(input)).toEqual({ success: false, error: 'Invalid input' })
-    expect(mockRpc).not.toHaveBeenCalled()
-  })
-
-  it('asks the student to sign in again when there is no user', async () => {
-    mockVerifySessionUser.mockResolvedValue(null)
-    expect(await finishQuizSession({ sessionId: SESSION, deviceId: DEVICE })).toEqual({
-      success: false,
-      error: SIGN_IN,
-    })
     expect(mockRpc).not.toHaveBeenCalled()
   })
 

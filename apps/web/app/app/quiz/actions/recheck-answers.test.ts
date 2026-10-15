@@ -80,14 +80,6 @@ describe('recheckRestoredAnswers', () => {
       error: 'Your sign-in has expired. Please sign in again.',
     })
     expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
-  })
-
-  it('rejects a caller who is not signed in', async () => {
-    mockVerifySessionUser.mockResolvedValue(null)
-
-    const result = await recheckRestoredAnswers(input([mc(Q1)]))
-
-    expect(result).toEqual({ success: false, error: expect.stringContaining('sign-in') })
     expect(mockRpc).not.toHaveBeenCalled()
   })
 

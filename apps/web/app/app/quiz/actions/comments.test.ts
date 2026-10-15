@@ -66,32 +66,20 @@ function setupAuthenticatedUser() {
   mockVerifySessionUser.mockResolvedValue({ id: USER_ID, email: null })
 }
 
-function setupUnauthenticated() {
-  mockVerifySessionUser.mockResolvedValue(null)
-}
-
 // ---- Tests -----------------------------------------------------------------
 
 describe('getComments', () => {
-  it('returns an empty result when the session has no verified user', async () => {
-    mockVerifySessionUser.mockResolvedValue(null)
-    const result = await getComments({ questionId: QUESTION_ID })
-    expect(result).toEqual({ success: true, comments: [] })
-    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
-  })
-
   beforeEach(() => {
     vi.resetAllMocks()
   })
 
   // ---- auth ----------------------------------------------------------------
 
-  it('returns empty comment list when no user is signed in', async () => {
-    setupUnauthenticated()
-
+  it('returns an empty result when the session has no verified user', async () => {
+    mockVerifySessionUser.mockResolvedValue(null)
     const result = await getComments({ questionId: QUESTION_ID })
-
     expect(result).toEqual({ success: true, comments: [] })
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 
   // ---- input validation ----------------------------------------------------
@@ -158,25 +146,17 @@ describe('getComments', () => {
 })
 
 describe('createComment', () => {
-  it('returns not-authenticated when the session has no verified user', async () => {
-    mockVerifySessionUser.mockResolvedValue(null)
-    const result = await createComment({ questionId: QUESTION_ID, body: 'A comment.' })
-    expect(result).toEqual({ success: false, error: 'Not authenticated' })
-    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
-  })
-
   beforeEach(() => {
     vi.resetAllMocks()
   })
 
   // ---- auth ----------------------------------------------------------------
 
-  it('returns not-authenticated error when no user is signed in', async () => {
-    setupUnauthenticated()
-
+  it('returns not-authenticated when the session has no verified user', async () => {
+    mockVerifySessionUser.mockResolvedValue(null)
     const result = await createComment({ questionId: QUESTION_ID, body: 'A comment.' })
-
     expect(result).toEqual({ success: false, error: 'Not authenticated' })
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 
   // ---- input validation ----------------------------------------------------
@@ -262,25 +242,17 @@ describe('createComment', () => {
 })
 
 describe('deleteComment', () => {
-  it('returns not-authenticated when the session has no verified user', async () => {
-    mockVerifySessionUser.mockResolvedValue(null)
-    const result = await deleteComment({ commentId: COMMENT_ID })
-    expect(result).toEqual({ success: false, error: 'Not authenticated' })
-    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
-  })
-
   beforeEach(() => {
     vi.resetAllMocks()
   })
 
   // ---- auth ----------------------------------------------------------------
 
-  it('returns not-authenticated error when no user is signed in', async () => {
-    setupUnauthenticated()
-
+  it('returns not-authenticated when the session has no verified user', async () => {
+    mockVerifySessionUser.mockResolvedValue(null)
     const result = await deleteComment({ commentId: COMMENT_ID })
-
     expect(result).toEqual({ success: false, error: 'Not authenticated' })
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 
   // ---- input validation ----------------------------------------------------

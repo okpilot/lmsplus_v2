@@ -51,14 +51,6 @@ beforeEach(() => {
 // ---- Auth -----------------------------------------------------------------
 
 describe('startInternalExam — authentication', () => {
-  it('returns failure when the user is not authenticated', async () => {
-    mockVerifySessionUser.mockResolvedValue(null)
-    const result = await startInternalExam({ code: VALID_CODE })
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe('Not authenticated')
-  })
-
   it('returns not-authenticated when the session has no verified user', async () => {
     mockVerifySessionUser.mockResolvedValue(null)
     const result = await startInternalExam({ code: VALID_CODE })

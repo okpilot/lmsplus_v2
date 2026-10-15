@@ -113,16 +113,6 @@ describe('updateDisplayName', () => {
       expect(result).toEqual({ success: false, error: 'Not authenticated' })
       expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
     })
-
-    it('returns failure when no user is in the session', async () => {
-      mockVerifySessionUser.mockResolvedValue(null)
-
-      const result = await updateDisplayName({ fullName: 'Alice' })
-
-      expect(result.success).toBe(false)
-      if (result.success) return
-      expect(result.error).toBe('Not authenticated')
-    })
   })
 
   describe('happy path', () => {
