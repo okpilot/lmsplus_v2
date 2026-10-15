@@ -70,6 +70,7 @@ const REVOKED_CELLS: Array<{ table: string; commands: Command[] }> = [
   { table: 'questions', commands: ['delete'] },
   { table: 'quiz_sessions', commands: ['insert', 'delete'] },
   { table: 'quiz_drafts', commands: ['insert', 'update'] },
+  // Vector IC (mig 20261015000100)
   { table: 'fsrs_cards', commands: ['insert', 'update', 'delete'] },
 ]
 

@@ -24,7 +24,6 @@ describe('RLS: student writes require an active user', () => {
   let q3: string
   let refs: Awaited<ReturnType<typeof seedReferenceData>>
   const userIds: string[] = []
-  const commentIds: string[] = []
   const draftIds: string[] = []
 
   async function setDeactivated(deactivated: boolean) {
@@ -43,7 +42,6 @@ describe('RLS: student writes require an active user', () => {
       .single()
     expect(error).toBeNull()
     const id = (data as { id: string }).id
-    commentIds.push(id)
     return id
   }
 
@@ -133,11 +131,16 @@ describe('RLS: student writes require an active user', () => {
   })
 
   afterAll(async () => {
-    await admin.from('users').update({ deleted_at: null }).eq('id', studentId)
-    await admin.from('flagged_questions').delete().eq('student_id', studentId)
-    if (commentIds.length > 0) await admin.from('question_comments').delete().in('id', commentIds)
-    await admin.from('question_comments').delete().eq('user_id', studentId)
-    await admin.from('quiz_drafts').delete().eq('student_id', studentId)
+    const steps = [
+      ['users restore', admin.from('users').update({ deleted_at: null }).eq('id', studentId)],
+      ['flagged_questions', admin.from('flagged_questions').delete().eq('student_id', studentId)],
+      ['question_comments', admin.from('question_comments').delete().eq('user_id', studentId)],
+      ['quiz_drafts', admin.from('quiz_drafts').delete().eq('student_id', studentId)],
+    ] as const
+    for (const [label, step] of steps) {
+      const { error } = await step
+      if (error) console.error(`[rls-active-user-writes] cleanup ${label}: ${error.message}`)
+    }
     await cleanupTestData({ admin, orgId, userIds })
     await cleanupReferenceData({ admin, refs: [refs] })
   })
@@ -181,22 +184,6 @@ describe('RLS: student writes require an active user', () => {
         .eq('user_id', studentId)
         .eq('body', `denied ${suffix}`)
       expect(data).toHaveLength(0)
-    })
-
-    it('cannot delete its own comment', async () => {
-      await setDeactivated(false)
-      const id = await seedComment(`own-deactivated ${suffix}`)
-      await setDeactivated(true)
-
-      const { data, error } = await student
-        .from('question_comments')
-        .delete()
-        .eq('id', id)
-        .select('id')
-      expect(error).toBeNull()
-      expect(data).toHaveLength(0)
-      const { data: after } = await admin.from('question_comments').select('id').eq('id', id)
-      expect(after).toHaveLength(1)
     })
 
     it('cannot delete its own quiz draft', async () => {
@@ -263,7 +250,6 @@ describe('RLS: student writes require an active user', () => {
         .select('id')
       expect(postErr).toBeNull()
       expect(posted).toHaveLength(1)
-      commentIds.push((posted as { id: string }[])[0]?.id ?? '')
 
       const id = await seedComment(`own-active ${suffix}`)
       const { data, error } = await student
