@@ -30,20 +30,20 @@ beforeEach(() => {
 describe('callerStatus', () => {
   it('reports active when the caller can see their own users row', async () => {
     const supabase = makeSupabase({ data: { id: USER_ID }, error: null })
-    expect(await callerStatus(supabase, USER_ID)).toBe('active')
+    expect(await callerStatus(supabase, USER_ID, 'someAction')).toBe('active')
   })
 
   it('reports inactive when the caller cannot see their own users row', async () => {
     const supabase = makeSupabase({ data: null, error: null })
-    expect(await callerStatus(supabase, USER_ID)).toBe('inactive')
+    expect(await callerStatus(supabase, USER_ID, 'someAction')).toBe('inactive')
   })
 
   it('reports an error and logs when the lookup errors', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const supabase = makeSupabase({ data: null, error: { message: 'boom', code: 'XX000' } })
 
-    expect(await callerStatus(supabase, USER_ID)).toBe('error')
-    expect(consoleSpy).toHaveBeenCalledWith('[callerStatus] Caller lookup error:', 'boom', 'XX000')
+    expect(await callerStatus(supabase, USER_ID, 'someAction')).toBe('error')
+    expect(consoleSpy).toHaveBeenCalledWith('[someAction] Caller lookup error:', 'boom', 'XX000')
   })
 })
 
@@ -67,6 +67,7 @@ describe('resolveZeroRowWrite', () => {
     const supabase = makeSupabase({ data: null, error: { message: 'boom', code: 'XX000' } })
     const result = await resolveZeroRowWrite(supabase, { ...OPTS, whenError: 'failed' })
     expect(result).toBe('failed')
+    expect(consoleSpy).toHaveBeenCalledWith('[someAction] Caller lookup error:', 'boom', 'XX000')
     expect(consoleSpy).not.toHaveBeenCalledWith('[someAction] Write refused: caller not active')
   })
 

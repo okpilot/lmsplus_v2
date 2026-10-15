@@ -10,10 +10,11 @@ type ServerSupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient
 export async function callerStatus(
   supabase: ServerSupabaseClient,
   userId: string,
+  tag: string,
 ): Promise<'active' | 'inactive' | 'error'> {
   const { data, error } = await supabase.from('users').select('id').eq('id', userId).maybeSingle()
   if (error) {
-    console.error('[callerStatus] Caller lookup error:', error.message, error.code)
+    console.error(`[${tag}] Caller lookup error:`, error.message, error.code)
     return 'error'
   }
   return data === null ? 'inactive' : 'active'
@@ -28,7 +29,7 @@ export async function resolveZeroRowWrite<T, F, E = F>(
   supabase: ServerSupabaseClient,
   opts: { userId: string; tag: string; whenActive: T; whenInactive: F; whenError?: E },
 ): Promise<T | F | E> {
-  const status = await callerStatus(supabase, opts.userId)
+  const status = await callerStatus(supabase, opts.userId, opts.tag)
   if (status === 'active') return opts.whenActive
   if (status === 'error') return 'whenError' in opts ? (opts.whenError as E) : opts.whenInactive
   console.error(`[${opts.tag}] Write refused: caller not active`)
