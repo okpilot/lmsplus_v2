@@ -197,6 +197,10 @@ test.describe('Red Team: deactivated student Server Action replay (IB)', () => {
     }
     try {
       await ctx?.close()
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
+    }
+    try {
       await cleanupStudentActiveSessions(ATTACKER_EMAIL)
     } catch (e) {
       errors.push(e instanceof Error ? e.message : String(e))
