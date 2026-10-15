@@ -2,16 +2,26 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks --------------------------------------------------------------------
 
-const { mockGetUser, mockReadTempPasswordState, mockRedirect } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
-  mockReadTempPasswordState: vi.fn(),
-  mockRedirect: vi.fn((_path: string) => {
-    throw new Error('NEXT_REDIRECT')
-  }),
-}))
+const { mockGetUser, mockVerifySessionUser, mockReadTempPasswordState, mockRedirect, client } =
+  vi.hoisted(() => {
+    const mockGetUser = vi.fn()
+    return {
+      mockGetUser,
+      client: { auth: { getUser: mockGetUser } },
+      mockVerifySessionUser: vi.fn(),
+      mockReadTempPasswordState: vi.fn(),
+      mockRedirect: vi.fn((_path: string) => {
+        throw new Error('NEXT_REDIRECT')
+      }),
+    }
+  })
 
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({ auth: { getUser: mockGetUser } }),
+  createServerSupabaseClient: async () => client,
+}))
+
+vi.mock('@/lib/auth/verify-session-user', () => ({
+  verifySessionUser: mockVerifySessionUser,
 }))
 
 vi.mock('@/lib/auth/temp-password', () => ({
@@ -31,7 +41,7 @@ import { requireActiveTempPassword } from './require-active-temp-password'
 const USER_ID = 'aaaaaaaa-0000-4000-a000-000000000004'
 
 function mockAuthenticatedUser() {
-  mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } }, error: null })
+  mockVerifySessionUser.mockResolvedValue({ id: USER_ID })
 }
 
 describe('requireActiveTempPassword', () => {
@@ -43,11 +53,31 @@ describe('requireActiveTempPassword', () => {
   })
 
   it('redirects to / when there is no authenticated user', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
+    mockVerifySessionUser.mockResolvedValue(null)
 
     await expect(requireActiveTempPassword(null)).rejects.toThrow('NEXT_REDIRECT')
 
     expect(mockRedirect).toHaveBeenCalledWith('/')
+  })
+
+  it('reads the temp-password state on the client that verified the session', async () => {
+    mockAuthenticatedUser()
+    mockReadTempPasswordState.mockResolvedValue('active')
+
+    await requireActiveTempPassword(null)
+
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(client)
+    expect(mockReadTempPasswordState).toHaveBeenCalledWith(client, USER_ID)
+  })
+
+  it('proceeds to the state check for a verified user whose getUser lookup fails', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: null }, error: new Error('session missing') })
+    mockAuthenticatedUser()
+    mockReadTempPasswordState.mockResolvedValue('active')
+
+    await expect(requireActiveTempPassword(null)).resolves.toBeUndefined()
+
+    expect(mockRedirect).not.toHaveBeenCalled()
   })
 
   it('redirects to the given next path when the temp-password state is not active', async () => {

@@ -3,15 +3,22 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { CONSENT_COOKIE } from '@/lib/consent/versions'
 import { GET, POST } from './route'
 
-const { mockGetUser, mockCheckConsent } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
-  mockCheckConsent: vi.fn(),
-}))
+const { mockVerifySessionUser, mockCheckConsent, mockGetUser, client } = vi.hoisted(() => {
+  const mockGetUser = vi.fn()
+  return {
+    mockVerifySessionUser: vi.fn(),
+    mockCheckConsent: vi.fn(),
+    mockGetUser,
+    client: { auth: { getUser: mockGetUser } },
+  }
+})
 
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
-  }),
+  createServerSupabaseClient: async () => client,
+}))
+
+vi.mock('@/lib/auth/verify-session-user', () => ({
+  verifySessionUser: mockVerifySessionUser,
 }))
 
 vi.mock('@/lib/consent/check-consent', () => ({
@@ -29,7 +36,7 @@ describe('GET /auth/consent-refresh', () => {
   })
 
   it('redirects to / when no session exists', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } })
+    mockVerifySessionUser.mockResolvedValue(null)
 
     const response = await GET(makeRequest('http://localhost:3000/auth/consent-refresh'))
 
@@ -39,8 +46,29 @@ describe('GET /auth/consent-refresh', () => {
     expect(mockCheckConsent).not.toHaveBeenCalled()
   })
 
+  it('checks consent on the same client that verified the session', async () => {
+    mockVerifySessionUser.mockResolvedValue({ id: 'user-1' })
+    mockCheckConsent.mockResolvedValue('satisfied')
+
+    await GET(makeRequest('http://localhost:3000/auth/consent-refresh'))
+
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(client)
+    expect(mockCheckConsent).toHaveBeenCalledWith(client)
+  })
+
+  it('continues to /consent for a verified user whose getUser lookup fails', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: null }, error: new Error('session missing') })
+    mockVerifySessionUser.mockResolvedValue({ id: 'user-1' })
+    mockCheckConsent.mockResolvedValue('required')
+
+    const response = await GET(makeRequest('http://localhost:3000/auth/consent-refresh'))
+
+    const location = new URL(response.headers.get('location') ?? '')
+    expect(location.pathname).toBe('/consent')
+  })
+
   it('redirects to /consent carrying next when consent is required', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'user-1' })
     mockCheckConsent.mockResolvedValue('required')
 
     const response = await GET(
@@ -53,7 +81,7 @@ describe('GET /auth/consent-refresh', () => {
   })
 
   it('redirects to the requested next path with a user-bound cookie when consent is satisfied', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'user-1' })
     mockCheckConsent.mockResolvedValue('satisfied')
 
     const response = await GET(
@@ -66,7 +94,7 @@ describe('GET /auth/consent-refresh', () => {
   })
 
   it('falls back to /app/dashboard when consent is satisfied and no next was requested', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'user-1' })
     mockCheckConsent.mockResolvedValue('satisfied')
 
     const response = await GET(makeRequest('http://localhost:3000/auth/consent-refresh'))
@@ -76,7 +104,7 @@ describe('GET /auth/consent-refresh', () => {
   })
 
   it('falls back to /app/dashboard when the requested next path is an open redirect', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'user-1' })
     mockCheckConsent.mockResolvedValue('satisfied')
 
     const response = await GET(
@@ -88,7 +116,7 @@ describe('GET /auth/consent-refresh', () => {
   })
 
   it('falls back to /app/dashboard when the requested next path is outside /app', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'user-1' })
     mockCheckConsent.mockResolvedValue('satisfied')
 
     const response = await GET(
@@ -106,7 +134,7 @@ describe('POST /auth/consent-refresh', () => {
   })
 
   it('replays a redirected Server Action POST to next with a 307 and the user-bound cookie when consent is satisfied', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'user-1' })
     mockCheckConsent.mockResolvedValue('satisfied')
 
     const response = await POST(
@@ -120,7 +148,7 @@ describe('POST /auth/consent-refresh', () => {
   })
 
   it('redirects a Server Action POST to /consent when consent is required', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'user-1' })
     mockCheckConsent.mockResolvedValue('required')
 
     const response = await POST(
