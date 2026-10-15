@@ -588,7 +588,7 @@ RLS policies:
 - INSERT: `student_id = auth.uid() AND EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.deleted_at IS NULL)` (active check: mig `20261015000100`)
 - UPDATE: `USING` same predicate, `WITH CHECK (student_id = auth.uid())` (soft-delete via `deleted_at = now()` in app code)
 
-**Why `deleted_at` is not in RLS:** With `FORCE ROW LEVEL SECURITY`, Postgres checks SELECT visibility of the NEW row after UPDATE. Filtering `deleted_at IS NULL` in the policy would prevent soft-deletes from succeeding. Instead, read queries use the `active_flagged_questions` view (which includes `WHERE deleted_at IS NULL`). Write operations in flag.ts filter explicitly. RLS only enforces ownership.
+**Why `deleted_at` is not in RLS:** With `FORCE ROW LEVEL SECURITY`, Postgres checks SELECT visibility of the NEW row after UPDATE. Filtering `deleted_at IS NULL` in the policy would prevent soft-deletes from succeeding. Instead, read queries use the `active_flagged_questions` view (which includes `WHERE deleted_at IS NULL`). Write operations in flag.ts filter explicitly. RLS enforces ownership, and on INSERT/UPDATE an active caller.
 
 #### View: `active_flagged_questions`
 
