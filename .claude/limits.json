@@ -114,7 +114,6 @@
     "apps/web/lib/integration-support/fixtures.ts": 209,
     "apps/web/lib/queries/admin-quiz-report.test.ts": 1169,
     "apps/web/lib/queries/dashboard.test.ts": 611,
-    "apps/web/lib/queries/load-session-questions.test.ts": 729,
     "apps/web/lib/queries/quiz-report-questions.test.ts": 667,
     "apps/web/lib/queries/report-question-builder.test.ts": 559,
     "packages/db/src/__integration__/rpc-check-non-mc-answer-diagram.integration.test.ts": 573,

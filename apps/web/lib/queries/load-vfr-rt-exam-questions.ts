@@ -2,7 +2,7 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
-import { getSessionUser } from '@/lib/auth/get-session-user'
+import { verifySessionUser } from '@/lib/auth/verify-session-user'
 import { rpc } from '@/lib/supabase-rpc'
 import { type LoadResult, type QuizQuestionRow, toQuestion } from './load-session-question-row'
 
@@ -14,7 +14,7 @@ export async function loadVfrRtExamQuestions(input: unknown): Promise<LoadResult
   if (!parsed.success) return { success: false, error: 'Invalid session' }
 
   const supabase = await createServerSupabaseClient()
-  const user = await getSessionUser()
+  const user = await verifySessionUser(supabase)
   if (!user) return { success: false, error: 'Not authenticated' }
 
   const { data, error } = await rpc<QuizQuestionRow[]>(supabase, 'get_vfr_rt_exam_questions', {

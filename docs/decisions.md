@@ -18,7 +18,7 @@
 ## 23 — 2026-03-12 — Quiz submission becomes atomic via a new `batch_submit_quiz()` RPC, replacing the per-answer submit-then-complete RPC pair for new code. Superseded by 124.
 ## 24 — 2026-03-12 — Analytics RPCs (`get_daily_activity`, `get_subject_scores`) are rewritten as plpgsql requiring an `auth.uid() IS NULL` guard, an `auth.uid() IS DISTINCT FROM p_student_id` identity guard and the `WHERE auth.uid() = p_student_id` clause kept in the query, plus parameter clamping; an active-user gate and a `deleted_at` filter were added 2026-09-01 (`20260824000300`).
 ## 25 — 2026-03-13 — Post-session quiz reports read correct answers only via a dedicated `get_report_correct_options()` RPC gated on `ended_at IS NOT NULL`, never the raw options JSONB.
-## 26 — 2026-03-13 — Quiz Server Actions must verify session ownership, active state, non-discarded state and question membership before acting; a failed check reverts and unlocks the UI.
+## 26 — 2026-03-13 — Quiz Server Actions must verify session ownership, active state, non-discarded state and question membership before acting; a failed check reverts and unlocks the UI. Amended by 128.
 ## 27 — 2026-03-14 — Adopt a Playwright red-team suite of adversarial attack specs against local Supabase, with a review agent mapping diffs to coverage gaps on security-sensitive changes. Amended by 73.
 ## 28 — 2026-03-17 — Add four weekly GitHub Actions health-check workflows (agent-health, coverage-trend, bundle-size, stale-issues), each maintaining a single tracking issue. #259
 ## 29 — 2026-03-17 — Switch auth from magic-link (`signInWithOtp`) to email+password (`signInWithPassword`), with a PKCE-based forgot-password flow through a new `/auth/confirm` route. #174

@@ -1,17 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockRpc } = vi.hoisted(() => ({ mockRpc: vi.fn() }))
+const { mockRpc, mockClient, mockCreateClient } = vi.hoisted(() => {
+  const mockClient = { marker: 'server-client' }
+  return { mockRpc: vi.fn(), mockClient, mockCreateClient: vi.fn(async () => mockClient) }
+})
 
 vi.mock('@/lib/supabase-rpc', () => ({ rpc: mockRpc }))
 
-const mockGetSessionUser = vi.fn().mockResolvedValue({ id: 'user-1' })
+const mockVerifySessionUser = vi.fn().mockResolvedValue({ id: 'user-1' })
 
-vi.mock('@/lib/auth/get-session-user', () => ({
-  getSessionUser: () => mockGetSessionUser(),
+vi.mock('@/lib/auth/verify-session-user', () => ({
+  verifySessionUser: (client: unknown) => mockVerifySessionUser(client),
 }))
 
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({}),
+  createServerSupabaseClient: () => mockCreateClient(),
 }))
 
 import { loadVfrRtExamQuestions } from './load-vfr-rt-exam-questions'
@@ -34,20 +37,29 @@ const row = (id: string, extra: Record<string, unknown> = {}) => ({
 
 beforeEach(() => {
   vi.resetAllMocks()
-  mockGetSessionUser.mockResolvedValue({ id: 'user-1' })
+  mockCreateClient.mockImplementation(async () => mockClient)
+  mockVerifySessionUser.mockResolvedValue({ id: 'user-1' })
   vi.spyOn(console, 'error').mockImplementation(() => {})
 })
 
 describe('loadVfrRtExamQuestions', () => {
+  it('verifies identity on the same client it loads questions with', async () => {
+    mockRpc.mockResolvedValue({ data: [], error: null })
+    await loadVfrRtExamQuestions({ sessionId: SESSION_ID })
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
+    expect(mockRpc.mock.calls[0]?.[0]).toBe(mockClient)
+    expect(mockCreateClient).toHaveBeenCalledTimes(1)
+  })
+
   it('rejects a non-uuid session id without touching the database', async () => {
     const result = await loadVfrRtExamQuestions({ sessionId: 'nope' })
     expect(result.success).toBe(false)
-    expect(mockGetSessionUser).not.toHaveBeenCalled()
+    expect(mockVerifySessionUser).not.toHaveBeenCalled()
     expect(mockRpc).not.toHaveBeenCalled()
   })
 
   it('returns Not authenticated when there is no user', async () => {
-    mockGetSessionUser.mockResolvedValueOnce(null)
+    mockVerifySessionUser.mockResolvedValueOnce(null)
     const result = await loadVfrRtExamQuestions({ sessionId: SESSION_ID })
     expect(result).toEqual({ success: false, error: 'Not authenticated' })
     expect(mockRpc).not.toHaveBeenCalled()
