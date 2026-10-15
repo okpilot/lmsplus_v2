@@ -131,18 +131,37 @@ describe('RLS: student writes require an active user', () => {
   })
 
   afterAll(async () => {
-    const steps = [
-      ['users restore', admin.from('users').update({ deleted_at: null }).eq('id', studentId)],
-      ['flagged_questions', admin.from('flagged_questions').delete().eq('student_id', studentId)],
-      ['question_comments', admin.from('question_comments').delete().eq('user_id', studentId)],
-      ['quiz_drafts', admin.from('quiz_drafts').delete().eq('student_id', studentId)],
-    ] as const
-    for (const [label, step] of steps) {
-      const { error } = await step
-      if (error) console.error(`[rls-active-user-writes] cleanup ${label}: ${error.message}`)
+    const errors: string[] = []
+    const run = async (
+      label: string,
+      step: () => PromiseLike<{ error: { message: string } | null }>,
+    ) => {
+      try {
+        const { error } = await step()
+        if (error) throw new Error(error.message)
+      } catch (e) {
+        errors.push(`${label}: ${e instanceof Error ? e.message : String(e)}`)
+      }
     }
-    await cleanupTestData({ admin, orgId, userIds })
-    await cleanupReferenceData({ admin, refs: [refs] })
+    await run('users restore', () =>
+      admin.from('users').update({ deleted_at: null }).eq('id', studentId),
+    )
+    await run('flagged_questions', () =>
+      admin.from('flagged_questions').delete().eq('student_id', studentId),
+    )
+    await run('question_comments', () =>
+      admin.from('question_comments').delete().eq('user_id', studentId),
+    )
+    await run('quiz_drafts', () => admin.from('quiz_drafts').delete().eq('student_id', studentId))
+    if (errors.length === 0) {
+      try {
+        await cleanupTestData({ admin, orgId, userIds })
+        await cleanupReferenceData({ admin, refs: [refs] })
+      } catch (e) {
+        errors.push(`cleanup: ${e instanceof Error ? e.message : String(e)}`)
+      }
+    }
+    if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   })
 
   describe('deactivated student with a live token', () => {
