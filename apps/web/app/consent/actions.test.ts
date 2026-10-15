@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // ---- Mocks ----------------------------------------------------------------
 
 const {
-  mockGetUser,
+  mockVerifySessionUser,
   mockRpc,
   mockCookiesSet,
   mockCookies,
@@ -13,13 +13,13 @@ const {
 } = vi.hoisted(() => {
   const mockCookiesSet = vi.fn()
   const mockCookies = vi.fn()
-  const mockGetUser = vi.fn()
+  const mockVerifySessionUser = vi.fn()
   const mockRpc = vi.fn()
   const mockHeaders = vi.fn()
   const mockRevalidatePath = vi.fn()
   const mockSetConsentCookie = vi.fn()
   return {
-    mockGetUser,
+    mockVerifySessionUser,
     mockRpc,
     mockCookiesSet,
     mockCookies,
@@ -29,11 +29,14 @@ const {
   }
 })
 
+const client = { rpc: mockRpc }
+
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
-    rpc: mockRpc,
-  }),
+  createServerSupabaseClient: async () => client,
+}))
+
+vi.mock('@/lib/auth/verify-session-user', () => ({
+  verifySessionUser: mockVerifySessionUser,
 }))
 
 vi.mock('next/headers', () => ({
@@ -56,10 +59,7 @@ import { recordConsent } from './actions'
 const USER_ID = 'bbbbbbbb-0000-4000-b000-000000000002'
 
 function mockAuthenticatedUser() {
-  mockGetUser.mockResolvedValue({
-    data: { user: { id: USER_ID, email: 'student@example.com' } },
-    error: null,
-  })
+  mockVerifySessionUser.mockResolvedValue({ id: USER_ID, email: 'student@example.com' })
 }
 
 function mockRpcSuccess() {
@@ -122,8 +122,8 @@ describe('recordConsent', () => {
   })
 
   describe('auth guard', () => {
-    it('returns failure when not authenticated', async () => {
-      mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
+    it('returns failure and records nothing when there is no verified session user', async () => {
+      mockVerifySessionUser.mockResolvedValue(null)
 
       const result = await recordConsent({
         acceptedTos: true,
@@ -133,22 +133,46 @@ describe('recordConsent', () => {
       expect(result.success).toBe(false)
       if (result.success) return
       expect(result.error).toBe('Not authenticated')
+      expect(mockRpc).not.toHaveBeenCalled()
+      expect(mockSetConsentCookie).not.toHaveBeenCalled()
     })
 
-    it('returns failure when auth returns an error', async () => {
-      mockGetUser.mockResolvedValue({
-        data: { user: null },
-        error: { message: 'JWT expired' },
+    it('verifies identity on the same client that records the consent', async () => {
+      mockAuthenticatedUser()
+      mockRpcSuccess()
+
+      await recordConsent({
+        acceptedTos: true,
+        acceptedPrivacy: true,
       })
+
+      expect(mockVerifySessionUser).toHaveBeenCalledWith(client)
+    })
+
+    it('records consent for a verified session even when a live Auth lookup would fail', async () => {
+      // The client exposes no auth.getUser, so any getUser() call would throw.
+      mockAuthenticatedUser()
+      mockRpcSuccess()
 
       const result = await recordConsent({
         acceptedTos: true,
         acceptedPrivacy: true,
       })
 
-      expect(result.success).toBe(false)
-      if (result.success) return
-      expect(result.error).toBe('Not authenticated')
+      expect(result.success).toBe(true)
+      expect(mockRpc).toHaveBeenCalledTimes(2)
+    })
+
+    it('sets the consent cookie for the verified user id', async () => {
+      mockAuthenticatedUser()
+      mockRpcSuccess()
+
+      await recordConsent({
+        acceptedTos: true,
+        acceptedPrivacy: true,
+      })
+
+      expect(mockSetConsentCookie).toHaveBeenCalledWith(expect.anything(), USER_ID)
     })
   })
 

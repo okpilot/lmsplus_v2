@@ -10,9 +10,10 @@ type AuthClient = {
 /**
  * The caller's identity. `getClaims()` reads the cookie session (refreshing an expiring token),
  * then verifies its access token: for an asymmetric signing key it checks signature + expiry
- * locally against the cached JWKS (no Auth round trip); for a symmetric key getClaims itself
- * calls `getUser`. Revocation is therefore bounded by the access-token lifetime. Returns null
- * when there is no valid session.
+ * locally against the cached JWKS (no Auth round trip); for a symmetric key, a token header
+ * without `kid`, or no WebCrypto, getClaims itself calls `getUser`; a JWKS cache miss fetches
+ * the JWKS. Revocation is therefore bounded by the access-token lifetime. Returns null when
+ * there is no valid session.
  */
 export async function verifySessionUser(supabase: AuthClient): Promise<SessionUser | null> {
   try {

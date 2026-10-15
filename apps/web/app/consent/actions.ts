@@ -4,6 +4,7 @@ import { createServerSupabaseClient } from '@repo/db/server'
 import { cookies, headers } from 'next/headers'
 import { z } from 'zod'
 import type { ActionResult } from '@/lib/action-result'
+import { verifySessionUser } from '@/lib/auth/verify-session-user'
 import { setConsentCookie } from '@/lib/consent/consent-cookie'
 import { CURRENT_PRIVACY_VERSION, CURRENT_TOS_VERSION } from '@/lib/consent/versions'
 import { rpc } from '@/lib/supabase-rpc'
@@ -19,11 +20,8 @@ export async function recordConsent(raw: unknown): Promise<ActionResult> {
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input' }
 
   const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-  if (authError || !user) return { success: false, error: 'Not authenticated' }
+  const user = await verifySessionUser(supabase)
+  if (!user) return { success: false, error: 'Not authenticated' }
 
   const headerStore = await headers()
   const ipAddress = headerStore.get('x-forwarded-for') ?? null
