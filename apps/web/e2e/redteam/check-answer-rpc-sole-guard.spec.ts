@@ -93,22 +93,60 @@ test.describe('Red Team: check-answer actions rely on the RPC session guard (HZ)
   let saOutside: string
   let saCanonical: string
 
-  const pickQuestions = async (type: string, n: number) => {
-    let query = admin
+  let scaffold: {
+    bank_id: string
+    subject_id: string
+    topic_id: string
+    created_by: string
+  }
+  const createdSaIds = new Set<string>()
+
+  const pickQuestions = async (n: number) => {
+    const { data, error } = await admin
       .from('questions')
-      .select('id, correct_option_id, canonical_answer')
+      .select('id, correct_option_id, bank_id, subject_id, topic_id, created_by')
       .eq('organization_id', orgId)
-      .eq('question_type', type)
+      .eq('question_type', 'multiple_choice')
       .eq('status', 'active')
       .is('deleted_at', null)
-    query =
-      type === 'multiple_choice'
-        ? query.not('correct_option_id', 'is', null)
-        : query.not('canonical_answer', 'is', null)
-    const { data, error } = await query.order('id').limit(n)
-    if (error) throw new Error(`pickQuestions ${type}: ${error.message}`)
-    if (!Array.isArray(data) || data.length < n) throw new Error(`need ${n} active ${type}`)
+      .not('correct_option_id', 'is', null)
+      .order('id')
+      .limit(n)
+    if (error) throw new Error(`pickQuestions: ${error.message}`)
+    if (!Array.isArray(data) || data.length < n) throw new Error(`need ${n} active multiple_choice`)
     return data
+  }
+
+  const insertShortAnswer = async (
+    index: number,
+    canonicalAnswer: string,
+  ): Promise<{ id: string; canonical: string }> => {
+    const { data, error } = await admin
+      .from('questions')
+      .insert({
+        organization_id: orgId,
+        ...scaffold,
+        question_text: `${E2E_REDTEAM_HZ_MARKER} short answer ${index}`,
+        question_number: `${E2E_REDTEAM_HZ_MARKER}-SA-${Date.now()}-${index}`,
+        explanation_text: `${E2E_REDTEAM_HZ_MARKER} explanation`,
+        difficulty: 'easy',
+        status: 'active',
+        question_type: 'short_answer',
+        options: [],
+        correct_option_id: null,
+        canonical_answer: canonicalAnswer,
+        accepted_synonyms: [],
+        dialog_template: null,
+        blanks_config: [],
+      })
+      .select('id, canonical_answer')
+      .single()
+    if (error || !isRecord(data) || typeof data.id !== 'string')
+      throw new Error(`insert short_answer ${index}: ${error?.message ?? 'bad shape'}`)
+    if (typeof data.canonical_answer !== 'string' || data.canonical_answer.length < 2)
+      throw new Error('short_answer canonical missing')
+    createdSaIds.add(data.id)
+    return { id: data.id, canonical: data.canonical_answer }
   }
 
   const insertSession = async (opts: {
@@ -151,19 +189,35 @@ test.describe('Red Team: check-answer actions rely on the RPC session guard (HZ)
     orgId = seed.orgId
     attackerUserId = seed.attackerUserId
     victimUserId = seed.victimUserId
-    const mc = await pickQuestions('multiple_choice', 2)
-    const sa = await pickQuestions('short_answer', 2)
-    const [m1, m2] = mc
-    const [s1, s2] = sa
+    const [m1, m2] = await pickQuestions(2)
     if (typeof m1?.id !== 'string' || typeof m2?.id !== 'string') throw new Error('mc ids')
-    if (typeof s1?.id !== 'string' || typeof s2?.id !== 'string') throw new Error('sa ids')
-    if (typeof s1.canonical_answer !== 'string' || s1.canonical_answer.length < 2)
-      throw new Error('short_answer canonical missing')
+    const { bank_id, subject_id, topic_id, created_by } = m1
+    if (
+      typeof bank_id !== 'string' ||
+      typeof subject_id !== 'string' ||
+      typeof topic_id !== 'string' ||
+      typeof created_by !== 'string'
+    )
+      throw new Error('mc scaffolding columns missing')
+    scaffold = { bank_id, subject_id, topic_id, created_by }
     mcMember = m1.id
     mcOutside = m2.id
-    saMember = s1.id
-    saOutside = s2.id
-    saCanonical = s1.canonical_answer
+  })
+
+  test.afterAll(async () => {
+    if (createdSaIds.size === 0) return
+    try {
+      const { data, error } = await admin
+        .from('questions')
+        .update({ deleted_at: new Date().toISOString() })
+        .in('id', [...createdSaIds])
+        .is('deleted_at', null)
+        .select('id')
+      if (error) throw new Error(`afterAll soft-delete short_answer: ${error.message}`)
+      if ((data?.length ?? 0) > 0) console.info(`[HZ] soft-deleted ${data?.length} questions`)
+    } finally {
+      createdSaIds.clear()
+    }
   })
 
   test.beforeEach(async () => {
@@ -209,6 +263,13 @@ test.describe('Red Team: check-answer actions rely on the RPC session guard (HZ)
       await page.close()
       await cleanupStudentActiveSessions(ATTACKER_EMAIL)
 
+      // Inserted only now: active short_answer rows could be served as Q1 by captureActions.
+      const saA = await insertShortAnswer(0, 'cleared to land hz one')
+      const saB = await insertShortAnswer(1, 'cleared to land hz two')
+      saMember = saA.id
+      saOutside = saB.id
+      saCanonical = saA.canonical
+
       const mc = (sessionId: string, questionId: string) =>
         invoke(ctx, cap, 'checkAnswer', { sessionId, questionId, selectedOptionId: 'a' })
       const sa = (sessionId: string, questionId: string) =>
@@ -234,6 +295,15 @@ test.describe('Red Team: check-answer actions rely on the RPC session guard (HZ)
 
       // Victim's active session (non-MC; the MC replay is GQ).
       const victim = await insertSession({ studentId: victimUserId, mode: 'quick_quiz' })
+      const { data: victimRow, error: victimErr } = await admin
+        .from('quiz_sessions')
+        .select('student_id, ended_at, deleted_at')
+        .eq('id', victim)
+        .single()
+      expect(victimErr).toBeNull()
+      expect(victimRow?.student_id).toBe(victimUserId)
+      expect(victimRow?.ended_at).toBeNull()
+      expect(victimRow?.deleted_at).toBeNull()
       refused(await sa(victim, saMember), NOT_FOUND, 'sa foreign')
       expect(await progressCount(victim)).toBe(0)
 
