@@ -2,7 +2,7 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import type { z } from 'zod'
-import { getSessionUser } from '@/lib/auth/get-session-user'
+import { verifySessionUser } from '@/lib/auth/verify-session-user'
 import type { CheckNonMcAnswerResult } from '../types'
 import {
   checkDiagramLabelAnswer,
@@ -14,7 +14,8 @@ import { CheckNonMcAnswerSchema } from './check-non-mc-answer-schema'
 import { SIGN_IN } from './progress-error-messages'
 
 export async function checkNonMcAnswer(raw: unknown): Promise<CheckNonMcAnswerResult> {
-  if (!(await getSessionUser())) return { success: false, error: SIGN_IN }
+  const supabase = await createServerSupabaseClient()
+  if (!(await verifySessionUser(supabase))) return { success: false, error: SIGN_IN }
 
   let parsed: z.infer<typeof CheckNonMcAnswerSchema>
   try {
@@ -28,7 +29,6 @@ export async function checkNonMcAnswer(raw: unknown): Promise<CheckNonMcAnswerRe
     return { success: false, error: 'Invalid input' }
   }
   // check_non_mc_answer is the session/ownership/membership guard.
-  const supabase = await createServerSupabaseClient()
 
   if ('responseText' in parsed) return checkShortAnswer(supabase, parsed)
   if ('order' in parsed) return checkOrderingAnswer(supabase, parsed)

@@ -2,19 +2,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetSessionUser, mockRpc, mockFrom } = vi.hoisted(() => ({
-  mockGetSessionUser: vi.fn(),
-  mockRpc: vi.fn(),
-  mockFrom: vi.fn(),
-}))
+const { mockVerifySessionUser, mockRpc, mockFrom, mockClient } = vi.hoisted(() => {
+  const from = vi.fn()
+  return { mockVerifySessionUser: vi.fn(), mockRpc: vi.fn(), mockFrom: from, mockClient: { from } }
+})
 
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({
-    from: mockFrom,
-  }),
+  createServerSupabaseClient: async () => mockClient,
 }))
 
-vi.mock('@/lib/auth/get-session-user', () => ({ getSessionUser: mockGetSessionUser }))
+vi.mock('@/lib/auth/verify-session-user', () => ({ verifySessionUser: mockVerifySessionUser }))
 
 vi.mock('@/lib/supabase-rpc', () => ({
   rpc: (...args: unknown[]) => mockRpc(...args),
@@ -100,7 +97,7 @@ const DIAGRAM_RPC_RESULT = {
 // ---- Helpers --------------------------------------------------------------
 
 function setupAuthenticatedUser() {
-  mockGetSessionUser.mockResolvedValue({ id: USER_ID, email: null })
+  mockVerifySessionUser.mockResolvedValue({ id: USER_ID, email: null })
 }
 
 beforeEach(() => {
@@ -108,8 +105,16 @@ beforeEach(() => {
 })
 
 describe('checkNonMcAnswer', () => {
+  it('verifies the caller on the client that grades the answer', async () => {
+    setupAuthenticatedUser()
+    mockRpc.mockResolvedValue({ data: null, error: null })
+    await checkNonMcAnswer(SHORT_INPUT)
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
+    expect(mockRpc).toHaveBeenCalledWith(mockClient, expect.any(String), expect.anything())
+  })
+
   it('returns failure when the user is not authenticated', async () => {
-    mockGetSessionUser.mockResolvedValue(null)
+    mockVerifySessionUser.mockResolvedValue(null)
     const result = await checkNonMcAnswer(SHORT_INPUT)
     expect(result).toEqual({
       success: false,

@@ -1,18 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockGetSessionUser, mockRpc, mockFrom } = vi.hoisted(() => ({
-  mockGetSessionUser: vi.fn(),
+const { mockVerifySessionUser, mockRpc, mockClient } = vi.hoisted(() => ({
+  mockVerifySessionUser: vi.fn(),
   mockRpc: vi.fn(),
-  mockFrom: vi.fn(),
+  mockClient: { from: vi.fn() },
 }))
 
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({
-    from: mockFrom,
-  }),
+  createServerSupabaseClient: async () => mockClient,
 }))
 
-vi.mock('@/lib/auth/get-session-user', () => ({ getSessionUser: mockGetSessionUser }))
+vi.mock('@/lib/auth/verify-session-user', () => ({ verifySessionUser: mockVerifySessionUser }))
 
 vi.mock('@/lib/supabase-rpc', () => ({
   rpc: (...args: unknown[]) => mockRpc(...args),
@@ -34,11 +32,17 @@ const INPUT = { questionId: QUESTION_ID, selectedOptionId: 'b', sessionId: SESSI
 beforeEach(() => {
   vi.resetAllMocks()
   vi.spyOn(console, 'error').mockImplementation(() => {})
-  mockGetSessionUser.mockResolvedValue({ id: 'u1', email: null })
+  mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
   mockRpc.mockResolvedValue({ data: RPC_RESULT, error: null })
 })
 
 describe('checkAnswer progress save', () => {
+  it('verifies the caller on the client that grades the answer', async () => {
+    await checkAnswer(INPUT)
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
+    expect(mockRpc).toHaveBeenCalledWith(mockClient, 'check_quiz_answer', expect.anything())
+  })
+
   it('forwards the device id and visit time to the RPC', async () => {
     await checkAnswer({ ...INPUT, deviceId: DEVICE_ID, timeSpentMs: 3200 })
     expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'check_quiz_answer', {

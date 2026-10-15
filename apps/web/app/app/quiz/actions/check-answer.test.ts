@@ -2,19 +2,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetSessionUser, mockRpc, mockFrom } = vi.hoisted(() => ({
-  mockGetSessionUser: vi.fn(),
-  mockRpc: vi.fn(),
-  mockFrom: vi.fn(),
-}))
+const { mockVerifySessionUser, mockRpc, mockFrom, mockClient } = vi.hoisted(() => {
+  const from = vi.fn()
+  return { mockVerifySessionUser: vi.fn(), mockRpc: vi.fn(), mockFrom: from, mockClient: { from } }
+})
 
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({
-    from: mockFrom,
-  }),
+  createServerSupabaseClient: async () => mockClient,
 }))
 
-vi.mock('@/lib/auth/get-session-user', () => ({ getSessionUser: mockGetSessionUser }))
+vi.mock('@/lib/auth/verify-session-user', () => ({ verifySessionUser: mockVerifySessionUser }))
 
 vi.mock('@/lib/supabase-rpc', () => ({
   rpc: (...args: unknown[]) => mockRpc(...args),
@@ -49,11 +46,11 @@ const RPC_SUCCESS_WRONG = {
 // ---- Helpers --------------------------------------------------------------
 
 function setupAuthenticatedUser() {
-  mockGetSessionUser.mockResolvedValue({ id: USER_ID, email: null })
+  mockVerifySessionUser.mockResolvedValue({ id: USER_ID, email: null })
 }
 
 function setupUnauthenticated() {
-  mockGetSessionUser.mockResolvedValue(null)
+  mockVerifySessionUser.mockResolvedValue(null)
 }
 
 beforeEach(() => {
@@ -63,6 +60,18 @@ beforeEach(() => {
 // ---- checkAnswer ----------------------------------------------------------
 
 describe('checkAnswer', () => {
+  it('verifies the caller on the client that grades the answer', async () => {
+    setupAuthenticatedUser()
+    mockRpc.mockResolvedValue({ data: RPC_SUCCESS_CORRECT, error: null })
+    await checkAnswer({
+      questionId: QUESTION_ID,
+      selectedOptionId: CORRECT_OPTION_ID,
+      sessionId: SESSION_ID,
+    })
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
+    expect(mockRpc).toHaveBeenCalledWith(mockClient, 'check_quiz_answer', expect.anything())
+  })
+
   it('returns failure when user is not authenticated', async () => {
     setupUnauthenticated()
     const result = await checkAnswer({

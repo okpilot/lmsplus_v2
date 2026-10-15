@@ -2,7 +2,7 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
-import { getSessionUser } from '@/lib/auth/get-session-user'
+import { verifySessionUser } from '@/lib/auth/verify-session-user'
 import type { CheckAnswerResult } from '../types'
 import { gradeAnswer } from './check-answer-helpers'
 import { TimeSpentMs } from './check-non-mc-answer-schema'
@@ -18,7 +18,8 @@ const CheckAnswerSchema = z.object({
 })
 
 export async function checkAnswer(raw: unknown): Promise<CheckAnswerResult> {
-  if (!(await getSessionUser())) return { success: false, error: SIGN_IN }
+  const supabase = await createServerSupabaseClient()
+  if (!(await verifySessionUser(supabase))) return { success: false, error: SIGN_IN }
 
   let parsed: z.infer<typeof CheckAnswerSchema>
   try {
@@ -32,6 +33,5 @@ export async function checkAnswer(raw: unknown): Promise<CheckAnswerResult> {
   }
 
   // check_quiz_answer is the session/ownership/membership guard.
-  const supabase = await createServerSupabaseClient()
   return gradeAnswer(supabase, parsed)
 }
