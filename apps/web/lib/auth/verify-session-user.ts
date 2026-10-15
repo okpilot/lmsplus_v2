@@ -4,39 +4,19 @@ export type SessionUser = { id: string; email: string | null }
 
 /** The auth surface this helper needs; the server and middleware clients both satisfy it. */
 type AuthClient = {
-  auth: Pick<SupabaseClient['auth'], 'getSession' | 'getClaims'>
+  auth: Pick<SupabaseClient['auth'], 'getClaims'>
 }
 
 /**
- * The caller's identity. Reads the cookie session once (`getSession`, which refreshes an expiring
- * token; untrusted until verified), then verifies its access token with `getClaims(token)`: for an
- * asymmetric signing key it checks signature + expiry locally against the cached JWKS (no Auth
- * round trip); for a symmetric key getClaims itself calls `getUser(token)`. Revocation is
- * therefore bounded by the access-token lifetime. Returns null when there is no valid session.
+ * The caller's identity. `getClaims()` reads the cookie session (refreshing an expiring token),
+ * then verifies its access token: for an asymmetric signing key it checks signature + expiry
+ * locally against the cached JWKS (no Auth round trip); for a symmetric key getClaims itself
+ * calls `getUser`. Revocation is therefore bounded by the access-token lifetime. Returns null
+ * when there is no valid session.
  */
 export async function verifySessionUser(supabase: AuthClient): Promise<SessionUser | null> {
-  let token: string | undefined
   try {
-    const { data, error } = await supabase.auth.getSession()
-    if (error) {
-      console.error('[verifySessionUser] getSession failed:', error.message)
-      return null
-    }
-    token = data.session?.access_token
-  } catch (err) {
-    console.error(
-      '[verifySessionUser] getSession failed:',
-      err instanceof Error ? err.message : err,
-    )
-    return null
-  }
-  if (!token) return null
-  return verifyToken(supabase, token)
-}
-
-async function verifyToken(supabase: AuthClient, token: string): Promise<SessionUser | null> {
-  try {
-    const { data: verified, error: claimsError } = await supabase.auth.getClaims(token)
+    const { data: verified, error: claimsError } = await supabase.auth.getClaims()
     if (claimsError) {
       console.error('[verifySessionUser] getClaims failed:', claimsError.message)
       return null

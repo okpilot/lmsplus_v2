@@ -28,7 +28,7 @@ export function createMiddlewareSupabaseClient(request: NextRequest) {
         headers?: Record<string, string>,
       ) {
         // Write onto the SAME response object the caller already holds. setAll fires
-        // lazily during auth.getSession() (via verifySessionUser in apps/web/proxy.ts) —
+        // lazily during auth.getClaims() → getSession() (via verifySessionUser in apps/web/proxy.ts) —
         // AFTER createMiddlewareSupabaseClient has returned — so reassigning `response`
         // to a fresh NextResponse here would orphan it, silently dropping both the
         // refreshed session cookies and the anti-cache headers below. Mutating in place

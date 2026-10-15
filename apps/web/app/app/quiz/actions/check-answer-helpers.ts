@@ -46,7 +46,10 @@ export async function gradeAnswer(
   })
 
   if (error || !isCheckAnswerRpcResult(data)) {
-    console.error('[checkAnswer] RPC error:', error?.message)
+    console.error('[checkAnswer] RPC error:', error?.message, {
+      questionId: opts.questionId,
+      sessionId: opts.sessionId,
+    })
     return { success: false, error: mapProgressRpcError(error?.message, 'Could not check answer') }
   }
 

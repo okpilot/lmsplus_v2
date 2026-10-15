@@ -62,7 +62,7 @@ export async function proxy(request: NextRequest): Promise<Response> {
     request as unknown as Parameters<typeof createMiddlewareSupabaseClient>[0],
   )
 
-  // Verified identity — getSession refreshes an expiring token through the helper. Must be the
+  // Verified identity — getClaims (via the helper) calls getSession, which refreshes an expiring token. Must be the
   // first call after client creation; a null user is unauthenticated, the proxy must not crash.
   const user = await verifySessionUser(supabase)
 

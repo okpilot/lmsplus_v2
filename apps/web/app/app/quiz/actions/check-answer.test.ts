@@ -136,6 +136,10 @@ describe('checkAnswer', () => {
       sessionId: SESSION_ID,
     })
 
+    expect(consoleSpy).toHaveBeenCalledWith('[checkAnswer] RPC error:', rpcMessage, {
+      questionId: QUESTION_ID,
+      sessionId: SESSION_ID,
+    })
     consoleSpy.mockRestore()
     expect(result).toEqual({ success: false, error: expected })
   })

@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockGetSession, mockGetClaims, mockGetUser } = vi.hoisted(() => ({
-  mockGetSession: vi.fn(),
+const { mockGetClaims, mockGetUser } = vi.hoisted(() => ({
   mockGetClaims: vi.fn(),
   mockGetUser: vi.fn(),
 }))
@@ -10,17 +9,15 @@ import { verifySessionUser } from './verify-session-user'
 
 // getUser stays on the client so a returning fallback fails the not-called assertions.
 const client = {
-  auth: { getSession: mockGetSession, getClaims: mockGetClaims, getUser: mockGetUser },
+  auth: { getClaims: mockGetClaims, getUser: mockGetUser },
 }
-const getSessionUser = () => verifySessionUser(client)
+const verify = () => verifySessionUser(client)
 
 const USER_ID = '00000000-0000-4000-a000-000000000001'
-const TOKEN = 'tok'
 
 describe('verifySessionUser', () => {
   beforeEach(() => {
     vi.resetAllMocks()
-    mockGetSession.mockResolvedValue({ data: { session: { access_token: TOKEN } }, error: null })
   })
 
   it('returns the id and email from verified claims', async () => {
@@ -28,7 +25,7 @@ describe('verifySessionUser', () => {
       data: { claims: { sub: USER_ID, role: 'authenticated', email: 'a@test.local' } },
       error: null,
     })
-    await expect(getSessionUser()).resolves.toEqual({ id: USER_ID, email: 'a@test.local' })
+    await expect(verify()).resolves.toEqual({ id: USER_ID, email: 'a@test.local' })
     expect(mockGetUser).not.toHaveBeenCalled()
   })
 
@@ -37,12 +34,12 @@ describe('verifySessionUser', () => {
       data: { claims: { sub: USER_ID, role: 'authenticated' } },
       error: null,
     })
-    await expect(getSessionUser()).resolves.toEqual({ id: USER_ID, email: null })
+    await expect(verify()).resolves.toEqual({ id: USER_ID, email: null })
   })
 
   it('returns null without a user lookup when claims verification yields no data', async () => {
     mockGetClaims.mockResolvedValue({ data: null, error: null })
-    await expect(getSessionUser()).resolves.toBeNull()
+    await expect(verify()).resolves.toBeNull()
     expect(mockGetUser).not.toHaveBeenCalled()
   })
 
@@ -50,7 +47,7 @@ describe('verifySessionUser', () => {
     'returns null when the token is not a signed-in user session (role %s)',
     async (role) => {
       mockGetClaims.mockResolvedValue({ data: { claims: { sub: USER_ID, role } }, error: null })
-      await expect(getSessionUser()).resolves.toBeNull()
+      await expect(verify()).resolves.toBeNull()
     },
   )
 
@@ -59,7 +56,7 @@ describe('verifySessionUser', () => {
       data: { claims: { role: 'authenticated', email: 'a@test.local' } },
       error: null,
     })
-    await expect(getSessionUser()).resolves.toBeNull()
+    await expect(verify()).resolves.toBeNull()
   })
 
   it('returns null when the subject claim is an empty string', async () => {
@@ -67,7 +64,7 @@ describe('verifySessionUser', () => {
       data: { claims: { sub: '', role: 'authenticated' } },
       error: null,
     })
-    await expect(getSessionUser()).resolves.toBeNull()
+    await expect(verify()).resolves.toBeNull()
     expect(mockGetUser).not.toHaveBeenCalled()
   })
 
@@ -76,60 +73,30 @@ describe('verifySessionUser', () => {
       data: { claims: { sub: USER_ID, role: 'authenticated', is_anonymous: true } },
       error: null,
     })
-    await expect(getSessionUser()).resolves.toBeNull()
+    await expect(verify()).resolves.toBeNull()
   })
 
-  it('returns null and logs when reading the session throws, without verifying anything', async () => {
-    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    mockGetSession.mockRejectedValue(new Error('storage unavailable'))
-    await expect(getSessionUser()).resolves.toBeNull()
-    expect(spy).toHaveBeenCalledWith(
-      '[verifySessionUser] getSession failed:',
-      'storage unavailable',
-    )
-    expect(mockGetClaims).not.toHaveBeenCalled()
-  })
-
-  it('returns null and logs when reading the session fails, without verifying anything', async () => {
-    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    mockGetSession.mockResolvedValue({
-      data: { session: null },
-      error: new Error('refresh failed'),
-    })
-    await expect(getSessionUser()).resolves.toBeNull()
-    expect(spy).toHaveBeenCalledTimes(1)
-    expect(spy).toHaveBeenCalledWith('[verifySessionUser] getSession failed:', 'refresh failed')
-    expect(mockGetClaims).not.toHaveBeenCalled()
-    expect(mockGetUser).not.toHaveBeenCalled()
-  })
-
-  it('returns null when there is no session without verifying anything', async () => {
-    mockGetSession.mockResolvedValue({ data: { session: null }, error: null })
-    await expect(getSessionUser()).resolves.toBeNull()
-    expect(mockGetClaims).not.toHaveBeenCalled()
-    expect(mockGetUser).not.toHaveBeenCalled()
-  })
-
-  it('returns null when the session has an empty access token', async () => {
-    mockGetSession.mockResolvedValue({ data: { session: { access_token: '' } }, error: null })
-    await expect(getSessionUser()).resolves.toBeNull()
-    expect(mockGetClaims).not.toHaveBeenCalled()
-    expect(mockGetUser).not.toHaveBeenCalled()
-  })
-
-  it('verifies exactly the session access token', async () => {
+  it('verifies the cookie session by calling getClaims with no arguments', async () => {
     mockGetClaims.mockResolvedValue({
       data: { claims: { sub: USER_ID, role: 'authenticated' } },
       error: null,
     })
-    await getSessionUser()
-    expect(mockGetClaims).toHaveBeenCalledWith(TOKEN)
+    await verify()
+    expect(mockGetClaims).toHaveBeenCalledTimes(1)
+    expect(mockGetClaims.mock.calls[0]).toEqual([])
+  })
+
+  it('returns null without logging when there is no session', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    mockGetClaims.mockResolvedValue({ data: null, error: null })
+    await expect(verify()).resolves.toBeNull()
+    expect(spy).not.toHaveBeenCalled()
   })
 
   it('returns null and logs without a user lookup when claims verification errors', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     mockGetClaims.mockResolvedValue({ data: null, error: new Error('Invalid JWT signature') })
-    await expect(getSessionUser()).resolves.toBeNull()
+    await expect(verify()).resolves.toBeNull()
     expect(spy).toHaveBeenCalledWith(
       '[verifySessionUser] getClaims failed:',
       'Invalid JWT signature',
@@ -140,7 +107,7 @@ describe('verifySessionUser', () => {
   it('returns null and logs without a user lookup when claims verification throws', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     mockGetClaims.mockRejectedValue(new Error('JWKS fetch failed'))
-    await expect(getSessionUser()).resolves.toBeNull()
+    await expect(verify()).resolves.toBeNull()
     expect(spy).toHaveBeenCalledWith('[verifySessionUser] getClaims failed:', 'JWKS fetch failed')
     expect(mockGetUser).not.toHaveBeenCalled()
   })

@@ -97,7 +97,7 @@ describe('createMiddlewareSupabaseClient', () => {
   })
 
   it('forwards anti-cache headers onto the response the caller holds', () => {
-    // setAll fires lazily (during auth.getSession(), which verifySessionUser calls in
+    // setAll fires lazily (during auth.getClaims() → getSession(), which verifySessionUser calls in
     // apps/web/proxy.ts), after this function has returned —
     // so the headers must land on the SAME reference returned here, not an orphan.
     const { response } = createMiddlewareSupabaseClient(makeRequest())

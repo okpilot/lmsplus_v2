@@ -10,7 +10,12 @@ vi.mock('@/lib/supabase-rpc', () => ({
 
 // ---- Subject under test (after mocks) ---------------------------------------
 
-import { checkDiagramLabelAnswer, checkDialogFillAnswer } from './check-non-mc-answer-dispatch'
+import {
+  checkDiagramLabelAnswer,
+  checkDialogFillAnswer,
+  checkOrderingAnswer,
+  checkShortAnswer,
+} from './check-non-mc-answer-dispatch'
 import type { SupabaseClient } from './check-non-mc-answer-helpers'
 
 // ---- Fixtures -----------------------------------------------------------------
@@ -95,7 +100,10 @@ describe('checkDialogFillAnswer', () => {
       blankAnswers: [{ index: 0, text: 'cleared' }],
     })
     expect(result).toEqual({ success: false, error: 'Could not check answer' })
-    expect(consoleSpy).toHaveBeenCalledWith('[checkNonMcAnswer] dialog_fill RPC error:', 'boom')
+    expect(consoleSpy).toHaveBeenCalledWith('[checkNonMcAnswer] dialog_fill RPC error:', 'boom', {
+      questionId: QUESTION_ID,
+      sessionId: SESSION_ID,
+    })
     consoleSpy.mockRestore()
   })
 
@@ -162,7 +170,10 @@ describe('checkDiagramLabelAnswer', () => {
       mapping: [{ zoneId: 'z1', labelId: 'l1' }],
     })
     expect(result).toEqual({ success: false, error: 'Could not check answer' })
-    expect(consoleSpy).toHaveBeenCalledWith('[checkNonMcAnswer] diagram_label RPC error:', 'boom')
+    expect(consoleSpy).toHaveBeenCalledWith('[checkNonMcAnswer] diagram_label RPC error:', 'boom', {
+      questionId: QUESTION_ID,
+      sessionId: SESSION_ID,
+    })
     consoleSpy.mockRestore()
   })
 
@@ -187,5 +198,37 @@ describe('checkDiagramLabelAnswer', () => {
       mapping: [{ zoneId: 'z1', labelId: 'l1' }],
     })
     expect(result).toEqual({ success: false, error: 'Could not check answer' })
+  })
+})
+
+describe('short_answer and ordering RPC failures', () => {
+  it.each([
+    [
+      'short_answer',
+      () =>
+        checkShortAnswer(FAKE_SUPABASE, {
+          questionId: QUESTION_ID,
+          sessionId: SESSION_ID,
+          responseText: 'x',
+        }),
+    ],
+    [
+      'ordering',
+      () =>
+        checkOrderingAnswer(FAKE_SUPABASE, {
+          questionId: QUESTION_ID,
+          sessionId: SESSION_ID,
+          order: ['a'],
+        }),
+    ],
+  ])('logs the question and session ids when the %s RPC errors', async (type, run) => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'boom' } })
+    await expect(run()).resolves.toEqual({ success: false, error: 'Could not check answer' })
+    expect(consoleSpy).toHaveBeenCalledWith(`[checkNonMcAnswer] ${type} RPC error:`, 'boom', {
+      questionId: QUESTION_ID,
+      sessionId: SESSION_ID,
+    })
+    consoleSpy.mockRestore()
   })
 })
