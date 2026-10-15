@@ -253,6 +253,7 @@
 | IA | proxy-getClaims-forged-access-token | HIGH | proxy-forged-access-token.spec.ts | BLOCKED |  | auth-bypass |
 | IB | finishQuizSession-deactivated-banned-live-token | MEDIUM | server-action-deactivated-student-claims.spec.ts | BLOCKED |  | auth-bypass |
 | IC | fsrs_cards-direct-student-write | MEDIUM | authenticated-table-dml-denied.spec.ts | BLOCKED |  | rls-bypass |
+| ID | deactivated-student-live-token-postgrest-rls-writes | MEDIUM | deactivated-student-direct-rls-writes.spec.ts | BLOCKED |  | rls-bypass |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
