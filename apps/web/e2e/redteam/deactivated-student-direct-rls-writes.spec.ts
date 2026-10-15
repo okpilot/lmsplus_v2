@@ -1,10 +1,10 @@
 /**
  * Red Team Spec — Vector ID (#1412, mig 20261015000100): a deactivated student (Auth ban +
  * users.deleted_at, as toggle-student-status does it) replays a pre-ban access token straight at
- * PostgREST against every student RLS write cell: flagged_questions upsert + update,
- * question_comments insert + own delete, quiz_drafts own delete, quiz_sessions soft-delete,
- * users.full_name update. Each is refused and the protected row is unchanged.
- * CONTROL: the same token, after the student is restored, performs every write.
+ * PostgREST against these student RLS write cells (as of mig 20261015000100): flagged_questions
+ * upsert + update, question_comments insert + own delete, quiz_drafts own delete, quiz_sessions
+ * soft-delete, users.full_name update. Each is refused and the protected row is unchanged.
+ * CONTROL: the same token, after the student is restored, performs each listed write.
  *
  * Status: Expected to PASS.
  */
@@ -306,7 +306,7 @@ test.describe('Red Team: deactivated student direct RLS writes (ID)', () => {
     const held = await snapshot(f)
     expect(held).toEqual(before)
 
-    // CONTROL: same token, student restored → every cell writes.
+    // CONTROL: same token, student restored → each listed cell writes.
     await setDeactivated(false)
     const own = await attack(client, f)
     expect(own.flagInsert.error).toBeNull()
