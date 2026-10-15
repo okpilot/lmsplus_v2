@@ -64,7 +64,7 @@ Every route under `/app/*` must be protected by `apps/web/proxy.ts`.
 Unauthenticated requests redirect to `/`. No exceptions. The only extra state carried is a `next`
 destination, validated by `safeNextPath()` (`apps/web/lib/auth/safe-next-path.ts`).
 
-**Identity lookup (#1412):** the proxy's `getUser()` is the one Auth-server check per request (catches server-side revocation). Downstream `/app` render code and the quiz answer path call `getSessionUser()` (`apps/web/lib/auth/get-session-user.ts`): `getClaims()` verifies signature and expiry locally against the JWKS (prod signing key ES256), memoized per render. `requireAdmin()` keeps `getUser()`: it gates service-role writes.
+**Identity lookup (#1412):** the proxy's `getUser()` runs once per matched request (catches server-side revocation). Downstream `/app` render code and the quiz answer path call `getSessionUser()` (`apps/web/lib/auth/get-session-user.ts`): `getClaims()` verifies signature and expiry locally against the JWKS (prod signing key ES256), memoized per render. On a `getClaims()` failure it falls back to `getUser()`. `requireAdmin()` keeps `getUser()`: it gates service-role writes.
 
 ```ts
 // apps/web/proxy.ts — pattern required (Next.js 16 convention)

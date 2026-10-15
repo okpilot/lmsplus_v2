@@ -1,8 +1,6 @@
 // Two roles for the checkAnswer Server Action: the check_quiz_answer call (which reads the
 // answer key) and a runtime guard on its result.
-// Hoisted out of check-answer.ts for code-style.md §3 (function length), not §1. The
-// non-MC path splits the same way but across two files — helpers for the ownership check,
-// dispatch for the RPC calls; this merges both.
+// Hoisted out of check-answer.ts for code-style.md §3 (function length), not §1.
 //
 // This module must NOT carry 'use server', and the load-bearing reason is not that a sync
 // export would forbid it — that obstacle is removable, so do not rely on it. The reason is
@@ -29,7 +27,7 @@ type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
  *
  * The RPC is the session guard: mig `20261002000700` (the latest check_quiz_answer) checks
  * auth.uid(), the active-user gate, session ownership, practice mode and question_ids
- * membership before the key is read, raising session_not_found / question_not_in_session
+ * membership before the key is read, raising 'session not found or not owned by this student' / 'question % does not belong to session %'
  * (mapped by mapProgressRpcError).
  */
 export async function gradeAnswer(
