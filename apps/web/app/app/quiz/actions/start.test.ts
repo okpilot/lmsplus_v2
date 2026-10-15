@@ -2,16 +2,20 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetUser, mockRpc, mockGetRandomQuestionIds } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
+const { mockVerifySessionUser, mockRpc, mockGetRandomQuestionIds } = vi.hoisted(() => ({
+  mockVerifySessionUser: vi.fn(),
   mockRpc: vi.fn(),
   mockGetRandomQuestionIds: vi.fn(),
 }))
 
+const mockClient = vi.hoisted(() => ({}))
+
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
-  }),
+  createServerSupabaseClient: async () => mockClient,
+}))
+
+vi.mock('@/lib/auth/verify-session-user', () => ({
+  verifySessionUser: mockVerifySessionUser,
 }))
 
 vi.mock('@/lib/supabase-rpc', () => ({
@@ -33,33 +37,18 @@ beforeEach(() => {
 })
 
 describe('startQuizSession', () => {
-  it('returns failure when user is not authenticated', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } })
+  it('returns not-authenticated when the session has no verified user', async () => {
+    mockVerifySessionUser.mockResolvedValue(null)
     const result = await startQuizSession({
       subjectId: '00000000-0000-4000-a000-000000000001',
       count: 5,
     })
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe('Not authenticated')
-  })
-
-  it('returns failure when authentication fails', async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: null },
-      error: { message: 'session expired' },
-    })
-    const result = await startQuizSession({
-      subjectId: '00000000-0000-4000-a000-000000000001',
-      count: 5,
-    })
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe('Not authenticated')
+    expect(result).toEqual({ success: false, error: 'Not authenticated' })
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 
   it('returns failure when no questions are available', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
     mockGetRandomQuestionIds.mockResolvedValue([])
     const result = await startQuizSession({
       subjectId: '00000000-0000-4000-a000-000000000001',
@@ -71,7 +60,7 @@ describe('startQuizSession', () => {
   })
 
   it('surfaces a session-start failure', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
     mockGetRandomQuestionIds.mockResolvedValue(['q1', 'q2'])
     mockRpc.mockResolvedValue({ data: null, error: { message: 'DB error' } })
     const result = await startQuizSession({
@@ -84,7 +73,7 @@ describe('startQuizSession', () => {
   })
 
   it('tells the user to finish their other session when one is already active', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
     mockGetRandomQuestionIds.mockResolvedValue(['q1', 'q2'])
     mockRpc.mockResolvedValue({ data: null, error: { message: 'another_session_active' } })
     const result = await startQuizSession({
@@ -99,7 +88,7 @@ describe('startQuizSession', () => {
   })
 
   it('flags the start as blocked when another session is already active', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
     mockGetRandomQuestionIds.mockResolvedValue(['q1', 'q2'])
     mockRpc.mockResolvedValue({ data: null, error: { message: 'another_session_active' } })
     const result = await startQuizSession({
@@ -110,7 +99,7 @@ describe('startQuizSession', () => {
   })
 
   it('does not flag the start as blocked for an unrelated failure', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
     mockGetRandomQuestionIds.mockResolvedValue(['q1', 'q2'])
     mockRpc.mockResolvedValue({ data: null, error: { message: 'unexpected db failure' } })
     const result = await startQuizSession({
@@ -122,7 +111,7 @@ describe('startQuizSession', () => {
   })
 
   it('returns success with sessionId and questionIds on happy path', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
     mockGetRandomQuestionIds.mockResolvedValue(['q1', 'q2', 'q3'])
     mockRpc.mockResolvedValue({ data: 'session-123', error: null })
     const result = await startQuizSession({
@@ -137,7 +126,7 @@ describe('startQuizSession', () => {
 
   it('passes topicIds array to getRandomQuestionIds', async () => {
     const TOPIC_ID = '00000000-0000-4000-a000-000000000020'
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
     mockGetRandomQuestionIds.mockResolvedValue(['q1'])
     mockRpc.mockResolvedValue({ data: 'sess-1', error: null })
     await startQuizSession({
@@ -152,7 +141,7 @@ describe('startQuizSession', () => {
 
   it('passes subtopicIds array to getRandomQuestionIds', async () => {
     const SUBTOPIC_ID = '00000000-0000-4000-a000-000000000030'
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
     mockGetRandomQuestionIds.mockResolvedValue(['q1'])
     mockRpc.mockResolvedValue({ data: 'sess-1', error: null })
     await startQuizSession({
@@ -166,7 +155,7 @@ describe('startQuizSession', () => {
   })
 
   it('passes filters array to getRandomQuestionIds', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
     mockGetRandomQuestionIds.mockResolvedValue(['q1'])
     mockRpc.mockResolvedValue({ data: 'sess-1', error: null })
     await startQuizSession({
@@ -180,7 +169,7 @@ describe('startQuizSession', () => {
   })
 
   it("defaults filters to ['all'] when omitted", async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
     mockGetRandomQuestionIds.mockResolvedValue(['q1'])
     mockRpc.mockResolvedValue({ data: 'sess-1', error: null })
     await startQuizSession({
@@ -193,7 +182,7 @@ describe('startQuizSession', () => {
   })
 
   it('passes calcMode through to getRandomQuestionIds', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
     mockGetRandomQuestionIds.mockResolvedValue(['q1'])
     mockRpc.mockResolvedValue({ data: 'sess-1', error: null })
     await startQuizSession({
@@ -207,7 +196,7 @@ describe('startQuizSession', () => {
   })
 
   it("defaults calcMode to 'all' when omitted", async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
     mockGetRandomQuestionIds.mockResolvedValue(['q1'])
     mockRpc.mockResolvedValue({ data: 'sess-1', error: null })
     await startQuizSession({
@@ -220,7 +209,7 @@ describe('startQuizSession', () => {
   })
 
   it('rejects an unknown calcMode value', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
     const result = await startQuizSession({
       subjectId: '00000000-0000-4000-a000-000000000001',
       count: 1,
@@ -231,7 +220,7 @@ describe('startQuizSession', () => {
   })
 
   it('filters the question pool by image presence when imageMode is provided', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
     mockGetRandomQuestionIds.mockResolvedValue(['q1'])
     mockRpc.mockResolvedValue({ data: 'sess-1', error: null })
     await startQuizSession({
@@ -245,7 +234,7 @@ describe('startQuizSession', () => {
   })
 
   it("defaults imageMode to 'all' when omitted", async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
     mockGetRandomQuestionIds.mockResolvedValue(['q1'])
     mockRpc.mockResolvedValue({ data: 'sess-1', error: null })
     await startQuizSession({
@@ -258,7 +247,7 @@ describe('startQuizSession', () => {
   })
 
   it('rejects an unknown imageMode value', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
     const result = await startQuizSession({
       subjectId: '00000000-0000-4000-a000-000000000001',
       count: 1,
@@ -269,28 +258,28 @@ describe('startQuizSession', () => {
   })
 
   it('rejects unauthenticated calls before input validation', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } })
+    mockVerifySessionUser.mockResolvedValue(null)
     const result = await startQuizSession({})
     expect(result.success).toBe(false)
     if (!result.success) expect(result.error).toBe('Not authenticated')
   })
 
   it('returns failure for an invalid quiz configuration (missing subjectId)', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
     const result = await startQuizSession({})
     expect(result.success).toBe(false)
     if (!result.success) expect(result.error).toBe('Invalid input')
   })
 
   it('returns failure for a non-UUID subject ID', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
     const result = await startQuizSession({ subjectId: 'not-a-uuid', count: 5 })
     expect(result.success).toBe(false)
     if (!result.success) expect(result.error).toBe('Invalid input')
   })
 
   it('returns failure when topicIds contains a non-UUID', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
     const result = await startQuizSession({
       subjectId: '00000000-0000-4000-a000-000000000001',
       topicIds: ['not-a-uuid'],
@@ -301,7 +290,7 @@ describe('startQuizSession', () => {
   })
 
   it('returns failure when subtopicIds contains a non-UUID', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
     const result = await startQuizSession({
       subjectId: '00000000-0000-4000-a000-000000000001',
       subtopicIds: ['bad-id'],
@@ -312,7 +301,7 @@ describe('startQuizSession', () => {
   })
 
   it('returns failure when filters contains an unknown value', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
     const result = await startQuizSession({
       subjectId: '00000000-0000-4000-a000-000000000001',
       count: 5,
@@ -322,7 +311,7 @@ describe('startQuizSession', () => {
   })
 
   it('accepts count at the maximum allowed value (500)', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
     mockGetRandomQuestionIds.mockResolvedValue(['q1'])
     mockRpc.mockResolvedValue({ data: 'sess-1', error: null })
     const result = await startQuizSession({
@@ -333,7 +322,7 @@ describe('startQuizSession', () => {
   })
 
   it('rejects count above the 500 question cap', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
     const result = await startQuizSession({
       subjectId: '00000000-0000-4000-a000-000000000001',
       count: 501,
@@ -343,7 +332,7 @@ describe('startQuizSession', () => {
   })
 
   it('returns failure and logs when an unexpected error is thrown', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
     mockGetRandomQuestionIds.mockRejectedValue(new Error('unexpected DB failure'))
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {

@@ -4,6 +4,7 @@ import { createServerSupabaseClient } from '@repo/db/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import type { ActionResult } from '@/lib/action-result'
+import { verifySessionUser } from '@/lib/auth/verify-session-user'
 
 const UpdateNameSchema = z.object({
   fullName: z.string().trim().min(1, 'Name is required').max(200, 'Name is too long'),
@@ -15,11 +16,8 @@ export async function updateDisplayName(raw: unknown): Promise<ActionResult> {
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input' }
 
   const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-  if (authError || !user) return { success: false, error: 'Not authenticated' }
+  const user = await verifySessionUser(supabase)
+  if (!user) return { success: false, error: 'Not authenticated' }
 
   const { data, error } = await supabase
     .from('users')

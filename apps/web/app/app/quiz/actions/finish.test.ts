@@ -1,12 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockGetUser, mockRpc } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
+const { mockVerifySessionUser, mockRpc } = vi.hoisted(() => ({
+  mockVerifySessionUser: vi.fn(),
   mockRpc: vi.fn(),
 }))
 
+const mockClient = vi.hoisted(() => ({}))
+
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({ auth: { getUser: mockGetUser } }),
+  createServerSupabaseClient: async () => mockClient,
+}))
+
+vi.mock('@/lib/auth/verify-session-user', () => ({
+  verifySessionUser: mockVerifySessionUser,
 }))
 
 vi.mock('@/lib/supabase-rpc', () => ({
@@ -14,7 +20,6 @@ vi.mock('@/lib/supabase-rpc', () => ({
 }))
 
 import { finishQuizSession } from './finish'
-import { SIGN_IN } from './progress-error-messages'
 
 const SESSION = '00000000-0000-4000-a000-000000000099'
 const DEVICE = '00000000-0000-4000-a000-0000000000d1'
@@ -22,11 +27,22 @@ const DEVICE = '00000000-0000-4000-a000-0000000000d1'
 beforeEach(() => {
   vi.resetAllMocks()
   vi.spyOn(console, 'error').mockImplementation(() => {})
-  mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } }, error: null })
+  mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
   mockRpc.mockResolvedValue({ data: {}, error: null })
 })
 
 describe('finishQuizSession', () => {
+  it('returns a sign-in-expired error when the session has no verified user', async () => {
+    mockVerifySessionUser.mockResolvedValue(null)
+    const result = await finishQuizSession({ sessionId: SESSION, deviceId: DEVICE })
+    expect(result).toEqual({
+      success: false,
+      error: 'Your sign-in has expired. Please sign in again.',
+    })
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
+    expect(mockRpc).not.toHaveBeenCalled()
+  })
+
   it('finishes the session through the RPC with snake_case arguments', async () => {
     expect(await finishQuizSession({ sessionId: SESSION, deviceId: DEVICE })).toEqual({
       success: true,
@@ -43,15 +59,6 @@ describe('finishQuizSession', () => {
     ['an unexpected extra field', { sessionId: SESSION, deviceId: DEVICE, extra: 1 }],
   ])('rejects %s without calling the RPC', async (_label, input) => {
     expect(await finishQuizSession(input)).toEqual({ success: false, error: 'Invalid input' })
-    expect(mockRpc).not.toHaveBeenCalled()
-  })
-
-  it('asks the student to sign in again when there is no user', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
-    expect(await finishQuizSession({ sessionId: SESSION, deviceId: DEVICE })).toEqual({
-      success: false,
-      error: SIGN_IN,
-    })
     expect(mockRpc).not.toHaveBeenCalled()
   })
 

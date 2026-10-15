@@ -42,9 +42,10 @@ describe('getQuestionStats', () => {
     mockVerifySessionUser.mockResolvedValue({ id: 'user-1' })
   })
 
-  it('verifies identity on the same client it queries responses with', async () => {
+  it('returns stats for the verified session user on a single client', async () => {
     mockFrom.mockReturnValue(buildChain({ data: [], error: null }))
-    await getQuestionStats('q-1')
+    const stats = await getQuestionStats('q-1')
+    expect(stats).toEqual({ timesSeen: 0, correctCount: 0, incorrectCount: 0, lastAnswered: null })
     expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
     expect(mockCreateClient).toHaveBeenCalledTimes(1)
   })

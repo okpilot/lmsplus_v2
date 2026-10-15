@@ -1,6 +1,7 @@
 'use server'
 
 import { createServerSupabaseClient } from '@repo/db/server'
+import { verifySessionUser } from '@/lib/auth/verify-session-user'
 import type { LoadDraftsResult } from '../types'
 import { MAX_DRAFTS } from './draft-helpers'
 import { rowToDraftData } from './load-draft-helpers'
@@ -8,11 +9,8 @@ import { rowToDraftData } from './load-draft-helpers'
 export async function loadDrafts(): Promise<LoadDraftsResult> {
   try {
     const supabase = await createServerSupabaseClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-    if (authError || !user) return { drafts: [] }
+    const user = await verifySessionUser(supabase)
+    if (!user) return { drafts: [] }
 
     const { data, error } = await supabase
       .from('quiz_drafts')

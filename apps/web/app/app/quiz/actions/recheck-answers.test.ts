@@ -1,16 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockGetUser, mockRpc, mockFrom } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
+const { mockVerifySessionUser, mockRpc, mockFrom } = vi.hoisted(() => ({
+  mockVerifySessionUser: vi.fn(),
   mockRpc: vi.fn(),
   mockFrom: vi.fn(),
 }))
 
+const mockClient = vi.hoisted(() => ({ from: mockFrom }))
+
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
-    from: mockFrom,
-  }),
+  createServerSupabaseClient: async () => mockClient,
+}))
+
+vi.mock('@/lib/auth/verify-session-user', () => ({
+  verifySessionUser: mockVerifySessionUser,
 }))
 
 vi.mock('@/lib/supabase-rpc', () => ({
@@ -63,18 +66,20 @@ const mc = (questionId: string) => ({ questionId, selectedOptionId: 'a' })
 beforeEach(() => {
   vi.resetAllMocks()
   vi.spyOn(console, 'error').mockImplementation(() => undefined)
-  mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } } })
+  mockVerifySessionUser.mockResolvedValue({ id: USER_ID, email: null })
   mockFrom.mockReturnValue(sessionChain())
   mockRpc.mockResolvedValue({ data: MC_RPC, error: null })
 })
 
 describe('recheckRestoredAnswers', () => {
-  it('rejects a caller who is not signed in', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } })
-
+  it('returns a sign-in-expired error when the session has no verified user', async () => {
+    mockVerifySessionUser.mockResolvedValue(null)
     const result = await recheckRestoredAnswers(input([mc(Q1)]))
-
-    expect(result).toEqual({ success: false, error: expect.stringContaining('sign-in') })
+    expect(result).toEqual({
+      success: false,
+      error: 'Your sign-in has expired. Please sign in again.',
+    })
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
     expect(mockRpc).not.toHaveBeenCalled()
   })
 

@@ -2,18 +2,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetUser, mockFrom, mockRpc } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
-  mockFrom: vi.fn(),
+const { mockVerifySessionUser, mockRpc, mockClient } = vi.hoisted(() => ({
+  mockVerifySessionUser: vi.fn(),
   mockRpc: vi.fn(),
+  mockClient: { from: vi.fn() },
 }))
+const mockFrom = mockClient.from
 
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
-    from: mockFrom,
-  }),
+  createServerSupabaseClient: async () => mockClient,
 }))
+
+vi.mock('@/lib/auth/verify-session-user', () => ({ verifySessionUser: mockVerifySessionUser }))
 
 vi.mock('@/lib/supabase-rpc', () => ({
   rpc: mockRpc,
@@ -70,7 +70,7 @@ beforeEach(() => {
   vi.resetAllMocks()
   vi.useFakeTimers()
   vi.setSystemTime(NOW_MS)
-  mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null })
+  mockVerifySessionUser.mockResolvedValue({ id: 'user-1', email: null })
   mockRpc.mockResolvedValue({ data: null, error: null })
 })
 
@@ -81,22 +81,40 @@ afterEach(() => {
 // ---- Tests ----------------------------------------------------------------
 
 describe('getActiveInternalExamSession — unauthenticated', () => {
-  it('returns error when auth error is present', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null }, error: { message: 'no session' } })
+  it('returns error when no user is in the session', async () => {
+    mockVerifySessionUser.mockResolvedValue(null)
     mockFrom.mockImplementation(withUserChain(buildChain({ data: [], error: null })))
 
     const result = await getActiveInternalExamSession()
 
     expect(result).toEqual({ success: false, error: 'Not authenticated' })
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 
-  it('returns error when user is null without auth error', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
-    mockFrom.mockImplementation(withUserChain(buildChain({ data: [], error: null })))
+  it('returns not-authenticated without logging when the caller has no active users row', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockFrom.mockReturnValue(buildChain({ data: null, error: null }))
 
     const result = await getActiveInternalExamSession()
 
     expect(result).toEqual({ success: false, error: 'Not authenticated' })
+    expect(errorSpy).not.toHaveBeenCalled()
+  })
+
+  it('returns a generic failure and logs when the users lookup errors', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockFrom.mockReturnValue(buildChain({ data: null, error: { message: 'boom' } }))
+
+    const result = await getActiveInternalExamSession()
+
+    expect(result).toEqual({
+      success: false,
+      error: 'Failed to fetch active internal exam sessions.',
+    })
+    expect(errorSpy).toHaveBeenCalledWith(
+      '[getActiveInternalExamSession] User lookup error:',
+      'boom',
+    )
   })
 })
 
@@ -174,169 +192,35 @@ describe('getActiveInternalExamSession — happy path', () => {
   })
 })
 
+async function expectQuarantined(row: Record<string, unknown>) {
+  mockFrom.mockImplementation(withUserChain(buildChain({ data: [row], error: null })))
+  expect(await getActiveInternalExamSession()).toEqual({
+    success: true,
+    sessions: [],
+    orphanedSessionIds: [row.id],
+    expiredSessionIds: [],
+  })
+}
+
 describe('getActiveInternalExamSession — malformed time_limit_seconds (row quarantined)', () => {
-  it('quarantines a row with time_limit_seconds=null into orphanedSessionIds', async () => {
-    mockFrom.mockImplementation(
-      withUserChain(
-        buildChain({
-          data: [{ ...SESSION_ROW, id: 'sess-null-tl', time_limit_seconds: null }],
-          error: null,
-        }),
-      ),
-    )
-
-    const result = await getActiveInternalExamSession()
-
-    expect(result).toEqual({
-      success: true,
-      sessions: [],
-      orphanedSessionIds: ['sess-null-tl'],
-      expiredSessionIds: [],
-    })
-  })
-
-  it('quarantines a row with time_limit_seconds=0 into orphanedSessionIds', async () => {
-    mockFrom.mockImplementation(
-      withUserChain(
-        buildChain({
-          data: [{ ...SESSION_ROW, id: 'sess-zero-tl', time_limit_seconds: 0 }],
-          error: null,
-        }),
-      ),
-    )
-
-    const result = await getActiveInternalExamSession()
-
-    expect(result).toEqual({
-      success: true,
-      sessions: [],
-      orphanedSessionIds: ['sess-zero-tl'],
-      expiredSessionIds: [],
-    })
-  })
-
-  it('quarantines a row with a non-integer (fractional) time_limit_seconds into orphanedSessionIds', async () => {
-    mockFrom.mockImplementation(
-      withUserChain(
-        buildChain({
-          data: [{ ...SESSION_ROW, id: 'sess-frac-tl', time_limit_seconds: 3600.5 }],
-          error: null,
-        }),
-      ),
-    )
-
-    const result = await getActiveInternalExamSession()
-
-    expect(result).toEqual({
-      success: true,
-      sessions: [],
-      orphanedSessionIds: ['sess-frac-tl'],
-      expiredSessionIds: [],
-    })
-  })
-
-  it('quarantines a row with time_limit_seconds=NaN into orphanedSessionIds', async () => {
-    mockFrom.mockImplementation(
-      withUserChain(
-        buildChain({
-          data: [{ ...SESSION_ROW, id: 'sess-nan-tl', time_limit_seconds: Number.NaN }],
-          error: null,
-        }),
-      ),
-    )
-
-    const result = await getActiveInternalExamSession()
-
-    expect(result).toEqual({
-      success: true,
-      sessions: [],
-      orphanedSessionIds: ['sess-nan-tl'],
-      expiredSessionIds: [],
-    })
-  })
-
-  it('quarantines a row with time_limit_seconds=Infinity into orphanedSessionIds', async () => {
-    mockFrom.mockImplementation(
-      withUserChain(
-        buildChain({
-          data: [
-            { ...SESSION_ROW, id: 'sess-inf-tl', time_limit_seconds: Number.POSITIVE_INFINITY },
-          ],
-          error: null,
-        }),
-      ),
-    )
-
-    const result = await getActiveInternalExamSession()
-
-    expect(result).toEqual({
-      success: true,
-      sessions: [],
-      orphanedSessionIds: ['sess-inf-tl'],
-      expiredSessionIds: [],
-    })
+  it.each([
+    ['null', null],
+    ['0', 0],
+    ['a fraction', 3600.5],
+    ['NaN', Number.NaN],
+    ['Infinity', Number.POSITIVE_INFINITY],
+  ])('quarantines a row with time_limit_seconds=%s into orphanedSessionIds', async (_, value) => {
+    await expectQuarantined({ ...SESSION_ROW, id: 'sess-bad-tl', time_limit_seconds: value })
   })
 })
 
 describe('getActiveInternalExamSession — malformed started_at (row quarantined)', () => {
-  it('quarantines a row with a non-string started_at into orphanedSessionIds', async () => {
-    mockFrom.mockImplementation(
-      withUserChain(
-        buildChain({
-          data: [{ ...SESSION_ROW, id: 'sess-num-sa', started_at: 1_700_000_000_000 }],
-          error: null,
-        }),
-      ),
-    )
-
-    const result = await getActiveInternalExamSession()
-
-    expect(result).toEqual({
-      success: true,
-      sessions: [],
-      orphanedSessionIds: ['sess-num-sa'],
-      expiredSessionIds: [],
-    })
-  })
-
-  it('quarantines a row with an unparseable started_at string into orphanedSessionIds', async () => {
-    mockFrom.mockImplementation(
-      withUserChain(
-        buildChain({
-          data: [{ ...SESSION_ROW, id: 'sess-bad-sa', started_at: 'not-a-date' }],
-          error: null,
-        }),
-      ),
-    )
-
-    const result = await getActiveInternalExamSession()
-
-    expect(result).toEqual({
-      success: true,
-      sessions: [],
-      orphanedSessionIds: ['sess-bad-sa'],
-      expiredSessionIds: [],
-    })
-  })
-
-  it('quarantines a row with null started_at into orphanedSessionIds', async () => {
-    mockFrom.mockImplementation(
-      withUserChain(
-        buildChain({
-          data: [{ ...SESSION_ROW, id: 'sess-null-sa', started_at: null }],
-          error: null,
-        }),
-      ),
-    )
-
-    const result = await getActiveInternalExamSession()
-
-    expect(result).toEqual({
-      success: true,
-      sessions: [],
-      orphanedSessionIds: ['sess-null-sa'],
-      expiredSessionIds: [],
-    })
+  it.each([
+    ['a number', 1_700_000_000_000],
+    ['an unparseable string', 'not-a-date'],
+    ['null', null],
+  ])('quarantines a row with started_at=%s into orphanedSessionIds', async (_, value) => {
+    await expectQuarantined({ ...SESSION_ROW, id: 'sess-bad-sa', started_at: value })
   })
 
   it('accepts a valid ISO started_at string and places the row in sessions', async () => {

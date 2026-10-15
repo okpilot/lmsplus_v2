@@ -3,6 +3,7 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import type { ActionResult } from '@/lib/action-result'
+import { verifySessionUser } from '@/lib/auth/verify-session-user'
 
 // Optional payload. When sessionId is provided, the teardown is scoped to that one
 // row (the orphan-cleanup path in startStudy) so a slow failing request can never
@@ -31,11 +32,8 @@ export async function endDiscovery(raw?: unknown): Promise<ActionResult> {
 
   try {
     const supabase = await createServerSupabaseClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-    if (authError || !user) return { success: false, error: 'Not authenticated' }
+    const user = await verifySessionUser(supabase)
+    if (!user) return { success: false, error: 'Not authenticated' }
 
     let query = supabase
       .from('quiz_sessions')

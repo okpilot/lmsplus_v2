@@ -2,16 +2,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks -----------------------------------------------------------------
 
-const { mockGetUser, mockFrom } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
+const { mockVerifySessionUser, mockFrom } = vi.hoisted(() => ({
+  mockVerifySessionUser: vi.fn(),
   mockFrom: vi.fn(),
 }))
 
+const mockClient = vi.hoisted(() => ({ from: mockFrom }))
+
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
-    from: mockFrom,
-  }),
+  createServerSupabaseClient: async () => mockClient,
+}))
+
+vi.mock('@/lib/auth/verify-session-user', () => ({
+  verifySessionUser: mockVerifySessionUser,
 }))
 
 // ---- Subject under test ----------------------------------------------------
@@ -69,15 +72,7 @@ const QUESTION_ID_A = '00000000-0000-4000-a000-000000000011'
 const QUESTION_ID_B = '00000000-0000-4000-a000-000000000022'
 
 function setupAuthenticatedUser() {
-  mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } }, error: null })
-}
-
-function setupUnauthenticated() {
-  mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
-}
-
-function setupAuthError() {
-  mockGetUser.mockResolvedValue({ data: { user: null }, error: { message: 'JWT expired' } })
+  mockVerifySessionUser.mockResolvedValue({ id: USER_ID, email: null })
 }
 
 // ---- Tests -----------------------------------------------------------------
@@ -89,20 +84,11 @@ describe('toggleFlag', () => {
 
   // ---- auth ----------------------------------------------------------------
 
-  it('returns not-authenticated error when no user is signed in', async () => {
-    setupUnauthenticated()
-
+  it('returns not-authenticated when the session has no verified user', async () => {
+    mockVerifySessionUser.mockResolvedValue(null)
     const result = await toggleFlag({ questionId: QUESTION_ID_A })
-
     expect(result).toEqual({ success: false, error: 'Not authenticated' })
-  })
-
-  it('returns not-authenticated error when auth returns an error', async () => {
-    setupAuthError()
-
-    const result = await toggleFlag({ questionId: QUESTION_ID_A })
-
-    expect(result).toEqual({ success: false, error: 'Not authenticated' })
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 
   // ---- input validation ----------------------------------------------------
@@ -305,20 +291,11 @@ describe('getFlaggedIds', () => {
 
   // ---- auth ----------------------------------------------------------------
 
-  it('returns empty flaggedIds when no user is signed in', async () => {
-    setupUnauthenticated()
-
+  it('returns an empty result when the session has no verified user', async () => {
+    mockVerifySessionUser.mockResolvedValue(null)
     const result = await getFlaggedIds({ questionIds: [QUESTION_ID_A] })
-
     expect(result).toEqual({ success: true, flaggedIds: [] })
-  })
-
-  it('returns empty flaggedIds when auth returns an error', async () => {
-    setupAuthError()
-
-    const result = await getFlaggedIds({ questionIds: [QUESTION_ID_A] })
-
-    expect(result).toEqual({ success: true, flaggedIds: [] })
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 
   // ---- input validation ----------------------------------------------------

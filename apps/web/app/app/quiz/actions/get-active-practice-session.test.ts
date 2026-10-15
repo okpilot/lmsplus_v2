@@ -2,16 +2,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks -----------------------------------------------------------------
 
-const { mockGetUser, mockFrom } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
+const { mockVerifySessionUser, mockFrom } = vi.hoisted(() => ({
+  mockVerifySessionUser: vi.fn(),
   mockFrom: vi.fn(),
 }))
 
+const mockClient = vi.hoisted(() => ({ from: mockFrom }))
+
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
-    from: mockFrom,
-  }),
+  createServerSupabaseClient: async () => mockClient,
+}))
+
+vi.mock('@/lib/auth/verify-session-user', () => ({
+  verifySessionUser: mockVerifySessionUser,
 }))
 
 // ---- Subject under test ----------------------------------------------------
@@ -47,28 +50,17 @@ const PRACTICE_ROW = {
 
 beforeEach(() => {
   vi.resetAllMocks()
-  mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null })
+  mockVerifySessionUser.mockResolvedValue({ id: 'user-1', email: null })
 })
 
 // ---- Tests -----------------------------------------------------------------
 
 describe('getActivePracticeSession — unauthenticated', () => {
-  it('returns not-authenticated when auth error is present', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null }, error: { message: 'no session' } })
-    mockFrom.mockReturnValue(buildChain({ data: [], error: null }))
-
+  it('returns not-authenticated when the session has no verified user', async () => {
+    mockVerifySessionUser.mockResolvedValue(null)
     const result = await getActivePracticeSession()
-
     expect(result).toEqual({ success: false, error: 'Not authenticated' })
-  })
-
-  it('returns not-authenticated when user is null without auth error', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
-    mockFrom.mockReturnValue(buildChain({ data: [], error: null }))
-
-    const result = await getActivePracticeSession()
-
-    expect(result).toEqual({ success: false, error: 'Not authenticated' })
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 })
 
@@ -145,7 +137,7 @@ describe('getActivePracticeSession — failure paths', () => {
   })
 
   it('returns a generic error when an unexpected exception is thrown', async () => {
-    mockGetUser.mockRejectedValue(new Error('network failure'))
+    mockVerifySessionUser.mockRejectedValue(new Error('network failure'))
 
     const result = await getActivePracticeSession()
 

@@ -2,16 +2,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks -----------------------------------------------------------------
 
-const { mockGetUser, mockFrom } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
+const { mockVerifySessionUser, mockFrom } = vi.hoisted(() => ({
+  mockVerifySessionUser: vi.fn(),
   mockFrom: vi.fn(),
 }))
 
+const mockClient = vi.hoisted(() => ({ from: mockFrom }))
+
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
-    from: mockFrom,
-  }),
+  createServerSupabaseClient: async () => mockClient,
+}))
+
+vi.mock('@/lib/auth/verify-session-user', () => ({
+  verifySessionUser: mockVerifySessionUser,
 }))
 
 // ---- Subject under test ----------------------------------------------------
@@ -40,19 +43,16 @@ function buildChain(returnValue: unknown) {
 describe('discardQuiz', () => {
   beforeEach(() => {
     vi.resetAllMocks()
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'user-1', email: null })
   })
 
   // ---- auth ----------------------------------------------------------------
 
-  it('returns not-authenticated error when no user is signed in', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } })
-
-    const result = await discardQuiz({
-      sessionId: '00000000-0000-4000-a000-000000000001',
-    })
-
+  it('returns not-authenticated when the session has no verified user', async () => {
+    mockVerifySessionUser.mockResolvedValue(null)
+    const result = await discardQuiz({ sessionId: '00000000-0000-4000-a000-000000000001' })
     expect(result).toEqual({ success: false, error: 'Not authenticated' })
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 
   // ---- input validation ----------------------------------------------------
@@ -231,7 +231,7 @@ describe('discardQuiz', () => {
   // ---- unexpected errors ---------------------------------------------------
 
   it('returns a generic error when an unexpected exception is thrown', async () => {
-    mockGetUser.mockRejectedValue(new Error('network failure'))
+    mockVerifySessionUser.mockRejectedValue(new Error('network failure'))
 
     const result = await discardQuiz({
       sessionId: '00000000-0000-4000-a000-000000000001',

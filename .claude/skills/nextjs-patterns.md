@@ -18,14 +18,17 @@ All mutations go through Server Actions. No API routes for mutations.
 
 ```typescript
 'use server'
+import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
-import { requireAuth } from '@/lib/auth'
+import { verifySessionUser } from '@/lib/auth/verify-session-user'
 
 const Schema = z.object({ questionId: z.string().uuid() })
 
 export async function submitAnswer(input: unknown) {
   const { questionId } = Schema.parse(input)
-  const student = await requireAuth() // throws if not authed
+  const supabase = await createServerSupabaseClient()
+  const student = await verifySessionUser(supabase)
+  if (!student) return { success: false, error: 'Not authenticated' }
   // ... mutation logic
 }
 ```

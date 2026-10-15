@@ -2,15 +2,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetUser, mockRpc } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
+const { mockVerifySessionUser, mockRpc, mockClient } = vi.hoisted(() => ({
+  mockVerifySessionUser: vi.fn(),
   mockRpc: vi.fn(),
+  mockClient: {},
 }))
 
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
-  }),
+  createServerSupabaseClient: async () => mockClient,
+}))
+
+vi.mock('@/lib/auth/verify-session-user', () => ({
+  verifySessionUser: mockVerifySessionUser,
 }))
 
 vi.mock('@/lib/supabase-rpc', () => ({
@@ -45,23 +48,11 @@ beforeEach(() => {
 // ---- Authentication -------------------------------------------------------
 
 describe('startVfrRtExam — authentication', () => {
-  it('returns failure when the user is not authenticated', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } })
+  it('returns not-authenticated when the session has no verified user', async () => {
+    mockVerifySessionUser.mockResolvedValue(null)
     const result = await startVfrRtExam({ subjectId: VALID_SUBJECT_ID })
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe('Not authenticated')
-  })
-
-  it('returns failure when authentication returns an error', async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: null },
-      error: { message: 'session expired' },
-    })
-    const result = await startVfrRtExam({ subjectId: VALID_SUBJECT_ID })
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe('Not authenticated')
+    expect(result).toEqual({ success: false, error: 'Not authenticated' })
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 })
 
@@ -69,7 +60,7 @@ describe('startVfrRtExam — authentication', () => {
 
 describe('startVfrRtExam — input validation', () => {
   beforeEach(() => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
   })
 
   it('returns failure when subjectId is missing', async () => {
@@ -98,7 +89,7 @@ describe('startVfrRtExam — input validation', () => {
 
 describe('startVfrRtExam — RPC error messages', () => {
   beforeEach(() => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
   })
 
   it('returns "Not authenticated" when the RPC returns not_authenticated', async () => {
@@ -201,7 +192,7 @@ describe('startVfrRtExam — RPC error messages', () => {
 
 describe('startVfrRtExam — RPC payload validation', () => {
   beforeEach(() => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
   })
 
   it('returns failure when RPC returns null data without an error', async () => {
@@ -237,7 +228,7 @@ describe('startVfrRtExam — RPC payload validation', () => {
 
 describe('startVfrRtExam — happy path', () => {
   beforeEach(() => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
   })
 
   it('returns the session id and part boundaries on success', async () => {
@@ -272,7 +263,7 @@ describe('startVfrRtExam — happy path', () => {
 
 describe('startVfrRtExam — uncaught errors', () => {
   it('returns a generic error and logs when an unexpected exception is thrown', async () => {
-    mockGetUser.mockRejectedValue(new Error('network failure'))
+    mockVerifySessionUser.mockRejectedValue(new Error('network failure'))
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
       const result = await startVfrRtExam({ subjectId: VALID_SUBJECT_ID })

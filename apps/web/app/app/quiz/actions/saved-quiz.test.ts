@@ -1,24 +1,29 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockGetUser, mockRpc, mockCount, mockEq } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
+const { mockVerifySessionUser, mockRpc, mockCount, mockEq } = vi.hoisted(() => ({
+  mockVerifySessionUser: vi.fn(),
   mockRpc: vi.fn(),
   mockCount: vi.fn(),
   mockEq: vi.fn(),
 }))
 
-vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
-    from: () => ({
-      select: () => ({
-        eq: (...a: unknown[]) => {
-          mockEq(...a)
-          return { not: (...n: unknown[]) => mockCount(...n) }
-        },
-      }),
+const mockClient = vi.hoisted(() => ({
+  from: () => ({
+    select: () => ({
+      eq: (...a: unknown[]) => {
+        mockEq(...a)
+        return { not: (...n: unknown[]) => mockCount(...n) }
+      },
     }),
   }),
+}))
+
+vi.mock('@repo/db/server', () => ({
+  createServerSupabaseClient: async () => mockClient,
+}))
+
+vi.mock('@/lib/auth/verify-session-user', () => ({
+  verifySessionUser: mockVerifySessionUser,
 }))
 
 vi.mock('@/lib/supabase-rpc', () => ({
@@ -39,7 +44,7 @@ const DEVICE = '00000000-0000-4000-a000-0000000000d1'
 beforeEach(() => {
   vi.resetAllMocks()
   vi.spyOn(console, 'error').mockImplementation(() => {})
-  mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } }, error: null })
+  mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
   mockRpc.mockResolvedValue({ data: null, error: null })
   mockCount.mockResolvedValue({ count: 0, error: null })
 })
@@ -80,12 +85,13 @@ describe('saveQuizForLater', () => {
   })
 
   it('rejects an unauthenticated caller without calling the RPC', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
+    mockVerifySessionUser.mockResolvedValue(null)
     expect(await saveQuizForLater({ sessionId: SESSION, deviceId: DEVICE })).toEqual({
       success: false,
       error: SIGN_IN,
     })
     expect(mockRpc).not.toHaveBeenCalled()
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 })
 
@@ -125,12 +131,13 @@ describe('resumeSavedQuiz', () => {
   })
 
   it('rejects an unauthenticated caller without calling the RPC', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null }, error: new Error('jwt') })
+    mockVerifySessionUser.mockResolvedValue(null)
     expect(await resumeSavedQuiz({ sessionId: SESSION, deviceId: DEVICE })).toEqual({
       success: false,
       error: SIGN_IN,
     })
     expect(mockRpc).not.toHaveBeenCalled()
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 })
 
@@ -159,12 +166,13 @@ describe('discardSavedQuiz', () => {
   })
 
   it('rejects an unauthenticated caller without calling the RPC', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
+    mockVerifySessionUser.mockResolvedValue(null)
     expect(await discardSavedQuiz({ sessionId: SESSION })).toEqual({
       success: false,
       error: SIGN_IN,
     })
     expect(mockRpc).not.toHaveBeenCalled()
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 })
 
@@ -192,8 +200,9 @@ describe('checkSavedQuizRoom', () => {
   })
 
   it('rejects an unauthenticated caller without querying', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
+    mockVerifySessionUser.mockResolvedValue(null)
     expect(await checkSavedQuizRoom()).toEqual({ success: false, error: SIGN_IN })
     expect(mockCount).not.toHaveBeenCalled()
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 })

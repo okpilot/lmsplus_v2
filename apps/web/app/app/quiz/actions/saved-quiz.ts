@@ -2,6 +2,7 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
+import { verifySessionUser } from '@/lib/auth/verify-session-user'
 import { MAX_SAVED_QUIZZES } from '@/lib/queries/load-saved-quizzes'
 import { rpc } from '@/lib/supabase-rpc'
 import { INVALID_INPUT, SAVED_QUIZ_LIMIT, SIGN_IN } from './progress-error-messages'
@@ -15,11 +16,8 @@ const UNAUTHENTICATED: ProgressResult = { success: false, error: SIGN_IN }
 
 async function authedUser() {
   const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser()
-  return error || !user ? null : { supabase, uid: user.id }
+  const user = await verifySessionUser(supabase)
+  return user ? { supabase, uid: user.id } : null
 }
 
 async function authedClient() {

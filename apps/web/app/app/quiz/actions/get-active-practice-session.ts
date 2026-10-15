@@ -1,6 +1,7 @@
 'use server'
 
 import { createServerSupabaseClient } from '@repo/db/server'
+import { verifySessionUser } from '@/lib/auth/verify-session-user'
 // Imported, not re-inlined: exam-modes.ts owns this list and says to keep consumers in
 // lockstep by importing it. Why practice modes specifically — see the note at the query below.
 import { PRACTICE_MODES } from '@/lib/constants/exam-modes'
@@ -43,11 +44,8 @@ function toActivePracticeSession(row: PracticeRow): ActivePracticeSession {
 export async function getActivePracticeSession(): Promise<GetActivePracticeSessionResult> {
   try {
     const supabase = await createServerSupabaseClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-    if (authError || !user) return { success: false, error: 'Not authenticated' }
+    const user = await verifySessionUser(supabase)
+    if (!user) return { success: false, error: 'Not authenticated' }
 
     const { data, error } = await supabase
       .from('quiz_sessions')

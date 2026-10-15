@@ -1,15 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockGetUser, mockRpc, mockLoad, mockHeal, mockFinish } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
+const { mockVerifySessionUser, mockRpc, mockLoad, mockHeal, mockFinish } = vi.hoisted(() => ({
+  mockVerifySessionUser: vi.fn(),
   mockRpc: vi.fn(),
   mockLoad: vi.fn(),
   mockHeal: vi.fn(),
   mockFinish: vi.fn(),
 }))
 
+const mockClient = vi.hoisted(() => ({}))
+
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({ auth: { getUser: mockGetUser } }),
+  createServerSupabaseClient: async () => mockClient,
+}))
+
+vi.mock('@/lib/auth/verify-session-user', () => ({
+  verifySessionUser: mockVerifySessionUser,
 }))
 vi.mock('@/lib/supabase-rpc', () => ({ rpc: (...a: unknown[]) => mockRpc(...a) }))
 vi.mock('./resume-helpers', () => ({ loadResumeContext: (...a: unknown[]) => mockLoad(...a) }))
@@ -38,13 +44,20 @@ const CTX = {
 beforeEach(() => {
   vi.resetAllMocks()
   vi.spyOn(console, 'error').mockImplementation(() => {})
-  mockGetUser.mockResolvedValue({ data: { user: { id: USER } }, error: null })
+  mockVerifySessionUser.mockResolvedValue({ id: USER, email: null })
   mockLoad.mockResolvedValue({ ok: true, ctx: CTX })
   mockRpc.mockResolvedValue({ data: NEW_SESSION, error: null })
   mockFinish.mockResolvedValue(true)
 })
 
 describe('resumeQuizSession', () => {
+  it('returns not-authenticated when the session has no verified user', async () => {
+    mockVerifySessionUser.mockResolvedValue(null)
+    const result = await resumeQuizSession({ draftId: DRAFT })
+    expect(result).toEqual({ success: false, error: 'Not authenticated' })
+    expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
+  })
+
   it('returns the new session and its questions after a clean seed', async () => {
     expect(await resumeQuizSession({ draftId: DRAFT })).toEqual({
       success: true,
@@ -72,14 +85,6 @@ describe('resumeQuizSession', () => {
       error: expect.stringMatching(/active session/i),
     })
     expect(mockFinish).not.toHaveBeenCalled()
-  })
-
-  it('rejects an unauthenticated caller', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
-    expect(await resumeQuizSession({ draftId: DRAFT })).toEqual({
-      success: false,
-      error: 'Not authenticated',
-    })
   })
 
   it('rejects a non-uuid draft id', async () => {

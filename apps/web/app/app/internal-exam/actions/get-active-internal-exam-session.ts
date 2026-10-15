@@ -7,6 +7,7 @@ import {
   isExamOverdue,
   MAX_ACTIVE_EXAM_SESSIONS,
 } from '@/app/app/quiz/actions/_overdue-helpers'
+import { verifySessionUser } from '@/lib/auth/verify-session-user'
 import { rpc } from '@/lib/supabase-rpc'
 
 export type ActiveInternalExamSession = {
@@ -32,11 +33,8 @@ export type GetActiveInternalExamSessionResult =
 export async function getActiveInternalExamSession(): Promise<GetActiveInternalExamSessionResult> {
   try {
     const supabase = await createServerSupabaseClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-    if (authError || !user) return { success: false, error: 'Not authenticated' }
+    const user = await verifySessionUser(supabase)
+    if (!user) return { success: false, error: 'Not authenticated' }
 
     const { data: userRow, error: userErr } = await supabase
       .from('users')
@@ -44,6 +42,7 @@ export async function getActiveInternalExamSession(): Promise<GetActiveInternalE
       .eq('id', user.id)
       .is('deleted_at', null)
       .maybeSingle()
+    if (!userErr && !userRow) return { success: false, error: 'Not authenticated' }
     if (userErr || !userRow?.organization_id) {
       console.error('[getActiveInternalExamSession] User lookup error:', userErr?.message)
       return { success: false, error: 'Failed to fetch active internal exam sessions.' }
