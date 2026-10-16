@@ -20,10 +20,11 @@ vi.mock('@/lib/supabase-rpc', () => ({
 // ---- Subject under test ----------------------------------------------------
 
 import {
-  applyLastPracticed,
   computeExamReadiness,
+  fetchLastPracticed,
   getQuestionsToday,
   getStreakData,
+  mergeLastPracticed,
 } from './dashboard-stats'
 
 // ---- Helpers ---------------------------------------------------------------
@@ -172,18 +173,16 @@ describe('getStreakData', () => {
   })
 })
 
-// ---- applyLastPracticed ----------------------------------------------------
+// ---- fetchLastPracticed / mergeLastPracticed ------------------------------
 
-describe('applyLastPracticed', () => {
-  it('returns the same list unchanged without calling the RPC when subjects is empty', async () => {
-    const { createServerSupabaseClient } = await import('@repo/db/server')
-    const supabase = await createServerSupabaseClient()
-    const result = await applyLastPracticed(supabase, [])
-    expect(result).toEqual([])
-    expect(mockRpc).not.toHaveBeenCalled()
-  })
+async function fetchMap() {
+  const { createServerSupabaseClient } = await import('@repo/db/server')
+  const supabase = await createServerSupabaseClient()
+  return fetchLastPracticed(supabase)
+}
 
-  it('assigns lastPracticedAt onto the matching subject from the RPC result', async () => {
+describe('fetchLastPracticed', () => {
+  it('maps each subject to its last-practiced timestamp from the RPC result', async () => {
     mockRpc.mockResolvedValue({
       data: [
         { subject_id: 'subject-a', last_practiced_at: '2026-05-20T10:00:00Z' },
@@ -191,61 +190,55 @@ describe('applyLastPracticed', () => {
       ],
       error: null,
     })
-    const subjects = [
-      { id: 'subject-a', lastPracticedAt: null },
-      { id: 'subject-b', lastPracticedAt: null },
-    ]
 
-    const { createServerSupabaseClient } = await import('@repo/db/server')
-    const supabase = await createServerSupabaseClient()
-    const result = await applyLastPracticed(supabase, subjects)
+    const result = await fetchMap()
 
-    expect(result).toEqual([
-      { id: 'subject-a', lastPracticedAt: '2026-05-20T10:00:00Z' },
-      { id: 'subject-b', lastPracticedAt: '2026-05-17T08:00:00Z' },
+    expect([...result]).toEqual([
+      ['subject-a', '2026-05-20T10:00:00Z'],
+      ['subject-b', '2026-05-17T08:00:00Z'],
     ])
   })
 
-  it('leaves lastPracticedAt null for subjects absent from the RPC result', async () => {
-    mockRpc.mockResolvedValue({
-      data: [{ subject_id: 'subject-a', last_practiced_at: '2026-05-20T10:00:00Z' }],
-      error: null,
-    })
-
-    const subjects = [{ id: 'subject-x', lastPracticedAt: null }]
-    const { createServerSupabaseClient } = await import('@repo/db/server')
-    const supabase = await createServerSupabaseClient()
-    const result = await applyLastPracticed(supabase, subjects)
-
-    expect(result).toEqual([{ id: 'subject-x', lastPracticedAt: null }])
-  })
-
-  it('leaves all lastPracticedAt values null when the RPC returns null data without an error', async () => {
+  it('returns an empty map when the RPC returns null data without an error', async () => {
     // PostgREST can return { data: null, error: null } when the student has no responses at all.
-    // The data ?? [] fallback must produce an empty map so no subject is incorrectly updated.
     mockRpc.mockResolvedValue({ data: null, error: null })
 
-    const subjects = [
-      { id: 'subject-a', lastPracticedAt: null },
-      { id: 'subject-b', lastPracticedAt: null },
-    ]
-    const { createServerSupabaseClient } = await import('@repo/db/server')
-    const supabase = await createServerSupabaseClient()
-    const result = await applyLastPracticed(supabase, subjects)
-    expect(result).toEqual([
-      { id: 'subject-a', lastPracticedAt: null },
-      { id: 'subject-b', lastPracticedAt: null },
-    ])
+    expect((await fetchMap()).size).toBe(0)
   })
 
   it('throws a sanitized error when the last-practiced RPC fails', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'boom' } })
 
-    const subjects = [{ id: 'subject-a', lastPracticedAt: null }]
-    const { createServerSupabaseClient } = await import('@repo/db/server')
-    const supabase = await createServerSupabaseClient()
-    await expect(applyLastPracticed(supabase, subjects)).rejects.toThrow(
-      'Failed to fetch last-practiced: boom',
-    )
+    await expect(fetchMap()).rejects.toThrow('Failed to fetch last-practiced: boom')
+  })
+})
+
+describe('mergeLastPracticed', () => {
+  it('assigns lastPracticedAt onto the matching subject', () => {
+    const subjects = [
+      { id: 'subject-a', lastPracticedAt: null },
+      { id: 'subject-b', lastPracticedAt: null },
+    ]
+    const latest = new Map([
+      ['subject-a', '2026-05-20T10:00:00Z'],
+      ['subject-b', '2026-05-17T08:00:00Z'],
+    ])
+
+    expect(mergeLastPracticed(subjects, latest)).toEqual([
+      { id: 'subject-a', lastPracticedAt: '2026-05-20T10:00:00Z' },
+      { id: 'subject-b', lastPracticedAt: '2026-05-17T08:00:00Z' },
+    ])
+  })
+
+  it('leaves lastPracticedAt null for subjects absent from the map', () => {
+    const latest = new Map([['subject-a', '2026-05-20T10:00:00Z']])
+
+    expect(mergeLastPracticed([{ id: 'subject-x', lastPracticedAt: null }], latest)).toEqual([
+      { id: 'subject-x', lastPracticedAt: null },
+    ])
+  })
+
+  it('returns an empty list for no subjects', () => {
+    expect(mergeLastPracticed([], new Map())).toEqual([])
   })
 })

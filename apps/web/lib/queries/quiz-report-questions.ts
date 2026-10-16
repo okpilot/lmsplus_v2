@@ -1,14 +1,14 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { getSessionUser } from '@/lib/auth/get-session-user'
 import { fetchAllRows, toPageResult } from '@/lib/supabase-paginate'
-import { fetchAllRpcRows } from '@/lib/supabase-rpc'
 import type { QuizReportQuestionsResult } from './quiz-report'
 import { PAGE_SIZE } from './quiz-report'
+import { buildAnswerKeyMap, buildDistinctQuestionOrder } from './quiz-report-helpers'
 import {
-  type AnswerKeyRow,
-  buildAnswerKeyMap,
-  buildDistinctQuestionOrder,
-} from './quiz-report-helpers'
+  fetchAnswerKeys,
+  selectPageAnswers,
+  selectPageQuestions,
+} from './quiz-report-questions-fetch'
 import { type AnswerRow, buildReportQuestions, type QuestionRow } from './report-question-builder'
 
 export async function getQuizReportQuestions(opts: {
@@ -85,15 +85,11 @@ export async function getQuizReportQuestions(opts: {
   const from = (page - 1) * PAGE_SIZE
   const pageQuestionIds = orderedQuestionIds.slice(from, from + PAGE_SIZE)
 
-  const { data: answersData, error: answersError } = await supabase
-    .from('quiz_session_answers')
-    .select(
-      'question_id, selected_option_id, is_correct, response_time_ms, response_text, blank_index',
-    )
-    .eq('session_id', sessionId)
-    .in('question_id', pageQuestionIds)
-    .order('answered_at', { ascending: true })
-    .order('id')
+  const [answersResult, questionsResult] = await Promise.all([
+    selectPageAnswers(supabase, sessionId, pageQuestionIds),
+    selectPageQuestions(supabase, pageQuestionIds),
+  ])
+  const { data: answersData, error: answersError } = answersResult
 
   if (answersError) {
     console.error('[getQuizReportQuestions] Answers query error:', answersError.message)
@@ -106,19 +102,7 @@ export async function getQuizReportQuestions(opts: {
     return { ok: true, questions: [], totalCount: total }
   }
 
-  // Direct SELECT is safe: ended_at guard above blocks mid-session access, and
-  // options no longer carries the answer key — `correct` is stripped at the DB
-  // write layer (#823), so the key never reaches buildReportQuestions. The
-  // report's correct option comes from get_report_correct_options (correctOptionId).
-  // Intentionally omits deleted_at — questions answered in a completed session
-  // are shown even if subsequently soft-deleted (historical record).
-  const { data: questionsData, error: questionsError } = await supabase
-    .from('questions')
-    .select(
-      'id, question_text, question_number, options, explanation_text, explanation_image_url, question_image_url, question_type',
-    )
-    .in('id', pageQuestionIds)
-
+  const { data: questionsData, error: questionsError } = questionsResult
   if (questionsError) {
     console.error('[getQuizReportQuestions] Questions query error:', questionsError.message)
     return { ok: false, error: 'Failed to load questions' }
@@ -127,9 +111,11 @@ export async function getQuizReportQuestions(opts: {
   const questions = Array.isArray(questionsData) ? (questionsData as QuestionRow[]) : []
   const questionMap = new Map<string, QuestionRow>(questions.map((q) => [q.id, q]))
 
-  const { data: correctData, error: rpcError } = await supabase.rpc('get_report_correct_options', {
-    p_session_id: sessionId,
-  })
+  const [correctResult, keysResult] = await Promise.all([
+    supabase.rpc('get_report_correct_options', { p_session_id: sessionId }),
+    fetchAnswerKeys(supabase, sessionId),
+  ])
+  const { data: correctData, error: rpcError } = correctResult
   if (rpcError) {
     console.error('[getQuizReportQuestions] RPC error:', rpcError.message)
     return { ok: false, error: 'Failed to load questions' }
@@ -148,19 +134,7 @@ export async function getQuizReportQuestions(opts: {
     correctRows.map((row) => [row.question_id, row.correct_option_id]),
   )
 
-  // Non-MC answer keys (short_answer canonical, dialog_fill per-blank, ordering
-  // per-slot, diagram_label per-zone). Zero rows for an all-MC session (e.g.
-  // internal_exam) — not an error. fetchAllRpcRows pages past PostgREST's
-  // max_rows cap, which one session can exceed at 500 questions each contributing
-  // one row per blank/slot/zone; see its docblock in lib/supabase-rpc.ts. get_report_answer_keys
-  // (mig 133) isn't in the generated types yet, hence the explicit type arg —
-  // TODO: drop it once packages/db types are regenerated.
-  const { data: answerKeyRows, error: keyError } = await fetchAllRpcRows<AnswerKeyRow>({
-    supabase,
-    fn: 'get_report_answer_keys',
-    args: { p_session_id: sessionId },
-    orderColumns: ['question_id', 'blank_index'],
-  })
+  const { data: answerKeyRows, error: keyError } = keysResult
   if (keyError) {
     console.error('[getQuizReportQuestions] Answer-keys RPC error:', keyError.message)
     return { ok: false, error: 'Failed to load questions' }

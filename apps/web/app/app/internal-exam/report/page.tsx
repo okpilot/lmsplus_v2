@@ -16,13 +16,15 @@ export default async function InternalExamReportPage({
   const { session: sessionId, page: pageParam } = await searchParams
   if (!sessionId || !UUID_RE.test(sessionId)) redirect('/app/internal-exam?tab=reports')
 
-  const summary = await getQuizReportSummary(sessionId)
+  const page = parsePageParam(pageParam)
+  const [summary, questionsResult] = await Promise.all([
+    getQuizReportSummary(sessionId),
+    getQuizReportQuestions({ sessionId, page }),
+  ])
   if (!summary) redirect('/app/internal-exam?tab=reports')
   // Defense-in-depth: this URL is only for internal_exam sessions.
   if (summary.mode !== 'internal_exam') redirect(`/app/quiz/report?session=${sessionId}`)
 
-  const page = parsePageParam(pageParam)
-  const questionsResult = await getQuizReportQuestions({ sessionId, page })
   if (!questionsResult.ok) redirect('/app/internal-exam?tab=reports')
 
   const totalPages = Math.max(1, Math.ceil(questionsResult.totalCount / PAGE_SIZE))

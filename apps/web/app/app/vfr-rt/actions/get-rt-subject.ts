@@ -53,13 +53,12 @@ async function fetchTopicsOrEmpty(subjectId: string): Promise<TopicWithSubtopics
  * failure (non-critical — the form just renders with zero topics).
  */
 export async function getRtSubjectData(): Promise<RtSubjectData> {
-  const id = await fetchRtSubjectId()
-  const [topics, examSubjects] = await Promise.all([
-    fetchTopicsOrEmpty(id),
-    getExamEnabledSubjects(),
-  ])
+  const [id, examSubjects] = await Promise.all([fetchRtSubjectId(), getExamEnabledSubjects()])
   const available = examSubjects.some((s) => s.id === id)
-  const questionCount = available ? await getVfrRtExamQuestionCount(id) : null
+  const [topics, questionCount] = await Promise.all([
+    fetchTopicsOrEmpty(id),
+    available ? getVfrRtExamQuestionCount(id) : null,
+  ])
   const subjects: SubjectOption[] = [
     {
       id,

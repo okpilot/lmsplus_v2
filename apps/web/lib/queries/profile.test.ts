@@ -293,3 +293,25 @@ describe('getProfileData', () => {
     })
   })
 })
+
+describe('getProfileData parallel reads', () => {
+  it('starts the answered-count read while the stats RPC is still pending', async () => {
+    mockAuthenticatedUser()
+    setupMocks()
+    let release!: (v: unknown) => void
+    mockRpc.mockReturnValue(
+      new Promise((resolve) => {
+        release = resolve
+      }),
+    )
+    const fromCalls = () => mockFrom.mock.calls.map((c) => c[0])
+
+    const result = getProfileData()
+    await vi.waitFor(() => expect(mockRpc).toHaveBeenCalled())
+    await new Promise((r) => setTimeout(r, 10))
+    expect(fromCalls()).toContain('student_responses')
+
+    release({ data: [{ total_sessions: 1, avg_score: 50 }], error: null })
+    await result
+  })
+})

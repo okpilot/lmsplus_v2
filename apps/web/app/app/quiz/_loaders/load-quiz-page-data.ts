@@ -1,4 +1,6 @@
+import { getMockExamSubjects } from '@/lib/queries/exam-subjects'
 import { loadSavedQuizzes, type SavedQuizSession } from '@/lib/queries/load-saved-quizzes'
+import { getSubjectsWithCounts } from '@/lib/queries/quiz-subject-queries'
 import type { ActiveExamSession } from '../actions/get-active-exam-session'
 import { getActiveExamSession } from '../actions/get-active-exam-session'
 import type { ActivePracticeSession } from '../actions/get-active-practice-session'
@@ -40,6 +42,11 @@ async function loadSavedOrDegrade(
  * actions resolve auth internally; the saved-sessions query takes the caller id.
  */
 export async function loadQuizPageData(userId: string): Promise<QuizPageData> {
+  // Preload the cache()d reads SubjectsSection awaits later; the no-op catch only
+  // prevents an unhandled rejection when that section never renders.
+  getSubjectsWithCounts().catch(() => {})
+  getMockExamSubjects().catch(() => {})
+
   const [{ drafts }, saved, examResult, practiceResult] = await Promise.all([
     loadDrafts(),
     loadSavedOrDegrade(userId),

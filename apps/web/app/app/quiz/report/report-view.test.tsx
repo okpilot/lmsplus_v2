@@ -217,4 +217,25 @@ describe('QuizReportView', () => {
       expect(mockRedirect).toHaveBeenCalledWith('/app/quiz')
     })
   })
+
+  describe('parallel fetches', () => {
+    it('starts the questions fetch while the summary fetch is still pending', async () => {
+      let release!: (v: QuizReportSummary | null) => void
+      mockGetQuizReportSummary.mockReturnValue(
+        new Promise((resolve) => {
+          release = resolve
+        }),
+      )
+
+      const view = QuizReportView({ sessionId: VALID_SESSION_ID, namespace: 'quiz' })
+      await new Promise((r) => setTimeout(r, 10))
+      expect(mockGetQuizReportQuestions).toHaveBeenCalledWith({
+        sessionId: VALID_SESSION_ID,
+        page: 1,
+      })
+
+      release(makeSummary({ subjectCode: null }))
+      await view
+    })
+  })
 })

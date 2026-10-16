@@ -41,12 +41,7 @@ export async function getStreakData(
 
 type LastPracticedRow = { subject_id: string; last_practiced_at: string }
 
-export async function applyLastPracticed<T extends { id: string; lastPracticedAt: string | null }>(
-  supabase: SupabaseClient,
-  subjects: T[],
-): Promise<T[]> {
-  if (!subjects.length) return subjects
-
+export async function fetchLastPracticed(supabase: SupabaseClient): Promise<Map<string, string>> {
   // Last-practiced is computed in Postgres (get_student_last_practiced, MAX(created_at) per
   // subject over ALL responses). The prior client-side map ran over a .limit(5000) read that
   // PostgREST truncated at the 1000-row cap, falsely NULLing subjects answered "late" (#668).
@@ -60,7 +55,13 @@ export async function applyLastPracticed<T extends { id: string; lastPracticedAt
       latestPerSubject.set(row.subject_id, row.last_practiced_at)
     }
   }
+  return latestPerSubject
+}
 
+export function mergeLastPracticed<T extends { id: string; lastPracticedAt: string | null }>(
+  subjects: T[],
+  latestPerSubject: Map<string, string>,
+): T[] {
   return subjects.map((s) => ({
     ...s,
     lastPracticedAt: latestPerSubject.get(s.id) ?? null,

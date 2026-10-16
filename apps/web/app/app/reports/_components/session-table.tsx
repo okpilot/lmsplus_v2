@@ -81,7 +81,7 @@ function SessionRow({ session: s }: Readonly<{ session: SessionReport }>) {
     >
       <td className="px-4 py-3 text-muted-foreground">{formatDate(s.startedAt)}</td>
       <td className="px-4 py-3 font-medium">
-        <Link href={href} onClick={(e) => e.stopPropagation()}>
+        <Link href={href} prefetch={false} onClick={(e) => e.stopPropagation()}>
           {s.subjectName ?? '\u2014'}
         </Link>
       </td>

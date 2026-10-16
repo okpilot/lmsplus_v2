@@ -215,3 +215,23 @@ describe('getRtSubjectData — subject lookup failure', () => {
     consoleSpy.mockRestore()
   })
 })
+
+// ---- Parallel reads -------------------------------------------------------
+
+describe('getRtSubjectData — parallel reads', () => {
+  it('starts the exam-availability read while the subject lookup is still pending', async () => {
+    let release!: (v: unknown) => void
+    const lookup = new Promise((resolve) => {
+      release = resolve
+    })
+    mockFrom.mockReturnValue(buildChain(lookup))
+
+    const result = getRtSubjectData()
+    await vi.waitFor(() => expect(mockFrom).toHaveBeenCalled())
+    await new Promise((r) => setTimeout(r, 10))
+    expect(mockGetExamEnabledSubjects).toHaveBeenCalled()
+
+    release({ data: { id: SUBJECT_ID }, error: null })
+    await result
+  })
+})

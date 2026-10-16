@@ -23,13 +23,15 @@ type Props = Readonly<{
 export async function QuizReportView({ sessionId, pageParam, namespace }: Props) {
   if (!sessionId || !UUID_RE.test(sessionId)) redirect(namespaceHome(namespace))
 
-  const summary = await getQuizReportSummary(sessionId)
+  const page = parsePageParam(pageParam)
+  const [summary, questionsResult] = await Promise.all([
+    getQuizReportSummary(sessionId),
+    getQuizReportQuestions({ sessionId, page }),
+  ])
   if (!summary) redirect(namespaceHome(namespace))
 
   const basePath = canonicalReportBasePath(summary, namespace, pageParam)
 
-  const page = parsePageParam(pageParam)
-  const questionsResult = await getQuizReportQuestions({ sessionId, page })
   if (!questionsResult.ok) redirect(namespaceHome(namespace))
 
   redirectOnPageOverflow(basePath, sessionId, page, questionsResult.totalCount, PAGE_SIZE)

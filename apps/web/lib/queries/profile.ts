@@ -85,13 +85,22 @@ async function getProfileStats(supabase: SupabaseClient, userId: string): Promis
   // client read fetched every session's score_percentage and counted/averaged in JS, which
   // truncated at the PostgREST 1000-row cap for high-volume students. The RPC self-scopes to
   // the caller (quiz_sessions is multi-permissive, security.md §11).
-  const { data: statsData, error: statsError } = await rpc<ProfileStatsRow[]>(
-    supabase,
-    'get_student_profile_stats',
-    {},
-  )
+  // `userId` is only needed for the head-count of answered questions (a safe count, no
+  // truncation). The stats RPC takes no args and self-scopes via auth.uid().
+  const [statsResult, countResult] = await Promise.all([
+    rpc<ProfileStatsRow[]>(supabase, 'get_student_profile_stats', {}),
+    supabase
+      .from('student_responses')
+      .select('*', { count: 'exact', head: true })
+      .eq('student_id', userId),
+  ])
+  const { data: statsData, error: statsError } = statsResult
   if (statsError) {
     throw new Error(`Failed to fetch profile stats: ${statsError.message}`)
+  }
+  const { count, error: countError } = countResult
+  if (countError) {
+    throw new Error(`Failed to fetch answered count: ${countError.message}`)
   }
 
   // rpc() casts the payload without validating shape — guard the array per code-style §5.
@@ -100,16 +109,6 @@ async function getProfileStats(supabase: SupabaseClient, userId: string): Promis
   // avg_score is the raw numeric mean; Math.round stays here to preserve the legacy rounding.
   const averageScore =
     totalSessions > 0 && row?.avg_score != null ? Math.round(Number(row.avg_score)) : 0
-
-  // `userId` is only needed here: the head-count of answered questions is a safe
-  // count (no truncation). The stats RPC above takes no args and self-scopes via auth.uid().
-  const { count, error: countError } = await supabase
-    .from('student_responses')
-    .select('*', { count: 'exact', head: true })
-    .eq('student_id', userId)
-  if (countError) {
-    throw new Error(`Failed to fetch answered count: ${countError.message}`)
-  }
 
   return {
     totalSessions,
