@@ -292,13 +292,39 @@ describe('deleteComment', () => {
     expect(result).toEqual({ success: true })
   })
 
+  function mockDeleteZeroRows(usersResult: unknown) {
+    mockFrom.mockImplementation((table: string) =>
+      buildChain(table === 'users' ? usersResult : { data: [], error: null }),
+    )
+  }
+
   it('returns error when comment not found or not owned', async () => {
     setupAuthenticatedUser()
-    mockFrom.mockReturnValue(buildChain({ data: [], error: null }))
+    mockDeleteZeroRows({ data: { id: USER_ID }, error: null })
 
     const result = await deleteComment({ commentId: COMMENT_ID })
 
     expect(result).toEqual({ success: false, error: 'Comment not found or not owned' })
+  })
+
+  it('reports the account as inactive when the delete changes no rows and the caller is deactivated', async () => {
+    setupAuthenticatedUser()
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockDeleteZeroRows({ data: null, error: null })
+
+    const result = await deleteComment({ commentId: COMMENT_ID })
+
+    expect(result).toEqual({ success: false, error: 'Your account is no longer active.' })
+  })
+
+  it('returns a generic delete failure when the delete changes no rows and the caller lookup errors', async () => {
+    setupAuthenticatedUser()
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockDeleteZeroRows({ data: null, error: { message: 'boom', code: 'XX000' } })
+
+    const result = await deleteComment({ commentId: COMMENT_ID })
+
+    expect(result).toEqual({ success: false, error: 'Failed to delete comment' })
   })
 
   it('deletes from the question_comments table', async () => {

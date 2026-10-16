@@ -73,10 +73,30 @@ describe('endDiscovery', () => {
     expect(result).toEqual({ success: false, error: 'Invalid input' })
   })
 
-  it('returns success when no active discovery session exists (zero-row no-op)', async () => {
-    mockFrom.mockReturnValue(buildChain({ data: [], error: null }))
+  function mockZeroRowsThenUsersRead(usersResult: unknown) {
+    mockFrom.mockImplementation((table: string) =>
+      table === 'users' ? buildChain(usersResult) : buildChain({ data: [], error: null }),
+    )
+  }
+
+  it('returns success when no active discovery session exists and the caller is active', async () => {
+    mockZeroRowsThenUsersRead({ data: { id: 'user-1' }, error: null })
     const result = await endDiscovery({})
     expect(result).toEqual({ success: true })
+  })
+
+  it('reports the account as inactive when zero rows change and the caller account is not visible', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockZeroRowsThenUsersRead({ data: null, error: null })
+    const result = await endDiscovery({})
+    expect(result).toEqual({ success: false, error: 'Your account is no longer active.' })
+  })
+
+  it('returns failure when zero rows change and the account lookup errors', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockZeroRowsThenUsersRead({ data: null, error: { message: 'boom', code: 'XX000' } })
+    const result = await endDiscovery({})
+    expect(result).toEqual({ success: false, error: 'Failed to exit discovery' })
   })
 
   it('returns failure when the soft-delete query errors', async () => {
