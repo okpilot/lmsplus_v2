@@ -24,8 +24,8 @@ export function selectPageAnswers(
 // options no longer carries the answer key — `correct` is stripped at the DB
 // write layer (#823), so the key never reaches buildReportQuestions. The
 // report's correct option comes from get_report_correct_options (correctOptionId).
-// Intentionally omits deleted_at — questions answered in a completed session
-// are shown even if subsequently soft-deleted (historical record).
+// No deleted_at filter here: the tenant_isolation SELECT policy on questions (RLS)
+// already excludes soft-deleted rows, so a soft-deleted question is absent from the report.
 export function selectPageQuestions(supabase: SupabaseClient, questionIds: string[]) {
   return supabase
     .from('questions')
@@ -40,8 +40,7 @@ export function selectPageQuestions(supabase: SupabaseClient, questionIds: strin
 // internal_exam) — not an error. fetchAllRpcRows pages past PostgREST's
 // max_rows cap, which one session can exceed at 500 questions each contributing
 // one row per blank/slot/zone; see its docblock in lib/supabase-rpc.ts. get_report_answer_keys
-// (mig 133) isn't in the generated types yet, hence the explicit type arg —
-// TODO: drop it once packages/db types are regenerated.
+// is passed to fetchAllRpcRows as a string name, hence the explicit type arg.
 export function fetchAnswerKeys(supabase: SupabaseClient, sessionId: string) {
   return fetchAllRpcRows<AnswerKeyRow>({
     supabase,

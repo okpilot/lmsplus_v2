@@ -1,12 +1,8 @@
-import { redirect } from 'next/navigation'
 import { QuestionBreakdown } from '@/app/app/quiz/report/_components/question-breakdown'
 import { ResultSummary } from '@/app/app/quiz/report/_components/result-summary'
-import { getQuizReportSummary, PAGE_SIZE } from '@/lib/queries/quiz-report'
-import { getQuizReportQuestions } from '@/lib/queries/quiz-report-questions'
-import { parsePageParam } from '@/lib/utils/parse-page-param'
+import { PAGE_SIZE } from '@/lib/queries/quiz-report'
 import { ReportFooter } from './_components/report-footer'
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+import { loadInternalExamReport } from './_loaders/load-internal-exam-report'
 
 export default async function InternalExamReportPage({
   searchParams,
@@ -14,31 +10,18 @@ export default async function InternalExamReportPage({
   searchParams: Promise<{ session?: string; page?: string }>
 }>) {
   const { session: sessionId, page: pageParam } = await searchParams
-  if (!sessionId || !UUID_RE.test(sessionId)) redirect('/app/internal-exam?tab=reports')
-
-  const page = parsePageParam(pageParam)
-  const [summary, questionsResult] = await Promise.all([
-    getQuizReportSummary(sessionId),
-    getQuizReportQuestions({ sessionId, page }),
-  ])
-  if (!summary) redirect('/app/internal-exam?tab=reports')
-  // Defense-in-depth: this URL is only for internal_exam sessions.
-  if (summary.mode !== 'internal_exam') redirect(`/app/quiz/report?session=${sessionId}`)
-
-  if (!questionsResult.ok) redirect('/app/internal-exam?tab=reports')
-
-  const totalPages = Math.max(1, Math.ceil(questionsResult.totalCount / PAGE_SIZE))
-  if (page > totalPages) {
-    redirect(`/app/internal-exam/report?session=${sessionId}&page=${totalPages}`)
-  }
+  const { summary, questions, totalCount, page } = await loadInternalExamReport({
+    sessionId,
+    pageParam,
+  })
 
   return (
     <main className="space-y-6">
       <ResultSummary summary={summary} />
       <QuestionBreakdown
-        questions={questionsResult.questions}
+        questions={questions}
         page={page}
-        totalCount={questionsResult.totalCount}
+        totalCount={totalCount}
         pageSize={PAGE_SIZE}
       />
       <ReportFooter />

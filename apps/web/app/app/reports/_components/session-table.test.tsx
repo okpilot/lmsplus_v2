@@ -15,12 +15,14 @@ vi.mock('next/link', () => ({
     href,
     children,
     onClick,
+    prefetch,
   }: {
     href: string
     children: React.ReactNode
     onClick?: React.MouseEventHandler
+    prefetch?: boolean
   }) => (
-    <a href={href} onClick={onClick}>
+    <a href={href} onClick={onClick} data-prefetch={String(prefetch)}>
       {children}
     </a>
   ),
@@ -59,6 +61,11 @@ describe('SessionTable', () => {
     const rows = screen.getAllByRole('row')
     // 1 header row + 2 data rows
     expect(rows).toHaveLength(3)
+  })
+
+  it('does not prefetch the report link', () => {
+    render(<SessionTable sessions={[makeSession()]} {...SORT_PROPS} />)
+    expect(screen.getByRole('link')).toHaveAttribute('data-prefetch', 'false')
   })
 
   it('displays subject name in the row', () => {

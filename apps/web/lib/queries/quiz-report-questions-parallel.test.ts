@@ -88,6 +88,7 @@ describe('getQuizReportQuestions parallel reads', () => {
     await vi.waitFor(() => expect(mockFrom.mock.calls.length).toBeGreaterThanOrEqual(2))
     await settle()
     expect(mockFrom).toHaveBeenCalledTimes(3)
+    expect(mockFrom).toHaveBeenNthCalledWith(3, 'questions')
 
     answers.resolve(ANSWERS)
     expect((await result).ok).toBe(true)

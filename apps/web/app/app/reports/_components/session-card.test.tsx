@@ -8,12 +8,14 @@ vi.mock('next/link', () => ({
     href,
     children,
     className,
+    prefetch,
   }: {
     href: string
     children: React.ReactNode
     className?: string
+    prefetch?: boolean
   }) => (
-    <a href={href} className={className}>
+    <a href={href} className={className} data-prefetch={String(prefetch)}>
       {children}
     </a>
   ),
@@ -42,6 +44,11 @@ describe('SessionCard', () => {
   it('links to the quiz report page for the session', () => {
     render(<SessionCard session={makeSession({ id: 'abc-123' })} />)
     expect(screen.getByRole('link')).toHaveAttribute('href', '/app/quiz/report?session=abc-123')
+  })
+
+  it('does not prefetch the report link', () => {
+    render(<SessionCard session={makeSession()} />)
+    expect(screen.getByRole('link')).toHaveAttribute('data-prefetch', 'false')
   })
 
   it('displays the subject name', () => {
