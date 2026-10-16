@@ -1,5 +1,5 @@
 // App-layer integration tier — getCallerProfile against real Postgres under real RLS.
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   cleanupTestData,
   createTestOrg,
@@ -9,6 +9,27 @@ import {
   signInAs,
 } from '@/lib/integration-support/harness'
 import { getCallerProfile } from './get-caller-profile'
+
+// Flag on: the helper runs on the service-role client, so RLS no longer hides a soft-deleted row
+// and only the helper's own `deleted_at` filter can reject it.
+const bypass = vi.hoisted(() => ({ on: false }))
+
+vi.mock('@repo/db/server', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@repo/db/server')>()
+  return {
+    ...original,
+    // Harness is imported at call time: importing it inside the factory deadlocks the module graph.
+    createServerSupabaseClient: async (
+      ...args: Parameters<typeof original.createServerSupabaseClient>
+    ) => {
+      if (!bypass.on) return original.createServerSupabaseClient(...args)
+      const { getAdminClient: adminClient } = await import('@/lib/integration-support/harness')
+      return adminClient() as unknown as Awaited<
+        ReturnType<typeof original.createServerSupabaseClient>
+      >
+    },
+  }
+})
 
 const admin = getAdminClient()
 const suffix = fixtureSuffix()
@@ -79,8 +100,6 @@ describe('getCallerProfile (app-layer integration)', () => {
       .eq('id', deletedId)
       .select('id, deleted_at')
     if (updateError) throw new Error(`soft-delete user: ${updateError.message}`)
-    // RLS `users_select` hides a soft-deleted row from the caller, so null here is RLS plus the
-    // filter; the `.is('deleted_at', null)` filter alone is pinned by the unit test.
     // Non-vacuous: the row exists and is soft-deleted.
     expect(updated).toHaveLength(1)
     expect(updated?.[0]?.deleted_at).not.toBeNull()
@@ -89,5 +108,16 @@ describe('getCallerProfile (app-layer integration)', () => {
 
     expect(error).toBeNull()
     expect(data).toBeNull()
+
+    bypass.on = true
+    try {
+      const live = await getCallerProfile(liveId)
+      const deleted = await getCallerProfile(deletedId)
+      // Non-vacuous: the bypass client reads live rows, so null below is the helper's filter.
+      expect(live.data?.email).toBe(liveEmail)
+      expect(deleted).toEqual({ data: null, error: null })
+    } finally {
+      bypass.on = false
+    }
   })
 })
