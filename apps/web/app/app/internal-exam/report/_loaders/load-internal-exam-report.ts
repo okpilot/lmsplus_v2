@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { redirectOnPageOverflow, UUID_RE } from '@/app/app/quiz/report/_utils/report-view-logic'
+import { reportUrl } from '@/lib/constants/report-paths'
 import { getQuizReportSummary, PAGE_SIZE, type QuizReportQuestion } from '@/lib/queries/quiz-report'
 import { getQuizReportQuestions } from '@/lib/queries/quiz-report-questions'
 import type { QuizReportSummary } from '@/lib/queries/quiz-report-types'
@@ -27,7 +28,7 @@ export async function loadInternalExamReport(opts: {
   ])
   if (!summary) redirect('/app/internal-exam?tab=reports')
   // Defense-in-depth: this URL is only for internal_exam sessions.
-  if (summary.mode !== 'internal_exam') redirect(`/app/quiz/report?session=${sessionId}`)
+  if (summary.mode !== 'internal_exam') redirect(reportUrl(summary.mode, sessionId))
 
   if (!questionsResult.ok) redirect('/app/internal-exam?tab=reports')
 

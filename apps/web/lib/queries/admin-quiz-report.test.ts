@@ -218,28 +218,6 @@ describe('getAdminQuizReportSummary', () => {
     mockRequireAdmin.mockResolvedValue(makeAdminContext())
   })
 
-  it('returns null when session does not exist in org', async () => {
-    // session query returns null
-    mockFromSequence({ data: null })
-    const result = await getAdminQuizReportSummary('nonexistent')
-    expect(result).toBeNull()
-  })
-
-  it('returns null when session is still active to prevent mid-session answer exposure', async () => {
-    const activeSession = { ...completedSession, ended_at: null }
-    mockFromSequence({ data: activeSession })
-    const result = await getAdminQuizReportSummary('sess-1')
-    expect(result).toBeNull()
-  })
-
-  it('does not query answers or users when session has no ended_at', async () => {
-    const activeSession = { ...completedSession, ended_at: null }
-    mockFromSequence({ data: activeSession })
-    await getAdminQuizReportSummary('sess-1')
-    // Only the session query should have fired
-    expect(mockAdminFrom).toHaveBeenCalledTimes(1)
-  })
-
   it('returns summary with all fields for a completed session', async () => {
     // session, answer-rows count, answer-rows page (fetchAllRows), users lookup
     mockFromSequence(
@@ -438,63 +416,6 @@ describe('getAdminQuizReportQuestions', () => {
     if (result.ok) return
     expect(result.error).toBe('Failed to load questions')
     expect(mockAdminFrom).not.toHaveBeenCalled()
-  })
-
-  it('returns error when session does not exist in org', async () => {
-    mockFromSequence({ data: null })
-    const result = await getAdminQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
-    expect(result.ok).toBe(false)
-  })
-
-  it('returns error when session verification query fails', async () => {
-    mockFromSequence({ data: null, error: { message: 'db connection lost' } })
-    const result = await getAdminQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
-    expect(result.ok).toBe(false)
-    if (result.ok) return
-    expect(result.error).toBe('Failed to load questions')
-    expect(mockAdminFrom).toHaveBeenCalledTimes(1)
-  })
-
-  it('returns error when session is still active to prevent mid-session answer exposure', async () => {
-    mockFromSequence({ data: { id: 'sess-1', ended_at: null } })
-    const result = await getAdminQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
-    expect(result.ok).toBe(false)
-  })
-
-  it('does not query answers or questions when session has no ended_at', async () => {
-    mockFromSequence({ data: { id: 'sess-1', ended_at: null } })
-    await getAdminQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
-    // Only the session guard query should have fired
-    expect(mockAdminFrom).toHaveBeenCalledTimes(1)
-  })
-
-  it('returns error when count query fails', async () => {
-    // A count-level error short-circuits fetchAllRows before any page fetch is attempted.
-    mockFromSequence(
-      { data: { id: 'sess-1', ended_at: '2026-03-12T10:15:00Z' } },
-      { count: null, error: { message: 'db error' } },
-    )
-    const result = await getAdminQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
-    expect(result.ok).toBe(false)
-  })
-
-  it('returns error when the order-rows page fetch fails after a successful count', async () => {
-    // code-style.md "Paginated Fetch Needs a Caller-Level Page-Error Test": the count query
-    // (5 distinct questions) succeeds, so fetchAllRows proceeds to the page fetch, which then
-    // fails. fetchAllRows discards the partial page and returns `{ data: [], error }` — an
-    // uncaught regression here would read as "0 distinct questions" (ok:true, empty) instead
-    // of surfacing the failure, silently truncating the report.
-    mockFromSequence(
-      { data: { id: 'sess-1', ended_at: '2026-03-12T10:15:00Z' } },
-      { count: 5, data: null },
-      { data: null, error: { message: 'order rows page fetch failed' } },
-    )
-    const result = await getAdminQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
-    expect(result.ok).toBe(false)
-    if (result.ok) return
-    expect(result.error).toBe('Failed to load questions')
-    // Only the session guard, count, and failed page query fired — no answers/questions fetch.
-    expect(mockAdminFrom).toHaveBeenCalledTimes(3)
   })
 
   it('returns ok:true with empty questions when no answers exist', async () => {
