@@ -636,9 +636,9 @@ describe('getAdminQuizReportQuestions', () => {
       { data: answersData },
       { data: questionsData },
     )
-    // Correct-options RPC fails → the function returns before ever calling the
-    // answer-keys RPC, so only ONE resolution is queued.
+    // Both RPCs start together; the correct-options failure is the one reported.
     mockAuthRpc.mockResolvedValueOnce({ data: null, error: { message: 'rpc failed' } })
+    mockAuthRpc.mockResolvedValueOnce({ data: [], error: null })
 
     const result = await getAdminQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
     expect(result.ok).toBe(false)

@@ -1,9 +1,28 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockLoad, mockRequireAdmin, mockFrom } = vi.hoisted(() => ({
+const {
+  mockLoad,
+  mockRequireAdmin,
+  mockFrom,
+  mockPageAnswers,
+  mockPageQuestions,
+  mockCorrectMap,
+  mockAnswerKeyMap,
+} = vi.hoisted(() => ({
   mockLoad: vi.fn(),
   mockRequireAdmin: vi.fn(),
   mockFrom: vi.fn(),
+  mockPageAnswers: vi.fn(),
+  mockPageQuestions: vi.fn(),
+  mockCorrectMap: vi.fn(),
+  mockAnswerKeyMap: vi.fn(),
+}))
+
+vi.mock('./admin-report-helpers', () => ({
+  fetchPageAnswerRows: mockPageAnswers,
+  fetchPageQuestions: mockPageQuestions,
+  fetchAdminReportCorrectOptionsMap: mockCorrectMap,
+  fetchAdminReportAnswerKeyMap: mockAnswerKeyMap,
 }))
 
 vi.mock('./admin-report-session', () => ({ loadAdminReportSession: mockLoad }))
@@ -11,6 +30,27 @@ vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: mockRequireAdmin }))
 vi.mock('@repo/db/admin', () => ({ adminClient: { from: mockFrom } }))
 
 import { getAdminQuizReportQuestions, getAdminQuizReportSummary } from './admin-quiz-report'
+
+function deferred<T>() {
+  let resolve!: (v: T) => void
+  const promise = new Promise<T>((r) => {
+    resolve = r
+  })
+  return { promise, resolve }
+}
+
+function chainResolving(result: unknown) {
+  const proxy: Record<string, unknown> = new Proxy(
+    {},
+    {
+      get(_t, prop) {
+        if (prop === 'then') return (res: (v: unknown) => void) => Promise.resolve(result).then(res)
+        return () => proxy
+      },
+    },
+  )
+  return proxy
+}
 
 function usersChain(fullName: string | null) {
   const result = { data: { full_name: fullName }, error: null }
@@ -93,5 +133,64 @@ describe('admin report reads', () => {
       totalCount: 2,
     })
     expect(mockFrom).not.toHaveBeenCalled()
+  })
+
+  it('starts the student-name lookup while the subject lookup is still pending', async () => {
+    const subject = deferred<unknown>()
+    mockLoad.mockResolvedValue({
+      ok: true,
+      session: { ...session, subject_id: 'subj-1' },
+      answerRows,
+    })
+    mockFrom.mockImplementation((table: string) =>
+      table === 'easa_subjects' ? chainResolving(subject.promise) : usersChain('Alice'),
+    )
+
+    const result = getAdminQuizReportSummary('sess-1')
+    await vi.waitFor(() => expect(mockFrom).toHaveBeenCalledWith('easa_subjects'))
+    await new Promise((r) => setTimeout(r, 0))
+    expect(mockFrom).toHaveBeenCalledWith('users')
+
+    subject.resolve({ data: { name: 'Air Law', code: 'AL' }, error: null })
+    expect((await result)?.studentName).toBe('Alice')
+  })
+
+  describe('questions page reads', () => {
+    const questionRow = { id: 'q1', question_text: 'Q', options: [] }
+    const answerRow = { question_id: 'q1', selected_option_id: 'o1', is_correct: true }
+
+    beforeEach(() => {
+      mockLoad.mockResolvedValue({ ok: true, session, answerRows })
+      mockPageAnswers.mockResolvedValue({ data: [answerRow], error: null })
+      mockPageQuestions.mockResolvedValue({ data: [questionRow], error: null })
+      mockCorrectMap.mockResolvedValue({ data: new Map(), error: null })
+      mockAnswerKeyMap.mockResolvedValue({ data: new Map(), error: null })
+    })
+
+    it('starts the page questions read while the page answers read is still pending', async () => {
+      const answers = deferred<unknown>()
+      mockPageAnswers.mockReturnValue(answers.promise)
+
+      const result = getAdminQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
+      await vi.waitFor(() => expect(mockPageAnswers).toHaveBeenCalled())
+      await new Promise((r) => setTimeout(r, 0))
+      expect(mockPageQuestions).toHaveBeenCalled()
+
+      answers.resolve({ data: [answerRow], error: null })
+      expect((await result).ok).toBe(true)
+    })
+
+    it('starts the answer-keys RPC while the correct-options RPC is still pending', async () => {
+      const correct = deferred<unknown>()
+      mockCorrectMap.mockReturnValue(correct.promise)
+
+      const result = getAdminQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
+      await vi.waitFor(() => expect(mockCorrectMap).toHaveBeenCalled())
+      await new Promise((r) => setTimeout(r, 0))
+      expect(mockAnswerKeyMap).toHaveBeenCalled()
+
+      correct.resolve({ data: new Map(), error: null })
+      expect((await result).ok).toBe(true)
+    })
   })
 })

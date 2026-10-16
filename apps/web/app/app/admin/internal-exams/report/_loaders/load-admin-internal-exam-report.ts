@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { UUID_RE } from '@/app/app/quiz/report/_utils/report-view-logic'
+import { redirectOnPageOverflow, UUID_RE } from '@/app/app/quiz/report/_utils/report-view-logic'
 import {
   getAdminQuizReportQuestions,
   getAdminQuizReportSummary,
@@ -35,10 +35,13 @@ export async function loadAdminInternalExamReport(opts: {
   if (summary.mode !== 'internal_exam') redirect(`/app/admin/dashboard/sessions/${sessionId}`)
   if (!result.ok) redirect(ATTEMPTS_URL)
 
-  const totalPages = Math.max(1, Math.ceil(result.totalCount / PAGE_SIZE))
-  if (page > totalPages) {
-    redirect(`/app/admin/internal-exams/report?session=${sessionId}&page=${totalPages}`)
-  }
+  redirectOnPageOverflow(
+    '/app/admin/internal-exams/report',
+    sessionId,
+    page,
+    result.totalCount,
+    PAGE_SIZE,
+  )
 
   return { summary, questions: result.questions, totalCount: result.totalCount, page }
 }

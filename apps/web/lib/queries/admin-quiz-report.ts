@@ -75,12 +75,10 @@ export async function getAdminQuizReportSummary(
     answeredItems: answerRows.length,
     answeredQuestions: new Set(answerRows.map((r) => r.question_id)).size,
   }
-  const subject = await resolveSubjectInfo(
-    adminClient,
-    session.subject_id,
-    '[getAdminQuizReportSummary]',
-  )
-  const studentName = await fetchStudentName(session.student_id)
+  const [subject, studentName] = await Promise.all([
+    resolveSubjectInfo(adminClient, session.subject_id, '[getAdminQuizReportSummary]'),
+    fetchStudentName(session.student_id),
+  ])
   return toAdminSummary({ session, endedAt, counts, subject, studentName })
 }
 
@@ -93,17 +91,18 @@ async function fetchAdminPageInputs(
   sessionId: string,
   pageQuestionIds: string[],
 ): Promise<AdminPageInputs> {
-  const { data: answers, error: answersError } = await fetchPageAnswerRows(
-    sessionId,
-    pageQuestionIds,
-  )
+  const [answersResult, questionsResult] = await Promise.all([
+    fetchPageAnswerRows(sessionId, pageQuestionIds),
+    fetchPageQuestions(pageQuestionIds),
+  ])
+  const { data: answers, error: answersError } = answersResult
   if (answersError) {
     console.error('[getAdminQuizReportQuestions] Answers query error:', answersError.message)
     return { kind: 'error' }
   }
   if (!answers.length) return { kind: 'empty' }
 
-  const { data: questions, error: questionsError } = await fetchPageQuestions(pageQuestionIds)
+  const { data: questions, error: questionsError } = questionsResult
   if (questionsError) {
     console.error('[getAdminQuizReportQuestions] Questions query error:', questionsError.message)
     return { kind: 'error' }
@@ -115,18 +114,16 @@ async function fetchAdminPageInputs(
 // Non-MC keys: short_answer canonical, dialog_fill per-blank, ordering per-slot,
 // diagram_label per-zone.
 async function fetchAdminKeyMaps(supabase: AdminAuthClient, sessionId: string) {
-  const { data: correctMap, error: correctMapError } = await fetchAdminReportCorrectOptionsMap(
-    supabase,
-    sessionId,
-  )
+  const [correctResult, answerKeyResult] = await Promise.all([
+    fetchAdminReportCorrectOptionsMap(supabase, sessionId),
+    fetchAdminReportAnswerKeyMap(supabase, sessionId),
+  ])
+  const { data: correctMap, error: correctMapError } = correctResult
   if (correctMapError) {
     console.error('[getAdminQuizReportQuestions] RPC error:', correctMapError.message)
     return null
   }
-  const { data: answerKeyMap, error: answerKeyMapError } = await fetchAdminReportAnswerKeyMap(
-    supabase,
-    sessionId,
-  )
+  const { data: answerKeyMap, error: answerKeyMapError } = answerKeyResult
   if (answerKeyMapError) {
     console.error('[getAdminQuizReportQuestions] Answer-keys RPC error:', answerKeyMapError.message)
     return null
