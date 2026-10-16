@@ -37,7 +37,7 @@ describe('report session sharing', () => {
     expect(mockLoadReportSession).toHaveBeenCalledWith('sess-1')
   })
 
-  it('shares one loadReportSession argument between the summary and the questions of a render', async () => {
+  it('passes the same session id to loadReportSession from the summary and the questions of a render', async () => {
     await Promise.all([
       getQuizReportSummary('sess-1'),
       getQuizReportQuestions({ sessionId: 'sess-1', page: 1 }),

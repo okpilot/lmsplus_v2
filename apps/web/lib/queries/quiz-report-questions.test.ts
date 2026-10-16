@@ -202,17 +202,6 @@ describe('getQuizReportQuestions', () => {
     expect(q2.correctOptionId).toBe('opt-d')
   })
 
-  it('returns ok:true with empty questions array when no answers on page', async () => {
-    mockFromSequence({ data: { id: 'sess-1', ended_at: sessionRow.ended_at } })
-    mockFetchAllRows.mockResolvedValueOnce({ data: [], error: null })
-
-    const result = await getQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
-    expect(result.ok).toBe(true)
-    if (!result.ok) return
-    expect(result.questions).toHaveLength(0)
-    expect(result.totalCount).toBe(0)
-  })
-
   it('returns error when correct-options RPC returns an error', async () => {
     mockFromSequence(
       { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
@@ -409,41 +398,22 @@ describe('getQuizReportQuestions', () => {
     expect(result.questions[0]?.explanationImageUrl).toBeNull()
   })
 
-  it('returns empty questions with the distinct-question total when page exceeds total pages', async () => {
-    const fiveQuestions = Array.from({ length: 5 }, (_, i) => ({ question_id: `q${i + 1}` }))
-    mockFromSequence({ data: { id: 'sess-1', ended_at: sessionRow.ended_at } })
-    mockFetchAllRows.mockResolvedValueOnce({ data: fiveQuestions, error: null })
+  it.each([
+    ['page exceeds total pages', 5, 99],
+    ['page is zero', 5, 0],
+    ['page is negative', 5, -5],
+    ['session has no answers', 0, 1],
+  ])(
+    'returns empty questions with the distinct-question total when the %s',
+    async (_, count, page) => {
+      const rows = Array.from({ length: count }, (_, i) => ({ question_id: `q${i + 1}` }))
+      mockFromSequence({ data: { id: 'sess-1', ended_at: sessionRow.ended_at } })
+      mockFetchAllRows.mockResolvedValueOnce({ data: rows, error: null })
 
-    const result = await getQuizReportQuestions({ sessionId: 'sess-1', page: 99 })
-    expect(result.ok).toBe(true)
-    if (!result.ok) return
-    expect(result.questions).toHaveLength(0)
-    expect(result.totalCount).toBe(5)
-  })
-
-  it('returns empty questions with the total when page is zero', async () => {
-    const fiveQuestions = Array.from({ length: 5 }, (_, i) => ({ question_id: `q${i + 1}` }))
-    mockFromSequence({ data: { id: 'sess-1', ended_at: sessionRow.ended_at } })
-    mockFetchAllRows.mockResolvedValueOnce({ data: fiveQuestions, error: null })
-
-    const result = await getQuizReportQuestions({ sessionId: 'sess-1', page: 0 })
-    expect(result.ok).toBe(true)
-    if (!result.ok) return
-    expect(result.questions).toHaveLength(0)
-    expect(result.totalCount).toBe(5)
-  })
-
-  it('returns empty questions with the total when page is negative', async () => {
-    const fiveQuestions = Array.from({ length: 5 }, (_, i) => ({ question_id: `q${i + 1}` }))
-    mockFromSequence({ data: { id: 'sess-1', ended_at: sessionRow.ended_at } })
-    mockFetchAllRows.mockResolvedValueOnce({ data: fiveQuestions, error: null })
-
-    const result = await getQuizReportQuestions({ sessionId: 'sess-1', page: -5 })
-    expect(result.ok).toBe(true)
-    if (!result.ok) return
-    expect(result.questions).toHaveLength(0)
-    expect(result.totalCount).toBe(5)
-  })
+      const result = await getQuizReportQuestions({ sessionId: 'sess-1', page })
+      expect(result).toEqual({ ok: true, questions: [], totalCount: count })
+    },
+  )
 
   it('fails the report when the correct-options RPC returns a non-array payload', async () => {
     mockFromSequence(
@@ -648,12 +618,23 @@ describe('getQuizReportQuestions parallel reads', () => {
     expect((await result).ok).toBe(true)
   })
 
-  it('skips both report RPCs when the page has no answers', async () => {
+  it('returns an empty page when the page has no answers', async () => {
     mockFromSequence(PARALLEL_SESSION, { data: [] }, PARALLEL_QUESTIONS)
-
+    mockRpc.mockResolvedValue({ data: [] })
     const result = await getQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
-
     expect(result).toEqual({ ok: true, questions: [], totalCount: 1 })
-    expect(mockRpc).not.toHaveBeenCalled()
+  })
+
+  it('starts the answer-key RPCs while the page answers read is still pending', async () => {
+    const answers = deferred<unknown>()
+    mockFromSequence(PARALLEL_SESSION, answers.promise, PARALLEL_QUESTIONS)
+    mockRpc.mockResolvedValue({ data: [] })
+
+    const result = getQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
+    await vi.waitFor(() => expect(mockFrom.mock.calls.length).toBeGreaterThanOrEqual(2))
+    await settle()
+    expect(rpcNames()).toContain('get_report_correct_options')
+    answers.resolve(PARALLEL_ANSWERS)
+    expect((await result).ok).toBe(true)
   })
 })

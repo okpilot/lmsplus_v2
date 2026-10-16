@@ -103,11 +103,12 @@ export async function getQuizReportQuestions(opts: {
   if (!pageQuestionIds) return { ok: true, questions: [], totalCount: total }
 
   const supabase = await createServerSupabaseClient()
-  const rows = await loadPageRows(supabase, sessionId, pageQuestionIds)
+  const [rows, keys] = await Promise.all([
+    loadPageRows(supabase, sessionId, pageQuestionIds),
+    loadAnswerKeys(supabase, sessionId),
+  ])
   if ('ok' in rows) return rows
   if (!rows.answers.length) return { ok: true, questions: [], totalCount: total }
-
-  const keys = await loadAnswerKeys(supabase, sessionId)
   if ('ok' in keys) return keys
 
   const questions = buildReportQuestions(

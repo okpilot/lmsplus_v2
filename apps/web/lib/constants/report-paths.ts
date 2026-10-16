@@ -1,5 +1,7 @@
+import type { QuizMode } from '@/lib/constants/exam-modes'
+
 /** Report route per exam mode; every other mode uses `/app/quiz/report`. */
-export const EXAM_REPORT_PATHS = new Map<string, string>([
+const EXAM_REPORT_PATHS: ReadonlyMap<string, string> = new Map<QuizMode, string>([
   ['internal_exam', '/app/internal-exam/report'],
   ['vfr_rt_exam', '/app/vfr-rt/report'],
 ])

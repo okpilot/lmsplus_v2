@@ -193,6 +193,13 @@ test.describe('VFR RT mock exam', () => {
     })
     await expect(page.getByText('VFR RT Mock Exam Complete')).toBeVisible()
     await expect(page.getByRole('img', { name: /Score:/ })).toBeVisible()
+
+    const reportUrl = page.url()
+    await page.goto('/app/reports')
+    await page.reload()
+    await page.getByRole('main').getByText('VFR RT Mock Exam').first().click()
+    await page.waitForURL(/\/app\/vfr-rt\/report\?session=/, { timeout: 15_000 })
+    expect(page.url()).toBe(reportUrl)
   })
 
   test('a reloaded exam reopens on its own URL with locked answers, and Start again returns to it', async ({

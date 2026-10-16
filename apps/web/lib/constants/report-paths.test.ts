@@ -1,15 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { EXAM_REPORT_PATHS, reportUrl } from './report-paths'
-
-describe('EXAM_REPORT_PATHS', () => {
-  it('sends a finished internal exam to the internal-exam report', () => {
-    expect(EXAM_REPORT_PATHS.get('internal_exam')).toBe('/app/internal-exam/report')
-  })
-
-  it('sends a finished VFR RT mock exam to the VFR RT report', () => {
-    expect(EXAM_REPORT_PATHS.get('vfr_rt_exam')).toBe('/app/vfr-rt/report')
-  })
-})
+import { reportUrl } from './report-paths'
 
 describe('reportUrl', () => {
   it.each([
