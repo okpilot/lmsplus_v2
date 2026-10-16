@@ -1,7 +1,6 @@
 import { createServerSupabaseClient } from '@repo/db/server'
-import { getSessionUser } from '@/lib/auth/get-session-user'
-import { fetchAllRows, toPageResult } from '@/lib/supabase-paginate'
 import type { DiagramLabelQuestion } from './quiz-report-diagram-types'
+import { loadReportSession } from './quiz-report-session'
 import type { QuizReportSummary } from './quiz-report-types'
 import { resolveSubjectInfo } from './resolve-subject-info'
 
@@ -79,75 +78,19 @@ export type QuizReportQuestionsResult =
 
 export const PAGE_SIZE = 10
 
-type SessionRow = {
-  id: string
-  mode: string
-  subject_id: string | null
-  started_at: string
-  ended_at: string | null
-  total_questions: number
-  correct_count: number
-  score_percentage: number | string | null
-  passed: boolean | null
-  time_limit_seconds: number | null
-}
-
 export async function getQuizReportSummary(sessionId: string): Promise<QuizReportSummary | null> {
-  const supabase = await createServerSupabaseClient()
-
-  const user = await getSessionUser()
-  if (!user) return null
-
-  const { data: sessionData, error: sessionError } = await supabase
-    .from('quiz_sessions')
-    .select(
-      'id, mode, subject_id, started_at, ended_at, total_questions, correct_count, score_percentage, passed, time_limit_seconds',
-    )
-    .eq('id', sessionId)
-    .eq('student_id', user.id)
-    .is('deleted_at', null)
-    .maybeSingle()
-
-  if (sessionError) {
-    console.error('[getQuizReportSummary] Session query error:', sessionError.message)
-    return null
-  }
-  const session = sessionData as SessionRow | null
-  if (!session) return null
-  // Only serve reports for completed sessions — prevents mid-session answer exposure
-  if (!session.ended_at) return null
+  const loaded = await loadReportSession(sessionId)
+  if (!loaded.ok) return null
+  const { session, answerRows } = loaded
 
   // Derive two counts from the session's answer rows:
   //  - answeredItems     = total rows (MC/SA = 1/question, dialog_fill = 1/blank)
   //  - answeredQuestions = distinct questions answered (denominator for Skipped)
-  // The multi-row non-MC types store one row per blank/slot/zone — dialog_fill blanks,
-  // ordering slots, diagram_label zones — and a session can hold up to 500 questions
-  // (quick_quiz cap), so this can exceed PostgREST's max_rows
-  // cap — page through with fetchAllRows so the counts never silently truncate.
-  const { data: answerRows, error: answerRowsError } = await fetchAllRows<{ question_id: string }>(
-    () =>
-      supabase
-        .from('quiz_session_answers')
-        .select('*', { count: 'exact', head: true })
-        .eq('session_id', sessionId),
-    async (from, to) => {
-      const { data, error } = await supabase
-        .from('quiz_session_answers')
-        .select('question_id')
-        .eq('session_id', sessionId)
-        .order('id', { ascending: true })
-        .range(from, to)
-      return toPageResult<{ question_id: string }>(data, error, 'quiz_session_answers')
-    },
-  )
-  if (answerRowsError) {
-    console.error('[getQuizReportSummary] Answer rows query error:', answerRowsError.message)
-    return null
-  }
   const answeredItems = answerRows.length
   const answeredQuestions = new Set(answerRows.map((r) => r.question_id)).size
 
   // Resolve subject name/code if available (display-only — don't abort report on failure)
+  const supabase = await createServerSupabaseClient()
   const { subjectName, subjectCode } = await resolveSubjectInfo(
     supabase,
     session.subject_id,

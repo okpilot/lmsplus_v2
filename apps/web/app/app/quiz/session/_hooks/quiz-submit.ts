@@ -1,6 +1,7 @@
 import type { useRouter } from 'next/navigation'
 import type { ActionResult } from '@/lib/action-result'
 import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
+import { reportUrl } from '@/lib/constants/report-paths'
 import { discardQuiz } from '../../actions/discard'
 import { finishQuizSession } from '../../actions/finish'
 import { saveQuizForLater } from '../../actions/saved-quiz'
@@ -8,7 +9,6 @@ import type { DraftAnswer } from '../../types'
 import { getQuizDeviceId } from '../_utils/quiz-device-id'
 import { clearActiveSessionIfCurrent } from '../_utils/quiz-session-storage'
 import { markRunnerExiting } from '../_utils/runner-exit'
-import { reportUrl } from './exam-report-paths'
 
 type AppRouterInstance = ReturnType<typeof useRouter>
 

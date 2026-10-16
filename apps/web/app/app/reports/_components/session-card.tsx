@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { isExamMode, MODE_LABELS, modeLabel } from '@/lib/constants/exam-modes'
+import { reportUrl } from '@/lib/constants/report-paths'
 import type { SessionReport } from '@/lib/queries/reports'
 import { formatCorrectFraction } from '@/lib/utils/format-correct-fraction'
 import { scoreColor } from '@/lib/utils/score-color'
@@ -11,7 +12,7 @@ export function SessionCard({ session: s }: Readonly<{ session: SessionReport }>
 
   return (
     <Link
-      href={`/app/quiz/report?session=${s.id}`}
+      href={reportUrl(s.mode, s.id)}
       prefetch={false}
       className="block rounded-lg border border-border px-4 py-3 transition-colors hover:bg-accent"
     >

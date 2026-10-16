@@ -46,6 +46,11 @@ describe('SessionCard', () => {
     expect(screen.getByRole('link')).toHaveAttribute('href', '/app/quiz/report?session=abc-123')
   })
 
+  it('links a VFR RT mock exam to the VFR RT report route', () => {
+    render(<SessionCard session={makeSession({ id: 'rt-1', mode: 'vfr_rt_exam' })} />)
+    expect(screen.getByRole('link')).toHaveAttribute('href', '/app/vfr-rt/report?session=rt-1')
+  })
+
   it('does not prefetch the report link', () => {
     render(<SessionCard session={makeSession()} />)
     expect(screen.getByRole('link')).toHaveAttribute('data-prefetch', 'false')
