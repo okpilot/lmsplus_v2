@@ -168,6 +168,7 @@ describe('SessionTable', () => {
         sessions={[makeSession({ id: 'rt-2', mode: 'vfr_rt_exam' })]}
       />,
     )
+    // Row 0 is the header; one session renders exactly one body row at index 1.
     await user.click(screen.getAllByRole('row')[1]!)
     expect(mockRouterPush).toHaveBeenCalledWith('/app/vfr-rt/report?session=rt-2')
   })
