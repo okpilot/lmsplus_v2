@@ -37,6 +37,7 @@ let refs: ReferenceIds | null = null
 let questionIds: string[] = []
 
 let endedSessionId: string
+let orderedSessionId: string
 let deletedSessionId: string
 let activeSessionId: string
 
@@ -116,6 +117,37 @@ describe('loadAdminReportSession (app-layer integration)', () => {
       .select('id')
     if (error || data?.length !== 1) throw new Error('soft-delete session failed')
 
+    // Answers inserted in REVERSE answered_at order so insertion order cannot satisfy the sort.
+    const { data: orderedStart, error: orderedError } = await studentClient.rpc(
+      'start_quiz_session',
+      {
+        p_mode: 'quick_quiz',
+        p_subject_id: refs.subjectId,
+        p_topic_id: refs.topicId,
+        p_question_ids: questionIds,
+      },
+    )
+    if (orderedError || typeof orderedStart !== 'string') throw new Error('start ordered failed')
+    orderedSessionId = orderedStart
+    const base = Date.now()
+    const { error: orderedInsertError } = await admin.from('quiz_session_answers').insert(
+      questionIds.map((questionId, i) => ({
+        session_id: orderedSessionId,
+        question_id: questionId,
+        selected_option_id: 'b',
+        is_correct: true,
+        response_time_ms: 1000,
+        answered_at: new Date(base - i * 1000).toISOString(),
+      })),
+    )
+    if (orderedInsertError) throw new Error(`insert ordered: ${orderedInsertError.message}`)
+    const { data: endedRows, error: endError } = await admin
+      .from('quiz_sessions')
+      .update({ ended_at: new Date().toISOString() })
+      .eq('id', orderedSessionId)
+      .select('id')
+    if (endError || endedRows?.length !== 1) throw new Error('end ordered session failed')
+
     // Last: the single-active-session invariant allows one open session per student.
     const { data: started, error: startError } = await studentClient.rpc('start_quiz_session', {
       p_mode: 'quick_quiz',
@@ -170,7 +202,7 @@ describe('loadAdminReportSession (app-layer integration)', () => {
     if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   })
 
-  it('returns the session row and its answer rows in answered_at order for an admin of the same organization', async () => {
+  it('returns the session row and its answer rows for an admin of the same organization', async () => {
     await signInAs(adminEmail, password)
 
     const r = await loadAdminReportSession(endedSessionId)
@@ -182,8 +214,17 @@ describe('loadAdminReportSession (app-layer integration)', () => {
     expect(r.session.total_questions).toBe(3)
     expect(r.session.correct_count).toBe(2)
     expect(r.answerRows.map((a) => a.question_id).sort()).toEqual([...questionIds].sort())
-    const times = r.answerRows.map((a) => new Date(a.answered_at).getTime())
-    expect(times).toEqual([...times].sort((x, y) => x - y))
+  })
+
+  it('returns answer rows in answered_at order, not insertion order', async () => {
+    // MUTATION: emptying orderColumns in loadAdminReportSession turns this red.
+    await signInAs(adminEmail, password)
+
+    const r = await loadAdminReportSession(orderedSessionId)
+
+    expect(r.ok).toBe(true)
+    if (!r.ok) throw new Error('expected ok')
+    expect(r.answerRows.map((a) => a.question_id)).toEqual([...questionIds].reverse())
   })
 
   it('serves nothing to an admin of a different organization', async () => {
