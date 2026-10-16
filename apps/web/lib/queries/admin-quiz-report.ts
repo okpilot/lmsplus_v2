@@ -1,96 +1,57 @@
 import { adminClient } from '@repo/db/admin'
+import type { createServerSupabaseClient } from '@repo/db/server'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import {
   fetchAdminReportAnswerKeyMap,
   fetchAdminReportCorrectOptionsMap,
-  fetchAdminSessionForReport,
   fetchPageAnswerRows,
   fetchPageQuestions,
-  fetchSessionAnswerRows,
 } from './admin-report-helpers'
+import { type AdminReportSessionRow, loadAdminReportSession } from './admin-report-session'
 import { PAGE_SIZE, type QuizReportQuestionsResult } from './quiz-report'
 import { buildDistinctQuestionOrder } from './quiz-report-helpers'
 import type { AdminQuizReportSummary } from './quiz-report-types'
-import { buildReportQuestions, type QuestionRow } from './report-question-builder'
+import { type AnswerRow, buildReportQuestions, type QuestionRow } from './report-question-builder'
 import { resolveSubjectInfo } from './resolve-subject-info'
 
-type AdminSessionGuard = { id: string; ended_at: string | null }
-type AdminSessionRow = {
-  id: string
-  mode: string
-  subject_id: string | null
-  started_at: string
-  ended_at: string | null
-  total_questions: number
-  correct_count: number
-  score_percentage: number | string | null
-  student_id: string
-  passed: boolean | null
-  time_limit_seconds: number | null
-}
+type AdminAuthClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
-export async function getAdminQuizReportSummary(
-  sessionId: string,
-): Promise<AdminQuizReportSummary | null> {
-  const { organizationId } = await requireAdmin()
+type QuestionsFailure = { ok: false; error: string }
+const QUESTIONS_FAILED: QuestionsFailure = { ok: false, error: 'Failed to load questions' }
 
-  const { data: session, error: sessionError } = await fetchAdminSessionForReport<AdminSessionRow>({
-    sessionId,
-    organizationId,
-    select:
-      'id, mode, subject_id, started_at, ended_at, total_questions, correct_count, score_percentage, student_id, passed, time_limit_seconds',
-    logPrefix: '[getAdminQuizReportSummary]',
-  })
-  if (sessionError) return null
-  // Not found, or not yet completed — prevents mid-session answer exposure
-  if (!session?.ended_at) return null
-
-  // Session org-membership verified above — sessionId is safe to use unscoped.
-  // Derive two counts from the session's answer rows (mirrors quiz-report.ts):
-  //  - answeredItems     = total rows (MC/SA = 1/question, dialog_fill = 1/blank)
-  //  - answeredQuestions = distinct questions answered (denominator for Skipped)
-  // The multi-row non-MC types store one row per blank/slot/zone (dialog_fill blanks,
-  // ordering slots, diagram_label zones), so a 500-question quick_quiz can exceed
-  // PostgREST's max_rows cap — page through so the counts never silently truncate.
-  const { data: answerRows, error: answerRowsError } = await fetchSessionAnswerRows<{
-    question_id: string
-  }>({ sessionId, select: 'question_id', orderColumns: ['id'] })
-  if (answerRowsError) {
-    console.error('[getAdminQuizReportSummary] Answer rows query error:', answerRowsError.message)
-    return null
-  }
-  const answeredItems = answerRows.length
-  const answeredQuestions = new Set(answerRows.map((r) => r.question_id)).size
-
-  const { subjectName, subjectCode } = await resolveSubjectInfo(
-    adminClient,
-    session.subject_id,
-    '[getAdminQuizReportSummary]',
-  )
-
-  const { data: userData, error: userError } = await adminClient
+async function fetchStudentName(studentId: string): Promise<string | null> {
+  const { data, error } = await adminClient
     .from('users')
     .select('full_name')
-    .eq('id', session.student_id)
+    .eq('id', studentId)
     .maybeSingle()
-  if (userError) {
-    console.error('[getAdminQuizReportSummary] User lookup error:', userError.message)
+  if (error) {
+    console.error('[getAdminQuizReportSummary] User lookup error:', error.message)
   }
-  const studentName = (userData as { full_name: string | null } | null)?.full_name ?? null
+  return (data as { full_name: string | null } | null)?.full_name ?? null
+}
 
+function toAdminSummary(opts: {
+  session: AdminReportSessionRow
+  endedAt: string
+  counts: { answeredItems: number; answeredQuestions: number }
+  subject: { subjectName: string | null; subjectCode: string | null }
+  studentName: string | null
+}): AdminQuizReportSummary {
+  const { session, endedAt, counts, subject, studentName } = opts
   return {
     sessionId: session.id,
     mode: session.mode,
-    subjectName,
-    subjectCode,
+    subjectName: subject.subjectName,
+    subjectCode: subject.subjectCode,
     totalQuestions: session.total_questions,
-    answeredQuestions,
-    answeredItems,
+    answeredQuestions: counts.answeredQuestions,
+    answeredItems: counts.answeredItems,
     correctCount: session.correct_count,
     scorePercentage:
       (session.score_percentage != null ? Number(session.score_percentage) : null) ?? 0,
     startedAt: session.started_at,
-    endedAt: session.ended_at,
+    endedAt,
     passed: session.passed,
     timeLimitSeconds: session.time_limit_seconds,
     studentId: session.student_id,
@@ -98,103 +59,117 @@ export async function getAdminQuizReportSummary(
   }
 }
 
+export async function getAdminQuizReportSummary(
+  sessionId: string,
+): Promise<AdminQuizReportSummary | null> {
+  const loaded = await loadAdminReportSession(sessionId)
+  if (!loaded.ok) return null
+  const { session, answerRows } = loaded
+  const endedAt = session.ended_at
+  if (!endedAt) return null
+
+  // Two counts from the session's answer rows (mirrors quiz-report.ts):
+  //  - answeredItems     = total rows (MC/SA = 1/question, dialog_fill = 1/blank)
+  //  - answeredQuestions = distinct questions answered (denominator for Skipped)
+  const counts = {
+    answeredItems: answerRows.length,
+    answeredQuestions: new Set(answerRows.map((r) => r.question_id)).size,
+  }
+  const [subject, studentName] = await Promise.all([
+    resolveSubjectInfo(adminClient, session.subject_id, '[getAdminQuizReportSummary]'),
+    fetchStudentName(session.student_id),
+  ])
+  return toAdminSummary({ session, endedAt, counts, subject, studentName })
+}
+
+type AdminPageInputs =
+  | { kind: 'error' }
+  | { kind: 'empty' }
+  | { kind: 'ok'; answers: AnswerRow[]; questionMap: Map<string, QuestionRow> }
+
+async function fetchAdminPageInputs(
+  sessionId: string,
+  pageQuestionIds: string[],
+): Promise<AdminPageInputs> {
+  const [answersResult, questionsResult] = await Promise.all([
+    fetchPageAnswerRows(sessionId, pageQuestionIds),
+    fetchPageQuestions(pageQuestionIds),
+  ])
+  const { data: answers, error: answersError } = answersResult
+  if (answersError) {
+    console.error('[getAdminQuizReportQuestions] Answers query error:', answersError.message)
+    return { kind: 'error' }
+  }
+  if (!answers.length) return { kind: 'empty' }
+
+  const { data: questions, error: questionsError } = questionsResult
+  if (questionsError) {
+    console.error('[getAdminQuizReportQuestions] Questions query error:', questionsError.message)
+    return { kind: 'error' }
+  }
+  return { kind: 'ok', answers, questionMap: new Map(questions.map((q) => [q.id, q])) }
+}
+
+// Use supabase (auth client) for both RPCs — adminClient has no auth.uid() context.
+// Non-MC keys: short_answer canonical, dialog_fill per-blank, ordering per-slot,
+// diagram_label per-zone.
+async function fetchAdminKeyMaps(supabase: AdminAuthClient, sessionId: string) {
+  const [correctResult, answerKeyResult] = await Promise.all([
+    fetchAdminReportCorrectOptionsMap(supabase, sessionId),
+    fetchAdminReportAnswerKeyMap(supabase, sessionId),
+  ])
+  const { data: correctMap, error: correctMapError } = correctResult
+  if (correctMapError) {
+    console.error('[getAdminQuizReportQuestions] RPC error:', correctMapError.message)
+    return null
+  }
+  const { data: answerKeyMap, error: answerKeyMapError } = answerKeyResult
+  if (answerKeyMapError) {
+    console.error('[getAdminQuizReportQuestions] Answer-keys RPC error:', answerKeyMapError.message)
+    return null
+  }
+  return { correctMap, answerKeyMap }
+}
+
+// Paginate by QUESTION, not by answer row: a dialog_fill question has N answer rows
+// (one per blank), so a row window would split a question across pages. totalCount =
+// distinct question count, in answered_at order. Returns null for an empty or
+// out-of-range page; page < 1 would make `from` negative and slice the tail, so it is
+// rejected like an out-of-range page (mirrors quiz-report-questions.ts).
+function sliceQuestionPage(orderedQuestionIds: string[], page: number): string[] | null {
+  const totalPages = Math.max(1, Math.ceil(orderedQuestionIds.length / PAGE_SIZE))
+  if (page < 1 || orderedQuestionIds.length === 0 || page > totalPages) return null
+  const from = (page - 1) * PAGE_SIZE
+  return orderedQuestionIds.slice(from, from + PAGE_SIZE)
+}
+
 export async function getAdminQuizReportQuestions(opts: {
   sessionId: string
   page: number
 }): Promise<QuizReportQuestionsResult> {
   const { sessionId, page } = opts
-  if (!sessionId) return { ok: false, error: 'Failed to load questions' }
+  if (!sessionId) return QUESTIONS_FAILED
 
-  const { supabase, organizationId } = await requireAdmin()
+  const { supabase } = await requireAdmin()
+  const loaded = await loadAdminReportSession(sessionId)
+  if (!loaded.ok) return QUESTIONS_FAILED
 
-  // Verify session belongs to org and is completed — prevents mid-session answer exposure
-  const { data: session, error: sessionError } =
-    await fetchAdminSessionForReport<AdminSessionGuard>({
-      sessionId,
-      organizationId,
-      select: 'id, ended_at',
-      logPrefix: '[getAdminQuizReportQuestions]',
-    })
-  if (sessionError) return { ok: false, error: 'Failed to load questions' }
-  // Not found, or not yet completed — prevents mid-session answer exposure
-  if (!session?.ended_at) return { ok: false, error: 'Failed to load questions' }
-
-  // Paginate by QUESTION, not by answer row. A dialog_fill question has N answer
-  // rows (one per blank); a .range() over rows would split a question across page
-  // boundaries and emit a duplicate questionId on two pages. So we first resolve
-  // the session's DISTINCT question_ids in display order (answered_at — the order
-  // the report has always used), slice that list to the page window, then fetch
-  // ALL answer rows for those questions. totalCount = distinct question count.
-  // Page through ALL answer rows: the multi-row non-MC types (dialog_fill, ordering,
-  // diagram_label) store one row per blank/slot/zone, so 500 questions can exceed
-  // PostgREST's max_rows cap; a single .select() would truncate, dropping question_ids.
-  const { data: orderRows, error: orderError } = await fetchSessionAnswerRows<{
-    question_id: string
-  }>({ sessionId, select: 'question_id, answered_at', orderColumns: ['answered_at', 'id'] })
-  if (orderError) {
-    console.error('[getAdminQuizReportQuestions] Order query error:', orderError.message)
-    return { ok: false, error: 'Failed to load questions' }
-  }
-  const orderedQuestionIds = buildDistinctQuestionOrder(orderRows)
+  const orderedQuestionIds = buildDistinctQuestionOrder(loaded.answerRows)
   const total = orderedQuestionIds.length
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const pageQuestionIds = sliceQuestionPage(orderedQuestionIds, page)
+  if (!pageQuestionIds) return { ok: true, questions: [], totalCount: total }
 
-  // page < 1 would make `from` negative and slice the tail — reject it like an
-  // out-of-range page (mirrors quiz-report-questions.ts). Defense-in-depth: callers
-  // route through parsePageParam (clamps ≥1).
-  if (page < 1 || total === 0 || page > totalPages) {
-    return { ok: true, questions: [], totalCount: total }
-  }
+  const inputs = await fetchAdminPageInputs(sessionId, pageQuestionIds)
+  if (inputs.kind === 'error') return QUESTIONS_FAILED
+  if (inputs.kind === 'empty') return { ok: true, questions: [], totalCount: total }
 
-  const from = (page - 1) * PAGE_SIZE
-  const pageQuestionIds = orderedQuestionIds.slice(from, from + PAGE_SIZE)
-
-  const { data: answers, error: answersError } = await fetchPageAnswerRows(
-    sessionId,
-    pageQuestionIds,
+  const keys = await fetchAdminKeyMaps(supabase, sessionId)
+  if (!keys) return QUESTIONS_FAILED
+  const questions = buildReportQuestions(
+    inputs.answers,
+    inputs.questionMap,
+    keys.correctMap,
+    keys.answerKeyMap,
   )
-  if (answersError) {
-    console.error('[getAdminQuizReportQuestions] Answers query error:', answersError.message)
-    return { ok: false, error: 'Failed to load questions' }
-  }
-
-  if (!answers.length) {
-    return { ok: true, questions: [], totalCount: total }
-  }
-
-  const { data: questions, error: questionsError } = await fetchPageQuestions(pageQuestionIds)
-  if (questionsError) {
-    console.error('[getAdminQuizReportQuestions] Questions query error:', questionsError.message)
-    return { ok: false, error: 'Failed to load questions' }
-  }
-
-  const questionMap = new Map<string, QuestionRow>(questions.map((q) => [q.id, q]))
-
-  // Use supabase (auth client) for RPC — adminClient has no auth.uid() context
-  const { data: correctMap, error: correctMapError } = await fetchAdminReportCorrectOptionsMap(
-    supabase,
-    sessionId,
-  )
-  if (correctMapError) {
-    console.error('[getAdminQuizReportQuestions] RPC error:', correctMapError.message)
-    return { ok: false, error: 'Failed to load questions' }
-  }
-
-  // Non-MC answer keys (short_answer canonical, dialog_fill per-blank canonicals, ordering
-  // per-slot canonicals, diagram_label per-zone canonicals). Use supabase (auth client) for
-  // RPC — adminClient has no auth.uid() context.
-  const { data: answerKeyMap, error: answerKeyMapError } = await fetchAdminReportAnswerKeyMap(
-    supabase,
-    sessionId,
-  )
-  if (answerKeyMapError) {
-    console.error('[getAdminQuizReportQuestions] Answer-keys RPC error:', answerKeyMapError.message)
-    return { ok: false, error: 'Failed to load questions' }
-  }
-
-  return {
-    ok: true,
-    questions: buildReportQuestions(answers, questionMap, correctMap, answerKeyMap),
-    totalCount: total,
-  }
+  return { ok: true, questions, totalCount: total }
 }

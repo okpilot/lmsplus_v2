@@ -111,7 +111,7 @@
     "apps/web/e2e/redteam/tenant-tables-direct-write.spec.ts": 758,
     "apps/web/lib/gdpr/collect-user-data.test.ts": 727,
     "apps/web/lib/integration-support/fixtures.ts": 209,
-    "apps/web/lib/queries/admin-quiz-report.test.ts": 1169,
+    "apps/web/lib/queries/admin-quiz-report.test.ts": 1090,
     "apps/web/lib/queries/dashboard.test.ts": 603,
     "apps/web/lib/queries/quiz-report-questions.test.ts": 640,
     "apps/web/lib/queries/report-question-builder.test.ts": 559,
