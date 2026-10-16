@@ -61,6 +61,23 @@ describe('requireAdmin', () => {
     expect(isMock).toHaveBeenCalledWith('deleted_at', null)
   })
 
+  it('reads the profile of the user getUser returned', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-42' } }, error: null })
+    const eqMock = vi.fn().mockReturnValue({
+      is: vi.fn().mockReturnValue({
+        maybeSingle: vi.fn().mockResolvedValue({
+          data: { role: 'admin', organization_id: 'org-1' },
+          error: null,
+        }),
+      }),
+    })
+    mockFrom.mockReturnValue({ select: vi.fn().mockReturnValue({ eq: eqMock }) })
+
+    await requireAdmin()
+
+    expect(eqMock).toHaveBeenCalledWith('id', 'user-42')
+  })
+
   it('redirects to the login page when not authenticated', async () => {
     mockGetUser.mockResolvedValue({
       data: { user: null },
