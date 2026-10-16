@@ -3,9 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetSessionUser, mockFrom, mockRedirect } = vi.hoisted(() => ({
+const { mockGetSessionUser, mockGetCallerProfile, mockRedirect } = vi.hoisted(() => ({
   mockGetSessionUser: vi.fn(),
-  mockFrom: vi.fn(),
+  mockGetCallerProfile: vi.fn(),
   mockRedirect: vi.fn(),
 }))
 
@@ -13,10 +13,8 @@ vi.mock('@/lib/auth/get-session-user', () => ({
   getSessionUser: () => mockGetSessionUser(),
 }))
 
-vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({
-    from: mockFrom,
-  }),
+vi.mock('@/lib/auth/get-caller-profile', () => ({
+  getCallerProfile: (...args: unknown[]) => mockGetCallerProfile(...args),
 }))
 
 vi.mock('next/navigation', () => ({
@@ -66,21 +64,6 @@ import AppLayout from './layout'
 
 // ---- Helpers --------------------------------------------------------------
 
-/** Builds a fluent Supabase chain stub that resolves to `returnValue` when awaited. */
-function buildChain(returnValue: unknown) {
-  const awaitable: Record<string, unknown> = {
-    // biome-ignore lint/suspicious/noThenProperty: intentional thenable for Supabase chain mock
-    then: (resolve: (v: unknown) => void, reject: (e: unknown) => void) =>
-      Promise.resolve(returnValue).then(resolve, reject),
-  }
-  return new Proxy(awaitable, {
-    get(target, prop) {
-      if (prop === 'then') return target.then
-      return (..._args: unknown[]) => buildChain(returnValue)
-    },
-  })
-}
-
 async function renderLayout() {
   const jsx = await AppLayout({ children: <span data-testid="child">page content</span> })
   render(jsx)
@@ -99,7 +82,10 @@ describe('AppLayout — profile error fallback', () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
     mockGetSessionUser.mockResolvedValue({ id: 'u1', email: 'ada@example.com' })
-    mockFrom.mockReturnValue(buildChain({ data: null, error: { message: 'profile read failed' } }))
+    mockGetCallerProfile.mockResolvedValue({
+      data: null,
+      error: { message: 'profile read failed' },
+    })
 
     await renderLayout()
 
@@ -120,12 +106,10 @@ describe('AppLayout — profile error fallback', () => {
 describe('AppLayout — happy path', () => {
   it('renders with displayName and userRole from the profile when the read succeeds', async () => {
     mockGetSessionUser.mockResolvedValue({ id: 'u1', email: 'ada@example.com' })
-    mockFrom.mockReturnValue(
-      buildChain({
-        data: { full_name: 'Ada Pilot', email: 'ada@example.com', role: 'instructor' },
-        error: null,
-      }),
-    )
+    mockGetCallerProfile.mockResolvedValue({
+      data: { full_name: 'Ada Pilot', email: 'ada@example.com', role: 'instructor' },
+      error: null,
+    })
 
     await renderLayout()
 
@@ -137,16 +121,39 @@ describe('AppLayout — happy path', () => {
 
   it('falls back to user.email as displayName when full_name is null', async () => {
     mockGetSessionUser.mockResolvedValue({ id: 'u1', email: 'ada@example.com' })
-    mockFrom.mockReturnValue(
-      buildChain({
-        data: { full_name: null, email: 'ada@example.com', role: 'student' },
-        error: null,
-      }),
-    )
+    mockGetCallerProfile.mockResolvedValue({
+      data: { full_name: null, email: 'ada@example.com', role: 'student' },
+      error: null,
+    })
 
     await renderLayout()
 
     expect(screen.getByTestId('app-shell').dataset.displayName).toBe('ada@example.com')
+  })
+})
+
+describe('AppLayout — profile lookup', () => {
+  it('logs when the profile row is missing and falls back to student role', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockGetSessionUser.mockResolvedValue({ id: 'u1', email: 'ada@example.com' })
+    mockGetCallerProfile.mockResolvedValue({ data: null, error: null })
+
+    await renderLayout()
+
+    expect(consoleSpy).toHaveBeenCalledWith('[AppLayout] profile not found:', 'u1')
+    expect(screen.getByTestId('app-shell').dataset.userRole).toBe('student')
+    consoleSpy.mockRestore()
+  })
+
+  it('reads the profile for the session user', async () => {
+    mockGetSessionUser.mockResolvedValue({ id: 'u-session', email: 'ada@example.com' })
+    mockGetCallerProfile.mockResolvedValue({ data: null, error: null })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    await renderLayout()
+
+    expect(mockGetCallerProfile).toHaveBeenCalledWith('u-session')
+    consoleSpy.mockRestore()
   })
 })
 
@@ -168,12 +175,10 @@ describe('AppLayout — auth redirect', () => {
 describe('AppLayout — redesign look scope', () => {
   async function renderForRole() {
     mockGetSessionUser.mockResolvedValue({ id: 'u1', email: 'ada@example.com' })
-    mockFrom.mockReturnValue(
-      buildChain({
-        data: { full_name: 'Ada Pilot', email: 'ada@example.com', role: 'student' },
-        error: null,
-      }),
-    )
+    mockGetCallerProfile.mockResolvedValue({
+      data: { full_name: 'Ada Pilot', email: 'ada@example.com', role: 'student' },
+      error: null,
+    })
     await renderLayout()
     return screen.getByTestId('app-shell').closest('[data-look]')
   }

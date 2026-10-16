@@ -73,6 +73,7 @@ describe('requireAdmin per-request memoization', () => {
 
     expect(a.organizationId).toBe('org-1')
     expect(b.organizationId).toBe('org-1')
-    expect(mockCreateServerSupabaseClient).toHaveBeenCalledTimes(1)
+    // requireAdmin's own client + getCallerProfile's client.
+    expect(mockCreateServerSupabaseClient).toHaveBeenCalledTimes(2)
   })
 })

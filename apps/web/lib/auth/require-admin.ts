@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { redirect } from 'next/navigation'
 import { cache } from 'react'
+import { getCallerProfile } from './get-caller-profile'
 
 type AdminAuth = {
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>
@@ -16,7 +17,8 @@ type AdminAuth = {
  * times (the page gate plus four queries `Promise.all`d in
  * `_components/internal-exams-content.tsx`), `/app/admin/dashboard` 4 times via
  * its four Suspense children — and each call re-ran the whole body: build a
- * client, await `getUser()`, await the `users` SELECT. Measured 2026-08-20 on
+ * client, await `getUser()`, await the `users` SELECT (`getCallerProfile`, shared
+ * with the `/app` layout's read in the same render). Measured 2026-08-20 on
  * Next 16.3.0 (dev server): body executions per render fall 5 -> 1 and 4 -> 1.
  *
  * What this does NOT save is HTTP round trips. Measured the same day at the API
@@ -49,18 +51,7 @@ export const requireAdmin = cache(async (): Promise<AdminAuth> => {
     redirect('/')
   }
 
-  // `.is('deleted_at', null)` is defence in depth, not decoration: the RLS
-  // policy `users_select` already scopes this read to a live row, but callers
-  // like softDeleteQuestion now write through the service-role client, so RLS
-  // is no longer a second check on their path. Without this filter, "a
-  // soft-deleted admin cannot mutate data" would rest on a single policy in a
-  // different query.
-  const { data: profile, error: profileError } = await supabase
-    .from('users')
-    .select('role, organization_id')
-    .eq('id', user.id)
-    .is('deleted_at', null)
-    .maybeSingle<{ role: string; organization_id: string }>()
+  const { data: profile, error: profileError } = await getCallerProfile(user.id)
 
   if (profileError) {
     console.error('[requireAdmin] Profile query error:', profileError.message)
