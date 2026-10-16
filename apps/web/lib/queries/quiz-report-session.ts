@@ -74,6 +74,7 @@ function fetchAnswerRows(supabase: SupabaseClient, sessionId: string) {
 // Cache key is sessionId only; identity comes from the cache()d getSessionUser of the
 // same request, so one render reads the session and its answer rows once.
 export const loadReportSession = cache(async (sessionId: string): Promise<ReportSessionResult> => {
+  if (!sessionId) return { ok: false }
   const supabase = await createServerSupabaseClient()
   const user = await getSessionUser()
   if (!user) return { ok: false }

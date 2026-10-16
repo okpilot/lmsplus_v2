@@ -1,9 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockFrom, mockFetchAllRows, mockGetSessionUser } = vi.hoisted(() => ({
+const { mockFrom, mockFetchAllRows, mockGetSessionUser, cacheStore } = vi.hoisted(() => ({
   mockFrom: vi.fn(),
   mockFetchAllRows: vi.fn(),
   mockGetSessionUser: vi.fn(),
+  cacheStore: new Map<unknown, unknown>(),
+}))
+
+// The client build of React's `cache` is a passthrough in this tier; substitute a memo keyed
+// on the first argument so the test can observe that the loader is routed through `cache`.
+vi.mock('react', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('react')>()),
+  cache:
+    (fn: (...args: never[]) => unknown) =>
+    (...args: never[]) => {
+      if (!cacheStore.has(args[0])) cacheStore.set(args[0], fn(...args))
+      return cacheStore.get(args[0])
+    },
 }))
 
 vi.mock('@/lib/supabase-paginate', async (importOriginal) => ({
@@ -68,10 +81,28 @@ function sessionResponse(response: unknown) {
 
 beforeEach(() => {
   vi.resetAllMocks()
+  cacheStore.clear()
   mockGetSessionUser.mockResolvedValue({ id: 'user-1' })
 })
 
 describe('loadReportSession', () => {
+  it('is not ok and reads nothing when the session id is empty', async () => {
+    expect(await loadReportSession('')).toEqual({ ok: false })
+    expect(mockGetSessionUser).not.toHaveBeenCalled()
+    expect(mockFrom).not.toHaveBeenCalled()
+    expect(mockFetchAllRows).not.toHaveBeenCalled()
+  })
+
+  it('reads the session and answer rows once when the same report session is loaded twice in a request', async () => {
+    sessionResponse({ data: sessionRow })
+    mockFetchAllRows.mockResolvedValue({ data: answerRows, error: null })
+    const first = await loadReportSession('sess-1')
+    const second = await loadReportSession('sess-1')
+    expect(second).toEqual(first)
+    expect(mockFrom).toHaveBeenCalledTimes(1)
+    expect(mockFetchAllRows).toHaveBeenCalledTimes(1)
+  })
+
   it('is not ok and reads nothing when the caller is unauthenticated', async () => {
     mockGetSessionUser.mockResolvedValue(null)
     expect(await loadReportSession('sess-1')).toEqual({ ok: false })

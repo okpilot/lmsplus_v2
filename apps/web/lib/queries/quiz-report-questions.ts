@@ -92,7 +92,6 @@ export async function getQuizReportQuestions(opts: {
   page: number
 }): Promise<QuizReportQuestionsResult> {
   const { sessionId, page } = opts
-  if (!sessionId) return LOAD_FAILED
 
   const loaded = await loadReportSession(sessionId)
   if (!loaded.ok) return LOAD_FAILED
