@@ -79,9 +79,9 @@ describe('getCallerProfile (app-layer integration)', () => {
       .eq('id', deletedId)
       .select('id, deleted_at')
     if (updateError) throw new Error(`soft-delete user: ${updateError.message}`)
-    // RLS `users_select` already hides this row from the caller, so this pins the combined
-    // outcome; the `.is('deleted_at', null)` filter alone is pinned by the unit test.
-    // Non-vacuous: the row exists and is soft-deleted, so null below is the filter, not absence.
+    // RLS `users_select` hides a soft-deleted row from the caller, so null here is RLS plus the
+    // filter; the `.is('deleted_at', null)` filter alone is pinned by the unit test.
+    // Non-vacuous: the row exists and is soft-deleted.
     expect(updated).toHaveLength(1)
     expect(updated?.[0]?.deleted_at).not.toBeNull()
 

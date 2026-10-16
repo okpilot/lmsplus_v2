@@ -140,7 +140,7 @@ describe('AppLayout — profile lookup', () => {
 
     await renderLayout()
 
-    expect(consoleSpy).toHaveBeenCalledWith('[AppLayout] profile not found')
+    expect(consoleSpy).toHaveBeenCalledWith('[AppLayout] profile not found:', 'u1')
     expect(screen.getByTestId('app-shell').dataset.userRole).toBe('student')
     consoleSpy.mockRestore()
   })

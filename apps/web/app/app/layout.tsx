@@ -19,7 +19,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
     console.error('[AppLayout] profile lookup error:', profileError.message)
   }
 
-  if (!profileError && !profile) console.error('[AppLayout] profile not found')
+  if (!profileError && !profile) console.error('[AppLayout] profile not found:', user.id)
 
   const displayName = profile?.full_name ?? profile?.email ?? user.email ?? 'Student'
 

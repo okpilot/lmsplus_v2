@@ -19,7 +19,8 @@ type AdminAuth = {
  * its four Suspense children — and each call re-ran the whole body: build a
  * client, await `getUser()`, await the `users` SELECT (now `getCallerProfile`, shared
  * with the `/app` layout's read in the same render; that read used a different select,
- * so sharing it saves one `GET /rest/v1/users` per admin render). Measured 2026-08-20 on
+ * so sharing it saves one `GET /rest/v1/users` per admin render; measured 2026-10-16 at
+ * the API gateway: 5 -> 4 on `/app/admin/dashboard/sessions/[id]`). Measured 2026-08-20 on
  * Next 16.3.0 (dev server): body executions per render fall 5 -> 1 and 4 -> 1.
  *
  * What this does NOT save is HTTP round trips. Measured the same day at the API
