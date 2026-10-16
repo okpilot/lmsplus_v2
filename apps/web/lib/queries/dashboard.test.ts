@@ -46,7 +46,7 @@ function buildChain(returnValue: unknown) {
  * getDashboardData reads three data sources via the rpc() wrapper (mocked through mockRpc)
  * and two via .from():
  *   .from('easa_subjects')     -> subject list (getSubjectProgress)
- *   .from('student_responses') -> count head only (getTotalAnswered + getQuestionsToday)
+ *   .from('student_responses') -> count head only (getQuestionsToday)
  *   rpc 'get_student_mastery_stats'   -> per-subject mastery counts
  *   rpc 'get_student_streak'          -> current/best streak
  *   rpc 'get_student_last_practiced'  -> subject_id -> last_practiced_at
@@ -104,7 +104,6 @@ describe('getDashboardData', () => {
 
     const result = await getDashboardData()
     expect(result.totalQuestions).toBe(0)
-    expect(result.answeredCount).toBe(0)
     expect(result.subjects).toEqual([])
     expect(result.questionsToday).toBe(0)
     expect(result.currentStreak).toBe(0)
@@ -368,7 +367,7 @@ describe('getDashboardData', () => {
     await expect(getDashboardData()).rejects.toThrow('Failed to fetch subjects: subjects db error')
   })
 
-  it('throws when the student_responses count read errors instead of degrading to 0', async () => {
+  it('throws when the questions-today count read errors instead of degrading to 0', async () => {
     mockGetSessionUser.mockResolvedValue({ id: 'u1' })
     mockFrom.mockImplementation((table: string) => {
       if (table === 'student_responses')
@@ -379,15 +378,9 @@ describe('getDashboardData', () => {
         })
       throw new Error(`Unexpected table: ${table}`)
     })
-    // mastery/streak/last-practiced RPCs succeed so the only failure is the count read
-    setRpc({
-      mastery: [],
-      streak: [{ current_streak: 0, best_streak: 0 }],
-      lastPracticed: [],
-    })
-    // getTotalAnswered and getQuestionsToday both read student_responses under the same
-    // Promise.all, so either may reject first — match the shared prefix, not a specific message.
-    await expect(getDashboardData()).rejects.toThrow(/Failed to fetch/)
+    await expect(getDashboardData()).rejects.toThrow(
+      'Failed to fetch questions answered today: boom',
+    )
   })
 
   it('filters out all subjects when the mastery RPC returns null data without an error', async () => {
@@ -487,7 +480,6 @@ describe('getDashboardData', () => {
   it('throws when the last-practiced RPC returns an error', async () => {
     mockGetSessionUser.mockResolvedValue({ id: 'u1' })
 
-    // last-practiced only runs when there is at least one surviving subject.
     mockRpc.mockImplementation((_supabase: unknown, fn: string): Promise<RpcResult> => {
       if (fn === 'get_student_mastery_stats') {
         return Promise.resolve({

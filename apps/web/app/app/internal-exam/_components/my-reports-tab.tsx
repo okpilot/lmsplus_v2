@@ -85,6 +85,7 @@ function ReportRow({ row: r }: Readonly<{ row: InternalExamHistoryEntry }>) {
       <TableCell>
         <Link
           href={href}
+          prefetch={false}
           onClick={(e) => e.stopPropagation()}
           className="font-medium text-foreground no-underline focus-visible:underline"
         >

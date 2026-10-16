@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@repo/db/server'
+import { cache } from 'react'
 
 export type ExamSubjectOption = {
   id: string
@@ -51,7 +52,7 @@ export async function getExamEnabledSubjects(): Promise<ExamSubjectOption[]> {
 }
 
 /** Subjects offered in the /app/quiz Practice Exam list. The VFR RT exam starts only from /app/vfr-rt. */
-export async function getMockExamSubjects(): Promise<ExamSubjectOption[]> {
+export const getMockExamSubjects = cache(async (): Promise<ExamSubjectOption[]> => {
   const subjects = await getExamEnabledSubjects()
   return subjects.filter((s) => s.code !== 'RT')
-}
+})

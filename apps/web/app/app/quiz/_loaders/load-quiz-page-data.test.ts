@@ -7,11 +7,23 @@ const {
   mockGetActiveExamSession,
   mockGetActivePracticeSession,
   mockLoadSavedQuizzes,
+  mockGetSubjectsWithCounts,
+  mockGetMockExamSubjects,
 } = vi.hoisted(() => ({
   mockLoadDrafts: vi.fn(),
   mockGetActiveExamSession: vi.fn(),
   mockGetActivePracticeSession: vi.fn(),
   mockLoadSavedQuizzes: vi.fn(),
+  mockGetSubjectsWithCounts: vi.fn(),
+  mockGetMockExamSubjects: vi.fn(),
+}))
+
+vi.mock('@/lib/queries/quiz-subject-queries', () => ({
+  getSubjectsWithCounts: (...args: unknown[]) => mockGetSubjectsWithCounts(...args),
+}))
+
+vi.mock('@/lib/queries/exam-subjects', () => ({
+  getMockExamSubjects: (...args: unknown[]) => mockGetMockExamSubjects(...args),
 }))
 
 vi.mock('@/lib/queries/load-saved-quizzes', () => ({
@@ -52,6 +64,8 @@ beforeEach(() => {
   })
   mockGetActivePracticeSession.mockResolvedValue({ success: true, session: PRACTICE_SESSION })
   mockLoadSavedQuizzes.mockResolvedValue([SAVED_SESSION])
+  mockGetSubjectsWithCounts.mockResolvedValue([])
+  mockGetMockExamSubjects.mockResolvedValue([])
 })
 
 // ---- Tests -----------------------------------------------------------------
@@ -105,5 +119,25 @@ describe('loadQuizPageData', () => {
 
   it('does not flag a saved lookup failure when the lookup succeeds', async () => {
     expect((await loadQuizPageData('user-1')).savedLookupFailed).toBe(false)
+  })
+
+  it('starts the subjects and mock-exam subjects reads before the page sections render', async () => {
+    await loadQuizPageData('user-1')
+
+    expect(mockGetSubjectsWithCounts).toHaveBeenCalledTimes(1)
+    expect(mockGetMockExamSubjects).toHaveBeenCalledTimes(1)
+  })
+
+  it('raises no unhandled rejection when a preloaded subjects read fails', async () => {
+    const unhandled = vi.fn()
+    process.on('unhandledRejection', unhandled)
+    mockGetSubjectsWithCounts.mockRejectedValue(new Error('subjects down'))
+    mockGetMockExamSubjects.mockRejectedValue(new Error('exam subjects down'))
+
+    await loadQuizPageData('user-1')
+    await new Promise((r) => setTimeout(r, 10))
+    process.off('unhandledRejection', unhandled)
+
+    expect(unhandled).not.toHaveBeenCalled()
   })
 })

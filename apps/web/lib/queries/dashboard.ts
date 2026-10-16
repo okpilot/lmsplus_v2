@@ -3,15 +3,15 @@ import { cache } from 'react'
 import { getSessionUser } from '@/lib/auth/get-session-user'
 import { rpc } from '@/lib/supabase-rpc'
 import {
-  applyLastPracticed,
   computeExamReadiness,
+  fetchLastPracticed,
   getQuestionsToday,
   getStreakData,
+  mergeLastPracticed,
 } from './dashboard-stats'
 
 export type DashboardData = {
   totalQuestions: number
-  answeredCount: number
   subjects: SubjectProgress[]
   questionsToday: number
   currentStreak: number
@@ -35,19 +35,18 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
   const user = await getSessionUser()
   if (!user) throw new Error('Not authenticated')
 
-  const [subjects, responses, questionsToday, streakData] = await Promise.all([
+  const [subjects, questionsToday, streakData, lastPracticed] = await Promise.all([
     getSubjectProgress(supabase),
-    getTotalAnswered(supabase, user.id),
     getQuestionsToday(supabase, user.id),
     getStreakData(supabase),
+    fetchLastPracticed(supabase),
   ])
 
-  const subjectsWithDates = await applyLastPracticed(supabase, subjects)
+  const subjectsWithDates = mergeLastPracticed(subjects, lastPracticed)
   const examReadiness = computeExamReadiness(subjectsWithDates)
 
   return {
     totalQuestions: subjectsWithDates.reduce((sum, s) => sum + s.totalQuestions, 0),
-    answeredCount: responses,
     subjects: subjectsWithDates,
     questionsToday,
     currentStreak: streakData.currentStreak,
@@ -104,39 +103,25 @@ function toSubjectProgress(
 }
 
 async function getSubjectProgress(supabase: SupabaseClient): Promise<SubjectProgress[]> {
-  const { data: subjectsData, error: subjectsError } = await supabase
-    .from('easa_subjects')
-    .select('id, code, name, short, sort_order')
-    .order('sort_order')
-  if (subjectsError) throw new Error(`Failed to fetch subjects: ${subjectsError.message}`)
-
-  const subjects = (subjectsData ?? []) as SubjectRow[]
-  if (!subjects.length) return []
-
   // Per-subject mastery counts aggregated in Postgres (#540): the prior client-side
   // numerator/denominator reads truncated at the PostgREST 1000-row cap. The RPC returns
   // both subject-level (topic_id === null) and topic-level rows; we use the subject rows.
-  const { data: masteryData, error: masteryError } = await rpc<MasteryRow[]>(
-    supabase,
-    'get_student_mastery_stats',
-    {},
-  )
+  const [subjectsResult, masteryResult] = await Promise.all([
+    supabase.from('easa_subjects').select('id, code, name, short, sort_order').order('sort_order'),
+    rpc<MasteryRow[]>(supabase, 'get_student_mastery_stats', {}),
+  ])
+  const { data: subjectsData, error: subjectsError } = subjectsResult
+  if (subjectsError) throw new Error(`Failed to fetch subjects: ${subjectsError.message}`)
+
+  const { data: masteryData, error: masteryError } = masteryResult
   if (masteryError) {
     throw new Error(`Failed to fetch mastery stats: ${masteryError.message}`)
   }
 
+  const subjects = (subjectsData ?? []) as SubjectRow[]
   const masteryBySubject = buildMasteryBySubject(masteryData)
 
   return subjects
     .map((s) => toSubjectProgress(s, masteryBySubject.get(s.id) ?? { total: 0, correct: 0 }))
     .filter((s) => s.totalQuestions > 0 || s.answeredCorrectly > 0)
-}
-
-async function getTotalAnswered(supabase: SupabaseClient, userId: string): Promise<number> {
-  const { count, error } = await supabase
-    .from('student_responses')
-    .select('*', { count: 'exact', head: true })
-    .eq('student_id', userId)
-  if (error) throw new Error(`Failed to fetch answered count: ${error.message}`)
-  return count ?? 0
 }

@@ -2522,14 +2522,14 @@ Returns one row with the caller's current and best (all-time) daily-practice str
 
 #### `get_student_last_practiced` — most recent response timestamp per subject for the calling student
 
-Returns one row per subject the caller has answered, with the most recent response timestamp, over ALL responses (any correctness). Used by the student dashboard (`lib/queries/dashboard.ts` → `applyLastPracticed`).
+Returns one row per subject the caller has answered, with the most recent response timestamp, over ALL responses (any correctness). Used by the student dashboard (`lib/queries/dashboard.ts` → `fetchLastPracticed` + `mergeLastPracticed`).
 
 **Security:** `SECURITY INVOKER`. The `questions` JOIN is org-scoped + `deleted_at IS NULL` via the `tenant_isolation` policy (reproducing the legacy `questionSubjectMap`, which was built from non-deleted questions). `student_responses` self-scopes with an explicit `sr.student_id = auth.uid()` (load-bearing per security.md §3 (Multiple Permissive SELECT Policies), same two-policy reason as `get_student_streak`). Unauthenticated caller → empty set. No question text, options, or correct-answer data is selected — only `subject_id` and a timestamp.
 
 **Parameters:** none (caller is always self).
 
 **Returns:** `TABLE(subject_id UUID, last_practiced_at TIMESTAMPTZ)` — one row per practiced subject.
-- `last_practiced_at` — `MAX(created_at)` over all the caller's responses to questions in that subject (correct or not), matching the legacy `applyLastPracticed` (no `is_correct` filter).
+- `last_practiced_at` — `MAX(created_at)` over all the caller's responses to questions in that subject (correct or not), matching the legacy client-side merge it replaced (no `is_correct` filter).
 
 **Migration:** `20260521000006_dashboard_secondary_stats_rpcs.sql`
 
