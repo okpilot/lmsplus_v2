@@ -2,7 +2,7 @@
 //
 // Exercises the real loadReportSession helper (quiz_sessions ownership + completion read,
 // quiz_session_answers count + paged scan) against real Postgres under real RLS.
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { seedCompletedSession } from '@/lib/integration-support/fixtures'
 import {
   cleanupReferenceData,
@@ -19,6 +19,36 @@ import {
 } from '@/lib/integration-support/harness'
 import { loadReportSession } from '@/lib/queries/quiz-report-session'
 import { POSTGREST_MAX_ROWS } from '@/lib/supabase-paginate'
+
+// Flag on: the loader runs on the service-role client as student A, so row-level security
+// no longer narrows the read and only the loader's own filters can reject a row.
+const bypass = vi.hoisted(() => ({ on: false, userId: '' }))
+
+vi.mock('@repo/db/server', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@repo/db/server')>()
+  return {
+    ...original,
+    // Harness is imported at call time: importing it inside the factory deadlocks the module graph.
+    createServerSupabaseClient: async (
+      ...args: Parameters<typeof original.createServerSupabaseClient>
+    ) => {
+      if (!bypass.on) return original.createServerSupabaseClient(...args)
+      const { getAdminClient: adminClient } = await import('@/lib/integration-support/harness')
+      return adminClient() as unknown as Awaited<
+        ReturnType<typeof original.createServerSupabaseClient>
+      >
+    },
+  }
+})
+
+vi.mock('@/lib/auth/get-session-user', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/lib/auth/get-session-user')>()
+  return {
+    ...original,
+    getSessionUser: () =>
+      bypass.on ? Promise.resolve({ id: bypass.userId, email: null }) : original.getSessionUser(),
+  }
+})
 
 const admin = getAdminClient()
 const suffix = fixtureSuffix()
@@ -226,11 +256,12 @@ describe('loadReportSession (app-layer integration)', () => {
 
   it('does not serve another students ended session', async () => {
     // Non-vacuous: the foreign session is ended and has answers.
-    const { data } = await admin
+    const { data, error } = await admin
       .from('quiz_sessions')
       .select('ended_at, student_id')
       .eq('id', foreignSessionId)
       .single()
+    if (error) throw new Error(`foreign session read: ${error.message}`)
     expect(data?.ended_at).not.toBeNull()
     expect(data?.student_id).toBe(studentBId)
     expect(await countAnswers(foreignSessionId)).toBeGreaterThan(0)
@@ -241,13 +272,36 @@ describe('loadReportSession (app-layer integration)', () => {
     expect(r.ok).toBe(false)
   })
 
+  it('rejects another students session even when row-level security would let the read through', async () => {
+    // MUTATION: removing .eq('student_id', studentId) from fetchEndedSession turns this red.
+    const { data, error } = await admin
+      .from('quiz_sessions')
+      .select('ended_at, student_id')
+      .eq('id', foreignSessionId)
+      .maybeSingle()
+    if (error) throw new Error(`foreign session service-role read: ${error.message}`)
+    expect(data?.student_id).toBe(studentBId)
+    expect(data?.ended_at).not.toBeNull()
+
+    bypass.on = true
+    bypass.userId = studentAId
+    try {
+      const r = await loadReportSession(foreignSessionId)
+      expect(r.ok).toBe(false)
+    } finally {
+      bypass.on = false
+      bypass.userId = ''
+    }
+  })
+
   it('serves no session or answer rows while the session is still active', async () => {
     // Non-vacuous: the session is active, owned by the caller, and holds an answer row.
-    const { data } = await admin
+    const { data, error } = await admin
       .from('quiz_sessions')
       .select('ended_at, student_id, deleted_at')
       .eq('id', activeSessionId)
       .single()
+    if (error) throw new Error(`active session read: ${error.message}`)
     expect(data?.ended_at).toBeNull()
     expect(data?.deleted_at).toBeNull()
     expect(data?.student_id).toBe(studentAId)
@@ -262,11 +316,12 @@ describe('loadReportSession (app-layer integration)', () => {
 
   it('does not serve a soft-deleted session', async () => {
     // Non-vacuous: the row exists, is ended, owned by the caller, and soft-deleted.
-    const { data } = await admin
+    const { data, error } = await admin
       .from('quiz_sessions')
       .select('ended_at, student_id, deleted_at')
       .eq('id', deletedSessionId)
       .single()
+    if (error) throw new Error(`deleted session read: ${error.message}`)
     expect(data?.ended_at).not.toBeNull()
     expect(data?.deleted_at).not.toBeNull()
     expect(data?.student_id).toBe(studentAId)
