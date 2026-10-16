@@ -53,17 +53,7 @@ function chainResolving(result: unknown) {
 }
 
 function usersChain(fullName: string | null) {
-  const result = { data: { full_name: fullName }, error: null }
-  const proxy: Record<string, unknown> = new Proxy(
-    {},
-    {
-      get(_t, prop) {
-        if (prop === 'then') return (res: (v: unknown) => void) => Promise.resolve(result).then(res)
-        return () => proxy
-      },
-    },
-  )
-  return proxy
+  return chainResolving({ data: { full_name: fullName }, error: null })
 }
 
 const session = {
