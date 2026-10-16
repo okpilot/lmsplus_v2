@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
+import { reportUrl } from '@/lib/constants/report-paths'
 import { loadQuizSessionState, type SessionEntry } from '@/lib/queries/load-quiz-session-state'
-import { reportUrl } from '../_hooks/exam-report-paths'
 
 /**
  * Loads the session for /app/quiz/session/<id>. A finished session goes to its report; a

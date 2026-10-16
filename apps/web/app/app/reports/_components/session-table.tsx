@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { SortableTableHead } from '@/components/sortable-table-head'
 import { type ExamMode, isExamMode, MODE_LABELS, modeLabel } from '@/lib/constants/exam-modes'
+import { reportUrl } from '@/lib/constants/report-paths'
 import type { SessionReport, SortDir, SortKey } from '@/lib/queries/reports'
 import { formatCorrectFraction } from '@/lib/utils/format-correct-fraction'
 import { scoreColor } from '@/lib/utils/score-color'
@@ -64,7 +65,7 @@ function SessionRow({ session: s }: Readonly<{ session: SessionReport }>) {
   const router = useRouter()
   const score = s.scorePercentage == null ? '\u2014' : `${Math.round(s.scorePercentage)}%`
   const color = s.scorePercentage == null ? undefined : scoreColor(s.scorePercentage)
-  const href = `/app/quiz/report?session=${s.id}`
+  const href = reportUrl(s.mode, s.id)
   const navigate = () => router.push(href)
 
   return (

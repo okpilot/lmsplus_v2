@@ -20,12 +20,10 @@ export function selectPageAnswers(
     .order('id')
 }
 
-// Callers MUST run the session ownership + ended_at guard first (getQuizReportQuestions does);
-// without it this direct SELECT would expose options and explanations mid-session.
-// Direct SELECT is safe: the caller's ended_at guard blocks mid-session access, and
-// options no longer carries the answer key — `correct` is stripped at the DB
-// write layer (#823), so the key never reaches buildReportQuestions. The
-// report's correct option comes from get_report_correct_options (correctOptionId).
+// Precondition: the caller has passed the session ownership + ended_at guard
+// (loadReportSession); without it this direct SELECT would expose options and
+// explanations mid-session. options carries no answer key — `correct` is stripped at the DB
+// write layer (#823); the report's correct option comes from get_report_correct_options.
 // No deleted_at filter here: the tenant_isolation SELECT policy on questions (RLS)
 // already excludes soft-deleted rows, so a soft-deleted question is absent from the report.
 export function selectPageQuestions(supabase: SupabaseClient, questionIds: string[]) {

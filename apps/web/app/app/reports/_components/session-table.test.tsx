@@ -146,6 +146,31 @@ describe('SessionTable', () => {
     const link = screen.getByRole('link', { name: 'Navigation' })
     expect(link).toHaveAttribute('href', '/app/quiz/report?session=abc-123')
   })
+
+  it('links a VFR RT mock exam row to the VFR RT report route', () => {
+    render(
+      <SessionTable
+        {...SORT_PROPS}
+        sessions={[makeSession({ id: 'rt-1', mode: 'vfr_rt_exam', subjectName: 'Radio' })]}
+      />,
+    )
+    expect(screen.getByRole('link', { name: 'Radio' })).toHaveAttribute(
+      'href',
+      '/app/vfr-rt/report?session=rt-1',
+    )
+  })
+
+  it('navigates a clicked VFR RT mock exam row to the VFR RT report route', async () => {
+    const user = userEvent.setup()
+    render(
+      <SessionTable
+        {...SORT_PROPS}
+        sessions={[makeSession({ id: 'rt-2', mode: 'vfr_rt_exam' })]}
+      />,
+    )
+    await user.click(screen.getAllByRole('row')[1]!)
+    expect(mockRouterPush).toHaveBeenCalledWith('/app/vfr-rt/report?session=rt-2')
+  })
 })
 
 describe('SessionTable row color-coding', () => {
