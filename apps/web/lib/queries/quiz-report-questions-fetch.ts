@@ -20,6 +20,8 @@ export function selectPageAnswers(
     .order('id')
 }
 
+// Callers MUST run the session ownership + ended_at guard first (getQuizReportQuestions does);
+// without it this direct SELECT would expose options and explanations mid-session.
 // Direct SELECT is safe: the caller's ended_at guard blocks mid-session access, and
 // options no longer carries the answer key — `correct` is stripped at the DB
 // write layer (#823), so the key never reaches buildReportQuestions. The

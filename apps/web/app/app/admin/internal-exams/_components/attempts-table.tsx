@@ -99,6 +99,7 @@ function AttemptRow({ row: r }: Readonly<{ row: InternalExamAttemptRow }>) {
       <TableCell>
         <Link
           href={href}
+          prefetch={false}
           onClick={(e) => e.stopPropagation()}
           className="font-medium text-foreground no-underline focus-visible:underline"
         >

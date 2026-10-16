@@ -23,12 +23,14 @@ vi.mock('next/link', () => ({
     href,
     children,
     onClick,
+    prefetch,
   }: {
     href: string
     children: React.ReactNode
     onClick?: (e: React.MouseEvent) => void
+    prefetch?: boolean
   }) => (
-    <a href={href} onClick={onClick}>
+    <a href={href} onClick={onClick} data-prefetch={String(prefetch)}>
       {children}
     </a>
   ),
@@ -59,6 +61,11 @@ describe('AttemptsTable', () => {
   it('renders empty state when no rows', () => {
     render(<AttemptsTable rows={[]} totalCount={0} pageSize={25} />)
     expect(screen.getByText('No attempts yet')).toBeInTheDocument()
+  })
+
+  it('does not prefetch the report link', () => {
+    render(<AttemptsTable rows={[baseRow]} totalCount={0} pageSize={25} />)
+    expect(screen.getByRole('link', { name: 'Alice' })).toHaveAttribute('data-prefetch', 'false')
   })
 
   it('renders student name as a link to the report page with sessionId', () => {

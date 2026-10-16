@@ -11,12 +11,14 @@ vi.mock('next/link', () => ({
     href,
     children,
     onClick,
+    prefetch,
   }: {
     href: string
     children: React.ReactNode
     onClick?: (e: React.MouseEvent) => void
+    prefetch?: boolean
   }) => (
-    <a href={href} onClick={onClick}>
+    <a href={href} onClick={onClick} data-prefetch={String(prefetch)}>
       {children}
     </a>
   ),
@@ -49,6 +51,11 @@ describe('MyReportsTab', () => {
     render(<MyReportsTab rows={[baseRow]} />)
     const link = screen.getByRole('link', { name: 'Air Law' })
     expect(link.getAttribute('href')).toBe('/app/internal-exam/report?session=sess-1')
+  })
+
+  it('does not prefetch the report link', () => {
+    render(<MyReportsTab rows={[baseRow]} />)
+    expect(screen.getByRole('link', { name: 'Air Law' })).toHaveAttribute('data-prefetch', 'false')
   })
 
   it('falls back to the subject short code when there is no full name', () => {

@@ -1,10 +1,9 @@
 import { redirect } from 'next/navigation'
+import { redirectOnPageOverflow, UUID_RE } from '@/app/app/quiz/report/_utils/report-view-logic'
 import { getQuizReportSummary, PAGE_SIZE, type QuizReportQuestion } from '@/lib/queries/quiz-report'
 import { getQuizReportQuestions } from '@/lib/queries/quiz-report-questions'
 import type { QuizReportSummary } from '@/lib/queries/quiz-report-types'
 import { parsePageParam } from '@/lib/utils/parse-page-param'
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export type InternalExamReportData = {
   summary: QuizReportSummary
@@ -32,10 +31,13 @@ export async function loadInternalExamReport(opts: {
 
   if (!questionsResult.ok) redirect('/app/internal-exam?tab=reports')
 
-  const totalPages = Math.max(1, Math.ceil(questionsResult.totalCount / PAGE_SIZE))
-  if (page > totalPages) {
-    redirect(`/app/internal-exam/report?session=${sessionId}&page=${totalPages}`)
-  }
+  redirectOnPageOverflow(
+    '/app/internal-exam/report',
+    sessionId,
+    page,
+    questionsResult.totalCount,
+    PAGE_SIZE,
+  )
 
   return {
     summary,
