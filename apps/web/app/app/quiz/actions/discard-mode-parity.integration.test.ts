@@ -27,6 +27,7 @@ const allowedModes = modes.filter((m) => discardBlockedError(m) === null)
 
 let orgId: string
 let studentId: string
+let client: Awaited<ReturnType<typeof getAuthenticatedClient>>
 
 async function seedActiveSession(mode: string): Promise<string> {
   const { data, error } = await admin
@@ -62,6 +63,7 @@ describe('student direct soft-delete of an active session (mode parity)', () => 
       slug: `int-discard-parity-${suffix}`,
     })
     studentId = await createTestUser({ admin, orgId, email, password, role: 'student' })
+    client = await getAuthenticatedClient({ email, password })
   })
 
   afterAll(async () => {
@@ -92,7 +94,6 @@ describe('student direct soft-delete of an active session (mode parity)', () => 
       // Non-vacuity: the protected row exists and is active before the student acts.
       expect(await readDeletedAt(sessionId)).toBeNull()
 
-      const client = await getAuthenticatedClient({ email, password })
       const { data, error } = await client
         .from('quiz_sessions')
         .update({ deleted_at: new Date().toISOString() })
