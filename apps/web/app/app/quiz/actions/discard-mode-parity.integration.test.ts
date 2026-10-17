@@ -84,6 +84,7 @@ describe('student direct soft-delete of an active session (mode parity)', () => 
   it('covers both a refused and a permitted mode', () => {
     expect(blockedModes.length).toBeGreaterThan(0)
     expect(allowedModes.length).toBeGreaterThan(0)
+    expect([...blockedModes].sort()).toEqual(['internal_exam', 'vfr_rt_exam'])
   })
 
   it.each(modes)(
