@@ -126,7 +126,13 @@ async function finishAndSubmit(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Finish VFR RT Mock Exam' }).click()
   await page.getByRole('button', { name: 'Submit VFR RT Mock Exam' }).click()
   const anyway = page.getByRole('button', { name: 'Submit anyway' })
-  if (await anyway.isVisible({ timeout: 2_000 }).catch(() => false)) await anyway.click()
+  if (
+    await anyway.waitFor({ state: 'visible', timeout: 2_000 }).then(
+      () => true,
+      () => false,
+    )
+  )
+    await anyway.click()
   await page.waitForURL(/\/app\/vfr-rt\/report\?session=/, { timeout: 30_000 })
 }
 
