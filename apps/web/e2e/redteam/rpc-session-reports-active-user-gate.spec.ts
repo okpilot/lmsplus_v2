@@ -2,8 +2,8 @@
  * Red Team: get_session_reports — active-user gate and output contract after DROP + CREATE.
  *
  * Vector IH (HIGH): mig 20261017000500 re-creates get_session_reports via DROP + CREATE to add
- * subject_code. A DROP + CREATE resets the ACL and replaces the whole body, so the active-user
- * gate (mig 20260623000100, #883) and the student_id scoping must survive the rewrite.
+ * subject_code. A DROP + CREATE replaces the whole body; this spec pins the active-user gate
+ * (mig 20260623000100, #883). Anon denial is CL1, cross-user scoping is CL3.
  *
  * Control arm: while active, the owner reads their seeded sessions with the documented
  * subject_code values (2 distinct subjects + the NULL LEFT JOIN path). After a service-role
