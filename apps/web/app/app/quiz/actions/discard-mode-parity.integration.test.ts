@@ -43,6 +43,7 @@ async function seedActiveSession(mode: string): Promise<string> {
     .select('id')
     .single()
   if (error) throw new Error(`seedActiveSession(${mode}): ${error.message}`)
+  expect(data).not.toBeNull()
   return (data as { id: string }).id
 }
 
@@ -53,6 +54,7 @@ async function readDeletedAt(sessionId: string): Promise<string | null> {
     .eq('id', sessionId)
     .single()
   if (error) throw new Error(`readDeletedAt(${sessionId}): ${error.message}`)
+  expect(data).not.toBeNull()
   return (data as { deleted_at: string | null }).deleted_at
 }
 
