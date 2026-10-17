@@ -50,14 +50,20 @@ describe('getCallerProfile', () => {
     await getCallerProfile('user-1')
 
     expect(mockFrom).toHaveBeenCalledWith('users')
-    expect(chain.select).toHaveBeenCalledWith('full_name, email, role, organization_id')
+    expect(chain.select).toHaveBeenCalledWith('full_name, email, role, organization_id, created_at')
     expect(chain.eq).toHaveBeenCalledWith('id', 'user-1')
     expect(chain.is).toHaveBeenCalledWith('deleted_at', null)
     expect(chain.maybeSingle).toHaveBeenCalledTimes(1)
   })
 
   it('returns the profile row when the read succeeds', async () => {
-    const row = { full_name: 'Ada', email: 'ada@example.com', role: 'admin', organization_id: 'o1' }
+    const row = {
+      full_name: 'Ada',
+      email: 'ada@example.com',
+      role: 'admin',
+      organization_id: 'o1',
+      created_at: '2026-01-01T00:00:00Z',
+    }
     mockFrom.mockReturnValue(buildChain({ data: row, error: null }))
 
     expect(await getCallerProfile('user-1')).toEqual({ data: row, error: null })

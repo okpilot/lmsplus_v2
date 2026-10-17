@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetSessionUser, mockFrom, mockRpc } = vi.hoisted(() => ({
+const { mockGetSessionUser, mockGetCallerProfile, mockFrom, mockRpc } = vi.hoisted(() => ({
+  mockGetCallerProfile: vi.fn(),
   mockGetSessionUser: vi.fn(),
   mockFrom: vi.fn(),
   mockRpc: vi.fn(),
@@ -10,6 +11,10 @@ const { mockGetSessionUser, mockFrom, mockRpc } = vi.hoisted(() => ({
 
 vi.mock('@/lib/auth/get-session-user', () => ({
   getSessionUser: () => mockGetSessionUser(),
+}))
+
+vi.mock('@/lib/auth/get-caller-profile', () => ({
+  getCallerProfile: (...args: unknown[]) => mockGetCallerProfile(...args),
 }))
 
 vi.mock('@repo/db/server', () => ({
@@ -63,7 +68,8 @@ type FromSetup = {
 
 /**
  * Sets up the mocked Supabase client.
- * `from` responds per table name (users -> profile, organizations, student_responses);
+ * The profile row comes from the mocked getCallerProfile; `from` responds per table name
+ * (organizations, student_responses);
  * profile stats come from the mocked `get_student_profile_stats` RPC (mockRpc).
  */
 function setupMocks({
@@ -80,10 +86,11 @@ function setupMocks({
   answeredCount = 42,
   answeredCountError = null,
 }: FromSetup = {}) {
+  mockGetCallerProfile.mockResolvedValue({
+    data: profileError ? null : profileData,
+    error: profileError,
+  })
   mockFrom.mockImplementation((table: string) => {
-    if (table === 'users') {
-      return buildChain({ data: profileError ? null : profileData, error: profileError })
-    }
     if (table === 'organizations') {
       return buildChain({ data: orgError ? null : orgData, error: orgError })
     }
@@ -125,6 +132,16 @@ describe('getProfileData', () => {
       expect(result.email).toBe('alice@example.com')
       expect(result.organizationName).toBe('Sky Academy')
       expect(result.memberSince).toBe('2026-01-01T00:00:00Z')
+    })
+
+    it('reads the caller users row through the shared per-render profile read only', async () => {
+      mockAuthenticatedUser()
+      setupMocks()
+
+      await getProfileData()
+
+      expect(mockGetCallerProfile).toHaveBeenCalledWith(USER_ID)
+      expect(mockFrom).not.toHaveBeenCalledWith('users')
     })
 
     it('returns the rounded average score reported by the stats RPC', async () => {

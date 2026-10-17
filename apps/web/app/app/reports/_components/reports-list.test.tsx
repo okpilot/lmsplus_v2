@@ -49,6 +49,7 @@ function makeSession(overrides: Partial<SessionReport> = {}): SessionReport {
     id: 'sess-1',
     mode: 'quick_quiz',
     subjectName: 'Navigation',
+    subjectCode: null,
     totalQuestions: 10,
     correctCount: 8,
     answeredItems: 9,

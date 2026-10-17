@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
+import { isVfrRtReport } from '@/lib/constants/report-paths'
 import type { QuizReportSummary } from '@/lib/queries/quiz-report-types'
-import { isVfrRtReport } from './report-context'
 
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 

@@ -174,6 +174,7 @@ describe('getSessionReports (app-layer integration)', () => {
     expect(session?.totalQuestions).toBe(3)
     // subjectId was passed to seedCompletedSessions → subject_name join is exercised.
     expect(session?.subjectName).toBe(`Reports Subject ${suffix}`)
+    expect(session?.subjectCode).toBe(`RP_${suffix}`)
     expect(typeof session?.durationMinutes).toBe('number')
     expect(session?.durationMinutes).toBeGreaterThanOrEqual(0)
   })
@@ -194,6 +195,17 @@ describe('getSessionReports (app-layer integration)', () => {
     if (!Array.isArray(data)) throw new Error('expected an array')
     expect(data).toHaveLength(3)
     expect(data.every((row) => row.subject_code === null)).toBe(true)
+  })
+
+  it('maps a null subject code for sessions without a subject', async () => {
+    await signInAs(emailB, password)
+
+    const r = await getSessionReports({ page: 1, sort: 'date', dir: 'desc' })
+
+    expect(r.ok).toBe(true)
+    if (!r.ok) throw new Error(r.error)
+    expect(r.sessions).toHaveLength(3)
+    expect(r.sessions.every((s) => s.subjectCode === null)).toBe(true)
   })
 
   it('returns answeredItems reflecting real answer rows under RLS (not silently 0)', async () => {
