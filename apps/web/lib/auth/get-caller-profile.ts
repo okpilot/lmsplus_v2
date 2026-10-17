@@ -9,8 +9,8 @@ export type CallerProfile = {
   created_at: string
 }
 
-// Shared by the /app layout, requireAdmin and getProfile: one `GET /rest/v1/users` per render for all three, where
-// requireAdmin's own cache() wrap saves no round trips.
+// Shared by the /app layout, requireAdmin and getProfile: one `GET /rest/v1/users` per render for
+// all three, where requireAdmin's own cache() wrap saves no round trips.
 // Keyed by userId; RLS `users_select` (id = auth.uid() AND deleted_at IS NULL) limits it to the
 // caller's own row. `.is('deleted_at', null)` is defence in depth: requireAdmin's callers (e.g.
 // softDeleteQuestion) write through the service-role client, so RLS is no second check on their

@@ -27,6 +27,9 @@ const EXAM_REPORT_PATHS: ReadonlyMap<string, string> = new Map<QuizMode, string>
  * Report URL of a finished session, whatever its mode. `subjectCode` is `easa_subjects.code`;
  * it routes VFR RT practice sessions (mode 'quick_quiz') straight to the RT report.
  */
+export const QUIZ_REPORT_PATH = '/app/quiz/report'
+export const VFR_RT_REPORT_PATH = '/app/vfr-rt/report'
+
 export function reportUrl(
   mode: string | undefined,
   sessionId: string,
@@ -34,7 +37,7 @@ export function reportUrl(
 ): string {
   const path =
     mode && isVfrRtReport(mode, subjectCode ?? null)
-      ? '/app/vfr-rt/report'
-      : ((mode && EXAM_REPORT_PATHS.get(mode)) ?? '/app/quiz/report')
+      ? VFR_RT_REPORT_PATH
+      : ((mode && EXAM_REPORT_PATHS.get(mode)) ?? QUIZ_REPORT_PATH)
   return `${path}?session=${sessionId}`
 }
