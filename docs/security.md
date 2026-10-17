@@ -113,6 +113,7 @@ This stops the request reaching any `/app/admin` route. Note the guarantee for *
 - The clause is PER COMMAND, and demanding both on every policy is wrong: `FOR SELECT` and `FOR DELETE` take `USING` only (neither produces a new row, so neither can carry a `WITH CHECK` at all); `FOR INSERT` takes `WITH CHECK` only (it cannot carry a `USING`, so the permitted rows must be spelled out in an explicit `WITH CHECK` predicate); `FOR ALL` and `FOR UPDATE` take both. A missing clause the command cannot carry is correct, not a gap.
 - `WITH CHECK` is required only when the write predicate must DIFFER from `USING`, and only on the two commands that accept both. On a `FOR ALL` or `FOR UPDATE` policy, omitting it is safe: PostgreSQL reuses `USING` as the write check (verified — `pg_policies.with_check` reads NULL, yet a row violating `USING` is still rejected). This inheritance does NOT extend to `FOR INSERT`, which has no `USING` to inherit from. What actually lets a student write another org's rows is a policy whose `USING`/`WITH CHECK` predicate is too broad — not a missing clause. Two consequences worth stating, because "safe" is easy to over-read: (a) safe means *security*-safe, not behaviour-neutral — the reused predicate also TIGHTENS writes, which is why `students_update_sessions` (mig `20260313000023`) spells out a deliberately BROADER `WITH CHECK (student_id = auth.uid())`: its `USING (… AND ended_at IS NULL)` would otherwise reject the completing write. That particular path is now privilege-gated as well — mig `20260605000001` removed `ended_at` from `authenticated`'s UPDATE grant, and mig `20261003000400` added `deleted_at IS NULL` to that `USING`, so the broader `WITH CHECK` is now what permits the student's own soft-delete (`deleted_at` write) on a live session. (It is a hole-punch, not a guard: it PERMITS a write the reused `USING` would reject. The guard is the column grant, which acts in the opposite direction.) Never delete a broader `WITH CHECK` as redundant. And (b) a reused `USING` constrains only the columns it names: on a hypothetical `FOR ALL USING (student_id = auth.uid())` session policy with no `WITH CHECK`, the owner could still write `score_percentage`, `mode` or `config`. That is a too-broad *predicate* and IS a finding — distinct from a merely absent clause, which is not. (On the real `quiz_sessions` those columns are separately defended by the mig `20260605000001` column grant and `trg_quiz_sessions_immutable_columns`.)
 - A command with no permitting policy is denied by default. Omitting write policies on a read-only or immutable table is the intended design, not an omission — see "Critical rule: on immutable tables, block all direct writes" below.
+- Policy predicates and `SECURITY INVOKER` function row filters call `(select auth.uid())` / `(select is_admin())`, never bare `auth.uid()` / `is_admin()` (Supabase advisor lint 0003 `auth_rls_initplan`; https://supabase.com/docs/guides/database/postgres/row-level-security#call-functions-with-select). Null-guards (`IF auth.uid() IS NULL THEN RAISE`) stay bare.
 
 ### Required Policy Pattern
 
@@ -133,7 +134,7 @@ ALTER TABLE table_name FORCE ROW LEVEL SECURITY;
 -- — which is the #540 premise, and why §3's multiple-permissive rule exists.
 -- The three: student_responses (20260311000005:24), quiz_session_answers
 -- (20260311000005:9, scoped via `session_id IN (SELECT id FROM quiz_sessions
--- WHERE student_id = auth.uid())`) and flagged_questions (20260323000050:15).
+-- WHERE student_id = (select auth.uid()))`) and flagged_questions (20260323000050:15).
 -- Applying the org-wide policy below to student_responses would let every
 -- member of an organisation read every peer's submitted answers. On the other
 -- two it would not even CREATE — neither carries an organization_id column, so
@@ -145,7 +146,7 @@ CREATE POLICY "tenant_isolation" ON table_name
   FOR SELECT
   USING (
     organization_id = (
-      SELECT organization_id FROM users WHERE id = auth.uid()
+      SELECT organization_id FROM users WHERE id = (select auth.uid())
     )
   );
 
@@ -179,12 +180,12 @@ CREATE POLICY "tenant_isolation" ON table_name
 -- CREATE POLICY "tenant_isolation" ON table_name
 --   USING (
 --     organization_id = (
---       SELECT organization_id FROM users WHERE id = auth.uid()
+--       SELECT organization_id FROM users WHERE id = (select auth.uid())
 --     )
 --   )
 --   WITH CHECK (
 --     organization_id = (
---       SELECT organization_id FROM users WHERE id = auth.uid()
+--       SELECT organization_id FROM users WHERE id = (select auth.uid())
 --     )
 --   );
 ```
@@ -257,14 +258,14 @@ INVOKER reader of it must filter `deleted_at` explicitly rather than relying on 
 --   A direct UPDATE users SET role='admin' returns 42501 before the trigger or RLS fires.
 CREATE POLICY "users_select" ON users
   FOR SELECT
-  USING (id = auth.uid() AND deleted_at IS NULL);
+  USING (id = (select auth.uid()) AND deleted_at IS NULL);
 
 -- Instructors: read all student data within their org (no write)
 CREATE POLICY "instructors_read_students" ON student_responses
   FOR SELECT
   USING (
-    organization_id = (SELECT organization_id FROM users WHERE id = auth.uid())
-    AND (SELECT role FROM users WHERE id = auth.uid()) IN ('instructor', 'admin')
+    organization_id = (SELECT organization_id FROM users WHERE id = (select auth.uid()))
+    AND (SELECT role FROM users WHERE id = (select auth.uid())) IN ('instructor', 'admin')
   );
 
 -- Immutable responses: SELECT only. There is no INSERT policy — the original
@@ -273,7 +274,7 @@ CREATE POLICY "instructors_read_students" ON student_responses
 -- (which bypass RLS).
 CREATE POLICY "students_read_responses" ON student_responses
   FOR SELECT
-  USING (student_id = auth.uid());
+  USING (student_id = (select auth.uid()));
 
 -- ⚠️ These two are PERMISSIVE policies with a false qualifier. They do NOT "block"
 -- anything: a permissive policy can only ADD access, never remove it, and permissive
@@ -302,7 +303,7 @@ Immutable tables (`student_responses`, `quiz_session_answers`, `audit_events`) m
 -- ✅ CORRECT — SELECT only; INSERT blocked
 CREATE POLICY "students_read_answers" ON quiz_session_answers
   FOR SELECT
-  USING (session_id IN (SELECT id FROM quiz_sessions WHERE student_id = auth.uid()));
+  USING (session_id IN (SELECT id FROM quiz_sessions WHERE student_id = (select auth.uid())));
 
 -- INSERT is denied by having NO INSERT policy at all — that is the whole mechanism.
 -- (There is no `no_insert_answers` policy in the schema, and there does not need to be.)
@@ -319,7 +320,7 @@ CREATE POLICY "no_delete_answers" ON quiz_session_answers
 -- ❌ WRONG — This allows INSERT, which lets students forge is_correct values
 CREATE POLICY "students_insert_answers" ON quiz_session_answers
   FOR INSERT
-  WITH CHECK (session_id IN (SELECT id FROM quiz_sessions WHERE student_id = auth.uid()));
+  WITH CHECK (session_id IN (SELECT id FROM quiz_sessions WHERE student_id = (select auth.uid())));
   -- ^ Removed in migration 006: students must not insert directly
 
 -- ❌ WRONG — a permissive policy with no FOR clause is FOR ALL (SELECT, INSERT, UPDATE, DELETE).
@@ -328,7 +329,7 @@ CREATE POLICY "students_insert_answers" ON quiz_session_answers
 -- This is the same mechanism that let an unqualified tenant_isolation defeat the is_admin()
 -- write gate on `questions` (migration 20260809000100).
 CREATE POLICY "students_own_answers" ON quiz_session_answers
-  USING (session_id IN (SELECT id FROM quiz_sessions WHERE student_id = auth.uid()));
+  USING (session_id IN (SELECT id FROM quiz_sessions WHERE student_id = (select auth.uid())));
   -- ^ This applies to ALL operations, making INSERT/UPDATE/DELETE possible!
 ```
 
@@ -368,9 +369,9 @@ This runs a suite of adversarial tests that exploit cross-tenant access, RLS byp
 
 ### Multiple Permissive SELECT Policies — RPCs Must Scope Explicitly
 
-PostgreSQL combines multiple **permissive** RLS policies with **OR**. When a table carries more than one permissive `SELECT` policy — typically a narrow per-user policy plus a broader role policy — RLS alone does **not** restrict a read to the calling user. A `SECURITY INVOKER` or `SECURITY DEFINER` function meant to return the **caller's own** rows from such a table MUST add an explicit predicate: `WHERE <owner_col> = auth.uid()`, or `WHERE <owner_col> = p_student_id` PAIRED WITH an `auth.uid() = p_student_id` identity guard. The identity guard on its own only validates the parameter — a query keyed on a session id or record id still reads whatever RLS allows, which is the whole defect. The explicit filter is load-bearing, not redundant.
+PostgreSQL combines multiple **permissive** RLS policies with **OR**. When a table carries more than one permissive `SELECT` policy — typically a narrow per-user policy plus a broader role policy — RLS alone does **not** restrict a read to the calling user. A `SECURITY INVOKER` or `SECURITY DEFINER` function meant to return the **caller's own** rows from such a table MUST add an explicit predicate: `WHERE <owner_col> = (select auth.uid())`, or `WHERE <owner_col> = p_student_id` PAIRED WITH an `auth.uid() = p_student_id` identity guard. The identity guard on its own only validates the parameter — a query keyed on a session id or record id still reads whatever RLS allows, which is the whole defect. The explicit filter is load-bearing, not redundant.
 
-**Why:** `student_responses` has both `students_read_responses` (`student_id = auth.uid()`) and `instructors_read_students` (org + role in instructor/admin). `get_student_mastery_stats` (SECURITY INVOKER) aggregated it relying on RLS, so an instructor/admin caller received **every** student's counts instead of their own (#540 / red-team BW3). Fix: explicit `WHERE sr.student_id = auth.uid()` in the numerator CTE.
+**Why:** `student_responses` has both `students_read_responses` (`student_id = auth.uid()`) and `instructors_read_students` (org + role in instructor/admin). `get_student_mastery_stats` (SECURITY INVOKER) aggregated it relying on RLS, so an instructor/admin caller received **every** student's counts instead of their own (#540 / red-team BW3). Fix: explicit `WHERE sr.student_id = (select auth.uid())` in the numerator CTE.
 
 **Tables with multiple permissive SELECT policies** (audit when adding an RPC that reads one) — as of 2026-05-26: `student_responses`, `quiz_sessions`, `exam_configs`, `audit_events`. This set GROWS with any migration adding a second permissive SELECT policy, so re-derive it rather than trusting this line:
 
@@ -696,8 +697,8 @@ CREATE POLICY "audit_no_direct_insert" ON audit_events
   FOR INSERT WITH CHECK (false);
 CREATE POLICY "audit_read_instructors" ON audit_events
   FOR SELECT USING (
-    organization_id = (SELECT organization_id FROM users WHERE id = auth.uid())
-    AND (SELECT role FROM users WHERE id = auth.uid()) IN ('instructor', 'admin')
+    organization_id = (SELECT organization_id FROM users WHERE id = (select auth.uid()))
+    AND (SELECT role FROM users WHERE id = (select auth.uid())) IN ('instructor', 'admin')
   );
 ```
 
@@ -842,7 +843,7 @@ SECURITY DEFINER functions accrue defensive guards over time, one migration at a
 | Mode / whitelist | `IF v_mode NOT IN (...) THEN RAISE` (fail-closed `NOT IN`) |
 | Soft-delete filter | `AND deleted_at IS NULL` on every SELECT of a soft-deletable table (docs/security.md §15; narrow immutable-column exception) |
 | **Active-user / soft-deleted-caller gate** | `PERFORM 1 FROM users WHERE id = <uid> AND deleted_at IS NULL; IF NOT FOUND THEN RAISE 'user not found or inactive'` — or fold `AND deleted_at IS NULL` into a `SELECT … INTO` on `users` with a `NOT FOUND` guard. Progressively added by the mig-076 family (076/078/085/087/088/095b/095c/099/100/103/104/105/106 — an as-of list, not a census; the set is OPEN and later migrations keep joining it, e.g. `20260824000200`/`20260824000300`, so re-derive per the sweep paragraph below rather than reading this as complete). It closes the "deactivated account with a still-valid JWT" window. Note the token spelling splits by RPC family and BOTH are correct. Each family is an OPEN set — over twenty migrations apiece and still growing — so DERIVE membership rather than reading any list as complete: `grep -rln "RAISE EXCEPTION 'user not found or inactive'" supabase/migrations/` for the space-separated form, and the same grep with `'user_not_found_or_inactive'` for the underscore form. As of 2026-09-01 the space-separated form covers the exam-session / report / batch-submit family plus the internal-exam student reads and the analytics readers (`20260824000200` / `20260824000300`); the underscore form covers the VFR-RT / quiz-question-serving family. Match the family you are editing. |
-| Ownership / identity scope | `WHERE <owner_col> = auth.uid()`, or `WHERE <owner_col> = p_student_id` PAIRED WITH an `auth.uid() = p_student_id` guard — the guard alone validates only the parameter (".claude/rules/security.md" rule 11 "Multiple Permissive RLS SELECT Policies"; docs/security.md §3 Row Level Security) |
+| Ownership / identity scope | `WHERE <owner_col> = (select auth.uid())`, or `WHERE <owner_col> = p_student_id` PAIRED WITH an `auth.uid() = p_student_id` guard — the guard alone validates only the parameter (".claude/rules/security.md" rule 11 "Multiple Permissive RLS SELECT Policies"; docs/security.md §3 Row Level Security) |
 | Org / config-membership | `q.organization_id = v_caller_org_id`, config-membership checks |
 | Audit-subquery soft-delete | `deleted_at IS NULL` on FK lookups inside `INSERT INTO audit_events` (".claude/rules/security.md" rule 10 "Audit-event INSERT subqueries") |
 | `SET search_path = public` | on the function declaration |

@@ -59,7 +59,7 @@ You receive:
      (PostgreSQL reuses `USING`). Do not emit a finding for a clause the command cannot carry,
      nor for an absent one on those two. DO still judge the PREDICATE: a reused `USING`
      constrains only the columns it names, so a hypothetical `FOR ALL USING (student_id =
-     auth.uid())` session policy with no `WITH CHECK` would permit writing any other column
+     (select auth.uid()))` session policy with no `WITH CHECK` would permit writing any other column
      (`score_percentage`, `mode`, `config`) — flag that as a too-broad write predicate, not as a
      missing clause. (Illustrative: the real `quiz_sessions` is separately defended by the mig
      `20260605000001` column grant and `trg_quiz_sessions_immutable_columns`)
@@ -122,7 +122,7 @@ You receive:
 17. **Audit-event INSERT subquery missing soft-delete filter** (docs/security.md §11c "Audit-subquery soft-delete" row; canonical text `.claude/rules/security.md` rule 10)
     - An `INSERT INTO audit_events (...)` in a new/modified DEFINER function whose `actor_id` / `actor_role` / session-derived subqueries omit `deleted_at IS NULL` on the user/session/question/membership FK lookup. The outer auth guard does not cover these independent subqueries.
 18. **Per-caller RPC over-scoped by multiple-permissive RLS** (docs/security.md §3 "Multiple Permissive SELECT Policies")
-    - A new/modified per-caller (non-admin) **SECURITY INVOKER or SECURITY DEFINER** function SELECTs from a table with multiple permissive SELECT policies, without owner scoping (`WHERE <owner> = auth.uid()`, or `WHERE <owner> = p_student_id` PAIRED WITH an `auth.uid() = p_student_id` identity guard — the identity guard alone validates the parameter and does not scope the read). RLS alone over-scopes to the broader instructor/admin policy (this bites SECURITY INVOKER too — the promoting bug `get_student_mastery_stats` was INVOKER).
+    - A new/modified per-caller (non-admin) **SECURITY INVOKER or SECURITY DEFINER** function SELECTs from a table with multiple permissive SELECT policies, without owner scoping (`WHERE <owner> = (select auth.uid())`, or `WHERE <owner> = p_student_id` PAIRED WITH an `auth.uid() = p_student_id` identity guard — the identity guard alone validates the parameter and does not scope the read). RLS alone over-scopes to the broader instructor/admin policy (this bites SECURITY INVOKER too — the promoting bug `get_student_mastery_stats` was INVOKER).
     - Derive the affected tables, never from a list: `SELECT tablename FROM pg_policies WHERE schemaname='public' AND cmd IN ('SELECT','ALL') AND permissive='PERMISSIVE' GROUP BY tablename HAVING count(*) > 1`. `ALL` is the unqualified `CREATE POLICY` form and permits SELECT, so a `cmd='SELECT'`-only check fails open. `docs/security.md` §3 states the rule; the DB is the authority for its members.
     - Exception: ownership already established by an earlier check that both identifies the owner row AND scopes the later reads (subsequent SELECTs need not repeat the predicate); admin/org-wide RPCs behind `is_admin()`.
 19. **New start-session RPC missing the single-active-session guard** (docs/security.md §11d "Single-Active-Session Invariant")
@@ -140,6 +140,9 @@ You receive:
 23. Missing `'use server'` directive on Server Actions
 24. Missing `'use client'` / `'use server'` boundary violations
 25. Dependencies added without a comment explaining why they're trusted
+26. **Bare `auth.uid()` / `is_admin()` in a policy or row filter** (docs/security.md §3; Supabase lint 0003 `auth_rls_initplan`)
+    - A `CREATE POLICY` / `ALTER POLICY` predicate, or a `SECURITY INVOKER` function WHERE/JOIN filter over an RLS table, calls bare `auth.uid()` or `is_admin()` instead of `(select auth.uid())` / `(select is_admin())`.
+    - Exempt: `IF auth.uid() IS NULL THEN RAISE` null-guards and `SECURITY DEFINER` bodies (check 8 unchanged).
 
 ### Pre-Flag Verification: Supersession Chain (checks 16–20)
 
@@ -159,7 +162,7 @@ MEDIUM: [count]
 
 [CRITICAL] supabase/migrations/<timestamp>_<description>.sql — line <N>
 RLS enabled but WITH CHECK clause missing on INSERT policy for '<table>' table.
-Fix: Add WITH CHECK (organization_id = (SELECT organization_id FROM users WHERE id = auth.uid()))
+Fix: Add WITH CHECK (organization_id = (SELECT organization_id FROM users WHERE id = (select auth.uid())))
 
 [HIGH] apps/web/app/quiz/session/actions.ts — line 34
 Server Action 'submitAnswer' accepts raw FormData without Zod validation.

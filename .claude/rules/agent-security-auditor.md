@@ -32,6 +32,7 @@ Final defense before code reaches the remote. Scans the push diff for security v
 - Service role key: must only exist in `packages/db/src/admin.ts`, never `NEXT_PUBLIC_`
 - Answer exposure: `SELECT *` from questions, missing `get_quiz_questions()` RPC usage
 - RLS: a command the table is intended to permit with no policy covering it, a policy whose predicate is too broad, disabled RLS on new tables, `ENABLE ROW LEVEL SECURITY` without `FORCE ROW LEVEL SECURITY` — never a clause the command cannot carry, never a merely absent `WITH CHECK` on `FOR ALL`/`FOR UPDATE` (PostgreSQL reuses `USING`). DO flag the predicate itself when the write needs a DIFFERENT one from the read: a reused `USING` constrains only the columns it names. Absent clause: never a finding. Too-broad predicate: always one. (See `docs/security.md` §3.)
+- Bare `auth.uid()` / `is_admin()` in a policy predicate or `SECURITY INVOKER` row filter instead of `(select …)` (MEDIUM; `docs/security.md` §3)
 - Hard DELETEs: any `DELETE FROM` without `WHERE deleted_at`
 - Immutable table violations: UPDATE/DELETE on `audit_events`, `student_responses`, `quiz_session_answers`
 - SECURITY DEFINER RPCs: missing `auth.uid()` check, missing `SET search_path = public`

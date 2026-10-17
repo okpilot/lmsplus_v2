@@ -33,14 +33,14 @@ See `docs/security.md` §3.
 -- student_id = auth.uid() already scopes to a single user.
 CREATE POLICY "students_read_responses"
   ON student_responses FOR SELECT
-  USING (student_id = auth.uid());
+  USING (student_id = (select auth.uid()));
 
 -- ❌ WRONG: never grant students a direct INSERT here. Exactly this policy
 -- shipped in mig 20260311000005 and was dropped for security in
 -- 20260311000006_restrict_immutable_inserts.sql.
 -- CREATE POLICY "students_insert_responses"
 --   ON student_responses FOR INSERT
---   WITH CHECK (student_id = auth.uid());
+--   WITH CHECK (student_id = (select auth.uid()));
 ```
 
 ## Soft delete filter — the default, not an absolute
@@ -109,6 +109,6 @@ query rather than from any list.
 For a genuinely org-scoped table:
 ```sql
 USING (organization_id = (
-  SELECT organization_id FROM users WHERE id = auth.uid()
+  SELECT organization_id FROM users WHERE id = (select auth.uid())
 ))
 ```

@@ -124,8 +124,8 @@ CREATE TABLE users (
 `login_instructions_sent_at` — last time an admin sent this user their login details; NULL = never sent. `temp_password_expires_at` — expiry of the temporary password; NULL = none recorded; `<= now()` = expired. Writers: the SECURITY DEFINER RPC `record_login_instructions_sent(p_user_id)` (see RPC section below) stamps both on a send; `clearTempPassword()` sets `temp_password_expires_at` to NULL, called only after a successful self `auth.updateUser` password change (set-password, Settings, forgot-password completion); the admin Server Action `sendLoginInstructions` (`apps/web/app/app/admin/students/actions/send-login-instructions.ts`) generates a CSPRNG password (`apps/web/lib/auth/generate-temp-password.ts`) and calls `issueTempPassword()` (`apps/web/app/app/admin/students/actions/issue-temp-password.ts`), which calls `armTempPassword()` (7 days out) before and again after writing the new Auth password; on an Auth-write failure `restoreTempPasswordExpiry()` writes back the value read before the first arm, compare-and-set on that arm's value — both writers in `apps/web/lib/auth/temp-password-admin.ts` (service role). `apps/web/app/app/admin/students/actions/create-student.ts` creates the Auth user with no password and does not set `temp_password_expires_at` — the column stays NULL until the first send. Readers: every caller of `readTempPassword` or its wrapper `readTempPasswordState` (both `apps/web/lib/auth/temp-password.ts`; the self-service writers read through `refuseIfTempPasswordExpired`) — `git grep -nE 'readTempPassword(State)?\(|refuseIfTempPasswordExpired\(' -- apps/web ':!*.test.*'`.
 
 **RLS policies (migration `20260311000004`, fixed in `20260312000012`; UPDATE added `20260326000056`):**
-- SELECT: self-only — `id = auth.uid() AND deleted_at IS NULL` (`users_select` policy). A caller reads only their own row; org-wide member listing goes through admin-gated RPCs, not a direct SELECT.
-- UPDATE: `id = auth.uid() AND deleted_at IS NULL` — students can edit their own profile. Protected by `trg_protect_users_sensitive_columns` trigger (migration 041) which blocks `role`, `organization_id`, and `deleted_at` changes for non-service-role connections.
+- SELECT: self-only — `id = (select auth.uid()) AND deleted_at IS NULL` (`users_select` policy). A caller reads only their own row; org-wide member listing goes through admin-gated RPCs, not a direct SELECT.
+- UPDATE: `id = (select auth.uid()) AND deleted_at IS NULL` — students can edit their own profile. Protected by `trg_protect_users_sensitive_columns` trigger (migration 041) which blocks `role`, `organization_id`, and `deleted_at` changes for non-service-role connections.
 - No DELETE policy — soft-delete only via service role
 
 **Column UPDATE GRANT (mig 090, #773):** Defense-in-depth at the Postgres privilege layer on top of the RLS + trigger defenses. `authenticated` holds `UPDATE (full_name)` only — every other column is denied because `authenticated` has no UPDATE grant on it (`REVOKE UPDATE ON users FROM authenticated` + `GRANT UPDATE (full_name) ON users TO authenticated`). Columns added after mig 090, including the two login-instructions columns (migration `20260925000100`), carry no UPDATE grant either — nothing re-grants them. A direct `UPDATE users SET role='admin'` now returns `42501` (permission denied for column) before the trigger or RLS even fires. Mirrors the `quiz_sessions` column-GRANT pattern (mig `20260605000001`).
@@ -373,7 +373,7 @@ CREATE TABLE quiz_sessions (
 
 Cap: 20 saved sessions per student, enforced in `save_quiz_for_later`. Separate from the 20-draft `quiz_drafts` cap (trigger `check_draft_limit`). Since #1026 PR 3 the app writes no new `quiz_drafts` rows; existing ones resume into a new session and are deleted. Since #1463 (mig `20261004000500`) `authenticated` holds no INSERT/UPDATE grant on `quiz_drafts`.
 
-**No student INSERT (migration `20261002000900`, red-team GK/GL, #1026):** policy `students_insert_sessions` is dropped and `INSERT` is revoked from `authenticated`. Rows are created only by the SECURITY DEFINER start RPCs. Student policies left: `students_select_sessions`, `students_update_sessions`. `students_update_sessions` reaches live rows only: `USING (student_id = auth.uid() AND ended_at IS NULL AND deleted_at IS NULL)` (migration `20261003000400`, red-team GP) — a student cannot revive a discarded or saved session. Since mig `20261015000100` its `USING` also requires `mode NOT IN ('internal_exam', 'vfr_rt_exam')` (the `NON_DISCARDABLE_MODES` set in `_discard-guard.ts`; red-team IE) and `EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.deleted_at IS NULL)`.
+**No student INSERT (migration `20261002000900`, red-team GK/GL, #1026):** policy `students_insert_sessions` is dropped and `INSERT` is revoked from `authenticated`. Rows are created only by the SECURITY DEFINER start RPCs. Student policies left: `students_select_sessions`, `students_update_sessions`. `students_update_sessions` reaches live rows only: `USING (student_id = (select auth.uid()) AND ended_at IS NULL AND deleted_at IS NULL)` (migration `20261003000400`, red-team GP) — a student cannot revive a discarded or saved session. Since mig `20261015000100` its `USING` also requires `mode NOT IN ('internal_exam', 'vfr_rt_exam')` (the `NON_DISCARDABLE_MODES` set in `_discard-guard.ts`; red-team IE) and `EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.deleted_at IS NULL)`.
 
 **Single-active-session invariant (mig 136, #1011 — Decision 49):** a global partial unique index enforces **at most one active session per student, across all modes**:
 
@@ -468,7 +468,7 @@ CREATE TABLE quiz_session_progress (
   PRIMARY KEY (session_id, question_id)
 );
 CREATE INDEX idx_quiz_session_progress_student ON quiz_session_progress(student_id);
--- RLS: ENABLE + FORCE. One policy: quiz_session_progress_select_own FOR SELECT TO authenticated USING (student_id = auth.uid()).
+-- RLS: ENABLE + FORCE. One policy: quiz_session_progress_select_own FOR SELECT TO authenticated USING (student_id = (select auth.uid())).
 -- REVOKE ALL FROM PUBLIC, anon, authenticated; GRANT SELECT TO authenticated. No DML grant, no INSERT/UPDATE/DELETE policy.
 -- Writes: save_quiz_answer / save_quiz_position / check_quiz_answer / check_non_mc_answer (via _save_progress_row) only.
 ```
@@ -561,7 +561,7 @@ CREATE TABLE quiz_drafts (
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
--- RLS: SELECT own (student_id = auth.uid()) + DELETE own (also requires the caller's users row live, mig 20261015000100). No INSERT/UPDATE grant for authenticated
+-- RLS: SELECT own (student_id = (select auth.uid())) + DELETE own (also requires the caller's users row live, mig 20261015000100). No INSERT/UPDATE grant for authenticated
 -- since 20261004000500 (#1463); inserts are service-role only.
 ```
 
@@ -584,9 +584,9 @@ CREATE INDEX idx_flagged_questions_student ON flagged_questions (student_id)
 ```
 
 RLS policies:
-- SELECT: `student_id = auth.uid()` (reads use active_flagged_questions view)
-- INSERT: `student_id = auth.uid() AND EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.deleted_at IS NULL)` (active check: mig `20261015000100`)
-- UPDATE: `USING` same predicate, `WITH CHECK (student_id = auth.uid())` (soft-delete via `deleted_at = now()` in app code)
+- SELECT: `student_id = (select auth.uid())` (reads use active_flagged_questions view)
+- INSERT: `student_id = (select auth.uid()) AND EXISTS (SELECT 1 FROM users u WHERE u.id = (select auth.uid()) AND u.deleted_at IS NULL)` (active check: mig `20261015000100`)
+- UPDATE: `USING` same predicate, `WITH CHECK (student_id = (select auth.uid()))` (soft-delete via `deleted_at = now()` in app code)
 
 **Why `deleted_at` is not in RLS:** With `FORCE ROW LEVEL SECURITY`, Postgres checks SELECT visibility of the NEW row after UPDATE. Filtering `deleted_at IS NULL` in the policy would prevent soft-deletes from succeeding. Instead, read queries use the `active_flagged_questions` view (which includes `WHERE deleted_at IS NULL`). Write operations in flag.ts filter explicitly. RLS enforces ownership, and on INSERT/UPDATE an active caller.
 
@@ -627,8 +627,8 @@ Per-question discussion threads. Students and admins can post comments on any qu
 **RLS policies:**
 - SELECT: any authenticated user, non-deleted only
 - INSERT: own user_id only, deleted_at must be NULL, caller's users row live (mig `20261015000100`)
-- DELETE (own): user_id = auth.uid() AND caller's users row live (mig `20261015000100`)
-- DELETE (admin): public.is_admin()
+- DELETE (own): user_id = (select auth.uid()) AND caller's users row live (mig `20261015000100`)
+- DELETE (admin): (select public.is_admin())
 - No UPDATE policy (comments not editable)
 
 **Indexes:** (question_id, created_at) WHERE deleted_at IS NULL
@@ -651,7 +651,7 @@ Immutable append-only GDPR consent audit log. Tracks user acceptance of Terms of
 | created_at | TIMESTAMPTZ | NOT NULL, default now() |
 
 **RLS policies:**
-- SELECT: `user_id = auth.uid()` (users read their own consent records)
+- SELECT: `user_id = (select auth.uid())` (users read their own consent records)
 - INSERT: denied (all writes via `record_consent()` RPC only)
 - UPDATE: denied (append-only)
 - DELETE: denied (append-only)
@@ -692,7 +692,7 @@ Single-use 8-character codes for starting `internal_exam` mode sessions. Admins 
 
 **RLS policies (FORCE RLS, migration `20260429000009`; tightened in `20260521000004`):**
 - SELECT (student): none — direct PostgREST reads return 0 rows; students read via `list_my_active_internal_exam_codes()` RPC (closes #577). The earlier `student_read_active_codes` policy was dropped because it exposed the plaintext `code` column to any caller who knew an `id`.
-- SELECT (admin): `is_admin()` AND org-scoped
+- SELECT (admin): `(select is_admin())` AND org-scoped
 - UPDATE (admin): none — all write paths run only inside SECURITY DEFINER RPCs (`void_internal_exam_code`, `start_internal_exam_session` (student-initiated), `record_internal_exam_code_emailed`). The earlier `admin_update_org_codes` policy was dropped (closes #578) and `REVOKE UPDATE ON internal_exam_codes FROM authenticated` was executed for defense-in-depth.
 - No INSERT or DELETE policies — issuance/consumption/void happen via SECURITY DEFINER RPCs only.
 - GRANTs to `authenticated`: `SELECT` only (UPDATE revoked in mig `20260521000004`).
@@ -764,7 +764,7 @@ table actually having a `deleted_at` column (§3's matrix below): the query over
 that have none, which is the harmless direction. Known members as of 2026-08-20, as illustrations of the shapes rather
 than a closed set: `organizations` (predicate keys on `id`, never carried the conjunct — a
 reader must filter explicitly, as `lib/queries/profile.ts:67-71` does); `flagged_questions` (all
-three policies are `student_id = auth.uid()` alone — filtered in application code and via the
+three policies are `student_id = (select auth.uid())` alone — filtered in application code and via the
 `active_flagged_questions` view instead, see the callout below); `internal_exam_codes`
 (`admin_read_org_codes`, `20260429000002:59-69` — its `deleted_at IS NULL` constrains `users`,
 not the code row, and the policy that did carry the table's own filter was dropped by
@@ -783,7 +783,7 @@ The example below is a policy that DOES carry the filter:
 CREATE POLICY tenant_isolation ON public.question_banks
   FOR SELECT
   USING (
-    organization_id = (SELECT organization_id FROM users WHERE id = auth.uid())
+    organization_id = (SELECT organization_id FROM users WHERE id = (select auth.uid()))
     AND deleted_at IS NULL          -- ← soft delete filter
   );
 ```
@@ -2085,15 +2085,14 @@ Checks `auth.uid()` against `users.role = 'admin'` AND `deleted_at IS NULL` (mig
 Used by RLS policies on `easa_subjects`, `easa_topics`, `easa_subtopics` to gate INSERT/UPDATE/DELETE to active admin users only. Also used on `internal_exam_codes` — but as of migration `20260521000004`, only the admin SELECT policy remains. Admin issue/void RPCs (`issue_internal_exam_code`, `void_internal_exam_code`) re-check `is_admin()` internally; student code consumption via `start_internal_exam_session` is authorized by ownership/code validation, not admin role.
 
 ```sql
-CREATE OR REPLACE FUNCTION is_admin()
+CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS boolean
-LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
 AS $$
-BEGIN
-  RETURN EXISTS (
-    SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin' AND deleted_at IS NULL
+  SELECT EXISTS (
+    SELECT 1 FROM public.users
+    WHERE id = auth.uid() AND role = 'admin' AND deleted_at IS NULL
   );
-END;
 $$;
 ```
 
@@ -2438,7 +2437,7 @@ Returns aggregated question counts grouped by `(subject_id, topic_id, subtopic_i
 
 Returns up to `p_count` random question IDs from the active, org-scoped, subject/topic/subtopic + per-user-filter (UNION) pool. Used by the student quiz builder (`apps/web/app/app/quiz/actions/start.ts` → `lib/queries/quiz-session-queries.ts:getRandomQuestionIds`) to seed `start_quiz_session` with a uniformly sampled question set, regardless of pool size.
 
-**Security:** `SECURITY INVOKER`. The underlying `questions` table has a single permissive SELECT policy (`tenant_isolation`), so RLS alone gives correct org + `deleted_at IS NULL` scoping. The shared internal helper `_filtered_question_pool` additionally self-scopes the per-user filter subqueries with `sr.student_id = auth.uid()` on `student_responses` (LOAD-BEARING per security.md §3 (Multiple Permissive SELECT Policies) — `student_responses` has TWO permissive SELECT policies, `students_read_responses` + `instructors_read_students`, so RLS alone would over-scope to the instructor policy). The `fsrs_cards` and `active_flagged_questions` student_id filters are defense-in-depth (single policy each). No correct-answer columns are exposed — the RPC returns only `id`.
+**Security:** `SECURITY INVOKER`. The underlying `questions` table has a single permissive SELECT policy (`tenant_isolation`), so RLS alone gives correct org + `deleted_at IS NULL` scoping. The shared internal helper `_filtered_question_pool` additionally self-scopes the per-user filter subqueries with `sr.student_id = (select auth.uid())` on `student_responses` (LOAD-BEARING per security.md §3 (Multiple Permissive SELECT Policies) — `student_responses` has TWO permissive SELECT policies, `students_read_responses` + `instructors_read_students`, so RLS alone would over-scope to the instructor policy). The `fsrs_cards` and `active_flagged_questions` student_id filters are defense-in-depth (single policy each). No correct-answer columns are exposed — the RPC returns only `id`.
 
 **Parameters:**
 - `p_subject_id UUID` — required.
@@ -2466,7 +2465,7 @@ Returns up to `p_count` random question IDs from the active, org-scoped, subject
 
 Returns one row per distinct `(topic_id, subtopic_id)` in the same filtered pool as `get_random_question_ids`. Used by the student quiz builder (`apps/web/app/app/quiz/actions/lookup.ts:getFilteredCount`) to populate the count badge and per-topic/subtopic breakdowns alongside the subject filter UI.
 
-**Security:** `SECURITY INVOKER`. Same scoping model as `get_random_question_ids` (shared `_filtered_question_pool` helper): `tenant_isolation` on `questions` + load-bearing `sr.student_id = auth.uid()` on `student_responses` per security.md §3 (Multiple Permissive SELECT Policies). No correct-answer columns selected.
+**Security:** `SECURITY INVOKER`. Same scoping model as `get_random_question_ids` (shared `_filtered_question_pool` helper): `tenant_isolation` on `questions` + load-bearing `sr.student_id = (select auth.uid())` on `student_responses` per security.md §3 (Multiple Permissive SELECT Policies). No correct-answer columns selected.
 
 **Parameters:** identical to `get_random_question_ids` except for the omitted `p_count`. Same NULL-vs-empty-array semantics on `p_topic_ids` / `p_subtopic_ids` / `p_filters`, and the same `p_calc_mode` and `p_has_image` AND-restrictions so the badge count reflects both filters (count == quiz).
 
@@ -2486,7 +2485,7 @@ Returns one row per distinct `(topic_id, subtopic_id)` in the same filtered pool
 
 Returns mastery counts at two granularities in one result set: a subject-level row (`topic_id IS NULL`) and topic-level rows (`topic_id NOT NULL`) per `(subject_id[, topic_id])`. Used by the student dashboard (`lib/queries/dashboard.ts`) and progress page (`lib/queries/progress.ts`) to compute per-subject/topic mastery without paging through the student's full response history.
 
-**Security:** `SECURITY INVOKER` (caller-context). The denominator is org-scoped by `tenant_isolation` on `questions` (org + `deleted_at IS NULL`, any status). `student_responses` has TWO SELECT policies — `students_read_responses` (`student_id = auth.uid()`) and `instructors_read_students` (org + instructor/admin role) — so RLS alone would let an instructor/admin caller aggregate org-wide. The numerator therefore self-scopes with an explicit `sr.student_id = auth.uid()` in `correct_q` (load-bearing, not redundant — matches the legacy client read's `.eq('student_id', userId)`). No `SECURITY DEFINER` auth preamble is needed: an unauthenticated caller resolves `auth.uid()` to NULL and receives an empty set.
+**Security:** `SECURITY INVOKER` (caller-context). The denominator is org-scoped by `tenant_isolation` on `questions` (org + `deleted_at IS NULL`, any status). `student_responses` has TWO SELECT policies — `students_read_responses` (`student_id = (select auth.uid())`) and `instructors_read_students` (org + instructor/admin role) — so RLS alone would let an instructor/admin caller aggregate org-wide. The numerator therefore self-scopes with an explicit `sr.student_id = (select auth.uid())` in `correct_q` (load-bearing, not redundant — matches the legacy client read's `.eq('student_id', userId)`). No `SECURITY DEFINER` auth preamble is needed: an unauthenticated caller resolves `auth.uid()` to NULL and receives an empty set.
 
 **Parameters:** none (caller is always self).
 
@@ -2505,7 +2504,7 @@ Returns mastery counts at two granularities in one result set: a subject-level r
 
 Returns one row with the caller's current and best (all-time) daily-practice streak in days, computed entirely in Postgres via a gaps-and-islands query over the DISTINCT UTC calendar dates on which the student answered any question. Used by the student dashboard (`lib/queries/dashboard.ts` → `getStreakData`).
 
-**Security:** `SECURITY INVOKER`. `student_responses` has TWO permissive SELECT policies (`students_read_responses` = `student_id = auth.uid()`, and `instructors_read_students` = org + instructor/admin role), so RLS alone would let an instructor/admin caller streak over org-wide activity. The query self-scopes with an explicit `sr.student_id = auth.uid()` (load-bearing per security.md §3 (Multiple Permissive SELECT Policies)). Unauthenticated caller → `auth.uid()` NULL → zero dates → returns a single `{0, 0}` row.
+**Security:** `SECURITY INVOKER`. `student_responses` has TWO permissive SELECT policies (`students_read_responses` = `student_id = (select auth.uid())`, and `instructors_read_students` = org + instructor/admin role), so RLS alone would let an instructor/admin caller streak over org-wide activity. The query self-scopes with an explicit `sr.student_id = (select auth.uid())` (load-bearing per security.md §3 (Multiple Permissive SELECT Policies)). Unauthenticated caller → `auth.uid()` NULL → zero dates → returns a single `{0, 0}` row.
 
 **Parameters:** none (caller is always self).
 
@@ -2524,7 +2523,7 @@ Returns one row with the caller's current and best (all-time) daily-practice str
 
 Returns one row per subject the caller has answered, with the most recent response timestamp, over ALL responses (any correctness). Used by the student dashboard (`lib/queries/dashboard.ts` → `fetchLastPracticed` + `mergeLastPracticed`).
 
-**Security:** `SECURITY INVOKER`. The `questions` JOIN is org-scoped + `deleted_at IS NULL` via the `tenant_isolation` policy (reproducing the legacy `questionSubjectMap`, which was built from non-deleted questions). `student_responses` self-scopes with an explicit `sr.student_id = auth.uid()` (load-bearing per security.md §3 (Multiple Permissive SELECT Policies), same two-policy reason as `get_student_streak`). Unauthenticated caller → empty set. No question text, options, or correct-answer data is selected — only `subject_id` and a timestamp.
+**Security:** `SECURITY INVOKER`. The `questions` JOIN is org-scoped + `deleted_at IS NULL` via the `tenant_isolation` policy (reproducing the legacy `questionSubjectMap`, which was built from non-deleted questions). `student_responses` self-scopes with an explicit `sr.student_id = (select auth.uid())` (load-bearing per security.md §3 (Multiple Permissive SELECT Policies), same two-policy reason as `get_student_streak`). Unauthenticated caller → empty set. No question text, options, or correct-answer data is selected — only `subject_id` and a timestamp.
 
 **Parameters:** none (caller is always self).
 
@@ -2539,7 +2538,7 @@ Returns one row per subject the caller has answered, with the most recent respon
 
 #### `get_daily_subjects` — distinct (day, subject) pairs practised by the calling student
 
-**Security:** `SECURITY INVOKER`. Explicit `sr.student_id = auth.uid()` (`docs/security.md` §3 Multiple Permissive SELECT Policies). Active-user gate present (`'user not found or inactive'`, `docs/security.md` §11c). `anon` has no EXECUTE (permission denied); `'not authenticated'` fires only for `authenticated` with a NULL `auth.uid()`. The `questions` JOIN is org + `deleted_at IS NULL` via RLS: a soft-deleted question drops out, so a day's subjects can be fewer than its answers.
+**Security:** `SECURITY INVOKER`. Explicit `sr.student_id = (select auth.uid())` (`docs/security.md` §3 Multiple Permissive SELECT Policies). Active-user gate present (`'user not found or inactive'`, `docs/security.md` §11c). `anon` has no EXECUTE (permission denied); `'not authenticated'` fires only for `authenticated` with a NULL `auth.uid()`. The `questions` JOIN is org + `deleted_at IS NULL` via RLS: a soft-deleted question drops out, so a day's subjects can be fewer than its answers.
 
 **Parameters:** `p_days INT` — 1–365, else `'p_days must be between 1 and 365'`.
 
@@ -2553,7 +2552,7 @@ Returns one row per subject the caller has answered, with the most recent respon
 
 Returns a single aggregate row with the caller's completed-session count and average score, computed in Postgres via `COUNT(*)` + `AVG(score_percentage)`. Used by the settings/profile page (`lib/queries/profile.ts` → `getProfileStats`).
 
-**Security:** `SECURITY INVOKER`. `quiz_sessions` has MORE THAN ONE permissive SELECT policy (`students_select_sessions` = `student_id = auth.uid()`, and `instructors_read_sessions` = org + instructor/admin role), so RLS alone would let an instructor/admin caller average org-wide. The query self-scopes with an explicit `qs.student_id = auth.uid()` (load-bearing per security.md §3 (Multiple Permissive SELECT Policies), same multi-policy reason as `get_student_mastery_stats`). Unauthenticated caller → `auth.uid()` NULL → zero rows → `{0, NULL}`.
+**Security:** `SECURITY INVOKER`. `quiz_sessions` has MORE THAN ONE permissive SELECT policy (`students_select_sessions` = `student_id = (select auth.uid())`, and `instructors_read_sessions` = org + instructor/admin role), so RLS alone would let an instructor/admin caller average org-wide. The query self-scopes with an explicit `qs.student_id = (select auth.uid())` (load-bearing per security.md §3 (Multiple Permissive SELECT Policies), same multi-policy reason as `get_student_mastery_stats`). Unauthenticated caller → `auth.uid()` NULL → zero rows → `{0, NULL}`.
 
 **Parameters:** none (caller is always self).
 
