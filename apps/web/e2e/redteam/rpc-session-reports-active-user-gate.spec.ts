@@ -124,9 +124,9 @@ test.describe('Red Team: get_session_reports active-user gate (Vector IH)', () =
       .eq('id', victimUserId)
       .is('deleted_at', null)
       .select('id')
+    victimSoftDeleted = true
     expect(delErr).toBeNull()
     expect((deleted ?? []).length).toBeGreaterThan(0)
-    victimSoftDeleted = true
 
     const after = await victimClient.rpc('get_session_reports', { p_limit: 100 })
     expect(after.error).not.toBeNull()
