@@ -379,7 +379,7 @@ A replay/idempotency branch is only *reachable* when its arbiter above actually 
 Inside a **plpgsql function body**, the inference target is **not validated at `CREATE OR REPLACE FUNCTION` time — only at execution**: `supabase db reset` applies clean and a structural grep confirms the clause, yet the function throws `42P10` on first run. Clean apply + structural grep is **insufficient** for any plpgsql body with `ON CONFLICT`, `EXECUTE format(...)`, regex literals, or other deferred-validation SQL — you must **execute the function** before trusting it.
 Other execution-only failure modes (illustrations, not a checklist — any plpgsql body validated at EXECUTION):
 - **`42702` ambiguous column** — an unqualified column shadowed by a same-named `RETURNS TABLE` OUT
-  parameter. Always alias the source table: `FROM users u WHERE u.id = auth.uid()`.
+  parameter. Always alias the source table: `FROM users u WHERE u.id = (select auth.uid())`.
 - **`42804` result-type mismatch** — dropping a `::int` cast on an aggregate feeding a
   `RETURNS TABLE (col int)` widens it to `bigint`. Keep the cast when touching such an aggregate.
 - **`23502` NOT NULL** — NULL propagating through a helper (`normalize_answer(NULL)`) into a NOT NULL

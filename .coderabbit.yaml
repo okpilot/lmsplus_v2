@@ -584,7 +584,7 @@ reviews:
           covers EXECUTE format(...), regex literals (POSIX bracket-class shorthand like
           '[][...]' is invalid in Postgres ARE — applies clean, throws 2201B on first call;
           mig 101, 2026-06-10), an unqualified column shadowed by a same-named RETURNS TABLE OUT
-          parameter (42702 — always alias the source table: FROM users u WHERE u.id = auth.uid();
+          parameter (42702 — always alias the source table: FROM users u WHERE u.id = (select auth.uid());
           code-style.md §5, the 42702 case), NULL propagating through a helper call into a NOT NULL column
           (23502 — coalesce at the call site, and check whether sibling callers already do;
           code-style.md §5, the 23502 case), and an aggregate feeding a RETURNS TABLE column whose cast was
