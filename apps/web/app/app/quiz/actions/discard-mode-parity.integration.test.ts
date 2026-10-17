@@ -25,8 +25,9 @@ const modes = Object.keys(MODE_LABELS)
 const blockedModes = modes.filter((m) => discardBlockedError(m) !== null)
 const allowedModes = modes.filter((m) => discardBlockedError(m) === null)
 
-let orgId: string
-let studentId: string
+// Sentinels: vitest runs afterAll after a failed beforeAll.
+let orgId = ''
+let studentId = ''
 let client: Awaited<ReturnType<typeof getAuthenticatedClient>>
 
 async function seedActiveSession(mode: string): Promise<string> {
@@ -67,14 +68,15 @@ describe('student direct soft-delete of an active session (mode parity)', () => 
   })
 
   afterAll(async () => {
+    if (!orgId) return
     const errors: string[] = []
     try {
-      await clearActiveSessions({ admin, studentIds: [studentId] })
+      if (studentId) await clearActiveSessions({ admin, studentIds: [studentId] })
     } catch (e) {
       errors.push(`clearActiveSessions: ${e instanceof Error ? e.message : String(e)}`)
     }
     try {
-      await cleanupTestData({ admin, orgId, userIds: [studentId] })
+      await cleanupTestData({ admin, orgId, userIds: studentId ? [studentId] : [] })
     } catch (e) {
       errors.push(`cleanupTestData: ${e instanceof Error ? e.message : String(e)}`)
     }
