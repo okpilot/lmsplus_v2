@@ -2407,7 +2407,7 @@ Returns paginated session reports for the authenticated student with subject nam
 
 **Filters:** `ended_at IS NOT NULL`, `deleted_at IS NULL`, `student_id = auth.uid()`.
 
-**Returns:** `TABLE(id UUID, mode TEXT, total_questions INT, correct_count INT, score_percentage NUMERIC NULL, started_at TIMESTAMPTZ, ended_at TIMESTAMPTZ, subject_id UUID, subject_name TEXT, subject_code TEXT, total_count BIGINT)` — `score_percentage` is nullable (NULL for sessions with no scored result); consumers must handle null (the TS `RpcRow`/`SessionReport` type it as `number | null`). `subject_name` and `subject_code` are NULL for a session with no subject (LEFT JOIN).
+**Returns:** `TABLE(id UUID, mode TEXT, total_questions INT, correct_count INT, score_percentage NUMERIC NULL, started_at TIMESTAMPTZ, ended_at TIMESTAMPTZ, subject_id UUID, subject_name TEXT, subject_code TEXT, total_count BIGINT)` — `score_percentage` is nullable (NULL for sessions with no scored result); consumers must handle null (the TS `RpcRow`/`SessionReport` type it as `number | null`). `subject_name` and `subject_code` are NULL for a session with no subject (LEFT JOIN). The generated `types.ts` marks both non-null.
 
 **Migration:** `20260410000010_get_session_reports_rpc.sql` (created); `20260606000007_get_session_reports_drop_unused_answered_count.sql` (migration 091 — removed unused `answered_count` correlated subquery, #471); `20260623000100_get_session_reports_active_user_gate.sql` (migration 122 — added active-user gate, `u.id`-aliased to avoid 42702 vs the `id` OUT param, #883); `20261017000500_get_session_reports_subject_code.sql` (DROP + CREATE — added `subject_code` = `easa_subjects.code`, #1414)
 
