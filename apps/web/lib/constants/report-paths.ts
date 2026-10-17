@@ -18,18 +18,18 @@ export function isVfrRtReport(mode: string, subjectCode: string | null): boolean
   return isVfrRtPracticeReport(mode, subjectCode) || mode === 'vfr_rt_exam'
 }
 
-/** Report route per exam mode; every other mode uses `/app/quiz/report`. */
+/** Report route per exam mode, checked after isVfrRtReport; any other mode uses the quiz report. */
 const EXAM_REPORT_PATHS: ReadonlyMap<string, string> = new Map<QuizMode, string>([
   ['internal_exam', '/app/internal-exam/report'],
 ])
+
+export const QUIZ_REPORT_PATH = '/app/quiz/report'
+export const VFR_RT_REPORT_PATH = '/app/vfr-rt/report'
 
 /**
  * Report URL of a finished session, whatever its mode. `subjectCode` is `easa_subjects.code`;
  * it routes VFR RT practice sessions (mode 'quick_quiz') straight to the RT report.
  */
-export const QUIZ_REPORT_PATH = '/app/quiz/report'
-export const VFR_RT_REPORT_PATH = '/app/vfr-rt/report'
-
 export function reportUrl(
   mode: string | undefined,
   sessionId: string,

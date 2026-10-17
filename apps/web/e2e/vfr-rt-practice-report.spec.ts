@@ -54,13 +54,16 @@ test.describe('VFR RT practice report routing', () => {
     page,
   }) => {
     await page.goto('/app/vfr-rt')
+    // Draw the whole pool so a short-answer question is always in the session.
+    await expect(page.getByText(/of \d+ selected/)).toBeVisible()
+    await page.getByRole('button', { name: 'All', exact: true }).click()
     await page.getByRole('button', { name: 'Start Practice' }).click()
     await page.waitForURL(SESSION_ID_URL, { timeout: 20_000 })
     await expect(page.getByText(/Question \d/).first()).toBeVisible({ timeout: 15_000 })
 
     // Question order is shuffled; step forward to a short-answer question and answer it.
     const input = page.locator('[data-testid="short-answer-input"]')
-    for (let i = 0; i < 10 && (await input.count()) === 0; i++) {
+    for (let i = 0; i < 30 && (await input.count()) === 0; i++) {
       await page.getByRole('button', { name: 'Next ›' }).click()
     }
     await input.fill('alpha')
