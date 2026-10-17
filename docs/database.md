@@ -11,6 +11,10 @@ project: lmsplusv2
 > Binding rules for all database work. Covers ACID compliance, soft delete,
 > immutability, idempotency, RPC conventions, and the full table schema.
 > Read alongside `docs/security.md` — they are companion documents.
+>
+> Policy and RPC predicates quoted anywhere in this file show the `(select auth.uid())` /
+> `(select is_admin())` form applied by migrations `20261017000100`–`20261017000400` (#1414); a
+> cited earlier migration is where the predicate was introduced, in its bare spelling.
 
 ---
 

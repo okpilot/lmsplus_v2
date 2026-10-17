@@ -1,7 +1,7 @@
 -- #1414: wrap auth.uid() in (select ...) so Postgres plans it as an InitPlan evaluated once
 -- per statement, not once per row (Supabase lint 0003 auth_rls_initplan).
 -- https://supabase.com/docs/guides/database/postgres/row-level-security#call-functions-with-select
--- CREATE OR REPLACE keeps existing GRANTs and COMMENTs; only the auth.uid() row filters change.
+-- CREATE OR REPLACE keeps existing GRANTs and COMMENTs; only the auth.uid() comparisons change.
 -- Bodies copied from their latest definitions: get_student_mastery_stats 20260521000005,
 -- get_student_streak / get_student_last_practiced 20260521000006, get_student_profile_stats
 -- 20260529000001, get_daily_subjects 20261002000100. The 'auth.uid() IS NULL' guards stay bare.
