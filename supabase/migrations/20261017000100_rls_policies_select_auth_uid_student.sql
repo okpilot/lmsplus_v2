@@ -123,6 +123,7 @@ ALTER POLICY "students_update_sessions" ON public.quiz_sessions
     ((student_id = ( SELECT auth.uid() AS uid))
     AND (ended_at IS NULL)
     AND (deleted_at IS NULL)
+    -- Same set as NON_DISCARDABLE_MODES (apps/web/app/app/quiz/actions/_discard-guard.ts); red-team IE.
     AND (mode <> ALL (ARRAY['internal_exam'::text, 'vfr_rt_exam'::text]))
     AND (EXISTS ( SELECT 1
    FROM users u

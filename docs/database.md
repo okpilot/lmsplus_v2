@@ -2082,7 +2082,7 @@ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
 Returns `boolean`. SECURITY DEFINER with `SET search_path = public`.
 Checks `auth.uid()` against `users.role = 'admin'` AND `deleted_at IS NULL` (migration 20260429000001). Returns `false` (not an exception) when no user is authenticated, so it is safe to call from RLS policies without causing errors for unauthenticated requests.
 
-Used by RLS policies on `easa_subjects`, `easa_topics`, `easa_subtopics` to gate INSERT/UPDATE/DELETE to active admin users only. Also used on `internal_exam_codes` — but as of migration `20260521000004`, only the admin SELECT policy remains. Admin issue/void RPCs (`issue_internal_exam_code`, `void_internal_exam_code`) re-check `is_admin()` internally; student code consumption via `start_internal_exam_session` is authorized by ownership/code validation, not admin role.
+Used by RLS policies across admin-gated tables; derive the set: `select tablename, policyname from pg_policies where coalesce(qual,'')||coalesce(with_check,'') ~ 'is_admin'`. Admin issue/void RPCs (`issue_internal_exam_code`, `void_internal_exam_code`) re-check `is_admin()` internally; student code consumption via `start_internal_exam_session` is authorized by ownership/code validation, not admin role.
 
 ```sql
 CREATE OR REPLACE FUNCTION public.is_admin()

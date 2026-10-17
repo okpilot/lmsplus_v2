@@ -440,7 +440,7 @@ reviews:
           (docs/security.md §3.) Policy predicates and SECURITY INVOKER function row
           filters call (select auth.uid()) / (select is_admin()), never bare auth.uid() /
           is_admin() (Supabase lint 0003 auth_rls_initplan); IF auth.uid() IS NULL
-          null-guards stay bare (docs/security.md §3). tenant_isolation MUST be
+          null-guards and per-row trigger comparisons stay bare (docs/security.md §3). tenant_isolation MUST be
           declared FOR SELECT, on either of TWO INDEPENDENT GROUNDS — do not treat the
           first as a precondition for the second: (a) the table ALSO has role-gated write
           policies (is_admin() etc.), so an unqualified CREATE POLICY, which is FOR ALL,
@@ -504,7 +504,7 @@ reviews:
           subqueries. Flag any INSERT INTO audit_events subquery missing AND deleted_at IS NULL.
         - Multi-policy RLS table reads: when a SECURITY INVOKER/DEFINER function reads a
           table with more than one permissive SELECT policy and returns the caller's OWN rows,
-          it must scope the SELECT explicitly: WHERE <owner_col> = auth.uid(), or
+          it must scope the SELECT explicitly: WHERE <owner_col> = (select auth.uid()), or
           WHERE <owner_col> = p_student_id PAIRED WITH an auth.uid() = p_student_id identity
           guard. The identity guard alone only validates the parameter and does not scope the
           read. Postgres ORs permissive policies, so RLS

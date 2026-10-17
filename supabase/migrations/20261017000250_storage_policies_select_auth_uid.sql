@@ -1,7 +1,7 @@
 -- #1414: wrap auth.uid() / is_admin() in (SELECT ...) so Postgres plans them as an InitPlan
 -- evaluated once per statement, not once per row (Supabase lint 0003 auth_rls_initplan).
 -- https://supabase.com/docs/guides/database/postgres/row-level-security#call-functions-with-select
--- DROP + CREATE (storage.objects is not owned by the migration role; precedent 20260324000055); command, roles and permissive restated from pg_policies.
+-- DROP + CREATE, the form 20260324000055 already ran on prod for storage.objects; command, roles and permissive restated from pg_policies.
 
 DROP POLICY IF EXISTS question_images_admin_delete ON storage.objects;
 
