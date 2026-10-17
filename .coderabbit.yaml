@@ -437,7 +437,10 @@ reviews:
           raises 42703 at CREATE because neither has an organization_id column — that
           failure is itself the signal the template does not belong there. Flag any
           migration adding a tenant_isolation policy to a per-student table.
-          (docs/security.md §3.) tenant_isolation MUST be
+          (docs/security.md §3.) Policy predicates and SECURITY INVOKER function row
+          filters call (select auth.uid()) / (select is_admin()), never bare auth.uid() /
+          is_admin() (Supabase lint 0003 auth_rls_initplan); IF auth.uid() IS NULL
+          null-guards and per-row trigger comparisons stay bare (docs/security.md §3). tenant_isolation MUST be
           declared FOR SELECT, on either of TWO INDEPENDENT GROUNDS — do not treat the
           first as a precondition for the second: (a) the table ALSO has role-gated write
           policies (is_admin() etc.), so an unqualified CREATE POLICY, which is FOR ALL,
@@ -501,7 +504,7 @@ reviews:
           subqueries. Flag any INSERT INTO audit_events subquery missing AND deleted_at IS NULL.
         - Multi-policy RLS table reads: when a SECURITY INVOKER/DEFINER function reads a
           table with more than one permissive SELECT policy and returns the caller's OWN rows,
-          it must scope the SELECT explicitly: WHERE <owner_col> = auth.uid(), or
+          it must scope the SELECT explicitly: WHERE <owner_col> = (select auth.uid()), or
           WHERE <owner_col> = p_student_id PAIRED WITH an auth.uid() = p_student_id identity
           guard. The identity guard alone only validates the parameter and does not scope the
           read. Postgres ORs permissive policies, so RLS
@@ -581,7 +584,7 @@ reviews:
           covers EXECUTE format(...), regex literals (POSIX bracket-class shorthand like
           '[][...]' is invalid in Postgres ARE — applies clean, throws 2201B on first call;
           mig 101, 2026-06-10), an unqualified column shadowed by a same-named RETURNS TABLE OUT
-          parameter (42702 — always alias the source table: FROM users u WHERE u.id = auth.uid();
+          parameter (42702 — always alias the source table: FROM users u WHERE u.id = (select auth.uid());
           code-style.md §5, the 42702 case), NULL propagating through a helper call into a NOT NULL column
           (23502 — coalesce at the call site, and check whether sibling callers already do;
           code-style.md §5, the 23502 case), and an aggregate feeding a RETURNS TABLE column whose cast was

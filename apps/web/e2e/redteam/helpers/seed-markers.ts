@@ -88,3 +88,5 @@ export const E2E_REDTEAM_HZ_MARKER = '[E2E_REDTEAM_HZ]'
 export const E2E_REDTEAM_ID_MARKER = '[E2E_REDTEAM_ID]'
 // student direct exam-session soft-delete spec (Vector IE): quiz_sessions `config.e2e_marker`.
 export const E2E_REDTEAM_IE_MARKER = '[E2E_REDTEAM_IE]'
+// question-images storage write-policy spec (Vector IF): object file-name prefix.
+export const E2E_REDTEAM_IF_MARKER = 'e2e-redteam-if-'
