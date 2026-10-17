@@ -6,7 +6,7 @@
  * (mig 20260623000100, #883). Anon denial is CL1, cross-user scoping is CL3.
  *
  * Control arm: while active, the owner reads their seeded sessions with the documented
- * subject_code values (2 distinct subjects + the NULL LEFT JOIN path). After a service-role
+ * subject fields (2 distinct subjects + the NULL LEFT JOIN path) and score fields. After a service-role
  * soft-delete, the same still-valid JWT is rejected with 'user not found or inactive'.
  */
 
@@ -14,6 +14,7 @@ import { expect, test } from '@playwright/test'
 import { getAdminClient } from '../helpers/supabase'
 import { cleanupFixtures, createFixtureTracker } from './helpers/cleanup'
 import { createAuthenticatedClient } from './helpers/redteam-client'
+import { E2E_REDTEAM_IH_MARKER } from './helpers/seed-markers'
 import { seedRedTeamUsers, VICTIM_EMAIL, VICTIM_PASSWORD } from './helpers/seed-users'
 
 type ReportRow = {
@@ -21,6 +22,9 @@ type ReportRow = {
   subject_id: string | null
   subject_name: string | null
   subject_code: string | null
+  total_questions: number
+  correct_count: number
+  score_percentage: number | string | null
   total_count: number | string
 }
 
@@ -83,7 +87,7 @@ test.describe('Red Team: get_session_reports active-user gate (Vector IH)', () =
         student_id: victimUserId,
         mode: 'quick_quiz',
         subject_id: subjectId,
-        config: { question_ids: [], pass_mark: 75 },
+        config: { question_ids: [], pass_mark: 75, e2e_marker: E2E_REDTEAM_IH_MARKER },
         total_questions: 1,
         started_at: new Date(Date.now() - (minutesAgo + 5) * 60_000).toISOString(),
         ended_at: new Date(Date.now() - minutesAgo * 60_000).toISOString(),
@@ -117,6 +121,10 @@ test.describe('Red Team: get_session_reports active-user gate (Vector IH)', () =
     expect(rowA).toMatchObject({ subject_id: a.id, subject_code: a.code, subject_name: a.name })
     expect(rowB).toMatchObject({ subject_id: b.id, subject_code: b.code, subject_name: b.name })
     expect(rowNull).toMatchObject({ subject_id: null, subject_code: null, subject_name: null })
+    for (const row of [rowA, rowB, rowNull]) {
+      expect(row).toMatchObject({ total_questions: 1, correct_count: 1 })
+      expect(Number(row?.score_percentage)).toBe(100)
+    }
 
     const { data: deleted, error: delErr } = await admin
       .from('users')

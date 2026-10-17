@@ -90,3 +90,5 @@ export const E2E_REDTEAM_ID_MARKER = '[E2E_REDTEAM_ID]'
 export const E2E_REDTEAM_IE_MARKER = '[E2E_REDTEAM_IE]'
 // question-images storage write-policy spec (Vector IF): object file-name prefix.
 export const E2E_REDTEAM_IF_MARKER = 'e2e-redteam-if-'
+// get_session_reports spec (Vector IH, #1414): marks the completed sessions it seeds.
+export const E2E_REDTEAM_IH_MARKER = '[E2E_REDTEAM_IH]'
