@@ -4,7 +4,7 @@
 // for exactly the modes the app's discard guard blocks, and permitted for every other mode.
 // Each mode in MODE_LABELS gets a row; the blocked set is pinned explicitly.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { MODE_LABELS } from '@/lib/constants/exam-modes'
+import { isExamMode, MODE_LABELS } from '@/lib/constants/exam-modes'
 import {
   cleanupTestData,
   clearActiveSessions,
@@ -38,7 +38,7 @@ async function seedActiveSession(mode: string): Promise<string> {
       student_id: studentId,
       mode,
       total_questions: 1,
-      time_limit_seconds: ['quick_quiz', 'smart_review', 'discovery'].includes(mode) ? null : 3600,
+      time_limit_seconds: isExamMode(mode) ? 3600 : null,
     })
     .select('id')
     .single()

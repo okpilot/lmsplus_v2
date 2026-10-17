@@ -94,6 +94,13 @@ test.describe('Red Team: question-images storage write policies (IF)', () => {
     expect(await exists(path)).toBe(true)
   })
 
+  test('a student can read an in-org object (control)', async () => {
+    const path = await seedObject(orgId)
+    const { data, error } = await student.storage.from(BUCKET).download(path)
+    expect(error).toBeNull()
+    expect(await data?.text()).toBe(ORIGINAL)
+  })
+
   test('a student cannot upload into their own org folder', async () => {
     const path = newPath(orgId)
     const { error } = await upload(student, path, FORGED)
