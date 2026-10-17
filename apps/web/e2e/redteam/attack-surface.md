@@ -255,6 +255,8 @@
 | IC | fsrs_cards-direct-student-write | MEDIUM | authenticated-table-dml-denied.spec.ts | BLOCKED |  | rls-bypass |
 | ID | deactivated-student-live-token-postgrest-rls-writes | MEDIUM | deactivated-student-direct-rls-writes.spec.ts | BLOCKED |  | rls-bypass |
 | IE | quiz_sessions-student-direct-softdelete-nondiscardable-exam | HIGH | student-direct-soft-delete-exam-session.spec.ts | BLOCKED |  | privilege-escalation |
+| IF | storage.objects-question-images-non-admin-cross-org-write | MEDIUM | storage-question-images-write.spec.ts | BLOCKED |  | privilege-escalation |
+| IG | prod-legacy-for-all-policies-on-immutable-tables | LOW | authenticated-table-dml-denied.spec.ts | MISSED |  | rls-bypass |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
