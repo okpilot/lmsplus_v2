@@ -80,3 +80,7 @@ AS $$
               AND af.question_id = q.id))
     )
 $$;
+
+-- Comment re-issued: the scoping predicate is (select auth.uid()).
+COMMENT ON FUNCTION public._filtered_question_pool(p_subject_id uuid, p_topic_ids uuid[], p_subtopic_ids uuid[], p_filters text[], p_calc_mode text, p_has_image text, p_question_type text) IS
+  'Internal: active, org-scoped, subject/topic/subtopic + per-user-filter (UNION) question pool, AND-restricted by p_calc_mode {all|only|exclude} on has_calculations (#837), p_has_image {all|only|exclude} on question_image_url presence (#864), and an optional p_question_type (NULL = no restriction; Study Mode passes ''multiple_choice''). SECURITY INVOKER; filters scope student_id = (select auth.uid()) (§3). Used by get_random_question_ids and get_filtered_question_counts so count == quiz (#678/#679/#668). Prefer the wrapper RPCs over calling directly (direct calls may hit the PostgREST 1000-row cap).';

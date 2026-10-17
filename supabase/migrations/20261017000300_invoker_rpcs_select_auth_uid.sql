@@ -1,7 +1,7 @@
 -- #1414: wrap auth.uid() in (select ...) so Postgres plans it as an InitPlan evaluated once
 -- per statement, not once per row (Supabase lint 0003 auth_rls_initplan).
 -- https://supabase.com/docs/guides/database/postgres/row-level-security#call-functions-with-select
--- CREATE OR REPLACE keeps existing GRANTs and COMMENTs; only the auth.uid() comparisons change.
+-- CREATE OR REPLACE keeps existing GRANTs; COMMENTs are re-issued at the end. Only the auth.uid() comparisons change.
 -- Bodies copied from their latest definitions: get_student_mastery_stats 20260521000005,
 -- get_student_streak / get_student_last_practiced 20260521000006, get_student_profile_stats
 -- 20260529000001, get_daily_subjects 20261002000100. The 'auth.uid() IS NULL' guards stay bare.
@@ -183,3 +183,16 @@ BEGIN
     ORDER BY 1, 2;
 END;
 $$;
+
+-- Comments re-issued: the scoping predicate is (select auth.uid()); the section is docs/security.md §3.
+COMMENT ON FUNCTION public.get_daily_subjects(p_days integer) IS
+  'Distinct (day, subject_id) pairs the calling student answered in the last p_days days (1-365). SECURITY INVOKER; explicit sr.student_id = (select auth.uid()) per docs/security.md §3 (student_responses has 2 permissive SELECT policies). Active-user gate raises ''user not found or inactive''. The questions JOIN is org + non-deleted via RLS, so a soft-deleted question drops out.';
+
+COMMENT ON FUNCTION public.get_student_last_practiced() IS
+  'Most recent response timestamp per subject for the calling student, over ALL responses (any correctness). The questions JOIN is org + non-deleted via RLS (tenant_isolation), reproducing the legacy questionSubjectMap. SECURITY INVOKER; explicit sr.student_id = (select auth.uid()) per docs/security.md §3 (student_responses has 2 permissive SELECT policies). Replaces client-side applyLastPracticed over a .limit(5000) read that truncated at the PostgREST 1000-row cap (#668).';
+
+COMMENT ON FUNCTION public.get_student_profile_stats() IS
+  'Completed-session count (total_sessions) and average score (avg_score, raw numeric) for the calling student. Counts only sessions with ended_at IS NOT NULL, deleted_at IS NULL, and score_percentage IS NOT NULL (single-row aggregate; avg_score NULL when none). SECURITY INVOKER + explicit student_id = (select auth.uid()) self-scope (quiz_sessions is multi-permissive, docs/security.md §3). Replaces a client-side read that truncated at the PostgREST 1000-row cap (#668 P2, profile.ts).';
+
+COMMENT ON FUNCTION public.get_student_streak() IS
+  'Current and best daily-practice streak (in days) for the calling student, all-time, computed in Postgres via gaps-and-islands over DISTINCT UTC response dates. current_streak = length of the run ending today or yesterday (UTC), else 0; best_streak = longest consecutive run. SECURITY INVOKER; explicit sr.student_id = (select auth.uid()) per docs/security.md §3 (student_responses has 2 permissive SELECT policies). Replaces client-side computeStreaks over a .limit(10000) read that truncated at the PostgREST 1000-row cap (#668).';

@@ -3,7 +3,8 @@
  * Guards: question_images_admin_insert / _update / _delete on storage.objects (latest def
  * mig 20261017000250): bucket_id = 'question-images' AND is_admin() AND first path segment =
  * caller's organization_id. Attacks: a student writes in their own org folder; an admin writes
- * in another org's folder; a student / cross-org admin deletes or overwrites an in-org object.
+ * in another org's folder; a student / cross-org admin deletes or overwrites an in-org object;
+ * an in-org admin moves an in-org object into another org's folder (UPDATE WITH CHECK).
  * CONTROL: the in-org admin's upload, overwrite and delete each take effect.
  */
 
@@ -74,6 +75,8 @@ test.describe('Red Team: question-images storage write policies (IF)', () => {
     orgAdmin = await createAuthenticatedClient(orgAdminCreds.email, orgAdminCreds.password)
     crossOrgAdmin = await createAuthenticatedClient(crossCreds.email, crossCreds.password)
     expect(orgId).not.toBe(otherOrgId)
+    expect(orgAdminCreds.orgId).toBe(orgId)
+    expect(crossCreds.orgId).toBe(otherOrgId)
   })
 
   test.afterEach(async () => {
@@ -144,5 +147,15 @@ test.describe('Red Team: question-images storage write policies (IF)', () => {
     const adminWrite = await upload(orgAdmin, path, FORGED, true)
     expect(adminWrite.error).toBeNull()
     expect(await content(path)).toBe(FORGED)
+  })
+
+  test("an in-org admin cannot move an in-org object into another org's folder", async () => {
+    const path = await seedObject(orgId)
+    const dest = newPath(otherOrgId)
+
+    const { error } = await orgAdmin.storage.from(BUCKET).move(path, dest)
+    expect(error).not.toBeNull()
+    expect(await exists(path)).toBe(true)
+    expect(await exists(dest)).toBe(false)
   })
 })
