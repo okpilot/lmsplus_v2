@@ -1,6 +1,5 @@
--- #1414: add subject_code (easa_subjects.code) to get_session_reports so the report list can
--- route VFR RT practice sessions without a per-row subject lookup. Body = mig 122 (20260623000100)
--- plus one column. A RETURNS TABLE change needs DROP + CREATE; EXECUTE is re-granted to
+-- #1414: add subject_code (easa_subjects.code) to get_session_reports, for the report list's VFR RT
+-- practice routing (consumer lands in #1414 PR C). Body = mig 122 (20260623000100) plus one column. A RETURNS TABLE change needs DROP + CREATE; EXECUTE is re-granted to
 -- authenticated (anon stays revoked by the 20260925000400 default privileges).
 
 DROP FUNCTION IF EXISTS public.get_session_reports(TEXT, TEXT, INT, INT);

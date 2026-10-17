@@ -178,12 +178,22 @@ describe('getSessionReports (app-layer integration)', () => {
     expect(session?.durationMinutes).toBeGreaterThanOrEqual(0)
   })
 
-  it('returns the subject code of each session row', async () => {
-    const { data, error } = await studentAClient.rpc('get_session_reports', { p_limit: 1 })
+  it('returns the subject code on every session row', async () => {
+    const { data, error } = await studentAClient.rpc('get_session_reports')
 
     expect(error).toBeNull()
-    expect(Array.isArray(data)).toBe(true)
-    expect(data?.[0]?.subject_code).toBe(`RP_${suffix}`)
+    if (!Array.isArray(data)) throw new Error('expected an array')
+    expect(data.length).toBeGreaterThan(0)
+    expect(data.every((row) => row.subject_code === `RP_${suffix}`)).toBe(true)
+  })
+
+  it('returns a null subject code for sessions without a subject', async () => {
+    const { data, error } = await studentBClient.rpc('get_session_reports')
+
+    expect(error).toBeNull()
+    if (!Array.isArray(data)) throw new Error('expected an array')
+    expect(data.length).toBeGreaterThan(0)
+    expect(data.every((row) => row.subject_code === null)).toBe(true)
   })
 
   it('returns answeredItems reflecting real answer rows under RLS (not silently 0)', async () => {
