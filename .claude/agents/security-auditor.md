@@ -59,7 +59,7 @@ You receive:
      (PostgreSQL reuses `USING`). Do not emit a finding for a clause the command cannot carry,
      nor for an absent one on those two. DO still judge the PREDICATE: a reused `USING`
      constrains only the columns it names, so a hypothetical `FOR ALL USING (student_id =
-     (select auth.uid()))` session policy with no `WITH CHECK` would permit writing any other column
+     auth.uid())` session policy with no `WITH CHECK` would permit writing any other column
      (`score_percentage`, `mode`, `config`) — flag that as a too-broad write predicate, not as a
      missing clause. (Illustrative: the real `quiz_sessions` is separately defended by the mig
      `20260605000001` column grant and `trg_quiz_sessions_immutable_columns`)
@@ -162,7 +162,7 @@ MEDIUM: [count]
 
 [CRITICAL] supabase/migrations/<timestamp>_<description>.sql — line <N>
 RLS enabled but WITH CHECK clause missing on INSERT policy for '<table>' table.
-Fix: Add WITH CHECK (organization_id = (SELECT organization_id FROM users WHERE id = (select auth.uid())))
+Fix: Add WITH CHECK (organization_id = (SELECT organization_id FROM users WHERE id = auth.uid()))
 
 [HIGH] apps/web/app/quiz/session/actions.ts — line 34
 Server Action 'submitAnswer' accepts raw FormData without Zod validation.

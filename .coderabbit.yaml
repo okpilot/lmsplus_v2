@@ -437,7 +437,10 @@ reviews:
           raises 42703 at CREATE because neither has an organization_id column — that
           failure is itself the signal the template does not belong there. Flag any
           migration adding a tenant_isolation policy to a per-student table.
-          (docs/security.md §3.) tenant_isolation MUST be
+          (docs/security.md §3.) Policy predicates and SECURITY INVOKER function row
+          filters call (select auth.uid()) / (select is_admin()), never bare auth.uid() /
+          is_admin() (Supabase lint 0003 auth_rls_initplan); IF auth.uid() IS NULL
+          null-guards stay bare (docs/security.md §3). tenant_isolation MUST be
           declared FOR SELECT, on either of TWO INDEPENDENT GROUNDS — do not treat the
           first as a precondition for the second: (a) the table ALSO has role-gated write
           policies (is_admin() etc.), so an unqualified CREATE POLICY, which is FOR ALL,

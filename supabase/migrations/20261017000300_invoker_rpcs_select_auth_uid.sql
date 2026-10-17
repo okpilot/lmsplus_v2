@@ -27,7 +27,7 @@ AS $$
   ),
   -- NUMERATOR: distinct questions the caller answered correctly, attributed to the
   -- question's own subject/topic; any status (the questions JOIN is org + non-deleted via RLS).
-  -- The explicit `sr.student_id = auth.uid()` is REQUIRED, not redundant: student_responses
+  -- The explicit `sr.student_id = (select auth.uid())` is REQUIRED, not redundant: student_responses
   -- has a second SELECT policy (instructors_read_students) that lets an instructor/admin read
   -- ALL responses in their org, so RLS alone would aggregate org-wide for those roles. This
   -- self-scope keeps the numerator per-caller for every role (matches the legacy client read's
@@ -133,7 +133,7 @@ AS $$
   -- All responses (no is_correct filter) matches the legacy applyLastPracticed. The questions
   -- JOIN is org + deleted_at IS NULL via the tenant_isolation RLS policy, reproducing the
   -- legacy questionSubjectMap (built from non-deleted questions) — a response to a deleted
-  -- question is excluded from attribution exactly as before. Explicit sr.student_id = auth.uid()
+  -- question is excluded from attribution exactly as before. Explicit sr.student_id = (select auth.uid())
   -- keeps it per-caller despite the second permissive SELECT policy (security.md §11).
   SELECT q.subject_id, MAX(sr.created_at) AS last_practiced_at
   FROM student_responses sr

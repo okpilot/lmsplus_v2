@@ -1,7 +1,7 @@
 -- #1414: wrap auth.uid() in (select ...) so Postgres plans it as an InitPlan evaluated once
 -- per statement, not once per row (Supabase lint 0003 auth_rls_initplan).
 -- https://supabase.com/docs/guides/database/postgres/row-level-security#call-functions-with-select
--- CREATE OR REPLACE keeps existing GRANTs and COMMENTs; only the auth.uid() row filters change.
+-- CREATE OR REPLACE keeps existing GRANTs and COMMENTs; only the auth.uid() comparisons change.
 -- Body copied from its latest definition (20260626000100, 7-arg signature).
 
 CREATE OR REPLACE FUNCTION public._filtered_question_pool(
@@ -59,7 +59,7 @@ AS $$
     AND (p_question_type IS NULL OR q.question_type = p_question_type)
     -- Per-user filters, UNION semantics. NULL or empty p_filters = whole scoped pool.
     -- student_responses has TWO permissive SELECT policies (students_read_responses +
-    -- instructors_read_students), so the explicit student_id = auth.uid() scope is
+    -- instructors_read_students), so the explicit student_id = (select auth.uid()) scope is
     -- LOAD-BEARING per security.md §3. fsrs_cards / active_flagged_questions have a
     -- single applicable policy each — the explicit scope there is defense-in-depth.
     AND (

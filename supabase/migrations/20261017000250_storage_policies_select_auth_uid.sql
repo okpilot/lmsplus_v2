@@ -39,8 +39,9 @@ CREATE POLICY question_images_admin_update
   WHERE (users.id = ( SELECT auth.uid() AS uid)))))
   )
   WITH CHECK (
-    ((bucket_id = 'question-images'::text) AND ( SELECT public.is_admin() AS is_admin) AND ((storage.foldername(name))[1] = ( SELECT (users.organization_id)::text AS organization_id
+    ((bucket_id = 'question-images'::text)
+    AND ( SELECT public.is_admin() AS is_admin)
+    AND ((storage.foldername(name))[1] = ( SELECT (users.organization_id)::text AS organization_id
    FROM public.users
   WHERE (users.id = ( SELECT auth.uid() AS uid)))))
-
   );
