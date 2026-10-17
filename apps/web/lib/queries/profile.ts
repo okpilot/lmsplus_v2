@@ -43,7 +43,8 @@ type OrgRow = { name: string }
 async function getProfile(supabase: SupabaseClient, userId: string) {
   const { data, error } = await getCallerProfile(userId)
 
-  if (error || !data) throw new Error('Failed to load profile')
+  if (error) throw new Error(`Failed to load profile: ${error.message}`)
+  if (!data) throw new Error('Failed to load profile')
 
   // Org name is a non-critical display field (nullable). Unlike the page-critical
   // reads above, an org lookup failure logs + degrades to `organizationName: null`

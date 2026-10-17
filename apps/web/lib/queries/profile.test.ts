@@ -299,14 +299,16 @@ describe('getProfileData', () => {
       mockAuthenticatedUser()
       setupMocks({ profileError: { message: 'relation not found' } })
 
-      await expect(getProfileData()).rejects.toThrow('Failed to load profile')
+      await expect(getProfileData()).rejects.toThrow(
+        new Error('Failed to load profile: relation not found'),
+      )
     })
 
     it('throws when the users table returns null data', async () => {
       mockAuthenticatedUser()
       setupMocks({ profileData: null })
 
-      await expect(getProfileData()).rejects.toThrow('Failed to load profile')
+      await expect(getProfileData()).rejects.toThrow(new Error('Failed to load profile'))
     })
   })
 })
