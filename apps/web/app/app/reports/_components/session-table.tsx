@@ -65,7 +65,7 @@ function SessionRow({ session: s }: Readonly<{ session: SessionReport }>) {
   const router = useRouter()
   const score = s.scorePercentage == null ? '\u2014' : `${Math.round(s.scorePercentage)}%`
   const color = s.scorePercentage == null ? undefined : scoreColor(s.scorePercentage)
-  const href = reportUrl(s.mode, s.id)
+  const href = reportUrl(s.mode, s.id, s.subjectCode)
   const navigate = () => router.push(href)
 
   return (

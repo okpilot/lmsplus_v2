@@ -124,7 +124,13 @@ test.describe('Quiz leave guard', () => {
     await expect(dialog).toBeVisible()
     await dialog.getByRole('button', { name: /^Submit/ }).click()
     const anyway = dialog.getByRole('button', { name: 'Submit anyway' })
-    if (await anyway.isVisible({ timeout: 2_000 }).catch(() => false)) await anyway.click()
+    if (
+      await anyway.waitFor({ state: 'visible', timeout: 2_000 }).then(
+        () => true,
+        () => false,
+      )
+    )
+      await anyway.click()
     await page.waitForURL(/\/app\/quiz\/report\?session=/, { timeout: 30_000 })
   })
 
@@ -271,7 +277,13 @@ test.describe('Quiz leave guard', () => {
     const dialog = page.getByRole('dialog', { name: 'Finish Practice Exam' })
     await dialog.getByRole('button', { name: /^Submit/ }).click()
     const anyway = dialog.getByRole('button', { name: 'Submit anyway' })
-    if (await anyway.isVisible({ timeout: 2_000 }).catch(() => false)) await anyway.click()
+    if (
+      await anyway.waitFor({ state: 'visible', timeout: 2_000 }).then(
+        () => true,
+        () => false,
+      )
+    )
+      await anyway.click()
     await page.waitForURL(/\/app\/quiz\/report\?session=/, { timeout: 30_000 })
 
     await page.goBack()

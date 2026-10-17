@@ -39,10 +39,20 @@ async function startMETExam(page: Page): Promise<void> {
 
   // Dismiss any stale exam banner from a prior run
   const resumeBanner = page.getByText('Practice Exam in progress')
-  if (await resumeBanner.isVisible({ timeout: 2_000 }).catch(() => false)) {
+  if (
+    await resumeBanner.waitFor({ state: 'visible', timeout: 2_000 }).then(
+      () => true,
+      () => false,
+    )
+  ) {
     await page.getByRole('button', { name: 'Discard' }).first().click()
     const alertDialog = page.getByRole('alertdialog')
-    if (await alertDialog.isVisible({ timeout: 3_000 }).catch(() => false)) {
+    if (
+      await alertDialog.waitFor({ state: 'visible', timeout: 3_000 }).then(
+        () => true,
+        () => false,
+      )
+    ) {
       await alertDialog.getByRole('button', { name: 'Discard' }).click()
     }
     await expect(page.getByText('Practice Exam in progress')).not.toBeVisible({ timeout: 10_000 })

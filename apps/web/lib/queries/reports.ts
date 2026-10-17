@@ -8,6 +8,7 @@ export type SessionReport = {
   id: string
   mode: string
   subjectName: string | null
+  subjectCode: string | null
   totalQuestions: number
   correctCount: number
   answeredItems: number
@@ -39,6 +40,7 @@ type RpcRow = {
   ended_at: string
   subject_id: string | null
   subject_name: string | null
+  subject_code: string | null
   // BIGINT / NUMERIC columns: PostgREST serializes them as strings — coerce with Number() before use.
   score_percentage: number | string | null
   total_count: number | string
@@ -164,6 +166,7 @@ function mapRpcRow(r: RpcRow, answeredItems: number): SessionReport {
     id: r.id,
     mode: r.mode,
     subjectName: r.subject_name ?? null,
+    subjectCode: r.subject_code ?? null,
     totalQuestions: r.total_questions,
     correctCount: r.correct_count,
     answeredItems,

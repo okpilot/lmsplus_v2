@@ -66,6 +66,14 @@ describe('loadInternalExamReport', () => {
     )
   })
 
+  it('redirects a VFR RT practice session straight to the RT report', async () => {
+    mockSummary.mockResolvedValue({ mode: 'quick_quiz', subjectCode: 'RT' })
+    mockQuestions.mockResolvedValue({ ok: true, questions: [], totalCount: 0 })
+    await expect(loadInternalExamReport({ sessionId: SESSION_ID })).rejects.toThrow(
+      `REDIRECT:/app/vfr-rt/report?session=${SESSION_ID}`,
+    )
+  })
+
   it('redirects a VFR RT exam session straight to the RT report', async () => {
     mockSummary.mockResolvedValue({ mode: 'vfr_rt_exam' })
     mockQuestions.mockResolvedValue({ ok: true, questions: [], totalCount: 0 })

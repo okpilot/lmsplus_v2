@@ -17,7 +17,12 @@ const SESSION_URL = /\/app\/quiz\/session\/[0-9a-f-]+$/
 async function startPracticeExam(page: Page): Promise<void> {
   await page.goto('/app/quiz')
   const resumeBanner = page.getByText('Practice Exam in progress')
-  if (await resumeBanner.isVisible({ timeout: 2_000 }).catch(() => false)) {
+  if (
+    await resumeBanner.waitFor({ state: 'visible', timeout: 2_000 }).then(
+      () => true,
+      () => false,
+    )
+  ) {
     throw new Error('a practice exam is already in progress: cleanup did not run')
   }
   const examMode = page.getByRole('button', { name: 'Practice Exam', exact: true })

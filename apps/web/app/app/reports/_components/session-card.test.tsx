@@ -26,6 +26,7 @@ function makeSession(overrides: Partial<SessionReport> = {}): SessionReport {
     id: 'sess-1',
     mode: 'quick_quiz',
     subjectName: 'Navigation',
+    subjectCode: null,
     totalQuestions: 10,
     correctCount: 8,
     // Deliberately different from both correctCount and totalQuestions — a regression
@@ -49,6 +50,11 @@ describe('SessionCard', () => {
   it('links a VFR RT mock exam to the VFR RT report route', () => {
     render(<SessionCard session={makeSession({ id: 'rt-1', mode: 'vfr_rt_exam' })} />)
     expect(screen.getByRole('link')).toHaveAttribute('href', '/app/vfr-rt/report?session=rt-1')
+  })
+
+  it('links a VFR RT practice session to the VFR RT report route', () => {
+    render(<SessionCard session={makeSession({ id: 'rt-p1', subjectCode: 'RT' })} />)
+    expect(screen.getByRole('link')).toHaveAttribute('href', '/app/vfr-rt/report?session=rt-p1')
   })
 
   it('does not prefetch the report link', () => {

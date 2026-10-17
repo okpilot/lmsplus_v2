@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@repo/db/server'
+import { getCallerProfile } from '@/lib/auth/get-caller-profile'
 import { getSessionUser } from '@/lib/auth/get-session-user'
 import { rpc } from '@/lib/supabase-rpc'
 
@@ -37,23 +38,13 @@ export async function getProfileData(): Promise<ProfileData> {
   }
 }
 
-type ProfileRow = {
-  full_name: string | null
-  email: string
-  created_at: string
-  organization_id: string
-}
-
 type OrgRow = { name: string }
 
 async function getProfile(supabase: SupabaseClient, userId: string) {
-  const { data, error } = await supabase
-    .from('users')
-    .select('full_name, email, created_at, organization_id')
-    .eq('id', userId)
-    .single<ProfileRow>()
+  const { data, error } = await getCallerProfile(userId)
 
-  if (error || !data) throw new Error('Failed to load profile')
+  if (error) throw new Error(`Failed to load profile: ${error.message}`)
+  if (!data) throw new Error('Failed to load profile')
 
   // Org name is a non-critical display field (nullable). Unlike the page-critical
   // reads above, an org lookup failure logs + degrades to `organizationName: null`

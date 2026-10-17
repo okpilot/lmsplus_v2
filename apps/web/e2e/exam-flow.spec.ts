@@ -53,11 +53,21 @@ test.describe('practice exam — auto-submit on timer expiry', () => {
     // If a prior run left an active server-side exam session, the page shows a
     // "Practice Exam in progress" banner. Discard it so we start clean.
     const resumeBanner = page.getByText('Practice Exam in progress')
-    if (await resumeBanner.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    if (
+      await resumeBanner.waitFor({ state: 'visible', timeout: 2_000 }).then(
+        () => true,
+        () => false,
+      )
+    ) {
       await page.getByRole('button', { name: 'Discard' }).first().click()
       // Confirm the alertdialog discard
       const alertDialog = page.getByRole('alertdialog')
-      if (await alertDialog.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      if (
+        await alertDialog.waitFor({ state: 'visible', timeout: 3_000 }).then(
+          () => true,
+          () => false,
+        )
+      ) {
         await alertDialog.getByRole('button', { name: 'Discard' }).click()
       }
       // Wait for banner to disappear after server-side discard

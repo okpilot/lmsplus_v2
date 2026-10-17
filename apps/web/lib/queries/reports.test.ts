@@ -39,6 +39,7 @@ function makeRpcRow(overrides: Record<string, unknown> = {}) {
     ended_at: '2026-03-12T10:15:00Z',
     subject_id: 's-1',
     subject_name: 'Navigation',
+    subject_code: 'NAV',
     total_count: 1,
     ...overrides,
   }
@@ -72,6 +73,7 @@ describe('getSessionReports', () => {
     expect(result.sessions).toHaveLength(1)
     const s = result.sessions[0]!
     expect(s.subjectName).toBe('Navigation')
+    expect(s.subjectCode).toBe('NAV')
     expect(s.durationMinutes).toBe(15)
     expect(s.scorePercentage).toBe(80)
     expect(s.totalQuestions).toBe(10)
@@ -149,6 +151,18 @@ describe('getSessionReports', () => {
     expect(result.ok).toBe(true)
     if (!result.ok) return
     expect(result.sessions[0]!.subjectName).toBeNull()
+  })
+
+  it('sets subjectCode to null when subject_code is null', async () => {
+    mockRpc.mockResolvedValue({
+      data: [makeRpcRow({ subject_id: null, subject_name: null, subject_code: null })],
+      error: null,
+    })
+
+    const result = await getSessionReports(DEFAULT_OPTS)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.sessions[0]!.subjectCode).toBeNull()
   })
 
   it('passes correct RPC parameters for page 2', async () => {

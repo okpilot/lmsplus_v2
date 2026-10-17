@@ -28,7 +28,8 @@ export async function loadInternalExamReport(opts: {
   ])
   if (!summary) redirect('/app/internal-exam?tab=reports')
   // Defense-in-depth: this URL is only for internal_exam sessions.
-  if (summary.mode !== 'internal_exam') redirect(reportUrl(summary.mode, sessionId))
+  if (summary.mode !== 'internal_exam')
+    redirect(reportUrl(summary.mode, sessionId, summary.subjectCode))
 
   if (!questionsResult.ok) redirect('/app/internal-exam?tab=reports')
 

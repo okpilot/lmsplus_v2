@@ -89,6 +89,7 @@ describe('getCallerProfile (app-layer integration)', () => {
       email: liveEmail,
       role: 'instructor',
       organization_id: orgId,
+      created_at: expect.any(String),
     })
   })
 

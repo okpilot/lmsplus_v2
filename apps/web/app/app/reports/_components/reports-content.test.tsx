@@ -29,6 +29,7 @@ function makeSession(id: string): SessionReport {
     id,
     mode: 'practice',
     subjectName: 'Meteorology',
+    subjectCode: null,
     totalQuestions: 20,
     correctCount: 15,
     answeredItems: 18,

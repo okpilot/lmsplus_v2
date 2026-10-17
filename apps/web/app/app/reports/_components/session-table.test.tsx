@@ -33,6 +33,7 @@ function makeSession(overrides: Partial<SessionReport> = {}): SessionReport {
     id: 'sess-1',
     mode: 'quick_quiz',
     subjectName: 'Navigation',
+    subjectCode: null,
     totalQuestions: 10,
     correctCount: 8,
     // Deliberately different from both correctCount and totalQuestions — a regression
@@ -158,6 +159,28 @@ describe('SessionTable', () => {
       'href',
       '/app/vfr-rt/report?session=rt-1',
     )
+  })
+
+  it('links a VFR RT practice row to the VFR RT report route', () => {
+    render(
+      <SessionTable
+        {...SORT_PROPS}
+        sessions={[makeSession({ id: 'rt-p1', subjectName: 'Radio', subjectCode: 'RT' })]}
+      />,
+    )
+    expect(screen.getByRole('link', { name: 'Radio' })).toHaveAttribute(
+      'href',
+      '/app/vfr-rt/report?session=rt-p1',
+    )
+  })
+
+  it('navigates a clicked VFR RT practice row to the VFR RT report route', async () => {
+    const user = userEvent.setup()
+    render(
+      <SessionTable {...SORT_PROPS} sessions={[makeSession({ id: 'rt-p2', subjectCode: 'RT' })]} />,
+    )
+    await user.click(screen.getAllByRole('row')[1]!)
+    expect(mockRouterPush).toHaveBeenCalledWith('/app/vfr-rt/report?session=rt-p2')
   })
 
   it('navigates a clicked VFR RT mock exam row to the VFR RT report route', async () => {
