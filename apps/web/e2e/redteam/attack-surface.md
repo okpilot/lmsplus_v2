@@ -257,6 +257,7 @@
 | IE | quiz_sessions-student-direct-softdelete-nondiscardable-exam | HIGH | student-direct-soft-delete-exam-session.spec.ts | BLOCKED |  | privilege-escalation |
 | IF | storage.objects-question-images-non-admin-cross-org-write | MEDIUM | storage-question-images-write.spec.ts | BLOCKED |  | privilege-escalation |
 | IG | prod-legacy-for-all-policies-on-immutable-tables | LOW | authenticated-table-dml-denied.spec.ts | MISSED | #1414 | rls-bypass |
+| IH | get_session_reports-drop-create-active-user-gate-and-subject_code | HIGH | rpc-session-reports-active-user-gate.spec.ts | BLOCKED |  | soft-delete-bypass |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
