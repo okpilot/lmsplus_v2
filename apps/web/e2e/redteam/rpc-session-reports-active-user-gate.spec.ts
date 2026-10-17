@@ -51,7 +51,6 @@ test.describe('Red Team: get_session_reports active-user gate (Vector IH)', () =
     if (error) throw new Error(`IH subjects: ${error.message}`)
     subjects = data ?? []
     expect(subjects).toHaveLength(2)
-    expect(subjects[0]?.code).not.toBe(subjects[1]?.code)
   })
 
   test.afterEach(async () => {

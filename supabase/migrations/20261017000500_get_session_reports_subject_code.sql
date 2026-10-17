@@ -38,8 +38,7 @@ BEGIN
   END IF;
 
   -- Active-user gate (#883): a soft-deleted account with a live JWT must not keep
-  -- reading its historical session reports. Mirrors check_quiz_answer (mig 117) and
-  -- get_report_correct_options (mig 114). Alias `users u` — the RETURNS TABLE declares
+  -- reading its historical session reports. Alias `users u` — the RETURNS TABLE declares
   -- an `id` OUT param, so an unqualified `id` here would be ambiguous (42702, §5(c)).
   PERFORM 1 FROM users u WHERE u.id = v_uid AND u.deleted_at IS NULL;
   IF NOT FOUND THEN
