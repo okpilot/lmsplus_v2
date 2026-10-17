@@ -2,7 +2,7 @@
 //
 // A student's direct soft-delete of their own active quiz_sessions row must be refused by RLS
 // for exactly the modes the app's discard guard blocks, and permitted for every other mode.
-// Modes are derived from MODE_LABELS so a newly added mode is covered automatically.
+// Each mode in MODE_LABELS gets a row; the blocked set is pinned explicitly.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MODE_LABELS } from '@/lib/constants/exam-modes'
 import {
@@ -37,7 +37,7 @@ async function seedActiveSession(mode: string): Promise<string> {
       student_id: studentId,
       mode,
       total_questions: 1,
-      time_limit_seconds: mode === 'quick_quiz' || mode === 'smart_review' ? null : 3600,
+      time_limit_seconds: ['quick_quiz', 'smart_review', 'discovery'].includes(mode) ? null : 3600,
     })
     .select('id')
     .single()
