@@ -1,7 +1,7 @@
 -- #1414: wrap auth.uid() in (select ...) so Postgres plans it as an InitPlan evaluated once
 -- per statement, not once per row (Supabase lint 0003 auth_rls_initplan).
 -- https://supabase.com/docs/guides/database/postgres/row-level-security#call-functions-with-select
--- CREATE OR REPLACE keeps existing GRANTs and COMMENTs; only the auth.uid() comparisons change.
+-- CREATE OR REPLACE keeps existing GRANTs; the COMMENT is re-issued at the end. Only the auth.uid() comparisons change in the body.
 -- Body copied from its latest definition (20260626000100, 7-arg signature).
 
 CREATE OR REPLACE FUNCTION public._filtered_question_pool(

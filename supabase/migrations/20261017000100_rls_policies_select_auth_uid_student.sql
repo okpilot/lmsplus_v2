@@ -3,6 +3,7 @@
 -- https://supabase.com/docs/guides/database/postgres/row-level-security#call-functions-with-select
 -- ALTER POLICY changes only the USING / WITH CHECK expressions; command, roles and permissive are kept.
 -- Two policies are DROP + CREATE (prod drift, below).
+-- Prod pg_policies 2026-10-17: every policy ALTERed here exists on prod by name.
 
 ALTER POLICY "audit_read_instructors" ON public.audit_events
   USING (
@@ -94,6 +95,8 @@ ALTER POLICY "quiz_drafts_student_select" ON public.quiz_drafts
 -- Prod pg_policies 2026-10-17 showed 20260311000001's FOR ALL "students_own_answers" here, not "students_read_answers".
 DROP POLICY IF EXISTS "students_own_answers" ON public.quiz_session_answers;
 DROP POLICY IF EXISTS "students_read_answers" ON public.quiz_session_answers;
+-- No-op where 20260311000006 ran.
+DROP POLICY IF EXISTS "students_insert_answers" ON public.quiz_session_answers;
 CREATE POLICY "students_read_answers" ON public.quiz_session_answers AS PERMISSIVE FOR SELECT TO public
   USING (
     (session_id IN ( SELECT quiz_sessions.id
@@ -150,6 +153,8 @@ ALTER POLICY "instructors_read_students" ON public.student_responses
 -- Prod pg_policies 2026-10-17 showed 20260311000001's FOR ALL "students_own_data" here, not "students_read_responses".
 DROP POLICY IF EXISTS "students_own_data" ON public.student_responses;
 DROP POLICY IF EXISTS "students_read_responses" ON public.student_responses;
+-- No-op where 20260311000006 ran.
+DROP POLICY IF EXISTS "students_insert_responses" ON public.student_responses;
 CREATE POLICY "students_read_responses" ON public.student_responses AS PERMISSIVE FOR SELECT TO public
   USING (
     (student_id = ( SELECT auth.uid() AS uid))

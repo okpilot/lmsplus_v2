@@ -1,7 +1,7 @@
 -- #1414: wrap auth.uid() in (select ...) so Postgres plans it as an InitPlan evaluated once
 -- per statement, not once per row (Supabase lint 0003 auth_rls_initplan).
 -- https://supabase.com/docs/guides/database/postgres/row-level-security#call-functions-with-select
--- CREATE OR REPLACE keeps existing GRANTs; COMMENTs are re-issued at the end. Only the auth.uid() comparisons change.
+-- CREATE OR REPLACE keeps existing GRANTs; COMMENTs are re-issued at the end. Only the auth.uid() comparisons change in the bodies.
 -- Bodies copied from their latest definitions: get_student_mastery_stats 20260521000005,
 -- get_student_streak / get_student_last_practiced 20260521000006, get_student_profile_stats
 -- 20260529000001, get_daily_subjects 20261002000100. The 'auth.uid() IS NULL' guards stay bare.
@@ -185,6 +185,9 @@ END;
 $$;
 
 -- Comments re-issued: the scoping predicate is (select auth.uid()); the section is docs/security.md §3.
+COMMENT ON FUNCTION public.get_student_mastery_stats() IS
+  'Per-(subject) and per-(subject,topic) mastery counts for the calling student. total=active questions; correct=distinct correct responses to non-deleted questions of any status (can exceed total). topic_id NULL = subject-level row. SECURITY INVOKER; RLS scopes to caller org; explicit sr.student_id = (select auth.uid()) keeps it per-caller (student_responses has 2 permissive SELECT policies, docs/security.md §3). Replaces client-side aggregation that truncated at the 1000-row cap (#540, umbrella #668).';
+
 COMMENT ON FUNCTION public.get_daily_subjects(p_days integer) IS
   'Distinct (day, subject_id) pairs the calling student answered in the last p_days days (1-365). SECURITY INVOKER; explicit sr.student_id = (select auth.uid()) per docs/security.md §3 (student_responses has 2 permissive SELECT policies). Active-user gate raises ''user not found or inactive''. The questions JOIN is org + non-deleted via RLS, so a soft-deleted question drops out.';
 

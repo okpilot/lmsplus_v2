@@ -2,6 +2,7 @@
 -- evaluated once per statement, not once per row (Supabase lint 0003 auth_rls_initplan).
 -- https://supabase.com/docs/guides/database/postgres/row-level-security#call-functions-with-select
 -- ALTER POLICY changes only the USING / WITH CHECK expressions; command, roles and permissive are kept.
+-- Prod pg_policies 2026-10-17: every policy ALTERed here exists on prod by name.
 
 ALTER POLICY "tenant_isolation" ON public.courses
   USING (
