@@ -134,7 +134,7 @@ AS $$
   -- JOIN is org + deleted_at IS NULL via the tenant_isolation RLS policy, reproducing the
   -- legacy questionSubjectMap (built from non-deleted questions) — a response to a deleted
   -- question is excluded from attribution exactly as before. Explicit sr.student_id = (select auth.uid())
-  -- keeps it per-caller despite the second permissive SELECT policy (security.md §11).
+  -- keeps it per-caller despite the second permissive SELECT policy (docs/security.md §3 Multiple Permissive SELECT Policies).
   SELECT q.subject_id, MAX(sr.created_at) AS last_practiced_at
   FROM student_responses sr
   JOIN questions q ON q.id = sr.question_id

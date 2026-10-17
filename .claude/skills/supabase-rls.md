@@ -84,7 +84,7 @@ $$;
 one does its policy does not necessarily key on it. `quiz_session_answers` and
 `flagged_questions` have no such column at all. `student_responses` does have one,
 and describing its policy SET matters: its student-facing policy keys on
-`student_id = auth.uid()` (`students_read_responses`), while a second, role-gated
+`student_id = (select auth.uid())` (`students_read_responses`), while a second, role-gated
 policy DOES key on `organization_id` (`instructors_read_students`, mig 001:393,
 never dropped) — which is why `docs/security.md` §3 "Multiple Permissive SELECT
 Policies — RPCs Must Scope Explicitly" requires a per-caller RPC reading it to
@@ -100,7 +100,7 @@ column it raises 42703 at CREATE.
 Other exceptions exist; do not treat this as a closed list. `organizations`, the
 tenant root, carries the policy but keys on its own `id`, having no
 `organization_id`. `users` carries `organization_id` yet its live policies key on
-`id = auth.uid()` (`users_select`, `users_update_own`) — its `tenant_isolation`
+`id = (select auth.uid())` (`users_select`, `users_update_own`) — its `tenant_isolation`
 policy was dropped TWICE (migs `20260311000004`, `20260312000012`) because the
 self-referential subquery recursed, making it the one table where applying this
 template actually broke. Derive the current set from the `docs/database.md` §3
