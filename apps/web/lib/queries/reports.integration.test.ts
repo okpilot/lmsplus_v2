@@ -178,6 +178,14 @@ describe('getSessionReports (app-layer integration)', () => {
     expect(session?.durationMinutes).toBeGreaterThanOrEqual(0)
   })
 
+  it('returns the subject code of each session row', async () => {
+    const { data, error } = await studentAClient.rpc('get_session_reports', { p_limit: 1 })
+
+    expect(error).toBeNull()
+    expect(Array.isArray(data)).toBe(true)
+    expect(data?.[0]?.subject_code).toBe(`RP_${suffix}`)
+  })
+
   it('returns answeredItems reflecting real answer rows under RLS (not silently 0)', async () => {
     // getSessionReports now derives answeredItems via fetchAnsweredItemCounts on the
     // RLS-scoped client (never adminClient) — this proves that read path actually returns

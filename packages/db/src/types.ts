@@ -1767,6 +1767,7 @@ export type Database = {
           mode: string
           score_percentage: number
           started_at: string
+          subject_code: string
           subject_id: string
           subject_name: string
           total_count: number
