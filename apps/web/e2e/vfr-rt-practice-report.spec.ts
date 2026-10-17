@@ -2,12 +2,12 @@
  * E2E — a finished VFR RT Practice session opens its report on the VFR RT route from /app/reports.
  *
  * Seeds an RT pool into the e2e org for the shared e2e student; afterEach discards any open
- * session; afterAll soft-deletes the pool. Signs in per test: settings.spec.ts resets this
+ * session and soft-deletes the sessions the test started; afterAll soft-deletes the pool. Signs in per test: settings.spec.ts resets this
  * student's password.
  */
 
 import { expect, test } from '@playwright/test'
-import { SESSION_ID_URL } from './helpers/quiz-session-id'
+import { SESSION_ID_URL, sessionIdFromUrl } from './helpers/quiz-session-id'
 import {
   cleanupStudentActiveSessions,
   getAdminClient,
@@ -29,6 +29,7 @@ test.describe('VFR RT practice report routing', () => {
 
   let pool: VfrRtPool
   let orgId: string
+  const createdSessionIds = new Set<string>()
 
   test.beforeAll(async () => {
     const admin = getAdminClient()
@@ -48,7 +49,31 @@ test.describe('VFR RT practice report routing', () => {
   })
 
   test.afterEach(async () => {
-    await cleanupStudentActiveSessions(TEST_EMAIL)
+    const errors: string[] = []
+    try {
+      await cleanupStudentActiveSessions(TEST_EMAIL)
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
+    }
+    try {
+      if (createdSessionIds.size > 0) {
+        const { data, error } = await getAdminClient()
+          .from('quiz_sessions')
+          .update({ deleted_at: new Date().toISOString() })
+          .in('id', [...createdSessionIds])
+          .is('deleted_at', null)
+          .select('id')
+        if (error) throw new Error(`soft-delete created sessions: ${error.message}`)
+        if ((data?.length ?? 0) > 0) {
+          console.log(`[vfr-rt-practice-report] soft-deleted ${data?.length} session(s)`)
+        }
+      }
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
+    } finally {
+      createdSessionIds.clear()
+    }
+    if (errors.length > 0) throw new Error(`afterEach: ${errors.join('; ')}`)
   })
 
   test.afterAll(async () => {
@@ -64,6 +89,7 @@ test.describe('VFR RT practice report routing', () => {
     await page.getByRole('button', { name: 'All', exact: true }).click()
     await page.getByRole('button', { name: 'Start Practice' }).click()
     await page.waitForURL(SESSION_ID_URL, { timeout: 20_000 })
+    createdSessionIds.add(sessionIdFromUrl(page.url()))
     await expect(page.getByText(/Question \d/).first()).toBeVisible({ timeout: 15_000 })
 
     // Question order is shuffled; step forward to a short-answer question and answer it.
