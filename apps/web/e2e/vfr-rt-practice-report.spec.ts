@@ -15,7 +15,12 @@ import {
   TEST_PASSWORD,
 } from './helpers/supabase'
 import { getEgmontOrgId } from './redteam/helpers/seed-core'
-import { cleanupVfrRtPool, seedVfrRtPool, type VfrRtPool } from './redteam/helpers/seed-vfr-rt-pool'
+import {
+  cleanupVfrRtPool,
+  seedVfrRtPool,
+  VFR_RT_SA_ANSWER,
+  type VfrRtPool,
+} from './redteam/helpers/seed-vfr-rt-pool'
 
 test.use({ storageState: { cookies: [], origins: [] }, viewport: { width: 1280, height: 1000 } })
 
@@ -65,9 +70,10 @@ test.describe('VFR RT practice report routing', () => {
     const input = page.locator('[data-testid="short-answer-input"]')
     for (let i = 0; i < 30 && (await input.count()) === 0; i++) {
       await page.getByRole('button', { name: 'Next ›' }).click()
+      await expect(page.getByText(`Question ${i + 2} of`)).toBeVisible()
     }
     await expect(input).toHaveCount(1)
-    await input.fill('alpha')
+    await input.fill(VFR_RT_SA_ANSWER)
     await page.getByRole('button', { name: 'Submit Answer' }).click()
     await expect(input).toBeDisabled()
 
