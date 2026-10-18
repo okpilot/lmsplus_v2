@@ -7,8 +7,8 @@ import { requireAdmin } from '@/lib/auth/require-admin'
  * admin home: the first `ADMIN_NAV_ITEMS` entry, and the target the other admin
  * surfaces already bounce to.
  *
- * `requireAdmin()` here repeats the guard in `app/app/admin/layout.tsx` (Layer 1,
- * docs/security.md) at no cost: it is `cache()`d. It gates the RENDER path only —
+ * `requireAdmin()` here is required because `app/app/admin/layout.tsx` (Layer 1,
+ * docs/security.md) does not gate its sibling page; `cache()` makes the second call free. It gates the RENDER path only —
  * this page also makes `/app/admin` a valid Server Action POST target. That path is
  * gated by the invariant every admin Server Action already carries: each one calls
  * `requireAdmin()` itself (docs/security.md Layer 2).

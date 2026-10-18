@@ -275,6 +275,8 @@ describe('proxy', () => {
 
       expect(response.status).toBe(503)
       expect(response.headers.get('cache-control')).toBe('private, no-store')
+      const setCookie503 = response.headers.get('set-cookie') ?? ''
+      expect(setCookie503).toContain('sb-token=refreshed')
     } finally {
       MOCK_SESSION_RESPONSE.headers.delete('cache-control')
       consoleSpy.mockRestore()

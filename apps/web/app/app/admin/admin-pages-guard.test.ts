@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 const ADMIN_DIR = __dirname
 const HTTP_METHODS = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'])
-const GUARD_FILES = new Set(['page.tsx', 'route.ts'])
+const GUARD_FILES = new Set(['page.tsx', 'layout.tsx', 'template.tsx', 'route.ts'])
 
 type Kind = 'page' | 'route'
 
@@ -97,6 +97,18 @@ describe('guard checker controls', () => {
   // CONTROL: red
   it('rejects a page that does not import requireAdmin', () => {
     const src = `export default async function P() {\n  await requireAdmin()\n  return null\n}`
+    expect(guardsFirst(src, 'page')).toBe(false)
+  })
+
+  // CONTROL: green
+  it('accepts a layout whose default export awaits requireAdmin() first', () => {
+    const src = `${IMPORT}export default async function L({ children }) {\n  await requireAdmin()\n  return children\n}`
+    expect(guardsFirst(src, 'page')).toBe(true)
+  })
+
+  // CONTROL: red
+  it('rejects a layout whose default export returns children without the guard', () => {
+    const src = `${IMPORT}export default async function L({ children }) {\n  return children\n}`
     expect(guardsFirst(src, 'page')).toBe(false)
   })
 
