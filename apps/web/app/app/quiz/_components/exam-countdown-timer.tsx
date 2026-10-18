@@ -59,7 +59,10 @@ export function ExamCountdownTimer({
   }, [calcRemaining])
 
   return (
-    <span className={`tabular-nums ${getTimerClass(remaining)} ${className ?? ''}`}>
+    <span
+      suppressHydrationWarning
+      className={`tabular-nums ${getTimerClass(remaining)} ${className ?? ''}`}
+    >
       {formatCountdown(remaining)}
     </span>
   )

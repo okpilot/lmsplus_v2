@@ -113,6 +113,19 @@ describe('loadSessionEntry', () => {
     expect(loaded.runner).toEqual({ error: 'Failed to load questions. Please try again.' })
   })
 
+  it('logs the failure when the questions read rejects', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    mockLoad.mockResolvedValue(open('quick_quiz'))
+    mockQuestions.mockRejectedValue(new Error('boom'))
+
+    const loaded = await loadSessionEntry(ID, 'user-1')
+
+    expect(errorSpy).toHaveBeenCalledTimes(1)
+    expect(String(errorSpy.mock.calls[0]?.[0]).startsWith('[loadSessionEntry]')).toBe(true)
+    expect(errorSpy.mock.calls[0]).toContain('boom')
+    expect(loaded.runner).toEqual({ error: 'Failed to load questions. Please try again.' })
+  })
+
   it('still returns the questions when the flag read rejects', async () => {
     mockLoad.mockResolvedValue(open('quick_quiz'))
     mockFlags.mockRejectedValue(new Error('down'))

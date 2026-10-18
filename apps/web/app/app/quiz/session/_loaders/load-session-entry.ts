@@ -39,7 +39,11 @@ async function loadRunnerData(entry: OpenEntry): Promise<SessionRunnerData> {
     const result = await readQuestions(entry)
     if (!result.success) return { error: result.error }
     return { questions: result.questions, flaggedIds: await flags }
-  } catch {
+  } catch (e) {
+    console.error(
+      '[loadSessionEntry] question load failed:',
+      e instanceof Error ? e.message : String(e),
+    )
     return { error: LOAD_FAILED }
   }
 }
