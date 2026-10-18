@@ -19,6 +19,14 @@ describe('loginInstructionsEmail', () => {
     expect(html).toContain('Set my password')
   })
 
+  it('wraps the long fallback link instead of overflowing the email', () => {
+    const { html } = loginInstructionsEmail(BASE)
+
+    expect(html).toMatch(
+      /<p style="[^"]*overflow-wrap: break-word;[^"]*">If the button does not work/,
+    )
+  })
+
   it('tells the recipient to use the link to set the password for their account', () => {
     const { html, text } = loginInstructionsEmail(BASE)
 

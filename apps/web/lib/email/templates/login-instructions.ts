@@ -39,7 +39,7 @@ function buildHtml(c: BodyContent): string {
     <p>
       <a href="${esc(c.setPasswordUrl)}" style="display: inline-block; background: #2563eb; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: bold;">Set my password</a>
     </p>
-    <p style="color: #6b7280; font-size: 13px;">If the button does not work, copy and paste this link into your browser:<br />${esc(c.setPasswordUrl)}</p>
+    <p style="color: #6b7280; font-size: 13px; word-wrap: break-word; overflow-wrap: break-word;">If the button does not work, copy and paste this link into your browser:<br />${esc(c.setPasswordUrl)}</p>
     <p>${esc(c.validity)}</p>
     <p><strong>If the link has expired:</strong></p>
     <ol>
