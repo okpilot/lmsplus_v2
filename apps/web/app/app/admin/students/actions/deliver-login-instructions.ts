@@ -33,6 +33,13 @@ export async function issueAndEmailSetPasswordLink(opts: {
     context: 'sendLoginInstructions',
   })
 
+  return sendSetPasswordEmail(recipient, hashedToken)
+}
+
+async function sendSetPasswordEmail(
+  recipient: LoginInstructionsRecipient,
+  hashedToken: string,
+): Promise<DeliverOutcome> {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ''
   const emailed = await sendEmail({
     to: recipient.email,

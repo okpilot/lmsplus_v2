@@ -153,27 +153,15 @@ export async function softDeleteLinkStudent(userId: string): Promise<void> {
  * `docs/security.md` rule 5), so a hard delete always fails. Slot emails are
  * deterministic, so the next `createLinkStudent` reuses the Auth user and
  * undeletes the row; nothing leaks.
- *
- * Steps are isolated and accumulated (`code-style.md` §7).
  */
 export async function cleanupLinkStudents(): Promise<void> {
-  const errors: string[] = []
-  try {
-    await softDeleteAllLinkStudents()
-  } catch (e) {
-    errors.push(e instanceof Error ? e.message : String(e))
-  }
-  if (errors.length > 0) throw new Error(`cleanupLinkStudents: ${errors.join('; ')}`)
-}
-
-async function softDeleteAllLinkStudents(): Promise<void> {
   const admin = getAdminClient()
   const { data: rows, error } = await admin
     .from('users')
     .select('id')
     .like('email', `${E2E_SET_PASSWORD_LINK_EMAIL_PREFIX}%`)
     .is('deleted_at', null)
-  if (error) throw new Error(`list: ${error.message}`)
+  if (error) throw new Error(`cleanupLinkStudents: list: ${error.message}`)
   if (!rows?.length) return
 
   const { data: softDeleted, error: softDeleteError } = await admin
@@ -185,7 +173,8 @@ async function softDeleteAllLinkStudents(): Promise<void> {
     )
     .is('deleted_at', null)
     .select('id')
-  if (softDeleteError) throw new Error(`soft-delete: ${softDeleteError.message}`)
+  if (softDeleteError)
+    throw new Error(`cleanupLinkStudents: soft-delete: ${softDeleteError.message}`)
   if ((softDeleted?.length ?? 0) > 0) {
     console.log(`[cleanupLinkStudents] soft-deleted ${softDeleted?.length} student(s)`)
   }

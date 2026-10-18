@@ -72,6 +72,30 @@ describe('scrubTokens', () => {
     expect(JSON.stringify(out)).not.toContain('secret')
   })
 
+  it('filters a string stored under a token_hash or tokenHash key', () => {
+    const out = scrubTokens({
+      extra: { searchParams: { token_hash: 'secret', type: 'recovery' } },
+      tokenHash: 'secret',
+    })
+    expect(JSON.stringify(out)).not.toContain('secret')
+    expect(out.extra.searchParams.type).toBe('recovery')
+  })
+
+  it('still walks a non-string value under a token_hash key', () => {
+    const out = scrubTokens({ token_hash: { url: PATH } })
+    expect(out.token_hash).toEqual({ url: FILTERED })
+  })
+
+  it('filters a URL instance', () => {
+    const out = scrubTokens({ u: new URL(`https://x.test${PATH}`) })
+    expect(out.u).toBe(`https://x.test${FILTERED}`)
+  })
+
+  it('filters a URLSearchParams instance', () => {
+    const out = scrubTokens({ q: new URLSearchParams('token_hash=secret&type=recovery') })
+    expect(out.q).toBe('token_hash=[Filtered]&type=recovery')
+  })
+
   it('does not mutate its input', () => {
     const input = { request: { url: PATH }, list: [PATH] }
     const snapshot = JSON.stringify(input)
