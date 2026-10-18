@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 type ExamCountdownTimerProps = {
   timeLimitSeconds: number
@@ -24,6 +24,10 @@ function getTimerClass(remaining: number): string {
   return 'text-muted-foreground'
 }
 
+function remainingClass(remaining: number | null): string {
+  return remaining === null ? 'text-muted-foreground' : getTimerClass(remaining)
+}
+
 export function ExamCountdownTimer({
   timeLimitSeconds,
   startedAt,
@@ -44,7 +48,11 @@ export function ExamCountdownTimer({
     [],
   )
 
-  const [remaining, setRemaining] = useState(calcRemaining)
+  const [remaining, setRemaining] = useState<number | null>(null)
+
+  useLayoutEffect(() => {
+    setRemaining(calcRemaining())
+  }, [calcRemaining])
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -59,11 +67,8 @@ export function ExamCountdownTimer({
   }, [calcRemaining])
 
   return (
-    <span
-      suppressHydrationWarning
-      className={`tabular-nums ${getTimerClass(remaining)} ${className ?? ''}`}
-    >
-      {formatCountdown(remaining)}
+    <span className={`tabular-nums ${remainingClass(remaining)} ${className ?? ''}`}>
+      {remaining === null ? '--:--' : formatCountdown(remaining)}
     </span>
   )
 }

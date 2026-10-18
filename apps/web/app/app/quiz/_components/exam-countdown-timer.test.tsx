@@ -173,12 +173,18 @@ describe('ExamCountdownTimer — hydration', () => {
     const onRecoverableError = vi.fn()
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
+    let root: ReturnType<typeof hydrateRoot> | undefined
     await act(async () => {
-      hydrateRoot(container, el, { onRecoverableError })
+      root = hydrateRoot(container, el, { onRecoverableError })
     })
 
     expect(onRecoverableError).not.toHaveBeenCalled()
     expect(errorSpy).not.toHaveBeenCalled()
+    const span = container.querySelector('span')
+    expect(span?.textContent).toBe('04:58')
+    expect(span?.className).toContain('text-amber-600')
+    expect(span?.className).not.toContain('text-muted-foreground')
+    act(() => root?.unmount())
     container.remove()
   })
 })
