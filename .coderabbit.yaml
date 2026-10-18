@@ -60,6 +60,7 @@ reviews:
         - Data fetching via imported async functions, not inline queries.
         - No direct Supabase client usage.
         - Props (params/searchParams) must be wrapped in Readonly<…> (SonarCloud typescript:S6759 — not Biome-enforceable).
+        - Admin pages (apps/web/app/app/admin/**/page.tsx): `await requireAdmin()` is the first statement of the page function (docs/security.md "Admin Route Protection"; the admin layout does not gate its pages).
         - The page's directory needs its own error.tsx and loading.tsx (apps/web/app/segment-boundaries.test.ts lists pre-existing gaps; a new page directory must not be added to it).
 
     # App Router layouts
@@ -100,6 +101,7 @@ reviews:
         - Max 100 lines. Split by feature area if exceeded.
         - ALL inputs validated with Zod schema (.parse()) before use.
         - Auth check first: verify the session identity (requireAuthUser() / verifySessionUser(), or getUser() where docs/security.md "Identity lookup" keeps it) before any mutation. Exception: `apps/web/app/auth/set-password/actions.ts` takes the user from its own `verifyOtp` (docs/security.md "Identity lookup").
+        - Admin Server Actions (apps/web/app/app/admin/**): call `requireAdmin()` before any data access (docs/security.md "Admin Route Protection").
         - No service role key (adminClient) — that lives in packages/db/src/admin.ts only.
         - Explicit return types on all exported functions.
         - No `any` type — use `unknown` with narrowing.
