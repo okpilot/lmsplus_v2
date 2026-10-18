@@ -12,7 +12,7 @@ vi.mock('../../actions/quiz-progress', () => ({
   saveQuizPosition: (...a: unknown[]) => mockSavePosition(...a),
 }))
 
-import { _resetSessionTakeover } from '../_utils/session-takeover'
+import { _resetSessionTakeover, markTakenOver } from '../_utils/session-takeover'
 import { useProgressSaves } from './use-progress-saves'
 
 const SESSION = '00000000-0000-4000-a000-000000000001'
@@ -86,6 +86,23 @@ describe('useProgressSaves', () => {
     rerender({ err: TAKEN })
 
     expect(result.current.saveError).toBe(TAKEN)
+  })
+
+  it('keeps a late claim error off the screen once the session is taken over', () => {
+    const { result, rerender } = renderHook(
+      ({ err }: { err: string | null }) =>
+        useProgressSaves({
+          opts: makeOpts('study', err),
+          currentIndexRef: { current: 0 },
+          answerStartTime: { current: 0 },
+        }),
+      { initialProps: { err: null as string | null } },
+    )
+    markTakenOver(SESSION)
+
+    rerender({ err: TAKEN })
+
+    expect(result.current.saveError).toBeNull()
   })
 
   it('clears a late claim error after the next successful save', async () => {

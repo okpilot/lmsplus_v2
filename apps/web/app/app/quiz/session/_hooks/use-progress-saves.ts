@@ -16,8 +16,10 @@ export function useProgressSaves({ opts, currentIndexRef, answerStartTime }: Rea
   // The device claim settles after the first render; its error joins the save error unless a save
   // already succeeded. The next failing save re-surfaces a takeover.
   useEffect(() => {
-    if (opts.initialSaveError && !savedRef.current) setSaveError(opts.initialSaveError)
-  }, [opts.initialSaveError])
+    if (opts.initialSaveError && !savedRef.current && !isTakenOver(opts.sessionId)) {
+      setSaveError(opts.initialSaveError)
+    }
+  }, [opts.initialSaveError, opts.sessionId])
   const saves = buildRunnerSaves({
     sessionId: opts.sessionId,
     enabled: opts.mode !== 'discovery',

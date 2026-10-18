@@ -83,13 +83,13 @@ describe('loadSessionEntry', () => {
     expect(loaded.runner).toEqual({ questions: Q, flaggedIds: ['q1'] })
   })
 
-  it('does not read flags for an internal exam', async () => {
+  it('reads flags for an internal exam so the grid shows them', async () => {
     mockLoad.mockResolvedValue(open('internal_exam'))
 
     const loaded = await loadSessionEntry(ID, 'user-1')
 
-    expect(mockFlags).not.toHaveBeenCalled()
-    expect(loaded.runner).toEqual({ questions: Q, flaggedIds: [] })
+    expect(mockFlags).toHaveBeenCalled()
+    expect(loaded.runner).toEqual({ questions: Q, flaggedIds: ['q1'] })
   })
 
   it('reports the questions error without waiting on a hung flag read', async () => {

@@ -7,8 +7,6 @@ import { loadQuizSessionState, type SessionEntry } from '@/lib/queries/load-quiz
 import { loadSessionQuestions } from '@/lib/queries/load-session-questions'
 import { loadVfrRtExamQuestions } from '@/lib/queries/load-vfr-rt-exam-questions'
 import { withTimeout } from '@/lib/utils/with-timeout'
-import { canFlagQuestion } from '../_utils/can-flag-question'
-import { toRunnerMode } from '../_utils/session-runner-mode'
 
 type OpenEntry = Extract<SessionEntry, { kind: 'open' }>
 type SavedEntry = Extract<SessionEntry, { kind: 'saved' }>
@@ -24,8 +22,6 @@ export type LoadedSessionEntry =
 const LOAD_FAILED = 'Failed to load questions. Please try again.'
 
 function readFlagsBounded(entry: OpenEntry): Promise<string[]> {
-  const { mode, examMode } = toRunnerMode(entry.mode)
-  if (!canFlagQuestion({ isExam: mode === 'exam', examMode })) return Promise.resolve([])
   const flags = getFlaggedQuestionIds(entry.questionIds).catch(() => [] as string[])
   return withTimeout(flags, FLAG_FETCH_TIMEOUT_MS, [])
 }
