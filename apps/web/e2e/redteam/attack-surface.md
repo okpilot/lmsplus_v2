@@ -265,6 +265,7 @@
 | IK | setPasswordFromLink-failed-write-unpinned-recovery-session | MEDIUM | set-password-link-session.spec.ts | BLOCKED |  | cookie-state |
 | IL | admin-render-gate-forged-router-state-tree-partial-render | HIGH | admin-render-gate.spec.ts | BLOCKED |  | auth-bypass |
 | IM | requireAdmin-soft-deleted-admin-live-token-render | MEDIUM | admin-render-gate.spec.ts | BLOCKED |  | soft-delete-bypass |
+| IN | session-page-rsc-vfr-rt-foreign-session-questions | HIGH | rsc-vfr-rt-exam-questions-key-strip.spec.ts | BLOCKED |  | idor |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 

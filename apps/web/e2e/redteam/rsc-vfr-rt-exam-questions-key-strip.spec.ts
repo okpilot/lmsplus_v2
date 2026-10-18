@@ -6,13 +6,21 @@
  *        key mid-exam: no correct_option_id, no dialog_fill canonical/synonym, no diagram
  *        zone -> label map, no explanation. CONTROL: the payload does carry the session's
  *        question text and the serialized question props.
+ *  - IN  A second student requesting the victim's exam session page (document + RSC flight)
+ *        receives none of its questions. CONTROL: the victim's own request carries them.
  */
 
 import { type BrowserContext, expect, type Page, test } from '@playwright/test'
 import { buildConsentCookieValue } from '../../lib/consent/check-consent'
 import { CONSENT_COOKIE } from '../../lib/consent/versions'
 import { cleanupStudentActiveSessions, getAdminClient } from '../helpers/supabase'
-import { seedRedTeamUsers, VICTIM_EMAIL, VICTIM_PASSWORD } from './helpers/seed-users'
+import {
+  ATTACKER_EMAIL,
+  ATTACKER_PASSWORD,
+  seedRedTeamUsers,
+  VICTIM_EMAIL,
+  VICTIM_PASSWORD,
+} from './helpers/seed-users'
 import { VFR_RT_POOL_MARKER } from './helpers/seed-vfr-rt-part3'
 import {
   cleanupVfrRtPool,
@@ -72,6 +80,7 @@ test.describe('Red Team: VFR RT exam session page RSC payload (GC)', () => {
   let pool: VfrRtPool
   let orgId: string
   let victimUserId: string
+  let attackerUserId: string
   const createdSessionIds = new Set<string>()
 
   test.beforeAll(async () => {
@@ -79,6 +88,7 @@ test.describe('Red Team: VFR RT exam session page RSC payload (GC)', () => {
     const seed = await seedRedTeamUsers()
     orgId = seed.orgId
     victimUserId = seed.victimUserId
+    attackerUserId = seed.attackerUserId
     pool = await seedVfrRtPool({ admin, orgId, adminUserId: victimUserId })
   })
 
@@ -106,7 +116,7 @@ test.describe('Red Team: VFR RT exam session page RSC payload (GC)', () => {
     } finally {
       createdSessionIds.clear()
     }
-    for (const email of [VICTIM_EMAIL]) {
+    for (const email of [VICTIM_EMAIL, ATTACKER_EMAIL]) {
       try {
         await cleanupStudentActiveSessions(email)
       } catch (e) {
@@ -165,6 +175,59 @@ test.describe('Red Team: VFR RT exam session page RSC payload (GC)', () => {
         expect(body, `${name} explanation`).not.toMatch(/"explanation_text":"/)
       }
     } finally {
+      await victimCtx.close()
+    }
+  })
+
+  test('IN: a foreign student gets none of the victim exam questions from the session page', async ({
+    browser,
+  }) => {
+    await cleanupStudentActiveSessions(VICTIM_EMAIL)
+    await cleanupStudentActiveSessions(ATTACKER_EMAIL)
+    const victimCtx = await browser.newContext({ storageState: undefined })
+    const attackerCtx = await browser.newContext({ storageState: undefined })
+    try {
+      const victimPage = await signIn(victimCtx, {
+        email: VICTIM_EMAIL,
+        password: VICTIM_PASSWORD,
+        userId: victimUserId,
+      })
+      await startExam(victimPage)
+      const sessionId = await activeExamId(victimUserId)
+      const url = `/app/quiz/session/${sessionId}`
+
+      // Control: the owner's flight payload carries the exam's questions.
+      const own = await victimCtx.request.get(url, { headers: { RSC: '1' } })
+      expect(own.ok()).toBe(true)
+      expect(normalise(await own.text()), 'control: owner payload').toContain(VFR_RT_POOL_MARKER)
+
+      await signIn(attackerCtx, {
+        email: ATTACKER_EMAIL,
+        password: ATTACKER_PASSWORD,
+        userId: attackerUserId,
+      })
+      const doc = await attackerCtx.request.get(url)
+      const flight = await attackerCtx.request.get(url, { headers: { RSC: '1' } })
+      const bodies = {
+        document: normalise(await doc.text()),
+        flight: normalise(await flight.text()),
+      }
+      for (const [name, body] of Object.entries(bodies)) {
+        expect(body.length, `${name} non-empty`).toBeGreaterThan(0)
+        expect(body, `${name} leaks victim question`).not.toContain(VFR_RT_POOL_MARKER)
+        expect(body, `${name} leaks question props`).not.toContain('"question_type":"')
+      }
+
+      // The victim's session is untouched by the foreign read.
+      const { data, error } = await admin
+        .from('quiz_sessions')
+        .select('student_id, ended_at, deleted_at')
+        .eq('id', sessionId)
+        .single()
+      expect(error).toBeNull()
+      expect(data).toEqual({ student_id: victimUserId, ended_at: null, deleted_at: null })
+    } finally {
+      await attackerCtx.close()
       await victimCtx.close()
     }
   })
