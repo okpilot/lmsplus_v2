@@ -55,6 +55,7 @@ describe('loadSessionData', () => {
 
     const result = await loadSessionData(QUESTION_IDS)
 
+    expect(result).toEqual({ success: true, questions: [Q1, Q2], flaggedIds: [] })
     expect(result).not.toHaveProperty('claimError')
   })
 

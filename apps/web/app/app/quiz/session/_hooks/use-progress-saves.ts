@@ -14,7 +14,8 @@ export function useProgressSaves({ opts, currentIndexRef, answerStartTime }: Rea
   const [saveError, setSaveError] = useState<string | null>(opts.initialSaveError ?? null)
   const savedRef = useRef(false)
   // The device claim settles after the first render; its error joins the save error unless a save
-  // already succeeded. The next failing save re-surfaces a takeover.
+  // already succeeded. A takeover the claim did not report is caught when a later write is
+  // refused: withTakeoverCheck marks the session taken over and useTakeoverExit leaves the runner.
   useEffect(() => {
     if (opts.initialSaveError && !savedRef.current && !isTakenOver(opts.sessionId)) {
       setSaveError(opts.initialSaveError)

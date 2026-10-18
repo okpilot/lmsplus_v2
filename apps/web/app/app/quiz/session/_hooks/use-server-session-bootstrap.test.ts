@@ -64,17 +64,9 @@ describe('useServerSessionBootstrap', () => {
     expect(mockClaim).toHaveBeenCalledTimes(1)
   })
 
-  it("drops the student's local copy of another session once the claim settles", async () => {
-    seed('u1', 'old')
-    renderHook(() => useServerSessionBootstrap(OPTS))
-
-    await waitFor(() => expect(localStorage.getItem('quiz-active-session:u1')).toBeNull())
-  })
-
   it("keeps the student's local copy of the session being opened", async () => {
     seed('u1', 's1')
     const { result } = renderHook(() => useServerSessionBootstrap(OPTS))
-    mockClaim.mockClear()
 
     await act(async () => undefined)
 

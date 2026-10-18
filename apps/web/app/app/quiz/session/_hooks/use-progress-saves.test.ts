@@ -116,6 +116,7 @@ describe('useProgressSaves', () => {
       { initialProps: { err: null as string | null } },
     )
     rerender({ err: TAKEN })
+    expect(result.current.saveError).toBe(TAKEN)
 
     await act(async () => result.current.saveAnswer({ selectedOptionId: 'a' }))
 

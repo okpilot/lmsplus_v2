@@ -96,6 +96,8 @@ describe('loadSessionEntry', () => {
     mockLoad.mockResolvedValue(open('quick_quiz'))
     mockQuestions.mockResolvedValue({ success: false, error: 'No questions found' })
     mockFlags.mockReturnValue(new Promise(() => undefined))
+    // Fake timers never fire the flag timeout: a loader that awaits flags first hangs.
+    vi.useFakeTimers()
 
     const loaded = await loadSessionEntry(ID, 'user-1')
 

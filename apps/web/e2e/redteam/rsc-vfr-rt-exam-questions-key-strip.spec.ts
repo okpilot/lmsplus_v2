@@ -206,14 +206,20 @@ test.describe('Red Team: VFR RT exam session page RSC payload (GC)', () => {
         password: ATTACKER_PASSWORD,
         userId: attackerUserId,
       })
-      const doc = await attackerCtx.request.get(url)
+      // Observed: loading.tsx streams the page, so the document is a 200 carrying an in-stream
+      // NEXT_REDIRECT digest. The flight request's own 307 (to `?_rsc`) is only URL normalisation,
+      // so it follows redirects and lands on the same in-stream digest.
+      const doc = await attackerCtx.request.get(url, { maxRedirects: 0 })
       const flight = await attackerCtx.request.get(url, { headers: { RSC: '1' } })
+      expect(doc.status(), 'document status').toBe(200)
       const bodies = {
         document: normalise(await doc.text()),
         flight: normalise(await flight.text()),
       }
       for (const [name, body] of Object.entries(bodies)) {
-        expect(body.length, `${name} non-empty`).toBeGreaterThan(0)
+        expect(body, `${name} redirects the foreign student to /app/quiz`).toMatch(
+          /NEXT_REDIRECT;replace;\/app\/quiz;307;/,
+        )
         expect(body, `${name} leaks victim question`).not.toContain(VFR_RT_POOL_MARKER)
         expect(body, `${name} leaks question props`).not.toContain('"question_type":"')
       }
