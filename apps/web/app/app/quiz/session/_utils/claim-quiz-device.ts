@@ -4,8 +4,9 @@ import { claimQuizSession } from '../../actions/quiz-progress'
 import { getQuizDeviceId } from './quiz-device-id'
 import { announceClaim, clearTakenOver, markTakenOver } from './session-takeover'
 
-// A claim error arriving after this window is dropped; the session is already open. A tab whose claim never lands is kicked on its
-// first write if another device owns the session; an unclaimed session accepts the write.
+// A claim error arriving after this window is dropped; the session is already open. A tab whose
+// claim never lands is kicked on its first write if another device owns the session; an unclaimed
+// session accepts the write.
 export const CLAIM_TIMEOUT_MS = 3000
 
 type ClaimResult = Awaited<ReturnType<typeof claimQuizSession>>
