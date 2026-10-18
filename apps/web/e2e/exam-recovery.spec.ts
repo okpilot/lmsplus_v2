@@ -159,6 +159,14 @@ test.describe('practice exam — refresh recovery', () => {
     await expect(page.getByText(/Question 1 of/)).toBeVisible({ timeout: 15_000 })
     await expect(page.locator('button:has(span.rounded-full)').first()).toBeDisabled()
     await expect(page.getByText('Practice Exam in progress')).toHaveCount(0)
+    // The countdown resolves to a real clock value after the reload, never the '--:--' placeholder.
+    await expect(
+      page
+        .locator('span.tabular-nums:visible')
+        .filter({ hasText: /^(\d+:)?\d{2}:\d{2}$/ })
+        .first(),
+    ).toBeVisible()
+    await expect(page.getByText('--:--')).toHaveCount(0)
   })
 
   // ── 2. Resume banner on /app/quiz when the browser storage is cleared ──────
