@@ -97,21 +97,24 @@ describe('sendLoginInstructions', () => {
     errorSpy.mockRestore()
   })
 
-  it('fails without issuing a link when NEXT_PUBLIC_APP_URL is not a valid URL', async () => {
-    vi.stubEnv('NEXT_PUBLIC_APP_URL', 'not a url')
-    mockAdmin()
-    mockGetRecipient.mockResolvedValue(RECIPIENT)
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+  it.each(['not a url', 'localhost:3000'])(
+    'fails without issuing a link when NEXT_PUBLIC_APP_URL is %s',
+    async (appUrl) => {
+      vi.stubEnv('NEXT_PUBLIC_APP_URL', appUrl)
+      mockAdmin()
+      mockGetRecipient.mockResolvedValue(RECIPIENT)
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
-    const result = await sendLoginInstructions(VALID_INPUT)
+      const result = await sendLoginInstructions(VALID_INPUT)
 
-    expect(result).toEqual({ success: false, error: 'Failed to send login instructions' })
-    expect(mockIssueAndEmailSetPasswordLink).not.toHaveBeenCalled()
-    expect(errorSpy).toHaveBeenCalledWith(
-      '[sendLoginInstructions] NEXT_PUBLIC_APP_URL is not a valid URL',
-    )
-    errorSpy.mockRestore()
-  })
+      expect(result).toEqual({ success: false, error: 'Failed to send login instructions' })
+      expect(mockIssueAndEmailSetPasswordLink).not.toHaveBeenCalled()
+      expect(errorSpy).toHaveBeenCalledWith(
+        '[sendLoginInstructions] NEXT_PUBLIC_APP_URL is not a valid URL',
+      )
+      errorSpy.mockRestore()
+    },
+  )
 
   it('fails without issuing a link when email sending is not configured', async () => {
     mockIsEmailConfigured.mockReturnValue(false)
