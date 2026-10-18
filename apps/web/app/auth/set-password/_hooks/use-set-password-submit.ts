@@ -60,18 +60,19 @@ async function runSubmit(ctx: SubmitContext) {
 export function useSetPasswordSubmit(tokenHash: string) {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [status, setStatusState] = useState<Status>(INITIAL_STATUS)
+  const [status, setStatus] = useState<Status>(INITIAL_STATUS)
   const lockRef = useRef(false)
 
-  function setStatus(patch: Partial<Status>) {
-    setStatusState((prev) => ({ ...prev, ...patch }))
+  function patchStatus(patch: Partial<Status>) {
+    setStatus((prev) => ({ ...prev, ...patch }))
   }
 
   async function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
     if (lockRef.current) return
-    setStatus({ error: null })
-    await runSubmit({ values: { password, confirmPassword }, tokenHash, lockRef, setStatus })
+    patchStatus({ error: null })
+    const values = { password, confirmPassword }
+    await runSubmit({ values, tokenHash, lockRef, setStatus: patchStatus })
   }
 
   return { password, setPassword, confirmPassword, setConfirmPassword, status, handleSubmit }
