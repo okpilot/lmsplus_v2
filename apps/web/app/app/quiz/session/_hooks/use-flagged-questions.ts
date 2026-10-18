@@ -5,8 +5,8 @@ import { toggleFlag } from '../../actions/flag'
 
 /**
  * Flag state for the mounted session, seeded from the server via `initialFlaggedIds`
- * (read in the server render alongside the questions — _loaders/load-session-entry.ts,
- * mirroring the report-flag-context.tsx precedent). There is no re-fetch path by
+ * (read in the server render for /app/quiz/session/[id] — _loaders/load-session-entry.ts;
+ * Discovery's handoff path fetches them in session-bootstrap-load.ts — mirroring the report-flag-context.tsx precedent). There is no re-fetch path by
  * design: the question set is fixed for a mounted session (the loader remounts
  * QuizSession per session), so the seed can never go stale.
  */
