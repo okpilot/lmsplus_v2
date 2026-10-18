@@ -191,6 +191,69 @@ describe('SetPasswordForm', () => {
     expect(mockAssign).not.toHaveBeenCalled()
   })
 
+  async function fillAndGetForm(user: ReturnType<typeof userEvent.setup>) {
+    await user.type(screen.getByLabelText(/new password/i), 'newpassword123')
+    await user.type(screen.getByLabelText(/confirm password/i), 'newpassword123')
+    return screen.getByRole('button', { name: /set password/i }).closest('form') as HTMLFormElement
+  }
+
+  it('calls the action once when the form is submitted twice in the same tick', async () => {
+    mockSetPasswordFromLink.mockReturnValue(new Promise(() => {}))
+    const user = userEvent.setup()
+    render(<SetPasswordForm tokenHash={HASH} />)
+    const form = await fillAndGetForm(user)
+
+    fireEvent.submit(form)
+    fireEvent.submit(form)
+
+    expect(mockSetPasswordFromLink).toHaveBeenCalledTimes(1)
+  })
+
+  it('allows a second submit after a server-side validation error', async () => {
+    mockSetPasswordFromLink.mockResolvedValue({
+      success: false,
+      error: 'Choose a different password.',
+    })
+    const user = userEvent.setup()
+    render(<SetPasswordForm tokenHash={HASH} />)
+    const form = await fillAndGetForm(user)
+
+    fireEvent.submit(form)
+    await screen.findByText(/choose a different password/i)
+    fireEvent.submit(form)
+
+    await waitFor(() => expect(mockSetPasswordFromLink).toHaveBeenCalledTimes(2))
+  })
+
+  it('allows a second submit after a retry message', async () => {
+    mockSetPasswordFromLink.mockResolvedValue({
+      success: false,
+      error: 'We could not check your link. Try again in a moment.',
+    })
+    const user = userEvent.setup()
+    render(<SetPasswordForm tokenHash={HASH} />)
+    const form = await fillAndGetForm(user)
+
+    fireEvent.submit(form)
+    await screen.findByText(/could not check your link/i)
+    fireEvent.submit(form)
+
+    await waitFor(() => expect(mockSetPasswordFromLink).toHaveBeenCalledTimes(2))
+  })
+
+  it('allows a second submit after the action call throws', async () => {
+    mockSetPasswordFromLink.mockRejectedValue(new Error('network error'))
+    const user = userEvent.setup()
+    render(<SetPasswordForm tokenHash={HASH} />)
+    const form = await fillAndGetForm(user)
+
+    fireEvent.submit(form)
+    await screen.findByText(/unable to update password/i)
+    fireEvent.submit(form)
+
+    await waitFor(() => expect(mockSetPasswordFromLink).toHaveBeenCalledTimes(2))
+  })
+
   it('toggles password visibility', async () => {
     const user = userEvent.setup()
     render(<SetPasswordForm tokenHash={HASH} />)

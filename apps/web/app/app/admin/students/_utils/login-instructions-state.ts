@@ -48,7 +48,7 @@ export function loginInstructionsConfirmText(state: LoginInstructionsState, name
     case 'not_sent':
       return `Email ${name} a link to set their password? The link works once, for ${formatOtpLifetime()}.`
     default:
-      return 'Send a new set-password link? The earlier link stops working.'
+      return 'Send a new set-password link? The earlier link stops working. A password they already set keeps working.'
   }
 }
 

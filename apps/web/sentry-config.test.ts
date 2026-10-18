@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SENTRY_DATA_COLLECTION } from './sentry-data-collection'
 
 const { initSpy, replayIntegrationSpy, captureRouterTransitionStart } = vi.hoisted(() => ({
@@ -44,6 +44,11 @@ describe('Sentry init options', () => {
     vi.resetModules()
     initSpy.mockClear()
     replayIntegrationSpy.mockClear()
+    vi.stubGlobal('location', { pathname: '/app/dashboard' })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it.each([
@@ -72,6 +77,33 @@ describe('Sentry init options', () => {
       maskAllInputs: true,
       blockAllMedia: true,
     })
+  })
+
+  it('browser config omits replay on the set-password page where a live token is in the URL', async () => {
+    vi.stubGlobal('location', { pathname: '/auth/set-password' })
+    await import('./instrumentation-client')
+    expect(replayIntegrationSpy).not.toHaveBeenCalled()
+    const options = initSpy.mock.calls[0]?.[0] as { integrations: unknown[] }
+    expect(options.integrations).toEqual([])
+  })
+
+  it('browser config keeps replay on other paths', async () => {
+    vi.stubGlobal('location', { pathname: '/app/dashboard' })
+    await import('./instrumentation-client')
+    expect(replayIntegrationSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('browser config scrubs token_hash from breadcrumb URLs', async () => {
+    await import('./instrumentation-client')
+    const options = initSpy.mock.calls[0]?.[0] as {
+      beforeBreadcrumb: (b: { data?: Record<string, unknown> }) => {
+        data?: Record<string, unknown>
+      }
+    }
+    const out = options.beforeBreadcrumb({
+      data: { url: '/auth/set-password?token_hash=abc&type=recovery' },
+    })
+    expect(out.data?.url).toBe('/auth/set-password?token_hash=[Filtered]&type=recovery')
   })
 
   it('browser config reports App Router navigations to Sentry', async () => {

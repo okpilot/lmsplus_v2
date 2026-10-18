@@ -103,7 +103,10 @@ describe('setPasswordFromLink', () => {
 
     it('reports an expired or used link and never logs the token', async () => {
       const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
-      mockVerifyOtp.mockResolvedValue({ data: { user: null }, error: { message: 'Token expired' } })
+      mockVerifyOtp.mockResolvedValue({
+        data: { user: null },
+        error: { message: 'Token expired', status: 403, code: 'otp_expired' },
+      })
 
       const result = await setPasswordFromLink(validInput)
 
@@ -111,6 +114,24 @@ describe('setPasswordFromLink', () => {
       expect(mockComplete).not.toHaveBeenCalled()
       expect(spy).toHaveBeenCalled()
       expect(JSON.stringify(spy.mock.calls)).not.toContain(TOKEN_HASH)
+    })
+
+    it.each([
+      ['a server error', 500],
+      ['a rate limit', 429],
+      ['a network failure', 0],
+    ])('asks to retry without discarding the link on %s', async (_label, status) => {
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      mockVerifyOtp.mockResolvedValue({ data: { user: null }, error: { message: 'boom', status } })
+
+      const result = await setPasswordFromLink(validInput)
+
+      expect(result).toEqual({
+        success: false,
+        error: 'We could not check your link. Try again in a moment.',
+      })
+      expect(mockComplete).not.toHaveBeenCalled()
+      expect(spy).toHaveBeenCalled()
     })
 
     it('reports an unusable link when verification returns no user', async () => {

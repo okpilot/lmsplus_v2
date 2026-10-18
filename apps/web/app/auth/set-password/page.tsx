@@ -1,10 +1,6 @@
-import type { Metadata } from 'next'
 import { SetPasswordLinkSchema } from '@/lib/auth/set-password-link'
 import { LinkUnavailable } from './_components/link-unavailable'
 import { SetPasswordForm } from './_components/set-password-form'
-
-// The token hash sits in this URL; never hand it to another origin via Referer.
-export const metadata: Metadata = { referrer: 'no-referrer' }
 
 type SearchParams = Promise<{ token_hash?: string; type?: string }>
 

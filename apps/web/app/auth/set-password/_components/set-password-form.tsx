@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { NewPasswordFields } from '@/components/auth/new-password-fields'
 import { LoadingButton } from '@/components/ui/loading-button'
 import { NewPasswordSchema } from '@/lib/auth/new-password-schema'
@@ -15,6 +15,7 @@ export function SetPasswordForm({ tokenHash }: Readonly<{ tokenHash: string }>) 
   const [loading, setLoading] = useState(false)
   const [linkInvalid, setLinkInvalid] = useState(false)
   const [continueTo, setContinueTo] = useState<string | null>(null)
+  const submittedRef = useRef(false)
 
   async function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -26,6 +27,8 @@ export function SetPasswordForm({ tokenHash }: Readonly<{ tokenHash: string }>) 
       return
     }
 
+    if (submittedRef.current) return
+    submittedRef.current = true
     setLoading(true)
     try {
       const result = await setPasswordFromLink({ ...parsed.data, tokenHash, type: 'recovery' })
@@ -37,9 +40,12 @@ export function SetPasswordForm({ tokenHash }: Readonly<{ tokenHash: string }>) 
       else {
         setError(result.error)
         setContinueTo(result.redirectTo ?? null)
+        // Held when only the Continue link remains; released so the form can be resubmitted.
+        submittedRef.current = Boolean(result.redirectTo)
       }
     } catch {
       setError('Unable to update password. Please try again.')
+      submittedRef.current = false
     }
     setLoading(false)
   }

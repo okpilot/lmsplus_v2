@@ -17,6 +17,21 @@ const LINK_INVALID: SetPasswordFromLinkResult = {
   linkInvalid: true,
 }
 
+const LINK_CHECK_FAILED: SetPasswordFromLinkResult = {
+  success: false,
+  error: 'We could not check your link. Try again in a moment.',
+}
+
+/**
+ * Only a 4xx other than 429 proves the token is spent or bad. Rate limits,
+ * 5xx and network failures (status 0/undefined) leave it unspent, so a retry works.
+ */
+function isDefinitiveRejection(error: { status?: number } | null): boolean {
+  if (!error) return true
+  const status = error.status ?? 0
+  return status >= 400 && status < 500 && status !== 429
+}
+
 /**
  * Consumes the emailed one-time link and sets the student's first own password.
  * Order: validate (password before token) → `verifyOtp` (consumes the token,
@@ -38,7 +53,7 @@ export async function setPasswordFromLink(raw: unknown): Promise<SetPasswordFrom
   })
   if (error || !data.user) {
     console.error('[setPasswordFromLink] verifyOtp failed:', error?.message ?? 'no user')
-    return LINK_INVALID
+    return isDefinitiveRejection(error) ? LINK_INVALID : LINK_CHECK_FAILED
   }
 
   const gate = await confirmLiveAccount(supabase, data.user.id)

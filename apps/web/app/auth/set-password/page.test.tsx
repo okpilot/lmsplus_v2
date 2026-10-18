@@ -17,7 +17,7 @@ vi.mock('./_components/link-unavailable', () => ({
   ),
 }))
 
-import SetPasswordPage, { metadata } from './page'
+import SetPasswordPage from './page'
 
 const HASH = 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90'
 
@@ -28,10 +28,6 @@ async function renderPage(params: { token_hash?: string; type?: string }) {
 describe('SetPasswordPage', () => {
   beforeEach(() => {
     vi.resetAllMocks()
-  })
-
-  it('asks browsers to send no referrer so the token never leaks', () => {
-    expect(metadata.referrer).toBe('no-referrer')
   })
 
   it('renders the form for a well-formed recovery link', async () => {

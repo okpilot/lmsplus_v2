@@ -66,7 +66,7 @@ describe('loginInstructionsConfirmText', () => {
 
   it('warns that the earlier link stops working when resending to a waiting student', () => {
     expect(loginInstructionsConfirmText('waiting', 'Carol Example')).toBe(
-      'Send a new set-password link? The earlier link stops working.',
+      'Send a new set-password link? The earlier link stops working. A password they already set keeps working.',
     )
   })
 })

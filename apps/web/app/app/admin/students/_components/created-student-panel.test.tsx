@@ -151,7 +151,9 @@ describe('CreatedStudentPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Resend login instructions' }))
 
     expect(
-      screen.getByText('Send a new set-password link? The earlier link stops working.'),
+      screen.getByText(
+        'Send a new set-password link? The earlier link stops working. A password they already set keeps working.',
+      ),
     ).toBeInTheDocument()
   })
 })
