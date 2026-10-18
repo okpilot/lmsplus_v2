@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { QuizStateOpts } from '../../session-types'
 import { buildRunnerSaves } from '../_utils/progress-sync-saves'
 import { isTakenOver } from '../_utils/session-takeover'
@@ -12,16 +12,21 @@ type SavesDeps = {
 /** Background server saves plus the displayable save error they surface. Discovery saves nothing. */
 export function useProgressSaves({ opts, currentIndexRef, answerStartTime }: Readonly<SavesDeps>) {
   const [saveError, setSaveError] = useState<string | null>(opts.initialSaveError ?? null)
-  // The device claim settles after the first render; its error joins the save error.
+  const savedRef = useRef(false)
+  // The device claim settles after the first render; its error joins the save error unless a save
+  // already succeeded. The next failing save re-surfaces a takeover.
   useEffect(() => {
-    if (opts.initialSaveError) setSaveError(opts.initialSaveError)
+    if (opts.initialSaveError && !savedRef.current) setSaveError(opts.initialSaveError)
   }, [opts.initialSaveError])
   const saves = buildRunnerSaves({
     sessionId: opts.sessionId,
     enabled: opts.mode !== 'discovery',
     currentQuestion: () => opts.questions[currentIndexRef.current],
     visitStartedAt: () => answerStartTime.current,
-    onSuccess: () => setSaveError(null),
+    onSuccess: () => {
+      savedRef.current = true
+      setSaveError(null)
+    },
     // The takeover exit follows; the copy would only flash.
     onMappedError: (message: string) => {
       if (!isTakenOver(opts.sessionId)) setSaveError(message)

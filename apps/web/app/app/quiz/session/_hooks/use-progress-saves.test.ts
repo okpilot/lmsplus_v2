@@ -104,4 +104,40 @@ describe('useProgressSaves', () => {
 
     expect(result.current.saveError).toBeNull()
   })
+
+  it('keeps a late claim error off the screen once a save has succeeded', async () => {
+    const { result, rerender } = renderHook(
+      ({ err }: { err: string | null }) =>
+        useProgressSaves({
+          opts: makeOpts('study', err),
+          currentIndexRef: { current: 0 },
+          answerStartTime: { current: 0 },
+        }),
+      { initialProps: { err: null as string | null } },
+    )
+    await act(async () => result.current.saveAnswer({ selectedOptionId: 'a' }))
+
+    rerender({ err: TAKEN })
+
+    expect(result.current.saveError).toBeNull()
+  })
+
+  it('shows a later save failure after a suppressed claim error', async () => {
+    const { result, rerender } = renderHook(
+      ({ err }: { err: string | null }) =>
+        useProgressSaves({
+          opts: makeOpts('study', err),
+          currentIndexRef: { current: 0 },
+          answerStartTime: { current: 0 },
+        }),
+      { initialProps: { err: null as string | null } },
+    )
+    await act(async () => result.current.saveAnswer({ selectedOptionId: 'a' }))
+    rerender({ err: TAKEN })
+    mockSaveAnswer.mockResolvedValueOnce({ success: false, error: MAPPED })
+
+    await act(async () => result.current.saveAnswer({ selectedOptionId: 'b' }))
+
+    expect(result.current.saveError).toBe(MAPPED)
+  })
 })

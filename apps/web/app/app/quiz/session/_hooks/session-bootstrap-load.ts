@@ -37,8 +37,7 @@ export function readBootstrapSession(userId: string): SessionData | null {
 }
 
 /**
- * Fetches the student's flagged ids, bounded by FLAG_FETCH_TIMEOUT_MS (code-style
- * §6 bounded-await shape: Promise.race + clearTimeout once either side settles).
+ * Fetches the student's flagged ids, bounded by FLAG_FETCH_TIMEOUT_MS via `withTimeout`.
  * Degrades to [] on rejection, `{ success: false }`, or timeout — never rejects.
  */
 function fetchFlaggedIdsBounded(questionIds: string[]): Promise<string[]> {

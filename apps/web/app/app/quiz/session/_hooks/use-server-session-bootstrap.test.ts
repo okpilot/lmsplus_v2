@@ -91,7 +91,16 @@ describe('useServerSessionBootstrap', () => {
     expect(localStorage.getItem('quiz-active-session:u2')).not.toBeNull()
   })
 
-  it('keeps the local copy when the hook unmounts before the claim settles', async () => {
+  it("drops another session's local copy at mount, while the claim is still pending", () => {
+    mockClaim.mockReturnValue(new Promise(() => undefined))
+    seed('u1', 'old')
+
+    renderHook(() => useServerSessionBootstrap(OPTS))
+
+    expect(localStorage.getItem('quiz-active-session:u1')).toBeNull()
+  })
+
+  it('drops the stale local copy even when the hook unmounts before the claim settles', async () => {
     let settle!: (v: string | null) => void
     mockClaim.mockReturnValue(new Promise((res) => (settle = res)))
     seed('u1', 'old')
@@ -100,6 +109,16 @@ describe('useServerSessionBootstrap', () => {
 
     await act(async () => settle(null))
 
-    expect(localStorage.getItem('quiz-active-session:u1')).not.toBeNull()
+    expect(localStorage.getItem('quiz-active-session:u1')).toBeNull()
+  })
+
+  it('leaves the local copy of the opened session unchanged while the claim is pending', () => {
+    mockClaim.mockReturnValue(new Promise(() => undefined))
+    seed('u1', 's1')
+    const before = localStorage.getItem('quiz-active-session:u1')
+
+    renderHook(() => useServerSessionBootstrap(OPTS))
+
+    expect(localStorage.getItem('quiz-active-session:u1')).toBe(before)
   })
 })
