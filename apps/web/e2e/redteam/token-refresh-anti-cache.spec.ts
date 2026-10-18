@@ -12,11 +12,11 @@
  *     anti-cache `headers` onto the pass-through `response` when a refresh fires.
  *   - apps/web/proxy.ts `forwardAntiCacheHeaders(response, target)` copies those
  *     three headers onto its SYNTHETIC exits — every redirect (via
- *     `redirectWithCookies`) and the 503 temp-password-state-read failure — which
- *     are fresh NextResponse objects that would otherwise lose them.
+ *     `redirectWithCookies`) — which are fresh NextResponse objects that would
+ *     otherwise lose them.
  *
  * Strict vs. soft exits (confirmed by a local run, 2026-06-06):
- *   - SYNTHETIC exits (redirect / 503): proxy.ts builds these by hand and
+ *   - SYNTHETIC exits (redirects): proxy.ts builds these by hand and
  *     forwards the SSR `no-store` directive verbatim, so they reliably carry the
  *     full anti-cache triple (cache-control: no-store, expires, pragma). These
  *     are asserted STRICTLY below (the / → dashboard redirect).
@@ -78,7 +78,7 @@ function getSetCookies(headersArray: Array<{ name: string; value: string }>): st
 }
 
 /**
- * STRICT anti-cache assertion for SYNTHETIC proxy exits (redirect / 503).
+ * STRICT anti-cache assertion for SYNTHETIC proxy exits (redirects).
  * proxy.ts builds these responses by hand via forwardAntiCacheHeaders, so the
  * full SSR triple (cache-control: no-store, expires, pragma) survives verbatim.
  */
@@ -99,7 +99,7 @@ function assertAntiCacheHeaders(headers: Record<string, string>, label: string):
  * Next.js governs cache-control on ROUTED responses and overrides the
  * middleware's `no-store` with the page's own directive (observed locally:
  * `no-cache, must-revalidate`); the hard anti-cache guarantee (`no-store`) is on
- * the synthetic redirect/503 exits via forwardAntiCacheHeaders. Here we
+ * the synthetic redirect exits via forwardAntiCacheHeaders. Here we
  * assert only what the framework lets survive: the routed page still forbids
  * serving an unconditioned cached copy (`no-store` OR `no-cache`). The
  * `expires`/`pragma` headers are NOT asserted — Next.js does not re-emit them on

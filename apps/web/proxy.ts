@@ -16,7 +16,7 @@ function withNext(url: URL, next: string | null): URL {
 // emitted from Edge Middleware (3xx redirects, 4xx/5xx errors). Mirror
 // the static security headers onto each response this file BUILDS. Every
 // redirect exit funnels through `redirectWithCookies`, which calls this
-// once on their behalf; the 503 calls it directly. Keep that funnel — a
+// once on their behalf. Keep that funnel — a
 // hand-built NextResponse that returns without calling this ships with no
 // CSP and no HSTS.
 function applySecurityHeaders(res: NextResponse): void {
@@ -42,17 +42,6 @@ function forwardAntiCacheHeaders(source: NextResponse, target: NextResponse): vo
     const value = source.headers.get(name)
     if (value !== null) target.headers.set(name, value)
   }
-}
-
-/** 503 for a failed admin-role read on /app/admin, carrying the session cookies and security headers. */
-function serviceUnavailable(response: NextResponse): NextResponse {
-  const unavailable = new NextResponse('Service unavailable', { status: 503 })
-  for (const cookie of response.cookies.getAll()) {
-    unavailable.cookies.set(cookie)
-  }
-  forwardAntiCacheHeaders(response, unavailable)
-  applySecurityHeaders(unavailable)
-  return unavailable
 }
 
 export async function proxy(request: NextRequest): Promise<Response> {

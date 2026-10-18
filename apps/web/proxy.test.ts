@@ -265,24 +265,6 @@ describe('proxy', () => {
     }
   })
 
-  it('preserves anti-cache headers on the service-unavailable response', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    mockVerifySessionUser.mockResolvedValue({ id: 'user-1', email: null })
-    mockReadTempPasswordState.mockRejectedValue(new Error('connection reset'))
-    MOCK_SESSION_RESPONSE.headers.set('cache-control', 'private, no-store')
-    try {
-      const response = await proxy(makeConsentedRequest('/app/dashboard'))
-
-      expect(response.status).toBe(503)
-      expect(response.headers.get('cache-control')).toBe('private, no-store')
-      const setCookie503 = response.headers.get('set-cookie') ?? ''
-      expect(setCookie503).toContain('sb-token=refreshed')
-    } finally {
-      MOCK_SESSION_RESPONSE.headers.delete('cache-control')
-      consoleSpy.mockRestore()
-    }
-  })
-
   describe('next redirect param', () => {
     it('carries the requested /app path as next when redirecting an unauthenticated request', async () => {
       mockVerifySessionUser.mockResolvedValue(null)
