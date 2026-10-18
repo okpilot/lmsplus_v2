@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { Suspense } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
+import { requireAdmin } from '@/lib/auth/require-admin'
 import { SessionHistoryContent } from './_components/session-history-content'
 import { StudentHeader } from './_components/student-header'
 import { parseSessionFilters } from './parse-filters'
@@ -14,6 +15,7 @@ type PageProps = {
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export default async function StudentDetailPage({ params, searchParams }: Readonly<PageProps>) {
+  await requireAdmin()
   const [{ id }, rawParams] = await Promise.all([params, searchParams])
   if (!UUID_RE.test(id)) notFound()
 

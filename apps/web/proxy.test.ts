@@ -52,30 +52,6 @@ function makeConsentedRequest(pathname: string, userId = 'user-1', base = 'http:
   return request
 }
 
-/**
- * The Proxy absorbs EVERY chain method and returns the same canned result, so by
- * default no test can observe which filters a query actually applied — a guard could
- * be deleted and every assertion would still pass. Pass a `calls` array to record
- * `[method, args]` in call order when a test needs to prove a specific filter is on
- * the query (see the deleted_at assertion in the admin-block test).
- */
-function buildChain(returnValue: unknown, calls?: Array<[string, unknown[]]>) {
-  const awaitable = {
-    // biome-ignore lint/suspicious/noThenProperty: intentional thenable for Supabase chain mock
-    then: (resolve: (v: unknown) => void, reject: (e: unknown) => void) =>
-      Promise.resolve(returnValue).then(resolve, reject),
-  }
-  return new Proxy(awaitable as Record<string, unknown>, {
-    get(target, prop) {
-      if (prop === 'then') return target.then
-      return (...args: unknown[]) => {
-        calls?.push([String(prop), args])
-        return buildChain(returnValue, calls)
-      }
-    },
-  })
-}
-
 describe('proxy', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -254,74 +230,13 @@ describe('proxy', () => {
     expect(response).toBe(MOCK_SESSION_RESPONSE)
   })
 
-  it('passes an admin user through to /app/admin routes', async () => {
-    mockVerifySessionUser.mockResolvedValue({ id: 'admin-1', email: null })
-    mockFrom.mockReturnValue(buildChain({ data: { role: 'admin' }, error: null }))
-
-    const response = await proxy(makeConsentedRequest('/app/admin/syllabus', 'admin-1'))
-
-    expect(response).toBe(MOCK_SESSION_RESPONSE)
-  })
-
-  it('sends a non-admin to the student dashboard instead of an admin route', async () => {
+  it('passes a non-admin through /app/admin/* without reading the users table', async () => {
     mockVerifySessionUser.mockResolvedValue({ id: 'student-1', email: null })
-    mockFrom.mockReturnValue(buildChain({ data: { role: 'student' }, error: null }))
 
     const response = await proxy(makeConsentedRequest('/app/admin/syllabus', 'student-1'))
 
-    expect(response.status).toBe(307)
-    expect(response.headers.get('location')).toBe('http://localhost:3000/app/dashboard')
-    const setCookieRedirect = response.headers.get('set-cookie') ?? ''
-    expect(setCookieRedirect).toContain('sb-token=refreshed')
-  })
-
-  it('excludes soft-deleted users when resolving the admin role', async () => {
-    // Without this the deleted_at filter is unobservable: buildChain's Proxy absorbs
-    // every chain method, so the filter could be deleted and all other proxy tests
-    // would still pass. RLS (`users_select`) already excludes soft-deleted rows, so
-    // this pins the explicit defense-in-depth filter, not the enforcement itself.
-    const calls: Array<[string, unknown[]]> = []
-    mockVerifySessionUser.mockResolvedValue({ id: 'admin-1', email: null })
-    mockFrom.mockReturnValue(buildChain({ data: { role: 'admin' }, error: null }, calls))
-
-    await proxy(makeConsentedRequest('/app/admin/syllabus', 'admin-1'))
-
-    expect(calls).toContainEqual(['is', ['deleted_at', null]])
-  })
-
-  it('sends a user without an active profile to the student dashboard instead of an admin route', async () => {
-    // maybeSingle() resolves { data: null, error: null } when no row matches —
-    // distinct from the role-lookup failure below, which sets `error`. The
-    // optional-chain `profile?.role !== 'admin'` treats a missing row the same
-    // as a non-admin role, so this must still bounce to the dashboard, not fall
-    // through to the admin route or crash on `profile.role`.
-    mockVerifySessionUser.mockResolvedValue({ id: 'ghost-1', email: null })
-    mockFrom.mockReturnValue(buildChain({ data: null, error: null }))
-
-    const response = await proxy(makeConsentedRequest('/app/admin/syllabus', 'ghost-1'))
-
-    expect(response.status).toBe(307)
-    expect(response.headers.get('location')).toBe('http://localhost:3000/app/dashboard')
-  })
-
-  it('returns 503 when the admin role lookup fails', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    try {
-      mockVerifySessionUser.mockResolvedValue({ id: 'user-1', email: null })
-      mockFrom.mockReturnValue(buildChain({ data: null, error: { message: 'connection reset' } }))
-
-      const response = await proxy(makeConsentedRequest('/app/admin/syllabus'))
-
-      expect(response.status).toBe(503)
-      const setCookie503 = response.headers.get('set-cookie') ?? ''
-      expect(setCookie503).toContain('sb-token=refreshed')
-      expect(consoleSpy).toHaveBeenCalledWith(
-        '[proxy] admin role lookup error:',
-        'connection reset',
-      )
-    } finally {
-      consoleSpy.mockRestore()
-    }
+    expect(response).toBe(MOCK_SESSION_RESPONSE)
+    expect(mockFrom).not.toHaveBeenCalled()
   })
 
   it('preserves anti-cache headers on the login redirect', async () => {
@@ -350,27 +265,13 @@ describe('proxy', () => {
     }
   })
 
-  it('preserves anti-cache headers when bouncing a non-admin off an admin route', async () => {
-    mockVerifySessionUser.mockResolvedValue({ id: 'student-1', email: null })
-    mockFrom.mockReturnValue(buildChain({ data: { role: 'student' }, error: null }))
-    MOCK_SESSION_RESPONSE.headers.set('cache-control', 'private, no-store')
-    try {
-      const response = await proxy(makeConsentedRequest('/app/admin/syllabus', 'student-1'))
-
-      expect(response.status).toBe(307)
-      expect(response.headers.get('cache-control')).toBe('private, no-store')
-    } finally {
-      MOCK_SESSION_RESPONSE.headers.delete('cache-control')
-    }
-  })
-
   it('preserves anti-cache headers on the service-unavailable response', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     mockVerifySessionUser.mockResolvedValue({ id: 'user-1', email: null })
-    mockFrom.mockReturnValue(buildChain({ data: null, error: { message: 'connection reset' } }))
+    mockReadTempPasswordState.mockRejectedValue(new Error('connection reset'))
     MOCK_SESSION_RESPONSE.headers.set('cache-control', 'private, no-store')
     try {
-      const response = await proxy(makeConsentedRequest('/app/admin/syllabus'))
+      const response = await proxy(makeConsentedRequest('/app/dashboard'))
 
       expect(response.status).toBe(503)
       expect(response.headers.get('cache-control')).toBe('private, no-store')

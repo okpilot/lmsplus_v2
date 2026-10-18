@@ -438,8 +438,9 @@ test.describe('Admin Student Management — Filters', () => {
 
 // ── Section 9: Non-admin access ───────────────────────────────────────────────
 //
-// The proxy (middleware) bounces authenticated non-admin users to the student
-// dashboard and redirects unauthenticated users to '/'. Both are covered here:
+// `requireAdmin()` (admin layout + every admin page) bounces authenticated non-admin
+// users to the student dashboard; the proxy redirects unauthenticated users to '/'.
+// Both are covered here:
 //
 //  a) Unauthenticated → redirect to '/' — tested by clearing this context's
 //     cookies, since this project's storage state is the admin's.
@@ -447,7 +448,7 @@ test.describe('Admin Student Management — Filters', () => {
 //  b) Authenticated student → bounced to /app/dashboard — tested below in a fresh
 //     browser context that performs its own student login. The internal-exam student fixture is
 //     deliberately not reused; it belongs to the internal-exam specs.
-//     e2e/redteam/header-validation.spec.ts covers the proxy-header dimension.
+//     e2e/redteam/header-validation.spec.ts covers the response-header dimension.
 
 test.describe('Admin Student Management — Access Control', () => {
   test('unauthenticated request to /app/admin/students redirects to login', async ({ page }) => {
@@ -487,10 +488,9 @@ test.describe('Admin Student Management — Access Control', () => {
     // the unauthenticated test above.
     //
     // This asserts the end-to-end property (a student never sees an admin page and
-    // is not stranded on a 404), NOT which layer enforced it: since #1167 the proxy
-    // and requireAdmin() both bounce to /app/dashboard, so the landing page cannot
-    // distinguish them. header-validation.spec.ts pins the middleware layer via the
-    // reduced-CSP assertion.
+    // is not stranded on a 404), NOT which layer enforced it: the admin layout and
+    // each admin page both call requireAdmin(), which bounces to /app/dashboard.
+    // header-validation.spec.ts asserts the admin markup never reaches the student.
     await page.goto('/app/admin/students')
     await expect(page).toHaveURL('/app/dashboard', { timeout: 10_000 })
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()

@@ -1,8 +1,10 @@
 import { Suspense } from 'react'
+import { requireAdmin } from '@/lib/auth/require-admin'
 import { SyllabusContent } from './_components/syllabus-content'
 import { SyllabusContentSkeleton } from './_components/syllabus-content-skeleton'
 
-export default function SyllabusPage() {
+export default async function SyllabusPage() {
+  await requireAdmin()
   return (
     <div className="space-y-6">
       <div>

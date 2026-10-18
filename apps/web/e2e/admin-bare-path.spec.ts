@@ -11,19 +11,19 @@ test.use({ storageState: 'e2e/.auth/admin.json' })
 // "the route does not resolve" IS the defect. Every route asserted below rendered
 // Next's built-in 404 before this change.
 //
-// A student-hitting-/app/admin case is deliberately NOT here: `proxy.ts` already
-// bounces that today with the page absent, so it would pass with the fix reverted.
-// admin-students.spec.ts § Access Control covers the property — but via
-// /app/admin/students, i.e. proxy.ts's `startsWith('/app/admin/')` branch. The
-// `pathname === '/app/admin'` branch is not asserted student-side HERE: every test in
+// A student-hitting-/app/admin case is deliberately NOT here: the admin layout
+// already bounces that today with the page absent, so it would pass with the fix
+// reverted. admin-students.spec.ts § Access Control covers the property via
+// /app/admin/students. The bare `/app/admin` route is not asserted student-side
+// HERE: every test in
 // this file uses the default admin context and none opens its own. Note the file-level
 // `storageState` is NOT what prevents it — `admin-students.spec.ts` declares the same
 // admin state and still reaches a student in its § Access Control, via a
 // `newContext({ storageState: undefined })` plus an in-test login. Whether some OTHER
 // spec asserts this branch is deliberately not claimed here; derive it by grepping for
 // specs that navigate an admin path from a non-admin session.
-// Layer 2 (`page.tsx`'s own requireAdmin()) bounces a non-admin there regardless,
-// which is why red-team rated the gap LOW rather than a hole.
+// Both the admin layout and `page.tsx`'s own requireAdmin() bounce a non-admin
+// there regardless, which is why red-team rated the gap LOW rather than a hole.
 test.describe('Admin bare-path landing', () => {
   test('admin landing on the bare admin path reaches the admin dashboard', async ({ page }) => {
     await page.goto('/app/admin')

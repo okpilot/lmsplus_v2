@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 import { z } from 'zod'
+import { requireAdmin } from '@/lib/auth/require-admin'
 import { parsePageParam } from '@/lib/utils/parse-page-param'
 import { QuestionsContent } from './_components/questions-content'
 import { QuestionsContentFallback } from './_components/questions-content-fallback'
@@ -45,6 +46,7 @@ export function parseFilters(
 type PageProps = { searchParams: Promise<Record<string, string | string[] | undefined>> }
 
 export default async function QuestionsPage({ searchParams }: Readonly<PageProps>) {
+  await requireAdmin()
   const filters = parseFilters(await searchParams)
 
   return (

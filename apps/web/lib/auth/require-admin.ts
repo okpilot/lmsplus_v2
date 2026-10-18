@@ -61,8 +61,7 @@ export const requireAdmin = cache(async (): Promise<AdminAuth> => {
   if (profile?.role !== 'admin') {
     // `/app/dashboard`, not `/app`: since #1170 `/app` is itself only a redirect
     // to `/app/dashboard`, so bouncing there would add a hop for the same
-    // destination. Kept in step with the proxy's admin-block bounce so both
-    // layers land the user in the same place.
+    // destination.
     redirect('/app/dashboard')
   }
 
