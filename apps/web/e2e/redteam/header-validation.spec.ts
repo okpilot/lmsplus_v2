@@ -89,7 +89,7 @@ function assertSecurityHeaders(
     expect(csp).toMatch(/connect-src[^;]*https:\/\/\*\.supabase\.co/)
     expect(csp).toContain("worker-src 'self' blob:")
   } else {
-    // Minimal hardened CSP set by proxy.ts (redirects + 5xx).
+    // Minimal hardened CSP set by proxy.ts on its redirects.
     // No scripts execute on a 3xx/4xx/5xx, so default-src 'none' is correct.
     // Exact equality — catches regressions that add 'unsafe-inline' or similar.
     expect(csp, `CSP on ${path} must be exactly the reduced proxy.ts value`).toBe(
