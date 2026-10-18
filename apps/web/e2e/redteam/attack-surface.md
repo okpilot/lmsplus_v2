@@ -259,6 +259,9 @@
 | IF | storage.objects-question-images-non-admin-cross-org-write | MEDIUM | storage-question-images-write.spec.ts | BLOCKED |  | privilege-escalation |
 | IG | prod-legacy-for-all-policies-on-immutable-tables | LOW | authenticated-table-dml-denied.spec.ts | MISSED | #1414 | rls-bypass |
 | IH | get_session_reports-drop-create-active-user-gate-and-subject_code | HIGH | rpc-session-reports-active-user-gate.spec.ts | BLOCKED |  | soft-delete-bypass |
+| II | setPasswordFromLink-prior-session-survives-password-set | HIGH | set-password-link-session.spec.ts | BLOCKED |  | auth-bypass |
+| IJ | setPasswordFromLink-deactivated-account-residual-session | HIGH | set-password-link-session.spec.ts | BLOCKED |  | soft-delete-bypass |
+| IK | setPasswordFromLink-failed-write-unpinned-recovery-session | MEDIUM | set-password-link-session.spec.ts | BLOCKED |  | cookie-state |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
