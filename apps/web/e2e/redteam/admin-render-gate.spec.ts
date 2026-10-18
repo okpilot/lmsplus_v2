@@ -172,10 +172,9 @@ test.describe('admin render gate without the proxy role check', () => {
           expect(res.body, `student ${label} ${t.path} must not carry admin markup`).not.toContain(
             t.marker,
           )
-          expect(
-            res.body,
-            `student ${label} ${t.path} carries the requireAdmin redirect`,
-          ).toContain('/app/dashboard')
+          expect(res.body, `student ${label} ${t.path} carries the requireAdmin redirect`).toMatch(
+            /NEXT_REDIRECT;(?:replace|push);\/app\/dashboard;/,
+          )
         }
 
         const instructorForged = await fetchBody(instructorCtx, t.path, rscHeaders(t.mountedFrom))
@@ -213,12 +212,13 @@ test.describe('admin render gate without the proxy role check', () => {
         'admin',
       )
       // Revive a row a previous run left soft-deleted, so the control arm is reachable.
-      const { error: reviveError } = await admin
+      const { data: revived, error: reviveError } = await admin
         .from('users')
         .update({ deleted_at: null })
         .eq('id', throwawayAdminId)
         .select('id')
       if (reviveError) throw new Error(`revive throwaway admin: ${reviveError.message}`)
+      if (!revived?.length) throw new Error('revive throwaway admin: no row updated')
 
       const ctx = await signIn(browser, {
         email: E2E_REDTEAM_IM_SOFTDEL_ADMIN_EMAIL,

@@ -1,5 +1,6 @@
 // Covers: the first statement `await requireAdmin()` in the default export of page/layout/template/default,
 // and in each exported HTTP-method function of route; route variable/specifier exports of a method are rejected.
+// Exported generateMetadata/generateViewport must also await it first; metadata file conventions are banned here.
 import { readdirSync, readFileSync } from 'node:fs'
 import { basename, join, relative } from 'node:path'
 import ts from 'typescript'
@@ -8,6 +9,9 @@ import { describe, expect, it } from 'vitest'
 const ADMIN_DIR = __dirname
 const HTTP_METHODS = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'])
 const GUARD_FILE = /^(page|layout|template|default|route)\.[jt]sx?$/
+const METADATA_EXPORTS = new Set(['generateMetadata', 'generateViewport'])
+const METADATA_FILE =
+  /^(favicon|opengraph-image|twitter-image|icon|apple-icon|sitemap|robots|manifest)\./
 
 type Kind = 'page' | 'route'
 
@@ -18,6 +22,12 @@ function guardFiles(dir: string): string[] {
     .map((e) => join(dir, e.name))
   return own.concat(
     entries.filter((e) => e.isDirectory()).flatMap((e) => guardFiles(join(dir, e.name))),
+  )
+}
+
+function allFiles(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory() ? allFiles(join(dir, e.name)) : [join(dir, e.name)],
   )
 }
 
@@ -79,12 +89,38 @@ function entryPoints(sf: ts.SourceFile, kind: Kind): ts.FunctionDeclaration[] {
   )
 }
 
+function isFunctionLike(
+  node: ts.Expression | undefined,
+): node is ts.ArrowFunction | ts.FunctionExpression {
+  return node !== undefined && (ts.isArrowFunction(node) || ts.isFunctionExpression(node))
+}
+
+/** Body statements of each exported generateMetadata/generateViewport; undefined when it has no block body. */
+function metadataBodies(sf: ts.SourceFile): (ts.NodeArray<ts.Statement> | undefined)[] {
+  const bodies: (ts.NodeArray<ts.Statement> | undefined)[] = []
+  for (const s of sf.statements) {
+    if (ts.isFunctionDeclaration(s) && hasModifier(s, ts.SyntaxKind.ExportKeyword)) {
+      if (s.name && METADATA_EXPORTS.has(s.name.text)) bodies.push(s.body?.statements)
+    } else if (ts.isVariableStatement(s) && hasExport(s)) {
+      for (const d of s.declarationList.declarations) {
+        if (!ts.isIdentifier(d.name) || !METADATA_EXPORTS.has(d.name.text)) continue
+        const init = d.initializer
+        bodies.push(
+          isFunctionLike(init) && ts.isBlock(init.body) ? init.body.statements : undefined,
+        )
+      }
+    }
+  }
+  return bodies
+}
+
 /** True when every entry point awaits requireAdmin() as its first statement and the import exists. */
 function guardsFirst(source: string, kind: Kind): boolean {
   const sf = ts.createSourceFile('f.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
   const entries = entryPoints(sf, kind)
   if (entries.length === 0) return false
   if (kind === 'route' && hasMethodVariableExport(sf)) return false
+  if (!metadataBodies(sf).every((b) => isAwaitRequireAdmin(b?.[0]))) return false
   return importsRequireAdmin(sf) && entries.every((f) => isAwaitRequireAdmin(f.body?.statements[0]))
 }
 
@@ -156,6 +192,18 @@ describe('guard checker controls', () => {
     const src = `${IMPORT}export async function GET() {\n  await requireAdmin()\n}\nexport async function POST() {\n  return null\n}`
     expect(guardsFirst(src, 'route')).toBe(false)
   })
+
+  // CONTROL: red
+  it('rejects a page whose exported generateMetadata lacks the guard', () => {
+    const src = `${IMPORT}export async function generateMetadata() { return {} }\nexport default async function P() {\n  await requireAdmin()\n  return null\n}`
+    expect(guardsFirst(src, 'page')).toBe(false)
+  })
+
+  // CONTROL: green
+  it('accepts a page whose exported generateMetadata awaits requireAdmin() first', () => {
+    const src = `${IMPORT}export async function generateMetadata() {\n  await requireAdmin()\n  return {}\n}\nexport default async function P() {\n  await requireAdmin()\n  return null\n}`
+    expect(guardsFirst(src, 'page')).toBe(true)
+  })
 })
 
 const files = guardFiles(ADMIN_DIR).map((f) => relative(ADMIN_DIR, f))
@@ -172,5 +220,9 @@ describe('admin pages and route handlers', () => {
     const kind: Kind = /^route\./.test(basename(file)) ? 'route' : 'page'
 
     expect(guardsFirst(source, kind)).toBe(true)
+  })
+
+  it('has no metadata file conventions under the admin segment', () => {
+    expect(allFiles(ADMIN_DIR).filter((f) => METADATA_FILE.test(basename(f)))).toEqual([])
   })
 })
