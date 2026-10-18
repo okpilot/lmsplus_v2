@@ -16,7 +16,7 @@ function withNext(url: URL, next: string | null): URL {
 // emitted from Edge Middleware (3xx redirects, 4xx/5xx errors). Mirror
 // the static security headers onto each response this file BUILDS. Every
 // redirect exit funnels through `redirectWithCookies`, which calls this
-// once on their behalf; the 503 calls it directly. Keep that funnel — a
+// once on their behalf. Keep that funnel — a
 // hand-built NextResponse that returns without calling this ships with no
 // CSP and no HSTS.
 function applySecurityHeaders(res: NextResponse): void {
@@ -42,17 +42,6 @@ function forwardAntiCacheHeaders(source: NextResponse, target: NextResponse): vo
     const value = source.headers.get(name)
     if (value !== null) target.headers.set(name, value)
   }
-}
-
-/** 503 for a failed admin-role read on /app/admin, carrying the session cookies and security headers. */
-function serviceUnavailable(response: NextResponse): NextResponse {
-  const unavailable = new NextResponse('Service unavailable', { status: 503 })
-  for (const cookie of response.cookies.getAll()) {
-    unavailable.cookies.set(cookie)
-  }
-  forwardAntiCacheHeaders(response, unavailable)
-  applySecurityHeaders(unavailable)
-  return unavailable
 }
 
 export async function proxy(request: NextRequest): Promise<Response> {
@@ -104,34 +93,6 @@ export async function proxy(request: NextRequest): Promise<Response> {
       redirectWithCookies,
     })
     if (consentResponse) return consentResponse
-  }
-
-  // Block non-admin users from /app/admin/* routes
-  const isAdminRoute = pathname === '/app/admin' || pathname.startsWith('/app/admin/')
-  if (isAdminRoute && user) {
-    const { data: profile, error: profileError } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      // Explicit parity with requireAdmin()'s deleted_at-filtered read. RLS already
-      // enforces this — `users_select` is `USING (id = auth.uid() AND deleted_at IS
-      // NULL)` (mig 20260312000012:14-16) and this client uses the anon key — so a
-      // soft-deleted admin was never passing Layer 1. Stated in the query so the
-      // guarantee does not rest silently on one policy in another file.
-      .is('deleted_at', null)
-      .maybeSingle<{ role: string }>()
-
-    if (profileError) {
-      console.error('[proxy] admin role lookup error:', profileError.message)
-      return serviceUnavailable(response)
-    }
-
-    // Bounce to the student dashboard, not a bare 403 (#1167) or `/app` (itself a
-    // redirect to `/app/dashboard` since #1170, so that would add a hop). No
-    // redirect loop: /app/dashboard isn't an admin route, and consent is already gated above.
-    if (profile?.role !== 'admin') {
-      return redirectWithCookies(new URL('/app/dashboard', request.url))
-    }
   }
 
   // Redirect authenticated users away from login page to dashboard, or to the

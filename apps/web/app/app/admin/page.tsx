@@ -7,11 +7,11 @@ import { requireAdmin } from '@/lib/auth/require-admin'
  * admin home: the first `ADMIN_NAV_ITEMS` entry, and the target the other admin
  * surfaces already bounce to.
  *
- * `requireAdmin()` is Layer 2 of the two-guard admin model (docs/security.md):
- * the proxy is Layer 1, and there is no `app/app/admin/layout.tsx` to supply a
- * second guard for this route. It gates the RENDER path only — adding this page
- * also makes `/app/admin` a valid Server Action POST target. That path is gated by
- * the invariant every admin Server Action already carries: each one calls
+ * `requireAdmin()` here is required because `app/app/admin/layout.tsx` (Layer 1,
+ * docs/security.md) does not gate its sibling page; `cache()` shares one
+ * verification per render. It gates the RENDER path only — this page also makes
+ * `/app/admin` a valid Server Action POST target. That path is gated by the
+ * invariant every admin Server Action already carries: each one calls
  * `requireAdmin()` itself (docs/security.md Layer 2).
  *
  * No try/catch here: `requireAdmin()`'s redirects and the one below both work by

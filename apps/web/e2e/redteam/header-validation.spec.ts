@@ -10,33 +10,25 @@
  * carries them on representative pre-auth, post-redirect, and unauth-redirect
  * paths. Closes part of issue #108.
  *
- * Extended (issue #637): adds the admin-block middleware response class. The
- * proxy blocks an authenticated non-admin student who hits /app/admin/*.
- * next.config.ts `headers()` does NOT apply to non-routed middleware
- * responses — proxy.ts must apply the security headers to the NextResponse it
- * returns. This test verifies that branch is exercised.
- *
- * Updated (#1167): the branch used to emit a bare `403 Forbidden` body; it now
- * bounces to /app/dashboard (NOT /app — which since #1170 is itself only a
- * redirect to /app/dashboard, so it would add a hop). The authorization decision is unchanged — a non-admin still never
- * reaches the route — so this spec still guards the same vector, now asserting
- * the redirect exit instead of the 403 exit. Both exits are synthetic
- * (hand-built NextResponse), so both must carry the headers.
- *
- * proxy.ts admin-block branch:
- *   if (profile?.role !== 'admin') {
- *     return redirectWithCookies(new URL('/app/dashboard', request.url))
- *     //     ↑ applies security headers + anti-cache + cookies
- *   }
- *
- * 503 path (Supabase profile-lookup failure): skipped — no test-only seam
- * exists to force profileError without production changes (issue #637).
+ * Extended (issue #637): the admin-route response class. The
+ * proxy no longer performs an admin role lookup on /app/admin/*; the admin role check is
+ * `requireAdmin()` in `app/app/admin/layout.tsx` and in every admin page. A
+ * non-admin student therefore receives a ROUTED 200 (full next.config.ts
+ * headers) whose body carries no admin markup, and the browser is then sent to
+ * /app/dashboard by the client-side redirect `requireAdmin()` emits.
  */
 
-import { expect, test } from '@playwright/test'
+import { type Browser, type BrowserContext, expect, type Page, test } from '@playwright/test'
 import { buildConsentCookieValue } from '../../lib/consent/check-consent'
 import { CONSENT_COOKIE } from '../../lib/consent/versions'
-import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers } from './helpers/seed-users'
+import {
+  ADMIN_EMAIL,
+  ADMIN_PASSWORD,
+  ATTACKER_EMAIL,
+  ATTACKER_PASSWORD,
+  seedRedTeamAdmin,
+  seedRedTeamUsers,
+} from './helpers/seed-users'
 
 // Two response classes carry different CSPs:
 // - Routed responses (`/`, `/auth/forgot-password`): full CSP from next.config.ts —
@@ -97,8 +89,8 @@ function assertSecurityHeaders(
     expect(csp).toMatch(/connect-src[^;]*https:\/\/\*\.supabase\.co/)
     expect(csp).toContain("worker-src 'self' blob:")
   } else {
-    // Minimal hardened CSP set by proxy.ts (redirects + 5xx; no 4xx branch since #1167).
-    // No scripts execute on a 3xx/4xx/5xx, so default-src 'none' is correct.
+    // Minimal hardened CSP set by proxy.ts on its redirects.
+    // No scripts execute on a 3xx, so default-src 'none' is correct.
     // Exact equality — catches regressions that add 'unsafe-inline' or similar.
     expect(csp, `CSP on ${path} must be exactly the reduced proxy.ts value`).toBe(
       "default-src 'none'; frame-ancestors 'none'",
@@ -125,96 +117,87 @@ test.describe('Red Team: OWASP A02 — security response headers', () => {
   }
 
   // ---------------------------------------------------------------------------
-  // Admin-block branch: authenticated non-admin student accessing /app/admin/*
+  // Admin route, authenticated non-admin student: /app/admin/*
   //
-  //   isAdminRoute = pathname === '/app/admin' || pathname.startsWith('/app/admin/')
-  //   if (isAdminRoute && user) {
-  //     ... look up profile.role ...
-  //     if (profile?.role !== 'admin') {
-  //       return redirectWithCookies(new URL('/app/dashboard', request.url))  ← under test
-  //     }
-  //   }
-  //
-  // Non-vacuous: the status alone is not enough now that the exit is a 3xx —
-  // FOUR different proxy branches can emit a 307 for this request, so the
-  // Location is what proves which one fired:
-  //   307 → /app/dashboard        the admin-block branch (what we are testing)
-  //   307 → /                     unauthenticated (`/app/*` && !user) — wrong branch
-  //   307 → /auth/consent-refresh   consent gate — wrong branch
-  //   307 → /auth/reset-password  recovery-pending gate — wrong branch
-  //   200                         student got admin access (privilege escalation)
-  //
-  // Honest limitation: this is NOT strictly stronger than the old `toBe(403)`.
-  // A 403 was uniquely producible by proxy.ts, whereas `307 → /app/dashboard` is
-  // also what requireAdmin() (Layer 2) emits. What still pins the MIDDLEWARE layer
-  // is the exact reduced-CSP equality in assertSecurityHeaders below — a routed
-  // Layer-2 redirect carries the full next.config.ts CSP, not `default-src 'none'`.
+  // The proxy passes the request through; requireAdmin() in the admin layout and
+  // page redirects. Non-vacuous: the admin's fetch of the SAME path must contain
+  // the admin heading, so "absent for the student" proves the gate withheld it,
+  // not that the page never renders that text. A 3xx here would mean a different
+  // layer fired (proxy auth/consent gate), a 200 containing the heading would
+  // mean the student received admin markup.
   // ---------------------------------------------------------------------------
-  test('authenticated non-admin student hitting /app/admin/* is bounced to the dashboard with all required security headers', async ({
-    browser,
-  }) => {
-    // Seed the ATTACKER student (role='student') so the proxy's admin-role check
-    // returns role !== 'admin' and blocks them. seedRedTeamUsers is idempotent.
-    const { attackerUserId } = await seedRedTeamUsers()
+  const ADMIN_MARKER = 'Student Management'
 
-    // Create a fresh browser context (no saved auth state — redteam project has
-    // no dependencies). Log in via the sign-in page to obtain Supabase session
-    // cookies in this context.
+  async function signInWithConsent(
+    browser: Browser,
+    credentials: { email: string; password: string; userId: string },
+  ): Promise<{ context: BrowserContext; page: Page }> {
     const context = await browser.newContext({ storageState: undefined })
     const page = await context.newPage()
+    await page.goto('/')
+    await page.getByLabel('Email address').fill(credentials.email)
+    await page.getByLabel('Password', { exact: true }).fill(credentials.password)
+    await Promise.all([
+      page.waitForURL(/\/(app\/dashboard|consent)(?:\?.*)?$/, { timeout: 15_000 }),
+      page.getByRole('button', { name: 'Sign in' }).click(),
+    ])
+    // Mirrors checkConsentGate: buildConsentCookieValue(user.id), bound to this user (#1377).
+    await context.addCookies([
+      {
+        name: CONSENT_COOKIE,
+        value: buildConsentCookieValue(credentials.userId),
+        url: 'http://localhost:3000',
+      },
+    ])
+    return { context, page }
+  }
+
+  test('authenticated non-admin student hitting /app/admin/* gets no admin markup and lands on the dashboard', async ({
+    browser,
+  }) => {
+    const { attackerUserId } = await seedRedTeamUsers()
+    const { adminUserId } = await seedRedTeamAdmin()
+
+    const adminSession = await signInWithConsent(browser, {
+      email: ADMIN_EMAIL,
+      password: ADMIN_PASSWORD,
+      userId: adminUserId,
+    })
+    const studentSession = await signInWithConsent(browser, {
+      email: ATTACKER_EMAIL,
+      password: ATTACKER_PASSWORD,
+      userId: attackerUserId,
+    })
 
     try {
-      // Sign in as the ATTACKER student through the real login page so
-      // @supabase/ssr sets its session cookies in this context.
-      await page.goto('/')
-      await page.getByLabel('Email address').fill(ATTACKER_EMAIL)
-      await page.getByLabel('Password', { exact: true }).fill(ATTACKER_PASSWORD)
-      // Race-safe: resolve only on a real post-login path (consent or dashboard).
-      // Removing `|$` prevents the wait resolving on the pre-submit `/` itself.
-      await Promise.all([
-        page.waitForURL(/\/(app\/dashboard|consent)(?:\?.*)?$/, { timeout: 15_000 }),
-        page.getByRole('button', { name: 'Sign in' }).click(),
-      ])
-
-      // Inject the consent cookie so the proxy's consent gate passes and the
-      // request reaches the admin-role check. The cookie value mirrors what
-      // checkConsentGate constructs: buildConsentCookieValue(user.id) — three
-      // segments, bound to THIS user's id (#1377), not just the doc versions.
-      await context.addCookies([
-        {
-          name: CONSENT_COOKIE,
-          value: buildConsentCookieValue(attackerUserId),
-          url: 'http://localhost:3000',
-        },
-      ])
-
-      // Use context.request (carries the session + consent cookies) with
-      // maxRedirects: 0 so we assert the raw response from the proxy,
-      // not a page the browser settled on after following all redirects.
-      const response = await context.request.fetch('/app/admin/students', {
+      // Positive control: the admin receives the heading from the same path.
+      const adminResponse = await adminSession.context.request.fetch('/app/admin/students', {
         maxRedirects: 0,
+        timeout: 60_000,
       })
+      expect(adminResponse.status(), 'admin control fetch must be a routed 200').toBe(200)
+      expect(await adminResponse.text(), 'control: admin markup must be present').toContain(
+        ADMIN_MARKER,
+      )
 
-      // Non-vacuity, part 1: a 3xx proves we did not fall through to the route.
-      // 200 → student was incorrectly granted admin access (privilege escalation).
+      const response = await studentSession.context.request.fetch('/app/admin/students', {
+        maxRedirects: 0,
+        timeout: 60_000,
+      })
       expect(
         response.status(),
-        'expected a redirect from the proxy admin-role check; a 200 means the student reached an admin route — verify ATTACKER_EMAIL has role=student',
-      ).toBe(307)
+        'the proxy must pass the student through (200); a 3xx means another proxy gate fired',
+      ).toBe(200)
+      expect(await response.text(), 'student must not receive admin markup').not.toContain(
+        ADMIN_MARKER,
+      )
+      assertSecurityHeaders(response.headers(), '/app/admin/students', 'routed')
 
-      // Non-vacuity, part 2: the Location proves WHICH branch redirected. Without
-      // this, an unauthenticated (→ /) or unconsented (→ /auth/consent-refresh) request would
-      // satisfy the status check while never exercising the admin-role branch.
-      expect(
-        new URL(response.headers().location ?? '', 'http://localhost:3000').pathname,
-        'expected the admin-block bounce to /app/dashboard; a different target means a different proxy branch fired',
-      ).toBe('/app/dashboard')
-
-      // All 7 security headers must be present on the redirect response.
-      // redirectWithCookies() applies them before returning, so they must arrive here.
-      assertSecurityHeaders(response.headers(), '/app/admin/students', 'redirect')
+      await studentSession.page.goto('/app/admin/students', { timeout: 60_000 })
+      await expect(studentSession.page).toHaveURL(/\/app\/dashboard$/, { timeout: 15_000 })
     } finally {
-      await context.close()
+      await adminSession.context.close()
+      await studentSession.context.close()
     }
   })
 })

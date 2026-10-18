@@ -1,3 +1,4 @@
+import { requireAdmin } from '@/lib/auth/require-admin'
 import { PAGE_SIZE } from '@/lib/queries/quiz-report'
 import { AdminReportCard } from './_components/admin-report-card'
 import { AdminReportHeader } from './_components/admin-report-header'
@@ -12,6 +13,7 @@ export default async function AdminSessionReportPage({
   params,
   searchParams,
 }: Readonly<PageProps>) {
+  await requireAdmin()
   const [{ id: sessionId }, { page: pageParam }] = await Promise.all([params, searchParams])
   const { summary, questions, totalCount, page } = await loadAdminSessionReport({
     sessionId,

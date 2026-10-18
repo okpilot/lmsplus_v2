@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
+import { requireAdmin } from '@/lib/auth/require-admin'
 import { DashboardHeader } from './_components/dashboard-header'
 import { KpiCardsContent } from './_components/kpi-cards-content'
 import { RecentActivityContent } from './_components/recent-activity-content'
@@ -22,6 +23,7 @@ function KpiSkeleton() {
 type PageProps = { searchParams: Promise<Record<string, string | string[] | undefined>> }
 
 export default async function AdminDashboardPage({ searchParams }: Readonly<PageProps>) {
+  await requireAdmin()
   const filters = parseFilters(await searchParams)
 
   return (

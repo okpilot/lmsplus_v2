@@ -12,15 +12,14 @@
  *     anti-cache `headers` onto the pass-through `response` when a refresh fires.
  *   - apps/web/proxy.ts `forwardAntiCacheHeaders(response, target)` copies those
  *     three headers onto its SYNTHETIC exits — every redirect (via
- *     `redirectWithCookies`, which since #1167 includes the admin-block bounce to
- *     /app/dashboard) and the 503 role-lookup-failure — which are fresh NextResponse objects
- *     that would otherwise lose them.
+ *     `redirectWithCookies`) — which are fresh NextResponse objects that would
+ *     otherwise lose them.
  *
  * Strict vs. soft exits (confirmed by a local run, 2026-06-06):
- *   - SYNTHETIC exits (redirect / 503): proxy.ts builds these by hand and
+ *   - SYNTHETIC exits (redirects): proxy.ts builds these by hand and
  *     forwards the SSR `no-store` directive verbatim, so they reliably carry the
  *     full anti-cache triple (cache-control: no-store, expires, pragma). These
- *     are asserted STRICTLY below (the / → dashboard redirect + the admin block).
+ *     are asserted STRICTLY below (the / → dashboard redirect).
  *   - ROUTED pass-through (200 /app/*): proxy.ts returns the middleware
  *     `response` (NextResponse.next()), but Next.js then OVERRIDES cache-control
  *     on the routed page with the dynamic page's own directive
@@ -44,9 +43,8 @@
  * If no refresh occurred, both guards fail loudly — the header assertions never
  * pass vacuously.
  *
- * Covers acceptance: two strict synthetic exits (/ → 307 /app/dashboard and the
- * admin block on /app/admin/* → 307 /app/dashboard) plus the routed pass-through
- * exit (/app/* 200, soft).
+ * Covers acceptance: one strict synthetic exit (/ → 307 /app/dashboard) plus the
+ * routed pass-through exit (/app/* 200, soft).
  */
 
 import { type APIResponse, type BrowserContext, expect, test } from '@playwright/test'
@@ -80,7 +78,7 @@ function getSetCookies(headersArray: Array<{ name: string; value: string }>): st
 }
 
 /**
- * STRICT anti-cache assertion for SYNTHETIC proxy exits (redirect / 503).
+ * STRICT anti-cache assertion for SYNTHETIC proxy exits (redirects).
  * proxy.ts builds these responses by hand via forwardAntiCacheHeaders, so the
  * full SSR triple (cache-control: no-store, expires, pragma) survives verbatim.
  */
@@ -101,7 +99,7 @@ function assertAntiCacheHeaders(headers: Record<string, string>, label: string):
  * Next.js governs cache-control on ROUTED responses and overrides the
  * middleware's `no-store` with the page's own directive (observed locally:
  * `no-cache, must-revalidate`); the hard anti-cache guarantee (`no-store`) is on
- * the synthetic redirect/503 exits via forwardAntiCacheHeaders. Here we
+ * the synthetic redirect exits via forwardAntiCacheHeaders. Here we
  * assert only what the framework lets survive: the routed page still forbids
  * serving an unconditioned cached copy (`no-store` OR `no-cache`). The
  * `expires`/`pragma` headers are NOT asserted — Next.js does not re-emit them on
@@ -159,7 +157,7 @@ test.describe('Red Team: CK2 — anti-cache headers on a real token refresh', ()
     victimUserId = seed.victimUserId
   })
 
-  test('both synthetic exits carry no-store, routed pass-through forbids caching, all after a real refresh', async ({
+  test('the synthetic redirect exit carries no-store, routed pass-through forbids caching, all after a real refresh', async ({
     browser,
   }) => {
     const context = await browser.newContext({ storageState: undefined })
@@ -202,42 +200,6 @@ test.describe('Red Team: CK2 — anti-cache headers on a real token refresh', ()
         'authenticated / should redirect to the dashboard',
       ).toBe('/app/dashboard')
       assertAntiCacheHeaders(redirectRes.headers(), 'redirect exit (307 → /app/dashboard)')
-
-      // ---- Strict synthetic exit 2: non-admin student bounced off /app/admin/* ----
-      // The victim is a `student`, so the proxy's admin-role check blocks them once
-      // the consent gate (added above) is satisfied. Since #1167 that block is a
-      // hand-built redirect to /app/dashboard rather than a hand-built 403 body — still a
-      // synthetic exit, so it is still a guaranteed forwardAntiCacheHeaders path
-      // (redirectWithCookies forwards them), which is what this spec asserts.
-      const blockedRes = await fetchWithForcedRefresh(
-        context,
-        '/app/admin/students',
-        'admin-block exit',
-      )
-      expect(
-        blockedRes.status(),
-        'non-admin student on /app/admin/* should be bounced away (3xx), not served the route',
-      ).toBe(307)
-      // Location discriminates the admin-block branch from the unauth (→ /) and
-      // consent (→ /auth/consent-refresh) redirects, which would otherwise
-      // satisfy the status check without exercising the branch this exit is
-      // here to cover.
-      expect(
-        new URL(blockedRes.headers().location ?? '', BASE_URL).pathname,
-        'admin-block exit should target /app/dashboard',
-      ).toBe('/app/dashboard')
-      // Pin the MIDDLEWARE layer explicitly. Since #1167 both the proxy's admin block
-      // and requireAdmin() (Layer 2) redirect to /app/dashboard, so status+Location no
-      // longer identify which produced this response. The reduced CSP does: a routed
-      // Layer-2 redirect carries the full next.config.ts policy, not `default-src 'none'`.
-      // Without this the exit's layer attribution rests only on expires/pragma being
-      // absent from routed responses — a framework-version-dependent property this
-      // spec's own notes above flag as such.
-      expect(
-        blockedRes.headers()['content-security-policy'],
-        'admin-block exit must carry the reduced middleware CSP',
-      ).toBe("default-src 'none'; frame-ancestors 'none'")
-      assertAntiCacheHeaders(blockedRes.headers(), 'admin-block exit (/app/admin/students)')
 
       // ---- Soft routed exit: authenticated + consented /app/dashboard → 200 ----
       // Next.js overrides cache-control on routed pages, so this is asserted softly

@@ -1,7 +1,9 @@
 import { Suspense } from 'react'
+import { requireAdmin } from '@/lib/auth/require-admin'
 import { ExamConfigContent } from './_components/exam-config-content'
 
-export default function ExamConfigPage() {
+export default async function ExamConfigPage() {
+  await requireAdmin()
   return (
     <div className="space-y-6">
       <div>

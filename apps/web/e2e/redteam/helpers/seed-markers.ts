@@ -92,3 +92,7 @@ export const E2E_REDTEAM_IE_MARKER = '[E2E_REDTEAM_IE]'
 export const E2E_REDTEAM_IF_MARKER = 'e2e-redteam-if-'
 // get_session_reports spec (Vector IH, #1414): marks the completed sessions it seeds.
 export const E2E_REDTEAM_IH_MARKER = '[E2E_REDTEAM_IH]'
+// admin render gate spec (Vector IM): dedicated throwaway admin soft-deleted mid-session to prove
+// requireAdmin() is the sole admin render gate for a live token. Distinct email bounds the blast radius.
+export const E2E_REDTEAM_IM_SOFTDEL_ADMIN_EMAIL = 'redteam-softdel-render-admin@lmsplus.local'
+export const E2E_REDTEAM_IM_SOFTDEL_ADMIN_PASSWORD = 'redteam-softdel-render-admin-2026!'

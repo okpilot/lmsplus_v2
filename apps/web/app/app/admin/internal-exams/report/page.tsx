@@ -1,5 +1,6 @@
 import { QuestionBreakdown } from '@/app/app/quiz/report/_components/question-breakdown'
 import { ResultSummary } from '@/app/app/quiz/report/_components/result-summary'
+import { requireAdmin } from '@/lib/auth/require-admin'
 import { PAGE_SIZE } from '@/lib/queries/quiz-report'
 import { AdminInternalExamReportFooter } from './_components/admin-internal-exam-report-footer'
 import { AdminInternalExamReportHeader } from './_components/admin-internal-exam-report-header'
@@ -10,6 +11,7 @@ export default async function AdminInternalExamReportPage({
 }: Readonly<{
   searchParams: Promise<{ session?: string; page?: string }>
 }>) {
+  await requireAdmin()
   const { session: sessionId, page: pageParam } = await searchParams
   const { summary, questions, totalCount, page } = await loadAdminInternalExamReport({
     sessionId,

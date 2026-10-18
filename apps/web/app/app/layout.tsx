@@ -13,7 +13,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   const { data: profile, error: profileError } = await getCallerProfile(user.id)
 
   if (profileError) {
-    // Role is used for UI/nav display only — access control lives in proxy.ts.
+    // Role is used for UI/nav display only — access control lives in the admin layout and requireAdmin().
     // A failed read degrades gracefully to the 'student' fallback rather than
     // breaking the shell render for a transient DB hiccup.
     console.error('[AppLayout] profile lookup error:', profileError.message)

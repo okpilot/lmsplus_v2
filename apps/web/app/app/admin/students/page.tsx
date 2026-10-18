@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { requireAdmin } from '@/lib/auth/require-admin'
 import { StudentsContent } from './_components/students-content'
 import type { StudentFilters } from './types'
 
@@ -23,6 +24,7 @@ function parseFilters(params: Record<string, string | string[] | undefined>): St
 type PageProps = { searchParams: Promise<Record<string, string | string[] | undefined>> }
 
 export default async function StudentsPage({ searchParams }: Readonly<PageProps>) {
+  await requireAdmin()
   const filters = parseFilters(await searchParams)
 
   return (
