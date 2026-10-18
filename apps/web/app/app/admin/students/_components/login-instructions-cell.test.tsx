@@ -40,18 +40,18 @@ describe('LoginInstructionsCell', () => {
     expect(screen.getByRole('button', { name: 'Send' })).toBeInTheDocument()
   })
 
-  it('shows the expiry date and a Resend button while a temporary password is still valid', () => {
-    const farFuture = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString()
+  it('shows the waiting label and a Resend button while the student has not set a password', () => {
+    const marker = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString()
     render(
       <LoginInstructionsCell
         student={buildStudent({
           login_instructions_sent_at: '2026-06-14T00:00:00.000Z',
-          temp_password_expires_at: farFuture,
+          temp_password_expires_at: marker,
         })}
       />,
     )
 
-    expect(screen.getByText(/Waiting \(valid until/)).toBeInTheDocument()
+    expect(screen.getByText('Waiting for the student to set a password')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Resend' })).toBeInTheDocument()
     expect(screen.getByText(/^Sent /)).toBeInTheDocument()
   })
@@ -89,13 +89,13 @@ describe('LoginInstructionsCell', () => {
 
     expect(
       screen.getByText(
-        'Send login instructions to Alice Example? Any password they use now stops working.',
+        'Email Alice Example a link to set their password? The link works once, for 1 hour.',
       ),
     ).toBeInTheDocument()
     expect(mockHandleSend).not.toHaveBeenCalled()
   })
 
-  it('warns that resending replaces a self-chosen password when the state is password_set', () => {
+  it('says the current password keeps working when resending to a student who has one', () => {
     render(
       <LoginInstructionsCell
         student={buildStudent({ login_instructions_sent_at: '2026-06-01T00:00:00.000Z' })}
@@ -106,7 +106,7 @@ describe('LoginInstructionsCell', () => {
 
     expect(
       screen.getByText(
-        'Alice Example has their own password. Resending replaces it with a new temporary one.',
+        'Alice Example already has a password. Resending emails a new set-password link; their current password keeps working until they choose a new one.',
       ),
     ).toBeInTheDocument()
   })

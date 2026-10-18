@@ -4,13 +4,15 @@ import { useState } from 'react'
 import { NewPasswordFields } from '@/components/auth/new-password-fields'
 import { LoadingButton } from '@/components/ui/loading-button'
 import { NewPasswordSchema } from '@/lib/auth/new-password-schema'
-import { setOwnPassword } from '../actions'
+import { setPasswordFromLink } from '../actions'
+import { LinkUnavailable } from './link-unavailable'
 
-export function SetPasswordForm({ nextPath }: Readonly<{ nextPath: string | null }>) {
+export function SetPasswordForm({ tokenHash }: Readonly<{ tokenHash: string }>) {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [linkInvalid, setLinkInvalid] = useState(false)
 
   async function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -24,20 +26,22 @@ export function SetPasswordForm({ nextPath }: Readonly<{ nextPath: string | null
 
     setLoading(true)
     try {
-      const result = await setOwnPassword(parsed.data)
-      if (!result.success) {
-        setError(result.error)
-        setLoading(false)
+      const result = await setPasswordFromLink({ ...parsed.data, tokenHash, type: 'recovery' })
+      if (result.redirectTo) {
+        window.location.assign(result.redirectTo)
         return
+      }
+      if (!result.success) {
+        if (result.linkInvalid) setLinkInvalid(true)
+        else setError(result.error)
       }
     } catch {
       setError('Unable to update password. Please try again.')
-      setLoading(false)
-      return
     }
-
-    window.location.assign(nextPath ?? '/app/dashboard')
+    setLoading(false)
   }
+
+  if (linkInvalid) return <LinkUnavailable reason="invalid" />
 
   return (
     <form noValidate onSubmit={handleSubmit} className="w-full space-y-4">

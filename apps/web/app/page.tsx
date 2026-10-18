@@ -8,8 +8,6 @@ const ERROR_MESSAGES: Record<string, string> = {
     'Your account has not been set up yet. Please contact your flight school administrator.',
   profile_lookup_failed: 'We could not verify your account right now. Please try again.',
   auth_failed: 'Authentication failed. Please try again.',
-  temp_password_expired:
-    'Your temporary password has expired. Ask your instructor to send you new login instructions.',
 }
 
 type Props = {

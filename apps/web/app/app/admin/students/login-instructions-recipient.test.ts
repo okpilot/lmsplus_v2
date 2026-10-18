@@ -37,23 +37,15 @@ beforeEach(() => {
 
 describe('getLoginInstructionsRecipient', () => {
   it('returns the mapped recipient for a matching row', async () => {
-    buildChain({
-      data: { email: 'alice@example.com', full_name: 'Alice', temp_password_expires_at: null },
-    })
+    buildChain({ data: { email: 'alice@example.com', full_name: 'Alice' } })
 
     const result = await getLoginInstructionsRecipient(USER_ID, ORG_ID)
 
-    expect(result).toEqual({
-      email: 'alice@example.com',
-      fullName: 'Alice',
-      tempPasswordExpiresAt: null,
-    })
+    expect(result).toEqual({ email: 'alice@example.com', fullName: 'Alice' })
   })
 
   it('scopes the query to the id, the organization, an active row, and student/instructor roles', async () => {
-    const chain = buildChain({
-      data: { email: 'a@b.com', full_name: null, temp_password_expires_at: null },
-    })
+    const chain = buildChain({ data: { email: 'a@b.com', full_name: null } })
 
     await getLoginInstructionsRecipient(USER_ID, ORG_ID)
 
@@ -61,6 +53,7 @@ describe('getLoginInstructionsRecipient', () => {
     expect(chain.eq).toHaveBeenCalledWith('organization_id', ORG_ID)
     expect(chain.is).toHaveBeenCalledWith('deleted_at', null)
     expect(chain.in).toHaveBeenCalledWith('role', ['student', 'instructor'])
+    expect(chain.select).toHaveBeenCalledWith('email, full_name')
   })
 
   it('returns null when no row matches (PGRST116)', async () => {
@@ -91,23 +84,5 @@ describe('getLoginInstructionsRecipient', () => {
     const result = await getLoginInstructionsRecipient(USER_ID, ORG_ID)
 
     expect(result).toBeNull()
-  })
-
-  it('returns the current temp-password expiry when one is set', async () => {
-    buildChain({
-      data: {
-        email: 'a@b.com',
-        full_name: 'A',
-        temp_password_expires_at: '2026-09-20T00:00:00.000Z',
-      },
-    })
-
-    const result = await getLoginInstructionsRecipient(USER_ID, ORG_ID)
-
-    expect(result).toEqual({
-      email: 'a@b.com',
-      fullName: 'A',
-      tempPasswordExpiresAt: '2026-09-20T00:00:00.000Z',
-    })
   })
 })

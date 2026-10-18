@@ -1,43 +1,39 @@
-export type LoginInstructionsState = 'not_sent' | 'waiting' | 'expired' | 'password_set'
+import { formatOtpLifetime } from '@/lib/auth/email-otp-config'
+
+export type LoginInstructionsState = 'not_sent' | 'waiting' | 'password_set'
 
 type LoginInstructionsInput = {
   sentAt: string | null
-  expiresAt: string | null
+  /** `users.temp_password_expires_at`: non-null = "sent, own password not set yet". */
+  pendingAt: string | null
 }
 
 /**
- * Derives the login-instructions state from the two columns the send flow
- * writes: `login_instructions_sent_at` and `temp_password_expires_at`.
- * - Never sent and no armed expiry → `not_sent`.
- * - Sent but no armed expiry (the student has set their own password) → `password_set`.
- * - An armed expiry without a send (created before the send flow) is judged by the expiry.
- * - Expiry in the past → `expired`.
- * - Otherwise → `waiting`.
+ * Derives the state from the two columns the send flow and the password
+ * writers maintain: `login_instructions_sent_at` and the pending marker
+ * `temp_password_expires_at`.
+ * - Marker set → `waiting` (its date is the legacy 7-day stamp, not a deadline).
+ * - No marker, never sent → `not_sent`.
+ * - No marker, sent → `password_set`.
  */
-export function computeLoginInstructionsState(
-  { sentAt, expiresAt }: LoginInstructionsInput,
-  now: Date = new Date(),
-): LoginInstructionsState {
-  if (expiresAt === null) return sentAt === null ? 'not_sent' : 'password_set'
-  return new Date(expiresAt).getTime() <= now.getTime() ? 'expired' : 'waiting'
+export function computeLoginInstructionsState({
+  sentAt,
+  pendingAt,
+}: LoginInstructionsInput): LoginInstructionsState {
+  if (pendingAt !== null) return 'waiting'
+  return sentAt === null ? 'not_sent' : 'password_set'
 }
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString('en-GB', { dateStyle: 'medium' })
 }
 
-export function loginInstructionsStateLabel(
-  state: LoginInstructionsState,
-  expiresAt: string | null,
-): string {
+export function loginInstructionsStateLabel(state: LoginInstructionsState): string {
   switch (state) {
     case 'not_sent':
       return 'Not sent yet'
     case 'waiting':
-      // expiresAt is non-null whenever state is 'waiting' (see computeLoginInstructionsState).
-      return `Waiting (valid until ${expiresAt ? formatDate(expiresAt) : ''})`
-    case 'expired':
-      return 'Expired'
+      return 'Waiting for the student to set a password'
     case 'password_set':
       return 'Password set'
     default:
@@ -48,11 +44,11 @@ export function loginInstructionsStateLabel(
 export function loginInstructionsConfirmText(state: LoginInstructionsState, name: string): string {
   switch (state) {
     case 'password_set':
-      return `${name} has their own password. Resending replaces it with a new temporary one.`
+      return `${name} already has a password. Resending emails a new set-password link; their current password keeps working until they choose a new one.`
     case 'not_sent':
-      return `Send login instructions to ${name}? Any password they use now stops working.`
+      return `Email ${name} a link to set their password? The link works once, for ${formatOtpLifetime()}.`
     default:
-      return 'Send a new temporary password? The earlier one stops working.'
+      return 'Send a new set-password link? The earlier link stops working.'
   }
 }
 

@@ -15,16 +15,6 @@ vi.mock('@/lib/auth/verify-session-user', () => ({
 }))
 
 const mockFrom = vi.fn()
-const { mockReadTempPasswordState, mockSignOutExpiredTempPassword } = vi.hoisted(() => ({
-  mockReadTempPasswordState: vi.fn(),
-  mockSignOutExpiredTempPassword: vi.fn(),
-}))
-
-vi.mock('@/lib/auth/temp-password', () => ({
-  readTempPasswordState: mockReadTempPasswordState,
-  signOutExpiredTempPassword: mockSignOutExpiredTempPassword,
-}))
-
 // A plain object that stands in for the session-refreshed supabase NextResponse
 const MOCK_SESSION_RESPONSE = {
   status: 200,
@@ -69,7 +59,6 @@ describe('legacy __vdpl deployment pin cookie', () => {
     MOCK_SESSION_RESPONSE.headers = new Headers()
     // Armed so a regression to the old pin-setting code (it needs this id) goes red.
     process.env.VERCEL_DEPLOYMENT_ID = 'dpl_test_abc123'
-    mockReadTempPasswordState.mockResolvedValue('none')
   })
 
   afterEach(() => {

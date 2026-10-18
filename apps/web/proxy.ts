@@ -2,7 +2,6 @@ import { createMiddlewareSupabaseClient } from '@repo/db/middleware'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { safeNextPath } from '@/lib/auth/safe-next-path'
-import { checkTempPasswordGate } from '@/lib/auth/temp-password-gate'
 import { verifySessionUser } from '@/lib/auth/verify-session-user'
 import { checkConsentGate } from '@/lib/consent/consent-gate'
 import { CONSENT_COOKIE } from '@/lib/consent/versions'
@@ -45,7 +44,7 @@ function forwardAntiCacheHeaders(source: NextResponse, target: NextResponse): vo
   }
 }
 
-/** 503 for a failed authorization read on /app, carrying the session cookies and security headers. */
+/** 503 for a failed admin-role read on /app/admin, carrying the session cookies and security headers. */
 function serviceUnavailable(response: NextResponse): NextResponse {
   const unavailable = new NextResponse('Service unavailable', { status: 503 })
   for (const cookie of response.cookies.getAll()) {
@@ -94,19 +93,9 @@ export async function proxy(request: NextRequest): Promise<Response> {
     return redirectWithCookies(withNext(new URL('/', request.url), next))
   }
 
-  // Temporary-password gate (Decision 100), then consent — both require auth on /app/*.
+  // Consent gate — requires auth on /app/*.
   if (pathname.startsWith('/app') && user) {
     const nextPath = safeNextPath(pathname + request.nextUrl.search)
-    const tempPasswordResponse = await checkTempPasswordGate({
-      supabase,
-      userId: user.id,
-      requestUrl: request.url,
-      nextPath,
-      buildServiceUnavailable: () => serviceUnavailable(response),
-      redirectWithCookies,
-    })
-    if (tempPasswordResponse) return tempPasswordResponse
-
     const consentResponse = checkConsentGate({
       userId: user.id,
       cookieValue: request.cookies.get(CONSENT_COOKIE)?.value,

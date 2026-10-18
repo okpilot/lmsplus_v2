@@ -87,9 +87,9 @@ export async function claimRecoverySlot(userId: string): Promise<{ allowed: bool
 
 /**
  * Issues a fresh recovery code via `generateLink`, returning only the
- * short-lived OTP — never the link itself. The email carries a code, not a
- * clickable URL, because a single-use recovery link gets consumed by mail
- * scanners before the student ever clicks it.
+ * short-lived OTP — never the link itself. The forgot-password email carries a
+ * code, not a clickable URL, because Supabase's own verify link is consumed by
+ * a mail scanner's GET before the student clicks it.
  */
 export async function issueRecoveryCode(email: string): Promise<string | null> {
   const { data, error } = await adminClient.auth.admin.generateLink({ type: 'recovery', email })
@@ -103,4 +103,25 @@ export async function issueRecoveryCode(email: string): Promise<string | null> {
     return null
   }
   return code
+}
+
+/**
+ * Issues a fresh recovery token via `generateLink` and returns only its
+ * `hashed_token`. The admin set-password email links to our own
+ * `/auth/set-password` page, which consumes the token with a POST (server
+ * action `verifyOtp`) — a scanner's GET renders the form and consumes nothing.
+ * One recovery token per user: issuing here voids an earlier code or link.
+ */
+export async function issueSetPasswordToken(email: string): Promise<string | null> {
+  const { data, error } = await adminClient.auth.admin.generateLink({ type: 'recovery', email })
+  if (error) {
+    console.error('[issueSetPasswordToken] generateLink failed:', error.message)
+    return null
+  }
+  const hashedToken = data.properties?.hashed_token
+  if (!hashedToken) {
+    console.error('[issueSetPasswordToken] generateLink returned no hashed_token')
+    return null
+  }
+  return hashedToken
 }

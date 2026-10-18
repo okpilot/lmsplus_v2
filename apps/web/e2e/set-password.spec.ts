@@ -1,16 +1,20 @@
 import { expect, type Page, test } from '@playwright/test'
 import {
-  cleanupTempPasswordStudents,
-  createArmedTempPasswordStudent,
-  readTempPasswordExpiresAt,
-} from './helpers/temp-password'
+  cleanupLinkStudents,
+  createLinkStudent,
+  issueSetPasswordLink,
+  readPendingMarker,
+  softDeleteLinkStudent,
+} from './helpers/set-password-link'
+import { getAdminClient } from './helpers/supabase'
 
-// Run without saved auth state — each test signs in as its own throwaway student.
+// Run without saved auth state — each test is its own throwaway student.
 test.use({ storageState: { cookies: [], origins: [] } })
 
-const TEMP_PASSWORD = 'e2e-temp-password-2026!'
 const NEW_PASSWORD = 'e2e-new-password-2026!'
-const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
+const OTHER_PASSWORD = 'e2e-other-password-2026!'
+const FORM_HEADING = 'Set your password'
+const FORGOT_PASSWORD_PATH = '/auth/forgot-password'
 
 async function signIn(page: Page, email: string, password: string) {
   await page.getByLabel('Email address').fill(email)
@@ -18,107 +22,170 @@ async function signIn(page: Page, email: string, password: string) {
   await page.getByRole('button', { name: 'Sign in' }).click()
 }
 
-test.describe('Set password — forced temp-password change lifecycle', () => {
+async function submitNewPassword(page: Page, password: string) {
+  await page.getByLabel('New password').fill(password)
+  await page.getByLabel('Confirm password').fill(password)
+  await page.getByRole('button', { name: 'Set password' }).click()
+}
+
+/** True when Auth accepts the password — checked against the API, not the UI. */
+async function passwordIsAccepted(email: string, password: string): Promise<boolean> {
+  const { data, error } = await getAdminClient().auth.signInWithPassword({ email, password })
+  return !error && !!data.session
+}
+
+async function expectLinkRefused(page: Page) {
+  await expect(page.locator(`a[href="${FORGOT_PASSWORD_PATH}"]`).first()).toBeVisible({
+    timeout: 15_000,
+  })
+  await expect(page.getByRole('heading', { name: FORM_HEADING })).toBeHidden()
+  expect(new URL(page.url()).pathname).toBe('/auth/set-password')
+}
+
+test.describe('Set password — one-time link lifecycle', () => {
   test.afterEach(async () => {
-    await cleanupTempPasswordStudents()
+    await cleanupLinkStudents()
   })
 
-  test('an armed login lands on /auth/set-password carrying next, and a reload stays there', async ({
+  test('link scanners fetching the URL do not consume it, and a reload keeps the form', async ({
     page,
   }) => {
-    const { email } = await createArmedTempPasswordStudent({
-      slot: 'sp-1-next-reload',
-      password: TEMP_PASSWORD,
-      expiresInMs: SEVEN_DAYS_MS,
-    })
+    const { email } = await createLinkStudent({ slot: 'sp-1-scanner-reload' })
+    const { path } = await issueSetPasswordLink(email)
 
-    await page.goto(`/?next=${encodeURIComponent('/app/progress')}`)
-    await signIn(page, email, TEMP_PASSWORD)
+    // Mail scanners prefetch with GET (and HEAD); neither may spend the token.
+    for (let i = 0; i < 2; i++) {
+      const res = await page.request.get(path)
+      expect(res.status()).toBe(200)
+    }
 
-    await page.waitForURL('**/auth/set-password**', { timeout: 15_000 })
-    const url = new URL(page.url())
-    expect(url.pathname).toBe('/auth/set-password')
-    expect(url.searchParams.get('next')).toBe('/app/progress')
-    await expect(page.getByRole('heading', { name: 'Set your password' })).toBeVisible()
+    await page.goto(path)
+    await expect(page.getByRole('heading', { name: FORM_HEADING })).toBeVisible()
 
-    // Mid-flow reload must not escape the gate.
     await page.reload()
-    const reloadedUrl = new URL(page.url())
-    expect(reloadedUrl.pathname).toBe('/auth/set-password')
-    await expect(page.getByRole('heading', { name: 'Set your password' })).toBeVisible()
+    expect(new URL(page.url()).pathname).toBe('/auth/set-password')
+    await expect(page.getByRole('heading', { name: FORM_HEADING })).toBeVisible()
+
+    // Non-vacuous: after all those GETs the token still works.
+    await submitNewPassword(page, NEW_PASSWORD)
+    await page.waitForURL('**/app/dashboard', { timeout: 15_000 })
   })
 
-  test('an armed user navigating directly to a protected page is bounced back to set-password', async ({
+  test('setting a password signs the student in, clears the marker, and the new password signs in again', async ({
     page,
   }) => {
-    const { email } = await createArmedTempPasswordStudent({
-      slot: 'sp-2-direct-nav',
-      password: TEMP_PASSWORD,
-      expiresInMs: SEVEN_DAYS_MS,
-    })
+    const { userId, email } = await createLinkStudent({ slot: 'sp-2-lifecycle' })
+    const { path } = await issueSetPasswordLink(email)
+    expect(await readPendingMarker(userId)).not.toBeNull()
 
-    await page.goto('/')
-    await signIn(page, email, TEMP_PASSWORD)
-    await page.waitForURL('**/auth/set-password**', { timeout: 15_000 })
+    await page.goto(path)
+    await submitNewPassword(page, NEW_PASSWORD)
 
-    // A direct hit on an unrelated /app page must still redirect back to the
-    // gate — carrying the attempted path as `next`, not the original login
-    // `next`. `/app/dashboard` is excluded: `safeNextPath` treats it as the
-    // default destination and drops `next` entirely (safe-next-path.ts
-    // `DEFAULT_DESTINATIONS`), so this uses a distinct page instead.
-    await page.goto('/app/quiz')
-    await page.waitForURL('**/auth/set-password**', { timeout: 15_000 })
-    const url = new URL(page.url())
-    expect(url.pathname).toBe('/auth/set-password')
-    expect(url.searchParams.get('next')).toBe('/app/quiz')
-  })
+    await page.waitForURL('**/app/dashboard', { timeout: 15_000 })
+    expect(new URL(page.url()).pathname).toBe('/app/dashboard')
+    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+    expect(await readPendingMarker(userId)).toBeNull()
 
-  test('setting a new password clears the column, lands on next, and the new password signs in cleanly', async ({
-    page,
-  }) => {
-    const { userId, email } = await createArmedTempPasswordStudent({
-      slot: 'sp-3-lifecycle',
-      password: TEMP_PASSWORD,
-      expiresInMs: SEVEN_DAYS_MS,
-    })
-
-    await page.goto(`/?next=${encodeURIComponent('/app/progress')}`)
-    await signIn(page, email, TEMP_PASSWORD)
-    await page.waitForURL('**/auth/set-password**', { timeout: 15_000 })
-    expect(new URL(page.url()).searchParams.get('next')).toBe('/app/progress')
-
-    // Track every frame navigation from here — /auth/login-complete now sets
-    // the consent cookie on the set-password redirect when consent is already
-    // satisfied (DB), so a consented, armed user must go set-password → next
-    // directly, with NO /consent detour on the post-set-password hard nav.
-    const navigatedUrls: string[] = []
-    page.on('framenavigated', (frame) => {
-      if (frame === page.mainFrame()) navigatedUrls.push(frame.url())
-    })
-
-    await page.getByLabel('New password').fill(NEW_PASSWORD)
-    await page.getByLabel('Confirm password').fill(NEW_PASSWORD)
-    await page.getByRole('button', { name: 'Set password' }).click()
-
-    // window.location.assign — a hard navigation, so the proxy re-reads state
-    // from scratch. The consent cookie set-password's login-complete redirect
-    // wrote must have made this land on `next` directly.
-    await page.waitForURL('**/app/progress', { timeout: 15_000 })
-    await expect(page.getByRole('heading', { name: 'Progress' })).toBeVisible()
-    expect(navigatedUrls.some((u) => u.includes('/consent'))).toBe(false)
-
-    // Non-vacuous: read the column via service role, not the UI, to confirm
-    // the gate can never re-arm from stale client state.
-    expect(await readTempPasswordExpiresAt(userId)).toBeNull()
-
-    // Log out and relogin with the new password — no set-password detour.
     await page.getByRole('button', { name: 'Sign out' }).click()
     await page.waitForURL('/', { timeout: 15_000 })
 
     await signIn(page, email, NEW_PASSWORD)
     await page.waitForURL('**/app/dashboard', { timeout: 15_000 })
-    const finalUrl = new URL(page.url())
-    expect(finalUrl.pathname).toBe('/app/dashboard')
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+  })
+
+  test('a spent link is refused in a fresh browser context and sets no password', async ({
+    page,
+    browser,
+  }) => {
+    const { email } = await createLinkStudent({ slot: 'sp-3-reuse' })
+    const { path } = await issueSetPasswordLink(email)
+
+    await page.goto(path)
+    await submitNewPassword(page, NEW_PASSWORD)
+    await page.waitForURL('**/app/dashboard', { timeout: 15_000 })
+    expect(await passwordIsAccepted(email, NEW_PASSWORD)).toBe(true)
+
+    const fresh = await browser.newContext({ storageState: { cookies: [], origins: [] } })
+    try {
+      const freshPage = await fresh.newPage()
+      await freshPage.goto(path)
+      await submitNewPassword(freshPage, OTHER_PASSWORD)
+      await expectLinkRefused(freshPage)
+    } finally {
+      await fresh.close()
+    }
+
+    expect(await passwordIsAccepted(email, OTHER_PASSWORD)).toBe(false)
+    expect(await passwordIsAccepted(email, NEW_PASSWORD)).toBe(true)
+  })
+
+  test('issuing a second link voids the first, and the second still works', async ({ page }) => {
+    const { userId, email } = await createLinkStudent({ slot: 'sp-4-rotation' })
+    const linkA = await issueSetPasswordLink(email)
+    const linkB = await issueSetPasswordLink(email)
+    expect(linkB.tokenHash).not.toBe(linkA.tokenHash)
+
+    await page.goto(linkA.path)
+    await submitNewPassword(page, OTHER_PASSWORD)
+    await expectLinkRefused(page)
+    expect(await passwordIsAccepted(email, OTHER_PASSWORD)).toBe(false)
+    expect(await readPendingMarker(userId)).not.toBeNull()
+
+    await page.goto(linkB.path)
+    await submitNewPassword(page, NEW_PASSWORD)
+    await page.waitForURL('**/app/dashboard', { timeout: 15_000 })
+    expect(await passwordIsAccepted(email, NEW_PASSWORD)).toBe(true)
+  })
+
+  test('a URL without a token shows the unavailable panel linking to Forgot password', async ({
+    page,
+  }) => {
+    await page.goto('/auth/set-password')
+
+    await expect(page.locator(`a[href="${FORGOT_PASSWORD_PATH}"]`).first()).toBeVisible()
+    await expect(page.getByRole('heading', { name: FORM_HEADING })).toBeHidden()
+    await expect(page.getByLabel('New password')).toHaveCount(0)
+    expect(new URL(page.url()).pathname).toBe('/auth/set-password')
+  })
+
+  test('a student who has not accepted the terms is sent to /consent after setting a password', async ({
+    page,
+  }) => {
+    const { userId, email } = await createLinkStudent({
+      slot: 'sp-5-unconsented',
+      consented: false,
+    })
+    const { path } = await issueSetPasswordLink(email)
+
+    await page.goto(path)
+    await submitNewPassword(page, NEW_PASSWORD)
+
+    await page.waitForURL('**/consent**', { timeout: 15_000 })
+    expect(new URL(page.url()).pathname).toBe('/consent')
+    expect(await readPendingMarker(userId)).toBeNull()
+  })
+
+  test('a link for a deactivated student is refused and sets no password', async ({ page }) => {
+    const { userId, email } = await createLinkStudent({ slot: 'sp-6-soft-deleted' })
+    const { path } = await issueSetPasswordLink(email)
+    await softDeleteLinkStudent(userId)
+
+    await page.goto(path)
+    await submitNewPassword(page, NEW_PASSWORD)
+
+    await expectLinkRefused(page)
+    expect(await passwordIsAccepted(email, NEW_PASSWORD)).toBe(false)
+    expect(await readPendingMarker(userId)).not.toBeNull()
+  })
+
+  test('the link page is served with Referrer-Policy no-referrer', async ({ page }) => {
+    const { email } = await createLinkStudent({ slot: 'sp-7-referrer' })
+    const { path } = await issueSetPasswordLink(email)
+
+    const response = await page.goto(path)
+
+    expect(response?.status()).toBe(200)
+    expect(response?.headers()['referrer-policy']).toBe('no-referrer')
   })
 })

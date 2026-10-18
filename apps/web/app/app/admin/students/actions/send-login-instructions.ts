@@ -7,7 +7,7 @@ import { requireAdmin } from '@/lib/auth/require-admin'
 import { isEmailConfigured } from '@/lib/email/resend'
 import { rpc } from '@/lib/supabase-rpc'
 import { getLoginInstructionsRecipient } from '../login-instructions-recipient'
-import { issueAndEmailPassword } from './deliver-login-instructions'
+import { issueAndEmailSetPasswordLink } from './deliver-login-instructions'
 
 const SendLoginInstructionsSchema = z.object({ id: z.uuid() })
 
@@ -19,7 +19,7 @@ export type SendLoginInstructionsResult =
         | 'Invalid input'
         | 'User not found'
         | 'Failed to send login instructions'
-        | 'The password was replaced but the email could not be sent. Send again.'
+        | 'The email could not be sent. Send again.'
         | 'Login instructions were emailed but the send could not be recorded.'
     }
 
@@ -36,20 +36,15 @@ export async function sendLoginInstructions(input: unknown): Promise<SendLoginIn
     console.error('[sendLoginInstructions] NEXT_PUBLIC_APP_URL is not set')
     return { success: false, error: 'Failed to send login instructions' }
   }
-  // Checked before the password is replaced, so a misconfigured mailer cannot lock the student out.
+  // Checked before a token is issued: issuing voids the student's earlier link or code.
   if (!isEmailConfigured()) {
     console.error('[sendLoginInstructions] email sending is not configured')
     return { success: false, error: 'Failed to send login instructions' }
   }
 
-  const delivered = await issueAndEmailPassword({
-    supabase,
-    id: parsed.data.id,
-    organizationId,
-    recipient,
-  })
+  const delivered = await issueAndEmailSetPasswordLink({ recipient })
   const result = delivered.ok ? await recordSend(supabase, parsed.data.id) : delivered.result
-  // A failed delivery may already have replaced the password, so refresh either way.
+  // A failed delivery may already have voided the earlier link, so refresh either way.
   revalidatePath('/app/admin/students')
   return result
 }

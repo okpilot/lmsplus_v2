@@ -313,7 +313,7 @@ test.describe('Admin Student Management — Login Instructions', () => {
     await studentRow.getByRole('button', { name: 'Send' }).click()
     await expect(
       studentRow.getByText(
-        `Send login instructions to ${fullName}? Any password they use now stops working.`,
+        `Email ${fullName} a link to set their password? The link works once, for 1 hour.`,
       ),
     ).toBeVisible()
 
@@ -340,7 +340,7 @@ test.describe('Admin Student Management — Login Instructions', () => {
     await dialog.getByRole('button', { name: 'Send login instructions' }).click()
     await expect(
       dialog.getByText(
-        `Send login instructions to ${fullName}? Any password they use now stops working.`,
+        `Email ${fullName} a link to set their password? The link works once, for 1 hour.`,
       ),
     ).toBeVisible()
 

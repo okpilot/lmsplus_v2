@@ -1,14 +1,18 @@
-import { requireActiveTempPassword } from '@/lib/auth/require-active-temp-password'
-import { safeNextPath } from '@/lib/auth/safe-next-path'
+import type { Metadata } from 'next'
+import { SetPasswordLinkSchema } from '@/lib/auth/set-password-link'
+import { LinkUnavailable } from './_components/link-unavailable'
 import { SetPasswordForm } from './_components/set-password-form'
+
+// The token hash sits in this URL; never hand it to another origin via Referer.
+export const metadata: Metadata = { referrer: 'no-referrer' }
+
+type SearchParams = Promise<{ token_hash?: string; type?: string }>
 
 export default async function SetPasswordPage({
   searchParams,
-}: Readonly<{ searchParams: Promise<{ next?: string }> }>) {
-  const { next } = await searchParams
-  const nextPath = safeNextPath(next)
-
-  await requireActiveTempPassword(nextPath)
+}: Readonly<{ searchParams: SearchParams }>) {
+  const { token_hash: tokenHash, type } = await searchParams
+  const link = SetPasswordLinkSchema.safeParse({ tokenHash, type })
 
   return (
     <main className="flex min-h-screen items-center justify-center px-4">
@@ -19,7 +23,11 @@ export default async function SetPasswordPage({
           </div>
           <h1 className="text-2xl font-semibold tracking-tight">LMS Plus</h1>
         </div>
-        <SetPasswordForm nextPath={nextPath} />
+        {link.success ? (
+          <SetPasswordForm tokenHash={link.data.tokenHash} />
+        ) : (
+          <LinkUnavailable reason="missing" />
+        )}
       </div>
     </main>
   )

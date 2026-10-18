@@ -28,6 +28,7 @@ import {
   claimRecoverySlot,
   findActiveUserIdByEmail,
   issueRecoveryCode,
+  issueSetPasswordToken,
   MAX_RECOVERY_CODES_PER_HOUR,
   recentSends,
 } from './recovery-code'
@@ -258,5 +259,35 @@ describe('issueRecoveryCode', () => {
       '[issueRecoveryCode] generateLink returned no email_otp',
     )
     consoleSpy.mockRestore()
+  })
+})
+
+describe('issueSetPasswordToken', () => {
+  it('returns the hashed_token from generateLink', async () => {
+    mockGenerateLink.mockResolvedValue({
+      data: { properties: { hashed_token: 'abc123hash' } },
+      error: null,
+    })
+
+    await expect(issueSetPasswordToken(EMAIL)).resolves.toBe('abc123hash')
+    expect(mockGenerateLink).toHaveBeenCalledWith({ type: 'recovery', email: EMAIL })
+  })
+
+  it('returns null and logs when generateLink errors', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockGenerateLink.mockResolvedValue({ data: null, error: { message: 'boom' } })
+
+    await expect(issueSetPasswordToken(EMAIL)).resolves.toBeNull()
+    expect(consoleSpy).toHaveBeenCalledWith('[issueSetPasswordToken] generateLink failed:', 'boom')
+  })
+
+  it('returns null and logs when the response carries no hashed_token', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockGenerateLink.mockResolvedValue({ data: { properties: {} }, error: null })
+
+    await expect(issueSetPasswordToken(EMAIL)).resolves.toBeNull()
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[issueSetPasswordToken] generateLink returned no hashed_token',
+    )
   })
 })

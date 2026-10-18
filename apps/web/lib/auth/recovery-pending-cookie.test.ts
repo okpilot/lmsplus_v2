@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockSet } = vi.hoisted(() => ({ mockSet: vi.fn() }))
+const { mockSet, mockDelete } = vi.hoisted(() => ({ mockSet: vi.fn(), mockDelete: vi.fn() }))
 
 vi.mock('next/headers', () => ({
-  cookies: async () => ({ set: mockSet }),
+  cookies: async () => ({ set: mockSet, delete: mockDelete }),
 }))
 
-import { setRecoveryPendingCookie } from './recovery-pending-cookie'
+import { clearRecoveryPendingCookie, setRecoveryPendingCookie } from './recovery-pending-cookie'
 
 beforeEach(() => {
   vi.resetAllMocks()
@@ -23,5 +23,13 @@ describe('setRecoveryPendingCookie', () => {
       path: '/',
       maxAge: 600,
     })
+  })
+})
+
+describe('clearRecoveryPendingCookie', () => {
+  it('deletes the recovery-pending cookie', async () => {
+    await clearRecoveryPendingCookie()
+
+    expect(mockDelete).toHaveBeenCalledWith('__recovery_pending')
   })
 })

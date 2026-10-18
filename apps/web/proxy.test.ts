@@ -11,16 +11,6 @@ vi.mock('@/lib/auth/verify-session-user', () => ({
 }))
 
 const mockFrom = vi.fn()
-const { mockReadTempPasswordState, mockSignOutExpiredTempPassword } = vi.hoisted(() => ({
-  mockReadTempPasswordState: vi.fn(),
-  mockSignOutExpiredTempPassword: vi.fn(),
-}))
-
-vi.mock('@/lib/auth/temp-password', () => ({
-  readTempPasswordState: mockReadTempPasswordState,
-  signOutExpiredTempPassword: mockSignOutExpiredTempPassword,
-}))
-
 // A plain object that stands in for the session-refreshed supabase NextResponse
 const MOCK_SESSION_RESPONSE = {
   status: 200,
@@ -92,9 +82,6 @@ describe('proxy', () => {
     // Reset the shared mock's headers each test so a header set by one test can never
     // leak into another (e.g. if a proxy() call throws before a try/finally cleanup runs).
     MOCK_SESSION_RESPONSE.headers = new Headers()
-    // Default: no armed temp password — every pre-existing test exercises a gate
-    // downstream of this one and must fall through it unaffected.
-    mockReadTempPasswordState.mockResolvedValue('none')
   })
 
   it('redirects unauthenticated requests for /app/dashboard to /', async () => {
@@ -122,6 +109,27 @@ describe('proxy', () => {
 
     // Should return the session-refreshed supabase response, not a redirect
     expect(response).toBe(MOCK_SESSION_RESPONSE)
+  })
+
+  it('reads no database row for an authenticated consented request to a non-admin /app route', async () => {
+    mockVerifySessionUser.mockResolvedValue({ id: 'user-1', email: null })
+
+    const response = await proxy(makeConsentedRequest('/app/dashboard'))
+
+    expect(response).toBe(MOCK_SESSION_RESPONSE)
+    expect(mockFrom).not.toHaveBeenCalled()
+  })
+
+  it('sends a recovery-pinned session on the set-password page to reset-password without looping', async () => {
+    mockVerifySessionUser.mockResolvedValue({ id: 'user-1', email: null })
+    const request = makeRequest('/auth/set-password?token_hash=abc&type=recovery')
+    request.cookies.set('__recovery_pending', '1')
+
+    const response = await proxy(request)
+
+    expect(response.status).toBe(307)
+    expect(new URL(response.headers.get('location') ?? '').pathname).toBe('/auth/reset-password')
+    expect(mockFrom).not.toHaveBeenCalled()
   })
 
   it('redirects authenticated users without consent cookie to the silent consent-refresh route', async () => {
