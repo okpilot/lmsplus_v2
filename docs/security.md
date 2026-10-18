@@ -89,21 +89,21 @@ export const config = {
 }
 ```
 
-### Admin Route Protection (defense in depth)
+### Admin Route Protection
 
-Admin routes (`/app/admin` and `/app/admin/*`) require two independent guards — both must pass.
+Admin routes (`/app/admin` and `/app/admin/*`) are checked in two placements of one check, `requireAdmin()`.
 
-**Layer 1 — Render guard (`apps/web/app/app/admin/layout.tsx`, plus `await requireAdmin()` at the top of every admin `page.tsx`):**
-`requireAdmin()` checks `users.role = 'admin'` against a `deleted_at`-filtered read (so a soft-deleted admin does not pass). A non-admin is redirected to `/app/dashboard`; the redirect is streamed to the client after the `/app` loading shell, so the response is a routed 200 carrying no admin markup. A lookup error throws and is caught by `app/app/error.tsx` (the layout sits above `admin/error.tsx`). `proxy.ts` reads no `users` row for `/app/admin/*` (#1536).
+**Layer 1 — Render placement (`apps/web/app/app/admin/layout.tsx`, plus `await requireAdmin()` at the top of every admin `page.tsx`):**
+`requireAdmin()` checks `users.role = 'admin'` against a `deleted_at`-filtered read (so a soft-deleted admin does not pass). A non-admin is redirected to `/app/dashboard`; the redirect is streamed to the client after the `/app` loading shell, so the response is a routed 200 carrying no admin markup. A lookup error throws to the nearest error boundary. `proxy.ts` reads no `users` row for `/app/admin/*` (#1536).
 
 The layout does not gate its sibling page: Next renders them in one flight. The per-page `requireAdmin()` is what keeps static page headings out of a non-admin response. Both calls share one verification per render (React `cache()`).
 
 Note the guarantee for **Server Actions** is relocation, not termination: a Server Action POST to an admin path is resolved from Next's global action manifest, not per-route, so the layout does not stop it and Layer 2 is the authoritative gate.
 
-**Layer 2 — Server Action guard (`apps/web/lib/auth/require-admin.ts`):**
+**Layer 2 — Data placement (`apps/web/lib/auth/require-admin.ts`):**
 `requireAdmin()` verifies both auth (non-null session) and admin role, against a `deleted_at`-filtered read. Since #1169 it is wrapped in React `cache()`, so N calls in one RENDER perform one verification; Server Actions get no memo (no React flight request is resolvable there — Next runs the action under its own async storage), so every mutation still re-verifies. Called at the top of every admin Server Action — and, since #1167, at the top of every admin query helper — before any data access. If either check fails, it throws — the action never proceeds.
 
-**Why both:** The render guard prevents UI rendering for non-admins. The Server Action and query-helper guard ensures admin actions and reads are self-defending even if a page or layout omits its guard or is bypassed (e.g., direct API calls). Neither layer trusts the other.
+**Why both:** The render placement prevents UI rendering for non-admins. The Server Action and query-helper placement ensures admin actions and reads are self-defending even if a page or layout omits its call or is bypassed (e.g., direct API calls). Both layers call the same `cache()`d `requireAdmin()`; a defect inside `requireAdmin()` defeats both placements.
 
 ---
 

@@ -5,10 +5,8 @@ import type { QuestionFilters, QuestionRow, QuestionsListResult } from './types'
 export const PAGE_SIZE = 25
 
 export async function getQuestionsList(filters: QuestionFilters): Promise<QuestionsListResult> {
-  // Layer 2 of the two-guard admin model (docs/security.md "Admin Route Protection").
-  // Defense in depth, not a hole being closed — RLS `users_select` already excludes
-  // soft-deleted rows from the layout's Layer-1 lookup. Do not drop it as redundant:
-  // that redundancy is the point, and every other admin query helper has it.
+  // Data-side placement of requireAdmin() (docs/security.md "Admin Route Protection");
+  // covers a page that omits its call.
   const { supabase } = await requireAdmin()
 
   const page = filters.page ?? 1

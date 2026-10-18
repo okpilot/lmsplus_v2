@@ -10,15 +10,12 @@
  * carries them on representative pre-auth, post-redirect, and unauth-redirect
  * paths. Closes part of issue #108.
  *
- * Extended (issue #637, reworked #1536): the admin-route response class. The
+ * Extended (issue #637): the admin-route response class. The
  * proxy no longer reads `users` on /app/admin/*; the admin role check is
  * `requireAdmin()` in `app/app/admin/layout.tsx` and in every admin page. A
  * non-admin student therefore receives a ROUTED 200 (full next.config.ts
  * headers) whose body carries no admin markup, and the browser is then sent to
  * /app/dashboard by the client-side redirect `requireAdmin()` emits.
- *
- * Earlier shapes of this branch: a bare `403 Forbidden` body, then (#1167) a
- * proxy 307 to /app/dashboard.
  */
 
 import { type Browser, type BrowserContext, expect, type Page, test } from '@playwright/test'

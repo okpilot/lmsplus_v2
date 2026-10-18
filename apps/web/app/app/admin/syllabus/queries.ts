@@ -6,8 +6,8 @@ type TopicRow = { id: string; subject_id: string; code: string; name: string; so
 type SubtopicRow = { id: string; topic_id: string; code: string; name: string; sort_order: number }
 
 export async function getSyllabusTree(): Promise<SyllabusTree> {
-  // Layer 2 of the two-guard admin model — defense in depth over the admin layout's
-  // Layer-1 check, matching every other admin query helper (docs/security.md).
+  // Data-side placement of requireAdmin() (docs/security.md "Admin Route Protection");
+  // covers a page that omits its call.
   const { supabase } = await requireAdmin()
 
   const [subjectsRes, topicsRes, subtopicsRes, countsRes] = await Promise.all([

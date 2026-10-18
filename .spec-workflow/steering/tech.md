@@ -44,7 +44,7 @@ lmsplusv2/
 - **ACID via Postgres RPCs** -- any multi-table operation runs in a single Postgres function (`finish_quiz_session`, `start_quiz_session`, `record_consent`, etc.). No multi-step application-level transactions.
 - **Server-saved quiz progress** -- each answer is saved to `quiz_session_progress` as the student works (`save_quiz_answer`); position and pins go to `quiz_sessions` (`save_quiz_position`); one active device per session via `claim_quiz_session`; `finish_quiz_session()` grades the saved progress atomically on finish.
 - **Feature-based folder organisation** -- co-located `_components/`, `_hooks/`, `actions.ts`, `types.ts` per route segment.
-- **Defense in depth** -- proxy guard + Server Action guard + RLS + DB triggers + RPC auth checks. No layer trusts another.
+- **Defense in depth** -- proxy auth guard + `requireAdmin()` (render + Server Action/query) + RLS + DB triggers + RPC auth checks.
 
 ### Data Storage
 
