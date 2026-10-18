@@ -28,12 +28,11 @@ function remainingClass(remaining: number | null): string {
   return remaining === null ? 'text-muted-foreground' : getTimerClass(remaining)
 }
 
-export function ExamCountdownTimer({
-  timeLimitSeconds,
-  startedAt,
-  onExpired,
-  className,
-}: Readonly<ExamCountdownTimerProps>) {
+function useCountdownRemaining(
+  timeLimitSeconds: number,
+  startedAt: number,
+  onExpired: () => void,
+): number | null {
   const expiredRef = useRef(false)
   const timeLimitRef = useRef(timeLimitSeconds)
   const startedAtRef = useRef(startedAt)
@@ -41,19 +40,15 @@ export function ExamCountdownTimer({
   timeLimitRef.current = timeLimitSeconds
   startedAtRef.current = startedAt
   onExpiredRef.current = onExpired
-
   const calcRemaining = useCallback(
     () =>
       Math.max(0, timeLimitRef.current - Math.floor((Date.now() - startedAtRef.current) / 1000)),
     [],
   )
-
   const [remaining, setRemaining] = useState<number | null>(null)
-
   useLayoutEffect(() => {
     setRemaining(calcRemaining())
   }, [calcRemaining])
-
   useEffect(() => {
     const id = setInterval(() => {
       const r = calcRemaining()
@@ -65,6 +60,16 @@ export function ExamCountdownTimer({
     }, 1000)
     return () => clearInterval(id)
   }, [calcRemaining])
+  return remaining
+}
+
+export function ExamCountdownTimer({
+  timeLimitSeconds,
+  startedAt,
+  onExpired,
+  className,
+}: Readonly<ExamCountdownTimerProps>) {
+  const remaining = useCountdownRemaining(timeLimitSeconds, startedAt, onExpired)
 
   return (
     <span className={`tabular-nums ${remainingClass(remaining)} ${className ?? ''}`}>
