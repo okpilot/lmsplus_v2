@@ -202,7 +202,7 @@
 | FY | get_vfr_rt_exam_questions-part3-ordering-diagram-key-strip | HIGH | rpc-vfr-rt-part3-integrity.spec.ts | BLOCKED |  | answer-oracle |
 | FZ | submit_vfr_rt_exam_answers-ordering-forged-permutation | HIGH | rpc-finish-vfr-rt-forged-progress.spec.ts | BLOCKED |  | input-injection |
 | GA | submit_vfr_rt_exam_answers-diagram-forged-placement | HIGH | rpc-finish-vfr-rt-forged-progress.spec.ts | BLOCKED |  | input-injection |
-| GB | **`loadVfrRtExamQuestions` foreign-session replay — RETIRED.** The Server Action is removed; the questions are read in the server render. | HIGH | — (deleted, #1547) | RETIRED — action removed by #1547 | ID kept so it is never reused (`legacy-row-ids.json`). RPC-level foreign-session gate covered by row DO. Foreign-id redirect covered by the generic-mode e2e test (`quiz-session-id-route.spec.ts`) plus the integration tests, not by a VFR RT-specific e2e test. |
+| GB | **`loadVfrRtExamQuestions` foreign-session replay — RETIRED.** The Server Action is removed; the questions are read in the server render. | HIGH | — (deleted, #1547) | RETIRED — action removed by #1547 | ID kept so it is never reused (`legacy-row-ids.json`). RPC-level foreign-session gate covered by row DO. VFR RT foreign-session redirect covered by row IN. |
 | GC | session-page-rsc-vfr-rt-mid-exam-key-strip | HIGH | rsc-vfr-rt-exam-questions-key-strip.spec.ts | BLOCKED |  | answer-oracle |
 | GD | get_daily_subjects-same-org-instructor-admin-self-scope | HIGH | rpc-daily-subjects-scope.spec.ts | BLOCKED |  | rls-bypass |
 | GE | get_daily_subjects-cross-org-admin-isolation | HIGH | rpc-daily-subjects-scope.spec.ts | BLOCKED |  | cross-tenant |
