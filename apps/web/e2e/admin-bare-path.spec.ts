@@ -15,7 +15,7 @@ test.use({ storageState: 'e2e/.auth/admin.json' })
 // admin-students.spec.ts § Access Control covers a student on /app/admin/students; a non-admin
 // on /app/admin is bounced by the layout and `page.tsx`'s requireAdmin(). Were `admin/page.tsx`
 // absent, `/app/admin` would be unmatched and resolve to the root not-found, where no admin
-// layout runs (`app/app/admin/not-found.tsx`).
+// layout runs (see the header of `app/app/admin/not-found.tsx`: an unmatched path never reaches it).
 test.describe('Admin bare-path landing', () => {
   test('admin landing on the bare admin path reaches the admin dashboard', async ({ page }) => {
     await page.goto('/app/admin')

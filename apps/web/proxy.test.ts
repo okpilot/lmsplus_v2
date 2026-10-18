@@ -230,7 +230,7 @@ describe('proxy', () => {
     expect(response).toBe(MOCK_SESSION_RESPONSE)
   })
 
-  it('passes a non-admin through /app/admin/* without reading the users table', async () => {
+  it('passes a non-admin through /app/admin/* without an admin role lookup', async () => {
     mockVerifySessionUser.mockResolvedValue({ id: 'student-1', email: null })
 
     const response = await proxy(makeConsentedRequest('/app/admin/syllabus', 'student-1'))

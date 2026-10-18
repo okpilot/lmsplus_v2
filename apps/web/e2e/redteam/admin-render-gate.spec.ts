@@ -235,6 +235,9 @@ test.describe('admin render gate without the proxy role check', () => {
         for (const t of sample) {
           for (const headers of [{}, rscHeaders(), rscHeaders(t.mountedFrom)]) {
             const after = await fetchBody(ctx, t.path, headers)
+            const label = `soft-deleted admin ${t.path} ${JSON.stringify(Object.keys(headers))}`
+            expect(after.status, label).toBe(200)
+            expect(after.body, label).toMatch(/NEXT_REDIRECT;(?:replace|push);\/app\/dashboard;/)
             expect(
               after.body,
               `soft-deleted admin ${t.path} ${JSON.stringify(Object.keys(headers))}`,

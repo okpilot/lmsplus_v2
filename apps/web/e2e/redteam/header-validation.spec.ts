@@ -11,7 +11,7 @@
  * paths. Closes part of issue #108.
  *
  * Extended (issue #637): the admin-route response class. The
- * proxy no longer reads `users` on /app/admin/*; the admin role check is
+ * proxy no longer performs an admin role lookup on /app/admin/*; the admin role check is
  * `requireAdmin()` in `app/app/admin/layout.tsx` and in every admin page. A
  * non-admin student therefore receives a ROUTED 200 (full next.config.ts
  * headers) whose body carries no admin markup, and the browser is then sent to
