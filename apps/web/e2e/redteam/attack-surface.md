@@ -262,6 +262,8 @@
 | II | setPasswordFromLink-prior-session-survives-password-set | HIGH | set-password-link-session.spec.ts | BLOCKED |  | auth-bypass |
 | IJ | setPasswordFromLink-deactivated-account-residual-session | HIGH | set-password-link-session.spec.ts | BLOCKED |  | soft-delete-bypass |
 | IK | setPasswordFromLink-failed-write-unpinned-recovery-session | MEDIUM | set-password-link-session.spec.ts | BLOCKED |  | cookie-state |
+| IL | admin-render-gate-forged-router-state-tree-partial-render | HIGH | admin-render-gate.spec.ts | BLOCKED |  | auth-bypass |
+| IM | requireAdmin-soft-deleted-admin-live-token-render | MEDIUM | admin-render-gate.spec.ts | BLOCKED |  | soft-delete-bypass |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
