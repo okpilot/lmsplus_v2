@@ -32,11 +32,12 @@ export async function sendLoginInstructions(input: unknown): Promise<SendLoginIn
   if (!recipient) return { success: false, error: 'User not found' }
 
   // Fail fast on a misconfigured base URL rather than emailing a broken link.
-  if (!process.env.NEXT_PUBLIC_APP_URL) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL
+  if (!appUrl) {
     console.error('[sendLoginInstructions] NEXT_PUBLIC_APP_URL is not set')
     return { success: false, error: 'Failed to send login instructions' }
   }
-  if (!URL.canParse('/', process.env.NEXT_PUBLIC_APP_URL)) {
+  if (!URL.canParse(appUrl) || !['http:', 'https:'].includes(new URL(appUrl).protocol)) {
     console.error('[sendLoginInstructions] NEXT_PUBLIC_APP_URL is not a valid URL')
     return { success: false, error: 'Failed to send login instructions' }
   }

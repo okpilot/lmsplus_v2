@@ -97,7 +97,7 @@ describe('sendLoginInstructions', () => {
     errorSpy.mockRestore()
   })
 
-  it.each(['not a url', 'localhost:3000'])(
+  it.each(['not a url', 'localhost:3000', 'ftp://app.example.com', 'javascript:alert(1)'])(
     'fails without issuing a link when NEXT_PUBLIC_APP_URL is %s',
     async (appUrl) => {
       vi.stubEnv('NEXT_PUBLIC_APP_URL', appUrl)
@@ -115,6 +115,19 @@ describe('sendLoginInstructions', () => {
       errorSpy.mockRestore()
     },
   )
+
+  it('issues a link when NEXT_PUBLIC_APP_URL is a plain http origin', async () => {
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', 'http://localhost:3000')
+    mockAdmin()
+    mockGetRecipient.mockResolvedValue(RECIPIENT)
+    mockIssueAndEmailSetPasswordLink.mockResolvedValue({ ok: true })
+    mockRpc.mockResolvedValue({ data: null, error: null })
+
+    const result = await sendLoginInstructions(VALID_INPUT)
+
+    expect(result).toEqual({ success: true })
+    expect(mockIssueAndEmailSetPasswordLink).toHaveBeenCalledTimes(1)
+  })
 
   it('fails without issuing a link when email sending is not configured', async () => {
     mockIsEmailConfigured.mockReturnValue(false)
