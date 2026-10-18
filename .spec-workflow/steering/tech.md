@@ -151,7 +151,7 @@ lmsplusv2/
 ### Security & Compliance
 
 - **Authentication**: Email + password via Supabase Auth. JWT sessions (1hr expiry, 7-day sliding refresh with rotation). Pre-created users only (no self-registration).
-- **Authorization**: RLS on every table, with a policy for each command the table is INTENDED to permit — the clause is per command (`SELECT`/`DELETE` take `USING` only, `INSERT` takes `WITH CHECK` only, `FOR ALL`/`FOR UPDATE` take both, and a merely absent `WITH CHECK` on those two is safe since PostgreSQL reuses `USING`). See `docs/security.md` §3. Admin routes require proxy guard + `requireAdmin()` Server Action guard.
+- **Authorization**: RLS on every table, with a policy for each command the table is INTENDED to permit — the clause is per command (`SELECT`/`DELETE` take `USING` only, `INSERT` takes `WITH CHECK` only, `FOR ALL`/`FOR UPDATE` take both, and a merely absent `WITH CHECK` on those two is safe since PostgreSQL reuses `USING`). See `docs/security.md` §3. Admin routes require `requireAdmin()` in the admin layout and every admin `page.tsx` (render), and in every admin Server Action and query helper.
 - **Correct answer protection**: `get_quiz_questions()` RPC strips `correct` field from options JSONB. `get_report_correct_options()` RPC for post-session feedback (completed sessions only).
 - **Service role key**: Server-only in `packages/db/src/admin.ts` with runtime browser guard. Never `NEXT_PUBLIC_`.
 - **Input validation**: Zod `.parse()` / `.safeParse()` on every Server Action. LIKE metacharacter escaping. Free-text ILIKE fields capped at 200 chars.

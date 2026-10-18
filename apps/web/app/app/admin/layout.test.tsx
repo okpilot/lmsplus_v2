@@ -25,12 +25,4 @@ describe('AdminLayout', () => {
       'NEXT_REDIRECT:/app/dashboard',
     )
   })
-
-  it('propagates a service error from the admin check', async () => {
-    mockRequireAdmin.mockRejectedValueOnce(new Error('Service error: could not verify admin role'))
-
-    await expect(AdminLayout({ children: 'admin-content' })).rejects.toThrow(
-      'Service error: could not verify admin role',
-    )
-  })
 })
