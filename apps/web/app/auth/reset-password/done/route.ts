@@ -1,8 +1,7 @@
-import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
+import { clearRecoveryPendingCookie } from '@/lib/auth/recovery-pending-cookie'
 
 export async function GET() {
-  const cookieStore = await cookies()
-  cookieStore.delete('__recovery_pending')
+  await clearRecoveryPendingCookie()
   redirect('/')
 }

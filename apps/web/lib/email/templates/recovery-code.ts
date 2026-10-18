@@ -1,3 +1,5 @@
+import { formatOtpLifetime } from '@/lib/auth/email-otp-config'
+
 type RecoveryCodeEmailArgs = {
   code: string
 }
@@ -30,7 +32,7 @@ export function recoveryCodeEmail({ code }: RecoveryCodeEmailArgs): EmailContent
     <p>Hello,</p>
     <p>Use this code to reset your LMS Plus password:</p>
     <p style="font-size: 28px; font-weight: bold; letter-spacing: 4px;">${esc(code)}</p>
-    <p>This code works once and expires in 1 hour. Enter it on the LMS Plus page where you asked for it, then choose your new password. If it has expired, go to the login page, click &quot;Forgot password?&quot; and ask for a new code.</p>
+    <p>This code works once and expires in ${formatOtpLifetime()}. Enter it on the LMS Plus page where you asked for it, then choose your new password. If it has expired, go to the login page, click &quot;Forgot password?&quot; and ask for a new code.</p>
     <p style="color: #6b7280; font-size: 13px;">If you did not ask to reset your password, you can safely ignore this email.</p>
   </body>
 </html>`
@@ -41,7 +43,7 @@ Use this code to reset your LMS Plus password:
 
 ${code}
 
-This code works once and expires in 1 hour. Enter it on the LMS Plus page where you asked for it, then choose your new password. If it has expired, go to the login page, click "Forgot password?" and ask for a new code.
+This code works once and expires in ${formatOtpLifetime()}. Enter it on the LMS Plus page where you asked for it, then choose your new password. If it has expired, go to the login page, click "Forgot password?" and ask for a new code.
 
 If you did not ask to reset your password, you can safely ignore this email.`
 

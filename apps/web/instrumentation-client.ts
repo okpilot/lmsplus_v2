@@ -1,7 +1,7 @@
 import * as Sentry from '@sentry/nextjs'
 import { installTranslatorDomGuard } from './lib/translator-dom-guard'
-import { scrubBreadcrumbTokens } from './sentry-breadcrumb-scrub'
 import { SENTRY_DATA_COLLECTION } from './sentry-data-collection'
+import { scrubBreadcrumbTokens, scrubEventTokens } from './sentry-token-scrub'
 
 const SET_PASSWORD_PATH = '/auth/set-password'
 const replay = () =>
@@ -20,6 +20,9 @@ Sentry.init({
   // Replay records the raw page URL; it stays off while a live token_hash is in it.
   integrations: window.location.pathname === SET_PASSWORD_PATH ? [] : [replay()],
   beforeBreadcrumb: scrubBreadcrumbTokens,
+  // The browser HttpContext copies the raw page URL into event.request.url, which dataCollection does not filter.
+  beforeSend: scrubEventTokens,
+  beforeSendTransaction: scrubEventTokens,
   dataCollection: SENTRY_DATA_COLLECTION,
   enabled: process.env.NODE_ENV === 'production',
 })

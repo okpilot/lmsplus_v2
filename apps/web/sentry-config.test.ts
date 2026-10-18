@@ -106,6 +106,22 @@ describe('Sentry init options', () => {
     expect(out.data?.url).toBe('/auth/set-password?token_hash=[Filtered]&type=recovery')
   })
 
+  it.each(['beforeSend', 'beforeSendTransaction'])(
+    'browser config scrubs token_hash from the request URL in %s events',
+    async (hook) => {
+      await import('./instrumentation-client')
+      const options = initSpy.mock.calls[0]?.[0] as Record<
+        string,
+        (e: { request: { url: string } }) => { request: { url: string } }
+      >
+      const out = options[hook]?.({
+        request: { url: 'https://x/auth/set-password?token_hash=abc&type=recovery' },
+      })
+      expect(out?.request.url).toContain('token_hash=[Filtered]')
+      expect(out?.request.url).toContain('type=recovery')
+    },
+  )
+
   it('browser config reports App Router navigations to Sentry', async () => {
     const mod = await import('./instrumentation-client')
     expect(mod.onRouterTransitionStart).toBe(captureRouterTransitionStart)

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { scrubBreadcrumbTokens } from './sentry-breadcrumb-scrub'
+import { scrubBreadcrumbTokens, scrubEventTokens } from './sentry-token-scrub'
 
 describe('scrubBreadcrumbTokens', () => {
   it.each(['url', 'to', 'from'])('filters token_hash in the %s field', (field) => {
@@ -24,5 +24,26 @@ describe('scrubBreadcrumbTokens', () => {
 
   it('returns a breadcrumb with no data unchanged', () => {
     expect(scrubBreadcrumbTokens({})).toEqual({})
+  })
+})
+
+describe('scrubEventTokens', () => {
+  it('filters token_hash in the request URL and keeps the rest', () => {
+    const out = scrubEventTokens({
+      request: { url: 'https://x.test/auth/set-password?token_hash=secret123&type=recovery' },
+    })
+    expect(out.request?.url).toBe(
+      'https://x.test/auth/set-password?token_hash=[Filtered]&type=recovery',
+    )
+  })
+
+  it('returns an event with no request unchanged', () => {
+    const event = { message: 'boom', request: undefined }
+    expect(scrubEventTokens(event)).toEqual(event)
+  })
+
+  it('leaves a request URL without token_hash unchanged', () => {
+    const event = { request: { url: 'https://x.test/app/dashboard?x=1' } }
+    expect(scrubEventTokens(event).request?.url).toBe('https://x.test/app/dashboard?x=1')
   })
 })
