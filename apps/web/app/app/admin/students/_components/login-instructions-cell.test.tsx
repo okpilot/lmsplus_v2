@@ -51,7 +51,7 @@ describe('LoginInstructionsCell', () => {
       />,
     )
 
-    expect(screen.getByText('Waiting for the student to set a password')).toBeInTheDocument()
+    expect(screen.getByText('Link sent, not used yet')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Resend' })).toBeInTheDocument()
     expect(screen.getByText(/^Sent /)).toBeInTheDocument()
   })

@@ -36,6 +36,10 @@ export async function sendLoginInstructions(input: unknown): Promise<SendLoginIn
     console.error('[sendLoginInstructions] NEXT_PUBLIC_APP_URL is not set')
     return { success: false, error: 'Failed to send login instructions' }
   }
+  if (!URL.canParse(process.env.NEXT_PUBLIC_APP_URL)) {
+    console.error('[sendLoginInstructions] NEXT_PUBLIC_APP_URL is not a valid URL')
+    return { success: false, error: 'Failed to send login instructions' }
+  }
   // Checked before a token is issued: issuing voids the student's earlier link or code.
   if (!isEmailConfigured()) {
     console.error('[sendLoginInstructions] email sending is not configured')

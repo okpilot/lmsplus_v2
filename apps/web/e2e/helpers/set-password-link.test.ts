@@ -46,6 +46,7 @@ type Mocks = {
   upsert?: ReturnType<typeof vi.fn>
   consentDelete?: ReturnType<typeof vi.fn>
   createUser?: ReturnType<typeof vi.fn>
+  updateUserById?: ReturnType<typeof vi.fn>
 }
 
 function adminWith(mocks: Mocks) {
@@ -61,7 +62,12 @@ function adminWith(mocks: Mocks) {
       }
       return buildChain({ data: null, error: null })
     },
-    auth: { admin: { createUser: mocks.createUser ?? vi.fn() } },
+    auth: {
+      admin: {
+        createUser: mocks.createUser ?? vi.fn(),
+        updateUserById: mocks.updateUserById ?? vi.fn().mockResolvedValue({ error: null }),
+      },
+    },
   }
 }
 
@@ -104,15 +110,28 @@ describe('createLinkStudent', () => {
     expect(mockEnsureConsentRecords).toHaveBeenCalledWith(expect.anything(), 'new-id')
   })
 
-  it('reuses the existing auth user for a known slot without creating another', async () => {
+  it('reuses the existing auth user for a known slot and replaces the password a previous run set', async () => {
     mockFindAuthUserByEmail.mockResolvedValue({ id: 'existing-id' })
     const createUser = vi.fn()
-    mockGetAdminClient.mockReturnValue(adminWith({ createUser }))
+    const updateUserById = vi.fn().mockResolvedValue({ error: null })
+    mockGetAdminClient.mockReturnValue(adminWith({ createUser, updateUserById }))
 
     const result = await createLinkStudent({ slot: 'again' })
 
     expect(createUser).not.toHaveBeenCalled()
+    expect(updateUserById).toHaveBeenCalledWith('existing-id', { password: expect.any(String) })
+    expect(updateUserById.mock.calls[0]?.[1].password.length).toBeGreaterThanOrEqual(32)
     expect(result.userId).toBe('existing-id')
+  })
+
+  it('throws when replacing a reused slot user password fails', async () => {
+    mockFindAuthUserByEmail.mockResolvedValue({ id: 'existing-id' })
+    const updateUserById = vi.fn().mockResolvedValue({ error: { message: 'boom' } })
+    mockGetAdminClient.mockReturnValue(adminWith({ updateUserById }))
+
+    await expect(createLinkStudent({ slot: 'again' })).rejects.toThrow(
+      'createLinkStudent password reset: boom',
+    )
   })
 
   it('throws when creating the auth user fails', async () => {

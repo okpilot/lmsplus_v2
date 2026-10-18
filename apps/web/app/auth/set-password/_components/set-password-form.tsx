@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useState } from 'react'
 import { NewPasswordFields } from '@/components/auth/new-password-fields'
 import { LoadingButton } from '@/components/ui/loading-button'
@@ -13,6 +14,7 @@ export function SetPasswordForm({ tokenHash }: Readonly<{ tokenHash: string }>) 
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [linkInvalid, setLinkInvalid] = useState(false)
+  const [continueTo, setContinueTo] = useState<string | null>(null)
 
   async function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -27,13 +29,14 @@ export function SetPasswordForm({ tokenHash }: Readonly<{ tokenHash: string }>) 
     setLoading(true)
     try {
       const result = await setPasswordFromLink({ ...parsed.data, tokenHash, type: 'recovery' })
-      if (result.redirectTo) {
+      if (result.success) {
         window.location.assign(result.redirectTo)
         return
       }
-      if (!result.success) {
-        if (result.linkInvalid) setLinkInvalid(true)
-        else setError(result.error)
+      if (result.linkInvalid) setLinkInvalid(true)
+      else {
+        setError(result.error)
+        setContinueTo(result.redirectTo ?? null)
       }
     } catch {
       setError('Unable to update password. Please try again.')
@@ -59,9 +62,18 @@ export function SetPasswordForm({ tokenHash }: Readonly<{ tokenHash: string }>) 
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      <LoadingButton type="submit" loading={loading} loadingText="Saving..." className="w-full">
-        Set password
-      </LoadingButton>
+      {continueTo ? (
+        <Link
+          href={continueTo}
+          className="block rounded-lg bg-primary px-4 py-2 text-center text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          Continue
+        </Link>
+      ) : (
+        <LoadingButton type="submit" loading={loading} loadingText="Saving..." className="w-full">
+          Set password
+        </LoadingButton>
+      )}
     </form>
   )
 }

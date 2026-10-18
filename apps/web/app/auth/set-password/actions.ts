@@ -11,7 +11,6 @@ import {
 type Supabase = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
 const SetPasswordFromLinkSchema = NewPasswordSchema.and(SetPasswordLinkSchema)
-const GENERIC_ERROR = 'Unable to update password. Please try again.'
 const LINK_INVALID: SetPasswordFromLinkResult = {
   success: false,
   error: LINK_INVALID_MESSAGE,
@@ -67,8 +66,13 @@ async function confirmLiveAccount(
     .maybeSingle<{ id: string }>()
   if (error || !data) {
     if (error) console.error('[setPasswordFromLink] account read failed:', error.message)
-    await supabase.auth.signOut({ scope: 'local' })
-    return error ? { success: false, error: GENERIC_ERROR } : LINK_INVALID
+    else console.error('[setPasswordFromLink] no live account for user:', userId)
+    const { error: signOutError } = await supabase.auth.signOut({ scope: 'local' })
+    if (signOutError) {
+      console.error('[setPasswordFromLink] local sign-out failed:', signOutError.message)
+    }
+    // The token is already spent, so a retry cannot work either way.
+    return LINK_INVALID
   }
   return null
 }

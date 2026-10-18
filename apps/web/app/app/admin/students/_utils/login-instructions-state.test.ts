@@ -44,7 +44,7 @@ describe('computeLoginInstructionsState', () => {
 describe('loginInstructionsStateLabel', () => {
   it.each([
     ['not_sent', 'Not sent yet'],
-    ['waiting', 'Waiting for the student to set a password'],
+    ['waiting', 'Link sent, not used yet'],
     ['password_set', 'Password set'],
   ] as const)('labels %s as "%s"', (state, label) => {
     expect(loginInstructionsStateLabel(state)).toBe(label)

@@ -136,10 +136,10 @@ describe('SetPasswordForm', () => {
     })
   })
 
-  it('moves to reset-password when saving fails after the link was used', async () => {
+  it('shows the failure message with a Continue link to reset-password when saving fails after the link was used', async () => {
     mockSetPasswordFromLink.mockResolvedValue({
       success: false,
-      error: 'We could not save that password. Choose a password on the next screen.',
+      error: 'That password is too weak. Choose a stronger one on the next screen.',
       redirectTo: '/auth/reset-password',
     })
     const user = userEvent.setup()
@@ -149,9 +149,13 @@ describe('SetPasswordForm', () => {
     await user.type(screen.getByLabelText(/confirm password/i), 'newpassword123')
     await user.click(screen.getByRole('button', { name: /set password/i }))
 
-    await waitFor(() => {
-      expect(mockAssign).toHaveBeenCalledWith('/auth/reset-password')
-    })
+    expect(await screen.findByText(/too weak/i)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /continue/i })).toHaveAttribute(
+      'href',
+      '/auth/reset-password',
+    )
+    expect(screen.queryByRole('button', { name: /set password/i })).not.toBeInTheDocument()
+    expect(mockAssign).not.toHaveBeenCalled()
   })
 
   it('replaces the form with the link-unavailable panel when the link is refused', async () => {

@@ -131,7 +131,8 @@ describe('setPasswordFromLink', () => {
       expect(chain.is).toHaveBeenCalledWith('deleted_at', null)
     })
 
-    it('signs out locally and reports an unusable link when the account is gone', async () => {
+    it('signs out locally, logs the refusal and reports an unusable link when the account is gone', async () => {
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
       chain.maybeSingle.mockResolvedValue({ data: null, error: null })
 
       const result = await setPasswordFromLink(validInput)
@@ -139,21 +140,33 @@ describe('setPasswordFromLink', () => {
       expect(result).toEqual({ success: false, error: LINK_INVALID_MESSAGE, linkInvalid: true })
       expect(mockSignOut).toHaveBeenCalledWith({ scope: 'local' })
       expect(mockComplete).not.toHaveBeenCalled()
+      expect(spy).toHaveBeenCalledWith('[setPasswordFromLink] no live account for user:', USER_ID)
     })
 
-    it('signs out locally and fails generically when the account read errors', async () => {
+    it('signs out locally and reports an unusable link when the account read errors after the token was spent', async () => {
       const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
       chain.maybeSingle.mockResolvedValue({ data: null, error: { message: 'db down' } })
 
       const result = await setPasswordFromLink(validInput)
 
-      expect(result).toEqual({
-        success: false,
-        error: 'Unable to update password. Please try again.',
-      })
+      expect(result).toEqual({ success: false, error: LINK_INVALID_MESSAGE, linkInvalid: true })
       expect(mockSignOut).toHaveBeenCalledWith({ scope: 'local' })
       expect(mockComplete).not.toHaveBeenCalled()
-      expect(spy).toHaveBeenCalled()
+      expect(spy).toHaveBeenCalledWith('[setPasswordFromLink] account read failed:', 'db down')
+    })
+
+    it('logs a failed local sign-out and still refuses the link', async () => {
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      chain.maybeSingle.mockResolvedValue({ data: null, error: null })
+      mockSignOut.mockResolvedValue({ error: { message: 'signout boom' } })
+
+      const result = await setPasswordFromLink(validInput)
+
+      expect(result).toEqual({ success: false, error: LINK_INVALID_MESSAGE, linkInvalid: true })
+      expect(spy).toHaveBeenCalledWith(
+        '[setPasswordFromLink] local sign-out failed:',
+        'signout boom',
+      )
     })
   })
 

@@ -40,13 +40,24 @@ describe('clearPasswordPendingMarker', () => {
     expect(chain.not).toHaveBeenCalledWith('temp_password_expires_at', 'is', null)
   })
 
+  it('logs when it cleared a marker', async () => {
+    arrangeResult({ data: [{ id: USER_ID }], error: null })
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    await clearPasswordPendingMarker(USER_ID)
+
+    expect(spy).toHaveBeenCalledWith('[clearPasswordPendingMarker] cleared marker for', USER_ID)
+  })
+
   it('stays silent when no row carried a marker', async () => {
     arrangeResult({ data: [], error: null })
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
     await expect(clearPasswordPendingMarker(USER_ID)).resolves.toBeUndefined()
 
     expect(spy).not.toHaveBeenCalled()
+    expect(logSpy).not.toHaveBeenCalled()
   })
 
   it('logs the failure and resolves without throwing when the update errors', async () => {

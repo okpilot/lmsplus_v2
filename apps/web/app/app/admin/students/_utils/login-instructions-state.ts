@@ -33,7 +33,7 @@ export function loginInstructionsStateLabel(state: LoginInstructionsState): stri
     case 'not_sent':
       return 'Not sent yet'
     case 'waiting':
-      return 'Waiting for the student to set a password'
+      return 'Link sent, not used yet'
     case 'password_set':
       return 'Password set'
     default:

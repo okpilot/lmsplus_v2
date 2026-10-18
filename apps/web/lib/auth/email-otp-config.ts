@@ -8,11 +8,7 @@
 export const EMAIL_OTP_EXPIRY_SECONDS = 3600
 
 /** Human wording of the OTP lifetime for email and UI copy, e.g. "1 hour". */
-export function formatOtpLifetime(seconds: number = EMAIL_OTP_EXPIRY_SECONDS): string {
-  if (seconds % 3600 === 0) {
-    const hours = seconds / 3600
-    return hours === 1 ? '1 hour' : `${hours} hours`
-  }
-  const minutes = Math.round(seconds / 60)
-  return minutes === 1 ? '1 minute' : `${minutes} minutes`
+export function formatOtpLifetime(): string {
+  const hours = EMAIL_OTP_EXPIRY_SECONDS / 3600
+  return hours === 1 ? '1 hour' : `${hours} hours`
 }

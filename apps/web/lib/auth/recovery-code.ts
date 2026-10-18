@@ -85,6 +85,23 @@ export async function claimRecoverySlot(userId: string): Promise<{ allowed: bool
   return { allowed: true }
 }
 
+type RecoveryProperties = {
+  email_otp?: string
+  hashed_token?: string
+}
+
+async function generateRecoveryProperties(
+  email: string,
+  context: string,
+): Promise<RecoveryProperties | null> {
+  const { data, error } = await adminClient.auth.admin.generateLink({ type: 'recovery', email })
+  if (error) {
+    console.error(`[${context}] generateLink failed:`, error.message)
+    return null
+  }
+  return data.properties ?? {}
+}
+
 /**
  * Issues a fresh recovery code via `generateLink`, returning only the
  * short-lived OTP — never the link itself. The forgot-password email carries a
@@ -92,12 +109,9 @@ export async function claimRecoverySlot(userId: string): Promise<{ allowed: bool
  * a mail scanner's GET before the student clicks it.
  */
 export async function issueRecoveryCode(email: string): Promise<string | null> {
-  const { data, error } = await adminClient.auth.admin.generateLink({ type: 'recovery', email })
-  if (error) {
-    console.error('[issueRecoveryCode] generateLink failed:', error.message)
-    return null
-  }
-  const code = data.properties?.email_otp
+  const properties = await generateRecoveryProperties(email, 'issueRecoveryCode')
+  if (!properties) return null
+  const code = properties.email_otp
   if (!code) {
     console.error('[issueRecoveryCode] generateLink returned no email_otp')
     return null
@@ -113,12 +127,9 @@ export async function issueRecoveryCode(email: string): Promise<string | null> {
  * One recovery token per user: issuing here voids an earlier code or link.
  */
 export async function issueSetPasswordToken(email: string): Promise<string | null> {
-  const { data, error } = await adminClient.auth.admin.generateLink({ type: 'recovery', email })
-  if (error) {
-    console.error('[issueSetPasswordToken] generateLink failed:', error.message)
-    return null
-  }
-  const hashedToken = data.properties?.hashed_token
+  const properties = await generateRecoveryProperties(email, 'issueSetPasswordToken')
+  if (!properties) return null
+  const hashedToken = properties.hashed_token
   if (!hashedToken) {
     console.error('[issueSetPasswordToken] generateLink returned no hashed_token')
     return null

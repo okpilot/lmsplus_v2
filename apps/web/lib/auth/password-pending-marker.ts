@@ -7,7 +7,7 @@ import { adminClient } from '@repo/db/admin'
  * surfaced, and a row with no marker (zero rows updated) is a success.
  */
 export async function clearPasswordPendingMarker(userId: string): Promise<void> {
-  const { error } = await adminClient
+  const { data, error } = await adminClient
     .from('users')
     .update({ temp_password_expires_at: null })
     .eq('id', userId)
@@ -17,5 +17,9 @@ export async function clearPasswordPendingMarker(userId: string): Promise<void> 
 
   if (error) {
     console.error('[clearPasswordPendingMarker] update failed:', error.message)
+    return
+  }
+  if ((data?.length ?? 0) > 0) {
+    console.log('[clearPasswordPendingMarker] cleared marker for', userId)
   }
 }

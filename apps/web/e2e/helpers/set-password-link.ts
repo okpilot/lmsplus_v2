@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { findAuthUserByEmail } from './auth-users'
 import { ensureConsentRecords, getAdminClient } from './supabase'
 
@@ -13,10 +14,21 @@ function slotEmail(slot: string): string {
 type LinkStudent = { userId: string; email: string; orgId: string }
 type AdminClient = ReturnType<typeof getAdminClient>
 
-/** Finds the slot's Auth user, or creates one with no password (as admin create-student does). */
+/**
+ * Finds the slot's Auth user, or creates one with no password (as admin
+ * create-student does). A reused slot user keeps the password a previous run
+ * set, which Auth would reject as `same_password`; it is replaced with a random
+ * one nobody knows.
+ */
 async function upsertPasswordlessAuthUser(admin: AdminClient, email: string): Promise<string> {
   const existing = await findAuthUserByEmail(admin, email)
-  if (existing) return existing.id
+  if (existing) {
+    const { error } = await admin.auth.admin.updateUserById(existing.id, {
+      password: `${randomUUID()}${randomUUID()}`,
+    })
+    if (error) throw new Error(`createLinkStudent password reset: ${error.message}`)
+    return existing.id
+  }
 
   const { data, error } = await admin.auth.admin.createUser({ email, email_confirm: true })
   if (error || !data?.user) throw new Error(`createLinkStudent auth: ${error?.message}`)

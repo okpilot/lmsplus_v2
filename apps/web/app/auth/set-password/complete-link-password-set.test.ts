@@ -73,19 +73,29 @@ describe('completeLinkPasswordSet', () => {
     expect(spy).toHaveBeenCalledWith('[setPasswordFromLink] sign-out others failed:', 'boom')
   })
 
-  it('sends the student to reset-password with the pin kept when the password write fails', async () => {
-    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    mockUpdateUser.mockResolvedValue({ error: { message: 'weak password', code: 'weak_password' } })
+  it.each([
+    ['weak_password', 'That password is too weak. Choose a stronger one on the next screen.'],
+    ['same_password', 'That is your current password. Choose a different one on the next screen.'],
+    [
+      'unexpected_failure',
+      'We could not save that password. Choose a password on the next screen.',
+    ],
+  ])(
+    'sends the student to reset-password with the pin kept and a tailored message when saving fails (%s)',
+    async (code, message) => {
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      mockUpdateUser.mockResolvedValue({ error: { message: 'update failed', code } })
 
-    const result = await run()
+      const result = await run()
 
-    expect(result).toEqual({
-      success: false,
-      error: 'We could not save that password. Choose a password on the next screen.',
-      redirectTo: '/auth/reset-password',
-    })
-    expect(mockClearPin).not.toHaveBeenCalled()
-    expect(mockRecordSet).not.toHaveBeenCalled()
-    expect(spy).toHaveBeenCalledWith('[setPasswordFromLink] Auth update error:', 'weak password')
-  })
+      expect(result).toEqual({
+        success: false,
+        error: message,
+        redirectTo: '/auth/reset-password',
+      })
+      expect(mockClearPin).not.toHaveBeenCalled()
+      expect(mockRecordSet).not.toHaveBeenCalled()
+      expect(spy).toHaveBeenCalledWith('[setPasswordFromLink] Auth update error:', 'update failed')
+    },
+  )
 })

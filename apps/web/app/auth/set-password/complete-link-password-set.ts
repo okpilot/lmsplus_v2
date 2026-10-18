@@ -10,6 +10,10 @@ export type SetPasswordFromLinkResult =
   | { success: false; error: string; linkInvalid?: true; redirectTo?: string }
 
 const SAVE_FAILED_MESSAGE = 'We could not save that password. Choose a password on the next screen.'
+const SAVE_FAILED_MESSAGES: Record<string, string> = {
+  same_password: 'That is your current password. Choose a different one on the next screen.',
+  weak_password: 'That password is too weak. Choose a stronger one on the next screen.',
+}
 
 /**
  * Runs after `verifyOtp` has consumed the link token and opened a recovery
@@ -26,7 +30,11 @@ export async function completeLinkPasswordSet(
   const { error } = await supabase.auth.updateUser({ password })
   if (error) {
     console.error('[setPasswordFromLink] Auth update error:', error.message)
-    return { success: false, error: SAVE_FAILED_MESSAGE, redirectTo: '/auth/reset-password' }
+    return {
+      success: false,
+      error: (error.code && SAVE_FAILED_MESSAGES[error.code]) || SAVE_FAILED_MESSAGE,
+      redirectTo: '/auth/reset-password',
+    }
   }
 
   await clearRecoveryPendingCookie()

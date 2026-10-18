@@ -16,12 +16,4 @@ describe('formatOtpLifetime', () => {
   it('words a one-hour lifetime as "1 hour"', () => {
     expect(formatOtpLifetime()).toBe('1 hour')
   })
-
-  it.each([
-    [7200, '2 hours'],
-    [1800, '30 minutes'],
-    [60, '1 minute'],
-  ])('words %i seconds as "%s"', (seconds, expected) => {
-    expect(formatOtpLifetime(seconds)).toBe(expected)
-  })
 })
