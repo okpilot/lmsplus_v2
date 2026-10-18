@@ -178,7 +178,12 @@ test.describe('admin render gate without the proxy role check', () => {
         }
 
         const instructorForged = await fetchBody(instructorCtx, t.path, rscHeaders(t.mountedFrom))
-        expect(instructorForged.body, `instructor forged RSC ${t.path}`).not.toContain(t.marker)
+        const instructorLabel = `instructor forged RSC ${t.path} -> ${instructorForged.location}`
+        expect(instructorForged.status, instructorLabel).toBe(200)
+        expect(instructorForged.body, instructorLabel).not.toContain(t.marker)
+        expect(instructorForged.body, instructorLabel).toMatch(
+          /NEXT_REDIRECT;(?:replace|push);\/app\/dashboard;/,
+        )
       }
     } finally {
       await adminCtx.close()
