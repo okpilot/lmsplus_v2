@@ -96,7 +96,7 @@ Admin routes (`/app/admin` and `/app/admin/*`) are checked in two placements of 
 **Layer 1 — Render placement (`apps/web/app/app/admin/layout.tsx`, plus `await requireAdmin()` at the top of every admin `page.tsx`):**
 `requireAdmin()` checks `users.role = 'admin'` against a `deleted_at`-filtered read (so a soft-deleted admin does not pass). A non-admin is redirected to `/app/dashboard`; the redirect is streamed to the client after the `/app` loading shell, so the response is a routed 200 carrying no admin markup. A lookup error thrown by the layout renders `app/app/error.tsx` (a segment's `error.tsx` does not wrap its own layout). `proxy.ts` reads no `users` row for `/app/admin/*` (#1536).
 
-The layout does not gate its sibling page: Next renders them in one flight. The per-page `requireAdmin()` is what keeps static page headings out of a non-admin response. Both calls share one verification per render (React `cache()`).
+The layout does not gate its sibling page: Next renders them in one flight, and a soft navigation with a forged `Next-Router-State-Tree` renders only the page, skipping the layouts above it (red-team IL, `apps/web/e2e/redteam/admin-render-gate.spec.ts`). The per-page `requireAdmin()` is what keeps static page headings out of a non-admin response. Both calls share one verification per render (React `cache()`).
 
 A layout or page check does not protect a **Server Action**: it is reachable by a direct POST, and only the action's own `requireAdmin()` (Layer 2) stops it.
 
