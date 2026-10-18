@@ -8,9 +8,10 @@ import { requireAdmin } from '@/lib/auth/require-admin'
  * surfaces already bounce to.
  *
  * `requireAdmin()` here is required because `app/app/admin/layout.tsx` (Layer 1,
- * docs/security.md) does not gate its sibling page; `cache()` makes the second call free. It gates the RENDER path only —
- * this page also makes `/app/admin` a valid Server Action POST target. That path is
- * gated by the invariant every admin Server Action already carries: each one calls
+ * docs/security.md) does not gate its sibling page; `cache()` shares one
+ * verification per render. It gates the RENDER path only — this page also makes
+ * `/app/admin` a valid Server Action POST target. That path is gated by the
+ * invariant every admin Server Action already carries: each one calls
  * `requireAdmin()` itself (docs/security.md Layer 2).
  *
  * No try/catch here: `requireAdmin()`'s redirects and the one below both work by

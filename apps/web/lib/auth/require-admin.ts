@@ -16,10 +16,12 @@ type AdminAuth = {
  * render consults this gate repeatedly — `/app/admin/internal-exams` calls it 5
  * times (the page gate plus four queries `Promise.all`d in
  * `_components/internal-exams-content.tsx`), `/app/admin/dashboard` 4 times via
- * its four Suspense children (counts measured 2026-08-20, before `app/app/admin/layout.tsx` existed) — and each call re-ran the whole body: build a
- * client, await `getUser()`, await the `users` SELECT (`getCallerProfile`, shared
- * with the `/app` layout's read in the same render). Measured 2026-08-20 on
- * Next 16.3.0 (dev server): body executions per render fall 5 -> 1 and 4 -> 1.
+ * its four Suspense children (counts measured 2026-08-20, before
+ * `app/app/admin/layout.tsx` existed) — and each call re-ran the whole body:
+ * build a client, await `getUser()`, await the `users` SELECT
+ * (`getCallerProfile`, shared with the `/app` layout's read in the same
+ * render). Measured 2026-08-20 on Next 16.3.0 (dev server): body executions per
+ * render fall 5 -> 1 and 4 -> 1.
  *
  * What this does NOT save is HTTP round trips. Measured the same day at the API
  * gateway, the `/auth/v1/user` and `/rest/v1/users` counts are identical with and
