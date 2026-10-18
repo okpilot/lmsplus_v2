@@ -25,7 +25,7 @@ export function scrubTokens<T>(value: T): T {
   return walk(value, new WeakMap()) as T
 }
 
-// Shared by client, server and edge: events, streamed spans and breadcrumbs.
+// Shared by client, server and edge: events, streamed spans and breadcrumbs. Also the Vercel Analytics / Speed Insights `beforeSend`.
 export const SENTRY_TOKEN_SCRUB = {
   beforeBreadcrumb: scrubTokens,
   beforeSend: scrubTokens,
