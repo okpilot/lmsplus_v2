@@ -4,9 +4,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockIssueSetPasswordToken = vi.hoisted(() => vi.fn())
 const mockSendEmail = vi.hoisted(() => vi.fn())
+const mockRecordAuthEvent = vi.hoisted(() => vi.fn())
 
 vi.mock('@/lib/auth/recovery-code', () => ({ issueSetPasswordToken: mockIssueSetPasswordToken }))
 vi.mock('@/lib/email/resend', () => ({ sendEmail: mockSendEmail }))
+vi.mock('@/lib/audit/record-auth-event', () => ({ recordAuthEvent: mockRecordAuthEvent }))
 
 // ---- Subject under test -------------------------------------------------------
 
@@ -16,6 +18,9 @@ import { issueAndEmailSetPasswordLink } from './deliver-login-instructions'
 
 const HASH = 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90'
 const RECIPIENT = { email: 'alice@example.com', fullName: 'Alice' }
+const USER_ID = '00000000-0000-4000-a000-000000000001'
+const SUPABASE = { __marker: 'supabase' } as never
+const OPTS = { supabase: SUPABASE, userId: USER_ID, recipient: RECIPIENT }
 
 beforeEach(() => {
   vi.resetAllMocks()
@@ -31,7 +36,7 @@ describe('issueAndEmailSetPasswordLink', () => {
     mockIssueSetPasswordToken.mockResolvedValue(HASH)
     mockSendEmail.mockResolvedValue({ ok: true })
 
-    const result = await issueAndEmailSetPasswordLink({ recipient: RECIPIENT })
+    const result = await issueAndEmailSetPasswordLink(OPTS)
 
     expect(mockIssueSetPasswordToken).toHaveBeenCalledWith('alice@example.com')
     expect(result).toEqual({ ok: true })
@@ -47,7 +52,7 @@ describe('issueAndEmailSetPasswordLink', () => {
   it('does not email when no token could be issued', async () => {
     mockIssueSetPasswordToken.mockResolvedValue(null)
 
-    const result = await issueAndEmailSetPasswordLink({ recipient: RECIPIENT })
+    const result = await issueAndEmailSetPasswordLink(OPTS)
 
     expect(result).toEqual({
       ok: false,
@@ -61,7 +66,7 @@ describe('issueAndEmailSetPasswordLink', () => {
     mockSendEmail.mockResolvedValue({ ok: false, error: 'rate limited' })
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
-    const result = await issueAndEmailSetPasswordLink({ recipient: RECIPIENT })
+    const result = await issueAndEmailSetPasswordLink(OPTS)
 
     expect(result).toEqual({
       ok: false,
@@ -69,5 +74,45 @@ describe('issueAndEmailSetPasswordLink', () => {
     })
     expect(errorSpy).toHaveBeenCalledWith('[sendLoginInstructions] send failed:', 'rate limited')
     expect(JSON.stringify(errorSpy.mock.calls)).not.toContain(HASH)
+  })
+
+  it('audits the password-reset issue with the admin client before emailing', async () => {
+    const order: string[] = []
+    mockIssueSetPasswordToken.mockResolvedValue(HASH)
+    mockRecordAuthEvent.mockImplementation(async () => {
+      order.push('audit')
+    })
+    mockSendEmail.mockImplementation(async () => {
+      order.push('email')
+      return { ok: true }
+    })
+
+    await issueAndEmailSetPasswordLink(OPTS)
+
+    expect(mockRecordAuthEvent).toHaveBeenCalledTimes(1)
+    expect(mockRecordAuthEvent).toHaveBeenCalledWith(SUPABASE, {
+      eventType: 'user.password_reset',
+      resourceId: USER_ID,
+      context: 'sendLoginInstructions',
+    })
+    expect(order).toEqual(['audit', 'email'])
+  })
+
+  it('does not audit when no token could be issued', async () => {
+    mockIssueSetPasswordToken.mockResolvedValue(null)
+
+    await issueAndEmailSetPasswordLink(OPTS)
+
+    expect(mockRecordAuthEvent).not.toHaveBeenCalled()
+  })
+
+  it('still audits the issue when the email fails to send', async () => {
+    mockIssueSetPasswordToken.mockResolvedValue(HASH)
+    mockSendEmail.mockResolvedValue({ ok: false, error: 'rate limited' })
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    await issueAndEmailSetPasswordLink(OPTS)
+
+    expect(mockRecordAuthEvent).toHaveBeenCalledTimes(1)
   })
 })

@@ -711,7 +711,7 @@ CREATE POLICY "audit_read_instructors" ON audit_events
 |-------|---------|
 | `student.login` | Successful email + password sign-in (via `record_login()` RPC, 60s rate-limited) |
 | `user.password_changed` | User sets or changes their own password (via the `setPasswordFromLink`, `resetOwnPassword` or `changePassword` Server Action, recorded by `record_auth_event()` RPC through `recordOwnPasswordSet`) |
-| `user.password_reset` | Whitelisted in `record_auth_event()`; Send/Resend no longer emits it (Decision 132) — emitters: `git grep -n "user.password_reset" -- apps/web ':!*.test.*'` |
+| `user.password_reset` | Whitelisted in `record_auth_event()`; emitted by admin Send/Resend (`sendLoginInstructions`) when the set-password token is issued — emitters: `git grep -n "user.password_reset" -- apps/web ':!*.test.*'` |
 | `user.deactivated` | Admin deactivates a student account (via `toggleStudentStatus` deactivate path, recorded by `record_auth_event()` RPC) |
 | `user.created` | Admin creates a new student account (via `createStudent` Server Action, recorded by `record_auth_event()` RPC) |
 | `user.login_instructions_sent` | Admin sends/resends login instructions (set-password link) to a student or instructor (via `record_login_instructions_sent()` RPC, migration `20260925000100`) |

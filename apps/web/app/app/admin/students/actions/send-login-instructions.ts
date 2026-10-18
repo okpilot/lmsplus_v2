@@ -46,7 +46,11 @@ export async function sendLoginInstructions(input: unknown): Promise<SendLoginIn
     return { success: false, error: 'Failed to send login instructions' }
   }
 
-  const delivered = await issueAndEmailSetPasswordLink({ recipient })
+  const delivered = await issueAndEmailSetPasswordLink({
+    supabase,
+    userId: parsed.data.id,
+    recipient,
+  })
   const result = delivered.ok ? await recordSend(supabase, parsed.data.id) : delivered.result
   // A failed delivery may already have voided the earlier link, so refresh either way.
   revalidatePath('/app/admin/students')

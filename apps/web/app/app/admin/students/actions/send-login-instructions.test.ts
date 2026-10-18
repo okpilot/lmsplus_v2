@@ -76,7 +76,11 @@ describe('sendLoginInstructions', () => {
 
     await sendLoginInstructions(VALID_INPUT)
 
-    expect(mockIssueAndEmailSetPasswordLink).toHaveBeenCalledWith({ recipient: RECIPIENT })
+    expect(mockIssueAndEmailSetPasswordLink).toHaveBeenCalledWith({
+      supabase: SUPABASE,
+      userId: USER_ID,
+      recipient: RECIPIENT,
+    })
   })
 
   it('fails without issuing a link when NEXT_PUBLIC_APP_URL is missing', async () => {
