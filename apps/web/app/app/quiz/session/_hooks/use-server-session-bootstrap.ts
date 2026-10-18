@@ -1,38 +1,35 @@
-import { useEffect, useRef, useState } from 'react'
-import type { SessionQuestion } from '@/app/app/_types/session'
-import type { SessionRunnerData } from '../_loaders/load-session-entry'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { claimQuizDeviceBounded } from '../_utils/claim-quiz-device'
 import { clearActiveSession, readActiveSession } from '../_utils/quiz-session-storage'
 
-type Opts = {
-  userId: string
-  sessionId: string
-  runner: Extract<SessionRunnerData, { questions: SessionQuestion[] }>
-}
+type Opts = { userId: string; sessionId: string }
 
 /** The opened session is the student's only active one (docs/security.md §11d): a local copy of another is stale. */
 function dropStaleLocalCopy(userId: string, sessionId: string): void {
   if (readActiveSession(userId)?.sessionId !== sessionId) clearActiveSession(userId)
 }
 
-/** Claims the server-loaded session for this tab; the questions show once the claim settles. */
-export function useServerSessionBootstrap({ userId, sessionId, runner }: Readonly<Opts>) {
-  const [claim, setClaim] = useState<{ error: string | null } | null>(null)
+/**
+ * Claims the session for this tab without holding the first question back. Dispatched from a
+ * layout effect so the claim is the first Server Action of the tab, ahead of every child's
+ * mount-time passive effect (e.g. the restored-answer re-check).
+ */
+export function useServerSessionBootstrap({ userId, sessionId }: Readonly<Opts>) {
+  const [claimError, setClaimError] = useState<string | null>(null)
   const userIdRef = useRef(userId)
   userIdRef.current = userId
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     let cancelled = false
     void claimQuizDeviceBounded(sessionId).then((error) => {
       if (cancelled) return
       dropStaleLocalCopy(userIdRef.current, sessionId)
-      setClaim({ error })
+      setClaimError(error)
     })
     return () => {
       cancelled = true
     }
   }, [sessionId])
 
-  if (!claim) return { questions: null, flaggedIds: [] as string[], claimError: null }
-  return { questions: runner.questions, flaggedIds: runner.flaggedIds, claimError: claim.error }
+  return { claimError }
 }

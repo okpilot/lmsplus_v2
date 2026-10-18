@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { QuizStateOpts } from '../../session-types'
 import { buildRunnerSaves } from '../_utils/progress-sync-saves'
 import { isTakenOver } from '../_utils/session-takeover'
@@ -12,6 +12,10 @@ type SavesDeps = {
 /** Background server saves plus the displayable save error they surface. Discovery saves nothing. */
 export function useProgressSaves({ opts, currentIndexRef, answerStartTime }: Readonly<SavesDeps>) {
   const [saveError, setSaveError] = useState<string | null>(opts.initialSaveError ?? null)
+  // The device claim settles after the first render; its error joins the save error.
+  useEffect(() => {
+    if (opts.initialSaveError) setSaveError(opts.initialSaveError)
+  }, [opts.initialSaveError])
   const saves = buildRunnerSaves({
     sessionId: opts.sessionId,
     enabled: opts.mode !== 'discovery',

@@ -9,10 +9,6 @@ export function useBootstrapState() {
   const [questions, setQuestions] = useState<SessionQuestion[] | null>(null)
   const [flaggedIds, setFlaggedIds] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
-  const [claimError, setClaimError] = useState<string | null>(null)
-  const setters = useMemo(
-    () => ({ setSession, setQuestions, setFlaggedIds, setError, setClaimError }),
-    [],
-  )
-  return { state: { session, questions, flaggedIds, error, claimError }, setters }
+  const setters = useMemo(() => ({ setSession, setQuestions, setFlaggedIds, setError }), [])
+  return { state: { session, questions, flaggedIds, error }, setters }
 }

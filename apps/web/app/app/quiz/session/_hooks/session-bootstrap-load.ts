@@ -9,7 +9,7 @@ import {
 } from '../_utils/quiz-session-handoff'
 
 export type SessionLoadResult =
-  | { success: true; questions: SessionQuestion[]; flaggedIds: string[]; claimError?: string }
+  | { success: true; questions: SessionQuestion[]; flaggedIds: string[] }
   | { success: false; error: string }
 
 // Module-level handoff cache (owned here rather than in use-session-bootstrap so the
@@ -78,7 +78,7 @@ export async function loadSessionData(questionIds: string[]): Promise<SessionLoa
 
 /**
  * Applies a settled initial load: error → setError; success → clears the handoff and seeds
- * flags, claim error and questions (questions last — the session mounts once they are set).
+ * flags and questions (questions last — the session mounts once they are set).
  */
 export function applyInitialLoad(
   r: SessionLoadResult,
@@ -86,13 +86,11 @@ export function applyInitialLoad(
   set: {
     setFlaggedIds: (ids: string[]) => void
     setQuestions: (q: SessionQuestion[]) => void
-    setClaimError: (e: string | null) => void
     setError: (e: string) => void
   },
 ) {
   if (!r.success) return set.setError(r.error)
   clearSessionHandoff(userId)
   set.setFlaggedIds(r.flaggedIds)
-  set.setClaimError(r.claimError ?? null)
   set.setQuestions(r.questions)
 }

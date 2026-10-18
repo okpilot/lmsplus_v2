@@ -58,7 +58,6 @@ function makeBootstrapBase(): BootstrapState {
     questions: null,
     flaggedIds: [],
     error: null,
-    claimError: null,
   }
 }
 
@@ -198,20 +197,6 @@ describe('QuizSessionLoader — happy path', () => {
     })
     render(<QuizSessionLoader userId="user-1" />)
     expect(screen.getByTestId('quiz-session')).toHaveAttribute('data-session-id', 'sess-abc')
-  })
-
-  it('hands the on-load claim error to the quiz runner as its initial save error', () => {
-    mockUseSessionBootstrap.mockReturnValue({
-      ...makeBootstrapBase(),
-      session: makeSession(),
-      questions: makeQuestions(),
-      claimError: 'This quiz is open in another tab or device — reload this page to continue here.',
-    })
-    render(<QuizSessionLoader userId="user-1" />)
-    expect(screen.getByTestId('quiz-session')).toHaveAttribute(
-      'data-save-error',
-      'This quiz is open in another tab or device — reload this page to continue here.',
-    )
   })
 
   it('forwards mode, pass mark, and timing fields to the active quiz', () => {

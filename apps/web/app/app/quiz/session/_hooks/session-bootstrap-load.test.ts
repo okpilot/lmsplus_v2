@@ -223,7 +223,6 @@ describe('applyInitialLoad', () => {
     setError: vi.fn(),
     setFlaggedIds: vi.fn(),
     setQuestions: vi.fn(),
-    setClaimError: vi.fn(),
   })
 
   it('reports a load failure and seeds nothing', () => {
@@ -233,21 +232,10 @@ describe('applyInitialLoad', () => {
     expect(set.setQuestions).not.toHaveBeenCalled()
   })
 
-  it('seeds flags, claim error and questions on success', () => {
+  it('seeds flags and questions on success', () => {
     const set = setters()
-    applyInitialLoad(
-      { success: true, questions: [], flaggedIds: ['f'], claimError: 'c' },
-      'u1',
-      set,
-    )
+    applyInitialLoad({ success: true, questions: [], flaggedIds: ['f'] }, 'u1', set)
     expect(set.setFlaggedIds).toHaveBeenCalledWith(['f'])
-    expect(set.setClaimError).toHaveBeenCalledWith('c')
     expect(set.setQuestions).toHaveBeenCalledWith([])
-  })
-
-  it('clears the claim error when the load carried none', () => {
-    const set = setters()
-    applyInitialLoad({ success: true, questions: [], flaggedIds: [] }, 'u1', set)
-    expect(set.setClaimError).toHaveBeenCalledWith(null)
   })
 })

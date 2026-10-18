@@ -43,20 +43,14 @@ const ENTRY = {
 beforeEach(() => {
   vi.resetAllMocks()
   quizProps.current = null
-  mockBootstrap.mockReturnValue({ questions: Q, flaggedIds: ['q1'], claimError: null })
+  mockBootstrap.mockReturnValue({ claimError: null })
 })
 
 describe('ServerSessionLoader', () => {
-  it('shows a skeleton until the questions have loaded', () => {
-    mockBootstrap.mockReturnValue({
-      questions: null,
-      flaggedIds: [],
-      claimError: null,
-    })
-
+  it('shows the first question before the claim has settled', () => {
     render(<ServerSessionLoader userId="u1" entry={ENTRY} runner={RUNNER} />)
 
-    expect(screen.queryByTestId('quiz-session')).not.toBeInTheDocument()
+    expect(screen.getByTestId('quiz-session')).toBeInTheDocument()
   })
 
   it('shows the load error without claiming the session', () => {
@@ -88,17 +82,25 @@ describe('ServerSessionLoader', () => {
 
     rerender(<ServerSessionLoader userId="u1" entry={ENTRY} runner={next} />)
 
-    expect(mockBootstrap).toHaveBeenLastCalledWith({
-      userId: 'u1',
-      sessionId: 's1',
-      runner: RUNNER,
-    })
+    expect(quizProps.current?.questions).toBe(Q)
   })
 
-  it('hands the server-loaded runner data to the bootstrap', () => {
+  it('shows the quiz when a later server render loads the questions after a failed first load', () => {
+    const { rerender } = render(
+      <ServerSessionLoader userId="u1" entry={ENTRY} runner={{ error: 'No questions found' }} />,
+    )
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+
+    rerender(<ServerSessionLoader userId="u1" entry={ENTRY} runner={RUNNER} />)
+
+    expect(screen.getByTestId('quiz-session')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('claims the session for this tab without handing the bootstrap any questions', () => {
     render(<ServerSessionLoader userId="u1" entry={ENTRY} runner={RUNNER} />)
 
-    expect(mockBootstrap).toHaveBeenCalledWith({ userId: 'u1', sessionId: 's1', runner: RUNNER })
+    expect(mockBootstrap).toHaveBeenCalledWith({ userId: 'u1', sessionId: 's1' })
   })
 
   it('continues where the student left off', () => {
@@ -141,11 +143,7 @@ describe('ServerSessionLoader', () => {
   })
 
   it('passes the claim error to the runner save error', () => {
-    mockBootstrap.mockReturnValue({
-      questions: Q,
-      flaggedIds: [],
-      claimError: 'Another tab',
-    })
+    mockBootstrap.mockReturnValue({ claimError: 'Another tab' })
 
     render(<ServerSessionLoader userId="u1" entry={ENTRY} runner={RUNNER} />)
 
@@ -153,11 +151,7 @@ describe('ServerSessionLoader', () => {
   })
 
   it('still mounts the runner when the claim failed', () => {
-    mockBootstrap.mockReturnValue({
-      questions: Q,
-      flaggedIds: [],
-      claimError: 'Another tab',
-    })
+    mockBootstrap.mockReturnValue({ claimError: 'Another tab' })
 
     render(<ServerSessionLoader userId="u1" entry={ENTRY} runner={RUNNER} />)
 

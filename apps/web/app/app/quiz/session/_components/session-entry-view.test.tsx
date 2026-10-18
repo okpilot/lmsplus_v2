@@ -31,14 +31,21 @@ const DATA = {
 
 describe('SessionEntryView', () => {
   it('opens the runner for an open session', () => {
-    render(<SessionEntryView userId="u1" entry={{ kind: 'open', ...DATA }} runner={RUNNER} />)
+    render(
+      <SessionEntryView
+        userId="u1"
+        loaded={{ entry: { kind: 'open', ...DATA }, runner: RUNNER }}
+      />,
+    )
 
     expect(screen.getByTestId('loader')).toHaveTextContent(`u1:s1:${JSON.stringify(RUNNER)}`)
     expect(screen.queryByTestId('saved')).not.toBeInTheDocument()
   })
 
   it('offers resume or delete for a saved session, with its progress', () => {
-    render(<SessionEntryView userId="u1" entry={{ kind: 'saved', ...DATA }} runner={null} />)
+    render(
+      <SessionEntryView userId="u1" loaded={{ entry: { kind: 'saved', ...DATA }, runner: null }} />,
+    )
 
     expect(JSON.parse(screen.getByTestId('saved').textContent ?? '{}')).toEqual({
       sessionId: 's1',

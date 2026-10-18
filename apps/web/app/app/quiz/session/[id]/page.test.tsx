@@ -10,13 +10,13 @@ vi.mock('../_loaders/load-session-entry', () => ({
 vi.mock('../_components/session-entry-view', () => ({
   SessionEntryView: ({
     userId,
-    entry,
-    runner,
+    loaded,
   }: {
     userId: string
-    entry: { kind: string }
-    runner: { tag: string } | null
-  }) => <div data-testid="entry-view">{`${userId}:${entry.kind}:${runner?.tag ?? 'none'}`}</div>,
+    loaded: { entry: { kind: string }; runner: { tag: string } | null }
+  }) => (
+    <div data-testid="entry-view">{`${userId}:${loaded.entry.kind}:${loaded.runner?.tag ?? 'none'}`}</div>
+  ),
 }))
 vi.mock('../_components/connection-overlay', () => ({
   ConnectionOverlay: () => <div data-testid="overlay" />,

@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import type { SessionQuestion } from '@/app/app/_types/session'
-import { Skeleton } from '@/components/ui/skeleton'
 import type { SessionEntry } from '@/lib/queries/load-quiz-session-state'
 import { useServerSessionBootstrap } from '../_hooks/use-server-session-bootstrap'
 import type { SessionRunnerData } from '../_loaders/load-session-entry'
@@ -26,10 +25,12 @@ export function ServerSessionLoader({
   entry,
   runner,
 }: Readonly<{ userId: string; entry: SessionEntry; runner: SessionRunnerData }>) {
-  // An RSC refresh re-runs the question read (re-shuffling ordering items, or failing): the first load sticks.
-  const [first] = useState(runner)
-  if ('error' in first) return <LoadError message={first.error} />
-  return <ClaimedSession userId={userId} entry={entry} runner={first} />
+  // An RSC refresh re-runs the question read (re-shuffling ordering items, or failing): the first
+  // successful load sticks; only a failed first load is replaced.
+  const [held, setHeld] = useState(runner)
+  if ('error' in held && !('error' in runner)) setHeld(runner)
+  if ('error' in held) return <LoadError message={held.error} />
+  return <ClaimedSession userId={userId} entry={entry} runner={held} />
 }
 
 function ClaimedSession({
@@ -37,16 +38,15 @@ function ClaimedSession({
   entry,
   runner,
 }: Readonly<{ userId: string; entry: SessionEntry; runner: LoadedData }>) {
-  const bs = useServerSessionBootstrap({ userId, sessionId: entry.sessionId, runner })
-  if (!bs.questions) return <Skeleton className="mx-auto h-40 w-full max-w-2xl" />
+  const { claimError } = useServerSessionBootstrap({ userId, sessionId: entry.sessionId })
 
   return (
     <RestoredRunner
       userId={userId}
       entry={entry}
-      questions={bs.questions}
-      flaggedIds={bs.flaggedIds}
-      claimError={bs.claimError}
+      questions={runner.questions}
+      flaggedIds={runner.flaggedIds}
+      claimError={claimError}
     />
   )
 }

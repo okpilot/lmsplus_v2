@@ -20,13 +20,18 @@ const Q = '00000000-0000-4000-a000-000000000011'
 const MAPPED = 'This session has already ended.'
 const TAKEN = 'This quiz is open in another tab or device — reload this page to continue here.'
 
-function setup(mode: QuizStateOpts['mode'] = 'study') {
-  const opts = {
+function makeOpts(mode: QuizStateOpts['mode'], initialSaveError?: string | null) {
+  return {
     userId: 'u',
     sessionId: SESSION,
     questions: [{ id: Q }],
     mode,
+    initialSaveError,
   } as unknown as QuizStateOpts
+}
+
+function setup(mode: QuizStateOpts['mode'] = 'study') {
+  const opts = makeOpts(mode)
   return renderHook(() =>
     useProgressSaves({ opts, currentIndexRef: { current: 0 }, answerStartTime: { current: 0 } }),
   )
@@ -63,6 +68,40 @@ describe('useProgressSaves', () => {
     mockSaveAnswer.mockResolvedValueOnce({ success: false, error: TAKEN })
     const { result } = setup()
     await act(async () => result.current.saveAnswer({ selectedOptionId: 'a' }))
+    expect(result.current.saveError).toBeNull()
+  })
+
+  it('shows a claim error that lands after the first render', () => {
+    const { result, rerender } = renderHook(
+      ({ err }: { err: string | null }) =>
+        useProgressSaves({
+          opts: makeOpts('study', err),
+          currentIndexRef: { current: 0 },
+          answerStartTime: { current: 0 },
+        }),
+      { initialProps: { err: null as string | null } },
+    )
+    expect(result.current.saveError).toBeNull()
+
+    rerender({ err: TAKEN })
+
+    expect(result.current.saveError).toBe(TAKEN)
+  })
+
+  it('clears a late claim error after the next successful save', async () => {
+    const { result, rerender } = renderHook(
+      ({ err }: { err: string | null }) =>
+        useProgressSaves({
+          opts: makeOpts('study', err),
+          currentIndexRef: { current: 0 },
+          answerStartTime: { current: 0 },
+        }),
+      { initialProps: { err: null as string | null } },
+    )
+    rerender({ err: TAKEN })
+
+    await act(async () => result.current.saveAnswer({ selectedOptionId: 'a' }))
+
     expect(result.current.saveError).toBeNull()
   })
 })
