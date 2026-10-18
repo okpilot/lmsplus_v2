@@ -93,34 +93,27 @@ describe('Sentry init options', () => {
     expect(replayIntegrationSpy).toHaveBeenCalledTimes(1)
   })
 
-  it('browser config scrubs token_hash from breadcrumb URLs', async () => {
-    await import('./instrumentation-client')
-    const options = initSpy.mock.calls[0]?.[0] as {
-      beforeBreadcrumb: (b: { data?: Record<string, unknown> }) => {
-        data?: Record<string, unknown>
-      }
-    }
-    const out = options.beforeBreadcrumb({
-      data: { url: '/auth/set-password?token_hash=abc&type=recovery' },
-    })
-    expect(out.data?.url).toBe('/auth/set-password?token_hash=[Filtered]&type=recovery')
+  it.each([
+    ['client', () => import('./instrumentation-client')],
+    ['server', () => import('./sentry.server.config')],
+    ['edge', () => import('./sentry.edge.config')],
+  ])('%s config scrubs token_hash from events, spans and breadcrumbs', async (_name, load) => {
+    await load()
+    const options = initSpy.mock.calls[0]?.[0] as Record<string, (v: unknown) => unknown>
+    expect(options.beforeBreadcrumb).toBeTypeOf('function')
+    const event = options.beforeSend?.({
+      request: { url: 'https://x/auth/set-password?token_hash=abc&type=recovery' },
+    }) as { request: { url: string } }
+    expect(event.request.url).toBe(
+      'https://x/auth/set-password?token_hash=[Filtered]&type=recovery',
+    )
+    const span = options.beforeSendSpan?.({
+      attributes: { 'http.target': '/auth/set-password?token_hash=abc&type=recovery' },
+    }) as { attributes: Record<string, string> }
+    expect(span.attributes['http.target']).toBe(
+      '/auth/set-password?token_hash=[Filtered]&type=recovery',
+    )
   })
-
-  it.each(['beforeSend', 'beforeSendTransaction'])(
-    'browser config scrubs token_hash from the request URL in %s events',
-    async (hook) => {
-      await import('./instrumentation-client')
-      const options = initSpy.mock.calls[0]?.[0] as Record<
-        string,
-        (e: { request: { url: string } }) => { request: { url: string } }
-      >
-      const out = options[hook]?.({
-        request: { url: 'https://x/auth/set-password?token_hash=abc&type=recovery' },
-      })
-      expect(out?.request.url).toContain('token_hash=[Filtered]')
-      expect(out?.request.url).toContain('type=recovery')
-    },
-  )
 
   it('browser config reports App Router navigations to Sentry', async () => {
     const mod = await import('./instrumentation-client')

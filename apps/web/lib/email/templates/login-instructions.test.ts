@@ -19,6 +19,24 @@ describe('loginInstructionsEmail', () => {
     expect(html).toContain('Set my password')
   })
 
+  it('tells the recipient to use the link to set the password for their account', () => {
+    const { html, text } = loginInstructionsEmail(BASE)
+
+    expect(html).toContain(
+      'Use the link below to set the password for your LMS Plus account <strong>alice@example.com</strong>.',
+    )
+    expect(text).toContain(
+      'Use the link below to set the password for your LMS Plus account alice@example.com.',
+    )
+  })
+
+  it('does not claim an account has just been created', () => {
+    const { html, text } = loginInstructionsEmail(BASE)
+
+    expect(html).not.toContain('has been created')
+    expect(text).not.toContain('has been created')
+  })
+
   it('states the link works once and lasts 1 hour', () => {
     const { html, text } = loginInstructionsEmail(BASE)
 

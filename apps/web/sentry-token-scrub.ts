@@ -1,28 +1,33 @@
-const TOKEN_PARAM = /([?&#]token_hash=)[^&#]*/g
-/** Filters the one-time `token_hash` out of a URL string. */
-export function scrubTokenParam(value: string): string {
-  return value.replace(TOKEN_PARAM, '$1[Filtered]')
+const TOKEN_PARAM = /((?:^|[?&#\s]|%3F|%26|%23)token_hash(?:=|%3D))[^&#\s%]*/gi
+
+function scrubTokenParam(s: string): string {
+  return s.replace(TOKEN_PARAM, '$1[Filtered]')
 }
 
-const URL_FIELDS = ['url', 'to', 'from'] as const
-
-/** Sentry `beforeBreadcrumb`: filters the one-time `token_hash` out of breadcrumb URLs. */
-export function scrubBreadcrumbTokens<T extends { data?: Record<string, unknown> }>(
-  breadcrumb: T,
-): T {
-  const data = breadcrumb.data
-  if (!data) return breadcrumb
-  const scrubbed = { ...data }
-  for (const field of URL_FIELDS) {
-    const value = scrubbed[field]
-    if (typeof value === 'string') scrubbed[field] = scrubTokenParam(value)
-  }
-  return { ...breadcrumb, data: scrubbed }
+function isPlain(value: object): boolean {
+  const proto = Object.getPrototypeOf(value)
+  return proto === Object.prototype || proto === null
 }
 
-/** Sentry `beforeSend` / `beforeSendTransaction`: filters `token_hash` out of `event.request.url`. */
-export function scrubEventTokens<T extends { request?: { url?: string } }>(event: T): T {
-  const url = event.request?.url
-  if (!event.request || typeof url !== 'string') return event
-  return { ...event, request: { ...event.request, url: scrubTokenParam(url) } }
+function walk(value: unknown, copies: WeakMap<object, unknown>): unknown {
+  if (typeof value === 'string') return scrubTokenParam(value)
+  if (typeof value !== 'object' || value === null) return value
+  if (!Array.isArray(value) && !isPlain(value)) return value
+  if (copies.has(value)) return copies.get(value)
+  const copy: Record<string, unknown> | unknown[] = Array.isArray(value) ? [] : {}
+  copies.set(value, copy)
+  for (const [k, v] of Object.entries(value)) Reflect.set(copy, k, walk(v, copies))
+  return copy
+}
+
+/** Deep copy of plain objects/arrays with `token_hash` values filtered out of every string. */
+export function scrubTokens<T>(value: T): T {
+  return walk(value, new WeakMap()) as T
+}
+
+// Shared by client, server and edge: events, streamed spans and breadcrumbs.
+export const SENTRY_TOKEN_SCRUB = {
+  beforeBreadcrumb: scrubTokens,
+  beforeSend: scrubTokens,
+  beforeSendSpan: scrubTokens,
 }
