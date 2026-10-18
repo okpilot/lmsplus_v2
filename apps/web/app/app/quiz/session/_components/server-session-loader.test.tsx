@@ -16,9 +16,11 @@ vi.mock('./quiz-session', () => ({
   },
 }))
 
+import type { SessionRunnerData } from '../_loaders/load-session-entry'
 import { ServerSessionLoader } from './server-session-loader'
 
 const Q = [{ id: 'q1' }, { id: 'q2' }]
+const RUNNER = { questions: Q, flaggedIds: ['q1'] } as unknown as SessionRunnerData
 const ENTRY = {
   kind: 'open' as const,
   sessionId: 's1',
@@ -41,7 +43,7 @@ const ENTRY = {
 beforeEach(() => {
   vi.resetAllMocks()
   quizProps.current = null
-  mockBootstrap.mockReturnValue({ questions: Q, flaggedIds: ['q1'], claimError: null, error: null })
+  mockBootstrap.mockReturnValue({ questions: Q, flaggedIds: ['q1'], claimError: null })
 })
 
 describe('ServerSessionLoader', () => {
@@ -50,29 +52,57 @@ describe('ServerSessionLoader', () => {
       questions: null,
       flaggedIds: [],
       claimError: null,
-      error: null,
     })
 
-    render(<ServerSessionLoader userId="u1" entry={ENTRY} />)
+    render(<ServerSessionLoader userId="u1" entry={ENTRY} runner={RUNNER} />)
 
     expect(screen.queryByTestId('quiz-session')).not.toBeInTheDocument()
   })
 
-  it('shows the load error', () => {
-    mockBootstrap.mockReturnValue({
-      questions: null,
-      flaggedIds: [],
-      claimError: null,
-      error: 'No questions found',
-    })
-
-    render(<ServerSessionLoader userId="u1" entry={ENTRY} />)
+  it('shows the load error without claiming the session', () => {
+    render(
+      <ServerSessionLoader userId="u1" entry={ENTRY} runner={{ error: 'No questions found' }} />,
+    )
 
     expect(screen.getByRole('alert')).toHaveTextContent('No questions found')
+    expect(mockBootstrap).not.toHaveBeenCalled()
+  })
+
+  it('keeps the running quiz when a later server render fails to load the questions', () => {
+    const { rerender } = render(<ServerSessionLoader userId="u1" entry={ENTRY} runner={RUNNER} />)
+
+    rerender(
+      <ServerSessionLoader userId="u1" entry={ENTRY} runner={{ error: 'No questions found' }} />,
+    )
+
+    expect(screen.getByTestId('quiz-session')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('keeps the first questions when a later server render reloads them', () => {
+    const next = {
+      questions: [{ id: 'reshuffled' }],
+      flaggedIds: [],
+    } as unknown as SessionRunnerData
+    const { rerender } = render(<ServerSessionLoader userId="u1" entry={ENTRY} runner={RUNNER} />)
+
+    rerender(<ServerSessionLoader userId="u1" entry={ENTRY} runner={next} />)
+
+    expect(mockBootstrap).toHaveBeenLastCalledWith({
+      userId: 'u1',
+      sessionId: 's1',
+      runner: RUNNER,
+    })
+  })
+
+  it('hands the server-loaded runner data to the bootstrap', () => {
+    render(<ServerSessionLoader userId="u1" entry={ENTRY} runner={RUNNER} />)
+
+    expect(mockBootstrap).toHaveBeenCalledWith({ userId: 'u1', sessionId: 's1', runner: RUNNER })
   })
 
   it('continues where the student left off', () => {
-    render(<ServerSessionLoader userId="u1" entry={ENTRY} />)
+    render(<ServerSessionLoader userId="u1" entry={ENTRY} runner={RUNNER} />)
 
     expect(quizProps.current).toMatchObject({
       userId: 'u1',
@@ -98,6 +128,7 @@ describe('ServerSessionLoader', () => {
       <ServerSessionLoader
         userId="u1"
         entry={{ ...ENTRY, mode: 'mock_exam', timeLimitSeconds: 600, passMark: 75 }}
+        runner={RUNNER}
       />,
     )
 
@@ -114,10 +145,9 @@ describe('ServerSessionLoader', () => {
       questions: Q,
       flaggedIds: [],
       claimError: 'Another tab',
-      error: null,
     })
 
-    render(<ServerSessionLoader userId="u1" entry={ENTRY} />)
+    render(<ServerSessionLoader userId="u1" entry={ENTRY} runner={RUNNER} />)
 
     expect(quizProps.current?.initialSaveError).toBe('Another tab')
   })
@@ -127,10 +157,9 @@ describe('ServerSessionLoader', () => {
       questions: Q,
       flaggedIds: [],
       claimError: 'Another tab',
-      error: null,
     })
 
-    render(<ServerSessionLoader userId="u1" entry={ENTRY} />)
+    render(<ServerSessionLoader userId="u1" entry={ENTRY} runner={RUNNER} />)
 
     expect(screen.getByTestId('quiz-session')).toBeInTheDocument()
   })

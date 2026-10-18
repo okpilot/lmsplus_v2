@@ -22,10 +22,11 @@ vi.mock('../_utils/quiz-session-handoff', async (importOriginal) => {
   }
 })
 
+import { FLAG_FETCH_TIMEOUT_MS } from '@/lib/constants/flag-fetch-timeout'
 import {
   _resetCachedSession,
+  applyInitialLoad,
   dropCachedSession,
-  FLAG_FETCH_TIMEOUT_MS,
   loadSessionData,
   readBootstrapSession,
 } from './session-bootstrap-load'
@@ -48,6 +49,15 @@ beforeEach(() => {
 // ---- loadSessionData -------------------------------------------------------
 
 describe('loadSessionData', () => {
+  it('serves Discovery without claiming or reading a session', async () => {
+    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
+    mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [] })
+
+    const result = await loadSessionData(QUESTION_IDS)
+
+    expect(result).not.toHaveProperty('claimError')
+  })
+
   // A per-test `finally` does NOT run when a test times out (its promise stays pending),
   // so a fake-timer test that regresses into a hang would leak fake timers into every
   // later test in the file. This afterEach still runs on timeout and contains the blast
@@ -205,5 +215,39 @@ describe('dropCachedSession', () => {
     dropCachedSession(OTHER_USER_ID)
 
     expect(readBootstrapSession(USER_ID)).toEqual(SESSION_DATA)
+  })
+})
+
+describe('applyInitialLoad', () => {
+  const setters = () => ({
+    setError: vi.fn(),
+    setFlaggedIds: vi.fn(),
+    setQuestions: vi.fn(),
+    setClaimError: vi.fn(),
+  })
+
+  it('reports a load failure and seeds nothing', () => {
+    const set = setters()
+    applyInitialLoad({ success: false, error: 'bad' }, 'u1', set)
+    expect(set.setError).toHaveBeenCalledWith('bad')
+    expect(set.setQuestions).not.toHaveBeenCalled()
+  })
+
+  it('seeds flags, claim error and questions on success', () => {
+    const set = setters()
+    applyInitialLoad(
+      { success: true, questions: [], flaggedIds: ['f'], claimError: 'c' },
+      'u1',
+      set,
+    )
+    expect(set.setFlaggedIds).toHaveBeenCalledWith(['f'])
+    expect(set.setClaimError).toHaveBeenCalledWith('c')
+    expect(set.setQuestions).toHaveBeenCalledWith([])
+  })
+
+  it('clears the claim error when the load carried none', () => {
+    const set = setters()
+    applyInitialLoad({ success: true, questions: [], flaggedIds: [] }, 'u1', set)
+    expect(set.setClaimError).toHaveBeenCalledWith(null)
   })
 })

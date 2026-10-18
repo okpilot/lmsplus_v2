@@ -1,8 +1,7 @@
 import type { SessionQuestion } from '@/app/app/_types/session'
+import { FLAG_FETCH_TIMEOUT_MS } from '@/lib/constants/flag-fetch-timeout'
 import { loadSessionQuestions } from '@/lib/queries/load-session-questions'
-import { loadVfrRtExamQuestions } from '@/lib/queries/load-vfr-rt-exam-questions'
 import { getFlaggedIds } from '../../actions/flag'
-import { claimQuizDeviceBounded } from '../_utils/claim-quiz-device'
 import {
   clearSessionHandoff,
   readSessionHandoff,
@@ -36,10 +35,6 @@ export function readBootstrapSession(userId: string): SessionData | null {
   return data
 }
 
-// Flags are cosmetic: if the flag fetch hangs, degrade to no flags after this
-// window instead of blocking the whole session bootstrap on it.
-export const FLAG_FETCH_TIMEOUT_MS = 3000
-
 /**
  * Fetches the student's flagged ids, bounded by FLAG_FETCH_TIMEOUT_MS (code-style
  * §6 bounded-await shape: Promise.race + clearTimeout once either side settles).
@@ -57,42 +52,25 @@ function fetchFlaggedIdsBounded(questionIds: string[]): Promise<string[]> {
 }
 
 /**
- * Loads the session's questions, the student's flagged question ids and the tab's claim.
+ * Loads a Discovery session's questions and the student's flagged question ids.
  *
  * Only the questions fetch decides success/error (and stays unbounded — the
  * questions are required data). The flag fetch is individually caught and
  * time-bounded: a rejection, a `{ success: false }` result, or a hang degrades to
- * an empty flag set and never surfaces an error — flags are cosmetic and must not
- * block the session. A loadSessionQuestions rejection is mapped to the generic
- * load-failure message here, so this function never rejects.
+ * an empty flag set and never surfaces an error. A loadSessionQuestions rejection is
+ * mapped to the generic load-failure message, so this function never rejects.
  *
- * Next.js dispatches Server Actions one at a time per client, so the requests are
- * queued, not parallel. The cosmetic flag fetch is started first, then the questions
- * are awaited; only after they load does the claim start (non-discovery), so a failed
- * load never claims the session away from the student's other tab. A failure returns
- * immediately: loadSessionQuestions RESOLVES `{ success: false }` rather than
- * rejecting, so awaiting everything together (Promise.all) would not short-circuit
- * and would stall a known error behind the flag fetch's full timeout.
+ * The cosmetic flag fetch is started first, then the questions are awaited. A failure
+ * returns immediately: loadSessionQuestions RESOLVES `{ success: false }` rather than
+ * rejecting, so awaiting both together (Promise.all) would stall a known error behind
+ * the flag fetch's full timeout.
  */
-export async function loadSessionData(
-  questionIds: string[],
-  source?: Pick<SessionData, 'sessionId' | 'examMode' | 'mode'>,
-): Promise<SessionLoadResult> {
+export async function loadSessionData(questionIds: string[]): Promise<SessionLoadResult> {
   const flagsPromise = fetchFlaggedIdsBounded(questionIds)
   try {
-    const questionsResult =
-      source?.examMode === 'vfr_rt_exam'
-        ? await loadVfrRtExamQuestions({ sessionId: source.sessionId })
-        : await loadSessionQuestions(questionIds)
+    const questionsResult = await loadSessionQuestions(questionIds)
     if (!questionsResult.success) return { success: false, error: questionsResult.error }
-    // Never rejects; Discovery saves nothing, so it never claims.
-    const claimPromise =
-      source && source.mode !== 'discovery'
-        ? claimQuizDeviceBounded(source.sessionId)
-        : Promise.resolve(null)
-    const flaggedIds = await flagsPromise
-    const claimError = (await claimPromise) ?? undefined
-    return { success: true, questions: questionsResult.questions, flaggedIds, claimError }
+    return { success: true, questions: questionsResult.questions, flaggedIds: await flagsPromise }
   } catch {
     return { success: false, error: 'Failed to load questions. Please try again.' }
   }

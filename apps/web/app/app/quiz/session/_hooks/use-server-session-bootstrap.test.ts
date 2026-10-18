@@ -1,16 +1,29 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockLoad } = vi.hoisted(() => ({ mockLoad: vi.fn() }))
+const { mockClaim, mockFlagsAction, mockQuestions, mockVfrQuestions } = vi.hoisted(() => ({
+  mockClaim: vi.fn(),
+  mockFlagsAction: vi.fn(),
+  mockQuestions: vi.fn(),
+  mockVfrQuestions: vi.fn(),
+}))
 
-vi.mock('./session-bootstrap-load', () => ({
-  loadSessionData: (...a: unknown[]) => mockLoad(...a),
+vi.mock('../_utils/claim-quiz-device', () => ({
+  claimQuizDeviceBounded: (...a: unknown[]) => mockClaim(...a),
+}))
+vi.mock('../../actions/flag', () => ({ getFlaggedIds: (...a: unknown[]) => mockFlagsAction(...a) }))
+vi.mock('@/lib/queries/load-session-questions', () => ({
+  loadSessionQuestions: (...a: unknown[]) => mockQuestions(...a),
+}))
+vi.mock('@/lib/queries/load-vfr-rt-exam-questions', () => ({
+  loadVfrRtExamQuestions: (...a: unknown[]) => mockVfrQuestions(...a),
 }))
 
 import { useServerSessionBootstrap } from './use-server-session-bootstrap'
 
-const IDS = ['q1', 'q2']
-const OPTS = { sessionId: 's1', questionIds: IDS, mode: 'quick_quiz' as const }
+type Runner = Parameters<typeof useServerSessionBootstrap>[0]['runner']
+const RUNNER = { questions: [{ id: 'q1' }], flaggedIds: ['q2'] } as unknown as Runner
+const OPTS = { sessionId: 's1', userId: 'u1', runner: RUNNER }
 
 function seed(userId: string, sessionId: string) {
   localStorage.setItem(
@@ -29,72 +42,66 @@ function seed(userId: string, sessionId: string) {
 beforeEach(() => {
   vi.resetAllMocks()
   localStorage.clear()
-  mockLoad.mockResolvedValue({
-    success: true,
-    questions: [{ id: 'q1' }],
-    flaggedIds: ['q2'],
-    claimError: 'mapped',
-  })
+  mockClaim.mockResolvedValue(null)
 })
 
 describe('useServerSessionBootstrap', () => {
-  it('loads the questions, flags and claim of a practice session', async () => {
-    const { result } = renderHook(() => useServerSessionBootstrap({ ...OPTS, userId: 'u1' }))
+  it('shows no questions until the claim has settled', async () => {
+    let settle!: (v: string | null) => void
+    mockClaim.mockReturnValue(new Promise((res) => (settle = res)))
 
-    await waitFor(() => expect(result.current.questions).toEqual([{ id: 'q1' }]))
-    expect(mockLoad).toHaveBeenCalledWith(IDS, {
-      sessionId: 's1',
-      mode: 'study',
-      examMode: undefined,
-    })
-    expect(result.current.flaggedIds).toEqual(['q2'])
-    expect(result.current.claimError).toBe('mapped')
-    expect(result.current.error).toBeNull()
-  })
-
-  it.each(['mock_exam', 'internal_exam', 'vfr_rt_exam'] as const)(
-    'loads a %s session as an exam of its own mode',
-    async (mode) => {
-      renderHook(() => useServerSessionBootstrap({ ...OPTS, mode, userId: 'u1' }))
-
-      await waitFor(() => expect(mockLoad).toHaveBeenCalled())
-      expect(mockLoad).toHaveBeenCalledWith(IDS, { sessionId: 's1', mode: 'exam', examMode: mode })
-    },
-  )
-
-  it('surfaces a load failure instead of the runner', async () => {
-    mockLoad.mockResolvedValue({ success: false, error: 'No questions found' })
-
-    const { result } = renderHook(() => useServerSessionBootstrap({ ...OPTS, userId: 'u1' }))
-
-    await waitFor(() => expect(result.current.error).toBe('No questions found'))
+    const { result } = renderHook(() => useServerSessionBootstrap(OPTS))
     expect(result.current.questions).toBeNull()
+
+    await act(async () => settle(null))
+
+    expect(result.current.questions).toEqual([{ id: 'q1' }])
   })
 
-  it('surfaces a generic failure when the load rejects', async () => {
-    mockLoad.mockRejectedValue(new Error('boom'))
+  it('serves the server-loaded questions and flags and claims the session once', async () => {
+    const { result } = renderHook(() => useServerSessionBootstrap(OPTS))
 
-    const { result } = renderHook(() => useServerSessionBootstrap({ ...OPTS, userId: 'u1' }))
-
-    await waitFor(() => expect(result.current.error).toMatch(/Failed to load/))
+    await waitFor(() => expect(result.current.questions).not.toBeNull())
+    expect(result.current.flaggedIds).toEqual(['q2'])
+    expect(result.current.claimError).toBeNull()
+    expect(mockClaim).toHaveBeenCalledTimes(1)
+    expect(mockClaim).toHaveBeenCalledWith('s1')
   })
 
-  it('does not reload the session when re-rendered with an equal question list', async () => {
+  it('reads no questions or flags from the server after mount', async () => {
+    const { result } = renderHook(() => useServerSessionBootstrap(OPTS))
+
+    await waitFor(() => expect(result.current.questions).not.toBeNull())
+    expect(mockFlagsAction).not.toHaveBeenCalled()
+    expect(mockQuestions).not.toHaveBeenCalled()
+    expect(mockVfrQuestions).not.toHaveBeenCalled()
+  })
+
+  it('surfaces the claim error alongside the questions', async () => {
+    mockClaim.mockResolvedValue('Another tab')
+
+    const { result } = renderHook(() => useServerSessionBootstrap(OPTS))
+
+    await waitFor(() => expect(result.current.claimError).toBe('Another tab'))
+    expect(result.current.questions).not.toBeNull()
+  })
+
+  it('does not claim again when re-rendered with a fresh load', async () => {
+    const next = { questions: [{ id: 'reshuffled' }], flaggedIds: [] } as unknown as Runner
     const { rerender, result } = renderHook(
-      ({ ids }: { ids: string[] }) =>
-        useServerSessionBootstrap({ ...OPTS, questionIds: ids, userId: 'u1' }),
-      { initialProps: { ids: ['q1', 'q2'] } },
+      ({ runner }: { runner: Runner }) => useServerSessionBootstrap({ ...OPTS, runner }),
+      { initialProps: { runner: RUNNER } },
     )
     await waitFor(() => expect(result.current.questions).not.toBeNull())
 
-    rerender({ ids: ['q1', 'q2'] })
+    rerender({ runner: next })
 
-    expect(mockLoad).toHaveBeenCalledTimes(1)
+    expect(mockClaim).toHaveBeenCalledTimes(1)
   })
 
-  it("drops the student's local copy of another session once the session loads", async () => {
+  it("drops the student's local copy of another session once the claim settles", async () => {
     seed('u1', 'old')
-    const { result } = renderHook(() => useServerSessionBootstrap({ ...OPTS, userId: 'u1' }))
+    const { result } = renderHook(() => useServerSessionBootstrap(OPTS))
 
     await waitFor(() => expect(result.current.questions).not.toBeNull())
     expect(localStorage.getItem('quiz-active-session:u1')).toBeNull()
@@ -102,7 +109,7 @@ describe('useServerSessionBootstrap', () => {
 
   it("keeps the student's local copy of the session being opened", async () => {
     seed('u1', 's1')
-    const { result } = renderHook(() => useServerSessionBootstrap({ ...OPTS, userId: 'u1' }))
+    const { result } = renderHook(() => useServerSessionBootstrap(OPTS))
 
     await waitFor(() => expect(result.current.questions).not.toBeNull())
     expect(localStorage.getItem('quiz-active-session:u1')).not.toBeNull()
@@ -110,31 +117,20 @@ describe('useServerSessionBootstrap', () => {
 
   it("keeps other students' local copies in a shared browser", async () => {
     seed('u2', 'their-session')
-    const { result } = renderHook(() => useServerSessionBootstrap({ ...OPTS, userId: 'u1' }))
+    const { result } = renderHook(() => useServerSessionBootstrap(OPTS))
 
     await waitFor(() => expect(result.current.questions).not.toBeNull())
     expect(localStorage.getItem('quiz-active-session:u2')).not.toBeNull()
   })
 
-  it('keeps the local copy when the session fails to load', async () => {
-    mockLoad.mockResolvedValue({ success: false, error: 'No questions found' })
+  it('keeps the local copy when the hook unmounts before the claim settles', async () => {
+    let settle!: (v: string | null) => void
+    mockClaim.mockReturnValue(new Promise((res) => (settle = res)))
     seed('u1', 'old')
-    const { result } = renderHook(() => useServerSessionBootstrap({ ...OPTS, userId: 'u1' }))
-
-    await waitFor(() => expect(result.current.error).toBe('No questions found'))
-    expect(localStorage.getItem('quiz-active-session:u1')).not.toBeNull()
-  })
-
-  it('keeps the local copy when the hook unmounts before the load resolves', async () => {
-    let resolveLoad!: (v: unknown) => void
-    mockLoad.mockReturnValue(new Promise((res) => (resolveLoad = res)))
-    seed('u1', 'old')
-    const { unmount } = renderHook(() => useServerSessionBootstrap({ ...OPTS, userId: 'u1' }))
+    const { unmount } = renderHook(() => useServerSessionBootstrap(OPTS))
     unmount()
 
-    await act(async () => {
-      resolveLoad({ success: true, questions: [], flaggedIds: [] })
-    })
+    await act(async () => settle(null))
 
     expect(localStorage.getItem('quiz-active-session:u1')).not.toBeNull()
   })

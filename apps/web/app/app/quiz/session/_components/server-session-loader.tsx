@@ -1,9 +1,11 @@
 'use client'
 
+import { useState } from 'react'
 import type { SessionQuestion } from '@/app/app/_types/session'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { SessionEntry } from '@/lib/queries/load-quiz-session-state'
 import { useServerSessionBootstrap } from '../_hooks/use-server-session-bootstrap'
+import type { SessionRunnerData } from '../_loaders/load-session-entry'
 import { restrictDraftToQuestions } from '../_utils/restrict-draft-to-questions'
 import { toRunnerMode } from '../_utils/session-runner-mode'
 import { QuizSession } from './quiz-session'
@@ -16,15 +18,26 @@ function LoadError({ message }: Readonly<{ message: string }>) {
   )
 }
 
+type LoadedData = Extract<SessionRunnerData, { questions: SessionQuestion[] }>
+
 /** Mounts the runner for a session loaded by id, seeded with what the server holds. */
 export function ServerSessionLoader({
   userId,
   entry,
-}: Readonly<{ userId: string; entry: SessionEntry }>) {
-  const { sessionId, mode, questionIds } = entry
-  const bs = useServerSessionBootstrap({ userId, sessionId, questionIds, mode })
+  runner,
+}: Readonly<{ userId: string; entry: SessionEntry; runner: SessionRunnerData }>) {
+  // An RSC refresh re-runs the question read (re-shuffling ordering items, or failing): the first load sticks.
+  const [first] = useState(runner)
+  if ('error' in first) return <LoadError message={first.error} />
+  return <ClaimedSession userId={userId} entry={entry} runner={first} />
+}
 
-  if (bs.error) return <LoadError message={bs.error} />
+function ClaimedSession({
+  userId,
+  entry,
+  runner,
+}: Readonly<{ userId: string; entry: SessionEntry; runner: LoadedData }>) {
+  const bs = useServerSessionBootstrap({ userId, sessionId: entry.sessionId, runner })
   if (!bs.questions) return <Skeleton className="mx-auto h-40 w-full max-w-2xl" />
 
   return (

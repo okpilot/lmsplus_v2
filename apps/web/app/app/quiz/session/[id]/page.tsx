@@ -10,11 +10,11 @@ export default async function QuizSessionByIdPage({
 }: Readonly<{ params: Promise<{ id: string }> }>) {
   const { id } = await params
   const user = await requireAuthUser()
-  const entry = await loadSessionEntry(id, user.id)
+  const { entry, runner } = await loadSessionEntry(id, user.id)
 
   return (
     <main>
-      <SessionEntryView userId={user.id} entry={entry} />
+      <SessionEntryView userId={user.id} entry={entry} runner={runner} />
       <ConnectionOverlay />
     </main>
   )

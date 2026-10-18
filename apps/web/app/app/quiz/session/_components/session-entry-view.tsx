@@ -1,11 +1,13 @@
 import type { SessionEntry } from '@/lib/queries/load-quiz-session-state'
+import type { SessionRunnerData } from '../_loaders/load-session-entry'
 import { SavedSessionResume } from './saved-session-resume'
 import { ServerSessionLoader } from './server-session-loader'
 
 export function SessionEntryView({
   userId,
   entry,
-}: Readonly<{ userId: string; entry: SessionEntry }>) {
+  runner,
+}: Readonly<{ userId: string; entry: SessionEntry; runner: SessionRunnerData | null }>) {
   if (entry.kind === 'saved') {
     return (
       <SavedSessionResume
@@ -17,5 +19,6 @@ export function SessionEntryView({
       />
     )
   }
-  return <ServerSessionLoader key={entry.sessionId} userId={userId} entry={entry} />
+  if (!runner) return null
+  return <ServerSessionLoader key={entry.sessionId} userId={userId} entry={entry} runner={runner} />
 }
