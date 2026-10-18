@@ -91,6 +91,25 @@ describe('scrubTokens', () => {
     expect(out.u).toBe(`https://x.test${FILTERED}`)
   })
 
+  it('filters a percent-encoded token_hash value in a query string', () => {
+    const out = scrubTokens({ q: '?token_hash=%61bc&type=recovery' })
+    expect(out.q).toBe('?token_hash=[Filtered]&type=recovery')
+  })
+
+  it('filters a percent-encoded token_hash value in a URL instance', () => {
+    const out = scrubTokens({
+      u: new URL('https://x.test/auth/set-password?token_hash=%61bc&type=recovery'),
+    })
+    expect(out.u).toBe('https://x.test/auth/set-password?token_hash=[Filtered]&type=recovery')
+  })
+
+  it('filters a percent-encoded token_hash value inside an encoded next param', () => {
+    const next = 'next=%2Fa%3Ftoken_hash%3D%61bc%26type%3Drecovery'
+    const out = scrubTokens({ url: `/login?${next}` })
+    expect(out.url).not.toContain('%61bc')
+    expect(out.url).toContain('type%3Drecovery')
+  })
+
   it('filters a URLSearchParams instance', () => {
     const out = scrubTokens({ q: new URLSearchParams('token_hash=secret&type=recovery') })
     expect(out.q).toBe('token_hash=[Filtered]&type=recovery')

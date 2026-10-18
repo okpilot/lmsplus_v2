@@ -23,13 +23,16 @@ const oldPassword = 'test-pass-123'
 const newPassword = 'brand-new-pass-456'
 
 let orgId: string | undefined
-const students: Record<'happy' | 'rotation' | 'deleted' | 'burst', { id: string; email: string }> =
-  {
-    happy: { id: '', email: `int-spl-happy-${suffix}@test.local` },
-    rotation: { id: '', email: `int-spl-rot-${suffix}@test.local` },
-    deleted: { id: '', email: `int-spl-del-${suffix}@test.local` },
-    burst: { id: '', email: `int-spl-burst-${suffix}@test.local` },
-  }
+const students: Record<
+  'happy' | 'reuse' | 'rotation' | 'deleted' | 'burst',
+  { id: string; email: string }
+> = {
+  happy: { id: '', email: `int-spl-happy-${suffix}@test.local` },
+  reuse: { id: '', email: `int-spl-reuse-${suffix}@test.local` },
+  rotation: { id: '', email: `int-spl-rot-${suffix}@test.local` },
+  deleted: { id: '', email: `int-spl-del-${suffix}@test.local` },
+  burst: { id: '', email: `int-spl-burst-${suffix}@test.local` },
+}
 
 function submit(tokenHash: string) {
   return setPasswordFromLink({
@@ -114,12 +117,13 @@ describe('setPasswordFromLink (app-layer integration)', () => {
   })
 
   it('refuses the same link a second time', async () => {
-    const { email } = students.happy
+    const { email } = students.reuse
     const token = await tokenFor(email)
-    await submit(token)
 
+    const first = await submit(token)
     const second = await submit(token)
 
+    expect(first).toEqual({ success: true, redirectTo: '/auth/login-complete' })
     expect(second).toEqual({ success: false, error: LINK_INVALID_MESSAGE, linkInvalid: true })
   })
 

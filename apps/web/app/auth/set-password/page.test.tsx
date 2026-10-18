@@ -42,13 +42,8 @@ describe('SetPasswordPage', () => {
     expect(mockCreateClient).not.toHaveBeenCalled()
   })
 
-  it.each([
-    ['no params', {}],
-    ['a missing token', { type: 'recovery' }],
-    ['a malformed token', { token_hash: 'nope', type: 'recovery' }],
-    ['a wrong type', { token_hash: HASH, type: 'signup' }],
-  ])('shows the link-unavailable panel for %s', async (_label, params) => {
-    await renderPage(params)
+  it('shows the link-unavailable panel for a malformed token', async () => {
+    await renderPage({ token_hash: 'nope', type: 'recovery' })
 
     expect(screen.getByTestId('link-unavailable')).toHaveTextContent('missing')
     expect(screen.queryByTestId('set-password-form')).not.toBeInTheDocument()

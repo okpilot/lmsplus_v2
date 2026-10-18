@@ -14,8 +14,8 @@ import { getAdminClient } from '../helpers/supabase'
  *
  * II: a session opened on the account BEFORE the link is used (an old
  *     credential's holder) must not survive the student setting their password.
- * IJ: a valid link for a deactivated account must leave no session behind,
- *     in the browser or at the Auth refresh layer.
+ * IJ: a valid link for a deactivated account must leave no session in the
+ *     browser.
  * IK: a link spent on a FAILED password write leaves a live recovery session;
  *     it must stay pinned to `/auth/reset-password` (`__recovery_pending`).
  */

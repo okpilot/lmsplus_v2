@@ -1,6 +1,4 @@
-import { SetPasswordLinkSchema } from '@/lib/auth/set-password-link'
-import { LinkUnavailable } from './_components/link-unavailable'
-import { SetPasswordForm } from './_components/set-password-form'
+import { SetPasswordEntry } from './_components/set-password-entry'
 
 type SearchParams = Promise<{ token_hash?: string; type?: string }>
 
@@ -8,7 +6,6 @@ export default async function SetPasswordPage({
   searchParams,
 }: Readonly<{ searchParams: SearchParams }>) {
   const { token_hash: tokenHash, type } = await searchParams
-  const link = SetPasswordLinkSchema.safeParse({ tokenHash, type })
 
   return (
     <main className="flex min-h-screen items-center justify-center px-4">
@@ -19,11 +16,7 @@ export default async function SetPasswordPage({
           </div>
           <h1 className="text-2xl font-semibold tracking-tight">LMS Plus</h1>
         </div>
-        {link.success ? (
-          <SetPasswordForm tokenHash={link.data.tokenHash} />
-        ) : (
-          <LinkUnavailable reason="missing" />
-        )}
+        <SetPasswordEntry tokenHash={tokenHash} type={type} />
       </div>
     </main>
   )

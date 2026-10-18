@@ -588,15 +588,9 @@ const securityHeaders = [
     ].join('; '),
   },
 ]
-
-export default {
-  async headers() {
-    return [{ source: '/(.*)', headers: securityHeaders }]
-  },
-}
 ```
 
-**Per-route override.** `/auth/set-password` carries `Referrer-Policy: no-referrer` (second `headers()` entry in `apps/web/next.config.ts`; the last matching entry wins) so the `token_hash` query does not leak via `Referer`.
+**Per-route override.** `/auth/set-password` carries `Referrer-Policy: no-referrer` (second `headers()` entry in `apps/web/next.config.ts`; the last matching entry wins) so the `token_hash` query does not leak via `Referer`; `headers()` returns the global group plus this override.
 
 **Edge Middleware responses (3xx redirects, 4xx/5xx errors).** Next.js `headers()` only applies to routed responses; middleware-emitted responses bypass it. `apps/web/proxy.ts` re-emits the static headers on every response it BUILDS ITSELF, via `applySecurityHeaders` (the `res.headers.set` block at the top of the file; read it rather than trusting a count here, since a new header joins it). Coverage is complete and rests on a funnel, not on repetition: every redirect exit returns through the shared `redirectWithCookies` helper, which applies them once, and the 503 applies them directly. The invariant to preserve is therefore the funnel — a hand-built `NextResponse` that bypasses `redirectWithCookies` must call `applySecurityHeaders` itself or it ships with no CSP and no HSTS. Those responses get a **reduced CSP** of `default-src 'none'; frame-ancestors 'none'` (not the full routed-response CSP). The reduction is intentional: no scripts execute on a 3xx/4xx/5xx, so locking `default-src` to `'none'` is at least as strict as the routed policy and prevents accidental subresource loading on error pages. `frame-ancestors 'none'` matches the routed CSP so legacy browsers ignoring `default-src` still see the framing deny intent. The red-team spec `apps/web/e2e/redteam/header-validation.spec.ts` asserts both response classes; do not assume routed-response CSP rules apply to middleware responses when reviewing security changes.
 

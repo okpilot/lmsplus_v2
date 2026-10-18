@@ -57,6 +57,7 @@ test.describe('Set password — one-time link lifecycle', () => {
     for (let i = 0; i < 2; i++) {
       const res = await page.request.get(path)
       expect(res.status()).toBe(200)
+      expect((await page.request.head(path)).status()).toBe(200)
     }
 
     await page.goto(path)

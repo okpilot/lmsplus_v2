@@ -1,4 +1,4 @@
-const TOKEN_PARAM = /((?:^|[?&#\s]|%3F|%26|%23)token_hash(?:=|%3D))[^&#\s%]*/gi
+const TOKEN_PARAM = /((?:^|[?&#\s]|%3F|%26|%23)token_hash(?:=|%3D))(?:(?!%26|%23|%3F)[^&#\s])*/gi
 
 function scrubTokenParam(s: string): string {
   return s.replace(TOKEN_PARAM, '$1[Filtered]')
