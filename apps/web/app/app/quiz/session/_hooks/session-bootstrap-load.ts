@@ -1,6 +1,7 @@
 import type { SessionQuestion } from '@/app/app/_types/session'
 import { FLAG_FETCH_TIMEOUT_MS } from '@/lib/constants/flag-fetch-timeout'
 import { loadSessionQuestions } from '@/lib/queries/load-session-questions'
+import { withTimeout } from '@/lib/utils/with-timeout'
 import { getFlaggedIds } from '../../actions/flag'
 import {
   clearSessionHandoff,
@@ -41,14 +42,10 @@ export function readBootstrapSession(userId: string): SessionData | null {
  * Degrades to [] on rejection, `{ success: false }`, or timeout — never rejects.
  */
 function fetchFlaggedIdsBounded(questionIds: string[]): Promise<string[]> {
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const timeout = new Promise<string[]>((resolve) => {
-    timer = setTimeout(() => resolve([]), FLAG_FETCH_TIMEOUT_MS)
-  })
   const flags = getFlaggedIds({ questionIds })
     .then((r) => (r.success ? r.flaggedIds : []))
     .catch(() => [] as string[])
-  return Promise.race([flags, timeout]).finally(() => clearTimeout(timer))
+  return withTimeout(flags, FLAG_FETCH_TIMEOUT_MS, [])
 }
 
 /**

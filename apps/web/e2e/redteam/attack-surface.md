@@ -1,6 +1,6 @@
 # Red Team — Attack Surface Map
 
-> Last updated: 2026-10-18 (branch perf/session-open-rsc-1547, #1547 — Vectors GB and GC RETIRED; see rows GB, GC.)
+> Last updated: 2026-10-18 (branch perf/session-open-rsc-1547, #1547 — Vector GB RETIRED; see row GB.)
 > PRIOR: 2026-10-18 (branch feat/set-password-links-1536, #1536 — Vector FT RETIRED; see row FT.)
 > PRIOR: 2026-09-26 (branch feat/login-instructions-admin-send — Vector FT: the admin-issued reset (`reset-student-password.ts`) is deleted; only the admin Server Action `sendLoginInstructions` (`apps/web/app/app/admin/students/actions/send-login-instructions.ts`) arms/re-arms `temp_password_expires_at`, via the same `issueTempPassword()` arm → Auth write → arm mechanics. `create-student.ts` no longer arms the expiry on creation — a newly created account has no password and no expiry until the first send. No migration change, no new vector — same FT row, same spec file, same max ID.)
 > PRIOR: 2026-09-26 (branch fix/consent-cookie-user-bound, #1377 — new Vector FU: the consent cookie is bound to the signed-in user (`<tos>:<privacy>:<userId>`); a cookie left on a shared browser by another user is a mismatch → `/auth/consent-refresh` (DB re-check) → `/consent`. Vector V narrowed to self-only forgery; covered by `consent-gate.spec.ts`. Max ID FU.)
@@ -202,8 +202,8 @@
 | FY | get_vfr_rt_exam_questions-part3-ordering-diagram-key-strip | HIGH | rpc-vfr-rt-part3-integrity.spec.ts | BLOCKED |  | answer-oracle |
 | FZ | submit_vfr_rt_exam_answers-ordering-forged-permutation | HIGH | rpc-finish-vfr-rt-forged-progress.spec.ts | BLOCKED |  | input-injection |
 | GA | submit_vfr_rt_exam_answers-diagram-forged-placement | HIGH | rpc-finish-vfr-rt-forged-progress.spec.ts | BLOCKED |  | input-injection |
-| GB | **`loadVfrRtExamQuestions` foreign-session replay — RETIRED.** The Server Action is removed; the questions are read in the server render. | HIGH | — (deleted, #1547) | RETIRED — action removed by #1547 | ID kept so it is never reused (`legacy-row-ids.json`). RPC-level foreign-session gate covered by row DO. |
-| GC | **`loadVfrRtExamQuestions` mid-exam key strip — RETIRED.** The Server Action is removed; the questions are read in the server render. | HIGH | — (deleted, #1547) | RETIRED — action removed by #1547 | ID kept so it is never reused (`legacy-row-ids.json`). RPC-level key strip covered by rows DO and FY. |
+| GB | **`loadVfrRtExamQuestions` foreign-session replay — RETIRED.** The Server Action is removed; the questions are read in the server render. | HIGH | — (deleted, #1547) | RETIRED — action removed by #1547 | ID kept so it is never reused (`legacy-row-ids.json`). RPC-level foreign-session gate covered by row DO. Foreign-id redirect covered by the generic-mode e2e test (`quiz-session-id-route.spec.ts`) plus the integration tests, not by a VFR RT-specific e2e test. |
+| GC | session-page-rsc-vfr-rt-mid-exam-key-strip | HIGH | rsc-vfr-rt-exam-questions-key-strip.spec.ts | BLOCKED |  | answer-oracle |
 | GD | get_daily_subjects-same-org-instructor-admin-self-scope | HIGH | rpc-daily-subjects-scope.spec.ts | BLOCKED |  | rls-bypass |
 | GE | get_daily_subjects-cross-org-admin-isolation | HIGH | rpc-daily-subjects-scope.spec.ts | BLOCKED |  | cross-tenant |
 | GF | get_daily_subjects-soft-deleted-caller-gate | MEDIUM | rpc-daily-subjects-scope.spec.ts | BLOCKED |  | sibling-guard-gap |
