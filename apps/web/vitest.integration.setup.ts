@@ -33,6 +33,9 @@ vi.mock('next/headers', () => ({
       set: (name: string, value: string, _options?: unknown) => {
         jar.set(name, value)
       },
+      delete: (name: string) => {
+        jar.delete(name)
+      },
       get: (name: string) => {
         const value = jar.get(name)
         return value === undefined ? undefined : { name, value }

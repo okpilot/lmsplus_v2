@@ -1,13 +1,8 @@
 'use server'
 
 import { createServerSupabaseClient } from '@repo/db/server'
-import { clearTempFlagAndAudit } from '@/lib/auth/finish-self-password-change'
+import { recordOwnPasswordSet } from '@/lib/auth/finish-self-password-change'
 import { NewPasswordSchema } from '@/lib/auth/new-password-schema'
-import {
-  RETRY_DIFFERENT_PASSWORD_MESSAGE,
-  refuseIfTempPasswordExpired,
-  TEMP_PASSWORD_EXPIRED_MESSAGE,
-} from '@/lib/auth/temp-password'
 
 export type ResetOwnPasswordResult =
   | { ok: true }
@@ -36,33 +31,13 @@ export async function resetOwnPassword(raw: unknown): Promise<ResetOwnPasswordRe
     }
   }
 
-  const result = await refuseIfTempPasswordExpired(supabase, user.id)
-  if (result.state === 'expired') {
-    return { ok: false, isSessionMissing: false, message: TEMP_PASSWORD_EXPIRED_MESSAGE }
-  }
-  if (result.state === 'error') {
-    return {
-      ok: false,
-      isSessionMissing: false,
-      message: 'Unable to update password. Please try again.',
-    }
-  }
-
-  return finishPasswordReset(supabase, {
-    userId: user.id,
-    password: parsed.data.password,
-    tempPasswordExpiresAt: result.state === 'active' ? result.expiresAt : null,
-  })
+  return finishPasswordReset(supabase, { userId: user.id, password: parsed.data.password })
 }
 
-/** Applies the new password, clears an active temp-password flag, audits, then signs out. */
+/** Applies the new password, audits, clears the pending-password marker, then signs out. */
 async function finishPasswordReset(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
-  {
-    userId,
-    password,
-    tempPasswordExpiresAt,
-  }: { userId: string; password: string; tempPasswordExpiresAt: string | null },
+  { userId, password }: { userId: string; password: string },
 ): Promise<ResetOwnPasswordResult> {
   const { error } = await supabase.auth.updateUser({ password })
   if (error) {
@@ -77,15 +52,7 @@ async function finishPasswordReset(
   }
 
   // The audit runs before signOut() because it uses the caller's own session.
-  const cleared = await clearTempFlagAndAudit(supabase, {
-    userId,
-    tempPasswordExpiresAt,
-    context: 'resetOwnPassword',
-  })
-
-  if (!cleared) {
-    return { ok: false, isSessionMissing: false, message: RETRY_DIFFERENT_PASSWORD_MESSAGE }
-  }
+  await recordOwnPasswordSet(supabase, { userId, context: 'resetOwnPassword' })
 
   const { error: signOutError } = await supabase.auth.signOut()
   if (signOutError) {

@@ -11,3 +11,9 @@ export async function setRecoveryPendingCookie(): Promise<void> {
     maxAge: 600,
   })
 }
+
+/** Lifts the `/auth/reset-password` pin once the new password is saved. */
+export async function clearRecoveryPendingCookie(): Promise<void> {
+  const cookieStore = await cookies()
+  cookieStore.delete('__recovery_pending')
+}

@@ -1,14 +1,11 @@
-import { requireActiveTempPassword } from '@/lib/auth/require-active-temp-password'
-import { safeNextPath } from '@/lib/auth/safe-next-path'
-import { SetPasswordForm } from './_components/set-password-form'
+import { SetPasswordEntry } from './_components/set-password-entry'
+
+type SearchParams = Promise<{ token_hash?: string; type?: string }>
 
 export default async function SetPasswordPage({
   searchParams,
-}: Readonly<{ searchParams: Promise<{ next?: string }> }>) {
-  const { next } = await searchParams
-  const nextPath = safeNextPath(next)
-
-  await requireActiveTempPassword(nextPath)
+}: Readonly<{ searchParams: SearchParams }>) {
+  const { token_hash: tokenHash, type } = await searchParams
 
   return (
     <main className="flex min-h-screen items-center justify-center px-4">
@@ -19,7 +16,7 @@ export default async function SetPasswordPage({
           </div>
           <h1 className="text-2xl font-semibold tracking-tight">LMS Plus</h1>
         </div>
-        <SetPasswordForm nextPath={nextPath} />
+        <SetPasswordEntry tokenHash={tokenHash} type={type} />
       </div>
     </main>
   )

@@ -7,7 +7,7 @@ import { requireAdmin } from '@/lib/auth/require-admin'
 import { isEmailConfigured } from '@/lib/email/resend'
 import { rpc } from '@/lib/supabase-rpc'
 import { getLoginInstructionsRecipient } from '../login-instructions-recipient'
-import { issueAndEmailPassword } from './deliver-login-instructions'
+import { issueAndEmailSetPasswordLink } from './deliver-login-instructions'
 
 const SendLoginInstructionsSchema = z.object({ id: z.uuid() })
 
@@ -19,7 +19,7 @@ export type SendLoginInstructionsResult =
         | 'Invalid input'
         | 'User not found'
         | 'Failed to send login instructions'
-        | 'The password was replaced but the email could not be sent. Send again.'
+        | 'The email could not be sent. Send again.'
         | 'Login instructions were emailed but the send could not be recorded.'
     }
 
@@ -31,27 +31,36 @@ export async function sendLoginInstructions(input: unknown): Promise<SendLoginIn
   const recipient = await getLoginInstructionsRecipient(parsed.data.id, organizationId)
   if (!recipient) return { success: false, error: 'User not found' }
 
-  // Fail fast on a misconfigured base URL rather than emailing a broken link.
-  if (!process.env.NEXT_PUBLIC_APP_URL) {
-    console.error('[sendLoginInstructions] NEXT_PUBLIC_APP_URL is not set')
-    return { success: false, error: 'Failed to send login instructions' }
-  }
-  // Checked before the password is replaced, so a misconfigured mailer cannot lock the student out.
+  if (!hasValidAppUrl()) return { success: false, error: 'Failed to send login instructions' }
+  // Checked before a token is issued: issuing voids the student's earlier link or code.
   if (!isEmailConfigured()) {
     console.error('[sendLoginInstructions] email sending is not configured')
     return { success: false, error: 'Failed to send login instructions' }
   }
 
-  const delivered = await issueAndEmailPassword({
+  const delivered = await issueAndEmailSetPasswordLink({
     supabase,
-    id: parsed.data.id,
-    organizationId,
+    userId: parsed.data.id,
     recipient,
   })
   const result = delivered.ok ? await recordSend(supabase, parsed.data.id) : delivered.result
-  // A failed delivery may already have replaced the password, so refresh either way.
+  // A failed delivery may already have voided the earlier link, so refresh either way.
   revalidatePath('/app/admin/students')
   return result
+}
+
+/** Fail fast on a misconfigured base URL rather than emailing a broken link. */
+function hasValidAppUrl(): boolean {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL
+  if (!appUrl) {
+    console.error('[sendLoginInstructions] NEXT_PUBLIC_APP_URL is not set')
+    return false
+  }
+  if (!URL.canParse(appUrl) || !['http:', 'https:'].includes(new URL(appUrl).protocol)) {
+    console.error('[sendLoginInstructions] NEXT_PUBLIC_APP_URL is not a valid URL')
+    return false
+  }
+  return true
 }
 
 /** Stamps the send; a failure is surfaced so the admin knows the email already went out. */

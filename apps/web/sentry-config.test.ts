@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SENTRY_DATA_COLLECTION } from './sentry-data-collection'
 
 const { initSpy, replayIntegrationSpy, captureRouterTransitionStart } = vi.hoisted(() => ({
@@ -44,6 +44,11 @@ describe('Sentry init options', () => {
     vi.resetModules()
     initSpy.mockClear()
     replayIntegrationSpy.mockClear()
+    vi.stubGlobal('location', { pathname: '/app/dashboard' })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it.each([
@@ -72,6 +77,42 @@ describe('Sentry init options', () => {
       maskAllInputs: true,
       blockAllMedia: true,
     })
+  })
+
+  it('browser config omits replay on the set-password page where a live token is in the URL', async () => {
+    vi.stubGlobal('location', { pathname: '/auth/set-password' })
+    await import('./instrumentation-client')
+    expect(replayIntegrationSpy).not.toHaveBeenCalled()
+    const options = initSpy.mock.calls[0]?.[0] as { integrations: unknown[] }
+    expect(options.integrations).toEqual([])
+  })
+
+  it('browser config keeps replay on other paths', async () => {
+    vi.stubGlobal('location', { pathname: '/app/dashboard' })
+    await import('./instrumentation-client')
+    expect(replayIntegrationSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['client', () => import('./instrumentation-client')],
+    ['server', () => import('./sentry.server.config')],
+    ['edge', () => import('./sentry.edge.config')],
+  ])('%s config scrubs token_hash from events, spans and breadcrumbs', async (_name, load) => {
+    await load()
+    const options = initSpy.mock.calls[0]?.[0] as Record<string, (v: unknown) => unknown>
+    expect(options.beforeBreadcrumb).toBeTypeOf('function')
+    const event = options.beforeSend?.({
+      request: { url: 'https://x/auth/set-password?token_hash=abc&type=recovery' },
+    }) as { request: { url: string } }
+    expect(event.request.url).toBe(
+      'https://x/auth/set-password?token_hash=[Filtered]&type=recovery',
+    )
+    const span = options.beforeSendSpan?.({
+      attributes: { 'http.target': '/auth/set-password?token_hash=abc&type=recovery' },
+    }) as { attributes: Record<string, string> }
+    expect(span.attributes['http.target']).toBe(
+      '/auth/set-password?token_hash=[Filtered]&type=recovery',
+    )
   })
 
   it('browser config reports App Router navigations to Sentry', async () => {

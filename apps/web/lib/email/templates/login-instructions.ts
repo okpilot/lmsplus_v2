@@ -1,10 +1,10 @@
-import { formatExpiry } from '@/lib/email/format-expiry'
+import { formatOtpLifetime } from '@/lib/auth/email-otp-config'
+import { forgotPasswordSteps } from '@/lib/auth/set-password-link'
 
 type LoginInstructionsEmailArgs = {
   fullName: string | null
   email: string
-  tempPassword: string
-  expiresAt: string
+  setPasswordUrl: string
   loginUrl: string
 }
 
@@ -20,47 +20,77 @@ function esc(s: string): string {
     .replace(/'/g, '&#39;')
 }
 
+type BodyContent = {
+  greeting: string
+  fullName: string | null
+  email: string
+  setPasswordUrl: string
+  loginUrl: string
+  validity: string
+  steps: string[]
+}
+
+function buildHtml(c: BodyContent): string {
+  return `<!doctype html>
+<html lang="en">
+  <body style="font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; line-height: 1.5;">
+    <p>${c.fullName ? `Hello ${esc(c.fullName)},` : 'Hello,'}</p>
+    <p>Use the link below to set the password for your LMS Plus account <strong>${esc(c.email)}</strong>.</p>
+    <p>
+      <a href="${esc(c.setPasswordUrl)}" style="display: inline-block; background: #2563eb; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: bold;">Set my password</a>
+    </p>
+    <p style="color: #6b7280; font-size: 13px; word-wrap: break-word; overflow-wrap: break-word;">If the button does not work, copy and paste this link into your browser:<br />${esc(c.setPasswordUrl)}</p>
+    <p>${esc(c.validity)}</p>
+    <p><strong>If the link has expired:</strong></p>
+    <ol>
+${c.steps.map((step) => `      <li>${esc(step)}</li>`).join('\n')}
+    </ol>
+    <p style="color: #6b7280; font-size: 13px;">Login page: ${esc(c.loginUrl)}</p>
+  </body>
+</html>`
+}
+
+function buildText(c: BodyContent): string {
+  return `${c.greeting}
+
+Use the link below to set the password for your LMS Plus account ${c.email}.
+
+Set my password: ${c.setPasswordUrl}
+
+${c.validity}
+
+If the link has expired:
+${c.steps.map((step, i) => `${i + 1}. ${step}`).join('\n')}
+
+Login page: ${c.loginUrl}`
+}
+
 /**
- * Builds the admin-triggered login-instructions email (subject/html/text).
- * Pure: no I/O, no env access — every value comes from the caller. The
- * temporary password is caller-generated server-side and never logged here.
+ * Builds the admin-triggered set-password email (subject/html/text). Pure:
+ * no I/O, no env access — every value comes from the caller. The link carries
+ * a one-time token and is never logged here.
  */
 export function loginInstructionsEmail({
   fullName,
   email,
-  tempPassword,
-  expiresAt,
+  setPasswordUrl,
   loginUrl,
 }: LoginInstructionsEmailArgs): EmailContent {
   const greeting = fullName ? `Hello ${fullName},` : 'Hello,'
-  const expiry = formatExpiry(expiresAt)
-  const subject = 'Your LMS Plus login details'
+  const lifetime = formatOtpLifetime()
+  const validity = `This link works once and expires ${lifetime} after this email was sent. Asking for a new link makes this one stop working.`
+  const steps = forgotPasswordSteps()
+  const subject = 'Set your LMS Plus password'
 
-  const html = `<!doctype html>
-<html lang="en">
-  <body style="font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; line-height: 1.5;">
-    <p>${fullName ? `Hello ${esc(fullName)},` : 'Hello,'}</p>
-    <p>Your login details for LMS Plus are below.</p>
-    <p>Email: <strong>${esc(email)}</strong></p>
-    <p>Temporary password: <strong style="letter-spacing: 2px;">${esc(tempPassword)}</strong></p>
-    <p>This temporary password expires on <strong>${esc(expiry)} (UTC)</strong>. You will be asked to choose your own password when you log in.</p>
-    <p>
-      <a href="${esc(loginUrl)}" style="display: inline-block; background: #2563eb; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: bold;">Go to login</a>
-    </p>
-    <p style="color: #6b7280; font-size: 13px;">If the button does not work, copy and paste this link into your browser:<br />${esc(loginUrl)}</p>
-  </body>
-</html>`
+  const content: BodyContent = {
+    greeting,
+    fullName,
+    email,
+    setPasswordUrl,
+    loginUrl,
+    validity,
+    steps,
+  }
 
-  const text = `${greeting}
-
-Your login details for LMS Plus are below.
-
-Email: ${email}
-Temporary password: ${tempPassword}
-
-This temporary password expires on ${expiry} (UTC). You will be asked to choose your own password when you log in.
-
-Go to login: ${loginUrl}`
-
-  return { subject, html, text }
+  return { subject, html: buildHtml(content), text: buildText(content) }
 }

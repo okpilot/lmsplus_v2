@@ -37,7 +37,12 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   devIndicators: { position: 'bottom-right' },
   async headers() {
-    return [{ source: '/(.*)', headers: securityHeaders }]
+    return [
+      { source: '/(.*)', headers: securityHeaders },
+      // Later matching entry wins for a repeated key. The set-password URL carries
+      // a one-time token hash, so it must never reach another origin via Referer.
+      { source: '/auth/set-password', headers: [{ key: 'Referrer-Policy', value: 'no-referrer' }] },
+    ]
   },
 }
 

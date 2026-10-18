@@ -18,7 +18,7 @@ export function LoginInstructionsCell({ student }: Readonly<Props>) {
   const [confirming, setConfirming] = useState(false)
   const state = computeLoginInstructionsState({
     sentAt: student.login_instructions_sent_at,
-    expiresAt: student.temp_password_expires_at,
+    pendingAt: student.temp_password_expires_at,
   })
   const { isSending, handleSend } = useSendLoginInstructions({
     studentId: student.id,
@@ -51,9 +51,7 @@ export function LoginInstructionsCell({ student }: Readonly<Props>) {
 
   return (
     <div className="space-y-1 text-xs">
-      <p className="text-muted-foreground">
-        {loginInstructionsStateLabel(state, student.temp_password_expires_at)}
-      </p>
+      <p className="text-muted-foreground">{loginInstructionsStateLabel(state)}</p>
       {student.login_instructions_sent_at && (
         <p className="text-muted-foreground">
           Sent {formatLastSent(student.login_instructions_sent_at)}

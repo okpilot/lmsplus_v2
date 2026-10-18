@@ -1,240 +1,212 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-// ---- Mocks --------------------------------------------------------------------
-
-const {
-  mockGetUser,
-  mockUpdateUser,
-  mockSignOut,
-  mockRpc,
-  mockRefuseIfTempPasswordExpired,
-  mockClearTempPassword,
-} = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
-  mockUpdateUser: vi.fn(),
+const { mockVerifyOtp, mockSignOut, mockFrom, mockComplete, chain } = vi.hoisted(() => ({
+  mockVerifyOtp: vi.fn(),
   mockSignOut: vi.fn(),
-  mockRpc: vi.fn(),
-  mockRefuseIfTempPasswordExpired: vi.fn(),
-  mockClearTempPassword: vi.fn(),
+  mockFrom: vi.fn(),
+  mockComplete: vi.fn(),
+  chain: {
+    select: vi.fn(),
+    eq: vi.fn(),
+    is: vi.fn(),
+    maybeSingle: vi.fn(),
+  },
 }))
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser, updateUser: mockUpdateUser, signOut: mockSignOut },
-    rpc: mockRpc,
+    auth: { verifyOtp: mockVerifyOtp, signOut: mockSignOut },
+    from: mockFrom,
   }),
 }))
 
-vi.mock('@/lib/auth/temp-password', () => ({
-  refuseIfTempPasswordExpired: (...args: unknown[]) => mockRefuseIfTempPasswordExpired(...args),
-  RETRY_DIFFERENT_PASSWORD_MESSAGE:
-    'Your password could not be fully updated. Please try again with a different password.',
-  TEMP_PASSWORD_EXPIRED_MESSAGE:
-    'Your temporary password has expired. Ask your instructor to send you new login instructions.',
+vi.mock('./complete-link-password-set', () => ({
+  completeLinkPasswordSet: (...args: unknown[]) => mockComplete(...args),
 }))
 
-vi.mock('@/lib/auth/temp-password-admin', () => ({
-  clearTempPassword: (...args: unknown[]) => mockClearTempPassword(...args),
-}))
-
-// ---- Subject under test --------------------------------------------------------
-
-import { setOwnPassword } from './actions'
-
-// ---- Helpers --------------------------------------------------------------------
+import { LINK_INVALID_MESSAGE } from '@/lib/auth/set-password-link'
+import { setPasswordFromLink } from './actions'
 
 const USER_ID = 'aaaaaaaa-0000-4000-a000-000000000003'
-const EXPIRY = '2026-09-25T00:00:00.000Z'
-const validInput = { password: 'newpassword123', confirmPassword: 'newpassword123' }
-
-function mockAuthenticatedUser() {
-  mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } }, error: null })
+const TOKEN_HASH = 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90'
+const validInput = {
+  password: 'newpassword123',
+  confirmPassword: 'newpassword123',
+  tokenHash: TOKEN_HASH,
+  type: 'recovery',
 }
 
 beforeEach(() => {
   vi.resetAllMocks()
-  mockRpc.mockResolvedValue({ error: null })
-  mockClearTempPassword.mockResolvedValue({ success: true })
+  mockFrom.mockReturnValue(chain)
+  chain.select.mockReturnValue(chain)
+  chain.eq.mockReturnValue(chain)
+  chain.is.mockReturnValue(chain)
+  chain.maybeSingle.mockResolvedValue({ data: { id: USER_ID }, error: null })
+  mockVerifyOtp.mockResolvedValue({ data: { user: { id: USER_ID } }, error: null })
   mockSignOut.mockResolvedValue({ error: null })
+  mockComplete.mockResolvedValue({ success: true, redirectTo: '/auth/login-complete' })
 })
 
-describe('setOwnPassword', () => {
+describe('setPasswordFromLink', () => {
   describe('input validation', () => {
-    it('returns failure when password is too short', async () => {
-      const result = await setOwnPassword({ password: 'ab', confirmPassword: 'ab' })
-
-      expect(result.success).toBe(false)
-      if (result.success) return
-      expect(result.error).toBe('Password must be at least 6 characters')
-      expect(mockGetUser).not.toHaveBeenCalled()
-    })
-
-    it('returns failure when passwords do not match', async () => {
-      const result = await setOwnPassword({ password: 'password123', confirmPassword: 'nope' })
-
-      expect(result.success).toBe(false)
-      if (result.success) return
-      expect(result.error).toBe('Passwords do not match')
-    })
-  })
-
-  describe('auth guard', () => {
-    it('returns failure when not authenticated', async () => {
-      mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
-
-      const result = await setOwnPassword(validInput)
-
-      expect(result.success).toBe(false)
-      if (result.success) return
-      expect(result.error).toBe('Not authenticated')
-    })
-  })
-
-  describe('temp-password state guard', () => {
-    it('returns a generic error when the state cannot be read', async () => {
-      mockAuthenticatedUser()
-      mockRefuseIfTempPasswordExpired.mockResolvedValue({ state: 'error', expiresAt: null })
-
-      const result = await setOwnPassword(validInput)
-
-      expect(result.success).toBe(false)
-      if (result.success) return
-      expect(result.error).toBe('Unable to update password. Please try again.')
-      expect(mockUpdateUser).not.toHaveBeenCalled()
-    })
-
-    it('refuses to replace a password when the state is not active', async () => {
-      mockAuthenticatedUser()
-      mockRefuseIfTempPasswordExpired.mockResolvedValue({ state: 'none', expiresAt: null })
-
-      const result = await setOwnPassword(validInput)
-
-      expect(result.success).toBe(false)
-      if (result.success) return
-      expect(result.error).toBe('No temporary password to replace.')
-      expect(mockUpdateUser).not.toHaveBeenCalled()
-    })
-
-    it('refuses an already-expired temp password with the expiry message; the helper already signed out globally', async () => {
-      mockAuthenticatedUser()
-      mockRefuseIfTempPasswordExpired.mockResolvedValue({ state: 'expired', expiresAt: null })
-
-      const result = await setOwnPassword(validInput)
-
-      expect(result.success).toBe(false)
-      if (result.success) return
-      expect(result.error).toBe(
-        'Your temporary password has expired. Ask your instructor to send you new login instructions.',
-      )
-      expect(mockUpdateUser).not.toHaveBeenCalled()
-      expect(mockRefuseIfTempPasswordExpired).toHaveBeenCalledWith(expect.anything(), USER_ID)
-    })
-  })
-
-  describe('updateUser failure', () => {
-    it('asks for a different password when the new one matches the temporary one, and keeps the flag', async () => {
-      mockAuthenticatedUser()
-      mockRefuseIfTempPasswordExpired.mockResolvedValue({ state: 'active', expiresAt: EXPIRY })
-      mockUpdateUser.mockResolvedValue({ error: { code: 'same_password', message: 'same' } })
-
-      const result = await setOwnPassword(validInput)
-
-      expect(result.success).toBe(false)
-      if (result.success) return
-      expect(result.error).toBe('Choose a different password.')
-      expect(mockClearTempPassword).not.toHaveBeenCalled()
-    })
-
-    it('returns a generic error for other updateUser failures', async () => {
-      mockAuthenticatedUser()
-      mockRefuseIfTempPasswordExpired.mockResolvedValue({ state: 'active', expiresAt: EXPIRY })
-      mockUpdateUser.mockResolvedValue({ error: { message: 'password too weak' } })
-
-      const result = await setOwnPassword(validInput)
-
-      expect(result.success).toBe(false)
-      if (result.success) return
-      expect(result.error).toBe('Unable to update password. Please try again.')
-      expect(mockClearTempPassword).not.toHaveBeenCalled()
-    })
-  })
-
-  describe('clear failure', () => {
-    it('asks to retry with a different password when finishing the update fails, and still records the change', async () => {
-      mockAuthenticatedUser()
-      mockRefuseIfTempPasswordExpired.mockResolvedValue({ state: 'active', expiresAt: EXPIRY })
-      mockUpdateUser.mockResolvedValue({ error: null })
-      mockClearTempPassword.mockResolvedValue({ success: false })
-
-      const result = await setOwnPassword(validInput)
-
-      expect(result.success).toBe(false)
-      if (result.success) return
-      expect(result.error).toBe(
-        'Your password could not be fully updated. Please try again with a different password.',
-      )
-      expect(mockClearTempPassword).toHaveBeenCalledWith(USER_ID, EXPIRY)
-      expect(mockRpc).toHaveBeenCalledWith('record_auth_event', {
-        p_event_type: 'user.password_changed',
-        p_resource_id: USER_ID,
+    it('refuses a too-short password without consuming the token', async () => {
+      const result = await setPasswordFromLink({
+        ...validInput,
+        password: 'ab',
+        confirmPassword: 'ab',
       })
-      expect(mockSignOut).not.toHaveBeenCalled()
+
+      expect(result).toEqual({ success: false, error: 'Password must be at least 6 characters' })
+      expect(mockVerifyOtp).not.toHaveBeenCalled()
+    })
+
+    it('refuses mismatched passwords without consuming the token', async () => {
+      const result = await setPasswordFromLink({ ...validInput, confirmPassword: 'nope' })
+
+      expect(result).toEqual({ success: false, error: 'Passwords do not match' })
+      expect(mockVerifyOtp).not.toHaveBeenCalled()
+    })
+
+    it('reports a malformed token hash as an unusable link without consuming anything', async () => {
+      const result = await setPasswordFromLink({ ...validInput, tokenHash: 'not-hex!' })
+
+      expect(result).toEqual({ success: false, error: LINK_INVALID_MESSAGE, linkInvalid: true })
+      expect(mockVerifyOtp).not.toHaveBeenCalled()
+    })
+
+    it('reports the password problem first when both password and token are bad', async () => {
+      const result = await setPasswordFromLink({
+        password: 'ab',
+        confirmPassword: 'ab',
+        tokenHash: 'bad',
+        type: 'recovery',
+      })
+
+      expect(result).toEqual({ success: false, error: 'Password must be at least 6 characters' })
+    })
+
+    it('refuses non-object input', async () => {
+      const result = await setPasswordFromLink(null)
+
+      expect(result.success).toBe(false)
+      expect(mockVerifyOtp).not.toHaveBeenCalled()
     })
   })
 
-  describe('happy path', () => {
-    it('updates the password, clears the flag, and records an audit event', async () => {
-      mockAuthenticatedUser()
-      mockRefuseIfTempPasswordExpired.mockResolvedValue({ state: 'active', expiresAt: EXPIRY })
-      mockUpdateUser.mockResolvedValue({ error: null })
+  describe('token verification', () => {
+    it('verifies the token hash as a recovery token', async () => {
+      await setPasswordFromLink(validInput)
 
-      const result = await setOwnPassword(validInput)
+      expect(mockVerifyOtp).toHaveBeenCalledWith({ token_hash: TOKEN_HASH, type: 'recovery' })
+    })
 
-      expect(result).toEqual({ success: true })
-      expect(mockUpdateUser).toHaveBeenCalledWith({ password: 'newpassword123' })
-      expect(mockClearTempPassword).toHaveBeenCalledWith(USER_ID, EXPIRY)
-      expect(mockRpc).toHaveBeenCalledWith('record_auth_event', {
-        p_event_type: 'user.password_changed',
-        p_resource_id: USER_ID,
+    it('reports an expired or used link and never logs the token', async () => {
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      mockVerifyOtp.mockResolvedValue({
+        data: { user: null },
+        error: { message: 'Token expired', status: 403, code: 'otp_expired' },
       })
+
+      const result = await setPasswordFromLink(validInput)
+
+      expect(result).toEqual({ success: false, error: LINK_INVALID_MESSAGE, linkInvalid: true })
+      expect(mockComplete).not.toHaveBeenCalled()
+      expect(spy).toHaveBeenCalled()
+      expect(JSON.stringify(spy.mock.calls)).not.toContain(TOKEN_HASH)
     })
 
-    it('signs out every other session after clearing the flag', async () => {
-      mockAuthenticatedUser()
-      mockRefuseIfTempPasswordExpired.mockResolvedValue({ state: 'active', expiresAt: EXPIRY })
-      mockUpdateUser.mockResolvedValue({ error: null })
+    it.each([
+      ['a server error', 500],
+      ['a rate limit', 429],
+      ['a network failure', 0],
+    ])('asks to retry without discarding the link on %s', async (_label, status) => {
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      mockVerifyOtp.mockResolvedValue({ data: { user: null }, error: { message: 'boom', status } })
 
-      await setOwnPassword(validInput)
+      const result = await setPasswordFromLink(validInput)
 
-      expect(mockSignOut).toHaveBeenCalledWith({ scope: 'others' })
+      expect(result).toEqual({
+        success: false,
+        error: 'We could not check your link. Try again in a moment.',
+      })
+      expect(mockComplete).not.toHaveBeenCalled()
+      expect(spy).toHaveBeenCalled()
     })
 
-    it('still succeeds when signing out other sessions fails (non-fatal)', async () => {
-      mockAuthenticatedUser()
-      mockRefuseIfTempPasswordExpired.mockResolvedValue({ state: 'active', expiresAt: EXPIRY })
-      mockUpdateUser.mockResolvedValue({ error: null })
-      mockSignOut.mockResolvedValue({ error: { message: 'gotrue unavailable' } })
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    it('reports an unusable link when verification returns no user', async () => {
+      mockVerifyOtp.mockResolvedValue({ data: { user: null }, error: null })
 
-      const result = await setOwnPassword(validInput)
+      const result = await setPasswordFromLink(validInput)
 
-      expect(result.success).toBe(true)
-      expect(consoleSpy).toHaveBeenCalledWith(
-        '[setOwnPassword] sign-out others failed:',
-        'gotrue unavailable',
+      expect(result).toEqual({ success: false, error: LINK_INVALID_MESSAGE, linkInvalid: true })
+    })
+  })
+
+  describe('active-user gate', () => {
+    it('reads only a live users row for the verified user', async () => {
+      await setPasswordFromLink(validInput)
+
+      expect(mockFrom).toHaveBeenCalledWith('users')
+      expect(chain.eq).toHaveBeenCalledWith('id', USER_ID)
+      expect(chain.is).toHaveBeenCalledWith('deleted_at', null)
+    })
+
+    it('signs out locally, logs the refusal and reports an unusable link when the account is gone', async () => {
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      chain.maybeSingle.mockResolvedValue({ data: null, error: null })
+
+      const result = await setPasswordFromLink(validInput)
+
+      expect(result).toEqual({ success: false, error: LINK_INVALID_MESSAGE, linkInvalid: true })
+      expect(mockSignOut).toHaveBeenCalledWith({ scope: 'local' })
+      expect(mockComplete).not.toHaveBeenCalled()
+      expect(spy).toHaveBeenCalledWith('[setPasswordFromLink] no live account for user:', USER_ID)
+    })
+
+    it('signs out locally and reports an unusable link when the account read errors after the token was spent', async () => {
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      chain.maybeSingle.mockResolvedValue({ data: null, error: { message: 'db down' } })
+
+      const result = await setPasswordFromLink(validInput)
+
+      expect(result).toEqual({ success: false, error: LINK_INVALID_MESSAGE, linkInvalid: true })
+      expect(mockSignOut).toHaveBeenCalledWith({ scope: 'local' })
+      expect(mockComplete).not.toHaveBeenCalled()
+      expect(spy).toHaveBeenCalledWith('[setPasswordFromLink] account read failed:', 'db down')
+    })
+
+    it('logs a failed local sign-out and still refuses the link', async () => {
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      chain.maybeSingle.mockResolvedValue({ data: null, error: null })
+      mockSignOut.mockResolvedValue({ error: { message: 'signout boom' } })
+
+      const result = await setPasswordFromLink(validInput)
+
+      expect(result).toEqual({ success: false, error: LINK_INVALID_MESSAGE, linkInvalid: true })
+      expect(spy).toHaveBeenCalledWith(
+        '[setPasswordFromLink] local sign-out failed:',
+        'signout boom',
       )
-      consoleSpy.mockRestore()
+    })
+  })
+
+  describe('completion', () => {
+    it('hands the verified user id and password to the completion step', async () => {
+      const result = await setPasswordFromLink(validInput)
+
+      expect(mockComplete).toHaveBeenCalledWith(expect.anything(), {
+        userId: USER_ID,
+        password: 'newpassword123',
+      })
+      expect(result).toEqual({ success: true, redirectTo: '/auth/login-complete' })
     })
 
-    it('still succeeds when the audit event write fails (best-effort)', async () => {
-      mockAuthenticatedUser()
-      mockRefuseIfTempPasswordExpired.mockResolvedValue({ state: 'active', expiresAt: EXPIRY })
-      mockUpdateUser.mockResolvedValue({ error: null })
-      mockRpc.mockResolvedValue({ error: { message: 'audit insert failed' } })
+    it('passes the completion failure through unchanged', async () => {
+      const failure = { success: false, error: 'x', redirectTo: '/auth/reset-password' }
+      mockComplete.mockResolvedValue(failure)
 
-      const result = await setOwnPassword(validInput)
-
-      expect(result.success).toBe(true)
+      await expect(setPasswordFromLink(validInput)).resolves.toEqual(failure)
     })
   })
 })

@@ -3,12 +3,7 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import type { ActionResult } from '@/lib/action-result'
-import { clearTempFlagAndAudit } from '@/lib/auth/finish-self-password-change'
-import {
-  RETRY_DIFFERENT_PASSWORD_MESSAGE,
-  refuseIfTempPasswordExpired,
-  TEMP_PASSWORD_EXPIRED_MESSAGE,
-} from '@/lib/auth/temp-password'
+import { recordOwnPasswordSet } from '@/lib/auth/finish-self-password-change'
 
 const ChangePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
@@ -20,8 +15,6 @@ type PasswordChangeOpts = {
   email: string
   currentPassword: string
   password: string
-  /** Non-null when a temp password is active; passed to `clearTempPassword` as a compare-and-set token. */
-  tempPasswordExpiresAt: string | null
 }
 
 export async function changePassword(raw: unknown): Promise<ActionResult> {
@@ -39,25 +32,18 @@ export async function changePassword(raw: unknown): Promise<ActionResult> {
   const email = user.email
   if (!email) return { success: false, error: 'No email associated with account' }
 
-  const result = await refuseIfTempPasswordExpired(supabase, user.id)
-  if (result.state === 'expired') return { success: false, error: TEMP_PASSWORD_EXPIRED_MESSAGE }
-  if (result.state === 'error') {
-    return { success: false, error: 'Unable to update password. Please try again.' }
-  }
-
   return finishPasswordChange(supabase, {
     userId: user.id,
     email,
     currentPassword: parsed.data.currentPassword,
     password: parsed.data.password,
-    tempPasswordExpiresAt: result.state === 'active' ? result.expiresAt : null,
   })
 }
 
 /** Verifies the current password, applies the new one, and best-effort audits the change. */
 async function finishPasswordChange(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
-  { userId, email, currentPassword, password, tempPasswordExpiresAt }: PasswordChangeOpts,
+  { userId, email, currentPassword, password }: PasswordChangeOpts,
 ): Promise<ActionResult> {
   // signInWithPassword used for credential verification; side effect: refreshes auth session cookies
   const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -78,12 +64,7 @@ async function finishPasswordChange(
     return { success: false, error: 'Unable to update password. Please try again.' }
   }
 
-  const cleared = await clearTempFlagAndAudit(supabase, {
-    userId,
-    tempPasswordExpiresAt,
-    context: 'changePassword',
-  })
-  if (!cleared) return { success: false, error: RETRY_DIFFERENT_PASSWORD_MESSAGE }
+  await recordOwnPasswordSet(supabase, { userId, context: 'changePassword' })
 
   return { success: true }
 }

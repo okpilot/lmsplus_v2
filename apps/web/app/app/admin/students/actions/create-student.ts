@@ -52,8 +52,8 @@ export async function createStudent(input: unknown): Promise<CreateStudentResult
 }
 
 /**
- * Inserts the profile row with no temp-password expiry armed — the account
- * has no password at all until an admin sends login instructions. On
+ * Inserts the profile row with `temp_password_expires_at` unset — the account
+ * has no password at all until an admin sends a set-password link. On
  * failure, deletes the just-created Auth user (Auth API + users INSERT
  * cannot share one SQL transaction) and logs if that rollback fails too.
  */

@@ -190,8 +190,14 @@ describe('next.config — security headers', () => {
   describe('headers() structure', () => {
     it('applies to all routes via /(.*) pattern', async () => {
       const groups = await getHeaderGroups('production')
-      expect(groups).toHaveLength(1)
       expect(groups[0]?.source).toBe('/(.*)')
+    })
+
+    it('serves the set-password page with no Referrer-Policy leak, after the global entry', async () => {
+      const groups = await getHeaderGroups('production')
+      const index = groups.findIndex((g: { source: string }) => g.source === '/auth/set-password')
+      expect(index).toBeGreaterThan(0)
+      expect(groups[index]?.headers).toEqual([{ key: 'Referrer-Policy', value: 'no-referrer' }])
     })
 
     it('includes all seven security headers', async () => {

@@ -1,97 +1,94 @@
 'use server'
 
 import { createServerSupabaseClient } from '@repo/db/server'
-import type { ActionResult } from '@/lib/action-result'
-import { clearTempFlagAndAudit } from '@/lib/auth/finish-self-password-change'
 import { NewPasswordSchema } from '@/lib/auth/new-password-schema'
+import { LINK_INVALID_MESSAGE, SetPasswordLinkSchema } from '@/lib/auth/set-password-link'
 import {
-  RETRY_DIFFERENT_PASSWORD_MESSAGE,
-  refuseIfTempPasswordExpired,
-  TEMP_PASSWORD_EXPIRED_MESSAGE,
-} from '@/lib/auth/temp-password'
+  completeLinkPasswordSet,
+  type SetPasswordFromLinkResult,
+} from './complete-link-password-set'
 
-export async function setOwnPassword(raw: unknown): Promise<ActionResult> {
-  const parsed = NewPasswordSchema.safeParse(raw)
-  if (!parsed.success)
-    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input' }
+type Supabase = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
-  const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-  if (authError || !user) return { success: false, error: 'Not authenticated' }
-
-  const stateResult = await readActiveTempPasswordState(supabase, user.id)
-  if (!stateResult.ok) return stateResult.error
-
-  return finishPasswordSet(supabase, {
-    userId: user.id,
-    password: parsed.data.password,
-    expiresAt: stateResult.expiresAt,
-  })
+const SetPasswordFromLinkSchema = NewPasswordSchema.and(SetPasswordLinkSchema)
+const LINK_INVALID: SetPasswordFromLinkResult = {
+  success: false,
+  error: LINK_INVALID_MESSAGE,
+  linkInvalid: true,
 }
 
-/** Reads the caller's temp-password state and refuses unless a temp password is active. */
-async function readActiveTempPasswordState(
-  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
-  userId: string,
-): Promise<{ ok: true; expiresAt: string } | { ok: false; error: ActionResult }> {
-  const result = await refuseIfTempPasswordExpired(supabase, userId)
-  if (result.state === 'expired') {
-    return { ok: false, error: { success: false, error: TEMP_PASSWORD_EXPIRED_MESSAGE } }
-  }
-  if (result.state === 'error') {
-    return {
-      ok: false,
-      error: { success: false, error: 'Unable to update password. Please try again.' },
-    }
-  }
-  if (result.state === 'none') {
-    return { ok: false, error: { success: false, error: 'No temporary password to replace.' } }
-  }
-  return { ok: true, expiresAt: result.expiresAt }
-}
-
-/** Applies the new password, clears the temp-password flag, and best-effort audits the change. */
-async function finishPasswordSet(
-  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
-  { userId, password, expiresAt }: { userId: string; password: string; expiresAt: string },
-): Promise<ActionResult> {
-  const { error } = await supabase.auth.updateUser({ password })
-  if (error) {
-    console.error('[setOwnPassword] Auth update error:', error.message)
-    if (error.code === 'same_password') {
-      return { success: false, error: 'Choose a different password.' }
-    }
-    return { success: false, error: 'Unable to update password. Please try again.' }
-  }
-
-  const cleared = await clearTempFlagAndAudit(supabase, {
-    userId,
-    tempPasswordExpiresAt: expiresAt,
-    context: 'setOwnPassword',
-  })
-
-  if (!cleared) {
-    return { success: false, error: RETRY_DIFFERENT_PASSWORD_MESSAGE }
-  }
-
-  await signOutOtherSessions(supabase)
-
-  return { success: true }
+const LINK_CHECK_FAILED: SetPasswordFromLinkResult = {
+  success: false,
+  error: 'We could not check your link. Try again in a moment.',
 }
 
 /**
- * Revokes sessions opened elsewhere with the temp password. Non-fatal: the
- * password is already set and cleared, so a failed revoke is logged, not
- * surfaced to the caller.
+ * Only a 4xx other than 429 proves the token is spent or bad. On a rate limit, 5xx
+ * or network failure (status 0/undefined) the token is usually unspent, so the user
+ * is told to retry; if it was spent, the retry lands on the link-unavailable panel.
  */
-async function signOutOtherSessions(
-  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
-): Promise<void> {
-  const { error } = await supabase.auth.signOut({ scope: 'others' })
-  if (error) {
-    console.error('[setOwnPassword] sign-out others failed:', error.message)
+function isDefinitiveRejection(error: { status?: number } | null): boolean {
+  if (!error) return true
+  const status = error.status ?? 0
+  return status >= 400 && status < 500 && status !== 429
+}
+
+/**
+ * Consumes the emailed one-time link and sets the student's first own password.
+ * Order: validate (password before token) → `verifyOtp` (consumes the token,
+ * opens a recovery session) → live-account check → pin + `updateUser`.
+ * The token hash is never logged.
+ */
+export async function setPasswordFromLink(raw: unknown): Promise<SetPasswordFromLinkResult> {
+  const parsed = SetPasswordFromLinkSchema.safeParse(raw)
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0]
+    if (issue?.path[0] === 'tokenHash' || issue?.path[0] === 'type') return LINK_INVALID
+    return { success: false, error: issue?.message ?? 'Invalid input' }
   }
+
+  const supabase = await createServerSupabaseClient()
+  const { data, error } = await supabase.auth.verifyOtp({
+    token_hash: parsed.data.tokenHash,
+    type: 'recovery',
+  })
+  if (error || !data.user) {
+    console.error('[setPasswordFromLink] verifyOtp failed:', error?.message ?? 'no user')
+    return isDefinitiveRejection(error) ? LINK_INVALID : LINK_CHECK_FAILED
+  }
+
+  const gate = await confirmLiveAccount(supabase, data.user.id)
+  if (gate) return gate
+
+  return completeLinkPasswordSet(supabase, {
+    userId: data.user.id,
+    password: parsed.data.password,
+  })
+}
+
+/**
+ * Active-user gate: a valid token for a soft-deleted account must not open a
+ * session. Returns a refusal (after a local sign-out), or null when live.
+ */
+async function confirmLiveAccount(
+  supabase: Supabase,
+  userId: string,
+): Promise<SetPasswordFromLinkResult | null> {
+  const { data, error } = await supabase
+    .from('users')
+    .select('id')
+    .eq('id', userId)
+    .is('deleted_at', null)
+    .maybeSingle<{ id: string }>()
+  if (error || !data) {
+    if (error) console.error('[setPasswordFromLink] account read failed:', error.message)
+    else console.error('[setPasswordFromLink] no live account for user:', userId)
+    const { error: signOutError } = await supabase.auth.signOut({ scope: 'local' })
+    if (signOutError) {
+      console.error('[setPasswordFromLink] local sign-out failed:', signOutError.message)
+    }
+    // The token is already spent, so a retry cannot work either way.
+    return LINK_INVALID
+  }
+  return null
 }

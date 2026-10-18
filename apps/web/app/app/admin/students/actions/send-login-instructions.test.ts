@@ -6,7 +6,7 @@ const mockRevalidatePath = vi.hoisted(() => vi.fn())
 const mockRequireAdmin = vi.hoisted(() => vi.fn())
 const mockGetRecipient = vi.hoisted(() => vi.fn())
 const mockRpc = vi.hoisted(() => vi.fn())
-const mockIssueAndEmailPassword = vi.hoisted(() => vi.fn())
+const mockIssueAndEmailSetPasswordLink = vi.hoisted(() => vi.fn())
 const mockIsEmailConfigured = vi.hoisted(() => vi.fn())
 
 vi.mock('next/cache', () => ({ revalidatePath: mockRevalidatePath }))
@@ -17,7 +17,7 @@ vi.mock('../login-instructions-recipient', () => ({
 vi.mock('@/lib/supabase-rpc', () => ({ rpc: mockRpc }))
 vi.mock('@/lib/email/resend', () => ({ isEmailConfigured: mockIsEmailConfigured }))
 vi.mock('./deliver-login-instructions', () => ({
-  issueAndEmailPassword: mockIssueAndEmailPassword,
+  issueAndEmailSetPasswordLink: mockIssueAndEmailSetPasswordLink,
 }))
 
 // ---- Subject under test -------------------------------------------------------
@@ -34,7 +34,6 @@ const VALID_INPUT = { id: USER_ID }
 const RECIPIENT = {
   email: 'alice@example.com',
   fullName: 'Alice',
-  tempPasswordExpiresAt: null,
 }
 
 function mockAdmin() {
@@ -66,26 +65,25 @@ describe('sendLoginInstructions', () => {
     const result = await sendLoginInstructions(VALID_INPUT)
 
     expect(result).toEqual({ success: false, error: 'User not found' })
-    expect(mockIssueAndEmailPassword).not.toHaveBeenCalled()
+    expect(mockIssueAndEmailSetPasswordLink).not.toHaveBeenCalled()
   })
 
-  it('passes the admin user-context client through to delivery', async () => {
+  it('hands the recipient to delivery', async () => {
     mockAdmin()
     mockGetRecipient.mockResolvedValue(RECIPIENT)
-    mockIssueAndEmailPassword.mockResolvedValue({ ok: true })
+    mockIssueAndEmailSetPasswordLink.mockResolvedValue({ ok: true })
     mockRpc.mockResolvedValue({ data: null, error: null })
 
     await sendLoginInstructions(VALID_INPUT)
 
-    expect(mockIssueAndEmailPassword).toHaveBeenCalledWith({
+    expect(mockIssueAndEmailSetPasswordLink).toHaveBeenCalledWith({
       supabase: SUPABASE,
-      id: USER_ID,
-      organizationId: ORG_ID,
+      userId: USER_ID,
       recipient: RECIPIENT,
     })
   })
 
-  it('fails without issuing a password when NEXT_PUBLIC_APP_URL is missing', async () => {
+  it('fails without issuing a link when NEXT_PUBLIC_APP_URL is missing', async () => {
     vi.stubEnv('NEXT_PUBLIC_APP_URL', '')
     mockAdmin()
     mockGetRecipient.mockResolvedValue(RECIPIENT)
@@ -94,12 +92,44 @@ describe('sendLoginInstructions', () => {
     const result = await sendLoginInstructions(VALID_INPUT)
 
     expect(result).toEqual({ success: false, error: 'Failed to send login instructions' })
-    expect(mockIssueAndEmailPassword).not.toHaveBeenCalled()
+    expect(mockIssueAndEmailSetPasswordLink).not.toHaveBeenCalled()
     expect(errorSpy).toHaveBeenCalledWith('[sendLoginInstructions] NEXT_PUBLIC_APP_URL is not set')
     errorSpy.mockRestore()
   })
 
-  it('fails without issuing a password when email sending is not configured', async () => {
+  it.each(['not a url', 'localhost:3000', 'ftp://app.example.com', 'javascript:alert(1)'])(
+    'fails without issuing a link when NEXT_PUBLIC_APP_URL is %s',
+    async (appUrl) => {
+      vi.stubEnv('NEXT_PUBLIC_APP_URL', appUrl)
+      mockAdmin()
+      mockGetRecipient.mockResolvedValue(RECIPIENT)
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      const result = await sendLoginInstructions(VALID_INPUT)
+
+      expect(result).toEqual({ success: false, error: 'Failed to send login instructions' })
+      expect(mockIssueAndEmailSetPasswordLink).not.toHaveBeenCalled()
+      expect(errorSpy).toHaveBeenCalledWith(
+        '[sendLoginInstructions] NEXT_PUBLIC_APP_URL is not a valid URL',
+      )
+      errorSpy.mockRestore()
+    },
+  )
+
+  it('issues a link when NEXT_PUBLIC_APP_URL is a plain http origin', async () => {
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', 'http://localhost:3000')
+    mockAdmin()
+    mockGetRecipient.mockResolvedValue(RECIPIENT)
+    mockIssueAndEmailSetPasswordLink.mockResolvedValue({ ok: true })
+    mockRpc.mockResolvedValue({ data: null, error: null })
+
+    const result = await sendLoginInstructions(VALID_INPUT)
+
+    expect(result).toEqual({ success: true })
+    expect(mockIssueAndEmailSetPasswordLink).toHaveBeenCalledTimes(1)
+  })
+
+  it('fails without issuing a link when email sending is not configured', async () => {
     mockIsEmailConfigured.mockReturnValue(false)
     mockAdmin()
     mockGetRecipient.mockResolvedValue(RECIPIENT)
@@ -108,7 +138,7 @@ describe('sendLoginInstructions', () => {
     const result = await sendLoginInstructions(VALID_INPUT)
 
     expect(result).toEqual({ success: false, error: 'Failed to send login instructions' })
-    expect(mockIssueAndEmailPassword).not.toHaveBeenCalled()
+    expect(mockIssueAndEmailSetPasswordLink).not.toHaveBeenCalled()
     expect(errorSpy).toHaveBeenCalledWith('[sendLoginInstructions] email sending is not configured')
     errorSpy.mockRestore()
   })
@@ -116,7 +146,7 @@ describe('sendLoginInstructions', () => {
   it('returns the delivery error, skips the record-sent RPC and refreshes the list when delivery fails', async () => {
     mockAdmin()
     mockGetRecipient.mockResolvedValue(RECIPIENT)
-    mockIssueAndEmailPassword.mockResolvedValue({
+    mockIssueAndEmailSetPasswordLink.mockResolvedValue({
       ok: false,
       result: { success: false, error: 'Failed to send login instructions' },
     })
@@ -131,7 +161,7 @@ describe('sendLoginInstructions', () => {
   it('records the send and revalidates on a fully delivered send', async () => {
     mockAdmin()
     mockGetRecipient.mockResolvedValue(RECIPIENT)
-    mockIssueAndEmailPassword.mockResolvedValue({ ok: true })
+    mockIssueAndEmailSetPasswordLink.mockResolvedValue({ ok: true })
     mockRpc.mockResolvedValue({ data: null, error: null })
 
     const result = await sendLoginInstructions(VALID_INPUT)
@@ -146,7 +176,7 @@ describe('sendLoginInstructions', () => {
   it('reports that the email went out but was not recorded when the record-sent RPC fails', async () => {
     mockAdmin()
     mockGetRecipient.mockResolvedValue(RECIPIENT)
-    mockIssueAndEmailPassword.mockResolvedValue({ ok: true })
+    mockIssueAndEmailSetPasswordLink.mockResolvedValue({ ok: true })
     mockRpc.mockResolvedValue({ data: null, error: { message: 'rpc boom' } })
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 

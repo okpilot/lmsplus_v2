@@ -1,63 +1,51 @@
+import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-// ---- Mocks --------------------------------------------------------------------
+const { mockCreateClient } = vi.hoisted(() => ({ mockCreateClient: vi.fn() }))
 
-const { mockRequireActiveTempPassword } = vi.hoisted(() => ({
-  mockRequireActiveTempPassword: vi.fn(),
-}))
-
-vi.mock('@/lib/auth/require-active-temp-password', () => ({
-  requireActiveTempPassword: (...args: unknown[]) => mockRequireActiveTempPassword(...args),
-}))
+vi.mock('@repo/db/server', () => ({ createServerSupabaseClient: mockCreateClient }))
 
 vi.mock('./_components/set-password-form', () => ({
-  SetPasswordForm: ({ nextPath }: { nextPath: string | null }) => (
-    <div data-testid="set-password-form">{nextPath ?? 'no-next'}</div>
+  SetPasswordForm: ({ tokenHash }: { tokenHash: string }) => (
+    <div data-testid="set-password-form">{tokenHash}</div>
   ),
 }))
 
-// ---- Subject under test --------------------------------------------------------
+vi.mock('./_components/link-unavailable', () => ({
+  LinkUnavailable: ({ reason }: { reason: string }) => (
+    <div data-testid="link-unavailable">{reason}</div>
+  ),
+}))
 
 import SetPasswordPage from './page'
+
+const HASH = 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90'
+
+async function renderPage(params: { token_hash?: string; type?: string }) {
+  render(await SetPasswordPage({ searchParams: Promise.resolve(params) }))
+}
 
 describe('SetPasswordPage', () => {
   beforeEach(() => {
     vi.resetAllMocks()
   })
 
-  it('propagates the guard redirect when there is no authenticated user', async () => {
-    mockRequireActiveTempPassword.mockRejectedValue(new Error('NEXT_REDIRECT'))
+  it('renders the form for a well-formed recovery link', async () => {
+    await renderPage({ token_hash: HASH, type: 'recovery' })
 
-    await expect(SetPasswordPage({ searchParams: Promise.resolve({}) })).rejects.toThrow(
-      'NEXT_REDIRECT',
-    )
-    expect(mockRequireActiveTempPassword).toHaveBeenCalledWith(null)
+    expect(screen.getByTestId('set-password-form')).toHaveTextContent(HASH)
   })
 
-  it('passes the safe next path through to the guard', async () => {
-    mockRequireActiveTempPassword.mockResolvedValue(undefined)
+  it('consumes nothing on GET: no Supabase client is created', async () => {
+    await renderPage({ token_hash: HASH, type: 'recovery' })
 
-    await SetPasswordPage({ searchParams: Promise.resolve({ next: '/app/quiz' }) })
-
-    expect(mockRequireActiveTempPassword).toHaveBeenCalledWith('/app/quiz')
+    expect(mockCreateClient).not.toHaveBeenCalled()
   })
 
-  it('renders the set-password form once the guard passes', async () => {
-    mockRequireActiveTempPassword.mockResolvedValue(undefined)
+  it('shows the link-unavailable panel for a malformed token', async () => {
+    await renderPage({ token_hash: 'nope', type: 'recovery' })
 
-    const result = await SetPasswordPage({ searchParams: Promise.resolve({}) })
-
-    expect(result).toBeTruthy()
-  })
-
-  it('propagates a guard error to the Server Component error boundary', async () => {
-    // Unlike the Server Actions and the proxy gate (which catch and return a
-    // generic message / 503), this Server Component follows the code-style.md
-    // §6 query-helper pattern: let it throw so app/error.tsx + Sentry see it.
-    mockRequireActiveTempPassword.mockRejectedValue(new Error('connection reset'))
-
-    await expect(SetPasswordPage({ searchParams: Promise.resolve({}) })).rejects.toThrow(
-      'connection reset',
-    )
+    expect(screen.getByTestId('link-unavailable')).toHaveTextContent('missing')
+    expect(screen.queryByTestId('set-password-form')).not.toBeInTheDocument()
   })
 })

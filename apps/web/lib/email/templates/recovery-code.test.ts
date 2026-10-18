@@ -9,11 +9,21 @@ describe('recoveryCodeEmail', () => {
     expect(text).toContain('482913')
   })
 
-  it('states the code expires in 1 hour', () => {
+  it('states the code works once and expires in 1 hour', () => {
     const { html, text } = recoveryCodeEmail({ code: '482913' })
 
-    expect(html).toContain('expires in 1 hour')
-    expect(text).toContain('expires in 1 hour')
+    for (const body of [html, text]) {
+      expect(body).toContain('This code works once and expires in 1 hour.')
+    }
+  })
+
+  it('tells the recipient where to enter the code and how to get a new one', () => {
+    const { html, text } = recoveryCodeEmail({ code: '482913' })
+
+    expect(text).toContain('Enter it on the LMS Plus page where you asked for it')
+    expect(text).toContain('then choose your new password')
+    expect(text).toContain('go to the login page, click "Forgot password?" and ask for a new code.')
+    expect(html).toContain('click &quot;Forgot password?&quot; and ask for a new code.')
   })
 
   it('tells the recipient to ignore the email if they did not request it', () => {

@@ -48,7 +48,7 @@ describe('CreatedStudentPanel', () => {
 
     expect(
       screen.getByText(
-        'Send login instructions to Alice Example? Any password they use now stops working.',
+        'Email Alice Example a link to set their password? The link works once, for 1 hour.',
       ),
     ).toBeInTheDocument()
     expect(mockHandleSend).not.toHaveBeenCalled()
@@ -63,7 +63,7 @@ describe('CreatedStudentPanel', () => {
 
     expect(
       screen.getByText(
-        'Send login instructions to alice@example.com? Any password they use now stops working.',
+        'Email alice@example.com a link to set their password? The link works once, for 1 hour.',
       ),
     ).toBeInTheDocument()
   })
@@ -135,7 +135,7 @@ describe('CreatedStudentPanel', () => {
     expect(onClose).not.toHaveBeenCalled()
   })
 
-  it('warns that the emailed password stops working when sending again after a successful send', () => {
+  it('warns that the earlier link stops working when sending again after a successful send', () => {
     render(
       <CreatedStudentPanel
         studentId={STUDENT_ID}
@@ -151,7 +151,9 @@ describe('CreatedStudentPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Resend login instructions' }))
 
     expect(
-      screen.getByText('Send a new temporary password? The earlier one stops working.'),
+      screen.getByText(
+        'Send a new set-password link? The earlier link stops working. A password they already set keeps working.',
+      ),
     ).toBeInTheDocument()
   })
 })

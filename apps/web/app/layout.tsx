@@ -1,5 +1,3 @@
-import { Analytics } from '@vercel/analytics/react'
-import { SpeedInsights } from '@vercel/speed-insights/react'
 import type { Metadata } from 'next'
 import { Geist } from 'next/font/google'
 import { Toaster } from '@/components/ui/sonner'
@@ -7,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { HistoryGuard } from './_components/history-guard'
 import { NewVersionPrompt } from './_components/new-version-prompt'
 import { ThemeProvider } from './_components/theme-provider'
+import { VercelInsights } from './_components/vercel-insights'
 import './globals.css'
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-sans' })
@@ -29,8 +28,7 @@ export default function RootLayout({
           {children}
           <Toaster />
           <NewVersionPrompt />
-          <Analytics />
-          <SpeedInsights />
+          <VercelInsights />
         </ThemeProvider>
       </body>
     </html>
