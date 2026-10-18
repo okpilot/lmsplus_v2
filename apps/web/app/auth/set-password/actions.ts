@@ -23,8 +23,9 @@ const LINK_CHECK_FAILED: SetPasswordFromLinkResult = {
 }
 
 /**
- * Only a 4xx other than 429 proves the token is spent or bad. Rate limits,
- * 5xx and network failures (status 0/undefined) leave it unspent, so a retry works.
+ * Only a 4xx other than 429 proves the token is spent or bad. On a rate limit, 5xx
+ * or network failure (status 0/undefined) the token is usually unspent, so the user
+ * is told to retry; if it was spent, the retry lands on the link-unavailable panel.
  */
 function isDefinitiveRejection(error: { status?: number } | null): boolean {
   if (!error) return true

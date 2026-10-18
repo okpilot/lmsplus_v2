@@ -31,16 +31,7 @@ export async function sendLoginInstructions(input: unknown): Promise<SendLoginIn
   const recipient = await getLoginInstructionsRecipient(parsed.data.id, organizationId)
   if (!recipient) return { success: false, error: 'User not found' }
 
-  // Fail fast on a misconfigured base URL rather than emailing a broken link.
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL
-  if (!appUrl) {
-    console.error('[sendLoginInstructions] NEXT_PUBLIC_APP_URL is not set')
-    return { success: false, error: 'Failed to send login instructions' }
-  }
-  if (!URL.canParse(appUrl) || !['http:', 'https:'].includes(new URL(appUrl).protocol)) {
-    console.error('[sendLoginInstructions] NEXT_PUBLIC_APP_URL is not a valid URL')
-    return { success: false, error: 'Failed to send login instructions' }
-  }
+  if (!hasValidAppUrl()) return { success: false, error: 'Failed to send login instructions' }
   // Checked before a token is issued: issuing voids the student's earlier link or code.
   if (!isEmailConfigured()) {
     console.error('[sendLoginInstructions] email sending is not configured')
@@ -56,6 +47,20 @@ export async function sendLoginInstructions(input: unknown): Promise<SendLoginIn
   // A failed delivery may already have voided the earlier link, so refresh either way.
   revalidatePath('/app/admin/students')
   return result
+}
+
+/** Fail fast on a misconfigured base URL rather than emailing a broken link. */
+function hasValidAppUrl(): boolean {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL
+  if (!appUrl) {
+    console.error('[sendLoginInstructions] NEXT_PUBLIC_APP_URL is not set')
+    return false
+  }
+  if (!URL.canParse(appUrl) || !['http:', 'https:'].includes(new URL(appUrl).protocol)) {
+    console.error('[sendLoginInstructions] NEXT_PUBLIC_APP_URL is not a valid URL')
+    return false
+  }
+  return true
 }
 
 /** Stamps the send; a failure is surfaced so the admin knows the email already went out. */
