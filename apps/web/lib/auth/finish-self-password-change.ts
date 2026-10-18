@@ -10,17 +10,19 @@ type RecordOwnPasswordSetOpts = {
 
 /**
  * After a successful self `updateUser({ password })`: audits the change with
- * the caller's own session, then clears the "own password not set" marker.
- * Both are best-effort — the password is already changed.
+ * the caller's own session and clears the "own password not set" marker,
+ * concurrently. Both are best-effort — the password is already changed.
  */
 export async function recordOwnPasswordSet(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   { userId, context }: RecordOwnPasswordSetOpts,
 ): Promise<void> {
-  await recordAuthEvent(supabase, {
-    eventType: 'user.password_changed',
-    resourceId: userId,
-    context,
-  })
-  await clearPasswordPendingMarker(userId)
+  await Promise.all([
+    recordAuthEvent(supabase, {
+      eventType: 'user.password_changed',
+      resourceId: userId,
+      context,
+    }),
+    clearPasswordPendingMarker(userId),
+  ])
 }

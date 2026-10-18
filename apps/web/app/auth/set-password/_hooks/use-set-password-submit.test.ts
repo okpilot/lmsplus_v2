@@ -43,7 +43,7 @@ describe('useSetPasswordSubmit', () => {
     const hook = setup('password123', 'different456')
     await submit(hook)
 
-    expect(hook.result.current.error).toMatch(/passwords do not match/i)
+    expect(hook.result.current.status.error).toMatch(/passwords do not match/i)
     expect(mockSetPasswordFromLink).not.toHaveBeenCalled()
   })
 
@@ -66,7 +66,7 @@ describe('useSetPasswordSubmit', () => {
     const hook = setup()
     await submit(hook)
 
-    expect(hook.result.current.linkInvalid).toBe(true)
+    expect(hook.result.current.status.linkInvalid).toBe(true)
   })
 
   it('offers a continue link and blocks resubmission when the failure carries a redirect', async () => {
@@ -78,10 +78,26 @@ describe('useSetPasswordSubmit', () => {
     const hook = setup()
     await submit(hook)
 
-    expect(hook.result.current.continueTo).toBe('/login')
-    expect(hook.result.current.error).toBe('Saved, but sign-in failed')
+    expect(hook.result.current.status.continueTo).toBe('/login')
+    expect(hook.result.current.status.error).toBe('Saved, but sign-in failed')
 
     await submit(hook)
+    expect(mockSetPasswordFromLink).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the error visible and skips the action when resubmitting after a redirect failure', async () => {
+    mockSetPasswordFromLink.mockResolvedValue({
+      success: false,
+      error: 'That is your current password. Choose a different one.',
+      redirectTo: '/auth/reset-password',
+    })
+    const hook = setup()
+    await submit(hook)
+    await submit(hook)
+
+    expect(hook.result.current.status.error).toBe(
+      'That is your current password. Choose a different one.',
+    )
     expect(mockSetPasswordFromLink).toHaveBeenCalledTimes(1)
   })
 
@@ -90,8 +106,8 @@ describe('useSetPasswordSubmit', () => {
     const hook = setup()
     await submit(hook)
 
-    expect(hook.result.current.error).toBe('Nope')
-    expect(hook.result.current.continueTo).toBeNull()
+    expect(hook.result.current.status.error).toBe('Nope')
+    expect(hook.result.current.status.continueTo).toBeNull()
 
     await submit(hook)
     expect(mockSetPasswordFromLink).toHaveBeenCalledTimes(2)
@@ -102,8 +118,8 @@ describe('useSetPasswordSubmit', () => {
     const hook = setup()
     await submit(hook)
 
-    expect(hook.result.current.error).toBe('Unable to update password. Please try again.')
-    expect(hook.result.current.loading).toBe(false)
+    expect(hook.result.current.status.error).toBe('Unable to update password. Please try again.')
+    expect(hook.result.current.status.loading).toBe(false)
 
     await submit(hook)
     expect(mockSetPasswordFromLink).toHaveBeenCalledTimes(2)

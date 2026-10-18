@@ -30,7 +30,7 @@ function SubmitArea({
 export function SetPasswordForm({ tokenHash }: Readonly<{ tokenHash: string }>) {
   const form = useSetPasswordSubmit(tokenHash)
 
-  if (form.linkInvalid) return <LinkUnavailable reason="invalid" />
+  if (form.status.linkInvalid) return <LinkUnavailable reason="invalid" />
 
   return (
     <form noValidate onSubmit={form.handleSubmit} className="w-full space-y-4">
@@ -46,9 +46,9 @@ export function SetPasswordForm({ tokenHash }: Readonly<{ tokenHash: string }>) 
         onConfirmPasswordChange={form.setConfirmPassword}
       />
 
-      {form.error && <p className="text-sm text-destructive">{form.error}</p>}
+      {form.status.error && <p className="text-sm text-destructive">{form.status.error}</p>}
 
-      <SubmitArea continueTo={form.continueTo} loading={form.loading} />
+      <SubmitArea continueTo={form.status.continueTo} loading={form.status.loading} />
     </form>
   )
 }

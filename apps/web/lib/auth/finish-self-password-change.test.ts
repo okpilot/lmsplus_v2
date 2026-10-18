@@ -41,17 +41,17 @@ describe('recordOwnPasswordSet', () => {
     expect(mockClearMarker).toHaveBeenCalledWith(USER_ID)
   })
 
-  it('audits before clearing the marker', async () => {
-    const order: string[] = []
-    mockRecordAuthEvent.mockImplementation(async () => {
-      order.push('audit')
-    })
-    mockClearMarker.mockImplementation(async () => {
-      order.push('clear')
-    })
+  it('runs the audit and the marker clear even while the other is still pending', async () => {
+    mockRecordAuthEvent.mockReturnValue(new Promise(() => {}))
+    mockClearMarker.mockReturnValue(new Promise(() => {}))
 
-    await recordOwnPasswordSet(supabase, { userId: USER_ID, context: 'resetOwnPassword' })
+    void recordOwnPasswordSet(supabase, { userId: USER_ID, context: 'resetOwnPassword' })
 
-    expect(order).toEqual(['audit', 'clear'])
+    expect(mockRecordAuthEvent).toHaveBeenCalledWith(supabase, {
+      eventType: 'user.password_changed',
+      resourceId: USER_ID,
+      context: 'resetOwnPassword',
+    })
+    expect(mockClearMarker).toHaveBeenCalledWith(USER_ID)
   })
 })
