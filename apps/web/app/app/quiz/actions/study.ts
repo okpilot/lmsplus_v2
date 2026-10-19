@@ -48,6 +48,12 @@ export async function startStudy(raw: unknown): Promise<StartStudyResult> {
     // creation and the fetch (no row is created for an empty discovery set, so
     // sessionId is omitted — there is nothing for the client to scope cleanup to).
     if (ids.length === 0) return { success: true, questions: [], flaggedIds: [] }
+    // Cosmetic and independent of the session row: starts now, degrades to [] on failure.
+    const flagsPromise = withTimeout(
+      getFlaggedQuestionIds(ids).catch(() => [] as string[]),
+      FLAG_FETCH_TIMEOUT_MS,
+      [],
+    )
 
     // Create the real ephemeral discovery session row (enforces the single-active
     // guard). Capture the created id so teardown is scoped to THIS request's row —
@@ -56,10 +62,7 @@ export async function startStudy(raw: unknown): Promise<StartStudyResult> {
     if (startError) return { success: false, error: startError }
     createdSessionId = createdId
 
-    const [questions, flaggedIds] = await Promise.all([
-      getStudyQuestions(ids),
-      withTimeout(getFlaggedQuestionIds(ids), FLAG_FETCH_TIMEOUT_MS, []),
-    ])
+    const [questions, flaggedIds] = await Promise.all([getStudyQuestions(ids), flagsPromise])
     // getStudyQuestions can return [] for a non-empty id set (e.g. every id filtered
     // by the RPC's soft-delete/status guards in a race). Treat that as a failure so the
     // catch below tears down createdSessionId — otherwise the just-created discovery row

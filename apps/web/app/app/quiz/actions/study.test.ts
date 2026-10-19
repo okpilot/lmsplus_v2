@@ -313,6 +313,22 @@ describe('startStudy — happy path', () => {
     }
   })
 
+  it('starts with no flags and keeps the session when the flag read throws', async () => {
+    mockGetFlaggedQuestionIds.mockRejectedValue(new Error('cookie read failed'))
+    const result = await startStudy(VALID_INPUT)
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.flaggedIds).toEqual([])
+    expect(mockEndDiscovery).not.toHaveBeenCalled()
+  })
+
+  it('reads the flags without waiting for the session to be created', async () => {
+    mockRpc.mockReturnValue(new Promise(() => {}))
+    void startStudy(VALID_INPUT)
+    await vi.waitFor(() => expect(mockRpc).toHaveBeenCalled())
+    expect(mockGetFlaggedQuestionIds).toHaveBeenCalledWith(QUESTION_IDS)
+  })
+
   it('passes the resolved question ids to the study question fetcher', async () => {
     await startStudy(VALID_INPUT)
     expect(mockGetStudyQuestions).toHaveBeenCalledWith(QUESTION_IDS)

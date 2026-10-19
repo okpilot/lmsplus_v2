@@ -7,7 +7,8 @@ import { toggleFlag } from '../../actions/flag'
  * Flag state for the mounted session, seeded via `initialFlaggedIds`: read in the server
  * render for /app/quiz/session/[id] (_loaders/load-session-entry.ts, mirroring the
  * report-flag-context.tsx precedent); Discovery's handoff path takes them from startStudy's
- * in-memory prefetch, or fetches them on a miss (session-bootstrap-load.ts). The seed is a snapshot taken at mount; local toggles are tracked.
+ * in-memory prefetch, or fetches them on a miss (session-bootstrap-load.ts). The seed is a
+ * snapshot taken at mount; local toggles are tracked.
  * There is no re-fetch path by design: flags changed on another device are not observed until
  * the session remounts.
  */

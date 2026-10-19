@@ -1,6 +1,6 @@
 import type { useRouter } from 'next/navigation'
 import { endDiscovery } from '../actions/end-discovery'
-import { startStudy } from '../actions/study'
+import { type StartStudyResult, startStudy } from '../actions/study'
 import { setDiscoveryPrefetch } from '../session/_utils/discovery-prefetch'
 import { sessionHandoffKey } from '../session/_utils/quiz-session-handoff'
 import type { UseStudyStartOpts } from '../session-types'
@@ -91,6 +91,20 @@ async function endOrphanDiscovery(sessionId: string | undefined): Promise<void> 
   }
 }
 
+/** Hands the started questions and flags to the session page for the soft navigation. */
+function publishDiscoveryPrefetch(
+  deps: StudyStartDeps,
+  handoff: DiscoveryHandoff,
+  result: Extract<StartStudyResult, { success: true }>,
+) {
+  setDiscoveryPrefetch({
+    userId: deps.userId,
+    sessionId: handoff.sessionId,
+    questions: result.questions.map((q) => toSessionQuestion(q)),
+    flaggedIds: result.flaggedIds,
+  })
+}
+
 export function buildStudyStartHandler(deps: StudyStartDeps) {
   return async function handleStart() {
     if (deps.inFlight.current || deps.loading || !deps.subjectId) return
@@ -111,12 +125,7 @@ export function buildStudyStartHandler(deps: StudyStartDeps) {
         await endOrphanDiscovery(result.sessionId)
         return failStart(deps, 'Unable to start discovery right now. Please try again.')
       }
-      setDiscoveryPrefetch({
-        userId: deps.userId,
-        sessionId: handoff.sessionId,
-        questions: result.questions.map((q) => toSessionQuestion(q)),
-        flaggedIds: result.flaggedIds,
-      })
+      publishDiscoveryPrefetch(deps, handoff, result)
       // Terminal success: the lock stays engaged while router.push unmounts the form.
       deps.router.push('/app/quiz/session')
     } catch {
