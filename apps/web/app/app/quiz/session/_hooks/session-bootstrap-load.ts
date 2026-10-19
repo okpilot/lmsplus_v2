@@ -3,6 +3,7 @@ import { FLAG_FETCH_TIMEOUT_MS } from '@/lib/constants/flag-fetch-timeout'
 import { loadSessionQuestions } from '@/lib/queries/load-session-questions'
 import { withTimeout } from '@/lib/utils/with-timeout'
 import { getFlaggedIds } from '../../actions/flag'
+import { clearDiscoveryPrefetch, readDiscoveryPrefetch } from '../_utils/discovery-prefetch'
 import {
   clearSessionHandoff,
   readSessionHandoff,
@@ -25,6 +26,7 @@ export function _resetCachedSession() {
 
 /** Drops the cached handoff for a user once their questions have rendered. */
 export function dropCachedSession(userId: string) {
+  clearDiscoveryPrefetch(userId)
   if (cachedSession?.userId === userId) cachedSession = null
 }
 
@@ -48,7 +50,8 @@ function fetchFlaggedIdsBounded(questionIds: string[]): Promise<string[]> {
 }
 
 /**
- * Loads a Discovery session's questions and the student's flagged question ids.
+ * Fetch path: loads a Discovery session's questions and the student's flagged question
+ * ids from the server. Used when no in-memory prefetch matches (e.g. a hard reload).
  *
  * Only the questions fetch decides success/error (and stays unbounded — the
  * questions are required data). The flag fetch is individually caught and
@@ -70,6 +73,16 @@ export async function loadSessionData(questionIds: string[]): Promise<SessionLoa
   } catch {
     return { success: false, error: 'Failed to load questions. Please try again.' }
   }
+}
+
+/** Serves the in-memory startStudy payload on a match, else falls back to the fetch path. */
+export function loadDiscoverySession(
+  data: SessionData,
+  userId: string,
+): Promise<SessionLoadResult> {
+  const hit = readDiscoveryPrefetch(userId, data.sessionId)
+  if (!hit) return loadSessionData(data.questionIds)
+  return Promise.resolve({ success: true, questions: hit.questions, flaggedIds: hit.flaggedIds })
 }
 
 /**

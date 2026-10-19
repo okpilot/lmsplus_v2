@@ -2,14 +2,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetRandomQuestionIds, mockGetStudyQuestions, mockRpc, mockEndDiscovery } = vi.hoisted(
-  () => ({
-    mockGetRandomQuestionIds: vi.fn(),
-    mockGetStudyQuestions: vi.fn(),
-    mockRpc: vi.fn(),
-    mockEndDiscovery: vi.fn(),
-  }),
-)
+const {
+  mockGetRandomQuestionIds,
+  mockGetStudyQuestions,
+  mockGetFlaggedQuestionIds,
+  mockRpc,
+  mockEndDiscovery,
+} = vi.hoisted(() => ({
+  mockGetRandomQuestionIds: vi.fn(),
+  mockGetStudyQuestions: vi.fn(),
+  mockGetFlaggedQuestionIds: vi.fn(),
+  mockRpc: vi.fn(),
+  mockEndDiscovery: vi.fn(),
+}))
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({}),
@@ -25,6 +30,10 @@ vi.mock('@/lib/queries/quiz-session-queries', () => ({
 
 vi.mock('@/lib/queries/study-queries', () => ({
   getStudyQuestions: (...args: unknown[]) => mockGetStudyQuestions(...args),
+}))
+
+vi.mock('@/lib/queries/flagged-questions', () => ({
+  getFlaggedQuestionIds: (...args: unknown[]) => mockGetFlaggedQuestionIds(...args),
 }))
 
 vi.mock('./end-discovery', () => ({
@@ -72,6 +81,7 @@ beforeEach(() => {
   vi.resetAllMocks()
   mockGetRandomQuestionIds.mockResolvedValue(QUESTION_IDS)
   mockGetStudyQuestions.mockResolvedValue([makeQuestion()])
+  mockGetFlaggedQuestionIds.mockResolvedValue([])
   mockRpc.mockResolvedValue({ data: CREATED_SESSION_ID, error: null })
   mockEndDiscovery.mockResolvedValue({ success: true })
 })
@@ -137,6 +147,7 @@ describe('startStudy — empty question pool', () => {
     // No row is created for an empty pool, so there must be no id to scope cleanup to —
     // reporting one here would point a teardown at a session this request never started.
     expect(result.sessionId).toBeUndefined()
+    expect(result.flaggedIds).toEqual([])
   })
 
   it('does not create a discovery session when the question pool is empty', async () => {
@@ -274,6 +285,15 @@ describe('startStudy — happy path', () => {
     expect(result.success).toBe(true)
     if (!result.success) return
     expect(result.sessionId).toBe(CREATED_SESSION_ID)
+  })
+
+  it('returns the flagged ids among the started questions', async () => {
+    mockGetFlaggedQuestionIds.mockResolvedValue([QUESTION_IDS[0]])
+    const result = await startStudy(VALID_INPUT)
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.flaggedIds).toEqual([QUESTION_IDS[0]])
+    expect(mockGetFlaggedQuestionIds).toHaveBeenCalledWith(QUESTION_IDS)
   })
 
   it('passes the resolved question ids to the study question fetcher', async () => {
