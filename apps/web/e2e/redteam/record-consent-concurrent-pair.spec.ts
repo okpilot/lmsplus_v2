@@ -3,7 +3,7 @@
  *
  * `recordConsent` (apps/web/app/consent/actions.ts) issues both `record_consent` calls in
  * one `Promise.all`. Each concurrent pair must land exactly one accepted row per document
- * type; a replayed pair (retry / double submit) must add none (mig 085 EXISTS guard).
+ * type; a pair replayed after it (a retry) must add none (mig 085 EXISTS guard).
  * user_consents fixtures are hard-deleted, as in user-consents-isolation.spec.ts.
  */
 

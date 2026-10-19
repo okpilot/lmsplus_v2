@@ -3,8 +3,9 @@
  *
  * `fetchQuestionComments` (apps/web/app/app/quiz/actions/comment-queries.ts) now takes the
  * exact count from the same query that returns page 0 (COMMENT_SELECT with the
- * `users!user_id` embed). A student's read of that shape must exclude a soft-deleted
- * comment from both the rows and the count, and the count must equal the rows returned.
+ * `users!user_id` embed). This spec runs a copy of that query as a student: it must exclude a
+ * soft-deleted comment from both the rows and the count, and the count must equal the rows
+ * returned. The function itself is covered by comment-queries.integration.test.ts.
  * `question_comments` is a documented hard-delete table (mig 049): fixtures are hard-deleted.
  */
 
