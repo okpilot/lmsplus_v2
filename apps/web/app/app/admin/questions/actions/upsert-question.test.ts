@@ -62,11 +62,7 @@ function buildInsertChain({
     insert: vi.fn().mockResolvedValue({ error: insertError }),
   }
 
-  mockFrom.mockImplementation((table: string) => {
-    if (table === 'question_banks') return questionsBankChain
-    if (table === 'questions') return questionsBankChain
-    return questionsBankChain
-  })
+  mockFrom.mockReturnValue(questionsBankChain)
   return { chain: questionsBankChain, bankEq, bankIs }
 }
 
@@ -236,7 +232,7 @@ describe('upsertQuestion', () => {
       expect(mockFrom).not.toHaveBeenCalledWith('users')
     })
 
-    it('returns failure without logging when no question bank exists for the organization', async () => {
+    it('logs and returns failure when no question bank exists for the organization', async () => {
       mockAdmin()
       buildInsertChain({ noBank: true })
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -247,7 +243,10 @@ describe('upsertQuestion', () => {
       if (result.success) return
       expect(result.error).toBe('No question bank found for organization')
       expect(mockRevalidatePath).not.toHaveBeenCalled()
-      expect(consoleSpy).not.toHaveBeenCalled()
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[insertQuestion] No question bank for organization:',
+        ORG_UUID,
+      )
     })
 
     it('logs and returns failure when the question bank lookup fails', async () => {

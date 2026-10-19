@@ -153,6 +153,7 @@ describe('uploadQuestionImage', () => {
 
       await uploadQuestionImage(makeFormData(makeFile()))
 
+      expect(upload).toHaveBeenCalledTimes(1)
       const path = upload.mock.calls[0]?.[0] as string
       expect(path.startsWith(`${ORG_UUID}/`)).toBe(true)
       expect(from).not.toHaveBeenCalled()

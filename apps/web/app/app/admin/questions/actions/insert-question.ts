@@ -18,7 +18,10 @@ export async function insertQuestion(
     console.error('[insertQuestion] Bank lookup error:', bankErr.message)
     return { success: false, error: 'Failed to save question' }
   }
-  if (!bank) return { success: false, error: 'No question bank found for organization' }
+  if (!bank) {
+    console.error('[insertQuestion] No question bank for organization:', organizationId)
+    return { success: false, error: 'No question bank found for organization' }
+  }
 
   // Intentionally no ON CONFLICT — duplicate question_number should surface to the admin via 23505
   const { error } = await supabase.from('questions').insert({
