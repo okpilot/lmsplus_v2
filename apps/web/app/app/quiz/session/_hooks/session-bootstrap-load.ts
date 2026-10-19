@@ -24,7 +24,7 @@ export function _resetCachedSession() {
   cachedSession = null
 }
 
-/** Drops the cached handoff for a user once their questions have rendered. */
+/** Drops the cached handoff and the Discovery prefetch for a user. */
 export function dropCachedSession(userId: string) {
   clearDiscoveryPrefetch(userId)
   if (cachedSession?.userId === userId) cachedSession = null
