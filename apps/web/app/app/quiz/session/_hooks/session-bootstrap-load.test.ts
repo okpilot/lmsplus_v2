@@ -24,9 +24,15 @@ vi.mock('../_utils/quiz-session-handoff', async (importOriginal) => {
 
 import { FLAG_FETCH_TIMEOUT_MS } from '@/lib/constants/flag-fetch-timeout'
 import {
+  _resetDiscoveryPrefetch,
+  readDiscoveryPrefetch,
+  setDiscoveryPrefetch,
+} from '../_utils/discovery-prefetch'
+import {
   _resetCachedSession,
   applyInitialLoad,
   dropCachedSession,
+  loadDiscoverySession,
   loadSessionData,
   readBootstrapSession,
 } from './session-bootstrap-load'
@@ -37,12 +43,19 @@ const Q1 = { id: 'q-00000001', text: 'Question 1', options: [] }
 const Q2 = { id: 'q-00000002', text: 'Question 2', options: [] }
 const QUESTION_IDS = [Q1.id, Q2.id]
 const SESSION_DATA = { sessionId: 'sess-00000001', questionIds: QUESTION_IDS }
+const PREFETCH = {
+  userId: USER_ID,
+  sessionId: SESSION_DATA.sessionId,
+  questions: [Q1, Q2] as never[],
+  flaggedIds: [Q2.id],
+}
 const QUESTIONS_SUCCESS = { success: true as const, questions: [Q1, Q2] }
 const QUESTIONS_FAILURE = { success: false as const, error: 'RPC error' }
 
 beforeEach(() => {
   vi.resetAllMocks()
   _resetCachedSession()
+  _resetDiscoveryPrefetch()
   mockReadSessionHandoff.mockReturnValue(null)
 })
 
@@ -216,6 +229,58 @@ describe('dropCachedSession', () => {
     dropCachedSession(OTHER_USER_ID)
 
     expect(readBootstrapSession(USER_ID)).toEqual(SESSION_DATA)
+  })
+})
+
+describe('dropCachedSession — prefetch', () => {
+  it('discards the stored discovery prefetch for the dropped user', () => {
+    setDiscoveryPrefetch(PREFETCH)
+
+    dropCachedSession(USER_ID)
+
+    expect(readDiscoveryPrefetch(USER_ID, SESSION_DATA.sessionId)).toBeNull()
+  })
+})
+
+describe('loadDiscoverySession', () => {
+  it('serves the prefetched questions and flags without any server call', async () => {
+    setDiscoveryPrefetch(PREFETCH)
+
+    const result = await loadDiscoverySession(SESSION_DATA, USER_ID)
+
+    expect(result).toEqual({ success: true, questions: [Q1, Q2], flaggedIds: [Q2.id] })
+    expect(mockLoadSessionQuestions).not.toHaveBeenCalled()
+    expect(mockGetFlaggedIds).not.toHaveBeenCalled()
+  })
+
+  it('fetches from the server when the prefetch belongs to another session', async () => {
+    setDiscoveryPrefetch({ ...PREFETCH, sessionId: 'sess-other' })
+    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
+    mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [] })
+
+    const result = await loadDiscoverySession(SESSION_DATA, USER_ID)
+
+    expect(result).toEqual({ success: true, questions: [Q1, Q2], flaggedIds: [] })
+    expect(mockLoadSessionQuestions).toHaveBeenCalledWith(QUESTION_IDS)
+  })
+
+  it('fetches from the server when the prefetch belongs to another user', async () => {
+    setDiscoveryPrefetch({ ...PREFETCH, userId: OTHER_USER_ID })
+    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
+    mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [] })
+
+    await loadDiscoverySession(SESSION_DATA, USER_ID)
+
+    expect(mockLoadSessionQuestions).toHaveBeenCalledWith(QUESTION_IDS)
+  })
+
+  it('fetches from the server when nothing was prefetched', async () => {
+    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_FAILURE)
+    mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [] })
+
+    const result = await loadDiscoverySession(SESSION_DATA, USER_ID)
+
+    expect(result).toEqual({ success: false, error: 'RPC error' })
   })
 })
 

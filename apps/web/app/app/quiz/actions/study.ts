@@ -1,6 +1,7 @@
 'use server'
 
 import { z } from 'zod'
+import { getFlaggedQuestionIdsBounded } from '@/lib/queries/flagged-questions'
 import { getRandomQuestionIds } from '@/lib/queries/quiz-session-queries'
 import { getStudyQuestions, type StudyQuestion } from '@/lib/queries/study-queries'
 import { createDiscoverySession } from './_start-discovery-session'
@@ -17,7 +18,7 @@ const StartStudySchema = z.object({
 })
 
 export type StartStudyResult =
-  | { success: true; questions: StudyQuestion[]; sessionId?: string }
+  | { success: true; questions: StudyQuestion[]; flaggedIds: string[]; sessionId?: string }
   | { success: false; error: string }
 
 export async function startStudy(raw: unknown): Promise<StartStudyResult> {
@@ -44,7 +45,9 @@ export async function startStudy(raw: unknown): Promise<StartStudyResult> {
     // An empty study set is a valid state, not an error — skip both the session
     // creation and the fetch (no row is created for an empty discovery set, so
     // sessionId is omitted — there is nothing for the client to scope cleanup to).
-    if (ids.length === 0) return { success: true, questions: [] }
+    if (ids.length === 0) return { success: true, questions: [], flaggedIds: [] }
+    // Cosmetic and independent of the session row: starts now, never fails the start.
+    const flagsPromise = getFlaggedQuestionIdsBounded(ids)
 
     // Create the real ephemeral discovery session row (enforces the single-active
     // guard). Capture the created id so teardown is scoped to THIS request's row —
@@ -59,22 +62,10 @@ export async function startStudy(raw: unknown): Promise<StartStudyResult> {
     // catch below tears down createdSessionId — otherwise the just-created discovery row
     // stays active and blocks the next start until it is auto-cleared.
     if (questions.length === 0) throw new Error('No study questions returned for selected ids')
-    // createdSessionId is guaranteed non-null here (createDiscoverySession returns a
-    // null error only alongside a non-null id) — surface it so the client scopes its
-    // orphan-cleanup teardown to one row instead of blanket-clearing every active
-    // discovery row for this student.
-    //
-    // CAVEAT — this is NOT provably "the row this request created". mig 137's
-    // unique_violation branch re-reads and returns a CONCURRENT winner's row id when
-    // that row's frozen inputs (subject_id + config.question_ids) match this caller's,
-    // so a loser can receive the winner's id and tear down a live session. Bounded:
-    // the id set comes from ORDER BY random(), and the re-read compares question_ids as
-    // an order-sensitive jsonb array, so a match needs an identical ORDERED array —
-    // certain only for a 1-question pool. Losing an ephemeral discovery row is inert
-    // today (nothing reads them; every start RPC clears them anyway). Scoping is still
-    // strictly safer than the blanket clear it replaced, which killed the winner's row
-    // on ANY payload. Distinguishing created-vs-replayed needs an RPC OUT flag — #1152.
-    return { success: true, questions, sessionId: createdSessionId ?? undefined }
+    const flaggedIds = await flagsPromise
+    // The id may be a concurrent winner's row (mig 137 replay branch); losing an
+    // ephemeral discovery row is inert today. Created-vs-replayed needs an RPC OUT flag — #1152.
+    return { success: true, questions, flaggedIds, sessionId: createdSessionId ?? undefined }
   } catch (err) {
     console.error('[startStudy] error:', err)
     // If the row was created but the key fetch failed, best-effort tear it down,

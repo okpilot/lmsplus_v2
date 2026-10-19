@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks -----------------------------------------------------------------
 
@@ -19,7 +19,8 @@ vi.mock('@repo/db/server', () => ({
 
 // ---- Subject under test ----------------------------------------------------
 
-import { getFlaggedQuestionIds } from './flagged-questions'
+import { FLAG_FETCH_TIMEOUT_MS } from '@/lib/constants/flag-fetch-timeout'
+import { getFlaggedQuestionIds, getFlaggedQuestionIdsBounded } from './flagged-questions'
 
 // ---- Helpers ---------------------------------------------------------------
 
@@ -93,5 +94,46 @@ describe('getFlaggedQuestionIds', () => {
     expect(result).toEqual([])
     expect(errorSpy).toHaveBeenCalledWith('[getFlaggedQuestionIds] Query error:', 'boom')
     errorSpy.mockRestore()
+  })
+})
+
+describe('getFlaggedQuestionIdsBounded', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('returns the flagged question IDs when the read succeeds', async () => {
+    setupAuthenticatedUser()
+    mockFrom.mockReturnValue(buildChain({ data: [{ question_id: QUESTION_ID_A }], error: null }))
+    expect(await getFlaggedQuestionIdsBounded([QUESTION_ID_A, QUESTION_ID_B])).toEqual([
+      QUESTION_ID_A,
+    ])
+  })
+
+  it('resolves to an empty array when the read throws', async () => {
+    mockGetSessionUser.mockRejectedValue(new Error('cookie read failed'))
+    expect(await getFlaggedQuestionIdsBounded([QUESTION_ID_A])).toEqual([])
+  })
+
+  it('resolves to an empty array when the query rejects', async () => {
+    setupAuthenticatedUser()
+    mockFrom.mockImplementation(() => {
+      throw new Error('connection reset')
+    })
+    expect(await getFlaggedQuestionIdsBounded([QUESTION_ID_A])).toEqual([])
+  })
+
+  it('resolves to an empty array once the timeout passes on a hanging read', async () => {
+    vi.useFakeTimers()
+    mockGetSessionUser.mockReturnValue(new Promise(() => {}))
+
+    const pending = getFlaggedQuestionIdsBounded([QUESTION_ID_A])
+    await vi.advanceTimersByTimeAsync(FLAG_FETCH_TIMEOUT_MS)
+
+    expect(await pending).toEqual([])
   })
 })

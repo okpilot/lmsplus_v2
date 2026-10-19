@@ -27,6 +27,10 @@ vi.mock('../session/_utils/quiz-session-handoff', () => ({
 
 import type { StudyQuestion } from '@/lib/queries/study-queries'
 import { createMockRouter } from '@/lib/test-support/mock-router'
+import {
+  _resetDiscoveryPrefetch,
+  readDiscoveryPrefetch,
+} from '../session/_utils/discovery-prefetch'
 import { buildStudyStartHandler, type StudyStartDeps } from './study-start-handlers'
 
 // ---- Fixtures -------------------------------------------------------------
@@ -76,6 +80,7 @@ function makeDeps(overrides: Partial<StudyStartDeps> = {}): StudyStartDeps {
 
 beforeEach(() => {
   vi.resetAllMocks()
+  _resetDiscoveryPrefetch()
   Object.defineProperty(globalThis, 'sessionStorage', {
     value: { setItem: mockSessionStorageSetItem, getItem: vi.fn(), removeItem: vi.fn() },
     writable: true,
@@ -83,6 +88,7 @@ beforeEach(() => {
   mockStartStudy.mockResolvedValue({
     success: true,
     questions: [makeQuestion()],
+    flaggedIds: ['q-1'],
     sessionId: 'session-from-this-request',
   })
   mockEndDiscovery.mockResolvedValue({ success: true })
@@ -119,7 +125,7 @@ describe('buildStudyStartHandler — retryable failures', () => {
   })
 
   it('allows a second attempt when the question pool comes back empty', async () => {
-    mockStartStudy.mockResolvedValue({ success: true, questions: [] })
+    mockStartStudy.mockResolvedValue({ success: true, questions: [], flaggedIds: [] })
     const deps = makeDeps()
     const handleStart = buildStudyStartHandler(deps)
 
@@ -177,6 +183,7 @@ describe('buildStudyStartHandler — retryable failures', () => {
     mockStartStudy.mockResolvedValue({
       success: true,
       questions: [makeQuestion()],
+      flaggedIds: [],
       sessionId: 'session-created-by-this-tab',
     })
     const deps = makeDeps()
@@ -195,7 +202,7 @@ describe('buildStudyStartHandler — retryable failures', () => {
     mockSessionStorageSetItem.mockImplementation(() => {
       throw new DOMException('QuotaExceededError')
     })
-    mockStartStudy.mockResolvedValue({ success: true, questions: [makeQuestion()] })
+    mockStartStudy.mockResolvedValue({ success: true, questions: [makeQuestion()], flaggedIds: [] })
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
     try {
@@ -299,5 +306,55 @@ describe('buildStudyStartHandler — terminal success', () => {
       questionIds: ['q-1'],
       mode: 'discovery',
     })
+  })
+})
+
+// ---- Discovery prefetch ------------------------------------------------------
+
+describe('buildStudyStartHandler — discovery prefetch', () => {
+  function handoffSessionId(): string {
+    const raw = mockSessionStorageSetItem.mock.calls[0]?.[1]
+    return JSON.parse(raw).sessionId
+  }
+
+  it('hands the session runner the started questions and flags under the handoff session id', async () => {
+    await buildStudyStartHandler(makeDeps())()
+
+    const hit = readDiscoveryPrefetch('test-user-id', handoffSessionId())
+    expect(hit?.questions.map((q) => q.id)).toEqual(['q-1'])
+    expect(hit?.flaggedIds).toEqual(['q-1'])
+  })
+
+  it('does not hand over the correct option id', async () => {
+    await buildStudyStartHandler(makeDeps())()
+
+    const hit = readDiscoveryPrefetch('test-user-id', handoffSessionId())
+    expect(hit?.questions.length).toBeGreaterThan(0)
+    expect(JSON.stringify(hit?.questions)).not.toMatch(/correct_?option_?id/i)
+  })
+
+  it('stores nothing when the handoff write fails', async () => {
+    mockSessionStorageSetItem.mockImplementation(() => {
+      throw new DOMException('QuotaExceededError')
+    })
+    await buildStudyStartHandler(makeDeps())()
+
+    expect(readDiscoveryPrefetch('test-user-id', handoffSessionId())).toBeNull()
+  })
+
+  it('stores nothing when the server rejects the start', async () => {
+    mockStartStudy.mockResolvedValue({ success: false, error: 'nope' })
+    await buildStudyStartHandler(makeDeps())()
+
+    expect(mockSessionStorageSetItem).not.toHaveBeenCalled()
+    expect(readDiscoveryPrefetch('test-user-id', 'any')).toBeNull()
+  })
+
+  it('stores nothing when the question pool is empty', async () => {
+    mockStartStudy.mockResolvedValue({ success: true, questions: [], flaggedIds: [] })
+    await buildStudyStartHandler(makeDeps())()
+
+    expect(mockSessionStorageSetItem).not.toHaveBeenCalled()
+    expect(readDiscoveryPrefetch('test-user-id', 'any')).toBeNull()
   })
 })

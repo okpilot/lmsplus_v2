@@ -40,6 +40,7 @@ vi.mock('../_utils/quiz-session-handoff', async (importOriginal) => {
 
 vi.mock('next/navigation', () => ({ useRouter: () => mockRouter }))
 
+import { _resetDiscoveryPrefetch, setDiscoveryPrefetch } from '../_utils/discovery-prefetch'
 import { isValidSessionData } from '../_utils/quiz-session-handoff'
 import { _resetCachedSession } from './session-bootstrap-load'
 import { useSessionBootstrap } from './use-session-bootstrap'
@@ -60,6 +61,7 @@ const QUESTIONS_FAILURE = { success: false as const, error: 'RPC error' }
 beforeEach(() => {
   vi.resetAllMocks()
   _resetCachedSession()
+  _resetDiscoveryPrefetch()
   mockReadSessionHandoff.mockReturnValue(null)
   mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [] })
 })
@@ -84,6 +86,25 @@ describe('useSessionBootstrap — handoff that cannot be served', () => {
     renderHook(() => useSessionBootstrap(USER_ID))
     expect(mockClearSessionHandoff).toHaveBeenCalledWith(USER_ID)
     expect(mockRouter.replace).toHaveBeenCalledWith('/app/quiz')
+  })
+})
+
+describe('useSessionBootstrap — prefetched Discovery payload', () => {
+  it('renders the prefetched questions and flags without any server call', async () => {
+    mockReadSessionHandoff.mockReturnValue(HANDOFF_DATA)
+    setDiscoveryPrefetch({
+      userId: USER_ID,
+      sessionId: SESSION_ID,
+      questions: [Q1, Q2] as never[],
+      flaggedIds: [Q2.id],
+    })
+
+    const { result } = renderHook(() => useSessionBootstrap(USER_ID))
+
+    await waitFor(() => expect(result.current.questions).toEqual([Q1, Q2]))
+    expect(result.current.flaggedIds).toEqual([Q2.id])
+    expect(mockLoadSessionQuestions).not.toHaveBeenCalled()
+    expect(mockGetFlaggedIds).not.toHaveBeenCalled()
   })
 })
 

@@ -1,12 +1,10 @@
 import { redirect } from 'next/navigation'
 import type { SessionQuestion } from '@/app/app/_types/session'
-import { FLAG_FETCH_TIMEOUT_MS } from '@/lib/constants/flag-fetch-timeout'
 import { reportUrl } from '@/lib/constants/report-paths'
-import { getFlaggedQuestionIds } from '@/lib/queries/flagged-questions'
+import { getFlaggedQuestionIdsBounded } from '@/lib/queries/flagged-questions'
 import { loadQuizSessionState, type SessionEntry } from '@/lib/queries/load-quiz-session-state'
 import { loadSessionQuestions } from '@/lib/queries/load-session-questions'
 import { loadVfrRtExamQuestions } from '@/lib/queries/load-vfr-rt-exam-questions'
-import { withTimeout } from '@/lib/utils/with-timeout'
 
 type OpenEntry = Extract<SessionEntry, { kind: 'open' }>
 type SavedEntry = Extract<SessionEntry, { kind: 'saved' }>
@@ -21,11 +19,6 @@ export type LoadedSessionEntry =
 
 const LOAD_FAILED = 'Failed to load questions. Please try again.'
 
-function readFlagsBounded(entry: OpenEntry): Promise<string[]> {
-  const flags = getFlaggedQuestionIds(entry.questionIds).catch(() => [] as string[])
-  return withTimeout(flags, FLAG_FETCH_TIMEOUT_MS, [])
-}
-
 function readQuestions(entry: OpenEntry) {
   return entry.mode === 'vfr_rt_exam'
     ? loadVfrRtExamQuestions({ sessionId: entry.sessionId })
@@ -34,7 +27,7 @@ function readQuestions(entry: OpenEntry) {
 
 /** Questions decide success; a failure returns at once instead of waiting on the cosmetic flag read. */
 async function loadRunnerData(entry: OpenEntry): Promise<SessionRunnerData> {
-  const flags = readFlagsBounded(entry)
+  const flags = getFlaggedQuestionIdsBounded(entry.questionIds)
   try {
     const result = await readQuestions(entry)
     if (!result.success) return { error: result.error }

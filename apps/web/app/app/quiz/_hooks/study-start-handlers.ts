@@ -1,10 +1,12 @@
 import type { useRouter } from 'next/navigation'
 import { endDiscovery } from '../actions/end-discovery'
-import { startStudy } from '../actions/study'
+import { type StartStudyResult, startStudy } from '../actions/study'
+import { setDiscoveryPrefetch } from '../session/_utils/discovery-prefetch'
 import { sessionHandoffKey } from '../session/_utils/quiz-session-handoff'
 import type { UseStudyStartOpts } from '../session-types'
-import { buildDiscoveryHandoff } from './build-discovery-handoff'
+import { buildDiscoveryHandoff, type DiscoveryHandoff } from './build-discovery-handoff'
 import { failStart } from './start-handler-shared'
+import { toSessionQuestion } from './study-to-session-question'
 
 type AppRouterInstance = ReturnType<typeof useRouter>
 
@@ -31,30 +33,26 @@ function buildStartStudyPayload(deps: StudyStartDeps) {
 }
 
 /**
- * Write the pre-marked discovery handoff to sessionStorage. Returns false on a
- * storage failure (private-mode SecurityError, quota) so the caller surfaces a
- * message instead of navigating to an empty session.
+ * Write the pre-marked discovery handoff to sessionStorage. Returns the handoff, or
+ * null on a storage failure (private-mode SecurityError, quota) so the caller
+ * surfaces a message instead of navigating to an empty session.
  */
 function writeDiscoveryHandoff(
   deps: StudyStartDeps,
   questions: Parameters<typeof buildDiscoveryHandoff>[0],
-): boolean {
+): DiscoveryHandoff | null {
   const subject = deps.subjects.find((s) => s.id === deps.subjectId)
   try {
-    sessionStorage.setItem(
-      sessionHandoffKey(deps.userId),
-      JSON.stringify(
-        buildDiscoveryHandoff(questions, {
-          userId: deps.userId,
-          subjectName: subject?.name,
-          subjectCode: subject?.short,
-        }),
-      ),
-    )
-    return true
+    const handoff = buildDiscoveryHandoff(questions, {
+      userId: deps.userId,
+      subjectName: subject?.name,
+      subjectCode: subject?.short,
+    })
+    sessionStorage.setItem(sessionHandoffKey(deps.userId), JSON.stringify(handoff))
+    return handoff
   } catch (err) {
     console.warn('[use-study-start] sessionStorage handoff failed:', err)
-    return false
+    return null
   }
 }
 
@@ -93,6 +91,20 @@ async function endOrphanDiscovery(sessionId: string | undefined): Promise<void> 
   }
 }
 
+/** Hands the started questions and flags to the session page for the soft navigation. */
+function publishDiscoveryPrefetch(
+  deps: StudyStartDeps,
+  handoff: DiscoveryHandoff,
+  result: Extract<StartStudyResult, { success: true }>,
+) {
+  setDiscoveryPrefetch({
+    userId: deps.userId,
+    sessionId: handoff.sessionId,
+    questions: result.questions.map((q) => toSessionQuestion(q)),
+    flaggedIds: result.flaggedIds,
+  })
+}
+
 export function buildStudyStartHandler(deps: StudyStartDeps) {
   return async function handleStart() {
     if (deps.inFlight.current || deps.loading || !deps.subjectId) return
@@ -108,10 +120,12 @@ export function buildStudyStartHandler(deps: StudyStartDeps) {
       if (result.questions.length === 0) {
         return failStart(deps, 'No questions match these filters.')
       }
-      if (!writeDiscoveryHandoff(deps, result.questions)) {
+      const handoff = writeDiscoveryHandoff(deps, result.questions)
+      if (!handoff) {
         await endOrphanDiscovery(result.sessionId)
         return failStart(deps, 'Unable to start discovery right now. Please try again.')
       }
+      publishDiscoveryPrefetch(deps, handoff, result)
       // Terminal success: the lock stays engaged while router.push unmounts the form.
       deps.router.push('/app/quiz/session')
     } catch {
