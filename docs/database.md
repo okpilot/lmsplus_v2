@@ -600,7 +600,7 @@ WITH (security_invoker = true) AS
 
 Created in migration 051 to centralize the soft-delete filter and provide RLS enforcement via `security_invoker`, removing the per-callsite `.is('deleted_at', null)` requirement. **All read-path callsites now query this view** (migrated in issue #467):
 
-- `apps/web/app/app/quiz/actions/flag.ts` — ownership check in `toggleFlag`, ID list in `getFlaggedIds`
+- `apps/web/app/app/quiz/actions/flag.ts` — ID list in `getFlaggedIds`
 - `apps/web/app/app/quiz/actions/_flag-guard.ts` — existing-flag lookup in `lookupActiveFlag`; `flag.ts` decides flag vs unflag
 - `apps/web/lib/queries/flagged-questions.ts` — quiz setup flagged filter
 - `apps/web/lib/gdpr/collect-user-data-queries.ts` — GDPR data export
