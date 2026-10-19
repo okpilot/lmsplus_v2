@@ -21,10 +21,9 @@ vi.mock('@/lib/queries/load-vfr-rt-exam-questions', () => ({
   loadVfrRtExamQuestions: (...a: unknown[]) => mockVfrQuestions(...a),
 }))
 vi.mock('@/lib/queries/flagged-questions', () => ({
-  getFlaggedQuestionIds: (...a: unknown[]) => mockFlags(...a),
+  getFlaggedQuestionIdsBounded: (...a: unknown[]) => mockFlags(...a),
 }))
 
-import { FLAG_FETCH_TIMEOUT_MS } from '@/lib/constants/flag-fetch-timeout'
 import { loadSessionEntry } from './load-session-entry'
 
 const ID = '11111111-1111-4111-8111-111111111111'
@@ -124,26 +123,6 @@ describe('loadSessionEntry', () => {
     expect(String(errorSpy.mock.calls[0]?.[0]).startsWith('[loadSessionEntry]')).toBe(true)
     expect(errorSpy.mock.calls[0]).toContain('boom')
     expect(loaded.runner).toEqual({ error: 'Failed to load questions. Please try again.' })
-  })
-
-  it('still returns the questions when the flag read rejects', async () => {
-    mockLoad.mockResolvedValue(open('quick_quiz'))
-    mockFlags.mockRejectedValue(new Error('down'))
-
-    const loaded = await loadSessionEntry(ID, 'user-1')
-
-    expect(loaded.runner).toEqual({ questions: Q, flaggedIds: [] })
-  })
-
-  it('returns the questions with no flags when the flag read hangs', async () => {
-    vi.useFakeTimers()
-    mockLoad.mockResolvedValue(open('quick_quiz'))
-    mockFlags.mockReturnValue(new Promise(() => undefined))
-
-    const pending = loadSessionEntry(ID, 'user-1')
-    await vi.advanceTimersByTimeAsync(FLAG_FETCH_TIMEOUT_MS)
-
-    expect((await pending).runner).toEqual({ questions: Q, flaggedIds: [] })
   })
 
   it.each([

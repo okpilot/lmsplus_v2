@@ -1,11 +1,9 @@
 'use server'
 
 import { z } from 'zod'
-import { FLAG_FETCH_TIMEOUT_MS } from '@/lib/constants/flag-fetch-timeout'
-import { getFlaggedQuestionIds } from '@/lib/queries/flagged-questions'
+import { getFlaggedQuestionIdsBounded } from '@/lib/queries/flagged-questions'
 import { getRandomQuestionIds } from '@/lib/queries/quiz-session-queries'
 import { getStudyQuestions, type StudyQuestion } from '@/lib/queries/study-queries'
-import { withTimeout } from '@/lib/utils/with-timeout'
 import { createDiscoverySession } from './_start-discovery-session'
 import { endDiscovery } from './end-discovery'
 
@@ -48,12 +46,8 @@ export async function startStudy(raw: unknown): Promise<StartStudyResult> {
     // creation and the fetch (no row is created for an empty discovery set, so
     // sessionId is omitted — there is nothing for the client to scope cleanup to).
     if (ids.length === 0) return { success: true, questions: [], flaggedIds: [] }
-    // Cosmetic and independent of the session row: starts now, degrades to [] on failure.
-    const flagsPromise = withTimeout(
-      getFlaggedQuestionIds(ids).catch(() => [] as string[]),
-      FLAG_FETCH_TIMEOUT_MS,
-      [],
-    )
+    // Cosmetic and independent of the session row: starts now, never fails the start.
+    const flagsPromise = getFlaggedQuestionIdsBounded(ids)
 
     // Create the real ephemeral discovery session row (enforces the single-active
     // guard). Capture the created id so teardown is scoped to THIS request's row —

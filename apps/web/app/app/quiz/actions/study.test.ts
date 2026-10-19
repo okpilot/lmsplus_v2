@@ -1,18 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { FLAG_FETCH_TIMEOUT_MS } from '@/lib/constants/flag-fetch-timeout'
 
 // ---- Mocks ----------------------------------------------------------------
 
 const {
   mockGetRandomQuestionIds,
   mockGetStudyQuestions,
-  mockGetFlaggedQuestionIds,
+  mockGetFlaggedQuestionIdsBounded,
   mockRpc,
   mockEndDiscovery,
 } = vi.hoisted(() => ({
   mockGetRandomQuestionIds: vi.fn(),
   mockGetStudyQuestions: vi.fn(),
-  mockGetFlaggedQuestionIds: vi.fn(),
+  mockGetFlaggedQuestionIdsBounded: vi.fn(),
   mockRpc: vi.fn(),
   mockEndDiscovery: vi.fn(),
 }))
@@ -34,7 +33,7 @@ vi.mock('@/lib/queries/study-queries', () => ({
 }))
 
 vi.mock('@/lib/queries/flagged-questions', () => ({
-  getFlaggedQuestionIds: (...args: unknown[]) => mockGetFlaggedQuestionIds(...args),
+  getFlaggedQuestionIdsBounded: (...args: unknown[]) => mockGetFlaggedQuestionIdsBounded(...args),
 }))
 
 vi.mock('./end-discovery', () => ({
@@ -82,7 +81,7 @@ beforeEach(() => {
   vi.resetAllMocks()
   mockGetRandomQuestionIds.mockResolvedValue(QUESTION_IDS)
   mockGetStudyQuestions.mockResolvedValue([makeQuestion()])
-  mockGetFlaggedQuestionIds.mockResolvedValue([])
+  mockGetFlaggedQuestionIdsBounded.mockResolvedValue([])
   mockRpc.mockResolvedValue({ data: CREATED_SESSION_ID, error: null })
   mockEndDiscovery.mockResolvedValue({ success: true })
 })
@@ -289,44 +288,19 @@ describe('startStudy — happy path', () => {
   })
 
   it('returns the flagged ids among the started questions', async () => {
-    mockGetFlaggedQuestionIds.mockResolvedValue([QUESTION_IDS[0]])
+    mockGetFlaggedQuestionIdsBounded.mockResolvedValue([QUESTION_IDS[0]])
     const result = await startStudy(VALID_INPUT)
     expect(result.success).toBe(true)
     if (!result.success) return
     expect(result.flaggedIds).toEqual([QUESTION_IDS[0]])
-    expect(mockGetFlaggedQuestionIds).toHaveBeenCalledWith(QUESTION_IDS)
-  })
-
-  it('starts with no flags when the flag read hangs past the timeout', async () => {
-    vi.useFakeTimers()
-    try {
-      mockGetFlaggedQuestionIds.mockReturnValue(new Promise(() => {}))
-      const pending = startStudy(VALID_INPUT)
-      await vi.advanceTimersByTimeAsync(FLAG_FETCH_TIMEOUT_MS)
-      const result = await pending
-      expect(result.success).toBe(true)
-      if (!result.success) return
-      expect(result.flaggedIds).toEqual([])
-      expect(result.questions).toHaveLength(1)
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
-  it('starts with no flags and keeps the session when the flag read throws', async () => {
-    mockGetFlaggedQuestionIds.mockRejectedValue(new Error('cookie read failed'))
-    const result = await startStudy(VALID_INPUT)
-    expect(result.success).toBe(true)
-    if (!result.success) return
-    expect(result.flaggedIds).toEqual([])
-    expect(mockEndDiscovery).not.toHaveBeenCalled()
+    expect(mockGetFlaggedQuestionIdsBounded).toHaveBeenCalledWith(QUESTION_IDS)
   })
 
   it('reads the flags without waiting for the session to be created', async () => {
     mockRpc.mockReturnValue(new Promise(() => {}))
     void startStudy(VALID_INPUT)
     await vi.waitFor(() => expect(mockRpc).toHaveBeenCalled())
-    expect(mockGetFlaggedQuestionIds).toHaveBeenCalledWith(QUESTION_IDS)
+    expect(mockGetFlaggedQuestionIdsBounded).toHaveBeenCalledWith(QUESTION_IDS)
   })
 
   it('passes the resolved question ids to the study question fetcher', async () => {
