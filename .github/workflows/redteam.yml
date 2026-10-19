@@ -68,7 +68,10 @@ jobs:
         run: echo "SUPABASE_INTERNAL_IMAGE_REGISTRY=public.ecr.aws" >> "$GITHUB_ENV"
 
       - name: Start local Supabase
-        run: supabase start -x logflare,vector
+        uses: ./.github/actions/start-supabase
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ECR_PUBLIC_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_ECR_PUBLIC_SECRET_ACCESS_KEY }}
 
       - name: Wait for Supabase readiness
         run: bash .github/scripts/wait-for-supabase.sh
