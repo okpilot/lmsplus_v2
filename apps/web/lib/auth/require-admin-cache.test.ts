@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mockGetUser = vi.hoisted(() => vi.fn())
+const mockGetClaims = vi.hoisted(() => vi.fn())
 const mockFrom = vi.hoisted(() => vi.fn())
 const mockRedirect = vi.hoisted(() => vi.fn())
 const mockCreateServerSupabaseClient = vi.hoisted(() => vi.fn())
@@ -41,10 +41,13 @@ describe('requireAdmin per-request memoization', () => {
     // vi.resetAllMocks() — which resets mock state but cannot see this Map.
     cacheStore.clear()
     mockCreateServerSupabaseClient.mockResolvedValue({
-      auth: { getUser: mockGetUser },
+      auth: { getClaims: mockGetClaims },
       from: mockFrom,
     })
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'admin-1' } }, error: null })
+    mockGetClaims.mockResolvedValue({
+      data: { claims: { sub: 'admin-1', role: 'authenticated' } },
+      error: null,
+    })
     mockFrom.mockReturnValue({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
@@ -59,11 +62,11 @@ describe('requireAdmin per-request memoization', () => {
     })
   })
 
-  it('calls getUser once when invoked twice in the same request', async () => {
+  it('verifies the session once when invoked twice in the same request', async () => {
     const first = await requireAdmin()
     const second = await requireAdmin()
 
-    expect(mockGetUser).toHaveBeenCalledTimes(1)
+    expect(mockGetClaims).toHaveBeenCalledTimes(1)
     expect(mockFrom).toHaveBeenCalledTimes(1)
     expect(second).toBe(first)
   })

@@ -20,17 +20,7 @@ function buildStorageMock(uploadResult: UploadResult, publicUrl = 'https://cdn.e
   const getPublicUrl = vi.fn().mockReturnValue({ data: { publicUrl } })
   const upload = vi.fn().mockResolvedValue(uploadResult)
   const fromBucket = vi.fn().mockReturnValue({ upload, getPublicUrl })
-  // Mock supabase.from('users') for org resolution
-  const fromTable = vi.fn().mockReturnValue({
-    select: vi.fn().mockReturnValue({
-      eq: vi.fn().mockReturnValue({
-        single: vi.fn().mockResolvedValue({
-          data: { organization_id: ORG_UUID },
-          error: null,
-        }),
-      }),
-    }),
-  })
+  const fromTable = vi.fn()
   return { storage: { from: fromBucket }, from: fromTable, upload, getPublicUrl, fromBucket }
 }
 
@@ -52,6 +42,7 @@ function mockAdminWithStorage(uploadResult: UploadResult, publicUrl?: string) {
   mockRequireAdmin.mockResolvedValue({
     supabase: { storage: mocks.storage, from: mocks.from },
     userId: 'admin-user-1',
+    organizationId: ORG_UUID,
   })
   return mocks
 }
@@ -157,6 +148,16 @@ describe('uploadQuestionImage', () => {
       expect(uploadOpts.contentType).toBe('image/png')
     })
 
+    it('stores the image under the admin organization folder without reading the users table', async () => {
+      const { upload, from } = mockAdminWithStorage({ error: null })
+
+      await uploadQuestionImage(makeFormData(makeFile()))
+
+      const path = upload.mock.calls[0]?.[0] as string
+      expect(path.startsWith(`${ORG_UUID}/`)).toBe(true)
+      expect(from).not.toHaveBeenCalled()
+    })
+
     it('accepts a file exactly at the 2 MB size limit', async () => {
       mockAdminWithStorage({ error: null })
 
@@ -177,42 +178,6 @@ describe('uploadQuestionImage', () => {
       expect(result.success).toBe(false)
       if (result.success) return
       expect(result.error).toBe('Image upload failed')
-    })
-
-    it('returns failure and logs when the org lookup query returns an error', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-
-      try {
-        const mocks = buildStorageMock({ error: null })
-        // Override: org lookup returns an error
-        const fromTable = vi.fn().mockReturnValue({
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              single: vi.fn().mockResolvedValue({
-                data: null,
-                error: { message: 'relation not found' },
-              }),
-            }),
-          }),
-        })
-        mockRequireAdmin.mockResolvedValue({
-          supabase: { storage: mocks.storage, from: fromTable },
-          userId: 'admin-user-1',
-        })
-
-        const file = makeFile()
-        const result = await uploadQuestionImage(makeFormData(file))
-
-        expect(result.success).toBe(false)
-        if (result.success) return
-        expect(result.error).toBe('Could not resolve organization')
-        expect(consoleSpy).toHaveBeenCalledWith(
-          '[uploadQuestionImage] org lookup error:',
-          'relation not found',
-        )
-      } finally {
-        consoleSpy.mockRestore()
-      }
     })
   })
 

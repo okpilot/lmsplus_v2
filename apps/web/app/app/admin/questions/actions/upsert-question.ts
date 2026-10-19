@@ -13,12 +13,12 @@ export async function upsertQuestion(input: unknown): Promise<ActionResult> {
     return { success: false, error: 'Invalid input' }
   }
 
-  const { supabase, userId } = await requireAdmin()
+  const { supabase, userId, organizationId } = await requireAdmin()
   const { id, ...data } = parsed.data
 
   const result = id
     ? await updateQuestion(supabase, id, data)
-    : await insertQuestion(supabase, userId, data)
+    : await insertQuestion(supabase, { userId, organizationId }, data)
 
   if (result.success) revalidatePath('/app/admin/questions')
   return result

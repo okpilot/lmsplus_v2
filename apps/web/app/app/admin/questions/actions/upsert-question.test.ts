@@ -39,15 +39,12 @@ const VALID_INPUT = {
 }
 
 // Builds a chain for the insert path:
-// users.select().eq().single() → { data: { organization_id }, error }
 // question_banks.select().eq().limit().single() → { data: { id }, error }
 // questions.insert() → { error }
 function buildInsertChain({
-  profileError = null,
   bankError = null,
   insertError = null,
 }: {
-  profileError?: { message: string; code?: string } | null
   bankError?: { message: string; code?: string } | null
   insertError?: { message: string; code?: string } | null
 } = {}) {
@@ -65,19 +62,7 @@ function buildInsertChain({
     insert: vi.fn().mockResolvedValue({ error: insertError }),
   }
 
-  const usersChain = {
-    select: vi.fn().mockReturnValue({
-      eq: vi.fn().mockReturnValue({
-        single: vi.fn().mockResolvedValue({
-          data: profileError ? null : { organization_id: ORG_UUID },
-          error: profileError,
-        }),
-      }),
-    }),
-  }
-
   mockFrom.mockImplementation((table: string) => {
-    if (table === 'users') return usersChain
     if (table === 'question_banks') return questionsBankChain
     if (table === 'questions') return questionsBankChain
     return questionsBankChain
@@ -131,6 +116,7 @@ function mockAdmin() {
   mockRequireAdmin.mockResolvedValue({
     supabase: { from: mockFrom },
     userId: 'admin-user-1',
+    organizationId: ORG_UUID,
   })
 }
 
@@ -213,7 +199,7 @@ describe('upsertQuestion', () => {
       const result = await upsertQuestion(VALID_INPUT)
 
       expect(result.success).toBe(true)
-      expect(mockFrom).toHaveBeenCalledWith('users')
+      expect(mockFrom).not.toHaveBeenCalledWith('users')
       expect(mockFrom).toHaveBeenCalledWith('question_banks')
       expect(mockFrom).toHaveBeenCalledWith('questions')
       expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/questions')
@@ -232,16 +218,20 @@ describe('upsertQuestion', () => {
       expect(insertedRow?.correct_option_id).toBe('a')
     })
 
-    it('returns failure when user profile lookup fails', async () => {
+    it('stamps the new question with the organization and author from the admin session', async () => {
       mockAdmin()
-      buildInsertChain({ profileError: { message: 'profile not found' } })
+      buildInsertChain()
 
-      const result = await upsertQuestion(VALID_INPUT)
+      await upsertQuestion(VALID_INPUT)
 
-      expect(result.success).toBe(false)
-      if (result.success) return
-      expect(result.error).toBe('Could not resolve organization')
-      expect(mockRevalidatePath).not.toHaveBeenCalled()
+      const insertChain = mockFrom('questions') as { insert: ReturnType<typeof vi.fn> }
+      const insertedRow = insertChain.insert.mock.calls[0]?.[0] as {
+        organization_id?: string
+        created_by?: string
+      }
+      expect(insertedRow?.organization_id).toBe(ORG_UUID)
+      expect(insertedRow?.created_by).toBe('admin-user-1')
+      expect(mockFrom).not.toHaveBeenCalledWith('users')
     })
 
     it('returns failure when no question bank exists for the organization', async () => {

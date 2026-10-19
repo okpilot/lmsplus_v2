@@ -4,23 +4,13 @@ import type { requireAdmin } from '@/lib/auth/require-admin'
 
 export async function insertQuestion(
   supabase: Awaited<ReturnType<typeof requireAdmin>>['supabase'],
-  userId: string,
+  { userId, organizationId }: { userId: string; organizationId: string },
   data: Omit<UpsertQuestionInput, 'id'>,
 ): Promise<ActionResult> {
-  const { data: profile, error: profileErr } = await supabase
-    .from('users')
-    .select('organization_id')
-    .eq('id', userId)
-    .single<{ organization_id: string }>()
-
-  if (profileErr || !profile?.organization_id) {
-    return { success: false, error: 'Could not resolve organization' }
-  }
-
   const { data: bank, error: bankErr } = await supabase
     .from('question_banks')
     .select('id')
-    .eq('organization_id', profile.organization_id)
+    .eq('organization_id', organizationId)
     .limit(1)
     .single<{ id: string }>()
 
@@ -31,7 +21,7 @@ export async function insertQuestion(
   // Intentionally no ON CONFLICT — duplicate question_number should surface to the admin via 23505
   const { error } = await supabase.from('questions').insert({
     ...data,
-    organization_id: profile.organization_id,
+    organization_id: organizationId,
     bank_id: bank.id,
     created_by: userId,
   })

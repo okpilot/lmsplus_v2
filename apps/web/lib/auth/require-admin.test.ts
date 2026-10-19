@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+const mockGetClaims = vi.hoisted(() => vi.fn())
 const mockGetUser = vi.hoisted(() => vi.fn())
 const mockFrom = vi.hoisted(() => vi.fn())
 const mockRedirect = vi.hoisted(() => vi.fn())
 const mockCreateServerSupabaseClient = vi.hoisted(() =>
   vi.fn().mockResolvedValue({
-    auth: { getUser: mockGetUser },
+    auth: { getClaims: mockGetClaims, getUser: mockGetUser },
     from: mockFrom,
   }),
 )
@@ -24,7 +25,7 @@ describe('requireAdmin', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     mockCreateServerSupabaseClient.mockResolvedValue({
-      auth: { getUser: mockGetUser },
+      auth: { getClaims: mockGetClaims, getUser: mockGetUser },
       from: mockFrom,
     })
     mockRedirect.mockImplementation((path: string) => {
@@ -33,8 +34,8 @@ describe('requireAdmin', () => {
   })
 
   it('returns supabase and userId for admin users', async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: { id: 'user-1' } },
+    mockGetClaims.mockResolvedValue({
+      data: { claims: { sub: 'user-1', role: 'authenticated' } },
       error: null,
     })
     const isMock = vi.fn().mockReturnValue({
@@ -61,8 +62,11 @@ describe('requireAdmin', () => {
     expect(isMock).toHaveBeenCalledWith('deleted_at', null)
   })
 
-  it('reads the profile of the user getUser returned', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-42' } }, error: null })
+  it('reads the profile of the user named by the session claims', async () => {
+    mockGetClaims.mockResolvedValue({
+      data: { claims: { sub: 'user-42', role: 'authenticated' } },
+      error: null,
+    })
     const eqMock = vi.fn().mockReturnValue({
       is: vi.fn().mockReturnValue({
         maybeSingle: vi.fn().mockResolvedValue({
@@ -78,29 +82,70 @@ describe('requireAdmin', () => {
     expect(eqMock).toHaveBeenCalledWith('id', 'user-42')
   })
 
-  it('redirects to the login page when not authenticated', async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: null },
+  it('redirects to the login page when the session has no valid claims', async () => {
+    mockGetClaims.mockResolvedValue({
+      data: null,
       error: { message: 'No session' },
     })
+    vi.spyOn(console, 'error').mockImplementation(() => {})
 
     await expect(requireAdmin()).rejects.toThrow('NEXT_REDIRECT:/')
     expect(mockRedirect).toHaveBeenCalledWith('/')
   })
 
-  it('redirects to the login page when the user has no session', async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: null },
+  it('redirects to the login page when there is no session', async () => {
+    mockGetClaims.mockResolvedValue({ data: null, error: null })
+
+    await expect(requireAdmin()).rejects.toThrow('NEXT_REDIRECT:/')
+    expect(mockRedirect).toHaveBeenCalledWith('/')
+  })
+
+  it('redirects to the login page when the token role is not authenticated', async () => {
+    mockGetClaims.mockResolvedValue({
+      data: { claims: { sub: 'user-1', role: 'service_role' } },
       error: null,
     })
 
     await expect(requireAdmin()).rejects.toThrow('NEXT_REDIRECT:/')
-    expect(mockRedirect).toHaveBeenCalledWith('/')
+    expect(mockFrom).not.toHaveBeenCalled()
+  })
+
+  it('redirects an anonymous session to the login page', async () => {
+    mockGetClaims.mockResolvedValue({
+      data: { claims: { sub: 'user-1', role: 'authenticated', is_anonymous: true } },
+      error: null,
+    })
+
+    await expect(requireAdmin()).rejects.toThrow('NEXT_REDIRECT:/')
+    expect(mockFrom).not.toHaveBeenCalled()
+  })
+
+  it('verifies identity locally without a getUser network call', async () => {
+    mockGetClaims.mockResolvedValue({
+      data: { claims: { sub: 'user-1', role: 'authenticated' } },
+      error: null,
+    })
+    mockFrom.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          is: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: { role: 'admin', organization_id: 'org-1' },
+              error: null,
+            }),
+          }),
+        }),
+      }),
+    })
+
+    await requireAdmin()
+
+    expect(mockGetUser).not.toHaveBeenCalled()
   })
 
   it('redirects to /app/dashboard when user is not admin', async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: { id: 'user-2' } },
+    mockGetClaims.mockResolvedValue({
+      data: { claims: { sub: 'user-2', role: 'authenticated' } },
       error: null,
     })
     mockFrom.mockReturnValue({
@@ -118,8 +163,8 @@ describe('requireAdmin', () => {
   })
 
   it('redirects an authenticated user without an active profile to /app/dashboard', async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: { id: 'user-deleted' } },
+    mockGetClaims.mockResolvedValue({
+      data: { claims: { sub: 'user-deleted', role: 'authenticated' } },
       error: null,
     })
     mockFrom.mockReturnValue({
@@ -137,8 +182,8 @@ describe('requireAdmin', () => {
   })
 
   it('throws a service error when the profile query fails', async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: { id: 'user-3' } },
+    mockGetClaims.mockResolvedValue({
+      data: { claims: { sub: 'user-3', role: 'authenticated' } },
       error: null,
     })
     mockFrom.mockReturnValue({

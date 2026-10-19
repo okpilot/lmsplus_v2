@@ -2,6 +2,7 @@ import { createServerSupabaseClient } from '@repo/db/server'
 import { redirect } from 'next/navigation'
 import { cache } from 'react'
 import { getCallerProfile } from './get-caller-profile'
+import { verifySessionUser } from './verify-session-user'
 
 type AdminAuth = {
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>
@@ -12,40 +13,18 @@ type AdminAuth = {
 /**
  * Resolve the calling admin's identity, org and Supabase client, or redirect.
  *
- * Wrapped in React `cache()` for per-request memoization (#1169). A single admin
- * render consults this gate repeatedly — `/app/admin/internal-exams` calls it 5
- * times (the page gate plus four queries `Promise.all`d in
- * `_components/internal-exams-content.tsx`), `/app/admin/dashboard` 4 times via
- * its four Suspense children (counts measured 2026-08-20, before
- * `app/app/admin/layout.tsx` existed) — and each call re-ran the whole body:
- * build a client, await `getUser()`, await the `users` SELECT
- * (`getCallerProfile`, shared with the `/app` layout's read in the same
- * render). Measured 2026-08-20 on Next 16.3.0 (dev server): body executions per
- * render fall 5 -> 1 and 4 -> 1.
+ * Identity: `verifySessionUser()` (local JWT check; a signed-out or banned admin's
+ * unexpired token passes for the access-token lifetime). Role and org: the
+ * `deleted_at`-filtered `users` read, so a soft-deleted admin is rejected at once.
  *
- * What this does NOT save is HTTP round trips. Measured the same day at the API
- * gateway, the `/auth/v1/user` and `/rest/v1/users` counts are identical with and
- * without the wrap: Next already dedupes identical GETs within one render. So the
- * saving is redundant work and allocation, not network traffic — #1169's premise
- * that "every call performs a real network round-trip" does not hold as written.
- *
- * Scope, precisely, because this is an authorization gate: the memo lives in a Map
- * allocated per RSC flight request, so it cannot cross requests. In a Server Action
- * there is no resolvable React flight request — Next runs the action body under its
- * own `workUnitAsyncStorage`, not React's `requestStorage` — so the cache lookup
- * falls back to a throwaway Map and the body re-executes on every call. (Not
- * because the dispatcher is absent: it is installed on the first flight render in
- * the process and never cleared thereafter.) So every MUTATION still re-verifies
- * its caller on every call; only the render path is memoized.
+ * `cache()` memoizes per RSC flight request (#1169). A Server Action has no
+ * resolvable flight request, so the body re-runs on every mutation.
  */
 export const requireAdmin = cache(async (): Promise<AdminAuth> => {
   const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
+  const user = await verifySessionUser(supabase)
 
-  if (authError || !user) {
+  if (!user) {
     // `/` is the login page: it renders `app/_components/login-form.tsx`, and
     // `proxy.ts` sends unauthenticated `/app/*` traffic here too. The previous
     // target `/auth/login` is not a route at all — there is no `login/` directory
