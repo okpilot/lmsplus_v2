@@ -31,5 +31,6 @@ export async function fetchQuestionComments(
         from === 0 ? first : await commentRows(supabase, questionId).range(from, to)
       return toPageResult<NonNullable<typeof data>[number]>(data, error, 'question_comments')
     },
+    POSTGREST_MAX_ROWS,
   )
 }

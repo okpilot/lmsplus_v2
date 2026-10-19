@@ -97,6 +97,20 @@ describe('fetchQuestionComments (app-layer integration)', () => {
     expect(data[0]?.users).toEqual({ full_name: expect.any(String), role: 'student' })
   })
 
+  it('omits a soft-deleted comment even for a reader that row-level security does not filter', async () => {
+    const stored = await admin
+      .from('question_comments')
+      .select('id')
+      .eq('question_id', commentedQuestionId)
+    expect(stored.error).toBeNull()
+    expect(stored.data).toHaveLength(2)
+
+    const { data, error } = await fetchQuestionComments(admin, commentedQuestionId)
+
+    expect(error).toBeNull()
+    expect(data.map((c) => c.body)).toEqual([`live ${suffix}`])
+  })
+
   it('returns an empty list without an error for a question with no comments', async () => {
     const { data, error } = await fetchQuestionComments(studentClient, emptyQuestionId)
 

@@ -12,11 +12,12 @@ const mockSupabase = {
 
 // ---- Subject under test ----------------------------------------------------
 
-import { fetchQuestionComments } from './comment-queries'
+import { COMMENT_SELECT, fetchQuestionComments } from './comment-queries'
 
 // ---- Helpers ---------------------------------------------------------------
 
 const rangeCalls: Array<[number, number]> = []
+const selectCalls: unknown[][] = []
 
 /** Fluent Supabase chain; `.range()` records its args, awaiting resolves to returnValue. */
 function buildChain(returnValue: unknown) {
@@ -28,6 +29,12 @@ function buildChain(returnValue: unknown) {
   return new Proxy(awaitable as Record<string, unknown>, {
     get(target, prop) {
       if (prop === 'then') return target.then
+      if (prop === 'select') {
+        return (...args: unknown[]) => {
+          selectCalls.push(args)
+          return buildChain(returnValue)
+        }
+      }
       if (prop === 'range') {
         return (from: number, to: number) => {
           rangeCalls.push([from, to])
@@ -64,6 +71,7 @@ describe('fetchQuestionComments', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     rangeCalls.length = 0
+    selectCalls.length = 0
   })
 
   it('reads up to 1000 comments in a single query', async () => {
@@ -99,6 +107,10 @@ describe('fetchQuestionComments', () => {
     expect(rangeCalls).toEqual([
       [0, 999],
       [1000, 1000],
+    ])
+    expect(selectCalls).toEqual([
+      [COMMENT_SELECT, { count: 'exact' }],
+      [COMMENT_SELECT, undefined],
     ])
   })
 
