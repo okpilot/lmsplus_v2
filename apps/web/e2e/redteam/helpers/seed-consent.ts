@@ -7,6 +7,8 @@ export const USER_CONSENTS_FORGED_VERSION = 'redteam-y-forged'
 // user_consents idempotency spec (#386): distinct version so the afterAll cleanup
 // can sweep it along with the other fixture rows.
 export const USER_CONSENTS_IDEMPOTENCY_VERSION = 'redteam-idem-1.0'
+// Vector IO (#1550): concurrent ToS + privacy record_consent pair.
+export const USER_CONSENTS_PAIR_VERSION = 'redteam-pair-1.0'
 
 /**
  * Insert valid user_consents rows (TOS + privacy_policy) for `userId` using
