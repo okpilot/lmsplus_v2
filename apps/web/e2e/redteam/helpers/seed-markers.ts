@@ -102,3 +102,5 @@ export const E2E_REDTEAM_IM_SOFTDEL_ADMIN_PASSWORD = 'redteam-softdel-render-adm
 export const E2E_REDTEAM_IQ_MARKER = '[E2E_REDTEAM_IQ]'
 // toggleFlag active-internal-exam spec (Vector IS): quiz_sessions `config.e2e_marker`.
 export const E2E_REDTEAM_IS_MARKER = '[E2E_REDTEAM_IS]'
+// saveBlockingQuizForLater Server Action spec (Vectors IT, IU): quiz_sessions `config.e2e_marker`.
+export const E2E_REDTEAM_SB_MARKER = '[E2E_REDTEAM_SB]'
