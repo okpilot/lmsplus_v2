@@ -48,17 +48,16 @@ function buildInsertChain({
   bankError?: { message: string; code?: string } | null
   insertError?: { message: string; code?: string } | null
 } = {}) {
-  const questionsBankChain = {
-    select: vi.fn().mockReturnValue({
-      eq: vi.fn().mockReturnValue({
-        limit: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({
-            data: bankError ? null : { id: BANK_UUID },
-            error: bankError,
-          }),
-        }),
+  const bankEq = vi.fn().mockReturnValue({
+    limit: vi.fn().mockReturnValue({
+      single: vi.fn().mockResolvedValue({
+        data: bankError ? null : { id: BANK_UUID },
+        error: bankError,
       }),
     }),
+  })
+  const questionsBankChain = {
+    select: vi.fn().mockReturnValue({ eq: bankEq }),
     insert: vi.fn().mockResolvedValue({ error: insertError }),
   }
 
@@ -67,6 +66,7 @@ function buildInsertChain({
     if (table === 'questions') return questionsBankChain
     return questionsBankChain
   })
+  return { chain: questionsBankChain, bankEq }
 }
 
 // Builds a chain for the update path:
@@ -199,7 +199,6 @@ describe('upsertQuestion', () => {
       const result = await upsertQuestion(VALID_INPUT)
 
       expect(result.success).toBe(true)
-      expect(mockFrom).not.toHaveBeenCalledWith('users')
       expect(mockFrom).toHaveBeenCalledWith('question_banks')
       expect(mockFrom).toHaveBeenCalledWith('questions')
       expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/questions')
@@ -207,12 +206,11 @@ describe('upsertQuestion', () => {
 
     it('includes correct_option_id in the created question', async () => {
       mockAdmin()
-      buildInsertChain()
+      const { chain } = buildInsertChain()
 
       await upsertQuestion(VALID_INPUT)
 
-      const insertChain = mockFrom('questions') as { insert: ReturnType<typeof vi.fn> }
-      const insertedRow = insertChain.insert.mock.calls[0]?.[0] as {
+      const insertedRow = chain.insert.mock.calls[0]?.[0] as {
         correct_option_id?: string
       }
       expect(insertedRow?.correct_option_id).toBe('a')
@@ -220,15 +218,17 @@ describe('upsertQuestion', () => {
 
     it('stamps the new question with the organization and author from the admin session', async () => {
       mockAdmin()
-      buildInsertChain()
+      const { chain, bankEq } = buildInsertChain()
 
       await upsertQuestion(VALID_INPUT)
 
-      const insertChain = mockFrom('questions') as { insert: ReturnType<typeof vi.fn> }
-      const insertedRow = insertChain.insert.mock.calls[0]?.[0] as {
+      const insertedRow = chain.insert.mock.calls[0]?.[0] as {
         organization_id?: string
         created_by?: string
+        bank_id?: string
       }
+      expect(bankEq).toHaveBeenCalledWith('organization_id', ORG_UUID)
+      expect(insertedRow?.bank_id).toBe(BANK_UUID)
       expect(insertedRow?.organization_id).toBe(ORG_UUID)
       expect(insertedRow?.created_by).toBe('admin-user-1')
       expect(mockFrom).not.toHaveBeenCalledWith('users')
