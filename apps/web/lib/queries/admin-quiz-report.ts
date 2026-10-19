@@ -159,11 +159,12 @@ export async function getAdminQuizReportQuestions(opts: {
   const pageQuestionIds = sliceQuestionPage(orderedQuestionIds, page)
   if (!pageQuestionIds) return { ok: true, questions: [], totalCount: total }
 
-  const inputs = await fetchAdminPageInputs(sessionId, pageQuestionIds)
+  const [inputs, keys] = await Promise.all([
+    fetchAdminPageInputs(sessionId, pageQuestionIds),
+    fetchAdminKeyMaps(supabase, sessionId),
+  ])
   if (inputs.kind === 'error') return QUESTIONS_FAILED
   if (inputs.kind === 'empty') return { ok: true, questions: [], totalCount: total }
-
-  const keys = await fetchAdminKeyMaps(supabase, sessionId)
   if (!keys) return QUESTIONS_FAILED
   const questions = buildReportQuestions(
     inputs.answers,

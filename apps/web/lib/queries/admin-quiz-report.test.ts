@@ -58,7 +58,7 @@ function asDiagramLabel(q: QuizReportQuestion | undefined) {
 // ---- Helpers -----------------------------------------------------------------
 
 const DEFAULT_ORG_ID = 'org-1'
-const mockAuthRpc = vi.hoisted(() => vi.fn())
+const mockAuthRpc = vi.hoisted(() => vi.fn<() => Promise<unknown>>(async () => ({ data: [] })))
 
 function makeAdminContext(overrides: Partial<{ organizationId: string }> = {}) {
   return {

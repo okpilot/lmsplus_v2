@@ -170,6 +170,20 @@ describe('admin report reads', () => {
       expect((await result).ok).toBe(true)
     })
 
+    it('starts the answer-key reads while the page answers read is still pending', async () => {
+      const answers = deferred<unknown>()
+      mockPageAnswers.mockReturnValue(answers.promise)
+
+      const result = getAdminQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
+      await vi.waitFor(() => expect(mockPageAnswers).toHaveBeenCalled())
+      await new Promise((r) => setTimeout(r, 0))
+      expect(mockCorrectMap).toHaveBeenCalled()
+      expect(mockAnswerKeyMap).toHaveBeenCalled()
+
+      answers.resolve({ data: [answerRow], error: null })
+      expect((await result).ok).toBe(true)
+    })
+
     it('starts the answer-keys RPC while the correct-options RPC is still pending', async () => {
       const correct = deferred<unknown>()
       mockCorrectMap.mockReturnValue(correct.promise)

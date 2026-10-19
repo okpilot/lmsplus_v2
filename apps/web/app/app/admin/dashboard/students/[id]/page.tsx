@@ -5,7 +5,7 @@ import { requireAdmin } from '@/lib/auth/require-admin'
 import { SessionHistoryContent } from './_components/session-history-content'
 import { StudentHeader } from './_components/student-header'
 import { parseSessionFilters } from './parse-filters'
-import { getStudentDetail } from './queries'
+import { getStudentDetail, getStudentSessions } from './queries'
 
 type PageProps = {
   params: Promise<{ id: string }>
@@ -20,6 +20,9 @@ export default async function StudentDetailPage({ params, searchParams }: Readon
   if (!UUID_RE.test(id)) notFound()
 
   const filters = parseSessionFilters(rawParams)
+  const sessionsPromise = getStudentSessions(id, filters)
+  // The child awaits and handles the rejection; this only prevents an unhandled rejection when notFound() or the detail read throws first.
+  sessionsPromise.catch(() => {})
 
   const student = await getStudentDetail(id)
   if (!student) notFound()
@@ -28,7 +31,7 @@ export default async function StudentDetailPage({ params, searchParams }: Readon
     <div className="space-y-6">
       <StudentHeader student={student} />
       <Suspense fallback={<Skeleton className="h-96 rounded-xl" />}>
-        <SessionHistoryContent studentId={id} filters={filters} />
+        <SessionHistoryContent sessionsPromise={sessionsPromise} filters={filters} />
       </Suspense>
     </div>
   )
