@@ -329,7 +329,8 @@ describe('buildStudyStartHandler — discovery prefetch', () => {
     await buildStudyStartHandler(makeDeps())()
 
     const hit = readDiscoveryPrefetch('test-user-id', handoffSessionId())
-    expect(JSON.stringify(hit?.questions)).not.toContain('correctOptionId')
+    expect(hit?.questions.length).toBeGreaterThan(0)
+    expect(JSON.stringify(hit?.questions)).not.toMatch(/correct_?option_?id/i)
   })
 
   it('stores nothing when the handoff write fails', async () => {

@@ -6,10 +6,9 @@ import { withTimeout } from '@/lib/utils/with-timeout'
 /**
  * Reads which of the given question IDs the current student has actively flagged.
  *
- * Non-throwing by design: flag state is decorative on the report page, so a
- * transient DB/RLS hiccup degrades to "nothing flagged" rather than breaking the
- * whole report render. Mirrors the `console.error + return` posture of the sibling
- * report helpers in `quiz-report.ts`. Scoped to `auth.uid()` via the
+ * A query error or a missing user degrades to []. Client creation (missing env,
+ * `cookies()`) can still reject; callers that must not fail use
+ * getFlaggedQuestionIdsBounded. Scoped to `auth.uid()` via the
  * `active_flagged_questions` security_invoker view.
  */
 export async function getFlaggedQuestionIds(questionIds: string[]): Promise<string[]> {
