@@ -12,7 +12,7 @@ vi.mock('../../actions/quiz-progress', () => ({
   saveQuizPosition: (...a: unknown[]) => mockSavePosition(...a),
 }))
 
-import { _resetSessionTakeover } from '../_utils/session-takeover'
+import { _resetSessionTakeover, markTakenOver } from '../_utils/session-takeover'
 import { useProgressSaves } from './use-progress-saves'
 
 const SESSION = '00000000-0000-4000-a000-000000000001'
@@ -20,13 +20,18 @@ const Q = '00000000-0000-4000-a000-000000000011'
 const MAPPED = 'This session has already ended.'
 const TAKEN = 'This quiz is open in another tab or device — reload this page to continue here.'
 
-function setup(mode: QuizStateOpts['mode'] = 'study') {
-  const opts = {
+function makeOpts(mode: QuizStateOpts['mode'], initialSaveError?: string | null) {
+  return {
     userId: 'u',
     sessionId: SESSION,
     questions: [{ id: Q }],
     mode,
+    initialSaveError,
   } as unknown as QuizStateOpts
+}
+
+function setup(mode: QuizStateOpts['mode'] = 'study') {
+  const opts = makeOpts(mode)
   return renderHook(() =>
     useProgressSaves({ opts, currentIndexRef: { current: 0 }, answerStartTime: { current: 0 } }),
   )
@@ -64,5 +69,93 @@ describe('useProgressSaves', () => {
     const { result } = setup()
     await act(async () => result.current.saveAnswer({ selectedOptionId: 'a' }))
     expect(result.current.saveError).toBeNull()
+  })
+
+  it('shows a claim error that lands after the first render', () => {
+    const { result, rerender } = renderHook(
+      ({ err }: { err: string | null }) =>
+        useProgressSaves({
+          opts: makeOpts('study', err),
+          currentIndexRef: { current: 0 },
+          answerStartTime: { current: 0 },
+        }),
+      { initialProps: { err: null as string | null } },
+    )
+    expect(result.current.saveError).toBeNull()
+
+    rerender({ err: TAKEN })
+
+    expect(result.current.saveError).toBe(TAKEN)
+  })
+
+  it('keeps a late claim error off the screen once the session is taken over', () => {
+    const { result, rerender } = renderHook(
+      ({ err }: { err: string | null }) =>
+        useProgressSaves({
+          opts: makeOpts('study', err),
+          currentIndexRef: { current: 0 },
+          answerStartTime: { current: 0 },
+        }),
+      { initialProps: { err: null as string | null } },
+    )
+    markTakenOver(SESSION)
+
+    rerender({ err: TAKEN })
+
+    expect(result.current.saveError).toBeNull()
+  })
+
+  it('clears a late claim error after the next successful save', async () => {
+    const { result, rerender } = renderHook(
+      ({ err }: { err: string | null }) =>
+        useProgressSaves({
+          opts: makeOpts('study', err),
+          currentIndexRef: { current: 0 },
+          answerStartTime: { current: 0 },
+        }),
+      { initialProps: { err: null as string | null } },
+    )
+    rerender({ err: TAKEN })
+    expect(result.current.saveError).toBe(TAKEN)
+
+    await act(async () => result.current.saveAnswer({ selectedOptionId: 'a' }))
+
+    expect(result.current.saveError).toBeNull()
+  })
+
+  it('keeps a late claim error off the screen once a save has succeeded', async () => {
+    const { result, rerender } = renderHook(
+      ({ err }: { err: string | null }) =>
+        useProgressSaves({
+          opts: makeOpts('study', err),
+          currentIndexRef: { current: 0 },
+          answerStartTime: { current: 0 },
+        }),
+      { initialProps: { err: null as string | null } },
+    )
+    await act(async () => result.current.saveAnswer({ selectedOptionId: 'a' }))
+
+    rerender({ err: TAKEN })
+
+    expect(result.current.saveError).toBeNull()
+  })
+
+  it('shows a later save failure after a suppressed claim error', async () => {
+    const { result, rerender } = renderHook(
+      ({ err }: { err: string | null }) =>
+        useProgressSaves({
+          opts: makeOpts('study', err),
+          currentIndexRef: { current: 0 },
+          answerStartTime: { current: 0 },
+        }),
+      { initialProps: { err: null as string | null } },
+    )
+    await act(async () => result.current.saveAnswer({ selectedOptionId: 'a' }))
+    rerender({ err: TAKEN })
+    mockSaveAnswer.mockResolvedValueOnce({ success: false, error: MAPPED })
+
+    await act(async () => result.current.saveAnswer({ selectedOptionId: 'b' }))
+
+    expect(result.current.saveError).toBe(MAPPED)
   })
 })

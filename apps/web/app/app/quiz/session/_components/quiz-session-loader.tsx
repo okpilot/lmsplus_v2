@@ -56,7 +56,6 @@ export function QuizSessionLoader({ userId }: Readonly<{ userId: string }>) {
       timeLimitSeconds={bs.session.timeLimitSeconds}
       passMark={bs.session.passMark}
       startedAt={bs.session.startedAt}
-      initialSaveError={bs.claimError}
     />
   )
 }

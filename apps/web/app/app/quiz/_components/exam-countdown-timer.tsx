@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 type ExamCountdownTimerProps = {
   timeLimitSeconds: number
@@ -24,12 +24,15 @@ function getTimerClass(remaining: number): string {
   return 'text-muted-foreground'
 }
 
-export function ExamCountdownTimer({
-  timeLimitSeconds,
-  startedAt,
-  onExpired,
-  className,
-}: Readonly<ExamCountdownTimerProps>) {
+function remainingClass(remaining: number | null): string {
+  return remaining === null ? 'text-muted-foreground' : getTimerClass(remaining)
+}
+
+function useCountdownRemaining(
+  timeLimitSeconds: number,
+  startedAt: number,
+  onExpired: () => void,
+): number | null {
   const expiredRef = useRef(false)
   const timeLimitRef = useRef(timeLimitSeconds)
   const startedAtRef = useRef(startedAt)
@@ -37,15 +40,15 @@ export function ExamCountdownTimer({
   timeLimitRef.current = timeLimitSeconds
   startedAtRef.current = startedAt
   onExpiredRef.current = onExpired
-
   const calcRemaining = useCallback(
     () =>
       Math.max(0, timeLimitRef.current - Math.floor((Date.now() - startedAtRef.current) / 1000)),
     [],
   )
-
-  const [remaining, setRemaining] = useState(calcRemaining)
-
+  const [remaining, setRemaining] = useState<number | null>(null)
+  useLayoutEffect(() => {
+    setRemaining(calcRemaining())
+  }, [calcRemaining])
   useEffect(() => {
     const id = setInterval(() => {
       const r = calcRemaining()
@@ -57,10 +60,20 @@ export function ExamCountdownTimer({
     }, 1000)
     return () => clearInterval(id)
   }, [calcRemaining])
+  return remaining
+}
+
+export function ExamCountdownTimer({
+  timeLimitSeconds,
+  startedAt,
+  onExpired,
+  className,
+}: Readonly<ExamCountdownTimerProps>) {
+  const remaining = useCountdownRemaining(timeLimitSeconds, startedAt, onExpired)
 
   return (
-    <span className={`tabular-nums ${getTimerClass(remaining)} ${className ?? ''}`}>
-      {formatCountdown(remaining)}
+    <span className={`tabular-nums ${remainingClass(remaining)} ${className ?? ''}`}>
+      {remaining === null ? '--:--' : formatCountdown(remaining)}
     </span>
   )
 }

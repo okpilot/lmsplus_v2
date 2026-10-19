@@ -1,4 +1,6 @@
 import { act, render, screen } from '@testing-library/react'
+import { hydrateRoot } from 'react-dom/client'
+import { renderToString } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ExamCountdownTimer } from './exam-countdown-timer'
 
@@ -154,5 +156,35 @@ describe('ExamCountdownTimer — className prop', () => {
     )
     const span = container.querySelector('span')
     expect(span?.className).toContain('my-custom-class')
+  })
+})
+
+// ---- Hydration ------------------------------------------------------------
+
+describe('ExamCountdownTimer — hydration', () => {
+  it('hydrates without a mismatch when the clock has advanced since the server render', async () => {
+    const T0 = new Date('2026-01-01T00:00:00Z').getTime()
+    vi.setSystemTime(T0)
+    const el = <ExamCountdownTimer timeLimitSeconds={303} startedAt={T0} onExpired={vi.fn()} />
+    const container = document.createElement('div')
+    container.innerHTML = renderToString(el)
+    document.body.appendChild(container)
+    vi.setSystemTime(T0 + 5000)
+    const onRecoverableError = vi.fn()
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    let root: ReturnType<typeof hydrateRoot> | undefined
+    await act(async () => {
+      root = hydrateRoot(container, el, { onRecoverableError })
+    })
+
+    expect(onRecoverableError).not.toHaveBeenCalled()
+    expect(errorSpy).not.toHaveBeenCalled()
+    const span = container.querySelector('span')
+    expect(span?.textContent).toBe('04:58')
+    expect(span?.className).toContain('text-amber-600')
+    expect(span?.className).not.toContain('text-muted-foreground')
+    act(() => root?.unmount())
+    container.remove()
   })
 })

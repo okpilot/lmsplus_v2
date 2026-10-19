@@ -1,64 +1,36 @@
-import { useEffect, useRef, useState } from 'react'
-import type { SessionQuestion } from '@/app/app/_types/session'
-import type { QuizMode } from '@/lib/constants/exam-modes'
+import { useLayoutEffect, useRef, useState } from 'react'
+import { claimQuizDeviceBounded } from '../_utils/claim-quiz-device'
 import { clearActiveSession, readActiveSession } from '../_utils/quiz-session-storage'
-import { toRunnerMode } from '../_utils/session-runner-mode'
-import { loadSessionData, type SessionLoadResult } from './session-bootstrap-load'
 
-type Opts = { userId: string; sessionId: string; questionIds: string[]; mode: QuizMode }
-
-type Loaded = {
-  questions: SessionQuestion[] | null
-  flaggedIds: string[]
-  claimError: string | null
-  error: string | null
-}
-
-const PENDING: Loaded = { questions: null, flaggedIds: [], claimError: null, error: null }
-const LOAD_FAILED = 'Failed to load questions. Please try again.'
-
-function toLoaded(r: SessionLoadResult): Loaded {
-  if (!r.success) return { ...PENDING, error: r.error }
-  return {
-    ...PENDING,
-    questions: r.questions,
-    flaggedIds: r.flaggedIds,
-    claimError: r.claimError ?? null,
-  }
-}
+type Opts = { userId: string; sessionId: string }
 
 /** The opened session is the student's only active one (docs/security.md §11d): a local copy of another is stale. */
 function dropStaleLocalCopy(userId: string, sessionId: string): void {
   if (readActiveSession(userId)?.sessionId !== sessionId) clearActiveSession(userId)
 }
 
-/** Mount bootstrap of a server-loaded session: questions, flags, then the tab's claim. */
-export function useServerSessionBootstrap({
-  userId,
-  sessionId,
-  questionIds,
-  mode,
-}: Readonly<Opts>) {
-  const [state, setState] = useState<Loaded>(PENDING)
-  // A fresh array identity on an RSC refresh must not refetch and re-claim the session.
-  const questionIdsRef = useRef(questionIds)
-  questionIdsRef.current = questionIds
+/**
+ * Claims the session for this tab without holding the first question back. Dispatched from a
+ * layout effect so the claim is the first Server Action of the tab, ahead of every child's
+ * mount-time passive effect (e.g. the restored-answer re-check). No descendant may dispatch a
+ * Server Action from a layout effect: child layout effects commit first.
+ */
+export function useServerSessionBootstrap({ userId, sessionId }: Readonly<Opts>) {
+  const [claimError, setClaimError] = useState<string | null>(null)
   const userIdRef = useRef(userId)
   userIdRef.current = userId
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     let cancelled = false
-    loadSessionData(questionIdsRef.current, { sessionId, ...toRunnerMode(mode) })
-      .then((r) => {
-        if (cancelled) return
-        if (r.success) dropStaleLocalCopy(userIdRef.current, sessionId)
-        setState(toLoaded(r))
-      })
-      .catch(() => !cancelled && setState({ ...PENDING, error: LOAD_FAILED }))
+    dropStaleLocalCopy(userIdRef.current, sessionId)
+    void claimQuizDeviceBounded(sessionId).then((error) => {
+      if (cancelled) return
+      setClaimError(error)
+    })
     return () => {
       cancelled = true
     }
-  }, [sessionId, mode])
+  }, [sessionId])
 
-  return state
+  return { claimError }
 }

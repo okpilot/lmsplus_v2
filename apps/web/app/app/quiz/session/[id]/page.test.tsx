@@ -8,8 +8,14 @@ vi.mock('../_loaders/load-session-entry', () => ({
   loadSessionEntry: (...a: unknown[]) => mockEntry(...a),
 }))
 vi.mock('../_components/session-entry-view', () => ({
-  SessionEntryView: ({ userId, entry }: { userId: string; entry: { kind: string } }) => (
-    <div data-testid="entry-view">{`${userId}:${entry.kind}`}</div>
+  SessionEntryView: ({
+    userId,
+    loaded,
+  }: {
+    userId: string
+    loaded: { entry: { kind: string }; runner: { tag: string } | null }
+  }) => (
+    <div data-testid="entry-view">{`${userId}:${loaded.entry.kind}:${loaded.runner?.tag ?? 'none'}`}</div>
   ),
 }))
 vi.mock('../_components/connection-overlay', () => ({
@@ -21,7 +27,7 @@ import QuizSessionByIdPage, { dynamic } from './page'
 beforeEach(() => {
   vi.clearAllMocks()
   mockAuth.mockResolvedValue({ id: 'user-1' })
-  mockEntry.mockResolvedValue({ kind: 'open' })
+  mockEntry.mockResolvedValue({ entry: { kind: 'open' }, runner: { tag: 'data' } })
 })
 
 describe('QuizSessionByIdPage', () => {
@@ -34,7 +40,7 @@ describe('QuizSessionByIdPage', () => {
     render(ui)
 
     expect(mockEntry).toHaveBeenCalledWith('sess-1', 'user-1')
-    expect(screen.getByTestId('entry-view')).toHaveTextContent('user-1:open')
+    expect(screen.getByTestId('entry-view')).toHaveTextContent('user-1:open:data')
     expect(screen.getByTestId('overlay')).toBeInTheDocument()
   })
 })

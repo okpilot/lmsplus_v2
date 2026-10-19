@@ -30,8 +30,8 @@ export function useSessionBootstrap(userId: string) {
       return
     }
     setters.setSession(data)
-    // Flags, questions, then the claim; QuizSession mounts once, after all settle.
-    loadSessionData(data.questionIds, data)
+    // Flags and questions; QuizSession mounts once, after both settle.
+    loadSessionData(data.questionIds)
       .then((r) => applyInitialLoad(r, userId, setters))
       // Error-path net: a throwing setter must not strand the skeleton.
       .catch(() => setters.setError('Failed to load questions. Please try again.'))
