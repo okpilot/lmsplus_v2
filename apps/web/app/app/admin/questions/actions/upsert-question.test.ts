@@ -39,49 +39,31 @@ const VALID_INPUT = {
 }
 
 // Builds a chain for the insert path:
-// users.select().eq().single() → { data: { organization_id }, error }
-// question_banks.select().eq().limit().single() → { data: { id }, error }
+// question_banks.select().eq().is().maybeSingle() → { data: { id } | null, error }
 // questions.insert() → { error }
 function buildInsertChain({
-  profileError = null,
   bankError = null,
+  noBank = false,
   insertError = null,
 }: {
-  profileError?: { message: string; code?: string } | null
   bankError?: { message: string; code?: string } | null
+  noBank?: boolean
   insertError?: { message: string; code?: string } | null
 } = {}) {
-  const questionsBankChain = {
-    select: vi.fn().mockReturnValue({
-      eq: vi.fn().mockReturnValue({
-        limit: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({
-            data: bankError ? null : { id: BANK_UUID },
-            error: bankError,
-          }),
-        }),
-      }),
+  const bankIs = vi.fn().mockReturnValue({
+    maybeSingle: vi.fn().mockResolvedValue({
+      data: bankError || noBank ? null : { id: BANK_UUID },
+      error: bankError,
     }),
+  })
+  const bankEq = vi.fn().mockReturnValue({ is: bankIs })
+  const questionsBankChain = {
+    select: vi.fn().mockReturnValue({ eq: bankEq }),
     insert: vi.fn().mockResolvedValue({ error: insertError }),
   }
 
-  const usersChain = {
-    select: vi.fn().mockReturnValue({
-      eq: vi.fn().mockReturnValue({
-        single: vi.fn().mockResolvedValue({
-          data: profileError ? null : { organization_id: ORG_UUID },
-          error: profileError,
-        }),
-      }),
-    }),
-  }
-
-  mockFrom.mockImplementation((table: string) => {
-    if (table === 'users') return usersChain
-    if (table === 'question_banks') return questionsBankChain
-    if (table === 'questions') return questionsBankChain
-    return questionsBankChain
-  })
+  mockFrom.mockReturnValue(questionsBankChain)
+  return { chain: questionsBankChain, bankEq, bankIs }
 }
 
 // Builds a chain for the update path:
@@ -131,6 +113,7 @@ function mockAdmin() {
   mockRequireAdmin.mockResolvedValue({
     supabase: { from: mockFrom },
     userId: 'admin-user-1',
+    organizationId: ORG_UUID,
   })
 }
 
@@ -213,7 +196,6 @@ describe('upsertQuestion', () => {
       const result = await upsertQuestion(VALID_INPUT)
 
       expect(result.success).toBe(true)
-      expect(mockFrom).toHaveBeenCalledWith('users')
       expect(mockFrom).toHaveBeenCalledWith('question_banks')
       expect(mockFrom).toHaveBeenCalledWith('questions')
       expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/questions')
@@ -221,32 +203,39 @@ describe('upsertQuestion', () => {
 
     it('includes correct_option_id in the created question', async () => {
       mockAdmin()
-      buildInsertChain()
+      const { chain } = buildInsertChain()
 
       await upsertQuestion(VALID_INPUT)
 
-      const insertChain = mockFrom('questions') as { insert: ReturnType<typeof vi.fn> }
-      const insertedRow = insertChain.insert.mock.calls[0]?.[0] as {
+      const insertedRow = chain.insert.mock.calls[0]?.[0] as {
         correct_option_id?: string
       }
       expect(insertedRow?.correct_option_id).toBe('a')
     })
 
-    it('returns failure when user profile lookup fails', async () => {
+    it('stamps the new question with the organization and author from the admin session', async () => {
       mockAdmin()
-      buildInsertChain({ profileError: { message: 'profile not found' } })
+      const { chain, bankEq, bankIs } = buildInsertChain()
 
-      const result = await upsertQuestion(VALID_INPUT)
+      await upsertQuestion(VALID_INPUT)
 
-      expect(result.success).toBe(false)
-      if (result.success) return
-      expect(result.error).toBe('Could not resolve organization')
-      expect(mockRevalidatePath).not.toHaveBeenCalled()
+      const insertedRow = chain.insert.mock.calls[0]?.[0] as {
+        organization_id?: string
+        created_by?: string
+        bank_id?: string
+      }
+      expect(bankEq).toHaveBeenCalledWith('organization_id', ORG_UUID)
+      expect(bankIs).toHaveBeenCalledWith('deleted_at', null)
+      expect(insertedRow?.bank_id).toBe(BANK_UUID)
+      expect(insertedRow?.organization_id).toBe(ORG_UUID)
+      expect(insertedRow?.created_by).toBe('admin-user-1')
+      expect(mockFrom).not.toHaveBeenCalledWith('users')
     })
 
-    it('returns failure when no question bank exists for the organization', async () => {
+    it('logs and returns failure when no question bank exists for the organization', async () => {
       mockAdmin()
-      buildInsertChain({ bankError: { message: 'no rows' } })
+      buildInsertChain({ noBank: true })
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
       const result = await upsertQuestion(VALID_INPUT)
 
@@ -254,6 +243,27 @@ describe('upsertQuestion', () => {
       if (result.success) return
       expect(result.error).toBe('No question bank found for organization')
       expect(mockRevalidatePath).not.toHaveBeenCalled()
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[insertQuestion] No question bank for organization:',
+        ORG_UUID,
+      )
+    })
+
+    it('logs and returns failure when the question bank lookup fails', async () => {
+      mockAdmin()
+      buildInsertChain({ bankError: { message: 'connection reset' } })
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      const result = await upsertQuestion(VALID_INPUT)
+
+      expect(result.success).toBe(false)
+      if (result.success) return
+      expect(result.error).toBe('Failed to save question')
+      expect(mockRevalidatePath).not.toHaveBeenCalled()
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[insertQuestion] Bank lookup error:',
+        'connection reset',
+      )
     })
 
     it('returns a duplicate-number message when insert violates unique constraint', async () => {
