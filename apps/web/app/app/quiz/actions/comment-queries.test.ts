@@ -57,25 +57,60 @@ describe('fetchQuestionComments', () => {
     vi.resetAllMocks()
   })
 
-  it('returns all comments for a question when the query succeeds', async () => {
+  it('returns all comments in one query when the count equals the rows returned', async () => {
     mockFrom.mockReturnValue(buildChain({ count: 1, data: [COMMENT_ROW], error: null }))
+
+    const result = await fetchQuestionComments(mockSupabase, QUESTION_ID)
+
+    expect(result).toEqual({ data: [COMMENT_ROW], error: null })
+    expect(mockFrom).toHaveBeenCalledTimes(1)
+  })
+
+  it('returns an empty array in one query when the question has no comments', async () => {
+    mockFrom.mockReturnValue(buildChain({ count: 0, data: [], error: null }))
+
+    const result = await fetchQuestionComments(mockSupabase, QUESTION_ID)
+
+    expect(result).toEqual({ data: [], error: null })
+    expect(mockFrom).toHaveBeenCalledTimes(1)
+  })
+
+  it('reads the count and pages separately when the count exceeds the first page', async () => {
+    const pagedRows = [COMMENT_ROW, { ...COMMENT_ROW, id: 'paged-2' }]
+    mockFrom
+      .mockReturnValueOnce(buildChain({ count: 2, data: [COMMENT_ROW], error: null }))
+      .mockReturnValueOnce(buildChain({ count: 2, data: null, error: null }))
+      .mockReturnValueOnce(buildChain({ count: null, data: pagedRows, error: null }))
+
+    const result = await fetchQuestionComments(mockSupabase, QUESTION_ID)
+
+    expect(result).toEqual({ data: pagedRows, error: null })
+  })
+
+  it('falls back to the paged read when the first query errors', async () => {
+    mockFrom
+      .mockReturnValueOnce(buildChain({ count: null, data: null, error: { message: 'first' } }))
+      .mockReturnValueOnce(buildChain({ count: 1, data: null, error: null }))
+      .mockReturnValueOnce(buildChain({ count: null, data: [COMMENT_ROW], error: null }))
 
     const result = await fetchQuestionComments(mockSupabase, QUESTION_ID)
 
     expect(result).toEqual({ data: [COMMENT_ROW], error: null })
   })
 
-  it('returns an empty array when the question has no comments', async () => {
-    mockFrom.mockReturnValue(buildChain({ count: 0, data: [], error: null }))
+  it('falls back to the paged read when the first query reports no count', async () => {
+    mockFrom
+      .mockReturnValueOnce(buildChain({ count: null, data: [COMMENT_ROW], error: null }))
+      .mockReturnValueOnce(buildChain({ count: 1, data: null, error: null }))
+      .mockReturnValueOnce(buildChain({ count: null, data: [COMMENT_ROW], error: null }))
 
     const result = await fetchQuestionComments(mockSupabase, QUESTION_ID)
 
-    expect(result).toEqual({ data: [], error: null })
+    expect(result).toEqual({ data: [COMMENT_ROW], error: null })
+    expect(mockFrom).toHaveBeenCalledTimes(3)
   })
 
   it('surfaces a database error and returns no rows', async () => {
-    // getCount returns the error — fetchAllRows short-circuits to { data: [], error }.
-    // The helper does not log (logging is the caller's job in comments.ts).
     mockFrom.mockReturnValue(buildChain({ count: null, data: null, error: { message: 'boom' } }))
 
     const result = await fetchQuestionComments(mockSupabase, QUESTION_ID)
@@ -84,11 +119,8 @@ describe('fetchQuestionComments', () => {
   })
 
   it('surfaces an error when the count reports rows but a page resolves null', async () => {
-    // The count already reported 3 rows, so this page lies within [0, total). A null
-    // payload with no error is a count/page disagreement, not an empty page. fetchAllRows
-    // now rejects a null page itself, but the caller's own toPageResult wrap fires first
-    // here, naming the table rather than the pager's page-range message.
     mockFrom
+      .mockReturnValueOnce(buildChain({ count: 3, data: null, error: null }))
       .mockReturnValueOnce(buildChain({ count: 3, data: null, error: null }))
       .mockReturnValueOnce(buildChain({ count: null, data: null, error: null }))
 
@@ -101,8 +133,8 @@ describe('fetchQuestionComments', () => {
   })
 
   it('surfaces a page-level error after the count succeeds', async () => {
-    // count succeeds with a non-zero total, then the first page query errors
     mockFrom
+      .mockReturnValueOnce(buildChain({ count: 3, data: null, error: null }))
       .mockReturnValueOnce(buildChain({ count: 3, data: null, error: null }))
       .mockReturnValueOnce(buildChain({ count: null, data: null, error: { message: 'page fail' } }))
 

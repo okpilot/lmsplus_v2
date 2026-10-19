@@ -264,9 +264,46 @@ describe('recordConsent', () => {
   })
 
   describe('RPC error handling', () => {
+    it('starts both consent records before either finishes', async () => {
+      mockAuthenticatedUser()
+      let resolveTos: (v: unknown) => void = () => {}
+      mockRpc
+        .mockReturnValueOnce(
+          new Promise((resolve) => {
+            resolveTos = resolve
+          }),
+        )
+        .mockResolvedValueOnce({ data: null, error: null })
+
+      const pending = recordConsent({ acceptedTos: true, acceptedPrivacy: true })
+      await vi.waitFor(() => expect(mockRpc).toHaveBeenCalledTimes(2))
+      resolveTos({ data: null, error: null })
+
+      await expect(pending).resolves.toEqual({ success: true })
+    })
+
+    it('logs both failures and sets no cookie when both consent records fail', async () => {
+      mockAuthenticatedUser()
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      mockRpc
+        .mockResolvedValueOnce({ data: null, error: { message: 'tos down' } })
+        .mockResolvedValueOnce({ data: null, error: { message: 'privacy down' } })
+
+      const result = await recordConsent({ acceptedTos: true, acceptedPrivacy: true })
+
+      expect(result).toEqual({ success: false, error: 'Failed to record consent' })
+      expect(mockSetConsentCookie).not.toHaveBeenCalled()
+      expect(errorSpy.mock.calls).toEqual([
+        ['[recordConsent] TOS record error:', 'tos down'],
+        ['[recordConsent] Privacy record error:', 'privacy down'],
+      ])
+    })
+
     it('returns a sanitized error when TOS consent recording fails', async () => {
       mockAuthenticatedUser()
-      mockRpc.mockResolvedValueOnce({ data: null, error: { message: 'db timeout' } })
+      mockRpc
+        .mockResolvedValueOnce({ data: null, error: { message: 'db timeout' } })
+        .mockResolvedValueOnce({ data: null, error: null })
 
       const result = await recordConsent({
         acceptedTos: true,

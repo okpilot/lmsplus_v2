@@ -27,29 +27,22 @@ export async function recordConsent(raw: unknown): Promise<ActionResult> {
   const ipAddress = headerStore.get('x-forwarded-for') ?? null
   const userAgent = headerStore.get('user-agent') ?? null
 
-  const { error: tosError } = await rpc(supabase, 'record_consent', {
-    p_document_type: 'terms_of_service',
-    p_document_version: CURRENT_TOS_VERSION,
-    p_accepted: true,
-    p_ip_address: ipAddress,
-    p_user_agent: userAgent,
-  })
-  if (tosError) {
-    console.error('[recordConsent] TOS record error:', tosError.message)
-    return { success: false, error: 'Failed to record consent' }
-  }
-
-  const { error: privacyError } = await rpc(supabase, 'record_consent', {
-    p_document_type: 'privacy_policy',
-    p_document_version: CURRENT_PRIVACY_VERSION,
-    p_accepted: true,
-    p_ip_address: ipAddress,
-    p_user_agent: userAgent,
-  })
-  if (privacyError) {
-    console.error('[recordConsent] Privacy record error:', privacyError.message)
-    return { success: false, error: 'Failed to record consent' }
-  }
+  const base = { p_accepted: true, p_ip_address: ipAddress, p_user_agent: userAgent }
+  const [{ error: tosError }, { error: privacyError }] = await Promise.all([
+    rpc(supabase, 'record_consent', {
+      ...base,
+      p_document_type: 'terms_of_service',
+      p_document_version: CURRENT_TOS_VERSION,
+    }),
+    rpc(supabase, 'record_consent', {
+      ...base,
+      p_document_type: 'privacy_policy',
+      p_document_version: CURRENT_PRIVACY_VERSION,
+    }),
+  ])
+  if (tosError) console.error('[recordConsent] TOS record error:', tosError.message)
+  if (privacyError) console.error('[recordConsent] Privacy record error:', privacyError.message)
+  if (tosError || privacyError) return { success: false, error: 'Failed to record consent' }
 
   const cookieStore = await cookies()
   setConsentCookie(cookieStore, user.id)
