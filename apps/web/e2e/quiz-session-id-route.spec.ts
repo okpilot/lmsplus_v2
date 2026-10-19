@@ -447,6 +447,8 @@ test.describe('Quiz session addressed by id', () => {
     await expect(page.getByRole('button', { name: 'Exit' })).toBeVisible()
     // Let any post-mount action fire before asserting none did.
     await page.waitForLoadState('networkidle')
+    // startStudy fires from the config page: proves the listener captures actions.
+    expect(actionUrls.some((url) => /\/app\/quiz$/.test(url))).toBe(true)
     // Questions and flags come from the startStudy payload held in memory.
     expect(actionUrls.filter((url) => /\/app\/quiz\/session$/.test(url))).toEqual([])
   })
