@@ -12,15 +12,14 @@ const mockSupabase = {
 
 // ---- Subject under test ----------------------------------------------------
 
-import { fetchQuestionComments } from './comment-queries'
+import { COMMENT_SELECT, fetchQuestionComments } from './comment-queries'
 
 // ---- Helpers ---------------------------------------------------------------
 
-/**
- * Builds a fluent Supabase chain that resolves to the given return value.
- * fetchAllRows calls getCount (reads `count`) then getPage (reads `data`).
- * We return a single object carrying BOTH so one chain mock serves both calls.
- */
+const rangeCalls: Array<[number, number]> = []
+const selectCalls: unknown[][] = []
+
+/** Fluent Supabase chain; `.range()` records its args, awaiting resolves to returnValue. */
 function buildChain(returnValue: unknown) {
   const awaitable = {
     // biome-ignore lint/suspicious/noThenProperty: intentional thenable for Supabase chain mock
@@ -30,9 +29,25 @@ function buildChain(returnValue: unknown) {
   return new Proxy(awaitable as Record<string, unknown>, {
     get(target, prop) {
       if (prop === 'then') return target.then
+      if (prop === 'select') {
+        return (...args: unknown[]) => {
+          selectCalls.push(args)
+          return buildChain(returnValue)
+        }
+      }
+      if (prop === 'range') {
+        return (from: number, to: number) => {
+          rangeCalls.push([from, to])
+          return buildChain(returnValue)
+        }
+      }
       return (..._args: unknown[]) => buildChain(returnValue)
     },
   })
+}
+
+function rows(n: number, prefix = 'row') {
+  return Array.from({ length: n }, (_, i) => ({ ...COMMENT_ROW, id: `${prefix}-${i}` }))
 }
 
 // ---- Fixtures --------------------------------------------------------------
@@ -55,42 +70,83 @@ const COMMENT_ROW = {
 describe('fetchQuestionComments', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    rangeCalls.length = 0
+    selectCalls.length = 0
   })
 
-  it('returns all comments for a question when the query succeeds', async () => {
+  it('reads up to 1000 comments in a single query', async () => {
     mockFrom.mockReturnValue(buildChain({ count: 1, data: [COMMENT_ROW], error: null }))
 
     const result = await fetchQuestionComments(mockSupabase, QUESTION_ID)
 
     expect(result).toEqual({ data: [COMMENT_ROW], error: null })
+    expect(mockFrom).toHaveBeenCalledTimes(1)
+    expect(rangeCalls).toEqual([[0, 999]])
   })
 
-  it('returns an empty array when the question has no comments', async () => {
+  it('reads exactly 1000 comments in a single query', async () => {
+    const page = rows(1000)
+    mockFrom.mockReturnValue(buildChain({ count: 1000, data: page, error: null }))
+
+    const result = await fetchQuestionComments(mockSupabase, QUESTION_ID)
+
+    expect(result).toEqual({ data: page, error: null })
+    expect(mockFrom).toHaveBeenCalledTimes(1)
+    expect(rangeCalls).toEqual([[0, 999]])
+  })
+
+  it('returns an empty array in one query when the question has no comments', async () => {
     mockFrom.mockReturnValue(buildChain({ count: 0, data: [], error: null }))
 
     const result = await fetchQuestionComments(mockSupabase, QUESTION_ID)
 
     expect(result).toEqual({ data: [], error: null })
+    expect(mockFrom).toHaveBeenCalledTimes(1)
   })
 
-  it('surfaces a database error and returns no rows', async () => {
-    // getCount returns the error — fetchAllRows short-circuits to { data: [], error }.
-    // The helper does not log (logging is the caller's job in comments.ts).
+  it('fetches only the remaining comments without re-reading the first page', async () => {
+    const firstPage = rows(1000, 'a')
+    const tail = rows(1, 'b')
+    mockFrom
+      .mockReturnValueOnce(buildChain({ count: 1001, data: firstPage, error: null }))
+      .mockReturnValueOnce(buildChain({ count: null, data: tail, error: null }))
+
+    const result = await fetchQuestionComments(mockSupabase, QUESTION_ID)
+
+    expect(result).toEqual({ data: [...firstPage, ...tail], error: null })
+    expect(mockFrom).toHaveBeenCalledTimes(2)
+    expect(rangeCalls).toEqual([
+      [0, 999],
+      [1000, 1000],
+    ])
+    expect(selectCalls).toEqual([
+      [COMMENT_SELECT, { count: 'exact' }],
+      [COMMENT_SELECT, undefined],
+    ])
+  })
+
+  it('surfaces the error and returns no rows when the first query fails', async () => {
     mockFrom.mockReturnValue(buildChain({ count: null, data: null, error: { message: 'boom' } }))
 
     const result = await fetchQuestionComments(mockSupabase, QUESTION_ID)
 
     expect(result).toEqual({ data: [], error: { message: 'boom' } })
+    expect(mockFrom).toHaveBeenCalledTimes(1)
   })
 
-  it('surfaces an error when the count reports rows but a page resolves null', async () => {
-    // The count already reported 3 rows, so this page lies within [0, total). A null
-    // payload with no error is a count/page disagreement, not an empty page. fetchAllRows
-    // now rejects a null page itself, but the caller's own toPageResult wrap fires first
-    // here, naming the table rather than the pager's page-range message.
-    mockFrom
-      .mockReturnValueOnce(buildChain({ count: 3, data: null, error: null }))
-      .mockReturnValueOnce(buildChain({ count: null, data: null, error: null }))
+  it('surfaces an error when the first query reports no exact count', async () => {
+    mockFrom.mockReturnValue(buildChain({ count: null, data: [COMMENT_ROW], error: null }))
+
+    const result = await fetchQuestionComments(mockSupabase, QUESTION_ID)
+
+    expect(result).toEqual({
+      data: [],
+      error: { message: 'fetchAllRows: count query returned no exact count' },
+    })
+  })
+
+  it('surfaces an error when the count reports rows but the first page resolves null', async () => {
+    mockFrom.mockReturnValue(buildChain({ count: 3, data: null, error: null }))
 
     const result = await fetchQuestionComments(mockSupabase, QUESTION_ID)
 
@@ -101,9 +157,8 @@ describe('fetchQuestionComments', () => {
   })
 
   it('surfaces a page-level error after the count succeeds', async () => {
-    // count succeeds with a non-zero total, then the first page query errors
     mockFrom
-      .mockReturnValueOnce(buildChain({ count: 3, data: null, error: null }))
+      .mockReturnValueOnce(buildChain({ count: 1001, data: rows(1000), error: null }))
       .mockReturnValueOnce(buildChain({ count: null, data: null, error: { message: 'page fail' } }))
 
     const result = await fetchQuestionComments(mockSupabase, QUESTION_ID)

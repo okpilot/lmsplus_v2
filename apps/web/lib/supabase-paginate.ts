@@ -87,7 +87,8 @@ function checkPageCardinality(
  * Counts first (an out-of-range `.range()` returns PostgREST 416, so we must know the total to
  * never request a page past the end), then pages with `.range()` until every row is read.
  *
- * @param getCount builds a `.select('*', { count: 'exact', head: true })` query for the total.
+ * @param getCount resolves the exact total — typically a `.select('*', { count: 'exact', head: true })`
+ *   query; a caller may return the count of a query it already ran.
  * @param getPage  builds the same filtered query with a deterministic total order + `.range(from, to)`.
  * @param pageSize must be <= `POSTGREST_MAX_ROWS` (PostgREST's hard cap); defaults to it.
  * @returns resolves with a non-null `data` array; on any error `data` is `[]` and `error`
