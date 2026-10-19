@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { findActiveInternalExamSession, flagQuestion, unflagQuestion } from './_flag-guard'
+import {
+  findActiveInternalExamSession,
+  flagQuestion,
+  lookupActiveFlag,
+  unflagQuestion,
+} from './_flag-guard'
 
 // ---- Helpers ---------------------------------------------------------------
 
@@ -155,5 +160,31 @@ describe('unflagQuestion', () => {
 
     expect(result).toEqual({ success: false, error: 'Failed to unflag' })
     expect(consoleSpy).toHaveBeenCalledWith('[toggleFlag] Unflag error:', 'rls denied')
+  })
+})
+
+// ---- lookupActiveFlag ------------------------------------------------------
+
+describe('lookupActiveFlag', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+  })
+
+  it('reports the question as flagged when an active flag row exists', async () => {
+    const supabase = makeSupabase({ data: { student_id: USER_ID }, error: null })
+    expect(await lookupActiveFlag(supabase, USER_ID, QUESTION_ID)).toEqual({ flagged: true })
+  })
+
+  it('reports the question as not flagged when no active flag row exists', async () => {
+    const supabase = makeSupabase({ data: null, error: null })
+    expect(await lookupActiveFlag(supabase, USER_ID, QUESTION_ID)).toEqual({ flagged: false })
+  })
+
+  it('returns an error marker and logs when the lookup fails', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const supabase = makeSupabase({ data: null, error: { message: 'connection timeout' } })
+
+    expect(await lookupActiveFlag(supabase, USER_ID, QUESTION_ID)).toEqual({ error: true })
+    expect(errorSpy).toHaveBeenCalledWith('[toggleFlag] Lookup error:', 'connection timeout')
   })
 })

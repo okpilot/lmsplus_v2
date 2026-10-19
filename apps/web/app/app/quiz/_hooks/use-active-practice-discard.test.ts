@@ -3,20 +3,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks -----------------------------------------------------------------
 
-const { mockRouterRefresh } = vi.hoisted(() => ({
-  mockRouterRefresh: vi.fn(),
-}))
-
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ refresh: mockRouterRefresh }),
-}))
-
 const { mockDiscardQuiz } = vi.hoisted(() => ({
   mockDiscardQuiz: vi.fn(),
 }))
 
-vi.mock('../actions/discard', () => ({
-  discardQuiz: (...args: unknown[]) => mockDiscardQuiz(...args),
+vi.mock('../actions/discard-and-refresh', () => ({
+  discardQuizAndRefresh: (...args: unknown[]) => mockDiscardQuiz(...args),
 }))
 
 // ---- Subject under test ----------------------------------------------------
@@ -53,19 +45,18 @@ beforeEach(() => {
 // ---- Tests -----------------------------------------------------------------
 
 describe('useActivePracticeDiscard', () => {
-  it('discards the session and refreshes in place on success', async () => {
+  it('discards the session and updates the banner on success', async () => {
     const { result } = renderHook(() => useActivePracticeDiscard(SESSION_ID, USER_ID))
     await act(async () => {
       await result.current.discard()
     })
 
     expect(mockDiscardQuiz).toHaveBeenCalledWith({ sessionId: SESSION_ID })
-    expect(mockRouterRefresh).toHaveBeenCalledTimes(1)
     expect(result.current.discarded).toBe(true)
     expect(result.current.error).toBeNull()
   })
 
-  it('surfaces the action error and does not refresh when discard fails', async () => {
+  it('surfaces the action error and keeps the banner when discard fails', async () => {
     mockDiscardQuiz.mockResolvedValue({ success: false, error: 'Session not found' })
     const { result } = renderHook(() => useActivePracticeDiscard(SESSION_ID, USER_ID))
     await act(async () => {
@@ -74,7 +65,6 @@ describe('useActivePracticeDiscard', () => {
 
     expect(result.current.error).toBe('Session not found')
     expect(result.current.discarded).toBe(false)
-    expect(mockRouterRefresh).not.toHaveBeenCalled()
   })
 
   it('surfaces a generic error when the discard request throws', async () => {
@@ -85,7 +75,6 @@ describe('useActivePracticeDiscard', () => {
     })
 
     expect(result.current.error).toMatch(/server unavailable/i)
-    expect(mockRouterRefresh).not.toHaveBeenCalled()
   })
 
   it('shows the fallback message when discard fails without details', async () => {
@@ -205,7 +194,7 @@ describe('useActivePracticeDiscard', () => {
 
   // Sibling of the test above, pinning the other half of "regardless of outcome": the clear
   // must precede the Server Action, not merely be unconditional after it. Moved below
-  // `await discardQuiz(...)` it still runs on both resolved outcomes — so the success and
+  // `await discardQuizAndRefresh(...)` it still runs on both resolved outcomes — so the success and
   // resolved-failure tests stay green — but is skipped entirely on a throw. This is the only
   // test that fails on that move.
   it('honours the discard even when the request throws', async () => {

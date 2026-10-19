@@ -197,4 +197,25 @@ test.describe('practice exam — refresh recovery', () => {
     await expect(page.getByText(/Question 1 of/)).toBeVisible({ timeout: 10_000 })
     await expect(page.locator('button:has(span.rounded-full)').first()).toBeDisabled()
   })
+
+  // ── 3. Resume banner: discard ───────────────────────────────────────────────
+
+  test('Discard from the Resume Practice Exam banner removes the banner in place and it stays gone after reload', async ({
+    page,
+  }) => {
+    await startMETExam(page)
+    await answerCurrentQuestion(page)
+    await page.goto('/app/quiz')
+    await expect(page.getByText('Practice Exam in progress')).toBeVisible({ timeout: 10_000 })
+
+    await page.getByRole('button', { name: 'Discard' }).first().click()
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Discard' }).click()
+
+    await expect(page.getByText('Practice Exam in progress')).toHaveCount(0, { timeout: 10_000 })
+    await expect(page).toHaveURL(/\/app\/quiz$/)
+
+    await page.reload()
+    await expect(page.getByRole('heading', { name: 'Quiz' })).toBeVisible()
+    await expect(page.getByText('Practice Exam in progress')).toHaveCount(0)
+  })
 })

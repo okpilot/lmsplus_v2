@@ -3,7 +3,12 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import { verifySessionUser } from '@/lib/auth/verify-session-user'
-import { findActiveInternalExamSession, lookupAndToggleFlag } from './_flag-guard'
+import {
+  findActiveInternalExamSession,
+  flagQuestion,
+  lookupActiveFlag,
+  unflagQuestion,
+} from './_flag-guard'
 
 const ToggleFlagSchema = z.object({ questionId: z.uuid() })
 const GetFlaggedIdsSchema = z.object({ questionIds: z.array(z.uuid()) })
@@ -24,16 +29,23 @@ export async function toggleFlag(raw: unknown): Promise<FlagResult> {
   }
   const { questionId } = parsed
 
-  const examGuard = await findActiveInternalExamSession(supabase, user.id)
-  if (examGuard.dbError) {
-    return { success: false, error: 'Failed to toggle flag' }
-  }
+  // Independent reads run together; the exam gate is evaluated first, so an active exam
+  // never reaches a write.
+  const [examGuard, lookup] = await Promise.all([
+    findActiveInternalExamSession(supabase, user.id),
+    lookupActiveFlag(supabase, user.id, questionId),
+  ])
+  if (examGuard.dbError) return { success: false, error: 'Failed to toggle flag' }
   if (examGuard.active) {
     console.error('[toggleFlag] Rejected flag during active internal_exam for user', user.id)
     return { success: false, error: 'cannot_flag_internal_exam' }
   }
 
-  return lookupAndToggleFlag(supabase, user.id, questionId)
+  if ('error' in lookup) return { success: false, error: 'Failed to toggle flag' }
+
+  return lookup.flagged
+    ? unflagQuestion(supabase, user.id, questionId)
+    : flagQuestion(supabase, user.id, questionId)
 }
 
 export async function getFlaggedIds(raw: unknown): Promise<GetFlaggedResult> {

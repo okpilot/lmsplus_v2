@@ -268,6 +268,9 @@
 | IN | session-page-rsc-vfr-rt-foreign-session-questions | HIGH | rsc-vfr-rt-exam-questions-key-strip.spec.ts | BLOCKED |  | idor |
 | IO | recordConsent-concurrent-tos-privacy-pair-duplicate-rows | LOW | record-consent-concurrent-pair.spec.ts | BLOCKED |  | race |
 | IP | fetchQuestionComments-first-page-count-soft-deleted-comment | LOW | comments-first-page-count.spec.ts | BLOCKED |  | soft-delete-bypass |
+| IQ | discardQuizAndRefresh-foreign-session-id | MEDIUM | server-action-discard-and-refresh.spec.ts | BLOCKED |  | idor |
+| IR | discardQuizAndRefresh-non-discardable-exam-modes | HIGH | server-action-discard-and-refresh.spec.ts | BLOCKED |  | privilege-escalation |
+| IS | toggleFlag-active-internal-exam-parallel-flag-lookup | MEDIUM | server-action-toggle-flag-internal-exam.spec.ts | BLOCKED |  | privilege-escalation |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 

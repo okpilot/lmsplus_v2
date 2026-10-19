@@ -5,9 +5,8 @@ const { mockDiscardQuiz } = vi.hoisted(() => ({
   mockDiscardQuiz: vi.fn<() => Promise<ActionResult>>(),
 }))
 
-vi.mock('../actions/discard', () => ({ discardQuiz: mockDiscardQuiz }))
+vi.mock('../actions/discard-and-refresh', () => ({ discardQuizAndRefresh: mockDiscardQuiz }))
 
-import { createMockRouter } from '@/lib/test-support/mock-router'
 import { buildDiscardHandler, type ResumeExamDeps } from './resume-exam-handlers'
 
 // ---------------------------------------------------------------------------
@@ -41,13 +40,11 @@ let setError: ReturnType<typeof vi.fn<(v: string | null) => void>>
 let setDiscarded: ReturnType<typeof vi.fn<(v: boolean) => void>>
 // A fresh object per test stands in for the hook's useRef(false).
 let discardingRef: { current: boolean }
-let router: ResumeExamDeps['router']
 
 function makeDeps(overrides: Partial<ResumeExamDeps> = {}): ResumeExamDeps {
   return {
     userId: 'user-1',
     activeSessionId: 'sess-exam-001',
-    router,
     setLoading,
     setError,
     setDiscarded,
@@ -63,7 +60,6 @@ beforeEach(() => {
   setLoading = vi.fn()
   setError = vi.fn()
   setDiscarded = vi.fn()
-  router = createMockRouter()
 })
 
 // ---------------------------------------------------------------------------
@@ -71,7 +67,7 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('buildDiscardHandler', () => {
-  it('marks the session discarded and refreshes the page after a successful discard', async () => {
+  it('marks the session discarded after a successful discard', async () => {
     mockDiscardQuiz.mockResolvedValue({ success: true })
     const handle = buildDiscardHandler(makeDeps())
 
@@ -79,7 +75,6 @@ describe('buildDiscardHandler', () => {
 
     expect(mockDiscardQuiz).toHaveBeenCalledWith({ sessionId: 'sess-exam-001' })
     expect(setDiscarded).toHaveBeenCalledWith(true)
-    expect(router.refresh).toHaveBeenCalledTimes(1)
     expect(setLoading).toHaveBeenLastCalledWith(false)
   })
 
@@ -106,7 +101,7 @@ describe('buildDiscardHandler', () => {
 
   // Sibling of the test above, pinning the other half of "regardless of outcome": the clear
   // must precede the Server Action, not merely be unconditional after it. Moved below
-  // `await discardQuiz(...)` it still runs on both resolved outcomes — so the success and
+  // `await discardQuizAndRefresh(...)` it still runs on both resolved outcomes — so the success and
   // resolved-failure tests stay green — but is skipped entirely on a throw. This is the only
   // test that fails on that move.
   it('honours the discard even when the request throws', async () => {

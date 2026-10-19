@@ -4,20 +4,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockRouterRefresh } = vi.hoisted(() => ({
-  mockRouterRefresh: vi.fn(),
-}))
-
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ refresh: mockRouterRefresh }),
-}))
-
 const { mockDiscardQuiz } = vi.hoisted(() => ({
   mockDiscardQuiz: vi.fn(),
 }))
 
-vi.mock('../actions/discard', () => ({
-  discardQuiz: (...args: unknown[]) => mockDiscardQuiz(...args),
+vi.mock('../actions/discard-and-refresh', () => ({
+  discardQuizAndRefresh: (...args: unknown[]) => mockDiscardQuiz(...args),
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -72,7 +64,7 @@ describe('ActivePracticeBanner — rendering', () => {
 // ---- Discard --------------------------------------------------------------
 
 describe('ActivePracticeBanner — Discard', () => {
-  it('discards the active session and refreshes in place on success', async () => {
+  it('discards the active session and removes the banner on success', async () => {
     render(<ActivePracticeBanner userId={USER_ID} session={SESSION} />)
     await userEvent.click(screen.getByRole('button', { name: /^discard$/i }))
     await userEvent.click(screen.getByRole('button', { name: /^discard$/i, hidden: false }))
@@ -80,9 +72,8 @@ describe('ActivePracticeBanner — Discard', () => {
     await waitFor(() =>
       expect(mockDiscardQuiz).toHaveBeenCalledWith({ sessionId: 'sess-prac-001' }),
     )
-    // The async handler refreshes + removes the banner after discardQuiz resolves —
+    // The async handler removes the banner after the discard resolves —
     // wait for that observable success state rather than asserting synchronously.
-    await waitFor(() => expect(mockRouterRefresh).toHaveBeenCalledTimes(1))
     await waitFor(() =>
       expect(screen.queryByText(/^unfinished study session$/i)).not.toBeInTheDocument(),
     )
@@ -101,10 +92,9 @@ describe('ActivePracticeBanner — Discard', () => {
     expect(alert).toBeVisible()
     expect(alert).toHaveTextContent('Session not found')
     expect(screen.getByText(/^unfinished study session$/i)).toBeInTheDocument()
-    expect(mockRouterRefresh).not.toHaveBeenCalled()
   })
 
-  it('shows a generic dialog error and does not refresh when the discard request fails', async () => {
+  it('shows a generic dialog error when the discard request fails', async () => {
     mockDiscardQuiz.mockRejectedValue(new Error('network failure'))
 
     render(<ActivePracticeBanner userId={USER_ID} session={SESSION} />)
@@ -114,7 +104,6 @@ describe('ActivePracticeBanner — Discard', () => {
     const alert = await screen.findByRole('alert')
     expect(alert).toBeVisible()
     expect(alert).toHaveTextContent(/server unavailable/i)
-    expect(mockRouterRefresh).not.toHaveBeenCalled()
   })
 
   it('keeps Cancel disabled so the dialog cannot be dismissed while a discard is pending', async () => {
