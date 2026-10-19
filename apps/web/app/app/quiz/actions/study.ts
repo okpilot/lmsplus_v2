@@ -1,9 +1,11 @@
 'use server'
 
 import { z } from 'zod'
+import { FLAG_FETCH_TIMEOUT_MS } from '@/lib/constants/flag-fetch-timeout'
 import { getFlaggedQuestionIds } from '@/lib/queries/flagged-questions'
 import { getRandomQuestionIds } from '@/lib/queries/quiz-session-queries'
 import { getStudyQuestions, type StudyQuestion } from '@/lib/queries/study-queries'
+import { withTimeout } from '@/lib/utils/with-timeout'
 import { createDiscoverySession } from './_start-discovery-session'
 import { endDiscovery } from './end-discovery'
 
@@ -56,7 +58,7 @@ export async function startStudy(raw: unknown): Promise<StartStudyResult> {
 
     const [questions, flaggedIds] = await Promise.all([
       getStudyQuestions(ids),
-      getFlaggedQuestionIds(ids),
+      withTimeout(getFlaggedQuestionIds(ids), FLAG_FETCH_TIMEOUT_MS, []),
     ])
     // getStudyQuestions can return [] for a non-empty id set (e.g. every id filtered
     // by the RPC's soft-delete/status guards in a race). Treat that as a failure so the

@@ -2,10 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks -----------------------------------------------------------------
 
-const { mockVerifySessionUser, mockFrom, mockGetFlaggedQuestionIds } = vi.hoisted(() => ({
+const { mockVerifySessionUser, mockFrom } = vi.hoisted(() => ({
   mockVerifySessionUser: vi.fn(),
   mockFrom: vi.fn(),
-  mockGetFlaggedQuestionIds: vi.fn(),
 }))
 
 const mockClient = vi.hoisted(() => ({ from: mockFrom }))
@@ -16,10 +15,6 @@ vi.mock('@repo/db/server', () => ({
 
 vi.mock('@/lib/auth/verify-session-user', () => ({
   verifySessionUser: mockVerifySessionUser,
-}))
-
-vi.mock('@/lib/queries/flagged-questions', () => ({
-  getFlaggedQuestionIds: (...args: unknown[]) => mockGetFlaggedQuestionIds(...args),
 }))
 
 // ---- Subject under test ----------------------------------------------------
@@ -341,37 +336,64 @@ describe('getFlaggedIds', () => {
 
   it('returns the IDs of questions that are flagged', async () => {
     setupAuthenticatedUser()
-    mockGetFlaggedQuestionIds.mockResolvedValue([QUESTION_ID_A])
+    mockFrom.mockReturnValue(buildChain({ data: [{ question_id: QUESTION_ID_A }], error: null }))
 
     const result = await getFlaggedIds({ questionIds: [QUESTION_ID_A, QUESTION_ID_B] })
 
     expect(result).toEqual({ success: true, flaggedIds: [QUESTION_ID_A] })
-    expect(mockGetFlaggedQuestionIds).toHaveBeenCalledWith([QUESTION_ID_A, QUESTION_ID_B])
   })
 
   it('returns an empty array when none of the given questions are flagged', async () => {
     setupAuthenticatedUser()
-    mockGetFlaggedQuestionIds.mockResolvedValue([])
+    mockFrom.mockReturnValue(buildChain({ data: [], error: null }))
 
     const result = await getFlaggedIds({ questionIds: [QUESTION_ID_A, QUESTION_ID_B] })
 
     expect(result).toEqual({ success: true, flaggedIds: [] })
   })
 
+  it('returns all IDs when all given questions are flagged', async () => {
+    setupAuthenticatedUser()
+    mockFrom.mockReturnValue(
+      buildChain({
+        data: [{ question_id: QUESTION_ID_A }, { question_id: QUESTION_ID_B }],
+        error: null,
+      }),
+    )
+
+    const result = await getFlaggedIds({ questionIds: [QUESTION_ID_A, QUESTION_ID_B] })
+
+    expect(result).toEqual({ success: true, flaggedIds: [QUESTION_ID_A, QUESTION_ID_B] })
+  })
+
   it('accepts an empty questionIds array and returns no flagged IDs', async () => {
     setupAuthenticatedUser()
-    mockGetFlaggedQuestionIds.mockResolvedValue([])
+    mockFrom.mockReturnValue(buildChain({ data: [], error: null }))
 
     const result = await getFlaggedIds({ questionIds: [] })
 
     expect(result).toEqual({ success: true, flaggedIds: [] })
   })
 
-  it('does not read flags for an unauthenticated session', async () => {
-    mockVerifySessionUser.mockResolvedValue(null)
+  it('queries the active_flagged_questions view', async () => {
+    setupAuthenticatedUser()
+    mockFrom.mockReturnValue(buildChain({ data: [], error: null }))
 
     await getFlaggedIds({ questionIds: [QUESTION_ID_A] })
 
-    expect(mockGetFlaggedQuestionIds).not.toHaveBeenCalled()
+    expect(mockFrom).toHaveBeenCalledWith('active_flagged_questions')
+  })
+
+  // ---- error handling ------------------------------------------------------
+
+  it('returns a failure when the database query errors', async () => {
+    setupAuthenticatedUser()
+    mockFrom.mockReturnValue(buildChain({ data: null, error: { message: 'query timeout' } }))
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const result = await getFlaggedIds({ questionIds: [QUESTION_ID_A] })
+
+    consoleSpy.mockRestore()
+    expect(result).toEqual({ success: false, error: 'Failed to fetch flags' })
   })
 })

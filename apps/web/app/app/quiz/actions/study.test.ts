@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { FLAG_FETCH_TIMEOUT_MS } from '@/lib/constants/flag-fetch-timeout'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -294,6 +295,22 @@ describe('startStudy — happy path', () => {
     if (!result.success) return
     expect(result.flaggedIds).toEqual([QUESTION_IDS[0]])
     expect(mockGetFlaggedQuestionIds).toHaveBeenCalledWith(QUESTION_IDS)
+  })
+
+  it('starts with no flags when the flag read hangs past the timeout', async () => {
+    vi.useFakeTimers()
+    try {
+      mockGetFlaggedQuestionIds.mockReturnValue(new Promise(() => {}))
+      const pending = startStudy(VALID_INPUT)
+      await vi.advanceTimersByTimeAsync(FLAG_FETCH_TIMEOUT_MS)
+      const result = await pending
+      expect(result.success).toBe(true)
+      if (!result.success) return
+      expect(result.flaggedIds).toEqual([])
+      expect(result.questions).toHaveLength(1)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('passes the resolved question ids to the study question fetcher', async () => {

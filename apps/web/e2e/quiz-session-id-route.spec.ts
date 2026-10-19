@@ -445,6 +445,8 @@ test.describe('Quiz session addressed by id', () => {
     await page.waitForURL(/\/app\/quiz\/session$/, { timeout: 15_000 })
     await expect(page.getByText(/Question 1 of/)).toBeVisible({ timeout: 10_000 })
     await expect(page.getByRole('button', { name: 'Exit' })).toBeVisible()
+    // Let any post-mount action fire before asserting none did.
+    await page.waitForLoadState('networkidle')
     // Questions and flags come from the startStudy payload held in memory.
     expect(actionUrls.filter((url) => /\/app\/quiz\/session$/.test(url))).toEqual([])
   })

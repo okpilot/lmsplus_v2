@@ -3,7 +3,6 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import { verifySessionUser } from '@/lib/auth/verify-session-user'
-import { getFlaggedQuestionIds } from '@/lib/queries/flagged-questions'
 import { findActiveInternalExamSession, lookupAndToggleFlag } from './_flag-guard'
 
 const ToggleFlagSchema = z.object({ questionId: z.uuid() })
@@ -49,5 +48,18 @@ export async function getFlaggedIds(raw: unknown): Promise<GetFlaggedResult> {
     return { success: false, error: 'Invalid input' }
   }
 
-  return { success: true, flaggedIds: await getFlaggedQuestionIds(parsed.questionIds) }
+  const { data, error } = await supabase
+    .from('active_flagged_questions')
+    .select('question_id')
+    .eq('student_id', user.id)
+    .in('question_id', parsed.questionIds)
+
+  if (error) {
+    console.error('[getFlaggedIds] Query error:', error.message)
+    return { success: false, error: 'Failed to fetch flags' }
+  }
+
+  // View columns typed nullable (Postgres artifact); safe to cast — underlying table has NOT NULL constraints.
+  const flaggedIds = data.map((r) => r.question_id as string)
+  return { success: true, flaggedIds }
 }
