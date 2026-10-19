@@ -67,8 +67,24 @@ jobs:
         # supabase/setup-cli exports SUPABASE_INTERNAL_IMAGE_REGISTRY=ghcr.io; GHCR throttles these pulls.
         run: echo "SUPABASE_INTERNAL_IMAGE_REGISTRY=public.ecr.aws" >> "$GITHUB_ENV"
 
+      - name: Log in to ECR Public
+        # Authenticated pulls lift ECR Public's anonymous 500 GB/month data cap (#1399).
+        # Without the secrets (Dependabot, forks) the step is a no-op and pulls stay anonymous.
+        shell: bash
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ECR_PUBLIC_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ECR_PUBLIC_SECRET_ACCESS_KEY }}
+        run: |
+          if [ -z "$AWS_ACCESS_KEY_ID" ]; then
+            echo "::notice::ECR Public credentials not set; pulling anonymously"
+            exit 0
+          fi
+          aws ecr-public get-login-password --region us-east-1 \
+            | docker login --username AWS --password-stdin public.ecr.aws
+
       - name: Start local Supabase
-        run: supabase start -x logflare,vector
+        # Only the services the tests use are started (#1399).
+        run: supabase start -x logflare,vector,realtime,studio,postgres-meta,edge-runtime,mailpit,imgproxy,supavisor
 
       - name: Wait for Supabase readiness
         run: bash .github/scripts/wait-for-supabase.sh
