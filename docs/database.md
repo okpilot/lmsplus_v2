@@ -175,7 +175,7 @@ CREATE TABLE question_banks (
 );
 ```
 
-**Constraints**: PK(id), FK(organization_id → organizations), FK(created_by → users). Unique constraint on `organization_id` (migration 062) — enforces 1:1 org:bank invariant at DB level, making `insertQuestion`'s `.limit(1).single()` deterministic.
+**Constraints**: PK(id), FK(organization_id → organizations), FK(created_by → users). Unique constraint on `organization_id` (migration 062) — enforces 1:1 org:bank invariant at DB level, so `insertQuestion`'s `.maybeSingle()` bank lookup returns at most one row.
 
 ### questions
 ```sql
