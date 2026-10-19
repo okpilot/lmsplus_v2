@@ -202,15 +202,27 @@ test.describe('Red Team: toggleFlag during an active internal_exam (IS)', () => 
     if (errors.length > 0) throw new Error(`afterEach: ${errors.join('; ')}`)
   })
 
-  /** No prior row: the one the test created is left soft-deleted (never hard-delete). */
+  /** No prior row: soft-delete any row the test created (never hard-delete, never insert). */
   const restoreFlag = async (prior: FlagSnapshot) => {
-    const restore = prior ?? { deleted_at: new Date().toISOString(), flagged_at: undefined }
+    if (prior === null) {
+      const { data, error } = await admin
+        .from('flagged_questions')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('student_id', attackerUserId)
+        .eq('question_id', q1)
+        .is('deleted_at', null)
+        .select('question_id')
+      if (error) throw new Error(`restore flag: ${error.message}`)
+      if ((data?.length ?? 0) > 0)
+        console.info(`[toggle-flag-exam] restore soft-deleted ${data?.length}`)
+      return
+    }
     const { error } = await admin.from('flagged_questions').upsert(
       {
         student_id: attackerUserId,
         question_id: q1,
-        deleted_at: restore.deleted_at,
-        ...(restore.flagged_at ? { flagged_at: restore.flagged_at } : {}),
+        deleted_at: prior.deleted_at,
+        ...(prior.flagged_at ? { flagged_at: prior.flagged_at } : {}),
       },
       { onConflict: 'student_id,question_id' },
     )
