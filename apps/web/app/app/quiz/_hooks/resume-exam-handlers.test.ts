@@ -67,7 +67,7 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('buildDiscardHandler', () => {
-  it('marks the session discarded after a successful discard in one request', async () => {
+  it('marks the session discarded after a successful discard', async () => {
     mockDiscardQuiz.mockResolvedValue({ success: true })
     const handle = buildDiscardHandler(makeDeps())
 

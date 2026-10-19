@@ -38,7 +38,7 @@ beforeEach(() => {
 // ---- Discard --------------------------------------------------------------
 
 describe('useResumeExamActions — discard', () => {
-  it('marks the session discarded after a successful discard in one request', async () => {
+  it('marks the session discarded after a successful discard', async () => {
     const { result } = renderActions()
 
     await act(async () => {

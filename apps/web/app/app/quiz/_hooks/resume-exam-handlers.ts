@@ -21,9 +21,9 @@ export function buildDiscardHandler(deps: ResumeExamDeps) {
     deps.setLoading(true)
     deps.setError(null)
     // Clear regardless of outcome — respect discard intent even when the Server Action fails
-    // (mirrors discardQuizSession in quiz-submit.ts). Guarded on the id: this banner is
-    // server-rendered and never revalidated, so a stale tab must not clear a legacy entry
-    // naming a NEWER session.
+    // (mirrors discardQuizSession in quiz-submit.ts). Guarded on the id: the banner's session
+    // id comes from the last server render, which a stale tab has not refreshed, so it must
+    // not clear a legacy entry naming a NEWER session.
     clearActiveSessionIfCurrent(deps.userId, deps.activeSessionId)
     try {
       const result = await discardQuizAndRefresh({ sessionId: deps.activeSessionId })

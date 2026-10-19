@@ -35,9 +35,7 @@ export async function toggleFlag(raw: unknown): Promise<FlagResult> {
     findActiveInternalExamSession(supabase, user.id),
     lookupActiveFlag(supabase, user.id, questionId),
   ])
-  if (examGuard.dbError) {
-    return { success: false, error: 'Failed to toggle flag' }
-  }
+  if (examGuard.dbError) return { success: false, error: 'Failed to toggle flag' }
   if (examGuard.active) {
     console.error('[toggleFlag] Rejected flag during active internal_exam for user', user.id)
     return { success: false, error: 'cannot_flag_internal_exam' }

@@ -45,7 +45,7 @@ beforeEach(() => {
 // ---- Tests -----------------------------------------------------------------
 
 describe('useActivePracticeDiscard', () => {
-  it('discards the session in one request and updates the banner on success', async () => {
+  it('discards the session and updates the banner on success', async () => {
     const { result } = renderHook(() => useActivePracticeDiscard(SESSION_ID, USER_ID))
     await act(async () => {
       await result.current.discard()
