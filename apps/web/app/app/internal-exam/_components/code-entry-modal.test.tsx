@@ -2,31 +2,19 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const {
-  mockRouterPush,
-  mockStartInternalExam,
-  mockGetActivePracticeSession,
-  mockClaim,
-  mockSave,
-  mockCheckRoom,
-} = vi.hoisted(() => ({
-  mockCheckRoom: vi.fn(),
-  mockRouterPush: vi.fn(),
-  mockStartInternalExam: vi.fn(),
-  mockGetActivePracticeSession: vi.fn(),
-  mockClaim: vi.fn(),
-  mockSave: vi.fn(),
-}))
+const { mockRouterPush, mockStartInternalExam, mockGetActivePracticeSession, mockSaveBlocking } =
+  vi.hoisted(() => ({
+    mockRouterPush: vi.fn(),
+    mockStartInternalExam: vi.fn(),
+    mockGetActivePracticeSession: vi.fn(),
+    mockSaveBlocking: vi.fn(),
+  }))
 
 vi.mock('@/app/app/quiz/actions/get-active-practice-session', () => ({
   getActivePracticeSession: (...args: unknown[]) => mockGetActivePracticeSession(...args),
 }))
-vi.mock('@/app/app/quiz/actions/quiz-progress', () => ({
-  claimQuizSession: (...args: unknown[]) => mockClaim(...args),
-}))
-vi.mock('@/app/app/quiz/actions/saved-quiz', () => ({
-  saveQuizForLater: (...args: unknown[]) => mockSave(...args),
-  checkSavedQuizRoom: (...args: unknown[]) => mockCheckRoom(...args),
+vi.mock('@/app/app/quiz/actions/save-blocking-quiz', () => ({
+  saveBlockingQuizForLater: (...args: unknown[]) => mockSaveBlocking(...args),
 }))
 
 vi.mock('next/navigation', () => ({
@@ -79,9 +67,7 @@ function renderModal(open = true) {
 describe('CodeEntryModal', () => {
   beforeEach(() => {
     vi.resetAllMocks()
-    mockClaim.mockResolvedValue({ success: true })
-    mockSave.mockResolvedValue({ success: true })
-    mockCheckRoom.mockResolvedValue({ success: true })
+    mockSaveBlocking.mockResolvedValue({ success: true })
   })
 
   it('disables the submit button when the input is empty', () => {
@@ -159,8 +145,9 @@ describe('CodeEntryModal', () => {
 
     await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session/sess-abc'))
     expect(mockStartInternalExam).toHaveBeenCalledTimes(2)
-    expect(mockClaim).toHaveBeenCalledWith(expect.objectContaining({ sessionId: 'blocker-1' }))
-    expect(mockSave).toHaveBeenCalledWith(expect.objectContaining({ sessionId: 'blocker-1' }))
+    expect(mockSaveBlocking).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: 'blocker-1' }),
+    )
   })
 
   it('withdraws the save-and-start offer when the code is edited, and starts only the new code', async () => {
@@ -186,8 +173,7 @@ describe('CodeEntryModal', () => {
     await userEvent.click(screen.getByRole('button', { name: /start exam/i }))
     await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session/sess-new'))
     expect(mockStartInternalExam).toHaveBeenLastCalledWith({ code: 'ABCD2349' })
-    expect(mockClaim).not.toHaveBeenCalled()
-    expect(mockSave).not.toHaveBeenCalled()
+    expect(mockSaveBlocking).not.toHaveBeenCalled()
   })
 
   it('locks the code input while the open practice quiz is being saved', async () => {
@@ -200,7 +186,7 @@ describe('CodeEntryModal', () => {
       success: true,
       session: { sessionId: 'blocker-1', subjectName: 'Meteorology' },
     })
-    mockClaim.mockReturnValue(new Promise(() => {}))
+    mockSaveBlocking.mockReturnValue(new Promise(() => {}))
     renderModal()
     const input = screen.getByTestId('code-input')
     await userEvent.type(input, 'ABCD2345')
@@ -312,7 +298,7 @@ describe('CodeEntryModal', () => {
       success: true,
       session: { sessionId: 'blocker-1', subjectName: 'Meteorology' },
     })
-    mockClaim.mockReturnValue(new Promise(() => {}))
+    mockSaveBlocking.mockReturnValue(new Promise(() => {}))
     const { onOpenChange } = renderModal()
     await userEvent.type(screen.getByTestId('code-input'), 'ABCD2345')
     await userEvent.click(screen.getByRole('button', { name: /start exam/i }))

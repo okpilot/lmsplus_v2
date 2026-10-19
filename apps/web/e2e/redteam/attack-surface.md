@@ -271,6 +271,8 @@
 | IQ | discardQuizAndRefresh-foreign-session-id | MEDIUM | server-action-discard-and-refresh.spec.ts | BLOCKED |  | idor |
 | IR | discardQuizAndRefresh-non-discardable-exam-modes | HIGH | server-action-discard-and-refresh.spec.ts | BLOCKED |  | privilege-escalation |
 | IS | toggleFlag-active-internal-exam-parallel-flag-lookup | MEDIUM | server-action-toggle-flag-internal-exam.spec.ts | BLOCKED |  | privilege-escalation |
+| IT | saveBlockingQuizForLater-cap-refuses-before-claim | MEDIUM | server-action-save-blocking-quiz.spec.ts | BLOCKED |  | rate-limit |
+| IU | saveBlockingQuizForLater-foreign-session | HIGH | server-action-save-blocking-quiz.spec.ts | BLOCKED |  | idor |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
