@@ -11,12 +11,16 @@ export async function insertQuestion(
     .from('question_banks')
     .select('id')
     .eq('organization_id', organizationId)
+    .is('deleted_at', null)
     .limit(1)
     .single<{ id: string }>()
 
-  if (bankErr || !bank) {
+  // PGRST116 (no rows) is the expected no-bank case — only a real error is logged.
+  if (bankErr && bankErr.code !== 'PGRST116') {
+    console.error('[insertQuestion] Bank lookup error:', bankErr.message)
     return { success: false, error: 'No question bank found for organization' }
   }
+  if (!bank) return { success: false, error: 'No question bank found for organization' }
 
   // Intentionally no ON CONFLICT — duplicate question_number should surface to the admin via 23505
   const { error } = await supabase.from('questions').insert({

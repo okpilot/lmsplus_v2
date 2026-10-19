@@ -48,7 +48,7 @@ function buildInsertChain({
   bankError?: { message: string; code?: string } | null
   insertError?: { message: string; code?: string } | null
 } = {}) {
-  const bankEq = vi.fn().mockReturnValue({
+  const bankIs = vi.fn().mockReturnValue({
     limit: vi.fn().mockReturnValue({
       single: vi.fn().mockResolvedValue({
         data: bankError ? null : { id: BANK_UUID },
@@ -56,6 +56,7 @@ function buildInsertChain({
       }),
     }),
   })
+  const bankEq = vi.fn().mockReturnValue({ is: bankIs })
   const questionsBankChain = {
     select: vi.fn().mockReturnValue({ eq: bankEq }),
     insert: vi.fn().mockResolvedValue({ error: insertError }),
@@ -66,7 +67,7 @@ function buildInsertChain({
     if (table === 'questions') return questionsBankChain
     return questionsBankChain
   })
-  return { chain: questionsBankChain, bankEq }
+  return { chain: questionsBankChain, bankEq, bankIs }
 }
 
 // Builds a chain for the update path:
@@ -218,7 +219,7 @@ describe('upsertQuestion', () => {
 
     it('stamps the new question with the organization and author from the admin session', async () => {
       mockAdmin()
-      const { chain, bankEq } = buildInsertChain()
+      const { chain, bankEq, bankIs } = buildInsertChain()
 
       await upsertQuestion(VALID_INPUT)
 
@@ -228,15 +229,17 @@ describe('upsertQuestion', () => {
         bank_id?: string
       }
       expect(bankEq).toHaveBeenCalledWith('organization_id', ORG_UUID)
+      expect(bankIs).toHaveBeenCalledWith('deleted_at', null)
       expect(insertedRow?.bank_id).toBe(BANK_UUID)
       expect(insertedRow?.organization_id).toBe(ORG_UUID)
       expect(insertedRow?.created_by).toBe('admin-user-1')
       expect(mockFrom).not.toHaveBeenCalledWith('users')
     })
 
-    it('returns failure when no question bank exists for the organization', async () => {
+    it('returns failure without logging when no question bank exists for the organization', async () => {
       mockAdmin()
-      buildInsertChain({ bankError: { message: 'no rows' } })
+      buildInsertChain({ bankError: { message: 'no rows', code: 'PGRST116' } })
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
       const result = await upsertQuestion(VALID_INPUT)
 
@@ -244,6 +247,23 @@ describe('upsertQuestion', () => {
       if (result.success) return
       expect(result.error).toBe('No question bank found for organization')
       expect(mockRevalidatePath).not.toHaveBeenCalled()
+      expect(consoleSpy).not.toHaveBeenCalled()
+    })
+
+    it('logs and returns failure when the question bank lookup fails', async () => {
+      mockAdmin()
+      buildInsertChain({ bankError: { message: 'connection reset' } })
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      const result = await upsertQuestion(VALID_INPUT)
+
+      expect(result.success).toBe(false)
+      if (result.success) return
+      expect(result.error).toBe('No question bank found for organization')
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[insertQuestion] Bank lookup error:',
+        'connection reset',
+      )
     })
 
     it('returns a duplicate-number message when insert violates unique constraint', async () => {
