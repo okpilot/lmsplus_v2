@@ -56,12 +56,13 @@ export async function startStudy(raw: unknown): Promise<StartStudyResult> {
     if (startError) return { success: false, error: startError }
     createdSessionId = createdId
 
-    const [questions, flaggedIds] = await Promise.all([getStudyQuestions(ids), flagsPromise])
+    const questions = await getStudyQuestions(ids)
     // getStudyQuestions can return [] for a non-empty id set (e.g. every id filtered
     // by the RPC's soft-delete/status guards in a race). Treat that as a failure so the
     // catch below tears down createdSessionId — otherwise the just-created discovery row
     // stays active and blocks the next start until it is auto-cleared.
     if (questions.length === 0) throw new Error('No study questions returned for selected ids')
+    const flaggedIds = await flagsPromise
     // The id may be a concurrent winner's row (mig 137 replay branch); losing an
     // ephemeral discovery row is inert today. Created-vs-replayed needs an RPC OUT flag — #1152.
     return { success: true, questions, flaggedIds, sessionId: createdSessionId ?? undefined }

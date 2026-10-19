@@ -232,6 +232,8 @@ describe('startStudy — discovery session', () => {
     // the RPC's soft-delete/status guards in a race). The just-created discovery row must
     // be torn down — otherwise it stays active and blocks the next start.
     mockGetStudyQuestions.mockResolvedValue([])
+    // The failure must not wait on the cosmetic flag read.
+    mockGetFlaggedQuestionIdsBounded.mockReturnValue(new Promise(() => {}))
     const result = await startStudy(VALID_INPUT)
     expect(result.success).toBe(false)
     if (result.success) return
