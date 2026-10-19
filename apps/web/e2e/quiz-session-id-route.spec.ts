@@ -436,11 +436,21 @@ test.describe('Quiz session addressed by id', () => {
     )
     await page.locator('[data-testid="subject-trigger"]').click()
     await page.locator('[data-testid="subject-option"]').first().click()
+    const actionUrls: string[] = []
+    page.on('request', (request) => {
+      if (isServerActionPost(request)) actionUrls.push(request.frame().url())
+    })
     await page.getByRole('button', { name: 'Start discovery' }).click()
 
     await page.waitForURL(/\/app\/quiz\/session$/, { timeout: 15_000 })
     await expect(page.getByText(/Question 1 of/)).toBeVisible({ timeout: 10_000 })
     await expect(page.getByRole('button', { name: 'Exit' })).toBeVisible()
+    // Let any post-mount action fire before asserting none did.
+    await page.waitForLoadState('networkidle')
+    // startStudy fires from the config page: proves the listener captures actions.
+    expect(actionUrls.some((url) => /\/app\/quiz$/.test(url))).toBe(true)
+    // Questions and flags come from the startStudy payload held in memory.
+    expect(actionUrls.filter((url) => /\/app\/quiz\/session$/.test(url))).toEqual([])
   })
 
   test('finishing after a resume in a second browser context submits every answer and the report shows them', async ({

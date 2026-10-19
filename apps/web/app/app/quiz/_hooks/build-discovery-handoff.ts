@@ -28,9 +28,9 @@ export type DiscoveryHandoff = {
  * Pure transform: `StudyQuestion[]` → the Discovery handoff. Pre-marks every
  * question's correct option (selectedOptionId === correctOptionId, zero response
  * time) and seeds correct MC feedback so the runner opens each question in
- * answered/review state — browse-only, nothing scored. The runner re-fetches
- * question text/options/explanation fresh via `get_quiz_questions`, so only `id`
- * + `correctOptionId` ride along (explanations stay null to bound the payload).
+ * answered/review state — browse-only, nothing scored. Only `id` + `correctOptionId`
+ * ride along in the sessionStorage payload (explanations stay null to bound it); the
+ * question content reaches the runner via the in-memory prefetch, or a fetch on a miss.
  */
 export function buildDiscoveryHandoff(
   questions: StudyQuestion[],
