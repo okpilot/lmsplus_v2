@@ -50,7 +50,7 @@ describe('useBlockedStart', () => {
     expect(result.current.offer).toBeNull()
   })
 
-  it('shows the limit copy and does not start when the saved quizzes are full', async () => {
+  it("shows the action's error, keeps the offer and does not start when freeing the slot fails", async () => {
     mockFree.mockResolvedValue({ success: false, error: 'You can keep up to 20 saved quizzes.' })
     const start = vi.fn()
     const { result } = renderWithOffer()
@@ -59,29 +59,7 @@ describe('useBlockedStart', () => {
 
     expect(result.current.error).toBe('You can keep up to 20 saved quizzes.')
     expect(start).not.toHaveBeenCalled()
-  })
-
-  it('shows the takeover error and does not start when the takeover fails', async () => {
-    mockFree.mockResolvedValue({ success: false, error: 'Could not take over' })
-    const start = vi.fn()
-    const { result } = renderWithOffer()
-
-    await act(async () => result.current.accept(start))
-
-    expect(result.current.error).toBe('Could not take over')
-    expect(start).not.toHaveBeenCalled()
     expect(result.current.offer).toEqual(OFFER)
-  })
-
-  it('shows the save error and does not start when saving fails', async () => {
-    mockFree.mockResolvedValue({ success: false, error: 'Too many saved quizzes' })
-    const start = vi.fn()
-    const { result } = renderWithOffer()
-
-    await act(async () => result.current.accept(start))
-
-    expect(result.current.error).toBe('Too many saved quizzes')
-    expect(start).not.toHaveBeenCalled()
   })
 
   it('shows a generic error and stays retryable when an action throws', async () => {

@@ -1,9 +1,9 @@
 /**
  * Red Team Spec: blocked-start chain at the saved-quiz cap — Vector HL
  *
- * Surface: the blocked-start flow (`save-blocking-quiz.ts`: checkSavedQuizRoom → claim_quiz_session →
- * save_quiz_for_later, one server action; the room check runs before the claim). A caller skipping
- * the action drives claim + save directly. save_quiz_for_later must enforce the cap itself and leave the
+ * Surface: the blocked-start flow. `save-blocking-quiz.ts` runs checkSavedQuizRoom →
+ * claimQuizSession → saveQuizForLater in one server action, room check first. A caller skipping
+ * it drives claim_quiz_session + save_quiz_for_later directly. save_quiz_for_later must enforce the cap itself and leave the
  * session open, so the single active slot stays occupied (uq_one_active_session_per_student).
  *
  * Status: Expected to PASS. Control arm: one saved row under the cap, the same save parks the

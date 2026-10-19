@@ -84,6 +84,23 @@ describe('saveBlockingQuizForLater', () => {
     })
   })
 
+  it('does not take over when the room check throws', async () => {
+    mockRoom.mockRejectedValue(new Error('network'))
+
+    await expect(saveBlockingQuizForLater(INPUT)).rejects.toThrow('network')
+
+    expect(mockClaim).not.toHaveBeenCalled()
+    expect(mockSave).not.toHaveBeenCalled()
+  })
+
+  it('does not save when the takeover throws', async () => {
+    mockClaim.mockRejectedValue(new Error('network'))
+
+    await expect(saveBlockingQuizForLater(INPUT)).rejects.toThrow('network')
+
+    expect(mockSave).not.toHaveBeenCalled()
+  })
+
   it('rejects malformed input without touching any step', async () => {
     await expect(saveBlockingQuizForLater({ sessionId: 'not-a-uuid' })).resolves.toEqual({
       success: false,
