@@ -157,6 +157,17 @@ describe('admin report reads', () => {
       mockAnswerKeyMap.mockResolvedValue({ data: new Map(), error: null })
     })
 
+    it('returns an empty page and ignores a key-read failure when the page has no answers', async () => {
+      mockPageAnswers.mockResolvedValue({ data: [], error: null })
+      mockCorrectMap.mockResolvedValue({ data: null, error: { message: 'x' } })
+
+      expect(await getAdminQuizReportQuestions({ sessionId: 'sess-1', page: 1 })).toEqual({
+        ok: true,
+        questions: [],
+        totalCount: 2,
+      })
+    })
+
     it('starts the page questions read while the page answers read is still pending', async () => {
       const answers = deferred<unknown>()
       mockPageAnswers.mockReturnValue(answers.promise)

@@ -677,7 +677,7 @@ describe('getAdminQuizReportQuestions', () => {
     })
   })
 
-  it('does not call the RPC when the page has no answers', async () => {
+  it('does not call the RPC when the session has no answered questions', async () => {
     mockFromSequence(
       { data: { id: 'sess-1', ended_at: '2026-03-12T10:15:00Z' } },
       { count: 0, data: null },
