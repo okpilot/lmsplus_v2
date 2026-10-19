@@ -22,26 +22,11 @@ export async function uploadQuestionImage(formData: FormData): Promise<UploadRes
     return { success: false, error: 'Invalid file type (PNG, JPEG, or WebP only)' }
   }
 
-  const { supabase, userId } = await requireAdmin()
-
-  // Resolve org for path-based tenant isolation in storage policies
-  const { data: profile, error: profileError } = await supabase
-    .from('users')
-    .select('organization_id')
-    .eq('id', userId)
-    .single<{ organization_id: string }>()
-
-  if (profileError) {
-    console.error('[uploadQuestionImage] org lookup error:', profileError.message)
-    return { success: false, error: 'Could not resolve organization' }
-  }
-  if (!profile?.organization_id) {
-    return { success: false, error: 'Could not resolve organization' }
-  }
+  const { supabase, organizationId } = await requireAdmin()
 
   const ext =
     (file.name.split('.').pop() ?? 'png').replaceAll(/[^a-z0-9]/gi, '').toLowerCase() || 'png'
-  const path = `${profile.organization_id}/${randomUUID()}.${ext}`
+  const path = `${organizationId}/${randomUUID()}.${ext}`
 
   const { error } = await supabase.storage.from('question-images').upload(path, file, {
     contentType: file.type,
