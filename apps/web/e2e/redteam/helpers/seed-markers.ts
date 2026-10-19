@@ -98,3 +98,7 @@ export const E2E_REDTEAM_IH_MARKER = '[E2E_REDTEAM_IH]'
 // requireAdmin() is the sole admin render gate for a live token. Distinct email bounds the blast radius.
 export const E2E_REDTEAM_IM_SOFTDEL_ADMIN_EMAIL = 'redteam-softdel-render-admin@lmsplus.local'
 export const E2E_REDTEAM_IM_SOFTDEL_ADMIN_PASSWORD = 'redteam-softdel-render-admin-2026!'
+// discardQuizAndRefresh Server Action spec (Vectors IQ, IR): quiz_sessions `config.e2e_marker`.
+export const E2E_REDTEAM_IQ_MARKER = '[E2E_REDTEAM_IQ]'
+// toggleFlag active-internal-exam spec (Vector IS): quiz_sessions `config.e2e_marker`.
+export const E2E_REDTEAM_IS_MARKER = '[E2E_REDTEAM_IS]'
