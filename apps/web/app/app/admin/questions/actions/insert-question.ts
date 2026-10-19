@@ -12,13 +12,11 @@ export async function insertQuestion(
     .select('id')
     .eq('organization_id', organizationId)
     .is('deleted_at', null)
-    .limit(1)
-    .single<{ id: string }>()
+    .maybeSingle<{ id: string }>()
 
-  // PGRST116 (no rows) is the expected no-bank case — only a real error is logged.
-  if (bankErr && bankErr.code !== 'PGRST116') {
+  if (bankErr) {
     console.error('[insertQuestion] Bank lookup error:', bankErr.message)
-    return { success: false, error: 'No question bank found for organization' }
+    return { success: false, error: 'Failed to save question' }
   }
   if (!bank) return { success: false, error: 'No question bank found for organization' }
 

@@ -39,21 +39,21 @@ const VALID_INPUT = {
 }
 
 // Builds a chain for the insert path:
-// question_banks.select().eq().limit().single() → { data: { id }, error }
+// question_banks.select().eq().is().maybeSingle() → { data: { id } | null, error }
 // questions.insert() → { error }
 function buildInsertChain({
   bankError = null,
+  noBank = false,
   insertError = null,
 }: {
   bankError?: { message: string; code?: string } | null
+  noBank?: boolean
   insertError?: { message: string; code?: string } | null
 } = {}) {
   const bankIs = vi.fn().mockReturnValue({
-    limit: vi.fn().mockReturnValue({
-      single: vi.fn().mockResolvedValue({
-        data: bankError ? null : { id: BANK_UUID },
-        error: bankError,
-      }),
+    maybeSingle: vi.fn().mockResolvedValue({
+      data: bankError || noBank ? null : { id: BANK_UUID },
+      error: bankError,
     }),
   })
   const bankEq = vi.fn().mockReturnValue({ is: bankIs })
@@ -238,7 +238,7 @@ describe('upsertQuestion', () => {
 
     it('returns failure without logging when no question bank exists for the organization', async () => {
       mockAdmin()
-      buildInsertChain({ bankError: { message: 'no rows', code: 'PGRST116' } })
+      buildInsertChain({ noBank: true })
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
       const result = await upsertQuestion(VALID_INPUT)
@@ -259,7 +259,8 @@ describe('upsertQuestion', () => {
 
       expect(result.success).toBe(false)
       if (result.success) return
-      expect(result.error).toBe('No question bank found for organization')
+      expect(result.error).toBe('Failed to save question')
+      expect(mockRevalidatePath).not.toHaveBeenCalled()
       expect(consoleSpy).toHaveBeenCalledWith(
         '[insertQuestion] Bank lookup error:',
         'connection reset',
