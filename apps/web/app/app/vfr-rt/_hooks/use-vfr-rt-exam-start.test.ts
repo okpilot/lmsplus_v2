@@ -13,9 +13,8 @@ vi.mock('@/app/app/quiz/actions/get-active-practice-session', () => ({
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mockPush }) }))
 
-vi.mock('@/app/app/quiz/actions/saved-quiz', () => ({
-  checkSavedQuizRoom: () => new Promise(() => {}),
-  saveQuizForLater: vi.fn(),
+vi.mock('@/app/app/quiz/actions/save-blocking-quiz', () => ({
+  saveBlockingQuizForLater: () => new Promise(() => {}),
 }))
 vi.mock('../../vfr-rt-exam/actions/start', () => ({
   startVfrRtExam: (...args: unknown[]) => mockStartVfrRtExam(...args),

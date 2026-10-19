@@ -19,9 +19,9 @@ async function runStart(start: () => unknown): Promise<void> {
 }
 
 /**
- * Owns the blocked-start offer: "Save quiz for later and start <X>". Accepting checks the
- * saved-quiz cap, claims the blocking practice quiz, saves it, then re-runs the start. Any error
- * is shown and the start does not run.
+ * Owns the blocked-start offer: "Save quiz for later and start <X>". Accepting frees the
+ * slot with one action (cap check, claim, save), then re-runs the start. Any error is
+ * shown and the start does not run.
  */
 export function useBlockedStart() {
   const [offer, setOffer] = useState<BlockedOffer | null>(null)

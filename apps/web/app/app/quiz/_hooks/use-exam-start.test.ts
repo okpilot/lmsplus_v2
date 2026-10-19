@@ -13,9 +13,8 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockRouterPush }),
 }))
 
-vi.mock('../actions/saved-quiz', () => ({
-  checkSavedQuizRoom: () => new Promise(() => {}),
-  saveQuizForLater: vi.fn(),
+vi.mock('../actions/save-blocking-quiz', () => ({
+  saveBlockingQuizForLater: () => new Promise(() => {}),
 }))
 
 vi.mock('../actions/start-exam', () => ({
