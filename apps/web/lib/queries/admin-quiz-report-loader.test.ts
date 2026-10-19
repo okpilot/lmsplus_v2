@@ -157,6 +157,17 @@ describe('admin report reads', () => {
       mockAnswerKeyMap.mockResolvedValue({ data: new Map(), error: null })
     })
 
+    it('returns an empty page and ignores a key-read failure when the page has no answers', async () => {
+      mockPageAnswers.mockResolvedValue({ data: [], error: null })
+      mockCorrectMap.mockResolvedValue({ data: null, error: { message: 'x' } })
+
+      expect(await getAdminQuizReportQuestions({ sessionId: 'sess-1', page: 1 })).toEqual({
+        ok: true,
+        questions: [],
+        totalCount: 2,
+      })
+    })
+
     it('starts the page questions read while the page answers read is still pending', async () => {
       const answers = deferred<unknown>()
       mockPageAnswers.mockReturnValue(answers.promise)
@@ -165,6 +176,20 @@ describe('admin report reads', () => {
       await vi.waitFor(() => expect(mockPageAnswers).toHaveBeenCalled())
       await new Promise((r) => setTimeout(r, 0))
       expect(mockPageQuestions).toHaveBeenCalled()
+
+      answers.resolve({ data: [answerRow], error: null })
+      expect((await result).ok).toBe(true)
+    })
+
+    it('starts the answer-key reads while the page answers read is still pending', async () => {
+      const answers = deferred<unknown>()
+      mockPageAnswers.mockReturnValue(answers.promise)
+
+      const result = getAdminQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
+      await vi.waitFor(() => expect(mockPageAnswers).toHaveBeenCalled())
+      await new Promise((r) => setTimeout(r, 0))
+      expect(mockCorrectMap).toHaveBeenCalled()
+      expect(mockAnswerKeyMap).toHaveBeenCalled()
 
       answers.resolve({ data: [answerRow], error: null })
       expect((await result).ok).toBe(true)

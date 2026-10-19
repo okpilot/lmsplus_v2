@@ -6,6 +6,7 @@ import { SessionHistoryContent } from './_components/session-history-content'
 import { StudentHeader } from './_components/student-header'
 import { parseSessionFilters } from './parse-filters'
 import { getStudentDetail } from './queries'
+import { startStudentSessions } from './start-student-sessions'
 
 type PageProps = {
   params: Promise<{ id: string }>
@@ -20,6 +21,7 @@ export default async function StudentDetailPage({ params, searchParams }: Readon
   if (!UUID_RE.test(id)) notFound()
 
   const filters = parseSessionFilters(rawParams)
+  const sessionsPromise = startStudentSessions(id, filters)
 
   const student = await getStudentDetail(id)
   if (!student) notFound()
@@ -28,7 +30,7 @@ export default async function StudentDetailPage({ params, searchParams }: Readon
     <div className="space-y-6">
       <StudentHeader student={student} />
       <Suspense fallback={<Skeleton className="h-96 rounded-xl" />}>
-        <SessionHistoryContent studentId={id} filters={filters} />
+        <SessionHistoryContent sessionsPromise={sessionsPromise} filters={filters} />
       </Suspense>
     </div>
   )

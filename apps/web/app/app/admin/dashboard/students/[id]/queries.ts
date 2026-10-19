@@ -42,10 +42,12 @@ const SESSION_SORT_MAP: Record<SessionSort, string> = {
   questions: 'total_questions',
 }
 
+export type StudentSessionsResult = { sessions: StudentSession[]; totalCount: number }
+
 export async function getStudentSessions(
   studentId: string,
   filters: StudentSessionFilters,
-): Promise<{ sessions: StudentSession[]; totalCount: number }> {
+): Promise<StudentSessionsResult> {
   const { organizationId } = await requireAdmin()
 
   let query = adminClient
