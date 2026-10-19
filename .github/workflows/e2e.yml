@@ -43,7 +43,10 @@ jobs:
         run: echo "SUPABASE_INTERNAL_IMAGE_REGISTRY=public.ecr.aws" >> "$GITHUB_ENV"
 
       - name: Start local Supabase
-        run: supabase start -x logflare,vector
+        uses: ./.github/actions/start-supabase
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ECR_PUBLIC_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_ECR_PUBLIC_SECRET_ACCESS_KEY }}
 
       # `db reset` applies every migration and THEN restarts the storage container and probes
       # the Storage API (GET /storage/v1/bucket) to reconcile buckets against config.toml. That
@@ -295,7 +298,10 @@ jobs:
         run: echo "SUPABASE_INTERNAL_IMAGE_REGISTRY=public.ecr.aws" >> "$GITHUB_ENV"
 
       - name: Start local Supabase
-        run: supabase start -x logflare,vector
+        uses: ./.github/actions/start-supabase
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ECR_PUBLIC_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_ECR_PUBLIC_SECRET_ACCESS_KEY }}
 
       - name: Wait for Supabase readiness
         run: bash .github/scripts/wait-for-supabase.sh
@@ -384,7 +390,10 @@ jobs:
         run: echo "SUPABASE_INTERNAL_IMAGE_REGISTRY=public.ecr.aws" >> "$GITHUB_ENV"
 
       - name: Start local Supabase
-        run: supabase start -x logflare,vector
+        uses: ./.github/actions/start-supabase
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ECR_PUBLIC_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_ECR_PUBLIC_SECRET_ACCESS_KEY }}
 
       - name: Wait for Supabase readiness
         run: bash .github/scripts/wait-for-supabase.sh

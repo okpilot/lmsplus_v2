@@ -88,7 +88,6 @@
     "apps/web/app/app/quiz/actions/load-draft-helpers.test.ts": 597,
     "apps/web/app/app/quiz/actions/lookup.test.ts": 521,
     "apps/web/app/app/quiz/actions/lookup.ts": 155,
-    "apps/web/app/app/quiz/actions/study.ts": 103,
     "apps/web/app/app/quiz/report/_components/report-question-row.test.tsx": 517,
     "apps/web/app/app/quiz/session/_components/quiz-main-panel.test.tsx": 758,
     "apps/web/app/app/quiz/session/_components/quiz-session.test.tsx": 946,

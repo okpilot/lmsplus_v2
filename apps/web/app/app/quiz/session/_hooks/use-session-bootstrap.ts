@@ -4,7 +4,7 @@ import { clearSessionHandoff } from '../_utils/quiz-session-handoff'
 import {
   applyInitialLoad,
   dropCachedSession,
-  loadSessionData,
+  loadDiscoverySession,
   readBootstrapSession,
 } from './session-bootstrap-load'
 import { useBootstrapState } from './use-bootstrap-state'
@@ -30,8 +30,8 @@ export function useSessionBootstrap(userId: string) {
       return
     }
     setters.setSession(data)
-    // Flags and questions; QuizSession mounts once, after both settle.
-    loadSessionData(data.questionIds)
+    // Prefetched or fetched; QuizSession mounts once, after questions and flags settle.
+    loadDiscoverySession(data, userId)
       .then((r) => applyInitialLoad(r, userId, setters))
       // Error-path net: a throwing setter must not strand the skeleton.
       .catch(() => setters.setError('Failed to load questions. Please try again.'))
