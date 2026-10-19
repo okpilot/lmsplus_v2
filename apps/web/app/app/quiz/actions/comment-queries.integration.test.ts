@@ -72,14 +72,18 @@ describe('fetchQuestionComments (app-layer integration)', () => {
   afterAll(async () => {
     const errors: string[] = []
     if (studentId) {
-      const comments = await admin
-        .from('question_comments')
-        .delete()
-        .eq('user_id', studentId)
-        .select('id')
-      if (comments.error) errors.push(`question_comments: ${comments.error.message}`)
-      else if (comments.data.length > 0) {
-        console.log(`[afterAll] deleted ${comments.data.length} question_comments row(s)`)
+      try {
+        const comments = await admin
+          .from('question_comments')
+          .delete()
+          .eq('user_id', studentId)
+          .select('id')
+        if (comments.error) throw new Error(comments.error.message)
+        if (comments.data.length > 0) {
+          console.log(`[afterAll] deleted ${comments.data.length} question_comments row(s)`)
+        }
+      } catch (e) {
+        errors.push(`question_comments: ${e instanceof Error ? e.message : String(e)}`)
       }
     }
     try {

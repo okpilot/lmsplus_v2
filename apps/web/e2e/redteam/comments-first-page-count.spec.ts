@@ -89,6 +89,8 @@ test.describe('Red Team: question comments first-page count (Vector IP)', () => 
     expect(before.error).toBeNull()
     const baseline = before.count ?? -1
     expect(baseline).toBeGreaterThanOrEqual(0)
+    // Precondition: both live inserts must fit on the 1000-row first page.
+    expect(baseline).toBeLessThanOrEqual(998)
 
     const liveA = await seedComment(false)
     const liveB = await seedComment(false)
