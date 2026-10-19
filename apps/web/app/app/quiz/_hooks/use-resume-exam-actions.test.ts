@@ -3,17 +3,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockRouterRefresh, mockDiscardQuiz } = vi.hoisted(() => ({
-  mockRouterRefresh: vi.fn(),
+const { mockDiscardQuiz } = vi.hoisted(() => ({
   mockDiscardQuiz: vi.fn(),
 }))
 
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ refresh: mockRouterRefresh }),
-}))
-
-vi.mock('../actions/discard', () => ({
-  discardQuiz: (...args: unknown[]) => mockDiscardQuiz(...args),
+vi.mock('../actions/discard-and-refresh', () => ({
+  discardQuizAndRefresh: (...args: unknown[]) => mockDiscardQuiz(...args),
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -43,7 +38,7 @@ beforeEach(() => {
 // ---- Discard --------------------------------------------------------------
 
 describe('useResumeExamActions — discard', () => {
-  it('marks the session discarded and refreshes the page after a successful discard', async () => {
+  it('marks the session discarded after a successful discard in one request', async () => {
     const { result } = renderActions()
 
     await act(async () => {
@@ -52,7 +47,6 @@ describe('useResumeExamActions — discard', () => {
 
     expect(mockDiscardQuiz).toHaveBeenCalledWith({ sessionId: SESSION_ID })
     expect(result.current.discarded).toBe(true)
-    expect(mockRouterRefresh).toHaveBeenCalledTimes(1)
   })
 
   it('discards the session exactly once when triggered twice in the same tick', async () => {

@@ -1,8 +1,7 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import { useCallback, useRef, useState } from 'react'
-import { discardQuiz } from '../actions/discard'
+import { discardQuizAndRefresh } from '../actions/discard-and-refresh'
 import { clearActiveSessionIfCurrent } from '../session/_utils/quiz-session-storage'
 
 export type UseActivePracticeDiscard = {
@@ -15,14 +14,13 @@ export type UseActivePracticeDiscard = {
 
 /**
  * Owns the discard workflow for the active-practice banner: the synchronous one-shot
- * re-entry guard, the discardQuiz mutation, the in-place router.refresh, and the
+ * re-entry guard, the discardQuizAndRefresh mutation (re-renders the route in its response), and the
  * loading/error/discarded state. The component renders; this hook holds the logic.
  */
 export function useActivePracticeDiscard(
   sessionId: string,
   userId: string,
 ): UseActivePracticeDiscard {
-  const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [discarded, setDiscarded] = useState(false)
@@ -49,10 +47,9 @@ export function useActivePracticeDiscard(
     // or lacks a sessionId.
     clearActiveSessionIfCurrent(userId, sessionId)
     try {
-      const result = await discardQuiz({ sessionId })
+      const result = await discardQuizAndRefresh({ sessionId })
       if (result.success) {
         setDiscarded(true)
-        router.refresh()
         return
       }
       setError(result.error ?? 'Failed to discard. Please try again.')
@@ -63,7 +60,7 @@ export function useActivePracticeDiscard(
     } finally {
       setLoading(false)
     }
-  }, [router, sessionId, userId])
+  }, [sessionId, userId])
 
   return { discard, loading, error, discarded, clearError }
 }

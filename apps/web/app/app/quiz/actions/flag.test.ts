@@ -161,6 +161,62 @@ describe('toggleFlag', () => {
     expect(result).toEqual({ success: false, error: 'Failed to toggle flag' })
   })
 
+  it('starts the exam check and the flag lookup before either finishes', async () => {
+    setupAuthenticatedUser()
+    let resolveExamCheck: (v: unknown) => void = () => {}
+    const examCheck = new Promise((resolve) => {
+      resolveExamCheck = resolve
+    })
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'quiz_sessions') return buildChain(examCheck)
+      if (table === 'active_flagged_questions') return buildChain({ data: null, error: null })
+      return buildChain({ error: null })
+    })
+
+    const pending = toggleFlag({ questionId: QUESTION_ID_A })
+    await vi.waitFor(() => {
+      const tables = mockFrom.mock.calls.map(([table]) => table)
+      expect(tables).toContain('quiz_sessions')
+      expect(tables).toContain('active_flagged_questions')
+    })
+    resolveExamCheck({ data: null, error: null })
+
+    await expect(pending).resolves.toEqual({ success: true, flagged: true })
+  })
+
+  it('reports the internal-exam rejection even when the flag lookup also fails', async () => {
+    setupAuthenticatedUser()
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    setupFromByTable({
+      quiz_sessions: { data: { id: '00000000-0000-4000-a000-000000000099' }, error: null },
+      active_flagged_questions: { data: null, error: { message: 'connection timeout' } },
+    })
+
+    const result = await toggleFlag({ questionId: QUESTION_ID_A })
+
+    expect(result).toEqual({ success: false, error: 'cannot_flag_internal_exam' })
+    expect(errorSpy).toHaveBeenCalledWith(
+      '[toggleFlag] Rejected flag during active internal_exam for user',
+      USER_ID,
+    )
+  })
+
+  it('does not write when the exam check fails but the flag lookup succeeds', async () => {
+    setupAuthenticatedUser()
+    const upsertSpy = vi.fn()
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'quiz_sessions')
+        return buildChain({ data: null, error: { message: 'db timeout' } })
+      if (table === 'active_flagged_questions') return buildChain({ data: null, error: null })
+      return { upsert: upsertSpy, update: upsertSpy }
+    })
+
+    const result = await toggleFlag({ questionId: QUESTION_ID_A })
+
+    expect(result).toEqual({ success: false, error: 'Failed to toggle flag' })
+    expect(upsertSpy).not.toHaveBeenCalled()
+  })
+
   // ---- lookup error ----------------------------------------------------------
 
   it('returns a generic failure when existing flag status cannot be checked', async () => {

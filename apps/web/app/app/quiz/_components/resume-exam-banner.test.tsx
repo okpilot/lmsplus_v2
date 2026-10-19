@@ -4,20 +4,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockRouterRefresh } = vi.hoisted(() => ({
-  mockRouterRefresh: vi.fn(),
-}))
-
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ refresh: mockRouterRefresh }),
-}))
-
 const { mockDiscardQuiz } = vi.hoisted(() => ({
   mockDiscardQuiz: vi.fn(),
 }))
 
-vi.mock('../actions/discard', () => ({
-  discardQuiz: (...args: unknown[]) => mockDiscardQuiz(...args),
+vi.mock('../actions/discard-and-refresh', () => ({
+  discardQuizAndRefresh: (...args: unknown[]) => mockDiscardQuiz(...args),
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -138,14 +130,6 @@ describe('ResumeExamBanner — Discard', () => {
       expect(mockDiscardQuiz).toHaveBeenCalledWith({ sessionId: 'sess-exam-001' }),
     )
     expect(screen.queryByText(/practice exam in progress/i)).not.toBeInTheDocument()
-  })
-
-  it('refreshes the router after a successful discard', async () => {
-    render(<ResumeExamBanner userId={USER_ID} exam={EXAM} />)
-    await userEvent.click(screen.getByRole('button', { name: /^discard$/i }))
-    await userEvent.click(screen.getByRole('button', { name: /^discard$/i, hidden: false }))
-
-    await waitFor(() => expect(mockRouterRefresh).toHaveBeenCalledTimes(1))
   })
 
   it('shows error and keeps banner when discardQuiz returns failure', async () => {
