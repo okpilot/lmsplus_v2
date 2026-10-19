@@ -4,14 +4,9 @@ import type { StudentSessionFilters } from '../../../types'
 
 // ---- Hoisted mocks ----------------------------------------------------------
 
-const mockGetStudentSessions = vi.hoisted(() => vi.fn())
 const mockRethrowRedirect = vi.hoisted(() => vi.fn())
 
 // ---- Module mocks -----------------------------------------------------------
-
-vi.mock('../queries', () => ({
-  getStudentSessions: mockGetStudentSessions,
-}))
 
 vi.mock('@/lib/next/rethrow-redirect', () => ({
   rethrowRedirect: mockRethrowRedirect,
@@ -42,18 +37,20 @@ describe('SessionHistoryContent', () => {
   })
 
   it('renders the session history table when data loads successfully', async () => {
-    mockGetStudentSessions.mockResolvedValue({ sessions: [], totalCount: 0 })
-
-    const element = await SessionHistoryContent({ studentId: 'stu-1', filters: BASE_FILTERS })
+    const element = await SessionHistoryContent({
+      sessionsPromise: Promise.resolve({ sessions: [], totalCount: 0 }),
+      filters: BASE_FILTERS,
+    })
     render(element)
 
     expect(screen.getByTestId('session-history-table')).toBeInTheDocument()
   })
 
-  it('renders the error fallback when getStudentSessions throws a regular error', async () => {
-    mockGetStudentSessions.mockRejectedValue(new Error('network error'))
-
-    const element = await SessionHistoryContent({ studentId: 'stu-1', filters: BASE_FILTERS })
+  it('renders the error fallback when the sessions load fails with a regular error', async () => {
+    const element = await SessionHistoryContent({
+      sessionsPromise: Promise.reject(new Error('network error')),
+      filters: BASE_FILTERS,
+    })
     render(element)
 
     expect(
@@ -63,13 +60,15 @@ describe('SessionHistoryContent', () => {
 
   it('re-throws redirect errors instead of showing the fallback', async () => {
     const redirectError = new Error('NEXT_REDIRECT:/auth/login')
-    mockGetStudentSessions.mockRejectedValue(redirectError)
     mockRethrowRedirect.mockImplementation((err: unknown) => {
       throw err
     })
 
     await expect(
-      SessionHistoryContent({ studentId: 'stu-1', filters: BASE_FILTERS }),
+      SessionHistoryContent({
+        sessionsPromise: Promise.reject(redirectError),
+        filters: BASE_FILTERS,
+      }),
     ).rejects.toThrow('NEXT_REDIRECT:/auth/login')
   })
 })
