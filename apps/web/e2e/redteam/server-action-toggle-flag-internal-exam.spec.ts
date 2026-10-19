@@ -153,8 +153,31 @@ test.describe('Red Team: toggleFlag during an active internal_exam (IS)', () => 
     await cleanupStudentActiveSessions(ATTACKER_EMAIL)
   })
 
+  const softDeleteMarkerSessions = async () => {
+    const { data, error } = await admin
+      .from('quiz_sessions')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('config->>e2e_marker', E2E_REDTEAM_IS_MARKER)
+      .is('deleted_at', null)
+      .select('id')
+    if (error) throw new Error(`soft-delete marker sessions: ${error.message}`)
+    if ((data?.length ?? 0) > 0) console.info(`[toggle-flag-exam] soft-deleted ${data?.length}`)
+  }
+
+  // A failed beforeAll skips every afterEach; the session it seeded must not outlive the file.
   test.afterAll(async () => {
-    await ctx?.close()
+    const errors: string[] = []
+    try {
+      await softDeleteMarkerSessions()
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
+    }
+    try {
+      await ctx?.close()
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
+    }
+    if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   })
 
   test.beforeEach(async () => {
@@ -164,14 +187,7 @@ test.describe('Red Team: toggleFlag during an active internal_exam (IS)', () => 
   test.afterEach(async () => {
     const errors: string[] = []
     try {
-      const { data, error } = await admin
-        .from('quiz_sessions')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('config->>e2e_marker', E2E_REDTEAM_IS_MARKER)
-        .is('deleted_at', null)
-        .select('id')
-      if (error) throw new Error(`soft-delete marker sessions: ${error.message}`)
-      if ((data?.length ?? 0) > 0) console.info(`[toggle-flag-exam] soft-deleted ${data?.length}`)
+      await softDeleteMarkerSessions()
     } catch (e) {
       errors.push(e instanceof Error ? e.message : String(e))
     }
