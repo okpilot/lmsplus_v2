@@ -1,0 +1,38 @@
+name: Start local Supabase
+description: Log in to ECR Public when credentials are set, start the services the tests use, log out (#1399).
+inputs:
+  aws-access-key-id:
+    description: ECR Public pull key ID. Empty → anonymous pulls.
+    required: false
+    default: ''
+  aws-secret-access-key:
+    description: ECR Public pull secret key. Empty → anonymous pulls.
+    required: false
+    default: ''
+runs:
+  using: composite
+  steps:
+    - name: Log in to ECR Public
+      # Authenticated pulls lift ECR Public's anonymous 500 GB/month data cap.
+      shell: bash
+      env:
+        AWS_ACCESS_KEY_ID: ${{ inputs.aws-access-key-id }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.aws-secret-access-key }}
+      run: |
+        if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
+          echo "::notice::ECR Public credentials not set; pulling anonymously"
+          exit 0
+        fi
+        if ! (aws ecr-public get-login-password --region us-east-1 \
+          | docker login --username AWS --password-stdin public.ecr.aws); then
+          echo "::warning::ECR Public login failed; pulling anonymously"
+        fi
+
+    - name: Start local Supabase
+      shell: bash
+      run: supabase start -x logflare,vector,realtime,studio,postgres-meta,edge-runtime,mailpit,imgproxy,supavisor
+
+    - name: Log out of ECR Public
+      if: always()
+      shell: bash
+      run: docker logout public.ecr.aws
