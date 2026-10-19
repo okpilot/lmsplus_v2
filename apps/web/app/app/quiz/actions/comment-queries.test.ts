@@ -84,6 +84,17 @@ describe('fetchQuestionComments', () => {
     expect(rangeCalls).toEqual([[0, 999]])
   })
 
+  it('reads exactly 1000 comments in a single query', async () => {
+    const page = rows(1000)
+    mockFrom.mockReturnValue(buildChain({ count: 1000, data: page, error: null }))
+
+    const result = await fetchQuestionComments(mockSupabase, QUESTION_ID)
+
+    expect(result).toEqual({ data: page, error: null })
+    expect(mockFrom).toHaveBeenCalledTimes(1)
+    expect(rangeCalls).toEqual([[0, 999]])
+  })
+
   it('returns an empty array in one query when the question has no comments', async () => {
     mockFrom.mockReturnValue(buildChain({ count: 0, data: [], error: null }))
 
