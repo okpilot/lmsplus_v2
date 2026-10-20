@@ -2,10 +2,10 @@ import { type RefObject, useEffect, useRef } from 'react'
 import { markHistoryRestore } from '../_utils/preloaded-discovery-count'
 import type { PreloadPromise, StampedPreload } from '../types'
 
-// Resolved values by promise: a remount (e.g. the Discovery <-> other-mode toggle) reads
-// the value synchronously instead of waiting for a promise that already settled.
 let popstateListening = false
 
+// Resolved values by promise: a remount (e.g. the Discovery <-> other-mode toggle) reads
+// the value synchronously instead of waiting for a promise that already settled.
 const resolved = new WeakMap<PreloadPromise, StampedPreload>()
 
 /**
