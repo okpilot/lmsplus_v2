@@ -33,7 +33,10 @@ test.describe('Saved draft delete', () => {
     await expect(page.getByText('[E2E_DRAFT] delete-me')).toBeVisible()
 
     page.once('dialog', (d) => d.accept())
-    await page.getByTestId('delete-draft').first().click()
+    await page
+      .locator('div.rounded-xl', { hasText: '[E2E_DRAFT] delete-me' })
+      .getByTestId('delete-draft')
+      .click()
     await expect(page.getByText('[E2E_DRAFT] delete-me')).toHaveCount(0, { timeout: 15_000 })
     await expect(page).toHaveURL(/\/app\/quiz$/)
 
