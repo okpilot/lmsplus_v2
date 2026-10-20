@@ -1835,7 +1835,7 @@ SET search_path = public
 
 Order: `auth.uid()` null → `not_authenticated`; active-user + org read → `user_not_found_or_inactive`; one statement draws from `_filtered_question_pool(…, 'multiple_choice')` (the `'all'` filter sentinel removed first) joined to `questions` on `organization_id = v_org_id` AND `deleted_at IS NULL AND status = 'active' AND question_type = 'multiple_choice'`, `ORDER BY random() LIMIT LEAST(GREATEST(COALESCE(p_count,0),0),500)`, and builds the id array and the answer-key payload from those same rows; empty draw → `session_id` null, `questions` and `flagged_ids` empty, returned with no session or audit row and no session change (the caller's live sessions are untouched and none of the checks below run); any other active session (any mode except `discovery`, exam modes included) → `another_session_active`, raised before the payload is returned; soft-delete the caller's own active `discovery` rows; INSERT `quiz_sessions` (`mode='discovery'`, `config.question_ids` = draw order) with `EXCEPTION WHEN unique_violation THEN RAISE 'another_session_active'` (no replay branch); `discovery.started` audit event; `questions` = the answer-key payload in draw order; `flagged_ids` = the caller's `active_flagged_questions` rows within the draw. Tokens raised: `not_authenticated`, `user_not_found_or_inactive`, `another_session_active`.
 
-`startStudy` calls it. It replaced the `get_random_question_ids` + flag lookup + `start_discovery_session` + `get_study_questions` sequence; `start_discovery_session` and `get_study_questions` were dropped in #1548 PR3 (mig `20261021000100`). `get_random_question_ids` stays (`start_practice_quiz` calls it).
+`startStudy` calls it. `get_random_question_ids` stays (`start_practice_quiz` calls it).
 
 ---
 

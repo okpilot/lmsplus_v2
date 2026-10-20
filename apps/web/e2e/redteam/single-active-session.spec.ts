@@ -70,7 +70,7 @@ test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ET)',
   let victimUserId: string
   let subjectId: string
   let topicId: string
-  let questionIds: string[]
+  let questionId: string
 
   // Soft-delete every active session the victim currently holds. Used by
   // beforeEach (clean slate before each test) AND afterEach (no leak into the
@@ -125,15 +125,11 @@ test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ET)',
     victimUserId = seed.victimUserId
     studentClient = await createAuthenticatedClient(VICTIM_EMAIL, VICTIM_PASSWORD)
 
-    const picked = await pickSubjectWithQuestions(admin, {
-      orgId,
-      minActiveQuestions: 2,
-      topicMinQuestions: 2,
-    })
+    const picked = await pickSubjectWithQuestions(admin, { orgId })
     subjectId = picked.subjectId
     topicId = picked.topicId
 
-    // Real active question ids for the practice / discovery positive controls.
+    // A real active question id for the practice positive control.
     const { data: qs, error: qsErr } = await admin
       .from('questions')
       .select('id')
@@ -143,13 +139,13 @@ test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ET)',
       .eq('status', 'active')
       .is('deleted_at', null)
       .order('id', { ascending: true })
-      .limit(2)
+      .limit(1)
     if (qsErr) throw new Error(`beforeAll questions: ${qsErr.message}`)
-    if (!Array.isArray(qs) || qs.length < 2)
-      throw new Error('beforeAll: need at least two active egmont questions to seed from')
+    if (!Array.isArray(qs) || qs.length < 1)
+      throw new Error('beforeAll: need an active egmont question to seed from')
     if (!qs.every((q): q is { id: string } => isRecord(q) && typeof q.id === 'string'))
       throw new Error('beforeAll: unexpected question row shape')
-    questionIds = qs.map((q) => q.id)
+    questionId = qs[0].id
 
     // Ensure an enabled exam_config + distribution so start_exam_session can reach
     // its INSERT (rather than fail on config lookup) for EP/EQ/ER.
@@ -179,7 +175,7 @@ test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ET)',
       p_mode: 'quick_quiz',
       p_subject_id: subjectId,
       p_topic_id: topicId,
-      p_question_ids: questionIds.slice(0, 1),
+      p_question_ids: [questionId],
     })
     expect(ok.error).toBeNull()
     expect(typeof ok.data).toBe('string')
@@ -198,7 +194,7 @@ test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ET)',
       p_mode: 'quick_quiz',
       p_subject_id: subjectId,
       p_topic_id: topicId,
-      p_question_ids: questionIds.slice(0, 1),
+      p_question_ids: [questionId],
     })
     expect(blocked.error).not.toBeNull()
     expect(blocked.error?.message ?? '').toMatch(/another_session_active/i)
