@@ -288,6 +288,7 @@
 | JG | start_discovery-start_practice_quiz-soft-deleted-caller | HIGH | rpc-start-quiz-one-rpc-guards.spec.ts | BLOCKED |  | soft-delete-bypass |
 | JH | start_practice_quiz-mid-exam-start | HIGH | rpc-start-quiz-one-rpc-guards.spec.ts | BLOCKED |  | sibling-guard-gap |
 | JI | start_discovery-mid-practice-answer-oracle | MEDIUM | rpc-start-quiz-one-rpc-guards.spec.ts | BLOCKED |  | answer-oracle |
+| JJ | start_discovery-mid-internal-vfr-smart-review-answer-oracle | HIGH | rpc-start-discovery-exam-modes.spec.ts | BLOCKED |  | answer-oracle |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
