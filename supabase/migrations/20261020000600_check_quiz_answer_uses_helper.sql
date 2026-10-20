@@ -82,7 +82,7 @@ BEGIN
   -- The MC key now lives in questions.correct_option_id (#823), not options[].correct.
   SELECT q.* INTO v_q FROM questions q WHERE q.id = p_question_id;
 
-  IF NOT FOUND OR v_q.correct_option_id IS NULL THEN
+  IF NOT FOUND OR v_q.question_type <> 'multiple_choice' THEN
     RAISE EXCEPTION 'question not found or has no correct option';
   END IF;
 

@@ -1619,7 +1619,7 @@ Verifies a student's answer for a question during an active quiz session. Return
 - Validates config.question_ids is properly formed (explicit NULL check for the array key)
 - Returns only the correct option ID and explanation — never exposes the full options array
 - Used for immediate feedback during quiz sessions (the saved answers are graded later by `finish_quiz_session`)
-- Grading delegated to `_answer_feedback` (migration 20261020000600, #1549); the SQL below predates it
+- Grading delegated to `_answer_feedback` (migration 20261020000600, #1549)
 - Saves a non-NULL selection to `quiz_session_progress` after grading (mig `20261002000700`, #1026); raises `invalid_answer` / `session_taken_over` / `invalid_time_spent` from the save, which rolls back the whole call
 
 **Parameters:**
@@ -1636,9 +1636,7 @@ Verifies a student's answer for a question during an active quiz session. Return
 - `explanation_image_url` — optional explanation image URL
 
 ```sql
-DROP FUNCTION check_quiz_answer(uuid, text, uuid);
-
-CREATE FUNCTION check_quiz_answer(
+CREATE OR REPLACE FUNCTION check_quiz_answer(
   p_question_id        uuid,
   p_selected_option_id text,
   p_session_id         uuid,
@@ -1654,10 +1652,8 @@ DECLARE
   v_student_id        uuid := auth.uid();
   v_config            jsonb;
   v_mode              text;
-  v_correct_option_id text;
-  v_explanation_text  text;
-  v_explanation_image text;
-  v_is_correct        boolean;
+  v_q                 public.questions;
+  v_result            jsonb;
   v_session_question_ids uuid[];
 BEGIN
   -- Auth guard
@@ -1665,8 +1661,8 @@ BEGIN
     RAISE EXCEPTION 'not authenticated';
   END IF;
 
-  -- Active-user gate: soft-deleted callers fail closed before the session read
-  -- (mirrors submit_quiz_answer)
+  -- Active-user gate: soft-deleted callers fail closed before any session
+  -- read (mirrors submit_quiz_answer / batch_submit_quiz, mig 095c/112).
   PERFORM 1
   FROM users
   WHERE id = v_student_id
@@ -1685,20 +1681,21 @@ BEGIN
     AND qs.deleted_at IS NULL;
 
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'session not found or not owned';
+    RAISE EXCEPTION 'session not found or not owned by this student';
   END IF;
 
-  -- Practice-mode guard: reject mock_exam / internal_exam so this RPC cannot be used
-  -- as a mid-exam answer oracle (exam answers are graded by finish_quiz_session,
-  -- which never returns the key mid-session)
+  -- Practice modes only: this RPC returns is_correct / explanation /
+  -- correct_option_id immediately, so accepting exam-mode sessions would be a
+  -- mid-exam answer oracle. Exam submission goes exclusively through
+  -- batch_submit_quiz; vfr_rt goes through submit_vfr_rt_exam_answers.
   IF v_mode NOT IN ('smart_review', 'quick_quiz') THEN
     RAISE EXCEPTION 'unsupported_session_mode';
   END IF;
 
-  -- Guard against malformed config.
+  -- Guard against malformed config (matches pattern in batch_submit_quiz).
   -- jsonb_typeof(v_config->'question_ids') is NULL when the key is absent, and
-  -- NULL <> 'array' is NULL (not true) — so the explicit IS NULL check is required
-  -- or jsonb_array_elements_text below would run on a missing key.
+  -- NULL <> 'array' is NULL (not true) — so the explicit IS NULL check is
+  -- required or jsonb_array_elements_text below would run on a missing key.
   IF v_config IS NULL
      OR v_config->'question_ids' IS NULL
      OR jsonb_typeof(v_config->'question_ids') <> 'array' THEN
@@ -1712,26 +1709,25 @@ BEGIN
   END IF;
 
   -- Fetch correct option and explanation.
-  -- §15 carve-out: no deleted_at filter — the
+  -- §15 carve-out (same posture as batch_submit_quiz): no deleted_at filter — the
   -- question is fetched via the immutable write-once quiz_sessions.config.question_ids
-  -- (membership verified above; locked at session start by trg_quiz_sessions_immutable_columns,
-  -- mig 079), so a question soft-deleted mid-session must still be answerable for
-  -- immediate feedback. See docs/security.md §15 and docs/database.md §3.
+  -- (membership verified above; locked at session start by
+  -- trg_quiz_sessions_immutable_columns, mig 079), so a question soft-deleted
+  -- mid-session must still be answerable for immediate feedback. See docs/security.md
+  -- §15 and docs/database.md §3 "Scoring Soft-Deleted Questions".
   -- The MC key now lives in questions.correct_option_id (#823), not options[].correct.
-  SELECT
-    q.correct_option_id,
-    q.explanation_text,
-    q.explanation_image_url
-  INTO v_correct_option_id, v_explanation_text, v_explanation_image
-  FROM questions q
-  WHERE q.id = p_question_id;
+  SELECT q.* INTO v_q FROM questions q WHERE q.id = p_question_id;
 
-  IF NOT FOUND OR v_correct_option_id IS NULL THEN
+  IF NOT FOUND OR v_q.question_type <> 'multiple_choice' THEN
     RAISE EXCEPTION 'question not found or has no correct option';
   END IF;
 
-  v_is_correct := (p_selected_option_id = v_correct_option_id);
+  v_result := _answer_feedback(v_q, jsonb_build_object('selected_option_id', p_selected_option_id));
 
+  -- Cross-device resume (#1026): persist the graded answer in the same call, after every guard and
+  -- grading step. A NULL selection (viewed, unanswered) writes nothing. A malformed answer raises
+  -- invalid_answer; session_taken_over / invalid_time_spent also raise here. A raise rolls back the
+  -- whole call, so a graded result is never returned for a refused save.
   IF p_selected_option_id IS NOT NULL THEN
     IF NOT COALESCE(
          _validate_progress_answer(
@@ -1746,15 +1742,11 @@ BEGIN
     );
   END IF;
 
-  RETURN jsonb_build_object(
-    'is_correct',           v_is_correct,
-    'correct_option_id',    v_correct_option_id,
-    'explanation_text',     v_explanation_text,
-    'explanation_image_url', v_explanation_image
-  );
+  RETURN v_result;
 END;
 $$;
 
+-- Re-grant (idempotent).
 GRANT EXECUTE ON FUNCTION check_quiz_answer(uuid, text, uuid, uuid, int) TO authenticated;
 ```
 

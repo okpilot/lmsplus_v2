@@ -239,4 +239,4 @@ $$;
 REVOKE EXECUTE ON FUNCTION _answer_feedback(public.questions, jsonb) FROM PUBLIC, anon, authenticated;
 
 COMMENT ON FUNCTION _answer_feedback(public.questions, jsonb) IS
-  'Immediate-feedback grading of one stored answer (shape per _validate_progress_answer) against a questions row. Reads no table. Shared by check_non_mc_answer and get_restored_feedback.';
+  'Immediate-feedback grading of one stored answer (shape per _validate_progress_answer) against a questions row. Reads no table. Shared by check_quiz_answer, check_non_mc_answer and get_restored_feedback.';

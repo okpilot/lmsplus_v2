@@ -76,7 +76,7 @@ BEGIN
       RAISE WARNING '[get_restored_feedback] question % skipped: %', r.question_id, SQLERRM;
       CONTINUE;
     END;
-    v_out := v_out || (v_feedback || jsonb_build_object(
+    v_out := array_append(v_out, v_feedback || jsonb_build_object(
       'question_id',   r.question_id,
       'question_type', (r.qrow).question_type
     ));
