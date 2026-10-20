@@ -1,4 +1,6 @@
 import type { DiagramMappingEntry } from '@/app/app/quiz/actions/diagram-validation'
+import type { FilteredCounts } from '@/lib/queries/discovery-counts'
+import type { TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
 
 export type SubmitRpcResult = {
   is_correct: boolean
@@ -168,3 +170,9 @@ export type CalcMode = 'all' | 'only' | 'exclude'
 // Tri-state filter on whether a question carries an image (#864). Same shape as
 // CalcMode: 'only' = image questions only, 'exclude' = hide them, 'all' = default.
 export type ImageMode = 'all' | 'only' | 'exclude'
+
+/** Server-preloaded setup data: lets subject changes on /app/quiz run without a request. */
+export type QuizSetupPreload = {
+  topicsBySubject: Record<string, TopicWithSubtopics[]>
+  discoveryCounts: Record<string, FilteredCounts>
+}

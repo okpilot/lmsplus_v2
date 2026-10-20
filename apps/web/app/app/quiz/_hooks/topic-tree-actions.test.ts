@@ -165,3 +165,42 @@ describe('createTopicTreeActions — reset', () => {
     expect(generation.current).toBe(1)
   })
 })
+
+// ---- applyTopics ------------------------------------------------------------
+
+describe('createTopicTreeActions — applyTopics', () => {
+  it('shows the given topics checked without fetching', () => {
+    const setTopics = vi.fn()
+    const setCheckedTopics = vi.fn()
+    const setCheckedSubtopics = vi.fn()
+    const { applyTopics } = createTopicTreeActions(
+      makeDeps({ setTopics, setCheckedTopics, setCheckedSubtopics }),
+    )
+    applyTopics([TOPIC_A, TOPIC_B])
+
+    expect(mockFetchTopicsWithSubtopics).not.toHaveBeenCalled()
+    expect(setTopics).toHaveBeenCalledWith([TOPIC_A, TOPIC_B])
+    expect(setCheckedTopics).toHaveBeenCalledWith(new Set(['t-a', 't-b']))
+    expect(setCheckedSubtopics).toHaveBeenCalledWith(new Set(['st-a1', 'st-a2']))
+  })
+
+  it('discards the result of a load that was still in flight', async () => {
+    let resolveFetch: (v: TopicWithSubtopics[]) => void = () => undefined
+    mockFetchTopicsWithSubtopics.mockReturnValue(
+      new Promise<TopicWithSubtopics[]>((r) => {
+        resolveFetch = r
+      }),
+    )
+    const setTopics = vi.fn()
+    const { loadTopics, applyTopics } = createTopicTreeActions(makeDeps({ setTopics }))
+
+    loadTopics(SUBJECT_ID)
+    applyTopics([TOPIC_B])
+    resolveFetch([TOPIC_A])
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(setTopics).toHaveBeenCalledTimes(1)
+    expect(setTopics).toHaveBeenCalledWith([TOPIC_B])
+  })
+})

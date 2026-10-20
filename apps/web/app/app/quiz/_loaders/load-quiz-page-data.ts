@@ -1,6 +1,8 @@
+import { getDiscoveryCounts } from '@/lib/queries/discovery-counts'
 import { getMockExamSubjects } from '@/lib/queries/exam-subjects'
 import { loadSavedQuizzes, type SavedQuizSession } from '@/lib/queries/load-saved-quizzes'
 import { getSubjectsWithCounts } from '@/lib/queries/quiz-subject-queries'
+import { getAllTopicTrees } from '@/lib/queries/quiz-topic-trees'
 import type { ActiveExamSession } from '../actions/get-active-exam-session'
 import { getActiveExamSession } from '../actions/get-active-exam-session'
 import type { ActivePracticeSession } from '../actions/get-active-practice-session'
@@ -46,6 +48,8 @@ export async function loadQuizPageData(userId: string): Promise<QuizPageData> {
   // prevents an unhandled rejection when that section never renders.
   getSubjectsWithCounts().catch(() => {})
   getMockExamSubjects().catch(() => {})
+  getAllTopicTrees().catch(() => {})
+  getDiscoveryCounts().catch(() => {})
 
   const [{ drafts }, saved, examResult, practiceResult] = await Promise.all([
     loadDrafts(),

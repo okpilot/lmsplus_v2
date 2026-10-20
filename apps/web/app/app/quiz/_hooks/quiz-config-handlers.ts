@@ -1,3 +1,4 @@
+import type { TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
 import type { CalcMode, ImageMode, QuestionFilterValue } from '../types'
 import type { useFilteredCount } from './use-filtered-count'
 import type { useTopicTree } from './use-topic-tree'
@@ -14,6 +15,8 @@ type ConfigHandlerDeps = {
   filters: QuestionFilterValue[]
   calcMode: CalcMode
   imageMode: ImageMode
+  /** Server-preloaded trees by subject id; a missing or empty entry falls back to loadTopics. */
+  topicsBySubject?: Record<string, TopicWithSubtopics[]>
 }
 
 export function createConfigHandlers({
@@ -27,6 +30,7 @@ export function createConfigHandlers({
   filters,
   calcMode,
   imageMode,
+  topicsBySubject,
 }: ConfigHandlerDeps) {
   // handleSubjectChange is a full reset — it clears every dimension together, so it
   // resets counts unconditionally. The three partial-change handlers below each clear
@@ -39,7 +43,9 @@ export function createConfigHandlers({
     setCalcMode('all')
     setImageMode('all')
     setCount(10)
-    if (id) topicTree.loadTopics(id)
+    const preloaded = topicsBySubject?.[id]
+    if (preloaded?.length) topicTree.applyTopics(preloaded)
+    else if (id) topicTree.loadTopics(id)
     else topicTree.reset()
   }
 

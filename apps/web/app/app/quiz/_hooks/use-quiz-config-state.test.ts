@@ -26,6 +26,7 @@ function buildMockTopicTree(): ReturnType<typeof useTopicTree> {
     totalQuestions: 0,
     selectedQuestionCount: 0,
     loadTopics: vi.fn(),
+    applyTopics: vi.fn(),
     toggleTopic: vi.fn(),
     toggleSubtopic: vi.fn(),
     selectAll: vi.fn(),

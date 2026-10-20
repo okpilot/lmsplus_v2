@@ -1,5 +1,5 @@
 import type { SubjectOption, TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
-import type { QuizMode } from '../types'
+import type { QuizMode, QuizSetupPreload } from '../types'
 import { useAvailableCount } from './use-available-count'
 import { useFilteredCount } from './use-filtered-count'
 import { useFilteredCountSync } from './use-filtered-count-sync'
@@ -12,15 +12,17 @@ export function useQuizConfig({
   initialSubjectId,
   initialMode,
   initialTopics,
+  preload,
 }: {
   subjects: SubjectOption[]
   initialSubjectId?: string
   initialMode?: QuizMode
   initialTopics?: TopicWithSubtopics[]
+  preload?: QuizSetupPreload
 }) {
   const topicTree = useTopicTree(initialTopics)
   const fc = useFilteredCount()
-  const st = useQuizConfigState({ fc, topicTree, initialSubjectId, initialMode })
+  const st = useQuizConfigState({ fc, topicTree, initialSubjectId, initialMode, preload })
 
   const availableCount = useAvailableCount({
     hasActiveFilters: st.hasActiveFilters,

@@ -4,7 +4,7 @@
 // (via the `header` slot), so the toggle + subject share one bordered card —
 // matching the Study/Exam layout so switching modes doesn't reflow the form.
 import type { SubjectOption } from '@/lib/queries/quiz-query-types'
-import type { QuizMode } from '../types'
+import type { QuizMode, QuizSetupPreload } from '../types'
 import { ModeToggle } from './mode-toggle'
 import { StudyConfigForm } from './study-config-form'
 
@@ -14,6 +14,7 @@ type DiscoveryModePanelProps = {
   examAvailable: boolean
   subjects: SubjectOption[]
   userId: string
+  preload?: QuizSetupPreload
 }
 
 export function DiscoveryModePanel({
@@ -22,11 +23,13 @@ export function DiscoveryModePanel({
   examAvailable,
   subjects,
   userId,
+  preload,
 }: Readonly<DiscoveryModePanelProps>) {
   return (
     <StudyConfigForm
       userId={userId}
       subjects={subjects}
+      preload={preload}
       unseenLabel="Unseen"
       header={
         <ModeToggle value={mode} onValueChange={onModeChange} examAvailable={examAvailable} />

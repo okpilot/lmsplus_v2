@@ -41,6 +41,12 @@ export function createTopicTreeActions({
     setCheckedSubtopics(new Set(collectSubtopicIds(result)))
   }
 
+  /** Shows an already-fetched tree synchronously, cancelling any load still in flight. */
+  function applyTopics(result: TopicWithSubtopics[]) {
+    generation.current++
+    applyLoadedTopics(result)
+  }
+
   function loadTopics(subjectId: string) {
     generation.current++
     const gen = generation.current
@@ -80,5 +86,5 @@ export function createTopicTreeActions({
     setCheckedSubtopics(new Set())
   }
 
-  return { loadTopics, toggleTopic, toggleSubtopic, selectAll, reset }
+  return { loadTopics, applyTopics, toggleTopic, toggleSubtopic, selectAll, reset }
 }

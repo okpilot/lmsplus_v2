@@ -9,6 +9,8 @@ const {
   mockLoadSavedQuizzes,
   mockGetSubjectsWithCounts,
   mockGetMockExamSubjects,
+  mockGetAllTopicTrees,
+  mockGetDiscoveryCounts,
 } = vi.hoisted(() => ({
   mockLoadDrafts: vi.fn(),
   mockGetActiveExamSession: vi.fn(),
@@ -16,10 +18,20 @@ const {
   mockLoadSavedQuizzes: vi.fn(),
   mockGetSubjectsWithCounts: vi.fn(),
   mockGetMockExamSubjects: vi.fn(),
+  mockGetAllTopicTrees: vi.fn(),
+  mockGetDiscoveryCounts: vi.fn(),
 }))
 
 vi.mock('@/lib/queries/quiz-subject-queries', () => ({
   getSubjectsWithCounts: (...args: unknown[]) => mockGetSubjectsWithCounts(...args),
+}))
+
+vi.mock('@/lib/queries/quiz-topic-trees', () => ({
+  getAllTopicTrees: (...args: unknown[]) => mockGetAllTopicTrees(...args),
+}))
+
+vi.mock('@/lib/queries/discovery-counts', () => ({
+  getDiscoveryCounts: (...args: unknown[]) => mockGetDiscoveryCounts(...args),
 }))
 
 vi.mock('@/lib/queries/exam-subjects', () => ({
@@ -66,11 +78,29 @@ beforeEach(() => {
   mockLoadSavedQuizzes.mockResolvedValue([SAVED_SESSION])
   mockGetSubjectsWithCounts.mockResolvedValue([])
   mockGetMockExamSubjects.mockResolvedValue([])
+  mockGetAllTopicTrees.mockResolvedValue({})
+  mockGetDiscoveryCounts.mockResolvedValue({})
 })
 
 // ---- Tests -----------------------------------------------------------------
 
 describe('loadQuizPageData', () => {
+  it('starts the topic-tree and Discovery-count reads that the subjects section awaits later', async () => {
+    await loadQuizPageData('user-1')
+
+    expect(mockGetAllTopicTrees).toHaveBeenCalledTimes(1)
+    expect(mockGetDiscoveryCounts).toHaveBeenCalledTimes(1)
+  })
+
+  it('still loads the page when a preload read rejects', async () => {
+    mockGetAllTopicTrees.mockRejectedValue(new Error('trees failed'))
+    mockGetDiscoveryCounts.mockRejectedValue(new Error('counts failed'))
+
+    const data = await loadQuizPageData('user-1')
+
+    expect(data.drafts).toEqual([DRAFT])
+  })
+
   it('flattens successful results into the page view-model', async () => {
     const data = await loadQuizPageData('user-1')
 

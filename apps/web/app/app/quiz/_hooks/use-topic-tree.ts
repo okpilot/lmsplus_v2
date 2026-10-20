@@ -31,17 +31,18 @@ export function useTopicTree(initialTopics?: TopicWithSubtopics[]) {
       (t) => checkedTopics.has(t.id) && t.subtopics.every((st) => checkedSubtopics.has(st.id)),
     )
 
-  const { loadTopics, toggleTopic, toggleSubtopic, selectAll, reset } = createTopicTreeActions({
-    topics,
-    checkedTopics,
-    checkedSubtopics,
-    allSelected,
-    setTopics,
-    setCheckedTopics,
-    setCheckedSubtopics,
-    generation,
-    startTransition,
-  })
+  const { loadTopics, applyTopics, toggleTopic, toggleSubtopic, selectAll, reset } =
+    createTopicTreeActions({
+      topics,
+      checkedTopics,
+      checkedSubtopics,
+      allSelected,
+      setTopics,
+      setCheckedTopics,
+      setCheckedSubtopics,
+      generation,
+      startTransition,
+    })
 
   return {
     topics,
@@ -52,6 +53,7 @@ export function useTopicTree(initialTopics?: TopicWithSubtopics[]) {
     totalQuestions,
     selectedQuestionCount,
     loadTopics,
+    applyTopics,
     toggleTopic,
     toggleSubtopic,
     selectAll,

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { CalcMode, ImageMode, QuestionFilterValue, QuizMode } from '../types'
+import type { CalcMode, ImageMode, QuestionFilterValue, QuizMode, QuizSetupPreload } from '../types'
 import { createConfigHandlers } from './quiz-config-handlers'
 import type { useFilteredCount } from './use-filtered-count'
 import type { useTopicTree } from './use-topic-tree'
@@ -17,6 +17,7 @@ export function useQuizConfigState(deps: {
   topicTree: ReturnType<typeof useTopicTree>
   initialSubjectId?: string
   initialMode?: QuizMode
+  preload?: QuizSetupPreload
 }) {
   const [subjectId, setSubjectId] = useState(deps.initialSubjectId ?? '')
   const [mode, setMode] = useState<QuizMode>(deps.initialMode ?? 'discovery')
@@ -40,6 +41,7 @@ export function useQuizConfigState(deps: {
       filters,
       calcMode,
       imageMode,
+      topicsBySubject: deps.preload?.topicsBySubject,
     })
 
   return {

@@ -26,6 +26,7 @@ function makeTopicTree(overrides: Partial<UseTopicTreeReturn> = {}): UseTopicTre
     totalQuestions: 0,
     selectedQuestionCount: 0,
     loadTopics: vi.fn(),
+    applyTopics: vi.fn(),
     toggleTopic: vi.fn(),
     toggleSubtopic: vi.fn(),
     selectAll: vi.fn(),
@@ -113,6 +114,34 @@ describe('createConfigHandlers', () => {
       handleSubjectChange('subj-1')
       expect(topicTree.loadTopics).toHaveBeenCalledWith('subj-1')
       expect(topicTree.reset).not.toHaveBeenCalled()
+    })
+
+    it('shows the preloaded topics without a request when the subject was preloaded', () => {
+      const tree = [{ id: 't1', code: '010', name: 'T', questionCount: 3, subtopics: [] }]
+      const { handleSubjectChange } = createConfigHandlers(
+        makeDeps({ topicsBySubject: { 'subj-1': tree } }),
+      )
+      handleSubjectChange('subj-1')
+      expect(topicTree.applyTopics).toHaveBeenCalledWith(tree)
+      expect(topicTree.loadTopics).not.toHaveBeenCalled()
+    })
+
+    it('falls back to loading topics when the subject is missing from the preload', () => {
+      const { handleSubjectChange } = createConfigHandlers(
+        makeDeps({ topicsBySubject: { other: [] } }),
+      )
+      handleSubjectChange('subj-1')
+      expect(topicTree.loadTopics).toHaveBeenCalledWith('subj-1')
+      expect(topicTree.applyTopics).not.toHaveBeenCalled()
+    })
+
+    it('falls back to loading topics when the preloaded tree for the subject is empty', () => {
+      const { handleSubjectChange } = createConfigHandlers(
+        makeDeps({ topicsBySubject: { 'subj-1': [] } }),
+      )
+      handleSubjectChange('subj-1')
+      expect(topicTree.loadTopics).toHaveBeenCalledWith('subj-1')
+      expect(topicTree.applyTopics).not.toHaveBeenCalled()
     })
 
     it('resets the topic tree when subject id is empty', () => {

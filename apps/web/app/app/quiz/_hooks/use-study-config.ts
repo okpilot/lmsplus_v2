@@ -1,10 +1,13 @@
 import type { SubjectOption } from '@/lib/queries/quiz-query-types'
+import type { QuizSetupPreload } from '../types'
 import { useAvailableCount } from './use-available-count'
 import { useFilteredCount } from './use-filtered-count'
 import { useFilteredCountSync } from './use-filtered-count-sync'
 import { useQuizConfigState } from './use-quiz-config-state'
 import { useStudyStart } from './use-study-start'
 import { useTopicTree } from './use-topic-tree'
+
+type StudyConfigOptions = { userId: string; subjects: SubjectOption[]; preload?: QuizSetupPreload }
 
 /**
  * Discovery-mode config orchestration. Mirrors useQuizConfig's quiz branch (minus
@@ -17,16 +20,10 @@ import { useTopicTree } from './use-topic-tree'
  * `useAvailableCount` is given `preferFiltered: true` so the slider max / Start
  * button / count badge always reflect the real MC pool on a mixed subject (#1008).
  */
-export function useStudyConfig({
-  userId,
-  subjects,
-}: {
-  userId: string
-  subjects: SubjectOption[]
-}) {
+export function useStudyConfig({ userId, subjects, preload }: StudyConfigOptions) {
   const topicTree = useTopicTree()
-  const fc = useFilteredCount()
-  const st = useQuizConfigState({ fc, topicTree })
+  const fc = useFilteredCount(preload?.discoveryCounts)
+  const st = useQuizConfigState({ fc, topicTree, preload })
 
   const availableCount = useAvailableCount({
     hasActiveFilters: st.hasActiveFilters,
