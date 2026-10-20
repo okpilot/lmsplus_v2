@@ -232,6 +232,26 @@ describe('RPC: get_restored_feedback', () => {
     }
   })
 
+  it('skips a well-formed saved answer that cannot be graded and returns the rest', async () => {
+    const sessionId = await startPractice(f, 'quick_quiz', [f.dialogId, f.shortId])
+    await check(sessionId, f.dialogId, {
+      p_blank_answers: [{ blank_index: 0, response_text: 'cleared' }],
+    })
+    const shortChecked = await check(sessionId, f.shortId, { p_response_text: 'wilco' })
+    // A blank index the question does not have: valid stored shape, ungradable content.
+    const { data: planted, error: plantErr } = await f.admin
+      .from('quiz_session_progress')
+      .update({ answer: { blanks: [{ blank_index: 99, response_text: 'x' }] } })
+      .eq('session_id', sessionId)
+      .eq('question_id', f.dialogId)
+      .select('question_id')
+    expect(plantErr).toBeNull()
+    expect(planted).toHaveLength(1)
+    const feedback = await restored(sessionId)
+    expect(feedback.map((e) => e.question_id)).toEqual([f.shortId])
+    expect(stripIdentity(feedback[0]!)).toEqual(shortChecked)
+  })
+
   it('skips a saved multiple-choice answer stored in the wrong shape and returns the rest', async () => {
     const sessionId = await startPractice(f, 'quick_quiz', [mcId(), f.shortId])
     await check(sessionId, mcId(), { p_selected_option_id: 'a' })

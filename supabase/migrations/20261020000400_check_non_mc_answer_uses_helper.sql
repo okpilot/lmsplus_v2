@@ -1,6 +1,7 @@
 -- #1549: check_non_mc_answer grades through _answer_feedback (20261020000300) instead of carrying its
--- own copy of the per-type grading. Signature, guards, guard order, per-type param-shape checks,
--- tokens, return payloads and the progress save are unchanged from 20261002000800.
+-- own copy of the per-type grading. Signature, guards, guard order, tokens, return payloads and the
+-- progress save are unchanged from 20261002000800; the per-type NULL / other-param checks stay here,
+-- the array-type checks are the helper's (same token).
 
 CREATE OR REPLACE FUNCTION check_non_mc_answer(
   p_question_id   uuid,
@@ -104,27 +105,15 @@ BEGIN
       RAISE EXCEPTION 'answer_type_mismatch';
     END IF;
 
-    IF jsonb_typeof(p_blank_answers) <> 'array' THEN
-      RAISE EXCEPTION 'answer_type_mismatch';
-    END IF;
-
   ELSIF v_q.question_type = 'ordering' THEN
     IF p_order IS NULL OR p_response_text IS NOT NULL OR p_blank_answers IS NOT NULL
        OR p_mapping IS NOT NULL THEN
       RAISE EXCEPTION 'answer_type_mismatch';
     END IF;
 
-    IF jsonb_typeof(p_order) <> 'array' THEN
-      RAISE EXCEPTION 'answer_type_mismatch';
-    END IF;
-
   ELSIF v_q.question_type = 'diagram_label' THEN
     IF p_mapping IS NULL OR p_response_text IS NOT NULL OR p_blank_answers IS NOT NULL
        OR p_order IS NOT NULL THEN
-      RAISE EXCEPTION 'answer_type_mismatch';
-    END IF;
-
-    IF jsonb_typeof(p_mapping) <> 'array' THEN
       RAISE EXCEPTION 'answer_type_mismatch';
     END IF;
   END IF;
