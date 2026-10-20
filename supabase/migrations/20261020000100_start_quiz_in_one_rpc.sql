@@ -1,7 +1,8 @@
 -- #1548: one RPC round trip per quiz start. Adds start_practice_quiz (draw + start_quiz_session)
 -- and start_discovery (draw + discovery session + audit + answer-key payload + flagged ids).
--- Additive: get_random_question_ids, start_quiz_session, start_discovery_session and
--- get_study_questions stay until the app switches over; a later migration drops the old callers' RPCs.
+-- Additive: start_discovery_session and get_study_questions stay until the app switches over; a
+-- later migration drops them. get_random_question_ids and start_quiz_session stay: start_practice_quiz
+-- calls both.
 
 ---------------------------------------------------------------------------
 -- Practice start. SECURITY INVOKER: the draw runs under RLS exactly like
