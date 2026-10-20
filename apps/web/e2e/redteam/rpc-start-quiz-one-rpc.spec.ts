@@ -235,6 +235,14 @@ test.describe('Red Team: one-RPC quiz starts (#1548)', () => {
     const secondId = asDiscovery(second.data).session_id
     expect(secondId).not.toBe(firstId)
     expect(await activeDiscoveryIds(fx.victimUserId)).toEqual([secondId])
+    const { data: firstRow, error: firstErr } = await fx.admin
+      .from('quiz_sessions')
+      .select('deleted_at, ended_at')
+      .eq('id', firstId as string)
+      .single()
+    expect(firstErr).toBeNull()
+    expect(firstRow?.deleted_at).not.toBeNull()
+    expect(firstRow?.ended_at).toBeNull()
 
     const results = await Promise.all([startVictimDiscovery(), startVictimDiscovery()])
     const winners = results
@@ -285,6 +293,7 @@ test.describe('Red Team: one-RPC quiz starts (#1548)', () => {
     expect(payload.questions.find((q) => q.id === fx.egMcActiveId)?.correct_option_id).toBe(
       EG_MC_ACTIVE_KEY,
     )
+    expect(payload.flagged_ids).toContain(fx.egMcActiveId)
     for (const id of excluded) {
       expect(ids).not.toContain(id)
       expect(payload.flagged_ids).not.toContain(id)
