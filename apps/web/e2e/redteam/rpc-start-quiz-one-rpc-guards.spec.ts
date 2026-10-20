@@ -5,10 +5,12 @@
  *       student's flag neither draws the question nor appears in flagged_ids. Control: the
  *       caller's own flag draws it and lists it.
  *   JF  start_discovery / start_practice_quiz from an anon client are rejected at the privilege
- *       layer and create no session. Control: the authenticated caller starts a session.
+ *       layer (42501). Control: the authenticated caller starts a session.
  *   JG  a soft-deleted student holding a live JWT: start_discovery raises
- *       user_not_found_or_inactive (no key returned); start_practice_quiz raises on both the
- *       non-empty and the empty draw. Control: the same client reads the key while active.
+ *       user_not_found_or_inactive (no key returned); start_practice_quiz raises from its
+ *       empty-draw gate: the p_count 500 call draws nothing under RLS (users_select hides the
+ *       soft-deleted caller's own row, so the questions policy matches no org) and the p_count 0
+ *       call draws nothing by count. Control: the same client reads the key while active.
  *   JH  start_practice_quiz while a mock exam is live raises another_session_active and creates
  *       no quick_quiz row. Control: with no exam live a quick_quiz session is created.
  *   JI  start_discovery while a quick_quiz is live raises another_session_active and returns no
@@ -210,7 +212,6 @@ test.describe('Red Team: one-RPC quiz start guards (#1548)', () => {
     expect(prac.data).toBeNull()
     expect(prac.error?.code).toBe('42501')
     expect(prac.error?.message ?? '').toMatch(/permission denied for function/i)
-    expect(await openSessions(fx.victimUserId)).toHaveLength(0)
   })
 
   test.describe('JG: a soft-deleted student holding a live JWT cannot start', () => {

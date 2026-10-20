@@ -24,8 +24,9 @@ export function parseStarted(data: unknown): StartStudyResult | null {
 
 /**
  * Best-effort end of the discovery row a malformed payload may have created (the RPC commits
- * before the payload is validated). Hygiene only: each start RPC (exam, internal exam, VFR RT,
- * quiz, Discovery) clears the caller's discovery rows, so the row blocks no later start.
+ * before the payload is validated). Hygiene only: every session-creating RPC soft-deletes the
+ * caller's discovery rows (`git grep -n "mode = 'discovery'" -- supabase/migrations`), so the row
+ * blocks no later start.
  * endDiscovery returns { success: false } rather than throwing; a failure is logged.
  */
 export async function discardOrphanedSession(data: unknown): Promise<void> {
