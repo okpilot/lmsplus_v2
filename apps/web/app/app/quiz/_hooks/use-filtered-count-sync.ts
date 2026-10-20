@@ -28,6 +28,8 @@ export function useFilteredCountSync(opts: {
   )
 
   useEffect(() => {
+    // While a new subject's tree loads, `topics` still belongs to the previous subject.
+    if (topicTree.isPending) return
     if (!subjectId || allTopicIds.length === 0) return
     // Study/Discovery (questionType set) always counts the MC-only pool, so it must
     // fire even with no other active filter; the type-agnostic quiz/exam path only
@@ -43,6 +45,7 @@ export function useFilteredCountSync(opts: {
     questionType,
     allTopicIds,
     allSubtopicIds,
+    topicTree.isPending,
     fc.refetch,
   ])
 }

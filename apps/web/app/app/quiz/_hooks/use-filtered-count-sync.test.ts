@@ -15,16 +15,19 @@ const SUBTOPIC_ID_2 = '00000000-0000-4000-c000-000000000002'
 
 type MinimalTopic = { id: string; subtopics: { id: string }[] }
 
-// The hook reads only `topicTree.topics` (each topic's id + its subtopics' ids), so
-// the fixture models just that and casts to the full hook return type — the other
-// TopicTree fields are never touched on this path.
-function makeTopicTree(topics: MinimalTopic[] = []): ReturnType<typeof useTopicTree> {
+// The hook reads only `topicTree.topics` (each topic's id + its subtopics' ids) and
+// `topicTree.isPending`, so the fixture models just those and casts to the full hook
+// return type — the other TopicTree fields are never touched on this path.
+function makeTopicTree(
+  topics: MinimalTopic[] = [],
+  isPending = false,
+): ReturnType<typeof useTopicTree> {
   return {
     topics,
     checkedTopics: new Set<string>(),
     checkedSubtopics: new Set<string>(),
     allSelected: false,
-    isPending: false,
+    isPending,
     totalQuestions: 0,
     selectedQuestionCount: 0,
     loadTopics: vi.fn(),
@@ -400,6 +403,79 @@ describe('useFilteredCountSync — re-runs on dependency change', () => {
       [TOPIC_ID_1],
       [SUBTOPIC_ID_1],
       noFilters,
+      DEFAULT_CALC_MODE,
+      DEFAULT_IMAGE_MODE,
+      'multiple_choice',
+    )
+  })
+})
+
+// ---- Guard: topic tree still loading ----------------------------------------
+
+describe('useFilteredCountSync — topic tree loading', () => {
+  const PREVIOUS_TREE: MinimalTopic[] = [{ id: TOPIC_ID_1, subtopics: [{ id: SUBTOPIC_ID_1 }] }]
+  const NEW_TREE: MinimalTopic[] = [{ id: TOPIC_ID_2, subtopics: [{ id: SUBTOPIC_ID_2 }] }]
+
+  function render(
+    fc: ReturnType<typeof useFilteredCount>,
+    initial: { tree: MinimalTopic[]; pending: boolean; filters: QuestionFilterValue[] },
+  ) {
+    return renderHook(
+      ({ tree, pending, filters }) =>
+        useFilteredCountSync({
+          subjectId: SUBJECT_ID,
+          hasActiveFilters: false,
+          filters,
+          calcMode: DEFAULT_CALC_MODE,
+          imageMode: DEFAULT_IMAGE_MODE,
+          topicTree: makeTopicTree(tree, pending),
+          fc,
+          questionType: 'multiple_choice',
+        }),
+      { initialProps: initial },
+    )
+  }
+
+  it("does not request a count while the new subject's topics are still loading", () => {
+    const fc = makeFc()
+
+    render(fc, { tree: PREVIOUS_TREE, pending: true, filters: ['all'] })
+
+    expect(fc.refetch).not.toHaveBeenCalled()
+  })
+
+  it('requests one count for the loaded topics once loading ends', () => {
+    const fc = makeFc()
+    const { rerender } = render(fc, { tree: PREVIOUS_TREE, pending: true, filters: ['all'] })
+
+    rerender({ tree: NEW_TREE, pending: false, filters: ['all'] })
+
+    expect(fc.refetch).toHaveBeenCalledTimes(1)
+    expect(fc.refetch).toHaveBeenCalledWith(
+      SUBJECT_ID,
+      [TOPIC_ID_2],
+      [SUBTOPIC_ID_2],
+      ['all'],
+      DEFAULT_CALC_MODE,
+      DEFAULT_IMAGE_MODE,
+      'multiple_choice',
+    )
+  })
+
+  it('holds a filter change made while loading and counts with it once loading ends', () => {
+    const fc = makeFc()
+    const { rerender } = render(fc, { tree: PREVIOUS_TREE, pending: true, filters: ['all'] })
+
+    rerender({ tree: PREVIOUS_TREE, pending: true, filters: ['unseen'] })
+    expect(fc.refetch).not.toHaveBeenCalled()
+
+    rerender({ tree: NEW_TREE, pending: false, filters: ['unseen'] })
+    expect(fc.refetch).toHaveBeenCalledTimes(1)
+    expect(fc.refetch).toHaveBeenCalledWith(
+      SUBJECT_ID,
+      [TOPIC_ID_2],
+      [SUBTOPIC_ID_2],
+      ['unseen'],
       DEFAULT_CALC_MODE,
       DEFAULT_IMAGE_MODE,
       'multiple_choice',
