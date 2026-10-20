@@ -5,7 +5,8 @@
 
 ---------------------------------------------------------------------------
 -- Practice start. SECURITY INVOKER: the draw runs under RLS exactly like
--- get_random_question_ids; every start guard stays inside start_quiz_session.
+-- get_random_question_ids; start_quiz_session holds every start guard (the empty draw
+-- never reaches it, so that path gates the active user itself).
 ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.start_practice_quiz(
   p_subject_id   uuid,
@@ -63,8 +64,8 @@ $$;
 ---------------------------------------------------------------------------
 -- Discovery start. SECURITY DEFINER (reads the REVOKE-gated answer key), so the
 -- org scope is an explicit join: the pool gets its org scoping from RLS, which
--- DEFINER bypasses. Guards copied from start_discovery_session (20260629000200)
--- and get_study_questions (20260629000700).
+-- DEFINER bypasses. Guard tokens match start_discovery_session (20260629000200);
+-- the payload columns match get_study_questions (20260629000700).
 ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.start_discovery(
   p_subject_id   uuid,
