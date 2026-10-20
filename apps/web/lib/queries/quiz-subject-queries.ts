@@ -6,7 +6,8 @@ import type {
   TopicOption,
   TopicWithSubtopics,
 } from './quiz-query-types'
-import { fetchActiveQuestionCounts } from './quiz-question-counts'
+import { fetchActiveQuestionCounts, getActiveQuestionCounts } from './quiz-question-counts'
+import { buildTopicTree } from './quiz-topic-trees'
 
 type SubjectRow = { id: string; code: string; name: string; short: string; sort_order: number }
 type TopicRow = { id: string; code: string; name: string; sort_order: number }
@@ -20,10 +21,10 @@ export const getSubjectsWithCounts = cache(async (): Promise<SubjectOption[]> =>
   const supabase = await createServerSupabaseClient()
 
   // Intentional asymmetry: a subjects read error throws (page-critical data), while
-  // fetchActiveQuestionCounts degrades to [] internally (counts are non-fatal).
+  // getActiveQuestionCounts degrades to [] internally (counts are non-fatal).
   const [subjectsRes, countsData] = await Promise.all([
     supabase.from('easa_subjects').select('id, code, name, short, sort_order').order('sort_order'),
-    fetchActiveQuestionCounts(supabase),
+    getActiveQuestionCounts(),
   ])
 
   if (subjectsRes.error) {
@@ -156,36 +157,5 @@ export async function getTopicsWithSubtopics(subjectId: string): Promise<TopicWi
   }
 
   const subtopics = (subtopicsRes.data ?? []) as SubtopicRow[]
-
-  const topicCounts = new Map<string, number>()
-  const subtopicCounts = new Map<string, number>()
-  for (const row of countsData) {
-    if (row.subject_id !== subjectId) continue
-    topicCounts.set(row.topic_id, (topicCounts.get(row.topic_id) ?? 0) + Number(row.n))
-    if (row.subtopic_id !== null) {
-      subtopicCounts.set(
-        row.subtopic_id,
-        (subtopicCounts.get(row.subtopic_id) ?? 0) + Number(row.n),
-      )
-    }
-  }
-
-  const subtopicsByTopic = new Map<string, SubtopicOption[]>()
-  for (const st of subtopics) {
-    const count = subtopicCounts.get(st.id) ?? 0
-    if (count === 0) continue
-    const list = subtopicsByTopic.get(st.topic_id) ?? []
-    list.push({ id: st.id, code: st.code, name: st.name, questionCount: count })
-    subtopicsByTopic.set(st.topic_id, list)
-  }
-
-  return topics
-    .map((t) => ({
-      id: t.id,
-      code: t.code,
-      name: t.name,
-      questionCount: topicCounts.get(t.id) ?? 0,
-      subtopics: subtopicsByTopic.get(t.id) ?? [],
-    }))
-    .filter((t) => t.questionCount > 0)
+  return buildTopicTree({ topics, subtopics, counts: countsData, subjectId })
 }

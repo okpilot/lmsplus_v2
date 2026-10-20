@@ -43,6 +43,7 @@ function makeDeps(overrides: Partial<Parameters<typeof createTopicTreeActions>[0
     setTopics: vi.fn(),
     setCheckedTopics: vi.fn(),
     setCheckedSubtopics: vi.fn(),
+    setLoading: vi.fn(),
     generation: { current: 0 },
     startTransition: (cb: () => Promise<void> | void) => {
       cb()
@@ -163,5 +164,92 @@ describe('createTopicTreeActions — reset', () => {
     expect(setCheckedTopics).toHaveBeenCalledWith(new Set())
     expect(setCheckedSubtopics).toHaveBeenCalledWith(new Set())
     expect(generation.current).toBe(1)
+  })
+})
+
+// ---- applyTopics ------------------------------------------------------------
+
+describe('createTopicTreeActions — applyTopics', () => {
+  it('shows the given topics checked without fetching', () => {
+    const setTopics = vi.fn()
+    const setCheckedTopics = vi.fn()
+    const setCheckedSubtopics = vi.fn()
+    const { applyTopics } = createTopicTreeActions(
+      makeDeps({ setTopics, setCheckedTopics, setCheckedSubtopics }),
+    )
+    applyTopics([TOPIC_A, TOPIC_B])
+
+    expect(mockFetchTopicsWithSubtopics).not.toHaveBeenCalled()
+    expect(setTopics).toHaveBeenCalledWith([TOPIC_A, TOPIC_B])
+    expect(setCheckedTopics).toHaveBeenCalledWith(new Set(['t-a', 't-b']))
+    expect(setCheckedSubtopics).toHaveBeenCalledWith(new Set(['st-a1', 'st-a2']))
+  })
+
+  it('discards the result of a load that was still in flight', async () => {
+    let resolveFetch: (v: TopicWithSubtopics[]) => void = () => undefined
+    mockFetchTopicsWithSubtopics.mockReturnValue(
+      new Promise<TopicWithSubtopics[]>((r) => {
+        resolveFetch = r
+      }),
+    )
+    const setTopics = vi.fn()
+    const { loadTopics, applyTopics } = createTopicTreeActions(makeDeps({ setTopics }))
+
+    loadTopics(SUBJECT_ID)
+    applyTopics([TOPIC_B])
+    resolveFetch([TOPIC_A])
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(setTopics).toHaveBeenCalledTimes(1)
+    expect(setTopics).toHaveBeenCalledWith([TOPIC_B])
+  })
+})
+
+// ---- loading flag -------------------------------------------------------------
+
+describe('createTopicTreeActions — loading flag', () => {
+  it('marks the tree loading as soon as a load starts', () => {
+    const setLoading = vi.fn()
+    mockFetchTopicsWithSubtopics.mockReturnValue(new Promise(() => {}))
+    const { loadTopics } = createTopicTreeActions(makeDeps({ setLoading }))
+    loadTopics(SUBJECT_ID)
+
+    expect(setLoading).toHaveBeenCalledWith(true)
+  })
+
+  it('clears loading when the matching load result is applied', async () => {
+    const setLoading = vi.fn()
+    const { loadTopics } = createTopicTreeActions(makeDeps({ setLoading }))
+    await loadTopics(SUBJECT_ID)
+
+    expect(setLoading).toHaveBeenLastCalledWith(false)
+  })
+
+  it('leaves loading untouched when a stale result is discarded', async () => {
+    const setLoading = vi.fn()
+    const generation = { current: 0 }
+    const { loadTopics } = createTopicTreeActions(makeDeps({ setLoading, generation }))
+    const first = loadTopics(SUBJECT_ID)
+    generation.current++
+    await first
+
+    expect(setLoading).not.toHaveBeenCalledWith(false)
+  })
+
+  it('clears loading when a preloaded tree is applied', () => {
+    const setLoading = vi.fn()
+    const { applyTopics } = createTopicTreeActions(makeDeps({ setLoading }))
+    applyTopics([TOPIC_B])
+
+    expect(setLoading).toHaveBeenCalledWith(false)
+  })
+
+  it('clears loading on reset', () => {
+    const setLoading = vi.fn()
+    const { reset } = createTopicTreeActions(makeDeps({ setLoading }))
+    reset()
+
+    expect(setLoading).toHaveBeenCalledWith(false)
   })
 })

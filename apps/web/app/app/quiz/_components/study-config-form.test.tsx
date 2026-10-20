@@ -112,6 +112,11 @@ function buildDefaultConfig(overrides: Record<string, unknown> = {}) {
   }
 }
 
+const PRELOAD = Promise.resolve({
+  topicsBySubject: { 'sub-1': [] },
+  discoveryCounts: { 'sub-1': { '': { count: 3, byTopic: {}, bySubtopic: {} } } },
+})
+
 // ---- Tests ----------------------------------------------------------------
 
 describe('StudyConfigForm', () => {
@@ -126,6 +131,15 @@ describe('StudyConfigForm', () => {
     it('initializes the discovery config with the current user and subject list', () => {
       render(<StudyConfigForm userId={USER_ID} subjects={SUBJECTS} />)
       expect(mockUseStudyConfig).toHaveBeenCalledWith({ userId: USER_ID, subjects: SUBJECTS })
+    })
+
+    it('hands the streamed setup preload to the discovery config', () => {
+      render(<StudyConfigForm userId={USER_ID} subjects={SUBJECTS} preload={PRELOAD} />)
+      expect(mockUseStudyConfig).toHaveBeenCalledWith({
+        userId: USER_ID,
+        subjects: SUBJECTS,
+        preload: PRELOAD,
+      })
     })
 
     it('renders the config form and never an inline runner', () => {

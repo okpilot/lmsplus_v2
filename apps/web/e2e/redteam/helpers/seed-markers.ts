@@ -104,3 +104,6 @@ export const E2E_REDTEAM_IQ_MARKER = '[E2E_REDTEAM_IQ]'
 export const E2E_REDTEAM_IS_MARKER = '[E2E_REDTEAM_IS]'
 // saveBlockingQuizForLater Server Action spec (Vectors IT, IU): quiz_sessions `config.e2e_marker`.
 export const E2E_REDTEAM_SB_MARKER = '[E2E_REDTEAM_SB]'
+// saved-quiz / draft refresh Server Actions spec (Vectors IV, IW, IX): quiz_sessions
+// `config.e2e_marker` and quiz_drafts `session_config.subjectName`.
+export const E2E_REDTEAM_IV_MARKER = '[E2E_REDTEAM_IV]'

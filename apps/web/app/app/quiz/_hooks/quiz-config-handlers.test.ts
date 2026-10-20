@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
 import type { FilteredCountState } from '../session-types'
+import type { QuizSetupPreload } from '../types'
 import { createConfigHandlers } from './quiz-config-handlers'
 import type { UseTopicTreeReturn } from './topic-tree-helpers'
 
@@ -26,6 +28,7 @@ function makeTopicTree(overrides: Partial<UseTopicTreeReturn> = {}): UseTopicTre
     totalQuestions: 0,
     selectedQuestionCount: 0,
     loadTopics: vi.fn(),
+    applyTopics: vi.fn(),
     toggleTopic: vi.fn(),
     toggleSubtopic: vi.fn(),
     selectAll: vi.fn(),
@@ -34,6 +37,10 @@ function makeTopicTree(overrides: Partial<UseTopicTreeReturn> = {}): UseTopicTre
     getSelectedSubtopicIds: vi.fn(() => []),
     ...overrides,
   }
+}
+
+function preloadRef(topicsBySubject: Record<string, TopicWithSubtopics[]>) {
+  return { current: { topicsBySubject, discoveryCounts: {} } as QuizSetupPreload | null }
 }
 
 describe('createConfigHandlers', () => {
@@ -113,6 +120,53 @@ describe('createConfigHandlers', () => {
       handleSubjectChange('subj-1')
       expect(topicTree.loadTopics).toHaveBeenCalledWith('subj-1')
       expect(topicTree.reset).not.toHaveBeenCalled()
+    })
+
+    it('shows the preloaded topics without a request when the subject was preloaded', () => {
+      const tree = [{ id: 't1', code: '010', name: 'T', questionCount: 3, subtopics: [] }]
+      const { handleSubjectChange } = createConfigHandlers(
+        makeDeps({ preloaded: preloadRef({ 'subj-1': tree }) }),
+      )
+      handleSubjectChange('subj-1')
+      expect(topicTree.applyTopics).toHaveBeenCalledWith(tree)
+      expect(topicTree.loadTopics).not.toHaveBeenCalled()
+    })
+
+    it('falls back to loading topics while the preload has not arrived', () => {
+      const { handleSubjectChange } = createConfigHandlers(
+        makeDeps({ preloaded: { current: null } }),
+      )
+      handleSubjectChange('subj-1')
+      expect(topicTree.loadTopics).toHaveBeenCalledWith('subj-1')
+      expect(topicTree.applyTopics).not.toHaveBeenCalled()
+    })
+
+    it('uses a preload that arrived after the handlers were created', () => {
+      const tree = [{ id: 't1', code: '010', name: 'T', questionCount: 3, subtopics: [] }]
+      const preloaded = { current: null as QuizSetupPreload | null }
+      const { handleSubjectChange } = createConfigHandlers(makeDeps({ preloaded }))
+      preloaded.current = { topicsBySubject: { 'subj-1': tree }, discoveryCounts: {} }
+      handleSubjectChange('subj-1')
+      expect(topicTree.applyTopics).toHaveBeenCalledWith(tree)
+      expect(topicTree.loadTopics).not.toHaveBeenCalled()
+    })
+
+    it('falls back to loading topics when the subject is missing from the preload', () => {
+      const { handleSubjectChange } = createConfigHandlers(
+        makeDeps({ preloaded: preloadRef({ other: [] }) }),
+      )
+      handleSubjectChange('subj-1')
+      expect(topicTree.loadTopics).toHaveBeenCalledWith('subj-1')
+      expect(topicTree.applyTopics).not.toHaveBeenCalled()
+    })
+
+    it('falls back to loading topics when the preloaded tree for the subject is empty', () => {
+      const { handleSubjectChange } = createConfigHandlers(
+        makeDeps({ preloaded: preloadRef({ 'subj-1': [] }) }),
+      )
+      handleSubjectChange('subj-1')
+      expect(topicTree.loadTopics).toHaveBeenCalledWith('subj-1')
+      expect(topicTree.applyTopics).not.toHaveBeenCalled()
     })
 
     it('resets the topic tree when subject id is empty', () => {

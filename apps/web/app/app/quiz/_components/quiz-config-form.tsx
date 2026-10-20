@@ -5,6 +5,7 @@ import type { ExamSubjectOption } from '@/lib/queries/exam-subjects'
 import type { SubjectOption } from '@/lib/queries/quiz-query-types'
 import { useExamStart } from '../_hooks/use-exam-start'
 import { useQuizConfig } from '../_hooks/use-quiz-config'
+import type { PreloadPromise } from '../types'
 import { BlockedStartAlert } from './blocked-start-alert'
 import { DiscoveryModePanel } from './discovery-mode-panel'
 import { ExamConfigForm } from './exam-config-form'
@@ -19,10 +20,12 @@ type QuizConfigFormProps = {
   userId: string
   subjects: SubjectOption[]
   examSubjects: ExamSubjectOption[]
+  preload?: PreloadPromise
 }
 
-export function QuizConfigForm({ userId, subjects, examSubjects }: Readonly<QuizConfigFormProps>) {
-  const config = useQuizConfig({ subjects })
+export function QuizConfigForm(props: Readonly<QuizConfigFormProps>) {
+  const { userId, subjects, examSubjects, preload } = props
+  const config = useQuizConfig({ subjects, preload })
   const isExam = config.mode === 'exam'
 
   const [examSubjectId, setExamSubjectId] = useState('')
@@ -36,6 +39,7 @@ export function QuizConfigForm({ userId, subjects, examSubjects }: Readonly<Quiz
         examAvailable={examSubjects.length > 0}
         subjects={subjects}
         userId={userId}
+        preload={preload}
       />
     )
 

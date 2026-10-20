@@ -1,6 +1,7 @@
 import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
-import { discardSavedQuiz, resumeSavedQuiz } from '../../actions/saved-quiz'
+import { resumeSavedQuizAndRefresh } from '../../actions/resume-and-refresh'
+import { discardSavedQuiz } from '../../actions/saved-quiz'
 import { getQuizDeviceId } from '../_utils/quiz-device-id'
 
 const GENERIC = 'Something went wrong. Please try again.'
@@ -42,8 +43,9 @@ export function useSavedSessionResume(sessionId: string) {
     error,
     resume: () =>
       run(
-        () => resumeSavedQuiz({ sessionId, deviceId: getQuizDeviceId() }),
-        () => router.refresh(),
+        // The action re-renders this route in its own response — nothing to do on success.
+        () => resumeSavedQuizAndRefresh({ sessionId, deviceId: getQuizDeviceId() }),
+        () => undefined,
       ),
     discard: () => {
       if (!window.confirm('Delete this saved quiz? This cannot be undone.')) return

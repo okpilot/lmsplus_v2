@@ -1,7 +1,8 @@
 import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
+import { discardSavedQuizAndRefresh } from '../actions/discard-and-refresh'
 import { isDisplayableProgressError } from '../actions/progress-error-messages'
-import { discardSavedQuiz, resumeSavedQuiz } from '../actions/saved-quiz'
+import { resumeSavedQuiz } from '../actions/saved-quiz'
 import { getQuizDeviceId } from '../session/_utils/quiz-device-id'
 
 const RESUME_ERROR = 'Unable to resume right now. Please try again.'
@@ -41,9 +42,8 @@ function useResume(sessionId: string, setError: SetError) {
   return { resuming, resume }
 }
 
-/** Delete clears the saved marker, then refreshes the list. */
+/** Delete clears the saved marker; the action re-renders the list in the same response. */
 function useDelete(sessionId: string, setError: SetError) {
-  const router = useRouter()
   const [deleting, setDeleting] = useState(false)
 
   async function remove() {
@@ -51,8 +51,8 @@ function useDelete(sessionId: string, setError: SetError) {
     setDeleting(true)
     setError(null)
     try {
-      const result = await discardSavedQuiz({ sessionId })
-      if (result.success) return router.refresh()
+      const result = await discardSavedQuizAndRefresh({ sessionId })
+      if (result.success) return
       setError(isDisplayableProgressError(result.error) ? result.error : DISCARD_ERROR)
     } catch {
       setError(DISCARD_ERROR)

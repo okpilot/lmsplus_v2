@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
-import { deleteDraft } from '../actions/draft-delete'
+import { deleteDraftAndRefresh } from '../actions/discard-and-refresh'
 import { resumeQuizSession } from '../actions/resume'
 import type { DraftData } from '../types'
 import { SavedSessionProgress } from './saved-session-progress'
@@ -67,12 +67,12 @@ export function DraftCard({ draft }: Readonly<{ draft: DraftData }>) {
     if (!window.confirm('Delete this saved quiz? This cannot be undone.')) return
     setDeleting(true)
     setError(null)
-    const result = await deleteDraft({ draftId: draft.id })
-    if (result.success) {
-      setDeleting(false)
-      router.refresh()
-    } else {
+    try {
+      const result = await deleteDraftAndRefresh({ draftId: draft.id })
+      if (!result.success) setError('Failed to delete. Please try again.')
+    } catch {
       setError('Failed to delete. Please try again.')
+    } finally {
       setDeleting(false)
     }
   }

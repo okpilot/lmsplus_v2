@@ -13,7 +13,9 @@ const { mockResume, mockDiscard, mockPush, mockRefresh, mockDeviceId } = vi.hois
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mockPush, refresh: mockRefresh }) }))
 vi.mock('../actions/saved-quiz', () => ({
   resumeSavedQuiz: (...args: unknown[]) => mockResume(...args),
-  discardSavedQuiz: (...args: unknown[]) => mockDiscard(...args),
+}))
+vi.mock('../actions/discard-and-refresh', () => ({
+  discardSavedQuizAndRefresh: (...args: unknown[]) => mockDiscard(...args),
 }))
 vi.mock('../session/_utils/quiz-device-id', () => ({ getQuizDeviceId: () => mockDeviceId() }))
 
@@ -89,12 +91,13 @@ describe('SavedSessionCard', () => {
     expect(mockResume).toHaveBeenCalledTimes(1)
   })
 
-  it('discards the saved quiz after confirmation and refreshes the list', async () => {
+  it('discards the saved quiz after confirmation in one request without a router refresh', async () => {
     render(<SavedSessionCard session={SAVED} />)
     fireEvent.click(screen.getByTestId('delete-saved-session'))
 
     await waitFor(() => expect(mockDiscard).toHaveBeenCalledWith({ sessionId: 'saved-1' }))
-    await waitFor(() => expect(mockRefresh).toHaveBeenCalled())
+    await new Promise((r) => setTimeout(r, 0))
+    expect(mockRefresh).not.toHaveBeenCalled()
   })
 
   it('does not discard when the confirmation is cancelled', async () => {

@@ -9,6 +9,7 @@ const {
   mockLoadSavedQuizzes,
   mockGetSubjectsWithCounts,
   mockGetMockExamSubjects,
+  mockLoadQuizSetupPreload,
 } = vi.hoisted(() => ({
   mockLoadDrafts: vi.fn(),
   mockGetActiveExamSession: vi.fn(),
@@ -16,10 +17,15 @@ const {
   mockLoadSavedQuizzes: vi.fn(),
   mockGetSubjectsWithCounts: vi.fn(),
   mockGetMockExamSubjects: vi.fn(),
+  mockLoadQuizSetupPreload: vi.fn(),
 }))
 
 vi.mock('@/lib/queries/quiz-subject-queries', () => ({
   getSubjectsWithCounts: (...args: unknown[]) => mockGetSubjectsWithCounts(...args),
+}))
+
+vi.mock('@/lib/queries/quiz-setup-preload', () => ({
+  loadQuizSetupPreload: (...args: unknown[]) => mockLoadQuizSetupPreload(...args),
 }))
 
 vi.mock('@/lib/queries/exam-subjects', () => ({
@@ -66,11 +72,26 @@ beforeEach(() => {
   mockLoadSavedQuizzes.mockResolvedValue([SAVED_SESSION])
   mockGetSubjectsWithCounts.mockResolvedValue([])
   mockGetMockExamSubjects.mockResolvedValue([])
+  mockLoadQuizSetupPreload.mockResolvedValue({ topicsBySubject: {}, discoveryCounts: {} })
 })
 
 // ---- Tests -----------------------------------------------------------------
 
 describe('loadQuizPageData', () => {
+  it('starts the setup preload that the subjects section streams later', async () => {
+    await loadQuizPageData('user-1')
+
+    expect(mockLoadQuizSetupPreload).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not wait for the setup preload to settle', async () => {
+    mockLoadQuizSetupPreload.mockReturnValue(new Promise(() => undefined))
+
+    const data = await loadQuizPageData('user-1')
+
+    expect(data.drafts).toEqual([DRAFT])
+  })
+
   it('flattens successful results into the page view-model', async () => {
     const data = await loadQuizPageData('user-1')
 
