@@ -1,5 +1,10 @@
-import { describe, expect, it } from 'vitest'
-import { findPreloadedCount, freshCounts, PRELOAD_COUNTS_TTL_MS } from './preloaded-discovery-count'
+import { beforeEach, describe, expect, it } from 'vitest'
+import {
+  findPreloadedCount,
+  freshCounts,
+  markHistoryRestore,
+  PRELOAD_COUNTS_TTL_MS,
+} from './preloaded-discovery-count'
 
 const NONE = { count: 7, byTopic: { t1: 7 }, bySubtopic: {} }
 const UNSEEN = { count: 5, byTopic: { t1: 5 }, bySubtopic: {} }
@@ -59,6 +64,8 @@ describe('findPreloadedCount', () => {
 describe('freshCounts', () => {
   const preload = { topicsBySubject: {}, discoveryCounts: COUNTS, loadedAt: 1_000 }
 
+  beforeEach(() => markHistoryRestore(0))
+
   it('returns the counts while they are younger than the TTL', () => {
     expect(freshCounts(preload, 1_000 + PRELOAD_COUNTS_TTL_MS)).toBe(COUNTS)
   })
@@ -69,5 +76,15 @@ describe('freshCounts', () => {
 
   it('returns nothing when no preload has arrived', () => {
     expect(freshCounts(null, 5)).toBeUndefined()
+  })
+
+  it('returns nothing for counts stamped before a history restore', () => {
+    markHistoryRestore(2_000)
+    expect(freshCounts(preload, 2_500)).toBeUndefined()
+  })
+
+  it('returns counts stamped after a history restore', () => {
+    markHistoryRestore(500)
+    expect(freshCounts(preload, 2_000)).toBe(COUNTS)
   })
 })

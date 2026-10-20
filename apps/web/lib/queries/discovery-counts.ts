@@ -48,7 +48,7 @@ async function countSet(opts: {
 }): Promise<FilteredCounts | null> {
   const { supabase, subjectId, filters, topicIds, subtopicIds } = opts
   try {
-    // Same args the client fallback sends (use-filtered-count-sync.ts).
+    // Same args getFilteredCount (actions/lookup.ts) gets from the client fallback.
     const { data, error } = await rpc<unknown>(supabase, 'get_filtered_question_counts', {
       p_subject_id: subjectId,
       p_topic_ids: topicIds,

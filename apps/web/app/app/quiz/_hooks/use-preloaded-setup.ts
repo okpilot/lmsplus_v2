@@ -1,8 +1,11 @@
 import { type RefObject, useEffect, useRef } from 'react'
+import { markHistoryRestore } from '../_utils/preloaded-discovery-count'
 import type { PreloadPromise, StampedPreload } from '../types'
 
 // Resolved values by promise: a remount (e.g. the Discovery <-> other-mode toggle) reads
 // the value synchronously instead of waiting for a promise that already settled.
+let popstateListening = false
+
 const resolved = new WeakMap<PreloadPromise, StampedPreload>()
 
 /**
@@ -14,6 +17,10 @@ const resolved = new WeakMap<PreloadPromise, StampedPreload>()
 export function usePreloadedSetup(promise?: PreloadPromise): RefObject<StampedPreload | null> {
   const ref = useRef<StampedPreload | null>((promise && resolved.get(promise)) || null)
   useEffect(() => {
+    if (!popstateListening) {
+      popstateListening = true
+      window.addEventListener('popstate', () => markHistoryRestore(Date.now()))
+    }
     if (!promise) return
     let live = true
     const known = resolved.get(promise)

@@ -1,5 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { freshCounts, markHistoryRestore } from '../_utils/preloaded-discovery-count'
 import type { PreloadPromise, QuizSetupPreload } from '../types'
 import { usePreloadedSetup } from './use-preloaded-setup'
 
@@ -95,6 +96,37 @@ describe('usePreloadedSetup', () => {
       await act(async () => undefined)
 
       expect(remounted.result.current.current?.loadedAt).toBe(10_000)
+    })
+  })
+
+  describe('history restore', () => {
+    beforeEach(() => markHistoryRestore(0))
+    afterEach(() => {
+      vi.useRealTimers()
+      markHistoryRestore(0)
+    })
+
+    async function resolvedAt(time: number) {
+      vi.useFakeTimers({ now: time })
+      const { promise, resolve } = deferred()
+      const hook = renderHook(() => usePreloadedSetup(promise))
+      await act(async () => resolve(SETUP))
+      return hook.result.current
+    }
+
+    it('expires counts loaded before a Back/Forward restore', async () => {
+      const ref = await resolvedAt(10_000)
+      vi.setSystemTime(11_000)
+
+      window.dispatchEvent(new PopStateEvent('popstate'))
+
+      expect(freshCounts(ref.current, 11_500)).toBeUndefined()
+    })
+
+    it('keeps counts fresh when no history restore happened', async () => {
+      const ref = await resolvedAt(10_000)
+
+      expect(freshCounts(ref.current, 11_500)).toBe(SETUP.discoveryCounts)
     })
   })
 })
