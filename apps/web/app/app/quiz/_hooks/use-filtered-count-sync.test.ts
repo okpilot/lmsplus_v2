@@ -1,9 +1,20 @@
 import { act, renderHook } from '@testing-library/react'
+import { useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
 import type { CalcMode, ImageMode, QuestionFilterValue } from '../types'
 import type { useFilteredCount } from './use-filtered-count'
 import { useFilteredCountSync } from './use-filtered-count-sync'
-import type { useTopicTree } from './use-topic-tree'
+import { useTopicTree } from './use-topic-tree'
+
+const { mockFetchTopicsWithSubtopics } = vi.hoisted(() => ({
+  mockFetchTopicsWithSubtopics: vi.fn(),
+}))
+
+// Only the real-topic-tree describe reaches this; the other tests use a fake topicTree.
+vi.mock('../actions/lookup', () => ({
+  fetchTopicsWithSubtopics: (...args: unknown[]) => mockFetchTopicsWithSubtopics(...args),
+}))
 
 // ---- Fixtures ---------------------------------------------------------------
 
@@ -57,6 +68,41 @@ const DEFAULT_FILTERS: QuestionFilterValue[] = ['unseen']
 const DEFAULT_CALC_MODE: CalcMode = 'all'
 const DEFAULT_IMAGE_MODE: ImageMode = 'all'
 
+type SyncOpts = Parameters<typeof useFilteredCountSync>[0]
+
+function baseOpts(overrides: Partial<SyncOpts> & Pick<SyncOpts, 'topicTree' | 'fc'>): SyncOpts {
+  return {
+    subjectId: SUBJECT_ID,
+    hasActiveFilters: true,
+    filters: DEFAULT_FILTERS,
+    calcMode: DEFAULT_CALC_MODE,
+    imageMode: DEFAULT_IMAGE_MODE,
+    ...overrides,
+  }
+}
+
+// Argument list of fc.refetch(subjectId, topicIds, subtopicIds, filters, calcMode, imageMode, questionType).
+function expectedArgs(
+  overrides: {
+    topicIds?: string[]
+    subtopicIds?: string[]
+    filters?: QuestionFilterValue[]
+    calcMode?: CalcMode
+    imageMode?: ImageMode
+    questionType?: 'multiple_choice'
+  } = {},
+) {
+  return [
+    SUBJECT_ID,
+    overrides.topicIds ?? [TOPIC_ID_1],
+    overrides.subtopicIds ?? [SUBTOPIC_ID_1],
+    overrides.filters ?? DEFAULT_FILTERS,
+    overrides.calcMode ?? DEFAULT_CALC_MODE,
+    overrides.imageMode ?? DEFAULT_IMAGE_MODE,
+    overrides.questionType,
+  ] as const
+}
+
 // ---- Lifecycle --------------------------------------------------------------
 
 beforeEach(() => {
@@ -70,17 +116,7 @@ describe('useFilteredCountSync — subjectId guard', () => {
     const fc = makeFc()
     const topicTree = makeTopicTree([{ id: TOPIC_ID_1, subtopics: [{ id: SUBTOPIC_ID_1 }] }])
 
-    renderHook(() =>
-      useFilteredCountSync({
-        subjectId: '',
-        hasActiveFilters: true,
-        filters: DEFAULT_FILTERS,
-        calcMode: DEFAULT_CALC_MODE,
-        imageMode: DEFAULT_IMAGE_MODE,
-        topicTree,
-        fc,
-      }),
-    )
+    renderHook(() => useFilteredCountSync(baseOpts({ subjectId: '', topicTree, fc })))
 
     expect(fc.refetch).not.toHaveBeenCalled()
   })
@@ -93,17 +129,7 @@ describe('useFilteredCountSync — hasActiveFilters guard', () => {
     const fc = makeFc()
     const topicTree = makeTopicTree([{ id: TOPIC_ID_1, subtopics: [{ id: SUBTOPIC_ID_1 }] }])
 
-    renderHook(() =>
-      useFilteredCountSync({
-        subjectId: SUBJECT_ID,
-        hasActiveFilters: false,
-        filters: DEFAULT_FILTERS,
-        calcMode: DEFAULT_CALC_MODE,
-        imageMode: DEFAULT_IMAGE_MODE,
-        topicTree,
-        fc,
-      }),
-    )
+    renderHook(() => useFilteredCountSync(baseOpts({ hasActiveFilters: false, topicTree, fc })))
 
     expect(fc.refetch).not.toHaveBeenCalled()
   })
@@ -116,17 +142,7 @@ describe('useFilteredCountSync — empty topics guard', () => {
     const fc = makeFc()
     const topicTree = makeTopicTree([])
 
-    renderHook(() =>
-      useFilteredCountSync({
-        subjectId: SUBJECT_ID,
-        hasActiveFilters: true,
-        filters: DEFAULT_FILTERS,
-        calcMode: DEFAULT_CALC_MODE,
-        imageMode: DEFAULT_IMAGE_MODE,
-        topicTree,
-        fc,
-      }),
-    )
+    renderHook(() => useFilteredCountSync(baseOpts({ topicTree, fc })))
 
     expect(fc.refetch).not.toHaveBeenCalled()
   })
@@ -142,28 +158,15 @@ describe('useFilteredCountSync — happy path', () => {
       { id: TOPIC_ID_2, subtopics: [{ id: SUBTOPIC_ID_2 }] },
     ])
 
-    renderHook(() =>
-      useFilteredCountSync({
-        subjectId: SUBJECT_ID,
-        hasActiveFilters: true,
-        filters: DEFAULT_FILTERS,
-        calcMode: DEFAULT_CALC_MODE,
-        imageMode: DEFAULT_IMAGE_MODE,
-        topicTree,
-        fc,
-      }),
-    )
+    renderHook(() => useFilteredCountSync(baseOpts({ topicTree, fc })))
 
     expect(fc.refetch).toHaveBeenCalledTimes(1)
     // No questionType in opts → the type-agnostic (quiz/exam) count path passes undefined.
     expect(fc.refetch).toHaveBeenCalledWith(
-      SUBJECT_ID,
-      [TOPIC_ID_1, TOPIC_ID_2],
-      [SUBTOPIC_ID_1, SUBTOPIC_ID_2],
-      DEFAULT_FILTERS,
-      DEFAULT_CALC_MODE,
-      DEFAULT_IMAGE_MODE,
-      undefined,
+      ...expectedArgs({
+        topicIds: [TOPIC_ID_1, TOPIC_ID_2],
+        subtopicIds: [SUBTOPIC_ID_1, SUBTOPIC_ID_2],
+      }),
     )
   })
 
@@ -172,27 +175,10 @@ describe('useFilteredCountSync — happy path', () => {
     const topicTree = makeTopicTree([{ id: TOPIC_ID_1, subtopics: [{ id: SUBTOPIC_ID_1 }] }])
 
     renderHook(() =>
-      useFilteredCountSync({
-        subjectId: SUBJECT_ID,
-        hasActiveFilters: true,
-        filters: DEFAULT_FILTERS,
-        calcMode: DEFAULT_CALC_MODE,
-        imageMode: DEFAULT_IMAGE_MODE,
-        topicTree,
-        fc,
-        questionType: 'multiple_choice',
-      }),
+      useFilteredCountSync(baseOpts({ questionType: 'multiple_choice', topicTree, fc })),
     )
 
-    expect(fc.refetch).toHaveBeenCalledWith(
-      SUBJECT_ID,
-      [TOPIC_ID_1],
-      [SUBTOPIC_ID_1],
-      DEFAULT_FILTERS,
-      DEFAULT_CALC_MODE,
-      DEFAULT_IMAGE_MODE,
-      'multiple_choice',
-    )
+    expect(fc.refetch).toHaveBeenCalledWith(...expectedArgs({ questionType: 'multiple_choice' }))
   })
 
   it('requests a multiple-choice-only count on the Study/Discovery path even with no active filter', () => {
@@ -201,26 +187,19 @@ describe('useFilteredCountSync — happy path', () => {
     const noFilters: QuestionFilterValue[] = ['all']
 
     renderHook(() =>
-      useFilteredCountSync({
-        subjectId: SUBJECT_ID,
-        hasActiveFilters: false,
-        filters: noFilters,
-        calcMode: DEFAULT_CALC_MODE,
-        imageMode: DEFAULT_IMAGE_MODE,
-        topicTree,
-        fc,
-        questionType: 'multiple_choice',
-      }),
+      useFilteredCountSync(
+        baseOpts({
+          hasActiveFilters: false,
+          filters: noFilters,
+          questionType: 'multiple_choice',
+          topicTree,
+          fc,
+        }),
+      ),
     )
 
     expect(fc.refetch).toHaveBeenCalledWith(
-      SUBJECT_ID,
-      [TOPIC_ID_1],
-      [SUBTOPIC_ID_1],
-      noFilters,
-      DEFAULT_CALC_MODE,
-      DEFAULT_IMAGE_MODE,
-      'multiple_choice',
+      ...expectedArgs({ filters: noFilters, questionType: 'multiple_choice' }),
     )
   })
 
@@ -231,25 +210,18 @@ describe('useFilteredCountSync — happy path', () => {
     ])
 
     renderHook(() =>
-      useFilteredCountSync({
-        subjectId: SUBJECT_ID,
-        hasActiveFilters: true,
-        filters: ['flagged'],
-        calcMode: 'only',
-        imageMode: 'exclude',
-        topicTree,
-        fc,
-      }),
+      useFilteredCountSync(
+        baseOpts({ filters: ['flagged'], calcMode: 'only', imageMode: 'exclude', topicTree, fc }),
+      ),
     )
 
     expect(fc.refetch).toHaveBeenCalledWith(
-      SUBJECT_ID,
-      [TOPIC_ID_1],
-      [SUBTOPIC_ID_1, SUBTOPIC_ID_2],
-      ['flagged'],
-      'only',
-      'exclude',
-      undefined,
+      ...expectedArgs({
+        subtopicIds: [SUBTOPIC_ID_1, SUBTOPIC_ID_2],
+        filters: ['flagged'],
+        calcMode: 'only',
+        imageMode: 'exclude',
+      }),
     )
   })
 })
@@ -263,43 +235,19 @@ describe('useFilteredCountSync — re-runs on dependency change', () => {
 
     const { rerender } = renderHook(
       ({ imageMode }: { imageMode: ImageMode }) =>
-        useFilteredCountSync({
-          subjectId: SUBJECT_ID,
-          hasActiveFilters: true,
-          filters: DEFAULT_FILTERS,
-          calcMode: DEFAULT_CALC_MODE,
-          imageMode,
-          topicTree,
-          fc,
-        }),
+        useFilteredCountSync(baseOpts({ imageMode, topicTree, fc })),
       { initialProps: { imageMode: 'all' as ImageMode } },
     )
 
     expect(fc.refetch).toHaveBeenCalledTimes(1)
-    expect(fc.refetch).toHaveBeenLastCalledWith(
-      SUBJECT_ID,
-      [TOPIC_ID_1],
-      [SUBTOPIC_ID_1],
-      DEFAULT_FILTERS,
-      DEFAULT_CALC_MODE,
-      'all',
-      undefined,
-    )
+    expect(fc.refetch).toHaveBeenLastCalledWith(...expectedArgs({ imageMode: 'all' }))
 
     act(() => {
       rerender({ imageMode: 'only' })
     })
 
     expect(fc.refetch).toHaveBeenCalledTimes(2)
-    expect(fc.refetch).toHaveBeenLastCalledWith(
-      SUBJECT_ID,
-      [TOPIC_ID_1],
-      [SUBTOPIC_ID_1],
-      DEFAULT_FILTERS,
-      DEFAULT_CALC_MODE,
-      'only',
-      undefined,
-    )
+    expect(fc.refetch).toHaveBeenLastCalledWith(...expectedArgs({ imageMode: 'only' }))
   })
 
   it('re-requests the count when filters change between renders', () => {
@@ -308,15 +256,7 @@ describe('useFilteredCountSync — re-runs on dependency change', () => {
 
     const { rerender } = renderHook(
       ({ filters }: { filters: QuestionFilterValue[] }) =>
-        useFilteredCountSync({
-          subjectId: SUBJECT_ID,
-          hasActiveFilters: true,
-          filters,
-          calcMode: DEFAULT_CALC_MODE,
-          imageMode: DEFAULT_IMAGE_MODE,
-          topicTree,
-          fc,
-        }),
+        useFilteredCountSync(baseOpts({ filters, topicTree, fc })),
       { initialProps: { filters: ['unseen'] as QuestionFilterValue[] } },
     )
 
@@ -327,15 +267,7 @@ describe('useFilteredCountSync — re-runs on dependency change', () => {
     })
 
     expect(fc.refetch).toHaveBeenCalledTimes(2)
-    expect(fc.refetch).toHaveBeenLastCalledWith(
-      SUBJECT_ID,
-      [TOPIC_ID_1],
-      [SUBTOPIC_ID_1],
-      ['incorrect'],
-      DEFAULT_CALC_MODE,
-      DEFAULT_IMAGE_MODE,
-      undefined,
-    )
+    expect(fc.refetch).toHaveBeenLastCalledWith(...expectedArgs({ filters: ['incorrect'] }))
   })
 
   it('does not re-request the count when a re-render leaves every dependency unchanged', () => {
@@ -349,15 +281,7 @@ describe('useFilteredCountSync — re-runs on dependency change', () => {
 
     const { rerender } = renderHook(
       ({ calcMode }: { calcMode: CalcMode }) =>
-        useFilteredCountSync({
-          subjectId: SUBJECT_ID,
-          hasActiveFilters: true,
-          filters: stableFilters,
-          calcMode,
-          imageMode: DEFAULT_IMAGE_MODE,
-          topicTree,
-          fc,
-        }),
+        useFilteredCountSync(baseOpts({ filters: stableFilters, calcMode, topicTree, fc })),
       { initialProps: { calcMode: 'all' as CalcMode } },
     )
 
@@ -378,16 +302,9 @@ describe('useFilteredCountSync — re-runs on dependency change', () => {
 
     const { rerender } = renderHook(
       ({ questionType }: { questionType?: 'multiple_choice' }) =>
-        useFilteredCountSync({
-          subjectId: SUBJECT_ID,
-          hasActiveFilters: false,
-          filters: noFilters,
-          calcMode: DEFAULT_CALC_MODE,
-          imageMode: DEFAULT_IMAGE_MODE,
-          topicTree,
-          fc,
-          questionType,
-        }),
+        useFilteredCountSync(
+          baseOpts({ hasActiveFilters: false, filters: noFilters, topicTree, fc, questionType }),
+        ),
       { initialProps: { questionType: undefined as 'multiple_choice' | undefined } },
     )
 
@@ -399,13 +316,7 @@ describe('useFilteredCountSync — re-runs on dependency change', () => {
     })
 
     expect(fc.refetch).toHaveBeenCalledWith(
-      SUBJECT_ID,
-      [TOPIC_ID_1],
-      [SUBTOPIC_ID_1],
-      noFilters,
-      DEFAULT_CALC_MODE,
-      DEFAULT_IMAGE_MODE,
-      'multiple_choice',
+      ...expectedArgs({ filters: noFilters, questionType: 'multiple_choice' }),
     )
   })
 })
@@ -422,16 +333,15 @@ describe('useFilteredCountSync — topic tree loading', () => {
   ) {
     return renderHook(
       ({ tree, pending, filters }) =>
-        useFilteredCountSync({
-          subjectId: SUBJECT_ID,
-          hasActiveFilters: false,
-          filters,
-          calcMode: DEFAULT_CALC_MODE,
-          imageMode: DEFAULT_IMAGE_MODE,
-          topicTree: makeTopicTree(tree, pending),
-          fc,
-          questionType: 'multiple_choice',
-        }),
+        useFilteredCountSync(
+          baseOpts({
+            hasActiveFilters: false,
+            filters,
+            topicTree: makeTopicTree(tree, pending),
+            fc,
+            questionType: 'multiple_choice',
+          }),
+        ),
       { initialProps: initial },
     )
   }
@@ -452,13 +362,12 @@ describe('useFilteredCountSync — topic tree loading', () => {
 
     expect(fc.refetch).toHaveBeenCalledTimes(1)
     expect(fc.refetch).toHaveBeenCalledWith(
-      SUBJECT_ID,
-      [TOPIC_ID_2],
-      [SUBTOPIC_ID_2],
-      ['all'],
-      DEFAULT_CALC_MODE,
-      DEFAULT_IMAGE_MODE,
-      'multiple_choice',
+      ...expectedArgs({
+        topicIds: [TOPIC_ID_2],
+        subtopicIds: [SUBTOPIC_ID_2],
+        filters: ['all'],
+        questionType: 'multiple_choice',
+      }),
     )
   })
 
@@ -472,13 +381,105 @@ describe('useFilteredCountSync — topic tree loading', () => {
     rerender({ tree: NEW_TREE, pending: false, filters: ['unseen'] })
     expect(fc.refetch).toHaveBeenCalledTimes(1)
     expect(fc.refetch).toHaveBeenCalledWith(
-      SUBJECT_ID,
-      [TOPIC_ID_2],
-      [SUBTOPIC_ID_2],
-      ['unseen'],
-      DEFAULT_CALC_MODE,
-      DEFAULT_IMAGE_MODE,
-      'multiple_choice',
+      ...expectedArgs({
+        topicIds: [TOPIC_ID_2],
+        subtopicIds: [SUBTOPIC_ID_2],
+        filters: ['unseen'],
+        questionType: 'multiple_choice',
+      }),
     )
+  })
+})
+
+// ---- Real topic tree: subject switch ----------------------------------------
+// Drives the real useTopicTree (real useTransition) so the test sees the actual
+// commit order of `isPending` and the loaded topics on a subject switch.
+
+describe('useFilteredCountSync with the real topic tree', () => {
+  const SUBJECT_A = '00000000-0000-4000-a000-00000000000a'
+  const SUBJECT_B = '00000000-0000-4000-a000-00000000000b'
+
+  function singleTopicTree(topicId: string, subtopicId: string): TopicWithSubtopics[] {
+    return [
+      {
+        id: topicId,
+        code: 'T',
+        name: 'Topic',
+        questionCount: 3,
+        subtopics: [{ id: subtopicId, code: 'S', name: 'Subtopic', questionCount: 3 }],
+      },
+    ]
+  }
+
+  const TREE_A = singleTopicTree('topic-a', 'sub-a')
+  const TREE_B = singleTopicTree('topic-b', 'sub-b')
+
+  function deferred<T>() {
+    let resolve: (value: T) => void = () => {}
+    const promise = new Promise<T>((r) => {
+      resolve = r
+    })
+    return { promise, resolve }
+  }
+
+  function renderConfig(opts: {
+    hasActiveFilters: boolean
+    filters: QuestionFilterValue[]
+    questionType?: 'multiple_choice'
+  }) {
+    const fc = makeFc()
+    const hook = renderHook(() => {
+      const [subjectId, setSubjectId] = useState('')
+      const topicTree = useTopicTree()
+      useFilteredCountSync(baseOpts({ subjectId, topicTree, fc, ...opts }))
+      return {
+        pick: (id: string) => {
+          setSubjectId(id)
+          topicTree.loadTopics(id)
+        },
+      }
+    })
+    return { fc, ...hook }
+  }
+
+  async function switchSubjects(result: { current: { pick: (id: string) => void } }) {
+    mockFetchTopicsWithSubtopics.mockResolvedValueOnce(TREE_A)
+    await act(async () => result.current.pick(SUBJECT_A))
+
+    const pendingB = deferred<TopicWithSubtopics[]>()
+    mockFetchTopicsWithSubtopics.mockReturnValueOnce(pendingB.promise)
+    await act(async () => result.current.pick(SUBJECT_B))
+    await act(async () => pendingB.resolve(TREE_B))
+  }
+
+  function refetchScopes(fc: ReturnType<typeof useFilteredCount>) {
+    return vi
+      .mocked(fc.refetch)
+      .mock.calls.map(([subject, topicIds, subtopicIds]) => [subject, topicIds, subtopicIds])
+  }
+
+  const EXPECTED_SCOPES = [
+    [SUBJECT_A, ['topic-a'], ['sub-a']],
+    [SUBJECT_B, ['topic-b'], ['sub-b']],
+  ]
+
+  it('never counts the new subject against the previous subject topics in Discovery', async () => {
+    const { fc, result } = renderConfig({
+      hasActiveFilters: false,
+      filters: ['all'],
+      questionType: 'multiple_choice',
+    })
+
+    await switchSubjects(result)
+
+    expect(refetchScopes(fc)).toEqual(EXPECTED_SCOPES)
+  })
+
+  it('never counts the new subject against the previous subject topics with an active filter', async () => {
+    const { fc, result } = renderConfig({ hasActiveFilters: true, filters: ['unseen'] })
+
+    await switchSubjects(result)
+
+    expect(refetchScopes(fc)).toEqual(EXPECTED_SCOPES)
   })
 })
