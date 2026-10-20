@@ -43,8 +43,8 @@
  * (mig 20260702000300) and `get_vfr_rt_exam_questions` (mig 20260623000600) both project MC
  * options `ORDER BY random()`, so a stored id's on-screen position is re-rolled on every fetch
  * and key skew cannot be read off it. The skew IS visible wherever options render in AUTHORED
- * order: `get_study_questions` (mig 20260629000700, whose own comment reads "No random() — the
- * answer is shown in study mode, so a stable order is fine"); the post-session REPORT, student
+ * order: `start_discovery` (mig 20261020000100, which emits options in authored
+ * order: `jsonb_agg(... ORDER BY ord)` over `WITH ORDINALITY`); the post-session REPORT, student
  * and admin alike (`lib/queries/quiz-report-questions.ts` and `lib/queries/admin-quiz-report.ts`
  * both SELECT `options` off `questions` unshuffled and render through options-list.tsx, which
  * marks the key in that order); and the admin editor. Deliberately not a count — an earlier

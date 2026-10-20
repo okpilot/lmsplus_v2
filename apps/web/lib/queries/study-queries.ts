@@ -1,6 +1,3 @@
-import { createServerSupabaseClient } from '@repo/db/server'
-import { rpc } from '@/lib/supabase-rpc'
-
 export type StudyQuestion = {
   id: string
   questionText: string
@@ -16,9 +13,9 @@ export type StudyQuestion = {
   difficulty: string | null
 }
 
-// Wire shape of one `get_study_questions` RETURNS TABLE row (snake_case, jsonb options).
-// String fields are typed as `unknown` — the `rpc<StudyQuestionRow[]>` cast is a
-// TypeScript assertion only, not a runtime guarantee. `toStudyQuestion` guards each
+// Wire shape of one `start_discovery` `questions` payload entry (snake_case, jsonb options).
+// String fields are typed as `unknown` — the payload arrives as `rpc<unknown>`, so nothing is
+// guaranteed at runtime. `toStudyQuestion` guards each
 // field with `typeof v === 'string'` before returning the typed `StudyQuestion`.
 type StudyQuestionRow = {
   id: string
@@ -66,28 +63,14 @@ function toStudyQuestion(row: StudyQuestionRow): StudyQuestion {
   }
 }
 
-export async function getStudyQuestions(questionIds: string[]): Promise<StudyQuestion[]> {
-  if (questionIds.length === 0) return []
-
-  const supabase = await createServerSupabaseClient()
-  const { data, error } = await rpc<StudyQuestionRow[]>(supabase, 'get_study_questions', {
-    p_question_ids: questionIds,
-  })
-  if (error) {
-    // Query helper throws (code-style.md §5) — startStudy's try/catch maps it to a
-    // generic message. Collapsing an auth/transport failure into [] would be
-    // indistinguishable from a legitimate "no questions found" result.
-    throw new Error(`Failed to fetch study questions: ${error.message}`)
-  }
-  // Per-row guard required by code-style.md §5 — the `rpc<StudyQuestionRow[]>` cast is a
-  // TypeScript assertion only, not a runtime guarantee. Drop rows whose id / correct_option_id
-  // aren't strings so a shape regression can't leak `undefined` into the typed result.
-  if (!Array.isArray(data)) return []
-  // `WHERE id = ANY(p_question_ids)` returns rows in arbitrary order — re-sort to the
-  // caller's order so the deck matches the (randomly-sampled) selection order rather than
-  // reshuffling between selection and handoff. IDs not in the order map sort last.
-  const orderById = new Map(questionIds.map((id, i) => [id, i]))
-  return data
+/**
+ * Parses the `questions` array of a `start_discovery` payload. Rows keep payload order, which
+ * is the draw order. Rows whose id / correct_option_id aren't strings are dropped so a shape
+ * regression can't leak `undefined` into the typed result; a non-array payload yields [].
+ */
+export function parseStudyQuestions(raw: unknown): StudyQuestion[] {
+  if (!Array.isArray(raw)) return []
+  return raw
     .filter(
       (r): r is StudyQuestionRow =>
         r !== null &&
@@ -96,9 +79,4 @@ export async function getStudyQuestions(questionIds: string[]): Promise<StudyQue
         typeof (r as { correct_option_id?: unknown }).correct_option_id === 'string',
     )
     .map(toStudyQuestion)
-    .sort(
-      (a, b) =>
-        (orderById.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
-        (orderById.get(b.id) ?? Number.MAX_SAFE_INTEGER),
-    )
 }

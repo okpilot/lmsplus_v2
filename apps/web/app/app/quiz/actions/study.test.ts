@@ -2,47 +2,22 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const {
-  mockGetRandomQuestionIds,
-  mockGetStudyQuestions,
-  mockGetFlaggedQuestionIdsBounded,
-  mockRpc,
-  mockEndDiscovery,
-} = vi.hoisted(() => ({
-  mockGetRandomQuestionIds: vi.fn(),
-  mockGetStudyQuestions: vi.fn(),
-  mockGetFlaggedQuestionIdsBounded: vi.fn(),
+const { mockRpc } = vi.hoisted(() => ({
   mockRpc: vi.fn(),
-  mockEndDiscovery: vi.fn(),
 }))
 
+const mockClient = vi.hoisted(() => ({}))
+
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({}),
+  createServerSupabaseClient: async () => mockClient,
 }))
 
 vi.mock('@/lib/supabase-rpc', () => ({
   rpc: (...args: unknown[]) => mockRpc(...args),
 }))
 
-vi.mock('@/lib/queries/quiz-session-queries', () => ({
-  getRandomQuestionIds: (...args: unknown[]) => mockGetRandomQuestionIds(...args),
-}))
-
-vi.mock('@/lib/queries/study-queries', () => ({
-  getStudyQuestions: (...args: unknown[]) => mockGetStudyQuestions(...args),
-}))
-
-vi.mock('@/lib/queries/flagged-questions', () => ({
-  getFlaggedQuestionIdsBounded: (...args: unknown[]) => mockGetFlaggedQuestionIdsBounded(...args),
-}))
-
-vi.mock('./end-discovery', () => ({
-  endDiscovery: (...args: unknown[]) => mockEndDiscovery(...args),
-}))
-
 // ---- Subject under test ---------------------------------------------------
 
-import type { StudyQuestion } from '@/lib/queries/study-queries'
 import { startStudy } from './study'
 
 // ---- Fixtures -------------------------------------------------------------
@@ -50,267 +25,69 @@ import { startStudy } from './study'
 const VALID_SUBJECT_ID = '00000000-0000-4000-a000-000000000001'
 const CREATED_SESSION_ID = '00000000-0000-4000-a000-0000000000ff'
 const VALID_INPUT = { subjectId: VALID_SUBJECT_ID, count: 10 }
-const QUESTION_IDS = [
-  '00000000-0000-4000-a000-000000000011',
-  '00000000-0000-4000-a000-000000000022',
-]
+const Q1 = '00000000-0000-4000-a000-000000000011'
+const Q2 = '00000000-0000-4000-a000-000000000022'
 
-function makeQuestion(id = QUESTION_IDS[0]!): StudyQuestion {
+function makeRow(id: string): Record<string, unknown> {
   return {
     id,
-    questionText: 'What is the MATZ horizontal radius?',
-    questionImageUrl: null,
+    question_text: 'What is the MATZ horizontal radius?',
+    question_image_url: null,
     options: [
       { id: 'a', text: '2 nm' },
       { id: 'b', text: '5 nm' },
     ],
-    correctOptionId: 'b',
-    subjectCode: 'ALW',
-    topicName: 'Airspace',
-    subtopicName: null,
-    explanationText: 'A MATZ extends 5 nm from the aerodrome.',
-    explanationImageUrl: null,
-    questionNumber: null,
+    correct_option_id: 'b',
+    subject_code: 'ALW',
+    topic_name: 'Airspace',
+    subtopic_name: null,
+    explanation_text: 'A MATZ extends 5 nm from the aerodrome.',
+    explanation_image_url: null,
+    question_number: null,
     difficulty: null,
   }
 }
 
-// ---- Lifecycle ------------------------------------------------------------
+function started(overrides: Record<string, unknown> = {}) {
+  return {
+    data: {
+      session_id: CREATED_SESSION_ID,
+      questions: [makeRow(Q1), makeRow(Q2)],
+      flagged_ids: [],
+      ...overrides,
+    },
+    error: null,
+  }
+}
 
 beforeEach(() => {
   vi.resetAllMocks()
-  mockGetRandomQuestionIds.mockResolvedValue(QUESTION_IDS)
-  mockGetStudyQuestions.mockResolvedValue([makeQuestion()])
-  mockGetFlaggedQuestionIdsBounded.mockResolvedValue([])
-  mockRpc.mockResolvedValue({ data: CREATED_SESSION_ID, error: null })
-  mockEndDiscovery.mockResolvedValue({ success: true })
+  mockRpc.mockResolvedValue(started())
 })
 
 // ---- Validation -----------------------------------------------------------
 
 describe('startStudy — input validation', () => {
-  it('returns a validation error when subjectId is not a valid UUID', async () => {
-    const result = await startStudy({ subjectId: 'not-a-uuid', count: 10 })
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe('Invalid input')
+  it.each([
+    ['subjectId is not a valid UUID', { subjectId: 'not-a-uuid', count: 10 }],
+    ['count is missing', { subjectId: VALID_SUBJECT_ID }],
+    ['count is below the minimum', { subjectId: VALID_SUBJECT_ID, count: 0 }],
+    ['count exceeds the maximum allowed', { subjectId: VALID_SUBJECT_ID, count: 501 }],
+  ])('returns a validation error when %s', async (_label, input) => {
+    const result = await startStudy(input)
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
   })
 
-  it('returns a validation error when count is missing', async () => {
-    const result = await startStudy({ subjectId: VALID_SUBJECT_ID })
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe('Invalid input')
-  })
-
-  it('returns a validation error when count is below the minimum', async () => {
-    const result = await startStudy({ subjectId: VALID_SUBJECT_ID, count: 0 })
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe('Invalid input')
-  })
-
-  it('returns a validation error when count exceeds the maximum allowed', async () => {
-    const result = await startStudy({ subjectId: VALID_SUBJECT_ID, count: 501 })
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe('Invalid input')
-  })
-
-  it('does not call getRandomQuestionIds when input is invalid', async () => {
+  it('does not call the RPC when input is invalid', async () => {
     await startStudy({ subjectId: 'bad' })
-    expect(mockGetRandomQuestionIds).not.toHaveBeenCalled()
-  })
-})
-
-// ---- Question type restriction -------------------------------------------
-
-describe('startStudy — question type restriction', () => {
-  it('requests only multiple_choice question ids', async () => {
-    await startStudy(VALID_INPUT)
-    expect(mockGetRandomQuestionIds).toHaveBeenCalledWith(
-      expect.objectContaining({ questionType: 'multiple_choice' }),
-    )
-  })
-})
-
-// ---- Empty id list -------------------------------------------------------
-
-describe('startStudy — empty question pool', () => {
-  it('returns an empty questions array without fetching questions when no ids are available', async () => {
-    mockGetRandomQuestionIds.mockResolvedValue([])
-    const result = await startStudy(VALID_INPUT)
-    expect(result.success).toBe(true)
-    if (!result.success) return
-    expect(result.questions).toEqual([])
-    expect(mockGetStudyQuestions).not.toHaveBeenCalled()
-    // No row is created for an empty pool, so there must be no id to scope cleanup to —
-    // reporting one here would point a teardown at a session this request never started.
-    expect(result.sessionId).toBeUndefined()
-    expect(result.flaggedIds).toEqual([])
-  })
-
-  it('does not create a discovery session when the question pool is empty', async () => {
-    mockGetRandomQuestionIds.mockResolvedValue([])
-    await startStudy(VALID_INPUT)
     expect(mockRpc).not.toHaveBeenCalled()
   })
 })
 
-// ---- Discovery session creation ------------------------------------------
+// ---- The one RPC ----------------------------------------------------------
 
-describe('startStudy — discovery session', () => {
-  it('creates a discovery session with the resolved ids before fetching the keys', async () => {
-    await startStudy(VALID_INPUT)
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'start_discovery_session', {
-      p_subject_id: VALID_SUBJECT_ID,
-      p_question_ids: QUESTION_IDS,
-    })
-    // The session row must be created BEFORE the keys are fetched, so a failed
-    // fetch always has a row to tear down (no orphaned active session).
-    expect(mockRpc.mock.invocationCallOrder[0]!).toBeLessThan(
-      mockGetStudyQuestions.mock.invocationCallOrder[0]!,
-    )
-  })
-
-  it('tells the user to finish their other session when one is already active', async () => {
-    mockRpc.mockResolvedValue({ data: null, error: { message: 'another_session_active' } })
-    const result = await startStudy(VALID_INPUT)
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe('Finish or exit your active session first.')
-    expect(mockGetStudyQuestions).not.toHaveBeenCalled()
-  })
-
-  it('fails without fetching keys when the session row is created but no id is returned', async () => {
-    // A success result (error null) carrying a null/empty id would leave the orphan
-    // teardown unable to scope to this request's row — treat it as a failure.
-    mockRpc.mockResolvedValue({ data: null, error: null })
-    const result = await startStudy(VALID_INPUT)
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe('Failed to start study session')
-    expect(mockGetStudyQuestions).not.toHaveBeenCalled()
-  })
-
-  it('returns a generic failure for a session validation error without leaking the token', async () => {
-    mockRpc.mockResolvedValue({ data: null, error: { message: 'too_many_questions' } })
-    const result = await startStudy(VALID_INPUT)
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe('Failed to start study session')
-    expect(result.error).not.toContain('too_many_questions')
-  })
-
-  it('tears down only the row it created when the key fetch fails after creating it', async () => {
-    mockGetStudyQuestions.mockRejectedValue(new Error('DB connection timeout'))
-    const result = await startStudy(VALID_INPUT)
-    expect(result.success).toBe(false)
-    expect(mockEndDiscovery).toHaveBeenCalledTimes(1)
-    expect(mockEndDiscovery).toHaveBeenCalledWith({ sessionId: CREATED_SESSION_ID })
-  })
-
-  it('logs the teardown failure when the orphan row cannot be exited after a failed key fetch', async () => {
-    // endDiscovery returns { success: false } (it does NOT throw) on auth/query
-    // failure — a silently-swallowed teardown leaves the row active with no signal.
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    mockGetStudyQuestions.mockRejectedValue(new Error('DB connection timeout'))
-    mockEndDiscovery.mockResolvedValue({ success: false, error: 'Failed to exit discovery' })
-    const result = await startStudy(VALID_INPUT)
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe('Failed to start study session')
-    expect(errorSpy).toHaveBeenCalledWith(
-      '[startStudy] discovery teardown failed:',
-      CREATED_SESSION_ID,
-      'Failed to exit discovery',
-    )
-  })
-
-  it('tears down the discovery row and fails when no questions come back for non-empty ids', async () => {
-    // getStudyQuestions can return [] even for a non-empty id set (every id filtered by
-    // the RPC's soft-delete/status guards in a race). The just-created discovery row must
-    // be torn down — otherwise it stays active and blocks the next start.
-    mockGetStudyQuestions.mockResolvedValue([])
-    // The failure must not wait on the cosmetic flag read.
-    mockGetFlaggedQuestionIdsBounded.mockReturnValue(new Promise(() => {}))
-    const result = await startStudy(VALID_INPUT)
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe('Failed to start study session')
-    expect(mockEndDiscovery).toHaveBeenCalledTimes(1)
-    expect(mockEndDiscovery).toHaveBeenCalledWith({ sessionId: CREATED_SESSION_ID })
-  })
-
-  it('does not tear down a discovery row when the id fetch fails before one is created', async () => {
-    mockGetRandomQuestionIds.mockRejectedValue(new Error('DB connection timeout'))
-    await startStudy(VALID_INPUT)
-    expect(mockEndDiscovery).not.toHaveBeenCalled()
-  })
-
-  it('tears down the discovery row and tells the user to exit their exam when question loading is blocked', async () => {
-    // The RPC succeeds (a row was created), then question loading is rejected
-    // because the caller is mid-exam. Both the scoped teardown AND the specific
-    // error message must happen — if the early-return were accidentally moved
-    // before the teardown call, the session would be orphaned and block all
-    // future modes for that student.
-    mockGetStudyQuestions.mockRejectedValue(
-      new Error('Failed to fetch study questions: active_exam_session'),
-    )
-    const result = await startStudy(VALID_INPUT)
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe('Finish or exit your active exam first.')
-    expect(mockEndDiscovery).toHaveBeenCalledTimes(1)
-    expect(mockEndDiscovery).toHaveBeenCalledWith({ sessionId: CREATED_SESSION_ID })
-  })
-})
-
-// ---- Happy path ----------------------------------------------------------
-
-describe('startStudy — happy path', () => {
-  it('returns the fetched questions on a successful run', async () => {
-    const q = makeQuestion()
-    mockGetStudyQuestions.mockResolvedValue([q])
-    const result = await startStudy(VALID_INPUT)
-    expect(result.success).toBe(true)
-    if (!result.success) return
-    expect(result.questions).toEqual([q])
-  })
-
-  it('reports the started session so its cleanup can be scoped to this request', async () => {
-    // The field is optional on the result type, so dropping it still compiles and every
-    // other test still passes — the caller would silently stop tearing down its orphan.
-    // This assertion is what makes that regression visible.
-    mockGetStudyQuestions.mockResolvedValue([makeQuestion()])
-    const result = await startStudy(VALID_INPUT)
-    expect(result.success).toBe(true)
-    if (!result.success) return
-    expect(result.sessionId).toBe(CREATED_SESSION_ID)
-  })
-
-  it('returns the flagged ids among the started questions', async () => {
-    mockGetFlaggedQuestionIdsBounded.mockResolvedValue([QUESTION_IDS[0]])
-    const result = await startStudy(VALID_INPUT)
-    expect(result.success).toBe(true)
-    if (!result.success) return
-    expect(result.flaggedIds).toEqual([QUESTION_IDS[0]])
-    expect(mockGetFlaggedQuestionIdsBounded).toHaveBeenCalledWith(QUESTION_IDS)
-  })
-
-  it('reads the flags without waiting for the session to be created', async () => {
-    mockRpc.mockReturnValue(new Promise(() => {}))
-    void startStudy(VALID_INPUT)
-    await vi.waitFor(() => expect(mockRpc).toHaveBeenCalled())
-    expect(mockGetFlaggedQuestionIdsBounded).toHaveBeenCalledWith(QUESTION_IDS)
-  })
-
-  it('passes the resolved question ids to the study question fetcher', async () => {
-    await startStudy(VALID_INPUT)
-    expect(mockGetStudyQuestions).toHaveBeenCalledWith(QUESTION_IDS)
-  })
-
-  it('passes optional topicIds, subtopicIds, filters, calc and image modes to the question id fetcher', async () => {
+describe('startStudy — single RPC call', () => {
+  it('starts the study session with one RPC carrying the whole selection', async () => {
     const topicIds = ['00000000-0000-4000-a000-000000000030']
     const subtopicIds = ['00000000-0000-4000-a000-000000000040']
     await startStudy({
@@ -321,46 +98,131 @@ describe('startStudy — happy path', () => {
       calcMode: 'exclude',
       imageMode: 'only',
     })
-    expect(mockGetRandomQuestionIds).toHaveBeenCalledWith(
-      expect.objectContaining({
-        topicIds,
-        subtopicIds,
-        filters: ['flagged'],
-        calcMode: 'exclude',
-        imageMode: 'only',
-      }),
-    )
+    expect(mockRpc).toHaveBeenCalledTimes(1)
+    expect(mockRpc).toHaveBeenCalledWith(mockClient, 'start_discovery', {
+      p_subject_id: VALID_SUBJECT_ID,
+      p_topic_ids: topicIds,
+      p_subtopic_ids: subtopicIds,
+      p_count: 10,
+      p_filters: ['flagged'],
+      p_calc_mode: 'exclude',
+      p_has_image: 'only',
+    })
+  })
+
+  it('sends null scopes and empty filters with the all defaults when the selection omits them', async () => {
+    // p_filters has no DB default: an omitted key would miss the function signature.
+    await startStudy(VALID_INPUT)
+    expect(mockRpc).toHaveBeenCalledWith(mockClient, 'start_discovery', {
+      p_subject_id: VALID_SUBJECT_ID,
+      p_topic_ids: null,
+      p_subtopic_ids: null,
+      p_count: 10,
+      p_filters: [],
+      p_calc_mode: 'all',
+      p_has_image: 'all',
+    })
+  })
+})
+
+// ---- Empty pool -----------------------------------------------------------
+
+describe('startStudy — empty question pool', () => {
+  it('returns an empty study set without a session id when nothing matches', async () => {
+    mockRpc.mockResolvedValue({
+      data: { session_id: null, questions: [], flagged_ids: [] },
+      error: null,
+    })
+    const result = await startStudy(VALID_INPUT)
+    expect(result).toEqual({ success: true, questions: [], flaggedIds: [] })
+  })
+})
+
+// ---- Happy path ----------------------------------------------------------
+
+describe('startStudy — happy path', () => {
+  it('returns the questions in draw order with the answer key and the session id', async () => {
+    mockRpc.mockResolvedValue(started({ questions: [makeRow(Q2), makeRow(Q1)] }))
+    const result = await startStudy(VALID_INPUT)
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.questions.map((q) => q.id)).toEqual([Q2, Q1])
+    expect(result.questions[0]).toMatchObject({
+      correctOptionId: 'b',
+      questionText: 'What is the MATZ horizontal radius?',
+      options: [
+        { id: 'a', text: '2 nm' },
+        { id: 'b', text: '5 nm' },
+      ],
+    })
+    expect(result.sessionId).toBe(CREATED_SESSION_ID)
+  })
+
+  it('returns the flagged ids among the started questions', async () => {
+    mockRpc.mockResolvedValue(started({ flagged_ids: [Q1] }))
+    const result = await startStudy(VALID_INPUT)
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.flaggedIds).toEqual([Q1])
+  })
+
+  it('ignores non-string entries in the flagged ids', async () => {
+    mockRpc.mockResolvedValue(started({ flagged_ids: [Q1, 42, null] }))
+    const result = await startStudy(VALID_INPUT)
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.flaggedIds).toEqual([Q1])
+  })
+
+  it('returns no flagged ids when the flagged payload is not an array', async () => {
+    mockRpc.mockResolvedValue(started({ flagged_ids: 'nope' }))
+    const result = await startStudy(VALID_INPUT)
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.flaggedIds).toEqual([])
   })
 })
 
 // ---- Error path ----------------------------------------------------------
 
 describe('startStudy — error path', () => {
+  it('tells the user to finish their other session when one is already active', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'another_session_active' } })
+    const result = await startStudy(VALID_INPUT)
+    expect(result).toEqual({ success: false, error: 'Finish or exit your active session first.' })
+  })
+
+  it('returns a generic failure for any other RPC error without leaking the token', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'internal_secret_db_detail' } })
+    const result = await startStudy(VALID_INPUT)
+    expect(result).toEqual({ success: false, error: 'Failed to start study session' })
+  })
+
+  it.each([
+    ['null payload', null],
+    ['non-object payload', 'oops'],
+    ['non-string session id', { session_id: 42, questions: [makeRow(Q1)], flagged_ids: [] }],
+    [
+      'session without any parseable question',
+      { session_id: CREATED_SESSION_ID, questions: [{ id: 1 }], flagged_ids: [] },
+    ],
+    [
+      'session with a non-array questions field',
+      { session_id: CREATED_SESSION_ID, questions: 'x' },
+    ],
+  ])('fails with a generic message on a malformed payload (%s)', async (_label, data) => {
+    mockRpc.mockResolvedValue({ data, error: null })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await startStudy(VALID_INPUT)
+    expect(result).toEqual({ success: false, error: 'Failed to start study session' })
+    expect(consoleSpy).toHaveBeenCalled()
+  })
+
   it('returns a generic error message when an unexpected exception is thrown', async () => {
-    mockGetRandomQuestionIds.mockRejectedValue(new Error('DB connection timeout'))
+    mockRpc.mockRejectedValue(new Error('internal_secret_db_detail'))
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const result = await startStudy(VALID_INPUT)
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe('Failed to start study session')
-  })
-
-  it('does not leak the raw exception message in the error response', async () => {
-    mockGetRandomQuestionIds.mockRejectedValue(new Error('internal_secret_db_detail'))
-    const result = await startStudy(VALID_INPUT)
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).not.toContain('internal_secret_db_detail')
-  })
-
-  it('tells the user to exit their exam when an exam session is active', async () => {
-    // get_study_questions raises 'active_exam_session' (carried through the helper's
-    // wrapped message) when the caller is mid-exam — Study Mode reveals answer keys.
-    mockGetStudyQuestions.mockRejectedValue(
-      new Error('Failed to fetch study questions: active_exam_session'),
-    )
-    const result = await startStudy(VALID_INPUT)
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe('Finish or exit your active exam first.')
+    expect(result).toEqual({ success: false, error: 'Failed to start study session' })
+    expect(consoleSpy).toHaveBeenCalledWith('[startStudy] error:', expect.any(Error))
   })
 })

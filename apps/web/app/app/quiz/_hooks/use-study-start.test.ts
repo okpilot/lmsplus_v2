@@ -241,15 +241,15 @@ describe('useStudyStart — empty result', () => {
 // ---- handleStart — failure path ------------------------------------------
 
 describe('useStudyStart — handleStart failure path', () => {
-  it('surfaces the active-exam message inline and does not navigate', async () => {
+  it('surfaces the active-session message inline and does not navigate', async () => {
     mockStartStudy.mockResolvedValue({
       success: false,
-      error: 'Finish or exit your active exam first.',
+      error: 'Finish or exit your active session first.',
     })
     const { result } = renderHook(() => useStudyStart(DEFAULT_OPTS))
     await act(async () => result.current.handleStart())
 
-    expect(result.current.error).toBe('Finish or exit your active exam first.')
+    expect(result.current.error).toBe('Finish or exit your active session first.')
     expect(mockRouterPush).not.toHaveBeenCalled()
     expect(mockSessionStorageSetItem).not.toHaveBeenCalled()
     expect(result.current.loading).toBe(false)

@@ -13,7 +13,7 @@ export type QuestionCountRow = {
 /**
  * Per-row guard required by code-style.md §5 — the `rpc<QuestionCountRow[]>` cast is a TypeScript
  * assertion only, not a runtime guarantee. The caller drops malformed rows and keeps the rest,
- * matching the sibling per-row guards in `study-queries.ts`, `quiz-session-queries.ts` and
+ * matching the sibling per-row guards in `study-queries.ts` and
  * `app/app/quiz/actions/lookup.ts` (path qualified — that one is not in this directory).
  */
 function isQuestionCountRow(value: unknown): value is QuestionCountRow {
