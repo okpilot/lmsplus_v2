@@ -95,7 +95,7 @@ describe('getAllTopicTrees', () => {
     const trees = await getAllTopicTrees()
 
     expect(trees.s1?.map((t) => t.id)).toEqual(['t1'])
-    expect(trees.s1?.[0]?.subtopics.map((st) => st.id)).not.toContain('st2')
+    expect(trees.s1?.[0]?.subtopics.map((st) => st.id)).toEqual(['st1'])
   })
 
   it('omits a subject whose every topic has no active questions', async () => {

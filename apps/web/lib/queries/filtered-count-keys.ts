@@ -12,5 +12,5 @@ export const PRELOADED_FILTER_SETS: readonly (readonly string[])[] = [
 
 /** Order-independent key of an active filter list ('all' already removed); '' = none. */
 export function filterSetKey(filters: readonly string[]): string {
-  return [...filters].sort().join(',')
+  return [...filters].sort((a, b) => a.localeCompare(b)).join(',')
 }

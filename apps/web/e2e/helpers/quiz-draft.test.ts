@@ -10,11 +10,9 @@ vi.mock('./supabase', () => ({
 
 import { cleanupMarkedDrafts, countMarkedDrafts, seedMarkedDraft } from './quiz-draft'
 
-function buildChain(
-  returnValue: unknown,
-  calls: { table: string; method: string }[],
-  table: string,
-) {
+type Call = { table: string; method: string; args: unknown[] }
+
+function buildChain(returnValue: unknown, calls: Call[], table: string) {
   const awaitable = {
     // biome-ignore lint/suspicious/noThenProperty: required to make Supabase mock awaitable
     then: (resolve: (v: unknown) => void, reject: (e: unknown) => void) =>
@@ -23,8 +21,8 @@ function buildChain(
   return new Proxy(awaitable as Record<string, unknown>, {
     get(target, prop) {
       if (prop === 'then') return target.then
-      return (..._args: unknown[]) => {
-        calls.push({ table, method: String(prop) })
+      return (...args: unknown[]) => {
+        calls.push({ table, method: String(prop), args })
         return buildChain(returnValue, calls, table)
       }
     },
@@ -34,7 +32,7 @@ function buildChain(
 type Result = { data: unknown; error: { message: string } | null }
 
 function mockTables(tables: Record<string, Result>) {
-  const calls: { table: string; method: string }[] = []
+  const calls: Call[] = []
   mockGetAdminClient.mockReturnValue({
     from: (table: string) => buildChain(tables[table] ?? { data: null, error: null }, calls, table),
   })
@@ -52,6 +50,22 @@ beforeEach(() => {
 })
 
 describe('seedMarkedDraft', () => {
+  it("picks active questions of the student's organization", async () => {
+    const calls = mockTables({
+      users: STUDENT,
+      questions: THREE_QUESTIONS,
+      quiz_drafts: { data: { id: 'draft-1' }, error: null },
+    })
+
+    await seedMarkedDraft('s@x.test', 'x')
+
+    const eqs = calls.filter((c) => c.table === 'questions' && c.method === 'eq')
+    expect(eqs.map((c) => c.args)).toEqual([
+      ['organization_id', 'org-1'],
+      ['status', 'active'],
+    ])
+  })
+
   it('returns the id of the inserted draft', async () => {
     mockTables({
       users: STUDENT,
@@ -108,6 +122,22 @@ describe('seedMarkedDraft', () => {
 })
 
 describe('countMarkedDrafts', () => {
+  it("counts only the student's rows carrying the e2e marker", async () => {
+    const calls = mockTables({ users: STUDENT, quiz_drafts: { data: [], error: null } })
+
+    await countMarkedDrafts('s@x.test')
+
+    const filters = calls.filter((c) => c.table === 'quiz_drafts' && c.method !== 'select')
+    expect(filters).toEqual([
+      { table: 'quiz_drafts', method: 'eq', args: ['student_id', 'student-1'] },
+      {
+        table: 'quiz_drafts',
+        method: 'like',
+        args: ['session_config->>subjectName', '[E2E_DRAFT]%'],
+      },
+    ])
+  })
+
   it('counts the marked drafts of the student', async () => {
     mockTables({ users: STUDENT, quiz_drafts: { data: [{ id: 'a' }, { id: 'b' }], error: null } })
 
@@ -155,11 +185,15 @@ describe('cleanupMarkedDrafts', () => {
 
     await cleanupMarkedDrafts('s@x.test')
 
-    expect(calls.filter((c) => c.table === 'quiz_drafts').map((c) => c.method)).toEqual([
-      'delete',
-      'eq',
-      'like',
-      'select',
+    expect(calls.filter((c) => c.table === 'quiz_drafts')).toEqual([
+      { table: 'quiz_drafts', method: 'delete', args: [] },
+      { table: 'quiz_drafts', method: 'eq', args: ['student_id', 'student-1'] },
+      {
+        table: 'quiz_drafts',
+        method: 'like',
+        args: ['session_config->>subjectName', '[E2E_DRAFT]%'],
+      },
+      { table: 'quiz_drafts', method: 'select', args: ['id'] },
     ])
   })
 })

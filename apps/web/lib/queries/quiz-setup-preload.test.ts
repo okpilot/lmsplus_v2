@@ -37,7 +37,7 @@ describe('loadQuizSetupPreload', () => {
   it('leaves out topic trees of subjects that are not in the picker list', async () => {
     const preload = await loadQuizSetupPreload()
 
-    expect(preload.topicsBySubject).not.toHaveProperty('rt')
+    expect(Object.keys(preload.topicsBySubject).sort()).toEqual(['s1', 's2'])
   })
 
   it('resolves empty and logs when the topic trees fail', async () => {

@@ -22,7 +22,10 @@ export async function seedMarkedDraft(studentEmail: string, label: string): Prom
   const { data: questions, error: qError } = await admin
     .from('questions')
     .select('id')
+    .eq('organization_id', student.organization_id)
+    .eq('status', 'active')
     .is('deleted_at', null)
+    .order('id')
     .limit(3)
   if (qError) throw new Error(`seedMarkedDraft questions: ${qError.message}`)
   if (!questions || questions.length < 3) throw new Error('seedMarkedDraft: need 3 questions')
