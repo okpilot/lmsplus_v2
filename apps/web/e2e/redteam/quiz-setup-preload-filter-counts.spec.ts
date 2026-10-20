@@ -36,7 +36,7 @@ test.describe('Red Team: preloaded Discovery flagged counts (IY)', () => {
   // spec flags is tracked here and soft-deleted in afterEach.
   const created = new Set<string>()
 
-  /** The exact args `getDiscoveryCounts` sends for the 'flagged' set. */
+  /** The whole-subject 'flagged' count of the RPC behind the preload. */
   const flaggedCount = async (client: Client): Promise<number> => {
     const { data, error } = await client.rpc('get_filtered_question_counts', {
       p_subject_id: subjectId,

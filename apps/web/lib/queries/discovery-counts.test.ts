@@ -2,9 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockRpc, mockGetSubjects } = vi.hoisted(() => ({
+const { mockRpc, mockGetSubjects, mockGetTrees } = vi.hoisted(() => ({
   mockRpc: vi.fn(),
   mockGetSubjects: vi.fn(),
+  mockGetTrees: vi.fn(),
 }))
 
 vi.mock('@repo/db/server', () => ({
@@ -19,6 +20,10 @@ vi.mock('./quiz-subject-queries', () => ({
   getSubjectsWithCounts: () => mockGetSubjects(),
 }))
 
+vi.mock('./quiz-topic-trees', () => ({
+  getAllTopicTrees: () => mockGetTrees(),
+}))
+
 // ---- Subject under test ---------------------------------------------------
 
 import { getDiscoveryCounts, sumFilteredCountRows } from './discovery-counts'
@@ -30,9 +35,23 @@ const SUBJECTS = [
   { id: 's2', code: '020', name: 'Nav', short: 'NAV', questionCount: 4 },
 ]
 
+const tree = (topicId: string, subtopicIds: string[]) => ({
+  id: topicId,
+  code: topicId,
+  name: topicId,
+  questionCount: 1,
+  subtopics: subtopicIds.map((id) => ({ id, code: id, name: id, questionCount: 1 })),
+})
+
+const TREES = {
+  s1: [tree('t1', ['st1', 'st2']), tree('t2', ['st3'])],
+  s2: [tree('t3', ['st4'])],
+}
+
 beforeEach(() => {
   vi.resetAllMocks()
   mockGetSubjects.mockResolvedValue(SUBJECTS)
+  mockGetTrees.mockResolvedValue(TREES)
 })
 
 describe('sumFilteredCountRows', () => {
@@ -76,8 +95,8 @@ describe('getDiscoveryCounts', () => {
     expect(mockRpc).toHaveBeenCalledTimes(10)
     expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_filtered_question_counts', {
       p_subject_id: 's1',
-      p_topic_ids: null,
-      p_subtopic_ids: null,
+      p_topic_ids: ['t1', 't2'],
+      p_subtopic_ids: ['st1', 'st2', 'st3'],
       p_filters: [],
       p_calc_mode: 'all',
       p_has_image: 'all',
@@ -174,5 +193,41 @@ describe('getDiscoveryCounts', () => {
     mockGetSubjects.mockRejectedValue(new Error('subjects failed'))
 
     await expect(getDiscoveryCounts()).rejects.toThrow('subjects failed')
+  })
+
+  it('sends the subject topic and subtopic ids of its tree with every count', async () => {
+    mockRpc.mockResolvedValue({ data: [], error: null })
+
+    await getDiscoveryCounts()
+
+    const argsBySubject = new Map(
+      mockRpc.mock.calls.map((c) => {
+        const a = c[2] as { p_subject_id: string; p_topic_ids: unknown; p_subtopic_ids: unknown }
+        return [a.p_subject_id, [a.p_topic_ids, a.p_subtopic_ids]] as const
+      }),
+    )
+    expect(argsBySubject.get('s1')).toEqual([
+      ['t1', 't2'],
+      ['st1', 'st2', 'st3'],
+    ])
+    expect(argsBySubject.get('s2')).toEqual([['t3'], ['st4']])
+  })
+
+  it('skips a subject that has no topic tree', async () => {
+    mockGetTrees.mockResolvedValue({ s2: TREES.s2 })
+    mockRpc.mockResolvedValue({ data: [{ topic_id: 't3', subtopic_id: null, n: 1 }], error: null })
+
+    const counts = await getDiscoveryCounts()
+
+    expect(Object.keys(counts)).toEqual(['s2'])
+    expect(
+      mockRpc.mock.calls.every((c) => (c[2] as { p_subject_id: string }).p_subject_id === 's2'),
+    ).toBe(true)
+  })
+
+  it('rejects when the topic trees cannot be read so the page falls back to per-subject counts', async () => {
+    mockGetTrees.mockRejectedValue(new Error('trees failed'))
+
+    await expect(getDiscoveryCounts()).rejects.toThrow('trees failed')
   })
 })

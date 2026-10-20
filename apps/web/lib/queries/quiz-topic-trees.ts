@@ -72,18 +72,9 @@ export function groupTopicsBySubject<T extends { subject_id: string }>(topics: T
   return bySubject
 }
 
-/**
- * Every subject's topic tree in one read (3 round trips total, in parallel), keyed by
- * subject id. Subjects whose built tree is empty are omitted so the client falls back to
- * the per-subject action. An empty counts result is treated as a failure for the same
- * reason: `getActiveQuestionCounts` degrades to `[]`, which would otherwise yield an
- * all-empty preload. The two table reads are unfiltered, so each asks for the exact row
- * count and a result cut at PostgREST `max_rows` throws instead of silently truncating.
- * Per-request memoised via `cache()`; the caller catches a throw.
- */
-export const getAllTopicTrees = cache(async (): Promise<Record<string, TopicWithSubtopics[]>> => {
-  const supabase = await createServerSupabaseClient()
+type Supabase = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
+async function fetchTopicTreeRows(supabase: Supabase) {
   const [topicsRes, subtopicsRes, counts] = await Promise.all([
     supabase
       .from('easa_topics')
@@ -106,6 +97,21 @@ export const getAllTopicTrees = cache(async (): Promise<Record<string, TopicWith
   if (topicsRes.count !== topics.length || subtopicsRes.count !== subtopics.length) {
     throw new Error('Failed to fetch topic trees: topic trees truncated at max_rows')
   }
+  return { topics, subtopics, counts }
+}
+
+/**
+ * Every subject's topic tree in one read (3 round trips total, in parallel), keyed by
+ * subject id. Subjects whose built tree is empty are omitted so the client falls back to
+ * the per-subject action. An empty counts result is treated as a failure for the same
+ * reason: `getActiveQuestionCounts` degrades to `[]`, which would otherwise yield an
+ * all-empty preload. The two table reads are unfiltered, so each asks for the exact row
+ * count and a result cut at PostgREST `max_rows` throws instead of silently truncating.
+ * Per-request memoised via `cache()`; the caller catches a throw.
+ */
+export const getAllTopicTrees = cache(async (): Promise<Record<string, TopicWithSubtopics[]>> => {
+  const supabase = await createServerSupabaseClient()
+  const { topics, subtopics, counts } = await fetchTopicTreeRows(supabase)
 
   const result: Record<string, TopicWithSubtopics[]> = {}
   for (const [subjectId, subjectTopics] of groupTopicsBySubject(topics)) {

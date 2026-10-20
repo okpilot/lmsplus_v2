@@ -3,6 +3,7 @@ import { cache } from 'react'
 import { rpc } from '@/lib/supabase-rpc'
 import { filterSetKey, PRELOADED_FILTER_SETS } from './filtered-count-keys'
 import { getSubjectsWithCounts } from './quiz-subject-queries'
+import { getAllTopicTrees } from './quiz-topic-trees'
 
 export type FilteredCounts = {
   count: number
@@ -42,14 +43,16 @@ async function countSet(opts: {
   supabase: Supabase
   subjectId: string
   filters: readonly string[]
+  topicIds: string[]
+  subtopicIds: string[]
 }): Promise<FilteredCounts | null> {
-  const { supabase, subjectId, filters } = opts
+  const { supabase, subjectId, filters, topicIds, subtopicIds } = opts
   try {
-    // The exact args getFilteredCount sends for the Discovery defaults.
+    // Same args the client fallback sends (use-filtered-count-sync.ts).
     const { data, error } = await rpc<unknown>(supabase, 'get_filtered_question_counts', {
       p_subject_id: subjectId,
-      p_topic_ids: null,
-      p_subtopic_ids: null,
+      p_topic_ids: topicIds,
+      p_subtopic_ids: subtopicIds,
       p_filters: [...filters],
       p_calc_mode: 'all',
       p_has_image: 'all',
@@ -74,11 +77,15 @@ async function countSet(opts: {
 }
 
 /** All preloaded filter sets of one subject, keyed by `filterSetKey`; failed sets are omitted. */
-async function countSubject(supabase: Supabase, subjectId: string) {
+async function countSubject(opts: {
+  supabase: Supabase
+  subjectId: string
+  topicIds: string[]
+  subtopicIds: string[]
+}) {
   const entries = await Promise.all(
     PRELOADED_FILTER_SETS.map(
-      async (filters) =>
-        [filterSetKey(filters), await countSet({ supabase, subjectId, filters })] as const,
+      async (filters) => [filterSetKey(filters), await countSet({ ...opts, filters })] as const,
     ),
   )
   const bySet: Record<string, FilteredCounts> = {}
@@ -97,12 +104,23 @@ async function countSubject(supabase: Supabase, subjectId: string) {
  */
 export const getDiscoveryCounts = cache(
   async (): Promise<Record<string, Record<string, FilteredCounts>>> => {
-    const [supabase, subjects] = await Promise.all([
+    const [supabase, subjects, trees] = await Promise.all([
       createServerSupabaseClient(),
       getSubjectsWithCounts(),
+      getAllTopicTrees(),
     ])
     const results = await Promise.all(
-      subjects.map(async (s) => [s.id, await countSubject(supabase, s.id)] as const),
+      subjects.flatMap((s) => {
+        const tree = trees[s.id]
+        if (!tree?.length) return []
+        const topicIds = tree.map((t) => t.id)
+        const subtopicIds = tree.flatMap((t) => t.subtopics.map((st) => st.id))
+        return [
+          countSubject({ supabase, subjectId: s.id, topicIds, subtopicIds }).then(
+            (bySet) => [s.id, bySet] as const,
+          ),
+        ]
+      }),
     )
     const counts: Record<string, Record<string, FilteredCounts>> = {}
     for (const [id, bySet] of results) {
