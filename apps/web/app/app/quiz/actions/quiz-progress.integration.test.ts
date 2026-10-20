@@ -283,13 +283,19 @@ describe('quiz progress actions (app-layer integration)', () => {
   })
 
   it('refuses saves on a discovery session', async () => {
-    const { data, error } = await studentClient.rpc('start_discovery_session', {
+    const { data, error } = await studentClient.rpc('start_discovery', {
       p_subject_id: refs.subjectId,
-      p_question_ids: questionIds,
+      p_topic_ids: null,
+      p_subtopic_ids: null,
+      p_count: questionIds.length,
+      p_filters: null,
     })
-    if (error || typeof data !== 'string') throw new Error(`discovery seed: ${error?.message}`)
+    const discoveryId = (data as { session_id?: unknown } | null)?.session_id
+    if (error || typeof discoveryId !== 'string') {
+      throw new Error(`discovery seed: ${error?.message}`)
+    }
     await signInAs(email, password)
-    expect(await saveQuizAnswer(answerFor(data, DEVICE_A))).toEqual({
+    expect(await saveQuizAnswer(answerFor(discoveryId, DEVICE_A))).toEqual({
       success: false,
       error: 'This session type does not support saving progress.',
     })

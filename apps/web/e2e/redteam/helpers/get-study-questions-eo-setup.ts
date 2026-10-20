@@ -1,14 +1,12 @@
 /**
- * Shared setup for the get_study_questions (Vector EO) red-team specs.
+ * Shared setup for the one-RPC quiz-start red-team specs (rpc-start-quiz-one-rpc*.spec.ts).
  *
- * Both get-study-questions-eo.spec.ts (EO1–EO5) and
- * get-study-questions-eo-exam-oracle.spec.ts (EO6–EO7) seed an identical set of
- * throwaway, marker-tagged questions (egmont active/deleted/draft MC, an egmont
- * short_answer, and an org-B active MC) plus the egmont/org-B scaffolding. This
- * module owns that seeding so it is not duplicated. Each spec calls setupEoFixtures
- * in its own beforeAll and cleanupEoFixtures in its own afterAll — every question a
- * spec reads is one its own setup inserted, so the specs stay hermetic and
- * independently runnable (code-style.md §7).
+ * Seeds throwaway, marker-tagged questions (egmont active/deleted/draft MC, an egmont
+ * short_answer, and an org-B active MC) plus the egmont/org-B scaffolding. This module
+ * owns that seeding so it is not duplicated. Each spec calls setupEoFixtures in its own
+ * beforeAll and cleanupEoFixtures in its own afterAll — every question a spec reads is
+ * one its own setup inserted, so the specs stay hermetic and independently runnable
+ * (code-style.md §7).
  */
 
 import { getAdminClient } from '../../helpers/supabase'
@@ -21,30 +19,12 @@ import {
 import { pickSubjectWithQuestions } from './seed-quiz'
 import { createCrossOrgUser, seedRedTeamStudent, VICTIM_EMAIL, VICTIM_PASSWORD } from './seed-users'
 
-export const RPC = 'get_study_questions'
-export const VALID_OPTION_IDS = ['a', 'b', 'c', 'd'] as const
+const VALID_OPTION_IDS = ['a', 'b', 'c', 'd'] as const
 
 export const EG_MC_ACTIVE_KEY = 'b'
 const EG_MC_DELETED_KEY = 'a'
 const EG_MC_DRAFT_KEY = 'd'
 export const OTHER_ORG_MC_KEY = 'c'
-
-// The RPC's RETURNS TABLE shape (mig 20260626000200). correct_option_id is the
-// deliberately-exposed MC answer key; options are stripped to {id, text}.
-export type StudyQuestionRow = {
-  id: string
-  question_text: string
-  question_image_url: string | null
-  options: { id: string; text: string }[]
-  correct_option_id: string | null
-  subject_code: string
-  topic_name: string
-  subtopic_name: string | null
-  explanation_text: string
-  explanation_image_url: string | null
-  question_number: string | null
-  difficulty: string
-}
 
 // Service-role base shape shared by every throwaway question the specs insert.
 type QuestionSeed = {

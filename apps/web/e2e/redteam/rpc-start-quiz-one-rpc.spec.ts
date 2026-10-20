@@ -159,6 +159,31 @@ test.describe('Red Team: one-RPC quiz starts (#1548)', () => {
     expect(control.error).toBeNull()
     const controlRow = asDiscovery(control.data).questions.find((q) => q.id === fx.egMcActiveId)
     expect(controlRow?.correct_option_id).toBe(EG_MC_ACTIVE_KEY)
+    // Exact payload shape (jsonb_build_object in mig 20261020000100): a renamed, dropped or
+    // extra top-level key fails here, and options never carry the answer key.
+    expect(Object.keys(controlRow ?? {}).sort()).toEqual(
+      [
+        'id',
+        'question_text',
+        'question_image_url',
+        'options',
+        'correct_option_id',
+        'subject_code',
+        'topic_name',
+        'subtopic_name',
+        'explanation_text',
+        'explanation_image_url',
+        'question_number',
+        'difficulty',
+      ].sort(),
+    )
+    const controlOptions = (controlRow as { options?: unknown } | undefined)?.options
+    expect(Array.isArray(controlOptions)).toBe(true)
+    expect((controlOptions as Record<string, unknown>[]).length).toBeGreaterThan(0)
+    for (const opt of controlOptions as Record<string, unknown>[]) {
+      expect(Object.keys(opt).sort()).toEqual(['id', 'text'])
+      expect('correct' in opt).toBe(false)
+    }
 
     const { data, error } = await fx.crossOrgClient.rpc('start_discovery', {
       p_subject_id: subjectId,

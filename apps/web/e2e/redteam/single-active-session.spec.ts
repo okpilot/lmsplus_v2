@@ -4,12 +4,12 @@
  * #1011 closes the Discovery/exam answer-key oracle by making it impossible for a
  * student to hold MORE THAN ONE active (ended_at IS NULL AND deleted_at IS NULL)
  * quiz_sessions row across ALL modes. Discovery (which reveals MC answer keys via
- * get_study_questions) and an exam graded from the SAME org MC pool may never run
+ * start_discovery) and an exam graded from the SAME org MC pool may never run
  * concurrently. Enforcement is two-layered:
  *   - The start RPCs (migs 138–141) auto-soft-delete an abandoned discovery row,
  *     then RAISE 'another_session_active' on any OTHER active session they won't
  *     themselves resume (self-exclusion preserves same-subject exam resume tokens).
- *   - start_discovery_session (mig 137) is the new ephemeral-session RPC, with the
+ *   - start_discovery (mig 20261020000100) is the ephemeral-session RPC, with the
  *     same single-active guard.
  *   - The partial unique index uq_one_active_session_per_student (mig 136) is the
  *     concurrency-safe backstop.
@@ -25,7 +25,7 @@
  *   - ER discovery auto-clear on exam start (THE #1011 FIX): a student with an
  *     active discovery row that starts an exam SUCCEEDS, and the discovery row is
  *     auto-soft-deleted — they can never hold discovery + exam concurrently.
- *   - ES start_discovery_session guard suite: unauthenticated → rejected; active
+ *   - ES start_discovery guard suite: unauthenticated → rejected; active
  *     exam → another_session_active; happy path creates exactly ONE active discovery
  *     row; a repeat start replaces it (still exactly one).
  *   - ET the global unique index physically blocks a direct service-role INSERT of a
@@ -83,6 +83,15 @@ const isActiveSessionRow = (v: unknown): v is ActiveSessionRow =>
   (typeof v.deleted_at === 'string' || v.deleted_at === null) &&
   (typeof v.ended_at === 'string' || v.ended_at === null)
 
+type DiscoveryResult = { session_id: string | null; questions: { id: string }[] }
+
+function asDiscoveryResult(data: unknown): DiscoveryResult {
+  if (!isRecord(data) || !Array.isArray(data.questions)) {
+    throw new Error('start_discovery returned an unexpected shape')
+  }
+  return data as DiscoveryResult
+}
+
 test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ES/ET)', () => {
   let admin: ReturnType<typeof getAdminClient>
   let studentClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
@@ -91,6 +100,14 @@ test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ES/ET
   let subjectId: string
   let topicId: string
   let questionIds: string[]
+
+  const discoveryArgs = (count: number) => ({
+    p_subject_id: subjectId,
+    p_topic_ids: null,
+    p_subtopic_ids: null,
+    p_count: count,
+    p_filters: null,
+  })
 
   // Soft-delete every active session the victim currently holds. Used by
   // beforeEach (clean slate before each test) AND afterEach (no leak into the
@@ -300,10 +317,7 @@ test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ES/ET
     // mig 20260925000400 revokes anon EXECUTE on every public function, so the
     // call is rejected before the body's own auth.uid() IS NULL guard is ever
     // reached.
-    const { data, error } = await anon.rpc('start_discovery_session', {
-      p_subject_id: subjectId,
-      p_question_ids: questionIds.slice(0, 1),
-    })
+    const { data, error } = await anon.rpc('start_discovery', discoveryArgs(1))
     expect(error?.code).toBe('42501')
     expect(error?.message ?? '').toMatch(/permission denied for function/i)
     expect(data).toBeNull()
@@ -314,10 +328,7 @@ test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ES/ET
     // Non-vacuity: the blocking exam session genuinely exists and is active.
     expect((await readActiveSessions()).map((s) => s.id)).toEqual([examId])
 
-    const { data, error } = await studentClient.rpc('start_discovery_session', {
-      p_subject_id: subjectId,
-      p_question_ids: questionIds.slice(0, 1),
-    })
+    const { data, error } = await studentClient.rpc('start_discovery', discoveryArgs(1))
     expect(error).not.toBeNull()
     expect(error?.message ?? '').toMatch(/another_session_active/i)
     expect(data).toBeNull()
@@ -329,26 +340,22 @@ test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ES/ET
   })
 
   test('ES: a discovery start creates exactly one active discovery session, and a repeat start replaces it', async () => {
-    const first = await studentClient.rpc('start_discovery_session', {
-      p_subject_id: subjectId,
-      p_question_ids: questionIds.slice(0, 1),
-    })
+    const first = await studentClient.rpc('start_discovery', discoveryArgs(1))
     expect(first.error).toBeNull()
-    expect(typeof first.data).toBe('string')
-    const firstId = first.data as string
+    const firstId = asDiscoveryResult(first.data).session_id as string
+    expect(typeof firstId).toBe('string')
     // Exactly one active discovery row (non-vacuity: the happy path genuinely created it).
     const afterFirst = await readActiveSessions()
     expect(afterFirst.map((s) => s.id)).toEqual([firstId])
     expect(afterFirst[0]?.mode).toBe('discovery')
 
-    const second = await studentClient.rpc('start_discovery_session', {
-      p_subject_id: subjectId,
-      p_question_ids: questionIds.slice(0, 2),
-    })
+    const second = await studentClient.rpc('start_discovery', discoveryArgs(2))
     expect(second.error).toBeNull()
-    // §5 cast-guard: verify the RPC returned a string id before reading it.
-    expect(typeof second.data).toBe('string')
-    const secondId = second.data as string
+    const secondResult = asDiscoveryResult(second.data)
+    const secondId = secondResult.session_id as string
+    expect(typeof secondId).toBe('string')
+    const secondQuestionIds = secondResult.questions.map((q) => q.id)
+    expect(secondQuestionIds.length).toBeGreaterThan(0)
 
     // Still exactly one active discovery row — the second; the first is soft-deleted.
     const afterSecond = await readActiveSessions()
@@ -364,9 +371,8 @@ test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ES/ET
     expect(firstRowErr).toBeNull()
     expect(firstRow?.deleted_at).not.toBeNull()
 
-    // §7 idempotency: the replacement session persists the DISTINCT input question
-    // set (slice(0, 2)), not a hardcoded or first-start set — so a regression that
-    // ignores the repeat's question_ids fails here.
+    // The replacement session persists the question set the repeat start returned, not
+    // the first start's set.
     const { data: secondRow, error: secondRowErr } = await admin
       .from('quiz_sessions')
       .select('config')
@@ -375,7 +381,7 @@ test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ES/ET
     expect(secondRowErr).toBeNull()
     expect(isRecord(secondRow) && isRecord(secondRow.config)).toBe(true)
     const secondConfig = (secondRow as { config: Record<string, unknown> }).config
-    expect(secondConfig.question_ids).toEqual(questionIds.slice(0, 2))
+    expect(secondConfig.question_ids).toEqual(secondQuestionIds)
   })
 
   test('ET: the global unique index blocks a direct second active session insert (23505)', async () => {

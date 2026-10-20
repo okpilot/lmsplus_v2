@@ -15,12 +15,18 @@ import {
 // Single-active-session invariant (#1011, migs 136–142): a student may hold AT
 // MOST ONE active (ended_at IS NULL AND deleted_at IS NULL) quiz_sessions row
 // across ALL modes. Backstop = partial unique index
-// uq_one_active_session_per_student. start_discovery_session (mig 137) creates a
+// uq_one_active_session_per_student. start_discovery (mig 20261020000100) creates a
 // real ephemeral 'discovery' row; every start RPC (138–141) auto-soft-deletes an
 // abandoned discovery row, then blocks on any OTHER active session it won't
-// itself resume. This suite exercises the new RPC + the guard against the real
+// itself resume. This suite exercises the RPC + the guard against the real
 // local Postgres (mocked clients can't see the partial unique index or the CHECK
 // widening).
+
+type DiscoveryResult = {
+  session_id: string | null
+  questions: { id: string }[]
+  flagged_ids: string[]
+}
 
 type DiscoverySessionRow = {
   id: string
@@ -32,7 +38,7 @@ type DiscoverySessionRow = {
   deleted_at: string | null
 }
 
-describe('RPC: start_discovery_session + single-active-session guard', () => {
+describe('RPC: start_discovery + single-active-session guard', () => {
   const admin = getAdminClient()
   let orgId: string
   let adminUserId: string
@@ -68,6 +74,16 @@ describe('RPC: start_discovery_session + single-active-session guard', () => {
     if (error) throw new Error(`readActiveSessions: ${error.message}`)
     return requireRpcRows<DiscoverySessionRow>(data, 'readActiveSessions')
   }
+
+  // Draw up to `count` questions from the seeded subject via start_discovery.
+  const startDiscovery = (client: SupabaseClient, count: number) =>
+    client.rpc('start_discovery', {
+      p_subject_id: subjectId,
+      p_topic_ids: null,
+      p_subtopic_ids: null,
+      p_count: count,
+      p_filters: null,
+    })
 
   beforeAll(async () => {
     orgId = await createTestOrg({
@@ -166,21 +182,21 @@ describe('RPC: start_discovery_session + single-active-session guard', () => {
   })
 
   it('creates exactly one active discovery session and a discovery.started audit event', async () => {
-    const ids = questionIds.slice(0, 2)
-    const { data, error } = await studentClient.rpc('start_discovery_session', {
-      p_subject_id: subjectId,
-      p_question_ids: ids,
-    })
+    const { data, error } = await startDiscovery(studentClient, 2)
     expect(error).toBeNull()
-    expect(typeof data).toBe('string')
-    const sessionId = data as string
+    const result = requireRpcResult<DiscoveryResult>(data, 'start_discovery')
+    const sessionId = result.session_id as string
+    expect(typeof sessionId).toBe('string')
+    expect(result.questions).toHaveLength(2)
+    const returnedIds = result.questions.map((q) => q.id)
+    expect(questionIds).toEqual(expect.arrayContaining(returnedIds))
 
     const active = await readActiveSessions()
     expect(active).toHaveLength(1)
     expect(active[0]?.id).toBe(sessionId)
     expect(active[0]?.mode).toBe('discovery')
     expect(active[0]?.subject_id).toBe(subjectId)
-    expect(active[0]?.config.question_ids).toEqual(ids)
+    expect(active[0]?.config.question_ids).toEqual(returnedIds)
     expect(active[0]?.total_questions).toBe(2)
 
     const { data: events, error: evErr } = await admin
@@ -194,58 +210,18 @@ describe('RPC: start_discovery_session + single-active-session guard', () => {
     expect(evRows[0]?.resource_type).toBe('quiz_session')
   })
 
-  it('serves Study Mode answer keys while the student holds their own active discovery session', async () => {
-    // Gap C positive control (mig 142). Discovery is a REAL active session
-    // (start_discovery_session, mig 137); the Study UI then reads the answer keys
-    // via get_study_questions for the SAME ids. Mig 142 widened the mid-exam
-    // answer-oracle guard's practice allowlist to include 'discovery', so a
-    // student's own discovery row does NOT self-trip 'active_exam_session'. A
-    // regression dropping 'discovery' from that allowlist would make this call
-    // raise and break Study Mode — this test guards it.
-    const ids = questionIds.slice(0, 3)
-    const startRes = await studentClient.rpc('start_discovery_session', {
-      p_subject_id: subjectId,
-      p_question_ids: ids,
-    })
-    expect(startRes.error).toBeNull()
-    // Non-vacuity: the discovery session genuinely exists and is the only active one.
-    const active = await readActiveSessions()
-    expect(active).toHaveLength(1)
-    expect(active[0]?.mode).toBe('discovery')
-
-    // Study Mode key read SUCCEEDS despite the active discovery session.
-    const { data, error } = await studentClient.rpc('get_study_questions', {
-      p_question_ids: ids,
-    })
-    expect(error).toBeNull()
-    const rows = requireRpcRows<{ id: string; correct_option_id: string | null }>(
-      data,
-      'get_study_questions',
-    )
-    expect(rows).toHaveLength(ids.length)
-    // The answer key is DELIBERATELY returned in Study Mode (seed key is 'b').
-    for (const row of rows) {
-      expect(ids).toContain(row.id)
-      expect(row.correct_option_id).toBe('b')
-    }
-  })
-
   it('replaces the prior discovery session when started again, leaving exactly one active', async () => {
-    const first = await studentClient.rpc('start_discovery_session', {
-      p_subject_id: subjectId,
-      p_question_ids: questionIds.slice(0, 1),
-    })
+    const first = await startDiscovery(studentClient, 1)
     expect(first.error).toBeNull()
-    const firstId = first.data as string
+    const firstId = requireRpcResult<DiscoveryResult>(first.data, 'start_discovery')
+      .session_id as string
     // Non-vacuity: the first call genuinely created one active discovery row.
     expect((await readActiveSessions()).map((s) => s.id)).toEqual([firstId])
 
-    const second = await studentClient.rpc('start_discovery_session', {
-      p_subject_id: subjectId,
-      p_question_ids: questionIds.slice(0, 2),
-    })
+    const second = await startDiscovery(studentClient, 2)
     expect(second.error).toBeNull()
-    const secondId = second.data as string
+    const secondId = requireRpcResult<DiscoveryResult>(second.data, 'start_discovery')
+      .session_id as string
 
     // Exactly one active discovery row remains — the second; the first is soft-deleted.
     const active = await readActiveSessions()
@@ -269,10 +245,7 @@ describe('RPC: start_discovery_session + single-active-session guard', () => {
     const before = await readActiveSessions()
     expect(before.map((s) => s.id)).toContain(quizId)
 
-    const { data, error } = await studentClient.rpc('start_discovery_session', {
-      p_subject_id: subjectId,
-      p_question_ids: questionIds.slice(0, 1),
-    })
+    const { data, error } = await startDiscovery(studentClient, 1)
     expect(error).not.toBeNull()
     expect(error?.message ?? '').toMatch(/another_session_active/i)
     expect(data).toBeNull()
@@ -288,31 +261,10 @@ describe('RPC: start_discovery_session + single-active-session guard', () => {
     // mig 20260925000400 revokes anon EXECUTE on every public function, so the
     // call is rejected (42501) before the body's own auth.uid() IS NULL guard
     // is ever reached.
-    const { data, error } = await anon.rpc('start_discovery_session', {
-      p_subject_id: subjectId,
-      p_question_ids: questionIds.slice(0, 1),
-    })
+    const { data, error } = await startDiscovery(anon, 1)
     expect(error?.code).toBe('42501')
     expect(error?.message ?? '').toMatch(/permission denied for function/i)
     expect(data).toBeNull()
-  })
-
-  it('rejects a discovery start with an empty question array', async () => {
-    const { error } = await studentClient.rpc('start_discovery_session', {
-      p_subject_id: subjectId,
-      p_question_ids: [],
-    })
-    expect(error).not.toBeNull()
-    expect(error?.message ?? '').toMatch(/no_questions_provided/i)
-  })
-
-  it('rejects a discovery start with a non-existent question id', async () => {
-    const { error } = await studentClient.rpc('start_discovery_session', {
-      p_subject_id: subjectId,
-      p_question_ids: ['00000000-0000-0000-0000-000000000000'],
-    })
-    expect(error).not.toBeNull()
-    expect(error?.message ?? '').toMatch(/invalid_question_ids/i)
   })
 
   it('auto-clears an abandoned discovery session when a practice quiz starts', async () => {

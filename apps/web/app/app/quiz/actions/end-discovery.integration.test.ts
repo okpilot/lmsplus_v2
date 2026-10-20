@@ -4,8 +4,8 @@
 // RLS. The load-bearing assertion (a mocked client cannot catch it, #815-class):
 // a STUDENT soft-deleting their OWN discovery row must be PERMITTED by the
 // quiz_sessions RLS WITH CHECK — endDiscovery uses the user client, not the
-// service role. We seed a real mode='discovery' row via start_discovery_session
-// (mig 137) as the student, call endDiscovery as that student, then read back via
+// service role. We seed a real mode='discovery' row via start_discovery
+// as the student, call endDiscovery as that student, then read back via
 // the service role to confirm deleted_at was actually set under RLS.
 //
 // Also covers: clean no-op success when no discovery row is active, and cross-user
@@ -38,7 +38,6 @@ const emailB = `int-enddisc-b-${suffix}@test.local`
 const password = 'test-pass-123'
 
 let refs: ReferenceIds
-let questionIds: string[]
 
 // Read the deleted_at of a single quiz_sessions row via the service role (bypasses
 // RLS, so it observes the true persisted state regardless of who wrote it).
@@ -56,16 +55,21 @@ async function readDeletedAt(sessionId: string): Promise<string | null> {
 }
 
 // Seed a real active discovery session for the given student via the RPC under
-// their own client (mode='discovery' is gated by start_discovery_session, mig 137).
-async function seedDiscoverySession(client: SupabaseClient, ids: string[]): Promise<string> {
-  const { data, error } = await client.rpc('start_discovery_session', {
+// their own client (mode='discovery' is created only by start_discovery). It draws its
+// own ids from the student's org pool for the seeded subject.
+async function seedDiscoverySession(client: SupabaseClient, count: number): Promise<string> {
+  const { data, error } = await client.rpc('start_discovery', {
     p_subject_id: refs.subjectId,
-    p_question_ids: ids,
+    p_topic_ids: null,
+    p_subtopic_ids: null,
+    p_count: count,
+    p_filters: null,
   })
   if (error) throw new Error(`seedDiscoverySession: ${error.message}`)
-  if (typeof data !== 'string')
+  const sessionId = (data as { session_id?: unknown } | null)?.session_id
+  if (typeof sessionId !== 'string')
     throw new Error('seedDiscoverySession: expected a session id string')
-  return data
+  return sessionId
 }
 
 describe('endDiscovery (app-layer integration)', () => {
@@ -100,7 +104,7 @@ describe('endDiscovery (app-layer integration)', () => {
       topicName: `EndDisc Topic ${suffix}`,
     })
 
-    const seeded = await seedQuestions({
+    await seedQuestions({
       admin,
       orgId,
       createdBy: studentAId,
@@ -108,7 +112,6 @@ describe('endDiscovery (app-layer integration)', () => {
       topicId: refs.topicId,
       count: 3,
     })
-    questionIds = seeded.questionIds
   })
 
   afterAll(async () => {
@@ -135,7 +138,7 @@ describe('endDiscovery (app-layer integration)', () => {
     // Seed a real discovery row for student A as student A (proves the WITH CHECK
     // on quiz_sessions permits the student's own discovery insert too).
     const studentAClient = await getAuthenticatedClient({ email: emailA, password })
-    const sessionId = await seedDiscoverySession(studentAClient, questionIds.slice(0, 2))
+    const sessionId = await seedDiscoverySession(studentAClient, 2)
 
     // Non-vacuity: the protected state genuinely exists and is active before the call.
     expect(await readDeletedAt(sessionId)).toBeNull()
@@ -160,7 +163,7 @@ describe('endDiscovery (app-layer integration)', () => {
   it("does not touch another student's active discovery session", async () => {
     // Seed a real discovery row for student A.
     const studentAClient = await getAuthenticatedClient({ email: emailA, password })
-    const sessionId = await seedDiscoverySession(studentAClient, questionIds.slice(0, 1))
+    const sessionId = await seedDiscoverySession(studentAClient, 1)
     // Non-vacuity: student A's discovery row exists and is active.
     expect(await readDeletedAt(sessionId)).toBeNull()
 
@@ -180,8 +183,8 @@ describe('endDiscovery (app-layer integration)', () => {
     // giving us a second active discovery row to prove the delete is id-scoped.
     const studentAClient = await getAuthenticatedClient({ email: emailA, password })
     const studentBClient = await getAuthenticatedClient({ email: emailB, password })
-    const sessionA = await seedDiscoverySession(studentAClient, questionIds.slice(0, 2))
-    const sessionB = await seedDiscoverySession(studentBClient, questionIds.slice(0, 1))
+    const sessionA = await seedDiscoverySession(studentAClient, 2)
+    const sessionB = await seedDiscoverySession(studentBClient, 1)
     // Non-vacuity: both rows exist and are active before any teardown.
     expect(await readDeletedAt(sessionA)).toBeNull()
     expect(await readDeletedAt(sessionB)).toBeNull()
@@ -205,7 +208,7 @@ describe('endDiscovery (app-layer integration)', () => {
 
   it('reports the account as inactive and keeps the live discovery row when a deactivated student with a live token exits', async () => {
     const studentBClient = await getAuthenticatedClient({ email: emailB, password })
-    const sessionId = await seedDiscoverySession(studentBClient, questionIds.slice(0, 1))
+    const sessionId = await seedDiscoverySession(studentBClient, 1)
     // Non-vacuity: the live row exists and is active before the refused write.
     expect(await readDeletedAt(sessionId)).toBeNull()
 
