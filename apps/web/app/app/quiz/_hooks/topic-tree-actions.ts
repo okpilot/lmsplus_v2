@@ -16,6 +16,7 @@ type TopicTreeActionDeps = {
   setTopics: (t: TopicWithSubtopics[]) => void
   setCheckedTopics: (s: Set<string>) => void
   setCheckedSubtopics: (s: Set<string>) => void
+  setLoading: (v: boolean) => void
   generation: RefObject<number>
   startTransition: (callback: () => Promise<void> | void) => void
 }
@@ -32,6 +33,7 @@ export function createTopicTreeActions({
   setTopics,
   setCheckedTopics,
   setCheckedSubtopics,
+  setLoading,
   generation,
   startTransition,
 }: TopicTreeActionDeps) {
@@ -44,19 +46,24 @@ export function createTopicTreeActions({
   /** Shows an already-fetched tree synchronously, cancelling any load still in flight. */
   function applyTopics(result: TopicWithSubtopics[]) {
     generation.current++
+    setLoading(false)
     applyLoadedTopics(result)
   }
 
   function loadTopics(subjectId: string) {
     generation.current++
     const gen = generation.current
+    setLoading(true)
     startTransition(async () => {
       const result = await fetchTopicsWithSubtopics(subjectId)
       if (gen !== generation.current) return
       // Post-await updates in an async transition action are NOT auto-included in
       // the transition (React 19) — nest startTransition so the topic-tree re-render
       // keeps its non-blocking priority.
-      startTransition(() => applyLoadedTopics(result))
+      startTransition(() => {
+        setLoading(false)
+        applyLoadedTopics(result)
+      })
     })
   }
 
@@ -81,6 +88,7 @@ export function createTopicTreeActions({
 
   function reset() {
     generation.current++
+    setLoading(false)
     setTopics([])
     setCheckedTopics(new Set())
     setCheckedSubtopics(new Set())

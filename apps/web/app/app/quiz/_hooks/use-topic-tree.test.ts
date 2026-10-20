@@ -307,3 +307,17 @@ describe('useTopicTree — selectors', () => {
     expect(result.current.getSelectedTopicIds()).toHaveLength(0)
   })
 })
+
+describe('useTopicTree — preloaded tree during an in-flight load', () => {
+  it('stops reporting pending when a preloaded tree replaces a load still in flight', async () => {
+    mockFetchTopicsWithSubtopics.mockReturnValue(new Promise(() => {}))
+    const { result } = renderHook(() => useTopicTree())
+    await act(async () => result.current.loadTopics('A'))
+    expect(result.current.isPending).toBe(true)
+
+    act(() => result.current.applyTopics([TOPIC_B]))
+
+    expect(result.current.isPending).toBe(false)
+    expect(result.current.topics).toEqual([TOPIC_B])
+  })
+})

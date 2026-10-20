@@ -43,6 +43,7 @@ function makeDeps(overrides: Partial<Parameters<typeof createTopicTreeActions>[0
     setTopics: vi.fn(),
     setCheckedTopics: vi.fn(),
     setCheckedSubtopics: vi.fn(),
+    setLoading: vi.fn(),
     generation: { current: 0 },
     startTransition: (cb: () => Promise<void> | void) => {
       cb()
@@ -202,5 +203,53 @@ describe('createTopicTreeActions — applyTopics', () => {
 
     expect(setTopics).toHaveBeenCalledTimes(1)
     expect(setTopics).toHaveBeenCalledWith([TOPIC_B])
+  })
+})
+
+// ---- loading flag -------------------------------------------------------------
+
+describe('createTopicTreeActions — loading flag', () => {
+  it('marks the tree loading as soon as a load starts', () => {
+    const setLoading = vi.fn()
+    mockFetchTopicsWithSubtopics.mockReturnValue(new Promise(() => {}))
+    const { loadTopics } = createTopicTreeActions(makeDeps({ setLoading }))
+    loadTopics(SUBJECT_ID)
+
+    expect(setLoading).toHaveBeenCalledWith(true)
+  })
+
+  it('clears loading when the matching load result is applied', async () => {
+    const setLoading = vi.fn()
+    const { loadTopics } = createTopicTreeActions(makeDeps({ setLoading }))
+    await loadTopics(SUBJECT_ID)
+
+    expect(setLoading).toHaveBeenLastCalledWith(false)
+  })
+
+  it('leaves loading untouched when a stale result is discarded', async () => {
+    const setLoading = vi.fn()
+    const generation = { current: 0 }
+    const { loadTopics } = createTopicTreeActions(makeDeps({ setLoading, generation }))
+    const first = loadTopics(SUBJECT_ID)
+    generation.current++
+    await first
+
+    expect(setLoading).not.toHaveBeenCalledWith(false)
+  })
+
+  it('clears loading when a preloaded tree is applied', () => {
+    const setLoading = vi.fn()
+    const { applyTopics } = createTopicTreeActions(makeDeps({ setLoading }))
+    applyTopics([TOPIC_B])
+
+    expect(setLoading).toHaveBeenCalledWith(false)
+  })
+
+  it('clears loading on reset', () => {
+    const setLoading = vi.fn()
+    const { reset } = createTopicTreeActions(makeDeps({ setLoading }))
+    reset()
+
+    expect(setLoading).toHaveBeenCalledWith(false)
   })
 })

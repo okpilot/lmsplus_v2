@@ -4,6 +4,7 @@ import { refresh } from 'next/cache'
 import type { ActionResult } from '@/lib/action-result'
 import { discardQuiz } from './discard'
 import { deleteDraft } from './draft-delete'
+import type { ProgressResult } from './quiz-progress-helpers'
 import { discardSavedQuiz } from './saved-quiz'
 
 /**
@@ -18,14 +19,14 @@ export async function discardQuizAndRefresh(raw: unknown): Promise<ActionResult>
 }
 
 /** Saved-quiz delete for the list: the re-render rides this action's response. */
-export async function discardSavedQuizAndRefresh(raw: unknown) {
+export async function discardSavedQuizAndRefresh(raw: unknown): Promise<ProgressResult> {
   const result = await discardSavedQuiz(raw)
   if (result.success) refresh()
   return result
 }
 
 /** Draft delete for the list: the re-render rides this action's response. */
-export async function deleteDraftAndRefresh(raw: unknown) {
+export async function deleteDraftAndRefresh(raw: unknown): Promise<{ success: boolean }> {
   const result = await deleteDraft(raw)
   if (result.success) refresh()
   return result
