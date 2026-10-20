@@ -232,6 +232,17 @@ test.describe('Red Team: one-RPC quiz starts (#1548)', () => {
       .eq('event_type', 'discovery.started')
     expect(auditAfter.error).toBeNull()
     expect(auditAfter.count).toBe(auditBefore.count)
+
+    // The pre-#1548 key paths are dropped, not merely guarded.
+    const probes: Array<[string, Record<string, unknown>]> = [
+      ['get_study_questions', { p_question_ids: [fx.egMcActiveId] }],
+      ['start_discovery_session', { p_subject_id: subjectId, p_question_ids: [fx.egMcActiveId] }],
+    ]
+    for (const [fn, args] of probes) {
+      const r = await fx.studentClient.rpc(fn, args)
+      expect(r.data, fn).toBeNull()
+      expect(r.error?.code, fn).toBe('PGRST202')
+    }
   })
 
   test('JB: start_practice_quiz draws only the caller own-org ids', async () => {

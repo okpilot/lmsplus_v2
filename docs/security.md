@@ -507,7 +507,7 @@ Post-session report queries may read the `correct_option_id` from questions serv
 
 This is intentional feedback — showing which answer was correct after the student has answered is the core learning loop, not a data leak.
 
-### Study Mode Exception: On-Demand Answer Keys (Mig 135)
+### Study Mode Exception: On-Demand Answer Keys (`start_discovery`, mig `20261020000100`)
 
 > **UI label:** this feature is surfaced as **Discovery** (first/default segment of the New Quiz `ModeToggle`). The action and internal identifiers remain `study`/`startStudy`; the start RPC is `start_discovery`.
 
