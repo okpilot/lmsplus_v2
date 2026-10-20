@@ -107,3 +107,5 @@ export const E2E_REDTEAM_SB_MARKER = '[E2E_REDTEAM_SB]'
 // saved-quiz / draft refresh Server Actions spec (Vectors IV, IW, IX): quiz_sessions
 // `config.e2e_marker` and quiz_drafts `session_config.subjectName`.
 export const E2E_REDTEAM_IV_MARKER = '[E2E_REDTEAM_IV]'
+// get_restored_feedback spec (Vectors JK, JL, JM, #1549): quiz_sessions `config.e2e_marker`.
+export const E2E_REDTEAM_RF_MARKER = '[E2E_REDTEAM_RF]'

@@ -289,6 +289,9 @@
 | JH | start_practice_quiz-mid-exam-start | HIGH | rpc-start-quiz-one-rpc-guards.spec.ts | BLOCKED |  | sibling-guard-gap |
 | JI | start_discovery-mid-practice-answer-oracle | MEDIUM | rpc-start-quiz-one-rpc-guards.spec.ts | BLOCKED |  | answer-oracle |
 | JJ | start_discovery-mid-internal-vfr-smart-review-answer-oracle | HIGH | rpc-start-discovery-exam-modes.spec.ts | BLOCKED |  | answer-oracle |
+| JK | get_restored_feedback-exam-unanswered-out-of-session-key | HIGH | rpc-get-restored-feedback.spec.ts | BLOCKED |  | answer-oracle |
+| JL | get_restored_feedback-foreign-ended-deleted-session | HIGH | rpc-get-restored-feedback.spec.ts | BLOCKED |  | idor |
+| JM | _answer_feedback-authenticated-execute | MEDIUM | rpc-get-restored-feedback.spec.ts | BLOCKED |  | privilege-escalation |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
