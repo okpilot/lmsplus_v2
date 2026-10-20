@@ -273,6 +273,11 @@
 | IS | toggleFlag-active-internal-exam-parallel-flag-lookup | MEDIUM | server-action-toggle-flag-internal-exam.spec.ts | BLOCKED |  | privilege-escalation |
 | IT | saveBlockingQuizForLater-cap-refuses-before-claim | MEDIUM | server-action-save-blocking-quiz.spec.ts | BLOCKED |  | rate-limit |
 | IU | saveBlockingQuizForLater-foreign-session | HIGH | server-action-save-blocking-quiz.spec.ts | BLOCKED |  | idor |
+| IZ | start_discovery-cross-org-answer-key-draw | HIGH | rpc-start-quiz-one-rpc.spec.ts | BLOCKED |  | cross-tenant |
+| JA | start_discovery-mid-exam-answer-oracle | HIGH | rpc-start-quiz-one-rpc.spec.ts | BLOCKED |  | answer-oracle |
+| JB | start_practice_quiz-cross-org-draw | MEDIUM | rpc-start-quiz-one-rpc.spec.ts | BLOCKED |  | cross-tenant |
+| JC | start_discovery-concurrent-double-start | MEDIUM | rpc-start-quiz-one-rpc.spec.ts | BLOCKED |  | race |
+| JD | start_discovery-draft-soft-deleted-non-mc-key-exposure | HIGH | rpc-start-quiz-one-rpc.spec.ts | BLOCKED |  | soft-delete-bypass |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
