@@ -1370,6 +1370,13 @@ export type Database = {
       }
     }
     Functions: {
+      _answer_feedback: {
+        Args: {
+          p_answer: Json
+          p_q: Database['public']['Tables']['questions']['Row']
+        }
+        Returns: Json
+      }
       _filtered_question_pool: {
         Args: {
           p_calc_mode?: string
@@ -1753,6 +1760,7 @@ export type Database = {
           question_id: string
         }[]
       }
+      get_restored_feedback: { Args: { p_session_id: string }; Returns: Json }
       get_session_reports: {
         Args: {
           p_dir?: string
