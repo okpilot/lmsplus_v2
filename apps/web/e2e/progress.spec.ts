@@ -40,7 +40,7 @@ test('progress page updates after completing a quiz', async ({ page }) => {
   await page.locator('[data-testid="subject-option"]').first().click()
 
   // Use the "10" preset button for reliable count
-  await page.getByRole('button', { name: '10' }).click()
+  await page.getByRole('button', { name: '10', exact: true }).click()
 
   await page.getByRole('button', { name: 'Start Quiz' }).click()
   await page.waitForURL(SESSION_ID_URL, { timeout: 10_000 })
