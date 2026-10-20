@@ -283,16 +283,29 @@ describe('quiz progress actions (app-layer integration)', () => {
   })
 
   it('refuses saves on a discovery session', async () => {
-    const { data, error } = await studentClient.rpc('start_discovery_session', {
+    const { data, error } = await studentClient.rpc('start_discovery', {
       p_subject_id: refs.subjectId,
-      p_question_ids: questionIds,
+      p_topic_ids: null,
+      p_subtopic_ids: null,
+      p_count: questionIds.length,
+      p_filters: null,
     })
-    if (error || typeof data !== 'string') throw new Error(`discovery seed: ${error?.message}`)
+    const started = data as { session_id?: unknown; questions?: unknown } | null
+    const discoveryId = started?.session_id
+    if (error || typeof discoveryId !== 'string') {
+      throw new Error(`discovery seed: ${error?.message}`)
+    }
+    const drawn: unknown = Array.isArray(started?.questions) ? started.questions[0] : undefined
+    const drawnId = (drawn as { id?: unknown } | undefined)?.id
+    if (typeof drawnId !== 'string') throw new Error('discovery seed: no question drawn')
     await signInAs(email, password)
-    expect(await saveQuizAnswer(answerFor(data, DEVICE_A))).toEqual({
-      success: false,
-      error: 'This session type does not support saving progress.',
-    })
+    // The override is hygiene only: save_quiz_answer refuses on session mode before it checks membership.
+    expect(await saveQuizAnswer(answerFor(discoveryId, DEVICE_A, { questionId: drawnId }))).toEqual(
+      {
+        success: false,
+        error: 'This session type does not support saving progress.',
+      },
+    )
   })
 
   it('saves an answer on a mock exam session', async () => {

@@ -29,7 +29,7 @@ import {
   type EoFixtures,
   OTHER_ORG_MC_KEY,
   setupEoFixtures,
-} from './helpers/get-study-questions-eo-setup'
+} from './helpers/start-quiz-fixtures'
 
 type DiscoveryQuestion = { id: string; correct_option_id: string | null }
 type DiscoveryPayload = {
@@ -159,6 +159,31 @@ test.describe('Red Team: one-RPC quiz starts (#1548)', () => {
     expect(control.error).toBeNull()
     const controlRow = asDiscovery(control.data).questions.find((q) => q.id === fx.egMcActiveId)
     expect(controlRow?.correct_option_id).toBe(EG_MC_ACTIVE_KEY)
+    // Exact payload shape (jsonb_build_object in mig 20261020000100): a renamed, dropped or
+    // extra top-level key fails here, and options never carry the answer key.
+    expect(Object.keys(controlRow ?? {}).sort()).toEqual(
+      [
+        'id',
+        'question_text',
+        'question_image_url',
+        'options',
+        'correct_option_id',
+        'subject_code',
+        'topic_name',
+        'subtopic_name',
+        'explanation_text',
+        'explanation_image_url',
+        'question_number',
+        'difficulty',
+      ].sort(),
+    )
+    const controlOptions = (controlRow as { options?: unknown } | undefined)?.options
+    expect(Array.isArray(controlOptions)).toBe(true)
+    expect((controlOptions as Record<string, unknown>[]).length).toBeGreaterThan(0)
+    for (const opt of controlOptions as Record<string, unknown>[]) {
+      expect(Object.keys(opt).sort()).toEqual(['id', 'text'])
+      expect('correct' in opt).toBe(false)
+    }
 
     const { data, error } = await fx.crossOrgClient.rpc('start_discovery', {
       p_subject_id: subjectId,
@@ -207,6 +232,17 @@ test.describe('Red Team: one-RPC quiz starts (#1548)', () => {
       .eq('event_type', 'discovery.started')
     expect(auditAfter.error).toBeNull()
     expect(auditAfter.count).toBe(auditBefore.count)
+
+    // The pre-#1548 key paths are dropped, not merely guarded.
+    const probes: Array<[string, Record<string, unknown>]> = [
+      ['get_study_questions', { p_question_ids: [fx.egMcActiveId] }],
+      ['start_discovery_session', { p_subject_id: subjectId, p_question_ids: [fx.egMcActiveId] }],
+    ]
+    for (const [fn, args] of probes) {
+      const r = await fx.studentClient.rpc(fn, args)
+      expect(r.data, fn).toBeNull()
+      expect(r.error?.code, fn).toBe('PGRST202')
+    }
   })
 
   test('JB: start_practice_quiz draws only the caller own-org ids', async () => {

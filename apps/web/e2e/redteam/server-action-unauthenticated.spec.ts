@@ -286,21 +286,6 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
     expect(data ?? null).toBeNull()
   })
 
-  test('rejects an unauthenticated get_study_questions call (#1005)', async () => {
-    // Direct check of get_study_questions: mig 20260925000400 revokes
-    // anon EXECUTE, so the call is rejected at the privilege layer before the
-    // SECURITY DEFINER answer-key RPC's `auth.uid() IS NULL` guard (mig 20260629000700)
-    // is ever reached — no correct_option_id is reachable anon. The Server-Action-shape
-    // assertion in #1005's AC is infeasible (can't invoke the Server Action from a
-    // red-team spec); this is the durable RPC mirror.
-    const { data, error } = await unauthClient.rpc('get_study_questions', {
-      p_question_ids: [knownQuestionId],
-    })
-    expect(error?.code).toBe('42501')
-    expect(error?.message ?? '').toMatch(FUNCTION_PERMISSION_DENIED)
-    expect(data ?? null).toBeNull()
-  })
-
   test('get_filtered_question_counts is denied for an unauthenticated caller (Vector CA, #689)', async () => {
     // Same SECURITY INVOKER shape as get_random_question_ids above.
     const { data, error } = await unauthClient.rpc('get_filtered_question_counts', {

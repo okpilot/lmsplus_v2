@@ -907,10 +907,9 @@ reviews:
           `correct` from options before returning to the client, AND (2) the query
           confirms the session is completed (ended_at IS NOT NULL) before fetching
           question data. Block if either condition is missing.
-          EXCEPTION: `get_study_questions` and `start_discovery` (Study/Discovery mode) return
+          EXCEPTION: `start_discovery` (Study/Discovery mode) returns
           `correct_option_id` by design (docs/security.md §4). Verify the function keeps the
-          single-active-session deny (`another_session_active` / `active_exam_session` for a
-          live exam), the `deleted_at IS NULL AND status = 'active'` filters, and the explicit
+          single-active-session deny (`another_session_active` for a live exam), the `deleted_at IS NULL AND status = 'active'` filters, and the explicit
           own-org join; never `SELECT *` or raw `options` JSONB. Block if any is missing.
 
       - mode: "warning"

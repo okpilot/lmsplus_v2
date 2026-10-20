@@ -24,19 +24,19 @@
 import { expect, test } from '@playwright/test'
 import { createClient } from '@supabase/supabase-js'
 import { clearOpenSessions } from './helpers/clear-open-sessions'
-import {
-  cleanupEoFixtures,
-  EG_MC_ACTIVE_KEY,
-  type EoFixtures,
-  ensureEoSoftDelStudent,
-  setupEoFixtures,
-} from './helpers/get-study-questions-eo-setup'
 import { createAuthenticatedClient } from './helpers/redteam-client'
 import {
   E2E_REDTEAM_EO_SOFTDEL_STUDENT_EMAIL,
   E2E_REDTEAM_EO_SOFTDEL_STUDENT_PASSWORD,
 } from './helpers/seed-markers'
 import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers } from './helpers/seed-users'
+import {
+  cleanupEoFixtures,
+  EG_MC_ACTIVE_KEY,
+  type EoFixtures,
+  ensureEoSoftDelStudent,
+  setupEoFixtures,
+} from './helpers/start-quiz-fixtures'
 
 const TAG = 'rpc-start-quiz-one-rpc-guards'
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://localhost:54321'

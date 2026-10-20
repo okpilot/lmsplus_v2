@@ -6,11 +6,10 @@
 // session is ended, and unauthenticated rejection.
 //
 // NOTE: This file tests only the app-layer query. The single-active-session guard
-// (start_discovery_session + migrations 136-141) is covered at the DB layer in
+// (the mig 136 partial unique index + each start RPC's another_session_active check;
+// start_discovery is mig 20261020000100) is covered at the DB layer in
 // packages/db/src/__integration__/rpc-single-active-session.integration.test.ts.
-// The `discovery` mode cannot be seeded here until migration 136 (mode CHECK
-// widening) is applied locally. Only quick_quiz / smart_review practice sessions
-// are seeded.
+// Only quick_quiz / smart_review practice sessions are seeded.
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import {
   cleanupReferenceData,

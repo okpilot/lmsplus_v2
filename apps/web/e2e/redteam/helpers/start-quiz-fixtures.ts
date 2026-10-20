@@ -1,14 +1,12 @@
 /**
- * Shared setup for the get_study_questions (Vector EO) red-team specs.
+ * Shared setup for the start_discovery / start_practice_quiz red-team specs.
  *
- * Both get-study-questions-eo.spec.ts (EO1–EO5) and
- * get-study-questions-eo-exam-oracle.spec.ts (EO6–EO7) seed an identical set of
- * throwaway, marker-tagged questions (egmont active/deleted/draft MC, an egmont
- * short_answer, and an org-B active MC) plus the egmont/org-B scaffolding. This
- * module owns that seeding so it is not duplicated. Each spec calls setupEoFixtures
- * in its own beforeAll and cleanupEoFixtures in its own afterAll — every question a
- * spec reads is one its own setup inserted, so the specs stay hermetic and
- * independently runnable (code-style.md §7).
+ * Seeds throwaway, marker-tagged questions (egmont active/deleted/draft MC, an egmont
+ * short_answer, and an org-B active MC) plus the egmont/org-B scaffolding. This module
+ * owns that seeding so it is not duplicated. Each spec calls setupEoFixtures
+ * in its own beforeAll and cleanupEoFixtures in its own afterAll — every question a spec reads is
+ * one its own setup inserted, so the specs stay hermetic and independently runnable
+ * (code-style.md §7).
  */
 
 import { getAdminClient } from '../../helpers/supabase'
@@ -21,30 +19,12 @@ import {
 import { pickSubjectWithQuestions } from './seed-quiz'
 import { createCrossOrgUser, seedRedTeamStudent, VICTIM_EMAIL, VICTIM_PASSWORD } from './seed-users'
 
-export const RPC = 'get_study_questions'
-export const VALID_OPTION_IDS = ['a', 'b', 'c', 'd'] as const
+const VALID_OPTION_IDS = ['a', 'b', 'c', 'd'] as const
 
 export const EG_MC_ACTIVE_KEY = 'b'
 const EG_MC_DELETED_KEY = 'a'
 const EG_MC_DRAFT_KEY = 'd'
 export const OTHER_ORG_MC_KEY = 'c'
-
-// The RPC's RETURNS TABLE shape (mig 20260626000200). correct_option_id is the
-// deliberately-exposed MC answer key; options are stripped to {id, text}.
-export type StudyQuestionRow = {
-  id: string
-  question_text: string
-  question_image_url: string | null
-  options: { id: string; text: string }[]
-  correct_option_id: string | null
-  subject_code: string
-  topic_name: string
-  subtopic_name: string | null
-  explanation_text: string
-  explanation_image_url: string | null
-  question_number: string | null
-  difficulty: string
-}
 
 // Service-role base shape shared by every throwaway question the specs insert.
 type QuestionSeed = {
@@ -65,17 +45,17 @@ export type EoFixtures = {
   studentClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
   crossOrgClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
   orgId: string
-  victimUserId: string // egmont student's user id — owner of the EO6 active exam session
+  victimUserId: string // egmont student's user id — owner of the live sessions the live-session specs insert
   otherOrgId: string
-  egMcActiveId: string // egmont, active MC — positive control + sibling-active + foreign target for EO2
-  egMcDeletedId: string // egmont, active MC -> soft-deleted in EO3
-  egShortAnswerId: string // egmont, short_answer (non-MC) for EO4
+  egMcActiveId: string // egmont, active MC — positive control, sibling-active and foreign-target question
+  egMcDeletedId: string // egmont, active MC -> soft-deleted by the deleted-question spec
+  egShortAnswerId: string // egmont, short_answer (non-MC) — must never be drawn
   egMcDraftId: string // egmont, draft-status MC — status-filter test
-  otherOrgMcId: string // org B, active MC — EO2 own-org positive control
+  otherOrgMcId: string // org B, active MC — own-org positive control
   createdQuestionIds: Set<string>
 }
 
-// Seed the egmont/org-B scaffolding and the throwaway questions every EO spec reads.
+// Seed the egmont/org-B scaffolding and the throwaway questions the start_discovery / start_practice_quiz specs read.
 // Returns the full fixture context; each spec stores it and tears it down via
 // cleanupEoFixtures. Each invocation inserts its OWN marker-tagged rows (unique
 // question_number per row) so two specs never share or mutate each other's data.
@@ -176,13 +156,13 @@ export async function setupEoFixtures(): Promise<EoFixtures> {
     return created.id
   }
 
-  // egmont victim student (org A) — the in-org caller for EO3/EO4/EO5.
+  // egmont victim student (org A) — the in-org caller for the in-org specs.
   const seed = await seedRedTeamStudent()
   const orgId = seed.orgId
   const victimUserId = seed.victimUserId
   const studentClient = await createAuthenticatedClient(VICTIM_EMAIL, VICTIM_PASSWORD)
 
-  // org B student (redteam-other-org) — the cross-org caller for EO2.
+  // org B student (redteam-other-org) — the cross-org caller for the cross-org spec.
   const crossOrg = await createCrossOrgUser()
   const otherOrgId = crossOrg.orgId
   const otherOrgUserId = crossOrg.userId
@@ -280,7 +260,7 @@ export async function setupEoFixtures(): Promise<EoFixtures> {
 
 // Soft-delete every question a spec's setupEoFixtures inserted (questions is
 // soft-deletable). Single cleanup step — the §7 per-step accumulator is for 2+ steps.
-// A row already soft-deleted (e.g. EO3's egMcDeletedId) is skipped by the
+// A row already soft-deleted (e.g. egMcDeletedId after the deleted-question spec) is skipped by the
 // .is('deleted_at', null) filter, so the re-run is an idempotent no-op.
 export async function cleanupEoFixtures(
   admin: ReturnType<typeof getAdminClient>,
@@ -295,7 +275,7 @@ export async function cleanupEoFixtures(
     .select('id')
   if (error) throw new Error(`cleanupEoFixtures: ${error.message}`)
   if ((data?.length ?? 0) > 0) {
-    console.log(`[get-study-questions-eo] soft-deleted ${data?.length} fixture question(s)`)
+    console.log(`[start-quiz-fixtures] soft-deleted ${data?.length} fixture question(s)`)
   }
   createdQuestionIds.clear()
 }

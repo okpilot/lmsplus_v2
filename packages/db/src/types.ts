@@ -1804,23 +1804,6 @@ export type Database = {
           current_streak: number
         }[]
       }
-      get_study_questions: {
-        Args: { p_question_ids: string[] }
-        Returns: {
-          correct_option_id: string
-          difficulty: string
-          explanation_image_url: string
-          explanation_text: string
-          id: string
-          options: Json
-          question_image_url: string
-          question_number: string
-          question_text: string
-          subject_code: string
-          subtopic_name: string
-          topic_name: string
-        }[]
-      }
       get_subject_scores: {
         Args: { p_limit?: number; p_student_id: string }
         Returns: {
@@ -1954,10 +1937,6 @@ export type Database = {
           p_topic_ids: string[]
         }
         Returns: Json
-      }
-      start_discovery_session: {
-        Args: { p_question_ids: string[]; p_subject_id: string }
-        Returns: string
       }
       start_exam_session: { Args: { p_subject_id: string }; Returns: Json }
       start_internal_exam_session: {
