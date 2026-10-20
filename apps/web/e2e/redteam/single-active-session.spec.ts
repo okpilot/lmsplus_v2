@@ -8,8 +8,8 @@
  *   - The start RPCs (migs 138–141) auto-soft-delete an abandoned discovery row,
  *     then RAISE 'another_session_active' on any OTHER active session they won't
  *     themselves resume (self-exclusion preserves same-subject exam resume tokens).
- *   - start_discovery (mig `20261020000100`) RAISEs on any live non-discovery session,
- *     then replaces the caller's own abandoned discovery row.
+ *   - start_discovery (mig `20261020000100`), on a non-empty draw, RAISEs on any live
+ *     non-discovery session, then replaces the caller's own abandoned discovery row.
  *   - The partial unique index uq_one_active_session_per_student (mig 136) is the
  *     concurrency-safe backstop.
  *
