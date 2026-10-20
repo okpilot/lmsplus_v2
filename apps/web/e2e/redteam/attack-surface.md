@@ -277,6 +277,11 @@
 | IW | deleteDraftAndRefresh-foreign-draft-id | MEDIUM | server-action-saved-quiz-refresh.spec.ts | BLOCKED |  | idor |
 | IX | resumeSavedQuizAndRefresh-foreign-saved-session | HIGH | server-action-saved-quiz-refresh.spec.ts | BLOCKED |  | idor |
 | IY | getDiscoveryCounts-flagged-set-cross-student | MEDIUM | quiz-setup-preload-filter-counts.spec.ts | BLOCKED |  | cross-tenant |
+| IZ | start_discovery-cross-org-answer-key-draw | HIGH | rpc-start-quiz-one-rpc.spec.ts | BLOCKED |  | cross-tenant |
+| JA | start_discovery-mid-exam-answer-oracle | HIGH | rpc-start-quiz-one-rpc.spec.ts | BLOCKED |  | answer-oracle |
+| JB | start_practice_quiz-cross-org-draw | MEDIUM | rpc-start-quiz-one-rpc.spec.ts | BLOCKED |  | cross-tenant |
+| JC | start_discovery-concurrent-double-start | MEDIUM | rpc-start-quiz-one-rpc.spec.ts | BLOCKED |  | race |
+| JD | start_discovery-draft-soft-deleted-non-mc-key-exposure | HIGH | rpc-start-quiz-one-rpc.spec.ts | BLOCKED |  | soft-delete-bypass |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 

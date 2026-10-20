@@ -26,7 +26,7 @@ The diff is the ENTRY POINT, not the boundary. Enumerate every new/changed endpo
 Action, RPC, route, cookie, session state in the diff. For each one, chase exploit chains across
 the WHOLE app, not just the changed file: other RPCs reading/writing the same tables, RLS policies
 on those tables, proxy gates, cookies, admin paths, answer-key exposure (`questions.correct_option_id`,
-`get_quiz_questions()`, `get_study_questions()`), audit tables (`audit_events` immutability),
+`get_quiz_questions()`, `get_study_questions()`, `start_discovery()`), audit tables (`audit_events` immutability),
 soft-delete (`deleted_at IS NULL` filters), the single-active-session invariant, cross-tenant
 access, timing/enumeration side channels, redirects, races.
 
