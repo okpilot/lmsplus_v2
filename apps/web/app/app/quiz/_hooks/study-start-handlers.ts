@@ -64,9 +64,10 @@ function writeDiscoveryHandoff(
  * meantime (cross-tab TOCTOU race against the single-active-session invariant,
  * #1011) — the same reasoning `startStudy`'s own server-side teardown already
  * follows. This teardown is best-effort hygiene, NOT a prerequisite for anything:
- * every start RPC (migs 137/141/138/139/140, and 20261020000100 start_discovery) unconditionally soft-deletes the
- * caller's active discovery rows before evaluating its single-active guard, so an
- * orphaned row blocks no retry — and no surface reads it either (get-active-practice-
+ * every start RPC (migs 137/141/138/139/140) unconditionally soft-deletes the
+ * caller's active discovery rows before evaluating its single-active guard, and
+ * start_discovery (mig 20261020000100) excludes discovery rows from its guard and
+ * soft-deletes them before its INSERT, so an orphaned row blocks no retry — and no surface reads it either (get-active-practice-
  * session filters to quick_quiz/smart_review), so it raises no stale resume prompt.
  * It is cleared to keep the table honest, nothing more. Never throws — a cleanup failure must not swallow the
  * caller's user-facing handoff error. If sessionId is missing (should not happen

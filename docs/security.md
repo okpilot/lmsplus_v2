@@ -509,7 +509,7 @@ This is intentional feedback — showing which answer was correct after the stud
 
 ### Study Mode Exception: On-Demand Answer Keys (Mig 135)
 
-> **UI label:** this feature is surfaced as **Discovery** (first/default segment of the New Quiz `ModeToggle`). The RPC name, action name, and all internal identifiers remain `study`/`start_discovery`/`startStudy`.
+> **UI label:** this feature is surfaced as **Discovery** (first/default segment of the New Quiz `ModeToggle`). The action and internal identifiers remain `study`/`startStudy`; the start RPC is `start_discovery`.
 
 Study Mode is a **self-paced MC flashcard practice surface** where students request questions on-demand and are shown the correct answer immediately, with no score. (Since #1011 — see §11d — the discovery-backed Study flow runs on a **real ephemeral `mode='discovery'` `quiz_sessions` row** via `start_discovery` (mig `20261020000100`, #1548); it stays non-resumable and nothing-scored, but it is no longer fully session-less. This lets the single-active-session invariant block Discovery from coexisting with a live exam on the shared MC pool.) The `get_study_questions(p_question_ids uuid[])` RPC (mig 135, feat/study-mode-mc) returns MC questions WITH `correct_option_id` and `explanation_text` directly in the response payload. This is **DELIBERATE answer-key exposure** — the feature is explicitly designed around immediate feedback, equivalent to the post-session report loop but triggered on-demand instead of after completion.
 
