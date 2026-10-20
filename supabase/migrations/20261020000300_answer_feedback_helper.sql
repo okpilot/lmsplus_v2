@@ -1,6 +1,7 @@
 -- #1549: _answer_feedback(question row, stored answer) -> immediate-feedback jsonb. The one grading
 -- body shared by its callers: check_quiz_answer (20261020000600), check_non_mc_answer
--- (20261020000400; non-MC branches moved verbatim from 20261002000800) and get_restored_feedback
+-- (20261020000400; non-MC grading moved from 20261002000800, reading the answer from p_answer — the
+-- per-type NULL and other-parameter checks stay in check_non_mc_answer) and get_restored_feedback
 -- (20261020000500). Reads no table: the caller fetches the question row (under its own membership /
 -- §15 guards) and passes the stored answer in the _validate_progress_answer shape. Internal:
 -- EXECUTE revoked from every API role.

@@ -82,7 +82,7 @@ BEGIN
     ));
   END LOOP;
 
-  RETURN jsonb_build_object('feedback', coalesce(to_jsonb(v_out), '[]'::jsonb));
+  RETURN jsonb_build_object('feedback', to_jsonb(v_out));
 END;
 $$;
 
