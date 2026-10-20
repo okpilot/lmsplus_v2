@@ -416,7 +416,7 @@ describe('useFilteredCountSync — topic tree loading', () => {
   const PREVIOUS_TREE: MinimalTopic[] = [{ id: TOPIC_ID_1, subtopics: [{ id: SUBTOPIC_ID_1 }] }]
   const NEW_TREE: MinimalTopic[] = [{ id: TOPIC_ID_2, subtopics: [{ id: SUBTOPIC_ID_2 }] }]
 
-  function render(
+  function renderSync(
     fc: ReturnType<typeof useFilteredCount>,
     initial: { tree: MinimalTopic[]; pending: boolean; filters: QuestionFilterValue[] },
   ) {
@@ -439,14 +439,14 @@ describe('useFilteredCountSync — topic tree loading', () => {
   it("does not request a count while the new subject's topics are still loading", () => {
     const fc = makeFc()
 
-    render(fc, { tree: PREVIOUS_TREE, pending: true, filters: ['all'] })
+    renderSync(fc, { tree: PREVIOUS_TREE, pending: true, filters: ['all'] })
 
     expect(fc.refetch).not.toHaveBeenCalled()
   })
 
   it('requests one count for the loaded topics once loading ends', () => {
     const fc = makeFc()
-    const { rerender } = render(fc, { tree: PREVIOUS_TREE, pending: true, filters: ['all'] })
+    const { rerender } = renderSync(fc, { tree: PREVIOUS_TREE, pending: true, filters: ['all'] })
 
     rerender({ tree: NEW_TREE, pending: false, filters: ['all'] })
 
@@ -464,7 +464,7 @@ describe('useFilteredCountSync — topic tree loading', () => {
 
   it('holds a filter change made while loading and counts with it once loading ends', () => {
     const fc = makeFc()
-    const { rerender } = render(fc, { tree: PREVIOUS_TREE, pending: true, filters: ['all'] })
+    const { rerender } = renderSync(fc, { tree: PREVIOUS_TREE, pending: true, filters: ['all'] })
 
     rerender({ tree: PREVIOUS_TREE, pending: true, filters: ['unseen'] })
     expect(fc.refetch).not.toHaveBeenCalled()
