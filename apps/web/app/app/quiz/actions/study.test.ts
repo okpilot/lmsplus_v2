@@ -6,7 +6,15 @@ const { mockRpc } = vi.hoisted(() => ({
   mockRpc: vi.fn(),
 }))
 
+const { mockEndDiscovery } = vi.hoisted(() => ({
+  mockEndDiscovery: vi.fn(),
+}))
+
 const mockClient = vi.hoisted(() => ({}))
+
+vi.mock('./end-discovery', () => ({
+  endDiscovery: (...args: unknown[]) => mockEndDiscovery(...args),
+}))
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => mockClient,
@@ -63,6 +71,7 @@ function started(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   vi.resetAllMocks()
   mockRpc.mockResolvedValue(started())
+  mockEndDiscovery.mockResolvedValue({ success: true })
 })
 
 // ---- Validation -----------------------------------------------------------
@@ -224,5 +233,64 @@ describe('startStudy — error path', () => {
     const result = await startStudy(VALID_INPUT)
     expect(result).toEqual({ success: false, error: 'Failed to start study session' })
     expect(consoleSpy).toHaveBeenCalledWith('[startStudy] error:', expect.any(Error))
+  })
+})
+
+// ---- Orphan teardown -----------------------------------------------------
+
+describe('startStudy — malformed payload that already created a session', () => {
+  const GENERIC = { success: false, error: 'Failed to start study session' }
+
+  it.each([
+    ['questions is null', { questions: null }],
+    ['questions is not an array', { questions: 'x' }],
+    ['questions are all unparseable', { questions: [{ id: 1 }] }],
+    ['some questions are unparseable', { questions: [makeRow(Q1), { id: 1 }] }],
+    ['the question list is empty', { questions: [] }],
+  ])('ends the created discovery session and fails generically when %s', async (_l, overrides) => {
+    mockRpc.mockResolvedValue(started(overrides))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await startStudy(VALID_INPUT)
+    expect(result).toEqual(GENERIC)
+    expect(mockEndDiscovery).toHaveBeenCalledTimes(1)
+    expect(mockEndDiscovery).toHaveBeenCalledWith({ sessionId: CREATED_SESSION_ID })
+  })
+
+  it('does not end any session when the payload carries no session id', async () => {
+    mockRpc.mockResolvedValue(started({ session_id: 42 }))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    await startStudy(VALID_INPUT)
+    expect(mockEndDiscovery).not.toHaveBeenCalled()
+  })
+
+  it('does not end any session on a valid start', async () => {
+    await startStudy(VALID_INPUT)
+    expect(mockEndDiscovery).not.toHaveBeenCalled()
+  })
+
+  it('logs a failed teardown result and still fails generically', async () => {
+    mockRpc.mockResolvedValue(started({ questions: null }))
+    mockEndDiscovery.mockResolvedValue({ success: false, error: 'boom' })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await startStudy(VALID_INPUT)
+    expect(result).toEqual(GENERIC)
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[startStudy] discovery teardown failed:',
+      CREATED_SESSION_ID,
+      'boom',
+    )
+  })
+
+  it('logs a thrown teardown and still fails generically', async () => {
+    mockRpc.mockResolvedValue(started({ questions: null }))
+    mockEndDiscovery.mockRejectedValue(new Error('network'))
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await startStudy(VALID_INPUT)
+    expect(result).toEqual(GENERIC)
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[startStudy] discovery teardown failed:',
+      CREATED_SESSION_ID,
+      'unknown error',
+    )
   })
 })

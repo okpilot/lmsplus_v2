@@ -31,6 +31,43 @@ function parseStarted(data: unknown): Started | 'empty' | null {
   return { sessionId: session_id, questionIds: question_ids }
 }
 
+type Supabase = Awaited<ReturnType<typeof createServerSupabaseClient>>
+
+/** One round trip: the RPC draws the ids and starts the session (and decides the stored topic). */
+function callStartPracticeQuiz(supabase: Supabase, input: z.infer<typeof StartQuizInput>) {
+  return rpc<unknown>(supabase, 'start_practice_quiz', {
+    p_subject_id: input.subjectId,
+    p_topic_ids: input.topicIds ?? null,
+    p_subtopic_ids: input.subtopicIds ?? null,
+    p_count: input.count,
+    p_filters: input.filters,
+    p_calc_mode: input.calcMode,
+    p_has_image: input.imageMode,
+  })
+}
+
+/** Maps the `start_practice_quiz` RPC response to the action result. */
+function toStartResult(res: {
+  data: unknown
+  error: { message: string } | null
+}): WithBlocked<StartQuizResult> {
+  if (res.error) {
+    console.error('[startQuizSession] RPC error:', res.error.message)
+    const blocked = blockedFailure(res.error.message)
+    if (blocked) return blocked
+    return { success: false, error: 'Failed to start session' }
+  }
+  const started = parseStarted(res.data)
+  if (!started) {
+    console.error('[startQuizSession] start_practice_quiz returned a malformed payload')
+    return { success: false, error: 'Failed to start session' }
+  }
+  if (started === 'empty') {
+    return { success: false, error: 'No questions available for this selection' }
+  }
+  return { success: true, ...started }
+}
+
 export async function startQuizSession(raw: unknown): Promise<WithBlocked<StartQuizResult>> {
   try {
     const supabase = await createServerSupabaseClient()
@@ -44,33 +81,7 @@ export async function startQuizSession(raw: unknown): Promise<WithBlocked<StartQ
       return { success: false, error: 'Invalid input' }
     }
 
-    // One round trip: the RPC draws the ids and starts the session (and decides the stored topic).
-    const { data, error } = await rpc<unknown>(supabase, 'start_practice_quiz', {
-      p_subject_id: input.subjectId,
-      p_topic_ids: input.topicIds ?? null,
-      p_subtopic_ids: input.subtopicIds ?? null,
-      p_count: input.count,
-      p_filters: input.filters,
-      p_calc_mode: input.calcMode,
-      p_has_image: input.imageMode,
-    })
-
-    if (error) {
-      console.error('[startQuizSession] RPC error:', error.message)
-      const blocked = blockedFailure(error.message)
-      if (blocked) return blocked
-      return { success: false, error: 'Failed to start session' }
-    }
-
-    const started = parseStarted(data)
-    if (!started) {
-      console.error('[startQuizSession] start_practice_quiz returned a malformed payload')
-      return { success: false, error: 'Failed to start session' }
-    }
-    if (started === 'empty') {
-      return { success: false, error: 'No questions available for this selection' }
-    }
-    return { success: true, ...started }
+    return toStartResult(await callStartPracticeQuiz(supabase, input))
   } catch (err) {
     console.error('[startQuizSession] Uncaught error:', err)
     return { success: false, error: 'Something went wrong. Please try again.' }

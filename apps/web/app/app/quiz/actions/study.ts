@@ -2,9 +2,10 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
-import { parseStudyQuestions, type StudyQuestion } from '@/lib/queries/study-queries'
+import type { StudyQuestion } from '@/lib/queries/study-queries'
 import { rpc } from '@/lib/supabase-rpc'
 import { ANOTHER_SESSION_ACTIVE } from './_blocked-start'
+import { discardOrphanedSession, parseStarted } from './_study-start'
 
 const StartStudySchema = z.object({
   subjectId: z.uuid(),
@@ -22,20 +23,19 @@ export type StartStudyResult =
 
 const GENERIC_ERROR = 'Failed to start study session'
 
-/** Validates the `start_discovery` payload shape; null when it is malformed. */
-function parseStarted(data: unknown): StartStudyResult | null {
-  if (data === null || typeof data !== 'object') return null
-  const { session_id, questions, flagged_ids } = data as Record<string, unknown>
-  const parsed = parseStudyQuestions(questions)
-  // Empty draw: the RPC creates no row and returns session_id null.
-  if (session_id === null && parsed.length === 0) {
-    return { success: true, questions: [], flaggedIds: [] }
-  }
-  if (typeof session_id !== 'string' || parsed.length === 0) return null
-  const flaggedIds = Array.isArray(flagged_ids)
-    ? flagged_ids.filter((id): id is string => typeof id === 'string')
-    : []
-  return { success: true, questions: parsed, flaggedIds, sessionId: session_id }
+/** One round trip: draw, discovery session, audit row, answer-key payload and flags. */
+function callStartDiscovery(input: z.infer<typeof StartStudySchema>) {
+  return createServerSupabaseClient().then((supabase) =>
+    rpc<unknown>(supabase, 'start_discovery', {
+      p_subject_id: input.subjectId,
+      p_topic_ids: input.topicIds ?? null,
+      p_subtopic_ids: input.subtopicIds ?? null,
+      p_count: input.count,
+      p_filters: input.filters ?? [],
+      p_calc_mode: input.calcMode ?? 'all',
+      p_has_image: input.imageMode ?? 'all',
+    }),
+  )
 }
 
 export async function startStudy(raw: unknown): Promise<StartStudyResult> {
@@ -46,19 +46,7 @@ export async function startStudy(raw: unknown): Promise<StartStudyResult> {
   }
 
   try {
-    const { subjectId, topicIds, subtopicIds, count, filters, calcMode, imageMode } = input.data
-    const supabase = await createServerSupabaseClient()
-    // One round trip: draw, discovery session, audit row, answer-key payload and flags.
-    // The RPC is atomic, so a failed start leaves no row to tear down.
-    const { data, error } = await rpc<unknown>(supabase, 'start_discovery', {
-      p_subject_id: subjectId,
-      p_topic_ids: topicIds ?? null,
-      p_subtopic_ids: subtopicIds ?? null,
-      p_count: count,
-      p_filters: filters ?? [],
-      p_calc_mode: calcMode ?? 'all',
-      p_has_image: imageMode ?? 'all',
-    })
+    const { data, error } = await callStartDiscovery(input.data)
     if (error) {
       console.error('[startStudy] start_discovery error:', error.message)
       if (error.message.includes(ANOTHER_SESSION_ACTIVE)) {
@@ -70,6 +58,7 @@ export async function startStudy(raw: unknown): Promise<StartStudyResult> {
     const result = parseStarted(data)
     if (!result) {
       console.error('[startStudy] start_discovery returned a malformed payload')
+      await discardOrphanedSession(data)
       return { success: false, error: GENERIC_ERROR }
     }
     return result
