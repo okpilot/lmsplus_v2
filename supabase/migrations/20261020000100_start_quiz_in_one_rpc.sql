@@ -205,9 +205,8 @@ BEGIN
 
   SELECT COALESCE(jsonb_agg(f.question_id ORDER BY array_position(v_ids, f.question_id)), '[]'::jsonb)
   INTO v_flagged
-  FROM public.flagged_questions f
+  FROM public.active_flagged_questions f
   WHERE f.student_id = v_uid
-    AND f.deleted_at IS NULL
     AND f.question_id = ANY (v_ids);
 
   RETURN jsonb_build_object(
