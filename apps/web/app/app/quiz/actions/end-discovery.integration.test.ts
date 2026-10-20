@@ -68,7 +68,7 @@ async function seedDiscoverySession(client: SupabaseClient, count: number): Prom
   if (error) throw new Error(`seedDiscoverySession: ${error.message}`)
   const sessionId = (data as { session_id?: unknown } | null)?.session_id
   if (typeof sessionId !== 'string')
-    throw new Error('seedDiscoverySession: expected a session id string')
+    throw new Error('seedDiscoverySession: start_discovery drew no questions')
   return sessionId
 }
 

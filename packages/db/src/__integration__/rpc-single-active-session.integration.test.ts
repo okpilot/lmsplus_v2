@@ -14,14 +14,9 @@ import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient }
 // itself resume. This suite exercises the guard against the real local Postgres
 // (mocked clients can't see the partial unique index or the CHECK widening).
 
-type DiscoverySessionRow = {
+type ActiveSessionRow = {
   id: string
   mode: string
-  subject_id: string | null
-  config: { question_ids?: string[] }
-  total_questions: number
-  ended_at: string | null
-  deleted_at: string | null
 }
 
 describe('single-active-session guard across modes', () => {
@@ -50,15 +45,15 @@ describe('single-active-session guard across modes', () => {
   }
 
   // Read every active session this student currently holds (service-role).
-  const readActiveSessions = async (): Promise<DiscoverySessionRow[]> => {
+  const readActiveSessions = async (): Promise<ActiveSessionRow[]> => {
     const { data, error } = await admin
       .from('quiz_sessions')
-      .select('id, mode, subject_id, config, total_questions, ended_at, deleted_at')
+      .select('id, mode')
       .eq('student_id', studentId)
       .is('ended_at', null)
       .is('deleted_at', null)
     if (error) throw new Error(`readActiveSessions: ${error.message}`)
-    return requireRpcRows<DiscoverySessionRow>(data, 'readActiveSessions')
+    return requireRpcRows<ActiveSessionRow>(data, 'readActiveSessions')
   }
 
   // Draw up to `count` questions from the seeded subject via start_discovery.

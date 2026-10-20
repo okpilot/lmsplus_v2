@@ -3,7 +3,7 @@
  *
  * Seeds throwaway, marker-tagged questions (egmont active/deleted/draft MC, an egmont
  * short_answer, and an org-B active MC) plus the egmont/org-B scaffolding. This module
- * owns that seeding so it is not duplicated. Each spec (vectors IZ–JI) calls setupEoFixtures
+ * owns that seeding so it is not duplicated. Each spec calls setupEoFixtures
  * in its own beforeAll and cleanupEoFixtures in its own afterAll — every question a spec reads is
  * one its own setup inserted, so the specs stay hermetic and independently runnable
  * (code-style.md §7).
@@ -45,13 +45,13 @@ export type EoFixtures = {
   studentClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
   crossOrgClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
   orgId: string
-  victimUserId: string // egmont student's user id — owner of the live sessions the JA/JH/JI specs insert
+  victimUserId: string // egmont student's user id — owner of the live sessions the live-session specs insert
   otherOrgId: string
   egMcActiveId: string // egmont, active MC — positive control, sibling-active and foreign-target question
-  egMcDeletedId: string // egmont, active MC -> soft-deleted by the JD spec
-  egShortAnswerId: string // egmont, short_answer (non-MC) — must never be drawn (JD)
+  egMcDeletedId: string // egmont, active MC -> soft-deleted by the deleted-question spec
+  egShortAnswerId: string // egmont, short_answer (non-MC) — must never be drawn
   egMcDraftId: string // egmont, draft-status MC — status-filter test
-  otherOrgMcId: string // org B, active MC — IZ own-org positive control
+  otherOrgMcId: string // org B, active MC — own-org positive control
   createdQuestionIds: Set<string>
 }
 
@@ -156,13 +156,13 @@ export async function setupEoFixtures(): Promise<EoFixtures> {
     return created.id
   }
 
-  // egmont victim student (org A) — the in-org caller for the JA–JI specs.
+  // egmont victim student (org A) — the in-org caller for the in-org specs.
   const seed = await seedRedTeamStudent()
   const orgId = seed.orgId
   const victimUserId = seed.victimUserId
   const studentClient = await createAuthenticatedClient(VICTIM_EMAIL, VICTIM_PASSWORD)
 
-  // org B student (redteam-other-org) — the cross-org caller for IZ.
+  // org B student (redteam-other-org) — the cross-org caller for the cross-org spec.
   const crossOrg = await createCrossOrgUser()
   const otherOrgId = crossOrg.orgId
   const otherOrgUserId = crossOrg.userId
@@ -260,7 +260,7 @@ export async function setupEoFixtures(): Promise<EoFixtures> {
 
 // Soft-delete every question a spec's setupEoFixtures inserted (questions is
 // soft-deletable). Single cleanup step — the §7 per-step accumulator is for 2+ steps.
-// A row already soft-deleted (e.g. egMcDeletedId after JD) is skipped by the
+// A row already soft-deleted (e.g. egMcDeletedId after the deleted-question spec) is skipped by the
 // .is('deleted_at', null) filter, so the re-run is an idempotent no-op.
 export async function cleanupEoFixtures(
   admin: ReturnType<typeof getAdminClient>,
