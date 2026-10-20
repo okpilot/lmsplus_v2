@@ -9,6 +9,7 @@ export type UseTopicTreeReturn = {
   totalQuestions: number
   selectedQuestionCount: number
   loadTopics: (subjectId: string) => void
+  applyTopics: (topics: TopicWithSubtopics[]) => void
   toggleTopic: (topicId: string) => void
   toggleSubtopic: (subtopicId: string, topicId: string) => void
   selectAll: () => void

@@ -1,4 +1,4 @@
-import { useRef, useTransition } from 'react'
+import { useRef, useState, useTransition } from 'react'
 import type { TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
 import { createTopicTreeActions } from './topic-tree-actions'
 import { calcSelectedCount } from './topic-tree-helpers'
@@ -21,6 +21,7 @@ export function useTopicTree(initialTopics?: TopicWithSubtopics[]) {
     setCheckedSubtopics,
   } = useTopicTreeState(initialTopics)
   const [isPending, startTransition] = useTransition()
+  const [loading, setLoading] = useState(false)
   const generation = useRef(0)
 
   const totalQuestions = topics.reduce((sum, t) => sum + t.questionCount, 0)
@@ -31,27 +32,30 @@ export function useTopicTree(initialTopics?: TopicWithSubtopics[]) {
       (t) => checkedTopics.has(t.id) && t.subtopics.every((st) => checkedSubtopics.has(st.id)),
     )
 
-  const { loadTopics, toggleTopic, toggleSubtopic, selectAll, reset } = createTopicTreeActions({
-    topics,
-    checkedTopics,
-    checkedSubtopics,
-    allSelected,
-    setTopics,
-    setCheckedTopics,
-    setCheckedSubtopics,
-    generation,
-    startTransition,
-  })
+  const { loadTopics, applyTopics, toggleTopic, toggleSubtopic, selectAll, reset } =
+    createTopicTreeActions({
+      topics,
+      checkedTopics,
+      checkedSubtopics,
+      allSelected,
+      setTopics,
+      setCheckedTopics,
+      setCheckedSubtopics,
+      setLoading,
+      generation,
+      startTransition,
+    })
 
   return {
     topics,
     checkedTopics,
     checkedSubtopics,
     allSelected,
-    isPending,
+    isPending: isPending && loading,
     totalQuestions,
     selectedQuestionCount,
     loadTopics,
+    applyTopics,
     toggleTopic,
     toggleSubtopic,
     selectAll,

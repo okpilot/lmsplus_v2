@@ -35,14 +35,16 @@ vi.mock('./study-config-form', () => ({
     userId,
     unseenLabel,
     subjects,
+    preload,
     header,
   }: {
     userId: string
     unseenLabel?: string
     subjects: unknown[]
+    preload?: unknown
     header?: ReactNode
   }) => {
-    mockStudyConfigForm({ userId, unseenLabel, subjects })
+    mockStudyConfigForm({ userId, unseenLabel, subjects, preload })
     return (
       <div
         data-testid="study-config-form"
@@ -123,6 +125,21 @@ describe('DiscoveryModePanel', () => {
     )
     expect(screen.getByTestId('study-config-form')).toHaveAttribute('data-user-id', USER_ID)
     expect(mockStudyConfigForm).toHaveBeenCalledWith(expect.objectContaining({ userId: USER_ID }))
+  })
+
+  it('hands the streamed setup preload to the discovery form', () => {
+    const preload = Promise.resolve({ topicsBySubject: {}, discoveryCounts: {} })
+    render(
+      <DiscoveryModePanel
+        mode="discovery"
+        onModeChange={vi.fn()}
+        examAvailable={false}
+        subjects={SUBJECTS}
+        userId={USER_ID}
+        preload={preload}
+      />,
+    )
+    expect(mockStudyConfigForm).toHaveBeenCalledWith(expect.objectContaining({ preload }))
   })
 
   it('reflects the current mode in the mode selector', () => {

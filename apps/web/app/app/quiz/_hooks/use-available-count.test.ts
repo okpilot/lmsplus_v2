@@ -19,6 +19,7 @@ function makeTopicTree(overrides: Partial<UseTopicTreeReturn> = {}): UseTopicTre
     totalQuestions: 0,
     selectedQuestionCount: 0,
     loadTopics: vi.fn(),
+    applyTopics: vi.fn(),
     toggleTopic: vi.fn(),
     toggleSubtopic: vi.fn(),
     selectAll: vi.fn(),

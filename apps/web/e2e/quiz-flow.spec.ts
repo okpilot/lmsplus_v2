@@ -29,7 +29,7 @@ test('quiz flow: configure → answer questions → view results → dashboard',
   await page.locator('[data-testid="subject-option"]').first().click()
 
   // 3. Use the "10" preset button for a reliable question count
-  await page.getByRole('button', { name: '10' }).click()
+  await page.getByRole('button', { name: '10', exact: true }).click()
 
   // 4. Start quiz
   await page.getByRole('button', { name: 'Start Quiz' }).click()

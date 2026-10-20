@@ -1,4 +1,5 @@
-import type { CalcMode, ImageMode, QuestionFilterValue } from '../types'
+import type { RefObject } from 'react'
+import type { CalcMode, ImageMode, QuestionFilterValue, QuizSetupPreload } from '../types'
 import type { useFilteredCount } from './use-filtered-count'
 import type { useTopicTree } from './use-topic-tree'
 
@@ -14,6 +15,8 @@ type ConfigHandlerDeps = {
   filters: QuestionFilterValue[]
   calcMode: CalcMode
   imageMode: ImageMode
+  /** Streamed preload, read at call time; a missing or empty tree falls back to loadTopics. */
+  preloaded?: RefObject<QuizSetupPreload | null>
 }
 
 export function createConfigHandlers({
@@ -27,6 +30,7 @@ export function createConfigHandlers({
   filters,
   calcMode,
   imageMode,
+  preloaded,
 }: ConfigHandlerDeps) {
   // handleSubjectChange is a full reset — it clears every dimension together, so it
   // resets counts unconditionally. The three partial-change handlers below each clear
@@ -39,7 +43,9 @@ export function createConfigHandlers({
     setCalcMode('all')
     setImageMode('all')
     setCount(10)
-    if (id) topicTree.loadTopics(id)
+    const tree = preloaded?.current?.topicsBySubject[id]
+    if (tree?.length) topicTree.applyTopics(tree)
+    else if (id) topicTree.loadTopics(id)
     else topicTree.reset()
   }
 
