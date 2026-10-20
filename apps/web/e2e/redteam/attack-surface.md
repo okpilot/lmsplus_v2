@@ -273,6 +273,10 @@
 | IS | toggleFlag-active-internal-exam-parallel-flag-lookup | MEDIUM | server-action-toggle-flag-internal-exam.spec.ts | BLOCKED |  | privilege-escalation |
 | IT | saveBlockingQuizForLater-cap-refuses-before-claim | MEDIUM | server-action-save-blocking-quiz.spec.ts | BLOCKED |  | rate-limit |
 | IU | saveBlockingQuizForLater-foreign-session | HIGH | server-action-save-blocking-quiz.spec.ts | BLOCKED |  | idor |
+| IV | discardSavedQuizAndRefresh-foreign-saved-session | MEDIUM | server-action-saved-quiz-refresh.spec.ts | BLOCKED |  | idor |
+| IW | deleteDraftAndRefresh-foreign-draft-id | MEDIUM | server-action-saved-quiz-refresh.spec.ts | BLOCKED |  | idor |
+| IX | resumeSavedQuizAndRefresh-foreign-saved-session | HIGH | server-action-saved-quiz-refresh.spec.ts | BLOCKED |  | idor |
+| IY | getDiscoveryCounts-flagged-set-cross-student | MEDIUM | quiz-setup-preload-filter-counts.spec.ts | BLOCKED |  | cross-tenant |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
