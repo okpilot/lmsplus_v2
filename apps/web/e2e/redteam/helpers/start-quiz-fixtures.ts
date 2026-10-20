@@ -3,8 +3,8 @@
  *
  * Seeds throwaway, marker-tagged questions (egmont active/deleted/draft MC, an egmont
  * short_answer, and an org-B active MC) plus the egmont/org-B scaffolding. This module
- * owns that seeding so it is not duplicated. Each spec calls setupEoFixtures in its own
- * beforeAll and cleanupEoFixtures in its own afterAll — every question a spec reads is
+ * owns that seeding so it is not duplicated. Each spec (vectors IZ–JI) calls setupEoFixtures
+ * in its own beforeAll and cleanupEoFixtures in its own afterAll — every question a spec reads is
  * one its own setup inserted, so the specs stay hermetic and independently runnable
  * (code-style.md §7).
  */
@@ -45,17 +45,17 @@ export type EoFixtures = {
   studentClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
   crossOrgClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
   orgId: string
-  victimUserId: string // egmont student's user id — owner of the EO6 active exam session
+  victimUserId: string // egmont student's user id — owner of the live sessions the JA/JH/JI specs insert
   otherOrgId: string
-  egMcActiveId: string // egmont, active MC — positive control + sibling-active + foreign target for EO2
-  egMcDeletedId: string // egmont, active MC -> soft-deleted in EO3
-  egShortAnswerId: string // egmont, short_answer (non-MC) for EO4
+  egMcActiveId: string // egmont, active MC — positive control, sibling-active and foreign-target question
+  egMcDeletedId: string // egmont, active MC -> soft-deleted by the JD spec
+  egShortAnswerId: string // egmont, short_answer (non-MC) — must never be drawn (JD)
   egMcDraftId: string // egmont, draft-status MC — status-filter test
-  otherOrgMcId: string // org B, active MC — EO2 own-org positive control
+  otherOrgMcId: string // org B, active MC — IZ own-org positive control
   createdQuestionIds: Set<string>
 }
 
-// Seed the egmont/org-B scaffolding and the throwaway questions every EO spec reads.
+// Seed the egmont/org-B scaffolding and the throwaway questions the rpc-start-quiz-one-rpc* specs read.
 // Returns the full fixture context; each spec stores it and tears it down via
 // cleanupEoFixtures. Each invocation inserts its OWN marker-tagged rows (unique
 // question_number per row) so two specs never share or mutate each other's data.
@@ -156,13 +156,13 @@ export async function setupEoFixtures(): Promise<EoFixtures> {
     return created.id
   }
 
-  // egmont victim student (org A) — the in-org caller for EO3/EO4/EO5.
+  // egmont victim student (org A) — the in-org caller for the JA–JI specs.
   const seed = await seedRedTeamStudent()
   const orgId = seed.orgId
   const victimUserId = seed.victimUserId
   const studentClient = await createAuthenticatedClient(VICTIM_EMAIL, VICTIM_PASSWORD)
 
-  // org B student (redteam-other-org) — the cross-org caller for EO2.
+  // org B student (redteam-other-org) — the cross-org caller for IZ.
   const crossOrg = await createCrossOrgUser()
   const otherOrgId = crossOrg.orgId
   const otherOrgUserId = crossOrg.userId
@@ -260,7 +260,7 @@ export async function setupEoFixtures(): Promise<EoFixtures> {
 
 // Soft-delete every question a spec's setupEoFixtures inserted (questions is
 // soft-deletable). Single cleanup step — the §7 per-step accumulator is for 2+ steps.
-// A row already soft-deleted (e.g. EO3's egMcDeletedId) is skipped by the
+// A row already soft-deleted (e.g. egMcDeletedId after JD) is skipped by the
 // .is('deleted_at', null) filter, so the re-run is an idempotent no-op.
 export async function cleanupEoFixtures(
   admin: ReturnType<typeof getAdminClient>,
@@ -275,7 +275,7 @@ export async function cleanupEoFixtures(
     .select('id')
   if (error) throw new Error(`cleanupEoFixtures: ${error.message}`)
   if ((data?.length ?? 0) > 0) {
-    console.log(`[get-study-questions-eo] soft-deleted ${data?.length} fixture question(s)`)
+    console.log(`[start-quiz-fixtures] soft-deleted ${data?.length} fixture question(s)`)
   }
   createdQuestionIds.clear()
 }

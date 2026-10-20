@@ -168,6 +168,7 @@ test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ES/ET
       orgId,
       minActiveQuestions: 2,
       topicMinQuestions: 2,
+      questionType: 'multiple_choice',
     })
     subjectId = picked.subjectId
     topicId = picked.topicId

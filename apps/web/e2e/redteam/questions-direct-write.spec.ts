@@ -197,7 +197,7 @@ test.describe('Red Team: direct writes to questions (Vector EX)', () => {
     adminUserClient = await createAuthenticatedClient(ADMIN_EMAIL, ADMIN_PASSWORD)
 
     // Derive valid FK scaffolding from a real active egmont question, mirroring
-    // helpers/get-study-questions-eo-setup.ts.
+    // helpers/start-quiz-fixtures.ts.
     const picked = await pickSubjectWithQuestions(adminClient, { orgId })
     subjectId = picked.subjectId
     topicId = picked.topicId

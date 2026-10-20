@@ -135,8 +135,7 @@ describe('endDiscovery (app-layer integration)', () => {
   })
 
   it("soft-deletes the caller's own active discovery session under real RLS", async () => {
-    // Seed a real discovery row for student A as student A (proves the WITH CHECK
-    // on quiz_sessions permits the student's own discovery insert too).
+    // Seed a real discovery row for student A through start_discovery.
     const studentAClient = await getAuthenticatedClient({ email: emailA, password })
     const sessionId = await seedDiscoverySession(studentAClient, 2)
 

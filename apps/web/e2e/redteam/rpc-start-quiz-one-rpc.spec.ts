@@ -29,7 +29,7 @@ import {
   type EoFixtures,
   OTHER_ORG_MC_KEY,
   setupEoFixtures,
-} from './helpers/get-study-questions-eo-setup'
+} from './helpers/start-quiz-fixtures'
 
 type DiscoveryQuestion = { id: string; correct_option_id: string | null }
 type DiscoveryPayload = {

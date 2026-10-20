@@ -24,8 +24,7 @@ import {
 
 type DiscoveryResult = {
   session_id: string | null
-  questions: { id: string }[]
-  flagged_ids: string[]
+  questions: { id: string; correct_option_id?: unknown }[]
 }
 
 type DiscoverySessionRow = {
@@ -220,8 +219,11 @@ describe('RPC: start_discovery + single-active-session guard', () => {
 
     const second = await startDiscovery(studentClient, 2)
     expect(second.error).toBeNull()
-    const secondId = requireRpcResult<DiscoveryResult>(second.data, 'start_discovery')
-      .session_id as string
+    const secondResult = requireRpcResult<DiscoveryResult>(second.data, 'start_discovery')
+    const secondId = secondResult.session_id
+    expect(typeof secondId).toBe('string')
+    // Study/Discovery deliberately returns the answer key with each question.
+    expect(typeof secondResult.questions[0]?.correct_option_id).toBe('string')
 
     // Exactly one active discovery row remains — the second; the first is soft-deleted.
     const active = await readActiveSessions()

@@ -102,7 +102,7 @@
     "apps/web/e2e/helpers/supabase.test.ts": 849,
     "apps/web/e2e/helpers/supabase.ts": 529,
     "apps/web/e2e/redteam/helpers/force-token-refresh.ts": 224,
-    "apps/web/e2e/redteam/helpers/get-study-questions-eo-setup.ts": 367,
+    "apps/web/e2e/redteam/helpers/start-quiz-fixtures.ts": 367,
     "apps/web/e2e/redteam/helpers/seed-vfr-rt-pool.ts": 469,
     "apps/web/e2e/redteam/questions-direct-write.spec.ts": 574,
     "apps/web/e2e/redteam/rpc-admin-report-answer-keys-idor.spec.ts": 546,

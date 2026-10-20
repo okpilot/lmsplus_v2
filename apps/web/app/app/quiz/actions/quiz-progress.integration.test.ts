@@ -290,15 +290,22 @@ describe('quiz progress actions (app-layer integration)', () => {
       p_count: questionIds.length,
       p_filters: null,
     })
-    const discoveryId = (data as { session_id?: unknown } | null)?.session_id
+    const started = data as { session_id?: unknown; questions?: unknown } | null
+    const discoveryId = started?.session_id
     if (error || typeof discoveryId !== 'string') {
       throw new Error(`discovery seed: ${error?.message}`)
     }
+    const drawn: unknown = Array.isArray(started?.questions) ? started.questions[0] : undefined
+    const drawnId = (drawn as { id?: unknown } | undefined)?.id
+    if (typeof drawnId !== 'string') throw new Error('discovery seed: no question drawn')
     await signInAs(email, password)
-    expect(await saveQuizAnswer(answerFor(discoveryId, DEVICE_A))).toEqual({
-      success: false,
-      error: 'This session type does not support saving progress.',
-    })
+    // The override is hygiene only: save_quiz_answer refuses on session mode before it checks membership.
+    expect(await saveQuizAnswer(answerFor(discoveryId, DEVICE_A, { questionId: drawnId }))).toEqual(
+      {
+        success: false,
+        error: 'This session type does not support saving progress.',
+      },
+    )
   })
 
   it('saves an answer on a mock exam session', async () => {
