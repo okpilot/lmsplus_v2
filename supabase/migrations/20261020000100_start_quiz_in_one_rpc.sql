@@ -112,11 +112,12 @@ BEGIN
 
   -- One statement draws the ids and builds the answer-key payload from the same rows, so the
   -- session's ids and the payload cannot diverge (READ COMMITTED re-reads per statement).
-  -- rn is assigned after the top-N LIMIT, so the pool is never fully sorted.
+  -- rn is assigned after the top-N LIMIT, so the pool is never fully sorted; only ids are
+  -- sorted, the payload columns are read by the re-join below.
   WITH draw AS (
-    SELECT s.*, row_number() OVER (ORDER BY s.r) AS rn
+    SELECT s.id, row_number() OVER (ORDER BY s.r) AS rn
     FROM (
-      SELECT q.*, random() AS r
+      SELECT q.id, random() AS r
       FROM public._filtered_question_pool(
         p_subject_id, p_topic_ids, p_subtopic_ids, v_filters, p_calc_mode, p_has_image,
         'multiple_choice'
@@ -135,28 +136,29 @@ BEGIN
     jsonb_agg(
       jsonb_build_object(
         'id', d.id,
-        'question_text', d.question_text,
-        'question_image_url', d.question_image_url,
+        'question_text', q.question_text,
+        'question_image_url', q.question_image_url,
         'options', (SELECT jsonb_agg(
            jsonb_build_object('id', opt->>'id', 'text', opt->>'text')
            ORDER BY ord
          )
-         FROM jsonb_array_elements(d.options) WITH ORDINALITY AS o(opt, ord)),
-        'correct_option_id', d.correct_option_id,
+         FROM jsonb_array_elements(q.options) WITH ORDINALITY AS o(opt, ord)),
+        'correct_option_id', q.correct_option_id,
         'subject_code', s.code,
         'topic_name', t.name,
         'subtopic_name', st.name,
-        'explanation_text', d.explanation_text,
-        'explanation_image_url', d.explanation_image_url,
-        'question_number', d.question_number,
-        'difficulty', d.difficulty
+        'explanation_text', q.explanation_text,
+        'explanation_image_url', q.explanation_image_url,
+        'question_number', q.question_number,
+        'difficulty', q.difficulty
       ) ORDER BY d.rn
     )
   INTO v_ids, v_questions
   FROM draw d
-  JOIN public.easa_subjects  s  ON s.id = d.subject_id
-  JOIN public.easa_topics    t  ON t.id = d.topic_id
-  LEFT JOIN public.easa_subtopics st ON st.id = d.subtopic_id;
+  JOIN public.questions q ON q.id = d.id
+  JOIN public.easa_subjects  s  ON s.id = q.subject_id
+  JOIN public.easa_topics    t  ON t.id = q.topic_id
+  LEFT JOIN public.easa_subtopics st ON st.id = q.subtopic_id;
 
   -- Empty draw: no checks and no side effect (the caller's live sessions stay untouched).
   IF v_ids IS NULL THEN

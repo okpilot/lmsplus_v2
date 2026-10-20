@@ -259,6 +259,13 @@ test.describe('Red Team: one-RPC quiz starts (#1548)', () => {
       .select('id')
     expect(delErr).toBeNull()
     expect(del?.length ?? 0).toBeLessThanOrEqual(1)
+    const { data: deletedRow, error: readErr } = await fx.admin
+      .from('questions')
+      .select('deleted_at')
+      .eq('id', fx.egMcDeletedId)
+      .single()
+    expect(readErr).toBeNull()
+    expect(deletedRow?.deleted_at).not.toBeNull()
     const excluded = [fx.egMcDraftId, fx.egMcDeletedId, fx.egShortAnswerId]
     await flagForVictim([fx.egMcActiveId, ...excluded])
     const { data: flags, error: flagErr } = await fx.admin
