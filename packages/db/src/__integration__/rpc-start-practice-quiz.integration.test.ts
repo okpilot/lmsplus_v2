@@ -277,12 +277,14 @@ describe('RPC: start_practice_quiz (#1548)', () => {
       "p_filters=['all','flagged']",
     )
     expect(mixed.question_ids).toEqual([flaggedId])
-    const { error: unflagErr } = await admin
+    const { data: unflagged, error: unflagErr } = await admin
       .from('flagged_questions')
       .update({ deleted_at: new Date().toISOString() })
       .eq('student_id', studentId)
       .eq('question_id', flaggedId)
-    if (unflagErr) throw new Error(`unflag: ${unflagErr.message}`)
+      .select('question_id')
+    expect(unflagErr).toBeNull()
+    expect(unflagged).toHaveLength(1)
   })
 
   it('applies the filters: flagged draws only flagged questions', async () => {

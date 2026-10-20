@@ -36,10 +36,10 @@ BEGIN
 
   -- 'all' is the UI's "no filter" sentinel; the pool would read it as a filter matching nothing.
   -- get_random_question_ids is SECURITY INVOKER with the same pool, clamp and RLS as this function.
-  SELECT array_agg(g.id) INTO v_ids
+  SELECT array_agg(g.id ORDER BY g.ord) INTO v_ids
   FROM public.get_random_question_ids(
     p_subject_id, p_topic_ids, p_subtopic_ids, p_count, v_filters, p_calc_mode, p_has_image
-  ) g;
+  ) WITH ORDINALITY AS g(id, ord);
 
   IF v_ids IS NULL THEN
     -- start_quiz_session is skipped on an empty draw, so gate a deactivated caller here.
@@ -112,19 +112,23 @@ BEGIN
 
   -- One statement draws the ids and builds the answer-key payload from the same rows, so the
   -- session's ids and the payload cannot diverge (READ COMMITTED re-reads per statement).
+  -- rn is assigned after the top-N LIMIT, so the pool is never fully sorted.
   WITH draw AS (
-    SELECT q.*, row_number() OVER (ORDER BY random()) AS rn
-    FROM public._filtered_question_pool(
-      p_subject_id, p_topic_ids, p_subtopic_ids, v_filters, p_calc_mode, p_has_image,
-      'multiple_choice'
-    ) p
-    JOIN public.questions q ON q.id = p.id
-     AND q.organization_id = v_org_id
-     AND q.deleted_at IS NULL
-     AND q.status = 'active'
-     AND q.question_type = 'multiple_choice'
-    ORDER BY rn
-    LIMIT LEAST(GREATEST(COALESCE(p_count, 0), 0), 500)
+    SELECT s.*, row_number() OVER (ORDER BY s.r) AS rn
+    FROM (
+      SELECT q.*, random() AS r
+      FROM public._filtered_question_pool(
+        p_subject_id, p_topic_ids, p_subtopic_ids, v_filters, p_calc_mode, p_has_image,
+        'multiple_choice'
+      ) p
+      JOIN public.questions q ON q.id = p.id
+       AND q.organization_id = v_org_id
+       AND q.deleted_at IS NULL
+       AND q.status = 'active'
+       AND q.question_type = 'multiple_choice'
+      ORDER BY r
+      LIMIT LEAST(GREATEST(COALESCE(p_count, 0), 0), 500)
+    ) s
   )
   SELECT
     array_agg(d.id ORDER BY d.rn),
