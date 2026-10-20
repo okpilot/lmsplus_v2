@@ -139,15 +139,18 @@ describe('RPC: get_restored_feedback', () => {
     expect(error?.message).toContain('session_not_found')
   })
 
-  it('refuses an exam-mode session', async () => {
-    const sessionId = await insertSession({
-      f,
-      mode: 'mock_exam',
-      questionIds: f.mcIds.slice(0, 2),
-    })
-    const { error } = await restore(sessionId)
-    expect(error?.message).toContain('unsupported_session_mode')
-  })
+  it.each(['mock_exam', 'internal_exam', 'vfr_rt_exam', 'discovery'] as const)(
+    'refuses a %s session',
+    async (mode) => {
+      const sessionId = await insertSession({
+        f,
+        mode,
+        questionIds: f.mcIds.slice(0, 2),
+      })
+      const { error } = await restore(sessionId)
+      expect(error?.message).toContain('unsupported_session_mode')
+    },
+  )
 
   it('refuses an anonymous caller', async () => {
     const { sessionId } = await sessionWithAnswers()
