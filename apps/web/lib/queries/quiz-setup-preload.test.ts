@@ -22,7 +22,7 @@ beforeEach(() => {
   errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
   mockSubjects.mockResolvedValue([{ id: 's1' }, { id: 's2' }])
   mockTrees.mockResolvedValue({ s1: TREE, s2: TREE, rt: TREE })
-  mockCounts.mockResolvedValue({ s1: { '': COUNT }, s2: { '': COUNT }, rt: { '': COUNT } })
+  mockCounts.mockResolvedValue({ s1: { '': COUNT }, s2: { '': COUNT } })
 })
 
 describe('loadQuizSetupPreload', () => {
@@ -34,11 +34,10 @@ describe('loadQuizSetupPreload', () => {
     expect(preload.discoveryCounts.s1?.['']).toEqual(COUNT)
   })
 
-  it('leaves out subjects that are not in the picker list', async () => {
+  it('leaves out topic trees of subjects that are not in the picker list', async () => {
     const preload = await loadQuizSetupPreload()
 
     expect(preload.topicsBySubject).not.toHaveProperty('rt')
-    expect(preload.discoveryCounts).not.toHaveProperty('rt')
   })
 
   it('resolves empty and logs when the topic trees fail', async () => {

@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -127,5 +127,50 @@ describe('useFilteredCount — preloaded Discovery counts', () => {
     })
     expect(result.current.filteredCount).toBe(31)
     expect(result.current.isFilterPending).toBe(false)
+  })
+})
+
+describe('useFilteredCount — preloaded counts age', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('asks the server once the preloaded counts are older than the TTL', async () => {
+    vi.useFakeTimers({ now: 50_000 })
+    mockGetFilteredCount.mockResolvedValue({ count: 8, byTopic: {}, bySubtopic: {} })
+    const { result } = await renderResolved()
+    vi.setSystemTime(50_000 + 61_000)
+
+    await act(async () => discoveryRefetch(result, ['unseen']))
+
+    expect(mockGetFilteredCount).toHaveBeenCalledTimes(1)
+    expect(result.current.filteredCount).toBe(8)
+  })
+
+  it('asks the server on a back-navigation remount of counts loaded over a TTL ago', async () => {
+    vi.useFakeTimers({ now: 50_000 })
+    mockGetFilteredCount.mockResolvedValue({ count: 8, byTopic: {}, bySubtopic: {} })
+    const preload = Promise.resolve(SETUP)
+    const first = renderHook(() => useFilteredCount(preload))
+    await act(async () => undefined)
+    first.unmount()
+    vi.setSystemTime(50_000 + 61_000)
+
+    const { result } = renderHook(() => useFilteredCount(preload))
+    await act(async () => discoveryRefetch(result, ALL))
+
+    expect(mockGetFilteredCount).toHaveBeenCalledTimes(1)
+    expect(result.current.filteredCount).toBe(8)
+  })
+
+  it('still uses preloaded counts within the TTL', async () => {
+    vi.useFakeTimers({ now: 50_000 })
+    const { result } = await renderResolved()
+    vi.setSystemTime(50_000 + 59_000)
+
+    await act(async () => discoveryRefetch(result, ['unseen']))
+
+    expect(mockGetFilteredCount).not.toHaveBeenCalled()
+    expect(result.current.filteredCount).toBe(12)
   })
 })

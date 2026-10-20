@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { PreloadPromise, QuizSetupPreload } from '../types'
 import { usePreloadedSetup } from './use-preloaded-setup'
 
@@ -22,7 +22,7 @@ describe('usePreloadedSetup', () => {
 
     await act(async () => resolve(SETUP))
 
-    expect(result.current.current).toBe(SETUP)
+    expect(result.current.current).toMatchObject(SETUP)
   })
 
   it('holds nothing when there is no preload', () => {
@@ -49,10 +49,10 @@ describe('usePreloadedSetup', () => {
     await act(async () => first.resolve(SETUP))
 
     rerender({ p: second.promise })
-    expect(result.current.current).toBe(SETUP)
+    expect(result.current.current).toMatchObject(SETUP)
     await act(async () => second.resolve(OTHER))
 
-    expect(result.current.current).toBe(OTHER)
+    expect(result.current.current).toMatchObject(OTHER)
   })
 
   it('reads an already-resolved preload synchronously after a remount', async () => {
@@ -63,7 +63,7 @@ describe('usePreloadedSetup', () => {
 
     const remounted = renderHook(() => usePreloadedSetup(promise))
 
-    expect(remounted.result.current.current).toBe(SETUP)
+    expect(remounted.result.current.current).toMatchObject(SETUP)
   })
 
   it('falls back to nothing when the preload promise rejects', async () => {
@@ -75,5 +75,26 @@ describe('usePreloadedSetup', () => {
     })
 
     expect(result.current.current).toBeNull()
+  })
+
+  describe('load time', () => {
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('stamps the value once so a remount keeps the original load time', async () => {
+      vi.useFakeTimers({ now: 10_000 })
+      const { promise, resolve } = deferred()
+      const first = renderHook(() => usePreloadedSetup(promise))
+      await act(async () => resolve(SETUP))
+      expect(first.result.current.current?.loadedAt).toBe(10_000)
+      first.unmount()
+
+      vi.setSystemTime(10_000 + 61_000)
+      const remounted = renderHook(() => usePreloadedSetup(promise))
+      await act(async () => undefined)
+
+      expect(remounted.result.current.current?.loadedAt).toBe(10_000)
+    })
   })
 })

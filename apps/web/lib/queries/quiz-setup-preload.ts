@@ -31,5 +31,5 @@ export const loadQuizSetupPreload = cache(async (): Promise<QuizSetupPreload> =>
     settle('counts', getDiscoveryCounts, {}),
   ])
   const ids = new Set(subjects.map((s) => s.id))
-  return { topicsBySubject: pick(trees, ids), discoveryCounts: pick(counts, ids) }
+  return { topicsBySubject: pick(trees, ids), discoveryCounts: counts }
 })

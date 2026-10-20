@@ -1,4 +1,5 @@
-import type { createServerSupabaseClient } from '@repo/db/server'
+import { createServerSupabaseClient } from '@repo/db/server'
+import { cache } from 'react'
 import { rpc } from '@/lib/supabase-rpc'
 
 export type QuestionCountRow = {
@@ -73,3 +74,11 @@ export async function fetchActiveQuestionCounts(
   }
   return rows
 }
+
+/**
+ * Request-scoped (`cache()`) active-count read: the subject list and the topic trees of one
+ * setup render share a single `get_question_counts` call. A no-op outside an RSC render.
+ */
+export const getActiveQuestionCounts = cache(async (): Promise<QuestionCountRow[]> => {
+  return fetchActiveQuestionCounts(await createServerSupabaseClient())
+})

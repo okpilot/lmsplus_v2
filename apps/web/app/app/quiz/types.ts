@@ -178,5 +178,8 @@ export type QuizSetupPreload = {
   discoveryCounts: Record<string, Record<string, FilteredCounts>>
 }
 
+/** A resolved preload with the client time it arrived, for expiring the per-student counts. */
+export type StampedPreload = QuizSetupPreload & { loadedAt: number }
+
 /** The preload as streamed from the server: a Promise prop the form never awaits. */
 export type PreloadPromise = Promise<QuizSetupPreload>

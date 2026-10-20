@@ -1,9 +1,9 @@
 import { type RefObject, useEffect, useRef } from 'react'
-import type { PreloadPromise, QuizSetupPreload } from '../types'
+import type { PreloadPromise, StampedPreload } from '../types'
 
 // Resolved values by promise: a remount (e.g. the Discovery <-> other-mode toggle) reads
 // the value synchronously instead of waiting for a promise that already settled.
-const resolved = new WeakMap<PreloadPromise, QuizSetupPreload>()
+const resolved = new WeakMap<PreloadPromise, StampedPreload>()
 
 /**
  * Exposes the streamed server preload as a ref: `ref.current` is null until the promise
@@ -11,8 +11,8 @@ const resolved = new WeakMap<PreloadPromise, QuizSetupPreload>()
  * a resolution never re-renders. The effect only subscribes to a promise the server
  * already started; nothing is fetched here.
  */
-export function usePreloadedSetup(promise?: PreloadPromise): RefObject<QuizSetupPreload | null> {
-  const ref = useRef<QuizSetupPreload | null>((promise && resolved.get(promise)) || null)
+export function usePreloadedSetup(promise?: PreloadPromise): RefObject<StampedPreload | null> {
+  const ref = useRef<StampedPreload | null>((promise && resolved.get(promise)) || null)
   useEffect(() => {
     if (!promise) return
     let live = true
@@ -20,8 +20,10 @@ export function usePreloadedSetup(promise?: PreloadPromise): RefObject<QuizSetup
     if (known) ref.current = known
     promise.then(
       (value) => {
-        resolved.set(promise, value)
-        if (live) ref.current = value
+        // Stamp once: a remount reuses the first stamp, so the age is measured from load.
+        const stamped = resolved.get(promise) ?? { ...value, loadedAt: Date.now() }
+        resolved.set(promise, stamped)
+        if (live) ref.current = stamped
       },
       () => undefined,
     )

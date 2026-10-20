@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import type { FilteredCounts } from '@/lib/queries/discovery-counts'
-import { findPreloadedCount } from '../_utils/preloaded-discovery-count'
+import { findPreloadedCount, freshCounts } from '../_utils/preloaded-discovery-count'
 import { getFilteredCount } from '../actions/lookup'
 import type { FilteredCountState } from '../session-types'
 import type { CalcMode, ImageMode, PreloadPromise, QuestionFilterValue } from '../types'
@@ -43,7 +43,7 @@ export function useFilteredCount(preload?: PreloadPromise): FilteredCountState {
       filterGeneration.current++
       const gen = filterGeneration.current
       const query = { subjectId, filters: activeFilters, calcMode, imageMode, questionType }
-      const preloaded = findPreloadedCount(setup.current?.discoveryCounts, query)
+      const preloaded = findPreloadedCount(freshCounts(setup.current, Date.now()), query)
       setCounts(preloaded)
       setIsFilterPending(!preloaded)
       if (preloaded) return

@@ -6,7 +6,7 @@ import type {
   TopicOption,
   TopicWithSubtopics,
 } from './quiz-query-types'
-import { fetchActiveQuestionCounts } from './quiz-question-counts'
+import { fetchActiveQuestionCounts, getActiveQuestionCounts } from './quiz-question-counts'
 import { buildTopicTree } from './quiz-topic-trees'
 
 type SubjectRow = { id: string; code: string; name: string; short: string; sort_order: number }
@@ -21,10 +21,10 @@ export const getSubjectsWithCounts = cache(async (): Promise<SubjectOption[]> =>
   const supabase = await createServerSupabaseClient()
 
   // Intentional asymmetry: a subjects read error throws (page-critical data), while
-  // fetchActiveQuestionCounts degrades to [] internally (counts are non-fatal).
+  // getActiveQuestionCounts degrades to [] internally (counts are non-fatal).
   const [subjectsRes, countsData] = await Promise.all([
     supabase.from('easa_subjects').select('id, code, name, short, sort_order').order('sort_order'),
-    fetchActiveQuestionCounts(supabase),
+    getActiveQuestionCounts(),
   ])
 
   if (subjectsRes.error) {

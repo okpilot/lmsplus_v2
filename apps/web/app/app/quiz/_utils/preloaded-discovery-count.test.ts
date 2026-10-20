@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findPreloadedCount } from './preloaded-discovery-count'
+import { findPreloadedCount, freshCounts, PRELOAD_COUNTS_TTL_MS } from './preloaded-discovery-count'
 
 const NONE = { count: 7, byTopic: { t1: 7 }, bySubtopic: {} }
 const UNSEEN = { count: 5, byTopic: { t1: 5 }, bySubtopic: {} }
@@ -53,5 +53,21 @@ describe('findPreloadedCount', () => {
 
   it('returns null when the count is not restricted to multiple choice', () => {
     expect(findPreloadedCount(COUNTS, { ...DEFAULTS, questionType: undefined })).toBeNull()
+  })
+})
+
+describe('freshCounts', () => {
+  const preload = { topicsBySubject: {}, discoveryCounts: COUNTS, loadedAt: 1_000 }
+
+  it('returns the counts while they are younger than the TTL', () => {
+    expect(freshCounts(preload, 1_000 + PRELOAD_COUNTS_TTL_MS)).toBe(COUNTS)
+  })
+
+  it('returns nothing once the counts are older than the TTL', () => {
+    expect(freshCounts(preload, 1_000 + PRELOAD_COUNTS_TTL_MS + 1)).toBeUndefined()
+  })
+
+  it('returns nothing when no preload has arrived', () => {
+    expect(freshCounts(null, 5)).toBeUndefined()
   })
 })

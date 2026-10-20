@@ -1,7 +1,7 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { cache } from 'react'
 import type { SubtopicOption, TopicWithSubtopics } from './quiz-query-types'
-import { fetchActiveQuestionCounts, type QuestionCountRow } from './quiz-question-counts'
+import { getActiveQuestionCounts, type QuestionCountRow } from './quiz-question-counts'
 
 type TopicTreeTopicRow = { id: string; code: string; name: string; sort_order: number }
 type TopicTreeSubtopicRow = {
@@ -76,7 +76,7 @@ export function groupTopicsBySubject<T extends { subject_id: string }>(topics: T
  * Every subject's topic tree in one read (3 round trips total, in parallel), keyed by
  * subject id. Subjects whose built tree is empty are omitted so the client falls back to
  * the per-subject action. An empty counts result is treated as a failure for the same
- * reason: `fetchActiveQuestionCounts` degrades to `[]`, which would otherwise yield an
+ * reason: `getActiveQuestionCounts` degrades to `[]`, which would otherwise yield an
  * all-empty preload. The two table reads are unfiltered, so each asks for the exact row
  * count and a result cut at PostgREST `max_rows` throws instead of silently truncating.
  * Per-request memoised via `cache()`; the caller catches a throw.
@@ -93,7 +93,7 @@ export const getAllTopicTrees = cache(async (): Promise<Record<string, TopicWith
       .from('easa_subtopics')
       .select('id, code, name, sort_order, topic_id', { count: 'exact' })
       .order('sort_order'),
-    fetchActiveQuestionCounts(supabase),
+    getActiveQuestionCounts(),
   ])
 
   if (topicsRes.error) throw new Error(`Failed to fetch topics: ${topicsRes.error.message}`)
