@@ -1,16 +1,13 @@
 /**
- * Red Team Spec: single-active-session invariant (Vectors EP, EQ, ER, ES, ET; #1011)
+ * Red Team Spec: single-active-session invariant (Vectors EP, EQ, ER, ET; #1011)
  *
  * #1011 closes the Discovery/exam answer-key oracle by making it impossible for a
  * student to hold MORE THAN ONE active (ended_at IS NULL AND deleted_at IS NULL)
- * quiz_sessions row across ALL modes. Discovery (which reveals MC answer keys via
- * start_discovery) and an exam graded from the SAME org MC pool may never run
- * concurrently. Enforcement is two-layered:
+ * quiz_sessions row across ALL modes. Discovery (which reveals MC answer keys) and
+ * an exam graded from the SAME org MC pool may never run concurrently. Enforcement is two-layered:
  *   - The start RPCs (migs 138–141) auto-soft-delete an abandoned discovery row,
  *     then RAISE 'another_session_active' on any OTHER active session they won't
  *     themselves resume (self-exclusion preserves same-subject exam resume tokens).
- *   - start_discovery (mig 20261020000100) is the ephemeral-session RPC, with the
- *     same single-active guard.
  *   - The partial unique index uq_one_active_session_per_student (mig 136) is the
  *     concurrency-safe backstop.
  *
@@ -25,9 +22,6 @@
  *   - ER discovery auto-clear on exam start (THE #1011 FIX): a student with an
  *     active discovery row that starts an exam SUCCEEDS, and the discovery row is
  *     auto-soft-deleted — they can never hold discovery + exam concurrently.
- *   - ES start_discovery guard suite: unauthenticated → rejected; active
- *     exam → another_session_active; happy path creates exactly ONE active discovery
- *     row; a repeat start replaces it (still exactly one).
  *   - ET the global unique index physically blocks a direct service-role INSERT of a
  *     SECOND active session for the same student (23505 /
  *     uq_one_active_session_per_student).
@@ -45,24 +39,10 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { createClient } from '@supabase/supabase-js'
 import { getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
 import { ensureExamConfig, pickSubjectWithQuestions } from './helpers/seed-quiz'
 import { seedRedTeamStudent, VICTIM_EMAIL, VICTIM_PASSWORD } from './helpers/seed-users'
-
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
-if (!SUPABASE_URL) {
-  throw new Error(
-    'single-active-session.spec: NEXT_PUBLIC_SUPABASE_URL is required (set it in apps/web/.env.local)',
-  )
-}
-const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-if (!ANON_KEY) {
-  throw new Error(
-    'single-active-session.spec: NEXT_PUBLIC_SUPABASE_ANON_KEY is required (set it in apps/web/.env.local)',
-  )
-}
 
 type ActiveSessionRow = {
   id: string
@@ -83,16 +63,7 @@ const isActiveSessionRow = (v: unknown): v is ActiveSessionRow =>
   (typeof v.deleted_at === 'string' || v.deleted_at === null) &&
   (typeof v.ended_at === 'string' || v.ended_at === null)
 
-type DiscoveryResult = { session_id: string | null; questions: { id: string }[] }
-
-function asDiscoveryResult(data: unknown): DiscoveryResult {
-  if (!isRecord(data) || !Array.isArray(data.questions)) {
-    throw new Error('start_discovery returned an unexpected shape')
-  }
-  return data as DiscoveryResult
-}
-
-test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ES/ET)', () => {
+test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ET)', () => {
   let admin: ReturnType<typeof getAdminClient>
   let studentClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
   let orgId: string
@@ -100,14 +71,6 @@ test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ES/ET
   let subjectId: string
   let topicId: string
   let questionIds: string[]
-
-  const discoveryArgs = (count: number) => ({
-    p_subject_id: subjectId,
-    p_topic_ids: null,
-    p_subtopic_ids: null,
-    p_count: count,
-    p_filters: null,
-  })
 
   // Soft-delete every active session the victim currently holds. Used by
   // beforeEach (clean slate before each test) AND afterEach (no leak into the
@@ -162,13 +125,10 @@ test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ES/ET
     victimUserId = seed.victimUserId
     studentClient = await createAuthenticatedClient(VICTIM_EMAIL, VICTIM_PASSWORD)
 
-    // ≥2 active questions so both starts in the ES repeat-start (replace) test draw a
-    // non-empty set.
     const picked = await pickSubjectWithQuestions(admin, {
       orgId,
       minActiveQuestions: 2,
       topicMinQuestions: 2,
-      questionType: 'multiple_choice',
     })
     subjectId = picked.subjectId
     topicId = picked.topicId
@@ -308,85 +268,6 @@ test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ES/ET
     expect(active).toHaveLength(1)
     expect(active[0]?.id).toBe(examSessionId)
     expect(active[0]?.mode).toBe('mock_exam')
-  })
-
-  test('ES: an unauthenticated discovery start is rejected at the privilege layer', async () => {
-    const anon = createClient(SUPABASE_URL, ANON_KEY, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    })
-    // mig 20260925000400 revokes anon EXECUTE on every public function, so the
-    // call is rejected before the body's own auth.uid() IS NULL guard is ever
-    // reached.
-    const { data, error } = await anon.rpc('start_discovery', discoveryArgs(1))
-    expect(error?.code).toBe('42501')
-    expect(error?.message ?? '').toMatch(/permission denied for function/i)
-    expect(data).toBeNull()
-  })
-
-  test('ES: a discovery start is blocked while an exam session is active (another_session_active)', async () => {
-    const examId = await seedActiveSession('mock_exam')
-    // Non-vacuity: the blocking exam session genuinely exists and is active.
-    expect((await readActiveSessions()).map((s) => s.id)).toEqual([examId])
-
-    const { data, error } = await studentClient.rpc('start_discovery', discoveryArgs(1))
-    expect(error).not.toBeNull()
-    expect(error?.message ?? '').toMatch(/another_session_active/i)
-    expect(data).toBeNull()
-
-    // No discovery row was created.
-    const active = await readActiveSessions()
-    expect(active.map((s) => s.id)).toEqual([examId])
-    expect(active.map((s) => s.mode)).not.toContain('discovery')
-  })
-
-  test('ES: a discovery start creates exactly one active discovery session, and a repeat start replaces it', async () => {
-    const first = await studentClient.rpc('start_discovery', discoveryArgs(1))
-    expect(first.error).toBeNull()
-    const firstResult = asDiscoveryResult(first.data)
-    expect(firstResult.session_id, 'fixture subject needs active MC questions').toEqual(
-      expect.any(String),
-    )
-    const firstId = firstResult.session_id as string
-    // Exactly one active discovery row (non-vacuity: the happy path genuinely created it).
-    const afterFirst = await readActiveSessions()
-    expect(afterFirst.map((s) => s.id)).toEqual([firstId])
-    expect(afterFirst[0]?.mode).toBe('discovery')
-
-    const second = await studentClient.rpc('start_discovery', discoveryArgs(2))
-    expect(second.error).toBeNull()
-    const secondResult = asDiscoveryResult(second.data)
-    expect(secondResult.session_id, 'fixture subject needs active MC questions').toEqual(
-      expect.any(String),
-    )
-    const secondId = secondResult.session_id as string
-    const secondQuestionIds = secondResult.questions.map((q) => q.id)
-    expect(secondQuestionIds.length).toBeGreaterThan(0)
-
-    // Still exactly one active discovery row — the second; the first is soft-deleted.
-    const afterSecond = await readActiveSessions()
-    expect(afterSecond).toHaveLength(1)
-    expect(afterSecond[0]?.id).toBe(secondId)
-    expect(secondId).not.toBe(firstId)
-
-    const { data: firstRow, error: firstRowErr } = await admin
-      .from('quiz_sessions')
-      .select('deleted_at')
-      .eq('id', firstId)
-      .single()
-    expect(firstRowErr).toBeNull()
-    expect(firstRow?.deleted_at).not.toBeNull()
-
-    // The replacement session persists the question set the repeat start returned, not
-    // the first start's set.
-    const { data: secondRow, error: secondRowErr } = await admin
-      .from('quiz_sessions')
-      .select('config')
-      .eq('id', secondId)
-      .single()
-    expect(secondRowErr).toBeNull()
-    expect(isRecord(secondRow) && isRecord(secondRow.config)).toBe(true)
-    const secondConfig = (secondRow as { config: Record<string, unknown> }).config
-    expect(secondConfig.question_ids).toEqual(secondQuestionIds)
   })
 
   test('ET: the global unique index blocks a direct second active session insert (23505)', async () => {

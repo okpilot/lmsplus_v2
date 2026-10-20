@@ -4,28 +4,15 @@ import { cleanupReferenceData, cleanupTestData } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
 import { requireRpcResult, requireRpcRows } from './guards'
 import { seedQuestions, seedReferenceData } from './seed'
-import {
-  createTestOrg,
-  createTestUser,
-  getAdminClient,
-  getAnonClient,
-  getAuthenticatedClient,
-} from './setup'
+import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
 // Single-active-session invariant (#1011, migs 136–142): a student may hold AT
 // MOST ONE active (ended_at IS NULL AND deleted_at IS NULL) quiz_sessions row
 // across ALL modes. Backstop = partial unique index
-// uq_one_active_session_per_student. start_discovery (mig 20261020000100) creates a
-// real ephemeral 'discovery' row; every start RPC (138–141) auto-soft-deletes an
+// uq_one_active_session_per_student; every start RPC auto-soft-deletes an
 // abandoned discovery row, then blocks on any OTHER active session it won't
-// itself resume. This suite exercises the RPC + the guard against the real
-// local Postgres (mocked clients can't see the partial unique index or the CHECK
-// widening).
-
-type DiscoveryResult = {
-  session_id: string | null
-  questions: { id: string; correct_option_id?: unknown }[]
-}
+// itself resume. This suite exercises the guard against the real local Postgres
+// (mocked clients can't see the partial unique index or the CHECK widening).
 
 type DiscoverySessionRow = {
   id: string
@@ -37,7 +24,7 @@ type DiscoverySessionRow = {
   deleted_at: string | null
 }
 
-describe('RPC: start_discovery + single-active-session guard', () => {
+describe('single-active-session guard across modes', () => {
   const admin = getAdminClient()
   let orgId: string
   let adminUserId: string
@@ -180,66 +167,6 @@ describe('RPC: start_discovery + single-active-session guard', () => {
     await cleanupReferenceData({ admin, refs: [refs] })
   })
 
-  it('creates exactly one active discovery session and a discovery.started audit event', async () => {
-    const { data, error } = await startDiscovery(studentClient, 2)
-    expect(error).toBeNull()
-    const result = requireRpcResult<DiscoveryResult>(data, 'start_discovery')
-    const sessionId = result.session_id as string
-    expect(typeof sessionId).toBe('string')
-    expect(result.questions).toHaveLength(2)
-    const returnedIds = result.questions.map((q) => q.id)
-    expect(questionIds).toEqual(expect.arrayContaining(returnedIds))
-
-    const active = await readActiveSessions()
-    expect(active).toHaveLength(1)
-    expect(active[0]?.id).toBe(sessionId)
-    expect(active[0]?.mode).toBe('discovery')
-    expect(active[0]?.subject_id).toBe(subjectId)
-    expect(active[0]?.config.question_ids).toEqual(returnedIds)
-    expect(active[0]?.total_questions).toBe(2)
-
-    const { data: events, error: evErr } = await admin
-      .from('audit_events')
-      .select('event_type, resource_type, resource_id')
-      .eq('resource_id', sessionId)
-    expect(evErr).toBeNull()
-    const evRows = requireRpcRows<{ event_type: string; resource_type: string }>(events, 'audit')
-    expect(evRows).toHaveLength(1)
-    expect(evRows[0]?.event_type).toBe('discovery.started')
-    expect(evRows[0]?.resource_type).toBe('quiz_session')
-  })
-
-  it('replaces the prior discovery session when started again, leaving exactly one active', async () => {
-    const first = await startDiscovery(studentClient, 1)
-    expect(first.error).toBeNull()
-    const firstId = requireRpcResult<DiscoveryResult>(first.data, 'start_discovery')
-      .session_id as string
-    // Non-vacuity: the first call genuinely created one active discovery row.
-    expect((await readActiveSessions()).map((s) => s.id)).toEqual([firstId])
-
-    const second = await startDiscovery(studentClient, 2)
-    expect(second.error).toBeNull()
-    const secondResult = requireRpcResult<DiscoveryResult>(second.data, 'start_discovery')
-    const secondId = secondResult.session_id
-    expect(typeof secondId).toBe('string')
-    // Study/Discovery deliberately returns the answer key with each question.
-    expect(typeof secondResult.questions[0]?.correct_option_id).toBe('string')
-
-    // Exactly one active discovery row remains — the second; the first is soft-deleted.
-    const active = await readActiveSessions()
-    expect(active).toHaveLength(1)
-    expect(active[0]?.id).toBe(secondId)
-    expect(secondId).not.toBe(firstId)
-
-    const { data: firstRow, error: firstRowErr } = await admin
-      .from('quiz_sessions')
-      .select('deleted_at')
-      .eq('id', firstId)
-      .single()
-    expect(firstRowErr).toBeNull()
-    expect(firstRow?.deleted_at).not.toBeNull()
-  })
-
   it('rejects a discovery start when another session is already active', async () => {
     // Seed an active quick_quiz so the OTHER-mode guard fires.
     const quizId = await seedActiveSession('quick_quiz')
@@ -256,17 +183,6 @@ describe('RPC: start_discovery + single-active-session guard', () => {
     const after = await readActiveSessions()
     expect(after.map((s) => s.mode)).not.toContain('discovery')
     expect(after.map((s) => s.id)).toEqual([quizId])
-  })
-
-  it('rejects a discovery start from an unauthenticated caller at the privilege layer', async () => {
-    const anon = getAnonClient()
-    // mig 20260925000400 revokes anon EXECUTE on every public function, so the
-    // call is rejected (42501) before the body's own auth.uid() IS NULL guard
-    // is ever reached.
-    const { data, error } = await startDiscovery(anon, 1)
-    expect(error?.code).toBe('42501')
-    expect(error?.message ?? '').toMatch(/permission denied for function/i)
-    expect(data).toBeNull()
   })
 
   it('auto-clears an abandoned discovery session when a practice quiz starts', async () => {

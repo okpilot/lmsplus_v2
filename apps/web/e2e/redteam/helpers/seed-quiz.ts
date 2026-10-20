@@ -1,7 +1,5 @@
 import { getAdminClient } from '../../helpers/supabase'
 
-type QuestionScope = { orgId: string; subjectId: string; topicId?: string; questionType?: string }
-
 /**
  * Pick the first subject (by `code` ASC) in `orgId` whose active, non-deleted
  * question count meets `minActiveQuestions`, then the first topic within that
@@ -14,17 +12,16 @@ type QuestionScope = { orgId: string; subjectId: string; topicId?: string; quest
  * subject with zero questions, that pattern intermittently picked an empty
  * subject and crashed `start_quiz_session` (issue #622).
  *
- * `questionType` restricts every count to that question type.
- * Throws if no subject or topic meets the threshold.
+ * Throws with a descriptive message if no subject or no topic meets the
+ * threshold, so test failures are loud rather than silent.
  */
 export async function pickSubjectWithQuestions(
   admin: ReturnType<typeof getAdminClient>,
-  opts: Pick<QuestionScope, 'orgId' | 'questionType'> & {
-    minActiveQuestions?: number
-    topicMinQuestions?: number
-  },
+  opts: { orgId: string; minActiveQuestions?: number; topicMinQuestions?: number },
 ): Promise<{ subjectId: string; subjectCode: string; topicId: string }> {
-  const { orgId, questionType, minActiveQuestions = 1, topicMinQuestions = 1 } = opts
+  const { orgId } = opts
+  const minActiveQuestions = opts.minActiveQuestions ?? 1
+  const topicMinQuestions = opts.topicMinQuestions ?? 1
 
   // easa_subjects is shared reference data (no organization_id, no deleted_at).
   // Org scoping lives on `questions` and is enforced by countActiveQuestions below.
@@ -37,12 +34,12 @@ export async function pickSubjectWithQuestions(
     throw new Error(`pickSubjectWithQuestions: no easa_subjects found (orgId=${orgId})`)
 
   for (const subject of subjects) {
-    const scope = { orgId, subjectId: subject.id, questionType }
-    const subjectQCount = await countActiveQuestions(admin, scope)
+    const subjectQCount = await countActiveQuestions(admin, { orgId, subjectId: subject.id })
     if (subjectQCount < minActiveQuestions) continue
 
     const topicId = await findTopicWithQuestions(admin, {
-      ...scope,
+      orgId,
+      subjectId: subject.id,
       subjectCode: subject.code,
       topicMinQuestions,
     })
@@ -58,16 +55,16 @@ export async function pickSubjectWithQuestions(
 
 async function findTopicWithQuestions(
   admin: ReturnType<typeof getAdminClient>,
-  opts: QuestionScope & { subjectCode: string; topicMinQuestions: number },
+  opts: { orgId: string; subjectId: string; subjectCode: string; topicMinQuestions: number },
 ): Promise<string | null> {
-  const { subjectCode, topicMinQuestions, ...scope } = opts
+  const { orgId, subjectId, subjectCode, topicMinQuestions } = opts
 
   // easa_topics is shared reference data (no organization_id, no deleted_at).
   // Org scoping is enforced by the countActiveQuestions call below.
   const { data: topics, error: topicsError } = await admin
     .from('easa_topics')
     .select('id, sort_order')
-    .eq('subject_id', scope.subjectId)
+    .eq('subject_id', subjectId)
     .order('sort_order', { ascending: true })
     .order('id', { ascending: true })
   if (topicsError)
@@ -75,7 +72,7 @@ async function findTopicWithQuestions(
   if (!topics || topics.length === 0) return null
 
   for (const topic of topics) {
-    const count = await countActiveQuestions(admin, { ...scope, topicId: topic.id })
+    const count = await countActiveQuestions(admin, { orgId, subjectId, topicId: topic.id })
     if (count >= topicMinQuestions) return topic.id
   }
   return null
@@ -83,7 +80,7 @@ async function findTopicWithQuestions(
 
 async function countActiveQuestions(
   admin: ReturnType<typeof getAdminClient>,
-  opts: QuestionScope,
+  opts: { orgId: string; subjectId: string; topicId?: string },
 ): Promise<number> {
   let q = admin
     .from('questions')
@@ -93,7 +90,6 @@ async function countActiveQuestions(
     .eq('status', 'active')
     .is('deleted_at', null)
   if (opts.topicId) q = q.eq('topic_id', opts.topicId)
-  if (opts.questionType) q = q.eq('question_type', opts.questionType)
   const { count, error } = await q
   if (error)
     throw new Error(
