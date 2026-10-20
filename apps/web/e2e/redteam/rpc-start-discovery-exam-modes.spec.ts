@@ -6,8 +6,9 @@
  *       it raise another_session_active with no payload and no discovery row. JA pins mock_exam,
  *       JI pins quick_quiz. Control: with no session live the same call returns the key.
  *
- * Hermetic (code-style.md §7): questions are setupEoFixtures rows (E2E_REDTEAM_EO_MARKER),
- * soft-deleted in afterAll; sessions are soft-deleted in afterEach.
+ * Hermetic (code-style.md §7): questions are setupEoFixtures rows (E2E_REDTEAM_EO_MARKER) and
+ * the victim's flag on the drawn question, soft-deleted in afterAll; sessions are soft-deleted
+ * in afterEach.
  */
 
 import { expect, test } from '@playwright/test'
@@ -40,11 +41,37 @@ test.describe('Red Team: start_discovery refused under every live non-discovery 
       .single()
     if (error || !q) throw new Error(`subject lookup: ${error?.message}`)
     subjectId = q.subject_id as string
+    const { error: flagErr } = await fx.admin
+      .from('flagged_questions')
+      .upsert(
+        { student_id: fx.victimUserId, question_id: fx.egMcActiveId, deleted_at: null },
+        { onConflict: 'student_id,question_id' },
+      )
+    if (flagErr) throw new Error(`flag seed: ${flagErr.message}`)
     await clearOpenSessions(fx.admin, fx.victimUserId, TAG)
   })
 
   test.afterAll(async () => {
-    await cleanupEoFixtures(fx.admin, fx.createdQuestionIds)
+    const errors: string[] = []
+    try {
+      const { data, error } = await fx.admin
+        .from('flagged_questions')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('student_id', fx.victimUserId)
+        .eq('question_id', fx.egMcActiveId)
+        .is('deleted_at', null)
+        .select('question_id')
+      if (error) throw new Error(`flag cleanup: ${error.message}`)
+      if ((data?.length ?? 0) > 0) console.info(`[${TAG}] unflagged ${data?.length}`)
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
+    }
+    try {
+      await cleanupEoFixtures(fx.admin, fx.createdQuestionIds)
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
+    }
+    if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   })
 
   test.afterEach(async () => {
@@ -57,7 +84,7 @@ test.describe('Red Team: start_discovery refused under every live non-discovery 
       p_topic_ids: null,
       p_subtopic_ids: null,
       p_count: 500,
-      p_filters: null,
+      p_filters: ['flagged'],
     })
 
   async function openModes(): Promise<string[]> {

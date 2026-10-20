@@ -19,7 +19,7 @@ export const E2E_REDTEAM_EN_SOFTDEL_STUDENT_PASSWORD = 'redteam-softdel-report-k
 // start RPCs. Distinct email so a soft-delete blast radius stays bounded to the specs using it.
 export const E2E_REDTEAM_EO_SOFTDEL_STUDENT_EMAIL = 'redteam-softdel-study-student@lmsplus.local'
 export const E2E_REDTEAM_EO_SOFTDEL_STUDENT_PASSWORD = 'redteam-softdel-study-student-2026!'
-// Study/Discovery start specs (rpc-start-quiz-one-rpc*.spec.ts): marks the throwaway
+// start_discovery / start_practice_quiz red-team specs: marks the throwaway
 // MC/short_answer questions they insert (egmont + redteam-other-org) so cleanup/maintenance
 // can target them by question_text/question_number. start_discovery deliberately returns
 // the MC answer key for Study Mode, so these specs pin the org / soft-delete / status /

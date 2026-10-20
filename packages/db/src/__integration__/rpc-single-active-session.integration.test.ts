@@ -9,9 +9,10 @@ import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient }
 // Single-active-session invariant (#1011, migs 136–142): a student may hold AT
 // MOST ONE active (ended_at IS NULL AND deleted_at IS NULL) quiz_sessions row
 // across ALL modes. Backstop = partial unique index
-// uq_one_active_session_per_student; every start RPC auto-soft-deletes an
-// abandoned discovery row, then blocks on any OTHER active session it won't
-// itself resume. This suite exercises the guard against the real local Postgres
+// uq_one_active_session_per_student; the migs 138–141 start RPCs auto-soft-delete
+// an abandoned discovery row, then block on any OTHER active session they won't
+// themselves resume; start_discovery raises on any live non-discovery session,
+// then replaces the caller's own discovery row. This suite exercises the guard against the real local Postgres
 // (mocked clients can't see the partial unique index or the CHECK widening).
 
 type ActiveSessionRow = {

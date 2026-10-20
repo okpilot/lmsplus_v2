@@ -1,5 +1,5 @@
 /**
- * Shared setup for the one-RPC quiz-start red-team specs (rpc-start-quiz-one-rpc*.spec.ts).
+ * Shared setup for the start_discovery / start_practice_quiz red-team specs.
  *
  * Seeds throwaway, marker-tagged questions (egmont active/deleted/draft MC, an egmont
  * short_answer, and an org-B active MC) plus the egmont/org-B scaffolding. This module
@@ -55,7 +55,7 @@ export type EoFixtures = {
   createdQuestionIds: Set<string>
 }
 
-// Seed the egmont/org-B scaffolding and the throwaway questions the rpc-start-quiz-one-rpc* specs read.
+// Seed the egmont/org-B scaffolding and the throwaway questions the start_discovery / start_practice_quiz specs read.
 // Returns the full fixture context; each spec stores it and tears it down via
 // cleanupEoFixtures. Each invocation inserts its OWN marker-tagged rows (unique
 // question_number per row) so two specs never share or mutate each other's data.
