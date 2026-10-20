@@ -915,6 +915,8 @@ verb_noun pattern:
   submit_quiz_answer         ← write, atomic: single answer + response log + last_was_correct; idempotent dup-gate (mig 112, #856); reads from questions.correct_option_id (mig 112, #823); §15 frozen-config carve-out — no deleted_at filter on the question lookup (mig 123, #855)
   start_quiz_session         ← write, atomic: session + locked question set; validates p_question_ids (raises 'no_questions_provided' / 'invalid_question_ids' / 'too_many_questions' when array length > 500); single-active-session guard raises 'another_session_active' if any other-mode active session exists (mig 141, #1011)
   start_discovery_session    ← write, student: create the real ephemeral 'discovery' (Study Mode/Discovery) session row; persists the MC id set in config.question_ids; validates p_question_ids (mirrors start_quiz_session); single-active-session guard raises 'another_session_active' (mig 137, #1011); ephemeral + non-resumable (localStorage firewall rejects 'discovery') + nothing-scored; torn down by the endDiscovery Server Action (soft-delete) on Exit or auto-soft-deleted by the next start RPC; SECURITY DEFINER, EXECUTE TO authenticated
+  start_practice_quiz        ← write, student: draw + start in one call — `get_random_question_ids` draw (same pool, 500 cap) then `start_quiz_session('quick_quiz', …)`; returns `{session_id, question_ids}`; empty draw → `session_id` null, no row; guards live in `start_quiz_session`; raises 'user not found or inactive' for a soft-deleted caller on the empty path; SECURITY INVOKER, EXECUTE TO authenticated (mig `20261020000100`, #1548); old RPCs remain until the app switches
+  start_discovery            ← write, student: Discovery start in one call — MC-only own-org draw, discovery `quiz_sessions` row, `discovery.started` audit, answer-key payload (`get_study_questions` columns incl. `correct_option_id`) and `flagged_ids`; returns `{session_id, questions, flagged_ids}`; empty draw → `session_id` null, no row; DELIBERATE answer-key exposure; raises 'not_authenticated' / 'user_not_found_or_inactive' / 'another_session_active' / 'active_exam_session'; no replay branch; SECURITY DEFINER, EXECUTE TO authenticated (mig `20261020000100`, #1548); `start_discovery_session` + `get_study_questions` remain until the app switches
   start_exam_session         ← write, atomic: read exam config + random question selection + session creation (mock_exam mode); auto-completes overdue same-subject session before duplicate-active guard; single-active-session guard raises 'another_session_active' if a non-mock-exam active session exists (mig 138, #1011); maps unique_violation to friendly domain error (mig 088, #754); returns started_at
   upsert_exam_config         ← write, atomic: upsert exam_configs + replace exam_config_distributions (admin-only, SECURITY DEFINER)
   complete_overdue_exam_session ← write, atomic: close past-deadline mock_exam OR internal_exam OR vfr_rt_exam session, grades saved `quiz_session_progress` answers via `_grade_session_progress` then scores via `_score_graded_session`; never raises on an unusable config.question_ids (the start RPCs PERFORM it): such a session completes with score 0 and audit reason `overdue_config_unusable` (migration 20261004000400, #1026), audit exam.expired / internal_exam.expired / vfr_rt_exam.expired (idempotent; widened in mig 063 / 20260429000008, extended for vfr_rt_exam in mig 102; last_active_at stamped by trigger on quiz_sessions.ended_at update; mig 092)
@@ -1883,6 +1885,24 @@ SET search_path = public
 ```
 
 `GRANT EXECUTE ON FUNCTION get_study_questions(uuid[]) TO authenticated;`
+
+---
+
+#### `start_discovery` — Discovery start in one RPC (mig `20261020000100`, #1548)
+
+`start_discovery(p_subject_id, p_topic_ids, p_subtopic_ids, p_count, p_filters, p_calc_mode DEFAULT 'all', p_has_image DEFAULT 'all') RETURNS jsonb` — `{session_id, questions[], flagged_ids[]}`. `SECURITY DEFINER`, `SET search_path = public`, EXECUTE TO `authenticated` (REVOKE FROM PUBLIC, anon).
+
+Order: `auth.uid()` null → `not_authenticated`; active-user + org read → `user_not_found_or_inactive`; soft-delete the caller's own active `discovery` rows, then any other active session → `another_session_active`; any active non-`smart_review`/`quick_quiz`/`discovery` session → `active_exam_session`; draw from `_filtered_question_pool(…, 'multiple_choice')` joined to `questions.organization_id = v_org_id` (explicit: DEFINER bypasses the RLS that scopes the pool), `ORDER BY random() LIMIT LEAST(GREATEST(COALESCE(p_count,0),0),500)`; empty draw → `session_id` null, `questions` and `flagged_ids` empty, no session or audit row; INSERT `quiz_sessions` (`mode='discovery'`, `config.question_ids` = draw order) with `EXCEPTION WHEN unique_violation THEN RAISE 'another_session_active'` (no replay branch); `discovery.started` audit event; `questions` = `get_study_questions` columns in draw order; `flagged_ids` = the caller's `flagged_questions` rows with `deleted_at IS NULL` within the draw.
+
+Replaces the `get_random_question_ids` + flag lookup + `start_discovery_session` + `get_study_questions` sequence. Those RPCs stay until the app switches over.
+
+---
+
+#### `start_practice_quiz` — practice start in one RPC (mig `20261020000100`, #1548)
+
+`start_practice_quiz(p_subject_id, p_topic_ids, p_subtopic_ids, p_count, p_filters, p_calc_mode DEFAULT 'all', p_has_image DEFAULT 'all') RETURNS jsonb` — `{session_id, question_ids[]}`. `SECURITY INVOKER`, `SET search_path = public`, EXECUTE TO `authenticated` (REVOKE FROM PUBLIC, anon).
+
+Draws with the `get_random_question_ids` pool and 500 cap (no type restriction), then `start_quiz_session('quick_quiz', p_subject_id, <single topic id or NULL>, ids)`. Every start guard (auth, active user, mode, `another_session_active`, id validation, audit) runs inside `start_quiz_session`. Empty draw → `session_id` null, no row, and a soft-deleted caller raises `user not found or inactive` (the `start_quiz_session` gate is skipped on that path). Replaces `get_random_question_ids` + `start_quiz_session` as called by `startQuizSession`; both RPCs stay until the app switches over.
 
 ---
 

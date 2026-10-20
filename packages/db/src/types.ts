@@ -1943,6 +1943,18 @@ export type Database = {
         }
         Returns: undefined
       }
+      start_discovery: {
+        Args: {
+          p_calc_mode?: string
+          p_count: number
+          p_filters: string[]
+          p_has_image?: string
+          p_subject_id: string
+          p_subtopic_ids: string[]
+          p_topic_ids: string[]
+        }
+        Returns: Json
+      }
       start_discovery_session: {
         Args: { p_question_ids: string[]; p_subject_id: string }
         Returns: string
@@ -1958,6 +1970,18 @@ export type Database = {
           time_limit_seconds: number
           total_questions: number
         }[]
+      }
+      start_practice_quiz: {
+        Args: {
+          p_calc_mode?: string
+          p_count: number
+          p_filters: string[]
+          p_has_image?: string
+          p_subject_id: string
+          p_subtopic_ids: string[]
+          p_topic_ids: string[]
+        }
+        Returns: Json
       }
       start_quiz_session: {
         Args: {
