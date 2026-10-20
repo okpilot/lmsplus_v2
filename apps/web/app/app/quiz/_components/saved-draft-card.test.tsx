@@ -8,8 +8,8 @@ vi.mock('next/navigation', () => ({
 }))
 
 const mockDeleteDraft = vi.fn()
-vi.mock('../actions/draft-delete', () => ({
-  deleteDraft: (...args: unknown[]) => mockDeleteDraft(...args),
+vi.mock('../actions/discard-and-refresh', () => ({
+  deleteDraftAndRefresh: (...args: unknown[]) => mockDeleteDraft(...args),
 }))
 
 const mockResumeQuizSession = vi.fn()
@@ -140,16 +140,15 @@ describe('SavedDraftCard', () => {
     expect(mockDeleteDraft).not.toHaveBeenCalled()
   })
 
-  it('calls deleteDraft with draftId and refreshes on delete', async () => {
+  it('deletes the draft in one request without a separate router refresh', async () => {
     render(<SavedDraftCard drafts={[DRAFT]} savedSessions={[]} />)
     fireEvent.click(screen.getByTestId('delete-draft'))
 
     await waitFor(() => {
       expect(mockDeleteDraft).toHaveBeenCalledWith({ draftId: 'draft-1' })
     })
-    await waitFor(() => {
-      expect(mockRouterRefresh).toHaveBeenCalled()
-    })
+    await new Promise((r) => setTimeout(r, 0))
+    expect(mockRouterRefresh).not.toHaveBeenCalled()
   })
 
   it('shows error when delete fails', async () => {

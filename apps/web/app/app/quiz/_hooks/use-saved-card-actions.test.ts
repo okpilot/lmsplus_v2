@@ -11,7 +11,9 @@ const { mockResume, mockDiscard, mockPush, mockRefresh } = vi.hoisted(() => ({
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mockPush, refresh: mockRefresh }) }))
 vi.mock('../actions/saved-quiz', () => ({
   resumeSavedQuiz: (...a: unknown[]) => mockResume(...a),
-  discardSavedQuiz: (...a: unknown[]) => mockDiscard(...a),
+}))
+vi.mock('../actions/discard-and-refresh', () => ({
+  discardSavedQuizAndRefresh: (...a: unknown[]) => mockDiscard(...a),
 }))
 vi.mock('../session/_utils/quiz-device-id', () => ({ getQuizDeviceId: () => 'device-1' }))
 
@@ -104,13 +106,13 @@ describe('useSavedCardActions', () => {
     await waitFor(() => expect(result.current.error).toBe(mapped))
   })
 
-  it('refreshes the list after a confirmed delete', async () => {
+  it('deletes in one request without a separate router refresh after a confirmed delete', async () => {
     const { result } = renderHook(() => useSavedCardActions('s1'))
 
     await act(() => result.current.remove())
 
     expect(mockDiscard).toHaveBeenCalledWith({ sessionId: 's1' })
-    expect(mockRefresh).toHaveBeenCalled()
+    expect(mockRefresh).not.toHaveBeenCalled()
   })
 
   it('does nothing when the delete is not confirmed', async () => {

@@ -8,8 +8,8 @@ const { mockDeleteDraft, mockResumeQuizSession } = vi.hoisted(() => ({
   mockResumeQuizSession: vi.fn(),
 }))
 
-vi.mock('../actions/draft-delete', () => ({
-  deleteDraft: (...args: unknown[]) => mockDeleteDraft(...args),
+vi.mock('../actions/discard-and-refresh', () => ({
+  deleteDraftAndRefresh: (...args: unknown[]) => mockDeleteDraft(...args),
 }))
 
 vi.mock('../actions/resume', () => ({
@@ -208,11 +208,13 @@ describe('DraftCard — Delete', () => {
     await waitFor(() => expect(mockDeleteDraft).not.toHaveBeenCalled())
   })
 
-  it('calls router.refresh after successful delete', async () => {
+  it('deletes in one request without a separate router refresh', async () => {
     render(<DraftCard draft={DRAFT} />)
     fireEvent.click(screen.getByTestId('delete-draft'))
 
-    await waitFor(() => expect(mockRouterRefresh).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(mockDeleteDraft).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(screen.getByTestId('delete-draft')).not.toBeDisabled())
+    expect(mockRouterRefresh).not.toHaveBeenCalled()
   })
 
   it('shows Deleting... while delete is in progress', () => {
