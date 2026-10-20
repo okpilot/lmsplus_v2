@@ -120,6 +120,7 @@ describe('startQuizSession', () => {
     ['non-object payload', 'session-123'],
     ['missing session id', { question_ids: ['q1'] }],
     ['non-string session id', { session_id: 42, question_ids: ['q1'] }],
+    ['empty session id', { session_id: '', question_ids: ['q1'] }],
     ['non-array question ids', { session_id: SESSION_ID, question_ids: 'q1' }],
     ['non-string question id', { session_id: SESSION_ID, question_ids: ['q1', 7] }],
     ['session without questions', { session_id: SESSION_ID, question_ids: [] }],

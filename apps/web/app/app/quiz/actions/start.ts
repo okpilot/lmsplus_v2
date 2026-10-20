@@ -27,7 +27,7 @@ function parseStarted(data: unknown): Started | 'empty' | null {
     return null
   }
   if (session_id === null && question_ids.length === 0) return 'empty'
-  if (typeof session_id !== 'string' || question_ids.length === 0) return null
+  if (typeof session_id !== 'string' || session_id === '' || question_ids.length === 0) return null
   return { sessionId: session_id, questionIds: question_ids }
 }
 

@@ -211,6 +211,7 @@ describe('startStudy — error path', () => {
     ['null payload', null],
     ['non-object payload', 'oops'],
     ['non-string session id', { session_id: 42, questions: [makeRow(Q1)], flagged_ids: [] }],
+    ['empty session id', { session_id: '', questions: [makeRow(Q1)], flagged_ids: [] }],
     [
       'session without any parseable question',
       { session_id: CREATED_SESSION_ID, questions: [{ id: 1 }], flagged_ids: [] },
@@ -258,6 +259,13 @@ describe('startStudy — malformed payload that already created a session', () =
 
   it('does not end any session when the payload carries no session id', async () => {
     mockRpc.mockResolvedValue(started({ session_id: 42 }))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    await startStudy(VALID_INPUT)
+    expect(mockEndDiscovery).not.toHaveBeenCalled()
+  })
+
+  it('does not end any session when the payload carries an empty session id', async () => {
+    mockRpc.mockResolvedValue(started({ session_id: '' }))
     vi.spyOn(console, 'error').mockImplementation(() => {})
     await startStudy(VALID_INPUT)
     expect(mockEndDiscovery).not.toHaveBeenCalled()
