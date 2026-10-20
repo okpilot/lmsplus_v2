@@ -272,6 +272,22 @@ describe('RPC: get_restored_feedback', () => {
     expect(stripIdentity(feedback[0]!)).toEqual(shortChecked)
   })
 
+  it('returns feedback for an answer saved without a check call, matching what checking it returns', async () => {
+    const sessionId = await startPractice(f, 'quick_quiz', [mcId(), f.shortId])
+    const { error: saveErr } = await f.student.rpc('save_quiz_answer', {
+      p_session_id: sessionId,
+      p_question_id: f.shortId,
+      p_answer: { response_text: 'wilco' },
+      p_time_spent_ms: 100,
+      p_device_id: null,
+    })
+    expect(saveErr).toBeNull()
+    const feedback = await restored(sessionId)
+    expect(feedback.map((e) => e.question_id)).toEqual([f.shortId])
+    const checked = await check(sessionId, f.shortId, { p_response_text: 'wilco' })
+    expect(stripIdentity(feedback[0]!)).toEqual(checked)
+  })
+
   it('returns feedback for the answered question of a smart_review session', async () => {
     const sessionId = await startPractice(f, 'smart_review', [mcId(), f.shortId])
     const checked = await check(sessionId, mcId(), { p_selected_option_id: 'a' })
