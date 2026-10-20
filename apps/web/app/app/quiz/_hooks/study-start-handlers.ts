@@ -115,7 +115,7 @@ export function buildStudyStartHandler(deps: StudyStartDeps) {
     deps.setError(null)
     try {
       const result = await startStudy(buildStartStudyPayload(deps))
-      // result.error keeps the action's mapped message inline (e.g. active-exam deny).
+      // result.error keeps the action's mapped message inline (e.g. another session active).
       if (!result.success) return failStart(deps, result.error)
       if (result.questions.length === 0) {
         return failStart(deps, 'No questions match these filters.')
