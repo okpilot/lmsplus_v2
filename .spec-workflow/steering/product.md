@@ -48,7 +48,7 @@ The primary competitive baseline is Aviationexam. LMS Plus differentiates by off
 
 13. **VFR RT Training**: Slovenia VFR radiotelephony practice (`apps/web/app/app/vfr-rt/`) with five question types — MC, short_answer, dialog_fill, ordering, diagram_label — delivered on the shared quiz UI.
 
-14. **Study Mode ("Discovery")**: Answer-revealed MC practice surfaced as the Discovery segment of quiz setup (`get_study_questions` RPC, ephemeral non-scored discovery session).
+14. **Study Mode ("Discovery")**: Answer-revealed MC practice surfaced as the Discovery segment of quiz setup (`start_discovery` RPC, ephemeral non-scored discovery session).
 
 ### Planned (Fast-Follow)
 

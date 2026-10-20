@@ -3,7 +3,6 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import { verifySessionUser } from '@/lib/auth/verify-session-user'
-import { getRandomQuestionIds } from '@/lib/queries/quiz-session-queries'
 import { rpc } from '@/lib/supabase-rpc'
 import type { StartQuizResult } from '../types'
 import { blockedFailure, type WithBlocked } from './_blocked-start'
@@ -18,6 +17,57 @@ const StartQuizInput = z.object({
   imageMode: z.enum(['all', 'only', 'exclude']).default('all'),
 })
 
+type Started = { sessionId: string; questionIds: string[] }
+
+/** Narrows the `start_practice_quiz` payload; 'empty' for a zero-row draw, null when malformed. */
+function parseStarted(data: unknown): Started | 'empty' | null {
+  if (data === null || typeof data !== 'object') return null
+  const { session_id, question_ids } = data as Record<string, unknown>
+  if (!Array.isArray(question_ids) || !question_ids.every((id) => typeof id === 'string')) {
+    return null
+  }
+  if (session_id === null && question_ids.length === 0) return 'empty'
+  if (typeof session_id !== 'string' || session_id === '' || question_ids.length === 0) return null
+  return { sessionId: session_id, questionIds: question_ids }
+}
+
+type Supabase = Awaited<ReturnType<typeof createServerSupabaseClient>>
+
+/** One round trip: the RPC draws the ids and starts the session (and decides the stored topic). */
+function callStartPracticeQuiz(supabase: Supabase, input: z.infer<typeof StartQuizInput>) {
+  return rpc<unknown>(supabase, 'start_practice_quiz', {
+    p_subject_id: input.subjectId,
+    p_topic_ids: input.topicIds ?? null,
+    p_subtopic_ids: input.subtopicIds ?? null,
+    p_count: input.count,
+    p_filters: input.filters,
+    p_calc_mode: input.calcMode,
+    p_has_image: input.imageMode,
+  })
+}
+
+/** Maps the `start_practice_quiz` RPC response to the action result. */
+function toStartResult(res: {
+  data: unknown
+  error: { message: string } | null
+}): WithBlocked<StartQuizResult> {
+  if (res.error) {
+    console.error('[startQuizSession] RPC error:', res.error.message)
+    const blocked = blockedFailure(res.error.message)
+    if (blocked) return blocked
+    return { success: false, error: 'Failed to start session' }
+  }
+  const started = parseStarted(res.data)
+  if (!started) {
+    console.error('[startQuizSession] start_practice_quiz returned a malformed payload')
+    return { success: false, error: 'Failed to start session' }
+  }
+  if (started === 'empty') {
+    return { success: false, error: 'No questions available for this selection' }
+  }
+  return { success: true, ...started }
+}
+
 export async function startQuizSession(raw: unknown): Promise<WithBlocked<StartQuizResult>> {
   try {
     const supabase = await createServerSupabaseClient()
@@ -31,35 +81,7 @@ export async function startQuizSession(raw: unknown): Promise<WithBlocked<StartQ
       return { success: false, error: 'Invalid input' }
     }
 
-    const questionIds = await getRandomQuestionIds({
-      subjectId: input.subjectId,
-      topicIds: input.topicIds,
-      subtopicIds: input.subtopicIds,
-      count: input.count,
-      filters: input.filters,
-      calcMode: input.calcMode,
-      imageMode: input.imageMode,
-    })
-
-    if (questionIds.length === 0) {
-      return { success: false, error: 'No questions available for this selection' }
-    }
-
-    const { data: sessionId, error } = await rpc<string>(supabase, 'start_quiz_session', {
-      p_mode: 'quick_quiz',
-      p_subject_id: input.subjectId,
-      p_topic_id: input.topicIds?.length === 1 ? input.topicIds[0] : null,
-      p_question_ids: questionIds,
-    })
-
-    if (error || !sessionId) {
-      console.error('[startQuizSession] RPC error:', error?.message)
-      const blocked = blockedFailure(error?.message)
-      if (blocked) return blocked
-      return { success: false, error: 'Failed to start session' }
-    }
-
-    return { success: true, sessionId, questionIds }
+    return toStartResult(await callStartPracticeQuiz(supabase, input))
   } catch (err) {
     console.error('[startQuizSession] Uncaught error:', err)
     return { success: false, error: 'Something went wrong. Please try again.' }

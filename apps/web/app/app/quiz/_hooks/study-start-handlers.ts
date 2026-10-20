@@ -65,16 +65,16 @@ function writeDiscoveryHandoff(
  * #1011) — the same reasoning `startStudy`'s own server-side teardown already
  * follows. This teardown is best-effort hygiene, NOT a prerequisite for anything:
  * every start RPC (migs 137/141/138/139/140) unconditionally soft-deletes the
- * caller's active discovery rows before evaluating its single-active guard, so an
- * orphaned row blocks no retry — and no surface reads it either (get-active-practice-
+ * caller's active discovery rows before evaluating its single-active guard, and
+ * start_discovery (mig 20261020000100) excludes discovery rows from its guard and
+ * soft-deletes them before its INSERT, so an orphaned row blocks no retry — and no surface reads it either (get-active-practice-
  * session filters to quick_quiz/smart_review), so it raises no stale resume prompt.
  * It is cleared to keep the table honest, nothing more. Never throws — a cleanup failure must not swallow the
  * caller's user-facing handoff error. If sessionId is missing (should not happen
- * once questions were returned — see study.ts), skip cleanup rather than fall back
+ * once questions were returned — startStudy rejects a payload without one), skip cleanup rather than fall back
  * to a blanket clear that would hit a different tab's session on ANY payload.
  *
- * See study.ts for why the id is not provably this request's own row (mig 137's
- * replay branch) and #1152 for the RPC OUT-flag fix.
+ * start_discovery has no replay branch, so the id is this request's own row.
  */
 async function endOrphanDiscovery(sessionId: string | undefined): Promise<void> {
   if (!sessionId) {
@@ -115,7 +115,7 @@ export function buildStudyStartHandler(deps: StudyStartDeps) {
     deps.setError(null)
     try {
       const result = await startStudy(buildStartStudyPayload(deps))
-      // result.error keeps the action's mapped message inline (e.g. active-exam deny).
+      // result.error keeps the action's mapped message inline (e.g. another session active).
       if (!result.success) return failStart(deps, result.error)
       if (result.questions.length === 0) {
         return failStart(deps, 'No questions match these filters.')

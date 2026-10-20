@@ -2,10 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockVerifySessionUser, mockRpc, mockGetRandomQuestionIds } = vi.hoisted(() => ({
+const { mockVerifySessionUser, mockRpc } = vi.hoisted(() => ({
   mockVerifySessionUser: vi.fn(),
   mockRpc: vi.fn(),
-  mockGetRandomQuestionIds: vi.fn(),
 }))
 
 const mockClient = vi.hoisted(() => ({}))
@@ -22,332 +21,160 @@ vi.mock('@/lib/supabase-rpc', () => ({
   rpc: mockRpc,
 }))
 
-vi.mock('@/lib/queries/quiz-session-queries', () => ({
-  getRandomQuestionIds: mockGetRandomQuestionIds,
-}))
-
 // ---- Subject under test ---------------------------------------------------
 
 import { startQuizSession } from './start'
 
-// ---- Tests ----------------------------------------------------------------
+// ---- Fixtures -------------------------------------------------------------
+
+const SUBJECT_ID = '00000000-0000-4000-a000-000000000001'
+const TOPIC_ID = '00000000-0000-4000-a000-000000000020'
+const SUBTOPIC_ID = '00000000-0000-4000-a000-000000000030'
+const SESSION_ID = '00000000-0000-4000-a000-0000000000aa'
+
+function started(questionIds: string[] = ['q1', 'q2', 'q3']) {
+  return { data: { session_id: SESSION_ID, question_ids: questionIds }, error: null }
+}
 
 beforeEach(() => {
   vi.resetAllMocks()
+  mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
+  mockRpc.mockResolvedValue(started())
 })
+
+// ---- Tests ----------------------------------------------------------------
 
 describe('startQuizSession', () => {
   it('returns not-authenticated when the session has no verified user', async () => {
     mockVerifySessionUser.mockResolvedValue(null)
-    const result = await startQuizSession({
-      subjectId: '00000000-0000-4000-a000-000000000001',
-      count: 5,
-    })
+    const result = await startQuizSession({ subjectId: SUBJECT_ID, count: 5 })
     expect(result).toEqual({ success: false, error: 'Not authenticated' })
     expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
-  })
-
-  it('returns failure when no questions are available', async () => {
-    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
-    mockGetRandomQuestionIds.mockResolvedValue([])
-    const result = await startQuizSession({
-      subjectId: '00000000-0000-4000-a000-000000000001',
-      count: 5,
-    })
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe('No questions available for this selection')
-  })
-
-  it('surfaces a session-start failure', async () => {
-    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
-    mockGetRandomQuestionIds.mockResolvedValue(['q1', 'q2'])
-    mockRpc.mockResolvedValue({ data: null, error: { message: 'DB error' } })
-    const result = await startQuizSession({
-      subjectId: '00000000-0000-4000-a000-000000000001',
-      count: 5,
-    })
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe('Failed to start session')
-  })
-
-  it('tells the user to finish their other session when one is already active', async () => {
-    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
-    mockGetRandomQuestionIds.mockResolvedValue(['q1', 'q2'])
-    mockRpc.mockResolvedValue({ data: null, error: { message: 'another_session_active' } })
-    const result = await startQuizSession({
-      subjectId: '00000000-0000-4000-a000-000000000001',
-      count: 5,
-    })
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe(
-      'You already have an active session. Finish or discard it before starting a new one.',
-    )
-  })
-
-  it('flags the start as blocked when another session is already active', async () => {
-    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
-    mockGetRandomQuestionIds.mockResolvedValue(['q1', 'q2'])
-    mockRpc.mockResolvedValue({ data: null, error: { message: 'another_session_active' } })
-    const result = await startQuizSession({
-      subjectId: '00000000-0000-4000-a000-000000000001',
-      count: 5,
-    })
-    expect(result).toMatchObject({ success: false, blocked: true })
-  })
-
-  it('does not flag the start as blocked for an unrelated failure', async () => {
-    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
-    mockGetRandomQuestionIds.mockResolvedValue(['q1', 'q2'])
-    mockRpc.mockResolvedValue({ data: null, error: { message: 'unexpected db failure' } })
-    const result = await startQuizSession({
-      subjectId: '00000000-0000-4000-a000-000000000001',
-      count: 5,
-    })
-    expect(result.success).toBe(false)
-    expect(result).not.toHaveProperty('blocked', true)
-  })
-
-  it('returns success with sessionId and questionIds on happy path', async () => {
-    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
-    mockGetRandomQuestionIds.mockResolvedValue(['q1', 'q2', 'q3'])
-    mockRpc.mockResolvedValue({ data: 'session-123', error: null })
-    const result = await startQuizSession({
-      subjectId: '00000000-0000-4000-a000-000000000001',
-      count: 3,
-    })
-    expect(result.success).toBe(true)
-    if (!result.success) return
-    expect(result.sessionId).toBe('session-123')
-    expect(result.questionIds).toEqual(['q1', 'q2', 'q3'])
-  })
-
-  it('passes topicIds array to getRandomQuestionIds', async () => {
-    const TOPIC_ID = '00000000-0000-4000-a000-000000000020'
-    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
-    mockGetRandomQuestionIds.mockResolvedValue(['q1'])
-    mockRpc.mockResolvedValue({ data: 'sess-1', error: null })
-    await startQuizSession({
-      subjectId: '00000000-0000-4000-a000-000000000001',
-      topicIds: [TOPIC_ID],
-      count: 1,
-    })
-    expect(mockGetRandomQuestionIds).toHaveBeenCalledWith(
-      expect.objectContaining({ topicIds: [TOPIC_ID] }),
-    )
-  })
-
-  it('passes subtopicIds array to getRandomQuestionIds', async () => {
-    const SUBTOPIC_ID = '00000000-0000-4000-a000-000000000030'
-    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
-    mockGetRandomQuestionIds.mockResolvedValue(['q1'])
-    mockRpc.mockResolvedValue({ data: 'sess-1', error: null })
-    await startQuizSession({
-      subjectId: '00000000-0000-4000-a000-000000000001',
-      subtopicIds: [SUBTOPIC_ID],
-      count: 1,
-    })
-    expect(mockGetRandomQuestionIds).toHaveBeenCalledWith(
-      expect.objectContaining({ subtopicIds: [SUBTOPIC_ID] }),
-    )
-  })
-
-  it('passes filters array to getRandomQuestionIds', async () => {
-    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
-    mockGetRandomQuestionIds.mockResolvedValue(['q1'])
-    mockRpc.mockResolvedValue({ data: 'sess-1', error: null })
-    await startQuizSession({
-      subjectId: '00000000-0000-4000-a000-000000000001',
-      count: 1,
-      filters: ['unseen', 'incorrect'],
-    })
-    expect(mockGetRandomQuestionIds).toHaveBeenCalledWith(
-      expect.objectContaining({ filters: ['unseen', 'incorrect'] }),
-    )
-  })
-
-  it("defaults filters to ['all'] when omitted", async () => {
-    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
-    mockGetRandomQuestionIds.mockResolvedValue(['q1'])
-    mockRpc.mockResolvedValue({ data: 'sess-1', error: null })
-    await startQuizSession({
-      subjectId: '00000000-0000-4000-a000-000000000001',
-      count: 1,
-    })
-    expect(mockGetRandomQuestionIds).toHaveBeenCalledWith(
-      expect.objectContaining({ filters: ['all'] }),
-    )
-  })
-
-  it('passes calcMode through to getRandomQuestionIds', async () => {
-    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
-    mockGetRandomQuestionIds.mockResolvedValue(['q1'])
-    mockRpc.mockResolvedValue({ data: 'sess-1', error: null })
-    await startQuizSession({
-      subjectId: '00000000-0000-4000-a000-000000000001',
-      count: 1,
-      calcMode: 'only',
-    })
-    expect(mockGetRandomQuestionIds).toHaveBeenCalledWith(
-      expect.objectContaining({ calcMode: 'only' }),
-    )
-  })
-
-  it("defaults calcMode to 'all' when omitted", async () => {
-    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
-    mockGetRandomQuestionIds.mockResolvedValue(['q1'])
-    mockRpc.mockResolvedValue({ data: 'sess-1', error: null })
-    await startQuizSession({
-      subjectId: '00000000-0000-4000-a000-000000000001',
-      count: 1,
-    })
-    expect(mockGetRandomQuestionIds).toHaveBeenCalledWith(
-      expect.objectContaining({ calcMode: 'all' }),
-    )
-  })
-
-  it('rejects an unknown calcMode value', async () => {
-    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
-    const result = await startQuizSession({
-      subjectId: '00000000-0000-4000-a000-000000000001',
-      count: 1,
-      calcMode: 'sometimes',
-    })
-    expect(result.success).toBe(false)
-    if (!result.success) expect(result.error).toBe('Invalid input')
-  })
-
-  it('filters the question pool by image presence when imageMode is provided', async () => {
-    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
-    mockGetRandomQuestionIds.mockResolvedValue(['q1'])
-    mockRpc.mockResolvedValue({ data: 'sess-1', error: null })
-    await startQuizSession({
-      subjectId: '00000000-0000-4000-a000-000000000001',
-      count: 1,
-      imageMode: 'only',
-    })
-    expect(mockGetRandomQuestionIds).toHaveBeenCalledWith(
-      expect.objectContaining({ imageMode: 'only' }),
-    )
-  })
-
-  it("defaults imageMode to 'all' when omitted", async () => {
-    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
-    mockGetRandomQuestionIds.mockResolvedValue(['q1'])
-    mockRpc.mockResolvedValue({ data: 'sess-1', error: null })
-    await startQuizSession({
-      subjectId: '00000000-0000-4000-a000-000000000001',
-      count: 1,
-    })
-    expect(mockGetRandomQuestionIds).toHaveBeenCalledWith(
-      expect.objectContaining({ imageMode: 'all' }),
-    )
-  })
-
-  it('rejects an unknown imageMode value', async () => {
-    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
-    const result = await startQuizSession({
-      subjectId: '00000000-0000-4000-a000-000000000001',
-      count: 1,
-      imageMode: 'sometimes',
-    })
-    expect(result.success).toBe(false)
-    if (!result.success) expect(result.error).toBe('Invalid input')
+    expect(mockRpc).not.toHaveBeenCalled()
   })
 
   it('rejects unauthenticated calls before input validation', async () => {
     mockVerifySessionUser.mockResolvedValue(null)
     const result = await startQuizSession({})
-    expect(result.success).toBe(false)
-    if (!result.success) expect(result.error).toBe('Not authenticated')
+    expect(result).toEqual({ success: false, error: 'Not authenticated' })
   })
 
-  it('returns failure for an invalid quiz configuration (missing subjectId)', async () => {
-    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
-    const result = await startQuizSession({})
-    expect(result.success).toBe(false)
-    if (!result.success) expect(result.error).toBe('Invalid input')
-  })
-
-  it('returns failure for a non-UUID subject ID', async () => {
-    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
-    const result = await startQuizSession({ subjectId: 'not-a-uuid', count: 5 })
-    expect(result.success).toBe(false)
-    if (!result.success) expect(result.error).toBe('Invalid input')
-  })
-
-  it('returns failure when topicIds contains a non-UUID', async () => {
-    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
-    const result = await startQuizSession({
-      subjectId: '00000000-0000-4000-a000-000000000001',
-      topicIds: ['not-a-uuid'],
-      count: 5,
+  it('starts a quiz with a single RPC call carrying the whole selection', async () => {
+    await startQuizSession({
+      subjectId: SUBJECT_ID,
+      topicIds: [TOPIC_ID],
+      subtopicIds: [SUBTOPIC_ID],
+      count: 7,
+      filters: ['unseen', 'incorrect'],
+      calcMode: 'only',
+      imageMode: 'exclude',
     })
-    expect(result.success).toBe(false)
-    if (!result.success) expect(result.error).toBe('Invalid input')
+    expect(mockRpc).toHaveBeenCalledTimes(1)
+    expect(mockRpc).toHaveBeenCalledWith(mockClient, 'start_practice_quiz', {
+      p_subject_id: SUBJECT_ID,
+      p_topic_ids: [TOPIC_ID],
+      p_subtopic_ids: [SUBTOPIC_ID],
+      p_count: 7,
+      p_filters: ['unseen', 'incorrect'],
+      p_calc_mode: 'only',
+      p_has_image: 'exclude',
+    })
   })
 
-  it('returns failure when subtopicIds contains a non-UUID', async () => {
-    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
-    const result = await startQuizSession({
-      subjectId: '00000000-0000-4000-a000-000000000001',
-      subtopicIds: ['bad-id'],
-      count: 5,
+  it("sends null scopes and the 'all' defaults when the selection omits them", async () => {
+    await startQuizSession({ subjectId: SUBJECT_ID, count: 5 })
+    expect(mockRpc).toHaveBeenCalledWith(mockClient, 'start_practice_quiz', {
+      p_subject_id: SUBJECT_ID,
+      p_topic_ids: null,
+      p_subtopic_ids: null,
+      p_count: 5,
+      p_filters: ['all'],
+      p_calc_mode: 'all',
+      p_has_image: 'all',
     })
-    expect(result.success).toBe(false)
-    if (!result.success) expect(result.error).toBe('Invalid input')
   })
 
-  it('returns failure when filters contains an unknown value', async () => {
-    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
-    const result = await startQuizSession({
-      subjectId: '00000000-0000-4000-a000-000000000001',
-      count: 5,
-      filters: ['random'],
+  it('returns the session id and question ids in draw order on success', async () => {
+    mockRpc.mockResolvedValue(started(['q3', 'q1', 'q2']))
+    const result = await startQuizSession({ subjectId: SUBJECT_ID, count: 3 })
+    expect(result).toEqual({
+      success: true,
+      sessionId: SESSION_ID,
+      questionIds: ['q3', 'q1', 'q2'],
     })
-    expect(result.success).toBe(false)
   })
 
   it('accepts count at the maximum allowed value (500)', async () => {
-    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
-    mockGetRandomQuestionIds.mockResolvedValue(['q1'])
-    mockRpc.mockResolvedValue({ data: 'sess-1', error: null })
-    const result = await startQuizSession({
-      subjectId: '00000000-0000-4000-a000-000000000001',
-      count: 500,
-    })
+    const result = await startQuizSession({ subjectId: SUBJECT_ID, count: 500 })
     expect(result.success).toBe(true)
   })
 
-  it('rejects count above the 500 question cap', async () => {
-    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
-    const result = await startQuizSession({
-      subjectId: '00000000-0000-4000-a000-000000000001',
-      count: 501,
+  it('reports no questions when the draw is empty', async () => {
+    mockRpc.mockResolvedValue({ data: { session_id: null, question_ids: [] }, error: null })
+    const result = await startQuizSession({ subjectId: SUBJECT_ID, count: 5 })
+    expect(result).toEqual({ success: false, error: 'No questions available for this selection' })
+  })
+
+  it.each([
+    ['null payload', null],
+    ['non-object payload', 'session-123'],
+    ['missing session id', { question_ids: ['q1'] }],
+    ['non-string session id', { session_id: 42, question_ids: ['q1'] }],
+    ['empty session id', { session_id: '', question_ids: ['q1'] }],
+    ['non-array question ids', { session_id: SESSION_ID, question_ids: 'q1' }],
+    ['non-string question id', { session_id: SESSION_ID, question_ids: ['q1', 7] }],
+    ['session without questions', { session_id: SESSION_ID, question_ids: [] }],
+  ])('fails with a generic message on a malformed payload (%s)', async (_label, data) => {
+    mockRpc.mockResolvedValue({ data, error: null })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await startQuizSession({ subjectId: SUBJECT_ID, count: 5 })
+    expect(result).toEqual({ success: false, error: 'Failed to start session' })
+    expect(consoleSpy).toHaveBeenCalled()
+  })
+
+  it('surfaces a session-start failure without leaking the database error', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'DB error' } })
+    const result = await startQuizSession({ subjectId: SUBJECT_ID, count: 5 })
+    expect(result).toEqual({ success: false, error: 'Failed to start session' })
+  })
+
+  it('tells the user to finish their other session when one is already active', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'another_session_active' } })
+    const result = await startQuizSession({ subjectId: SUBJECT_ID, count: 5 })
+    expect(result).toEqual({
+      success: false,
+      error: 'You already have an active session. Finish or discard it before starting a new one.',
+      blocked: true,
     })
+  })
+
+  it('does not flag the start as blocked for an unrelated failure', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'unexpected db failure' } })
+    const result = await startQuizSession({ subjectId: SUBJECT_ID, count: 5 })
     expect(result.success).toBe(false)
-    if (!result.success) expect(result.error).toBe('Invalid input')
+    expect(result).not.toHaveProperty('blocked', true)
+  })
+
+  it.each([
+    ['missing subjectId', {}],
+    ['non-UUID subject ID', { subjectId: 'not-a-uuid', count: 5 }],
+    ['non-UUID topic ID', { subjectId: SUBJECT_ID, topicIds: ['not-a-uuid'], count: 5 }],
+    ['non-UUID subtopic ID', { subjectId: SUBJECT_ID, subtopicIds: ['bad-id'], count: 5 }],
+    ['unknown filter', { subjectId: SUBJECT_ID, count: 5, filters: ['random'] }],
+    ['unknown calcMode', { subjectId: SUBJECT_ID, count: 1, calcMode: 'sometimes' }],
+    ['unknown imageMode', { subjectId: SUBJECT_ID, count: 1, imageMode: 'sometimes' }],
+    ['count above the 500 cap', { subjectId: SUBJECT_ID, count: 501 }],
+  ])('rejects invalid input without calling the RPC (%s)', async (_label, input) => {
+    const result = await startQuizSession(input)
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+    expect(mockRpc).not.toHaveBeenCalled()
   })
 
   it('returns failure and logs when an unexpected error is thrown', async () => {
-    mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
-    mockGetRandomQuestionIds.mockRejectedValue(new Error('unexpected DB failure'))
+    mockRpc.mockRejectedValue(new Error('unexpected DB failure'))
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    try {
-      const result = await startQuizSession({
-        subjectId: '00000000-0000-4000-a000-000000000001',
-        count: 5,
-      })
-      expect(result.success).toBe(false)
-      if (!result.success) expect(result.error).toBe('Something went wrong. Please try again.')
-      expect(consoleSpy).toHaveBeenCalledWith(
-        '[startQuizSession] Uncaught error:',
-        expect.any(Error),
-      )
-    } finally {
-      consoleSpy.mockRestore()
-    }
+    const result = await startQuizSession({ subjectId: SUBJECT_ID, count: 5 })
+    expect(result).toEqual({ success: false, error: 'Something went wrong. Please try again.' })
+    expect(consoleSpy).toHaveBeenCalledWith('[startQuizSession] Uncaught error:', expect.any(Error))
   })
 })

@@ -53,8 +53,8 @@ export async function getActivePracticeSession(): Promise<GetActivePracticeSessi
       .eq('student_id', user.id)
       // Practice modes are the only quiz_sessions a student can hold open without a
       // server-backed recovery surface: exams have ResumeExamBanner, and Discovery auto-clears
-      // on the next start (start_discovery_session soft-deletes prior discovery rows). BEFORE
-      // this lookup existed, a practice session abandoned in another browser was visible only
+      // on the next start that creates a session (every start RPC soft-deletes the caller's
+      // prior discovery rows). BEFORE this lookup existed, a practice session abandoned in another browser was visible only
       // via localStorage, so a cross-browser or cleared-storage student hit
       // `another_session_active` with no way out — which is what this exists to fix. It feeds
       // ActivePracticeBanner, whose Discard is the server-visible path.

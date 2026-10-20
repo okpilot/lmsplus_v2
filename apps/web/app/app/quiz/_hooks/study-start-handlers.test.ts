@@ -112,7 +112,7 @@ describe('buildStudyStartHandler — retryable failures', () => {
   it('allows a second attempt after the server rejects the start', async () => {
     mockStartStudy.mockResolvedValue({
       success: false,
-      error: 'Finish or exit your active exam first.',
+      error: 'Finish or exit your active session first.',
     })
     const deps = makeDeps()
     const handleStart = buildStudyStartHandler(deps)

@@ -1,12 +1,13 @@
 // App-layer integration tier (#925) — startQuizSession.
 //
-// Exercises the real startQuizSession Server Action against real Postgres under
-// real RLS. Validates the happy path (session + question ids returned), the
+// Exercises the real startQuizSession Server Action (one start_practice_quiz RPC) against real
+// Postgres under real RLS: happy path, topic storage, blocked second start, the
 // no-questions-available error, Zod parse rejection, and unauthenticated rejection.
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import {
   cleanupReferenceData,
   cleanupTestData,
+  clearActiveSessions,
   createTestOrg,
   createTestUser,
   fixtureSuffix,
@@ -28,6 +29,7 @@ const password = 'test-pass-123'
 
 let refs: ReferenceIds
 let emptyRefs: ReferenceIds
+let mixedRefs: ReferenceIds
 
 describe('startQuizSession (app-layer integration)', () => {
   beforeAll(async () => {
@@ -62,6 +64,28 @@ describe('startQuizSession (app-layer integration)', () => {
       count: 3,
     })
 
+    // A second topic (+ subtopic) on the SAME subject: a topic+subtopic draw can then fall
+    // outside the single requested topic.
+    mixedRefs = await seedReferenceData({
+      admin,
+      subjectCode: `ST_${suffix}`,
+      subjectName: `Start Subject ${suffix}`,
+      topicCode: `ST_${suffix}_T2`,
+      topicName: `Start Topic Two ${suffix}`,
+      subtopicCode: `ST_${suffix}_T2_S1`,
+      subtopicName: `Start Subtopic ${suffix}`,
+    })
+
+    await seedQuestions({
+      admin,
+      orgId,
+      createdBy: studentAId,
+      subjectId: mixedRefs.subjectId,
+      topicId: mixedRefs.topicId,
+      subtopicId: mixedRefs.subtopicId,
+      count: 2,
+    })
+
     // A second subject with NO seeded questions — exercises the zero-match path.
     emptyRefs = await seedReferenceData({
       admin,
@@ -83,13 +107,17 @@ describe('startQuizSession (app-layer integration)', () => {
 
     if (errors.length === 0) {
       try {
-        await cleanupReferenceData({ admin, refs: [refs, emptyRefs] })
+        await cleanupReferenceData({ admin, refs: [refs, mixedRefs, emptyRefs] })
       } catch (e) {
         errors.push(`cleanupReferenceData: ${e instanceof Error ? e.message : String(e)}`)
       }
     }
 
     if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
+  })
+
+  afterEach(async () => {
+    await clearActiveSessions({ admin, studentIds: [studentAId], label: 'int-start' })
   })
 
   it('starts a session and returns the session id and question ids', async () => {
@@ -106,6 +134,65 @@ describe('startQuizSession (app-layer integration)', () => {
     expect(typeof result.sessionId).toBe('string')
     expect(result.sessionId).toBeTruthy()
     expect(result.questionIds).toHaveLength(3)
+  })
+
+  it('stores the topic on the session when the whole draw sits in the single requested topic', async () => {
+    await signInAs(emailA, password)
+
+    const result = await startQuizSession({
+      subjectId: refs.subjectId,
+      topicIds: [refs.topicId],
+      count: 3,
+    })
+
+    expect(result.success).toBe(true)
+    if (!result.success) throw new Error(result.error)
+    const { data: row, error } = await admin
+      .from('quiz_sessions')
+      .select('mode, topic_id, total_questions')
+      .eq('id', result.sessionId)
+      .single()
+    expect(error).toBeNull()
+    expect(row).toMatchObject({
+      mode: 'quick_quiz',
+      topic_id: refs.topicId,
+      total_questions: 3,
+    })
+  })
+
+  it('stores no topic when a topic and subtopic selection draws beyond the topic', async () => {
+    await signInAs(emailA, password)
+
+    const result = await startQuizSession({
+      subjectId: refs.subjectId,
+      topicIds: [refs.topicId],
+      subtopicIds: mixedRefs.subtopicId ? [mixedRefs.subtopicId] : [],
+      count: 500,
+    })
+
+    expect(result.success).toBe(true)
+    if (!result.success) throw new Error(result.error)
+    // Non-vacuous: the draw really spans both topics (3 + 2 seeded questions).
+    expect(result.questionIds).toHaveLength(5)
+    const { data: row, error } = await admin
+      .from('quiz_sessions')
+      .select('topic_id')
+      .eq('id', result.sessionId)
+      .single()
+    expect(error).toBeNull()
+    expect(row?.topic_id).toBeNull()
+  })
+
+  it('blocks a second start while the first session is still active', async () => {
+    await signInAs(emailA, password)
+    const first = await startQuizSession({ subjectId: refs.subjectId, count: 3 })
+    expect(first.success).toBe(true)
+
+    const second = await startQuizSession({ subjectId: refs.subjectId, count: 3 })
+
+    expect(second.success).toBe(false)
+    if (second.success) throw new Error('expected failure')
+    expect(second).toMatchObject({ blocked: true })
   })
 
   it('returns an error when no questions match the selection', async () => {

@@ -14,9 +14,8 @@ type StudyConfigOptions = { userId: string; subjects: SubjectOption[]; preload?:
  * exam mode): like "New Quiz" it NAVIGATES to /app/quiz/session on start (use-study-
  * start writes the pre-marked handoff and reuses the real session runner).
  *
- * The discovery FETCH is MC-only (`startStudy` passes question_type
- * 'multiple_choice'), so the count path matches: `useFilteredCountSync` fires with
- * `questionType: 'multiple_choice'` even with no other active filter, and
+ * The discovery FETCH is MC-only (`start_discovery` draws MC only), so the count path
+ * matches: `useFilteredCountSync` fires with `questionType: 'multiple_choice'` even with no other active filter, and
  * `useAvailableCount` is given `preferFiltered: true` so the slider max / Start
  * button / count badge always reflect the real MC pool on a mixed subject (#1008).
  */

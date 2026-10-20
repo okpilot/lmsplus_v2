@@ -1,11 +1,11 @@
 'use server'
 
+import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
-import { getFlaggedQuestionIdsBounded } from '@/lib/queries/flagged-questions'
-import { getRandomQuestionIds } from '@/lib/queries/quiz-session-queries'
-import { getStudyQuestions, type StudyQuestion } from '@/lib/queries/study-queries'
-import { createDiscoverySession } from './_start-discovery-session'
-import { endDiscovery } from './end-discovery'
+import type { StudyQuestion } from '@/lib/queries/study-queries'
+import { rpc } from '@/lib/supabase-rpc'
+import { ANOTHER_SESSION_ACTIVE } from './_blocked-start'
+import { discardOrphanedSession, parseStarted } from './_study-start'
 
 const StartStudySchema = z.object({
   subjectId: z.uuid(),
@@ -21,74 +21,49 @@ export type StartStudyResult =
   | { success: true; questions: StudyQuestion[]; flaggedIds: string[]; sessionId?: string }
   | { success: false; error: string }
 
+const GENERIC_ERROR = 'Failed to start study session'
+
+/** One round trip: draw, discovery session, audit row, answer-key payload and flags. */
+function callStartDiscovery(input: z.infer<typeof StartStudySchema>) {
+  return createServerSupabaseClient().then((supabase) =>
+    rpc<unknown>(supabase, 'start_discovery', {
+      p_subject_id: input.subjectId,
+      p_topic_ids: input.topicIds ?? null,
+      p_subtopic_ids: input.subtopicIds ?? null,
+      p_count: input.count,
+      p_filters: input.filters ?? [],
+      p_calc_mode: input.calcMode ?? 'all',
+      p_has_image: input.imageMode ?? 'all',
+    }),
+  )
+}
+
 export async function startStudy(raw: unknown): Promise<StartStudyResult> {
-  const parsed = StartStudySchema.safeParse(raw)
-  if (!parsed.success) {
+  const input = StartStudySchema.safeParse(raw)
+  if (!input.success) {
     console.error('[startStudy] Invalid input')
     return { success: false, error: 'Invalid input' }
   }
 
-  let createdSessionId: string | null = null
   try {
-    const { subjectId, topicIds, subtopicIds, count, filters, calcMode, imageMode } = parsed.data
-    const ids = await getRandomQuestionIds({
-      subjectId,
-      topicIds,
-      subtopicIds,
-      count,
-      filters,
-      calcMode,
-      imageMode,
-      questionType: 'multiple_choice',
-    })
+    const { data, error } = await callStartDiscovery(input.data)
+    if (error) {
+      console.error('[startStudy] start_discovery error:', error.message)
+      if (error.message.includes(ANOTHER_SESSION_ACTIVE)) {
+        return { success: false, error: 'Finish or exit your active session first.' }
+      }
+      return { success: false, error: GENERIC_ERROR }
+    }
 
-    // An empty study set is a valid state, not an error — skip both the session
-    // creation and the fetch (no row is created for an empty discovery set, so
-    // sessionId is omitted — there is nothing for the client to scope cleanup to).
-    if (ids.length === 0) return { success: true, questions: [], flaggedIds: [] }
-    // Cosmetic and independent of the session row: starts now, never fails the start.
-    const flagsPromise = getFlaggedQuestionIdsBounded(ids)
-
-    // Create the real ephemeral discovery session row (enforces the single-active
-    // guard). Capture the created id so teardown is scoped to THIS request's row —
-    // a blanket student+mode teardown could tombstone a concurrent retry's newer row.
-    const { id: createdId, error: startError } = await createDiscoverySession(subjectId, ids)
-    if (startError) return { success: false, error: startError }
-    createdSessionId = createdId
-
-    const questions = await getStudyQuestions(ids)
-    // getStudyQuestions can return [] for a non-empty id set (e.g. every id filtered
-    // by the RPC's soft-delete/status guards in a race). Treat that as a failure so the
-    // catch below tears down createdSessionId — otherwise the just-created discovery row
-    // stays active and blocks the next start until it is auto-cleared.
-    if (questions.length === 0) throw new Error('No study questions returned for selected ids')
-    const flaggedIds = await flagsPromise
-    // The id may be a concurrent winner's row (mig 137 replay branch); losing an
-    // ephemeral discovery row is inert today. Created-vs-replayed needs an RPC OUT flag — #1152.
-    return { success: true, questions, flaggedIds, sessionId: createdSessionId ?? undefined }
+    const result = parseStarted(data)
+    if (!result) {
+      console.error('[startStudy] start_discovery returned a malformed payload')
+      await discardOrphanedSession(data)
+      return { success: false, error: GENERIC_ERROR }
+    }
+    return result
   } catch (err) {
     console.error('[startStudy] error:', err)
-    // If the row was created but the key fetch failed, best-effort tear it down,
-    // scoped to the id THIS request created, so we don't strand an orphan active row.
-    // endDiscovery returns { success: false } (it does NOT throw) on auth/query
-    // failure, so check the result and log a failed teardown — the row is auto-cleared
-    // by the next start, but the failure must be observable.
-    if (createdSessionId) {
-      const teardown = await endDiscovery({ sessionId: createdSessionId }).catch(() => null)
-      if (!teardown?.success) {
-        console.error(
-          '[startStudy] discovery teardown failed:',
-          createdSessionId,
-          teardown?.error ?? 'unknown error',
-        )
-      }
-    }
-    // get_study_questions raises 'active_exam_session' (mig 135) when the caller has
-    // a live exam — surface a clear message instead of the generic one (the helper
-    // wraps the RPC error, so the token is carried in the message).
-    if (err instanceof Error && err.message.includes('active_exam_session')) {
-      return { success: false, error: 'Finish or exit your active exam first.' }
-    }
-    return { success: false, error: 'Failed to start study session' }
+    return { success: false, error: GENERIC_ERROR }
   }
 }

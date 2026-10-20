@@ -1,26 +1,12 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-
-// ---- Mocks ----------------------------------------------------------------
-
-const { mockRpc } = vi.hoisted(() => ({
-  mockRpc: vi.fn(),
-}))
-
-vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({}),
-}))
-
-vi.mock('@/lib/supabase-rpc', () => ({
-  rpc: mockRpc,
-}))
+import { describe, expect, it } from 'vitest'
 
 // ---- Subject under test ---------------------------------------------------
 
-import { getStudyQuestions } from './study-queries'
+import { parseStudyQuestions } from './study-queries'
 
 // ---- Helpers --------------------------------------------------------------
 
-/** Minimal valid wire-shape row returned by the get_study_questions RPC. */
+/** Minimal valid wire-shape row of the start_discovery `questions` payload. */
 function makeRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     id: 'q-1',
@@ -45,25 +31,9 @@ function makeRow(overrides: Record<string, unknown> = {}): Record<string, unknow
 
 // ---- Tests ----------------------------------------------------------------
 
-describe('getStudyQuestions', () => {
-  beforeEach(() => {
-    vi.resetAllMocks()
-  })
-
-  it('returns an empty array without calling the RPC when given an empty id list', async () => {
-    const result = await getStudyQuestions([])
-    expect(mockRpc).not.toHaveBeenCalled()
-    expect(result).toEqual([])
-  })
-
-  it('throws when loading study questions fails', async () => {
-    mockRpc.mockResolvedValue({ data: null, error: { message: 'permission denied' } })
-    await expect(getStudyQuestions(['q-1'])).rejects.toThrow('Failed to fetch study questions')
-  })
-
-  it('maps a valid study question into the client shape', async () => {
-    mockRpc.mockResolvedValue({ data: [makeRow()], error: null })
-    const result = await getStudyQuestions(['q-1'])
+describe('parseStudyQuestions', () => {
+  it('maps a valid study question into the client shape', () => {
+    const result = parseStudyQuestions([makeRow()])
     expect(result).toHaveLength(1)
     const q = result[0]!
     expect(q.id).toBe('q-1')
@@ -84,26 +54,23 @@ describe('getStudyQuestions', () => {
     ])
   })
 
-  it('drops a row whose id is not a string', async () => {
-    mockRpc.mockResolvedValue({ data: [makeRow({ id: 42 })], error: null })
-    const result = await getStudyQuestions(['q-1'])
+  it('drops a row whose id is not a string', () => {
+    const result = parseStudyQuestions([makeRow({ id: 42 })])
     expect(result).toHaveLength(0)
   })
 
-  it('drops a question whose answer key is missing or invalid', async () => {
-    mockRpc.mockResolvedValue({ data: [makeRow({ correct_option_id: null })], error: null })
-    const result = await getStudyQuestions(['q-1'])
+  it('drops a question whose answer key is missing or invalid', () => {
+    const result = parseStudyQuestions([makeRow({ correct_option_id: null })])
     expect(result).toHaveLength(0)
   })
 
-  it('returns an empty options list when the options field is not an array', async () => {
-    mockRpc.mockResolvedValue({ data: [makeRow({ options: 'not-an-array' })], error: null })
-    const result = await getStudyQuestions(['q-1'])
+  it('returns an empty options list when the options field is not an array', () => {
+    const result = parseStudyQuestions([makeRow({ options: 'not-an-array' })])
     expect(result).toHaveLength(1)
     expect(result[0]!.options).toEqual([])
   })
 
-  it('silently drops individual option entries that lack string id or text', async () => {
+  it('silently drops individual option entries that lack string id or text', () => {
     const row = makeRow({
       options: [
         { id: 'a', text: 'Valid' },
@@ -112,12 +79,11 @@ describe('getStudyQuestions', () => {
         null, // null entry
       ],
     })
-    mockRpc.mockResolvedValue({ data: [row], error: null })
-    const result = await getStudyQuestions(['q-1'])
+    const result = parseStudyQuestions([row])
     expect(result[0]!.options).toEqual([{ id: 'a', text: 'Valid' }])
   })
 
-  it('strips extra fields from options, exposing only id and text per entry', async () => {
+  it('strips extra fields from options, exposing only id and text per entry', () => {
     // Regression guard: if the RPC ever returns a `correct` field (or any extra key)
     // inside the options array, the mapper must not pass it through to the client.
     const row = makeRow({
@@ -126,35 +92,34 @@ describe('getStudyQuestions', () => {
         { id: 'b', text: '1013 hPa', correct: true },
       ],
     })
-    mockRpc.mockResolvedValue({ data: [row], error: null })
-    const result = await getStudyQuestions(['q-1'])
+    const result = parseStudyQuestions([row])
     expect(result[0]!.options).toEqual([
       { id: 'a', text: '1000 hPa' },
       { id: 'b', text: '1013 hPa' },
     ])
   })
 
-  it('returns an empty array when the RPC returns null data with no error', async () => {
-    mockRpc.mockResolvedValue({ data: null, error: null })
-    const result = await getStudyQuestions(['q-1'])
-    expect(result).toEqual([])
+  it('returns an empty array when the payload is null', () => {
+    expect(parseStudyQuestions(null)).toEqual([])
   })
 
-  it('falls back to an empty prompt when the prompt is missing', async () => {
-    mockRpc.mockResolvedValue({ data: [makeRow({ question_text: null })], error: null })
-    const result = await getStudyQuestions(['q-1'])
+  it('returns an empty array when the payload is not an array', () => {
+    expect(parseStudyQuestions({ id: 'q-1' })).toEqual([])
+  })
+
+  it('falls back to an empty prompt when the prompt is missing', () => {
+    const result = parseStudyQuestions([makeRow({ question_text: null })])
     expect(result[0]!.questionText).toBe('')
   })
 
-  it('falls back to an empty prompt when the prompt is not text', async () => {
+  it('falls back to an empty prompt when the prompt is not text', () => {
     // The new `typeof` guard (vs the old `?? ''`) must reject non-null non-string values
     // such as a number arriving from a malformed RPC row, not just null.
-    mockRpc.mockResolvedValue({ data: [makeRow({ question_text: 42 })], error: null })
-    const result = await getStudyQuestions(['q-1'])
+    const result = parseStudyQuestions([makeRow({ question_text: 42 })])
     expect(result[0]!.questionText).toBe('')
   })
 
-  it('returns null for nullable string fields when the RPC returns a non-string value', async () => {
+  it('returns null for nullable string fields when the payload carries a non-string value', () => {
     // All seven nullable fields use the same `typeof v === 'string' ? v : null` guard.
     // A non-null, non-string value (e.g. a number from a shape regression) must coerce to null.
     const row = makeRow({
@@ -166,8 +131,7 @@ describe('getStudyQuestions', () => {
       question_number: false,
       difficulty: null,
     })
-    mockRpc.mockResolvedValue({ data: [row], error: null })
-    const result = await getStudyQuestions(['q-1'])
+    const result = parseStudyQuestions([row])
     const q = result[0]!
     expect(q.subjectCode).toBeNull()
     expect(q.topicName).toBeNull()
@@ -178,32 +142,20 @@ describe('getStudyQuestions', () => {
     expect(q.difficulty).toBeNull()
   })
 
-  it('returns a string image URL when the RPC provides one for questionImageUrl', async () => {
+  it('returns a string image URL when the payload provides one for questionImageUrl', () => {
     // Positive path for the nullable image-URL field — validates the string branch of the
     // `typeof` guard passes valid URLs through unchanged.
     const row = makeRow({ question_image_url: 'https://cdn.example.com/img.png' })
-    mockRpc.mockResolvedValue({ data: [row], error: null })
-    const result = await getStudyQuestions(['q-1'])
+    const result = parseStudyQuestions([row])
     expect(result[0]!.questionImageUrl).toBe('https://cdn.example.com/img.png')
   })
 
-  it('calls the get_study_questions RPC with the provided question ids', async () => {
-    mockRpc.mockResolvedValue({ data: [], error: null })
-    await getStudyQuestions(['id-1', 'id-2'])
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_study_questions', {
-      p_question_ids: ['id-1', 'id-2'],
-    })
-  })
-
-  it('returns questions in the order the caller requested, regardless of RPC row order', async () => {
-    // The DB returns `WHERE id = ANY(...)` rows in arbitrary order. The deck must follow
-    // the caller's (randomly-sampled) selection order, so feed rows shuffled relative to
-    // the input and assert the result is re-sorted back to the requested order.
-    mockRpc.mockResolvedValue({
-      data: [makeRow({ id: 'id-c' }), makeRow({ id: 'id-a' }), makeRow({ id: 'id-b' })],
-      error: null,
-    })
-    const result = await getStudyQuestions(['id-a', 'id-b', 'id-c'])
-    expect(result.map((q) => q.id)).toEqual(['id-a', 'id-b', 'id-c'])
+  it('keeps the payload order, which is the draw order', () => {
+    const result = parseStudyQuestions([
+      makeRow({ id: 'id-c' }),
+      makeRow({ id: 'id-a' }),
+      makeRow({ id: 'id-b' }),
+    ])
+    expect(result.map((q) => q.id)).toEqual(['id-c', 'id-a', 'id-b'])
   })
 })
