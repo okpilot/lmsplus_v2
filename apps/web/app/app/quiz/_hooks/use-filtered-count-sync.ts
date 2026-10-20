@@ -28,7 +28,7 @@ export function useFilteredCountSync(opts: {
   )
 
   useEffect(() => {
-    // While a new subject's tree loads, `topics` still belongs to the previous subject.
+    // Skip while the topic tree loads: until it settles, `topics` may still be the previous subject's.
     if (topicTree.isPending) return
     if (!subjectId || allTopicIds.length === 0) return
     // Study/Discovery (questionType set) always counts the MC-only pool, so it must

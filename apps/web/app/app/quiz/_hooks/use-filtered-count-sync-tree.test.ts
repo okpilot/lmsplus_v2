@@ -82,8 +82,10 @@ async function switchSubjects(result: { current: { pick: (id: string) => void } 
   await act(async () => pendingB.resolve(TREE_B))
 }
 
-function subjectTopicPairs(fc: ReturnType<typeof useFilteredCount>) {
-  return vi.mocked(fc.refetch).mock.calls.map(([subject, topicIds]) => [subject, topicIds])
+function refetchScopes(fc: ReturnType<typeof useFilteredCount>) {
+  return vi
+    .mocked(fc.refetch)
+    .mock.calls.map(([subject, topicIds, subtopicIds]) => [subject, topicIds, subtopicIds])
 }
 
 beforeEach(() => {
@@ -100,9 +102,9 @@ describe('useFilteredCountSync with the real topic tree', () => {
 
     await switchSubjects(result)
 
-    expect(subjectTopicPairs(fc)).toEqual([
-      [SUBJECT_A, ['topic-a']],
-      [SUBJECT_B, ['topic-b']],
+    expect(refetchScopes(fc)).toEqual([
+      [SUBJECT_A, ['topic-a'], ['sub-a']],
+      [SUBJECT_B, ['topic-b'], ['sub-b']],
     ])
   })
 
@@ -111,9 +113,9 @@ describe('useFilteredCountSync with the real topic tree', () => {
 
     await switchSubjects(result)
 
-    expect(subjectTopicPairs(fc)).toEqual([
-      [SUBJECT_A, ['topic-a']],
-      [SUBJECT_B, ['topic-b']],
+    expect(refetchScopes(fc)).toEqual([
+      [SUBJECT_A, ['topic-a'], ['sub-a']],
+      [SUBJECT_B, ['topic-b'], ['sub-b']],
     ])
   })
 })
