@@ -67,9 +67,14 @@ export function DraftCard({ draft }: Readonly<{ draft: DraftData }>) {
     if (!window.confirm('Delete this saved quiz? This cannot be undone.')) return
     setDeleting(true)
     setError(null)
-    const result = await deleteDraftAndRefresh({ draftId: draft.id })
-    if (!result.success) setError('Failed to delete. Please try again.')
-    setDeleting(false)
+    try {
+      const result = await deleteDraftAndRefresh({ draftId: draft.id })
+      if (!result.success) setError('Failed to delete. Please try again.')
+    } catch {
+      setError('Failed to delete. Please try again.')
+    } finally {
+      setDeleting(false)
+    }
   }
 
   return (

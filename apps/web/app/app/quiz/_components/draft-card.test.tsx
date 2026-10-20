@@ -243,6 +243,17 @@ describe('DraftCard — Delete', () => {
     )
   })
 
+  it('shows an error and re-enables delete when the delete request throws', async () => {
+    mockDeleteDraft.mockRejectedValue(new Error('network down'))
+    render(<DraftCard draft={DRAFT} />)
+    fireEvent.click(screen.getByTestId('delete-draft'))
+
+    await waitFor(() =>
+      expect(screen.getByText('Failed to delete. Please try again.')).toBeInTheDocument(),
+    )
+    expect(screen.getByTestId('delete-draft')).not.toBeDisabled()
+  })
+
   it('re-enables the delete button after a failed delete', async () => {
     mockDeleteDraft.mockResolvedValue({ success: false })
     render(<DraftCard draft={DRAFT} />)
