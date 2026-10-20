@@ -29,8 +29,8 @@ DECLARE
   v_topic_id   uuid;
   v_session_id uuid;
 BEGIN
-  -- start_quiz_session raises this first; the empty-draw path below never reaches it. Not
-  -- reachable through PostgREST (anon has no EXECUTE, an authenticated JWT always carries a uid).
+  -- start_quiz_session raises this first; the empty-draw path below never reaches it. Reached by a
+  -- caller without a uid claim (service_role keeps EXECUTE; anon does not).
   IF (select auth.uid()) IS NULL THEN
     RAISE EXCEPTION 'Not authenticated';
   END IF;
@@ -156,7 +156,7 @@ BEGIN
     )
   INTO v_ids, v_questions
   FROM draw d
-  JOIN public.questions q ON q.id = d.id
+  JOIN public.questions q ON q.id = d.id AND q.deleted_at IS NULL
   JOIN public.easa_subjects  s  ON s.id = q.subject_id
   JOIN public.easa_topics    t  ON t.id = q.topic_id
   LEFT JOIN public.easa_subtopics st ON st.id = q.subtopic_id;

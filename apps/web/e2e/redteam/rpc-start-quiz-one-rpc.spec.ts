@@ -259,14 +259,13 @@ test.describe('Red Team: one-RPC quiz starts (#1548)', () => {
   })
 
   test('JD: start_discovery never draws a flagged draft, soft-deleted or non-MC question', async () => {
-    const { data: del, error: delErr } = await fx.admin
+    const { error: delErr } = await fx.admin
       .from('questions')
       .update({ deleted_at: new Date().toISOString() })
       .eq('id', fx.egMcDeletedId)
       .is('deleted_at', null)
       .select('id')
     expect(delErr).toBeNull()
-    expect(del?.length ?? 0).toBeLessThanOrEqual(1)
     const { data: deletedRow, error: readErr } = await fx.admin
       .from('questions')
       .select('deleted_at')
