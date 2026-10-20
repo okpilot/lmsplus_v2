@@ -1,5 +1,5 @@
 import type { SubjectOption } from '@/lib/queries/quiz-query-types'
-import type { QuizSetupPreload } from '../types'
+import type { PreloadPromise } from '../types'
 import { useAvailableCount } from './use-available-count'
 import { useFilteredCount } from './use-filtered-count'
 import { useFilteredCountSync } from './use-filtered-count-sync'
@@ -7,7 +7,7 @@ import { useQuizConfigState } from './use-quiz-config-state'
 import { useStudyStart } from './use-study-start'
 import { useTopicTree } from './use-topic-tree'
 
-type StudyConfigOptions = { userId: string; subjects: SubjectOption[]; preload?: QuizSetupPreload }
+type StudyConfigOptions = { userId: string; subjects: SubjectOption[]; preload?: PreloadPromise }
 
 /**
  * Discovery-mode config orchestration. Mirrors useQuizConfig's quiz branch (minus
@@ -22,7 +22,7 @@ type StudyConfigOptions = { userId: string; subjects: SubjectOption[]; preload?:
  */
 export function useStudyConfig({ userId, subjects, preload }: StudyConfigOptions) {
   const topicTree = useTopicTree()
-  const fc = useFilteredCount(preload?.discoveryCounts)
+  const fc = useFilteredCount(preload)
   const st = useQuizConfigState({ fc, topicTree, preload })
 
   const availableCount = useAvailableCount({

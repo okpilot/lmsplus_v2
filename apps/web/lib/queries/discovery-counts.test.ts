@@ -68,12 +68,12 @@ describe('sumFilteredCountRows', () => {
 })
 
 describe('getDiscoveryCounts', () => {
-  it('counts the whole multiple-choice pool of every subject with the Discovery defaults', async () => {
+  it('counts every subject for each preloaded student filter set with the Discovery defaults', async () => {
     mockRpc.mockResolvedValue({ data: [], error: null })
 
     await getDiscoveryCounts()
 
-    expect(mockRpc).toHaveBeenCalledTimes(2)
+    expect(mockRpc).toHaveBeenCalledTimes(10)
     expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_filtered_question_counts', {
       p_subject_id: 's1',
       p_topic_ids: null,
@@ -83,30 +83,67 @@ describe('getDiscoveryCounts', () => {
       p_has_image: 'all',
       p_question_type: 'multiple_choice',
     })
-    expect(mockRpc.mock.calls.map((c) => (c[2] as { p_subject_id: string }).p_subject_id)).toEqual([
-      's1',
-      's2',
-    ])
+    const filtersBySubject = mockRpc.mock.calls.map((c) => {
+      const a = c[2] as { p_subject_id: string; p_filters: string[] }
+      return `${a.p_subject_id}:${a.p_filters.join('+')}`
+    })
+    expect(filtersBySubject.sort()).toEqual(
+      ['s1', 's2']
+        .flatMap((id) =>
+          ['', 'unseen', 'incorrect', 'flagged', 'incorrect+flagged'].map((f) => `${id}:${f}`),
+        )
+        .sort(),
+    )
   })
 
-  it('keys the summed counts by subject id', async () => {
+  it('keys the summed counts by subject id and filter set', async () => {
     mockRpc.mockImplementation(
-      async (_s: unknown, _fn: string, args: { p_subject_id: string }) => ({
-        data:
-          args.p_subject_id === 's1'
-            ? [{ topic_id: 't1', subtopic_id: 'st1', n: '6' }]
-            : [{ topic_id: 't3', subtopic_id: null, n: 4 }],
-        error: null,
-      }),
+      async (_s: unknown, _fn: string, args: { p_subject_id: string; p_filters: string[] }) => {
+        const n = args.p_filters.length + 1
+        return {
+          data:
+            args.p_subject_id === 's1'
+              ? [{ topic_id: 't1', subtopic_id: 'st1', n: String(6 * n) }]
+              : [{ topic_id: 't3', subtopic_id: null, n }],
+          error: null,
+        }
+      },
     )
 
     const counts = await getDiscoveryCounts()
 
-    expect(counts.s1).toEqual({ count: 6, byTopic: { t1: 6 }, bySubtopic: { st1: 6 } })
-    expect(counts.s2).toEqual({ count: 4, byTopic: { t3: 4 }, bySubtopic: {} })
+    expect(Object.keys(counts.s1 ?? {}).sort()).toEqual(
+      ['', 'flagged', 'incorrect', 'flagged,incorrect', 'unseen'].sort(),
+    )
+    expect(counts.s1?.['']).toEqual({ count: 6, byTopic: { t1: 6 }, bySubtopic: { st1: 6 } })
+    expect(counts.s1?.['flagged,incorrect']).toEqual({
+      count: 18,
+      byTopic: { t1: 18 },
+      bySubtopic: { st1: 18 },
+    })
+    expect(counts.s2?.unseen).toEqual({ count: 2, byTopic: { t3: 2 }, bySubtopic: {} })
   })
 
-  it('omits a subject whose count read failed and keeps the others', async () => {
+  it('omits only the filter set whose count read failed and logs it', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    mockRpc.mockImplementation(async (_s: unknown, _fn: string, args: { p_filters: string[] }) =>
+      args.p_filters[0] === 'flagged' && args.p_filters.length === 1
+        ? { data: null, error: { message: 'boom' } }
+        : { data: [{ topic_id: 't3', subtopic_id: null, n: 4 }], error: null },
+    )
+
+    const counts = await getDiscoveryCounts()
+
+    expect(Object.keys(counts.s1 ?? {}).sort()).toEqual([
+      '',
+      'flagged,incorrect',
+      'incorrect',
+      'unseen',
+    ])
+    expect(errorSpy).toHaveBeenCalled()
+  })
+
+  it('omits a subject whose every count read failed', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
     mockRpc.mockImplementation(async (_s: unknown, _fn: string, args: { p_subject_id: string }) =>
       args.p_subject_id === 's1'
@@ -119,14 +156,14 @@ describe('getDiscoveryCounts', () => {
     expect(Object.keys(counts)).toEqual(['s2'])
   })
 
-  it('omits a subject whose count read returned a non-array payload', async () => {
+  it('omits a subject whose count reads returned a non-array payload', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
     mockRpc.mockResolvedValue({ data: { oops: true }, error: null })
 
     expect(await getDiscoveryCounts()).toEqual({})
   })
 
-  it('omits a subject whose count read rejects', async () => {
+  it('omits a subject whose count reads reject', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
     mockRpc.mockRejectedValue(new Error('network'))
 

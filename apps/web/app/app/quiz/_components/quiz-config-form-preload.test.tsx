@@ -24,7 +24,7 @@ vi.mock('./discovery-mode-panel', () => ({
 import { QuizConfigForm } from './quiz-config-form'
 
 const SUBJECTS = [{ id: 's1', code: '010', name: 'Air Law', short: 'AL', questionCount: 5 }]
-const PRELOAD = { topicsBySubject: {}, discoveryCounts: {} }
+const PRELOAD = Promise.resolve({ topicsBySubject: {}, discoveryCounts: {} })
 
 describe('QuizConfigForm — preloaded setup data', () => {
   beforeEach(() => {
@@ -32,13 +32,13 @@ describe('QuizConfigForm — preloaded setup data', () => {
     mockUseQuizConfig.mockReturnValue({ mode: 'discovery', setMode: vi.fn() })
   })
 
-  it('hands the server-preloaded setup data to the quiz config', () => {
+  it('hands the streamed setup preload to the quiz config', () => {
     render(<QuizConfigForm userId="u1" subjects={SUBJECTS} examSubjects={[]} preload={PRELOAD} />)
 
     expect(mockUseQuizConfig).toHaveBeenCalledWith({ subjects: SUBJECTS, preload: PRELOAD })
   })
 
-  it('hands the server-preloaded setup data to the Discovery panel', () => {
+  it('hands the streamed setup preload to the Discovery panel', () => {
     render(<QuizConfigForm userId="u1" subjects={SUBJECTS} examSubjects={[]} preload={PRELOAD} />)
 
     expect(mockPanel).toHaveBeenCalledWith(expect.objectContaining({ preload: PRELOAD }))

@@ -3,12 +3,12 @@ import type { FilteredCounts } from '@/lib/queries/discovery-counts'
 import { findPreloadedCount } from '../_utils/preloaded-discovery-count'
 import { getFilteredCount } from '../actions/lookup'
 import type { FilteredCountState } from '../session-types'
-import type { CalcMode, ImageMode, QuestionFilterValue } from '../types'
+import type { CalcMode, ImageMode, PreloadPromise, QuestionFilterValue } from '../types'
+import { usePreloadedSetup } from './use-preloaded-setup'
 
-/** @param discoveryCounts Server-preloaded counts by subject; used instead of a request when they apply. */
-export function useFilteredCount(
-  discoveryCounts?: Record<string, FilteredCounts>,
-): FilteredCountState {
+/** @param preload Streamed server counts; read at call time and used instead of a request when they apply. */
+export function useFilteredCount(preload?: PreloadPromise): FilteredCountState {
+  const setup = usePreloadedSetup(preload)
   const [counts, setCounts] = useState<FilteredCounts | null>(null)
   const [isFilterPending, setIsFilterPending] = useState(false)
   const [authError, setAuthError] = useState(false)
@@ -43,7 +43,7 @@ export function useFilteredCount(
       filterGeneration.current++
       const gen = filterGeneration.current
       const query = { subjectId, filters: activeFilters, calcMode, imageMode, questionType }
-      const preloaded = findPreloadedCount(discoveryCounts, query)
+      const preloaded = findPreloadedCount(setup.current?.discoveryCounts, query)
       setCounts(preloaded)
       setIsFilterPending(!preloaded)
       if (preloaded) return
@@ -61,7 +61,7 @@ export function useFilteredCount(
           if (gen === filterGeneration.current) setIsFilterPending(false)
         })
     },
-    [discoveryCounts],
+    [setup],
   )
 
   return {

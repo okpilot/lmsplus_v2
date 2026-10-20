@@ -9,8 +9,7 @@ const {
   mockLoadSavedQuizzes,
   mockGetSubjectsWithCounts,
   mockGetMockExamSubjects,
-  mockGetAllTopicTrees,
-  mockGetDiscoveryCounts,
+  mockLoadQuizSetupPreload,
 } = vi.hoisted(() => ({
   mockLoadDrafts: vi.fn(),
   mockGetActiveExamSession: vi.fn(),
@@ -18,20 +17,15 @@ const {
   mockLoadSavedQuizzes: vi.fn(),
   mockGetSubjectsWithCounts: vi.fn(),
   mockGetMockExamSubjects: vi.fn(),
-  mockGetAllTopicTrees: vi.fn(),
-  mockGetDiscoveryCounts: vi.fn(),
+  mockLoadQuizSetupPreload: vi.fn(),
 }))
 
 vi.mock('@/lib/queries/quiz-subject-queries', () => ({
   getSubjectsWithCounts: (...args: unknown[]) => mockGetSubjectsWithCounts(...args),
 }))
 
-vi.mock('@/lib/queries/quiz-topic-trees', () => ({
-  getAllTopicTrees: (...args: unknown[]) => mockGetAllTopicTrees(...args),
-}))
-
-vi.mock('@/lib/queries/discovery-counts', () => ({
-  getDiscoveryCounts: (...args: unknown[]) => mockGetDiscoveryCounts(...args),
+vi.mock('@/lib/queries/quiz-setup-preload', () => ({
+  loadQuizSetupPreload: (...args: unknown[]) => mockLoadQuizSetupPreload(...args),
 }))
 
 vi.mock('@/lib/queries/exam-subjects', () => ({
@@ -78,23 +72,20 @@ beforeEach(() => {
   mockLoadSavedQuizzes.mockResolvedValue([SAVED_SESSION])
   mockGetSubjectsWithCounts.mockResolvedValue([])
   mockGetMockExamSubjects.mockResolvedValue([])
-  mockGetAllTopicTrees.mockResolvedValue({})
-  mockGetDiscoveryCounts.mockResolvedValue({})
+  mockLoadQuizSetupPreload.mockResolvedValue({ topicsBySubject: {}, discoveryCounts: {} })
 })
 
 // ---- Tests -----------------------------------------------------------------
 
 describe('loadQuizPageData', () => {
-  it('starts the topic-tree and Discovery-count reads that the subjects section awaits later', async () => {
+  it('starts the setup preload that the subjects section streams later', async () => {
     await loadQuizPageData('user-1')
 
-    expect(mockGetAllTopicTrees).toHaveBeenCalledTimes(1)
-    expect(mockGetDiscoveryCounts).toHaveBeenCalledTimes(1)
+    expect(mockLoadQuizSetupPreload).toHaveBeenCalledTimes(1)
   })
 
-  it('still loads the page when a preload read rejects', async () => {
-    mockGetAllTopicTrees.mockRejectedValue(new Error('trees failed'))
-    mockGetDiscoveryCounts.mockRejectedValue(new Error('counts failed'))
+  it('does not wait for the setup preload to settle', async () => {
+    mockLoadQuizSetupPreload.mockReturnValue(new Promise(() => undefined))
 
     const data = await loadQuizPageData('user-1')
 

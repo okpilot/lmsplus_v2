@@ -3,8 +3,8 @@ import { cache } from 'react'
 import type { SubtopicOption, TopicWithSubtopics } from './quiz-query-types'
 import { fetchActiveQuestionCounts, type QuestionCountRow } from './quiz-question-counts'
 
-export type TopicTreeTopicRow = { id: string; code: string; name: string; sort_order: number }
-export type TopicTreeSubtopicRow = {
+type TopicTreeTopicRow = { id: string; code: string; name: string; sort_order: number }
+type TopicTreeSubtopicRow = {
   id: string
   code: string
   name: string
@@ -61,12 +61,25 @@ export function buildTopicTree(opts: {
     .filter((t) => t.questionCount > 0)
 }
 
+/** Buckets topic rows by subject id, preserving the given order within each subject. */
+export function groupTopicsBySubject<T extends { subject_id: string }>(topics: T[]) {
+  const bySubject = new Map<string, T[]>()
+  for (const t of topics) {
+    const list = bySubject.get(t.subject_id) ?? []
+    list.push(t)
+    bySubject.set(t.subject_id, list)
+  }
+  return bySubject
+}
+
 /**
  * Every subject's topic tree in one read (3 round trips total, in parallel), keyed by
  * subject id. Subjects whose built tree is empty are omitted so the client falls back to
  * the per-subject action. An empty counts result is treated as a failure for the same
  * reason: `fetchActiveQuestionCounts` degrades to `[]`, which would otherwise yield an
- * all-empty preload. Per-request memoised via `cache()`; the page catches a throw.
+ * all-empty preload. The two table reads are unfiltered, so each asks for the exact row
+ * count and a result cut at PostgREST `max_rows` throws instead of silently truncating.
+ * Per-request memoised via `cache()`; the caller catches a throw.
  */
 export const getAllTopicTrees = cache(async (): Promise<Record<string, TopicWithSubtopics[]>> => {
   const supabase = await createServerSupabaseClient()
@@ -74,11 +87,11 @@ export const getAllTopicTrees = cache(async (): Promise<Record<string, TopicWith
   const [topicsRes, subtopicsRes, counts] = await Promise.all([
     supabase
       .from('easa_topics')
-      .select('id, subject_id, code, name, sort_order')
+      .select('id, subject_id, code, name, sort_order', { count: 'exact' })
       .order('sort_order'),
     supabase
       .from('easa_subtopics')
-      .select('id, code, name, sort_order, topic_id')
+      .select('id, code, name, sort_order, topic_id', { count: 'exact' })
       .order('sort_order'),
     fetchActiveQuestionCounts(supabase),
   ])
@@ -90,16 +103,12 @@ export const getAllTopicTrees = cache(async (): Promise<Record<string, TopicWith
 
   const topics = (topicsRes.data ?? []) as (TopicTreeTopicRow & { subject_id: string })[]
   const subtopics = (subtopicsRes.data ?? []) as TopicTreeSubtopicRow[]
-
-  const topicsBySubject = new Map<string, TopicTreeTopicRow[]>()
-  for (const t of topics) {
-    const list = topicsBySubject.get(t.subject_id) ?? []
-    list.push(t)
-    topicsBySubject.set(t.subject_id, list)
+  if (topicsRes.count !== topics.length || subtopicsRes.count !== subtopics.length) {
+    throw new Error('Failed to fetch topic trees: topic trees truncated at max_rows')
   }
 
   const result: Record<string, TopicWithSubtopics[]> = {}
-  for (const [subjectId, subjectTopics] of topicsBySubject) {
+  for (const [subjectId, subjectTopics] of groupTopicsBySubject(topics)) {
     const tree = buildTopicTree({ topics: subjectTopics, subtopics, counts, subjectId })
     if (tree.length > 0) result[subjectId] = tree
   }

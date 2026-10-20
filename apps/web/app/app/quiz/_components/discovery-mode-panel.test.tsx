@@ -127,8 +127,8 @@ describe('DiscoveryModePanel', () => {
     expect(mockStudyConfigForm).toHaveBeenCalledWith(expect.objectContaining({ userId: USER_ID }))
   })
 
-  it('hands the server-preloaded setup data to the discovery form', () => {
-    const preload = { topicsBySubject: {}, discoveryCounts: {} }
+  it('hands the streamed setup preload to the discovery form', () => {
+    const preload = Promise.resolve({ topicsBySubject: {}, discoveryCounts: {} })
     render(
       <DiscoveryModePanel
         mode="discovery"

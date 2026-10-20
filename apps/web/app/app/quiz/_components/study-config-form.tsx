@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react'
 import type { SubjectOption } from '@/lib/queries/quiz-query-types'
 import { useStudyConfig } from '../_hooks/use-study-config'
-import type { QuizSetupPreload } from '../types'
+import type { PreloadPromise } from '../types'
 import { QuestionCount } from './question-count'
 import { QuestionFilters } from './question-filters'
 import { StartButton } from './start-button'
@@ -19,7 +19,7 @@ export function StudyConfigForm({
 }: Readonly<{
   userId: string
   subjects: SubjectOption[]
-  preload?: QuizSetupPreload
+  preload?: PreloadPromise
   unseenLabel?: string
   /** Optional slot rendered at the top of Card 1 (e.g. the Discovery ModeToggle). */
   header?: ReactNode

@@ -2,9 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockFrom, mockRpc } = vi.hoisted(() => ({
+const { mockFrom, mockRpc, mockSelect } = vi.hoisted(() => ({
   mockFrom: vi.fn(),
   mockRpc: vi.fn(),
+  mockSelect: vi.fn(),
 }))
 
 vi.mock('@repo/db/server', () => ({
@@ -17,7 +18,7 @@ vi.mock('@/lib/supabase-rpc', () => ({
 
 // ---- Subject under test ---------------------------------------------------
 
-import { buildTopicTree, getAllTopicTrees } from './quiz-topic-trees'
+import { buildTopicTree, getAllTopicTrees, groupTopicsBySubject } from './quiz-topic-trees'
 
 // ---- Helpers --------------------------------------------------------------
 
@@ -30,6 +31,12 @@ function buildChain(returnValue: unknown) {
   const proxy: Record<string, unknown> = new Proxy(awaitable as Record<string, unknown>, {
     get(target, prop) {
       if (prop === 'then') return target.then
+      if (prop === 'select') {
+        return (...args: unknown[]) => {
+          mockSelect(...args)
+          return proxy
+        }
+      }
       return () => proxy
     },
   })
@@ -62,8 +69,8 @@ beforeEach(() => {
   vi.resetAllMocks()
   mockRpc.mockResolvedValue({ data: COUNTS, error: null })
   mockTables({
-    topics: { data: TOPICS, error: null },
-    subtopics: { data: SUBTOPICS, error: null },
+    topics: { data: TOPICS, error: null, count: TOPICS.length },
+    subtopics: { data: SUBTOPICS, error: null, count: SUBTOPICS.length },
   })
 })
 
@@ -116,8 +123,8 @@ describe('getAllTopicTrees', () => {
 
   it('throws when the topics read fails', async () => {
     mockTables({
-      topics: { data: null, error: { message: 'topics failed' } },
-      subtopics: { data: SUBTOPICS, error: null },
+      topics: { data: null, error: { message: 'topics failed' }, count: null },
+      subtopics: { data: SUBTOPICS, error: null, count: SUBTOPICS.length },
     })
 
     await expect(getAllTopicTrees()).rejects.toThrow('Failed to fetch topics: topics failed')
@@ -125,11 +132,62 @@ describe('getAllTopicTrees', () => {
 
   it('throws when the subtopics read fails', async () => {
     mockTables({
-      topics: { data: TOPICS, error: null },
-      subtopics: { data: null, error: { message: 'subtopics failed' } },
+      topics: { data: TOPICS, error: null, count: TOPICS.length },
+      subtopics: { data: null, error: { message: 'subtopics failed' }, count: null },
     })
 
     await expect(getAllTopicTrees()).rejects.toThrow('Failed to fetch subtopics: subtopics failed')
+  })
+})
+
+describe('getAllTopicTrees truncation guard', () => {
+  it('asks for the exact row count with each unfiltered read', async () => {
+    await getAllTopicTrees()
+
+    expect(mockSelect).toHaveBeenCalledTimes(2)
+    for (const call of mockSelect.mock.calls) {
+      expect(call[1]).toEqual({ count: 'exact' })
+    }
+  })
+
+  it('throws when the topics read returned fewer rows than exist', async () => {
+    mockTables({
+      topics: { data: TOPICS, error: null, count: 1500 },
+      subtopics: { data: SUBTOPICS, error: null, count: SUBTOPICS.length },
+    })
+
+    await expect(getAllTopicTrees()).rejects.toThrow('topic trees truncated at max_rows')
+  })
+
+  it('throws when the subtopics read returned fewer rows than exist', async () => {
+    mockTables({
+      topics: { data: TOPICS, error: null, count: TOPICS.length },
+      subtopics: { data: SUBTOPICS, error: null, count: SUBTOPICS.length + 1 },
+    })
+
+    await expect(getAllTopicTrees()).rejects.toThrow('topic trees truncated at max_rows')
+  })
+
+  it('throws when the server reports no row count', async () => {
+    mockTables({
+      topics: { data: TOPICS, error: null, count: null },
+      subtopics: { data: SUBTOPICS, error: null, count: SUBTOPICS.length },
+    })
+
+    await expect(getAllTopicTrees()).rejects.toThrow('topic trees truncated at max_rows')
+  })
+})
+
+describe('groupTopicsBySubject', () => {
+  it('groups topics under their subject id in the given order', () => {
+    const grouped = groupTopicsBySubject(TOPICS)
+
+    expect([...grouped.keys()]).toEqual(['s1', 's2'])
+    expect(grouped.get('s1')?.map((t) => t.id)).toEqual(['t1', 't2'])
+  })
+
+  it('returns no groups for no topics', () => {
+    expect(groupTopicsBySubject([]).size).toBe(0)
   })
 })
 

@@ -1,6 +1,6 @@
 // App-layer integration tier (#925) — real query helpers vs real Postgres under real RLS.
 //
-// Covers: getDiscoveryCounts — the per-subject multiple-choice count preload. Its result for
+// Covers: getDiscoveryCounts — the per-subject, per-filter-set multiple-choice count preload. Its result for
 // the seeded subject must equal what getFilteredCount (the action the form falls back to)
 // returns for the Discovery defaults with the subject's full topic/subtopic ids. A short-answer
 // question is seeded beside the multiple-choice ones so a dropped question-type filter shows.
@@ -19,6 +19,7 @@ import {
   signInAs,
 } from '@/lib/integration-support/harness'
 import { getDiscoveryCounts } from '@/lib/queries/discovery-counts'
+import { filterSetKey } from '@/lib/queries/filtered-count-keys'
 import { getTopicsWithSubtopics } from '@/lib/queries/quiz-subject-queries'
 
 const admin = getAdminClient()
@@ -94,33 +95,40 @@ describe('getDiscoveryCounts (app-layer integration)', () => {
     await signInAs(email, password)
 
     const counts = await getDiscoveryCounts()
+    const none = counts[refs.subjectId]?.['']
 
-    expect(counts[refs.subjectId]?.count).toBe(3)
-    expect(counts[refs.subjectId]?.byTopic[refs.topicId]).toBe(3)
-    expect(counts[refs.subjectId]?.bySubtopic[refs.subtopicId ?? '']).toBe(3)
+    expect(none?.count).toBe(3)
+    expect(none?.byTopic[refs.topicId]).toBe(3)
+    expect(none?.bySubtopic[refs.subtopicId ?? '']).toBe(3)
   })
 
-  it('equals the per-subject count action for the Discovery defaults with the full topic ids', async () => {
-    await signInAs(email, password)
-    const tree = await getTopicsWithSubtopics(refs.subjectId)
-    expect(tree.length).toBeGreaterThan(0)
+  it.each([
+    { label: 'no filter', filters: [] as string[] },
+    { label: 'unseen', filters: ['unseen'] },
+    { label: 'incorrect and flagged', filters: ['incorrect', 'flagged'] },
+  ])(
+    'equals the per-subject count action for $label with the full topic ids',
+    async ({ filters }) => {
+      await signInAs(email, password)
+      const tree = await getTopicsWithSubtopics(refs.subjectId)
+      expect(tree.length).toBeGreaterThan(0)
 
-    const counts = await getDiscoveryCounts()
-    const fromAction = await getFilteredCount({
-      subjectId: refs.subjectId,
-      topicIds: tree.map((t) => t.id),
-      subtopicIds: tree.flatMap((t) => t.subtopics.map((st) => st.id)),
-      filters: ['all'],
-      calcMode: 'all',
-      imageMode: 'all',
-      questionType: 'multiple_choice',
-    })
+      const counts = await getDiscoveryCounts()
+      const fromAction = await getFilteredCount({
+        subjectId: refs.subjectId,
+        topicIds: tree.map((t) => t.id),
+        subtopicIds: tree.flatMap((t) => t.subtopics.map((st) => st.id)),
+        filters: filters.length ? filters : ['all'],
+        calcMode: 'all',
+        imageMode: 'all',
+        questionType: 'multiple_choice',
+      })
 
-    expect(fromAction.count).toBeGreaterThan(0)
-    expect(counts[refs.subjectId]).toEqual({
-      count: fromAction.count,
-      byTopic: fromAction.byTopic,
-      bySubtopic: fromAction.bySubtopic,
-    })
-  })
+      expect(counts[refs.subjectId]?.[filterSetKey(filters)]).toEqual({
+        count: fromAction.count,
+        byTopic: fromAction.byTopic,
+        bySubtopic: fromAction.bySubtopic,
+      })
+    },
+  )
 })

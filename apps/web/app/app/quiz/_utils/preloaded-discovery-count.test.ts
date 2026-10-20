@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { findPreloadedCount } from './preloaded-discovery-count'
 
-const COUNTS = { s1: { count: 7, byTopic: { t1: 7 }, bySubtopic: {} } }
+const NONE = { count: 7, byTopic: { t1: 7 }, bySubtopic: {} }
+const UNSEEN = { count: 5, byTopic: { t1: 5 }, bySubtopic: {} }
+const BOTH = { count: 1, byTopic: { t1: 1 }, bySubtopic: {} }
+const COUNTS = { s1: { '': NONE, unseen: UNSEEN, 'flagged,incorrect': BOTH } }
 
 const DEFAULTS = {
   subjectId: 's1',
@@ -13,7 +16,20 @@ const DEFAULTS = {
 
 describe('findPreloadedCount', () => {
   it('returns the subject counts for the Discovery defaults', () => {
-    expect(findPreloadedCount(COUNTS, DEFAULTS)).toEqual(COUNTS.s1)
+    expect(findPreloadedCount(COUNTS, DEFAULTS)).toEqual(NONE)
+  })
+
+  it('returns the counts of the active student filter set', () => {
+    expect(findPreloadedCount(COUNTS, { ...DEFAULTS, filters: ['unseen'] })).toEqual(UNSEEN)
+  })
+
+  it('finds a combined filter set whatever order the filters were picked in', () => {
+    expect(findPreloadedCount(COUNTS, { ...DEFAULTS, filters: ['incorrect', 'flagged'] })).toEqual(
+      BOTH,
+    )
+    expect(findPreloadedCount(COUNTS, { ...DEFAULTS, filters: ['flagged', 'incorrect'] })).toEqual(
+      BOTH,
+    )
   })
 
   it('returns null when nothing was preloaded', () => {
@@ -24,8 +40,8 @@ describe('findPreloadedCount', () => {
     expect(findPreloadedCount(COUNTS, { ...DEFAULTS, subjectId: 's2' })).toBeNull()
   })
 
-  it('returns null when a student filter is active', () => {
-    expect(findPreloadedCount(COUNTS, { ...DEFAULTS, filters: ['unseen'] })).toBeNull()
+  it('returns null for a filter set that was not preloaded', () => {
+    expect(findPreloadedCount(COUNTS, { ...DEFAULTS, filters: ['flagged'] })).toBeNull()
   })
 
   it.each([

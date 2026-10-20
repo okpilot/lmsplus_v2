@@ -5,7 +5,7 @@ import type { ExamSubjectOption } from '@/lib/queries/exam-subjects'
 import type { SubjectOption } from '@/lib/queries/quiz-query-types'
 import { useExamStart } from '../_hooks/use-exam-start'
 import { useQuizConfig } from '../_hooks/use-quiz-config'
-import type { QuizSetupPreload } from '../types'
+import type { PreloadPromise } from '../types'
 import { BlockedStartAlert } from './blocked-start-alert'
 import { DiscoveryModePanel } from './discovery-mode-panel'
 import { ExamConfigForm } from './exam-config-form'
@@ -20,7 +20,7 @@ type QuizConfigFormProps = {
   userId: string
   subjects: SubjectOption[]
   examSubjects: ExamSubjectOption[]
-  preload?: QuizSetupPreload
+  preload?: PreloadPromise
 }
 
 export function QuizConfigForm(props: Readonly<QuizConfigFormProps>) {

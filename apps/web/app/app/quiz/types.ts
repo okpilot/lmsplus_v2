@@ -174,5 +174,9 @@ export type ImageMode = 'all' | 'only' | 'exclude'
 /** Server-preloaded setup data: lets subject changes on /app/quiz run without a request. */
 export type QuizSetupPreload = {
   topicsBySubject: Record<string, TopicWithSubtopics[]>
-  discoveryCounts: Record<string, FilteredCounts>
+  /** Discovery counts by subject id, then by `filterSetKey` of the active filters. */
+  discoveryCounts: Record<string, Record<string, FilteredCounts>>
 }
+
+/** The preload as streamed from the server: a Promise prop the form never awaits. */
+export type PreloadPromise = Promise<QuizSetupPreload>
