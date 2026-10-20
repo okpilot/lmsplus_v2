@@ -378,6 +378,17 @@ describe('RPC: start_practice_quiz (#1548)', () => {
       .single()
     expect(lookupErr).toBeNull()
     expect(row?.deleted_at).not.toBeNull()
+    // The inactive caller's draw is empty, so the raise comes from start_practice_quiz's own
+    // empty-draw gate, not start_quiz_session's (both use the same token).
+    const { data: draw, error: drawErr } = await inactiveClient.rpc('get_random_question_ids', {
+      p_subject_id: refs.subjectId,
+      p_topic_ids: null,
+      p_subtopic_ids: null,
+      p_count: 3,
+      p_filters: [],
+    })
+    expect(drawErr).toBeNull()
+    expect(draw).toEqual([])
 
     const { data, error } = await start(inactiveClient)
     expect(error?.message).toContain('user not found or inactive')
