@@ -29,6 +29,8 @@ BEGIN
     RAISE EXCEPTION 'user_not_found_or_inactive';
   END IF;
 
+  -- No active_device_id / session_taken_over check: same as the read sibling get_quiz_progress
+  -- (20261003000300). Owner-only read that writes nothing.
   -- quiz_sessions has multiple permissive SELECT policies; the student_id predicate is mandatory
   -- (docs/security.md §3 / security.md rule 11).
   SELECT qs.config, qs.mode INTO v_config, v_mode
@@ -63,9 +65,13 @@ BEGIN
       AND pr.question_id = ANY(v_ids)
     ORDER BY pr.updated_at, pr.question_id
   LOOP
+    IF NOT COALESCE(_validate_progress_answer(r.answer, (r.qrow).question_type), false) THEN
+      RAISE WARNING '[get_restored_feedback] question % skipped: answer shape does not match question type', r.question_id;
+      CONTINUE;
+    END IF;
     BEGIN
       v_feedback := _answer_feedback(r.qrow, r.answer);
-    EXCEPTION WHEN raise_exception OR data_exception THEN
+    EXCEPTION WHEN raise_exception OR data_exception OR integrity_constraint_violation THEN
       -- A row that cannot be graded is skipped (mirrors _grade_session_progress).
       RAISE WARNING '[get_restored_feedback] question % skipped: %', r.question_id, SQLERRM;
       CONTINUE;

@@ -25,11 +25,13 @@ describe('RPC: get_restored_feedback', () => {
     await clearActiveSessions({ admin: f.admin, orgId: f.orgId })
   })
 
+  // setupProgressFixture seeds MC questions, so index 0 exists.
+  const mcId = () => f.mcIds[0]!
   const orderIds = () => ORDER_ITEMS.map((i) => i.id)
 
   /** Answer one question as the student through the real check RPC; returns the check output. */
   async function check(sessionId: string, questionId: string, params: Record<string, unknown>) {
-    const rpc = questionId === f.mcIds[0] ? 'check_quiz_answer' : 'check_non_mc_answer'
+    const rpc = questionId === mcId() ? 'check_quiz_answer' : 'check_non_mc_answer'
     const { data, error } = await f.student.rpc(rpc, {
       p_question_id: questionId,
       p_session_id: sessionId,
@@ -55,10 +57,10 @@ describe('RPC: get_restored_feedback', () => {
   }
 
   async function sessionWithAnswers() {
-    const ids = [f.mcIds[0]!, f.shortId, f.dialogId, f.orderingId, f.diagramId]
+    const ids = [mcId(), f.shortId, f.dialogId, f.orderingId, f.diagramId]
     const sessionId = await startPractice(f, 'quick_quiz', ids)
     const expected = new Map<string, Record<string, unknown>>()
-    expected.set(f.mcIds[0]!, await check(sessionId, f.mcIds[0]!, { p_selected_option_id: 'a' }))
+    expected.set(mcId(), await check(sessionId, mcId(), { p_selected_option_id: 'a' }))
     expected.set(f.shortId, await check(sessionId, f.shortId, { p_response_text: 'wilco' }))
     expected.set(
       f.dialogId,
@@ -84,7 +86,7 @@ describe('RPC: get_restored_feedback', () => {
     const feedback = await restored(sessionId)
     expect(feedback).toHaveLength(5)
     const types = new Map(feedback.map((e) => [e.question_id, e.question_type]))
-    expect(types.get(f.mcIds[0]!)).toBe('multiple_choice')
+    expect(types.get(mcId())).toBe('multiple_choice')
     expect(types.get(f.shortId)).toBe('short_answer')
     expect(types.get(f.dialogId)).toBe('dialog_fill')
     expect(types.get(f.orderingId)).toBe('ordering')
@@ -95,14 +97,14 @@ describe('RPC: get_restored_feedback', () => {
   })
 
   it('omits an in-session question that has no saved answer', async () => {
-    const sessionId = await startPractice(f, 'quick_quiz', [f.mcIds[0]!, f.shortId])
+    const sessionId = await startPractice(f, 'quick_quiz', [mcId(), f.shortId])
     await check(sessionId, f.shortId, { p_response_text: 'wilco' })
     const feedback = await restored(sessionId)
     expect(feedback.map((e) => e.question_id)).toEqual([f.shortId])
   })
 
   it('returns an empty list when nothing was answered', async () => {
-    const sessionId = await startPractice(f, 'quick_quiz', [f.mcIds[0]!, f.shortId])
+    const sessionId = await startPractice(f, 'quick_quiz', [mcId(), f.shortId])
     expect(await restored(sessionId)).toEqual([])
   })
 
@@ -193,8 +195,8 @@ describe('RPC: get_restored_feedback', () => {
   })
 
   it('skips a saved answer that no longer matches its question type and returns the rest', async () => {
-    const sessionId = await startPractice(f, 'quick_quiz', [f.mcIds[0]!, f.shortId])
-    const mcChecked = await check(sessionId, f.mcIds[0]!, { p_selected_option_id: 'a' })
+    const sessionId = await startPractice(f, 'quick_quiz', [mcId(), f.shortId])
+    const mcChecked = await check(sessionId, mcId(), { p_selected_option_id: 'a' })
     await check(sessionId, f.shortId, { p_response_text: 'wilco' })
     const { data: planted, error: plantErr } = await f.admin
       .from('quiz_session_progress')
@@ -205,12 +207,12 @@ describe('RPC: get_restored_feedback', () => {
     expect(plantErr).toBeNull()
     expect(planted).toHaveLength(1)
     const feedback = await restored(sessionId)
-    expect(feedback.map((e) => e.question_id)).toEqual([f.mcIds[0]])
+    expect(feedback.map((e) => e.question_id)).toEqual([mcId()])
     expect(stripIdentity(feedback[0]!)).toEqual(mcChecked)
   })
 
   it('still returns feedback for a question soft-deleted after it was answered', async () => {
-    const sessionId = await startPractice(f, 'quick_quiz', [f.mcIds[0]!, f.shortId])
+    const sessionId = await startPractice(f, 'quick_quiz', [mcId(), f.shortId])
     const checked = await check(sessionId, f.shortId, { p_response_text: 'wilco' })
     const { error: delErr } = await f.admin
       .from('questions')
@@ -228,5 +230,30 @@ describe('RPC: get_restored_feedback', () => {
         .eq('id', f.shortId)
       if (error) console.error('[restore question]', error.message)
     }
+  })
+
+  it('skips a saved multiple-choice answer stored in the wrong shape and returns the rest', async () => {
+    const sessionId = await startPractice(f, 'quick_quiz', [mcId(), f.shortId])
+    await check(sessionId, mcId(), { p_selected_option_id: 'a' })
+    const shortChecked = await check(sessionId, f.shortId, { p_response_text: 'wilco' })
+    const { data: planted, error: plantErr } = await f.admin
+      .from('quiz_session_progress')
+      .update({ answer: { response_text: 'x' } })
+      .eq('session_id', sessionId)
+      .eq('question_id', mcId())
+      .select('question_id')
+    expect(plantErr).toBeNull()
+    expect(planted).toHaveLength(1)
+    const feedback = await restored(sessionId)
+    expect(feedback.map((e) => e.question_id)).toEqual([f.shortId])
+    expect(stripIdentity(feedback[0]!)).toEqual(shortChecked)
+  })
+
+  it('returns feedback for the answered question of a smart_review session', async () => {
+    const sessionId = await startPractice(f, 'smart_review', [mcId(), f.shortId])
+    const checked = await check(sessionId, mcId(), { p_selected_option_id: 'a' })
+    const feedback = await restored(sessionId)
+    expect(feedback.map((e) => e.question_id)).toEqual([mcId()])
+    expect(stripIdentity(feedback[0]!)).toEqual(checked)
   })
 })

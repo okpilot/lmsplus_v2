@@ -332,4 +332,33 @@ describe('RPC: check_quiz_answer', () => {
       }
     }
   })
+
+  it('returns no verdict and saves nothing when the student has not selected an option', async () => {
+    const sessionId = await startSession()
+    const { data: sess, error: sessErr } = await admin
+      .from('quiz_sessions')
+      .select('id')
+      .eq('id', sessionId)
+      .single<{ id: string }>()
+    expect(sessErr).toBeNull()
+    expect(sess?.id).toBe(sessionId)
+
+    const { data, error } = await studentClient.rpc('check_quiz_answer', {
+      p_question_id: questionIds[0],
+      p_selected_option_id: null,
+      p_session_id: sessionId,
+    })
+    expect(error).toBeNull()
+    const result = requireRpcResult<Record<string, unknown>>(data, 'check_quiz_answer')
+    expect(result.is_correct).toBeNull()
+    expect(result.correct_option_id).toBe('b')
+
+    const { data: rows, error: rowsErr } = await admin
+      .from('quiz_session_progress')
+      .select('question_id')
+      .eq('session_id', sessionId)
+      .eq('question_id', questionIds[0]!)
+    expect(rowsErr).toBeNull()
+    expect(rows).toEqual([])
+  })
 })
