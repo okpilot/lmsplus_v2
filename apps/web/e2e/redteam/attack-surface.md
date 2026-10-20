@@ -282,6 +282,11 @@
 | JB | start_practice_quiz-cross-org-draw | MEDIUM | rpc-start-quiz-one-rpc.spec.ts | BLOCKED |  | cross-tenant |
 | JC | start_discovery-concurrent-double-start | MEDIUM | rpc-start-quiz-one-rpc.spec.ts | BLOCKED |  | race |
 | JD | start_discovery-draft-soft-deleted-non-mc-key-exposure | HIGH | rpc-start-quiz-one-rpc.spec.ts | BLOCKED |  | soft-delete-bypass |
+| JE | start_discovery-flagged-filter-cross-student | MEDIUM | rpc-start-quiz-one-rpc-guards.spec.ts | BLOCKED |  | cross-tenant |
+| JF | start_discovery-start_practice_quiz-anon-call | MEDIUM | rpc-start-quiz-one-rpc-guards.spec.ts | BLOCKED |  | auth-bypass |
+| JG | start_discovery-start_practice_quiz-soft-deleted-caller | HIGH | rpc-start-quiz-one-rpc-guards.spec.ts | BLOCKED |  | soft-delete-bypass |
+| JH | start_practice_quiz-mid-exam-start | HIGH | rpc-start-quiz-one-rpc-guards.spec.ts | BLOCKED |  | sibling-guard-gap |
+| JI | start_discovery-mid-practice-answer-oracle | MEDIUM | rpc-start-quiz-one-rpc-guards.spec.ts | BLOCKED |  | answer-oracle |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
