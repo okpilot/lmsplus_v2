@@ -162,9 +162,8 @@ test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ES/ET
     victimUserId = seed.victimUserId
     studentClient = await createAuthenticatedClient(VICTIM_EMAIL, VICTIM_PASSWORD)
 
-    // ≥2 active questions so the repeat-discovery-start (idempotent replace) test
-    // can replay with a DISTINCT question set (slice(0, 2)) — code-style.md §7:
-    // idempotent/re-read paths must seed ≥2 distinct fixture values.
+    // ≥2 active questions so both starts in the ES repeat-start (replace) test draw a
+    // non-empty set.
     const picked = await pickSubjectWithQuestions(admin, {
       orgId,
       minActiveQuestions: 2,
@@ -342,8 +341,11 @@ test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ES/ET
   test('ES: a discovery start creates exactly one active discovery session, and a repeat start replaces it', async () => {
     const first = await studentClient.rpc('start_discovery', discoveryArgs(1))
     expect(first.error).toBeNull()
-    const firstId = asDiscoveryResult(first.data).session_id as string
-    expect(typeof firstId).toBe('string')
+    const firstResult = asDiscoveryResult(first.data)
+    expect(firstResult.session_id, 'fixture subject needs active MC questions').toEqual(
+      expect.any(String),
+    )
+    const firstId = firstResult.session_id as string
     // Exactly one active discovery row (non-vacuity: the happy path genuinely created it).
     const afterFirst = await readActiveSessions()
     expect(afterFirst.map((s) => s.id)).toEqual([firstId])
@@ -352,8 +354,10 @@ test.describe('Red Team: single-active-session invariant (Vectors EP/EQ/ER/ES/ET
     const second = await studentClient.rpc('start_discovery', discoveryArgs(2))
     expect(second.error).toBeNull()
     const secondResult = asDiscoveryResult(second.data)
+    expect(secondResult.session_id, 'fixture subject needs active MC questions').toEqual(
+      expect.any(String),
+    )
     const secondId = secondResult.session_id as string
-    expect(typeof secondId).toBe('string')
     const secondQuestionIds = secondResult.questions.map((q) => q.id)
     expect(secondQuestionIds.length).toBeGreaterThan(0)
 
