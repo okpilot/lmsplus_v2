@@ -82,7 +82,7 @@
     "apps/web/app/app/internal-exam/actions/get-active-internal-exam-session.ts": 137,
     "apps/web/app/app/quiz/_components/finish-quiz-dialog.test.tsx": 735,
     "apps/web/app/app/quiz/_hooks/use-quiz-config.test.ts": 646,
-    "apps/web/app/app/quiz/_hooks/use-study-config.ts": 83,
+    "apps/web/app/app/quiz/_hooks/use-study-config.ts": 82,
     "apps/web/app/app/quiz/actions/check-non-mc-answer-helpers.test.ts": 529,
     "apps/web/app/app/quiz/actions/get-active-exam-session.ts": 101,
     "apps/web/app/app/quiz/actions/load-draft-helpers.test.ts": 597,
