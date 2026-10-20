@@ -119,6 +119,8 @@ describe('RPC: start_practice_quiz (#1548)', () => {
       subjectName: `SPQ Subject ${suffix}`,
       topicCode: `SPQ${suffix}-02`,
       topicName: `SPQ Topic Two ${suffix}`,
+      subtopicCode: `SPQ${suffix}-02-A`,
+      subtopicName: `SPQ Subtopic Two ${suffix}`,
     })
     expect(refsTwo.subjectId).toBe(refs.subjectId)
     refsBig = await seedReferenceData({
@@ -153,6 +155,7 @@ describe('RPC: start_practice_quiz (#1548)', () => {
         createdBy: adminUserId,
         subjectId: refs.subjectId,
         topicId: refsTwo.topicId,
+        subtopicId: refsTwo.subtopicId,
         count: 3,
       })
     ).questionIds
@@ -175,8 +178,8 @@ describe('RPC: start_practice_quiz (#1548)', () => {
   })
 
   afterAll(async () => {
-    // Fixture teardown (same precedent as cleanup.ts): flagged_questions FK-blocks the
-    // question/user deletes below and has no cascade.
+    // Fixture teardown (precedent: rls-active-user-writes.integration.test.ts): flagged_questions
+    // FK-blocks the question/user deletes below and has no cascade.
     const { error: flagCleanupErr } = await admin
       .from('flagged_questions')
       .delete()
@@ -239,6 +242,47 @@ describe('RPC: start_practice_quiz (#1548)', () => {
     const manyRows = await sessionRows(many.session_id as string)
     expect(manyRows[0]?.topic_id).toBeNull()
     expect(many.question_ids).toHaveLength(8)
+  })
+
+  it('starts a session for a topic plus a subtopic of another topic, with no single topic stored', async () => {
+    expect(questionIds.length + topicTwoQuestionIds.length).toBe(8)
+    const { data, error } = await start(studentClient, {
+      p_topic_ids: [refs.topicId],
+      p_subtopic_ids: [refsTwo.subtopicId],
+      p_count: 8,
+    })
+    expect(error).toBeNull()
+    const result = requireRpcResult<StartResult>(data, 'topic + foreign subtopic')
+    expect(result.question_ids).toHaveLength(8)
+    const rows = await sessionRows(result.session_id as string)
+    expect(rows[0]?.topic_id).toBeNull()
+  })
+
+  it("ignores the 'all' sentinel in p_filters", async () => {
+    const all = requireRpcResult<StartResult>(
+      (await start(studentClient, { p_filters: ['all'], p_count: 8 })).data,
+      "p_filters=['all']",
+    )
+    expect(all.session_id).not.toBeNull()
+    expect(all.question_ids).toHaveLength(8)
+
+    await clearActiveSessions({ admin, orgId })
+    const flaggedId = questionIds[1] as string
+    const { error: flagErr } = await admin
+      .from('flagged_questions')
+      .upsert({ student_id: studentId, question_id: flaggedId, deleted_at: null })
+    if (flagErr) throw new Error(`flag: ${flagErr.message}`)
+    const mixed = requireRpcResult<StartResult>(
+      (await start(studentClient, { p_filters: ['all', 'flagged'], p_count: 8 })).data,
+      "p_filters=['all','flagged']",
+    )
+    expect(mixed.question_ids).toEqual([flaggedId])
+    const { error: unflagErr } = await admin
+      .from('flagged_questions')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('student_id', studentId)
+      .eq('question_id', flaggedId)
+    if (unflagErr) throw new Error(`unflag: ${unflagErr.message}`)
   })
 
   it('applies the filters: flagged draws only flagged questions', async () => {

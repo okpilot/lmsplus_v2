@@ -206,8 +206,8 @@ describe('RPC: start_discovery (#1548)', () => {
   })
 
   afterAll(async () => {
-    // Fixture teardown (same precedent as cleanup.ts): flagged_questions FK-blocks the
-    // question/user deletes below and has no cascade.
+    // Fixture teardown (precedent: rls-active-user-writes.integration.test.ts): flagged_questions
+    // FK-blocks the question/user deletes below and has no cascade.
     const { error: flagCleanupErr } = await admin
       .from('flagged_questions')
       .delete()
@@ -379,6 +379,48 @@ describe('RPC: start_discovery (#1548)', () => {
     expect(result).toEqual({ session_id: null, questions: [], flagged_ids: [] })
     expect(await activeSessions()).toHaveLength(0)
     expect(await countAudit()).toBe(auditBefore)
+  })
+
+  it('keeps the caller live discovery session when the draw is empty', async () => {
+    await insertLiveSession('discovery')
+    const before = await activeSessions()
+    expect(before).toHaveLength(1)
+
+    const { data, error } = await start(studentClient, { p_subject_id: refsEmpty.subjectId })
+    expect(error).toBeNull()
+    const result = requireRpcResult<DiscoveryResult>(data, 'empty draw, live discovery')
+    expect(result).toEqual({ session_id: null, questions: [], flagged_ids: [] })
+    const after = await activeSessions()
+    expect(after.map((s) => s.id)).toEqual(before.map((s) => s.id))
+  })
+
+  it('returns an empty result without raising when the draw is empty and a quick_quiz is live', async () => {
+    await insertLiveSession('quick_quiz')
+    const { data, error } = await start(studentClient, { p_subject_id: refsEmpty.subjectId })
+    expect(error).toBeNull()
+    const result = requireRpcResult<DiscoveryResult>(data, 'empty draw, live quick_quiz')
+    expect(result.session_id).toBeNull()
+    expect(await activeSessions()).toHaveLength(1)
+  })
+
+  it("ignores the 'all' sentinel in p_filters", async () => {
+    const all = requireRpcResult<DiscoveryResult>(
+      (await start(studentClient, { p_filters: ['all'] })).data,
+      "p_filters=['all']",
+    )
+    expect(all.questions.map((q) => q.id).sort()).toEqual([...questionIds].sort())
+
+    await clearActiveSessions({ admin, orgId })
+    const flaggedId = questionIds[2] as string
+    const { error } = await admin
+      .from('flagged_questions')
+      .upsert({ student_id: studentId, question_id: flaggedId, deleted_at: null })
+    if (error) throw new Error(`flag: ${error.message}`)
+    const mixed = requireRpcResult<DiscoveryResult>(
+      (await start(studentClient, { p_filters: ['all', 'flagged'] })).data,
+      "p_filters=['all','flagged']",
+    )
+    expect(mixed.questions.map((q) => q.id)).toEqual([flaggedId])
   })
 
   it.each([['mock_exam'], ['quick_quiz']])(
