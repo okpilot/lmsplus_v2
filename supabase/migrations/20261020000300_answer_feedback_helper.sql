@@ -237,6 +237,8 @@ END;
 $$;
 
 REVOKE EXECUTE ON FUNCTION _answer_feedback(public.questions, jsonb) FROM PUBLIC, anon, authenticated;
+-- Explicit: default privileges do not supply service_role EXECUTE (see 20260815000100).
+GRANT  EXECUTE ON FUNCTION _answer_feedback(public.questions, jsonb) TO service_role;
 
 COMMENT ON FUNCTION _answer_feedback(public.questions, jsonb) IS
   'Immediate-feedback grading of one stored answer (shape per _validate_progress_answer) against a questions row. Reads no table. Shared by check_quiz_answer, check_non_mc_answer and get_restored_feedback.';
