@@ -380,11 +380,25 @@ describe('RPC: start_practice_quiz (#1548)', () => {
     const { data, error } = await start(inactiveClient)
     expect(error?.message).toContain('user not found or inactive')
     expect(data).toBeNull()
-    const { data: sessions } = await admin
+    const { data: sessions, error: sessionsErr } = await admin
       .from('quiz_sessions')
       .select('id')
       .eq('student_id', inactiveId)
+    expect(sessionsErr).toBeNull()
     expect(sessions).toHaveLength(0)
+  })
+
+  it('raises another_session_active when a quick_quiz is already live and creates no row', async () => {
+    const first = requireRpcResult<StartResult>((await start(studentClient)).data, 'first start')
+    expect(first.session_id).not.toBeNull()
+    expect(await countSessions()).toBe(1)
+
+    const { data, error } = await start(studentClient)
+    expect(error?.message).toContain('another_session_active')
+    expect(data).toBeNull()
+    expect(await countSessions()).toBe(1)
+    const rows = await sessionRows(first.session_id as string)
+    expect(rows).toHaveLength(1)
   })
 
   it('denies an anonymous caller', async () => {

@@ -28,6 +28,12 @@ DECLARE
   v_topic_id   uuid;
   v_session_id uuid;
 BEGIN
+  -- start_quiz_session raises this first; the empty-draw path below never reaches it. Not
+  -- reachable through PostgREST (anon has no EXECUTE, an authenticated JWT always carries a uid).
+  IF (select auth.uid()) IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
   -- 'all' is the UI's "no filter" sentinel; the pool would read it as a filter matching nothing.
   -- get_random_question_ids is SECURITY INVOKER with the same pool, clamp and RLS as this function.
   SELECT array_agg(g.id) INTO v_ids
@@ -107,47 +113,46 @@ BEGIN
   -- One statement draws the ids and builds the answer-key payload from the same rows, so the
   -- session's ids and the payload cannot diverge (READ COMMITTED re-reads per statement).
   WITH draw AS (
-    SELECT p.id, row_number() OVER (ORDER BY random()) AS rn
+    SELECT q.*, row_number() OVER (ORDER BY random()) AS rn
     FROM public._filtered_question_pool(
       p_subject_id, p_topic_ids, p_subtopic_ids, v_filters, p_calc_mode, p_has_image,
       'multiple_choice'
     ) p
-    JOIN public.questions dq ON dq.id = p.id AND dq.organization_id = v_org_id
+    JOIN public.questions q ON q.id = p.id
+     AND q.organization_id = v_org_id
+     AND q.deleted_at IS NULL
+     AND q.status = 'active'
+     AND q.question_type = 'multiple_choice'
     ORDER BY rn
     LIMIT LEAST(GREATEST(COALESCE(p_count, 0), 0), 500)
   )
   SELECT
-    array_agg(q.id ORDER BY d.rn),
+    array_agg(d.id ORDER BY d.rn),
     jsonb_agg(
       jsonb_build_object(
-        'id', q.id,
-        'question_text', q.question_text,
-        'question_image_url', q.question_image_url,
+        'id', d.id,
+        'question_text', d.question_text,
+        'question_image_url', d.question_image_url,
         'options', (SELECT jsonb_agg(
            jsonb_build_object('id', opt->>'id', 'text', opt->>'text')
            ORDER BY ord
          )
-         FROM jsonb_array_elements(q.options) WITH ORDINALITY AS o(opt, ord)),
-        'correct_option_id', q.correct_option_id,
+         FROM jsonb_array_elements(d.options) WITH ORDINALITY AS o(opt, ord)),
+        'correct_option_id', d.correct_option_id,
         'subject_code', s.code,
         'topic_name', t.name,
         'subtopic_name', st.name,
-        'explanation_text', q.explanation_text,
-        'explanation_image_url', q.explanation_image_url,
-        'question_number', q.question_number,
-        'difficulty', q.difficulty
+        'explanation_text', d.explanation_text,
+        'explanation_image_url', d.explanation_image_url,
+        'question_number', d.question_number,
+        'difficulty', d.difficulty
       ) ORDER BY d.rn
     )
   INTO v_ids, v_questions
   FROM draw d
-  JOIN public.questions q ON q.id = d.id
-  JOIN public.easa_subjects  s  ON s.id = q.subject_id
-  JOIN public.easa_topics    t  ON t.id = q.topic_id
-  LEFT JOIN public.easa_subtopics st ON st.id = q.subtopic_id
-  WHERE q.organization_id = v_org_id
-    AND q.deleted_at IS NULL
-    AND q.status = 'active'
-    AND q.question_type = 'multiple_choice';
+  JOIN public.easa_subjects  s  ON s.id = d.subject_id
+  JOIN public.easa_topics    t  ON t.id = d.topic_id
+  LEFT JOIN public.easa_subtopics st ON st.id = d.subtopic_id;
 
   -- Empty draw: no checks and no side effect (the caller's live sessions stay untouched).
   IF v_ids IS NULL THEN
