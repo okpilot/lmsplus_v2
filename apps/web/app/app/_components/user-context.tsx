@@ -1,23 +1,22 @@
 'use client'
 
-import { createContext, type ReactNode, useContext, useMemo } from 'react'
+import { createContext, type ReactNode, use, useContext } from 'react'
+import type { ShellUser } from '../_lib/load-shell-user'
 
-type UserContextValue = {
-  displayName: string
-  userRole?: string
-}
+type UserPromise = Promise<ShellUser | null>
 
-const UserContext = createContext<UserContextValue | null>(null)
+const UserContext = createContext<UserPromise | null>(null)
 
-export function useUser(): UserContextValue {
+/** Suspends until the shell user lookup settles; null when unknown. */
+export function useUser(): ShellUser | null {
   const ctx = useContext(UserContext)
   if (!ctx) throw new Error('useUser must be used within UserProvider')
-  return ctx
+  return use(ctx)
 }
 
-type UserProviderProps = UserContextValue & { children: ReactNode }
-
-export function UserProvider({ displayName, userRole, children }: Readonly<UserProviderProps>) {
-  const value = useMemo(() => ({ displayName, userRole }), [displayName, userRole])
-  return <UserContext value={value}>{children}</UserContext>
+export function UserProvider({
+  user,
+  children,
+}: Readonly<{ user: UserPromise; children: ReactNode }>) {
+  return <UserContext value={user}>{children}</UserContext>
 }

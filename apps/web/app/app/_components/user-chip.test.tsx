@@ -28,4 +28,10 @@ describe('UserChip', () => {
     expect(screen.getByText('Ada Pilot')).toBeInTheDocument()
     expect(screen.getByText('AP')).toBeInTheDocument()
   })
+
+  it('shows a generic Signed in label with an empty avatar when the name is not known yet', () => {
+    const { container } = render(<UserChip displayName={null} />)
+    expect(screen.getByText('Signed in')).toBeInTheDocument()
+    expect(container.querySelector('[aria-hidden="true"]')).toBeEmptyDOMElement()
+  })
 })

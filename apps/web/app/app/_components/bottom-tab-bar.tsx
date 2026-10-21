@@ -8,7 +8,6 @@ import { NavIcon } from './nav-icon'
 import type { NavItem } from './nav-items'
 import { useTabBarModel } from './use-tab-bar-model'
 import { useTabSlots } from './use-tab-slots'
-import { useUser } from './user-context'
 
 type TabLinkProps = { item: NavItem; active: boolean; onClick: () => void }
 
@@ -26,9 +25,8 @@ function TabLink({ item, active, onClick }: Readonly<TabLinkProps>) {
   )
 }
 
-function useBottomTabBar() {
+function useBottomTabBar(userRole: string | undefined) {
   const pathname = usePathname()
-  const { userRole } = useUser()
   const ref = useRef<HTMLElement>(null)
   const moreRef = useRef<HTMLButtonElement>(null)
   const model = useTabBarModel(pathname, userRole, useTabSlots(ref))
@@ -65,8 +63,8 @@ function TabStrip({ bar }: Readonly<{ bar: Bar }>) {
   )
 }
 
-export function BottomTabBar() {
-  const bar = useBottomTabBar()
+export function BottomTabBar({ userRole }: Readonly<{ userRole?: string }>) {
+  const bar = useBottomTabBar(userRole)
 
   return (
     <>

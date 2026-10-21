@@ -6,13 +6,7 @@ import { MobileNav } from './mobile-nav'
 import { PhoneTopBar } from './phone-top-bar'
 import { SidebarNav } from './sidebar-nav'
 
-type AppShellProps = {
-  displayName: string
-  userRole?: string
-  children: ReactNode
-}
-
-export function AppShell({ displayName, userRole, children }: Readonly<AppShellProps>) {
+export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
   const pathname = usePathname()
   const isFullscreen = pathname.split('/').includes('session')
 
@@ -24,7 +18,7 @@ export function AppShell({ displayName, userRole, children }: Readonly<AppShellP
     <div className="flex min-h-screen flex-col md:flex-row">
       <PhoneTopBar />
       <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 self-start md:flex">
-        <SidebarNav userRole={userRole} displayName={displayName} />
+        <SidebarNav />
       </aside>
       <div className="min-w-0 flex-1 px-5 py-8 pb-24 md:px-10 md:pb-8">
         <div className="mx-auto max-w-6xl">{children}</div>
