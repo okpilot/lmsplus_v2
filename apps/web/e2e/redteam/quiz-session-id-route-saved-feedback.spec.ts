@@ -1,8 +1,8 @@
 /**
  * Red Team Spec: `/app/quiz/session/<id>` restored feedback on a SAVED session (#1549 PR2) — Vector JN
  *
- * JN (soft-delete-bypass): a saved (soft-deleted) quick_quiz loaded by id by its owner carries the
- *     no answer key; `get_restored_feedback` refuses the saved row.
+ * JN (soft-delete-bypass): a saved (soft-deleted) quick_quiz loaded by id by its owner carries
+ *     no answer key in the server payload; `get_restored_feedback` refuses the saved row.
  *     CONTROL: the same session while open carries the key in the server payload.
  *
  * Status: Expected to PASS.
