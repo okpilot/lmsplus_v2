@@ -3,8 +3,8 @@
  *
  * HA (idor): the attacker requests the victim's session URL.
  *     CONTROL: the victim's own request renders the session.
- * HB (answer-oracle): a mock_exam loaded by id carries the saved answer but no correctness, and the
- *     browser runs no re-check. CONTROL: the same load of a quick_quiz re-checks the saved answer.
+ * HB (answer-oracle): a mock_exam loaded by id carries the saved answer but no correctness or
+ *     feedback. CONTROL: the same load of a quick_quiz renders the saved answer graded, no client action.
  *
  * Status: Expected to PASS.
  */
@@ -24,6 +24,7 @@ import {
 } from './helpers/seed-users'
 
 const BASE_URL = 'http://localhost:3000'
+const OPTION = '[data-testid^="option-"]'
 const KEY_TOKENS = ['isCorrect', 'correctOptionId', 'correct_option_id']
 
 type Mode = 'quick_quiz' | 'mock_exam'
@@ -197,8 +198,8 @@ test.describe('Red Team: quiz session read path by id (HA, HB)', () => {
   for (const mode of ['mock_exam', 'quick_quiz'] as const) {
     const title =
       mode === 'mock_exam'
-        ? 'HB: a mock_exam loaded by id carries the saved answer and no correctness or re-check'
-        : 'HB CONTROL: a quick_quiz loaded by id re-checks the saved answer'
+        ? 'HB: a mock_exam loaded by id carries the saved answer and no correctness or feedback'
+        : 'HB CONTROL: a quick_quiz loaded by id shows the saved answer graded after reload'
     test(title, async ({ browser }) => {
       const sessionId = await seedSession(mode)
       const victim = await createAuthenticatedClient(VICTIM_EMAIL, VICTIM_PASSWORD)
@@ -224,40 +225,44 @@ test.describe('Red Team: quiz session read path by id (HA, HB)', () => {
         // The seed is in the payload scanned below: the saved answer and its question.
         expect(body).toContain(q1)
         expect(body).toMatch(/selectedOptionId\\?":\\?"b/)
-        for (const token of KEY_TOKENS) expect(body, token).not.toContain(token)
 
         const page = await ctx.newPage()
         const actionBodies: string[] = []
-        // checkAnswer from the re-check: q1 and selectedOptionId, no timeSpentMs (saves carry it).
         const requestBodies: string[] = []
-        const isRecheck = (b: string) =>
-          b.includes(q1) && b.includes('selectedOptionId') && !b.includes('timeSpentMs')
-        page.on('request', (r) => {
-          if (r.method() === 'POST' && r.headers()['next-action'])
-            requestBodies.push(r.postData() ?? '')
-        })
         // The browser cancels an action response body once it has decoded the result, so a
         // 'response' listener's r.text() can reject. Read the body from the route instead.
         await page.route('**/app/quiz/session/*', async (route) => {
           const req = route.request()
           if (req.method() !== 'POST' || !req.headers()['next-action']) return route.continue()
+          requestBodies.push(req.postData() ?? '')
           const res = await route.fetch()
           actionBodies.push(await res.text())
           return route.fulfill({ response: res })
         })
         await page.goto(url)
         await expect(page.getByText(/Question 1 of 2/)).toBeVisible({ timeout: 15_000 })
+        const graded = page.locator(
+          `${OPTION}[class*="border-green-500"], ${OPTION}[class*="border-destructive"]`,
+        )
         if (mode === 'quick_quiz') {
-          await expect
-            .poll(() => actionBodies.some((b) => b.includes('isCorrect')), { timeout: 10_000 })
-            .toBe(true)
-          expect(requestBodies.some(isRecheck)).toBe(true)
-        } else {
+          // Practice: the server load carries the feedback, so it renders with no client action.
+          expect(body).toContain('correctOptionId')
+          await expect(graded.first()).toBeVisible({ timeout: 10_000 })
           await page.waitForTimeout(3_000)
-          expect(requestBodies.some(isRecheck)).toBe(false)
+          expect(requestBodies.length).toBeGreaterThan(0)
+        } else {
+          // Seed is present (answered question rendered above); no key token in the payload,
+          // and the rendered question shows no graded option.
+          for (const token of KEY_TOKENS) expect(body, token).not.toContain(token)
+          await page.waitForTimeout(3_000)
           expect(actionBodies.length).toBeGreaterThan(0)
           for (const b of actionBodies) for (const t of KEY_TOKENS) expect(b, t).not.toContain(t)
+          await expect(page.locator(OPTION).first()).toBeVisible()
+          await expect(graded).toHaveCount(0)
+          expect(await page.content()).not.toContain('correctOptionId')
         }
+        // No client answer check runs on a resume: no action request carries a selected option.
+        for (const b of requestBodies) expect(b).not.toContain('selectedOptionId')
         await page.close()
       } finally {
         await ctx.close()

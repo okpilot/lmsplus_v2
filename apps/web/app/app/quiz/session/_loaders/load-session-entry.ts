@@ -1,16 +1,23 @@
 import { redirect } from 'next/navigation'
 import type { SessionQuestion } from '@/app/app/_types/session'
+import type { AnswerFeedback } from '@/app/app/quiz/types'
+import { PRACTICE_MODES } from '@/lib/constants/exam-modes'
 import { reportUrl } from '@/lib/constants/report-paths'
 import { getFlaggedQuestionIdsBounded } from '@/lib/queries/flagged-questions'
 import { loadQuizSessionState, type SessionEntry } from '@/lib/queries/load-quiz-session-state'
 import { loadSessionQuestions } from '@/lib/queries/load-session-questions'
 import { loadVfrRtExamQuestions } from '@/lib/queries/load-vfr-rt-exam-questions'
+import { getRestoredFeedbackBounded } from '@/lib/queries/restored-feedback'
 
 type OpenEntry = Extract<SessionEntry, { kind: 'open' }>
 type SavedEntry = Extract<SessionEntry, { kind: 'saved' }>
 
 export type SessionRunnerData =
-  | { questions: SessionQuestion[]; flaggedIds: string[] }
+  | {
+      questions: SessionQuestion[]
+      flaggedIds: string[]
+      feedback: Record<string, AnswerFeedback>
+    }
   | { error: string }
 
 export type LoadedSessionEntry =
@@ -25,13 +32,33 @@ function readQuestions(entry: OpenEntry) {
     : loadSessionQuestions(entry.questionIds)
 }
 
-/** Questions decide success; a failure returns at once instead of waiting on the cosmetic flag read. */
+function keepAnswered(
+  feedback: Record<string, AnswerFeedback>,
+  answers: Record<string, unknown>,
+): Record<string, AnswerFeedback> {
+  return Object.fromEntries(Object.entries(feedback).filter(([id]) => Object.hasOwn(answers, id)))
+}
+
+/**
+ * Exam modes never reveal answers on resume; the RPC would refuse them anyway. Practice feedback
+ * is kept only for questions the student has answered, so a session with none skips the read.
+ */
+function readFeedback(entry: OpenEntry): Promise<Record<string, AnswerFeedback>> {
+  const isPractice = (PRACTICE_MODES as readonly string[]).includes(entry.mode)
+  if (!isPractice || Object.keys(entry.seed.answers).length === 0) return Promise.resolve({})
+  return getRestoredFeedbackBounded(entry.sessionId).then((f) =>
+    keepAnswered(f, entry.seed.answers),
+  )
+}
+
+/** Questions decide success; a failure returns at once instead of waiting on the cosmetic flag and feedback reads. */
 async function loadRunnerData(entry: OpenEntry): Promise<SessionRunnerData> {
   const flags = getFlaggedQuestionIdsBounded(entry.questionIds)
+  const feedback = readFeedback(entry)
   try {
     const result = await readQuestions(entry)
     if (!result.success) return { error: result.error }
-    return { questions: result.questions, flaggedIds: await flags }
+    return { questions: result.questions, flaggedIds: await flags, feedback: await feedback }
   } catch (e) {
     console.error(
       '[loadSessionEntry] question load failed:',
@@ -44,7 +71,7 @@ async function loadRunnerData(entry: OpenEntry): Promise<SessionRunnerData> {
 /**
  * Loads the session for /app/quiz/session/<id>. A finished session goes to its report; a
  * discarded, missing or foreign one goes back to the quiz page. An open session also carries
- * its questions and flags; a saved one carries none.
+ * its questions, flags and restored feedback; a saved one carries none.
  */
 export async function loadSessionEntry(
   sessionId: string,

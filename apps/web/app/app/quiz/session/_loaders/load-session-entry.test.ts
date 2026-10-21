@@ -1,14 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockLoad, mockRedirect, mockQuestions, mockVfrQuestions, mockFlags } = vi.hoisted(() => ({
-  mockLoad: vi.fn(),
-  mockQuestions: vi.fn(),
-  mockVfrQuestions: vi.fn(),
-  mockFlags: vi.fn(),
-  mockRedirect: vi.fn((url: string) => {
-    throw new Error(`NEXT_REDIRECT:${url}`)
-  }),
-}))
+const { mockLoad, mockRedirect, mockQuestions, mockVfrQuestions, mockFlags, mockFeedback } =
+  vi.hoisted(() => ({
+    mockFeedback: vi.fn(),
+    mockLoad: vi.fn(),
+    mockQuestions: vi.fn(),
+    mockVfrQuestions: vi.fn(),
+    mockFlags: vi.fn(),
+    mockRedirect: vi.fn((url: string) => {
+      throw new Error(`NEXT_REDIRECT:${url}`)
+    }),
+  }))
 
 vi.mock('@/lib/queries/load-quiz-session-state', () => ({
   loadQuizSessionState: (...a: unknown[]) => mockLoad(...a),
@@ -20,6 +22,9 @@ vi.mock('@/lib/queries/load-session-questions', () => ({
 vi.mock('@/lib/queries/load-vfr-rt-exam-questions', () => ({
   loadVfrRtExamQuestions: (...a: unknown[]) => mockVfrQuestions(...a),
 }))
+vi.mock('@/lib/queries/restored-feedback', () => ({
+  getRestoredFeedbackBounded: (...a: unknown[]) => mockFeedback(...a),
+}))
 vi.mock('@/lib/queries/flagged-questions', () => ({
   getFlaggedQuestionIdsBounded: (...a: unknown[]) => mockFlags(...a),
 }))
@@ -29,7 +34,14 @@ import { loadSessionEntry } from './load-session-entry'
 const ID = '11111111-1111-4111-8111-111111111111'
 
 const Q = [{ id: 'q1' }, { id: 'q2' }]
-const open = (mode: string) => ({ kind: 'open', sessionId: ID, mode, questionIds: ['q1', 'q2'] })
+const FB = { questionType: 'multiple_choice', isCorrect: true }
+const open = (mode: string) => ({
+  kind: 'open',
+  sessionId: ID,
+  mode,
+  questionIds: ['q1', 'q2'],
+  seed: { answers: { q1: { selectedOptionId: 'a' } } },
+})
 
 beforeEach(() => {
   vi.resetAllMocks()
@@ -39,6 +51,7 @@ beforeEach(() => {
   mockQuestions.mockResolvedValue({ success: true, questions: Q })
   mockVfrQuestions.mockResolvedValue({ success: true, questions: Q })
   mockFlags.mockResolvedValue(['q1'])
+  mockFeedback.mockResolvedValue({ q1: FB })
 })
 
 afterEach(() => vi.useRealTimers())
@@ -67,9 +80,71 @@ describe('loadSessionEntry', () => {
 
     const loaded = await loadSessionEntry(ID, 'user-1')
 
-    expect(loaded).toEqual({ entry: state, runner: { questions: Q, flaggedIds: ['q1'] } })
+    expect(loaded).toEqual({
+      entry: state,
+      runner: { questions: Q, flaggedIds: ['q1'], feedback: { q1: FB } },
+    })
     expect(mockQuestions).toHaveBeenCalledWith(['q1', 'q2'])
     expect(mockFlags).toHaveBeenCalledWith(['q1', 'q2'])
+  })
+
+  it('reads the restored feedback of a practice session by its id', async () => {
+    mockLoad.mockResolvedValue(open('smart_review'))
+
+    await loadSessionEntry(ID, 'user-1')
+
+    expect(mockFeedback).toHaveBeenCalledWith(ID)
+  })
+
+  it('leaves out feedback for a served question the student has not answered', async () => {
+    mockLoad.mockResolvedValue(open('smart_review'))
+    mockFeedback.mockResolvedValue({ q1: FB, q2: { ...FB, isCorrect: false } })
+
+    const loaded = await loadSessionEntry(ID, 'user-1')
+
+    expect(loaded.runner).toMatchObject({ feedback: { q1: FB } })
+    expect((loaded.runner as { feedback: object }).feedback).not.toHaveProperty('q2')
+  })
+
+  it('does not read restored feedback for a practice session with no saved answers', async () => {
+    mockLoad.mockResolvedValue({ ...open('quick_quiz'), seed: { answers: {} } })
+
+    const loaded = await loadSessionEntry(ID, 'user-1')
+
+    expect(mockFeedback).not.toHaveBeenCalled()
+    expect(loaded.runner).toMatchObject({ feedback: {} })
+  })
+
+  it.each(['mock_exam', 'internal_exam', 'vfr_rt_exam'])(
+    'does not read restored feedback for a %s session',
+    async (mode) => {
+      mockLoad.mockResolvedValue(open(mode))
+
+      const loaded = await loadSessionEntry(ID, 'user-1')
+
+      expect(mockFeedback).not.toHaveBeenCalled()
+      expect(loaded.runner).toMatchObject({ feedback: {} })
+    },
+  )
+
+  it('still loads the questions when the restored feedback read yields nothing', async () => {
+    mockLoad.mockResolvedValue(open('quick_quiz'))
+    mockFeedback.mockResolvedValue({})
+
+    const loaded = await loadSessionEntry(ID, 'user-1')
+
+    expect(loaded.runner).toEqual({ questions: Q, flaggedIds: ['q1'], feedback: {} })
+  })
+
+  it('reports the questions error without waiting on a hung feedback read', async () => {
+    mockLoad.mockResolvedValue(open('quick_quiz'))
+    mockQuestions.mockResolvedValue({ success: false, error: 'No questions found' })
+    mockFeedback.mockReturnValue(new Promise(() => undefined))
+    vi.useFakeTimers()
+
+    const loaded = await loadSessionEntry(ID, 'user-1')
+
+    expect(loaded.runner).toEqual({ error: 'No questions found' })
   })
 
   it('loads a VFR RT exam through its session-keyed loader', async () => {
@@ -79,7 +154,7 @@ describe('loadSessionEntry', () => {
 
     expect(mockVfrQuestions).toHaveBeenCalledWith({ sessionId: ID })
     expect(mockQuestions).not.toHaveBeenCalled()
-    expect(loaded.runner).toEqual({ questions: Q, flaggedIds: ['q1'] })
+    expect(loaded.runner).toEqual({ questions: Q, flaggedIds: ['q1'], feedback: {} })
   })
 
   it('reads flags for an internal exam so the grid shows them', async () => {
@@ -88,7 +163,7 @@ describe('loadSessionEntry', () => {
     const loaded = await loadSessionEntry(ID, 'user-1')
 
     expect(mockFlags).toHaveBeenCalled()
-    expect(loaded.runner).toEqual({ questions: Q, flaggedIds: ['q1'] })
+    expect(loaded.runner).toEqual({ questions: Q, flaggedIds: ['q1'], feedback: {} })
   })
 
   it('reports the questions error without waiting on a hung flag read', async () => {

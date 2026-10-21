@@ -12,7 +12,7 @@ function dropStaleLocalCopy(userId: string, sessionId: string): void {
 /**
  * Claims the session for this tab without holding the first question back. Dispatched from a
  * layout effect so the claim is the first Server Action of the tab, ahead of every child's
- * mount-time passive effect (e.g. the restored-answer re-check). No descendant may dispatch a
+ * mount-time passive effect. No descendant may dispatch a
  * Server Action from a layout effect: child layout effects commit first.
  */
 export function useServerSessionBootstrap({ userId, sessionId }: Readonly<Opts>) {

@@ -177,7 +177,7 @@ test.describe('Quiz session addressed by id', () => {
     await expect(page.getByTestId(chosen)).toHaveClass(RESULT_CLASS, { timeout: 10_000 })
   })
 
-  test('a resumed practice question gets its feedback back when viewed', async ({ page }) => {
+  test('a resumed practice question shows its saved feedback after a reload', async ({ page }) => {
     const total = await startStudyQuiz(page)
     const chosen = await answerCurrent(page)
     await page.getByRole('button', { name: 'Next ›' }).click()
@@ -187,10 +187,6 @@ test.describe('Quiz session addressed by id', () => {
       .poll(async () => (await readSessionRow(sessionIdFromUrl(page.url()))).currentIndex)
       .toBe(1)
 
-    const bodies: string[] = []
-    page.on('request', (request) => {
-      if (isServerActionPost(request)) bodies.push(request.postData() ?? '')
-    })
     await page.reload()
     await expect(page.getByText(`Question 2 of ${total}`)).toBeVisible({ timeout: 10_000 })
     await page.getByRole('button', { name: '‹ Previous' }).click()
@@ -198,8 +194,6 @@ test.describe('Quiz session addressed by id', () => {
     await expect(page.getByTestId(chosen)).toHaveClass(RESULT_CLASS, { timeout: 10_000 })
     await expect(page.locator(`${OPTION}[class*="border-green-500"]`)).toHaveCount(1)
     await expect(page.getByRole('button', { name: SUBMIT })).toHaveCount(0)
-    // Control for the exam test below: a practice re-check is visible as a request with the option.
-    expect(bodies.some((body) => body.includes('selectedOptionId'))).toBe(true)
   })
 
   test('a second browser context with cleared storage opens the same URL and sees the same answers and position', async ({

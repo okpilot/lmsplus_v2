@@ -402,7 +402,8 @@ reviews:
           "no hard DELETE" rule still applies to the rest of packages/db/src.
         - Service role key (adminClient): ONLY in packages/db/src/admin.ts. Flag if used elsewhere.
         - Never return raw question options with correct answers to student-facing code.
-        - Use get_quiz_questions() RPC which strips correct answers.
+        - Use get_quiz_questions() RPC which strips correct answers. Exceptions are listed in the
+          `no-answer-exposure` pre-merge check (report RPCs, practice-mode feedback, `start_discovery`).
 
     # SQL migrations — RLS mandatory
     # (supabase/migrations/ is the sole source of truth; packages/db/migrations/ is frozen/historical as of 2026-07-11)
@@ -913,6 +914,13 @@ reviews:
           `correct_option_id` by design (docs/security.md §4). Verify the function keeps the
           single-active-session deny (`another_session_active` for a live exam), the `deleted_at IS NULL AND status = 'active'` filters, and the explicit
           own-org join; never `SELECT *` or raw `options` JSONB. Block if any is missing.
+          EXCEPTION: practice-mode feedback (`smart_review` / `quick_quiz` only) for a question
+          answered in the caller's OPEN session — `check_quiz_answer` / `check_non_mc_answer` after
+          an answer, `get_restored_feedback` on resume — returns the key by design (.claude/rules/security.md
+          rule 1). Verify the RPC refuses exam modes (`unsupported_session_mode`), reads only the
+          caller's own open session (`student_id` + `ended_at IS NULL`), and only questions in the
+          frozen `config.question_ids` (`get_restored_feedback`: only own answered progress rows).
+          Block if any is missing.
 
       - mode: "warning"
         name: "soft-delete-only"

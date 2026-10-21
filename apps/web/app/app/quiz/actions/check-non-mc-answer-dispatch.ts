@@ -16,7 +16,6 @@ import {
   type OrderingRpcResult,
   type ShortAnswerRpcResult,
   type SupabaseClient,
-  toClientBlanks,
   toRpcBlankAnswers,
 } from './check-non-mc-answer-helpers'
 import type {
@@ -25,6 +24,12 @@ import type {
   OrderingCheckInput,
   ShortAnswerCheckInput,
 } from './check-non-mc-answer-schema'
+import {
+  toDiagramFeedback,
+  toDialogFeedback,
+  toOrderingFeedback,
+  toShortFeedback,
+} from './non-mc-feedback-map'
 import { mapProgressRpcError } from './progress-error-messages'
 
 const CHECK_FAILED = 'Could not check answer'
@@ -59,14 +64,7 @@ export async function checkShortAnswer(
     })
     return { success: false, error: mapProgressRpcError(error?.message, CHECK_FAILED) }
   }
-  return {
-    success: true,
-    questionType: 'short_answer',
-    isCorrect: data.is_correct,
-    correctAnswer: data.correct_answer,
-    explanationText: data.explanation_text,
-    explanationImageUrl: data.explanation_image_url,
-  }
+  return { success: true, ...toShortFeedback(data) }
 }
 
 export async function checkOrderingAnswer(
@@ -84,14 +82,7 @@ export async function checkOrderingAnswer(
     })
     return { success: false, error: mapProgressRpcError(error?.message, CHECK_FAILED) }
   }
-  return {
-    success: true,
-    questionType: 'ordering',
-    isCorrect: data.is_correct,
-    correctOrder: data.correct_order,
-    explanationText: data.explanation_text,
-    explanationImageUrl: data.explanation_image_url,
-  }
+  return { success: true, ...toOrderingFeedback(data) }
 }
 
 export async function checkDialogFillAnswer(
@@ -109,14 +100,7 @@ export async function checkDialogFillAnswer(
     })
     return { success: false, error: mapProgressRpcError(error?.message, CHECK_FAILED) }
   }
-  return {
-    success: true,
-    questionType: 'dialog_fill',
-    isCorrect: data.is_correct,
-    blanks: toClientBlanks(data.blanks),
-    explanationText: data.explanation_text,
-    explanationImageUrl: data.explanation_image_url,
-  }
+  return { success: true, ...toDialogFeedback(data) }
 }
 
 export async function checkDiagramLabelAnswer(
@@ -134,12 +118,5 @@ export async function checkDiagramLabelAnswer(
     })
     return { success: false, error: mapProgressRpcError(error?.message, CHECK_FAILED) }
   }
-  return {
-    success: true,
-    questionType: 'diagram_label',
-    isCorrect: data.is_correct,
-    correctMapping: data.correct_mapping.map((m) => ({ zoneId: m.zone_id, labelId: m.label_id })),
-    explanationText: data.explanation_text,
-    explanationImageUrl: data.explanation_image_url,
-  }
+  return { success: true, ...toDiagramFeedback(data) }
 }

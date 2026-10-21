@@ -1,13 +1,8 @@
 import { renderHook } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { AnswerFeedback } from '../../types'
 
-const { mockRestored } = vi.hoisted(() => ({ mockRestored: vi.fn() }))
-
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }))
-vi.mock('./use-restored-feedback', () => ({
-  useRestoredFeedback: (...a: unknown[]) => mockRestored(...a),
-}))
 vi.mock('../../actions/quiz-progress', () => ({
   saveQuizAnswer: () => Promise.resolve({ success: true }),
   saveQuizPosition: () => Promise.resolve({ success: true }),
@@ -34,14 +29,10 @@ function opts(over: Record<string, unknown> = {}) {
     questions: [{ id: Q1 }, { id: Q2 }] as never,
     mode: 'study' as const,
     initialAnswers: { [Q1]: { selectedOptionId: 'a', responseTimeMs: 5 } },
+    initialFeedback: new Map([[Q1, FB]]),
     ...over,
   }
 }
-
-beforeEach(() => {
-  vi.resetAllMocks()
-  mockRestored.mockReturnValue(new Map([[Q1, FB]]))
-})
 
 describe('useQuizState — restored feedback', () => {
   it('shows the restored feedback of the current question', () => {
@@ -49,19 +40,5 @@ describe('useQuizState — restored feedback', () => {
 
     expect(result.current.currentFeedback).toEqual(FB)
     expect(result.current.feedback.get(Q1)).toEqual(FB)
-  })
-
-  it('grades restored answers in a practice quiz', () => {
-    renderHook(() => useQuizState(opts()))
-
-    expect(mockRestored).toHaveBeenCalledWith(
-      expect.objectContaining({ enabled: true, restorable: opts().initialAnswers }),
-    )
-  })
-
-  it.each(['exam', 'discovery'] as const)('never re-checks in %s mode', (mode) => {
-    renderHook(() => useQuizState(opts({ mode })))
-
-    expect(mockRestored).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }))
   })
 })

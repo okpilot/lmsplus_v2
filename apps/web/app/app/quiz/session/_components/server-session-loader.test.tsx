@@ -20,7 +20,13 @@ import type { SessionRunnerData } from '../_loaders/load-session-entry'
 import { ServerSessionLoader } from './server-session-loader'
 
 const Q = [{ id: 'q1' }, { id: 'q2' }]
-const RUNNER = { questions: Q, flaggedIds: ['q1'] } as unknown as SessionRunnerData
+const FB_Q1 = { questionType: 'multiple_choice', isCorrect: true, correctOptionId: 'a' }
+const FB_GONE = { questionType: 'multiple_choice', isCorrect: false, correctOptionId: 'b' }
+const RUNNER = {
+  questions: Q,
+  flaggedIds: ['q1'],
+  feedback: { q1: FB_Q1, gone: FB_GONE },
+} as unknown as SessionRunnerData
 const ENTRY = {
   kind: 'open' as const,
   sessionId: 's1',
@@ -101,6 +107,12 @@ describe('ServerSessionLoader', () => {
     render(<ServerSessionLoader userId="u1" entry={ENTRY} runner={RUNNER} />)
 
     expect(mockBootstrap).toHaveBeenCalledWith({ userId: 'u1', sessionId: 's1' })
+  })
+
+  it('seeds the runner with the restored feedback of the served questions only', () => {
+    render(<ServerSessionLoader userId="u1" entry={ENTRY} runner={RUNNER} />)
+
+    expect(quizProps.current?.initialFeedback).toEqual(new Map([['q1', FB_Q1]]))
   })
 
   it('continues where the student left off', () => {
