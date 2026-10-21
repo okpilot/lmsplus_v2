@@ -2,6 +2,17 @@ import { useState } from 'react'
 
 type Selection = { scope: string; ids: string[] }
 
+function keepVisible(ids: string[], visibleIds: readonly string[]) {
+  return ids.filter((id) => visibleIds.includes(id))
+}
+
+/** Next state when the selection must change for this scope/rows, else null. */
+function reconcile(state: Selection, scope: string, visibleIds: readonly string[]) {
+  if (state.scope !== scope) return { scope, ids: [] }
+  const ids = keepVisible(state.ids, visibleIds)
+  return ids.length === state.ids.length ? null : { scope, ids }
+}
+
 /**
  * Row selection bound to a list scope (filters + page) and its visible rows.
  * A scope change drops the selection for good; ids that leave the visible set
@@ -10,19 +21,14 @@ type Selection = { scope: string; ids: string[] }
 export function useScopedSelection(scope: string, visibleIds: readonly string[]) {
   const [state, setState] = useState<Selection>({ scope, ids: [] })
 
-  let ids = state.ids
-  if (state.scope !== scope) {
-    ids = []
-    setState({ scope, ids })
-  } else if (ids.some((id) => !visibleIds.includes(id))) {
-    ids = ids.filter((id) => visibleIds.includes(id))
-    setState({ scope, ids })
-  }
+  const next = reconcile(state, scope, visibleIds)
+  if (next) setState(next)
+  const ids = next ? next.ids : state.ids
 
-  function update(next: (base: string[]) => string[]) {
+  function update(change: (base: string[]) => string[]) {
     setState((prev) => {
-      const base = prev.scope === scope ? prev.ids.filter((id) => visibleIds.includes(id)) : []
-      return { scope, ids: next(base) }
+      if (prev.scope !== scope) return prev
+      return { scope, ids: change(keepVisible(prev.ids, visibleIds)) }
     })
   }
 

@@ -101,4 +101,16 @@ describe('useScopedSelection', () => {
 
     expect(result.current.selectedIds).toEqual(['a', 'c'])
   })
+
+  it('ignores a clear captured under an old scope so the new selection survives', () => {
+    const { result, rerender } = setup({ scope: 'A', ids: ['1', '2'] })
+    act(() => result.current.toggle('1'))
+    const staleClear = result.current.clear
+
+    rerender({ scope: 'B', ids: ['1', '2'] })
+    act(() => result.current.toggle('2'))
+    act(() => staleClear())
+
+    expect(result.current.selectedIds).toEqual(['2'])
+  })
 })

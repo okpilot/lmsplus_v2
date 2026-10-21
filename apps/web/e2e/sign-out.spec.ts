@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test'
 import { ensureLoginTestUser, LOGIN_TEST_EMAIL, LOGIN_TEST_PASSWORD } from './helpers/supabase'
 
-// Dedicated login user + fresh context: signOut revokes the session server-side,
-// which would invalidate the shared storageState used by other specs.
+// Dedicated login user + fresh context: signOut revokes every session of the login user
+// server-side (global scope), which would invalidate the shared storageState used by other specs.
 test.use({
   storageState: { cookies: [], origins: [] },
   viewport: { width: 1280, height: 800 },

@@ -4,12 +4,24 @@ import { createClient } from '@repo/db/client'
 import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 
+/** Resolves to the error only when sign-out failed and a local session remains. */
+async function signOutClient() {
+  const supabase = createClient()
+  const { error } = await supabase.auth.signOut()
+  if (!error) return null
+  // auth-js can remove the local session and still return a network/5xx error.
+  const { data } = await supabase.auth.getSession()
+  if (data.session) return error
+  console.error('[useSignOut] sign-out error, local session cleared:', error)
+  return null
+}
+
 export function useSignOut() {
   const signingOut = useRef(false)
   const [pending, setPending] = useState(false)
 
   function failSignOut(cause: unknown) {
-    console.error('[SignOutButton] sign-out failed:', cause)
+    console.error('[useSignOut] sign-out failed:', cause)
     toast.error('Sign-out failed. Please try again.')
     signingOut.current = false
     setPending(false)
@@ -20,7 +32,7 @@ export function useSignOut() {
     signingOut.current = true
     setPending(true)
     try {
-      const { error } = await createClient().auth.signOut()
+      const error = await signOutClient()
       if (error) return failSignOut(error)
     } catch (error) {
       return failSignOut(error)
