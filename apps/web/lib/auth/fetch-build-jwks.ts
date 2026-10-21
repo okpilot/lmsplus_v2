@@ -8,8 +8,10 @@ export async function fetchBuildJwks(supabaseUrl: string | undefined): Promise<s
     console.error('[fetchBuildJwks] skipped: NEXT_PUBLIC_SUPABASE_URL is not set')
     return ''
   }
+  let base = supabaseUrl
+  while (base.endsWith('/')) base = base.slice(0, -1)
   try {
-    const res = await fetch(`${supabaseUrl.replace(/\/+$/, '')}/auth/v1/.well-known/jwks.json`, {
+    const res = await fetch(`${base}/auth/v1/.well-known/jwks.json`, {
       signal: AbortSignal.timeout(TIMEOUT_MS),
     })
     if (!res.ok) {

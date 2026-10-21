@@ -29,6 +29,12 @@ describe('fetchBuildJwks', () => {
     expect(fetchMock.mock.calls[0]?.[0]).toBe(`${URL_BASE}/auth/v1/.well-known/jwks.json`)
   })
 
+  it('requests the JWKS path once when the Supabase URL ends with several slashes', async () => {
+    fetchMock.mockResolvedValue(ok({ keys: [{ kid: 'k1', kty: 'EC' }] }))
+    await fetchBuildJwks(`${URL_BASE}//`)
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(`${URL_BASE}/auth/v1/.well-known/jwks.json`)
+  })
+
   it('returns empty without fetching when the Supabase URL is missing', async () => {
     await expect(fetchBuildJwks(undefined)).resolves.toBe('')
     expect(fetchMock).not.toHaveBeenCalled()

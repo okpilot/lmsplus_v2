@@ -145,23 +145,14 @@ function forgedTokens(real: Jwt, victimUserId: string): Array<[string, string]> 
 }
 
 /**
- * Under CI the server is `pnpm start` on the fresh build: the stack's signing kid must be inlined in
- * `.next/server`, or JP would pass on the fetched-JWKS path alone. One key per local stack; a
- * mismatch with the token's kid fails the CONTROL.
+ * Under CI the server is `pnpm start` on the fresh build: the token's signing kid must be inlined in
+ * `.next/server`, or JP would pass on the fetched-JWKS fallback alone.
  */
-async function expectKidInlinedInBuild(): Promise<void> {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://localhost:54321'
-  const res = await fetch(`${supabaseUrl}/auth/v1/.well-known/jwks.json`)
-  expect(res.ok).toBe(true)
-  const body = (await res.json()) as { keys?: unknown }
-  expect(Array.isArray(body.keys) && body.keys.length > 0).toBe(true)
-  const kid = (body.keys as { kid?: unknown }[])[0]?.kid
-  expect(typeof kid).toBe('string')
+function expectKidInlinedInBuild(kid: string): void {
   const serverDir = path.resolve(__dirname, '../../.next/server')
   const files = readdirSync(serverDir, { recursive: true, encoding: 'utf-8' })
   const inlined = files.some(
-    (f) =>
-      f.endsWith('.js') && readFileSync(path.join(serverDir, f), 'utf-8').includes(String(kid)),
+    (f) => f.endsWith('.js') && readFileSync(path.join(serverDir, f), 'utf-8').includes(kid),
   )
   expect(inlined).toBe(true)
 }
@@ -172,7 +163,6 @@ test.describe('Red Team: build-JWKS algorithm confusion and attacker-signed toke
   test('JP: an alg-swapped or attacker-signed access token is unauthenticated', async ({
     browser,
   }) => {
-    if (process.env.CI) await expectKidInlinedInBuild()
     const { attackerUserId, victimUserId } = await seedRedTeamUsers()
     const source = await signInAttacker(browser, attackerUserId)
 
@@ -181,6 +171,7 @@ test.describe('Red Team: build-JWKS algorithm confusion and attacker-signed toke
     const real = splitJwt(token)
     expect(real.header.alg).toBe('ES256')
     expect(typeof real.header.kid).toBe('string')
+    if (process.env.CI) expectKidInlinedInBuild(String(real.header.kid))
     expect(real.payload.sub).toBe(attackerUserId)
     expect(Number(real.payload.exp)).toBeGreaterThan(Date.now() / 1000 + 60)
 
