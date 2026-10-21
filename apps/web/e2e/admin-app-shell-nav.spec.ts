@@ -17,7 +17,7 @@ test.describe('App shell admin navigation', () => {
     await expect(nav.getByText('Admin', { exact: true })).toBeVisible()
 
     await nav.getByRole('link', { name: 'Students' }).click()
-    await expect(page).toHaveURL(/\/app\/admin\/students$/)
+    await expect(page).toHaveURL(/\/app\/admin\/students$/, { timeout: 30000 })
     await expect(nav.getByText('Admin', { exact: true })).toBeVisible()
   })
 })

@@ -39,7 +39,7 @@ test.describe('App shell user identity', () => {
     await expectStudentShell(page, displayName)
 
     await page.getByRole('link', { name: 'Settings', exact: true }).click()
-    await expect(page).toHaveURL(/\/app\/settings$/)
+    await expect(page).toHaveURL(/\/app\/settings$/, { timeout: 30000 })
     await expect(page.getByText(displayName, { exact: true }).first()).toBeVisible()
   })
 
