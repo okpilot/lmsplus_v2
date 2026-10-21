@@ -332,4 +332,40 @@ describe('RPC: check_quiz_answer', () => {
       }
     }
   })
+
+  it('returns no verdict and saves nothing when the student has not selected an option', async () => {
+    const sessionId = await startSession()
+    const { data, error } = await studentClient.rpc('check_quiz_answer', {
+      p_question_id: questionIds[0],
+      p_selected_option_id: null,
+      p_session_id: sessionId,
+    })
+    expect(error).toBeNull()
+    const result = requireRpcResult<Record<string, unknown>>(data, 'check_quiz_answer')
+    expect(result.is_correct).toBeNull()
+    expect(result.correct_option_id).toBe('b')
+
+    const { data: rows, error: rowsErr } = await admin
+      .from('quiz_session_progress')
+      .select('question_id')
+      .eq('session_id', sessionId)
+      .eq('question_id', questionIds[0]!)
+    expect(rowsErr).toBeNull()
+    expect(rows).toEqual([])
+
+    // Positive control: the same filter finds the row once an option is selected.
+    const { error: saveErr } = await studentClient.rpc('check_quiz_answer', {
+      p_question_id: questionIds[0],
+      p_selected_option_id: 'a',
+      p_session_id: sessionId,
+    })
+    expect(saveErr).toBeNull()
+    const { data: saved, error: savedErr } = await admin
+      .from('quiz_session_progress')
+      .select('question_id')
+      .eq('session_id', sessionId)
+      .eq('question_id', questionIds[0]!)
+    expect(savedErr).toBeNull()
+    expect(saved).toHaveLength(1)
+  })
 })

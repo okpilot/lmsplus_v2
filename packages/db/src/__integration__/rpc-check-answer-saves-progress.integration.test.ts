@@ -130,6 +130,18 @@ describe('RPC: answer checks also save progress', () => {
     expect(await progressRows(f, sessionId)).toHaveLength(0)
   })
 
+  it('refuses a multiple-choice check on a non-multiple-choice question and saves nothing', async () => {
+    const sessionId = await startPractice(f, 'quick_quiz', [f.shortId])
+    const { data, error } = await f.student.rpc('check_quiz_answer', {
+      p_question_id: f.shortId,
+      p_selected_option_id: 'a',
+      p_session_id: sessionId,
+    })
+    expect(data).toBeNull()
+    expect(error?.message).toContain('question not found or has no correct option')
+    expect(await progressRows(f, sessionId)).toHaveLength(0)
+  })
+
   it.each([
     ['dialog_fill', 'a blank entry with an extra key'],
     ['ordering', 'numeric order entries'],
