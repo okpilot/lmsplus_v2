@@ -15,8 +15,7 @@ type RequestParts = { method?: string; target?: string }
 
 function requestParts(ctx: TracesSamplerSamplingContext): RequestParts {
   const attrs = ctx.attributes ?? {}
-  const method =
-    attrs['http.method'] ?? attrs['http.request.method'] ?? ctx.normalizedRequest?.method
+  const method = attrs['http.method'] ?? ctx.normalizedRequest?.method
   const target = attrs['http.target'] ?? ctx.normalizedRequest?.url
   return {
     method: typeof method === 'string' ? method.toUpperCase() : undefined,
@@ -24,11 +23,16 @@ function requestParts(ctx: TracesSamplerSamplingContext): RequestParts {
   }
 }
 
+// RSC requests carry `_rsc`; Next 307s an `rsc` request without a matching one (next/dist/server/base-server.js).
 function isAppDocumentRequest(ctx: TracesSamplerSamplingContext): boolean {
   const { method, target } = requestParts(ctx)
   if (method !== 'GET' || !target) return false
-  const url = new URL(target, 'http://localhost')
-  return isAppPath(url.pathname) && !url.searchParams.has('_rsc')
+  try {
+    const url = new URL(target, 'http://localhost')
+    return isAppPath(url.pathname) && !url.searchParams.has('_rsc')
+  } catch {
+    return false
+  }
 }
 
 export function tracesSampler(ctx: TracesSamplerSamplingContext): number {

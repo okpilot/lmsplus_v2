@@ -32,18 +32,9 @@ export function documentTimingAttributes(
   return attrs
 }
 
-function spanOp(span: Span): unknown {
-  const json: unknown = spanToJSON(span)
-  if (typeof json !== 'object' || json === null) return undefined
-  if ('op' in json) return json.op
-  return 'attributes' in json && typeof json.attributes === 'object' && json.attributes !== null
-    ? Reflect.get(json.attributes, 'sentry.op')
-    : undefined
-}
-
 export function recordDocumentTiming(client: SentryClient): void {
   client?.on('beforeIdleSpanEnd', (span: Span) => {
-    if (spanOp(span) !== 'pageload') return
+    if (spanToJSON(span).attributes?.['sentry.op'] !== 'pageload') return
     const [entry] = performance.getEntriesByType('navigation')
     span.setAttributes(documentTimingAttributes(entry as PerformanceNavigationTiming | undefined))
   })

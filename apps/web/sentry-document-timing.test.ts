@@ -58,7 +58,7 @@ describe('recording document timing on the pageload span', () => {
   })
 
   function fire(op: string) {
-    vi.mocked(SentryCore.spanToJSON).mockReturnValue({ op } as never)
+    vi.mocked(SentryCore.spanToJSON).mockReturnValue({ attributes: { 'sentry.op': op } } as never)
     recordDocumentTiming({ on } as never)
     const cb = on.mock.calls[0]?.[1] as (s: SentryCore.Span) => void
     expect(on.mock.calls[0]?.[0]).toBe('beforeIdleSpanEnd')

@@ -10,16 +10,21 @@ type Ctx = Parameters<typeof tracesSampler>[0]
 function ctx(over: {
   attributes?: Record<string, unknown>
   parentSampled?: boolean
+  parentSampleRate?: number
   normalizedRequest?: unknown
 }): Ctx {
-  const parentSampled = over.parentSampled
+  const { parentSampled, parentSampleRate } = over
   return {
     name: 'x',
     attributes: over.attributes ?? {},
     parentSampled,
     normalizedRequest: over.normalizedRequest,
-    inheritOrSampleWith: (fallback: number) =>
-      parentSampled === undefined ? fallback : Number(parentSampled),
+    parentSampleRate,
+    inheritOrSampleWith: (fallback: number) => {
+      if (typeof parentSampleRate === 'number') return parentSampleRate
+      if (typeof parentSampled === 'boolean') return Number(parentSampled)
+      return fallback
+    },
   } as unknown as Ctx
 }
 
@@ -63,6 +68,16 @@ describe('server trace sampling', () => {
         ctx({ attributes: { 'http.method': 'GET', 'http.target': '/' }, parentSampled: true }),
       ),
     ).toBe(1)
+  })
+
+  it('follows the parent sample rate when one is propagated', () => {
+    const attributes = { 'http.method': 'GET', 'http.target': '/app/dashboard' }
+    expect(tracesSampler(ctx({ attributes, parentSampleRate: 0.5 }))).toBe(0.5)
+  })
+
+  it('samples a request with an unparseable URL at the default rate', () => {
+    const c = ctx({ normalizedRequest: { method: 'GET', url: 'http://[bad/app/x' } })
+    expect(tracesSampler(c)).toBe(0.1)
   })
 
   it('keeps every trace in development', () => {
