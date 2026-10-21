@@ -29,10 +29,6 @@ vi.mock('./quiz-submit', () => ({
   handleDiscardSession: (...args: unknown[]) => mockHandleDiscardSession(...args),
 }))
 
-vi.mock('./use-restored-feedback', () => ({
-  useRestoredFeedback: (o: { feedback: unknown }) => o.feedback,
-}))
-
 vi.mock('./use-pinned-questions', () => ({
   usePinnedQuestions: () => ({
     pinnedQuestions: new Set<string>(),

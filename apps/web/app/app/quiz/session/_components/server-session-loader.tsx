@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { SessionQuestion } from '@/app/app/_types/session'
+import type { AnswerFeedback } from '@/app/app/quiz/types'
 import type { SessionEntry } from '@/lib/queries/load-quiz-session-state'
 import { useServerSessionBootstrap } from '../_hooks/use-server-session-bootstrap'
 import type { SessionRunnerData } from '../_loaders/load-session-entry'
@@ -46,6 +47,7 @@ function ClaimedSession({
       entry={entry}
       questions={runner.questions}
       flaggedIds={runner.flaggedIds}
+      feedback={runner.feedback}
       claimError={claimError}
     />
   )
@@ -56,6 +58,7 @@ type RunnerProps = {
   entry: SessionEntry
   questions: SessionQuestion[]
   flaggedIds: string[]
+  feedback: Record<string, AnswerFeedback>
   claimError: string | null
 }
 
@@ -65,11 +68,16 @@ function RestoredRunner({
   entry,
   questions,
   flaggedIds,
+  feedback,
   claimError,
 }: Readonly<RunnerProps>) {
   const { seed } = entry
   const restored = restrictDraftToQuestions(
-    { draftAnswers: seed.answers, draftCurrentIndex: seed.currentIndex },
+    {
+      draftAnswers: seed.answers,
+      draftFeedback: feedback,
+      draftCurrentIndex: seed.currentIndex,
+    },
     questions,
   )
 
@@ -80,6 +88,7 @@ function RestoredRunner({
       questions={questions}
       initialFlaggedIds={flaggedIds}
       initialAnswers={restored.answers}
+      initialFeedback={restored.feedback}
       initialIndex={restored.index}
       initialPinnedIds={seed.pinnedQuestionIds}
       initialActiveMs={seed.activeMs}

@@ -8,7 +8,7 @@
 // returns `correct_option_id` — the MC answer key that docs/security.md §4 and mig 111's
 // column REVOKE exist to protect. Do not make it such a module. (It would not be a working
 // bypass today: the injected SupabaseClient is not serializable across the boundary, and the
-// RPC self-guards — migration 20261002000700. That margin is not ours to spend.)
+// RPC self-guards — migration 20261020000600. That margin is not ours to spend.)
 // `CheckAnswerRpcResult` and `isCheckAnswerRpcResult` are file-private for the same reason:
 // nothing here should widen the surface by accident.
 import type { createServerSupabaseClient } from '@repo/db/server'
@@ -25,7 +25,7 @@ type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
  * the non-MC path keeps its RPC calls in check-non-mc-answer-dispatch.ts: it leaves
  * checkAnswer a pure orchestrator inside §3's boundary.
  *
- * The `check_quiz_answer` RPC (migration 20261002000700) is the session guard.
+ * The `check_quiz_answer` RPC (migration 20261020000600) is the session guard.
  */
 export async function gradeAnswer(
   supabase: SupabaseClient,

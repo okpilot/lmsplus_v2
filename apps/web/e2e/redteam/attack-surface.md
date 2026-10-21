@@ -1,6 +1,7 @@
 # Red Team — Attack Surface Map
 
-> Last updated: 2026-10-20 (branch perf/1548-drop-old-rpcs, #1548 PR3 — Vectors EO, ES RETIRED; see rows.)
+> Last updated: 2026-10-21 (branch perf/1549-restored-feedback-app, #1549 PR2 — Vectors HG-HK RETIRED; HB rewritten.)
+> PRIOR: 2026-10-20 (branch perf/1548-drop-old-rpcs, #1548 PR3 — Vectors EO, ES RETIRED; see rows.)
 > PRIOR: 2026-10-18 (branch perf/session-open-rsc-1547, #1547 — Vector GB RETIRED; see row GB.)
 > PRIOR: 2026-10-18 (branch feat/set-password-links-1536, #1536 — Vector FT RETIRED; see row FT.)
 > PRIOR: 2026-09-26 (branch feat/login-instructions-admin-send — Vector FT: the admin-issued reset (`reset-student-password.ts`) is deleted; only the admin Server Action `sendLoginInstructions` (`apps/web/app/app/admin/students/actions/send-login-instructions.ts`) arms/re-arms `temp_password_expires_at`, via the same `issueTempPassword()` arm → Auth write → arm mechanics. `create-student.ts` no longer arms the expiry on creation — a newly created account has no password and no expiry until the first send. No migration change, no new vector — same FT row, same spec file, same max ID.)
@@ -229,16 +230,16 @@
 | GY | _grade_session_progress-out-of-session-progress-row | HIGH | rpc-finish-quiz-session.spec.ts | BLOCKED |  | answer-oracle |
 | GZ | finish_quiz_session-post-grace-answer-graded | HIGH | rpc-finish-quiz-session.spec.ts | BLOCKED |  | race |
 | HA | quiz-session-id-route-foreign-session | HIGH | quiz-session-id-route.spec.ts | BLOCKED |  | idor |
-| HB | quiz-session-id-route-exam-no-correctness-or-recheck | HIGH | quiz-session-id-route.spec.ts | BLOCKED |  | answer-oracle |
+| HB | quiz-session-id-route-restored-feedback-practice-only | HIGH | quiz-session-id-route.spec.ts | BLOCKED |  | answer-oracle |
 | HC | resumeQuizSession-forged-draft-seed | MEDIUM | quiz-draft-resume-seed.spec.ts | BLOCKED |  | input-injection |
 | HD | quiz-session-id-route-foreign-ended-discarded-saved | MEDIUM | quiz-session-id-route-enumeration.spec.ts | BLOCKED |  | enumeration |
 | HE | quiz-session-id-route-crafted-id-redirect | MEDIUM | quiz-session-id-route-enumeration.spec.ts | BLOCKED |  | open-redirect |
 | HF | resumeQuizSession-draft-seed-fanout | LOW | quiz-draft-resume-seed-fanout.spec.ts | BLOCKED |  | rate-limit |
-| HG | recheckRestoredAnswers-foreign-session | HIGH | server-action-recheck-answers.spec.ts | BLOCKED |  | idor |
-| HH | recheckRestoredAnswers-exam-session-key | HIGH | server-action-recheck-answers.spec.ts | BLOCKED |  | answer-oracle |
-| HI | recheckRestoredAnswers-taken-over-device | MEDIUM | server-action-recheck-answers.spec.ts | BLOCKED |  | auth-bypass |
-| HJ | recheckRestoredAnswers-batch-over-cap | MEDIUM | server-action-recheck-answers.spec.ts | BLOCKED |  | rate-limit |
-| HK | recheckRestoredAnswers-timeSpentMs-or-foreign-question-item | MEDIUM | server-action-recheck-answers.spec.ts | BLOCKED |  | mass-assignment |
+| HG | **`recheckRestoredAnswers` (idor) — RETIRED.** The Server Action is removed; resumed practice feedback is read in the server load by `get_restored_feedback`. | HIGH | — (deleted, #1549) | RETIRED — action deleted (#1549 PR2) | ID kept so it is never reused (`legacy-row-ids.json`). Exam-mode key strip covered by row HB; check RPC guards by rows HZ and GQ. |
+| HH | **`recheckRestoredAnswers` (answer-oracle) — RETIRED.** The Server Action is removed; resumed practice feedback is read in the server load by `get_restored_feedback`. | HIGH | — (deleted, #1549) | RETIRED — action deleted (#1549 PR2) | ID kept so it is never reused (`legacy-row-ids.json`). Exam-mode key strip covered by row HB; check RPC guards by rows HZ and GQ. |
+| HI | **`recheckRestoredAnswers` (auth-bypass) — RETIRED.** The Server Action is removed; resumed practice feedback is read in the server load by `get_restored_feedback`. | HIGH | — (deleted, #1549) | RETIRED — action deleted (#1549 PR2) | ID kept so it is never reused (`legacy-row-ids.json`). Exam-mode key strip covered by row HB; check RPC guards by rows HZ and GQ. |
+| HJ | **`recheckRestoredAnswers` (rate-limit) — RETIRED.** The Server Action is removed; resumed practice feedback is read in the server load by `get_restored_feedback`. | HIGH | — (deleted, #1549) | RETIRED — action deleted (#1549 PR2) | ID kept so it is never reused (`legacy-row-ids.json`). Exam-mode key strip covered by row HB; check RPC guards by rows HZ and GQ. |
+| HK | **`recheckRestoredAnswers` (mass-assignment) — RETIRED.** The Server Action is removed; resumed practice feedback is read in the server load by `get_restored_feedback`. | HIGH | — (deleted, #1549) | RETIRED — action deleted (#1549 PR2) | ID kept so it is never reused (`legacy-row-ids.json`). Exam-mode key strip covered by row HB; check RPC guards by rows HZ and GQ. |
 | HL | save_quiz_for_later-cap-after-claim-blocked-start | MEDIUM | rpc-saved-quiz-cap-blocked-start.spec.ts | BLOCKED |  | rate-limit |
 | HM | finish_quiz_session-vfr-rt-ordering-forged-progress | HIGH | rpc-finish-vfr-rt-forged-progress.spec.ts | BLOCKED |  | input-injection |
 | HN | finish_quiz_session-vfr-rt-diagram-forged-progress | HIGH | rpc-finish-vfr-rt-forged-progress.spec.ts | BLOCKED |  | input-injection |
