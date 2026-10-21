@@ -244,10 +244,12 @@ describe('next.config — build-time JWKS', () => {
     vi.resetAllMocks()
     vi.unstubAllEnvs()
     delete process.env.SUPABASE_BUILD_JWKS
+    delete process.env.SUPABASE_BUILD_JWKS_FETCHED
   })
 
   afterEach(() => {
     delete process.env.SUPABASE_BUILD_JWKS
+    delete process.env.SUPABASE_BUILD_JWKS_FETCHED
   })
 
   function loadBuildConfig() {
@@ -278,6 +280,22 @@ describe('next.config — build-time JWKS', () => {
     await loadBuildConfig()
     const second = await loadBuildConfig()
     expect(second.env?.SUPABASE_BUILD_JWKS).toBe('')
+    expect(fetchBuildJwksSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('replaces a JWKS already in the environment with the fetched one', async () => {
+    process.env.SUPABASE_BUILD_JWKS = '{"keys":[{"kid":"stale","kty":"EC"}]}'
+    fetchBuildJwksSpy.mockResolvedValue(JWKS)
+    const config = await loadBuildConfig()
+    expect(config.env?.SUPABASE_BUILD_JWKS).toBe(JWKS)
+    expect(fetchBuildJwksSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('fetches when the fetched marker is set without a JWKS', async () => {
+    process.env.SUPABASE_BUILD_JWKS_FETCHED = '1'
+    fetchBuildJwksSpy.mockResolvedValue(JWKS)
+    const config = await loadBuildConfig()
+    expect(config.env?.SUPABASE_BUILD_JWKS).toBe(JWKS)
     expect(fetchBuildJwksSpy).toHaveBeenCalledTimes(1)
   })
 

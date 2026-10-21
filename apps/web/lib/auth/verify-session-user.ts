@@ -14,8 +14,9 @@ type AuthClient = {
  * locally against the JWKS inlined at build when present (no `/user` call, no JWKS fetch). A `kid`
  * absent from it falls back to the cached JWKS (fetched on a miss or after 10 min). For a
  * symmetric or missing `alg`, a header without `kid`, a `kid` absent from every JWKS, or no
- * WebCrypto, getClaims itself calls `getUser`. Revocation is therefore bounded by the
- * access-token lifetime. Returns null when there is no valid session.
+ * WebCrypto, getClaims itself calls `getUser`. Session revocation is therefore bounded by the
+ * access-token lifetime; signing-key revocation by the next deploy. Returns null when there is no
+ * valid session.
  */
 export async function verifySessionUser(supabase: AuthClient): Promise<SessionUser | null> {
   try {

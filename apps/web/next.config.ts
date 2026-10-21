@@ -64,13 +64,16 @@ const sentryOptions = {
   },
 }
 
-/** Fetches the JWKS once per build: the result (even '') is kept in process.env, which later config loads and forked build workers inherit. */
+/** Fetches the JWKS once per build: the result (even '') and a marker are kept in process.env, which later config loads and forked build workers inherit; a JWKS set before the build is replaced. */
 async function buildJwks(phase: string): Promise<string> {
   if (phase !== PHASE_PRODUCTION_BUILD) return ''
-  if (process.env.SUPABASE_BUILD_JWKS === undefined) {
+  const fetched =
+    process.env.SUPABASE_BUILD_JWKS_FETCHED === '1' && process.env.SUPABASE_BUILD_JWKS !== undefined
+  if (!fetched) {
     process.env.SUPABASE_BUILD_JWKS = await fetchBuildJwks(process.env.NEXT_PUBLIC_SUPABASE_URL)
+    process.env.SUPABASE_BUILD_JWKS_FETCHED = '1'
   }
-  return process.env.SUPABASE_BUILD_JWKS
+  return process.env.SUPABASE_BUILD_JWKS ?? ''
 }
 
 export default async function config(phase: string) {
