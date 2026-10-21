@@ -4,8 +4,9 @@
  * PostgREST against these student RLS write cells (as of mig 20261015000100): flagged_questions
  * upsert + update, question_comments insert + own delete, quiz_drafts own delete, quiz_sessions
  * soft-delete, users.full_name update. Each is refused and the protected row is unchanged.
- * Vector JO (#1558, mig 20261021000100): the same token also reads question_comments (SELECT) by id
- * and sees 0 rows while deactivated; admin confirms the row exists.
+ * Vector JO (#1558): the same token also reads question_comments (SELECT) by id and sees 0 rows
+ * while deactivated; admin confirms the row exists. Outcome pin: `users_select` hides the caller
+ * from the policy's EXISTS too, so this stays green without mig 20261021000100's explicit check.
  * CONTROL: the same token, after the student is restored, performs each listed write and reads
  * the comment (1 row).
  *
