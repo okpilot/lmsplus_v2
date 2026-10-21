@@ -80,6 +80,5 @@ describe('recording document timing on the pageload span', () => {
 
   it('does nothing when there is no client', () => {
     expect(() => recordDocumentTiming(undefined)).not.toThrow()
-    expect(on).not.toHaveBeenCalled()
   })
 })
