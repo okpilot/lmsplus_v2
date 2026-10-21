@@ -115,6 +115,32 @@ describe('toClientFeedback', () => {
       },
     ],
     ['a non-object element', 'nope'],
+    ['a null element', null],
+    ['an element without a question type', { question_id: 'q', is_correct: true }],
+    [
+      'a multiple-choice element with an empty correct option',
+      {
+        question_id: 'q',
+        question_type: 'multiple_choice',
+        is_correct: true,
+        correct_option_id: '',
+        ...EXPL,
+      },
+    ],
+    [
+      'a multiple-choice element with a non-boolean correctness',
+      {
+        question_id: 'q',
+        question_type: 'multiple_choice',
+        is_correct: 'yes',
+        correct_option_id: 'c',
+        ...EXPL,
+      },
+    ],
+    [
+      'an ordering element without its canonical order',
+      { question_id: 'q', question_type: 'ordering', is_correct: true, ...EXPL },
+    ],
   ])('rejects %s', (_label, el) => {
     expect(toClientFeedback(el)).toBeNull()
   })

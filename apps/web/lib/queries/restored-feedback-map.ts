@@ -26,6 +26,7 @@ function isMcElement(v: Record<string, unknown>): v is McElement {
   return (
     typeof v.is_correct === 'boolean' &&
     typeof v.correct_option_id === 'string' &&
+    v.correct_option_id !== '' &&
     nullableString(v.explanation_text) &&
     nullableString(v.explanation_image_url)
   )
