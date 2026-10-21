@@ -177,7 +177,7 @@ test.describe('Quiz session addressed by id', () => {
     await expect(page.getByTestId(chosen)).toHaveClass(RESULT_CLASS, { timeout: 10_000 })
   })
 
-  test('a resumed practice question gets its feedback back when viewed', async ({ page }) => {
+  test('a resumed practice question shows its saved feedback after a reload', async ({ page }) => {
     const total = await startStudyQuiz(page)
     const chosen = await answerCurrent(page)
     await page.getByRole('button', { name: 'Next ›' }).click()
