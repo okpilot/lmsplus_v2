@@ -64,12 +64,16 @@ const sentryOptions = {
   },
 }
 
-export default async function config(phase: string) {
-  const env = {
-    SUPABASE_BUILD_JWKS:
-      phase === PHASE_PRODUCTION_BUILD
-        ? await fetchBuildJwks(process.env.NEXT_PUBLIC_SUPABASE_URL)
-        : '',
+/** Fetches the JWKS once per build: the result (even '') is kept in process.env, which later config loads and forked build workers inherit. */
+async function buildJwks(phase: string): Promise<string> {
+  if (phase !== PHASE_PRODUCTION_BUILD) return ''
+  if (process.env.SUPABASE_BUILD_JWKS === undefined) {
+    process.env.SUPABASE_BUILD_JWKS = await fetchBuildJwks(process.env.NEXT_PUBLIC_SUPABASE_URL)
   }
+  return process.env.SUPABASE_BUILD_JWKS
+}
+
+export default async function config(phase: string) {
+  const env = { SUPABASE_BUILD_JWKS: await buildJwks(phase) }
   return withSentryConfig({ ...nextConfig, env }, sentryOptions)
 }

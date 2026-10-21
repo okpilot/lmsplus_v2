@@ -9,7 +9,7 @@ export async function fetchBuildJwks(supabaseUrl: string | undefined): Promise<s
     return ''
   }
   try {
-    const res = await fetch(`${supabaseUrl}/auth/v1/.well-known/jwks.json`, {
+    const res = await fetch(`${supabaseUrl.replace(/\/+$/, '')}/auth/v1/.well-known/jwks.json`, {
       signal: AbortSignal.timeout(TIMEOUT_MS),
     })
     if (!res.ok) {

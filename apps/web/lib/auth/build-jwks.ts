@@ -1,19 +1,19 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 type ClaimsOptions = NonNullable<Parameters<SupabaseClient['auth']['getClaims']>[1]>
-export type BuildJwks = NonNullable<ClaimsOptions['jwks']>
+type BuildJwks = NonNullable<ClaimsOptions['jwks']>
 
-function hasKid(k: unknown): boolean {
+function isUsableKey(k: unknown): boolean {
   if (typeof k !== 'object' || k === null) return false
-  const { kid } = k as { kid?: unknown }
-  return typeof kid === 'string' && kid !== ''
+  const { kid, kty } = k as { kid?: unknown; kty?: unknown }
+  return typeof kid === 'string' && kid !== '' && typeof kty === 'string'
 }
 
-/** A `{ keys }` JWKS when every key carries a non-empty `kid`; undefined otherwise. */
+/** A non-empty `{ keys }` JWKS when every key carries a non-empty `kid` and a `kty`; undefined otherwise. */
 export function toBuildJwks(value: unknown): BuildJwks | undefined {
   if (typeof value !== 'object' || value === null) return undefined
   const { keys } = value as { keys?: unknown }
-  if (!Array.isArray(keys) || !keys.every(hasKid)) return undefined
+  if (!Array.isArray(keys) || keys.length === 0 || !keys.every(isUsableKey)) return undefined
   return { keys } as BuildJwks
 }
 

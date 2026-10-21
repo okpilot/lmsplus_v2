@@ -238,20 +238,47 @@ describe('next.config — security headers', () => {
 })
 
 describe('next.config — build-time JWKS', () => {
+  const JWKS = '{"keys":[{"kid":"k1","kty":"EC"}]}'
+
   beforeEach(() => {
     vi.resetAllMocks()
     vi.unstubAllEnvs()
+    delete process.env.SUPABASE_BUILD_JWKS
   })
 
-  it('inlines the fetched JWKS during the production build phase', async () => {
-    fetchBuildJwksSpy.mockResolvedValue('{"keys":[]}')
-    const config = await loadConfig(
+  afterEach(() => {
+    delete process.env.SUPABASE_BUILD_JWKS
+  })
+
+  function loadBuildConfig() {
+    return loadConfig(
       'production',
       { NEXT_PUBLIC_SUPABASE_URL: 'https://proj.supabase.co' },
       'phase-production-build',
     )
-    expect(config.env?.SUPABASE_BUILD_JWKS).toBe('{"keys":[]}')
+  }
+
+  it('inlines the fetched JWKS during the production build phase', async () => {
+    fetchBuildJwksSpy.mockResolvedValue(JWKS)
+    const config = await loadBuildConfig()
+    expect(config.env?.SUPABASE_BUILD_JWKS).toBe(JWKS)
     expect(fetchBuildJwksSpy).toHaveBeenCalledWith('https://proj.supabase.co')
+  })
+
+  it('fetches the JWKS once per build across repeated config loads', async () => {
+    fetchBuildJwksSpy.mockResolvedValue(JWKS)
+    await loadBuildConfig()
+    const second = await loadBuildConfig()
+    expect(second.env?.SUPABASE_BUILD_JWKS).toBe(JWKS)
+    expect(fetchBuildJwksSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not retry the fetch on later config loads after it failed', async () => {
+    fetchBuildJwksSpy.mockResolvedValue('')
+    await loadBuildConfig()
+    const second = await loadBuildConfig()
+    expect(second.env?.SUPABASE_BUILD_JWKS).toBe('')
+    expect(fetchBuildJwksSpy).toHaveBeenCalledTimes(1)
   })
 
   it('leaves the JWKS empty and skips the fetch outside the build phase', async () => {

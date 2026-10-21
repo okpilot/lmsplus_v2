@@ -19,14 +19,16 @@ describe('parseBuildJwks', () => {
     ['a null document', 'null'],
     ['a key without a kid', '{"keys":[{"kty":"EC"}]}'],
     ['a non-object key', '{"keys":["x"]}'],
+    ['a key without a kty', '{"keys":[{"kid":"k1"}]}'],
+    ['an empty key set', '{"keys":[]}'],
   ])('returns undefined for %s', (_label, raw) => {
     expect(parseBuildJwks(raw)).toBeUndefined()
   })
 
   it('exposes the key set from SUPABASE_BUILD_JWKS at module load', async () => {
-    vi.stubEnv('SUPABASE_BUILD_JWKS', '{"keys":[{"kid":"a"}]}')
+    vi.stubEnv('SUPABASE_BUILD_JWKS', '{"keys":[{"kid":"a","kty":"EC"}]}')
     vi.resetModules()
     const mod = await import('./build-jwks')
-    expect(mod.BUILD_JWKS).toEqual({ keys: [{ kid: 'a' }] })
+    expect(mod.BUILD_JWKS).toEqual({ keys: [{ kid: 'a', kty: 'EC' }] })
   })
 })

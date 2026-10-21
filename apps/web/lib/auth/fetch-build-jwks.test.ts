@@ -23,6 +23,12 @@ describe('fetchBuildJwks', () => {
     expect(fetchMock.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal)
   })
 
+  it('requests the JWKS path once when the Supabase URL ends with a slash', async () => {
+    fetchMock.mockResolvedValue(ok({ keys: [{ kid: 'k1', kty: 'EC' }] }))
+    await fetchBuildJwks(`${URL_BASE}/`)
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(`${URL_BASE}/auth/v1/.well-known/jwks.json`)
+  })
+
   it('returns empty without fetching when the Supabase URL is missing', async () => {
     await expect(fetchBuildJwks(undefined)).resolves.toBe('')
     expect(fetchMock).not.toHaveBeenCalled()
@@ -46,7 +52,9 @@ describe('fetchBuildJwks', () => {
     ['keys that is not an array', { keys: 'x' }],
     ['a key that is not an object', { keys: ['x'] }],
     ['a key without a kid', { keys: [{ kty: 'EC' }] }],
-    ['a key with an empty kid', { keys: [{ kid: '' }] }],
+    ['a key with an empty kid', { keys: [{ kid: '', kty: 'EC' }] }],
+    ['a key without a kty', { keys: [{ kid: 'k1' }] }],
+    ['an empty key set', { keys: [] }],
   ])('returns empty for %s', async (_label, body) => {
     fetchMock.mockResolvedValue(ok(body))
     await expect(fetchBuildJwks(URL_BASE)).resolves.toBe('')
