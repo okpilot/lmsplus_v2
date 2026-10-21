@@ -12,7 +12,7 @@ describe('fetchBuildJwks', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     vi.stubGlobal('fetch', fetchMock)
-    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
   })
 
   it('returns the serialized keys fetched from the project JWKS endpoint', async () => {
@@ -32,19 +32,19 @@ describe('fetchBuildJwks', () => {
   it('returns empty without fetching when the Supabase URL is missing', async () => {
     await expect(fetchBuildJwks(undefined)).resolves.toBe('')
     expect(fetchMock).not.toHaveBeenCalled()
-    expect(console.warn).toHaveBeenCalled()
+    expect(console.error).toHaveBeenCalled()
   })
 
   it('returns empty when the response is not OK', async () => {
     fetchMock.mockResolvedValue({ ok: false, status: 503, json: async () => ({}) })
     await expect(fetchBuildJwks(URL_BASE)).resolves.toBe('')
-    expect(console.warn).toHaveBeenCalled()
+    expect(console.error).toHaveBeenCalled()
   })
 
   it('returns empty when the request fails or times out', async () => {
     fetchMock.mockRejectedValue(new Error('timeout'))
     await expect(fetchBuildJwks(URL_BASE)).resolves.toBe('')
-    expect(console.warn).toHaveBeenCalled()
+    expect(console.error).toHaveBeenCalled()
   })
 
   it.each([
@@ -58,7 +58,7 @@ describe('fetchBuildJwks', () => {
   ])('returns empty for %s', async (_label, body) => {
     fetchMock.mockResolvedValue(ok(body))
     await expect(fetchBuildJwks(URL_BASE)).resolves.toBe('')
-    expect(console.warn).toHaveBeenCalled()
+    expect(console.error).toHaveBeenCalled()
   })
 
   it('returns empty when the body is not valid JSON', async () => {

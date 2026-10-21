@@ -1,7 +1,11 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { parseBuildJwks } from './build-jwks'
 
 describe('parseBuildJwks', () => {
+  beforeEach(() => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+  })
+
   afterEach(() => {
     vi.unstubAllEnvs()
   })
@@ -23,6 +27,19 @@ describe('parseBuildJwks', () => {
     ['an empty key set', '{"keys":[]}'],
   ])('returns undefined for %s', (_label, raw) => {
     expect(parseBuildJwks(raw)).toBeUndefined()
+  })
+
+  it('logs an error when a non-empty value is rejected', () => {
+    parseBuildJwks('{"keys":[]}')
+    expect(console.error).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['undefined', undefined],
+    ['an empty string', ''],
+  ])('logs nothing for %s', (_label, raw) => {
+    parseBuildJwks(raw)
+    expect(console.error).not.toHaveBeenCalled()
   })
 
   it('exposes the key set from SUPABASE_BUILD_JWKS at module load', async () => {

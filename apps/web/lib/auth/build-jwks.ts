@@ -17,14 +17,17 @@ export function toBuildJwks(value: unknown): BuildJwks | undefined {
   return { keys } as BuildJwks
 }
 
-/** Parses the JWKS inlined at build; undefined when absent or malformed. */
+/** Parses the JWKS inlined at build; undefined when absent or malformed (logged). */
 export function parseBuildJwks(raw: string | undefined): BuildJwks | undefined {
   if (!raw) return undefined
+  let jwks: BuildJwks | undefined
   try {
-    return toBuildJwks(JSON.parse(raw))
+    jwks = toBuildJwks(JSON.parse(raw))
   } catch {
-    return undefined
+    jwks = undefined
   }
+  if (!jwks) console.error('[parseBuildJwks] ignored: invalid SUPABASE_BUILD_JWKS')
+  return jwks
 }
 
 export const BUILD_JWKS = parseBuildJwks(process.env.SUPABASE_BUILD_JWKS)
