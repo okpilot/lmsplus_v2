@@ -5,6 +5,7 @@ import {
   isShortAnswerRpcResult,
 } from '@/app/app/quiz/actions/check-non-mc-answer-helpers'
 import {
+  expl,
   toDiagramFeedback,
   toDialogFeedback,
   toOrderingFeedback,
@@ -29,13 +30,6 @@ function isMcElement(v: Record<string, unknown>): v is McElement {
     nullableString(v.explanation_image_url)
   )
 }
-
-type Expl = { explanation_text: string | null; explanation_image_url: string | null }
-
-const expl = (r: Expl) => ({
-  explanationText: r.explanation_text,
-  explanationImageUrl: r.explanation_image_url,
-})
 
 function mapNonMc(type: string, v: Record<string, unknown>): AnswerFeedback | null {
   if (type === 'short_answer' && isShortAnswerRpcResult(v)) return toShortFeedback(v)

@@ -17,7 +17,7 @@ export type AssembleQuizStateInput = {
   pinnedQuestions: Set<string>
   togglePin: () => void
   saveError?: string | null
-  /** The pipeline's feedback with restored (re-checked) feedback merged under it. */
+  /** The pipeline's feedback, seeded from the server load. */
   feedback: Map<string, AnswerFeedback>
   p: ActivePipeline
   isExam: boolean

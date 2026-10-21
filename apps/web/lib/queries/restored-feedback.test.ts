@@ -94,10 +94,11 @@ describe('getRestoredFeedback', () => {
 })
 
 describe('getRestoredFeedbackBounded', () => {
-  it('returns nothing when the client cannot be created', async () => {
+  it('logs and returns nothing when the client cannot be created', async () => {
     mockClient.mockRejectedValue(new Error('no cookies'))
 
     expect(await getRestoredFeedbackBounded(SESSION)).toEqual({})
+    expect(console.error).toHaveBeenCalledWith('[getRestoredFeedback] read failed:', 'no cookies')
   })
 
   it('logs the timeout and returns nothing when the read hangs', async () => {

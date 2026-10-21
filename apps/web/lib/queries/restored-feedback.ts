@@ -52,7 +52,13 @@ const TIMED_OUT = {} as RestoredFeedback
 /** Never rejects: degrades to no feedback on failure or after RESTORED_FEEDBACK_TIMEOUT_MS. */
 export async function getRestoredFeedbackBounded(sessionId: string): Promise<RestoredFeedback> {
   const result = await withTimeout(
-    getRestoredFeedback(sessionId).catch(() => ({}) as RestoredFeedback),
+    getRestoredFeedback(sessionId).catch((e: unknown) => {
+      console.error(
+        '[getRestoredFeedback] read failed:',
+        e instanceof Error ? e.message : String(e),
+      )
+      return {} as RestoredFeedback
+    }),
     RESTORED_FEEDBACK_TIMEOUT_MS,
     TIMED_OUT,
   )

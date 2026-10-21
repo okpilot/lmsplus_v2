@@ -1,8 +1,8 @@
+import { useMemo } from 'react'
 import type { QuizStateOpts } from '../../session-types'
 import { assembleQuizState } from './quiz-state-assembly'
 import { useExamPipeline } from './use-exam-state'
 import { useProgressSync } from './use-progress-sync'
-import { useQuizStateExtras } from './use-quiz-state-extras'
 import { useStudyPipeline } from './use-study-pipeline'
 
 export type QuizState = ReturnType<typeof useQuizState>
@@ -32,10 +32,10 @@ export function useQuizState(opts: QuizStateOpts) {
 
   const p = isExam ? exam : study
   const answers = isExam ? exam.answers : studyAnswers
-  const { questionIds, feedback } = useQuizStateExtras({ opts, p })
+  const questionIds = useMemo(() => opts.questions.map((q) => q.id), [opts.questions])
 
   return assembleQuizState({
-    feedback,
+    feedback: p.feedback,
     nav,
     question,
     questionId,
