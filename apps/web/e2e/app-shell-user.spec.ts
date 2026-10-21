@@ -16,7 +16,7 @@ async function readDisplayName(): Promise<string> {
 }
 
 async function expectStudentShell(page: Page, displayName: string) {
-  const firstName = displayName.split(' ')[0]
+  const firstName = displayName.trim().split(/\s+/)[0]
   await expect(page.getByText(`Welcome back, ${firstName}`)).toBeVisible()
   await expect(page.getByText(displayName, { exact: true })).toBeVisible()
   const nav = page.getByRole('navigation', { name: 'Main navigation' })
