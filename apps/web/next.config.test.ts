@@ -16,6 +16,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // config through the mocked @sentry/nextjs/config withSentryConfig" test below).
 const withSentryConfigSpy = vi.hoisted(() => vi.fn((config: unknown) => config))
 
+const fetchBuildJwksSpy = vi.hoisted(() => vi.fn(async (_url: string | undefined) => ''))
+
+vi.mock('./lib/auth/fetch-build-jwks', () => ({ fetchBuildJwks: fetchBuildJwksSpy }))
+
 // Mock @sentry/nextjs/config so withSentryConfig is a passthrough — avoids Sentry
 // side effects (webpack plugin init) polluting the test pool.
 vi.mock('@sentry/nextjs/config', () => ({
@@ -23,7 +27,11 @@ vi.mock('@sentry/nextjs/config', () => ({
 }))
 
 // Helper: load next.config.ts fresh after NODE_ENV and optional env vars have been set.
-async function loadConfig(nodeEnv: string, extraEnv: Record<string, string> = {}) {
+async function loadConfig(
+  nodeEnv: string,
+  extraEnv: Record<string, string> = {},
+  phase = 'phase-development-server',
+) {
   vi.stubEnv('NODE_ENV', nodeEnv)
   for (const [key, value] of Object.entries(extraEnv)) {
     vi.stubEnv(key, value)
@@ -31,7 +39,8 @@ async function loadConfig(nodeEnv: string, extraEnv: Record<string, string> = {}
   vi.resetModules()
   // Dynamic import picks up the freshly-reset module registry.
   const mod = await import('./next.config')
-  return mod.default
+  const exported = mod.default
+  return typeof exported === 'function' ? await exported(phase) : exported
 }
 
 function extractCsp(headers: { key: string; value: string }[]): string {
@@ -225,5 +234,29 @@ describe('next.config — security headers', () => {
       const xfo = groups[0]?.headers.find((h: { key: string }) => h.key === 'X-Frame-Options')
       expect(xfo?.value).toBe('DENY')
     })
+  })
+})
+
+describe('next.config — build-time JWKS', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.unstubAllEnvs()
+  })
+
+  it('inlines the fetched JWKS during the production build phase', async () => {
+    fetchBuildJwksSpy.mockResolvedValue('{"keys":[]}')
+    const config = await loadConfig(
+      'production',
+      { NEXT_PUBLIC_SUPABASE_URL: 'https://proj.supabase.co' },
+      'phase-production-build',
+    )
+    expect(config.env?.SUPABASE_BUILD_JWKS).toBe('{"keys":[]}')
+    expect(fetchBuildJwksSpy).toHaveBeenCalledWith('https://proj.supabase.co')
+  })
+
+  it('leaves the JWKS empty and skips the fetch outside the build phase', async () => {
+    const config = await loadConfig('development', {}, 'phase-development-server')
+    expect(config.env?.SUPABASE_BUILD_JWKS).toBe('')
+    expect(fetchBuildJwksSpy).not.toHaveBeenCalled()
   })
 })

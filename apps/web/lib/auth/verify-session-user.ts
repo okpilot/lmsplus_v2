@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { BUILD_JWKS } from './build-jwks'
 
 export type SessionUser = { id: string; email: string | null }
 
@@ -10,14 +11,17 @@ type AuthClient = {
 /**
  * The caller's identity. `getClaims()` reads the cookie session (refreshing an expiring token),
  * then verifies its access token: for an asymmetric signing key it checks signature + expiry
- * locally against the cached JWKS (no `/user` call; the JWKS is refetched on a miss or expiry); for a
- * symmetric or missing `alg`, a header without `kid`, a `kid` absent from the JWKS, or no
+ * locally against the JWKS inlined at build when present (no `/user` call, no JWKS fetch). A `kid`
+ * absent from it falls back to the cached JWKS (fetched on a miss or after 10 min). For a
+ * symmetric or missing `alg`, a header without `kid`, a `kid` absent from every JWKS, or no
  * WebCrypto, getClaims itself calls `getUser`. Revocation is therefore bounded by the
  * access-token lifetime. Returns null when there is no valid session.
  */
 export async function verifySessionUser(supabase: AuthClient): Promise<SessionUser | null> {
   try {
-    const { data: verified, error: claimsError } = await supabase.auth.getClaims()
+    const { data: verified, error: claimsError } = await (BUILD_JWKS
+      ? supabase.auth.getClaims(undefined, { jwks: BUILD_JWKS })
+      : supabase.auth.getClaims())
     if (claimsError) {
       console.error('[verifySessionUser] getClaims failed:', claimsError.message)
       return null

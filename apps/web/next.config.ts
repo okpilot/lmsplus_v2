@@ -1,5 +1,7 @@
 import { withSentryConfig } from '@sentry/nextjs/config'
 import type { NextConfig } from 'next'
+import { PHASE_PRODUCTION_BUILD } from 'next/constants'
+import { fetchBuildJwks } from './lib/auth/fetch-build-jwks'
 
 const isDev = process.env.NODE_ENV !== 'production'
 // Allow localhost connections in production builds that target local Supabase (E2E CI)
@@ -46,7 +48,7 @@ const nextConfig: NextConfig = {
   },
 }
 
-export default withSentryConfig(nextConfig, {
+const sentryOptions = {
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
   silent: !process.env.CI,
@@ -60,4 +62,14 @@ export default withSentryConfig(nextConfig, {
     excludeReplayIframe: true,
     excludeReplayShadowDom: true,
   },
-})
+}
+
+export default async function config(phase: string) {
+  const env = {
+    SUPABASE_BUILD_JWKS:
+      phase === PHASE_PRODUCTION_BUILD
+        ? await fetchBuildJwks(process.env.NEXT_PUBLIC_SUPABASE_URL)
+        : '',
+  }
+  return withSentryConfig({ ...nextConfig, env }, sentryOptions)
+}
