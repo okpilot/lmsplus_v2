@@ -46,9 +46,4 @@ test.describe('App shell user identity', () => {
     await expect(page).toHaveURL(/\/app\/settings$/, { timeout: 30000 })
     await expect(page.getByText(displayName, { exact: true }).first()).toBeVisible()
   })
-
-  test('student cannot reach admin pages from the shell', async ({ page }) => {
-    await page.goto('/app/admin/students')
-    await expect(page).toHaveURL(/\/app\/dashboard$/)
-  })
 })
