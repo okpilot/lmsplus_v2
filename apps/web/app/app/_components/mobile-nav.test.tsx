@@ -91,7 +91,7 @@ describe('MobileNav', () => {
     expect(screen.queryByText('Syllabus')).not.toBeInTheDocument()
   })
 
-  it('closes the sheet when the route changes in the same render as the role resolving', async () => {
+  it('closes the sheet on a route change while the role is resolving', async () => {
     stubWideTabBar()
     let resolve: (u: ShellUser) => void = () => {}
     const pending = new Promise<ShellUser>((r) => {
@@ -112,6 +112,47 @@ describe('MobileNav', () => {
     })
     act(() => observerCallback?.([{ contentRect: { width: 320 } }]))
     expect(screen.getByRole('button', { name: 'More' })).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  describe('when the role resolves', () => {
+    async function renderPending(width: number) {
+      stubWideTabBar()
+      let resolve: (u: ShellUser) => void = () => {}
+      const pending = new Promise<ShellUser>((r) => {
+        resolve = r
+      })
+      await act(async () => {
+        renderMobileNav(pending)
+      })
+      act(() => observerCallback?.([{ contentRect: { width } }]))
+      return async (userRole: string) => {
+        await act(async () => {
+          resolve({ displayName: 'A', userRole })
+          await pending
+        })
+      }
+    }
+
+    it('keeps the same tab bar element', async () => {
+      const resolveAs = await renderPending(320)
+      const nav = screen.getByRole('navigation', { name: 'Bottom navigation' })
+      await resolveAs('admin')
+      expect(screen.getByRole('navigation', { name: 'Bottom navigation' })).toBe(nav)
+    })
+
+    it('keeps keyboard focus on More', async () => {
+      const resolveAs = await renderPending(320)
+      act(() => screen.getByRole('button', { name: 'More' }).focus())
+      await resolveAs('admin')
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'More' }))
+    })
+
+    it('keeps the measured tab count without re-measuring', async () => {
+      const resolveAs = await renderPending(1000)
+      await resolveAs('student')
+      expect(screen.getByText('Settings')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'More' })).not.toBeInTheDocument()
+    })
   })
 
   describe('when the role resolves while the More sheet is open', () => {

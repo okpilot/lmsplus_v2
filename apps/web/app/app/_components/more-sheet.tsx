@@ -1,14 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import {
-  type Dispatch,
-  type RefObject,
-  type SetStateAction,
-  useCallback,
-  useEffect,
-  useRef,
-} from 'react'
+import { type RefObject, useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { NavIcon } from './nav-icon'
 import type { NavItem } from './nav-items'
@@ -73,50 +66,51 @@ export function MoreSheet({ hidden, activeHref, onClose, onDismiss }: Readonly<S
   )
 }
 
-export type SheetState = [string | null, Dispatch<SetStateAction<string | null>>]
-
 type MoreSheetOpts = {
   pathname: string
   hasHidden: boolean
   moreRef: RefObject<HTMLButtonElement | null>
-  state: SheetState
 }
 
-/**
- * Open while the current pathname equals the one it was opened on, so a route change hides it in the same render
- * and a remounted bar sharing `state` keeps it; an effect then clears the stale path so returning does not reopen it.
- * Also closes on Escape or `dismiss` (refocusing More) and when nothing overflows.
- */
-export function useMoreSheet({ pathname, hasHidden, moreRef, state }: MoreSheetOpts) {
-  const [openedAt, setOpenedAt] = state
-  const sheetOpen = openedAt === pathname && hasHidden
-
+function useEscapeToDismiss(active: boolean, dismiss: () => void) {
   useEffect(() => {
-    if (openedAt !== null && openedAt !== pathname) setOpenedAt(null)
-  }, [openedAt, pathname, setOpenedAt])
-
-  useEffect(() => {
-    if (!hasHidden) setOpenedAt(null)
-  }, [hasHidden, setOpenedAt])
-
-  const close = useCallback(() => setOpenedAt(null), [setOpenedAt])
-  const toggle = useCallback(
-    () => setOpenedAt((p) => (p === pathname ? null : pathname)),
-    [pathname, setOpenedAt],
-  )
-  const dismiss = useCallback(() => {
-    setOpenedAt(null)
-    moreRef.current?.focus()
-  }, [moreRef, setOpenedAt])
-
-  useEffect(() => {
-    if (!sheetOpen) return
+    if (!active) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') dismiss()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [sheetOpen, dismiss])
+  }, [active, dismiss])
+}
+
+/**
+ * Open while the current pathname equals the one it was opened on, so a route change hides it in the same render;
+ * an effect then clears the stale path so returning does not reopen it.
+ * Also closes on Escape or `dismiss` (refocusing More) and when nothing overflows.
+ */
+export function useMoreSheet({ pathname, hasHidden, moreRef }: MoreSheetOpts) {
+  const [openedAt, setOpenedAt] = useState<string | null>(null)
+  const sheetOpen = openedAt === pathname && hasHidden
+
+  useEffect(() => {
+    if (openedAt !== null && openedAt !== pathname) setOpenedAt(null)
+  }, [openedAt, pathname])
+
+  useEffect(() => {
+    if (!hasHidden) setOpenedAt(null)
+  }, [hasHidden])
+
+  const close = useCallback(() => setOpenedAt(null), [])
+  const toggle = useCallback(
+    () => setOpenedAt((p) => (p === pathname ? null : pathname)),
+    [pathname],
+  )
+  const dismiss = useCallback(() => {
+    setOpenedAt(null)
+    moreRef.current?.focus()
+  }, [moreRef])
+
+  useEscapeToDismiss(sheetOpen, dismiss)
 
   return { sheetOpen, toggle, close, dismiss }
 }

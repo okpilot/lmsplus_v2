@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useRef } from 'react'
-import { MoreButton, MoreSheet, type SheetState, SLOT, tone, useMoreSheet } from './more-sheet'
+import { MoreButton, MoreSheet, SLOT, tone, useMoreSheet } from './more-sheet'
 import { NavIcon } from './nav-icon'
 import type { NavItem } from './nav-items'
 import { useTabBarModel } from './use-tab-bar-model'
@@ -25,17 +25,12 @@ function TabLink({ item, active, onClick }: Readonly<TabLinkProps>) {
   )
 }
 
-function useBottomTabBar(userRole: string | undefined, sheetState: SheetState) {
+function useBottomTabBar(userRole: string | undefined) {
   const pathname = usePathname()
   const ref = useRef<HTMLElement>(null)
   const moreRef = useRef<HTMLButtonElement>(null)
   const model = useTabBarModel(pathname, userRole, useTabSlots(ref))
-  const sheet = useMoreSheet({
-    pathname,
-    hasHidden: model.hidden.length > 0,
-    moreRef,
-    state: sheetState,
-  })
+  const sheet = useMoreSheet({ pathname, hasHidden: model.hidden.length > 0, moreRef })
   return { ref, moreRef, ...model, ...sheet }
 }
 
@@ -68,11 +63,8 @@ function TabStrip({ bar }: Readonly<{ bar: Bar }>) {
   )
 }
 
-export function BottomTabBar({
-  userRole,
-  sheet,
-}: Readonly<{ userRole?: string; sheet: SheetState }>) {
-  const bar = useBottomTabBar(userRole, sheet)
+export function BottomTabBar({ userRole }: Readonly<{ userRole?: string }>) {
+  const bar = useBottomTabBar(userRole)
 
   return (
     <>

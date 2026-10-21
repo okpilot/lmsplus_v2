@@ -1,6 +1,5 @@
 import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockUsePathname } = vi.hoisted(() => ({
@@ -36,13 +35,8 @@ function renderMeasured(width: number, userRole = 'student') {
   return result
 }
 
-function Harness({ userRole }: Readonly<{ userRole: string }>) {
-  const sheet = useState<string | null>(null)
-  return <BottomTabBar userRole={userRole} sheet={sheet} />
-}
-
 function renderTabBar(userRole = 'student') {
-  return render(<Harness userRole={userRole} />)
+  return render(<BottomTabBar userRole={userRole} />)
 }
 
 beforeEach(() => {
@@ -143,7 +137,7 @@ describe('BottomTabBar', () => {
       const user = userEvent.setup({ delay: null })
       await user.click(screen.getByRole('button', { name: 'More' }))
       mockUsePathname.mockReturnValue('/app/settings')
-      rerender(<Harness userRole="student" />)
+      rerender(<BottomTabBar userRole="student" />)
       expect(screen.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument()
     })
 
@@ -152,9 +146,9 @@ describe('BottomTabBar', () => {
       const user = userEvent.setup({ delay: null })
       await user.click(screen.getByRole('button', { name: 'More' }))
       mockUsePathname.mockReturnValue('/app/settings')
-      rerender(<Harness userRole="student" />)
+      rerender(<BottomTabBar userRole="student" />)
       mockUsePathname.mockReturnValue('/app/dashboard')
-      rerender(<Harness userRole="student" />)
+      rerender(<BottomTabBar userRole="student" />)
       expect(screen.getByRole('button', { name: 'More' })).toHaveAttribute('aria-expanded', 'false')
     })
 

@@ -1,19 +1,27 @@
 'use client'
 
-import { Suspense, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { BottomTabBar } from './bottom-tab-bar'
-import type { SheetState } from './more-sheet'
 import { useUser } from './user-context'
 
-function RoleTabBar({ sheet }: Readonly<{ sheet: SheetState }>) {
-  return <BottomTabBar userRole={useUser().userRole} sheet={sheet} />
+/** Passes the resolved role up; a state sync of an already-resolved context value, not a fetch. */
+function RoleReporter({ onRole }: Readonly<{ onRole: (role: string) => void }>) {
+  const { userRole } = useUser()
+  useEffect(() => {
+    onRole(userRole)
+  }, [userRole, onRole])
+  return null
 }
 
+/** One always-mounted bar: only the role reporter suspends, so the role arriving never remounts the bar. */
 export function MobileNav() {
-  const sheet = useState<string | null>(null)
+  const [userRole, setUserRole] = useState<string>()
   return (
-    <Suspense fallback={<BottomTabBar sheet={sheet} />}>
-      <RoleTabBar sheet={sheet} />
-    </Suspense>
+    <>
+      <BottomTabBar userRole={userRole} />
+      <Suspense fallback={null}>
+        <RoleReporter onRole={setUserRole} />
+      </Suspense>
+    </>
   )
 }
