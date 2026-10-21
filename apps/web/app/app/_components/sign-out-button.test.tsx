@@ -1,10 +1,11 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SignOutButton } from './sign-out-button'
 
 const mockSignOut = vi.fn()
-const mockRouterPush = vi.fn()
+const mockAssign = vi.fn()
+const originalLocation = window.location
 
 vi.mock('@repo/db/client', () => ({
   createClient: () => ({
@@ -14,14 +15,18 @@ vi.mock('@repo/db/client', () => ({
   }),
 }))
 
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockRouterPush }),
-}))
-
 describe('SignOutButton', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockSignOut.mockResolvedValue({})
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { ...originalLocation, assign: mockAssign },
+    })
+  })
+
+  afterEach(() => {
+    Object.defineProperty(window, 'location', { configurable: true, value: originalLocation })
   })
 
   it('renders a sign out button', () => {
@@ -38,23 +43,21 @@ describe('SignOutButton', () => {
     expect(mockSignOut).toHaveBeenCalledOnce()
   })
 
-  it('redirects to the login page after signing out', async () => {
+  it('loads the login page as a full document navigation after signing out', async () => {
     const user = userEvent.setup()
     render(<SignOutButton />)
 
     await user.click(screen.getByRole('button', { name: /sign out/i }))
 
-    // Wait for async handler
     await vi.waitFor(() => {
-      expect(mockRouterPush).toHaveBeenCalledWith('/')
+      expect(mockAssign).toHaveBeenCalledWith('/')
     })
   })
 
-  it('redirects only after sign-out completes', async () => {
-    // Simulate a slow sign-out
-    let resolveSignOut!: () => void
+  it('navigates only after sign-out completes', async () => {
+    let resolveSignOut!: (value: { error: null }) => void
     mockSignOut.mockReturnValue(
-      new Promise<void>((resolve) => {
+      new Promise<{ error: null }>((resolve) => {
         resolveSignOut = resolve
       }),
     )
@@ -64,16 +67,15 @@ describe('SignOutButton', () => {
 
     await user.click(screen.getByRole('button', { name: /sign out/i }))
 
-    // Router should not have been called yet
-    expect(mockRouterPush).not.toHaveBeenCalled()
+    expect(mockAssign).not.toHaveBeenCalled()
 
-    resolveSignOut()
+    resolveSignOut({ error: null })
     await vi.waitFor(() => {
-      expect(mockRouterPush).toHaveBeenCalledWith('/')
+      expect(mockAssign).toHaveBeenCalledWith('/')
     })
   })
 
-  it('signs out and redirects from the sidebar row variant too', async () => {
+  it('signs out and navigates from the sidebar row variant too', async () => {
     const user = userEvent.setup()
     render(<SignOutButton variant="row" />)
 
@@ -81,7 +83,19 @@ describe('SignOutButton', () => {
 
     expect(mockSignOut).toHaveBeenCalledOnce()
     await vi.waitFor(() => {
-      expect(mockRouterPush).toHaveBeenCalledWith('/')
+      expect(mockAssign).toHaveBeenCalledWith('/')
     })
+  })
+
+  it('disables the button while sign-out is pending', async () => {
+    mockSignOut.mockReturnValue(new Promise(() => {}))
+
+    const user = userEvent.setup()
+    render(<SignOutButton />)
+
+    const button = screen.getByRole('button', { name: /sign out/i })
+    await user.click(button)
+
+    expect(button).toBeDisabled()
   })
 })
