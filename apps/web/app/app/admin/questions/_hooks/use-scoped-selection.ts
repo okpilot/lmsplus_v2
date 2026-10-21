@@ -19,16 +19,23 @@ export function useScopedSelection(scope: string, visibleIds: readonly string[])
     setState({ scope, ids })
   }
 
+  function update(next: (base: string[]) => string[]) {
+    setState((prev) => {
+      const base = prev.scope === scope ? prev.ids.filter((id) => visibleIds.includes(id)) : []
+      return { scope, ids: next(base) }
+    })
+  }
+
   function toggle(id: string) {
-    setState({ scope, ids: ids.includes(id) ? ids.filter((i) => i !== id) : [...ids, id] })
+    update((base) => (base.includes(id) ? base.filter((i) => i !== id) : [...base, id]))
   }
 
   function toggleAll() {
-    setState({ scope, ids: ids.length === visibleIds.length ? [] : [...visibleIds] })
+    update((base) => (base.length === visibleIds.length ? [] : [...visibleIds]))
   }
 
   function clear() {
-    setState({ scope, ids: [] })
+    update(() => [])
   }
 
   return { selectedIds: ids, toggle, toggleAll, clear }

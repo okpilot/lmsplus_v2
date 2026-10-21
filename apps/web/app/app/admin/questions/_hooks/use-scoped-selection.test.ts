@@ -79,4 +79,26 @@ describe('useScopedSelection', () => {
 
     expect(result.current.selectedIds).toEqual([])
   })
+
+  it('keeps both rows selected when two rows are toggled in one batch', () => {
+    const { result } = setup({ scope: 'A', ids: ['a', 'b', 'c'] })
+
+    act(() => {
+      result.current.toggle('a')
+      result.current.toggle('b')
+    })
+
+    expect(result.current.selectedIds).toEqual(['a', 'b'])
+  })
+
+  it('selects every visible row except one deselected in the same batch as select-all', () => {
+    const { result } = setup({ scope: 'A', ids: ['a', 'b', 'c'] })
+
+    act(() => {
+      result.current.toggleAll()
+      result.current.toggle('b')
+    })
+
+    expect(result.current.selectedIds).toEqual(['a', 'c'])
+  })
 })

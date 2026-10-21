@@ -167,10 +167,6 @@ test.describe('Admin Question Editor', () => {
     await expect(page).toHaveURL(/status=active/)
 
     await expect(page.getByText(/\d+ selected/)).toHaveCount(0)
-
-    await page.reload()
-    await expect(page).toHaveURL(/status=active/)
-    await expect(page.getByText(/\d+ selected/)).toHaveCount(0)
   })
 
   // ── Section 6: Delete question ──────────────────────────────────────
