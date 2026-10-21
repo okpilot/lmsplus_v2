@@ -66,38 +66,53 @@ export function MoreSheet({ hidden, activeHref, onClose, onDismiss }: Readonly<S
   )
 }
 
-/** Open state of the More sheet; closes on route change, Escape or `dismiss` (refocusing More), and when nothing overflows. */
-export function useMoreSheet(
-  pathname: string,
-  hasHidden: boolean,
-  moreRef: RefObject<HTMLButtonElement | null>,
-) {
-  const [open, setOpen] = useState(false)
-  const sheetOpen = open && hasHidden
+type MoreSheetOpts = {
+  pathname: string
+  hasHidden: boolean
+  moreRef: RefObject<HTMLButtonElement | null>
+}
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: pathname change closes the sheet
-  useEffect(() => setOpen(false), [pathname])
-
+function useEscapeToDismiss(active: boolean, dismiss: () => void) {
   useEffect(() => {
-    if (!hasHidden) setOpen(false)
-  }, [hasHidden])
-
-  const close = useCallback(() => setOpen(false), [])
-  const dismiss = useCallback(() => {
-    setOpen(false)
-    moreRef.current?.focus()
-  }, [moreRef])
-
-  useEffect(() => {
-    if (!sheetOpen) return
+    if (!active) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') dismiss()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [sheetOpen, dismiss])
+  }, [active, dismiss])
+}
 
-  return { sheetOpen, setOpen, close, dismiss }
+/**
+ * Open while the current pathname equals the one it was opened on, so a route change hides it in the same render;
+ * an effect then clears the stale path so returning does not reopen it.
+ * Also closes on Escape or `dismiss` (refocusing More) and when nothing overflows.
+ */
+export function useMoreSheet({ pathname, hasHidden, moreRef }: MoreSheetOpts) {
+  const [openedAt, setOpenedAt] = useState<string | null>(null)
+  const sheetOpen = openedAt === pathname && hasHidden
+
+  useEffect(() => {
+    if (openedAt !== null && openedAt !== pathname) setOpenedAt(null)
+  }, [openedAt, pathname])
+
+  useEffect(() => {
+    if (!hasHidden) setOpenedAt(null)
+  }, [hasHidden])
+
+  const close = useCallback(() => setOpenedAt(null), [])
+  const toggle = useCallback(
+    () => setOpenedAt((p) => (p === pathname ? null : pathname)),
+    [pathname],
+  )
+  const dismiss = useCallback(() => {
+    setOpenedAt(null)
+    moreRef.current?.focus()
+  }, [moreRef])
+
+  useEscapeToDismiss(sheetOpen, dismiss)
+
+  return { sheetOpen, toggle, close, dismiss }
 }
 
 type MoreButtonProps = {

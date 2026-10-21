@@ -1,17 +1,27 @@
 'use client'
 
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { useUser } from '@/app/app/_components/user-context'
+import { firstName } from '@/app/app/_lib/shell-user'
+
+function FirstName() {
+  const first = firstName(useUser().displayName)
+  if (!first) return null
+  return <span>, {first}</span>
+}
 
 export function DashboardHeader() {
-  const { displayName } = useUser()
-  const firstName = displayName.split(' ')[0] ?? displayName
-
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Welcome back, {firstName}</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Welcome back
+          <Suspense fallback={null}>
+            <FirstName />
+          </Suspense>
+        </p>
       </div>
       <Link
         href="/app/quiz"

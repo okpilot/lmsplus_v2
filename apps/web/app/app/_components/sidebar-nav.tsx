@@ -1,16 +1,13 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
+import { Suspense } from 'react'
 import { SectionLabel } from '@/components/kit/section-label'
 import { ADMIN_NAV_ITEMS, isActivePath, type NavItem, SIDEBAR_GROUPS } from './nav-items'
 import { SidebarFooter } from './sidebar-footer'
 import { SidebarItem } from './sidebar-item'
+import { useUser } from './user-context'
 import { Wordmark } from './wordmark'
-
-type SidebarNavProps = {
-  userRole?: string
-  displayName: string
-}
 
 function NavGroup({
   label,
@@ -27,12 +24,13 @@ function NavGroup({
   )
 }
 
-export function SidebarNav({ userRole, displayName }: Readonly<SidebarNavProps>) {
+function AdminNavGroup({ pathname }: Readonly<{ pathname: string }>) {
+  if (useUser().userRole !== 'admin') return null
+  return <NavGroup label="Admin" items={ADMIN_NAV_ITEMS} pathname={pathname} />
+}
+
+export function SidebarNav() {
   const pathname = usePathname()
-  const groups =
-    userRole === 'admin'
-      ? [...SIDEBAR_GROUPS, { label: 'Admin', items: ADMIN_NAV_ITEMS }]
-      : SIDEBAR_GROUPS
 
   return (
     <div className="flex h-full w-full flex-col gap-7 px-3 py-6">
@@ -43,11 +41,14 @@ export function SidebarNav({ userRole, displayName }: Readonly<SidebarNavProps>)
         aria-label="Main navigation"
         className="flex min-h-0 flex-1 flex-col gap-7 overflow-y-auto"
       >
-        {groups.map((group) => (
+        {SIDEBAR_GROUPS.map((group) => (
           <NavGroup key={group.label} {...group} pathname={pathname} />
         ))}
+        <Suspense fallback={null}>
+          <AdminNavGroup pathname={pathname} />
+        </Suspense>
       </nav>
-      <SidebarFooter displayName={displayName} />
+      <SidebarFooter />
     </div>
   )
 }

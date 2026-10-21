@@ -1,13 +1,18 @@
 import { render, screen } from '@testing-library/react'
+import { Suspense } from 'react'
 import { describe, expect, it, vi } from 'vitest'
+import type { ShellUser } from '../_lib/shell-user'
 import { UserProvider, useUser } from './user-context'
 
+const fulfilled = <T,>(v: T) =>
+  Object.assign(Promise.resolve(v), { status: 'fulfilled' as const, value: v })
+
 function ConsumerComponent() {
-  const { displayName, userRole } = useUser()
+  const user = useUser()
   return (
     <div>
-      <span data-testid="display-name">{displayName}</span>
-      <span data-testid="user-role">{userRole ?? 'none'}</span>
+      <span data-testid="display-name">{user.displayName}</span>
+      <span data-testid="user-role">{user.userRole}</span>
     </div>
   )
 }
@@ -18,9 +23,10 @@ function ThrowingComponent() {
 }
 
 describe('UserContext', () => {
-  it('provides displayName and userRole to consumers', () => {
+  it('provides displayName and userRole to consumers once the lookup has resolved', () => {
+    const user: ShellUser = { displayName: 'Ada Pilot', userRole: 'student' }
     render(
-      <UserProvider displayName="Ada Pilot" userRole="student">
+      <UserProvider user={fulfilled(user)}>
         <ConsumerComponent />
       </UserProvider>,
     )
@@ -29,15 +35,17 @@ describe('UserContext', () => {
     expect(screen.getByTestId('user-role')).toHaveTextContent('student')
   })
 
-  it('works without userRole (optional field)', () => {
+  it('shows the Suspense fallback while the lookup is pending', () => {
     render(
-      <UserProvider displayName="Ada Pilot">
-        <ConsumerComponent />
+      <UserProvider user={new Promise(() => {})}>
+        <Suspense fallback={<span>loading</span>}>
+          <ConsumerComponent />
+        </Suspense>
       </UserProvider>,
     )
 
-    expect(screen.getByTestId('display-name')).toHaveTextContent('Ada Pilot')
-    expect(screen.getByTestId('user-role')).toHaveTextContent('none')
+    expect(screen.getByText('loading')).toBeInTheDocument()
+    expect(screen.queryByTestId('display-name')).not.toBeInTheDocument()
   })
 
   it('throws when useUser is called outside a UserProvider', () => {

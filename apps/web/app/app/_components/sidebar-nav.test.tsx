@@ -1,4 +1,5 @@
 import { render, screen, within } from '@testing-library/react'
+import { Suspense } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockUsePathname } = vi.hoisted(() => ({
@@ -10,15 +11,27 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('./sidebar-footer', () => ({
-  SidebarFooter: ({ displayName }: { displayName: string }) => (
-    <div data-testid="sidebar-footer">{displayName}</div>
-  ),
+  SidebarFooter: () => <div data-testid="sidebar-footer" />,
 }))
 
 import { SidebarNav } from './sidebar-nav'
+import { UserProvider } from './user-context'
 
-function renderNav(props: { userRole?: string } = {}) {
-  render(<SidebarNav displayName="Ada Pilot" {...props} />)
+const fulfilled = <T,>(v: T) =>
+  Object.assign(Promise.resolve(v), { status: 'fulfilled' as const, value: v })
+
+function renderNav(props: { userRole?: string; pending?: boolean } = {}) {
+  const userRole = props.userRole ?? 'student'
+  const user = props.pending
+    ? new Promise<never>(() => {})
+    : fulfilled({ displayName: 'Ada Pilot', userRole })
+  render(
+    <UserProvider user={user}>
+      <Suspense fallback={null}>
+        <SidebarNav />
+      </Suspense>
+    </UserProvider>,
+  )
   return screen.getByRole('navigation', { name: 'Main navigation' })
 }
 
@@ -103,9 +116,15 @@ describe('SidebarNav', () => {
     expect(within(nav).queryByRole('link', { name: 'Students' })).not.toBeInTheDocument()
   })
 
-  it('renders the footer with the display name', () => {
+  it('renders the footer', () => {
     renderNav()
-    expect(screen.getByTestId('sidebar-footer')).toHaveTextContent('Ada Pilot')
+    expect(screen.getByTestId('sidebar-footer')).toBeInTheDocument()
+  })
+
+  it('shows the base groups and no Admin group while the user is still loading', () => {
+    const nav = renderNav({ pending: true })
+    expect(within(nav).getByRole('link', { name: 'Dashboard' })).toBeInTheDocument()
+    expect(within(nav).queryByText('Admin')).not.toBeInTheDocument()
   })
 
   it('has no collapse control', () => {

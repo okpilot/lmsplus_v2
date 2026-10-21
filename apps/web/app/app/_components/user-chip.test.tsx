@@ -28,4 +28,10 @@ describe('UserChip', () => {
     expect(screen.getByText('Ada Pilot')).toBeInTheDocument()
     expect(screen.getByText('AP')).toBeInTheDocument()
   })
+
+  it('shows a loading placeholder with an empty avatar when the name is not known yet', () => {
+    const { container } = render(<UserChip displayName={null} />)
+    expect(screen.getByText('Loading account')).toBeInTheDocument()
+    expect(container.querySelector('[aria-hidden="true"]')).toBeEmptyDOMElement()
+  })
 })

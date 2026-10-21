@@ -1,13 +1,19 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
+import { Suspense } from 'react'
 import { isActivePath, SETTINGS_ITEM } from './nav-items'
 import { SidebarItem } from './sidebar-item'
 import { SignOutButton } from './sign-out-button'
 import { ThemeRow } from './theme-row'
 import { UserChip } from './user-chip'
+import { useUser } from './user-context'
 
-export function SidebarFooter({ displayName }: Readonly<{ displayName: string }>) {
+function CurrentUserChip() {
+  return <UserChip displayName={useUser().displayName} />
+}
+
+export function SidebarFooter() {
   const pathname = usePathname()
 
   return (
@@ -17,7 +23,9 @@ export function SidebarFooter({ displayName }: Readonly<{ displayName: string }>
       )}
       <ThemeRow />
       <SignOutButton variant="row" />
-      <UserChip displayName={displayName} />
+      <Suspense fallback={<UserChip displayName={null} />}>
+        <CurrentUserChip />
+      </Suspense>
     </div>
   )
 }

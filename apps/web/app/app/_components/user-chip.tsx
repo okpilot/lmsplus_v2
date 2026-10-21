@@ -6,7 +6,18 @@ export function initials(name: string): string {
   return `${words[0]?.[0] ?? ''}${words[1]?.[0] ?? ''}`.toUpperCase()
 }
 
-export function UserChip({ displayName }: Readonly<{ displayName: string }>) {
+function UserChipPlaceholder() {
+  return (
+    <div className="flex items-center gap-1 rounded-xl px-1 py-2">
+      <span aria-hidden="true" className="size-7 shrink-0 rounded-full bg-foreground/10" />
+      <span aria-hidden="true" className="h-3 w-20 rounded bg-foreground/10" />
+      <span className="sr-only">Loading account</span>
+    </div>
+  )
+}
+
+export function UserChip({ displayName }: Readonly<{ displayName: string | null }>) {
+  if (displayName === null) return <UserChipPlaceholder />
   return (
     <div className="flex items-center gap-1 rounded-xl px-1 py-2">
       <span

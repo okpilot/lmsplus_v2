@@ -19,7 +19,7 @@ type AdminAuth = {
  * its four Suspense children (counts measured 2026-08-20, before
  * `app/app/admin/layout.tsx` existed) — and each call re-ran the whole body:
  * build a client, await `getUser()`, await the `users` SELECT
- * (`getCallerProfile`, shared with the `/app` layout's read in the same
+ * (`getCallerProfile`, shared with the `/app` layout's `loadShellUser` read in the same
  * render). Measured 2026-08-20 on Next 16.3.0 (dev server): body executions per
  * render fall 5 -> 1 and 4 -> 1.
  *

@@ -1,23 +1,26 @@
 'use client'
 
-import { createContext, type ReactNode, useContext, useMemo } from 'react'
+import { createContext, type ReactNode, use, useContext } from 'react'
+import type { ShellUser } from '../_lib/shell-user'
 
-type UserContextValue = {
-  displayName: string
-  userRole?: string
-}
+type UserPromise = Promise<ShellUser>
 
-const UserContext = createContext<UserContextValue | null>(null)
+const UserContext = createContext<UserPromise | null>(null)
 
-export function useUser(): UserContextValue {
+/**
+ * Suspends until the shell user lookup settles. Call only under a `<Suspense>` boundary of its
+ * own: an unbounded caller suspends up to the nearest ancestor boundary and blocks everything
+ * under it, the streamed frame included.
+ */
+export function useUser(): ShellUser {
   const ctx = useContext(UserContext)
   if (!ctx) throw new Error('useUser must be used within UserProvider')
-  return ctx
+  return use(ctx)
 }
 
-type UserProviderProps = UserContextValue & { children: ReactNode }
-
-export function UserProvider({ displayName, userRole, children }: Readonly<UserProviderProps>) {
-  const value = useMemo(() => ({ displayName, userRole }), [displayName, userRole])
-  return <UserContext value={value}>{children}</UserContext>
+export function UserProvider({
+  user,
+  children,
+}: Readonly<{ user: UserPromise; children: ReactNode }>) {
+  return <UserContext value={user}>{children}</UserContext>
 }
