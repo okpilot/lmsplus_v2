@@ -24,6 +24,7 @@ describe('useScopedSelection', () => {
   it('stays empty when returning to the original scope', () => {
     const { result, rerender } = setup({ scope: 'A', ids: ['1', '2'] })
     act(() => result.current.toggle('1'))
+    expect(result.current.selectedIds).toEqual(['1'])
 
     rerender({ scope: 'B', ids: ['1', '2'] })
     rerender({ scope: 'A', ids: ['1', '2'] })
@@ -44,6 +45,7 @@ describe('useScopedSelection', () => {
   it('does not re-select a row that left and later returned under the same scope', () => {
     const { result, rerender } = setup({ scope: 'A', ids: ['1', '2'] })
     act(() => result.current.toggle('1'))
+    expect(result.current.selectedIds).toEqual(['1'])
 
     rerender({ scope: 'A', ids: ['2'] })
     rerender({ scope: 'A', ids: ['1', '2'] })
@@ -74,6 +76,7 @@ describe('useScopedSelection', () => {
   it('clears the selection with clear', () => {
     const { result } = setup({ scope: 'A', ids: ['1', '2'] })
     act(() => result.current.toggleAll())
+    expect(result.current.selectedIds).toEqual(['1', '2'])
 
     act(() => result.current.clear())
 

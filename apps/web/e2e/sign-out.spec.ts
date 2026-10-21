@@ -8,6 +8,10 @@ test.use({
   viewport: { width: 1280, height: 800 },
 })
 
+function readMarker() {
+  return (window as unknown as { __softNavMarker?: boolean }).__softNavMarker ?? null
+}
+
 test('signing out lands on the login page and /app stays protected after reload', async ({
   page,
 }) => {
@@ -22,9 +26,16 @@ test('signing out lands on the login page and /app stays protected after reload'
   await page.reload()
   await expect(page).toHaveURL(/\/app\/dashboard$/)
 
+  // A document load drops window state; a soft navigation keeps it.
+  await page.evaluate(() => {
+    ;(window as unknown as { __softNavMarker?: boolean }).__softNavMarker = true
+  })
+  expect(await page.evaluate(readMarker)).toBe(true)
+
   await page.getByRole('button', { name: 'Sign out' }).first().click()
   await expect(page).toHaveURL(/\/$/, { timeout: 15_000 })
   await expect(page.getByRole('heading', { name: 'LMS Plus' })).toBeVisible()
+  expect(await page.evaluate(readMarker)).toBeNull()
 
   await page.reload()
   await expect(page).toHaveURL(/\/$/)
