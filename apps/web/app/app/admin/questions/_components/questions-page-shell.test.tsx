@@ -49,10 +49,10 @@ function makeQuestion(id: string, number: string): QuestionRow {
 
 const QUESTIONS = [makeQuestion('a', 'QA'), makeQuestion('b', 'QB'), makeQuestion('c', 'QC')]
 
-function shell(filters: QuestionFilters, page: number) {
+function shell(filters: QuestionFilters, page: number, questions = QUESTIONS) {
   return (
     <QuestionsPageShell
-      questions={QUESTIONS}
+      questions={questions}
       tree={TREE}
       filters={filters}
       page={page}
@@ -120,5 +120,17 @@ describe('QuestionsPageShell bulk selection', () => {
     expect(row('QC')).toBeChecked()
     expect(row('QA')).not.toBeChecked()
     expect(row('QB')).not.toBeChecked()
+  })
+
+  it('drops a selected row from the count when it leaves the list under the same filters', async () => {
+    const user = userEvent.setup()
+    const { rerender } = render(shell({ status: 'active' }, 1))
+    await user.click(row('QA'))
+    await user.click(row('QB'))
+    expect(screen.getByText('2 selected')).toBeInTheDocument()
+
+    rerender(shell({ status: 'active' }, 1, QUESTIONS.slice(1)))
+
+    expect(screen.getByText('1 selected')).toBeInTheDocument()
   })
 })

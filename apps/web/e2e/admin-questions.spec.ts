@@ -158,6 +158,21 @@ test.describe('Admin Question Editor', () => {
     await expect(page.getByText(/set to draft/)).toBeVisible({ timeout: 10_000 })
   })
 
+  test('drops the row selection when the status filter changes', async ({ page }) => {
+    await page.getByLabel('Select all questions').click()
+    await expect(page.getByText(/\d+ selected/)).toBeVisible()
+
+    await page.locator('[aria-label="Status"]').click()
+    await page.locator('[data-slot="select-item"]').filter({ hasText: 'Active' }).click()
+    await expect(page).toHaveURL(/status=active/)
+
+    await expect(page.getByText(/\d+ selected/)).toHaveCount(0)
+
+    await page.reload()
+    await expect(page).toHaveURL(/status=active/)
+    await expect(page.getByText(/\d+ selected/)).toHaveCount(0)
+  })
+
   // ── Section 6: Delete question ──────────────────────────────────────
 
   // Re-enabled in #367. Two changes made it stable:

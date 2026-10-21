@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SignOutButton } from './sign-out-button'
 
 const mockSignOut = vi.fn()
+const mockToastError = vi.fn()
+vi.mock('sonner', () => ({ toast: { error: (...a: unknown[]) => mockToastError(...a) } }))
 const mockAssign = vi.fn()
 const originalLocation = window.location
 
@@ -55,9 +57,9 @@ describe('SignOutButton', () => {
   })
 
   it('navigates only after sign-out completes', async () => {
-    let resolveSignOut!: () => void
+    let resolveSignOut!: (value: { error: null }) => void
     mockSignOut.mockReturnValue(
-      new Promise<void>((resolve) => {
+      new Promise<{ error: null }>((resolve) => {
         resolveSignOut = resolve
       }),
     )
@@ -69,7 +71,7 @@ describe('SignOutButton', () => {
 
     expect(mockAssign).not.toHaveBeenCalled()
 
-    resolveSignOut()
+    resolveSignOut({ error: null })
     await vi.waitFor(() => {
       expect(mockAssign).toHaveBeenCalledWith('/')
     })
@@ -88,9 +90,9 @@ describe('SignOutButton', () => {
   })
 
   it('signs out and navigates once when clicked twice while sign-out is pending', async () => {
-    let resolveSignOut!: () => void
+    let resolveSignOut!: (value: { error: null }) => void
     mockSignOut.mockReturnValue(
-      new Promise<void>((resolve) => {
+      new Promise<{ error: null }>((resolve) => {
         resolveSignOut = resolve
       }),
     )
@@ -102,7 +104,7 @@ describe('SignOutButton', () => {
     await user.click(button)
     await user.click(button)
 
-    resolveSignOut()
+    resolveSignOut({ error: null })
     await vi.waitFor(() => {
       expect(mockAssign).toHaveBeenCalledWith('/')
     })
@@ -130,5 +132,53 @@ describe('SignOutButton', () => {
     await vi.waitFor(() => {
       expect(mockAssign).toHaveBeenCalledWith('/')
     })
+  })
+
+  it('shows an error toast and stays on the page when sign-out resolves with an error', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockSignOut.mockResolvedValueOnce({ error: { message: 'x' } })
+
+    const user = userEvent.setup()
+    render(<SignOutButton />)
+
+    await user.click(screen.getByRole('button', { name: /sign out/i }))
+
+    await vi.waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith('Sign-out failed. Please try again.')
+    })
+    expect(consoleError).toHaveBeenCalled()
+    expect(mockAssign).not.toHaveBeenCalled()
+  })
+
+  it('signs out again on a second click after a returned sign-out error', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockSignOut.mockResolvedValueOnce({ error: { message: 'x' } })
+
+    const user = userEvent.setup()
+    render(<SignOutButton />)
+
+    const button = screen.getByRole('button', { name: /sign out/i })
+    await user.click(button)
+    await vi.waitFor(() => {
+      expect(mockToastError).toHaveBeenCalled()
+    })
+    await user.click(button)
+
+    expect(mockSignOut).toHaveBeenCalledTimes(2)
+    await vi.waitFor(() => {
+      expect(mockAssign).toHaveBeenCalledWith('/')
+    })
+  })
+
+  it('disables the button while sign-out is pending', async () => {
+    mockSignOut.mockReturnValue(new Promise(() => {}))
+
+    const user = userEvent.setup()
+    render(<SignOutButton />)
+
+    const button = screen.getByRole('button', { name: /sign out/i })
+    await user.click(button)
+
+    expect(button).toBeDisabled()
   })
 })
