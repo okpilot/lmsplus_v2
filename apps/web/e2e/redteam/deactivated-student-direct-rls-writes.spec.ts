@@ -4,7 +4,11 @@
  * PostgREST against these student RLS write cells (as of mig 20261015000100): flagged_questions
  * upsert + update, question_comments insert + own delete, quiz_drafts own delete, quiz_sessions
  * soft-delete, users.full_name update. Each is refused and the protected row is unchanged.
- * CONTROL: the same token, after the student is restored, performs each listed write.
+ * Vector JO (#1558): the same token also reads question_comments (SELECT) by id and sees 0 rows
+ * while deactivated; admin confirms the row exists. Outcome pin: `users_select` hides the caller
+ * from the policy's EXISTS too, so this stays green without mig 20261021000100's explicit check.
+ * CONTROL: the same token, after the student is restored, performs each listed write and reads
+ * the comment (1 row).
  *
  * Status: Expected to PASS.
  */
@@ -305,9 +309,16 @@ test.describe('Red Team: deactivated student direct RLS writes (ID)', () => {
     }
     const held = await snapshot(f)
     expect(held).toEqual(before)
+    // Vector JO: read cell. Admin confirmed the row exists (snapshot comment: 1).
+    const readDenied = await client.from('question_comments').select('id').eq('id', f.commentId)
+    expect(readDenied.error).toBeNull()
+    expect(readDenied.data ?? []).toHaveLength(0)
 
     // CONTROL: same token, student restored → each listed cell writes.
     await setDeactivated(false)
+    const readOwn = await client.from('question_comments').select('id').eq('id', f.commentId)
+    expect(readOwn.error).toBeNull()
+    expect(readOwn.data ?? []).toHaveLength(1)
     const own = await attack(client, f)
     expect(own.flagInsert.error).toBeNull()
     expect(own.commentInsert.error).toBeNull()

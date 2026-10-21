@@ -1,6 +1,7 @@
 # Red Team — Attack Surface Map
 
-> Last updated: 2026-10-21 (branch perf/1549-restored-feedback-app, #1549 PR2 — Vectors HG-HK RETIRED; HB rewritten; JN added.)
+> Last updated: 2026-10-21 (branch fix/1558-comments-select-active-caller, #1558 — Vector JO added.)
+> PRIOR: 2026-10-21 (branch perf/1549-restored-feedback-app, #1549 PR2 — Vectors HG-HK RETIRED; HB rewritten; JN added.)
 > PRIOR: 2026-10-20 (branch perf/1548-drop-old-rpcs, #1548 PR3 — Vectors EO, ES RETIRED; see rows.)
 > PRIOR: 2026-10-18 (branch perf/session-open-rsc-1547, #1547 — Vector GB RETIRED; see row GB.)
 > PRIOR: 2026-10-18 (branch feat/set-password-links-1536, #1536 — Vector FT RETIRED; see row FT.)
@@ -294,6 +295,7 @@
 | JL | get_restored_feedback-foreign-ended-deleted-session | HIGH | rpc-get-restored-feedback.spec.ts | BLOCKED |  | idor |
 | JM | _answer_feedback-authenticated-execute | MEDIUM | rpc-get-restored-feedback.spec.ts | BLOCKED |  | privilege-escalation |
 | JN | quiz-session-id-route-saved-session-restored-feedback | MEDIUM | quiz-session-id-route-saved-feedback.spec.ts | BLOCKED |  | soft-delete-bypass |
+| JO | deactivated-student-live-token-question-comments-read | MEDIUM | deactivated-student-direct-rls-writes.spec.ts | BLOCKED |  | soft-delete-bypass |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
