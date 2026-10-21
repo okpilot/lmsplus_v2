@@ -7,7 +7,10 @@ type UserPromise = Promise<ShellUser>
 
 const UserContext = createContext<UserPromise | null>(null)
 
-/** Suspends until the shell user lookup settles. */
+/**
+ * Suspends until the shell user lookup settles. Call only under a `<Suspense>` boundary of its
+ * own: an unbounded caller suspends the route's `loading.tsx` and blocks the streamed frame.
+ */
 export function useUser(): ShellUser {
   const ctx = useContext(UserContext)
   if (!ctx) throw new Error('useUser must be used within UserProvider')

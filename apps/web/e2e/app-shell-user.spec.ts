@@ -17,7 +17,11 @@ async function readDisplayName(): Promise<string> {
 }
 
 async function expectStudentShell(page: Page, displayName: string) {
-  await expect(page.getByText(`Welcome back, ${firstName(displayName)}`)).toBeVisible()
+  const name = firstName(displayName)
+  const greeting = name
+    ? page.getByText(`Welcome back, ${name}`)
+    : page.getByText('Welcome back', { exact: true })
+  await expect(greeting).toBeVisible()
   await expect(page.getByText(displayName, { exact: true })).toBeVisible()
   const nav = page.getByRole('navigation', { name: 'Main navigation' })
   await expect(nav.getByRole('link', { name: 'Quiz' })).toBeVisible()
