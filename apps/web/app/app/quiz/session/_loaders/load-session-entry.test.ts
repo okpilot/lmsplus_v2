@@ -106,6 +106,15 @@ describe('loadSessionEntry', () => {
     expect((loaded.runner as { feedback: object }).feedback).not.toHaveProperty('q2')
   })
 
+  it('does not read restored feedback for a practice session with no saved answers', async () => {
+    mockLoad.mockResolvedValue({ ...open('quick_quiz'), seed: { answers: {} } })
+
+    const loaded = await loadSessionEntry(ID, 'user-1')
+
+    expect(mockFeedback).not.toHaveBeenCalled()
+    expect(loaded.runner).toMatchObject({ feedback: {} })
+  })
+
   it.each(['mock_exam', 'internal_exam', 'vfr_rt_exam'])(
     'does not read restored feedback for a %s session',
     async (mode) => {

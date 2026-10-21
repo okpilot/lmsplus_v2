@@ -41,11 +41,11 @@ function keepAnswered(
 
 /**
  * Exam modes never reveal answers on resume; the RPC would refuse them anyway. Practice feedback
- * is kept only for questions the student has answered.
+ * is kept only for questions the student has answered, so a session with none skips the read.
  */
 function readFeedback(entry: OpenEntry): Promise<Record<string, AnswerFeedback>> {
   const isPractice = (PRACTICE_MODES as readonly string[]).includes(entry.mode)
-  if (!isPractice) return Promise.resolve({})
+  if (!isPractice || Object.keys(entry.seed.answers).length === 0) return Promise.resolve({})
   return getRestoredFeedbackBounded(entry.sessionId).then((f) =>
     keepAnswered(f, entry.seed.answers),
   )
