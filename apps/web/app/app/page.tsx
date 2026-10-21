@@ -6,9 +6,9 @@ import { redirect } from 'next/navigation'
  *
  * No admin gate is needed: `/app` is not an admin prefix, and `proxy.ts` bounces
  * unauthenticated traffic before this renders. The proxy is the guard — NOT
- * `app/app/layout.tsx`, which disclaims being access control in its own comment,
- * and which Next renders concurrently with its pages rather than as a gate in
- * front of them.
+ * `app/app/layout.tsx`: its `requireAuthUser()` redirect and UI-only role read
+ * (`_lib/load-shell-user.ts`) are not a gate, because Next renders it
+ * concurrently with its pages rather than in front of them.
  */
 export default function AppIndexPage() {
   redirect('/app/dashboard')
