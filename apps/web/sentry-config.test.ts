@@ -11,6 +11,7 @@ vi.mock('@sentry/nextjs', () => ({
   init: initSpy,
   replayIntegration: replayIntegrationSpy,
   captureRouterTransitionStart,
+  getClient: () => undefined,
 }))
 
 // @sentry/core 11.4.0 build/cjs/vendor/getIpAddress.js ipHeaderNames, plus Vercel's
@@ -113,6 +114,16 @@ describe('Sentry init options', () => {
     expect(span.attributes['http.target']).toBe(
       '/auth/set-password?token_hash=[Filtered]&type=recovery',
     )
+  })
+
+  it.each([
+    ['client', () => import('./instrumentation-client')],
+    ['server', () => import('./sentry.server.config')],
+  ])('%s config samples traces through a custom sampler', async (_name, load) => {
+    await load()
+    const options = initSpy.mock.calls[0]?.[0] as Record<string, unknown>
+    expect(options.tracesSampler).toBeTypeOf('function')
+    expect(options.tracesSampleRate).toBeUndefined()
   })
 
   it('browser config reports App Router navigations to Sentry', async () => {
