@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { Suspense } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import type { ShellUser } from '../_lib/load-shell-user'
+import type { ShellUser } from '../_lib/shell-user'
 import { UserProvider, useUser } from './user-context'
 
 const fulfilled = <T,>(v: T) =>

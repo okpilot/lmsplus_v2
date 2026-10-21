@@ -1,4 +1,5 @@
 import { expect, type Page, test } from '@playwright/test'
+import { firstName } from '../app/app/_lib/shell-user'
 import { getAdminClient, TEST_EMAIL } from './helpers/supabase'
 
 // Read-only spec: creates and mutates no rows, so no cleanup is required.
@@ -16,8 +17,7 @@ async function readDisplayName(): Promise<string> {
 }
 
 async function expectStudentShell(page: Page, displayName: string) {
-  const firstName = displayName.trim().split(/\s+/)[0]
-  await expect(page.getByText(`Welcome back, ${firstName}`)).toBeVisible()
+  await expect(page.getByText(`Welcome back, ${firstName(displayName)}`)).toBeVisible()
   await expect(page.getByText(displayName, { exact: true })).toBeVisible()
   const nav = page.getByRole('navigation', { name: 'Main navigation' })
   await expect(nav.getByRole('link', { name: 'Quiz' })).toBeVisible()

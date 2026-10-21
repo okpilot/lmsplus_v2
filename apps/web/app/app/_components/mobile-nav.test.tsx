@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ShellUser } from '../_lib/load-shell-user'
+import { act, render, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ShellUser } from '../_lib/shell-user'
 import { UserProvider } from './user-context'
 
 const fulfilled = <T,>(v: T) =>
@@ -16,9 +16,30 @@ vi.mock('next/navigation', () => ({
 
 import { MobileNav } from './mobile-nav'
 
+type ObserverCallback = (entries: { contentRect: { width: number } }[]) => void
+let observerCallback: ObserverCallback | null = null
+
+function stubWideTabBar() {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      constructor(cb: ObserverCallback) {
+        observerCallback = cb
+      }
+      observe() {}
+      disconnect() {}
+    },
+  )
+}
+
 beforeEach(() => {
   vi.resetAllMocks()
+  observerCallback = null
   mockUsePathname.mockReturnValue('/app/dashboard')
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
 })
 
 function renderMobileNav(
@@ -54,9 +75,18 @@ describe('MobileNav', () => {
     expect(screen.getByRole('navigation', { name: 'Bottom navigation' })).toBeInTheDocument()
   })
 
-  it('adds the admin tab for admins once the user has resolved', () => {
-    mockUsePathname.mockReturnValue('/app/admin/students')
+  it('adds the admin tabs for admins once the user has resolved', () => {
+    stubWideTabBar()
     renderMobileNav(fulfilled({ displayName: 'Test', userRole: 'admin' }))
-    expect(screen.getByRole('navigation', { name: 'Bottom navigation' })).toBeInTheDocument()
+    act(() => observerCallback?.([{ contentRect: { width: 1000 } }]))
+    expect(screen.getByText('Syllabus')).toBeInTheDocument()
+  })
+
+  it('shows no admin tabs for students once the user has resolved', () => {
+    stubWideTabBar()
+    renderMobileNav()
+    act(() => observerCallback?.([{ contentRect: { width: 1000 } }]))
+    expect(screen.getByText('Settings')).toBeInTheDocument()
+    expect(screen.queryByText('Syllabus')).not.toBeInTheDocument()
   })
 })

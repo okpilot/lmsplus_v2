@@ -3,10 +3,11 @@
 import Link from 'next/link'
 import { Suspense } from 'react'
 import { useUser } from '@/app/app/_components/user-context'
+import { firstName } from '@/app/app/_lib/shell-user'
 
 function FirstName() {
   const displayName = useUser()?.displayName
-  const first = displayName?.trim().split(/\s+/)[0]
+  const first = displayName ? firstName(displayName) : null
   if (!first) return null
   return <span>, {first}</span>
 }

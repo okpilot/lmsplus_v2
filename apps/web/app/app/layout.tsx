@@ -5,8 +5,8 @@ import { UserProvider } from './_components/user-context'
 import { loadShellUser } from './_lib/load-shell-user'
 
 export default async function AppLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  await requireAuthUser()
-  const user = loadShellUser()
+  const sessionUser = await requireAuthUser()
+  const user = loadShellUser(sessionUser)
 
   return (
     <UserProvider user={user}>

@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, type ReactNode, use, useContext } from 'react'
-import type { ShellUser } from '../_lib/load-shell-user'
+import type { ShellUser } from '../_lib/shell-user'
 
 type UserPromise = Promise<ShellUser | null>
 

@@ -11,7 +11,7 @@ vi.mock('@/lib/auth/require-auth-user', () => ({
 }))
 
 vi.mock('./_lib/load-shell-user', () => ({
-  loadShellUser: () => mockLoadShellUser(),
+  loadShellUser: (u: unknown) => mockLoadShellUser(u),
 }))
 
 vi.mock('./_components/app-shell', () => ({
@@ -53,6 +53,7 @@ describe('AppLayout', () => {
 
     expect(screen.getByTestId('user-provider').dataset.userIsPromise).toBe('true')
     expect(mockLoadShellUser).toHaveBeenCalledTimes(1)
+    expect(mockLoadShellUser).toHaveBeenCalledWith({ id: 'u1', email: null })
   })
 
   it('redirects unauthenticated visitors before rendering anything', async () => {

@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { UserProvider } from '@/app/app/_components/user-context'
-import type { ShellUser } from '@/app/app/_lib/load-shell-user'
+import type { ShellUser } from '@/app/app/_lib/shell-user'
 import { DashboardHeader } from './dashboard-header'
 
 const fulfilled = <T,>(v: T) =>
