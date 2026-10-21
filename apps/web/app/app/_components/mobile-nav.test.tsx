@@ -1,4 +1,5 @@
 import { act, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ShellUser } from '../_lib/shell-user'
 import { UserProvider } from './user-context'
@@ -88,5 +89,42 @@ describe('MobileNav', () => {
     act(() => observerCallback?.([{ contentRect: { width: 1000 } }]))
     expect(screen.getByText('Settings')).toBeInTheDocument()
     expect(screen.queryByText('Syllabus')).not.toBeInTheDocument()
+  })
+
+  describe('when the role resolves while the More sheet is open', () => {
+    async function openSheetThenResolve() {
+      stubWideTabBar()
+      let resolve: (u: ShellUser) => void = () => {}
+      const pending = new Promise<ShellUser>((r) => {
+        resolve = r
+      })
+      const view = renderMobileNav(pending)
+      act(() => observerCallback?.([{ contentRect: { width: 320 } }]))
+      await userEvent.setup({ delay: null }).click(screen.getByRole('button', { name: 'More' }))
+      expect(screen.getByRole('button', { name: 'More' })).toHaveAttribute('aria-expanded', 'true')
+      await act(async () => {
+        resolve({ displayName: 'A', userRole: 'admin' })
+        await pending
+      })
+      act(() => observerCallback?.([{ contentRect: { width: 320 } }]))
+      return view
+    }
+
+    it('keeps the sheet open', async () => {
+      await openSheetThenResolve()
+      expect(screen.getByRole('button', { name: 'More' })).toHaveAttribute('aria-expanded', 'true')
+      expect(screen.getByRole('button', { name: 'Close menu' })).toBeInTheDocument()
+    })
+
+    it('still closes the sheet on a later route change', async () => {
+      const { rerender } = await openSheetThenResolve()
+      mockUsePathname.mockReturnValue('/app/quiz')
+      rerender(
+        <UserProvider user={fulfilled({ displayName: 'A', userRole: 'admin' })}>
+          <MobileNav />
+        </UserProvider>,
+      )
+      expect(screen.getByRole('button', { name: 'More' })).toHaveAttribute('aria-expanded', 'false')
+    })
   })
 })

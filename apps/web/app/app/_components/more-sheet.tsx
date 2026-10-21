@@ -1,7 +1,15 @@
 'use client'
 
 import Link from 'next/link'
-import { type RefObject, useCallback, useEffect, useRef, useState } from 'react'
+import {
+  type Dispatch,
+  type RefObject,
+  type SetStateAction,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 import { Button } from '@/components/ui/button'
 import { NavIcon } from './nav-icon'
 import type { NavItem } from './nav-items'
@@ -66,27 +74,43 @@ export function MoreSheet({ hidden, activeHref, onClose, onDismiss }: Readonly<S
   )
 }
 
-/** Open state of the More sheet; closes on route change, Escape or `dismiss` (refocusing More), and when nothing overflows. */
+export type SheetState = [boolean, Dispatch<SetStateAction<boolean>>]
+
+/** Closes on a real pathname change only — not on mount, so a remounted bar keeps a shared open flag. */
+function useCloseOnRouteChange(pathname: string, setOpen: SheetState[1]) {
+  const prevPath = useRef(pathname)
+  useEffect(() => {
+    if (prevPath.current === pathname) return
+    prevPath.current = pathname
+    setOpen(false)
+  }, [pathname, setOpen])
+}
+
+/**
+ * Open state of the More sheet; closes on route change, Escape or `dismiss` (refocusing More), and when nothing overflows.
+ * `state` lets a parent keep the open flag across a remount.
+ */
 export function useMoreSheet(
   pathname: string,
   hasHidden: boolean,
   moreRef: RefObject<HTMLButtonElement | null>,
+  state?: SheetState,
 ) {
-  const [open, setOpen] = useState(false)
+  const own = useState(false)
+  const [open, setOpen] = state ?? own
   const sheetOpen = open && hasHidden
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: pathname change closes the sheet
-  useEffect(() => setOpen(false), [pathname])
+  useCloseOnRouteChange(pathname, setOpen)
 
   useEffect(() => {
     if (!hasHidden) setOpen(false)
-  }, [hasHidden])
+  }, [hasHidden, setOpen])
 
-  const close = useCallback(() => setOpen(false), [])
+  const close = useCallback(() => setOpen(false), [setOpen])
   const dismiss = useCallback(() => {
     setOpen(false)
     moreRef.current?.focus()
-  }, [moreRef])
+  }, [moreRef, setOpen])
 
   useEffect(() => {
     if (!sheetOpen) return

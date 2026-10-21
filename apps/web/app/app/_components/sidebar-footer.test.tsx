@@ -66,9 +66,9 @@ describe('SidebarFooter', () => {
     expect(screen.getByRole('link', { name: 'Settings' })).not.toHaveAttribute('aria-current')
   })
 
-  it('shows a generic Signed in label while the user is still loading', () => {
+  it('shows a loading placeholder while the name is not known yet', () => {
     renderFooter(new Promise(() => {}))
-    expect(screen.getByText('Signed in')).toBeInTheDocument()
+    expect(screen.getByText('Loading account')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Settings' })).toBeInTheDocument()
   })
 })
