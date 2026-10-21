@@ -296,6 +296,7 @@
 | JM | _answer_feedback-authenticated-execute | MEDIUM | rpc-get-restored-feedback.spec.ts | BLOCKED |  | privilege-escalation |
 | JN | quiz-session-id-route-saved-session-restored-feedback | MEDIUM | quiz-session-id-route-saved-feedback.spec.ts | BLOCKED |  | soft-delete-bypass |
 | JO | deactivated-student-live-token-question-comments-read | MEDIUM | deactivated-student-direct-rls-writes.spec.ts | BLOCKED |  | soft-delete-bypass |
+| JP | verifySessionUser-build-jwks-alg-confusion-attacker-signed-token | HIGH | proxy-build-jwks-alg-confusion.spec.ts | BLOCKED |  | auth-bypass |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
