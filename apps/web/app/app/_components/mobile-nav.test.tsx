@@ -91,6 +91,29 @@ describe('MobileNav', () => {
     expect(screen.queryByText('Syllabus')).not.toBeInTheDocument()
   })
 
+  it('closes the sheet when the route changes in the same render as the role resolving', async () => {
+    stubWideTabBar()
+    let resolve: (u: ShellUser) => void = () => {}
+    const pending = new Promise<ShellUser>((r) => {
+      resolve = r
+    })
+    const view = renderMobileNav(pending)
+    act(() => observerCallback?.([{ contentRect: { width: 320 } }]))
+    await userEvent.setup({ delay: null }).click(screen.getByRole('button', { name: 'More' }))
+    await act(async () => {
+      mockUsePathname.mockReturnValue('/app/quiz')
+      view.rerender(
+        <UserProvider user={pending}>
+          <MobileNav />
+        </UserProvider>,
+      )
+      resolve({ displayName: 'A', userRole: 'admin' })
+      await pending
+    })
+    act(() => observerCallback?.([{ contentRect: { width: 320 } }]))
+    expect(screen.getByRole('button', { name: 'More' })).toHaveAttribute('aria-expanded', 'false')
+  })
+
   describe('when the role resolves while the More sheet is open', () => {
     async function openSheetThenResolve() {
       stubWideTabBar()

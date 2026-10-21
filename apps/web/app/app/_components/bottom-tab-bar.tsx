@@ -25,12 +25,17 @@ function TabLink({ item, active, onClick }: Readonly<TabLinkProps>) {
   )
 }
 
-function useBottomTabBar(userRole: string | undefined, sheetState?: SheetState) {
+function useBottomTabBar(userRole: string | undefined, sheetState: SheetState) {
   const pathname = usePathname()
   const ref = useRef<HTMLElement>(null)
   const moreRef = useRef<HTMLButtonElement>(null)
   const model = useTabBarModel(pathname, userRole, useTabSlots(ref))
-  const sheet = useMoreSheet(pathname, model.hidden.length > 0, moreRef, sheetState)
+  const sheet = useMoreSheet({
+    pathname,
+    hasHidden: model.hidden.length > 0,
+    moreRef,
+    state: sheetState,
+  })
   return { ref, moreRef, ...model, ...sheet }
 }
 
@@ -56,7 +61,7 @@ function TabStrip({ bar }: Readonly<{ bar: Bar }>) {
           moreRef={bar.moreRef}
           expanded={bar.sheetOpen}
           active={bar.moreActive}
-          onToggle={() => bar.setOpen((o) => !o)}
+          onToggle={bar.toggle}
         />
       )}
     </nav>
@@ -66,7 +71,7 @@ function TabStrip({ bar }: Readonly<{ bar: Bar }>) {
 export function BottomTabBar({
   userRole,
   sheet,
-}: Readonly<{ userRole?: string; sheet?: SheetState }>) {
+}: Readonly<{ userRole?: string; sheet: SheetState }>) {
   const bar = useBottomTabBar(userRole, sheet)
 
   return (

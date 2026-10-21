@@ -8,7 +8,6 @@ import {
   useCallback,
   useEffect,
   useRef,
-  useState,
 } from 'react'
 import { Button } from '@/components/ui/button'
 import { NavIcon } from './nav-icon'
@@ -74,43 +73,41 @@ export function MoreSheet({ hidden, activeHref, onClose, onDismiss }: Readonly<S
   )
 }
 
-export type SheetState = [boolean, Dispatch<SetStateAction<boolean>>]
+export type SheetState = [string | null, Dispatch<SetStateAction<string | null>>]
 
-/** Closes on a real pathname change only — not on mount, so a remounted bar keeps a shared open flag. */
-function useCloseOnRouteChange(pathname: string, setOpen: SheetState[1]) {
-  const prevPath = useRef(pathname)
-  useEffect(() => {
-    if (prevPath.current === pathname) return
-    prevPath.current = pathname
-    setOpen(false)
-  }, [pathname, setOpen])
+type MoreSheetOpts = {
+  pathname: string
+  hasHidden: boolean
+  moreRef: RefObject<HTMLButtonElement | null>
+  state: SheetState
 }
 
 /**
- * Open state of the More sheet; closes on route change, Escape or `dismiss` (refocusing More), and when nothing overflows.
- * `state` lets a parent keep the open flag across a remount.
+ * Open while the current pathname equals the one it was opened on, so a route change hides it in the same render
+ * and a remounted bar sharing `state` keeps it; an effect then clears the stale path so returning does not reopen it.
+ * Also closes on Escape or `dismiss` (refocusing More) and when nothing overflows.
  */
-export function useMoreSheet(
-  pathname: string,
-  hasHidden: boolean,
-  moreRef: RefObject<HTMLButtonElement | null>,
-  state?: SheetState,
-) {
-  const own = useState(false)
-  const [open, setOpen] = state ?? own
-  const sheetOpen = open && hasHidden
-
-  useCloseOnRouteChange(pathname, setOpen)
+export function useMoreSheet({ pathname, hasHidden, moreRef, state }: MoreSheetOpts) {
+  const [openedAt, setOpenedAt] = state
+  const sheetOpen = openedAt === pathname && hasHidden
 
   useEffect(() => {
-    if (!hasHidden) setOpen(false)
-  }, [hasHidden, setOpen])
+    if (openedAt !== null && openedAt !== pathname) setOpenedAt(null)
+  }, [openedAt, pathname, setOpenedAt])
 
-  const close = useCallback(() => setOpen(false), [setOpen])
+  useEffect(() => {
+    if (!hasHidden) setOpenedAt(null)
+  }, [hasHidden, setOpenedAt])
+
+  const close = useCallback(() => setOpenedAt(null), [setOpenedAt])
+  const toggle = useCallback(
+    () => setOpenedAt((p) => (p === pathname ? null : pathname)),
+    [pathname, setOpenedAt],
+  )
   const dismiss = useCallback(() => {
-    setOpen(false)
+    setOpenedAt(null)
     moreRef.current?.focus()
-  }, [moreRef, setOpen])
+  }, [moreRef, setOpenedAt])
 
   useEffect(() => {
     if (!sheetOpen) return
@@ -121,7 +118,7 @@ export function useMoreSheet(
     return () => window.removeEventListener('keydown', onKey)
   }, [sheetOpen, dismiss])
 
-  return { sheetOpen, setOpen, close, dismiss }
+  return { sheetOpen, toggle, close, dismiss }
 }
 
 type MoreButtonProps = {

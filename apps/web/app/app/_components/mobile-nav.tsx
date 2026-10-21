@@ -10,7 +10,7 @@ function RoleTabBar({ sheet }: Readonly<{ sheet: SheetState }>) {
 }
 
 export function MobileNav() {
-  const sheet = useState(false)
+  const sheet = useState<string | null>(null)
   return (
     <Suspense fallback={<BottomTabBar sheet={sheet} />}>
       <RoleTabBar sheet={sheet} />

@@ -1,5 +1,6 @@
 import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockUsePathname } = vi.hoisted(() => ({
@@ -35,8 +36,13 @@ function renderMeasured(width: number, userRole = 'student') {
   return result
 }
 
+function Harness({ userRole }: Readonly<{ userRole: string }>) {
+  const sheet = useState<string | null>(null)
+  return <BottomTabBar userRole={userRole} sheet={sheet} />
+}
+
 function renderTabBar(userRole = 'student') {
-  return render(<BottomTabBar userRole={userRole} />)
+  return render(<Harness userRole={userRole} />)
 }
 
 beforeEach(() => {
@@ -137,8 +143,19 @@ describe('BottomTabBar', () => {
       const user = userEvent.setup({ delay: null })
       await user.click(screen.getByRole('button', { name: 'More' }))
       mockUsePathname.mockReturnValue('/app/settings')
-      rerender(<BottomTabBar userRole="student" />)
+      rerender(<Harness userRole="student" />)
       expect(screen.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument()
+    })
+
+    it('stays closed when navigating back to the page it was opened on', async () => {
+      const { rerender } = narrow(320)
+      const user = userEvent.setup({ delay: null })
+      await user.click(screen.getByRole('button', { name: 'More' }))
+      mockUsePathname.mockReturnValue('/app/settings')
+      rerender(<Harness userRole="student" />)
+      mockUsePathname.mockReturnValue('/app/dashboard')
+      rerender(<Harness userRole="student" />)
+      expect(screen.getByRole('button', { name: 'More' })).toHaveAttribute('aria-expanded', 'false')
     })
 
     it('closes the sheet when a sheet link is tapped', async () => {
