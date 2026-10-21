@@ -12,7 +12,7 @@ type Variant<T extends AnswerFeedback['questionType']> = Extract<
   { questionType: T }
 >
 
-export type Expl = { explanation_text: string | null; explanation_image_url: string | null }
+type Expl = { explanation_text: string | null; explanation_image_url: string | null }
 
 export const expl = (r: Expl) => ({
   explanationText: r.explanation_text,

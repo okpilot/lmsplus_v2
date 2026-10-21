@@ -4,7 +4,7 @@ import { rpc } from '@/lib/supabase-rpc'
 import { withTimeout } from '@/lib/utils/with-timeout'
 import { toClientFeedback } from './restored-feedback-map'
 
-export type RestoredFeedback = Record<string, AnswerFeedback>
+type RestoredFeedback = Record<string, AnswerFeedback>
 
 function isFeedbackPayload(v: unknown): v is { feedback: unknown[] } {
   return (

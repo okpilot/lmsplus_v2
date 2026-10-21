@@ -32,10 +32,23 @@ function readQuestions(entry: OpenEntry) {
     : loadSessionQuestions(entry.questionIds)
 }
 
-/** Exam modes never reveal answers on resume; the RPC would refuse them anyway. */
+function keepAnswered(
+  feedback: Record<string, AnswerFeedback>,
+  answers: Record<string, unknown>,
+): Record<string, AnswerFeedback> {
+  return Object.fromEntries(Object.entries(feedback).filter(([id]) => Object.hasOwn(answers, id)))
+}
+
+/**
+ * Exam modes never reveal answers on resume; the RPC would refuse them anyway. Practice feedback
+ * is kept only for questions the student has answered.
+ */
 function readFeedback(entry: OpenEntry): Promise<Record<string, AnswerFeedback>> {
   const isPractice = (PRACTICE_MODES as readonly string[]).includes(entry.mode)
-  return isPractice ? getRestoredFeedbackBounded(entry.sessionId) : Promise.resolve({})
+  if (!isPractice) return Promise.resolve({})
+  return getRestoredFeedbackBounded(entry.sessionId).then((f) =>
+    keepAnswered(f, entry.seed.answers),
+  )
 }
 
 /** Questions decide success; a failure returns at once instead of waiting on the cosmetic flag and feedback reads. */

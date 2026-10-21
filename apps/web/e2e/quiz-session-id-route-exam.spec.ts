@@ -7,7 +7,7 @@
  */
 
 import { expect, type Page, test } from '@playwright/test'
-import { isServerActionPost, readServerAnsweredCount } from './helpers/quiz-session'
+import { readServerAnsweredCount } from './helpers/quiz-session'
 import { resetStudentQuizSessions, SESSION_ID_URL } from './helpers/quiz-session-id'
 import { TEST_EMAIL } from './helpers/supabase'
 
@@ -49,19 +49,13 @@ test.describe('Practice Exam resumed by session URL', () => {
     await resetStudentQuizSessions(TEST_EMAIL)
   })
 
-  test('a resumed mock exam shows its answers as answered with no feedback and sends no answer check', async ({
-    page,
-  }) => {
+  test('a resumed mock exam shows its answers as answered with no feedback', async ({ page }) => {
     await startMetExam(page)
     const sessionUrl = page.url()
     const first = await confirmCurrent(page)
     await page.getByRole('button', { name: 'Next ›' }).click()
     const second = await confirmCurrent(page)
     await expect.poll(readServerAnsweredCount, { timeout: 10_000 }).toBe(2)
-    const bodies: string[] = []
-    page.on('request', (request) => {
-      if (isServerActionPost(request)) bodies.push(request.postData() ?? '')
-    })
 
     await page.reload()
 
@@ -75,7 +69,5 @@ test.describe('Practice Exam resumed by session URL', () => {
     }
     await expect(page.locator(`${OPTION}[class*="border-green-500"]`)).toHaveCount(0)
     await expect(page.locator(`${OPTION}[class*="border-destructive"]`)).toHaveCount(0)
-    await expect.poll(() => bodies.length, { timeout: 10_000 }).toBeGreaterThan(0)
-    expect(bodies.filter((body) => body.includes('selectedOptionId'))).toEqual([])
   })
 })

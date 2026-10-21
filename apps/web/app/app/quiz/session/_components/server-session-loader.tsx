@@ -72,13 +72,10 @@ function RestoredRunner({
   claimError,
 }: Readonly<RunnerProps>) {
   const { seed } = entry
-  const answeredFeedback = Object.fromEntries(
-    Object.entries(feedback).filter(([id]) => Object.hasOwn(seed.answers, id)),
-  )
   const restored = restrictDraftToQuestions(
     {
       draftAnswers: seed.answers,
-      draftFeedback: answeredFeedback,
+      draftFeedback: feedback,
       draftCurrentIndex: seed.currentIndex,
     },
     questions,

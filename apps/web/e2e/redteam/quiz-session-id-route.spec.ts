@@ -228,11 +228,13 @@ test.describe('Red Team: quiz session read path by id (HA, HB)', () => {
 
         const page = await ctx.newPage()
         const actionBodies: string[] = []
+        const requestBodies: string[] = []
         // The browser cancels an action response body once it has decoded the result, so a
         // 'response' listener's r.text() can reject. Read the body from the route instead.
         await page.route('**/app/quiz/session/*', async (route) => {
           const req = route.request()
           if (req.method() !== 'POST' || !req.headers()['next-action']) return route.continue()
+          requestBodies.push(req.postData() ?? '')
           const res = await route.fetch()
           actionBodies.push(await res.text())
           return route.fulfill({ response: res })
@@ -246,6 +248,8 @@ test.describe('Red Team: quiz session read path by id (HA, HB)', () => {
           // Practice: the server load carries the feedback, so it renders with no client action.
           expect(body).toContain('correctOptionId')
           await expect(graded.first()).toBeVisible({ timeout: 10_000 })
+          await page.waitForTimeout(3_000)
+          expect(requestBodies.length).toBeGreaterThan(0)
         } else {
           // Seed is present (answered question rendered above); no key token in the payload,
           // and the rendered question shows no graded option.
@@ -257,6 +261,8 @@ test.describe('Red Team: quiz session read path by id (HA, HB)', () => {
           await expect(graded).toHaveCount(0)
           expect(await page.content()).not.toContain('correctOptionId')
         }
+        // No client answer check runs on a resume: no action request carries a selected option.
+        for (const b of requestBodies) expect(b).not.toContain('selectedOptionId')
         await page.close()
       } finally {
         await ctx.close()

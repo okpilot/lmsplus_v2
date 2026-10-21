@@ -115,18 +115,6 @@ describe('ServerSessionLoader', () => {
     expect(quizProps.current?.initialFeedback).toEqual(new Map([['q1', FB_Q1]]))
   })
 
-  it('leaves out feedback for a served question the student has not answered', () => {
-    const runner = {
-      questions: Q,
-      flaggedIds: [],
-      feedback: { q1: FB_Q1, q2: FB_GONE },
-    } as unknown as SessionRunnerData
-
-    render(<ServerSessionLoader userId="u1" entry={ENTRY} runner={runner} />)
-
-    expect(quizProps.current?.initialFeedback).toEqual(new Map([['q1', FB_Q1]]))
-  })
-
   it('continues where the student left off', () => {
     render(<ServerSessionLoader userId="u1" entry={ENTRY} runner={RUNNER} />)
 

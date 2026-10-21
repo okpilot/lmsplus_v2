@@ -35,7 +35,13 @@ const ID = '11111111-1111-4111-8111-111111111111'
 
 const Q = [{ id: 'q1' }, { id: 'q2' }]
 const FB = { questionType: 'multiple_choice', isCorrect: true }
-const open = (mode: string) => ({ kind: 'open', sessionId: ID, mode, questionIds: ['q1', 'q2'] })
+const open = (mode: string) => ({
+  kind: 'open',
+  sessionId: ID,
+  mode,
+  questionIds: ['q1', 'q2'],
+  seed: { answers: { q1: { selectedOptionId: 'a' } } },
+})
 
 beforeEach(() => {
   vi.resetAllMocks()
@@ -88,6 +94,16 @@ describe('loadSessionEntry', () => {
     await loadSessionEntry(ID, 'user-1')
 
     expect(mockFeedback).toHaveBeenCalledWith(ID)
+  })
+
+  it('leaves out feedback for a served question the student has not answered', async () => {
+    mockLoad.mockResolvedValue(open('smart_review'))
+    mockFeedback.mockResolvedValue({ q1: FB, q2: { ...FB, isCorrect: false } })
+
+    const loaded = await loadSessionEntry(ID, 'user-1')
+
+    expect(loaded.runner).toMatchObject({ feedback: { q1: FB } })
+    expect((loaded.runner as { feedback: object }).feedback).not.toHaveProperty('q2')
   })
 
   it.each(['mock_exam', 'internal_exam', 'vfr_rt_exam'])(
