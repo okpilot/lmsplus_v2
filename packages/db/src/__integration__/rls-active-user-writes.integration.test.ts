@@ -203,6 +203,23 @@ describe('RLS: student writes require an active user', () => {
       expect(data).toHaveLength(0)
     })
 
+    // users_select also hides a soft-deleted caller, so this pins the outcome, not the #1558 predicate alone.
+    it('cannot read comments', async () => {
+      await setDeactivated(false)
+      const id = await seedComment(`read-denied ${suffix}`)
+      await setDeactivated(true)
+
+      const { data, error } = await student.from('question_comments').select('id').eq('id', id)
+      expect(error).toBeNull()
+      expect(data).toHaveLength(0)
+      const { data: seen, error: seenErr } = await admin
+        .from('question_comments')
+        .select('id')
+        .eq('id', id)
+      expect(seenErr).toBeNull()
+      expect(seen).toHaveLength(1)
+    })
+
     it('cannot delete its own quiz draft', async () => {
       const id = await seedDraft()
       await setDeactivated(true)
@@ -280,6 +297,14 @@ describe('RLS: student writes require an active user', () => {
         .delete()
         .eq('id', id)
         .select('id')
+      expect(error).toBeNull()
+      expect(data).toHaveLength(1)
+    })
+
+    it('can read comments', async () => {
+      await setDeactivated(false)
+      const id = await seedComment(`read-ok ${suffix}`)
+      const { data, error } = await student.from('question_comments').select('id').eq('id', id)
       expect(error).toBeNull()
       expect(data).toHaveLength(1)
     })

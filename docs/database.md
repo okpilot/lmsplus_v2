@@ -625,7 +625,7 @@ Per-question discussion threads. Students and admins can post comments on any qu
 | deleted_at | TIMESTAMPTZ | nullable |
 
 **RLS policies:**
-- SELECT: any authenticated user, non-deleted only
+- SELECT: non-deleted only, caller's users row live (mig `20261021000100`, #1558)
 - INSERT: own user_id only, deleted_at must be NULL, caller's users row live (mig `20261015000100`)
 - DELETE (own): user_id = (select auth.uid()) AND caller's users row live (mig `20261015000100`)
 - DELETE (admin): public.is_admin()
