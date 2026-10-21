@@ -28,21 +28,32 @@ export function QuestionsPageShell({
   totalCount,
   pageSize,
 }: Readonly<Props>) {
-  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const scope = JSON.stringify({ ...filters, page })
+  const [selection, setSelection] = useState<{ scope: string; ids: string[] }>({
+    scope,
+    ids: [],
+  })
+  const selectedIds = selection.scope === scope ? selection.ids : []
 
   function handleToggleSelect(id: string) {
-    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]))
+    setSelection((prev) => {
+      const ids = prev.scope === scope ? prev.ids : []
+      return { scope, ids: ids.includes(id) ? ids.filter((i) => i !== id) : [...ids, id] }
+    })
   }
 
   function handleToggleAll() {
-    setSelectedIds((prev) => (prev.length === questions.length ? [] : questions.map((q) => q.id)))
+    setSelection((prev) => {
+      const ids = prev.scope === scope ? prev.ids : []
+      return { scope, ids: ids.length === questions.length ? [] : questions.map((q) => q.id) }
+    })
   }
 
   return (
     <div className="space-y-4">
       <QuestionFiltersBar tree={tree} filters={filters} />
 
-      <BulkActionsBar selectedIds={selectedIds} onClear={() => setSelectedIds([])} />
+      <BulkActionsBar selectedIds={selectedIds} onClear={() => setSelection({ scope, ids: [] })} />
 
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
