@@ -6,8 +6,9 @@ import { useUser } from '@/app/app/_components/user-context'
 
 function FirstName() {
   const displayName = useUser()?.displayName
-  if (!displayName) return null
-  return <span>, {displayName.split(' ')[0] ?? displayName}</span>
+  const first = displayName?.trim().split(/\s+/)[0]
+  if (!first) return null
+  return <span>, {first}</span>
 }
 
 export function DashboardHeader() {

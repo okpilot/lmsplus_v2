@@ -1,16 +1,17 @@
 import { render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockLoadShellUser } = vi.hoisted(() => ({
+const { mockLoadShellUser, mockRequireAuthUser } = vi.hoisted(() => ({
   mockLoadShellUser: vi.fn(),
+  mockRequireAuthUser: vi.fn(),
+}))
+
+vi.mock('@/lib/auth/require-auth-user', () => ({
+  requireAuthUser: () => mockRequireAuthUser(),
 }))
 
 vi.mock('./_lib/load-shell-user', () => ({
   loadShellUser: () => mockLoadShellUser(),
-}))
-
-vi.mock('./_components/shell-auth-guard', () => ({
-  ShellAuthGuard: () => <div data-testid="auth-guard" />,
 }))
 
 vi.mock('./_components/app-shell', () => ({
@@ -29,34 +30,36 @@ vi.mock('./_components/user-context', () => ({
 
 import AppLayout from './layout'
 
-function renderLayout() {
-  render(AppLayout({ children: <span data-testid="child">page content</span> }))
+async function renderLayout() {
+  render(await AppLayout({ children: <span data-testid="child">page content</span> }))
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
   mockLoadShellUser.mockReturnValue(new Promise(() => {}))
+  mockRequireAuthUser.mockResolvedValue({ id: 'u1', email: null })
 })
 
 describe('AppLayout', () => {
-  it('renders the shell and page content without waiting for the user lookup', () => {
-    renderLayout()
+  it('renders the shell and page content without waiting for the user lookup', async () => {
+    await renderLayout()
 
     expect(screen.getByTestId('app-shell')).toBeInTheDocument()
     expect(screen.getByTestId('child')).toBeInTheDocument()
   })
 
-  it('hands the unresolved user lookup to the provider as a promise', () => {
-    renderLayout()
+  it('hands the unresolved user lookup to the provider as a promise', async () => {
+    await renderLayout()
 
     expect(screen.getByTestId('user-provider').dataset.userIsPromise).toBe('true')
     expect(mockLoadShellUser).toHaveBeenCalledTimes(1)
   })
 
-  it('renders the auth guard alongside the shell', () => {
-    renderLayout()
+  it('redirects unauthenticated visitors before rendering anything', async () => {
+    mockRequireAuthUser.mockRejectedValue(new Error('NEXT_REDIRECT'))
 
-    expect(screen.getByTestId('auth-guard')).toBeInTheDocument()
+    await expect(AppLayout({ children: <span /> })).rejects.toThrow('NEXT_REDIRECT')
+    expect(mockLoadShellUser).not.toHaveBeenCalled()
   })
 })
 
@@ -65,18 +68,18 @@ describe('AppLayout — redesign look scope', () => {
     vi.unstubAllEnvs()
   })
 
-  it('renders the shell inside the v2 look scope when the redesign look is on', () => {
+  it('renders the shell inside the v2 look scope when the redesign look is on', async () => {
     vi.stubEnv('NEXT_PUBLIC_REDESIGN_LOOK', 'on')
-    renderLayout()
+    await renderLayout()
     expect(screen.getByTestId('app-shell').closest('[data-look]')).toHaveAttribute(
       'data-look',
       'v2',
     )
   })
 
-  it('renders the shell without the v2 look when the redesign look is unset', () => {
+  it('renders the shell without the v2 look when the redesign look is unset', async () => {
     vi.stubEnv('NEXT_PUBLIC_REDESIGN_LOOK', '')
-    renderLayout()
+    await renderLayout()
     expect(screen.getByTestId('app-shell').closest('[data-look]')).toBeNull()
   })
 })

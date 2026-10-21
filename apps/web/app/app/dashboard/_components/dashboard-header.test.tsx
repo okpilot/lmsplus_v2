@@ -28,6 +28,13 @@ describe('DashboardHeader', () => {
     expect(container.querySelector('p')?.textContent).toBe('Welcome back, Oleksandr')
   })
 
+  it('ignores leading whitespace when picking the first name', () => {
+    const { container } = renderWithUser(
+      fulfilled({ displayName: '  Jane Doe', userRole: 'student' }),
+    )
+    expect(container.querySelector('p')?.textContent).toBe('Welcome back, Jane')
+  })
+
   it('shows a generic greeting while the user is still loading', () => {
     const { container } = renderWithUser(new Promise(() => {}))
     expect(container.querySelector('p')?.textContent).toBe('Welcome back')
