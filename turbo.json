@@ -11,7 +11,8 @@
         "SENTRY_PROJECT",
         "SENTRY_DSN",
         "RESEND_API_KEY",
-        "EMAIL_FROM"
+        "EMAIL_FROM",
+        "VERCEL_DEPLOYMENT_ID"
       ],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
       "outputs": [".next/**", "!.next/cache/**", "dist/**"]

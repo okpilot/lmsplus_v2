@@ -5,6 +5,16 @@ const { mockGetClaims, mockGetUser } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
 }))
 
+const buildJwks = vi.hoisted(() => ({
+  value: undefined as { keys: { kid: string }[] } | undefined,
+}))
+
+vi.mock('./build-jwks', () => ({
+  get BUILD_JWKS() {
+    return buildJwks.value
+  },
+}))
+
 import { verifySessionUser } from './verify-session-user'
 
 // getUser stays on the client so a returning fallback fails the not-called assertions.
@@ -18,6 +28,7 @@ const USER_ID = '00000000-0000-4000-a000-000000000001'
 describe('verifySessionUser', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    buildJwks.value = undefined
   })
 
   it('returns the id and email from verified claims', async () => {
@@ -84,6 +95,17 @@ describe('verifySessionUser', () => {
     await verify()
     expect(mockGetClaims).toHaveBeenCalledTimes(1)
     expect(mockGetClaims.mock.calls[0]).toEqual([])
+  })
+
+  it('verifies against the build-time key set when one is inlined', async () => {
+    const jwks = { keys: [{ kid: 'k1' }] }
+    buildJwks.value = jwks
+    mockGetClaims.mockResolvedValue({
+      data: { claims: { sub: USER_ID, role: 'authenticated' } },
+      error: null,
+    })
+    await verify()
+    expect(mockGetClaims.mock.calls[0]).toEqual([undefined, { jwks }])
   })
 
   it('returns null without logging when there is no session', async () => {
