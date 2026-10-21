@@ -7,7 +7,7 @@ import { DashboardHeader } from './dashboard-header'
 const fulfilled = <T,>(v: T) =>
   Object.assign(Promise.resolve(v), { status: 'fulfilled' as const, value: v })
 
-function renderWithUser(user: Promise<ShellUser | null>) {
+function renderWithUser(user: Promise<ShellUser>) {
   return render(
     <UserProvider user={user}>
       <DashboardHeader />
@@ -40,8 +40,8 @@ describe('DashboardHeader', () => {
     expect(container.querySelector('p')?.textContent).toBe('Welcome back')
   })
 
-  it('shows a generic greeting when the lookup resolved without a user', () => {
-    const { container } = renderWithUser(fulfilled(null))
+  it('shows a generic greeting when the display name is blank', () => {
+    const { container } = renderWithUser(fulfilled({ displayName: '   ', userRole: 'student' }))
     expect(container.querySelector('p')?.textContent).toBe('Welcome back')
   })
 

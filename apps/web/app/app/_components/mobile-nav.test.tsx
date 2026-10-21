@@ -43,7 +43,7 @@ afterEach(() => {
 })
 
 function renderMobileNav(
-  user: Promise<ShellUser | null> = fulfilled({ displayName: 'Test', userRole: 'student' }),
+  user: Promise<ShellUser> = fulfilled({ displayName: 'Test', userRole: 'student' }),
 ) {
   return render(
     <UserProvider user={user}>

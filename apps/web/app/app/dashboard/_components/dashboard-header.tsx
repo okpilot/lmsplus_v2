@@ -6,8 +6,7 @@ import { useUser } from '@/app/app/_components/user-context'
 import { firstName } from '@/app/app/_lib/shell-user'
 
 function FirstName() {
-  const displayName = useUser()?.displayName
-  const first = displayName ? firstName(displayName) : null
+  const first = firstName(useUser().displayName)
   if (!first) return null
   return <span>, {first}</span>
 }

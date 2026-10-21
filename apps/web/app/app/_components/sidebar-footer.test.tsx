@@ -23,7 +23,7 @@ const fulfilled = <T,>(v: T) =>
   Object.assign(Promise.resolve(v), { status: 'fulfilled' as const, value: v })
 
 function renderFooter(
-  user: Promise<{ displayName: string; userRole: string } | null> = fulfilled({
+  user: Promise<{ displayName: string; userRole: string }> = fulfilled({
     displayName: 'Ada Pilot',
     userRole: 'student',
   }),
@@ -70,10 +70,5 @@ describe('SidebarFooter', () => {
     renderFooter(new Promise(() => {}))
     expect(screen.getByText('Signed in')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Settings' })).toBeInTheDocument()
-  })
-
-  it('shows a generic Signed in label when the lookup resolved without a user', () => {
-    renderFooter(fulfilled(null))
-    expect(screen.getByText('Signed in')).toBeInTheDocument()
   })
 })

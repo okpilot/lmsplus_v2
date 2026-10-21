@@ -10,7 +10,7 @@ import { UserChip } from './user-chip'
 import { useUser } from './user-context'
 
 function CurrentUserChip() {
-  return <UserChip displayName={useUser()?.displayName ?? null} />
+  return <UserChip displayName={useUser().displayName} />
 }
 
 export function SidebarFooter() {

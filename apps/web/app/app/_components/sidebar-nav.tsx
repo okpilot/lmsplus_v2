@@ -25,7 +25,7 @@ function NavGroup({
 }
 
 function AdminNavGroup({ pathname }: Readonly<{ pathname: string }>) {
-  if (useUser()?.userRole !== 'admin') return null
+  if (useUser().userRole !== 'admin') return null
   return <NavGroup label="Admin" items={ADMIN_NAV_ITEMS} pathname={pathname} />
 }
 

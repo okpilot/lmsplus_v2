@@ -11,8 +11,8 @@ function ConsumerComponent() {
   const user = useUser()
   return (
     <div>
-      <span data-testid="display-name">{user?.displayName ?? 'none'}</span>
-      <span data-testid="user-role">{user?.userRole ?? 'none'}</span>
+      <span data-testid="display-name">{user.displayName}</span>
+      <span data-testid="user-role">{user.userRole}</span>
     </div>
   )
 }
@@ -33,16 +33,6 @@ describe('UserContext', () => {
 
     expect(screen.getByTestId('display-name')).toHaveTextContent('Ada Pilot')
     expect(screen.getByTestId('user-role')).toHaveTextContent('student')
-  })
-
-  it('provides null to consumers when the lookup resolved without a user', () => {
-    render(
-      <UserProvider user={fulfilled(null)}>
-        <ConsumerComponent />
-      </UserProvider>,
-    )
-
-    expect(screen.getByTestId('display-name')).toHaveTextContent('none')
   })
 
   it('shows the Suspense fallback while the lookup is pending', () => {

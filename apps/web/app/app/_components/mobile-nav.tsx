@@ -5,7 +5,7 @@ import { BottomTabBar } from './bottom-tab-bar'
 import { useUser } from './user-context'
 
 function RoleTabBar() {
-  return <BottomTabBar userRole={useUser()?.userRole} />
+  return <BottomTabBar userRole={useUser().userRole} />
 }
 
 export function MobileNav() {

@@ -21,9 +21,10 @@ const fulfilled = <T,>(v: T) =>
   Object.assign(Promise.resolve(v), { status: 'fulfilled' as const, value: v })
 
 function renderNav(props: { userRole?: string; pending?: boolean } = {}) {
+  const userRole = props.userRole ?? 'student'
   const user = props.pending
     ? new Promise<never>(() => {})
-    : fulfilled(props.userRole ? { displayName: 'Ada Pilot', userRole: props.userRole } : null)
+    : fulfilled({ displayName: 'Ada Pilot', userRole })
   render(
     <UserProvider user={user}>
       <Suspense fallback={null}>
