@@ -4,7 +4,7 @@ type TracesSamplerSamplingContext = Parameters<NonNullable<BrowserOptions['trace
 
 const DEFAULT_SAMPLE_RATE = 0.1
 
-/** TEMPORARY (#1590, Decision 137): every /app document request and pageload is sampled. Revert to DEFAULT_SAMPLE_RATE when #1590 posts its split. */
+/** TEMPORARY (#1590, Decision 137): the rate for /app document requests and pageloads with no parent trace decision. Revert to DEFAULT_SAMPLE_RATE when #1590 posts its split. */
 export const APP_DOCUMENT_SAMPLE_RATE = 1
 
 const isDevelopment = () => process.env.NODE_ENV === 'development'
