@@ -160,6 +160,23 @@ test.describe('Red Team: saved session restored feedback (JN)', () => {
       expect(openBody).toContain('correctOptionId')
       const openRpc = await victim.rpc('get_restored_feedback', { p_session_id: sessionId })
       expect(openRpc.error).toBeNull()
+      const { data: keyRow, error: keyErr } = await admin
+        .from('questions')
+        .select('correct_option_id')
+        .eq('id', q1)
+        .single()
+      if (keyErr || !isRecord(keyRow) || typeof keyRow.correct_option_id !== 'string')
+        throw new Error(`q1 key: ${keyErr?.message ?? 'bad shape'}`)
+      const key = keyRow.correct_option_id
+      const feedback = isRecord(openRpc.data) ? openRpc.data.feedback : null
+      if (!Array.isArray(feedback)) throw new Error('get_restored_feedback: no feedback array')
+      expect(feedback).toHaveLength(1)
+      expect(feedback[0]).toMatchObject({
+        question_id: q1,
+        question_type: 'multiple_choice',
+        correct_option_id: key,
+        is_correct: key === 'b',
+      })
 
       const saved = await victim.rpc('save_quiz_for_later', {
         p_session_id: sessionId,

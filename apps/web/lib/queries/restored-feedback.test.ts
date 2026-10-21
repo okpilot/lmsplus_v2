@@ -103,14 +103,17 @@ describe('getRestoredFeedbackBounded', () => {
 
   it('logs the timeout and returns nothing when the read hangs', async () => {
     vi.useFakeTimers()
-    mockRpc.mockReturnValue(new Promise(() => undefined))
+    try {
+      mockRpc.mockReturnValue(new Promise(() => undefined))
 
-    const pending = getRestoredFeedbackBounded(SESSION)
-    await vi.advanceTimersByTimeAsync(3000)
+      const pending = getRestoredFeedbackBounded(SESSION)
+      await vi.advanceTimersByTimeAsync(3000)
 
-    expect(await pending).toEqual({})
-    expect(console.error).toHaveBeenCalledWith('[getRestoredFeedback] timed out after 3000ms')
-    vi.useRealTimers()
+      expect(await pending).toEqual({})
+      expect(console.error).toHaveBeenCalledWith('[getRestoredFeedback] timed out after 3000ms')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('does not log a timeout when the read returns an empty result in time', async () => {
