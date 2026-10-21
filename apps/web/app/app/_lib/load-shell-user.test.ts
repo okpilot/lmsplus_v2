@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockGetCallerProfile } = vi.hoisted(() => ({
@@ -89,5 +90,13 @@ describe('loadShellUser', () => {
       userRole: 'student',
     })
     expect(consoleSpy).toHaveBeenCalledWith('[loadShellUser] read failed:', 'boom')
+  })
+
+  it('lets a Next redirect thrown by the read propagate instead of falling back', async () => {
+    mockGetCallerProfile.mockImplementation(() => redirect('/login'))
+
+    await expect(loadShellUser({ id: 'u1', email: 'ada@example.com' })).rejects.toMatchObject({
+      digest: expect.stringContaining('NEXT_REDIRECT'),
+    })
   })
 })

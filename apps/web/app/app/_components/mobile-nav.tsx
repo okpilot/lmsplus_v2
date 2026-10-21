@@ -1,13 +1,13 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useLayoutEffect, useState } from 'react'
 import { BottomTabBar } from './bottom-tab-bar'
 import { useUser } from './user-context'
 
-/** Passes the resolved role up; a state sync of an already-resolved context value, not a fetch. */
+/** Passes the resolved role up before paint; a state sync of an already-resolved context value, not a fetch. */
 function RoleReporter({ onRole }: Readonly<{ onRole: (role: string) => void }>) {
   const { userRole } = useUser()
-  useEffect(() => {
+  useLayoutEffect(() => {
     onRole(userRole)
   }, [userRole, onRole])
   return null

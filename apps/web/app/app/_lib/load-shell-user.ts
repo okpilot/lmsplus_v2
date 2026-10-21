@@ -1,10 +1,11 @@
+import { unstable_rethrow } from 'next/navigation'
 import { getCallerProfile } from '@/lib/auth/get-caller-profile'
 import type { SessionUser } from '@/lib/auth/verify-session-user'
 import type { ShellUser } from './shell-user'
 
 /**
- * Name/role for the app shell. Never rejects and never resolves null: a failure logs and
- * resolves a fallback (session email or 'Student', role 'student'). Role is UI-only — access
+ * Name/role for the app shell. Never resolves null, and rejects only with a Next control-flow error:
+ * any other failure logs and resolves a fallback (session email or 'Student', role 'student'). Role is UI-only — access
  * control lives in the admin layout and requireAdmin().
  */
 export async function loadShellUser(user: SessionUser): Promise<ShellUser> {
@@ -19,6 +20,7 @@ export async function loadShellUser(user: SessionUser): Promise<ShellUser> {
       userRole: profile?.role ?? fallback.userRole,
     }
   } catch (error) {
+    unstable_rethrow(error)
     console.error('[loadShellUser] read failed:', error instanceof Error ? error.message : error)
     return fallback
   }
