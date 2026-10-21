@@ -161,7 +161,11 @@ test.describe('Red Team: get_restored_feedback (Vectors JK/JL/JM)', () => {
 
     const own = await victim.rpc('get_restored_feedback', { p_session_id: sessionId })
     expect(own.error).toBeNull()
-    expect(feedbackRows(own.data)).toHaveLength(1)
+    const ownRows = feedbackRows(own.data)
+    expect(ownRows).toHaveLength(1)
+    expect(ownRows[0]?.question_id).toBe(q1.id)
+    expect(ownRows[0]?.correct_option_id).toBe(q1.key)
+    expect(ownRows[0]?.is_correct).toBe(true)
 
     const foreign = await attacker.rpc('get_restored_feedback', { p_session_id: sessionId })
     expect(foreign.data).toBeNull()
