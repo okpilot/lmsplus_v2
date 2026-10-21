@@ -1,14 +1,15 @@
 import {
-  type DiagramRpcResult,
-  type DialogFillRpcResult,
   isDiagramRpcResult,
   isDialogFillRpcResult,
   isOrderingRpcResult,
   isShortAnswerRpcResult,
-  type OrderingRpcResult,
-  type ShortAnswerRpcResult,
-  toClientBlanks,
 } from '@/app/app/quiz/actions/check-non-mc-answer-helpers'
+import {
+  toDiagramFeedback,
+  toDialogFeedback,
+  toOrderingFeedback,
+  toShortFeedback,
+} from '@/app/app/quiz/actions/non-mc-feedback-map'
 import type { AnswerFeedback } from '@/app/app/quiz/types'
 
 type McElement = {
@@ -37,40 +38,12 @@ const expl = (r: Expl) => ({
 })
 
 function mapNonMc(type: string, v: Record<string, unknown>): AnswerFeedback | null {
-  if (type === 'short_answer' && isShortAnswerRpcResult(v)) return mapShort(v)
-  if (type === 'dialog_fill' && isDialogFillRpcResult(v)) return mapDialog(v)
-  if (type === 'ordering' && isOrderingRpcResult(v)) return mapOrdering(v)
-  if (type === 'diagram_label' && isDiagramRpcResult(v)) return mapDiagram(v)
+  if (type === 'short_answer' && isShortAnswerRpcResult(v)) return toShortFeedback(v)
+  if (type === 'dialog_fill' && isDialogFillRpcResult(v)) return toDialogFeedback(v)
+  if (type === 'ordering' && isOrderingRpcResult(v)) return toOrderingFeedback(v)
+  if (type === 'diagram_label' && isDiagramRpcResult(v)) return toDiagramFeedback(v)
   return null
 }
-
-const mapShort = (r: ShortAnswerRpcResult): AnswerFeedback => ({
-  questionType: 'short_answer',
-  isCorrect: r.is_correct,
-  correctAnswer: r.correct_answer,
-  ...expl(r),
-})
-
-const mapDialog = (r: DialogFillRpcResult): AnswerFeedback => ({
-  questionType: 'dialog_fill',
-  isCorrect: r.is_correct,
-  blanks: toClientBlanks(r.blanks),
-  ...expl(r),
-})
-
-const mapOrdering = (r: OrderingRpcResult): AnswerFeedback => ({
-  questionType: 'ordering',
-  isCorrect: r.is_correct,
-  correctOrder: r.correct_order,
-  ...expl(r),
-})
-
-const mapDiagram = (r: DiagramRpcResult): AnswerFeedback => ({
-  questionType: 'diagram_label',
-  isCorrect: r.is_correct,
-  correctMapping: r.correct_mapping.map((m) => ({ zoneId: m.zone_id, labelId: m.label_id })),
-  ...expl(r),
-})
 
 /** One `get_restored_feedback` element → the client feedback shape; null when it fails its guard. */
 export function toClientFeedback(element: unknown): AnswerFeedback | null {

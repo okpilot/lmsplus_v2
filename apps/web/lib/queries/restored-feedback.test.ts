@@ -8,7 +8,6 @@ const { mockRpc, mockClient } = vi.hoisted(() => ({
 vi.mock('@repo/db/server', () => ({ createServerSupabaseClient: () => mockClient() }))
 vi.mock('@/lib/supabase-rpc', () => ({ rpc: (...a: unknown[]) => mockRpc(...a) }))
 
-import { FLAG_FETCH_TIMEOUT_MS } from '@/lib/constants/flag-fetch-timeout'
 import { getRestoredFeedback, getRestoredFeedbackBounded } from './restored-feedback'
 
 const SESSION = '11111111-1111-4111-8111-111111111111'
@@ -101,14 +100,22 @@ describe('getRestoredFeedbackBounded', () => {
     expect(await getRestoredFeedbackBounded(SESSION)).toEqual({})
   })
 
-  it('returns nothing when the read hangs past the timeout', async () => {
+  it('logs the timeout and returns nothing when the read hangs', async () => {
     vi.useFakeTimers()
     mockRpc.mockReturnValue(new Promise(() => undefined))
 
     const pending = getRestoredFeedbackBounded(SESSION)
-    await vi.advanceTimersByTimeAsync(FLAG_FETCH_TIMEOUT_MS)
+    await vi.advanceTimersByTimeAsync(3000)
 
     expect(await pending).toEqual({})
+    expect(console.error).toHaveBeenCalledWith('[getRestoredFeedback] timed out after 3000ms')
     vi.useRealTimers()
+  })
+
+  it('does not log a timeout when the read returns an empty result in time', async () => {
+    mockRpc.mockResolvedValue({ data: { feedback: [] }, error: null })
+
+    expect(await getRestoredFeedbackBounded(SESSION)).toEqual({})
+    expect(console.error).not.toHaveBeenCalled()
   })
 })

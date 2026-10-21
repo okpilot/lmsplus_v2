@@ -1,7 +1,7 @@
 /**
  * Red Team Spec — Vector HZ (#1412): checkAnswer / checkNonMcAnswer run no action-side
  * quiz_sessions membership pre-check; check_quiz_answer (mig 20261020000600) and
- * check_non_mc_answer (mig 20261002000800) are the only session guard.
+ * check_non_mc_answer (mig 20261020000400) are the only session guard.
  *
  * The attacker replays both Server Actions against: a question outside their own active session,
  * the victim's active session (non-MC; MC is GQ), their own ENDED session, their own saved

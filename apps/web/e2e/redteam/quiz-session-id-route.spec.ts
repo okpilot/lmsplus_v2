@@ -227,6 +227,16 @@ test.describe('Red Team: quiz session read path by id (HA, HB)', () => {
         expect(body).toMatch(/selectedOptionId\\?":\\?"b/)
 
         const page = await ctx.newPage()
+        const actionBodies: string[] = []
+        // The browser cancels an action response body once it has decoded the result, so a
+        // 'response' listener's r.text() can reject. Read the body from the route instead.
+        await page.route('**/app/quiz/session/*', async (route) => {
+          const req = route.request()
+          if (req.method() !== 'POST' || !req.headers()['next-action']) return route.continue()
+          const res = await route.fetch()
+          actionBodies.push(await res.text())
+          return route.fulfill({ response: res })
+        })
         await page.goto(url)
         await expect(page.getByText(/Question 1 of 2/)).toBeVisible({ timeout: 15_000 })
         const graded = page.locator(
@@ -241,6 +251,8 @@ test.describe('Red Team: quiz session read path by id (HA, HB)', () => {
           // and the rendered question shows no graded option.
           for (const token of KEY_TOKENS) expect(body, token).not.toContain(token)
           await page.waitForTimeout(3_000)
+          expect(actionBodies.length).toBeGreaterThan(0)
+          for (const b of actionBodies) for (const t of KEY_TOKENS) expect(b, t).not.toContain(t)
           await expect(page.locator(OPTION).first()).toBeVisible()
           await expect(graded).toHaveCount(0)
           expect(await page.content()).not.toContain('correctOptionId')
