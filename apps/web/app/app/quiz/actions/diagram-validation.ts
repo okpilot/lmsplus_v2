@@ -4,11 +4,10 @@
  * The DB CHECK `is_valid_diagram_config` (mig 150) is the authoritative server
  * guard on the QUESTION's own zones/labels/answer arrays. This module is the
  * app/client-layer guard on the STUDENT'S SUBMITTED mapping — the
- * {zoneId, labelId} placements a student makes — shared by the answer/feedback
- * validators (quiz-session-validators.ts) and the DB-draft resume guard
- * (load-draft-helpers.ts). It imports no zod so client bundles stay free of it;
- * the Zod schemas built on it live in diagram-mapping-schema.ts (mirrors the
- * role ordering-validation.ts plays for `order`).
+ * {zoneId, labelId} placements a student makes. It imports no zod so client
+ * bundles stay free of it; the Zod schemas built on it live in
+ * diagram-mapping-schema.ts (mirrors the role ordering-validation.ts plays for
+ * `order`).
  */
 
 // Upper bound for a submitted mapping / delivered zones array. Distractors
