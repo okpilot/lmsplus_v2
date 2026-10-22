@@ -3,7 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockPreload } = vi.hoisted(() => ({ mockPreload: vi.fn() }))
 
-vi.mock('../_components/lazy-answer-inputs', () => ({ preloadDragInputs: mockPreload }))
+vi.mock('../_components/lazy-answer-inputs', () => ({
+  preloadDragInputs: mockPreload,
+  isDragInputType: (t: string) => t === 'ordering' || t === 'diagram_label',
+}))
 
 import { usePreloadDragInputs } from './use-preload-drag-inputs'
 
@@ -18,6 +21,11 @@ describe('usePreloadDragInputs', () => {
     renderHook(() => usePreloadDragInputs([q('multiple_choice'), q('ordering')]))
     expect(mockPreload).toHaveBeenCalledTimes(1)
     expect([...(mockPreload.mock.calls[0]?.[0] ?? [])]).toEqual(['ordering'])
+  })
+
+  it('preloads each drag type once, in a stable order, for a mixed session', () => {
+    renderHook(() => usePreloadDragInputs([q('ordering'), q('diagram_label'), q('ordering')]))
+    expect([...(mockPreload.mock.calls[0]?.[0] ?? [])]).toEqual(['diagram_label', 'ordering'])
   })
 
   it('does not preload when the session has no drag-and-drop question', () => {

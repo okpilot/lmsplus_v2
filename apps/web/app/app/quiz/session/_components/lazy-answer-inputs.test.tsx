@@ -1,6 +1,15 @@
-import { render, screen } from '@testing-library/react'
-import type { ComponentProps } from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, render, screen } from '@testing-library/react'
+import {
+  Component,
+  type ComponentProps,
+  type ComponentType,
+  lazy,
+  type ReactNode,
+  Suspense,
+} from 'react'
+import { flushSync } from 'react-dom'
+import { createRoot } from 'react-dom/client'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const loads = vi.hoisted(() => ({ ordering: 0, diagram: 0 }))
 
@@ -14,21 +23,53 @@ vi.mock('./diagram-label-input', () => {
   return { DiagramLabelInput: () => <div data-testid="diagram-label-input" /> }
 })
 
-import { DiagramLabelInput, OrderingInput, preloadDragInputs } from './lazy-answer-inputs'
+import { DiagramLabelInput, OrderingInput } from './lazy-answer-inputs'
 
 beforeEach(() => {
   vi.resetAllMocks()
 })
 
 describe('preloadDragInputs', () => {
+  async function freshPreload() {
+    vi.resetModules()
+    loads.ordering = 0
+    loads.diagram = 0
+    vi.doMock('./ordering-input', () => {
+      loads.ordering += 1
+      return { OrderingInput: () => <div data-testid="ordering-input" /> }
+    })
+    vi.doMock('./diagram-label-input', () => {
+      loads.diagram += 1
+      return { DiagramLabelInput: () => <div data-testid="diagram-label-input" /> }
+    })
+    return (await import('./lazy-answer-inputs')).preloadDragInputs
+  }
+
   it('loads only the ordering input for an ordering-only session', async () => {
-    await preloadDragInputs(new Set(['ordering']))
+    const preload = await freshPreload()
+    await preload(['ordering'])
     expect(loads.ordering).toBe(1)
     expect(loads.diagram).toBe(0)
   })
 
+  it('loads only the diagram label input for a diagram-label-only session', async () => {
+    const preload = await freshPreload()
+    await preload(['diagram_label'])
+    expect(loads.ordering).toBe(0)
+    expect(loads.diagram).toBe(1)
+  })
+
+  it('loads both inputs when both drag types are present', async () => {
+    const preload = await freshPreload()
+    await preload(['ordering', 'diagram_label'])
+    expect(loads.ordering).toBe(1)
+    expect(loads.diagram).toBe(1)
+  })
+
   it('loads nothing when no drag-and-drop question is present', async () => {
-    await preloadDragInputs(new Set(['multiple_choice']))
+    const preload = await freshPreload()
+    await preload(['multiple_choice'])
+    expect(loads.ordering).toBe(0)
     expect(loads.diagram).toBe(0)
   })
 })
@@ -42,5 +83,117 @@ describe('lazy drag inputs', () => {
   it('renders the diagram label input once its chunk has loaded', async () => {
     render(<DiagramLabelInput {...({} as unknown as ComponentProps<typeof DiagramLabelInput>)} />)
     expect(await screen.findByTestId('diagram-label-input')).toBeInTheDocument()
+  })
+})
+
+type LazyModule = typeof import('./lazy-answer-inputs')
+
+async function freshModule(orderingFactory?: () => Record<string, unknown>): Promise<LazyModule> {
+  vi.resetModules()
+  vi.doMock(
+    './ordering-input',
+    orderingFactory ?? (() => ({ OrderingInput: () => <div data-testid="real">real</div> })),
+  )
+  vi.doMock('./diagram-label-input', () => ({ DiagramLabelInput: () => <div /> }))
+  return import('./lazy-answer-inputs')
+}
+
+const noProps = {} as ComponentProps<LazyModule['OrderingInput']>
+
+class Boundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false }
+  static getDerivedStateFromError() {
+    return { failed: true }
+  }
+  render() {
+    return this.state.failed ? <div data-testid="failed" /> : this.props.children
+  }
+}
+
+describe('preloaded drag input', () => {
+  afterEach(() => {
+    vi.doUnmock('next/dynamic')
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
+  it('renders the real input on its first commit once preloaded', async () => {
+    const mod = await freshModule()
+    await mod.preloadDragInputs(['ordering'])
+    const host = document.createElement('div')
+    const root = createRoot(host)
+    flushSync(() => root.render(<mod.OrderingInput {...noProps} />))
+    expect(host.querySelector('[data-testid="real"]')).not.toBeNull()
+    expect(host.querySelector('.animate-pulse')).toBeNull()
+    act(() => root.unmount())
+  })
+
+  it('shows a placeholder then the input when mounted before the preload', async () => {
+    const mod = await freshModule()
+    const { container } = render(<mod.OrderingInput {...noProps} />)
+    expect(container.querySelector('.animate-pulse')).not.toBeNull()
+    expect(await screen.findByTestId('real')).toBeInTheDocument()
+  })
+
+  it('loads the input again on a fresh mount after a failed load', async () => {
+    let calls = 0
+    // next/dynamic's own lazy copy of React does not surface a rejection in jsdom, so stand in
+    // with the same lazy + Suspense shape it builds (shared/lib/lazy-dynamic/loadable.js).
+    vi.doMock('next/dynamic', () => ({
+      default: (loader: () => Promise<ComponentType>, opts: { loading: () => ReactNode }) => {
+        const Lazy = lazy(() => loader().then((c) => ({ default: c })))
+        return () => (
+          <Suspense fallback={opts.loading()}>
+            <Lazy />
+          </Suspense>
+        )
+      },
+    }))
+    const mod = await freshModule(() => ({
+      get OrderingInput() {
+        calls += 1
+        if (calls === 1)
+          throw Object.assign(new Error('Loading chunk failed'), { name: 'ChunkLoadError' })
+        return () => <div data-testid="real">real</div>
+      },
+    }))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const first = render(
+      <Boundary>
+        <mod.OrderingInput {...noProps} />
+      </Boundary>,
+    )
+    expect(await screen.findByTestId('failed')).toBeInTheDocument()
+    first.unmount()
+    render(
+      <Boundary>
+        <mod.OrderingInput {...noProps} />
+      </Boundary>,
+    )
+    expect(await screen.findByTestId('real')).toBeInTheDocument()
+  })
+
+  it('logs a failed preload', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const mod = await freshModule(() => {
+      throw new Error('boom')
+    })
+    await expect(mod.preloadDragInputs(['ordering'])).resolves.toBeUndefined()
+    expect(spy).toHaveBeenCalledWith('[preloadDragInputs] chunk preload failed:', expect.any(Error))
+  })
+
+  it('does not change what the next render picks when a load resolves without a window', async () => {
+    const mod = await freshModule()
+    vi.stubGlobal('window', undefined)
+    await mod.preloadDragInputs(['ordering'])
+    vi.unstubAllGlobals()
+    const { container } = render(<mod.OrderingInput {...noProps} />)
+    expect(container.querySelector('.animate-pulse')).not.toBeNull()
+  })
+
+  it('recognises only the drag-and-drop question types', async () => {
+    const mod = await freshModule()
+    expect(mod.isDragInputType('ordering')).toBe(true)
+    expect(mod.isDragInputType('multiple_choice')).toBe(false)
   })
 })
