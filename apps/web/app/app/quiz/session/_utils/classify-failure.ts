@@ -39,7 +39,10 @@ if (typeof window !== 'undefined') {
 }
 
 async function probe(): Promise<Decision> {
-  const mod = await loadAuth().catch(() => null)
+  const mod = await loadAuth().catch((error: unknown) => {
+    console.warn('[classify-failure] auth client failed to load (best-effort):', error)
+    return null
+  })
   if (!mod) return 'unknown'
   const { data, error } = await mod.createClient().auth.getUser()
   if (error) {

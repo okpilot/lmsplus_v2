@@ -213,12 +213,17 @@ describe('classifyFailure when the auth client chunk cannot be loaded', () => {
   })
 
   it('stays undecided: offline without a server answer, server with one, never a definite link-down', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const mod = await loadWithClient(() => {
       throw new Error('chunk failed')
     })
     await expect(mod.classifyFailure()).resolves.toBe('offline')
     await expect(mod.classifyFailure(undefined, true)).resolves.toBe('server')
     await expect(mod.linkIsDown()).resolves.toBe(false)
+    expect(warn).toHaveBeenCalledWith(
+      '[classify-failure] auth client failed to load (best-effort):',
+      expect.any(Error),
+    )
   })
 
   it('retries the load on the next failure after a load failure', async () => {
