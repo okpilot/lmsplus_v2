@@ -24,7 +24,7 @@ Sentry.init({
 })
 
 // Replay records the raw page URL; it stays off while a live token_hash is in it.
-if (window.location.pathname !== SET_PASSWORD_PATH) loadReplayAfterPaint(Sentry.addIntegration)
+if (window.location.pathname !== SET_PASSWORD_PATH) loadReplayAfterPaint(Sentry)
 
 recordDocumentTiming(Sentry.getClient())
 
