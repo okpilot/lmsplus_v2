@@ -35,7 +35,10 @@ function whenIdle(run: () => void): void {
   else setTimeout(run, 0)
 }
 
-/** Loads Replay out of the first-load bundle, once the page has loaded and the browser is idle. */
+/**
+ * Loads Replay out of the first-load bundle after window load (or LOAD_TIMEOUT_MS), then on an
+ * idle callback (or IDLE_TIMEOUT_MS; a plain timeout where requestIdleCallback is absent).
+ */
 export function loadReplayAfterPageLoad(): void {
   afterLoad(() =>
     whenIdle(() => {
