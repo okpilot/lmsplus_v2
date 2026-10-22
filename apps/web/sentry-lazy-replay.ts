@@ -1,4 +1,4 @@
-import { addIntegration, captureException } from '@sentry/nextjs'
+import { addIntegration, captureException, isEnabled } from '@sentry/nextjs'
 
 // Masking is the SDK default; pinned so a default change cannot unmask replays.
 export const REPLAY_OPTIONS = Object.freeze({
@@ -40,6 +40,8 @@ function whenIdle(run: () => void): void {
  * idle callback (or IDLE_TIMEOUT_MS; a plain timeout where requestIdleCallback is absent).
  */
 export function loadReplayAfterPageLoad(): void {
+  // `addIntegration` sets up even on a disabled client; `init` does not.
+  if (!isEnabled()) return
   afterLoad(() =>
     whenIdle(() => {
       // Not `lazyLoadIntegration`: it fetches from browser.sentry-cdn.com, which CSP `script-src 'self'` blocks.

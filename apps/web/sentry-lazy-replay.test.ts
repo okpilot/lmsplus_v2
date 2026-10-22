@@ -7,18 +7,20 @@ import {
   REPLAY_OPTIONS,
 } from './sentry-lazy-replay'
 
-const { replayIntegrationSpy, integration, addIntegration, captureException } = vi.hoisted(() => {
-  const integration = { name: 'Replay' }
-  return {
-    integration,
-    replayIntegrationSpy: vi.fn(() => integration),
-    addIntegration: vi.fn(),
-    captureException: vi.fn(),
-  }
-})
+const { replayIntegrationSpy, integration, addIntegration, captureException, isEnabled } =
+  vi.hoisted(() => {
+    const integration = { name: 'Replay' }
+    return {
+      integration,
+      replayIntegrationSpy: vi.fn(() => integration),
+      addIntegration: vi.fn(),
+      captureException: vi.fn(),
+      isEnabled: vi.fn(),
+    }
+  })
 
 vi.mock('@sentry/replay', () => ({ replayIntegration: replayIntegrationSpy }))
-vi.mock('@sentry/nextjs', () => ({ addIntegration, captureException }))
+vi.mock('@sentry/nextjs', () => ({ addIntegration, captureException, isEnabled }))
 
 async function flush() {
   await vi.dynamicImportSettled()
@@ -33,6 +35,7 @@ describe('loading Sentry Replay after the page has loaded', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     replayIntegrationSpy.mockReturnValue(integration)
+    isEnabled.mockReturnValue(true)
     vi.useFakeTimers()
     vi.stubGlobal('requestIdleCallback', (cb: () => void, _opts?: IdleRequestOptions) =>
       setTimeout(cb, 1),
@@ -94,6 +97,16 @@ describe('loading Sentry Replay after the page has loaded', () => {
     await vi.runAllTimersAsync()
     await flush()
     expect(addIntegration).toHaveBeenCalledWith(integration)
+  })
+
+  it('does not load replay when Sentry is disabled or has no DSN', async () => {
+    isEnabled.mockReturnValue(false)
+    setReadyState('complete')
+    loadReplayAfterPageLoad()
+    await vi.runAllTimersAsync()
+    await flush()
+    expect(replayIntegrationSpy).not.toHaveBeenCalled()
+    expect(addIntegration).not.toHaveBeenCalled()
   })
 
   it('does not add replay before the browser is idle', async () => {
