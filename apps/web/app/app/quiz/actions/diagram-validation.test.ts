@@ -29,6 +29,11 @@ describe('isDiagramMappingEntry', () => {
     expect(isDiagramMappingEntry({ zoneId: 'z1', labelId: id })).toBe(false)
   })
 
+  it('accepts an id of 200 emoji', () => {
+    const id = '😀'.repeat(200)
+    expect(isDiagramMappingEntry({ zoneId: id, labelId: 'l1' })).toBe(true)
+  })
+
   it('accepts an id whose trimmed length is 200', () => {
     const id = `  ${'a'.repeat(200)}  `
     expect(isDiagramMappingEntry({ zoneId: id, labelId: 'l1' })).toBe(true)

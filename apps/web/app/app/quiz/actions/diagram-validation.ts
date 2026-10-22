@@ -19,10 +19,11 @@ export const MAX_LABELS = 60
 
 export const MAX_DIAGRAM_ID_LENGTH = 200
 
-// Stays in lock-step with diagramIdSchema in diagram-mapping-schema.ts (trim, then 1..MAX).
+// Stays in lock-step with diagramIdSchema in diagram-mapping-schema.ts (trim, then 1..MAX
+// code points — zod's max() counts code points, not UTF-16 units).
 export function isDiagramId(value: unknown): value is string {
   if (typeof value !== 'string') return false
-  const length = value.trim().length
+  const length = [...value.trim()].length
   return length >= 1 && length <= MAX_DIAGRAM_ID_LENGTH
 }
 
