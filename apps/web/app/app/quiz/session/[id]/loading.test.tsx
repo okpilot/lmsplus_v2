@@ -16,10 +16,10 @@ describe('QuizSessionLoading', () => {
   })
 
   it('shows Previous and Next labels without any buttons', () => {
-    render(<QuizSessionLoading />)
+    const { container } = render(<QuizSessionLoading />)
 
     expect(screen.getByText('‹ Previous')).toBeInTheDocument()
     expect(screen.getByText('Next ›')).toBeInTheDocument()
-    expect(screen.queryAllByRole('button')).toHaveLength(0)
+    expect(container.querySelectorAll('button')).toHaveLength(0)
   })
 })
