@@ -66,6 +66,10 @@ describe('diagram id guard and schema agreement', () => {
   const inputs: unknown[] = [
     '',
     '  ',
+    '\t',
+    '\n',
+    ' \n ',
+    '\u00a0',
     'a',
     'a'.repeat(200),
     'a'.repeat(201),
