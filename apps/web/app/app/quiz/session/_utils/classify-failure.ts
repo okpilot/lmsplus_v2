@@ -22,21 +22,13 @@ function isSignedOutError(error: AuthError): boolean {
 }
 
 // Kept out of the first-load bundle; warmed after page load so a failure can be probed offline.
-let auth: Promise<{
-  createClient: typeof import('@repo/db/client').createClient
-  isAuthRetryableFetchError: typeof import('@supabase/supabase-js').isAuthRetryableFetchError
-}> | null = null
+let auth: Promise<typeof import('@repo/db/client')> | null = null
 
 function loadAuth() {
-  auth ??= Promise.all([import('@repo/db/client'), import('@supabase/supabase-js')])
-    .then(([client, supabase]) => ({
-      createClient: client.createClient,
-      isAuthRetryableFetchError: supabase.isAuthRetryableFetchError,
-    }))
-    .catch((error: unknown) => {
-      auth = null
-      throw error
-    })
+  auth ??= import('@repo/db/client').catch((error: unknown) => {
+    auth = null
+    throw error
+  })
   return auth
 }
 
@@ -53,7 +45,7 @@ async function probe(): Promise<Decision> {
   if (error) {
     if (error.status === 0) return 'offline'
     // The Auth server answered with a 5xx: the link is up, so this is undecided, not offline.
-    if (mod.isAuthRetryableFetchError(error)) return 'unknown'
+    if (error.name === 'AuthRetryableFetchError') return 'unknown'
     return isSignedOutError(error) ? 'signed-out' : 'server'
   }
   return data.user ? 'server' : 'signed-out'

@@ -69,6 +69,14 @@ describe('classifyFailure', () => {
     await expect(linkIsDown()).resolves.toBe(false)
   })
 
+  it('stays undecided on an HTTP 503 from the auth probe: offline when the server did not answer', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: null },
+      error: new AuthRetryableFetchError('unavailable', 503),
+    })
+    await expect(classifyFailure()).resolves.toBe('offline')
+  })
+
   it('reports offline when the auth probe error has status 0', async () => {
     mockGetUser.mockResolvedValue({ data: { user: null }, error: { status: 0, name: 'X' } })
     await expect(classifyFailure()).resolves.toBe('offline')
@@ -233,9 +241,7 @@ describe('classifyFailure when the auth client chunk cannot be loaded', () => {
     expect(mockAfterPageLoad).toHaveBeenCalledTimes(1)
     expect(loads).toBe(0)
     mockAfterPageLoad.mock.calls[0]?.[0]()
-    await vi.dynamicImportSettled()
-    for (let i = 0; i < 5; i++) await Promise.resolve()
-    expect(loads).toBe(1)
+    await vi.waitFor(() => expect(loads).toBe(1))
     await expect(mod.classifyFailure(undefined, true)).resolves.toBe('offline')
     expect(loads).toBe(1)
   })
