@@ -80,6 +80,7 @@ describe('Sentry init options', () => {
   it('browser config omits replay on the set-password page where a live token is in the URL', async () => {
     vi.stubGlobal('location', { pathname: '/auth/set-password' })
     await import('./instrumentation-client')
+    expect(initSpy.mock.calls[0]?.[0]).not.toHaveProperty('integrations')
     expect(loadReplayAfterPageLoadSpy).not.toHaveBeenCalled()
   })
 

@@ -39,6 +39,7 @@ function whenIdle(run: () => void): void {
 export function loadReplayAfterPageLoad(): void {
   afterLoad(() =>
     whenIdle(() => {
+      // Not `lazyLoadIntegration`: it fetches from browser.sentry-cdn.com, which CSP `script-src 'self'` blocks.
       import('@sentry/replay')
         .then(({ replayIntegration }) => addIntegration(replayIntegration(REPLAY_OPTIONS)))
         .catch((error: unknown) => {
