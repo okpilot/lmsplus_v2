@@ -8,6 +8,7 @@ import { useQuizRunnerUI } from '../_hooks/use-quiz-runner-ui'
 import { useQuizState } from '../_hooks/use-quiz-state'
 import { useQuizTimer } from '../_hooks/use-quiz-timer'
 import { useUnblockedQuizKeyboard } from '../_hooks/use-unblocked-quiz-keyboard'
+import { supportsNonMcQuestions } from './answer-input'
 import { QuizFinishDialogHost } from './quiz-finish-dialog-host'
 import { QuizMainPanel } from './quiz-main-panel'
 import { QuizSessionFooter } from './quiz-session-footer'
@@ -17,7 +18,7 @@ import { QuizSessionMetaRow } from './quiz-session-meta-row'
 
 export function QuizSession(props: Readonly<QuizSessionProps>) {
   const s = useQuizState(props)
-  usePreloadDragInputs(props.questions)
+  usePreloadDragInputs(supportsNonMcQuestions(s) ? props.questions : [])
   const isDiscovery = props.mode === 'discovery'
   const ui = useQuizRunnerUI(s, { isDiscovery })
   const { activeTab, setActiveTab, effectiveTab, leave } = ui
