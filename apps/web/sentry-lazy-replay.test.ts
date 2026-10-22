@@ -78,6 +78,16 @@ describe('loading Sentry Replay after first paint', () => {
     expect(addIntegration).toHaveBeenCalledTimes(1)
   })
 
+  it('adds replay once when load fires after the load timeout', async () => {
+    setReadyState('loading')
+    loadReplayAfterPaint()
+    await vi.advanceTimersByTimeAsync(LOAD_TIMEOUT_MS)
+    window.dispatchEvent(new Event('load'))
+    await vi.runAllTimersAsync()
+    await flush()
+    expect(addIntegration).toHaveBeenCalledTimes(1)
+  })
+
   it('does not wait for a load event when the document is already complete', async () => {
     setReadyState('complete')
     loadReplayAfterPaint()

@@ -1,7 +1,11 @@
 import { addIntegration, captureException } from '@sentry/nextjs'
 
 // Masking is the SDK default; pinned so a default change cannot unmask replays.
-export const REPLAY_OPTIONS = { maskAllText: true, maskAllInputs: true, blockAllMedia: true }
+export const REPLAY_OPTIONS = Object.freeze({
+  maskAllText: true,
+  maskAllInputs: true,
+  blockAllMedia: true,
+})
 
 // A hung subresource can keep `load` from firing.
 export const LOAD_TIMEOUT_MS = 10_000
@@ -14,14 +18,15 @@ function afterLoad(run: () => void): void {
     run()
     return
   }
-  let done = false
-  const once = () => {
-    if (done) return
-    done = true
+  const onLoad = () => {
+    clearTimeout(timer)
     run()
   }
-  window.addEventListener('load', once, { once: true })
-  setTimeout(once, LOAD_TIMEOUT_MS)
+  const timer = setTimeout(() => {
+    window.removeEventListener('load', onLoad)
+    run()
+  }, LOAD_TIMEOUT_MS)
+  window.addEventListener('load', onLoad, { once: true })
 }
 
 function whenIdle(run: () => void): void {
