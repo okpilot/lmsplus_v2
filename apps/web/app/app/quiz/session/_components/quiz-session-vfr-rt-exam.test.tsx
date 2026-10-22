@@ -105,9 +105,9 @@ describe('QuizSession — VFR RT exam non-MC answering', () => {
     expect(screen.getByTestId('short-answer-input')).toHaveValue('Golf Alpha')
   })
 
-  it('restores a locked ordering answer after a remount', () => {
+  it('restores a locked ordering answer after a remount', async () => {
     renderExam([ORDERING], { 'q-order': { order: ['i2', 'i1'], responseTimeMs: 900 } })
-    expect(screen.getByText('First call')).toBeInTheDocument()
+    expect(await screen.findByText('First call')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Submit Answer' })).not.toBeInTheDocument()
     expect(screen.queryByTestId('ordering-result')).not.toBeInTheDocument()
   })

@@ -3,6 +3,7 @@
 import { QuestionTabs } from '../../_components/question-tabs'
 import type { QuizSessionProps } from '../../session-types'
 import { useFlaggedQuestions } from '../_hooks/use-flagged-questions'
+import { usePreloadDragInputs } from '../_hooks/use-preload-drag-inputs'
 import { useQuizRunnerUI } from '../_hooks/use-quiz-runner-ui'
 import { useQuizState } from '../_hooks/use-quiz-state'
 import { useQuizTimer } from '../_hooks/use-quiz-timer'
@@ -16,6 +17,7 @@ import { QuizSessionMetaRow } from './quiz-session-meta-row'
 
 export function QuizSession(props: Readonly<QuizSessionProps>) {
   const s = useQuizState(props)
+  usePreloadDragInputs(props.questions)
   const isDiscovery = props.mode === 'discovery'
   const ui = useQuizRunnerUI(s, { isDiscovery })
   const { activeTab, setActiveTab, effectiveTab, leave } = ui
