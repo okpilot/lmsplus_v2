@@ -1,18 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SENTRY_DATA_COLLECTION } from './sentry-data-collection'
 
-const { initSpy, replayIntegrationSpy, captureRouterTransitionStart } = vi.hoisted(() => ({
+const { initSpy, loadReplayAfterPageLoadSpy, captureRouterTransitionStart } = vi.hoisted(() => ({
   initSpy: vi.fn(),
-  replayIntegrationSpy: vi.fn(() => ({ name: 'Replay' })),
+  loadReplayAfterPageLoadSpy: vi.fn(),
   captureRouterTransitionStart: vi.fn(),
 }))
 
 vi.mock('@sentry/nextjs', () => ({
   init: initSpy,
-  replayIntegration: replayIntegrationSpy,
   captureRouterTransitionStart,
   getClient: () => undefined,
 }))
+
+vi.mock('./sentry-lazy-replay', () => ({ loadReplayAfterPageLoad: loadReplayAfterPageLoadSpy }))
 
 // @sentry/core 11.4.0 build/cjs/vendor/getIpAddress.js ipHeaderNames, plus Vercel's
 // identifying and geolocation headers (vercel.com/docs/headers/request-headers).
@@ -44,7 +45,7 @@ describe('Sentry init options', () => {
   beforeEach(() => {
     vi.resetModules()
     initSpy.mockClear()
-    replayIntegrationSpy.mockClear()
+    loadReplayAfterPageLoadSpy.mockClear()
     vi.stubGlobal('location', { pathname: '/app/dashboard' })
   })
 
@@ -71,27 +72,22 @@ describe('Sentry init options', () => {
     )
   })
 
-  it('browser replay masks all text and inputs and blocks media', async () => {
+  it('browser config does not register replay at init', async () => {
     await import('./instrumentation-client')
-    expect(replayIntegrationSpy).toHaveBeenCalledWith({
-      maskAllText: true,
-      maskAllInputs: true,
-      blockAllMedia: true,
-    })
+    expect(initSpy.mock.calls[0]?.[0]).not.toHaveProperty('integrations')
   })
 
   it('browser config omits replay on the set-password page where a live token is in the URL', async () => {
     vi.stubGlobal('location', { pathname: '/auth/set-password' })
     await import('./instrumentation-client')
-    expect(replayIntegrationSpy).not.toHaveBeenCalled()
-    const options = initSpy.mock.calls[0]?.[0] as { integrations: unknown[] }
-    expect(options.integrations).toEqual([])
+    expect(initSpy.mock.calls[0]?.[0]).not.toHaveProperty('integrations')
+    expect(loadReplayAfterPageLoadSpy).not.toHaveBeenCalled()
   })
 
-  it('browser config keeps replay on other paths', async () => {
-    vi.stubGlobal('location', { pathname: '/app/dashboard' })
+  it('browser config loads replay after the page has loaded on other paths', async () => {
     await import('./instrumentation-client')
-    expect(replayIntegrationSpy).toHaveBeenCalledTimes(1)
+    expect(loadReplayAfterPageLoadSpy).toHaveBeenCalledTimes(1)
+    expect(loadReplayAfterPageLoadSpy).toHaveBeenCalledWith()
   })
 
   it.each([
