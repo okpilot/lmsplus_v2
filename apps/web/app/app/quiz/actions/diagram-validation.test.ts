@@ -18,6 +18,22 @@ describe('diagram-validation constants', () => {
 })
 
 describe('isDiagramMappingEntry', () => {
+  it('accepts a 200-character id', () => {
+    const id = 'a'.repeat(200)
+    expect(isDiagramMappingEntry({ zoneId: id, labelId: id })).toBe(true)
+  })
+
+  it('rejects a 201-character id', () => {
+    const id = 'a'.repeat(201)
+    expect(isDiagramMappingEntry({ zoneId: id, labelId: 'l1' })).toBe(false)
+    expect(isDiagramMappingEntry({ zoneId: 'z1', labelId: id })).toBe(false)
+  })
+
+  it('accepts an id whose trimmed length is 200', () => {
+    const id = `  ${'a'.repeat(200)}  `
+    expect(isDiagramMappingEntry({ zoneId: id, labelId: 'l1' })).toBe(true)
+  })
+
   it('accepts a well-formed {zoneId, labelId} pair', () => {
     expect(isDiagramMappingEntry({ zoneId: 'z1', labelId: 'l1' })).toBe(true)
   })
