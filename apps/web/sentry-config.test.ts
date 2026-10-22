@@ -1,18 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SENTRY_DATA_COLLECTION } from './sentry-data-collection'
 
-const { initSpy, replayIntegrationSpy, captureRouterTransitionStart } = vi.hoisted(() => ({
-  initSpy: vi.fn(),
-  replayIntegrationSpy: vi.fn(() => ({ name: 'Replay' })),
-  captureRouterTransitionStart: vi.fn(),
-}))
+const { initSpy, loadReplayAfterPaintSpy, addIntegration, captureRouterTransitionStart } =
+  vi.hoisted(() => ({
+    initSpy: vi.fn(),
+    loadReplayAfterPaintSpy: vi.fn(),
+    addIntegration: vi.fn(),
+    captureRouterTransitionStart: vi.fn(),
+  }))
 
 vi.mock('@sentry/nextjs', () => ({
   init: initSpy,
-  replayIntegration: replayIntegrationSpy,
+  addIntegration,
   captureRouterTransitionStart,
   getClient: () => undefined,
 }))
+
+vi.mock('./sentry-lazy-replay', () => ({ loadReplayAfterPaint: loadReplayAfterPaintSpy }))
 
 // @sentry/core 11.4.0 build/cjs/vendor/getIpAddress.js ipHeaderNames, plus Vercel's
 // identifying and geolocation headers (vercel.com/docs/headers/request-headers).
@@ -44,7 +48,7 @@ describe('Sentry init options', () => {
   beforeEach(() => {
     vi.resetModules()
     initSpy.mockClear()
-    replayIntegrationSpy.mockClear()
+    loadReplayAfterPaintSpy.mockClear()
     vi.stubGlobal('location', { pathname: '/app/dashboard' })
   })
 
@@ -71,27 +75,22 @@ describe('Sentry init options', () => {
     )
   })
 
-  it('browser replay masks all text and inputs and blocks media', async () => {
+  it('browser config does not register replay at init', async () => {
     await import('./instrumentation-client')
-    expect(replayIntegrationSpy).toHaveBeenCalledWith({
-      maskAllText: true,
-      maskAllInputs: true,
-      blockAllMedia: true,
-    })
+    const options = initSpy.mock.calls[0]?.[0] as { integrations: unknown[] }
+    expect(options.integrations).toEqual([])
   })
 
   it('browser config omits replay on the set-password page where a live token is in the URL', async () => {
     vi.stubGlobal('location', { pathname: '/auth/set-password' })
     await import('./instrumentation-client')
-    expect(replayIntegrationSpy).not.toHaveBeenCalled()
-    const options = initSpy.mock.calls[0]?.[0] as { integrations: unknown[] }
-    expect(options.integrations).toEqual([])
+    expect(loadReplayAfterPaintSpy).not.toHaveBeenCalled()
   })
 
-  it('browser config keeps replay on other paths', async () => {
-    vi.stubGlobal('location', { pathname: '/app/dashboard' })
+  it('browser config loads replay after first paint on other paths', async () => {
     await import('./instrumentation-client')
-    expect(replayIntegrationSpy).toHaveBeenCalledTimes(1)
+    expect(loadReplayAfterPaintSpy).toHaveBeenCalledTimes(1)
+    expect(loadReplayAfterPaintSpy).toHaveBeenCalledWith(addIntegration)
   })
 
   it.each([

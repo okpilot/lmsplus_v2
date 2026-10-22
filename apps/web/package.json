@@ -27,6 +27,7 @@
     "@repo/db": "workspace:*",
     "@repo/ui": "workspace:*",
     "@sentry/nextjs": "^11.4.0",
+    "@sentry/replay": "^11.4.0",
     "@tailwindcss/typography": "^0.5.20",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
