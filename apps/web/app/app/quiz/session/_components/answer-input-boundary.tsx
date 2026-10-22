@@ -6,7 +6,7 @@ import { StatusNote } from '@/components/kit/status-note'
 import { Button } from '@/components/ui/button'
 import { isStaleDeploymentError } from '@/lib/stale-deployment'
 
-type State = { error: unknown | null }
+type State = { error: unknown }
 
 function reloadPage() {
   window.location.reload()
