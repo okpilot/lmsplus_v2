@@ -3,6 +3,14 @@
 import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { isStaleDeploymentError, reloadOnceForStaleDeployment } from '@/lib/stale-deployment'
+import { afterPageLoad } from '@/lib/utils/after-page-load'
+
+// Kept out of the first-load bundle; warmed after page load so sign-out works offline.
+if (typeof window !== 'undefined') {
+  afterPageLoad(() => {
+    import('@repo/db/client').catch(() => {})
+  })
+}
 
 /** Resolves to the error only when sign-out failed and a local session remains. */
 async function signOutClient() {

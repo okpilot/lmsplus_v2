@@ -10,11 +10,15 @@ const mockAssign = vi.fn()
 const mockIsStale = vi.fn()
 const mockReloadStale = vi.fn()
 const originalLocation = window.location
+const { warmUps } = vi.hoisted(() => ({ warmUps: [] as Array<() => void> }))
 
 vi.mock('sonner', () => ({ toast: { error: (...a: unknown[]) => mockToastError(...a) } }))
 vi.mock('@/lib/stale-deployment', () => ({
   isStaleDeploymentError: (...a: unknown[]) => mockIsStale(...a),
   reloadOnceForStaleDeployment: () => mockReloadStale(),
+}))
+vi.mock('@/lib/utils/after-page-load', () => ({
+  afterPageLoad: (run: () => void) => warmUps.push(run),
 }))
 vi.mock('@repo/db/client', () => ({
   createClient: () => {
@@ -216,6 +220,33 @@ describe('useSignOut', () => {
       expect(mockReloadStale).toHaveBeenCalledOnce()
       expect(mockToastError).not.toHaveBeenCalled()
       expect(mockAssign).not.toHaveBeenCalled()
+    } finally {
+      vi.doMock('@repo/db/client', () => ({
+        createClient: () => {
+          mockCreateClient()
+          return { auth: { signOut: mockSignOut, getSession: mockGetSession } }
+        },
+      }))
+      vi.resetModules()
+    }
+  })
+
+  it('loads the auth client after page load, before any sign-out click', async () => {
+    let loads = 0
+    warmUps.length = 0
+    vi.resetModules()
+    vi.doMock('@repo/db/client', () => {
+      loads++
+      return {
+        createClient: () => ({ auth: { signOut: mockSignOut, getSession: mockGetSession } }),
+      }
+    })
+    try {
+      await import('./use-sign-out')
+      expect(loads).toBe(0)
+      expect(warmUps).toHaveLength(1)
+      warmUps[0]?.()
+      await vi.waitFor(() => expect(loads).toBe(1))
     } finally {
       vi.doMock('@repo/db/client', () => ({
         createClient: () => {
