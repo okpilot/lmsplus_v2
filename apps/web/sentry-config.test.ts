@@ -84,24 +84,19 @@ describe('Sentry init options', () => {
 
   it('browser config does not register replay at init', async () => {
     await import('./instrumentation-client')
-    const options = initSpy.mock.calls[0]?.[0] as { integrations: unknown[] }
-    expect(options.integrations).toEqual([])
+    expect(initSpy.mock.calls[0]?.[0]).not.toHaveProperty('integrations')
   })
 
   it('browser config omits replay on the set-password page where a live token is in the URL', async () => {
     vi.stubGlobal('location', { pathname: '/auth/set-password' })
     await import('./instrumentation-client')
-    const options = initSpy.mock.calls[0]?.[0] as { integrations: unknown[] }
-    expect(options.integrations).toEqual([])
     expect(loadReplayAfterPaintSpy).not.toHaveBeenCalled()
   })
 
   it('browser config loads replay after first paint on other paths', async () => {
     await import('./instrumentation-client')
     expect(loadReplayAfterPaintSpy).toHaveBeenCalledTimes(1)
-    expect(loadReplayAfterPaintSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ addIntegration, captureException }),
-    )
+    expect(loadReplayAfterPaintSpy).toHaveBeenCalledWith({ addIntegration, captureException })
   })
 
   it.each([

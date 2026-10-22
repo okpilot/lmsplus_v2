@@ -10,6 +10,7 @@ const { replayIntegrationSpy, integration } = vi.hoisted(() => {
 vi.mock('@sentry/replay', () => ({ replayIntegration: replayIntegrationSpy }))
 
 async function flush() {
+  await vi.dynamicImportSettled()
   for (let i = 0; i < 5; i++) await Promise.resolve()
 }
 
@@ -93,20 +94,6 @@ describe('loading Sentry Replay after first paint', () => {
     expect(idle).toHaveBeenCalledWith(expect.any(Function), { timeout: IDLE_TIMEOUT_MS })
   })
 
-  it('warns, reports to Sentry and adds nothing when replay setup throws', async () => {
-    setReadyState('complete')
-    replayIntegrationSpy.mockImplementation(() => {
-      throw new Error('setup failed')
-    })
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const sentry = fakeSentry()
-    loadReplayAfterPaint(sentry)
-    await vi.runAllTimersAsync()
-    await flush()
-    expect(sentry.addIntegration).not.toHaveBeenCalled()
-    expect(warn).toHaveBeenCalledWith('[sentry] replay failed to load or set up', expect.any(Error))
-    expect(sentry.captureException).toHaveBeenCalledWith(expect.any(Error))
-  })
   it('warns, reports to Sentry and adds nothing when the replay chunk fails to load', async () => {
     setReadyState('complete')
     vi.resetModules()
@@ -128,7 +115,23 @@ describe('loading Sentry Replay after first paint', () => {
       expect(sentry.captureException).toHaveBeenCalledWith(expect.any(Error))
     } finally {
       vi.doMock('@sentry/replay', () => ({ replayIntegration: replayIntegrationSpy }))
+      vi.resetModules()
     }
+  })
+
+  it('warns, reports to Sentry and adds nothing when replay setup throws', async () => {
+    setReadyState('complete')
+    replayIntegrationSpy.mockImplementation(() => {
+      throw new Error('setup failed')
+    })
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const sentry = fakeSentry()
+    loadReplayAfterPaint(sentry)
+    await vi.runAllTimersAsync()
+    await flush()
+    expect(sentry.addIntegration).not.toHaveBeenCalled()
+    expect(warn).toHaveBeenCalledWith('[sentry] replay failed to load or set up', expect.any(Error))
+    expect(sentry.captureException).toHaveBeenCalledWith(expect.any(Error))
   })
 })
 
