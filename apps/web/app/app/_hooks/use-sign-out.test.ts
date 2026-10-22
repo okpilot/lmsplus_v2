@@ -171,6 +171,14 @@ describe('useSignOut', () => {
       expect(mockToastError).toHaveBeenCalledWith('Sign-out failed. Please try again.')
       expect(mockAssign).not.toHaveBeenCalled()
       expect(result.current.pending).toBe(false)
+
+      vi.doMock('@repo/db/client', () => ({
+        createClient: () => ({ auth: { signOut: mockSignOut, getSession: mockGetSession } }),
+      }))
+      await act(async () => {
+        await result.current.signOut()
+      })
+      expect(mockAssign).toHaveBeenCalledWith('/')
     } finally {
       vi.doMock('@repo/db/client', () => ({
         createClient: () => {
