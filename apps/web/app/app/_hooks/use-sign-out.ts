@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { toast } from 'sonner'
+import { isStaleDeploymentError, reloadOnceForStaleDeployment } from '@/lib/stale-deployment'
 
 /** Resolves to the error only when sign-out failed and a local session remains. */
 async function signOutClient() {
@@ -35,6 +36,7 @@ export function useSignOut() {
       const error = await signOutClient()
       if (error) return failSignOut(error)
     } catch (error) {
+      if (isStaleDeploymentError(error) && reloadOnceForStaleDeployment()) return
       return failSignOut(error)
     }
     // Full document load: drops the signed-out user's client router cache.
