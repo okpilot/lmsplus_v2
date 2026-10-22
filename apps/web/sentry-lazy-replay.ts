@@ -8,9 +8,7 @@ export const REPLAY_OPTIONS = Object.freeze({
   blockAllMedia: true,
 })
 
-/**
- * Loads Replay out of the first-load bundle once the page has loaded and the browser is idle.
- */
+/** Loads Replay out of the first-load bundle, scheduled by afterPageLoad. */
 export function loadReplayAfterPageLoad(): void {
   // `addIntegration` sets up even on a disabled client; `init` does not.
   if (!isEnabled()) return

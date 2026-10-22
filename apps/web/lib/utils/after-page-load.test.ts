@@ -24,10 +24,10 @@ describe('running work after the page has loaded', () => {
   it('runs once the page has loaded and the browser is idle', async () => {
     setReadyState('loading')
     afterPageLoad(run)
-    await vi.advanceTimersByTimeAsync(LOAD_TIMEOUT_MS - 1)
+    await vi.advanceTimersByTimeAsync(LOAD_TIMEOUT_MS / 2)
     expect(run).not.toHaveBeenCalled()
     window.dispatchEvent(new Event('load'))
-    await vi.runAllTimersAsync()
+    await vi.advanceTimersByTimeAsync(1)
     expect(run).toHaveBeenCalledTimes(1)
   })
 
@@ -43,7 +43,9 @@ describe('running work after the page has loaded', () => {
     setReadyState('loading')
     afterPageLoad(run)
     window.dispatchEvent(new Event('load'))
-    await vi.runAllTimersAsync()
+    await vi.advanceTimersByTimeAsync(1)
+    expect(run).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(LOAD_TIMEOUT_MS * 2)
     expect(run).toHaveBeenCalledTimes(1)
   })
 
