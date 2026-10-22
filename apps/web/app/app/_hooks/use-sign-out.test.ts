@@ -1,4 +1,4 @@
-import { act, renderHook } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useSignOut } from './use-sign-out'
 
@@ -7,9 +7,19 @@ const mockGetSession = vi.fn()
 const mockCreateClient = vi.fn()
 const mockToastError = vi.fn()
 const mockAssign = vi.fn()
+const mockIsStale = vi.fn()
+const mockReloadStale = vi.fn()
 const originalLocation = window.location
+const { warmUps } = vi.hoisted(() => ({ warmUps: [] as Array<() => void> }))
 
 vi.mock('sonner', () => ({ toast: { error: (...a: unknown[]) => mockToastError(...a) } }))
+vi.mock('@/lib/stale-deployment', () => ({
+  isStaleDeploymentError: (...a: unknown[]) => mockIsStale(...a),
+  reloadOnceForStaleDeployment: () => mockReloadStale(),
+}))
+vi.mock('@/lib/utils/after-page-load', () => ({
+  afterPageLoad: (run: () => void) => warmUps.push(run),
+}))
 vi.mock('@repo/db/client', () => ({
   createClient: () => {
     mockCreateClient()
@@ -20,6 +30,8 @@ vi.mock('@repo/db/client', () => ({
 describe('useSignOut', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockIsStale.mockReturnValue(false)
+    mockReloadStale.mockReturnValue(false)
     mockSignOut.mockResolvedValue({})
     mockGetSession.mockResolvedValue({ data: { session: { access_token: 't' } } })
     vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -64,6 +76,7 @@ describe('useSignOut', () => {
       void result.current.signOut()
     })
 
+    await waitFor(() => expect(mockSignOut).toHaveBeenCalled())
     expect(mockSignOut).toHaveBeenCalledOnce()
   })
 
@@ -152,5 +165,96 @@ describe('useSignOut', () => {
     })
 
     expect(mockCreateClient).toHaveBeenCalledOnce()
+  })
+
+  it('shows the failure toast and allows a retry when the auth client fails to load', async () => {
+    vi.resetModules()
+    vi.doMock('@repo/db/client', () => {
+      throw new Error('chunk failed')
+    })
+    try {
+      const { useSignOut: useFreshSignOut } = await import('./use-sign-out')
+      const { result } = renderHook(() => useFreshSignOut())
+
+      await act(async () => {
+        await result.current.signOut()
+      })
+
+      expect(mockToastError).toHaveBeenCalledWith('Sign-out failed. Please try again.')
+      expect(mockAssign).not.toHaveBeenCalled()
+      expect(result.current.pending).toBe(false)
+
+      vi.doMock('@repo/db/client', () => ({
+        createClient: () => ({ auth: { signOut: mockSignOut, getSession: mockGetSession } }),
+      }))
+      await act(async () => {
+        await result.current.signOut()
+      })
+      expect(mockAssign).toHaveBeenCalledWith('/')
+    } finally {
+      vi.doMock('@repo/db/client', () => ({
+        createClient: () => {
+          mockCreateClient()
+          return { auth: { signOut: mockSignOut, getSession: mockGetSession } }
+        },
+      }))
+      vi.resetModules()
+    }
+  })
+
+  it('reloads the page instead of showing a failure when a new deployment replaced the auth client', async () => {
+    mockIsStale.mockReturnValue(true)
+    mockReloadStale.mockReturnValue(true)
+    vi.resetModules()
+    vi.doMock('@repo/db/client', () => {
+      throw new Error('chunk failed')
+    })
+    try {
+      const { useSignOut: useFreshSignOut } = await import('./use-sign-out')
+      const { result } = renderHook(() => useFreshSignOut())
+
+      await act(async () => {
+        await result.current.signOut()
+      })
+
+      expect(mockReloadStale).toHaveBeenCalledOnce()
+      expect(mockToastError).not.toHaveBeenCalled()
+      expect(mockAssign).not.toHaveBeenCalled()
+    } finally {
+      vi.doMock('@repo/db/client', () => ({
+        createClient: () => {
+          mockCreateClient()
+          return { auth: { signOut: mockSignOut, getSession: mockGetSession } }
+        },
+      }))
+      vi.resetModules()
+    }
+  })
+
+  it('loads the auth client after page load, before any sign-out click', async () => {
+    let loads = 0
+    warmUps.length = 0
+    vi.resetModules()
+    vi.doMock('@repo/db/client', () => {
+      loads++
+      return {
+        createClient: () => ({ auth: { signOut: mockSignOut, getSession: mockGetSession } }),
+      }
+    })
+    try {
+      await import('./use-sign-out')
+      expect(loads).toBe(0)
+      expect(warmUps).toHaveLength(1)
+      warmUps[0]?.()
+      await vi.waitFor(() => expect(loads).toBe(1))
+    } finally {
+      vi.doMock('@repo/db/client', () => ({
+        createClient: () => {
+          mockCreateClient()
+          return { auth: { signOut: mockSignOut, getSession: mockGetSession } }
+        },
+      }))
+      vi.resetModules()
+    }
   })
 })

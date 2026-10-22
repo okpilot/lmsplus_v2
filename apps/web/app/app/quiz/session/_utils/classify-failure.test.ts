@@ -1,7 +1,12 @@
 import { AuthRetryableFetchError } from '@supabase/supabase-js'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockGetUser } = vi.hoisted(() => ({ mockGetUser: vi.fn() }))
+const { mockGetUser, mockAfterPageLoad } = vi.hoisted(() => ({
+  mockGetUser: vi.fn(),
+  mockAfterPageLoad: vi.fn(),
+}))
+
+vi.mock('@/lib/utils/after-page-load', () => ({ afterPageLoad: mockAfterPageLoad }))
 
 vi.mock('@repo/db/client', () => ({
   createClient: () => ({ auth: { getUser: (...a: unknown[]) => mockGetUser(...a) } }),
@@ -62,6 +67,14 @@ describe('classifyFailure', () => {
       error: new AuthRetryableFetchError('unavailable', 503),
     })
     await expect(linkIsDown()).resolves.toBe(false)
+  })
+
+  it('stays undecided on an HTTP 503 from the auth probe: offline when the server did not answer', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: null },
+      error: new AuthRetryableFetchError('unavailable', 503),
+    })
+    await expect(classifyFailure()).resolves.toBe('offline')
   })
 
   it('reports offline when the auth probe error has status 0', async () => {
@@ -176,5 +189,65 @@ describe('linkIsDown', () => {
   it('is false when the auth probe reaches the server', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u' } }, error: null })
     await expect(linkIsDown()).resolves.toBe(false)
+  })
+})
+
+describe('classifyFailure when the auth client chunk cannot be loaded', () => {
+  const offlineClient = () => ({
+    createClient: () => ({
+      auth: { getUser: async () => ({ data: { user: null }, error: { status: 0, name: 'X' } }) },
+    }),
+  })
+
+  async function loadWithClient(factory: () => Record<string, unknown>) {
+    vi.resetModules()
+    vi.doMock('@repo/db/client', factory)
+    return import('./classify-failure')
+  }
+
+  afterEach(() => {
+    vi.doMock('@repo/db/client', () => ({
+      createClient: () => ({ auth: { getUser: (...a: unknown[]) => mockGetUser(...a) } }),
+    }))
+    vi.resetModules()
+  })
+
+  it('stays undecided: offline without a server answer, server with one, never a definite link-down', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const mod = await loadWithClient(() => {
+      throw new Error('chunk failed')
+    })
+    await expect(mod.classifyFailure()).resolves.toBe('offline')
+    await expect(mod.classifyFailure(undefined, true)).resolves.toBe('server')
+    await expect(mod.linkIsDown()).resolves.toBe(false)
+    expect(warn).toHaveBeenCalledWith(
+      '[classify-failure] auth client failed to load (best-effort):',
+      expect.any(Error),
+    )
+  })
+
+  it('retries the load on the next failure after a load failure', async () => {
+    let calls = 0
+    const mod = await loadWithClient(() => {
+      calls += 1
+      if (calls === 1) throw new Error('chunk failed')
+      return offlineClient()
+    })
+    await expect(mod.classifyFailure(undefined, true)).resolves.toBe('server')
+    await expect(mod.classifyFailure(undefined, true)).resolves.toBe('offline')
+  })
+
+  it('loads the client after the page has loaded, before any failure needs it', async () => {
+    let loads = 0
+    const mod = await loadWithClient(() => {
+      loads += 1
+      return offlineClient()
+    })
+    expect(mockAfterPageLoad).toHaveBeenCalledTimes(1)
+    expect(loads).toBe(0)
+    mockAfterPageLoad.mock.calls[0]?.[0]()
+    await vi.waitFor(() => expect(loads).toBe(1))
+    await expect(mod.classifyFailure(undefined, true)).resolves.toBe('offline')
+    expect(loads).toBe(1)
   })
 })

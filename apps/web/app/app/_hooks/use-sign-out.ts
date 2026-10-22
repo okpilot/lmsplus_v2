@@ -1,11 +1,20 @@
 'use client'
 
-import { createClient } from '@repo/db/client'
 import { useRef, useState } from 'react'
 import { toast } from 'sonner'
+import { isStaleDeploymentError, reloadOnceForStaleDeployment } from '@/lib/stale-deployment'
+import { afterPageLoad } from '@/lib/utils/after-page-load'
+
+// Kept out of the first-load bundle; warmed after page load so sign-out works offline.
+if (typeof window !== 'undefined') {
+  afterPageLoad(() => {
+    import('@repo/db/client').catch(() => {})
+  })
+}
 
 /** Resolves to the error only when sign-out failed and a local session remains. */
 async function signOutClient() {
+  const { createClient } = await import('@repo/db/client')
   const supabase = createClient()
   const { error } = await supabase.auth.signOut()
   if (!error) return null
@@ -35,6 +44,7 @@ export function useSignOut() {
       const error = await signOutClient()
       if (error) return failSignOut(error)
     } catch (error) {
+      if (isStaleDeploymentError(error) && reloadOnceForStaleDeployment()) return
       return failSignOut(error)
     }
     // Full document load: drops the signed-out user's client router cache.

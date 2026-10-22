@@ -1,5 +1,5 @@
-import { createClient } from '@repo/db/client'
-import { type AuthError, isAuthRetryableFetchError } from '@supabase/supabase-js'
+import type { AuthError } from '@supabase/supabase-js'
+import { afterPageLoad } from '@/lib/utils/after-page-load'
 import { withTimeout } from '@/lib/utils/with-timeout'
 
 export type FailureKind = 'offline' | 'signed-out' | 'server'
@@ -21,12 +21,34 @@ function isSignedOutError(error: AuthError): boolean {
   return error.code !== undefined && SIGNED_OUT_CODES.has(error.code)
 }
 
+// Kept out of the first-load bundle; warmed after page load so a failure can be probed offline.
+let auth: Promise<typeof import('@repo/db/client')> | null = null
+
+function loadAuth() {
+  auth ??= import('@repo/db/client').catch((error: unknown) => {
+    auth = null
+    throw error
+  })
+  return auth
+}
+
+if (typeof window !== 'undefined') {
+  afterPageLoad(() => {
+    loadAuth().catch(() => {})
+  })
+}
+
 async function probe(): Promise<Decision> {
-  const { data, error } = await createClient().auth.getUser()
+  const mod = await loadAuth().catch((error: unknown) => {
+    console.warn('[classify-failure] auth client failed to load (best-effort):', error)
+    return null
+  })
+  if (!mod) return 'unknown'
+  const { data, error } = await mod.createClient().auth.getUser()
   if (error) {
     if (error.status === 0) return 'offline'
     // The Auth server answered with a 5xx: the link is up, so this is undecided, not offline.
-    if (isAuthRetryableFetchError(error)) return 'unknown'
+    if (error.name === 'AuthRetryableFetchError') return 'unknown'
     return isSignedOutError(error) ? 'signed-out' : 'server'
   }
   return data.user ? 'server' : 'signed-out'
@@ -35,7 +57,7 @@ async function probe(): Promise<Decision> {
 /**
  * Decides why a Server Action call failed. Offline browser → offline; otherwise a bounded
  * browser-side auth probe: fetch failure (no response, status 0) → offline; an Auth 5xx →
- * undecided; missing session, 401/403 or a dead refresh token → signed-out; no user and no
+ * undecided; an auth client that cannot be loaded → undecided; missing session, 401/403 or a dead refresh token → signed-out; no user and no
  * error → signed-out; anything else → server. A probe that throws is a client bug, not a fetch
  * failure (getUser returns those as errors) → server, whatever `responded` is. A probe that
  * times out is undecided, not offline: undecided → server when `responded`, else offline.
