@@ -2,7 +2,7 @@
 // check-non-mc-answer-helpers.ts to keep that file ≤200 lines
 // (code-style.md §1).
 import { z } from 'zod'
-import { DiagramMappingSchema } from './diagram-validation'
+import { DiagramMappingSchema } from './diagram-mapping-schema'
 import { isUniquePermutation, MAX_ORDER_ITEMS, MIN_ORDER_ITEMS } from './ordering-validation'
 
 const MAX_DIALOG_BLANKS = 50

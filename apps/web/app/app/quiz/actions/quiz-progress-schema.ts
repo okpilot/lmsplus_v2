@@ -8,7 +8,7 @@ import {
   ResponseTextField,
   TimeSpentMs,
 } from './check-non-mc-answer-schema'
-import { DiagramMappingSchema } from './diagram-validation'
+import { DiagramMappingSchema } from './diagram-mapping-schema'
 
 // Strict members: a mixed payload ({responseText, order}) is rejected, not silently stripped.
 const ProgressAnswer = z.union([
