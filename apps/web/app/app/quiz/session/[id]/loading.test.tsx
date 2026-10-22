@@ -6,7 +6,9 @@ describe('QuizSessionLoading', () => {
   it('shows the visible loading text', () => {
     render(<QuizSessionLoading />)
 
-    expect(screen.getByText('Loading questions…')).toBeInTheDocument()
+    const label = screen.getByText('Loading questions…')
+    expect(label).not.toHaveClass('sr-only')
+    expect(label.closest('[aria-hidden="true"]')).toBeNull()
   })
 
   it('marks the main region busy', () => {
