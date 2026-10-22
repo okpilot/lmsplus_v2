@@ -8,7 +8,9 @@ export default function QuizSessionLoading() {
   return (
     <main aria-busy="true" className="flex flex-1 flex-col">
       <div className="flex items-center justify-between border-b border-border px-4 py-2">
-        <span className="text-sm leading-8 font-medium text-muted-foreground">Loading quiz…</span>
+        <span className="text-sm leading-8 font-medium text-muted-foreground">
+          Loading questions…
+        </span>
       </div>
       <div className="px-4 pt-4 pb-32 md:px-8 md:pb-24">
         <div className="mx-auto max-w-3xl space-y-4">
