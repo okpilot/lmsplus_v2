@@ -1,4 +1,4 @@
-import { act, renderHook } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useSignOut } from './use-sign-out'
 
@@ -64,6 +64,7 @@ describe('useSignOut', () => {
       void result.current.signOut()
     })
 
+    await waitFor(() => expect(mockSignOut).toHaveBeenCalled())
     expect(mockSignOut).toHaveBeenCalledOnce()
   })
 
@@ -152,5 +153,32 @@ describe('useSignOut', () => {
     })
 
     expect(mockCreateClient).toHaveBeenCalledOnce()
+  })
+
+  it('shows the failure toast and allows a retry when the auth client fails to load', async () => {
+    vi.resetModules()
+    vi.doMock('@repo/db/client', () => {
+      throw new Error('chunk failed')
+    })
+    try {
+      const { useSignOut: useFreshSignOut } = await import('./use-sign-out')
+      const { result } = renderHook(() => useFreshSignOut())
+
+      await act(async () => {
+        await result.current.signOut()
+      })
+
+      expect(mockToastError).toHaveBeenCalledWith('Sign-out failed. Please try again.')
+      expect(mockAssign).not.toHaveBeenCalled()
+      expect(result.current.pending).toBe(false)
+    } finally {
+      vi.doMock('@repo/db/client', () => ({
+        createClient: () => {
+          mockCreateClient()
+          return { auth: { signOut: mockSignOut, getSession: mockGetSession } }
+        },
+      }))
+      vi.resetModules()
+    }
   })
 })

@@ -1,11 +1,11 @@
 'use client'
 
-import { createClient } from '@repo/db/client'
 import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 /** Resolves to the error only when sign-out failed and a local session remains. */
 async function signOutClient() {
+  const { createClient } = await import('@repo/db/client')
   const supabase = createClient()
   const { error } = await supabase.auth.signOut()
   if (!error) return null

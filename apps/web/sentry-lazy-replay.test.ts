@@ -1,11 +1,7 @@
 import { createRequire } from 'node:module'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import {
-  IDLE_TIMEOUT_MS,
-  LOAD_TIMEOUT_MS,
-  loadReplayAfterPageLoad,
-  REPLAY_OPTIONS,
-} from './sentry-lazy-replay'
+import { LOAD_TIMEOUT_MS } from '@/lib/utils/after-page-load'
+import { loadReplayAfterPageLoad, REPLAY_OPTIONS } from './sentry-lazy-replay'
 
 const { replayIntegrationSpy, integration, addIntegration, captureException, isEnabled } =
   vi.hoisted(() => {
@@ -63,42 +59,6 @@ describe('loading Sentry Replay after the page has loaded', () => {
     expect(addIntegration).toHaveBeenCalledWith(integration)
   })
 
-  it('starts anyway when the load event never fires', async () => {
-    setReadyState('loading')
-    loadReplayAfterPageLoad()
-    await vi.advanceTimersByTimeAsync(LOAD_TIMEOUT_MS)
-    await vi.runAllTimersAsync()
-    await flush()
-    expect(addIntegration).toHaveBeenCalledWith(integration)
-  })
-
-  it('adds replay once when load fires before the load timeout', async () => {
-    setReadyState('loading')
-    loadReplayAfterPageLoad()
-    window.dispatchEvent(new Event('load'))
-    await vi.runAllTimersAsync()
-    await flush()
-    expect(addIntegration).toHaveBeenCalledTimes(1)
-  })
-
-  it('adds replay once when load fires after the load timeout', async () => {
-    setReadyState('loading')
-    loadReplayAfterPageLoad()
-    await vi.advanceTimersByTimeAsync(LOAD_TIMEOUT_MS)
-    window.dispatchEvent(new Event('load'))
-    await vi.runAllTimersAsync()
-    await flush()
-    expect(addIntegration).toHaveBeenCalledTimes(1)
-  })
-
-  it('does not wait for a load event when the document is already complete', async () => {
-    setReadyState('complete')
-    loadReplayAfterPageLoad()
-    await vi.runAllTimersAsync()
-    await flush()
-    expect(addIntegration).toHaveBeenCalledWith(integration)
-  })
-
   it('does not load replay when Sentry is disabled or has no DSN', async () => {
     isEnabled.mockReturnValue(false)
     setReadyState('complete')
@@ -107,37 +67,6 @@ describe('loading Sentry Replay after the page has loaded', () => {
     await flush()
     expect(replayIntegrationSpy).not.toHaveBeenCalled()
     expect(addIntegration).not.toHaveBeenCalled()
-  })
-
-  it('does not add replay before the browser is idle', async () => {
-    setReadyState('complete')
-    const idle = vi.fn((_cb: () => void, _opts?: IdleRequestOptions) => 0)
-    vi.stubGlobal('requestIdleCallback', idle)
-    loadReplayAfterPageLoad()
-    await vi.runAllTimersAsync()
-    await flush()
-    expect(addIntegration).not.toHaveBeenCalled()
-    expect(idle).toHaveBeenCalledTimes(1)
-    idle.mock.calls[0]?.[0]()
-    await flush()
-    expect(addIntegration).toHaveBeenCalledWith(integration)
-  })
-
-  it('falls back to a timer when idle callbacks are unsupported', async () => {
-    setReadyState('complete')
-    vi.stubGlobal('requestIdleCallback', undefined)
-    loadReplayAfterPageLoad()
-    await vi.runAllTimersAsync()
-    await flush()
-    expect(addIntegration).toHaveBeenCalledWith(integration)
-  })
-
-  it('passes a timeout so a busy main thread cannot postpone replay indefinitely', () => {
-    setReadyState('complete')
-    const idle = vi.fn((_cb: () => void, _opts?: IdleRequestOptions) => 0)
-    vi.stubGlobal('requestIdleCallback', idle)
-    loadReplayAfterPageLoad()
-    expect(idle).toHaveBeenCalledWith(expect.any(Function), { timeout: IDLE_TIMEOUT_MS })
   })
 
   it('warns, reports to Sentry and adds nothing when the replay chunk fails to load', async () => {
