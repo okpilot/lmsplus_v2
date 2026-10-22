@@ -62,7 +62,7 @@ async function probe(): Promise<Decision> {
 /**
  * Decides why a Server Action call failed. Offline browser → offline; otherwise a bounded
  * browser-side auth probe: fetch failure (no response, status 0) → offline; an Auth 5xx →
- * undecided; missing session, 401/403 or a dead refresh token → signed-out; no user and no
+ * undecided; an auth client that cannot be loaded → undecided; missing session, 401/403 or a dead refresh token → signed-out; no user and no
  * error → signed-out; anything else → server. A probe that throws is a client bug, not a fetch
  * failure (getUser returns those as errors) → server, whatever `responded` is. A probe that
  * times out is undecided, not offline: undecided → server when `responded`, else offline.
