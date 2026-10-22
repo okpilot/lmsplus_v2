@@ -1,4 +1,5 @@
 import type { QuizState } from '../_hooks/use-quiz-state'
+import { supportsNonMcQuestions } from '../_utils/supports-non-mc-questions'
 import {
   DiagramLabelAnswer,
   DialogFillAnswer,
@@ -35,12 +36,6 @@ function AnswerControl(props: AnswerInputProps & { question: Question }) {
       // an MC-shaped payload silently.
       return <UnsupportedQuestionType message="This question type is not yet supported." />
   }
-}
-
-// mock_exam/internal_exam start RPCs do not filter by question_type; only vfr_rt_exam renders
-// non-MC answer controls in exam mode.
-export function supportsNonMcQuestions(s: Pick<QuizState, 'isExam' | 'examMode'>): boolean {
-  return !s.isExam || s.examMode === 'vfr_rt_exam'
 }
 
 export function AnswerInput(props: AnswerInputProps) {

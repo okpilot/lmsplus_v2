@@ -30,7 +30,7 @@ vi.mock('./diagram-label-input', () => ({
 
 // ---- Subject under test ----------------------------------------------------
 
-import { AnswerInput, supportsNonMcQuestions } from './answer-input'
+import { AnswerInput } from './answer-input'
 
 // ---- Helpers ---------------------------------------------------------------
 
@@ -271,16 +271,5 @@ describe('AnswerInput — exam-mode question type support', () => {
       />,
     )
     expect(await screen.findByTestId('ordering-input')).toBeInTheDocument()
-  })
-})
-
-describe('supportsNonMcQuestions', () => {
-  it.each([
-    [false, undefined, true],
-    [true, 'vfr_rt_exam', true],
-    [true, 'mock_exam', false],
-    [true, 'internal_exam', false],
-  ] as const)('isExam=%s examMode=%s supports non-MC: %s', (isExam, examMode, expected) => {
-    expect(supportsNonMcQuestions({ isExam, examMode })).toBe(expected)
   })
 })
