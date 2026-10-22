@@ -36,7 +36,7 @@ function whenIdle(run: () => void): void {
 }
 
 /** Loads Replay out of the first-load bundle, once the page has loaded and the browser is idle. */
-export function loadReplayAfterPaint(): void {
+export function loadReplayAfterPageLoad(): void {
   afterLoad(() =>
     whenIdle(() => {
       import('@sentry/replay')

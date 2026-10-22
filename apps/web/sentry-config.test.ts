@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SENTRY_DATA_COLLECTION } from './sentry-data-collection'
 
-const { initSpy, loadReplayAfterPaintSpy, captureRouterTransitionStart } = vi.hoisted(() => ({
+const { initSpy, loadReplayAfterPageLoadSpy, captureRouterTransitionStart } = vi.hoisted(() => ({
   initSpy: vi.fn(),
-  loadReplayAfterPaintSpy: vi.fn(),
+  loadReplayAfterPageLoadSpy: vi.fn(),
   captureRouterTransitionStart: vi.fn(),
 }))
 
@@ -13,7 +13,7 @@ vi.mock('@sentry/nextjs', () => ({
   getClient: () => undefined,
 }))
 
-vi.mock('./sentry-lazy-replay', () => ({ loadReplayAfterPaint: loadReplayAfterPaintSpy }))
+vi.mock('./sentry-lazy-replay', () => ({ loadReplayAfterPageLoad: loadReplayAfterPageLoadSpy }))
 
 // @sentry/core 11.4.0 build/cjs/vendor/getIpAddress.js ipHeaderNames, plus Vercel's
 // identifying and geolocation headers (vercel.com/docs/headers/request-headers).
@@ -45,7 +45,7 @@ describe('Sentry init options', () => {
   beforeEach(() => {
     vi.resetModules()
     initSpy.mockClear()
-    loadReplayAfterPaintSpy.mockClear()
+    loadReplayAfterPageLoadSpy.mockClear()
     vi.stubGlobal('location', { pathname: '/app/dashboard' })
   })
 
@@ -80,13 +80,13 @@ describe('Sentry init options', () => {
   it('browser config omits replay on the set-password page where a live token is in the URL', async () => {
     vi.stubGlobal('location', { pathname: '/auth/set-password' })
     await import('./instrumentation-client')
-    expect(loadReplayAfterPaintSpy).not.toHaveBeenCalled()
+    expect(loadReplayAfterPageLoadSpy).not.toHaveBeenCalled()
   })
 
-  it('browser config loads replay after first paint on other paths', async () => {
+  it('browser config loads replay after the page has loaded on other paths', async () => {
     await import('./instrumentation-client')
-    expect(loadReplayAfterPaintSpy).toHaveBeenCalledTimes(1)
-    expect(loadReplayAfterPaintSpy).toHaveBeenCalledWith()
+    expect(loadReplayAfterPageLoadSpy).toHaveBeenCalledTimes(1)
+    expect(loadReplayAfterPageLoadSpy).toHaveBeenCalledWith()
   })
 
   it.each([

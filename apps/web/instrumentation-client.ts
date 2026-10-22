@@ -2,7 +2,7 @@ import * as Sentry from '@sentry/nextjs'
 import { installTranslatorDomGuard } from './lib/translator-dom-guard'
 import { SENTRY_DATA_COLLECTION } from './sentry-data-collection'
 import { recordDocumentTiming } from './sentry-document-timing'
-import { loadReplayAfterPaint } from './sentry-lazy-replay'
+import { loadReplayAfterPageLoad } from './sentry-lazy-replay'
 import { SENTRY_TOKEN_SCRUB } from './sentry-token-scrub'
 import { clientTracesSampler } from './sentry-traces-sampler'
 
@@ -23,7 +23,7 @@ Sentry.init({
 })
 
 // Replay records the raw page URL; it stays off while a live token_hash is in it.
-if (window.location.pathname !== SET_PASSWORD_PATH) loadReplayAfterPaint()
+if (window.location.pathname !== SET_PASSWORD_PATH) loadReplayAfterPageLoad()
 
 recordDocumentTiming(Sentry.getClient())
 

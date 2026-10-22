@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   IDLE_TIMEOUT_MS,
   LOAD_TIMEOUT_MS,
-  loadReplayAfterPaint,
+  loadReplayAfterPageLoad,
   REPLAY_OPTIONS,
 } from './sentry-lazy-replay'
 
@@ -29,7 +29,7 @@ function setReadyState(state: DocumentReadyState) {
   vi.spyOn(document, 'readyState', 'get').mockReturnValue(state)
 }
 
-describe('loading Sentry Replay after first paint', () => {
+describe('loading Sentry Replay after the page has loaded', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     replayIntegrationSpy.mockReturnValue(integration)
@@ -50,7 +50,7 @@ describe('loading Sentry Replay after first paint', () => {
 
   it('adds the replay integration once the page has loaded and the browser is idle', async () => {
     setReadyState('loading')
-    loadReplayAfterPaint()
+    loadReplayAfterPageLoad()
     await vi.advanceTimersByTimeAsync(LOAD_TIMEOUT_MS - 1)
     expect(addIntegration).not.toHaveBeenCalled()
     window.dispatchEvent(new Event('load'))
@@ -62,7 +62,7 @@ describe('loading Sentry Replay after first paint', () => {
 
   it('starts anyway when the load event never fires', async () => {
     setReadyState('loading')
-    loadReplayAfterPaint()
+    loadReplayAfterPageLoad()
     await vi.advanceTimersByTimeAsync(LOAD_TIMEOUT_MS)
     await vi.runAllTimersAsync()
     await flush()
@@ -71,7 +71,7 @@ describe('loading Sentry Replay after first paint', () => {
 
   it('adds replay once when load fires before the load timeout', async () => {
     setReadyState('loading')
-    loadReplayAfterPaint()
+    loadReplayAfterPageLoad()
     window.dispatchEvent(new Event('load'))
     await vi.runAllTimersAsync()
     await flush()
@@ -80,7 +80,7 @@ describe('loading Sentry Replay after first paint', () => {
 
   it('adds replay once when load fires after the load timeout', async () => {
     setReadyState('loading')
-    loadReplayAfterPaint()
+    loadReplayAfterPageLoad()
     await vi.advanceTimersByTimeAsync(LOAD_TIMEOUT_MS)
     window.dispatchEvent(new Event('load'))
     await vi.runAllTimersAsync()
@@ -90,7 +90,7 @@ describe('loading Sentry Replay after first paint', () => {
 
   it('does not wait for a load event when the document is already complete', async () => {
     setReadyState('complete')
-    loadReplayAfterPaint()
+    loadReplayAfterPageLoad()
     await vi.runAllTimersAsync()
     await flush()
     expect(addIntegration).toHaveBeenCalledWith(integration)
@@ -98,20 +98,22 @@ describe('loading Sentry Replay after first paint', () => {
 
   it('does not add replay before the browser is idle', async () => {
     setReadyState('complete')
-    vi.stubGlobal(
-      'requestIdleCallback',
-      vi.fn((_cb: () => void, _opts?: IdleRequestOptions) => 0),
-    )
-    loadReplayAfterPaint()
+    const idle = vi.fn((_cb: () => void, _opts?: IdleRequestOptions) => 0)
+    vi.stubGlobal('requestIdleCallback', idle)
+    loadReplayAfterPageLoad()
     await vi.runAllTimersAsync()
     await flush()
     expect(addIntegration).not.toHaveBeenCalled()
+    expect(idle).toHaveBeenCalledTimes(1)
+    idle.mock.calls[0]?.[0]()
+    await flush()
+    expect(addIntegration).toHaveBeenCalledWith(integration)
   })
 
   it('falls back to a timer when idle callbacks are unsupported', async () => {
     setReadyState('complete')
     vi.stubGlobal('requestIdleCallback', undefined)
-    loadReplayAfterPaint()
+    loadReplayAfterPageLoad()
     await vi.runAllTimersAsync()
     await flush()
     expect(addIntegration).toHaveBeenCalledWith(integration)
@@ -121,7 +123,7 @@ describe('loading Sentry Replay after first paint', () => {
     setReadyState('complete')
     const idle = vi.fn((_cb: () => void, _opts?: IdleRequestOptions) => 0)
     vi.stubGlobal('requestIdleCallback', idle)
-    loadReplayAfterPaint()
+    loadReplayAfterPageLoad()
     expect(idle).toHaveBeenCalledWith(expect.any(Function), { timeout: IDLE_TIMEOUT_MS })
   })
 
@@ -132,7 +134,7 @@ describe('loading Sentry Replay after first paint', () => {
       throw new Error('chunk failed')
     })
     try {
-      const { loadReplayAfterPaint: load } = await import('./sentry-lazy-replay')
+      const { loadReplayAfterPageLoad: load } = await import('./sentry-lazy-replay')
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
       load()
       await vi.runAllTimersAsync()
@@ -155,7 +157,7 @@ describe('loading Sentry Replay after first paint', () => {
       throw new Error('setup failed')
     })
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    loadReplayAfterPaint()
+    loadReplayAfterPageLoad()
     await vi.runAllTimersAsync()
     await flush()
     expect(addIntegration).not.toHaveBeenCalled()
