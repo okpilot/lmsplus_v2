@@ -1,6 +1,5 @@
 'use client'
 
-import * as Sentry from '@sentry/nextjs'
 import dynamic from 'next/dynamic'
 import { type ComponentType, useState } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -23,20 +22,18 @@ const DiagramLabelDynamic = dynamic(
 
 type LazyInput<P extends object> = {
   load: () => Promise<ComponentType<P>>
-  initial: ComponentType<P>
+  dynamicComponent: ComponentType<P>
 }
 
 /**
  * next/dynamic suspends on every first render, even with a warm module cache.
  * Once `preload()` has resolved in the browser, a mount renders the loaded
  * component directly. The choice is frozen per mount, so the component type
- * never swaps mid-mount. When a chunk load fails, the input boundary shows
- * Retry; Retry calls `reset()`, which swaps in a fresh `dynamic()` so the
- * remount loads again instead of replaying the cached rejection.
+ * never swaps mid-mount. There is no in-place retry: a failed chunk load shows
+ * a reload prompt in the input boundary.
  */
-function lazyWithPreload<P extends object>({ load, initial }: LazyInput<P>) {
+function lazyWithPreload<P extends object>({ load, dynamicComponent }: LazyInput<P>) {
   let loaded: ComponentType<P> | undefined
-  let Dynamic = initial
 
   async function preload(): Promise<void> {
     const component = await load()
@@ -44,18 +41,14 @@ function lazyWithPreload<P extends object>({ load, initial }: LazyInput<P>) {
     if (typeof window !== 'undefined') loaded = component
   }
 
-  function reset() {
-    Dynamic = dynamic<P>(load, { loading: renderSkeleton })
-  }
-
   function Inner(props: Readonly<P>) {
-    const [Picked] = useState(() => loaded ?? Dynamic)
+    const [Picked] = useState(() => loaded ?? dynamicComponent)
     return <Picked {...(props as P)} />
   }
 
   function Component(props: Readonly<P>) {
     return (
-      <AnswerInputBoundary onRetry={reset}>
+      <AnswerInputBoundary>
         <Inner {...props} />
       </AnswerInputBoundary>
     )
@@ -66,11 +59,11 @@ function lazyWithPreload<P extends object>({ load, initial }: LazyInput<P>) {
 
 const ordering = lazyWithPreload({
   load: () => import('./ordering-input').then((m) => m.OrderingInput),
-  initial: OrderingDynamic,
+  dynamicComponent: OrderingDynamic,
 })
 const diagramLabel = lazyWithPreload({
   load: () => import('./diagram-label-input').then((m) => m.DiagramLabelInput),
-  initial: DiagramLabelDynamic,
+  dynamicComponent: DiagramLabelDynamic,
 })
 
 export const OrderingInput = ordering.Component
@@ -93,7 +86,6 @@ export async function preloadDragInputs(types: readonly string[]): Promise<void>
   try {
     await Promise.all([...present].map((type) => PRELOADERS[type]()))
   } catch (error) {
-    Sentry.captureException(error)
     console.error('[preloadDragInputs] chunk preload failed:', error)
   }
 }

@@ -8,14 +8,16 @@ import { isStaleDeploymentError } from '@/lib/stale-deployment'
 
 type State = { error: unknown | null }
 
+function reloadPage() {
+  window.location.reload()
+}
+
 /**
  * Contains a failed answer-input chunk load to the input, leaving the rest of the runner intact.
+ * A failed load is not retried in place; the user reloads the page.
  * Any other render error is rethrown to the route boundary.
  */
-export class AnswerInputBoundary extends Component<
-  Readonly<{ children: ReactNode; onRetry?: () => void }>,
-  State
-> {
+export class AnswerInputBoundary extends Component<Readonly<{ children: ReactNode }>, State> {
   state: State = { error: null }
 
   static getDerivedStateFromError(error: unknown): State {
@@ -28,11 +30,6 @@ export class AnswerInputBoundary extends Component<
     console.error('[AnswerInputBoundary] answer input failed to load:', error)
   }
 
-  retry = () => {
-    this.props.onRetry?.()
-    this.setState({ error: null })
-  }
-
   render() {
     const { error } = this.state
     if (error === null) return this.props.children
@@ -40,8 +37,8 @@ export class AnswerInputBoundary extends Component<
     return (
       <StatusNote tone="bad">
         <p>This answer input could not be loaded.</p>
-        <Button type="button" variant="outline" size="sm" onClick={this.retry}>
-          Retry
+        <Button type="button" variant="outline" size="sm" onClick={reloadPage}>
+          Reload page
         </Button>
       </StatusNote>
     )

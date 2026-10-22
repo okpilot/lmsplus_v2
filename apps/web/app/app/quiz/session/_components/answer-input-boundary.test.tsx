@@ -2,7 +2,7 @@ import * as Sentry from '@sentry/nextjs'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Component, type ReactNode } from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@sentry/nextjs', () => ({ captureException: vi.fn() }))
 
@@ -29,15 +29,26 @@ function Child() {
   return <div data-testid="child">child</div>
 }
 
+const originalLocation = window.location
+const reload = vi.fn()
+
 beforeEach(() => {
   vi.resetAllMocks()
+  Object.defineProperty(window, 'location', {
+    configurable: true,
+    value: { ...originalLocation, reload },
+  })
   state.shouldThrow = true
   state.error = chunkError()
   vi.spyOn(console, 'error').mockImplementation(() => {})
 })
 
+afterEach(() => {
+  Object.defineProperty(window, 'location', { configurable: true, value: originalLocation })
+})
+
 describe('AnswerInputBoundary', () => {
-  it('shows an alert with a Retry button and keeps siblings rendered when a child throws', () => {
+  it('shows an alert with a Reload page button and keeps siblings rendered when a child throws', () => {
     render(
       <div>
         <p>question prompt</p>
@@ -47,20 +58,18 @@ describe('AnswerInputBoundary', () => {
       </div>,
     )
     expect(screen.getByRole('alert')).toHaveTextContent('This answer input could not be loaded.')
-    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Reload page' })).toBeInTheDocument()
     expect(screen.getByText('question prompt')).toBeInTheDocument()
   })
 
-  it('renders the child again on Retry once it stops throwing', async () => {
+  it('reloads the page when Reload page is clicked', async () => {
     render(
       <AnswerInputBoundary>
         <Child />
       </AnswerInputBoundary>,
     )
-    state.shouldThrow = false
-    await userEvent.click(screen.getByRole('button', { name: 'Retry' }))
-    expect(screen.getByTestId('child')).toBeInTheDocument()
-    expect(screen.queryByRole('alert')).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: 'Reload page' }))
+    expect(reload).toHaveBeenCalledTimes(1)
   })
 
   it('reports the failure to Sentry and logs it', () => {
@@ -76,7 +85,7 @@ describe('AnswerInputBoundary', () => {
     )
   })
 
-  it('lets a non-chunk render error reach the outer boundary without a Retry alert or Sentry report', () => {
+  it('lets a non-chunk render error reach the outer boundary without an alert or Sentry report', () => {
     state.error = new Error('render bug')
     render(
       <OuterBoundary>
@@ -97,18 +106,5 @@ describe('AnswerInputBoundary', () => {
       </AnswerInputBoundary>,
     )
     expect(Sentry.captureException).toHaveBeenCalledTimes(1)
-  })
-
-  it('notifies the owner on Retry', async () => {
-    const onRetry = vi.fn()
-    render(
-      <AnswerInputBoundary onRetry={onRetry}>
-        <Child />
-      </AnswerInputBoundary>,
-    )
-    state.shouldThrow = false
-    await userEvent.click(screen.getByRole('button', { name: 'Retry' }))
-    expect(onRetry).toHaveBeenCalledTimes(1)
-    expect(screen.getByTestId('child')).toBeInTheDocument()
   })
 })

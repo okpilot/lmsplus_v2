@@ -1,7 +1,6 @@
 import * as Sentry from '@sentry/nextjs'
 import { act, render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
-import { type ComponentProps, type ComponentType, lazy, type ReactNode, Suspense } from 'react'
+import type { ComponentProps } from 'react'
 import { flushSync } from 'react-dom'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -99,7 +98,6 @@ const noProps = {} as ComponentProps<LazyModule['OrderingInput']>
 
 describe('preloaded drag input', () => {
   afterEach(() => {
-    vi.doUnmock('next/dynamic')
     vi.unstubAllGlobals()
   })
 
@@ -121,36 +119,6 @@ describe('preloaded drag input', () => {
     expect(await screen.findByTestId('real')).toBeInTheDocument()
   })
 
-  it('shows a retryable alert after a failed load and renders the input once Retry succeeds', async () => {
-    let calls = 0
-    vi.doMock('next/dynamic', () => ({
-      default: (loader: () => Promise<ComponentType>, opts: { loading: () => ReactNode }) => {
-        const Lazy = lazy(() => loader().then((c) => ({ default: c })))
-        return () => (
-          <Suspense fallback={opts.loading()}>
-            <Lazy />
-          </Suspense>
-        )
-      },
-    }))
-    const mod = await freshModule(() => ({
-      get OrderingInput() {
-        calls += 1
-        if (calls === 1)
-          throw Object.assign(new Error('Loading chunk failed'), { name: 'ChunkLoadError' })
-        return () => <div data-testid="real">real</div>
-      },
-    }))
-    vi.spyOn(console, 'error').mockImplementation(() => {})
-    render(<mod.OrderingInput {...noProps} />)
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'This answer input could not be loaded.',
-    )
-    await userEvent.click(screen.getByRole('button', { name: 'Retry' }))
-    expect(await screen.findByTestId('real')).toBeInTheDocument()
-    expect(screen.queryByRole('alert')).toBeNull()
-  })
-
   it('logs a failed preload', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const mod = await freshModule(() => {
@@ -160,13 +128,13 @@ describe('preloaded drag input', () => {
     expect(spy).toHaveBeenCalledWith('[preloadDragInputs] chunk preload failed:', expect.any(Error))
   })
 
-  it('reports a failed preload to Sentry', async () => {
+  it('does not report a failed preload to Sentry', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const mod = await freshModule(() => {
       throw new Error('boom')
     })
     await mod.preloadDragInputs(['ordering'])
-    expect(Sentry.captureException).toHaveBeenCalledWith(expect.any(Error))
+    expect(Sentry.captureException).not.toHaveBeenCalled()
   })
 
   it('does not change what the next render picks when a load resolves without a window', async () => {
