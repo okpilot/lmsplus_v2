@@ -1,9 +1,12 @@
+import * as Sentry from '@sentry/nextjs'
 import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { type ComponentProps, type ComponentType, lazy, type ReactNode, Suspense } from 'react'
 import { flushSync } from 'react-dom'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+vi.mock('@sentry/nextjs', () => ({ captureException: vi.fn() }))
 
 const loads = vi.hoisted(() => ({ ordering: 0, diagram: 0 }))
 
@@ -98,7 +101,6 @@ describe('preloaded drag input', () => {
   afterEach(() => {
     vi.doUnmock('next/dynamic')
     vi.unstubAllGlobals()
-    vi.restoreAllMocks()
   })
 
   it('renders the real input on its first commit once preloaded', async () => {
@@ -156,6 +158,15 @@ describe('preloaded drag input', () => {
     })
     await expect(mod.preloadDragInputs(['ordering'])).resolves.toBeUndefined()
     expect(spy).toHaveBeenCalledWith('[preloadDragInputs] chunk preload failed:', expect.any(Error))
+  })
+
+  it('reports a failed preload to Sentry', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const mod = await freshModule(() => {
+      throw new Error('boom')
+    })
+    await mod.preloadDragInputs(['ordering'])
+    expect(Sentry.captureException).toHaveBeenCalledWith(expect.any(Error))
   })
 
   it('does not change what the next render picks when a load resolves without a window', async () => {
