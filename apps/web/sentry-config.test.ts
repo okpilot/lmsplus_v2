@@ -1,24 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SENTRY_DATA_COLLECTION } from './sentry-data-collection'
 
-const {
-  initSpy,
-  loadReplayAfterPaintSpy,
-  addIntegration,
-  captureException,
-  captureRouterTransitionStart,
-} = vi.hoisted(() => ({
+const { initSpy, loadReplayAfterPaintSpy, captureRouterTransitionStart } = vi.hoisted(() => ({
   initSpy: vi.fn(),
   loadReplayAfterPaintSpy: vi.fn(),
-  addIntegration: vi.fn(),
-  captureException: vi.fn(),
   captureRouterTransitionStart: vi.fn(),
 }))
 
 vi.mock('@sentry/nextjs', () => ({
   init: initSpy,
-  addIntegration,
-  captureException,
   captureRouterTransitionStart,
   getClient: () => undefined,
 }))
@@ -96,7 +86,7 @@ describe('Sentry init options', () => {
   it('browser config loads replay after first paint on other paths', async () => {
     await import('./instrumentation-client')
     expect(loadReplayAfterPaintSpy).toHaveBeenCalledTimes(1)
-    expect(loadReplayAfterPaintSpy).toHaveBeenCalledWith({ addIntegration, captureException })
+    expect(loadReplayAfterPaintSpy).toHaveBeenCalledWith()
   })
 
   it.each([
