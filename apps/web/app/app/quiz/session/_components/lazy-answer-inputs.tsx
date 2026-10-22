@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic'
 import { type ComponentType, useState } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
+import { AnswerInputBoundary } from './answer-input-boundary'
 
 function AnswerInputSkeleton() {
   return <Skeleton className="h-40 w-full" />
@@ -12,13 +13,15 @@ function AnswerInputSkeleton() {
  * next/dynamic suspends on every first render, even with a warm module cache.
  * Once `preload()` has resolved in the browser, a mount renders the loaded
  * component directly. The choice is frozen per mount, so the component type
- * never swaps mid-mount. A failed load replaces the cached rejection so a
- * fresh mount imports again.
+ * never swaps mid-mount. A failed load is retried when the input boundary's
+ * Retry remounts it.
  */
 function lazyWithPreload<P extends object>(load: () => Promise<ComponentType<P>>) {
   let loaded: ComponentType<P> | undefined
-  const makeDynamic = (): ComponentType<P> =>
-    dynamic<P>(
+  let Dynamic = makeDynamic()
+
+  function makeDynamic(): ComponentType<P> {
+    return dynamic<P>(
       async () => {
         try {
           return await load()
@@ -29,7 +32,7 @@ function lazyWithPreload<P extends object>(load: () => Promise<ComponentType<P>>
       },
       { loading: () => <AnswerInputSkeleton /> },
     )
-  let Dynamic = makeDynamic()
+  }
 
   async function preload(): Promise<void> {
     const component = await load()
@@ -37,9 +40,17 @@ function lazyWithPreload<P extends object>(load: () => Promise<ComponentType<P>>
     if (typeof window !== 'undefined') loaded = component
   }
 
-  function Component(props: Readonly<P>) {
+  function Inner(props: Readonly<P>) {
     const [Picked] = useState(() => loaded ?? Dynamic)
     return <Picked {...(props as P)} />
+  }
+
+  function Component(props: Readonly<P>) {
+    return (
+      <AnswerInputBoundary>
+        <Inner {...props} />
+      </AnswerInputBoundary>
+    )
   }
 
   return { Component, preload }
