@@ -82,7 +82,7 @@ No changes needed: [list sections that are current]
    that the list does not cover has no test requiring a `.coderabbit.yaml` block at all — DO report
    that. "Machine-verified" covers the caps of the mirrored kinds, not the set of kinds.
 
-4. **Do NOT propose adding rules that our agents already enforce** — CodeRabbit is a backup. If our semantic-reviewer already checks something, it doesn't need to be in `.coderabbit.yaml` path_instructions. Focus on rules that CodeRabbit uniquely enforces (pre-merge checks, external PR reviews).
+4. **Do NOT propose adding rules that `code-style.md` §8 assigns solely to Biome or SonarCloud.** Rules §8 assigns to CodeRabbit, and rules from a changed `.claude/hooks/*.mjs` guard wired into `lefthook.yml`, must be mirrored in `.coderabbit.yaml`.
 
 ## Important
 - Only report findings. The main session will make the actual edits.

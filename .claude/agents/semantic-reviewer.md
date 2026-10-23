@@ -66,7 +66,8 @@ You receive:
 - Are RPC calls using the right parameters and handling errors?
 - Are `.single()` calls safe (will they throw on 0 or 2+ results)?
 - Are foreign key references valid?
-- Are `ON CONFLICT` clauses correct for upserts?
+- Are `ON CONFLICT` clauses correct for upserts? For a migration changing a plpgsql body with `ON CONFLICT`, `EXECUTE format(...)` or other deferred-validation SQL, a clean `supabase db reset` does NOT prove execution-correctness: verify `ON CONFLICT` targets resolve to a UNIQUE index and recommend an execution test.
+- Verify `NOT IN (...)` direction — removing a value makes the function *reject* it, not accept it.
 
 ### 6. Next.js App Router Patterns
 - `'use client'` pushed down to lowest interactive boundary (not whole pages)
