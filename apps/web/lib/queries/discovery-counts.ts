@@ -1,7 +1,6 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { cache } from 'react'
-import { POSTGREST_MAX_ROWS } from '@/lib/supabase-paginate'
-import { rpc } from '@/lib/supabase-rpc'
+import { fetchAllRpcRows } from '@/lib/supabase-rpc'
 import { filterSetKey } from './filtered-count-keys'
 import { getSubjectsWithCounts } from './quiz-subject-queries'
 import { getAllTopicTrees } from './quiz-topic-trees'
@@ -103,26 +102,24 @@ function inScope(row: DiscoveryCountRow, scope: SubjectScope): boolean {
   )
 }
 
-/** One read for every subject; null on any failure so the client falls back to per-subject counts. */
+/** One paged read for every subject; null on any failure so the client falls back to per-subject counts. */
 async function fetchDiscoveryRows(): Promise<DiscoveryCountRow[] | null> {
   try {
     const supabase = await createServerSupabaseClient()
-    const { data, error } = await rpc<unknown>(supabase, 'get_discovery_counts', {})
+    const { data, error } = await fetchAllRpcRows<unknown>({
+      supabase,
+      fn: 'get_discovery_counts',
+      args: {},
+      orderColumns: ['subject_id', 'topic_id', 'subtopic_id'],
+    })
     if (error) {
       console.error('[getDiscoveryCounts] get_discovery_counts error:', error.message)
       return null
     }
-    if (!Array.isArray(data)) {
-      console.error('[getDiscoveryCounts] payload is not an array')
-      return null
-    }
-    if (data.length >= POSTGREST_MAX_ROWS) {
-      console.error('[getDiscoveryCounts] payload may be truncated at the row cap:', data.length)
-      return null
-    }
     const rows = data.filter(isDiscoveryCountRow)
     if (rows.length !== data.length) {
-      console.error(`[getDiscoveryCounts] dropped ${data.length - rows.length} malformed row(s)`)
+      console.error(`[getDiscoveryCounts] ${data.length - rows.length} malformed row(s)`)
+      return null
     }
     return rows
   } catch (err) {
@@ -139,13 +136,16 @@ async function fetchDiscoveryRows(): Promise<DiscoveryCountRow[] | null> {
  * can produce (see `PRELOADED_FILTER_SETS`), keyed by subject id then `filterSetKey`, so
  * the setup form needs no request on subject change or filter toggle. Argument-free on
  * purpose: `cache()` keys by argument reference, and the subject ids come from the
- * already-cached `getSubjectsWithCounts()`. One `get_discovery_counts` read; a failed read
- * returns `{}` (the client uses the per-subject action).
+ * already-cached `getSubjectsWithCounts()`. One `get_discovery_counts` read (paged past the
+ * row cap); a failed read or any malformed row returns `{}` (the client uses the per-subject action).
  */
 export const getDiscoveryCounts = cache(
   async (): Promise<Record<string, Record<string, FilteredCounts>>> => {
-    const [subjects, trees] = await Promise.all([getSubjectsWithCounts(), getAllTopicTrees()])
-    const rows = await fetchDiscoveryRows()
+    const [subjects, trees, rows] = await Promise.all([
+      getSubjectsWithCounts(),
+      getAllTopicTrees(),
+      fetchDiscoveryRows(),
+    ])
     if (!rows) return {}
     const counts: Record<string, Record<string, FilteredCounts>> = {}
     const scopes = new Map<string, SubjectScope>()
