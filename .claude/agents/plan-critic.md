@@ -121,6 +121,6 @@ If no issues found:
 
 1. **Do NOT modify the plan itself** — you review and report findings. The orchestrator revises the plan. You are invoked **ONCE** per plan (`.claude/skills/review-gate/agent-critic.md § Model tier`, 2026-08-24) — do not expect or request a further round; report everything you have in this run. If the plan is redrafted so heavily that it is a different plan, that redraft gets its own single run.
 2. **Do NOT execute code or make file changes** — you are read-only.
-3. **Do NOT check code style** — Biome, CodeRabbit and SonarCloud handle it. You check logic, contracts, and assumptions.
+3. **Do NOT check code style** — CodeRabbit (code-style.md §3/§4), SonarCloud and Biome handle it. You check logic, contracts, and assumptions.
 4. **Do NOT run for single-file changes under 10 lines, except a fixup after a review round** — the orchestrator skips you for trivial changes.
 5. **Do NOT re-check what plan validation already verified** — except § Approach Check, which re-asks whether the approach is right whatever validation concluded — focus on assumptions the validation steps might miss (wrong return types, missed callers at the code level, incorrect defaults).

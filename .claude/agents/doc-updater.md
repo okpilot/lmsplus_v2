@@ -69,7 +69,7 @@ mechanism is `waivers.has(c.token)`), a five-element constant described as four,
 verdict, which is exactly what makes the habit dangerous — the next reader checks your evidence,
 not your verdict, and finds it invented.
 
-The third of those came AFTER this requirement was written into `.claude/skills/review-gate/agent-doc-updater.md`
+The third of those came AFTER this requirement was written into the doc-updater handling rules (now `.claude/skills/review-gate/agent-doc-updater.md`)
 and after the specific prior failures were named in the dispatch prompt. Neither stopped it. It is
 repeated HERE, in your own definition, because that is the only copy you are guaranteed to read.
 

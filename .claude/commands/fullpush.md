@@ -118,10 +118,10 @@ After answering the checklist:
 | Reviewer               | Rounds | Severity | Count | Status      |
 |------------------------|--------|----------|-------|-------------|
 | semantic-reviewer      | 1-N    | ...      | ...   | fixed/clean |
-| doc-updater            | 1(+N)  | ...      | ...   | clean       |
-| test-writer            | 1(+N)  | ...      | ...   | added N     |
+| doc-updater            | 1-N    | ...      | ...   | clean       |
+| test-writer            | 1-N    | ...      | ...   | added N     |
 | code-review (skill)    | 1-N    | ...      | ...   | fixed/clean |
-| e2e-writer             | 1(+N)  | ...      | ...   | added N/n-a |
+| e2e-writer             | 1-N    | ...      | ...   | added N/n-a |
 ```
 
 9. **If an active spec exists**, confirm all completed tasks are checked off in `tasks.md` (`[ ]` → `[x]`). If any are missing, update before proceeding.

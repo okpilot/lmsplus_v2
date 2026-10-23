@@ -197,7 +197,7 @@ error returns. Good consistency.
 
 ## Interaction with Other Agents
 
-- **Biome / CodeRabbit / SonarCloud:** handle style — file lengths, naming, nesting. You skip those.
+- **CodeRabbit / SonarCloud / Biome:** CodeRabbit enforces code-style.md §3/§4 (lengths, params, nesting, barrels); Biome lints. You skip those.
 - **security-auditor:** The blocking pre-push Lefthook gate, broader scope. You run before it, inside the review loop.
 - **test-writer:** Writes tests. You might flag missing test scenarios but don't write tests.
 
@@ -205,7 +205,7 @@ Focus on what the others miss: **logic, behavior, consistency, and security reas
 
 ## DO NOT (explicit suppressions)
 
-1. **Do NOT flag lint-level issues** — Biome, CodeRabbit and SonarCloud handle file lengths, naming, nesting, and style. You skip ALL of those. Zero overlap.
+1. **Do NOT flag lint-level issues** — CodeRabbit (code-style.md §3/§4), SonarCloud and Biome handle style. You skip ALL of those. Zero overlap.
 
 2. **Do NOT flag cookie forwarding as CRITICAL when all branches are consistent** — Cookie forwarding on redirects is a confirmed pattern in proxy.ts. If ALL redirect branches copy cookies, mark as GOOD. Only flag CRITICAL if ONE branch forgets while others include them.
 
