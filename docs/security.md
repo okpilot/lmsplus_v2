@@ -628,7 +628,7 @@ export async function submitAnswer(raw: unknown) {
 
 ### Route Handler reads
 
-Client-initiated reads (after render, on interaction or focus, polling) are GET Route Handlers (`route.ts`). Every one:
+Client-initiated reads (after render, on interaction or focus, polling) are GET Route Handlers (`route.ts`). Not covered: `apps/web/app/auth/**` handlers, webhooks, and `apps/web/app/api/version/route.ts` (public, returns no user data). Every one:
 
 1. GET only, no side effects.
 2. Calls `verifySessionUser()` first; returns 401 JSON when unauthenticated. Never delegated to `proxy.ts`.
@@ -866,7 +866,7 @@ SECURITY DEFINER functions accrue defensive guards over time, one migration at a
 
 **What it MISSED — this paragraph previously said the sweep had covered "every SECURITY DEFINER RPC by family" and was CLOSED. That was false.** A mechanical re-derivation on 2026-09-01 found 4 more, none carrying the active-user check: `list_my_internal_exam_history` and `list_my_active_internal_exam_codes`, which had only the `auth.uid()` null-check (gated by mig `20260824000200`), and `get_daily_activity` and `get_subject_scores`, which had that plus the pre-existing Decision-24 `IS DISTINCT FROM p_student_id` identity guard (gated by mig `20260824000300`; the same migration added the rule-9 `deleted_at IS NULL` filter `get_subject_scores` never had on `quiz_sessions`).
 
-**Do not trust that list either — RE-DERIVE it.** The set is OPEN, so this rule states the derivation rather than an enumeration (`code-style.md` §10 rule 2). Take each function's LATEST definition across every supersession form (`agent-workflow.md` § "name EVERY supersession form"); keep those that are SECURITY DEFINER, not `is_admin()`-gated, and `GRANT`ed to `authenticated`; then check each for a `users` lookup filtered on `deleted_at IS NULL` whose miss raises. Exempt classes include: trigger functions, which no caller invokes directly (`stamp_last_active_on_session_complete`), and helpers `REVOKE`d from `authenticated`/`anon`/`public` (`answer_matches`, the `_grade_record_*` family).
+**Do not trust that list either — RE-DERIVE it.** The set is OPEN, so this rule states the derivation rather than an enumeration (`code-style.md` §10 rule 2). Take each function's LATEST definition across every supersession form (`.claude/skills/review-gate/agent-workflow.md` § "name EVERY supersession form"); keep those that are SECURITY DEFINER, not `is_admin()`-gated, and `GRANT`ed to `authenticated`; then check each for a `users` lookup filtered on `deleted_at IS NULL` whose miss raises. Exempt classes include: trigger functions, which no caller invokes directly (`stamp_last_active_on_session_complete`), and helpers `REVOKE`d from `authenticated`/`anon`/`public` (`answer_matches`, the `_grade_record_*` family).
 
 **Progress-RPC family (#1026).** `save_quiz_answer`, `save_quiz_position`, `claim_quiz_session` share `_lock_session_for_progress`. `save_quiz_for_later`, `resume_saved_quiz`, `discard_saved_quiz` (migration `20261003000200`) join the family: each carries the `auth.uid()` check, the active-user gate (token `user_not_found_or_inactive`), `student_id = auth.uid()` scope, `SET search_path = public`. `save_quiz_for_later` takes its guards from `_lock_session_for_progress`; `resume_saved_quiz` and `discard_saved_quiz` inline them because the helper refuses a saved row (`session_saved`, migration `20261003000300`).
 

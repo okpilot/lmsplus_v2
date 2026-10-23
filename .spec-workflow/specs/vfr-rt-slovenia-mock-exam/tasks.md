@@ -58,7 +58,7 @@
   - **TWO callers** (CORRECTED 2026-06-10 during implementation — an earlier revision claimed `complete_quiz_session` as a third, misattributing the `ON CONFLICT` at L259 of `20260406000004` to it; function-boundary tracing shows `complete_quiz_session` spans L21–97 of that file and inserts only into `audit_events`; L259 belongs to the `batch_submit_quiz` body redefined in the same file, superseded by `20260601000001`): `batch_submit_quiz` (latest as of 2026-06-10: `20260601000001_align_batch_submit_audit_metadata_keys.sql`) and `submit_quiz_answer` (latest: `20260316000040`). For each: locate the LATEST body via Pre-Flag Verification at implementation time, copy verbatim, change only the `quiz_session_answers` clause `ON CONFLICT (session_id, question_id)` → `ON CONFLICT (session_id, question_id, blank_index)`. The `fsrs_cards` ON CONFLICT clauses in both bodies are untouched (different table).
   - These functions continue to INSERT only MC/short-answer rows (no `blank_index`). With `NULLS NOT DISTINCT` semantics, the inference clause `(s, q, NULL)` matches the new constraint identically to the old `(s, q)` constraint — behavior is preserved.
   - _Acceptance:_ existing PPL/internal_exam/smart_review/quick_quiz answer-submission AND completion paths continue to work after 095 + 095b + 095c are applied. SQL integration test asserts (a) a re-submit of the same answer returns DO NOTHING (no duplicate row) and (b) `complete_quiz_session` executes clean against the widened constraint (regression — it reads the table even though it needs no redefinition) — these must EXECUTE the functions, since the `42P10` failure mode is invisible to `db reset`.
-  - _Leverage: `agent-critic.md` Pre-Flag Verification rule (trace BOTH packages/db AND supabase/migrations for LATEST)_
+  - _Leverage: `.claude/skills/review-gate/agent-critic.md` Pre-Flag Verification rule (trace BOTH packages/db AND supabase/migrations for LATEST)_
   - _Requirements: R2.4 (idempotency preserved), NFR-Reliability_
 
 - [x] **A.3 Migration `096` — extend `quiz_sessions.mode` CHECK to include `'vfr_rt_exam'`**
@@ -96,7 +96,7 @@
   - SECURITY DEFINER + STABLE + `SET search_path = public` + `auth.uid()` check + `users.deleted_at IS NULL` filter. Returns one row per requested question id with: `id`, `question_type`, `question_text`, `question_image_url`, `subject_code`, `topic_code`, `difficulty`, `question_number`, `explanation_text`, `explanation_image_url`. For MC rows: `options` projected via the existing stripped pattern (id + text only, ORDER BY random()). For short_answer: `options = NULL`. For dialog_fill: `options = NULL`, `dialog_template` returned with `{{n|canonical;...}}` tokens REPLACED by `{{n}}` plain markers (`regexp_replace(dialog_template, '\{\{(\d+)\|[^}]*\}\}', '{{\1}}', 'g')`), and `blanks_safe jsonb` = `[{ index: int }]` array (canonicals stripped).
   - **MUST NEVER return**: `canonical_answer`, `accepted_synonyms`, raw `blanks_config` with canonicals, or any `correct` flag on options. Failure to strip is a `security.md` rule 1 violation.
   - `p_question_ids` carries the immutable-write-once exception per `docs/security.md §15` (same as `batch_submit_quiz` reading `quiz_sessions.config.question_ids`).
-  - _Leverage: `get_quiz_questions()` for the options-stripping pattern; sibling RPC, not a replacement. DERIVE its latest body per Pre-Flag Verification (`agent-critic.md`) — this line named `20260327000059` as LATEST with no as-of qualifier and has been superseded by later redefinitions since._
+  - _Leverage: `get_quiz_questions()` for the options-stripping pattern; sibling RPC, not a replacement. DERIVE its latest body per Pre-Flag Verification (`.claude/skills/review-gate/agent-critic.md`) — this line named `20260327000059` as LATEST with no as-of qualifier and has been superseded by later redefinitions since._
   - _Requirements: R1 (type-discriminated rendering), R3.8 (no answer leak before submit), NFR-Security_
 
 - [x] **A.7 Migration `100` — `submit_vfr_rt_exam_answers(p_session_id, p_answers jsonb)` RPC**
@@ -117,7 +117,7 @@
   - **TWO functions, not one.** That file carries a `CREATE OR REPLACE` for BOTH — its own header says
     "BOTH functions in that file". This task named only the overdue one until 2026-09-09, which is how
     `complete_empty_exam_session` came to appear nowhere in this spec despite shipping here.
-  - For each: locate the LATEST definition via Pre-Flag Verification (`agent-critic.md`), copy verbatim,
+  - For each: locate the LATEST definition via Pre-Flag Verification (`.claude/skills/review-gate/agent-critic.md`), copy verbatim,
     widen the `v_mode NOT IN (...)` guard to accept `'vfr_rt_exam'`, and extend the `v_event_type := CASE
     v_mode` branch. `complete_overdue_exam_session` additionally computes partial per-part scores from
     existing answers, defaulting missing entries to 0. **Do NOT widen any other RPC mode check.**
@@ -248,7 +248,7 @@
   - _Requirements: workflow_
 
 - [ ] **E.4 Update spec `tasks.md` checkboxes `[x]` after each task completion**
-  - Per `agent-workflow.md`, mark `[ ] → [x]` in this file as each task is verified clean.
+  - Per `.claude/skills/review-gate/agent-workflow.md`, mark `[ ] → [x]` in this file as each task is verified clean.
   - _Requirements: workflow_
 
 ## Out of scope for v1 (documented; not in tasks)

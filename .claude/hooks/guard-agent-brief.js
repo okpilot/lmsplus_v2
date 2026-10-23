@@ -3,7 +3,7 @@
  * PreToolUse guard for the Agent tool (enforces Decision 92; recorded as Decision 93).
  * Blocks a gate-reviewer brief unless it matches that type's template in
  * `.claude/hooks/gate-briefs.json` EXACTLY, after trimming trailing whitespace off the
- * whole prompt. Only round, PR number and branch may vary — `agent-workflow.md § Never steer a gate reviewer`.
+ * whole prompt. Only round, PR number and branch may vary — `.claude/skills/review-gate/agent-workflow.md § Never steer a gate reviewer`.
  *
  * Claude Code delivers the hook payload on STDIN as JSON:
  *   {"cwd":"...","tool_name":"Agent","tool_input":{"subagent_type":"...","prompt":"...",

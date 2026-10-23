@@ -52,6 +52,7 @@
       "replace": "process.exit(2) // Allow",
       "expectRed": [
         "allows an exact semantic-reviewer brief with exit 0",
+        "allows an exact semantic-reviewer brief when the payload cwd is a different directory",
         "allows a non-gated subagent_type with any prompt",
         "allows general-purpose with any prompt",
         "allows semantic-reviewer's exact template brief with exit 0",
@@ -349,6 +350,37 @@
       "replace": "",
       "expectRed": ["blocks a re-spaced gate brief in an ungated type with exit 2"],
       "note": "A re-spaced gate brief no longer matches its template opening and reaches an ungated recipient."
+    },
+    {
+      "id": "guard-agent-brief-stdin-cwd-root",
+      "find": "const REPO_ROOT = process.env.GUARD_AGENT_BRIEF_ROOT || path.join(__dirname, '..', '..')",
+      "replace": "const STDIN_RAW = fs.readFileSync(0, 'utf8')\nObject.defineProperty(process, 'stdin', { value: require('node:stream').Readable.from([STDIN_RAW]) })\nconst REPO_ROOT = JSON.parse(STDIN_RAW).cwd",
+      "expectRed": [
+        "allows a SendMessage sent to a plain agent name with exit 0",
+        "allows a SendMessage sent to \"main\" with exit 0",
+        "allows a SendMessage whose to resolves to an ungated agent type",
+        "blocks a SendMessage whose to resolves to a gated agent type with exit 2",
+        "blocks a SendMessage to a gated agent id written with a trailing ref suffix with exit 2",
+        "blocks a SendMessage to an agent id whose meta.json does not exist with exit 2",
+        "blocks a SendMessage to an agent id when transcript_path is missing with exit 2",
+        "blocks a SendMessage to an agent id when session_id is missing with exit 2",
+        "blocks a SendMessage from a subagent to a gated agent id with exit 2",
+        "blocks a SendMessage to a gated agent id padded with whitespace with exit 2",
+        "blocks a SendMessage to a gated agent id written in upper case with exit 2",
+        "blocks a gate brief sent to an ungated agent id with exit 2",
+        "blocks a gate brief sent to a plain agent name with exit 2",
+        "blocks a SendMessage to a plain agent name with exit 2 when the templates file has no templates object",
+        "allows an exact semantic-reviewer brief when the payload cwd is a different directory",
+        "fails open but loud on unparseable stdin (exit 0 + unparseable warning)",
+        "fails open but loud on empty stdin (exit 0 + stderr warning)",
+        "blocks every gated brief with exit 2 when the templates file is unparseable",
+        "blocks every gated brief with exit 2 when the templates file has no templates object",
+        "blocks a gated type with exit 2 when its template is missing",
+        "blocks an ungated type with exit 2 when the templates file has no templates object",
+        "blocks a call with no subagent_type with exit 2 when the templates file has no templates object",
+        "blocks an untemplated type when pipeline.json is unreadable"
+      ],
+      "note": "Rooting the guard at the stdin cwd instead of the repo root redirects every test whose fixture root differs from the payload cwd, plus the cwd-independence control."
     },
     {
       "id": "guard-agent-brief-sendmessage-case-disabled",

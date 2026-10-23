@@ -85,7 +85,7 @@ Load the `review-gate` skill first.
 
 ### Defer if:
 
-`agent-workflow.md § Apply-vs-Defer Discipline` is binding here and **default is APPLY**. DEFER
+`.claude/skills/review-gate/agent-workflow.md § Apply-vs-Defer Discipline` is binding here and **default is APPLY**. DEFER
 requires **all three** of: ≥ 30 LOC estimated (code + tests + docs), a genuinely separate concern
 that could stand as its own PR, and a design decision this PR does not establish. A finding that
 meets only one — "it's just a UX enhancement", "it's only a coverage gap", "it's a big doc rewrite" —

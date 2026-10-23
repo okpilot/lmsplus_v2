@@ -446,7 +446,7 @@ export function inCorpus(path) {
 }
 
 /**
- * Spec directories whose `tasks.md` has no `- [ ]` left. `agent-workflow.md § Rule-Mirror
+ * Spec directories whose `tasks.md` has no `- [ ]` left. `.claude/skills/review-gate/agent-workflow.md § Rule-Mirror
  * Sync` already designates such a spec a historical record, so this derives from that rule
  * rather than inventing a second authority.
  *

@@ -2,7 +2,7 @@
 #
 # PINNED MIRROR — the "Max N lines" caps in the path_instructions below are a deliberate
 # copy of `.claude/limits.json`, NOT drift. CodeRabbit reads only the diff plus this file's
-# literal text; it cannot follow a pointer (`agent-workflow.md § Rule-Mirror Sync`), so
+# literal text; it cannot follow a pointer (`.claude/skills/review-gate/agent-workflow.md § Rule-Mirror Sync`), so
 # replacing a number here with a reference would not keep it in sync — it would delete the
 # enforcement. `.claude/hooks/check-file-size-guard.update.test.mjs` fails in CI if any cap here
 # disagrees with limits.json, so the copy is machine-verified rather than hand-maintained.
@@ -96,7 +96,7 @@ reviews:
     # Route Handlers — client-initiated reads only
     - path: "apps/web/app/**/route.ts"
       instructions: |
-        Route Handler. Enforce (code-style.md §6 R2/R5, docs/security.md Route Handler reads):
+        Route Handler. Enforce (code-style.md §6 R2/R5, docs/security.md Route Handler reads) on GET handlers serving client-initiated reads. Not covered: apps/web/app/auth/** handlers, webhooks, apps/web/app/api/version/route.ts (public, returns no user data).
         - GET only, no side effects. Webhooks and auth callbacks are the only mutating exceptions.
         - verifySessionUser() first, 401 JSON when unauthenticated; never delegated to proxy.ts.
         - Zod safeParse on query and path params, 400 on failure.
@@ -276,10 +276,10 @@ reviews:
     # binding surfaces rather than taking .claude/**/*.md, which globstar-matches zero segments
     # and so would also sweep in files never meant as claims anyone reasons from. The list
     # mirrors the set in
-    # agent-workflow.md § Rule-Mirror Sync. Not a clean partition, harmless:
+    # .claude/skills/review-gate/agent-workflow.md § Rule-Mirror Sync. Not a clean partition, harmless:
     # a docs/README.md would match too if one were ever added (none exists today). Reviewing
     # it costs nothing; the set is "binding docs plus a little", not the pure set.
-    # This path list is the BINDING-DOCUMENT subset of agent-workflow.md § Rule-Mirror Sync, not
+    # This path list is the BINDING-DOCUMENT subset of .claude/skills/review-gate/agent-workflow.md § Rule-Mirror Sync, not
     # the whole table: package.json is a mirror row too, reviewed INDIRECTLY — CLAUDE.md, which IS
     # in this list, carries the pnpm.overrides audit instructions that apply to it. No
     # path_instructions block matches package.json itself.

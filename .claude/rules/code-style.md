@@ -6,6 +6,9 @@ paths:
   - ".claude/**"
   - "docs/**"
   - ".github/**"
+  - "CLAUDE.md"
+  - ".coderabbit.yaml"
+  - ".spec-workflow/**"
 ---
 # Code Style Rules — LMS Plus v2
 Enforcers per rule: § 8. Violations are warnings (non-blocking) or errors (blocking on merge).
@@ -827,7 +830,7 @@ it is what the next reader trusts when deciding whether a guard can safely be re
    **Grep the CLAIM, not only the STRING that expressed it** — a sweep anchored on the retracted
    wording reports clean on every paraphrase of the same assertion. Search a distinctive TOKEN of
    the subject (the command, the filename, the field), not the sentence that carried it. Partial
-   remedy for the paraphrase-blindness `agent-workflow.md § Rule-Mirror Sync` records as OPEN.
+   remedy for the paraphrase-blindness `.claude/skills/review-gate/agent-workflow.md § Rule-Mirror Sync` records as OPEN.
 4. **Verify the fix is STAGED, not merely written** — `git grep` reads the working tree and goes
    clean the moment text is on disk. Run `git diff --staged` AND
    `git status --short --untracked-files=all` (the flag is needed because
@@ -854,7 +857,7 @@ it is what the next reader trusts when deciding whether a guard can safely be re
 
 Before asserting any DB/RPC guard, ownership, replay/idempotency, or invariant behaviour, trace to
 the LATEST definition for the MATCHING SIGNATURE — supersession forms are an OPEN set
-(`agent-workflow.md § "name EVERY supersession form"`) reaching beyond the function body
+(`.claude/skills/review-gate/agent-workflow.md § "name EVERY supersession form"`) reaching beyond the function body
 (`ALTER FUNCTION`, `ALTER POLICY`, triggers, constraints, indexes, GRANTs). A replay branch is only
 reachable while its arbiter constraint exists (§5).
 This is the WRITE-side companion to the review-side "Pre-Flag Verification" rules in

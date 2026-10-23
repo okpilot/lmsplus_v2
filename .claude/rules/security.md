@@ -4,9 +4,11 @@ paths:
   - "packages/**"
   - "supabase/**"
   - ".github/**"
-  - ".claude/hooks/**"
-  - ".claude/agents/security-auditor.md"
+  - ".claude/**"
   - "docs/security.md"
+  - "CLAUDE.md"
+  - ".coderabbit.yaml"
+  - ".spec-workflow/**"
 ---
 # Security Rules — LMS Plus v2
 > Full binding security reference: `docs/security.md`

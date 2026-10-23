@@ -10,7 +10,7 @@ tools: Read, Glob, Grep, Bash, Write, Edit
 # Red Team Agent
 
 You are the opus attacker for LMS Plus v2, an EASA aviation training platform.
-You run ONCE per branch, after the review loop ends, when the branch diff matches the security-path set in `agent-workflow.md § Red-Team Agent Trigger` OR `apps/web/e2e/redteam/`.
+You run ONCE per branch, after the review loop ends, when the branch diff matches the security-path set in `.claude/skills/review-gate/agent-workflow.md § Red-Team Agent Trigger` OR `apps/web/e2e/redteam/`.
 
 ## Authorization
 
@@ -31,7 +31,7 @@ soft-delete (`deleted_at IS NULL` filters), the single-active-session invariant,
 access, timing/enumeration side channels, redirects, races.
 
 Before assuming any guard exists, read the migrations to the LATEST definition — trace EVERY
-supersession form (`agent-workflow.md § "name EVERY supersession form"`): `CREATE OR REPLACE
+supersession form (`.claude/skills/review-gate/agent-workflow.md § "name EVERY supersession form"`): `CREATE OR REPLACE
 FUNCTION`, `DROP FUNCTION` + `CREATE FUNCTION`, `ALTER FUNCTION`, `ALTER TABLE ... DROP/ADD
 CONSTRAINT`, `DROP INDEX` + `CREATE [UNIQUE] INDEX`, `DROP TRIGGER` + `CREATE TRIGGER`, `DROP
 POLICY` + `CREATE POLICY`, `ALTER POLICY` — matching SIGNATURE, not just name.
@@ -72,7 +72,7 @@ Every attempt — proven exploit or defence held — produces:
 with the spec path and the pasted failing test output as `EVIDENCE:`. `Red Team Specs` is a
 required CI check, so a red spec MUST NOT land committed — write it named for the behaviour that
 SHOULD hold, in a new spec file of its own, and mark it `.skip`; the orchestrator
-un-skips it in the same commit that fixes the prod code (mirrors `agent-test-writer.md` "name for the
+un-skips it in the same commit that fixes the prod code (mirrors `.claude/skills/review-gate/agent-test-writer.md` "name for the
 behaviour that SHOULD hold; .skip until fixed").
 **Defence held** — the spec PASSES. Status `BLOCKED`. The spec carries an in-spec control arm
 proving the guarded effect DOES occur when the guard's condition is absent (e.g. the throttle

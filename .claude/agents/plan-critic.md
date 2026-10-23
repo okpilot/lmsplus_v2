@@ -76,7 +76,7 @@ Before flagging a missing pattern (e.g., "missing AND deleted_at IS NULL", "miss
    Match the **signature**, not just the name: an overloaded function has a different body per argument list, so a name-only search can land on an overload that is not the one being reviewed — or on one that no longer exists (`code-style.md` §10).
 3. Read the LAST (most recent) definition in that directory — that is the binding body.
 4. If the latest definition already contains the pattern, do NOT report it as missing.
-5. If the pattern you are about to flag is enforced OUTSIDE the function body — an RLS policy, a trigger, a CHECK/UNIQUE constraint — trace that object's supersession chain too before flagging; for a policy that means `DROP POLICY <name> ON <table>` + `CREATE POLICY <name> ON <table> …` AND `ALTER POLICY <name> ON <table>`, the latter replacing a predicate in place — so a DROP/CREATE-only grep reports a stale one as current. Canonical statement of EVERY supersession form: `agent-workflow.md` § "For any task that locates a DB object's current definition, name EVERY supersession form". It does NOT cover a bare GRANT — for that see `code-style.md` §10.
+5. If the pattern you are about to flag is enforced OUTSIDE the function body — an RLS policy, a trigger, a CHECK/UNIQUE constraint — trace that object's supersession chain too before flagging; for a policy that means `DROP POLICY <name> ON <table>` + `CREATE POLICY <name> ON <table> …` AND `ALTER POLICY <name> ON <table>`, the latter replacing a predicate in place — so a DROP/CREATE-only grep reports a stale one as current. Canonical statement of EVERY supersession form: `.claude/skills/review-gate/agent-workflow.md` § "For any task that locates a DB object's current definition, name EVERY supersession form". It does NOT cover a bare GRANT — for that see `code-style.md` §10.
 
 This prevents false positives where the fix landed in a later migration than the one in the current diff.
 
@@ -84,10 +84,10 @@ This prevents false positives where the fix landed in a later migration than the
 
 See `.claude/skills/review-gate/agent-critic.md` for handling rules. In brief:
 - **CRITICAL** — safety/security/blocking error, or a named simpler route that meets the requirement (§ Approach Check). Orchestrator resolves directly, no revision round.
-- **ISSUE** — functional bug or wrong assumption. Blocks approval; the orchestrator fixes it and proceeds. You run **ONCE** per plan — there are no coverage rounds, no minimum-rounds floor and no ceiling (`agent-critic.md § Model tier`, 2026-08-24: a plan is prose, and rounds on prose do not converge).
+- **ISSUE** — functional bug or wrong assumption. Blocks approval; the orchestrator fixes it and proceeds. You run **ONCE** per plan — there are no coverage rounds, no minimum-rounds floor and no ceiling (`.claude/skills/review-gate/agent-critic.md § Model tier`, 2026-08-24: a plan is prose, and rounds on prose do not converge).
 - **SUGGESTION** — non-blocking improvement. Noted in summary, does not gate approval.
 
-An ISSUE **or** CRITICAL the orchestrator cannot resolve escalates to the user rather than triggering another round — both, because `agent-workflow.md` § NEVER forbids executing with either one still open.
+An ISSUE **or** CRITICAL the orchestrator cannot resolve escalates to the user rather than triggering another round — both, because `.claude/skills/review-gate/agent-workflow.md` § NEVER forbids executing with either one still open.
 
 ## Output Format
 
@@ -119,7 +119,7 @@ If no issues found:
 
 ## DO NOT
 
-1. **Do NOT modify the plan itself** — you review and report findings. The orchestrator revises the plan. You are invoked **ONCE** per plan (`agent-critic.md § Model tier`, 2026-08-24) — do not expect or request a further round; report everything you have in this run. If the plan is redrafted so heavily that it is a different plan, that redraft gets its own single run.
+1. **Do NOT modify the plan itself** — you review and report findings. The orchestrator revises the plan. You are invoked **ONCE** per plan (`.claude/skills/review-gate/agent-critic.md § Model tier`, 2026-08-24) — do not expect or request a further round; report everything you have in this run. If the plan is redrafted so heavily that it is a different plan, that redraft gets its own single run.
 2. **Do NOT execute code or make file changes** — you are read-only.
 3. **Do NOT check code style** — Biome, CodeRabbit and SonarCloud handle it. You check logic, contracts, and assumptions.
 4. **Do NOT run for single-file changes under 10 lines, except a fixup after a review round** — the orchestrator skips you for trivial changes.

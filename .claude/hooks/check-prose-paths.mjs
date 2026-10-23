@@ -99,7 +99,7 @@ const KNOWN_FLAGS = new Set(['--all', '--update-baseline'])
  * introduced this guard (§10 cl.7). Re-derive both terms with
  * `node .claude/hooks/measure-prose-paths.mjs --residual`.
  *
- * `.spec-workflow/steering/**` is KEPT: `agent-workflow.md § Rule-Mirror Sync` marks steering
+ * `.spec-workflow/steering/**` is KEPT: `.claude/skills/review-gate/agent-workflow.md § Rule-Mirror Sync` marks steering
  * ALWAYS live — never superseded the way a completed spec is — so a path in `structure.md` or
  * `tech.md` is a claim about the repo as it stands today.
  *
@@ -284,7 +284,7 @@ export function classify(tok, line, index, isIgnored) {
   // particular member exists, and matching it against the tree would grade the wrong claim.
   if (GLOB.test(t)) return 'glob'
   // `packages/db/migrations/**` is FROZEN (2026-07-11) and carries false history. Prose cites
-  // it precisely to warn readers off it — `agent-coderabbit.md` does exactly this — so
+  // it precisely to warn readers off it — `.claude/skills/review-gate/agent-coderabbit.md` does exactly this — so
   // the citation is correct even though nothing there is current.
   if (t.startsWith('packages/db/migrations')) return 'frozen-historical'
   if (t.startsWith('node_modules/') || t.includes('/node_modules/')) return 'node_modules'

@@ -9,7 +9,8 @@
 // file under the test-file cap (code-style.md §1). Fixtures and helpers shared by both suites
 // live in guard-agent-brief.testkit.mjs.
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { after, test } from 'node:test'
 import {
@@ -46,6 +47,18 @@ test('blocks a semantic-reviewer brief carrying an extra CONTEXT line with exit 
 test('allows an exact semantic-reviewer brief with exit 0', () => {
   const r = runHook(payload('semantic-reviewer', exactBrief('semantic-reviewer')))
   assert.equal(r.status, 0)
+})
+
+// GROUP: guard-agent-brief-stdin-cwd-root
+test('allows an exact semantic-reviewer brief when the payload cwd is a different directory', () => {
+  const otherCwd = mkdtempSync(path.join(tmpdir(), 'guard-agent-brief-cwd-'))
+  try {
+    const r = runHook(payload('semantic-reviewer', exactBrief('semantic-reviewer'), {}, otherCwd))
+    assert.equal(r.status, 0)
+    assert.equal(r.stderr, '')
+  } finally {
+    rmSync(otherCwd, { recursive: true, force: true })
+  }
 })
 
 test('allows a non-gated subagent_type with any prompt', () => {

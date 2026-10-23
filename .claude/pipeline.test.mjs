@@ -237,12 +237,22 @@ unusedAliases.length === 0
   ? pass('every model alias is referenced by an agent or a model-literal site')
   : fail(`unreferenced model alias(es): ${unusedAliases.join(', ')}`)
 
-const trackedMatches = (p) =>
-  execFileSync('git', ['-C', ROOT, 'ls-files', '-z', '--', `:(glob)${p}`], { encoding: 'utf8' })
-    .split('\0')
-    .filter(Boolean).length
+const trackedMatches = (p) => {
+  try {
+    return execFileSync('git', ['-C', ROOT, 'ls-files', '-z', '--', `:(glob)${p}`], {
+      encoding: 'utf8',
+    })
+      .split('\0')
+      .filter(Boolean).length
+  } catch (err) {
+    fail(`git ls-files failed for declared path ${p}: ${err.message}`)
+    return null
+  }
+}
 for (const p of [...spec.securityPaths, ...spec.redTeamExtraPaths]) {
-  const found = p.includes('*') ? trackedMatches(p) > 0 : existsSync(join(ROOT, p))
+  const matches = p.includes('*') ? trackedMatches(p) : null
+  if (p.includes('*') && matches === null) continue
+  const found = p.includes('*') ? matches > 0 : existsSync(join(ROOT, p))
   found ? pass(`declared path exists: ${p}`) : fail(`declared path does not exist: ${p}`)
 }
 

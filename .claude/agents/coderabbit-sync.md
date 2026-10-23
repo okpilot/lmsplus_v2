@@ -1,6 +1,6 @@
 ---
 name: coderabbit-sync
-description: Keeps .coderabbit.yaml in sync with project rules. Runs ONCE per branch, after the review loop ends, when the branch diff changes any trigger file in `agent-coderabbit-sync.md § Trigger Conditions` (the canonical list). Ensures CodeRabbit enforces the same rules we enforce locally.
+description: Keeps .coderabbit.yaml in sync with project rules. Runs ONCE per branch, after the review loop ends, when the branch diff changes any trigger file in `.claude/skills/review-gate/agent-coderabbit-sync.md § Trigger Conditions` (the canonical list). Ensures CodeRabbit enforces the same rules we enforce locally.
 model: haiku
 tools: Read, Glob, Grep, Bash
 ---

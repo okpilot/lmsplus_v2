@@ -20,7 +20,7 @@
     },
     {
       "id": "pipeline-glob-check-always-passes",
-      "find": "const found = p.includes('*') ? trackedMatches(p) > 0 : existsSync(join(ROOT, p))",
+      "find": "const found = p.includes('*') ? matches > 0 : existsSync(join(ROOT, p))",
       "replace": "const found = true",
       "expectRed": ["a security path glob matching no tracked file blocks"],
       "note": "Every declared path counts as found — a securityPaths glob matching no tracked file would no longer fail the check."

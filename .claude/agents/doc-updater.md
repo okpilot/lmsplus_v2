@@ -78,10 +78,7 @@ When you report that a file "cites", "mentions" or "references" specific content
 EXACT substring you read — never a paraphrase, and never a line number alone. Line numbers
 drift and paraphrases cannot be checked without re-reading the file. This is the mechanical
 agent-facing form of the citation rule in `.claude/skills/review-gate/agent-doc-updater.md`'s NEVER list
-(never cite a migration, SHA, column or path without reading it). That file is also injected into
-your context, but it is written in orchestrator-handling voice — "trust the agent", "let the agent"
-— ABOUT you rather than TO you; this section states the same requirement as an instruction you can
-act on directly. Two shapes, named here as ILLUSTRATIONS and not as a census: a report resting a
+(never cite a migration, SHA, column or path without reading it). Two shapes, named here as ILLUSTRATIONS and not as a census: a report resting a
 correct verdict on footer text the commit never changed, and a report giving correct findings
 against line numbers that pointed elsewhere.
 

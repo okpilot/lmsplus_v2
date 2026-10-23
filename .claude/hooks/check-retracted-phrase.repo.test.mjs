@@ -296,7 +296,7 @@ test('CLAUDE.md counts as a surviving corpus file (exact-match root entry)', () 
 test('a completed spec is not a surviving occurrence, a live one is', () => {
   // MUTATION: invert or delete the completed-spec derivation → either a historical record
   // blocks corrections forever, or a live spec silently stops being watched. The split is
-  // agent-workflow.md § Rule-Mirror Sync's, not this guard's invention.
+  // .claude/skills/review-gate/agent-workflow.md § Rule-Mirror Sync's, not this guard's invention.
   withRepo((r) => {
     r.write('.claude/limits.json', '{ "note": "value 1807" }\n')
     r.write('.spec-workflow/specs/done/tasks.md', '- [x] finished\nthe value 1807 was used\n')

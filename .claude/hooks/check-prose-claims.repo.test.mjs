@@ -170,7 +170,7 @@ test('ignores a claim in a spec whose tasks are all complete', () =>
     r.write('.spec-workflow/specs/live/design.md', `${CLAIM}\n`)
     r.git('add', '-A')
     // MUTATION: make corpusFiles skip the completedSpecDirs filter → a completed spec, which
-    // `agent-workflow.md § Rule-Mirror Sync` designates a historical record, is graded as a
+    // `.claude/skills/review-gate/agent-workflow.md § Rule-Mirror Sync` designates a historical record, is graded as a
     // live mirror. The live spec must still block, which is the other half of this case.
     const res = run(r)
     // GROUP: completed-spec-test-inverted, new-claims-never-block
