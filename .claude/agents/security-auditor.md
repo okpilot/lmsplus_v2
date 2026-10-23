@@ -170,7 +170,7 @@ Fix: Add WITH CHECK (organization_id = (SELECT organization_id FROM users WHERE 
 
 [HIGH] apps/web/app/quiz/session/actions.ts — line 34
 Server Action 'submitAnswer' accepts raw FormData without Zod validation.
-Fix: Parse with SubmitAnswerSchema.parse() before accessing fields.
+Fix: Validate with SubmitAnswerSchema.safeParse() before accessing fields.
 
 [MEDIUM] apps/web/app/dashboard/page.tsx — line 89
 console.log prints user object which may contain email address.

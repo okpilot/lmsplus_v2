@@ -34,7 +34,9 @@ import { verifySessionUser } from '@/lib/auth/verify-session-user'
 const Schema = z.object({ questionId: z.string().uuid() })
 
 export async function submitAnswer(input: unknown) {
-  const { questionId } = Schema.parse(input)
+  const parsed = Schema.safeParse(input)
+  if (!parsed.success) return { success: false, error: 'Invalid input' }
+  const { questionId } = parsed.data
   const supabase = await createServerSupabaseClient()
   const student = await verifySessionUser(supabase)
   if (!student) return { success: false, error: 'Not authenticated' }

@@ -136,7 +136,9 @@ export async function submitAnswer(input: unknown) {
 
 // ✅ CORRECT — orchestrator + focused helpers
 export async function submitAnswer(input: unknown) {
-  const { questionId, sessionId, selectedOptionId } = SubmitAnswerSchema.parse(input)
+  const parsed = SubmitAnswerSchema.safeParse(input)
+  if (!parsed.success) return { success: false, error: 'Invalid input' }
+  const { questionId, sessionId, selectedOptionId } = parsed.data
   const supabase = await createServerSupabaseClient()
   const student = await verifySessionUser(supabase)
   if (!student) return { success: false, error: 'Not authenticated' }
@@ -295,10 +297,12 @@ const userId = session.user!.id
 ### No Type Casting Unvalidated External Data
 ```ts
 // ❌ WRONG
-const body = await req.json() as SubmitAnswerInput
+const body = input as SubmitAnswerInput
 
 // ✅ CORRECT
-const body = SubmitAnswerSchema.parse(await req.json())
+const parsed = SubmitAnswerSchema.safeParse(input)
+if (!parsed.success) return { success: false, error: 'Invalid input' }
+const body = parsed.data
 ```
 When casting DB/RPC results via `as unknown as T`, pair the cast with a runtime guard before using the data. `as unknown as` silences TypeScript but creates no runtime guarantee.
 ```ts

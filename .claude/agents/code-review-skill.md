@@ -20,5 +20,5 @@ Invoke the `code-review` skill with the Skill tool on the branch named in your b
 - **Open with provenance:** `pwd`, `git rev-parse --abbrev-ref HEAD`, `git rev-parse HEAD`, and that the skill ran in an isolated worktree.
 - Every finding carries file:line, a concrete scenario in which the code misbehaves, and evidence.
 - Where `ReportFindings` is unavailable, report findings as prose in your terminal message.
-- Security rules: `.claude/rules/security.md`, `docs/security.md`.
+- Security rules: `git show <branch>:.claude/rules/security.md`, `git show <branch>:docs/security.md`.
 - `gh` is available: resolve a finding resting on issue/PR state with `gh issue view <N>` / `gh pr view <N>`.
