@@ -2,9 +2,10 @@
  * Red Team Spec: Discovery filter-set counts preloaded into /app/quiz (lib/queries/discovery-counts.ts)
  * — Vector IY
  *
- * IY (cross-tenant): the setup preload calls get_filtered_question_counts for every subject under
- *     the 'flagged' filter set and ships the result to the caller's page. The attacker's flagged
- *     count must not include a question only the victim flagged.
+ * IY (cross-tenant): the setup preload reads get_discovery_counts (#1602) for every subject and
+ *     ships the 'flagged' and 'incorrect+flagged' sets to the caller's page; the client fallback
+ *     calls get_filtered_question_counts. Neither of the attacker's counts may include a question
+ *     only the victim flagged.
  *     CONTROL: the attacker flagging the same question raises the attacker's count by one, and the
  *     victim's count includes the victim's flag.
  *
@@ -56,6 +57,24 @@ test.describe('Red Team: preloaded Discovery flagged counts (IY)', () => {
       total += n
     }
     return total
+  }
+
+  /** The subject's n_flagged and n_incorrect_or_flagged sums from the preload RPC. */
+  const discoveryFlagged = async (client: Client): Promise<[number, number]> => {
+    const { data, error } = await client.rpc('get_discovery_counts')
+    expect(error).toBeNull()
+    expect(Array.isArray(data)).toBe(true)
+    let flagged = 0
+    let either = 0
+    for (const r of data as Record<string, unknown>[]) {
+      if (r.subject_id !== subjectId) continue
+      const f = Number(r.n_flagged)
+      const e = Number(r.n_incorrect_or_flagged)
+      expect(Number.isFinite(f) && Number.isFinite(e)).toBe(true)
+      flagged += f
+      either += e
+    }
+    return [flagged, either]
   }
 
   const flag = async (studentId: string) => {
@@ -132,14 +151,23 @@ test.describe('Red Team: preloaded Discovery flagged counts (IY)', () => {
   test("IY: the attacker's flagged count excludes a question only the victim flagged", async () => {
     const attackerBefore = await flaggedCount(attacker)
     const victimBefore = await flaggedCount(victim)
+    const [aFlagged, aEither] = await discoveryFlagged(attacker)
+    const [vFlagged, vEither] = await discoveryFlagged(victim)
 
     await flag(victimUserId)
     expect(await hasActiveFlag(victimUserId)).toBe(true)
     expect(await flaggedCount(victim)).toBe(victimBefore + 1)
     expect(await flaggedCount(attacker)).toBe(attackerBefore)
+    const [vFlaggedAfter, vEitherAfter] = await discoveryFlagged(victim)
+    expect(vFlaggedAfter).toBe(vFlagged + 1)
+    expect(vEitherAfter).toBeGreaterThanOrEqual(vEither)
+    expect(await discoveryFlagged(attacker)).toEqual([aFlagged, aEither])
 
     // CONTROL: the attacker's own flag on the same question is counted.
     await flag(attackerUserId)
     expect(await flaggedCount(attacker)).toBe(attackerBefore + 1)
+    const [aFlaggedAfter, aEitherAfter] = await discoveryFlagged(attacker)
+    expect(aFlaggedAfter).toBe(aFlagged + 1)
+    expect(aEitherAfter).toBeGreaterThanOrEqual(aEither)
   })
 })
