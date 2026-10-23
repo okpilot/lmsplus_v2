@@ -47,18 +47,5 @@ export async function submitAnswer(input: unknown) {
 ## use client boundary
 Push `'use client'` as deep as possible. Default to Server Components.
 
-## Route structure
-```
-app/
-  (auth)/
-    login/page.tsx
-    auth/callback/route.ts
-  app/
-    dashboard/page.tsx
-    quiz/
-      page.tsx          ← config
-      session/page.tsx  ← active session (client)
-```
-
 ## Middleware
 `proxy.ts` at root of `apps/web/` — protects `/app/*` routes (renamed from middleware.ts — project convention, not a Next.js requirement).
