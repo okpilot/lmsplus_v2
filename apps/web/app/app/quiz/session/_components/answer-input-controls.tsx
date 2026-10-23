@@ -3,9 +3,8 @@
 // 5th (diagram_label) arm on top of an already-at-cap file.
 import { AnswerOptions } from '@/app/app/_components/answer-options'
 import type { QuizState } from '../_hooks/use-quiz-state'
-import { DiagramLabelInput } from './diagram-label-input'
 import { DialogFillInput } from './dialog-fill-input'
-import { OrderingInput } from './ordering-input'
+import { DiagramLabelInput, OrderingInput } from './lazy-answer-inputs'
 import { ShortAnswerInput } from './short-answer-input'
 
 export type Question = NonNullable<QuizState['question']>

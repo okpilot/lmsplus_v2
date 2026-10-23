@@ -408,7 +408,7 @@ describe('QuizMainPanel', () => {
       expect(screen.getByTestId('dialog-fill-input')).toBeInTheDocument()
     })
 
-    it('shows a sortable list for an ordering question', () => {
+    it('shows a sortable list for an ordering question', async () => {
       const s = makeState({
         question: {
           id: 'q-ord',
@@ -429,7 +429,7 @@ describe('QuizMainPanel', () => {
         },
       } as Partial<QuizState>)
       render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
-      expect(screen.getByTestId('ordering-input')).toBeInTheDocument()
+      expect(await screen.findByTestId('ordering-input')).toBeInTheDocument()
       expect(screen.queryByTestId('answer-options')).not.toBeInTheDocument()
       expect(screen.queryByTestId('dialog-fill-input')).not.toBeInTheDocument()
     })
@@ -457,7 +457,7 @@ describe('QuizMainPanel', () => {
         handleOrderingAnswer,
       } as Partial<QuizState>)
       render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
-      await userEvent.click(screen.getByTestId('ordering-submit'))
+      await userEvent.click(await screen.findByTestId('ordering-submit'))
       expect(handleOrderingAnswer).toHaveBeenCalledWith(['b', 'a'])
     })
 
@@ -485,19 +485,19 @@ describe('QuizMainPanel', () => {
         handleOrderingAnswer,
       } as Partial<QuizState>)
       render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
-      expect(screen.getByTestId('ordering-input')).toHaveAttribute('data-submitted', 'true')
+      expect(await screen.findByTestId('ordering-input')).toHaveAttribute('data-submitted', 'true')
       // The prior arrangement must be forwarded so the per-slot badges align on revisit.
-      expect(screen.getByTestId('ordering-input')).toHaveAttribute(
+      expect(await screen.findByTestId('ordering-input')).toHaveAttribute(
         'data-submitted-order',
         JSON.stringify(['a', 'b']),
       )
       // The lock must actually prevent submission, not just flip the flag: clicking the
       // (now-disabled) submit must not fire the handler for an already-answered question.
-      await userEvent.click(screen.getByTestId('ordering-submit'))
+      await userEvent.click(await screen.findByTestId('ordering-submit'))
       expect(handleOrderingAnswer).not.toHaveBeenCalled()
     })
 
-    it('renders an ordering question with its item ids in the delivered order', () => {
+    it('renders an ordering question with its item ids in the delivered order', async () => {
       // Regression guard: the mock previously ignored `items`, so QuizMainPanel
       // could render an empty list and all existing tests would still pass. The
       // data-items attribute now exposes the rendered ids so this gap is visible.
@@ -522,7 +522,7 @@ describe('QuizMainPanel', () => {
       } as Partial<QuizState>)
       render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
       // The item ids from question.ordering_items must reach OrderingInput unchanged.
-      expect(screen.getByTestId('ordering-input').getAttribute('data-items')).toBe(
+      expect((await screen.findByTestId('ordering-input')).getAttribute('data-items')).toBe(
         JSON.stringify(['a', 'b']),
       )
     })

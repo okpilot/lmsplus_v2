@@ -135,7 +135,7 @@ describe('AnswerInput — ordering question item guard', () => {
     expect(screen.queryByTestId('ordering-input')).not.toBeInTheDocument()
   })
 
-  it('renders the ordering input when two or more items are provided', () => {
+  it('renders the ordering input when two or more items are provided', async () => {
     render(
       <AnswerInput
         s={makeOrderingState([
@@ -144,11 +144,11 @@ describe('AnswerInput — ordering question item guard', () => {
         ])}
       />,
     )
-    expect(screen.getByTestId('ordering-input')).toBeInTheDocument()
+    expect(await screen.findByTestId('ordering-input')).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
-  it('passes all item ids to the ordering input in the delivered order', () => {
+  it('passes all item ids to the ordering input in the delivered order', async () => {
     // Regression guard: confirms AnswerInput forwards ordering_items intact to
     // OrderingInput — a proxy/wrapper bug that drops or shuffles items would fail here.
     render(
@@ -160,7 +160,7 @@ describe('AnswerInput — ordering question item guard', () => {
         ])}
       />,
     )
-    expect(screen.getByTestId('ordering-input').getAttribute('data-items')).toBe(
+    expect((await screen.findByTestId('ordering-input')).getAttribute('data-items')).toBe(
       JSON.stringify(['step-1', 'step-2', 'step-3']),
     )
   })
@@ -205,7 +205,7 @@ describe('AnswerInput — diagram_label question config guard', () => {
     expect(screen.queryByTestId('diagram-label-input')).not.toBeInTheDocument()
   })
 
-  it('renders the diagram label input when a valid config is provided', () => {
+  it('renders the diagram label input when a valid config is provided', async () => {
     render(
       <AnswerInput
         s={makeDiagramLabelState({
@@ -215,11 +215,11 @@ describe('AnswerInput — diagram_label question config guard', () => {
         })}
       />,
     )
-    expect(screen.getByTestId('diagram-label-input')).toBeInTheDocument()
+    expect(await screen.findByTestId('diagram-label-input')).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
-  it('renders a drop-zone for each delivered zone id', () => {
+  it('renders a drop-zone for each delivered zone id', async () => {
     render(
       <AnswerInput
         s={makeDiagramLabelState({
@@ -232,7 +232,7 @@ describe('AnswerInput — diagram_label question config guard', () => {
         })}
       />,
     )
-    expect(screen.getByTestId('diagram-label-input').getAttribute('data-zone-ids')).toBe(
+    expect((await screen.findByTestId('diagram-label-input')).getAttribute('data-zone-ids')).toBe(
       JSON.stringify(['z1', 'z2']),
     )
   })
@@ -258,7 +258,7 @@ describe('AnswerInput — exam-mode question type support', () => {
     },
   )
 
-  it('renders a non-MC question in vfr_rt_exam', () => {
+  it('renders a non-MC question in vfr_rt_exam', async () => {
     render(
       <AnswerInput
         s={makeOrderingState(
@@ -270,6 +270,6 @@ describe('AnswerInput — exam-mode question type support', () => {
         )}
       />,
     )
-    expect(screen.getByTestId('ordering-input')).toBeInTheDocument()
+    expect(await screen.findByTestId('ordering-input')).toBeInTheDocument()
   })
 })
