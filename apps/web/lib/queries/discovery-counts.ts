@@ -1,7 +1,8 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { cache } from 'react'
+import { POSTGREST_MAX_ROWS } from '@/lib/supabase-paginate'
 import { rpc } from '@/lib/supabase-rpc'
-import { filterSetKey, PRELOADED_FILTER_SETS } from './filtered-count-keys'
+import { filterSetKey } from './filtered-count-keys'
 import { getSubjectsWithCounts } from './quiz-subject-queries'
 import { getAllTopicTrees } from './quiz-topic-trees'
 
@@ -36,37 +37,94 @@ export function sumFilteredCountRows(rows: unknown[]): FilteredCounts {
   return { count, byTopic, bySubtopic }
 }
 
-type Supabase = Awaited<ReturnType<typeof createServerSupabaseClient>>
+type DiscoveryCountRow = {
+  subject_id: string
+  topic_id: string
+  subtopic_id: string | null
+  // bigint COUNT(*) — PostgREST may serialize as a string; coerce with Number() at every read site.
+  n_all: number | string
+  n_unseen: number | string
+  n_incorrect: number | string
+  n_flagged: number | string
+  n_incorrect_or_flagged: number | string
+}
 
-/** One subject's multiple-choice pool under one filter set; null on any failure so the client falls back. */
-async function countSet(opts: {
-  supabase: Supabase
-  subjectId: string
-  filters: readonly string[]
-  topicIds: string[]
-  subtopicIds: string[]
-}): Promise<FilteredCounts | null> {
-  const { supabase, subjectId, filters, topicIds, subtopicIds } = opts
+/** RPC count column -> the filter set it counts, keyed through `filterSetKey`. */
+const COUNT_COLUMNS = [
+  ['n_all', filterSetKey([])],
+  ['n_unseen', filterSetKey(['unseen'])],
+  ['n_incorrect', filterSetKey(['incorrect'])],
+  ['n_flagged', filterSetKey(['flagged'])],
+  ['n_incorrect_or_flagged', filterSetKey(['incorrect', 'flagged'])],
+] as const
+
+function isFiniteCount(value: unknown): boolean {
+  return (typeof value === 'number' || typeof value === 'string') && Number.isFinite(Number(value))
+}
+
+/** Per-row guard required by code-style.md §5 — the `rpc<…>` cast is a TS assertion only. */
+function isDiscoveryCountRow(value: unknown): value is DiscoveryCountRow {
+  if (typeof value !== 'object' || value === null) return false
+  const row = value as Record<string, unknown>
+  return (
+    typeof row.subject_id === 'string' &&
+    typeof row.topic_id === 'string' &&
+    (row.subtopic_id === null || typeof row.subtopic_id === 'string') &&
+    COUNT_COLUMNS.every(([column]) => isFiniteCount(row[column]))
+  )
+}
+
+type SubjectScope = { topicIds: Set<string>; subtopicIds: Set<string> }
+
+function emptySets(): Record<string, FilteredCounts> {
+  return Object.fromEntries(
+    COUNT_COLUMNS.map(([, key]) => [key, { count: 0, byTopic: {}, bySubtopic: {} }]),
+  )
+}
+
+/** Adds one row's counts to its subject's sets; a zero count adds nothing (the old RPC omitted empty groups). */
+function addRow(sets: Record<string, FilteredCounts>, row: DiscoveryCountRow) {
+  for (const [column, key] of COUNT_COLUMNS) {
+    const n = Number(row[column])
+    const target = sets[key]
+    if (!target || n <= 0) continue
+    target.count += n
+    target.byTopic[row.topic_id] = (target.byTopic[row.topic_id] ?? 0) + n
+    if (row.subtopic_id !== null) {
+      target.bySubtopic[row.subtopic_id] = (target.bySubtopic[row.subtopic_id] ?? 0) + n
+    }
+  }
+}
+
+function inScope(row: DiscoveryCountRow, scope: SubjectScope): boolean {
+  return (
+    scope.topicIds.has(row.topic_id) ||
+    (row.subtopic_id !== null && scope.subtopicIds.has(row.subtopic_id))
+  )
+}
+
+/** One read for every subject; null on any failure so the client falls back to per-subject counts. */
+async function fetchDiscoveryRows(): Promise<DiscoveryCountRow[] | null> {
   try {
-    // Same args getFilteredCount (actions/lookup.ts) gets from the client fallback.
-    const { data, error } = await rpc<unknown>(supabase, 'get_filtered_question_counts', {
-      p_subject_id: subjectId,
-      p_topic_ids: topicIds,
-      p_subtopic_ids: subtopicIds,
-      p_filters: [...filters],
-      p_calc_mode: 'all',
-      p_has_image: 'all',
-      p_question_type: 'multiple_choice',
-    })
+    const supabase = await createServerSupabaseClient()
+    const { data, error } = await rpc<unknown>(supabase, 'get_discovery_counts', {})
     if (error) {
-      console.error('[getDiscoveryCounts] get_filtered_question_counts error:', error.message)
+      console.error('[getDiscoveryCounts] get_discovery_counts error:', error.message)
       return null
     }
     if (!Array.isArray(data)) {
-      console.error('[getDiscoveryCounts] payload is not an array for subject', subjectId)
+      console.error('[getDiscoveryCounts] payload is not an array')
       return null
     }
-    return sumFilteredCountRows(data)
+    if (data.length >= POSTGREST_MAX_ROWS) {
+      console.error('[getDiscoveryCounts] payload may be truncated at the row cap:', data.length)
+      return null
+    }
+    const rows = data.filter(isDiscoveryCountRow)
+    if (rows.length !== data.length) {
+      console.error(`[getDiscoveryCounts] dropped ${data.length - rows.length} malformed row(s)`)
+    }
+    return rows
   } catch (err) {
     console.error(
       '[getDiscoveryCounts] count read threw:',
@@ -76,55 +134,34 @@ async function countSet(opts: {
   }
 }
 
-/** All preloaded filter sets of one subject, keyed by `filterSetKey`; failed sets are omitted. */
-async function countSubject(opts: {
-  supabase: Supabase
-  subjectId: string
-  topicIds: string[]
-  subtopicIds: string[]
-}) {
-  const entries = await Promise.all(
-    PRELOADED_FILTER_SETS.map(
-      async (filters) => [filterSetKey(filters), await countSet({ ...opts, filters })] as const,
-    ),
-  )
-  const bySet: Record<string, FilteredCounts> = {}
-  for (const [key, result] of entries) {
-    if (result) bySet[key] = result
-  }
-  return bySet
-}
-
 /**
  * Discovery's multiple-choice count for every pickable subject under each filter set the UI
  * can produce (see `PRELOADED_FILTER_SETS`), keyed by subject id then `filterSetKey`, so
  * the setup form needs no request on subject change or filter toggle. Argument-free on
  * purpose: `cache()` keys by argument reference, and the subject ids come from the
- * already-cached `getSubjectsWithCounts()`. A failed set is omitted (the client uses the action).
+ * already-cached `getSubjectsWithCounts()`. One `get_discovery_counts` read; a failed read
+ * returns `{}` (the client uses the per-subject action).
  */
 export const getDiscoveryCounts = cache(
   async (): Promise<Record<string, Record<string, FilteredCounts>>> => {
-    const [supabase, subjects, trees] = await Promise.all([
-      createServerSupabaseClient(),
-      getSubjectsWithCounts(),
-      getAllTopicTrees(),
-    ])
-    const results = await Promise.all(
-      subjects.flatMap((s) => {
-        const tree = trees[s.id]
-        if (!tree?.length) return []
-        const topicIds = tree.map((t) => t.id)
-        const subtopicIds = tree.flatMap((t) => t.subtopics.map((st) => st.id))
-        return [
-          countSubject({ supabase, subjectId: s.id, topicIds, subtopicIds }).then(
-            (bySet) => [s.id, bySet] as const,
-          ),
-        ]
-      }),
-    )
+    const [subjects, trees] = await Promise.all([getSubjectsWithCounts(), getAllTopicTrees()])
+    const rows = await fetchDiscoveryRows()
+    if (!rows) return {}
     const counts: Record<string, Record<string, FilteredCounts>> = {}
-    for (const [id, bySet] of results) {
-      if (Object.keys(bySet).length > 0) counts[id] = bySet
+    const scopes = new Map<string, SubjectScope>()
+    for (const s of subjects) {
+      const tree = trees[s.id]
+      if (!tree?.length) continue
+      counts[s.id] = emptySets()
+      scopes.set(s.id, {
+        topicIds: new Set(tree.map((t) => t.id)),
+        subtopicIds: new Set(tree.flatMap((t) => t.subtopics.map((st) => st.id))),
+      })
+    }
+    for (const row of rows) {
+      const scope = scopes.get(row.subject_id)
+      const sets = counts[row.subject_id]
+      if (scope && sets && inScope(row, scope)) addRow(sets, row)
     }
     return counts
   },

@@ -1671,6 +1671,19 @@ export type Database = {
           subject_id: string
         }[]
       }
+      get_discovery_counts: {
+        Args: never
+        Returns: {
+          n_all: number
+          n_flagged: number
+          n_incorrect: number
+          n_incorrect_or_flagged: number
+          n_unseen: number
+          subject_id: string
+          subtopic_id: string
+          topic_id: string
+        }[]
+      }
       get_filtered_question_counts: {
         Args: {
           p_calc_mode?: string

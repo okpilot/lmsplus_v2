@@ -26,6 +26,7 @@ vi.mock('./quiz-topic-trees', () => ({
 
 // ---- Subject under test ---------------------------------------------------
 
+import { POSTGREST_MAX_ROWS } from '@/lib/supabase-paginate'
 import { getDiscoveryCounts, sumFilteredCountRows } from './discovery-counts'
 
 // ---- Fixtures -------------------------------------------------------------
@@ -86,103 +87,176 @@ describe('sumFilteredCountRows', () => {
   })
 })
 
+const row = (o: Partial<Record<string, unknown>>) => ({
+  subject_id: 's1',
+  topic_id: 't1',
+  subtopic_id: 'st1',
+  n_all: 0,
+  n_unseen: 0,
+  n_incorrect: 0,
+  n_flagged: 0,
+  n_incorrect_or_flagged: 0,
+  ...o,
+})
+
+const SET_KEYS = ['', 'flagged', 'flagged,incorrect', 'incorrect', 'unseen']
+
 describe('getDiscoveryCounts', () => {
-  it('counts every subject for each preloaded student filter set with the Discovery defaults', async () => {
+  it('reads every subject and filter set with one argument-free count call', async () => {
     mockRpc.mockResolvedValue({ data: [], error: null })
 
     await getDiscoveryCounts()
 
-    expect(mockRpc).toHaveBeenCalledTimes(10)
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_filtered_question_counts', {
-      p_subject_id: 's1',
-      p_topic_ids: ['t1', 't2'],
-      p_subtopic_ids: ['st1', 'st2', 'st3'],
-      p_filters: [],
-      p_calc_mode: 'all',
-      p_has_image: 'all',
-      p_question_type: 'multiple_choice',
-    })
-    const filtersBySubject = mockRpc.mock.calls.map((c) => {
-      const a = c[2] as { p_subject_id: string; p_filters: string[] }
-      return `${a.p_subject_id}:${a.p_filters.join('+')}`
-    })
-    expect(filtersBySubject.sort()).toEqual(
-      ['s1', 's2']
-        .flatMap((id) =>
-          ['', 'unseen', 'incorrect', 'flagged', 'incorrect+flagged'].map((f) => `${id}:${f}`),
-        )
-        .sort(),
-    )
+    expect(mockRpc).toHaveBeenCalledTimes(1)
+    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_discovery_counts', {})
   })
 
-  it('keys the summed counts by subject id and filter set', async () => {
-    mockRpc.mockImplementation(
-      async (_s: unknown, _fn: string, args: { p_subject_id: string; p_filters: string[] }) => {
-        const n = args.p_filters.length + 1
-        return {
-          data:
-            args.p_subject_id === 's1'
-              ? [{ topic_id: 't1', subtopic_id: 'st1', n: String(6 * n) }]
-              : [{ topic_id: 't3', subtopic_id: null, n }],
-          error: null,
-        }
-      },
-    )
+  it('keys the counts by subject id and filter set', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        row({
+          n_all: 6,
+          n_unseen: 5,
+          n_incorrect: 2,
+          n_flagged: 1,
+          n_incorrect_or_flagged: 3,
+        }),
+        row({ topic_id: 't3', subtopic_id: null, subject_id: 's2', n_all: 2, n_unseen: 2 }),
+      ],
+      error: null,
+    })
 
     const counts = await getDiscoveryCounts()
 
-    expect(Object.keys(counts.s1 ?? {}).sort()).toEqual(
-      ['', 'flagged', 'incorrect', 'flagged,incorrect', 'unseen'].sort(),
-    )
+    expect(Object.keys(counts.s1 ?? {}).sort()).toEqual(SET_KEYS)
     expect(counts.s1?.['']).toEqual({ count: 6, byTopic: { t1: 6 }, bySubtopic: { st1: 6 } })
+    expect(counts.s1?.unseen?.count).toBe(5)
+    expect(counts.s1?.incorrect?.count).toBe(2)
+    expect(counts.s1?.flagged?.count).toBe(1)
     expect(counts.s1?.['flagged,incorrect']).toEqual({
-      count: 18,
-      byTopic: { t1: 18 },
-      bySubtopic: { st1: 18 },
+      count: 3,
+      byTopic: { t1: 3 },
+      bySubtopic: { st1: 3 },
     })
     expect(counts.s2?.unseen).toEqual({ count: 2, byTopic: { t3: 2 }, bySubtopic: {} })
   })
 
-  it('omits only the filter set whose count read failed and logs it', async () => {
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    mockRpc.mockImplementation(async (_s: unknown, _fn: string, args: { p_filters: string[] }) =>
-      args.p_filters[0] === 'flagged' && args.p_filters.length === 1
-        ? { data: null, error: { message: 'boom' } }
-        : { data: [{ topic_id: 't3', subtopic_id: null, n: 4 }], error: null },
-    )
+  it('sums rows of the same topic across subtopics', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        row({ subtopic_id: 'st1', n_all: 3 }),
+        row({ subtopic_id: 'st2', n_all: 2 }),
+        row({ subtopic_id: null, n_all: 4 }),
+      ],
+      error: null,
+    })
 
     const counts = await getDiscoveryCounts()
 
-    expect(Object.keys(counts.s1 ?? {}).sort()).toEqual([
-      '',
-      'flagged,incorrect',
-      'incorrect',
-      'unseen',
-    ])
+    expect(counts.s1?.['']).toEqual({
+      count: 9,
+      byTopic: { t1: 9 },
+      bySubtopic: { st1: 3, st2: 2 },
+    })
+  })
+
+  it('gives a subject with no matching rows zero counts for every filter set', async () => {
+    mockRpc.mockResolvedValue({ data: [], error: null })
+
+    const counts = await getDiscoveryCounts()
+
+    expect(Object.keys(counts).sort()).toEqual(['s1', 's2'])
+    for (const id of ['s1', 's2']) {
+      expect(Object.keys(counts[id] ?? {}).sort()).toEqual(SET_KEYS)
+      expect(counts[id]?.['']).toEqual({ count: 0, byTopic: {}, bySubtopic: {} })
+    }
+  })
+
+  it('leaves a topic out of a filter set whose count there is zero', async () => {
+    mockRpc.mockResolvedValue({
+      data: [row({ n_all: 4, n_unseen: 0 })],
+      error: null,
+    })
+
+    const counts = await getDiscoveryCounts()
+
+    expect(counts.s1?.unseen).toEqual({ count: 0, byTopic: {}, bySubtopic: {} })
+  })
+
+  it('coerces bigint counts that arrive as strings', async () => {
+    mockRpc.mockResolvedValue({ data: [row({ n_all: '7', n_unseen: '4' })], error: null })
+
+    const counts = await getDiscoveryCounts()
+
+    expect(counts.s1?.['']?.count).toBe(7)
+    expect(counts.s1?.unseen?.byTopic).toEqual({ t1: 4 })
+  })
+
+  it('ignores rows outside the subject topic tree', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        row({ n_all: 2 }),
+        row({ subject_id: 's2', topic_id: 't3', subtopic_id: 'st4', n_all: 50 }),
+        row({ subject_id: 's2', topic_id: 'tX', subtopic_id: null, n_all: 60 }),
+      ],
+      error: null,
+    })
+
+    const counts = await getDiscoveryCounts()
+
+    expect(counts.s1?.['']).toEqual({ count: 2, byTopic: { t1: 2 }, bySubtopic: { st1: 2 } })
+    expect(counts.s2?.['']?.count).toBe(50)
+  })
+
+  it('counts a row whose topic is unknown but whose subtopic is in the tree', async () => {
+    mockRpc.mockResolvedValue({
+      data: [row({ topic_id: 'tX', subtopic_id: 'st3', n_all: 5 })],
+      error: null,
+    })
+
+    const counts = await getDiscoveryCounts()
+
+    expect(counts.s1?.['']).toEqual({ count: 5, byTopic: { tX: 5 }, bySubtopic: { st3: 5 } })
+  })
+
+  it('drops malformed rows and keeps the valid ones', async () => {
+    mockRpc.mockResolvedValue({
+      data: [null, 'row', row({ topic_id: 5, n_all: 9 }), row({ n_all: 'abc' }), row({ n_all: 2 })],
+      error: null,
+    })
+
+    const counts = await getDiscoveryCounts()
+
+    expect(counts.s1?.['']).toEqual({ count: 2, byTopic: { t1: 2 }, bySubtopic: { st1: 2 } })
+  })
+
+  it('returns no preloaded counts and logs when the count read fails', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'boom' } })
+
+    expect(await getDiscoveryCounts()).toEqual({})
     expect(errorSpy).toHaveBeenCalled()
   })
 
-  it('omits a subject whose every count read failed', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    mockRpc.mockImplementation(async (_s: unknown, _fn: string, args: { p_subject_id: string }) =>
-      args.p_subject_id === 's1'
-        ? { data: null, error: { message: 'boom' } }
-        : { data: [{ topic_id: 't3', subtopic_id: null, n: 4 }], error: null },
-    )
-
-    const counts = await getDiscoveryCounts()
-
-    expect(Object.keys(counts)).toEqual(['s2'])
-  })
-
-  it('omits a subject whose count reads returned a non-array payload', async () => {
+  it('returns no preloaded counts when the payload is not an array', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
     mockRpc.mockResolvedValue({ data: { oops: true }, error: null })
 
     expect(await getDiscoveryCounts()).toEqual({})
   })
 
-  it('omits a subject whose count reads reject', async () => {
+  it('returns no preloaded counts when the payload may be truncated at the row cap', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    mockRpc.mockResolvedValue({
+      data: Array.from({ length: POSTGREST_MAX_ROWS }, () => row({ n_all: 1 })),
+      error: null,
+    })
+
+    expect(await getDiscoveryCounts()).toEqual({})
+    expect(errorSpy).toHaveBeenCalled()
+  })
+
+  it('returns no preloaded counts when the count read rejects', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
     mockRpc.mockRejectedValue(new Error('network'))
 
@@ -195,34 +269,19 @@ describe('getDiscoveryCounts', () => {
     await expect(getDiscoveryCounts()).rejects.toThrow('subjects failed')
   })
 
-  it('sends the subject topic and subtopic ids of its tree with every count', async () => {
-    mockRpc.mockResolvedValue({ data: [], error: null })
-
-    await getDiscoveryCounts()
-
-    const argsBySubject = new Map(
-      mockRpc.mock.calls.map((c) => {
-        const a = c[2] as { p_subject_id: string; p_topic_ids: unknown; p_subtopic_ids: unknown }
-        return [a.p_subject_id, [a.p_topic_ids, a.p_subtopic_ids]] as const
-      }),
-    )
-    expect(argsBySubject.get('s1')).toEqual([
-      ['t1', 't2'],
-      ['st1', 'st2', 'st3'],
-    ])
-    expect(argsBySubject.get('s2')).toEqual([['t3'], ['st4']])
-  })
-
   it('skips a subject that has no topic tree', async () => {
     mockGetTrees.mockResolvedValue({ s2: TREES.s2 })
-    mockRpc.mockResolvedValue({ data: [{ topic_id: 't3', subtopic_id: null, n: 1 }], error: null })
+    mockRpc.mockResolvedValue({
+      data: [
+        row({ n_all: 9 }),
+        row({ subject_id: 's2', topic_id: 't3', subtopic_id: null, n_all: 1 }),
+      ],
+      error: null,
+    })
 
     const counts = await getDiscoveryCounts()
 
     expect(Object.keys(counts)).toEqual(['s2'])
-    expect(
-      mockRpc.mock.calls.every((c) => (c[2] as { p_subject_id: string }).p_subject_id === 's2'),
-    ).toBe(true)
   })
 
   it('rejects when the topic trees cannot be read so the page falls back to per-subject counts', async () => {
