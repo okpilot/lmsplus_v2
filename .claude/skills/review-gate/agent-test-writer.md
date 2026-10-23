@@ -27,7 +27,7 @@ Writes Vitest unit and integration tests for the functions and React components 
 - Behavior-focused test names
 - Supabase client mocks using the project's `vi.hoisted` + `buildChain` pattern
 - `vi.resetAllMocks()` in `beforeEach` — resets `vi.fn()` mock state, which `restoreMocks` does NOT touch
-- No hand-added `afterEach(() => vi.restoreAllMocks())` spy-cleanup nets — `restoreMocks: true` in both `apps/web` vitest configs (not `packages/db`) already restores every `vi.spyOn` spy before each test. Keep explicit restores only for global/prototype spies (`globalThis.confirm`, `Storage.prototype.setItem`, `document.createElement`).
+- In `apps/web` tests, no hand-added `afterEach(() => vi.restoreAllMocks())` spy-cleanup nets — `restoreMocks: true` in both `apps/web` vitest configs already restores every `vi.spyOn` spy before each test. Keep explicit restores only for global/prototype spies (`globalThis.confirm`, `Storage.prototype.setItem`, `document.createElement`).
 - Tests that run and pass before being reported
 ## When Tests Reveal Bugs
 If the test-writer creates a test that fails because the production code has a bug:

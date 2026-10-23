@@ -29,7 +29,7 @@ Runs ONCE per branch, after the review loop ends — and only when the above pat
 - A proven exploit blocks the push until its fix lands on this branch — never pushed as a `GAP` row with an issue filed.
 - `/fullpush` step 7b (`e2e:redteam`) confirms the exploit's spec now passes — no red-team re-run. The fix commit un-skips the spec; `attack-surface.test.ts` rejects a row past `GAP` whose spec file holds a static skip.
 - Create GitHub Issues for unproven coverage gaps (not immediate fixes). Each issue names the spec or vector it covers (`agent-workflow.md § Apply-vs-Defer Discipline`).
-- A run with no proven exploit: commit its specs and rows as a fixup; the review round set re-runs on the re-diffed branch.
+- A run with no proven exploit: commit any new specs and rows as a fixup; the review round set re-runs on the re-diffed branch. No new files: no fixup, no re-run.
 - Red-team's own specs and rows, and a proven exploit's fix, never re-trigger red-team.
 - After each red-team run, check `git status --porcelain --untracked-files=all` and reject any path under `apps/web/e2e/redteam/` other than `*.spec.ts`, `helpers/**` and `attack-surface.md`, or outside it — the agent's write scope is brief-enforced, not hook-enforced.
 - A security bug found downstream of a PASSED red-team run (by CodeRabbit, security-auditor, CI, or in production) gets a `MISSED` row plus a spec, filed in the PR that fixes it.

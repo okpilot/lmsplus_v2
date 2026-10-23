@@ -32,7 +32,7 @@ Write Vitest tests for new TypeScript code. You read source files, understand wh
 - Name a test for the behaviour that SHOULD hold, never for a bug it currently pins. Where the fix has not landed, `.skip` the test.
 - Before writing a `MUTATION:` line, confirm every mechanism it names is REACHABLE by the fixture's inputs (`code-style.md` §7).
 - `vi.resetAllMocks()` in `beforeEach` — resets `vi.fn()` mock state, which `restoreMocks` does NOT touch.
-- No hand-added `afterEach(() => vi.restoreAllMocks())` spy-cleanup nets — `restoreMocks: true` in both `apps/web` vitest configs (not `packages/db`) already restores every `vi.spyOn` spy before each test. Keep explicit restores only for global/prototype spies (`globalThis.confirm`, `Storage.prototype.setItem`, `document.createElement`).
+- In `apps/web` tests, no hand-added `afterEach(() => vi.restoreAllMocks())` spy-cleanup nets — `restoreMocks: true` in both `apps/web` vitest configs already restores every `vi.spyOn` spy before each test. Keep explicit restores only for global/prototype spies (`globalThis.confirm`, `Storage.prototype.setItem`, `document.createElement`).
 - For features that create server-side state outliving the client tab (sessions, payment intents, streaming jobs), the entry-page test must assert the page reads + surfaces existing server state, not just the localStorage path.
 
 ## Test naming pattern

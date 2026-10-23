@@ -23,7 +23,7 @@ State what is true. Delete the rest.
 2. **NEVER explore the codebase yourself when subagents can do it** — Explore agents (Sonnet) do it. Reading one known file or a simple symbol grep is exempt (§ When NOT to use subagents).
 3. **ALWAYS delegate execution** — parallel when independent; worktree isolation for risky changes.
 4. **ALWAYS read every subagent result first** — no fire-and-forget.
-5. **ALWAYS run the pre-push review gate** — once per branch, every gate agent every round, e2e-writer when triggered. No exemption.
+5. **ALWAYS run the pre-push review gate** — once per branch; every round: code-review, semantic-reviewer, doc-updater, test-writer; e2e-writer when triggered. No exemption.
 
 ### Your workflow for any non-trivial task:
 ```
