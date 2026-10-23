@@ -274,6 +274,20 @@ describe('getDiscoveryCounts', () => {
     expect(errorSpy).toHaveBeenCalled()
   })
 
+  it('returns no preloaded counts and logs when a page read fails after the count succeeds', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    useRows(
+      Array.from({ length: POSTGREST_MAX_ROWS }, () => row({ n_all: 1 })),
+      {
+        count: { count: POSTGREST_MAX_ROWS + 1, error: null },
+        pages: [{ data: null, error: { message: 'page boom' } }],
+      },
+    )
+
+    expect(await getDiscoveryCounts()).toEqual({})
+    expect(errorSpy).toHaveBeenCalled()
+  })
+
   it('returns no preloaded counts when the payload is not an array', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
     useRows({ oops: true })
