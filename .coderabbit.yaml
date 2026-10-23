@@ -94,7 +94,7 @@ reviews:
       instructions: |
         Route Handler. Enforce (code-style.md §6 R2/R5, docs/security.md Route Handler reads) on GET handlers serving client-initiated reads. Not covered: apps/web/app/auth/** handlers, webhooks, apps/web/app/api/version/route.ts (public, returns no user data).
         - GET only, no side effects. The only mutating exceptions are `apps/web/app/auth/**` handlers and webhooks.
-        - Lives outside the proxy.ts matcher (e.g. apps/web/app/api/**). verifySessionUser() first, 401 JSON when unauthenticated; never delegated to proxy.ts.
+        - Lives outside the proxy.ts matcher (e.g. apps/web/app/api/**). verifySessionUser() first, 401 JSON when unauthenticated; then the proxy.ts /app/* gates (__recovery_pending cookie, __consent_u cookie vs buildConsentCookieValue(userId)), 403 JSON; never delegated to proxy.ts.
         - Zod safeParse on query and path params, 400 on failure.
         - Same answer-stripping, active-user gate and tenant/soft-delete scope as the equivalent RPC.
         - Sanitized errors, never error.message.
