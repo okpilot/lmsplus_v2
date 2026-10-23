@@ -164,7 +164,7 @@ ONE loop per BRANCH over `git diff origin/master...HEAD`. A commit triggers NOTH
 
 ONCE per branch, after the loop:
 - **red-team** (opus) — when the diff touches a security path (`supabase/migrations/**`, `packages/db/src/**`, `apps/web/app/app/quiz/actions/**`, `apps/web/app/auth/**`, `apps/web/app/**/route.ts`, `apps/web/proxy.ts`, `docs/security.md`, `apps/web/e2e/redteam/`)
-- **coderabbit-sync** (haiku) — when the branch diff changes a `coderabbitSyncTriggers` path in `.claude/pipeline.json`
+- **coderabbit-sync** (haiku) — when the branch diff matches `.claude/skills/review-gate/agent-coderabbit-sync.md § Trigger Conditions`
 
 **Triage discipline.** Fix every validated CRITICAL and ISSUE. Every finding needs a terminal disposition per `wrapup.md`.
 

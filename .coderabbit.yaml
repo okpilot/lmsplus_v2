@@ -165,7 +165,7 @@ reviews:
         TypeScript source. Enforce:
         - Function size per code-style.md §3: max 30 lines (Server Action orchestrators up to 35), max 3 params (options object otherwise), max 3 nesting levels. A pre-existing function the diff makes longer counts.
         - No barrel `index.ts` re-export files (code-style.md §4).
-        - A non-null assertion `!` carries a comment saying why it is safe (code-style.md §5).
+        - A non-null assertion `!` carries a comment saying why it is safe (code-style.md §5; not in `*.test.*` or `*.spec.*` files — biome.json override).
         - Before adding a cache, TTL, timeout, retry or module-level store, the PR body must cite the Next/React/Supabase doc page that lacks the behaviour (code-style.md §6 R6).
         - No `any` type — use `unknown` with narrowing.
         - No type casting of unvalidated external data via `as SubmitAnswerInput`.
@@ -205,7 +205,7 @@ reviews:
         - No useEffect for data fetching (code-style.md §6 R4): use Server Components (R1) or a GET Route Handler (R2).
         - Functions max 30 lines, max 3 params (use options object otherwise). EXCEPTION: a React function-component / custom-hook render/return body of pure JSX composition (no branching logic, no data transformation) may reach 35 lines; flag only past 35, or at any length if the body contains non-composition logic (see code-style.md §3). A function already over its cap that the diff makes longer counts.
         - Max 3 nesting levels — use early returns.
-        - A non-null assertion `!` carries a comment saying why it is safe (code-style.md §5).
+        - A non-null assertion `!` carries a comment saying why it is safe (code-style.md §5; not in `*.test.*` or `*.spec.*` files — biome.json override).
 
     # Comment accuracy — deliberately spans .ts AND .tsx (see code-style.md §10, broadened
     # 2026-08-15 from DB/RPC claims to any claim). Scoping this to **/*.ts alone would miss the
