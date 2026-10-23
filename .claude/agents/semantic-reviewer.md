@@ -57,7 +57,7 @@ You receive:
 
 ### 4. Data Flow & State Management
 - Are server-initiated reads in Server Components (R1)?
-- Are client-initiated reads GET Route Handlers following `docs/security.md` § Route Handler reads, never Server Actions (R2)?
+- Are client-initiated reads GET Route Handlers following `docs/security.md` § Route Handler reads, never Server Actions (R2)? Existing Server Action reads are exempt until reworked (code-style.md R2).
 - Are mutations Server Actions only (R3)? Any mutating Route Handler is a finding (R5).
 - Is session state managed correctly (no stale closures, race conditions)?
 - Are Supabase queries using the correct client (browser vs server vs admin)?

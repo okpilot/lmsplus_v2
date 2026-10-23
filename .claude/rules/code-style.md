@@ -799,7 +799,7 @@ Enforcers: Biome (`pnpm lint`), CodeRabbit (`.coderabbit.yaml`), SonarCloud S675
 - Functions with >3 parameters (non-object) — CodeRabbit
 - Nesting deeper than 3 levels — CodeRabbit
 - `any` types — Biome
-- Non-null assertions without a comment — Biome, CodeRabbit
+- Non-null assertions without a comment — CodeRabbit
 - Barrel `index.ts` files — CodeRabbit
 - Component props not wrapped in `Readonly<…>` (WARNING — see Section 5) — SonarCloud `typescript:S6759`
 - `useEffect` used for data fetching (hydration guards are exempt — see Section 6) — CodeRabbit

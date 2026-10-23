@@ -167,6 +167,9 @@ reviews:
     - path: "**/*.ts"
       instructions: |
         TypeScript source. Enforce:
+        - Functions max 30 lines (body), max 3 params (options object otherwise), max 3 nesting levels (code-style.md §3).
+        - No barrel `index.ts` re-export files (code-style.md §4).
+        - A non-null assertion `!` carries a comment saying why it is safe (code-style.md §5).
         - Before adding a cache, TTL, timeout, retry or module-level store, the PR body must cite the Next/React/Supabase doc page that lacks the behaviour (code-style.md §6 R6).
         - No `any` type — use `unknown` with narrowing.
         - No type casting of unvalidated external data via `as SubmitAnswerInput`.

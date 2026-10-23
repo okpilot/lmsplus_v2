@@ -146,7 +146,7 @@ You receive:
     - Scope: policies and function bodies present in the diff.
 27. **Route Handler read violating `docs/security.md` § Route Handler reads** (HIGH)
     - A `route.ts` GET handler serving a client-initiated read in the diff (not covered: `apps/web/app/auth/**` handlers, webhooks, `apps/web/app/api/version/route.ts`) that: has side effects; skips `verifySessionUser()` with a 401 JSON; skips Zod `safeParse` of query/path params with a 400; returns answer data without the equivalent RPC's stripping; omits the tenant and soft-delete scope; returns raw `error.message`; sets CORS headers, omits `Cache-Control: private, no-store`, or uses `force-static`.
-    - A `route.ts` handler exporting POST/PUT/PATCH/DELETE that mutates (webhook and auth-callback handlers exempt).
+    - A `route.ts` handler exporting POST/PUT/PATCH/DELETE that mutates (`apps/web/app/auth/**` handlers and webhooks exempt).
 
 ### Pre-Flag Verification: Supersession Chain (checks 16–20)
 
