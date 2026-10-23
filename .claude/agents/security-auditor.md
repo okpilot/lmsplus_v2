@@ -129,6 +129,9 @@ You receive:
     - A new/modified DEFINER function INSERTs a `quiz_sessions` row (any mode) as active (`ended_at IS NULL`) without enforcing the invariant. Accept EITHER an explicit `RAISE ... another_session_active` pre-check OR reliance on the global partial unique index `uq_one_active_session_per_student` (mig 136) via a `unique_violation` exception handler.
     - Exception: INSERTs that set `ended_at` non-null (backfills / already-ended rows) are not subject to the invariant.
     - Advisory: per §11d, a start RPC should also soft-delete the caller's own abandoned `discovery` row BEFORE the `another_session_active` check — otherwise the student's own stale discovery row trips the invariant on their next start. Note if this step is absent.
+27. **Route Handler read violating `docs/security.md` § Route Handler reads** (HIGH)
+    - A `route.ts` GET handler serving a client-initiated read in the diff (not covered: `apps/web/app/auth/**` handlers, webhooks, `apps/web/app/api/version/route.ts`) that: has side effects; skips `verifySessionUser()` with a 401 JSON; skips Zod `safeParse` of query/path params with a 400; returns answer data without the equivalent RPC's stripping; omits the active-user gate, tenant or soft-delete scope; returns raw `error.message`; sets CORS headers, omits `Cache-Control: private, no-store`, or uses `force-static`.
+    - A `route.ts` handler exporting POST/PUT/PATCH/DELETE that mutates (`apps/web/app/auth/**` handlers and webhooks exempt).
 
 ### MEDIUM (warn, not blocking)
 
@@ -144,9 +147,6 @@ You receive:
     - A `CREATE POLICY` / `ALTER POLICY` predicate, or a `SECURITY INVOKER` function WHERE/JOIN filter over an RLS table, calls bare `auth.uid()` or `is_admin()` instead of `(select auth.uid())` / `(select is_admin())`.
     - Exempt: `IF auth.uid() IS NULL THEN RAISE` null-guards, per-row trigger comparisons (e.g. `IF auth.uid() = NEW.student_id`) and `SECURITY DEFINER` bodies (check 8 unchanged).
     - Scope: policies and function bodies present in the diff.
-27. **Route Handler read violating `docs/security.md` § Route Handler reads** (HIGH)
-    - A `route.ts` GET handler serving a client-initiated read in the diff (not covered: `apps/web/app/auth/**` handlers, webhooks, `apps/web/app/api/version/route.ts`) that: has side effects; skips `verifySessionUser()` with a 401 JSON; skips Zod `safeParse` of query/path params with a 400; returns answer data without the equivalent RPC's stripping; omits the active-user gate, tenant or soft-delete scope; returns raw `error.message`; sets CORS headers, omits `Cache-Control: private, no-store`, or uses `force-static`.
-    - A `route.ts` handler exporting POST/PUT/PATCH/DELETE that mutates (`apps/web/app/auth/**` handlers and webhooks exempt).
 
 ### Pre-Flag Verification: Supersession Chain (checks 16–20)
 
@@ -208,7 +208,7 @@ Report your findings and stop. You run fresh each time, with no memory of past r
 6. **Do NOT flag missing `deleted_at` or hard DELETE on ephemeral tables** — `quiz_drafts` is scratch data (temporary, user-owned, no audit value). Hard DELETE is correct for these tables. Do not suggest adding `deleted_at`.
 
 7. **Do NOT flag missing auth in Server Actions that delegate to auth-checked RPCs** — but ONLY suppress when ALL 4 conditions are met. This suppression applies ONLY to the auth-check finding; it does not suppress any other check (e.g., correct-answer exposure, RLS gaps, input validation).
-   1. **Strict Zod validation** — the Server Action parses input with Zod `.parse()` before calling the RPC
+   1. **Strict Zod validation** — the Server Action validates input with Zod (`safeParse`, or `.parse()` in try/catch) before calling the RPC
    2. **SECURITY DEFINER RPC with auth.uid() check** — the RPC has both `SECURITY DEFINER` and `IF auth.uid() IS NULL THEN RAISE EXCEPTION`
    3. **Non-sensitive return shape** — locate the RPC's SQL definition in `supabase/migrations/` (the sole source of truth; `packages/db/migrations/` is frozen/historical) and verify the SELECT list does not return user PII, correct answers (`options.correct`), admin-only fields, or other students' data. Note: the agent receives only the git diff as input, so for RPCs defined in earlier commits the migration file will typically not be in the diff. When the migration is not accessible, this condition is unverifiable — flag as HIGH (this is the expected conservative default, not an error).
    4. **JSDoc waiver present** — the Server Action has a comment documenting why auth delegation is safe (e.g., `// Delegated auth: Zod-validated input, RPC has SECURITY DEFINER + auth.uid(), non-sensitive response`)

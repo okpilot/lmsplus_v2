@@ -43,7 +43,7 @@ You receive:
 - **Answer exposure:** Any path that returns `options[].correct` to student-facing code without going through `get_quiz_questions()` RPC
 - **Secret leaks:** JWT tokens, service role keys, `sbp_`, `eyJ`, `-----BEGIN` in source files
 - **Auth gaps:** Server Actions or Route Handlers missing auth checks (`verifySessionUser()`, `requireAuthUser()` or `auth.uid()`)
-- **Input validation:** Server Actions accepting `unknown` input without Zod `.parse()`, or Route Handlers reading body/query/path params without Zod `safeParse`
+- **Input validation:** Server Actions accepting `unknown` input without Zod validation (`safeParse`, or `.parse()` in try/catch), or Route Handlers reading body/query/path params without Zod `safeParse`
 - **RLS gaps:** New tables without ENABLE ROW LEVEL SECURITY + FORCE ROW LEVEL SECURITY
 - **Hard deletes:** DELETE on mutable tables instead of `UPDATE SET deleted_at = now()`
 - **Service role key outside admin.ts:** `adminClient` or service role key usage outside `packages/db/src/admin.ts`

@@ -16,6 +16,13 @@ paths:
   - "package.json"
   - "pnpm-workspace.yaml"
   - "turbo.json"
+  - ".npmrc"
+  - ".env.example"
+  - ".gitignore"
+  - ".gitattributes"
+  - ".claudeignore"
+  - "commitlint.config.js"
+  - "sonar-project.properties"
   - ".spec-workflow/**"
 ---
 # Code Style Rules — LMS Plus v2
@@ -492,7 +499,7 @@ export default async function DashboardPage() {
 }
 ```
 ### R2 — Client-Initiated Reads: GET Route Handler
-Reads started after render (interaction, focus, polling) go through a GET Route Handler that follows `docs/security.md` § Route Handler reads. Never a Server Action — Next dispatches Server Actions one at a time per client. Existing Server Action reads (first: #1527) migrate when next reworked; editing one does not require migrating it.
+Reads started after render (interaction, focus, polling) go through a GET Route Handler that follows `docs/security.md` § Route Handler reads. Never a Server Action. Existing Server Action reads (first: #1527) migrate when next reworked; editing one does not require migrating it.
 ### R3 — Mutations: Server Actions Only
 ```ts
 // ✅ CORRECT
