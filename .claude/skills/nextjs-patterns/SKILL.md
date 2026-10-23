@@ -23,7 +23,7 @@ export default async function DashboardPage() {
 
 ## Server Actions
 R3: mutations are Server Actions only.
-R5: NEVER create a Route Handler that mutates (webhooks and auth callbacks are the existing exceptions).
+R5: NEVER create a Route Handler that mutates (exceptions: `apps/web/app/auth/**` handlers and webhooks).
 
 ```typescript
 'use server'

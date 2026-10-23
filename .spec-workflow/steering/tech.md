@@ -40,7 +40,7 @@ lmsplusv2/
 
 **Key architectural patterns:**
 - **Server Components by default** -- server-initiated reads happen in Server Components (R1). Client-initiated reads go through a GET Route Handler per `docs/security.md` § Route Handler reads, never a Server Action (R2). No `useEffect` for data loading (R4).
-- **Server Actions only for mutations** (R3) -- no Route Handler mutates (R5); webhooks and auth callbacks are the existing exceptions. Route handlers (`route.ts`) otherwise serve GET reads (R2) and external consumers.
+- **Server Actions only for mutations** (R3) -- no Route Handler mutates (R5); exceptions: `apps/web/app/auth/**` handlers and webhooks. Route handlers (`route.ts`) otherwise serve GET reads (R2) and external consumers.
 - **Caching** -- before adding a cache, TTL, timeout, retry or module-level store, cite in the PR body the Next/React/Supabase doc page that lacks the behaviour (R6).
 - **ACID via Postgres RPCs** -- any multi-table operation runs in a single Postgres function (`finish_quiz_session`, `start_quiz_session`, `record_consent`, etc.). No multi-step application-level transactions.
 - **Server-saved quiz progress** -- each answer is saved to `quiz_session_progress` as the student works (`save_quiz_answer`); position and pins go to `quiz_sessions` (`save_quiz_position`); one active device per session via `claim_quiz_session`; `finish_quiz_session()` grades the saved progress atomically on finish.

@@ -8,6 +8,14 @@ paths:
   - ".github/**"
   - "CLAUDE.md"
   - ".coderabbit.yaml"
+  - ".mcp.json"
+  - "biome.json"
+  - "codecov.yml"
+  - "knip.json"
+  - "lefthook.yml"
+  - "package.json"
+  - "pnpm-workspace.yaml"
+  - "turbo.json"
   - ".spec-workflow/**"
 ---
 # Code Style Rules — LMS Plus v2
@@ -484,7 +492,7 @@ export default async function DashboardPage() {
 }
 ```
 ### R2 — Client-Initiated Reads: GET Route Handler
-Reads started after render (interaction, focus, polling) go through a GET Route Handler that follows `docs/security.md` § Route Handler reads. Never a Server Action — Next dispatches Server Actions one at a time per client.
+Reads started after render (interaction, focus, polling) go through a GET Route Handler that follows `docs/security.md` § Route Handler reads. Never a Server Action — Next dispatches Server Actions one at a time per client. Existing Server Action reads (first: #1527) migrate when next reworked; editing one does not require migrating it.
 ### R3 — Mutations: Server Actions Only
 ```ts
 // ✅ CORRECT
@@ -494,7 +502,7 @@ export async function submitAnswer(input: unknown) { ... }
 ### R4 — No `useEffect` for Data Fetching
 Use R1 or R2. `useEffect` is for hydration guards and external-system sync.
 ### R5 — No Mutating Route Handlers
-NEVER create a Route Handler that mutates. Webhooks and auth callbacks are the existing exceptions.
+NEVER create a Route Handler that mutates. Exceptions: `apps/web/app/auth/**` handlers and webhooks.
 ### R6 — Cite Before Adding Cache, TTL, Timeout, Retry or Module-Level Store
 Cite in the PR body the Next/React/Supabase doc page that lacks the behaviour.
 ### Approved `useEffect` Pattern: Hydration Guard
@@ -795,7 +803,7 @@ Enforcers: Biome (`pnpm lint`), CodeRabbit (`.coderabbit.yaml`), SonarCloud S675
 - Barrel `index.ts` files — CodeRabbit
 - Component props not wrapped in `Readonly<…>` (WARNING — see Section 5) — SonarCloud `typescript:S6759`
 - `useEffect` used for data fetching (hydration guards are exempt — see Section 6) — CodeRabbit
-- Missing tests for new utility functions — CodeRabbit
+- Missing tests for new utility functions — test-writer, CodeRabbit
 - `.select()` reads that destructure only `{ data }` without checking `{ error }` (see Section 5 — `.single()` PGRST116 no-rows is an allowed exception) — semantic-reviewer, CodeRabbit
 - Array-valued fields in fan-out/dispatch functions guarded with `Array.isArray(...)`, not a bare truthy/length check (see Section 5) — semantic-reviewer, CodeRabbit
 ---

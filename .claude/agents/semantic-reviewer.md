@@ -43,7 +43,7 @@ You receive:
 - **Answer exposure:** Any path that returns `options[].correct` to student-facing code without going through `get_quiz_questions()` RPC
 - **Secret leaks:** JWT tokens, service role keys, `sbp_`, `eyJ`, `-----BEGIN` in source files
 - **Auth gaps:** Server Actions or Route Handlers missing auth checks (`verifySessionUser()`, `requireAuthUser()` or `auth.uid()`)
-- **Input validation:** Server Actions accepting `unknown` input without Zod `.parse()`
+- **Input validation:** Server Actions accepting `unknown` input without Zod `.parse()`, or Route Handlers reading body/query/path params without Zod `safeParse`
 - **RLS gaps:** New tables without ENABLE ROW LEVEL SECURITY + FORCE ROW LEVEL SECURITY
 - **Hard deletes:** DELETE on mutable tables instead of `UPDATE SET deleted_at = now()`
 - **Service role key outside admin.ts:** `adminClient` or service role key usage outside `packages/db/src/admin.ts`
@@ -71,7 +71,7 @@ You receive:
 ### 6. Next.js App Router Patterns
 - `'use client'` pushed down to lowest interactive boundary (not whole pages)
 - No `useEffect` data fetching; use R1 or R2 (R4)
-- Route Handlers: GET reads per R2; webhooks and auth callbacks are the only mutating ones (R5)
+- Route Handlers: GET reads per R2; the only mutating ones are `apps/web/app/auth/**` handlers and webhooks (R5)
 - A new cache, TTL, timeout, retry or module-level store cites the Next/React/Supabase doc page that lacks the behaviour (R6)
 
 ### 7. Type Safety

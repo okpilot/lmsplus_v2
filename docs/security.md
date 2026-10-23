@@ -481,7 +481,7 @@ $$;
 
 **Randomization:** Options are returned in random order via `ORDER BY random()`. This prevents students from memorising positional patterns. Each call produces an independent random arrangement.
 
-**Rule:** Any Server Action or API route that serves questions **during an active session** must use `get_quiz_questions()` — never a raw `SELECT * FROM questions`.
+**Rule:** Any Server Action or Route Handler that serves questions **during an active session** must use `get_quiz_questions()` — never a raw `SELECT * FROM questions`.
 
 Correct answers are only fetched server-side when validating a submitted answer, never returned to the client during an active session.
 
@@ -634,7 +634,7 @@ Client-initiated reads (after render, on interaction or focus, polling) are GET 
 2. Calls `verifySessionUser()` first; returns 401 JSON when unauthenticated. Never delegated to `proxy.ts`.
 3. Parses query and path params with Zod `safeParse`; returns 400 on failure.
 4. Applies the same answer-stripping as the equivalent RPC (§4).
-5. Applies the same tenant and soft-delete scope as the equivalent RPC (`.claude/rules/security.md` rules 9, 11, 12).
+5. Applies the same tenant scope (§13) and soft-delete filter as the equivalent RPC.
 6. Returns sanitized errors; never `error.message`.
 7. No CORS headers; `Cache-Control: private, no-store`; no `force-static`.
 8. Ships a co-located `*.integration.test.ts` per `.from()` / `.rpc()` site.

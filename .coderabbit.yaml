@@ -97,7 +97,7 @@ reviews:
     - path: "apps/web/app/**/route.ts"
       instructions: |
         Route Handler. Enforce (code-style.md §6 R2/R5, docs/security.md Route Handler reads) on GET handlers serving client-initiated reads. Not covered: apps/web/app/auth/** handlers, webhooks, apps/web/app/api/version/route.ts (public, returns no user data).
-        - GET only, no side effects. Webhooks and auth callbacks are the only mutating exceptions.
+        - GET only, no side effects. The only mutating exceptions are `apps/web/app/auth/**` handlers and webhooks.
         - verifySessionUser() first, 401 JSON when unauthenticated; never delegated to proxy.ts.
         - Zod safeParse on query and path params, 400 on failure.
         - Same answer-stripping and tenant/soft-delete scope as the equivalent RPC.

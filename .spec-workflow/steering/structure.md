@@ -312,7 +312,7 @@ useEffect(() => { setHydrated(true) }, [])
 
 ### Mutations via Server Actions only
 
-No Route Handler mutates (R5). Use `'use server'` functions (R3). Route handlers (`route.ts`) serve webhooks, GET reads (R2) and external consumers.
+No Route Handler mutates (R5), except `apps/web/app/auth/**` handlers and webhooks. Use `'use server'` functions (R3). Route handlers (`route.ts`) serve webhooks, GET reads (R2) and external consumers.
 
 ### Types exported next to their functions
 

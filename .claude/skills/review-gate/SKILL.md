@@ -5,7 +5,7 @@ description: Orchestrator-only rules for planning, the pre-push review gate, fin
 
 # Review gate — orchestrator rules
 
-Subagents never load this skill. Read the file for the step you are on.
+The orchestrator loads this skill; subagent definitions cite individual files in it.
 
 | File | Read when |
 |---|---|

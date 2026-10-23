@@ -36,7 +36,7 @@ Final defense before code reaches the remote. Scans the push diff for security v
 - Hard DELETEs: any `DELETE FROM` without `WHERE deleted_at`
 - Immutable table violations: UPDATE/DELETE on `audit_events`, `student_responses`, `quiz_session_answers`
 - SECURITY DEFINER RPCs: missing `auth.uid()` check, missing `SET search_path = public`
-- Input validation: Server Actions or API routes without Zod `.parse()`
+- Input validation: Server Actions without Zod `.parse()`; Route Handlers without Zod on body, query and path params
 - Route Handler reads (not covered: `apps/web/app/auth/**` handlers, webhooks, `apps/web/app/api/version/route.ts`): a client-read `GET` `route.ts` missing the auth, Zod and soft-delete checks of `docs/security.md` § Route Handler reads; any Route Handler that mutates
 - Security headers: CSP, HSTS, X-Frame-Options in `next.config.ts`
 - Soft-delete filter in SECURITY DEFINER SELECTs (docs/security.md §15); audit-event INSERT subquery soft-delete (§11c); per-caller RPC multiple-permissive-RLS scoping (§3); single-active-session start guard (§11d); sibling guard-set parity (§11c, advisory/MEDIUM)
