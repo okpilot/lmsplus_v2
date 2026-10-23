@@ -1,9 +1,17 @@
+---
+name: nextjs-patterns
+description: Next.js App Router patterns for this repo — data fetching, Server Actions, Route Handlers, client boundaries. Load when writing or reviewing apps/web code.
+---
+
 # Next.js App Router Patterns — LMS Plus v2
 
 > **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph. Evidence is not prose: a skip reason, an `EVIDENCE:` line, a finding's stated basis or a required status/summary stays wherever a rule asks for it.
 
 ## Data fetching
-Always fetch in Server Components. Never useEffect for data.
+R1: server-initiated reads happen in Server Components.
+R2: client-initiated reads (after render, interaction, focus, polling) go through a GET Route Handler per `docs/security.md` § Route Handler reads; never a Server Action.
+R4: no `useEffect` data fetching; effects are for hydration guards and external-system sync.
+R6: before adding a cache, TTL, timeout, retry or module-level store, cite in the PR body the Next/React/Supabase doc page that lacks the behaviour.
 
 ```tsx
 // ✅ Server Component (default)
@@ -14,7 +22,8 @@ export default async function DashboardPage() {
 ```
 
 ## Server Actions
-All mutations go through Server Actions. No API routes for mutations.
+R3: mutations are Server Actions only.
+R5: NEVER create a Route Handler that mutates (webhooks and auth callbacks are the existing exceptions).
 
 ```typescript
 'use server'

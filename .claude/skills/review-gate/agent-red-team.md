@@ -11,6 +11,7 @@ Run when the branch diff includes changes to either: the canonical security-path
 - `packages/db/src/**` — database client, types, or schema changes
 - `apps/web/app/app/quiz/actions/**` — Server Actions
 - `apps/web/app/auth/**` — auth callback
+- `apps/web/app/**/route.ts` — Route Handlers
 - `apps/web/proxy.ts` — middleware/proxy
 - `docs/security.md` — security rules
 - `apps/web/e2e/redteam/` — red-team specs themselves (this agent's extra path — not part of the canonical set)
@@ -23,12 +24,12 @@ Runs ONCE per branch, after the review loop ends — and only when the above pat
 - Review the agent's spec mapping — verify it correctly identified affected existing specs.
 - Read every proven exploit's `EVIDENCE:` (spec path + pasted failing output) before acting on it (`agent-workflow.md § Finding Validation`).
 - **A proven exploit → the orchestrator fixes production code.** The spec + fix land in ONE commit — the fix is that round's FIXUP.
-- The fix re-enters the review loop: the round-2+ set (code-reviewer, semantic-reviewer, deletion-reviewer, code-review (skill)) runs on the re-diffed branch. It is a fresh loop with its own 3-round ceiling — at that ceiling, STOP and escalate.
+- The fix re-enters the review loop: the review round set runs on the re-diffed branch.
 - A proven exploit fixed on this branch: write its row as `BLOCKED` in the fix commit, no issue filed.
 - A proven exploit blocks the push until its fix lands on this branch — never pushed as a `GAP` row with an issue filed.
 - `/fullpush` step 7b (`e2e:redteam`) confirms the exploit's spec now passes — no red-team re-run. The fix commit un-skips the spec; `attack-surface.test.ts` rejects a row past `GAP` whose spec file holds a static skip.
-- Create GitHub Issues for unproven coverage gaps (not immediate fixes). These COUNT toward the `filed >= closed` defer budget; list them in the PR body's `## Deferred` section marked `red-team-gap`, naming the spec or vector each covers (`agent-workflow.md § Apply-vs-Defer Discipline`). A PR whose filings are ALL red-team gaps passes; mixed with ordinary deferrals, it is judged on the ordinary ones alone.
-- A run with no proven exploit: commit its specs and rows as a fixup; the round-2+ set re-runs on the re-diffed branch, a fresh loop with its own 3-round ceiling.
+- Create GitHub Issues for unproven coverage gaps (not immediate fixes). Each issue names the spec or vector it covers (`agent-workflow.md § Apply-vs-Defer Discipline`).
+- A run with no proven exploit: commit its specs and rows as a fixup; the review round set re-runs on the re-diffed branch.
 - Red-team's own specs and rows, and a proven exploit's fix, never re-trigger red-team.
 - After each red-team run, check `git status --porcelain --untracked-files=all` and reject any path under `apps/web/e2e/redteam/` other than `*.spec.ts`, `helpers/**` and `attack-surface.md`, or outside it — the agent's write scope is brief-enforced, not hook-enforced.
 - A security bug found downstream of a PASSED red-team run (by CodeRabbit, security-auditor, CI, or in production) gets a `MISSED` row plus a spec, filed in the PR that fixes it.
@@ -45,4 +46,3 @@ Runs ONCE per branch, after the review loop ends — and only when the above pat
 - Block pushes on an unproven gap alone — advisory, not blocking. A PROVEN exploit (a spec that fails against current code) IS blocking.
 - Ignore an unproven coverage gap finding — create an issue to track it even if not fixing immediately.
 - Run red-team specs in the main E2E pipeline — separate CI workflow.
-- Exceed a red-team fixup loop's own 3-round ceiling — escalate instead of running a fourth round.

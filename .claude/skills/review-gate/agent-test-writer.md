@@ -1,5 +1,5 @@
 # Agent Rules — test-writer
-> Model: sonnet | Trigger: pre-push review gate — round 1; a later round only when the fixup added surface it has not seen | Non-blocking (it PRODUCES tests, it does not gate)
+> Model: sonnet | Trigger: pre-push review gate — every round | Non-blocking (it PRODUCES tests, it does not gate)
 ## Purpose
 Writes Vitest unit and integration tests for the functions and React components the branch diff adds or changes. Discovers coverage gaps. Runs the tests to verify they pass before reporting.
 ## Handling Results

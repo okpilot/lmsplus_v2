@@ -1,6 +1,6 @@
 ---
 name: doc-updater
-description: Reports the documentation updates needed when APIs, schemas, or architecture change. Runs in round 1 of the pre-push review gate on the branch diff, and in a later round only when the fixup added doc surface it has not seen. Reports the exact edits for docs/decisions.md and docs/database.md; the orchestrator applies them.
+description: Reports the documentation updates needed when APIs, schemas, or architecture change. Runs in every round of the pre-push review gate on the branch diff. Reports the exact edits for docs/decisions.md and docs/database.md; the orchestrator applies them.
 model: haiku
 tools: Read, Glob, Grep, Bash
 ---
@@ -69,7 +69,7 @@ mechanism is `waivers.has(c.token)`), a five-element constant described as four,
 verdict, which is exactly what makes the habit dangerous — the next reader checks your evidence,
 not your verdict, and finds it invented.
 
-The third of those came AFTER this requirement was written into `.claude/rules/agent-doc-updater.md`
+The third of those came AFTER this requirement was written into `.claude/skills/review-gate/agent-doc-updater.md`
 and after the specific prior failures were named in the dispatch prompt. Neither stopped it. It is
 repeated HERE, in your own definition, because that is the only copy you are guaranteed to read.
 
@@ -77,7 +77,7 @@ repeated HERE, in your own definition, because that is the only copy you are gua
 When you report that a file "cites", "mentions" or "references" specific content, paste the
 EXACT substring you read — never a paraphrase, and never a line number alone. Line numbers
 drift and paraphrases cannot be checked without re-reading the file. This is the mechanical
-agent-facing form of the citation rule in `.claude/rules/agent-doc-updater.md`'s NEVER list
+agent-facing form of the citation rule in `.claude/skills/review-gate/agent-doc-updater.md`'s NEVER list
 (never cite a migration, SHA, column or path without reading it). That file is also injected into
 your context, but it is written in orchestrator-handling voice — "trust the agent", "let the agent"
 — ABOUT you rather than TO you; this section states the same requirement as an instruction you can

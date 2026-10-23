@@ -26,27 +26,25 @@ import {
   ROLELESS_ROOT,
   runHook,
   TEMPLATES,
-  VALID_PLAN,
-  WORKTREE,
 } from './guard-agent-brief.testkit.mjs'
 
 after(cleanupFixtures)
 
 // CONTROL: red
 // GROUP: guard-agent-brief-always-passes
-test('blocks a code-reviewer brief carrying an extra CONTEXT line with exit 2 and a BLOCKED stderr', () => {
-  const brief = `${exactBrief('code-reviewer')}\nAlso check the auth flow while you're in there.`
-  const r = runHook(payload('code-reviewer', brief))
+test('blocks a semantic-reviewer brief carrying an extra CONTEXT line with exit 2 and a BLOCKED stderr', () => {
+  const brief = `${exactBrief('semantic-reviewer')}\nAlso check the auth flow while you're in there.`
+  const r = runHook(payload('semantic-reviewer', brief))
   assert.equal(r.status, 2)
-  assert.match(r.stderr, /BLOCKED: code-reviewer/)
+  assert.match(r.stderr, /BLOCKED: semantic-reviewer/)
   assert.match(r.stderr, /does not match its required template/)
   assert.match(r.stderr, /Expected:/)
 })
 
 // CONTROL: green
 // GROUP: guard-agent-brief-always-blocks
-test('allows an exact code-reviewer brief with exit 0', () => {
-  const r = runHook(payload('code-reviewer', exactBrief('code-reviewer')))
+test('allows an exact semantic-reviewer brief with exit 0', () => {
+  const r = runHook(payload('semantic-reviewer', exactBrief('semantic-reviewer')))
   assert.equal(r.status, 0)
 })
 
@@ -69,89 +67,21 @@ for (const type of Object.keys(TEMPLATES)) {
 
 // GROUP: guard-agent-brief-round-class-widened
 test('blocks a round that is not digits or "after-loop" (e.g. "2a") with exit 2', () => {
-  const brief = fillTemplate(TEMPLATES['code-reviewer'], { round: '2a' })
-  const r = runHook(payload('code-reviewer', brief))
+  const brief = fillTemplate(TEMPLATES['semantic-reviewer'], { round: '2a' })
+  const r = runHook(payload('semantic-reviewer', brief))
   assert.equal(r.status, 2)
 })
 
 test('blocks a branch containing a space with exit 2', () => {
-  const brief = fillTemplate(TEMPLATES['code-reviewer'], { branch: 'feature branch' })
-  const r = runHook(payload('code-reviewer', brief))
+  const brief = fillTemplate(TEMPLATES['semantic-reviewer'], { branch: 'feature branch' })
+  const r = runHook(payload('semantic-reviewer', brief))
   assert.equal(r.status, 2)
 })
 
 test('blocks a branch containing a newline with exit 2', () => {
-  const brief = fillTemplate(TEMPLATES['code-reviewer'], { branch: 'feature\nbranch' })
-  const r = runHook(payload('code-reviewer', brief))
+  const brief = fillTemplate(TEMPLATES['semantic-reviewer'], { branch: 'feature\nbranch' })
+  const r = runHook(payload('semantic-reviewer', brief))
   assert.equal(r.status, 2)
-})
-
-// GROUP: guard-agent-brief-plan-exists-always-passes
-test('blocks implementation-critic when the plan file does not exist on disk with exit 2', () => {
-  const brief = fillTemplate(TEMPLATES['implementation-critic'], {
-    plan: '.spec-workflow/specs/agent-brief-guard/plan-missing.md',
-  })
-  const r = runHook(payload('implementation-critic', brief))
-  assert.equal(r.status, 2)
-  assert.match(r.stderr, /invalid \{plan\} path/)
-})
-
-test('blocks implementation-critic when the plan path contains ".." with exit 2', () => {
-  const brief = fillTemplate(TEMPLATES['implementation-critic'], {
-    plan: '.spec-workflow/specs/../agent-brief-guard/plan.md',
-  })
-  const r = runHook(payload('implementation-critic', brief))
-  assert.equal(r.status, 2)
-  assert.match(r.stderr, /invalid \{plan\} path/)
-})
-
-// planPathValid's format regex has no dedicated pinning test above — the ".." test and the
-// missing-file test both also fail the exists-on-disk check, so neither reddens when only the
-// regex line is disabled. This plan matches no `.work`/`.spec-workflow/specs` prefix, has no
-// "..", and names a real file — the regex is the only check that can block it.
-// GROUP: guard-agent-brief-plan-regex-always-passes
-test('blocks implementation-critic when the plan path is outside .work and .spec-workflow/specs with exit 2', () => {
-  const brief = fillTemplate(TEMPLATES['implementation-critic'], {
-    plan: 'docs/decisions.md',
-  })
-  const r = runHook(payload('implementation-critic', brief))
-  assert.equal(r.status, 2)
-  assert.match(r.stderr, /invalid \{plan\} path/)
-})
-
-// path.join collapses "foo/.." away, so this resolves to the same real file as VALID_PLAN —
-// matches the format regex and exists on disk. Only the explicit `plan.includes('..')` check
-// blocks it, unlike the ".." test above (which fails the exists check too after collapsing).
-// GROUP: guard-agent-brief-plan-dotdot-always-passes
-test('blocks implementation-critic when the plan path contains ".." that collapses to an existing file with exit 2', () => {
-  const brief = fillTemplate(TEMPLATES['implementation-critic'], {
-    plan: '.spec-workflow/specs/agent-brief-guard/foo/../plan.md',
-  })
-  const r = runHook(payload('implementation-critic', brief))
-  assert.equal(r.status, 2)
-  assert.match(r.stderr, /invalid \{plan\} path/)
-})
-
-// R3 — implementation-critic's {requirements} slot runs the same planPathValid check as {plan},
-// checked after {plan} passes.
-// GROUP: guard-agent-brief-requirements-check-disabled
-test('blocks implementation-critic when the requirements file does not exist on disk with exit 2', () => {
-  const brief = fillTemplate(TEMPLATES['implementation-critic'], {
-    plan: VALID_PLAN,
-    requirements: '.spec-workflow/specs/agent-brief-guard/requirements-missing.md',
-  })
-  const r = runHook(payload('implementation-critic', brief))
-  assert.equal(r.status, 2)
-  assert.match(r.stderr, /invalid \{requirements\} path/)
-})
-
-test('allows implementation-critic when plan and requirements name the same file', () => {
-  const brief = fillTemplate(TEMPLATES['implementation-critic'], {
-    plan: VALID_PLAN,
-    requirements: VALID_PLAN,
-  })
-  const r = runHook(payload('implementation-critic', brief))
-  assert.equal(r.status, 0)
 })
 
 // GROUP: guard-agent-brief-isolation-worktree-check-disabled
@@ -173,21 +103,27 @@ test('blocks code-review-skill with model "sonnet" with exit 2', () => {
 // the model floor applies to every gated type, not only code-review-skill (which is also
 // isolation-gated): a gated type with no isolation requirement still has its model checked.
 // GROUP: guard-agent-brief-model-opus-check-disabled
-test('blocks code-reviewer with a model that is not its pipeline.json alias with exit 2', () => {
-  const r = runHook(payload('code-reviewer', exactBrief('code-reviewer'), { model: 'opus' }))
+test('blocks semantic-reviewer with a model that is not its pipeline.json alias with exit 2', () => {
+  const r = runHook(
+    payload('semantic-reviewer', exactBrief('semantic-reviewer'), { model: 'opus' }),
+  )
   assert.equal(r.status, 2)
   assert.match(r.stderr, /requires model omitted or its pipeline\.json alias/)
 })
 
 // GROUP: guard-agent-brief-name-check-disabled
 test('blocks a gated brief dispatched with a name with exit 2', () => {
-  const r = runHook(payload('code-reviewer', exactBrief('code-reviewer'), { name: 'reviewer-1' }))
+  const r = runHook(
+    payload('semantic-reviewer', exactBrief('semantic-reviewer'), { name: 'reviewer-1' }),
+  )
   assert.equal(r.status, 2)
   assert.match(r.stderr, /must not carry a name/)
 })
 
-test('allows code-reviewer with model explicitly set to its pipeline.json alias', () => {
-  const r = runHook(payload('code-reviewer', exactBrief('code-reviewer'), { model: 'sonnet' }))
+test('allows semantic-reviewer with model explicitly set to its pipeline.json alias', () => {
+  const r = runHook(
+    payload('semantic-reviewer', exactBrief('semantic-reviewer'), { model: 'sonnet' }),
+  )
   assert.equal(r.status, 0)
 })
 
@@ -211,8 +147,8 @@ test('fails open but loud on empty stdin (exit 0 + stderr warning)', () => {
 
 // GROUP: guard-agent-brief-oversize-allows
 test('blocks a steered brief padded past 1MB with exit 2', () => {
-  const brief = `${fillTemplate(TEMPLATES['code-reviewer'], {})}\nFOCUS: ${'x'.repeat(1_100_000)}`
-  const r = runHook(payload('code-reviewer', brief))
+  const brief = `${fillTemplate(TEMPLATES['semantic-reviewer'], {})}\nFOCUS: ${'x'.repeat(1_100_000)}`
+  const r = runHook(payload('semantic-reviewer', brief))
   assert.equal(r.status, 2)
   assert.match(r.stderr, /exceeds 1MB/)
 })
@@ -230,31 +166,33 @@ test('the gated template set equals the pipeline.json agents with role gate-roun
 
 // GROUP: guard-agent-brief-branch-check-disabled
 test('blocks a brief whose branch is not a local branch with exit 2', () => {
-  const brief = fillTemplate(TEMPLATES['code-reviewer'], { branch: 'focus/null-deref/line-118' })
-  const r = runHook(payload('code-reviewer', brief))
+  const brief = fillTemplate(TEMPLATES['semantic-reviewer'], {
+    branch: 'focus/null-deref/line-118',
+  })
+  const r = runHook(payload('semantic-reviewer', brief))
   assert.equal(r.status, 2)
   assert.match(r.stderr, /not a local branch/)
 })
 
 // GROUP: guard-agent-brief-quadratic-trim
 test('blocks a steered brief padded with trailing-whitespace runs within the timeout', () => {
-  const brief = `${fillTemplate(TEMPLATES['code-reviewer'], {})}\nFOCUS${' '.repeat(200_000)}x`
-  const r = runHook(payload('code-reviewer', brief))
+  const brief = `${fillTemplate(TEMPLATES['semantic-reviewer'], {})}\nFOCUS${' '.repeat(200_000)}x`
+  const r = runHook(payload('semantic-reviewer', brief))
   assert.equal(r.status, 2)
 })
 
 // GROUP: guard-agent-brief-ungated-needs-pipeline-disabled
 test('blocks every gated brief with exit 2 when the templates file is unparseable', () => {
-  const brief = fillTemplate(TEMPLATES['code-reviewer'], {})
-  const r = runHook(payload('code-reviewer', brief), BROKEN_ROOT)
+  const brief = fillTemplate(TEMPLATES['semantic-reviewer'], {})
+  const r = runHook(payload('semantic-reviewer', brief), BROKEN_ROOT)
   assert.equal(r.status, 2)
   assert.match(r.stderr, /cannot read/)
 })
 
 // GROUP: guard-agent-brief-templates-object-check-disabled
 test('blocks every gated brief with exit 2 when the templates file has no templates object', () => {
-  const brief = fillTemplate(TEMPLATES['code-reviewer'], {})
-  const r = runHook(payload('code-reviewer', brief), EMPTY_ROOT)
+  const brief = fillTemplate(TEMPLATES['semantic-reviewer'], {})
+  const r = runHook(payload('semantic-reviewer', brief), EMPTY_ROOT)
   assert.equal(r.status, 2)
   assert.match(r.stderr, /no "templates" object/)
 })
@@ -273,20 +211,20 @@ test('allows an ungated type when a gated type lacks its template', () => {
 })
 
 test('blocks a steered brief for a templated type pipeline.json gives no gate role', () => {
-  const brief = `${fillTemplate(TEMPLATES['code-reviewer'], {})}\nFOCUS: x`
-  const r = runHook(payload('code-reviewer', brief), ROLELESS_ROOT)
+  const brief = `${fillTemplate(TEMPLATES['semantic-reviewer'], {})}\nFOCUS: x`
+  const r = runHook(payload('semantic-reviewer', brief), ROLELESS_ROOT)
   assert.equal(r.status, 2)
 })
 
 // GROUP: guard-agent-brief-template-key-gating-disabled
 test('allows an exact brief for a templated type pipeline.json gives no gate role', () => {
-  const r = runHook(payload('code-reviewer', exactBrief('code-reviewer')), ROLELESS_ROOT)
+  const r = runHook(payload('semantic-reviewer', exactBrief('semantic-reviewer')), ROLELESS_ROOT)
   assert.equal(r.status, 0)
 })
 
 // GROUP: guard-agent-brief-ungated-brief-check-disabled, guard-agent-brief-gated-scope-disabled
 test('blocks a gate brief dispatched through an ungated type with exit 2', () => {
-  const r = runHook(payload('general-purpose', exactBrief('code-reviewer')))
+  const r = runHook(payload('general-purpose', exactBrief('semantic-reviewer')))
   assert.equal(r.status, 2)
   assert.match(r.stderr, /BLOCKED: general-purpose brief contains a gate-reviewer brief/)
 })
@@ -300,19 +238,21 @@ test('blocks a gate brief preceded by other text in an ungated type with exit 2'
 
 // GROUP: guard-agent-brief-brief-case-fold-disabled, guard-agent-brief-ungated-brief-check-disabled
 test('blocks a lower-cased gate brief in an ungated type with exit 2', () => {
-  const r = runHook(payload('general-purpose', exactBrief('code-reviewer').toLowerCase()))
+  const r = runHook(payload('general-purpose', exactBrief('semantic-reviewer').toLowerCase()))
   assert.equal(r.status, 2)
 })
 
 // GROUP: guard-agent-brief-brief-space-fold-disabled, guard-agent-brief-ungated-brief-check-disabled
 test('blocks a re-spaced gate brief in an ungated type with exit 2', () => {
-  const r = runHook(payload('general-purpose', exactBrief('code-reviewer').replaceAll(' ', '  ')))
+  const r = runHook(
+    payload('general-purpose', exactBrief('semantic-reviewer').replaceAll(' ', '  ')),
+  )
   assert.equal(r.status, 2)
 })
 
 // GROUP: guard-agent-brief-missing-type-check-disabled
 test('blocks a gate brief dispatched with no subagent_type with exit 2', () => {
-  const r = runHook(payload(undefined, exactBrief('code-reviewer')))
+  const r = runHook(payload(undefined, exactBrief('semantic-reviewer')))
   assert.equal(r.status, 2)
   assert.match(r.stderr, /BLOCKED: Agent brief contains a gate-reviewer brief/)
 })
@@ -342,15 +282,6 @@ test('blocks an untemplated type when pipeline.json is unreadable', () => {
   assert.match(r.stderr, /cannot read .*pipeline\.json/)
 })
 
-// GROUP: guard-agent-brief-main-checkout-fallback-disabled
-test('allows implementation-critic from a linked worktree when the plan exists only in the main checkout', () => {
-  const brief = fillTemplate(TEMPLATES['implementation-critic'], {
-    plan: '.spec-workflow/specs/agent-brief-guard/plan.md',
-  })
-  const r = runHook(payload('implementation-critic', brief), WORKTREE)
-  assert.equal(r.status, 0)
-})
-
 test('allows a brief with PR none and round after-loop', () => {
   const brief = fillTemplate(TEMPLATES['red-team'], { round: 'after-loop', pr: 'none' })
   const r = runHook(payload('red-team', brief))
@@ -359,8 +290,8 @@ test('allows a brief with PR none and round after-loop', () => {
 
 // GROUP: guard-agent-brief-pr-class-widened
 test('blocks a brief whose PR number has no hash sign with exit 2', () => {
-  const brief = fillTemplate(TEMPLATES['code-reviewer'], { pr: '123' })
-  const r = runHook(payload('code-reviewer', brief))
+  const brief = fillTemplate(TEMPLATES['semantic-reviewer'], { pr: '123' })
+  const r = runHook(payload('semantic-reviewer', brief))
   assert.equal(r.status, 2)
 })
 
@@ -380,34 +311,15 @@ test('blocks code-review-skill when its two {branch} occurrences disagree with e
   assert.equal(r.status, 2)
 })
 
-// {plan} must resolve against the repo root (GUARD_AGENT_BRIEF_ROOT here), never the stdin
-// `cwd` — a bogus cwd that carries no plan file at all must not block a real, existing plan.
-test('allows implementation-critic with a valid existing plan when stdin cwd points elsewhere', () => {
-  const brief = fillTemplate(TEMPLATES['implementation-critic'], { plan: VALID_PLAN })
-  const r = runHook(
-    payload('implementation-critic', brief, {}, '/nonexistent-cwd-should-be-ignored'),
-  )
-  assert.equal(r.status, 0)
-})
-
 // GROUP: guard-agent-brief-other-worktree-check-disabled
-test('blocks a code-reviewer brief dispatched with isolation: "worktree" with exit 2', () => {
-  const brief = exactBrief('code-reviewer')
-  const r = runHook(payload('code-reviewer', brief, { isolation: 'worktree' }))
+test('blocks a semantic-reviewer brief dispatched with isolation: "worktree" with exit 2', () => {
+  const brief = exactBrief('semantic-reviewer')
+  const r = runHook(payload('semantic-reviewer', brief, { isolation: 'worktree' }))
   assert.equal(r.status, 2)
   assert.match(r.stderr, /must not use isolation: "worktree"/)
 })
 
-// Every gated type but code-review-skill takes this path — implementation-critic is a second,
-// independent example (it also carries the {plan} check, so this proves the two aren't confused).
-test('blocks an implementation-critic brief dispatched with isolation: "worktree" with exit 2', () => {
-  const brief = fillTemplate(TEMPLATES['implementation-critic'], { plan: VALID_PLAN })
-  const r = runHook(payload('implementation-critic', brief, { isolation: 'worktree' }))
-  assert.equal(r.status, 2)
-  assert.match(r.stderr, /must not use isolation: "worktree"/)
-})
-
-test('allows a code-reviewer brief with isolation omitted', () => {
-  const r = runHook(payload('code-reviewer', exactBrief('code-reviewer')))
+test('allows a semantic-reviewer brief with isolation omitted', () => {
+  const r = runHook(payload('semantic-reviewer', exactBrief('semantic-reviewer')))
   assert.equal(r.status, 0)
 })

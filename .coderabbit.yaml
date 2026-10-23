@@ -76,7 +76,7 @@ reviews:
         - Max 150 lines. Split if exceeded.
         - Single responsibility — if description needs "and", split it.
         - No direct Supabase queries (data comes via props or Server Components).
-        - No useEffect for data fetching (Next.js anti-pattern).
+        - No useEffect for data fetching (code-style.md §6 R4): use Server Components (R1) or a GET Route Handler (R2).
         - Default to Server Components. Only add 'use client' at lowest interactive boundary.
         - Functions max 30 lines, max 3 params (use options object otherwise). EXCEPTION: a React function-component / custom-hook render/return body of pure JSX composition (no branching logic, no data transformation) may reach 35 lines; flag only past 35, or at any length if the body contains non-composition logic (see code-style.md §3). A function already over its cap that the diff makes longer counts.
         - Max 3 nesting levels — use early returns.
@@ -92,6 +92,18 @@ reviews:
         Reusable React component. Enforce:
         - Component props must be wrapped in Readonly<…> (immutable props contract; SonarCloud typescript:S6759 — not Biome-enforceable).
         - UI rules (code-style.md §2, Decision 111): Geist only, no monospace font (font-mono, monospace, Courier, Geist Mono) — use tabular-nums; theme colour tokens, not Tailwind palette classes (e.g. bg-red-500); no per-class motion-reduce: needed (globals.css handles reduced motion).
+
+    # Route Handlers — client-initiated reads only
+    - path: "apps/web/app/**/route.ts"
+      instructions: |
+        Route Handler. Enforce (code-style.md §6 R2/R5, docs/security.md Route Handler reads):
+        - GET only, no side effects. Webhooks and auth callbacks are the only mutating exceptions.
+        - verifySessionUser() first, 401 JSON when unauthenticated; never delegated to proxy.ts.
+        - Zod safeParse on query and path params, 400 on failure.
+        - Same answer-stripping and tenant/soft-delete scope as the equivalent RPC.
+        - Sanitized errors, never error.message.
+        - No CORS headers; Cache-Control private, no-store; no force-static.
+        - Every .from()/.rpc() site has a co-located *.integration.test.ts.
 
     # Server Actions — validated mutations
     - path: "apps/web/app/**/actions.ts"
@@ -133,7 +145,7 @@ reviews:
       instructions: |
         Custom React hook. Enforce:
         - Max 80 lines. Extract logic to util if exceeded.
-        - No useEffect for data fetching.
+        - No useEffect for data fetching (code-style.md §6 R4).
         - No direct Supabase calls.
 
     # Terminal-navigation ordering — await Server Actions before terminal navigation (code-style.md §6)
@@ -155,6 +167,7 @@ reviews:
     - path: "**/*.ts"
       instructions: |
         TypeScript source. Enforce:
+        - Before adding a cache, TTL, timeout, retry or module-level store, the PR body must cite the Next/React/Supabase doc page that lacks the behaviour (code-style.md §6 R6).
         - No `any` type — use `unknown` with narrowing.
         - No type casting of unvalidated external data via `as SubmitAnswerInput`.
         - When casting DB/RPC results via `as unknown as T`, pair the cast with runtime guards (Array.isArray, typeof checks, etc).

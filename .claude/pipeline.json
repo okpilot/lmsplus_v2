@@ -12,11 +12,6 @@
   "skillTools": ["Skill"],
 
   "agents": {
-    "code-reviewer": {
-      "model": "sonnet",
-      "write": false,
-      "role": "gate-round"
-    },
     "semantic-reviewer": {
       "model": "sonnet",
       "write": false,
@@ -30,11 +25,6 @@
     "test-writer": {
       "model": "sonnet",
       "write": true,
-      "role": "gate-round"
-    },
-    "deletion-reviewer": {
-      "model": "sonnet",
-      "write": false,
       "role": "gate-round"
     },
     "red-team": { "model": "opus", "write": true, "role": "conditional" },
@@ -52,11 +42,6 @@
       "model": "sonnet",
       "write": false,
       "role": "pre-execution"
-    },
-    "implementation-critic": {
-      "model": "sonnet",
-      "write": false,
-      "role": "gate-round"
     },
     "code-review-skill": {
       "model": "opus",
@@ -89,6 +74,7 @@
     "packages/db/src/**",
     "apps/web/app/app/quiz/actions/**",
     "apps/web/app/auth/**",
+    "apps/web/app/**/route.ts",
     "apps/web/proxy.ts",
     "docs/security.md"
   ],
@@ -211,9 +197,6 @@
         ".claude/hooks/run-security-auditor.config.test.mjs",
         ".claude/hooks/run-security-auditor.prompt-config.test.mjs"
       ]
-    },
-    ".claude/hooks/on-stop.sh": {
-      "exempt": "Stop hook; always exits 0 (toast notification only, its powershell.exe call is `|| true`) — cannot block"
     },
     ".claude/hooks/run-mutations.mjs": {
       "exempt": "a grader, not a blocking guard"

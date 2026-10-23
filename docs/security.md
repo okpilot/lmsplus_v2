@@ -603,7 +603,7 @@ const securityHeaders = [
 **Rule: Validate at every trust boundary. Trust nothing from the client.**
 
 - All Server Actions must validate input with Zod before touching the database. Use `safeParse()` or wrap `.parse()` in try/catch — bare `.parse()` throws a `ZodError` that escapes the typed return contract.
-- All API routes must validate request bodies with Zod
+- All Route Handlers must validate body, query and path params with Zod
 - Never use `as SomeType` to cast unvalidated external data
 - Escape `%` and `_` wildcards before interpolating user input into `.ilike()` / `.like()` calls — use an `escapeLike()` helper. This is not SQL injection (PostgREST parameterizes), but it prevents users from broadening query scope via wildcard characters.
 - **`start_quiz_session.p_question_ids` array cap** — `start_quiz_session` enforces a 500-element cap at the DB layer (`too_many_questions`, mig 086 / #275). The Server Action Zod schema enforces the same cap so a direct RPC caller cannot bypass it to mount a resource-exhaustion attack.
@@ -625,6 +625,19 @@ export async function submitAnswer(raw: unknown) {
   // ... proceed with parsed.data only
 }
 ```
+
+### Route Handler reads
+
+Client-initiated reads (after render, on interaction or focus, polling) are GET Route Handlers (`route.ts`). Every one:
+
+1. GET only, no side effects.
+2. Calls `verifySessionUser()` first; returns 401 JSON when unauthenticated. Never delegated to `proxy.ts`.
+3. Parses query and path params with Zod `safeParse`; returns 400 on failure.
+4. Applies the same answer-stripping as the equivalent RPC (§4).
+5. Applies the same tenant and soft-delete scope as the equivalent RPC (`.claude/rules/security.md` rules 9, 11, 12).
+6. Returns sanitized errors; never `error.message`.
+7. No CORS headers; `Cache-Control: private, no-store`; no `force-static`.
+8. Ships a co-located `*.integration.test.ts` per `.from()` / `.rpc()` site.
 
 ---
 

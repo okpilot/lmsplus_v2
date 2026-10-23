@@ -80,7 +80,8 @@ lmsplusv2/                          # Monorepo root (Turborepo + pnpm)
 │
 ├── .claude/                        # Claude Code agent system
 │   ├── agents/                     # Agent definitions
-│   ├── rules/                      # Binding rules (code-style, security, workflow)
+│   ├── rules/                      # Binding rules (code-style, security)
+│   ├── skills/                     # Skills (review-gate, github-projects, nextjs-patterns, supabase-rls, redteam)
 │   └── commands/                   # Custom slash commands
 │
 ├── .work/                          # Gitignored working notes (plans, handovers, triage)
@@ -300,9 +301,9 @@ _components/question-card.test.tsx
 
 All components are Server Components unless they need interactivity. Add `'use client'` at the lowest possible level in the component tree.
 
-### Data fetching in Server Components only
+### Data fetching: Server Components, GET Route Handlers for client-initiated reads
 
-No `useEffect` for data fetching. Server Components call query functions directly. The only approved `useEffect` pattern is the hydration guard:
+No `useEffect` for data fetching. Server Components call query functions directly (R1); client-initiated reads use a GET Route Handler per `docs/security.md` § Route Handler reads (R2). The only approved `useEffect` pattern is the hydration guard:
 
 ```tsx
 const [hydrated, setHydrated] = useState(false)
@@ -311,7 +312,7 @@ useEffect(() => { setHydrated(true) }, [])
 
 ### Mutations via Server Actions only
 
-No API route handlers for mutations. Use `'use server'` functions. Route handlers (`route.ts`) exist only for webhooks and external consumers.
+No Route Handler mutates (R5). Use `'use server'` functions (R3). Route handlers (`route.ts`) serve webhooks, GET reads (R2) and external consumers.
 
 ### Types exported next to their functions
 

@@ -21,7 +21,7 @@ Multi-tenant SaaS web application for EASA PPL aviation training. Serves Approve
 - **Tailwind CSS v4**: Utility-first CSS with oklch color space. `@theme inline` in `globals.css`.
 - **shadcn/ui v4**: Component library built on Base UI (not Radix). Official "Blue" theme on neutral base.
 - **Supabase JS (`@supabase/supabase-js`, `@supabase/ssr`)**: Typed Postgres client, auth helpers, storage SDK.
-- **Zod**: Runtime input validation on every Server Action and API route.
+- **Zod**: Runtime input validation on every Server Action input and Route Handler body/query/path param.
 - **next-themes**: Dark mode via `attribute="class"`, system preference default.
 - **@sentry/nextjs v11**: Error tracking with source maps, 10% trace sampling, tunnel route.
 - **@dnd-kit** (`@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities`): Accessible, touch-capable drag-and-drop for the VFR RT Part-3 `ordering`/`diagram_label` question types. Sensors: PointerSensor, TouchSensor (delay 250ms / tolerance 5px, iPad), KeyboardSensor.
@@ -39,8 +39,9 @@ lmsplusv2/
 ```
 
 **Key architectural patterns:**
-- **Server Components by default** -- data fetching happens server-side, no `useEffect` for data loading.
-- **Server Actions only for mutations** -- no API route handlers for mutations. Route handlers (`route.ts`) reserved for webhooks and external consumers.
+- **Server Components by default** -- server-initiated reads happen in Server Components (R1). Client-initiated reads go through a GET Route Handler per `docs/security.md` § Route Handler reads, never a Server Action (R2). No `useEffect` for data loading (R4).
+- **Server Actions only for mutations** (R3) -- no Route Handler mutates (R5); webhooks and auth callbacks are the existing exceptions. Route handlers (`route.ts`) otherwise serve GET reads (R2) and external consumers.
+- **Caching** -- before adding a cache, TTL, timeout, retry or module-level store, cite in the PR body the Next/React/Supabase doc page that lacks the behaviour (R6).
 - **ACID via Postgres RPCs** -- any multi-table operation runs in a single Postgres function (`finish_quiz_session`, `start_quiz_session`, `record_consent`, etc.). No multi-step application-level transactions.
 - **Server-saved quiz progress** -- each answer is saved to `quiz_session_progress` as the student works (`save_quiz_answer`); position and pins go to `quiz_sessions` (`save_quiz_position`); one active device per session via `claim_quiz_session`; `finish_quiz_session()` grades the saved progress atomically on finish.
 - **Feature-based folder organisation** -- co-located `_components/`, `_hooks/`, `actions.ts`, `types.ts` per route segment.
@@ -100,7 +101,7 @@ lmsplusv2/
   measured bounds live in those decisions; do not restate them here, and do not count the gates —
   "a second gate" stood here and went stale the moment a third landed. The stage's command list is
   DATA in `.claude/pipeline.json`.
-- **Code review**: CodeRabbit and the CI reviewer `.github/workflows/claude-review.yml` (Decision 78) on PRs, + in-session Claude Code subagents. The GATE runs once per branch over `git diff origin/master...HEAD`; within it, round 1 runs all seven core reviewers plus e2e-writer when triggered — implementation-critic, code-reviewer, semantic-reviewer, doc-updater, test-writer, deletion-reviewer, `code-review (skill)` (the built-in `/code-review` skill, dispatched as `subagent_type: code-review-skill` in an isolated worktree on opus), and e2e-writer (conditional on the diff touching `apps/web/app/**`, `apps/web/components/**` or `apps/web/proxy.ts`) — and later rounds run code-reviewer + semantic-reviewer + deletion-reviewer + `code-review (skill)` (`agent-workflow.md § Pre-Push Review Gate`). red-team (opus) runs once post-loop on security-path diffs — it attacks the local stack and writes+runs a failing spec per proven exploit.
+- **Code review**: CodeRabbit and the CI reviewer `.github/workflows/claude-review.yml` (Decision 78) on PRs, + in-session Claude Code subagents. The GATE runs once per branch over `git diff origin/master...HEAD`; every round runs one parallel batch — semantic-reviewer, doc-updater, test-writer, `code-review (skill)` (the built-in `/code-review` skill, dispatched as `subagent_type: code-review-skill` in an isolated worktree on opus), and e2e-writer (conditional on the diff touching `apps/web/app/**`, `apps/web/components/**` or `apps/web/proxy.ts`) — and the loop stops on the first round with no APPLY-worthy finding (`.claude/skills/review-gate/agent-workflow.md § Pre-Push Review Gate`). red-team (opus) runs once post-loop on security-path diffs — it attacks the local stack and writes+runs a failing spec per proven exploit.
 - **Git hooks (Lefthook v2, `lefthook.yml`)**:
   - `pre-commit` (SERIAL — `parallel: false`; biome restages files while the file-size guard grades
     the INDEX for the paths it is passed, and the guard's ratchet is exact-match): the stage's command list is DATA in
@@ -177,7 +178,7 @@ Decisions: `docs/decisions.md` (one line each).
 
 ## Known Limitations
 
-- **No real-time features**: No WebSocket/Realtime subscriptions. All data fetching is request-response via Server Components or Server Actions.
+- **No real-time features**: No WebSocket/Realtime subscriptions. All data fetching is request-response via Server Components or GET Route Handlers.
 - **Single-org assumption**: Comment visibility and some RLS policies assume single-org deployment. Multi-tenancy scoping deferred.
 - **No offline mode**: quiz progress is saved to the server as the student works; a failed save blocks the quiz until the connection returns.
 - **jsdom limitation**: Pre-hydration state (disabled button, skeleton) is not testable in jsdom -- `useEffect` runs synchronously in `act()`.

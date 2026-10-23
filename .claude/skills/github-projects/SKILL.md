@@ -1,3 +1,8 @@
+---
+name: github-projects
+description: Board sync rules and field IDs for the "LMS Plus v2 — Build Plan" GitHub project. Load before gh project commands, issue triage, or board updates.
+---
+
 # GitHub Projects — Board Sync Rules
 > Project: "LMS Plus v2 — Build Plan" (#2)
 > URL: https://github.com/users/okpilot/projects/2

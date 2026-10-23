@@ -38,7 +38,7 @@ ONCE per branch, after the review loop ends — including any rule edits committ
   PINNED mirror, not one you sync by hand. Its kind list is hardcoded, so a kind absent from it is
   not covered; see the CAPS item under DO NOT.
 - Function limits (30 lines, 3 params, 3 nesting levels)
-- No useEffect for data fetching
+- No useEffect data fetching (R4)
 - No barrel files
 - No business logic in components
 - Naming conventions (kebab-case files, PascalCase exports)
@@ -82,7 +82,7 @@ No changes needed: [list sections that are current]
    that the list does not cover has no test requiring a `.coderabbit.yaml` block at all — DO report
    that. "Machine-verified" covers the caps of the mirrored kinds, not the set of kinds.
 
-4. **Do NOT propose adding rules that our agents already enforce** — CodeRabbit is a backup. If our code-reviewer or semantic-reviewer already checks something, it doesn't need to be in `.coderabbit.yaml` path_instructions. Focus on rules that CodeRabbit uniquely enforces (pre-merge checks, external PR reviews).
+4. **Do NOT propose adding rules that our agents already enforce** — CodeRabbit is a backup. If our semantic-reviewer already checks something, it doesn't need to be in `.coderabbit.yaml` path_instructions. Focus on rules that CodeRabbit uniquely enforces (pre-merge checks, external PR reviews).
 
 ## Important
 - Only report findings. The main session will make the actual edits.

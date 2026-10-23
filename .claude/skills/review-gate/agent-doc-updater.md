@@ -1,6 +1,6 @@
 # Agent Rules — doc-updater
 
-> Model: haiku | Trigger: pre-push review gate — round 1; a later round only when the fixup added surface it has not seen | Non-blocking (it PRODUCES doc edits, it does not gate)
+> Model: haiku | Trigger: pre-push review gate — every round | Non-blocking (it PRODUCES doc edits, it does not gate)
 
 ## Purpose
 Keeps project documentation in sync with code changes: schema changes, new RPCs, new routes, dependency updates, architecture shifts. REPORTS the edits needed to `docs/decisions.md` and `docs/database.md` — the orchestrator applies them; the agent has no Write/Edit tool.

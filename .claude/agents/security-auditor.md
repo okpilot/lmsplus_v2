@@ -40,7 +40,7 @@ You receive:
    - Any `NEXT_PUBLIC_` prefixed env var containing service role key
 
 3. **Correct answer exposure**
-   - Any Server Action or API route that queries `questions` and returns the raw `options` JSONB (containing `correct: true/false`) to a student-facing endpoint
+   - Any Server Action or Route Handler that queries `questions` and returns the raw `options` JSONB (containing `correct: true/false`) to a student-facing endpoint
    - Direct `SELECT * FROM questions` or `.select('*')` on the questions table in student-facing code
    - Any function that returns question data without going through `get_quiz_questions()` RPC
 
@@ -85,7 +85,7 @@ You receive:
    - Any `SECURITY DEFINER` function missing `SET search_path = public`
 
 9. **Multi-table mutation outside an RPC**
-   - Server Actions or API routes performing INSERT/UPDATE on 2+ related tables without a Postgres function wrapping them
+   - Server Actions or Route Handlers performing INSERT/UPDATE on 2+ related tables without a Postgres function wrapping them
    - Fix: move to a `LANGUAGE plpgsql` RPC for atomicity
 
 10. **Non-idempotent INSERT**
@@ -97,7 +97,7 @@ You receive:
 
 12. **Missing input validation**
     - Server Actions that accept parameters without Zod validation
-    - API routes that use `req.body` directly without schema parsing
+    - Route Handlers that use the request body, query or path params without Zod parsing
 
 13. **Exam integrity violations**
     - Server-side code that accepts quiz answers after the exam's `end_time`
@@ -133,7 +133,7 @@ You receive:
 ### MEDIUM (warn, not blocking)
 
 20. **Sibling SECURITY DEFINER guard-set parity** (docs/security.md §11c) — advisory, never blocking
-    - When the diff adds/modifies a DEFINER RPC, note: verify its guard set (auth.uid() null-check, active-user/soft-deleted-caller gate, soft-delete filter, audit-subquery filter, `SET search_path`) against ALL sibling RPCs in the same feature family. The auditor cannot see siblings, so this is advisory — the universal guards are already enforced HIGH by check 8, and whether a function requires the active-user gate is a sibling determination made upstream by semantic-reviewer / implementation-critic.
+    - When the diff adds/modifies a DEFINER RPC, note: verify its guard set (auth.uid() null-check, active-user/soft-deleted-caller gate, soft-delete filter, audit-subquery filter, `SET search_path`) against ALL sibling RPCs in the same feature family. The auditor cannot see siblings, so this is advisory — the universal guards are already enforced HIGH by check 8, and whether a function requires the active-user gate is a sibling determination made upstream by semantic-reviewer.
     - Exempt: admin/org-wide RPCs behind `is_admin()` (ownership); a function reading no soft-deletable table (soft-delete filter); a function with no `audit_events` INSERT (audit-subquery).
 21. `as SomeType` casts on unvalidated external data
 22. `console.log` statements that might print user data or tokens
@@ -144,6 +144,9 @@ You receive:
     - A `CREATE POLICY` / `ALTER POLICY` predicate, or a `SECURITY INVOKER` function WHERE/JOIN filter over an RLS table, calls bare `auth.uid()` or `is_admin()` instead of `(select auth.uid())` / `(select is_admin())`.
     - Exempt: `IF auth.uid() IS NULL THEN RAISE` null-guards, per-row trigger comparisons (e.g. `IF auth.uid() = NEW.student_id`) and `SECURITY DEFINER` bodies (check 8 unchanged).
     - Scope: policies and function bodies present in the diff.
+27. **Route Handler read violating `docs/security.md` § Route Handler reads** (HIGH)
+    - A `route.ts` GET handler in the diff that: has side effects; skips `verifySessionUser()` with a 401 JSON; skips Zod `safeParse` of query/path params with a 400; returns answer data without the equivalent RPC's stripping; omits the tenant and soft-delete scope; returns raw `error.message`; sets CORS headers, omits `Cache-Control: private, no-store`, or uses `force-static`.
+    - A `route.ts` handler exporting POST/PUT/PATCH/DELETE that mutates (webhook and auth-callback handlers exempt).
 
 ### Pre-Flag Verification: Supersession Chain (checks 16–20)
 

@@ -2,6 +2,8 @@ Pre-push quality gate. Run this BEFORE pushing to catch drift, lazy triage, and 
 
 > **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph. Evidence is not prose: a skip reason, an `EVIDENCE:` line, a finding's stated basis or a required status/summary stays wherever a rule asks for it.
 
+Load the `review-gate` skill first.
+
 ## Self-Audit Checklist
 
 Before doing anything else, answer these questions honestly. Do NOT skip any. Print each answer.
@@ -15,48 +17,13 @@ Before doing anything else, answer these questions honestly. Do NOT skip any. Pr
 4. **Are there any unresolved CRITICAL, BLOCKING, or ISSUE findings** from any agent or reviewer?
 5. **Did the pre-push review gate reach a CLEAN round?** (`agent-workflow.md § Pre-Push Review Gate`.) Run `git fetch origin` (ABORT if it fails) — `origin/master` only advances on fetch, and a stale one shifts the review scope, see `agent-workflow.md` § "Always diff against `origin/master`, never the bare local `master`". Then account for the loop, not for commits:
    - **Which rounds ran**, and on what range — every reviewer reads `git diff origin/master...HEAD`.
-   - **Round 1 launched all seven core reviewers, plus e2e-writer when triggered**: implementation-critic, code-reviewer, semantic-reviewer, doc-updater, test-writer, deletion-reviewer, code-review (skill) — the built-in `/code-review` skill, dispatched as `subagent_type: code-review-skill` in an isolated worktree on opus — and e2e-writer (sonnet, conditional on the diff touching `apps/web/app/**`, `apps/web/components/**` or `apps/web/proxy.ts`). Round 2+ launched code-reviewer, semantic-reviewer, deletion-reviewer, code-review (skill) (doc-updater/test-writer/e2e-writer only where the fixup added surface they had not seen). They are ASYNC, so "ran" means the completion notification arrived and the result was read, not that it was dispatched.
+   - **Every round launched, in ONE parallel batch**: semantic-reviewer, doc-updater, test-writer, code-review (skill) — the built-in `/code-review` skill, dispatched as `subagent_type: code-review-skill` in an isolated worktree on opus — and e2e-writer (sonnet, conditional on the diff touching `apps/web/app/**`, `apps/web/components/**` or `apps/web/proxy.ts`). They are ASYNC, so "ran" means the completion notification arrived and the result was read, not that it was dispatched.
    - **What each round's pooled triage concluded** — one table per round, every finding at a terminal verdict.
-   - **The FINAL round carried no APPLY-worthy finding.** A round that still carries one is not a stopping round. If you stopped at the 3-round ceiling instead, say so and escalate — do not push past it.
-   - The conditionals run ONCE per branch after the loop ends — red-team (opus, the attacker: attacks the local stack and writes+runs a failing spec per proven exploit) if the branch diff touches security paths, coderabbit-sync if rules changed. A proven exploit's prod fix re-enters the round-2+ set as a fresh loop (its own 3-round ceiling); step 7b confirms its spec passes.
+   - **The FINAL round carried no APPLY-worthy finding.** A round that still carries one is not a stopping round. There is no round ceiling.
+   - The conditionals run ONCE per branch after the loop ends — red-team (opus, the attacker: attacks the local stack and writes+runs a failing spec per proven exploit) if the branch diff touches security paths, coderabbit-sync if rules changed. A proven exploit's prod fix re-enters the round loop; step 7b confirms its spec passes.
    A bare "yes" does not answer this. Name the rounds and paste their verdicts.
 6. **Did every round's fixup commit get re-read by the NEXT round, and did the loop end clean?** A fixup commit triggers nothing on its own — the only thing that reads it is the next round, on the re-diffed branch. So: for each round that produced a fixup commit, a further round ran over a diff that included it; and the last round ran on an artifact nobody has changed since. Any edit made after the final round means the loop is not finished — run another round. Re-run the conditionals when their trigger paths entered the diff via a fixup: red-team, coderabbit-sync. Red-team's own specs and rows, and a proven exploit's fix, never re-trigger red-team.
 7. **For every DEFER verdict on this branch:** Did you create a GitHub Issue to track it? List the issue numbers. No silent deferrals — every deferred item gets a ticket or it's not really deferred, it's forgotten.
-7a. **Defer budgets — TWO checks, and step 7 is neither of them.** Step 7 is the per-item test;
-    these are the two once-before-push budgets from `agent-workflow.md § Apply-vs-Defer Discipline`,
-    and a PR must clear both.
-    - **Volume:** 0-2 deferrals is the budget. 3+ does not fail automatically, but every survivor
-      must be re-triaged and named here.
-    - **Ratio:** count the issues this PR CLOSES (its `Closes #N` / `Fixes #N` keywords) and the
-      issues it FILED — every issue the branch author created after the merge-base (that scope is
-      what the `author:@me` below encodes), whatever its origin, listed in the PR body's
-      `## Deferred` section, which must name every one. On a FIRST push there is no PR yet, so the
-      list is the `## Deferred` section of the body you are about to open the PR with. Enumerate with the merge-base TIMESTAMP, never its date:
-      `gh issue list --state open --limit 200 --search "author:@me created:>=$SINCE"`, with `$SINCE`
-  captured and guarded FIRST: `MB=$(git merge-base origin/master HEAD) || abort`, then
-  `SINCE=$(git log -1 --format=%cI "$MB") || abort`. Do NOT inline them — a failed `git merge-base`
-  leaves an empty substitution, `git log -1 --format=%cI` then defaults to HEAD and prints HEAD's OWN committer timestamp — today's date only when HEAD was committed today, any earlier
-  date and exits 0, narrowing the window and under-counting `filed` with no diagnostic (verified). — `--limit 200` because `gh` defaults to 30 and truncates at exit 0, which under-counts `filed` and PASSES a check that should fail (step 5 already fetched). If the
-      result is exactly 200 rows, treat that as truncated rather than as the answer — raise the
-      bound and re-run; a cap only closes the hole while the result stays under it. If
-      **filed > 0 AND filed ≥ closed**, the PR did not reduce the backlog: either claim one
-      of the accepted justifications on its evidence test — first-illumination, or red-team
-      coverage gaps listed as `red-team-gap`, each naming the vector ID or spec path it covers (ALL
-      filings must be such gaps; if mixed with ordinary deferrals, the ordinary ones alone are
-      judged) — or
-      re-triage and APPLY two or three of the deferrals.
-      See the rule: for first-illumination, naming the area is not enough on its own. A PR that files
-      nothing clears this check whatever it closes.
-
-    Per-item justifications do not answer either check — PR #1225 passed every per-item test and
-    still filed **9** against 7 closed, sailing past the volume budget too. Nine as of ITS push, not
-    the eight its own artifacts add up to: `#1232` counts, created after its merge-base and still
-    open. Run the same command against #1225 later and the answer only climbs — it has no
-    upper time bound, so it sweeps in what every later branch filed. That is the point of comparing
-    once, before push; do not record a "today" figure here, because it is wrong by the next issue. Its
-    `## Deferred` section named 2 of the 9, which is why that section is mandatory AND must be
-    complete — read literally against an incomplete section, #1225 computes filed=2 and passes.
-
 ### Docs, rules and mirrors — land them BEFORE the push, not in wrap-up
 7b. **Every doc, rule and mirror update this change requires must already be committed on this
     branch.** This is a pre-push gate, not a wrap-up item. If a rule changed, its mirrors changed
@@ -65,7 +32,7 @@ Before doing anything else, answer these questions honestly. Do NOT skip any. Pr
     Check, and fix now if any is missing:
     - `docs/` — anything the change makes inaccurate (database.md matrices, security.md rules,
       decisions.md entry for a real decision).
-    - `.claude/rules/*.md` — the rule text itself.
+    - `.claude/rules/*.md`, `.claude/skills/review-gate/*.md` — the rule text itself.
     - **The mirror set for that rule — every row of the table in `agent-workflow.md § Rule-Mirror Sync`, including the executable `.claude/hooks/*.sh` mirrors and `package.json`.** A rule lives in more than one place and the copies
       do not auto-track: `docs/security.md`, `.claude/rules/*.md`, `.coderabbit.yaml`,
       `.claude/agents/*.md`, `.claude/commands/*.md`, `.claude/skills/**/*.md` (RECURSIVE — a nested
@@ -78,7 +45,7 @@ Before doing anything else, answer these questions honestly. Do NOT skip any. Pr
       false CRITICALs. **Grep is a first pass, not the sweep**: a phrase-grep cannot find a
       paraphrase, so when a change retires a *claim*, read the affected section and its mirrors
       end-to-end once. **The file that DEFINES the rule is a mirror of itself** — editing one
-      clause of a `.claude/rules/*.md` or `.claude/agents/*.md` file leaves its OTHER clauses
+      clause of a `.claude/rules/*.md`, `.claude/skills/review-gate/*.md` or `.claude/agents/*.md` file leaves its OTHER clauses
       restating the old claim, and only a full read catches a same-file paraphrase.
       **A sweep is done when it passes the completeness checks in `agent-workflow.md § Rule-Mirror
       Sync` ("Sweep completeness"), not when you have run it:** walk every reported hit to APPLIED or
@@ -144,18 +111,15 @@ After answering the checklist:
 
 6. **Migration validation (conditional)**: if `$CHANGED` (from 5b) includes `supabase/migrations/`, validate the migrations on a clean local DB before push. If a local Supabase instance is running, run `supabase db reset --no-seed` / `npx supabase db reset --no-seed` (there may be no global binary on PATH) — the same command CI's "Migration Test (clean reset)" job runs (`e2e.yml`) — and confirm every migration applies cleanly. A clean local reset is a **preflight, not a proof**: CI pins the CLI (the `supabase/setup-cli` `version:` in `e2e.yml` — `2.78.1` as of 2026-09-02) while local runs whatever `npx supabase --version` resolves to (`2.116.0` the same day), so the same command is NOT the same engine and the CI job stays authoritative. A SECOND and unrelated divergence: CI wraps that command in a storage-readiness gate plus one signature-scoped retry and local does not, so a local failure citing `storage/v1/bucket` + `context deadline exceeded` is that known CI flake, not your migration — re-run it (this one is the retry wrapper, NOT the CLI version — pinning your local CLI will not change it). If step 7/7b will run locally after this reset, re-seed first (`tsx scripts/seed-e2e.ts`, after the local grant-fix if needed) — the reset leaves the DB empty and an E2E run against it fails spuriously. If no local instance is up, do NOT silently skip — print a loud `⚠️ MIGRATIONS CHANGED — VALIDATE ON A CLEAN DB BEFORE MERGE` and tell the user (CI's migration test is otherwise the first place a bad migration surfaces).
 7. **E2E (conditional)**: if `$CHANGED` (from 5b) includes `apps/web/e2e/` (excluding `redteam/`), run the web Playwright suite (`pnpm --filter @repo/web e2e`) with `:3000` free — Playwright starts its own server and never reuses a running one.
-7b. **Red Team (MANDATORY when touched — do NOT skip)**: if `$CHANGED` (from 5b) includes `apps/web/e2e/redteam/**` (red-team spec changes) OR `apps/web/e2e/helpers/**` (red-team specs import them) OR any security path (the canonical set from `agent-workflow.md § Red-Team Agent Trigger`: `supabase/migrations/**`, `packages/db/src/**`, `apps/web/app/app/quiz/actions/**`, `apps/web/app/auth/**`, `apps/web/proxy.ts`, `docs/security.md`), run `pnpm --filter @repo/web e2e:redteam` locally, with `:3000` free, and confirm **all specs pass** before pushing. `Red Team Specs` is a **required** status check — a local failure means a blocked PR. The `e2e` script in step 7 does NOT include the `redteam` project, so this is a separate run. If the local Supabase stack is down, bring it up (`supabase start` / `npx supabase start`, re-seed via `scripts/seed-e2e.ts`) — do NOT skip with a warning and rely on review+lint+type. PR #769 shipped 2 runtime-failing red-team specs precisely because this step was skipped on the assumption that review caught runtime behavior. It does not.
+7b. **Red Team (MANDATORY when touched — do NOT skip)**: if `$CHANGED` (from 5b) includes `apps/web/e2e/redteam/**` (red-team spec changes) OR `apps/web/e2e/helpers/**` (red-team specs import them) OR any security path (the canonical set from `agent-workflow.md § Red-Team Agent Trigger`: `supabase/migrations/**`, `packages/db/src/**`, `apps/web/app/app/quiz/actions/**`, `apps/web/app/auth/**`, `apps/web/app/**/route.ts`, `apps/web/proxy.ts`, `docs/security.md`), run `pnpm --filter @repo/web e2e:redteam` locally, with `:3000` free, and confirm **all specs pass** before pushing. `Red Team Specs` is a **required** status check — a local failure means a blocked PR. The `e2e` script in step 7 does NOT include the `redteam` project, so this is a separate run. If the local Supabase stack is down, bring it up (`supabase start` / `npx supabase start`, re-seed via `scripts/seed-e2e.ts`) — do NOT skip with a warning and rely on review+lint+type. PR #769 shipped 2 runtime-failing red-team specs precisely because this step was skipped on the assumption that review caught runtime behavior. It does not.
 8. **Show the review-gate findings summary table** for this BRANCH — every reviewer the gate ran, across every round.
 
 ```
 | Reviewer               | Rounds | Severity | Count | Status      |
 |------------------------|--------|----------|-------|-------------|
-| implementation-critic  | 1      | ...      | ...   | fixed/clean |
-| code-reviewer          | 1-N    | ...      | ...   | fixed/clean |
 | semantic-reviewer      | 1-N    | ...      | ...   | fixed/clean |
 | doc-updater            | 1(+N)  | ...      | ...   | clean       |
 | test-writer            | 1(+N)  | ...      | ...   | added N     |
-| deletion-reviewer      | 1-N    | ...      | ...   | fixed/clean |
 | code-review (skill)    | 1-N    | ...      | ...   | fixed/clean |
 | e2e-writer             | 1(+N)  | ...      | ...   | added N/n-a |
 ```

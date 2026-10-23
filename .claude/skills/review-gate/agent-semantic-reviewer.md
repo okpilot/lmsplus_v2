@@ -1,5 +1,5 @@
 # Agent Rules — semantic-reviewer
-> Model: sonnet | Trigger: pre-push review gate — round 1 and every later round | Blocking: on CRITICAL/ISSUE
+> Model: sonnet | Trigger: pre-push review gate — every round | Blocking: on CRITICAL/ISSUE
 
 ## Purpose
 Deep logic and security review at CodeRabbit depth: logic bugs, security gaps (answer exposure, auth bypass, RLS holes), behavioral inconsistencies, data flow errors, query correctness, architectural violations.
@@ -9,7 +9,7 @@ Deep logic and security review at CodeRabbit depth: logic bugs, security gaps (a
 |-------|---------|--------|
 | CRITICAL | Exploitable security gap or data loss bug | Stop everything. Fix immediately. Re-run reviewer on the fix. |
 | ISSUE | Real bug or gap, even if not triggerable today | Fix now. Same session. No deferral. |
-| SUGGESTION | Improvement, not a current gap | Fix if under 10 lines. Otherwise triage via `agent-workflow.md § Apply-vs-Defer Discipline`: apply by default; DEFER to a GitHub Issue only when all three defer conditions hold (≥30 LOC, separate concern, design decision) AND the PR clears both defer budgets. |
+| SUGGESTION | Improvement, not a current gap | Fix if under 10 lines. Otherwise triage via `agent-workflow.md § Apply-vs-Defer Discipline`: apply by default; DEFER to a GitHub Issue only when all three defer conditions hold (≥30 LOC, separate concern, design decision). |
 | GOOD | Positive pattern worth noting | Acknowledge in summary. No action needed. |
 
 ## Handling Results
@@ -29,7 +29,6 @@ Deep logic and security review at CodeRabbit depth: logic bugs, security gaps (a
 - Skip fixing because "the UI prevents this path." SQL functions, Server Actions, and APIs must be self-defending.
 - Dismiss a finding because it needs "only" a future code change to trigger.
 - Push with any unresolved CRITICAL or ISSUE.
-- Overlap with code-reviewer scope — semantic reviewer checks logic, not style; on overlap, defer to semantic reviewer's classification.
 
 ## What This Agent Checks (for reference)
 - Behavioral consistency across related functions

@@ -13,9 +13,17 @@
         "a tracked file under .claude/agent-memory blocks",
         "a tracked file under apps/web/.claude blocks",
         "a non-boolean skill flag in pipeline.json blocks",
-        "a skill agent whose tools omit Skill blocks"
+        "a skill agent whose tools omit Skill blocks",
+        "a security path glob matching no tracked file blocks"
       ],
       "note": "The final blocking exit, dropped: every mismatch still prints FAIL, but the process exits 0 regardless — a lefthook.yml/pipeline.json mismatch, a stray frontmatter `memory:` key, or a tracked agent-memory file would no longer fail the CI step."
+    },
+    {
+      "id": "pipeline-glob-check-always-passes",
+      "find": "const found = p.includes('*') ? trackedMatches(p) > 0 : existsSync(join(ROOT, p))",
+      "replace": "const found = true",
+      "expectRed": ["a security path glob matching no tracked file blocks"],
+      "note": "Every declared path counts as found — a securityPaths glob matching no tracked file would no longer fail the check."
     },
     {
       "id": "pipeline-always-blocks",

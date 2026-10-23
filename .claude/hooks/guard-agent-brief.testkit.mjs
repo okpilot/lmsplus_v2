@@ -16,15 +16,9 @@ import { runNode } from './spawn.testkit.mjs'
 export const HOOKS_DIR = path.dirname(fileURLToPath(import.meta.url))
 const HOOK = path.join(HOOKS_DIR, 'guard-agent-brief.js')
 
-// A self-contained fixture root carrying the plan file — the real plans are gitignored and
-// absent in CI. Passed to the hook as GUARD_AGENT_BRIEF_ROOT (see runHook), never as stdin
-// `cwd`: the hook resolves {plan} against the repo root (or this override), not the caller's
-// shell directory.
+// A self-contained fixture root, passed to the hook as GUARD_AGENT_BRIEF_ROOT (see runHook),
+// never as stdin `cwd`.
 const ROOT = mkdtempSync(path.join(tmpdir(), 'guard-agent-brief-test-'))
-mkdirSync(path.join(ROOT, '.spec-workflow/specs/agent-brief-guard'), { recursive: true })
-writeFileSync(path.join(ROOT, '.spec-workflow/specs/agent-brief-guard/plan.md'), '# plan\n')
-mkdirSync(path.join(ROOT, 'docs'))
-writeFileSync(path.join(ROOT, 'docs/decisions.md'), '# decisions\n')
 // {branch} must be a local branch of the root: a git repo whose one branch is the fillTemplate default.
 mkdirSync(path.join(ROOT, '.claude/hooks'), { recursive: true })
 copyFileSync(
@@ -47,11 +41,8 @@ const git = (...args) =>
     ...args,
   ])
 execFileSync('git', ['init', '-q', '-b', 'chore/agent-brief-guard', ROOT])
-// gate-briefs.json is tracked, the plan is not — as in the real repo, a linked worktree lacks it.
 git('add', '.claude/hooks/gate-briefs.json', '.claude/pipeline.json')
 git('commit', '-q', '-m', 'init')
-export const WORKTREE = path.join(ROOT, 'wt')
-git('worktree', 'add', '-q', '-b', 'wt-branch', WORKTREE)
 // A root whose templates file is unparseable.
 export const BROKEN_ROOT = mkdtempSync(path.join(tmpdir(), 'guard-agent-brief-broken-'))
 mkdirSync(path.join(BROKEN_ROOT, '.claude/hooks'), { recursive: true })
@@ -132,10 +123,8 @@ export const TEMPLATES = gateBriefs.templates
 // runNode throws NO VERDICT on a signal, a timeout or a failed spawn — see guard-bash.test.mjs
 // for why `status` must never be read off a killed child.
 //
-// GUARD_AGENT_BRIEF_ROOT points the hook's plan-path resolution at ROOT (this suite's throwaway
-// fixture directory) instead of the real repo root — the real plans are gitignored and absent in
-// CI. Every call goes through here so every test gets it, including ones that never touch a
-// {plan} placeholder.
+// GUARD_AGENT_BRIEF_ROOT points the hook at ROOT (this suite's throwaway fixture directory)
+// instead of the real repo root. Every call goes through here so every test gets it.
 export function runHook(stdin, root = ROOT) {
   return runNode('guard-agent-brief.js', [HOOK], {
     input: stdin,
@@ -144,8 +133,7 @@ export function runHook(stdin, root = ROOT) {
   })
 }
 
-// `cwd` here is DECORATIVE — a realistic field on the real hook payload — never what {plan}
-// resolves against; pass a bogus one to prove that.
+// `cwd` here is DECORATIVE — a realistic field on the real hook payload.
 export function payload(subagentType, prompt, extra = {}, cwd = ROOT) {
   return JSON.stringify({
     cwd,
@@ -155,37 +143,22 @@ export function payload(subagentType, prompt, extra = {}, cwd = ROOT) {
   })
 }
 
-export const VALID_PLAN = '.spec-workflow/specs/agent-brief-guard/plan.md'
-
 /** Fill a template's placeholders with valid sample values. A placeholder repeated in one
  * template (code-review-skill's `{branch}`) gets the same value both times via replaceAll.
- * `{requirements}` (implementation-critic only) defaults to `VALID_PLAN` when the template
- * carries the placeholder and the caller didn't name a value — every existing call site that
- * only ever set `{plan}` still gets a requirements value that passes `planPathValid`. */
+ */
 export function fillTemplate(
   template,
-  { round = '1', pr = '#123', branch = 'chore/agent-brief-guard', plan, requirements } = {},
+  { round = '1', pr = '#123', branch = 'chore/agent-brief-guard' } = {},
 ) {
-  let out = template
-    .replaceAll('{round}', round)
-    .replaceAll('{pr}', pr)
-    .replaceAll('{branch}', branch)
-  if (plan !== undefined) out = out.replaceAll('{plan}', plan)
-  if (out.includes('{requirements}')) {
-    out = out.replaceAll('{requirements}', requirements !== undefined ? requirements : VALID_PLAN)
-  }
-  return out
+  return template.replaceAll('{round}', round).replaceAll('{pr}', pr).replaceAll('{branch}', branch)
 }
 
 /** Extra `tool_input` fields a type's template alone doesn't cover. */
 export function extraFor(type) {
-  if (type === 'implementation-critic') return {}
   if (type === 'code-review-skill') return { isolation: 'worktree', model: 'opus' }
   return {}
 }
 
 export function exactBrief(type) {
-  const opts =
-    type === 'implementation-critic' ? { plan: VALID_PLAN, requirements: VALID_PLAN } : {}
-  return fillTemplate(TEMPLATES[type], opts)
+  return fillTemplate(TEMPLATES[type])
 }
