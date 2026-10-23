@@ -1,6 +1,7 @@
 # Red Team — Attack Surface Map
 
-> Last updated: 2026-10-21 (branch fix/1558-comments-select-active-caller, #1558 — Vector JO added.)
+> Last updated: 2026-10-23 (branch perf/1602-one-count-rpc, #1602 — Vectors JQ-JT added; IY spec covers get_discovery_counts.)
+> PRIOR: 2026-10-21 (branch fix/1558-comments-select-active-caller, #1558 — Vector JO added.)
 > PRIOR: 2026-10-21 (branch perf/1549-restored-feedback-app, #1549 PR2 — Vectors HG-HK RETIRED; HB rewritten; JN added.)
 > PRIOR: 2026-10-20 (branch perf/1548-drop-old-rpcs, #1548 PR3 — Vectors EO, ES RETIRED; see rows.)
 > PRIOR: 2026-10-18 (branch perf/session-open-rsc-1547, #1547 — Vector GB RETIRED; see row GB.)
@@ -297,6 +298,10 @@
 | JN | quiz-session-id-route-saved-session-restored-feedback | MEDIUM | quiz-session-id-route-saved-feedback.spec.ts | BLOCKED |  | soft-delete-bypass |
 | JO | deactivated-student-live-token-question-comments-read | MEDIUM | deactivated-student-direct-rls-writes.spec.ts | BLOCKED |  | soft-delete-bypass |
 | JP | verifySessionUser-build-jwks-alg-confusion-attacker-signed-token | HIGH | proxy-build-jwks-alg-confusion.spec.ts | BLOCKED |  | auth-bypass |
+| JQ | get_discovery_counts-anon-call | MEDIUM | rpc-get-discovery-counts.spec.ts | BLOCKED |  | auth-bypass |
+| JR | get_discovery_counts-cross-org-pool | HIGH | rpc-get-discovery-counts.spec.ts | BLOCKED |  | cross-tenant |
+| JS | get_discovery_counts-draft-soft-deleted-non-mc | MEDIUM | rpc-get-discovery-counts.spec.ts | BLOCKED |  | soft-delete-bypass |
+| JT | get_discovery_counts-instructor-student_responses-over-scope | MEDIUM | rpc-get-discovery-counts.spec.ts | BLOCKED |  | rls-bypass |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
