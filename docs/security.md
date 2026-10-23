@@ -631,7 +631,7 @@ export async function submitAnswer(raw: unknown) {
 Client-initiated reads (after render, on interaction or focus, polling) are GET Route Handlers (`route.ts`). Not covered: `apps/web/app/auth/**` handlers, webhooks, and `apps/web/app/api/version/route.ts` (public, returns no user data). Every one:
 
 1. GET only, no side effects.
-2. Calls `verifySessionUser()` first; returns 401 JSON when unauthenticated. Never delegated to `proxy.ts`.
+2. Lives outside the `proxy.ts` matcher (e.g. `apps/web/app/api/**`). Calls `verifySessionUser()` first; returns 401 JSON when unauthenticated. Never delegated to `proxy.ts`.
 3. Parses query and path params with Zod `safeParse`; returns 400 on failure.
 4. Applies the same answer-stripping as the equivalent RPC (§4).
 5. Applies the same active-user gate, tenant scope (§13) and soft-delete filter as the equivalent RPC.
