@@ -9,7 +9,7 @@ description: Next.js App Router patterns for this repo — data fetching, Server
 
 ## Data fetching
 R1: server-initiated reads happen in Server Components.
-R2: client-initiated reads (after render, interaction, focus, polling) go through a GET Route Handler per `docs/security.md` § Route Handler reads; never a Server Action.
+R2: client-initiated reads (after render, interaction, focus, polling) go through a GET Route Handler per `docs/security.md` § Route Handler reads; never a Server Action. Existing Server Action reads (first: #1527) migrate when next reworked; editing one does not require migrating it.
 R4: no `useEffect` data fetching; effects are for hydration guards and external-system sync.
 R6: before adding a cache, TTL, timeout, retry or module-level store, cite in the PR body the Next/React/Supabase doc page that lacks the behaviour.
 

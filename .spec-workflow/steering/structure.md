@@ -303,7 +303,7 @@ All components are Server Components unless they need interactivity. Add `'use c
 
 ### Data fetching: Server Components, GET Route Handlers for client-initiated reads
 
-No `useEffect` for data fetching. Server Components call query functions directly (R1); client-initiated reads use a GET Route Handler per `docs/security.md` § Route Handler reads (R2). The only approved `useEffect` pattern is the hydration guard:
+No `useEffect` for data fetching. Server Components call query functions directly (R1); client-initiated reads use a GET Route Handler per `docs/security.md` § Route Handler reads (R2). Existing Server Action reads (first: #1527) migrate when next reworked; editing one does not require migrating it. The only approved `useEffect` pattern is the hydration guard:
 
 ```tsx
 const [hydrated, setHydrated] = useState(false)

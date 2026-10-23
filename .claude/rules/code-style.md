@@ -801,9 +801,9 @@ Enforcers: Biome (`pnpm lint`), CodeRabbit (`.coderabbit.yaml`), SonarCloud S675
 - `any` types — Biome
 - Non-null assertions without a comment — CodeRabbit
 - Barrel `index.ts` files — CodeRabbit
-- Component props not wrapped in `Readonly<…>` (WARNING — see Section 5) — SonarCloud `typescript:S6759`
+- Component props not wrapped in `Readonly<…>` (WARNING — see Section 5) — CodeRabbit, SonarCloud `typescript:S6759`
 - `useEffect` used for data fetching (hydration guards are exempt — see Section 6) — CodeRabbit
-- Missing tests for new utility functions — test-writer, CodeRabbit
+- Missing tests for new utility functions — test-writer
 - `.select()` reads that destructure only `{ data }` without checking `{ error }` (see Section 5 — `.single()` PGRST116 no-rows is an allowed exception) — semantic-reviewer, CodeRabbit
 - Array-valued fields in fan-out/dispatch functions guarded with `Array.isArray(...)`, not a bare truthy/length check (see Section 5) — semantic-reviewer, CodeRabbit
 ---

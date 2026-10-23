@@ -634,7 +634,7 @@ Client-initiated reads (after render, on interaction or focus, polling) are GET 
 2. Calls `verifySessionUser()` first; returns 401 JSON when unauthenticated. Never delegated to `proxy.ts`.
 3. Parses query and path params with Zod `safeParse`; returns 400 on failure.
 4. Applies the same answer-stripping as the equivalent RPC (§4).
-5. Applies the same tenant scope (§13) and soft-delete filter as the equivalent RPC.
+5. Applies the same active-user gate, tenant scope (§13) and soft-delete filter as the equivalent RPC.
 6. Returns sanitized errors; never `error.message`.
 7. No CORS headers; `Cache-Control: private, no-store`; no `force-static`.
 8. Ships a co-located `*.integration.test.ts` per `.from()` / `.rpc()` site.

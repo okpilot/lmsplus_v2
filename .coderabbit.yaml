@@ -100,7 +100,7 @@ reviews:
         - GET only, no side effects. The only mutating exceptions are `apps/web/app/auth/**` handlers and webhooks.
         - verifySessionUser() first, 401 JSON when unauthenticated; never delegated to proxy.ts.
         - Zod safeParse on query and path params, 400 on failure.
-        - Same answer-stripping and tenant/soft-delete scope as the equivalent RPC.
+        - Same answer-stripping, active-user gate and tenant/soft-delete scope as the equivalent RPC.
         - Sanitized errors, never error.message.
         - No CORS headers; Cache-Control private, no-store; no force-static.
         - Every .from()/.rpc() site has a co-located *.integration.test.ts.
@@ -200,6 +200,16 @@ reviews:
           most commonly `.is('deleted_at', null)` on a no-deleted_at table. PostgREST throws
           42703 at runtime while mocked tests, tsc, and Biome all pass. Mirrors the mechanical
           pre-commit guard .claude/hooks/check-soft-delete-guard.mjs (code-style.md §5).
+
+    # React source — every .tsx (code-style.md §3/§5/§6)
+    - path: "apps/web/**/*.tsx"
+      instructions: |
+        React source. Enforce:
+        - No direct Supabase queries (data comes via props or Server Components).
+        - No useEffect for data fetching (code-style.md §6 R4): use Server Components (R1) or a GET Route Handler (R2).
+        - Functions max 30 lines, max 3 params (use options object otherwise). EXCEPTION: a React function-component / custom-hook render/return body of pure JSX composition (no branching logic, no data transformation) may reach 35 lines; flag only past 35, or at any length if the body contains non-composition logic (see code-style.md §3). A function already over its cap that the diff makes longer counts.
+        - Max 3 nesting levels — use early returns.
+        - A non-null assertion `!` carries a comment saying why it is safe (code-style.md §5).
 
     # Comment accuracy — deliberately spans .ts AND .tsx (see code-style.md §10, broadened
     # 2026-08-15 from DB/RPC claims to any claim). Scoping this to **/*.ts alone would miss the
