@@ -65,6 +65,7 @@ AS $$
   GROUP BY p.subject_id, p.topic_id, p.subtopic_id
 $$;
 
+REVOKE EXECUTE ON FUNCTION public.get_discovery_counts() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_discovery_counts() TO authenticated;
 
 COMMENT ON FUNCTION public.get_discovery_counts() IS
