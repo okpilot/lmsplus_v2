@@ -14,7 +14,8 @@
         "a tracked file under apps/web/.claude blocks",
         "a non-boolean skill flag in pipeline.json blocks",
         "a skill agent whose tools omit Skill blocks",
-        "a security path glob matching no tracked file blocks"
+        "a security path glob matching no tracked file blocks",
+        "a declared glob git ls-files rejects blocks"
       ],
       "note": "The final blocking exit, dropped: every mismatch still prints FAIL, but the process exits 0 regardless — a lefthook.yml/pipeline.json mismatch, a stray frontmatter `memory:` key, or a tracked agent-memory file would no longer fail the CI step."
     },
@@ -72,6 +73,20 @@
         "a skill agent whose tools omit Skill blocks"
       ],
       "note": "The expected tool grant omits Skill for a skill agent."
+    },
+    {
+      "id": "pipeline-ls-files-error-swallowed",
+      "find": "    fail(`git ls-files failed for declared path ${p}: ${err.message}`)",
+      "replace": "    void err",
+      "expectRed": ["a declared glob git ls-files rejects blocks"],
+      "note": "A git ls-files error no longer fails the run; the declared glob is skipped silently."
+    },
+    {
+      "id": "pipeline-ls-files-error-counts-as-match",
+      "find": "${err.message}`)\n    return null\n",
+      "replace": "${err.message}`)\n    return 1\n",
+      "expectRed": ["a declared glob git ls-files rejects blocks"],
+      "note": "A git ls-files error counts as one tracked match, so the glob also reports as found."
     }
   ]
 }

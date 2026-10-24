@@ -141,3 +141,18 @@ test('a security path glob matching no tracked file blocks', () =>
     assert.equal(status, 1)
     assert.match(stderr, /no-such-file\.ts/)
   }))
+
+// GROUP: pipeline-ls-files-error-swallowed
+// GROUP: pipeline-ls-files-error-counts-as-match
+test('a declared glob git ls-files rejects blocks', () =>
+  withWorktree(({ wt }) => {
+    const path = join(wt, '.claude/pipeline.json')
+    const text = readFileSync(path, 'utf8')
+    const anchor = '"apps/web/app/**/route.ts"'
+    assertSingleOccurrence(text, anchor, 'pipeline-repo-glob-outside-repo')
+    writeFileSync(path, text.replace(anchor, '"../outside/**/route.ts"'))
+    const { status, stdout, stderr } = run(wt)
+    assert.equal(status, 1)
+    assert.match(stderr, /git ls-files failed/)
+    assert.doesNotMatch(stdout, /declared path exists: \.\.\/outside/)
+  }))
