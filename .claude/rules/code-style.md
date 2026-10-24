@@ -43,7 +43,7 @@ Never restate a cap VALUE from `limits.json` in PROSE as a claim about that cap;
   waiver can never stand in for a check that did not run.
 - **`'use server'` defines a Server Action file, not the `actions/` folder.** A helper beside an
   action is ungraded; a Server Action outside `actions/` still takes the action cap.
-- TS/TSX size is Biome's per-function limit (§3); the guard grades SQL migrations and `'use server'` files only.
+- The guard grades SQL migrations and `'use server'` files only. Other TS/TSX files have no file-length cap; function length is Biome's limit (§3), off in the paths §3 excludes.
 
 **Same-commit extraction.** If a change grows a SQL migration or a `'use server'` file already
 at/over its cap — or within ~10 lines — include the extraction in the SAME commit. Does NOT apply to

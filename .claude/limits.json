@@ -1,5 +1,5 @@
 {
-  "_": "Canonical file-size limits. Enforced by .claude/hooks/check-file-size-guard.mjs (pre-commit + CI) and pinned into .coderabbit.yaml by check-file-size-guard.update.test.mjs. The guard grades SQL migrations and 'use server' files only; TS/TSX size is Biome's per-function limit (code-style.md \u00a73).",
+  "_": "Canonical file-size limits. Enforced by .claude/hooks/check-file-size-guard.mjs (pre-commit + CI) and pinned into .coderabbit.yaml by check-file-size-guard.update.test.mjs. The guard grades SQL migrations and 'use server' files only; other TS/TSX files have no file-length cap (function length: code-style.md \u00a73).",
 
   "rules": [
     {
