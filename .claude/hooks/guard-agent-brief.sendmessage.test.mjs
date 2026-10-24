@@ -13,7 +13,7 @@ import { cleanupFixtures, EMPTY_ROOT, exactBrief, runHook } from './guard-agent-
 // SendMessage fixture — a session directory carrying subagent `meta.json` files, the shape
 // `resolveSendMessageType` reads:
 // <dirname(transcript_path)>/<session_id>/subagents/agent-<id>.meta.json. Separate from the
-// testkit's fixture root (which the plan-path/branch fixtures use) so it can be removed independently.
+// testkit's fixture root (which the branch fixtures use) so it can be removed independently.
 const SENDMSG_ROOT = mkdtempSync(path.join(tmpdir(), 'guard-agent-brief-sendmsg-'))
 const SESSION_ID = 'sess-e2e'
 const TRANSCRIPT_PATH = path.join(SENDMSG_ROOT, 'transcript.jsonl')
@@ -26,7 +26,12 @@ const SUBAGENTS_DIR = path.join(SENDMSG_ROOT, SESSION_ID, 'subagents')
 mkdirSync(SUBAGENTS_DIR, { recursive: true })
 writeFileSync(
   path.join(SUBAGENTS_DIR, `agent-${GATED_AGENT_ID}.meta.json`),
-  JSON.stringify({ agentType: 'code-reviewer', description: 'x', toolUseId: 't1', spawnDepth: 1 }),
+  JSON.stringify({
+    agentType: 'semantic-reviewer',
+    description: 'x',
+    toolUseId: 't1',
+    spawnDepth: 1,
+  }),
 )
 writeFileSync(
   path.join(SUBAGENTS_DIR, `agent-${UNGATED_AGENT_ID}.meta.json`),
@@ -129,14 +134,14 @@ test('blocks a SendMessage to a gated agent id written in upper case with exit 2
 
 // GROUP: guard-agent-brief-sendmessage-brief-check-disabled, guard-agent-brief-gated-scope-disabled
 test('blocks a gate brief sent to an ungated agent id with exit 2', () => {
-  const r = runHook(sendPayload(UNGATED_AGENT_ID, {}, exactBrief('code-reviewer')))
+  const r = runHook(sendPayload(UNGATED_AGENT_ID, {}, exactBrief('semantic-reviewer')))
   assert.equal(r.status, 2)
   assert.match(r.stderr, /contains a gate-reviewer brief/)
 })
 
 // GROUP: guard-agent-brief-sendmessage-brief-check-disabled, guard-agent-brief-brief-contains-narrowed
 test('blocks a gate brief sent to a plain agent name with exit 2', () => {
-  const r = runHook(sendPayload('general-purpose', {}, `FYI:\n${exactBrief('deletion-reviewer')}`))
+  const r = runHook(sendPayload('general-purpose', {}, `FYI:\n${exactBrief('test-writer')}`))
   assert.equal(r.status, 2)
   assert.match(r.stderr, /contains a gate-reviewer brief/)
 })

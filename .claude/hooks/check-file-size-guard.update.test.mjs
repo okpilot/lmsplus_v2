@@ -294,7 +294,7 @@ test('the lefthook glob reaches every extension the rules can match', () => {
 })
 
 test('.coderabbit.yaml pins each cap to the same RULE KIND as limits.json', () => {
-  // CodeRabbit cannot follow a pointer — `agent-workflow.md § Rule-Mirror Sync` says so — so its
+  // CodeRabbit cannot follow a pointer — `.claude/skills/review-gate/agent-workflow.md § Rule-Mirror Sync` says so — so its
   // copy of the numbers is KEPT and verified here rather than deleted. This is the second
   // codification move: PIN a copy the consumer cannot dereference, instead of DELETING it.
   //
@@ -332,7 +332,7 @@ test('.coderabbit.yaml pins each cap to the same RULE KIND as limits.json', () =
     // EVERY rule of the kind, not `.find()`. limits.json declares `test file`, `hook` and
     // `Server Action file` TWICE each (one rule per glob), so a `.find()` pinned only the first
     // and a cap changed on the second diverged from .coderabbit.yaml in silence — while this
-    // test, which agent-coderabbit-sync.md tells the agent to trust instead of hand-checking,
+    // test, which .claude/skills/review-gate/agent-coderabbit-sync.md tells the agent to trust instead of hand-checking,
     // stayed green. Found by CR-local round 2.
     const rules = LIMITS.rules.filter((r) => r.kind === kind)
     assert.ok(rules.length > 0, `limits.json has no rule of kind ${kind}`)

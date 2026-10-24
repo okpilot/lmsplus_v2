@@ -2,7 +2,7 @@
 // Mechanical guard: block a commit message that CITES a commit SHA which does not
 // resolve in this repository. Discharges part of learner row 42 — a self-reported
 // "I ran / verified / updated X" citing a commit hash is a claim, not a fact, and
-// `agent-workflow.md § Finding Validation` requires the artifact be checked before
+// `.claude/skills/review-gate/agent-workflow.md § Finding Validation` requires the artifact be checked before
 // the claim is trusted. This hook makes the cheapest slice of that check automatic:
 // a SHA that plain doesn't exist (typo, wrong repo, hallucinated) is caught before
 // the message ever lands in history.

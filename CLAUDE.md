@@ -23,7 +23,7 @@ State what is true. Delete the rest.
 2. **NEVER explore the codebase yourself when subagents can do it** — Explore agents (Sonnet) do it. Reading one known file or a simple symbol grep is exempt (§ When NOT to use subagents).
 3. **ALWAYS delegate execution** — parallel when independent; worktree isolation for risky changes.
 4. **ALWAYS read every subagent result first** — no fire-and-forget.
-5. **ALWAYS run the pre-push review gate** — once per branch, all seven core reviewers in round 1, plus e2e-writer when triggered. No exemption.
+5. **ALWAYS run the pre-push review gate** — once per branch; every round: code-review, semantic-reviewer, doc-updater, test-writer; e2e-writer when triggered. No exemption.
 
 ### Your workflow for any non-trivial task:
 ```
@@ -58,7 +58,7 @@ validation — check `docs/security.md`).
 - Reading a single known file, or a simple glob/grep for a symbol
 - Single-file edits under 10 lines (the pre-push gate still runs on the branch)
 - Git operations
-- Plan-critic/implementation-critic — pipeline steps, not ad-hoc subagents
+- Plan-critic — pipeline step, not an ad-hoc subagent
 
 ---
 
@@ -66,9 +66,8 @@ validation — check `docs/security.md`).
 - `docs/decisions.md` — confirmed decisions | `docs/database.md` — schema + RPC (binding)
 - `docs/security.md` — security rules (binding)
 - `.claude/rules/code-style.md` — file size limits, component rules (binding)
-- `.claude/rules/agent-workflow.md` — pipeline order, orchestrator DO/NEVER (binding)
-- `.claude/rules/agent-critic.md` — plan/implementation-critic rules (binding)
-- `.claude/rules/agent-*.md` — per-agent DO/NEVER rules (binding)
+- `.claude/skills/review-gate/` — orchestrator gate rules: pipeline, critics, per-agent handling (binding; load the `review-gate` skill)
+- `.claude/skills/github-projects/SKILL.md` — board sync (load the `github-projects` skill)
 
 ## Stack
 - Next.js App Router (`apps/web/`) + Tailwind v4 + shadcn/ui v4 (Base UI, oklch colors)
@@ -101,10 +100,11 @@ met, same commit. Verify redundancy, never infer from the resolved version:
 
 ## Critical rules (full details in linked docs)
 - page.tsx: composition only, no logic (file-size limits are data: `.claude/limits.json`)
-- No `useEffect` for data fetching — Server Components only
+- Reads: Server Components (R1); client-initiated reads via a GET Route Handler per `docs/security.md` § Route Handler reads, never a Server Action (R2); existing Server Action reads (first: #1527) migrate when next reworked; editing one does not require migrating it. No `useEffect` data fetching (R4)
 - No hard DELETE — always soft delete (`deleted_at`)
 - No `any` type — use `unknown` with narrowing
-- All mutations via Server Actions, not API routes
+- All mutations via Server Actions only (R3)
+- Before adding a cache, TTL, timeout, retry or module-level store, cite in the PR body the Next/React/Supabase doc page that lacks the behaviour (R6)
 - Correct answers stripped server-side via `get_quiz_questions()` RPC — never SELECT * for students
 - Service role key: `packages/db/src/admin.ts` only, never NEXT_PUBLIC_
 - Applying a defensive pattern to one location: grep sibling files with the same structure first
@@ -117,20 +117,20 @@ met, same commit. Verify redundancy, never infer from the resolved version:
 - **NEVER** hard DELETE — always `UPDATE SET deleted_at = now()`
 - **NEVER** UPDATE/DELETE `audit_events`, `student_responses`, `quiz_session_answers` — immutable
 - **NEVER** commit `.env*` files — `.gitignore` ignores them (except `.env.example`); no pre-commit hook scans for secrets
-- **NEVER** trust client input — Zod `.parse()` on every Server Action/API route first
+- **NEVER** trust client input — Zod on every Server Action input (`safeParse`, or `.parse()` in try/catch) and Route Handler body/query/path param (`safeParse`, 400 on failure) before use
 - **NEVER** create SECURITY DEFINER functions without `auth.uid()` check AND `SET search_path = public`
 
 ### Code — hard stops
 - **NEVER** use `any` — use `unknown` with narrowing
-- **NEVER** use `useEffect` for data fetching — Server Components only (hydration guards exempt)
+- **NEVER** use `useEffect` for data fetching — use R1 or R2 (R4; hydration guards and external-system sync exempt)
 - **NEVER** create barrel `index.ts` files — import directly
-- **NEVER** create API route handlers for mutations — Server Actions only
+- **NEVER** create a Route Handler that mutates — Server Actions only (R5; exceptions: `apps/web/app/auth/**` handlers and webhooks)
 - **NEVER** put business logic in React components — components render, logic elsewhere
 - **NEVER** create `__tests__/` folders — co-locate tests with source
 
 ### Workflow — hard stops
 - **NEVER** push without explicit user approval
-- **NEVER** skip the pre-push gate, or drop a reviewer from round 1 — branch size never exempts
+- **NEVER** skip the pre-push gate, or drop an agent from a round — branch size never exempts
 - **NEVER** push with unresolved BLOCKING/CRITICAL findings from agents
 - **NEVER** amend a commit after a pre-commit hook failure — create a NEW commit
 - **NEVER** run a review round on an UNCHANGED artifact to chase a clean result — a round follows a FIX
@@ -139,7 +139,7 @@ met, same commit. Verify redundancy, never infer from the resolved version:
 ### Agent behavior — hard stops
 - **NEVER** let agents change outside their scope (test-writer writes tests, not production code)
 - **NEVER** change rules on a single occurrence — log/watch, change on 2+ repeats
-- **NEVER** duplicate work between agents (code-reviewer = style, semantic-reviewer = logic, zero overlap)
+- **NEVER** duplicate work between agents
 
 ## Workflow
 1. Multi-file: draft + validate the plan (§ Plan Validation above)
@@ -148,50 +148,27 @@ met, same commit. Verify redundancy, never infer from the resolved version:
 4. `/project:insights` weekly
 
 ## Pre-push review gate (MANDATORY)
-ONE loop per BRANCH over `git diff origin/master...HEAD`.
-A commit triggers NOTHING. Full mechanics: `agent-workflow.md § Pre-Push Review Gate`.
+Load the `review-gate` skill before planning a multi-file change, dispatching any gate agent, triaging findings, or editing a rule or its mirrors.
+ONE loop per BRANCH over `git diff origin/master...HEAD`. A commit triggers NOTHING.
 
-**Round 1** — seven reviewers, plus e2e-writer when triggered, ONE parallel dispatch:
-1. **implementation-critic** (sonnet) — branch diff vs the validated plan
-2. **code-reviewer** (sonnet) — diff vs `.claude/rules/code-style.md`
-3. **semantic-reviewer** (sonnet) — deep logic/security/consistency review
-4. **doc-updater** (haiku) — reports doc edits; YOU apply them (no Write/Edit tool)
-5. **test-writer** (sonnet) — missing tests, writes + runs them (Write/Edit scoped to Vitest `*.test.*` files, incl. under `apps/web/e2e/` outside `redteam/`)
-6. **deletion-reviewer** (sonnet) — reports what the diff can delete with no loss, each with `EVIDENCE:`; read-only
-7. **code-review (skill)** (opus) — the built-in `/code-review` skill, dispatched as `subagent_type: code-review-skill` in an isolated worktree
-8. **e2e-writer** (sonnet) — when the branch diff touches `apps/web/app/**`, `apps/web/components/**` or `apps/web/proxy.ts`: writes/updates Playwright specs under `apps/web/e2e/` excluding `redteam/` (Write/Edit scoped to that path)
+**Every round** — ONE parallel batch:
+- **code-review (skill)** (opus) — `subagent_type: code-review-skill`, `isolation: "worktree"`
+- **semantic-reviewer** (sonnet) — logic/security/consistency
+- **doc-updater** (haiku) — reports doc edits; YOU apply them
+- **test-writer** (sonnet) — Vitest `*.test.*` files
+- **e2e-writer** (sonnet) — when the diff touches `apps/web/app/**`, `apps/web/components/**` or `apps/web/proxy.ts`; Playwright specs under `apps/web/e2e/` outside `redteam/`
 
-**Round 2+** — code-reviewer + semantic-reviewer + deletion-reviewer + code-review (skill).
-doc-updater, test-writer and e2e-writer PRODUCE rather than gate; re-run any of them only when the
-fixup added surface it has not seen.
+**Async.** WAIT for a completion notification from every agent LAUNCHED, read ALL results, validate each finding, then ONE pooled triage table and ONE fixup commit. Never edit a file while an agent that can write it is in flight.
 
-**Async.** WAIT for a completion notification from every agent LAUNCHED, read ALL results, validate
-each finding, then ONE pooled triage table and ONE fixup commit. Never edit a file while an agent
-that can write it is in flight (`agent-workflow.md § Every agent dispatch is ASYNCHRONOUS`).
+**Stop on the FIRST round with no APPLY-worthy finding.** No ceiling.
 
-**Stop on the FIRST round with no APPLY-worthy finding.** No minimum. An APPLY finding extends the
-loop by one round; a skip-with-reason does not. **Ceiling 3 rounds** — at it, STOP and escalate; a
-NEW critical in a section an earlier round passed means the diff is too large, so SPLIT.
+ONCE per branch, after the loop:
+- **red-team** (opus) — when the diff touches a security path (`supabase/migrations/**`, `packages/db/src/**`, `apps/web/app/app/quiz/actions/**`, `apps/web/app/auth/**`, `apps/web/app/**/route.ts`, `apps/web/proxy.ts`, `docs/security.md`, `apps/web/e2e/redteam/`)
+- **coderabbit-sync** (haiku) — when the branch diff matches `.claude/skills/review-gate/agent-coderabbit-sync.md § Trigger Conditions`
 
-Then ONCE per branch, after the loop ends:
+**Triage discipline.** Fix every validated CRITICAL and ISSUE. Every finding needs a terminal disposition per `wrapup.md`.
 
-Security files touched (migrations, db/src, quiz/actions, auth, proxy.ts, security.md — full set
-in `agent-workflow.md § Red-Team Agent Trigger`, +`apps/web/e2e/redteam/`) → also run:
-9. **red-team** (opus) — the attacker: attacks the local stack, proves each exploit by writing +
-   running a failing spec under `apps/web/e2e/redteam/` (Write/Edit scoped to that path); a proven
-   exploit's prod fix is a fixup that re-enters the review loop as a fresh loop (its own 3-round
-   ceiling); `/fullpush` step 7b confirms its spec now passes
-
-Rules changed (`code-style.md`, `.claude/rules/security.md`, `docs/security.md`, `biome.json`,
-`CLAUDE.md`, or a new **or changed** `.claude/hooks/*.mjs` guard — see `agent-coderabbit-sync.md`) → also run:
-10. **coderabbit-sync** (haiku) — keeps `.coderabbit.yaml` aligned
-
-**Triage discipline.** Fix every validated CRITICAL and ISSUE (`agent-semantic-reviewer.md`). The
-ONE bounded case: a wording REFINEMENT on prose this loop's own fixup just wrote is logged, not
-chased — and a FALSE claim is never a refinement, whatever round it lands on. Every finding needs a terminal disposition per `wrapup.md`.
-
-plan-critic is separate and unchanged: it runs ONCE per plan, before user approval, and is the one
-gate no diff-based review can replace.
+plan-critic runs ONCE per plan, before user approval.
 
 ## QA pipeline
 Lefthook enforces mechanical gates (blocking). Command list is DATA in `.claude/pipeline.json` — do
@@ -211,4 +188,4 @@ CI runs `db reset`; others just `supabase start`; re-derive via
 ## Push protocol
 Never push without explicit user approval. The pre-push gate runs first, on every branch —
 `git fetch origin` (ABORT if it fails), then the loop over `git diff origin/master...HEAD`. See
-`agent-workflow.md § Pre-Push Review Gate`.
+`.claude/skills/review-gate/agent-workflow.md § Pre-Push Review Gate`.

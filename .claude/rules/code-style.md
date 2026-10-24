@@ -1,5 +1,32 @@
+---
+paths:
+  - "apps/**"
+  - "packages/**"
+  - "supabase/**"
+  - ".claude/**"
+  - "docs/**"
+  - ".github/**"
+  - "CLAUDE.md"
+  - ".coderabbit.yaml"
+  - ".mcp.json"
+  - "biome.json"
+  - "codecov.yml"
+  - "knip.json"
+  - "lefthook.yml"
+  - "package.json"
+  - "pnpm-workspace.yaml"
+  - "turbo.json"
+  - ".npmrc"
+  - ".env.example"
+  - ".gitignore"
+  - ".gitattributes"
+  - ".claudeignore"
+  - "commitlint.config.js"
+  - "sonar-project.properties"
+  - ".spec-workflow/**"
+---
 # Code Style Rules — LMS Plus v2
-The code-reviewer agent checks the branch diff against these rules in the pre-push review gate. Violations are warnings (non-blocking) or errors (blocking on merge).
+Enforcers per rule: § 8. Violations are warnings (non-blocking) or errors (blocking on merge).
 ---
 ## 1. File Size Limits
 Limits are data: `.claude/limits.json`, enforced by `.claude/hooks/check-file-size-guard.mjs` at pre-commit and in CI.
@@ -109,7 +136,9 @@ export async function submitAnswer(input: unknown) {
 
 // ✅ CORRECT — orchestrator + focused helpers
 export async function submitAnswer(input: unknown) {
-  const { questionId, sessionId, selectedOptionId } = SubmitAnswerSchema.parse(input)
+  const parsed = SubmitAnswerSchema.safeParse(input)
+  if (!parsed.success) return { success: false, error: 'Invalid input' }
+  const { questionId, sessionId, selectedOptionId } = parsed.data
   const supabase = await createServerSupabaseClient()
   const student = await verifySessionUser(supabase)
   if (!student) return { success: false, error: 'Not authenticated' }
@@ -242,7 +271,7 @@ export function QuestionCard({ prompt }: Readonly<{ prompt: string }>) { ... }
 function ActivePracticeBanner({ session }: Readonly<ActivePracticeProps>) { ... }
 ```
 Applies to every React function component, including `page.tsx`/`layout.tsx` default exports (their `params`/`searchParams`/`children` props), `_components/*.tsx`, and `apps/web/components/**`. SonarCloud S6759 scans all `.tsx` as the comprehensive enforcer; the `.coderabbit.yaml` mirror covers the `page.tsx`, `layout.tsx`, `_components/*.tsx`, and `apps/web/components/**` blocks.
-**Not Biome-enforceable** — Biome has no function-component-props readonly rule (`useReadonlyClassProperties` targets class properties only). Enforcement is at write-time via code-reviewer, CodeRabbit, and SonarCloud (`typescript:S6759`). Severity: **WARNING**. Pre-existing offenders are swept separately (#1027).
+**Not Biome-enforceable** — Biome has no function-component-props readonly rule (`useReadonlyClassProperties` targets class properties only). Enforcement is at write-time via CodeRabbit, and SonarCloud (`typescript:S6759`). Severity: **WARNING**. Pre-existing offenders are swept separately (#1027).
 ### No `any`
 Use `unknown` with narrowing, or define the correct type.
 ```ts
@@ -268,10 +297,12 @@ const userId = session.user!.id
 ### No Type Casting Unvalidated External Data
 ```ts
 // ❌ WRONG
-const body = await req.json() as SubmitAnswerInput
+const body = input as SubmitAnswerInput
 
 // ✅ CORRECT
-const body = SubmitAnswerSchema.parse(await req.json())
+const parsed = SubmitAnswerSchema.safeParse(input)
+if (!parsed.success) return { success: false, error: 'Invalid input' }
+const body = parsed.data
 ```
 When casting DB/RPC results via `as unknown as T`, pair the cast with a runtime guard before using the data. `as unknown as` silences TypeScript but creates no runtime guarantee.
 ```ts
@@ -463,16 +494,7 @@ export async function submitAnswer(...): Promise<SubmitAnswerResult> { ... }
 
 ---
 ## 6. Next.js App Router Patterns
-### Server Actions for All Mutations
-No API routes for mutations — use Server Actions.
-```ts
-// ✅ CORRECT
-'use server'
-export async function submitAnswer(input: unknown) { ... }
-```
-### API Routes Only for External Consumers
-Route Handlers (`route.ts`) are for webhooks, third-party callbacks, and REST endpoints consumed outside the app.
-### Data Fetching in Server Components
+### R1 — Server-Initiated Reads: Server Components
 ```tsx
 // ✅ CORRECT — no useEffect, no loading state, no client-side fetch
 export default async function DashboardPage() {
@@ -480,10 +502,22 @@ export default async function DashboardPage() {
   return <SubjectGrid subjects={progress.subjects} />
 }
 ```
-### No `useEffect` for Data Fetching
-`useEffect` for data fetching is a Next.js anti-pattern. Use Server Components or React Query if client-side freshness is needed.
+### R2 — Client-Initiated Reads: GET Route Handler
+Reads started after render (interaction, focus, polling) go through a GET Route Handler that follows `docs/security.md` § Route Handler reads. Never a Server Action. Existing Server Action reads (first: #1527) migrate when next reworked; editing one does not require migrating it.
+### R3 — Mutations: Server Actions Only
+```ts
+// ✅ CORRECT
+'use server'
+export async function submitAnswer(input: unknown) { ... }
+```
+### R4 — No `useEffect` for Data Fetching
+Use R1 or R2. `useEffect` is for hydration guards and external-system sync.
+### R5 — No Mutating Route Handlers
+NEVER create a Route Handler that mutates. Exceptions: `apps/web/app/auth/**` handlers and webhooks.
+### R6 — Cite Before Adding Cache, TTL, Timeout, Retry or Module-Level Store
+Cite in the PR body the Next/React/Supabase doc page that lacks the behaviour.
 ### Approved `useEffect` Pattern: Hydration Guard
-`useEffect` is valid and required for guarding client-only interactions against SSR hydration mismatches. This is not a data-fetching anti-pattern — the code-reviewer should not flag it.
+`useEffect` is valid and required for guarding client-only interactions against SSR hydration mismatches. It is not data fetching.
 ```tsx
 // ✅ CORRECT — prevents hydration mismatch on client-only state
 const [hydrated, setHydrated] = useState(false)
@@ -768,21 +802,21 @@ expect(row.actor_role).toBe('admin')
 ```
 
 ---
-## 8. What the Code Reviewer Checks Automatically
-The `code-reviewer` agent flags these on the branch diff in the pre-push review gate:
-- Page files with logic instead of composition
-- Components with direct Supabase queries (no Server Component pattern)
-- Functions longer than 30 lines, including a pre-existing one the diff makes longer (EXCEPTION: React render/return bodies of pure JSX composition, no branching/data-transform — allowed up to 35 lines; see §3)
-- Functions with >3 parameters (non-object)
-- Nesting deeper than 3 levels
-- `any` types
-- Non-null assertions without a comment
-- Barrel `index.ts` files
-- Component props not wrapped in `Readonly<…>` (WARNING — see Section 5; SonarCloud `typescript:S6759`)
-- `useEffect` used for data fetching (hydration guards are exempt — see Section 6)
-- Missing tests for new utility functions
-- `.select()` reads that destructure only `{ data }` without checking `{ error }` (see Section 5 — `.single()` PGRST116 no-rows is an allowed exception)
-- Array-valued fields in fan-out/dispatch functions guarded with `Array.isArray(...)`, not a bare truthy/length check (see Section 5)
+## 8. Enforcement of these rules
+Enforcers: Biome (`pnpm lint`), CodeRabbit (`.coderabbit.yaml`), SonarCloud S6759, semantic-reviewer.
+- Page files with logic instead of composition — CodeRabbit
+- Components with direct Supabase queries (no Server Component pattern) — CodeRabbit
+- Functions longer than 30 lines, including a pre-existing one the diff makes longer (EXCEPTION: React render/return bodies of pure JSX composition, no branching/data-transform — allowed up to 35 lines; see §3) — CodeRabbit
+- Functions with >3 parameters (non-object) — CodeRabbit
+- Nesting deeper than 3 levels — CodeRabbit
+- `any` types — Biome
+- Non-null assertions without a comment (not in `*.test.*` or `*.spec.*` files — biome.json override) — CodeRabbit
+- Barrel `index.ts` files — CodeRabbit
+- Component props not wrapped in `Readonly<…>` (WARNING — see Section 5) — CodeRabbit, SonarCloud `typescript:S6759`
+- `useEffect` used for data fetching (hydration guards are exempt — see Section 6) — CodeRabbit
+- Missing tests for new utility functions — test-writer
+- `.select()` reads that destructure only `{ data }` without checking `{ error }` (see Section 5 — `.single()` PGRST116 no-rows is an allowed exception) — semantic-reviewer, CodeRabbit
+- Array-valued fields in fan-out/dispatch functions guarded with `Array.isArray(...)`, not a bare truthy/length check (see Section 5) — semantic-reviewer, CodeRabbit
 ---
 ## 9. Critical Lifecycle Rule: File Renames & Documentation
 **When renaming core files** (e.g., `middleware.ts` → `proxy.ts`), **always grep all docs for stale references before committing**. Pattern to check:
@@ -815,7 +849,7 @@ it is what the next reader trusts when deciding whether a guard can safely be re
    **Grep the CLAIM, not only the STRING that expressed it** — a sweep anchored on the retracted
    wording reports clean on every paraphrase of the same assertion. Search a distinctive TOKEN of
    the subject (the command, the filename, the field), not the sentence that carried it. Partial
-   remedy for the paraphrase-blindness `agent-workflow.md § Rule-Mirror Sync` records as OPEN.
+   remedy for the paraphrase-blindness `.claude/skills/review-gate/agent-workflow.md § Rule-Mirror Sync` records as OPEN.
 4. **Verify the fix is STAGED, not merely written** — `git grep` reads the working tree and goes
    clean the moment text is on disk. Run `git diff --staged` AND
    `git status --short --untracked-files=all` (the flag is needed because
@@ -842,8 +876,8 @@ it is what the next reader trusts when deciding whether a guard can safely be re
 
 Before asserting any DB/RPC guard, ownership, replay/idempotency, or invariant behaviour, trace to
 the LATEST definition for the MATCHING SIGNATURE — supersession forms are an OPEN set
-(`agent-workflow.md § "name EVERY supersession form"`) reaching beyond the function body
+(`.claude/skills/review-gate/agent-workflow.md § "name EVERY supersession form"`) reaching beyond the function body
 (`ALTER FUNCTION`, `ALTER POLICY`, triggers, constraints, indexes, GRANTs). A replay branch is only
 reachable while its arbiter constraint exists (§5).
 This is the WRITE-side companion to the review-side "Pre-Flag Verification" rules in
-`.claude/rules/agent-*.md` and `.claude/agents/*.md`.
+`.claude/skills/review-gate/agent-*.md` and `.claude/agents/*.md`.

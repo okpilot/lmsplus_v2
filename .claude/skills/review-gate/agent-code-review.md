@@ -1,10 +1,10 @@
 # Agent Rules — code-review (skill)
-> Model: **opus** — named exception to `agent-critic.md § Model tier` | Dispatched as a subagent in an isolated worktree | Trigger: pre-push review gate — round 1 and every later round | Blocking: on CRITICAL/ISSUE
+> Model: **opus** — named exception to `agent-critic.md § Model tier` | Dispatched as a subagent in an isolated worktree | Trigger: pre-push review gate — every round | Blocking: on CRITICAL/ISSUE
 
 ## Purpose
 A reviewer over the branch diff running a prompt we do not own. Reports correctness defects — inverted conditions, off-by-one, null dereference, missing `await`, dropped error handling, removed guards, broken callers of changed functions, races — each with a concrete scenario in which the code misbehaves.
 
-Write it as `code-review (skill)` in every roster. `code-reviewer` is a DIFFERENT member: an agent of ours, on sonnet, checking `code-style.md` — a prompt we own and maintain.
+Write it as `code-review (skill)` in every roster.
 
 ## Trigger Conditions
 - **EVERY round**, in the same parallel batch as the round's other members, on the same range they read (Decision 84).
@@ -38,7 +38,6 @@ Its own labels are ADVISORY. Map to the gate's vocabulary before triaging:
 ### NEVER
 - Invoke the skill from the orchestrator's own context. The author then reviews the author.
 - Record a round as clean on an EMPTY range — verify the range resolved to the branch's paths first.
-- Write it as bare `code-review` in a roster — `code-reviewer` is a different member and the two read alike.
 - Read a prose report as a failed dispatch.
 - Trust its severity label as a triage shortcut — read the code.
 - Quote the skill's built-in prompt as binding text. We do not own it and it can change under us.

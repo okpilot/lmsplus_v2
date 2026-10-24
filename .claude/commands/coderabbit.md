@@ -2,6 +2,8 @@ Triage CodeRabbit review comments on the current PR and decide what to fix, skip
 
 > **RULE 0 — NO PROSE.** State what is true; delete the rest. No justification, no precedent, no archaeology — that is what `git log` is for. Every sentence is a claim that can be false, so fewer sentences means fewer defects. If a fact is derivable, ship the command, not the paragraph. Evidence is not prose: a skip reason, an `EVIDENCE:` line, a finding's stated basis or a required status/summary stays wherever a rule asks for it.
 
+Load the `review-gate` skill first.
+
 ## What to do
 
 1. Find the open PR for the current branch:
@@ -49,7 +51,7 @@ Triage CodeRabbit review comments on the current PR and decide what to fix, skip
    - Only after reading the source can you assign a verdict — never skip or dismiss based on labels
    - **Verifying the FILE PATH is not verifying the CLAIM.** A finding can cite a correct path and
      correct line numbers and still be wrong on the merits — that is the common case, not the rare
-     one. Follow the claim-shape table in `.claude/rules/agent-coderabbit.md`
+     one. Follow the claim-shape table in `.claude/skills/review-gate/agent-coderabbit.md`
      § Verify Before Acting — MANDATORY GATE: trace a function to its LATEST definition (both
      `CREATE OR REPLACE` and `DROP`+`CREATE`), grep for a column said to exist, read the constraint
      body rather than trusting its name, run a SCOPED type-check for a claimed type error, confirm a
@@ -83,7 +85,7 @@ Triage CodeRabbit review comments on the current PR and decide what to fix, skip
 
 ### Defer if:
 
-`agent-workflow.md § Apply-vs-Defer Discipline` is binding here and **default is APPLY**. DEFER
+`.claude/skills/review-gate/agent-workflow.md § Apply-vs-Defer Discipline` is binding here and **default is APPLY**. DEFER
 requires **all three** of: ≥ 30 LOC estimated (code + tests + docs), a genuinely separate concern
 that could stand as its own PR, and a design decision this PR does not establish. A finding that
 meets only one — "it's just a UX enhancement", "it's only a coverage gap", "it's a big doc rewrite" —
@@ -91,14 +93,7 @@ is an APPLY, not a defer. Each of these used to be listed here as an independent
 they are not, and the looser list is what let deferrals accumulate.
 
 Every deferred issue carries effort (S/M/L) + priority (P0–P2) + acceptance criteria + a link to the
-originating finding. And **two budgets bind on top of the per-item test**: VOLUME (0-2 deferrals
-per PR; 3+ means re-triage every survivor and name them in the push summary) and RATIO (before
-pushing, count issues this PR closes against issues it files (every issue the branch author created after the merge-base, whatever its origin — the PR body's `## Deferred` section must name them all) — if `filed > 0 AND filed >= closed`,
-claim one of the accepted justifications on its evidence test — first-illumination, or red-team
-coverage gaps listed as `red-team-gap`, each naming the vector ID or spec path it covers (ALL
-filings must be such gaps; if mixed with ordinary deferrals, the ordinary ones alone are judged) — or
-re-triage and apply some of them). A PR
-that files nothing clears the ratio check whatever it closes.
+originating finding.
 
 ### Skip if:
 - False positive (CodeRabbit misread the code)

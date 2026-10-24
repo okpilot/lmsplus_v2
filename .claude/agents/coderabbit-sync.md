@@ -1,6 +1,6 @@
 ---
 name: coderabbit-sync
-description: Keeps .coderabbit.yaml in sync with project rules. Runs ONCE per branch, after the review loop ends, when the branch diff changes any trigger file in `agent-coderabbit-sync.md § Trigger Conditions` (the canonical list). Ensures CodeRabbit enforces the same rules we enforce locally.
+description: Keeps .coderabbit.yaml in sync with project rules. Runs ONCE per branch, after the review loop ends, when the branch diff changes any trigger file in `.claude/skills/review-gate/agent-coderabbit-sync.md § Trigger Conditions` (the canonical list). Ensures CodeRabbit enforces the same rules we enforce locally.
 model: haiku
 tools: Read, Glob, Grep, Bash
 ---
@@ -38,7 +38,7 @@ ONCE per branch, after the review loop ends — including any rule edits committ
   PINNED mirror, not one you sync by hand. Its kind list is hardcoded, so a kind absent from it is
   not covered; see the CAPS item under DO NOT.
 - Function limits (30 lines, 3 params, 3 nesting levels)
-- No useEffect for data fetching
+- No useEffect data fetching (R4)
 - No barrel files
 - No business logic in components
 - Naming conventions (kebab-case files, PascalCase exports)
@@ -82,7 +82,11 @@ No changes needed: [list sections that are current]
    that the list does not cover has no test requiring a `.coderabbit.yaml` block at all — DO report
    that. "Machine-verified" covers the caps of the mirrored kinds, not the set of kinds.
 
-4. **Do NOT propose adding rules that our agents already enforce** — CodeRabbit is a backup. If our code-reviewer or semantic-reviewer already checks something, it doesn't need to be in `.coderabbit.yaml` path_instructions. Focus on rules that CodeRabbit uniquely enforces (pre-merge checks, external PR reviews).
+4. **Do NOT propose adding rules that `code-style.md` §8 assigns solely to Biome or SonarCloud.** Rules §8 assigns to CodeRabbit, and rules from a changed `.claude/hooks/*.mjs` guard wired into `lefthook.yml`, must be mirrored in `.coderabbit.yaml`.
+
+5. **Do NOT propose CodeRabbit-only rules** — a rule absent from the local rule files is not added to `.coderabbit.yaml`.
+
+6. **Do NOT propose removing a rule from `.coderabbit.yaml` that still exists locally.**
 
 ## Important
 - Only report findings. The main session will make the actual edits.

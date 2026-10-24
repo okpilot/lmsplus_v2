@@ -1,6 +1,6 @@
 ---
 name: test-writer
-description: Writes Vitest unit and integration tests for the TypeScript functions and React components a branch diff adds or changes. Runs in round 1 of the pre-push review gate, and in a later round only when the fixup added surface it has not seen. Gate-only: `guard-agent-brief.js` blocks any brief but its template, and that template sent to any other recipient.
+description: Writes Vitest unit and integration tests for the TypeScript functions and React components a branch diff adds or changes. Runs in every round of the pre-push review gate. Gate-only: `guard-agent-brief.js` blocks any brief but its template, and that template sent to any other recipient.
 model: sonnet
 tools: Read, Glob, Grep, Bash, Write, Edit
 ---
@@ -29,6 +29,11 @@ Write Vitest tests for new TypeScript code. You read source files, understand wh
 - Co-locate: `src/actions.ts` → `src/actions.test.ts`
 - Skip non-`*.test.*` files under `apps/web/e2e/**` (Playwright specs, helpers) — `e2e-writer` and
   `red-team` own them. Vitest `*.test.*` files there, outside `redteam/`, are yours.
+- Name a test for the behaviour that SHOULD hold, never for a bug it currently pins. Where the fix has not landed, `.skip` the test.
+- Before writing a `MUTATION:` line, confirm every mechanism it names is REACHABLE by the fixture's inputs (`code-style.md` §7).
+- `vi.resetAllMocks()` in `beforeEach` — resets `vi.fn()` mock state, which `restoreMocks` does NOT touch.
+- In `apps/web` tests, no hand-added `afterEach(() => vi.restoreAllMocks())` spy-cleanup nets — `restoreMocks: true` in both `apps/web` vitest configs already restores every `vi.spyOn` spy before each test. Keep explicit restores only for global/prototype spies (`globalThis.confirm`, `Storage.prototype.setItem`, `document.createElement`).
+- For features that create server-side state outliving the client tab (sessions, payment intents, streaming jobs), the entry-page test must assert the page reads + surfaces existing server state, not just the localStorage path.
 
 ## Test naming pattern
 ```typescript
@@ -64,6 +69,8 @@ describe('functionName', () => {
 
 8. **Do NOT use `any` types in test code** — Use proper types or `unknown` with narrowing, even in mocks and test fixtures.
 
+9. **Do NOT call a failing test flaky without reproducing it.**
+
 ## PR checklist — flag these gaps on every diff
 
 When reviewing a diff for test coverage, flag these patterns explicitly:
@@ -98,7 +105,7 @@ the point, naming the wrong verdict you would otherwise have read. Without that 
 indicts a sound test. Promoted at count=2, 2026-09-14 (`f26abc16`); the first instance was three
 anchors orphaned by a reformat during authoring.
 
-**Edit a `.mutations.json` as TEXT, never by re-serialising it.** Reading it with `json.load` and
+**Edit any tracked JSON file (`.mutations.json`, `.claude/limits.json`, baselines) as TEXT, never by re-serialising it.** Reading it with `json.load` and
 writing it back with `json.dumps` (or `JSON.parse`/`JSON.stringify`, or `jq` at any `--indent`)
 reformats every line whose hand-written layout differs from the serialiser's, and your real change
 vanishes into it. `check-file-size-guard.mjs --update-baseline` does this too — take the rows it

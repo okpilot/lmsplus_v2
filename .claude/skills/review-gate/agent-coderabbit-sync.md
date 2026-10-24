@@ -25,6 +25,5 @@ Runs ONCE per branch, after the review loop ends — and only when the above fil
 ### NEVER
 - Run inside the review loop, or more than once per branch.
 - Let the agent edit `.coderabbit.yaml` without review — it reports diffs, the orchestrator applies.
-- Let the agent add rules to `.coderabbit.yaml` that don't exist in local rules (no CodeRabbit-only rules).
-- Let the agent remove rules from `.coderabbit.yaml` that still exist in local rules.
+- Agent-directed rules (no CodeRabbit-only rules; never remove a still-local rule): `.claude/agents/coderabbit-sync.md`.
 - Ignore drift — if the agent reports a mismatch, fix it in the same session.

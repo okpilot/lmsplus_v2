@@ -96,11 +96,8 @@ const CORE = Object.entries(spec.agents)
   .sort()
 const EXPECTED_CORE = [
   'code-review-skill',
-  'code-reviewer',
-  'deletion-reviewer',
   'doc-updater',
   'e2e-writer',
-  'implementation-critic',
   'semantic-reviewer',
   'test-writer',
 ]
@@ -109,12 +106,9 @@ JSON.stringify(CORE) === JSON.stringify(EXPECTED_CORE)
   : fail(`gate-round is [${CORE.join(', ')}], expected [${EXPECTED_CORE.join(', ')}]`)
 
 const EXPECTED_ROLES = {
-  'code-reviewer': 'gate-round',
   'semantic-reviewer': 'gate-round',
   'doc-updater': 'gate-round',
   'test-writer': 'gate-round',
-  'deletion-reviewer': 'gate-round',
-  'implementation-critic': 'gate-round',
   'code-review-skill': 'gate-round',
   'e2e-writer': 'gate-round',
   'red-team': 'conditional',
@@ -243,10 +237,23 @@ unusedAliases.length === 0
   ? pass('every model alias is referenced by an agent or a model-literal site')
   : fail(`unreferenced model alias(es): ${unusedAliases.join(', ')}`)
 
+const trackedMatches = (p) => {
+  try {
+    return execFileSync('git', ['-C', ROOT, 'ls-files', '-z', '--', `:(glob)${p}`], {
+      encoding: 'utf8',
+    })
+      .split('\0')
+      .filter(Boolean).length
+  } catch (err) {
+    fail(`git ls-files failed for declared path ${p}: ${err.message}`)
+    return null
+  }
+}
 for (const p of [...spec.securityPaths, ...spec.redTeamExtraPaths]) {
-  existsSync(join(ROOT, p.replace(/\/\*\*$/, '')))
-    ? pass(`declared path exists: ${p}`)
-    : fail(`declared path does not exist: ${p}`)
+  const matches = p.includes('*') ? trackedMatches(p) : null
+  if (p.includes('*') && matches === null) continue
+  const found = p.includes('*') ? matches > 0 : existsSync(join(ROOT, p))
+  found ? pass(`declared path exists: ${p}`) : fail(`declared path does not exist: ${p}`)
 }
 
 for (const t of spec.coderabbitSyncTriggers) {

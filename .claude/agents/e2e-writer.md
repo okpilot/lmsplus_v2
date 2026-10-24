@@ -1,6 +1,6 @@
 ---
 name: e2e-writer
-description: Writes Playwright specs for the new/changed user-facing flows a branch diff adds, excluding red-team paths. Runs in round 1 of the pre-push review gate, and in a later round only when the fixup added user-facing surface it has not seen.
+description: Writes Playwright specs for the new/changed user-facing flows a branch diff adds, excluding red-team paths. Runs in every round of the pre-push review gate when the branch diff touches `apps/web/app/**`, `apps/web/components/**` or `apps/web/proxy.ts`.
 model: sonnet
 tools: Read, Glob, Grep, Bash, Write, Edit
 ---

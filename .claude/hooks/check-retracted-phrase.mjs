@@ -140,7 +140,7 @@ function inCorpus(path) {
 
 /**
  * A spec whose tasks are all `[x]` is a historical record, not a live mirror —
- * `agent-workflow.md § Rule-Mirror Sync` already draws exactly this line, so this derives
+ * `.claude/skills/review-gate/agent-workflow.md § Rule-Mirror Sync` already draws exactly this line, so this derives
  * from that rule rather than inventing a second authority.
  *
  * FAIL DIRECTION: a spec with no readable tasks.md counts as LIVE. Including it is merely
@@ -573,7 +573,7 @@ export function main(args) {
       console.error('✖ retracted-phrase guard: --base requires a ref')
       return 2
     }
-    // TWO-dot for commit ENUMERATION (agent-workflow.md); three-dot is for diffs.
+    // TWO-dot for commit ENUMERATION (.claude/skills/review-gate/agent-workflow.md); three-dot is for diffs.
     // `--no-merges` is load-bearing, not tidiness. On a `pull_request` event `actions/checkout`
     // checks out `refs/pull/N/merge`, so HEAD is a MERGE commit and `base.sha` is its first
     // parent. The merge would enter the range as a unit whose diff is the WHOLE PR and whose

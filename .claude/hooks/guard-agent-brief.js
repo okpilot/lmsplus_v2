@@ -3,8 +3,7 @@
  * PreToolUse guard for the Agent tool (enforces Decision 92; recorded as Decision 93).
  * Blocks a gate-reviewer brief unless it matches that type's template in
  * `.claude/hooks/gate-briefs.json` EXACTLY, after trimming trailing whitespace off the
- * whole prompt. Only round, PR number, branch, and (implementation-critic only) a plan-file
- * and requirements-file path may vary — `agent-workflow.md § Never steer a gate reviewer`.
+ * whole prompt. Only round, PR number and branch may vary — `.claude/skills/review-gate/agent-workflow.md § Gate reviewer agent integration`.
  *
  * Claude Code delivers the hook payload on STDIN as JSON:
  *   {"cwd":"...","tool_name":"Agent","tool_input":{"subagent_type":"...","prompt":"...",
@@ -21,10 +20,9 @@ const { execFileSync } = require('node:child_process')
 const fs = require('node:fs')
 const path = require('node:path')
 
-/** Repo root plan paths resolve against — never the stdin `cwd`, which is the orchestrator's
+/** Repo root — never the stdin `cwd`, which is the orchestrator's
  * own shell directory and has no fixed relationship to the repo. `GUARD_AGENT_BRIEF_ROOT` lets
- * the test suite point this at a throwaway fixture root instead of a real (gitignored) plan
- * file — production callers never set it, so they get the real repo root. */
+ * the test suite point this at a throwaway fixture root — production callers never set it. */
 // biome-ignore lint/suspicious/noUndeclaredEnvVars: not a Turborepo task — runs outside turbo.
 const REPO_ROOT = process.env.GUARD_AGENT_BRIEF_ROOT || path.join(__dirname, '..', '..')
 const TEMPLATES_PATH = path.join(REPO_ROOT, '.claude', 'hooks', 'gate-briefs.json')
@@ -42,10 +40,8 @@ const PLACEHOLDER_PATTERNS = {
   round: '(?:\\d+|after-loop)',
   pr: '(?:#\\d+|none)',
   branch: '[A-Za-z0-9._/-]+',
-  plan: '[^`]+',
-  requirements: '[^`]+',
 }
-const PLACEHOLDER_RE = /\{(round|pr|branch|plan|requirements)\}/g
+const PLACEHOLDER_RE = /\{(round|pr|branch)\}/g
 
 /** SendMessage `to` shape for an agent id (`.meta.json` filename suffix) — never a name or `main`. */
 const AGENT_ID_RE = /^a[0-9a-f]{16}$/
@@ -85,15 +81,12 @@ function allow() {
  * instead of always claiming a template mismatch. */
 const BLOCK_MESSAGES = {
   mismatch: 'does not match its required template',
-  plan: 'names an invalid {plan} path — must be under .work/ or .spec-workflow/specs/, end in .md, contain no "..", and exist on disk',
-  requirements:
-    'names an invalid {requirements} path — must be under .work/ or .spec-workflow/specs/, end in .md, contain no "..", and exist on disk',
   branch: 'names a {branch} that is not a local branch (refs/heads/<branch>)',
   isolation: 'requires isolation: "worktree"',
   model: 'requires model omitted or its pipeline.json alias',
   name: 'must not carry a name — a named gated agent could be resumed by SendMessage to that name',
   'worktree-forbidden':
-    'must not use isolation: "worktree" — only code-review-skill is dispatched into an isolated worktree (agent-code-review.md § Dispatch); a worktree for any other gated type is cut at origin/master, so its own git diff origin/master...HEAD resolves to zero paths',
+    'must not use isolation: "worktree" — only code-review-skill is dispatched into an isolated worktree (`.claude/skills/review-gate/agent-code-review.md` § Dispatch); a worktree for any other gated type is cut at origin/master, so its own git diff origin/master...HEAD resolves to zero paths',
   'sendmessage-unresolved':
     'targets an agent id whose type cannot be resolved (missing transcript_path/session_id, or an unreadable meta.json) — fails closed',
   'sendmessage-gated':
@@ -108,32 +101,6 @@ function block(type, reason, template) {
   process.stderr.write(`BLOCKED: ${type} brief ${BLOCK_MESSAGES[reason]}\n`)
   if (reason === 'mismatch') process.stderr.write(`Expected:\n${template}\n`)
   process.exit(2) // Exit code 2 = block the tool call
-}
-
-/** implementation-critic's `{plan}` capture: under `.work/` or `.spec-workflow/specs/`, `.md`,
- * no `..`, existing on disk relative to `REPO_ROOT`. */
-function planPathValid(plan) {
-  if (typeof plan !== 'string') return false
-  if (!/^(\.work|\.spec-workflow\/specs)\/[A-Za-z0-9._/-]+\.md$/.test(plan)) return false
-  if (plan.includes('..')) return false
-  return [REPO_ROOT, mainCheckoutRoot()].some(
-    (root) => root && fs.existsSync(path.join(root, plan)),
-  )
-}
-
-/** The main checkout — where gitignored `.work/` lives when REPO_ROOT is a linked worktree.
- * `null` on a git fault. */
-function mainCheckoutRoot() {
-  try {
-    const commonDir = execFileSync(
-      'git',
-      ['-C', REPO_ROOT, 'rev-parse', '--path-format=absolute', '--git-common-dir'],
-      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
-    ).trim()
-    return path.dirname(commonDir)
-  } catch {
-    return null
-  }
 }
 
 /** `{branch}` must name an existing local branch — a free-text value could carry steering.
@@ -177,19 +144,13 @@ function checkBrief(toolInput, templates, agents) {
   const m = re.exec(prompt)
   if (!m) return { reason: 'mismatch', template }
 
-  if (subagentType === 'implementation-critic') {
-    const plan = m.groups?.plan
-    if (!planPathValid(plan)) return { reason: 'plan', template }
-    const requirements = m.groups?.requirements
-    if (!planPathValid(requirements)) return { reason: 'requirements', template }
-  }
   if (!branchExists(m.groups?.branch)) return { reason: 'branch', template }
 
   const reason = dispatchReason(subagentType, toolInput, agents)
   return reason ? { reason, template } : null
 }
 
-/** Only code-review-skill is dispatched into a worktree (agent-code-review.md § Dispatch) — it
+/** Only code-review-skill is dispatched into a worktree (`.claude/skills/review-gate/agent-code-review.md` § Dispatch) — it
  * is cut at origin/master, and every OTHER gated type reviews origin/master...HEAD, which
  * resolves to zero paths there. The `model` param, when given, must equal the dispatched type's
  * own `pipeline.json` alias — checked for every gated type, not only code-review-skill.

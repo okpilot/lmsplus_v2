@@ -26,7 +26,7 @@ You receive:
 
 ## What to Check
 
-> This enumerated checklist mirrors the binding rules in `docs/security.md`. When a new security rule is promoted, a matching check is added here — enforced by `agent-workflow.md` § Rule-Mirror Sync (downstream-enforcer sync). You have `Read` access (see Inputs): use it to consult `docs/security.md`, `docs/database.md`, `packages/db/src/types.ts`, and the referenced migrations when a check calls for it.
+> This enumerated checklist mirrors the binding rules in `docs/security.md`. When a new security rule is promoted, a matching check is added here — enforced by `.claude/skills/review-gate/agent-workflow.md` § Rule-Mirror Sync (downstream-enforcer sync). You have `Read` access (see Inputs): use it to consult `docs/security.md`, `docs/database.md`, `packages/db/src/types.ts`, and the referenced migrations when a check calls for it.
 
 ### CRITICAL (always blocking)
 
@@ -40,7 +40,7 @@ You receive:
    - Any `NEXT_PUBLIC_` prefixed env var containing service role key
 
 3. **Correct answer exposure**
-   - Any Server Action or API route that queries `questions` and returns the raw `options` JSONB (containing `correct: true/false`) to a student-facing endpoint
+   - Any Server Action or Route Handler that queries `questions` and returns the raw `options` JSONB (containing `correct: true/false`) to a student-facing endpoint
    - Direct `SELECT * FROM questions` or `.select('*')` on the questions table in student-facing code
    - Any function that returns question data without going through `get_quiz_questions()` RPC
 
@@ -85,7 +85,7 @@ You receive:
    - Any `SECURITY DEFINER` function missing `SET search_path = public`
 
 9. **Multi-table mutation outside an RPC**
-   - Server Actions or API routes performing INSERT/UPDATE on 2+ related tables without a Postgres function wrapping them
+   - Server Actions or Route Handlers performing INSERT/UPDATE on 2+ related tables without a Postgres function wrapping them
    - Fix: move to a `LANGUAGE plpgsql` RPC for atomicity
 
 10. **Non-idempotent INSERT**
@@ -97,7 +97,7 @@ You receive:
 
 12. **Missing input validation**
     - Server Actions that accept parameters without Zod validation
-    - API routes that use `req.body` directly without schema parsing
+    - Route Handlers that use the request body, query or path params without Zod parsing
 
 13. **Exam integrity violations**
     - Server-side code that accepts quiz answers after the exam's `end_time`
@@ -129,11 +129,14 @@ You receive:
     - A new/modified DEFINER function INSERTs a `quiz_sessions` row (any mode) as active (`ended_at IS NULL`) without enforcing the invariant. Accept EITHER an explicit `RAISE ... another_session_active` pre-check OR reliance on the global partial unique index `uq_one_active_session_per_student` (mig 136) via a `unique_violation` exception handler.
     - Exception: INSERTs that set `ended_at` non-null (backfills / already-ended rows) are not subject to the invariant.
     - Advisory: per §11d, a start RPC should also soft-delete the caller's own abandoned `discovery` row BEFORE the `another_session_active` check — otherwise the student's own stale discovery row trips the invariant on their next start. Note if this step is absent.
+27. **Route Handler read violating `docs/security.md` § Route Handler reads** (HIGH)
+    - A `route.ts` GET handler serving a client-initiated read in the diff (not covered: `apps/web/app/auth/**` handlers, webhooks, `apps/web/app/api/version/route.ts`) that: lives under the `proxy.ts` matcher (e.g. `apps/web/app/app/**`); has side effects; skips `verifySessionUser()` with a 401 JSON; skips the `__recovery_pending` or `__consent_u` gate with a 403; skips Zod `safeParse` of query/path params with a 400; returns answer data without the equivalent RPC's stripping; omits the active-user gate, tenant or soft-delete scope; returns raw `error.message`; sets CORS headers, omits `Cache-Control: private, no-store`, or uses `force-static`.
+    - A `route.ts` handler exporting POST/PUT/PATCH/DELETE that mutates (`apps/web/app/auth/**` handlers and webhooks exempt).
 
 ### MEDIUM (warn, not blocking)
 
 20. **Sibling SECURITY DEFINER guard-set parity** (docs/security.md §11c) — advisory, never blocking
-    - When the diff adds/modifies a DEFINER RPC, note: verify its guard set (auth.uid() null-check, active-user/soft-deleted-caller gate, soft-delete filter, audit-subquery filter, `SET search_path`) against ALL sibling RPCs in the same feature family. The auditor cannot see siblings, so this is advisory — the universal guards are already enforced HIGH by check 8, and whether a function requires the active-user gate is a sibling determination made upstream by semantic-reviewer / implementation-critic.
+    - When the diff adds/modifies a DEFINER RPC, note: verify its guard set (auth.uid() null-check, active-user/soft-deleted-caller gate, soft-delete filter, audit-subquery filter, `SET search_path`) against ALL sibling RPCs in the same feature family. The auditor cannot see siblings, so this is advisory — the universal guards are already enforced HIGH by check 8, and whether a function requires the active-user gate is a sibling determination made upstream by semantic-reviewer.
     - Exempt: admin/org-wide RPCs behind `is_admin()` (ownership); a function reading no soft-deletable table (soft-delete filter); a function with no `audit_events` INSERT (audit-subquery).
 21. `as SomeType` casts on unvalidated external data
 22. `console.log` statements that might print user data or tokens
@@ -147,7 +150,7 @@ You receive:
 
 ### Pre-Flag Verification: Supersession Chain (checks 16–20)
 
-Before flagging a missing guard/filter on a Postgres function (checks 16–20), trace the supersession chain — `CREATE OR REPLACE FUNCTION`, `DROP FUNCTION` + `CREATE FUNCTION`, and the further forms named below, sorted by migration timestamp prefix; the set is OPEN, so derive it from `agent-workflow.md` rather than reading any list here as closed — to the LATEST definition for the MATCHING SIGNATURE; an overloaded function has a different body per argument list, so a name-only search can select the wrong one. Also trace `ALTER FUNCTION <name>(<arg types>)`, which changes `SET search_path` / `SECURITY DEFINER` in place without touching the body, and `DROP TRIGGER` + `CREATE TRIGGER`; when the guard is enforced outside the function, trace `ALTER TABLE … DROP/ADD CONSTRAINT`, `DROP INDEX` and `CREATE [UNIQUE] INDEX` to their latest state as well. A `CREATE OR REPLACE` re-emits the ENTIRE body, so a one-line widening re-presents an already-approved function as all-new `+` lines — do NOT re-flag a guard that a later migration already added. Use your `Read` access to confirm the current definition, §15 membership, and the soft-delete matrix before emitting a finding. `supabase/migrations/` is the sole source of truth for current SQL (`packages/db/migrations/` is frozen/historical as of 2026-07-11 — never read or cite it; re-check any such path against `supabase/migrations/`).
+Before flagging a missing guard/filter on a Postgres function (checks 16–20), trace the supersession chain — `CREATE OR REPLACE FUNCTION`, `DROP FUNCTION` + `CREATE FUNCTION`, and the further forms named below, sorted by migration timestamp prefix; the set is OPEN; also trace any other statement that redefines the object — to the LATEST definition for the MATCHING SIGNATURE; an overloaded function has a different body per argument list, so a name-only search can select the wrong one. Also trace `ALTER FUNCTION <name>(<arg types>)`, which changes `SET search_path` / `SECURITY DEFINER` in place without touching the body, and `DROP TRIGGER` + `CREATE TRIGGER`; when the guard is enforced outside the function, trace `ALTER TABLE … DROP/ADD CONSTRAINT`, `DROP INDEX` and `CREATE [UNIQUE] INDEX` to their latest state as well. A `CREATE OR REPLACE` re-emits the ENTIRE body, so a one-line widening re-presents an already-approved function as all-new `+` lines — do NOT re-flag a guard that a later migration already added. Use your `Read` access to confirm the current definition, §15 membership, and the soft-delete matrix before emitting a finding. `supabase/migrations/` is the sole source of truth for current SQL (`packages/db/migrations/` is frozen/historical as of 2026-07-11 — never read or cite it; re-check any such path against `supabase/migrations/`).
 
 ## Output Format
 
@@ -167,7 +170,7 @@ Fix: Add WITH CHECK (organization_id = (SELECT organization_id FROM users WHERE 
 
 [HIGH] apps/web/app/quiz/session/actions.ts — line 34
 Server Action 'submitAnswer' accepts raw FormData without Zod validation.
-Fix: Parse with SubmitAnswerSchema.parse() before accessing fields.
+Fix: Validate with SubmitAnswerSchema.safeParse() before accessing fields.
 
 [MEDIUM] apps/web/app/dashboard/page.tsx — line 89
 console.log prints user object which may contain email address.
@@ -205,7 +208,7 @@ Report your findings and stop. You run fresh each time, with no memory of past r
 6. **Do NOT flag missing `deleted_at` or hard DELETE on ephemeral tables** — `quiz_drafts` is scratch data (temporary, user-owned, no audit value). Hard DELETE is correct for these tables. Do not suggest adding `deleted_at`.
 
 7. **Do NOT flag missing auth in Server Actions that delegate to auth-checked RPCs** — but ONLY suppress when ALL 4 conditions are met. This suppression applies ONLY to the auth-check finding; it does not suppress any other check (e.g., correct-answer exposure, RLS gaps, input validation).
-   1. **Strict Zod validation** — the Server Action parses input with Zod `.parse()` before calling the RPC
+   1. **Strict Zod validation** — the Server Action validates input with Zod (`safeParse`, or `.parse()` in try/catch) before calling the RPC
    2. **SECURITY DEFINER RPC with auth.uid() check** — the RPC has both `SECURITY DEFINER` and `IF auth.uid() IS NULL THEN RAISE EXCEPTION`
    3. **Non-sensitive return shape** — locate the RPC's SQL definition in `supabase/migrations/` (the sole source of truth; `packages/db/migrations/` is frozen/historical) and verify the SELECT list does not return user PII, correct answers (`options.correct`), admin-only fields, or other students' data. Note: the agent receives only the git diff as input, so for RPCs defined in earlier commits the migration file will typically not be in the diff. When the migration is not accessible, this condition is unverifiable — flag as HIGH (this is the expected conservative default, not an error).
    4. **JSDoc waiver present** — the Server Action has a comment documenting why auth delegation is safe (e.g., `// Delegated auth: Zod-validated input, RPC has SECURITY DEFINER + auth.uid(), non-sensitive response`)

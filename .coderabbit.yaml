@@ -2,7 +2,7 @@
 #
 # PINNED MIRROR — the "Max N lines" caps in the path_instructions below are a deliberate
 # copy of `.claude/limits.json`, NOT drift. CodeRabbit reads only the diff plus this file's
-# literal text; it cannot follow a pointer (`agent-workflow.md § Rule-Mirror Sync`), so
+# literal text; it cannot follow a pointer (`.claude/skills/review-gate/agent-workflow.md § Rule-Mirror Sync`), so
 # replacing a number here with a reference would not keep it in sync — it would delete the
 # enforcement. `.claude/hooks/check-file-size-guard.update.test.mjs` fails in CI if any cap here
 # disagrees with limits.json, so the copy is machine-verified rather than hand-maintained.
@@ -75,11 +75,7 @@ reviews:
         React component. Enforce:
         - Max 150 lines. Split if exceeded.
         - Single responsibility — if description needs "and", split it.
-        - No direct Supabase queries (data comes via props or Server Components).
-        - No useEffect for data fetching (Next.js anti-pattern).
         - Default to Server Components. Only add 'use client' at lowest interactive boundary.
-        - Functions max 30 lines, max 3 params (use options object otherwise). EXCEPTION: a React function-component / custom-hook render/return body of pure JSX composition (no branching logic, no data transformation) may reach 35 lines; flag only past 35, or at any length if the body contains non-composition logic (see code-style.md §3). A function already over its cap that the diff makes longer counts.
-        - Max 3 nesting levels — use early returns.
         - Use Next.js <Image> instead of <img> (Biome noImgElement). Suppress only when dimensions are unknown.
         - Click handlers on static elements need paired keyboard handlers (Biome useKeyWithClickEvents).
         - Static elements must not have interaction handlers without an appropriate role (Biome noStaticElementInteractions).
@@ -93,13 +89,25 @@ reviews:
         - Component props must be wrapped in Readonly<…> (immutable props contract; SonarCloud typescript:S6759 — not Biome-enforceable).
         - UI rules (code-style.md §2, Decision 111): Geist only, no monospace font (font-mono, monospace, Courier, Geist Mono) — use tabular-nums; theme colour tokens, not Tailwind palette classes (e.g. bg-red-500); no per-class motion-reduce: needed (globals.css handles reduced motion).
 
+    # Route Handlers — client-initiated reads only
+    - path: "apps/web/app/**/route.ts"
+      instructions: |
+        Route Handler. Enforce (code-style.md §6 R2/R5, docs/security.md Route Handler reads) on GET handlers serving client-initiated reads. Not covered: apps/web/app/auth/** handlers, webhooks, apps/web/app/api/version/route.ts (public, returns no user data).
+        - GET only, no side effects. The only mutating exceptions are `apps/web/app/auth/**` handlers and webhooks.
+        - Lives outside the proxy.ts matcher (e.g. apps/web/app/api/**). verifySessionUser() first, 401 JSON when unauthenticated; then the proxy.ts /app/* gates (__recovery_pending cookie, __consent_u cookie vs buildConsentCookieValue(userId)), 403 JSON; never delegated to proxy.ts.
+        - Zod safeParse on query and path params, 400 on failure.
+        - Same answer-stripping, active-user gate and tenant/soft-delete scope as the equivalent RPC.
+        - Sanitized errors, never error.message.
+        - No CORS headers; Cache-Control private, no-store; no force-static.
+        - Every .from()/.rpc() site has a co-located *.integration.test.ts.
+
     # Server Actions — validated mutations
     - path: "apps/web/app/**/actions.ts"
       instructions: |
         Server Action file. Enforce:
         - 'use server' directive at top of file.
         - Max 100 lines. Split by feature area if exceeded.
-        - ALL inputs validated with Zod schema (.parse()) before use.
+        - ALL inputs validated with Zod (safeParse, or .parse() in try/catch) before use.
         - Auth check first: verify the session identity (requireAuthUser() / verifySessionUser(), or getUser() where docs/security.md "Identity lookup" keeps it) before any mutation. Exception: `apps/web/app/auth/set-password/actions.ts` takes the user from its own `verifyOtp` (docs/security.md "Identity lookup").
         - Admin Server Actions (apps/web/app/app/admin/**): call `requireAdmin()` before any data access (docs/security.md "Admin Route Protection").
         - No service role key (adminClient) — that lives in packages/db/src/admin.ts only.
@@ -133,7 +141,7 @@ reviews:
       instructions: |
         Custom React hook. Enforce:
         - Max 80 lines. Extract logic to util if exceeded.
-        - No useEffect for data fetching.
+        - No useEffect for data fetching (code-style.md §6 R4).
         - No direct Supabase calls.
 
     # Terminal-navigation ordering — await Server Actions before terminal navigation (code-style.md §6)
@@ -155,11 +163,15 @@ reviews:
     - path: "**/*.ts"
       instructions: |
         TypeScript source. Enforce:
+        - Function size per code-style.md §3 (30 lines, 3 params, 3 nesting levels), with its exceptions (Server Action orchestrators, React render/return bodies of pure JSX composition, documented utility params). A pre-existing function the diff makes longer counts.
+        - No barrel `index.ts` re-export files (code-style.md §4).
+        - A non-null assertion `!` carries a comment saying why it is safe (code-style.md §5; not in `*.test.*` or `*.spec.*` files — biome.json override).
+        - Before adding a cache, TTL, timeout, retry or module-level store, the PR body must cite the Next/React/Supabase doc page that lacks the behaviour (code-style.md §6 R6).
         - No `any` type — use `unknown` with narrowing.
         - No type casting of unvalidated external data via `as SubmitAnswerInput`.
         - When casting DB/RPC results via `as unknown as T`, pair the cast with runtime guards (Array.isArray, typeof checks, etc).
         - Fan-out/dispatch functions that switch on a discriminated question-type tag and map an optional array-valued field into a submission row must guard the field with Array.isArray(x) (route the empty array to its own branch), never a bare truthy/length check (code-style.md §5).
-        - All Zod-validated inputs must use .parse() before use, not `as` casts.
+        - All external inputs are Zod-validated (safeParse, or .parse() in try/catch) before use, not `as` casts.
         - PostgREST embedded resources MUST use `!fk_column` (FK-hint), NOT `:fk_column` (alias).
           The `:` form silently returns null on resolution failure; `!` errors loudly. Reserve `:`
           for genuine column-rename only, never as a substitute for FK expansion.
@@ -184,6 +196,15 @@ reviews:
           most commonly `.is('deleted_at', null)` on a no-deleted_at table. PostgREST throws
           42703 at runtime while mocked tests, tsc, and Biome all pass. Mirrors the mechanical
           pre-commit guard .claude/hooks/check-soft-delete-guard.mjs (code-style.md §5).
+
+    # React source — every .tsx (code-style.md §3/§5/§6)
+    - path: "apps/web/**/*.tsx"
+      instructions: |
+        React source. Enforce:
+        - A component never queries Supabase directly (data via props or imported query helpers; code-style.md §2, §6 R1).
+        - No useEffect for data fetching (code-style.md §6 R4): use Server Components (R1) or a GET Route Handler (R2).
+        - Function size per code-style.md §3 (30 lines, 3 params, 3 nesting levels), with its exceptions (React component/hook render/return bodies of pure JSX composition up to 35, documented utility params). A pre-existing function the diff makes longer counts.
+        - A non-null assertion `!` carries a comment saying why it is safe (code-style.md §5; not in `*.test.*` or `*.spec.*` files — biome.json override).
 
     # Comment accuracy — deliberately spans .ts AND .tsx (see code-style.md §10, broadened
     # 2026-08-15 from DB/RPC claims to any claim). Scoping this to **/*.ts alone would miss the
@@ -263,10 +284,10 @@ reviews:
     # binding surfaces rather than taking .claude/**/*.md, which globstar-matches zero segments
     # and so would also sweep in files never meant as claims anyone reasons from. The list
     # mirrors the set in
-    # agent-workflow.md § Rule-Mirror Sync. Not a clean partition, harmless:
+    # .claude/skills/review-gate/agent-workflow.md § Rule-Mirror Sync. Not a clean partition, harmless:
     # a docs/README.md would match too if one were ever added (none exists today). Reviewing
     # it costs nothing; the set is "binding docs plus a little", not the pure set.
-    # This path list is the BINDING-DOCUMENT subset of agent-workflow.md § Rule-Mirror Sync, not
+    # This path list is the BINDING-DOCUMENT subset of .claude/skills/review-gate/agent-workflow.md § Rule-Mirror Sync, not
     # the whole table: package.json is a mirror row too, reviewed INDIRECTLY — CLAUDE.md, which IS
     # in this list, carries the pnpm.overrides audit instructions that apply to it. No
     # path_instructions block matches package.json itself.

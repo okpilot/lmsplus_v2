@@ -104,7 +104,7 @@ Plans, task lists, handovers, triage and eval notes go in `.work/` (gitignored).
 ### Every agent dispatch is ASYNCHRONOUS — the diagram is a data dependency, not a clock
 `Agent` returns an id immediately; the agent runs in the BACKGROUND and notifies you when done. Nothing makes the diagram below happen in the order it is drawn.
 - **"Complete" means every completion notification from the agents LAUNCHED is RECEIVED, never merely dispatched.** Read every result before triaging — a partial pool biases the triage.
-- **Never edit a file while an agent that can write it is in flight.** The loser's change vanishes with no error, no conflict, no failing gate. In round 1, **test-writer** and **e2e-writer** hold Write/Edit on disjoint paths (test-writer scoped to Vitest `*.test.*` files; e2e-writer scoped to non-`*.test.*` files under `apps/web/e2e/**` excluding `redteam/`); every agent still keeps `Bash`, which can write. Round 1 runs up to eight concurrently — this is the gate's sharpest edge. The collision set is every launched agent except `code-review (skill)`, which runs with its cwd in an isolated worktree, so its writes land there and not in the main tree. That is NOT a read-only guarantee — it keeps `Bash` like every agent — and the exemption holds only while it is dispatched the way `agent-code-review.md § Dispatch` mandates. **red-team** (opus) runs ALONE after the loop ends, once per branch — it holds Write/Edit scoped to `apps/web/e2e/redteam/**` only, never concurrent with round 1 or round 2+.
+- **Never edit a file while an agent that can write it is in flight.** The loser's change vanishes with no error, no conflict, no failing gate. In every round, **test-writer** and **e2e-writer** hold Write/Edit on disjoint paths (test-writer scoped to Vitest `*.test.*` files; e2e-writer scoped to non-`*.test.*` files under `apps/web/e2e/**` excluding `redteam/`); **doc-updater** has no Write/Edit; every agent still keeps `Bash`, which can write. A round runs up to five concurrently — this is the gate's sharpest edge. The collision set is every launched agent except `code-review (skill)`, which runs with its cwd in an isolated worktree, so its writes land there and not in the main tree. That is NOT a read-only guarantee — it keeps `Bash` like every agent — and the exemption holds only while it is dispatched the way `agent-code-review.md § Dispatch` mandates. **red-team** (opus) runs ALONE after the loop ends, once per branch — it holds Write/Edit scoped to `apps/web/e2e/redteam/**` only, never concurrent with a review round.
 - **After every writer in the batch has landed, run `git status --porcelain --untracked-files=all` and reject any path outside the UNION of their scopes** (`git status` cannot attribute a path to one of two concurrent writers) (`§ Finding Validation` — an artifact check, not the agent's self-report) before trusting it as that round's/that post-loop run's output.
 
 ### The gate — ONE loop over the branch diff, not a cycle per commit
@@ -119,32 +119,26 @@ Three-dot (merge-base). ABORT on a non-zero EXIT CODE from fetch, base resolutio
 ```
 Execute ▼ commit freely — a commit triggers NOTHING
     ▼  (pre-push, per BRANCH)
-ROUND 1  implementation-critic + code-reviewer + semantic-reviewer + doc-updater
-         + test-writer + deletion-reviewer + code-review (skill) + e2e-writer (conditional,
-         trigger in agent-e2e-writer.md) — ONE parallel batch, all on the branch diff.  code-review (skill)
-         is the built-in /code-review skill, dispatched as subagent_type code-review-skill in an
-         isolated worktree on opus.
-ROUND 2+ code-reviewer + semantic-reviewer + deletion-reviewer + code-review (skill)
-         (doc-updater, test-writer and e2e-writer PRODUCE, they do not gate — re-run any of
-          them only when the fixup added surface it has not seen)
+ROUND   code-review (skill) + semantic-reviewer + doc-updater + test-writer
+        + e2e-writer (conditional, trigger in agent-e2e-writer.md) — ONE parallel batch, every
+        round, all on the branch diff.  code-review (skill) is the built-in /code-review skill,
+        dispatched as subagent_type code-review-skill in an isolated worktree on opus.
     ▼
 each round: WAIT for every agent LAUNCHED ─► validate every finding
             (§ Finding Validation) ─► ONE pooled triage table ─► ONE fixup commit
             ─► re-run.  The fixup commit triggers NOTHING on its own.
     ▼
 STOP on the FIRST round carrying no APPLY-worthy finding. No minimum, no floor.
-    ├─► an APPLY finding EXTENDS the loop by one round; a skip-with-reason does not
-    └─► CEILING 3 rounds. At the ceiling STOP and escalate. A NEW critical in a
-          section an earlier round passed means the diff is too large: SPLIT it,
-          never run another round.
+    └─► an APPLY finding EXTENDS the loop by one round; a skip-with-reason does not
     ▼
 then ONCE per branch, in this order:
     red-team (if the branch diff matches § Red-Team Agent Trigger) — attacks the local stack
-            ├─► NO proven exploit: commit its specs + rows as a fixup ─► round-2+ set re-runs
-                  on the re-diffed branch (a fresh loop, own 3-round ceiling) ─► coderabbit-sync
-            └─► PROVEN exploit: fixup (spec + prod fix) ─► round-2+ set re-runs on the
-                  re-diffed branch (a fresh loop, own 3-round ceiling; at it, escalate) ─►
-                  coderabbit-sync; `/fullpush` 7b confirms the spec now passes
+            ├─► NO proven exploit, new specs/rows: commit as a fixup ─► the review round re-runs
+                  on the re-diffed branch (a fresh loop) ─► coderabbit-sync (if triggered)
+            ├─► NO proven exploit, no new files: ─► coderabbit-sync (if triggered)
+            └─► PROVEN exploit: fixup (spec + prod fix) ─► the review round re-runs on the
+                  re-diffed branch (a fresh loop) ─► coderabbit-sync; `/fullpush` 7b confirms the
+                  spec now passes
           red-team's own specs + rows, and an exploit's fix, never re-trigger red-team
     ▼
 update spec tasks.md ([ ] → [x]) ▼ /fullpush ▼ push (security-auditor, fail-closed)
@@ -152,11 +146,8 @@ update spec tasks.md ([ ] → [x]) ▼ /fullpush ▼ push (security-auditor, fai
 **Never re-run to chase a clean round; always re-run after a fix.** A round reads a CHANGED artifact or it buys nothing.
 **`.claude/hooks/review-gate.js` writes the gate state** on dispatch: a gate-round/conditional agent sets one repo-wide lock, a plan-critic dispatch clears it. While set, a production Edit/Write is blocked. A Bash redirect bypasses it. After the push succeeds, `/fullpush` step 11 deletes it: `rm -f "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/.claude/review-gate.lock"`; a blocked or failed push leaves it set.
 
-### Implementation-Critic (a member of round 1)
-Runs on the branch diff against the validated plan and requirements (spec or plan output). No staged-diff scope, no exemption, and no revision sub-loop — its findings enter the same pooled triage as every other reviewer's, and the loop ceiling is the only round limit that applies to it.
-**Timeout:** proceed with a warning past 90 seconds for diffs under 500 lines.
 ### Red-Team Agent Trigger (conditional)
-After the review loop ends, check whether the BRANCH DIFF includes any of these paths: `supabase/migrations/**`, `packages/db/src/**`, `apps/web/app/app/quiz/actions/**`, `apps/web/app/auth/**`, `apps/web/proxy.ts`, `docs/security.md`.
+After the review loop ends, check whether the BRANCH DIFF includes any of these paths: `supabase/migrations/**`, `packages/db/src/**`, `apps/web/app/app/quiz/actions/**`, `apps/web/app/auth/**`, `apps/web/app/**/route.ts`, `apps/web/proxy.ts`, `docs/security.md`.
 `agent-red-team.md` adds ONE path for its own trigger — `apps/web/e2e/redteam/` — and `/fullpush` step 7b honours it too; a spec-only change runs the agent while matching nothing above.
 If yes, run red-team (opus) — maps changes to specs, then attacks the local stack: chases every new/changed primitive through the whole app, and for each proven exploit writes + runs a failing spec under `apps/web/e2e/redteam/` as evidence. Unproven gaps still get a coverage-gap report. If it flags affected specs, run `pnpm --filter @repo/web e2e:redteam`.
 
@@ -203,30 +194,13 @@ Apply inline when ANY hold:
 - < 30 LOC, same-pattern-as-existing-code.
 - Context is already loaded — re-loading later costs more than the fix.
 - The finding is from any reviewer in the pre-push gate, or from plan-critic (pre-push triage is cheaper than post-push).
-- The finding addresses a project-rule violation (`code-style.md`, `security.md`, `agent-*.md`) — not deferrable.
+- The finding addresses a project-rule violation (`code-style.md`, `security.md`, `agent-*.md` under `.claude/skills/review-gate/`) — not deferrable.
 ### When to DEFER (exception — requires all three)
 File a GitHub Issue and defer only when ALL hold:
 1. ≥ 30 LOC estimated total (code + tests + docs).
 2. Genuinely separate concern — different feature area/threat model/RPC family; could stand alone as a PR.
 3. Requires a design decision the PR doesn't establish, or a system the orchestrator hasn't loaded context for.
 Any false → apply.
-### Defer-budget per PR — TWO checks, both binding
-Volume and ratio are independent — a PR passes only if it clears both.
-**Check 1 — volume.** 0 deferrals is the goal; 1-2 acceptable when each meets the three-condition test; 3+ — re-triage every survivor and name them in the push summary.
-**Check 2 — ratio.** Compare once, before push. If **filed > 0 AND filed >= closed**, needs a written justification.
-- **"Filed"** = every issue the branch author created after the merge-base, whatever its origin (BACKLOG DELTA). PR body's `## Deferred` section is authoritative and MANDATORY on any PR filing an issue; on a first push, check the draft body.
-- **"Closed"** = the issues this PR's `Closes #N` / `Fixes #N` will actually close.
-- Enumerate with the merge-base TIMESTAMP, not its date (day-granular, over-reports). `git fetch origin` first, ABORT if it fails, then `gh issue list --state open --limit 200 --search "author:@me created:>=$SINCE"`, with `$SINCE` captured and guarded FIRST: `MB=$(git merge-base origin/master HEAD) || abort`, then `SINCE=$(git log -1 --format=%cI "$MB") || abort`. Do NOT inline — a failed `git merge-base` leaves an empty substitution, and `git log -1 --format=%cI` then defaults to HEAD, under-counting `filed` with no diagnostic. `--limit 200` is load-bearing: `gh` defaults to 30 and exits 0 on a truncated list; exactly 200 means treat it as truncated and raise the bound. `author:@me` is the `gh`-authenticated account, not the commit author. `--state open`, not `--state all`: one filed and closed on the same branch is zero backlog delta.
-Accepted justifications: first-illumination, red-team coverage gaps — both need evidence in the PR body; nothing else passes.
-**First-illumination exemption — evidence required, once per area.** Name the path set and paste the output of:
-1. `git log --oneline -- <paths>` — must be NON-empty (pathspec resolves).
-2. `git log --since=6.months.ago --oneline | head -1` — repo-wide, no pathspec — must be NON-empty (date expression parsed; step 3's EMPTY result is the pass condition, so a spuriously empty log silently GRANTS the exemption).
-3. `git log --since=6.months.ago --format=%h -- <paths> | xargs -r -n1 git show --stat --format='%h %s'` — must list no substantive commit (not docs-only). Same date + paths as above.
-4. No open issue targeted those paths at branch cut — judgment call; state which you checked.
-Check the exit code of every command above before reading its output — step 3 pipes into `xargs`, which exits 0 on empty input, so a FAILED `git log` is indistinguishable from the granting result.
-Record as `first-illumination: <path set>` in the PR body. Find prior grants via `gh pr list --state merged --search '"first-illumination" in:body'`. Treat a shared directory as the same area.
-**Red-team coverage-gap justification — evidence required, no area limit.** `agent-red-team.md` mandates filing an issue for every coverage gap it identifies; these filings still COUNT toward `filed`. List each in `## Deferred` marked `red-team-gap`, naming the vector ID from `apps/web/e2e/redteam/attack-surface.md` or the spec path it covers. A gap you cannot name is not a red-team gap. A PR whose filings are ALL red-team gaps passes; mixed with ordinary deferrals, judged on the ordinary ones alone against `closed`.
-Otherwise re-triage: usually APPLY two or three deferrals rather than argue for them.
 ### What every deferred issue must include (no silent backlog growth)
 If you file a deferral, the issue body must contain:
 - **Effort estimate** — S (< 30 LOC) / M (30-150 LOC) / L (150+ LOC).
@@ -253,7 +227,7 @@ No in-flight findings at push time.
 - Push with in-flight findings (no terminal state assigned).
 
 ## PR Batching — Split by Risk Surface; Combine Only Like-for-Like (MANDATORY)
-> Pipeline cost is per-PR; review cost is per risk surface and non-linear — past a certain diff, rounds stop converging. An extra PR costs a bounded ~30 min of CI; a non-convergent review loop costs unbounded time. Optimise against the unbounded one.
+> Pipeline cost is per-PR; review cost is per risk surface. Median PR CI minutes: see § Push Batching.
 **Default: SPLIT.** Group work into the fewest PRs that each carry **one merge gate and one risk surface** — not the fewest PRs overall.
 ### Hard split triggers — each forces its own PR
 - **Migration work** — auto-deploys on merge, user-gated. Migrations deploying together may share one PR; NON-migration work must not ride along behind that prod-deploy approval.
@@ -262,18 +236,16 @@ No in-flight findings at push time.
 - **A shared component whose change fans out to several surfaces** — blast radius, not diff size, is what reviewers must hold in mind.
 ### Still COMBINE when all of these hold
 Mechanical or test-only work, over disjoint files, sharing no migration, no member on a security path: edit first (parallel subagents on non-overlapping file sets), run the pipeline ONCE.
-### The non-convergence signal
-A review round surfacing a NEW critical in a section an earlier round already reviewed means the diff is too large. Split — do not run another round.
 ### Splitting is SEQUENCING, not deferring
 Pieces are built in order, in the same run. Only a deferral if a piece is left unbuilt — say so in the PR body.
 ### Batch the fixups too (UNCHANGED by the split default)
 Collect ALL findings from ALL of a round's reviewers into **ONE fixup commit**, not one per finding. test-writer's and e2e-writer's specs ride the same commit (`agent-test-writer.md`, `agent-e2e-writer.md`). red-team's proven-exploit spec + the prod fix ride together as their own fixup commit, post-loop. The fixup commit triggers nothing by itself — the next ROUND is what re-reads it.
 ### Anti-patterns — there are TWO, in opposite directions
 1. One issue → one branch → full pipeline → merge → repeat — crawls on a multi-issue mechanical run.
-2. Everything the work touches → one branch — review does not converge, and a migration drags unrelated code through a prod-deploy gate.
+2. Everything the work touches → one branch — and a migration drags unrelated code through a prod-deploy gate.
 
 ## Push Batching — a push is NOT free (MANDATORY)
-> Every push costs a full CI run (~30 min: E2E, Red Team, Integration, Migration Test, Lighthouse, CodeQL, SonarCloud) plus one cloud CodeRabbit review. Cost is in the PIPELINE, not the diff.
+> Every push costs a full CI run (E2E, Red Team, Integration, Migration Test, Lighthouse, CodeQL, SonarCloud) plus one cloud CodeRabbit review. Median PR CI minutes: `gh run list --event pull_request --limit 100 --json headSha,startedAt,updatedAt --jq 'group_by(.headSha)|map((map(.updatedAt|fromdate)|max)-(map(.startedAt|fromdate)|min))|sort|.[length/2|floor]/60'`. Cost is in the PIPELINE, not the diff.
 `PR Batching` above governs how many ISSUES go in a PR. This governs how many times you PUSH it.
 ### The rule
 - **Batch every pending change into ONE push.** Before pushing: is anything else nearly ready? A second push minutes later doubles the CI bill and burns a second cloud review on a diff the first had already mostly seen.
@@ -292,16 +264,16 @@ A commit adding a hard rule to `docs/security.md`, `.claude/rules/security.md`, 
 **A sweep declared complete states the command and pastes its output.** Where the rule has a mechanical enforcer — a hook, a test harness, a CI script — run THAT as the sweep and paste its summary; where the enforcer grades, paste both `node .claude/hooks/run-mutations.mjs` and `--coverage`.
 
 ## Rule-Mirror Sync — restatements across the mirror set (MANDATORY on rule edits)
-A commit modifying a rule in `.claude/rules/*.md` or `CLAUDE.md` must update every stale restatement **in the same commit**. Enumerate the mirror set from this table, never from memory or a count.
+A commit modifying a rule in `.claude/rules/*.md`, `.claude/skills/review-gate/*.md` or `CLAUDE.md` must update every stale restatement **in the same commit**. Enumerate the mirror set from this table, never from memory or a count.
 
 | Mirror | Why it holds inline text |
 |---|---|
 | `docs/security.md` | the binding reference |
-| `.claude/rules/*.md` | `security.md` is the auto-injected quick summary |
+| `.claude/rules/*.md` | `security.md` loads on matching paths (its `paths:` frontmatter) |
 | `.coderabbit.yaml` | CodeRabbit cannot follow a pointer |
 | `.claude/agents/*.md` | `security-auditor.md` is the BLOCKING pre-push gate |
 | `.claude/commands/*.md` | slash commands restate gate lists |
-| `.claude/skills/**/*.md` (recursive) | loaded as write-time guidance; enumerate at sweep time with `find .claude/skills -name '*.md'` |
+| `.claude/skills/**/*.md` (recursive), incl. `.claude/skills/review-gate/*.md` | loaded as write-time guidance; enumerate at sweep time with `find .claude/skills -name '*.md'` |
 | `.spec-workflow/specs/**` — TRACKED specs with open tasks only (`git ls-files .spec-workflow/specs`) | `§ Spec-as-context rule` makes an approved spec the source of truth over chat history, so a cap restated in one that still has open tasks is a live mirror. A spec whose tasks are all `[x]` is a historical record — leave it |
 | `.spec-workflow/steering/**` | ALWAYS live — steering docs are re-read at planning time and are never superseded the way a completed spec is. `structure.md` and `tech.md` restate layout and stack mechanics, and both went stale in this very slice |
 | `.claude/hooks/*.sh` | **executable mirrors** — `run-security-auditor.sh` pins the auditor's `--model` sonnet literal, a restatement of the `agent-critic.md` model-tier rule that `.claude/pipeline.json` `modelLiteralSites` asserts. Not `.md`, so doc-shaped greps miss them |
@@ -323,7 +295,7 @@ A commit modifying a rule in `.claude/rules/*.md` or `CLAUDE.md` must update eve
 
 ## Orchestrator Role
 ### DO
-- Run the pre-push gate once per branch (§ Pre-Push Review Gate) — round 1 dispatches all seven core reviewers, plus e2e-writer when triggered, in ONE parallel batch; WAIT for a completion notification from every agent LAUNCHED before acting.
+- Run the pre-push gate once per branch (§ Pre-Push Review Gate) — every round dispatches code-review (skill), semantic-reviewer, doc-updater and test-writer, plus e2e-writer when triggered, in ONE parallel batch; WAIT for a completion notification from every agent LAUNCHED before acting.
 - Read all results before starting any fixes.
 - Validate every ISSUE/CRITICAL finding before fixing.
 - Report findings to the user in a summary table: agent / severity / count / status.
@@ -331,13 +303,12 @@ A commit modifying a rule in `.claude/rules/*.md` or `CLAUDE.md` must update eve
 - Re-run the gate's reviewers after a round's fixup commit lands — that is the next ROUND, not a commit-triggered re-run.
 - After all agents report clean, update `tasks.md` in the active spec (`[ ]` → `[x]`) for every completed task.
 ### NEVER
-- Skip the gate, or drop a reviewer from round 1. Branch size is never the criterion; there is no exemption.
+- Skip the gate, or drop a reviewer from a round. Branch size is never the criterion; there is no exemption.
 - Run a round on an UNCHANGED artifact to chase a clean result — a round follows a FIX, never a wish.
-- Exceed the 3-round ceiling. At it, STOP and escalate; a new critical in an already-reviewed section means SPLIT.
 - Treat a commit as a review trigger. Commits are free; only a round reads them.
 - Start fixing before every LAUNCHED agent has reported — async, dispatching is not reporting.
 - Fire-and-forget agents without reading results.
-- Edit a file while an agent that can write it is in flight — in round 1, test-writer and e2e-writer hold Write/Edit on disjoint paths, and post-loop red-team holds it alone on `apps/web/e2e/redteam/**`; Bash still writes for every agent, so this is a live collision, silent and gateless.
+- Edit a file while an agent that can write it is in flight — in every round, test-writer and e2e-writer hold Write/Edit on disjoint paths, and post-loop red-team holds it alone on `apps/web/e2e/redteam/**`; Bash still writes for every agent, so this is a live collision, silent and gateless.
 - Jump to fix a reviewer finding without validating the claim first.
 - Present "0 critical" as if that means clean — report every severity.
 - Push with any unresolved CRITICAL, BLOCKING, or ISSUE finding.

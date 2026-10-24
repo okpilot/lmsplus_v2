@@ -481,7 +481,7 @@ $$;
 
 **Randomization:** Options are returned in random order via `ORDER BY random()`. This prevents students from memorising positional patterns. Each call produces an independent random arrangement.
 
-**Rule:** Any Server Action or API route that serves questions **during an active session** must use `get_quiz_questions()` — never a raw `SELECT * FROM questions`.
+**Rule:** Any Server Action or Route Handler that serves questions **during an active session** must use `get_quiz_questions()` — never a raw `SELECT * FROM questions`.
 
 Correct answers are only fetched server-side when validating a submitted answer, never returned to the client during an active session.
 
@@ -603,7 +603,7 @@ const securityHeaders = [
 **Rule: Validate at every trust boundary. Trust nothing from the client.**
 
 - All Server Actions must validate input with Zod before touching the database. Use `safeParse()` or wrap `.parse()` in try/catch — bare `.parse()` throws a `ZodError` that escapes the typed return contract.
-- All API routes must validate request bodies with Zod
+- All Route Handlers must validate body, query and path params with Zod
 - Never use `as SomeType` to cast unvalidated external data
 - Escape `%` and `_` wildcards before interpolating user input into `.ilike()` / `.like()` calls — use an `escapeLike()` helper. This is not SQL injection (PostgREST parameterizes), but it prevents users from broadening query scope via wildcard characters.
 - **`start_quiz_session.p_question_ids` array cap** — `start_quiz_session` enforces a 500-element cap at the DB layer (`too_many_questions`, mig 086 / #275). The Server Action Zod schema enforces the same cap so a direct RPC caller cannot bypass it to mount a resource-exhaustion attack.
@@ -625,6 +625,19 @@ export async function submitAnswer(raw: unknown) {
   // ... proceed with parsed.data only
 }
 ```
+
+### Route Handler reads
+
+Client-initiated reads (after render, on interaction or focus, polling) are GET Route Handlers (`route.ts`). Not covered: `apps/web/app/auth/**` handlers, webhooks, and `apps/web/app/api/version/route.ts` (public, returns no user data). Every one:
+
+1. GET only, no side effects.
+2. Lives outside the `proxy.ts` matcher (e.g. `apps/web/app/api/**`). Calls `verifySessionUser()` first; returns 401 JSON when unauthenticated. Then enforces, itself, the two gates `proxy.ts` applies to `/app/*` by redirect, returning 403 JSON instead: the `__recovery_pending` cookie is `1`, or the `__consent_u` cookie (`CONSENT_COOKIE`) does not equal `buildConsentCookieValue(userId)` (`apps/web/lib/consent/check-consent.ts`). The client reloads the page on a 403. Never delegated to `proxy.ts`.
+3. Parses query and path params with Zod `safeParse`; returns 400 on failure.
+4. Applies the same answer-stripping as the equivalent RPC (§4).
+5. Applies the same active-user gate, tenant scope (§13) and soft-delete filter as the equivalent RPC.
+6. Returns sanitized errors; never `error.message`.
+7. No CORS headers; `Cache-Control: private, no-store`; no `force-static`.
+8. Ships a co-located `*.integration.test.ts` per `.from()` / `.rpc()` site.
 
 ---
 
@@ -853,7 +866,7 @@ SECURITY DEFINER functions accrue defensive guards over time, one migration at a
 
 **What it MISSED — this paragraph previously said the sweep had covered "every SECURITY DEFINER RPC by family" and was CLOSED. That was false.** A mechanical re-derivation on 2026-09-01 found 4 more, none carrying the active-user check: `list_my_internal_exam_history` and `list_my_active_internal_exam_codes`, which had only the `auth.uid()` null-check (gated by mig `20260824000200`), and `get_daily_activity` and `get_subject_scores`, which had that plus the pre-existing Decision-24 `IS DISTINCT FROM p_student_id` identity guard (gated by mig `20260824000300`; the same migration added the rule-9 `deleted_at IS NULL` filter `get_subject_scores` never had on `quiz_sessions`).
 
-**Do not trust that list either — RE-DERIVE it.** The set is OPEN, so this rule states the derivation rather than an enumeration (`code-style.md` §10 rule 2). Take each function's LATEST definition across every supersession form (`agent-workflow.md` § "name EVERY supersession form"); keep those that are SECURITY DEFINER, not `is_admin()`-gated, and `GRANT`ed to `authenticated`; then check each for a `users` lookup filtered on `deleted_at IS NULL` whose miss raises. Exempt classes include: trigger functions, which no caller invokes directly (`stamp_last_active_on_session_complete`), and helpers `REVOKE`d from `authenticated`/`anon`/`public` (`answer_matches`, the `_grade_record_*` family).
+**Do not trust that list either — RE-DERIVE it.** The set is OPEN, so this rule states the derivation rather than an enumeration (`code-style.md` §10 rule 2). Take each function's LATEST definition across every supersession form (`.claude/skills/review-gate/agent-workflow.md` § "name EVERY supersession form"); keep those that are SECURITY DEFINER, not `is_admin()`-gated, and `GRANT`ed to `authenticated`; then check each for a `users` lookup filtered on `deleted_at IS NULL` whose miss raises. Exempt classes include: trigger functions, which no caller invokes directly (`stamp_last_active_on_session_complete`), and helpers `REVOKE`d from `authenticated`/`anon`/`public` (`answer_matches`, the `_grade_record_*` family).
 
 **Progress-RPC family (#1026).** `save_quiz_answer`, `save_quiz_position`, `claim_quiz_session` share `_lock_session_for_progress`. `save_quiz_for_later`, `resume_saved_quiz`, `discard_saved_quiz` (migration `20261003000200`) join the family: each carries the `auth.uid()` check, the active-user gate (token `user_not_found_or_inactive`), `student_id = auth.uid()` scope, `SET search_path = public`. `save_quiz_for_later` takes its guards from `_lock_session_for_progress`; `resume_saved_quiz` and `discard_saved_quiz` inline them because the helper refuses a saved row (`session_saved`, migration `20261003000300`).
 
