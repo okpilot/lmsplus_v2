@@ -6,7 +6,7 @@ import { RecentActivityList } from './recent-activity-list'
 
 type Props = Readonly<{ range: TimeRange }>
 
-export async function RecentActivityContent({ range }: Props) {
+export async function RecentActivityContent({ range }: Readonly<Props>) {
   try {
     const sessions = await getRecentSessions(range)
     return <RecentActivityList sessions={sessions} />

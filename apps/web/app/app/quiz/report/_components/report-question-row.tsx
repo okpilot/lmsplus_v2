@@ -10,6 +10,7 @@ import { formatMsDuration } from './format-duration'
 import { ReportAnswerBody } from './report-answer-body'
 import { useReportFlag } from './report-flag-context'
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function ReportQuestionRow({
   question,
   index,

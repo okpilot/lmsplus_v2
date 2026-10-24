@@ -1,0 +1,8 @@
+or {
+  `export async function $m($args) { $body }`,
+  `export function $m($args) { $body }`,
+  `export const $m = $rest`
+} where {
+  $m <: r"^(?:POST|PUT|PATCH|DELETE)$",
+  register_diagnostic(span=$m, message="Route Handlers are for external consumers only; mutations are Server Actions (code-style.md section 6)", severity="error")
+}

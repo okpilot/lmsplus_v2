@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { AnswerResult, SessionState, UseSessionStateOpts } from '../_types/session'
 import { executeComplete, executeSubmit } from './session-operations'
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function useSessionState(opts: UseSessionStateOpts) {
   const { sessionId, questions, onSubmitAnswer, onComplete } = opts
   const [currentIndex, setCurrentIndex] = useState(0)

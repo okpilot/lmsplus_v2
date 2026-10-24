@@ -10,6 +10,7 @@ import { SESSIONS_PAGE_SIZE } from '../../../types'
 import { ClickableSessionRow } from './clickable-session-row'
 import { SessionRangeHeader } from './session-range-header'
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function SessionHistoryTable({
   sessions,
   totalCount,

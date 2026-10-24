@@ -20,7 +20,7 @@ type CardProps = Readonly<{
   valueClass?: string
 }>
 
-function KpiCard({ title, value, sub, valueClass = '' }: CardProps) {
+function KpiCard({ title, value, sub, valueClass = '' }: Readonly<CardProps>) {
   return (
     <div className="rounded-xl border border-border bg-card p-3 md:p-4">
       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{title}</p>
@@ -30,7 +30,7 @@ function KpiCard({ title, value, sub, valueClass = '' }: CardProps) {
   )
 }
 
-export function KpiCards({ data, range }: Props) {
+export function KpiCards({ data, range }: Readonly<Props>) {
   if (data.totalStudents === 0) {
     return (
       <div className="flex items-center justify-center rounded-xl border border-border bg-card p-8">

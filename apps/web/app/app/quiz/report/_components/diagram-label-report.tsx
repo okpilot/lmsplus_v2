@@ -11,7 +11,7 @@ type Props = Readonly<{
 // fraction (X/N zones correct), then lists each zone's placed label vs the
 // correct label. 3-state: fully correct / partial / none correct. Mirrors
 // OrderingReport's structure (per-slot -> per-zone).
-export function DiagramLabelReport({ zones, correctCount, totalZones }: Props) {
+export function DiagramLabelReport({ zones, correctCount, totalZones }: Readonly<Props>) {
   const allCorrect = totalZones > 0 && correctCount === totalZones
   const noneCorrect = correctCount === 0
 

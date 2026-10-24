@@ -25,7 +25,8 @@ type Props = Readonly<{
   filters: DashboardFilters
 }>
 
-export function StudentTableShell({ students, totalCount, filters }: Props) {
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
+export function StudentTableShell({ students, totalCount, filters }: Readonly<Props>) {
   const router = useRouter()
   const updateParams = useUpdateSearchParams()
 

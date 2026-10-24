@@ -36,6 +36,7 @@ export function calcSelectedCount(
   }, 0)
 }
 
+// biome-ignore lint/complexity/useMaxParams: pre-existing; split when next edited (#1606)
 export function computeToggleTopic(
   topicId: string,
   topics: TopicWithSubtopics[],
@@ -52,6 +53,7 @@ export function computeToggleTopic(
   return { topics: newTopics, subtopics: newSubtopics }
 }
 
+// biome-ignore lint/complexity/useMaxParams: pre-existing; split when next edited (#1606)
 export function computeToggleSubtopic(
   subtopicId: string,
   topicId: string,
@@ -69,6 +71,7 @@ export function computeToggleSubtopic(
   return { topics: newTopics, subtopics: newSubtopics }
 }
 
+// biome-ignore lint/complexity/useMaxParams: pre-existing; split when next edited (#1606)
 export function calcFilteredAvailable(
   topics: TopicWithSubtopics[],
   checkedTopics: Set<string>,

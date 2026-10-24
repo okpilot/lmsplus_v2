@@ -127,6 +127,7 @@ type UpsertFn = (
  * Throws if the upsert returns a DB error, so callers can rely on try/catch
  * rather than silently dropping failed writes.
  */
+// biome-ignore lint/complexity/useMaxParams: pre-existing; split when next edited (#1606)
 export async function upsert(
   supabase: SupabaseClient,
   table: string,

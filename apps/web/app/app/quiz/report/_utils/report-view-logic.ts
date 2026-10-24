@@ -35,6 +35,7 @@ export function canonicalReportBasePath(
 // LIVE answered-question count (not summary.totalQuestions) — partial submissions mean
 // answered < total. sessionId is UUID-validated upstream, so it is safe to interpolate raw.
 // Throws (redirects) when page > totalPages; otherwise returns.
+// biome-ignore lint/complexity/useMaxParams: pre-existing; split when next edited (#1606)
 export function redirectOnPageOverflow(
   basePath: string,
   sessionId: string,

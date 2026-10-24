@@ -27,6 +27,7 @@ type Props = {
 
 type DistRow = { topicId: string; subtopicId: string | null; questionCount: number }
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function ConfigFormDialog({ subject, open, onOpenChange }: Readonly<Props>) {
   const config = subject.config
   const [isPending, startTransition] = useTransition()

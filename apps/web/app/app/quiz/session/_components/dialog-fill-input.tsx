@@ -21,6 +21,7 @@ type DialogFillInputProps = {
   submittedBlanks?: { index: number; text: string }[] | null
 }
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function DialogFillInput({
   template,
   onSubmit,

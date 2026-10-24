@@ -38,6 +38,7 @@ type MasteryRow = {
   correct: number | string
 }
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export async function getProgressData(): Promise<SubjectDetail[]> {
   const supabase = await createServerSupabaseClient()
   const user = await getSessionUser()

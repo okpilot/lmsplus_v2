@@ -30,6 +30,7 @@ export type GetActiveExamSessionResult =
     }
   | { success: false; error: string }
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export async function getActiveExamSession(): Promise<GetActiveExamSessionResult> {
   try {
     const supabase = await createServerSupabaseClient()

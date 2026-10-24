@@ -38,6 +38,7 @@ function sanitize(input: string): string {
   return out
 }
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function CodeEntryModal({ open, onOpenChange, subjectName, subjectShort }: Readonly<Props>) {
   const [code, setCode] = useState('')
   const { error, setError, isPending, start, reset, blocked } = useCodeEntryStart(code)

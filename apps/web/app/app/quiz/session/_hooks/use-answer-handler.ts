@@ -23,6 +23,7 @@ type AnswerHandlerOpts = {
   onAnswerReverted?: (answers: Map<string, DraftAnswer>) => void
 }
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function useAnswerHandler(opts: AnswerHandlerOpts) {
   const { sessionId, getQuestionId, getAnswerStartTime, answers, setAnswers } = opts
   const { initialFeedback, onAnswerRecorded, onAnswerReverted } = opts

@@ -19,6 +19,7 @@ type StudyConfigOptions = { userId: string; subjects: SubjectOption[]; preload?:
  * `useAvailableCount` is given `preferFiltered: true` so the slider max / Start
  * button / count badge always reflect the real MC pool on a mixed subject (#1008).
  */
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function useStudyConfig({ userId, subjects, preload }: StudyConfigOptions) {
   const topicTree = useTopicTree()
   const fc = useFilteredCount(preload)

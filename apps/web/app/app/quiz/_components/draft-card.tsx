@@ -7,6 +7,7 @@ import { resumeQuizSession } from '../actions/resume'
 import type { DraftData } from '../types'
 import { SavedSessionProgress } from './saved-session-progress'
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function DraftCard({ draft }: Readonly<{ draft: DraftData }>) {
   const router = useRouter()
   const [deleting, setDeleting] = useState(false)

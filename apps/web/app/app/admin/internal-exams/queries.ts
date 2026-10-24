@@ -18,6 +18,7 @@ const CODE_COLS_BASE = `id, code, subject_id, student_id, issued_by, issued_at, 
  * Applies org scope, soft-delete filter, and status/student/subject predicates to a codes query builder.
  * `nowIso` is passed in (not computed here) so the count and data queries share the same instant.
  */
+// biome-ignore lint/complexity/useMaxParams: pre-existing; split when next edited (#1606)
 function applyCodeFilters(
   builder: OffsetChainBuilder,
   organizationId: string,

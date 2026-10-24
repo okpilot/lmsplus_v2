@@ -17,6 +17,7 @@ type Props = {
   subject: SyllabusSubject
 }
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function SubjectRow({ subject }: Readonly<Props>) {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState(false)

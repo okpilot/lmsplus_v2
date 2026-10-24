@@ -20,7 +20,7 @@ type Props = Readonly<{
   namespace: ReportNamespace
 }>
 
-export async function QuizReportView({ sessionId, pageParam, namespace }: Props) {
+export async function QuizReportView({ sessionId, pageParam, namespace }: Readonly<Props>) {
   if (!sessionId || !UUID_RE.test(sessionId)) redirect(namespaceHome(namespace))
 
   const page = parsePageParam(pageParam)

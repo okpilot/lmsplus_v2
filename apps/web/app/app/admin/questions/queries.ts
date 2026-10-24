@@ -4,6 +4,7 @@ import type { QuestionFilters, QuestionRow, QuestionsListResult } from './types'
 
 export const PAGE_SIZE = 25
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export async function getQuestionsList(filters: QuestionFilters): Promise<QuestionsListResult> {
   // Data-side placement of requireAdmin() (docs/security.md "Admin Route Protection");
   // covers a page that omits its call.

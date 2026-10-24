@@ -14,7 +14,7 @@ type DiagramLabelChipProps = Readonly<{
 
 /** A single draggable label chip — rendered both in the pool and inside an
  *  occupied zone (dragging a placed chip moves it; see DiagramLabelInput). */
-export function DiagramLabelChip({ id, text, disabled, result }: DiagramLabelChipProps) {
+export function DiagramLabelChip({ id, text, disabled, result }: Readonly<DiagramLabelChipProps>) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id,
     disabled,

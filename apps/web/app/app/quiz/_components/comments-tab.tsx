@@ -11,6 +11,7 @@ type CommentsTabProps = {
   currentUserId: string
 }
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function CommentsTab({ questionId, currentUserId }: Readonly<CommentsTabProps>) {
   const { comments, isLoading, error, addComment, removeComment } = useComments(questionId)
   const [body, setBody] = useState('')

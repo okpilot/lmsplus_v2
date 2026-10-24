@@ -11,7 +11,7 @@ type DiagramLabelPoolProps = Readonly<{
 
 /** The pool of not-yet-placed chips. Also a droppable target — dropping a
  *  placed chip back here unplaces it (see DiagramLabelInput.handleDragEnd). */
-export function DiagramLabelPool({ labels, disabled }: DiagramLabelPoolProps) {
+export function DiagramLabelPool({ labels, disabled }: Readonly<DiagramLabelPoolProps>) {
   const { setNodeRef, isOver } = useDroppable({ id: DIAGRAM_POOL_DROPPABLE_ID, disabled })
 
   return (

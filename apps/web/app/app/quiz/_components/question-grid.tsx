@@ -22,6 +22,7 @@ const GAP = 6
 const MOBILE_SQUARE = 36
 const DESKTOP_SQUARE = 32
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function QuestionGrid({
   totalQuestions,
   currentIndex,

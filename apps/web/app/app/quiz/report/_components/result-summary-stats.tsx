@@ -50,7 +50,7 @@ type StatsProps = Readonly<{
   dateStr: string
 }>
 
-export function DesktopStats({ summary, correctFraction, skipped, dateStr }: StatsProps) {
+export function DesktopStats({ summary, correctFraction, skipped, dateStr }: Readonly<StatsProps>) {
   return (
     <div className="hidden md:flex flex-row gap-6 items-center">
       <div className="shrink-0">
@@ -67,7 +67,7 @@ export function DesktopStats({ summary, correctFraction, skipped, dateStr }: Sta
   )
 }
 
-export function MobileStats({ summary, correctFraction, skipped }: StatsProps) {
+export function MobileStats({ summary, correctFraction, skipped }: Readonly<StatsProps>) {
   return (
     <div className="flex flex-col items-center gap-4 md:hidden">
       <ScoreRing percentage={summary.scorePercentage} size={90} />

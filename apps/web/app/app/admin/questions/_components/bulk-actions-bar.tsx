@@ -11,6 +11,7 @@ type Props = {
   onClear: () => void
 }
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function BulkActionsBar({ selectedIds, onClear }: Readonly<Props>) {
   const [isPending, startTransition] = useTransition()
   const count = selectedIds.length

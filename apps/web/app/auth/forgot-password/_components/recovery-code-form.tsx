@@ -18,7 +18,7 @@ type RecoveryCodeFormProps = Readonly<{
   onRequestNewCode: () => void
 }>
 
-export function RecoveryCodeForm({ email, onRequestNewCode }: RecoveryCodeFormProps) {
+export function RecoveryCodeForm({ email, onRequestNewCode }: Readonly<RecoveryCodeFormProps>) {
   const router = useRouter()
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)

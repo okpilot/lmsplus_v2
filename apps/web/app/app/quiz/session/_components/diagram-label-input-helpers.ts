@@ -70,6 +70,7 @@ export function hasAnyPlacement(placement: Map<string, string>): boolean {
  * label — a tampered or corrupt persisted mapping must not render a
  * dangling/mismatched placement.
  */
+// biome-ignore lint/complexity/useMaxParams: pre-existing; split when next edited (#1606)
 export function placementFromSubmitted(
   zones: DiagramZoneData[],
   labels: DiagramLabelChipData[],

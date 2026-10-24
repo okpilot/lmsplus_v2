@@ -58,7 +58,7 @@ function deriveStats(summary: QuizReportSummary): {
   }
 }
 
-export function ResultSummary({ summary }: Props) {
+export function ResultSummary({ summary }: Readonly<Props>) {
   const isExam = isExamMode(summary.mode)
   // summary.mode is typed `string`; isExamMode confirms it's a valid exam mode at runtime,
   // so the narrow cast for MODE_LABELS lookup is safe.

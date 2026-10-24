@@ -61,6 +61,7 @@ const SORT_COLUMN_MAP: Record<SortKey, string> = {
  * call is issued at offset 0 to recover the true `total_count` so that callers can
  * redirect to the real last page instead of falling back to page 1.
  */
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export async function getSessionReports(opts: SessionReportsOpts): Promise<SessionReportsResult> {
   const supabase = await createServerSupabaseClient()
   const user = await getSessionUser()

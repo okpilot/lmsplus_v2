@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import type { ActionResult } from '@/lib/action-result'
 import { requireAdmin } from '@/lib/auth/require-admin'
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export async function toggleExamConfig(input: unknown): Promise<ActionResult> {
   const parsed = ToggleExamConfigSchema.safeParse(input)
   if (!parsed.success) return { success: false, error: 'Invalid input' }

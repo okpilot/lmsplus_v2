@@ -1,3 +1,4 @@
+import type { useRouter } from 'next/navigation'
 import type {
   AnswerFeedback,
   CalcMode,
@@ -47,7 +48,7 @@ export type AnswerPipelineOpts = QuizStateOpts & {
   answersRef: React.RefObject<Map<string, DraftAnswer>>
   currentIndexRef: React.RefObject<number>
   navigateTo: (idx: number) => void
-  router: import('next/dist/shared/lib/app-router-context.shared-runtime').AppRouterInstance
+  router: ReturnType<typeof useRouter>
 }
 
 export type UseQuizStartOpts = {

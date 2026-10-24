@@ -44,6 +44,7 @@ function forwardAntiCacheHeaders(source: NextResponse, target: NextResponse): vo
   }
 }
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export async function proxy(request: NextRequest): Promise<Response> {
   // Cast needed: @playwright/test causes a duplicate next.js install with incompatible internal types
   const { supabase, response } = createMiddlewareSupabaseClient(

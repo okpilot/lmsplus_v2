@@ -1,4 +1,4 @@
-import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime'
+import type { useRouter } from 'next/navigation'
 import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
 import { reportUrl } from '@/lib/constants/report-paths'
 import type { DraftAnswer } from '../../types'
@@ -7,6 +7,8 @@ import { resendUnsavedAnswers } from '../_utils/progress-sync-saves'
 import { isTakenOver } from '../_utils/session-takeover'
 import { whenQueueIdle } from '../_utils/with-reconnect'
 import { handleDiscardSession, handleSaveSession, handleSubmitSession } from './quiz-submit'
+
+type AppRouterInstance = ReturnType<typeof useRouter>
 
 /** Which finish-dialog action is currently in flight, or null when idle. */
 export type QuizPendingAction = 'submit' | 'save' | 'discard' | null

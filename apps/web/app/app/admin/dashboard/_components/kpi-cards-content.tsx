@@ -6,7 +6,7 @@ import { KpiCards } from './kpi-cards'
 
 type Props = Readonly<{ range: TimeRange }>
 
-export async function KpiCardsContent({ range }: Props) {
+export async function KpiCardsContent({ range }: Readonly<Props>) {
   try {
     const kpis = await getDashboardKpis(range)
     return <KpiCards data={kpis} range={range} />

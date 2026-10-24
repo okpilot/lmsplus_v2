@@ -7,6 +7,7 @@ import type { CalcMode, ImageMode, PreloadPromise, QuestionFilterValue } from '.
 import { usePreloadedSetup } from './use-preloaded-setup'
 
 /** @param preload Streamed server counts; read at call time and used instead of a request when they apply. */
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function useFilteredCount(preload?: PreloadPromise): FilteredCountState {
   const setup = usePreloadedSetup(preload)
   const [counts, setCounts] = useState<FilteredCounts | null>(null)
@@ -22,6 +23,7 @@ export function useFilteredCount(preload?: PreloadPromise): FilteredCountState {
   }
 
   const refetch = useCallback(
+    // biome-ignore lint/complexity/useMaxParams: pre-existing; split when next edited (#1606)
     function refetch(
       subjectId: string,
       topicIds: string[],

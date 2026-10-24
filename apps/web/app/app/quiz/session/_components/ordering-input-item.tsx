@@ -21,7 +21,7 @@ export function OrderingInputItem({
   disabled,
   result,
   canonical,
-}: OrderingInputItemProps) {
+}: Readonly<OrderingInputItemProps>) {
   const {
     attributes,
     listeners,

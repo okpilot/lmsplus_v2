@@ -14,6 +14,7 @@ type Props = {
   topicId: string
 }
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function SubtopicRow({ subtopic, topicId }: Readonly<Props>) {
   const [editing, setEditing] = useState(false)
   const [isPending, startTransition] = useTransition()

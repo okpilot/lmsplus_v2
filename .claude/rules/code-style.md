@@ -121,7 +121,7 @@ Enforced by prevention, not a text-matching guard (Decision 111).
 ---
 ## 3. Function Rules
 ### Max 30 Lines Per Function
-If a function is longer than 30 lines, extract steps into named helper functions. Named helpers are self-documenting.
+If a function is longer than 30 lines, extract steps into named helper functions. Named helpers are self-documenting. Biome enforces 50 lines/function and 3 params (`biome.json`; tests, e2e, scripts, `.claude/**` excluded); the 30-line target is reviewer-judged.
 ```ts
 // ❌ WRONG — 60-line function doing everything
 export async function submitAnswer(input: unknown) {
@@ -271,7 +271,7 @@ export function QuestionCard({ prompt }: Readonly<{ prompt: string }>) { ... }
 function ActivePracticeBanner({ session }: Readonly<ActivePracticeProps>) { ... }
 ```
 Applies to every React function component, including `page.tsx`/`layout.tsx` default exports (their `params`/`searchParams`/`children` props), `_components/*.tsx`, and `apps/web/components/**`. SonarCloud S6759 scans all `.tsx` as the comprehensive enforcer; the `.coderabbit.yaml` mirror covers the `page.tsx`, `layout.tsx`, `_components/*.tsx`, and `apps/web/components/**` blocks.
-**Not Biome-enforceable** — Biome has no function-component-props readonly rule (`useReadonlyClassProperties` targets class properties only). Enforcement is at write-time via CodeRabbit, and SonarCloud (`typescript:S6759`). Severity: **WARNING**. Pre-existing offenders are swept separately (#1027).
+Enforced by Biome plugin `biome-plugins/readonly-props.grit` (error; tests excluded), SonarCloud `typescript:S6759` and CodeRabbit.
 ### No `any`
 Use `unknown` with narrowing, or define the correct type.
 ```ts
@@ -513,7 +513,7 @@ export async function submitAnswer(input: unknown) { ... }
 ### R4 — No `useEffect` for Data Fetching
 Use R1 or R2. `useEffect` is for hydration guards and external-system sync.
 ### R5 — No Mutating Route Handlers
-NEVER create a Route Handler that mutates. Exceptions: `apps/web/app/auth/**` handlers and webhooks.
+NEVER create a Route Handler that mutates. Exceptions: `apps/web/app/auth/**` handlers and webhooks. Enforced by Biome plugin `biome-plugins/no-mutation-route.grit`; exceptions take `// biome-ignore lint/plugin: <reason>`.
 ### R6 — Cite Before Adding Cache, TTL, Timeout, Retry or Module-Level Store
 Cite in the PR body the Next/React/Supabase doc page that lacks the behaviour.
 ### Approved `useEffect` Pattern: Hydration Guard
@@ -537,13 +537,13 @@ try {
 }
 
 // ✅ CORRECT — redirect propagates, only real errors show fallback
-import { isRedirectError } from 'next/dist/client/components/redirect-error'
+import { rethrowRedirect } from '@/lib/next/rethrow-redirect'
 
 try {
   const data = await getProtectedData()
   return <DataView data={data} />
 } catch (error) {
-  if (isRedirectError(error)) throw error
+  rethrowRedirect(error)
   return <ErrorFallback />
 }
 ```

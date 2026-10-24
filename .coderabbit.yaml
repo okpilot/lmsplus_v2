@@ -59,7 +59,7 @@ reviews:
         - No useState, useEffect, or event handlers.
         - Data fetching via imported async functions, not inline queries.
         - No direct Supabase client usage.
-        - Props (params/searchParams) must be wrapped in Readonly<…> (SonarCloud typescript:S6759 — not Biome-enforceable).
+        - Props (params/searchParams) must be wrapped in Readonly<…> (SonarCloud typescript:S6759; Biome plugin `readonly-props.grit`).
         - Admin pages (apps/web/app/app/admin/**/page.tsx): `await requireAdmin()` is the first statement of the page function (docs/security.md "Admin Route Protection"; the admin layout does not gate its pages).
         - The page's directory needs its own error.tsx and loading.tsx (apps/web/app/segment-boundaries.test.ts lists pre-existing gaps; a new page directory must not be added to it).
 
@@ -67,7 +67,7 @@ reviews:
     - path: "apps/web/app/**/layout.tsx"
       instructions: |
         Next.js App Router layout. Enforce:
-        - Props (children/params) must be wrapped in Readonly<…> (SonarCloud typescript:S6759 — not Biome-enforceable).
+        - Props (children/params) must be wrapped in Readonly<…> (SonarCloud typescript:S6759; Biome plugin `readonly-props.grit`).
 
     # Components — single responsibility
     - path: "apps/web/app/**/_components/*.tsx"
@@ -79,14 +79,14 @@ reviews:
         - Use Next.js <Image> instead of <img> (Biome noImgElement). Suppress only when dimensions are unknown.
         - Click handlers on static elements need paired keyboard handlers (Biome useKeyWithClickEvents).
         - Static elements must not have interaction handlers without an appropriate role (Biome noStaticElementInteractions).
-        - Component props must be wrapped in Readonly<…> (immutable props contract; SonarCloud typescript:S6759 — not Biome-enforceable).
+        - Component props must be wrapped in Readonly<…> (immutable props contract; SonarCloud typescript:S6759; Biome plugin `readonly-props.grit`).
         - UI rules (code-style.md §2, Decision 111): Geist only, no monospace font (font-mono, monospace, Courier, Geist Mono) — use tabular-nums; theme colour tokens, not Tailwind palette classes (e.g. bg-red-500); no per-class motion-reduce: needed (globals.css handles reduced motion).
 
     # Shared component library (shadcn/ui + custom wrappers)
     - path: "apps/web/components/**/*.tsx"
       instructions: |
         Reusable React component. Enforce:
-        - Component props must be wrapped in Readonly<…> (immutable props contract; SonarCloud typescript:S6759 — not Biome-enforceable).
+        - Component props must be wrapped in Readonly<…> (immutable props contract; SonarCloud typescript:S6759; Biome plugin `readonly-props.grit`).
         - UI rules (code-style.md §2, Decision 111): Geist only, no monospace font (font-mono, monospace, Courier, Geist Mono) — use tabular-nums; theme colour tokens, not Tailwind palette classes (e.g. bg-red-500); no per-class motion-reduce: needed (globals.css handles reduced motion).
 
     # Route Handlers — client-initiated reads only

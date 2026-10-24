@@ -39,7 +39,7 @@ type DirectionArrowProps = Readonly<{
 }>
 
 /** A small filled triangle marking a leg's direction of travel. */
-function DirectionArrow({ center, rotation }: DirectionArrowProps) {
+function DirectionArrow({ center, rotation }: Readonly<DirectionArrowProps>) {
   const { x, y } = scaled(center)
   return (
     <polygon
