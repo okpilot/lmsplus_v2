@@ -1,7 +1,7 @@
 /**
  * Red Team Spec: Consent cookie bound to the signed-in user — Vector FU (#1377)
  *
- * Split out of consent-gate.spec.ts to stay under the test-file size cap.
+ * Split out of consent-gate.spec.ts.
  *
  * Before #1377 the `__consent` cookie value carried only the document
  * versions (`tos:privacy`), so a cookie left behind on a shared browser

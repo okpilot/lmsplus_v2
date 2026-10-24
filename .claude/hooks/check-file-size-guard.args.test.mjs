@@ -1,11 +1,6 @@
 // Argument-handling tests for the file-size guard: mode flags, path spellings, and the
 // two exemptions that keep the unknown-path check from blocking legitimate commits
-// (staged deletions, staged renames). Split out of the CLI suite when adding the rename
-// case pushed that file into §1's same-commit extraction trigger — the exact line count is
-// deliberately not stated, because it describes an intermediate authoring state nobody can
-// reproduce, and two reviewers reconstructed it differently. Baselining our own
-// test file would be the "widen the rule to fit my own code" move the programme exists
-// to stop. Run:
+// (staged deletions, staged renames). Split out of the CLI suite. Run:
 //   node --test .claude/hooks/check-file-size-guard.args.test.mjs
 //
 // Every case below is MUTATION-PINNED: break the named mechanism in

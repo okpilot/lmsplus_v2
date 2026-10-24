@@ -1,8 +1,7 @@
 import type { QuizReportQuestionCommon } from './quiz-report'
 
 // One report entry per ZONE of a diagram_label question. Split out of
-// quiz-report.ts to keep that file under the 200-line utility cap
-// (code-style.md §1).
+// quiz-report.ts.
 export type DiagramZoneResult = {
   blankIndex: number
   placedLabel: string | null

@@ -45,6 +45,9 @@
         "noExplicitAny": "error",
         "noVar": "error"
       },
+      "performance": {
+        "noBarrelFile": "error"
+      },
       "style": {
         "useConst": "error",
         "noRestrictedImports": {

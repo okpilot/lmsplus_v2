@@ -9,6 +9,7 @@
 // intentional test-only aggregation point, mirroring how `@repo/db/server`
 // exposes one concern per export path.
 
+// biome-ignore lint/performance/noBarrelFile: test-only aggregation point (#925)
 export { cleanupReferenceData, cleanupTestData, type ReferenceIds } from './__integration__/cleanup'
 export { P, saveAndFinish } from './__integration__/save-and-finish'
 export { seedQuestions, seedReferenceData } from './__integration__/seed'

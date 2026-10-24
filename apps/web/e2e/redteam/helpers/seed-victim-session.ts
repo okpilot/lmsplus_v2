@@ -1,8 +1,7 @@
 /**
  * Victim quiz-flow seeding for the unauthenticated red-team specs.
  *
- * Split out of seed-unauth-fixtures.ts to keep both files under the
- * utility/helper cap in .claude/limits.json.
+ * Split out of seed-unauth-fixtures.ts.
  */
 
 import type { getAdminClient } from '../../helpers/supabase'

@@ -5,8 +5,7 @@ import {
 } from '@/lib/constants/exam-modes'
 
 // Hook-free helpers + public types for useFinishQuizDialog. Split out of
-// use-finish-quiz-dialog.ts to keep that hook file under the 80-line hook cap
-// (code-style.md §1) — all React state/effects stay in the hook.
+// use-finish-quiz-dialog.ts — all React state/effects stay in the hook.
 
 export type UseFinishQuizDialogOpts = {
   open: boolean

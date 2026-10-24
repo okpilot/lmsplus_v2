@@ -2,7 +2,7 @@
 //
 // The PURE scope predicates behind `--staged`: `relPath`, `localImports`, `namedPaths` and
 // `touchesStaged` itself, pinned with a controllable fake reader and no git at all. Split from
-// run-mutations.staged.test.mjs at the test-file cap in .claude/limits.json, which keeps the
+// run-mutations.staged.test.mjs, which keeps the
 // end-to-end `--staged` cases — the ones that need a real repo and a real spawn — over there.
 
 import assert from 'node:assert/strict'

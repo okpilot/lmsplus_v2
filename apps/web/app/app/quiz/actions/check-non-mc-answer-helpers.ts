@@ -1,6 +1,5 @@
 // Runtime type guards + input mapper for the check_non_mc_answer Server Action.
-// Zod input schemas live in check-non-mc-answer-schema.ts (hoisted to keep both
-// files under the 100/200-line caps — code-style.md §1).
+// Zod input schemas live in check-non-mc-answer-schema.ts (hoisted out of this file).
 import type { createServerSupabaseClient } from '@repo/db/server'
 import { MAX_ZONES } from './diagram-validation'
 import { isUniquePermutation, MAX_ORDER_ITEMS, MIN_ORDER_ITEMS } from './ordering-validation'

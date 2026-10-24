@@ -106,72 +106,48 @@ test('excludes the scripts directory', () => {
   assert.equal(isExcluded('scripts/foo.ts', fixture()), true)
 })
 
-test('the live limits file excludes the frozen packages/db/migrations tree', () => {
-  // Not a fixture case — pins the REAL config. packages/db/migrations has been frozen
-  // since 2026-07-11 and carries false history; 13 of its files exceed 300 lines and
-  // must never be graded, baselined or "fixed".
-  assert.equal(isExcluded('packages/db/migrations/0001_x.sql', LIMITS), true)
-  assert.equal(isExcluded('supabase/migrations/0001_x.sql', LIMITS), false)
+test('the live limits file grades only SQL migrations and use server files', () => {
+  // MUTATION: restore a dropped rule (test file, page, hook, component, utility) in limits.json →
+  // a file of that kind is graded again and this goes red. Pins the real config, which the
+  // fixture cases above cannot.
+  assert.deepEqual([...new Set(LIMITS.rules.map((r) => r.kind))].sort(), [
+    'SQL migration',
+    'Server Action file',
+  ])
+  assert.equal(classify('apps/web/e2e/quiz.spec.ts', '', LIMITS), null)
+  assert.equal(classify('apps/web/lib/x.test.ts', '', LIMITS), null)
+  assert.equal(
+    classify('apps/web/app/dash/page.tsx', 'export default function P() {}\n', LIMITS),
+    null,
+  )
+  assert.equal(classify('apps/web/app/a/_hooks/use-x.ts', '', LIMITS), null)
+  assert.equal(classify('apps/web/components/x.tsx', '', LIMITS), null)
+  assert.equal(classify('packages/db/migrations/0001_x.sql', 'x\n', LIMITS), null)
+  assert.equal(classify('supabase/migrations/20260101000000_x.sql', '', LIMITS).max, 300)
 })
 
-test('the live limits file excludes both script directories and generated types', () => {
-  // Added after mutation testing: deleting 'scripts/**' from limits.json left the whole
-  // suite GREEN, because the exclusion cases above assert against a fixture and so pin
-  // the mechanism without pinning the config. A fixture-only test cannot catch a config
-  // regression — that is the gap this closes.
-  assert.equal(isExcluded('scripts/foo.ts', LIMITS), true)
-  assert.equal(isExcluded('apps/web/scripts/import-questions.ts', LIMITS), true)
-  // e2e helpers are deliberately NOT excluded — only *.test.*/*.spec.* BASENAMES are.
-  // The over-limit ones are grandfathered in `baseline`, visibly, rather than hidden
-  // behind a directory exclusion that would reverse a documented decision.
-  assert.equal(isExcluded('apps/web/e2e/helpers/supabase.ts', LIMITS), false)
-  assert.equal(classify('apps/web/e2e/quiz.spec.ts', '', LIMITS).max, 500)
-  assert.equal(isExcluded('packages/db/src/types.ts', LIMITS), true)
-  // Config files: currently no config file is over any cap, so dropping this exclusion
-  // breaks nothing visible and survived mutation testing until this line was added.
-  assert.equal(isExcluded('apps/web/next.config.ts', LIMITS), true)
-  assert.equal(isExcluded('apps/web/vitest.config.ts', LIMITS), true)
-  assert.equal(isExcluded('apps/web/lib/queries/x.ts', LIMITS), false)
-})
-
-test('every rule note pointing at `_ratios` finds it — the pointer cannot dangle', () => {
-  // MUTATION: delete (or rename) the top-level `_ratios` key while a rule's `note` still
-  // reads "See `_ratios`." — nothing else in this codebase reads `note`, so a dropped
-  // key would leave the pointer dangling silently forever.
-  // Deliberately narrow: this pins only the dangling-pointer half. It does NOT detect a
-  // future note re-duplicating the `_ratios` paragraph text instead of pointing at it —
-  // that would need a text-similarity check across hand-written prose, which is the same
-  // fragile-mirror trade this PR already declined for `globToRe` memoization. `note` is
-  // pure documentation the guard never evaluates, so a re-duplicated paragraph is a style
-  // regression, not a functional one; a dangling pointer is what's cheap and unambiguous
-  // to pin here.
-  const referencing = LIMITS.rules.filter((r) => r.note?.includes('`_ratios`'))
-  assert.ok(referencing.length > 0, 'expected at least one rule note to reference `_ratios`')
-  assert.equal(typeof LIMITS._ratios, 'string')
-  assert.ok(LIMITS._ratios.length > 0)
-})
-
-test('the live limits file orders the Server Action rule ahead of the util rule', () => {
-  // Also added after mutation testing: moving the util rule to the front of
-  // limits.json.rules silently loosened the Server Action cap to the utility one with every
-  // test still green, for the same fixture-vs-config reason. Rule ORDER is load-bearing
-  // — first match wins — so it has to be pinned against the real file.
+test('the live limits file takes a use server .ts and .tsx at 100, a plain .ts at no cap', () => {
+  // MUTATION: drop requiresUseServer from a Server Action rule in limits.json → a plain helper
+  // is graded at the Server Action cap.
   const action = classify('apps/web/app/a/actions/x.ts', "'use server'\nconst a = 1\n", LIMITS)
   assert.equal(action.kind, 'Server Action file')
   assert.equal(action.max, 100)
 
-  const util = classify('apps/web/app/a/actions/x-helpers.ts', 'const a = 1\n', LIMITS)
-  assert.equal(util.kind, 'utility/helper')
-  assert.equal(util.max, 200)
+  const tsx = classify('apps/web/app/a/actions/x.tsx', "'use server'\nconst a = 1\n", LIMITS)
+  assert.equal(tsx.kind, 'Server Action file')
+  assert.equal(tsx.max, 100)
 
-  const page = classify('apps/web/app/dash/page.tsx', 'export default function P() {}\n', LIMITS)
-  assert.equal(page.max, 80)
+  assert.equal(classify('apps/web/app/a/actions/x-helpers.ts', 'const a = 1\n', LIMITS), null)
+  assert.equal(
+    classify('apps/web/app/dash/page.tsx', 'export default function P() {}\n', LIMITS),
+    null,
+  )
 })
 
 // ------------------------------------------------------------------- classify
 
 test('a .ts declaring use server takes the 100 limit, not the 200 util limit', () => {
-  // MUTATION: move the util rule above the Server Action rule in limits.json → a real
+  // MUTATION: move the util rule above the Server Action rule in the fixture → a real
   // Server Action is graded against the utility rule and its cap silently loosens.
   const r = classify('apps/web/app/a/actions/x.ts', "'use server'\n", fixture())
   assert.equal(r.kind, 'Server Action file')

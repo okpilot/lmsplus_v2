@@ -437,12 +437,14 @@
       "expectRed": [
         "renaming a grandfathered file out of its rule class is blocked, not silently allowed",
         "the current tracked tree has no regression against the committed baseline",
+        "the live limits file grades only SQL migrations and use server files",
+        "the live limits file takes a use server .ts and .tsx at 100, a plain .ts at no cap",
         "a file type with no matching rule is left unclassified, not defaulted to a limit",
         "update-baseline leaves limits.json byte-identical when it already matches the tree",
         "update-baseline reports an added violation and a removed now-compliant entry, and drops the removed key",
         "stats mode skips an unreadable tracked file instead of blocking the whole report"
       ],
-      "note": "Anchored on the preceding return plus the closing brace: bare `return null` appears four times in the guard. Defaulting rather than returning null pulls previously-unclassified files into grading, so the stats and update-baseline paths redden alongside the classify test — six in total. Read the set with care: `renaming a grandfathered file out of its rule class is blocked, not silently allowed` reddens at its FIRST assertion, because the 623-line guard copy matches no rule today and a default rule makes it a new violation. Its rename-blocking mechanism is never reached, so its membership here says nothing about rename detection."
+      "note": "Anchored on the preceding return plus the closing brace: bare `return null` appears four times in the guard. Defaulting rather than returning null pulls previously-unclassified files into grading, so the stats and update-baseline paths redden alongside the classify test — eight in total. Read the set with care: `renaming a grandfathered file out of its rule class is blocked, not silently allowed` reddens at its FIRST assertion, because the guard copy (`.mjs`) matches no rule today and a default rule makes it a new violation. Its rename-blocking mechanism is never reached, so its membership here says nothing about rename detection."
     },
     {
       "id": "globtore-stops-escaping-metacharacters",
@@ -633,7 +635,7 @@
   ],
   "notEncoded": [
     {
-      "claim": "update.test.mjs 'the lefthook glob reaches every extension the rules can match': drop `sql` (or `mjs`) from the file-size-guard glob in lefthook.yml",
+      "claim": "update.test.mjs 'the lefthook glob reaches every extension the rules can match': drop `sql` (or `ts`/`tsx`) from the file-size-guard glob in lefthook.yml",
       "why": "The mutation edits lefthook.yml, not this file's `target` (check-file-size-guard.mjs). A data file carries ONE top-level target, so a config-file mutation cannot be expressed. Third such claim in this suite family (lefthook.yml, .coderabbit.yaml, limits.json) — a per-mutation target override now meets the rule of three and is worth its own change."
     },
     {
@@ -654,23 +656,27 @@
     },
     {
       "claim": "test.mjs 'test files are relaxed to 500, not exempt from every limit': restore the blanket basename EXCLUSION",
-      "why": "The mutation edits `excludeBasenamePatterns` in .claude/limits.json, not this file's `target`. The assertion runs against the local `fixture()` object, so no edit to the guard source can reach it."
+      "why": "The assertion runs against the local `fixture()` object, so no edit to .claude/limits.json reaches it; restoring a blanket exclusion is a rewrite of the guard's classification, not a single-site edit the harness can apply to `target`."
     },
     {
       "claim": "test.mjs 'excludes the generated Supabase types file': remove the types.ts glob",
-      "why": "The mutation edits `excludeGlobs` in .claude/limits.json, not this file's `target`. Fixture-scoped: the live config is pinned by a separate unclaimed test in the same suite."
+      "why": "The assertion runs against the local `fixture()` object, so no edit to .claude/limits.json reaches it. Fixture-scoped: the live config has empty exclusion lists."
     },
     {
       "claim": "test.mjs 'excludes the scripts directory': remove 'scripts/**'",
-      "why": "The mutation edits `excludeGlobs` in .claude/limits.json, not this file's `target`. Fixture-scoped, as above."
+      "why": "The assertion runs against the local `fixture()` object, so no edit to .claude/limits.json reaches it. Fixture-scoped, as above."
     },
     {
-      "claim": "test.mjs 'every rule note pointing at `_ratios` finds it': delete or rename the top-level `_ratios` key",
-      "why": "The mutation edits .claude/limits.json, and the key it names is documentation the guard never evaluates — no code in `target` reads `note` or `_ratios`, so there is nothing to mutate."
+      "claim": "test.mjs 'the live limits file grades only SQL migrations and use server files': restore a dropped rule (test file, page, hook, component, utility) in limits.json",
+      "why": "The mutation edits `rules` in .claude/limits.json, not this file's `target`. The assertion reads the live config, so the guard source cannot reach it."
+    },
+    {
+      "claim": "test.mjs 'the live limits file takes a use server .ts and .tsx at 100, a plain .ts at no cap': drop requiresUseServer from a Server Action rule in limits.json",
+      "why": "The mutation edits `rules` in .claude/limits.json, not this file's `target`. The assertion reads the live config, so the guard source cannot reach it."
     },
     {
       "claim": "test.mjs 'a .ts declaring use server takes the 100 limit, not the 200 util limit': move the util rule above the Server Action rule",
-      "why": "The mutation reorders `rules` in .claude/limits.json, not this file's `target`. Rule ORDER is data; the guard's first-match-wins loop is what the fixture exercises."
+      "why": "The mutation reorders a config's `rules`, not this file's `target`. Rule ORDER is data; the guard's first-match-wins loop is what the fixture exercises."
     },
     {
       "claim": "test.mjs 'classifies a SQL migration, so the sql path is not invisible to the guard': widen the migration glob or reorder it after a broader rule",

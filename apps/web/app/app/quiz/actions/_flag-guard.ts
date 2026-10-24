@@ -1,5 +1,4 @@
-// Helpers for toggleFlag. Extracted so flag.ts stays under the 100-line
-// Server Action cap from .claude/rules/code-style.md §1.
+// Helpers for toggleFlag. Extracted from flag.ts.
 
 import type { createServerSupabaseClient } from '@repo/db/server'
 import { resolveZeroRowWrite } from './_caller-active'

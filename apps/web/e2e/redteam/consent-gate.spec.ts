@@ -34,8 +34,7 @@
  *   Case B: user with DB consent rows → consent cookie set + /app/dashboard.
  *
  * Vector FU (#1377, CLOSED): shared-browser cross-user cookie reuse — covered
- * in consent-cookie-user-binding.spec.ts (split out to stay under the
- * test-file size cap).
+ * in consent-cookie-user-binding.spec.ts.
  *
  * Closes: GitHub issue #384 (proxy/browser-gate portion).
  *

@@ -2,8 +2,7 @@
 //
 // The git-facing and subprocess paths of the prose-paths guard: corpus scoping, the baseline
 // ratchet, the staged/index read, the gitignore round trip and the exit-code split. The pure
-// decision logic lives in check-prose-paths.test.mjs, so neither file approaches the
-// test-file cap in .claude/limits.json.
+// decision logic lives in check-prose-paths.test.mjs.
 //
 // Every case is MUTATION-PINNED: the opening comment names the break that turns it red, and
 // every break was EXECUTED before being written down (`code-style.md` §7 — a `MUTATION:` line

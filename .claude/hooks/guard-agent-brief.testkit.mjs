@@ -1,6 +1,6 @@
 // Shared fixtures and helpers for the guard-agent-brief test suites
 // (guard-agent-brief.test.mjs, guard-agent-brief.sendmessage.test.mjs). Split out so each suite
-// stays under the test-file cap (code-style.md §1) without duplicating fixture setup. Pattern:
+// avoids duplicating fixture setup. Pattern:
 // spawn.testkit.mjs — not a suite itself, no ci.yml step of its own; each importer has one.
 //
 // Fixture creation runs as a MODULE-LEVEL side effect: ESM caches a module by resolved path, so

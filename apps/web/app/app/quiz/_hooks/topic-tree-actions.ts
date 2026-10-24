@@ -23,7 +23,7 @@ type TopicTreeActionDeps = {
 
 /**
  * Builds the imperative topic-tree action functions (load/toggle/select/reset).
- * Extracted from useTopicTree so that hook stays within the 80-line file cap.
+ * Extracted from useTopicTree.
  */
 export function createTopicTreeActions({
   topics,

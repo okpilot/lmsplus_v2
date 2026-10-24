@@ -116,7 +116,7 @@ feature/
 │   ├── submit.ts
 │   └── submit.test.ts
 ├── types.ts              # Feature-scoped type definitions
-├── page.tsx              # Route page (composition only — limits: .claude/limits.json)
+├── page.tsx              # Route page (composition only)
 └── loading.tsx           # Suspense fallback
 ```
 
@@ -396,7 +396,7 @@ unrelated content silently.
 
 | Metric | Limit | Remedy |
 |--------|-------|--------|
-| Lines per function | 30 | Extract named helper functions |
+| Lines per function | 50 (Biome); 30 reviewer target | Extract named helper functions |
 | Parameters | 3 | Use an options object for 4+ params |
 | Nesting depth | 3 levels | Use early returns, extract helpers |
 

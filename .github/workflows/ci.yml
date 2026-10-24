@@ -68,28 +68,23 @@ jobs:
       - name: File-size guard — unit test
         run: node --test .claude/hooks/check-file-size-guard.test.mjs
 
-      # Split from the unit suite when the combined file crossed the test-file cap this
-      # guard enforces. A test file nothing runs certifies its mechanism
-      # unconditionally, so the split needs its own step, not just its own file.
+      # A test file nothing runs certifies its mechanism unconditionally, so each split
+      # suite needs its own step, not just its own file.
       - name: File-size guard — CLI and live-tree tests
         run: node --test .claude/hooks/check-file-size-guard.cli.test.mjs
 
-      # Split from the CLI suite when linking every claim to its mutation pushed it into the
-      # same-commit extraction trigger again. Same requirement: its own step, or it runs nowhere.
+      # Same requirement: its own step, or it runs nowhere.
       - name: File-size guard — stderr-trailer tests
         run: node --test .claude/hooks/check-file-size-guard.trailer.test.mjs
 
-      # Split from the CLI suite when the staged-rename case pushed it into the same-commit
-      # extraction trigger in code-style.md §1. Same reason as the split above, same
-      # requirement: its own step, or the file runs nowhere.
+      # Same requirement: its own step, or the file runs nowhere.
       - name: File-size guard — argument-handling tests
         run: node --test .claude/hooks/check-file-size-guard.args.test.mjs
 
       - name: File-size guard — --update-baseline tests
         run: node --test .claude/hooks/check-file-size-guard.update.test.mjs
 
-      # Split from the unit suite when the multi-entry prologue case pushed it into the same
-      # trigger again. Same reason as the two splits above, same requirement: its own step.
+      # Same requirement: its own step.
       #
       # timeout-minutes because one case here proves TERMINATION: drop the guard's
       # unterminated-comment branch and the scan loops forever rather than answering wrong.

@@ -1,6 +1,5 @@
 // Unit tests for `declaresUseServer` — the file-size guard's Server Action classifier.
-// Split out of `check-file-size-guard.test.mjs` when adding the multi-entry prologue case put
-// that file inside the same-commit extraction trigger in code-style.md §1. CI runs each suite
+// Split out of `check-file-size-guard.test.mjs`. CI runs each suite
 // by explicit path, so this file needs its own step in `.github/workflows/ci.yml` — a test file
 // nothing runs certifies its mechanism unconditionally.
 // Run:
@@ -40,8 +39,8 @@ test('recognises the directive in single or double quotes at line start', () => 
 
 // GROUP: block-comment-branch-deleted
 test('a block comment whose line begins with the directive is not a declaration', () => {
-  // MUTATION: restore `/^\s*['"]use server['"]/m` → this matches and a 200-line utility takes
-  // the 100-line Server Action cap. The line-start anchor that fixed the DENIAL case above did
+  // MUTATION: restore `/^\s*['"]use server['"]/m` → this matches and a plain helper takes the
+  // 100-line Server Action cap. The line-start anchor that fixed the DENIAL case above did
   // not fix this one: `/m` re-anchors on every line, including the inside of a block comment.
   // A directive is only a directive in the prologue, so the scan skips comments and whitespace
   // and requires the directive to be what comes next.
@@ -80,8 +79,8 @@ test('a use server directive that is the SECOND prologue entry still counts', ()
   // MUTATION: return false instead of continuing the loop after a non-matching literal → red.
   // The prologue is a SEQUENCE of bare string literals, so `'use strict'` may precede the
   // directive. The regex this scan replaced answered true here; stopping at the first literal
-  // would answer false, handing a real Server Action the 200-line utility cap — the direction
-  // that fails SILENTLY. No tracked file has the shape today, which is why only a test holds it.
+  // would answer false, leaving a real Server Action ungraded — the direction that fails
+  // SILENTLY. No tracked file has the shape today, which is why only a test holds it.
   assert.equal(
     declaresUseServer("'use strict'\n'use server'\nexport async function f() {}\n"),
     true,
