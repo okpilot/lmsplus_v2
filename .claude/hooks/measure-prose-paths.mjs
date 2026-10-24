@@ -17,7 +17,7 @@
 // first regex edit — which is precisely how a guard ends up defended by numbers that describe
 // something else.
 //
-// The WIDE corpus here is the sibling's (`check-prose-claims.mjs § inCorpus`) minus `.json`,
+// The WIDE corpus here is `check-prose-paths.mjs § inCorpus` minus `.json`,
 // so the funnel shows what the spec-tree subtraction actually buys. The guard's own corpus —
 // the BINDING surface — is the last line of the funnel, and is the only one it enforces on.
 //
@@ -28,7 +28,6 @@
 import { readFileSync } from 'node:fs'
 import { argv, exit } from 'node:process'
 import { pathToFileURL } from 'node:url'
-import { inCorpus } from './check-prose-claims.mjs'
 import {
   buildIndex,
   classify,
@@ -37,6 +36,7 @@ import {
   DATA_EXT,
   extOf,
   ignoredTokens,
+  inCorpus,
   normalise,
   trackedPaths,
 } from './check-prose-paths.mjs'
@@ -46,7 +46,7 @@ import {
 const FINDING_CLASS = 'unresolved'
 
 /**
- * The wide corpus: every file the sibling grades as prose, minus `.json`, which has no comment
+ * The wide corpus: every file in `inCorpus`, minus `.json`, which has no comment
  * syntax and therefore no prose lines at all.
  */
 function wideCorpus(tracked) {
@@ -83,7 +83,7 @@ export function main(args) {
   const onBinding = residual.filter((c) => binding.has(c.path))
 
   console.log('THE FUNNEL (worktree, now)')
-  console.log(`  corpus files, wide (sibling corpus minus .json): ${wide.length}`)
+  console.log(`  corpus files, wide (inCorpus minus .json): ${wide.length}`)
   console.log(`  corpus files, binding (what the guard grades):   ${binding.size}`)
   console.log(`  raw candidate tokens:                            ${raw}`)
   console.log(`  non-resolving:                                   ${candidates.length}`)

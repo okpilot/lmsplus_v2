@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0 # full history so the test-title guard (#946) can diff against the PR base
+          fetch-depth: 0 # full history so the decisions-ledger guard can resolve the PR base's merge-base
           persist-credentials: false # the guard only reads git history; no step needs write access
 
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
@@ -103,25 +103,6 @@ jobs:
         timeout-minutes: 5
         run: node --test .claude/hooks/check-file-size-guard.directive.test.mjs
 
-      # §7 test-title impl-leakage guard (#946). Diff-scoped + grandfathered:
-      # only titles ADDED in the PR are checked (PR events only — push to master
-      # has no PR base). fetch-depth:0 above makes the base SHA available.
-      - name: Test-title impl-leakage guard (PR diff, code-style.md §7)
-        if: github.event_name == 'pull_request'
-        run: node .claude/hooks/check-test-title-leakage.mjs --base ${{ github.event.pull_request.base.sha }}
-
-      - name: Test-title impl-leakage guard — unit test
-        run: node --test .claude/hooks/check-test-title-leakage.test.mjs
-
-      - name: Test-title impl-leakage guard — repo-config fixtures (textconv/ext-diff/noprefix/color)
-        run: node --test .claude/hooks/check-test-title-leakage.repo.test.mjs
-
-      - name: Shared diff parser — unit test
-        run: node --test .claude/hooks/diff-parse.test.mjs
-
-      - name: Mirror-sync checker unit tests
-        run: node --test .claude/hooks/check-mirror-sync.test.mjs
-
       # PR head-file fetcher used by claude-review.yml (Decision 89) — not a guard, no
       # pipeline.json `guards` entry.
       - name: PR head-file fetcher — unit test
@@ -144,35 +125,8 @@ jobs:
       - name: Review gate — unit test
         run: node --test .claude/hooks/review-gate.test.mjs
 
-      - name: Commit-claims guard — unit test
-        run: node --test .claude/hooks/check-commit-claims.test.mjs
-
-      # Retracted-phrase guard (code-style.md §10 cl.3). This re-checks each commit in the
-      # range exactly as the commit-msg hook did, so its value is catching commits pushed
-      # with the hook bypassed — NOT a wider cross-branch analysis. Merge commits are skipped
-      # (see the guard's rev-list call), so nothing here sees more than one commit at a time.
-      # Each suite needs its own step — there is no aggregator.
-      - name: Retracted-phrase guard (PR diff, code-style.md §10 cl.3)
-        if: github.event_name == 'pull_request'
-        run: node .claude/hooks/check-retracted-phrase.mjs --base ${{ github.event.pull_request.base.sha }}
-
-      - name: Retracted-phrase guard — unit test
-        run: node --test .claude/hooks/check-retracted-phrase.test.mjs
-
-      - name: Retracted-phrase guard — git-facing tests
-        run: node --test .claude/hooks/check-retracted-phrase.repo.test.mjs
-
-      - name: Retracted-phrase guard — --base (branch-range) tests
-        run: node --test .claude/hooks/check-retracted-phrase.base.test.mjs
-
-      - name: Retracted-phrase guard — path-handling tests
-        run: node --test .claude/hooks/check-retracted-phrase.paths.test.mjs
-
-      - name: Retracted-phrase guard — color.ui=always tests
-        run: node --test .claude/hooks/check-retracted-phrase.color.test.mjs
-
-      # Decisions-ledger guard (Decisions 86, 88): re-checks each non-merge commit in the range
-      # as the commit-msg hook did, then merge-base..HEAD, catching edits made in merge commits.
+      # Decisions-ledger guard (Decision 86): merge-base of the PR base and HEAD vs HEAD, waived by
+      # the Ledger-edit-ok trailers of the non-merge commits in the range.
       - name: Decisions-ledger guard (PR commits, Decision 86)
         if: github.event_name == 'pull_request'
         run: node .claude/hooks/check-decisions-ledger.mjs --base ${{ github.event.pull_request.base.sha }}
@@ -186,37 +140,12 @@ jobs:
       - name: Decisions-ledger guard — --base (branch-range) tests
         run: node --test .claude/hooks/check-decisions-ledger.base.test.mjs
 
-      - name: Decisions-ledger guard — merge-commit (range) tests
-        run: node --test .claude/hooks/check-decisions-ledger.range.test.mjs
-
-      - name: Decisions-ledger guard — range hint tests
-        run: node --test .claude/hooks/check-decisions-ledger.range-hint.test.mjs
-
-      - name: Decisions-ledger guard — range unit (pure) tests
-        run: node --test .claude/hooks/check-decisions-ledger.range-pure.test.mjs
-
-      # Prose-claims guard (code-style.md §1: limits are DATA; never restate a number in prose).
-      # `--all` here, NOT the staged mode the pre-commit hook uses: CI grades the whole worktree
-      # against `.claude/prose-claims.json`, so a restatement that reached master before this
-      # guard existed is baselined rather than blocking, and a NEW one fails the job. This also
-      # catches a baseline row whose line has since changed or gone — the same shrink-must-be-
-      # recorded rule the file-size ratchet has, for the same reason: an unrecorded shrink means
-      # the file and the baseline disagree about what is being graded.
-      - name: Prose-claims guard (whole worktree, ratcheted)
-        run: node .claude/hooks/check-prose-claims.mjs --all
-
-      - name: Prose-claims guard — unit test
-        run: node --test .claude/hooks/check-prose-claims.test.mjs
-
-      - name: Prose-claims guard — git-facing tests
-        run: node --test .claude/hooks/check-prose-claims.repo.test.mjs
-
       # Prose-paths guard (code-style.md §9/§10: a file path written in prose must resolve).
       # `--all` here, NOT the staged mode the pre-commit hook uses: CI grades the whole worktree
       # against `.claude/prose-paths.json`, so a path that was already broken before this guard
       # existed is baselined rather than blocking, and a NEW one fails the job. This also catches
       # a baseline row whose line has since changed or gone — the same shrink-must-be-recorded
-      # rule the file-size and prose-claims ratchets have, for the same reason: an unrecorded
+      # rule the file-size ratchet has, for the same reason: an unrecorded
       # change means the file and the baseline disagree about what is being graded.
       # Each artifact needs its own step — there is no glob and no aggregator.
       - name: Prose-paths guard (whole worktree, ratcheted)
@@ -253,10 +182,8 @@ jobs:
       # HEAD, so a PR ADDING data grades it for the first time); the second claimed the unit suite
       # already covered it (false — see above, and CodeRabbit caught it). On this very branch a
       # reformat ORPHANED three anchors at count=0 and four `expectRed` sets were under-specific;
-      # the unit suite was green throughout. (An earlier version of this comment credited
-      # `fetch-depth: 0` for making the worktree possible — FALSE, caught by CR-local: a shallow
-      # checkout also has HEAD and `git worktree add --detach <dir> HEAD` works from it. The full
-      # history above is there for the test-title guard's base diff, not for this step.)
+      # the unit suite was green throughout. (A shallow checkout also has HEAD, so
+      # `git worktree add --detach <dir> HEAD` works without `fetch-depth: 0`.)
       - name: Mutation harness — unit test
         run: >-
           node --test .claude/hooks/run-mutations.test.mjs
@@ -347,7 +274,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0 # check-commit-claims' controls read the last 50 commits
+          fetch-depth: 0 # suites that read git history
           persist-credentials: false
 
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0

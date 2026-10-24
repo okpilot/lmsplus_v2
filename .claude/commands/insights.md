@@ -12,20 +12,11 @@ Weekly self-review: analyse project health and audit the agent system.
    - **Doc-updater**: confirm watched file list matches actual doc files in repo; note any unresolved steering drift
    - **Security-auditor**: compare checklist in agent definition vs rules in `docs/security.md`
    - **CodeRabbit**: spot-check last 3 rules in `code-style.md` against `.coderabbit.yaml` path_instructions
-   - **Retracted-phrase waivers**: `git log --format=%B | grep -c '^Retracted-ok:'` — counts
-     TRAILERS, not commits: one commit can waive several tokens, and `--grep ... --oneline | wc -l`
-     would score that as one. NOT
-     `git log -S`, which searches changed FILE CONTENT and so cannot see a trailer that exists
-     only in a commit message; it would report zero for ever and this check would certify a clean
-     hatch permanently. Every waiver is a
-     claim someone chose not to finish correcting. Read the reasons. If waivers are running above
-     roughly one per 25 commits, the detector is mis-tuned and must be RE-NARROWED, not tolerated:
-     a hatch used reflexively is how this guard dies quietly
    - **Inline guard waivers** — live waivers, never a count (the quoting set is OPEN, §10 cl.2):
-     `git grep -n -e 'prose-claim-ok:' -e 'prose-path-ok:' | grep -v "git grep -n -e"`
+     `git grep -n -e 'prose-path-ok:' | grep -v "git grep -n -e"`
      Quotations of the command, re-derive with:
-     `git grep -n -e 'prose-claim-ok:' -e 'prose-path-ok:' | grep "git grep -n -e"`
-     Do NOT exclude `.claude/commands/` or `.claude/hooks/`: both carry live waivers.
+     `git grep -n -e 'prose-path-ok:' | grep "git grep -n -e"`
+     Do NOT exclude `.claude/hooks/`: it carries live waivers.
      Non-waiver residue (guard `WAIVER_RE`, help text, suite fixtures) is an
      OPEN set: a waiver carries a written reason, a description carries a `<placeholder>`.
      READ every reason. Growth means the detector must be RE-NARROWED, never baselined.

@@ -25,8 +25,7 @@ const lines = (n) => `${'x\n'.repeat(n)}`
 // GROUP: cli-limits-read-failure-exits-zero
 test('blocks rather than passes when the limits file cannot be read', () => {
   // MUTATION: change the catch to exit(0) → the guard reports clean forever the moment
-  // anything breaks, and nobody looks again. This is the failure mode that made
-  // check-mirror-sync.mjs necessary: five shipped fail-opens, each silently passing.
+  // anything breaks, and nobody looks again.
   const guard = join(process.cwd(), '.claude/hooks/check-file-size-guard.mjs')
   const empty = mkdtempSync(join(tmpdir(), 'file-size-'))
   try {

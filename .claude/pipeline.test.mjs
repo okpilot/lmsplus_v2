@@ -349,14 +349,14 @@ for (const site of spec.modelLiteralSites) {
   // file already derives from the FILESYSTEM -- `onDisk`, the .claude/agents/ listing -- which git
   // did not produce and a narrowed pathspec cannot satisfy. An agents file that is untracked fails
   // here too, deliberately: an agent definition outside git is not part of the repo.
-  const ANCHORS = ['.claude/pipeline.test.mjs', '.claude/hooks/check-mirror-sync.mjs']
+  const ANCHORS = ['.claude/pipeline.test.mjs', '.claude/hooks/check-file-size-guard.mjs']
   const unseen = [
     ...ANCHORS.filter((f) => !tracked.includes(f)),
     ...onDisk.map((n) => `.claude/agents/${n}.md`).filter((f) => !tracked.includes(f)),
   ]
   // A finite anchor set is only ever a SAMPLE, and a pathspec can union in exactly the
   // subdirectories the sample covers -- `-- .claude/agents .claude/pipeline.test.mjs
-  // .claude/hooks/check-mirror-sync.mjs` satisfies every anchor while dropping .claude/rules/,
+  // .claude/hooks/check-file-size-guard.mjs` satisfies every anchor while dropping .claude/rules/,
   // .claude/commands/, .claude/pipeline.json and the rest -- collapsing 121 tracked files to 12
   // and narrowing the coverage line below from three extensions to one. Before `full` was added
   // that ran fully green; it is what `full` exists to catch. `full` is a second opinion: same

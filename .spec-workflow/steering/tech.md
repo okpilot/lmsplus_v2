@@ -96,9 +96,7 @@ lmsplusv2/
 - **VCS**: Git on GitHub (`okpilot/lmsplus_v2`). Public repository.
 - **Branching strategy**: Feature branches + PRs to `master`. Branch protection: PRs required, 8 required checks (Lint & Format, Type Check, Unit Tests, E2E Tests (Playwright), Analyze (javascript-typescript), Red Team Specs, Integration Tests (Supabase), Migration Test (clean reset)), strict mode (branch must be up-to-date), no force push, enforce admins.
 - **Commit format**: Conventional Commits enforced via commitlint in Lefthook `commit-msg` hook,
-  alongside the other gates on that stage — a cited commit SHA must resolve (Decision 64), and a
-  claim corrected in one corpus file must not still stand in another (Decision 66). Mechanisms and
-  measured bounds live in those decisions; do not restate them here, and do not count the gates —
+  alongside the other gates on that stage; do not count the gates —
   "a second gate" stood here and went stale the moment a third landed. The stage's command list is
   DATA in `.claude/pipeline.json`.
 - **Code review**: CodeRabbit and the CI reviewer `.github/workflows/claude-review.yml` (Decision 78) on PRs, + in-session Claude Code subagents. The GATE runs once per branch over `git diff origin/master...HEAD`; every round runs one parallel batch — semantic-reviewer, doc-updater, test-writer, `code-review (skill)` (the built-in `/code-review` skill, dispatched as `subagent_type: code-review-skill` in an isolated worktree on opus), and e2e-writer (conditional on the diff touching `apps/web/app/**`, `apps/web/components/**` or `apps/web/proxy.ts`) — and the loop stops on the first round with no APPLY-worthy finding (`.claude/skills/review-gate/agent-workflow.md § Pre-Push Review Gate`). red-team (opus) runs once post-loop on security-path diffs — it attacks the local stack and writes+runs a failing spec per proven exploit.
@@ -111,10 +109,8 @@ lmsplusv2/
     added. (Unit tests run in CI, not pre-commit.)
   - `commit-msg`: the stage's command list is DATA in `.claude/pipeline.json`, same as pre-commit
     above. Read it there — this line used to enumerate the gates and went stale the first time one
-    was added (Decision 66). What they enforce, rather than which commands run, is that a cited
-    commit SHA resolves (Decision 64), that a claim corrected in one corpus file does not still
-    stand in another (Decision 66), and that an existing `docs/decisions.md` line is never edited
-    except to append a marker (Decision 86).
+    was added. What they enforce, rather than which commands run, is that an existing
+    `docs/decisions.md` line is never edited except to append a marker (Decision 86).
   - `pre-push` (parallel): security-auditor agent + `pnpm audit --audit-level=high`
 
 ## Deployment & Distribution

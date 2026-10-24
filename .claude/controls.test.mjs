@@ -272,9 +272,9 @@ function controlGradingProblems(loc, line, wantId, data) {
  *
  * `suites`/`target` are checked only for a suite that actually CARRIES >=1 control test — the
  * data file's `suites` names the suites the mutation harness runs to GRADE controls, which is
- * frequently a strict subset of a guard's full registered `suites` (e.g. `check-commit-claims`
- * registers a plain `.test.mjs` unit suite alongside its `.controls.test.mjs`; only the latter
- * needs to appear in the data file).
+ * frequently a strict subset of a guard's full registered `suites` (a guard may register a plain `.test.mjs`
+ * unit suite alongside its `.controls.test.mjs`; only the latter needs to appear in the data
+ * file).
  */
 function checkSuiteControls(root, suite, base, guardPath, data) {
   const suitePath = join(root, suite)

@@ -216,11 +216,9 @@ reviews:
         does not have is worse than no comment — it is what the next reader trusts when deciding
         whether a guard can safely be removed. Flag:
         - An INCOMPLETE retraction: a value or filename this diff corrects in one place while the
-          old text still stands in another file. Mirrors the mechanical commit-msg guard
-          .claude/hooks/check-retracted-phrase.mjs (code-style.md §10 cl.3), which covers only
-          .claude/, docs/, .spec-workflow/, CLAUDE.md and .coderabbit.yaml — so in APPLICATION
-          CODE, which this block governs, that review is the only check there is. The corpus-side
-          paraphrase case is handled in the binding-docs block, not here: this glob never sees it.
+          old text still stands in another file (code-style.md §10 cl.3). That review is the only
+          check there is. The corpus-side case is handled in the binding-docs block, not here:
+          this glob never sees it.
         - A claim about a DB guard, grant, ownership, replay/idempotency or constraint that is not
           verified against the LATEST migration body FOR THE MATCHING SIGNATURE (trace CREATE OR
           REPLACE and DROP+CREATE; ALTER FUNCTION, which changes SET search_path / SECURITY
@@ -320,18 +318,12 @@ reviews:
         Comment accuracy for binding docs (code-style.md §10). These files are read as authority,
         so a wrong claim here propagates into code. Flag:
         - An INCOMPLETE retraction: a value or filename this diff corrects here while the old text
-          still stands in another doc. `.claude/hooks/check-retracted-phrase.mjs` blocks the exact
-          VERBATIM case at commit-msg, and CI re-runs that same per-commit check to catch a
-          bypassed hook, so what is left for review is the case it cannot see — a
-          PARAPHRASED restatement of the same claim, and a correction that deletes a stale value
-          without replacing it (the guard's hunk gate needs a replacement to fire).
+          still stands in another doc, verbatim or PARAPHRASED, including a correction that deletes
+          a stale value without replacing it. No mechanical check exists; review is the only one.
         - A FILE-SIZE CAP restated in prose. `.claude/limits.json` is the only executed copy and
-          `code-style.md` §1 says never to restate a number; `.claude/hooks/check-prose-claims.mjs`
-          blocks a new one at pre-commit and in CI, ratcheted against `.claude/prose-claims.json`.
-          What it cannot see is a cap SPELLED OUT or PARAPHRASED — "the five-hundred-line cap", "a
-          cap of about five hundred" — because it matches the numeral shape. Flag those; a prose
-          cap is stale the moment limits.json moves, and unlike the numeral form nothing will
-          catch it. The `Max N lines` figures in THIS file are the deliberate exception: CodeRabbit
+          `code-style.md` §1 says never to restate a number. Flag the numeral form and the cap
+          SPELLED OUT or PARAPHRASED — "the five-hundred-line cap", "a cap of about five
+          hundred"; a prose cap is stale the moment limits.json moves, and nothing will catch it. The `Max N lines` figures in THIS file are the deliberate exception: CodeRabbit
           cannot follow a pointer, and `check-file-size-guard.update.test.mjs` machine-verifies
           them against limits.json in CI, so they are pinned rather than drifting.
         - A FILE PATH cited in prose that does not resolve on disk.
@@ -395,10 +387,9 @@ reviews:
     - path: "docs/decisions.md"
       instructions: |
         Decisions ledger (Decision 86; mechanised by .claude/hooks/check-decisions-ledger.mjs at
-        commit-msg and in CI; in CI a merge commit's edit clears only when the final line has the
-        body, and every marker the merge-base also had, of the text a non-merge `Ledger-edit-ok`
-        commit produced, as re-written by any non-merge commit descending from it (a re-add
-        retires a waived removal) — Decision 88). Flag:
+        commit-msg and in CI; in CI (`--base`) the ledger at the merge-base is compared with HEAD
+        and waived by the `Ledger-edit-ok` trailers of every non-merge commit on the branch —
+        Decision 147). Flag:
         - An entry line not matching `## <N> — <YYYY-MM-DD> — <text>`, or a number that is not
           the previous entry's number + 1.
         - Any change to an EXISTING line other than appending ` Superseded by <N>.` or

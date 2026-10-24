@@ -3,9 +3,11 @@
   "claims": {
     ".claude/agents/test-writer.md@ec5fbb9d4db9aa92": "- Co-locate: `src/actions.ts` → `src/actions.test.ts`",
     ".claude/commands/fullpush.md@cb8369147620eb13": "6. **Migration validation (conditional)**: if `$CHANGED` (from 5b) includes `supabase/migrations/`, validate the migr...",
-    ".claude/hooks/check-prose-claims.mjs@268bddd3d89eae24": "* corrected into a pointer. Excluded by exact path, not by prefix, so a future `.claude/run-log/` tree",
     ".coderabbit.yaml@8c19f0a9ecf7dc58": "# a docs/README.md would match too if one were ever added (none exists today). Reviewing",
     ".coderabbit.yaml@e3dd325cf4abef8b": "SECURITY DEFINER function must filter deleted_at IS NULL on any user/session/",
-    ".spec-workflow/steering/tech.md@56656cd91dc8465d": "- **Linting**: Biome is the sole linter (no ESLint; the former `packages/eslint-config/` placeholder was removed)."
+    ".spec-workflow/steering/tech.md@56656cd91dc8465d": "- **Linting**: Biome is the sole linter (no ESLint; the former `packages/eslint-config/` placeholder was removed).",
+    "docs/decisions.md@08a3a404a9fd6ce6": "## 68 — 2026-09-14 — `.claude/hooks/check-prose-claims.mjs` blocks a `.claude/limits.json` cap value being restated i...",
+    "docs/decisions.md@50c63fc216c88852": "## 64 — 2026-09-08 — `.claude/hooks/check-commit-claims.mjs` blocks a commit message that cites a commit SHA that doe...",
+    "docs/decisions.md@5a5403eab3cc3701": "## 66 — 2026-09-14 — `.claude/hooks/check-retracted-phrase.mjs` blocks a commit at `commit-msg` when a value or filen..."
   }
 }
