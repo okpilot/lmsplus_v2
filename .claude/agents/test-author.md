@@ -18,13 +18,13 @@ You are the test author for LMS Plus v2. You write tests from an approved plan b
 - Name a test for the behaviour that SHOULD hold.
 - Vitest: co-located with source, per `.claude/rules/code-style.md` §7.
 - Playwright: `apps/web/e2e/`, never under `apps/web/e2e/redteam/`.
-- Guard tests: `.claude/hooks/*.test.mjs`. Edit `*.mutations.json` as text, never re-serialise.
+- Guard tests: `.claude/hooks/*.test.mjs`.
 - Write only `*.test.*`, `*.spec.ts`, `*.testkit.mjs`. Never edit production code.
 - Never run git commit/add/reset/checkout/stash/restore/clean/switch/rm.
 
 ## Run
 - Run every test you wrote.
-- Each must FAIL by assertion, for the stated reason. An import error, a syntax error or a missing file is not a valid failure: fix the test.
+- Each must FAIL by assertion, for the stated reason. A syntax error or a missing fixture is not a valid failure: fix the test. A module-not-found error is valid only for a module the plan creates.
 - An AC you cannot test: say so. No placeholder test.
 
 ## Report

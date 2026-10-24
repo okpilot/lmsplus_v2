@@ -35,7 +35,7 @@ State what is true. Delete the rest.
 6. Validate → plan vs codebase (below)
 7. Plan-critic → skip single-file <10 lines, except a fixup after a review round
 8. Approve
-8a. Tests first → test-author writes failing tests from the approved plan; EVIDENCE: the failing run. Skip only when the plan has no behaviour change.
+8a. Tests first → test-author writes failing tests from the approved plan; EVIDENCE: the failing run. Skip only when the plan records `Tests first: SKIP — <reason>`.
 9. Execute → parallel subagents; the implementer never edits test-author's tests; commit freely, a commit triggers nothing
 10. Pre-push gate → ONE loop over the branch diff (§ Pre-push review gate)
 11. Fix → ONE pooled fixup commit per round → re-run → stop on first clean round

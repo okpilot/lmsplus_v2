@@ -8,7 +8,7 @@
 ## Handling Results
 ### DO
 - Read the terminal message's `EVIDENCE:` line: the failing run's command and summary.
-- Re-run the command. Each failure must be an assertion failure for the behaviour the acceptance criterion states — not an import, syntax or fixture error.
+- Re-run the command. Each failure must be an assertion failure for the behaviour the acceptance criterion states — not a syntax or fixture error; a module-not-found error is valid only for a module the plan creates.
 - Check every acceptance criterion maps to a test, or the agent says it cannot test it.
 - Commit the tests in the execute commit(s).
 - Name the test files read-only in every execute brief.
