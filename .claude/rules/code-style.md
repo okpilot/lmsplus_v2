@@ -271,7 +271,7 @@ export function QuestionCard({ prompt }: Readonly<{ prompt: string }>) { ... }
 function ActivePracticeBanner({ session }: Readonly<ActivePracticeProps>) { ... }
 ```
 Applies to every React function component, including `page.tsx`/`layout.tsx` default exports (their `params`/`searchParams`/`children` props), `_components/*.tsx`, and `apps/web/components/**`. SonarCloud S6759 scans all `.tsx` as the comprehensive enforcer; the `.coderabbit.yaml` mirror covers the `page.tsx`, `layout.tsx`, `_components/*.tsx`, and `apps/web/components/**` blocks.
-Enforced by Biome plugin `biome-plugins/readonly-props.grit` (error; tests excluded), SonarCloud `typescript:S6759` and CodeRabbit. Plugin limits: generic components, `memo`/`forwardRef` wrappers and `function` expressions are not checked; a `Readonly<...>` alias still needs `Readonly<Props>` at the parameter.
+Enforced by Biome plugin `biome-plugins/readonly-props.grit` (error; tests excluded), SonarCloud `typescript:S6759` and CodeRabbit. Plugin limits: generic components, `memo`/`forwardRef` wrappers `function` expressions and variable-typed arrows (`const X: FC<P> =`) are not checked; a `Readonly<...>` alias still needs `Readonly<Props>` at the parameter.
 ### No `any`
 Use `unknown` with narrowing, or define the correct type.
 ```ts
@@ -513,7 +513,7 @@ export async function submitAnswer(input: unknown) { ... }
 ### R4 — No `useEffect` for Data Fetching
 Use R1 or R2. `useEffect` is for hydration guards and external-system sync.
 ### R5 — No Mutating Route Handlers
-NEVER create a Route Handler that mutates. Exceptions: `apps/web/app/auth/**` handlers and webhooks. Enforced by Biome plugin `biome-plugins/no-mutation-route.grit` (limit: `export { x as POST }` re-exports are not checked); exceptions take `// biome-ignore lint/plugin: <reason>`.
+NEVER create a Route Handler that mutates. Exceptions: `apps/web/app/auth/**` handlers and webhooks. Enforced by Biome plugin `biome-plugins/no-mutation-route.grit` (limits: `export { x as POST }` re-exports, type-annotated `export const POST: T =` and later declarators of a multi-declarator export are not checked); exceptions take `// biome-ignore lint/plugin: <reason>`.
 ### R6 — Cite Before Adding Cache, TTL, Timeout, Retry or Module-Level Store
 Cite in the PR body the Next/React/Supabase doc page that lacks the behaviour.
 ### Approved `useEffect` Pattern: Hydration Guard
