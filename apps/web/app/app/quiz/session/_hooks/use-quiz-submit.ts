@@ -1,4 +1,4 @@
-import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime'
+import type { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
 import type { DraftAnswer } from '../../types'
@@ -9,6 +9,8 @@ import {
   NAV_FALLBACK_MS,
   type QuizPendingAction,
 } from './quiz-submit-handlers'
+
+type AppRouterInstance = ReturnType<typeof useRouter>
 
 export type { QuizPendingAction }
 export { NAV_FALLBACK_MS }

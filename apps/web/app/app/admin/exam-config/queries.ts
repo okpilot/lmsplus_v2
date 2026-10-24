@@ -7,6 +7,7 @@ import type {
   TopicInfo,
 } from './types'
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export async function getExamConfigData(): Promise<SubjectWithConfig[]> {
   const { supabase, organizationId } = await requireAdmin()
 
@@ -67,6 +68,7 @@ export async function getExamConfigData(): Promise<SubjectWithConfig[]> {
   // Build config map
   const configMap = new Map(configs.map((c) => [c.subject_id, c]))
 
+  // biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
   return subjects.map((s) => {
     const config = configMap.get(s.id)
     const subjectTopics = topics.filter((t) => t.subject_id === s.id)

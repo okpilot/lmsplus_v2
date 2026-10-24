@@ -24,6 +24,7 @@ type Props = {
   disabled?: boolean
 }
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function ImageUploadField({ label, currentUrl, onUploaded, disabled }: Readonly<Props>) {
   const [preview, setPreview] = useState<string | null>(currentUrl)
   const [isPending, startTransition] = useTransition()

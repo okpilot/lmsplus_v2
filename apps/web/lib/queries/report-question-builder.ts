@@ -76,6 +76,7 @@ function groupAnswersByQuestion(answers: AnswerRow[]): {
  * default, not a documented contract any caller may rely on. Questions with zero answer
  * rows do not appear — by design; the summary's Skipped count conveys them.
  */
+// biome-ignore lint/complexity/useMaxParams: pre-existing; split when next edited (#1606)
 export function buildReportQuestions(
   answers: AnswerRow[],
   questionMap: Map<string, QuestionRow>,

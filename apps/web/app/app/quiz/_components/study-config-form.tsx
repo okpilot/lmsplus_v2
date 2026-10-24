@@ -10,6 +10,7 @@ import { StartButton } from './start-button'
 import { SubjectSelect } from './subject-select'
 import { TopicTree } from './topic-tree'
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function StudyConfigForm({
   userId,
   subjects,

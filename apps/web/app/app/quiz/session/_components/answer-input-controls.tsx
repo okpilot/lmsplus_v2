@@ -22,7 +22,7 @@ function MissingConfigAlert() {
   )
 }
 
-export function ShortAnswerAnswer({ s, question }: ControlProps) {
+export function ShortAnswerAnswer({ s, question }: Readonly<ControlProps>) {
   const fb = s.currentFeedback?.questionType === 'short_answer' ? s.currentFeedback : null
   return (
     <ShortAnswerInput
@@ -37,7 +37,7 @@ export function ShortAnswerAnswer({ s, question }: ControlProps) {
   )
 }
 
-export function DialogFillAnswer({ s, question }: ControlProps) {
+export function DialogFillAnswer({ s, question }: Readonly<ControlProps>) {
   const fb = s.currentFeedback?.questionType === 'dialog_fill' ? s.currentFeedback : null
   return (
     <DialogFillInput
@@ -53,7 +53,7 @@ export function DialogFillAnswer({ s, question }: ControlProps) {
   )
 }
 
-export function OrderingAnswer({ s, question }: ControlProps) {
+export function OrderingAnswer({ s, question }: Readonly<ControlProps>) {
   const fb = s.currentFeedback?.questionType === 'ordering' ? s.currentFeedback : null
   // Defensive: an ordering question must carry ≥2 items (the invariant this control
   // renders). A null/empty/one-item payload can only arise from a data-import bug
@@ -75,7 +75,7 @@ export function OrderingAnswer({ s, question }: ControlProps) {
   )
 }
 
-export function DiagramLabelAnswer({ s, question }: ControlProps) {
+export function DiagramLabelAnswer({ s, question }: Readonly<ControlProps>) {
   const fb = s.currentFeedback?.questionType === 'diagram_label' ? s.currentFeedback : null
   // Defensive: a diagram_label question must carry a delivered config with at
   // least one zone and one label (the invariant this control renders). A
@@ -108,7 +108,12 @@ type McAnswerProps = Readonly<{
   keyboardHighlightedId?: string | null
 }>
 
-export function McAnswer({ s, question, onSelectionChange, keyboardHighlightedId }: McAnswerProps) {
+export function McAnswer({
+  s,
+  question,
+  onSelectionChange,
+  keyboardHighlightedId,
+}: Readonly<McAnswerProps>) {
   const fb = s.currentFeedback?.questionType === 'multiple_choice' ? s.currentFeedback : null
   return (
     <AnswerOptions

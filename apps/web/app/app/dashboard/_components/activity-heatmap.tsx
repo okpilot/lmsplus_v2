@@ -13,6 +13,7 @@ type ActivityHeatmapProps = {
 const MIN_MONTH_OFFSET = -11
 const MAX_MONTH_OFFSET = 0
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function ActivityHeatmap({ data }: Readonly<ActivityHeatmapProps>) {
   const now = useMemo(() => new Date(), [])
   const [offset, setOffset] = useState(0)

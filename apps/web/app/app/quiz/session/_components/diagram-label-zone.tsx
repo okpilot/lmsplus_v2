@@ -25,7 +25,7 @@ export function DiagramLabelZone({
   result,
   canonicalText,
   ariaLabel,
-}: DiagramLabelZoneProps) {
+}: Readonly<DiagramLabelZoneProps>) {
   const { setNodeRef, isOver } = useDroppable({ id: zone.id, disabled })
 
   const borderClass =

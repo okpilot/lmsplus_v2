@@ -31,6 +31,7 @@ function readTabParam(value: string | null): TabKey {
   return value === 'attempts' ? 'attempts' : 'codes'
 }
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function InternalExamsTabs({
   students,
   subjects,

@@ -3,6 +3,7 @@ import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { setRecoveryPendingCookie } from '@/lib/auth/recovery-pending-cookie'
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const code = searchParams.get('code')

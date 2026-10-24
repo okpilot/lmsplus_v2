@@ -51,8 +51,28 @@
           "level": "error",
           "options": {
             "paths": {
-              "@repo/db/test-helpers": "test-helpers wraps the service-role key (getAdminClient). Import it only from integration tests or a lib/integration-support/** dir — never production code (#925)."
-            }
+              "@repo/db/test-helpers": "test-helpers wraps the service-role key (getAdminClient). Import it only from integration tests or a lib/integration-support/** dir \u2014 never production code (#925)."
+            },
+            "patterns": [
+              {
+                "group": ["next/dist/**"],
+                "message": "Import from public next/* entry points."
+              }
+            ]
+          }
+        }
+      },
+      "complexity": {
+        "noExcessiveLinesPerFunction": {
+          "level": "error",
+          "options": {
+            "maxLines": 50
+          }
+        },
+        "useMaxParams": {
+          "level": "error",
+          "options": {
+            "max": 3
           }
         }
       }
@@ -101,7 +121,17 @@
       "linter": {
         "rules": {
           "style": {
-            "noRestrictedImports": "off"
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["next/dist/**"],
+                    "message": "Import from public next/* entry points."
+                  }
+                ]
+              }
+            }
           }
         }
       }
@@ -170,6 +200,52 @@
           }
         }
       }
+    },
+    {
+      "includes": [
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/*.spec.ts",
+        "**/*.spec.tsx",
+        "**/e2e/**",
+        "**/__integration__/**",
+        "**/lib/integration-support/**",
+        "apps/web/scripts/**",
+        ".claude/**"
+      ],
+      "linter": {
+        "rules": {
+          "complexity": {
+            "noExcessiveLinesPerFunction": "off",
+            "useMaxParams": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/web/lib/next/rethrow-redirect.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "@repo/db/test-helpers": "test-helpers wraps the service-role key (getAdminClient). Import it only from integration tests or a lib/integration-support/** dir \u2014 never production code (#925)."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/web/**/*.tsx", "!**/*.test.tsx", "!**/*.spec.tsx"],
+      "plugins": ["./biome-plugins/readonly-props.grit"]
+    },
+    {
+      "includes": ["**/app/**/route.ts", "**/app/**/route.tsx", "**/app/**/route.js"],
+      "plugins": ["./biome-plugins/no-mutation-route.grit"]
     }
   ]
 }

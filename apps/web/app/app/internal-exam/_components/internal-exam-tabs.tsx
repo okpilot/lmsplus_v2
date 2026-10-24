@@ -19,6 +19,7 @@ function readTabParam(value: string | null): TabKey {
   return value === 'reports' ? 'reports' : 'available'
 }
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function InternalExamTabs({ available, history }: Readonly<Props>) {
   const searchParams = useSearchParams()
   const tabParam = searchParams.get('tab')

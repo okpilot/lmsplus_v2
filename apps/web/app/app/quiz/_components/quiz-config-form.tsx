@@ -23,6 +23,7 @@ type QuizConfigFormProps = {
   preload?: PreloadPromise
 }
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function QuizConfigForm(props: Readonly<QuizConfigFormProps>) {
   const { userId, subjects, examSubjects, preload } = props
   const config = useQuizConfig({ subjects, preload })

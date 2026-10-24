@@ -41,6 +41,7 @@ type Props = {
   onHasCalculationsChange: (v: boolean) => void
 }
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function QuestionFormFields({
   tree,
   subjectId,

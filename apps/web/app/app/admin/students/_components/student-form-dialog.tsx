@@ -28,6 +28,7 @@ type Props = {
 
 type CreatedStudent = { id: string; email: string; fullName: string }
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function StudentFormDialog({
   student,
   trigger,

@@ -7,8 +7,10 @@
 // explicit `: AppRouterInstance` return-type annotation means a future required
 // member addition fails `check-types` in exactly one place instead of silently
 // passing 40+ mock sites.
-import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime'
+import type { useRouter } from 'next/navigation'
 import { vi } from 'vitest'
+
+type AppRouterInstance = ReturnType<typeof useRouter>
 
 /**
  * Build a fully-typed `AppRouterInstance` mock for tests. Every method is a

@@ -27,6 +27,7 @@ type FinishQuizDialogProps = {
   pendingSelection?: boolean
 }
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function FinishQuizDialog({
   open,
   answeredCount,

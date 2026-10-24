@@ -63,6 +63,7 @@ type TabName = 'new' | 'saved'
 const TAB_NAMES: Record<number, TabName> = { 0: 'new', 1: 'saved' }
 const TAB_COUNT = 2
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function QuizTabs({
   draftCount = null,
   newQuizContent,

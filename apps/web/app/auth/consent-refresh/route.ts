@@ -39,4 +39,5 @@ export async function GET(request: NextRequest) {
  * action never reaches its destination; with it, the 307 back to `next`
  * replays the POST with the freshly-set cookie.
  */
+// biome-ignore lint/plugin: auth handler (R5 exception)
 export const POST = GET

@@ -30,6 +30,7 @@ export type GetActiveInternalExamSessionResult =
     }
   | { success: false; error: string }
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export async function getActiveInternalExamSession(): Promise<GetActiveInternalExamSessionResult> {
   try {
     const supabase = await createServerSupabaseClient()

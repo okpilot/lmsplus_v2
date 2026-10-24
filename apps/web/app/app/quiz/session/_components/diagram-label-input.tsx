@@ -45,6 +45,7 @@ type DiagramLabelInputProps = Readonly<{
   submittedMapping?: DiagramMapping[]
 }>
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function DiagramLabelInput({
   imageRef,
   zones,
@@ -55,7 +56,7 @@ export function DiagramLabelInput({
   submitted = false,
   correctMapping,
   submittedMapping,
-}: DiagramLabelInputProps) {
+}: Readonly<DiagramLabelInputProps>) {
   const [placement, setPlacement] = useState<Map<string, string>>(() =>
     placementFromSubmitted(zones, labels, submitted, submittedMapping),
   )

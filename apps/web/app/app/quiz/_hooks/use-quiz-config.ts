@@ -7,6 +7,7 @@ import { useQuizConfigState } from './use-quiz-config-state'
 import { useQuizStart } from './use-quiz-start'
 import { useTopicTree } from './use-topic-tree'
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function useQuizConfig({
   subjects,
   initialSubjectId,

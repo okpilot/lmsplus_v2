@@ -16,7 +16,7 @@ type AnswerInputProps = {
   keyboardHighlightedId?: string | null
 }
 
-function AnswerControl(props: AnswerInputProps & { question: Question }) {
+function AnswerControl(props: Readonly<AnswerInputProps & { question: Question }>) {
   const { s, question } = props
 
   switch (question.question_type) {
@@ -38,7 +38,7 @@ function AnswerControl(props: AnswerInputProps & { question: Question }) {
   }
 }
 
-export function AnswerInput(props: AnswerInputProps) {
+export function AnswerInput(props: Readonly<AnswerInputProps>) {
   const question = props.s.question
   if (!question) return null
   if (!supportsNonMcQuestions(props.s) && question.question_type !== 'multiple_choice') {

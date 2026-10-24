@@ -21,6 +21,7 @@ import { QuestionFormFields } from './question-form-fields'
 
 type Props = { tree: SyllabusTree; question?: QuestionRow; trigger: ReactElement }
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function QuestionFormDialog({ tree, question, trigger }: Readonly<Props>) {
   const isEdit = !!question
   const { open, setOpen, isPending, startTransition, handleOpenChange } = useCorrectOptionLoader({

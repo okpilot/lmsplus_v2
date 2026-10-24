@@ -5,6 +5,7 @@ type SubjectRow = { id: string; code: string; name: string; short: string; sort_
 type TopicRow = { id: string; subject_id: string; code: string; name: string; sort_order: number }
 type SubtopicRow = { id: string; topic_id: string; code: string; name: string; sort_order: number }
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export async function getSyllabusTree(): Promise<SyllabusTree> {
   // Data-side placement of requireAdmin() (docs/security.md "Admin Route Protection");
   // covers a page that omits its call.

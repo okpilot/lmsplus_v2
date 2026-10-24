@@ -18,6 +18,7 @@ type Props = {
   subjectId: string
 }
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function TopicRow({ topic, subjectId }: Readonly<Props>) {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState(false)

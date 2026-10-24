@@ -35,7 +35,7 @@ export function OrderingInput({
   submitted = false,
   correctOrder,
   submittedOrder,
-}: OrderingInputProps) {
+}: Readonly<OrderingInputProps>) {
   const { order, sensors, locked, graded, allCorrect, handleDragEnd, handleSubmit, slotResult } =
     useOrderingInput({
       items,

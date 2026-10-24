@@ -9,7 +9,7 @@ type Props = Readonly<{
   filters: StudentSessionFilters
 }>
 
-export async function SessionHistoryContent({ sessionsPromise, filters }: Props) {
+export async function SessionHistoryContent({ sessionsPromise, filters }: Readonly<Props>) {
   try {
     const { sessions, totalCount } = await sessionsPromise
     return <SessionHistoryTable sessions={sessions} totalCount={totalCount} filters={filters} />

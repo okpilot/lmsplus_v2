@@ -44,6 +44,7 @@ const SESSION_SORT_MAP: Record<SessionSort, string> = {
 
 export type StudentSessionsResult = { sessions: StudentSession[]; totalCount: number }
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export async function getStudentSessions(
   studentId: string,
   filters: StudentSessionFilters,

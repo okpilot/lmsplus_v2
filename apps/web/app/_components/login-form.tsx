@@ -37,6 +37,7 @@ async function signIn(credentials: { email: string; password: string }): Promise
   }
 }
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function LoginForm({ initialError, nextPath }: Readonly<LoginFormProps>) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')

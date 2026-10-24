@@ -1,0 +1,10 @@
+or {
+  `export async function $m($args) { $body }`,
+  `export async function $m($args): $ret { $body }`,
+  `export function $m($args) { $body }`,
+  `export function $m($args): $ret { $body }`,
+  `export const $m = $rest`
+} where {
+  $m <: r"^(?:POST|PUT|PATCH|DELETE)$",
+  register_diagnostic(span=$m, message="Route Handlers must not mutate; mutations are Server Actions (code-style.md R5)", severity="error")
+}

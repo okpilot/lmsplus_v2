@@ -21,6 +21,7 @@ const PasswordSchema = z
     path: ['confirmPassword'],
   })
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function ChangePasswordForm() {
   const [currentPassword, setCurrentPassword] = useState('')
   const [password, setPassword] = useState('')

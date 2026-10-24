@@ -36,6 +36,7 @@ function isDialogBlankResult(b: unknown): boolean {
 // the tagged `multiple_choice` variant so the returned record genuinely
 // satisfies the discriminated AnswerFeedback type (closing the type hole that
 // let untagged feedback fail the `=== 'multiple_choice'` narrow downstream).
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 function toFeedbackEntry(e: unknown): AnswerFeedback | null {
   if (typeof e !== 'object' || e === null) return null
   const r = e as Record<string, unknown>

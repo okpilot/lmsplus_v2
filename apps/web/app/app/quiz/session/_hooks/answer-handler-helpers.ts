@@ -124,6 +124,7 @@ export function buildAnswerHandlers(deps: HandlerDeps) {
   }
 }
 
+// biome-ignore lint/complexity/useMaxParams: pre-existing; split when next edited (#1606)
 export function recordAnswerFeedback(
   questionId: string,
   result: CheckResult,

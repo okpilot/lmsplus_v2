@@ -14,6 +14,7 @@ import { QuizSessionGrid } from './quiz-session-grid'
 import { QuizSessionHeader } from './quiz-session-header'
 import { QuizSessionMetaRow } from './quiz-session-meta-row'
 
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function QuizSession(props: Readonly<QuizSessionProps>) {
   const s = useQuizState(props)
   const isDiscovery = props.mode === 'discovery'
