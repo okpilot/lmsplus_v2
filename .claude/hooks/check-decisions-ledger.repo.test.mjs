@@ -264,6 +264,20 @@ test('an edit of a line present at the merge-base fails without a trailer', () =
     assert.match(res.stderr, /## 14 — body edited/)
   }))
 
+// GROUP: commitmsg-range-messages-dropped, parseledger-blank-lines-not-skipped, unborn-head-not-treated-as-absent, check-decisions-ledger-always-blocks
+test('a waiver carried by an earlier branch commit still covers its edit', () =>
+  withRepo((r) => {
+    branchFromOrigin(r)
+    r.write('docs/decisions.md', EDITED_14)
+    r.git('add', '-A')
+    r.git('commit', '-qm', `fix: reword decision 14\n\nLedger-edit-ok: 14 — ${GOOD_REASON}`)
+    r.write('docs/decisions.md', `${EDITED_14}## 16 — 2026-03-12 — a branch decision.\n`)
+    r.git('add', '-A')
+    // MUTATION: drop the range messages → the later commit's own message holds no waiver and
+    // decision 14's edit blocks it.
+    assert.equal(runCommitMsg(r, 'chore: append decision 16\n').status, 0)
+  }))
+
 // GROUP: commitmsg-origin-fault-swallowed
 test('a staged ledger with no origin/master exits 2', () =>
   withRepo((r) => {

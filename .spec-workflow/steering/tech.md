@@ -96,8 +96,8 @@ lmsplusv2/
 - **VCS**: Git on GitHub (`okpilot/lmsplus_v2`). Public repository.
 - **Branching strategy**: Feature branches + PRs to `master`. Branch protection: PRs required, 8 required checks (Lint & Format, Type Check, Unit Tests, E2E Tests (Playwright), Analyze (javascript-typescript), Red Team Specs, Integration Tests (Supabase), Migration Test (clean reset)), strict mode (branch must be up-to-date), no force push, enforce admins.
 - **Commit format**: Conventional Commits enforced via commitlint in Lefthook `commit-msg` hook,
-  alongside the other gates on that stage — a cited commit SHA must resolve (Decision 64), and a
-  claim corrected in one corpus file must not still stand in another (Decision 66). Mechanisms and
+  alongside the other gates on that stage — an existing `docs/decisions.md` line is never edited
+  except to append a marker (Decision 86). Mechanisms and
   measured bounds live in those decisions; do not restate them here, and do not count the gates —
   "a second gate" stood here and went stale the moment a third landed. The stage's command list is
   DATA in `.claude/pipeline.json`.
@@ -111,10 +111,8 @@ lmsplusv2/
     added. (Unit tests run in CI, not pre-commit.)
   - `commit-msg`: the stage's command list is DATA in `.claude/pipeline.json`, same as pre-commit
     above. Read it there — this line used to enumerate the gates and went stale the first time one
-    was added (Decision 66). What they enforce, rather than which commands run, is that a cited
-    commit SHA resolves (Decision 64), that a claim corrected in one corpus file does not still
-    stand in another (Decision 66), and that an existing `docs/decisions.md` line is never edited
-    except to append a marker (Decision 86).
+    was added. What they enforce, rather than which commands run, is that an existing
+    `docs/decisions.md` line is never edited except to append a marker (Decision 86).
   - `pre-push` (parallel): security-auditor agent + `pnpm audit --audit-level=high`
 
 ## Deployment & Distribution

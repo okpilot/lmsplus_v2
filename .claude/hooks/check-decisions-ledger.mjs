@@ -32,14 +32,14 @@
 // here: it exits 128 for both, so a probe built on it fails open (reference-git-probe-absent-vs-fault).
 //
 // `Ledger-edit-ok:` is read only from a message's last paragraph, column 0, comments dropped,
-// message truncated at a `git commit -v` scissors line first (see trailerBlock). Under
-// `git commit --amend`, commit-msg mode's HEAD is the commit being amended — an edit already
-// there reads as unchanged; waive it the same way.
-//
+// message truncated at a `git commit -v` scissors line first (see trailerBlock).
+
 // Baseline: commit-msg mode compares the staged ledger with `git merge-base origin/master HEAD`
 // (resolved only when the staged ledger differs from HEAD's; an unresolvable origin/master or
 // merge-base is exit 2, never a fallback to HEAD), so a line added earlier on the branch may be
-// edited freely. --base compares merge-base(<ref>, HEAD) with HEAD; waivers are the trailers of
+// edited freely; waivers are the message file plus the trailers of every non-merge commit in
+// `<merge-base>..HEAD` (under `--amend` the amended commit's old message is in that range and
+// still waives). --base compares merge-base(<ref>, HEAD) with HEAD; waivers are the trailers of
 // every non-merge commit in `<ref>..HEAD`. commit-msg mode exits 0 while MERGE_HEAD resolves.
 
 import { execFileSync } from 'node:child_process'
@@ -389,37 +389,48 @@ function mergeBase(a, b) {
   return git(['merge-base', a, b]).toString('utf8').trim()
 }
 
-/** The ledger as of the fork point from origin/master. Unresolvable ref or merge-base is a
- *  fault (exit 2) — there is no fallback to HEAD. */
-function readAtOriginMergeBase() {
+/** Fork point from origin/master. Unresolvable ref or merge-base is a fault (exit 2) — there is
+ *  no fallback to HEAD. */
+function originMergeBase() {
   if (!refExists(ORIGIN_REF)) {
     throw new Error(`${ORIGIN_REF} does not resolve — run \`git fetch origin\``)
   }
-  return readAtTree(mergeBase(ORIGIN_REF, 'HEAD'), DECISIONS_PATH)
+  return mergeBase(ORIGIN_REF, 'HEAD')
+}
+
+/** Messages of every non-merge commit in `<ref>..HEAD`. */
+function rangeMessages(ref) {
+  return git(['log', '--no-merges', '--format=%B%x00', `${ref}..HEAD`])
+    .toString('utf8')
+    .split('\0')
+    .filter((m) => m.trim() !== '')
 }
 
 /** The single commit-msg-mode unit: staged INDEX vs the merge-base with origin/master, waived by
- *  the message file itself. A commit that leaves the ledger as HEAD has it (and a first commit)
- *  needs no ref. */
+ *  the message file and the trailers of every non-merge commit since the merge-base. A commit that
+ *  leaves the ledger as HEAD has it (and a first commit) needs no ref. */
 function commitMsgUnit(path) {
   const newText = readIndex(DECISIONS_PATH)
   const headText = readAtTree('HEAD', DECISIONS_PATH)
-  const unborn = !refExists('HEAD')
-  const oldText = unborn || headText === newText ? headText : readAtOriginMergeBase()
-  return { oldText, newText, messages: [readFileSync(path, 'utf8')] }
+  const message = readFileSync(path, 'utf8')
+  if (!refExists('HEAD') || headText === newText) {
+    return { oldText: headText, newText, messages: [message] }
+  }
+  const mb = originMergeBase()
+  return {
+    oldText: readAtTree(mb, DECISIONS_PATH),
+    newText,
+    messages: [message, ...rangeMessages(mb)],
+  }
 }
 
 /** The range unit: ledger at `merge-base <ref> HEAD` vs HEAD, waived by the trailers of every
  *  non-merge commit in `<ref>..HEAD`. */
 function baseUnit(ref) {
-  const shas = git(['rev-list', '--no-merges', `${ref}..HEAD`])
-    .toString('latin1')
-    .split('\n')
-    .filter(Boolean)
   return {
     oldText: readAtTree(mergeBase(ref, 'HEAD'), DECISIONS_PATH),
     newText: readAtTree('HEAD', DECISIONS_PATH),
-    messages: shas.map((sha) => git(['log', '-1', '--format=%B', sha]).toString('utf8')),
+    messages: rangeMessages(ref),
   }
 }
 

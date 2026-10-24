@@ -67,7 +67,8 @@
         "reports a waiver token that matched no finding, without blocking",
         "appending a new line with no edits to existing lines is clean",
         "appending a marker to an existing line with no other edit is clean",
-        "a Ledger-edit-ok: header trailer waives a changed header"
+        "a Ledger-edit-ok: header trailer waives a changed header",
+        "a waiver carried by an earlier branch commit still covers its edit"
       ]
     },
     {
@@ -108,7 +109,8 @@
         "a self-edit of a line added earlier on the branch passes without a trailer",
         "an edit of a line present at the merge-base fails without a trailer",
         "a staged ledger with no origin/master exits 2",
-        "a commit that does not touch the ledger passes with no origin/master"
+        "a commit that does not touch the ledger passes with no origin/master",
+        "a waiver carried by an earlier branch commit still covers its edit"
       ]
     },
     {
@@ -152,7 +154,8 @@
         "commit-msg mode on the FIRST commit (unborn HEAD) runs F1/F2 with no immutability check",
         "a self-edit of a line added earlier on the branch passes without a trailer",
         "a commit that does not touch the ledger passes with no origin/master",
-        "a clean merge auto-adopting an already-waived incoming edit passes"
+        "a clean merge auto-adopting an already-waived incoming edit passes",
+        "a waiver carried by an earlier branch commit still covers its edit"
       ]
     },
     {
@@ -303,29 +306,26 @@
     },
     {
       "id": "commitmsg-old-is-head",
-      "find": "unborn || headText === newText ? headText : readAtOriginMergeBase()",
-      "replace": "headText",
-      "expectRed": [
-        "a self-edit of a line added earlier on the branch passes without a trailer",
-        "a staged ledger with no origin/master exits 2"
-      ]
+      "find": "    oldText: readAtTree(mb, DECISIONS_PATH),",
+      "replace": "    oldText: headText,",
+      "expectRed": ["a self-edit of a line added earlier on the branch passes without a trailer"]
     },
     {
       "id": "commitmsg-origin-fault-swallowed",
       "find": "    throw new Error(`${ORIGIN_REF} does not resolve — run \\`git fetch origin\\``)",
-      "replace": "    return readAtTree('HEAD', DECISIONS_PATH)",
+      "replace": "    return 'HEAD'",
       "expectRed": ["a staged ledger with no origin/master exits 2"]
     },
     {
       "id": "commitmsg-origin-resolved-eagerly",
-      "find": "unborn || headText === newText ? headText : readAtOriginMergeBase()",
-      "replace": "unborn ? headText : readAtOriginMergeBase()",
+      "find": "if (!refExists('HEAD') || headText === newText) {",
+      "replace": "if (!refExists('HEAD')) {",
       "expectRed": ["a commit that does not touch the ledger passes with no origin/master"]
     },
     {
       "id": "base-waivers-per-commit",
-      "find": "messages: shas.map(",
-      "replace": "messages: shas.slice(-1).map(",
+      "find": "    .filter((m) => m.trim() !== '')",
+      "replace": "    .filter((m) => m.trim() !== '')\n    .slice(-1)",
       "expectRed": ["a waiver trailer in a later commit covers an edit made in an earlier commit"]
     },
     {
@@ -335,9 +335,15 @@
       "expectRed": ["a line added to the base after the fork is not read as removed"]
     },
     {
+      "id": "commitmsg-range-messages-dropped",
+      "find": "    messages: [message, ...rangeMessages(mb)],",
+      "replace": "    messages: [message],",
+      "expectRed": ["a waiver carried by an earlier branch commit still covers its edit"]
+    },
+    {
       "id": "base-merges-counted",
-      "find": "git(['rev-list', '--no-merges', `${ref}..HEAD`])",
-      "replace": "git(['rev-list', `${ref}..HEAD`])",
+      "find": "git(['log', '--no-merges', '--format=%B%x00', `${ref}..HEAD`])",
+      "replace": "git(['log', '--format=%B%x00', `${ref}..HEAD`])",
       "expectRed": ["a Ledger-edit-ok trailer on a merge commit does not waive"]
     }
   ]

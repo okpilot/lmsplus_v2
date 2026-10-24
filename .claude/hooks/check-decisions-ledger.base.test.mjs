@@ -1,7 +1,7 @@
 // Run: node --test .claude/hooks/check-decisions-ledger.base.test.mjs
 //
-// The --base-mode git-facing paths of the decisions-ledger guard (Decision 86): per-commit
-// tree reads and per-commit waiver scoping. Fixtures: check-decisions-ledger.testkit.mjs.
+// The --base-mode git-facing paths of the decisions-ledger guard (Decision 86): the
+// merge-base ledger read and the range's waivers. Fixtures: check-decisions-ledger.testkit.mjs.
 //
 // Every case is MUTATION-PINNED (code-style.md §7); the exact set each break reddens is DATA
 // in check-decisions-ledger.mutations.json, re-derived by
