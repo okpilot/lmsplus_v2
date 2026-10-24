@@ -424,14 +424,17 @@
       "id": "guard-agent-brief-plan-pattern-widened",
       "find": "  plan: '\\\\.work/(?:[A-Za-z0-9_-][A-Za-z0-9._-]*/)*[A-Za-z0-9_-][A-Za-z0-9._-]*\\\\.md',",
       "replace": "  plan: '\\\\.work/[A-Za-z0-9._/-]+',",
-      "expectRed": [],
+      "expectRed": [
+        "blocks a test-author brief whose plan is an existing non-.md file with exit 2",
+        "blocks a test-author brief whose existing plan path has a sub/.. segment with exit 2"
+      ],
       "note": "A {plan} that is not .md, or that carries a .. segment resolving inside .work/, passes the pattern and planExists."
     },
     {
       "id": "guard-agent-brief-tests-first-role-ungated",
       "find": "const GATED_ROLES = new Set(['gate-round', 'conditional', 'tests-first'])",
       "replace": "const GATED_ROLES = new Set(['gate-round', 'conditional'])",
-      "expectRed": [],
+      "expectRed": ["blocks a tests-first agent that has no template, by role"],
       "note": "A tests-first agent with no template is no longer gated by its role."
     }
   ]
