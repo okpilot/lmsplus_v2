@@ -97,8 +97,8 @@ lmsplusv2/
 - **Branching strategy**: Feature branches + PRs to `master`. Branch protection: PRs required, 8 required checks (Lint & Format, Type Check, Unit Tests, E2E Tests (Playwright), Analyze (javascript-typescript), Red Team Specs, Integration Tests (Supabase), Migration Test (clean reset)), strict mode (branch must be up-to-date), no force push, enforce admins.
 - **Commit format**: Conventional Commits enforced via commitlint in Lefthook `commit-msg` hook,
   alongside the other gates on that stage — an existing `docs/decisions.md` line is never edited
-  except to append a marker (Decision 86). Mechanisms and
-  measured bounds live in those decisions; do not restate them here, and do not count the gates —
+  except to append a marker (Decision 86). The mechanism lives in
+  Decisions 87 and 147; do not restate them here, and do not count the gates —
   "a second gate" stood here and went stale the moment a third landed. The stage's command list is
   DATA in `.claude/pipeline.json`.
 - **Code review**: CodeRabbit and the CI reviewer `.github/workflows/claude-review.yml` (Decision 78) on PRs, + in-session Claude Code subagents. The GATE runs once per branch over `git diff origin/master...HEAD`; every round runs one parallel batch — semantic-reviewer, doc-updater, test-writer, `code-review (skill)` (the built-in `/code-review` skill, dispatched as `subagent_type: code-review-skill` in an isolated worktree on opus), and e2e-writer (conditional on the diff touching `apps/web/app/**`, `apps/web/components/**` or `apps/web/proxy.ts`) — and the loop stops on the first round with no APPLY-worthy finding (`.claude/skills/review-gate/agent-workflow.md § Pre-Push Review Gate`). red-team (opus) runs once post-loop on security-path diffs — it attacks the local stack and writes+runs a failing spec per proven exploit.

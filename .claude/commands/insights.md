@@ -16,7 +16,7 @@ Weekly self-review: analyse project health and audit the agent system.
      `git grep -n -e 'prose-path-ok:' | grep -v "git grep -n -e"`
      Quotations of the command, re-derive with:
      `git grep -n -e 'prose-path-ok:' | grep "git grep -n -e"`
-     Do NOT exclude `.claude/commands/` or `.claude/hooks/`: both carry live waivers.
+     Do NOT exclude `.claude/hooks/`: it carries live waivers.
      Non-waiver residue (guard `WAIVER_RE`, help text, suite fixtures) is an
      OPEN set: a waiver carries a written reason, a description carries a `<placeholder>`.
      READ every reason. Growth means the detector must be RE-NARROWED, never baselined.
