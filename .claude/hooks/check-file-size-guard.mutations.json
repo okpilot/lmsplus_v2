@@ -676,7 +676,7 @@
     },
     {
       "claim": "test.mjs 'a .ts declaring use server takes the 100 limit, not the 200 util limit': move the util rule above the Server Action rule",
-      "why": "The mutation reorders `rules` in .claude/limits.json, not this file's `target`. Rule ORDER is data; the guard's first-match-wins loop is what the fixture exercises."
+      "why": "The mutation reorders a config's `rules`, not this file's `target`. Rule ORDER is data; the guard's first-match-wins loop is what the fixture exercises."
     },
     {
       "claim": "test.mjs 'classifies a SQL migration, so the sql path is not invisible to the guard': widen the migration glob or reorder it after a broader rule",

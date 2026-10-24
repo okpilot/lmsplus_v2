@@ -339,11 +339,11 @@ test("keeps working when the tracked-file listing is bigger than node's default 
 // GROUP: cli-stale-only-run-advisory
 test('renaming a grandfathered file out of its rule class is blocked, not silently allowed', () => {
   // MUTATION: make a stale baseline entry advisory again (`return 0` when only stale rows
-  // exist) → red. This is the rename escape: `git mv foo.ts foo.test.ts` moves a Server Action
-  // onto the far looser test-file rule, `use-x.ts` -> `x.ts` moves a hook onto the utility
-  // rule, and a `.config.` infix removes it from scope entirely. Classification is
-  // derived from the PATH, and the baseline is keyed on the PATH, so the only trace was the
-  // old entry going stale — which read as "resolved". Reproduced end to end before the fix.
+  // exist) → red. This is the rename escape: a graded file leaves its rule class by being
+  // renamed out of .ts/.tsx or out of supabase/migrations/, or by dropping `'use server'`; the
+  // test reproduces it with a fixture test-file rule. The baseline is keyed on the PATH, so the
+  // only trace was the old entry going stale — which read as "resolved". Reproduced end to end
+  // before the fix.
   const repo = mkdtempSync(join(tmpdir(), 'file-size-rename-'))
   try {
     execFileSync('git', ['init', '-q', '.'], { cwd: repo })

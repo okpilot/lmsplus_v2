@@ -146,7 +146,7 @@ test('the live limits file takes a use server .ts and .tsx at 100, a plain .ts a
 // ------------------------------------------------------------------- classify
 
 test('a .ts declaring use server takes the 100 limit, not the 200 util limit', () => {
-  // MUTATION: move the util rule above the Server Action rule in limits.json → a real
+  // MUTATION: move the util rule above the Server Action rule in the fixture → a real
   // Server Action is graded against the utility rule and its cap silently loosens.
   const r = classify('apps/web/app/a/actions/x.ts', "'use server'\n", fixture())
   assert.equal(r.kind, 'Server Action file')
