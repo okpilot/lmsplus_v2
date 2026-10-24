@@ -115,6 +115,7 @@ const EXPECTED_ROLES = {
   'coderabbit-sync': 'conditional',
   'plan-critic': 'pre-execution',
   'security-auditor': 'pre-push',
+  'test-author': 'tests-first',
 }
 const DECLARED_AGENTS = Object.keys(spec.agents).sort()
 const EXPECTED_AGENTS = Object.keys(EXPECTED_ROLES).sort()
@@ -187,12 +188,22 @@ const writers = Object.entries(spec.agents)
   .filter(([, a]) => a.write)
   .map(([n]) => n)
   .sort()
-const EXPECTED_WRITERS = ['e2e-writer', 'red-team', 'test-writer']
+const EXPECTED_WRITERS = ['e2e-writer', 'red-team', 'test-author', 'test-writer']
 JSON.stringify(writers) === JSON.stringify(EXPECTED_WRITERS)
   ? pass(`write-capable agents are exactly: ${writers.join(', ')}`)
   : fail(
       `write-capable agents are [${writers.join(', ') || '(none)'}], expected [${EXPECTED_WRITERS.join(', ')}]`,
     )
+
+const TEST_AUTHOR_TOOLS = 'Read, Glob, Grep, Bash, Write, Edit'
+if (!existsSync(join(ROOT, '.claude/agents/test-author.md'))) {
+  fail('test-author: .claude/agents/test-author.md is missing')
+} else {
+  const taTools = frontmatter('test-author')?.tools
+  taTools === TEST_AUTHOR_TOOLS
+    ? pass(`test-author: tools ${TEST_AUTHOR_TOOLS}`)
+    : fail(`test-author: tools "${taTools}" != "${TEST_AUTHOR_TOOLS}"`)
+}
 
 const TOP_LEVEL_KEYS = [
   '_',

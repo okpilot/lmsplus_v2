@@ -142,3 +142,4 @@
 ## 147 — 2026-10-24 — check-decisions-ledger.mjs compares docs/decisions.md with the origin/master merge-base, at commit-msg and in CI (--base); waivers are the Ledger-edit-ok trailers of the commit message and every non-merge commit on the branch; merge commits never waive and commit-msg mode skips merges. #1606
 ## 148 — 2026-10-24 — Biome enforces 50 lines per function and 3 parameters (tests, e2e, integration, scripts and .claude excluded), Readonly component props (readonly-props.grit) and no mutating Route Handler exports (no-mutation-route.grit); the 30-line target stays reviewer-judged. #1606
 ## 149 — 2026-10-24 — The file-size guard grades only SQL migrations and 'use server' files; other TS/TSX files have no file-length cap. Biome performance/noBarrelFile is an error. #1606
+## 150 — 2026-10-25 — An independent test-author agent writes failing tests from the approved plan before execute; the implementer never edits them. #1614

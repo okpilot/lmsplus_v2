@@ -14,6 +14,7 @@ The orchestrator loads this skill; subagent definitions cite individual files in
 | `agent-code-review.md` | dispatching code-review (skill) |
 | `agent-semantic-reviewer.md` | handling semantic-reviewer results |
 | `agent-doc-updater.md` | applying doc-updater edits |
+| `agent-test-author.md` | dispatching test-author before Execute; handling its output |
 | `agent-test-writer.md` | handling test-writer output |
 | `agent-e2e-writer.md` | handling e2e-writer output |
 | `agent-red-team.md` | red-team trigger and results |

@@ -11,38 +11,48 @@
       "find": "process.exit(2) // Exit code 2 = block the tool call",
       "replace": "process.exit(0) // Exit code 2 = block the tool call",
       "expectRed": [
+        "blocks a SendMessage whose to resolves to a gated agent type with exit 2",
+        "blocks a SendMessage to a gated agent id written with a trailing ref suffix with exit 2",
+        "blocks a SendMessage to an agent id whose meta.json does not exist with exit 2",
+        "blocks a SendMessage to an agent id when transcript_path is missing with exit 2",
+        "blocks a SendMessage to an agent id when session_id is missing with exit 2",
+        "blocks a SendMessage from a subagent to a gated agent id with exit 2",
+        "blocks a SendMessage to a gated agent id padded with whitespace with exit 2",
+        "blocks a SendMessage to a gated agent id written in upper case with exit 2",
+        "blocks a gate brief sent to an ungated agent id with exit 2",
+        "blocks a gate brief sent to a plain agent name with exit 2",
+        "blocks a SendMessage to a plain agent name with exit 2 when the templates file has no templates object",
         "blocks a semantic-reviewer brief carrying an extra CONTEXT line with exit 2 and a BLOCKED stderr",
         "blocks a round that is not digits or \"after-loop\" (e.g. \"2a\") with exit 2",
         "blocks a branch containing a space with exit 2",
         "blocks a branch containing a newline with exit 2",
         "blocks code-review-skill without isolation: worktree with exit 2",
         "blocks code-review-skill with model \"sonnet\" with exit 2",
-        "blocks a brief whose PR number has no hash sign with exit 2",
-        "blocks code-review-skill when its two {branch} occurrences disagree with exit 2",
-        "blocks a semantic-reviewer brief dispatched with isolation: \"worktree\" with exit 2",
+        "blocks semantic-reviewer with a model that is not its pipeline.json alias with exit 2",
+        "blocks a gated brief dispatched with a name with exit 2",
+        "blocks a test-author brief that is not its filled template with exit 2",
+        "blocks the test-author template dispatched through an ungated type with exit 2",
+        "blocks a test-author brief dispatched with isolation: \"worktree\" with exit 2",
+        "blocks a test-author brief with a model other than sonnet with exit 2",
+        "blocks a test-author brief whose plan file does not exist with reason plan",
+        "blocks a test-author brief whose plan is a directory named *.md with reason plan",
+        "blocks a test-author brief whose plan is a symlink out of .work/ with reason plan",
+        "blocks a test-author brief whose plan runs through a symlinked directory out of .work/ with reason plan",
+        "blocks a test-author brief whose plan has a .. segment with exit 2",
+        "blocks a test-author brief whose plan is outside .work/ with exit 2",
         "blocks a brief whose branch is not a local branch with exit 2",
         "blocks a steered brief padded with trailing-whitespace runs within the timeout",
         "blocks a steered brief for a templated type pipeline.json gives no gate role",
-        "blocks semantic-reviewer with a model that is not its pipeline.json alias with exit 2",
-        "blocks a SendMessage whose to resolves to a gated agent type with exit 2",
-        "blocks a SendMessage to a gated agent id written with a trailing ref suffix with exit 2",
-        "blocks a SendMessage to an agent id whose meta.json does not exist with exit 2",
-        "blocks a SendMessage to an agent id when transcript_path is missing with exit 2",
-        "blocks a SendMessage to an agent id when session_id is missing with exit 2",
-        "blocks a gated brief dispatched with a name with exit 2",
-        "blocks a SendMessage from a subagent to a gated agent id with exit 2",
-        "blocks a SendMessage to a gated agent id padded with whitespace with exit 2",
-        "blocks a SendMessage to a gated agent id written in upper case with exit 2",
         "blocks a gate brief dispatched through an ungated type with exit 2",
         "blocks a gate brief preceded by other text in an ungated type with exit 2",
+        "blocks a lower-cased gate brief in an ungated type with exit 2",
+        "blocks a re-spaced gate brief in an ungated type with exit 2",
         "blocks a gate brief dispatched with no subagent_type with exit 2",
-        "blocks a gate brief sent to an ungated agent id with exit 2",
-        "blocks a gate brief sent to a plain agent name with exit 2",
         "blocks an ungated type with exit 2 when the templates file has no templates object",
         "blocks a call with no subagent_type with exit 2 when the templates file has no templates object",
-        "blocks a SendMessage to a plain agent name with exit 2 when the templates file has no templates object",
-        "blocks a lower-cased gate brief in an ungated type with exit 2",
-        "blocks a re-spaced gate brief in an ungated type with exit 2"
+        "blocks a brief whose PR number has no hash sign with exit 2",
+        "blocks code-review-skill when its two {branch} occurrences disagree with exit 2",
+        "blocks a semantic-reviewer brief dispatched with isolation: \"worktree\" with exit 2"
       ],
       "note": "Forces the block() branch to exit 0 instead of 2 — a mismatched brief is logged as BLOCKED on stderr but no longer stops the tool call. Reddens every test asserting exit 2, not only the control — Agent-brief and SendMessage blocks alike, since both route through this one shared exit call."
     },
@@ -51,6 +61,9 @@
       "find": "process.exit(0) // Allow",
       "replace": "process.exit(2) // Allow",
       "expectRed": [
+        "allows a SendMessage sent to a plain agent name with exit 0",
+        "allows a SendMessage sent to \"main\" with exit 0",
+        "allows a SendMessage whose to resolves to an ungated agent type",
         "allows an exact semantic-reviewer brief with exit 0",
         "allows an exact semantic-reviewer brief when the payload cwd is a different directory",
         "allows a non-gated subagent_type with any prompt",
@@ -61,17 +74,18 @@
         "allows coderabbit-sync's exact template brief with exit 0",
         "allows test-writer's exact template brief with exit 0",
         "allows e2e-writer's exact template brief with exit 0",
+        "allows test-author's exact template brief with exit 0",
         "allows code-review-skill's exact template brief with exit 0",
-        "allows code-review-skill with model omitted (undefined defaults to opus)",
-        "allows a brief with PR none and round after-loop",
-        "allows a semantic-reviewer brief with isolation omitted",
-        "allows an ungated type when a gated type lacks its template",
         "allows semantic-reviewer with model explicitly set to its pipeline.json alias",
-        "allows a SendMessage sent to a plain agent name with exit 0",
-        "allows a SendMessage sent to \"main\" with exit 0",
-        "allows a SendMessage whose to resolves to an ungated agent type",
+        "allows code-review-skill with model omitted (undefined defaults to opus)",
+        "allows test-author's exact filled template brief with exit 0",
+        "allows a test-author brief whose plan is a nested path under .work/",
+        "allows a test-author brief whose plan is a symlink to a file inside .work/",
+        "allows an ungated type when a gated type lacks its template",
         "allows an exact brief for a templated type pipeline.json gives no gate role",
-        "allows a call with no subagent_type and an ordinary prompt"
+        "allows a call with no subagent_type and an ordinary prompt",
+        "allows a brief with PR none and round after-loop",
+        "allows a semantic-reviewer brief with isolation omitted"
       ],
       "note": "Forces the allow() path to exit 2 instead of 0 — every non-blocked brief (the exact-match control, every gated type's own exact brief, and every non-gated type) is blocked too, Agent and SendMessage alike."
     },
@@ -97,7 +111,8 @@
       "replace": "if (false) return 'model'",
       "expectRed": [
         "blocks code-review-skill with model \"sonnet\" with exit 2",
-        "blocks semantic-reviewer with a model that is not its pipeline.json alias with exit 2"
+        "blocks semantic-reviewer with a model that is not its pipeline.json alias with exit 2",
+        "blocks a test-author brief with a model other than sonnet with exit 2"
       ],
       "note": "Disables the model-floor check for every gated type — a model that disagrees with the dispatched type's own pipeline.json alias is no longer blocked on that basis, for code-review-skill or any other gated type."
     },
@@ -106,6 +121,7 @@
       "find": "} else if (toolInput?.isolation === 'worktree') {",
       "replace": "} else if (false) {",
       "expectRed": [
+        "blocks a test-author brief dispatched with isolation: \"worktree\" with exit 2",
         "blocks a semantic-reviewer brief dispatched with isolation: \"worktree\" with exit 2"
       ],
       "note": "Disables the non-code-review-skill worktree-forbidden check only — a gated type other than code-review-skill dispatched with isolation: \"worktree\" is no longer blocked on that basis."
@@ -287,11 +303,12 @@
       "find": "const reason = gateBriefReason(toolInput?.prompt, templates)",
       "replace": "const reason = null",
       "expectRed": [
+        "blocks the test-author template dispatched through an ungated type with exit 2",
         "blocks a gate brief dispatched through an ungated type with exit 2",
         "blocks a gate brief preceded by other text in an ungated type with exit 2",
-        "blocks an ungated type with exit 2 when the templates file has no templates object",
         "blocks a lower-cased gate brief in an ungated type with exit 2",
-        "blocks a re-spaced gate brief in an ungated type with exit 2"
+        "blocks a re-spaced gate brief in an ungated type with exit 2",
+        "blocks an ungated type with exit 2 when the templates file has no templates object"
       ],
       "note": "An ungated subagent_type carries a gate brief unchecked."
     },
@@ -373,6 +390,8 @@
         "allows an exact semantic-reviewer brief when the payload cwd is a different directory",
         "fails open but loud on unparseable stdin (exit 0 + unparseable warning)",
         "fails open but loud on empty stdin (exit 0 + stderr warning)",
+        "allows a test-author brief whose plan is a nested path under .work/",
+        "allows a test-author brief whose plan is a symlink to a file inside .work/",
         "blocks every gated brief with exit 2 when the templates file is unparseable",
         "blocks every gated brief with exit 2 when the templates file has no templates object",
         "blocks a gated type with exit 2 when its template is missing",
@@ -388,6 +407,18 @@
       "replace": "",
       "expectRed": ["blocks a SendMessage to a gated agent id written in upper case with exit 2"],
       "note": "An upper-case id no longer matches AGENT_ID_RE and is allowed as a name."
+    },
+    {
+      "id": "guard-agent-brief-plan-exists-check-disabled",
+      "find": "!planExists(m.groups.plan)",
+      "replace": "false",
+      "expectRed": [
+        "blocks a test-author brief whose plan file does not exist with reason plan",
+        "blocks a test-author brief whose plan is a directory named *.md with reason plan",
+        "blocks a test-author brief whose plan is a symlink out of .work/ with reason plan",
+        "blocks a test-author brief whose plan runs through a symlinked directory out of .work/ with reason plan"
+      ],
+      "note": "A {plan} that is missing, a directory, or a symlink out of .work/ is no longer checked against the filesystem."
     }
   ]
 }

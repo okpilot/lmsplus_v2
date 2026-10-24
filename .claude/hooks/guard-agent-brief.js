@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 /**
  * PreToolUse guard for the Agent tool (enforces Decision 92; recorded as Decision 93).
- * Blocks a gate-reviewer brief unless it matches that type's template in
+ * Blocks a brief to a gated agent (role gate-round, conditional or tests-first) unless it matches
+ * that type's template in
  * `.claude/hooks/gate-briefs.json` EXACTLY, after trimming trailing whitespace off the
- * whole prompt. Only round, PR number and branch may vary — `.claude/skills/review-gate/agent-workflow.md § Gate reviewer agent integration`.
+ * whole prompt. Only round, PR number, branch and plan may vary — `.claude/skills/review-gate/agent-workflow.md § Gate reviewer agent integration`.
  *
  * Claude Code delivers the hook payload on STDIN as JSON:
  *   {"cwd":"...","tool_name":"Agent","tool_input":{"subagent_type":"...","prompt":"...",
@@ -26,9 +27,9 @@ const path = require('node:path')
 // biome-ignore lint/suspicious/noUndeclaredEnvVars: not a Turborepo task — runs outside turbo.
 const REPO_ROOT = process.env.GUARD_AGENT_BRIEF_ROOT || path.join(__dirname, '..', '..')
 const TEMPLATES_PATH = path.join(REPO_ROOT, '.claude', 'hooks', 'gate-briefs.json')
-/** Every `.claude/pipeline.json` agent with one of these roles must have a template. */
+/** Every `.claude/pipeline.json` agent with one of these roles (gate-round, conditional, tests-first) must have a template. */
 const PIPELINE_PATH = path.join(REPO_ROOT, '.claude', 'pipeline.json')
-const GATED_ROLES = new Set(['gate-round', 'conditional'])
+const GATED_ROLES = new Set(['gate-round', 'conditional', 'tests-first'])
 
 /** Regex-escape a literal chunk of a template. */
 function escapeRe(t) {
@@ -40,8 +41,9 @@ const PLACEHOLDER_PATTERNS = {
   round: '(?:\\d+|after-loop)',
   pr: '(?:#\\d+|none)',
   branch: '[A-Za-z0-9._/-]+',
+  plan: '\\.work/(?:[A-Za-z0-9_-][A-Za-z0-9._-]*/)*[A-Za-z0-9_-][A-Za-z0-9._-]*\\.md',
 }
-const PLACEHOLDER_RE = /\{(round|pr|branch)\}/g
+const PLACEHOLDER_RE = /\{(round|pr|branch|plan)\}/g
 
 /** SendMessage `to` shape for an agent id (`.meta.json` filename suffix) — never a name or `main`. */
 const AGENT_ID_RE = /^a[0-9a-f]{16}$/
@@ -82,6 +84,7 @@ function allow() {
 const BLOCK_MESSAGES = {
   mismatch: 'does not match its required template',
   branch: 'names a {branch} that is not a local branch (refs/heads/<branch>)',
+  plan: 'names a {plan} that is not a regular file inside .work/',
   isolation: 'requires isolation: "worktree"',
   model: 'requires model omitted or its pipeline.json alias',
   name: 'must not carry a name — a named gated agent could be resumed by SendMessage to that name',
@@ -120,6 +123,18 @@ function branchExists(branch) {
   }
 }
 
+/** `{plan}` must resolve to a regular file inside `<repo>/.work/` — symlinks out and
+ * directories fail. Any fault reads as absent, so it blocks. */
+function planExists(plan) {
+  try {
+    const workDir = fs.realpathSync(path.join(REPO_ROOT, '.work'))
+    const real = fs.realpathSync(path.join(REPO_ROOT, plan))
+    return real.startsWith(workDir + path.sep) && fs.statSync(real).isFile()
+  } catch {
+    return false
+  }
+}
+
 /** Parses the hook's stdin JSON payload. Returns `undefined` on invalid JSON — caller is
  * responsible for the fail-open stderr write and exit. */
 function parsePayload(input) {
@@ -145,6 +160,9 @@ function checkBrief(toolInput, templates, agents) {
   if (!m) return { reason: 'mismatch', template }
 
   if (!branchExists(m.groups?.branch)) return { reason: 'branch', template }
+  if (m.groups?.plan !== undefined && !planExists(m.groups.plan)) {
+    return { reason: 'plan', template }
+  }
 
   const reason = dispatchReason(subagentType, toolInput, agents)
   return reason ? { reason, template } : null

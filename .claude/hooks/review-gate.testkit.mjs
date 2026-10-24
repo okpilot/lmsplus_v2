@@ -13,6 +13,7 @@ const FIXTURE_PIPELINE = JSON.stringify({
     'semantic-reviewer': { role: 'gate-round' },
     'red-team': { role: 'conditional' },
     'plan-critic': { role: 'pre-execution' },
+    'test-author': { role: 'tests-first' },
   },
 })
 

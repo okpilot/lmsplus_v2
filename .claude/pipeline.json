@@ -27,6 +27,7 @@
       "write": true,
       "role": "gate-round"
     },
+    "test-author": { "model": "sonnet", "write": true, "role": "tests-first" },
     "red-team": { "model": "opus", "write": true, "role": "conditional" },
     "e2e-writer": {
       "model": "sonnet",
