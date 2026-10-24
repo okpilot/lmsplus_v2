@@ -1,7 +1,7 @@
 // Unit test for the PreToolUse Agent-brief guard's SendMessage coverage. Run:
 //   node --test .claude/hooks/guard-agent-brief.sendmessage.test.mjs
-// Split out of guard-agent-brief.test.mjs to keep that file under the test-file cap
-// (code-style.md §1). Shared fixtures/helpers live in guard-agent-brief.testkit.mjs; this file
+// Split out of guard-agent-brief.test.mjs.
+// Shared fixtures/helpers live in guard-agent-brief.testkit.mjs; this file
 // owns its own SendMessage-specific fixture (SENDMSG_ROOT); it cleans up both.
 import assert from 'node:assert/strict'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'

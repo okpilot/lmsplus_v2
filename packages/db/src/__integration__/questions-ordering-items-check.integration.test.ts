@@ -8,7 +8,7 @@ import { createTestOrg, createTestUser, getAdminClient } from './setup'
 
 // `is_valid_ordering_items()` write-path CHECK on `questions.ordering_items` (mig 143, #998;
 // ids/whitespace hardened mig 20260928000100, #1045). Split out of
-// rpc-get-quiz-questions-ordering.integration.test.ts (code-style.md §1 file-size cap) — these
+// rpc-get-quiz-questions-ordering.integration.test.ts — these
 // tests exercise the CHECK constraint directly via `admin.from('questions').insert(...)` and need
 // no RPC delivery/student-client setup, unlike that file's shuffle/no-leak delivery tests.
 

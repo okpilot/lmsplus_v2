@@ -48,10 +48,10 @@ Never restate a cap VALUE from `limits.json` in PROSE as a claim about that cap;
   action is ungraded; a Server Action outside `actions/` still takes the action cap.
 - TS/TSX size is Biome's per-function limit (§3); the guard grades SQL migrations and `'use server'` files only.
 
-**Same-commit extraction.** If a change grows a file already at/over its cap — or within ~10 lines —
-include the extraction in the SAME commit. Does NOT apply to an unsplittable-DDL migration (see the
-note on the SQL migration rule in `.claude/limits.json`). Run `wc -l` on every file you plan to grow
-during Plan Validation and budget the split up front.
+**Same-commit extraction.** If a change grows a SQL migration or a `'use server'` file already
+at/over its cap — or within ~10 lines — include the extraction in the SAME commit. Does NOT apply to
+an unsplittable-DDL migration (see the note on the SQL migration rule in `.claude/limits.json`). Run
+`wc -l` on every such file you plan to grow during Plan Validation and budget the split up front.
 **The golden rule:** if you need to scroll to understand a file, it's too long.
 A page file should look like this:
 ```tsx

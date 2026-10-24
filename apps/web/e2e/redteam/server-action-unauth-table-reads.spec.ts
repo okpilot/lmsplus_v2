@@ -7,8 +7,7 @@
  * TABLES IN SCHEMA public FROM anon`) — 42501, "permission denied for table/
  * view …" — never a silent 0-row RLS result; no victim data may leak.
  *
- * Split from server-action-unauthenticated.spec.ts to stay within the 500-line
- * cap (code-style.md §1). RPC vectors remain in the original file.
+ * Split from server-action-unauthenticated.spec.ts. RPC vectors remain in the original file.
  * Status: Expected to PASS (anon key should be rejected at the privilege layer).
  */
 

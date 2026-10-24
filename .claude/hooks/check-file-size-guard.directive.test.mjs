@@ -1,6 +1,5 @@
 // Unit tests for `declaresUseServer` — the file-size guard's Server Action classifier.
-// Split out of `check-file-size-guard.test.mjs` when adding the multi-entry prologue case put
-// that file inside the same-commit extraction trigger in code-style.md §1. CI runs each suite
+// Split out of `check-file-size-guard.test.mjs`. CI runs each suite
 // by explicit path, so this file needs its own step in `.github/workflows/ci.yml` — a test file
 // nothing runs certifies its mechanism unconditionally.
 // Run:

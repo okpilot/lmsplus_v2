@@ -1,6 +1,6 @@
 // Per-question-type answer control wrappers, hoisted out of answer-input.tsx to
-// keep that file under the 150-line cap (code-style.md §1) — the switch grew a
-// 5th (diagram_label) arm on top of an already-at-cap file.
+// keep that file focused — the switch grew a
+// 5th (diagram_label) arm.
 import { AnswerOptions } from '@/app/app/_components/answer-options'
 import type { QuizState } from '../_hooks/use-quiz-state'
 import { DialogFillInput } from './dialog-fill-input'

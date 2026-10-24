@@ -1,6 +1,6 @@
 // RPC error token (from start_quiz_session, mig 20260629000600) → user message for the
-// resumeQuizSession Server Action. Split out of resume-helpers.ts to keep that file under
-// the 200-line utility cap (code-style.md §1). No `'use server'` — imported by the action.
+// resumeQuizSession Server Action. Split out of resume-helpers.ts.
+// No `'use server'` — imported by the action.
 
 // Distinct situations get distinct copy: a different active session vs a stale draft.
 // INVARIANT: keys must not be substrings of one another — mapResumeRpcError matches via

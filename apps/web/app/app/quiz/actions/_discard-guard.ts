@@ -1,5 +1,4 @@
-// Helpers for discardQuiz. Extracted so discard.ts stays under the 100-line
-// Server Action cap from .claude/rules/code-style.md §1.
+// Helpers for discardQuiz. Extracted from discard.ts.
 
 // Modes whose in-progress sessions must never be discarded by the student.
 // The server is the real defense even if a UI bug exposes a discard button.

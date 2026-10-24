@@ -1,6 +1,6 @@
 /**
  * Pure stat helpers for the dashboard data layer.
- * Extracted from dashboard.ts to keep that file under 200 lines.
+ * Extracted from dashboard.ts.
  */
 
 import type { createServerSupabaseClient } from '@repo/db/server'

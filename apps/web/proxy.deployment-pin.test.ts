@@ -4,7 +4,7 @@ import { buildConsentCookieValue } from '@/lib/consent/check-consent'
 import { CONSENT_COOKIE } from '@/lib/consent/versions'
 import { proxy } from './proxy'
 
-// Split out of proxy.test.ts to stay under the test-file size cap — the
+// Split out of proxy.test.ts — the
 // legacy __vdpl cookie expiry is a self-contained concern with its own
 // beforeEach/afterEach, sharing only the module-level mock shape.
 

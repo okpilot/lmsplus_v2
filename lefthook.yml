@@ -34,7 +34,7 @@ pre-commit:
     soft-delete-guard:
       glob: "*.{ts,tsx}"
       run: node .claude/hooks/check-soft-delete-guard.mjs {staged_files}
-    # File-size limits — data in .claude/limits.json, formerly prose in code-style.md §1.
+    # File-size limits — data in .claude/limits.json.
     # RATCHET, not a gate: it fails on a REGRESSION, and the failure modes are enumerated
     # canonically in code-style.md §1 — not restated here. The one that surprises: the
     # baseline match is EXACT in BOTH directions, so a recorded violation that SHRINKS

@@ -7,8 +7,7 @@
  *   - vfr_rt_exam.completed ← finish_quiz_session, fresh completion (mig 20261004000300)
  *   - vfr_rt_exam.expired   ← complete_overdue_exam_session on a vfr_rt session (mig 102 L140)
  *
- * A dedicated file (extracted from audit-completeness.spec.ts to keep both under
- * the 500-line test ceiling) that owns the VFR-RT pool lifecycle: seed once in
+ * A dedicated file (extracted from audit-completeness.spec.ts) that owns the VFR-RT pool lifecycle: seed once in
  * beforeAll, soft-delete in afterAll. Each test captures testStart before its
  * trigger and clears any leftover active session first (single-active-session
  * invariant, #1011). Every created/started session id is registered in the

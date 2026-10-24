@@ -1,6 +1,5 @@
 // Helpers and bounds for the active-exam-session reads (mock_exam +
-// internal_exam). Extracted so the actions stay under the 100-line cap from
-// .claude/rules/code-style.md §1 after Layer 1 partitioning.
+// internal_exam). Extracted from the actions after Layer 1 partitioning.
 
 // Deliberate read bound for getActiveExamSession / getActiveInternalExamSession
 // (#668 instance #9). Active (ended_at IS NULL) exam sessions per student are

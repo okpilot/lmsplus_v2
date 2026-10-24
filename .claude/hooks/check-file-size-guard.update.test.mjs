@@ -2,15 +2,10 @@
 // `--update-baseline`) and the `.coderabbit.yaml` mirror pin. Run:
 //   node --test .claude/hooks/check-file-size-guard.update.test.mjs
 //
-// A THIRD file, split from the unit suite when it reached the test-file cap this very
-// guard enforces — twice in one session. Grandfathering a file written minutes earlier is the
-// "widen the rule to fit my own code" move the programme exists to stop, and trimming a comment
-// to squeak under is the same move in costume. The split is by concern: in-process unit tests,
+// A THIRD file, split from the unit suite by concern: in-process unit tests,
 // subprocess enforcement tests, and this — the one code path that WRITES to the data file the
-// guard is judged against, which is why it is worth isolating. The `--stats` cases moved here
-// from the CLI suite when that file came within a few lines of its cap: that little headroom
-// is a trap for whoever adds the next test, and this file is where the non-enforcing modes
-// belong anyway.
+// guard is judged against, which is why it is worth isolating. The `--stats` cases live here
+// because this file is where the non-enforcing modes belong.
 //
 // Every case is MUTATION-PINNED: break the named mechanism and that case — or the named GROUP of cases sharing that mechanism — goes red.
 // Not "exactly one": several mechanisms here are pinned by a PAIR, and the stricter wording
@@ -297,8 +292,8 @@ test('.coderabbit.yaml pins each cap to the same RULE KIND as limits.json', () =
   // codification move: PIN a copy the consumer cannot dereference, instead of DELETING it.
   //
   // MUTATION: compare the two as SETS of numbers instead of per-kind pairs → red. The set form
-  // was the original and it was VACUOUS for the mutation that matters: swapping the page cap
-  // with the component cap leaves both sets identical, so the mirror could state the two kinds
+  // was the original and it was VACUOUS for the mutation that matters: swapping the Server Action cap
+  // with the migration cap leaves both sets identical, so the mirror could state the two kinds
   // reversed and the test still passed. Proven by executing that swap.
   const yaml = readFileSync('.coderabbit.yaml', 'utf8').split('\n')
 

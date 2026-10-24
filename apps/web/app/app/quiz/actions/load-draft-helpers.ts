@@ -1,6 +1,5 @@
 // Pure row-mapping + feedback validation/normalization for loadDrafts.
-// Hoisted out of load-draft.ts to keep the Server Action file under the
-// 100-line cap (code-style.md §1). No `'use server'` — these are pure transforms.
+// Hoisted out of load-draft.ts. No `'use server'` — these are pure transforms.
 import type { Database } from '@repo/db/types'
 import { isValidDraftAnswer } from '@/app/app/quiz/session/_utils/quiz-session-validators'
 import type { AnswerFeedback, DialogBlankResult, DraftAnswer, DraftData } from '../types'

@@ -2,7 +2,7 @@ import { buildConsentCookieValue } from '@/lib/consent/check-consent'
 
 /**
  * Runs the consent gate for an authenticated `/app` request. Extracted out of
- * `proxy.ts` to keep it under its file-size cap — pure gate logic, no
+ * `proxy.ts` — pure gate logic, no
  * proxy-specific cookie/header plumbing.
  *
  * A cookie not bound to THIS user's id (missing, stale version, or another

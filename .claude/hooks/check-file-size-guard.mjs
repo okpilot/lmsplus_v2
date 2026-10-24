@@ -583,10 +583,10 @@ function main(args) {
     for (const p of stale) console.error(`  ${p}`)
     console.error('\n  These no longer describe a live violation. BLOCKING, not advisory: a file')
     console.error("  can leave its rule class by being RENAMED — dropping the `'use server'`")
-    console.error('  directive moves a Server Action out of its rule — and the only trace is this')
-    console.error('  entry going stale, which reads')
-    console.error('  as "resolved". Prune it deliberately, or restore')
-    console.error(`  the file: \`node ${GUARD} --update-baseline\` writes the change for review.`)
+    console.error('  directive moves a Server Action out of its rule — and the only trace is')
+    console.error('  this entry going stale, which reads as "resolved". Prune it deliberately,')
+    console.error('  or restore the file:')
+    console.error(`  \`node ${GUARD} --update-baseline\` writes the change for review.`)
   }
 
   if (regressions.length === 0) return stale.length > 0 ? 1 : 0

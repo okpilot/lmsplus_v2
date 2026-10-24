@@ -437,6 +437,8 @@
       "expectRed": [
         "renaming a grandfathered file out of its rule class is blocked, not silently allowed",
         "the current tracked tree has no regression against the committed baseline",
+        "the live limits file grades only SQL migrations and use server files",
+        "the live limits file takes a use server .ts and .tsx at 100, a plain .ts at no cap",
         "a file type with no matching rule is left unclassified, not defaulted to a limit",
         "update-baseline leaves limits.json byte-identical when it already matches the tree",
         "update-baseline reports an added violation and a removed now-compliant entry, and drops the removed key",
@@ -654,15 +656,23 @@
     },
     {
       "claim": "test.mjs 'test files are relaxed to 500, not exempt from every limit': restore the blanket basename EXCLUSION",
-      "why": "The mutation edits `excludeBasenamePatterns` in .claude/limits.json, not this file's `target`. The assertion runs against the local `fixture()` object, so no edit to the guard source can reach it."
+      "why": "The assertion runs against the local `fixture()` object, so no edit to .claude/limits.json reaches it; restoring a blanket exclusion is a rewrite of the guard's classification, not a single-site edit the harness can apply to `target`."
     },
     {
       "claim": "test.mjs 'excludes the generated Supabase types file': remove the types.ts glob",
-      "why": "The mutation edits `excludeGlobs` in .claude/limits.json, not this file's `target`. Fixture-scoped: the live config is pinned by a separate unclaimed test in the same suite."
+      "why": "The assertion runs against the local `fixture()` object, so no edit to .claude/limits.json reaches it. Fixture-scoped: the live config has empty exclusion lists."
     },
     {
       "claim": "test.mjs 'excludes the scripts directory': remove 'scripts/**'",
-      "why": "The mutation edits `excludeGlobs` in .claude/limits.json, not this file's `target`. Fixture-scoped, as above."
+      "why": "The assertion runs against the local `fixture()` object, so no edit to .claude/limits.json reaches it. Fixture-scoped, as above."
+    },
+    {
+      "claim": "test.mjs 'the live limits file grades only SQL migrations and use server files': restore a dropped rule (test file, page, hook, component, utility) in limits.json",
+      "why": "The mutation edits `rules` in .claude/limits.json, not this file's `target`. The assertion reads the live config, so the guard source cannot reach it."
+    },
+    {
+      "claim": "test.mjs 'the live limits file takes a use server .ts and .tsx at 100, a plain .ts at no cap': drop requiresUseServer from a Server Action rule in limits.json",
+      "why": "The mutation edits `rules` in .claude/limits.json, not this file's `target`. The assertion reads the live config, so the guard source cannot reach it."
     },
     {
       "claim": "test.mjs 'a .ts declaring use server takes the 100 limit, not the 200 util limit': move the util rule above the Server Action rule",

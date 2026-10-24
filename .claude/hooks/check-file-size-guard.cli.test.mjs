@@ -1,7 +1,4 @@
-// CLI + live-tree tests for the file-size guard. Split out of the unit suite when the
-// combined file crossed the test-file cap that this very guard enforces —
-// baselining it would have been the "widen the rule to fit my own code" move the
-// programme exists to stop. Run:
+// CLI + live-tree tests for the file-size guard. Split out of the unit suite. Run:
 //   node --test .claude/hooks/check-file-size-guard.cli.test.mjs
 //
 // Every case below is MUTATION-PINNED: break the named mechanism in

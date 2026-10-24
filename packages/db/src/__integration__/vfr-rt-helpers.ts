@@ -2,8 +2,7 @@
  * Shared fixtures for the VFR RT exam integration suites.
  *
  * Extracted from rpc-vfr-rt-start.integration.test.ts (#844) so the start,
- * questions, and column-grant test files can each stay under the 500-line
- * ceiling without duplicating these five seed helpers. Not a test file
+ * questions, and column-grant test files do not duplicate these five seed helpers. Not a test file
  * (no .test.ts suffix) — Vitest does not collect it.
  *
  * `admin` and `suffix` are module-level: each importing test file loads this

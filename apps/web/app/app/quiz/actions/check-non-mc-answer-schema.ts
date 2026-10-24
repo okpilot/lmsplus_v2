@@ -1,6 +1,5 @@
 // Zod input schemas for checkNonMcAnswer. Hoisted out of
-// check-non-mc-answer-helpers.ts to keep that file ≤200 lines
-// (code-style.md §1).
+// check-non-mc-answer-helpers.ts.
 import { z } from 'zod'
 import { DiagramMappingSchema } from './diagram-mapping-schema'
 import { isUniquePermutation, MAX_ORDER_ITEMS, MIN_ORDER_ITEMS } from './ordering-validation'

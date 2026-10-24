@@ -1,5 +1,5 @@
 // Pure/DB helpers for the resumeQuizSession Server Action. Hoisted out of resume.ts
-// to keep the action file under the 100-line cap (code-style.md §1) and each function
+// out of the action file; each function stays
 // under the 30-line rule (§3). No `'use server'` — these are invoked by the action.
 import type { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
