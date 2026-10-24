@@ -208,10 +208,9 @@
 
 - [ ] **D.2 Type selector + conditional form sections**
   - Files: `apps/web/app/app/admin/questions/_components/question-form-fields.tsx` (pre-refactor + extend) + `mc-option-fields.tsx` (extracted) + `short-answer-fields.tsx` (new) + `dialog-fill-fields.tsx` (new) + tests
-  - **Pre-refactor check — RE-MEASURE, do not trust this line.** This file was AT the component cap
-    when the task was written and is now just under it. Run `wc -l` against `.claude/limits.json`; if the
-    addition would cross the cap, extract the existing 4-option MC editor into `mc-option-fields.tsx` in
-    the SAME commit per `code-style.md` §1.
+  - **Pre-refactor check.** Components have no file-length cap (Decision 149). If the addition pushes a
+    function past Biome's limit (`code-style.md` §3), extract the existing 4-option MC editor into
+    `mc-option-fields.tsx` in the SAME commit.
   - Segmented control for question_type; conditional render based on selected value.
   - **Edit-flow data source:** existing `short_answer`/`dialog_fill` questions load their answer-key fields via the `get_question_authoring_fields` RPC (mig 094b) in the editor's Server Component — direct PostgREST SELECT of those columns is privilege-blocked (mig 094) for admins too.
   - _Requirements: R5.1, R5.2, R5.3_
