@@ -1,7 +1,7 @@
 // Run: node --test .claude/hooks/check-decisions-ledger.test.mjs
 //
 // Pure decision logic for the decisions-ledger guard (Decision 86). The git-facing paths
-// (commit-msg index read, --base per-commit tree reads, absent-vs-fault probing) live in
+// (commit-msg index read, --base merge-base read, absent-vs-fault probing) live in
 // check-decisions-ledger.repo.test.mjs.
 //
 // Every case is MUTATION-PINNED: the opening comment names the exact break that turns it

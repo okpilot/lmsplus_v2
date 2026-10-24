@@ -3,7 +3,7 @@
 # ============================================================================
 #
 # Layer 1: pre-commit  — BLOCKING — catches broken code before git history
-# Layer 2: commit-msg  — BLOCKING — conventional commits + cited SHAs must resolve
+# Layer 2: commit-msg  — BLOCKING — conventional commits + decisions-ledger
 # Layer 3: pre-push    — BLOCKING — security gate (final defense)
 #
 # NOTE: Code review, doc updates, and test writing are NOT here. A commit triggers

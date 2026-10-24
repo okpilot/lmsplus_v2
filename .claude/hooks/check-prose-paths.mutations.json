@@ -550,7 +550,7 @@
       "expectRed": [
         "reads only comment lines in a code file, never its data",
         "reads the body of a block comment whose lines carry no leading star",
-        "does not open a block on a slash-star inside a string"
+        "does not open a block on a slash-star inside a comment line"
       ]
     },
     {
@@ -578,7 +578,13 @@
       "id": "block-opener-unanchored",
       "find": "    const opens = /^\\s*\\/\\*/.test(line)\n",
       "replace": "    const opens = line.includes('/*')\n",
-      "expectRed": ["does not open a block on a slash-star inside a string"]
+      "expectRed": ["does not open a block on a slash-star inside a comment line"]
+    },
+    {
+      "id": "indented-block-list-carveout-dropped",
+      "find": " && !/^[ \\t]+(?:[-*+>|]|\\d+[.)])(?:\\s|$)/.test(line)",
+      "replace": "",
+      "expectRed": ["skips an indented code block but keeps an indented list item"]
     },
     {
       "id": "fence-closer-ignores-trailing",

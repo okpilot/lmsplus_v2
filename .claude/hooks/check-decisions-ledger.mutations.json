@@ -323,7 +323,7 @@
       "expectRed": ["a commit that does not touch the ledger passes with no origin/master"]
     },
     {
-      "id": "base-waivers-per-commit",
+      "id": "base-waivers-dropped",
       "find": "    .filter((m) => m.trim() !== '')",
       "replace": "    .filter((m) => m.trim() !== '')\n    .slice(-1)",
       "expectRed": ["a waiver trailer in a later commit covers an edit made in an earlier commit"]

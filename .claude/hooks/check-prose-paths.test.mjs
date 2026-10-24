@@ -419,7 +419,7 @@ test('reads the body of a block comment whose lines carry no leading star', () =
   )
 })
 
-test('does not open a block on a slash-star inside a string', () => {
+test('does not open a block on a slash-star inside a comment line', () => {
   // MUTATION: change the opener test to `line.includes('/*')` → a `/*` inside a comment line
   // opens a phantom block and every later line is graded as prose. The fixture line must BE a
   // comment: `opens` is only consulted inside the COMMENT_RE branch.

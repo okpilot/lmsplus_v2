@@ -107,7 +107,7 @@ test('a waiver in a non-last commit of the range still waives its own edit', () 
     assert.equal(res.status, 0)
   }))
 
-// GROUP: base-waivers-per-commit
+// GROUP: base-waivers-dropped
 test('a waiver trailer in a later commit covers an edit made in an earlier commit', () =>
   withRepo((r) => {
     r.write('docs/decisions.md', LEDGER_V1)
