@@ -5,8 +5,7 @@
 // byte-identical for any N. Also covers two #1331 outside-diff fixes landing in this same PR: R6
 // (ref-based candidate enumeration survives a data file deleted from the WORKING TREE) and R7
 // (`commit-tree` needs no inherited git identity). A SIBLING file, not a section of
-// `run-mutations.staged.test.mjs`, which sits near its cap in `.claude/limits.json`
-// (`--stats` before adding a line there).
+// `run-mutations.staged.test.mjs`.
 //
 // Every case carrying a mutation claim is pinned by a GROUP marker into
 // `run-mutations.mutations.json` — `--coverage` is the check, not this sentence; a few smoke

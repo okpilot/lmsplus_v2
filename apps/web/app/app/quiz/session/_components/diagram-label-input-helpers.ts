@@ -1,6 +1,5 @@
 // Pure placement helpers for DiagramLabelInput. Hoisted out of
-// diagram-label-input.tsx to keep that component file under the 150-line cap
-// (code-style.md §1) and to keep the component render-focused (logic lives
+// diagram-label-input.tsx to keep the component render-focused (logic lives
 // elsewhere) — mirrors the role ordering-input-helpers.ts plays for OrderingInput.
 
 import { isDiagramMappingArray } from '../../actions/diagram-validation'

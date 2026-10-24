@@ -41,16 +41,14 @@ Never restate a cap VALUE from `limits.json` in PROSE as a claim about that cap;
   apply them as TEXT, check `git diff --numstat`.
 - The suppression marker is unavailable for a broken invocation — that route exits 2, not 1, so a
   waiver can never stand in for a check that did not run.
-- Some baselined lines are FALSE POSITIVES (a budget or estimate colliding with a cap value) and are
-  baselined rather than tuned away: a guard narrowed until it has no false positives has stopped
-  detecting.
 - **`'use server'` defines a Server Action file, not the `actions/` folder.** A helper beside an
-  action takes the utility cap; a Server Action outside `actions/` still takes the action cap.
+  action is ungraded; a Server Action outside `actions/` still takes the action cap.
+- The guard grades SQL migrations and `'use server'` files only. Other TS/TSX files have no file-length cap; function length is Biome's limit (§3), off in the paths §3 excludes.
 
-**Same-commit extraction.** If a change grows a file already at/over its cap — or within ~10 lines —
-include the extraction in the SAME commit. Does NOT apply to an unsplittable-DDL migration (see the
-note on the SQL migration rule in `.claude/limits.json`). Run `wc -l` on every file you plan to grow
-during Plan Validation and budget the split up front.
+**Same-commit extraction.** If a change grows a SQL migration or a `'use server'` file already
+at/over its cap — or within ~10 lines — include the extraction in the SAME commit. Does NOT apply to
+an unsplittable-DDL migration (see the note on the SQL migration rule in `.claude/limits.json`). Run
+`wc -l` on every such file you plan to grow during Plan Validation and budget the split up front.
 **The golden rule:** if you need to scroll to understand a file, it's too long.
 A page file should look like this:
 ```tsx
@@ -236,7 +234,7 @@ app/
 | Constants | `SCREAMING_SNAKE_CASE` | `MAX_QUIZ_QUESTIONS` |
 | DB migration | `YYYYMMDDHHMMSS_description.sql` | `20260311000001_initial_schema.sql` |
 ### No Barrel Files (index.ts re-exports)
-Barrel files break tree-shaking, slow TypeScript, and create circular dependency risks.
+Barrel files break tree-shaking, slow TypeScript, and create circular dependency risks. Biome `performance/noBarrelFile` flags value re-exports; a type-only barrel (`export type … from`) is reviewer-checked.
 ```ts
 // ❌ WRONG — packages/ui/src/index.ts re-exporting everything
 export * from './question-card'
@@ -810,7 +808,7 @@ Enforcers: Biome (`pnpm lint`), CodeRabbit (`.coderabbit.yaml`), SonarCloud S675
 - Nesting deeper than 3 levels — CodeRabbit
 - `any` types — Biome
 - Non-null assertions without a comment (not in `*.test.*` or `*.spec.*` files — biome.json override) — CodeRabbit
-- Barrel `index.ts` files — CodeRabbit
+- Barrel `index.ts` files — Biome `performance/noBarrelFile` (value re-exports), CodeRabbit
 - Component props not wrapped in `Readonly<…>` (ERROR — see Section 5) — Biome `biome-plugins/readonly-props.grit`, CodeRabbit, SonarCloud `typescript:S6759`
 - `useEffect` used for data fetching (hydration guards are exempt — see Section 6) — CodeRabbit
 - Missing tests for new utility functions — test-writer

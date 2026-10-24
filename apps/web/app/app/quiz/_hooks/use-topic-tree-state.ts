@@ -6,8 +6,8 @@ import { collectSubtopicIds } from './topic-tree-helpers'
  * Owns the raw topics/checkedTopics/checkedSubtopics state for useTopicTree,
  * seeded from `initialTopics` when provided (e.g. VFR RT's server-fetched
  * topics, all checked by default) or empty otherwise (the ordinary
- * quiz-picker path, populated later via `loadTopics`). Extracted so
- * useTopicTree stays within the 80-line hook file cap.
+ * quiz-picker path, populated later via `loadTopics`). Extracted from
+ * useTopicTree.
  */
 export function useTopicTreeState(initialTopics?: TopicWithSubtopics[]) {
   const [topics, setTopics] = useState<TopicWithSubtopics[]>(() => initialTopics ?? [])

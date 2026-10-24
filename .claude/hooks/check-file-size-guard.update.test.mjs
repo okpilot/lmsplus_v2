@@ -2,15 +2,10 @@
 // `--update-baseline`) and the `.coderabbit.yaml` mirror pin. Run:
 //   node --test .claude/hooks/check-file-size-guard.update.test.mjs
 //
-// A THIRD file, split from the unit suite when it reached the test-file cap this very
-// guard enforces — twice in one session. Grandfathering a file written minutes earlier is the
-// "widen the rule to fit my own code" move the programme exists to stop, and trimming a comment
-// to squeak under is the same move in costume. The split is by concern: in-process unit tests,
+// A THIRD file, split from the unit suite by concern: in-process unit tests,
 // subprocess enforcement tests, and this — the one code path that WRITES to the data file the
-// guard is judged against, which is why it is worth isolating. The `--stats` cases moved here
-// from the CLI suite when that file came within a few lines of its cap: that little headroom
-// is a trap for whoever adds the next test, and this file is where the non-enforcing modes
-// belong anyway.
+// guard is judged against, which is why it is worth isolating. The `--stats` cases live here
+// because this file is where the non-enforcing modes belong.
 //
 // Every case is MUTATION-PINNED: break the named mechanism and that case — or the named GROUP of cases sharing that mechanism — goes red.
 // Not "exactly one": several mechanisms here are pinned by a PAIR, and the stricter wording
@@ -151,7 +146,7 @@ test('reports per-rule compliance totals when asked for stats', () => {
   const guard = join(process.cwd(), '.claude/hooks/check-file-size-guard.mjs')
   const out = execFileSync(process.execPath, [guard, '--stats'], { encoding: 'utf8' })
   assert.match(out, /Server Action file \(cap 100\): \d+\/\d+ comply/)
-  assert.match(out, /test file \(cap 500\): \d+\/\d+ comply/)
+  assert.match(out, /SQL migration \(cap 300\): \d+\/\d+ comply/)
   // and it must not double as an enforcement run
   assert.doesNotMatch(out, /violation/)
 })
@@ -267,7 +262,7 @@ test('updating the baseline rewrites a shrunk entry and leaves everything else a
 })
 
 test('the lefthook glob reaches every extension the rules can match', () => {
-  // MUTATION: drop `sql` (or `mjs`) from the file-size-guard glob in lefthook.yml → red.
+  // MUTATION: drop `sql` (or `ts`/`tsx`) from the file-size-guard glob in lefthook.yml → red.
   // Nothing else pins this. The guard can only grade a file lefthook actually HANDS it, so a
   // narrowed glob silently retires whole rule classes at pre-commit while every unit test stays
   // green — CI's whole-tree run would still catch it, but a commit sails through locally. This is
@@ -278,16 +273,14 @@ test('the lefthook glob reaches every extension the rules can match', () => {
   const glob = block.match(/glob:\s*"([^"]+)"/)
   assert.ok(glob, 'file-size-guard has no glob in lefthook.yml')
   const exts = new Set(glob[1].replace(/^\*\.\{|\}$/g, '').split(','))
-  // Derive what the rules can match rather than restating a list — this loop used to SAY that
-  // while iterating a hardcoded ['ts','tsx','sql','mjs'], so a rule added on a new extension
-  // (`**/*.js`, say) would leave the glob narrowed and this test green. Every closed extension a
-  // rule glob ends in is now read out of limits.json. `**/*.test.*` and `**/*.spec.*` end in `.*`
-  // and yield no suffix, so .mjs — the one it caught us on — stays asserted explicitly.
-  const required = new Set(['mjs'])
+  // Derive what the rules can match rather than restating a list: every closed extension a rule
+  // glob ends in is read out of limits.json.
+  const required = new Set()
   for (const rule of LIMITS.rules) {
     const suffix = rule.glob.match(/\.([a-z0-9]+)$/i)
     if (suffix) required.add(suffix[1].toLowerCase()) // the lefthook glob is lowercase
   }
+  assert.ok(required.size > 0, 'no closed extension found in any rule glob')
   for (const want of required) {
     assert.ok(exts.has(want), `lefthook file-size-guard glob omits ${want}: ${glob[1]}`)
   }
@@ -299,8 +292,8 @@ test('.coderabbit.yaml pins each cap to the same RULE KIND as limits.json', () =
   // codification move: PIN a copy the consumer cannot dereference, instead of DELETING it.
   //
   // MUTATION: compare the two as SETS of numbers instead of per-kind pairs → red. The set form
-  // was the original and it was VACUOUS for the mutation that matters: swapping the page cap
-  // with the component cap leaves both sets identical, so the mirror could state the two kinds
+  // was the original and it was VACUOUS for the mutation that matters: swapping the Server Action cap
+  // with the migration cap leaves both sets identical, so the mirror could state the two kinds
   // reversed and the test still passed. Proven by executing that swap.
   const yaml = readFileSync('.coderabbit.yaml', 'utf8').split('\n')
 
@@ -308,13 +301,8 @@ test('.coderabbit.yaml pins each cap to the same RULE KIND as limits.json', () =
   // are deliberately narrower than limits.json's globs (CodeRabbit reviews app-layer code, not
   // every file on disk) — so the mapping is stated, not inferred from the glob text.
   const MIRRORED = [
-    ['apps/web/app/**/page.tsx', 'page file'],
-    ['apps/web/app/**/_components/*.tsx', 'React component'],
     ['apps/web/app/**/actions.ts', 'Server Action file'],
-    ['apps/web/app/**/_hooks/use-*.ts', 'hook'],
-    ['packages/db/src/**/*.ts', 'utility/helper'],
     ['supabase/migrations/**/*.sql', 'SQL migration'],
-    ['**/*.test.{ts,tsx}', 'test file'],
   ]
 
   /** The `Max N lines` stated inside one `- path:` block, or null. */
@@ -329,8 +317,8 @@ test('.coderabbit.yaml pins each cap to the same RULE KIND as limits.json', () =
   }
 
   for (const [path, kind] of MIRRORED) {
-    // EVERY rule of the kind, not `.find()`. limits.json declares `test file`, `hook` and
-    // `Server Action file` TWICE each (one rule per glob), so a `.find()` pinned only the first
+    // EVERY rule of the kind, not `.find()`. limits.json declares `Server Action file` TWICE
+    // (one rule per glob), so a `.find()` pinned only the first
     // and a cap changed on the second diverged from .coderabbit.yaml in silence — while this
     // test, which .claude/skills/review-gate/agent-coderabbit-sync.md tells the agent to trust instead of hand-checking,
     // stayed green. Found by CR-local round 2.

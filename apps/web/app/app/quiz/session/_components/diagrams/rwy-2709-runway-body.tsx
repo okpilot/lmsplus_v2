@@ -1,7 +1,7 @@
 // The runway surface for the RWY 27/09 traffic-pattern schematic: the paved
 // rect plus a dashed centerline and threshold piano-key markings, so it reads
-// as a runway rather than a plain bar. Split out of `rwy-2709-lh-pattern.tsx`
-// to keep that component under the 150-line cap. No 'use client': pure artwork.
+// as a runway rather than a plain bar. Split out of `rwy-2709-lh-pattern.tsx`.
+// No 'use client': pure artwork.
 //
 // Coordinate space matches the parent SVG: a landscape 16:9 viewBox (160 x 90),
 // with the runway derived from the shared [0,1] fractions in `rwy-2709-layout.ts`.

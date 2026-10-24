@@ -1,6 +1,6 @@
 /**
  * Part 3 fixtures for the VFR RT exam integration suites (2 questions sampled per subtopic,
- * mig 20260929000200). Split from vfr-rt-helpers.ts to keep both under the helper cap. Not a test
+ * mig 20260929000200). Split from vfr-rt-helpers.ts. Not a test
  * file — Vitest does not collect it.
  */
 import { orderingItem } from './ordering-item-id'

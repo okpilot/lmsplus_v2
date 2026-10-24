@@ -1,4 +1,4 @@
-// Report summary types, extracted from quiz-report.ts to keep both query files under the §1 size cap.
+// Report summary types, extracted from quiz-report.ts.
 
 export type QuizReportSummary = {
   sessionId: string

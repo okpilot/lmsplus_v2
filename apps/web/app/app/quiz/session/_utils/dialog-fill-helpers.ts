@@ -1,8 +1,8 @@
 // Pure helpers + shared types behind the dialog_fill answer control
 // (`_components/use-dialog-fill-input.ts`, `_components/dialog-line.tsx`).
 //
-// They live in `_utils/` rather than in the hook so the hook stays inside its 80-line cap
-// (code-style.md §1), and so the dependency runs `_components/` → `_utils/` in one direction
+// They live in `_utils/` rather than in the hook so the
+// dependency runs `_components/` → `_utils/` in one direction
 // only: `toBlankResults` maps `DialogBlank[]` to `BlankResult`s, so both types have to sit
 // beside it or `_utils/` would end up importing from `_components/`.
 

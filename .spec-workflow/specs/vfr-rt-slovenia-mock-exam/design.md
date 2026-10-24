@@ -105,7 +105,7 @@ flowchart TD
 
 - **Single File Responsibility**: every migration touches exactly one schema/function concern. Splitting the work across ~8 migrations (rather than one mega-mig) makes each one easier to review, roll back, and audit.
 - **Component Isolation**: `vfr-rt-exam/page.tsx` is composition only; the Part-N renderers stay
-  within the component cap (`.claude/limits.json`, mechanically enforced); `dialog-fill-renderer.tsx` is the most complex new component and the one whose tests must cover the most edge cases (multi-line dialog, multiple blanks, speaker-tag stripping for display).
+  small; `dialog-fill-renderer.tsx` is the most complex new component and the one whose tests must cover the most edge cases (multi-line dialog, multiple blanks, speaker-tag stripping for display).
 - **Service Layer Separation**: grading lives in the SQL RPC. The Server Action is a thin wrapper. The client never grades.
 - **Utility Modularity**: `normalize-answer.ts` is a 1-function module with comprehensive unit tests; the SQL equivalent uses an inline `regexp_replace` chain (or a `normalize_answer(text)` plpgsql helper) and is covered by SQL integration tests asserting parity against the TS version.
 
@@ -354,7 +354,7 @@ flowchart TD
 
 ### Pages
 
-| Path | Purpose | Rule kind |
+| Path | Purpose | Kind |
 |---|---|---|
 | `apps/web/app/app/vfr-rt-exam/page.tsx` | Briefing + Start button OR resume in-progress (composition only) | page file |
 | `apps/web/app/app/vfr-rt-exam/in-progress/[sessionId]/page.tsx` | The exam UI; reads session + answers; renders `<VfrRtExamRunner>` | page file |
@@ -362,14 +362,12 @@ flowchart TD
 | `apps/web/app/app/vfr-rt-exam/_components/vfr-rt-exam-runner.tsx` | Timer + part nav + current-question shell | React component |
 | `apps/web/app/app/vfr-rt-exam/_components/short-answer-renderer.tsx` | Acronym + text input | React component |
 | `apps/web/app/app/vfr-rt-exam/_components/dialog-fill-renderer.tsx` | Renders the dialog with inline `<input>` per blank | React component |
-| `apps/web/app/app/vfr-rt-exam/_components/mc-renderer.tsx` | Same as existing MC renderer; can be the existing one imported directly | *(reuse — a decision, not a rule kind)* |
+| `apps/web/app/app/vfr-rt-exam/_components/mc-renderer.tsx` | Same as existing MC renderer; can be the existing one imported directly | *(reuse — existing component imported directly)* |
 | `apps/web/app/app/vfr-rt-exam/_components/part-progress.tsx` | 3-segment progress bar | React component |
 | `apps/web/app/app/vfr-rt-exam/_components/results-breakdown.tsx` | Per-part scores + per-question review | React component |
 
-The cap for each kind is data in `.claude/limits.json`; this table names the KIND so it cannot
-go stale against it. The column held eight literals until 2026-09-13 — two sweeps on this branch
-removed the same literals from this file's prose and from `tasks.md` and neither grepped for the
-table.
+The file-size guard grades none of these kinds (Decision 149); function length is Biome's limit
+(code-style.md §3).
 
 ### Constants
 
@@ -395,9 +393,8 @@ table.
 ### Admin question editor extension
 
 - `apps/web/app/app/admin/questions/_components/question-form-fields.tsx`:
-  - **Pre-refactor check — RE-MEASURE, do not trust this line.** The file was at the component cap when
-    this was written and is now just under it. Run `wc -l` against the cap in `.claude/limits.json` before
-    deciding. If the addition would cross it, first extract the existing 4-option MC editor into a new
+  - **Pre-refactor check.** Components have no file-length cap (Decision 149). If the addition pushes a
+    function past Biome's limit (code-style.md §3), first extract the existing 4-option MC editor into a new
     `mc-option-fields.tsx`, THEN add the selector + conditional render to the slimmed-down parent.
   - Add a `<SegmentedControl>` at the top for `question_type`.
   - Conditional render: `multiple_choice` → `<McOptionFields>` (extracted); `short_answer` → new `<ShortAnswerFields>`; `dialog_fill` → new `<DialogFillFields>`.
@@ -405,10 +402,6 @@ table.
 - New components co-located in `_components/`:
   - `short-answer-fields.tsx`: canonical answer input + synonyms chip input.
   - `dialog-fill-fields.tsx`: textarea for template + auto-parsed blanks preview with per-blank synonyms editor.
-  - Both take the React-component cap in `.claude/limits.json` — not restated here. This spec is
-    ACTIVE, so a cap literal in it is a live mirror (`.claude/skills/review-gate/agent-workflow.md` § Rule-Mirror Sync), and
-    the two that stood here named 80 and 150 as if they were different caps for two files of the
-    same kind.
 - `packages/db/src/schema.ts`:
   - Convert `UpsertQuestionSchema` to `z.discriminatedUnion('question_type', [...])`.
 - `apps/web/app/app/admin/questions/actions/upsert-question.ts`:

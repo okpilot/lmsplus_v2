@@ -10,6 +10,7 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
+// biome-ignore lint/performance/noBarrelFile: test-only aggregation point (#925)
 export {
   cleanupReferenceData,
   cleanupTestData,

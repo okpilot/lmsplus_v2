@@ -35,7 +35,7 @@ function isQuestionCountRow(value: unknown): value is QuestionCountRow {
 /**
  * Shared active-question-count read for the quiz taxonomy queries — every exported
  * function in `quiz-subject-queries.ts` calls it to attach `questionCount` to subjects,
- * topics and subtopics. Extracted here so that file stays under the 200-line utility cap.
+ * topics and subtopics. Extracted out of that file.
  *
  * Degrades to `[]` rather than throwing, so a counts failure cannot surface as an error page.
  * Note what that actually means for the caller: an absent count becomes `questionCount: 0`,

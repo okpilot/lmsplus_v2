@@ -5,8 +5,8 @@
 // STDIN — the channel the harness actually uses — so these tests pin the input contract, not
 // just the pattern matching. Pattern: guard-bash.test.mjs.
 //
-// SendMessage coverage lives in guard-agent-brief.sendmessage.test.mjs — split out to keep this
-// file under the test-file cap (code-style.md §1). Fixtures and helpers shared by both suites
+// SendMessage coverage lives in guard-agent-brief.sendmessage.test.mjs — split out of this
+// file. Fixtures and helpers shared by both suites
 // live in guard-agent-brief.testkit.mjs.
 import assert from 'node:assert/strict'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'

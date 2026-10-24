@@ -2,8 +2,7 @@
 //
 // The git-facing and subprocess paths of the md-allowlist guard: staged scoping, the `--all`
 // every-tracked-path mode, the allowlist and `.gitignore` reads, and the exit-code split. The pure
-// decision logic lives in check-md-allowlist.test.mjs, so neither file approaches the test-file
-// cap in .claude/limits.json.
+// decision logic lives in check-md-allowlist.test.mjs.
 //
 // Every case is MUTATION-PINNED: the opening comment names the break that turns it red, and
 // every break was EXECUTED before being written down (`code-style.md` §7 — a `MUTATION:` line

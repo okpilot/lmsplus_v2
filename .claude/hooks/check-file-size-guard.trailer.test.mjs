@@ -1,6 +1,4 @@
-// stderr-trailer tests for the file-size guard. Split out of the CLI suite when linking every
-// claim to its mutation pushed the combined file past the test-file cap that this very guard
-// enforces. Run:
+// stderr-trailer tests for the file-size guard. Split out of the CLI suite. Run:
 //   node --test .claude/hooks/check-file-size-guard.trailer.test.mjs
 //
 // Every case below is MUTATION-PINNED: break the named mechanism in
