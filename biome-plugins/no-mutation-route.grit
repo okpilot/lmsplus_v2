@@ -6,5 +6,5 @@ or {
   `export const $m = $rest`
 } where {
   $m <: r"^(?:POST|PUT|PATCH|DELETE)$",
-  register_diagnostic(span=$m, message="Route Handlers are for external consumers only; mutations are Server Actions (code-style.md section 6)", severity="error")
+  register_diagnostic(span=$m, message="Route Handlers must not mutate; mutations are Server Actions (code-style.md R5)", severity="error")
 }
