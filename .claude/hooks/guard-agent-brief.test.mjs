@@ -273,6 +273,7 @@ function assertExit2(root, plan) {
   assert.match(r.stderr, /BLOCKED: test-author brief/)
 }
 
+// GROUP: guard-agent-brief-plan-exists-check-disabled
 test('blocks a test-author brief whose plan file does not exist with reason plan', () => {
   hasTemplate()
   const root = makePlanRoot()
@@ -283,6 +284,7 @@ test('blocks a test-author brief whose plan file does not exist with reason plan
   }
 })
 
+// GROUP: guard-agent-brief-plan-exists-check-disabled
 test('blocks a test-author brief whose plan is a directory named *.md with reason plan', () => {
   hasTemplate()
   const root = makePlanRoot()
@@ -294,6 +296,7 @@ test('blocks a test-author brief whose plan is a directory named *.md with reaso
   }
 })
 
+// GROUP: guard-agent-brief-plan-exists-check-disabled
 test('blocks a test-author brief whose plan is a symlink out of .work/ with reason plan', () => {
   hasTemplate()
   const root = makePlanRoot()
@@ -308,6 +311,7 @@ test('blocks a test-author brief whose plan is a symlink out of .work/ with reas
   }
 })
 
+// GROUP: guard-agent-brief-plan-exists-check-disabled
 test('blocks a test-author brief whose plan runs through a symlinked directory out of .work/ with reason plan', () => {
   hasTemplate()
   const root = makePlanRoot()
@@ -351,6 +355,7 @@ test('blocks a test-author brief whose plan is outside .work/ with exit 2', () =
   }
 })
 
+// GROUP: guard-agent-brief-plan-pattern-widened
 test('blocks a test-author brief whose plan is an existing non-.md file with exit 2', () => {
   hasTemplate()
   const root = makePlanRoot()
@@ -362,6 +367,7 @@ test('blocks a test-author brief whose plan is an existing non-.md file with exi
   }
 })
 
+// GROUP: guard-agent-brief-plan-pattern-widened
 test('blocks a test-author brief whose existing plan path has a sub/.. segment with exit 2', () => {
   hasTemplate()
   const root = makePlanRoot()
@@ -374,6 +380,7 @@ test('blocks a test-author brief whose existing plan path has a sub/.. segment w
   }
 })
 
+// GROUP: guard-agent-brief-tests-first-role-ungated
 test('blocks a tests-first agent that has no template, by role', () => {
   hasTemplate()
   const root = makePlanRoot()

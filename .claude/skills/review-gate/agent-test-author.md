@@ -12,9 +12,10 @@
 - Check every acceptance criterion maps to a test, or the agent says it cannot test it.
 - Commit the tests in the execute commit(s).
 - Name the test files read-only in every execute brief.
-- Mutation entries (`*.mutations.json`) are written after execute, by the implementer.
+- Mutation entries (`*.mutations.json`) and their `// GROUP:` marker lines are written after execute, by the implementer.
+- A wrong test: re-dispatch test-author with the same template; a changed acceptance criterion is re-approved first.
 ### NEVER
 - Execute before the `EVIDENCE:` line exists.
-- Let the implementer edit test-author's tests.
-- Fix a wrong test by hand or via SendMessage: fix the plan's acceptance criterion, then re-dispatch test-author with the same template.
+- Let the implementer edit test-author's tests (`// GROUP:` marker lines excepted).
+- Fix a wrong test by hand or via SendMessage.
 - Let the agent write production code or under `apps/web/e2e/redteam/`.

@@ -26,6 +26,7 @@
       "replace": "  if (!fs.existsSync(LOCK)) block('no lock')\n",
       "expectRed": [
         "allows any edit when no gate state exists",
+        "leaves the lock unarmed when a tests-first agent (test-author) is dispatched",
         "clears the lock when plan-critic is dispatched after a round"
       ],
       "note": "The early no-lock return blocks instead of allowing — an edit with no lock is refused."
@@ -37,6 +38,7 @@
       "expectRed": [
         "sets the lock when a gate-round agent is dispatched",
         "sets the lock when a conditional agent is dispatched",
+        "arms on a gate-round dispatch where the same fixture leaves a tests-first dispatch unarmed",
         "sets the lock again when the next round dispatches a reviewer",
         "sets the lock beside the hook when git cannot resolve the repo"
       ],
@@ -135,7 +137,12 @@
       "id": "review-gate-arms-any-role",
       "find": "ARMING_ROLES.has(pipeline.agents?.[subagentType]?.role)",
       "replace": "true",
-      "expectRed": ["leaves the state unchanged when a non-gate agent is dispatched"],
+      "expectRed": [
+        "leaves the lock unarmed when a tests-first agent (test-author) is dispatched",
+        "arms on a gate-round dispatch where the same fixture leaves a tests-first dispatch unarmed",
+        "the real pipeline.json gives test-author the tests-first role, which is not an arming role",
+        "leaves the state unchanged when a non-gate agent is dispatched"
+      ],
       "note": "Every dispatch sets the lock, whatever its role — a non-gate agent arms the gate."
     },
     {
