@@ -419,6 +419,20 @@
         "blocks a test-author brief whose plan runs through a symlinked directory out of .work/ with reason plan"
       ],
       "note": "A {plan} that is missing, a directory, or a symlink out of .work/ is no longer checked against the filesystem."
+    },
+    {
+      "id": "guard-agent-brief-plan-pattern-widened",
+      "find": "  plan: '\\\\.work/(?:[A-Za-z0-9_-][A-Za-z0-9._-]*/)*[A-Za-z0-9_-][A-Za-z0-9._-]*\\\\.md',",
+      "replace": "  plan: '\\\\.work/[A-Za-z0-9._/-]+',",
+      "expectRed": [],
+      "note": "A {plan} that is not .md, or that carries a .. segment resolving inside .work/, passes the pattern and planExists."
+    },
+    {
+      "id": "guard-agent-brief-tests-first-role-ungated",
+      "find": "const GATED_ROLES = new Set(['gate-round', 'conditional', 'tests-first'])",
+      "replace": "const GATED_ROLES = new Set(['gate-round', 'conditional'])",
+      "expectRed": [],
+      "note": "A tests-first agent with no template is no longer gated by its role."
     }
   ]
 }

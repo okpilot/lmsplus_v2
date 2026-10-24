@@ -266,6 +266,13 @@ function assertPlanBlocked(root, plan) {
   assert.doesNotMatch(r.stderr, /does not match its required template/)
 }
 
+/** The {plan} regex alone blocks: the path exists, the template-mismatch message is acceptable. */
+function assertExit2(root, plan) {
+  const r = runHook(payload(TA, taBrief(plan)), root)
+  assert.equal(r.status, 2, `expected exit 2 for plan ${plan}, got ${r.status}: ${r.stderr}`)
+  assert.match(r.stderr, /BLOCKED: test-author brief/)
+}
+
 test('blocks a test-author brief whose plan file does not exist with reason plan', () => {
   hasTemplate()
   const root = makePlanRoot()
@@ -339,6 +346,45 @@ test('blocks a test-author brief whose plan is outside .work/ with exit 2', () =
       const r = runHook(payload(TA, taBrief(plan)), root)
       assert.equal(r.status, 2, `expected exit 2 for plan ${plan}`)
     }
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('blocks a test-author brief whose plan is an existing non-.md file with exit 2', () => {
+  hasTemplate()
+  const root = makePlanRoot()
+  try {
+    writeFileSync(path.join(root, '.work/fixture-plan.txt'), 'plan\n')
+    assertExit2(root, '.work/fixture-plan.txt')
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('blocks a test-author brief whose existing plan path has a sub/.. segment with exit 2', () => {
+  hasTemplate()
+  const root = makePlanRoot()
+  try {
+    mkdirSync(path.join(root, '.work/sub'))
+    writeFileSync(path.join(root, '.work/fixture-plan.md'), '# plan\n')
+    assertExit2(root, '.work/sub/../fixture-plan.md')
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('blocks a tests-first agent that has no template, by role', () => {
+  hasTemplate()
+  const root = makePlanRoot()
+  try {
+    const pf = path.join(root, '.claude/pipeline.json')
+    const doc = JSON.parse(readFileSync(pf, 'utf8'))
+    doc.agents['ghost-author'] = { model: 'sonnet', write: true, role: 'tests-first' }
+    writeFileSync(pf, JSON.stringify(doc))
+    const r = runHook(payload('ghost-author', 'anything'), root)
+    assert.equal(r.status, 2)
+    assert.match(r.stderr, /no template for gated type ghost-author/)
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
