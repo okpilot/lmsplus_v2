@@ -234,7 +234,7 @@ app/
 | Constants | `SCREAMING_SNAKE_CASE` | `MAX_QUIZ_QUESTIONS` |
 | DB migration | `YYYYMMDDHHMMSS_description.sql` | `20260311000001_initial_schema.sql` |
 ### No Barrel Files (index.ts re-exports)
-Barrel files break tree-shaking, slow TypeScript, and create circular dependency risks. Enforced by Biome `performance/noBarrelFile`.
+Barrel files break tree-shaking, slow TypeScript, and create circular dependency risks. Biome `performance/noBarrelFile` flags value re-exports; a type-only barrel (`export type … from`) is reviewer-checked.
 ```ts
 // ❌ WRONG — packages/ui/src/index.ts re-exporting everything
 export * from './question-card'
@@ -808,7 +808,7 @@ Enforcers: Biome (`pnpm lint`), CodeRabbit (`.coderabbit.yaml`), SonarCloud S675
 - Nesting deeper than 3 levels — CodeRabbit
 - `any` types — Biome
 - Non-null assertions without a comment (not in `*.test.*` or `*.spec.*` files — biome.json override) — CodeRabbit
-- Barrel `index.ts` files — Biome `performance/noBarrelFile`, CodeRabbit
+- Barrel `index.ts` files — Biome `performance/noBarrelFile` (value re-exports), CodeRabbit
 - Component props not wrapped in `Readonly<…>` (ERROR — see Section 5) — Biome `biome-plugins/readonly-props.grit`, CodeRabbit, SonarCloud `typescript:S6759`
 - `useEffect` used for data fetching (hydration guards are exempt — see Section 6) — CodeRabbit
 - Missing tests for new utility functions — test-writer
