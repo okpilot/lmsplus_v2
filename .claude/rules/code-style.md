@@ -121,7 +121,7 @@ Enforced by prevention, not a text-matching guard (Decision 111).
 ---
 ## 3. Function Rules
 ### Max 30 Lines Per Function
-If a function is longer than 30 lines, extract steps into named helper functions. Named helpers are self-documenting. Biome enforces 50 lines/function and 3 params (`biome.json`; tests, e2e, scripts, `.claude/**` excluded); the 30-line target is reviewer-judged.
+If a function is longer than 30 lines, extract steps into named helper functions. Named helpers are self-documenting. Biome enforces 50 lines/function and 3 params (`biome.json`; tests, e2e, `__integration__`, `lib/integration-support`, `apps/web/scripts`, `.claude/**` excluded); the 30-line target is reviewer-judged.
 ```ts
 // ❌ WRONG — 60-line function doing everything
 export async function submitAnswer(input: unknown) {
@@ -271,7 +271,7 @@ export function QuestionCard({ prompt }: Readonly<{ prompt: string }>) { ... }
 function ActivePracticeBanner({ session }: Readonly<ActivePracticeProps>) { ... }
 ```
 Applies to every React function component, including `page.tsx`/`layout.tsx` default exports (their `params`/`searchParams`/`children` props), `_components/*.tsx`, and `apps/web/components/**`. SonarCloud S6759 scans all `.tsx` as the comprehensive enforcer; the `.coderabbit.yaml` mirror covers the `page.tsx`, `layout.tsx`, `_components/*.tsx`, and `apps/web/components/**` blocks.
-Enforced by Biome plugin `biome-plugins/readonly-props.grit` (error; tests excluded), SonarCloud `typescript:S6759` and CodeRabbit.
+Enforced by Biome plugin `biome-plugins/readonly-props.grit` (error; tests excluded), SonarCloud `typescript:S6759` and CodeRabbit. Plugin limits: generic components and `memo`/`forwardRef` wrappers are not checked.
 ### No `any`
 Use `unknown` with narrowing, or define the correct type.
 ```ts
@@ -513,7 +513,7 @@ export async function submitAnswer(input: unknown) { ... }
 ### R4 — No `useEffect` for Data Fetching
 Use R1 or R2. `useEffect` is for hydration guards and external-system sync.
 ### R5 — No Mutating Route Handlers
-NEVER create a Route Handler that mutates. Exceptions: `apps/web/app/auth/**` handlers and webhooks. Enforced by Biome plugin `biome-plugins/no-mutation-route.grit`; exceptions take `// biome-ignore lint/plugin: <reason>`.
+NEVER create a Route Handler that mutates. Exceptions: `apps/web/app/auth/**` handlers and webhooks. Enforced by Biome plugin `biome-plugins/no-mutation-route.grit` (limit: `export { x as POST }` re-exports are not checked); exceptions take `// biome-ignore lint/plugin: <reason>`.
 ### R6 — Cite Before Adding Cache, TTL, Timeout, Retry or Module-Level Store
 Cite in the PR body the Next/React/Supabase doc page that lacks the behaviour.
 ### Approved `useEffect` Pattern: Hydration Guard
@@ -526,7 +526,7 @@ if (!hydrated) return <Skeleton />
 ```
 Use this pattern when a component's initial render differs between server and client (e.g., reading `localStorage`, `window`, or client-only browser APIs).
 ### Re-throw Redirect Errors in Server Component Catch Blocks
-Next.js uses throw-based control flow for `redirect()` and `notFound()`. Any `catch` block wrapping a call that may invoke these must check `isRedirectError(error)` and re-throw if true. A bare `catch {}` that does not check turns a redirect into a 500 or stale render.
+Next.js uses throw-based control flow for `redirect()` and `notFound()`. Any `catch` block wrapping a call that may invoke these must call `rethrowRedirect(error)` from `@/lib/next/rethrow-redirect`. A bare `catch {}` that does not check turns a redirect into a 500 or stale render.
 ```tsx
 // ❌ WRONG — swallows redirect, shows fallback instead of redirecting
 try {
@@ -805,13 +805,13 @@ expect(row.actor_role).toBe('admin')
 Enforcers: Biome (`pnpm lint`), CodeRabbit (`.coderabbit.yaml`), SonarCloud S6759, semantic-reviewer.
 - Page files with logic instead of composition — CodeRabbit
 - Components with direct Supabase queries (no Server Component pattern) — CodeRabbit
-- Functions longer than 30 lines, including a pre-existing one the diff makes longer (EXCEPTION: React render/return bodies of pure JSX composition, no branching/data-transform — allowed up to 35 lines; see §3) — CodeRabbit
-- Functions with >3 parameters (non-object) — CodeRabbit
+- Functions longer than 30 lines, including a pre-existing one the diff makes longer (EXCEPTION: React render/return bodies of pure JSX composition, no branching/data-transform — allowed up to 35 lines; see §3) — CodeRabbit (>50 lines: Biome `complexity/noExcessiveLinesPerFunction`)
+- Functions with >3 parameters (non-object) — Biome `complexity/useMaxParams`, CodeRabbit
 - Nesting deeper than 3 levels — CodeRabbit
 - `any` types — Biome
 - Non-null assertions without a comment (not in `*.test.*` or `*.spec.*` files — biome.json override) — CodeRabbit
 - Barrel `index.ts` files — CodeRabbit
-- Component props not wrapped in `Readonly<…>` (WARNING — see Section 5) — CodeRabbit, SonarCloud `typescript:S6759`
+- Component props not wrapped in `Readonly<…>` (ERROR — see Section 5) — Biome `biome-plugins/readonly-props.grit`, CodeRabbit, SonarCloud `typescript:S6759`
 - `useEffect` used for data fetching (hydration guards are exempt — see Section 6) — CodeRabbit
 - Missing tests for new utility functions — test-writer
 - `.select()` reads that destructure only `{ data }` without checking `{ error }` (see Section 5 — `.single()` PGRST116 no-rows is an allowed exception) — semantic-reviewer, CodeRabbit

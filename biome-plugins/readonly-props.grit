@@ -1,9 +1,15 @@
 or {
   `function $name($props) { $body }`,
-  `const $name = ($props) => $body`
+  `function $name($props): $ret { $body }`,
+  `export default function $name($props) { $body }`,
+  `export default function $name($props): $ret { $body }`,
+  `export default async function $name($props) { $body }`,
+  `export default async function $name($props): $ret { $body }`,
+  `const $name = ($props) => $body`,
+  `const $name = ($props): $ret => $body`
 } where {
   $name <: r"^[A-Z].*",
   $props <: r"(?s).+",
-  $props <: not r"(?s).*Readonly<.*",
+  $props <: not r"(?s)^(?:\w+|.*\})\s*:\s*Readonly<.*",
   register_diagnostic(span=$name, message="Component props must be wrapped in Readonly<...> (code-style.md section 5)", severity="error")
 }

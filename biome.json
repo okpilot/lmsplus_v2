@@ -217,7 +217,14 @@
       "linter": {
         "rules": {
           "style": {
-            "noRestrictedImports": "off"
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "@repo/db/test-helpers": "test-helpers wraps the service-role key (getAdminClient). Import it only from integration tests or a lib/integration-support/** dir \u2014 never production code (#925)."
+                }
+              }
+            }
           }
         }
       }
