@@ -45,7 +45,8 @@ Never restate a cap VALUE from `limits.json` in PROSE as a claim about that cap;
   baselined rather than tuned away: a guard narrowed until it has no false positives has stopped
   detecting.
 - **`'use server'` defines a Server Action file, not the `actions/` folder.** A helper beside an
-  action takes the utility cap; a Server Action outside `actions/` still takes the action cap.
+  action is ungraded; a Server Action outside `actions/` still takes the action cap.
+- TS/TSX size is Biome's per-function limit (§3); the guard grades SQL migrations and `'use server'` files only.
 
 **Same-commit extraction.** If a change grows a file already at/over its cap — or within ~10 lines —
 include the extraction in the SAME commit. Does NOT apply to an unsplittable-DDL migration (see the
@@ -236,7 +237,7 @@ app/
 | Constants | `SCREAMING_SNAKE_CASE` | `MAX_QUIZ_QUESTIONS` |
 | DB migration | `YYYYMMDDHHMMSS_description.sql` | `20260311000001_initial_schema.sql` |
 ### No Barrel Files (index.ts re-exports)
-Barrel files break tree-shaking, slow TypeScript, and create circular dependency risks.
+Barrel files break tree-shaking, slow TypeScript, and create circular dependency risks. Enforced by Biome `performance/noBarrelFile`.
 ```ts
 // ❌ WRONG — packages/ui/src/index.ts re-exporting everything
 export * from './question-card'
@@ -810,7 +811,7 @@ Enforcers: Biome (`pnpm lint`), CodeRabbit (`.coderabbit.yaml`), SonarCloud S675
 - Nesting deeper than 3 levels — CodeRabbit
 - `any` types — Biome
 - Non-null assertions without a comment (not in `*.test.*` or `*.spec.*` files — biome.json override) — CodeRabbit
-- Barrel `index.ts` files — CodeRabbit
+- Barrel `index.ts` files — Biome `performance/noBarrelFile`, CodeRabbit
 - Component props not wrapped in `Readonly<…>` (ERROR — see Section 5) — Biome `biome-plugins/readonly-props.grit`, CodeRabbit, SonarCloud `typescript:S6759`
 - `useEffect` used for data fetching (hydration guards are exempt — see Section 6) — CodeRabbit
 - Missing tests for new utility functions — test-writer

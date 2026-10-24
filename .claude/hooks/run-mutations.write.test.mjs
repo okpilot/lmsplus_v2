@@ -2,8 +2,7 @@
 //
 // `--update-expected` end to end: the only mode that writes to a tracked data file.
 //
-// A SIBLING file, not a section of `run-mutations.spawn.test.mjs`: that suite is near its cap in
-// `.claude/limits.json`. Both are listed in `run-mutations.mutations.json`, so a break in either
+// A SIBLING file, not a section of `run-mutations.spawn.test.mjs`. Both are listed in `run-mutations.mutations.json`, so a break in either
 // is graded by the harness itself.
 //
 // Every case spawns the harness with a temp git repo as cwd. `repoRoot()` is a zero-parameter

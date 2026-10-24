@@ -1,8 +1,7 @@
 // Pure restore helper for OrderingInput. Hoisted out of ordering-input.tsx to keep
 // that component file under the 150-line cap (code-style.md §1) and to keep the
 // component render-focused (logic lives elsewhere). Also holds the useOrderingInput
-// hook's public opts/result types, moved here to keep the hook file under the 80-line
-// hook cap (code-style.md §1) — the runtime logic stays in use-ordering-input.ts.
+// hook's public opts/result types — the runtime logic stays in use-ordering-input.ts.
 
 import type { DragEndEvent, SensorDescriptor, SensorOptions } from '@dnd-kit/core'
 

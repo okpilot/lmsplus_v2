@@ -3,8 +3,7 @@
 // Pure decision logic for the prose-paths guard: token recognition, the six structural
 // narrowings, the exclusion classes, waivers, baseline keys and argument parsing. Nothing
 // here spawns a process or touches git — those paths live in
-// check-prose-paths.repo.test.mjs, so neither file approaches the test-file cap in
-// .claude/limits.json.
+// check-prose-paths.repo.test.mjs.
 //
 // ONE filesystem read remains, and it is deliberate. The sentinel below misses both index
 // sets, so `resolves` falls through to its `existsSync` tail (`grep -n 'return existsSync(t)'

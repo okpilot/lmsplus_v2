@@ -1,8 +1,7 @@
 // Run: node --test .claude/hooks/run-mutations.parse.test.mjs
 //
 // `parseSuite` and `groupProblems`: what a suite CLAIMS, and whether its `GROUP:` markers still
-// name mutations that exist. Split from run-mutations.test.mjs at the test-file cap in
-// .claude/limits.json. Also covers `CONTROL:` marker parsing (.claude/controls.test.mjs reads
+// name mutations that exist. Split from run-mutations.test.mjs. Also covers `CONTROL:` marker parsing (.claude/controls.test.mjs reads
 // `tests[].controls` to check every registered guard carries a spawned red and green control).
 
 import assert from 'node:assert/strict'

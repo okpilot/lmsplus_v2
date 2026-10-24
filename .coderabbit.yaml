@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
 #
-# PINNED MIRROR — the "Max N lines" caps in the path_instructions below are a deliberate
-# copy of `.claude/limits.json`, NOT drift. CodeRabbit reads only the diff plus this file's
+# PINNED MIRROR — the two "Max N lines" caps (Server Action file, SQL migration) in the
+# path_instructions below are a deliberate copy of `.claude/limits.json`, NOT drift. CodeRabbit reads only the diff plus this file's
 # literal text; it cannot follow a pointer (`.claude/skills/review-gate/agent-workflow.md § Rule-Mirror Sync`), so
 # replacing a number here with a reference would not keep it in sync — it would delete the
 # enforcement. `.claude/hooks/check-file-size-guard.update.test.mjs` fails in CI if any cap here
@@ -54,7 +54,6 @@ reviews:
     - path: "apps/web/app/**/page.tsx"
       instructions: |
         Next.js App Router page. STRICT rules:
-        - Max 80 lines. If exceeded, page has logic that belongs in _components/.
         - Pure composition: imports + one async function + JSX return. Nothing else.
         - No useState, useEffect, or event handlers.
         - Data fetching via imported async functions, not inline queries.
@@ -73,7 +72,6 @@ reviews:
     - path: "apps/web/app/**/_components/*.tsx"
       instructions: |
         React component. Enforce:
-        - Max 150 lines. Split if exceeded.
         - Single responsibility — if description needs "and", split it.
         - Default to Server Components. Only add 'use client' at lowest interactive boundary.
         - Use Next.js <Image> instead of <img> (Biome noImgElement). Suppress only when dimensions are unknown.
@@ -140,7 +138,6 @@ reviews:
     - path: "apps/web/app/**/_hooks/use-*.ts"
       instructions: |
         Custom React hook. Enforce:
-        - Max 80 lines. Extract logic to util if exceeded.
         - No useEffect for data fetching (code-style.md §6 R4).
         - No direct Supabase calls.
 
@@ -323,7 +320,7 @@ reviews:
         - A FILE-SIZE CAP restated in prose. `.claude/limits.json` is the only executed copy and
           `code-style.md` §1 says never to restate a number. Flag the numeral form and the cap
           SPELLED OUT or PARAPHRASED — "the five-hundred-line cap", "a cap of about five
-          hundred"; a prose cap is stale the moment limits.json moves, and nothing will catch it. The `Max N lines` figures in THIS file are the deliberate exception: CodeRabbit
+          hundred"; a prose cap is stale the moment limits.json moves, and nothing will catch it. The two `Max N lines` figures in THIS file (Server Action file, SQL migration) are the deliberate exception: CodeRabbit
           cannot follow a pointer, and `check-file-size-guard.update.test.mjs` machine-verifies
           them against limits.json in CI, so they are pinned rather than drifting.
         - A FILE PATH cited in prose that does not resolve on disk.
@@ -400,7 +397,6 @@ reviews:
     - path: "packages/db/src/**/*.ts"
       instructions: |
         Database utility (SECURITY CRITICAL). Enforce:
-        - Max 200 lines.
         - SECURITY DEFINER RPCs must have manual auth.uid() check + SET search_path = public.
         - No hard DELETE anywhere — always UPDATE SET deleted_at = now().
           EXCEPTION: packages/db/src/__integration__/** teardown helpers
@@ -677,8 +673,6 @@ reviews:
     - path: "**/*.test.{ts,tsx}"
       instructions: |
         Test file. Enforce:
-        - Max 500 lines. Test files are RELAXED relative to the component/utility caps,
-          not exempt from every limit. Split by concern if exceeded.
         - Test names describe behavior, not implementation.
           Good: 'schedules a shorter review interval when the answer is wrong'
           Bad: 'calls updateFsrsState'

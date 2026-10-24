@@ -74,14 +74,14 @@ export function countLines(content) {
  * "No `'use server'` — these are invoked by the action". Those two files exist precisely because
  * someone split a file to obey this very rule; misreading them as Server Actions inverts the
  * finding. Anchoring fixed that but left `/m`, which matches any line of a BLOCK COMMENT that
- * happens to begin with the quoted directive — handing a 200-line utility the 100-line Server
+ * happens to begin with the quoted directive — handing a plain helper the 100-line Server
  * Action cap. Cloud CodeRabbit found that one; no tracked file trips it today.
  *
  * The prologue is a SEQUENCE of bare string literals, so a leading `'use strict'` has to be
  * walked past rather than read as the end of it. The first draft of this scan stopped at the
  * first literal and answered FALSE for `'use strict'` + `'use server'`, where the regex it
- * replaced answered true — the dangerous direction, a real Server Action silently taking the
- * 200-line utility cap. No tracked file has that shape either. Handled anyway: which
+ * replaced answered true — the dangerous direction, a real Server Action silently going
+ * ungraded. No tracked file has that shape either. Handled anyway: which
  * direction a gap fails in is not the author's to predict.
  */
 export function declaresUseServer(content) {
@@ -582,9 +582,9 @@ function main(args) {
     console.error(`\n[file-size] ${stale.length} stale baseline entr${plural} in ${LIMITS_PATH}:`)
     for (const p of stale) console.error(`  ${p}`)
     console.error('\n  These no longer describe a live violation. BLOCKING, not advisory: a file')
-    console.error('  can leave its rule class by being RENAMED — `foo.ts` to `foo.test.ts` moves a')
-    console.error('  Server Action onto the test-file rule, `use-x.ts` to `x.ts` moves a hook onto')
-    console.error('  the utility rule — and the only trace is this entry going stale, which reads')
+    console.error("  can leave its rule class by being RENAMED — dropping the `'use server'`")
+    console.error('  directive moves a Server Action out of its rule — and the only trace is this')
+    console.error('  entry going stale, which reads')
     console.error('  as "resolved". Prune it deliberately, or restore')
     console.error(`  the file: \`node ${GUARD} --update-baseline\` writes the change for review.`)
   }

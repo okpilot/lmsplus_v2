@@ -109,7 +109,7 @@ function attemptNonMc(deps: HandlerDeps, attempt: NonMcAttempt): Promise<boolean
 
 // Builds the per-type submit handlers. Each wraps a Server Action call in the shared
 // optimistic/lock/revert machinery via `runAttempt`. Pure given its args — keeps the hook body
-// lean (code-style.md §1 hook cap).
+// lean.
 export function buildAnswerHandlers(deps: HandlerDeps) {
   return {
     handleSelectAnswer: (optionId: string) => attemptSelect(deps, optionId),

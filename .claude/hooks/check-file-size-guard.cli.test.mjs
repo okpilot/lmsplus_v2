@@ -380,7 +380,7 @@ test('renaming a grandfathered file out of its rule class is blocked, not silent
       })
     assert.equal(run().status, 0, 'the grandfathered file at its recorded size must pass')
 
-    // the escape: same content, new name, now graded against the test-file rule
+    // the escape: same content, new name, now graded against the test-file rule (fixture rule)
     execFileSync('git', ['mv', 'src/big.ts', 'src/big.test.ts'], { cwd: repo })
     execFileSync('git', ['add', '-A'], { cwd: repo })
     const after = run()

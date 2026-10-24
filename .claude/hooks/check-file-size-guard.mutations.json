@@ -665,10 +665,6 @@
       "why": "The mutation edits `excludeGlobs` in .claude/limits.json, not this file's `target`. Fixture-scoped, as above."
     },
     {
-      "claim": "test.mjs 'every rule note pointing at `_ratios` finds it': delete or rename the top-level `_ratios` key",
-      "why": "The mutation edits .claude/limits.json, and the key it names is documentation the guard never evaluates — no code in `target` reads `note` or `_ratios`, so there is nothing to mutate."
-    },
-    {
       "claim": "test.mjs 'a .ts declaring use server takes the 100 limit, not the 200 util limit': move the util rule above the Server Action rule",
       "why": "The mutation reorders `rules` in .claude/limits.json, not this file's `target`. Rule ORDER is data; the guard's first-match-wins loop is what the fixture exercises."
     },

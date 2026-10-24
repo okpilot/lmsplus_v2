@@ -42,11 +42,7 @@ pre-commit:
     # The glob must include `sql` — the migration limit is one of the two riskiest
     # categories, and a migration-only commit would otherwise never trigger the guard.
     file-size-guard:
-      # `mjs` is load-bearing: limits.json caps test files by BASENAME, so the extension is
-      # an open set — and every commit of the slice that introduced this guard logged
-      # "file-size-guard (skip) no files for inspection", because its own files are .mjs. The
-      # guard existed and was inert at pre-commit for exactly the files it capped.
-      glob: "*.{ts,tsx,sql,mjs}"
+      glob: "*.{ts,tsx,sql}"
       run: node .claude/hooks/check-file-size-guard.mjs {staged_files}
     # Forbid a file path written in PROSE that does not resolve on disk (code-style.md §9,
     # "grep all docs for stale references before committing"; §10, a comment or doc asserting

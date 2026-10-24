@@ -99,7 +99,7 @@ met, same commit. Verify redundancy, never infer from the resolved version:
 - Record the exit condition in the commit message.
 
 ## Critical rules (full details in linked docs)
-- page.tsx: composition only, no logic (file-size limits are data: `.claude/limits.json`)
+- page.tsx: composition only, no logic
 - Reads: Server Components (R1); client-initiated reads via a GET Route Handler per `docs/security.md` § Route Handler reads, never a Server Action (R2); existing Server Action reads (first: #1527) migrate when next reworked; editing one does not require migrating it. No `useEffect` data fetching (R4)
 - No hard DELETE — always soft delete (`deleted_at`)
 - No `any` type — use `unknown` with narrowing

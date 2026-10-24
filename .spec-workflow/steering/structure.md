@@ -116,7 +116,7 @@ feature/
 │   ├── submit.ts
 │   └── submit.test.ts
 ├── types.ts              # Feature-scoped type definitions
-├── page.tsx              # Route page (composition only — limits: .claude/limits.json)
+├── page.tsx              # Route page (composition only)
 └── loading.tsx           # Suspense fallback
 ```
 

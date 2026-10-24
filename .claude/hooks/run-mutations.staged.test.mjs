@@ -2,8 +2,7 @@
 //
 // Coverage for `--staged`: grades the INDEX rather than HEAD, scoped to the data files
 // `touchesStaged` keeps. A SIBLING file, not a section of
-// `run-mutations.test.mjs`: that suite sits at its cap in `.claude/limits.json`
-// (`--stats` before adding a line here). Listed in `run-mutations.mutations.json`, so a break in
+// `run-mutations.test.mjs`. Listed in `run-mutations.mutations.json`, so a break in
 // this file's own logic is graded by the harness itself, same as every other suite there.
 //
 // `touchesStaged`'s scope predicate is pinned directly, with a controllable fake — no real git.
