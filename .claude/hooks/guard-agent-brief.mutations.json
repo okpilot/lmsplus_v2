@@ -40,6 +40,8 @@
         "blocks a test-author brief whose plan runs through a symlinked directory out of .work/ with reason plan",
         "blocks a test-author brief whose plan has a .. segment with exit 2",
         "blocks a test-author brief whose plan is outside .work/ with exit 2",
+        "blocks a test-author brief whose plan is an existing non-.md file with exit 2",
+        "blocks a test-author brief whose existing plan path has a sub/.. segment with exit 2",
         "blocks a brief whose branch is not a local branch with exit 2",
         "blocks a steered brief padded with trailing-whitespace runs within the timeout",
         "blocks a steered brief for a templated type pipeline.json gives no gate role",
@@ -162,7 +164,10 @@
       "id": "guard-agent-brief-gated-template-check-disabled",
       "find": "if (typeof template !== 'string' || template === '') {",
       "replace": "if (false) {",
-      "expectRed": ["blocks a gated type with exit 2 when its template is missing"],
+      "expectRed": [
+        "blocks a tests-first agent that has no template, by role",
+        "blocks a gated type with exit 2 when its template is missing"
+      ],
       "note": "A gated type dropped from gate-briefs.json is treated as ungated."
     },
     {
@@ -392,6 +397,7 @@
         "fails open but loud on empty stdin (exit 0 + stderr warning)",
         "allows a test-author brief whose plan is a nested path under .work/",
         "allows a test-author brief whose plan is a symlink to a file inside .work/",
+        "blocks a tests-first agent that has no template, by role",
         "blocks every gated brief with exit 2 when the templates file is unparseable",
         "blocks every gated brief with exit 2 when the templates file has no templates object",
         "blocks a gated type with exit 2 when its template is missing",
