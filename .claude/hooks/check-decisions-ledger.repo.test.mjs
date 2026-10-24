@@ -213,7 +213,7 @@ test('a file deletion is blocked', () =>
     assert.match(res.stderr, /deleted/)
   }))
 
-// GROUP: unborn-head-not-treated-as-absent
+// GROUP: unborn-head-not-treated-as-absent, commitmsg-unborn-branch-dropped
 test('commit-msg mode on the FIRST commit (unborn HEAD) runs F1/F2 with no immutability check', () =>
   withRepo((r) => {
     r.write('docs/decisions.md', LEDGER_V1)

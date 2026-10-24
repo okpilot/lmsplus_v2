@@ -90,6 +90,14 @@
       ]
     },
     {
+      "id": "commitmsg-unborn-branch-dropped",
+      "find": "  if (!refExists('HEAD') || headText === newText) {",
+      "replace": "  if (headText === newText) {",
+      "expectRed": [
+        "commit-msg mode on the FIRST commit (unborn HEAD) runs F1/F2 with no immutability check"
+      ]
+    },
+    {
       "id": "unborn-head-not-treated-as-absent",
       "find": "    if (err.status === 1 && !err.signal) return false",
       "replace": "    if (false) return false",

@@ -372,11 +372,14 @@ test('skips a fenced code block', () => {
 test('closes a fence only on a fence of the same character and length', () => {
   // MUTATION: drop the character/length comparison in the fence-close branch → a `~~~`
   // inside a ```-fenced block closes it, and the real prose line after the block is swallowed.
-  const md = ['````', 'code', '~~~', 'still code', '````', 'prose'].join('\n')
-  // GROUP: markdown-fence-not-tracked
+  // The `~~~~` line is as long as the opener but a different character; the ``` line is the same
+  // character but shorter: each alone must leave the fence open.
+  const md = ['````', 'code', '~~~~', 'mid code', '```', 'still code', '````', 'prose'].join('\n')
+  // GROUP: markdown-fence-not-tracked, markdown-fence-closes-on-anything,
+  // markdown-fence-close-ignores-char, markdown-fence-close-ignores-length
   assert.deepEqual(
     markdownProse(md).map((l) => l.n),
-    [6],
+    [8],
   )
 })
 
@@ -384,6 +387,7 @@ test('skips an indented code block but keeps an indented list item', () => {
   // MUTATION: delete the list-marker carve-out from the indented-block test → nested bullets
   // drop out of scope silently.
   const md = ['intro', '', '    code block line', '    - a nested bullet'].join('\n')
+  // GROUP: indented-block-list-carveout-dropped
   assert.deepEqual(
     markdownProse(md).map((l) => l.n),
     [1, 2, 4],
@@ -392,6 +396,7 @@ test('skips an indented code block but keeps an indented list item', () => {
 
 test('reads only comment lines in a code file, never its data', () => {
   // MUTATION: make commentProse return every line → string data in the hook suites is graded.
+  // GROUP: code-file-data-lines-read-as-prose
   const js = [
     'const x = "docs/gone.md" // not a comment line',
     '// a comment line',
@@ -405,6 +410,7 @@ test('reads only comment lines in a code file, never its data', () => {
 
 test('treats a file with no prose form as carrying none', () => {
   // MUTATION: fall through to markdownProse for an unknown extension → data files are graded.
+  // GROUP: unknown-extension-falls-through-to-markdown
   assert.deepEqual(proseLines('.claude/limits.json', '{ "k": "docs/gone.md" }'), [])
   assert.equal(proseLines('.claude/rules/x.md', 'a prose line').length, 1)
   assert.equal(proseLines('.claude/hooks/x.mjs', '// a comment').length, 1)
@@ -412,6 +418,7 @@ test('treats a file with no prose form as carrying none', () => {
 
 test('reads the body of a block comment whose lines carry no leading star', () => {
   // MUTATION: delete the `if (inBlock)` branch at the top of commentProse's callback.
+  // GROUP: block-body-unread
   const src = ['/*', '  a sentence', '*/', 'const x = 1'].join('\n')
   assert.deepEqual(
     commentProse(src).map((p) => p.text.trim()),
@@ -423,6 +430,7 @@ test('does not open a block on a slash-star inside a comment line', () => {
   // MUTATION: change the opener test to `line.includes('/*')` → a `/*` inside a comment line
   // opens a phantom block and every later line is graded as prose. The fixture line must BE a
   // comment: `opens` is only consulted inside the COMMENT_RE branch.
+  // GROUP: block-opener-unanchored
   const src = ['// see /* for the shape', 'const cap = 1', 'more code'].join('\n')
   assert.deepEqual(
     commentProse(src).map((c) => c.text),
@@ -433,6 +441,7 @@ test('does not open a block on a slash-star inside a comment line', () => {
 test('does not let an info-string opener close an open fence', () => {
   // MUTATION: drop the `line.slice(fenceOpen[0].length).trim() === ''` term from the fence
   // closer. The inner opener must start its own line: the fence regex anchors at column 0..3.
+  // GROUP: fence-closer-ignores-trailing
   const md = ['```', '```js', 'still code', '```', 'real prose'].join('\n')
   assert.deepEqual(
     markdownProse(md).map((p) => p.text),
@@ -442,6 +451,7 @@ test('does not let an info-string opener close an open fence', () => {
 
 test('ignores a citation in the dated run log', () => {
   // MUTATION: empty EXCLUDED_PATHS → a dated history entry is graded as live prose.
+  // GROUP: run-log-not-excluded
   assert.equal(inPathCorpus('.claude/run-log.md'), false)
   assert.equal(inPathCorpus('.claude/rules/x.md'), true)
 })

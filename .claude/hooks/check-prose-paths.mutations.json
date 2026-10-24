@@ -544,6 +544,18 @@
       "expectRed": ["closes a fence only on a fence of the same character and length"]
     },
     {
+      "id": "markdown-fence-close-ignores-char",
+      "find": "        fenceOpen[1][0] === fence[0] &&\n",
+      "replace": "",
+      "expectRed": ["closes a fence only on a fence of the same character and length"]
+    },
+    {
+      "id": "markdown-fence-close-ignores-length",
+      "find": "        fenceOpen[1].length >= fence.length &&\n",
+      "replace": "",
+      "expectRed": ["closes a fence only on a fence of the same character and length"]
+    },
+    {
       "id": "code-file-data-lines-read-as-prose",
       "find": "    if (COMMENT_RE.test(line)) {\n      out.push({ n: i + 1, text: line })\n      if (opens && !closes) inBlock = true\n    }\n",
       "replace": "    out.push({ n: i + 1, text: line })\n    if (opens && !closes) inBlock = true\n",
