@@ -310,7 +310,7 @@ test('a git commit -v scissors line drops the diff below it before scanning for 
 // ---------------------------------------------------------------- checkUnit (integration of the pure pieces)
 
 test('both OLD and NEW absent is a clean run', () => {
-  const res = checkUnit({ oldText: null, newText: null, message: 'chore: unrelated\n' })
+  const res = checkUnit({ oldText: null, newText: null, messages: ['chore: unrelated\n'] })
   assert.deepEqual(res, { problems: [], offenders: [], unusedWaivers: [] })
 })
 
@@ -319,7 +319,7 @@ test('flags a whole-file deletion when OLD is present and NEW is absent', () => 
   const res = checkUnit({
     oldText: '# Decisions\n\n## 14 — 2026-03-11 — a.\n',
     newText: null,
-    message: 'chore: remove\n',
+    messages: ['chore: remove\n'],
   })
   assert.equal(
     res.offenders.some((o) => o.kind === 'deleted'),
@@ -330,7 +330,7 @@ test('flags a whole-file deletion when OLD is present and NEW is absent', () => 
 // GROUP: unchanged-file-skip-dropped
 test('a commit that leaves a malformed ledger untouched is clean', () => {
   const ledger = '# Decisions\n\n## 14 2026-03-11 broken\n'
-  const res = checkUnit({ oldText: ledger, newText: ledger, message: 'chore: readme\n' })
+  const res = checkUnit({ oldText: ledger, newText: ledger, messages: ['chore: readme\n'] })
   assert.deepEqual(res, { problems: [], offenders: [], unusedWaivers: [] })
 })
 
@@ -338,7 +338,7 @@ test('OLD absent (new file, or unborn HEAD) skips immutability checks but still 
   const res = checkUnit({
     oldText: null,
     newText: '# Decisions\n\n## 14 2026-03-11 broken\n',
-    message: 'chore: init\n',
+    messages: ['chore: init\n'],
   })
   assert.equal(
     res.offenders.some((o) => o.kind === 'format'),
@@ -350,7 +350,7 @@ test('a Ledger-edit-ok trailer waives exactly the finding for its token', () => 
   const res = checkUnit({
     oldText: '# Decisions\n\n## 14 — 2026-03-11 — first.\n## 15 — 2026-03-11 — second.\n',
     newText: '# Decisions\n\n## 14 — 2026-03-11 — first, EDITED.\n## 15 — 2026-03-11 — second.\n',
-    message: `fix: correct decision 14\n\nLedger-edit-ok: 14 — ${GOOD_REASON}\n`,
+    messages: [`fix: correct decision 14\n\nLedger-edit-ok: 14 — ${GOOD_REASON}\n`],
   })
   assert.deepEqual(res.offenders, [])
 })
@@ -361,7 +361,7 @@ test('a Ledger-edit-ok trailer for one token does not waive a finding on a diffe
     oldText: '# Decisions\n\n## 14 — 2026-03-11 — first.\n## 15 — 2026-03-11 — second.\n',
     newText:
       '# Decisions\n\n## 14 — 2026-03-11 — first, EDITED.\n## 15 — 2026-03-11 — second, EDITED.\n',
-    message: `fix: correct decision 14\n\nLedger-edit-ok: 14 — ${GOOD_REASON}\n`,
+    messages: [`fix: correct decision 14\n\nLedger-edit-ok: 14 — ${GOOD_REASON}\n`],
   })
   assert.equal(
     res.offenders.some((o) => o.token === '15'),
@@ -373,7 +373,7 @@ test('reports a waiver token that matched no finding, without blocking', () => {
   const res = checkUnit({
     oldText: '# Decisions\n\n## 14 — 2026-03-11 — first.\n',
     newText: '# Decisions\n\n## 14 — 2026-03-11 — first.\n## 15 — 2026-03-11 — new one.\n',
-    message: `chore: append\n\nLedger-edit-ok: 14 — ${GOOD_REASON}\n`,
+    messages: [`chore: append\n\nLedger-edit-ok: 14 — ${GOOD_REASON}\n`],
   })
   assert.deepEqual(res.offenders, [])
   assert.deepEqual(res.unusedWaivers, ['14'])
@@ -384,7 +384,7 @@ test('an unusable waiver reason is reported as a problem, not silently ignored',
   const res = checkUnit({
     oldText: '# Decisions\n\n## 14 — 2026-03-11 — first.\n',
     newText: '# Decisions\n\n## 14 — 2026-03-11 — first, EDITED.\n',
-    message: 'fix: correct decision 14\n\nLedger-edit-ok: 14 — nope\n',
+    messages: ['fix: correct decision 14\n\nLedger-edit-ok: 14 — nope\n'],
   })
   assert.equal(res.problems.length, 1)
   assert.deepEqual(res.offenders, [])
@@ -394,7 +394,7 @@ test('a format or numbering finding is never waivable (token is always null)', (
   const res = checkUnit({
     oldText: null,
     newText: '# Decisions\n\n## 14 2026-03-11 broken\n',
-    message: `chore: init\n\nLedger-edit-ok: 14 — ${GOOD_REASON}\n`,
+    messages: [`chore: init\n\nLedger-edit-ok: 14 — ${GOOD_REASON}\n`],
   })
   assert.equal(
     res.offenders.some((o) => o.kind === 'format'),
@@ -407,7 +407,7 @@ test('appending a new line with no edits to existing lines is clean', () => {
   const res = checkUnit({
     oldText: '# Decisions\n\n## 14 — 2026-03-11 — first.\n',
     newText: '# Decisions\n\n## 14 — 2026-03-11 — first.\n## 15 — 2026-03-12 — a new one.\n',
-    message: 'chore: append decision 15\n',
+    messages: ['chore: append decision 15\n'],
   })
   assert.deepEqual(res, { problems: [], offenders: [], unusedWaivers: [] })
 })
@@ -417,7 +417,7 @@ test('appending a marker to an existing line with no other edit is clean', () =>
     oldText: '# Decisions\n\n## 14 — 2026-03-11 — first.\n## 15 — 2026-03-11 — second.\n',
     newText:
       '# Decisions\n\n## 14 — 2026-03-11 — first.\n## 15 — 2026-03-11 — second. Superseded by 16.\n## 16 — 2026-03-12 — third.\n',
-    message: 'chore: decision 16 supersedes 15\n',
+    messages: ['chore: decision 16 supersedes 15\n'],
   })
   assert.deepEqual(res, { problems: [], offenders: [], unusedWaivers: [] })
 })
@@ -427,7 +427,7 @@ test('a Ledger-edit-ok: header trailer waives a changed header', () => {
   const res = checkUnit({
     oldText: '# Decisions\n\n> rule\n\n## 14 — 2026-03-11 — first.\n',
     newText: '# Decisions\n\n> a DIFFERENT rule\n\n## 14 — 2026-03-11 — first.\n',
-    message: `chore: reword rule text\n\nLedger-edit-ok: header — ${GOOD_REASON}\n`,
+    messages: [`chore: reword rule text\n\nLedger-edit-ok: header — ${GOOD_REASON}\n`],
   })
   assert.deepEqual(res.offenders, [])
 })
@@ -438,7 +438,7 @@ test('changing a marker number without waiving it is flagged', () => {
       '# Decisions\n\n## 14 — 2026-03-11 — first.\n## 15 — 2026-03-11 — second. Superseded by 16.\n',
     newText:
       '# Decisions\n\n## 14 — 2026-03-11 — first.\n## 15 — 2026-03-11 — second. Superseded by 99.\n',
-    message: 'chore: oops\n',
+    messages: ['chore: oops\n'],
   })
   assert.equal(
     res.offenders.some((o) => o.token === '15' && o.kind === 'marker'),

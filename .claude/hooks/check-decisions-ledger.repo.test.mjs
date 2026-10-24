@@ -15,8 +15,26 @@ import test from 'node:test'
 import { GOOD_REASON, GUARD, LEDGER_V1, withRepo } from './check-decisions-ledger.testkit.mjs'
 import { runNode } from './spawn.testkit.mjs'
 
+const EDITED_14 =
+  '# Decisions\n\n> rule text\n\n## 14 — 2026-03-11 — first decision, EDITED.\n## 15 — 2026-03-11 — second decision.\n'
+
+/** Point `origin/master` at HEAD when it is absent and HEAD exists (the usual fixture shape). */
+function ensureOrigin({ git }) {
+  try {
+    git('rev-parse', '--verify', '--quiet', 'refs/remotes/origin/master')
+  } catch {
+    try {
+      git('update-ref', 'refs/remotes/origin/master', 'HEAD')
+    } catch {
+      // unborn HEAD: no ref to point at
+    }
+  }
+}
+
 /** Run the commit-msg-mode guard in `dir` against a message file holding `message`. */
-function runCommitMsg({ dir }, message) {
+function runCommitMsg(r, message, { origin = true } = {}) {
+  const { dir } = r
+  if (origin) ensureOrigin(r)
   const msgPath = join(dir, '.git', 'COMMIT_EDITMSG_TEST')
   writeFileSync(msgPath, message)
   const { status, stderr, stdout } = runNode('check-decisions-ledger', [GUARD, msgPath], {
@@ -203,6 +221,71 @@ test('commit-msg mode on the FIRST commit (unborn HEAD) runs F1/F2 with no immut
     // MUTATION: let refExists('HEAD') throw instead of returning false on an unborn HEAD →
     // the very first commit ever made to this file aborts at exit 2 instead of running clean.
     assert.equal(runCommitMsg(r, 'chore: add ledger\n').status, 0)
+  }))
+
+// ---------------------------------------------------------------- commit-msg mode: merge-base reference
+
+/** `init` ledger on master, origin/master at it, then a `work` branch. */
+function branchFromOrigin(r) {
+  r.write('docs/decisions.md', LEDGER_V1)
+  r.git('add', '-A')
+  r.git('commit', '-qm', 'init')
+  r.git('branch', '-m', 'master')
+  r.git('update-ref', 'refs/remotes/origin/master', 'HEAD')
+  r.git('checkout', '-qb', 'work')
+}
+
+// GROUP: commitmsg-old-is-head
+test('a self-edit of a line added earlier on the branch passes without a trailer', () =>
+  withRepo((r) => {
+    branchFromOrigin(r)
+    r.write('docs/decisions.md', `${LEDGER_V1}## 16 — 2026-03-12 — a branch decision.\n`)
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'chore: append decision 16')
+    r.write('docs/decisions.md', `${LEDGER_V1}## 16 — 2026-03-12 — a branch decision, reworded.\n`)
+    r.git('add', '-A')
+    assert.equal(runCommitMsg(r, 'chore: reword decision 16\n').status, 0)
+  }))
+
+// GROUP: commitmsg-old-is-head, check-decisions-ledger-always-passes
+test('an edit of a line present at the merge-base fails without a trailer', () =>
+  withRepo((r) => {
+    branchFromOrigin(r)
+    r.write('docs/decisions.md', `${LEDGER_V1}## 16 — 2026-03-12 — a branch decision.\n`)
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'chore: append decision 16')
+    r.write(
+      'docs/decisions.md',
+      EDITED_14.replace(/\n$/, '\n## 16 — 2026-03-12 — a branch decision.\n'),
+    )
+    r.git('add', '-A')
+    const res = runCommitMsg(r, 'fix: reword decision 14\n')
+    assert.equal(res.status, 1)
+    assert.match(res.stderr, /## 14 — body edited/)
+  }))
+
+// GROUP: commitmsg-origin-fault-swallowed
+test('a staged ledger with no origin/master exits 2', () =>
+  withRepo((r) => {
+    r.write('docs/decisions.md', LEDGER_V1)
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'init')
+    r.write('docs/decisions.md', EDITED_14)
+    r.git('add', '-A')
+    const res = runCommitMsg(r, 'fix: reword decision 14\n', { origin: false })
+    assert.equal(res.status, 2)
+    assert.match(res.stderr, /origin\/master/)
+  }))
+
+// GROUP: commitmsg-origin-resolved-eagerly
+test('a commit that does not touch the ledger passes with no origin/master', () =>
+  withRepo((r) => {
+    r.write('docs/decisions.md', LEDGER_V1)
+    r.git('add', '-A')
+    r.git('commit', '-qm', 'init')
+    r.write('README.md', 'unrelated\n')
+    r.git('add', '-A')
+    assert.equal(runCommitMsg(r, 'chore: readme\n', { origin: false }).status, 0)
   }))
 
 // ---------------------------------------------------------------- commit-msg mode during a merge (skipped, #1350)

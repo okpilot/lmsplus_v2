@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0 # full history so the decisions-ledger guard can resolve the PR base
+          fetch-depth: 0 # full history so the decisions-ledger guard can resolve the PR base's merge-base
           persist-credentials: false # the guard only reads git history; no step needs write access
 
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
@@ -125,8 +125,8 @@ jobs:
       - name: Review gate — unit test
         run: node --test .claude/hooks/review-gate.test.mjs
 
-      # Decisions-ledger guard (Decisions 86, 88): re-checks each non-merge commit in the range
-      # as the commit-msg hook did, then merge-base..HEAD, catching edits made in merge commits.
+      # Decisions-ledger guard (Decision 86): merge-base of the PR base and HEAD vs HEAD, waived by
+      # the Ledger-edit-ok trailers of the non-merge commits in the range.
       - name: Decisions-ledger guard (PR commits, Decision 86)
         if: github.event_name == 'pull_request'
         run: node .claude/hooks/check-decisions-ledger.mjs --base ${{ github.event.pull_request.base.sha }}
@@ -139,15 +139,6 @@ jobs:
 
       - name: Decisions-ledger guard — --base (branch-range) tests
         run: node --test .claude/hooks/check-decisions-ledger.base.test.mjs
-
-      - name: Decisions-ledger guard — merge-commit (range) tests
-        run: node --test .claude/hooks/check-decisions-ledger.range.test.mjs
-
-      - name: Decisions-ledger guard — range hint tests
-        run: node --test .claude/hooks/check-decisions-ledger.range-hint.test.mjs
-
-      - name: Decisions-ledger guard — range unit (pure) tests
-        run: node --test .claude/hooks/check-decisions-ledger.range-pure.test.mjs
 
       # Prose-paths guard (code-style.md §9/§10: a file path written in prose must resolve).
       # `--all` here, NOT the staged mode the pre-commit hook uses: CI grades the whole worktree
