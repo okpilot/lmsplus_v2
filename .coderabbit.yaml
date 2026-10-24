@@ -163,7 +163,7 @@ reviews:
     - path: "**/*.ts"
       instructions: |
         TypeScript source. Enforce:
-        - Function size per code-style.md §3 (30 lines, 3 params, 3 nesting levels), with its exceptions (Server Action orchestrators, React render/return bodies of pure JSX composition, documented utility params). A pre-existing function the diff makes longer counts.
+        - Function size per code-style.md §3 (30 lines, 3 params, 3 nesting levels), with its exceptions (Server Action orchestrators, React render/return bodies of pure JSX composition, utility params with a `biome-ignore lint/complexity/useMaxParams` reason). A pre-existing function the diff makes longer counts.
         - No barrel `index.ts` re-export files (code-style.md §4).
         - A non-null assertion `!` carries a comment saying why it is safe (code-style.md §5; not in `*.test.*` or `*.spec.*` files — biome.json override).
         - Before adding a cache, TTL, timeout, retry or module-level store, the PR body must cite the Next/React/Supabase doc page that lacks the behaviour (code-style.md §6 R6).
@@ -203,7 +203,7 @@ reviews:
         React source. Enforce:
         - A component never queries Supabase directly (data via props or imported query helpers; code-style.md §2, §6 R1).
         - No useEffect for data fetching (code-style.md §6 R4): use Server Components (R1) or a GET Route Handler (R2).
-        - Function size per code-style.md §3 (30 lines, 3 params, 3 nesting levels), with its exceptions (React component/hook render/return bodies of pure JSX composition up to 35, documented utility params). A pre-existing function the diff makes longer counts.
+        - Function size per code-style.md §3 (30 lines, 3 params, 3 nesting levels), with its exceptions (React component/hook render/return bodies of pure JSX composition up to 35, utility params with a `biome-ignore lint/complexity/useMaxParams` reason). A pre-existing function the diff makes longer counts.
         - A non-null assertion `!` carries a comment saying why it is safe (code-style.md §5; not in `*.test.*` or `*.spec.*` files — biome.json override).
 
     # Comment accuracy — deliberately spans .ts AND .tsx (see code-style.md §10, broadened

@@ -166,7 +166,7 @@ function scheduleReview(opts: {
   sessionId: string
 }) {}
 ```
-**Exception: Infrastructure/utility functions** — Some utility functions are idiomatic exceptions (e.g., `updateFsrsCard(supabase, userId, questionId, isCorrect)` is 4 params but each maps to a distinct semantic role in the domain). Document the exception with a JSDoc comment if > 3 params.
+**Exception:** a function whose parameters each map to a distinct domain role may exceed 3 with `// biome-ignore lint/complexity/useMaxParams: <reason>`.
 ### Early Returns Over Nesting
 Fail fast. Avoid deeply nested if/else chains.
 ```ts
@@ -271,7 +271,7 @@ export function QuestionCard({ prompt }: Readonly<{ prompt: string }>) { ... }
 function ActivePracticeBanner({ session }: Readonly<ActivePracticeProps>) { ... }
 ```
 Applies to every React function component, including `page.tsx`/`layout.tsx` default exports (their `params`/`searchParams`/`children` props), `_components/*.tsx`, and `apps/web/components/**`. SonarCloud S6759 scans all `.tsx` as the comprehensive enforcer; the `.coderabbit.yaml` mirror covers the `page.tsx`, `layout.tsx`, `_components/*.tsx`, and `apps/web/components/**` blocks.
-Enforced by Biome plugin `biome-plugins/readonly-props.grit` (error; tests excluded), SonarCloud `typescript:S6759` and CodeRabbit. Plugin limits: generic components and `memo`/`forwardRef` wrappers are not checked.
+Enforced by Biome plugin `biome-plugins/readonly-props.grit` (error; tests excluded), SonarCloud `typescript:S6759` and CodeRabbit. Plugin limits: generic components, `memo`/`forwardRef` wrappers and `function` expressions are not checked; a `Readonly<...>` alias still needs `Readonly<Props>` at the parameter.
 ### No `any`
 Use `unknown` with narrowing, or define the correct type.
 ```ts
@@ -526,7 +526,7 @@ if (!hydrated) return <Skeleton />
 ```
 Use this pattern when a component's initial render differs between server and client (e.g., reading `localStorage`, `window`, or client-only browser APIs).
 ### Re-throw Redirect Errors in Server Component Catch Blocks
-Next.js uses throw-based control flow for `redirect()` and `notFound()`. Any `catch` block wrapping a call that may invoke these must call `rethrowRedirect(error)` from `@/lib/next/rethrow-redirect`. A bare `catch {}` that does not check turns a redirect into a 500 or stale render.
+Next.js uses throw-based control flow for `redirect()` and `notFound()`. Any `catch` block wrapping such a call must re-throw them: `rethrowRedirect(error)` from `@/lib/next/rethrow-redirect` for `redirect()`, `unstable_rethrow(error)` from `next/navigation` when `notFound()` can also be thrown. A bare `catch {}` that does not check turns a redirect into a 500 or stale render.
 ```tsx
 // ❌ WRONG — swallows redirect, shows fallback instead of redirecting
 try {
