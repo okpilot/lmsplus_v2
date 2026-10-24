@@ -806,7 +806,7 @@ Enforcers: Biome (`pnpm lint`), CodeRabbit (`.coderabbit.yaml`), SonarCloud S675
 - Page files with logic instead of composition — CodeRabbit
 - Components with direct Supabase queries (no Server Component pattern) — CodeRabbit
 - Functions longer than 30 lines, including a pre-existing one the diff makes longer (EXCEPTION: React render/return bodies of pure JSX composition, no branching/data-transform — allowed up to 35 lines; see §3) — CodeRabbit (>50 lines: Biome `complexity/noExcessiveLinesPerFunction`)
-- Functions with >3 parameters (non-object) — Biome `complexity/useMaxParams`, CodeRabbit
+- Functions with >3 parameters — Biome `complexity/useMaxParams`, CodeRabbit
 - Nesting deeper than 3 levels — CodeRabbit
 - `any` types — Biome
 - Non-null assertions without a comment (not in `*.test.*` or `*.spec.*` files — biome.json override) — CodeRabbit

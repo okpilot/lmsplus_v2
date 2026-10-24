@@ -121,7 +121,17 @@
       "linter": {
         "rules": {
           "style": {
-            "noRestrictedImports": "off"
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["next/dist/**"],
+                    "message": "Import from public next/* entry points."
+                  }
+                ]
+              }
+            }
           }
         }
       }
@@ -234,7 +244,7 @@
       "plugins": ["./biome-plugins/readonly-props.grit"]
     },
     {
-      "includes": ["**/app/**/route.ts"],
+      "includes": ["**/app/**/route.ts", "**/app/**/route.tsx", "**/app/**/route.js"],
       "plugins": ["./biome-plugins/no-mutation-route.grit"]
     }
   ]
