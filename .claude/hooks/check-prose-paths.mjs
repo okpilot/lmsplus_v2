@@ -56,8 +56,7 @@
 // surface — and it is committed for exactly that reason. Four numbers written here would
 // have gone stale inside the very commit that added them: this guard ships alongside a
 // baseline, a decision entry and its own two suites, every one of which adds corpus prose.
-// That is `code-style.md` §10 cl.7, and the sibling guard states no figure for the same
-// reason (Decision 68).
+// That is `code-style.md` §10 cl.7.
 //
 // KNOWN BOUNDS, stated because understating them would be this guard's own defect:
 //   - it catches a path that does not RESOLVE. It says NOTHING about a path that resolves
@@ -81,7 +80,6 @@ import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { argv, exit } from 'node:process'
 import { pathToFileURL } from 'node:url'
-import { EMPTY_REASONS, inCorpus, proseLines } from './check-prose-claims.mjs'
 
 const MAX_BUFFER = 64 * 1024 * 1024
 
@@ -102,9 +100,6 @@ const KNOWN_FLAGS = new Set(['--all', '--update-baseline'])
  * `.spec-workflow/steering/**` is KEPT: `.claude/skills/review-gate/agent-workflow.md § Rule-Mirror Sync` marks steering
  * ALWAYS live — never superseded the way a completed spec is — so a path in `structure.md` or
  * `tech.md` is a claim about the repo as it stands today.
- *
- * Excluding the whole spec tree also subsumes the sibling's completed-spec exclusion, so this
- * guard needs no `completedSpecDirs` pass at all.
  */
 const SPEC_PREFIX = '.spec-workflow/specs/'
 
@@ -118,8 +113,7 @@ const inNoteTree = (t) =>
   UNTRACKED_NOTE_PREFIXES.some((p) => t.startsWith(p)) || t.split('/').at(-1) === 'HANDOVER.md'
 
 /**
- * `.json` has no comment syntax, so it has no prose lines — the same reason
- * `check-prose-claims.mjs` gives for why `limits.json` can never flag itself. A path inside a
+ * `.json` has no comment syntax, so it has no prose lines. A path inside a
  * JSON file is DATA: this guard's own baseline is a list of quoted path strings, and grading
  * it would be grading data as prose. Dropped at the corpus level rather than yielding zero
  * lines, so the exclusion is visible in the file list instead of hidden in the scanner.
@@ -129,9 +123,7 @@ export const DATA_EXT = new Set(['.json'])
 // ---------------------------------------------------------------- token recognition
 
 /**
- * Extensions that make a token a file reference. The head of this list is the same one
- * `check-retracted-phrase.mjs` declares, extended with the forms that appear as paths in this
- * corpus. ORDER IS LOAD-BEARING and so is the lookahead — see narrowing 6.
+ * Extensions that make a token a file reference. ORDER IS LOAD-BEARING and so is the lookahead — see narrowing 6.
  */
 const EXT = [
   'tsx',
@@ -327,21 +319,118 @@ export const extOf = (path) => {
   return dot > slash ? path.slice(dot) : ''
 }
 
+const COMMENT_EXT = new Set(['.mjs', '.cjs', '.js', '.ts', '.mts', '.sh', '.yaml', '.yml'])
+
+const COMMENT_RE = /^\s*(?:\/\/|#|\*|\/\*)/
+
+/** The prose corpus: rule and doc prose. */
+const CORPUS = ['CLAUDE.md', '.coderabbit.yaml', '.claude/', 'docs/', '.spec-workflow/']
+
 /**
- * Prose lines of one corpus file. Delegates to `check-prose-claims.mjs` rather than
- * reimplementing markdown and comment scanning: that scanner carries five holes closed by
- * cloud review — a block comment whose body has no leading star, a block opener that must
- * BEGIN the line, a fence closer that must be bare, duplicate-line keying, the indented-block
- * carve-out. Reimplementing re-introduces all five.
+ * A dated append-only log: history cannot be corrected into a pointer. Excluded by exact path,
+ * not by prefix.
+ */
+const EXCLUDED_PATHS = new Set(['.claude/run-log.md'])
+
+/** Reasons that assert nothing. A waiver must say WHY the path is deliberate. */
+const EMPTY_REASONS = new Set([
+  'false positive',
+  'falsepositive',
+  'noise',
+  'na',
+  'n a',
+  'not applicable',
+  'ok',
+  'fine',
+  'intentional',
+  'known',
+  'skip',
+  'wontfix',
+  'ignore',
+])
+
+/**
+ * Markdown prose lines, as `{ n, text }` with `n` 1-based.
  *
- * ONE deviation: `.yaml`/`.yml` is graded WHOLE-FILE. The sibling grades yaml comments only,
- * correctly for its own question — a cap VALUE sitting in a yaml string is data. A PATH in a
- * yaml string is not: `.coderabbit.yaml`'s `path_instructions` are hand-written prose
- * addressed to a reviewer and they name files by path. Comment-only grading misses every one
- * of them, and a meaningful share of the binding surface lives in that file. No ratio is
- * stated: the terms are different units that drift independently (tokens vs distinct prose
- * lines) and an earlier draft of this very sentence mixed them. Re-derive with
- * `node .claude/hooks/measure-prose-paths.mjs`.
+ * Skipped: fenced blocks (``` / ~~~, any fence length, any info string) and indented code
+ * blocks. The indented-block test is deliberately coarse — four or more leading spaces —
+ * with ONE carve-out for lines that are plainly list continuations (a marker, a blockquote,
+ * or a table row after the indent). Over-skipping costs coverage; under-skipping costs
+ * precision, and precision is what makes a guard survive its first week.
+ */
+export function markdownProse(content) {
+  const out = []
+  let fence = null
+  content.split('\n').forEach((line, i) => {
+    const fenceOpen = /^\s{0,3}(`{3,}|~{3,})/.exec(line)
+    if (fence) {
+      // A closer is at least as long as its opener, the same character, and bare: an inner
+      // ```js opener must not close the outer fence.
+      const closes =
+        fenceOpen &&
+        fenceOpen[1][0] === fence[0] &&
+        fenceOpen[1].length >= fence.length &&
+        line.slice(fenceOpen[0].length).trim() === ''
+      if (closes) fence = null
+      return
+    }
+    if (fenceOpen) {
+      fence = fenceOpen[1]
+      return
+    }
+    if (/^(?: {4,}|\t)/.test(line) && !/^[ \t]+(?:[-*+>|]|\d+[.)])(?:\s|$)/.test(line)) return
+    out.push({ n: i + 1, text: line })
+  })
+  return out
+}
+
+/**
+ * Comment lines of a code file, as `{ n, text }`.
+ *
+ * Tracks BLOCK-comment state rather than matching each line's leading marker. A `/* ... *\/`
+ * whose body carries no leading `*` is valid and common. The trailing-comment case (`code(); // note`) stays
+ * EXCLUDED: a comment after source is not prose, and admitting it is how a guard starts
+ * grading code.
+ */
+export function commentProse(content) {
+  const out = []
+  let inBlock = false
+  content.split('\n').forEach((line, i) => {
+    // A block opens ONLY when the line BEGINS with the marker; a bare indexOf also matches `/*`
+    // inside a string or a regex and grades the code after it as prose.
+    const opens = /^\s*\/\*/.test(line)
+    const closes = line.includes('*/')
+    if (inBlock) {
+      out.push({ n: i + 1, text: line })
+      if (closes) inBlock = false
+      return
+    }
+    if (COMMENT_RE.test(line)) {
+      out.push({ n: i + 1, text: line })
+      if (opens && !closes) inBlock = true
+    }
+  })
+  return out
+}
+
+/** Prose lines of one corpus file. A file with no prose form yields none — not an error. */
+export function proseLines(path, content) {
+  const ext = extOf(path)
+  if (ext === '.md') return markdownProse(content)
+  if (COMMENT_EXT.has(ext)) return commentProse(content)
+  return []
+}
+
+export function inCorpus(path) {
+  if (EXCLUDED_PATHS.has(path)) return false
+  return CORPUS.some((root) => (root.endsWith('/') ? path.startsWith(root) : path === root))
+}
+
+/**
+ * Prose lines of one corpus file. ONE deviation from `proseLines`: `.yaml`/`.yml` is graded
+ * WHOLE-FILE. A path in a yaml string is not data: `.coderabbit.yaml`'s `path_instructions` are
+ * hand-written prose addressed to a reviewer and they name files by path. Re-derive the surface
+ * with `node .claude/hooks/measure-prose-paths.mjs`.
  */
 export function prosePathLines(path, content) {
   const ext = extOf(path)
@@ -489,8 +578,8 @@ export function stagedPaths(raw) {
 }
 
 /**
- * Read a path's INDEX content by its exact BYTES — the same `cat-file --batch` stdin trick
- * `check-prose-claims.mjs` and `check-file-size-guard.mjs` use, and for the same reason: argv
+ * Read a path's INDEX content by its exact BYTES — the `cat-file --batch` stdin trick
+ * `check-file-size-guard.mjs` also uses, and for the same reason: argv
  * is strings, so a path holding a byte that does not decode would be re-encoded to something
  * that names nothing, and the guard would call a perfectly readable staged file unreadable.
  *
@@ -511,9 +600,7 @@ function readIndexBlob(path) {
 // ---------------------------------------------------------------- corpus
 
 /**
- * The prose corpus for PATHS: the sibling's corpus, minus the spec tree and minus data files.
- * Reusing `inCorpus` rather than re-declaring the roots keeps ONE definition of what "binding
- * prose" means; two copies would drift the first time a root is added to either.
+ * The prose corpus for PATHS: `inCorpus`, minus the spec tree and minus data files.
  */
 export function inPathCorpus(path) {
   if (!inCorpus(path)) return false

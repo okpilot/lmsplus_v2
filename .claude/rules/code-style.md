@@ -30,7 +30,7 @@ Enforcers per rule: § 8. Violations are warnings (non-blocking) or errors (bloc
 ---
 ## 1. File Size Limits
 Limits are data: `.claude/limits.json`, enforced by `.claude/hooks/check-file-size-guard.mjs` at pre-commit and in CI.
-`.claude/hooks/check-prose-claims.mjs` blocks a cap VALUE from `limits.json` being restated in PROSE as a claim about that cap, at pre-commit and in CI, ratcheted against `.claude/prose-claims.json`.
+Never restate a cap VALUE from `limits.json` in PROSE as a claim about that cap; reviewers flag it.
 - **RATCHET, not a gate.** Fails on a NEW over-limit file; on a grandfathered one whose count no
   longer EXACTLY matches its `baseline` row, in EITHER direction; and on a stale `baseline` row
   (its file gone, now compliant, or excluded). Pre-existing violations are frozen in `limits.json`
@@ -653,7 +653,6 @@ it('schedules a shorter review interval when the answer is wrong', () => { ... }
 - `it('does not call the RPC when the input is empty', ...)` — describes the externally observable side-effect.
 
 The distinction: external contracts (props, public callbacks, public SDK calls, RPC names visible at the integration boundary) are part of behavior. Internal helpers, validator branches, and private types are implementation.
-A mechanical guard enforces this at pre-commit + CI: the `check-test-title-leakage.mjs` hook. It is **diff-scoped and grandfathered** — it flags only `it()` / `test()` / `it.each()` / `test.each()` titles on ADDED (`+`) diff lines, so the many pre-existing `maps <token>` titles do not block commits; only newly-written titles are caught. The Permitted forms above are never flagged (the patterns key on `forwards`/`from`/`maps`/`matches`, not the `calls`/`does not call` verbs the contracts use).
 ### Test Comments: Audit After Renaming
 Omit narrative comments above `it(...)` when the name fully describes the behaviour; reserve comments for non-obvious WHY. When renaming a title to be behavior-first, audit inline body comments too — a comment describing the old, broader scenario goes stale once the title narrows. Drop it unless it carries a non-obvious WHY.
 ### jsdom Limitation: Pre-Hydration State Is Not Testable
@@ -841,11 +840,7 @@ it is what the next reader trusts when deciding whether a guard can safely be re
    block, then grepping the retracted phrase repo-wide: `git grep -nF -- '<retracted phrase>' -- :/`
    (or `grep -RFn -- '<phrase>' .` from the root). Both `-F` and the repo-wide path are load-bearing
    — without them a regex or a subtree-only search fails open. A claim re-typed unchanged inside a reflowed block is a NEW assertion on a `+` line
-   that reads as old text. Mechanically enforced at `commit-msg` by
-   `.claude/hooks/check-retracted-phrase.mjs`, scoped to `.claude/`, `docs/`, `.spec-workflow/`,
-   `CLAUDE.md`, `.coderabbit.yaml` (excludes all-`[x]` specs); it needs the hunk to
-   contain the replacement and can't see a paraphrase — the grep above is still yours to run.
-   Waiver: `Retracted-ok: <token> — <reason>` trailer.
+   that reads as old text. Reviewer-judged; the grep above is yours to run.
    **Grep the CLAIM, not only the STRING that expressed it** — a sweep anchored on the retracted
    wording reports clean on every paraphrase of the same assertion. Search a distinctive TOKEN of
    the subject (the command, the filename, the field), not the sentence that carried it. Partial
@@ -857,11 +852,9 @@ it is what the next reader trusts when deciding whether a guard can safely be re
 5. **Re-reading finds incoherence; only re-deriving finds a claim that's coherent and false.**
    While a source file is open to verify one claim, re-derive every OTHER claim in the block that
    file can answer before closing it.
-6. **A commit message may not cite a SHA that does not resolve.** Enforced at `commit-msg` by
-   `.claude/hooks/check-commit-claims.mjs` via `git rev-parse --verify` (no `--quiet`, which
-   conflates ambiguous and absent). Bounds: proves the commit EXISTS, never that the claim about it
-   is true; detection is PARTIAL, so a green gate isn't proof every cited SHA was checked. Read
-   `TRIGGER_WORDS`/`extractRefs` in the hook rather than a copy here.
+6. **A commit message may not cite a SHA that does not resolve.** Verify with
+   `git rev-parse --verify <sha>` (no `--quiet`, which conflates ambiguous and absent). It proves
+   the commit EXISTS, never that the claim about it is true. Reviewer-judged.
 7. **Recompute any count, and test any EXTENT QUANTIFIER, as the LAST authoring step, against
    the final diff.** Distinct from cl.2 (enumerating an open set): this governs a count you've
    decided to state — measuring it before your commit's remaining edits land makes it stale on

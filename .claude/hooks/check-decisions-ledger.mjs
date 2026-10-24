@@ -11,7 +11,7 @@
 //         1 = at least one finding — fix it, or waive it (see below)
 //         2 = the check COULD NOT RUN (usage, git failure, unreadable message file)
 //
-// Checks, mirroring check-retracted-phrase.mjs's two-mode shape:
+// Checks:
 //   F1 every entry line matches `## <N> — <YYYY-MM-DD> — <text>`             — never waivable
 //   F2 entry numbers strictly consecutive (each = previous + 1)              — never waivable
 //   I1 every OLD entry number still exists in NEW                           — waivable per number
@@ -25,8 +25,7 @@
 // Escape hatch, one per token: a commit-message trailer
 //     Ledger-edit-ok: <N|header> — <reason>
 // naming ONE token (a decision number, or the literal `header`), carrying a written reason
-// (same shape as check-retracted-phrase's `Retracted-ok:` — see TRAILER_RE/EMPTY_REASONS
-// below). A waiver naming a token no finding needs is reported, not an error.
+// (see TRAILER_RE/EMPTY_REASONS below). A waiver naming a token no finding needs is reported, not an error.
 //
 // Absent-vs-fault: `git ls-tree`/`git ls-files --stage` decide presence — empty stdout is
 // ABSENT, a non-zero exit is a FAULT and propagates to exit 2. `git cat-file -e` is never used
@@ -70,7 +69,7 @@ const TRAILER_RE = /^Ledger-edit-ok:\s*(\S+)\s*[—:-]\s*(.+?)\s*$/
 // appended for editing convenience, never part of the message.
 const SCISSORS_RE = /^\S -{24} >8 -{24}$/
 
-/** Reasons that assert nothing. Copied from check-retracted-phrase.mjs's EMPTY_REASONS. */
+/** Reasons that assert nothing. */
 const EMPTY_REASONS = new Set([
   'false positive',
   'falsepositive',

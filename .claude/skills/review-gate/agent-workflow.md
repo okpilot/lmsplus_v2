@@ -285,11 +285,7 @@ A commit modifying a rule in `.claude/rules/*.md`, `.claude/skills/review-gate/*
 **Write the mirror from the canonical TEXT, then diff it clause by clause** — never from memory. Re-read every mirror when the canonical changes.
 **Sweep completeness — done when it passes these checks, not when run:**
 1. Walk every reported hit to a terminal disposition — APPLIED or SKIPPED-with-reason — before committing.
-2. **Checksum the clause across every file that carries it** — a phrase-grep for NEW wording matches only the file just edited. Anchor on a distinctive substring from the clause's OPENING that the edit does NOT change:
-   ```bash
-   node .claude/hooks/check-mirror-sync.mjs '<distinctive substring from the clause opening>'
-   ```
-   Identical digests on every line = in sync; exits non-zero on divergence, an unchecked file, or an anchor matching nothing. A tested script — do not re-inline it.
+2. **Compare the clause across every file that carries it** — a phrase-grep for NEW wording matches only the file just edited. Anchor on a distinctive substring from the clause's OPENING that the edit does NOT change: `git grep -nF -- '<substring>' -- :/`, then diff each hit's clause against the canonical text.
 **Not covered: paraphrase-blindness** — zero grep hits plus non-byte-identical copies. Open problem.
 **The enumeration itself is the recurring defect.** Treat "the list is complete" as the likeliest false claim. A sweep finding a surface the table does not name widens the TABLE in the same commit.
 

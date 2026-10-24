@@ -17,7 +17,7 @@
 // first regex edit — which is precisely how a guard ends up defended by numbers that describe
 // something else.
 //
-// The WIDE corpus here is the sibling's (`check-prose-claims.mjs § inCorpus`) minus `.json`,
+// The WIDE corpus here is `check-prose-paths.mjs § inCorpus` minus `.json`,
 // so the funnel shows what the spec-tree subtraction actually buys. The guard's own corpus —
 // the BINDING surface — is the last line of the funnel, and is the only one it enforces on.
 //
@@ -28,7 +28,6 @@
 import { readFileSync } from 'node:fs'
 import { argv, exit } from 'node:process'
 import { pathToFileURL } from 'node:url'
-import { inCorpus } from './check-prose-claims.mjs'
 import {
   buildIndex,
   classify,
@@ -37,6 +36,7 @@ import {
   DATA_EXT,
   extOf,
   ignoredTokens,
+  inCorpus,
   normalise,
   trackedPaths,
 } from './check-prose-paths.mjs'

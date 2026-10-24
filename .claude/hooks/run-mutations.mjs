@@ -1364,8 +1364,8 @@ async function modeUpdateExpected(root, guard, scratch, jobs) {
   const files = selectFiles(dataFiles(root), guard)
   if (firstDirtyFile(root, files)) return 2
   // Keyed by DATA FILE and id, never id alone. `validateDataFile` rejects a duplicate id within
-  // ONE file and says nothing across files, and nine ids are in fact shared between the
-  // check-prose-claims, check-prose-paths and check-file-size-guard corpora today. Keyed on the
+  // ONE file and says nothing across files, and ids can be shared between
+  // corpora. Keyed on the
   // id alone, a later file's result overwrites an earlier one and this mode splices one guard's
   // observed set into another guard's entry. `--guard` hides it: one file cannot collide.
   const keyOf = (file, id) => `${file}\u0000${id}`

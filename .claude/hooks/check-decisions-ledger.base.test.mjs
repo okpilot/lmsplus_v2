@@ -126,8 +126,7 @@ test('a waiver trailer in one commit does not cover an edit made in an earlier c
     r.write('README.md', 'unrelated\n')
     r.git('add', '-A')
     // Commit B: unrelated, but carries a waiver naming the SAME token as commit A's edit.
-    // MUTATION: concatenate every commit's message into one shared waiver map (the
-    // documented anti-pattern check-retracted-phrase.mjs's own comment warns against) →
+    // MUTATION: concatenate every commit's message into one shared waiver map →
     // commit B's waiver clears commit A's un-waived finding, and the escape hatch stops
     // being scoped to the commit whose author actually wrote it.
     r.git('commit', '-qm', `chore: unrelated\n\nLedger-edit-ok: 14 — ${GOOD_REASON}`)

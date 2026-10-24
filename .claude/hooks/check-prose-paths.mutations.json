@@ -237,7 +237,10 @@
       "id": "sibling-corpus-not-consulted",
       "find": "  if (!inCorpus(path)) return false",
       "replace": "  if (false) return false",
-      "expectRed": ["ignores a citation outside the corpus roots"]
+      "expectRed": [
+        "ignores a citation outside the corpus roots",
+        "ignores a citation in the dated run log"
+      ]
     },
     {
       "id": "waiver-never-recognised",
@@ -523,6 +526,65 @@
         "does not flag a placeholder ending in > when TRAIL strips the bracket before classify"
       ],
       "note": "Planted CONTROL \u2014 removes the only early-exit that lets a clean run skip reportFindings, so a clean input reaches reportFindings (which always returns 1) instead of returning 0. Every fixture asserting a clean pass funnels through this one gate, so 8 tests redden alongside the planted GREEN control. Set from the harness's own 'actually red' report, per contract \u00a75."
+    },
+    {
+      "id": "markdown-fence-not-tracked",
+      "find": "    if (fenceOpen) {\n      fence = fenceOpen[1]\n      return\n    }",
+      "replace": "    if (fenceOpen) {\n      return\n    }",
+      "expectRed": [
+        "skips a fenced code block",
+        "closes a fence only on a fence of the same character and length",
+        "does not let an info-string opener close an open fence"
+      ]
+    },
+    {
+      "id": "markdown-fence-closes-on-anything",
+      "find": "        fenceOpen[1][0] === fence[0] &&\n        fenceOpen[1].length >= fence.length &&\n",
+      "replace": "        true &&\n",
+      "expectRed": ["closes a fence only on a fence of the same character and length"]
+    },
+    {
+      "id": "code-file-data-lines-read-as-prose",
+      "find": "    if (COMMENT_RE.test(line)) {\n      out.push({ n: i + 1, text: line })\n      if (opens && !closes) inBlock = true\n    }\n",
+      "replace": "    out.push({ n: i + 1, text: line })\n    if (opens && !closes) inBlock = true\n",
+      "expectRed": [
+        "reads only comment lines in a code file, never its data",
+        "reads the body of a block comment whose lines carry no leading star",
+        "does not open a block on a slash-star inside a string"
+      ]
+    },
+    {
+      "id": "unknown-extension-falls-through-to-markdown",
+      "find": "  if (COMMENT_EXT.has(ext)) return commentProse(content)\n  return []",
+      "replace": "  if (COMMENT_EXT.has(ext)) return commentProse(content)\n  return markdownProse(content)",
+      "expectRed": [
+        "treats a file with no prose form as carrying none",
+        "grades a yaml file whole, not only its comment lines"
+      ]
+    },
+    {
+      "id": "run-log-not-excluded",
+      "find": "  if (EXCLUDED_PATHS.has(path)) return false",
+      "replace": "",
+      "expectRed": ["ignores a citation in the dated run log"]
+    },
+    {
+      "id": "block-body-unread",
+      "find": "    if (inBlock) {\n      out.push({ n: i + 1, text: line })\n      if (closes) inBlock = false\n      return\n    }\n",
+      "replace": "    if (false) {\n      out.push({ n: i + 1, text: line })\n      if (closes) inBlock = false\n      return\n    }\n",
+      "expectRed": ["reads the body of a block comment whose lines carry no leading star"]
+    },
+    {
+      "id": "block-opener-unanchored",
+      "find": "    const opens = /^\\s*\\/\\*/.test(line)\n",
+      "replace": "    const opens = line.includes('/*')\n",
+      "expectRed": ["does not open a block on a slash-star inside a string"]
+    },
+    {
+      "id": "fence-closer-ignores-trailing",
+      "find": "        line.slice(fenceOpen[0].length).trim() === ''\n",
+      "replace": "        true\n",
+      "expectRed": ["does not let an info-string opener close an open fence"]
     }
   ],
   "notEncoded": []

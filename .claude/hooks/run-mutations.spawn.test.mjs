@@ -3,8 +3,7 @@
 // `assertSpawnUsable` — how a finished `spawnSync` result is read, before anything is graded.
 //
 // A SIBLING file, not a section of `run-mutations.test.mjs`: that suite is near its cap in
-// `.claude/limits.json`, and the split is the house pattern (`check-retracted-phrase` ships
-// `.test.mjs` + `.repo.test.mjs`). Both suites are listed in `run-mutations.mutations.json`, so a
+// `.claude/limits.json`, and the split is the house pattern (`.test.mjs` + `.repo.test.mjs`). Both suites are listed in `run-mutations.mutations.json`, so a
 // break in either is graded by the harness itself.
 //
 // This logic was inside `runMutation` until the extraction, where the suite header's own scope

@@ -10,7 +10,7 @@
 // name a mutation id, and the harness has no business being a dependency of the guard suites.
 //
 // EXIT CODES ARE NOT INTERPRETED HERE, deliberately. Exit 2 means "could not run — BLOCKING" in the
-// prose-claims, prose-paths and retracted-phrase guards; it means BLOCK, the success case, in
+// prose-paths guard; it means BLOCK, the success case, in
 // guard-bash.js and review-gate.js; check-file-size-guard.mjs has no exit 2 at all and folds
 // "cannot read config" into 1 on purpose. One helper cannot rank those. It answers
 // verdict-vs-no-verdict; what a verdict MEANS stays at the call site.

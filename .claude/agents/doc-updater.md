@@ -68,7 +68,7 @@ expression, a function signature, a return value, a constant's contents — past
 `grep -rn '<a distinctive token from that expression>' .` A code citation you cannot ground in a
 grep result is fabricated, however sound the conclusion resting on it.
 
-This one is measured, not theoretical. On `feat/retracted-phrase-guard` three separate reports
+This one is measured, not theoretical. On one past branch three separate reports
 cited code that does not exist: `if (!waivers.size) return 0` (nowhere in the repo — the real
 mechanism is `waivers.has(c.token)`), a five-element constant described as four, and a phrase
 "five file-size-guard suites" that appears in no file. Every one of those reports reached a CORRECT
