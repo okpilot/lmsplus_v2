@@ -69,6 +69,8 @@ describe('functionName', () => {
 
 8. **Do NOT use `any` types in test code** — Use proper types or `unknown` with narrowing, even in mocks and test fixtures.
 
+9. **Do NOT call a failing test flaky without reproducing it.**
+
 ## PR checklist — flag these gaps on every diff
 
 When reviewing a diff for test coverage, flag these patterns explicitly:
@@ -103,7 +105,7 @@ the point, naming the wrong verdict you would otherwise have read. Without that 
 indicts a sound test. Promoted at count=2, 2026-09-14 (`f26abc16`); the first instance was three
 anchors orphaned by a reformat during authoring.
 
-**Edit a `.mutations.json` as TEXT, never by re-serialising it.** Reading it with `json.load` and
+**Edit any tracked JSON file (`.mutations.json`, `.claude/limits.json`, baselines) as TEXT, never by re-serialising it.** Reading it with `json.load` and
 writing it back with `json.dumps` (or `JSON.parse`/`JSON.stringify`, or `jq` at any `--indent`)
 reformats every line whose hand-written layout differs from the serialiser's, and your real change
 vanishes into it. `check-file-size-guard.mjs --update-baseline` does this too — take the rows it

@@ -84,6 +84,10 @@ No changes needed: [list sections that are current]
 
 4. **Do NOT propose adding rules that `code-style.md` §8 assigns solely to Biome or SonarCloud.** Rules §8 assigns to CodeRabbit, and rules from a changed `.claude/hooks/*.mjs` guard wired into `lefthook.yml`, must be mirrored in `.coderabbit.yaml`.
 
+5. **Do NOT propose CodeRabbit-only rules** — a rule absent from the local rule files is not added to `.coderabbit.yaml`.
+
+6. **Do NOT propose removing a rule from `.coderabbit.yaml` that still exists locally.**
+
 ## Important
 - Only report findings. The main session will make the actual edits.
 - Be specific: quote the exact YAML path and the exact rule text that needs changing.

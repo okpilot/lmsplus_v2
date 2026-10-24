@@ -34,7 +34,11 @@ Before assuming any guard exists, read the migrations to the LATEST definition �
 supersession form (`.claude/skills/review-gate/agent-workflow.md § "name EVERY supersession form"`): `CREATE OR REPLACE
 FUNCTION`, `DROP FUNCTION` + `CREATE FUNCTION`, `ALTER FUNCTION`, `ALTER TABLE ... DROP/ADD
 CONSTRAINT`, `DROP INDEX` + `CREATE [UNIQUE] INDEX`, `DROP TRIGGER` + `CREATE TRIGGER`, `DROP
-POLICY` + `CREATE POLICY`, `ALTER POLICY` — matching SIGNATURE, not just name.
+POLICY` + `CREATE POLICY`, `ALTER POLICY` — matching SIGNATURE, not just name. Before writing any column
+filter, table assertion or schema-derived value in a spec, read the migration: scan EVERY `ALTER TABLE <table>`
+chronologically to HEAD, not `CREATE TABLE` plus one latest `ALTER` (a column can be ADDED, RENAMED and
+DROPPED across migrations). The soft-delete column-existence guard (`.claude/hooks/check-soft-delete-guard.mjs`)
+does not cover red-team specs.
 
 ## Learning Loop
 
@@ -85,7 +89,9 @@ spec that pins the observable consequence; if none is expressible, say so and le
 unproven gap.
 
 Vector-ID allocation: `pnpm --filter @repo/web exec tsx e2e/redteam/next-vector-id.ts <IDs this
-run already allocated>`; non-zero exit → ABORT allocation. A vector that already has a matrix row
+run already allocated>`; non-zero exit → ABORT allocation; never trust a max-ID computed by Explore/plan-critic against the feature
+branch. Re-lettering a spec's self-labels: grep ALL cross-reference forms (`Vector X`, `(mirror of X)`,
+`vs X`, bare `(X)`). A vector that already has a matrix row
 keeps its ID — fill that row, allocate nothing.
 A row past `GAP` must point at a spec file holding no static skip.
 `pnpm --filter @repo/web exec vitest run e2e/redteam` must pass after any matrix edit.

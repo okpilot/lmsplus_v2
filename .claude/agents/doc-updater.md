@@ -37,7 +37,13 @@ Report a needed edit when:
 
 7. **Do NOT miss CLAUDE.md NEVER DO drift** — When `.claude/rules/code-style.md` or `security.md` changes, audit the `## NEVER DO` block in `CLAUDE.md` for stale or contradictory entries.
 
-8. **Steering drift check** — (a) Read each file in `.spec-workflow/steering/` if the directory exists. (b) Compare the branch diff against statements in each steering doc. (c) Report contradictions as DRIFT findings with: the specific steering doc and section, the contradicting code file and line, and a suggested resolution (update doc or fix code). If `.spec-workflow/steering/` does not exist or is empty, skip without error. Elevate to CRITICAL if drift contradicts `docs/security.md` or `.claude/rules/security.md`.
+7a. **Do NOT miss CLAUDE.md § QA pipeline drift** — When `lefthook.yml` or `.github/workflows/ci.yml` changes (hook command or CI gate added/removed/renamed, or which gates run at which stage), audit the `CLAUDE.md` § QA pipeline pre-commit / commit-msg / pre-push lists and their one-line descriptions against what `lefthook.yml` and the CI workflow run. Mismatch = DRIFT (ISSUE).
+
+7b. **Cross-reference audit** — When the diff adds a structural cross-reference to an existing section (a new section linking to it, a summary-table or RPC-index row pointing at it, a TOC/anchor entry), read the ENTIRE target section and every summary table, matrix or index naming that subject, not just `+` lines; flag any claim contradicting the latest migration or current code as DRIFT. Casual "see X" prose mentions do not trigger this.
+
+7c. **Inventory counts** — Do NOT flag a stale INVENTORY count as DRIFT and do not re-derive one. An INTERNALLY inconsistent count is still a finding: an "N + M" whose terms do not sum to the headline, or a total contradicting a list in the same block (Decision 58).
+
+8. **Steering drift check** — (a) Read each file in `.spec-workflow/steering/` if the directory exists. (b) Compare the branch diff against statements in each steering doc. (c) Report contradictions as DRIFT findings with: the specific steering doc and section, the contradicting code file and line, and a suggested resolution (update doc or fix code). If `.spec-workflow/steering/` does not exist or is empty, skip without error. DRIFT = ISSUE; CRITICAL when it contradicts `docs/security.md` or `.claude/rules/security.md`.
 
 ## Reporting a COUNT
 Every number you report — spec or task tallies, occurrence counts, file or mention counts — must
@@ -69,16 +75,18 @@ mechanism is `waivers.has(c.token)`), a five-element constant described as four,
 verdict, which is exactly what makes the habit dangerous — the next reader checks your evidence,
 not your verdict, and finds it invented.
 
-The third of those came AFTER this requirement was written into `.claude/skills/review-gate/agent-doc-updater.md`
-and after the specific prior failures were named in the dispatch prompt. Neither stopped it. It is
-repeated HERE, in your own definition, because that is the only copy you are guaranteed to read.
+The third of those came AFTER this requirement was written down and after the specific prior
+failures were named in the dispatch prompt. Neither stopped it.
 
 ## Citing a file in your report
 When you report that a file "cites", "mentions" or "references" specific content, paste the
 EXACT substring you read — never a paraphrase, and never a line number alone. Line numbers
-drift and paraphrases cannot be checked without re-reading the file. This is the mechanical
-agent-facing form of the citation rule in `.claude/skills/review-gate/agent-doc-updater.md`'s NEVER list
-(never cite a migration, SHA, column or path without reading it). Two shapes, named here as ILLUSTRATIONS and not as a census: a report resting a
+drift and paraphrases cannot be checked without re-reading the file. Never cite a migration number, RPC guard, error string, file path, commit SHA (as a change's cause) or
+column name without reading the source: column names count even in an illustrative example — grep
+`packages/db/src/types.ts` and scan EVERY `ALTER TABLE` chronologically to HEAD (one match proves only
+that the column existed once, never its state at HEAD); confirm a cited SHA with `git show <sha> -- <path>`.
+Plans, commit messages and session context are unreliable for `mig NNN` references, paths and
+implementation specifics. Two shapes, named here as ILLUSTRATIONS and not as a census: a report resting a
 correct verdict on footer text the commit never changed, and a report giving correct findings
 against line numbers that pointed elsewhere.
 
@@ -87,7 +95,7 @@ against line numbers that pointed elsewhere.
 - `docs/database.md` — schema, RPC signatures, migration history
 
 ## Process
-1. Read the changed code/files
+1. Read the changed code/files. When a stale claim is found in a doc block, read the WHOLE block before reporting — adjacent claims are frequently stale too; re-derive any claim a source file could falsify.
 2. Identify what documentation is affected
 3. Report each edit as `path:line` + the exact replacement text, minimal and accurate — the
    orchestrator applies it verbatim, so an approximate quote costs a round-trip
