@@ -282,5 +282,6 @@ describe('RPC: get_quiz_questions — ordering delivery (shuffled, no answer key
 
   // `is_valid_ordering_items()` write-path CHECK rejection/acceptance tests (duplicate id,
   // blank/whitespace-only text, hand/order-encoding/cross-item ids, type guards, extra keys) live
-  // in the sibling file questions-ordering-items-check.integration.test.ts — this file's own scope stays the RPC delivery behavior (shuffle, no-leak).
+  // in the sibling file questions-ordering-items-check.integration.test.ts — this file's own
+  // scope stays the RPC delivery behavior (shuffle, no-leak).
 })
