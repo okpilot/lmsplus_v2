@@ -14,8 +14,9 @@ export type SessionLoadResult =
   | { success: true; questions: SessionQuestion[]; flaggedIds: string[] }
   | { success: false; error: string }
 
-// Module-level handoff cache (owned here rather than in use-session-bootstrap). It survives a same-navigation remount of the
-// session page after the handoff has been cleared from sessionStorage.
+// Module-level handoff cache (owned here rather than in use-session-bootstrap). It survives a
+// same-navigation remount of the session page after the handoff has been cleared from
+// sessionStorage.
 let cachedSession: { userId: string; session: SessionData } | null = null
 
 /** @internal Test-only reset for the module-level cache. */

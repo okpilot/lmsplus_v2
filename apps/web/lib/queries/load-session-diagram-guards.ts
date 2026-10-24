@@ -1,7 +1,6 @@
 // diagram_label RPC-payload guards, hoisted out of load-session-questions.ts to
-// keep that file focused — the geometry-bounds check added a 3rd concern to an
-// already-at-cap file. No 'use server' pragma: these are pure narrowing helpers,
-// mirroring the schema/helpers split elsewhere in this feature
+// keep that file focused. No 'use server' pragma: these are pure narrowing
+// helpers, mirroring the schema/helpers split elsewhere in this feature
 // (check-non-mc-answer-dispatch.ts).
 import { MAX_LABELS, MAX_ZONES } from '@/app/app/quiz/actions/diagram-validation'
 
