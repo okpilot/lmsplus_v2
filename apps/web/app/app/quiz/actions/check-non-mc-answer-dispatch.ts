@@ -1,6 +1,5 @@
 // Per-branch RPC dispatch handlers for checkNonMcAnswer, hoisted out of the
-// Server Action file —
-// the check_non_mc_answer signature grew a 4th (diagram_label) branch on top
+// Server Action file — the check_non_mc_answer signature grew a 4th (diagram_label) branch on top
 // of an already-at-cap file. No 'use server' pragma — these are internal
 // helpers called only from check-non-mc-answer.ts, mirroring the existing
 // schema/helpers split in this feature folder.

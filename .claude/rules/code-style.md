@@ -41,9 +41,6 @@ Never restate a cap VALUE from `limits.json` in PROSE as a claim about that cap;
   apply them as TEXT, check `git diff --numstat`.
 - The suppression marker is unavailable for a broken invocation — that route exits 2, not 1, so a
   waiver can never stand in for a check that did not run.
-- Some baselined lines are FALSE POSITIVES (a budget or estimate colliding with a cap value) and are
-  baselined rather than tuned away: a guard narrowed until it has no false positives has stopped
-  detecting.
 - **`'use server'` defines a Server Action file, not the `actions/` folder.** A helper beside an
   action is ungraded; a Server Action outside `actions/` still takes the action cap.
 - TS/TSX size is Biome's per-function limit (§3); the guard grades SQL migrations and `'use server'` files only.

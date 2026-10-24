@@ -635,7 +635,7 @@
   ],
   "notEncoded": [
     {
-      "claim": "update.test.mjs 'the lefthook glob reaches every extension the rules can match': drop `sql` (or `mjs`) from the file-size-guard glob in lefthook.yml",
+      "claim": "update.test.mjs 'the lefthook glob reaches every extension the rules can match': drop `sql` (or `ts`/`tsx`) from the file-size-guard glob in lefthook.yml",
       "why": "The mutation edits lefthook.yml, not this file's `target` (check-file-size-guard.mjs). A data file carries ONE top-level target, so a config-file mutation cannot be expressed. Third such claim in this suite family (lefthook.yml, .coderabbit.yaml, limits.json) — a per-mutation target override now meets the rule of three and is worth its own change."
     },
     {

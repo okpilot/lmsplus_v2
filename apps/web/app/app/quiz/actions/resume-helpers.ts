@@ -1,6 +1,5 @@
-// Pure/DB helpers for the resumeQuizSession Server Action. Hoisted out of resume.ts
-// out of the action file; each function stays
-// under the 30-line rule (§3). No `'use server'` — these are invoked by the action.
+// Pure/DB helpers for the resumeQuizSession Server Action, hoisted out of resume.ts.
+// No `'use server'` — these are invoked by the action.
 import type { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import { PRACTICE_MODES } from '@/lib/constants/exam-modes'

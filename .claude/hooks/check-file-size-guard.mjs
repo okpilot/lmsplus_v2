@@ -582,10 +582,10 @@ function main(args) {
     console.error(`\n[file-size] ${stale.length} stale baseline entr${plural} in ${LIMITS_PATH}:`)
     for (const p of stale) console.error(`  ${p}`)
     console.error('\n  These no longer describe a live violation. BLOCKING, not advisory: a file')
-    console.error("  can leave its rule class by being RENAMED — dropping the `'use server'`")
-    console.error('  directive moves a Server Action out of its rule — and the only trace is')
-    console.error('  this entry going stale, which reads as "resolved". Prune it deliberately,')
-    console.error('  or restore the file:')
+    console.error('  can leave its rule class by being RENAMED out of .ts/.tsx or out of')
+    console.error("  supabase/migrations/, or by losing its `'use server'` directive — and the")
+    console.error('  only trace is this entry going stale, which reads as "resolved". Prune it')
+    console.error('  deliberately, or restore the file:')
     console.error(`  \`node ${GUARD} --update-baseline\` writes the change for review.`)
   }
 
