@@ -122,6 +122,7 @@ test('the live limits file grades only SQL migrations and use server files', () 
   )
   assert.equal(classify('apps/web/app/a/_hooks/use-x.ts', '', LIMITS), null)
   assert.equal(classify('apps/web/components/x.tsx', '', LIMITS), null)
+  assert.equal(classify('packages/db/migrations/0001_x.sql', 'x\n', LIMITS), null)
   assert.equal(classify('supabase/migrations/20260101000000_x.sql', '', LIMITS).max, 300)
 })
 
