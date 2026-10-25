@@ -107,3 +107,9 @@ export const E2E_REDTEAM_SB_MARKER = '[E2E_REDTEAM_SB]'
 export const E2E_REDTEAM_IV_MARKER = '[E2E_REDTEAM_IV]'
 // get_restored_feedback spec (Vectors JK, JL, JM, #1549): quiz_sessions `config.e2e_marker`.
 export const E2E_REDTEAM_RF_MARKER = '[E2E_REDTEAM_RF]'
+// deactivated-student live-token reads spec (Vectors JU, JV, #1607): quiz_sessions `config.e2e_marker`,
+// quiz_drafts `session_config.e2e_marker`, audit_events `metadata.e2e_marker`, user_consents
+// `document_version`. Dedicated throwaway student bounds the deactivation blast radius.
+export const E2E_REDTEAM_JU_MARKER = '[E2E_REDTEAM_JU]'
+export const E2E_REDTEAM_JU_STUDENT_EMAIL = 'redteam-ju-deactivated-reads@lmsplus.local'
+export const E2E_REDTEAM_JU_STUDENT_PASSWORD = 'redteam-ju-deactivated-reads-2026!'
