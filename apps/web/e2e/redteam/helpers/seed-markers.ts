@@ -113,3 +113,7 @@ export const E2E_REDTEAM_RF_MARKER = '[E2E_REDTEAM_RF]'
 export const E2E_REDTEAM_JU_MARKER = '[E2E_REDTEAM_JU]'
 export const E2E_REDTEAM_JU_STUDENT_EMAIL = 'redteam-ju-deactivated-reads@lmsplus.local'
 export const E2E_REDTEAM_JU_STUDENT_PASSWORD = 'redteam-ju-deactivated-reads-2026!'
+// /auth/signout deactivation route spec (Vectors JW, JX, #1608). Dedicated throwaway student.
+export const E2E_REDTEAM_JW_MARKER = '[E2E_REDTEAM_JW]'
+export const E2E_REDTEAM_JW_STUDENT_EMAIL = 'redteam-jw-signout@lmsplus.local'
+export const E2E_REDTEAM_JW_STUDENT_PASSWORD = 'redteam-jw-signout-2026!'

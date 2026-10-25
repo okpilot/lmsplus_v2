@@ -1,6 +1,7 @@
 # Red Team — Attack Surface Map
 
-> Last updated: 2026-10-25 (branch fix/1607-deactivated-students, #1607 — Vectors JU, JV added.)
+> Last updated: 2026-10-25 (branch fix/1608-server-code, #1608 — Vectors JW, JX added.)
+> PRIOR: 2026-10-25 (branch fix/1607-deactivated-students, #1607 — Vectors JU, JV added.)
 > PRIOR: 2026-10-23 (branch perf/1602-one-count-rpc, #1602 — Vectors JQ-JT added; IY spec covers get_discovery_counts.)
 > PRIOR: 2026-10-21 (branch fix/1558-comments-select-active-caller, #1558 — Vector JO added.)
 > PRIOR: 2026-10-21 (branch perf/1549-restored-feedback-app, #1549 PR2 — Vectors HG-HK RETIRED; HB rewritten; JN added.)
@@ -305,6 +306,8 @@
 | JT | get_discovery_counts-instructor-student_responses-over-scope | MEDIUM | rpc-get-discovery-counts.spec.ts | BLOCKED |  | rls-bypass |
 | JU | deactivated-student-live-token-postgrest-rls-reads | MEDIUM | deactivated-student-live-token-reads.spec.ts | BLOCKED |  | rls-bypass |
 | JV | deactivated-student-live-token-invoker-rpc-reads | MEDIUM | deactivated-student-live-token-reads.spec.ts | BLOCKED |  | soft-delete-bypass |
+| JW | auth-signout-route-cross-site-forced-logout-active-caller | LOW | signout-route-deactivation.spec.ts | BLOCKED |  | cookie-state |
+| JX | deactivated-caller-app-document-no-redirect-follow | LOW | signout-route-deactivation.spec.ts | BLOCKED |  | soft-delete-bypass |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
