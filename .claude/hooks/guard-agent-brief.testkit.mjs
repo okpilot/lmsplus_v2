@@ -41,6 +41,13 @@ const git = (...args) =>
     ...args,
   ])
 execFileSync('git', ['init', '-q', '-b', 'chore/agent-brief-guard', ROOT])
+// AC2: {plan} must resolve to a regular file under <root>/.work/.
+export const PLAN_REL = '.work/fixture-plan.md'
+function writeFixturePlan(root) {
+  mkdirSync(path.join(root, '.work'), { recursive: true })
+  writeFileSync(path.join(root, PLAN_REL), '# fixture plan\n')
+}
+writeFixturePlan(ROOT)
 git('add', '.claude/hooks/gate-briefs.json', '.claude/pipeline.json')
 git('commit', '-q', '-m', 'init')
 // A root whose templates file is unparseable.
@@ -75,6 +82,7 @@ copyFileSync(
   path.join(ROLELESS_ROOT, '.claude/hooks/gate-briefs.json'),
 )
 writeFileSync(path.join(ROLELESS_ROOT, '.claude/pipeline.json'), '{"agents":{}}')
+writeFixturePlan(ROLELESS_ROOT)
 // A git repo, like ROOT, so an EXACT brief (whose {branch} capture must resolve via
 // `git show-ref`) can be graded here too — not only a steered one that never reaches branchExists.
 // `refs/heads/<branch>` only exists after a first commit — an `init -b` alone leaves it unborn.
@@ -148,9 +156,48 @@ export function payload(subagentType, prompt, extra = {}, cwd = ROOT) {
  */
 export function fillTemplate(
   template,
-  { round = '1', pr = '#123', branch = 'chore/agent-brief-guard' } = {},
+  { round = '1', pr = '#123', branch = 'chore/agent-brief-guard', plan = PLAN_REL } = {},
 ) {
-  return template.replaceAll('{round}', round).replaceAll('{pr}', pr).replaceAll('{branch}', branch)
+  return template
+    .replaceAll('{round}', round)
+    .replaceAll('{pr}', pr)
+    .replaceAll('{branch}', branch)
+    .replaceAll('{plan}', plan)
+}
+
+/** A fresh git-repo root (branch `chore/agent-brief-guard`) with the real templates and pipeline,
+ * for building AC2 plan-path cases (directory, symlink, `..`). Caller removes it with rmSync. */
+export function makePlanRoot() {
+  const root = mkdtempSync(path.join(tmpdir(), 'guard-agent-brief-plan-'))
+  mkdirSync(path.join(root, '.claude/hooks'), { recursive: true })
+  copyFileSync(
+    path.join(HOOKS_DIR, 'gate-briefs.json'),
+    path.join(root, '.claude/hooks/gate-briefs.json'),
+  )
+  copyFileSync(
+    path.join(HOOKS_DIR, '..', 'pipeline.json'),
+    path.join(root, '.claude/pipeline.json'),
+  )
+  mkdirSync(path.join(root, '.work'), { recursive: true })
+  execFileSync('git', ['init', '-q', '-b', 'chore/agent-brief-guard', root])
+  execFileSync('git', [
+    '-C',
+    root,
+    '-c',
+    'user.name=t',
+    '-c',
+    'user.email=t@t',
+    '-c',
+    'commit.gpgsign=false',
+    '-c',
+    'core.hooksPath=/dev/null',
+    'commit',
+    '--allow-empty',
+    '-q',
+    '-m',
+    'init',
+  ])
+  return root
 }
 
 /** Extra `tool_input` fields a type's template alone doesn't cover. */

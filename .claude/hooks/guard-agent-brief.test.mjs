@@ -9,7 +9,7 @@
 // file. Fixtures and helpers shared by both suites
 // live in guard-agent-brief.testkit.mjs.
 import assert from 'node:assert/strict'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { after, test } from 'node:test'
@@ -21,8 +21,10 @@ import {
   extraFor,
   fillTemplate,
   HOOKS_DIR,
+  makePlanRoot,
   NO_PIPELINE_ROOT,
   PARTIAL_ROOT,
+  PLAN_REL,
   payload,
   ROLELESS_ROOT,
   runHook,
@@ -166,15 +168,239 @@ test('blocks a steered brief padded past 1MB with exit 2', () => {
   assert.match(r.stderr, /exceeds 1MB/)
 })
 
-test('the gated template set equals the pipeline.json agents with role gate-round or conditional', () => {
+test('the gated template set equals the pipeline.json agents with role gate-round, conditional or tests-first', () => {
   const pipeline = JSON.parse(readFileSync(path.join(HOOKS_DIR, '..', 'pipeline.json'), 'utf8'))
+  assert.equal(
+    pipeline.agents['test-author']?.role,
+    'tests-first',
+    'pipeline.json agents.test-author with role tests-first is missing',
+  )
   const expected = new Set(
     Object.entries(pipeline.agents)
-      .filter(([, a]) => a.role === 'gate-round' || a.role === 'conditional')
+      .filter(([, a]) => ['gate-round', 'conditional', 'tests-first'].includes(a.role))
       .map(([n]) => n),
   )
   const actual = new Set(Object.keys(TEMPLATES))
   assert.deepEqual([...actual].sort(), [...expected].sort())
+})
+
+// --- test-author (#1614): gated by its template, {plan} must be an existing file under .work/ ---
+
+const TA = 'test-author'
+const hasTemplate = () => {
+  assert.equal(typeof TEMPLATES[TA], 'string', 'gate-briefs.json templates.test-author is missing')
+}
+const taBrief = (plan) => fillTemplate(TEMPLATES[TA], { plan })
+
+test("allows test-author's exact filled template brief with exit 0", () => {
+  hasTemplate()
+  const r = runHook(payload(TA, exactBrief(TA)))
+  assert.equal(r.status, 0, r.stderr)
+})
+
+test('the test-author template carries a {plan} placeholder', () => {
+  hasTemplate()
+  assert.match(TEMPLATES[TA], /\{plan\}/)
+})
+
+test('blocks a test-author brief that is not its filled template with exit 2', () => {
+  hasTemplate()
+  const r = runHook(payload(TA, `${exactBrief(TA)}\nAlso fix the implementation.`))
+  assert.equal(r.status, 2)
+  assert.match(r.stderr, /BLOCKED: test-author/)
+  assert.match(r.stderr, /does not match its required template/)
+})
+
+test('blocks the test-author template dispatched through an ungated type with exit 2', () => {
+  hasTemplate()
+  const r = runHook(payload('general-purpose', exactBrief(TA)))
+  assert.equal(r.status, 2)
+})
+
+test('blocks a test-author brief dispatched with isolation: "worktree" with exit 2', () => {
+  hasTemplate()
+  const r = runHook(payload(TA, exactBrief(TA), { isolation: 'worktree' }))
+  assert.equal(r.status, 2)
+  assert.match(r.stderr, /must not use isolation: "worktree"/)
+})
+
+test('blocks a test-author brief with a model other than sonnet with exit 2', () => {
+  hasTemplate()
+  const r = runHook(payload(TA, exactBrief(TA), { model: 'opus' }))
+  assert.equal(r.status, 2)
+  assert.match(r.stderr, /requires model omitted or its pipeline\.json alias/)
+})
+
+test('allows a test-author brief whose plan is a nested path under .work/', () => {
+  hasTemplate()
+  const root = makePlanRoot()
+  try {
+    mkdirSync(path.join(root, '.work/retro/sub'), { recursive: true })
+    writeFileSync(path.join(root, '.work/retro/sub/a-1_b.md'), '# plan\n')
+    const r = runHook(payload(TA, taBrief('.work/retro/sub/a-1_b.md')), root)
+    assert.equal(r.status, 0, r.stderr)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('allows a test-author brief whose plan is a symlink to a file inside .work/', () => {
+  hasTemplate()
+  const root = makePlanRoot()
+  try {
+    writeFileSync(path.join(root, '.work/real.md'), '# plan\n')
+    symlinkSync(path.join(root, '.work/real.md'), path.join(root, '.work/link.md'))
+    const r = runHook(payload(TA, taBrief('.work/link.md')), root)
+    assert.equal(r.status, 0, r.stderr)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+/** A {plan} the hook must refuse because the path fails the filesystem check (reason `plan`). */
+function assertPlanBlocked(root, plan) {
+  const r = runHook(payload(TA, taBrief(plan)), root)
+  assert.equal(r.status, 2, `expected exit 2 for plan ${plan}, got ${r.status}: ${r.stderr}`)
+  assert.match(r.stderr, /BLOCKED: test-author brief/)
+  assert.match(r.stderr, /plan/)
+  assert.doesNotMatch(r.stderr, /does not match its required template/)
+}
+
+/** The {plan} regex alone blocks: the path exists, the template-mismatch message is acceptable. */
+function assertExit2(root, plan) {
+  const r = runHook(payload(TA, taBrief(plan)), root)
+  assert.equal(r.status, 2, `expected exit 2 for plan ${plan}, got ${r.status}: ${r.stderr}`)
+  assert.match(r.stderr, /BLOCKED: test-author brief/)
+}
+
+// GROUP: guard-agent-brief-plan-exists-check-disabled
+test('blocks a test-author brief whose plan file does not exist with reason plan', () => {
+  hasTemplate()
+  const root = makePlanRoot()
+  try {
+    assertPlanBlocked(root, '.work/missing-plan.md')
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+// GROUP: guard-agent-brief-plan-exists-check-disabled, guard-agent-brief-plan-isfile-disabled
+test('blocks a test-author brief whose plan is a directory named *.md with reason plan', () => {
+  hasTemplate()
+  const root = makePlanRoot()
+  try {
+    mkdirSync(path.join(root, '.work/x.md'))
+    assertPlanBlocked(root, '.work/x.md')
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+// GROUP: guard-agent-brief-plan-exists-check-disabled, guard-agent-brief-plan-containment-disabled
+test('blocks a test-author brief whose plan is a symlink out of .work/ with reason plan', () => {
+  hasTemplate()
+  const root = makePlanRoot()
+  const outside = mkdtempSync(path.join(tmpdir(), 'guard-agent-brief-outside-'))
+  try {
+    writeFileSync(path.join(outside, 'secret.md'), '# not a plan\n')
+    symlinkSync(path.join(outside, 'secret.md'), path.join(root, '.work/escape.md'))
+    assertPlanBlocked(root, '.work/escape.md')
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+    rmSync(outside, { recursive: true, force: true })
+  }
+})
+
+// GROUP: guard-agent-brief-plan-exists-check-disabled, guard-agent-brief-plan-containment-disabled
+test('blocks a test-author brief whose plan runs through a symlinked directory out of .work/ with reason plan', () => {
+  hasTemplate()
+  const root = makePlanRoot()
+  const outside = mkdtempSync(path.join(tmpdir(), 'guard-agent-brief-outside-'))
+  try {
+    writeFileSync(path.join(outside, 'p.md'), '# not a plan\n')
+    symlinkSync(outside, path.join(root, '.work/outdir'))
+    assertPlanBlocked(root, '.work/outdir/p.md')
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+    rmSync(outside, { recursive: true, force: true })
+  }
+})
+
+test('blocks a test-author brief whose plan has a .. segment with exit 2', () => {
+  hasTemplate()
+  const root = makePlanRoot()
+  try {
+    writeFileSync(path.join(root, 'outside.md'), '# not under .work\n')
+    for (const plan of ['.work/../outside.md', '.work/a/../../outside.md']) {
+      const r = runHook(payload(TA, taBrief(plan)), root)
+      assert.equal(r.status, 2, `expected exit 2 for plan ${plan}`)
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('blocks a test-author brief whose plan is outside .work/ with exit 2', () => {
+  hasTemplate()
+  const root = makePlanRoot()
+  try {
+    mkdirSync(path.join(root, 'docs'), { recursive: true })
+    writeFileSync(path.join(root, 'docs/plan.md'), '# plan\n')
+    for (const plan of ['docs/plan.md', '/etc/passwd.md', '.workx/plan.md', '.work/plan.txt']) {
+      const r = runHook(payload(TA, taBrief(plan)), root)
+      assert.equal(r.status, 2, `expected exit 2 for plan ${plan}`)
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+// GROUP: guard-agent-brief-plan-pattern-widened
+test('blocks a test-author brief whose plan is an existing non-.md file with exit 2', () => {
+  hasTemplate()
+  const root = makePlanRoot()
+  try {
+    writeFileSync(path.join(root, '.work/fixture-plan.txt'), 'plan\n')
+    assertExit2(root, '.work/fixture-plan.txt')
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+// GROUP: guard-agent-brief-plan-pattern-widened
+test('blocks a test-author brief whose existing plan path has a sub/.. segment with exit 2', () => {
+  hasTemplate()
+  const root = makePlanRoot()
+  try {
+    mkdirSync(path.join(root, '.work/sub'))
+    writeFileSync(path.join(root, '.work/fixture-plan.md'), '# plan\n')
+    assertExit2(root, '.work/sub/../fixture-plan.md')
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+// GROUP: guard-agent-brief-tests-first-role-ungated
+test('blocks a tests-first agent that has no template, by role', () => {
+  hasTemplate()
+  const root = makePlanRoot()
+  try {
+    const pf = path.join(root, '.claude/pipeline.json')
+    const doc = JSON.parse(readFileSync(pf, 'utf8'))
+    doc.agents['ghost-author'] = { model: 'sonnet', write: true, role: 'tests-first' }
+    writeFileSync(pf, JSON.stringify(doc))
+    const r = runHook(payload('ghost-author', 'anything'), root)
+    assert.equal(r.status, 2)
+    assert.match(r.stderr, /no template for gated type ghost-author/)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('the default fixture plan exists in the fixture root and fills {plan}', () => {
+  hasTemplate()
+  assert.equal(PLAN_REL, '.work/fixture-plan.md')
+  assert.match(exactBrief(TA), /\.work\/fixture-plan\.md/)
 })
 
 // GROUP: guard-agent-brief-branch-check-disabled

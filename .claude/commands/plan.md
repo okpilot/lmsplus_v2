@@ -14,6 +14,7 @@ Load the `review-gate` and `github-projects` skills.
 7. **Run plan validation** — impact analysis, contract check, pattern scan, doc/schema check, security surface (see `.claude/skills/review-gate/agent-workflow.md § Plan Validation`)
 8. **Plan-critic review** — run plan-critic agent to challenge the plan: approach first (`plan-critic.md § Approach Check`), then details. Skip for single-file changes under 10 lines, except a fixup after a review round.
 9. **Present to user** — concise plan with files, risks, and validation results. Confirm before executing.
-10. **Flag blockers** — dependencies, open questions, or risks that need resolution before work starts.
+10. **Tests first** — after approval, save the plan under `.work/`, then test-author writes failing tests from it (`.claude/skills/review-gate/agent-test-author.md`); a plan with no behaviour change records `Tests first: SKIP — <reason>`.
+11. **Flag blockers** — dependencies, open questions, or risks that need resolution before work starts.
 
 Always plan before touching code. A 2-minute plan prevents 20 minutes of rework.

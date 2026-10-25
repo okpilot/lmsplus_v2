@@ -4,9 +4,10 @@
 // on STDIN — the channel the harness actually uses — so these tests pin the
 // input contract and gate-state behaviour, not just the pattern matching.
 import assert from 'node:assert/strict'
-import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { test } from 'node:test'
+import { fileURLToPath } from 'node:url'
 import {
   addWorktree,
   arm,
@@ -23,6 +24,8 @@ import {
   TIMEOUT_MS,
 } from './review-gate.testkit.mjs'
 import { runNode } from './spawn.testkit.mjs'
+
+const HOOKS_DIR = path.dirname(fileURLToPath(import.meta.url))
 
 // --- No gate state ---
 
@@ -74,6 +77,46 @@ test('sets the lock when a conditional agent is dispatched', () => {
   try {
     assert.equal(dispatch(dir, 'red-team').status, 0)
     assert.equal(prodEdit(dir).status, 2)
+  } finally {
+    cleanup(dir)
+  }
+})
+
+test('leaves the lock unarmed when a tests-first agent (test-author) is dispatched', () => {
+  const dir = makeDir()
+  try {
+    assert.equal(dispatch(dir, 'test-author').status, 0)
+    assert.equal(isArmed(dir), false)
+    assert.equal(prodEdit(dir).status, 0)
+  } finally {
+    cleanup(dir)
+  }
+})
+
+test('arms on a gate-round dispatch where the same fixture leaves a tests-first dispatch unarmed', () => {
+  const dir = makeDir()
+  try {
+    dispatch(dir, 'test-author')
+    assert.equal(isArmed(dir), false)
+    dispatch(dir, 'semantic-reviewer')
+    assert.equal(isArmed(dir), true)
+  } finally {
+    cleanup(dir)
+  }
+})
+
+test('the real pipeline.json gives test-author the tests-first role, which is not an arming role', () => {
+  const pipeline = JSON.parse(readFileSync(path.join(HOOKS_DIR, '..', 'pipeline.json'), 'utf8'))
+  assert.equal(
+    pipeline.agents['test-author']?.role,
+    'tests-first',
+    'pipeline.json agents.test-author with role tests-first is missing',
+  )
+  const dir = makeDir()
+  try {
+    writeFileSync(path.join(dir, '.claude', 'pipeline.json'), JSON.stringify(pipeline), 'utf8')
+    assert.equal(dispatch(dir, 'test-author').status, 0)
+    assert.equal(isArmed(dir), false)
   } finally {
     cleanup(dir)
   }

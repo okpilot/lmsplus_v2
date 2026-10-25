@@ -21,7 +21,7 @@ Validated plan (affected files, test updates, doc updates, risks) ▼ Plan-criti
     └─► unresolvable ISSUE or CRITICAL ─► STOP, hand off to the user (§ NEVER forbids
           executing with either one open — not CRITICAL alone)
     ▼
-User approves → Execute
+User approves → Tests first (test-author) → Execute
 ```
 
 ### Requirement Interview (runs AFTER root cause check, BEFORE drafting the plan)
@@ -63,6 +63,8 @@ Run plan-critic (sonnet) via the Agent tool after validation, before presenting 
 - Include test updates in the plan, not as an afterthought.
 - Use Explore agents for impact analysis — don't guess who calls a function.
 - Block execution if a validation step reveals a conflict. Revise the plan first.
+- Dispatch test-author after approval and before Execute (`agent-test-author.md`). Commit them before a worktree-isolated implementer is dispatched.
+- A wrong test: sharpen its acceptance criterion in the plan, re-approve the plan, re-dispatch test-author with its template.
 ### NEVER
 - Skip validation because the change "seems simple."
 - Skip the interview silently — state "No ambiguities identified" or present questions.
@@ -71,6 +73,8 @@ Run plan-critic (sonnet) via the Agent tool after validation, before presenting 
 - Implement first and fix tests/docs later — plan them together.
 - Guess at existing behavior — read the code and tests to verify.
 - Proceed to execution with unresolved validation conflicts.
+- Execute before test-author reported an `EVIDENCE:` line, unless the plan records `Tests first: SKIP — <reason>`.
+- Let the implementer edit test-author's tests (`// GROUP:` marker lines excepted).
 
 ---
 
@@ -363,6 +367,7 @@ Flag non-obvious consequences before they become tech debt — never execute sil
 
 ## Delegation Protocol
 Every subagent prompt must be self-contained and unambiguous. Use this template for all subagent dispatches.
+**Execute briefs name the test-author test files as read-only.** SendMessage to test-author is blocked by `guard-agent-brief.js`; a wrong test goes back through the plan (`agent-test-author.md`).
 ### Template
 
 ```
