@@ -9,6 +9,10 @@ inputs:
     description: ECR Public pull secret key. Empty → anonymous pulls.
     required: false
     default: ''
+  exclude:
+    description: Services `supabase start -x` skips.
+    required: false
+    default: logflare,vector,realtime,studio,postgres-meta,edge-runtime,mailpit,imgproxy,supavisor
 runs:
   using: composite
   steps:
@@ -30,7 +34,9 @@ runs:
 
     - name: Start local Supabase
       shell: bash
-      run: supabase start -x logflare,vector,realtime,studio,postgres-meta,edge-runtime,mailpit,imgproxy,supavisor
+      env:
+        EXCLUDE: ${{ inputs.exclude }}
+      run: supabase start -x "$EXCLUDE"
 
     - name: Log out of ECR Public
       if: always()

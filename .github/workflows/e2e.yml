@@ -302,6 +302,8 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ECR_PUBLIC_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_ECR_PUBLIC_SECRET_ACCESS_KEY }}
+          # Action default minus postgres-meta: `pnpm db:types` needs its image pulled while logged in to ECR.
+          exclude: logflare,vector,realtime,studio,edge-runtime,mailpit,imgproxy,supavisor
 
       - name: Wait for Supabase readiness
         run: bash .github/scripts/wait-for-supabase.sh
