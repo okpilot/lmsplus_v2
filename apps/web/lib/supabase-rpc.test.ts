@@ -1,25 +1,15 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createChainableRpcClient } from '@/lib/test-support/chainable-rpc-client'
-import { fetchAllRpcRows, rpc, upsert } from './supabase-rpc'
+import { fetchAllRpcRows, rpc } from './supabase-rpc'
 
-// Build a minimal fake SupabaseClient with .rpc() and .from() methods
-function makeClient(opts: {
-  rpcData?: unknown
-  rpcError?: { message: string } | null
-  upsertFn?: ReturnType<typeof vi.fn>
-}) {
+// Build a minimal fake SupabaseClient with an .rpc() method
+function makeClient(opts: { rpcData?: unknown; rpcError?: { message: string } | null }) {
   const rpcFn = vi.fn().mockResolvedValue({
     data: opts.rpcData ?? null,
     error: opts.rpcError ?? null,
   })
 
-  const upsertMethod = opts.upsertFn ?? vi.fn().mockResolvedValue({})
-
-  return {
-    rpc: rpcFn,
-    from: vi.fn().mockReturnValue({ upsert: upsertMethod }),
-    _upsertMethod: upsertMethod,
-  }
+  return { rpc: rpcFn }
 }
 
 describe('rpc', () => {
@@ -46,49 +36,23 @@ describe('rpc', () => {
   })
 })
 
-describe('upsert', () => {
-  it('calls from() with the table name then upsert() with the values', async () => {
-    const client = makeClient({})
-    await upsert(client as unknown as never, 'some_table', { student_id: 'u1', reps: 3 })
-    expect(client.from).toHaveBeenCalledWith('some_table')
-    expect(client._upsertMethod).toHaveBeenCalledWith({ student_id: 'u1', reps: 3 }, undefined)
-  })
-
-  it('passes onConflict option through to upsert()', async () => {
-    const client = makeClient({})
-    await upsert(
-      client as unknown as never,
-      'some_table',
-      { student_id: 'u1' },
-      { onConflict: 'student_id,question_id' },
-    )
-    expect(client._upsertMethod).toHaveBeenCalledWith(
-      { student_id: 'u1' },
-      { onConflict: 'student_id,question_id' },
-    )
-  })
-
-  it('throws when the upsert returns a DB error', async () => {
-    const upsertFn = vi.fn().mockResolvedValue({ data: null, error: { message: 'RLS denied' } })
-    const client = makeClient({ upsertFn })
-    await expect(
-      upsert(client as unknown as never, 'some_table', { student_id: 'u1' }),
-    ).rejects.toThrow('[upsert:some_table] RLS denied')
-  })
-})
-
 describe('fetchAllRpcRows', () => {
-  const FN = 'get_paged_answer_keys'
+  const FN = 'get_report_answer_keys'
   const ARGS = { p_session_id: 'sess-1' }
   const ORDER_COLUMNS = ['question_id', 'blank_index']
 
   function fixture(prefix: string, count: number) {
-    return Array.from({ length: count }, (_, i) => ({ id: `${prefix}-${i}` }))
+    return Array.from({ length: count }, (_, i) => ({
+      question_id: `${prefix}-${i}`,
+      blank_index: i,
+      answer_key: 'k',
+      question_type: 'dialog_fill',
+    }))
   }
 
   it('returns the rows from a single call when the result is under the row cap', async () => {
     const client = createChainableRpcClient({ firstCall: { data: fixture('row', 3), error: null } })
-    const result = await fetchAllRpcRows<{ id: string }>({
+    const result = await fetchAllRpcRows({
       supabase: client as unknown as never,
       fn: FN,
       args: ARGS,
@@ -113,7 +77,7 @@ describe('fetchAllRpcRows', () => {
         { data: page2, error: null },
       ],
     })
-    const result = await fetchAllRpcRows<{ id: string }>({
+    const result = await fetchAllRpcRows({
       supabase: client as unknown as never,
       fn: FN,
       args: ARGS,
@@ -123,7 +87,7 @@ describe('fetchAllRpcRows', () => {
     expect(result.error).toBeNull()
     // Distinguishable from the stale first-call fixture: proves the discard happened.
     expect(result.data).toEqual([...page1, ...page2])
-    expect(result.data.some((r) => r.id.startsWith('stale'))).toBe(false)
+    expect(result.data.some((r) => r.question_id.startsWith('stale'))).toBe(false)
 
     // First call, plus one count call, plus one bare .rpc() per page.
     expect(client.rpc).toHaveBeenCalledTimes(4)
@@ -146,7 +110,7 @@ describe('fetchAllRpcRows', () => {
     const client = createChainableRpcClient({
       firstCall: { data: null, error: { message: 'first call failed' } },
     })
-    const result = await fetchAllRpcRows<{ id: string }>({
+    const result = await fetchAllRpcRows({
       supabase: client as unknown as never,
       fn: FN,
       args: ARGS,
@@ -162,7 +126,7 @@ describe('fetchAllRpcRows', () => {
       count: { count: 1200, error: null },
       pages: [{ data: null, error: { message: 'page fetch failed' } }],
     })
-    const result = await fetchAllRpcRows<{ id: string }>({
+    const result = await fetchAllRpcRows({
       supabase: client as unknown as never,
       fn: FN,
       args: ARGS,
@@ -178,7 +142,7 @@ describe('fetchAllRpcRows', () => {
       count: { count: 1200, error: null },
       pages: [{ data: { unexpected: 'shape' }, error: null }],
     })
-    const result = await fetchAllRpcRows<{ id: string }>({
+    const result = await fetchAllRpcRows({
       supabase: client as unknown as never,
       fn: FN,
       args: ARGS,
@@ -197,7 +161,7 @@ describe('fetchAllRpcRows', () => {
       count: { count: 1000, error: null },
       pages: [{ data: null, error: null }],
     })
-    const result = await fetchAllRpcRows<{ id: string }>({
+    const result = await fetchAllRpcRows({
       supabase: client as unknown as never,
       fn: FN,
       args: ARGS,
@@ -222,7 +186,7 @@ describe('fetchAllRpcRows', () => {
       count: { count: null, error: null },
       pages: [{ data: fixture('page', 3), error: null }],
     })
-    const result = await fetchAllRpcRows<{ id: string }>({
+    const result = await fetchAllRpcRows({
       supabase: client as unknown as never,
       fn: FN,
       args: ARGS,
@@ -244,7 +208,7 @@ describe('fetchAllRpcRows', () => {
       count: { count: null, error: { message: 'count query failed' } },
       pages: [{ data: fixture('page', 3), error: null }],
     })
-    const result = await fetchAllRpcRows<{ id: string }>({
+    const result = await fetchAllRpcRows({
       supabase: client as unknown as never,
       fn: FN,
       args: ARGS,
@@ -258,7 +222,7 @@ describe('fetchAllRpcRows', () => {
     const client = createChainableRpcClient({
       firstCall: { data: { unexpected: 'shape' }, error: null },
     })
-    const result = await fetchAllRpcRows<{ id: string }>({
+    const result = await fetchAllRpcRows({
       supabase: client as unknown as never,
       fn: FN,
       args: ARGS,
@@ -268,5 +232,15 @@ describe('fetchAllRpcRows', () => {
       data: [],
       error: { message: `${FN}: expected an array, got object` },
     })
+  })
+})
+
+describe('fetchAllRpcRows types', () => {
+  it('requires args when the function declares them', () => {
+    // compile-time only; never executed
+    const typeOnly = () =>
+      // @ts-expect-error args is required for get_report_answer_keys
+      fetchAllRpcRows({ supabase: {} as never, fn: 'get_report_answer_keys', orderColumns: [] })
+    expect(typeOnly).toBeTypeOf('function')
   })
 })

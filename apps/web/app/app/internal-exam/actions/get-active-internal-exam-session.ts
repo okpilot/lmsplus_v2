@@ -8,7 +8,6 @@ import {
   MAX_ACTIVE_EXAM_SESSIONS,
 } from '@/app/app/quiz/actions/_overdue-helpers'
 import { verifySessionUser } from '@/lib/auth/verify-session-user'
-import { rpc } from '@/lib/supabase-rpc'
 
 export type ActiveInternalExamSession = {
   sessionId: string
@@ -103,7 +102,7 @@ export async function getActiveInternalExamSession(): Promise<GetActiveInternalE
       }
       const timeLimitSeconds = rawTimeLimit
       if (isExamOverdue(row.started_at, timeLimitSeconds)) {
-        const { error: rpcErr } = await rpc<unknown>(supabase, 'complete_overdue_exam_session', {
+        const { error: rpcErr } = await supabase.rpc('complete_overdue_exam_session', {
           p_session_id: row.id,
         })
         if (rpcErr) {

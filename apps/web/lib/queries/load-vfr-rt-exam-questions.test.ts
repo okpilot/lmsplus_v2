@@ -1,11 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockRpc, mockClient, mockCreateClient } = vi.hoisted(() => {
-  const mockClient = { marker: 'server-client' }
-  return { mockRpc: vi.fn(), mockClient, mockCreateClient: vi.fn(async () => mockClient) }
+  const mockRpc = vi.fn()
+  const mockClient = { marker: 'server-client', rpc: mockRpc }
+  return { mockRpc, mockClient, mockCreateClient: vi.fn(async () => mockClient) }
 })
-
-vi.mock('@/lib/supabase-rpc', () => ({ rpc: mockRpc }))
 
 const mockVerifySessionUser = vi.fn().mockResolvedValue({ id: 'user-1' })
 
@@ -20,6 +19,10 @@ vi.mock('@repo/db/server', () => ({
 import { loadVfrRtExamQuestions } from './load-vfr-rt-exam-questions'
 
 const SESSION_ID = '11111111-1111-4111-8111-111111111111'
+const Q1 = '00000000-0000-4000-a000-000000000001'
+const Q2 = '00000000-0000-4000-a000-000000000002'
+const KNOWN_TYPES = ['multiple_choice', 'short_answer', 'dialog_fill', 'ordering', 'diagram_label']
+const FAILURE = { success: false, error: 'Failed to load questions. Please try again.' }
 
 const row = (id: string, extra: Record<string, unknown> = {}) => ({
   id,
@@ -48,7 +51,7 @@ describe('loadVfrRtExamQuestions', () => {
     const result = await loadVfrRtExamQuestions({ sessionId: SESSION_ID })
     expect(result).toEqual({ success: false, error: 'No questions found' })
     expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
-    expect(mockRpc.mock.calls[0]?.[0]).toBe(mockClient)
+    expect(mockRpc.mock.contexts[0]).toBe(mockClient)
     expect(mockCreateClient).toHaveBeenCalledTimes(1)
   })
 
@@ -84,7 +87,7 @@ describe('loadVfrRtExamQuestions', () => {
   it('calls the exam RPC with the session id and keeps the RPC row order', async () => {
     mockRpc.mockResolvedValue({ data: [row('b'), row('a')], error: null })
     const result = await loadVfrRtExamQuestions({ sessionId: SESSION_ID })
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_vfr_rt_exam_questions', {
+    expect(mockRpc).toHaveBeenCalledWith('get_vfr_rt_exam_questions', {
       p_session_id: SESSION_ID,
     })
     if (!result.success) throw new Error(result.error)
@@ -117,5 +120,25 @@ describe('loadVfrRtExamQuestions', () => {
     expect(dia?.diagram_config?.image_ref).toBe('rwy')
     expect(ord?.explanation_text).toBeNull()
     expect(ord?.explanation_image_url).toBeNull()
+  })
+})
+
+describe('loadVfrRtExamQuestions question_type fail-closed', () => {
+  it('returns the load-failure result and logs when any row has an unknown question_type', async () => {
+    mockRpc.mockResolvedValue({
+      data: [row(Q1, { question_type: 'short_answer' }), row(Q2, { question_type: 'essay' })],
+      error: null,
+    })
+    const result = await loadVfrRtExamQuestions({ sessionId: SESSION_ID })
+    expect(result).toEqual(FAILURE)
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('Unknown question_type'), Q2)
+  })
+
+  it.each(KNOWN_TYPES)('passes a %s row through unchanged', async (type) => {
+    mockRpc.mockResolvedValue({ data: [row(Q1, { question_type: type })], error: null })
+    const result = await loadVfrRtExamQuestions({ sessionId: SESSION_ID })
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.questions[0]?.question_type).toBe(type)
   })
 })

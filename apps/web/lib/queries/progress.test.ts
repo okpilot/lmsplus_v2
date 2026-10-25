@@ -15,11 +15,8 @@ vi.mock('@/lib/auth/get-session-user', () => ({
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({
     from: mockFrom,
+    rpc: mockRpc,
   }),
-}))
-
-vi.mock('@/lib/supabase-rpc', () => ({
-  rpc: (...args: unknown[]) => mockRpc(...args),
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -99,7 +96,7 @@ describe('getProgressData', () => {
   })
 
   it('returns an empty array when the mastery RPC data is not an array', async () => {
-    // rpc() casts without validating shape; the §5 guard must not throw on a non-array payload.
+    // supabase.rpc() mock returns an unvalidated shape; the §5 guard must not throw on a non-array payload.
     mockFrom.mockImplementation((table: string) => {
       if (table === 'easa_subjects')
         return buildChain({

@@ -13,20 +13,11 @@ import { STUDENTS_PAGE_SIZE } from './types'
 
 // RPC calls use the authenticated client (not adminClient) so auth.uid() is set in Postgres.
 // adminClient (service role) sets auth.uid() = NULL, which would fail the RPCs' auth check.
-// Cast needed: RPC names not yet in generated types resolve to `never`.
-type RpcFn = (
-  fn: string,
-  args?: Record<string, unknown>,
-) => Promise<{ data: unknown; error: { message: string } | null }>
-
-function authRpc(supabase: { rpc: unknown }): RpcFn {
-  return (supabase as unknown as { rpc: RpcFn }).rpc.bind(supabase)
-}
 
 export async function getDashboardKpis(range: TimeRange): Promise<DashboardKpis> {
   const { supabase } = await requireAdmin()
 
-  const { data, error } = await authRpc(supabase)('get_admin_dashboard_kpis', {
+  const { data, error } = await supabase.rpc('get_admin_dashboard_kpis', {
     p_range_days: rangeToDays(range),
   })
 
@@ -64,8 +55,8 @@ export async function getDashboardStudents(
 ): Promise<{ students: DashboardStudent[]; totalCount: number }> {
   const { supabase } = await requireAdmin()
 
-  const { data, error } = await authRpc(supabase)('get_admin_dashboard_students', {
-    p_status: filters.status ?? null,
+  const { data, error } = await supabase.rpc('get_admin_dashboard_students', {
+    p_status: filters.status,
     p_sort: filters.sort,
     p_dir: filters.dir,
     p_limit: STUDENTS_PAGE_SIZE,
@@ -114,7 +105,7 @@ export async function getDashboardStudents(
 export async function getWeakTopics(): Promise<WeakTopic[]> {
   const { supabase } = await requireAdmin()
 
-  const { data, error } = await authRpc(supabase)('get_admin_weak_topics', { p_limit: 10 })
+  const { data, error } = await supabase.rpc('get_admin_weak_topics', { p_limit: 10 })
   if (error) {
     console.error('[getWeakTopics] RPC error:', error.message)
     throw new Error('Failed to fetch weak topics')

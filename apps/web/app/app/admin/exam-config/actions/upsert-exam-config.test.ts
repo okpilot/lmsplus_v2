@@ -8,7 +8,6 @@ const mockRpc = vi.hoisted(() => vi.fn())
 
 vi.mock('next/cache', () => ({ revalidatePath: mockRevalidatePath }))
 vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: mockRequireAdmin }))
-vi.mock('@/lib/supabase-rpc', () => ({ rpc: mockRpc }))
 
 // ---- Subject under test ---------------------------------------------------
 
@@ -18,7 +17,7 @@ import { upsertExamConfig } from './upsert-exam-config'
 
 const SUBJECT_ID = '00000000-0000-4000-a000-000000000001'
 const CONFIG_ID = '00000000-0000-4000-a000-000000000099'
-const SUPABASE = { __marker: 'supabase' }
+const SUPABASE = { __marker: 'supabase', rpc: mockRpc }
 
 function mockAdmin() {
   mockRequireAdmin.mockResolvedValue({
@@ -76,7 +75,8 @@ describe('upsertExamConfig', () => {
 
       await upsertExamConfig(VALID_INPUT)
 
-      expect(mockRpc).toHaveBeenCalledWith(SUPABASE, 'upsert_exam_config', {
+      expect(mockRpc.mock.contexts[0]).toBe(SUPABASE)
+      expect(mockRpc).toHaveBeenCalledWith('upsert_exam_config', {
         p_subject_id: SUBJECT_ID,
         p_enabled: true,
         p_total_questions: 10,
@@ -136,7 +136,7 @@ describe('upsertExamConfig', () => {
         distributions: [{ topicId: '00000000-0000-4000-a000-000000000002', questionCount: 10 }],
       })
 
-      const callArgs = mockRpc.mock.calls[0]?.[2] as Record<string, unknown>
+      const callArgs = mockRpc.mock.calls[0]?.[1] as Record<string, unknown>
       const dists = callArgs.p_distributions as Array<Record<string, unknown>>
       expect(dists[0]?.subtopic_id).toBeNull()
     })

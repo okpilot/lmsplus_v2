@@ -7,7 +7,6 @@ const { mockRpc, mockFrom, mockCreateClient } = vi.hoisted(() => ({
 }))
 
 vi.mock('@repo/db/server', () => ({ createServerSupabaseClient: mockCreateClient }))
-vi.mock('@/lib/supabase-rpc', () => ({ rpc: (...a: unknown[]) => mockRpc(...a) }))
 
 import { loadQuizSessionState } from './load-quiz-session-state'
 
@@ -74,7 +73,7 @@ function setup(opts: { rpc?: unknown; rpcError?: string; row?: Row; rowError?: s
 beforeEach(() => {
   vi.clearAllMocks()
   vi.spyOn(console, 'error').mockImplementation(() => {})
-  mockCreateClient.mockResolvedValue({ from: mockFrom })
+  mockCreateClient.mockResolvedValue({ from: mockFrom, rpc: mockRpc })
 })
 
 describe('loadQuizSessionState', () => {
@@ -92,7 +91,7 @@ describe('loadQuizSessionState', () => {
 
     await loadQuizSessionState(SESSION, USER)
 
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_quiz_progress', {
+    expect(mockRpc).toHaveBeenCalledWith('get_quiz_progress', {
       p_session_id: SESSION,
     })
     expect(mockFrom).toHaveBeenCalledWith('quiz_sessions')

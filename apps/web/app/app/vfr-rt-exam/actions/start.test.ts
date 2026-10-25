@@ -2,11 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockVerifySessionUser, mockRpc, mockClient } = vi.hoisted(() => ({
-  mockVerifySessionUser: vi.fn(),
-  mockRpc: vi.fn(),
-  mockClient: {},
-}))
+const { mockVerifySessionUser, mockRpc, mockClient } = vi.hoisted(() => {
+  const mockRpc = vi.fn()
+  return { mockVerifySessionUser: vi.fn(), mockRpc, mockClient: { rpc: mockRpc } }
+})
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => mockClient,
@@ -14,10 +13,6 @@ vi.mock('@repo/db/server', () => ({
 
 vi.mock('@/lib/auth/verify-session-user', () => ({
   verifySessionUser: mockVerifySessionUser,
-}))
-
-vi.mock('@/lib/supabase-rpc', () => ({
-  rpc: mockRpc,
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -265,7 +260,7 @@ describe('startVfrRtExam — happy path', () => {
   it('passes the subject id as p_subject_id to start_vfr_rt_exam_session', async () => {
     mockRpc.mockResolvedValue({ data: RPC_SUCCESS, error: null })
     await startVfrRtExam({ subjectId: VALID_SUBJECT_ID })
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'start_vfr_rt_exam_session', {
+    expect(mockRpc).toHaveBeenCalledWith('start_vfr_rt_exam_session', {
       p_subject_id: VALID_SUBJECT_ID,
     })
   })

@@ -10,11 +10,7 @@ vi.mock('@/lib/auth/get-session-user', () => ({
 }))
 
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({}),
-}))
-
-vi.mock('@/lib/supabase-rpc', () => ({
-  rpc: (...args: unknown[]) => mockRpc(...args),
+  createServerSupabaseClient: async () => ({ rpc: mockRpc }),
 }))
 
 import { getDailyActivity, getSubjectScores } from './analytics'
@@ -33,7 +29,7 @@ describe('getDailyActivity', () => {
     })
 
     const result = await getDailyActivity(30)
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_daily_activity', {
+    expect(mockRpc).toHaveBeenCalledWith('get_daily_activity', {
       p_student_id: 'user-1',
       p_days: 30,
     })
@@ -57,7 +53,7 @@ describe('getDailyActivity', () => {
   })
 
   it('returns an empty array when RPC data is not an array', async () => {
-    // rpc() casts without validating shape; the §5 guard must not throw on a non-array payload.
+    // supabase.rpc() mock returns an unvalidated shape; the §5 guard must not throw on a non-array payload.
     mockRpc.mockResolvedValue({ data: { unexpected: true }, error: null })
     const result = await getDailyActivity()
     expect(result).toEqual([])
@@ -65,7 +61,7 @@ describe('getDailyActivity', () => {
 
   it('clamps days above 365 to 365', async () => {
     await getDailyActivity(500)
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_daily_activity', {
+    expect(mockRpc).toHaveBeenCalledWith('get_daily_activity', {
       p_student_id: 'user-1',
       p_days: 365,
     })
@@ -73,7 +69,7 @@ describe('getDailyActivity', () => {
 
   it('clamps days below 1 to 1', async () => {
     await getDailyActivity(0)
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_daily_activity', {
+    expect(mockRpc).toHaveBeenCalledWith('get_daily_activity', {
       p_student_id: 'user-1',
       p_days: 1,
     })
@@ -81,7 +77,7 @@ describe('getDailyActivity', () => {
 
   it('truncates fractional days to the integer part', async () => {
     await getDailyActivity(14.9)
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_daily_activity', {
+    expect(mockRpc).toHaveBeenCalledWith('get_daily_activity', {
       p_student_id: 'user-1',
       p_days: 14,
     })
@@ -89,7 +85,7 @@ describe('getDailyActivity', () => {
 
   it('treats NaN days as the minimum (1)', async () => {
     await getDailyActivity(Number.NaN)
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_daily_activity', {
+    expect(mockRpc).toHaveBeenCalledWith('get_daily_activity', {
       p_student_id: 'user-1',
       p_days: 1,
     })
@@ -97,7 +93,7 @@ describe('getDailyActivity', () => {
 
   it('treats positive Infinity days as the minimum (1) because non-finite values fall back to min', async () => {
     await getDailyActivity(Number.POSITIVE_INFINITY)
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_daily_activity', {
+    expect(mockRpc).toHaveBeenCalledWith('get_daily_activity', {
       p_student_id: 'user-1',
       p_days: 1,
     })
@@ -105,7 +101,7 @@ describe('getDailyActivity', () => {
 
   it('treats negative Infinity days as the minimum (1)', async () => {
     await getDailyActivity(Number.NEGATIVE_INFINITY)
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_daily_activity', {
+    expect(mockRpc).toHaveBeenCalledWith('get_daily_activity', {
       p_student_id: 'user-1',
       p_days: 1,
     })
@@ -134,7 +130,7 @@ describe('getSubjectScores', () => {
     })
 
     const result = await getSubjectScores(5)
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_subject_scores', {
+    expect(mockRpc).toHaveBeenCalledWith('get_subject_scores', {
       p_student_id: 'user-1',
       p_limit: 5,
     })
@@ -151,7 +147,7 @@ describe('getSubjectScores', () => {
 
   it('clamps limit above 100 to 100', async () => {
     await getSubjectScores(200)
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_subject_scores', {
+    expect(mockRpc).toHaveBeenCalledWith('get_subject_scores', {
       p_student_id: 'user-1',
       p_limit: 100,
     })
@@ -159,7 +155,7 @@ describe('getSubjectScores', () => {
 
   it('clamps limit below 1 to 1', async () => {
     await getSubjectScores(0)
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_subject_scores', {
+    expect(mockRpc).toHaveBeenCalledWith('get_subject_scores', {
       p_student_id: 'user-1',
       p_limit: 1,
     })
@@ -167,7 +163,7 @@ describe('getSubjectScores', () => {
 
   it('truncates fractional limit to the integer part', async () => {
     await getSubjectScores(3.7)
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_subject_scores', {
+    expect(mockRpc).toHaveBeenCalledWith('get_subject_scores', {
       p_student_id: 'user-1',
       p_limit: 3,
     })
@@ -175,7 +171,7 @@ describe('getSubjectScores', () => {
 
   it('treats NaN limit as the minimum (1)', async () => {
     await getSubjectScores(Number.NaN)
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_subject_scores', {
+    expect(mockRpc).toHaveBeenCalledWith('get_subject_scores', {
       p_student_id: 'user-1',
       p_limit: 1,
     })
@@ -183,7 +179,7 @@ describe('getSubjectScores', () => {
 
   it('treats Infinity limit as the minimum (1) because non-finite values fall back to min', async () => {
     await getSubjectScores(Number.POSITIVE_INFINITY)
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_subject_scores', {
+    expect(mockRpc).toHaveBeenCalledWith('get_subject_scores', {
       p_student_id: 'user-1',
       p_limit: 1,
     })
@@ -206,7 +202,7 @@ describe('getSubjectScores', () => {
   })
 
   it('returns an empty array when RPC data is not an array', async () => {
-    // rpc() casts without validating shape; the §5 guard must not throw on a non-array payload.
+    // supabase.rpc() mock returns an unvalidated shape; the §5 guard must not throw on a non-array payload.
     mockRpc.mockResolvedValue({ data: { unexpected: true }, error: null })
     const result = await getSubjectScores()
     expect(result).toEqual([])
@@ -214,7 +210,7 @@ describe('getSubjectScores', () => {
 
   it('treats negative Infinity limit as the minimum (1)', async () => {
     await getSubjectScores(Number.NEGATIVE_INFINITY)
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_subject_scores', {
+    expect(mockRpc).toHaveBeenCalledWith('get_subject_scores', {
       p_student_id: 'user-1',
       p_limit: 1,
     })
@@ -222,7 +218,7 @@ describe('getSubjectScores', () => {
 
   it('uses default limit of 5 when called with no arguments', async () => {
     await getSubjectScores()
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_subject_scores', {
+    expect(mockRpc).toHaveBeenCalledWith('get_subject_scores', {
       p_student_id: 'user-1',
       p_limit: 5,
     })

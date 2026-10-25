@@ -2,7 +2,6 @@ import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import { extractPassMark, extractQuestionIds } from '@/app/app/quiz/actions/_overdue-helpers'
 import { type QuizMode, VFR_RT_EXAM_PASS_MARK } from '@/lib/constants/exam-modes'
-import { rpc } from '@/lib/supabase-rpc'
 import { buildSessionSeed, type SessionSeed } from './quiz-session-seed'
 
 const MODES = [
@@ -109,7 +108,7 @@ export async function loadQuizSessionState(
   const supabase = await createServerSupabaseClient()
   // quiz_sessions has several permissive SELECT policies: the student_id predicate is mandatory (security.md).
   const [progressRes, rowRes] = await Promise.all([
-    rpc<unknown>(supabase, 'get_quiz_progress', { p_session_id: sessionId }),
+    supabase.rpc('get_quiz_progress', { p_session_id: sessionId }),
     supabase
       .from('quiz_sessions')
       .select('config, started_at, time_limit_seconds, easa_subjects!subject_id(name, short)')

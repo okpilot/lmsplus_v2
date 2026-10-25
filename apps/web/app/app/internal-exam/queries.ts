@@ -1,6 +1,5 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { getSessionUser } from '@/lib/auth/get-session-user'
-import { rpc } from '@/lib/supabase-rpc'
 
 // SECURITY: code values are NEVER returned from this query. Admin distributes
 // codes out-of-band; student types via the redemption modal. Shape omits `code`.
@@ -29,32 +28,7 @@ export type InternalExamHistoryEntry = {
 
 export type InternalExamQueryResult<T> = { success: boolean; data: T[] }
 
-// RPC row shapes. These match the SECURITY DEFINER functions
-// list_my_active_internal_exam_codes() and list_my_internal_exam_history().
-// They are not in the generated types yet, so we cast and runtime-guard.
-type AvailableRpcRow = {
-  id: unknown
-  subject_id: unknown
-  subject_name: unknown
-  subject_short: unknown
-  expires_at: unknown
-  issued_at: unknown
-}
-
-type HistoryRpcRow = {
-  id: unknown
-  subject_id: unknown
-  subject_name: unknown
-  subject_short: unknown
-  started_at: unknown
-  ended_at: unknown
-  score_percentage: unknown
-  passed: unknown
-  total_questions: unknown
-  answered_count: unknown
-  attempt_number: unknown
-}
-
+// Generated RETURNS TABLE types mark every column non-null; NULL still arrives at runtime.
 function asString(v: unknown): string {
   return typeof v === 'string' ? v : ''
 }
@@ -94,11 +68,7 @@ export async function listAvailableInternalExams(): Promise<
   const user = await getSessionUser()
   if (!user) return { success: true, data: [] }
 
-  const { data, error } = await rpc<AvailableRpcRow[]>(
-    supabase,
-    'list_my_active_internal_exam_codes',
-    {},
-  )
+  const { data, error } = await supabase.rpc('list_my_active_internal_exam_codes')
   if (error) {
     console.error('[listAvailableInternalExams] Query error:', error.message)
     return { success: false, data: [] }
@@ -131,7 +101,7 @@ export async function listMyInternalExamHistory(): Promise<
   const user = await getSessionUser()
   if (!user) return { success: true, data: [] }
 
-  const { data, error } = await rpc<HistoryRpcRow[]>(supabase, 'list_my_internal_exam_history', {})
+  const { data, error } = await supabase.rpc('list_my_internal_exam_history')
   if (error) {
     console.error('[listMyInternalExamHistory] Query error:', error.message)
     return { success: false, data: [] }

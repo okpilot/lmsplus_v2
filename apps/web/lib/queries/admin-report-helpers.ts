@@ -2,7 +2,7 @@ import { adminClient } from '@repo/db/admin'
 import type { createServerSupabaseClient } from '@repo/db/server'
 import { fetchAllRows, toPageResult } from '@/lib/supabase-paginate'
 import { fetchAllRpcRows } from '@/lib/supabase-rpc'
-import { type AnswerKeyRow, buildAnswerKeyMap } from './quiz-report-helpers'
+import { buildAnswerKeyMap } from './quiz-report-helpers'
 import type { AnswerKeyEntry, AnswerRow, QuestionRow } from './report-question-builder'
 
 // Both createServerClient (@supabase/ssr) and createClient (@supabase/supabase-js)
@@ -166,19 +166,16 @@ export async function fetchAdminReportCorrectOptionsMap(
  * Resolve non-MC answer keys (short_answer canonical, dialog_fill per-blank
  * canonicals, ordering per-slot canonicals, diagram_label per-zone canonicals)
  * via get_admin_report_answer_keys (migration 20260824000100). Returns zero rows
- * for all-MC sessions (e.g. internal_exam) — not an error. Not yet in the
- * generated database types, so this routes through the fetchAllRpcRows<T>()
- * wrapper — it invokes `.rpc` on the client directly, preserving the
- * `this`-binding (see lib/supabase-rpc.ts), and pages past PostgREST's max_rows
- * cap (500 questions per session, each contributing one row per blank/slot/zone). TODO:
- * drop the explicit type arg once packages/db types are regenerated. Runs on the
+ * for all-MC sessions (e.g. internal_exam) — not an error. Routes through
+ * fetchAllRpcRows, which pages past PostgREST's max_rows cap (500 questions per
+ * session, each contributing one row per blank/slot/zone). Runs on the
  * auth client — adminClient has no auth.uid() context.
  */
 export async function fetchAdminReportAnswerKeyMap(
   supabase: SupabaseClient,
   sessionId: string,
 ): Promise<{ data: Map<string, AnswerKeyEntry>; error: { message: string } | null }> {
-  const { data: answerKeyRows, error: keyError } = await fetchAllRpcRows<AnswerKeyRow>({
+  const { data: answerKeyRows, error: keyError } = await fetchAllRpcRows({
     supabase,
     fn: 'get_admin_report_answer_keys',
     args: { p_session_id: sessionId },

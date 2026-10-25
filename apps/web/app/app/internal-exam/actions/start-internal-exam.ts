@@ -5,7 +5,6 @@ import { z } from 'zod'
 import { blockedFlag, type WithBlocked } from '@/app/app/quiz/actions/_blocked-start'
 import { verifySessionUser } from '@/lib/auth/verify-session-user'
 import { matchRpcError } from '@/lib/rpc-error-match'
-import { rpc } from '@/lib/supabase-rpc'
 import { START_INTERNAL_EXAM_ERROR_MESSAGES } from './_error-messages'
 
 const StartInternalExamInput = z.object({
@@ -51,7 +50,7 @@ export async function startInternalExam(raw: unknown): Promise<StartInternalExam
       return { success: false, error: 'Invalid input' }
     }
 
-    const { data, error } = await rpc<unknown>(supabase, 'start_internal_exam_session', {
+    const { data, error } = await supabase.rpc('start_internal_exam_session', {
       p_code: parsed.data.code,
     })
 

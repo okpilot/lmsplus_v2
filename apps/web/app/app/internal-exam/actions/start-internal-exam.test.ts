@@ -2,11 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockVerifySessionUser, mockRpc, mockClient } = vi.hoisted(() => ({
-  mockVerifySessionUser: vi.fn(),
-  mockRpc: vi.fn(),
-  mockClient: {},
-}))
+const { mockVerifySessionUser, mockRpc, mockClient } = vi.hoisted(() => {
+  const mockRpc = vi.fn()
+  return { mockVerifySessionUser: vi.fn(), mockRpc, mockClient: { rpc: mockRpc } }
+})
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => mockClient,
@@ -14,10 +13,6 @@ vi.mock('@repo/db/server', () => ({
 
 vi.mock('@/lib/auth/verify-session-user', () => ({
   verifySessionUser: mockVerifySessionUser,
-}))
-
-vi.mock('@/lib/supabase-rpc', () => ({
-  rpc: mockRpc,
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -312,7 +307,7 @@ describe('startInternalExam — happy path', () => {
   it('passes p_code to start_internal_exam_session RPC', async () => {
     mockRpc.mockResolvedValue({ data: [RPC_SUCCESS_ROW], error: null })
     await startInternalExam({ code: VALID_CODE })
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'start_internal_exam_session', {
+    expect(mockRpc).toHaveBeenCalledWith('start_internal_exam_session', {
       p_code: VALID_CODE,
     })
   })

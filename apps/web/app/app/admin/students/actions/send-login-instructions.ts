@@ -5,7 +5,6 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { isEmailConfigured } from '@/lib/email/resend'
-import { rpc } from '@/lib/supabase-rpc'
 import { getLoginInstructionsRecipient } from '../login-instructions-recipient'
 import { issueAndEmailSetPasswordLink } from './deliver-login-instructions'
 
@@ -68,7 +67,7 @@ async function recordSend(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   userId: string,
 ): Promise<SendLoginInstructionsResult> {
-  const { error } = await rpc(supabase, 'record_login_instructions_sent', { p_user_id: userId })
+  const { error } = await supabase.rpc('record_login_instructions_sent', { p_user_id: userId })
   if (error) {
     console.error('[sendLoginInstructions] Record-sent RPC failed:', error.message)
     return {

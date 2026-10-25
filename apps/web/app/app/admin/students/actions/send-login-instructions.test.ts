@@ -14,7 +14,6 @@ vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: mockRequireAdmin }))
 vi.mock('../login-instructions-recipient', () => ({
   getLoginInstructionsRecipient: mockGetRecipient,
 }))
-vi.mock('@/lib/supabase-rpc', () => ({ rpc: mockRpc }))
 vi.mock('@/lib/email/resend', () => ({ isEmailConfigured: mockIsEmailConfigured }))
 vi.mock('./deliver-login-instructions', () => ({
   issueAndEmailSetPasswordLink: mockIssueAndEmailSetPasswordLink,
@@ -28,7 +27,7 @@ import { sendLoginInstructions } from './send-login-instructions'
 
 const USER_ID = '00000000-0000-4000-a000-000000000001'
 const ORG_ID = 'org-001'
-const SUPABASE = { __marker: 'supabase' }
+const SUPABASE = { __marker: 'supabase', rpc: mockRpc }
 const VALID_INPUT = { id: USER_ID }
 
 const RECIPIENT = {
@@ -167,7 +166,8 @@ describe('sendLoginInstructions', () => {
     const result = await sendLoginInstructions(VALID_INPUT)
 
     expect(result).toEqual({ success: true })
-    expect(mockRpc).toHaveBeenCalledWith(SUPABASE, 'record_login_instructions_sent', {
+    expect(mockRpc.mock.contexts[0]).toBe(SUPABASE)
+    expect(mockRpc).toHaveBeenCalledWith('record_login_instructions_sent', {
       p_user_id: USER_ID,
     })
     expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/students')

@@ -8,7 +8,6 @@ const mockRpc = vi.hoisted(() => vi.fn())
 
 vi.mock('next/cache', () => ({ revalidatePath: mockRevalidatePath }))
 vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: mockRequireAdmin }))
-vi.mock('@/lib/supabase-rpc', () => ({ rpc: mockRpc }))
 
 // ---- Subject under test ---------------------------------------------------
 
@@ -18,7 +17,7 @@ import { voidInternalExamCode } from './void-code'
 
 const CODE_ID = '00000000-0000-4000-a000-000000000001'
 const SESSION_ID = '00000000-0000-4000-a000-000000000002'
-const SUPABASE = { __marker: 'supabase' }
+const SUPABASE = { __marker: 'supabase', rpc: mockRpc }
 
 function mockAdmin() {
   mockRequireAdmin.mockResolvedValue({
@@ -83,7 +82,8 @@ describe('voidInternalExamCode', () => {
 
       await voidInternalExamCode(VALID_INPUT)
 
-      expect(mockRpc).toHaveBeenCalledWith(SUPABASE, 'void_internal_exam_code', {
+      expect(mockRpc.mock.contexts[0]).toBe(SUPABASE)
+      expect(mockRpc).toHaveBeenCalledWith('void_internal_exam_code', {
         p_code_id: CODE_ID,
         p_reason: 'Student requested rescheduling',
       })

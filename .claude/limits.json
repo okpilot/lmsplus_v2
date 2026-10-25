@@ -25,7 +25,7 @@
   "excludeBasenamePatterns": [],
   "excludeGlobs": [],
   "baseline": {
-    "apps/web/app/app/internal-exam/actions/get-active-internal-exam-session.ts": 138,
+    "apps/web/app/app/internal-exam/actions/get-active-internal-exam-session.ts": 137,
     "apps/web/app/app/quiz/actions/discard.ts": 101,
     "apps/web/app/app/quiz/actions/get-active-exam-session.ts": 102,
     "supabase/migrations/20260311000001_initial_schema.sql": 447,

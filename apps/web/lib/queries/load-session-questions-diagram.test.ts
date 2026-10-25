@@ -4,13 +4,10 @@ import { MAX_LABELS, MAX_ZONES } from '@/app/app/quiz/actions/diagram-validation
 // ---- Mocks ----------------------------------------------------------------
 
 const { mockRpc, mockClient, mockCreateClient } = vi.hoisted(() => {
-  const mockClient = { marker: 'server-client' }
-  return { mockRpc: vi.fn(), mockClient, mockCreateClient: vi.fn(async () => mockClient) }
+  const mockRpc = vi.fn()
+  const mockClient = { marker: 'server-client', rpc: mockRpc }
+  return { mockRpc, mockClient, mockCreateClient: vi.fn(async () => mockClient) }
 })
-
-vi.mock('@/lib/supabase-rpc', () => ({
-  rpc: mockRpc,
-}))
 
 const mockVerifySessionUser = vi.fn().mockResolvedValue({ id: 'user-1' })
 

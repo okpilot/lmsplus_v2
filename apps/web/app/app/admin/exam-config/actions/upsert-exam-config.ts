@@ -4,7 +4,6 @@ import { UpsertExamConfigSchema } from '@repo/db/schema'
 import { revalidatePath } from 'next/cache'
 import type { ActionResult } from '@/lib/action-result'
 import { requireAdmin } from '@/lib/auth/require-admin'
-import { rpc } from '@/lib/supabase-rpc'
 
 export async function upsertExamConfig(input: unknown): Promise<ActionResult> {
   const parsed = UpsertExamConfigSchema.safeParse(input)
@@ -14,7 +13,7 @@ export async function upsertExamConfig(input: unknown): Promise<ActionResult> {
   const { subjectId, enabled, totalQuestions, timeLimitSeconds, passMark, distributions } =
     parsed.data
 
-  const { data, error } = await rpc<string>(supabase, 'upsert_exam_config', {
+  const { data, error } = await supabase.rpc('upsert_exam_config', {
     p_subject_id: subjectId,
     p_enabled: enabled,
     p_total_questions: totalQuestions,

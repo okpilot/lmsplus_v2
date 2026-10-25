@@ -1,7 +1,6 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { cache } from 'react'
 import { getSessionUser } from '@/lib/auth/get-session-user'
-import { rpc } from '@/lib/supabase-rpc'
 import {
   computeExamReadiness,
   fetchLastPracticed,
@@ -65,7 +64,7 @@ type MasteryRow = {
   correct: number | string
 }
 
-// rpc() casts the payload without validating shape — guard the array per code-style §5.
+// Wire shape is not validated by the client — guard the array per code-style §5.
 function buildMasteryBySubject(
   masteryData: unknown,
 ): Map<string, { total: number; correct: number }> {
@@ -108,7 +107,7 @@ async function getSubjectProgress(supabase: SupabaseClient): Promise<SubjectProg
   // both subject-level (topic_id === null) and topic-level rows; we use the subject rows.
   const [subjectsResult, masteryResult] = await Promise.all([
     supabase.from('easa_subjects').select('id, code, name, short, sort_order').order('sort_order'),
-    rpc<MasteryRow[]>(supabase, 'get_student_mastery_stats', {}),
+    supabase.rpc('get_student_mastery_stats'),
   ])
   const { data: subjectsData, error: subjectsError } = subjectsResult
   if (subjectsError) throw new Error(`Failed to fetch subjects: ${subjectsError.message}`)

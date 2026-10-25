@@ -20,11 +20,8 @@ vi.mock('@/lib/auth/get-caller-profile', () => ({
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({
     from: mockFrom,
+    rpc: mockRpc,
   }),
-}))
-
-vi.mock('@/lib/supabase-rpc', () => ({
-  rpc: (...args: unknown[]) => mockRpc(...args),
 }))
 
 // ---- Subject under test ---------------------------------------------------

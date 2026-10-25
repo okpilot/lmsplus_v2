@@ -1,15 +1,24 @@
 import type { createServerSupabaseClient } from '@repo/db/server'
+import type { Database } from '@repo/db/types'
 import { fetchAllRows, POSTGREST_MAX_ROWS, toPageResult } from '@/lib/supabase-paginate'
 
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
+type Functions = Database['public']['Functions']
+type SetofFn = {
+  [K in keyof Functions]: Functions[K]['Returns'] extends readonly unknown[] ? K : never
+}[keyof Functions]
+type RpcArgs<F extends SetofFn> = Functions[F]['Args']
+type ArgsField<F extends SetofFn> = [RpcArgs<F>] extends [never]
+  ? { args?: undefined }
+  : { args: RpcArgs<F> }
+type RpcRow<F extends SetofFn> = Functions[F]['Returns'][number]
 type RpcFn = (
   fn: string,
   args: Record<string, unknown>,
 ) => { then: (fn: (v: { data: unknown; error: { message: string } | null }) => void) => void }
 
 /**
- * Typed wrapper for Supabase RPC calls.
- * Works around generated types resolving to `never` for .rpc() chains.
+ * Untyped call path. Callers: `git grep -n "import { rpc } from '@/lib/supabase-rpc'" -- apps/web`.
  */
 export async function rpc<TResult>(
   supabase: SupabaseClient,
@@ -18,28 +27,6 @@ export async function rpc<TResult>(
 ): Promise<{ data: TResult | null; error: { message: string } | null }> {
   const { data, error } = await (supabase as unknown as { rpc: RpcFn }).rpc(fn, args)
   return { data: data as TResult | null, error }
-}
-
-// Wider than RpcFn above: the paged path needs `.rpc()` to also accept a third
-// `{ count, head }` options argument (for the count-only call) and to return a chainable
-// `.order().range()` builder (for the page calls) — RpcFn's plain-thenable shape can't
-// express either. Scoped to the getCount/getPage closures in fetchAllRpcRows below.
-type RpcChain = {
-  order: (col: string, opts: { ascending: boolean; nullsFirst: boolean }) => RpcChain
-  range: (
-    from: number,
-    to: number,
-  ) => PromiseLike<{ data: unknown; error: { message: string } | null }>
-}
-type ChainableRpcFn = {
-  rpc: {
-    (
-      fn: string,
-      args: Record<string, unknown>,
-      opts: { count: 'exact'; head: true },
-    ): PromiseLike<{ count: number | null; error: { message: string } | null }>
-    (fn: string, args: Record<string, unknown>): RpcChain
-  }
 }
 
 /**
@@ -53,12 +40,12 @@ type ChainableRpcFn = {
  * generic message. An error is returned as-is, so a real count-query failure surfaces its
  * own message rather than being relabelled as a missing count.
  */
-async function fetchExactCount(
-  client: ChainableRpcFn,
-  fn: string,
-  args: Record<string, unknown>,
+async function fetchExactCount<F extends SetofFn>(
+  supabase: SupabaseClient,
+  fn: F,
+  args?: RpcArgs<F>,
 ): Promise<{ count: number | null; error: { message: string } | null }> {
-  const { count, error } = await client.rpc(fn, args, { count: 'exact', head: true })
+  const { count, error } = await supabase.rpc(fn, args, { count: 'exact', head: true })
   if (error) return { count: null, error }
   if (count === null) {
     return { count: null, error: { message: `${fn}: count query returned no exact count` } }
@@ -73,8 +60,7 @@ async function fetchExactCount(
  *
  * Unlike every other `fetchAllRows` caller, this tries ONE unpaged call first instead of
  * always counting-then-paging: the overwhelmingly common case is well under the cap, and
- * a single call keeps the first request's `(fn, args)` shape identical to the pre-paging
- * call site (existing tests assert on it directly). Only when that call returns EXACTLY
+ * a single call keeps the common path one request. Only when that call returns EXACTLY
  * `POSTGREST_MAX_ROWS` rows — indistinguishable from a truncated result — do we fall back to
  * counting + paging via `fetchAllRows`.
  *
@@ -89,54 +75,32 @@ async function fetchExactCount(
  * serializes an empty result as [], never null or a scalar, so anything else is a contract
  * breach worth surfacing.
  */
-export async function fetchAllRpcRows<T>(opts: {
+export async function fetchAllRpcRows<F extends SetofFn>(
+  opts: { supabase: SupabaseClient; fn: F; orderColumns: string[] } & ArgsField<F>,
+): Promise<{ data: RpcRow<F>[]; error: { message: string } | null }>
+export async function fetchAllRpcRows<F extends SetofFn>(opts: {
   supabase: SupabaseClient
-  fn: string
-  args: Record<string, unknown>
+  fn: F
+  args?: RpcArgs<F>
   orderColumns: string[]
-}): Promise<{ data: T[]; error: { message: string } | null }> {
+}): Promise<{ data: RpcRow<F>[]; error: { message: string } | null }> {
   const { supabase, fn, args, orderColumns } = opts
-  const { data, error } = await rpc<T[]>(supabase, fn, args)
+  const { data, error } = await supabase.rpc(fn, args)
   if (error) return { data: [], error }
-  const first = toPageResult<T>(data, null, fn)
+  const first = toPageResult<RpcRow<F>>(data, null, fn)
   if (first.error) return { data: [], error: first.error }
   const rows = first.data ?? []
   if (rows.length < POSTGREST_MAX_ROWS) return { data: rows, error: null }
 
-  const client = supabase as unknown as ChainableRpcFn
-  return fetchAllRows<T>(
-    () => fetchExactCount(client, fn, args),
+  return fetchAllRows<RpcRow<F>>(
+    () => fetchExactCount(supabase, fn, args),
     async (from, to) => {
-      let query: RpcChain = client.rpc(fn, args)
+      let query = supabase.rpc(fn, args)
       for (const column of orderColumns) {
         query = query.order(column, { ascending: true, nullsFirst: true })
       }
       const { data: pageData, error: pageError } = await query.range(from, to)
-      return toPageResult<T>(pageData, pageError, fn)
+      return toPageResult<RpcRow<F>>(pageData, pageError, fn)
     },
   )
-}
-
-type UpsertFn = (
-  values: Record<string, unknown>,
-  opts?: { onConflict?: string },
-) => Promise<{ data: unknown; error: { message: string } | null }>
-
-/**
- * Typed wrapper for Supabase upsert on tables with `never` row types.
- * Throws if the upsert returns a DB error, so callers can rely on try/catch
- * rather than silently dropping failed writes.
- */
-// biome-ignore lint/complexity/useMaxParams: pre-existing; split when next edited (#1606)
-export async function upsert(
-  supabase: SupabaseClient,
-  table: string,
-  values: Record<string, unknown>,
-  opts?: { onConflict?: string },
-) {
-  const client = supabase as unknown as {
-    from: (t: string) => { upsert: UpsertFn }
-  }
-  const { error } = await client.from(table).upsert(values, opts)
-  if (error) throw new Error(`[upsert:${table}] ${error.message}`)
 }

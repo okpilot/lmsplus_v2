@@ -1,7 +1,6 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { getCallerProfile } from '@/lib/auth/get-caller-profile'
 import { getSessionUser } from '@/lib/auth/get-session-user'
-import { rpc } from '@/lib/supabase-rpc'
 
 export type ProfileData = {
   fullName: string | null
@@ -79,7 +78,7 @@ async function getProfileStats(supabase: SupabaseClient, userId: string): Promis
   // `userId` is only needed for the head-count of answered questions (a safe count, no
   // truncation). The stats RPC takes no args and self-scopes via auth.uid().
   const [statsResult, countResult] = await Promise.all([
-    rpc<ProfileStatsRow[]>(supabase, 'get_student_profile_stats', {}),
+    supabase.rpc('get_student_profile_stats'),
     supabase
       .from('student_responses')
       .select('*', { count: 'exact', head: true })
@@ -94,8 +93,8 @@ async function getProfileStats(supabase: SupabaseClient, userId: string): Promis
     throw new Error(`Failed to fetch answered count: ${countError.message}`)
   }
 
-  // rpc() casts the payload without validating shape — guard the array per code-style §5.
-  const row = Array.isArray(statsData) ? statsData[0] : undefined
+  // Wire shape is not validated by the client — guard the array per code-style §5.
+  const row: ProfileStatsRow | undefined = Array.isArray(statsData) ? statsData[0] : undefined
   const totalSessions = Number(row?.total_sessions ?? 0)
   // avg_score is the raw numeric mean; Math.round stays here to preserve the legacy rounding.
   const averageScore =

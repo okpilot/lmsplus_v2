@@ -12,7 +12,6 @@ vi.mock('next/cache', () => ({ revalidatePath: mockRevalidatePath }))
 vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: mockRequireAdmin }))
 vi.mock('../email-queries', () => ({ getInternalExamCodeForEmail: mockGetCode }))
 vi.mock('@/lib/email/resend', () => ({ sendEmail: mockSendEmail }))
-vi.mock('@/lib/supabase-rpc', () => ({ rpc: mockRpc }))
 
 // ---- Subject under test ---------------------------------------------------
 
@@ -21,7 +20,7 @@ import { sendInternalExamCodeEmail } from './send-code-email'
 // ---- Helpers ---------------------------------------------------------------
 
 const CODE_ID = '00000000-0000-4000-a000-000000000099'
-const SUPABASE = { __marker: 'supabase' }
+const SUPABASE = { __marker: 'supabase', rpc: mockRpc }
 const VALID_INPUT = { codeId: CODE_ID }
 const FUTURE = '2999-01-01T00:00:00.000Z'
 
@@ -68,7 +67,8 @@ describe('sendInternalExamCodeEmail', () => {
 
     expect(result).toEqual({ success: true })
     expect(mockSendEmail).toHaveBeenCalledTimes(1)
-    expect(mockRpc).toHaveBeenCalledWith(SUPABASE, 'record_internal_exam_code_emailed', {
+    expect(mockRpc.mock.contexts[0]).toBe(SUPABASE)
+    expect(mockRpc).toHaveBeenCalledWith('record_internal_exam_code_emailed', {
       p_code_id: CODE_ID,
     })
     expect(mockRevalidatePath).toHaveBeenCalledTimes(1)
