@@ -10,7 +10,10 @@ const QuestionIdsSchema = z.array(z.uuid()).min(1).max(500)
 
 export async function loadSessionQuestions(input: unknown): Promise<LoadResult> {
   const parsed = QuestionIdsSchema.safeParse(input)
-  if (!parsed.success) return { success: false, error: 'Invalid questions' }
+  if (!parsed.success) {
+    console.error('[loadSessionQuestions] Invalid input:', parsed.error.message)
+    return { success: false, error: 'Invalid questions' }
+  }
   const questionIds = parsed.data
 
   const supabase = await createServerSupabaseClient()
