@@ -3,7 +3,7 @@
 ## Dispatch
 - `subagent_type: test-author`, no `isolation`.
 - Brief = the `test-author` template in `.claude/hooks/gate-briefs.json`, `{plan}` and `{branch}` filled. `guard-agent-brief.js` blocks any other brief; SendMessage to test-author is blocked.
-- `{plan}` is an existing plan file under `.work/`.
+- `{plan}` is `.work/<path>.md`, no segment starting with `.`, an existing regular file inside `.work/`.
 - Skip only when the plan records `Tests first: SKIP — <reason>`: no behaviour change (docs, rules, comments).
 ## Handling Results
 ### DO

@@ -89,7 +89,7 @@ const BLOCK_MESSAGES = {
   model: 'requires model omitted or its pipeline.json alias',
   name: 'must not carry a name — a named gated agent could be resumed by SendMessage to that name',
   'worktree-forbidden':
-    'must not use isolation: "worktree" — only code-review-skill is dispatched into an isolated worktree (`.claude/skills/review-gate/agent-code-review.md` § Dispatch); a worktree for any other gated type is cut at origin/master, so its own git diff origin/master...HEAD resolves to zero paths',
+    'must not use isolation: "worktree" — only code-review-skill is dispatched into an isolated worktree (`.claude/skills/review-gate/agent-code-review.md` § Dispatch); a worktree for any other gated type is cut at origin/master, without the branch commits or the gitignored .work/',
   'sendmessage-unresolved':
     'targets an agent id whose type cannot be resolved (missing transcript_path/session_id, or an unreadable meta.json) — fails closed',
   'sendmessage-gated':
@@ -169,8 +169,8 @@ function checkBrief(toolInput, templates, agents) {
 }
 
 /** Only code-review-skill is dispatched into a worktree (`.claude/skills/review-gate/agent-code-review.md` § Dispatch) — it
- * is cut at origin/master, and every OTHER gated type reviews origin/master...HEAD, which
- * resolves to zero paths there. The `model` param, when given, must equal the dispatched type's
+ * is cut at origin/master, which lacks the branch commits and the gitignored .work/ every
+ * OTHER gated type reads. The `model` param, when given, must equal the dispatched type's
  * own `pipeline.json` alias — checked for every gated type, not only code-review-skill.
  * Returns a `BLOCK_MESSAGES` key, or `null`. */
 function dispatchReason(subagentType, toolInput, agents) {
