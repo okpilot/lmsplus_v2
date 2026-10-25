@@ -7,8 +7,6 @@ const DEFAULT_SAMPLE_RATE = 0.1
 /** TEMPORARY (#1590, Decision 137): the rate for /app document requests and pageloads with no parent trace decision. Revert to DEFAULT_SAMPLE_RATE when #1590 posts its split. */
 export const APP_DOCUMENT_SAMPLE_RATE = 1
 
-const isDevelopment = () => process.env.NODE_ENV === 'development'
-
 const isAppPath = (path: string) => path === '/app' || path.startsWith('/app/')
 
 type RequestParts = { method?: string; target?: string }
@@ -36,14 +34,12 @@ function isAppDocumentRequest(ctx: TracesSamplerSamplingContext): boolean {
 }
 
 export function tracesSampler(ctx: TracesSamplerSamplingContext): number {
-  if (isDevelopment()) return 1
   return ctx.inheritOrSampleWith(
     isAppDocumentRequest(ctx) ? APP_DOCUMENT_SAMPLE_RATE : DEFAULT_SAMPLE_RATE,
   )
 }
 
 export function clientTracesSampler(ctx: TracesSamplerSamplingContext): number {
-  if (isDevelopment()) return 1
   const isAppPageload =
     ctx.attributes?.['sentry.op'] === 'pageload' && isAppPath(window.location.pathname)
   return ctx.inheritOrSampleWith(isAppPageload ? APP_DOCUMENT_SAMPLE_RATE : DEFAULT_SAMPLE_RATE)

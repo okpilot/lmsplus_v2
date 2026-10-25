@@ -32,8 +32,6 @@ const doc = (method: string, target: string) =>
   ctx({ attributes: { 'http.method': method, 'http.target': target } })
 
 describe('server trace sampling', () => {
-  afterEach(() => vi.unstubAllEnvs())
-
   it('keeps every /app document request', () => {
     expect(tracesSampler(doc('GET', '/app/dashboard'))).toBe(APP_DOCUMENT_SAMPLE_RATE)
     expect(tracesSampler(doc('GET', '/app'))).toBe(APP_DOCUMENT_SAMPLE_RATE)
@@ -79,17 +77,11 @@ describe('server trace sampling', () => {
     const c = ctx({ normalizedRequest: { method: 'GET', url: 'http://[bad/app/x' } })
     expect(tracesSampler(c)).toBe(0.1)
   })
-
-  it('keeps every trace in development', () => {
-    vi.stubEnv('NODE_ENV', 'development')
-    expect(tracesSampler(doc('GET', '/'))).toBe(1)
-  })
 })
 
 describe('browser trace sampling', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
-    vi.unstubAllEnvs()
   })
 
   const at = (pathname: string) => vi.stubGlobal('location', { pathname })
@@ -116,11 +108,5 @@ describe('browser trace sampling', () => {
   it('follows the parent trace decision from the server', () => {
     at('/app/dashboard')
     expect(clientTracesSampler(op('pageload', false))).toBe(0)
-  })
-
-  it('keeps every trace in development', () => {
-    vi.stubEnv('NODE_ENV', 'development')
-    at('/')
-    expect(clientTracesSampler(op('navigation'))).toBe(1)
   })
 })
