@@ -55,6 +55,7 @@ describe('loadSessionQuestions', () => {
     const result = await loadSessionQuestions([QID])
     expect(result).toEqual({ success: false, error: 'No questions found' })
     expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
+    expect(mockRpc.mock.contexts[0]).toBe(mockClient)
     expect(mockCreateClient).toHaveBeenCalledTimes(1)
   })
 

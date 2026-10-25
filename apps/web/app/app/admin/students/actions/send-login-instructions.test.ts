@@ -166,6 +166,7 @@ describe('sendLoginInstructions', () => {
     const result = await sendLoginInstructions(VALID_INPUT)
 
     expect(result).toEqual({ success: true })
+    expect(mockRpc.mock.contexts[0]).toBe(SUPABASE)
     expect(mockRpc).toHaveBeenCalledWith('record_login_instructions_sent', {
       p_user_id: USER_ID,
     })

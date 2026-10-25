@@ -8,6 +8,9 @@ type SetofFn = {
   [K in keyof Functions]: Functions[K]['Returns'] extends readonly unknown[] ? K : never
 }[keyof Functions]
 type RpcArgs<F extends SetofFn> = Functions[F]['Args']
+type ArgsField<F extends SetofFn> = [RpcArgs<F>] extends [never]
+  ? { args?: undefined }
+  : { args: RpcArgs<F> }
 type RpcRow<F extends SetofFn> = Functions[F]['Returns'][number]
 type RpcFn = (
   fn: string,
@@ -72,6 +75,9 @@ async function fetchExactCount<F extends SetofFn>(
  * serializes an empty result as [], never null or a scalar, so anything else is a contract
  * breach worth surfacing.
  */
+export async function fetchAllRpcRows<F extends SetofFn>(
+  opts: { supabase: SupabaseClient; fn: F; orderColumns: string[] } & ArgsField<F>,
+): Promise<{ data: RpcRow<F>[]; error: { message: string } | null }>
 export async function fetchAllRpcRows<F extends SetofFn>(opts: {
   supabase: SupabaseClient
   fn: F

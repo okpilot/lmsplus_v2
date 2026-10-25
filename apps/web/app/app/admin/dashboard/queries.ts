@@ -56,7 +56,7 @@ export async function getDashboardStudents(
   const { supabase } = await requireAdmin()
 
   const { data, error } = await supabase.rpc('get_admin_dashboard_students', {
-    p_status: filters.status ?? undefined,
+    p_status: filters.status,
     p_sort: filters.sort,
     p_dir: filters.dir,
     p_limit: STUDENTS_PAGE_SIZE,

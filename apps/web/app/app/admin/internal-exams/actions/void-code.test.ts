@@ -82,6 +82,7 @@ describe('voidInternalExamCode', () => {
 
       await voidInternalExamCode(VALID_INPUT)
 
+      expect(mockRpc.mock.contexts[0]).toBe(SUPABASE)
       expect(mockRpc).toHaveBeenCalledWith('void_internal_exam_code', {
         p_code_id: CODE_ID,
         p_reason: 'Student requested rescheduling',

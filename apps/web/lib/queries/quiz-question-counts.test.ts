@@ -2,10 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockRpc } = vi.hoisted(() => ({ mockRpc: vi.fn() }))
+const { mockRpc, serverClient } = vi.hoisted(() => {
+  const mockRpc = vi.fn()
+  return { mockRpc, serverClient: { tag: 'server-client', rpc: mockRpc } }
+})
 
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({ tag: 'server-client', rpc: mockRpc }),
+  createServerSupabaseClient: async () => serverClient,
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -26,6 +29,7 @@ describe('fetchActiveQuestionCounts', () => {
 
     await fetchActiveQuestionCounts(supabase)
 
+    expect(mockRpc.mock.contexts[0]).toBe(supabase)
     expect(mockRpc).toHaveBeenCalledWith('get_question_counts', { p_status: 'active' })
   })
 
@@ -158,6 +162,7 @@ describe('getActiveQuestionCounts', () => {
     mockRpc.mockResolvedValue({ data: rows, error: null })
 
     await expect(getActiveQuestionCounts()).resolves.toEqual(rows)
+    expect(mockRpc.mock.contexts[0]).toBe(serverClient)
     expect(mockRpc).toHaveBeenCalledWith('get_question_counts', {
       p_status: 'active',
     })

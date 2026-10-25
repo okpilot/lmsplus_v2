@@ -75,6 +75,7 @@ describe('upsertExamConfig', () => {
 
       await upsertExamConfig(VALID_INPUT)
 
+      expect(mockRpc.mock.contexts[0]).toBe(SUPABASE)
       expect(mockRpc).toHaveBeenCalledWith('upsert_exam_config', {
         p_subject_id: SUBJECT_ID,
         p_enabled: true,

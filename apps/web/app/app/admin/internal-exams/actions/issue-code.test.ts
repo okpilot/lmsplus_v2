@@ -67,6 +67,7 @@ describe('issueInternalExamCode', () => {
 
       await issueInternalExamCode(VALID_INPUT)
 
+      expect(mockRpc.mock.contexts[0]).toBe(SUPABASE)
       expect(mockRpc).toHaveBeenCalledWith('issue_internal_exam_code', {
         p_subject_id: SUBJECT_ID,
         p_student_id: STUDENT_ID,

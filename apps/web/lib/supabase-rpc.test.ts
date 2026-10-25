@@ -234,3 +234,13 @@ describe('fetchAllRpcRows', () => {
     })
   })
 })
+
+describe('fetchAllRpcRows types', () => {
+  it('requires args when the function declares them', () => {
+    // compile-time only; never executed
+    const typeOnly = () =>
+      // @ts-expect-error args is required for get_report_answer_keys
+      fetchAllRpcRows({ supabase: {} as never, fn: 'get_report_answer_keys', orderColumns: [] })
+    expect(typeOnly).toBeTypeOf('function')
+  })
+})

@@ -51,6 +51,7 @@ describe('loadVfrRtExamQuestions', () => {
     const result = await loadVfrRtExamQuestions({ sessionId: SESSION_ID })
     expect(result).toEqual({ success: false, error: 'No questions found' })
     expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
+    expect(mockRpc.mock.contexts[0]).toBe(mockClient)
     expect(mockCreateClient).toHaveBeenCalledTimes(1)
   })
 

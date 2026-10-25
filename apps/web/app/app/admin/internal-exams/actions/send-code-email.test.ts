@@ -67,6 +67,7 @@ describe('sendInternalExamCodeEmail', () => {
 
     expect(result).toEqual({ success: true })
     expect(mockSendEmail).toHaveBeenCalledTimes(1)
+    expect(mockRpc.mock.contexts[0]).toBe(SUPABASE)
     expect(mockRpc).toHaveBeenCalledWith('record_internal_exam_code_emailed', {
       p_code_id: CODE_ID,
     })
