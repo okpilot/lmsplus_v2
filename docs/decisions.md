@@ -148,3 +148,4 @@
 ## 153 — 2026-10-25 — Deactivation ends the session at the next `/app` render: the layout's profile read (`loadShellUser`) redirects to `GET /auth/signout`, which signs out only a caller with no active `users` row; per-request JWKS verification is unchanged; soft navigations and Server Actions stay bounded by `jwt_expiry` (3600), the knob to tighten it. #1608
 ## 154 — 2026-10-25 — RPC errors are matched exactly (`matchRpcError`, `lib/rpc-error-match.ts`; anchored patterns for parameterised RAISE texts). #1608
 ## 155 — 2026-10-25 — `bundle-size.yml` is deleted; bundle budgets move to #1598. #1609
+## 156 — 2026-10-25 — RPC calls use typed `supabase.rpc`; the untyped `rpc()` wrapper is deleted; NULL-accepting args without SQL DEFAULT are widened in `packages/db/src/database.ts` (type-fest `MergeDeep`, Supabase "Helper types"). #1609

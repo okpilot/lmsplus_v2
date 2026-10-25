@@ -50,7 +50,7 @@ lmsplusv2/                          # Monorepo root (Turborepo + pnpm)
 │       │   ├── next/               # Next.js helpers (redirect re-throw)
 │       │   ├── queries/            # Read-only query functions
 │       │   ├── utils/              # General utilities
-│       │   ├── supabase-rpc.ts     # RPC wrapper helpers
+│       │   ├── supabase-rpc.ts     # RPC paging helpers
 │       │   └── utils.ts            # Misc shared utils
 │       ├── scripts/                # Import and seed scripts
 │       ├── e2e/                    # Playwright E2E specs

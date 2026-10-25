@@ -4,7 +4,7 @@ import { SubmitAnswerSchema } from '@repo/db/schema'
 import { createServerSupabaseClient } from '@repo/db/server'
 import type { z } from 'zod'
 import { verifySessionUser } from '@/lib/auth/verify-session-user'
-import type { SubmitQuizAnswerResult } from '../types'
+import type { SubmitQuizAnswerResult, SubmitRpcResult } from '../types'
 
 export async function submitQuizAnswer(raw: unknown): Promise<SubmitQuizAnswerResult> {
   const supabase = await createServerSupabaseClient()
@@ -30,7 +30,8 @@ export async function submitQuizAnswer(raw: unknown): Promise<SubmitQuizAnswerRe
     return { success: false, error: 'Failed to submit answer' }
   }
 
-  const result = data[0]
+  // Generated Returns mark explanation_* non-null; NULL arrives at runtime.
+  const result: SubmitRpcResult[number] = data[0]
 
   return {
     success: true,
