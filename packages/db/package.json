@@ -6,6 +6,7 @@
     "./client": "./src/client.ts",
     "./server": "./src/server.ts",
     "./admin": "./src/admin.ts",
+    "./database": "./src/database.ts",
     "./schema": "./src/schema.ts",
     "./import-schema": "./src/import-schema.ts",
     "./types": "./src/types.ts",

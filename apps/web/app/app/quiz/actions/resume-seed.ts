@@ -1,8 +1,9 @@
 // Seeds a freshly minted practice session from a saved draft (#1026). No 'use server' — called by
 // resumeQuizSession. The new session's active_device_id is NULL, so the progress RPCs raise no
 // takeover for the throwaway device id used here (_save_progress_row, mig 20261002000300).
+
+import type { Database } from '@repo/db/database'
 import type { createServerSupabaseClient } from '@repo/db/server'
-import type { Database } from '@repo/db/types'
 import { toAnswerJson } from './quiz-progress-helpers'
 import { SaveAnswerInput } from './quiz-progress-schema'
 import type { ResumeContext } from './resume-helpers'

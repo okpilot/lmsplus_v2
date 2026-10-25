@@ -1,5 +1,5 @@
+import type { Database } from '@repo/db/database'
 import type { createServerSupabaseClient } from '@repo/db/server'
-import type { Database } from '@repo/db/types'
 import { fetchAllRows, POSTGREST_MAX_ROWS, toPageResult } from '@/lib/supabase-paginate'
 
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>

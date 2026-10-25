@@ -61,7 +61,7 @@ describe('fetchActiveQuestionCounts', () => {
   })
 
   it('degrades to an empty list when the payload is not an array', async () => {
-    // rpc() casts without validating shape, so a non-array payload would otherwise reach
+    // supabase.rpc() does not validate the payload shape, so a non-array payload would otherwise reach
     // the callers' `for (const row of countsData)` loops and throw at runtime.
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     mockRpc.mockResolvedValue({ data: { unexpected: 'shape' }, error: null })
