@@ -121,6 +121,17 @@ describe('startVfrRtExam — RPC error messages', () => {
     )
   })
 
+  it.each([
+    ['not authenticated', 'Not authenticated'],
+    ['user not found or inactive', 'Your account is inactive. Please contact your instructor.'],
+  ])('shows the same copy for the overdue-session helper error "%s"', async (message, copy) => {
+    mockRpc.mockResolvedValue({ data: null, error: { message } })
+    const result = await startVfrRtExam({ subjectId: VALID_SUBJECT_ID })
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe(copy)
+  })
+
   it('tells the student their account is inactive when user_not_found_or_inactive is returned', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'user_not_found_or_inactive' } })
     const result = await startVfrRtExam({ subjectId: VALID_SUBJECT_ID })

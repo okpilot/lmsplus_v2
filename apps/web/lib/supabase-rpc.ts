@@ -5,11 +5,7 @@ type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 type RpcFn = (
   fn: string,
   args: Record<string, unknown>,
-) => {
-  then: (
-    fn: (v: { data: unknown; error: { message: string; code?: string } | null }) => void,
-  ) => void
-}
+) => { then: (fn: (v: { data: unknown; error: { message: string } | null }) => void) => void }
 
 /**
  * Typed wrapper for Supabase RPC calls.
@@ -19,7 +15,7 @@ export async function rpc<TResult>(
   supabase: SupabaseClient,
   fn: string,
   args: Record<string, unknown>,
-): Promise<{ data: TResult | null; error: { message: string; code?: string } | null }> {
+): Promise<{ data: TResult | null; error: { message: string } | null }> {
   const { data, error } = await (supabase as unknown as { rpc: RpcFn }).rpc(fn, args)
   return { data: data as TResult | null, error }
 }

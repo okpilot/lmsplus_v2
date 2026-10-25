@@ -15,6 +15,15 @@ const INACTIVE_COPY =
   'Your account has been deactivated. Please contact your flight school administrator.'
 const SUPABASE_COOKIE_PREFIX = 'sb-'
 
+async function restoreUser(admin: ReturnType<typeof getAdminClient>, id: string) {
+  const errors: string[] = []
+  const { error: banErr } = await admin.auth.admin.updateUserById(id, { ban_duration: 'none' })
+  if (banErr) errors.push(`unban: ${banErr.message}`)
+  const { error: delErr } = await admin.from('users').update({ deleted_at: null }).eq('id', id)
+  if (delErr) errors.push(`reactivate: ${delErr.message}`)
+  if (errors.length > 0) throw new Error(errors.join('; '))
+}
+
 test('a deactivated signed-in student is signed out on the next /app load and the cookie is cleared', async ({
   page,
 }) => {
@@ -26,6 +35,7 @@ test('a deactivated signed-in student is signed out on the next /app load and th
     .eq('email', LOGIN_TEST_EMAIL)
     .single()
   if (rowErr) throw new Error(`lookup login user: ${rowErr.message}`)
+  await restoreUser(admin, row.id)
 
   try {
     await page.goto('/')
@@ -55,7 +65,6 @@ test('a deactivated signed-in student is signed out on the next /app load and th
     expect(new URL(page.url()).pathname).toBe('/')
     expect(new URL(page.url()).searchParams.get('error')).toBeNull()
   } finally {
-    await admin.auth.admin.updateUserById(row.id, { ban_duration: 'none' })
-    await admin.from('users').update({ deleted_at: null }).eq('id', row.id)
+    await restoreUser(admin, row.id)
   }
 })
