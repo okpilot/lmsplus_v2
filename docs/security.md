@@ -667,9 +667,9 @@ Configure in Supabase dashboard (Auth → Rate Limits):
 
 | Endpoint | Limit |
 |----------|-------|
-| Sign-in attempts | 30 per hour per IP |
+| Sign-in attempts | Prod: Supabase dashboard (Auth → Rate Limits); local: 30 per 5 min per IP (`supabase/config.toml` `sign_in_sign_ups`) |
 | Password reset | 3 per hour per account, enforced in-app via Auth `app_metadata` (Decision 103) |
-| Token verification | 10 per hour per IP |
+| Token verification | Prod: 20 per 5 min per IP (`rate_limit_verify`, Decision 152); local: 30 (`token_verifications`) |
 
 Proxy-level limiting (add to `apps/web/proxy.ts`):
 ```ts
