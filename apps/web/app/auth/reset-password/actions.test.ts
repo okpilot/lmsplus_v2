@@ -1,3 +1,4 @@
+import { AuthApiError, AuthSessionMissingError } from '@supabase/supabase-js'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ------------------------------------------------------------------
@@ -94,7 +95,7 @@ describe('resetOwnPassword', () => {
   describe('updateUser failure', () => {
     it('maps a "session missing" auth error to isSessionMissing true', async () => {
       mockAuthenticatedUser()
-      mockUpdateUser.mockResolvedValue({ error: { message: 'Auth session missing!' } })
+      mockUpdateUser.mockResolvedValue({ error: new AuthSessionMissingError() })
 
       const result = await resetOwnPassword(validInput)
 
@@ -103,6 +104,33 @@ describe('resetOwnPassword', () => {
       expect(result.isSessionMissing).toBe(true)
       expect(result.message).toBe('Your reset session has expired. Please request a new code.')
       expect(mockClearMarker).not.toHaveBeenCalled()
+    })
+
+    it.each(['session_not_found', 'session_expired'])(
+      'maps an AuthApiError with code %s to isSessionMissing true',
+      async (code) => {
+        mockAuthenticatedUser()
+        mockUpdateUser.mockResolvedValue({ error: new AuthApiError('gone', 403, code) })
+
+        const result = await resetOwnPassword(validInput)
+
+        expect(result.ok).toBe(false)
+        if (result.ok) return
+        expect(result.isSessionMissing).toBe(true)
+      },
+    )
+
+    it('does not classify another code whose message contains "session" as session-missing', async () => {
+      mockAuthenticatedUser()
+      mockUpdateUser.mockResolvedValue({
+        error: new AuthApiError('weak session password', 422, 'weak_password'),
+      })
+
+      const result = await resetOwnPassword(validInput)
+
+      expect(result.ok).toBe(false)
+      if (result.ok) return
+      expect(result.isSessionMissing).toBe(false)
     })
 
     it('returns a generic failure for other auth errors', async () => {

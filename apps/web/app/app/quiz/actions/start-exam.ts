@@ -3,9 +3,11 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import { verifySessionUser } from '@/lib/auth/verify-session-user'
+import { matchRpcError, type RpcErrorPattern } from '@/lib/rpc-error-match'
 import { rpc } from '@/lib/supabase-rpc'
 import type { StartExamResult } from '../types'
 import { blockedFailure, type WithBlocked } from './_blocked-start'
+import { NOT_ACTIVE, SIGN_IN } from './progress-error-messages'
 
 const StartExamInput = z.object({
   subjectId: z.uuid(),
@@ -24,6 +26,25 @@ const StartExamRpcResultSchema = z.object({
 })
 
 type StartExamRpcResult = z.infer<typeof StartExamRpcResultSchema>
+
+const FAILED = 'Failed to start Practice Exam.'
+
+// RAISE texts of start_exam_session, incl. the auth guards. The distribution-total RAISE falls to FAILED.
+const START_EXAM_ERRORS: Record<string, string> = {
+  'not authenticated': SIGN_IN,
+  'user not found or inactive': NOT_ACTIVE,
+  'an exam session is already in progress for this subject':
+    'A Practice Exam is already in progress for this subject.',
+  'no exam configuration found for this subject':
+    'Practice Exam is not configured for this subject.',
+}
+
+const START_EXAM_ERROR_PATTERNS: ReadonlyArray<RpcErrorPattern<string>> = [
+  [
+    /^not enough active questions for topic .+ \(subtopic .+\)\. Need \d+, found \d+$/,
+    'Not enough questions available to start this Practice Exam.',
+  ],
+]
 
 export async function startExamSession(raw: unknown): Promise<WithBlocked<StartExamResult>> {
   try {
@@ -48,29 +69,17 @@ export async function startExamSession(raw: unknown): Promise<WithBlocked<StartE
 
       const blocked = blockedFailure(rpcMessage)
       if (blocked) return blocked
-      if (rpcMessage.includes('already in progress')) {
-        return {
-          success: false,
-          error: 'A Practice Exam is already in progress for this subject.',
-        }
+      return {
+        success: false,
+        error: matchRpcError(rpcMessage, START_EXAM_ERRORS, START_EXAM_ERROR_PATTERNS) ?? FAILED,
       }
-      if (rpcMessage.includes('no exam configuration')) {
-        return { success: false, error: 'Practice Exam is not configured for this subject.' }
-      }
-      if (rpcMessage.includes('not enough active questions')) {
-        return {
-          success: false,
-          error: 'Not enough questions available to start this Practice Exam.',
-        }
-      }
-      return { success: false, error: 'Failed to start Practice Exam.' }
     }
 
     const parsed = StartExamRpcResultSchema.safeParse(data)
     if (!parsed.success) {
       const failedFields = parsed.error.issues.map((i) => i.path.join('.'))
       console.error('[startExamSession] Invalid RPC payload, fields:', failedFields)
-      return { success: false, error: 'Failed to start Practice Exam.' }
+      return { success: false, error: FAILED }
     }
 
     return {

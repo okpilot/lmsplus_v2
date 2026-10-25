@@ -2,6 +2,7 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import { recordOwnPasswordSet } from '@/lib/auth/finish-self-password-change'
+import { isSessionExpiredAuthError } from '@/lib/auth/is-session-expired-error'
 import { NewPasswordSchema } from '@/lib/auth/new-password-schema'
 
 export type ResetOwnPasswordResult =
@@ -41,7 +42,7 @@ async function finishPasswordReset(
 ): Promise<ResetOwnPasswordResult> {
   const { error } = await supabase.auth.updateUser({ password })
   if (error) {
-    const isSessionMissing = error.message?.includes('session missing')
+    const isSessionMissing = isSessionExpiredAuthError(error)
     return {
       ok: false,
       isSessionMissing,

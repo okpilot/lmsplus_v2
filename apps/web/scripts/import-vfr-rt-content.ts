@@ -1080,8 +1080,7 @@ async function restoreSoftDeleted(ids: readonly string[]): Promise<string[]> {
  *
  * That makes adding `subtopic_code` to an already-imported pool silently produce a HALF-FILED
  * pool: the questions added in the same edit get the new subtopic, the pre-existing ones keep
- * `subtopic_id` NULL forever. Since `getSubtopicsForTopic` drops any subtopic with
- * `questionCount = 0` but happily shows a partial count, the picker then advertises
+ * `subtopic_id` NULL forever. The picker shows the partial count and then advertises
  * "Transmission of Numbers - 2 questions" for a 20-question pool, and the plain output
  * ("2 inserted / 18 skipped") is indistinguishable from a healthy no-op. Reading one extra
  * column here is what makes that state observable.

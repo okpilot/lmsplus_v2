@@ -49,7 +49,7 @@ export async function startStudy(raw: unknown): Promise<StartStudyResult> {
     const { data, error } = await callStartDiscovery(input.data)
     if (error) {
       console.error('[startStudy] start_discovery error:', error.message)
-      if (error.message.includes(ANOTHER_SESSION_ACTIVE)) {
+      if (error.message === ANOTHER_SESSION_ACTIVE) {
         return { success: false, error: 'Finish or exit your active session first.' }
       }
       return { success: false, error: GENERIC_ERROR }

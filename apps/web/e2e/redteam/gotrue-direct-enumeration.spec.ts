@@ -7,6 +7,9 @@
  *         never touching `requestRecoveryCode`.
  * Defense that SHOULD hold: a registered and an unregistered email get the same
  *         status and body from both endpoints.
+ *
+ * SKIPPED: accepted GoTrue-level residual (Decision 152, #1389) — bounded by prod
+ * rate_limit_email_sent = 2/h, smtp_max_frequency = 60s, rate_limit_otp = 20, signup disabled.
  */
 
 import { type APIRequestContext, expect, test } from '@playwright/test'

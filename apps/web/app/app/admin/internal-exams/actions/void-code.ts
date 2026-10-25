@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { requireAdmin } from '@/lib/auth/require-admin'
+import { matchRpcError } from '@/lib/rpc-error-match'
 import { rpc } from '@/lib/supabase-rpc'
 
 const VoidCodeSchema = z.object({
@@ -28,10 +29,7 @@ const ERROR_MESSAGES: Record<string, string> = {
 }
 
 function mapRpcError(message: string): string {
-  for (const [code, msg] of Object.entries(ERROR_MESSAGES)) {
-    if (message.includes(code)) return msg
-  }
-  return 'Failed to void internal exam code'
+  return matchRpcError(message, ERROR_MESSAGES) ?? 'Failed to void internal exam code'
 }
 
 type RpcRow = { code_id: string; session_id: string | null; session_ended: boolean }

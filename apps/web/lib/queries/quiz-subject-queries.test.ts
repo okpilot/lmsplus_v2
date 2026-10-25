@@ -19,12 +19,7 @@ vi.mock('@/lib/supabase-rpc', () => ({
 
 // ---- Subject under test ---------------------------------------------------
 
-import {
-  getSubjectsWithCounts,
-  getSubtopicsForTopic,
-  getTopicsForSubject,
-  getTopicsWithSubtopics,
-} from './quiz-subject-queries'
+import { getSubjectsWithCounts, getTopicsWithSubtopics } from './quiz-subject-queries'
 
 // ---- Helpers --------------------------------------------------------------
 
@@ -177,104 +172,6 @@ describe('getSubjectsWithCounts — RT exclusion', () => {
   })
 })
 
-describe('getTopicsForSubject — topics read error', () => {
-  it('throws when the easa_topics read returns a DB error', async () => {
-    mockFromSequence({ data: null, error: { message: 'topics read failed' } })
-
-    await expect(getTopicsForSubject('s1')).rejects.toThrow(
-      'Failed to fetch topics: topics read failed',
-    )
-  })
-})
-
-describe('getTopicsForSubject', () => {
-  it('returns topics with question counts for the given subject', async () => {
-    mockFromSequence({
-      data: [
-        { id: 't1', code: '050-01', name: 'Airframe', sort_order: 1 },
-        { id: 't2', code: '050-02', name: 'Engines', sort_order: 2 },
-      ],
-    })
-    mockRpc.mockResolvedValue({
-      data: [
-        { subject_id: 's1', topic_id: 't1', subtopic_id: 'st1', n: 1 },
-        { subject_id: 's1', topic_id: 't1', subtopic_id: 'st2', n: 1 },
-        { subject_id: 's1', topic_id: 't2', subtopic_id: null, n: 1 },
-        { subject_id: 's-other', topic_id: 't1', subtopic_id: null, n: 99 },
-      ],
-      error: null,
-    })
-
-    const result = await getTopicsForSubject('s1')
-    expect(result).toHaveLength(2)
-    expect(result.find((t) => t.id === 't1')?.questionCount).toBe(2)
-    expect(result.find((t) => t.id === 't2')?.questionCount).toBe(1)
-  })
-
-  it('returns empty array when no topics exist for subject', async () => {
-    mockFromSequence({ data: [] })
-    const result = await getTopicsForSubject('s-nonexistent')
-    expect(result).toEqual([])
-  })
-
-  it('filters out topics with zero questions', async () => {
-    mockFromSequence({ data: [{ id: 't1', code: '050-01', name: 'Airframe', sort_order: 1 }] })
-    // rpc default → no counts → t1 filtered out
-
-    const result = await getTopicsForSubject('s1')
-    expect(result).toHaveLength(0)
-  })
-})
-
-describe('getSubtopicsForTopic — subtopics read error', () => {
-  it('throws when the easa_subtopics read returns a DB error', async () => {
-    mockFromSequence({ data: null, error: { message: 'subtopics read failed' } })
-
-    await expect(getSubtopicsForTopic('t1')).rejects.toThrow(
-      'Failed to fetch subtopics: subtopics read failed',
-    )
-  })
-})
-
-describe('getSubtopicsForTopic', () => {
-  it('returns subtopics with question counts for the given topic', async () => {
-    mockFromSequence({
-      data: [
-        { id: 'st1', code: '050-01-01', name: 'Lift', sort_order: 1 },
-        { id: 'st2', code: '050-01-02', name: 'Drag', sort_order: 2 },
-      ],
-    })
-    mockRpc.mockResolvedValue({
-      data: [
-        { subject_id: 's1', topic_id: 't1', subtopic_id: 'st1', n: 1 },
-        { subject_id: 's1', topic_id: 't1', subtopic_id: 'st1', n: 1 },
-        { subject_id: 's1', topic_id: 't1', subtopic_id: 'st2', n: 1 },
-        { subject_id: 's1', topic_id: 't-other', subtopic_id: 'st1', n: 99 },
-      ],
-      error: null,
-    })
-
-    const result = await getSubtopicsForTopic('t1')
-    expect(result).toHaveLength(2)
-    expect(result.find((st) => st.id === 'st1')?.questionCount).toBe(2)
-    expect(result.find((st) => st.id === 'st2')?.questionCount).toBe(1)
-  })
-
-  it('returns empty array when no subtopics exist for topic', async () => {
-    mockFromSequence({ data: [] })
-    const result = await getSubtopicsForTopic('t-nonexistent')
-    expect(result).toEqual([])
-  })
-
-  it('filters out subtopics with zero questions', async () => {
-    mockFromSequence({ data: [{ id: 'st1', code: '050-01-01', name: 'Lift', sort_order: 1 }] })
-    // rpc default → st1 filtered out
-
-    const result = await getSubtopicsForTopic('t1')
-    expect(result).toHaveLength(0)
-  })
-})
-
 describe('getTopicsWithSubtopics — read errors', () => {
   it('throws when the easa_topics read returns a DB error', async () => {
     mockFromSequence({ data: null, error: { message: 'topics read failed' } })
@@ -397,44 +294,6 @@ describe('getSubjectsWithCounts — RPC error from get_question_counts', () => {
       '[fetchActiveQuestionCounts] payload is not an array:',
       'object',
     )
-  })
-})
-
-describe('getTopicsForSubject — RPC error from get_question_counts', () => {
-  it('returns empty array when the counts RPC fails', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-
-    mockFromSequence({
-      data: [{ id: 't1', code: '050-01', name: 'Airframe', sort_order: 1 }],
-    })
-    mockRpc.mockResolvedValue({ data: null, error: { message: 'rpc boom' } })
-
-    const result = await getTopicsForSubject('s1')
-    expect(result).toEqual([])
-    expect(consoleSpy).toHaveBeenCalledWith(
-      '[fetchActiveQuestionCounts] get_question_counts error:',
-      'rpc boom',
-    )
-    consoleSpy.mockRestore()
-  })
-})
-
-describe('getSubtopicsForTopic — RPC error from get_question_counts', () => {
-  it('returns empty array when the counts RPC fails', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-
-    mockFromSequence({
-      data: [{ id: 'st1', code: '050-01-01', name: 'Lift', sort_order: 1 }],
-    })
-    mockRpc.mockResolvedValue({ data: null, error: { message: 'rpc boom' } })
-
-    const result = await getSubtopicsForTopic('t1')
-    expect(result).toEqual([])
-    expect(consoleSpy).toHaveBeenCalledWith(
-      '[fetchActiveQuestionCounts] get_question_counts error:',
-      'rpc boom',
-    )
-    consoleSpy.mockRestore()
   })
 })
 

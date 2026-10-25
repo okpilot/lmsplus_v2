@@ -169,6 +169,14 @@ describe('voidInternalExamCode', () => {
       if (!result.success) expect(result.error).toBe('Code not found')
     })
 
+    it('does not map a longer message that merely contains code_not_found', async () => {
+      mockAdmin()
+      mockRpc.mockResolvedValue({ data: null, error: { message: 'xx code_not_found' } })
+      const result = await voidInternalExamCode(VALID_INPUT)
+      expect(result.success).toBe(false)
+      if (!result.success) expect(result.error).not.toBe('Code not found')
+    })
+
     it('surfaces an admin-permission error when the RPC rejects the caller', async () => {
       mockAdmin()
       mockRpc.mockResolvedValue({ data: null, error: { message: 'not_admin' } })

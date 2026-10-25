@@ -6,8 +6,9 @@ describe('blockedFlag', () => {
     expect(blockedFlag('another_session_active')).toEqual({ blocked: true })
   })
 
-  it('flags blocked when the token is embedded in a longer message', () => {
-    expect(blockedFlag(`error: ${ANOTHER_SESSION_ACTIVE} (P0001)`)).toEqual({ blocked: true })
+  it('does not flag blocked when the token is embedded in a longer message', () => {
+    expect(blockedFlag(`error: ${ANOTHER_SESSION_ACTIVE} (P0001)`)).toEqual({})
+    expect(blockedFlag('xx another_session_active')).toEqual({})
   })
 
   it('returns an empty object for an unrelated RPC error', () => {

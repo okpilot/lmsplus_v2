@@ -56,10 +56,35 @@ describe('mapProgressRpcError', () => {
     )
   })
 
-  it('maps a token embedded in a longer database message', () => {
-    expect(mapProgressRpcError('ERROR: invalid_answer (P0001)', 'fb')).toBe(
-      PROGRESS_ERROR_MESSAGES.invalid_answer,
-    )
+  it('does not map a token embedded in a longer database message', () => {
+    expect(mapProgressRpcError('ERROR: invalid_answer (P0001)', 'fb')).toBe('fb')
+    expect(mapProgressRpcError('xx another_session_active', 'fb')).toBe('fb')
+  })
+
+  it('does not map the legacy session-not-found text with a suffix', () => {
+    expect(
+      mapProgressRpcError('session not found or not owned by this student — extra', 'fb'),
+    ).toBe('fb')
+  })
+
+  it('maps a membership message with real ids to the not-in-session copy', () => {
+    expect(
+      mapProgressRpcError(
+        'question 9b1c0000-0000-4000-a000-000000000001 does not belong to session 7a2d0000-0000-4000-a000-000000000002',
+        'fb',
+      ),
+    ).toBe(PROGRESS_ERROR_MESSAGES.question_not_in_session)
+  })
+
+  it('does not map a membership-shaped message with a prefix', () => {
+    expect(mapProgressRpcError('xx question abc does not belong to session def', 'fb')).toBe('fb')
+  })
+
+  it('maps both damaged-config texts to the same non-fallback copy', () => {
+    const a = mapProgressRpcError('session config is malformed — question_ids not set', 'fb')
+    const b = mapProgressRpcError('session_config_malformed', 'fb')
+    expect(a).not.toBe('fb')
+    expect(b).toBe(a)
   })
 
   it.each(Object.keys(PROGRESS_ERROR_MESSAGES))('maps %s to its own copy', (key) => {
@@ -76,17 +101,6 @@ describe('mapProgressRpcError', () => {
     expect(mapProgressRpcError(undefined, 'Could not save progress')).toBe(
       'Could not save progress',
     )
-  })
-
-  // mapProgressRpcError matches via message.includes(key): an overlapping key would make
-  // iteration order, not specificity, decide the mapping.
-  it('keeps every error key free of being a substring of another key', () => {
-    const keys = Object.keys(PROGRESS_ERROR_MESSAGES)
-    for (const a of keys) {
-      for (const b of keys) {
-        if (a !== b) expect(b.includes(a)).toBe(false)
-      }
-    }
   })
 })
 

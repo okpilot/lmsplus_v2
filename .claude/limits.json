@@ -28,7 +28,6 @@
     "apps/web/app/app/internal-exam/actions/get-active-internal-exam-session.ts": 138,
     "apps/web/app/app/quiz/actions/discard.ts": 101,
     "apps/web/app/app/quiz/actions/get-active-exam-session.ts": 102,
-    "apps/web/app/app/quiz/actions/lookup.ts": 132,
     "supabase/migrations/20260311000001_initial_schema.sql": 447,
     "supabase/migrations/20260406000004_populate_last_active_at.sql": 331,
     "supabase/migrations/20260411000005_exam_config_security_fixes.sql": 433,

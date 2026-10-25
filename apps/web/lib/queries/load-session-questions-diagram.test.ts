@@ -26,6 +26,8 @@ vi.mock('@repo/db/server', () => ({
 
 import { loadSessionQuestions } from './load-session-questions'
 
+const QID = '00000000-0000-4000-a000-000000000001'
+
 // ---- Tests ----------------------------------------------------------------
 
 beforeEach(() => {
@@ -76,7 +78,7 @@ describe('loadSessionQuestions — diagram_label', () => {
       error: null,
     })
 
-    const result = await loadSessionQuestions(['q-diag'])
+    const result = await loadSessionQuestions([QID])
     expect(result.success).toBe(true)
     if (!result.success) return
     const q = result.questions[0]!
@@ -104,7 +106,7 @@ describe('loadSessionQuestions — diagram_label', () => {
       error: null,
     })
 
-    const result = await loadSessionQuestions(['q-diag'])
+    const result = await loadSessionQuestions([QID])
     expect(result.success).toBe(true)
     if (!result.success) return
     // The reconstruction rebuilds from validated fields only, so a leaked
@@ -122,7 +124,7 @@ describe('loadSessionQuestions — diagram_label', () => {
       error: null,
     })
 
-    const result = await loadSessionQuestions(['q-diag-null'])
+    const result = await loadSessionQuestions([QID])
     expect(result.success).toBe(true)
     if (!result.success) return
     expect(result.questions[0]!.diagram_config).toBeNull()
@@ -140,7 +142,7 @@ describe('loadSessionQuestions — diagram_label', () => {
       error: null,
     })
 
-    const result = await loadSessionQuestions(['q-diag-blank-ref'])
+    const result = await loadSessionQuestions([QID])
     expect(result.success).toBe(true)
     if (!result.success) return
     expect(result.questions[0]!.diagram_config).toBeNull()
@@ -161,7 +163,7 @@ describe('loadSessionQuestions — diagram_label', () => {
       error: null,
     })
 
-    const result = await loadSessionQuestions(['q-diag-oob'])
+    const result = await loadSessionQuestions([QID])
     expect(result.success).toBe(true)
     if (!result.success) return
     expect(result.questions[0]!.diagram_config).toBeNull()
@@ -181,7 +183,7 @@ describe('loadSessionQuestions — diagram_label', () => {
       error: null,
     })
 
-    const result = await loadSessionQuestions(['q-diag-no-zones'])
+    const result = await loadSessionQuestions([QID])
     expect(result.success).toBe(true)
     if (!result.success) return
     expect(result.questions[0]!.diagram_config).toBeNull()
@@ -199,7 +201,7 @@ describe('loadSessionQuestions — diagram_label', () => {
       error: null,
     })
 
-    const result = await loadSessionQuestions(['q-diag-bad-zone'])
+    const result = await loadSessionQuestions([QID])
     expect(result.success).toBe(true)
     if (!result.success) return
     expect(result.questions[0]!.diagram_config).toBeNull()
@@ -221,7 +223,7 @@ describe('loadSessionQuestions — diagram_label', () => {
         error: null,
       })
 
-      const result = await loadSessionQuestions(['q-diag-nonfinite'])
+      const result = await loadSessionQuestions([QID])
       expect(result.success).toBe(true)
       if (!result.success) continue
       expect(result.questions[0]!.diagram_config).toBeNull()
@@ -240,7 +242,7 @@ describe('loadSessionQuestions — diagram_label', () => {
       error: null,
     })
 
-    const result = await loadSessionQuestions(['q-diag-no-labels'])
+    const result = await loadSessionQuestions([QID])
     expect(result.success).toBe(true)
     if (!result.success) return
     expect(result.questions[0]!.diagram_config).toBeNull()
@@ -258,7 +260,7 @@ describe('loadSessionQuestions — diagram_label', () => {
       error: null,
     })
 
-    const result = await loadSessionQuestions(['q-diag-blank-label'])
+    const result = await loadSessionQuestions([QID])
     expect(result.success).toBe(true)
     if (!result.success) return
     expect(result.questions[0]!.diagram_config).toBeNull()
@@ -279,7 +281,7 @@ describe('loadSessionQuestions — diagram_label', () => {
       error: null,
     })
 
-    const result = await loadSessionQuestions(['q-diag-dup-zone-id'])
+    const result = await loadSessionQuestions([QID])
     expect(result.success).toBe(true)
     if (!result.success) return
     expect(result.questions[0]!.diagram_config).toBeNull()
@@ -304,7 +306,7 @@ describe('loadSessionQuestions — diagram_label', () => {
       error: null,
     })
 
-    const result = await loadSessionQuestions(['q-diag-too-many-zones'])
+    const result = await loadSessionQuestions([QID])
     expect(result.success).toBe(true)
     if (!result.success) return
     expect(result.questions[0]!.diagram_config).toBeNull()
@@ -326,7 +328,7 @@ describe('loadSessionQuestions — diagram_label', () => {
       error: null,
     })
 
-    const result = await loadSessionQuestions(['q-diag-too-many-labels'])
+    const result = await loadSessionQuestions([QID])
     expect(result.success).toBe(true)
     if (!result.success) return
     expect(result.questions[0]!.diagram_config).toBeNull()

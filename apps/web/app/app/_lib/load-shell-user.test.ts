@@ -54,27 +54,33 @@ describe('loadShellUser', () => {
     )
   })
 
-  it('logs when the profile row is missing and falls back to student role', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const user = { id: 'u1', email: 'ada@example.com' }
+  it('redirects to /auth/signout?reason=inactive when the profile row is missing', async () => {
     mockGetCallerProfile.mockResolvedValue({ data: null, error: null })
 
-    expect((await loadShellUser(user)).userRole).toBe('student')
-    expect(consoleSpy).toHaveBeenCalledWith('[loadShellUser] profile not found:', 'u1')
+    await expect(loadShellUser({ id: 'u1', email: 'ada@example.com' })).rejects.toMatchObject({
+      digest: expect.stringContaining('NEXT_REDIRECT'),
+    })
+    await expect(loadShellUser({ id: 'u1', email: 'ada@example.com' })).rejects.toMatchObject({
+      digest: expect.stringContaining('/auth/signout?reason=inactive'),
+    })
   })
 
-  it('falls back to Student when no email is available anywhere', async () => {
+  it('does not redirect on a DB error and keeps the session email fallback', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
-    const user = { id: 'u1', email: null }
-    mockGetCallerProfile.mockResolvedValue({ data: null, error: null })
+    mockGetCallerProfile.mockResolvedValue({ data: null, error: { message: 'x' } })
 
-    expect((await loadShellUser(user)).displayName).toBe('Student')
+    await expect(loadShellUser({ id: 'u1', email: null })).resolves.toEqual({
+      displayName: 'Student',
+      userRole: 'student',
+    })
   })
 
   it('reads the profile for the session user', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {})
     const user = { id: 'u-session', email: 'ada@example.com' }
-    mockGetCallerProfile.mockResolvedValue({ data: null, error: null })
+    mockGetCallerProfile.mockResolvedValue({
+      data: { full_name: 'A', email: 'ada@example.com', role: 'student' },
+      error: null,
+    })
 
     await loadShellUser(user)
 

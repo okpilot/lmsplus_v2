@@ -156,6 +156,16 @@ describe('startInternalExam — RPC error messages', () => {
     )
   })
 
+  it('does not map a longer message that merely contains code_voided', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'xx code_voided' } })
+    const result = await startInternalExam({ code: VALID_CODE })
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).not.toBe(
+      'This code has been cancelled. Please contact your administrator.',
+    )
+  })
+
   it('flags the start as blocked when another session is already active', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'another_session_active' } })
     const result = await startInternalExam({ code: VALID_CODE })

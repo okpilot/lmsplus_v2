@@ -4,6 +4,7 @@ import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import { blockedFlag, type WithBlocked } from '@/app/app/quiz/actions/_blocked-start'
 import { verifySessionUser } from '@/lib/auth/verify-session-user'
+import { matchRpcError } from '@/lib/rpc-error-match'
 import { rpc } from '@/lib/supabase-rpc'
 import { START_INTERNAL_EXAM_ERROR_MESSAGES } from './_error-messages'
 
@@ -34,10 +35,9 @@ export type StartInternalExamResult = WithBlocked<
 >
 
 function mapRpcError(message: string): string {
-  for (const [token, friendly] of START_INTERNAL_EXAM_ERROR_MESSAGES) {
-    if (message.includes(token)) return friendly
-  }
-  return 'Failed to start internal exam.'
+  return (
+    matchRpcError(message, START_INTERNAL_EXAM_ERROR_MESSAGES) ?? 'Failed to start internal exam.'
+  )
 }
 
 export async function startInternalExam(raw: unknown): Promise<StartInternalExamResult> {
