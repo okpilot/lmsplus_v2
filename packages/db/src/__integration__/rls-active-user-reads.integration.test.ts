@@ -6,8 +6,8 @@ import { createTestUser, getAuthenticatedClient } from './setup'
 
 /**
  * #1607 / #1258: a deactivated user (users.deleted_at set) whose JWT is still
- * unexpired must read no student-owned rows. Each deactivated-arm negative is
- * paired with an active control on the same client.
+ * unexpired must read no student-owned rows.
+ * Each deactivated-arm negative is paired with an active control on the same client, except AC6 (regression pin).
  */
 const PASSWORD = 'test-pass-123'
 const DEVICE = '11111111-1111-4111-8111-111111111111'

@@ -12,7 +12,7 @@
  *
  * Hermetic (code-style.md §7): dedicated throwaway student (E2E_REDTEAM_JU_STUDENT_EMAIL).
  * quiz_sessions / flagged_questions soft-deleted; quiz_drafts, quiz_session_progress, fsrs_cards
- * removed by delete (no deleted_at column / hard-delete by design). student_responses,
+ * removed by service-role test teardown (mirrors packages/db/src/__integration__/cleanup.ts). student_responses,
  * quiz_session_answers, audit_events, user_consents are append-only: one row per run, left.
  *
  * Status: Expected to PASS.
@@ -246,10 +246,10 @@ test.describe('Red Team: deactivated student live-token reads (JU, JV)', () => {
         await setDeactivated(false)
         return { error: null }
       })
-    await step('progress (no deleted_at column)', () =>
+    await step('progress (service-role test teardown)', () =>
       admin.from('quiz_session_progress').delete().eq('student_id', studentId),
     )
-    await step('fsrs_cards (no deleted_at column)', () =>
+    await step('fsrs_cards (service-role test teardown)', () =>
       admin.from('fsrs_cards').delete().eq('student_id', studentId).eq('question_id', qId),
     )
     await step('drafts (hard-delete by design, docs/database.md)', () =>

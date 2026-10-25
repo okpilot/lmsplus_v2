@@ -898,7 +898,7 @@ ORDER BY deleted_at DESC;
 | `quiz_session_answers` | No | Immutable |
 | `quiz_session_progress` | No | Rows are never deleted; lifecycle follows `quiz_sessions` (soft delete). `ON DELETE CASCADE` on `session_id` serves test-teardown hard-deletes only |
 | `student_responses` | No | Immutable |
-| `fsrs_cards` | No | Updated in place; stores `last_was_correct` for incorrect-filter queries |
+| `fsrs_cards` | No | Updated in place; stores `last_was_correct` for incorrect-filter queries. `cleanupTestData` hard-deletes test rows under the integration-teardown exception below |
 | `audit_events` | No | Immutable compliance log |
 | `user_consents` | No | Append-only GDPR consent audit log (mig `20260327000057_user_consents.sql` — same pattern as `audit_events`): no `deleted_at` column, RLS blocks all UPDATE/DELETE, inserts only via `record_consent()` SECURITY DEFINER RPC |
 | `easa_subjects/topics/subtopics` | No | Reference data, never deleted |
