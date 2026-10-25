@@ -1,3 +1,4 @@
+import { AuthApiError, AuthSessionMissingError } from '@supabase/supabase-js'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
@@ -168,9 +169,7 @@ describe('changePassword', () => {
     it('returns session-specific message when session error occurs', async () => {
       mockAuthenticatedUser()
       mockSignIn.mockResolvedValue({ error: null })
-      mockUpdateUser.mockResolvedValue({
-        error: { message: 'Auth session missing' },
-      })
+      mockUpdateUser.mockResolvedValue({ error: new AuthSessionMissingError() })
 
       const result = await changePassword(validInput)
 
@@ -178,6 +177,35 @@ describe('changePassword', () => {
       if (result.success) return
       expect(result.error).toBe('Session expired. Please sign in again.')
       expect(mockClearMarker).not.toHaveBeenCalled()
+    })
+
+    it.each(['session_not_found', 'session_expired'])(
+      'returns the session message for an AuthApiError with code %s',
+      async (code) => {
+        mockAuthenticatedUser()
+        mockSignIn.mockResolvedValue({ error: null })
+        mockUpdateUser.mockResolvedValue({ error: new AuthApiError('gone', 403, code) })
+
+        const result = await changePassword(validInput)
+
+        expect(result.success).toBe(false)
+        if (result.success) return
+        expect(result.error).toBe('Session expired. Please sign in again.')
+      },
+    )
+
+    it('returns the generic message for another code whose message contains "session"', async () => {
+      mockAuthenticatedUser()
+      mockSignIn.mockResolvedValue({ error: null })
+      mockUpdateUser.mockResolvedValue({
+        error: new AuthApiError('weak session password', 422, 'weak_password'),
+      })
+
+      const result = await changePassword(validInput)
+
+      expect(result.success).toBe(false)
+      if (result.success) return
+      expect(result.error).toBe('Unable to update password. Please try again.')
     })
 
     it('returns generic message for other auth errors', async () => {

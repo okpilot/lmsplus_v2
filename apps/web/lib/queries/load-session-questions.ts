@@ -1,11 +1,18 @@
 'use server'
 
 import { createServerSupabaseClient } from '@repo/db/server'
+import { z } from 'zod'
 import { verifySessionUser } from '@/lib/auth/verify-session-user'
 import { rpc } from '@/lib/supabase-rpc'
 import { type LoadResult, type QuizQuestionRow, toQuestion } from './load-session-question-row'
 
-export async function loadSessionQuestions(questionIds: string[]): Promise<LoadResult> {
+const QuestionIdsSchema = z.array(z.uuid()).min(1).max(500)
+
+export async function loadSessionQuestions(input: unknown): Promise<LoadResult> {
+  const parsed = QuestionIdsSchema.safeParse(input)
+  if (!parsed.success) return { success: false, error: 'Invalid questions' }
+  const questionIds = parsed.data
+
   const supabase = await createServerSupabaseClient()
 
   const user = await verifySessionUser(supabase)

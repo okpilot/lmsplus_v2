@@ -5,8 +5,8 @@
 // and 20261003000300 (`session_saved`). The check RPCs also raise legacy SPACED strings — mapped
 // here too. No `'use server'` — imported by actions.
 
-// INVARIANT: keys must not be substrings of one another — mapProgressRpcError matches via
-// message.includes(key), so an overlapping key would make iteration order decide the mapping.
+import { matchRpcError, type RpcErrorPattern } from '@/lib/rpc-error-match'
+
 const NOT_FOUND = 'This session could not be found.'
 export const NOT_ACTIVE = 'Your account is no longer active.'
 const BAD_ANSWER = 'This answer could not be saved. Please review it and try again.'
@@ -20,7 +20,6 @@ export const SAVED_QUIZ_LIMIT =
   'You can keep up to 20 saved quizzes. Discard one before saving another.'
 const DAMAGED = 'This session is damaged and cannot save progress. Please start a new one.'
 
-// Exported so a co-located test can assert the invariant holds as keys are added.
 export const PROGRESS_ERROR_MESSAGES: Record<string, string> = {
   not_authenticated: SIGN_IN,
   'not authenticated': SIGN_IN,
@@ -40,9 +39,8 @@ export const PROGRESS_ERROR_MESSAGES: Record<string, string> = {
   session_taken_over:
     'This quiz is open in another tab or device — reload this page to continue here.',
   session_config_malformed: DAMAGED,
-  'session config is malformed': DAMAGED,
+  'session config is malformed — question_ids not set': DAMAGED,
   question_not_in_session: NO_QUESTION,
-  'does not belong to session': NO_QUESTION,
   question_not_found: 'This question is no longer available.',
   'question not found or has no correct option': 'This question is no longer available.',
   invalid_answer: BAD_ANSWER,
@@ -56,15 +54,16 @@ export const PROGRESS_ERROR_MESSAGES: Record<string, string> = {
   invalid_device: BAD_PROGRESS,
 }
 
+// Parameterised RAISE: `question % does not belong to session %` (check_quiz_answer, check_non_mc_answer).
+const PROGRESS_ERROR_PATTERNS: ReadonlyArray<RpcErrorPattern<string>> = [
+  [/^question \S+ does not belong to session \S+$/, NO_QUESTION],
+]
+
 const DISPLAYABLE = new Set(Object.values(PROGRESS_ERROR_MESSAGES))
 
 /** Mapped copy for a recognised RPC error; `fallback` (generic, not displayable) otherwise. */
 export function mapProgressRpcError(message: string | undefined, fallback: string): string {
-  const token = message ?? ''
-  for (const [key, msg] of Object.entries(PROGRESS_ERROR_MESSAGES)) {
-    if (token.includes(key)) return msg
-  }
-  return fallback
+  return matchRpcError(message, PROGRESS_ERROR_MESSAGES, PROGRESS_ERROR_PATTERNS) ?? fallback
 }
 
 /** True for the copy shown when the sign-in has expired. */

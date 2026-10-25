@@ -4,6 +4,7 @@ import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import type { ActionResult } from '@/lib/action-result'
 import { recordOwnPasswordSet } from '@/lib/auth/finish-self-password-change'
+import { isSessionExpiredAuthError } from '@/lib/auth/is-session-expired-error'
 
 const ChangePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
@@ -58,7 +59,7 @@ async function finishPasswordChange(
   const { error } = await supabase.auth.updateUser({ password })
   if (error) {
     console.error('[changePassword] Auth update error:', error.message)
-    if (error.message?.includes('session')) {
+    if (isSessionExpiredAuthError(error)) {
       return { success: false, error: 'Session expired. Please sign in again.' }
     }
     return { success: false, error: 'Unable to update password. Please try again.' }

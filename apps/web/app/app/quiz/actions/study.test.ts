@@ -201,6 +201,12 @@ describe('startStudy — error path', () => {
     expect(result).toEqual({ success: false, error: 'Finish or exit your active session first.' })
   })
 
+  it('does not treat a longer message containing the token as an active session', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'xx another_session_active' } })
+    const result = await startStudy(VALID_INPUT)
+    expect(result).toEqual({ success: false, error: 'Failed to start study session' })
+  })
+
   it('returns a generic failure for any other RPC error without leaking the token', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'internal_secret_db_detail' } })
     const result = await startStudy(VALID_INPUT)

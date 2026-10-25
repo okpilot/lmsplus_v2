@@ -4,6 +4,7 @@ import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import { blockedFlag, type WithBlocked } from '@/app/app/quiz/actions/_blocked-start'
 import { verifySessionUser } from '@/lib/auth/verify-session-user'
+import { matchRpcError } from '@/lib/rpc-error-match'
 import { rpc } from '@/lib/supabase-rpc'
 import { START_VFR_RT_EXAM_ERROR_MESSAGES } from './_error-messages'
 
@@ -40,10 +41,7 @@ export type StartVfrRtExamResult = WithBlocked<
 >
 
 function mapRpcError(message: string): string {
-  for (const [token, friendly] of START_VFR_RT_EXAM_ERROR_MESSAGES) {
-    if (message.includes(token)) return friendly
-  }
-  return 'Failed to start exam'
+  return matchRpcError(message, START_VFR_RT_EXAM_ERROR_MESSAGES) ?? 'Failed to start exam'
 }
 
 export async function startVfrRtExam(raw: unknown): Promise<StartVfrRtExamResult> {

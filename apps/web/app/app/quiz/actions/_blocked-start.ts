@@ -8,7 +8,7 @@ export type WithBlocked<T> = T extends { success: false } ? T & { blocked?: true
 
 /** Spread into a failure result: `{ blocked: true }` for the single-active-session token, else nothing. */
 export function blockedFlag(rpcMessage: string | undefined): { blocked?: true } {
-  return rpcMessage?.includes(ANOTHER_SESSION_ACTIVE) ? { blocked: true } : {}
+  return rpcMessage === ANOTHER_SESSION_ACTIVE ? { blocked: true } : {}
 }
 
 const BLOCKED_MESSAGE =

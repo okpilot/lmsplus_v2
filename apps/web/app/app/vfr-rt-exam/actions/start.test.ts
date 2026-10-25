@@ -129,22 +129,23 @@ describe('startVfrRtExam — RPC error messages', () => {
     expect(result.error).toBe('Your account is inactive. Please contact your instructor.')
   })
 
-  it('asks the student to reload on the active_session_exists concurrent-start race', async () => {
-    mockRpc.mockResolvedValue({ data: null, error: { message: 'active_session_exists' } })
-    const result = await startVfrRtExam({ subjectId: VALID_SUBJECT_ID })
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe(
-      'A VFR RT exam session is already starting. Please reload and try again.',
-    )
-  })
-
   it('tells the user to finish their other session when a different one is already active', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'another_session_active' } })
     const result = await startVfrRtExam({ subjectId: VALID_SUBJECT_ID })
     expect(result.success).toBe(false)
     if (result.success) return
     expect(result.error).toBe(
+      'You already have an active session. Finish or discard it before starting a new one.',
+    )
+  })
+
+  it('does not map or flag a longer message that merely contains another_session_active', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'xx another_session_active' } })
+    const result = await startVfrRtExam({ subjectId: VALID_SUBJECT_ID })
+    expect(result.success).toBe(false)
+    expect(result).not.toHaveProperty('blocked', true)
+    if (result.success) return
+    expect(result.error).not.toBe(
       'You already have an active session. Finish or discard it before starting a new one.',
     )
   })

@@ -102,8 +102,29 @@ describe('startExamSession — RPC error messages', () => {
     mockVerifySessionUser.mockResolvedValue({ id: 'u1', email: null })
   })
 
+  it.each([
+    ['already in progress', 'A Practice Exam is already in progress for this subject.'],
+    [
+      'xx no exam configuration found for this subject',
+      'Practice Exam is not configured for this subject.',
+    ],
+    [
+      'not enough active questions available',
+      'Not enough questions available to start this Practice Exam.',
+    ],
+  ])('does not map the substring-only message %s', async (message, copy) => {
+    mockRpc.mockResolvedValue({ data: null, error: { message } })
+    const result = await startExamSession({ subjectId: VALID_SUBJECT_ID })
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).not.toBe(copy)
+  })
+
   it('returns a domain-specific error when a Practice Exam is already in progress', async () => {
-    mockRpc.mockResolvedValue({ data: null, error: { message: 'already in progress for subject' } })
+    mockRpc.mockResolvedValue({
+      data: null,
+      error: { message: 'an exam session is already in progress for this subject' },
+    })
     const result = await startExamSession({ subjectId: VALID_SUBJECT_ID })
     expect(result.success).toBe(false)
     if (result.success) return
@@ -111,7 +132,10 @@ describe('startExamSession — RPC error messages', () => {
   })
 
   it('returns a domain-specific error when no exam configuration exists', async () => {
-    mockRpc.mockResolvedValue({ data: null, error: { message: 'no exam configuration found' } })
+    mockRpc.mockResolvedValue({
+      data: null,
+      error: { message: 'no exam configuration found for this subject' },
+    })
     const result = await startExamSession({ subjectId: VALID_SUBJECT_ID })
     expect(result.success).toBe(false)
     if (result.success) return
@@ -121,7 +145,9 @@ describe('startExamSession — RPC error messages', () => {
   it('returns a domain-specific error when there are not enough active questions', async () => {
     mockRpc.mockResolvedValue({
       data: null,
-      error: { message: 'not enough active questions available' },
+      error: {
+        message: 'not enough active questions for topic 1.2 (subtopic none). Need 5, found 2',
+      },
     })
     const result = await startExamSession({ subjectId: VALID_SUBJECT_ID })
     expect(result.success).toBe(false)

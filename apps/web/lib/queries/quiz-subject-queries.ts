@@ -1,11 +1,6 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { cache } from 'react'
-import type {
-  SubjectOption,
-  SubtopicOption,
-  TopicOption,
-  TopicWithSubtopics,
-} from './quiz-query-types'
+import type { SubjectOption, TopicWithSubtopics } from './quiz-query-types'
 import { fetchActiveQuestionCounts, getActiveQuestionCounts } from './quiz-question-counts'
 import { buildTopicTree } from './quiz-topic-trees'
 
@@ -56,74 +51,6 @@ export const getSubjectsWithCounts = cache(async (): Promise<SubjectOption[]> =>
     .filter((s) => s.questionCount > 0) // hide zero-count subjects
     .filter((s) => s.code !== 'RT') // picker-only — see the note above
 })
-
-export async function getTopicsForSubject(subjectId: string): Promise<TopicOption[]> {
-  const supabase = await createServerSupabaseClient()
-
-  const topicsRes = await supabase
-    .from('easa_topics')
-    .select('id, code, name, sort_order')
-    .eq('subject_id', subjectId)
-    .order('sort_order')
-
-  if (topicsRes.error) {
-    throw new Error(`Failed to fetch topics: ${topicsRes.error.message}`)
-  }
-
-  const topics = (topicsRes.data ?? []) as TopicRow[]
-  if (!topics.length) return []
-
-  const countsData = await fetchActiveQuestionCounts(supabase)
-
-  const countMap = new Map<string, number>()
-  for (const row of countsData) {
-    if (row.subject_id !== subjectId) continue
-    countMap.set(row.topic_id, (countMap.get(row.topic_id) ?? 0) + Number(row.n))
-  }
-
-  return topics
-    .map((t) => ({
-      id: t.id,
-      code: t.code,
-      name: t.name,
-      questionCount: countMap.get(t.id) ?? 0,
-    }))
-    .filter((t) => t.questionCount > 0)
-}
-
-export async function getSubtopicsForTopic(topicId: string): Promise<SubtopicOption[]> {
-  const supabase = await createServerSupabaseClient()
-
-  const subtopicsRes = await supabase
-    .from('easa_subtopics')
-    .select('id, code, name, sort_order')
-    .eq('topic_id', topicId)
-    .order('sort_order')
-
-  if (subtopicsRes.error) {
-    throw new Error(`Failed to fetch subtopics: ${subtopicsRes.error.message}`)
-  }
-
-  const subtopics = (subtopicsRes.data ?? []) as SubtopicRow[]
-  if (!subtopics.length) return []
-
-  const countsData = await fetchActiveQuestionCounts(supabase)
-
-  const countMap = new Map<string, number>()
-  for (const row of countsData) {
-    if (row.topic_id !== topicId || row.subtopic_id === null) continue
-    countMap.set(row.subtopic_id, (countMap.get(row.subtopic_id) ?? 0) + Number(row.n))
-  }
-
-  return subtopics
-    .map((st) => ({
-      id: st.id,
-      code: st.code,
-      name: st.name,
-      questionCount: countMap.get(st.id) ?? 0,
-    }))
-    .filter((st) => st.questionCount > 0)
-}
 
 export async function getTopicsWithSubtopics(subjectId: string): Promise<TopicWithSubtopics[]> {
   const supabase = await createServerSupabaseClient()

@@ -1,7 +1,6 @@
 // App-layer integration tier (#925) — real query helpers vs real Postgres under real RLS.
 //
-// Covers: getSubjectsWithCounts, getTopicsForSubject, getSubtopicsForTopic,
-// getTopicsWithSubtopics — all four read paths in quiz-subject-queries.ts.
+// Covers: getSubjectsWithCounts, getTopicsWithSubtopics — the read paths in quiz-subject-queries.ts.
 //
 // Each helper calls get_question_counts() RPC which is org-scoped via RLS, so
 // a fresh org sees only its own questions. The count-isolation test verifies
@@ -20,12 +19,7 @@ import {
   seedReferenceData,
   signInAs,
 } from '@/lib/integration-support/harness'
-import {
-  getSubjectsWithCounts,
-  getSubtopicsForTopic,
-  getTopicsForSubject,
-  getTopicsWithSubtopics,
-} from '@/lib/queries/quiz-subject-queries'
+import { getSubjectsWithCounts, getTopicsWithSubtopics } from '@/lib/queries/quiz-subject-queries'
 
 const admin = getAdminClient()
 const suffix = fixtureSuffix()
@@ -178,26 +172,6 @@ describe('quiz-subject-queries (app-layer integration)', () => {
     expect(seeded?.questionCount).toBe(3)
   })
 
-  it('getTopicsForSubject returns the seeded topic with question count 3', async () => {
-    await signInAs(emailA, password)
-
-    const topics = await getTopicsForSubject(refs.subjectId)
-
-    const seeded = topics.find((t) => t.id === refs.topicId)
-    expect(seeded).toBeDefined()
-    expect(seeded?.questionCount).toBe(3)
-  })
-
-  it('getSubtopicsForTopic returns the seeded subtopic with question count 3', async () => {
-    await signInAs(emailA, password)
-
-    const subtopics = await getSubtopicsForTopic(refs.topicId)
-
-    const seeded = subtopics.find((st) => st.id === refs.subtopicId)
-    expect(seeded).toBeDefined()
-    expect(seeded?.questionCount).toBe(3)
-  })
-
   it('getTopicsWithSubtopics returns the topic with questionCount 3 containing the seeded subtopic', async () => {
     await signInAs(emailA, password)
 
@@ -212,20 +186,20 @@ describe('quiz-subject-queries (app-layer integration)', () => {
     expect(seededSubtopic?.questionCount).toBe(3)
   })
 
-  it('getTopicsForSubject returns each org only its own 3 questions when two orgs share reference data', async () => {
+  it('getTopicsWithSubtopics returns each org only its own 3 questions when two orgs share reference data', async () => {
     // Both orgs seeded 3 questions under the SAME topic. get_question_counts is
     // org-scoped via RLS, so each org's student must see exactly its own 3, not
     // the combined 6. Proven from BOTH sides — a broken scope would return 6 to
     // whichever student is signed in, and the two-sided check ensures neither
     // org's view leaks the other's questions.
     await signInAs(emailA, password)
-    const topicsA = await getTopicsForSubject(refs.subjectId)
+    const topicsA = await getTopicsWithSubtopics(refs.subjectId)
     const seededA = topicsA.find((t) => t.id === refs.topicId)
     expect(seededA).toBeDefined()
     expect(seededA?.questionCount).toBe(3)
 
     await signInAs(emailB, password)
-    const topicsB = await getTopicsForSubject(refs.subjectId)
+    const topicsB = await getTopicsWithSubtopics(refs.subjectId)
     const seededB = topicsB.find((t) => t.id === refs.topicId)
     expect(seededB).toBeDefined()
     expect(seededB?.questionCount).toBe(3)

@@ -6,13 +6,6 @@ export type SubjectOption = {
   questionCount: number
 }
 
-export type TopicOption = {
-  id: string
-  code: string
-  name: string
-  questionCount: number
-}
-
 export type SubtopicOption = {
   id: string
   code: string

@@ -25,6 +25,11 @@ vi.mock('@repo/db/server', () => ({
 
 import { loadSessionQuestions } from './load-session-questions'
 
+const Q1 = '00000000-0000-4000-a000-000000000001'
+const Q2 = '00000000-0000-4000-a000-000000000002'
+const Q3 = '00000000-0000-4000-a000-000000000003'
+const QID = Q1
+
 // ---- Tests ----------------------------------------------------------------
 
 beforeEach(() => {
@@ -35,7 +40,7 @@ beforeEach(() => {
 describe('loadSessionQuestions', () => {
   it('reports no questions found for the verified session user when the RPC returns none', async () => {
     mockRpc.mockResolvedValue({ data: [], error: null })
-    const result = await loadSessionQuestions(['q1'])
+    const result = await loadSessionQuestions([QID])
     expect(result).toEqual({ success: false, error: 'No questions found' })
     expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
     expect(mockRpc.mock.calls[0]?.[0]).toBe(mockClient)
@@ -44,7 +49,7 @@ describe('loadSessionQuestions', () => {
 
   it('returns failure when user is not authenticated', async () => {
     mockVerifySessionUser.mockResolvedValueOnce(null)
-    const result = await loadSessionQuestions(['q1'])
+    const result = await loadSessionQuestions([QID])
     expect(result.success).toBe(false)
     if (result.success) return
     expect(result.error).toBe('Not authenticated')
@@ -55,7 +60,7 @@ describe('loadSessionQuestions', () => {
     mockRpc.mockResolvedValue({
       data: [
         {
-          id: 'q2',
+          id: Q2,
           question_text: 'What is VFR?',
           question_image_url: null,
           options: [{ id: 'a', text: 'Option A' }],
@@ -64,7 +69,7 @@ describe('loadSessionQuestions', () => {
           blanks_safe: null,
         },
         {
-          id: 'q1',
+          id: Q1,
           question_text: 'What is IFR?',
           question_image_url: null,
           options: [{ id: 'a', text: 'Option A' }],
@@ -77,19 +82,19 @@ describe('loadSessionQuestions', () => {
     })
 
     // Request order q1, q2 — result should be sorted to match
-    const result = await loadSessionQuestions(['q1', 'q2'])
+    const result = await loadSessionQuestions([Q1, Q2])
     expect(result.success).toBe(true)
     if (!result.success) return
     // Test setup guarantees two questions in result
-    expect(result.questions[0]!.id).toBe('q1')
-    expect(result.questions[1]!.id).toBe('q2')
+    expect(result.questions[0]!.id).toBe(Q1)
+    expect(result.questions[1]!.id).toBe(Q2)
   })
 
   it('returns all question fields mapped correctly', async () => {
     mockRpc.mockResolvedValue({
       data: [
         {
-          id: 'q1',
+          id: Q1,
           question_text: 'Explain VFR minima',
           question_image_url: 'https://cdn.example.com/img.png',
           options: [
@@ -104,12 +109,12 @@ describe('loadSessionQuestions', () => {
       error: null,
     })
 
-    const result = await loadSessionQuestions(['q1'])
+    const result = await loadSessionQuestions([QID])
     expect(result.success).toBe(true)
     if (!result.success) return
     // Test setup guarantees one question in result
     expect(result.questions[0]!).toMatchObject({
-      id: 'q1',
+      id: Q1,
       question_text: 'Explain VFR minima',
       question_image_url: 'https://cdn.example.com/img.png',
     })
@@ -138,7 +143,7 @@ describe('loadSessionQuestions', () => {
       error: null,
     })
 
-    const result = await loadSessionQuestions(['q-df'])
+    const result = await loadSessionQuestions([QID])
     expect(result.success).toBe(true)
     if (!result.success) return
     const q = result.questions[0]!
@@ -173,7 +178,7 @@ describe('loadSessionQuestions', () => {
       error: null,
     })
 
-    const result = await loadSessionQuestions(['q-ord'])
+    const result = await loadSessionQuestions([QID])
     expect(result.success).toBe(true)
     if (!result.success) return
     const q = result.questions[0]!
@@ -210,7 +215,7 @@ describe('loadSessionQuestions', () => {
       error: null,
     })
 
-    const result = await loadSessionQuestions(['q-ord-null'])
+    const result = await loadSessionQuestions([QID])
     expect(result.success).toBe(true)
     if (!result.success) return
     expect(result.questions).toHaveLength(1)
@@ -240,7 +245,7 @@ describe('loadSessionQuestions', () => {
       error: null,
     })
 
-    const result = await loadSessionQuestions(['q-ord-bad'])
+    const result = await loadSessionQuestions([QID])
     expect(result.success).toBe(true)
     if (!result.success) return
     expect(result.questions).toHaveLength(1)
@@ -270,7 +275,7 @@ describe('loadSessionQuestions', () => {
       error: null,
     })
 
-    const result = await loadSessionQuestions(['q-ord-short'])
+    const result = await loadSessionQuestions([QID])
     expect(result.success).toBe(true)
     if (!result.success) return
     expect(result.questions).toHaveLength(1)
@@ -303,7 +308,7 @@ describe('loadSessionQuestions', () => {
       error: null,
     })
 
-    const result = await loadSessionQuestions(['q-ord-dup'])
+    const result = await loadSessionQuestions([QID])
     expect(result.success).toBe(true)
     if (!result.success) return
     expect(result.questions).toHaveLength(1)
@@ -336,7 +341,7 @@ describe('loadSessionQuestions', () => {
       error: null,
     })
 
-    const result = await loadSessionQuestions(['q-ord-blank'])
+    const result = await loadSessionQuestions([QID])
     expect(result.success).toBe(true)
     if (!result.success) return
     expect(result.questions).toHaveLength(1)
@@ -369,7 +374,7 @@ describe('loadSessionQuestions', () => {
       error: null,
     })
 
-    const result = await loadSessionQuestions(['q-ord-blank-text'])
+    const result = await loadSessionQuestions([QID])
     expect(result.success).toBe(true)
     if (!result.success) return
     expect(result.questions).toHaveLength(1)
@@ -395,7 +400,7 @@ describe('loadSessionQuestions', () => {
       error: null,
     })
 
-    const result = await loadSessionQuestions(['q-mc'])
+    const result = await loadSessionQuestions([QID])
     expect(result.success).toBe(true)
     if (!result.success) return
     const q = result.questions[0]!
@@ -408,7 +413,7 @@ describe('loadSessionQuestions', () => {
   it('returns failure when RPC returns an error', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'RPC failed' } })
 
-    const result = await loadSessionQuestions(['q1'])
+    const result = await loadSessionQuestions([QID])
     expect(result.success).toBe(false)
     if (result.success) return
     expect(result.error).toBe('Failed to load questions. Please try again.')
@@ -417,7 +422,7 @@ describe('loadSessionQuestions', () => {
   it('returns failure when RPC returns empty data', async () => {
     mockRpc.mockResolvedValue({ data: [], error: null })
 
-    const result = await loadSessionQuestions(['q1'])
+    const result = await loadSessionQuestions([QID])
     expect(result.success).toBe(false)
     if (result.success) return
     expect(result.error).toBe('No questions found')
@@ -426,16 +431,45 @@ describe('loadSessionQuestions', () => {
   it('returns failure when RPC returns null data', async () => {
     mockRpc.mockResolvedValue({ data: null, error: null })
 
-    const result = await loadSessionQuestions(['q1'])
+    const result = await loadSessionQuestions([QID])
     expect(result.success).toBe(false)
   })
 
   it('requests quiz questions for the provided IDs', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'not called' } })
-    const ids = ['q1', 'q2', 'q3']
+    const ids = [Q1, Q2, Q3]
     await loadSessionQuestions(ids)
     expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_quiz_questions', {
       p_question_ids: ids,
     })
+  })
+})
+
+describe('loadSessionQuestions — input validation', () => {
+  it.each([
+    ['a non-array', 'not-an-array'],
+    ['a non-uuid id', ['q1']],
+    ['an empty array', []],
+    [
+      '501 ids',
+      Array.from(
+        { length: 501 },
+        (_, i) => `00000000-0000-4000-a000-${String(i).padStart(12, '0')}`,
+      ),
+    ],
+  ])('rejects %s without calling the RPC', async (_label, input) => {
+    const result = await loadSessionQuestions(input as string[])
+    expect(result).toEqual({ success: false, error: 'Invalid questions' })
+    expect(mockRpc).not.toHaveBeenCalled()
+  })
+
+  it('accepts exactly 500 uuids and calls the RPC', async () => {
+    mockRpc.mockResolvedValue({ data: [], error: null })
+    const ids = Array.from(
+      { length: 500 },
+      (_, i) => `00000000-0000-4000-a000-${String(i).padStart(12, '0')}`,
+    )
+    await loadSessionQuestions(ids)
+    expect(mockRpc).toHaveBeenCalledTimes(1)
   })
 })

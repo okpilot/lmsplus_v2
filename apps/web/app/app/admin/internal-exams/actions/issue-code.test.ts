@@ -119,11 +119,19 @@ describe('issueInternalExamCode', () => {
   })
 
   describe('error code mapping', () => {
+    it('does not map a longer message that merely contains not_admin', async () => {
+      mockAdmin()
+      mockRpc.mockResolvedValue({ data: null, error: { message: 'P0001: not_admin' } })
+      const result = await issueInternalExamCode(VALID_INPUT)
+      expect(result.success).toBe(false)
+      if (!result.success) expect(result.error).not.toBe('Admin permission required')
+    })
+
     it('maps not_authenticated', async () => {
       mockAdmin()
       mockRpc.mockResolvedValue({
         data: null,
-        error: { message: 'P0001: not_authenticated' },
+        error: { message: 'not_authenticated' },
       })
       const result = await issueInternalExamCode(VALID_INPUT)
       expect(result.success).toBe(false)
