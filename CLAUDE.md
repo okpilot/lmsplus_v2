@@ -184,7 +184,7 @@ Everything else (review, docs, tests) runs through subagents for visibility.
 `supabase db push --local` skips migrations already in the ledger — editing one in place is a
 silent no-op. Run `supabase db reset` + re-seed before local integration/E2E. Only `migration-test`
 CI runs `db reset`; others just `supabase start`; re-derive via
-`grep -rn 'db reset\|supabase start' .github/workflows/`.
+`grep -rn 'db reset\|supabase start' .github/`.
 
 ## Push protocol
 Never push without explicit user approval. The pre-push gate runs first, on every branch —

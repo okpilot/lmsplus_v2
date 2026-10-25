@@ -12,6 +12,7 @@
     "check-types": "turbo run check-types",
     "e2e": "turbo run e2e",
     "knip": "knip",
+    "db:types": "pnpm dlx supabase@2.78.1 gen types typescript --local > packages/db/src/types.ts && biome format --write packages/db/src/types.ts",
     "preinstall": "npx only-allow pnpm"
   },
   "engines": {

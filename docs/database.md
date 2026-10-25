@@ -2855,6 +2855,7 @@ CREATE INDEX idx_audit_events_actor  ON audit_events(actor_id, created_at DESC);
 5. **RLS must be enabled in the same migration as the table creation** — never in a separate file.
 6. **RPC signature changes require DROP FUNCTION first.** Postgres `CREATE OR REPLACE FUNCTION` cannot change a function's return type or parameter list. If modifying an RPC signature, precede the `CREATE OR REPLACE` with `DROP FUNCTION IF EXISTS function_name(param_types);`
 7. **Test every migration** against a local Supabase instance before pushing.
+8. **`packages/db/src/types.ts` is generated.** Regenerate with `pnpm db:types` against a local stack after a migration (CLI pinned to CI's 2.78.1); CI `integration-tests` fails when the committed file drifts.
 
 ---
 

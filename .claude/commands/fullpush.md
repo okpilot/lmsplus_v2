@@ -134,7 +134,6 @@ After answering the checklist:
 These run in CI and are intentionally not replicated locally — they are slow/infra-heavy quality gates, not "broken code" checks:
 - Lighthouse performance audit (`lighthouse.yml`)
 - SonarCloud + CodeQL deep static/security analysis (`sonarcloud.yml`, `codeql.yml`)
-- Bundle-size regression (`bundle-size.yml`)
 - Codecov patch-coverage threshold (`ci.yml`, `coverage-trend.yml`)
 - Dead-code / unused-export scan (`dead-code.yml`)
 

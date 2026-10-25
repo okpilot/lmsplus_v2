@@ -20,7 +20,7 @@
 ## 25 — 2026-03-13 — Post-session quiz reports read correct answers only via a dedicated `get_report_correct_options()` RPC gated on `ended_at IS NOT NULL`, never the raw options JSONB.
 ## 26 — 2026-03-13 — Quiz Server Actions must verify session ownership, active state, non-discarded state and question membership before acting; a failed check reverts and unlocks the UI. Amended by 128.
 ## 27 — 2026-03-14 — Adopt a Playwright red-team suite of adversarial attack specs against local Supabase, with a review agent mapping diffs to coverage gaps on security-sensitive changes. Amended by 73.
-## 28 — 2026-03-17 — Add four weekly GitHub Actions health-check workflows (agent-health, coverage-trend, bundle-size, stale-issues), each maintaining a single tracking issue. #259
+## 28 — 2026-03-17 — Add four weekly GitHub Actions health-check workflows (agent-health, coverage-trend, bundle-size, stale-issues), each maintaining a single tracking issue. #259 Amended by 155.
 ## 29 — 2026-03-17 — Switch auth from magic-link (`signInWithOtp`) to email+password (`signInWithPassword`), with a PKCE-based forgot-password flow through a new `/auth/confirm` route. #174
 ## 30 — 2026-03-20 — `question_comments` uses hard DELETE, not soft-delete, for own-row/admin deletions; `deleted_at` is kept only as a defensive fallback. #315
 ## 31 — 2026-03-20 — All authenticated users can see all non-deleted question comments; no org-scoping or answered-question restriction on comment visibility. #315
@@ -147,3 +147,4 @@
 ## 152 — 2026-10-25 — Direct GoTrue `/otp` and `/recover` enumeration (#1389 FW) is accepted as a GoTrue-level residual, bounded by prod Auth settings read 2026-10-25 (`rate_limit_email_sent = 2`/h, `smtp_max_frequency = 60s`, `rate_limit_otp = 20`, `rate_limit_verify = 20`, signup disabled; `supabase/config.toml` matches the email limits and signup; `sign_in_sign_ups` / `token_verifications` stay at 30 for local and CI e2e sign-ins); CAPTCHA is revisited with auth hardening (#760). #1389
 ## 153 — 2026-10-25 — Deactivation ends the session at the next `/app` render: the layout's profile read (`loadShellUser`) redirects to `GET /auth/signout`, which signs out only a caller with no active `users` row; per-request JWKS verification is unchanged; soft navigations and Server Actions stay bounded by `jwt_expiry` (3600), the knob to tighten it. #1608
 ## 154 — 2026-10-25 — RPC errors are matched exactly (`matchRpcError`, `lib/rpc-error-match.ts`; anchored patterns for parameterised RAISE texts). #1608
+## 155 — 2026-10-25 — `bundle-size.yml` is deleted: its build step failed on every run and `set +e` hid it, so it never recorded a baseline; bundle budgets move to #1598. #1609
