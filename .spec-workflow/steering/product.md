@@ -93,7 +93,7 @@ The primary competitive baseline is Aviationexam. LMS Plus differentiates by off
 - **Admin visibility**: Filtered student list with status/role/search, per-student data export (JSON), question bank management with bulk operations.
 - **Session reports**: Per-quiz breakdown showing each question, selected answer, correct answer, and explanation. Accessible from session history.
 - **Audit trail**: Immutable `audit_events` table records login, quiz submission, consent, and administrative actions. Queryable for CAA inspection.
-- **Error tracking**: Sentry integration with error boundaries, source maps, and 10% trace sampling (100% for /app documents, Decision 137).
+- **Error tracking**: Sentry integration with error boundaries, source maps, and trace sampling (rates: `apps/web/sentry-traces-sampler.ts`).
 
 ## Future Vision
 
