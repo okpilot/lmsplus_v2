@@ -791,7 +791,7 @@ carries it, so permissive OR-ing means the looser one wins for callers it matche
 `quiz_sessions` (`students_select_sessions`, `20260313000023:14-16`) and `exam_configs`
 (`admin_select_exam_configs`, `20260411000001:45-47`).
 
-The query also returns the nine `<table>_select_active_caller` RESTRICTIVE policies (`20261025000100`): they gate on `users.deleted_at` through `private.is_active_user()`, not on the row's own `deleted_at`, and they AND with the permissive policies above. A table's own soft-deleted rows stay visible to its owner through those permissive policies; callers still filter explicitly.
+The query also returns the nine `<table>_select_active_caller` RESTRICTIVE policies (`20261025000100`): they gate on `users.deleted_at` through `private.is_active_user()`, not on the row's own `deleted_at`, and they AND with the permissive policies above. They never hide a row on its own `deleted_at`; callers still filter explicitly.
 
 The example below is a policy that DOES carry the filter:
 

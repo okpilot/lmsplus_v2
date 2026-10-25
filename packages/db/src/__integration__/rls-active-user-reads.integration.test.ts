@@ -246,38 +246,68 @@ describe('RLS: student-owned reads require an active user', () => {
       expect(Number(goneRow?.total_sessions ?? 0)).toBe(0)
     })
 
-    // Regression pin: already true via questions.tenant_isolation; passes before execute.
-    it('question-bank RPCs return nothing for a deactivated caller (regression pin)', async () => {
+    async function subjectIdOfFixture(): Promise<string> {
+      const { data, error } = await f.admin
+        .from('questions')
+        .select('subject_id')
+        .eq('id', f.mcIds[0]!)
+        .single()
+      expect(error).toBeNull()
+      return (data as { subject_id: string }).subject_id
+    }
+
+    // Regression pins: already true via questions.tenant_isolation; pass before execute.
+    it('get_question_counts: rows while active, empty after deactivation (regression pin)', async () => {
       await setDeactivated(f.studentId, false)
-      const counts = await f.student.rpc('get_question_counts', { p_status: 'active' })
-      expect(counts.error).toBeNull()
-      expect((counts.data as unknown[]).length).toBeGreaterThanOrEqual(1)
+      const active = await f.student.rpc('get_question_counts', { p_status: 'active' })
+      expect(active.error).toBeNull()
+      expect((active.data as unknown[]).length).toBeGreaterThanOrEqual(1)
 
       await setDeactivated(f.studentId, true)
       const gone = await f.student.rpc('get_question_counts', { p_status: 'active' })
       expect(gone.error).toBeNull()
       expect(gone.data).toEqual([])
+    })
 
-      const filtered = await f.student.rpc('get_filtered_question_counts', {
-        p_subject_id: null,
+    it('get_filtered_question_counts: rows while active, empty after deactivation (regression pin)', async () => {
+      const subjectId = await subjectIdOfFixture()
+      const args = {
+        p_subject_id: subjectId,
         p_topic_ids: null,
         p_subtopic_ids: null,
         p_filters: [],
         p_calc_mode: 'all',
-      })
-      expect(filtered.error).toBeNull()
-      expect(filtered.data).toEqual([])
+      }
+      await setDeactivated(f.studentId, false)
+      const active = await f.student.rpc('get_filtered_question_counts', args)
+      expect(active.error).toBeNull()
+      expect((active.data as unknown[]).length).toBeGreaterThanOrEqual(1)
 
-      const random = await f.student.rpc('get_random_question_ids', {
-        p_subject_id: null,
+      await setDeactivated(f.studentId, true)
+      const gone = await f.student.rpc('get_filtered_question_counts', args)
+      expect(gone.error).toBeNull()
+      expect(gone.data).toEqual([])
+    })
+
+    it('get_random_question_ids: ids while active, empty after deactivation (regression pin)', async () => {
+      const subjectId = await subjectIdOfFixture()
+      const args = {
+        p_subject_id: subjectId,
         p_topic_ids: null,
         p_subtopic_ids: null,
         p_count: 5,
         p_filters: [],
         p_calc_mode: 'all',
-      })
-      expect(random.error).toBeNull()
-      expect(random.data).toEqual([])
+      }
+      await setDeactivated(f.studentId, false)
+      const active = await f.student.rpc('get_random_question_ids', args)
+      expect(active.error).toBeNull()
+      expect((active.data as unknown[]).length).toBeGreaterThanOrEqual(1)
+
+      await setDeactivated(f.studentId, true)
+      const gone = await f.student.rpc('get_random_question_ids', args)
+      expect(gone.error).toBeNull()
+      expect(gone.data).toEqual([])
     })
   })
 
