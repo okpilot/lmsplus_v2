@@ -791,7 +791,7 @@ carries it, so permissive OR-ing means the looser one wins for callers it matche
 `quiz_sessions` (`students_select_sessions`, `20260313000023:14-16`) and `exam_configs`
 (`admin_select_exam_configs`, `20260411000001:45-47`).
 
-The query also returns the nine `<table>_select_active_caller` RESTRICTIVE policies (`20261025000100`): they gate on `users.deleted_at` through `private.is_active_user()`, not on the row's own `deleted_at`, and they AND with the permissive policies above. They never hide a row on its own `deleted_at`; callers still filter explicitly.
+The query also returns the `<table>_select_active_caller` RESTRICTIVE policies (`20261025000100`): they gate on `users.deleted_at` through `private.is_active_user()`, not on the row's own `deleted_at`, and they AND with the permissive policies above. They never hide a row on its own `deleted_at`; callers still filter explicitly.
 
 The example below is a policy that DOES carry the filter:
 
@@ -2079,7 +2079,7 @@ $$;
 
 Returns `boolean`. `LANGUAGE sql STABLE SECURITY INVOKER SET search_path = ''` (migration `20261025000100`, #1607). True when `public.users` holds a row with `id = (select auth.uid())` and `deleted_at IS NULL`. The explicit `deleted_at IS NULL` filter makes it false for a deactivated caller in every context, including inside a SECURITY DEFINER caller where RLS is bypassed (`auth.uid()` reads the JWT claim). EXECUTE: `authenticated` only (revoked from PUBLIC, `anon`).
 
-Lives in schema `private`, the only schema this repo creates besides `public`: USAGE granted to `authenticated` only, not in `supabase/config.toml` `schemas`, so PostgREST does not expose it. Used by the `<table>_select_active_caller` RESTRICTIVE policies; derive the set: `select tablename, policyname from pg_policies where permissive = 'RESTRICTIVE'`. New policies and functions call `(select private.is_active_user())`; existing inline `EXISTS` / `PERFORM` gates stay (Decision 151).
+Lives in schema `private`, the only schema this repo creates besides `public`: USAGE granted to `authenticated` only, not in `supabase/config.toml` `schemas`, so PostgREST does not expose it. Used by the `<table>_select_active_caller` RESTRICTIVE policies; derive the set: `select tablename, policyname from pg_policies where permissive = 'RESTRICTIVE'`. New policies and functions call `(select private.is_active_user())`; a SECURITY DEFINER caller still RAISEs its family's active-user token when it is false; existing inline `EXISTS` / `PERFORM` gates stay (Decision 151).
 
 ```sql
 CREATE OR REPLACE FUNCTION private.is_active_user()
@@ -2496,7 +2496,7 @@ Returns mastery counts at two granularities in one result set: a subject-level r
 - `correct` — count of **distinct** questions answered correctly, **any** status (numerator; the `correct_q` CTE dedups via `SELECT DISTINCT q.id`, then `COUNT(*)` over that set, so multiple correct attempts on one question count once); can exceed `total` when the student answered a now-draft question (orphan retention, #540/#664). The percentage clamp and the `total>0 OR correct>0` orphan-retention filter stay in TypeScript, which consumes the raw counts.
 - `topic_id IS NULL` marks the subject-level aggregate row — a safe sentinel because `questions.topic_id` is `NOT NULL`.
 
-**Deactivated caller:** returns nothing: `student_responses` carries RESTRICTIVE `student_responses_select_active_caller` (#1607) and `questions` is hidden by `tenant_isolation`.
+**Deactivated caller:** returns no student-derived data (no `correct` counts): `student_responses` carries RESTRICTIVE `student_responses_select_active_caller` (#1607) and `questions` is hidden by `tenant_isolation`.
 
 **Migration:** `20260521000005_student_mastery_stats_rpc.sql`; filters call `(select auth.uid())` since `20261017000300_invoker_rpcs_select_auth_uid.sql` (#1414)
 
