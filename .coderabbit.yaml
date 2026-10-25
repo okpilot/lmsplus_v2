@@ -571,7 +571,9 @@ reviews:
           members, so treat this as an as-of list, not a census. Do NOT flag either
           spelling as wrong; flag only a MISMATCH with the family the function belongs to. This rule covers SECURITY DEFINER
           functions only: a SECURITY INVOKER function has RLS evaluated for it and needs no
-          manual gate: RESTRICTIVE SELECT policies on private.is_active_user() cover the
+          manual gate when every table it reads carries a <table>_select_active_caller
+          policy or is reached through users (a new student-owned table gets that
+          policy): RESTRICTIVE SELECT policies on private.is_active_user() cover the
           student-owned tables and tenant_isolation covers questions (Decision 151). New
           policies and functions use (select private.is_active_user()); existing inline
           gates stay.

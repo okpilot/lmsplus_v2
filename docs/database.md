@@ -2077,7 +2077,7 @@ $$;
 
 #### `private.is_active_user()` — Active-caller check helper
 
-Returns `boolean`. `LANGUAGE sql STABLE SECURITY INVOKER SET search_path = ''` (migration `20261025000100`, #1607). True when `public.users` holds a row with `id = (select auth.uid())` and `deleted_at IS NULL`. Runs as the caller: `users_select` hides a deactivated caller's own row, so the `EXISTS` is false for them. EXECUTE: `authenticated` only (revoked from PUBLIC, `anon`).
+Returns `boolean`. `LANGUAGE sql STABLE SECURITY INVOKER SET search_path = ''` (migration `20261025000100`, #1607). True when `public.users` holds a row with `id = (select auth.uid())` and `deleted_at IS NULL`. The explicit `deleted_at IS NULL` filter makes it false for a deactivated caller in every context, including inside a SECURITY DEFINER caller where RLS is bypassed (`auth.uid()` reads the JWT claim). EXECUTE: `authenticated` only (revoked from PUBLIC, `anon`).
 
 Lives in schema `private`, the only schema this repo creates besides `public`: USAGE granted to `authenticated` only, not in `supabase/config.toml` `schemas`, so PostgREST does not expose it. Used by the `<table>_select_active_caller` RESTRICTIVE policies; derive the set: `select tablename, policyname from pg_policies where permissive = 'RESTRICTIVE'`. New policies and functions call `(select private.is_active_user())`; existing inline `EXISTS` / `PERFORM` gates stay (Decision 151).
 
