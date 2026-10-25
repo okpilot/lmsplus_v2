@@ -19,8 +19,13 @@ async function restoreUser(admin: ReturnType<typeof getAdminClient>, id: string)
   const errors: string[] = []
   const { error: banErr } = await admin.auth.admin.updateUserById(id, { ban_duration: 'none' })
   if (banErr) errors.push(`unban: ${banErr.message}`)
-  const { error: delErr } = await admin.from('users').update({ deleted_at: null }).eq('id', id)
+  const { data: restored, error: delErr } = await admin
+    .from('users')
+    .update({ deleted_at: null })
+    .eq('id', id)
+    .select('id')
   if (delErr) errors.push(`reactivate: ${delErr.message}`)
+  else if (!restored?.length) errors.push('reactivate: no row')
   if (errors.length > 0) throw new Error(errors.join('; '))
 }
 
@@ -48,11 +53,13 @@ test('a deactivated signed-in student is signed out on the next /app load and th
       ban_duration: '876600h',
     })
     if (banErr) throw new Error(`ban: ${banErr.message}`)
-    const { error: delErr } = await admin
+    const { data: deactivated, error: delErr } = await admin
       .from('users')
       .update({ deleted_at: new Date().toISOString() })
       .eq('id', row.id)
+      .select('id')
     if (delErr) throw new Error(`deactivate: ${delErr.message}`)
+    if (!deactivated?.length) throw new Error('deactivate: no row')
 
     await page.goto('/app/dashboard')
     await expect(page).toHaveURL(/\/(\?.*)?$/, { timeout: 15_000 })
