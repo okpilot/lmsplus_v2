@@ -3,13 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // ---- Mocks ----------------------------------------------------------------
 
 const { mockRpc, mockClient, mockCreateClient } = vi.hoisted(() => {
-  const mockClient = { marker: 'server-client' }
-  return { mockRpc: vi.fn(), mockClient, mockCreateClient: vi.fn(async () => mockClient) }
+  const mockRpc = vi.fn()
+  const mockClient = { marker: 'server-client', rpc: mockRpc }
+  return { mockRpc, mockClient, mockCreateClient: vi.fn(async () => mockClient) }
 })
-
-vi.mock('@/lib/supabase-rpc', () => ({
-  rpc: mockRpc,
-}))
 
 const mockVerifySessionUser = vi.fn().mockResolvedValue({ id: 'user-1' })
 
@@ -43,7 +40,6 @@ describe('loadSessionQuestions', () => {
     const result = await loadSessionQuestions([QID])
     expect(result).toEqual({ success: false, error: 'No questions found' })
     expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
-    expect(mockRpc.mock.calls[0]?.[0]).toBe(mockClient)
     expect(mockCreateClient).toHaveBeenCalledTimes(1)
   })
 
@@ -439,7 +435,7 @@ describe('loadSessionQuestions', () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'not called' } })
     const ids = [Q1, Q2, Q3]
     await loadSessionQuestions(ids)
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_quiz_questions', {
+    expect(mockRpc).toHaveBeenCalledWith('get_quiz_questions', {
       p_question_ids: ids,
     })
   })

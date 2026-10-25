@@ -13,7 +13,7 @@ export type FilteredCounts = {
 
 /**
  * Sums `get_filtered_question_counts` rows. Per-row guard required by code-style.md §5 —
- * the `rpc<…>` cast is a TS assertion only. Skips rows whose topic_id isn't a string or
+ * the client's types are not a runtime guarantee. Skips rows whose topic_id isn't a string or
  * whose n doesn't coerce to a finite number; otherwise NaN would poison count/byTopic and
  * a non-string topic_id would index into the record under a coerced key.
  */
@@ -61,7 +61,7 @@ function isFiniteCount(value: unknown): boolean {
   return (typeof value === 'number' || typeof value === 'string') && Number.isFinite(Number(value))
 }
 
-/** Per-row guard required by code-style.md §5 — the `rpc<…>` cast is a TS assertion only. */
+/** Per-row guard required by code-style.md §5 — the client's types are not a runtime guarantee. */
 function isDiscoveryCountRow(value: unknown): value is DiscoveryCountRow {
   if (typeof value !== 'object' || value === null) return false
   const row = value as Record<string, unknown>
@@ -106,10 +106,9 @@ function inScope(row: DiscoveryCountRow, scope: SubjectScope): boolean {
 async function fetchDiscoveryRows(): Promise<DiscoveryCountRow[] | null> {
   try {
     const supabase = await createServerSupabaseClient()
-    const { data, error } = await fetchAllRpcRows<unknown>({
+    const { data, error } = await fetchAllRpcRows({
       supabase,
       fn: 'get_discovery_counts',
-      args: {},
       orderColumns: ['subject_id', 'topic_id', 'subtopic_id'],
     })
     if (error) {

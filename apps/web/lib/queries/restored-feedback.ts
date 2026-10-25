@@ -1,6 +1,5 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import type { AnswerFeedback } from '@/app/app/quiz/types'
-import { rpc } from '@/lib/supabase-rpc'
 import { withTimeout } from '@/lib/utils/with-timeout'
 import { toClientFeedback } from './restored-feedback-map'
 
@@ -23,7 +22,7 @@ function questionIdOf(element: unknown): string | null {
  */
 export async function getRestoredFeedback(sessionId: string): Promise<RestoredFeedback> {
   const supabase = await createServerSupabaseClient()
-  const { data, error } = await rpc<unknown>(supabase, 'get_restored_feedback', {
+  const { data, error } = await supabase.rpc('get_restored_feedback', {
     p_session_id: sessionId,
   })
   if (error) {

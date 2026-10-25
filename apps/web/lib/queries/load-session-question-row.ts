@@ -9,6 +9,20 @@ import {
   toDiagramConfigRow,
 } from './load-session-diagram-guards'
 
+export const QUESTION_TYPES = [
+  'multiple_choice',
+  'short_answer',
+  'dialog_fill',
+  'ordering',
+  'diagram_label',
+] as const
+
+export type QuestionType = (typeof QUESTION_TYPES)[number]
+
+export function isQuestionType(value: unknown): value is QuestionType {
+  return typeof value === 'string' && (QUESTION_TYPES as readonly string[]).includes(value)
+}
+
 export type QuizQuestionRow = {
   id: string
   question_text: string
@@ -18,7 +32,7 @@ export type QuizQuestionRow = {
   explanation_text?: string | null
   explanation_image_url?: string | null
   options: unknown
-  question_type: 'multiple_choice' | 'short_answer' | 'dialog_fill' | 'ordering' | 'diagram_label'
+  question_type: string
   dialog_template: string | null
   blanks_safe: unknown
   ordering_items_shuffled: unknown
@@ -33,7 +47,7 @@ type LoadedQuestion = {
   explanation_text: string | null
   explanation_image_url: string | null
   options: { id: string; text: string }[]
-  question_type: 'multiple_choice' | 'short_answer' | 'dialog_fill' | 'ordering' | 'diagram_label'
+  question_type: QuestionType
   dialog_template: string | null
   blanks_safe: { index: number }[] | null
   ordering_items: { id: string; text: string }[] | null
@@ -74,7 +88,8 @@ function isOrderingItemArray(value: unknown): value is { id: string; text: strin
   return isUniquePermutation(value.map((v) => v.id))
 }
 
-export function toQuestion(q: QuizQuestionRow): LoadedQuestion {
+export function toQuestion(q: QuizQuestionRow): LoadedQuestion | null {
+  if (!isQuestionType(q.question_type)) return null
   return {
     id: q.id,
     question_text: q.question_text,
@@ -93,4 +108,21 @@ export function toQuestion(q: QuizQuestionRow): LoadedQuestion {
       ? toDiagramConfigRow(q.diagram_config_public)
       : null,
   }
+}
+
+/**
+ * Maps every row, failing closed: `null` when any row carries an unknown question_type
+ * (logged under `source` with the row id).
+ */
+export function toQuestions(rows: QuizQuestionRow[], source: string): LoadedQuestion[] | null {
+  const questions: LoadedQuestion[] = []
+  for (const row of rows) {
+    const question = toQuestion(row)
+    if (!question) {
+      console.error(`[${source}] Unknown question_type:`, row.id)
+      return null
+    }
+    questions.push(question)
+  }
+  return questions
 }

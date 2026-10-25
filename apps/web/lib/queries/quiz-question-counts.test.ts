@@ -5,19 +5,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const { mockRpc } = vi.hoisted(() => ({ mockRpc: vi.fn() }))
 
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({ tag: 'server-client' }),
-}))
-
-vi.mock('@/lib/supabase-rpc', () => ({
-  rpc: (...args: unknown[]) => mockRpc(...args),
+  createServerSupabaseClient: async () => ({ tag: 'server-client', rpc: mockRpc }),
 }))
 
 // ---- Subject under test ---------------------------------------------------
 
 import { fetchActiveQuestionCounts, getActiveQuestionCounts } from './quiz-question-counts'
 
-// The helper only forwards this to rpc(), which is mocked — no client methods are called.
-const supabase = {} as Awaited<
+const supabase = { rpc: mockRpc } as unknown as Awaited<
   ReturnType<typeof import('@repo/db/server').createServerSupabaseClient>
 >
 
@@ -31,7 +26,7 @@ describe('fetchActiveQuestionCounts', () => {
 
     await fetchActiveQuestionCounts(supabase)
 
-    expect(mockRpc).toHaveBeenCalledWith(supabase, 'get_question_counts', { p_status: 'active' })
+    expect(mockRpc).toHaveBeenCalledWith('get_question_counts', { p_status: 'active' })
   })
 
   it('returns the counts rows when the read succeeds', async () => {
@@ -163,7 +158,7 @@ describe('getActiveQuestionCounts', () => {
     mockRpc.mockResolvedValue({ data: rows, error: null })
 
     await expect(getActiveQuestionCounts()).resolves.toEqual(rows)
-    expect(mockRpc).toHaveBeenCalledWith({ tag: 'server-client' }, 'get_question_counts', {
+    expect(mockRpc).toHaveBeenCalledWith('get_question_counts', {
       p_status: 'active',
     })
   })

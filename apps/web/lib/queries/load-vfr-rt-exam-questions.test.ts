@@ -1,11 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockRpc, mockClient, mockCreateClient } = vi.hoisted(() => {
-  const mockClient = { marker: 'server-client' }
-  return { mockRpc: vi.fn(), mockClient, mockCreateClient: vi.fn(async () => mockClient) }
+  const mockRpc = vi.fn()
+  const mockClient = { marker: 'server-client', rpc: mockRpc }
+  return { mockRpc, mockClient, mockCreateClient: vi.fn(async () => mockClient) }
 })
-
-vi.mock('@/lib/supabase-rpc', () => ({ rpc: mockRpc }))
 
 const mockVerifySessionUser = vi.fn().mockResolvedValue({ id: 'user-1' })
 
@@ -48,7 +47,6 @@ describe('loadVfrRtExamQuestions', () => {
     const result = await loadVfrRtExamQuestions({ sessionId: SESSION_ID })
     expect(result).toEqual({ success: false, error: 'No questions found' })
     expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
-    expect(mockRpc.mock.calls[0]?.[0]).toBe(mockClient)
     expect(mockCreateClient).toHaveBeenCalledTimes(1)
   })
 
@@ -84,7 +82,7 @@ describe('loadVfrRtExamQuestions', () => {
   it('calls the exam RPC with the session id and keeps the RPC row order', async () => {
     mockRpc.mockResolvedValue({ data: [row('b'), row('a')], error: null })
     const result = await loadVfrRtExamQuestions({ sessionId: SESSION_ID })
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_vfr_rt_exam_questions', {
+    expect(mockRpc).toHaveBeenCalledWith('get_vfr_rt_exam_questions', {
       p_session_id: SESSION_ID,
     })
     if (!result.success) throw new Error(result.error)

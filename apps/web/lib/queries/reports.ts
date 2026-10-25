@@ -73,12 +73,12 @@ export async function getSessionReports(opts: SessionReportsOpts): Promise<Sessi
   const sortColumn = SORT_COLUMN_MAP[sort]
   const offset = (page - 1) * PAGE_SIZE
 
-  const { data, error: rpcError } = (await supabase.rpc('get_session_reports', {
+  const { data, error: rpcError } = await supabase.rpc('get_session_reports', {
     p_sort: sortColumn,
     p_dir: dir,
     p_limit: PAGE_SIZE,
     p_offset: offset,
-  })) as { data: unknown; error: { message: string } | null }
+  })
 
   if (rpcError) {
     console.error('[getSessionReports] RPC error:', rpcError.message)
@@ -141,12 +141,12 @@ async function probeOutOfRangeTotal(
   sortColumn: string,
   dir: SortDir,
 ): Promise<SessionReportsResult> {
-  const { data, error } = (await supabase.rpc('get_session_reports', {
+  const { data, error } = await supabase.rpc('get_session_reports', {
     p_sort: sortColumn,
     p_dir: dir,
     p_limit: 1,
     p_offset: 0,
-  })) as { data: unknown; error: { message: string } | null }
+  })
   if (error) {
     console.error('[getSessionReports] Probe RPC error:', error.message)
     return { ok: false, error: 'Failed to load reports' }

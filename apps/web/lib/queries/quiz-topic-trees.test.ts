@@ -9,11 +9,7 @@ const { mockFrom, mockRpc, mockSelect } = vi.hoisted(() => ({
 }))
 
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({ from: mockFrom }),
-}))
-
-vi.mock('@/lib/supabase-rpc', () => ({
-  rpc: (...args: unknown[]) => mockRpc(...args),
+  createServerSupabaseClient: async () => ({ from: mockFrom, rpc: mockRpc }),
 }))
 
 // ---- Subject under test ---------------------------------------------------

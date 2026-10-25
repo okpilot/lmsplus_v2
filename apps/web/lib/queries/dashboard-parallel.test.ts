@@ -11,11 +11,7 @@ vi.mock('@/lib/auth/get-session-user', () => ({
 }))
 
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({ from: mockFrom }),
-}))
-
-vi.mock('@/lib/supabase-rpc', () => ({
-  rpc: (...args: unknown[]) => mockRpc(...args),
+  createServerSupabaseClient: async () => ({ from: mockFrom, rpc: mockRpc }),
 }))
 
 import { getDashboardData } from './dashboard'
@@ -45,11 +41,11 @@ function deferred<T>() {
 const SUBJECT = { id: 's1', code: 'AGK', name: 'Aircraft General', short: 'AGK', sort_order: 1 }
 
 function rpcCalled(fn: string) {
-  return mockRpc.mock.calls.some((c) => c[1] === fn)
+  return mockRpc.mock.calls.some((c) => c[0] === fn)
 }
 
 function setRpcs(overrides: Record<string, Promise<unknown>>) {
-  mockRpc.mockImplementation((_s: unknown, fn: string) => {
+  mockRpc.mockImplementation((fn: string) => {
     const pending = overrides[fn]
     if (pending) return pending
     if (fn === 'get_student_streak') {

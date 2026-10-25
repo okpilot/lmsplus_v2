@@ -286,7 +286,7 @@ describe('getDashboardStudents', () => {
 
     expect(mockAuthRpc).toHaveBeenCalledWith(
       'get_admin_dashboard_students',
-      expect.objectContaining({ p_status: null }),
+      expect.objectContaining({ p_status: undefined }),
     )
   })
 

@@ -17,14 +17,14 @@ const base: QuizQuestionRow = {
 describe('toQuestion', () => {
   it('maps absent explanation columns to null', () => {
     const q = toQuestion(base)
-    expect(q.explanation_text).toBeNull()
-    expect(q.explanation_image_url).toBeNull()
+    expect(q?.explanation_text).toBeNull()
+    expect(q?.explanation_image_url).toBeNull()
   })
 
   it('keeps explanation values when the row carries them', () => {
     const q = toQuestion({ ...base, explanation_text: 'why', explanation_image_url: 'u' })
-    expect(q.explanation_text).toBe('why')
-    expect(q.explanation_image_url).toBe('u')
+    expect(q?.explanation_text).toBe('why')
+    expect(q?.explanation_image_url).toBe('u')
   })
 
   it('keeps ordering items when ids are unique and non-blank', () => {
@@ -32,7 +32,7 @@ describe('toQuestion', () => {
       { id: 'a', text: 'A' },
       { id: 'b', text: 'B' },
     ]
-    expect(toQuestion({ ...base, ordering_items_shuffled: items }).ordering_items).toEqual(items)
+    expect(toQuestion({ ...base, ordering_items_shuffled: items })?.ordering_items).toEqual(items)
   })
 
   it('drops ordering items with duplicate ids', () => {
@@ -40,7 +40,7 @@ describe('toQuestion', () => {
       { id: 'a', text: 'A' },
       { id: 'a', text: 'B' },
     ]
-    expect(toQuestion({ ...base, ordering_items_shuffled: items }).ordering_items).toBeNull()
+    expect(toQuestion({ ...base, ordering_items_shuffled: items })?.ordering_items).toBeNull()
   })
 
   it('drops ordering items with a blank text', () => {
@@ -48,6 +48,10 @@ describe('toQuestion', () => {
       { id: 'a', text: 'A' },
       { id: 'b', text: '  ' },
     ]
-    expect(toQuestion({ ...base, ordering_items_shuffled: items }).ordering_items).toBeNull()
+    expect(toQuestion({ ...base, ordering_items_shuffled: items })?.ordering_items).toBeNull()
+  })
+
+  it('returns null for an unknown question_type', () => {
+    expect(toQuestion({ ...base, question_type: 'essay' })).toBeNull()
   })
 })

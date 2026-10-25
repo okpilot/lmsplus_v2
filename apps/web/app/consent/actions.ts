@@ -7,7 +7,6 @@ import type { ActionResult } from '@/lib/action-result'
 import { verifySessionUser } from '@/lib/auth/verify-session-user'
 import { setConsentCookie } from '@/lib/consent/consent-cookie'
 import { CURRENT_PRIVACY_VERSION, CURRENT_TOS_VERSION } from '@/lib/consent/versions'
-import { rpc } from '@/lib/supabase-rpc'
 
 const ConsentSchema = z.object({
   acceptedTos: z.literal(true, { message: 'You must accept the Terms of Service' }),
@@ -24,17 +23,17 @@ export async function recordConsent(raw: unknown): Promise<ActionResult> {
   if (!user) return { success: false, error: 'Not authenticated' }
 
   const headerStore = await headers()
-  const ipAddress = headerStore.get('x-forwarded-for') ?? null
-  const userAgent = headerStore.get('user-agent') ?? null
+  const ipAddress = headerStore.get('x-forwarded-for') ?? undefined
+  const userAgent = headerStore.get('user-agent') ?? undefined
 
   const base = { p_accepted: true, p_ip_address: ipAddress, p_user_agent: userAgent }
   const [{ error: tosError }, { error: privacyError }] = await Promise.all([
-    rpc(supabase, 'record_consent', {
+    supabase.rpc('record_consent', {
       ...base,
       p_document_type: 'terms_of_service',
       p_document_version: CURRENT_TOS_VERSION,
     }),
-    rpc(supabase, 'record_consent', {
+    supabase.rpc('record_consent', {
       ...base,
       p_document_type: 'privacy_policy',
       p_document_version: CURRENT_PRIVACY_VERSION,

@@ -115,7 +115,7 @@ describe('listAvailableInternalExams', () => {
   it('loads active codes via the list_my_active_internal_exam_codes RPC', async () => {
     mockRpc.mockResolvedValue({ data: [], error: null })
     await listAvailableInternalExams()
-    expect(mockRpc).toHaveBeenCalledWith('list_my_active_internal_exam_codes', {})
+    expect(mockRpc).toHaveBeenCalledWith('list_my_active_internal_exam_codes')
   })
 
   it('falls back to "Unknown subject" when subject_name is empty', async () => {
@@ -280,7 +280,7 @@ describe('listMyInternalExamHistory', () => {
   it('loads history via the list_my_internal_exam_history RPC', async () => {
     mockRpc.mockResolvedValue({ data: [], error: null })
     await listMyInternalExamHistory()
-    expect(mockRpc).toHaveBeenCalledWith('list_my_internal_exam_history', {})
+    expect(mockRpc).toHaveBeenCalledWith('list_my_internal_exam_history')
   })
 
   it('falls back to "Unknown subject" when subject_name is empty', async () => {

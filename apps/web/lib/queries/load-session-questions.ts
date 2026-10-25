@@ -3,8 +3,7 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import { verifySessionUser } from '@/lib/auth/verify-session-user'
-import { rpc } from '@/lib/supabase-rpc'
-import { type LoadResult, type QuizQuestionRow, toQuestion } from './load-session-question-row'
+import { type LoadResult, toQuestions } from './load-session-question-row'
 
 const QuestionIdsSchema = z.array(z.uuid()).min(1).max(500)
 
@@ -21,7 +20,7 @@ export async function loadSessionQuestions(input: unknown): Promise<LoadResult> 
   const user = await verifySessionUser(supabase)
   if (!user) return { success: false, error: 'Not authenticated' }
 
-  const { data, error } = await rpc<QuizQuestionRow[]>(supabase, 'get_quiz_questions', {
+  const { data, error } = await supabase.rpc('get_quiz_questions', {
     p_question_ids: questionIds,
   })
 
@@ -34,7 +33,8 @@ export async function loadSessionQuestions(input: unknown): Promise<LoadResult> 
     return { success: false, error: 'No questions found' }
   }
 
-  const questions = data.map(toQuestion)
+  const questions = toQuestions(data, 'loadSessionQuestions')
+  if (!questions) return { success: false, error: 'Failed to load questions. Please try again.' }
 
   // Preserve the order from questionIds
   const orderMap = new Map(questionIds.map((id, i) => [id, i]))

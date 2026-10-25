@@ -1,6 +1,5 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { getSessionUser } from '@/lib/auth/get-session-user'
-import { rpc } from '@/lib/supabase-rpc'
 
 export type SubjectDetail = {
   id: string
@@ -50,7 +49,7 @@ export async function getProgressData(): Promise<SubjectDetail[]> {
       .from('easa_topics')
       .select('id, code, name, subject_id, sort_order')
       .order('sort_order'),
-    rpc<MasteryRow[]>(supabase, 'get_student_mastery_stats', {}),
+    supabase.rpc('get_student_mastery_stats'),
   ])
 
   if (subjectsRes.error) {
@@ -71,8 +70,9 @@ export async function getProgressData(): Promise<SubjectDetail[]> {
   // 1000-row PostgREST cap, so these counts are never truncated (#540).
   const subjectMap = new Map<string, { total: number; correct: number }>()
   const topicMap = new Map<string, { total: number; correct: number }>()
-  // rpc() casts the payload without validating shape — guard the array per code-style §5.
-  for (const row of Array.isArray(masteryResult.data) ? masteryResult.data : []) {
+  // Wire shape is not validated by the client — guard the array per code-style §5.
+  const masteryRows: MasteryRow[] = Array.isArray(masteryResult.data) ? masteryResult.data : []
+  for (const row of masteryRows) {
     if (!row.subject_id) continue
     const counts = { total: Number(row.total), correct: Number(row.correct) }
     if (row.topic_id === null) subjectMap.set(row.subject_id, counts)

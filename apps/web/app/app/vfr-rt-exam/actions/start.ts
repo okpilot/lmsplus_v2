@@ -5,7 +5,6 @@ import { z } from 'zod'
 import { blockedFlag, type WithBlocked } from '@/app/app/quiz/actions/_blocked-start'
 import { verifySessionUser } from '@/lib/auth/verify-session-user'
 import { matchRpcError } from '@/lib/rpc-error-match'
-import { rpc } from '@/lib/supabase-rpc'
 import { START_VFR_RT_EXAM_ERROR_MESSAGES } from './_error-messages'
 
 const StartVfrRtExamInput = z.object({
@@ -55,7 +54,7 @@ export async function startVfrRtExam(raw: unknown): Promise<StartVfrRtExamResult
       return { success: false, error: 'Invalid input' }
     }
 
-    const { data, error } = await rpc<StartRpcResult>(supabase, 'start_vfr_rt_exam_session', {
+    const { data, error } = await supabase.rpc('start_vfr_rt_exam_session', {
       p_subject_id: parsed.data.subjectId,
     })
 

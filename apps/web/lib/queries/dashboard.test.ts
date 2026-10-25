@@ -15,11 +15,8 @@ vi.mock('@/lib/auth/get-session-user', () => ({
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({
     from: mockFrom,
+    rpc: mockRpc,
   }),
-}))
-
-vi.mock('@/lib/supabase-rpc', () => ({
-  rpc: (...args: unknown[]) => mockRpc(...args),
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -65,7 +62,7 @@ function setRpc(opts: {
   streak?: { current_streak: number | string; best_streak: number | string }[]
   lastPracticed?: { subject_id: string; last_practiced_at: string }[]
 }) {
-  mockRpc.mockImplementation((_supabase: unknown, fn: string): Promise<RpcResult> => {
+  mockRpc.mockImplementation((fn: string): Promise<RpcResult> => {
     if (fn === 'get_student_mastery_stats') {
       return Promise.resolve({ data: opts.mastery ?? [], error: null })
     }
@@ -388,7 +385,7 @@ describe('getDashboardData', () => {
     // totalQuestions: 0, answeredCorrectly: 0, which fails the survival filter.
     mockGetSessionUser.mockResolvedValue({ id: 'u1' })
 
-    mockRpc.mockImplementation((_supabase: unknown, fn: string): Promise<RpcResult> => {
+    mockRpc.mockImplementation((fn: string): Promise<RpcResult> => {
       if (fn === 'get_student_mastery_stats') {
         return Promise.resolve({ data: null, error: null })
       }
@@ -439,7 +436,7 @@ describe('getDashboardData', () => {
   it('throws when the mastery stats RPC returns an error', async () => {
     mockGetSessionUser.mockResolvedValue({ id: 'u1' })
 
-    mockRpc.mockImplementation((_supabase: unknown, fn: string): Promise<RpcResult> => {
+    mockRpc.mockImplementation((fn: string): Promise<RpcResult> => {
       if (fn === 'get_student_mastery_stats') {
         return Promise.resolve({ data: null, error: { message: 'boom' } })
       }
@@ -461,7 +458,7 @@ describe('getDashboardData', () => {
   it('throws when the streak RPC returns an error', async () => {
     mockGetSessionUser.mockResolvedValue({ id: 'u1' })
 
-    mockRpc.mockImplementation((_supabase: unknown, fn: string): Promise<RpcResult> => {
+    mockRpc.mockImplementation((fn: string): Promise<RpcResult> => {
       if (fn === 'get_student_streak') {
         return Promise.resolve({ data: null, error: { message: 'streak down' } })
       }
@@ -480,7 +477,7 @@ describe('getDashboardData', () => {
   it('throws when the last-practiced RPC returns an error', async () => {
     mockGetSessionUser.mockResolvedValue({ id: 'u1' })
 
-    mockRpc.mockImplementation((_supabase: unknown, fn: string): Promise<RpcResult> => {
+    mockRpc.mockImplementation((fn: string): Promise<RpcResult> => {
       if (fn === 'get_student_mastery_stats') {
         return Promise.resolve({
           data: [{ subject_id: 's1', topic_id: null, total: 1, correct: 1 }],

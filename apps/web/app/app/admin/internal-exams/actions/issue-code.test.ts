@@ -8,7 +8,6 @@ const mockRpc = vi.hoisted(() => vi.fn())
 
 vi.mock('next/cache', () => ({ revalidatePath: mockRevalidatePath }))
 vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: mockRequireAdmin }))
-vi.mock('@/lib/supabase-rpc', () => ({ rpc: mockRpc }))
 
 // ---- Subject under test ---------------------------------------------------
 
@@ -19,7 +18,7 @@ import { issueInternalExamCode } from './issue-code'
 const STUDENT_ID = '00000000-0000-4000-a000-000000000001'
 const SUBJECT_ID = '00000000-0000-4000-a000-000000000002'
 const CODE_ID = '00000000-0000-4000-a000-000000000099'
-const SUPABASE = { __marker: 'supabase' }
+const SUPABASE = { __marker: 'supabase', rpc: mockRpc }
 
 function mockAdmin() {
   mockRequireAdmin.mockResolvedValue({
@@ -68,7 +67,7 @@ describe('issueInternalExamCode', () => {
 
       await issueInternalExamCode(VALID_INPUT)
 
-      expect(mockRpc).toHaveBeenCalledWith(SUPABASE, 'issue_internal_exam_code', {
+      expect(mockRpc).toHaveBeenCalledWith('issue_internal_exam_code', {
         p_subject_id: SUBJECT_ID,
         p_student_id: STUDENT_ID,
       })

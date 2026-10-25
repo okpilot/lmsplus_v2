@@ -5,7 +5,6 @@ import { z } from 'zod'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { sendEmail } from '@/lib/email/resend'
 import { internalExamCodeEmail } from '@/lib/email/templates/internal-exam-code'
-import { rpc } from '@/lib/supabase-rpc'
 import { getInternalExamCodeForEmail } from '../email-queries'
 
 const SendCodeEmailSchema = z.object({ codeId: z.uuid() })
@@ -61,7 +60,7 @@ export async function sendInternalExamCodeEmail(input: unknown): Promise<SendCod
 
   // Best-effort audit via the admin's user-context client (auth.uid() = admin),
   // not adminClient. The email is already sent, so a failed audit is logged, not surfaced.
-  const { error: auditErr } = await rpc(supabase, 'record_internal_exam_code_emailed', {
+  const { error: auditErr } = await supabase.rpc('record_internal_exam_code_emailed', {
     p_code_id: parsed.data.codeId,
   })
   if (auditErr) {

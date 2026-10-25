@@ -4,7 +4,6 @@
  */
 
 import type { createServerSupabaseClient } from '@repo/db/server'
-import { rpc } from '@/lib/supabase-rpc'
 
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
@@ -28,10 +27,10 @@ export async function getStreakData(
   // Streak is computed in Postgres (get_student_streak, gaps-and-islands over DISTINCT UTC
   // response dates). The prior client-side computeStreaks ran over a .limit(10000) read that
   // PostgREST truncated at the 1000-row cap, undercounting streaks for high-volume students (#668).
-  const { data, error } = await rpc<StreakRow[]>(supabase, 'get_student_streak', {})
+  const { data, error } = await supabase.rpc('get_student_streak')
   if (error) throw new Error(`Failed to fetch streak: ${error.message}`)
-  // rpc() casts the payload without validating shape — guard the array per code-style §5.
-  const rows = Array.isArray(data) ? data : []
+  // Wire shape is not validated by the client — guard the array per code-style §5.
+  const rows: StreakRow[] = Array.isArray(data) ? data : []
   const row = rows[0] ?? { current_streak: 0, best_streak: 0 }
   return {
     currentStreak: Number(row.current_streak),
@@ -45,12 +44,13 @@ export async function fetchLastPracticed(supabase: SupabaseClient): Promise<Map<
   // Last-practiced is computed in Postgres (get_student_last_practiced, MAX(created_at) per
   // subject over ALL responses). The prior client-side map ran over a .limit(5000) read that
   // PostgREST truncated at the 1000-row cap, falsely NULLing subjects answered "late" (#668).
-  const { data, error } = await rpc<LastPracticedRow[]>(supabase, 'get_student_last_practiced', {})
+  const { data, error } = await supabase.rpc('get_student_last_practiced')
   if (error) throw new Error(`Failed to fetch last-practiced: ${error.message}`)
 
-  // rpc() casts the payload without validating shape — guard the array per code-style §5.
+  // Wire shape is not validated by the client — guard the array per code-style §5.
   const latestPerSubject = new Map<string, string>()
-  for (const row of Array.isArray(data) ? data : []) {
+  const rows: LastPracticedRow[] = Array.isArray(data) ? data : []
+  for (const row of rows) {
     if (row.subject_id && row.last_practiced_at) {
       latestPerSubject.set(row.subject_id, row.last_practiced_at)
     }

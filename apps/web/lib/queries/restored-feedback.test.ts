@@ -6,7 +6,6 @@ const { mockRpc, mockClient } = vi.hoisted(() => ({
 }))
 
 vi.mock('@repo/db/server', () => ({ createServerSupabaseClient: () => mockClient() }))
-vi.mock('@/lib/supabase-rpc', () => ({ rpc: (...a: unknown[]) => mockRpc(...a) }))
 
 import { getRestoredFeedback, getRestoredFeedbackBounded } from './restored-feedback'
 
@@ -31,7 +30,7 @@ const SHORT = {
 
 beforeEach(() => {
   vi.resetAllMocks()
-  mockClient.mockResolvedValue({})
+  mockClient.mockResolvedValue({ rpc: mockRpc })
   vi.spyOn(console, 'error').mockImplementation(() => undefined)
 })
 
@@ -41,7 +40,7 @@ describe('getRestoredFeedback', () => {
 
     const result = await getRestoredFeedback(SESSION)
 
-    expect(mockRpc).toHaveBeenCalledWith({}, 'get_restored_feedback', { p_session_id: SESSION })
+    expect(mockRpc).toHaveBeenCalledWith('get_restored_feedback', { p_session_id: SESSION })
     expect(result).toEqual({
       q1: {
         questionType: 'multiple_choice',

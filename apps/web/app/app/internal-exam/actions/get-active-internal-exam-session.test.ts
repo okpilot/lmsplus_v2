@@ -2,11 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockVerifySessionUser, mockRpc, mockClient } = vi.hoisted(() => ({
-  mockVerifySessionUser: vi.fn(),
-  mockRpc: vi.fn(),
-  mockClient: { from: vi.fn() },
-}))
+const { mockVerifySessionUser, mockRpc, mockClient } = vi.hoisted(() => {
+  const mockRpc = vi.fn()
+  return { mockVerifySessionUser: vi.fn(), mockRpc, mockClient: { from: vi.fn(), rpc: mockRpc } }
+})
 const mockFrom = mockClient.from
 
 vi.mock('@repo/db/server', () => ({
@@ -14,10 +13,6 @@ vi.mock('@repo/db/server', () => ({
 }))
 
 vi.mock('@/lib/auth/verify-session-user', () => ({ verifySessionUser: mockVerifySessionUser }))
-
-vi.mock('@/lib/supabase-rpc', () => ({
-  rpc: mockRpc,
-}))
 
 // ---- Subject under test ---------------------------------------------------
 
@@ -347,7 +342,7 @@ describe('getActiveInternalExamSession — expired sessions (Layer 1)', () => {
       expect(result.expiredSessionIds).toEqual(['expired-1'])
       expect(result.orphanedSessionIds).toEqual([])
     }
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'complete_overdue_exam_session', {
+    expect(mockRpc).toHaveBeenCalledWith('complete_overdue_exam_session', {
       p_session_id: 'expired-1',
     })
   })

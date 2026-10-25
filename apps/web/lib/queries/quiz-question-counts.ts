@@ -1,6 +1,5 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { cache } from 'react'
-import { rpc } from '@/lib/supabase-rpc'
 
 export type QuestionCountRow = {
   subject_id: string
@@ -11,7 +10,7 @@ export type QuestionCountRow = {
 }
 
 /**
- * Per-row guard required by code-style.md §5 — the `rpc<QuestionCountRow[]>` cast is a TypeScript
+ * Per-row guard required by code-style.md §5 — the client's generated types are a TypeScript
  * assertion only, not a runtime guarantee. The caller drops malformed rows and keeps the rest,
  * matching the sibling per-row guards in `study-queries.ts` and
  * `app/app/quiz/actions/lookup.ts` (path qualified — that one is not in this directory).
@@ -48,7 +47,7 @@ function isQuestionCountRow(value: unknown): value is QuestionCountRow {
 export async function fetchActiveQuestionCounts(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
 ): Promise<QuestionCountRow[]> {
-  const { data, error } = await rpc<QuestionCountRow[]>(supabase, 'get_question_counts', {
+  const { data, error } = await supabase.rpc('get_question_counts', {
     p_status: 'active',
   })
   if (error) {

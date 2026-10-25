@@ -258,7 +258,7 @@ describe('recordConsent', () => {
 
       expect(mockRpc).toHaveBeenCalledWith(
         'record_consent',
-        expect.objectContaining({ p_ip_address: null, p_user_agent: null }),
+        expect.objectContaining({ p_ip_address: undefined, p_user_agent: undefined }),
       )
     })
   })

@@ -1,6 +1,5 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { getSessionUser } from '@/lib/auth/get-session-user'
-import { rpc } from '@/lib/supabase-rpc'
 
 function boundParam(value: number, min: number, max: number): number {
   const n = Number.isFinite(value) ? value : min
@@ -37,15 +36,15 @@ export async function getDailyActivity(days = 30): Promise<DailyActivity[]> {
   if (!user) throw new Error('Not authenticated')
 
   const safeDays = boundParam(days, 1, 365)
-  const { data, error } = await rpc<DailyActivityRow[]>(supabase, 'get_daily_activity', {
+  const { data, error } = await supabase.rpc('get_daily_activity', {
     p_student_id: user.id,
     p_days: safeDays,
   })
 
   if (error) throw new Error(`Failed to fetch daily activity: ${error.message}`)
 
-  // rpc() casts the payload without validating shape — guard the array per code-style §5.
-  return (Array.isArray(data) ? data : []).map((row) => ({
+  // Wire shape is not validated by the client — guard the array per code-style §5.
+  return (Array.isArray(data) ? data : []).map((row: DailyActivityRow) => ({
     day: row.day,
     total: Number(row.total),
     correct: Number(row.correct),
@@ -59,15 +58,15 @@ export async function getSubjectScores(limit = 5): Promise<SubjectScore[]> {
   if (!user) throw new Error('Not authenticated')
 
   const safeLimit = boundParam(limit, 1, 100)
-  const { data, error } = await rpc<SubjectScoreRow[]>(supabase, 'get_subject_scores', {
+  const { data, error } = await supabase.rpc('get_subject_scores', {
     p_student_id: user.id,
     p_limit: safeLimit,
   })
 
   if (error) throw new Error(`Failed to fetch subject scores: ${error.message}`)
 
-  // rpc() casts the payload without validating shape — guard the array per code-style §5.
-  return (Array.isArray(data) ? data : []).map((row) => ({
+  // Wire shape is not validated by the client — guard the array per code-style §5.
+  return (Array.isArray(data) ? data : []).map((row: SubjectScoreRow) => ({
     subjectId: row.subject_id,
     subjectName: row.subject_name,
     subjectShort: row.subject_short,

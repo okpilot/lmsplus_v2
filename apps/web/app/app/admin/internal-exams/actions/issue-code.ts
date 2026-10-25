@@ -4,7 +4,6 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { matchRpcError } from '@/lib/rpc-error-match'
-import { rpc } from '@/lib/supabase-rpc'
 
 const IssueCodeSchema = z.object({
   studentId: z.uuid(),
@@ -48,7 +47,7 @@ export async function issueInternalExamCode(input: unknown): Promise<IssueCodeRe
   const { supabase } = await requireAdmin()
   const { studentId, subjectId } = parsed.data
 
-  const { data, error } = await rpc<unknown>(supabase, 'issue_internal_exam_code', {
+  const { data, error } = await supabase.rpc('issue_internal_exam_code', {
     p_subject_id: subjectId,
     p_student_id: studentId,
   })

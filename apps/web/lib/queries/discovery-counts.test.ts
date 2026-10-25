@@ -120,7 +120,7 @@ describe('getDiscoveryCounts', () => {
     await getDiscoveryCounts()
 
     expect(client.rpc).toHaveBeenCalledTimes(1)
-    expect(client.rpc).toHaveBeenCalledWith('get_discovery_counts', {})
+    expect(client.rpc).toHaveBeenCalledWith('get_discovery_counts', undefined)
     expect(client.rangeCalls).toEqual([])
     expect(client.orderCalls).toEqual([])
   })
