@@ -26,6 +26,21 @@ const Q1 = '00000000-0000-4000-a000-000000000001'
 const Q2 = '00000000-0000-4000-a000-000000000002'
 const Q3 = '00000000-0000-4000-a000-000000000003'
 const QID = Q1
+const KNOWN_TYPES = ['multiple_choice', 'short_answer', 'dialog_fill', 'ordering', 'diagram_label']
+const FAILURE = { success: false, error: 'Failed to load questions. Please try again.' }
+
+const row = (id: string, question_type: string) => ({
+  id,
+  question_text: `Q ${id}`,
+  question_image_url: null,
+  question_number: null,
+  options: null,
+  question_type,
+  dialog_template: null,
+  blanks_safe: null,
+  ordering_items_shuffled: null,
+  diagram_config_public: null,
+})
 
 // ---- Tests ----------------------------------------------------------------
 
@@ -467,5 +482,29 @@ describe('loadSessionQuestions — input validation', () => {
     )
     await loadSessionQuestions(ids)
     expect(mockRpc).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('loadSessionQuestions question_type fail-closed', () => {
+  beforeEach(() => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+  })
+
+  it('returns the load-failure result and logs when any row has an unknown question_type', async () => {
+    mockRpc.mockResolvedValue({
+      data: [row(Q1, 'multiple_choice'), row(Q2, 'essay')],
+      error: null,
+    })
+    const result = await loadSessionQuestions([Q1, Q2])
+    expect(result).toEqual(FAILURE)
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('Unknown question_type'), Q2)
+  })
+
+  it.each(KNOWN_TYPES)('passes a %s row through unchanged', async (type) => {
+    mockRpc.mockResolvedValue({ data: [row(Q1, type)], error: null })
+    const result = await loadSessionQuestions([Q1])
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.questions[0]?.question_type).toBe(type)
   })
 })

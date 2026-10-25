@@ -19,6 +19,10 @@ vi.mock('@repo/db/server', () => ({
 import { loadVfrRtExamQuestions } from './load-vfr-rt-exam-questions'
 
 const SESSION_ID = '11111111-1111-4111-8111-111111111111'
+const Q1 = '00000000-0000-4000-a000-000000000001'
+const Q2 = '00000000-0000-4000-a000-000000000002'
+const KNOWN_TYPES = ['multiple_choice', 'short_answer', 'dialog_fill', 'ordering', 'diagram_label']
+const FAILURE = { success: false, error: 'Failed to load questions. Please try again.' }
 
 const row = (id: string, extra: Record<string, unknown> = {}) => ({
   id,
@@ -115,5 +119,25 @@ describe('loadVfrRtExamQuestions', () => {
     expect(dia?.diagram_config?.image_ref).toBe('rwy')
     expect(ord?.explanation_text).toBeNull()
     expect(ord?.explanation_image_url).toBeNull()
+  })
+})
+
+describe('loadVfrRtExamQuestions question_type fail-closed', () => {
+  it('returns the load-failure result and logs when any row has an unknown question_type', async () => {
+    mockRpc.mockResolvedValue({
+      data: [row(Q1, { question_type: 'short_answer' }), row(Q2, { question_type: 'essay' })],
+      error: null,
+    })
+    const result = await loadVfrRtExamQuestions({ sessionId: SESSION_ID })
+    expect(result).toEqual(FAILURE)
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('Unknown question_type'), Q2)
+  })
+
+  it.each(KNOWN_TYPES)('passes a %s row through unchanged', async (type) => {
+    mockRpc.mockResolvedValue({ data: [row(Q1, { question_type: type })], error: null })
+    const result = await loadVfrRtExamQuestions({ sessionId: SESSION_ID })
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.questions[0]?.question_type).toBe(type)
   })
 })

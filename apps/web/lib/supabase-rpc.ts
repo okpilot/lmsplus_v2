@@ -15,7 +15,7 @@ type RpcFn = (
 ) => { then: (fn: (v: { data: unknown; error: { message: string } | null }) => void) => void }
 
 /**
- * Untyped call path. Remaining callers: `app/app/quiz/actions/**`, `app/auth/login-complete/route.ts`.
+ * Untyped call path. Callers: `git grep -n "import { rpc } from '@/lib/supabase-rpc'" -- apps/web`.
  */
 export async function rpc<TResult>(
   supabase: SupabaseClient,

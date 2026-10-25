@@ -279,7 +279,7 @@ describe('getDashboardStudents', () => {
 
   // -- params forwarded to the RPC (sort/filter/paginate now run in SQL) --
 
-  it('requests p_status null when no status filter is set', async () => {
+  it('passes no status filter when none is selected', async () => {
     mockStudentsRpc([])
 
     await getDashboardStudents({ ...BASE_FILTERS, status: undefined })

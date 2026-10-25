@@ -247,7 +247,7 @@ describe('recordConsent', () => {
       )
     })
 
-    it('passes null IP and user-agent when headers are absent', async () => {
+    it('passes undefined IP and user-agent when headers are absent', async () => {
       mockAuthenticatedUser()
       mockRpcSuccess()
 
