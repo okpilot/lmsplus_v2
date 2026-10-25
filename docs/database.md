@@ -327,7 +327,8 @@ CREATE TABLE lessons (
 
 ### quiz_sessions
 
-RESTRICTIVE SELECT policy `quiz_sessions_select_active_caller` (`TO authenticated USING ((select private.is_active_user()))`, migration `20261025000100`, #1607): a deactivated caller reads no rows. ANDs with every permissive SELECT policy below.
+RESTRICTIVE SELECT policy `quiz_sessions_select_active_caller` (`TO authenticated USING ((select private.is_active_user()))`, migration `20261025000100`, #1607): a deactivated caller reads no rows. ANDs with the table's permissive SELECT policies.
+
 `config.question_ids` is read by `getActiveExamSession` (RLS-scoped Server Action, no SECURITY DEFINER)
 to populate the handoff payload for cold-start exam resume. See Decision 36 in `docs/decisions.md`.
 
@@ -431,7 +432,8 @@ CREATE TABLE exam_config_distributions (
 
 ### quiz_session_answers
 
-RESTRICTIVE SELECT policy `quiz_session_answers_select_active_caller` (`TO authenticated USING ((select private.is_active_user()))`, migration `20261025000100`, #1607): a deactivated caller reads no rows. ANDs with every permissive SELECT policy below.
+RESTRICTIVE SELECT policy `quiz_session_answers_select_active_caller` (`TO authenticated USING ((select private.is_active_user()))`, migration `20261025000100`, #1607): a deactivated caller reads no rows. ANDs with the table's permissive SELECT policies.
+
 ```sql
 -- Immutable. No UPDATE, no DELETE, no soft delete.
 CREATE TABLE quiz_session_answers (
@@ -460,7 +462,8 @@ CREATE TABLE quiz_session_answers (
 
 ### quiz_session_progress
 
-RESTRICTIVE SELECT policy `quiz_session_progress_select_active_caller` (`TO authenticated USING ((select private.is_active_user()))`, migration `20261025000100`, #1607): a deactivated caller reads no rows. ANDs with every permissive SELECT policy below.
+RESTRICTIVE SELECT policy `quiz_session_progress_select_active_caller` (`TO authenticated USING ((select private.is_active_user()))`, migration `20261025000100`, #1607): a deactivated caller reads no rows. ANDs with the table's permissive SELECT policies.
+
 ```sql
 -- One row per (session, question). Holds the student's own answer only — no correctness, no answer key.
 CREATE TABLE quiz_session_progress (
@@ -481,7 +484,8 @@ CREATE INDEX idx_quiz_session_progress_student ON quiz_session_progress(student_
 
 ### student_responses
 
-RESTRICTIVE SELECT policy `student_responses_select_active_caller` (`TO authenticated USING ((select private.is_active_user()))`, migration `20261025000100`, #1607): a deactivated caller reads no rows. ANDs with every permissive SELECT policy below.
+RESTRICTIVE SELECT policy `student_responses_select_active_caller` (`TO authenticated USING ((select private.is_active_user()))`, migration `20261025000100`, #1607): a deactivated caller reads no rows. ANDs with the table's permissive SELECT policies.
+
 ```sql
 -- Immutable. Every answer ever given, across all contexts.
 CREATE TABLE student_responses (
@@ -511,7 +515,8 @@ CREATE TABLE student_responses (
 
 ### fsrs_cards
 
-RESTRICTIVE SELECT policy `fsrs_cards_select_active_caller` (`TO authenticated USING ((select private.is_active_user()))`, migration `20261025000100`, #1607): a deactivated caller reads no rows. ANDs with every permissive SELECT policy below.
+RESTRICTIVE SELECT policy `fsrs_cards_select_active_caller` (`TO authenticated USING ((select private.is_active_user()))`, migration `20261025000100`, #1607): a deactivated caller reads no rows. ANDs with the table's permissive SELECT policies.
+
 ```sql
 CREATE TABLE fsrs_cards (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -538,7 +543,8 @@ CREATE TABLE fsrs_cards (
 
 ### audit_events
 
-RESTRICTIVE SELECT policy `audit_events_select_active_caller` (`TO authenticated USING ((select private.is_active_user()))`, migration `20261025000100`, #1607): a deactivated caller reads no rows. ANDs with every permissive SELECT policy below.
+RESTRICTIVE SELECT policy `audit_events_select_active_caller` (`TO authenticated USING ((select private.is_active_user()))`, migration `20261025000100`, #1607): a deactivated caller reads no rows. ANDs with the table's permissive SELECT policies.
+
 ```sql
 -- Immutable append-only compliance log.
 CREATE TABLE audit_events (
@@ -557,7 +563,8 @@ CREATE TABLE audit_events (
 
 ### quiz_drafts
 
-RESTRICTIVE SELECT policy `quiz_drafts_select_active_caller` (`TO authenticated USING ((select private.is_active_user()))`, migration `20261025000100`, #1607): a deactivated caller reads no rows. ANDs with every permissive SELECT policy below.
+RESTRICTIVE SELECT policy `quiz_drafts_select_active_caller` (`TO authenticated USING ((select private.is_active_user()))`, migration `20261025000100`, #1607): a deactivated caller reads no rows. ANDs with the table's permissive SELECT policies.
+
 ```sql
 -- Temporary storage for interrupted practice sessions (quick_quiz, smart_review). Up to 20 per student.
 -- APPROVED EXCEPTION: uses real DELETE (not soft delete) — drafts are disposable temp storage.
@@ -581,7 +588,8 @@ CREATE TABLE quiz_drafts (
 
 ### flagged_questions
 
-RESTRICTIVE SELECT policy `flagged_questions_select_active_caller` (`TO authenticated USING ((select private.is_active_user()))`, migration `20261025000100`, #1607): a deactivated caller reads no rows. ANDs with every permissive SELECT policy below.
+RESTRICTIVE SELECT policy `flagged_questions_select_active_caller` (`TO authenticated USING ((select private.is_active_user()))`, migration `20261025000100`, #1607): a deactivated caller reads no rows. ANDs with the table's permissive SELECT policies.
+
 ```sql
 -- Per-student persistent question flags for later review filtering.
 -- Students flag questions during quiz sessions; flags persist across sessions.
@@ -653,7 +661,7 @@ Per-question discussion threads. Students and admins can post comments on any qu
 
 ### user_consents
 
-RESTRICTIVE SELECT policy `user_consents_select_active_caller` (`TO authenticated USING ((select private.is_active_user()))`, migration `20261025000100`, #1607): a deactivated caller reads no rows. ANDs with every permissive SELECT policy below.
+RESTRICTIVE SELECT policy `user_consents_select_active_caller` (`TO authenticated USING ((select private.is_active_user()))`, migration `20261025000100`, #1607): a deactivated caller reads no rows. ANDs with the table's permissive SELECT policies.
 
 Immutable append-only GDPR consent audit log. Tracks user acceptance of Terms of Service and Privacy Policy documents across versions. Accessed via two SECURITY DEFINER RPCs: `record_consent()` and `check_consent_status()`.
 
