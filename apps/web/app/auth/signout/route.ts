@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
+import { getCallerProfile } from '@/lib/auth/get-caller-profile'
 import { verifySessionUser } from '@/lib/auth/verify-session-user'
 
 function redirectTo(request: NextRequest, path: string, error?: string) {
@@ -17,12 +18,7 @@ export async function GET(request: NextRequest) {
   const sessionUser = await verifySessionUser(supabase)
   if (!sessionUser) return redirectTo(request, '/')
 
-  const { data: profile, error } = await supabase
-    .from('users')
-    .select('id')
-    .eq('id', sessionUser.id)
-    .is('deleted_at', null)
-    .maybeSingle()
+  const { data: profile, error } = await getCallerProfile(sessionUser.id)
 
   if (error) {
     console.error('[auth/signout] profile lookup failed:', error.message)
@@ -30,6 +26,7 @@ export async function GET(request: NextRequest) {
   }
   if (profile) return redirectTo(request, '/app/dashboard')
 
-  await supabase.auth.signOut({ scope: 'local' })
+  const { error: signOutError } = await supabase.auth.signOut({ scope: 'local' })
+  if (signOutError) console.error('[auth/signout] signOut failed:', signOutError.message)
   return redirectTo(request, '/', 'account_inactive')
 }

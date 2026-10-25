@@ -20,6 +20,7 @@ vi.mock('./_components/app-shell', () => ({
   ),
 }))
 
+vi.mock('./_components/active-user-gate', () => ({ ActiveUserGate: () => null }))
 vi.mock('./_components/user-context', () => ({
   UserProvider: ({ user, children }: { user: unknown; children: React.ReactNode }) => (
     <div data-testid="user-provider" data-user-is-promise={String(user instanceof Promise)}>
