@@ -442,6 +442,25 @@
       "replace": "const GATED_ROLES = new Set(['gate-round', 'conditional'])",
       "expectRed": ["blocks a tests-first agent that has no template, by role"],
       "note": "A tests-first agent with no template is no longer gated by its role."
+    },
+    {
+      "id": "guard-agent-brief-plan-containment-disabled",
+      "find": "return real.startsWith(workDir + path.sep) && fs.statSync(real).isFile()",
+      "replace": "return fs.statSync(real).isFile()",
+      "expectRed": [
+        "blocks a test-author brief whose plan is a symlink out of .work/ with reason plan",
+        "blocks a test-author brief whose plan runs through a symlinked directory out of .work/ with reason plan"
+      ],
+      "note": "A {plan} that resolves outside .work/ through a symlink passes when it is a regular file."
+    },
+    {
+      "id": "guard-agent-brief-plan-isfile-disabled",
+      "find": "return real.startsWith(workDir + path.sep) && fs.statSync(real).isFile()",
+      "replace": "return real.startsWith(workDir + path.sep)",
+      "expectRed": [
+        "blocks a test-author brief whose plan is a directory named *.md with reason plan"
+      ],
+      "note": "A directory named *.md inside .work/ passes as a plan."
     }
   ]
 }

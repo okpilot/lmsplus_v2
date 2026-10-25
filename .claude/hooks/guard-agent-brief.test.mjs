@@ -284,7 +284,7 @@ test('blocks a test-author brief whose plan file does not exist with reason plan
   }
 })
 
-// GROUP: guard-agent-brief-plan-exists-check-disabled
+// GROUP: guard-agent-brief-plan-exists-check-disabled, guard-agent-brief-plan-isfile-disabled
 test('blocks a test-author brief whose plan is a directory named *.md with reason plan', () => {
   hasTemplate()
   const root = makePlanRoot()
@@ -296,7 +296,7 @@ test('blocks a test-author brief whose plan is a directory named *.md with reaso
   }
 })
 
-// GROUP: guard-agent-brief-plan-exists-check-disabled
+// GROUP: guard-agent-brief-plan-exists-check-disabled, guard-agent-brief-plan-containment-disabled
 test('blocks a test-author brief whose plan is a symlink out of .work/ with reason plan', () => {
   hasTemplate()
   const root = makePlanRoot()
@@ -311,7 +311,7 @@ test('blocks a test-author brief whose plan is a symlink out of .work/ with reas
   }
 })
 
-// GROUP: guard-agent-brief-plan-exists-check-disabled
+// GROUP: guard-agent-brief-plan-exists-check-disabled, guard-agent-brief-plan-containment-disabled
 test('blocks a test-author brief whose plan runs through a symlinked directory out of .work/ with reason plan', () => {
   hasTemplate()
   const root = makePlanRoot()

@@ -63,7 +63,7 @@ Run plan-critic (sonnet) via the Agent tool after validation, before presenting 
 - Include test updates in the plan, not as an afterthought.
 - Use Explore agents for impact analysis — don't guess who calls a function.
 - Block execution if a validation step reveals a conflict. Revise the plan first.
-- Dispatch test-author after approval and before Execute (`agent-test-author.md`). The tests land in the execute commit(s).
+- Dispatch test-author after approval and before Execute (`agent-test-author.md`). Commit the tests before Execute dispatches.
 - A wrong test: re-dispatch test-author with its template; a changed acceptance criterion is re-approved first.
 ### NEVER
 - Skip validation because the change "seems simple."
