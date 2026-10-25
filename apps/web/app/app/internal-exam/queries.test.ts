@@ -2,12 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-// queries.ts calls `rpc()` from `@/lib/supabase-rpc`, which forwards to
-// `client.rpc(fn, args)` positionally. We mock `rpc` on the injected client so
-// the helper's pass-through delivers the mocked result. If the helper is ever
-// refactored to NOT call `client.rpc`, this indirection breaks silently —
-// update the mock boundary here (e.g. `vi.mock('@/lib/supabase-rpc', ...)`)
-// when that happens.
+// queries.ts calls `supabase.rpc(fn, args)` on the injected client. We mock `rpc` on
+// that client so the mocked result is delivered directly.
 const { mockGetSessionUser, mockRpc } = vi.hoisted(() => ({
   mockGetSessionUser: vi.fn(),
   mockRpc: vi.fn(),

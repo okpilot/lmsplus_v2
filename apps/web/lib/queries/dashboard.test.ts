@@ -40,7 +40,7 @@ function buildChain(returnValue: unknown) {
 }
 
 /**
- * getDashboardData reads three data sources via the rpc() wrapper (mocked through mockRpc)
+ * getDashboardData reads three data sources via `supabase.rpc()` (mocked through mockRpc)
  * and two via .from():
  *   .from('easa_subjects')     -> subject list (getSubjectProgress)
  *   .from('student_responses') -> count head only (getQuestionsToday)
@@ -48,7 +48,7 @@ function buildChain(returnValue: unknown) {
  *   rpc 'get_student_streak'          -> current/best streak
  *   rpc 'get_student_last_practiced'  -> subject_id -> last_practiced_at
  *
- * rpc() is called as rpc(supabase, fn, args), so mockRpc receives (supabase, fn, args).
+ * mockRpc receives the RPC name and args.
  * setRpc dispatches on the function name so each RPC can be driven independently.
  * Since buildChain returns the same value for all chain calls on a table, the
  * 'student_responses' mock only needs its `count` field.

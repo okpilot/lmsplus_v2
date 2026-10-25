@@ -1,9 +1,6 @@
-export type QuestionType =
-  | 'multiple_choice'
-  | 'short_answer'
-  | 'dialog_fill'
-  | 'ordering'
-  | 'diagram_label'
+import type { QUESTION_TYPES } from '@/lib/queries/load-session-question-row'
+
+export type QuestionType = (typeof QUESTION_TYPES)[number]
 
 type DiagramZone = { id: string; x: number; y: number; w: number; h: number }
 type DiagramLabelChip = { id: string; text: string }

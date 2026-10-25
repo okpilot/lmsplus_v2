@@ -53,7 +53,7 @@ describe('getDailyActivity', () => {
   })
 
   it('returns an empty array when RPC data is not an array', async () => {
-    // rpc() casts without validating shape; the §5 guard must not throw on a non-array payload.
+    // supabase.rpc() mock returns an unvalidated shape; the §5 guard must not throw on a non-array payload.
     mockRpc.mockResolvedValue({ data: { unexpected: true }, error: null })
     const result = await getDailyActivity()
     expect(result).toEqual([])
@@ -202,7 +202,7 @@ describe('getSubjectScores', () => {
   })
 
   it('returns an empty array when RPC data is not an array', async () => {
-    // rpc() casts without validating shape; the §5 guard must not throw on a non-array payload.
+    // supabase.rpc() mock returns an unvalidated shape; the §5 guard must not throw on a non-array payload.
     mockRpc.mockResolvedValue({ data: { unexpected: true }, error: null })
     const result = await getSubjectScores()
     expect(result).toEqual([])

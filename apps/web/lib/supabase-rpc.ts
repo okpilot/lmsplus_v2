@@ -15,7 +15,7 @@ type RpcFn = (
 ) => { then: (fn: (v: { data: unknown; error: { message: string } | null }) => void) => void }
 
 /**
- * Untyped call path for `app/app/quiz/actions/**` until #1609 PR (b2).
+ * Untyped call path. Remaining callers: `app/app/quiz/actions/**`, `app/auth/login-complete/route.ts`.
  */
 export async function rpc<TResult>(
   supabase: SupabaseClient,
@@ -57,8 +57,7 @@ async function fetchExactCount<F extends SetofFn>(
  *
  * Unlike every other `fetchAllRows` caller, this tries ONE unpaged call first instead of
  * always counting-then-paging: the overwhelmingly common case is well under the cap, and
- * a single call keeps the first request's `(fn, args)` shape identical to the pre-paging
- * call site (existing tests assert on it directly). Only when that call returns EXACTLY
+ * a single call keeps the common path one request. Only when that call returns EXACTLY
  * `POSTGREST_MAX_ROWS` rows — indistinguishable from a truncated result — do we fall back to
  * counting + paging via `fetchAllRows`.
  *

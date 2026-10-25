@@ -28,6 +28,7 @@ export type InternalExamHistoryEntry = {
 
 export type InternalExamQueryResult<T> = { success: boolean; data: T[] }
 
+// Generated RETURNS TABLE types mark every column non-null; NULL still arrives at runtime.
 function asString(v: unknown): string {
   return typeof v === 'string' ? v : ''
 }
