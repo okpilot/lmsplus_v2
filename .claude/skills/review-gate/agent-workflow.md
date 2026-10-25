@@ -63,8 +63,8 @@ Run plan-critic (sonnet) via the Agent tool after validation, before presenting 
 - Include test updates in the plan, not as an afterthought.
 - Use Explore agents for impact analysis — don't guess who calls a function.
 - Block execution if a validation step reveals a conflict. Revise the plan first.
-- Dispatch test-author after approval and before Execute (`agent-test-author.md`). Commit the tests before Execute dispatches.
-- A wrong test: re-dispatch test-author with its template; a changed acceptance criterion is re-approved first.
+- Dispatch test-author after approval and before Execute (`agent-test-author.md`). Commit them before a worktree-isolated implementer is dispatched.
+- A wrong test: sharpen its acceptance criterion in the plan, re-approve the plan, re-dispatch test-author with its template.
 ### NEVER
 - Skip validation because the change "seems simple."
 - Skip the interview silently — state "No ambiguities identified" or present questions.
