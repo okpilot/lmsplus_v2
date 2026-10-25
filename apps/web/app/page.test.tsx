@@ -54,7 +54,7 @@ describe('LoginPage', () => {
     )
   })
 
-  it('maps account_inactive to the deactivated-account message', async () => {
+  it('shows the deactivated-account message on the login page', async () => {
     await renderPage({ error: 'account_inactive' })
     expect(screen.getByTestId('login-form').dataset.initialError).toBe(
       'Your account has been deactivated. Please contact your flight school administrator.',

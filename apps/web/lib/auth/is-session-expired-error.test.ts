@@ -7,7 +7,12 @@ describe('isSessionExpiredAuthError', () => {
     expect(isSessionExpiredAuthError(new AuthSessionMissingError())).toBe(true)
   })
 
-  it.each(['session_not_found', 'session_expired'])('is true for AuthApiError code %s', (code) => {
+  it.each([
+    'session_not_found',
+    'session_expired',
+    'refresh_token_not_found',
+    'refresh_token_already_used',
+  ])('is true for AuthApiError code %s', (code) => {
     expect(isSessionExpiredAuthError(new AuthApiError('gone', 403, code))).toBe(true)
   })
 
