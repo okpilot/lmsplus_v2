@@ -2,10 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockRpc } = vi.hoisted(() => ({ mockRpc: vi.fn() }))
 
-vi.mock('@/lib/supabase-rpc', () => ({
-  rpc: (...args: unknown[]) => mockRpc(...args),
-}))
-
 import {
   checkDiagramLabelAnswer,
   checkDialogFillAnswer,
@@ -17,7 +13,7 @@ import type { SupabaseClient } from './check-non-mc-answer-helpers'
 const QUESTION_ID = '00000000-0000-4000-a000-000000000011'
 const SESSION_ID = '00000000-0000-4000-a000-000000000099'
 const DEVICE_ID = '00000000-0000-4000-a000-0000000000d1'
-const FAKE_SUPABASE = {} as SupabaseClient
+const FAKE_SUPABASE = { rpc: mockRpc } as unknown as SupabaseClient
 const IDS = { questionId: QUESTION_ID, sessionId: SESSION_ID }
 const META = { deviceId: DEVICE_ID, timeSpentMs: 2500 }
 
@@ -58,13 +54,14 @@ describe('checkShortAnswer', () => {
   it('forwards the device id and visit time with the response text', async () => {
     mockRpc.mockResolvedValue({ data: SHORT_RESULT, error: null })
     await checkShortAnswer(FAKE_SUPABASE, { ...IDS, ...META, responseText: 'cleared' })
-    expect(mockRpc).toHaveBeenCalledWith(FAKE_SUPABASE, 'check_non_mc_answer', {
+    expect(mockRpc).toHaveBeenCalledWith('check_non_mc_answer', {
       p_question_id: QUESTION_ID,
       p_session_id: SESSION_ID,
       p_device_id: DEVICE_ID,
       p_time_spent_ms: 2500,
       p_response_text: 'cleared',
     })
+    expect(mockRpc.mock.contexts[0]).toBe(FAKE_SUPABASE)
   })
 
   it('returns a generic failure for an unrecognised RPC error', async () => {
@@ -86,16 +83,16 @@ describe('checkOrderingAnswer', () => {
     })
   })
 
-  it('forwards the order with null progress metadata when none is given', async () => {
+  it('forwards the order without progress metadata when none is given', async () => {
     mockRpc.mockResolvedValue({ data: ORDERING_RESULT, error: null })
     await checkOrderingAnswer(FAKE_SUPABASE, { ...IDS, order: ['b', 'a'] })
-    expect(mockRpc).toHaveBeenCalledWith(FAKE_SUPABASE, 'check_non_mc_answer', {
+    expect(mockRpc).toHaveBeenCalledWith('check_non_mc_answer', {
       p_question_id: QUESTION_ID,
       p_session_id: SESSION_ID,
-      p_device_id: null,
-      p_time_spent_ms: null,
       p_order: ['b', 'a'],
     })
+    expect(mockRpc.mock.contexts[0]).toBe(FAKE_SUPABASE)
+    expect(mockRpc.mock.contexts[0]).toBe(FAKE_SUPABASE)
   })
 })
 
@@ -130,7 +127,6 @@ describe('progress-save refusals', () => {
       mapping: [{ zoneId: 'z', labelId: 'l' }],
     })
     expect(mockRpc).toHaveBeenCalledWith(
-      FAKE_SUPABASE,
       'check_non_mc_answer',
       expect.objectContaining({ p_device_id: DEVICE_ID, p_time_spent_ms: 2500 }),
     )

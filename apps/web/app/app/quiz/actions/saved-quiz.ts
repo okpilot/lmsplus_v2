@@ -4,7 +4,6 @@ import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import { verifySessionUser } from '@/lib/auth/verify-session-user'
 import { MAX_SAVED_QUIZZES } from '@/lib/queries/load-saved-quizzes'
-import { rpc } from '@/lib/supabase-rpc'
 import { INVALID_INPUT, SAVED_QUIZ_LIMIT, SIGN_IN } from './progress-error-messages'
 import { type ProgressResult, toProgressResult } from './quiz-progress-helpers'
 
@@ -54,7 +53,7 @@ export async function saveQuizForLater(raw: unknown): Promise<ProgressResult> {
   if (!parsed.success) return INVALID
   const supabase = await authedClient()
   if (!supabase) return UNAUTHENTICATED
-  const { error } = await rpc<null>(supabase, 'save_quiz_for_later', {
+  const { error } = await supabase.rpc('save_quiz_for_later', {
     p_session_id: parsed.data.sessionId,
     p_device_id: parsed.data.deviceId,
   })
@@ -67,7 +66,7 @@ export async function resumeSavedQuiz(raw: unknown): Promise<ProgressResult> {
   if (!parsed.success) return INVALID
   const supabase = await authedClient()
   if (!supabase) return UNAUTHENTICATED
-  const { error } = await rpc<null>(supabase, 'resume_saved_quiz', {
+  const { error } = await supabase.rpc('resume_saved_quiz', {
     p_session_id: parsed.data.sessionId,
     p_device_id: parsed.data.deviceId,
   })
@@ -80,7 +79,7 @@ export async function discardSavedQuiz(raw: unknown): Promise<ProgressResult> {
   if (!parsed.success) return INVALID
   const supabase = await authedClient()
   if (!supabase) return UNAUTHENTICATED
-  const { error } = await rpc<null>(supabase, 'discard_saved_quiz', {
+  const { error } = await supabase.rpc('discard_saved_quiz', {
     p_session_id: parsed.data.sessionId,
   })
   return toProgressResult(error, 'discardSavedQuiz')

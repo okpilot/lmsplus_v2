@@ -8,6 +8,7 @@ const { mockVerifySessionUser, mockRpc, mockCount, mockEq } = vi.hoisted(() => (
 }))
 
 const mockClient = vi.hoisted(() => ({
+  rpc: mockRpc,
   from: () => ({
     select: () => ({
       eq: (...a: unknown[]) => {
@@ -24,10 +25,6 @@ vi.mock('@repo/db/server', () => ({
 
 vi.mock('@/lib/auth/verify-session-user', () => ({
   verifySessionUser: mockVerifySessionUser,
-}))
-
-vi.mock('@/lib/supabase-rpc', () => ({
-  rpc: (...args: unknown[]) => mockRpc(...args),
 }))
 
 import { SIGN_IN } from './progress-error-messages'
@@ -54,7 +51,7 @@ describe('saveQuizForLater', () => {
     expect(await saveQuizForLater({ sessionId: SESSION, deviceId: DEVICE })).toEqual({
       success: true,
     })
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'save_quiz_for_later', {
+    expect(mockRpc).toHaveBeenCalledWith('save_quiz_for_later', {
       p_session_id: SESSION,
       p_device_id: DEVICE,
     })
@@ -100,7 +97,7 @@ describe('resumeSavedQuiz', () => {
     expect(await resumeSavedQuiz({ sessionId: SESSION, deviceId: DEVICE })).toEqual({
       success: true,
     })
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'resume_saved_quiz', {
+    expect(mockRpc).toHaveBeenCalledWith('resume_saved_quiz', {
       p_session_id: SESSION,
       p_device_id: DEVICE,
     })
@@ -144,7 +141,7 @@ describe('resumeSavedQuiz', () => {
 describe('discardSavedQuiz', () => {
   it('discards the saved quiz through the RPC', async () => {
     expect(await discardSavedQuiz({ sessionId: SESSION })).toEqual({ success: true })
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'discard_saved_quiz', {
+    expect(mockRpc).toHaveBeenCalledWith('discard_saved_quiz', {
       p_session_id: SESSION,
     })
   })

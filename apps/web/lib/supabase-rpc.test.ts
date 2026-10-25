@@ -1,40 +1,6 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { createChainableRpcClient } from '@/lib/test-support/chainable-rpc-client'
-import { fetchAllRpcRows, rpc } from './supabase-rpc'
-
-// Build a minimal fake SupabaseClient with an .rpc() method
-function makeClient(opts: { rpcData?: unknown; rpcError?: { message: string } | null }) {
-  const rpcFn = vi.fn().mockResolvedValue({
-    data: opts.rpcData ?? null,
-    error: opts.rpcError ?? null,
-  })
-
-  return { rpc: rpcFn }
-}
-
-describe('rpc', () => {
-  it('calls the RPC function with the supplied name and args and returns data', async () => {
-    const client = makeClient({ rpcData: [{ id: 'abc' }] })
-    const result = await rpc(client as unknown as never, 'my_rpc', { p_arg: 'val' })
-    expect(client.rpc).toHaveBeenCalledWith('my_rpc', { p_arg: 'val' })
-    expect(result.data).toEqual([{ id: 'abc' }])
-    expect(result.error).toBeNull()
-  })
-
-  it('returns error and null data when the RPC fails', async () => {
-    const client = makeClient({ rpcData: null, rpcError: { message: 'DB error' } })
-    const result = await rpc(client as unknown as never, 'failing_rpc', {})
-    expect(result.data).toBeNull()
-    expect(result.error?.message).toBe('DB error')
-  })
-
-  it('returns data typed as TResult', async () => {
-    type MyResult = { count: number }
-    const client = makeClient({ rpcData: { count: 42 } })
-    const result = await rpc<MyResult>(client as unknown as never, 'count_rpc', {})
-    expect(result.data?.count).toBe(42)
-  })
-})
+import { fetchAllRpcRows } from './supabase-rpc'
 
 describe('fetchAllRpcRows', () => {
   const FN = 'get_report_answer_keys'

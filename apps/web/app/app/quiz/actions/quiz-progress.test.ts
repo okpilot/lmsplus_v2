@@ -1,20 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockVerifySessionUser, mockRpc, mockClient } = vi.hoisted(() => ({
-  mockClient: {},
-  mockVerifySessionUser: vi.fn(),
-  mockRpc: vi.fn(),
-}))
+const { mockVerifySessionUser, mockRpc, mockClient } = vi.hoisted(() => {
+  const mockRpc = vi.fn()
+  return { mockClient: { rpc: mockRpc }, mockVerifySessionUser: vi.fn(), mockRpc }
+})
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => mockClient,
 }))
 
 vi.mock('@/lib/auth/verify-session-user', () => ({ verifySessionUser: mockVerifySessionUser }))
-
-vi.mock('@/lib/supabase-rpc', () => ({
-  rpc: (...args: unknown[]) => mockRpc(...args),
-}))
 
 import { isDisplayableProgressError, SIGN_IN } from './progress-error-messages'
 import { claimQuizSession, saveQuizAnswer, saveQuizPosition } from './quiz-progress'
@@ -48,12 +43,13 @@ describe('saveQuizAnswer', () => {
   it('verifies the caller on the client that saves the answer', async () => {
     await saveQuizAnswer(answerInput)
     expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
-    expect(mockRpc).toHaveBeenCalledWith(mockClient, 'save_quiz_answer', expect.anything())
+    expect(mockRpc).toHaveBeenCalledWith('save_quiz_answer', expect.anything())
+    expect(mockRpc.mock.contexts[0]).toBe(mockClient)
   })
 
   it('saves the answer through the RPC with snake_case arguments', async () => {
     expect(await saveQuizAnswer(answerInput)).toEqual({ success: true })
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'save_quiz_answer', {
+    expect(mockRpc).toHaveBeenCalledWith('save_quiz_answer', {
       p_session_id: SESSION,
       p_question_id: QUESTION,
       p_answer: { selected_option_id: 'b' },
@@ -110,15 +106,13 @@ describe('saveQuizAnswer', () => {
 })
 
 describe('saveQuizPosition', () => {
-  it('sends null question and time when there is no leaving pair', async () => {
+  it('omits question and time when there is no leaving pair', async () => {
     expect(await saveQuizPosition(positionInput)).toEqual({ success: true })
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'save_quiz_position', {
+    expect(mockRpc).toHaveBeenCalledWith('save_quiz_position', {
       p_session_id: SESSION,
       p_current_index: 2,
       p_pinned_question_ids: [QUESTION],
       p_device_id: DEVICE,
-      p_question_id: null,
-      p_time_spent_ms: null,
     })
   })
 
@@ -126,7 +120,6 @@ describe('saveQuizPosition', () => {
     const leaving = { questionId: QUESTION, timeSpentMs: 4000 }
     await saveQuizPosition({ ...positionInput, leaving })
     expect(mockRpc).toHaveBeenCalledWith(
-      expect.anything(),
       'save_quiz_position',
       expect.objectContaining({ p_question_id: QUESTION, p_time_spent_ms: 4000 }),
     )
@@ -152,7 +145,7 @@ describe('claimQuizSession', () => {
     expect(await claimQuizSession({ sessionId: SESSION, deviceId: DEVICE })).toEqual({
       success: true,
     })
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'claim_quiz_session', {
+    expect(mockRpc).toHaveBeenCalledWith('claim_quiz_session', {
       p_session_id: SESSION,
       p_device_id: DEVICE,
     })

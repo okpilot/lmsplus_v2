@@ -10,7 +10,7 @@ const { mockEndDiscovery } = vi.hoisted(() => ({
   mockEndDiscovery: vi.fn(),
 }))
 
-const mockClient = vi.hoisted(() => ({}))
+const mockClient = vi.hoisted(() => ({ rpc: mockRpc }))
 
 vi.mock('./end-discovery', () => ({
   endDiscovery: (...args: unknown[]) => mockEndDiscovery(...args),
@@ -18,10 +18,6 @@ vi.mock('./end-discovery', () => ({
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => mockClient,
-}))
-
-vi.mock('@/lib/supabase-rpc', () => ({
-  rpc: (...args: unknown[]) => mockRpc(...args),
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -108,7 +104,7 @@ describe('startStudy — single RPC call', () => {
       imageMode: 'only',
     })
     expect(mockRpc).toHaveBeenCalledTimes(1)
-    expect(mockRpc).toHaveBeenCalledWith(mockClient, 'start_discovery', {
+    expect(mockRpc).toHaveBeenCalledWith('start_discovery', {
       p_subject_id: VALID_SUBJECT_ID,
       p_topic_ids: topicIds,
       p_subtopic_ids: subtopicIds,
@@ -117,12 +113,13 @@ describe('startStudy — single RPC call', () => {
       p_calc_mode: 'exclude',
       p_has_image: 'only',
     })
+    expect(mockRpc.mock.contexts[0]).toBe(mockClient)
   })
 
   it('sends null scopes and empty filters with the all defaults when the selection omits them', async () => {
     // p_filters has no DB default: an omitted key would miss the function signature.
     await startStudy(VALID_INPUT)
-    expect(mockRpc).toHaveBeenCalledWith(mockClient, 'start_discovery', {
+    expect(mockRpc).toHaveBeenCalledWith('start_discovery', {
       p_subject_id: VALID_SUBJECT_ID,
       p_topic_ids: null,
       p_subtopic_ids: null,
@@ -131,6 +128,7 @@ describe('startStudy — single RPC call', () => {
       p_calc_mode: 'all',
       p_has_image: 'all',
     })
+    expect(mockRpc.mock.contexts[0]).toBe(mockClient)
   })
 })
 

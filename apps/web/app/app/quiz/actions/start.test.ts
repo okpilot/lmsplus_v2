@@ -7,7 +7,7 @@ const { mockVerifySessionUser, mockRpc } = vi.hoisted(() => ({
   mockRpc: vi.fn(),
 }))
 
-const mockClient = vi.hoisted(() => ({}))
+const mockClient = vi.hoisted(() => ({ rpc: mockRpc }))
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => mockClient,
@@ -15,10 +15,6 @@ vi.mock('@repo/db/server', () => ({
 
 vi.mock('@/lib/auth/verify-session-user', () => ({
   verifySessionUser: mockVerifySessionUser,
-}))
-
-vi.mock('@/lib/supabase-rpc', () => ({
-  rpc: mockRpc,
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -70,7 +66,7 @@ describe('startQuizSession', () => {
       imageMode: 'exclude',
     })
     expect(mockRpc).toHaveBeenCalledTimes(1)
-    expect(mockRpc).toHaveBeenCalledWith(mockClient, 'start_practice_quiz', {
+    expect(mockRpc).toHaveBeenCalledWith('start_practice_quiz', {
       p_subject_id: SUBJECT_ID,
       p_topic_ids: [TOPIC_ID],
       p_subtopic_ids: [SUBTOPIC_ID],
@@ -79,11 +75,12 @@ describe('startQuizSession', () => {
       p_calc_mode: 'only',
       p_has_image: 'exclude',
     })
+    expect(mockRpc.mock.contexts[0]).toBe(mockClient)
   })
 
   it("sends null scopes and the 'all' defaults when the selection omits them", async () => {
     await startQuizSession({ subjectId: SUBJECT_ID, count: 5 })
-    expect(mockRpc).toHaveBeenCalledWith(mockClient, 'start_practice_quiz', {
+    expect(mockRpc).toHaveBeenCalledWith('start_practice_quiz', {
       p_subject_id: SUBJECT_ID,
       p_topic_ids: null,
       p_subtopic_ids: null,
@@ -92,6 +89,7 @@ describe('startQuizSession', () => {
       p_calc_mode: 'all',
       p_has_image: 'all',
     })
+    expect(mockRpc.mock.contexts[0]).toBe(mockClient)
   })
 
   it('returns the session id and question ids in draw order on success', async () => {

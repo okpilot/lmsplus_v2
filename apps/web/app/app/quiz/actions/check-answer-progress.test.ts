@@ -1,20 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockVerifySessionUser, mockRpc, mockClient } = vi.hoisted(() => ({
-  mockVerifySessionUser: vi.fn(),
-  mockRpc: vi.fn(),
-  mockClient: { from: vi.fn() },
-}))
+const { mockVerifySessionUser, mockRpc, mockClient } = vi.hoisted(() => {
+  const mockRpc = vi.fn()
+  return { mockVerifySessionUser: vi.fn(), mockRpc, mockClient: { from: vi.fn(), rpc: mockRpc } }
+})
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => mockClient,
 }))
 
 vi.mock('@/lib/auth/verify-session-user', () => ({ verifySessionUser: mockVerifySessionUser }))
-
-vi.mock('@/lib/supabase-rpc', () => ({
-  rpc: (...args: unknown[]) => mockRpc(...args),
-}))
 
 import { checkAnswer } from './check-answer'
 
@@ -40,12 +35,13 @@ describe('checkAnswer progress save', () => {
   it('verifies the caller on the client that grades the answer', async () => {
     await checkAnswer(INPUT)
     expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
-    expect(mockRpc).toHaveBeenCalledWith(mockClient, 'check_quiz_answer', expect.anything())
+    expect(mockRpc).toHaveBeenCalledWith('check_quiz_answer', expect.anything())
+    expect(mockRpc.mock.contexts[0]).toBe(mockClient)
   })
 
   it('forwards the device id and visit time to the RPC', async () => {
     await checkAnswer({ ...INPUT, deviceId: DEVICE_ID, timeSpentMs: 3200 })
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'check_quiz_answer', {
+    expect(mockRpc).toHaveBeenCalledWith('check_quiz_answer', {
       p_question_id: QUESTION_ID,
       p_selected_option_id: 'b',
       p_session_id: SESSION_ID,
@@ -54,14 +50,12 @@ describe('checkAnswer progress save', () => {
     })
   })
 
-  it('sends null device and visit time when the caller omits them', async () => {
+  it('omits device and visit time when the caller omits them', async () => {
     await checkAnswer(INPUT)
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'check_quiz_answer', {
+    expect(mockRpc).toHaveBeenCalledWith('check_quiz_answer', {
       p_question_id: QUESTION_ID,
       p_selected_option_id: 'b',
       p_session_id: SESSION_ID,
-      p_device_id: null,
-      p_time_spent_ms: null,
     })
   })
 

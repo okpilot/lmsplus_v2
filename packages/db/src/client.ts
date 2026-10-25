@@ -1,5 +1,5 @@
 import { createBrowserClient } from '@supabase/ssr'
-import type { Database } from './types'
+import type { Database } from './database'
 
 export function createClient() {
   // .env.local guarantees these are set at build time

@@ -2,7 +2,6 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import { verifySessionUser } from '@/lib/auth/verify-session-user'
-import { rpc } from '@/lib/supabase-rpc'
 import { INVALID_INPUT, SIGN_IN } from './progress-error-messages'
 import { type ProgressResult, toAnswerJson, toProgressResult } from './quiz-progress-helpers'
 import { ClaimInput, SaveAnswerInput, SavePositionInput } from './quiz-progress-schema'
@@ -21,7 +20,7 @@ export async function saveQuizAnswer(raw: unknown): Promise<ProgressResult> {
   const supabase = await authedClient()
   if (!supabase) return UNAUTHENTICATED
   const input = parsed.data
-  const { error } = await rpc<null>(supabase, 'save_quiz_answer', {
+  const { error } = await supabase.rpc('save_quiz_answer', {
     p_session_id: input.sessionId,
     p_question_id: input.questionId,
     p_answer: toAnswerJson(input.answer),
@@ -37,13 +36,13 @@ export async function saveQuizPosition(raw: unknown): Promise<ProgressResult> {
   const supabase = await authedClient()
   if (!supabase) return UNAUTHENTICATED
   const input = parsed.data
-  const { error } = await rpc<null>(supabase, 'save_quiz_position', {
+  const { error } = await supabase.rpc('save_quiz_position', {
     p_session_id: input.sessionId,
     p_current_index: input.currentIndex,
     p_pinned_question_ids: input.pinnedQuestionIds,
     p_device_id: input.deviceId,
-    p_question_id: input.leaving?.questionId ?? null,
-    p_time_spent_ms: input.leaving?.timeSpentMs ?? null,
+    p_question_id: input.leaving?.questionId,
+    p_time_spent_ms: input.leaving?.timeSpentMs,
   })
   return toProgressResult(error, 'saveQuizPosition')
 }
@@ -53,7 +52,7 @@ export async function claimQuizSession(raw: unknown): Promise<ProgressResult> {
   if (!parsed.success) return INVALID
   const supabase = await authedClient()
   if (!supabase) return UNAUTHENTICATED
-  const { error } = await rpc<null>(supabase, 'claim_quiz_session', {
+  const { error } = await supabase.rpc('claim_quiz_session', {
     p_session_id: parsed.data.sessionId,
     p_device_id: parsed.data.deviceId,
   })

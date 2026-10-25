@@ -4,7 +4,6 @@ import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import { verifySessionUser } from '@/lib/auth/verify-session-user'
 import { matchRpcError, type RpcErrorPattern } from '@/lib/rpc-error-match'
-import { rpc } from '@/lib/supabase-rpc'
 import type { StartExamResult } from '../types'
 import { blockedFailure, type WithBlocked } from './_blocked-start'
 import { NOT_ACTIVE, SIGN_IN } from './progress-error-messages'
@@ -24,8 +23,6 @@ const StartExamRpcResultSchema = z.object({
   pass_mark: z.number().int().min(1).max(100),
   started_at: z.string(),
 })
-
-type StartExamRpcResult = z.infer<typeof StartExamRpcResultSchema>
 
 const FAILED = 'Failed to start Practice Exam.'
 
@@ -59,7 +56,7 @@ export async function startExamSession(raw: unknown): Promise<WithBlocked<StartE
       return { success: false, error: 'Invalid input' }
     }
 
-    const { data, error } = await rpc<StartExamRpcResult>(supabase, 'start_exam_session', {
+    const { data, error } = await supabase.rpc('start_exam_session', {
       p_subject_id: input.subjectId,
     })
 

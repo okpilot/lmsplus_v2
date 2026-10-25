@@ -2,21 +2,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockVerifySessionUser, mockClient, mockRpc } = vi.hoisted(() => ({
-  mockVerifySessionUser: vi.fn(),
-  mockClient: {},
-  mockRpc: vi.fn(),
-}))
+const { mockVerifySessionUser, mockClient, mockRpc } = vi.hoisted(() => {
+  const mockRpc = vi.fn()
+  return { mockVerifySessionUser: vi.fn(), mockClient: { rpc: mockRpc }, mockRpc }
+})
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => mockClient,
 }))
 
 vi.mock('@/lib/auth/verify-session-user', () => ({ verifySessionUser: mockVerifySessionUser }))
-
-vi.mock('@/lib/supabase-rpc', () => ({
-  rpc: (...args: unknown[]) => mockRpc(...args),
-}))
 
 const mockRequireAuthUser = vi.hoisted(() => vi.fn())
 
@@ -61,11 +56,8 @@ describe('getFilteredCount — auth and validation', () => {
     setupAuthenticatedUser()
     await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['all'] })
     expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
-    expect(mockRpc).toHaveBeenCalledWith(
-      mockClient,
-      'get_filtered_question_counts',
-      expect.anything(),
-    )
+    expect(mockRpc).toHaveBeenCalledWith('get_filtered_question_counts', expect.anything())
+    expect(mockRpc.mock.contexts[0]).toBe(mockClient)
   })
 
   it('returns auth error when user is not authenticated', async () => {
@@ -159,7 +151,6 @@ describe('getFilteredCount — aggregation from grouped rpc rows', () => {
     })
 
     expect(mockRpc).toHaveBeenCalledWith(
-      expect.anything(),
       'get_filtered_question_counts',
       expect.objectContaining({
         p_subject_id: SUBJECT_ID,
@@ -175,7 +166,6 @@ describe('getFilteredCount — aggregation from grouped rpc rows', () => {
     await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['all'] })
 
     expect(mockRpc).toHaveBeenCalledWith(
-      expect.anything(),
       'get_filtered_question_counts',
       expect.objectContaining({ p_calc_mode: 'all' }),
     )
@@ -188,7 +178,6 @@ describe('getFilteredCount — aggregation from grouped rpc rows', () => {
     await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['all'], calcMode: 'exclude' })
 
     expect(mockRpc).toHaveBeenCalledWith(
-      expect.anything(),
       'get_filtered_question_counts',
       expect.objectContaining({ p_calc_mode: 'exclude' }),
     )
@@ -214,7 +203,6 @@ describe('getFilteredCount — aggregation from grouped rpc rows', () => {
     await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['all'] })
 
     expect(mockRpc).toHaveBeenCalledWith(
-      expect.anything(),
       'get_filtered_question_counts',
       expect.objectContaining({ p_has_image: 'all' }),
     )
@@ -227,7 +215,6 @@ describe('getFilteredCount — aggregation from grouped rpc rows', () => {
     await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['all'], imageMode: 'exclude' })
 
     expect(mockRpc).toHaveBeenCalledWith(
-      expect.anything(),
       'get_filtered_question_counts',
       expect.objectContaining({ p_has_image: 'exclude' }),
     )
@@ -253,7 +240,6 @@ describe('getFilteredCount — aggregation from grouped rpc rows', () => {
     await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['all'] })
 
     expect(mockRpc).toHaveBeenCalledWith(
-      expect.anything(),
       'get_filtered_question_counts',
       expect.objectContaining({ p_topic_ids: null, p_subtopic_ids: null }),
     )
@@ -325,23 +311,18 @@ describe('getFilteredCount — questionType (MC-aware Study/Discovery count)', (
     })
 
     expect(mockRpc).toHaveBeenCalledWith(
-      expect.anything(),
       'get_filtered_question_counts',
       expect.objectContaining({ p_question_type: 'multiple_choice' }),
     )
   })
 
-  it('passes p_question_type null when questionType is omitted (type-agnostic quiz/exam count)', async () => {
+  it('omits p_question_type when questionType is omitted (type-agnostic quiz/exam count)', async () => {
     setupAuthenticatedUser()
     mockRpc.mockResolvedValueOnce({ data: [], error: null })
 
     await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['all'] })
 
-    expect(mockRpc).toHaveBeenCalledWith(
-      expect.anything(),
-      'get_filtered_question_counts',
-      expect.objectContaining({ p_question_type: null }),
-    )
+    expect(mockRpc.mock.calls[0]?.[1].p_question_type).toBeUndefined()
   })
 
   it('returns empty count and logs when questionType is an unsupported value', async () => {
@@ -374,7 +355,6 @@ describe("getFilteredCount — filters: ['unseen']", () => {
 
     expect(result).toMatchObject({ count: 2 })
     expect(mockRpc).toHaveBeenCalledWith(
-      expect.anything(),
       'get_filtered_question_counts',
       expect.objectContaining({ p_filters: ['unseen'] }),
     )
@@ -407,7 +387,6 @@ describe("getFilteredCount — filters: ['incorrect']", () => {
 
     expect(result).toMatchObject({ count: 2, byTopic: { [TOPIC_ID]: 2 } })
     expect(mockRpc).toHaveBeenCalledWith(
-      expect.anything(),
       'get_filtered_question_counts',
       expect.objectContaining({ p_filters: ['incorrect'] }),
     )
@@ -437,7 +416,6 @@ describe("getFilteredCount — filters: ['flagged']", () => {
 
     expect(result).toMatchObject({ count: 1, bySubtopic: { [SUBTOPIC_ID]: 1 } })
     expect(mockRpc).toHaveBeenCalledWith(
-      expect.anything(),
       'get_filtered_question_counts',
       expect.objectContaining({ p_filters: ['flagged'] }),
     )
@@ -475,7 +453,6 @@ describe('getFilteredCount — empty-array semantics (empty array = match nothin
 
     expect(result).toMatchObject({ count: 0 })
     expect(mockRpc).toHaveBeenCalledWith(
-      expect.anything(),
       'get_filtered_question_counts',
       expect.objectContaining({ p_topic_ids: [], p_subtopic_ids: null }),
     )
@@ -494,7 +471,6 @@ describe('getFilteredCount — empty-array semantics (empty array = match nothin
 
     expect(result).toMatchObject({ count: 0 })
     expect(mockRpc).toHaveBeenCalledWith(
-      expect.anything(),
       'get_filtered_question_counts',
       expect.objectContaining({ p_topic_ids: null, p_subtopic_ids: [] }),
     )
@@ -513,7 +489,6 @@ describe('getFilteredCount — empty-array semantics (empty array = match nothin
 
     expect(result).toMatchObject({ count: 0 })
     expect(mockRpc).toHaveBeenCalledWith(
-      expect.anything(),
       'get_filtered_question_counts',
       expect.objectContaining({ p_topic_ids: [], p_subtopic_ids: [] }),
     )

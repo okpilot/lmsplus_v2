@@ -12,7 +12,6 @@
 // `CheckAnswerRpcResult` and `isCheckAnswerRpcResult` are file-private for the same reason:
 // nothing here should widen the surface by accident.
 import type { createServerSupabaseClient } from '@repo/db/server'
-import { rpc } from '@/lib/supabase-rpc'
 import type { CheckAnswerResult } from '../types'
 import { mapProgressRpcError } from './progress-error-messages'
 
@@ -37,12 +36,12 @@ export async function gradeAnswer(
     timeSpentMs?: number
   },
 ): Promise<CheckAnswerResult> {
-  const { data, error } = await rpc<CheckAnswerRpcResult>(supabase, 'check_quiz_answer', {
+  const { data, error } = await supabase.rpc('check_quiz_answer', {
     p_question_id: opts.questionId,
     p_selected_option_id: opts.selectedOptionId,
     p_session_id: opts.sessionId,
-    p_device_id: opts.deviceId ?? null,
-    p_time_spent_ms: opts.timeSpentMs ?? null,
+    p_device_id: opts.deviceId,
+    p_time_spent_ms: opts.timeSpentMs,
   })
 
   if (error || !isCheckAnswerRpcResult(data)) {

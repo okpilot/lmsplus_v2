@@ -3,7 +3,6 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import { verifySessionUser } from '@/lib/auth/verify-session-user'
-import { rpc } from '@/lib/supabase-rpc'
 import type { StartQuizResult } from '../types'
 import { blockedFailure, type WithBlocked } from './_blocked-start'
 
@@ -35,7 +34,7 @@ type Supabase = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
 /** One round trip: the RPC draws the ids and starts the session (and decides the stored topic). */
 function callStartPracticeQuiz(supabase: Supabase, input: z.infer<typeof StartQuizInput>) {
-  return rpc<unknown>(supabase, 'start_practice_quiz', {
+  return supabase.rpc('start_practice_quiz', {
     p_subject_id: input.subjectId,
     p_topic_ids: input.topicIds ?? null,
     p_subtopic_ids: input.subtopicIds ?? null,
