@@ -132,25 +132,43 @@ describe('RLS: student-owned reads require an active user', () => {
   })
 
   afterAll(async () => {
-    const steps: Array<[string, PromiseLike<{ error: { message: string } | null }>]> = [
-      ['restore student', f.admin.from('users').update({ deleted_at: null }).eq('id', f.studentId)],
-      [
-        'restore instructor',
-        f.admin.from('users').update({ deleted_at: null }).eq('id', instructorId),
-      ],
-      ['progress', f.admin.from('quiz_session_progress').delete().eq('student_id', f.studentId)],
-      ['drafts', f.admin.from('quiz_drafts').delete().eq('student_id', f.studentId)],
-      ['flags', f.admin.from('flagged_questions').delete().eq('student_id', f.studentId)],
-      ['consents', f.admin.from('user_consents').delete().eq('user_id', f.studentId)],
-    ]
     const errors: string[] = []
-    for (const [label, step] of steps) {
-      const { error } = await step
-      if (error) errors.push(`${label}: ${error.message}`)
+    const run = async (
+      label: string,
+      step: () => PromiseLike<{ error: { message: string } | null }>,
+    ) => {
+      try {
+        const { error } = await step()
+        if (error) errors.push(`${label}: ${error.message}`)
+      } catch (e) {
+        errors.push(`${label}: ${e instanceof Error ? e.message : String(e)}`)
+      }
     }
-    await f.admin.from('users').delete().eq('id', instructorId)
-    await f.admin.auth.admin.deleteUser(instructorId)
-    await f.teardown()
+    if (f) {
+      const admin = f.admin
+      const studentId = f.studentId
+      await run('restore student', () =>
+        admin.from('users').update({ deleted_at: null }).eq('id', studentId),
+      )
+      await run('progress', () =>
+        admin.from('quiz_session_progress').delete().eq('student_id', studentId),
+      )
+      await run('drafts', () => admin.from('quiz_drafts').delete().eq('student_id', studentId))
+      await run('flags', () => admin.from('flagged_questions').delete().eq('student_id', studentId))
+      await run('consents', () => admin.from('user_consents').delete().eq('user_id', studentId))
+      if (instructorId) {
+        await run('restore instructor', () =>
+          admin.from('users').update({ deleted_at: null }).eq('id', instructorId),
+        )
+        await run('instructor users row', () => admin.from('users').delete().eq('id', instructorId))
+        await run('instructor auth user', () => admin.auth.admin.deleteUser(instructorId))
+      }
+      try {
+        await f.teardown()
+      } catch (e) {
+        errors.push(`teardown: ${e instanceof Error ? e.message : String(e)}`)
+      }
+    }
     if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   })
 

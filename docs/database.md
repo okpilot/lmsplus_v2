@@ -2079,7 +2079,7 @@ $$;
 
 Returns `boolean`. `LANGUAGE sql STABLE SECURITY INVOKER SET search_path = ''` (migration `20261025000100`, #1607). True when `public.users` holds a row with `id = (select auth.uid())` and `deleted_at IS NULL`. Runs as the caller: `users_select` hides a deactivated caller's own row, so the `EXISTS` is false for them. EXECUTE: `authenticated` only (revoked from PUBLIC, `anon`).
 
-Lives in schema `private`, the first non-`public` schema: USAGE granted to `authenticated` only, not in `supabase/config.toml` `schemas`, so PostgREST does not expose it. Used by the `<table>_select_active_caller` RESTRICTIVE policies; derive the set: `select tablename, policyname from pg_policies where permissive = 'RESTRICTIVE'`. New policies and functions call `(select private.is_active_user())`; existing inline `EXISTS` / `PERFORM` gates stay (Decision 151).
+Lives in schema `private`, the only schema this repo creates besides `public`: USAGE granted to `authenticated` only, not in `supabase/config.toml` `schemas`, so PostgREST does not expose it. Used by the `<table>_select_active_caller` RESTRICTIVE policies; derive the set: `select tablename, policyname from pg_policies where permissive = 'RESTRICTIVE'`. New policies and functions call `(select private.is_active_user())`; existing inline `EXISTS` / `PERFORM` gates stay (Decision 151).
 
 ```sql
 CREATE OR REPLACE FUNCTION private.is_active_user()
@@ -2496,7 +2496,7 @@ Returns mastery counts at two granularities in one result set: a subject-level r
 - `correct` — count of **distinct** questions answered correctly, **any** status (numerator; the `correct_q` CTE dedups via `SELECT DISTINCT q.id`, then `COUNT(*)` over that set, so multiple correct attempts on one question count once); can exceed `total` when the student answered a now-draft question (orphan retention, #540/#664). The percentage clamp and the `total>0 OR correct>0` orphan-retention filter stay in TypeScript, which consumes the raw counts.
 - `topic_id IS NULL` marks the subject-level aggregate row — a safe sentinel because `questions.topic_id` is `NOT NULL`.
 
-**Deactivated caller:** `student_responses` and `quiz_sessions` reads return nothing (RESTRICTIVE `*_select_active_caller`, #1607); `questions` is hidden by `tenant_isolation`.
+**Deactivated caller:** returns nothing: `student_responses` carries RESTRICTIVE `student_responses_select_active_caller` (#1607) and `questions` is hidden by `tenant_isolation`.
 
 **Migration:** `20260521000005_student_mastery_stats_rpc.sql`; filters call `(select auth.uid())` since `20261017000300_invoker_rpcs_select_auth_uid.sql` (#1414)
 
@@ -2528,6 +2528,8 @@ Returns one row with the caller's current and best (all-time) daily-practice str
 Returns one row per subject the caller has answered, with the most recent response timestamp, over ALL responses (any correctness). Used by the student dashboard (`lib/queries/dashboard.ts` → `fetchLastPracticed` + `mergeLastPracticed`).
 
 **Security:** `SECURITY INVOKER`. The `questions` JOIN is org-scoped + `deleted_at IS NULL` via the `tenant_isolation` policy (reproducing the legacy `questionSubjectMap`, which was built from non-deleted questions). `student_responses` self-scopes with an explicit `sr.student_id = (select auth.uid())` (load-bearing per security.md §3 (Multiple Permissive SELECT Policies), same two-policy reason as `get_student_streak`). Unauthenticated caller → empty set. No question text, options, or correct-answer data is selected — only `subject_id` and a timestamp.
+
+**Deactivated caller:** returns nothing: `student_responses` carries RESTRICTIVE `student_responses_select_active_caller` (#1607) and `questions` is hidden by `tenant_isolation`.
 
 **Parameters:** none (caller is always self).
 
