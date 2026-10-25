@@ -32,8 +32,6 @@ const doc = (method: string, target: string) =>
   ctx({ attributes: { 'http.method': method, 'http.target': target } })
 
 describe('server trace sampling', () => {
-  afterEach(() => vi.unstubAllEnvs())
-
   it('keeps every /app document request', () => {
     expect(tracesSampler(doc('GET', '/app/dashboard'))).toBe(APP_DOCUMENT_SAMPLE_RATE)
     expect(tracesSampler(doc('GET', '/app'))).toBe(APP_DOCUMENT_SAMPLE_RATE)
@@ -84,7 +82,6 @@ describe('server trace sampling', () => {
 describe('browser trace sampling', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
-    vi.unstubAllEnvs()
   })
 
   const at = (pathname: string) => vi.stubGlobal('location', { pathname })
