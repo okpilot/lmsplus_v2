@@ -13,6 +13,7 @@ test.use({
 
 const INACTIVE_COPY =
   'Your account has been deactivated. Please contact your flight school administrator.'
+const SUPABASE_COOKIE_PREFIX = 'sb-'
 
 test('a deactivated signed-in student is signed out on the next /app load and the cookie is cleared', async ({
   page,
@@ -46,10 +47,13 @@ test('a deactivated signed-in student is signed out on the next /app load and th
     await page.goto('/app/dashboard')
     await expect(page).toHaveURL(/\/(\?.*)?$/, { timeout: 15_000 })
     await expect(page.getByText(INACTIVE_COPY)).toBeVisible()
+    const cookies = await page.context().cookies()
+    expect(cookies.filter((c) => c.name.startsWith(SUPABASE_COOKIE_PREFIX))).toEqual([])
 
     await page.goto('/app/dashboard')
     await expect(page).toHaveURL(/\/(\?.*)?$/, { timeout: 15_000 })
     expect(new URL(page.url()).pathname).toBe('/')
+    expect(new URL(page.url()).searchParams.get('error')).toBeNull()
   } finally {
     await admin.auth.admin.updateUserById(row.id, { ban_duration: 'none' })
     await admin.from('users').update({ deleted_at: null }).eq('id', row.id)
