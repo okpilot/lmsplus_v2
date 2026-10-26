@@ -266,8 +266,8 @@ jobs:
 
           echo "OK: anon holds no table or function privilege, authenticated's INSERT/UPDATE/DELETE set matches the kept allowlist exactly and holds no TRUNCATE/REFERENCES/TRIGGER/MAINTAIN, on any public table/view, function or default privilege ($TABLE_COUNT tables/views, $FN_COUNT functions checked); a new postgres-owned function defaults to authenticated EXECUTE, anon none"
 
-      # Public SECURITY DEFINER functions must end search_path with pg_temp (#1611).
-      - name: Verify SECURITY DEFINER functions end search_path with pg_temp
+      # SECURITY DEFINER functions in public/private must SET search_path = public, pg_temp exactly (#1611).
+      - name: Verify SECURITY DEFINER functions set search_path = public, pg_temp
         run: bash .github/scripts/check-definer-search-path.sh
 
   integration-tests:

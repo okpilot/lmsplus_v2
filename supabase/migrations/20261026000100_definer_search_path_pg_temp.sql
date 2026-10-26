@@ -1,4 +1,4 @@
--- Every public SECURITY DEFINER function ends search_path with pg_temp (PostgreSQL CREATE FUNCTION, "Writing SECURITY DEFINER Functions Safely"). #1611
+-- Every public and private SECURITY DEFINER function ends search_path with pg_temp (PostgreSQL CREATE FUNCTION, "Writing SECURITY DEFINER Functions Safely"). #1611
 
 DO $$
 DECLARE
@@ -9,7 +9,7 @@ BEGIN
     SELECT p.oid, p.prokind
     FROM pg_proc p
     JOIN pg_namespace n ON n.oid = p.pronamespace
-    WHERE n.nspname = 'public'
+    WHERE n.nspname IN ('public', 'private')
       AND p.prosecdef
       AND p.prokind IN ('f', 'p')
       AND NOT EXISTS (
@@ -26,7 +26,7 @@ BEGIN
   END LOOP;
 
   IF altered = 0 THEN
-    RAISE EXCEPTION 'no public SECURITY DEFINER functions altered';
+    RAISE EXCEPTION 'no public/private SECURITY DEFINER functions altered';
   END IF;
 END
 $$;
