@@ -1,4 +1,4 @@
--- Every public and private SECURITY DEFINER function ends search_path with pg_temp (PostgreSQL CREATE FUNCTION, "Writing SECURITY DEFINER Functions Safely"). #1611
+-- Every public and private SECURITY DEFINER routine (functions and procedures; extension members excluded) ends search_path with pg_temp (PostgreSQL CREATE FUNCTION, "Writing SECURITY DEFINER Functions Safely"). #1611
 
 DO $$
 DECLARE
@@ -26,7 +26,7 @@ BEGIN
   END LOOP;
 
   IF altered = 0 THEN
-    RAISE EXCEPTION 'no public/private SECURITY DEFINER functions altered';
+    RAISE EXCEPTION 'no public/private SECURITY DEFINER routines altered';
   END IF;
 END
 $$;
