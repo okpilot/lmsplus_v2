@@ -1524,6 +1524,8 @@ Admin-only RPC setting the complete set of active course enrolments for one user
 
 **Audit payload:** `event_type = 'user.enrolments_changed'`, `resource_type = 'user'`, `resource_id = p_user_id`, `metadata = { added: [course_id…], removed: [course_id…], sessions_ended: [quiz_session_id…] }`.
 
+**Known limits:** a session start or revive committing concurrently with the removal survives it (no shared lock with start RPCs); `get_quiz_questions` still filters its questions and the student can discard it. A role change from staff to student ends nothing.
+
 **Grants:** `REVOKE EXECUTE … FROM PUBLIC, anon`; `GRANT EXECUTE … TO authenticated`.
 
 ##### `list_my_active_internal_exam_codes()` (migrations `20260521000002`, `20260824000200`)
