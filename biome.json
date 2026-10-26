@@ -226,23 +226,6 @@
       }
     },
     {
-      "includes": ["apps/web/lib/next/rethrow-redirect.ts"],
-      "linter": {
-        "rules": {
-          "style": {
-            "noRestrictedImports": {
-              "level": "error",
-              "options": {
-                "paths": {
-                  "@repo/db/test-helpers": "test-helpers wraps the service-role key (getAdminClient). Import it only from integration tests or a lib/integration-support/** dir \u2014 never production code (#925)."
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    {
       "includes": ["apps/web/**/*.tsx", "!**/*.test.tsx", "!**/*.spec.tsx"],
       "plugins": ["./biome-plugins/readonly-props.grit"]
     },

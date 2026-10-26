@@ -47,7 +47,6 @@ lmsplusv2/                          # Monorepo root (Turborepo + pnpm)
 │       │   ├── gdpr/               # GDPR utilities
 │       │   ├── grading/            # Answer normalization for grading
 │       │   ├── integration-support/ # Integration-test harness + fixtures
-│       │   ├── next/               # Next.js helpers (redirect re-throw)
 │       │   ├── queries/            # Read-only query functions
 │       │   ├── utils/              # General utilities
 │       │   ├── supabase-rpc.ts     # RPC paging helpers
@@ -349,7 +348,6 @@ Owns reusable shadcn/ui components used across the app. Components here are pres
 | `lib/email/` | Transactional email (Resend client + templates) |
 | `lib/grading/` | Answer normalization for grading |
 | `lib/integration-support/` | Integration-test harness + fixtures (#925 tier) |
-| `lib/next/` | Next.js helpers (redirect re-throw) |
 | `lib/queries/` | Read-only query functions (Server Component data fetching) |
 | `lib/consent/` | Consent checking helpers |
 | `lib/gdpr/` | GDPR utilities |

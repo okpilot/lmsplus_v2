@@ -1,19 +1,14 @@
 import { render, screen } from '@testing-library/react'
+import { notFound, redirect } from 'next/navigation'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Hoisted mocks ----------------------------------------------------------
 
 const mockGetDashboardKpis = vi.hoisted(() => vi.fn())
-const mockRethrowRedirect = vi.hoisted(() => vi.fn())
-
 // ---- Module mocks -----------------------------------------------------------
 
 vi.mock('../queries', () => ({
   getDashboardKpis: mockGetDashboardKpis,
-}))
-
-vi.mock('@/lib/next/rethrow-redirect', () => ({
-  rethrowRedirect: mockRethrowRedirect,
 }))
 
 // Stub KpiCards — content tests focus on error-handling logic, not card rendering.
@@ -52,14 +47,18 @@ describe('KpiCardsContent', () => {
     expect(screen.getByText('Failed to load KPIs. Please refresh the page.')).toBeInTheDocument()
   })
 
-  it('re-throws redirect errors instead of showing the fallback', async () => {
-    const redirectError = new Error('NEXT_REDIRECT:/auth/login')
-    mockGetDashboardKpis.mockRejectedValue(redirectError)
-    mockRethrowRedirect.mockImplementation((err: unknown) => {
-      throw err
-    })
+  it('propagates a redirect() navigation error instead of showing the fallback', async () => {
+    const error = capture(() => redirect('/auth/login'))
+    mockGetDashboardKpis.mockRejectedValue(error)
 
-    await expect(KpiCardsContent({ range: '30d' })).rejects.toThrow('NEXT_REDIRECT:/auth/login')
+    await expect(KpiCardsContent({ range: '30d' })).rejects.toBe(error)
+  })
+
+  it('propagates a notFound() navigation error instead of showing the fallback', async () => {
+    const error = capture(() => notFound())
+    mockGetDashboardKpis.mockRejectedValue(error)
+
+    await expect(KpiCardsContent({ range: '30d' })).rejects.toBe(error)
   })
 
   it('passes the range prop to KpiCards', async () => {
@@ -71,3 +70,12 @@ describe('KpiCardsContent', () => {
     expect(screen.getByTestId('kpi-cards')).toHaveAttribute('data-range', '7d')
   })
 })
+
+function capture(fn: () => never): unknown {
+  try {
+    fn()
+  } catch (e) {
+    return e
+  }
+  throw new Error('navigation helper did not throw')
+}

@@ -67,14 +67,15 @@ test('quiz flow: configure → answer questions → view results → dashboard',
   const finishDialog = page.getByRole('dialog', { name: 'Finish quiz' })
   await expect(finishDialog).toBeVisible()
   // Focus trap: Tab past the last button wraps back inside (jsdom cannot model Base UI's guards).
+  // The guard re-focuses on the next animation frame, so each step polls.
   const focusInside = () => finishDialog.evaluate((el) => el.contains(document.activeElement))
   for (let i = 0; i < 8; i++) {
     await page.keyboard.press('Tab')
-    expect(await focusInside()).toBe(true)
+    await expect.poll(focusInside).toBe(true)
   }
   for (let i = 0; i < 8; i++) {
     await page.keyboard.press('Shift+Tab')
-    expect(await focusInside()).toBe(true)
+    await expect.poll(focusInside).toBe(true)
   }
   await page.getByRole('button', { name: 'Submit Quiz' }).click()
 

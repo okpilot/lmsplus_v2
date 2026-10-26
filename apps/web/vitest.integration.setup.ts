@@ -49,7 +49,8 @@ vi.mock('next/cache', () => ({
   revalidateTag: vi.fn(),
 }))
 
-vi.mock('next/navigation', () => ({
+vi.mock('next/navigation', async () => ({
+  ...(await vi.importActual<typeof import('next/navigation')>('next/navigation')),
   // Next signals navigation by throwing; mirror that so a test can assert on it.
   redirect: (url: string) => {
     throw new Error(`NEXT_REDIRECT:${url}`)

@@ -524,7 +524,7 @@ if (!hydrated) return <Skeleton />
 ```
 Use this pattern when a component's initial render differs between server and client (e.g., reading `localStorage`, `window`, or client-only browser APIs).
 ### Re-throw Redirect Errors in Server Component Catch Blocks
-Next.js uses throw-based control flow for `redirect()` and `notFound()`. Any `catch` block wrapping such a call must re-throw them: `rethrowRedirect(error)` from `@/lib/next/rethrow-redirect` for `redirect()`, `unstable_rethrow(error)` from `next/navigation` when `notFound()` can also be thrown. A bare `catch {}` that does not check turns a redirect into a 500 or stale render.
+Next.js uses throw-based control flow for `redirect()` and `notFound()`. Any `catch` block wrapping such a call must re-throw them: `unstable_rethrow(error)` from `next/navigation`, first statement in the `catch`. A bare `catch {}` that does not check turns a redirect into a 500 or stale render.
 ```tsx
 // ❌ WRONG — swallows redirect, shows fallback instead of redirecting
 try {
@@ -535,13 +535,13 @@ try {
 }
 
 // ✅ CORRECT — redirect propagates, only real errors show fallback
-import { rethrowRedirect } from '@/lib/next/rethrow-redirect'
+import { unstable_rethrow } from 'next/navigation'
 
 try {
   const data = await getProtectedData()
   return <DataView data={data} />
 } catch (error) {
-  rethrowRedirect(error)
+  unstable_rethrow(error)
   return <ErrorFallback />
 }
 ```
