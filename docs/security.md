@@ -377,7 +377,7 @@ PostgreSQL combines multiple **permissive** RLS policies with **OR**. When a tab
 
 **Why:** `student_responses` has both `students_read_responses` (`student_id = (select auth.uid())`) and `instructors_read_students` (org + role in instructor/admin). `get_student_mastery_stats` (SECURITY INVOKER) aggregated it relying on RLS, so an instructor/admin caller received **every** student's counts instead of their own (#540 / red-team BW3). Fix: explicit `WHERE sr.student_id = (select auth.uid())` in the numerator CTE.
 
-**Tables with multiple permissive SELECT policies** (audit when adding an RPC that reads one) — as of 2026-05-26: `student_responses`, `quiz_sessions`, `exam_configs`, `audit_events`. This set GROWS with any migration adding a second permissive SELECT policy, so re-derive it rather than trusting this line:
+**Tables with multiple permissive SELECT policies** (audit when adding an RPC that reads one) — as of 2026-05-26: `student_responses`, `quiz_sessions`, `exam_configs`, `audit_events`; as of 2026-10-26 also `course_enrolments`. This set GROWS with any migration adding a second permissive SELECT policy, so re-derive it rather than trusting this line:
 
 ```sql
 -- cmd IN ('SELECT','ALL'): an unqualified CREATE POLICY is FOR ALL and permits SELECT as well,

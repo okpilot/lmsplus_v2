@@ -67,6 +67,7 @@ CREATE POLICY admin_read_org_enrolments ON public.course_enrolments
       SELECT u.organization_id FROM public.users u
       WHERE u.id = (SELECT auth.uid()) AND u.deleted_at IS NULL
     )
+    AND deleted_at IS NULL
   );
 
 CREATE POLICY course_enrolments_select_active_caller ON public.course_enrolments

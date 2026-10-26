@@ -313,6 +313,9 @@
 | JZ | save_quiz_position-omitted-device-or-leaving-keys-after-claim | LOW | rpc-progress-omitted-device-key.spec.ts | BLOCKED |  | auth-bypass |
 | KA | course_enrolments-authenticated-direct-dml | HIGH | authenticated-table-dml-denied.spec.ts | BLOCKED |  | rls-bypass |
 | KB | set_student_enrolments-anon-execute | HIGH | anon-function-execute-denied.spec.ts | BLOCKED |  | privilege-escalation |
+| KC | set_student_enrolments-student-self-enrol | HIGH | set-student-enrolments-escalation.spec.ts | BLOCKED |  | privilege-escalation |
+| KD | set_student_enrolments-cross-org-admin-write | HIGH | set-student-enrolments-escalation.spec.ts | BLOCKED |  | cross-tenant |
+| KE | course_enrolments-cross-org-admin-read | MEDIUM | set-student-enrolments-escalation.spec.ts | BLOCKED |  | cross-tenant |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 

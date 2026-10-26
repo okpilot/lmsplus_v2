@@ -332,7 +332,7 @@ CREATE INDEX idx_course_enrolments_organization_id ON course_enrolments(organiza
 
 **RLS (ENABLED + FORCED):**
 - SELECT (student): `student_id = (SELECT auth.uid()) AND deleted_at IS NULL`
-- SELECT (admin): `(SELECT is_admin())` AND `organization_id` = caller's org (same shape as `admin_read_org_codes`)
+- SELECT (admin): `(SELECT is_admin())` AND `organization_id` = caller's org (same shape as `admin_read_org_codes`) AND `deleted_at IS NULL`
 - RESTRICTIVE SELECT: `(SELECT private.is_active_user())`
 - No INSERT/UPDATE/DELETE policy.
 
