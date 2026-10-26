@@ -87,6 +87,12 @@ describe('mapProgressRpcError', () => {
     expect(b).toBe(a)
   })
 
+  it('tells the student they are not enrolled in the course', () => {
+    expect(mapProgressRpcError('not_enrolled', 'fallback')).toBe(
+      'You are not enrolled in this course.',
+    )
+  })
+
   it.each(Object.keys(PROGRESS_ERROR_MESSAGES))('maps %s to its own copy', (key) => {
     expect(mapProgressRpcError(key, 'fb')).toBe(PROGRESS_ERROR_MESSAGES[key])
   })

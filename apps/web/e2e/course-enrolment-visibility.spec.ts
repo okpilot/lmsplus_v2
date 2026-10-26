@@ -1,4 +1,5 @@
 import { expect, type Page, test } from '@playwright/test'
+import { enrolStudent, GRANDFATHER_COURSE_IDS } from '@repo/db/enrol-students'
 import { ensureNoConsentUser, removeNoConsentUser } from './helpers/no-consent-user'
 import { ensureConsentRecords, getAdminClient } from './helpers/supabase'
 
@@ -89,6 +90,43 @@ test.describe('Course enrolment visibility', () => {
     await login(page, PPL_EMAIL)
     await page.goto('/app/vfr-rt')
     await expect(page.getByText(ERROR_HEADING)).toHaveCount(0)
+    await expect(page.getByText(/not enrolled/i)).toBeVisible()
+  })
+
+  test('enrolling a PPL-only student in VFR RT mid-session unlocks the setup form; unenrolling hides it again', async ({
+    page,
+  }) => {
+    const admin = getAdminClient()
+    const { data: user, error } = await admin
+      .from('users')
+      .select('id, organization_id')
+      .eq('email', PPL_EMAIL)
+      .single()
+    if (error || !user) throw new Error(`lifecycle user lookup: ${error?.message}`)
+
+    await login(page, PPL_EMAIL)
+    await page.goto('/app/vfr-rt')
+    await expect(page).toHaveURL(/\/app\/vfr-rt$/)
+    await expect(page.getByText(/not enrolled/i)).toBeVisible()
+
+    await enrolStudent(admin, {
+      userId: user.id,
+      orgId: user.organization_id,
+      courseIds: [GRANDFATHER_COURSE_IDS[1]],
+    })
+    await page.reload()
+    await expect(page).toHaveURL(/\/app\/vfr-rt$/)
+    await expect(page.getByText(/not enrolled/i)).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /start/i }).first()).toBeVisible()
+
+    const { error: unErr } = await admin
+      .from('course_enrolments')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('user_id', user.id)
+      .eq('course_id', GRANDFATHER_COURSE_IDS[1])
+      .is('deleted_at', null)
+    if (unErr) throw new Error(`lifecycle unenrol: ${unErr.message}`)
+    await page.reload()
     await expect(page.getByText(/not enrolled/i)).toBeVisible()
   })
 })

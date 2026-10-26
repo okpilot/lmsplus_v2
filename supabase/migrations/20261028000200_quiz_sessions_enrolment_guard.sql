@@ -1,4 +1,4 @@
--- BEFORE INSERT guard on quiz_sessions: subject and config.question_ids must be in the caller's enrolled courses. #1637
+-- BEFORE INSERT and revive (deleted_at NOT NULL -> NULL) guard on quiz_sessions: subject and config.question_ids must be in the caller's enrolled courses. #1637
 
 CREATE OR REPLACE FUNCTION public.quiz_sessions_enforce_enrolment() RETURNS trigger
 LANGUAGE plpgsql SECURITY INVOKER SET search_path = public, pg_temp
@@ -32,8 +32,14 @@ $$;
 REVOKE EXECUTE ON FUNCTION public.quiz_sessions_enforce_enrolment() FROM PUBLIC, anon;
 
 COMMENT ON FUNCTION public.quiz_sessions_enforce_enrolment() IS
-  'Raises not_enrolled when a quiz_sessions insert targets a subject, or carries question ids, outside the caller''s enrolled courses. No-op without auth.uid() (service role). #1637';
+  'Raises not_enrolled when a quiz_sessions insert or revive targets a subject, or carries question ids, outside the caller''s enrolled courses. No-op without auth.uid() (service role). #1637';
 
 CREATE TRIGGER trg_quiz_sessions_enforce_enrolment
   BEFORE INSERT ON public.quiz_sessions
   FOR EACH ROW EXECUTE FUNCTION public.quiz_sessions_enforce_enrolment();
+
+-- resume_saved_quiz revives a saved row by clearing deleted_at.
+CREATE TRIGGER trg_quiz_sessions_enforce_enrolment_revive
+  BEFORE UPDATE OF deleted_at ON public.quiz_sessions
+  FOR EACH ROW WHEN (OLD.deleted_at IS NOT NULL AND NEW.deleted_at IS NULL)
+  EXECUTE FUNCTION public.quiz_sessions_enforce_enrolment();

@@ -349,4 +349,79 @@ describe('RPC: start paths enforce course enrolment', () => {
     })
     expect(requireRpcRows(enrolled.data, 'ppl').length).toBe(2)
   })
+
+  async function startAndSave(): Promise<string> {
+    const c = clients['eg-ppl'] as SupabaseClient
+    const started = await c.rpc('start_practice_quiz', practiceArgs())
+    expect(started.error).toBeNull()
+    const sessionId = requireRpcResult<{ session_id: string }>(started.data, 'start').session_id
+    expect(sessionId).toBeTruthy()
+    const saved = await c.rpc('save_quiz_for_later', {
+      p_session_id: sessionId,
+      p_device_id: DEVICE,
+    })
+    expect(saved.error).toBeNull()
+    return sessionId
+  }
+
+  async function rowOf(sessionId: string) {
+    const { data, error } = await admin
+      .from('quiz_sessions')
+      .select('deleted_at, saved_at')
+      .eq('id', sessionId)
+      .single()
+    if (error || !data) throw new Error(`rowOf: ${error?.message}`)
+    return data
+  }
+
+  it('AC-R1: resume_saved_quiz raises not_enrolled after the course enrolment is soft-deleted and the row stays saved', async () => {
+    const sid = ids['eg-ppl'] as string
+    const sessionId = await startAndSave()
+    expect((await rowOf(sessionId)).deleted_at).not.toBeNull()
+    await setEnrolments(sid, orgId, [])
+    try {
+      const { error } = await (clients['eg-ppl'] as SupabaseClient).rpc('resume_saved_quiz', {
+        p_session_id: sessionId,
+        p_device_id: DEVICE,
+      })
+      expect(error?.message ?? '').toMatch(/not_enrolled/)
+      expect((await rowOf(sessionId)).deleted_at).not.toBeNull()
+    } finally {
+      await setEnrolments(sid, orgId, [ppl])
+    }
+  })
+
+  it('AC-R2: an enrolled student resumes a saved quiz and the row is live', async () => {
+    const sessionId = await startAndSave()
+    const { error } = await (clients['eg-ppl'] as SupabaseClient).rpc('resume_saved_quiz', {
+      p_session_id: sessionId,
+      p_device_id: DEVICE,
+    })
+    expect(error).toBeNull()
+    const row = await rowOf(sessionId)
+    expect(row.deleted_at).toBeNull()
+    expect(row.saved_at).toBeNull()
+  })
+
+  it('AC-R4: an unenrolled student can still soft-delete a live session by saving it', async () => {
+    const sid = ids['eg-ppl'] as string
+    const started = await (clients['eg-ppl'] as SupabaseClient).rpc(
+      'start_practice_quiz',
+      practiceArgs(),
+    )
+    expect(started.error).toBeNull()
+    const sessionId = requireRpcResult<{ session_id: string }>(started.data, 'start').session_id
+    expect((await rowOf(sessionId)).deleted_at).toBeNull()
+    await setEnrolments(sid, orgId, [])
+    try {
+      const { error } = await (clients['eg-ppl'] as SupabaseClient).rpc('save_quiz_for_later', {
+        p_session_id: sessionId,
+        p_device_id: DEVICE,
+      })
+      expect(error).toBeNull()
+      expect((await rowOf(sessionId)).deleted_at).not.toBeNull()
+    } finally {
+      await setEnrolments(sid, orgId, [ppl])
+    }
+  })
 })

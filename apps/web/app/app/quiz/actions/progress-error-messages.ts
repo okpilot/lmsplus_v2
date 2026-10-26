@@ -26,6 +26,7 @@ export const PROGRESS_ERROR_MESSAGES: Record<string, string> = {
   not_authenticated: SIGN_IN,
   'not authenticated': SIGN_IN,
   user_not_found_or_inactive: NOT_ACTIVE,
+  [NOT_ENROLLED_TOKEN]: NOT_ENROLLED,
   'user not found or inactive': NOT_ACTIVE,
   session_not_found: NOT_FOUND,
   'session not found or not owned by this student': NOT_FOUND,
