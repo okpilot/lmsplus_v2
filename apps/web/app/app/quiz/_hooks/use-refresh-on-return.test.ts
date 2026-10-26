@@ -135,3 +135,23 @@ describe('useRefreshOnReturn — Back/Forward', () => {
     expect(mockRefresh).not.toHaveBeenCalled()
   })
 })
+
+describe('useRefreshOnReturn — popstate while mounted', () => {
+  it('refreshes once when a popstate lands on the mounted hook pathname', async () => {
+    const useRefreshOnReturn = await loadHook()
+    renderHook(() => useRefreshOnReturn())
+
+    await act(async () => popTo(QUIZ))
+
+    expect(mockRefresh).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not refresh when a popstate lands on another path while mounted', async () => {
+    const useRefreshOnReturn = await loadHook()
+    renderHook(() => useRefreshOnReturn())
+
+    await act(async () => popTo('/app/progress'))
+
+    expect(mockRefresh).not.toHaveBeenCalled()
+  })
+})
