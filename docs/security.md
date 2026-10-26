@@ -232,7 +232,7 @@ Resulting policy set for `questions` (ground (a)):
 | DELETE | none — hard DELETE is blocked at the RLS layer, matching rule 6 |
 
 Resulting policy set for each of `organizations`, `question_banks`
-(ground (b); `courses`, `lessons` dropped by `20261027000100`): SELECT via `tenant_isolation` with a byte-identical predicate, and **no
+(ground (b); `lessons` dropped and `courses` recreated without `tenant_isolation` by `20261027000100`): SELECT via `tenant_isolation` with a byte-identical predicate, and **no
 permissive policy for INSERT, UPDATE or DELETE**. Consequence worth stating explicitly,
 because it differs from `questions`: an authenticated **admin** is denied too, since
 `requireAdmin()` returns an RLS-bound client and these have no `is_admin()` write policy
