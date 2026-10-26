@@ -20,7 +20,7 @@ export function useQuizConfigState(deps: {
   initialMode?: QuizMode
   preload?: PreloadPromise
 }) {
-  const preloaded = usePreloadedSetup(deps.preload)
+  const preloaded = usePreloadedSetup(deps.preload).ref
   const [subjectId, setSubjectId] = useState(deps.initialSubjectId ?? '')
   const [mode, setMode] = useState<QuizMode>(deps.initialMode ?? 'discovery')
   const [filters, setFilters] = useState<QuestionFilterValue[]>(['all'])

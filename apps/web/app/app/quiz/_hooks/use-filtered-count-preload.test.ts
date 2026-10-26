@@ -1,4 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
+import { useEffect } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
@@ -23,6 +24,7 @@ const SUBTOPIC_IDS: string[] = ['00000000-0000-4000-c000-000000000001']
 
 beforeEach(() => {
   vi.resetAllMocks()
+  mockGetFilteredCount.mockResolvedValue({ count: -1, byTopic: {}, bySubtopic: {} })
 })
 
 // ---- preloaded Discovery counts -------------------------------------------
@@ -101,17 +103,6 @@ describe('useFilteredCount — preloaded Discovery counts', () => {
     expect(result.current.filteredCount).toBe(9)
   })
 
-  it('keeps the same refetch when a new preload arrives so the counts effect does not re-run', async () => {
-    const { result, rerender } = renderHook(({ p }) => useFilteredCount(p), {
-      initialProps: { p: Promise.resolve(SETUP) },
-    })
-    const before = result.current.refetch
-
-    rerender({ p: Promise.resolve(SETUP) })
-
-    expect(result.current.refetch).toBe(before)
-  })
-
   it('ignores the result of a request that was still pending when preloaded counts arrived', async () => {
     let resolveFetch: (v: unknown) => void = () => undefined
     mockGetFilteredCount.mockReturnValue(
@@ -130,47 +121,69 @@ describe('useFilteredCount — preloaded Discovery counts', () => {
   })
 })
 
-describe('useFilteredCount — preloaded counts age', () => {
+describe('useFilteredCount — preloaded counts never expire', () => {
   afterEach(() => {
     vi.useRealTimers()
   })
 
-  it('asks the server once the preloaded counts are older than the TTL', async () => {
-    vi.useFakeTimers({ now: 50_000 })
-    mockGetFilteredCount.mockResolvedValue({ count: 8, byTopic: {}, bySubtopic: {} })
-    const { result } = await renderResolved()
-    vi.setSystemTime(50_000 + 61_000)
-
-    await act(async () => discoveryRefetch(result, ['unseen']))
-
-    expect(mockGetFilteredCount).toHaveBeenCalledTimes(1)
-    expect(result.current.filteredCount).toBe(8)
-  })
-
-  it('asks the server on a back-navigation remount of counts loaded over a TTL ago', async () => {
-    vi.useFakeTimers({ now: 50_000 })
-    mockGetFilteredCount.mockResolvedValue({ count: 8, byTopic: {}, bySubtopic: {} })
-    const preload = Promise.resolve(SETUP)
-    const first = renderHook(() => useFilteredCount(preload))
-    await act(async () => undefined)
-    first.unmount()
-    vi.setSystemTime(50_000 + 61_000)
-
-    const { result } = renderHook(() => useFilteredCount(preload))
-    await act(async () => discoveryRefetch(result, ALL))
-
-    expect(mockGetFilteredCount).toHaveBeenCalledTimes(1)
-    expect(result.current.filteredCount).toBe(8)
-  })
-
-  it('still uses preloaded counts within the TTL', async () => {
+  it('uses preloaded counts of a toggled set 10 minutes later without a request', async () => {
     vi.useFakeTimers({ now: 50_000 })
     const { result } = await renderResolved()
-    vi.setSystemTime(50_000 + 59_000)
+    vi.setSystemTime(50_000 + 600_000)
 
     await act(async () => discoveryRefetch(result, ['unseen']))
 
     expect(mockGetFilteredCount).not.toHaveBeenCalled()
     expect(result.current.filteredCount).toBe(12)
+  })
+
+  it('uses preloaded counts on a remount of an old preload without a request', async () => {
+    vi.useFakeTimers({ now: 50_000 })
+    const preload = Promise.resolve(SETUP)
+    const first = renderHook(() => useFilteredCount(preload))
+    await act(async () => undefined)
+    first.unmount()
+    vi.setSystemTime(50_000 + 600_000)
+
+    const { result } = renderHook(() => useFilteredCount(preload))
+    await act(async () => undefined)
+    await act(async () => discoveryRefetch(result, ALL))
+
+    expect(mockGetFilteredCount).not.toHaveBeenCalled()
+    expect(result.current.filteredCount).toBe(31)
+  })
+})
+
+describe('useFilteredCount — new preload after a refresh', () => {
+  it('shows the new promise counts for the current selection without a request', async () => {
+    const REFRESHED = {
+      topicsBySubject: {},
+      discoveryCounts: {
+        [SUBJECT_ID]: {
+          '': { count: 40, byTopic: { [TOPIC_ID]: 40 }, bySubtopic: {} },
+          unseen: UNSEEN,
+        },
+      },
+    } satisfies QuizSetupPreload
+    // Stands in for useFilteredCountSync: re-run the selection whenever refetch changes.
+    const { result, rerender } = renderHook(
+      ({ p }) => {
+        const fc = useFilteredCount(p)
+        const { refetch } = fc
+        useEffect(() => {
+          refetch(SUBJECT_ID, TOPIC_IDS, SUBTOPIC_IDS, ALL, 'all', 'all', 'multiple_choice')
+        }, [refetch])
+        return fc
+      },
+      { initialProps: { p: Promise.resolve(SETUP) } },
+    )
+    await act(async () => undefined)
+    expect(result.current.filteredCount).toBe(31)
+
+    rerender({ p: Promise.resolve(REFRESHED) })
+    await act(async () => undefined)
+
+    expect(result.current.filteredCount).toBe(40)
+    expect(mockGetFilteredCount).not.toHaveBeenCalled()
   })
 })

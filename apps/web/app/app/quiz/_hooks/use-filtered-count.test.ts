@@ -1,5 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { useEffect } from 'react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -13,6 +14,7 @@ vi.mock('../actions/lookup', () => ({
 
 // ---- Subject under test ---------------------------------------------------
 
+import type { QuestionFilterValue, QuizSetupPreload } from '../types'
 import { useFilteredCount } from './use-filtered-count'
 
 // ---- Fixtures -------------------------------------------------------------
@@ -462,5 +464,150 @@ describe('useFilteredCount — reset', () => {
     expect(result.current.filteredCount).toBeNull()
     expect(result.current.filteredByTopic).toBeNull()
     expect(result.current.filteredBySubtopic).toBeNull()
+  })
+})
+
+// ---- stale-while-revalidate on refetch -------------------------------------
+
+describe('useFilteredCount — same-key refetch after a new preload', () => {
+  const EMPTY = (): QuizSetupPreload => ({ topicsBySubject: {}, discoveryCounts: {} })
+  const FLAGGED = ['flagged'] as QuestionFilterValue[]
+
+  function setup(filters: QuestionFilterValue[]) {
+    return renderHook(
+      ({ p, f }) => {
+        const fc = useFilteredCount(p)
+        const { refetch } = fc
+        useEffect(() => {
+          refetch(SUBJECT_ID, TOPIC_IDS, SUBTOPIC_IDS, f, 'all', 'all', 'multiple_choice')
+        }, [refetch, f])
+        return fc
+      },
+      { initialProps: { p: Promise.resolve(EMPTY()), f: filters } },
+    )
+  }
+
+  it('keeps the current counts, not pending, while the revalidating request runs', async () => {
+    mockGetFilteredCount.mockResolvedValueOnce({ count: 2, byTopic: {}, bySubtopic: {} })
+    const { result, rerender } = setup(FLAGGED)
+    await act(async () => undefined)
+    expect(result.current.filteredCount).toBe(2)
+
+    let resolveFetch: (v: unknown) => void = () => undefined
+    mockGetFilteredCount.mockReturnValueOnce(
+      new Promise((r) => {
+        resolveFetch = r
+      }),
+    )
+    rerender({ p: Promise.resolve(EMPTY()), f: FLAGGED })
+    await act(async () => undefined)
+
+    expect(mockGetFilteredCount).toHaveBeenCalledTimes(2)
+    expect(result.current.filteredCount).toBe(2)
+    expect(result.current.isFilterPending).toBe(false)
+
+    await act(async () => {
+      resolveFetch({ count: 5, byTopic: {}, bySubtopic: {} })
+    })
+    expect(result.current.filteredCount).toBe(5)
+  })
+
+  it('resets to null and pending when the key changed', async () => {
+    mockGetFilteredCount.mockResolvedValueOnce({ count: 2, byTopic: {}, bySubtopic: {} })
+    const { result, rerender } = setup(FLAGGED)
+    await act(async () => undefined)
+
+    mockGetFilteredCount.mockReturnValueOnce(new Promise(() => undefined))
+    rerender({ p: Promise.resolve(EMPTY()), f: ['unseen'] as QuestionFilterValue[] })
+    await act(async () => undefined)
+
+    expect(result.current.filteredCount).toBeNull()
+    expect(result.current.isFilterPending).toBe(true)
+  })
+})
+
+// ---- same-key refetch after a failed request (AC13) ------------------------
+
+describe('useFilteredCount — same-key refetch after a failed request', () => {
+  let errorSpy: ReturnType<typeof vi.spyOn>
+  beforeEach(() => {
+    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+  })
+  afterEach(() => {
+    errorSpy.mockRestore()
+  })
+  const OK = { count: 7, byTopic: {}, bySubtopic: {} }
+  const AUTH = { count: 0, byTopic: {}, bySubtopic: {}, error: 'auth' }
+  const call = (r: { current: ReturnType<typeof useFilteredCount> }) =>
+    r.current.refetch(SUBJECT_ID, TOPIC_IDS, [], ['unseen'])
+
+  it('blanks counts and shows pending on a same-key refetch after an auth result for the first call', async () => {
+    mockGetFilteredCount.mockResolvedValueOnce(AUTH)
+    const { result } = renderHook(() => useFilteredCount())
+    await act(async () => call(result))
+    mockGetFilteredCount.mockReturnValueOnce(new Promise(() => undefined))
+    act(() => call(result))
+    expect(result.current.isFilterPending).toBe(true)
+    expect(result.current.filteredCount).toBeNull()
+  })
+
+  it('blanks counts and shows pending on a same-key refetch after a rejection for the first call', async () => {
+    mockGetFilteredCount.mockRejectedValueOnce(new Error('network'))
+    const { result } = renderHook(() => useFilteredCount())
+    await act(async () => call(result))
+    mockGetFilteredCount.mockReturnValueOnce(new Promise(() => undefined))
+    act(() => call(result))
+    expect(result.current.isFilterPending).toBe(true)
+    expect(result.current.filteredCount).toBeNull()
+  })
+
+  it('blanks shown counts and shows pending after a same-key revalidation returned auth', async () => {
+    mockGetFilteredCount.mockResolvedValueOnce(OK).mockResolvedValueOnce(AUTH)
+    const { result } = renderHook(() => useFilteredCount())
+    await act(async () => call(result))
+    expect(result.current.filteredCount).toBe(7)
+    await act(async () => call(result))
+    mockGetFilteredCount.mockReturnValueOnce(new Promise(() => undefined))
+    act(() => call(result))
+    expect(result.current.isFilterPending).toBe(true)
+    expect(result.current.filteredCount).toBeNull()
+  })
+
+  it('blanks shown counts and shows pending after a same-key revalidation rejected', async () => {
+    mockGetFilteredCount.mockResolvedValueOnce(OK).mockRejectedValueOnce(new Error('network'))
+    const { result } = renderHook(() => useFilteredCount())
+    await act(async () => call(result))
+    expect(result.current.filteredCount).toBe(7)
+    await act(async () => call(result))
+    mockGetFilteredCount.mockReturnValueOnce(new Promise(() => undefined))
+    act(() => call(result))
+    expect(result.current.isFilterPending).toBe(true)
+    expect(result.current.filteredCount).toBeNull()
+  })
+})
+
+// ---- rejected request logs (AC14) -------------------------------------------
+
+describe('useFilteredCount — rejected count request', () => {
+  let errorSpy: ReturnType<typeof vi.spyOn>
+  beforeEach(() => {
+    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+  })
+  afterEach(() => {
+    errorSpy.mockRestore()
+  })
+
+  it('logs a tagged console.error once with the error and clears pending when getFilteredCount rejects', async () => {
+    const err = new Error('network')
+    mockGetFilteredCount.mockRejectedValueOnce(err)
+    const { result } = renderHook(() => useFilteredCount())
+    await act(async () => {
+      result.current.refetch(SUBJECT_ID, TOPIC_IDS, [], ['unseen'])
+    })
+    expect(errorSpy).toHaveBeenCalledExactlyOnceWith(
+      '[useFilteredCount] count request failed:',
+      err,
+    )
+    expect(result.current.isFilterPending).toBe(false)
   })
 })

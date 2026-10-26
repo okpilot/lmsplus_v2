@@ -22,7 +22,7 @@ export function useQuizConfig({
   preload?: PreloadPromise
 }) {
   const topicTree = useTopicTree(initialTopics)
-  const fc = useFilteredCount()
+  const fc = useFilteredCount(preload)
   const st = useQuizConfigState({ fc, topicTree, initialSubjectId, initialMode, preload })
 
   const availableCount = useAvailableCount({

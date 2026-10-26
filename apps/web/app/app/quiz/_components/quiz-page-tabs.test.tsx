@@ -15,6 +15,13 @@ vi.mock('./quiz-tabs', () => ({
     </div>
   ),
 }))
+const { mockRefreshOnReturn } = vi.hoisted(() => ({ mockRefreshOnReturn: vi.fn() }))
+vi.mock('./refresh-on-return', () => ({
+  RefreshOnReturn: () => {
+    mockRefreshOnReturn()
+    return <span data-testid="refresh-on-return" />
+  },
+}))
 vi.mock('./subjects-section', () => ({
   SubjectsSection: (p: { userId: string }) => <div data-testid="subjects" data-user={p.userId} />,
 }))
@@ -62,5 +69,11 @@ describe('QuizPageTabs', () => {
   it('renders the new-quiz subjects for the user', () => {
     render(<QuizPageTabs {...props} />)
     expect(screen.getByTestId('subjects').getAttribute('data-user')).toBe('u1')
+  })
+
+  it('mounts RefreshOnReturn at page level alongside the tabs', () => {
+    render(<QuizPageTabs {...props} />)
+    expect(screen.getByTestId('refresh-on-return')).toBeInTheDocument()
+    expect(screen.getByTestId('badge')).toBeInTheDocument()
   })
 })

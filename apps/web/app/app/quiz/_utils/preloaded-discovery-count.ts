@@ -1,26 +1,6 @@
 import type { FilteredCounts } from '@/lib/queries/discovery-counts'
 import { filterSetKey } from '@/lib/queries/filtered-count-keys'
-import type { CalcMode, ImageMode, StampedPreload } from '../types'
-
-/** Per-student counts go stale as the student answers; older than this they are not reused. */
-export const PRELOAD_COUNTS_TTL_MS = 60_000
-
-// A Back/Forward restore reuses an already-stamped preload, so counts stamped before it are stale.
-let historyRestoredAt = 0
-
-export function markHistoryRestore(now: number) {
-  historyRestoredAt = now
-}
-
-/** The preloaded Discovery counts while they are young enough to trust, else undefined. */
-export function freshCounts(
-  preload: StampedPreload | null | undefined,
-  now: number,
-): StampedPreload['discoveryCounts'] | undefined {
-  if (!preload || now - preload.loadedAt > PRELOAD_COUNTS_TTL_MS) return undefined
-  if (preload.loadedAt < historyRestoredAt) return undefined
-  return preload.discoveryCounts
-}
+import type { CalcMode, ImageMode } from '../types'
 
 /**
  * The server-preloaded whole-subject multiple-choice count for the active student filter
