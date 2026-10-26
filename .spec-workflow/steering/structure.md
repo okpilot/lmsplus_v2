@@ -330,7 +330,7 @@ export async function submitAnswer(...): Promise<SubmitAnswerResult> { ... }
 
 Owns all Supabase client creation, generated types, Zod schemas, and the admin (service role) client. No business logic lives here. The service role key exists **only** in `packages/db/src/admin.ts`.
 
-**Exports:** `client.ts`, `server.ts`, `middleware.ts`, `admin.ts`, `schema.ts`, `database.ts`, `types.ts`
+**Exports:** see `packages/db/package.json` `exports`
 **Never:** business logic, React components, Next.js imports
 
 ### `packages/ui` — Shared UI components

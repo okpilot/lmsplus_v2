@@ -38,6 +38,8 @@ test.describe('Red Team: progress RPCs with omitted device key (Vectors JY/JZ)',
   let orgId: string
   let victimUserId: string
   let mcId: string
+  let optA: string
+  let optB: string
   let saId: string
   let saCanonical: string
   const createdQuestionIds = new Set<string>()
@@ -92,7 +94,7 @@ test.describe('Red Team: progress RPCs with omitted device key (Vectors JY/JZ)',
     victim = await createAuthenticatedClient(VICTIM_EMAIL, VICTIM_PASSWORD)
     const { data, error } = await admin
       .from('questions')
-      .select('id, bank_id, subject_id, topic_id, created_by')
+      .select('id, bank_id, subject_id, topic_id, created_by, options')
       .eq('organization_id', orgId)
       .eq('question_type', 'multiple_choice')
       .eq('status', 'active')
@@ -102,7 +104,7 @@ test.describe('Red Team: progress RPCs with omitted device key (Vectors JY/JZ)',
       .limit(1)
       .single()
     if (error || !isRecord(data)) throw new Error(`beforeAll mc: ${error?.message ?? 'none'}`)
-    const { id, bank_id, subject_id, topic_id, created_by } = data
+    const { id, bank_id, subject_id, topic_id, created_by, options } = data
     if (
       typeof id !== 'string' ||
       typeof bank_id !== 'string' ||
@@ -111,7 +113,14 @@ test.describe('Red Team: progress RPCs with omitted device key (Vectors JY/JZ)',
       typeof created_by !== 'string'
     )
       throw new Error('mc scaffolding columns missing')
+    const optionIds = Array.isArray(options)
+      ? options.flatMap((o) => (isRecord(o) && typeof o.id === 'string' ? [o.id] : []))
+      : []
+    const [first, second] = optionIds
+    if (first === undefined || second === undefined) throw new Error('mc needs 2 option ids')
     mcId = id
+    optA = first
+    optB = second
     const sa = await admin
       .from('questions')
       .insert({
@@ -189,15 +198,26 @@ test.describe('Red Team: progress RPCs with omitted device key (Vectors JY/JZ)',
     const sessionId = await seedClaimedSession()
     expect((await readSession(sessionId)).active_device_id).toBe(DEVICE_A)
 
+    // Pre-answer as DEVICE_A so the protected state exists before the omitted calls.
+    const pre = await victim.rpc('check_quiz_answer', {
+      p_question_id: mcId,
+      p_selected_option_id: optA,
+      p_session_id: sessionId,
+      p_device_id: DEVICE_A,
+    })
+    expect(pre.error).toBeNull()
+    const before = await readProgress(sessionId)
+    expect(before.map((r) => r.question_id)).toEqual([mcId])
+
     const omitted = [
       victim.rpc('check_quiz_answer', {
         p_question_id: mcId,
-        p_selected_option_id: 'a',
+        p_selected_option_id: optB,
         p_session_id: sessionId,
       }),
       victim.rpc('check_quiz_answer', {
         p_question_id: mcId,
-        p_selected_option_id: 'a',
+        p_selected_option_id: optB,
         p_session_id: sessionId,
         p_device_id: undefined,
         p_time_spent_ms: undefined,
@@ -219,12 +239,12 @@ test.describe('Red Team: progress RPCs with omitted device key (Vectors JY/JZ)',
       expect(r.data).toBeNull()
       expect(r.error?.message).toBe(TAKEN_OVER)
     }
-    expect(await readProgress(sessionId)).toEqual([])
+    expect(await readProgress(sessionId)).toEqual(before)
 
     // CONTROL: the claiming device grades and saves.
     const mc = await victim.rpc('check_quiz_answer', {
       p_question_id: mcId,
-      p_selected_option_id: 'a',
+      p_selected_option_id: optA,
       p_session_id: sessionId,
       p_device_id: DEVICE_A,
     })
@@ -242,7 +262,7 @@ test.describe('Red Team: progress RPCs with omitted device key (Vectors JY/JZ)',
     expect(rows.map((r) => r.question_id).sort()).toEqual([mcId, saId].sort())
   })
 
-  test('JZ: save_quiz_position with omitted device or leaving keys moves nothing after a claim', async () => {
+  test('JZ: a missing or foreign device cannot move save_quiz_position after a claim', async () => {
     const sessionId = await seedClaimedSession()
     const before = await readSession(sessionId)
     expect(before).toEqual({
