@@ -14,7 +14,7 @@ export type StudyQuestion = {
 }
 
 // Wire shape of one `start_discovery` `questions` payload entry (snake_case, jsonb options).
-// String fields are typed as `unknown` — the payload arrives as `rpc<unknown>`, so nothing is
+// String fields are typed as `unknown` — the payload is an unvalidated `supabase.rpc('start_discovery')` result, so nothing is
 // guaranteed at runtime. `toStudyQuestion` guards each
 // field with `typeof v === 'string'` before returning the typed `StudyQuestion`.
 type StudyQuestionRow = {

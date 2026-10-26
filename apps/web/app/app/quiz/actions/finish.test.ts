@@ -5,7 +5,7 @@ const { mockVerifySessionUser, mockRpc } = vi.hoisted(() => ({
   mockRpc: vi.fn(),
 }))
 
-const mockClient = vi.hoisted(() => ({}))
+const mockClient = vi.hoisted(() => ({ rpc: mockRpc }))
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => mockClient,
@@ -13,10 +13,6 @@ vi.mock('@repo/db/server', () => ({
 
 vi.mock('@/lib/auth/verify-session-user', () => ({
   verifySessionUser: mockVerifySessionUser,
-}))
-
-vi.mock('@/lib/supabase-rpc', () => ({
-  rpc: (...args: unknown[]) => mockRpc(...args),
 }))
 
 import { finishQuizSession } from './finish'
@@ -47,7 +43,7 @@ describe('finishQuizSession', () => {
     expect(await finishQuizSession({ sessionId: SESSION, deviceId: DEVICE })).toEqual({
       success: true,
     })
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'finish_quiz_session', {
+    expect(mockRpc).toHaveBeenCalledWith('finish_quiz_session', {
       p_session_id: SESSION,
       p_device_id: DEVICE,
     })

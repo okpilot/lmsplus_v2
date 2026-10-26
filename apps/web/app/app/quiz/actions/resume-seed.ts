@@ -1,8 +1,9 @@
 // Seeds a freshly minted practice session from a saved draft (#1026). No 'use server' — called by
 // resumeQuizSession. The new session's active_device_id is NULL, so the progress RPCs raise no
 // takeover for the throwaway device id used here (_save_progress_row, mig 20261002000300).
+
+import type { Database } from '@repo/db/database'
 import type { createServerSupabaseClient } from '@repo/db/server'
-import { rpc } from '@/lib/supabase-rpc'
 import { toAnswerJson } from './quiz-progress-helpers'
 import { SaveAnswerInput } from './quiz-progress-schema'
 import type { ResumeContext } from './resume-helpers'
@@ -20,13 +21,7 @@ const MAX_TIME_SPENT_MS = 86_400_000
 
 const PAYLOAD_KEYS = ['selectedOptionId', 'responseText', 'blankAnswers', 'order', 'mapping']
 
-type SaveAnswerArgs = {
-  p_session_id: string
-  p_question_id: string
-  p_answer: Record<string, unknown>
-  p_time_spent_ms: number
-  p_device_id: string
-}
+type SaveAnswerArgs = Database['public']['Functions']['save_quiz_answer']['Args']
 
 /** The draft's client-written visit time as an integer the RPC accepts: [0, 24 h], else 0. */
 function clampTimeSpentMs(raw: unknown): number {
@@ -90,7 +85,7 @@ export async function seedSessionFromDraft(
       console.warn('[resumeQuizSession] Malformed draft answer skipped for question', entry[0])
       continue
     }
-    const { error } = await rpc<null>(supabase, 'save_quiz_answer', args)
+    const { error } = await supabase.rpc('save_quiz_answer', args)
     if (error && SKIPPABLE_TOKENS.has(error.message)) {
       console.warn('[resumeQuizSession] Rejected draft answer skipped for question', entry[0])
       continue
@@ -100,7 +95,7 @@ export async function seedSessionFromDraft(
       return false
     }
   }
-  const { error } = await rpc<null>(supabase, 'save_quiz_position', {
+  const { error } = await supabase.rpc('save_quiz_position', {
     p_session_id: sessionId,
     p_current_index: Math.max(0, Math.min(ctx.currentIndex, ctx.questionIds.length - 1)),
     p_pinned_question_ids: [],

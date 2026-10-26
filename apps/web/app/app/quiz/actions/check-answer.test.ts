@@ -4,7 +4,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockVerifySessionUser, mockRpc, mockFrom, mockClient } = vi.hoisted(() => {
   const from = vi.fn()
-  return { mockVerifySessionUser: vi.fn(), mockRpc: vi.fn(), mockFrom: from, mockClient: { from } }
+  const mockRpc = vi.fn()
+  return {
+    mockVerifySessionUser: vi.fn(),
+    mockRpc,
+    mockFrom: from,
+    mockClient: { from, rpc: mockRpc },
+  }
 })
 
 vi.mock('@repo/db/server', () => ({
@@ -12,10 +18,6 @@ vi.mock('@repo/db/server', () => ({
 }))
 
 vi.mock('@/lib/auth/verify-session-user', () => ({ verifySessionUser: mockVerifySessionUser }))
-
-vi.mock('@/lib/supabase-rpc', () => ({
-  rpc: (...args: unknown[]) => mockRpc(...args),
-}))
 
 // ---- Subject under test ---------------------------------------------------
 
@@ -69,7 +71,8 @@ describe('checkAnswer', () => {
       sessionId: SESSION_ID,
     })
     expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
-    expect(mockRpc).toHaveBeenCalledWith(mockClient, 'check_quiz_answer', expect.anything())
+    expect(mockRpc).toHaveBeenCalledWith('check_quiz_answer', expect.anything())
+    expect(mockRpc.mock.contexts[0]).toBe(mockClient)
   })
 
   it('returns failure when user is not authenticated', async () => {

@@ -1,6 +1,7 @@
 # Red Team — Attack Surface Map
 
-> Last updated: 2026-10-25 (branch fix/1608-server-code, #1608 — Vectors JW, JX added.)
+> Last updated: 2026-10-25 (branch refactor/1609-typed-rpc-quiz, #1609 — Vectors JY, JZ added.)
+> PRIOR: 2026-10-25 (branch fix/1608-server-code, #1608 — Vectors JW, JX added.)
 > PRIOR: 2026-10-25 (branch fix/1607-deactivated-students, #1607 — Vectors JU, JV added.)
 > PRIOR: 2026-10-23 (branch perf/1602-one-count-rpc, #1602 — Vectors JQ-JT added; IY spec covers get_discovery_counts.)
 > PRIOR: 2026-10-21 (branch fix/1558-comments-select-active-caller, #1558 — Vector JO added.)
@@ -308,6 +309,8 @@
 | JV | deactivated-student-live-token-invoker-rpc-reads | MEDIUM | deactivated-student-live-token-reads.spec.ts | BLOCKED |  | soft-delete-bypass |
 | JW | auth-signout-route-cross-site-forced-logout-active-caller | LOW | signout-route-deactivation.spec.ts | BLOCKED |  | cookie-state |
 | JX | deactivated-caller-app-document-no-redirect-follow | LOW | signout-route-deactivation.spec.ts | BLOCKED |  | soft-delete-bypass |
+| JY | check-rpcs-omitted-device-key-after-claim | MEDIUM | rpc-progress-omitted-device-key.spec.ts | BLOCKED |  | auth-bypass |
+| JZ | save_quiz_position-omitted-device-or-leaving-keys-after-claim | LOW | rpc-progress-omitted-device-key.spec.ts | BLOCKED |  | auth-bypass |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 

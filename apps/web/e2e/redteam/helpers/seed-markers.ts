@@ -117,3 +117,6 @@ export const E2E_REDTEAM_JU_STUDENT_PASSWORD = 'redteam-ju-deactivated-reads-202
 export const E2E_REDTEAM_JW_MARKER = '[E2E_REDTEAM_JW]'
 export const E2E_REDTEAM_JW_STUDENT_EMAIL = 'redteam-jw-signout@lmsplus.local'
 export const E2E_REDTEAM_JW_STUDENT_PASSWORD = 'redteam-jw-signout-2026!'
+// omitted-device-key progress RPCs spec (Vectors JY, JZ, #1609): quiz_sessions `config.e2e_marker`,
+// questions `question_text` prefix.
+export const E2E_REDTEAM_JY_MARKER = '[E2E_REDTEAM_JY]'

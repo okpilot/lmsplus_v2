@@ -4,10 +4,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockRpc } = vi.hoisted(() => ({ mockRpc: vi.fn() }))
 
-vi.mock('@/lib/supabase-rpc', () => ({
-  rpc: (...args: unknown[]) => mockRpc(...args),
-}))
-
 // ---- Subject under test (after mocks) ---------------------------------------
 
 import {
@@ -22,7 +18,7 @@ import type { SupabaseClient } from './check-non-mc-answer-helpers'
 
 const QUESTION_ID = '00000000-0000-4000-a000-000000000011'
 const SESSION_ID = '00000000-0000-4000-a000-000000000099'
-const FAKE_SUPABASE = {} as SupabaseClient
+const FAKE_SUPABASE = { rpc: mockRpc } as unknown as SupabaseClient
 
 const DIALOG_RPC_RESULT = {
   is_correct: false,
@@ -82,13 +78,12 @@ describe('checkDialogFillAnswer', () => {
       sessionId: SESSION_ID,
       blankAnswers: [{ index: 0, text: 'cleared' }],
     })
-    expect(mockRpc).toHaveBeenCalledWith(FAKE_SUPABASE, 'check_non_mc_answer', {
+    expect(mockRpc).toHaveBeenCalledWith('check_non_mc_answer', {
       p_question_id: QUESTION_ID,
       p_session_id: SESSION_ID,
-      p_device_id: null,
-      p_time_spent_ms: null,
       p_blank_answers: [{ blank_index: 0, response_text: 'cleared' }],
     })
+    expect(mockRpc.mock.contexts[0]).toBe(FAKE_SUPABASE)
   })
 
   it('returns a generic failure and logs when the RPC errors', async () => {
@@ -149,16 +144,15 @@ describe('checkDiagramLabelAnswer', () => {
         { zoneId: 'z2', labelId: 'l2' },
       ],
     })
-    expect(mockRpc).toHaveBeenCalledWith(FAKE_SUPABASE, 'check_non_mc_answer', {
+    expect(mockRpc).toHaveBeenCalledWith('check_non_mc_answer', {
       p_question_id: QUESTION_ID,
       p_session_id: SESSION_ID,
-      p_device_id: null,
-      p_time_spent_ms: null,
       p_mapping: [
         { zone_id: 'z1', label_id: 'l1' },
         { zone_id: 'z2', label_id: 'l2' },
       ],
     })
+    expect(mockRpc.mock.contexts[0]).toBe(FAKE_SUPABASE)
   })
 
   it('returns a generic failure and logs when the RPC errors', async () => {

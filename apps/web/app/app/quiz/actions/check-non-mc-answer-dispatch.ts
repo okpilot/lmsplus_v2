@@ -3,17 +3,12 @@
 // No 'use server' pragma — these are internal
 // helpers called only from check-non-mc-answer.ts, mirroring the existing
 // schema/helpers split in this feature folder.
-import { rpc } from '@/lib/supabase-rpc'
 import type { CheckNonMcAnswerResult } from '../types'
 import {
-  type DiagramRpcResult,
-  type DialogFillRpcResult,
   isDiagramRpcResult,
   isDialogFillRpcResult,
   isOrderingRpcResult,
   isShortAnswerRpcResult,
-  type OrderingRpcResult,
-  type ShortAnswerRpcResult,
   type SupabaseClient,
   toRpcBlankAnswers,
 } from './check-non-mc-answer-helpers'
@@ -43,8 +38,8 @@ function baseArgs(input: {
   return {
     p_question_id: input.questionId,
     p_session_id: input.sessionId,
-    p_device_id: input.deviceId ?? null,
-    p_time_spent_ms: input.timeSpentMs ?? null,
+    p_device_id: input.deviceId,
+    p_time_spent_ms: input.timeSpentMs,
   }
 }
 
@@ -52,7 +47,7 @@ export async function checkShortAnswer(
   supabase: SupabaseClient,
   input: ShortAnswerCheckInput,
 ): Promise<CheckNonMcAnswerResult> {
-  const { data, error } = await rpc<ShortAnswerRpcResult>(supabase, 'check_non_mc_answer', {
+  const { data, error } = await supabase.rpc('check_non_mc_answer', {
     ...baseArgs(input),
     p_response_text: input.responseText,
   })
@@ -70,7 +65,7 @@ export async function checkOrderingAnswer(
   supabase: SupabaseClient,
   input: OrderingCheckInput,
 ): Promise<CheckNonMcAnswerResult> {
-  const { data, error } = await rpc<OrderingRpcResult>(supabase, 'check_non_mc_answer', {
+  const { data, error } = await supabase.rpc('check_non_mc_answer', {
     ...baseArgs(input),
     p_order: input.order,
   })
@@ -88,7 +83,7 @@ export async function checkDialogFillAnswer(
   supabase: SupabaseClient,
   input: DialogFillCheckInput,
 ): Promise<CheckNonMcAnswerResult> {
-  const { data, error } = await rpc<DialogFillRpcResult>(supabase, 'check_non_mc_answer', {
+  const { data, error } = await supabase.rpc('check_non_mc_answer', {
     ...baseArgs(input),
     p_blank_answers: toRpcBlankAnswers(input.blankAnswers),
   })
@@ -106,7 +101,7 @@ export async function checkDiagramLabelAnswer(
   supabase: SupabaseClient,
   input: DiagramCheckInput,
 ): Promise<CheckNonMcAnswerResult> {
-  const { data, error } = await rpc<DiagramRpcResult>(supabase, 'check_non_mc_answer', {
+  const { data, error } = await supabase.rpc('check_non_mc_answer', {
     ...baseArgs(input),
     p_mapping: input.mapping.map((m) => ({ zone_id: m.zoneId, label_id: m.labelId })),
   })

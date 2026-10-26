@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import type { Database } from './types'
+import type { Database } from './database'
 
 // Guard: this module must never be imported in client-side code
 if (typeof (globalThis as Record<string, unknown>).window !== 'undefined') {

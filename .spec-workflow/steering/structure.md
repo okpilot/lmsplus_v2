@@ -50,7 +50,7 @@ lmsplusv2/                          # Monorepo root (Turborepo + pnpm)
 │       │   ├── next/               # Next.js helpers (redirect re-throw)
 │       │   ├── queries/            # Read-only query functions
 │       │   ├── utils/              # General utilities
-│       │   ├── supabase-rpc.ts     # RPC wrapper helpers
+│       │   ├── supabase-rpc.ts     # RPC paging helpers
 │       │   └── utils.ts            # Misc shared utils
 │       ├── scripts/                # Import and seed scripts
 │       ├── e2e/                    # Playwright E2E specs
@@ -66,6 +66,7 @@ lmsplusv2/                          # Monorepo root (Turborepo + pnpm)
 │   │       ├── admin.ts            # Service role client (ONLY location for service key)
 │   │       ├── schema.ts           # Zod validation schemas
 │   │       ├── import-schema.ts    # ECQB import schemas
+│   │       ├── database.ts         # Database type: generated + NULL-accepting RPC args
 │   │       └── types.ts            # Generated Supabase types
 │   ├── ui/                         # Shared shadcn/ui components
 │   └── typescript-config/          # Shared tsconfig presets
@@ -329,7 +330,7 @@ export async function submitAnswer(...): Promise<SubmitAnswerResult> { ... }
 
 Owns all Supabase client creation, generated types, Zod schemas, and the admin (service role) client. No business logic lives here. The service role key exists **only** in `packages/db/src/admin.ts`.
 
-**Exports:** `client.ts`, `server.ts`, `middleware.ts`, `admin.ts`, `schema.ts`, `types.ts`
+**Exports:** see `packages/db/package.json` `exports`
 **Never:** business logic, React components, Next.js imports
 
 ### `packages/ui` — Shared UI components

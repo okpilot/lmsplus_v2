@@ -2,10 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockRpc } = vi.hoisted(() => ({ mockRpc: vi.fn() }))
 
-vi.mock('@/lib/supabase-rpc', () => ({
-  rpc: (...args: unknown[]) => mockRpc(...args),
-}))
-
 import type { ResumeContext } from './resume-helpers'
 import { discardMintedSession, finishResume, seedSessionFromDraft } from './resume-seed'
 
@@ -34,7 +30,7 @@ function chain(result: unknown, terminal: string) {
 }
 
 function clientFor(tables: Record<string, unknown>): Client {
-  return { from: vi.fn((table: string) => tables[table]) } as unknown as Client
+  return { from: vi.fn((table: string) => tables[table]), rpc: mockRpc } as unknown as Client
 }
 
 function ctx(over: Partial<ResumeContext> = {}): ResumeContext {
@@ -57,8 +53,10 @@ beforeEach(() => {
   mockRpc.mockResolvedValue({ data: null, error: null })
 })
 
+const RPC_CLIENT = { rpc: mockRpc } as unknown as Client
+
 function rpcCalls(name: string) {
-  return mockRpc.mock.calls.filter((c) => c[1] === name).map((c) => c[2] as Record<string, unknown>)
+  return mockRpc.mock.calls.filter((c) => c[0] === name).map((c) => c[1] as Record<string, unknown>)
 }
 
 describe('seedSessionFromDraft', () => {
@@ -68,7 +66,7 @@ describe('seedSessionFromDraft', () => {
       [Q2]: { responseText: 'QNH', responseTimeMs: 800 },
       [Q3]: { blankAnswers: [{ index: 0, text: 'ab' }], responseTimeMs: 50 },
     }
-    expect(await seedSessionFromDraft({} as Client, SESSION, ctx({ answers }))).toBe(true)
+    expect(await seedSessionFromDraft(RPC_CLIENT, SESSION, ctx({ answers }))).toBe(true)
 
     const saved = rpcCalls('save_quiz_answer')
     expect(saved).toHaveLength(3)
@@ -89,7 +87,7 @@ describe('seedSessionFromDraft', () => {
       [Q1]: { order: ['x', 'y'], responseTimeMs: 1 },
       [Q2]: { mapping: [{ zoneId: 'z1', labelId: 'l1' }], responseTimeMs: 2 },
     }
-    expect(await seedSessionFromDraft({} as Client, SESSION, ctx({ answers }))).toBe(true)
+    expect(await seedSessionFromDraft(RPC_CLIENT, SESSION, ctx({ answers }))).toBe(true)
     const saved = rpcCalls('save_quiz_answer')
     expect(saved[0]?.p_answer).toEqual({ order: ['x', 'y'] })
     expect(saved[1]?.p_answer).toEqual({ mapping: [{ zone_id: 'z1', label_id: 'l1' }] })
@@ -97,7 +95,7 @@ describe('seedSessionFromDraft', () => {
 
   it('uses one fresh device id for every seeded write', async () => {
     const answers = { [Q1]: { selectedOptionId: 'a', responseTimeMs: 1 } }
-    await seedSessionFromDraft({} as Client, SESSION, ctx({ answers }))
+    await seedSessionFromDraft(RPC_CLIENT, SESSION, ctx({ answers }))
     const [answer] = rpcCalls('save_quiz_answer')
     const [position] = rpcCalls('save_quiz_position')
     expect(answer?.p_device_id).toMatch(/^[0-9a-f-]{36}$/)
@@ -106,8 +104,8 @@ describe('seedSessionFromDraft', () => {
 
   it('saves the draft position with no pins after the answers', async () => {
     const answers = { [Q1]: { selectedOptionId: 'a', responseTimeMs: 1 } }
-    await seedSessionFromDraft({} as Client, SESSION, ctx({ answers, currentIndex: 2 }))
-    expect(mockRpc.mock.calls.map((c) => c[1])).toEqual(['save_quiz_answer', 'save_quiz_position'])
+    await seedSessionFromDraft(RPC_CLIENT, SESSION, ctx({ answers, currentIndex: 2 }))
+    expect(mockRpc.mock.calls.map((c) => c[0])).toEqual(['save_quiz_answer', 'save_quiz_position'])
     expect(rpcCalls('save_quiz_position')[0]).toMatchObject({
       p_session_id: SESSION,
       p_current_index: 2,
@@ -116,17 +114,17 @@ describe('seedSessionFromDraft', () => {
   })
 
   it('clamps a position past the last question to the last question', async () => {
-    await seedSessionFromDraft({} as Client, SESSION, ctx({ currentIndex: 99 }))
+    await seedSessionFromDraft(RPC_CLIENT, SESSION, ctx({ currentIndex: 99 }))
     expect(rpcCalls('save_quiz_position')[0]?.p_current_index).toBe(2)
   })
 
   it('seeds position 0 when the draft holds a negative position', async () => {
-    await seedSessionFromDraft({} as Client, SESSION, ctx({ currentIndex: -3 }))
+    await seedSessionFromDraft(RPC_CLIENT, SESSION, ctx({ currentIndex: -3 }))
     expect(rpcCalls('save_quiz_position')[0]?.p_current_index).toBe(0)
   })
 
   it('seeds the position of a draft with no answers', async () => {
-    expect(await seedSessionFromDraft({} as Client, SESSION, ctx({ answers: null }))).toBe(true)
+    expect(await seedSessionFromDraft(RPC_CLIENT, SESSION, ctx({ answers: null }))).toBe(true)
     expect(rpcCalls('save_quiz_answer')).toHaveLength(0)
     expect(rpcCalls('save_quiz_position')).toHaveLength(1)
   })
@@ -137,14 +135,14 @@ describe('seedSessionFromDraft', () => {
       [Q1]: { selectedOptionId: 'a', responseTimeMs: 1 },
       [Q2]: { selectedOptionId: 'b', responseTimeMs: 1 },
     }
-    expect(await seedSessionFromDraft({} as Client, SESSION, ctx({ answers }))).toBe(false)
+    expect(await seedSessionFromDraft(RPC_CLIENT, SESSION, ctx({ answers }))).toBe(false)
     expect(rpcCalls('save_quiz_answer')).toHaveLength(1)
     expect(rpcCalls('save_quiz_position')).toHaveLength(0)
   })
 
   it('reports failure when the position save fails', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'invalid_position' } })
-    expect(await seedSessionFromDraft({} as Client, SESSION, ctx())).toBe(false)
+    expect(await seedSessionFromDraft(RPC_CLIENT, SESSION, ctx())).toBe(false)
   })
 
   it('skips a malformed draft answer, logs it and still seeds the rest', async () => {
@@ -152,7 +150,7 @@ describe('seedSessionFromDraft', () => {
       [Q1]: { selectedOptionId: 'zzz', responseTimeMs: 1 },
       [Q2]: { selectedOptionId: 'b', responseTimeMs: 1 },
     }
-    expect(await seedSessionFromDraft({} as Client, SESSION, ctx({ answers }))).toBe(true)
+    expect(await seedSessionFromDraft(RPC_CLIENT, SESSION, ctx({ answers }))).toBe(true)
     expect(rpcCalls('save_quiz_answer')).toHaveLength(1)
     expect(rpcCalls('save_quiz_answer')[0]?.p_question_id).toBe(Q2)
     expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('skipped'), Q1)
@@ -167,7 +165,7 @@ describe('seedSessionFromDraft', () => {
       [Q1, { selectedOptionId: 'a', responseTimeMs: 1 }],
       ...foreign.map((id) => [id, { selectedOptionId: 'a', responseTimeMs: 1 }]),
     ])
-    expect(await seedSessionFromDraft({} as Client, SESSION, ctx({ answers }))).toBe(true)
+    expect(await seedSessionFromDraft(RPC_CLIENT, SESSION, ctx({ answers }))).toBe(true)
     expect(rpcCalls('save_quiz_answer').map((a) => a.p_question_id)).toEqual([Q1])
     expect(console.warn).toHaveBeenCalledTimes(1)
     expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('dropped'), 5)
@@ -176,7 +174,7 @@ describe('seedSessionFromDraft', () => {
   it('skips an answer keyed by a non-uuid question id', async () => {
     const answers = { nope: { selectedOptionId: 'a', responseTimeMs: 1 } }
     expect(
-      await seedSessionFromDraft({} as Client, SESSION, ctx({ answers, questionIds: ['nope'] })),
+      await seedSessionFromDraft(RPC_CLIENT, SESSION, ctx({ answers, questionIds: ['nope'] })),
     ).toBe(true)
     expect(rpcCalls('save_quiz_answer')).toHaveLength(0)
   })
@@ -189,7 +187,7 @@ describe('seedSessionFromDraft', () => {
         [Q1]: { selectedOptionId: 'a', responseTimeMs: 1 },
         [Q2]: { selectedOptionId: 'b', responseTimeMs: 1 },
       }
-      expect(await seedSessionFromDraft({} as Client, SESSION, ctx({ answers }))).toBe(true)
+      expect(await seedSessionFromDraft(RPC_CLIENT, SESSION, ctx({ answers }))).toBe(true)
       expect(rpcCalls('save_quiz_answer')).toHaveLength(2)
       expect(rpcCalls('save_quiz_position')).toHaveLength(1)
     },
@@ -200,7 +198,7 @@ describe('seedSessionFromDraft', () => {
     async (token) => {
       mockRpc.mockResolvedValue({ data: null, error: { message: token } })
       const answers = { [Q1]: { selectedOptionId: 'a', responseTimeMs: 1 } }
-      expect(await seedSessionFromDraft({} as Client, SESSION, ctx({ answers }))).toBe(false)
+      expect(await seedSessionFromDraft(RPC_CLIENT, SESSION, ctx({ answers }))).toBe(false)
     },
   )
 
@@ -213,7 +211,7 @@ describe('seedSessionFromDraft', () => {
     [undefined, 0],
   ])('sends a draft response time of %s as %s ms', async (given, sent) => {
     const answers = { [Q1]: { selectedOptionId: 'a', responseTimeMs: given } }
-    expect(await seedSessionFromDraft({} as Client, SESSION, ctx({ answers }))).toBe(true)
+    expect(await seedSessionFromDraft(RPC_CLIENT, SESSION, ctx({ answers }))).toBe(true)
     expect(rpcCalls('save_quiz_answer')[0]?.p_time_spent_ms).toBe(sent)
   })
 })
@@ -238,6 +236,7 @@ describe('discardMintedSession', () => {
 
   it('resolves without throwing when the rollback update rejects', async () => {
     const client = {
+      rpc: mockRpc,
       from: vi.fn(() => {
         throw new Error('network down')
       }),
@@ -319,6 +318,7 @@ describe('finishResume', () => {
     const boom = new Error('seed transport failure')
     mockRpc.mockRejectedValue(boom)
     const client = {
+      rpc: mockRpc,
       from: vi.fn(() => {
         throw new Error('discard failed')
       }),
@@ -329,6 +329,7 @@ describe('finishResume', () => {
   it('keeps and opens the seeded session when the draft delete throws', async () => {
     const boom = new Error('delete transport failure')
     const client = {
+      rpc: mockRpc,
       from: vi.fn((table: string) => {
         if (table === 'quiz_drafts') throw boom
         return chain({ data: [{ id: SESSION }], error: null }, 'select')

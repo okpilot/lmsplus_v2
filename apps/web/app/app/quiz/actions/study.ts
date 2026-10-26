@@ -3,7 +3,6 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import type { StudyQuestion } from '@/lib/queries/study-queries'
-import { rpc } from '@/lib/supabase-rpc'
 import { ANOTHER_SESSION_ACTIVE } from './_blocked-start'
 import { discardOrphanedSession, parseStarted } from './_study-start'
 
@@ -26,7 +25,7 @@ const GENERIC_ERROR = 'Failed to start study session'
 /** One round trip: draw, discovery session, audit row, answer-key payload and flags. */
 function callStartDiscovery(input: z.infer<typeof StartStudySchema>) {
   return createServerSupabaseClient().then((supabase) =>
-    rpc<unknown>(supabase, 'start_discovery', {
+    supabase.rpc('start_discovery', {
       p_subject_id: input.subjectId,
       p_topic_ids: input.topicIds ?? null,
       p_subtopic_ids: input.subtopicIds ?? null,

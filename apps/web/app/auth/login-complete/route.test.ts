@@ -17,14 +17,8 @@ vi.mock('@repo/db/server', () => ({
       signOut: mockSignOut,
     },
     from: mockFrom,
+    rpc: mockRpcHelper,
   }),
-}))
-
-// The production code calls rpc() from @/lib/supabase-rpc, which is a typed
-// wrapper around supabase.rpc(). We mock the wrapper module so we control
-// what the route handler actually executes.
-vi.mock('@/lib/supabase-rpc', () => ({
-  rpc: mockRpcHelper,
 }))
 
 vi.mock('@/lib/consent/check-consent', () => ({
@@ -75,7 +69,7 @@ describe('GET /auth/login-complete', () => {
     expect(response.status).toBe(307)
     const location = new URL(response.headers.get('location') ?? '')
     expect(location.pathname).toBe('/app/dashboard')
-    expect(mockRpcHelper).toHaveBeenCalledWith(expect.anything(), 'record_login', {})
+    expect(mockRpcHelper).toHaveBeenCalledWith('record_login')
   })
 
   it('sets consent cookie when consent is satisfied', async () => {

@@ -4,7 +4,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockVerifySessionUser, mockRpc, mockFrom, mockClient } = vi.hoisted(() => {
   const from = vi.fn()
-  return { mockVerifySessionUser: vi.fn(), mockRpc: vi.fn(), mockFrom: from, mockClient: { from } }
+  const mockRpc = vi.fn()
+  return {
+    mockVerifySessionUser: vi.fn(),
+    mockRpc,
+    mockFrom: from,
+    mockClient: { from, rpc: mockRpc },
+  }
 })
 
 vi.mock('@repo/db/server', () => ({
@@ -12,10 +18,6 @@ vi.mock('@repo/db/server', () => ({
 }))
 
 vi.mock('@/lib/auth/verify-session-user', () => ({ verifySessionUser: mockVerifySessionUser }))
-
-vi.mock('@/lib/supabase-rpc', () => ({
-  rpc: (...args: unknown[]) => mockRpc(...args),
-}))
 
 // ---- Subject under test ---------------------------------------------------
 
@@ -110,7 +112,8 @@ describe('checkNonMcAnswer', () => {
     mockRpc.mockResolvedValue({ data: null, error: null })
     await checkNonMcAnswer(SHORT_INPUT)
     expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
-    expect(mockRpc).toHaveBeenCalledWith(mockClient, expect.any(String), expect.anything())
+    expect(mockRpc).toHaveBeenCalledWith(expect.any(String), expect.anything())
+    expect(mockRpc.mock.contexts[0]).toBe(mockClient)
   })
 
   it('returns failure when the user is not authenticated', async () => {
@@ -194,11 +197,9 @@ describe('checkNonMcAnswer', () => {
     setupAuthenticatedUser()
     mockRpc.mockResolvedValue({ data: SHORT_RPC_RESULT, error: null })
     await checkNonMcAnswer(SHORT_INPUT)
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'check_non_mc_answer', {
+    expect(mockRpc).toHaveBeenCalledWith('check_non_mc_answer', {
       p_question_id: QUESTION_ID,
       p_session_id: SESSION_ID,
-      p_device_id: null,
-      p_time_spent_ms: null,
       p_response_text: 'cleared to land',
     })
   })
@@ -224,11 +225,9 @@ describe('checkNonMcAnswer', () => {
     setupAuthenticatedUser()
     mockRpc.mockResolvedValue({ data: DIALOG_RPC_RESULT, error: null })
     await checkNonMcAnswer(DIALOG_INPUT)
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'check_non_mc_answer', {
+    expect(mockRpc).toHaveBeenCalledWith('check_non_mc_answer', {
       p_question_id: QUESTION_ID,
       p_session_id: SESSION_ID,
-      p_device_id: null,
-      p_time_spent_ms: null,
       p_blank_answers: [
         { blank_index: 0, response_text: 'cleared' },
         { blank_index: 1, response_text: 'runway 27' },
@@ -254,11 +253,9 @@ describe('checkNonMcAnswer', () => {
     setupAuthenticatedUser()
     mockRpc.mockResolvedValue({ data: ORDERING_RPC_RESULT, error: null })
     await checkNonMcAnswer(ORDERING_INPUT)
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'check_non_mc_answer', {
+    expect(mockRpc).toHaveBeenCalledWith('check_non_mc_answer', {
       p_question_id: QUESTION_ID,
       p_session_id: SESSION_ID,
-      p_device_id: null,
-      p_time_spent_ms: null,
       p_order: ['item-c', 'item-a', 'item-b'],
     })
   })
@@ -291,11 +288,9 @@ describe('checkNonMcAnswer', () => {
     setupAuthenticatedUser()
     mockRpc.mockResolvedValue({ data: DIAGRAM_RPC_RESULT, error: null })
     await checkNonMcAnswer(DIAGRAM_INPUT)
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'check_non_mc_answer', {
+    expect(mockRpc).toHaveBeenCalledWith('check_non_mc_answer', {
       p_question_id: QUESTION_ID,
       p_session_id: SESSION_ID,
-      p_device_id: null,
-      p_time_spent_ms: null,
       p_mapping: [
         { zone_id: 'z1', label_id: 'l1' },
         { zone_id: 'z2', label_id: 'l2' },

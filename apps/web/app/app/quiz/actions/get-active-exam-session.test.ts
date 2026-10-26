@@ -8,7 +8,7 @@ const { mockVerifySessionUser, mockFrom, mockRpc } = vi.hoisted(() => ({
   mockRpc: vi.fn(),
 }))
 
-const mockClient = vi.hoisted(() => ({ from: mockFrom }))
+const mockClient = vi.hoisted(() => ({ from: mockFrom, rpc: mockRpc }))
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => mockClient,
@@ -16,10 +16,6 @@ vi.mock('@repo/db/server', () => ({
 
 vi.mock('@/lib/auth/verify-session-user', () => ({
   verifySessionUser: mockVerifySessionUser,
-}))
-
-vi.mock('@/lib/supabase-rpc', () => ({
-  rpc: mockRpc,
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -387,7 +383,7 @@ describe('getActiveExamSession — expired sessions (Layer 1)', () => {
       expect(result.expiredSessionIds).toEqual(['expired-1'])
       expect(result.orphanedSessionIds).toEqual([])
     }
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'complete_overdue_exam_session', {
+    expect(mockRpc).toHaveBeenCalledWith('complete_overdue_exam_session', {
       p_session_id: 'expired-1',
     })
   })
@@ -447,7 +443,7 @@ describe('getActiveExamSession — expired sessions (Layer 1)', () => {
       expect(result.orphanedSessionIds).toEqual(['orphan-mix'])
     }
     expect(mockRpc).toHaveBeenCalledTimes(1)
-    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'complete_overdue_exam_session', {
+    expect(mockRpc).toHaveBeenCalledWith('complete_overdue_exam_session', {
       p_session_id: 'expired-mix',
     })
   })

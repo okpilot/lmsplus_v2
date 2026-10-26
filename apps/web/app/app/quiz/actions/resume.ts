@@ -3,7 +3,6 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import { verifySessionUser } from '@/lib/auth/verify-session-user'
-import { rpc } from '@/lib/supabase-rpc'
 import { closePracticeSessionForDraft } from './draft-helpers'
 import { mapResumeRpcError } from './resume-error-messages'
 import { loadResumeContext, type ResumeContext } from './resume-helpers'
@@ -36,7 +35,7 @@ async function startResumedSession(
   // that would leave this draft's own session active and deadlock start on another_session_active.
   await closePracticeSessionForDraft(supabase, ctx.oldSessionId, userId)
 
-  const { data: newSessionId, error: rpcErr } = await rpc<string>(supabase, 'start_quiz_session', {
+  const { data: newSessionId, error: rpcErr } = await supabase.rpc('start_quiz_session', {
     p_mode: ctx.mode,
     p_subject_id: ctx.subjectId,
     p_topic_id: ctx.topicId,

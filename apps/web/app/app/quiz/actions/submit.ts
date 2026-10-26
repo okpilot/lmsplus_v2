@@ -4,7 +4,6 @@ import { SubmitAnswerSchema } from '@repo/db/schema'
 import { createServerSupabaseClient } from '@repo/db/server'
 import type { z } from 'zod'
 import { verifySessionUser } from '@/lib/auth/verify-session-user'
-import { rpc } from '@/lib/supabase-rpc'
 import type { SubmitQuizAnswerResult, SubmitRpcResult } from '../types'
 
 export async function submitQuizAnswer(raw: unknown): Promise<SubmitQuizAnswerResult> {
@@ -19,7 +18,7 @@ export async function submitQuizAnswer(raw: unknown): Promise<SubmitQuizAnswerRe
     return { success: false, error: 'Invalid input' }
   }
 
-  const { data, error } = await rpc<SubmitRpcResult>(supabase, 'submit_quiz_answer', {
+  const { data, error } = await supabase.rpc('submit_quiz_answer', {
     p_session_id: input.sessionId,
     p_question_id: input.questionId,
     p_selected_option: input.selectedOptionId,
@@ -31,7 +30,8 @@ export async function submitQuizAnswer(raw: unknown): Promise<SubmitQuizAnswerRe
     return { success: false, error: 'Failed to submit answer' }
   }
 
-  const result = data[0]
+  // Generated Returns mark explanation_* non-null; NULL arrives at runtime.
+  const result: SubmitRpcResult[number] = data[0]
 
   return {
     success: true,

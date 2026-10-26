@@ -2,7 +2,6 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import { verifySessionUser } from '@/lib/auth/verify-session-user'
-import { rpc } from '@/lib/supabase-rpc'
 import {
   extractPassMark,
   extractQuestionIds,
@@ -67,7 +66,7 @@ export async function getActiveExamSession(): Promise<GetActiveExamSessionResult
       }
       const timeLimitSeconds = row.time_limit_seconds ?? 0
       if (isExamOverdue(row.started_at, timeLimitSeconds)) {
-        const { error: rpcErr } = await rpc<unknown>(supabase, 'complete_overdue_exam_session', {
+        const { error: rpcErr } = await supabase.rpc('complete_overdue_exam_session', {
           p_session_id: row.id,
         })
         if (rpcErr) {

@@ -8,7 +8,7 @@ const { mockVerifySessionUser, mockRpc, mockLoad, mockHeal, mockFinish } = vi.ho
   mockFinish: vi.fn(),
 }))
 
-const mockClient = vi.hoisted(() => ({}))
+const mockClient = vi.hoisted(() => ({ rpc: mockRpc }))
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => mockClient,
@@ -17,7 +17,6 @@ vi.mock('@repo/db/server', () => ({
 vi.mock('@/lib/auth/verify-session-user', () => ({
   verifySessionUser: mockVerifySessionUser,
 }))
-vi.mock('@/lib/supabase-rpc', () => ({ rpc: (...a: unknown[]) => mockRpc(...a) }))
 vi.mock('./resume-helpers', () => ({ loadResumeContext: (...a: unknown[]) => mockLoad(...a) }))
 vi.mock('./draft-helpers', () => ({
   closePracticeSessionForDraft: (...a: unknown[]) => mockHeal(...a),

@@ -7,7 +7,6 @@ import { verifySessionUser } from '@/lib/auth/verify-session-user'
 import { type FilteredCounts, sumFilteredCountRows } from '@/lib/queries/discovery-counts'
 import type { TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
 import { getTopicsWithSubtopics } from '@/lib/queries/quiz-subject-queries'
-import { rpc } from '@/lib/supabase-rpc'
 
 const IdSchema = z.uuid()
 
@@ -40,7 +39,7 @@ const FilteredCountSchema = z.object({
   imageMode: z.enum(['all', 'only', 'exclude']).default('all'),
   // Study/Discovery counts only multiple_choice questions so the slider max /
   // Start-button / count badge match the MC-only fetch (startStudy). Omitted on
-  // the quiz/exam count paths → null = no type restriction (#1008).
+  // the quiz/exam count paths → omitted = no type restriction (#1008).
   questionType: z.enum(['multiple_choice']).optional(),
 })
 
@@ -62,17 +61,15 @@ export async function getFilteredCount(input: unknown): Promise<FilteredCountRes
 
   // undefined → null to RPC = unconstrained (whole subject pool); [] → empty array = match nothing (topic_id = ANY('{}') is always false).
   // p_calc_mode / p_has_image are literal enums the RPC reads directly ('all' = unrestricted via CASE ELSE) — pass them through without stripping.
-  // p_question_type: 'multiple_choice' on the Study/Discovery path, null (no restriction) on the quiz/exam paths (#1008).
-  const { data, error } = await rpc<
-    { topic_id: string; subtopic_id: string | null; n: number | string }[]
-  >(supabase, 'get_filtered_question_counts', {
+  // p_question_type: 'multiple_choice' on the Study/Discovery path, omitted (SQL DEFAULT NULL, no restriction) on the quiz/exam paths (#1008).
+  const { data, error } = await supabase.rpc('get_filtered_question_counts', {
     p_subject_id: subjectId,
     p_topic_ids: topicIds ?? null,
     p_subtopic_ids: subtopicIds ?? null,
     p_filters: filters.filter((f) => f !== 'all'),
     p_calc_mode: calcMode,
     p_has_image: imageMode,
-    p_question_type: questionType ?? null,
+    p_question_type: questionType,
   })
   if (error) {
     console.error('[getFilteredCount] get_filtered_question_counts error:', error.message)

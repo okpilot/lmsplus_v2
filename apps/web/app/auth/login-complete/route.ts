@@ -4,7 +4,6 @@ import { NextResponse } from 'next/server'
 import { safeNextPath } from '@/lib/auth/safe-next-path'
 import { checkConsentStatus } from '@/lib/consent/check-consent'
 import { setConsentCookie } from '@/lib/consent/consent-cookie'
-import { rpc } from '@/lib/supabase-rpc'
 
 export async function GET(request: NextRequest) {
   const supabase = await createServerSupabaseClient()
@@ -16,7 +15,7 @@ export async function GET(request: NextRequest) {
   const next = safeNextPath(new URL(request.url).searchParams.get('next'))
 
   // Best-effort audit — don't block login if it fails
-  const { error } = await rpc(supabase, 'record_login', {})
+  const { error } = await supabase.rpc('record_login')
   if (error) console.error('[login-complete] record_login RPC failed:', error.message)
 
   const consentStatus = await checkConsentStatus(supabase)

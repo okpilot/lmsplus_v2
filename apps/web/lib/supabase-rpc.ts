@@ -1,5 +1,5 @@
+import type { Database } from '@repo/db/database'
 import type { createServerSupabaseClient } from '@repo/db/server'
-import type { Database } from '@repo/db/types'
 import { fetchAllRows, POSTGREST_MAX_ROWS, toPageResult } from '@/lib/supabase-paginate'
 
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
@@ -12,22 +12,6 @@ type ArgsField<F extends SetofFn> = [RpcArgs<F>] extends [never]
   ? { args?: undefined }
   : { args: RpcArgs<F> }
 type RpcRow<F extends SetofFn> = Functions[F]['Returns'][number]
-type RpcFn = (
-  fn: string,
-  args: Record<string, unknown>,
-) => { then: (fn: (v: { data: unknown; error: { message: string } | null }) => void) => void }
-
-/**
- * Untyped call path. Callers: `git grep -n "import { rpc } from '@/lib/supabase-rpc'" -- apps/web`.
- */
-export async function rpc<TResult>(
-  supabase: SupabaseClient,
-  fn: string,
-  args: Record<string, unknown>,
-): Promise<{ data: TResult | null; error: { message: string } | null }> {
-  const { data, error } = await (supabase as unknown as { rpc: RpcFn }).rpc(fn, args)
-  return { data: data as TResult | null, error }
-}
 
 /**
  * Count-only probe for the paged fallback.
