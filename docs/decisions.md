@@ -150,3 +150,4 @@
 ## 155 — 2026-10-25 — `bundle-size.yml` is deleted; bundle budgets move to #1598. #1609
 ## 156 — 2026-10-25 — RPC calls use typed `supabase.rpc`; the untyped `rpc()` wrapper is deleted; NULL-accepting args without SQL DEFAULT are widened in `packages/db/src/database.ts` (type-fest `MergeDeep`, Supabase "Helper types"). #1609
 ## 157 — 2026-10-26 — `/app/quiz` setup counts never expire on the client; the page calls `router.refresh()` on tab return and after Back/Forward (`useRefreshOnReturn`); the 60 s TTL and history-restore marker are deleted. #1605
+## 158 — 2026-10-26 — SECURITY DEFINER functions set `search_path = public, pg_temp`; migration-test asserts it on `pg_proc` (`.github/scripts/check-definer-search-path.sh`). #1611

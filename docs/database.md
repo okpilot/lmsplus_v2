@@ -1009,7 +1009,7 @@ AS $$ ... $$;
 CREATE FUNCTION submit_quiz_answer(...)
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public          -- ← always set this with SECURITY DEFINER
+SET search_path = public, pg_temp  -- ← always set this with SECURITY DEFINER
 AS $$
 BEGIN
   -- Re-implement auth check manually (RLS is bypassed)
@@ -1020,6 +1020,8 @@ BEGIN
 END;
 $$;
 ```
+
+Migration `20261026000100_definer_search_path_pg_temp.sql` sets `public, pg_temp` on every public SECURITY DEFINER function; the per-RPC blocks below show each function's CREATE text.
 
 `anon` holds no privilege on any public table; `authenticated` holds only the table commands a permitting RLS policy allows (migrations `20260925000200`, `20260925000300`, default privileges too). A new postgres-owned table defaults to `anon` nothing and `authenticated` SELECT only — a migration adding a write path must GRANT it explicitly. `anon` and PUBLIC hold EXECUTE on no public function (migration `20260925000400`); a new postgres-owned function defaults to `authenticated` EXECUTE and nothing for `anon`.
 
@@ -2867,7 +2869,7 @@ The `security-auditor` agent flags:
 - Conversely, DO flag an unqualified (`FOR ALL`) `tenant_isolation` policy on ANY table — the invariant is that no table in `public` carries one. Two independent grounds, neither a special case of the other: the table also has `is_admin()`-gated write policies, so permissive policies OR and the unqualified one supplies a second, weaker write path that defeats the role gate (`questions`, mig `20260809000100`); or the table has no intended user-scoped write path, so the unqualified policy IS the entire access control (`organizations`, `question_banks`, `courses`, `lessons`, mig `20260820000100`). See `docs/security.md` §3.
 - Any `DELETE FROM` statement in application code (must be `UPDATE ... SET deleted_at`)
 - Any `SECURITY DEFINER` function without a manual auth check inside
-- Any `SECURITY DEFINER` function without `SET search_path = public`
+- Any `SECURITY DEFINER` function without `SET search_path = public, pg_temp`
 - Any query that returns `options` JSONB directly from `questions` to a student endpoint
 
 ---

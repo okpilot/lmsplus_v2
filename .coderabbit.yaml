@@ -397,7 +397,7 @@ reviews:
     - path: "packages/db/src/**/*.ts"
       instructions: |
         Database utility (SECURITY CRITICAL). Enforce:
-        - SECURITY DEFINER RPCs must have manual auth.uid() check + SET search_path = public.
+        - SECURITY DEFINER RPCs must have manual auth.uid() check + SET search_path = public, pg_temp.
         - No hard DELETE anywhere — always UPDATE SET deleted_at = now().
           EXCEPTION: packages/db/src/__integration__/** teardown helpers
           (cleanupTestData/cleanupReferenceData) MAY hard-DELETE ephemeral
@@ -502,7 +502,7 @@ reviews:
         - audit_events is append-only. No PERMITTING UPDATE/DELETE policy. Ever. (It does carry
           audit_no_update / audit_no_delete USING (false); those match zero rows and are not the
           denial mechanism — the absence of a permitting policy is.)
-        - SECURITY DEFINER functions: auth.uid() check + SET search_path = public.
+        - SECURITY DEFINER functions: auth.uid() check + SET search_path = public, pg_temp.
         - Max 300 lines per migration file. EXCEPTION: a migration whose entire content is a
           single CREATE OR REPLACE FUNCTION (or another single, atomic, unsplittable DDL object)
           may exceed 300 lines — a plpgsql function body cannot be split across files, and our

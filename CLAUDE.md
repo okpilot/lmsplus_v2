@@ -119,7 +119,7 @@ met, same commit. Verify redundancy, never infer from the resolved version:
 - **NEVER** UPDATE/DELETE `audit_events`, `student_responses`, `quiz_session_answers` — immutable
 - **NEVER** commit `.env*` files — `.gitignore` ignores them (except `.env.example`); no pre-commit hook scans for secrets
 - **NEVER** trust client input — Zod on every Server Action input (`safeParse`, or `.parse()` in try/catch) and Route Handler body/query/path param (`safeParse`, 400 on failure) before use
-- **NEVER** create SECURITY DEFINER functions without `auth.uid()` check AND `SET search_path = public`
+- **NEVER** create SECURITY DEFINER functions without `auth.uid()` check AND `SET search_path = public, pg_temp`
 
 ### Code — hard stops
 - **NEVER** use `any` — use `unknown` with narrowing
