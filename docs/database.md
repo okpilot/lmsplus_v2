@@ -2852,10 +2852,12 @@ CREATE INDEX idx_quiz_sessions_org   ON quiz_sessions(organization_id);
 CREATE INDEX idx_student_responses_org ON student_responses(organization_id);
 CREATE INDEX idx_users_org           ON users(organization_id) WHERE deleted_at IS NULL;
 CREATE INDEX idx_users_org_role      ON users(organization_id, role);  -- Non-partial: serves queries including soft-deleted users (20260410000008)
+CREATE INDEX idx_course_enrolments_organization_id ON course_enrolments(organization_id);
+
+-- Courses and enrolments (20261027000100)
 CREATE INDEX idx_easa_subjects_course_id ON easa_subjects(course_id);
 CREATE UNIQUE INDEX course_enrolments_active_uniq ON course_enrolments(user_id, course_id) WHERE deleted_at IS NULL;
 CREATE INDEX idx_course_enrolments_course_id ON course_enrolments(course_id);
-CREATE INDEX idx_course_enrolments_organization_id ON course_enrolments(organization_id);
 
 -- fsrs_cards lookup (for filtering by last_was_correct)
 CREATE INDEX idx_fsrs_cards_student  ON fsrs_cards(student_id, last_was_correct);
