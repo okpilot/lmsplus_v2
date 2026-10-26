@@ -39,6 +39,7 @@ const CLASSIFIED: Record<string, string[]> = {
     'get_admin_weak_topics',
     'get_question_authoring_fields',
     'issue_internal_exam_code',
+    'set_user_enrolments',
   ],
   internal: ['_grade_session_progress', '_score_graded_session'],
 }
