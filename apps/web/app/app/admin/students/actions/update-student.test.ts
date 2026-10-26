@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mockRevalidatePath = vi.hoisted(() => vi.fn())
 const mockRequireAdmin = vi.hoisted(() => vi.fn())
 const mockFrom = vi.hoisted(() => vi.fn())
+const mockRpc = vi.hoisted(() => vi.fn())
 
 vi.mock('next/cache', () => ({ revalidatePath: mockRevalidatePath }))
 vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: mockRequireAdmin }))
@@ -27,7 +28,11 @@ const VALID_INPUT = {
 }
 
 function mockAdmin() {
-  mockRequireAdmin.mockResolvedValue({ supabase: {}, userId: 'admin-1', organizationId: 'org-1' })
+  mockRequireAdmin.mockResolvedValue({
+    supabase: { rpc: mockRpc },
+    userId: 'admin-1',
+    organizationId: 'org-1',
+  })
 }
 
 function buildUpdateChain({
@@ -97,6 +102,69 @@ describe('updateStudent', () => {
       expect(result.success).toBe(true)
       expect(mockFrom).toHaveBeenCalledWith('users')
       expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/students')
+    })
+  })
+
+  describe('course enrolments', () => {
+    const COURSE_ID = 'c0a5e000-0000-4000-8000-000000000002'
+
+    it('calls set_student_enrolments for a student when course_ids is provided', async () => {
+      mockAdmin()
+      buildUpdateChain()
+      mockRpc.mockResolvedValue({ error: null })
+
+      const result = await updateStudent({ ...VALID_INPUT, course_ids: [COURSE_ID] })
+
+      expect(mockRpc).toHaveBeenCalledWith('set_student_enrolments', {
+        p_student_id: VALID_UUID,
+        p_course_ids: [COURSE_ID],
+      })
+      expect(result.success).toBe(true)
+    })
+
+    it('calls set_student_enrolments with an empty array to clear all courses', async () => {
+      mockAdmin()
+      buildUpdateChain()
+      mockRpc.mockResolvedValue({ error: null })
+
+      await updateStudent({ ...VALID_INPUT, course_ids: [] })
+
+      expect(mockRpc).toHaveBeenCalledWith('set_student_enrolments', {
+        p_student_id: VALID_UUID,
+        p_course_ids: [],
+      })
+    })
+
+    it('does not call the RPC when course_ids is omitted', async () => {
+      mockAdmin()
+      buildUpdateChain()
+
+      await updateStudent(VALID_INPUT)
+
+      expect(mockRpc).not.toHaveBeenCalled()
+    })
+
+    it('does not call the RPC when the role is not student', async () => {
+      mockAdmin()
+      buildUpdateChain()
+
+      await updateStudent({ ...VALID_INPUT, role: 'instructor', course_ids: [COURSE_ID] })
+
+      expect(mockRpc).not.toHaveBeenCalled()
+    })
+
+    it('returns a courses-not-saved failure when the RPC fails', async () => {
+      mockAdmin()
+      buildUpdateChain()
+      mockRpc.mockResolvedValue({ error: { message: 'course_not_found' } })
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      const result = await updateStudent({ ...VALID_INPUT, course_ids: [COURSE_ID] })
+
+      expect(result).toEqual({
+        success: false,
+        error: 'Student updated, but courses were not saved',
+      })
     })
   })
 

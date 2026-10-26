@@ -9,6 +9,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import type { CourseOption } from '../types'
+import { StudentCourseFields } from './student-course-fields'
 
 type Props = {
   isEdit: boolean
@@ -16,6 +18,9 @@ type Props = {
   email: string
   fullName: string
   role: string
+  courses: CourseOption[]
+  courseIds: string[]
+  onCourseIdsChange: (value: string[]) => void
   onEmailChange: (value: string) => void
   onFullNameChange: (value: string) => void
   onRoleChange: (value: string) => void
@@ -32,6 +37,9 @@ export function StudentFormFields({
   email,
   fullName,
   role,
+  courses,
+  courseIds,
+  onCourseIdsChange,
   onEmailChange,
   onFullNameChange,
   onRoleChange,
@@ -87,6 +95,15 @@ export function StudentFormFields({
           </SelectContent>
         </Select>
       </div>
+
+      {role === 'student' && (
+        <StudentCourseFields
+          courses={courses}
+          value={courseIds}
+          disabled={isPending}
+          onChange={onCourseIdsChange}
+        />
+      )}
     </div>
   )
 }

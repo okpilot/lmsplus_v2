@@ -5,6 +5,7 @@ import { UpdateStudentSchema } from '@repo/db/schema'
 import { revalidatePath } from 'next/cache'
 import type { ActionResult } from '@/lib/action-result'
 import { requireAdmin } from '@/lib/auth/require-admin'
+import { setStudentCourses } from './set-student-courses'
 
 export async function updateStudent(input: unknown): Promise<ActionResult> {
   const parsed = UpdateStudentSchema.safeParse(input)
@@ -12,8 +13,8 @@ export async function updateStudent(input: unknown): Promise<ActionResult> {
     return { success: false, error: 'Invalid input' }
   }
 
-  const { organizationId } = await requireAdmin()
-  const { id, full_name, role } = parsed.data
+  const { organizationId, supabase } = await requireAdmin()
+  const { id, full_name, role, course_ids } = parsed.data
 
   const { data, error } = await adminClient
     .from('users')
@@ -30,6 +31,14 @@ export async function updateStudent(input: unknown): Promise<ActionResult> {
 
   if (!data?.length) {
     return { success: false, error: 'Student not found' }
+  }
+
+  if (role === 'student' && course_ids !== undefined) {
+    const courses = await setStudentCourses(supabase, id, course_ids)
+    if (!courses.ok) {
+      revalidatePath('/app/admin/students')
+      return { success: false, error: 'Student updated, but courses were not saved' }
+    }
   }
 
   revalidatePath('/app/admin/students')

@@ -1,6 +1,7 @@
 import type { Database } from '@repo/db/types'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import {
+  fetchCourseEnrolments,
   fetchUserAuditEvents,
   fetchUserComments,
   fetchUserConsents,
@@ -40,7 +41,7 @@ function collectSectionWarnings(
 type QueryError = { message: string } | null
 
 async function fetchPrimarySections(supabase: SupabaseClient<Database>, userId: string) {
-  const [user, sessions, responses, fsrs, flags, comments, consents, audit, progress] =
+  const [user, sessions, responses, fsrs, flags, comments, consents, enrolments, audit, progress] =
     await Promise.all([
       supabase
         .from('users')
@@ -53,10 +54,11 @@ async function fetchPrimarySections(supabase: SupabaseClient<Database>, userId: 
       fetchUserFlaggedQuestions(supabase, userId),
       fetchUserComments(supabase, userId),
       fetchUserConsents(supabase, userId),
+      fetchCourseEnrolments(supabase, userId),
       fetchUserAuditEvents(supabase, userId),
       fetchUserProgress(supabase, userId),
     ])
-  return { user, sessions, responses, fsrs, flags, comments, consents, audit, progress }
+  return { user, sessions, responses, fsrs, flags, comments, consents, enrolments, audit, progress }
 }
 
 /**
@@ -106,6 +108,7 @@ function buildWarnings(r: Primary, scoped: Scoped): GdprExportWarning[] {
     ['flagged_questions', r.flags],
     ['question_comments', r.comments],
     ['user_consents', r.consents],
+    ['course_enrolments', r.enrolments],
     ['audit_events', r.audit],
   ])
   if (scoped.answers.error) {
@@ -139,6 +142,7 @@ function buildPayload(
     flagged_questions: keepCompleteFlags(r.flags.data),
     question_comments: r.comments.data,
     user_consents: r.consents.data,
+    course_enrolments: r.enrolments.data,
     audit_events: r.audit.data.map((e) => ({
       ...e,
       ip_address: typeof e.ip_address === 'string' ? e.ip_address : null,

@@ -5,8 +5,12 @@ import { CreateStudentSchema } from '@repo/db/schema'
 import { revalidatePath } from 'next/cache'
 import { recordAuthEvent } from '@/lib/audit/record-auth-event'
 import { requireAdmin } from '@/lib/auth/require-admin'
+import { insertStudentProfile } from './create-student-profile'
+import { setStudentCourses } from './set-student-courses'
 
-export type CreateStudentResult = { success: true; id: string } | { success: false; error: string }
+export type CreateStudentResult =
+  | { success: true; id: string; coursesSaved?: false }
+  | { success: false; error: string }
 
 export async function createStudent(input: unknown): Promise<CreateStudentResult> {
   const parsed = CreateStudentSchema.safeParse(input)
@@ -15,7 +19,7 @@ export async function createStudent(input: unknown): Promise<CreateStudentResult
   }
 
   const { organizationId, supabase } = await requireAdmin()
-  const { email, full_name, role } = parsed.data
+  const { email, full_name, role, course_ids } = parsed.data
 
   const { data: authData, error: authErr } = await adminClient.auth.admin.createUser({
     email,
@@ -47,43 +51,11 @@ export async function createStudent(input: unknown): Promise<CreateStudentResult
     context: 'createStudent',
   })
 
+  const coursesOk =
+    role !== 'student' || (await setStudentCourses(supabase, authData.user.id, course_ids)).ok
+
   revalidatePath('/app/admin/students')
-  return { success: true, id: authData.user.id }
-}
-
-/**
- * Inserts the profile row with `temp_password_expires_at` unset — the account
- * has no password at all until an admin sends a set-password link. On
- * failure, deletes the just-created Auth user (Auth API + users INSERT
- * cannot share one SQL transaction) and logs if that rollback fails too.
- */
-async function insertStudentProfile(opts: {
-  userId: string
-  email: string
-  fullName: string
-  role: string
-  organizationId: string
-}): Promise<boolean> {
-  const { error: insertErr } = await adminClient.from('users').upsert(
-    {
-      id: opts.userId,
-      email: opts.email,
-      full_name: opts.fullName,
-      role: opts.role,
-      organization_id: opts.organizationId,
-    },
-    { onConflict: 'id', ignoreDuplicates: true },
-  )
-  if (!insertErr) return true
-
-  console.error('[createStudent] Profile insert failed:', insertErr.message)
-  const { error: rollbackErr } = await adminClient.auth.admin.deleteUser(opts.userId)
-  if (rollbackErr) {
-    console.error(
-      '[createStudent] Rollback failed — orphaned auth user:',
-      opts.userId,
-      rollbackErr.message,
-    )
-  }
-  return false
+  return coursesOk
+    ? { success: true, id: authData.user.id }
+    : { success: true, id: authData.user.id, coursesSaved: false }
 }

@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   type AnswerRow,
+  fetchCourseEnrolments,
   fetchUserAuditEvents,
   fetchUserComments,
   fetchUserConsents,
@@ -168,7 +169,7 @@ const USER_ID = 'bbbbbbbb-0000-4000-b000-000000000001'
 
 const PAGE_ERROR = { message: 'page-level DB timeout' }
 
-// All seven are pure `return fetchAllRows(...)` pass-throughs, so one parameterized
+// All eight are pure `return fetchAllRows(...)` pass-throughs, so one parameterized
 // suite proves the shared propagation contract (the function name is in describe()).
 describe.each([
   ['fetchUserSessions', fetchUserSessions],
@@ -178,6 +179,7 @@ describe.each([
   ['fetchUserComments', fetchUserComments],
   ['fetchUserConsents', fetchUserConsents],
   ['fetchUserAuditEvents', fetchUserAuditEvents],
+  ['fetchCourseEnrolments', fetchCourseEnrolments],
 ] as const)('%s', (_name, fetchFn) => {
   it('surfaces a page-fetch error as { data: [], error } when count succeeds but page fails', async () => {
     mockFetchAllRows.mockResolvedValueOnce({ data: [], error: PAGE_ERROR })

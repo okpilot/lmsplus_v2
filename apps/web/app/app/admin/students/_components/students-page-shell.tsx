@@ -3,7 +3,7 @@
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import type { StudentFilters, StudentRow } from '../types'
+import type { CourseOption, StudentFilters, StudentRow } from '../types'
 import { ExportStudentDialog } from './export-student-dialog'
 import { StudentFiltersBar } from './student-filters'
 import { StudentFormDialog } from './student-form-dialog'
@@ -12,10 +12,11 @@ import { ToggleStatusDialog } from './toggle-status-dialog'
 
 type Props = {
   students: StudentRow[]
+  courses: CourseOption[]
   filters: StudentFilters
 }
 
-export function StudentsPageShell({ students, filters }: Readonly<Props>) {
+export function StudentsPageShell({ students, courses, filters }: Readonly<Props>) {
   const [editStudent, setEditStudent] = useState<StudentRow | null>(null)
   const [toggleStudent, setToggleStudent] = useState<StudentRow | null>(null)
   const [exportStudent, setExportStudent] = useState<StudentRow | null>(null)
@@ -29,6 +30,7 @@ export function StudentsPageShell({ students, filters }: Readonly<Props>) {
           {students.length} user{students.length === 1 ? '' : 's'}
         </p>
         <StudentFormDialog
+          courses={courses}
           trigger={
             <Button size="sm">
               <Plus className="mr-1.5 size-4" />
@@ -47,6 +49,7 @@ export function StudentsPageShell({ students, filters }: Readonly<Props>) {
       ) : (
         <StudentTable
           students={students}
+          courses={courses}
           onEdit={setEditStudent}
           onToggleStatus={setToggleStudent}
           onExport={setExportStudent}
@@ -55,6 +58,7 @@ export function StudentsPageShell({ students, filters }: Readonly<Props>) {
 
       <StudentFormDialog
         student={editStudent ?? undefined}
+        courses={courses}
         open={editStudent !== null}
         onOpenChange={(v) => {
           if (!v) setEditStudent(null)
