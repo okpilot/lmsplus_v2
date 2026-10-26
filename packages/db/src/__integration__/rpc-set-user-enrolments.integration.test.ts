@@ -10,8 +10,8 @@ import {
   getAuthenticatedClient,
 } from './setup'
 
-/** set_student_enrolments(p_student_id, p_course_ids): courses PR1 (AC3, AC4, AC5, AC8). */
-describe('RPC: set_student_enrolments', () => {
+/** set_user_enrolments(p_user_id, p_course_ids): courses PR1 (AC3, AC4, AC5, AC8). */
+describe('RPC: set_user_enrolments', () => {
   const admin = getAdminClient()
   const suffix = fixtureSuffix()
   const pw = 'test-pass-123'
@@ -22,6 +22,10 @@ describe('RPC: set_student_enrolments', () => {
   let studentId: string
   let student2Id: string
   let otherOrgStudentId: string
+  let instructorId: string
+  let admin2Id: string
+  let roleChangeId: string
+  let deletedUserId: string
   let adminClient: SupabaseClient
   let studentClient: SupabaseClient
   let ppl: string
@@ -37,7 +41,12 @@ describe('RPC: set_student_enrolments', () => {
       name: `Enrol Other ${suffix}`,
       slug: `enrol-other-${suffix}`,
     })
-    const mk = async (o: string, tag: string, role: 'admin' | 'student', into: string[]) => {
+    const mk = async (
+      o: string,
+      tag: string,
+      role: 'admin' | 'instructor' | 'student',
+      into: string[],
+    ) => {
       const id = await createTestUser({
         admin,
         orgId: o,
@@ -51,6 +60,10 @@ describe('RPC: set_student_enrolments', () => {
     adminId = await mk(orgId, 'enrol-admin', 'admin', userIds)
     studentId = await mk(orgId, 'enrol-s1', 'student', userIds)
     student2Id = await mk(orgId, 'enrol-s2', 'student', userIds)
+    instructorId = await mk(orgId, 'enrol-i1', 'instructor', userIds)
+    admin2Id = await mk(orgId, 'enrol-admin2', 'admin', userIds)
+    roleChangeId = await mk(orgId, 'enrol-rc', 'student', userIds)
+    deletedUserId = await mk(orgId, 'enrol-del', 'instructor', userIds)
     otherOrgStudentId = await mk(otherOrgId, 'enrol-os', 'student', otherUserIds)
     adminClient = await getAuthenticatedClient({
       email: `enrol-admin-${suffix}@test.local`,
@@ -77,7 +90,7 @@ describe('RPC: set_student_enrolments', () => {
     const { data } = await admin
       .from('course_enrolments')
       .select('course_id')
-      .eq('student_id', student)
+      .eq('user_id', student)
       .is('deleted_at', null)
     return (data ?? []).map((r) => r.course_id as string).sort()
   }
@@ -92,8 +105,8 @@ describe('RPC: set_student_enrolments', () => {
   }
 
   it('AC3: adds enrolments and writes one user.enrolments_changed audit row', async () => {
-    const { error } = await adminClient.rpc('set_student_enrolments', {
-      p_student_id: studentId,
+    const { error } = await adminClient.rpc('set_user_enrolments', {
+      p_user_id: studentId,
       p_course_ids: [ppl, vfr],
     })
     expect(error).toBeNull()
@@ -113,8 +126,8 @@ describe('RPC: set_student_enrolments', () => {
   })
 
   it('AC3: removes enrolments not in the set by soft delete with deleted_by', async () => {
-    const { error } = await adminClient.rpc('set_student_enrolments', {
-      p_student_id: studentId,
+    const { error } = await adminClient.rpc('set_user_enrolments', {
+      p_user_id: studentId,
       p_course_ids: [ppl, atpl],
     })
     expect(error).toBeNull()
@@ -123,7 +136,7 @@ describe('RPC: set_student_enrolments', () => {
     const { data: removed } = await admin
       .from('course_enrolments')
       .select('deleted_at, deleted_by')
-      .eq('student_id', studentId)
+      .eq('user_id', studentId)
       .eq('course_id', vfr)
     expect(removed).toHaveLength(1)
     expect(removed?.[0]?.deleted_at).not.toBeNull()
@@ -132,8 +145,8 @@ describe('RPC: set_student_enrolments', () => {
 
   it('AC3: an unchanged set writes no audit row', async () => {
     const before = (await audits(studentId)).length
-    const { error } = await adminClient.rpc('set_student_enrolments', {
-      p_student_id: studentId,
+    const { error } = await adminClient.rpc('set_user_enrolments', {
+      p_user_id: studentId,
       p_course_ids: [atpl, ppl, ppl],
     })
     expect(error).toBeNull()
@@ -142,13 +155,13 @@ describe('RPC: set_student_enrolments', () => {
   })
 
   it('AC3: an empty array removes every enrolment', async () => {
-    const { error } = await adminClient.rpc('set_student_enrolments', {
-      p_student_id: student2Id,
+    const { error } = await adminClient.rpc('set_user_enrolments', {
+      p_user_id: student2Id,
       p_course_ids: [ppl],
     })
     expect(error).toBeNull()
-    const { error: e2 } = await adminClient.rpc('set_student_enrolments', {
-      p_student_id: student2Id,
+    const { error: e2 } = await adminClient.rpc('set_user_enrolments', {
+      p_user_id: student2Id,
       p_course_ids: [],
     })
     expect(e2).toBeNull()
@@ -156,33 +169,81 @@ describe('RPC: set_student_enrolments', () => {
   })
 
   it('AC4: rejects a non-admin caller with not_admin', async () => {
-    const { error } = await studentClient.rpc('set_student_enrolments', {
-      p_student_id: studentId,
+    const { error } = await studentClient.rpc('set_user_enrolments', {
+      p_user_id: studentId,
       p_course_ids: [ppl],
     })
     expect(error?.message).toContain('not_admin')
   })
 
-  it('AC4: rejects a student from another organization with student_not_found', async () => {
-    const { error } = await adminClient.rpc('set_student_enrolments', {
-      p_student_id: otherOrgStudentId,
+  it('AC4: rejects a user from another organization with user_not_found', async () => {
+    const { error } = await adminClient.rpc('set_user_enrolments', {
+      p_user_id: otherOrgStudentId,
       p_course_ids: [ppl],
     })
-    expect(error?.message).toContain('student_not_found')
+    expect(error?.message).toContain('user_not_found')
   })
 
-  it('AC4: rejects a non-student target with student_not_found', async () => {
-    const { error } = await adminClient.rpc('set_student_enrolments', {
-      p_student_id: adminId,
+  it('AC4: rejects a soft-deleted user with user_not_found', async () => {
+    const { error: delErr } = await admin
+      .from('users')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', deletedUserId)
+    expect(delErr).toBeNull()
+    const { error } = await adminClient.rpc('set_user_enrolments', {
+      p_user_id: deletedUserId,
       p_course_ids: [ppl],
     })
-    expect(error?.message).toContain('student_not_found')
+    expect(error?.message).toContain('user_not_found')
+  })
+
+  it('AC4: rejects an unknown user id with user_not_found', async () => {
+    const { error } = await adminClient.rpc('set_user_enrolments', {
+      p_user_id: '00000000-0000-4000-8000-000000000000',
+      p_course_ids: [ppl],
+    })
+    expect(error?.message).toContain('user_not_found')
+  })
+
+  it('AC3: an admin can enrol an instructor, with row and audit', async () => {
+    const { error } = await adminClient.rpc('set_user_enrolments', {
+      p_user_id: instructorId,
+      p_course_ids: [atpl],
+    })
+    expect(error).toBeNull()
+    expect(await active(instructorId)).toEqual([atpl])
+    const rows = await audits(instructorId)
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({ actor_id: adminId, organization_id: orgId })
+  })
+
+  it('AC3: an admin can enrol another admin', async () => {
+    const { error } = await adminClient.rpc('set_user_enrolments', {
+      p_user_id: admin2Id,
+      p_course_ids: [ppl],
+    })
+    expect(error).toBeNull()
+    expect(await active(admin2Id)).toEqual([ppl])
+  })
+
+  it('AC5: changing the user role keeps enrolments active', async () => {
+    const { error } = await adminClient.rpc('set_user_enrolments', {
+      p_user_id: roleChangeId,
+      p_course_ids: [ppl, vfr],
+    })
+    expect(error).toBeNull()
+    const { error: upErr } = await admin
+      .from('users')
+      .update({ role: 'instructor' })
+      .eq('id', roleChangeId)
+    expect(upErr).toBeNull()
+    expect(await active(roleChangeId)).toEqual([ppl, vfr].sort())
   })
 
   it('AC4: rejects an unknown course with course_not_found and changes nothing', async () => {
     const before = await active(studentId)
-    const { error } = await adminClient.rpc('set_student_enrolments', {
-      p_student_id: studentId,
+    const { error } = await adminClient.rpc('set_user_enrolments', {
+      p_user_id: studentId,
       p_course_ids: [ppl, '00000000-0000-4000-8000-000000000000'],
     })
     expect(error?.message).toContain('course_not_found')
@@ -190,8 +251,8 @@ describe('RPC: set_student_enrolments', () => {
   })
 
   it('AC4: rejects a NULL array with invalid_input', async () => {
-    const { error } = await adminClient.rpc('set_student_enrolments', {
-      p_student_id: studentId,
+    const { error } = await adminClient.rpc('set_user_enrolments', {
+      p_user_id: studentId,
       p_course_ids: null,
     })
     expect(error?.message).toContain('invalid_input')
@@ -199,7 +260,7 @@ describe('RPC: set_student_enrolments', () => {
 
   it('AC5: re-adding a removed course creates a new active row and keeps history', async () => {
     const set = (ids: string[]) =>
-      adminClient.rpc('set_student_enrolments', { p_student_id: student2Id, p_course_ids: ids })
+      adminClient.rpc('set_user_enrolments', { p_user_id: student2Id, p_course_ids: ids })
     expect((await set([vfr])).error).toBeNull()
     expect((await set([])).error).toBeNull()
     expect((await set([vfr])).error).toBeNull()
@@ -207,15 +268,15 @@ describe('RPC: set_student_enrolments', () => {
     const { data } = await admin
       .from('course_enrolments')
       .select('id, deleted_at')
-      .eq('student_id', student2Id)
+      .eq('user_id', student2Id)
       .eq('course_id', vfr)
     expect(data).toHaveLength(2)
     expect((data ?? []).filter((r) => r.deleted_at === null)).toHaveLength(1)
   })
 
   it('AC8: anon cannot execute the RPC', async () => {
-    const { error } = await getAnonClient().rpc('set_student_enrolments', {
-      p_student_id: studentId,
+    const { error } = await getAnonClient().rpc('set_user_enrolments', {
+      p_user_id: studentId,
       p_course_ids: [ppl],
     })
     expect(error).not.toBeNull()

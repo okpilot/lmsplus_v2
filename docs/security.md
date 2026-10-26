@@ -724,7 +724,7 @@ CREATE POLICY "audit_read_instructors" ON audit_events
 | `user.password_reset` | Whitelisted in `record_auth_event()`; emitted by admin Send/Resend (`sendLoginInstructions`) when the set-password token is issued — emitters: `git grep -n "user.password_reset" -- apps/web ':!*.test.*'` |
 | `user.deactivated` | Admin deactivates a student account (via `toggleStudentStatus` deactivate path, recorded by `record_auth_event()` RPC) |
 | `user.created` | Admin creates a new student account (via `createStudent` Server Action, recorded by `record_auth_event()` RPC) |
-| `user.enrolments_changed` | Admin replaces a student's course enrolments (via `set_student_enrolments()` RPC, migration `20261027000100`; metadata `{added, removed}`; none when the set is unchanged) |
+| `user.enrolments_changed` | An admin replaces a user's course enrolments (via `set_user_enrolments()` RPC, migration `20261027000100`; metadata `{added, removed}`; none when the set is unchanged) |
 | `user.login_instructions_sent` | Admin sends/resends login instructions (set-password link) to a student or instructor (via `record_login_instructions_sent()` RPC, migration `20260925000100`) |
 | `quiz_session.started` | Student begins any quiz mode |
 | `quiz_session.saved` | Student parks an open practice quiz (`save_quiz_for_later`; none on an idempotent re-save) |

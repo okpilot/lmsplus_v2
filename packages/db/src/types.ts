@@ -91,7 +91,7 @@ export type Database = {
           enrolled_by: string | null
           id: string
           organization_id: string
-          student_id: string
+          user_id: string
         }
         Insert: {
           course_id: string
@@ -101,7 +101,7 @@ export type Database = {
           enrolled_by?: string | null
           id?: string
           organization_id: string
-          student_id: string
+          user_id: string
         }
         Update: {
           course_id?: string
@@ -111,7 +111,7 @@ export type Database = {
           enrolled_by?: string | null
           id?: string
           organization_id?: string
-          student_id?: string
+          user_id?: string
         }
         Relationships: [
           {
@@ -143,8 +143,8 @@ export type Database = {
             referencedColumns: ['id']
           },
           {
-            foreignKeyName: 'course_enrolments_student_id_fkey'
-            columns: ['student_id']
+            foreignKeyName: 'course_enrolments_user_id_fkey'
+            columns: ['user_id']
             isOneToOne: false
             referencedRelation: 'users'
             referencedColumns: ['id']
@@ -1907,8 +1907,8 @@ export type Database = {
         }
         Returns: undefined
       }
-      set_student_enrolments: {
-        Args: { p_course_ids: string[]; p_student_id: string }
+      set_user_enrolments: {
+        Args: { p_course_ids: string[]; p_user_id: string }
         Returns: undefined
       }
       start_discovery: {

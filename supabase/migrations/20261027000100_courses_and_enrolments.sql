@@ -1,4 +1,4 @@
--- courses + course_enrolments: global course reference rows, org-scoped soft-deleted enrolments, set_student_enrolments RPC; drops unused legacy courses/lessons. #1635
+-- courses + course_enrolments: global course reference rows, org-scoped soft-deleted enrolments, set_user_enrolments RPC; drops unused legacy courses/lessons. #1635
 
 DO $$
 BEGIN
@@ -39,7 +39,7 @@ CREATE INDEX idx_easa_subjects_course_id ON public.easa_subjects (course_id);
 CREATE TABLE public.course_enrolments (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id uuid NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
-  student_id      uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  user_id         uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   course_id       uuid NOT NULL REFERENCES public.courses(id),
   enrolled_by     uuid REFERENCES public.users(id) ON DELETE SET NULL,
   enrolled_at     timestamptz NOT NULL DEFAULT now(),
@@ -48,16 +48,16 @@ CREATE TABLE public.course_enrolments (
 );
 
 CREATE UNIQUE INDEX course_enrolments_active_uniq
-  ON public.course_enrolments (student_id, course_id) WHERE deleted_at IS NULL;
+  ON public.course_enrolments (user_id, course_id) WHERE deleted_at IS NULL;
 CREATE INDEX idx_course_enrolments_course_id ON public.course_enrolments (course_id);
 CREATE INDEX idx_course_enrolments_organization_id ON public.course_enrolments (organization_id);
 
 ALTER TABLE public.course_enrolments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.course_enrolments FORCE ROW LEVEL SECURITY;
 
-CREATE POLICY student_read_own_enrolments ON public.course_enrolments
+CREATE POLICY user_read_own_enrolments ON public.course_enrolments
   FOR SELECT TO authenticated
-  USING (student_id = (SELECT auth.uid()) AND deleted_at IS NULL);
+  USING (user_id = (SELECT auth.uid()) AND deleted_at IS NULL);
 
 CREATE POLICY admin_read_org_enrolments ON public.course_enrolments
   FOR SELECT TO authenticated
@@ -75,15 +75,15 @@ CREATE POLICY course_enrolments_select_active_caller ON public.course_enrolments
 
 GRANT SELECT ON public.course_enrolments TO authenticated;
 
-INSERT INTO public.course_enrolments (organization_id, student_id, course_id)
+INSERT INTO public.course_enrolments (organization_id, user_id, course_id)
 SELECT u.organization_id, u.id, c.id
 FROM public.users u
 CROSS JOIN public.courses c
 WHERE u.role = 'student' AND c.code IN ('PPL_A', 'VFR_RT')
-ON CONFLICT (student_id, course_id) WHERE deleted_at IS NULL DO NOTHING;
+ON CONFLICT (user_id, course_id) WHERE deleted_at IS NULL DO NOTHING;
 
-CREATE OR REPLACE FUNCTION public.set_student_enrolments(
-  p_student_id uuid,
+CREATE OR REPLACE FUNCTION public.set_user_enrolments(
+  p_user_id uuid,
   p_course_ids uuid[]
 )
 RETURNS void
@@ -95,7 +95,7 @@ DECLARE
   v_caller_id   uuid := auth.uid();
   v_caller_org  uuid;
   v_caller_role text;
-  v_student_id  uuid;
+  v_user_id     uuid;
   v_wanted      uuid[];
   v_added       uuid[];
   v_removed     uuid[];
@@ -108,7 +108,7 @@ BEGIN
     RAISE EXCEPTION 'not_admin';
   END IF;
 
-  IF p_student_id IS NULL OR p_course_ids IS NULL THEN
+  IF p_user_id IS NULL OR p_course_ids IS NULL THEN
     RAISE EXCEPTION 'invalid_input';
   END IF;
 
@@ -119,16 +119,15 @@ BEGIN
     RAISE EXCEPTION 'admin_not_found';
   END IF;
 
-  -- Row lock serializes concurrent calls for one student.
-  SELECT u.id INTO v_student_id
+  -- Row lock serializes concurrent calls for one user.
+  SELECT u.id INTO v_user_id
   FROM public.users u
-  WHERE u.id = p_student_id
-    AND u.role = 'student'
+  WHERE u.id = p_user_id
     AND u.organization_id = v_caller_org
     AND u.deleted_at IS NULL
   FOR NO KEY UPDATE;
-  IF v_student_id IS NULL THEN
-    RAISE EXCEPTION 'student_not_found';
+  IF v_user_id IS NULL THEN
+    RAISE EXCEPTION 'user_not_found';
   END IF;
 
   SELECT COALESCE(array_agg(DISTINCT x), '{}') INTO v_wanted FROM unnest(p_course_ids) AS x;
@@ -143,7 +142,7 @@ BEGIN
   WITH removed AS (
     UPDATE public.course_enrolments e
     SET deleted_at = now(), deleted_by = v_caller_id
-    WHERE e.student_id = p_student_id
+    WHERE e.user_id = p_user_id
       AND e.deleted_at IS NULL
       AND NOT (e.course_id = ANY (v_wanted))
     RETURNING e.course_id
@@ -151,12 +150,12 @@ BEGIN
   SELECT COALESCE(array_agg(course_id), '{}') INTO v_removed FROM removed;
 
   WITH added AS (
-    INSERT INTO public.course_enrolments (organization_id, student_id, course_id, enrolled_by)
-    SELECT v_caller_org, p_student_id, w.id, v_caller_id
+    INSERT INTO public.course_enrolments (organization_id, user_id, course_id, enrolled_by)
+    SELECT v_caller_org, p_user_id, w.id, v_caller_id
     FROM unnest(v_wanted) AS w(id)
     WHERE NOT EXISTS (
       SELECT 1 FROM public.course_enrolments e
-      WHERE e.student_id = p_student_id AND e.course_id = w.id AND e.deleted_at IS NULL
+      WHERE e.user_id = p_user_id AND e.course_id = w.id AND e.deleted_at IS NULL
     )
     RETURNING course_id
   )
@@ -166,12 +165,12 @@ BEGIN
     INSERT INTO public.audit_events
       (organization_id, actor_id, actor_role, event_type, resource_type, resource_id, metadata)
     VALUES (
-      v_caller_org, v_caller_id, v_caller_role, 'user.enrolments_changed', 'user', p_student_id,
+      v_caller_org, v_caller_id, v_caller_role, 'user.enrolments_changed', 'user', p_user_id,
       jsonb_build_object('added', to_jsonb(v_added), 'removed', to_jsonb(v_removed))
     );
   END IF;
 END;
 $$;
 
-REVOKE EXECUTE ON FUNCTION public.set_student_enrolments(uuid, uuid[]) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.set_student_enrolments(uuid, uuid[]) TO authenticated;
+REVOKE EXECUTE ON FUNCTION public.set_user_enrolments(uuid, uuid[]) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.set_user_enrolments(uuid, uuid[]) TO authenticated;

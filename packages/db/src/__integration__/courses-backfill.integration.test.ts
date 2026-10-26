@@ -40,18 +40,18 @@ describe('courses migration: backfill and subject assignment', () => {
     // Backfill rows share the migration transaction's now(); later edits do not change them.
     const { data: enrolments, error: eErr } = await admin
       .from('course_enrolments')
-      .select('student_id, course_id, organization_id')
+      .select('user_id, course_id, organization_id')
       .eq('enrolled_at', ppl?.created_at as string)
     expect(eErr).toBeNull()
 
     for (const s of students ?? []) {
-      const mine = (enrolments ?? []).filter((e) => e.student_id === s.id)
+      const mine = (enrolments ?? []).filter((e) => e.user_id === s.id)
       expect(mine.map((e) => e.course_id).sort()).toEqual([ids.PPL_A, ids.VFR_RT].sort())
     }
 
     const { data: staff } = await admin.from('users').select('id').neq('role', 'student')
     const staffIds = new Set((staff ?? []).map((u) => u.id as string))
-    expect((enrolments ?? []).filter((e) => staffIds.has(e.student_id as string))).toEqual([])
+    expect((enrolments ?? []).filter((e) => staffIds.has(e.user_id as string))).toEqual([])
   })
 
   it('AC1: backfilled enrolment carries the student organization and NULL enrolled_by', async ({
@@ -65,7 +65,7 @@ describe('courses migration: backfill and subject assignment', () => {
     // Backfill rows share the migration transaction's now().
     const { data: rows, error } = await admin
       .from('course_enrolments')
-      .select('student_id, organization_id, enrolled_by')
+      .select('user_id, organization_id, enrolled_by')
       .eq('enrolled_at', ppl?.created_at as string)
       .limit(50)
     expect(error).toBeNull()
@@ -75,7 +75,7 @@ describe('courses migration: backfill and subject assignment', () => {
       const { data: u } = await admin
         .from('users')
         .select('organization_id')
-        .eq('id', r.student_id as string)
+        .eq('id', r.user_id as string)
         .single()
       expect(u?.organization_id).toBe(r.organization_id)
     }

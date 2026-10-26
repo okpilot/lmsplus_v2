@@ -120,7 +120,9 @@ export const E2E_REDTEAM_JW_STUDENT_PASSWORD = 'redteam-jw-signout-2026!'
 // omitted-device-key progress RPCs spec (Vectors JY, JZ, #1609): quiz_sessions `config.e2e_marker`,
 // questions `question_text` prefix.
 export const E2E_REDTEAM_JY_MARKER = '[E2E_REDTEAM_JY]'
-// set_student_enrolments escalation spec (Vectors KC, KD, KE, #1635). Dedicated throwaway student
-// bounds the enrolment changes; course_enrolments has no free-text column to tag.
+// set_user_enrolments escalation spec (Vectors KC, KD, KE, #1635). Dedicated throwaway student and
+// instructor bound the enrolment changes; course_enrolments has no free-text column to tag.
 export const E2E_REDTEAM_KC_STUDENT_EMAIL = 'redteam-kc-enrolments@lmsplus.local'
 export const E2E_REDTEAM_KC_STUDENT_PASSWORD = 'redteam-kc-enrolments-2026!'
+export const E2E_REDTEAM_KC_INSTRUCTOR_EMAIL = 'redteam-kc-instructor@lmsplus.local'
+export const E2E_REDTEAM_KC_INSTRUCTOR_PASSWORD = 'redteam-kc-instructor-2026!'
