@@ -142,12 +142,12 @@ export function fetchCourseEnrolments(supabase: SupabaseClient<Database>, userId
       supabase
         .from('course_enrolments')
         .select('*', { count: 'exact', head: true })
-        .eq('student_id', userId),
+        .eq('user_id', userId),
     (from, to) =>
       supabase
         .from('course_enrolments')
         .select('course_id, enrolled_at, enrolled_by, deleted_at, deleted_by')
-        .eq('student_id', userId)
+        .eq('user_id', userId)
         .order('enrolled_at', { ascending: false })
         .order('id')
         .range(from, to),

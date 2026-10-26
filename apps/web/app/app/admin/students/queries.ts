@@ -9,7 +9,7 @@ export async function getStudentsList(filters: StudentFilters): Promise<StudentR
   let query = adminClient
     .from('users')
     .select(
-      'id, email, full_name, role, organization_id, last_active_at, created_at, deleted_at, login_instructions_sent_at, temp_password_expires_at, course_enrolments!course_enrolments_student_id_fkey(course_id)',
+      'id, email, full_name, role, organization_id, last_active_at, created_at, deleted_at, login_instructions_sent_at, temp_password_expires_at, course_enrolments!course_enrolments_user_id_fkey(course_id)',
     )
     .is('course_enrolments.deleted_at', null)
     .eq('organization_id', organizationId)

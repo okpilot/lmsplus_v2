@@ -41,7 +41,7 @@ async function activeCourseIds(id: string): Promise<string[]> {
   const { data, error } = await admin
     .from('course_enrolments')
     .select('course_id')
-    .eq('student_id', id)
+    .eq('user_id', id)
     .is('deleted_at', null)
   if (error) throw new Error(error.message)
   return (data ?? []).map((r) => r.course_id).sort()
@@ -88,18 +88,18 @@ describe('course enrolment admin surface (integration)', () => {
     })
     // Deterministic state: clear any backfill, then PPL active, RT removed, for studentId.
     for (const id of [studentId, bareStudentId, otherOrgStudentId]) {
-      await admin.from('course_enrolments').delete().eq('student_id', id)
+      await admin.from('course_enrolments').delete().eq('user_id', id)
     }
     const rows = [
-      { organization_id: orgAId, student_id: studentId, course_id: PPL },
+      { organization_id: orgAId, user_id: studentId, course_id: PPL },
       {
         organization_id: orgAId,
-        student_id: studentId,
+        user_id: studentId,
         course_id: RT,
         deleted_at: new Date().toISOString(),
         deleted_by: adminAId,
       },
-      { organization_id: orgBId, student_id: otherOrgStudentId, course_id: ATPL },
+      { organization_id: orgBId, user_id: otherOrgStudentId, course_id: ATPL },
     ]
     const { error } = await admin.from('course_enrolments').insert(rows)
     if (error) throw new Error(error.message)
@@ -187,6 +187,42 @@ describe('course enrolment admin surface (integration)', () => {
     expect((data ?? []).length).toBeGreaterThanOrEqual(2)
   })
 
+  it('createStudent enrols an instructor in the chosen courses', async () => {
+    await signInAs(adminAEmail, password)
+    const result = await createStudent({
+      email: `int-ce-instr-${suffix}@test.local`,
+      full_name: 'Int Instructor',
+      role: 'instructor',
+      course_ids: [ATPL],
+    })
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    createdIds.push(result.id)
+    expect(await activeCourseIds(result.id)).toEqual([ATPL])
+    const rows = await getStudentsList({})
+    expect(rows.find((r) => r.id === result.id)?.course_ids).toEqual([ATPL])
+  })
+
+  it('updateStudent keeps enrolments when an instructor role changes to student', async () => {
+    await signInAs(adminAEmail, password)
+    const created = await createStudent({
+      email: `int-ce-role-${suffix}@test.local`,
+      full_name: 'Int Role',
+      role: 'instructor',
+      course_ids: [RT],
+    })
+    expect(created.success).toBe(true)
+    if (!created.success) return
+    createdIds.push(created.id)
+    const result = await updateStudent({
+      id: created.id,
+      full_name: 'Int Role',
+      role: 'student',
+    })
+    expect(result.success).toBe(true)
+    expect(await activeCourseIds(created.id)).toEqual([RT])
+  })
+
   it('updateStudent replaces the active enrolments and keeps removed rows as history', async () => {
     await signInAs(adminAEmail, password)
     const result = await updateStudent({
@@ -200,7 +236,7 @@ describe('course enrolment admin surface (integration)', () => {
     const { data } = await admin
       .from('course_enrolments')
       .select('course_id, deleted_at')
-      .eq('student_id', studentId)
+      .eq('user_id', studentId)
       .eq('course_id', PPL)
     expect((data ?? []).every((r) => r.deleted_at !== null)).toBe(true)
   })

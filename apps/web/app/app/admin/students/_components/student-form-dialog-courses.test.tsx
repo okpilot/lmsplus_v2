@@ -62,17 +62,18 @@ describe('StudentFormDialog — courses', () => {
     expect(screen.getByRole('checkbox', { name: 'ATPL(A)' })).not.toBeChecked()
   })
 
-  it('hides the courses group when the role is not student', () => {
+  it('shows the courses group, pre-filled, when the role is instructor', () => {
     render(
       <StudentFormDialog
         open={true}
         onOpenChange={vi.fn()}
-        student={{ ...STUDENT, role: 'instructor', course_ids: [] }}
+        student={{ ...STUDENT, role: 'instructor', course_ids: [RT] }}
         courses={COURSES}
       />,
     )
 
-    expect(screen.queryByRole('checkbox', { name: 'PPL(A)' })).not.toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'PPL(A)' })).not.toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'VFR RT' })).toBeChecked()
   })
 
   it('sends the ticked course ids to createStudent', async () => {
@@ -86,6 +87,27 @@ describe('StudentFormDialog — courses', () => {
 
     await waitFor(() => expect(createStudent).toHaveBeenCalled())
     expect(vi.mocked(createStudent).mock.calls[0]?.[0]).toMatchObject({ course_ids: [RT] })
+  })
+
+  it('sends course_ids to updateStudent for an instructor', async () => {
+    vi.mocked(updateStudent).mockResolvedValue({ success: true })
+    render(
+      <StudentFormDialog
+        open={true}
+        onOpenChange={vi.fn()}
+        student={{ ...STUDENT, role: 'instructor', course_ids: [] }}
+        courses={COURSES}
+      />,
+    )
+
+    await userEvent.click(screen.getByRole('checkbox', { name: 'ATPL(A)' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    await waitFor(() => expect(updateStudent).toHaveBeenCalled())
+    expect(vi.mocked(updateStudent).mock.calls[0]?.[0]).toMatchObject({
+      role: 'instructor',
+      course_ids: [ATPL],
+    })
   })
 
   it('sends the edited course ids to updateStudent', async () => {

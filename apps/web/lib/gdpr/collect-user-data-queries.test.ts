@@ -51,6 +51,33 @@ beforeEach(() => {
   vi.resetAllMocks()
 })
 
+describe('fetchCourseEnrolments', () => {
+  it('filters course_enrolments by user_id for the count and the page query', async () => {
+    mockFetchAllRows.mockResolvedValueOnce({ data: [], error: null })
+    const eq = vi.fn()
+    const builder: Record<string, unknown> = {}
+    for (const m of ['select', 'order', 'range']) builder[m] = vi.fn(() => builder)
+    builder.eq = (...a: unknown[]) => {
+      eq(...a)
+      return builder
+    }
+    const client = { from: vi.fn(() => builder) } as unknown as SupabaseClient<Database>
+
+    await fetchCourseEnrolments(client, USER_ID)
+    const [getCount, getPage] = mockFetchAllRows.mock.calls[0] as [
+      () => unknown,
+      (a: number, b: number) => unknown,
+    ]
+    getCount()
+    getPage(0, 9)
+
+    expect(eq.mock.calls).toEqual([
+      ['user_id', USER_ID],
+      ['user_id', USER_ID],
+    ])
+  })
+})
+
 describe('fetchUserSessionAnswers', () => {
   it('returns empty data immediately when sessionIds is empty', async () => {
     const result = await fetchUserSessionAnswers(fakeClient, [])

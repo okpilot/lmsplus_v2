@@ -205,6 +205,17 @@ describe('getStudentDetail', () => {
     mockRequireAdmin.mockResolvedValue(makeAdminContext())
   })
 
+  it('embeds enrolments through the course_enrolments_user_id_fkey hint', async () => {
+    const chain = makeDetailChain(makeUserDetailRow())
+    mockFrom.mockReturnValue(chain)
+
+    await getStudentDetail(STUDENT_ID)
+
+    const arg = String((chain.select as ReturnType<typeof vi.fn>).mock.calls[0]?.[0])
+    expect(arg).toContain('course_enrolments_user_id_fkey')
+    expect(arg).not.toContain('student_id_fkey')
+  })
+
   it('returns mapped student detail when student is found', async () => {
     const row = makeUserDetailRow()
     const chain = makeDetailChain(row)

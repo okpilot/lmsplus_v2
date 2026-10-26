@@ -241,15 +241,15 @@ describe('createStudent', () => {
   describe('course enrolments', () => {
     const COURSE_ID = 'c0a5e000-0000-4000-8000-000000000002'
 
-    it('calls set_student_enrolments with the new student and chosen courses for a student', async () => {
+    it('calls set_user_enrolments with the new student and chosen courses for a student', async () => {
       mockAdmin()
       buildChain()
       mockAuthCreateUser()
 
       const result = await createStudent({ ...VALID_INPUT, course_ids: [COURSE_ID] })
 
-      expect(mockRpc).toHaveBeenCalledWith('set_student_enrolments', {
-        p_student_id: NEW_USER_ID,
+      expect(mockRpc).toHaveBeenCalledWith('set_user_enrolments', {
+        p_user_id: NEW_USER_ID,
         p_course_ids: [COURSE_ID],
       })
       expect(result.success).toBe(true)
@@ -257,15 +257,17 @@ describe('createStudent', () => {
       expect(result).not.toHaveProperty('coursesSaved', false)
     })
 
-    it('does not call set_student_enrolments for a non-student role', async () => {
+    it('calls set_user_enrolments with the new user and chosen courses for an instructor', async () => {
       mockAdmin()
       buildChain()
       mockAuthCreateUser()
 
       await createStudent({ ...VALID_INPUT, role: 'instructor', course_ids: [COURSE_ID] })
 
-      const names = mockRpc.mock.calls.map((c) => c[0])
-      expect(names).not.toContain('set_student_enrolments')
+      expect(mockRpc).toHaveBeenCalledWith('set_user_enrolments', {
+        p_user_id: NEW_USER_ID,
+        p_course_ids: [COURSE_ID],
+      })
     })
 
     it('keeps the student and returns coursesSaved:false when the enrolment RPC fails', async () => {
@@ -273,7 +275,7 @@ describe('createStudent', () => {
       buildChain()
       mockAuthCreateUser()
       mockRpc.mockImplementation(async (name: string) =>
-        name === 'set_student_enrolments'
+        name === 'set_user_enrolments'
           ? { error: { message: 'course_not_found' } }
           : { error: null },
       )

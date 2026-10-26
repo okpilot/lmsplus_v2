@@ -64,9 +64,9 @@ describe('StudentTable — courses column', () => {
     expect(within(r).getByText('—')).toBeInTheDocument()
   })
 
-  it('shows no course badges for a non-student role', () => {
-    renderTable([row({ role: 'instructor', course_ids: [PPL] })])
+  it.each(['instructor', 'admin'] as const)('shows course badges for role %s', (role) => {
+    renderTable([row({ role, course_ids: [PPL] })])
     const r = screen.getByText('Alice').closest('tr') as HTMLElement
-    expect(within(r).queryByText('PPL')).not.toBeInTheDocument()
+    expect(within(r).getByText('PPL')).toBeInTheDocument()
   })
 })

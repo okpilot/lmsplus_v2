@@ -12,7 +12,7 @@ export async function getStudentDetail(studentId: string): Promise<StudentDetail
   const { data, error } = await adminClient
     .from('users')
     .select(
-      'id, full_name, email, role, last_active_at, created_at, deleted_at, course_enrolments!course_enrolments_student_id_fkey(courses(short, sort_order))',
+      'id, full_name, email, role, last_active_at, created_at, deleted_at, course_enrolments!course_enrolments_user_id_fkey(courses(short, sort_order))',
     )
     .is('course_enrolments.deleted_at', null)
     .eq('id', studentId)

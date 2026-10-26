@@ -45,7 +45,6 @@ function CourseBadges({
   student,
   courses,
 }: Readonly<{ student: StudentRow; courses: CourseOption[] }>) {
-  if (student.role !== 'student') return null
   const active = courses.filter((c) => student.course_ids.includes(c.id))
   if (active.length === 0) return <span className="text-muted-foreground">—</span>
   return (

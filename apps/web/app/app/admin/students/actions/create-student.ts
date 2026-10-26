@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { recordAuthEvent } from '@/lib/audit/record-auth-event'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { insertStudentProfile } from './create-student-profile'
-import { setStudentCourses } from './set-student-courses'
+import { setUserCourses } from './set-user-courses'
 
 export type CreateStudentResult =
   | { success: true; id: string; coursesSaved?: false }
@@ -51,8 +51,7 @@ export async function createStudent(input: unknown): Promise<CreateStudentResult
     context: 'createStudent',
   })
 
-  const coursesOk =
-    role !== 'student' || (await setStudentCourses(supabase, authData.user.id, course_ids)).ok
+  const coursesOk = (await setUserCourses(supabase, authData.user.id, course_ids)).ok
 
   revalidatePath('/app/admin/students')
   return coursesOk

@@ -96,14 +96,12 @@ export function StudentFormFields({
         </Select>
       </div>
 
-      {role === 'student' && (
-        <StudentCourseFields
-          courses={courses}
-          value={courseIds}
-          disabled={isPending}
-          onChange={onCourseIdsChange}
-        />
-      )}
+      <StudentCourseFields
+        courses={courses}
+        value={courseIds}
+        disabled={isPending}
+        onChange={onCourseIdsChange}
+      />
     </div>
   )
 }

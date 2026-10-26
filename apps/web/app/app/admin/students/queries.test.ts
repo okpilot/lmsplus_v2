@@ -56,6 +56,29 @@ describe('getStudentsList', () => {
     ])
   })
 
+  it('embeds enrolments through the course_enrolments_user_id_fkey hint', async () => {
+    const select = vi.fn()
+    const chain = buildChain({ data: [], error: null }) as Record<string, unknown>
+    mockFrom.mockReturnValue(
+      new Proxy(chain, {
+        get(t, prop) {
+          if (prop === 'select')
+            return (...a: unknown[]) => {
+              select(...a)
+              return t
+            }
+          return (t as Record<string | symbol, unknown>)[prop]
+        },
+      }),
+    )
+
+    await getStudentsList({})
+
+    const arg = String(select.mock.calls[0]?.[0])
+    expect(arg).toContain('course_enrolments!course_enrolments_user_id_fkey(course_id)')
+    expect(arg).not.toContain('student_id_fkey')
+  })
+
   it('returns an empty list when no rows come back', async () => {
     mockFrom.mockReturnValue(buildChain({ data: null, error: null }))
     expect(await getStudentsList({})).toEqual([])

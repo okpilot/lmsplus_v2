@@ -108,29 +108,29 @@ describe('updateStudent', () => {
   describe('course enrolments', () => {
     const COURSE_ID = 'c0a5e000-0000-4000-8000-000000000002'
 
-    it('calls set_student_enrolments for a student when course_ids is provided', async () => {
+    it('calls set_user_enrolments for a student when course_ids is provided', async () => {
       mockAdmin()
       buildUpdateChain()
       mockRpc.mockResolvedValue({ error: null })
 
       const result = await updateStudent({ ...VALID_INPUT, course_ids: [COURSE_ID] })
 
-      expect(mockRpc).toHaveBeenCalledWith('set_student_enrolments', {
-        p_student_id: VALID_UUID,
+      expect(mockRpc).toHaveBeenCalledWith('set_user_enrolments', {
+        p_user_id: VALID_UUID,
         p_course_ids: [COURSE_ID],
       })
       expect(result.success).toBe(true)
     })
 
-    it('calls set_student_enrolments with an empty array to clear all courses', async () => {
+    it('calls set_user_enrolments with an empty array to clear all courses', async () => {
       mockAdmin()
       buildUpdateChain()
       mockRpc.mockResolvedValue({ error: null })
 
       await updateStudent({ ...VALID_INPUT, course_ids: [] })
 
-      expect(mockRpc).toHaveBeenCalledWith('set_student_enrolments', {
-        p_student_id: VALID_UUID,
+      expect(mockRpc).toHaveBeenCalledWith('set_user_enrolments', {
+        p_user_id: VALID_UUID,
         p_course_ids: [],
       })
     })
@@ -144,13 +144,17 @@ describe('updateStudent', () => {
       expect(mockRpc).not.toHaveBeenCalled()
     })
 
-    it('does not call the RPC when the role is not student', async () => {
+    it('calls set_user_enrolments for an instructor when course_ids is provided', async () => {
       mockAdmin()
       buildUpdateChain()
+      mockRpc.mockResolvedValue({ error: null })
 
       await updateStudent({ ...VALID_INPUT, role: 'instructor', course_ids: [COURSE_ID] })
 
-      expect(mockRpc).not.toHaveBeenCalled()
+      expect(mockRpc).toHaveBeenCalledWith('set_user_enrolments', {
+        p_user_id: VALID_UUID,
+        p_course_ids: [COURSE_ID],
+      })
     })
 
     it('returns a courses-not-saved failure when the RPC fails', async () => {
