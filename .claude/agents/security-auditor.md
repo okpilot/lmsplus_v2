@@ -72,7 +72,7 @@ You receive:
 ### HIGH (blocking unless explicitly justified)
 
 6. **Hard DELETE on soft-deletable table**
-   - Any `DELETE FROM` in application code or migrations on: organizations, users, question_banks, questions, quiz_sessions, flagged_questions, exam_configs, internal_exam_codes (derived from `packages/db/src/types.ts` + `docs/database.md` §3 — update when a migration adds/drops `deleted_at`)
+   - Any `DELETE FROM` in application code or migrations on: organizations, users, question_banks, questions, quiz_sessions, flagged_questions, exam_configs, internal_exam_codes, course_enrolments (derived from `packages/db/src/types.ts` + `docs/database.md` §3 — update when a migration adds/drops `deleted_at`)
    - Exception: hard-delete-by-design tables per `docs/database.md` §3 — `quiz_drafts` and `exam_config_distributions` (no `deleted_at` column), and `question_comments` (`deleted_at` exists as an unused safety net; own/admin DELETE RLS policies are the design — mig 20260320000049)
    - Fix: `UPDATE table SET deleted_at = now(), deleted_by = auth.uid() WHERE id = $1`
 
