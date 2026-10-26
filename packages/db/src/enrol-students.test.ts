@@ -45,6 +45,18 @@ describe('enrolStudent', () => {
     )
   })
 
+  it('treats a concurrent duplicate insert (23505) as enrolled', async () => {
+    insert.mockResolvedValue({ error: { code: '23505', message: 'duplicate key' } })
+    await expect(enrolStudent(admin, { userId: USER, orgId: 'o1' })).resolves.toBeUndefined()
+  })
+
+  it('throws on any other insert error', async () => {
+    insert.mockResolvedValue({ error: { code: '42501', message: 'denied' } })
+    await expect(enrolStudent(admin, { userId: USER, orgId: 'o1' })).rejects.toThrow(
+      'enrolStudent insert: denied',
+    )
+  })
+
   it('inserts only the courses with no active enrolment', async () => {
     results.course_enrolments = { data: [{ course_id: GRANDFATHER_COURSE_IDS[0] }], error: null }
     await enrolStudent(admin, { userId: USER, orgId: 'o1' })

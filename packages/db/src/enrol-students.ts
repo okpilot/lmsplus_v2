@@ -45,5 +45,6 @@ export async function enrolStudent(
   if (rows.length === 0) return
 
   const { error } = await admin.from('course_enrolments').insert(rows)
-  if (error) throw new Error(`enrolStudent insert: ${error.message}`)
+  // 23505: a concurrent caller enrolled the same course between probe and insert.
+  if (error && error.code !== '23505') throw new Error(`enrolStudent insert: ${error.message}`)
 }
