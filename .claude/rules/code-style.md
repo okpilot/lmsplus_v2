@@ -524,7 +524,7 @@ if (!hydrated) return <Skeleton />
 ```
 Use this pattern when a component's initial render differs between server and client (e.g., reading `localStorage`, `window`, or client-only browser APIs).
 ### Re-throw Redirect Errors in Server Component Catch Blocks
-Next.js uses throw-based control flow for `redirect()` and `notFound()`. Any `catch` block wrapping such a call must re-throw them: `rethrowRedirect(error)` from `@/lib/next/rethrow-redirect` for `redirect()`, `unstable_rethrow(error)` from `next/navigation` when `notFound()` can also be thrown. A bare `catch {}` that does not check turns a redirect into a 500 or stale render.
+Next.js uses throw-based control flow for `redirect()` and `notFound()`. Any `catch` block wrapping such a call must re-throw them: `unstable_rethrow(error)` from `next/navigation`, first statement in the `catch`. A bare `catch {}` that does not check turns a redirect into a 500 or stale render.
 ```tsx
 // ❌ WRONG — swallows redirect, shows fallback instead of redirecting
 try {
@@ -535,13 +535,13 @@ try {
 }
 
 // ✅ CORRECT — redirect propagates, only real errors show fallback
-import { rethrowRedirect } from '@/lib/next/rethrow-redirect'
+import { unstable_rethrow } from 'next/navigation'
 
 try {
   const data = await getProtectedData()
   return <DataView data={data} />
 } catch (error) {
-  rethrowRedirect(error)
+  unstable_rethrow(error)
   return <ErrorFallback />
 }
 ```
@@ -573,6 +573,7 @@ function useExamNavigation() {
 }
 ```
 The same applies to any scalar captured across a hook split (e.g. a `currentIndex` read in a save handler defined in a different hook). When in doubt: if a value is read inside a callback and also changes via `setState`, mirror it.
+When the latest committed value is sufficient, a ref read only inside an Effect (or a callback the Effect registers) uses `useEffectEvent` instead; keep the eagerly updated ref when that callback must see a value before the next commit. Handler and async reads keep the mirrored ref.
 ### Await Server Actions Before Terminal Navigation
 A **terminal navigation** (`router.push`/`replace`, `window.location.assign` to a page the user can't return to) must be the **last statement** on its path. `router.refresh()` is not terminal — it revalidates in place, so a racing Server Action can't cancel it. Sequencing a Server Action before a terminal nav is not sufficient: a slow revalidation can still cancel the pending soft-nav even when invoked first.
 - **Critical mutations** (must settle before leaving, e.g. `discardQuiz`): **await** before the terminal navigation.

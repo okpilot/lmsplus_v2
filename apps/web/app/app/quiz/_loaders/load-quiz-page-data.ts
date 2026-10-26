@@ -1,3 +1,4 @@
+import { unstable_rethrow } from 'next/navigation'
 import { getMockExamSubjects } from '@/lib/queries/exam-subjects'
 import { loadSavedQuizzes, type SavedQuizSession } from '@/lib/queries/load-saved-quizzes'
 import { loadQuizSetupPreload } from '@/lib/queries/quiz-setup-preload'
@@ -30,6 +31,7 @@ async function loadSavedOrDegrade(
   try {
     return { savedSessions: await loadSavedQuizzes(userId), savedLookupFailed: false }
   } catch (error) {
+    unstable_rethrow(error)
     console.error('[loadQuizPageData] Saved quizzes lookup failed:', error)
     return { savedSessions: [], savedLookupFailed: true }
   }

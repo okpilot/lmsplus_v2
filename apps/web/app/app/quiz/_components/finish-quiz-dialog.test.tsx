@@ -1,6 +1,10 @@
 import { fireEvent, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { FinishQuizDialog } from './finish-quiz-dialog'
+
+const { mockBlocked } = vi.hoisted(() => ({ mockBlocked: vi.fn() }))
+vi.mock('../session/_hooks/use-connection-state', () => ({ useConnectionBlocked: mockBlocked }))
 
 // ---- Helpers --------------------------------------------------------------
 
@@ -120,30 +124,51 @@ describe('FinishQuizDialog', () => {
     expect(onSave).toHaveBeenCalledOnce()
   })
 
-  it('calls onCancel when the backdrop overlay is clicked', () => {
+  it('calls onCancel when the user presses outside the dialog', async () => {
     const onCancel = vi.fn()
     renderDialog({ onCancel })
-    const overlay = screen.getByRole('dialog', { name: /finish quiz/i }).parentElement
-    expect(overlay).not.toBeNull()
-    if (overlay) fireEvent.click(overlay)
+    await userEvent.click(document.body)
     expect(onCancel).toHaveBeenCalledOnce()
   })
 
-  it('calls onCancel when the Escape key is pressed on the overlay', () => {
+  it('calls onCancel when Escape is pressed while the dialog is dismissable', async () => {
     const onCancel = vi.fn()
     renderDialog({ onCancel })
-    const overlay = screen.getByRole('dialog', { name: /finish quiz/i }).parentElement
-    expect(overlay).not.toBeNull()
-    if (overlay) fireEvent.keyDown(overlay, { key: 'Escape' })
+    await userEvent.keyboard('{Escape}')
     expect(onCancel).toHaveBeenCalledOnce()
   })
 
-  it('does not call onCancel when a non-Escape key is pressed on the overlay', () => {
+  it('does not call onCancel when a non-Escape key is pressed', async () => {
     const onCancel = vi.fn()
     renderDialog({ onCancel })
-    const overlay = screen.getByRole('dialog', { name: /finish quiz/i }).parentElement
-    if (overlay) fireEvent.keyDown(overlay, { key: 'Enter' })
+    expect(screen.getByRole('dialog', { name: /finish quiz/i })).toBeInTheDocument()
+    await userEvent.keyboard('{Enter}')
     expect(onCancel).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog', { name: /finish quiz/i })).toBeInTheDocument()
+  })
+
+  it('does not call onCancel on Escape when time has expired', async () => {
+    const onCancel = vi.fn()
+    renderDialog({ onCancel, isExam: true, examMode: 'mock_exam', timeExpired: true })
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    expect(onCancel).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog', { name: /finish practice exam/i })).toBeInTheDocument()
+  })
+
+  it('does not call onCancel on outside press when time has expired', async () => {
+    const onCancel = vi.fn()
+    renderDialog({ onCancel, isExam: true, examMode: 'mock_exam', timeExpired: true })
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    await userEvent.click(document.body)
+    expect(onCancel).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog', { name: /finish practice exam/i })).toBeInTheDocument()
+  })
+
+  it('moves focus into the dialog when it opens', async () => {
+    renderDialog()
+    const dialog = screen.getByRole('dialog', { name: /finish quiz/i })
+    await vi.waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true))
   })
 
   it('disables every button and shows only the submit spinner while submitting', () => {
@@ -174,11 +199,10 @@ describe('FinishQuizDialog', () => {
     expect(screen.getByRole('button', { name: /submit quiz/i })).toBeInTheDocument()
   })
 
-  it('does not propagate clicks from inside the dialog to the overlay', () => {
+  it('does not call onCancel when the user clicks inside the dialog', async () => {
     const onCancel = vi.fn()
     renderDialog({ onCancel })
-    const dialog = screen.getByRole('dialog', { name: /finish quiz/i })
-    fireEvent.click(dialog)
+    await userEvent.click(screen.getByRole('dialog', { name: /finish quiz/i }))
     expect(onCancel).not.toHaveBeenCalled()
   })
 
@@ -731,5 +755,55 @@ describe('FinishQuizDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: /submit internal exam/i }))
     expect(screen.getByText(/3 questions are unanswered/i)).toBeInTheDocument()
     expect(screen.getByText(/will be marked wrong/i)).toBeInTheDocument()
+  })
+
+  it('hides the dialog while the connection overlay blocks the quiz', () => {
+    mockBlocked.mockReturnValue(false)
+    const props = {
+      open: true,
+      answeredCount: 3,
+      totalQuestions: 5,
+      submitting: false,
+      onSubmit: vi.fn(),
+      onCancel: vi.fn(),
+      onSave: vi.fn(),
+      onDiscard: vi.fn(),
+    }
+    const { rerender } = render(<FinishQuizDialog {...props} />)
+    expect(screen.getByRole('dialog', { name: /finish quiz/i })).toBeInTheDocument()
+    mockBlocked.mockReturnValue(true)
+    rerender(<FinishQuizDialog {...props} />)
+    expect(screen.queryByRole('dialog', { name: /finish quiz/i })).not.toBeInTheDocument()
+  })
+
+  it('shows the dialog when the connection is not blocked', () => {
+    mockBlocked.mockReturnValue(false)
+    renderDialog({ open: true })
+    expect(screen.getByRole('dialog', { name: /finish quiz/i })).toBeInTheDocument()
+  })
+
+  it('does not call onCancel on Escape while submitting', async () => {
+    const onCancel = vi.fn()
+    renderDialog({ onCancel, submitting: true, pendingAction: 'submit' })
+    expect(screen.getByRole('dialog', { name: /finish quiz/i })).toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    expect(onCancel).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog', { name: /finish quiz/i })).toBeInTheDocument()
+  })
+
+  it('does not call onCancel on outside press while submitting', async () => {
+    const onCancel = vi.fn()
+    renderDialog({ onCancel, submitting: true, pendingAction: 'save' })
+    expect(screen.getByRole('dialog', { name: /finish quiz/i })).toBeInTheDocument()
+    await userEvent.click(document.body)
+    expect(onCancel).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog', { name: /finish quiz/i })).toBeInTheDocument()
+  })
+
+  it('focuses the dialog popup, not the Submit button, on open', async () => {
+    renderDialog()
+    const dialog = screen.getByRole('dialog', { name: /finish quiz/i })
+    await vi.waitFor(() => expect(document.activeElement).toBe(dialog))
+    expect(document.activeElement).not.toBe(screen.getByRole('button', { name: /submit quiz/i }))
   })
 })

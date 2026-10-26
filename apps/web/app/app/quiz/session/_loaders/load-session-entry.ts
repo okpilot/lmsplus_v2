@@ -1,4 +1,4 @@
-import { redirect } from 'next/navigation'
+import { redirect, unstable_rethrow } from 'next/navigation'
 import type { SessionQuestion } from '@/app/app/_types/session'
 import type { AnswerFeedback } from '@/app/app/quiz/types'
 import { PRACTICE_MODES } from '@/lib/constants/exam-modes'
@@ -60,6 +60,7 @@ async function loadRunnerData(entry: OpenEntry): Promise<SessionRunnerData> {
     if (!result.success) return { error: result.error }
     return { questions: result.questions, flaggedIds: await flags, feedback: await feedback }
   } catch (e) {
+    unstable_rethrow(e)
     console.error(
       '[loadSessionEntry] question load failed:',
       e instanceof Error ? e.message : String(e),

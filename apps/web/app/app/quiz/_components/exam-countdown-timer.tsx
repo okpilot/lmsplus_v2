@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 'react'
 
 type ExamCountdownTimerProps = {
   timeLimitSeconds: number
@@ -34,32 +34,25 @@ function useCountdownRemaining(
   onExpired: () => void,
 ): number | null {
   const expiredRef = useRef(false)
-  const timeLimitRef = useRef(timeLimitSeconds)
-  const startedAtRef = useRef(startedAt)
-  const onExpiredRef = useRef(onExpired)
-  timeLimitRef.current = timeLimitSeconds
-  startedAtRef.current = startedAt
-  onExpiredRef.current = onExpired
-  const calcRemaining = useCallback(
-    () =>
-      Math.max(0, timeLimitRef.current - Math.floor((Date.now() - startedAtRef.current) / 1000)),
-    [],
+  const calcRemaining = useEffectEvent(() =>
+    Math.max(0, timeLimitSeconds - Math.floor((Date.now() - startedAt) / 1000)),
   )
+  const expire = useEffectEvent(onExpired)
   const [remaining, setRemaining] = useState<number | null>(null)
   useLayoutEffect(() => {
     setRemaining(calcRemaining())
-  }, [calcRemaining])
+  }, [])
   useEffect(() => {
     const id = setInterval(() => {
       const r = calcRemaining()
       setRemaining(r)
       if (r <= 0 && !expiredRef.current) {
         expiredRef.current = true
-        onExpiredRef.current()
+        expire()
       }
     }, 1000)
     return () => clearInterval(id)
-  }, [calcRemaining])
+  }, [])
   return remaining
 }
 

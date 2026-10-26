@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useEffect, useRef } from 'react'
+import { useEffect, useEffectEvent } from 'react'
 import { toast } from 'sonner'
 import { markRunnerExiting } from '../_utils/runner-exit'
 import { clearTakenOver, onPeerClaim, onTakenOver } from '../_utils/session-takeover'
@@ -14,8 +14,7 @@ type TakeoverExitOpts = { enabled: boolean; sessionId: string; probe: () => void
  */
 export function useTakeoverExit({ enabled, sessionId, probe }: Readonly<TakeoverExitOpts>) {
   const router = useRouter()
-  const probeRef = useRef(probe)
-  probeRef.current = probe
+  const runProbe = useEffectEvent(probe)
 
   // Subscriptions only — no data fetching
   useEffect(() => {
@@ -26,7 +25,7 @@ export function useTakeoverExit({ enabled, sessionId, probe }: Readonly<Takeover
       markRunnerExiting()
       router.replace('/app/quiz')
     })
-    const offPeer = onPeerClaim(sessionId, () => probeRef.current())
+    const offPeer = onPeerClaim(sessionId, () => runProbe())
     return () => {
       offTakeover()
       offPeer()

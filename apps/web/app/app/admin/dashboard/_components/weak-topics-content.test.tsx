@@ -1,19 +1,14 @@
 import { render, screen } from '@testing-library/react'
+import { notFound, redirect } from 'next/navigation'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Hoisted mocks ----------------------------------------------------------
 
 const mockGetWeakTopics = vi.hoisted(() => vi.fn())
-const mockRethrowRedirect = vi.hoisted(() => vi.fn())
-
 // ---- Module mocks -----------------------------------------------------------
 
 vi.mock('../queries', () => ({
   getWeakTopics: mockGetWeakTopics,
-}))
-
-vi.mock('@/lib/next/rethrow-redirect', () => ({
-  rethrowRedirect: mockRethrowRedirect,
 }))
 
 vi.mock('./weak-topics-list', () => ({
@@ -51,13 +46,26 @@ describe('WeakTopicsContent', () => {
     ).toBeInTheDocument()
   })
 
-  it('re-throws redirect errors instead of showing the fallback', async () => {
-    const redirectError = new Error('NEXT_REDIRECT:/auth/login')
-    mockGetWeakTopics.mockRejectedValue(redirectError)
-    mockRethrowRedirect.mockImplementation((err: unknown) => {
-      throw err
-    })
+  it('propagates a redirect() navigation error instead of showing the fallback', async () => {
+    const error = capture(() => redirect('/auth/login'))
+    mockGetWeakTopics.mockRejectedValue(error)
 
-    await expect(WeakTopicsContent()).rejects.toThrow('NEXT_REDIRECT:/auth/login')
+    await expect(WeakTopicsContent()).rejects.toBe(error)
+  })
+
+  it('propagates a notFound() navigation error instead of showing the fallback', async () => {
+    const error = capture(() => notFound())
+    mockGetWeakTopics.mockRejectedValue(error)
+
+    await expect(WeakTopicsContent()).rejects.toBe(error)
   })
 })
+
+function capture(fn: () => never): unknown {
+  try {
+    fn()
+  } catch (e) {
+    return e
+  }
+  throw new Error('navigation helper did not throw')
+}

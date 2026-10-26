@@ -33,11 +33,22 @@ export async function getFlaggedQuestionIds(questionIds: string[]): Promise<stri
   return data.map((r) => r.question_id as string)
 }
 
+const TIMED_OUT: string[] = []
+
 /** Never rejects: degrades to [] on failure or after FLAG_FETCH_TIMEOUT_MS. */
-export function getFlaggedQuestionIdsBounded(questionIds: string[]): Promise<string[]> {
-  return withTimeout(
-    getFlaggedQuestionIds(questionIds).catch(() => [] as string[]),
+export async function getFlaggedQuestionIdsBounded(questionIds: string[]): Promise<string[]> {
+  const result = await withTimeout(
+    getFlaggedQuestionIds(questionIds).catch((e: unknown) => {
+      console.error(
+        '[getFlaggedQuestionIds] read failed:',
+        e instanceof Error ? e.message : String(e),
+      )
+      return [] as string[]
+    }),
     FLAG_FETCH_TIMEOUT_MS,
-    [],
+    TIMED_OUT,
   )
+  if (result !== TIMED_OUT) return result
+  console.error(`[getFlaggedQuestionIds] timed out after ${FLAG_FETCH_TIMEOUT_MS}ms`)
+  return []
 }

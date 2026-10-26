@@ -1,4 +1,4 @@
-import { rethrowRedirect } from '@/lib/next/rethrow-redirect'
+import { unstable_rethrow } from 'next/navigation'
 import { getRecentSessions } from '../queries'
 import type { TimeRange } from '../types'
 import { ContentErrorFallback } from './content-error-fallback'
@@ -11,7 +11,7 @@ export async function RecentActivityContent({ range }: Readonly<Props>) {
     const sessions = await getRecentSessions(range)
     return <RecentActivityList sessions={sessions} />
   } catch (error) {
-    rethrowRedirect(error)
+    unstable_rethrow(error)
     return (
       <ContentErrorFallback message="Failed to load recent activity. Please refresh the page." />
     )

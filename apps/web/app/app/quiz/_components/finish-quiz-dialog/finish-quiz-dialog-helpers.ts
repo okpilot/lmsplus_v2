@@ -102,6 +102,7 @@ export function buildFinishDialogHandlers(deps: {
   canDismiss: boolean
   unanswered: number
   confirmingSubmit: boolean
+  submitting: boolean
   timeExpired?: boolean
   onCancel: () => void
   onSubmit: () => void
@@ -110,7 +111,7 @@ export function buildFinishDialogHandlers(deps: {
 }) {
   return {
     handleClose() {
-      if (!deps.canDismiss) return
+      if (!deps.canDismiss || deps.submitting) return
       deps.setConfirmingDiscard(false)
       deps.setConfirmingSubmit(false)
       deps.onCancel()

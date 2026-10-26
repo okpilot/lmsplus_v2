@@ -1,19 +1,14 @@
 import { render, screen } from '@testing-library/react'
+import { notFound, redirect } from 'next/navigation'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Hoisted mocks ----------------------------------------------------------
 
 const mockGetRecentSessions = vi.hoisted(() => vi.fn())
-const mockRethrowRedirect = vi.hoisted(() => vi.fn())
-
 // ---- Module mocks -----------------------------------------------------------
 
 vi.mock('../queries', () => ({
   getRecentSessions: mockGetRecentSessions,
-}))
-
-vi.mock('@/lib/next/rethrow-redirect', () => ({
-  rethrowRedirect: mockRethrowRedirect,
 }))
 
 vi.mock('./recent-activity-list', () => ({
@@ -51,15 +46,26 @@ describe('RecentActivityContent', () => {
     ).toBeInTheDocument()
   })
 
-  it('re-throws redirect errors instead of showing the fallback', async () => {
-    const redirectError = new Error('NEXT_REDIRECT:/auth/login')
-    mockGetRecentSessions.mockRejectedValue(redirectError)
-    mockRethrowRedirect.mockImplementation((err: unknown) => {
-      throw err
-    })
+  it('propagates a redirect() navigation error instead of showing the fallback', async () => {
+    const error = capture(() => redirect('/auth/login'))
+    mockGetRecentSessions.mockRejectedValue(error)
 
-    await expect(RecentActivityContent({ range: '30d' })).rejects.toThrow(
-      'NEXT_REDIRECT:/auth/login',
-    )
+    await expect(RecentActivityContent({ range: '30d' })).rejects.toBe(error)
+  })
+
+  it('propagates a notFound() navigation error instead of showing the fallback', async () => {
+    const error = capture(() => notFound())
+    mockGetRecentSessions.mockRejectedValue(error)
+
+    await expect(RecentActivityContent({ range: '30d' })).rejects.toBe(error)
   })
 })
+
+function capture(fn: () => never): unknown {
+  try {
+    fn()
+  } catch (e) {
+    return e
+  }
+  throw new Error('navigation helper did not throw')
+}

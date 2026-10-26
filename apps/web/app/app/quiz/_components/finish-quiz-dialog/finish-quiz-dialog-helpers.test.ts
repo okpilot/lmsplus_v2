@@ -147,6 +147,7 @@ describe('buildFinishDialogHandlers', () => {
       canDismiss: true,
       unanswered: 0,
       confirmingSubmit: false,
+      submitting: false,
       timeExpired: false,
       onCancel: vi.fn(),
       onSubmit: vi.fn(),

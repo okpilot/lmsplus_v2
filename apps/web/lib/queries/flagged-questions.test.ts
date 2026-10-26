@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks -----------------------------------------------------------------
@@ -135,5 +136,55 @@ describe('getFlaggedQuestionIdsBounded', () => {
     await vi.advanceTimersByTimeAsync(FLAG_FETCH_TIMEOUT_MS)
 
     expect(await pending).toEqual([])
+  })
+
+  it('logs "read failed" and resolves to [] when the read rejects', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockGetSessionUser.mockRejectedValue(new Error('cookie read failed'))
+
+    expect(await getFlaggedQuestionIdsBounded([QUESTION_ID_A])).toEqual([])
+
+    expect(errorSpy).toHaveBeenCalledTimes(1)
+    expect(String(errorSpy.mock.calls[0]?.[0])).toContain('read failed')
+    expect(errorSpy.mock.calls[0]?.[1]).toBe('cookie read failed')
+  })
+
+  it('logs "timed out after <ms>" and resolves to [] when the read hangs', async () => {
+    vi.useFakeTimers()
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockGetSessionUser.mockReturnValue(new Promise(() => {}))
+
+    const pending = getFlaggedQuestionIdsBounded([QUESTION_ID_A])
+    await vi.advanceTimersByTimeAsync(FLAG_FETCH_TIMEOUT_MS)
+
+    expect(await pending).toEqual([])
+    expect(errorSpy).toHaveBeenCalledTimes(1)
+    expect(String(errorSpy.mock.calls[0]?.[0])).toContain(
+      `timed out after ${FLAG_FETCH_TIMEOUT_MS}ms`,
+    )
+    expect(String(errorSpy.mock.calls[0]?.[0])).not.toContain('read failed')
+  })
+
+  it('logs nothing when the read succeeds', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    setupAuthenticatedUser()
+    mockFrom.mockReturnValue(buildChain({ data: [{ question_id: QUESTION_ID_A }], error: null }))
+
+    expect(await getFlaggedQuestionIdsBounded([QUESTION_ID_A])).toEqual([QUESTION_ID_A])
+    expect(errorSpy).not.toHaveBeenCalled()
+  })
+
+  it('resolves to [] and logs "read failed" when the read rejects with a redirect error', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    let redirectError: unknown
+    try {
+      redirect('/login')
+    } catch (e) {
+      redirectError = e
+    }
+    mockGetSessionUser.mockRejectedValue(redirectError)
+
+    await expect(getFlaggedQuestionIdsBounded([QUESTION_ID_A])).resolves.toEqual([])
+    expect(String(errorSpy.mock.calls[0]?.[0])).toContain('read failed')
   })
 })

@@ -134,6 +134,68 @@ describe('loadSessionData', () => {
     expect(result).toEqual({ success: true, questions: [Q1, Q2], flaggedIds: [] })
   })
 
+  describe('flag fetch degradation logging', () => {
+    function lastLogs(spy: { mock: { calls: unknown[][] } }) {
+      return spy.mock.calls.map((c) => c.map(String).join(' '))
+    }
+
+    it('logs once when the flag fetch reports { success: false }', async () => {
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
+      mockGetFlaggedIds.mockResolvedValue({ success: false, error: 'Failed to fetch flags' })
+
+      const result = await loadSessionData(QUESTION_IDS)
+
+      expect(result).toMatchObject({ success: true, flaggedIds: [] })
+      expect(spy).toHaveBeenCalledTimes(1)
+    })
+
+    it('logs once when the flag fetch rejects', async () => {
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
+      mockGetFlaggedIds.mockRejectedValue(new Error('network down'))
+
+      const result = await loadSessionData(QUESTION_IDS)
+
+      expect(result).toMatchObject({ success: true, flaggedIds: [] })
+      expect(spy).toHaveBeenCalledTimes(1)
+      expect(lastLogs(spy)[0]).toContain('network down')
+    })
+
+    it('logs once, naming the timeout, when the flag fetch hangs', async () => {
+      vi.useFakeTimers()
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
+      mockGetFlaggedIds.mockReturnValue(new Promise(() => undefined))
+
+      const pending = loadSessionData(QUESTION_IDS)
+      await vi.advanceTimersByTimeAsync(FLAG_FETCH_TIMEOUT_MS)
+
+      expect(await pending).toMatchObject({ success: true, flaggedIds: [] })
+      expect(spy).toHaveBeenCalledTimes(1)
+      expect(lastLogs(spy)[0]).toContain(`timed out after ${FLAG_FETCH_TIMEOUT_MS}ms`)
+    })
+
+    it('logs a different message for each of the three degradations', async () => {
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
+
+      mockGetFlaggedIds.mockResolvedValue({ success: false, error: 'x' })
+      await loadSessionData(QUESTION_IDS)
+      mockGetFlaggedIds.mockRejectedValue(new Error('y'))
+      await loadSessionData(QUESTION_IDS)
+      vi.useFakeTimers()
+      mockGetFlaggedIds.mockReturnValue(new Promise(() => undefined))
+      const pending = loadSessionData(QUESTION_IDS)
+      await vi.advanceTimersByTimeAsync(FLAG_FETCH_TIMEOUT_MS)
+      await pending
+
+      const prefixes = lastLogs(spy).map((l) => l.replace(/(x|y)$/, '').trim())
+      expect(spy).toHaveBeenCalledTimes(3)
+      expect(new Set(prefixes).size).toBe(3)
+    })
+  })
+
   it('surfaces the questions error when the questions fetch fails', async () => {
     mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_FAILURE)
     mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [Q1.id] })

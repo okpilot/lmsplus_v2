@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import { notFound, redirect } from 'next/navigation'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { HeatmapContent } from './heatmap-content'
 
@@ -51,5 +52,20 @@ describe('HeatmapContent', () => {
     render(jsx)
 
     expect(mockGetDailyActivity).toHaveBeenCalledWith(365)
+  })
+
+  it.each([
+    ['redirect', () => redirect('/auth/login')],
+    ['notFound', () => notFound()],
+  ])('propagates a %s() navigation error from getDailyActivity', async (_label, thrower) => {
+    let error: unknown
+    try {
+      thrower()
+    } catch (e) {
+      error = e
+    }
+    mockGetDailyActivity.mockRejectedValue(error)
+
+    await expect(HeatmapContent()).rejects.toBe(error)
   })
 })

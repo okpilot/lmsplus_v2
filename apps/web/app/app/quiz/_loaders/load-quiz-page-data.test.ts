@@ -1,3 +1,4 @@
+import { notFound, redirect } from 'next/navigation'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks -----------------------------------------------------------------
@@ -160,5 +161,20 @@ describe('loadQuizPageData', () => {
     process.off('unhandledRejection', unhandled)
 
     expect(unhandled).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['redirect', () => redirect('/auth/login')],
+    ['notFound', () => notFound()],
+  ])('propagates a %s() navigation error from the saved lookup', async (_label, thrower) => {
+    let error: unknown
+    try {
+      thrower()
+    } catch (e) {
+      error = e
+    }
+    mockLoadSavedQuizzes.mockRejectedValue(error)
+
+    await expect(loadQuizPageData('user-1')).rejects.toBe(error)
   })
 })
