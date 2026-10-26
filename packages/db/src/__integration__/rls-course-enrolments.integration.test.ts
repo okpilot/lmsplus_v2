@@ -72,7 +72,7 @@ describe('RLS: courses and course_enrolments', () => {
       student_id: studentAId,
       course_id: ppl,
     })
-    expect(error).not.toBeNull()
+    expect(error?.code).toBe('42501')
   })
 
   it('AC6: a student cannot UPDATE course_enrolments', async () => {
@@ -80,11 +80,12 @@ describe('RLS: courses and course_enrolments', () => {
       .from('course_enrolments')
       .update({ deleted_at: new Date().toISOString() })
       .eq('student_id', studentAId)
-    expect(error).not.toBeNull()
+    expect(error?.code).toBe('42501')
     const { data } = await admin
       .from('course_enrolments')
       .select('deleted_at')
       .eq('student_id', studentAId)
+    expect(data?.length).toBeGreaterThan(0)
     expect(data?.every((r) => r.deleted_at === null)).toBe(true)
   })
 
@@ -93,7 +94,7 @@ describe('RLS: courses and course_enrolments', () => {
       .from('course_enrolments')
       .delete()
       .eq('student_id', studentAId)
-    expect(error).not.toBeNull()
+    expect(error?.code).toBe('42501')
     const { data } = await admin.from('course_enrolments').select('id').eq('student_id', studentAId)
     expect(data?.length).toBeGreaterThan(0)
   })
@@ -105,11 +106,11 @@ describe('RLS: courses and course_enrolments', () => {
       short: 'x',
       sort_order: 9,
     })
-    expect(ins.error).not.toBeNull()
+    expect(ins.error?.code).toBe('42501')
     const upd = await studentAClient.from('courses').update({ name: 'hacked' }).eq('id', ppl)
-    expect(upd.error).not.toBeNull()
+    expect(upd.error?.code).toBe('42501')
     const del = await studentAClient.from('courses').delete().eq('id', ppl)
-    expect(del.error).not.toBeNull()
+    expect(del.error?.code).toBe('42501')
     const { data } = await admin.from('courses').select('name').eq('id', ppl).single()
     expect(data?.name).toBe('PPL(A)')
   })
@@ -140,6 +141,13 @@ describe('RLS: courses and course_enrolments', () => {
   })
 
   it('AC7: an admin of org B cannot read org A enrolments', async () => {
+    const { data: seeded, error: seededError } = await admin
+      .from('course_enrolments')
+      .select('id')
+      .eq('organization_id', orgAId)
+      .is('deleted_at', null)
+    expect(seededError).toBeNull()
+    expect(seeded?.length).toBeGreaterThan(0)
     const { data, error } = await adminBClient
       .from('course_enrolments')
       .select('id')
