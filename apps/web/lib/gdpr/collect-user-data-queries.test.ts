@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   type AnswerRow,
+  fetchCourseEnrolments,
   fetchUserAuditEvents,
   fetchUserComments,
   fetchUserConsents,
@@ -48,6 +49,33 @@ const fakeClient = {} as unknown as SupabaseClient<Database>
 
 beforeEach(() => {
   vi.resetAllMocks()
+})
+
+describe('fetchCourseEnrolments', () => {
+  it('filters course_enrolments by user_id for the count and the page query', async () => {
+    mockFetchAllRows.mockResolvedValueOnce({ data: [], error: null })
+    const eq = vi.fn()
+    const builder: Record<string, unknown> = {}
+    for (const m of ['select', 'order', 'range']) builder[m] = vi.fn(() => builder)
+    builder.eq = (...a: unknown[]) => {
+      eq(...a)
+      return builder
+    }
+    const client = { from: vi.fn(() => builder) } as unknown as SupabaseClient<Database>
+
+    await fetchCourseEnrolments(client, USER_ID)
+    const [getCount, getPage] = mockFetchAllRows.mock.calls[0] as [
+      () => unknown,
+      (a: number, b: number) => unknown,
+    ]
+    getCount()
+    getPage(0, 9)
+
+    expect(eq.mock.calls).toEqual([
+      ['user_id', USER_ID],
+      ['user_id', USER_ID],
+    ])
+  })
 })
 
 describe('fetchUserSessionAnswers', () => {
@@ -168,7 +196,7 @@ const USER_ID = 'bbbbbbbb-0000-4000-b000-000000000001'
 
 const PAGE_ERROR = { message: 'page-level DB timeout' }
 
-// All seven are pure `return fetchAllRows(...)` pass-throughs, so one parameterized
+// All eight are pure `return fetchAllRows(...)` pass-throughs, so one parameterized
 // suite proves the shared propagation contract (the function name is in describe()).
 describe.each([
   ['fetchUserSessions', fetchUserSessions],
@@ -178,6 +206,7 @@ describe.each([
   ['fetchUserComments', fetchUserComments],
   ['fetchUserConsents', fetchUserConsents],
   ['fetchUserAuditEvents', fetchUserAuditEvents],
+  ['fetchCourseEnrolments', fetchCourseEnrolments],
 ] as const)('%s', (_name, fetchFn) => {
   it('surfaces a page-fetch error as { data: [], error } when count succeeds but page fails', async () => {
     mockFetchAllRows.mockResolvedValueOnce({ data: [], error: PAGE_ERROR })

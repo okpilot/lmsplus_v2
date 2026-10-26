@@ -40,6 +40,7 @@ function makeStudent(overrides: Partial<StudentDetail> = {}): StudentDetail {
     lastActiveAt: '2026-04-06T10:00:00Z',
     createdAt: '2026-01-01T00:00:00Z',
     deletedAt: null,
+    courses: [],
     ...overrides,
   }
 }
@@ -95,5 +96,16 @@ describe('StudentHeader', () => {
   it('renders the last-active label', () => {
     render(<StudentHeader student={makeStudent()} />)
     expect(screen.getByText(/Last active:/)).toBeInTheDocument()
+  })
+
+  it('renders one badge per course short name', () => {
+    render(<StudentHeader student={makeStudent({ courses: ['PPL', 'RT'] })} />)
+    expect(screen.getByText('PPL')).toBeInTheDocument()
+    expect(screen.getByText('RT')).toBeInTheDocument()
+  })
+
+  it('renders no course badges when the student has no courses', () => {
+    render(<StudentHeader student={makeStudent({ courses: [] })} />)
+    expect(screen.queryByText('PPL')).not.toBeInTheDocument()
   })
 })

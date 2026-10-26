@@ -25,6 +25,11 @@ export function StudentHeader({ student }: Readonly<Props>) {
         </div>
         <div className="flex items-center gap-2">
           {student.deletedAt && <Badge variant="destructive">Inactive</Badge>}
+          {student.courses.map((short) => (
+            <Badge key={short} variant="outline">
+              {short}
+            </Badge>
+          ))}
           <Badge variant="outline" className="capitalize">
             {student.role}
           </Badge>

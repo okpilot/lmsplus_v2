@@ -10,6 +10,7 @@ export type FsrsRow = GdprExportPayload['fsrs_cards'][number]
 export type FlagRow = { question_id: string | null; flagged_at: string | null }
 export type CommentRow = GdprExportPayload['question_comments'][number]
 export type ConsentRow = GdprExportPayload['user_consents'][number]
+export type CourseEnrolmentRow = GdprExportPayload['course_enrolments'][number]
 export type AuditRow = {
   event_type: string
   resource_type: string
@@ -130,6 +131,25 @@ export function fetchUserConsents(supabase: SupabaseClient<Database>, userId: st
         .select('document_type, document_version, accepted, created_at')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
+        .order('id')
+        .range(from, to),
+  )
+}
+
+/** Self-export (user client) returns active enrolments only, via `user_read_own_enrolments`; the admin export also returns removed rows. */
+export function fetchCourseEnrolments(supabase: SupabaseClient<Database>, userId: string) {
+  return fetchAllRows<CourseEnrolmentRow>(
+    () =>
+      supabase
+        .from('course_enrolments')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId),
+    (from, to) =>
+      supabase
+        .from('course_enrolments')
+        .select('course_id, enrolled_at, enrolled_by, deleted_at, deleted_by')
+        .eq('user_id', userId)
+        .order('enrolled_at', { ascending: false })
         .order('id')
         .range(from, to),
   )

@@ -1,7 +1,7 @@
 import { adminClient } from '@repo/db/admin'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { escapeLike } from '@/lib/utils/escape-like'
-import type { StudentFilters, StudentRow } from './types'
+import type { CourseOption, StudentFilters, StudentRow } from './types'
 
 export async function getStudentsList(filters: StudentFilters): Promise<StudentRow[]> {
   const { organizationId } = await requireAdmin()
@@ -9,8 +9,9 @@ export async function getStudentsList(filters: StudentFilters): Promise<StudentR
   let query = adminClient
     .from('users')
     .select(
-      'id, email, full_name, role, organization_id, last_active_at, created_at, deleted_at, login_instructions_sent_at, temp_password_expires_at',
+      'id, email, full_name, role, organization_id, last_active_at, created_at, deleted_at, login_instructions_sent_at, temp_password_expires_at, course_enrolments!course_enrolments_user_id_fkey(course_id)',
     )
+    .is('course_enrolments.deleted_at', null)
     .eq('organization_id', organizationId)
     .order('created_at', { ascending: false })
     .limit(200)
@@ -37,5 +38,24 @@ export async function getStudentsList(filters: StudentFilters): Promise<StudentR
     throw new Error('Failed to fetch students')
   }
 
-  return (data ?? []) as StudentRow[]
+  return (data ?? []).map(({ course_enrolments, ...rest }) => ({
+    ...rest,
+    course_ids: course_enrolments.map((e) => e.course_id),
+  })) as StudentRow[]
+}
+
+export async function getCourses(): Promise<CourseOption[]> {
+  await requireAdmin()
+
+  const { data, error } = await adminClient
+    .from('courses')
+    .select('id, short, name')
+    .order('sort_order')
+
+  if (error) {
+    console.error('[getCourses] DB error:', error.message)
+    throw new Error('Failed to fetch courses')
+  }
+
+  return data ?? []
 }

@@ -13,14 +13,16 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { LoadingButton } from '@/components/ui/loading-button'
+import { sameIdSet } from '../_utils/same-id-set'
 import { createStudent } from '../actions/create-student'
 import { updateStudent } from '../actions/update-student'
-import type { StudentRow } from '../types'
+import type { CourseOption, StudentRow } from '../types'
 import { CreatedStudentPanel } from './created-student-panel'
 import { StudentFormFields } from './student-form-fields'
 
 type Props = {
   student?: StudentRow
+  courses?: CourseOption[]
   trigger?: ReactElement
   open?: boolean
   onOpenChange?: (open: boolean) => void
@@ -31,6 +33,7 @@ type CreatedStudent = { id: string; email: string; fullName: string }
 // biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function StudentFormDialog({
   student,
+  courses = [],
   trigger,
   open: controlledOpen,
   onOpenChange,
@@ -44,6 +47,7 @@ export function StudentFormDialog({
   const [email, setEmail] = useState(student?.email ?? '')
   const [fullName, setFullName] = useState(student?.full_name ?? '')
   const [role, setRole] = useState<string>(student?.role ?? 'student')
+  const [courseIds, setCourseIds] = useState<string[]>(student?.course_ids ?? [])
   const [createdStudent, setCreatedStudent] = useState<CreatedStudent | null>(null)
 
   useEffect(() => {
@@ -51,6 +55,7 @@ export function StudentFormDialog({
       setEmail(student?.email ?? '')
       setFullName(student?.full_name ?? '')
       setRole(student?.role ?? 'student')
+      setCourseIds(student?.course_ids ?? [])
       setCreatedStudent(null)
     }
   }, [open, student])
@@ -59,7 +64,12 @@ export function StudentFormDialog({
     startTransition(async () => {
       try {
         if (isEdit) {
-          const result = await updateStudent({ id: student.id, full_name: fullName, role })
+          const result = await updateStudent({
+            id: student.id,
+            full_name: fullName,
+            role,
+            course_ids: sameIdSet(courseIds, student.course_ids) ? undefined : courseIds,
+          })
           if (result.success) {
             toast.success('Student updated')
             setOpen(false)
@@ -68,8 +78,18 @@ export function StudentFormDialog({
           }
           return
         }
-        const result = await createStudent({ email, full_name: fullName, role })
+        const result = await createStudent({
+          email,
+          full_name: fullName,
+          role,
+          course_ids: courseIds,
+        })
         if (result.success) {
+          if (result.coursesSaved === false) {
+            toast.error(
+              'Student created, but courses were not saved. Edit the student to set them.',
+            )
+          }
           setCreatedStudent({ id: result.id, email, fullName })
         } else {
           toast.error(result.error)
@@ -115,6 +135,9 @@ export function StudentFormDialog({
               email={email}
               fullName={fullName}
               role={role}
+              courses={courses}
+              courseIds={courseIds}
+              onCourseIdsChange={setCourseIds}
               onEmailChange={setEmail}
               onFullNameChange={setFullName}
               onRoleChange={setRole}

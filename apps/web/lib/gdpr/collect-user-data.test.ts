@@ -708,6 +708,56 @@ describe('collectUserData', () => {
     })
   })
 
+  describe('course_enrolments', () => {
+    const ENROLMENTS = [
+      {
+        course_id: 'c0a5e000-0000-4000-8000-000000000002',
+        enrolled_at: '2026-02-01T00:00:00Z',
+        enrolled_by: 'admin-1',
+        deleted_at: null,
+        deleted_by: null,
+      },
+      {
+        course_id: 'c0a5e000-0000-4000-8000-000000000001',
+        enrolled_at: '2026-01-01T00:00:00Z',
+        enrolled_by: 'admin-1',
+        deleted_at: '2026-03-01T00:00:00Z',
+        deleted_by: 'admin-1',
+      },
+    ]
+
+    function clientWithEnrolments(rows: unknown[] | null, error: { message: string } | null) {
+      const base = buildSupabaseClient()
+      return {
+        from: (table: string) =>
+          table === 'course_enrolments' ? makeChain(rows, error) : base.from(table as never),
+      } as unknown as SupabaseClient<Database>
+    }
+
+    it('includes active and removed course_enrolments rows in the payload', async () => {
+      const result = await collectUserData(clientWithEnrolments(ENROLMENTS, null), USER_ID)
+
+      expect(result.course_enrolments).toEqual(ENROLMENTS)
+    })
+
+    it('returns an empty course_enrolments array when the student has none', async () => {
+      const result = await collectUserData(clientWithEnrolments([], null), USER_ID)
+
+      expect(result.course_enrolments).toEqual([])
+    })
+
+    it('adds a course_enrolments warning when the read fails', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const result = await collectUserData(
+        clientWithEnrolments(null, { message: 'db down' }),
+        USER_ID,
+      )
+
+      expect(result.warnings.map((w) => w.section)).toContain('course_enrolments')
+      consoleSpy.mockRestore()
+    })
+  })
+
   describe('pagination', () => {
     it('fetches all rows when a table exceeds one page', async () => {
       const responsesData = Array.from({ length: 2500 }, (_, i) => ({

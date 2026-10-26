@@ -41,7 +41,7 @@ function makeDetailChain(
   error: { message: string } | null = null,
 ) {
   const chain: Record<string, unknown> = {}
-  for (const method of ['select', 'eq']) {
+  for (const method of ['select', 'eq', 'is']) {
     chain[method] = vi.fn().mockReturnValue(chain)
   }
   chain.maybeSingle = vi.fn().mockResolvedValue({ data, error })
@@ -79,6 +79,7 @@ type UserDetailRow = {
   last_active_at: string | null
   created_at: string
   deleted_at: string | null
+  course_enrolments: { courses: { short: string; sort_order: number } | null }[]
 }
 
 function makeUserDetailRow(overrides: Partial<UserDetailRow> = {}): UserDetailRow {
@@ -90,6 +91,7 @@ function makeUserDetailRow(overrides: Partial<UserDetailRow> = {}): UserDetailRo
     last_active_at: null,
     created_at: '2026-01-01T00:00:00Z',
     deleted_at: null,
+    course_enrolments: [],
     ...overrides,
   }
 }
@@ -203,6 +205,17 @@ describe('getStudentDetail', () => {
     mockRequireAdmin.mockResolvedValue(makeAdminContext())
   })
 
+  it('embeds enrolments through the course_enrolments_user_id_fkey hint', async () => {
+    const chain = makeDetailChain(makeUserDetailRow())
+    mockFrom.mockReturnValue(chain)
+
+    await getStudentDetail(STUDENT_ID)
+
+    const arg = String((chain.select as ReturnType<typeof vi.fn>).mock.calls[0]?.[0])
+    expect(arg).toContain('course_enrolments_user_id_fkey')
+    expect(arg).not.toContain('student_id_fkey')
+  })
+
   it('returns mapped student detail when student is found', async () => {
     const row = makeUserDetailRow()
     const chain = makeDetailChain(row)
@@ -218,6 +231,7 @@ describe('getStudentDetail', () => {
       lastActiveAt: null,
       createdAt: '2026-01-01T00:00:00Z',
       deletedAt: null,
+      courses: [],
     })
   })
 

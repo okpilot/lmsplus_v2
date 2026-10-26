@@ -11,11 +11,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import type { StudentRow } from '../types'
+import type { CourseOption, StudentRow } from '../types'
 import { LoginInstructionsCell } from './login-instructions-cell'
 
 type Props = {
   students: StudentRow[]
+  courses: CourseOption[]
   onEdit: (student: StudentRow) => void
   onToggleStatus: (student: StudentRow) => void
   onExport: (student: StudentRow) => void
@@ -40,7 +41,30 @@ function formatDate(iso: string) {
   })
 }
 
-export function StudentTable({ students, onEdit, onToggleStatus, onExport }: Readonly<Props>) {
+function CourseBadges({
+  student,
+  courses,
+}: Readonly<{ student: StudentRow; courses: CourseOption[] }>) {
+  const active = courses.filter((c) => student.course_ids.includes(c.id))
+  if (active.length === 0) return <span className="text-muted-foreground">—</span>
+  return (
+    <div className="flex flex-wrap gap-1">
+      {active.map((c) => (
+        <Badge key={c.id} variant="outline" className="text-xs">
+          {c.short}
+        </Badge>
+      ))}
+    </div>
+  )
+}
+
+export function StudentTable({
+  students,
+  courses,
+  onEdit,
+  onToggleStatus,
+  onExport,
+}: Readonly<Props>) {
   return (
     <div className="rounded-md border">
       <Table>
@@ -49,6 +73,7 @@ export function StudentTable({ students, onEdit, onToggleStatus, onExport }: Rea
             <TableHead className="min-w-[160px]">Name</TableHead>
             <TableHead className="min-w-[200px]">Email</TableHead>
             <TableHead className="w-28">Role</TableHead>
+            <TableHead className="w-40">Courses</TableHead>
             <TableHead className="w-24">Status</TableHead>
             <TableHead className="w-36">Last Active</TableHead>
             <TableHead className="w-32">Created</TableHead>
@@ -65,6 +90,9 @@ export function StudentTable({ students, onEdit, onToggleStatus, onExport }: Rea
                 <Badge variant={roleVariant(s.role)} className="text-xs capitalize">
                   {s.role}
                 </Badge>
+              </TableCell>
+              <TableCell>
+                <CourseBadges student={s} courses={courses} />
               </TableCell>
               <TableCell>
                 {s.deleted_at === null ? (
