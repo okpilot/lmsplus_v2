@@ -175,7 +175,7 @@ Decisions: `docs/decisions.md` (one line each).
 ## Known Limitations
 
 - **No real-time features**: No WebSocket/Realtime subscriptions. All data fetching is request-response via Server Components or GET Route Handlers (existing Server Action reads migrate when reworked).
-- **Single-org assumption**: Comment visibility and some RLS policies assume single-org deployment. Multi-tenancy scoping deferred.
+- **Single-org assumption**: Some RLS policies assume single-org deployment. Multi-tenancy scoping deferred.
 - **No offline mode**: quiz progress is saved to the server as the student works; a failed save blocks the quiz until the connection returns.
 - **jsdom limitation**: Pre-hydration state (disabled button, skeleton) is not testable in jsdom -- `useEffect` runs synchronously in `act()`.
 - **No rate limiting at application layer**: Relies on Supabase Auth rate limits and `record_login()` RPC 60s rate limit. No Vercel/upstash rate limiting on API or auth routes yet.

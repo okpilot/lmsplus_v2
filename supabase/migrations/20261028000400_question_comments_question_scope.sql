@@ -1,4 +1,4 @@
--- question_comments follow question visibility (caller org + enrolment via questions RLS); authors keep their own rows. #1637 (red-team KL, KM)
+-- question_comments follow question visibility (caller org + enrolment via questions RLS); authors keep their own rows. #1637 (red-team KM, KN)
 
 CREATE POLICY question_comments_select_visible_question ON public.question_comments
   AS RESTRICTIVE FOR SELECT TO authenticated

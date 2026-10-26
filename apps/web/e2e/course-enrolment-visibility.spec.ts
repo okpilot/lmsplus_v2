@@ -107,6 +107,17 @@ test.describe('Course enrolment visibility', () => {
       .eq('email', PPL_EMAIL)
       .single()
     if (error || !user) throw new Error(`lifecycle user lookup: ${error?.message}`)
+    const unenrolRt = async () => {
+      const { error: unErr } = await admin
+        .from('course_enrolments')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('user_id', user.id)
+        .eq('course_id', GRANDFATHER_COURSE_IDS[1])
+        .is('deleted_at', null)
+      if (unErr) throw new Error(`lifecycle unenrol: ${unErr.message}`)
+    }
+    // A CI retry starts from the PPL-only state.
+    await unenrolRt()
 
     await login(page, PPL_EMAIL)
     await page.goto('/app/vfr-rt')
@@ -121,15 +132,9 @@ test.describe('Course enrolment visibility', () => {
     await page.reload()
     await expect(page).toHaveURL(/\/app\/vfr-rt$/)
     await expect(page.getByText(/not enrolled/i)).toHaveCount(0)
-    await expect(page.getByRole('button', { name: /start/i }).first()).toBeVisible()
+    await expect(page.getByRole('button', { name: /start practice/i })).toBeVisible()
 
-    const { error: unErr } = await admin
-      .from('course_enrolments')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('user_id', user.id)
-      .eq('course_id', GRANDFATHER_COURSE_IDS[1])
-      .is('deleted_at', null)
-    if (unErr) throw new Error(`lifecycle unenrol: ${unErr.message}`)
+    await unenrolRt()
     await page.reload()
     await expect(page.getByText(/not enrolled/i)).toBeVisible()
   })

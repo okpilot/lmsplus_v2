@@ -1,8 +1,8 @@
 /**
  * Red Team Spec — question_comments scope (#1637 sibling of the enrolment gate).
- *   KL: a student enrolled in VFR_RT only reads no comment on a PPL (050) question and cannot
+ *   KM: a student enrolled in VFR_RT only reads no comment on a PPL (050) question and cannot
  *       post one.
- *   KM: a student of another org reads no comment on an egmont question.
+ *   KN: a student of another org reads no comment on an egmont question.
  * CONTROL: a student enrolled in PPL_A + VFR_RT of the same org reads the comment and posts one.
  *
  * Status: Expected to FAIL against mig 20261021000100 `question_comments_select` (no enrolment or
@@ -25,7 +25,7 @@ const OTHER_ORG_PASSWORD = 'redteam-comment-scope-other-org-2026!'
 const PPL_COURSE_ID = 'c0a5e000-0000-4000-8000-000000000001'
 const VFR_RT_COURSE_ID = 'c0a5e000-0000-4000-8000-000000000002'
 
-test.describe('Red Team: question_comments enrolment and org scope (KL, KM)', () => {
+test.describe('Red Team: question_comments enrolment and org scope (KM, KN)', () => {
   test.setTimeout(120_000)
 
   let admin: ReturnType<typeof getAdminClient>
@@ -110,7 +110,7 @@ test.describe('Red Team: question_comments enrolment and org scope (KL, KM)', ()
     if ((data?.length ?? 0) > 0) console.log(`[comment-scope] removed ${data?.length} comment(s)`)
   })
 
-  test('KL: a student not enrolled in PPL reads and posts no comment on a PPL question', async () => {
+  test('KM: a student not enrolled in PPL reads and posts no comment on a PPL question', async () => {
     const control = await full.from('question_comments').select('id').eq('id', commentId)
     expect(control.error).toBeNull()
     expect(control.data).toHaveLength(1)
@@ -147,7 +147,7 @@ test.describe('Red Team: question_comments enrolment and org scope (KL, KM)', ()
     expect(rows).toHaveLength(0)
   })
 
-  test('KM: a student of another org reads no comment on an egmont question', async () => {
+  test('KN: a student of another org reads no comment on an egmont question', async () => {
     const control = await full.from('question_comments').select('id').eq('id', commentId)
     expect(control.error).toBeNull()
     expect(control.data).toHaveLength(1)

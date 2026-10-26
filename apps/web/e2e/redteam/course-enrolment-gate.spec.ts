@@ -1,12 +1,12 @@
 /**
  * Red Team Spec — course enrolment gate (#1637, migs 20261028000100–20261028000300).
  * A student enrolled in VFR_RT only (PPL_A enrolment soft-deleted) attacks PPL subject 050:
- *   KH: direct PostgREST reads of easa_subjects / easa_topics / easa_subtopics / questions and a
+ *   KI: direct PostgREST reads of easa_subjects / easa_topics / easa_subtopics / questions and a
  *       direct `_filtered_question_pool` call (SECURITY INVOKER) return 0 rows.
- *   KI: `get_quiz_questions` (SECURITY DEFINER) with PPL question ids returns 0 rows.
- *   KJ: `start_quiz_session('smart_review', NULL subject, PPL ids)` and `start_discovery` (returns
+ *   KJ: `get_quiz_questions` (SECURITY DEFINER) with PPL question ids returns 0 rows.
+ *   KK: `start_quiz_session('smart_review', NULL subject, PPL ids)` and `start_discovery` (returns
  *       correct_option_id) raise `not_enrolled`; no session row is written.
- *   KK: `resume_saved_quiz` on a saved PPL session raises `not_enrolled`; the row stays deleted.
+ *   KL: `resume_saved_quiz` on a saved PPL session raises `not_enrolled`; the row stays deleted.
  * CONTROL: a student enrolled in PPL_A + VFR_RT performs each call successfully.
  *
  * Status: Expected to PASS.
@@ -18,6 +18,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { cleanupStudentActiveSessions, getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
 import { getEgmontOrgId, upsertUser } from './helpers/seed-core'
+import { cleanupVfrRtPool, seedVfrRtPool } from './helpers/seed-vfr-rt-pool'
 
 const E2E_REDTEAM_ENROL_MARKER = '[E2E_REDTEAM_ENROL]'
 const RT_ONLY_EMAIL = 'redteam-enrol-rt-only@lmsplus.local'
@@ -27,7 +28,7 @@ const FULL_PASSWORD = 'redteam-enrol-full-2026!'
 const PPL_COURSE_ID = 'c0a5e000-0000-4000-8000-000000000001'
 const VFR_RT_COURSE_ID = 'c0a5e000-0000-4000-8000-000000000002'
 
-test.describe('Red Team: course enrolment gate (KH-KK)', () => {
+test.describe('Red Team: course enrolment gate (KI-KL)', () => {
   test.setTimeout(120_000)
 
   let admin: ReturnType<typeof getAdminClient>
@@ -41,6 +42,7 @@ test.describe('Red Team: course enrolment gate (KH-KK)', () => {
   let pplTopicIds: string[] = []
   let pplQuestionIds: string[] = []
   let rtQuestionIds: string[] = []
+  let pool: Awaited<ReturnType<typeof seedVfrRtPool>> | undefined
   const seededSessionIds = new Set<string>()
 
   const liveEnrolments = async (userId: string): Promise<string[]> => {
@@ -89,6 +91,8 @@ test.describe('Red Team: course enrolment gate (KH-KK)', () => {
     orgId = await getEgmontOrgId(admin)
     rtOnlyId = await upsertUser(admin, RT_ONLY_EMAIL, RT_ONLY_PASSWORD, orgId)
     fullId = await upsertUser(admin, FULL_EMAIL, FULL_PASSWORD, orgId)
+    // seed-e2e.ts seeds no RT question; the RT control arm needs RT multiple_choice rows.
+    pool = await seedVfrRtPool({ admin, orgId, adminUserId: fullId })
 
     const { error: unenrolErr } = await admin
       .from('course_enrolments')
@@ -144,6 +148,10 @@ test.describe('Red Team: course enrolment gate (KH-KK)', () => {
     full = await createAuthenticatedClient(FULL_EMAIL, FULL_PASSWORD)
   })
 
+  test.afterAll(async () => {
+    if (admin && orgId) await cleanupVfrRtPool({ admin, orgId, pool })
+  })
+
   test.afterEach(async () => {
     const errors: string[] = []
     for (const email of [RT_ONLY_EMAIL, FULL_EMAIL]) {
@@ -194,7 +202,7 @@ test.describe('Red Team: course enrolment gate (KH-KK)', () => {
     }
   }
 
-  test('KH: non-enrolled student reads no PPL subject, topic, subtopic, question or pool id', async () => {
+  test('KI: non-enrolled student reads no PPL subject, topic, subtopic, question or pool id', async () => {
     const own = await rtOnly.from('easa_subjects').select('id').eq('id', rtSubjectId)
     expect(own.error).toBeNull()
     expect(own.data).toHaveLength(1)
@@ -215,7 +223,7 @@ test.describe('Red Team: course enrolment gate (KH-KK)', () => {
     })
   })
 
-  test('KI: get_quiz_questions returns no PPL question to a non-enrolled student', async () => {
+  test('KJ: get_quiz_questions returns no PPL question to a non-enrolled student', async () => {
     const control = await full.rpc('get_quiz_questions', { p_question_ids: pplQuestionIds })
     expect(control.error).toBeNull()
     expect((control.data ?? []).map((r: { id: string }) => r.id).sort()).toEqual(
@@ -235,7 +243,7 @@ test.describe('Red Team: course enrolment gate (KH-KK)', () => {
     )
   })
 
-  test('KJ: start_quiz_session smart_review with PPL ids and a NULL subject raises not_enrolled', async () => {
+  test('KK: start_quiz_session smart_review with PPL ids and a NULL subject raises not_enrolled', async () => {
     const args = {
       p_mode: 'smart_review',
       p_subject_id: null,
@@ -254,7 +262,7 @@ test.describe('Red Team: course enrolment gate (KH-KK)', () => {
     expect(await liveSessions(rtOnlyId)).toBe(0)
   })
 
-  test('KJ: start_discovery on a PPL subject raises not_enrolled and returns no answer key', async () => {
+  test('KK: start_discovery on a PPL subject raises not_enrolled and returns no answer key', async () => {
     const args = {
       p_subject_id: pplSubjectId,
       p_topic_ids: pplTopicIds,
@@ -276,7 +284,7 @@ test.describe('Red Team: course enrolment gate (KH-KK)', () => {
     expect(await liveSessions(rtOnlyId)).toBe(0)
   })
 
-  test('KK: resume_saved_quiz on a saved PPL session raises not_enrolled and leaves it deleted', async () => {
+  test('KL: resume_saved_quiz on a saved PPL session raises not_enrolled and leaves it deleted', async () => {
     const controlId = await seedSavedSession(fullId)
     const control = await full.rpc('resume_saved_quiz', {
       p_session_id: controlId,
