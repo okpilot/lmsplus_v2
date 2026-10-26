@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useEffectEvent, useLayoutEffect, useState } from 'react'
 import { claimQuizDeviceBounded } from '../_utils/claim-quiz-device'
 import { clearActiveSession, readActiveSession } from '../_utils/quiz-session-storage'
 
@@ -17,12 +17,11 @@ function dropStaleLocalCopy(userId: string, sessionId: string): void {
  */
 export function useServerSessionBootstrap({ userId, sessionId }: Readonly<Opts>) {
   const [claimError, setClaimError] = useState<string | null>(null)
-  const userIdRef = useRef(userId)
-  userIdRef.current = userId
+  const dropStale = useEffectEvent(() => dropStaleLocalCopy(userId, sessionId))
 
   useLayoutEffect(() => {
     let cancelled = false
-    dropStaleLocalCopy(userIdRef.current, sessionId)
+    dropStale()
     void claimQuizDeviceBounded(sessionId).then((error) => {
       if (cancelled) return
       setClaimError(error)

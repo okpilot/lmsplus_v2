@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { FinishQuizDialog } from './finish-quiz-dialog'
 
@@ -120,30 +121,45 @@ describe('FinishQuizDialog', () => {
     expect(onSave).toHaveBeenCalledOnce()
   })
 
-  it('calls onCancel when the backdrop overlay is clicked', () => {
+  it('calls onCancel when the user presses outside the dialog', async () => {
     const onCancel = vi.fn()
     renderDialog({ onCancel })
-    const overlay = screen.getByRole('dialog', { name: /finish quiz/i }).parentElement
-    expect(overlay).not.toBeNull()
-    if (overlay) fireEvent.click(overlay)
+    await userEvent.click(document.body)
     expect(onCancel).toHaveBeenCalledOnce()
   })
 
-  it('calls onCancel when the Escape key is pressed on the overlay', () => {
+  it('calls onCancel when Escape is pressed while the dialog is dismissable', async () => {
     const onCancel = vi.fn()
     renderDialog({ onCancel })
-    const overlay = screen.getByRole('dialog', { name: /finish quiz/i }).parentElement
-    expect(overlay).not.toBeNull()
-    if (overlay) fireEvent.keyDown(overlay, { key: 'Escape' })
+    await userEvent.keyboard('{Escape}')
     expect(onCancel).toHaveBeenCalledOnce()
   })
 
-  it('does not call onCancel when a non-Escape key is pressed on the overlay', () => {
+  it('does not call onCancel when a non-Escape key is pressed', async () => {
     const onCancel = vi.fn()
     renderDialog({ onCancel })
-    const overlay = screen.getByRole('dialog', { name: /finish quiz/i }).parentElement
-    if (overlay) fireEvent.keyDown(overlay, { key: 'Enter' })
+    await userEvent.keyboard('{Enter}')
     expect(onCancel).not.toHaveBeenCalled()
+  })
+
+  it('does not call onCancel on Escape when time has expired', async () => {
+    const onCancel = vi.fn()
+    renderDialog({ onCancel, isExam: true, examMode: 'mock_exam', timeExpired: true })
+    await userEvent.keyboard('{Escape}')
+    expect(onCancel).not.toHaveBeenCalled()
+  })
+
+  it('does not call onCancel on outside press when time has expired', async () => {
+    const onCancel = vi.fn()
+    renderDialog({ onCancel, isExam: true, examMode: 'mock_exam', timeExpired: true })
+    await userEvent.click(document.body)
+    expect(onCancel).not.toHaveBeenCalled()
+  })
+
+  it('moves focus into the dialog when it opens', async () => {
+    renderDialog()
+    const dialog = screen.getByRole('dialog', { name: /finish quiz/i })
+    await vi.waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true))
   })
 
   it('disables every button and shows only the submit spinner while submitting', () => {
@@ -174,11 +190,10 @@ describe('FinishQuizDialog', () => {
     expect(screen.getByRole('button', { name: /submit quiz/i })).toBeInTheDocument()
   })
 
-  it('does not propagate clicks from inside the dialog to the overlay', () => {
+  it('does not call onCancel when the user clicks inside the dialog', async () => {
     const onCancel = vi.fn()
     renderDialog({ onCancel })
-    const dialog = screen.getByRole('dialog', { name: /finish quiz/i })
-    fireEvent.click(dialog)
+    await userEvent.click(screen.getByRole('dialog', { name: /finish quiz/i }))
     expect(onCancel).not.toHaveBeenCalled()
   })
 

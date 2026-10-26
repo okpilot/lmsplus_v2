@@ -57,8 +57,18 @@ test('quiz flow: configure → answer questions → view results → dashboard',
   }
 
   // 7. Open finish dialog and submit
-  await page.getByRole('button', { name: 'Finish Test' }).click()
+  const finishTest = page.getByRole('button', { name: 'Finish Test' })
+  await finishTest.click()
   await expect(page.getByRole('dialog', { name: 'Finish quiz' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog', { name: 'Finish quiz' })).toBeHidden()
+  await expect(finishTest).toBeFocused()
+  await finishTest.click()
+  const finishDialog = page.getByRole('dialog', { name: 'Finish quiz' })
+  await expect(finishDialog).toBeVisible()
+  // Focus trap: Tab past the last button wraps back inside (jsdom cannot model Base UI's guards).
+  for (let i = 0; i < 8; i++) await page.keyboard.press('Tab')
+  expect(await finishDialog.evaluate((el) => el.contains(document.activeElement))).toBe(true)
   await page.getByRole('button', { name: 'Submit Quiz' }).click()
 
   // 8. Should redirect to quiz report page

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
 
 /**
  * Countdown that auto-fires onSubmit after `seconds` ticks.
@@ -12,8 +12,7 @@ export function useAutoSubmitCountdown(opts: {
 }) {
   const [countdown, setCountdown] = useState(opts.seconds)
   const firedRef = useRef(false)
-  const onSubmitRef = useRef(opts.onSubmit)
-  onSubmitRef.current = opts.onSubmit
+  const onSubmit = useEffectEvent(opts.onSubmit)
 
   // Effect 1: run the interval while active and not already submitting.
   useEffect(() => {
@@ -39,7 +38,7 @@ export function useAutoSubmitCountdown(opts: {
     if (!opts.active || opts.submitting) return
     if (countdown === 0 && !firedRef.current) {
       firedRef.current = true
-      onSubmitRef.current()
+      onSubmit()
     }
   }, [countdown, opts.active, opts.submitting])
 
