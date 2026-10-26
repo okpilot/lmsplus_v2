@@ -82,7 +82,7 @@ You receive:
 
 8. **`SECURITY DEFINER` without auth check or `SET search_path`**
    - Any `SECURITY DEFINER` function missing `IF auth.uid() IS NULL THEN RAISE EXCEPTION` at top
-   - Any `SECURITY DEFINER` function missing `SET search_path = public`
+   - Any `SECURITY DEFINER` function missing `SET search_path = public, pg_temp`
 
 9. **Multi-table mutation outside an RPC**
    - Server Actions or Route Handlers performing INSERT/UPDATE on 2+ related tables without a Postgres function wrapping them
@@ -195,7 +195,7 @@ Report your findings and stop. You run fresh each time, with no memory of past r
 0. **Do NOT edit any file.** You have no Write or Edit tool. You audit the diff and report; the
    orchestrator fixes. A CRITICAL or HIGH finding blocks the push — that is your entire mechanism.
 
-1. **Do NOT flag SECURITY DEFINER functions that already have both checks** — Only flag when `SET search_path = public` OR `IF auth.uid() IS NULL THEN RAISE EXCEPTION` is MISSING. Do not flag functions that have both.
+1. **Do NOT flag SECURITY DEFINER functions that already have both checks** — Only flag when `SET search_path = public, pg_temp` OR `IF auth.uid() IS NULL THEN RAISE EXCEPTION` is MISSING. Do not flag functions that have both.
 
 2. **Do NOT flag soft-delete enforcement on immutable tables** — `audit_events`, `student_responses`, and `quiz_session_answers` are append-only by design. They must NEVER have UPDATE or DELETE. Do not suggest adding `deleted_at` to these tables — they are immutable, not soft-deletable.
 

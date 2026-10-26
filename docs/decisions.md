@@ -152,3 +152,4 @@
 ## 157 — 2026-10-26 — `/app/quiz` setup counts never expire on the client; the page calls `router.refresh()` on tab return and after Back/Forward (`useRefreshOnReturn`); the 60 s TTL and history-restore marker are deleted. #1605
 ## 158 — 2026-10-26 — The finish dialog is a Base UI `Dialog` (focus trap, focus return, Escape/outside press only when dismissable); latest-callback refs read only inside Effects are `useEffectEvent`. #1610
 ## 159 — 2026-10-26 — Server-render catch blocks (components and loaders) around a call that can redirect or notFound call `unstable_rethrow` from `next/navigation` (the internal `isRedirectError` wrapper is deleted); non-gating flag reads stay bounded and log timeout and failure distinctly. #1610
+## 160 — 2026-10-26 — SECURITY DEFINER functions set `search_path = public, pg_temp`; migration-test asserts it on `pg_proc` (`.github/scripts/check-definer-search-path.sh`). #1611
