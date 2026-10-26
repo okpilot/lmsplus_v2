@@ -44,7 +44,10 @@ export async function enrolStudent(
     .map((course_id) => ({ organization_id: orgId, user_id: opts.userId, course_id }))
   if (rows.length === 0) return
 
-  const { error } = await admin.from('course_enrolments').insert(rows)
-  // 23505: a concurrent caller enrolled the same course between probe and insert.
-  if (error && error.code !== '23505') throw new Error(`enrolStudent insert: ${error.message}`)
+  // One row per statement: a 23505 rolls back only its own row, not the rest of the batch.
+  for (const row of rows) {
+    const { error } = await admin.from('course_enrolments').insert(row)
+    // 23505: a concurrent caller enrolled the same course between probe and insert.
+    if (error && error.code !== '23505') throw new Error(`enrolStudent insert: ${error.message}`)
+  }
 }

@@ -35,14 +35,26 @@ beforeEach(() => {
 describe('enrolStudent', () => {
   it('inserts an enrolment per grandfather course for the given org', async () => {
     await enrolStudent(admin, { userId: USER, orgId: 'o1' })
-    expect(insert).toHaveBeenCalledWith(
-      'course_enrolments',
-      GRANDFATHER_COURSE_IDS.map((course_id) => ({
+    expect(insert).toHaveBeenCalledTimes(GRANDFATHER_COURSE_IDS.length)
+    for (const course_id of GRANDFATHER_COURSE_IDS) {
+      expect(insert).toHaveBeenCalledWith('course_enrolments', {
         organization_id: 'o1',
         user_id: USER,
         course_id,
-      })),
-    )
+      })
+    }
+  })
+
+  it('still inserts the other course when one insert hits 23505', async () => {
+    insert
+      .mockResolvedValueOnce({ error: { code: '23505', message: 'duplicate key' } })
+      .mockResolvedValueOnce({ error: null })
+    await enrolStudent(admin, { userId: USER, orgId: 'o1' })
+    expect(insert).toHaveBeenNthCalledWith(2, 'course_enrolments', {
+      organization_id: 'o1',
+      user_id: USER,
+      course_id: GRANDFATHER_COURSE_IDS[1],
+    })
   })
 
   it('treats a concurrent duplicate insert (23505) as enrolled', async () => {
@@ -60,9 +72,12 @@ describe('enrolStudent', () => {
   it('inserts only the courses with no active enrolment', async () => {
     results.course_enrolments = { data: [{ course_id: GRANDFATHER_COURSE_IDS[0] }], error: null }
     await enrolStudent(admin, { userId: USER, orgId: 'o1' })
-    expect(insert).toHaveBeenCalledWith('course_enrolments', [
-      { organization_id: 'o1', user_id: USER, course_id: GRANDFATHER_COURSE_IDS[1] },
-    ])
+    expect(insert).toHaveBeenCalledTimes(1)
+    expect(insert).toHaveBeenCalledWith('course_enrolments', {
+      organization_id: 'o1',
+      user_id: USER,
+      course_id: GRANDFATHER_COURSE_IDS[1],
+    })
   })
 
   it('does not insert when every course is already enrolled', async () => {
@@ -82,9 +97,11 @@ describe('enrolStudent', () => {
   it("looks up the user's organisation when orgId is omitted", async () => {
     results.users = { data: { organization_id: 'org-from-db' }, error: null }
     await enrolStudent(admin, { userId: USER, courseIds: ['c1'] })
-    expect(insert).toHaveBeenCalledWith('course_enrolments', [
-      { organization_id: 'org-from-db', user_id: USER, course_id: 'c1' },
-    ])
+    expect(insert).toHaveBeenCalledWith('course_enrolments', {
+      organization_id: 'org-from-db',
+      user_id: USER,
+      course_id: 'c1',
+    })
   })
 
   it('throws when the organisation lookup fails', async () => {
