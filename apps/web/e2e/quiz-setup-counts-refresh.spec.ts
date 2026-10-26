@@ -6,8 +6,8 @@
  */
 
 import { expect, type Page, test } from '@playwright/test'
-import { startStudyQuiz, submitFirstOption } from './helpers/quiz-session'
-import { resetStudentQuizSessions } from './helpers/quiz-session-id'
+import { submitFirstOption } from './helpers/quiz-session'
+import { resetStudentQuizSessions, SESSION_ID_URL } from './helpers/quiz-session-id'
 import { TEST_EMAIL } from './helpers/supabase'
 
 test.use({ storageState: 'e2e/.auth/user.json', viewport: { width: 1280, height: 900 } })
@@ -20,9 +20,22 @@ async function openDiscoveryWithUnseen(page: Page): Promise<void> {
   await page.getByRole('switch', { name: 'Unseen' }).click()
 }
 
-/** Answers one question of a 10-question Study quiz and submits it (answers are written on submit). */
+/** Study quiz over unseen questions only: the answered question is certain to leave the unseen count. */
+async function startUnseenStudyQuiz(page: Page): Promise<void> {
+  await page.goto('/app/quiz')
+  await expect(page.getByRole('heading', { name: 'Quiz' })).toBeVisible()
+  await page.getByRole('button', { name: 'Study', exact: true }).click()
+  await page.locator('[data-testid="subject-trigger"]').click()
+  await page.locator('[data-testid="subject-option"]').first().click()
+  await page.getByRole('switch', { name: 'Unanswered' }).click()
+  await page.getByRole('button', { name: 'All' }).click()
+  await page.getByRole('button', { name: 'Start Quiz' }).click()
+  await page.waitForURL(SESSION_ID_URL, { timeout: 10_000 })
+}
+
+/** Answers one question of an unseen-only Study quiz and submits it (answers are written on submit). */
 async function finishOneAnswerQuiz(page: Page): Promise<void> {
-  await startStudyQuiz(page, 10)
+  await startUnseenStudyQuiz(page)
   await submitFirstOption(page)
   await page.getByRole('button', { name: 'Finish Test' }).click()
   await expect(page.getByRole('dialog', { name: 'Finish Quiz' })).toBeVisible()
