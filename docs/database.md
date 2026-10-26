@@ -1021,7 +1021,7 @@ END;
 $$;
 ```
 
-Migration `20261026000100_definer_search_path_pg_temp.sql` sets `public, pg_temp` on every public SECURITY DEFINER function; the per-RPC blocks below show each function's CREATE text.
+Migration `20261026000100_definer_search_path_pg_temp.sql` sets `public, pg_temp` on every public SECURITY DEFINER function (extension-owned functions excluded).
 
 `anon` holds no privilege on any public table; `authenticated` holds only the table commands a permitting RLS policy allows (migrations `20260925000200`, `20260925000300`, default privileges too). A new postgres-owned table defaults to `anon` nothing and `authenticated` SELECT only — a migration adding a write path must GRANT it explicitly. `anon` and PUBLIC hold EXECUTE on no public function (migration `20260925000400`); a new postgres-owned function defaults to `authenticated` EXECUTE and nothing for `anon`.
 
@@ -1068,7 +1068,7 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
 DECLARE
   v_org_id uuid;
@@ -1190,7 +1190,7 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
 DECLARE
   v_student_id           uuid := auth.uid();
@@ -1335,7 +1335,7 @@ Atomically reads the subject's `exam_configs` row, randomly selects questions pe
 - Org-scope guard reads `organization_id` from `users` with `deleted_at IS NULL`; raises `user not found or inactive` otherwise.
 - Mode is set as the literal `'mock_exam'` in the `INSERT INTO quiz_sessions` — not derived from a parameter.
 - Audit `actor_role` subquery enforces `deleted_at IS NULL` per security.md rule #10 (audit-event subqueries are independent SELECTs and must validate soft-delete unconditionally).
-- `SECURITY DEFINER SET search_path = public`.
+- `SECURITY DEFINER SET search_path = public, pg_temp`.
 
 **Audit event:** `exam.started` on `audit_events`, metadata `{ subject_id, total_questions, time_limit_seconds, pass_mark }`.
 
@@ -1371,7 +1371,7 @@ Completes a `mock_exam`, `internal_exam`, or `vfr_rt_exam` session whose deadlin
 - Mode guard — RAISE if mode is not `mock_exam`, `internal_exam`, or `vfr_rt_exam` (widened in migration `20260429000008`, then again in migration `20260610001200` — see the extension notes below).
 - Overdue invariant — RAISE if `now() <= started_at + (time_limit_seconds + 30 seconds)`. Callers must not invoke for sessions within the grace window.
 - Audit `actor_role` subquery enforces `deleted_at IS NULL` per security.md rule #10 (audit-event subqueries are independent SELECTs and must validate soft-delete unconditionally).
-- `SECURITY DEFINER SET search_path = public`.
+- `SECURITY DEFINER SET search_path = public, pg_temp`.
 
 **Return shape:** `{ session_id, score_percentage, passed, total_questions, answered_count }`.
 
@@ -1385,7 +1385,7 @@ Completes a `mock_exam`, `internal_exam`, or `vfr_rt_exam` session whose deadlin
 
 #### Internal Exam RPCs (mode `internal_exam`)
 
-Three SECURITY DEFINER RPCs implement the internal-exam lifecycle (`issue`/`start`/`void`); further RPCs in this section cover emailing (`record_internal_exam_code_emailed` — emails audit + `emailed_at` stamp) and student reads (`list_my_active_internal_exam_codes`, `list_my_internal_exam_history`). All set `search_path = public`, gate via `auth.uid()`, carry the active-user gate (security.md rule 12 — the two student readers were the last two members to get it, migration `20260824000200`), and apply `deleted_at IS NULL` filters on every SELECT **of a soft-deletable table** (including `actor_role` audit subqueries) per security.md rules 7, 9, 10. The `easa_subjects` reference join in both student readers carries no such predicate — that table has no `deleted_at` column, as the per-function sections below record.
+Three SECURITY DEFINER RPCs implement the internal-exam lifecycle (`issue`/`start`/`void`); further RPCs in this section cover emailing (`record_internal_exam_code_emailed` — emails audit + `emailed_at` stamp) and student reads (`list_my_active_internal_exam_codes`, `list_my_internal_exam_history`). All set `search_path = public, pg_temp`, gate via `auth.uid()`, carry the active-user gate (security.md rule 12 — the two student readers were the last two members to get it, migration `20260824000200`), and apply `deleted_at IS NULL` filters on every SELECT **of a soft-deletable table** (including `actor_role` audit subqueries) per security.md rules 7, 9, 10. The `easa_subjects` reference join in both student readers carries no such predicate — that table has no `deleted_at` column, as the per-function sections below record.
 
 ##### `issue_internal_exam_code(p_subject_id, p_student_id)`
 
@@ -1448,7 +1448,7 @@ Admin-only RPC (not a direct API endpoint — invoked from Server Action `sendIn
 - Rule 9 — `internal_exam_codes` ownership read is org-scoped and `deleted_at`-filtered, yielding `student_id` and `subject_id` metadata
 - State guard — the code must also be un-consumed, un-voided, and unexpired (`consumed_at IS NULL`, `voided_at IS NULL`, `expires_at > now()`), mirroring the in-body state checks of `issue_`/`void_internal_exam_code`. The Server Action guards these before calling, so this is defense-in-depth for direct RPC calls; a code failing any state check is hidden behind `code_not_found` (existence-hiding, no new error mapping)
 - Rule 10 — no inline audit subqueries; every value in the INSERT comes from the pre-read locals
-- `SET search_path = public`
+- `SET search_path = public, pg_temp`
 
 **Audit payload:** `event_type = 'internal_exam.code_emailed'`, `resource_type = 'internal_exam_code'`, `resource_id = p_code_id`, `metadata = { student_id, subject_id }`.
 
@@ -1466,7 +1466,7 @@ Admin-only RPC recording a login-instructions send and the "own password not yet
 - Active-user gate + rule 9 — org and role captured in one `deleted_at`-filtered users read; cached `v_admin_role` reused in the audit INSERT (mirrors mig 087)
 - Ownership/role guard — the target UPDATE's `WHERE` clause re-asserts `organization_id = v_admin_org AND deleted_at IS NULL AND role IN ('student', 'instructor')`, so a cross-org target, a soft-deleted/deactivated target, an admin target, and an unknown id are all hidden behind one `user_not_found` (existence-hiding, no new error mapping); `GET DIAGNOSTICS ... ROW_COUNT` after the UPDATE detects the miss
 - Rule 10 — no inline audit subqueries; every value in the INSERT comes from pre-read locals or the UPDATE's `RETURNING`
-- `SET search_path = public`
+- `SET search_path = public, pg_temp`
 
 **Audit payload:** `event_type = 'user.login_instructions_sent'`, `resource_type = 'user'`, `resource_id = p_user_id`, `metadata = { expires_at }` (the stamped marker value `temp_password_expires_at`, captured via `UPDATE ... RETURNING ... INTO`).
 
@@ -1478,7 +1478,7 @@ Admin-only RPC recording a login-instructions send and the "own password not yet
 
 Student-facing read. Returns the caller's currently usable internal-exam codes without the plaintext `code` column — the value is single-use and meaningful only at issuance time, so it is omitted from every subsequent read. Replaces the direct `SELECT FROM internal_exam_codes` path previously gated by the `student_read_active_codes` RLS policy (dropped in migration `20260521000004` so plaintext never leaves the issuance RPC). Closes issue #577.
 
-**Security:** SECURITY DEFINER with `SET search_path = public`. Manual `auth.uid()` null check raises `not_authenticated`, followed by the active-user gate (`PERFORM 1 FROM users u WHERE u.id = v_user_id AND u.deleted_at IS NULL` → `user not found or inactive`) added in migration `20260824000200` — a student soft-deleted while holding a live JWT previously kept listing their outstanding codes, since deactivation does not cascade to `internal_exam_codes`. The `users u` alias is required, not stylistic: the `RETURNS TABLE` declares an `id` OUT param, so an unqualified `id` raises 42702 at execution (code-style.md §5). SECURITY DEFINER bypasses RLS, so soft-delete and ownership filters are enforced explicitly inside the function.
+**Security:** SECURITY DEFINER with `SET search_path = public, pg_temp`. Manual `auth.uid()` null check raises `not_authenticated`, followed by the active-user gate (`PERFORM 1 FROM users u WHERE u.id = v_user_id AND u.deleted_at IS NULL` → `user not found or inactive`) added in migration `20260824000200` — a student soft-deleted while holding a live JWT previously kept listing their outstanding codes, since deactivation does not cascade to `internal_exam_codes`. The `users u` alias is required, not stylistic: the `RETURNS TABLE` declares an `id` OUT param, so an unqualified `id` raises 42702 at execution (code-style.md §5). SECURITY DEFINER bypasses RLS, so soft-delete and ownership filters are enforced explicitly inside the function.
 
 **Filters (every SELECT):**
 - `iec.student_id = auth.uid()` — ownership
@@ -1501,7 +1501,7 @@ RETURNS TABLE (
   expires_at timestamptz,
   issued_at timestamptz
 )
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp
 ```
 
 `GRANT EXECUTE ... TO authenticated`. No audit event — pure read.
@@ -1510,7 +1510,7 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
 
 Student-facing read. Returns the caller's `internal_exam` quiz-session history with a stable per-subject `attempt_number` computed server-side via `row_number() OVER (PARTITION BY subject_id ORDER BY started_at)`. The window function runs over **all** of the caller's sessions before `LIMIT 200` is applied, so the displayed `attempt_number` stays correct even when a subject has more than 200 total attempts. Closes issue #579 (TS-side counter restarted at row 200 because the client only saw a truncated slice).
 
-**Security:** SECURITY DEFINER with `SET search_path = public`. Manual `auth.uid()` null check raises `not_authenticated`, followed by the active-user gate (`PERFORM 1 FROM users u WHERE u.id = v_user_id AND u.deleted_at IS NULL` → `user not found or inactive`) added in migration `20260824000200`; same `users u` alias requirement as the sibling above (`id` OUT param, 42702). SECURITY DEFINER bypasses RLS, so soft-delete and ownership filters are enforced explicitly.
+**Security:** SECURITY DEFINER with `SET search_path = public, pg_temp`. Manual `auth.uid()` null check raises `not_authenticated`, followed by the active-user gate (`PERFORM 1 FROM users u WHERE u.id = v_user_id AND u.deleted_at IS NULL` → `user not found or inactive`) added in migration `20260824000200`; same `users u` alias requirement as the sibling above (`id` OUT param, 42702). SECURITY DEFINER bypasses RLS, so soft-delete and ownership filters are enforced explicitly.
 
 **Filters:**
 - `qs.student_id = auth.uid()` — ownership
@@ -1538,7 +1538,7 @@ RETURNS TABLE (
   answered_count int,
   attempt_number int
 )
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp
 ```
 
 `GRANT EXECUTE ... TO authenticated`. No audit event — pure read.
@@ -1562,7 +1562,7 @@ CREATE OR REPLACE FUNCTION get_report_correct_options(p_session_id uuid)
 RETURNS TABLE (question_id uuid, correct_option_id text)
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
 BEGIN
   IF auth.uid() IS NULL THEN
@@ -1633,7 +1633,7 @@ Type-aware sibling of `get_report_correct_options`: delivers the correct answers
 - `diagram_label`: one row **per zone** — `blank_index` = the zone's 0-based ordinal position within `diagram_config.zones` (from `WITH ORDINALITY`, `idx - 1` — the SAME index `_grade_record_diagram_label`, mig 154, derives, so report rows line up with `quiz_session_answers.blank_index` by construction), `answer_key` = the display TEXT of the label canonically assigned to that zone via a **2-hop resolve**: zone (at this ordinal) → the `diagram_config.answer` entry matching `zone_id` → its `label_id` → that label's `text` in `diagram_config.labels`. Not a single-expression projection like ordering's `elem->>'text'`, because the canonical answer for a zone is not embedded in the zone object itself. `diagram_config` is REVOKE-gated from `authenticated` by omission from mig 094's grant (mirrors `ordering_items`, N6); SECURITY DEFINER bypasses the gate, scoped to the owning student's own completed session.
 - `multiple_choice`: no rows.
 
-**Security:** Same guard set as `get_report_correct_options` — `auth.uid()` not null, active-user gate (`deleted_at IS NULL`), session ownership (`student_id = auth.uid()`), completion (`ended_at IS NOT NULL`), session soft-delete, `SET search_path = public`. Reads the REVOKE-gated answer-key columns (`canonical_answer`, `blanks_config`, `ordering_items`, `diagram_config`) under SECURITY DEFINER. The `questions` JOIN omits `deleted_at` under the §15 frozen-config carve-out (`quiz_session_answers.question_id` is a write-once FK on the immutable, append-only answers table) — see `docs/security.md` §15. All body columns are table-qualified to avoid a deferred `42702` against the OUT params.
+**Security:** Same guard set as `get_report_correct_options` — `auth.uid()` not null, active-user gate (`deleted_at IS NULL`), session ownership (`student_id = auth.uid()`), completion (`ended_at IS NOT NULL`), session soft-delete, `SET search_path = public, pg_temp`. Reads the REVOKE-gated answer-key columns (`canonical_answer`, `blanks_config`, `ordering_items`, `diagram_config`) under SECURITY DEFINER. The `questions` JOIN omits `deleted_at` under the §15 frozen-config carve-out (`quiz_session_answers.question_id` is a write-once FK on the immutable, append-only answers table) — see `docs/security.md` §15. All body columns are table-qualified to avoid a deferred `42702` against the OUT params.
 
 **Used by:** `lib/queries/quiz-report-questions.ts` → the post-session report at `/app/quiz/report` (and the shared internal-exam report).
 
@@ -1678,7 +1678,7 @@ CREATE OR REPLACE FUNCTION check_quiz_answer(
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
 DECLARE
   v_student_id        uuid := auth.uid();
@@ -1850,7 +1850,7 @@ CREATE FUNCTION check_non_mc_answer(
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 ```
 
 `GRANT EXECUTE ON FUNCTION check_non_mc_answer(uuid, uuid, text, jsonb, jsonb, jsonb, uuid, int) TO authenticated;`
@@ -1859,7 +1859,7 @@ SET search_path = public
 
 #### `start_discovery` — Discovery start in one RPC (mig `20261020000100`, #1548)
 
-`start_discovery(p_subject_id, p_topic_ids, p_subtopic_ids, p_count, p_filters, p_calc_mode DEFAULT 'all', p_has_image DEFAULT 'all') RETURNS jsonb` — `{session_id, questions[], flagged_ids[]}`. `SECURITY DEFINER`, `SET search_path = public`, EXECUTE TO `authenticated` (REVOKE FROM PUBLIC, anon).
+`start_discovery(p_subject_id, p_topic_ids, p_subtopic_ids, p_count, p_filters, p_calc_mode DEFAULT 'all', p_has_image DEFAULT 'all') RETURNS jsonb` — `{session_id, questions[], flagged_ids[]}`. `SECURITY DEFINER`, `SET search_path = public, pg_temp`, EXECUTE TO `authenticated` (REVOKE FROM PUBLIC, anon).
 
 Order: `auth.uid()` null → `not_authenticated`; active-user + org read → `user_not_found_or_inactive`; one statement draws from `_filtered_question_pool(…, 'multiple_choice')` (the `'all'` filter sentinel removed first) joined to `questions` on `organization_id = v_org_id` AND `deleted_at IS NULL AND status = 'active' AND question_type = 'multiple_choice'`, `ORDER BY random() LIMIT LEAST(GREATEST(COALESCE(p_count,0),0),500)`, and builds the id array and the answer-key payload from those same rows; empty draw → `session_id` null, `questions` and `flagged_ids` empty, returned with no session or audit row and no session change (the caller's live sessions are untouched and none of the checks below run); any other active session (any mode except `discovery`, exam modes included) → `another_session_active`, raised before the payload is returned; soft-delete the caller's own active `discovery` rows; INSERT `quiz_sessions` (`mode='discovery'`, `config.question_ids` = draw order) with `EXCEPTION WHEN unique_violation THEN RAISE 'another_session_active'` (no replay branch); `discovery.started` audit event; `questions` = the answer-key payload in draw order; `flagged_ids` = the caller's `active_flagged_questions` rows within the draw. Tokens raised: `not_authenticated`, `user_not_found_or_inactive`, `another_session_active`.
 
@@ -1899,7 +1899,7 @@ CREATE OR REPLACE FUNCTION start_quiz_session(
 RETURNS uuid               -- session id
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
 DECLARE
   v_session_id uuid;
@@ -2037,7 +2037,7 @@ CREATE OR REPLACE FUNCTION get_daily_activity(
   p_days       INT DEFAULT 30
 )
 RETURNS TABLE (day DATE, total BIGINT, correct BIGINT, incorrect BIGINT)
-LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp
 -- Auth: auth.uid() NULL check + IS DISTINCT FROM guard + active-user gate + WHERE clause
 -- Active-user gate: mig 20260824000300 (security.md rule 12) — raises
 --   'user not found or inactive' for a soft-deleted caller holding a live JWT
@@ -2058,7 +2058,7 @@ CREATE OR REPLACE FUNCTION get_subject_scores(
   p_limit      INT DEFAULT 5
 )
 RETURNS TABLE (subject_id UUID, subject_name TEXT, subject_short TEXT, avg_score NUMERIC, session_count BIGINT)
-LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp
 -- Auth: auth.uid() NULL check + IS DISTINCT FROM guard + active-user gate + WHERE clause
 -- Active-user gate: mig 20260824000300 (security.md rule 12)
 -- Validation: p_limit must be 1–100, raises exception if outside range
@@ -2068,7 +2068,7 @@ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
 
 #### `is_admin()` — Admin role check helper
 
-Returns `boolean`. SECURITY DEFINER with `SET search_path = public`.
+Returns `boolean`. SECURITY DEFINER with `SET search_path = public, pg_temp`.
 Checks `auth.uid()` against `users.role = 'admin'` AND `deleted_at IS NULL` (migration 20260429000001). Returns `false` (not an exception) when no user is authenticated, so it is safe to call from RLS policies without causing errors for unauthenticated requests.
 
 Used by RLS policies across admin-gated tables; derive the set: `select tablename, policyname from pg_policies where coalesce(qual,'')||coalesce(with_check,'') ~ 'is_admin'`. Admin issue/void RPCs (`issue_internal_exam_code`, `void_internal_exam_code`) re-check `is_admin()` internally; student code consumption via `start_internal_exam_session` is authorized by ownership/code validation, not admin role.
@@ -2076,7 +2076,7 @@ Used by RLS policies across admin-gated tables; derive the set: `select tablenam
 ```sql
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS boolean
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp
 AS $$
   SELECT EXISTS (
     SELECT 1 FROM public.users
@@ -2103,7 +2103,7 @@ AS $$ SELECT EXISTS (SELECT 1 FROM public.users u WHERE u.id = (SELECT auth.uid(
 Records a `student.login` event in `audit_events` after successful email+password sign-in. Called from the `/auth/login-complete` server route.
 
 **Security:**
-- `SECURITY DEFINER` with `SET search_path = public` and manual `auth.uid()` check.
+- `SECURITY DEFINER` with `SET search_path = public, pg_temp` and manual `auth.uid()` check.
 - Queries `users` with `deleted_at IS NULL` — soft-deleted users cannot generate audit events (SECURITY DEFINER bypasses RLS, so this filter is mandatory).
 - 60-second rate limit prevents duplicate events from rapid re-logins.
 
@@ -2112,7 +2112,7 @@ CREATE OR REPLACE FUNCTION record_login()
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
 DECLARE
   _uid    UUID := auth.uid();
@@ -2146,7 +2146,7 @@ $$;
 Records authentication-related audit events (`user.password_changed`, `user.password_reset`, `user.deactivated`, `user.created`) after successful auth mutations. Called from Server Actions: `changePassword`, `setPasswordFromLink`, `resetOwnPassword` (all three via `recordOwnPasswordSet`), `toggleStudentStatus` (deactivate path), `createStudent`, `sendLoginInstructions` (`user.password_reset`, on token issue). Auth mutations were previously unaudited; this RPC provides a generic, self-defending audit interface.
 
 **Security:**
-- `SECURITY DEFINER` with `SET search_path = public` and manual `auth.uid()` check.
+- `SECURITY DEFINER` with `SET search_path = public, pg_temp` and manual `auth.uid()` check.
 - Actor ID and role are derived from `auth.uid()` via a `deleted_at`-filtered `users` lookup (security.md §7 + §10) — never from caller input.
 - `event_type` is whitelisted. Self-service event (`user.password_changed`) forces `resource_id = actor_id`. Admin events (`user.password_reset`, `user.deactivated`, `user.created`) require the caller's role = `'admin'`. The RPC does **not** re-SELECT the resource to org-scope it: such a lookup would need an `AND deleted_at IS NULL` filter per security.md §9, which would reject the `user.deactivated` audit (whose target is already soft-deleted by audit time). The audit row's `organization_id` is always the **actor's** org, so a bogus `resource_id` only adds a self-referential row to the admin's own log — no cross-org read or write.
 - Callers invoke the RPC through the **acting user's client** (the student for `changePassword`, the admin's `requireAdmin()` client for admin actions) so `auth.uid()` is the real actor — **never** through the service-role `adminClient` (which would have `auth.uid() = NULL`).
@@ -2168,7 +2168,7 @@ CREATE OR REPLACE FUNCTION public.record_auth_event(
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
 DECLARE
   v_actor_id UUID := auth.uid();
@@ -2218,7 +2218,7 @@ $$;
 Records a single consent decision (TOS acceptance, privacy policy acceptance). Called from `/consent` Server Action after user submits the consent form. All writes to `user_consents` must go through this RPC — direct inserts are blocked by RLS.
 
 **Security:**
-- `SECURITY DEFINER` with `SET search_path = public` and manual `auth.uid()` check.
+- `SECURITY DEFINER` with `SET search_path = public, pg_temp` and manual `auth.uid()` check.
 - Validates `p_document_type` (defense-in-depth: CHECK constraint + RPC validation).
 - Verifies user exists and is not soft-deleted before INSERT.
 - Captures IP address and user agent from request headers (optional).
@@ -2238,7 +2238,7 @@ CREATE FUNCTION record_consent(
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
 DECLARE
   _uid UUID := auth.uid();
@@ -2298,7 +2298,7 @@ CREATE FUNCTION check_consent_status(
 RETURNS TABLE(has_tos BOOLEAN, has_privacy BOOLEAN)
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
 DECLARE
   _uid UUID := auth.uid();
@@ -2339,7 +2339,7 @@ GRANT EXECUTE ON FUNCTION check_consent_status(TEXT, TEXT) TO authenticated;
 Returns all admin dashboard KPI values in a single JSON response. Used by the admin dashboard to display top-level metrics without multiple round trips.
 
 **Security:**
-- `SECURITY DEFINER` with `SET search_path = public` and manual `auth.uid()` check.
+- `SECURITY DEFINER` with `SET search_path = public, pg_temp` and manual `auth.uid()` check.
 - Calls `is_admin()` to verify caller is an admin; raises exception if not.
 - Organisation is derived from the caller's `users` row — never passed as a parameter.
 
@@ -2379,7 +2379,7 @@ Returns the N weakest topics by average correct rate across all students in the 
 
 Returns one page of the admin's student roster joined with each student's session count, average score, and mastery percentage — sorted and paginated entirely in Postgres. Used by the admin dashboard student table. Replaces the former `get_admin_student_stats` + client-side merge/sort/slice, which truncated at PostgREST `max_rows = 1000` (#682 / #668).
 
-**Security:** Same as `get_admin_dashboard_kpis` (`SECURITY DEFINER`, `SET search_path = public`, `auth.uid()` check, `is_admin()` check, org derived from `auth.uid()`).
+**Security:** Same as `get_admin_dashboard_kpis` (`SECURITY DEFINER`, `SET search_path = public, pg_temp`, `auth.uid()` check, `is_admin()` check, org derived from `auth.uid()`).
 
 **Parameters:** `p_status TEXT DEFAULT NULL`, `p_sort TEXT DEFAULT 'name'`, `p_dir TEXT DEFAULT 'asc'`, `p_limit INT DEFAULT 10`, `p_offset INT DEFAULT 0`.
 
@@ -2401,7 +2401,7 @@ Returns one page of the admin's student roster joined with each student's sessio
 
 Returns paginated session reports for the authenticated student with subject name and code join. Used by the progress/session history page.
 
-**Security:** `SECURITY DEFINER` + `auth.uid()` check + active-user gate (a soft-deleted caller with a live JWT is rejected — `PERFORM 1 FROM users u WHERE u.id = auth.uid() AND u.deleted_at IS NULL`, mig 122, #883) + `SET search_path = public`.
+**Security:** `SECURITY DEFINER` + `auth.uid()` check + active-user gate (a soft-deleted caller with a live JWT is rejected — `PERFORM 1 FROM users u WHERE u.id = auth.uid() AND u.deleted_at IS NULL`, mig 122, #883) + `SET search_path = public, pg_temp`.
 
 **Parameters:** `p_sort TEXT DEFAULT 'started_at'`, `p_dir TEXT DEFAULT 'desc'`, `p_limit INT DEFAULT 10`, `p_offset INT DEFAULT 0`
 
@@ -2584,7 +2584,7 @@ Returns a single aggregate row with the caller's completed-session count and ave
 
 Student-facing RPC (migration 099). Creates a timed (30-minute) `vfr_rt_exam` session with a frozen, per-question-type sampled question set: Part 1 (short_answer), Part 2 (dialog_fill), Part 3 (2 random active questions from EACH `easa_subtopics` row of the Part 3 topic, any of multiple_choice / ordering / diagram_label, grouped by subtopic `sort_order` — migration `20260929000200`).
 
-**Security:** `SECURITY DEFINER`, `SET search_path = public`. Auth check (`auth.uid()` guard, user lookup with `deleted_at IS NULL`), org-scoped exam config read, soft-delete filters on all questions, soft-delete filter on old session (mig 102 auto-complete). Idempotent resume on in-flight non-overdue session (returns frozen config unchanged, no INSERT).
+**Security:** `SECURITY DEFINER`, `SET search_path = public, pg_temp`. Auth check (`auth.uid()` guard, user lookup with `deleted_at IS NULL`), org-scoped exam config read, soft-delete filters on all questions, soft-delete filter on old session (mig 102 auto-complete). Idempotent resume on in-flight non-overdue session (returns frozen config unchanged, no INSERT).
 
 **Parameters:**
 - `p_subject_id UUID` — the target subject (RT)
@@ -2612,7 +2612,7 @@ Student-facing RPC (migration 099). Creates a timed (30-minute) `vfr_rt_exam` se
 
 Student-facing RPC (migration 099b, sibling of `get_quiz_questions`; redefined in migration `20260611000100` / mig 105, #833 + #840 — old `(p_question_ids uuid[])` signature dropped, replaced by `(p_session_id uuid)` with server-side ID derivation, explanation fields removed). Returns the mixed-type questions (multiple_choice, short_answer, dialog_fill, ordering, diagram_label — the last two added by migration `20260929000300`, DROP + CREATE) of a caller-owned `vfr_rt_exam` session with all grading keys stripped, in the session's frozen `config.question_ids` order.
 
-**Security:** `SECURITY DEFINER`, `SET search_path = public`. Auth check, active-user gate (single `deleted_at`-filtered `users` read that also resolves the caller's `organization_id`). The session fetch scopes `student_id = auth.uid() AND mode = 'vfr_rt_exam' AND deleted_at IS NULL` explicitly (multiple permissive SELECT policies on `quiz_sessions`, security.md §3) and deliberately has **no** `ended_at` condition — the RPC is callable both in-flight and post-exam (it is the display-field source for the Phase C review screen as well as the live exam). Question IDs are derived inside the function from the session's frozen `quiz_sessions.config.question_ids` — an immutable, write-once column (locked by `trg_quiz_sessions_immutable_columns`, mig 079) — so the security.md §15 carve-out now applies by construction (the 099b version took caller-supplied IDs, which misapplied the carve-out; closed by mig 105, #833). Soft-deleted questions are intentionally included (historical-record posture for in-flight exams). The questions read is additionally tenant-scoped to the caller's `organization_id`, retained as defense-in-depth (issue #831) — with session-derived IDs, foreign-org question IDs are already unreachable by construction.
+**Security:** `SECURITY DEFINER`, `SET search_path = public, pg_temp`. Auth check, active-user gate (single `deleted_at`-filtered `users` read that also resolves the caller's `organization_id`). The session fetch scopes `student_id = auth.uid() AND mode = 'vfr_rt_exam' AND deleted_at IS NULL` explicitly (multiple permissive SELECT policies on `quiz_sessions`, security.md §3) and deliberately has **no** `ended_at` condition — the RPC is callable both in-flight and post-exam (it is the display-field source for the Phase C review screen as well as the live exam). Question IDs are derived inside the function from the session's frozen `quiz_sessions.config.question_ids` — an immutable, write-once column (locked by `trg_quiz_sessions_immutable_columns`, mig 079) — so the security.md §15 carve-out now applies by construction (the 099b version took caller-supplied IDs, which misapplied the carve-out; closed by mig 105, #833). Soft-deleted questions are intentionally included (historical-record posture for in-flight exams). The questions read is additionally tenant-scoped to the caller's `organization_id`, retained as defense-in-depth (issue #831) — with session-derived IDs, foreign-org question IDs are already unreachable by construction.
 
 **Parameters:**
 - `p_session_id UUID` — the caller-owned `vfr_rt_exam` session whose frozen question set is returned
@@ -2646,7 +2646,7 @@ Student-facing RPC (migration 099b, sibling of `get_quiz_questions`; redefined i
 
 Student-facing RPC (migration 103; redefined in migration `20260611000200` / mig 106, #840 — adds `explanation_text` / `explanation_image_url` to the per-question review payload; only functional delta). Fetches completion-time answer key + explanations + per-question grading breakdown. Requires session to be ended.
 
-**Security:** `SECURITY DEFINER`, `SET search_path = public`. Auth check, active-user gate (`users.deleted_at IS NULL`, #838 — family pattern of migs 099/099b/100), explicit `student_id = auth.uid() AND mode = 'vfr_rt_exam' AND ended_at IS NOT NULL` scope (multiple permissive policies on quiz_sessions, security.md §3).
+**Security:** `SECURITY DEFINER`, `SET search_path = public, pg_temp`. Auth check, active-user gate (`users.deleted_at IS NULL`, #838 — family pattern of migs 099/099b/100), explicit `student_id = auth.uid() AND mode = 'vfr_rt_exam' AND ended_at IS NOT NULL` scope (multiple permissive policies on quiz_sessions, security.md §3).
 
 **Parameters:**
 - `p_session_id UUID` — the target session
@@ -2677,7 +2677,7 @@ Student-facing RPC (migration 103; redefined in migration `20260611000200` / mig
 
 Admin-only RPC (migration 094b; `correct_option_id` added mig 116, #823). Fetches the five answer-key columns (canonical_answer, accepted_synonyms, dialog_template, blanks_config, correct_option_id) that are REVOKED from authenticated at the privilege layer (mig 094 / mig 111). Allows admin authoring UI to load question details without requiring a service-role client.
 
-**Security:** `SECURITY DEFINER`, `SET search_path = public`. Auth check (`auth.uid()`), `is_admin()` gate.
+**Security:** `SECURITY DEFINER`, `SET search_path = public, pg_temp`. Auth check (`auth.uid()`), `is_admin()` gate.
 
 **Parameters:**
 - `p_question_id UUID` — the target question
