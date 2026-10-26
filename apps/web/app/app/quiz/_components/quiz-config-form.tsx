@@ -5,7 +5,6 @@ import type { ExamSubjectOption } from '@/lib/queries/exam-subjects'
 import type { SubjectOption } from '@/lib/queries/quiz-query-types'
 import { useExamStart } from '../_hooks/use-exam-start'
 import { useQuizConfig } from '../_hooks/use-quiz-config'
-import { useRefreshOnReturn } from '../_hooks/use-refresh-on-return'
 import type { PreloadPromise } from '../types'
 import { BlockedStartAlert } from './blocked-start-alert'
 import { DiscoveryModePanel } from './discovery-mode-panel'
@@ -27,7 +26,6 @@ type QuizConfigFormProps = {
 // biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function QuizConfigForm(props: Readonly<QuizConfigFormProps>) {
   const { userId, subjects, examSubjects, preload } = props
-  useRefreshOnReturn()
   const config = useQuizConfig({ subjects, preload })
   const isExam = config.mode === 'exam'
 

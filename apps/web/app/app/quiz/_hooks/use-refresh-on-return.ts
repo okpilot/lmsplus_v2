@@ -1,7 +1,8 @@
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useRef, useTransition } from 'react'
 
-// Back/Forward reuses the restored payload and fires no router event (Next 04-glossary.md:49),
+// Back/Forward reuses the restored payload and fires no router event (next/dist/docs/01-app/04-glossary.md:49,
+// 03-api-reference/04-functions/use-router.md:64),
 // so a window listener refreshes the hook mounted on the landed path, else records it for the next mount.
 // Next's own popstate handler runs first and mounts the restored page before this listener fires.
 let landedPath: string | null = null
@@ -54,9 +55,15 @@ export function useRefreshOnReturn() {
       if (document.visibilityState === 'visible') refresh()
     }
     document.addEventListener('visibilitychange', onVisibility)
+    // bfcache restore fires pageshow, not popstate: https://web.dev/articles/bfcache
+    function onPageShow(e: PageTransitionEvent) {
+      if (e.persisted) refresh()
+    }
+    window.addEventListener('pageshow', onPageShow)
     return () => {
       registered.delete(refresh)
       document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('pageshow', onPageShow)
     }
   }, [router, pathname])
 }

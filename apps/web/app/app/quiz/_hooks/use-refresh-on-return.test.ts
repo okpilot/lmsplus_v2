@@ -155,3 +155,39 @@ describe('useRefreshOnReturn — popstate while mounted', () => {
     expect(mockRefresh).not.toHaveBeenCalled()
   })
 })
+
+describe('useRefreshOnReturn — bfcache pageshow', () => {
+  function pageShow(persisted: boolean) {
+    const e = new Event('pageshow')
+    Object.defineProperty(e, 'persisted', { value: persisted })
+    window.dispatchEvent(e)
+  }
+
+  it('refreshes once on pageshow with persisted true', async () => {
+    const useRefreshOnReturn = await loadHook()
+    renderHook(() => useRefreshOnReturn())
+
+    await act(async () => pageShow(true))
+
+    expect(mockRefresh).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not refresh on pageshow with persisted false', async () => {
+    const useRefreshOnReturn = await loadHook()
+    renderHook(() => useRefreshOnReturn())
+
+    await act(async () => pageShow(false))
+
+    expect(mockRefresh).not.toHaveBeenCalled()
+  })
+
+  it('stops listening to pageshow after unmount', async () => {
+    const useRefreshOnReturn = await loadHook()
+    const { unmount } = renderHook(() => useRefreshOnReturn())
+    unmount()
+
+    await act(async () => pageShow(true))
+
+    expect(mockRefresh).not.toHaveBeenCalled()
+  })
+})

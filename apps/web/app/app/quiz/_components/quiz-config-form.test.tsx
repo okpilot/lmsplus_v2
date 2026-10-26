@@ -6,18 +6,13 @@ import type { CalcMode, ImageMode, QuestionFilterValue, QuizMode } from '../type
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockUseQuizConfig, mockUseExamStart, mockUseRefreshOnReturn } = vi.hoisted(() => ({
-  mockUseRefreshOnReturn: vi.fn(),
+const { mockUseQuizConfig, mockUseExamStart } = vi.hoisted(() => ({
   mockUseQuizConfig: vi.fn(),
   mockUseExamStart: vi.fn(),
 }))
 
 vi.mock('../_hooks/use-quiz-config', () => ({
   useQuizConfig: () => mockUseQuizConfig(),
-}))
-
-vi.mock('../_hooks/use-refresh-on-return', () => ({
-  useRefreshOnReturn: () => mockUseRefreshOnReturn(),
 }))
 
 vi.mock('../_hooks/use-exam-start', () => ({
@@ -207,11 +202,6 @@ describe('QuizConfigForm', () => {
     vi.resetAllMocks()
     mockUseQuizConfig.mockReturnValue(buildDefaultConfig())
     mockUseExamStart.mockReturnValue(examStart())
-  })
-
-  it('registers refresh-on-return once', () => {
-    render(<QuizConfigForm userId="test-user-id" subjects={SUBJECTS} examSubjects={[]} />)
-    expect(mockUseRefreshOnReturn).toHaveBeenCalledTimes(1)
   })
 
   it('renders without crashing', () => {

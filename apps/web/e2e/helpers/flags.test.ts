@@ -10,7 +10,7 @@ vi.mock('./recovery-code', () => ({ readUserId: mockReadUserId }))
 
 import { seedStudentFlag, softDeleteStudentFlags } from './flags'
 
-type Result = { error: { message: string } | null }
+type Result = { error: { message: string } | null; data?: { question_id: string }[] | null }
 
 function mockFlagTable(result: Result) {
   const calls = {
@@ -19,6 +19,7 @@ function mockFlagTable(result: Result) {
     upsert: vi.fn(),
     eq: vi.fn(),
     is: vi.fn(),
+    select: vi.fn(),
   }
   const chain: Record<string, unknown> = {
     // biome-ignore lint/suspicious/noThenProperty: required to make Supabase mock awaitable
@@ -31,6 +32,10 @@ function mockFlagTable(result: Result) {
   }
   chain.is = (...a: unknown[]) => {
     calls.is(...a)
+    return chain
+  }
+  chain.select = (...a: unknown[]) => {
+    calls.select(...a)
     return chain
   }
   const table = {
@@ -66,6 +71,29 @@ describe('softDeleteStudentFlags', () => {
     expect(calls.update).toHaveBeenCalledWith({ deleted_at: expect.any(String) })
     expect(calls.eq).toHaveBeenCalledWith('student_id', 'student-1')
     expect(calls.is).toHaveBeenCalledWith('deleted_at', null)
+  })
+
+  it('selects the question_id of the soft-deleted rows', async () => {
+    const { calls } = mockFlagTable({ error: null, data: [] })
+    await softDeleteStudentFlags('s@x.local')
+    expect(calls.select).toHaveBeenCalledWith('question_id')
+  })
+
+  it('logs nothing when zero rows were soft-deleted', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    mockFlagTable({ error: null, data: [] })
+    await softDeleteStudentFlags('s@x.local')
+    expect(logSpy).not.toHaveBeenCalled()
+    logSpy.mockRestore()
+  })
+
+  it('logs once when rows were soft-deleted', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    mockFlagTable({ error: null, data: [{ question_id: 'a' }, { question_id: 'b' }] })
+    await softDeleteStudentFlags('s@x.local')
+    expect(logSpy).toHaveBeenCalledTimes(1)
+    expect(logSpy).toHaveBeenCalledWith('[softDeleteStudentFlags] soft-deleted 2 flag(s)')
+    logSpy.mockRestore()
   })
 
   it('throws with the email on a database error', async () => {

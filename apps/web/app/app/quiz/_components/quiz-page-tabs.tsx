@@ -1,6 +1,7 @@
 import { Suspense } from 'react'
 import type { QuizPageData } from '../_loaders/load-quiz-page-data'
 import { QuizTabs } from './quiz-tabs'
+import { RefreshOnReturn } from './refresh-on-return'
 import { SavedDraftCard } from './saved-draft-card'
 import { SubjectsSection } from './subjects-section'
 
@@ -18,6 +19,7 @@ export function QuizPageTabs({
 >) {
   return (
     <div className="mx-auto max-w-xl">
+      <RefreshOnReturn />
       <QuizTabs
         draftCount={savedTabCount}
         newQuizContent={
