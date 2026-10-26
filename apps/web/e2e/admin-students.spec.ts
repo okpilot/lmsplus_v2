@@ -498,3 +498,48 @@ test.describe('Admin Student Management — Access Control', () => {
     await studentContext.close()
   })
 })
+
+// ── Section 7: Course enrolments ─────────────────────────────────────────────
+
+test.describe('Admin Student Management — Courses', () => {
+  test.afterEach(async () => {
+    await cleanupE2eStudents()
+  })
+
+  test('creates a student with VFR RT only, then adds ATPL via edit', async ({ page }) => {
+    await page.goto('/app/admin/students')
+    await expect(page.getByRole('heading', { name: 'Student Management' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'Courses' })).toBeVisible()
+
+    const email = uniqueEmail()
+    const fullName = `E2E Courses ${Date.now()}`
+
+    await page.getByRole('button', { name: 'New Student' }).click()
+    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5_000 })
+    await page.getByLabel('Email').fill(email)
+    await page.getByLabel('Full name').fill(fullName)
+    await page.getByRole('checkbox', { name: 'VFR RT' }).click()
+    await page.getByRole('button', { name: 'Create Student' }).click()
+    await expect(page.getByText('Student created.')).toBeVisible({ timeout: 10_000 })
+    await page.getByRole('button', { name: 'Close' }).click()
+    await page.reload()
+
+    const row = page.locator('tbody tr').filter({ hasText: fullName })
+    await expect(row).toBeVisible({ timeout: 10_000 })
+    await expect(row.getByText('RT', { exact: true })).toBeVisible()
+    await expect(row.getByText('PPL', { exact: true })).toHaveCount(0)
+    await expect(row.getByText('ATPL', { exact: true })).toHaveCount(0)
+
+    await row.getByRole('button', { name: 'Edit student' }).click()
+    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5_000 })
+    await expect(page.getByRole('checkbox', { name: 'VFR RT' })).toBeChecked()
+    await page.getByRole('checkbox', { name: 'ATPL(A)' }).click()
+    await page.getByRole('button', { name: 'Save Changes' }).click()
+    await expect(page.getByText('Student updated')).toBeVisible({ timeout: 10_000 })
+
+    await page.reload()
+    const updated = page.locator('tbody tr').filter({ hasText: fullName })
+    await expect(updated.getByText('RT', { exact: true })).toBeVisible({ timeout: 10_000 })
+    await expect(updated.getByText('ATPL', { exact: true })).toBeVisible()
+  })
+})

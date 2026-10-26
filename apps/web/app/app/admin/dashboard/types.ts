@@ -58,6 +58,7 @@ export type StudentDetail = {
   lastActiveAt: string | null
   createdAt: string
   deletedAt: string | null
+  courses: string[]
 }
 
 export type StudentSession = {

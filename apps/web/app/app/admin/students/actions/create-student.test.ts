@@ -236,6 +236,87 @@ describe('createStudent', () => {
       // No audit event for a failed creation (the audit call is after the success path).
       expect(mockRpc).not.toHaveBeenCalled()
     })
+
+    it('logs the orphaned auth user when the rollback delete also fails', async () => {
+      mockAdmin()
+      buildChain({ insertError: { message: 'unique constraint' } })
+      mockAuthCreateUser()
+      mockDeleteUser.mockResolvedValue({ error: { message: 'delete failed' } })
+      const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      const result = await createStudent(VALID_INPUT)
+
+      expect(result.success).toBe(false)
+      expect(errSpy).toHaveBeenCalledWith(
+        '[createStudent] Rollback failed — orphaned auth user:',
+        NEW_USER_ID,
+        'delete failed',
+      )
+    })
+  })
+
+  describe('course enrolments', () => {
+    const COURSE_ID = 'c0a5e000-0000-4000-8000-000000000002'
+
+    it('calls set_user_enrolments with the new student and chosen courses for a student', async () => {
+      mockAdmin()
+      buildChain()
+      mockAuthCreateUser()
+
+      const result = await createStudent({ ...VALID_INPUT, course_ids: [COURSE_ID] })
+
+      expect(mockRpc).toHaveBeenCalledWith('set_user_enrolments', {
+        p_user_id: NEW_USER_ID,
+        p_course_ids: [COURSE_ID],
+      })
+      expect(result.success).toBe(true)
+      if (!result.success) return
+      expect(result).not.toHaveProperty('coursesSaved', false)
+    })
+
+    it('calls set_user_enrolments with the new user and chosen courses for an instructor', async () => {
+      mockAdmin()
+      buildChain()
+      mockAuthCreateUser()
+
+      await createStudent({ ...VALID_INPUT, role: 'instructor', course_ids: [COURSE_ID] })
+
+      expect(mockRpc).toHaveBeenCalledWith('set_user_enrolments', {
+        p_user_id: NEW_USER_ID,
+        p_course_ids: [COURSE_ID],
+      })
+    })
+
+    it('keeps the student and returns coursesSaved:false when the enrolment RPC fails', async () => {
+      mockAdmin()
+      buildChain()
+      mockAuthCreateUser()
+      mockRpc.mockImplementation(async (name: string) =>
+        name === 'set_user_enrolments'
+          ? { error: { message: 'course_not_found' } }
+          : { error: null },
+      )
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      const result = await createStudent({ ...VALID_INPUT, course_ids: [COURSE_ID] })
+
+      expect(result).toEqual({ success: true, id: NEW_USER_ID, coursesSaved: false })
+      expect(mockDeleteUser).not.toHaveBeenCalled()
+    })
+
+    it('does not call the enrolment RPC when no course is ticked', async () => {
+      mockAdmin()
+      buildChain()
+      mockAuthCreateUser()
+      mockRpc.mockImplementation(async (name: string) =>
+        name === 'set_user_enrolments' ? { error: { message: 'boom' } } : { error: null },
+      )
+
+      const result = await createStudent({ ...VALID_INPUT, course_ids: [] })
+
+      expect(mockRpc).not.toHaveBeenCalledWith('set_user_enrolments', expect.anything())
+      expect(result).toEqual({ success: true, id: NEW_USER_ID })
+    })
   })
 
   describe('auth guard', () => {

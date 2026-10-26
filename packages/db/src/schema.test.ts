@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
+  CreateStudentSchema,
   DeleteSyllabusItemSchema,
   StartQuizSessionSchema,
   SubmitAnswerSchema,
   ToggleExamConfigSchema,
+  UpdateStudentSchema,
   UpsertExamConfigSchema,
   UpsertQuestionSchema,
   UpsertSubjectSchema,
@@ -369,5 +371,57 @@ describe('ToggleExamConfigSchema', () => {
     expect(ToggleExamConfigSchema.safeParse({ subjectId: VALID_UUID, enabled: 1 }).success).toBe(
       false,
     )
+  })
+})
+
+describe('CreateStudentSchema course_ids', () => {
+  const base = { email: 'a@example.com', full_name: 'Jane', role: 'student' as const }
+
+  it('defaults course_ids to an empty array when omitted', () => {
+    const r = CreateStudentSchema.safeParse(base)
+    expect(r.success).toBe(true)
+    if (r.success) expect(r.data.course_ids).toEqual([])
+  })
+
+  it('accepts an array of UUIDs', () => {
+    expect(CreateStudentSchema.safeParse({ ...base, course_ids: [VALID_UUID] }).success).toBe(true)
+  })
+
+  it('rejects a non-UUID course id', () => {
+    expect(CreateStudentSchema.safeParse({ ...base, course_ids: [INVALID_UUID] }).success).toBe(
+      false,
+    )
+  })
+
+  it('rejects more than 20 course ids', () => {
+    const ids = Array.from({ length: 21 }, () => VALID_UUID)
+    expect(CreateStudentSchema.safeParse({ ...base, course_ids: ids }).success).toBe(false)
+  })
+})
+
+describe('UpdateStudentSchema course_ids', () => {
+  const base = { id: VALID_UUID, full_name: 'Jane', role: 'student' as const }
+
+  it('leaves course_ids undefined when omitted (no default)', () => {
+    const r = UpdateStudentSchema.safeParse(base)
+    expect(r.success).toBe(true)
+    if (r.success) expect(r.data.course_ids).toBeUndefined()
+  })
+
+  it('accepts an empty course_ids array', () => {
+    const r = UpdateStudentSchema.safeParse({ ...base, course_ids: [] })
+    expect(r.success).toBe(true)
+    if (r.success) expect(r.data.course_ids).toEqual([])
+  })
+
+  it('rejects a non-UUID course id', () => {
+    expect(UpdateStudentSchema.safeParse({ ...base, course_ids: [INVALID_UUID] }).success).toBe(
+      false,
+    )
+  })
+
+  it('rejects more than 20 course ids', () => {
+    const ids = Array.from({ length: 21 }, () => VALID_UUID)
+    expect(UpdateStudentSchema.safeParse({ ...base, course_ids: ids }).success).toBe(false)
   })
 })

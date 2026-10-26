@@ -91,6 +91,13 @@ export type GdprExportPayload = {
     accepted: boolean
     created_at: string
   }>
+  course_enrolments: Array<{
+    course_id: string
+    enrolled_at: string
+    enrolled_by: string | null
+    deleted_at: string | null
+    deleted_by: string | null
+  }>
   audit_events: Array<{
     event_type: string
     resource_type: string

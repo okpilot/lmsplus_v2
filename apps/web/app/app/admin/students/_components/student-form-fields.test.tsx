@@ -34,6 +34,9 @@ const BASE_PROPS = {
   email: 'alice@example.com',
   fullName: 'Alice',
   role: 'student',
+  courses: [],
+  courseIds: [] as string[],
+  onCourseIdsChange: vi.fn(),
   onEmailChange: vi.fn(),
   onFullNameChange: vi.fn(),
   onRoleChange: vi.fn(),
@@ -98,4 +101,18 @@ describe('StudentFormFields', () => {
     expect(screen.getByLabelText('Email')).toBeDisabled()
     expect(screen.getByLabelText('Full name')).toBeDisabled()
   })
+
+  it.each(['student', 'instructor', 'admin'])(
+    'renders the course checkboxes for role %s',
+    (role) => {
+      render(
+        <StudentFormFields
+          {...BASE_PROPS}
+          role={role}
+          courses={[{ id: 'c1', short: 'PPL', name: 'PPL(A)' }]}
+        />,
+      )
+      expect(screen.getByRole('checkbox', { name: 'PPL(A)' })).toBeInTheDocument()
+    },
+  )
 })

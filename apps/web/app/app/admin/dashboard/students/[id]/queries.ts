@@ -11,7 +11,10 @@ export async function getStudentDetail(studentId: string): Promise<StudentDetail
 
   const { data, error } = await adminClient
     .from('users')
-    .select('id, full_name, email, role, last_active_at, created_at, deleted_at')
+    .select(
+      'id, full_name, email, role, last_active_at, created_at, deleted_at, course_enrolments!course_enrolments_user_id_fkey(courses(short, sort_order))',
+    )
+    .is('course_enrolments.deleted_at', null)
     .eq('id', studentId)
     .eq('organization_id', organizationId)
     .eq('role', 'student')
@@ -32,6 +35,11 @@ export async function getStudentDetail(studentId: string): Promise<StudentDetail
     lastActiveAt: data.last_active_at,
     createdAt: data.created_at,
     deletedAt: data.deleted_at,
+    courses: data.course_enrolments
+      .map((e) => e.courses)
+      .filter((c) => c !== null)
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map((c) => c.short),
   }
 }
 

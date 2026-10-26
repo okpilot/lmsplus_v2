@@ -34,6 +34,7 @@ const STUDENT: StudentRow = {
   deleted_at: null,
   login_instructions_sent_at: null,
   temp_password_expires_at: null,
+  course_ids: [],
 }
 
 async function fillCreateForm() {

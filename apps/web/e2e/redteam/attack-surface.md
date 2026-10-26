@@ -318,12 +318,13 @@
 | KE | course_enrolments-cross-org-admin-read | MEDIUM | set-user-enrolments-escalation.spec.ts | BLOCKED |  | cross-tenant |
 | KF | set_user_enrolments-soft-deleted-admin | HIGH | set-user-enrolments-softdelete-race.spec.ts | BLOCKED |  | soft-delete-bypass |
 | KG | set_user_enrolments-concurrent-calls | LOW | set-user-enrolments-softdelete-race.spec.ts | BLOCKED |  | race |
-| KH | easa_subjects-topics-subtopics-questions-filtered_question_pool-non-enrolled-read | HIGH | course-enrolment-gate.spec.ts | BLOCKED |  | rls-bypass |
-| KI | get_quiz_questions-non-enrolled-question-ids | HIGH | course-enrolment-gate.spec.ts | BLOCKED |  | answer-oracle |
-| KJ | start_quiz_session-null-subject-and-start_discovery-non-enrolled | HIGH | course-enrolment-gate.spec.ts | BLOCKED |  | sibling-guard-gap |
-| KK | resume_saved_quiz-revive-after-unenrolment | MEDIUM | course-enrolment-gate.spec.ts | BLOCKED |  | soft-delete-bypass |
-| KL | question_comments-read-insert-non-enrolled-question | LOW | question-comments-enrolment-scope.spec.ts | BLOCKED |  | sibling-guard-gap |
-| KM | question_comments-cross-org-read | MEDIUM | question-comments-enrolment-scope.spec.ts | BLOCKED |  | cross-tenant |
+| KH | updateStudent-course_ids-cross-org | HIGH | update-student-courses-idor.spec.ts | BLOCKED |  | idor |
+| KI | easa_subjects-topics-subtopics-questions-filtered_question_pool-non-enrolled-read | HIGH | course-enrolment-gate.spec.ts | BLOCKED |  | rls-bypass |
+| KJ | get_quiz_questions-non-enrolled-question-ids | HIGH | course-enrolment-gate.spec.ts | BLOCKED |  | answer-oracle |
+| KK | start_quiz_session-null-subject-and-start_discovery-non-enrolled | HIGH | course-enrolment-gate.spec.ts | BLOCKED |  | sibling-guard-gap |
+| KL | resume_saved_quiz-revive-after-unenrolment | MEDIUM | course-enrolment-gate.spec.ts | BLOCKED |  | soft-delete-bypass |
+| KM | question_comments-read-insert-non-enrolled-question | LOW | question-comments-enrolment-scope.spec.ts | BLOCKED |  | sibling-guard-gap |
+| KN | question_comments-cross-org-read | MEDIUM | question-comments-enrolment-scope.spec.ts | BLOCKED |  | cross-tenant |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 

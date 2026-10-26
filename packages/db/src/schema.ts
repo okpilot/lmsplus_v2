@@ -114,6 +114,7 @@ export const CreateStudentSchema = z.object({
   email: z.email(),
   full_name: z.string().trim().min(1).max(200),
   role: z.enum(['student', 'instructor']),
+  course_ids: z.array(z.uuid()).max(20).default([]),
 })
 
 export type CreateStudentInput = z.infer<typeof CreateStudentSchema>
@@ -122,6 +123,7 @@ export const UpdateStudentSchema = z.object({
   id: z.uuid(),
   full_name: z.string().trim().min(1).max(200),
   role: z.enum(['admin', 'instructor', 'student']),
+  course_ids: z.array(z.uuid()).max(20).optional(),
 })
 
 export type UpdateStudentInput = z.infer<typeof UpdateStudentSchema>
