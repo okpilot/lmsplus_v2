@@ -132,3 +132,7 @@ export const E2E_REDTEAM_KF_ADMIN_EMAIL = 'redteam-kf-admin@lmsplus.local'
 export const E2E_REDTEAM_KF_ADMIN_PASSWORD = 'redteam-kf-admin-2026!'
 export const E2E_REDTEAM_KF_STUDENT_EMAIL = 'redteam-kf-student@lmsplus.local'
 export const E2E_REDTEAM_KF_STUDENT_PASSWORD = 'redteam-kf-student-2026!'
+// updateStudent course_ids Server Action spec (Vector KH, #1636). Dedicated throwaway in-org student
+// bounds the control-arm enrolment change.
+export const E2E_REDTEAM_KH_STUDENT_EMAIL = 'redteam-kh-enrolments@lmsplus.local'
+export const E2E_REDTEAM_KH_STUDENT_PASSWORD = 'redteam-kh-enrolments-2026!'
