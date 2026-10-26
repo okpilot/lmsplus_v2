@@ -1499,7 +1499,7 @@ Admin-only RPC setting the complete set of active course enrolments for one user
 - Rule 7 — `auth.uid()` null-check raises `not_authenticated`
 - `is_admin()` gate raises `not_admin`
 - `p_user_id IS NULL` or `p_course_ids IS NULL` raises `invalid_input`
-- Caller row (`auth.uid()`, `deleted_at IS NULL`) supplies `actor_id`, `actor_role`, `organization_id` for the audit INSERT
+- Caller row (`auth.uid()`, `deleted_at IS NULL`) supplies `actor_id`, `actor_role`, `organization_id` for the audit INSERT — missing row raises `admin_not_found`
 - User lookup: any role, same organization, `deleted_at IS NULL`, `FOR NO KEY UPDATE` on the `users` row (concurrent calls for one user serialize) — else `user_not_found`
 - Every id in `p_course_ids` must exist in `courses` — else `course_not_found`
 - `SET search_path = public, pg_temp`

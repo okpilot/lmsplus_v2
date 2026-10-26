@@ -209,7 +209,7 @@ overlap — do not treat the first as the precondition for the second:
   dissolve, because the unqualified policy *is* the entire access control and write access is
   scoped only by org membership. Declaring it `FOR SELECT` leaves INSERT/UPDATE/DELETE with no
   permitting policy, denied by default, matching rule 6. Cases: `organizations`,
-  `question_banks`, `courses`, `lessons`
+  `question_banks`; `courses` and `lessons` until `20261027000100` replaced them
   (`20260820000100_tenant_isolation_select_only_four_tables.sql`).
 
 A `FOR SELECT` policy takes `USING` only, so its absent `WITH CHECK` is correct under the
@@ -219,7 +219,7 @@ per-command rule above, not a gap.
 created that way in `20260311000001_initial_schema.sql`; `users` was re-emitted as
 `users_select` (`20260311000004`, `20260312000012`, which are also what dropped its
 `tenant_isolation`) and later gained `users_update_own` (`20260326000056`), `questions` was
-narrowed under ground (a), and the remaining four under ground (b). A new unqualified tenant policy is a
+narrowed under ground (a), and the remaining four under ground (b) (two since replaced by `20261027000100`). A new unqualified tenant policy is a
 defect on sight — see the template above, which now leads with the `FOR SELECT` form.
 
 Resulting policy set for `questions` (ground (a)):

@@ -279,7 +279,6 @@ describe('RPC: set_user_enrolments', () => {
       p_user_id: studentId,
       p_course_ids: [ppl],
     })
-    expect(error).not.toBeNull()
-    expect(error?.message).toMatch(/permission denied|not authorized|not_authenticated/i)
+    expect(error?.code).toBe('42501')
   })
 })

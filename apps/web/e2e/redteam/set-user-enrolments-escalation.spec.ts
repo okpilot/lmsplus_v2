@@ -49,13 +49,19 @@ test.describe('Red Team: set_user_enrolments escalation (KC, KD, KE)', () => {
   }
 
   async function clearEnrolments(): Promise<void> {
+    const errors: string[] = []
     for (const id of [studentId, instructorId]) {
-      const { error } = await inOrgAdmin.rpc('set_user_enrolments', {
-        p_user_id: id,
-        p_course_ids: [],
-      })
-      if (error) throw new Error(`Cleanup failed: ${error.message}`)
+      try {
+        const { error } = await inOrgAdmin.rpc('set_user_enrolments', {
+          p_user_id: id,
+          p_course_ids: [],
+        })
+        if (error) throw new Error(`clear enrolments ${id}: ${error.message}`)
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      }
     }
+    if (errors.length > 0) throw new Error(`Cleanup failed: ${errors.join('; ')}`)
   }
 
   test.beforeAll(async () => {

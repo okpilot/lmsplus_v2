@@ -174,11 +174,15 @@ describe('RLS: courses and course_enrolments', () => {
   })
 
   it('AC7: a student does not see their own soft-deleted enrolment', async () => {
-    await admin
+    const { data: deleted, error: delError } = await admin
       .from('course_enrolments')
       .update({ deleted_at: new Date().toISOString() })
       .eq('user_id', studentAId)
-    const { data } = await studentAClient.from('course_enrolments').select('id')
+      .select('id')
+    expect(delError).toBeNull()
+    expect(deleted?.length).toBeGreaterThan(0)
+    const { data, error } = await studentAClient.from('course_enrolments').select('id')
+    expect(error).toBeNull()
     expect(data).toEqual([])
   })
 
@@ -208,12 +212,13 @@ describe('RLS: courses and course_enrolments', () => {
   })
 
   it('AC7: an admin does not see a soft-deleted enrolment of their own organization', async () => {
-    const { error: delError } = await admin
+    const { data: deleted, error: delError } = await admin
       .from('course_enrolments')
       .update({ deleted_at: new Date().toISOString() })
       .eq('user_id', studentAId)
-      .is('deleted_at', null)
+      .select('id')
     expect(delError).toBeNull()
+    expect(deleted?.length).toBeGreaterThan(0)
     const { data: removed } = await admin
       .from('course_enrolments')
       .select('id')
