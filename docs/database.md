@@ -1483,8 +1483,6 @@ Admin-only RPC (not a direct API endpoint — invoked from Server Action `sendIn
 - Rule 10 — no inline audit subqueries; every value in the INSERT comes from the pre-read locals
 - `SET search_path = public, pg_temp`
 
-**Session sweep:** for a student target, every call discards open sessions and clears `saved_at` of saved quizzes whose subject (or `config.question_ids` question) is in a course outside the final set. Not run for admin/instructor targets.
-
 **Audit payload:** `event_type = 'internal_exam.code_emailed'`, `resource_type = 'internal_exam_code'`, `resource_id = p_code_id`, `metadata = { student_id, subject_id }`.
 
 **Returns:** `void`.
@@ -1513,6 +1511,8 @@ Admin-only RPC recording a login-instructions send and the "own password not yet
 
 Admin-only RPC setting the complete set of active course enrolments for one user. Soft-deletes active `course_enrolments` rows not in `p_course_ids` (`deleted_at = now()`, `deleted_by` = caller), inserts the missing ones (`enrolled_by` = caller), writes one `audit_events` row in the same transaction. A set equal to the current one with nothing swept writes nothing and no audit row.
 
+**Session sweep:** for a student target, every call discards open sessions and clears `saved_at` of saved quizzes whose subject (or `config.question_ids` question) is in a course outside the final set. Not run for admin/instructor targets.
+
 **Signature:** `(p_user_id uuid, p_course_ids uuid[] DEFAULT NULL) RETURNS void` (default added by mig `20261028000500`). Empty array removes every enrolment. `NULL` or omitted keeps the current set (read under the row lock) and only sweeps. Duplicate ids are collapsed.
 
 **Guard set:**
@@ -1526,7 +1526,7 @@ Admin-only RPC setting the complete set of active course enrolments for one user
 
 **Audit payload:** `event_type = 'user.enrolments_changed'`, `resource_type = 'user'`, `resource_id = p_user_id`, `metadata = { added: [course_id…], removed: [course_id…], sessions_ended: [quiz_session_id…], saved_cleared: [quiz_session_id…] }`. Written when any of the four is non-empty; a sweep-only call carries empty `added`/`removed`.
 
-**Known limits:** a session start or revive committing concurrently with the removal survives it (no shared lock with start RPCs); `get_quiz_questions` still filters its questions and the student can discard it. Role edits outside `updateStudent` do not sweep. The role write commits before the sweep; a failed sweep surfaces as "courses were not saved".
+**Known limits:** a session start or revive committing concurrently with the removal survives it (start RPCs do not lock the target's `users` row); `get_quiz_questions` still filters its questions and the student can discard it. Role edits outside `updateStudent` do not sweep. The role write commits before the sweep; a failed sweep surfaces as "courses were not saved".
 
 **Grants:** `REVOKE EXECUTE … FROM PUBLIC, anon`; `GRANT EXECUTE … TO authenticated`.
 

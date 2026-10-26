@@ -91,6 +91,7 @@ BEGIN
     FROM public.quiz_sessions qs
     WHERE qs.student_id = p_user_id
       AND qs.organization_id = v_caller_org
+      AND ((qs.ended_at IS NULL AND qs.deleted_at IS NULL) OR qs.saved_at IS NOT NULL)
       AND (
         qs.subject_id = ANY (v_subjects)
         OR EXISTS (
