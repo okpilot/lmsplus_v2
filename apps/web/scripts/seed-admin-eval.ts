@@ -10,6 +10,7 @@
  */
 
 import { resolve } from 'node:path'
+import { enrolStudent } from '@repo/db/enrol-students'
 import { createClient } from '@supabase/supabase-js'
 import { config } from 'dotenv'
 
@@ -99,6 +100,7 @@ async function seed() {
     { onConflict: 'id' },
   )
   if (studentErr) throw new Error(`Student user row: ${studentErr.message}`)
+  await enrolStudent(db, { userId: studentId, orgId: org.id })
   console.log(`  Student: ${studentId} (${STUDENT_EMAIL} / ${STUDENT_PASSWORD})`)
 
   // 4. Question bank (select existing or insert)

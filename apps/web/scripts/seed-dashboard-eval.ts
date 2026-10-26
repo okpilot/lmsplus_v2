@@ -8,6 +8,7 @@
  */
 
 import { resolve } from 'node:path'
+import { enrolStudent } from '@repo/db/enrol-students'
 import { createClient } from '@supabase/supabase-js'
 import { config } from 'dotenv'
 
@@ -190,6 +191,7 @@ async function seed() {
       { onConflict: 'id' },
     )
     if (error) throw new Error(`User ${s.email}: ${error.message}`)
+    await enrolStudent(db, { userId: id, orgId: org.id })
     studentIds.push(id)
     console.log(`  Student: ${s.name} (active ${s.daysActive}d ago)`)
   }

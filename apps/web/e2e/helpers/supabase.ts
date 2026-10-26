@@ -1,3 +1,4 @@
+import { enrolStudent } from '@repo/db/enrol-students'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { CURRENT_PRIVACY_VERSION, CURRENT_TOS_VERSION } from '../../lib/consent/versions'
 import { findAuthUserByEmail } from './auth-users'
@@ -153,6 +154,7 @@ export async function ensureTestUser() {
     if (updateError) throw new Error(`ensureTestUser update org: ${updateError.message}`)
   }
 
+  await enrolStudent(admin, { userId, orgId })
   await ensureConsentRecords(admin, userId)
   return { orgId, userId }
 }
@@ -222,6 +224,7 @@ export async function ensureLoginTestUser() {
     if (updateError) throw new Error(`ensureLoginTestUser update org: ${updateError.message}`)
   }
 
+  await enrolStudent(admin, { userId, orgId })
   await ensureConsentRecords(admin, userId)
   return { orgId, userId }
 }
@@ -293,6 +296,7 @@ export async function ensureInternalExamStudentUser() {
       throw new Error(`ensureInternalExamStudentUser update org: ${updateError.message}`)
   }
 
+  await enrolStudent(admin, { userId, orgId })
   await ensureConsentRecords(admin, userId)
   return { orgId, userId }
 }

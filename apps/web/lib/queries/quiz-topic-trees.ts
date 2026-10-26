@@ -90,10 +90,14 @@ async function fetchTopicTreeRows(supabase: Supabase) {
   if (topicsRes.error) throw new Error(`Failed to fetch topics: ${topicsRes.error.message}`)
   if (subtopicsRes.error)
     throw new Error(`Failed to fetch subtopics: ${subtopicsRes.error.message}`)
-  if (!counts.length) throw new Error('Failed to fetch topic trees: no question counts')
 
   const topics = (topicsRes.data ?? []) as (TopicTreeTopicRow & { subject_id: string })[]
   const subtopics = (subtopicsRes.data ?? []) as TopicTreeSubtopicRow[]
+  // A caller with no enrolments reads no topics, subtopics or counts: nothing to build.
+  if (!counts.length && !topics.length && !subtopics.length) {
+    return { topics, subtopics, counts }
+  }
+  if (!counts.length) throw new Error('Failed to fetch topic trees: no question counts')
   if (topicsRes.count !== topics.length || subtopicsRes.count !== subtopics.length) {
     throw new Error('Failed to fetch topic trees: topic trees truncated at max_rows')
   }

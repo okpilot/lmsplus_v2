@@ -6,7 +6,7 @@ import { verifySessionUser } from '@/lib/auth/verify-session-user'
 import { matchRpcError, type RpcErrorPattern } from '@/lib/rpc-error-match'
 import type { StartExamResult } from '../types'
 import { blockedFailure, type WithBlocked } from './_blocked-start'
-import { NOT_ACTIVE, SIGN_IN } from './progress-error-messages'
+import { NOT_ACTIVE, NOT_ENROLLED, SIGN_IN } from './progress-error-messages'
 
 const StartExamInput = z.object({
   subjectId: z.uuid(),
@@ -30,6 +30,7 @@ const FAILED = 'Failed to start Practice Exam.'
 const START_EXAM_ERRORS: Record<string, string> = {
   'not authenticated': SIGN_IN,
   'user not found or inactive': NOT_ACTIVE,
+  not_enrolled: NOT_ENROLLED,
   'an exam session is already in progress for this subject':
     'A Practice Exam is already in progress for this subject.',
   'no exam configuration found for this subject':

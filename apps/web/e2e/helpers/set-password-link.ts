@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { enrolStudent } from '@repo/db/enrol-students'
 import { findAuthUserByEmail } from './auth-users'
 import { ensureConsentRecords, getAdminClient } from './supabase'
 
@@ -91,6 +92,7 @@ export async function createLinkStudent(opts: {
 
   const userId = await upsertPasswordlessAuthUser(admin, email)
   await upsertPendingUserRow({ admin, userId, orgId: org.id, email, fullName: opts.fullName })
+  await enrolStudent(admin, { userId, orgId: org.id })
 
   if (opts.consented === false) {
     await clearConsentRecords(admin, userId)

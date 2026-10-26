@@ -24,6 +24,7 @@
  */
 
 import { resolve } from 'node:path'
+import { enrolStudent } from '@repo/db/enrol-students'
 import { createClient } from '@supabase/supabase-js'
 import { config } from 'dotenv'
 import {
@@ -303,6 +304,7 @@ async function ensureUser(
     { onConflict: 'id' },
   )
   if (error) throw new Error(`User row ${email}: ${error.message}`)
+  if (role === 'student') await enrolStudent(db, { userId: id, orgId })
 }
 
 async function lookupId(table: string, column: string, value: string): Promise<string> {

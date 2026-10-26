@@ -7,6 +7,7 @@ export const START_VFR_RT_EXAM_ERROR_MESSAGES: Record<string, string> = {
   'not authenticated': 'Not authenticated',
   user_not_found_or_inactive: 'Your account is inactive. Please contact your instructor.',
   'user not found or inactive': 'Your account is inactive. Please contact your instructor.',
+  not_enrolled: 'You are not enrolled in this course.',
   exam_config_required: 'VFR RT mock exam is not enabled for your organization.',
   // The RPC attaches the shortfall detail via USING DETAIL — logged server-side
   // only, never surfaced to the student.

@@ -1,3 +1,4 @@
+import { enrolStudent } from '@repo/db/enrol-students'
 import { findAuthUserByEmail } from './auth-users'
 import { getAdminClient } from './supabase'
 
@@ -18,6 +19,7 @@ export async function ensureNoConsentUser(user: NoConsentUser): Promise<string> 
 
   const userId = await upsertAuthUser(admin, user)
   await upsertPublicUser(admin, { userId, orgId: org.id, user })
+  await enrolStudent(admin, { userId, orgId: org.id })
   return userId
 }
 

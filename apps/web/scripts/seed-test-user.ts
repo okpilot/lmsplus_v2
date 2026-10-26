@@ -7,6 +7,7 @@
 
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { enrolStudent } from '@repo/db/enrol-students'
 import { createClient } from '@supabase/supabase-js'
 
 // Load .env.local from apps/web/ (sibling of this scripts/ folder)
@@ -88,6 +89,7 @@ async function main() {
   )
 
   if (upsertErr) throw new Error(`Failed to upsert user: ${upsertErr.message}`)
+  await enrolStudent(admin, { userId: authUserId, orgId: org.id })
   console.log(`User row upserted: ${TEST_EMAIL} → role: student, org: ${org.name}`)
 
   console.log('\nDone! You can now sign in at http://localhost:3000 with this email.')

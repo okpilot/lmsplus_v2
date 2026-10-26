@@ -53,6 +53,7 @@ describe('RPC: set_user_enrolments', () => {
         email: `${tag}-${suffix}@test.local`,
         password: pw,
         role,
+        courses: [],
       })
       into.push(id)
       return id

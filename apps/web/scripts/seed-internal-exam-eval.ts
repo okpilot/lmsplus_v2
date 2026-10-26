@@ -17,6 +17,7 @@
  */
 
 import { resolve } from 'node:path'
+import { enrolStudent } from '@repo/db/enrol-students'
 import { createClient } from '@supabase/supabase-js'
 import { config } from 'dotenv'
 
@@ -81,6 +82,7 @@ async function ensureUser(id: string, orgId: string, email: string, role: 'admin
     { onConflict: 'id' },
   )
   if (error) throw new Error(`User row ${email}: ${error.message}`)
+  if (role === 'student') await enrolStudent(db, { userId: id, orgId })
 }
 
 async function seed() {
