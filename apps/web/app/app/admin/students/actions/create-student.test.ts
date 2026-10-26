@@ -236,6 +236,23 @@ describe('createStudent', () => {
       // No audit event for a failed creation (the audit call is after the success path).
       expect(mockRpc).not.toHaveBeenCalled()
     })
+
+    it('logs the orphaned auth user when the rollback delete also fails', async () => {
+      mockAdmin()
+      buildChain({ insertError: { message: 'unique constraint' } })
+      mockAuthCreateUser()
+      mockDeleteUser.mockResolvedValue({ error: { message: 'delete failed' } })
+      const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      const result = await createStudent(VALID_INPUT)
+
+      expect(result.success).toBe(false)
+      expect(errSpy).toHaveBeenCalledWith(
+        '[createStudent] Rollback failed — orphaned auth user:',
+        NEW_USER_ID,
+        'delete failed',
+      )
+    })
   })
 
   describe('course enrolments', () => {
