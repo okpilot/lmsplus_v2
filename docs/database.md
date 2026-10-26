@@ -140,9 +140,9 @@ CREATE TABLE easa_subjects (
   short TEXT NOT NULL,           -- 'MET'
   sort_order INT NOT NULL,
   course_id UUID NOT NULL REFERENCES courses(id)
-    DEFAULT '<PPL_A uuid>'      -- mig 20261027000100; 'RT' → VFR_RT
+    DEFAULT 'c0a5e000-0000-4000-8000-000000000001'      -- mig 20261027000100; 'RT' → VFR_RT
 );
-CREATE INDEX idx_easa_subjects_course ON easa_subjects(course_id);
+CREATE INDEX idx_easa_subjects_course_id ON easa_subjects(course_id);
 
 CREATE TABLE easa_topics (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -294,7 +294,7 @@ Global reference table (mig `20261027000100`, #1635). Not org-scoped, no `delete
 
 ```sql
 CREATE TABLE courses (
-  id         UUID PRIMARY KEY,
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   code       TEXT NOT NULL UNIQUE CHECK (code ~ '^[A-Z0-9_]+$'),
   name       TEXT NOT NULL,
   short      TEXT NOT NULL,
@@ -322,9 +322,10 @@ CREATE TABLE course_enrolments (
   deleted_at      TIMESTAMPTZ NULL,
   deleted_by      UUID NULL REFERENCES users(id) ON DELETE SET NULL
 );
-CREATE UNIQUE INDEX course_enrolments_active_uq
+CREATE UNIQUE INDEX course_enrolments_active_uniq
   ON course_enrolments(student_id, course_id) WHERE deleted_at IS NULL;
-CREATE INDEX idx_course_enrolments_course ON course_enrolments(course_id);
+CREATE INDEX idx_course_enrolments_course_id ON course_enrolments(course_id);
+CREATE INDEX idx_course_enrolments_organization_id ON course_enrolments(organization_id);
 ```
 
 `ON DELETE CASCADE` / `SET NULL` fire only on test-teardown hard deletes.
@@ -2849,9 +2850,10 @@ CREATE INDEX idx_quiz_sessions_org   ON quiz_sessions(organization_id);
 CREATE INDEX idx_student_responses_org ON student_responses(organization_id);
 CREATE INDEX idx_users_org           ON users(organization_id) WHERE deleted_at IS NULL;
 CREATE INDEX idx_users_org_role      ON users(organization_id, role);  -- Non-partial: serves queries including soft-deleted users (20260410000008)
-CREATE INDEX idx_easa_subjects_course ON easa_subjects(course_id);
-CREATE UNIQUE INDEX course_enrolments_active_uq ON course_enrolments(student_id, course_id) WHERE deleted_at IS NULL;
-CREATE INDEX idx_course_enrolments_course ON course_enrolments(course_id);
+CREATE INDEX idx_easa_subjects_course_id ON easa_subjects(course_id);
+CREATE UNIQUE INDEX course_enrolments_active_uniq ON course_enrolments(student_id, course_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_course_enrolments_course_id ON course_enrolments(course_id);
+CREATE INDEX idx_course_enrolments_organization_id ON course_enrolments(organization_id);
 
 -- fsrs_cards lookup (for filtering by last_was_correct)
 CREATE INDEX idx_fsrs_cards_student  ON fsrs_cards(student_id, last_was_correct);

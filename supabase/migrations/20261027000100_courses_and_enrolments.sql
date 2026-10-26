@@ -1,5 +1,12 @@
 -- courses + course_enrolments: global course reference rows, org-scoped soft-deleted enrolments, set_student_enrolments RPC; drops unused legacy courses/lessons. #1635
 
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.lessons) OR EXISTS (SELECT 1 FROM public.courses) THEN
+    RAISE EXCEPTION 'legacy courses/lessons hold rows';
+  END IF;
+END $$;
+
 DROP TABLE public.lessons;
 DROP TABLE public.courses;
 

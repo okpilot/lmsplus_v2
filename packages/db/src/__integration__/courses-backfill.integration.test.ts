@@ -87,9 +87,10 @@ describe('courses migration: backfill and subject assignment', () => {
       .single()
     expect(error).toBeNull()
     expect(data?.course_id).toBe(ids.PPL_A)
-    await admin
+    const { error: cleanupError } = await admin
       .from('easa_subjects')
       .delete()
       .eq('id', data?.id as string)
+    expect(cleanupError).toBeNull()
   })
 })
