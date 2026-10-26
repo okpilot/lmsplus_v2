@@ -11,7 +11,7 @@
  * non-zero RPC output.
  *
  * Hermetic (code-style.md §7): dedicated throwaway student (E2E_REDTEAM_JU_STUDENT_EMAIL).
- * quiz_sessions / flagged_questions soft-deleted; quiz_drafts, quiz_session_progress, fsrs_cards
+ * quiz_sessions / flagged_questions / course_enrolments soft-deleted (one soft-deleted course_enrolments row per run); quiz_drafts, quiz_session_progress, fsrs_cards
  * removed by service-role test teardown (mirrors packages/db/src/__integration__/cleanup.ts). student_responses,
  * quiz_session_answers, audit_events, user_consents are append-only: one row per run, left.
  *
@@ -30,6 +30,7 @@ import {
 } from './helpers/seed-markers'
 
 const BAN = '876000h'
+const PPL_A_ID = 'c0a5e000-0000-4000-8000-000000000001'
 
 const OWNED = [
   ['quiz_sessions', 'student_id'],
@@ -40,6 +41,7 @@ const OWNED = [
   ['flagged_questions', 'student_id'],
   ['fsrs_cards', 'student_id'],
   ['user_consents', 'user_id'],
+  ['course_enrolments', 'user_id'],
   ['audit_events', 'actor_id'],
 ] as const
 
@@ -155,6 +157,20 @@ test.describe('Red Team: deactivated student live-token reads (JU, JV)', () => {
           accepted: true,
         }),
       )
+    const enrolment = await admin
+      .from('course_enrolments')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', studentId)
+      .eq('course_id', PPL_A_ID)
+      .is('deleted_at', null)
+    if (enrolment.error) throw new Error(`enrolment probe: ${enrolment.error.message}`)
+    if ((enrolment.count ?? 0) === 0)
+      await ok(
+        'course_enrolments',
+        admin
+          .from('course_enrolments')
+          .insert({ organization_id: orgId, user_id: studentId, course_id: PPL_A_ID }),
+      )
     await ok(
       'audit_events',
       admin.from('audit_events').insert({
@@ -267,6 +283,13 @@ test.describe('Red Team: deactivated student live-token reads (JU, JV)', () => {
         .from('quiz_sessions')
         .update({ deleted_at: new Date().toISOString() })
         .eq('config->>e2e_marker', E2E_REDTEAM_JU_MARKER)
+        .is('deleted_at', null),
+    )
+    await step('course_enrolments', () =>
+      admin
+        .from('course_enrolments')
+        .update({ deleted_at: new Date().toISOString(), deleted_by: studentId })
+        .eq('user_id', studentId)
         .is('deleted_at', null),
     )
     if (errors.length > 0) throw new Error(`afterEach: ${errors.join('; ')}`)
