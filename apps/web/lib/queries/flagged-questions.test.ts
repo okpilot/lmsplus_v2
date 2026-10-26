@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks -----------------------------------------------------------------
@@ -171,5 +172,19 @@ describe('getFlaggedQuestionIdsBounded', () => {
 
     expect(await getFlaggedQuestionIdsBounded([QUESTION_ID_A])).toEqual([QUESTION_ID_A])
     expect(errorSpy).not.toHaveBeenCalled()
+  })
+
+  it('resolves to [] and logs "read failed" when the read rejects with a redirect error', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    let redirectError: unknown
+    try {
+      redirect('/login')
+    } catch (e) {
+      redirectError = e
+    }
+    mockGetSessionUser.mockRejectedValue(redirectError)
+
+    await expect(getFlaggedQuestionIdsBounded([QUESTION_ID_A])).resolves.toEqual([])
+    expect(String(errorSpy.mock.calls[0]?.[0])).toContain('read failed')
   })
 })

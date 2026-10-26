@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockRpc, mockClient } = vi.hoisted(() => ({
@@ -120,5 +121,21 @@ describe('getRestoredFeedbackBounded', () => {
 
     expect(await getRestoredFeedbackBounded(SESSION)).toEqual({})
     expect(console.error).not.toHaveBeenCalled()
+  })
+
+  it('resolves to {} and logs "read failed" when the read rejects with a redirect error', async () => {
+    let redirectError: unknown
+    try {
+      redirect('/login')
+    } catch (e) {
+      redirectError = e
+    }
+    mockClient.mockRejectedValue(redirectError)
+
+    await expect(getRestoredFeedbackBounded(SESSION)).resolves.toEqual({})
+    expect(console.error).toHaveBeenCalledWith(
+      '[getRestoredFeedback] read failed:',
+      expect.anything(),
+    )
   })
 })
