@@ -125,7 +125,7 @@ BEGIN
     AND u.role = 'student'
     AND u.organization_id = v_caller_org
     AND u.deleted_at IS NULL
-  FOR UPDATE;
+  FOR NO KEY UPDATE;
   IF v_student_id IS NULL THEN
     RAISE EXCEPTION 'student_not_found';
   END IF;

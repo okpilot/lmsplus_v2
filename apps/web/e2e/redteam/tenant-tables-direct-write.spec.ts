@@ -389,12 +389,10 @@ test.describe('Red Team: direct writes to the tenant tables (Vector FJ)', () => 
     expect(after?.id).toBe(orgAId)
   })
 
-  // ------------------------------------------------------------ admin arms
+  // ------------------------------------------------------------ admin arm
 
   test('an authenticated admin cannot retire an organisation through the RLS-bound client', async () => {
-    // Second admin arm, varying BOTH axes from the one above (different table,
-    // different verb) — see the header note on why the pair is representative
-    // rather than exhaustive. This is also the sharpest pre-fix primitive: the
+    // The sharpest pre-fix primitive: the
     // organizations WITH CHECK keyed on `id` alone, so a soft-delete UPDATE
     // satisfied it. An admin is denied it now for the same reason a student is:
     // there is no permissive UPDATE policy at all.
