@@ -17,7 +17,10 @@ describe('courses migration: backfill and subject assignment', () => {
     expect(Object.keys(ids).sort()).toEqual(expect.arrayContaining(['ATPL_A', 'PPL_A', 'VFR_RT']))
   })
 
-  it('AC1: every pre-existing student has an active PPL_A and VFR_RT enrolment; no admin/instructor has any', async () => {
+  // A fresh `db reset` (CI) has no student before the migration: the backfill tests skip there.
+  it('AC1: every pre-existing student has an active PPL_A and VFR_RT enrolment; no admin/instructor has any', async ({
+    skip,
+  }) => {
     const ids = await courseIds()
     const { data: ppl } = await admin
       .from('courses')
@@ -32,6 +35,7 @@ describe('courses migration: backfill and subject assignment', () => {
       .eq('role', 'student')
       .lt('created_at', ppl?.created_at as string)
     expect(sErr).toBeNull()
+    if (!students?.length) skip('no student existed before the migration')
 
     const { data: enrolments, error: eErr } = await admin
       .from('course_enrolments')
@@ -49,14 +53,24 @@ describe('courses migration: backfill and subject assignment', () => {
     expect((enrolments ?? []).filter((e) => staffIds.has(e.student_id as string))).toEqual([])
   })
 
-  it('AC1: backfilled enrolment carries the student organization and NULL enrolled_by', async () => {
+  it('AC1: backfilled enrolment carries the student organization and NULL enrolled_by', async ({
+    skip,
+  }) => {
+    const { data: ppl } = await admin
+      .from('courses')
+      .select('created_at')
+      .eq('code', 'PPL_A')
+      .single()
+    // Backfill rows share the migration transaction's now().
     const { data: rows, error } = await admin
       .from('course_enrolments')
       .select('student_id, organization_id, enrolled_by')
-      .is('enrolled_by', null)
+      .eq('enrolled_at', ppl?.created_at as string)
       .limit(50)
     expect(error).toBeNull()
+    if (!rows?.length) skip('no backfill rows')
     for (const r of rows ?? []) {
+      expect(r.enrolled_by).toBeNull()
       const { data: u } = await admin
         .from('users')
         .select('organization_id')
