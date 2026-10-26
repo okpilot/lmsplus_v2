@@ -22,7 +22,7 @@ an immutable table, a read-only policy set is correct by design, not a gap.
 permissive policies, so it supplies a second, weaker write path and the role gate never binds —
 case `questions` (mig `20260809000100`). **(b)** On a table with no intended user-scoped write path,
 there is no role gate to dissolve because the unqualified policy IS the entire access control —
-cases `organizations`, `question_banks`, `courses`, `lessons` (mig `20260820000100`), written
+cases `organizations`, `question_banks` (mig `20260820000100`), written
 service-role only, where even an authenticated admin is denied. Do not read (a) as a precondition
 for (b). **Invariant: no table in `public` carries an unqualified `tenant_isolation`.**
 See `docs/security.md` §3.

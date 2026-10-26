@@ -82,70 +82,79 @@ export type Database = {
           },
         ]
       }
-      courses: {
+      course_enrolments: {
         Row: {
-          created_at: string
-          created_by: string
+          course_id: string
           deleted_at: string | null
           deleted_by: string | null
-          description: string | null
+          enrolled_at: string
+          enrolled_by: string | null
           id: string
           organization_id: string
-          status: string
-          subject: string
-          title: string
+          user_id: string
         }
         Insert: {
-          created_at?: string
-          created_by: string
+          course_id: string
           deleted_at?: string | null
           deleted_by?: string | null
-          description?: string | null
+          enrolled_at?: string
+          enrolled_by?: string | null
           id?: string
           organization_id: string
-          status?: string
-          subject: string
-          title: string
+          user_id: string
         }
         Update: {
-          created_at?: string
-          created_by?: string
+          course_id?: string
           deleted_at?: string | null
           deleted_by?: string | null
-          description?: string | null
+          enrolled_at?: string
+          enrolled_by?: string | null
           id?: string
           organization_id?: string
-          status?: string
-          subject?: string
-          title?: string
+          user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: 'courses_created_by_fkey'
-            columns: ['created_by']
+            foreignKeyName: 'course_enrolments_course_id_fkey'
+            columns: ['course_id']
             isOneToOne: false
-            referencedRelation: 'users'
+            referencedRelation: 'courses'
             referencedColumns: ['id']
           },
           {
-            foreignKeyName: 'courses_deleted_by_fkey'
+            foreignKeyName: 'course_enrolments_deleted_by_fkey'
             columns: ['deleted_by']
             isOneToOne: false
             referencedRelation: 'users'
             referencedColumns: ['id']
           },
           {
-            foreignKeyName: 'courses_organization_id_fkey'
+            foreignKeyName: 'course_enrolments_enrolled_by_fkey'
+            columns: ['enrolled_by']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'course_enrolments_organization_id_fkey'
             columns: ['organization_id']
             isOneToOne: false
             referencedRelation: 'organizations'
             referencedColumns: ['id']
           },
+          {
+            foreignKeyName: 'course_enrolments_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
         ]
       }
-      easa_subjects: {
+      courses: {
         Row: {
           code: string
+          created_at: string
           id: string
           name: string
           short: string
@@ -153,6 +162,7 @@ export type Database = {
         }
         Insert: {
           code: string
+          created_at?: string
           id?: string
           name: string
           short: string
@@ -160,12 +170,48 @@ export type Database = {
         }
         Update: {
           code?: string
+          created_at?: string
           id?: string
           name?: string
           short?: string
           sort_order?: number
         }
         Relationships: []
+      }
+      easa_subjects: {
+        Row: {
+          code: string
+          course_id: string
+          id: string
+          name: string
+          short: string
+          sort_order: number
+        }
+        Insert: {
+          code: string
+          course_id?: string
+          id?: string
+          name: string
+          short: string
+          sort_order: number
+        }
+        Update: {
+          code?: string
+          course_id?: string
+          id?: string
+          name?: string
+          short?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'easa_subjects_course_id_fkey'
+            columns: ['course_id']
+            isOneToOne: false
+            referencedRelation: 'courses'
+            referencedColumns: ['id']
+          },
+        ]
       }
       easa_subtopics: {
         Row: {
@@ -532,92 +578,6 @@ export type Database = {
             columns: ['voided_by']
             isOneToOne: false
             referencedRelation: 'users'
-            referencedColumns: ['id']
-          },
-        ]
-      }
-      lessons: {
-        Row: {
-          content: Json
-          course_id: string | null
-          created_at: string
-          created_by: string
-          deleted_at: string | null
-          deleted_by: string | null
-          estimated_duration_minutes: number
-          id: string
-          learning_objectives: string[]
-          organization_id: string
-          schema_version: string
-          status: string
-          subject: string
-          title: string
-          updated_at: string
-          version: number
-        }
-        Insert: {
-          content?: Json
-          course_id?: string | null
-          created_at?: string
-          created_by: string
-          deleted_at?: string | null
-          deleted_by?: string | null
-          estimated_duration_minutes?: number
-          id?: string
-          learning_objectives?: string[]
-          organization_id: string
-          schema_version?: string
-          status?: string
-          subject: string
-          title: string
-          updated_at?: string
-          version?: number
-        }
-        Update: {
-          content?: Json
-          course_id?: string | null
-          created_at?: string
-          created_by?: string
-          deleted_at?: string | null
-          deleted_by?: string | null
-          estimated_duration_minutes?: number
-          id?: string
-          learning_objectives?: string[]
-          organization_id?: string
-          schema_version?: string
-          status?: string
-          subject?: string
-          title?: string
-          updated_at?: string
-          version?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: 'lessons_course_id_fkey'
-            columns: ['course_id']
-            isOneToOne: false
-            referencedRelation: 'courses'
-            referencedColumns: ['id']
-          },
-          {
-            foreignKeyName: 'lessons_created_by_fkey'
-            columns: ['created_by']
-            isOneToOne: false
-            referencedRelation: 'users'
-            referencedColumns: ['id']
-          },
-          {
-            foreignKeyName: 'lessons_deleted_by_fkey'
-            columns: ['deleted_by']
-            isOneToOne: false
-            referencedRelation: 'users'
-            referencedColumns: ['id']
-          },
-          {
-            foreignKeyName: 'lessons_organization_id_fkey'
-            columns: ['organization_id']
-            isOneToOne: false
-            referencedRelation: 'organizations'
             referencedColumns: ['id']
           },
         ]
@@ -1945,6 +1905,10 @@ export type Database = {
           p_session_id: string
           p_time_spent_ms?: number
         }
+        Returns: undefined
+      }
+      set_user_enrolments: {
+        Args: { p_course_ids: string[]; p_user_id: string }
         Returns: undefined
       }
       start_discovery: {

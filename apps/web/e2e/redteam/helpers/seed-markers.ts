@@ -30,8 +30,8 @@ export const E2E_REDTEAM_EO_MARKER = '[E2E_REDTEAM_EO]'
 // Every write target the spec attacks is one of its OWN marked rows — a shared
 // seeded question must never be the target of a DELETE probe.
 export const E2E_REDTEAM_QW_MARKER = '[E2E_REDTEAM_QW]'
-// tenant-table direct-write spec (Vector FJ): marks the throwaway orgs, banks,
-// courses and lessons it creates so cleanup/maintenance can target them by
+// tenant-table direct-write spec (Vector FJ): marks the throwaway orgs and banks
+// it creates so cleanup/maintenance can target them by
 // slug/name/title. Every write target this spec attacks is one of its OWN rows
 // in one of its OWN orgs — never a shared seeded row. That is load-bearing for
 // the DELETE and UPDATE probes: on a database where mig 20260820000100 is NOT
@@ -120,3 +120,15 @@ export const E2E_REDTEAM_JW_STUDENT_PASSWORD = 'redteam-jw-signout-2026!'
 // omitted-device-key progress RPCs spec (Vectors JY, JZ, #1609): quiz_sessions `config.e2e_marker`,
 // questions `question_text` prefix.
 export const E2E_REDTEAM_JY_MARKER = '[E2E_REDTEAM_JY]'
+// set_user_enrolments escalation spec (Vectors KC, KD, KE, #1635). Dedicated throwaway student and
+// instructor bound the enrolment changes; course_enrolments has no free-text column to tag.
+export const E2E_REDTEAM_KC_STUDENT_EMAIL = 'redteam-kc-enrolments@lmsplus.local'
+export const E2E_REDTEAM_KC_STUDENT_PASSWORD = 'redteam-kc-enrolments-2026!'
+export const E2E_REDTEAM_KC_INSTRUCTOR_EMAIL = 'redteam-kc-instructor@lmsplus.local'
+export const E2E_REDTEAM_KC_INSTRUCTOR_PASSWORD = 'redteam-kc-instructor-2026!'
+// set_user_enrolments soft-deleted-admin + concurrency spec (Vectors KF, KG, #1635). Dedicated
+// throwaway admin (soft-deleted and restored per test) and student bound the enrolment changes.
+export const E2E_REDTEAM_KF_ADMIN_EMAIL = 'redteam-kf-admin@lmsplus.local'
+export const E2E_REDTEAM_KF_ADMIN_PASSWORD = 'redteam-kf-admin-2026!'
+export const E2E_REDTEAM_KF_STUDENT_EMAIL = 'redteam-kf-student@lmsplus.local'
+export const E2E_REDTEAM_KF_STUDENT_PASSWORD = 'redteam-kf-student-2026!'
