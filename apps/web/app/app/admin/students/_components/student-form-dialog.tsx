@@ -13,6 +13,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { LoadingButton } from '@/components/ui/loading-button'
+import { sameIdSet } from '../_utils/same-id-set'
 import { createStudent } from '../actions/create-student'
 import { updateStudent } from '../actions/update-student'
 import type { CourseOption, StudentRow } from '../types'
@@ -67,7 +68,7 @@ export function StudentFormDialog({
             id: student.id,
             full_name: fullName,
             role,
-            course_ids: courseIds,
+            course_ids: sameIdSet(courseIds, student.course_ids) ? undefined : courseIds,
           })
           if (result.success) {
             toast.success('Student updated')

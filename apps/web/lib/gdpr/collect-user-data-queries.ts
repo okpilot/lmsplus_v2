@@ -136,6 +136,7 @@ export function fetchUserConsents(supabase: SupabaseClient<Database>, userId: st
   )
 }
 
+/** Self-export (user client) returns active enrolments only, via `user_read_own_enrolments`; the admin export also returns removed rows. */
 export function fetchCourseEnrolments(supabase: SupabaseClient<Database>, userId: string) {
   return fetchAllRows<CourseEnrolmentRow>(
     () =>

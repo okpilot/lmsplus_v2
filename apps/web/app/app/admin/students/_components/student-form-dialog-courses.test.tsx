@@ -124,6 +124,35 @@ describe('StudentFormDialog — courses', () => {
     expect([...sent.course_ids].sort()).toEqual([PPL, RT, ATPL].sort())
   })
 
+  it('omits course_ids when only the name is edited', async () => {
+    vi.mocked(updateStudent).mockResolvedValue({ success: true })
+    render(
+      <StudentFormDialog open={true} onOpenChange={vi.fn()} student={STUDENT} courses={COURSES} />,
+    )
+
+    await userEvent.type(screen.getByLabelText('Full name'), ' Jr')
+    await userEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    await waitFor(() => expect(updateStudent).toHaveBeenCalled())
+    const sent = vi.mocked(updateStudent).mock.calls[0]?.[0] as { course_ids?: string[] }
+    expect(sent.course_ids).toBeUndefined()
+  })
+
+  it('omits course_ids when a course is unticked and ticked again', async () => {
+    vi.mocked(updateStudent).mockResolvedValue({ success: true })
+    render(
+      <StudentFormDialog open={true} onOpenChange={vi.fn()} student={STUDENT} courses={COURSES} />,
+    )
+
+    await userEvent.click(screen.getByRole('checkbox', { name: 'PPL(A)' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'PPL(A)' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    await waitFor(() => expect(updateStudent).toHaveBeenCalled())
+    const sent = vi.mocked(updateStudent).mock.calls[0]?.[0] as { course_ids?: string[] }
+    expect(sent.course_ids).toBeUndefined()
+  })
+
   it('toasts that courses were not saved when createStudent returns coursesSaved:false', async () => {
     vi.mocked(createStudent).mockResolvedValue({ success: true, id: 'new-1', coursesSaved: false })
     render(<StudentFormDialog open={true} onOpenChange={vi.fn()} courses={COURSES} />)

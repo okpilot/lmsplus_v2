@@ -37,7 +37,10 @@ export async function updateStudent(input: unknown): Promise<ActionResult> {
     const courses = await setUserCourses(supabase, id, course_ids)
     if (!courses.ok) {
       revalidatePath('/app/admin/students')
-      return { success: false, error: 'Student updated, but courses were not saved' }
+      return {
+        success: false,
+        error: `Student updated, but courses were not saved: ${courses.error}`,
+      }
     }
   }
 

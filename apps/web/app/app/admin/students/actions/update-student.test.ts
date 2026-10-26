@@ -157,7 +157,7 @@ describe('updateStudent', () => {
       })
     })
 
-    it('returns a courses-not-saved failure when the RPC fails', async () => {
+    it('returns the mapped reason when the RPC rejects an unknown course', async () => {
       mockAdmin()
       buildUpdateChain()
       mockRpc.mockResolvedValue({ error: { message: 'course_not_found' } })
@@ -167,7 +167,21 @@ describe('updateStudent', () => {
 
       expect(result).toEqual({
         success: false,
-        error: 'Student updated, but courses were not saved',
+        error: 'Student updated, but courses were not saved: Unknown course',
+      })
+    })
+
+    it('returns a generic reason and hides the raw message for an unmapped RPC error', async () => {
+      mockAdmin()
+      buildUpdateChain()
+      mockRpc.mockResolvedValue({ error: { message: 'boom' } })
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      const result = await updateStudent({ ...VALID_INPUT, course_ids: [COURSE_ID] })
+
+      expect(result).toEqual({
+        success: false,
+        error: 'Student updated, but courses were not saved: Failed to save courses',
       })
     })
   })
