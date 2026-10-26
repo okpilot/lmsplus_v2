@@ -70,7 +70,7 @@ CREATE OR REPLACE FUNCTION get_quiz_questions(p_session_id UUID)
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
 DECLARE
   v_student_id UUID := auth.uid(); -- manual auth check

@@ -16,7 +16,7 @@ The only fundamentally new piece is the **grader** — a SECURITY DEFINER RPC th
 ### Technical Standards (`tech.md`)
 
 - **Mutation pattern**: Server Actions only (no API routes) for `submitVfrRtExam` and `startVfrRtExam` (names match the architecture diagram and the Components section below). `code-style.md` §6.
-- **RPC requirements**: every new RPC SECURITY DEFINER, `SET search_path = public`, explicit `auth.uid()` check, every soft-deletable SELECT includes `deleted_at IS NULL` (`security.md` §9, §10).
+- **RPC requirements**: every new RPC SECURITY DEFINER, `SET search_path = public, pg_temp`, explicit `auth.uid()` check, every soft-deletable SELECT includes `deleted_at IS NULL` (`security.md` §9, §10).
 - **Migration size**: each migration stays within the SQL-migration cap in `.claude/limits.json`,
   mechanically enforced for `supabase/migrations/**`; complex changes split across multiple files.
   Do NOT restate the number here.
@@ -152,7 +152,7 @@ flowchart TD
 ### Migration `094b_get_question_authoring_fields_rpc.sql`
 
 - **Companion to mig 094's column REVOKE** — the admin question editor must read the four revoked answer-key columns to edit existing `short_answer`/`dialog_fill` questions, and direct PostgREST SELECT is now privilege-blocked for the `authenticated` role.
-- `CREATE OR REPLACE FUNCTION get_question_authoring_fields(p_question_id uuid) RETURNS TABLE (canonical_answer text, accepted_synonyms text[], dialog_template text, blanks_config jsonb) LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public`.
+- `CREATE OR REPLACE FUNCTION get_question_authoring_fields(p_question_id uuid) RETURNS TABLE (canonical_answer text, accepted_synonyms text[], dialog_template text, blanks_config jsonb) LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp`.
 - Guards: `auth.uid()` NULL check; `is_admin()` check (RAISE if false); row scoped `WHERE id = p_question_id AND organization_id = (SELECT organization_id FROM users WHERE id = auth.uid() AND deleted_at IS NULL) AND deleted_at IS NULL` (security.md §7, §9).
 - Consumed only by the Phase D admin editor (`apps/web/app/app/admin/questions/`); student code never calls it.
 
@@ -223,7 +223,7 @@ flowchart TD
 
 ### Migration `099_start_vfr_rt_exam_session_rpc.sql`
 
-- `CREATE OR REPLACE FUNCTION start_vfr_rt_exam_session(p_subject_id uuid) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public`.
+- `CREATE OR REPLACE FUNCTION start_vfr_rt_exam_session(p_subject_id uuid) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp`.
 - Body sequence (mirrors `start_internal_exam_session` mig 060):
   1. `v_student_id := auth.uid();` — `IF NULL RAISE 'not_authenticated';`
   2. `v_org_id := (SELECT organization_id FROM users WHERE id = v_student_id AND deleted_at IS NULL);` — `IF NULL RAISE 'user_not_found_or_inactive';` (security.md §9)
@@ -241,7 +241,7 @@ flowchart TD
 ### Migration `099b_get_vfr_rt_exam_questions_rpc.sql`
 
 - **Required for Phase B/C** — without this, the only way to read VFR RT question data client-side is a direct PostgREST SELECT on `questions`, which exposes `canonical_answer`, `accepted_synonyms`, and `blanks_config` canonical strings to the client (security.md rule 1 violation).
-- `CREATE OR REPLACE FUNCTION get_vfr_rt_exam_questions(p_question_ids uuid[]) RETURNS TABLE (...) LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public`.
+- `CREATE OR REPLACE FUNCTION get_vfr_rt_exam_questions(p_question_ids uuid[]) RETURNS TABLE (...) LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp`.
 - Returns shape per row:
   - `id uuid`, `question_type text`, `question_text text`, `question_image_url text`
   - `subject_code text`, `topic_code text` (so the client can group by part)
@@ -256,7 +256,7 @@ flowchart TD
 
 ### Migration `100_submit_vfr_rt_exam_answers_rpc.sql`
 
-- `CREATE OR REPLACE FUNCTION submit_vfr_rt_exam_answers(p_session_id uuid, p_answers jsonb) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public`.
+- `CREATE OR REPLACE FUNCTION submit_vfr_rt_exam_answers(p_session_id uuid, p_answers jsonb) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp`.
 - Input shape:
   ```jsonb
   [
@@ -324,7 +324,7 @@ flowchart TD
 ### Migration `103_get_vfr_rt_exam_results_rpc.sql`
 
 - **Required for Phase C results page.** Per-part percentages are NOT persisted on `quiz_sessions` (only the aggregate `score_percentage`), and the canonical answers needed for post-submit review are privilege-blocked for students (mig 094) and stripped by `get_vfr_rt_exam_questions` (mig 099b) unconditionally. A fresh load of `/app/vfr-rt-exam/results/<id>` therefore needs a dedicated read RPC. Precedent: `get_report_correct_options` (`supabase/migrations/20260316231503_report_correct_options_orderby_and_history.sql`) — the existing gated correct-answer reveal for MC reports.
-- `CREATE OR REPLACE FUNCTION get_vfr_rt_exam_results(p_session_id uuid) RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public`.
+- `CREATE OR REPLACE FUNCTION get_vfr_rt_exam_results(p_session_id uuid) RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp`.
 - Guards, in order: `auth.uid()` NULL → RAISE `'not_authenticated'`; session fetch `WHERE id = p_session_id AND student_id = auth.uid() AND mode = 'vfr_rt_exam' AND deleted_at IS NULL AND ended_at IS NOT NULL` → not found RAISE `'Session not found, not owned, or not completed'` (exact wording — capital S — matches `get_report_correct_options` line 25, whose message is pinned by `rpc-report.spec.ts`). The explicit `student_id = auth.uid()` scope is mandatory: `quiz_sessions` has multiple permissive SELECT policies, so RLS alone over-scopes (security.md "Multiple Permissive RLS SELECT Policies" rule / `docs/security.md` §3).
 - Returns: `jsonb_build_object('part1_pct', ..., 'part2_pct', ..., 'part3_pct', ..., 'passed_overall', ..., 'passed_per_part', ..., 'correct_count', ..., 'total_questions', 25, 'questions', [...])`. Per-part percentages are read from the terminal `vfr_rt_exam.completed` / `.expired` audit-event metadata, frozen at grading time; an event without them falls back to `_vfr_rt_exam_part_scores` (unanswered defaults to 0).
 - Each `questions[]` entry: `question_id`, `question_type`, `question_text`, the student's answer(s) (`selected_option_id`, or per-blank `response_text` + `blank_index`), per-row `is_correct`, and the **revealed key**: `canonical_answer` + `accepted_synonyms` (short_answer), per-blank `canonical` + `synonyms` from `blanks_config` (dialog_fill), the correct option id (multiple_choice). The reveal is safe ONLY because the `ended_at IS NOT NULL` guard above rejects every pre-completion call.
