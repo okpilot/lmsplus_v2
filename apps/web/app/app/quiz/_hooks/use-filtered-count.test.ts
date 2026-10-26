@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
 import { useEffect } from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -529,6 +529,13 @@ describe('useFilteredCount — same-key refetch after a new preload', () => {
 // ---- same-key refetch after a failed request (AC13) ------------------------
 
 describe('useFilteredCount — same-key refetch after a failed request', () => {
+  let errorSpy: ReturnType<typeof vi.spyOn>
+  beforeEach(() => {
+    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+  })
+  afterEach(() => {
+    errorSpy.mockRestore()
+  })
   const OK = { count: 7, byTopic: {}, bySubtopic: {} }
   const AUTH = { count: 0, byTopic: {}, bySubtopic: {}, error: 'auth' }
   const call = (r: { current: ReturnType<typeof useFilteredCount> }) =>
@@ -576,5 +583,31 @@ describe('useFilteredCount — same-key refetch after a failed request', () => {
     act(() => call(result))
     expect(result.current.isFilterPending).toBe(true)
     expect(result.current.filteredCount).toBeNull()
+  })
+})
+
+// ---- rejected request logs (AC14) -------------------------------------------
+
+describe('useFilteredCount — rejected count request', () => {
+  let errorSpy: ReturnType<typeof vi.spyOn>
+  beforeEach(() => {
+    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+  })
+  afterEach(() => {
+    errorSpy.mockRestore()
+  })
+
+  it('logs a tagged console.error once with the error and clears pending when getFilteredCount rejects', async () => {
+    const err = new Error('network')
+    mockGetFilteredCount.mockRejectedValueOnce(err)
+    const { result } = renderHook(() => useFilteredCount())
+    await act(async () => {
+      result.current.refetch(SUBJECT_ID, TOPIC_IDS, [], ['unseen'])
+    })
+    expect(errorSpy).toHaveBeenCalledExactlyOnceWith(
+      '[useFilteredCount] count request failed:',
+      err,
+    )
+    expect(result.current.isFilterPending).toBe(false)
   })
 })

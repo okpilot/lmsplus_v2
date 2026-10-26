@@ -66,7 +66,9 @@ function settleCounts(ctx: Settle, request: Promise<CountResult>) {
       ctx.lastKey.current = ctx.key
       ctx.setCounts(result)
     })
-    .catch(() => undefined)
+    .catch((error: unknown) => {
+      console.error('[useFilteredCount] count request failed:', error)
+    })
     .finally(() => {
       if (!current()) return
       ctx.inFlightKey.current = null
