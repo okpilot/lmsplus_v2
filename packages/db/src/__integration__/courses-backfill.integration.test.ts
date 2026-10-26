@@ -37,10 +37,11 @@ describe('courses migration: backfill and subject assignment', () => {
     expect(sErr).toBeNull()
     if (!students?.length) skip('no student existed before the migration')
 
+    // Backfill rows share the migration transaction's now(); later edits do not change them.
     const { data: enrolments, error: eErr } = await admin
       .from('course_enrolments')
       .select('student_id, course_id, organization_id')
-      .is('deleted_at', null)
+      .eq('enrolled_at', ppl?.created_at as string)
     expect(eErr).toBeNull()
 
     for (const s of students ?? []) {
