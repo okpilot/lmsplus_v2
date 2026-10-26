@@ -28,7 +28,9 @@ async function pickFirstSubject(page: Page): Promise<string> {
 async function openDiscoveryWithFlagged(page: Page): Promise<void> {
   await page.goto('/app/quiz')
   await pickFirstSubject(page)
-  await page.getByRole('switch', { name: 'Flagged questions' }).click()
+  const flagged = page.getByRole('switch', { name: 'Flagged questions' })
+  await flagged.click()
+  await expect(flagged).toBeChecked()
 }
 
 /** An active question of the first subject, flagged for the student before the page loads. */
@@ -125,8 +127,9 @@ test.describe('Quiz setup counts refresh', () => {
     context,
   }) => {
     await openDiscoveryWithFlagged(page)
-    const before = await selectedCount(page)
-    expect(before).toBe(1)
+    // beforeEach seeds exactly one flag; the count lands asynchronously after the toggle.
+    const before = 1
+    await expect.poll(() => selectedCount(page), { timeout: 15_000 }).toBe(before)
 
     const other = await context.newPage()
     await startStudyQuiz(other)
@@ -140,8 +143,9 @@ test.describe('Quiz setup counts refresh', () => {
 
   test('count reflects a flag made in a finished quiz after Back', async ({ page }) => {
     await openDiscoveryWithFlagged(page)
-    const before = await selectedCount(page)
-    expect(before).toBe(1)
+    // beforeEach seeds exactly one flag; the count lands asynchronously after the toggle.
+    const before = 1
+    await expect.poll(() => selectedCount(page), { timeout: 15_000 }).toBe(before)
 
     await flagAndFinishQuiz(page)
 
