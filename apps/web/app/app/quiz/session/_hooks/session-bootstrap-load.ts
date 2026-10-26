@@ -38,15 +38,30 @@ export function readBootstrapSession(userId: string): SessionData | null {
   return data
 }
 
+const TIMED_OUT: string[] = []
+
 /**
  * Fetches the student's flagged ids, bounded by FLAG_FETCH_TIMEOUT_MS via `withTimeout`.
  * Degrades to [] on rejection, `{ success: false }`, or timeout — never rejects.
  */
-function fetchFlaggedIdsBounded(questionIds: string[]): Promise<string[]> {
+async function fetchFlaggedIdsBounded(questionIds: string[]): Promise<string[]> {
   const flags = getFlaggedIds({ questionIds })
-    .then((r) => (r.success ? r.flaggedIds : []))
-    .catch(() => [] as string[])
-  return withTimeout(flags, FLAG_FETCH_TIMEOUT_MS, [])
+    .then((r) => {
+      if (r.success) return r.flaggedIds
+      console.error('[loadSessionData] flags result { success: false }:', r.error)
+      return [] as string[]
+    })
+    .catch((e: unknown) => {
+      console.error(
+        '[loadSessionData] flags read failed:',
+        e instanceof Error ? e.message : String(e),
+      )
+      return [] as string[]
+    })
+  const result = await withTimeout(flags, FLAG_FETCH_TIMEOUT_MS, TIMED_OUT)
+  if (result !== TIMED_OUT) return result
+  console.error(`[loadSessionData] flags timed out after ${FLAG_FETCH_TIMEOUT_MS}ms`)
+  return []
 }
 
 /**

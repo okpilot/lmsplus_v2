@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@repo/db/server'
+import { unstable_rethrow } from 'next/navigation'
 import type { AnswerFeedback } from '@/app/app/quiz/types'
 import { withTimeout } from '@/lib/utils/with-timeout'
 import { toClientFeedback } from './restored-feedback-map'
@@ -48,10 +49,11 @@ export async function getRestoredFeedback(sessionId: string): Promise<RestoredFe
 const RESTORED_FEEDBACK_TIMEOUT_MS = 3000
 const TIMED_OUT = {} as RestoredFeedback
 
-/** Never rejects: degrades to no feedback on failure or after RESTORED_FEEDBACK_TIMEOUT_MS. */
+/** Degrades to no feedback on failure or after RESTORED_FEEDBACK_TIMEOUT_MS; rejects only with a Next navigation error. */
 export async function getRestoredFeedbackBounded(sessionId: string): Promise<RestoredFeedback> {
   const result = await withTimeout(
     getRestoredFeedback(sessionId).catch((e: unknown) => {
+      unstable_rethrow(e)
       console.error(
         '[getRestoredFeedback] read failed:',
         e instanceof Error ? e.message : String(e),

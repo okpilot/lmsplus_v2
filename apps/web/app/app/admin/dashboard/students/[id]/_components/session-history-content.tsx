@@ -1,4 +1,4 @@
-import { rethrowRedirect } from '@/lib/next/rethrow-redirect'
+import { unstable_rethrow } from 'next/navigation'
 import { ContentErrorFallback } from '../../../_components/content-error-fallback'
 import type { StudentSessionFilters } from '../../../types'
 import type { StudentSessionsResult } from '../queries'
@@ -14,7 +14,7 @@ export async function SessionHistoryContent({ sessionsPromise, filters }: Readon
     const { sessions, totalCount } = await sessionsPromise
     return <SessionHistoryTable sessions={sessions} totalCount={totalCount} filters={filters} />
   } catch (error) {
-    rethrowRedirect(error)
+    unstable_rethrow(error)
     return (
       <ContentErrorFallback message="Failed to load session history. Please refresh the page." />
     )

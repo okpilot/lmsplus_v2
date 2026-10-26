@@ -1,16 +1,11 @@
 import { render, screen } from '@testing-library/react'
+import { notFound, redirect } from 'next/navigation'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { StudentSessionFilters } from '../../../types'
 
 // ---- Hoisted mocks ----------------------------------------------------------
 
-const mockRethrowRedirect = vi.hoisted(() => vi.fn())
-
 // ---- Module mocks -----------------------------------------------------------
-
-vi.mock('@/lib/next/rethrow-redirect', () => ({
-  rethrowRedirect: mockRethrowRedirect,
-}))
 
 vi.mock('./session-history-table', () => ({
   SessionHistoryTable: () => <div data-testid="session-history-table" />,
@@ -58,17 +53,28 @@ describe('SessionHistoryContent', () => {
     ).toBeInTheDocument()
   })
 
-  it('re-throws redirect errors instead of showing the fallback', async () => {
-    const redirectError = new Error('NEXT_REDIRECT:/auth/login')
-    mockRethrowRedirect.mockImplementation((err: unknown) => {
-      throw err
-    })
+  it('propagates a redirect() navigation error instead of showing the fallback', async () => {
+    const error = capture(() => redirect('/auth/login'))
 
     await expect(
-      SessionHistoryContent({
-        sessionsPromise: Promise.reject(redirectError),
-        filters: BASE_FILTERS,
-      }),
-    ).rejects.toThrow('NEXT_REDIRECT:/auth/login')
+      SessionHistoryContent({ sessionsPromise: Promise.reject(error), filters: BASE_FILTERS }),
+    ).rejects.toBe(error)
+  })
+
+  it('propagates a notFound() navigation error instead of showing the fallback', async () => {
+    const error = capture(() => notFound())
+
+    await expect(
+      SessionHistoryContent({ sessionsPromise: Promise.reject(error), filters: BASE_FILTERS }),
+    ).rejects.toBe(error)
   })
 })
+
+function capture(fn: () => never): unknown {
+  try {
+    fn()
+  } catch (e) {
+    return e
+  }
+  throw new Error('navigation helper did not throw')
+}

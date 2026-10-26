@@ -1,3 +1,4 @@
+import { notFound } from 'next/navigation'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockLoad, mockRedirect, mockQuestions, mockVfrQuestions, mockFlags, mockFeedback } =
@@ -15,7 +16,10 @@ const { mockLoad, mockRedirect, mockQuestions, mockVfrQuestions, mockFlags, mock
 vi.mock('@/lib/queries/load-quiz-session-state', () => ({
   loadQuizSessionState: (...a: unknown[]) => mockLoad(...a),
 }))
-vi.mock('next/navigation', () => ({ redirect: mockRedirect }))
+vi.mock('next/navigation', async () => ({
+  ...(await vi.importActual<typeof import('next/navigation')>('next/navigation')),
+  redirect: mockRedirect,
+}))
 vi.mock('@/lib/queries/load-session-questions', () => ({
   loadSessionQuestions: (...a: unknown[]) => mockQuestions(...a),
 }))
@@ -30,6 +34,9 @@ vi.mock('@/lib/queries/flagged-questions', () => ({
 }))
 
 import { loadSessionEntry } from './load-session-entry'
+
+const { redirect: redirectActual } =
+  await vi.importActual<typeof import('next/navigation')>('next/navigation')
 
 const ID = '11111111-1111-4111-8111-111111111111'
 
@@ -216,5 +223,31 @@ describe('loadSessionEntry', () => {
     mockLoad.mockResolvedValue({ kind })
 
     await expect(loadSessionEntry(ID, 'user-1')).rejects.toThrow('NEXT_REDIRECT:/app/quiz')
+  })
+
+  it.each([
+    ['redirect', () => redirectActual('/auth/login')],
+    ['notFound', () => notFound()],
+  ])('propagates a %s() navigation error thrown by the questions read', async (_label, thrower) => {
+    mockLoad.mockResolvedValue(open('quick_quiz'))
+    let error: unknown
+    try {
+      thrower()
+    } catch (e) {
+      error = e
+    }
+    mockQuestions.mockRejectedValue(error)
+
+    await expect(loadSessionEntry(ID, 'user-1')).rejects.toBe(error)
+  })
+
+  it('returns the generic load error when the questions read throws a plain Error', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockLoad.mockResolvedValue(open('quick_quiz'))
+    mockQuestions.mockRejectedValue(new Error('db down'))
+
+    const loaded = await loadSessionEntry(ID, 'user-1')
+
+    expect(loaded.runner).toEqual({ error: 'Failed to load questions. Please try again.' })
   })
 })
