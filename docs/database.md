@@ -1160,7 +1160,13 @@ BEGIN
     CASE WHEN q.question_type = 'diagram_label' THEN
       jsonb_build_object(
         'image_ref', q.diagram_config->'image_ref',
-        'zones',     q.diagram_config->'zones',
+        'zones',     (
+          SELECT jsonb_agg(
+            jsonb_build_object('id', z.elem->>'id', 'x', z.elem->'x', 'y', z.elem->'y', 'w', z.elem->'w', 'h', z.elem->'h')
+            ORDER BY z.ord
+          )
+          FROM jsonb_array_elements(q.diagram_config->'zones') WITH ORDINALITY AS z(elem, ord)
+        ),
         'labels',    (
           SELECT jsonb_agg(
             jsonb_build_object('id', lbl->>'id', 'text', lbl->>'text')
@@ -1177,7 +1183,8 @@ BEGIN
   WHERE q.id = ANY(p_question_ids)
     AND q.organization_id = v_org_id
     AND q.deleted_at IS NULL
-    AND q.status = 'active';
+    AND q.status = 'active'
+    AND q.subject_id IN (SELECT private.accessible_subject_ids());
 END;
 $$;
 
@@ -2134,7 +2141,7 @@ $$;
 
 Returns `boolean`. `LANGUAGE sql STABLE SECURITY INVOKER SET search_path = ''` (migration `20261025000100`, #1607). True when `public.users` holds a row with `id = (select auth.uid())` and `deleted_at IS NULL`. The explicit `deleted_at IS NULL` filter makes it false for a deactivated caller in every context, including inside a SECURITY DEFINER caller where RLS is bypassed (`auth.uid()` reads the JWT claim). EXECUTE: `authenticated` only (revoked from PUBLIC, `anon`).
 
-Lives in schema `private`, the only schema this repo creates besides `public`: USAGE granted to `authenticated` only, not in `supabase/config.toml` `schemas`, so PostgREST does not expose it. Used by the `<table>_select_active_caller` RESTRICTIVE policies; derive the set: `select tablename, policyname from pg_policies where permissive = 'RESTRICTIVE'`. New policies and functions call `(select private.is_active_user())`; a SECURITY DEFINER caller still RAISEs its family's active-user token when it is false; existing inline `EXISTS` / `PERFORM` gates stay (Decision 151).
+Lives in schema `private`, the only schema this repo creates besides `public`: USAGE granted to `authenticated` only, not in `supabase/config.toml` `schemas`, so PostgREST does not expose it. Used by the `<table>_select_active_caller` RESTRICTIVE policies and `private.accessible_subject_ids()` (mig `20261028000100`); derive the set: `select tablename, policyname from pg_policies where permissive = 'RESTRICTIVE'`. New policies and functions call `(select private.is_active_user())`; a SECURITY DEFINER caller still RAISEs its family's active-user token when it is false; existing inline `EXISTS` / `PERFORM` gates stay (Decision 151).
 
 ```sql
 CREATE OR REPLACE FUNCTION private.is_active_user()
