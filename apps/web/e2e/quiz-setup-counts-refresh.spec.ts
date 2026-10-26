@@ -106,8 +106,18 @@ test.describe('Quiz setup counts refresh', () => {
   })
 
   test.afterEach(async () => {
-    await resetStudentQuizSessions(TEST_EMAIL)
-    await softDeleteStudentFlags(TEST_EMAIL)
+    const errors: string[] = []
+    try {
+      await resetStudentQuizSessions(TEST_EMAIL)
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
+    }
+    try {
+      await softDeleteStudentFlags(TEST_EMAIL)
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
+    }
+    if (errors.length > 0) throw new Error(`afterEach: ${errors.join('; ')}`)
   })
 
   test('count changes after flagging in another tab and returning, filters kept', async ({

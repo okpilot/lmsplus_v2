@@ -64,8 +64,10 @@ beforeEach(() => {
 
 describe('softDeleteStudentFlags', () => {
   it('soft-deletes only the active flags of the student, never deletes', async () => {
-    const { calls, from } = mockFlagTable({ error: null })
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    const { calls, from } = mockFlagTable({ error: null, data: [{ question_id: 'q-1' }] })
     await softDeleteStudentFlags('s@x.local')
+    logSpy.mockRestore()
     expect(from).toHaveBeenCalledWith('flagged_questions')
     expect(calls.delete).not.toHaveBeenCalled()
     expect(calls.update).toHaveBeenCalledWith({ deleted_at: expect.any(String) })
