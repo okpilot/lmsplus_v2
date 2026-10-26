@@ -1,8 +1,8 @@
--- #1637: removing a course from a student discards their open sessions and clears saved quizzes in it; ids go to audit metadata as sessions_ended.
+-- #1637: for a student target, every call discards open sessions and clears saved quizzes outside the final enrolment set. p_course_ids NULL keeps the current set (sweep only). Ids go to audit metadata as sessions_ended / saved_cleared.
 
 CREATE OR REPLACE FUNCTION public.set_user_enrolments(
   p_user_id uuid,
-  p_course_ids uuid[]
+  p_course_ids uuid[] DEFAULT NULL
 )
 RETURNS void
 LANGUAGE plpgsql
@@ -19,6 +19,7 @@ DECLARE
   v_removed     uuid[];
   v_target_role text;
   v_subjects    uuid[];
+  v_match       uuid[];
   v_ended       uuid[] := '{}';
   v_saved       uuid[] := '{}';
 BEGIN
@@ -30,7 +31,7 @@ BEGIN
     RAISE EXCEPTION 'not_admin';
   END IF;
 
-  IF p_user_id IS NULL OR p_course_ids IS NULL THEN
+  IF p_user_id IS NULL THEN
     RAISE EXCEPTION 'invalid_input';
   END IF;
 
@@ -52,7 +53,13 @@ BEGIN
     RAISE EXCEPTION 'user_not_found';
   END IF;
 
-  SELECT COALESCE(array_agg(DISTINCT x), '{}') INTO v_wanted FROM unnest(p_course_ids) AS x;
+  IF p_course_ids IS NULL THEN
+    SELECT COALESCE(array_agg(e.course_id), '{}') INTO v_wanted
+    FROM public.course_enrolments e
+    WHERE e.user_id = p_user_id AND e.deleted_at IS NULL;
+  ELSE
+    SELECT COALESCE(array_agg(DISTINCT x), '{}') INTO v_wanted FROM unnest(p_course_ids) AS x;
+  END IF;
 
   IF EXISTS (
     SELECT 1 FROM unnest(v_wanted) AS w(id)
@@ -71,34 +78,38 @@ BEGIN
   )
   SELECT COALESCE(array_agg(course_id), '{}') INTO v_removed FROM removed;
 
-  -- Staff see every subject, so removal ends nothing for them.
-  IF cardinality(v_removed) > 0 AND v_target_role NOT IN ('admin', 'instructor') THEN
+  -- Staff see every subject, so the sweep applies to students only.
+  IF v_target_role NOT IN ('admin', 'instructor') THEN
     SELECT COALESCE(array_agg(s.id), '{}') INTO v_subjects
     FROM public.easa_subjects s
-    WHERE s.course_id = ANY (v_removed);
+    WHERE s.course_id <> ALL (v_wanted);
 
     -- Carve-out (security.md rule 9, §15): subject_id and config.question_ids are tested without
     -- deleted_at filters on easa_subjects/questions. Both are write-once on quiz_sessions
     -- (trg_quiz_sessions_immutable_columns); docs/database.md §3 "Scoring Soft-Deleted Questions".
+    SELECT COALESCE(array_agg(qs.id), '{}') INTO v_match
+    FROM public.quiz_sessions qs
+    WHERE qs.student_id = p_user_id
+      AND qs.organization_id = v_caller_org
+      AND (
+        qs.subject_id = ANY (v_subjects)
+        OR EXISTS (
+          SELECT 1
+          FROM jsonb_array_elements_text(
+            CASE WHEN jsonb_typeof(qs.config->'question_ids') = 'array'
+                 THEN qs.config->'question_ids' ELSE '[]'::jsonb END
+          ) AS qid(id)
+          JOIN public.questions q ON q.id = qid.id::uuid
+          WHERE q.organization_id = v_caller_org AND q.subject_id = ANY (v_subjects)
+        )
+      );
+
     WITH ended AS (
       UPDATE public.quiz_sessions qs
       SET deleted_at = now(), active_device_id = NULL
-      WHERE qs.student_id = p_user_id
-        AND qs.organization_id = v_caller_org
+      WHERE qs.id = ANY (v_match)
         AND qs.ended_at IS NULL
         AND qs.deleted_at IS NULL
-        AND (
-          qs.subject_id = ANY (v_subjects)
-          OR EXISTS (
-            SELECT 1
-            FROM jsonb_array_elements_text(
-              CASE WHEN jsonb_typeof(qs.config->'question_ids') = 'array'
-                   THEN qs.config->'question_ids' ELSE '[]'::jsonb END
-            ) AS qid(id)
-            JOIN public.questions q ON q.id = qid.id::uuid
-            WHERE q.organization_id = v_caller_org AND q.subject_id = ANY (v_subjects)
-          )
-        )
       RETURNING qs.id
     )
     SELECT COALESCE(array_agg(id), '{}') INTO v_ended FROM ended;
@@ -106,22 +117,10 @@ BEGIN
     WITH cleared AS (
       UPDATE public.quiz_sessions qs
       SET saved_at = NULL
-      WHERE qs.student_id = p_user_id
-        AND qs.organization_id = v_caller_org
+      WHERE qs.id = ANY (v_match)
         AND qs.deleted_at IS NOT NULL
         AND qs.saved_at IS NOT NULL
-        AND (
-          qs.subject_id = ANY (v_subjects)
-          OR EXISTS (
-            SELECT 1
-            FROM jsonb_array_elements_text(
-              CASE WHEN jsonb_typeof(qs.config->'question_ids') = 'array'
-                   THEN qs.config->'question_ids' ELSE '[]'::jsonb END
-            ) AS qid(id)
-            JOIN public.questions q ON q.id = qid.id::uuid
-            WHERE q.organization_id = v_caller_org AND q.subject_id = ANY (v_subjects)
-          )
-        )
+        AND qs.id <> ALL (v_ended)
       RETURNING qs.id
     )
     SELECT COALESCE(array_agg(id), '{}') INTO v_saved FROM cleared;
@@ -139,14 +138,15 @@ BEGIN
   )
   SELECT COALESCE(array_agg(course_id), '{}') INTO v_added FROM added;
 
-  IF cardinality(v_added) > 0 OR cardinality(v_removed) > 0 THEN
+  IF cardinality(v_added) > 0 OR cardinality(v_removed) > 0
+     OR cardinality(v_ended) > 0 OR cardinality(v_saved) > 0 THEN
     INSERT INTO public.audit_events
       (organization_id, actor_id, actor_role, event_type, resource_type, resource_id, metadata)
     VALUES (
       v_caller_org, v_caller_id, v_caller_role, 'user.enrolments_changed', 'user', p_user_id,
       jsonb_build_object(
         'added', to_jsonb(v_added), 'removed', to_jsonb(v_removed),
-        'sessions_ended', to_jsonb(v_ended || v_saved)
+        'sessions_ended', to_jsonb(v_ended), 'saved_cleared', to_jsonb(v_saved)
       )
     );
   END IF;

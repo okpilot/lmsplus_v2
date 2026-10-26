@@ -103,6 +103,7 @@ describe('RPC: set_user_enrolments', () => {
       .select('actor_id, actor_role, organization_id, resource_type, resource_id, metadata')
       .eq('event_type', 'user.enrolments_changed')
       .eq('resource_id', student)
+      .order('created_at', { ascending: true })
     return data ?? []
   }
 
@@ -252,12 +253,22 @@ describe('RPC: set_user_enrolments', () => {
     expect(await active(studentId)).toEqual(before)
   })
 
-  it('AC4: rejects a NULL array with invalid_input', async () => {
+  it('AC4: rejects a NULL user id with invalid_input', async () => {
+    const { error } = await adminClient.rpc('set_user_enrolments', {
+      p_user_id: null,
+      p_course_ids: [ppl],
+    })
+    expect(error?.message).toContain('invalid_input')
+  })
+
+  it('AC-K1: a NULL array keeps the enrolments unchanged', async () => {
+    const before = await active(studentId)
     const { error } = await adminClient.rpc('set_user_enrolments', {
       p_user_id: studentId,
       p_course_ids: null,
     })
-    expect(error?.message).toContain('invalid_input')
+    expect(error).toBeNull()
+    expect(await active(studentId)).toEqual(before)
   })
 
   it('AC5: re-adding a removed course creates a new active row and keeps history', async () => {
@@ -443,7 +454,15 @@ describe('RPC: set_user_enrolments ends sessions in removed courses', () => {
       .select('metadata')
       .eq('event_type', 'user.enrolments_changed')
       .eq('resource_id', user)
-    return (data ?? []) as Array<{ metadata: { sessions_ended?: string[] } }>
+      .order('created_at', { ascending: true })
+    return (data ?? []) as Array<{
+      metadata: {
+        added?: string[]
+        removed?: string[]
+        sessions_ended?: string[]
+        saved_cleared?: string[]
+      }
+    }>
   }
 
   async function expectDiscarded(id: string) {
@@ -599,7 +618,7 @@ describe('RPC: set_user_enrolments ends sessions in removed courses', () => {
     expect((await state(bSaved)).saved_at).not.toBeNull()
   })
 
-  it('AC-U10: sessions_ended lists saved-quiz ids when only saved quizzes are cleared', async () => {
+  it('AC-U10: saved_cleared lists saved-quiz ids and sessions_ended stays empty', async () => {
     const u = await newUser('student', [ppl, vfr])
     const s1 = await insertSession({
       student: u,
@@ -614,7 +633,101 @@ describe('RPC: set_user_enrolments ends sessions in removed courses', () => {
       saved: true,
     })
     expect((await setCourses(u, [vfr])).error).toBeNull()
-    const ended = (await audits(u)).at(-1)?.metadata.sessions_ended ?? []
-    expect([...ended].sort()).toEqual([s1, s2].sort())
+    const meta = (await audits(u)).at(-1)?.metadata
+    expect([...(meta?.saved_cleared ?? [])].sort()).toEqual([s1, s2].sort())
+    expect(meta?.sessions_ended).toEqual([])
+  })
+
+  const setNull = (user: string) =>
+    adminClient.rpc('set_user_enrolments', { p_user_id: user, p_course_ids: null })
+
+  async function demote(user: string) {
+    const { error } = await admin.from('users').update({ role: 'student' }).eq('id', user)
+    expect(error).toBeNull()
+  }
+
+  async function enrolled(user: string): Promise<string[]> {
+    const { data } = await admin
+      .from('course_enrolments')
+      .select('course_id')
+      .eq('user_id', user)
+      .is('deleted_at', null)
+    return (data ?? []).map((r) => r.course_id as string).sort()
+  }
+
+  it('AC-K1: a demoted instructor loses the open session outside the kept set on a NULL call', async () => {
+    const u = await newUser('instructor', [vfr])
+    const open = await insertSession({
+      student: u,
+      subjectId: pplRefs.subjectId,
+      questionIds: [pplQ],
+    })
+    await demote(u)
+    expect((await setNull(u)).error).toBeNull()
+    await expectDiscarded(open)
+    const meta = (await audits(u)).at(-1)?.metadata
+    expect(meta?.sessions_ended).toEqual([open])
+    expect(meta?.added).toEqual([])
+    expect(meta?.removed).toEqual([])
+    expect(await enrolled(u)).toEqual([vfr])
+  })
+
+  it('AC-K1b: an explicit set discards the demoted user session outside it', async () => {
+    const u = await newUser('instructor', [vfr])
+    const open = await insertSession({
+      student: u,
+      subjectId: pplRefs.subjectId,
+      questionIds: [pplQ],
+    })
+    await demote(u)
+    expect((await setCourses(u, [vfr])).error).toBeNull()
+    await expectDiscarded(open)
+  })
+
+  it('AC-K1c: a NULL-subject session with an unenrolled question is discarded on a sweep-only call', async () => {
+    const u = await newUser('instructor', [vfr])
+    const open = await insertSession({ student: u, subjectId: null, questionIds: [pplQ] })
+    await demote(u)
+    expect((await setNull(u)).error).toBeNull()
+    await expectDiscarded(open)
+  })
+
+  it('AC-K1d: a saved quiz outside the set has saved_at cleared and is listed in saved_cleared', async () => {
+    const u = await newUser('instructor', [vfr])
+    const saved = await insertSession({
+      student: u,
+      subjectId: pplRefs.subjectId,
+      questionIds: [pplQ],
+      saved: true,
+    })
+    await demote(u)
+    expect((await setNull(u)).error).toBeNull()
+    const s = await state(saved)
+    expect(s.saved_at).toBeNull()
+    expect(s.deleted_at).not.toBeNull()
+    const meta = (await audits(u)).at(-1)?.metadata
+    expect(meta?.saved_cleared).toEqual([saved])
+    expect(meta?.sessions_ended).toEqual([])
+  })
+
+  it('AC-K2: a NULL call on a fully enrolled student ends nothing and writes no audit event', async () => {
+    const u = await newUser('student', [ppl, vfr])
+    const pplOpen = await insertSession({
+      student: u,
+      subjectId: pplRefs.subjectId,
+      questionIds: [pplQ],
+    })
+    // One open session per student (uq_one_active_session_per_student): the VFR one is saved.
+    const vfrSaved = await insertSession({
+      student: u,
+      subjectId: vfrRefs.subjectId,
+      questionIds: [vfrQ],
+      saved: true,
+    })
+    const before = (await audits(u)).length
+    expect((await setNull(u)).error).toBeNull()
+    expect((await state(pplOpen)).deleted_at).toBeNull()
+    expect((await state(vfrSaved)).saved_at).not.toBeNull()
+    expect((await audits(u)).length).toBe(before)
   })
 })

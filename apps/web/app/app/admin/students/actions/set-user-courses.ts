@@ -12,16 +12,16 @@ const ERROR_MESSAGES: Record<string, string> = {
   invalid_input: 'Invalid input',
 }
 
-/** Replaces the user's active enrolments via the admin's user-context client. */
+/** Replaces the user's active enrolments via the admin's user-context client; `null` omits `p_course_ids` (DEFAULT NULL): keeps the set and only sweeps. */
 export async function setUserCourses(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   userId: string,
-  courseIds: string[],
+  courseIds: string[] | null,
 ): Promise<SetUserCoursesResult> {
-  const { error } = await supabase.rpc('set_user_enrolments', {
-    p_user_id: userId,
-    p_course_ids: courseIds,
-  })
+  const { error } = await supabase.rpc(
+    'set_user_enrolments',
+    courseIds === null ? { p_user_id: userId } : { p_user_id: userId, p_course_ids: courseIds },
+  )
   if (!error) return { ok: true }
 
   console.error('[setUserCourses] RPC error:', error.message)

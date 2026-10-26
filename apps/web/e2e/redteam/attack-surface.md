@@ -325,6 +325,7 @@
 | KL | resume_saved_quiz-revive-after-unenrolment | MEDIUM | course-enrolment-gate.spec.ts | BLOCKED |  | soft-delete-bypass |
 | KM | question_comments-read-insert-non-enrolled-question | LOW | question-comments-enrolment-scope.spec.ts | BLOCKED |  | sibling-guard-gap |
 | KN | question_comments-cross-org-read | MEDIUM | question-comments-enrolment-scope.spec.ts | BLOCKED |  | cross-tenant |
+| KO | set_user_enrolments-staff-demotion-open-session | LOW | role-demotion-open-session.spec.ts | BLOCKED |  | sibling-guard-gap |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 

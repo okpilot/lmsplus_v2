@@ -158,3 +158,4 @@
 ## 163 — 2026-10-26 — `set_user_enrolments` removing a course from a non-staff user soft-deletes their open sessions and clears `saved_at` of their saved quizzes in that course; the admin UI gives no warning. #1637
 ## 164 — 2026-10-26 — After unenrolment, past-report question content read through `questions` RLS stays hidden (strict); session-keyed DEFINER readers such as `get_session_reports` (subject name, score) are not re-checked (Decision 162). #1637
 ## 165 — 2026-10-26 — `question_comments` SELECT and INSERT follow question visibility (caller's org and course enrolment via `questions` RLS); authors keep their own rows. #1637
+## 166 — 2026-10-26 — For a student target `set_user_enrolments` discards sessions and saved quizzes outside the final enrolment set on every call; `p_course_ids NULL` keeps the set and only sweeps; `updateStudent` sweeps on every student save. #1637
