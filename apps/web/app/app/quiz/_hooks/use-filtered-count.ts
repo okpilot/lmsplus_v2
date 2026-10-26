@@ -56,7 +56,8 @@ export function useFilteredCount(preload?: PreloadPromise): FilteredCountState {
       setAuthError(false)
       filterGeneration.current++
       const gen = filterGeneration.current
-      lastKey.current = key
+      // Names the counts shown; a request sets it only when its counts land.
+      lastKey.current = preloaded ? key : null
       if (preloaded) {
         inFlightKey.current = null
         setCounts(preloaded)
@@ -76,19 +77,18 @@ export function useFilteredCount(preload?: PreloadPromise): FilteredCountState {
         .then(() => {
           if (!awaitingPreload) return getFilteredCount({ ...query, topicIds, subtopicIds })
           if (gen !== filterGeneration.current) return null
-          const late = findPreloadedCount(setup.ref.current?.discoveryCounts, query)
-          if (late) {
-            setCounts(late)
-            return null
-          }
-          return getFilteredCount({ ...query, topicIds, subtopicIds })
+          return (
+            findPreloadedCount(setup.ref.current?.discoveryCounts, query) ??
+            getFilteredCount({ ...query, topicIds, subtopicIds })
+          )
         })
         .then((result) => {
           if (!result || gen !== filterGeneration.current) return
-          if (result.error === 'auth') {
+          if ('error' in result && result.error === 'auth') {
             setAuthError(true)
             return
           }
+          lastKey.current = key
           setCounts(result)
         })
         .catch(() => undefined)

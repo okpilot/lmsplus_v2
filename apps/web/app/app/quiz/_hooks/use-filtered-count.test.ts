@@ -525,3 +525,56 @@ describe('useFilteredCount — same-key refetch after a new preload', () => {
     expect(result.current.isFilterPending).toBe(true)
   })
 })
+
+// ---- same-key refetch after a failed request (AC13) ------------------------
+
+describe('useFilteredCount — same-key refetch after a failed request', () => {
+  const OK = { count: 7, byTopic: {}, bySubtopic: {} }
+  const AUTH = { count: 0, byTopic: {}, bySubtopic: {}, error: 'auth' }
+  const call = (r: { current: ReturnType<typeof useFilteredCount> }) =>
+    r.current.refetch(SUBJECT_ID, TOPIC_IDS, [], ['unseen'])
+
+  it('blanks counts and shows pending on a same-key refetch after an auth result for the first call', async () => {
+    mockGetFilteredCount.mockResolvedValueOnce(AUTH)
+    const { result } = renderHook(() => useFilteredCount())
+    await act(async () => call(result))
+    mockGetFilteredCount.mockReturnValueOnce(new Promise(() => undefined))
+    act(() => call(result))
+    expect(result.current.isFilterPending).toBe(true)
+    expect(result.current.filteredCount).toBeNull()
+  })
+
+  it('blanks counts and shows pending on a same-key refetch after a rejection for the first call', async () => {
+    mockGetFilteredCount.mockRejectedValueOnce(new Error('network'))
+    const { result } = renderHook(() => useFilteredCount())
+    await act(async () => call(result))
+    mockGetFilteredCount.mockReturnValueOnce(new Promise(() => undefined))
+    act(() => call(result))
+    expect(result.current.isFilterPending).toBe(true)
+    expect(result.current.filteredCount).toBeNull()
+  })
+
+  it('blanks shown counts and shows pending after a same-key revalidation returned auth', async () => {
+    mockGetFilteredCount.mockResolvedValueOnce(OK).mockResolvedValueOnce(AUTH)
+    const { result } = renderHook(() => useFilteredCount())
+    await act(async () => call(result))
+    expect(result.current.filteredCount).toBe(7)
+    await act(async () => call(result))
+    mockGetFilteredCount.mockReturnValueOnce(new Promise(() => undefined))
+    act(() => call(result))
+    expect(result.current.isFilterPending).toBe(true)
+    expect(result.current.filteredCount).toBeNull()
+  })
+
+  it('blanks shown counts and shows pending after a same-key revalidation rejected', async () => {
+    mockGetFilteredCount.mockResolvedValueOnce(OK).mockRejectedValueOnce(new Error('network'))
+    const { result } = renderHook(() => useFilteredCount())
+    await act(async () => call(result))
+    expect(result.current.filteredCount).toBe(7)
+    await act(async () => call(result))
+    mockGetFilteredCount.mockReturnValueOnce(new Promise(() => undefined))
+    act(() => call(result))
+    expect(result.current.isFilterPending).toBe(true)
+    expect(result.current.filteredCount).toBeNull()
+  })
+})
