@@ -286,6 +286,20 @@ describe('createStudent', () => {
       expect(result).toEqual({ success: true, id: NEW_USER_ID, coursesSaved: false })
       expect(mockDeleteUser).not.toHaveBeenCalled()
     })
+
+    it('does not call the enrolment RPC when no course is ticked', async () => {
+      mockAdmin()
+      buildChain()
+      mockAuthCreateUser()
+      mockRpc.mockImplementation(async (name: string) =>
+        name === 'set_user_enrolments' ? { error: { message: 'boom' } } : { error: null },
+      )
+
+      const result = await createStudent({ ...VALID_INPUT, course_ids: [] })
+
+      expect(mockRpc).not.toHaveBeenCalledWith('set_user_enrolments', expect.anything())
+      expect(result).toEqual({ success: true, id: NEW_USER_ID })
+    })
   })
 
   describe('auth guard', () => {

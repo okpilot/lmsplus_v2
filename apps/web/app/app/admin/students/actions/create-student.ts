@@ -51,7 +51,8 @@ export async function createStudent(input: unknown): Promise<CreateStudentResult
     context: 'createStudent',
   })
 
-  const coursesOk = (await setUserCourses(supabase, authData.user.id, course_ids)).ok
+  const coursesOk =
+    course_ids.length === 0 || (await setUserCourses(supabase, authData.user.id, course_ids)).ok
 
   revalidatePath('/app/admin/students')
   return coursesOk
