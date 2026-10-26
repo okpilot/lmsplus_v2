@@ -590,7 +590,7 @@ reviews:
           'another_session_active' (the deployed pattern in the 20260629
           *_single_active_guard migrations, e.g. start_exam_session); flag a new start
           RPC missing either.
-        - Enrolment gate (docs/security.md § Enrolment gate, Decisions 162/165/167): student
+        - Enrolment gate (docs/security.md § 3, bullet "Enrolment gate"; Decisions 162/165/167): student
           reads of easa_subjects, easa_topics, easa_subtopics, questions and exam_configs are
           AND-ed with an AS RESTRICTIVE *_select_enrolled policy over
           private.accessible_subject_ids() (migs 20261028000100, 20261028000600); a NEW

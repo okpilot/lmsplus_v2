@@ -164,6 +164,7 @@ CREATE TABLE easa_subtopics (
 ```
 
 **Enrolment visibility (mig `20261028000100`, #1637):** RESTRICTIVE SELECT `TO authenticated` — `easa_subjects_select_enrolled` (`id IN (SELECT private.accessible_subject_ids())`, or the caller is an admin/instructor), `easa_topics_select_enrolled` and `questions_select_enrolled` (`subject_id IN (…)`), `easa_subtopics_select_enrolled` (`topic_id` of a visible topic). Same helper gates `questions`.
+
 **Column grants:** `authenticated` has INSERT/UPDATE on `easa_subjects(code, name, short, sort_order)` only; `course_id` is written by migrations (service role).
 
 ### question_banks
