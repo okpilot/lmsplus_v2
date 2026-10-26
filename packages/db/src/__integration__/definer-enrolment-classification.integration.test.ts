@@ -4,7 +4,8 @@ import { describe, expect, it } from 'vitest'
 /**
  * Every SECURITY DEFINER function that reads questions / easa_* or inserts into quiz_sessions
  * is classified by how course enrolment reaches it (#1637, AC10). A new such function fails
- * here until it is added to a class below.
+ * here until it is added to a class below. 'trigger-gated': the quiz_sessions INSERT trigger; all
+ * but start_quiz_session also raise not_enrolled before reading (migs 20261028000700–20261028001000).
  */
 const CLASSIFIED: Record<string, string[]> = {
   'trigger-gated': [

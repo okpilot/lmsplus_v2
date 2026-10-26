@@ -46,7 +46,8 @@
     "supabase/migrations/20260815000300_submit_vfr_rt_fuzzy.sql": 351,
     "supabase/migrations/20260929000200_start_vfr_rt_exam_session_part3_subtopics.sql": 317,
     "supabase/migrations/20260929000400_submit_vfr_rt_exam_answers_part3_types.sql": 402,
-    "supabase/migrations/20261002000800_check_non_mc_answer_saves_progress.sql": 392
+    "supabase/migrations/20261002000800_check_non_mc_answer_saves_progress.sql": 392,
+    "supabase/migrations/20261028000900_start_vfr_rt_exam_session_enrolment_pregate.sql": 317
   },
   "_coverage": "COVERAGE BOUNDARY: only files under supabase/migrations/ and files declaring 'use server' match a rule. Every other file, including .mjs, test and e2e files, is ungraded by this guard."
 }

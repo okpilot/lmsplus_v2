@@ -21,6 +21,10 @@ describe('RPC: start paths enforce course enrolment', () => {
   let refs: Awaited<ReturnType<typeof seedReferenceData>>
   let questionIds: string[]
   let rt: Part3Org
+  let refsNoCfg: Awaited<ReturnType<typeof seedReferenceData>>
+  let noCfgOrgId: string
+  const noCfgUserIds: string[] = []
+  const noCfgClients: Record<string, SupabaseClient> = {}
   const userIds: string[] = []
   const codeIds: string[] = []
   const ids: Record<string, string> = {}
@@ -140,12 +144,42 @@ describe('RPC: start paths enforce course enrolment', () => {
     })
     if (distErr) throw new Error(`seed distribution: ${distErr.message}`)
 
+    refsNoCfg = await seedReferenceData({
+      admin,
+      subjectCode: `EGN${suffix}`,
+      subjectName: `Enrol Guard NoCfg ${suffix}`,
+      topicCode: `EGN${suffix}-01`,
+      topicName: `Enrol Guard NoCfg Topic ${suffix}`,
+    })
+
+    noCfgOrgId = await createTestOrg({
+      admin,
+      name: `Enrol Guard NoCfg ${suffix}`,
+      slug: `enrol-gn-${suffix}`,
+    })
+    for (const [tag, course] of [
+      ['egn-ppl', ppl],
+      ['egn-rt', vfr],
+    ] as const) {
+      const email = `${tag}-${suffix}@test.local`
+      const id = await createTestUser({
+        admin,
+        orgId: noCfgOrgId,
+        email,
+        password: pw,
+        role: 'student',
+      })
+      noCfgUserIds.push(id)
+      await setEnrolments(id, noCfgOrgId, [course as string])
+      noCfgClients[tag] = await getAuthenticatedClient({ email, password: pw })
+    }
+
     rt = await createPart3Org(`eg${suffix.slice(-4)}`)
     await setEnrolments(rt.studentId, rt.orgId, [vfr])
   })
 
   afterEach(async () => {
-    for (const id of [...userIds, rt.studentId]) {
+    for (const id of [...userIds, ...noCfgUserIds, rt.studentId]) {
       const { error } = await admin
         .from('quiz_sessions')
         .update({ deleted_at: new Date().toISOString() })
@@ -161,7 +195,8 @@ describe('RPC: start paths enforce course enrolment', () => {
       await admin.from('internal_exam_codes').delete().in('id', codeIds)
     }
     await cleanupTestData({ admin, orgId, userIds })
-    await cleanupReferenceData({ admin, refs: [refs] })
+    await cleanupTestData({ admin, orgId: noCfgOrgId, userIds: noCfgUserIds })
+    await cleanupReferenceData({ admin, refs: [refs, refsNoCfg] })
     await rt?.cleanup()
   })
 
@@ -435,5 +470,119 @@ describe('RPC: start paths enforce course enrolment', () => {
     } finally {
       await setEnrolments(sid, orgId, [ppl])
     }
+  })
+
+  const emptyDrawArgs = (subjectId: string | null) => ({
+    ...practiceArgs(),
+    p_subject_id: subjectId,
+    p_count: 500,
+  })
+
+  it('AC-P1: start_exam_session raises not_enrolled for a non-enrolled student on a subject without an exam config', async () => {
+    const { data, error } = await (clients['eg-rt'] as SupabaseClient).rpc('start_exam_session', {
+      p_subject_id: refsNoCfg.subjectId,
+    })
+    expect(data).toBeNull()
+    expect(error?.message ?? '').toMatch(/not_enrolled/)
+    expect(await sessionsOf(ids['eg-rt'] as string)).toEqual([])
+  })
+
+  it('AC-P2: start_discovery raises not_enrolled for a non-enrolled student on an empty draw', async () => {
+    const { data, error } = await (clients['eg-rt'] as SupabaseClient).rpc(
+      'start_discovery',
+      emptyDrawArgs(refsNoCfg.subjectId),
+    )
+    expect(error?.message ?? '').toMatch(/not_enrolled/)
+    expect(data).toBeNull()
+    expect(await sessionsOf(ids['eg-rt'] as string)).toEqual([])
+  })
+
+  it('AC-P2: start_discovery with a NULL subject returns an empty result without error', async () => {
+    const { data, error } = await (clients['eg-rt'] as SupabaseClient).rpc(
+      'start_discovery',
+      emptyDrawArgs(null),
+    )
+    expect(error).toBeNull()
+    expect(
+      requireRpcResult<{ session_id: string | null }>(data, 'null subject').session_id,
+    ).toBeNull()
+  })
+
+  it('AC-P3: start_vfr_rt_exam_session raises not_enrolled for a non-enrolled student in an org without an RT exam config', async () => {
+    const { data, error } = await (noCfgClients['egn-ppl'] as SupabaseClient).rpc(
+      'start_vfr_rt_exam_session',
+      { p_subject_id: rt.rtSubjectId },
+    )
+    expect(data).toBeNull()
+    expect(error?.message ?? '').toMatch(/not_enrolled/)
+  })
+
+  it('AC-P4: start_internal_exam_session raises not_enrolled while another session is active and leaves the code unconsumed', async () => {
+    const studentId = ids['eg-rt'] as string
+    const { id, code } = await seedCode(studentId)
+    const { error: insErr } = await admin.from('quiz_sessions').insert({
+      organization_id: orgId,
+      student_id: studentId,
+      mode: 'quick_quiz',
+      subject_id: refs.subjectId,
+      config: { question_ids: questionIds.slice(0, 2) },
+    })
+    expect(insErr).toBeNull()
+    const { error } = await (clients['eg-rt'] as SupabaseClient).rpc(
+      'start_internal_exam_session',
+      { p_code: code },
+    )
+    expect(error?.message ?? '').toMatch(/not_enrolled/)
+    const { data } = await admin
+      .from('internal_exam_codes')
+      .select('consumed_at, consumed_session_id')
+      .eq('id', id)
+      .single()
+    expect(data?.consumed_at).toBeNull()
+    expect(data?.consumed_session_id).toBeNull()
+  })
+
+  it('AC-P5: an enrolled student keeps the missing-config error from start_exam_session', async () => {
+    const { error } = await (clients['eg-ppl'] as SupabaseClient).rpc('start_exam_session', {
+      p_subject_id: refsNoCfg.subjectId,
+    })
+    expect(error?.message ?? '').toMatch(/no exam configuration found for this subject/)
+  })
+
+  it('AC-P5: an enrolled student keeps the empty-draw result from start_discovery', async () => {
+    const { data, error } = await (clients['eg-ppl'] as SupabaseClient).rpc(
+      'start_discovery',
+      emptyDrawArgs(refsNoCfg.subjectId),
+    )
+    expect(error).toBeNull()
+    expect(
+      requireRpcResult<{ session_id: string | null }>(data, 'empty draw').session_id,
+    ).toBeNull()
+  })
+
+  it('AC-P5: an enrolled student keeps exam_config_required from start_vfr_rt_exam_session', async () => {
+    const { error } = await (noCfgClients['egn-rt'] as SupabaseClient).rpc(
+      'start_vfr_rt_exam_session',
+      { p_subject_id: rt.rtSubjectId },
+    )
+    expect(error?.message ?? '').toMatch(/exam_config_required/)
+  })
+
+  it('AC-P5: an enrolled student keeps the active-session error from start_internal_exam_session', async () => {
+    const studentId = ids['eg-ppl'] as string
+    const { code } = await seedCode(studentId)
+    const { error: insErr } = await admin.from('quiz_sessions').insert({
+      organization_id: orgId,
+      student_id: studentId,
+      mode: 'quick_quiz',
+      subject_id: refs.subjectId,
+      config: { question_ids: questionIds.slice(0, 2) },
+    })
+    expect(insErr).toBeNull()
+    const { error } = await (clients['eg-ppl'] as SupabaseClient).rpc(
+      'start_internal_exam_session',
+      { p_code: code },
+    )
+    expect(error?.message ?? '').toMatch(/another_session_active|active_session_exists/)
   })
 })
