@@ -30,8 +30,8 @@ export const E2E_REDTEAM_EO_MARKER = '[E2E_REDTEAM_EO]'
 // Every write target the spec attacks is one of its OWN marked rows — a shared
 // seeded question must never be the target of a DELETE probe.
 export const E2E_REDTEAM_QW_MARKER = '[E2E_REDTEAM_QW]'
-// tenant-table direct-write spec (Vector FJ): marks the throwaway orgs, banks,
-// courses and lessons it creates so cleanup/maintenance can target them by
+// tenant-table direct-write spec (Vector FJ): marks the throwaway orgs and banks
+// it creates so cleanup/maintenance can target them by
 // slug/name/title. Every write target this spec attacks is one of its OWN rows
 // in one of its OWN orgs — never a shared seeded row. That is load-bearing for
 // the DELETE and UPDATE probes: on a database where mig 20260820000100 is NOT

@@ -5,8 +5,8 @@
  * INSERT, UPDATE or DELETE against a (table, command) cell that mig
  * `20260925000300` revoked from `authenticated` — a cell with no production
  * write path and, for several of these tables, no permitting RLS policy
- * either. Before that migration the write reached RLS (and, on courses/
- * lessons/organizations/question_banks/audit_events/quiz_session_answers/
+ * either. Before that migration the write reached RLS (and, on organizations/
+ * question_banks/audit_events/quiz_session_answers/
  * student_responses/user_consents, was denied there — see
  * `tenant-tables-direct-write.spec.ts` Vector FJ and `questions-direct-write
  * .spec.ts` Vector EX); after it, the write is refused at the privilege layer
@@ -50,11 +50,12 @@ type Command = 'insert' | 'update' | 'delete'
 // supabase/migrations/20260925000300_least_privilege_table_grants.sql,
 // 20261002000900_revoke_student_quiz_session_insert.sql,
 // 20261004000500_revoke_student_quiz_draft_writes.sql and
-// 20261015000100_student_writes_require_active_user.sql.
+// 20261015000100_student_writes_require_active_user.sql. `courses` and
+// `course_enrolments` (mig 20261027000100) are created with SELECT-only grants.
 const REVOKED_CELLS: Array<{ table: string; commands: Command[] }> = [
   { table: 'audit_events', commands: ['insert', 'update', 'delete'] },
   { table: 'courses', commands: ['insert', 'update', 'delete'] },
-  { table: 'lessons', commands: ['insert', 'update', 'delete'] },
+  { table: 'course_enrolments', commands: ['insert', 'update', 'delete'] },
   { table: 'organizations', commands: ['insert', 'update', 'delete'] },
   { table: 'question_banks', commands: ['insert', 'update', 'delete'] },
   { table: 'quiz_session_answers', commands: ['insert', 'update', 'delete'] },
