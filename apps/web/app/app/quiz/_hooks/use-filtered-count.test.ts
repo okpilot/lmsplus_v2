@@ -1,4 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
+import { useEffect } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
@@ -13,6 +14,7 @@ vi.mock('../actions/lookup', () => ({
 
 // ---- Subject under test ---------------------------------------------------
 
+import type { QuestionFilterValue, QuizSetupPreload } from '../types'
 import { useFilteredCount } from './use-filtered-count'
 
 // ---- Fixtures -------------------------------------------------------------
@@ -462,5 +464,64 @@ describe('useFilteredCount — reset', () => {
     expect(result.current.filteredCount).toBeNull()
     expect(result.current.filteredByTopic).toBeNull()
     expect(result.current.filteredBySubtopic).toBeNull()
+  })
+})
+
+// ---- stale-while-revalidate on refetch -------------------------------------
+
+describe('useFilteredCount — same-key refetch after a new preload', () => {
+  const EMPTY = (): QuizSetupPreload => ({ topicsBySubject: {}, discoveryCounts: {} })
+  const FLAGGED = ['flagged'] as QuestionFilterValue[]
+
+  function setup(filters: QuestionFilterValue[]) {
+    return renderHook(
+      ({ p, f }) => {
+        const fc = useFilteredCount(p)
+        const { refetch } = fc
+        useEffect(() => {
+          refetch(SUBJECT_ID, TOPIC_IDS, SUBTOPIC_IDS, f, 'all', 'all', 'multiple_choice')
+        }, [refetch, f])
+        return fc
+      },
+      { initialProps: { p: Promise.resolve(EMPTY()), f: filters } },
+    )
+  }
+
+  it('keeps the current counts, not pending, while the revalidating request runs', async () => {
+    mockGetFilteredCount.mockResolvedValueOnce({ count: 2, byTopic: {}, bySubtopic: {} })
+    const { result, rerender } = setup(FLAGGED)
+    await act(async () => undefined)
+    expect(result.current.filteredCount).toBe(2)
+
+    let resolveFetch: (v: unknown) => void = () => undefined
+    mockGetFilteredCount.mockReturnValueOnce(
+      new Promise((r) => {
+        resolveFetch = r
+      }),
+    )
+    rerender({ p: Promise.resolve(EMPTY()), f: FLAGGED })
+    await act(async () => undefined)
+
+    expect(mockGetFilteredCount).toHaveBeenCalledTimes(2)
+    expect(result.current.filteredCount).toBe(2)
+    expect(result.current.isFilterPending).toBe(false)
+
+    await act(async () => {
+      resolveFetch({ count: 5, byTopic: {}, bySubtopic: {} })
+    })
+    expect(result.current.filteredCount).toBe(5)
+  })
+
+  it('resets to null and pending when the key changed', async () => {
+    mockGetFilteredCount.mockResolvedValueOnce({ count: 2, byTopic: {}, bySubtopic: {} })
+    const { result, rerender } = setup(FLAGGED)
+    await act(async () => undefined)
+
+    mockGetFilteredCount.mockReturnValueOnce(new Promise(() => undefined))
+    rerender({ p: Promise.resolve(EMPTY()), f: ['unseen'] as QuestionFilterValue[] })
+    await act(async () => undefined)
+
+    expect(result.current.filteredCount).toBeNull()
+    expect(result.current.isFilterPending).toBe(true)
   })
 })

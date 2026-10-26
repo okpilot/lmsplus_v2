@@ -12,6 +12,7 @@ vi.mock('../_hooks/use-quiz-config', () => ({
   useQuizConfig: (...args: unknown[]) => mockUseQuizConfig(...args),
 }))
 vi.mock('../_hooks/use-exam-start', () => ({ useExamStart: () => ({}) }))
+vi.mock('../_hooks/use-refresh-on-return', () => ({ useRefreshOnReturn: () => undefined }))
 vi.mock('./discovery-mode-panel', () => ({
   DiscoveryModePanel: (props: unknown) => {
     mockPanel(props)
