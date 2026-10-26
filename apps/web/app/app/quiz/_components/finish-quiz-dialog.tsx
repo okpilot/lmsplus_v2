@@ -1,8 +1,10 @@
 'use client'
 
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog'
+import { useRef } from 'react'
 import { Dialog, DialogOverlay, DialogPortal, DialogTitle } from '@/components/ui/dialog'
 import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
+import { useConnectionBlocked } from '../session/_hooks/use-connection-state'
 import type { QuizPendingAction } from '../session/_hooks/use-quiz-submit'
 import { DialogBody } from './finish-quiz-dialog/dialog-body'
 import { DialogFooter } from './finish-quiz-dialog/dialog-footer'
@@ -72,17 +74,24 @@ export function FinishQuizDialog({
     timeExpired,
   })
 
+  const blocked = useConnectionBlocked()
+  const popupRef = useRef<HTMLDivElement>(null)
+
   return (
     <Dialog
-      open={open}
+      open={open && !blocked}
       onOpenChange={(next) => {
         if (!next) handleClose()
       }}
-      disablePointerDismissal={!canDismiss}
+      disablePointerDismissal={!canDismiss || submitting}
     >
       <DialogPortal>
         <DialogOverlay className="bg-black/50 supports-backdrop-filter:backdrop-blur-none" />
-        <DialogPrimitive.Popup className="fixed top-1/2 left-1/2 z-50 w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-card p-6 shadow-lg outline-none sm:max-w-md">
+        <DialogPrimitive.Popup
+          ref={popupRef}
+          initialFocus={popupRef}
+          className="fixed max-h-[calc(100dvh-2rem)] overflow-y-auto top-1/2 left-1/2 z-50 w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-card p-6 shadow-lg outline-none sm:max-w-md"
+        >
           <DialogTitle className="text-lg font-semibold text-foreground">{title}</DialogTitle>
           <DialogBody
             answeredCount={answeredCount}

@@ -37,31 +37,30 @@ export function useQuizKeyboard(opts: UseQuizKeyboardOpts) {
   // The keydown listener attaches once; the Effect Event reads the latest props/state so it
   // never needs re-binding (and so Enter sees the current highlight, not a stale one).
   const onKeyDown = useEffectEvent((e: KeyboardEvent) => {
-    const o = opts
-    if (o.enabled === false || isTypingTarget(e.target)) return
+    if (opts.enabled === false || isTypingTarget(e.target)) return
     if (e.altKey || e.ctrlKey || e.metaKey) return
-    const action = quizKeyAction(e.key, { isExam: o.isExam })
+    const action = quizKeyAction(e.key, { isExam: opts.isExam })
     if (!action) return
     switch (action.type) {
       case 'navigate':
         e.preventDefault()
-        o.onNavigate(action.delta)
+        opts.onNavigate(action.delta)
         break
       case 'highlight':
         e.preventDefault()
-        setHighlightedIndex((i) => nextHighlight(i, action.delta, o.optionIds.length))
+        setHighlightedIndex((i) => nextHighlight(i, action.delta, opts.optionIds.length))
         break
       case 'confirm': {
-        const id = o.optionIds[highlightedIndex]
+        const id = opts.optionIds[highlightedIndex]
         if (id) {
           e.preventDefault()
-          o.onConfirm(id)
+          opts.onConfirm(id)
         }
         break
       }
       case 'tab':
         e.preventDefault()
-        o.onTab(action.tab)
+        opts.onTab(action.tab)
         break
     }
   })

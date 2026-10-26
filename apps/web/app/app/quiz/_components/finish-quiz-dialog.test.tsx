@@ -3,6 +3,9 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { FinishQuizDialog } from './finish-quiz-dialog'
 
+const { mockBlocked } = vi.hoisted(() => ({ mockBlocked: vi.fn() }))
+vi.mock('../session/_hooks/use-connection-state', () => ({ useConnectionBlocked: mockBlocked }))
+
 // ---- Helpers --------------------------------------------------------------
 
 type DialogProps = {
@@ -746,5 +749,38 @@ describe('FinishQuizDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: /submit internal exam/i }))
     expect(screen.getByText(/3 questions are unanswered/i)).toBeInTheDocument()
     expect(screen.getByText(/will be marked wrong/i)).toBeInTheDocument()
+  })
+
+  it('hides the dialog while the connection overlay blocks the quiz', () => {
+    mockBlocked.mockReturnValue(true)
+    renderDialog({ open: true })
+    expect(screen.queryByRole('dialog', { name: /finish quiz/i })).not.toBeInTheDocument()
+  })
+
+  it('shows the dialog when the connection is not blocked', () => {
+    mockBlocked.mockReturnValue(false)
+    renderDialog({ open: true })
+    expect(screen.getByRole('dialog', { name: /finish quiz/i })).toBeInTheDocument()
+  })
+
+  it('does not call onCancel on Escape while submitting', async () => {
+    const onCancel = vi.fn()
+    renderDialog({ onCancel, submitting: true, pendingAction: 'submit' })
+    await userEvent.keyboard('{Escape}')
+    expect(onCancel).not.toHaveBeenCalled()
+  })
+
+  it('does not call onCancel on outside press while submitting', async () => {
+    const onCancel = vi.fn()
+    renderDialog({ onCancel, submitting: true, pendingAction: 'save' })
+    await userEvent.click(document.body)
+    expect(onCancel).not.toHaveBeenCalled()
+  })
+
+  it('focuses the dialog popup, not the Submit button, on open', async () => {
+    renderDialog()
+    const dialog = screen.getByRole('dialog', { name: /finish quiz/i })
+    await vi.waitFor(() => expect(document.activeElement).toBe(dialog))
+    expect(document.activeElement).not.toBe(screen.getByRole('button', { name: /submit quiz/i }))
   })
 })

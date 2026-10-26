@@ -46,6 +46,7 @@ export function useFinishQuizDialog(
     canDismiss,
     unanswered,
     confirmingSubmit,
+    submitting,
     timeExpired,
     onCancel,
     onSubmit,
