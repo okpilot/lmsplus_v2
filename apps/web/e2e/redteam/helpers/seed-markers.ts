@@ -126,3 +126,9 @@ export const E2E_REDTEAM_KC_STUDENT_EMAIL = 'redteam-kc-enrolments@lmsplus.local
 export const E2E_REDTEAM_KC_STUDENT_PASSWORD = 'redteam-kc-enrolments-2026!'
 export const E2E_REDTEAM_KC_INSTRUCTOR_EMAIL = 'redteam-kc-instructor@lmsplus.local'
 export const E2E_REDTEAM_KC_INSTRUCTOR_PASSWORD = 'redteam-kc-instructor-2026!'
+// set_user_enrolments soft-deleted-admin + concurrency spec (Vectors KF, KG, #1635). Dedicated
+// throwaway admin (soft-deleted and restored per test) and student bound the enrolment changes.
+export const E2E_REDTEAM_KF_ADMIN_EMAIL = 'redteam-kf-admin@lmsplus.local'
+export const E2E_REDTEAM_KF_ADMIN_PASSWORD = 'redteam-kf-admin-2026!'
+export const E2E_REDTEAM_KF_STUDENT_EMAIL = 'redteam-kf-student@lmsplus.local'
+export const E2E_REDTEAM_KF_STUDENT_PASSWORD = 'redteam-kf-student-2026!'

@@ -316,6 +316,8 @@
 | KC | set_user_enrolments-non-admin-self-enrol | HIGH | set-user-enrolments-escalation.spec.ts | BLOCKED |  | privilege-escalation |
 | KD | set_user_enrolments-cross-org-admin-write | HIGH | set-user-enrolments-escalation.spec.ts | BLOCKED |  | cross-tenant |
 | KE | course_enrolments-cross-org-admin-read | MEDIUM | set-user-enrolments-escalation.spec.ts | BLOCKED |  | cross-tenant |
+| KF | set_user_enrolments-soft-deleted-admin | HIGH | set-user-enrolments-softdelete-race.spec.ts | BLOCKED |  | soft-delete-bypass |
+| KG | set_user_enrolments-concurrent-calls | LOW | set-user-enrolments-softdelete-race.spec.ts | BLOCKED |  | race |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
