@@ -322,10 +322,8 @@ describe('getFilteredCount — questionType (MC-aware Study/Discovery count)', (
 
     await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['all'] })
 
-    expect(mockRpc).toHaveBeenCalledWith(
-      'get_filtered_question_counts',
-      expect.not.objectContaining({ p_question_type: expect.anything() }),
-    )
+    expect(mockRpc).toHaveBeenCalledWith('get_filtered_question_counts', expect.any(Object))
+    expect(mockRpc.mock.calls[0]?.[1].p_question_type).toBeUndefined()
   })
 
   it('returns empty count and logs when questionType is an unsupported value', async () => {
