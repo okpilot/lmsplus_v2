@@ -107,8 +107,8 @@ async function fetchTopicTreeRows(supabase: Supabase) {
 /**
  * Every subject's topic tree in one read (3 round trips total, in parallel), keyed by
  * subject id. Subjects whose built tree is empty are omitted so the client falls back to
- * the per-subject action. An empty counts result is treated as a failure for the same
- * reason: `getActiveQuestionCounts` degrades to `[]`, which would otherwise yield an
+ * the per-subject action. An empty counts result is treated as a failure when any topic or
+ * subtopic exists, for the same reason: `getActiveQuestionCounts` degrades to `[]`, which would otherwise yield an
  * all-empty preload. The two table reads are unfiltered, so each asks for the exact row
  * count and a result cut at PostgREST `max_rows` throws instead of silently truncating.
  * Per-request memoised via `cache()`; the caller catches a throw.

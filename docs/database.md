@@ -342,11 +342,12 @@ CREATE INDEX idx_course_enrolments_organization_id ON course_enrolments(organiza
 **GRANTs to `authenticated`:** `SELECT` only.
 
 **Helper:** `private.accessible_subject_ids() RETURNS SETOF uuid` (mig `20261028000100`, #1637) — `sql STABLE SECURITY DEFINER SET search_path = public, pg_temp`; EXECUTE `authenticated` only (revoked from PUBLIC, `anon`). Active admin/instructor: every subject. Active other caller: subjects whose `course_id` has a live enrolment. NULL uid or deactivated caller: empty.
-**Guard triggers:** `trg_quiz_sessions_enforce_enrolment` BEFORE INSERT and `trg_quiz_sessions_enforce_enrolment_revive` BEFORE UPDATE OF `deleted_at` WHEN NOT NULL → NULL (`resume_saved_quiz` or a direct UPDATE) ON `quiz_sessions` (mig `20261028000200`; shared `quiz_sessions_enforce_enrolment()`, SECURITY INVOKER) raises `not_enrolled` when `subject_id` or any `config.question_ids` question is outside the helper's set; no-op when `auth.uid()` IS NULL.
 
 **Backfill:** every `users.role = 'student'` row (soft-deleted included) has one active enrolment in `PPL_A` and `VFR_RT`; `enrolled_by` NULL. Admins and instructors: none (enrolment is independent of role; an admin can enrol any active user of the org).
 
 ### quiz_sessions
+
+**Guard triggers:** `trg_quiz_sessions_enforce_enrolment` BEFORE INSERT and `trg_quiz_sessions_enforce_enrolment_revive` BEFORE UPDATE OF `deleted_at` WHEN NOT NULL → NULL (`resume_saved_quiz` or a direct UPDATE) ON `quiz_sessions` (mig `20261028000200`; shared `quiz_sessions_enforce_enrolment()`, SECURITY INVOKER) raises `not_enrolled` when `subject_id` or any `config.question_ids` question is outside the helper's set; no-op when `auth.uid()` IS NULL.
 
 RESTRICTIVE SELECT policy `quiz_sessions_select_active_caller` (`TO authenticated USING ((select private.is_active_user()))`, migration `20261025000100`, #1607): a deactivated caller reads no rows. ANDs with the table's permissive SELECT policies.
 

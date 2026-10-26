@@ -207,6 +207,18 @@ describe('RPC: start paths enforce course enrolment', () => {
     expect(await sessionsOf(ids['eg-rt'] as string)).toEqual([])
   })
 
+  it('AC4: start_quiz_session with no subject raises not_enrolled for ids outside the enrolled courses', async () => {
+    const { data, error } = await (clients['eg-rt'] as SupabaseClient).rpc('start_quiz_session', {
+      p_mode: 'quick_quiz',
+      p_subject_id: null,
+      p_topic_id: null,
+      p_question_ids: questionIds.slice(0, 2),
+    })
+    expect(error?.message ?? '').toMatch(/not_enrolled/)
+    expect(data).toBeNull()
+    expect(await sessionsOf(ids['eg-rt'] as string)).toEqual([])
+  })
+
   it('AC4: start_discovery raises not_enrolled for a non-enrolled student', async () => {
     const { error } = await (clients['eg-rt'] as SupabaseClient).rpc('start_discovery', {
       ...practiceArgs(),

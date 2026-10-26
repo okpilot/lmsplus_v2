@@ -70,10 +70,12 @@ test.describe('Course enrolment visibility', () => {
     await expect(page.getByText(ERROR_HEADING)).toHaveCount(0)
 
     await page.goto('/app/quiz')
+    await expect(page).toHaveURL(/\/app\/quiz$/)
     await expect(page.getByRole('main')).toBeVisible()
     await expect(page.getByText(ERROR_HEADING)).toHaveCount(0)
 
     await page.goto('/app/vfr-rt')
+    await expect(page).toHaveURL(/\/app\/vfr-rt$/)
     await expect(page.getByRole('main')).toBeVisible()
     await expect(page.getByText(ERROR_HEADING)).toHaveCount(0)
   })
@@ -81,6 +83,7 @@ test.describe('Course enrolment visibility', () => {
   test('a PPL-only student sees no RT subject in the picker', async ({ page }) => {
     await login(page, PPL_EMAIL)
     await page.goto('/app/quiz')
+    await expect(page).toHaveURL(/\/app\/quiz$/)
     await expect(page.getByRole('main')).toBeVisible()
     await expect(page.getByText(ERROR_HEADING)).toHaveCount(0)
     await expect(page.getByText(RT_SUBJECT_NAME)).toHaveCount(0)
@@ -89,6 +92,7 @@ test.describe('Course enrolment visibility', () => {
   test('a PPL-only student sees the not-enrolled state on /app/vfr-rt', async ({ page }) => {
     await login(page, PPL_EMAIL)
     await page.goto('/app/vfr-rt')
+    await expect(page).toHaveURL(/\/app\/vfr-rt$/)
     await expect(page.getByText(ERROR_HEADING)).toHaveCount(0)
     await expect(page.getByText(/not enrolled/i)).toBeVisible()
   })
