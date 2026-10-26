@@ -1,6 +1,7 @@
 # Red Team — Attack Surface Map
 
-> Last updated: 2026-10-25 (branch refactor/1609-typed-rpc-quiz, #1609 — Vectors JY, JZ added.)
+> Last updated: 2026-10-26 (branch feat/1637-enforce-enrolment, #1637 — Vectors KI–KO added.)
+> PRIOR: 2026-10-25 (branch refactor/1609-typed-rpc-quiz, #1609 — Vectors JY, JZ added.)
 > PRIOR: 2026-10-25 (branch fix/1608-server-code, #1608 — Vectors JW, JX added.)
 > PRIOR: 2026-10-25 (branch fix/1607-deactivated-students, #1607 — Vectors JU, JV added.)
 > PRIOR: 2026-10-23 (branch perf/1602-one-count-rpc, #1602 — Vectors JQ-JT added; IY spec covers get_discovery_counts.)

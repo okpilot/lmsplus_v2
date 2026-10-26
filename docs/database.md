@@ -1528,7 +1528,7 @@ Admin-only RPC setting the complete set of active course enrolments for one user
 
 **Audit payload:** `event_type = 'user.enrolments_changed'`, `resource_type = 'user'`, `resource_id = p_user_id`, `metadata = { added: [course_id…], removed: [course_id…], sessions_ended: [quiz_session_id…], saved_cleared: [quiz_session_id…] }`. Written when any of the four is non-empty; a sweep-only call carries empty `added`/`removed`.
 
-**Known limits:** a discarded `internal_exam` session leaves its code consumed; `void_internal_exam_code` then raises `session_state_changed` for it, and the attempt drops out of exam history. A session start or revive committing concurrently with the removal survives it (start RPCs do not lock the target's `users` row); `get_quiz_questions` still filters its questions and the student can discard it. Role edits outside `updateStudent` do not sweep. The role write commits before the sweep; a failed sweep surfaces as "courses were not saved".
+**Known limits:** a discarded `internal_exam` session leaves its code consumed; `void_internal_exam_code` then raises `session_state_changed` for it, and the attempt drops out of exam history. A session start or revive committing concurrently with the removal survives it (start RPCs do not lock the target's `users` row): the session stays open, `get_quiz_questions` returns none of its out-of-enrolment questions, and the next sweep or a student discard ends it. Role edits outside `updateStudent` do not sweep. The role write commits before the sweep; a failed sweep surfaces as "courses were not saved".
 
 **Grants:** `REVOKE EXECUTE … FROM PUBLIC, anon`; `GRANT EXECUTE … TO authenticated`.
 
