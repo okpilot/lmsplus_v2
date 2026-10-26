@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupTestData } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
@@ -142,14 +142,35 @@ describe('RLS: courses and course_enrolments', () => {
     expect(data?.every((r) => r.user_id === instructorAId)).toBe(true)
   })
 
-  it('AC7: a soft-deleted instructor reads no own enrolments', async () => {
-    await admin
-      .from('users')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('id', instructorAId)
-    const { data } = await instructorAClient.from('course_enrolments').select('id')
-    expect(data ?? []).toEqual([])
-    await admin.from('users').update({ deleted_at: null }).eq('id', instructorAId)
+  describe('soft-deleted instructor', () => {
+    // Restore in afterEach, not a finally: biome's noUnsafeFinally forbids throwing there.
+    let instructorSoftDeleted = false
+
+    afterEach(async () => {
+      if (!instructorSoftDeleted) return
+      const { data: restored, error } = await admin
+        .from('users')
+        .update({ deleted_at: null })
+        .eq('id', instructorAId)
+        .select('id')
+      if (error) throw new Error(`[cleanup] restore instructor failed: ${error.message}`)
+      if ((restored ?? []).length === 0) throw new Error('[cleanup] restore instructor: 0 rows')
+      instructorSoftDeleted = false
+    })
+
+    it('AC7: a soft-deleted instructor reads no own enrolments', async () => {
+      const { data: removed, error: delError } = await admin
+        .from('users')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', instructorAId)
+        .select('id')
+      expect(delError).toBeNull()
+      expect(removed).toHaveLength(1)
+      instructorSoftDeleted = true
+      const { data, error } = await instructorAClient.from('course_enrolments').select('id')
+      expect(error).toBeNull()
+      expect(data).toEqual([])
+    })
   })
 
   it('AC7: a student does not see their own soft-deleted enrolment', async () => {
