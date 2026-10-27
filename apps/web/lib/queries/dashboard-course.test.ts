@@ -33,6 +33,15 @@ describe('getDashboardCourse', () => {
     expect((await getDashboardCourse()).selected).toEqual(PPL)
   })
 
+  it('shows no course and logs when the enrolment read fails', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockGetMyCourses.mockRejectedValue(new Error('boom'))
+    mockCookieGet.mockReturnValue({ value: 'PPL_A' })
+    expect(await getDashboardCourse()).toEqual({ courses: [], selected: null })
+    expect(log).toHaveBeenCalledWith('[getDashboardCourse] enrolments read failed:', 'boom')
+    log.mockRestore()
+  })
+
   it('selects null when the user has no courses', async () => {
     mockGetMyCourses.mockResolvedValue([])
     mockCookieGet.mockReturnValue({ value: 'PPL_A' })
