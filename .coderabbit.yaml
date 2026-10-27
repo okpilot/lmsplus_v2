@@ -597,7 +597,7 @@ reviews:
           reference-data table keyed by subject gets the same policy. A SECURITY DEFINER reader
           keyed by raw question/subject ids filters subject_id IN (SELECT
           private.accessible_subject_ids()) (get_quiz_questions, mig 20261028000300);
-          session-keyed readers are not re-checked. quiz_sessions INSERT and the deleted_at
+          session- and caller-keyed readers are not re-checked. quiz_sessions INSERT and the deleted_at
           revive pass trg_quiz_sessions_enforce_enrolment / _revive ('not_enrolled'; no-op
           when auth.uid() IS NULL). The start RPCs (start_exam_session, start_discovery,
           start_vfr_rt_exam_session, start_quiz_session, start_internal_exam_session) raise
