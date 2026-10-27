@@ -86,7 +86,7 @@ describe('SessionSummary', () => {
         scorePercentage={100}
       />,
     )
-    expect(tileFor('Incorrect')).toHaveTextContent('0')
+    expect(tileFor('Incorrect')?.querySelector('span.tabular-nums')).toHaveTextContent(/^0$/)
   })
 
   it('sets the count tiles at heading size so a four-column row fits a phone', () => {
@@ -115,7 +115,7 @@ describe('SessionSummary', () => {
     )
     expect(screen.getByText('Skipped')).toBeInTheDocument()
     // skippedCount = 10 - 8 = 2; use label sibling to disambiguate from incorrectCount (also 2)
-    expect(tileFor('Skipped')).toHaveTextContent('2')
+    expect(tileFor('Skipped')?.querySelector('span.tabular-nums')).toHaveTextContent(/^2$/)
     expect(screen.getByText('8')).toBeInTheDocument() // answeredCount
     expect(screen.getByText('Answered')).toBeInTheDocument()
   })
@@ -142,7 +142,7 @@ describe('SessionSummary', () => {
         scorePercentage={71.4}
       />,
     )
-    expect(tileFor('Incorrect')).toHaveTextContent('2')
+    expect(tileFor('Incorrect')?.querySelector('span.tabular-nums')).toHaveTextContent(/^2$/)
   })
 
   it('renders the correct and incorrect counts as stat tiles in success and danger tones', () => {
