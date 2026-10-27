@@ -3,11 +3,34 @@
 import { usePathname } from 'next/navigation'
 import { Suspense } from 'react'
 import { SectionLabel } from '@/components/kit/section-label'
-import { ADMIN_NAV_ITEMS, isActivePath, type NavItem, SIDEBAR_GROUPS } from './nav-items'
+import {
+  ADMIN_NAV_ITEMS,
+  isActivePath,
+  type NavItem,
+  SIDEBAR_GROUPS,
+  visibleNavItems,
+} from './nav-items'
 import { SidebarFooter } from './sidebar-footer'
 import { SidebarItem } from './sidebar-item'
 import { useUser } from './user-context'
 import { Wordmark } from './wordmark'
+
+const VFR_RT_HREF = '/app/vfr-rt'
+
+/** Leaf gate: suspends on the user alone, so other items render immediately. Hidden until known. */
+function VfrRtItem(props: Readonly<{ item: NavItem; active: boolean }>) {
+  const { userRole, courseCodes } = useUser()
+  if (visibleNavItems([props.item], { userRole, courseCodes }).length === 0) return null
+  return <SidebarItem {...props} />
+}
+
+function VfrRtNavGate(props: Readonly<{ item: NavItem; active: boolean }>) {
+  return (
+    <Suspense fallback={null}>
+      <VfrRtItem {...props} />
+    </Suspense>
+  )
+}
 
 function NavGroup({
   label,
@@ -17,9 +40,10 @@ function NavGroup({
   return (
     <div className="flex flex-col gap-0.5">
       <SectionLabel className="px-2.5 pb-1">{label}</SectionLabel>
-      {items.map((item) => (
-        <SidebarItem key={item.href} item={item} active={isActivePath(pathname, item.href)} />
-      ))}
+      {items.map((item) => {
+        const Item = item.href === VFR_RT_HREF ? VfrRtNavGate : SidebarItem
+        return <Item key={item.href} item={item} active={isActivePath(pathname, item.href)} />
+      })}
     </div>
   )
 }

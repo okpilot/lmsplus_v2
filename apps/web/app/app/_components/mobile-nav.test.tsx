@@ -97,8 +97,11 @@ describe('MobileNav', () => {
     const pending = new Promise<ShellUser>((r) => {
       resolve = r
     })
-    const view = renderMobileNav(pending)
-    act(() => observerCallback?.([{ contentRect: { width: 320 } }]))
+    let view!: ReturnType<typeof renderMobileNav>
+    await act(async () => {
+      view = renderMobileNav(pending)
+    })
+    await act(async () => observerCallback?.([{ contentRect: { width: 256 } }]))
     await userEvent.setup({ delay: null }).click(screen.getByRole('button', { name: 'More' }))
     await act(async () => {
       mockUsePathname.mockReturnValue('/app/quiz')
@@ -110,7 +113,7 @@ describe('MobileNav', () => {
       resolve({ displayName: 'A', userRole: 'admin' })
       await pending
     })
-    act(() => observerCallback?.([{ contentRect: { width: 320 } }]))
+    act(() => observerCallback?.([{ contentRect: { width: 256 } }]))
     expect(screen.getByRole('button', { name: 'More' })).toHaveAttribute('aria-expanded', 'false')
   })
 
@@ -134,14 +137,14 @@ describe('MobileNav', () => {
     }
 
     it('keeps the same tab bar element', async () => {
-      const resolveAs = await renderPending(320)
+      const resolveAs = await renderPending(256)
       const nav = screen.getByRole('navigation', { name: 'Bottom navigation' })
       await resolveAs('admin')
       expect(screen.getByRole('navigation', { name: 'Bottom navigation' })).toBe(nav)
     })
 
     it('keeps keyboard focus on More', async () => {
-      const resolveAs = await renderPending(320)
+      const resolveAs = await renderPending(256)
       act(() => screen.getByRole('button', { name: 'More' }).focus())
       await resolveAs('admin')
       expect(document.activeElement).toBe(screen.getByRole('button', { name: 'More' }))
@@ -162,15 +165,18 @@ describe('MobileNav', () => {
       const pending = new Promise<ShellUser>((r) => {
         resolve = r
       })
-      const view = renderMobileNav(pending)
-      act(() => observerCallback?.([{ contentRect: { width: 320 } }]))
+      let view!: ReturnType<typeof renderMobileNav>
+      await act(async () => {
+        view = renderMobileNav(pending)
+      })
+      await act(async () => observerCallback?.([{ contentRect: { width: 256 } }]))
       await userEvent.setup({ delay: null }).click(screen.getByRole('button', { name: 'More' }))
       expect(screen.getByRole('button', { name: 'More' })).toHaveAttribute('aria-expanded', 'true')
       await act(async () => {
         resolve({ displayName: 'A', userRole: 'admin' })
         await pending
       })
-      act(() => observerCallback?.([{ contentRect: { width: 320 } }]))
+      act(() => observerCallback?.([{ contentRect: { width: 256 } }]))
       return view
     }
 
