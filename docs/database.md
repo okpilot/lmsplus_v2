@@ -309,7 +309,7 @@ CREATE TABLE courses (
 
 **RLS (ENABLED + FORCED):** `courses_select` `FOR SELECT TO authenticated USING ((SELECT auth.uid()) IS NOT NULL)`. No INSERT/UPDATE/DELETE policy.
 **GRANTs to `authenticated`:** `SELECT` only.
-**Subjects:** `easa_subjects.course_id` (NOT NULL, default PPL_A) assigns each subject to one course; `RT` → `VFR_RT`.
+**Subjects:** `easa_subjects.course_id` (NOT NULL, default PPL_A) assigns each subject to one course; `RT` → `VFR_RT`; `100` (Area 100 KSA, mig `20261028001200`, #1639) → `ATPL_A`.
 
 ### course_enrolments
 
