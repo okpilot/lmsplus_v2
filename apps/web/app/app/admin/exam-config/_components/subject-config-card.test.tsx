@@ -96,6 +96,29 @@ describe('SubjectConfigCard', () => {
       expect(screen.getByRole('button', { name: 'Enabled' })).toBeTruthy()
     })
 
+    it('shows the enabled state as a success badge inside the toggle button', () => {
+      render(<SubjectConfigCard subject={subjectWithConfig} onEdit={vi.fn()} />)
+      const badge = screen
+        .getByRole('button', { name: 'Enabled' })
+        .querySelector('[data-slot="badge"]')
+      expect(badge).toHaveClass('bg-success-soft')
+    })
+
+    it('shows the disabled state as a neutral badge inside the toggle button', () => {
+      render(<SubjectConfigCard subject={subjectWithDisabledConfig} onEdit={vi.fn()} />)
+      const badge = screen
+        .getByRole('button', { name: 'Disabled' })
+        .querySelector('[data-slot="badge"]')
+      expect(badge).toHaveClass('bg-muted')
+    })
+
+    it('extends the toggle tap area to 44px below lg without growing the badge', () => {
+      render(<SubjectConfigCard subject={subjectWithConfig} onEdit={vi.fn()} />)
+      const cls = screen.getByRole('button', { name: 'Enabled' }).className
+      expect(cls).toContain('after:-inset-y-3')
+      expect(cls).toContain('lg:after:hidden')
+    })
+
     it('shows "Disabled" toggle button when config exists but is disabled', () => {
       render(<SubjectConfigCard subject={subjectWithDisabledConfig} onEdit={vi.fn()} />)
       expect(screen.getByRole('button', { name: 'Disabled' })).toBeTruthy()
@@ -210,6 +233,15 @@ describe('SubjectConfigCard', () => {
         expect(toast.error).toHaveBeenCalledWith('Failed to update exam status')
       })
       expect(toast.success).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('toggle hover feedback', () => {
+    it('dims the status toggle on hover while it is enabled', () => {
+      render(<SubjectConfigCard subject={subjectWithConfig} onEdit={vi.fn()} />)
+      const cls = screen.getByRole('button', { name: 'Enabled' }).className
+      expect(cls).toContain('enabled:hover:opacity-80')
+      expect(cls).toContain('transition-opacity')
     })
   })
 })

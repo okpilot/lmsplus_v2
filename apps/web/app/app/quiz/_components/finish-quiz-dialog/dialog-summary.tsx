@@ -1,5 +1,7 @@
 'use client'
 
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { FieldError } from '@/components/ui/field-error'
 import { ExpiredNotice } from './expired-notice'
 
 type DialogSummaryProps = {
@@ -31,9 +33,11 @@ export function DialogSummary({
         </p>
       )}
       {pendingSelection && (
-        <p className="mt-3 text-sm font-medium text-caution">
-          You picked an answer on this question but haven't submitted it.
-        </p>
+        <Alert tone="caution" size="compact" className="mt-3">
+          <AlertDescription>
+            You picked an answer on this question but haven't submitted it.
+          </AlertDescription>
+        </Alert>
       )}
     </>
   )
@@ -42,8 +46,8 @@ export function DialogSummary({
 export function ErrorLine({ message }: Readonly<{ message?: string | null }>) {
   if (!message) return null
   return (
-    <p role="alert" className="mt-4 text-sm text-destructive">
+    <FieldError role="alert" className="mt-4">
       {message}
-    </p>
+    </FieldError>
   )
 }

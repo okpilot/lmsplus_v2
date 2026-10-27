@@ -1,4 +1,4 @@
-import { EmptyState } from '@/components/kit/empty-state'
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { getRtSubjectData } from '../actions/get-rt-subject'
 import { VfrRtConfigForm } from './vfr-rt-config-form'
 
@@ -11,9 +11,14 @@ export async function VfrRtSetup() {
   const data = await getRtSubjectData()
   if (!data) {
     return (
-      <EmptyState title="You are not enrolled in this course.">
-        Ask your instructor to enrol you in VFR Radiotelephony.
-      </EmptyState>
+      <Empty>
+        <EmptyHeader>
+          <EmptyTitle as="h2">You are not enrolled in this course.</EmptyTitle>
+          <EmptyDescription>
+            Ask your instructor to enrol you in VFR Radiotelephony.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     )
   }
   const { id, subjects, topics, exam } = data

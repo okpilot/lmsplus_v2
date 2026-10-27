@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
+import { Empty, EmptyDescription } from '@/components/ui/empty'
 import {
   Table,
   TableBody,
@@ -30,12 +31,9 @@ function formatScore(score: number | null): string {
 export function MyReportsTab({ rows }: Readonly<Props>) {
   if (rows.length === 0) {
     return (
-      <div
-        className="rounded-lg border border-dashed border-border bg-muted/30 p-6 text-center text-sm text-muted-foreground"
-        data-testid="reports-empty"
-      >
-        No internal exam attempts yet.
-      </div>
+      <Empty data-testid="reports-empty">
+        <EmptyDescription>No internal exam attempts yet.</EmptyDescription>
+      </Empty>
     )
   }
 

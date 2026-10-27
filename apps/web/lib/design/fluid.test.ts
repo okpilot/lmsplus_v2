@@ -10,6 +10,10 @@ describe('fluid', () => {
     expect(fluid(16, 16)).toBe('1rem')
   })
 
+  it('throws a RangeError when min exceeds max', () => {
+    expect(() => fluid(24, 16)).toThrow(RangeError)
+  })
+
   it('evaluates to min at 360px and max at 1240px', () => {
     const m = /^clamp\(([\d.]+)rem, ([\d.]+)rem \+ ([\d.]+)vw, ([\d.]+)rem\)$/.exec(fluid(18, 22))
     if (!m) throw new Error('fluid() did not return a clamp() expression')

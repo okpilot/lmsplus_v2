@@ -3,6 +3,7 @@ import { QuestionCount } from '@/app/app/quiz/_components/question-count'
 import { StartButton } from '@/app/app/quiz/_components/start-button'
 import { TopicTree } from '@/app/app/quiz/_components/topic-tree'
 import type { useQuizConfig } from '@/app/app/quiz/_hooks/use-quiz-config'
+import { FieldError } from '@/components/ui/field-error'
 
 type VfrRtPracticeSectionsProps = {
   config: ReturnType<typeof useQuizConfig>
@@ -45,9 +46,7 @@ function ConfigErrors({ config }: Readonly<{ config: Config }>) {
     <>
       <BlockedStartAlert message={config.error} blocked={config.blocked} startLabel="quiz" />
       {config.authError && (
-        <p role="alert" className="text-sm text-destructive">
-          Session expired. Please refresh the page.
-        </p>
+        <FieldError role="alert">Session expired. Please refresh the page.</FieldError>
       )}
     </>
   )

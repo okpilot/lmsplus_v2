@@ -118,7 +118,7 @@ describe('ReportCard', () => {
     const skippedLabels = screen.getAllByText('Skipped')
     expect(skippedLabels).toHaveLength(2)
     for (const label of skippedLabels) {
-      expect(label.parentElement?.querySelector('p:last-child')?.textContent).toBe('1')
+      expect(label.closest('[data-slot="stat"]')?.querySelector('span')?.textContent).toBe('1')
     }
   })
 

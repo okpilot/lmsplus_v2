@@ -92,7 +92,7 @@ export function FinishQuizDialog({
           initialFocus={popupRef}
           className="fixed max-h-[calc(100dvh-2rem)] overflow-y-auto top-1/2 left-1/2 z-overlay w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 rounded-card border border-border bg-card p-6 shadow-lg outline-none sm:max-w-md"
         >
-          <DialogTitle className="text-lg font-semibold text-foreground">{title}</DialogTitle>
+          <DialogTitle className="text-heading">{title}</DialogTitle>
           <DialogBody
             answeredCount={answeredCount}
             totalQuestions={totalQuestions}

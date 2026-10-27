@@ -1,3 +1,4 @@
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { withTimeout } from '@/lib/utils/with-timeout'
 import { getActiveInternalExamSession } from '../actions/get-active-internal-exam-session'
 import { listAvailableInternalExams, listMyInternalExamHistory } from '../queries'
@@ -34,13 +35,12 @@ export async function InternalExamContent() {
   return (
     <div className="space-y-4">
       {loadFailed && (
-        <div
-          role="alert"
-          className="mx-auto max-w-md rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive"
-        >
-          We couldn&apos;t load your internal exams right now. Please refresh — if the issue
-          persists, contact support.
-        </div>
+        <Alert role="alert" tone="danger" className="mx-auto max-w-md">
+          <AlertDescription>
+            We couldn&apos;t load your internal exams right now. Please refresh — if the issue
+            persists, contact support.
+          </AlertDescription>
+        </Alert>
       )}
       {activeSessions.map((session) => (
         <RecoveryBanner key={session.sessionId} session={session} />

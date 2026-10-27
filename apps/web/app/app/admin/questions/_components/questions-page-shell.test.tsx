@@ -134,3 +134,21 @@ describe('QuestionsPageShell bulk selection', () => {
     expect(screen.getByText('1 selected')).toBeInTheDocument()
   })
 })
+
+describe('QuestionsPageShell — no results', () => {
+  it('shows the no-results message in the shared empty part', () => {
+    const { container } = render(
+      <QuestionsPageShell
+        questions={[]}
+        tree={TREE}
+        filters={{}}
+        page={1}
+        totalCount={0}
+        pageSize={25}
+      />,
+    )
+    expect(container.querySelector('[data-slot="empty"]')).toHaveTextContent(
+      'No questions found. Adjust filters or create a new question.',
+    )
+  })
+})

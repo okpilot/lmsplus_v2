@@ -1,32 +1,28 @@
+import { Meter } from '@/components/ui/meter'
+import { Stat } from '@/components/ui/stat'
 import { getProgressData } from '@/lib/queries/progress'
+import { getOverallMastery } from '../_lib/overall-mastery'
 import { SubjectBreakdown } from './subject-breakdown'
 
 export async function ProgressContent() {
   const subjects = await getProgressData()
 
-  const totalQuestions = subjects.reduce((sum, s) => sum + s.totalQuestions, 0)
-  const totalCorrect = subjects.reduce((sum, s) => sum + s.answeredCorrectly, 0)
-  // totalCorrect counts orphan (now-draft) responses too, so it can exceed
-  // totalQuestions — clamp both the bar percentage and the displayed count (#664).
-  const overallMastery =
-    totalQuestions > 0 ? Math.min(Math.round((totalCorrect / totalQuestions) * 100), 100) : 0
-  const masteredCount = Math.min(totalCorrect, totalQuestions)
+  const { percentage: overallMastery, masteredCount, totalQuestions } = getOverallMastery(subjects)
 
   return (
     <>
-      <div className="rounded-lg border border-border bg-card p-6">
-        <p className="text-sm text-muted-foreground">Overall Mastery</p>
-        <p className="mt-1 text-4xl font-bold tabular-nums">{overallMastery}%</p>
-        <div className="mt-3 h-2 w-full rounded-full bg-muted">
-          <div
-            className="h-2 rounded-full bg-primary transition-all"
-            style={{ width: `${overallMastery}%` }}
-          />
-        </div>
-        <p className="mt-2 text-xs text-muted-foreground">
-          {masteredCount} / {totalQuestions} questions mastered
-        </p>
-      </div>
+      <Stat
+        label="Overall Mastery"
+        value={`${overallMastery}%`}
+        hint={
+          <>
+            <Meter value={overallMastery} label="Overall mastery" className="mt-2" />
+            <span className="mt-2 block">
+              {masteredCount} / {totalQuestions} questions mastered
+            </span>
+          </>
+        }
+      />
 
       <SubjectBreakdown subjects={subjects} />
     </>

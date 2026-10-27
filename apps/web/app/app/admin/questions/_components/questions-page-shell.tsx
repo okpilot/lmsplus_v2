@@ -2,6 +2,7 @@
 
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Empty, EmptyDescription } from '@/components/ui/empty'
 import { PaginationBar } from '../../../_components/pagination-bar'
 import type { SyllabusTree } from '../../syllabus/types'
 import { useScopedSelection } from '../_hooks/use-scoped-selection'
@@ -55,11 +56,11 @@ export function QuestionsPageShell({
       </div>
 
       {questions.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-12 text-center">
-          <p className="text-sm text-muted-foreground">
+        <Empty>
+          <EmptyDescription>
             No questions found. Adjust filters or create a new question.
-          </p>
-        </div>
+          </EmptyDescription>
+        </Empty>
       ) : (
         <QuestionTable
           questions={questions}

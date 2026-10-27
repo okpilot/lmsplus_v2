@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { PageHeader } from '@/components/ui/heading'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { InternalExamsContent } from './_components/internal-exams-content'
 import { InternalExamsFallback } from './_components/internal-exams-fallback'
@@ -12,12 +13,10 @@ export default async function InternalExamsPage({ searchParams }: Readonly<PageP
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Internal Exams</h1>
-        <p className="text-sm text-muted-foreground">
-          Issue one-time exam codes to students and review past attempts.
-        </p>
-      </div>
+      <PageHeader
+        title="Internal Exams"
+        description="Issue one-time exam codes to students and review past attempts."
+      />
       <Suspense fallback={<InternalExamsFallback />}>
         <InternalExamsContent status={status} codesPage={codesPage} attemptsPage={attemptsPage} />
       </Suspense>

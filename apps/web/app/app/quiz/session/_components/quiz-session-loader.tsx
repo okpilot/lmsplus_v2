@@ -1,5 +1,6 @@
 'use client'
 
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useSessionBootstrap } from '../_hooks/use-session-bootstrap'
 import { restrictDraftToQuestions } from '../_utils/restrict-draft-to-questions'
@@ -28,9 +29,9 @@ export function QuizSessionLoader({ userId }: Readonly<{ userId: string }>) {
 
   if (bs.error) {
     return (
-      <p role="alert" className="text-sm text-destructive">
-        {bs.error}
-      </p>
+      <Alert role="alert" tone="danger" size="compact">
+        <AlertDescription>{bs.error}</AlertDescription>
+      </Alert>
     )
   }
 

@@ -106,6 +106,7 @@ describe('DiagramLabelInput', () => {
       />,
     )
     expect(screen.getByRole('alert')).toHaveTextContent(/refresh/i)
+    expect(screen.getByRole('alert')).toHaveAttribute('data-slot', 'alert')
     // Fail closed: no drop-zones and no Submit — a student must not be able to
     // answer a diagram they cannot see.
     expect(screen.queryByTestId('diagram-label-zone-z1')).not.toBeInTheDocument()

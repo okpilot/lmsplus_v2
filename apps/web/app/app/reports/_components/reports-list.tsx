@@ -3,6 +3,7 @@
 import { useCallback } from 'react'
 import { PaginationBar } from '@/app/app/_components/pagination-bar'
 import { useUpdateSearchParams } from '@/app/app/_hooks/use-update-search-params'
+import { EmptyNote } from '@/components/ui/empty'
 import {
   Select,
   SelectContent,
@@ -32,6 +33,12 @@ const SORT_OPTIONS = [
   { value: 'subject-desc', label: 'Subject (Z–A)' },
 ]
 
+function NoReports() {
+  return (
+    <EmptyNote>No completed sessions yet. Start a quiz or review to see your reports.</EmptyNote>
+  )
+}
+
 export function ReportsList({ sessions, page, totalCount, pageSize, sort, dir }: Readonly<Props>) {
   const updateParams = useUpdateSearchParams()
 
@@ -56,11 +63,7 @@ export function ReportsList({ sessions, page, totalCount, pageSize, sort, dir }:
   )
 
   if (sessions.length === 0 && totalCount === 0) {
-    return (
-      <p className="py-8 text-center text-sm text-muted-foreground">
-        No completed sessions yet. Start a quiz or review to see your reports.
-      </p>
-    )
+    return <NoReports />
   }
 
   return (

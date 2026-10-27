@@ -36,9 +36,33 @@ import AdminErrorPage from './error'
 describe('AdminErrorPage', () => {
   const testError = new Error('Something exploded')
 
+  it('centres the boundary in a gutter-padded grid', () => {
+    const { container } = render(<AdminErrorPage error={testError} retry={vi.fn()} />)
+    expect(container.firstElementChild).toHaveClass(
+      'grid',
+      'min-h-[50vh]',
+      'place-items-center',
+      'px-gutter',
+    )
+  })
+
   it('renders the error heading', () => {
     render(<AdminErrorPage error={testError} retry={vi.fn()} />)
     expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('Something went wrong')
+  })
+
+  it('announces the failure as an alert with a danger-toned icon', () => {
+    const { container } = render(<AdminErrorPage error={testError} retry={vi.fn()} />)
+    expect(screen.getByRole('alert')).toHaveTextContent('Something went wrong')
+    expect(screen.getByRole('alert')).not.toContainElement(screen.getByRole('button'))
+    expect(container.querySelector('svg')?.getAttribute('class')).toContain('text-danger')
+  })
+
+  it('lays the two actions out in a row from the sm breakpoint', () => {
+    render(<AdminErrorPage error={testError} retry={vi.fn()} />)
+    expect(screen.getByRole('button', { name: /try again/i }).parentElement?.className).toContain(
+      'sm:flex-row',
+    )
   })
 
   it('renders the descriptive admin-area message', () => {

@@ -72,7 +72,9 @@ const DEFAULT_PROPS = {
 describe('ReportsList', () => {
   it('shows empty state message when sessions array is empty and totalCount is 0', () => {
     render(<ReportsList sessions={[]} {...DEFAULT_PROPS} totalCount={0} />)
-    expect(screen.getByText(/no completed sessions yet/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(/no completed sessions yet/i).closest('[data-slot="empty"]'),
+    ).not.toBeNull()
   })
 
   it('renders score for each session', () => {

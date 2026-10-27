@@ -8,6 +8,11 @@ describe('ErrorLine', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Something failed')
   })
 
+  it('renders the message as a field error', () => {
+    render(<ErrorLine message="Something failed" />)
+    expect(screen.getByRole('alert')).toHaveAttribute('data-slot', 'field-error')
+  })
+
   it.each([null, undefined, ''])('renders nothing for an empty message (%s)', (message) => {
     const { container } = render(<ErrorLine message={message} />)
     expect(container).toBeEmptyDOMElement()

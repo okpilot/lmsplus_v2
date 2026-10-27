@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useRef } from 'react'
-import { MoreButton, MoreSheet, SLOT, tone, useMoreSheet } from './more-sheet'
+import { MoreBackdrop, MoreButton, MoreSheet, SLOT, tone, useMoreSheet } from './more-sheet'
 import { NavIcon } from './nav-icon'
 import type { NavItem, NavViewer } from './nav-items'
 import { useTabBarModel } from './use-tab-bar-model'
@@ -72,13 +72,9 @@ export function BottomTabBar({
   return (
     <>
       <TabStrip bar={bar} />
+      {bar.sheetOpen && <MoreBackdrop onDismiss={bar.dismiss} />}
       {bar.sheetOpen && (
-        <MoreSheet
-          hidden={bar.hidden}
-          activeHref={bar.activeHref}
-          onClose={bar.close}
-          onDismiss={bar.dismiss}
-        />
+        <MoreSheet hidden={bar.hidden} activeHref={bar.activeHref} onClose={bar.close} />
       )}
     </>
   )

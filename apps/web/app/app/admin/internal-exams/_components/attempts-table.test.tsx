@@ -68,6 +68,11 @@ describe('AttemptsTable', () => {
     expect(screen.getByRole('link', { name: 'Alice' })).toHaveAttribute('data-prefetch', 'false')
   })
 
+  it('renders the empty message with the shared empty description', () => {
+    render(<AttemptsTable rows={[]} totalCount={0} pageSize={25} />)
+    expect(screen.getByText('No attempts yet')).toHaveAttribute('data-slot', 'empty-description')
+  })
+
   it('renders student name as a link to the report page with sessionId', () => {
     render(<AttemptsTable rows={[baseRow]} totalCount={0} pageSize={25} />)
     const link = screen.getByRole('link', { name: 'Alice' })

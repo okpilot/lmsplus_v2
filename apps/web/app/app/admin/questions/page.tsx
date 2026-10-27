@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 import { z } from 'zod'
+import { PageHeader } from '@/components/ui/heading'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { parsePageParam } from '@/lib/utils/parse-page-param'
 import { QuestionsContent } from './_components/questions-content'
@@ -51,12 +52,10 @@ export default async function QuestionsPage({ searchParams }: Readonly<PageProps
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Question Editor</h1>
-        <p className="text-sm text-muted-foreground">
-          Manage questions in the EASA PPL question bank.
-        </p>
-      </div>
+      <PageHeader
+        title="Question Editor"
+        description="Manage questions in the EASA PPL question bank."
+      />
       <Suspense fallback={<QuestionsContentFallback />}>
         <QuestionsContent filters={filters} />
       </Suspense>

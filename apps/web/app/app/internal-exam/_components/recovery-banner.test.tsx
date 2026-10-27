@@ -38,9 +38,11 @@ describe('RecoveryBanner', () => {
     expect(screen.getByText(/session in progress/i)).toBeInTheDocument()
   })
 
-  it('renders with amber accent styling', () => {
+  it('renders as a caution status alert', () => {
     render(<RecoveryBanner session={SESSION} />)
     const banner = screen.getByTestId('internal-exam-recovery-banner')
-    expect(banner.className).toContain('amber')
+    expect(banner).toHaveAttribute('role', 'status')
+    expect(banner).toHaveAttribute('data-slot', 'alert')
+    expect(banner.className).toContain('bg-caution-soft')
   })
 })

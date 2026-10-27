@@ -1,5 +1,6 @@
 'use client'
 
+import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 
 type ConfirmPanelProps = {
@@ -25,14 +26,8 @@ export function ConfirmPanel({
 }: Readonly<ConfirmPanelProps>) {
   const isWarn = variant === 'warning'
   return (
-    <div
-      className={`mt-4 rounded-lg border p-4 ${isWarn ? 'border-orange-400/40 bg-orange-500/10' : 'border-destructive/40 bg-destructive/10'}`}
-    >
-      <p
-        className={`text-sm font-medium ${isWarn ? 'text-orange-600 dark:text-orange-400' : 'text-destructive'}`}
-      >
-        {message}
-      </p>
+    <Alert tone={isWarn ? 'caution' : 'danger'} className="mt-4">
+      <AlertTitle>{message}</AlertTitle>
       <div className="mt-3 flex gap-2">
         <Button
           type="button"
@@ -47,6 +42,6 @@ export function ConfirmPanel({
           {isWarn ? 'Go back' : 'Cancel'}
         </Button>
       </div>
-    </div>
+    </Alert>
   )
 }

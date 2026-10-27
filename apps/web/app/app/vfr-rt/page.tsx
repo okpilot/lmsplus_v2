@@ -1,5 +1,7 @@
 import { Suspense } from 'react'
 import { QuizTabs } from '@/app/app/quiz/_components/quiz-tabs'
+import { PageHeader } from '@/components/ui/heading'
+import { Skeleton } from '@/components/ui/skeleton'
 import { requireAuthUser } from '@/lib/auth/require-auth-user'
 import { VfrRtActiveBanners } from './_components/vfr-rt-active-banners'
 import { VfrRtSavedPlaceholder } from './_components/vfr-rt-saved-placeholder'
@@ -12,12 +14,10 @@ export default async function VfrRtPage() {
 
   return (
     <main className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Practice</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Configure and start a VFR Radiotelephony practice session.
-        </p>
-      </div>
+      <PageHeader
+        title="Practice"
+        description="Configure and start a VFR Radiotelephony practice session."
+      />
 
       <VfrRtActiveBanners userId={user.id} />
 
@@ -28,7 +28,7 @@ export default async function VfrRtPage() {
           savedLabel="Saved Practice Sessions"
           ariaLabel="Practice options"
           newQuizContent={
-            <Suspense fallback={<div className="h-64 animate-pulse rounded-lg bg-muted" />}>
+            <Suspense fallback={<Skeleton className="h-64 rounded-card" />}>
               <VfrRtSetup />
             </Suspense>
           }

@@ -67,6 +67,7 @@ describe('QuestionCount', () => {
     expect(
       screen.getByText('No questions available. Select at least one topic above.'),
     ).toBeInTheDocument()
+    expect(screen.getByText(/no questions available/i).closest('[data-slot="empty"]')).toBeNull()
   })
 
   it('calls onValueChange when the All button is clicked', async () => {
