@@ -75,7 +75,8 @@ BEGIN
 
   -- Enrolment pre-gate: raise before any subject-scoped read or side effect, so a non-enrolled
   -- caller learns nothing about the hidden subject. trg_quiz_sessions_enforce_enrolment stays the
-  -- INSERT backstop. NULL v_code_subject falls through (NULL NOT IN … is NULL).
+  -- INSERT backstop. NULL v_code_subject falls through unless the
+  -- caller has no accessible subject (NULL NOT IN <empty set> is TRUE).
   IF v_code_subject NOT IN (SELECT private.accessible_subject_ids()) THEN
     RAISE EXCEPTION 'not_enrolled';
   END IF;

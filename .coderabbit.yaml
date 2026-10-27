@@ -599,7 +599,12 @@ reviews:
           private.accessible_subject_ids()) (get_quiz_questions, mig 20261028000300);
           session-keyed readers are not re-checked. quiz_sessions INSERT and the deleted_at
           revive pass trg_quiz_sessions_enforce_enrolment / _revive ('not_enrolled'; no-op
-          when auth.uid() IS NULL). question_comments SELECT/INSERT follow question visibility
+          when auth.uid() IS NULL). The start RPCs (start_exam_session, start_discovery,
+          start_vfr_rt_exam_session, start_quiz_session, start_internal_exam_session) raise
+          'not_enrolled' before any subject-scoped read, and start_quiz_session counts a hidden
+          question as invalid (migs 20261028000700-20261028001100); flag a start RPC that reads
+          subject-scoped data or raises a subject-specific error before that pre-gate.
+          question_comments SELECT/INSERT follow question visibility
           (mig 20261028000400). RESTRICTIVE census: _select_active_caller on student-owned
           tables plus *_select_enrolled on reference data, and
           question_comments_select_visible_question / question_comments_insert_visible_question.
