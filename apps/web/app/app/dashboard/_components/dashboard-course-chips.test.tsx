@@ -41,4 +41,45 @@ describe('DashboardCourseChips', () => {
       expect(screen.getByRole('button', { name: 'RT' })).toHaveAttribute('aria-pressed', 'true'),
     )
   })
+
+  it('restores the previous pill when the action returns a failure', async () => {
+    mockSelect.mockResolvedValue({ success: false, error: 'Not enrolled in this course' })
+    render(<DashboardCourseChips courses={[PPL, RT]} selectedCode="PPL_A" />)
+    await userEvent.click(screen.getByRole('button', { name: 'RT' }))
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'PPL' })).toHaveAttribute('aria-pressed', 'true'),
+    )
+    expect(screen.getByRole('button', { name: 'RT' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('restores the previous pill and accepts a new switch when the action rejects', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    mockSelect.mockRejectedValueOnce(new Error('network down'))
+    render(<DashboardCourseChips courses={[PPL, RT]} selectedCode="PPL_A" />)
+    await userEvent.click(screen.getByRole('button', { name: 'RT' }))
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'PPL' })).toHaveAttribute('aria-pressed', 'true'),
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'RT' }))
+    expect(mockSelect).toHaveBeenCalledTimes(2)
+  })
+
+  it('ignores a second click while the first switch is pending', async () => {
+    let resolve: (v: { success: true }) => void = () => undefined
+    mockSelect.mockImplementation(
+      () =>
+        new Promise((r) => {
+          resolve = r
+        }),
+    )
+    render(<DashboardCourseChips courses={[PPL, RT]} selectedCode="PPL_A" />)
+    await userEvent.click(screen.getByRole('button', { name: 'RT' }))
+    await userEvent.click(screen.getByRole('button', { name: 'PPL' }))
+    expect(mockSelect).toHaveBeenCalledTimes(1)
+    resolve({ success: true })
+    await waitFor(async () => {
+      await userEvent.click(screen.getByRole('button', { name: 'PPL' }))
+      expect(mockSelect).toHaveBeenCalledTimes(2)
+    })
+  })
 })

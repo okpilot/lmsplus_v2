@@ -55,6 +55,14 @@ describe('selectDashboardCourse', () => {
     expect(mockCookieSet).not.toHaveBeenCalled()
   })
 
+  it('returns a failure result without setting the cookie when the enrolments read throws', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    mockGetMyCourses.mockRejectedValue(new Error('db down'))
+    const result = await selectDashboardCourse({ code: 'PPL_A' })
+    expect(result).toEqual({ success: false, error: 'Failed to save course' })
+    expect(mockCookieSet).not.toHaveBeenCalled()
+  })
+
   it('does not set the cookie when the caller is unauthenticated', async () => {
     mockRequireAuthUser.mockRejectedValue(new Error('NEXT_REDIRECT'))
     await expect(selectDashboardCourse({ code: 'PPL_A' })).rejects.toThrow()

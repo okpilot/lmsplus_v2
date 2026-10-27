@@ -20,9 +20,15 @@ export function DashboardCourseChips({ courses, selectedCode }: Readonly<Props>)
     const previous = value
     setValue(code)
     startTransition(async () => {
-      const result = await selectDashboardCourse({ code })
-      if (!result.success) setValue(previous)
-      pendingRef.current = false
+      try {
+        const result = await selectDashboardCourse({ code })
+        if (!result.success) setValue(previous)
+      } catch (error) {
+        console.error('[DashboardCourseChips] switch failed:', error)
+        setValue(previous)
+      } finally {
+        pendingRef.current = false
+      }
     })
   }
 
