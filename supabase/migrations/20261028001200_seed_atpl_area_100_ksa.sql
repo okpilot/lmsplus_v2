@@ -3,7 +3,7 @@
 --   KNOWLEDGE, SKILLS AND ATTITUDES (KSA)", ED Decision 2020/018/R, PDF pp. 831-834.
 -- Official codes (100 01 00 00, ...) are written hyphenated (100-01, 100-02-01), as for the PPL subjects.
 -- Official 100 01 and 100 04 have no sub-topics; 100 02 has 5, 100 03 has 2.
--- DEVIATION (Decision 169): 11 LMS-only sub-topics 100-04-01..100-04-11 under 100-04, one per mental-maths
+-- DEVIATION (Decision 170): 11 LMS-only sub-topics 100-04-01..100-04-11 under 100-04, one per mental-maths
 --   LO (01)-(11), named with the official LO titles. exam_config_distributions targets topic/sub-topic only,
 --   so a per-LO draw needs one sub-topic per LO.
 -- sort_order 12: after the highest prod subject sort_order (040 = 11; 070 = 10), read-only prod probe 2026-10-27.

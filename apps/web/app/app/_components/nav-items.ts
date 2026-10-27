@@ -50,3 +50,13 @@ export const SIDEBAR_GROUPS: { label: string; items: NavItem[] }[] = [
 export const SETTINGS_ITEM: NavItem | undefined = NAV_ITEMS.find(
   (item) => item.href === '/app/settings',
 )
+
+export type NavViewer = { userRole: string; courseCodes?: readonly string[] | null }
+
+/** Drops VFR RT for a student whose known enrolments lack VFR_RT. Access stays enforced by RLS. */
+export function visibleNavItems(items: NavItem[], viewer: NavViewer): NavItem[] {
+  const { userRole, courseCodes } = viewer
+  if (userRole !== 'student' || !Array.isArray(courseCodes)) return items
+  if (courseCodes.includes('VFR_RT')) return items
+  return items.filter((item) => item.href !== '/app/vfr-rt')
+}

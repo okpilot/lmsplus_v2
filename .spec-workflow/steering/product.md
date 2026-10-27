@@ -24,7 +24,7 @@ The primary competitive baseline is Aviationexam. LMS Plus differentiates by off
 
 1. **Authentication**: Email + password login with pre-created accounts (no self-registration). Password reset flow. Session recovery across deployments.
 
-2. **Student Dashboard**: Per-subject progress cards with colour-coded mastery bars (red/amber/green), 31-day activity heatmap, exam readiness score (X/9 subjects at 90%+), daily question goal tracker, study streak counter.
+2. **Student Dashboard**: Per-subject progress cards with colour-coded mastery bars (red/amber/green), 31-day activity heatmap, exam readiness score (X/N subjects of the selected course at 90%+), daily question goal tracker, study streak counter.
 
 3. **Quiz System**: Multi-select topic tree for question selection, combinable filters (All/Unseen/Incorrect/Flagged), configurable question count (10 to All), randomised delivery, immediate per-question feedback with explanations, session reports with score breakdown.
 
@@ -69,7 +69,7 @@ The primary competitive baseline is Aviationexam. LMS Plus differentiates by off
 
 - **Question bank coverage**: All 9 EASA PPL subjects populated with questions, students actively using all subjects.
 - **Session completion rate**: Percentage of started quiz sessions that reach submission (not abandoned or left as drafts).
-- **Exam readiness progression**: Students reaching 90%+ mastery across all 9 subjects over their training period.
+- **Exam readiness progression**: Students reaching 90%+ mastery across all subjects of their course over their training period.
 - **Daily engagement**: Students meeting the 50-question daily goal (tracked via Questions Today stat card).
 - **Admin efficiency**: Time to onboard a new student (create account, assign to organisation) under 2 minutes.
 - **Audit compliance**: Zero manual intervention required to produce CAA-requested training records.

@@ -97,8 +97,8 @@ export function useMoreSheet({ pathname, hasHidden, moreRef }: MoreSheetOpts) {
   }, [openedAt, pathname])
 
   useEffect(() => {
-    if (!hasHidden) setOpenedAt(null)
-  }, [hasHidden])
+    if (!hasHidden && openedAt !== null) setOpenedAt(null)
+  }, [hasHidden, openedAt])
 
   const close = useCallback(() => setOpenedAt(null), [])
   const toggle = useCallback(

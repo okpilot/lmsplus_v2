@@ -9,6 +9,8 @@ vi.mock('@/lib/auth/get-caller-profile', () => ({
   getCallerProfile: (...args: unknown[]) => mockGetCallerProfile(...args),
 }))
 
+vi.mock('@/lib/queries/my-courses', () => ({ getMyCourses: async () => [] }))
+
 import { loadShellUser } from './load-shell-user'
 
 beforeEach(() => {
@@ -23,7 +25,11 @@ describe('loadShellUser', () => {
       error: null,
     })
 
-    expect(await loadShellUser(user)).toEqual({ displayName: 'Ada Pilot', userRole: 'instructor' })
+    expect(await loadShellUser(user)).toEqual({
+      displayName: 'Ada Pilot',
+      userRole: 'instructor',
+      courseCodes: null,
+    })
   })
 
   it('falls back to the profile email when full_name is null', async () => {
@@ -47,6 +53,7 @@ describe('loadShellUser', () => {
     expect(await loadShellUser(user)).toEqual({
       displayName: 'ada@example.com',
       userRole: 'student',
+      courseCodes: [],
     })
     expect(consoleSpy).toHaveBeenCalledWith(
       '[loadShellUser] profile lookup error:',
@@ -72,6 +79,7 @@ describe('loadShellUser', () => {
     await expect(loadShellUser({ id: 'u1', email: null })).resolves.toEqual({
       displayName: 'Student',
       userRole: 'student',
+      courseCodes: [],
     })
   })
 
