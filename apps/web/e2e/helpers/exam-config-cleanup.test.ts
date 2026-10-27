@@ -8,10 +8,10 @@ vi.mock('./supabase', () => ({
   getAdminClient: mockGetAdminClient,
 }))
 
-import { softDeleteSubjectExamConfigs } from './exam-config-cleanup'
+import { countActiveSubjectExamConfigs, softDeleteSubjectExamConfigs } from './exam-config-cleanup'
 
 type Call = { table: string; method: string; args: unknown[] }
-type Result = { data: unknown; error: { message: string } | null }
+type Result = { data: unknown; error: { message: string } | null; count?: number }
 
 function buildChain(returnValue: unknown, calls: Call[], table: string) {
   const awaitable = {
@@ -42,6 +42,8 @@ beforeEach(() => {
   vi.resetAllMocks()
 })
 
+const SINCE = '2026-10-27T00:00:00.000Z'
+
 describe('softDeleteSubjectExamConfigs', () => {
   it('soft-deletes active exam_configs of the subject by setting deleted_at, never hard-deleting', async () => {
     const calls = mockTables({
@@ -49,7 +51,7 @@ describe('softDeleteSubjectExamConfigs', () => {
       exam_configs: { data: [{ id: 'cfg-1' }], error: null },
     })
 
-    await softDeleteSubjectExamConfigs('100')
+    await softDeleteSubjectExamConfigs('100', SINCE)
 
     const update = calls.find((c) => c.table === 'exam_configs' && c.method === 'update')
     expect(update).toBeDefined()
@@ -57,6 +59,9 @@ describe('softDeleteSubjectExamConfigs', () => {
     expect(calls.some((c) => c.method === 'delete')).toBe(false)
     expect(calls.some((c) => c.method === 'is' && c.args[0] === 'deleted_at')).toBe(true)
     expect(calls.some((c) => c.method === 'select' && c.args[0] === 'id')).toBe(true)
+    expect(
+      calls.some((c) => c.method === 'gte' && c.args[0] === 'created_at' && c.args[1] === SINCE),
+    ).toBe(true)
   })
 
   it('resolves without error when no active config matched (zero rows)', async () => {
@@ -73,5 +78,29 @@ describe('softDeleteSubjectExamConfigs', () => {
       exam_configs: { data: null, error: { message: 'boom' } },
     })
     await expect(softDeleteSubjectExamConfigs('100')).rejects.toThrow(/boom/)
+  })
+})
+
+describe('countActiveSubjectExamConfigs', () => {
+  it('counts active configs of the subject', async () => {
+    const calls = mockTables({
+      easa_subjects: { data: { id: 'subj-100' }, error: null },
+      exam_configs: { data: null, error: null, count: 2 } as Result,
+    })
+    await expect(countActiveSubjectExamConfigs('100')).resolves.toBe(2)
+    expect(calls.some((c) => c.method === 'is' && c.args[0] === 'deleted_at')).toBe(true)
+  })
+
+  it('returns 0 when the subject is missing', async () => {
+    mockTables({ easa_subjects: { data: null, error: null } })
+    await expect(countActiveSubjectExamConfigs('100')).resolves.toBe(0)
+  })
+
+  it('throws when the count fails', async () => {
+    mockTables({
+      easa_subjects: { data: { id: 'subj-100' }, error: null },
+      exam_configs: { data: null, error: { message: 'boom' } },
+    })
+    await expect(countActiveSubjectExamConfigs('100')).rejects.toThrow(/boom/)
   })
 })

@@ -1,6 +1,7 @@
 'use client'
 
 import type { TopicInfo } from '../types'
+import { topicRemaining } from './topic-remaining'
 
 type DistRow = { topicId: string; subtopicId: string | null; questionCount: number }
 
@@ -41,10 +42,6 @@ export function DistributionEditor({ topics, distributions, onChange }: Readonly
 
       {topics.map((topic) => {
         const hasSubs = topic.subtopics.length > 0
-        const subtotal = topic.subtopics.reduce((sum, st) => sum + getCount(topic.id, st.id), 0)
-        const topicAvailable = hasSubs
-          ? Math.max(0, topic.availableQuestions - subtotal)
-          : topic.availableQuestions
         return (
           <div key={topic.id}>
             <DistributionRow
@@ -52,7 +49,7 @@ export function DistributionEditor({ topics, distributions, onChange }: Readonly
               name={topic.name}
               note={hasSubs ? 'Any sub-topic' : undefined}
               value={getCount(topic.id, null)}
-              available={topicAvailable}
+              available={topicRemaining(topic, getCount)}
               onChange={(v) => updateCount(topic.id, null, v)}
             />
             {topic.subtopics.map((st) => (

@@ -98,6 +98,7 @@ describe('Area 100 KSA seed', () => {
       .from('exam_configs')
       .select('id')
       .eq('subject_id', s?.id as string)
+      .is('deleted_at', null)
     expect(error).toBeNull()
     expect(data).toEqual([])
   })
