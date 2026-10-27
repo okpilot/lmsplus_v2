@@ -136,3 +136,7 @@ export const E2E_REDTEAM_KF_STUDENT_PASSWORD = 'redteam-kf-student-2026!'
 // bounds the control-arm enrolment change.
 export const E2E_REDTEAM_KH_STUDENT_EMAIL = 'redteam-kh-enrolments@lmsplus.local'
 export const E2E_REDTEAM_KH_STUDENT_PASSWORD = 'redteam-kh-enrolments-2026!'
+// Dashboard course cookie + selectDashboardCourse spec (Vectors KS, KT, #1638).
+export const E2E_REDTEAM_KS_RT_ONLY_EMAIL = 'redteam-ks-chips-rt-only@lmsplus.local'
+export const E2E_REDTEAM_KS_FULL_EMAIL = 'redteam-ks-chips-full@lmsplus.local'
+export const E2E_REDTEAM_KS_PASSWORD = 'redteam-ks-chips-2026!'
