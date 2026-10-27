@@ -28,7 +28,7 @@ export function SubjectSelect({ subjects, value, onValueChange }: Readonly<Subje
         >
           {selected ? (
             <span className="flex items-center gap-2.5">
-              <span className="rounded bg-primary/15 px-1.5 py-0.5 tabular-nums text-xs font-semibold text-primary">
+              <span className="rounded bg-primary/15 px-1.5 py-0.5 tabular-nums text-xs font-semibold text-primary-text">
                 {selected.code}
               </span>
               <span className="text-foreground">{selected.name}</span>
@@ -60,7 +60,7 @@ export function SubjectSelect({ subjects, value, onValueChange }: Readonly<Subje
                 <span
                   className={`shrink-0 rounded px-1.5 py-0.5 tabular-nums text-xs ${
                     s.id === value
-                      ? 'bg-primary/15 font-semibold text-primary'
+                      ? 'bg-primary/15 font-semibold text-primary-text'
                       : 'bg-muted font-medium text-muted-foreground'
                   }`}
                 >

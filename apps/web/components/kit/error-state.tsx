@@ -14,7 +14,7 @@ export function ErrorState({
 }: Readonly<ErrorStateProps>) {
   return (
     <div role="alert" className="flex flex-col items-center gap-3 py-12 text-center">
-      <CircleX aria-hidden="true" className="size-12 text-bad" />
+      <CircleX aria-hidden="true" className="size-12 text-danger" />
       <p className="text-base font-medium">{title}</p>
       {children ? <div className="max-w-sm text-sm text-muted-foreground">{children}</div> : null}
       {action}

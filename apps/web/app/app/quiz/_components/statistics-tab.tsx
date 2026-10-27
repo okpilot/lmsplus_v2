@@ -37,7 +37,7 @@ function ErrorMessage({ message, onRetry }: Readonly<{ message: string; onRetry:
   return (
     <div className="space-y-2 py-8 text-center">
       <p className="text-sm text-destructive">{message}</p>
-      <button type="button" onClick={onRetry} className="text-sm text-primary hover:underline">
+      <button type="button" onClick={onRetry} className="text-sm text-primary-text hover:underline">
         Retry
       </button>
     </div>

@@ -46,8 +46,11 @@ function getOptionStyle(opts: {
       circle: 'bg-muted-foreground text-background',
     }
   if (opts.isSelected && !opts.showResult)
-    return { card: 'border-primary bg-primary/5', circle: 'bg-primary text-primary-foreground' }
-  return { card: 'border-border hover:border-primary/40', circle: 'border border-current' }
+    return {
+      card: 'border-primary-text bg-primary/5',
+      circle: 'bg-primary text-primary-foreground',
+    }
+  return { card: 'border-border hover:border-primary-text/40', circle: 'border border-current' }
 }
 
 export function AnswerOptions({
@@ -98,7 +101,7 @@ export function AnswerOptions({
             data-kb-highlighted={isKeyboardHighlighted ? 'true' : undefined}
             disabled={disabled || (!!isExam && lockedSelection != null)}
             onClick={() => handleSelect(option.id)}
-            className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-colors ${card} ${isKeyboardHighlighted ? 'ring-2 ring-primary ring-offset-1' : ''} ${disabled && !showResult ? 'opacity-50' : ''}`}
+            className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-colors ${card} ${isKeyboardHighlighted ? 'ring-2 ring-ring ring-offset-1 ring-offset-background' : ''} ${disabled && !showResult ? 'opacity-50' : ''}`}
           >
             <span
               className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${circle}`}

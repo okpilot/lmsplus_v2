@@ -9,14 +9,14 @@ describe('SidebarItem', () => {
     render(<SidebarItem item={ITEM} active />)
     const link = screen.getByRole('link', { name: 'Quiz' })
     expect(link).toHaveAttribute('aria-current', 'page')
-    expect(link.className).toContain('bg-surface')
+    expect(link.className).toContain('bg-card')
   })
 
   it('renders an inactive item without current-page state', () => {
     render(<SidebarItem item={ITEM} active={false} />)
     const link = screen.getByRole('link', { name: 'Quiz' })
     expect(link).not.toHaveAttribute('aria-current')
-    expect(link.className).not.toContain('bg-surface')
+    expect(link.className).not.toContain('bg-card')
   })
 })
 

@@ -19,7 +19,7 @@ Multi-tenant SaaS web application for EASA PPL aviation training. Serves Approve
 
 - **Next.js (App Router)**: Full-stack React framework. Server Components for data fetching, Server Actions for mutations, `proxy.ts` for route protection (Next.js 16 convention).
 - **Tailwind CSS v4**: Utility-first CSS with oklch color space. `@theme inline` in `globals.css`.
-- **shadcn/ui v4**: Component library built on Base UI (not Radix). Official "Blue" theme on neutral base.
+- **shadcn/ui v4**: Component library built on Base UI (not Radix). Colour, radius and type tokens generated from `apps/web/lib/design` into `apps/web/app/tokens.css` (Slate neutrals, one blue accent, Decisions 171 and 172).
 - **Supabase JS (`@supabase/supabase-js`, `@supabase/ssr`)**: Typed Postgres client, auth helpers, storage SDK.
 - **Zod**: Runtime input validation on every Server Action input and Route Handler body/query/path param.
 - **next-themes**: Dark mode via `attribute="class"`, system preference default.

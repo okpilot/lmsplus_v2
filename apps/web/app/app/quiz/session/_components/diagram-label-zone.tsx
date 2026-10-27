@@ -34,7 +34,7 @@ export function DiagramLabelZone({
       : result === 'incorrect'
         ? 'border-destructive/60'
         : isOver
-          ? 'border-primary'
+          ? 'border-primary-text'
           : 'border-dashed border-muted-foreground/50'
 
   return (

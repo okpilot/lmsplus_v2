@@ -4,16 +4,11 @@ import { describe, expect, it } from 'vitest'
 import { Button } from './button'
 
 describe('Button', () => {
-  it('styles the brand variant with the brand colour pair', () => {
-    render(<Button variant="brand">Start</Button>)
-    const button = screen.getByRole('button')
-    expect(button.className).toContain('bg-brand')
-    expect(button.className).toContain('text-brand-foreground')
-  })
-
-  it('leaves the default variant free of brand colours', () => {
+  it('styles the default variant with the action colour pair', () => {
     render(<Button>Start</Button>)
-    expect(screen.getByRole('button').className).not.toContain('bg-brand')
+    const button = screen.getByRole('button')
+    expect(button.className).toContain('bg-primary')
+    expect(button.className).toContain('text-primary-foreground')
   })
 
   it('passes aria-pressed through to the DOM button', () => {

@@ -12,16 +12,24 @@ export function ScoreRing({ percentage, size = 120 }: Readonly<Props>) {
   const rounded = Math.round(clamped)
   const offset = circumference - (clamped / 100) * circumference
   const color = scoreColor(clamped)
+  const arcColor = scoreColor(clamped, 'solid')
 
   return (
     <svg width={size} height={size} role="img" aria-label={`Score: ${rounded}%`}>
-      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#E5E7EB" strokeWidth={8} />
       <circle
         cx={size / 2}
         cy={size / 2}
         r={radius}
         fill="none"
-        stroke={color}
+        stroke="var(--muted)"
+        strokeWidth={8}
+      />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        stroke={arcColor}
         strokeWidth={8}
         strokeLinecap="round"
         strokeDasharray={circumference}

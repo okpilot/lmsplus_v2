@@ -38,7 +38,7 @@ export function ConsentCheckbox({
           href={linkHref}
           target="_blank"
           rel="noopener noreferrer"
-          className="underline underline-offset-4 hover:text-primary"
+          className="underline underline-offset-4 hover:text-primary-text"
           onClick={(e) => e.stopPropagation()}
         >
           {linkText}

@@ -110,7 +110,7 @@ export function LoginForm({ initialError, nextPath }: Readonly<LoginFormProps>) 
       <div className="flex justify-end">
         <Link
           href="/auth/forgot-password"
-          className="text-sm text-muted-foreground hover:text-primary"
+          className="text-sm text-muted-foreground hover:text-primary-text"
         >
           Forgot password?
         </Link>
@@ -127,11 +127,11 @@ export function LoginForm({ initialError, nextPath }: Readonly<LoginFormProps>) 
       </p>
 
       <p className="text-center text-xs text-muted-foreground">
-        <Link href="/legal/terms" className="hover:text-primary underline">
+        <Link href="/legal/terms" className="hover:text-primary-text underline">
           Terms of Service
         </Link>
         {' · '}
-        <Link href="/legal/privacy" className="hover:text-primary underline">
+        <Link href="/legal/privacy" className="hover:text-primary-text underline">
           Privacy Policy
         </Link>
       </p>

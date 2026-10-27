@@ -81,7 +81,7 @@ export function QuizControls({
             icon={<Pin className="h-4 w-4" />}
             label={isPinned ? 'Unpin' : 'Pin'}
             testId="pin-button"
-            activeClass="border-transparent bg-primary/10 text-primary dark:bg-primary/15"
+            activeClass="border-transparent bg-primary/10 text-primary-text dark:bg-primary/15"
           />
         </div>
 
