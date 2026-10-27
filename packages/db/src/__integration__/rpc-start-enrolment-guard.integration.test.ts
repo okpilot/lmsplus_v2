@@ -242,16 +242,50 @@ describe('RPC: start paths enforce course enrolment', () => {
     expect(await sessionsOf(ids['eg-rt'] as string)).toEqual([])
   })
 
-  it('AC4: start_quiz_session with no subject raises not_enrolled for ids outside the enrolled courses', async () => {
+  it('AC-R2: start_quiz_session with no subject raises invalid_question_ids for hidden question ids', async () => {
     const { data, error } = await (clients['eg-rt'] as SupabaseClient).rpc('start_quiz_session', {
       p_mode: 'quick_quiz',
       p_subject_id: null,
       p_topic_id: null,
       p_question_ids: questionIds.slice(0, 2),
     })
-    expect(error?.message ?? '').toMatch(/not_enrolled/)
+    expect(error?.message ?? '').toMatch(/invalid_question_ids/)
     expect(data).toBeNull()
     expect(await sessionsOf(ids['eg-rt'] as string)).toEqual([])
+  })
+
+  it('AC-R2: start_quiz_session with no subject raises the same invalid_question_ids for a random uuid', async () => {
+    const { error } = await (clients['eg-rt'] as SupabaseClient).rpc('start_quiz_session', {
+      p_mode: 'quick_quiz',
+      p_subject_id: null,
+      p_topic_id: null,
+      p_question_ids: [crypto.randomUUID()],
+    })
+    expect(error?.message ?? '').toMatch(/invalid_question_ids/)
+    expect(await sessionsOf(ids['eg-rt'] as string)).toEqual([])
+  })
+
+  it('AC-R1: start_quiz_session for a hidden subject raises not_enrolled for a random uuid too', async () => {
+    const { error } = await (clients['eg-rt'] as SupabaseClient).rpc('start_quiz_session', {
+      p_mode: 'quick_quiz',
+      p_subject_id: refs.subjectId,
+      p_topic_id: null,
+      p_question_ids: [crypto.randomUUID()],
+    })
+    expect(error?.message ?? '').toMatch(/not_enrolled/)
+    expect(await sessionsOf(ids['eg-rt'] as string)).toEqual([])
+  })
+
+  it('AC-R3: start_quiz_session for an enrolled subject with its own question returns a session id', async () => {
+    const { data, error } = await (clients['eg-ppl'] as SupabaseClient).rpc('start_quiz_session', {
+      p_mode: 'quick_quiz',
+      p_subject_id: refs.subjectId,
+      p_topic_id: null,
+      p_question_ids: questionIds.slice(0, 2),
+    })
+    expect(error).toBeNull()
+    expect(typeof data).toBe('string')
+    await afterEachClear()
   })
 
   it('AC4: start_discovery raises not_enrolled for a non-enrolled student', async () => {

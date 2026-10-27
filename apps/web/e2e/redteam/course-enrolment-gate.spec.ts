@@ -165,9 +165,8 @@ test.describe('Red Team: course enrolment gate (KI-KL)', () => {
       if (seededSessionIds.size > 0) {
         const { error } = await admin
           .from('quiz_sessions')
-          .update({ deleted_at: new Date().toISOString() })
+          .update({ deleted_at: new Date().toISOString(), saved_at: null })
           .in('id', [...seededSessionIds])
-          .is('deleted_at', null)
         if (error) throw new Error(`soft-delete seeded sessions: ${error.message}`)
       }
     } catch (e) {

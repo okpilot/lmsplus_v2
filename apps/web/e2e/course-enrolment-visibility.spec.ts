@@ -32,6 +32,9 @@ async function seedStudent(email: string, courseCodes: string[]) {
     .select('id')
     .in('code', courseCodes)
   if (cErr) throw new Error(`seedStudent courses: ${cErr.message}`)
+  if ((courses ?? []).length !== courseCodes.length) {
+    throw new Error(`seedStudent courses: found ${courses?.length ?? 0} of ${courseCodes.length}`)
+  }
   const { error } = await admin.from('course_enrolments').insert(
     (courses ?? []).map((c) => ({
       organization_id: user.organization_id,
@@ -52,6 +55,13 @@ async function login(page: Page, email: string) {
 
 const ERROR_HEADING = 'Something went wrong'
 
+async function openStudySubjectPicker(page: Page) {
+  await page.getByRole('button', { name: 'Study', exact: true }).click()
+  const trigger = page.locator('[data-testid="subject-trigger"]')
+  await trigger.waitFor({ state: 'visible' })
+  await trigger.click()
+}
+
 test.describe('Course enrolment visibility', () => {
   test.beforeAll(async () => {
     await seedStudent(NONE_EMAIL, [])
@@ -59,8 +69,15 @@ test.describe('Course enrolment visibility', () => {
   })
 
   test.afterAll(async () => {
-    await removeNoConsentUser(NONE_EMAIL)
-    await removeNoConsentUser(PPL_EMAIL)
+    const errors: string[] = []
+    for (const email of [NONE_EMAIL, PPL_EMAIL]) {
+      try {
+        await removeNoConsentUser(email)
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      }
+    }
+    if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   })
 
   test('a student with no enrolments loads dashboard, quiz and VFR RT without an error page', async ({
@@ -73,6 +90,8 @@ test.describe('Course enrolment visibility', () => {
     await expect(page).toHaveURL(/\/app\/quiz$/)
     await expect(page.getByRole('main')).toBeVisible()
     await expect(page.getByText(ERROR_HEADING)).toHaveCount(0)
+    await openStudySubjectPicker(page)
+    await expect(page.locator('[data-testid="subject-option"]')).toHaveCount(0)
 
     await page.goto('/app/vfr-rt')
     await expect(page).toHaveURL(/\/app\/vfr-rt$/)
@@ -86,7 +105,10 @@ test.describe('Course enrolment visibility', () => {
     await expect(page).toHaveURL(/\/app\/quiz$/)
     await expect(page.getByRole('main')).toBeVisible()
     await expect(page.getByText(ERROR_HEADING)).toHaveCount(0)
-    await expect(page.getByText(RT_SUBJECT_NAME)).toHaveCount(0)
+    await openStudySubjectPicker(page)
+    const options = page.locator('[data-testid="subject-option"]')
+    await expect(options.filter({ hasText: '050' }).first()).toBeVisible()
+    await expect(options.filter({ hasText: RT_SUBJECT_NAME })).toHaveCount(0)
   })
 
   test('a PPL-only student sees the not-enrolled state on /app/vfr-rt', async ({ page }) => {
@@ -124,17 +146,19 @@ test.describe('Course enrolment visibility', () => {
     await expect(page).toHaveURL(/\/app\/vfr-rt$/)
     await expect(page.getByText(/not enrolled/i)).toBeVisible()
 
-    await enrolStudent(admin, {
-      userId: user.id,
-      orgId: user.organization_id,
-      courseIds: [GRANDFATHER_COURSE_IDS[1]],
-    })
-    await page.reload()
-    await expect(page).toHaveURL(/\/app\/vfr-rt$/)
-    await expect(page.getByText(/not enrolled/i)).toHaveCount(0)
-    await expect(page.getByRole('button', { name: /start practice/i })).toBeVisible()
-
-    await unenrolRt()
+    try {
+      await enrolStudent(admin, {
+        userId: user.id,
+        orgId: user.organization_id,
+        courseIds: [GRANDFATHER_COURSE_IDS[1]],
+      })
+      await page.reload()
+      await expect(page).toHaveURL(/\/app\/vfr-rt$/)
+      await expect(page.getByText(/not enrolled/i)).toHaveCount(0)
+      await expect(page.getByRole('button', { name: /start practice/i })).toBeVisible()
+    } finally {
+      await unenrolRt()
+    }
     await page.reload()
     await expect(page.getByText(/not enrolled/i)).toBeVisible()
   })

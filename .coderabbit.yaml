@@ -601,8 +601,9 @@ reviews:
           revive pass trg_quiz_sessions_enforce_enrolment / _revive ('not_enrolled'; no-op
           when auth.uid() IS NULL). question_comments SELECT/INSERT follow question visibility
           (mig 20261028000400). RESTRICTIVE census: _select_active_caller on student-owned
-          tables plus *_select_enrolled on reference data. Flag a new subject-scoped read path
-          missing the filter.
+          tables plus *_select_enrolled on reference data, and
+          question_comments_select_visible_question / question_comments_insert_visible_question.
+          Flag a new subject-scoped read path missing the filter.
         - ON CONFLICT inference target: any INSERT ... ON CONFLICT (cols) [WHERE pred] must
           target a UNIQUE index/constraint matching those columns + predicate (a plain
           CREATE INDEX does not qualify; Postgres raises 42P10). When ON CONFLICT is inside
