@@ -20,7 +20,9 @@ const VFR_RT_HREF = '/app/vfr-rt'
 /** Leaf gate: suspends on the user alone, so other items render immediately. Hidden until known. */
 function VfrRtItem(props: Readonly<{ item: NavItem; active: boolean }>) {
   const { userRole, courseCodes } = useUser()
-  if (visibleNavItems([props.item], { userRole, courseCodes }).length === 0) return null
+  // Hidden marker: e2e waits on it before asserting the entry is absent.
+  if (visibleNavItems([props.item], { userRole, courseCodes }).length === 0)
+    return <span hidden data-testid="vfr-rt-nav-ready" />
   return <SidebarItem {...props} />
 }
 

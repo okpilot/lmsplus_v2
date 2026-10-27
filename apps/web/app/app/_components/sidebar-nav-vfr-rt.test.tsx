@@ -35,6 +35,7 @@ describe('SidebarNav VFR RT gating', () => {
       fulfilled({ displayName: 'A', userRole: 'student', courseCodes: ['PPL_A'] }),
     )
     expect(within(nav).queryByRole('link', { name: 'VFR RT' })).not.toBeInTheDocument()
+    expect(within(nav).getByTestId('vfr-rt-nav-ready')).toBeInTheDocument()
     expect(within(nav).getByRole('link', { name: 'Quiz' })).toBeInTheDocument()
   })
 

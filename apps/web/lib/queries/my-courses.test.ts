@@ -58,6 +58,11 @@ describe('getMyCourses', () => {
     expect(calls).toContainEqual({ method: 'is', args: ['deleted_at', null] })
   })
 
+  it('throws when the enrolment read returns no rows array', async () => {
+    mockFrom.mockReturnValue(chain({ data: null, error: null }))
+    await expect(getMyCourses()).rejects.toThrow('invalid response')
+  })
+
   it('throws when the enrolment read errors', async () => {
     mockFrom.mockReturnValue(chain({ data: null, error: { message: 'boom' } }))
     await expect(getMyCourses()).rejects.toThrow()

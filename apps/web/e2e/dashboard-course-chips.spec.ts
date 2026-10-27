@@ -73,6 +73,7 @@ test.describe('Dashboard course chips', () => {
     await login(page, BOTH_EMAIL)
     const chips = page.getByRole('group', { name: 'Course' })
     await expect(chips.getByRole('button', { name: 'PPL' })).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.getByRole('heading', { name: 'Subject Progress' })).toBeVisible()
     await expect(page.getByText(NO_SUBJECTS)).toHaveCount(0)
 
     await chips.getByRole('button', { name: 'RT' }).click()
@@ -88,7 +89,8 @@ test.describe('Dashboard course chips', () => {
 
   test('a PPL-only student sees no chips and no VFR RT nav entry', async ({ page }) => {
     await login(page, PPL_EMAIL)
-    await expect(page.getByRole('main')).toBeVisible()
+    await expect(page.getByTestId('dashboard-course-chips-ready')).toBeAttached()
+    await expect(page.getByTestId('vfr-rt-nav-ready')).toBeAttached()
     await expect(page.getByRole('group', { name: 'Course' })).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'VFR RT' })).toHaveCount(0)
   })

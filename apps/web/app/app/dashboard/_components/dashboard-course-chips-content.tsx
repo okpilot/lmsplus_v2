@@ -5,10 +5,13 @@ export async function DashboardCourseChipsContent() {
   const { courses, selected } = await getDashboardCourse()
   // key: a server-side fallback course (cookie course unenrolled) resets the pressed pill.
   return (
-    <DashboardCourseChips
-      key={selected?.code ?? 'none'}
-      courses={courses}
-      selectedCode={selected?.code ?? null}
-    />
+    <>
+      <span hidden data-testid="dashboard-course-chips-ready" />
+      <DashboardCourseChips
+        key={selected?.code ?? 'none'}
+        courses={courses}
+        selectedCode={selected?.code ?? null}
+      />
+    </>
   )
 }
