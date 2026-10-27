@@ -25,7 +25,10 @@ export function LinkUnavailable({ reason }: Readonly<{ reason: 'invalid' | 'miss
       </div>
 
       <div className="flex flex-col gap-2 text-center text-sm">
-        <Link href="/auth/forgot-password" className="text-primary underline underline-offset-4">
+        <Link
+          href="/auth/forgot-password"
+          className="text-primary-text underline underline-offset-4"
+        >
           Forgot password
         </Link>
         <Link href="/" className="text-muted-foreground underline underline-offset-4">
