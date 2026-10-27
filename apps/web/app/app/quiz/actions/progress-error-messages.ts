@@ -8,6 +8,8 @@
 import { matchRpcError, type RpcErrorPattern } from '@/lib/rpc-error-match'
 
 const NOT_FOUND = 'This session could not be found.'
+export const NOT_ENROLLED = 'You are not enrolled in this course.'
+export const NOT_ENROLLED_TOKEN = 'not_enrolled'
 export const NOT_ACTIVE = 'Your account is no longer active.'
 const BAD_ANSWER = 'This answer could not be saved. Please review it and try again.'
 const BAD_PROGRESS = 'Your progress could not be saved. Reload the page and try again.'
@@ -24,6 +26,7 @@ export const PROGRESS_ERROR_MESSAGES: Record<string, string> = {
   not_authenticated: SIGN_IN,
   'not authenticated': SIGN_IN,
   user_not_found_or_inactive: NOT_ACTIVE,
+  [NOT_ENROLLED_TOKEN]: NOT_ENROLLED,
   'user not found or inactive': NOT_ACTIVE,
   session_not_found: NOT_FOUND,
   'session not found or not owned by this student': NOT_FOUND,

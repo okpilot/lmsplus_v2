@@ -13,6 +13,7 @@
  */
 
 import { resolve } from 'node:path'
+import { enrolStudent } from '@repo/db/enrol-students'
 import { createClient } from '@supabase/supabase-js'
 import { config } from 'dotenv'
 
@@ -327,6 +328,7 @@ async function seed() {
     { onConflict: 'id' },
   )
   if (studentErr) throw new Error(`Student: ${studentErr.message}`)
+  await enrolStudent(db, { userId: studentId, orgId: org.id })
   console.log(`  Student: ${STUDENT_EMAIL} / ${STUDENT_PASSWORD}`)
 
   // 3. Question bank (find existing or insert)

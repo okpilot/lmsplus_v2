@@ -1,7 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { cleanupTestData } from './cleanup'
+import { cleanupReferenceData, cleanupTestData } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
+import { seedQuestions, seedReferenceData } from './seed'
 import {
   createTestOrg,
   createTestUser,
@@ -53,6 +54,7 @@ describe('RPC: set_user_enrolments', () => {
         email: `${tag}-${suffix}@test.local`,
         password: pw,
         role,
+        courses: [],
       })
       into.push(id)
       return id
@@ -101,6 +103,7 @@ describe('RPC: set_user_enrolments', () => {
       .select('actor_id, actor_role, organization_id, resource_type, resource_id, metadata')
       .eq('event_type', 'user.enrolments_changed')
       .eq('resource_id', student)
+      .order('created_at', { ascending: true })
     return data ?? []
   }
 
@@ -250,12 +253,22 @@ describe('RPC: set_user_enrolments', () => {
     expect(await active(studentId)).toEqual(before)
   })
 
-  it('AC4: rejects a NULL array with invalid_input', async () => {
+  it('AC4: rejects a NULL user id with invalid_input', async () => {
+    const { error } = await adminClient.rpc('set_user_enrolments', {
+      p_user_id: null,
+      p_course_ids: [ppl],
+    })
+    expect(error?.message).toContain('invalid_input')
+  })
+
+  it('AC-K1: a NULL array keeps the enrolments unchanged', async () => {
+    const before = await active(studentId)
     const { error } = await adminClient.rpc('set_user_enrolments', {
       p_user_id: studentId,
       p_course_ids: null,
     })
-    expect(error?.message).toContain('invalid_input')
+    expect(error).toBeNull()
+    expect(await active(studentId)).toEqual(before)
   })
 
   it('AC5: re-adding a removed course creates a new active row and keeps history', async () => {
@@ -280,5 +293,441 @@ describe('RPC: set_user_enrolments', () => {
       p_course_ids: [ppl],
     })
     expect(error?.code).toBe('42501')
+  })
+})
+
+/** Unenrolment ends the removed course's open sessions and clears its saved quizzes (#1637 addendum). */
+describe('RPC: set_user_enrolments ends sessions in removed courses', () => {
+  const admin = getAdminClient()
+  const suffix = fixtureSuffix()
+  const pw = 'test-pass-123'
+  const DEVICE = '11111111-1111-4111-8111-111111111111'
+
+  type Refs = Awaited<ReturnType<typeof seedReferenceData>>
+  type Mode = 'quick_quiz' | 'mock_exam' | 'internal_exam'
+  type State = {
+    deleted_at: string | null
+    saved_at: string | null
+    ended_at: string | null
+    active_device_id: string | null
+  }
+
+  let orgId: string
+  let adminId: string
+  let adminClient: SupabaseClient
+  let ppl: string
+  let vfr: string
+  let atpl: string
+  let pplRefs: Refs
+  let vfrRefs: Refs
+  let atplRefs: Refs
+  let pplQ: string
+  let vfrQ: string
+  let atplQ: string
+  const userIds: string[] = []
+  let seq = 0
+
+  beforeAll(async () => {
+    orgId = await createTestOrg({ admin, name: `EnrolS ${suffix}`, slug: `enrols-${suffix}` })
+    adminId = await createTestUser({
+      admin,
+      orgId,
+      email: `enrols-admin-${suffix}@test.local`,
+      password: pw,
+      role: 'admin',
+      courses: [],
+    })
+    userIds.push(adminId)
+    adminClient = await getAuthenticatedClient({
+      email: `enrols-admin-${suffix}@test.local`,
+      password: pw,
+    })
+    const { data } = await admin.from('courses').select('id, code')
+    const m = Object.fromEntries((data ?? []).map((c) => [c.code as string, c.id as string]))
+    ppl = m.PPL_A as string
+    vfr = m.VFR_RT as string
+    atpl = m.ATPL_A as string
+
+    const subject = async (tag: string, courseId: string) => {
+      const refs = await seedReferenceData({
+        admin,
+        subjectCode: `${tag}${suffix}`,
+        subjectName: `Unenrol ${tag} ${suffix}`,
+        topicCode: `${tag}${suffix}-01`,
+        topicName: `Unenrol topic ${tag} ${suffix}`,
+      })
+      const { error } = await admin
+        .from('easa_subjects')
+        .update({ course_id: courseId })
+        .eq('id', refs.subjectId)
+      expect(error).toBeNull()
+      const q = await seedQuestions({
+        admin,
+        orgId,
+        createdBy: adminId,
+        subjectId: refs.subjectId,
+        topicId: refs.topicId,
+        count: 1,
+      })
+      return { refs, questionId: q.questionIds[0] as string }
+    }
+    const p = await subject('UP', ppl)
+    const v = await subject('UV', vfr)
+    const a = await subject('UA', atpl)
+    pplRefs = p.refs
+    vfrRefs = v.refs
+    atplRefs = a.refs
+    pplQ = p.questionId
+    vfrQ = v.questionId
+    atplQ = a.questionId
+  })
+
+  afterAll(async () => {
+    await cleanupTestData({ admin, orgId, userIds })
+    await cleanupReferenceData({ admin, refs: [pplRefs, vfrRefs, atplRefs] })
+  })
+
+  async function newUser(role: 'student' | 'instructor', courseIds: string[]): Promise<string> {
+    const id = await createTestUser({
+      admin,
+      orgId,
+      email: `enrols-u${seq++}-${suffix}@test.local`,
+      password: pw,
+      role,
+      courses: [],
+    })
+    userIds.push(id)
+    const { error } = await adminClient.rpc('set_user_enrolments', {
+      p_user_id: id,
+      p_course_ids: courseIds,
+    })
+    expect(error).toBeNull()
+    return id
+  }
+
+  async function insertSession(opts: {
+    student: string
+    mode?: Mode
+    subjectId?: string | null
+    questionIds: string[]
+    saved?: boolean
+    ended?: boolean
+  }): Promise<string> {
+    const now = new Date().toISOString()
+    const { data, error } = await admin
+      .from('quiz_sessions')
+      .insert({
+        organization_id: orgId,
+        student_id: opts.student,
+        mode: opts.mode ?? 'quick_quiz',
+        subject_id: opts.subjectId ?? null,
+        config: { question_ids: opts.questionIds, pass_mark: 75 },
+        total_questions: opts.questionIds.length,
+        started_at: now,
+        ended_at: opts.ended ? now : null,
+        deleted_at: opts.saved ? now : null,
+        saved_at: opts.saved ? now : null,
+        active_device_id: opts.saved || opts.ended ? null : DEVICE,
+      })
+      .select('id')
+      .single()
+    expect(error).toBeNull()
+    return (data as { id: string }).id
+  }
+
+  async function state(id: string): Promise<State> {
+    const { data, error } = await admin
+      .from('quiz_sessions')
+      .select('deleted_at, saved_at, ended_at, active_device_id')
+      .eq('id', id)
+      .single()
+    expect(error).toBeNull()
+    return data as State
+  }
+
+  const setCourses = (user: string, ids: string[]) =>
+    adminClient.rpc('set_user_enrolments', { p_user_id: user, p_course_ids: ids })
+
+  async function audits(user: string) {
+    const { data } = await admin
+      .from('audit_events')
+      .select('metadata')
+      .eq('event_type', 'user.enrolments_changed')
+      .eq('resource_id', user)
+      .order('created_at', { ascending: true })
+    return (data ?? []) as Array<{
+      metadata: {
+        added?: string[]
+        removed?: string[]
+        sessions_ended?: string[]
+        saved_cleared?: string[]
+      }
+    }>
+  }
+
+  async function expectDiscarded(id: string) {
+    const s = await state(id)
+    expect(s.deleted_at).not.toBeNull()
+    expect(s.active_device_id).toBeNull()
+    expect(s.ended_at).toBeNull()
+  }
+
+  it('AC-U1: ends the open quiz in the removed course and leaves the other course untouched', async () => {
+    const u = await newUser('student', [ppl, vfr])
+    const rt = await insertSession({
+      student: u,
+      subjectId: vfrRefs.subjectId,
+      questionIds: [vfrQ],
+      saved: true,
+    })
+    const open = await insertSession({
+      student: u,
+      subjectId: pplRefs.subjectId,
+      questionIds: [pplQ],
+    })
+    expect((await setCourses(u, [vfr])).error).toBeNull()
+    await expectDiscarded(open)
+    const rtState = await state(rt)
+    expect(rtState.deleted_at).not.toBeNull()
+    expect(rtState.saved_at).not.toBeNull()
+  })
+
+  it('AC-U2: clears saved_at of a saved quiz in the removed course and keeps it soft-deleted', async () => {
+    const u = await newUser('student', [ppl, vfr])
+    const saved = await insertSession({
+      student: u,
+      subjectId: pplRefs.subjectId,
+      questionIds: [pplQ],
+      saved: true,
+    })
+    expect((await setCourses(u, [vfr])).error).toBeNull()
+    const s = await state(saved)
+    expect(s.saved_at).toBeNull()
+    expect(s.deleted_at).not.toBeNull()
+  })
+
+  it('AC-U3: removing a course from an instructor ends nothing', async () => {
+    const u = await newUser('instructor', [ppl, vfr])
+    const open = await insertSession({
+      student: u,
+      subjectId: pplRefs.subjectId,
+      questionIds: [pplQ],
+    })
+    const saved = await insertSession({
+      student: u,
+      subjectId: pplRefs.subjectId,
+      questionIds: [pplQ],
+      saved: true,
+    })
+    expect((await setCourses(u, [vfr])).error).toBeNull()
+    expect((await state(open)).deleted_at).toBeNull()
+    expect((await state(saved)).saved_at).not.toBeNull()
+    const events = await audits(u)
+    expect(events.at(-1)?.metadata.sessions_ended).toEqual([])
+  })
+
+  it('AC-U4: audit metadata lists the ended session ids and a no-op call writes no event', async () => {
+    const u = await newUser('student', [ppl, vfr])
+    const open = await insertSession({
+      student: u,
+      subjectId: pplRefs.subjectId,
+      questionIds: [pplQ],
+    })
+    expect((await setCourses(u, [vfr])).error).toBeNull()
+    const events = await audits(u)
+    expect(events.at(-1)?.metadata.sessions_ended).toEqual([open])
+    const before = events.length
+    expect((await setCourses(u, [vfr])).error).toBeNull()
+    expect((await audits(u)).length).toBe(before)
+  })
+
+  it('AC-U6: discards a session with NULL subject_id matched only by question_ids in the removed course', async () => {
+    const u = await newUser('student', [ppl, vfr])
+    const open = await insertSession({ student: u, subjectId: null, questionIds: [pplQ] })
+    expect((await setCourses(u, [vfr])).error).toBeNull()
+    await expectDiscarded(open)
+  })
+
+  it('AC-U6: discards a session spanning a removed and a kept course', async () => {
+    const u = await newUser('student', [ppl, vfr])
+    const open = await insertSession({ student: u, subjectId: null, questionIds: [vfrQ, pplQ] })
+    expect((await setCourses(u, [vfr])).error).toBeNull()
+    await expectDiscarded(open)
+  })
+
+  it('AC-U6: keeps a session wholly inside a kept course', async () => {
+    const u = await newUser('student', [ppl, vfr])
+    const open = await insertSession({
+      student: u,
+      subjectId: vfrRefs.subjectId,
+      questionIds: [vfrQ],
+    })
+    expect((await setCourses(u, [vfr])).error).toBeNull()
+    expect((await state(open)).deleted_at).toBeNull()
+  })
+
+  it('AC-U7: ends nothing when the course stays in the new set', async () => {
+    const u = await newUser('student', [ppl, vfr])
+    const open = await insertSession({
+      student: u,
+      subjectId: pplRefs.subjectId,
+      questionIds: [pplQ],
+    })
+    expect((await setCourses(u, [ppl, atpl])).error).toBeNull()
+    expect((await state(open)).deleted_at).toBeNull()
+    expect(atplQ).toBeTruthy()
+  })
+
+  it.each(['mock_exam', 'internal_exam'] as const)(
+    'AC-U8: discards an open %s session in the removed course',
+    async (mode) => {
+      const u = await newUser('student', [ppl, vfr])
+      const open = await insertSession({
+        student: u,
+        mode,
+        subjectId: pplRefs.subjectId,
+        questionIds: [pplQ],
+      })
+      expect((await setCourses(u, [vfr])).error).toBeNull()
+      await expectDiscarded(open)
+    },
+  )
+
+  it('AC-U9: leaves another student session and saved quiz in the same course untouched', async () => {
+    const a = await newUser('student', [ppl, vfr])
+    const b = await newUser('student', [ppl, vfr])
+    const aOpen = await insertSession({
+      student: a,
+      subjectId: pplRefs.subjectId,
+      questionIds: [pplQ],
+    })
+    const bOpen = await insertSession({
+      student: b,
+      subjectId: pplRefs.subjectId,
+      questionIds: [pplQ],
+    })
+    const bSaved = await insertSession({
+      student: b,
+      subjectId: pplRefs.subjectId,
+      questionIds: [pplQ],
+      saved: true,
+    })
+    expect((await setCourses(a, [vfr])).error).toBeNull()
+    await expectDiscarded(aOpen)
+    expect((await state(bOpen)).deleted_at).toBeNull()
+    expect((await state(bSaved)).saved_at).not.toBeNull()
+  })
+
+  it('AC-U10: saved_cleared lists saved-quiz ids and sessions_ended stays empty', async () => {
+    const u = await newUser('student', [ppl, vfr])
+    const s1 = await insertSession({
+      student: u,
+      subjectId: pplRefs.subjectId,
+      questionIds: [pplQ],
+      saved: true,
+    })
+    const s2 = await insertSession({
+      student: u,
+      subjectId: null,
+      questionIds: [pplQ],
+      saved: true,
+    })
+    expect((await setCourses(u, [vfr])).error).toBeNull()
+    const meta = (await audits(u)).at(-1)?.metadata
+    expect([...(meta?.saved_cleared ?? [])].sort()).toEqual([s1, s2].sort())
+    expect(meta?.sessions_ended).toEqual([])
+  })
+
+  const setNull = (user: string) =>
+    adminClient.rpc('set_user_enrolments', { p_user_id: user, p_course_ids: null })
+
+  async function demote(user: string) {
+    const { error } = await admin.from('users').update({ role: 'student' }).eq('id', user)
+    expect(error).toBeNull()
+  }
+
+  async function enrolled(user: string): Promise<string[]> {
+    const { data } = await admin
+      .from('course_enrolments')
+      .select('course_id')
+      .eq('user_id', user)
+      .is('deleted_at', null)
+    return (data ?? []).map((r) => r.course_id as string).sort()
+  }
+
+  it('AC-K1: a demoted instructor loses the open session outside the kept set on a NULL call', async () => {
+    const u = await newUser('instructor', [vfr])
+    const open = await insertSession({
+      student: u,
+      subjectId: pplRefs.subjectId,
+      questionIds: [pplQ],
+    })
+    await demote(u)
+    expect((await setNull(u)).error).toBeNull()
+    await expectDiscarded(open)
+    const meta = (await audits(u)).at(-1)?.metadata
+    expect(meta?.sessions_ended).toEqual([open])
+    expect(meta?.added).toEqual([])
+    expect(meta?.removed).toEqual([])
+    expect(await enrolled(u)).toEqual([vfr])
+  })
+
+  it('AC-K1b: an explicit set discards the demoted user session outside it', async () => {
+    const u = await newUser('instructor', [vfr])
+    const open = await insertSession({
+      student: u,
+      subjectId: pplRefs.subjectId,
+      questionIds: [pplQ],
+    })
+    await demote(u)
+    expect((await setCourses(u, [vfr])).error).toBeNull()
+    await expectDiscarded(open)
+  })
+
+  it('AC-K1c: a NULL-subject session with an unenrolled question is discarded on a sweep-only call', async () => {
+    const u = await newUser('instructor', [vfr])
+    const open = await insertSession({ student: u, subjectId: null, questionIds: [pplQ] })
+    await demote(u)
+    expect((await setNull(u)).error).toBeNull()
+    await expectDiscarded(open)
+  })
+
+  it('AC-K1d: a saved quiz outside the set has saved_at cleared and is listed in saved_cleared', async () => {
+    const u = await newUser('instructor', [vfr])
+    const saved = await insertSession({
+      student: u,
+      subjectId: pplRefs.subjectId,
+      questionIds: [pplQ],
+      saved: true,
+    })
+    await demote(u)
+    expect((await setNull(u)).error).toBeNull()
+    const s = await state(saved)
+    expect(s.saved_at).toBeNull()
+    expect(s.deleted_at).not.toBeNull()
+    const meta = (await audits(u)).at(-1)?.metadata
+    expect(meta?.saved_cleared).toEqual([saved])
+    expect(meta?.sessions_ended).toEqual([])
+  })
+
+  it('AC-K2: a NULL call on a fully enrolled student ends nothing and writes no audit event', async () => {
+    const u = await newUser('student', [ppl, vfr])
+    const pplOpen = await insertSession({
+      student: u,
+      subjectId: pplRefs.subjectId,
+      questionIds: [pplQ],
+    })
+    // One open session per student (uq_one_active_session_per_student): the VFR one is saved.
+    const vfrSaved = await insertSession({
+      student: u,
+      subjectId: vfrRefs.subjectId,
+      questionIds: [vfrQ],
+      saved: true,
+    })
+    const before = (await audits(u)).length
+    expect((await setNull(u)).error).toBeNull()
+    expect((await state(pplOpen)).deleted_at).toBeNull()
+    expect((await state(vfrSaved)).saved_at).not.toBeNull()
+    expect((await audits(u)).length).toBe(before)
   })
 })

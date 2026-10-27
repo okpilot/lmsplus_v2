@@ -1,3 +1,4 @@
+import { enrolStudent } from '@repo/db/enrol-students'
 import { findAuthUserByEmail } from '../../helpers/auth-users'
 import type { getAdminClient } from '../../helpers/supabase'
 
@@ -84,6 +85,7 @@ export async function upsertUser(
     { onConflict: 'id' },
   )
   if (upsertError) throw new Error(`Could not upsert user row for ${email}: ${upsertError.message}`)
+  if (role === 'student') await enrolStudent(admin, { userId, orgId })
 
   return userId
 }

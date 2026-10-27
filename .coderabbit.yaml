@@ -590,6 +590,25 @@ reviews:
           'another_session_active' (the deployed pattern in the 20260629
           *_single_active_guard migrations, e.g. start_exam_session); flag a new start
           RPC missing either.
+        - Enrolment gate (docs/security.md § 3, bullet "Enrolment gate"; Decisions 162/165/167): student
+          reads of easa_subjects, easa_topics, easa_subtopics, questions and exam_configs are
+          AND-ed with an AS RESTRICTIVE *_select_enrolled policy over
+          private.accessible_subject_ids() (migs 20261028000100, 20261028000600); a NEW
+          reference-data table keyed by subject gets the same policy. A SECURITY DEFINER reader
+          keyed by raw question/subject ids filters subject_id IN (SELECT
+          private.accessible_subject_ids()) (get_quiz_questions, mig 20261028000300);
+          session- and caller-keyed readers are not re-checked. quiz_sessions INSERT and the deleted_at
+          revive pass trg_quiz_sessions_enforce_enrolment / _revive ('not_enrolled'; no-op
+          when auth.uid() IS NULL). The start RPCs (start_exam_session, start_discovery,
+          start_vfr_rt_exam_session, start_quiz_session, start_internal_exam_session) raise
+          'not_enrolled' before any subject-scoped read, and start_quiz_session counts a hidden
+          question as invalid (migs 20261028000700-20261028001100); flag a start RPC that reads
+          subject-scoped data or raises a subject-specific error before that pre-gate.
+          question_comments SELECT/INSERT follow question visibility
+          (mig 20261028000400). RESTRICTIVE census: _select_active_caller on student-owned
+          tables plus *_select_enrolled on reference data, and
+          question_comments_select_visible_question / question_comments_insert_visible_question.
+          Flag a new subject-scoped read path missing the filter.
         - ON CONFLICT inference target: any INSERT ... ON CONFLICT (cols) [WHERE pred] must
           target a UNIQUE index/constraint matching those columns + predicate (a plain
           CREATE INDEX does not qualify; Postgres raises 42P10). When ON CONFLICT is inside

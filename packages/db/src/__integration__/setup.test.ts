@@ -8,6 +8,9 @@ vi.hoisted(() => {
 
 vi.mock('@supabase/supabase-js', () => ({ createClient: () => ({}) }))
 
+const { mockEnrolStudent } = vi.hoisted(() => ({ mockEnrolStudent: vi.fn() }))
+vi.mock('../enrol-students', () => ({ enrolStudent: mockEnrolStudent }))
+
 import { createTestUser } from './setup'
 
 const mockCreateUser = vi.fn()
@@ -38,6 +41,24 @@ describe('createTestUser', () => {
 
     await expect(createTestUser(opts)).resolves.toBe('auth-1')
     expect(mockDeleteUser).not.toHaveBeenCalled()
+  })
+
+  it('enrols a new student in the requested courses', async () => {
+    mockInsert.mockResolvedValue({ error: null })
+
+    await createTestUser({ ...opts, courses: ['course-1'] })
+    expect(mockEnrolStudent).toHaveBeenCalledWith(admin, {
+      userId: 'auth-1',
+      orgId: 'org-1',
+      courseIds: ['course-1'],
+    })
+  })
+
+  it('does not enrol a non-student', async () => {
+    mockInsert.mockResolvedValue({ error: null })
+
+    await createTestUser({ ...opts, role: 'admin' })
+    expect(mockEnrolStudent).not.toHaveBeenCalled()
   })
 
   it('removes the auth user and rethrows when the public.users insert fails', async () => {

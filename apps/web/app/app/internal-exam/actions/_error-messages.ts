@@ -17,6 +17,7 @@ export const START_INTERNAL_EXAM_ERROR_MESSAGES: Record<string, string> = {
   insufficient_questions_for_exam: 'Cannot start exam: not enough questions configured.',
   exam_config_required:
     'No exam configuration available for this subject. Please contact your administrator.',
+  not_enrolled: 'You are not enrolled in this course.',
   'user not found or inactive':
     'Your account is no longer active. Please contact your administrator.',
 }

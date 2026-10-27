@@ -78,7 +78,8 @@ describe('getRtSubjectData (app-layer integration)', () => {
     const result = await getRtSubjectData()
 
     // The subject lookup is what the deleted_at bug broke — under the bug this call threw.
-    expect(result.id).toBe(rtSubjectId)
+    expect(result).not.toBeNull()
+    expect(result?.id).toBe(rtSubjectId)
   })
 
   it('returns topics for the canonical RT subject', async () => {
@@ -88,6 +89,7 @@ describe('getRtSubjectData (app-layer integration)', () => {
 
     // The RT topic seeded with an active question in beforeAll survives the
     // helper's questionCount > 0 filter, so at least one topic comes back.
-    expect(result.topics.length).toBeGreaterThan(0)
+    expect(result).not.toBeNull()
+    expect(result?.topics.length).toBeGreaterThan(0)
   })
 })

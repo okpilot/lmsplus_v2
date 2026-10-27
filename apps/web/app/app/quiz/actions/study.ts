@@ -5,6 +5,7 @@ import { z } from 'zod'
 import type { StudyQuestion } from '@/lib/queries/study-queries'
 import { ANOTHER_SESSION_ACTIVE } from './_blocked-start'
 import { discardOrphanedSession, parseStarted } from './_study-start'
+import { NOT_ENROLLED, NOT_ENROLLED_TOKEN } from './progress-error-messages'
 
 const StartStudySchema = z.object({
   subjectId: z.uuid(),
@@ -51,6 +52,7 @@ export async function startStudy(raw: unknown): Promise<StartStudyResult> {
       if (error.message === ANOTHER_SESSION_ACTIVE) {
         return { success: false, error: 'Finish or exit your active session first.' }
       }
+      if (error.message === NOT_ENROLLED_TOKEN) return { success: false, error: NOT_ENROLLED }
       return { success: false, error: GENERIC_ERROR }
     }
 

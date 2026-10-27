@@ -48,6 +48,13 @@ function buildChain(returnValue: unknown) {
   })
 }
 
+/** getRtSubjectData for an enrolled student — fails the test on the not-enrolled null. */
+async function getEnrolledData() {
+  const data = await getRtSubjectData()
+  if (!data) throw new Error('expected RT subject data')
+  return data
+}
+
 // ---- Fixtures -------------------------------------------------------------
 
 const SUBJECT_ID = '00000000-0000-4000-a000-000000000001'
@@ -75,7 +82,7 @@ describe('getRtSubjectData — happy path', () => {
   it('returns the subject id when the lookup succeeds', async () => {
     mockFrom.mockReturnValue(buildChain({ data: { id: SUBJECT_ID }, error: null }))
 
-    const result = await getRtSubjectData()
+    const result = await getEnrolledData()
 
     expect(result.id).toBe(SUBJECT_ID)
   })
@@ -91,7 +98,7 @@ describe('getRtSubjectData — happy path', () => {
   it('returns the topics fetched for the subject', async () => {
     mockFrom.mockReturnValue(buildChain({ data: { id: SUBJECT_ID }, error: null }))
 
-    const result = await getRtSubjectData()
+    const result = await getEnrolledData()
 
     expect(mockGetTopicsWithSubtopics).toHaveBeenCalledWith(SUBJECT_ID)
     expect(result.topics).toEqual([TOPIC])
@@ -100,7 +107,7 @@ describe('getRtSubjectData — happy path', () => {
   it('returns a single RT subject option carrying the total question count', async () => {
     mockFrom.mockReturnValue(buildChain({ data: { id: SUBJECT_ID }, error: null }))
 
-    const result = await getRtSubjectData()
+    const result = await getEnrolledData()
 
     expect(result.subjects).toEqual([
       { id: SUBJECT_ID, code: 'RT', name: 'VFR RT', short: 'RT', questionCount: 5 },
@@ -112,7 +119,7 @@ describe('getRtSubjectData — happy path', () => {
     mockFrom.mockReturnValue(buildChain({ data: { id: SUBJECT_ID }, error: null }))
     mockGetTopicsWithSubtopics.mockRejectedValue(new Error('topics query failed'))
 
-    const result = await getRtSubjectData()
+    const result = await getEnrolledData()
 
     expect(result.id).toBe(SUBJECT_ID)
     expect(result.topics).toEqual([])
@@ -136,7 +143,7 @@ describe('getRtSubjectData — exam availability', () => {
     mockFrom.mockReturnValue(buildChain({ data: { id: SUBJECT_ID }, error: null }))
     mockGetExamEnabledSubjects.mockResolvedValue([{ id: SUBJECT_ID, code: 'RT' }])
 
-    const result = await getRtSubjectData()
+    const result = await getEnrolledData()
 
     expect(result.exam.available).toBe(true)
   })
@@ -146,7 +153,7 @@ describe('getRtSubjectData — exam availability', () => {
     mockGetExamEnabledSubjects.mockResolvedValue([{ id: SUBJECT_ID, code: 'RT' }])
     mockGetCount.mockResolvedValue(25)
 
-    const result = await getRtSubjectData()
+    const result = await getEnrolledData()
 
     expect(result.exam.questionCount).toBe(25)
     expect(mockGetCount).toHaveBeenCalledWith(SUBJECT_ID)
@@ -156,7 +163,7 @@ describe('getRtSubjectData — exam availability', () => {
     mockFrom.mockReturnValue(buildChain({ data: { id: SUBJECT_ID }, error: null }))
     mockGetCount.mockResolvedValue(25)
 
-    const result = await getRtSubjectData()
+    const result = await getEnrolledData()
 
     expect(result.exam).toEqual({ available: false, questionCount: null })
     expect(mockGetCount).not.toHaveBeenCalled()
@@ -166,7 +173,7 @@ describe('getRtSubjectData — exam availability', () => {
     mockFrom.mockReturnValue(buildChain({ data: { id: SUBJECT_ID }, error: null }))
     mockGetExamEnabledSubjects.mockResolvedValue([{ id: 'other-subject', code: 'MET' }])
 
-    const result = await getRtSubjectData()
+    const result = await getEnrolledData()
 
     expect(result.exam.available).toBe(false)
   })
@@ -175,7 +182,7 @@ describe('getRtSubjectData — exam availability', () => {
     mockFrom.mockReturnValue(buildChain({ data: { id: SUBJECT_ID }, error: null }))
     mockGetExamEnabledSubjects.mockResolvedValue([])
 
-    const result = await getRtSubjectData()
+    const result = await getEnrolledData()
 
     expect(result.exam.available).toBe(false)
   })
@@ -192,10 +199,10 @@ describe('getRtSubjectData — subject lookup failure', () => {
     await expect(getRtSubjectData()).rejects.toThrow(/Failed to load VFR RT subject/)
   })
 
-  it('throws when the subject query returns null data without an error', async () => {
+  it('returns null when the subject is hidden by RLS (not enrolled)', async () => {
     mockFrom.mockReturnValue(buildChain({ data: null, error: null }))
 
-    await expect(getRtSubjectData()).rejects.toThrow(/Failed to load VFR RT subject/)
+    await expect(getRtSubjectData()).resolves.toBeNull()
   })
 
   it('logs the raw DB error server-side before throwing the generic message', async () => {

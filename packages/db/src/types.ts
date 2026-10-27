@@ -1908,7 +1908,7 @@ export type Database = {
         Returns: undefined
       }
       set_user_enrolments: {
-        Args: { p_course_ids: string[]; p_user_id: string }
+        Args: { p_course_ids?: string[]; p_user_id: string }
         Returns: undefined
       }
       start_discovery: {

@@ -69,6 +69,7 @@
 
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { enrolStudent } from '@repo/db/enrol-students'
 import { createClient } from '@supabase/supabase-js'
 import { config } from 'dotenv'
 import { DIAGRAM_IMAGE_REFS } from '../app/app/quiz/session/_components/diagrams/diagram-refs'
@@ -370,6 +371,7 @@ async function ensureUserRow(
     { onConflict: 'id' },
   )
   if (error) throw new Error(`User row ${email}: ${error.message}`)
+  if (role === 'student') await enrolStudent(db, { userId: id, orgId })
 }
 
 async function resolveOrgId(): Promise<string> {

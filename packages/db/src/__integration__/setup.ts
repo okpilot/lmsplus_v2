@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { enrolStudent } from '../enrol-students'
 
 function requireEnv(name: string): string {
   const value = process.env[name]
@@ -51,6 +52,8 @@ export async function createTestUser(opts: {
   password: string
   role: 'admin' | 'instructor' | 'student'
   fullName?: string
+  /** Course ids to enrol a student in; default PPL_A + VFR_RT, `[]` = none. Ignored for non-students. */
+  courses?: string[]
 }): Promise<string> {
   // Create in auth.users
   const { data: authData, error: authError } = await opts.admin.auth.admin.createUser({
@@ -80,6 +83,10 @@ export async function createTestUser(opts: {
       )
     }
     throw new Error(`createTestUser public: ${userError.message}`)
+  }
+
+  if (opts.role === 'student') {
+    await enrolStudent(opts.admin, { userId, orgId: opts.orgId, courseIds: opts.courses })
   }
 
   return userId

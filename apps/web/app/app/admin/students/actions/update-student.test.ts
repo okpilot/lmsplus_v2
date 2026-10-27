@@ -96,6 +96,7 @@ describe('updateStudent', () => {
     it('updates the student profile and revalidates on success', async () => {
       mockAdmin()
       buildUpdateChain()
+      mockRpc.mockResolvedValue({ error: null })
 
       const result = await updateStudent(VALID_INPUT)
 
@@ -135,13 +136,58 @@ describe('updateStudent', () => {
       })
     })
 
-    it('does not call the RPC when course_ids is omitted', async () => {
+    it('AC-K3: sweeps without p_course_ids for a student when course_ids is omitted', async () => {
       mockAdmin()
       buildUpdateChain()
+      mockRpc.mockResolvedValue({ error: null })
 
-      await updateStudent(VALID_INPUT)
+      const result = await updateStudent(VALID_INPUT)
 
-      expect(mockRpc).not.toHaveBeenCalled()
+      expect(mockRpc).toHaveBeenCalledTimes(1)
+      expect(mockRpc).toHaveBeenCalledWith('set_user_enrolments', {
+        p_user_id: VALID_UUID,
+      })
+      expect(result.success).toBe(true)
+    })
+
+    it.each(['instructor', 'admin'] as const)(
+      'AC-K3: does not call the RPC for role %s when course_ids is omitted',
+      async (role) => {
+        mockAdmin()
+        buildUpdateChain()
+
+        await updateStudent({ ...VALID_INPUT, role })
+
+        expect(mockRpc).not.toHaveBeenCalled()
+      },
+    )
+
+    it('AC-K4: calls the RPC once with the given course_ids', async () => {
+      mockAdmin()
+      buildUpdateChain()
+      mockRpc.mockResolvedValue({ error: null })
+
+      await updateStudent({ ...VALID_INPUT, course_ids: [COURSE_ID] })
+
+      expect(mockRpc).toHaveBeenCalledTimes(1)
+      expect(mockRpc).toHaveBeenCalledWith('set_user_enrolments', {
+        p_user_id: VALID_UUID,
+        p_course_ids: [COURSE_ID],
+      })
+    })
+
+    it('AC-K5: reports a failed sweep as courses not saved', async () => {
+      mockAdmin()
+      buildUpdateChain()
+      mockRpc.mockResolvedValue({ error: { message: 'boom' } })
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      const result = await updateStudent(VALID_INPUT)
+
+      expect(result).toEqual({
+        success: false,
+        error: 'Student updated, but courses were not saved: Failed to save courses',
+      })
     })
 
     it('calls set_user_enrolments for an instructor when course_ids is provided', async () => {

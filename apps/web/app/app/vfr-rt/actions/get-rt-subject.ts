@@ -18,21 +18,22 @@ export type RtSubjectData = {
   exam: { available: boolean; questionCount: number | null }
 }
 
-/** Throws on failure (page-critical); logs the raw DB error and throws a generic message
+/** Resolves the RT subject id; null when RLS hides it (the student is not enrolled in VFR RT).
+ * Throws on failure (page-critical); logs the raw DB error and throws a generic message
  * (code-style §5 — never embed Postgres error strings, which can leak schema detail). */
-async function fetchRtSubjectId(): Promise<string> {
+async function fetchRtSubjectId(): Promise<string | null> {
   const supabase = await createServerSupabaseClient()
   // easa_subjects has no deleted_at column (defined in mig 001, no soft-delete) — read-scope is enforced by RLS.
   const { data: subject, error } = await supabase
     .from('easa_subjects')
     .select('id')
     .eq('code', 'RT')
-    .single()
-  if (error || !subject) {
-    console.error('[getRtSubjectData] Subject lookup failed:', error?.message ?? 'not found')
+    .maybeSingle()
+  if (error) {
+    console.error('[getRtSubjectData] Subject lookup failed:', error.message)
     throw new Error('Failed to load VFR RT subject')
   }
-  return subject.id
+  return subject?.id ?? null
 }
 
 /** Non-critical: a topics-fetch failure is logged and degrades to an empty list. */
@@ -49,11 +50,12 @@ async function fetchTopicsOrEmpty(subjectId: string): Promise<TopicWithSubtopics
  * Loads the RT subject id and its topics/subtopics server-side, so the RSC
  * (VfrRtSetup) can seed the reused quiz topic-tree hook with initial state
  * instead of a client mount-time fetch. Throws on subject-lookup failure
- * (page-critical); degrades to an empty topics list on a topics-fetch
+ * (page-critical); returns null when the student is not enrolled in VFR RT; degrades to an empty topics list on a topics-fetch
  * failure (non-critical — the form just renders with zero topics).
  */
-export async function getRtSubjectData(): Promise<RtSubjectData> {
+export async function getRtSubjectData(): Promise<RtSubjectData | null> {
   const [id, examSubjects] = await Promise.all([fetchRtSubjectId(), getExamEnabledSubjects()])
+  if (id === null) return null
   const available = examSubjects.some((s) => s.id === id)
   const [topics, questionCount] = await Promise.all([
     fetchTopicsOrEmpty(id),

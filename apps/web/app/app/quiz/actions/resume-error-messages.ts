@@ -8,6 +8,7 @@ import { matchRpcError } from '@/lib/rpc-error-match'
 const RESUME_ERROR_MESSAGES: Record<string, string> = {
   another_session_active:
     'You already have an active session. Finish or discard it before resuming this one.',
+  not_enrolled: 'You are not enrolled in this course.',
   // Reachable on resume: the Supabase auth token can outlive a soft-deleted `users` row,
   // so a deactivated account can pass the action's auth check yet hit this RPC guard.
   'user not found or inactive': 'Your account is no longer active.',

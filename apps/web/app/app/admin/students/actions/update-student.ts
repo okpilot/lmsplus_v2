@@ -33,8 +33,8 @@ export async function updateStudent(input: unknown): Promise<ActionResult> {
     return { success: false, error: 'Student not found' }
   }
 
-  if (course_ids !== undefined) {
-    const courses = await setUserCourses(supabase, id, course_ids)
+  if (course_ids !== undefined || role === 'student') {
+    const courses = await setUserCourses(supabase, id, course_ids ?? null)
     if (!courses.ok) {
       revalidatePath('/app/admin/students')
       return {

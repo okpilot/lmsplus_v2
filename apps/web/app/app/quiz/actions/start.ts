@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { verifySessionUser } from '@/lib/auth/verify-session-user'
 import type { StartQuizResult } from '../types'
 import { blockedFailure, type WithBlocked } from './_blocked-start'
+import { NOT_ENROLLED, NOT_ENROLLED_TOKEN } from './progress-error-messages'
 
 const StartQuizInput = z.object({
   subjectId: z.uuid(),
@@ -54,6 +55,7 @@ function toStartResult(res: {
     console.error('[startQuizSession] RPC error:', res.error.message)
     const blocked = blockedFailure(res.error.message)
     if (blocked) return blocked
+    if (res.error.message === NOT_ENROLLED_TOKEN) return { success: false, error: NOT_ENROLLED }
     return { success: false, error: 'Failed to start session' }
   }
   const started = parseStarted(res.data)

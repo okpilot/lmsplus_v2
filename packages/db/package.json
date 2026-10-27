@@ -11,6 +11,7 @@
     "./import-schema": "./src/import-schema.ts",
     "./types": "./src/types.ts",
     "./middleware": "./src/middleware.ts",
+    "./enrol-students": "./src/enrol-students.ts",
     "./test-helpers": "./src/test-helpers.ts"
   },
   "scripts": {

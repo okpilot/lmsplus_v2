@@ -21,3 +21,4 @@ export {
   getAuthenticatedClient,
 } from './__integration__/setup'
 export { createPart3Org, type Part3Org, startPart3Exam } from './__integration__/vfr-rt-part3-org'
+export { enrolStudent, GRANDFATHER_COURSE_IDS } from './enrol-students'

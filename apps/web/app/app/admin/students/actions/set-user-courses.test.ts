@@ -24,6 +24,17 @@ describe('setUserCourses', () => {
     expect(result).toEqual({ ok: true })
   })
 
+  it('omits p_course_ids for a sweep-only call', async () => {
+    mockRpc.mockResolvedValue({ error: null })
+
+    const result = await setUserCourses(supabase, USER_ID, null)
+
+    expect(mockRpc).toHaveBeenCalledWith('set_user_enrolments', {
+      p_user_id: USER_ID,
+    })
+    expect(result).toEqual({ ok: true })
+  })
+
   it.each([
     ['not_admin', 'Admin permission required'],
     ['admin_not_found', 'Admin permission required'],

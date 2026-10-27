@@ -1,6 +1,7 @@
 # Red Team — Attack Surface Map
 
-> Last updated: 2026-10-25 (branch refactor/1609-typed-rpc-quiz, #1609 — Vectors JY, JZ added.)
+> Last updated: 2026-10-26 (branch feat/1637-enforce-enrolment, #1637 — Vectors KI–KR added.)
+> PRIOR: 2026-10-25 (branch refactor/1609-typed-rpc-quiz, #1609 — Vectors JY, JZ added.)
 > PRIOR: 2026-10-25 (branch fix/1608-server-code, #1608 — Vectors JW, JX added.)
 > PRIOR: 2026-10-25 (branch fix/1607-deactivated-students, #1607 — Vectors JU, JV added.)
 > PRIOR: 2026-10-23 (branch perf/1602-one-count-rpc, #1602 — Vectors JQ-JT added; IY spec covers get_discovery_counts.)
@@ -319,6 +320,16 @@
 | KF | set_user_enrolments-soft-deleted-admin | HIGH | set-user-enrolments-softdelete-race.spec.ts | BLOCKED |  | soft-delete-bypass |
 | KG | set_user_enrolments-concurrent-calls | LOW | set-user-enrolments-softdelete-race.spec.ts | BLOCKED |  | race |
 | KH | updateStudent-course_ids-cross-org | HIGH | update-student-courses-idor.spec.ts | BLOCKED |  | idor |
+| KI | easa_subjects-topics-subtopics-questions-filtered_question_pool-non-enrolled-read | HIGH | course-enrolment-gate.spec.ts | BLOCKED |  | rls-bypass |
+| KJ | get_quiz_questions-non-enrolled-question-ids | HIGH | course-enrolment-gate.spec.ts | BLOCKED |  | answer-oracle |
+| KK | start_quiz_session-null-subject-and-start_discovery-non-enrolled | HIGH | course-enrolment-gate.spec.ts | BLOCKED |  | sibling-guard-gap |
+| KL | resume_saved_quiz-revive-after-unenrolment | MEDIUM | course-enrolment-gate.spec.ts | BLOCKED |  | soft-delete-bypass |
+| KM | question_comments-read-insert-non-enrolled-question | LOW | question-comments-enrolment-scope.spec.ts | BLOCKED |  | sibling-guard-gap |
+| KN | question_comments-cross-org-read | MEDIUM | question-comments-enrolment-scope.spec.ts | BLOCKED |  | cross-tenant |
+| KO | set_user_enrolments-staff-demotion-open-session | LOW | role-demotion-open-session.spec.ts | BLOCKED |  | sibling-guard-gap |
+| KP | start_exam_session-non-enrolled-exam-config-existence-oracle | LOW | start-rpc-enrolment-pre-gate-oracle.spec.ts | BLOCKED |  | enumeration |
+| KQ | start_discovery-non-enrolled-draw-existence-oracle | LOW | start-rpc-enrolment-pre-gate-oracle.spec.ts | BLOCKED |  | enumeration |
+| KR | start_quiz_session-null-subject-hidden-question-existence-oracle | LOW | course-enrolment-gate.spec.ts | BLOCKED |  | enumeration |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 

@@ -9,6 +9,7 @@
  * (code-style.md §7).
  */
 
+import { enrolStudent } from '@repo/db/enrol-students'
 import { getAdminClient } from '../../helpers/supabase'
 import { createAuthenticatedClient } from './redteam-client'
 import {
@@ -345,6 +346,7 @@ export async function ensureEoSoftDelStudent(
       email_confirm: true,
     })
     if (authErr) throw new Error(`EO-SD beforeAll: auth realign: ${authErr.message}`)
+    await enrolStudent(admin, { userId: existingId, orgId })
     return existingId
   }
 
@@ -363,5 +365,6 @@ export async function ensureEoSoftDelStudent(
     role: 'student',
   })
   if (insErr) throw new Error(`EO-SD beforeAll: insert user: ${insErr.message}`)
+  await enrolStudent(admin, { userId: created.user.id, orgId })
   return created.user.id
 }
