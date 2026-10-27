@@ -26,7 +26,12 @@ type BarProps = Readonly<{
 }>
 
 /** A measured value on a known scale (mastery, score). Fill colour may carry a status tone. */
-function Meter({ value, label, tone = 'primary', className }: Readonly<BarProps & { tone?: MeterTone }>) {
+function Meter({
+  value,
+  label,
+  tone = 'primary',
+  className,
+}: Readonly<BarProps & { tone?: MeterTone }>) {
   return (
     <MeterPrimitive.Root
       value={value}
