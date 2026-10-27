@@ -1,9 +1,9 @@
 /**
  * Red Team Spec — Area 100 KSA under ATPL_A (#1639, mig 20261028001200) + sub-topic exam rows.
- *   KS: a PPL_A + VFR_RT student reads 0 rows of subject 100 (easa_subjects / easa_topics /
+ *   KU: a PPL_A + VFR_RT student reads 0 rows of subject 100 (easa_subjects / easa_topics /
  *       easa_subtopics / questions / exam_configs), get_quiz_questions returns 0 rows and
  *       start_exam_session raises not_enrolled.
- *   KT: upsert_exam_config accepts a subject-100 config whose rows name a subject-050 topic or a
+ *   KV: upsert_exam_config accepts a subject-100 config whose rows name a subject-050 topic or a
  *       sub-topic of another 100 topic; start_exam_session draws no question outside the
  *       (subject, topic, sub-topic) of each row and writes no session.
  * CONTROL: an ATPL_A student reads 1 subject / 4 topics / 18 sub-topics / 22 questions, and a
@@ -32,7 +32,7 @@ const PER_SUBTOPIC = 2
 
 type Ref = { id: string; code: string }
 
-test.describe('Red Team: Area 100 KSA scope (KS, KT)', () => {
+test.describe('Red Team: Area 100 KSA scope (KU, KV)', () => {
   test.setTimeout(120_000)
 
   let admin: ReturnType<typeof getAdminClient>
@@ -189,11 +189,15 @@ test.describe('Red Team: Area 100 KSA scope (KS, KT)', () => {
 
     const { data: bank, error: bankErr } = await admin
       .from('question_banks')
-      .insert({
-        organization_id: orgId,
-        name: `${E2E_REDTEAM_KSA_MARKER} bank`,
-        created_by: adminId,
-      })
+      .upsert(
+        {
+          organization_id: orgId,
+          name: `${E2E_REDTEAM_KSA_MARKER} bank`,
+          created_by: adminId,
+          deleted_at: null,
+        },
+        { onConflict: 'organization_id' },
+      )
       .select('id')
       .single()
     if (bankErr || !bank) throw new Error(`bank: ${bankErr?.message}`)
@@ -267,7 +271,7 @@ test.describe('Red Team: Area 100 KSA scope (KS, KT)', () => {
 
   const allKsaIds = () => [...ksaQuestionIds.values()].flat()
 
-  test('KS: a PPL_A + VFR_RT student reads nothing of subject 100; ATPL_A student reads it all', async () => {
+  test('KU: a PPL_A + VFR_RT student reads nothing of subject 100; ATPL_A student reads it all', async () => {
     const saved = await saveConfig(
       PER_SUBTOPIC * mmSubtopics.length,
       mmSubtopics.map((s) => ({
@@ -298,7 +302,7 @@ test.describe('Red Team: Area 100 KSA scope (KS, KT)', () => {
     expect(await liveSessionCount(pplId)).toBe(0)
   })
 
-  test('KT: rows naming a foreign topic or another topic sub-topic draw nothing outside their scope', async () => {
+  test('KV: rows naming a foreign topic or another topic sub-topic draw nothing outside their scope', async () => {
     const cases = [
       { label: '050 topic', row: { topic_id: foreignTopicId, subtopic_id: null } },
       {
