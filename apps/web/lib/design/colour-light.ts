@@ -1,4 +1,4 @@
-// Light theme. Grey G1 Slate, status C3 Vivid, accent rich-apricot (token lab final values).
+// Light theme. Grey G1 Slate, status C3 Vivid, accent single blue.
 export const LIGHT = {
   background: 'oklch(0.963 0.006 255)',
   foreground: 'oklch(0.2 0.012 255)',
@@ -17,10 +17,10 @@ export const LIGHT = {
   'accent-foreground': 'oklch(0.2 0.012 255)',
   border: 'oklch(0.92 0.007 255)',
   input: 'oklch(0.62 0.009 255)',
-  ring: 'oklch(0.52 0.14 52)',
-  primary: 'oklch(0.77 0.14 58)',
-  'primary-foreground': 'oklch(0.2 0.02 55)',
-  'primary-text': 'oklch(0.51 0.14 52)',
+  ring: 'oklch(0.55 0.19 258)',
+  primary: 'oklch(0.55 0.19 258)',
+  'primary-foreground': 'oklch(0.99 0 0)',
+  'primary-text': 'oklch(0.46 0.2 258)',
   success: 'oklch(0.5 0.125 155)',
   'success-soft': 'oklch(0.965 0.035 150)',
   'success-solid': 'oklch(0.72 0.15 150)',
@@ -33,10 +33,10 @@ export const LIGHT = {
   'caution-soft': 'oklch(0.965 0.035 95)',
   'caution-solid': 'oklch(0.84 0.15 95)',
   'caution-foreground': 'oklch(0.2 0.01 95)',
-  info: 'oklch(0.5 0.14 245)',
-  'info-soft': 'oklch(0.965 0.035 245)',
-  'info-solid': 'oklch(0.7 0.15 245)',
-  'info-foreground': 'oklch(0.2 0.01 245)',
+  info: 'oklch(0.5 0.1 195)',
+  'info-soft': 'oklch(0.965 0.03 195)',
+  'info-solid': 'oklch(0.72 0.12 195)',
+  'info-foreground': 'oklch(0.2 0.01 195)',
   // destructive = danger text shade; foreground is white on it
   destructive: 'oklch(0.5 0.17 25)',
   'destructive-foreground': 'oklch(0.99 0 0)',
@@ -44,7 +44,7 @@ export const LIGHT = {
   'data-strong': 'oklch(0.4 0.009 255)',
   'data-goal': 'oklch(0.62 0.15 150)',
   'series-1': 'oklch(0.4 0.009 255)',
-  'series-2': 'oklch(0.55 0.14 52)',
+  'series-2': 'oklch(0.55 0.19 258)',
   'series-3': 'oklch(0.55 0.009 255)',
   'series-4': 'oklch(0.635 0.009 255)',
 } as const

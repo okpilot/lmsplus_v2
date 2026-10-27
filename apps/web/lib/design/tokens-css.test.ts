@@ -36,7 +36,35 @@ describe('tokens.css', () => {
 
   it('pins the success fill at the approved dashboard green', () => {
     expect(COLOURS.light['success-solid']).toBe('oklch(0.72 0.15 150)')
-    expect(COLOURS.dark['success-solid']).toBe('oklch(0.74 0.14 150)')
+    expect(COLOURS.dark['success-solid']).toBe('oklch(0.7 0.12 150)')
+  })
+})
+
+describe('settled colour values', () => {
+  const pins: ReadonlyArray<readonly [string, string, string]> = [
+    ['ring', 'oklch(0.55 0.19 258)', 'oklch(0.78 0.12 258)'],
+    ['primary', 'oklch(0.55 0.19 258)', 'oklch(0.55 0.19 258)'],
+    ['primary-foreground', 'oklch(0.99 0 0)', 'oklch(0.99 0 0)'],
+    ['primary-text', 'oklch(0.46 0.2 258)', 'oklch(0.78 0.12 258)'],
+    ['info', 'oklch(0.5 0.1 195)', 'oklch(0.82 0.09 195)'],
+    ['info-soft', 'oklch(0.965 0.03 195)', 'oklch(0.29 0.04 195)'],
+    ['info-solid', 'oklch(0.72 0.12 195)', 'oklch(0.7 0.1 195)'],
+    ['info-foreground', 'oklch(0.2 0.01 195)', 'oklch(0.2 0.01 195)'],
+    ['series-2', 'oklch(0.55 0.19 258)', 'oklch(0.7 0.15 258)'],
+  ]
+  for (const [name, light, dark] of pins) {
+    it(`${name} is ${light} in light and ${dark} in dark`, () => {
+      const l = COLOURS.light as Record<string, string>
+      const d = COLOURS.dark as Record<string, string>
+      expect(l[name]).toBe(light)
+      expect(d[name]).toBe(dark)
+    })
+  }
+
+  it('dark surfaces use the lifted blue-grey values', () => {
+    expect(COLOURS.dark.background).toBe('oklch(0.2 0.012 260)')
+    expect(COLOURS.dark.card).toBe('oklch(0.24 0.013 260)')
+    expect(COLOURS.dark.foreground).toBe('oklch(0.88 0.006 260)')
   })
 })
 
