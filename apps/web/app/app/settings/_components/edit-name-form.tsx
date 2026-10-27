@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { FieldError } from '@/components/ui/field-error'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { LoadingButton } from '@/components/ui/loading-button'
@@ -68,11 +69,7 @@ export function EditNameForm({ currentName }: Readonly<EditNameFormProps>) {
               maxLength={200}
             />
           </div>
-          {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
+          <FieldError role="alert">{error}</FieldError>
           <LoadingButton
             type="submit"
             loading={isPending}

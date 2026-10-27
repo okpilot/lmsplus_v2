@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button'
+import { FieldError } from '@/components/ui/field-error'
 import type { BlockedStartState } from '../_hooks/use-blocked-start'
 
 type BlockedStartAlertProps = {
@@ -18,11 +19,7 @@ export function BlockedStartAlert({
   if (!message && !offer) return null
   return (
     <div className="space-y-2">
-      {message && (
-        <p role="alert" className="text-sm text-destructive">
-          {message}
-        </p>
-      )}
+      <FieldError role="alert">{message}</FieldError>
       {offer && (
         <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
           <p className="text-sm text-muted-foreground">
@@ -31,11 +28,7 @@ export function BlockedStartAlert({
           <Button type="button" variant="outline" disabled={saving} onClick={onAccept}>
             Save quiz for later and start {startLabel}
           </Button>
-          {error && (
-            <p role="alert" className="text-xs text-destructive">
-              {error}
-            </p>
-          )}
+          <FieldError role="alert">{error}</FieldError>
         </div>
       )}
     </div>

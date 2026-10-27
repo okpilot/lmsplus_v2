@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import type { SortDir, SortKey } from '@/lib/queries/reports'
 import { getSessionReports, PAGE_SIZE } from '@/lib/queries/reports'
 import { ReportsList } from './reports-list'
@@ -10,9 +11,9 @@ export async function ReportsContent({ page, sort, dir }: Readonly<Props>) {
 
   if (!result.ok) {
     return (
-      <div className="rounded-lg border border-destructive/50 p-8 text-center">
-        <p className="text-sm text-destructive">Failed to load reports. Please try again.</p>
-      </div>
+      <Alert tone="danger">
+        <AlertDescription>Failed to load reports. Please try again.</AlertDescription>
+      </Alert>
     )
   }
 

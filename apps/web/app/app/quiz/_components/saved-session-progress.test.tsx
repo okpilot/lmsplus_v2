@@ -15,8 +15,10 @@ describe('SavedSessionProgress', () => {
   })
 
   it('sizes the bar to the percentage answered', () => {
-    const { container } = render(<SavedSessionProgress answered={5} total={10} />)
-    const bar = container.querySelector('.bg-primary') as HTMLElement | null
+    render(<SavedSessionProgress answered={5} total={10} />)
+    const bar = screen
+      .getByRole('progressbar', { name: 'Answered questions' })
+      .querySelector('.bg-primary') as HTMLElement | null
     expect(bar).not.toBeNull()
     expect(bar?.style.width).toBe('50%')
   })

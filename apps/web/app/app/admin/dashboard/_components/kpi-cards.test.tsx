@@ -29,6 +29,20 @@ describe('KpiCards', () => {
     expect(screen.getByText('No students enrolled yet')).toBeInTheDocument()
   })
 
+  it('shows the empty state in the shared empty part', () => {
+    const { container } = render(
+      <KpiCards data={buildKpis({ totalStudents: 0, activeStudents: 0 })} range="30d" />,
+    )
+    expect(container.querySelector('[data-slot="empty"]')).toHaveTextContent(
+      'No students enrolled yet',
+    )
+  })
+
+  it('renders each KPI as a stat card', () => {
+    const { container } = render(<KpiCards data={buildKpis()} range="30d" />)
+    expect(container.querySelectorAll('[data-slot="card"]')).toHaveLength(5)
+  })
+
   it('does not render KPI cards in the empty state', () => {
     render(<KpiCards data={buildKpis({ totalStudents: 0, activeStudents: 0 })} range="30d" />)
     expect(screen.queryByText(/Active Students/i)).not.toBeInTheDocument()
@@ -71,31 +85,40 @@ describe('KpiCards', () => {
   it('applies red colour class when avg mastery is below 50', () => {
     render(<KpiCards data={buildKpis({ avgMastery: 40 })} range="30d" />)
     const value = screen.getByText('40%')
-    expect(value.className).toContain('text-red-600')
+    expect(value.className).toContain('text-danger')
   })
 
   it('applies amber colour class when avg mastery is 50–79', () => {
     render(<KpiCards data={buildKpis({ avgMastery: 65 })} range="30d" />)
     const value = screen.getByText('65%')
-    expect(value.className).toContain('text-amber-600')
+    expect(value.className).toContain('text-caution')
   })
 
   it('applies green colour class when avg mastery is 80 or above', () => {
     render(<KpiCards data={buildKpis({ avgMastery: 85 })} range="30d" />)
     const value = screen.getByText('85%')
-    expect(value.className).toContain('text-green-600')
+    expect(value.className).toContain('text-success')
   })
 
   it('applies amber colour class at the 50% mastery boundary', () => {
     render(<KpiCards data={buildKpis({ avgMastery: 50 })} range="30d" />)
     const value = screen.getByText('50%')
-    expect(value.className).toContain('text-amber-600')
+    expect(value.className).toContain('text-caution')
   })
 
   it('applies green colour class at the 80% mastery boundary', () => {
     render(<KpiCards data={buildKpis({ avgMastery: 80 })} range="30d" />)
     const value = screen.getByText('80%')
-    expect(value.className).toContain('text-green-600')
+    expect(value.className).toContain('text-success')
+  })
+
+  it('keeps one column on a phone and steps to three then five columns on wider screens', () => {
+    render(<KpiCards data={buildKpis()} range="30d" />)
+    const grid = screen.getByText('Active Students').closest('.grid') as HTMLElement
+    expect(grid.className).toContain('grid-cols-1')
+    expect(grid.className).toContain('md:grid-cols-3')
+    expect(grid.className).toContain('2xl:grid-cols-5')
+    expect(grid.className).not.toContain('sm:grid-cols-2')
   })
 
   // -------------------------------------------------------------------------
@@ -116,6 +139,16 @@ describe('KpiCards', () => {
     expect(screen.getByText('Meteorology')).toBeInTheDocument()
   })
 
+  it('sets the weakest subject name body-size bold and wraps long names inside the card', () => {
+    render(<KpiCards data={buildKpis()} range="30d" />)
+    const value = screen.getByText('Meteorology')
+    expect(value.className).toContain('text-body')
+    expect(value.className).toContain('font-semibold')
+    expect(value.className).toContain('break-words')
+    expect(value.className).not.toContain('text-stat')
+    expect(value.className).not.toContain('text-heading')
+  })
+
   it('renders an em dash when weakest subject is null', () => {
     render(<KpiCards data={buildKpis({ weakestSubject: null })} range="30d" />)
     // The em dash is rendered as the weakest subject value
@@ -130,7 +163,7 @@ describe('KpiCards', () => {
       />,
     )
     const subjectName = screen.getByText('MET')
-    expect(subjectName.className).toContain('text-red-600')
+    expect(subjectName.className).toContain('text-danger')
   })
 
   it('renders weakest subject mastery sub-text when subject is present', () => {

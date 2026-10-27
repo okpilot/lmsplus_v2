@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { PageHeader } from '@/components/ui/heading'
 import type { SortDir, SortKey } from '@/lib/queries/reports'
 import { parsePageParam } from '@/lib/utils/parse-page-param'
 import { ReportsContent } from './_components/reports-content'
@@ -28,7 +29,7 @@ export default async function ReportsPage({
 
   return (
     <main className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Reports</h1>
+      <PageHeader title="Reports" />
       <Suspense fallback={<ReportsContentFallback />}>
         <ReportsContent page={page} sort={sort} dir={dir} />
       </Suspense>

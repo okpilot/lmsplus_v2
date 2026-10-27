@@ -1,4 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Heading } from '@/components/ui/heading'
+import { Stat, StatGroup } from '@/components/ui/stat'
 import type { ProfileStats } from '@/lib/queries/profile'
 
 type ProfileCardProps = {
@@ -39,24 +41,23 @@ export function ProfileCard({
           <dd>{joinDate}</dd>
         </dl>
 
-        <div className="border-t pt-4">
-          <h3 className="mb-3 text-sm font-medium text-muted-foreground">Quiz Statistics</h3>
-          <div className="grid grid-cols-3 gap-4 text-center">
-            <StatBlock label="Sessions" value={stats.totalSessions} />
-            <StatBlock label="Avg. Score" value={`${stats.averageScore}%`} />
-            <StatBlock label="Answered" value={stats.totalAnswered} />
-          </div>
-        </div>
+        <QuizStatistics stats={stats} />
       </CardContent>
     </Card>
   )
 }
 
-function StatBlock({ label, value }: Readonly<{ label: string; value: string | number }>) {
+function QuizStatistics({ stats }: Readonly<{ stats: ProfileStats }>) {
   return (
-    <div>
-      <p className="text-2xl font-bold">{value}</p>
-      <p className="text-xs text-muted-foreground">{label}</p>
+    <div className="border-t pt-4">
+      <Heading level={3} className="mb-3">
+        Quiz Statistics
+      </Heading>
+      <StatGroup columns={3}>
+        <Stat variant="plain" size="compact" label="Sessions" value={stats.totalSessions} />
+        <Stat variant="plain" size="compact" label="Avg. Score" value={`${stats.averageScore}%`} />
+        <Stat variant="plain" size="compact" label="Answered" value={stats.totalAnswered} />
+      </StatGroup>
     </div>
   )
 }

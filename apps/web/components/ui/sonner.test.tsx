@@ -35,6 +35,68 @@ describe('Toaster', () => {
     )
   })
 
+  it('keeps the stacking class when the caller adds its own class', async () => {
+    render(<Toaster className="custom-toaster" />)
+    act(() => {
+      toast('Classed')
+    })
+    await screen.findByText('Classed')
+    const toaster = toastFor('Classed').closest('[data-sonner-toaster]') as HTMLElement
+    expect(toaster).toHaveClass('z-toast!', 'custom-toaster')
+  })
+
+  it('keeps the tone outlines when the caller passes its own toast options', async () => {
+    render(<Toaster toastOptions={{ duration: 3000 }} />)
+    act(() => {
+      toast.error('Kept outline')
+    })
+    await screen.findByText('Kept outline')
+    expect(toastFor('Kept outline').className).toContain('border-danger-solid!')
+  })
+
+  it('keeps the base toast sizing when the caller adds its own toast class', async () => {
+    render(<Toaster toastOptions={{ classNames: { toast: 'x-extra' } }} />)
+    act(() => {
+      toast('Merged')
+    })
+    await screen.findByText('Merged')
+    expect(toastFor('Merged').className).toContain('w-fit!')
+    expect(toastFor('Merged').className).toContain('x-extra')
+  })
+
+  it('keeps the error outline when the caller adds its own error class', async () => {
+    render(<Toaster toastOptions={{ classNames: { error: 'x-err' } }} />)
+    act(() => {
+      toast.error('Merged error')
+    })
+    await screen.findByText('Merged error')
+    expect(toastFor('Merged error').className).toContain('border-danger-solid!')
+    expect(toastFor('Merged error').className).toContain('x-err')
+  })
+
+  it('keeps the theme variables when the caller passes its own style', async () => {
+    render(<Toaster style={{ color: 'red' }} />)
+    act(() => {
+      toast('Styled')
+    })
+    await screen.findByText('Styled')
+    const toaster = toastFor('Styled').closest('[data-sonner-toaster]') as HTMLElement
+    expect(toaster.style.getPropertyValue('--normal-bg')).toBe('var(--popover)')
+  })
+
+  it('lifts the bottom offset by the published reload-banner height on desktop and mobile', async () => {
+    render(<Toaster />)
+    act(() => {
+      toast('Lifted')
+    })
+    await screen.findByText('Lifted')
+    const toaster = toastFor('Lifted').closest('[data-sonner-toaster]') as HTMLElement
+    expect(toaster.style.getPropertyValue('--offset-bottom')).toContain('var(--reload-banner-h')
+    expect(toaster.style.getPropertyValue('--mobile-offset-bottom')).toContain(
+      'var(--reload-banner-h',
+    )
+  })
+
   it('lists several toasts one above the other instead of piling them', async () => {
     render(<Toaster />)
     act(() => {

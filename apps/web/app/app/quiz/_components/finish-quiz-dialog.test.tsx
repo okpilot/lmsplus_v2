@@ -700,11 +700,11 @@ describe('FinishQuizDialog', () => {
     expect(screen.queryByText(/error/i)).not.toBeInTheDocument()
   })
 
-  it('renders the error text inside a paragraph with destructive styling class', () => {
+  it('renders the error text inside a paragraph with danger styling class', () => {
     renderDialog({ error: 'Something went wrong' })
     const errorEl = screen.getByText('Something went wrong')
     expect(errorEl.tagName.toLowerCase()).toBe('p')
-    expect(errorEl.className).toMatch(/destructive/)
+    expect(errorEl.className).toMatch(/danger/)
   })
 
   it('renders the error paragraph with role="alert" so screen readers announce it', () => {

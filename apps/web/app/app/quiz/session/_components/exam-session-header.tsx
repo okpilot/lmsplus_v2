@@ -1,5 +1,6 @@
 'use client'
 
+import { Badge } from '@/components/ui/badge'
 import { MODE_LABELS, type QuizMode } from '@/lib/constants/exam-modes'
 import { ExamCountdownTimer } from '../../_components/exam-countdown-timer'
 
@@ -13,9 +14,9 @@ type ExamSessionHeaderProps = {
 
 export function ExamBadge({ mode = 'mock_exam' }: Readonly<{ mode?: QuizMode }> = {}) {
   return (
-    <span className="hidden md:inline-flex rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-400">
+    <Badge tone="caution" className="hidden md:inline-flex">
       {MODE_LABELS[mode].toUpperCase()}
-    </span>
+    </Badge>
   )
 }
 

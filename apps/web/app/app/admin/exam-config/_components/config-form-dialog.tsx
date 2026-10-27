@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Heading } from '@/components/ui/heading'
 import { Label } from '@/components/ui/label'
 import { LoadingButton } from '@/components/ui/loading-button'
 import { Switch } from '@/components/ui/switch'
@@ -114,9 +115,8 @@ export function ConfigFormDialog({ subject, open, onOpenChange }: Readonly<Props
               onChange={setPassMark}
             />
           </div>
-
-          <div className="border-t border-border pt-4">
-            <h3 className="mb-3 text-sm font-semibold">Question Distribution</h3>
+          <div className="space-y-3 border-t border-border pt-4">
+            <Heading level={3}>Question Distribution</Heading>
             <DistributionEditor
               topics={subject.topics}
               distributions={distributions}

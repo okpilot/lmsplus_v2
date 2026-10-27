@@ -1,3 +1,4 @@
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import type { AnswerResult, SessionQuestion, SessionState } from '../_types/session'
 import { QuestionCard } from './question-card'
 import { SessionAnswerBlock } from './session-answer-block'
@@ -40,9 +41,9 @@ export function ActiveSession({
         dbQuestionNumber={question.question_number}
       />
       {error && (
-        <div role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-          {error}
-        </div>
+        <Alert tone="danger" size="compact" role="alert">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
       <SessionAnswerBlock
         options={question.options}

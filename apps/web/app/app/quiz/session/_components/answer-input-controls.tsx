@@ -1,6 +1,7 @@
 // Per-question-type answer control wrappers, hoisted out of answer-input.tsx to
 // keep that file focused — the switch grew a 5th (diagram_label) arm.
 import { AnswerOptions } from '@/app/app/_components/answer-options'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import type { QuizState } from '../_hooks/use-quiz-state'
 import { DialogFillInput } from './dialog-fill-input'
 import { DiagramLabelInput, OrderingInput } from './lazy-answer-inputs'
@@ -15,9 +16,11 @@ type ControlProps = Readonly<{ s: QuizState; question: Question }>
 // data is CHECK-enforced). Extracted so the two clones can't drift in wording.
 function MissingConfigAlert() {
   return (
-    <div role="alert" className="text-sm text-muted-foreground">
-      This question could not be loaded. Please refresh the page.
-    </div>
+    <Alert role="alert" tone="neutral">
+      <AlertDescription>
+        This question could not be loaded. Please refresh the page.
+      </AlertDescription>
+    </Alert>
   )
 }
 
@@ -135,8 +138,8 @@ export function McAnswer({
 
 export function UnsupportedQuestionType({ message }: Readonly<{ message: string }>) {
   return (
-    <div role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-      {message}
-    </div>
+    <Alert role="alert" tone="danger" size="compact">
+      <AlertDescription>{message}</AlertDescription>
+    </Alert>
   )
 }

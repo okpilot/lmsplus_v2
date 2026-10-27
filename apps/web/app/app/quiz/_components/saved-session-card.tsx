@@ -1,6 +1,7 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
+import { FieldError } from '@/components/ui/field-error'
 import { modeLabel } from '@/lib/constants/exam-modes'
 import type { SavedQuizSession } from '@/lib/queries/load-saved-quizzes'
 import { useSavedCardActions } from '../_hooks/use-saved-card-actions'
@@ -58,7 +59,7 @@ export function SavedSessionCard({ session }: Readonly<{ session: SavedQuizSessi
         />
       </div>
       <SavedSessionProgress answered={session.answeredCount} total={session.totalCount} />
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      <FieldError>{error}</FieldError>
     </div>
   )
 }

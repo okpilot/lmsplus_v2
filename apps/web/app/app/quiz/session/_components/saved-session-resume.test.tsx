@@ -37,6 +37,15 @@ describe('SavedSessionResume', () => {
     expect(screen.getByText(/4 of 10/)).toBeInTheDocument()
   })
 
+  it('titles the page with a level-1 heading that inherits the centred alignment', () => {
+    renderIt()
+    const h1 = screen.getByRole('heading', { level: 1, name: 'Saved quiz' })
+    const header = h1.parentElement?.parentElement as HTMLElement
+    expect(header.className).toContain('sm:justify-center')
+    expect(header.className).not.toContain('sm:justify-between')
+    expect(header.parentElement?.className).toContain('text-center')
+  })
+
   it('resumes the quiz on Resume', () => {
     renderIt()
     fireEvent.click(screen.getByRole('button', { name: /resume/i }))
@@ -62,6 +71,14 @@ describe('SavedSessionResume', () => {
     renderIt()
 
     expect(screen.getByRole('alert')).toHaveTextContent('Finish your open quiz first.')
+    expect(screen.getByRole('alert')).toHaveAttribute('data-slot', 'field-error')
+  })
+
+  it('shows the saved-quiz heading as the page title', () => {
+    mockHook.mockReturnValue({ resume, discard, loading: false, error: null })
+    renderIt()
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Saved quiz' })).toHaveClass('text-title')
   })
 
   it('disables both actions while one is running', () => {

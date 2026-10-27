@@ -87,7 +87,7 @@
   --info-soft: oklch(0.29 0.04 195);
   --info-solid: oklch(0.7 0.1 195);
   --info-foreground: oklch(0.2 0.01 195);
-  --destructive: oklch(0.78 0.12 25);
+  --destructive: oklch(0.88 0.08 25);
   --destructive-foreground: oklch(0.2 0.01 25);
   --data: oklch(0.6 0.019 260);
   --data-strong: oklch(0.88 0.008 260);
@@ -194,6 +194,7 @@
   --radius-card: 0.75rem;
   --radius-sheet: 1rem;
   --z-index-sticky: 10;
+  --z-index-scrim: 15;
   --z-index-nav: 20;
   --z-index-overlay: 30;
   --z-index-dropdown: 40;

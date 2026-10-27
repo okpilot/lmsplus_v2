@@ -93,6 +93,14 @@ beforeEach(() => {
 
 describe('ConfigFormDialog', () => {
   describe('rendering when open', () => {
+    it('renders the distribution section title as a level-3 heading', () => {
+      render(<ConfigFormDialog subject={subjectNoConfig} open={true} onOpenChange={vi.fn()} />)
+      expect(screen.getByRole('heading', { level: 3, name: 'Question Distribution' })).toHaveClass(
+        'text-label',
+        'font-semibold',
+      )
+    })
+
     it('renders the dialog title with subject code and name', () => {
       render(<ConfigFormDialog subject={subjectNoConfig} open={true} onOpenChange={vi.fn()} />)
       expect(screen.getByText(/AGK.*General Knowledge/)).toBeTruthy()

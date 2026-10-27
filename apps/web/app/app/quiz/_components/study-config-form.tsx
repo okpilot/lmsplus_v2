@@ -1,6 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
+import { FieldError } from '@/components/ui/field-error'
 import type { SubjectOption } from '@/lib/queries/quiz-query-types'
 import { useStudyConfig } from '../_hooks/use-study-config'
 import type { PreloadPromise } from '../types'
@@ -76,15 +77,9 @@ export function StudyConfigForm({
         </div>
       )}
 
-      {config.error && (
-        <p role="alert" className="text-sm text-destructive">
-          {config.error}
-        </p>
-      )}
+      <FieldError role="alert">{config.error}</FieldError>
       {config.authError && (
-        <p role="alert" className="text-sm text-destructive">
-          Session expired. Please refresh the page.
-        </p>
+        <FieldError role="alert">Session expired. Please refresh the page.</FieldError>
       )}
 
       <StartButton

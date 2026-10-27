@@ -11,6 +11,7 @@ import {
   useSensors,
 } from '@dnd-kit/core'
 import { useState } from 'react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { BusyLabel } from '@/components/ui/busy-label'
 import {
   allPlacementsCorrect,
@@ -96,12 +97,11 @@ export function DiagramLabelInput({
   // Fail closed on an unknown image_ref: alert only, no drop-zones/pool/Submit.
   if (!DiagramArt) {
     return (
-      <div
-        role="alert"
-        className="rounded-lg border border-border bg-card p-6 text-sm text-muted-foreground"
-      >
-        This diagram could not be loaded. Please refresh the page.
-      </div>
+      <Alert role="alert" tone="neutral">
+        <AlertDescription>
+          This diagram could not be loaded. Please refresh the page.
+        </AlertDescription>
+      </Alert>
     )
   }
 

@@ -1,6 +1,8 @@
 import type { ColourName } from './colour-light'
 
 const DANGER = 'oklch(0.78 0.12 25)'
+// Lighter than DANGER so the destructive/20 tint passes 4.5:1 over muted and accent.
+const DESTRUCTIVE = 'oklch(0.88 0.08 25)'
 
 // Dark theme. Same names as light; surfaces lift per level.
 export const DARK: Record<ColourName, string> = {
@@ -41,8 +43,8 @@ export const DARK: Record<ColourName, string> = {
   'info-soft': 'oklch(0.29 0.04 195)',
   'info-solid': 'oklch(0.7 0.1 195)',
   'info-foreground': 'oklch(0.2 0.01 195)',
-  // destructive = danger text shade; foreground is the dark text colour on it
-  destructive: DANGER,
+  // destructive is lighter than danger so the /20 tint passes over muted and accent; foreground is the dark text colour on it
+  destructive: DESTRUCTIVE,
   'destructive-foreground': 'oklch(0.2 0.01 25)',
   data: 'oklch(0.6 0.019 260)',
   'data-strong': 'oklch(0.88 0.008 260)',

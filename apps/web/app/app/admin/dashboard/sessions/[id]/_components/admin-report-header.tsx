@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { PageHeader } from '@/components/ui/heading'
 
 type Props = Readonly<{
   studentId: string
@@ -22,7 +23,7 @@ export function AdminReportHeader({ studentId, studentName }: Readonly<Props>) {
         <span>/</span>
         <span className="text-foreground">Session Report</span>
       </nav>
-      <h1 className="text-2xl font-semibold tracking-tight">Quiz Results</h1>
+      <PageHeader title="Quiz Results" />
     </div>
   )
 }

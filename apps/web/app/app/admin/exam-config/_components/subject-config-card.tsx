@@ -2,6 +2,7 @@
 
 import { useTransition } from 'react'
 import { toast } from 'sonner'
+import { Badge } from '@/components/ui/badge'
 import { toggleExamConfig } from '../actions/toggle-exam-config'
 import type { SubjectWithConfig } from '../types'
 
@@ -66,13 +67,11 @@ export function SubjectConfigCard({ subject, onEdit }: Readonly<Props>) {
           type="button"
           onClick={handleToggle}
           disabled={isPending}
-          className={`mr-4 shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-            config.enabled
-              ? 'bg-green-500/15 text-green-500 hover:bg-green-500/25'
-              : 'bg-muted text-muted-foreground hover:bg-muted/80'
-          }`}
+          className="relative mr-4 shrink-0 rounded-full transition-opacity after:absolute after:-inset-x-1 after:-inset-y-3 lg:after:hidden enabled:hover:opacity-80 disabled:opacity-50"
         >
-          {isPending ? '...' : config.enabled ? 'Enabled' : 'Disabled'}
+          <Badge tone={config.enabled ? 'success' : 'neutral'}>
+            {isPending ? '...' : config.enabled ? 'Enabled' : 'Disabled'}
+          </Badge>
         </button>
       )}
     </div>

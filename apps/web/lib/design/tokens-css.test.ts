@@ -97,6 +97,13 @@ describe('text on translucent fills', () => {
         })
       }
     }
+    for (const under of ['background', 'card', 'popover', 'muted', 'accent'] as const) {
+      const pct = theme === 'light' ? 10 : 20
+      it(`destructive on destructive/${pct} over ${under} reaches 4.5:1 in the ${theme} theme`, () => {
+        const ratio = contrastRatio(p.destructive, tint(p.destructive, pct), p[under])
+        expect(ratio, `${ratio.toFixed(2)}`).toBeGreaterThanOrEqual(4.5)
+      })
+    }
     for (const pct of [30, 50, 80]) {
       it(`muted-foreground on muted/${pct} over card reaches 4.5:1 in the ${theme} theme`, () => {
         const ratio = contrastRatio(p['muted-foreground'], tint(p.muted, pct), p.card)
@@ -120,11 +127,11 @@ describe('colour contrast', () => {
 
 describe('layers', () => {
   it('stacks menus above dialogs and the reload banner above toasts', () => {
-    const { sticky, nav, overlay, dropdown, toast, banner } = Z_INDEX
-    expect([sticky, nav, overlay, dropdown, toast, banner]).toEqual(
-      [sticky, nav, overlay, dropdown, toast, banner].toSorted((a, b) => a - b),
+    const { sticky, scrim, nav, overlay, dropdown, toast, banner } = Z_INDEX
+    expect([sticky, scrim, nav, overlay, dropdown, toast, banner]).toEqual(
+      [sticky, scrim, nav, overlay, dropdown, toast, banner].toSorted((a, b) => a - b),
     )
     expect(Z_INDEX.banner).toBeGreaterThan(Z_INDEX.toast)
-    expect(new Set(Object.values(Z_INDEX)).size).toBe(6)
+    expect(new Set(Object.values(Z_INDEX)).size).toBe(7)
   })
 })

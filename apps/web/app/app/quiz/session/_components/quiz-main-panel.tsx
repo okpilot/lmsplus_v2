@@ -1,4 +1,5 @@
 import { QuestionCard } from '@/app/app/_components/question-card'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import type { QuestionTab } from '../../_components/question-tabs'
 import type { QuizState } from '../_hooks/use-quiz-state'
 import { AnswerInput } from './answer-input'
@@ -49,9 +50,9 @@ export function QuizMainPanel({
         />
       )}
       {s.error && (
-        <div role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-          {s.error}
-        </div>
+        <Alert role="alert" tone="danger" size="compact">
+          <AlertDescription>{s.error}</AlertDescription>
+        </Alert>
       )}
       <AnswerInput
         s={s}

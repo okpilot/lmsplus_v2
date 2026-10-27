@@ -41,6 +41,11 @@ describe('IssuedCodePanel', () => {
     }
   })
 
+  it('labels the panel with an eyebrow', () => {
+    render(<IssuedCodePanel {...PROPS} />)
+    expect(screen.getByText('New code issued')).toHaveClass('text-overline', 'uppercase')
+  })
+
   it('displays the issued code in large bold text', () => {
     render(<IssuedCodePanel {...PROPS} />)
     expect(screen.getByTestId('issued-code-value')).toHaveTextContent('ABCD2345')

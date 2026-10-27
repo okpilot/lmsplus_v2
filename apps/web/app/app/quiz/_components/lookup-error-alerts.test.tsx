@@ -9,6 +9,14 @@ describe('LookupErrorAlerts', () => {
     expect(screen.getByRole('alert').textContent).toMatch(/saved quizzes/i)
   })
 
+  it('renders the lookup failure as a danger alert', () => {
+    render(<LookupErrorAlerts examFailed practiceFailed={false} />)
+
+    const alert = screen.getByRole('alert')
+    expect(alert).toHaveAttribute('data-slot', 'alert')
+    expect(alert.className).toContain('bg-danger-soft')
+  })
+
   it('shows no alert when every lookup succeeded', () => {
     render(<LookupErrorAlerts examFailed={false} practiceFailed={false} />)
 

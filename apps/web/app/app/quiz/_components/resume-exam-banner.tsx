@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,6 +13,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import { buttonVariants } from '@/components/ui/button-variants'
+import { FieldError } from '@/components/ui/field-error'
+import { cn } from '@/lib/utils'
 import { useResumeExamActions } from '../_hooks/use-resume-exam-actions'
 import type { ActiveExamSession } from '../actions/get-active-exam-session'
 
@@ -44,7 +48,7 @@ export function ResumeLink({
       onClick={(e) => {
         if (loading) e.preventDefault()
       }}
-      className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-600 aria-disabled:pointer-events-none aria-disabled:opacity-50"
+      className={cn(buttonVariants(), 'aria-disabled:pointer-events-none aria-disabled:opacity-50')}
     >
       {children}
     </Link>
@@ -68,15 +72,11 @@ export function ResumeExamBanner({ userId, exam, discardOnly, sessionId }: Reado
     : `${exam.subjectName} — session interrupted`
 
   return (
-    <div className="mx-auto max-w-md rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 mb-4">
-      <p className="text-sm font-medium text-foreground">{title}</p>
-      <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>
-      {error && (
-        <p role="alert" className="mt-2 text-xs text-destructive">
-          {error}
-        </p>
-      )}
-      <div className="mt-3 flex gap-2">
+    <Alert tone="caution" className="mx-auto mb-4 max-w-md">
+      <AlertTitle>{title}</AlertTitle>
+      <AlertDescription>{subtitle}</AlertDescription>
+      <FieldError role="alert">{error}</FieldError>
+      <AlertAction className="flex gap-2">
         {!discardOnly && (
           <ResumeLink sessionId={activeSessionId} loading={loading}>
             Resume Practice Exam
@@ -110,7 +110,7 @@ export function ResumeExamBanner({ userId, exam, discardOnly, sessionId }: Reado
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      </div>
-    </div>
+      </AlertAction>
+    </Alert>
   )
 }

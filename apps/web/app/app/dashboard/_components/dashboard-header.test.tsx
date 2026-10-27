@@ -49,4 +49,13 @@ describe('DashboardHeader', () => {
     renderWithUser(ada)
     expect(screen.getByRole('link', { name: /start quiz/i })).toHaveAttribute('href', '/app/quiz')
   })
+
+  it('renders the page title as the shared level-1 header with the quiz link beside it', () => {
+    renderWithUser(ada)
+    const heading = screen.getByRole('heading', { level: 1, name: 'Dashboard' })
+    expect(heading).toHaveClass('text-title')
+    expect(heading.parentElement?.parentElement).toContainElement(
+      screen.getByRole('link', { name: '+ Start Quiz' }),
+    )
+  })
 })

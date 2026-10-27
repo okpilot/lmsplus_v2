@@ -1,3 +1,4 @@
+import { Heading } from '@/components/ui/heading'
 import { HeatmapInfo } from './heatmap-info'
 
 type HeaderProps = {
@@ -24,7 +25,7 @@ export function HeatmapHeader({
   return (
     <div className="mb-2 flex items-center justify-between md:mb-3">
       <div className="flex items-center gap-1.5">
-        <h3 className="text-sm font-semibold">Daily Progress</h3>
+        <Heading level={3}>Daily Progress</Heading>
         <HeatmapInfo />
       </div>
       <div className="flex items-center gap-1.5 md:gap-2">

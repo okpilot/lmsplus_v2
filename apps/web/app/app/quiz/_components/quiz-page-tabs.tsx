@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
 import type { QuizPageData } from '../_loaders/load-quiz-page-data'
 import { QuizTabs } from './quiz-tabs'
 import { RefreshOnReturn } from './refresh-on-return'
@@ -23,7 +24,7 @@ export function QuizPageTabs({
       <QuizTabs
         draftCount={savedTabCount}
         newQuizContent={
-          <Suspense fallback={<div className="h-64 animate-pulse rounded-lg bg-muted" />}>
+          <Suspense fallback={<Skeleton className="h-64 rounded-card" />}>
             <SubjectsSection userId={userId} />
           </Suspense>
         }

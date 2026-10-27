@@ -75,7 +75,7 @@ describe('SessionRunner', () => {
 
   it('renders a progress bar', () => {
     renderRunner()
-    expect(screen.getByTestId('progress-bar')).toBeInTheDocument()
+    expect(screen.getByRole('progressbar', { name: 'Quiz progress' })).toBeInTheDocument()
   })
 
   it('submits an answer and shows feedback', async () => {

@@ -171,4 +171,17 @@ describe('ChangePasswordForm', () => {
       'Unable to update password. Please try again.',
     )
   })
+
+  it('renders the error as a danger field error', async () => {
+    const user = userEvent.setup()
+    render(<ChangePasswordForm />)
+    await user.type(screen.getByLabelText(/current password/i), 'secret123')
+    await user.type(screen.getByLabelText(/new password/i), 'newpass456')
+    await user.type(screen.getByLabelText(/confirm password/i), 'different789')
+    await user.click(screen.getByRole('button', { name: /update password/i }))
+
+    const error = await screen.findByRole('alert')
+    expect(error).toHaveAttribute('data-slot', 'field-error')
+    expect(error).toHaveClass('text-danger')
+  })
 })

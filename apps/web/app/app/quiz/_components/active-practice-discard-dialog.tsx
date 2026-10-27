@@ -13,6 +13,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { FieldError } from '@/components/ui/field-error'
 
 type Props = {
   modeLabel: string
@@ -69,11 +70,7 @@ function DiscardDialogContent({ modeLabel, loading, error, onDiscard }: Readonly
       </AlertDialogHeader>
       {/* Render the error inside the dialog: the AlertDialogAction does not
           close the popup, so a banner-level alert would sit behind the overlay. */}
-      {error && (
-        <p role="alert" className="text-xs text-destructive">
-          {error}
-        </p>
-      )}
+      <FieldError role="alert">{error}</FieldError>
       <AlertDialogFooter>
         <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
         <AlertDialogAction variant="destructive" disabled={loading} onClick={onDiscard}>

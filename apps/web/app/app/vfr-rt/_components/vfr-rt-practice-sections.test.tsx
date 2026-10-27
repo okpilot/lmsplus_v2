@@ -60,4 +60,9 @@ describe('VfrRtPracticeSections', () => {
     render(<VfrRtPracticeSections config={makeConfig({ error: 'Boom' })} />)
     expect(screen.getByRole('alert')).toHaveTextContent('Boom')
   })
+
+  it('renders the session-expired message with the shared field-error part', () => {
+    render(<VfrRtPracticeSections config={makeConfig({ authError: true })} />)
+    expect(screen.getByRole('alert')).toHaveAttribute('data-slot', 'field-error')
+  })
 })
