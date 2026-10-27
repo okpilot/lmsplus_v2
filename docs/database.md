@@ -309,7 +309,7 @@ CREATE TABLE courses (
 
 **RLS (ENABLED + FORCED):** `courses_select` `FOR SELECT TO authenticated USING ((SELECT auth.uid()) IS NOT NULL)`. No INSERT/UPDATE/DELETE policy.
 **GRANTs to `authenticated`:** `SELECT` only.
-**Subjects:** `easa_subjects.course_id` (NOT NULL, default PPL_A) assigns each subject to one course; `RT` → `VFR_RT`; `100` (Knowledge, Skills and Attitudes, mig `20261028001200`, #1639) → `ATPL_A`.
+**Subjects:** `easa_subjects.course_id` (NOT NULL, default PPL_A) assigns each subject to one course (e.g. `RT` → `VFR_RT`; `100` (Knowledge, Skills and Attitudes, mig `20261028001200`, #1639) → `ATPL_A`); derive the full map: `SELECT s.code, c.code FROM easa_subjects s JOIN courses c ON c.id = s.course_id`.
 
 ### course_enrolments
 

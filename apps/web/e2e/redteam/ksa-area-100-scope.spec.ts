@@ -51,6 +51,7 @@ test.describe('Red Team: Area 100 KSA scope (KU, KV)', () => {
   let foreignTopicId: string
   const ksaQuestionIds = new Map<string, string[]>()
   let foreignQuestionIds: string[] = []
+  let otherSubtopicQuestionIds: string[] = []
 
   const insertMc = async (
     bankId: string,
@@ -204,6 +205,13 @@ test.describe('Red Team: Area 100 KSA scope (KU, KV)', () => {
     for (const s of mmSubtopics) {
       ksaQuestionIds.set(s.id, await insertMc(bank.id as string, subjectId, mm.id, s.id, s.code))
     }
+    otherSubtopicQuestionIds = await insertMc(
+      bank.id as string,
+      subjectId,
+      comms.id,
+      otherSubtopic.id,
+      otherSubtopic.code,
+    )
     foreignQuestionIds = await insertMc(
       bank.id as string,
       fs.id as string,
@@ -303,6 +311,8 @@ test.describe('Red Team: Area 100 KSA scope (KU, KV)', () => {
   })
 
   test('KV: rows naming a foreign topic or another topic sub-topic draw nothing outside their scope', async () => {
+    // Non-vacuity: 100-02-01 has PER_SUBTOPIC active questions under its own topic 100-02.
+    expect(otherSubtopicQuestionIds).toHaveLength(PER_SUBTOPIC)
     const cases = [
       { label: '050 topic', row: { topic_id: foreignTopicId, subtopic_id: null } },
       {
@@ -332,7 +342,10 @@ test.describe('Red Team: Area 100 KSA scope (KU, KV)', () => {
     expect(saved.error).toBeNull()
     const start = await atpl.rpc('start_exam_session', { p_subject_id: subjectId })
     expect(start.error).toBeNull()
-    const drawn = (start.data as { question_ids: string[] }).question_ids
+    expect(start.data).not.toBeNull()
+    const drawnRaw = (start.data as { question_ids: unknown }).question_ids
+    expect(Array.isArray(drawnRaw)).toBe(true)
+    const drawn = drawnRaw as string[]
     expect(drawn).toHaveLength(total)
     expect(drawn.some((id) => foreignQuestionIds.includes(id))).toBe(false)
     for (const s of mmSubtopics) {

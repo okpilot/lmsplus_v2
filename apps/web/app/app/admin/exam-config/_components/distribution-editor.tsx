@@ -40,32 +40,42 @@ export function DistributionEditor({ topics, distributions, onChange }: Readonly
         <span className="text-right">Available</span>
       </div>
 
-      {topics.map((topic) => {
-        const hasSubs = topic.subtopics.length > 0
-        return (
-          <div key={topic.id}>
-            <DistributionRow
-              code={topic.code}
-              name={topic.name}
-              note={hasSubs ? 'Any sub-topic' : undefined}
-              value={getCount(topic.id, null)}
-              available={topicRemaining(topic, getCount)}
-              onChange={(v) => updateCount(topic.id, null, v)}
-            />
-            {topic.subtopics.map((st) => (
-              <DistributionRow
-                key={st.id}
-                indent
-                code={st.code}
-                name={st.name}
-                value={getCount(topic.id, st.id)}
-                available={st.availableQuestions}
-                onChange={(v) => updateCount(topic.id, st.id, v)}
-              />
-            ))}
-          </div>
-        )
-      })}
+      {topics.map((topic) => (
+        <TopicRows key={topic.id} topic={topic} getCount={getCount} updateCount={updateCount} />
+      ))}
+    </div>
+  )
+}
+
+type TopicRowsProps = {
+  topic: TopicInfo
+  getCount: (topicId: string, subtopicId: string | null) => number
+  updateCount: (topicId: string, subtopicId: string | null, value: number) => void
+}
+
+function TopicRows({ topic, getCount, updateCount }: Readonly<TopicRowsProps>) {
+  const hasSubs = topic.subtopics.length > 0
+  return (
+    <div>
+      <DistributionRow
+        code={topic.code}
+        name={topic.name}
+        note={hasSubs ? 'Any sub-topic' : undefined}
+        value={getCount(topic.id, null)}
+        available={topicRemaining(topic, getCount)}
+        onChange={(v) => updateCount(topic.id, null, v)}
+      />
+      {topic.subtopics.map((st) => (
+        <DistributionRow
+          key={st.id}
+          indent
+          code={st.code}
+          name={st.name}
+          value={getCount(topic.id, st.id)}
+          available={st.availableQuestions}
+          onChange={(v) => updateCount(topic.id, st.id, v)}
+        />
+      ))}
     </div>
   )
 }

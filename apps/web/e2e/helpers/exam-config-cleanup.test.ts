@@ -69,7 +69,7 @@ describe('softDeleteSubjectExamConfigs', () => {
       easa_subjects: { data: { id: 'subj-100' }, error: null },
       exam_configs: { data: [], error: null },
     })
-    await expect(softDeleteSubjectExamConfigs('100')).resolves.not.toThrow()
+    await expect(softDeleteSubjectExamConfigs('100', SINCE)).resolves.not.toThrow()
   })
 
   it('throws when the update fails', async () => {
@@ -77,7 +77,7 @@ describe('softDeleteSubjectExamConfigs', () => {
       easa_subjects: { data: { id: 'subj-100' }, error: null },
       exam_configs: { data: null, error: { message: 'boom' } },
     })
-    await expect(softDeleteSubjectExamConfigs('100')).rejects.toThrow(/boom/)
+    await expect(softDeleteSubjectExamConfigs('100', SINCE)).rejects.toThrow(/boom/)
   })
 })
 
@@ -94,6 +94,11 @@ describe('countActiveSubjectExamConfigs', () => {
   it('returns 0 when the subject is missing', async () => {
     mockTables({ easa_subjects: { data: null, error: null } })
     await expect(countActiveSubjectExamConfigs('100')).resolves.toBe(0)
+  })
+
+  it('throws when the subject lookup fails', async () => {
+    mockTables({ easa_subjects: { data: null, error: { message: 'lookup boom' } } })
+    await expect(countActiveSubjectExamConfigs('100')).rejects.toThrow(/lookup boom/)
   })
 
   it('throws when the count fails', async () => {
