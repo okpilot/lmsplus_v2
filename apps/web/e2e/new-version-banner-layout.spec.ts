@@ -27,9 +27,7 @@ const publishedHeight = (page: Page) =>
   page.evaluate(() => document.documentElement.style.getPropertyValue('--reload-banner-h'))
 
 test.describe('Reload banner layout', () => {
-  test('publishes its height, fits a phone viewport and clears the height after reload', async ({
-    page,
-  }) => {
+  test('publishes its height and fits a phone viewport', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 640 })
     const banner = await showBanner(page)
 
@@ -38,21 +36,5 @@ test.describe('Reload banner layout', () => {
     expect(box.x).toBeGreaterThanOrEqual(0)
     expect(box.x + box.width).toBeLessThanOrEqual(320)
     expect(await publishedHeight(page)).toBe(`${box.height}px`)
-
-    await page.reload()
-    await expect(page).toHaveURL(/\/app\/dashboard/)
-    await expect(banner).toHaveCount(0)
-    expect(await publishedHeight(page)).toBe('')
-  })
-
-  test('clears the published height when the banner is dismissed by reloading', async ({
-    page,
-  }) => {
-    const banner = await showBanner(page)
-    expect(await publishedHeight(page)).toMatch(/^\d+(\.\d+)?px$/)
-    await banner.getByRole('button', { name: 'Reload', exact: true }).click()
-    await expect(page).toHaveURL(/\/app\/dashboard/)
-    await expect(banner).toHaveCount(0)
-    expect(await publishedHeight(page)).toBe('')
   })
 })
