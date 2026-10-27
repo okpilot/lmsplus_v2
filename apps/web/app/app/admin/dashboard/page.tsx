@@ -12,7 +12,7 @@ const KPI_KEYS = ['active', 'mastery', 'sessions', 'weakest', 'exam'] as const
 
 function KpiSkeleton() {
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-5">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-3 2xl:grid-cols-5">
       {KPI_KEYS.map((k) => (
         <Skeleton key={k} className="h-28 rounded-xl" />
       ))}

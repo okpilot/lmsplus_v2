@@ -21,7 +21,7 @@ export function KpiCards({ data, range }: Readonly<Props>) {
   }
 
   return (
-    <StatGroup columns={1} className="md:grid-cols-3 xl:grid-cols-5">
+    <StatGroup columns={1} className="md:grid-cols-3 2xl:grid-cols-5">
       <Stat
         label="Active Students"
         value={`${data.activeStudents} / ${data.totalStudents}`}
