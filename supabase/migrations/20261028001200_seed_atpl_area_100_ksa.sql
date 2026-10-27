@@ -6,13 +6,13 @@
 -- DEVIATION (Decision 169): 11 LMS-only sub-topics 100-04-01..100-04-11 under 100-04, one per mental-maths
 --   LO (01)-(11), named with the official LO titles. exam_config_distributions targets topic/sub-topic only,
 --   so a per-LO draw needs one sub-topic per LO.
--- sort_order 12: after the highest existing subject (040 = 11); 10 is 070.
+-- sort_order 12: after the highest prod subject sort_order (040 = 11; 070 = 10), read-only prod probe 2026-10-27.
 -- Arbiters: easa_subjects UNIQUE (code), easa_topics UNIQUE (subject_id, code), easa_subtopics UNIQUE
 --   (topic_id, code) (20260311000001_initial_schema.sql). Re-apply is a no-op.
 -- course_id is written here (authenticated has no column grant on it).
 
 INSERT INTO public.easa_subjects (code, name, short, sort_order, course_id)
-VALUES ('100', 'Area 100 KSA', 'KSA', 12, 'c0a5e000-0000-4000-8000-000000000003')
+VALUES ('100', 'Knowledge, Skills and Attitudes', 'KSA', 12, 'c0a5e000-0000-4000-8000-000000000003')
 ON CONFLICT (code) DO NOTHING;
 
 INSERT INTO public.easa_topics (subject_id, code, name, sort_order)
@@ -73,7 +73,7 @@ BEGIN
   JOIN public.easa_subtopics st ON st.topic_id = t.id
   WHERE s.code = '100';
 
-  IF v_course IS DISTINCT FROM 'c0a5e000-0000-4000-8000-000000000003'::uuid OR v_topics <> 4 OR v_subtopics <> 18 THEN
-    RAISE EXCEPTION 'Area 100 KSA seed: subject 100 course %, % of 4 topics, % of 18 subtopics', v_course, v_topics, v_subtopics;
+  IF v_course IS DISTINCT FROM 'c0a5e000-0000-4000-8000-000000000003'::uuid OR v_topics <> 4 OR v_subtopics < 18 THEN
+    RAISE EXCEPTION 'Area 100 KSA seed: subject 100 course %, % of 4 topics, % subtopics, expected at least 18', v_course, v_topics, v_subtopics;
   END IF;
 END $$;

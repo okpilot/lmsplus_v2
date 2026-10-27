@@ -33,11 +33,16 @@ describe('Area 100 KSA seed', () => {
     return (data ?? []).sort((a, b) => (a.sort_order as number) - (b.sort_order as number))
   }
 
-  it('AC1: subject 100 belongs to ATPL_A and is named Area 100 KSA', async () => {
-    const { data: course } = await admin.from('courses').select('id').eq('code', 'ATPL_A').single()
+  it('AC1: subject 100 belongs to ATPL_A and is named Knowledge, Skills and Attitudes', async () => {
+    const { data: course, error } = await admin
+      .from('courses')
+      .select('id')
+      .eq('code', 'ATPL_A')
+      .single()
+    expect(error).toBeNull()
     const s = await subject()
     expect(s).not.toBeNull()
-    expect(s?.name).toBe('Area 100 KSA')
+    expect(s?.name).toBe('Knowledge, Skills and Attitudes')
     expect(s?.short).toBe('KSA')
     expect(s?.course_id).toBe(course?.id)
   })
