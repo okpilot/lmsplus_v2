@@ -69,7 +69,7 @@ The primary competitive baseline is Aviationexam. LMS Plus differentiates by off
 
 - **Question bank coverage**: All 9 EASA PPL subjects populated with questions, students actively using all subjects.
 - **Session completion rate**: Percentage of started quiz sessions that reach submission (not abandoned or left as drafts).
-- **Exam readiness progression**: Students reaching 90%+ mastery across all 9 subjects over their training period.
+- **Exam readiness progression**: Students reaching 90%+ mastery across all subjects of their course over their training period.
 - **Daily engagement**: Students meeting the 50-question daily goal (tracked via Questions Today stat card).
 - **Admin efficiency**: Time to onboard a new student (create account, assign to organisation) under 2 minutes.
 - **Audit compliance**: Zero manual intervention required to produce CAA-requested training records.
