@@ -5,8 +5,8 @@
  *   KN: a student of another org reads no comment on an egmont question.
  * CONTROL: a student enrolled in PPL_A + VFR_RT of the same org reads the comment and posts one.
  *
- * Status: Expected to FAIL against mig 20261021000100 `question_comments_select` (no enrolment or
- * org predicate) and `question_comments_insert` (no question predicate). Skipped until fixed.
+ * Status: BLOCKED — mig 20261028000400 `question_comments_select_visible_question` /
+ * `question_comments_insert_visible_question` (Decision 165). Expected to PASS.
  */
 
 import { expect, test } from '@playwright/test'
