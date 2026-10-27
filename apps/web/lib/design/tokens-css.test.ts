@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { buildTokensCss } from './build-tokens-css'
 import { COLOURS, CONTRAST_PAIRS } from './colour'
 import { contrastRatio } from './contrast'
+import { Z_INDEX } from './scale'
 
 const CSS_PATH = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../app/tokens.css')
 
@@ -110,9 +111,20 @@ describe('colour contrast', () => {
     for (const [fg, bg, min] of CONTRAST_PAIRS) {
       it(`${fg} on ${bg} reaches ${min}:1 in the ${theme} theme`, () => {
         const palette = COLOURS[theme]
-        const ratio = contrastRatio(palette[fg], palette[bg])
+        const ratio = contrastRatio(palette[fg], palette[bg], palette.background)
         expect(ratio, `${fg} on ${bg} (${theme}) = ${ratio.toFixed(2)}`).toBeGreaterThanOrEqual(min)
       })
     }
   }
+})
+
+describe('layers', () => {
+  it('stacks menus above dialogs and the reload banner above toasts', () => {
+    const { sticky, nav, overlay, dropdown, toast, banner } = Z_INDEX
+    expect([sticky, nav, overlay, dropdown, toast, banner]).toEqual(
+      [sticky, nav, overlay, dropdown, toast, banner].toSorted((a, b) => a - b),
+    )
+    expect(Z_INDEX.banner).toBeGreaterThan(Z_INDEX.toast)
+    expect(new Set(Object.values(Z_INDEX)).size).toBe(6)
+  })
 })

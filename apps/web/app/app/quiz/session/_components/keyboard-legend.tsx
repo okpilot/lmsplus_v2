@@ -57,12 +57,12 @@ export function KeyboardLegend({ isExam = false }: Readonly<{ isExam?: boolean }
             aria-hidden
             tabIndex={-1}
             onClick={() => setOpen(false)}
-            className="fixed inset-0 z-40 cursor-default"
+            className="fixed inset-0 z-overlay cursor-default"
           />
           <div
             role="dialog"
             aria-label="Keyboard shortcuts"
-            className="absolute right-0 top-full z-50 mt-2 w-60 rounded-lg border border-border bg-background p-3 shadow-md"
+            className="absolute right-0 top-full z-dropdown mt-2 w-60 rounded-lg border border-border bg-background p-3 shadow-md"
           >
             <p className="mb-2 text-xs font-medium">Keyboard shortcuts</p>
             <ul className="space-y-1.5">
