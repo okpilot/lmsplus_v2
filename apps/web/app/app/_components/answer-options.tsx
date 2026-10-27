@@ -101,7 +101,7 @@ export function AnswerOptions({
             data-kb-highlighted={isKeyboardHighlighted ? 'true' : undefined}
             disabled={disabled || (!!isExam && lockedSelection != null)}
             onClick={() => handleSelect(option.id)}
-            className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-colors ${card} ${isKeyboardHighlighted ? 'ring-2 ring-ring ring-offset-1' : ''} ${disabled && !showResult ? 'opacity-50' : ''}`}
+            className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-colors ${card} ${isKeyboardHighlighted ? 'ring-2 ring-ring ring-offset-1 ring-offset-background' : ''} ${disabled && !showResult ? 'opacity-50' : ''}`}
           >
             <span
               className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${circle}`}

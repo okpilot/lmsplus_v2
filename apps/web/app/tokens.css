@@ -185,7 +185,7 @@
   --spacing-inline: 0.5rem;
   --spacing-stack: clamp(0.625rem, 0.5739rem + 0.2273vw, 0.75rem);
   --spacing-card: clamp(1rem, 0.7955rem + 0.9091vw, 1.5rem);
-  --spacing-grid: clamp(0.75rem, 0.5455rem + 0.9091vw, 1.25rem);
+  --spacing-cards: clamp(0.75rem, 0.5455rem + 0.9091vw, 1.25rem);
   --spacing-section: clamp(1.5rem, 1.0909rem + 1.8182vw, 2.5rem);
   --spacing-gutter: clamp(1rem, 0.3864rem + 2.7273vw, 2.5rem);
   --container-content: 70rem;

@@ -25,7 +25,7 @@ export const SPACING: Record<string, readonly [number, number]> = {
   inline: [8, 8],
   stack: [10, 12],
   card: [16, 24],
-  grid: [12, 20],
+  cards: [12, 20],
   section: [24, 40],
   gutter: [16, 40],
 }
