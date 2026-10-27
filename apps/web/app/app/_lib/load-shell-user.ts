@@ -35,6 +35,7 @@ async function loadCourseCodes(userRole: string): Promise<string[] | null> {
   try {
     return (await getMyCourses()).map((c) => c.code)
   } catch (error) {
+    unstable_rethrow(error)
     console.error(
       '[loadShellUser] enrolments read failed:',
       error instanceof Error ? error.message : error,

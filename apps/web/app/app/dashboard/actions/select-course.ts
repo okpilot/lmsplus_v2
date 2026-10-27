@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
+import { unstable_rethrow } from 'next/navigation'
 import { z } from 'zod'
 import type { ActionResult } from '@/lib/action-result'
 import { requireAuthUser } from '@/lib/auth/require-auth-user'
@@ -15,7 +16,17 @@ export async function selectDashboardCourse(raw: unknown): Promise<ActionResult>
   const parsed = SelectCourseInput.safeParse(raw)
   if (!parsed.success) return { success: false, error: 'Invalid input' }
 
-  const courses = await getMyCourses()
+  let courses: Awaited<ReturnType<typeof getMyCourses>>
+  try {
+    courses = await getMyCourses()
+  } catch (error) {
+    unstable_rethrow(error)
+    console.error(
+      '[selectDashboardCourse] enrolments read failed:',
+      error instanceof Error ? error.message : error,
+    )
+    return { success: false, error: 'Failed to save course' }
+  }
   if (!courses.some((c) => c.code === parsed.data.code)) {
     return { success: false, error: 'Not enrolled in this course' }
   }

@@ -5,7 +5,8 @@ import { ensureConsentRecords, getAdminClient } from './helpers/supabase'
 const BOTH_EMAIL = 'e2e-chips-both@lmsplus.local'
 const PPL_EMAIL = 'e2e-chips-ppl@lmsplus.local'
 const PASSWORD = 'e2e-chips-password-2026!'
-const RT_SUBJECT_NAME = 'VFR Radiotelephony (Slovenia)'
+// seed-e2e ships no RT questions, so the RT course shows the empty subject grid.
+const NO_SUBJECTS = 'No subjects available yet.'
 
 test.use({ storageState: { cookies: [], origins: [] } })
 
@@ -55,8 +56,15 @@ test.describe('Dashboard course chips', () => {
   })
 
   test.afterAll(async () => {
-    await removeNoConsentUser(BOTH_EMAIL)
-    await removeNoConsentUser(PPL_EMAIL)
+    const errors: string[] = []
+    for (const email of [BOTH_EMAIL, PPL_EMAIL]) {
+      try {
+        await removeNoConsentUser(email)
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      }
+    }
+    if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   })
 
   test('a student enrolled in two courses switches chips and the pick persists across reload', async ({
@@ -65,17 +73,17 @@ test.describe('Dashboard course chips', () => {
     await login(page, BOTH_EMAIL)
     const chips = page.getByRole('group', { name: 'Course' })
     await expect(chips.getByRole('button', { name: 'PPL' })).toHaveAttribute('aria-pressed', 'true')
-    await expect(page.getByText(RT_SUBJECT_NAME)).toHaveCount(0)
+    await expect(page.getByText(NO_SUBJECTS)).toHaveCount(0)
 
     await chips.getByRole('button', { name: 'RT' }).click()
     await expect(chips.getByRole('button', { name: 'RT' })).toHaveAttribute('aria-pressed', 'true')
-    await expect(page.getByText(RT_SUBJECT_NAME)).toBeVisible()
+    await expect(page.getByText(NO_SUBJECTS)).toBeVisible()
 
     await page.reload()
     await expect(
       page.getByRole('group', { name: 'Course' }).getByRole('button', { name: 'RT' }),
     ).toHaveAttribute('aria-pressed', 'true')
-    await expect(page.getByText(RT_SUBJECT_NAME)).toBeVisible()
+    await expect(page.getByText(NO_SUBJECTS)).toBeVisible()
   })
 
   test('a PPL-only student sees no chips and no VFR RT nav entry', async ({ page }) => {

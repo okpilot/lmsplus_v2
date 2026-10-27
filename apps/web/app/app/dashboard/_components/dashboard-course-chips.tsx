@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useRef, useState, useTransition } from 'react'
 import { ChoicePills } from '@/components/kit/choice-pills'
 import type { DashboardCourse } from '@/lib/dashboard/resolve-course'
 import { selectDashboardCourse } from '../actions/select-course'
@@ -10,15 +10,21 @@ type Props = { courses: readonly DashboardCourse[]; selectedCode: string | null 
 export function DashboardCourseChips({ courses, selectedCode }: Readonly<Props>) {
   const [, startTransition] = useTransition()
   const [value, setValue] = useState(selectedCode ?? '')
+  // One switch at a time: a second click before the first settles would race the cookie write.
+  const pendingRef = useRef(false)
   if (courses.length <= 1) return null
 
-  const onChange = (code: string) =>
+  const onChange = (code: string) => {
+    if (pendingRef.current || code === value) return
+    pendingRef.current = true
+    const previous = value
+    setValue(code)
     startTransition(async () => {
-      const previous = value
-      setValue(code)
       const result = await selectDashboardCourse({ code })
       if (!result.success) setValue(previous)
+      pendingRef.current = false
     })
+  }
 
   return (
     <ChoicePills

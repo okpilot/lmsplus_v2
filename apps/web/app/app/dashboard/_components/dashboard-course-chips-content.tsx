@@ -3,5 +3,12 @@ import { DashboardCourseChips } from './dashboard-course-chips'
 
 export async function DashboardCourseChipsContent() {
   const { courses, selected } = await getDashboardCourse()
-  return <DashboardCourseChips courses={courses} selectedCode={selected?.code ?? null} />
+  // key: a server-side fallback course (cookie course unenrolled) resets the pressed pill.
+  return (
+    <DashboardCourseChips
+      key={selected?.code ?? 'none'}
+      courses={courses}
+      selectedCode={selected?.code ?? null}
+    />
+  )
 }
