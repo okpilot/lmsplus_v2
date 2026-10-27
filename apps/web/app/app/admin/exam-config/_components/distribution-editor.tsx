@@ -39,27 +39,78 @@ export function DistributionEditor({ topics, distributions, onChange }: Readonly
         <span className="text-right">Available</span>
       </div>
 
-      {topics.map((topic) => (
-        <div key={topic.id}>
-          <div className="grid grid-cols-[1fr_80px_80px] items-center gap-2 py-1">
-            <span className="text-sm">
-              <span className="mr-1 tabular-nums text-xs text-muted-foreground">{topic.code}</span>
-              {topic.name}
-            </span>
-            <input
-              type="number"
-              min={0}
-              max={topic.availableQuestions}
+      {topics.map((topic) => {
+        const hasSubs = topic.subtopics.length > 0
+        const subtotal = topic.subtopics.reduce((sum, st) => sum + getCount(topic.id, st.id), 0)
+        const topicAvailable = hasSubs
+          ? Math.max(0, topic.availableQuestions - subtotal)
+          : topic.availableQuestions
+        return (
+          <div key={topic.id}>
+            <DistributionRow
+              code={topic.code}
+              name={topic.name}
+              note={hasSubs ? 'Any sub-topic' : undefined}
               value={getCount(topic.id, null)}
-              onChange={(e) => updateCount(topic.id, null, Number(e.target.value))}
-              className="w-full rounded border border-border bg-background px-2 py-1 text-right text-sm"
+              available={topicAvailable}
+              onChange={(v) => updateCount(topic.id, null, v)}
             />
-            <span className="text-right text-sm text-muted-foreground">
-              {topic.availableQuestions}
-            </span>
+            {topic.subtopics.map((st) => (
+              <DistributionRow
+                key={st.id}
+                indent
+                code={st.code}
+                name={st.name}
+                value={getCount(topic.id, st.id)}
+                available={st.availableQuestions}
+                onChange={(v) => updateCount(topic.id, st.id, v)}
+              />
+            ))}
           </div>
-        </div>
-      ))}
+        )
+      })}
+    </div>
+  )
+}
+
+type RowProps = {
+  code: string
+  name: string
+  note?: string
+  indent?: boolean
+  value: number
+  available: number
+  onChange: (value: number) => void
+}
+
+function DistributionRow({
+  code,
+  name,
+  note,
+  indent,
+  value,
+  available,
+  onChange,
+}: Readonly<RowProps>) {
+  return (
+    <div
+      className={`grid grid-cols-[1fr_80px_80px] items-center gap-2 py-1${indent ? ' pl-6' : ''}`}
+    >
+      <span className="text-sm">
+        <span className="mr-1 tabular-nums text-xs text-muted-foreground">{code}</span>
+        {name}
+        {note && <span className="ml-2 text-xs text-muted-foreground">{note}</span>}
+      </span>
+      <input
+        type="number"
+        min={0}
+        max={available}
+        value={value}
+        aria-label={`${code} questions`}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full rounded border border-border bg-background px-2 py-1 text-right text-sm"
+      />
+      <span className="text-right text-sm text-muted-foreground">{available}</span>
     </div>
   )
 }

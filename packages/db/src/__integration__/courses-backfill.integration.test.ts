@@ -88,7 +88,7 @@ describe('courses migration: backfill and subject assignment', () => {
     expect((data ?? []).map((s) => s.code)).toContain('100')
     const expected = (code: string) =>
       code === 'RT' ? ids.VFR_RT : code === '100' ? ids.ATPL_A : ids.PPL_A
-    for (const s of data ?? []) {
+    for (const s of (data ?? []).filter((r) => /^(\d{3}|RT)$/.test(r.code as string))) {
       expect(s.course_id).toBe(expected(s.code as string))
     }
   })

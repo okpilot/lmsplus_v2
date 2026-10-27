@@ -71,9 +71,15 @@ BEGIN
   FROM public.easa_subjects s
   JOIN public.easa_topics t ON t.subject_id = s.id
   JOIN public.easa_subtopics st ON st.topic_id = t.id
-  WHERE s.code = '100';
+  WHERE s.code = '100'
+    AND st.code = ANY (ARRAY[
+      '100-02-01', '100-02-02', '100-02-03', '100-02-04', '100-02-05',
+      '100-03-01', '100-03-02',
+      '100-04-01', '100-04-02', '100-04-03', '100-04-04', '100-04-05', '100-04-06',
+      '100-04-07', '100-04-08', '100-04-09', '100-04-10', '100-04-11'
+    ]);
 
-  IF v_course IS DISTINCT FROM 'c0a5e000-0000-4000-8000-000000000003'::uuid OR v_topics <> 4 OR v_subtopics < 18 THEN
-    RAISE EXCEPTION 'Area 100 KSA seed: subject 100 course %, % of 4 topics, % subtopics, expected at least 18', v_course, v_topics, v_subtopics;
+  IF v_course IS DISTINCT FROM 'c0a5e000-0000-4000-8000-000000000003'::uuid OR v_topics <> 4 OR v_subtopics <> 18 THEN
+    RAISE EXCEPTION 'Area 100 KSA seed: subject 100 course %, % of 4 topics, % of 18 seeded subtopics, expected all 18', v_course, v_topics, v_subtopics;
   END IF;
 END $$;
