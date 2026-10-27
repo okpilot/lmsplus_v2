@@ -4,8 +4,11 @@
  *   KI: direct PostgREST reads of easa_subjects / easa_topics / easa_subtopics / questions and a
  *       direct `_filtered_question_pool` call (SECURITY INVOKER) return 0 rows.
  *   KJ: `get_quiz_questions` (SECURITY DEFINER) with PPL question ids returns 0 rows.
- *   KK: `start_quiz_session('smart_review', NULL subject, PPL ids)` and `start_discovery` (returns
- *       correct_option_id) raise `not_enrolled`; no session row is written.
+ *   KK: `start_quiz_session('smart_review', NULL subject, PPL ids)` raises `invalid_question_ids`
+ *       and `start_discovery` (returns correct_option_id) raises `not_enrolled`; no session row is
+ *       written.
+ *   KR: the NULL-subject `start_quiz_session` error for hidden PPL ids equals the error for random
+ *       ids (mig 20261028001100): no question-existence oracle.
  *   KL: `resume_saved_quiz` on a saved PPL session raises `not_enrolled`; the row stays deleted.
  * CONTROL: a student enrolled in PPL_A + VFR_RT performs each call successfully.
  *
@@ -28,7 +31,7 @@ const FULL_PASSWORD = 'redteam-enrol-full-2026!'
 const PPL_COURSE_ID = 'c0a5e000-0000-4000-8000-000000000001'
 const VFR_RT_COURSE_ID = 'c0a5e000-0000-4000-8000-000000000002'
 
-test.describe('Red Team: course enrolment gate (KI-KL)', () => {
+test.describe('Red Team: course enrolment gate (KI-KL, KR)', () => {
   test.setTimeout(120_000)
 
   let admin: ReturnType<typeof getAdminClient>
@@ -242,7 +245,7 @@ test.describe('Red Team: course enrolment gate (KI-KL)', () => {
     )
   })
 
-  test('KK: start_quiz_session smart_review with PPL ids and a NULL subject raises not_enrolled', async () => {
+  test('KK: start_quiz_session smart_review with PPL ids and a NULL subject writes no session', async () => {
     const args = {
       p_mode: 'smart_review',
       p_subject_id: null,
@@ -257,7 +260,42 @@ test.describe('Red Team: course enrolment gate (KI-KL)', () => {
     expect(await liveSessions(rtOnlyId)).toBe(0)
     const attack = await rtOnly.rpc('start_quiz_session', args)
     expect(attack.data).toBeNull()
-    expect(attack.error?.message).toBe('not_enrolled')
+    expect(attack.error?.message).toBe('invalid_question_ids')
+    expect(await liveSessions(rtOnlyId)).toBe(0)
+  })
+
+  test('KR: hidden PPL ids and random ids raise the same NULL-subject start_quiz_session error', async () => {
+    const start = (client: SupabaseClient, ids: string[]) =>
+      client.rpc('start_quiz_session', {
+        p_mode: 'smart_review',
+        p_subject_id: null,
+        p_topic_id: null,
+        p_question_ids: ids,
+      })
+    // Hidden ids are real: the PPL-enrolled control starts a session on them.
+    const control = await start(full, pplQuestionIds)
+    expect(control.error).toBeNull()
+    expect(typeof control.data).toBe('string')
+
+    // Own-course ids start for rtOnly, so the attack is not blocked by a subject-less caller.
+    const own = await start(rtOnly, rtQuestionIds)
+    expect(own.error).toBeNull()
+    expect(typeof own.data).toBe('string')
+    await cleanupStudentActiveSessions(RT_ONLY_EMAIL)
+    expect(await liveSessions(rtOnlyId)).toBe(0)
+
+    const hidden = await start(rtOnly, pplQuestionIds)
+    const random = await start(
+      rtOnly,
+      pplQuestionIds.map(() => randomUUID()),
+    )
+    const mixed = await start(rtOnly, [...rtQuestionIds, pplQuestionIds[0] as string])
+    expect(hidden.data).toBeNull()
+    expect(random.data).toBeNull()
+    expect(mixed.data).toBeNull()
+    expect(random.error?.message).toBe('invalid_question_ids')
+    expect(hidden.error?.message).toBe(random.error?.message)
+    expect(mixed.error?.message).toBe(random.error?.message)
     expect(await liveSessions(rtOnlyId)).toBe(0)
   })
 
