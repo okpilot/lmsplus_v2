@@ -1,8 +1,10 @@
 import { getDashboardData } from '@/lib/queries/dashboard'
+import { getDashboardCourse } from '@/lib/queries/dashboard-course'
 import { SubjectGrid } from './subject-grid'
 
 export async function SubjectGridContent() {
-  const data = await getDashboardData()
+  const { selected } = await getDashboardCourse()
+  const data = await getDashboardData(selected?.id ?? null)
 
   return (
     <section>

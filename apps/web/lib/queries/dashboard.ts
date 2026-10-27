@@ -29,30 +29,33 @@ export type SubjectProgress = {
   lastPracticedAt: string | null
 }
 
-export const getDashboardData = cache(async (): Promise<DashboardData> => {
-  const supabase = await createServerSupabaseClient()
-  const user = await getSessionUser()
-  if (!user) throw new Error('Not authenticated')
+/** `courseId` filters subjects and exam readiness; today/streak carry no subject and stay global. */
+export const getDashboardData = cache(
+  async (courseId: string | null = null): Promise<DashboardData> => {
+    const supabase = await createServerSupabaseClient()
+    const user = await getSessionUser()
+    if (!user) throw new Error('Not authenticated')
 
-  const [subjects, questionsToday, streakData, lastPracticed] = await Promise.all([
-    getSubjectProgress(supabase),
-    getQuestionsToday(supabase, user.id),
-    getStreakData(supabase),
-    fetchLastPracticed(supabase),
-  ])
+    const [subjects, questionsToday, streakData, lastPracticed] = await Promise.all([
+      getSubjectProgress(supabase, courseId),
+      getQuestionsToday(supabase, user.id),
+      getStreakData(supabase),
+      fetchLastPracticed(supabase),
+    ])
 
-  const subjectsWithDates = mergeLastPracticed(subjects, lastPracticed)
-  const examReadiness = computeExamReadiness(subjectsWithDates)
+    const subjectsWithDates = mergeLastPracticed(subjects, lastPracticed)
+    const examReadiness = computeExamReadiness(subjectsWithDates)
 
-  return {
-    totalQuestions: subjectsWithDates.reduce((sum, s) => sum + s.totalQuestions, 0),
-    subjects: subjectsWithDates,
-    questionsToday,
-    currentStreak: streakData.currentStreak,
-    bestStreak: streakData.bestStreak,
-    examReadiness,
-  }
-})
+    return {
+      totalQuestions: subjectsWithDates.reduce((sum, s) => sum + s.totalQuestions, 0),
+      subjects: subjectsWithDates,
+      questionsToday,
+      currentStreak: streakData.currentStreak,
+      bestStreak: streakData.bestStreak,
+      examReadiness,
+    }
+  },
+)
 
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
@@ -101,12 +104,19 @@ function toSubjectProgress(
   }
 }
 
-async function getSubjectProgress(supabase: SupabaseClient): Promise<SubjectProgress[]> {
+async function getSubjectProgress(
+  supabase: SupabaseClient,
+  courseId: string | null,
+): Promise<SubjectProgress[]> {
   // Per-subject mastery counts aggregated in Postgres (#540): the prior client-side
   // numerator/denominator reads truncated at the PostgREST 1000-row cap. The RPC returns
   // both subject-level (topic_id === null) and topic-level rows; we use the subject rows.
+  const subjectsQuery = supabase
+    .from('easa_subjects')
+    .select('id, code, name, short, sort_order')
+    .order('sort_order')
   const [subjectsResult, masteryResult] = await Promise.all([
-    supabase.from('easa_subjects').select('id, code, name, short, sort_order').order('sort_order'),
+    courseId ? subjectsQuery.eq('course_id', courseId) : subjectsQuery,
     supabase.rpc('get_student_mastery_stats'),
   ])
   const { data: subjectsData, error: subjectsError } = subjectsResult

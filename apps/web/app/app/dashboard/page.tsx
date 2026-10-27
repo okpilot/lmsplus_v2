@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { DashboardCourseChipsContent } from './_components/dashboard-course-chips-content'
 import { DashboardHeader } from './_components/dashboard-header'
 import {
   HeatmapSkeleton,
@@ -15,6 +16,9 @@ export default function DashboardPage() {
   return (
     <main className="space-y-8">
       <DashboardHeader />
+      <Suspense fallback={null}>
+        <DashboardCourseChipsContent />
+      </Suspense>
       <Suspense fallback={<StatCardsSkeleton />}>
         <DashboardStatsContent />
       </Suspense>

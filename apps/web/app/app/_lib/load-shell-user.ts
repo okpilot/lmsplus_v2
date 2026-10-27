@@ -1,6 +1,7 @@
 import { redirect, unstable_rethrow } from 'next/navigation'
 import { getCallerProfile } from '@/lib/auth/get-caller-profile'
 import type { SessionUser } from '@/lib/auth/verify-session-user'
+import { getMyCourses } from '@/lib/queries/my-courses'
 import type { ShellUser } from './shell-user'
 
 /**
@@ -15,13 +16,30 @@ export async function loadShellUser(user: SessionUser): Promise<ShellUser> {
     if (profileError) console.error('[loadShellUser] profile lookup error:', profileError.message)
     if (!profileError && !profile) redirect('/auth/signout?reason=inactive')
 
+    const userRole = profile?.role ?? fallback.userRole
     return {
       displayName: profile?.full_name ?? profile?.email ?? fallback.displayName,
-      userRole: profile?.role ?? fallback.userRole,
+      userRole,
+      courseCodes: await loadCourseCodes(userRole),
     }
   } catch (error) {
     unstable_rethrow(error)
     console.error('[loadShellUser] read failed:', error instanceof Error ? error.message : error)
     return fallback
+  }
+}
+
+/** Students only; null (show everything) for staff and on a read error. RLS still gates access. */
+async function loadCourseCodes(userRole: string): Promise<string[] | null> {
+  if (userRole !== 'student') return null
+  try {
+    return (await getMyCourses()).map((c) => c.code)
+  } catch (error) {
+    unstable_rethrow(error)
+    console.error(
+      '[loadShellUser] enrolments read failed:',
+      error instanceof Error ? error.message : error,
+    )
+    return null
   }
 }

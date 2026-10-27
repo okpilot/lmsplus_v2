@@ -1,6 +1,7 @@
 # Red Team — Attack Surface Map
 
-> Last updated: 2026-10-26 (branch feat/1637-enforce-enrolment, #1637 — Vectors KI–KR added.)
+> Last updated: 2026-10-27 (branch feat/1638-dashboard-course-chips, #1638 — Vectors KS, KT added.)
+> PRIOR: 2026-10-26 (branch feat/1637-enforce-enrolment, #1637 — Vectors KI–KR added.)
 > PRIOR: 2026-10-25 (branch refactor/1609-typed-rpc-quiz, #1609 — Vectors JY, JZ added.)
 > PRIOR: 2026-10-25 (branch fix/1608-server-code, #1608 — Vectors JW, JX added.)
 > PRIOR: 2026-10-25 (branch fix/1607-deactivated-students, #1607 — Vectors JU, JV added.)
@@ -330,6 +331,8 @@
 | KP | start_exam_session-non-enrolled-exam-config-existence-oracle | LOW | start-rpc-enrolment-pre-gate-oracle.spec.ts | BLOCKED |  | enumeration |
 | KQ | start_discovery-non-enrolled-draw-existence-oracle | LOW | start-rpc-enrolment-pre-gate-oracle.spec.ts | BLOCKED |  | enumeration |
 | KR | start_quiz_session-null-subject-hidden-question-existence-oracle | LOW | course-enrolment-gate.spec.ts | BLOCKED |  | enumeration |
+| KS | dashboard_course-cookie-forged-non-enrolled-course | LOW | dashboard-course-cookie.spec.ts | BLOCKED |  | cookie-state |
+| KT | selectDashboardCourse-non-enrolled-or-malformed-code | LOW | dashboard-course-cookie.spec.ts | BLOCKED |  | idor |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
