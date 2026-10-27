@@ -162,3 +162,4 @@
 ## 167 — 2026-10-26 — Students read `exam_configs` only for subjects of courses they are enrolled in (RESTRICTIVE `exam_configs_select_enrolled`); admin/instructor read all. #1637
 ## 168 — 2026-10-26 — Comments on a soft-deleted question stay hidden from admins too; no admin moderation carve-out. #1637
 ## 169 — 2026-10-27 — Dashboard course pick is an httpOnly cookie (`dashboard_course`, path `/app`, 365 days) validated against the caller's live enrolments; absent or unenrolled falls back to the first enrolled course; subjects and exam readiness filter by course, questions today and streak stay global. #1638
+## 170 — 2026-10-27 — Area 100 KSA mental maths has one LMS sub-topic per LO (`100-04-01`..`100-04-11`, not EASA codes) so an exam config can draw 2 per LO; the exam config is created by an admin in the UI, not seeded. #1639

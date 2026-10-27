@@ -81,12 +81,15 @@ describe('courses migration: backfill and subject assignment', () => {
     }
   })
 
-  it('AC2: RT subject belongs to VFR_RT and every other subject to PPL_A', async () => {
+  it('AC2: RT subject belongs to VFR_RT, 100 to ATPL_A and every other subject to PPL_A', async () => {
     const ids = await courseIds()
     const { data, error } = await admin.from('easa_subjects').select('code, course_id')
     expect(error).toBeNull()
-    for (const s of data ?? []) {
-      expect(s.course_id).toBe(s.code === 'RT' ? ids.VFR_RT : ids.PPL_A)
+    expect((data ?? []).map((s) => s.code)).toContain('100')
+    const expected = (code: string) =>
+      code === 'RT' ? ids.VFR_RT : code === '100' ? ids.ATPL_A : ids.PPL_A
+    for (const s of (data ?? []).filter((r) => /^(\d{3}|RT)$/.test(r.code as string))) {
+      expect(s.course_id).toBe(expected(s.code as string))
     }
   })
 
