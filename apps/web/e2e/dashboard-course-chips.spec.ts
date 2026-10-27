@@ -7,6 +7,8 @@ const PPL_EMAIL = 'e2e-chips-ppl@lmsplus.local'
 const PASSWORD = 'e2e-chips-password-2026!'
 // seed-e2e ships no RT questions, so the RT course shows the empty subject grid.
 const NO_SUBJECTS = 'No subjects available yet.'
+// seed-e2e subject 050 (PPL_A).
+const PPL_SUBJECT = 'Meteorology'
 
 test.use({ storageState: { cookies: [], origins: [] } })
 
@@ -31,6 +33,11 @@ async function seedStudent(email: string, courseCodes: string[]) {
     .select('id')
     .in('code', courseCodes)
   if (cErr) throw new Error(`seedStudent courses: ${cErr.message}`)
+  if ((courses ?? []).length !== courseCodes.length) {
+    throw new Error(
+      `seedStudent courses: found ${courses?.length ?? 0} of ${courseCodes.join(',')}`,
+    )
+  }
   const { error } = await admin.from('course_enrolments').insert(
     (courses ?? []).map((c) => ({
       organization_id: user.organization_id,
@@ -74,11 +81,13 @@ test.describe('Dashboard course chips', () => {
     const chips = page.getByRole('group', { name: 'Course' })
     await expect(chips.getByRole('button', { name: 'PPL' })).toHaveAttribute('aria-pressed', 'true')
     await expect(page.getByRole('heading', { name: 'Subject Progress' })).toBeVisible()
+    await expect(page.getByText(PPL_SUBJECT, { exact: true })).toBeVisible()
     await expect(page.getByText(NO_SUBJECTS)).toHaveCount(0)
 
     await chips.getByRole('button', { name: 'RT' }).click()
     await expect(chips.getByRole('button', { name: 'RT' })).toHaveAttribute('aria-pressed', 'true')
     await expect(page.getByText(NO_SUBJECTS)).toBeVisible()
+    await expect(page.getByText(PPL_SUBJECT, { exact: true })).toHaveCount(0)
 
     await page.reload()
     await expect(
@@ -91,6 +100,7 @@ test.describe('Dashboard course chips', () => {
     await login(page, PPL_EMAIL)
     await expect(page.getByTestId('dashboard-course-chips-ready')).toBeAttached()
     await expect(page.getByTestId('vfr-rt-nav-ready')).toBeAttached()
+    await expect(page.getByText(PPL_SUBJECT, { exact: true })).toBeVisible()
     await expect(page.getByRole('group', { name: 'Course' })).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'VFR RT' })).toHaveCount(0)
   })
