@@ -41,6 +41,7 @@ describe('ROW_CLASS', () => {
     expect(ROW_CLASS).toContain('h-9')
     expect(ROW_CLASS).toContain('text-muted-foreground')
     expect(ROW_CLASS).toContain('text-caption')
+    expect(ROW_CLASS).toContain('dark:hover:bg-muted')
   })
 })
 

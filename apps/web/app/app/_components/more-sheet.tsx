@@ -5,6 +5,7 @@ import { type RefObject, useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { NavIcon } from './nav-icon'
 import type { NavItem } from './nav-items'
+import { NAV_ACTIVE } from './sidebar-item'
 
 const SHEET_ID = 'bottom-more-sheet'
 export const SLOT =
@@ -12,8 +13,13 @@ export const SLOT =
 export const tone = (on: boolean) =>
   on ? 'font-medium text-primary-text' : 'text-muted-foreground'
 
-const sheetTone = (on: boolean) =>
-  on ? 'bg-primary/10 font-medium text-primary-text' : 'font-normal text-muted-foreground'
+const sheetTone = (on: boolean) => (on ? NAV_ACTIVE : 'font-normal text-muted-foreground')
+
+/** `tone` plus hover/expanded overrides that beat the ghost variant's own. */
+const moreTone = (on: boolean) =>
+  on
+    ? 'font-medium text-primary-text hover:text-primary-text aria-expanded:text-primary-text'
+    : 'text-muted-foreground hover:text-muted-foreground'
 
 function MoreIcon() {
   return (
@@ -139,7 +145,7 @@ export function MoreButton({ moreRef, expanded, active, onToggle }: Readonly<Mor
       aria-expanded={expanded}
       aria-controls={SHEET_ID}
       onClick={onToggle}
-      className={`${SLOT} h-auto rounded-none ${tone(active || expanded)}`}
+      className={`${SLOT} h-auto rounded-none hover:bg-transparent aria-expanded:bg-transparent dark:hover:bg-transparent ${moreTone(active || expanded)}`}
     >
       <MoreIcon />
       <span className="max-w-full truncate">More</span>

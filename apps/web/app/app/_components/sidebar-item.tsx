@@ -3,8 +3,8 @@ import { NavIcon } from './nav-icon'
 import type { NavItem } from './nav-items'
 
 const ROW_BASE = 'h-9 gap-2.5 rounded-[10px] px-2.5 text-caption'
-const INACTIVE = 'text-muted-foreground hover:bg-muted hover:text-foreground'
-const ACTIVE = 'bg-primary/10 font-medium text-primary-text'
+const INACTIVE = 'text-muted-foreground hover:bg-muted hover:text-foreground dark:hover:bg-muted'
+export const NAV_ACTIVE = 'bg-primary/10 font-medium text-primary-text'
 
 /** Class for non-link rows (Button) that must align with SidebarItem. */
 export const ROW_CLASS = `${ROW_BASE} w-full justify-start border-0 font-normal ${INACTIVE}`
@@ -35,7 +35,7 @@ export function SidebarItem({ item, active }: Readonly<{ item: NavItem; active: 
     <Link
       href={item.href}
       aria-current={active ? 'page' : undefined}
-      className={`flex items-center transition-colors ${ROW_BASE} ${active ? ACTIVE : INACTIVE}`}
+      className={`flex items-center transition-colors ${ROW_BASE} ${active ? NAV_ACTIVE : INACTIVE}`}
     >
       {item.icon && (
         <span>

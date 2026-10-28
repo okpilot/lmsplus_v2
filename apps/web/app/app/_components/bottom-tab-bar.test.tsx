@@ -11,6 +11,7 @@ vi.mock('next/navigation', () => ({
 }))
 
 import { BottomTabBar } from './bottom-tab-bar'
+import { NAV_ACTIVE } from './sidebar-item'
 
 type ObserverCallback = (entries: { contentRect: { width: number } }[]) => void
 let observerCallback: ObserverCallback | null = null
@@ -130,7 +131,10 @@ describe('BottomTabBar', () => {
         'href',
         '/app/settings',
       )
-      expect(more).toHaveAttribute('aria-controls', document.querySelector('ul')?.id)
+      expect(more).toHaveAttribute(
+        'aria-controls',
+        document.querySelector('#bottom-more-sheet')?.id,
+      )
     })
 
     it('layers the backdrop below the tab bar and sheet, above page content', async () => {
@@ -138,7 +142,7 @@ describe('BottomTabBar', () => {
       await userEvent.setup({ delay: null }).click(screen.getByRole('button', { name: 'More' }))
       const backdrop = screen.getByRole('button', { name: 'Close menu' })
       const nav = screen.getByRole('navigation')
-      const sheet = document.querySelector('ul') as HTMLElement
+      const sheet = document.querySelector('#bottom-more-sheet') as HTMLElement
       expect(backdrop.className).toContain('z-scrim')
       expect(backdrop.className).toContain('md:hidden')
       expect(nav.compareDocumentPosition(backdrop) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
@@ -242,7 +246,7 @@ describe('BottomTabBar', () => {
       narrow(320)
       const more = screen.getByRole('button', { name: 'More' })
       await userEvent.setup({ delay: null }).click(more)
-      const sheet = document.querySelector('ul')
+      const sheet = document.querySelector('#bottom-more-sheet')
       expect(sheet).not.toBeNull()
       expect(
         more.compareDocumentPosition(sheet as Node) & Node.DOCUMENT_POSITION_FOLLOWING,
@@ -266,6 +270,7 @@ describe('BottomTabBar', () => {
       expect(cls).toContain('text-primary-text')
       expect(cls).toContain('font-medium')
       expect(cls).not.toContain('text-foreground/55')
+      expect(cls).not.toContain('hover:text-foreground')
     })
 
     it('marks More as active while the sheet is open', async () => {
@@ -273,6 +278,9 @@ describe('BottomTabBar', () => {
       const more = screen.getByRole('button', { name: 'More' })
       await userEvent.setup({ delay: null }).click(more)
       expect(more.className).toContain('text-primary-text')
+      expect(more.className).toContain('aria-expanded:text-primary-text')
+      expect(more.className).not.toContain('aria-expanded:text-foreground')
+      expect(more.className).not.toContain('aria-expanded:bg-muted')
     })
 
     it('leaves More inactive when the current page is visible', () => {
@@ -280,6 +288,7 @@ describe('BottomTabBar', () => {
       const cls = screen.getByRole('button', { name: 'More' }).className
       expect(cls).toContain('text-muted-foreground')
       expect(cls).not.toContain('text-foreground/55')
+      expect(cls).not.toContain('hover:text-foreground')
     })
 
     it('fills the active sheet row blue at label size', async () => {
@@ -290,6 +299,7 @@ describe('BottomTabBar', () => {
       expect(cls).toContain('bg-primary/10')
       expect(cls).toContain('text-primary-text')
       expect(cls).toContain('text-label')
+      for (const c of NAV_ACTIVE.split(' ')) expect(cls).toContain(c)
     })
 
     it('renders inactive sheet rows grey without a fill', async () => {
@@ -304,7 +314,7 @@ describe('BottomTabBar', () => {
     it('uses the border token for the sheet', async () => {
       narrow(320)
       await userEvent.setup({ delay: null }).click(screen.getByRole('button', { name: 'More' }))
-      const cls = (document.querySelector('ul') as HTMLElement).className
+      const cls = (document.querySelector('#bottom-more-sheet') as HTMLElement).className
       expect(cls).toContain('border-border')
       expect(cls).not.toContain('border-foreground/')
     })
