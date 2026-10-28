@@ -24,7 +24,7 @@ export function RecoveryBanner({ session }: Readonly<Props>) {
       <AlertAction>
         <Link
           href={`/app/quiz/session/${session.sessionId}`}
-          className={buttonVariants()}
+          className={buttonVariants({ variant: 'caution' })}
           data-testid="resume-internal-exam-link"
         >
           Resume internal exam

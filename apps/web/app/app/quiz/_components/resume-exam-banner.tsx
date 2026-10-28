@@ -13,6 +13,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { FieldError } from '@/components/ui/field-error'
 import { cn } from '@/lib/utils'
@@ -48,7 +49,10 @@ export function ResumeLink({
       onClick={(e) => {
         if (loading) e.preventDefault()
       }}
-      className={cn(buttonVariants(), 'aria-disabled:pointer-events-none aria-disabled:opacity-50')}
+      className={cn(
+        buttonVariants({ variant: 'caution' }),
+        'aria-disabled:pointer-events-none aria-disabled:opacity-50',
+      )}
     >
       {children}
     </Link>
@@ -84,13 +88,7 @@ export function ResumeExamBanner({ userId, exam, discardOnly, sessionId }: Reado
         )}
         <AlertDialog>
           <AlertDialogTrigger
-            render={
-              <button
-                type="button"
-                disabled={loading}
-                className="rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
-              />
-            }
+            render={<Button type="button" variant="outline" disabled={loading} />}
           >
             Discard
           </AlertDialogTrigger>

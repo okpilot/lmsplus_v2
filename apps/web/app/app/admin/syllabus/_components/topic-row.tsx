@@ -90,7 +90,7 @@ export function TopicRow({ topic, subjectId }: Readonly<Props>) {
           render={
             <Button
               variant="ghost"
-              size="icon-xs"
+              size="icon-sm"
               aria-label={`Toggle ${topic.code} ${topic.name}`}
             />
           }
@@ -105,7 +105,7 @@ export function TopicRow({ topic, subjectId }: Readonly<Props>) {
         </Badge>
         <Button
           variant="ghost"
-          size="icon-xs"
+          size="icon-sm"
           aria-label="Edit topic"
           onClick={() => setEditing(true)}
         >

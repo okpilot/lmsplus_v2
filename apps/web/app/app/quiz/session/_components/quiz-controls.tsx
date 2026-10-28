@@ -1,5 +1,6 @@
 import { Flag, Pin } from 'lucide-react'
 import { BusyLabel } from '@/components/ui/busy-label'
+import { Button } from '@/components/ui/button'
 
 type QuizControlsProps = {
   isPinned: boolean
@@ -38,61 +39,54 @@ export function QuizControls({
     <div className="py-3">
       {/* Full-width Submit button on top (mobile only) */}
       {showSubmit && (
-        <button
+        <Button
           type="button"
           data-testid="submit-answer-mobile"
           onClick={onSubmitAnswer}
           disabled={submitting}
           aria-busy={submitting || undefined}
-          className="mb-3 w-full rounded-lg bg-primary py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 md:hidden"
+          className="mb-3 w-full md:hidden"
         >
           <span className="inline-flex items-center justify-center gap-2">
             <BusyLabel busy={submitting}>{isExam ? 'Confirm Answer' : 'Submit Answer'}</BusyLabel>
           </span>
-        </button>
+        </Button>
       )}
 
       {/* Nav row */}
       <div className="flex items-center justify-between">
-        <button
-          type="button"
-          onClick={onPrev}
-          disabled={currentIndex === 0}
-          className="rounded-lg border border-input px-4 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
-        >
+        <Button type="button" variant="outline" onClick={onPrev} disabled={currentIndex === 0}>
           &lsaquo; Previous
-        </button>
+        </Button>
 
         <div className="flex items-center gap-2">
           {canFlag && (
             <ActionButton
               active={isFlagged}
               onClick={onToggleFlag}
-              icon={<Flag className="h-4 w-4" />}
+              icon={<Flag className={isFlagged ? 'fill-caution text-caution' : undefined} />}
               label={isFlagged ? 'Unflag' : 'Flag'}
               testId="flag-button"
-              activeClass="border-transparent bg-orange-500/10 text-orange-600 dark:bg-orange-500/15 dark:text-orange-400"
               disabled={flagLoading}
             />
           )}
           <ActionButton
             active={isPinned}
             onClick={onTogglePin}
-            icon={<Pin className="h-4 w-4" />}
+            icon={<Pin />}
             label={isPinned ? 'Unpin' : 'Pin'}
             testId="pin-button"
-            activeClass="border-transparent bg-primary/10 text-primary-text dark:bg-primary/15"
           />
         </div>
 
-        <button
+        <Button
           type="button"
+          variant="outline"
           onClick={onNext}
           disabled={currentIndex === totalQuestions - 1}
-          className="rounded-lg border border-input px-4 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
         >
           Next &rsaquo;
-        </button>
+        </Button>
       </div>
     </div>
   )
@@ -104,7 +98,6 @@ function ActionButton({
   icon,
   label,
   testId,
-  activeClass,
   disabled,
 }: Readonly<{
   active: boolean
@@ -112,24 +105,19 @@ function ActionButton({
   icon: React.ReactNode
   label: string
   testId: string
-  activeClass: string
   disabled?: boolean
 }>) {
   return (
-    <button
+    <Button
       type="button"
+      variant="toggle"
       data-testid={testId}
       onClick={onClick}
       aria-pressed={active}
       disabled={disabled}
-      className={
-        active
-          ? `flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none ${activeClass}`
-          : 'flex items-center gap-1.5 rounded-lg border border-transparent px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50 disabled:pointer-events-none'
-      }
     >
       {icon}
       {label}
-    </button>
+    </Button>
   )
 }

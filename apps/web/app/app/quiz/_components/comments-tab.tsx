@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { BusyLabel } from '@/components/ui/busy-label'
+import { Button } from '@/components/ui/button'
 import { EmptyNote } from '@/components/ui/empty'
 import { FieldError } from '@/components/ui/field-error'
 import { Heading } from '@/components/ui/heading'
@@ -91,8 +92,10 @@ export function CommentsTab({ questionId, currentUserId }: Readonly<CommentsTabP
                 </div>
                 <p className="mt-1 text-sm">{c.body}</p>
                 {isOwn && (
-                  <button
+                  <Button
                     type="button"
+                    variant="link"
+                    size="sm"
                     onClick={() => {
                       // Catch so a rejected deleteComment Server Action doesn't escape this
                       // handler as an unhandled rejection (same guard as handleSubmit above).
@@ -100,10 +103,10 @@ export function CommentsTab({ questionId, currentUserId }: Readonly<CommentsTabP
                         console.error('[CommentsTab] Failed to delete comment:', err),
                       )
                     }}
-                    className="mt-1 text-xs text-destructive hover:underline"
+                    className="mt-1 text-destructive"
                   >
                     Delete
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
@@ -121,17 +124,16 @@ export function CommentsTab({ questionId, currentUserId }: Readonly<CommentsTabP
           className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:border-primary-text focus:outline-none"
           disabled={submitting}
         />
-        <button
+        <Button
           type="button"
           onClick={handleSubmit}
           disabled={!body.trim() || submitting}
           aria-busy={submitting || undefined}
-          className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
           <span className="inline-flex items-center justify-center gap-2">
             <BusyLabel busy={submitting}>{submitting ? 'Posting...' : 'Post'}</BusyLabel>
           </span>
-        </button>
+        </Button>
       </div>
     </div>
   )

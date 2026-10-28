@@ -117,7 +117,7 @@ export function StudentTable({
               <div className="flex items-center gap-1">
                 <Button
                   variant="ghost"
-                  size="icon-xs"
+                  size="icon-sm"
                   title="Edit student"
                   aria-label="Edit student"
                   onClick={() => onEdit(s)}
@@ -126,7 +126,7 @@ export function StudentTable({
                 </Button>
                 <Button
                   variant="ghost"
-                  size="icon-xs"
+                  size="icon-sm"
                   title={s.deleted_at === null ? 'Deactivate student' : 'Reactivate student'}
                   aria-label={s.deleted_at === null ? 'Deactivate student' : 'Reactivate student'}
                   onClick={() => onToggleStatus(s)}
@@ -139,7 +139,7 @@ export function StudentTable({
                 </Button>
                 <Button
                   variant="ghost"
-                  size="icon-xs"
+                  size="icon-sm"
                   title="Export data"
                   aria-label="Export data"
                   onClick={() => onExport(s)}

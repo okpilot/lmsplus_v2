@@ -78,14 +78,24 @@ describe('QuizControls — Flag button (ActionButton)', () => {
     expect(onToggleFlag).toHaveBeenCalledOnce()
   })
 
-  it('applies the active orange class when flagged', () => {
+  it('styles the Flag button through the toggle variant', () => {
     renderControls({ isFlagged: true })
-    expect(screen.getByTestId('flag-button').className).toContain('bg-orange-500/10')
+    const btn = screen.getByTestId('flag-button')
+    expect(btn).toHaveAttribute('data-slot', 'button')
+    expect(btn.className).toContain('aria-pressed:bg-card')
+    expect(btn.className).not.toContain('bg-orange-500/10')
   })
 
-  it('does not apply the orange class when not flagged', () => {
+  it('colours the Flag icon caution when flagged', () => {
+    renderControls({ isFlagged: true })
+    const icon = screen.getByTestId('flag-button').querySelector('svg')
+    expect(icon?.getAttribute('class')).toContain('text-caution')
+  })
+
+  it('leaves the Flag icon uncoloured when not flagged', () => {
     renderControls({ isFlagged: false })
-    expect(screen.getByTestId('flag-button').className).not.toContain('bg-orange-500/10')
+    const icon = screen.getByTestId('flag-button').querySelector('svg')
+    expect(icon?.getAttribute('class') ?? '').not.toContain('text-caution')
   })
 })
 
@@ -121,14 +131,12 @@ describe('QuizControls — Pin button (ActionButton)', () => {
     expect(onTogglePin).toHaveBeenCalledOnce()
   })
 
-  it('applies the active amber class when pinned', () => {
+  it('styles the Pin button through the toggle variant', () => {
     renderControls({ isPinned: true })
-    expect(screen.getByTestId('pin-button').className).toContain('bg-primary/10')
-  })
-
-  it('does not apply the amber class when not pinned', () => {
-    renderControls({ isPinned: false })
-    expect(screen.getByTestId('pin-button').className).not.toContain('bg-primary/10')
+    const btn = screen.getByTestId('pin-button')
+    expect(btn).toHaveAttribute('data-slot', 'button')
+    expect(btn.className).toContain('aria-pressed:border-primary')
+    expect(btn.className).not.toContain('bg-primary/10')
   })
 })
 

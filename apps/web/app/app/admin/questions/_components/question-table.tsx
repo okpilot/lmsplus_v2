@@ -109,7 +109,7 @@ export function QuestionTable({
                   trigger={
                     <Button
                       variant="ghost"
-                      size="icon-xs"
+                      size="icon-sm"
                       title="Edit question"
                       aria-label="Edit question"
                     >

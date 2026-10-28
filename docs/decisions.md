@@ -172,3 +172,4 @@
 ## 177 — 2026-10-14 — z layer scrim 15 between sticky 10 and nav 20; the bottom-bar More sheet backdrop uses it. #1433
 ## 178 — 2026-10-28 — Surfaces: tables framed by ui/Table (muted header); list rows in one ui/CardList divided by lines; inner panels are kit/InsetPanel (muted fill, no border); Card does not clip (popups stay visible), CardList clips its rows. #1433 Amended by 179.
 ## 179 — 2026-10-28 — Card body text is text-body (16px), the same size as page body text. #1433
+## 180 — 2026-10-28 — Actions: destructive buttons are solid; one small size (sm), xs and lg deleted; a caution banner's primary action uses the caution button; inline text links are always underlined; icon-only buttons are round; pressed flag/pin toggles use the selected look with an amber flag icon; page CTAs are full width on phones and natural width from sm. #1433

@@ -44,7 +44,7 @@ export function DeleteQuestionButton({ id, label }: Readonly<Props>) {
     <AlertDialog>
       <AlertDialogTrigger
         render={
-          <Button variant="ghost" size="icon-xs" disabled={isPending} title="Delete question" />
+          <Button variant="ghost" size="icon-sm" disabled={isPending} title="Delete question" />
         }
       >
         <Trash2 className="size-3.5 text-muted-foreground" />

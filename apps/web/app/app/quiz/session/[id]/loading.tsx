@@ -1,8 +1,7 @@
+import { buttonVariants } from '@/components/ui/button-variants'
 import { Skeleton } from '@/components/ui/skeleton'
 
 const OPTION_PLACEHOLDER_KEYS = ['a', 'b', 'c', 'd'] as const
-const NAV_LABEL_CLASS =
-  'rounded-lg border border-input px-4 py-2 text-sm font-medium text-muted-foreground'
 
 export default function QuizSessionLoading() {
   return (
@@ -26,8 +25,8 @@ export default function QuizSessionLoading() {
       >
         <div className="mx-auto max-w-3xl">
           <div className="flex items-center justify-between py-3">
-            <span className={NAV_LABEL_CLASS}>‹ Previous</span>
-            <span className={NAV_LABEL_CLASS}>Next ›</span>
+            <span className={buttonVariants({ variant: 'outline' })}>‹ Previous</span>
+            <span className={buttonVariants({ variant: 'outline' })}>Next ›</span>
           </div>
         </div>
       </div>

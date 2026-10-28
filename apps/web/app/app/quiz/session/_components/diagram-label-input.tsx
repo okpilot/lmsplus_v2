@@ -13,6 +13,7 @@ import {
 import { useState } from 'react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { BusyLabel } from '@/components/ui/busy-label'
+import { Button } from '@/components/ui/button'
 import {
   allPlacementsCorrect,
   canonicalTextFor,
@@ -133,17 +134,17 @@ export function DiagramLabelInput({
       )}
 
       {!locked && (
-        <button
+        <Button
           type="button"
           disabled={disabled || submitting || placement.size === 0}
           aria-busy={submitting || undefined}
           onClick={handleSubmit}
-          className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+          className="w-full"
         >
           <span className="inline-flex items-center justify-center gap-2">
             <BusyLabel busy={submitting}>Submit Answer</BusyLabel>
           </span>
-        </button>
+        </Button>
       )}
     </div>
   )

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { buttonVariants } from '@/components/ui/button-variants'
 import type { QuizReportQuestion } from '@/lib/queries/quiz-report'
 import type { QuizReportSummary } from '@/lib/queries/quiz-report-types'
 import { getReportContext } from '../_utils/report-context'
@@ -28,16 +29,10 @@ export function ReportCard({ summary, questions, page, totalCount, pageSize }: R
       />
 
       <div className="flex justify-center gap-3">
-        <Link
-          href="/app/reports"
-          className="rounded-lg border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-accent"
-        >
+        <Link href="/app/reports" className={buttonVariants({ variant: 'outline' })}>
           {ctx.noun} Reports
         </Link>
-        <Link
-          href={ctx.backHref}
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-        >
+        <Link href={ctx.backHref} className={buttonVariants()}>
           {ctx.backLabel}
         </Link>
       </div>

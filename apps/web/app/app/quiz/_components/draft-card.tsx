@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { FieldError } from '@/components/ui/field-error'
 import { deleteDraftAndRefresh } from '../actions/discard-and-refresh'
@@ -89,25 +90,24 @@ export function DraftCard({ draft }: Readonly<{ draft: DraftData }>) {
             {dateLabel && <p className="text-xs text-muted-foreground">Saved {dateLabel}</p>}
           </div>
           <div className="flex shrink-0 gap-2">
-            <button
+            <Button
               type="button"
               data-testid="resume-draft"
               onClick={handleResume}
               disabled={resuming}
               aria-busy={resuming || undefined}
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
             >
               {resuming ? 'Resuming...' : 'Resume'}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="outline"
               data-testid="delete-draft"
               onClick={handleDelete}
               disabled={deleting}
-              className="rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
             >
               {deleting ? 'Deleting...' : 'Delete'}
-            </button>
+            </Button>
           </div>
         </div>
         <SavedSessionProgress answered={answeredCount} total={totalCount} />

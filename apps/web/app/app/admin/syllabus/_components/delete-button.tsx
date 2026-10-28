@@ -49,7 +49,7 @@ export function DeleteButton({ id, table, label, questionCount }: Readonly<Delet
         render={
           <Button
             variant="ghost"
-            size="icon-xs"
+            size="icon-sm"
             disabled={hasQuestions || isPending}
             title={hasQuestions ? `${questionCount} questions reference this item` : 'Delete'}
           />

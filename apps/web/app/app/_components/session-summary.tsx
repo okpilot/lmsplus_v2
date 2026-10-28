@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { buttonVariants } from '@/components/ui/button-variants'
 import { Meter } from '@/components/ui/meter'
 import { Stat, StatGroup } from '@/components/ui/stat'
 
@@ -44,16 +45,10 @@ export function SessionSummary({
       <Meter value={scorePercentage} label="Score" />
 
       <div className="flex justify-center gap-3">
-        <Link
-          href="/app/dashboard"
-          className="rounded-lg border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-accent"
-        >
+        <Link href="/app/dashboard" className={buttonVariants({ variant: 'outline' })}>
           Back to Dashboard
         </Link>
-        <Link
-          href="/app/quiz"
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-        >
+        <Link href="/app/quiz" className={buttonVariants()}>
           Start Another
         </Link>
       </div>
