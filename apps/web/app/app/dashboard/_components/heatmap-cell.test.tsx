@@ -41,11 +41,20 @@ describe('HeatmapCell', () => {
       expect(screen.getByText('5')).toBeInTheDocument()
     })
 
-    it('uses the activity background class', () => {
+    it('uses the muted activity background, no slate', () => {
       render(<HeatmapCell {...activeProps} />)
       const cell = screen.getByTestId(`heatmap-cell-${activeProps.day}`)
       const inner = cell.firstElementChild
-      expect(inner?.className).toMatch(/bg-slate-200/)
+      expect(inner?.className).toMatch(/\bbg-muted\b/)
+      expect(inner?.className).not.toMatch(/slate-/)
+    })
+
+    it('colours digits with semantic tokens: total foreground, correct success, incorrect danger', () => {
+      const { container } = render(<HeatmapCell {...activeProps} />)
+      expect(screen.getByText('20').className).toContain('text-foreground')
+      expect(screen.getByText('15').className).toContain('text-success')
+      expect(screen.getByText('5').className).toContain('text-danger')
+      expect(container.innerHTML).not.toMatch(/(blue|green|red)-\d/)
     })
   })
 

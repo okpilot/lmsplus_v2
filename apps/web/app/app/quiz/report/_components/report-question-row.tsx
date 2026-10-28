@@ -33,7 +33,7 @@ export function ReportQuestionRow({
   const isAnswered = isQuestionAnswered(question)
 
   return (
-    <div className={`px-4 py-3 ${question.isCorrect ? '' : 'bg-red-50 dark:bg-red-950/20'}`}>
+    <div className="px-4 py-3">
       <div className="flex items-start gap-3">
         <div className="mt-0.5 shrink-0">
           {question.isCorrect ? (

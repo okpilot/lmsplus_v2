@@ -96,11 +96,11 @@ function ReportRow({ row: r }: Readonly<{ row: InternalExamHistoryEntry }>) {
         {r.passed === null ? (
           <span className="text-muted-foreground">—</span>
         ) : r.passed ? (
-          <Badge variant="default" aria-label="Passed">
+          <Badge tone="success" aria-label="Passed">
             Pass
           </Badge>
         ) : (
-          <Badge variant="destructive" aria-label="Failed">
+          <Badge tone="danger" aria-label="Failed">
             Fail
           </Badge>
         )}

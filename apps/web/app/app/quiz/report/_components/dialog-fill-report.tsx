@@ -1,5 +1,6 @@
-import { Check, X } from 'lucide-react'
+import { Check, CircleDashed, X } from 'lucide-react'
 import type { DialogFillBlankResult } from '@/lib/queries/quiz-report'
+import { FRACTION_TEXT, fractionTone } from './fraction-tone'
 
 type Props = {
   blanks: DialogFillBlankResult[]
@@ -11,23 +12,19 @@ type Props = {
 // fraction (X/N blanks correct), then lists each blank's student answer vs the
 // canonical. 3-state: fully correct / partial / none correct.
 export function DialogFillReport({ blanks, correctCount, totalBlanks }: Readonly<Props>) {
-  const allCorrect = totalBlanks > 0 && correctCount === totalBlanks
-  const noneCorrect = correctCount === 0
-
-  let fractionClass = 'text-amber-600'
-  if (allCorrect) fractionClass = 'text-green-600'
-  else if (noneCorrect) fractionClass = 'text-destructive'
+  const tone = fractionTone(correctCount, totalBlanks)
 
   return (
     <div className="mt-1 space-y-1 text-xs">
-      <p className={`font-medium ${fractionClass}`}>
+      <p className={`flex items-center gap-1 font-medium ${FRACTION_TEXT[tone]}`}>
+        {tone === 'partial' && <CircleDashed className="size-3.5 text-caution" aria-hidden />}
         {correctCount} / {totalBlanks} blank{totalBlanks === 1 ? '' : 's'} correct
       </p>
       <ul className="space-y-0.5">
         {blanks.map((blank) => (
           <li
             key={blank.index}
-            className={`flex items-center gap-1 ${blank.isCorrect ? 'text-green-600' : 'text-destructive'}`}
+            className={`flex items-center gap-1 ${blank.isCorrect ? 'text-success' : 'text-danger'}`}
           >
             <span className="font-medium">Blank {blank.index + 1}:</span>
             <span>
@@ -45,7 +42,7 @@ export function DialogFillReport({ blanks, correctCount, totalBlanks }: Readonly
               <>
                 <X size={12} aria-hidden className="ml-1 shrink-0" />
                 {blank.canonical && (
-                  <span className="text-green-600">(expected: {blank.canonical})</span>
+                  <span className="text-success">(expected: {blank.canonical})</span>
                 )}
               </>
             )}

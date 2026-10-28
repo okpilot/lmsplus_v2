@@ -67,6 +67,17 @@ describe('CommentsTab', () => {
     expect(note.className).toContain('text-center')
   })
 
+  it('renders the author avatar grey with no decoration colour', () => {
+    mockUseComments.mockReturnValue(
+      defaultHookState({ comments: [makeComment('c-1', { full_name: 'Bob' })] }),
+    )
+    const { container } = render(<CommentsTab questionId="q-1" currentUserId={CURRENT_USER_ID} />)
+    const avatar = screen.getByText('B')
+    expect(avatar.className).toContain('bg-muted')
+    expect(avatar.className).not.toContain('text-white')
+    expect(container.innerHTML).not.toMatch(/bg-(blue|amber|purple|green|pink|cyan)-500/)
+  })
+
   it('shows singular comment count label', () => {
     mockUseComments.mockReturnValue(defaultHookState({ comments: [makeComment('c-1')] }))
     render(<CommentsTab questionId="q-1" currentUserId={CURRENT_USER_ID} />)

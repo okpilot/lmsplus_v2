@@ -1,5 +1,6 @@
-import { Check, X } from 'lucide-react'
+import { Check, CircleDashed, X } from 'lucide-react'
 import type { OrderingSlotResult } from '@/lib/queries/quiz-report'
+import { FRACTION_TEXT, fractionTone } from './fraction-tone'
 
 type Props = Readonly<{
   slots: OrderingSlotResult[]
@@ -11,23 +12,19 @@ type Props = Readonly<{
 // fraction (X/N positions correct), then lists each slot's placed item vs the
 // canonical. 3-state: fully correct / partial / none correct.
 export function OrderingReport({ slots, correctCount, totalItems }: Readonly<Props>) {
-  const allCorrect = totalItems > 0 && correctCount === totalItems
-  const noneCorrect = correctCount === 0
-
-  let fractionClass = 'text-amber-600'
-  if (allCorrect) fractionClass = 'text-green-600'
-  else if (noneCorrect) fractionClass = 'text-destructive'
+  const tone = fractionTone(correctCount, totalItems)
 
   return (
     <div className="mt-1 space-y-1 text-xs">
-      <p className={`font-medium ${fractionClass}`}>
+      <p className={`flex items-center gap-1 font-medium ${FRACTION_TEXT[tone]}`}>
+        {tone === 'partial' && <CircleDashed className="size-3.5 text-caution" aria-hidden />}
         {correctCount} / {totalItems} position{totalItems === 1 ? '' : 's'} correct
       </p>
       <ul className="space-y-0.5">
         {slots.map((slot) => (
           <li
             key={slot.position}
-            className={`flex items-center gap-1 ${slot.isCorrect ? 'text-green-600' : 'text-destructive'}`}
+            className={`flex items-center gap-1 ${slot.isCorrect ? 'text-success' : 'text-danger'}`}
           >
             <span className="font-medium">Position {slot.position + 1}:</span>
             <span>
@@ -43,7 +40,7 @@ export function OrderingReport({ slots, correctCount, totalItems }: Readonly<Pro
               <>
                 <X size={12} aria-hidden className="ml-1 shrink-0" />
                 {slot.canonicalText && (
-                  <span className="text-green-600">(expected: {slot.canonicalText})</span>
+                  <span className="text-success">(expected: {slot.canonicalText})</span>
                 )}
               </>
             )}

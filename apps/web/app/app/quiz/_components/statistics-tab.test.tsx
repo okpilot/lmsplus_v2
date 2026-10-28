@@ -34,6 +34,16 @@ describe('StatisticsTab', () => {
     expect(screen.getByText('3 (60%)')).toBeInTheDocument()
   })
 
+  it('colours the Correct value success and the Incorrect value danger', async () => {
+    render(<StatisticsTab questionId="q-1" hasAnswered={true} />)
+    await waitFor(() => {
+      expect(screen.getByText('3 (60%)')).toBeInTheDocument()
+    })
+    expect(screen.getByText('3 (60%)').className).toContain('text-success')
+    expect(screen.getByText('2').className).toContain('text-danger')
+    expect(document.body.innerHTML).not.toMatch(/text-green-600|text-destructive/)
+  })
+
   it('shows loading skeleton while fetching', async () => {
     let resolve: (value: typeof defaultStats) => void = () => {}
     mockFetchQuestionStats.mockReturnValue(

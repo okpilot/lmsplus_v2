@@ -187,20 +187,21 @@ describe('ReportQuestionRow', () => {
   })
 
   describe('background tint', () => {
-    it('applies pink tint background on incorrect rows', () => {
+    it('applies no background on incorrect rows and keeps the Incorrect badge', () => {
       const { container } = render(
         <ReportQuestionRow question={makeQuestion({ isCorrect: false })} index={0} />,
       )
       const row = container.firstElementChild as HTMLElement
-      expect(row.className).toContain('bg-red-50')
+      expect(row.className).not.toMatch(/\bbg-/)
+      expect(screen.getByRole('img', { name: 'Incorrect' })).toBeInTheDocument()
     })
 
-    it('does not apply pink tint on correct rows', () => {
+    it('applies no background on correct rows', () => {
       const { container } = render(
         <ReportQuestionRow question={makeQuestion({ isCorrect: true })} index={0} />,
       )
       const row = container.firstElementChild as HTMLElement
-      expect(row.className).not.toContain('bg-red-50')
+      expect(row.className).not.toMatch(/\bbg-/)
     })
   })
 

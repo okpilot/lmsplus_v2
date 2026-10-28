@@ -18,11 +18,7 @@ export function HeatmapCell({
   const ring = isToday ? ' ring-2 ring-ring' : ''
   const hasActivity = !isFuture && total > 0
 
-  const cellBg = isFuture
-    ? 'bg-muted/30'
-    : hasActivity
-      ? 'bg-slate-200/80 dark:bg-slate-800'
-      : 'bg-muted'
+  const cellBg = isFuture ? 'bg-muted/30' : hasActivity ? 'bg-muted-foreground/15' : 'bg-muted'
 
   const dayTextClass = isFuture
     ? 'text-muted-foreground/30'
@@ -40,11 +36,11 @@ export function HeatmapCell({
       >
         {hasActivity ? (
           <>
-            <span className="text-[9px] font-bold leading-none text-blue-500 md:text-[11px]">
+            <span className="text-[9px] font-bold leading-none text-foreground md:text-[11px]">
               {total}
             </span>
-            <span className="text-[8px] leading-none text-green-500 md:text-[10px]">{correct}</span>
-            <span className="text-[8px] leading-none text-red-500 md:text-[10px]">{incorrect}</span>
+            <span className="text-[8px] leading-none text-success md:text-[10px]">{correct}</span>
+            <span className="text-[8px] leading-none text-danger md:text-[10px]">{incorrect}</span>
           </>
         ) : !isFuture ? (
           <span className="text-[9px] text-muted-foreground/40 md:text-xs">—</span>

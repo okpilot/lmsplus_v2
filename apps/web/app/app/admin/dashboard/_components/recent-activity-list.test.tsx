@@ -110,14 +110,18 @@ describe('RecentActivityList', () => {
     expect(screen.getByText('74%')).toBeInTheDocument()
   })
 
-  it('applies the success colour for a score of 90', () => {
-    render(<RecentActivityList sessions={[makeSession({ scorePercentage: 90 })]} />)
-    expect(screen.getByText('90%').className).toContain('text-success')
-  })
-
-  it.each([30, 79, 89])('renders a score of %i without danger or caution colour', (score) => {
+  it.each([
+    [90, 'var(--success)'],
+    [70, 'var(--success)'],
+    [60, 'var(--caution)'],
+    [50, 'var(--caution)'],
+    [49.9, 'var(--danger)'],
+    [40, 'var(--danger)'],
+  ])('colours a session score of %s with %s via inline style', (score, colour) => {
     render(<RecentActivityList sessions={[makeSession({ scorePercentage: score })]} />)
-    expect(screen.getByText(`${score}%`).className).not.toMatch(/text-(danger|caution)/)
+    const el = screen.getByText(`${Math.round(score)}%`)
+    expect(el.style.color).toBe(colour)
+    expect(el.className).not.toMatch(/text-(success|muted-foreground)/)
   })
 
   it('shows a dash placeholder when scorePercentage is null', () => {
