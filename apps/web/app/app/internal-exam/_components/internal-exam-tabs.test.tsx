@@ -28,6 +28,13 @@ describe('InternalExamTabs', () => {
     expect(screen.getByTestId('tabpanel-reports')).toBeInTheDocument()
   })
 
+  it('links the active tab to the rendered panel with aria-controls', () => {
+    render(<InternalExamTabs available={AVAILABLE} history={[]} />)
+    const panel = screen.getByRole('tabpanel')
+    expect(panel.id).not.toBe('')
+    expect(screen.getByTestId('tab-available')).toHaveAttribute('aria-controls', panel.id)
+  })
+
   it('renders the available count as a TabCount with testid tab-available-badge', () => {
     render(<InternalExamTabs available={AVAILABLE} history={[]} />)
     const badge = screen.getByTestId('tab-available-badge')

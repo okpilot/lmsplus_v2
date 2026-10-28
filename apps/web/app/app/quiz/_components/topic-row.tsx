@@ -32,7 +32,7 @@ export function TopicRow({
   showCode = true,
 }: Readonly<TopicRowProps>) {
   return (
-    <div className={`flex items-center gap-2 py-1.5 pr-3 ${indented ? 'pl-14' : 'pl-2'}`}>
+    <div className={`flex items-center gap-2 py-1.5 pr-3 ${indented ? 'pl-16' : 'pl-2'}`}>
       {onToggleExpand ? (
         <Button
           type="button"

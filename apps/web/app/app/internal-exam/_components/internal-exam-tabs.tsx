@@ -44,10 +44,10 @@ export function InternalExamTabs({ available, history }: Readonly<Props>) {
           My Reports
         </TabsTab>
       </TabsList>
-      <TabsPanel value="available" id="tabpanel-available" data-testid="tabpanel-available">
+      <TabsPanel value="available" data-testid="tabpanel-available">
         <AvailableTab rows={available} />
       </TabsPanel>
-      <TabsPanel value="reports" id="tabpanel-reports" data-testid="tabpanel-reports">
+      <TabsPanel value="reports" data-testid="tabpanel-reports">
         <MyReportsTab rows={history} />
       </TabsPanel>
     </Tabs>

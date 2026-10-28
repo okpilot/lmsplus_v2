@@ -116,16 +116,16 @@ describe('QuizTabs', () => {
       expect(screen.getByTestId('tab-saved')).toHaveAttribute('tabindex', '-1')
     })
 
-    it('links the active tab to its panel with aria-controls', () => {
-      renderTabs()
-      expect(screen.getByTestId('tab-new')).toHaveAttribute('aria-controls', 'tabpanel-new')
-    })
-
-    it('renders a tabpanel linked to the active tab', () => {
+    it('links the active tab to the rendered panel with aria-controls', () => {
       renderTabs()
       const panel = screen.getByRole('tabpanel')
-      expect(panel).toHaveAttribute('aria-labelledby', 'tab-new')
-      expect(panel).toHaveAttribute('id', 'tabpanel-new')
+      expect(panel.id).not.toBe('')
+      expect(screen.getByTestId('tab-new')).toHaveAttribute('aria-controls', panel.id)
+    })
+
+    it('renders a tabpanel labelled by the active tab', () => {
+      renderTabs()
+      expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', 'tab-new')
     })
   })
 

@@ -62,7 +62,7 @@ export function InternalExamsTabs({
           Attempts
         </TabsTab>
       </TabsList>
-      <TabsPanel value="codes" id="tabpanel-codes" data-testid="tabpanel-codes">
+      <TabsPanel value="codes" data-testid="tabpanel-codes">
         <CodesTab
           students={students}
           subjects={subjects}
@@ -72,7 +72,7 @@ export function InternalExamsTabs({
           pageSize={pageSize}
         />
       </TabsPanel>
-      <TabsPanel value="attempts" id="tabpanel-attempts" data-testid="tabpanel-attempts">
+      <TabsPanel value="attempts" data-testid="tabpanel-attempts">
         <AttemptsTable rows={attempts} totalCount={attemptsTotalCount} pageSize={pageSize} />
       </TabsPanel>
     </Tabs>
