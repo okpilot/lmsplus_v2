@@ -14,11 +14,11 @@ describe('NewPasswordFields toggle', () => {
         onConfirmPasswordChange={() => {}}
       />,
     )
-    const toggle = screen.getByRole('button', { name: 'Show password' })
+    const toggle = screen.getByRole('button', { name: 'Show passwords' })
     expect(toggle).toHaveAttribute('data-slot', 'button')
     await user.click(toggle)
     expect(screen.getByLabelText(/new password/i)).toHaveAttribute('type', 'text')
-    await user.click(screen.getByRole('button', { name: 'Hide password' }))
+    await user.click(screen.getByRole('button', { name: 'Hide passwords' }))
     expect(screen.getByLabelText(/new password/i)).toHaveAttribute('type', 'password')
     expect(container.innerHTML).not.toMatch(
       /(red|green|blue|gray|slate)-\d|text-destructive|max-w-\[/,

@@ -13,6 +13,7 @@ describe('AuthShell', () => {
   it('renders the LMS Plus h1 with text-title', () => {
     render(<AuthShell>child</AuthShell>)
     expect(screen.getByRole('heading', { level: 1, name: 'LMS Plus' })).toHaveClass('text-title')
+    expect(screen.getByRole('heading', { level: 1 }).parentElement).toHaveClass('gap-2')
   })
 
   it('renders the subtitle muted when given', () => {

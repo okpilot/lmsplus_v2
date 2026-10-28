@@ -11,7 +11,7 @@ export function AuthShell({ subtitle, children }: Readonly<AuthShellProps>) {
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-8">
       <Card className="w-full max-w-100">
-        <CardHeader className="justify-items-center text-center">
+        <CardHeader className="justify-items-center gap-2 text-center">
           <div
             aria-hidden="true"
             className="flex size-10 items-center justify-center rounded-control bg-primary"

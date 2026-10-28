@@ -33,7 +33,11 @@ export function NewPasswordFields({
             autoFocus
             className="pr-10"
           />
-          <PasswordToggle shown={showPassword} onToggle={() => setShowPassword(!showPassword)} />
+          <PasswordToggle
+            shown={showPassword}
+            onToggle={() => setShowPassword(!showPassword)}
+            label="passwords"
+          />
         </div>
       </div>
 
