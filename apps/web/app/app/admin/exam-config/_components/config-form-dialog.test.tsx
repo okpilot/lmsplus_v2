@@ -175,14 +175,11 @@ describe('ConfigFormDialog', () => {
     })
 
     it('colours a matching total with the success token', () => {
-      const { container } = render(
-        <ConfigFormDialog subject={subjectWithConfig} open={true} onOpenChange={vi.fn()} />,
-      )
+      render(<ConfigFormDialog subject={subjectWithConfig} open={true} onOpenChange={vi.fn()} />)
       const el = screen.getByText(/Total: 20 \/ 20/)
       expect(el.closest('[class*="text-success"]')).not.toBeNull()
       expect(el.closest('[class*="text-danger"]')).toBeNull()
       expect(document.body.innerHTML).not.toMatch(/text-(green|red)-500/)
-      expect(container).toBeTruthy()
     })
 
     it('colours a mismatched total with the danger token', () => {

@@ -1,6 +1,6 @@
-import { Check, CircleDashed, X } from 'lucide-react'
+import { Check, X } from 'lucide-react'
 import type { DialogFillBlankResult } from '@/lib/queries/quiz-report'
-import { FRACTION_TEXT, fractionTone } from './fraction-tone'
+import { FractionLine } from './fraction-line'
 
 type Props = {
   blanks: DialogFillBlankResult[]
@@ -12,14 +12,9 @@ type Props = {
 // fraction (X/N blanks correct), then lists each blank's student answer vs the
 // canonical. 3-state: fully correct / partial / none correct.
 export function DialogFillReport({ blanks, correctCount, totalBlanks }: Readonly<Props>) {
-  const tone = fractionTone(correctCount, totalBlanks)
-
   return (
     <div className="mt-1 space-y-1 text-xs">
-      <p className={`flex items-center gap-1 font-medium ${FRACTION_TEXT[tone]}`}>
-        {tone === 'partial' && <CircleDashed className="size-3.5 text-caution" aria-hidden />}
-        {correctCount} / {totalBlanks} blank{totalBlanks === 1 ? '' : 's'} correct
-      </p>
+      <FractionLine correct={correctCount} total={totalBlanks} noun="blank" />
       <ul className="space-y-0.5">
         {blanks.map((blank) => (
           <li

@@ -1,6 +1,6 @@
-import { Check, CircleDashed, X } from 'lucide-react'
+import { Check, X } from 'lucide-react'
 import type { OrderingSlotResult } from '@/lib/queries/quiz-report'
-import { FRACTION_TEXT, fractionTone } from './fraction-tone'
+import { FractionLine } from './fraction-line'
 
 type Props = Readonly<{
   slots: OrderingSlotResult[]
@@ -12,14 +12,9 @@ type Props = Readonly<{
 // fraction (X/N positions correct), then lists each slot's placed item vs the
 // canonical. 3-state: fully correct / partial / none correct.
 export function OrderingReport({ slots, correctCount, totalItems }: Readonly<Props>) {
-  const tone = fractionTone(correctCount, totalItems)
-
   return (
     <div className="mt-1 space-y-1 text-xs">
-      <p className={`flex items-center gap-1 font-medium ${FRACTION_TEXT[tone]}`}>
-        {tone === 'partial' && <CircleDashed className="size-3.5 text-caution" aria-hidden />}
-        {correctCount} / {totalItems} position{totalItems === 1 ? '' : 's'} correct
-      </p>
+      <FractionLine correct={correctCount} total={totalItems} noun="position" />
       <ul className="space-y-0.5">
         {slots.map((slot) => (
           <li

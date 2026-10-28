@@ -41,11 +41,12 @@ describe('HeatmapCell', () => {
       expect(screen.getByText('5')).toBeInTheDocument()
     })
 
-    it('uses the muted activity background, no slate', () => {
+    it('uses the muted-foreground activity fill, distinct from an empty day', () => {
       render(<HeatmapCell {...activeProps} />)
       const cell = screen.getByTestId(`heatmap-cell-${activeProps.day}`)
       const inner = cell.firstElementChild
-      expect(inner?.className).toMatch(/\bbg-muted\b/)
+      expect(inner?.className).toContain('bg-muted-foreground/15')
+      expect(inner?.className).not.toMatch(/(^|\s)bg-muted(\s|$)/)
       expect(inner?.className).not.toMatch(/slate-/)
     })
 

@@ -1,6 +1,6 @@
-import { Check, CircleDashed, X } from 'lucide-react'
+import { Check, X } from 'lucide-react'
 import type { DiagramZoneResult } from '@/lib/queries/quiz-report-diagram-types'
-import { FRACTION_TEXT, fractionTone } from './fraction-tone'
+import { FractionLine } from './fraction-line'
 
 type Props = Readonly<{
   zones: DiagramZoneResult[]
@@ -13,14 +13,9 @@ type Props = Readonly<{
 // correct label. 3-state: fully correct / partial / none correct. Mirrors
 // OrderingReport's structure (per-slot -> per-zone).
 export function DiagramLabelReport({ zones, correctCount, totalZones }: Readonly<Props>) {
-  const tone = fractionTone(correctCount, totalZones)
-
   return (
     <div className="mt-1 space-y-1 text-xs">
-      <p className={`flex items-center gap-1 font-medium ${FRACTION_TEXT[tone]}`}>
-        {tone === 'partial' && <CircleDashed className="size-3.5 text-caution" aria-hidden />}
-        {correctCount} / {totalZones} zone{totalZones === 1 ? '' : 's'} correct
-      </p>
+      <FractionLine correct={correctCount} total={totalZones} noun="zone" />
       <ul className="space-y-0.5">
         {zones.map((zone) => (
           <li
