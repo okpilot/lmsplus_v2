@@ -68,13 +68,9 @@ function StatsDisplay({ stats }: Readonly<{ stats: QuestionStats }>) {
         <StatRow
           label="Correct"
           value={`${stats.correctCount} (${accuracy}%)`}
-          className="text-green-600"
+          className="text-success"
         />
-        <StatRow
-          label="Incorrect"
-          value={String(stats.incorrectCount)}
-          className="text-destructive"
-        />
+        <StatRow label="Incorrect" value={String(stats.incorrectCount)} className="text-danger" />
         {stats.lastAnswered && (
           <StatRow
             label="Last answered"

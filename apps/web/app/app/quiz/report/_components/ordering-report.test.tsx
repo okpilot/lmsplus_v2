@@ -56,3 +56,47 @@ describe('OrderingReport', () => {
     expect(screen.getByText('Incorrect')).toBeInTheDocument()
   })
 })
+
+describe('OrderingReport fraction tone and palette', () => {
+  it('colours the fraction line success when all are correct', () => {
+    render(
+      <OrderingReport
+        slots={[partialSlots[0]!, { ...partialSlots[1]!, isCorrect: true }]}
+        correctCount={2}
+        totalItems={2}
+      />,
+    )
+    expect(screen.getByText(/positions? correct/).className).toContain('text-success')
+  })
+
+  it('colours the fraction line danger when none are correct', () => {
+    render(
+      <OrderingReport
+        slots={[{ ...partialSlots[0]!, isCorrect: false }]}
+        correctCount={0}
+        totalItems={1}
+      />,
+    )
+    expect(screen.getByText(/positions? correct/).className).toContain('text-danger')
+  })
+
+  it('shows the fraction line grey with an amber aria-hidden ring icon when partial', () => {
+    const { container } = render(
+      <OrderingReport slots={partialSlots} correctCount={1} totalItems={2} />,
+    )
+    const line = screen.getByText(/positions? correct/)
+    expect(line.className).toContain('text-muted-foreground')
+    const icon = container.querySelector('svg.text-caution')
+    expect(icon).not.toBeNull()
+    expect(icon?.getAttribute('aria-hidden')).toBe('true')
+  })
+
+  it('uses success for correct and danger for wrong items, no legacy palette', () => {
+    const { container } = render(
+      <OrderingReport slots={partialSlots} correctCount={1} totalItems={2} />,
+    )
+    expect(container.innerHTML).toContain('text-success')
+    expect(container.innerHTML).toContain('text-danger')
+    expect(container.innerHTML).not.toMatch(/text-green-600|text-amber-600|text-destructive/)
+  })
+})

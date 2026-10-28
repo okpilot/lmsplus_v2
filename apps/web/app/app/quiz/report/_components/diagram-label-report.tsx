@@ -1,5 +1,6 @@
 import { Check, X } from 'lucide-react'
 import type { DiagramZoneResult } from '@/lib/queries/quiz-report-diagram-types'
+import { FractionLine } from './fraction-line'
 
 type Props = Readonly<{
   zones: DiagramZoneResult[]
@@ -12,23 +13,14 @@ type Props = Readonly<{
 // correct label. 3-state: fully correct / partial / none correct. Mirrors
 // OrderingReport's structure (per-slot -> per-zone).
 export function DiagramLabelReport({ zones, correctCount, totalZones }: Readonly<Props>) {
-  const allCorrect = totalZones > 0 && correctCount === totalZones
-  const noneCorrect = correctCount === 0
-
-  let fractionClass = 'text-amber-600'
-  if (allCorrect) fractionClass = 'text-green-600'
-  else if (noneCorrect) fractionClass = 'text-destructive'
-
   return (
     <div className="mt-1 space-y-1 text-xs">
-      <p className={`font-medium ${fractionClass}`}>
-        {correctCount} / {totalZones} zone{totalZones === 1 ? '' : 's'} correct
-      </p>
+      <FractionLine correct={correctCount} total={totalZones} noun="zone" />
       <ul className="space-y-0.5">
         {zones.map((zone) => (
           <li
             key={zone.blankIndex}
-            className={`flex items-center gap-1 ${zone.isCorrect ? 'text-green-600' : 'text-destructive'}`}
+            className={`flex items-center gap-1 ${zone.isCorrect ? 'text-success' : 'text-danger'}`}
           >
             <span className="font-medium">Zone {zone.blankIndex + 1}:</span>
             <span>
@@ -44,7 +36,7 @@ export function DiagramLabelReport({ zones, correctCount, totalZones }: Readonly
               <>
                 <X size={12} aria-hidden className="ml-1 shrink-0" />
                 {zone.correctLabel && (
-                  <span className="text-green-600">(correct: {zone.correctLabel})</span>
+                  <span className="text-success">(correct: {zone.correctLabel})</span>
                 )}
               </>
             )}

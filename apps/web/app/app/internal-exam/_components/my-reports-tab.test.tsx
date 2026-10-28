@@ -105,6 +105,24 @@ describe('MyReportsTab', () => {
     expect(screen.getByLabelText('Failed')).toBeInTheDocument()
   })
 
+  it('styles the Pass badge with the success tone', () => {
+    render(<MyReportsTab rows={[baseRow]} />)
+    const cls = screen.getByLabelText('Passed').className
+    expect(cls).toContain('bg-success-soft')
+    expect(cls).toContain('text-success')
+    expect(cls).not.toContain('bg-destructive')
+    expect(cls).not.toContain('bg-primary')
+  })
+
+  it('styles the Fail badge with the danger tone', () => {
+    render(<MyReportsTab rows={[{ ...baseRow, passed: false }]} />)
+    const cls = screen.getByLabelText('Failed').className
+    expect(cls).toContain('bg-danger-soft')
+    expect(cls).toContain('text-danger')
+    expect(cls).not.toContain('bg-destructive')
+    expect(cls).not.toContain('bg-primary')
+  })
+
   it('renders neither pass nor fail badge when passed is null', () => {
     render(<MyReportsTab rows={[{ ...baseRow, passed: null }]} />)
     expect(screen.queryByLabelText('Passed')).toBeNull()

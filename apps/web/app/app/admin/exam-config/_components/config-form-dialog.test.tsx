@@ -174,6 +174,22 @@ describe('ConfigFormDialog', () => {
       expect(screen.getByText(/Total: 20 \/ 20/)).toBeTruthy()
     })
 
+    it('colours a matching total with the success token', () => {
+      render(<ConfigFormDialog subject={subjectWithConfig} open={true} onOpenChange={vi.fn()} />)
+      const el = screen.getByText(/Total: 20 \/ 20/)
+      expect(el.closest('[class*="text-success"]')).not.toBeNull()
+      expect(el.closest('[class*="text-danger"]')).toBeNull()
+      expect(document.body.innerHTML).not.toMatch(/text-(green|red)-500/)
+    })
+
+    it('colours a mismatched total with the danger token', () => {
+      render(<ConfigFormDialog subject={subjectNoConfig} open={true} onOpenChange={vi.fn()} />)
+      const el = screen.getByText(/must match total questions/)
+      expect(el.closest('[class*="text-danger"]')).not.toBeNull()
+      expect(el.closest('[class*="text-success"]')).toBeNull()
+      expect(document.body.innerHTML).not.toMatch(/text-(green|red)-500/)
+    })
+
     it('shows mismatch message when distribution sum does not match', () => {
       render(<ConfigFormDialog subject={subjectNoConfig} open={true} onOpenChange={vi.fn()} />)
       expect(screen.getByText(/must match total questions/)).toBeTruthy()

@@ -47,9 +47,9 @@ describe('ActivityHeatmap', () => {
     // Find the cell for day 10 and verify its specific values
     const dayLabel = screen.getByText('10')
     const cell = dayLabel.closest('div')!.querySelector('div')!
-    expect(cell.querySelector('.text-blue-500')?.textContent).toBe('8')
-    expect(cell.querySelector('.text-green-500')?.textContent).toBe('6')
-    expect(cell.querySelector('.text-red-500')?.textContent).toBe('2')
+    expect(cell.querySelector('.text-foreground')?.textContent).toBe('8')
+    expect(cell.querySelector('.text-success')?.textContent).toBe('6')
+    expect(cell.querySelector('.text-danger')?.textContent).toBe('2')
   })
 
   it('marks today with ring-2 ring-ring', () => {

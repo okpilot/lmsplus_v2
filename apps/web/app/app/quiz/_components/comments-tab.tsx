@@ -8,7 +8,7 @@ import { EmptyNote } from '@/components/ui/empty'
 import { FieldError } from '@/components/ui/field-error'
 import { Heading } from '@/components/ui/heading'
 import { useComments } from '../session/_hooks/use-comments'
-import { getAvatarColor, getInitials } from './comment-helpers'
+import { getInitials } from './comment-helpers'
 import { CommentsSkeleton } from './comments-skeleton'
 
 type CommentsTabProps = {
@@ -73,9 +73,7 @@ export function CommentsTab({ questionId, currentUserId }: Readonly<CommentsTabP
               key={c.id}
               className={`flex gap-3 ${isAdmin ? 'rounded-lg bg-primary/5 p-3' : ''}`}
             >
-              <div
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${getAvatarColor(name)}`}
-              >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold bg-muted text-muted-foreground">
                 {getInitials(name)}
               </div>
               <div className="min-w-0 flex-1">

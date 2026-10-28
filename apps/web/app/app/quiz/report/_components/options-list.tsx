@@ -23,8 +23,8 @@ export function OptionsList({
         const isSelected = option.id === selectedOptionId
 
         let rowClass = 'text-xs text-muted-foreground'
-        if (isCorrect) rowClass = 'text-xs text-green-600'
-        else if (isSelected) rowClass = 'text-xs text-destructive'
+        if (isCorrect) rowClass = 'text-xs text-success'
+        else if (isSelected) rowClass = 'text-xs text-danger'
 
         return (
           <li key={option.id} className={`flex items-center gap-1 ${rowClass}`}>

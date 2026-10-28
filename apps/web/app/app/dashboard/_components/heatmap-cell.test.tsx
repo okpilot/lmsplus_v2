@@ -41,11 +41,21 @@ describe('HeatmapCell', () => {
       expect(screen.getByText('5')).toBeInTheDocument()
     })
 
-    it('uses the activity background class', () => {
+    it('fills an active day with muted, distinct from an outlined empty day', () => {
       render(<HeatmapCell {...activeProps} />)
       const cell = screen.getByTestId(`heatmap-cell-${activeProps.day}`)
       const inner = cell.firstElementChild
-      expect(inner?.className).toMatch(/bg-slate-200/)
+      expect(inner?.className).toMatch(/(^|\s)bg-muted(\s|$)/)
+      expect(inner?.className).not.toContain('border-border')
+      expect(inner?.className).not.toMatch(/slate-/)
+    })
+
+    it('colours digits with semantic tokens: total foreground, correct success, incorrect danger', () => {
+      const { container } = render(<HeatmapCell {...activeProps} />)
+      expect(screen.getByText('20').className).toContain('text-foreground')
+      expect(screen.getByText('15').className).toContain('text-success')
+      expect(screen.getByText('5').className).toContain('text-danger')
+      expect(container.innerHTML).not.toMatch(/(blue|green|red)-\d/)
     })
   })
 
@@ -55,11 +65,12 @@ describe('HeatmapCell', () => {
       expect(screen.getByText('—')).toBeInTheDocument()
     })
 
-    it('uses the muted background class', () => {
+    it('is outlined with no fill', () => {
       render(<HeatmapCell {...BASE_PROPS} total={0} isFuture={false} />)
       const cell = screen.getByTestId(`heatmap-cell-${BASE_PROPS.day}`)
       const inner = cell.firstElementChild
-      expect(inner?.className).toMatch(/bg-muted/)
+      expect(inner?.className).toContain('border-border')
+      expect(inner?.className).not.toMatch(/(^|\s)bg-muted(\s|$)/)
     })
   })
 

@@ -117,6 +117,15 @@ describe('SessionCard', () => {
     expect(screen.getByText('Practice Exam')).toBeInTheDocument()
   })
 
+  it.each([
+    ['mock_exam', 'Practice Exam'],
+    ['internal_exam', 'Internal Exam'],
+  ] as const)('labels %s with the caution token, no amber', (mode, label) => {
+    const { container } = render(<SessionCard session={makeSession({ mode })} />)
+    expect(screen.getByText(label).closest('[class*="text-caution"]')).not.toBeNull()
+    expect(container.innerHTML).not.toMatch(/text-amber-/)
+  })
+
   it('renders an Internal Exam badge for internal_exam mode', () => {
     render(<SessionCard session={makeSession({ mode: 'internal_exam' })} />)
     expect(screen.getByText('Internal Exam')).toBeInTheDocument()
