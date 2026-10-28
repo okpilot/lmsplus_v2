@@ -5,7 +5,7 @@ import { cleanupStudentActiveSessions, TEST_EMAIL } from './helpers/supabase'
 
 test.use({ storageState: 'e2e/.auth/user.json' })
 
-const GRADED_CLASS = /bg-(green|red)-500/
+const GRADED_STATUS = /^(correct|wrong)$/
 
 function gridButton(page: Page, index: number) {
   return page.locator(`[data-testid="grid-btn-${index}"]:visible`).first()
@@ -33,7 +33,8 @@ test.describe('Quiz restored answer feedback', () => {
     await expect(page.getByRole('button', { name: 'Submit Answer' })).toHaveCount(0, {
       timeout: 10_000,
     })
-    await expect(gridButton(page, 0)).toHaveClass(/bg-(primary|green|red)/)
+    await expect(gridButton(page, 0)).toHaveAttribute('aria-current', 'step')
+    await expect(gridButton(page, 0)).toHaveAttribute('data-status', GRADED_STATUS)
 
     await page.getByRole('button', { name: 'Next ›' }).click()
     await expect(page.getByText(`Question 2 of ${total}`)).toBeVisible()
@@ -43,7 +44,9 @@ test.describe('Quiz restored answer feedback', () => {
     await expect(page).toHaveURL(SESSION_ID_URL)
     await expect(page.getByText(`Question 2 of ${total}`)).toBeVisible({ timeout: 10_000 })
 
-    await expect(gridButton(page, 0)).toHaveClass(GRADED_CLASS, { timeout: 10_000 })
-    await expect(gridButton(page, 1)).not.toHaveClass(GRADED_CLASS)
+    await expect(gridButton(page, 0)).toHaveAttribute('data-status', GRADED_STATUS, {
+      timeout: 10_000,
+    })
+    await expect(gridButton(page, 1)).not.toHaveAttribute('data-status', GRADED_STATUS)
   })
 })

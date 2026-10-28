@@ -30,9 +30,9 @@ export function DiagramLabelZone({
 
   const borderClass =
     result === 'correct'
-      ? 'border-emerald-500/60'
+      ? 'border-success'
       : result === 'incorrect'
-        ? 'border-destructive/60'
+        ? 'border-danger'
         : isOver
           ? 'border-primary-text'
           : 'border-dashed border-muted-foreground/50'

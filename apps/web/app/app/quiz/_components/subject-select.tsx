@@ -2,6 +2,7 @@
 
 import { ChevronDown } from 'lucide-react'
 import { useState } from 'react'
+import { CodeChip } from '@/components/kit/code-chip'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import type { SubjectOption } from '@/lib/queries/quiz-query-types'
 
@@ -17,7 +18,7 @@ export function SubjectSelect({ subjects, value, onValueChange }: Readonly<Subje
 
   return (
     <div className="space-y-1.5">
-      <span className="text-[13px] font-medium">Subject</span>
+      <span className="text-label font-medium text-muted-foreground">Subject</span>
       <Collapsible open={open} onOpenChange={setOpen}>
         <CollapsibleTrigger
           aria-label="Select a subject"
@@ -28,9 +29,7 @@ export function SubjectSelect({ subjects, value, onValueChange }: Readonly<Subje
         >
           {selected ? (
             <span className="flex items-center gap-2.5">
-              <span className="rounded bg-primary/15 px-1.5 py-0.5 tabular-nums text-xs font-semibold text-primary-text">
-                {selected.code}
-              </span>
+              <CodeChip>{selected.code}</CodeChip>
               <span className="text-foreground">{selected.name}</span>
             </span>
           ) : (
@@ -57,15 +56,7 @@ export function SubjectSelect({ subjects, value, onValueChange }: Readonly<Subje
                   s.id === value ? 'border-l-primary bg-primary/5' : 'border-l-transparent'
                 }`}
               >
-                <span
-                  className={`shrink-0 rounded px-1.5 py-0.5 tabular-nums text-xs ${
-                    s.id === value
-                      ? 'bg-primary/15 font-semibold text-primary-text'
-                      : 'bg-muted font-medium text-muted-foreground'
-                  }`}
-                >
-                  {s.code}
-                </span>
+                <CodeChip className="shrink-0">{s.code}</CodeChip>
                 <span
                   className={`flex-1 text-left ${
                     s.id === value ? 'font-medium text-foreground' : 'text-muted-foreground'

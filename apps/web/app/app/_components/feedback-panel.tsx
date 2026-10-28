@@ -1,3 +1,4 @@
+import { InsetPanel } from '@/components/kit/inset-panel'
 import { Button } from '@/components/ui/button'
 import { MarkdownText } from './markdown-text'
 import { ZoomableImage } from './zoomable-image'
@@ -16,12 +17,10 @@ export function FeedbackPanel({
   onNext,
 }: Readonly<FeedbackPanelProps>) {
   return (
-    <div
-      className={`space-y-3 rounded-lg border p-4 ${
-        isCorrect ? 'border-green-500/30 bg-green-500/5' : 'border-destructive/30 bg-destructive/5'
-      }`}
-    >
-      <p className="text-sm font-semibold">{isCorrect ? 'Correct!' : 'Incorrect'}</p>
+    <InsetPanel className="space-y-3">
+      <p className={`text-sm font-semibold ${isCorrect ? 'text-success' : 'text-danger'}`}>
+        {isCorrect ? 'Correct!' : 'Incorrect'}
+      </p>
 
       {explanationText && (
         <MarkdownText className="text-sm text-muted-foreground">{explanationText}</MarkdownText>
@@ -38,6 +37,6 @@ export function FeedbackPanel({
       <Button variant="secondary" type="button" onClick={onNext} className="mt-2">
         Next Question →
       </Button>
-    </div>
+    </InsetPanel>
   )
 }

@@ -43,9 +43,9 @@ export function OrderingInputItem({
 
   const stateClass =
     result === 'correct'
-      ? 'border-emerald-500/60 bg-emerald-500/10'
+      ? 'border-success bg-card'
       : result === 'incorrect'
-        ? 'border-destructive/60 bg-destructive/10'
+        ? 'border-danger bg-card'
         : 'border-border bg-card'
 
   return (

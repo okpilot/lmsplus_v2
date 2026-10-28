@@ -101,3 +101,29 @@ describe('DiagramLabelZone', () => {
     expect(label).not.toContain('Upwind')
   })
 })
+
+function expectNoTint(cls: string) {
+  expect(cls).not.toMatch(/bg-[a-z-]+\/10/)
+  expect(cls).not.toMatch(/(green|red|emerald)-\d/)
+  expect(cls).not.toContain('bg-destructive')
+}
+
+describe('DiagramLabelZone result borders', () => {
+  it.each([
+    ['correct', 'border-success'],
+    ['incorrect', 'border-danger'],
+  ] as const)('uses %s border class %s without a tint', (result, border) => {
+    render(
+      <DiagramLabelZone
+        zone={ZONE}
+        placedLabel={{ id: 'l1', text: 'Upwind' }}
+        disabled={true}
+        result={result}
+        ariaLabel="Drop zone 1 of 9"
+      />,
+    )
+    const cls = screen.getByTestId('diagram-label-zone-z1').className
+    expect(cls).toContain(border)
+    expectNoTint(cls)
+  })
+})

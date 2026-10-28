@@ -143,3 +143,16 @@ describe('ModeToggle segmented look', () => {
     expect(track).toHaveClass('bg-muted', 'p-1')
   })
 })
+
+function expectFieldLabel(el: HTMLElement) {
+  expect(el.className).toContain('text-label')
+  expect(el.className).toContain('text-muted-foreground')
+  expect(el.className).not.toContain('text-[13px]')
+}
+
+describe('ModeToggle label style', () => {
+  it('styles "Mode" as a muted field label', () => {
+    render(<ModeToggle value="study" onValueChange={vi.fn()} />)
+    expectFieldLabel(screen.getByText('Mode'))
+  })
+})

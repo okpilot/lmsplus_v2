@@ -176,3 +176,47 @@ describe('ShortAnswerInput', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 })
+
+function expectNoTint(cls: string) {
+  expect(cls).not.toMatch(/bg-[a-z-]+\/10/)
+  expect(cls).not.toMatch(/(green|red|emerald)-\d/)
+  expect(cls).not.toContain('bg-destructive')
+}
+
+describe('ShortAnswerInput result borders', () => {
+  it('uses border-success without a tint when graded correct', () => {
+    render(
+      <ShortAnswerInput
+        onSubmit={vi.fn()}
+        disabled={false}
+        submittedText="cleared to land"
+        isCorrect
+        correctAnswer="cleared to land"
+      />,
+    )
+    const cls = screen.getByTestId('short-answer-input').className
+    expect(cls).toContain('border-success')
+    expectNoTint(cls)
+    expect(cls).not.toContain('disabled:opacity-70')
+  })
+
+  it('uses border-danger without a tint when graded wrong', () => {
+    render(
+      <ShortAnswerInput
+        onSubmit={vi.fn()}
+        disabled={false}
+        submittedText="go around"
+        isCorrect={false}
+        correctAnswer="cleared to land"
+      />,
+    )
+    const cls = screen.getByTestId('short-answer-input').className
+    expect(cls).toContain('border-danger')
+    expectNoTint(cls)
+  })
+
+  it('dims the locked field only while grading is pending', () => {
+    render(<ShortAnswerInput onSubmit={vi.fn()} disabled={false} submittedText="go around" />)
+    expect(screen.getByTestId('short-answer-input').className).toContain('disabled:opacity-70')
+  })
+})

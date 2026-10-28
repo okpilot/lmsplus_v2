@@ -254,3 +254,29 @@ describe('OrderingInput', () => {
     }
   })
 })
+
+function expectNoTint(cls: string) {
+  expect(cls).not.toMatch(/bg-[a-z-]+\/10/)
+  expect(cls).not.toMatch(/(green|red|emerald)-\d/)
+  expect(cls).not.toContain('bg-destructive')
+}
+
+describe('OrderingInputItem result borders', () => {
+  it('uses border-success on a correct slot and border-danger on a wrong slot, untinted', () => {
+    render(
+      <OrderingInput
+        items={ITEMS}
+        onSubmit={vi.fn()}
+        disabled={false}
+        submitted
+        correctOrder={['mayday', 'nature', 'callsign']}
+      />,
+    )
+    const right = screen.getByTestId('ordering-item-mayday').className
+    const wrong = screen.getByTestId('ordering-item-callsign').className
+    expect(right).toContain('border-success')
+    expect(wrong).toContain('border-danger')
+    expectNoTint(right)
+    expectNoTint(wrong)
+  })
+})

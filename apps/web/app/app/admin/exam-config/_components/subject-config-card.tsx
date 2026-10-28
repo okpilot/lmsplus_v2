@@ -2,6 +2,7 @@
 
 import { useTransition } from 'react'
 import { toast } from 'sonner'
+import { CodeChip } from '@/components/kit/code-chip'
 import { Badge } from '@/components/ui/badge'
 import { toggleExamConfig } from '../actions/toggle-exam-config'
 import type { SubjectWithConfig } from '../types'
@@ -46,9 +47,7 @@ export function SubjectConfigCard({ subject, onEdit }: Readonly<Props>) {
         className="flex min-w-0 flex-1 items-center justify-between p-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       >
         <div className="flex items-center gap-3">
-          <span className="rounded bg-muted px-2 py-1 tabular-nums text-xs font-medium text-muted-foreground">
-            {subject.code}
-          </span>
+          <CodeChip>{subject.code}</CodeChip>
           <span className="font-medium">{subject.name}</span>
         </div>
 

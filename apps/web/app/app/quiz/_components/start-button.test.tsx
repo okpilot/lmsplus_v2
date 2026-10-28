@@ -63,7 +63,7 @@ describe('StartButton', () => {
 
   it('renders a Button with full width on phone and natural width from sm', () => {
     render(<StartButton disabled={false} loading={false} label="Start Quiz" onClick={vi.fn()} />)
-    const btn = screen.getByTestId('start-button')
+    const btn = screen.getByRole('button', { name: 'Start Quiz' })
     expect(btn).toHaveAttribute('data-slot', 'button')
     expect(btn.className).toContain('w-full')
     expect(btn.className).toContain('sm:w-auto')

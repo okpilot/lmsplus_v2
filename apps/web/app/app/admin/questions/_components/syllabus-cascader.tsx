@@ -43,9 +43,9 @@ export function SyllabusCascader({
   ]
 
   return (
-    <div className="grid grid-cols-3 gap-3 [&>div]:min-w-0 [&_[data-slot=select-trigger]]:w-full">
+    <div className="grid grid-cols-3 items-end gap-3 [&>div]:min-w-0 [&_[data-slot=select-trigger]]:w-full">
       <div>
-        <span className="mb-1 block text-xs font-medium text-muted-foreground">Subject *</span>
+        <span className="mb-1 block text-label font-medium text-muted-foreground">Subject</span>
         <Select
           value={subjectId ?? ''}
           onValueChange={(v) => v && onSubjectChange(v)}
@@ -66,7 +66,7 @@ export function SyllabusCascader({
       </div>
 
       <div>
-        <span className="mb-1 block text-xs font-medium text-muted-foreground">Topic *</span>
+        <span className="mb-1 block text-label font-medium text-muted-foreground">Topic</span>
         <Select
           value={topicId ?? ''}
           onValueChange={(v) => v && onTopicChange(v)}
@@ -87,7 +87,9 @@ export function SyllabusCascader({
       </div>
 
       <div>
-        <span className="mb-1 block text-xs font-medium text-muted-foreground">Subtopic</span>
+        <span className="mb-1 block text-label font-medium text-muted-foreground">
+          Subtopic (optional)
+        </span>
         <Select
           value={subtopicId ?? '__none__'}
           onValueChange={(v) => onSubtopicChange(v === '__none__' || v === null ? null : v)}

@@ -409,3 +409,12 @@ describe('ConfigFormDialog sub-topic rows', () => {
     }
   })
 })
+
+describe('ConfigFormDialog switch label', () => {
+  it('keeps the enable-exam switch label foreground, not text-sm', () => {
+    render(<ConfigFormDialog subject={subjectNoConfig} open={true} onOpenChange={vi.fn()} />)
+    const cls = screen.getByText('Enable exam mode for this subject').className.split(/\s+/)
+    expect(cls).toContain('text-foreground')
+    expect(cls).not.toContain('text-sm')
+  })
+})

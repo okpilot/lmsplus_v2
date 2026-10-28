@@ -245,3 +245,12 @@ describe('SubjectConfigCard', () => {
     })
   })
 })
+
+describe('SubjectConfigCard code chip', () => {
+  it('renders the subject code as a CodeChip', () => {
+    const { container } = render(<SubjectConfigCard subject={baseSubject} onEdit={vi.fn()} />)
+    const chip = container.querySelector('[data-slot=code-chip]')
+    expect(chip).not.toBeNull()
+    expect(chip).toHaveTextContent('AGK')
+  })
+})

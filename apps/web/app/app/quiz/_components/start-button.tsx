@@ -21,7 +21,6 @@ export function StartButton({
   return (
     <Button
       type="button"
-      data-testid="start-button"
       // Block clicks while loading too — aria-busy does not, so this stops a second
       // start request even if a caller forgets to fold `loading` into `disabled`.
       disabled={disabled || loading}

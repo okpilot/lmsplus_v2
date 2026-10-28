@@ -58,23 +58,25 @@ describe('QuestionGrid — desktop', () => {
     expect(buttons[4]).toHaveTextContent('5')
   })
 
-  it('highlights current question with primary color', () => {
+  it('marks the current question with a primary ring', () => {
     renderGrid({ currentIndex: 2 })
     const btn = desktopBtn(2)
-    expect(btn.className).toContain('bg-primary')
+    expect(btn.className).toContain('ring-primary')
     expect(btn).toHaveAttribute('aria-current', 'step')
   })
 
-  it('shows correct answer with green', () => {
+  it('shows correct answer with success-soft and data-status correct', () => {
     const feedbackMap = new Map([['q2', { isCorrect: true }]])
     renderGrid({ feedbackMap })
-    expect(desktopBtn(1).className).toContain('bg-green-500')
+    expect(desktopBtn(1).className).toContain('bg-success-soft')
+    expect(desktopBtn(1)).toHaveAttribute('data-status', 'correct')
   })
 
-  it('shows incorrect answer with red', () => {
+  it('shows incorrect answer with danger-soft and data-status wrong', () => {
     const feedbackMap = new Map([['q3', { isCorrect: false }]])
     renderGrid({ feedbackMap })
-    expect(desktopBtn(2).className).toContain('bg-red-500')
+    expect(desktopBtn(2).className).toContain('bg-danger-soft')
+    expect(desktopBtn(2)).toHaveAttribute('data-status', 'wrong')
   })
 
   it('shows unanswered with border only', () => {
@@ -82,17 +84,20 @@ describe('QuestionGrid — desktop', () => {
     const btn = desktopBtn(3)
     expect(btn.className).toContain('border')
     expect(btn.className).toContain('text-muted-foreground')
+    expect(btn).toHaveAttribute('data-status', 'unseen')
   })
 
-  it('current question overrides correct/incorrect color', () => {
+  it('current question keeps its correct state and adds the ring', () => {
     const feedbackMap = new Map([['q1', { isCorrect: true }]])
     renderGrid({ currentIndex: 0, feedbackMap })
-    expect(desktopBtn(0).className).toContain('bg-primary')
+    expect(desktopBtn(0).className).toContain('bg-success-soft')
+    expect(desktopBtn(0).className).toContain('ring-primary')
   })
 
-  it('shows a visited (seen) square with green when seenIds is provided', () => {
+  it('shows a visited (seen) square as answered when seenIds is provided', () => {
     renderGrid({ currentIndex: 0, seenIds: new Set([2]) })
-    expect(desktopBtn(2).className).toContain('bg-green-500')
+    expect(desktopBtn(2).className).toContain('bg-muted')
+    expect(desktopBtn(2)).toHaveAttribute('data-status', 'answered')
   })
 
   it('leaves unvisited squares as border-only when seenIds is provided', () => {
@@ -101,10 +106,15 @@ describe('QuestionGrid — desktop', () => {
     expect(desktopBtn(3).className).toContain('text-muted-foreground')
   })
 
-  it('keeps the current square primary even when it is in seenIds', () => {
+  it('reads the current Discovery square as unseen with the ring while the student is on it', () => {
     renderGrid({ currentIndex: 1, seenIds: new Set([1, 2]) })
-    expect(desktopBtn(1).className).toContain('bg-primary')
-    expect(desktopBtn(1).className).not.toContain('bg-green-500')
+    expect(desktopBtn(1)).toHaveAttribute('data-status', 'unseen')
+    expect(desktopBtn(1).className).toContain('ring-primary')
+  })
+
+  it('reads a Discovery square as answered once the student has moved on', () => {
+    renderGrid({ currentIndex: 2, seenIds: new Set([1, 2]) })
+    expect(desktopBtn(1)).toHaveAttribute('data-status', 'answered')
   })
 
   it('calls onNavigate with correct index when clicked', () => {
@@ -366,11 +376,11 @@ describe('QuestionGrid — mobile collapse', () => {
 })
 
 describe('QuestionGrid — practice answer awaiting feedback', () => {
-  it('shows an answered practice question without feedback as answered, not green or red', () => {
+  it('shows an answered practice question without feedback as answered, not correct or wrong', () => {
     renderGrid({ answeredIds: new Set(['q2']) })
 
-    expect(desktopBtn(1).className).toContain('bg-muted-foreground/60')
-    expect(desktopBtn(1).className).not.toContain('bg-green-500')
+    expect(desktopBtn(1)).toHaveAttribute('data-status', 'answered')
+    expect(desktopBtn(1).className).not.toContain('bg-success-soft')
   })
 
   it('colours an answered practice question by its feedback once it arrives', () => {
@@ -379,7 +389,7 @@ describe('QuestionGrid — practice answer awaiting feedback', () => {
       feedbackMap: new Map([['q2', { isCorrect: true }]]),
     })
 
-    expect(desktopBtn(1).className).toContain('bg-green-500')
+    expect(desktopBtn(1)).toHaveAttribute('data-status', 'correct')
   })
 
   it('leaves an unanswered practice question outlined', () => {
@@ -388,9 +398,10 @@ describe('QuestionGrid — practice answer awaiting feedback', () => {
     expect(desktopBtn(2).className).toContain('border-border')
   })
 
-  it('keeps the current question highlighted even when it is answered', () => {
-    renderGrid({ currentIndex: 1, answeredIds: new Set(['q2']) })
+  it('keeps the current question ringed and reads an answered current exam square as answered', () => {
+    renderGrid({ currentIndex: 1, answeredIds: new Set(['q2']), isExamMode: true })
 
-    expect(desktopBtn(1).className).toContain('bg-primary')
+    expect(desktopBtn(1).className).toContain('ring-primary')
+    expect(desktopBtn(1)).toHaveAttribute('data-status', 'answered')
   })
 })

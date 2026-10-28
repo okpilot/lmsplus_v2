@@ -27,9 +27,9 @@ export function DiagramLabelChip({ id, text, disabled, result }: Readonly<Diagra
 
   const stateClass =
     result === 'correct'
-      ? 'border-emerald-500/60 bg-emerald-500/10'
+      ? 'border-success bg-card'
       : result === 'incorrect'
-        ? 'border-destructive/60 bg-destructive/10'
+        ? 'border-danger bg-card'
         : 'border-border bg-card'
 
   return (
@@ -43,7 +43,7 @@ export function DiagramLabelChip({ id, text, disabled, result }: Readonly<Diagra
       // Announce the graded state to screen readers / colorblind users — the
       // border colour + data-result attribute alone are not accessible.
       aria-label={result ? `${text}, ${result}` : text}
-      className={`touch-none cursor-grab rounded-md border px-2 py-1 text-xs font-medium active:cursor-grabbing disabled:cursor-default disabled:opacity-70 ${stateClass}`}
+      className={`touch-none cursor-grab rounded-md border px-2 py-1 text-xs font-medium active:cursor-grabbing disabled:cursor-default ${result ? '' : 'disabled:opacity-70'} ${stateClass}`}
       {...attributes}
       {...listeners}
     >

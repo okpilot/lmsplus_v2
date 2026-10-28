@@ -22,9 +22,7 @@ type DialogBlankProps = {
 
 function blankClass(result: BlankResult | undefined): string {
   if (!result) return 'border-input bg-card focus:border-primary-text'
-  return result.isCorrect
-    ? 'border-green-500 bg-green-500/10'
-    : 'border-destructive bg-destructive/10'
+  return result.isCorrect ? 'border-success bg-card' : 'border-danger bg-card'
 }
 
 /**
@@ -85,7 +83,7 @@ export function DialogBlank({
         data-testid={`blank-${index}`}
         onKeyDown={(e) => handleBlankKeyDown(e, index, onEnter)}
         style={{ '--blank-w': blankWidthCh(value) } as CSSProperties}
-        className={`dialog-blank-input inline-block rounded border px-2 py-1 text-sm transition-colors disabled:opacity-70 ${blankClass(result)}`}
+        className={`dialog-blank-input inline-block rounded border px-2 py-1 text-sm transition-colors ${result ? '' : 'disabled:opacity-70'} ${blankClass(result)}`}
       />
       {result && !result.isCorrect && (
         <span

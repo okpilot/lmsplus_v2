@@ -1,20 +1,33 @@
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-export function getSquareClass(opts: {
+type SquareOpts = {
   isCurrent: boolean
   isCorrect: boolean | null
   isAnsweredInExam?: boolean
-  // Discovery mode: a visited (but unscored) question — coloured green like a
-  // correct answer. Set only for Discovery, so other modes are unaffected.
+  // Discovery mode: a visited (but unscored) question reads as answered.
   isSeen?: boolean
-}) {
-  if (opts.isCurrent) return 'bg-primary text-primary-foreground'
-  if (opts.isAnsweredInExam) return 'bg-muted-foreground/60 text-background'
-  if (opts.isSeen) return 'bg-green-500 text-white'
-  if (opts.isCorrect === true) return 'bg-green-500 text-white'
-  if (opts.isCorrect === false) return 'bg-red-500 text-white'
-  return 'border border-border text-muted-foreground'
+}
+
+export type SquareStatus = 'unseen' | 'answered' | 'correct' | 'wrong'
+
+export function getSquareStatus(opts: SquareOpts): SquareStatus {
+  if (opts.isAnsweredInExam || opts.isSeen) return 'answered'
+  if (opts.isCorrect === true) return 'correct'
+  if (opts.isCorrect === false) return 'wrong'
+  return 'unseen'
+}
+
+const STATUS_CLASS: Record<SquareStatus, string> = {
+  unseen: 'border border-border text-muted-foreground',
+  answered: 'bg-muted text-foreground',
+  correct: 'bg-success-soft text-success',
+  wrong: 'bg-danger-soft text-danger',
+}
+
+export function getSquareClassFor(status: SquareStatus, isCurrent: boolean) {
+  const base = STATUS_CLASS[status]
+  return isCurrent ? `${base} ring-2 ring-primary` : base
 }
 
 function FilterPill({

@@ -292,3 +292,16 @@ describe('QuestionFilters', () => {
     expect(onImageModeChange).toHaveBeenCalledWith<[ImageMode]>('all')
   })
 })
+
+function expectFieldLabel(el: HTMLElement) {
+  expect(el.className).toContain('text-label')
+  expect(el.className).toContain('text-muted-foreground')
+  expect(el.className).not.toContain('text-[13px]')
+}
+
+describe('QuestionFilters label style', () => {
+  it('styles "Question Preferences" as a muted field label', () => {
+    renderFilters()
+    expectFieldLabel(screen.getByText('Question Preferences'))
+  })
+})
