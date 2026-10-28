@@ -15,9 +15,6 @@ describe('ChangePasswordForm toggle', () => {
     expect(toggle).toHaveAttribute('data-slot', 'button')
     await user.click(toggle)
     expect(screen.getByLabelText(/current password/i)).toHaveAttribute('type', 'text')
-    expect(screen.getByRole('button', { name: 'Hide passwords' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    )
+    expect(screen.getByRole('button', { name: 'Hide passwords' })).toBeInTheDocument()
   })
 })

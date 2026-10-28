@@ -9,7 +9,7 @@ describe('PasswordToggle', () => {
     const btn = screen.getByRole('button', { name: 'Show password' })
     expect(btn).toHaveAttribute('data-slot', 'button')
     expect(btn).toHaveClass('rounded-full')
-    expect(btn).toHaveAttribute('aria-pressed', 'false')
+    expect(btn).not.toHaveAttribute('aria-pressed')
     expect(container.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
   })
 
@@ -20,11 +20,10 @@ describe('PasswordToggle', () => {
     expect(btn.className).not.toContain('-translate-y-1/2')
   })
 
-  it('labels "Hide password" with aria-pressed true when shown', () => {
+  it('labels "Hide password" with no pressed state when shown', () => {
     render(<PasswordToggle shown onToggle={vi.fn()} />)
-    expect(screen.getByRole('button', { name: 'Hide password' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: 'Hide password' })).not.toHaveAttribute(
       'aria-pressed',
-      'true',
     )
   })
 

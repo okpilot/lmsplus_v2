@@ -23,7 +23,6 @@ export function PasswordToggle({
       size="icon-sm"
       onClick={onToggle}
       aria-label={`${shown ? 'Hide' : 'Show'} ${label}`}
-      aria-pressed={shown}
       className="absolute inset-y-0 right-1.5 my-auto text-muted-foreground"
     >
       <Icon aria-hidden="true" />
