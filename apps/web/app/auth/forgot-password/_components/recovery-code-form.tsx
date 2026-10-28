@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { z } from 'zod'
+import { FieldError } from '@/components/ui/field-error'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { LoadingButton } from '@/components/ui/loading-button'
@@ -72,7 +73,7 @@ export function RecoveryCodeForm({ email, onRequestNewCode }: Readonly<RecoveryC
           />
         </div>
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        <FieldError role="alert">{error}</FieldError>
 
         <LoadingButton
           type="submit"
@@ -88,11 +89,14 @@ export function RecoveryCodeForm({ email, onRequestNewCode }: Readonly<RecoveryC
         <button
           type="button"
           onClick={onRequestNewCode}
-          className="font-medium text-primary-text hover:underline underline-offset-4"
+          className="font-medium text-primary-text underline underline-offset-4"
         >
           Send a new code
         </button>
-        <Link href="/" className="text-muted-foreground hover:text-primary-text">
+        <Link
+          href="/"
+          className="text-muted-foreground underline underline-offset-4 hover:text-primary-text"
+        >
           Back to login
         </Link>
       </div>
