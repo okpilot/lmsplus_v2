@@ -99,7 +99,10 @@ describe('AnswerOptions', () => {
     )
     // Option B is the correct one — button text contains 'Option Beta'
     const correctBtn = screen.getByText('Option Beta').closest('button')
-    expect(correctBtn?.className).toContain('border-green-500')
+    expect(correctBtn?.className).toContain('border-success')
+    expect(correctBtn).toHaveAttribute('data-result', 'correct')
+    expect(correctBtn?.className).not.toContain('bg-success-soft')
+    expect(correctBtn?.className).not.toContain('bg-green')
   })
 
   it('shows error styling on the incorrectly selected option', () => {
@@ -114,7 +117,8 @@ describe('AnswerOptions', () => {
     )
     // Option A was selected but is wrong
     const wrongBtn = screen.getByText('Option Alpha').closest('button')
-    expect(wrongBtn?.className).toContain('border-destructive')
+    expect(wrongBtn?.className).toContain('border-danger')
+    expect(wrongBtn).toHaveAttribute('data-result', 'wrong')
   })
 
   it('disables all option buttons when disabled prop is true', () => {
@@ -186,8 +190,8 @@ describe('AnswerOptions', () => {
       render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
       const circle = screen.getByTestId('option-a').querySelector('span')
       expect(circle?.className).toContain('border')
-      expect(circle?.className).not.toContain('bg-green-500')
-      expect(circle?.className).not.toContain('bg-red-500')
+      expect(circle?.className).not.toContain('bg-success-solid')
+      expect(circle?.className).not.toContain('bg-danger-solid')
       expect(circle?.className).not.toContain('bg-primary')
     })
 
@@ -211,8 +215,8 @@ describe('AnswerOptions', () => {
         />,
       )
       const circle = screen.getByTestId('option-b').querySelector('span')
-      expect(circle?.className).toContain('bg-green-500')
-      expect(circle?.className).toContain('text-white')
+      expect(circle?.className).toContain('bg-success-solid')
+      expect(circle?.className).toContain('text-success-foreground')
     })
 
     it('applies red circle on the wrong selection when result is shown', () => {
@@ -226,8 +230,8 @@ describe('AnswerOptions', () => {
         />,
       )
       const circle = screen.getByTestId('option-a').querySelector('span')
-      expect(circle?.className).toContain('bg-red-500')
-      expect(circle?.className).toContain('text-white')
+      expect(circle?.className).toContain('bg-danger-solid')
+      expect(circle?.className).toContain('text-danger-foreground')
     })
 
     it('applies neutral border circle on an unselected non-correct option when result is shown', () => {
@@ -242,8 +246,8 @@ describe('AnswerOptions', () => {
       )
       // Option C was neither selected nor correct
       const circle = screen.getByTestId('option-c').querySelector('span')
-      expect(circle?.className).not.toContain('bg-green-500')
-      expect(circle?.className).not.toContain('bg-red-500')
+      expect(circle?.className).not.toContain('bg-success-solid')
+      expect(circle?.className).not.toContain('bg-danger-solid')
       expect(circle?.className).not.toContain('bg-primary')
     })
   })
@@ -332,8 +336,9 @@ describe('AnswerOptions', () => {
       )
       // No green or red styling — result mode is off
       const btn = screen.getByText('Option Alpha').closest('button')
-      expect(btn?.className).not.toContain('border-green-500')
-      expect(btn?.className).not.toContain('border-destructive')
+      expect(btn?.className).not.toContain('border-success')
+      expect(btn?.className).not.toContain('border-danger')
+      expect(btn).not.toHaveAttribute('data-result')
     })
 
     it('hides Submit button when both selectedOptionId and correctOptionId are provided', () => {
@@ -370,11 +375,11 @@ describe('AnswerOptions', () => {
       expect(onSelectionChange).not.toHaveBeenCalled()
       // The original locked selection's exam-locked styling persists on option A
       const lockedBtn = screen.getByTestId('option-a')
-      expect(lockedBtn.className).toContain('border-muted-foreground/40')
-      expect(lockedBtn.className).toContain('bg-muted/50')
-      // Option B did not pick up the selected styling (bg-primary/5 is unique to selected-pre-result)
+      expect(lockedBtn.className).toContain('border-primary')
+      expect(lockedBtn.className).toContain('ring-primary')
+      expect(lockedBtn).not.toHaveAttribute('data-result')
       const otherBtn = screen.getByTestId('option-b')
-      expect(otherBtn.className).not.toContain('bg-primary/5')
+      expect(otherBtn.className).not.toContain('ring-primary')
       expect(otherBtn).not.toHaveAttribute('data-selected')
     })
   })
@@ -405,7 +410,7 @@ describe('AnswerOptions', () => {
       expect(screen.getByTestId('option-c')).not.toHaveAttribute('data-kb-highlighted')
     })
 
-    it('shows a focus ring on the keyboard-focused option', () => {
+    it('shows an outline, not a ring, on the keyboard-focused option', () => {
       render(
         <AnswerOptions
           options={OPTIONS}
@@ -414,7 +419,9 @@ describe('AnswerOptions', () => {
           keyboardHighlightedId="a"
         />,
       )
-      expect(screen.getByTestId('option-a').className).toContain('ring-2')
+      const cls = screen.getByTestId('option-a').className
+      expect(cls).toContain('outline-2')
+      expect(cls).not.toContain('ring-2')
     })
 
     it('does not show a keyboard highlight once an exam answer is locked', () => {
@@ -494,6 +501,102 @@ describe('AnswerOptions', () => {
       )
       // Even the locked selection should not carry data-selected in result state
       expect(screen.getByTestId('option-a')).not.toHaveAttribute('data-selected')
+    })
+  })
+
+  describe('selected, locked and default card look', () => {
+    it('gives an unselected card border-border', () => {
+      render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
+      expect(screen.getByTestId('option-a').className).toContain('border-border')
+    })
+
+    it('gives a selected pre-result card border-primary and ring-primary', async () => {
+      const user = userEvent.setup()
+      render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
+      await user.click(screen.getByTestId('option-a'))
+      const cls = screen.getByTestId('option-a').className
+      expect(cls).toContain('border-primary')
+      expect(cls).toContain('ring-primary')
+    })
+
+    it('gives an exam-locked selected card the same card classes as a selected card', async () => {
+      const user = userEvent.setup()
+      const { unmount } = render(
+        <AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />,
+      )
+      await user.click(screen.getByTestId('option-a'))
+      const selected = screen.getByTestId('option-a').className.split(/\s+/).sort()
+      unmount()
+      render(
+        <AnswerOptions
+          options={OPTIONS}
+          onSubmit={vi.fn()}
+          disabled={false}
+          isExam
+          selectedOptionId="a"
+          correctOptionId={null}
+        />,
+      )
+      const locked = screen.getByTestId('option-a').className.split(/\s+/).sort()
+      for (const c of ['border-primary', 'ring-1', 'ring-primary']) {
+        expect(locked).toContain(c)
+      }
+      expect(locked.filter((c) => c.startsWith('border') || c.startsWith('ring'))).toEqual(
+        selected.filter((c) => c.startsWith('border') || c.startsWith('ring')),
+      )
+    })
+
+    it('sets no data-result before a result is shown', () => {
+      render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
+      for (const { id } of OPTIONS) {
+        expect(screen.getByTestId(`option-${id}`)).not.toHaveAttribute('data-result')
+      }
+    })
+
+    it('sizes the letter circle size-7', () => {
+      render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
+      expect(screen.getByTestId('option-a').querySelector('span')?.className).toContain('size-7')
+    })
+  })
+
+  describe('result signals', () => {
+    function renderResult() {
+      render(
+        <AnswerOptions
+          options={OPTIONS}
+          onSubmit={vi.fn()}
+          disabled={true}
+          selectedOptionId="a"
+          correctOptionId="b"
+        />,
+      )
+    }
+
+    it('adds sr-only "Correct answer" to the correct option', () => {
+      renderResult()
+      const sr = screen.getByTestId('option-b').querySelector('.sr-only')
+      expect(sr?.textContent).toBe('Correct answer')
+    })
+
+    it('adds sr-only "Your answer, incorrect" to the selected wrong option', () => {
+      renderResult()
+      const sr = screen.getByTestId('option-a').querySelector('.sr-only')
+      expect(sr?.textContent).toBe('Your answer, incorrect')
+    })
+
+    it('adds no sr-only result text to a neutral option', () => {
+      renderResult()
+      expect(screen.getByTestId('option-c').querySelector('.sr-only')).toBeNull()
+    })
+
+    it('uses no raw green/red/emerald palette class in any state', () => {
+      renderResult()
+      for (const { id } of OPTIONS) {
+        const el = screen.getByTestId(`option-${id}`)
+        for (const node of [el, ...Array.from(el.querySelectorAll('*'))]) {
+          expect(node.getAttribute('class') ?? '').not.toMatch(/(green|red|emerald)-\d/)
+        }
+      }
     })
   })
 })

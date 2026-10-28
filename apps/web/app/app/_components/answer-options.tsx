@@ -1,5 +1,6 @@
 'use client'
 
+import { Check, X } from 'lucide-react'
 import { useState } from 'react'
 import { BusyLabel } from '@/components/ui/busy-label'
 import { Button } from '@/components/ui/button'
@@ -29,29 +30,51 @@ type AnswerOptionsProps = {
   keyboardHighlightedId?: string | null
 }
 
+const SELECTED_STYLE = {
+  card: 'border-primary bg-card ring-1 ring-primary text-primary-text',
+  circle: 'bg-primary text-primary-foreground',
+}
+
 function getOptionStyle(opts: {
   showResult: boolean
   isCorrect: boolean
   isWrongSelection: boolean
   isSelected: boolean
   isExamLocked: boolean
-}) {
+}): { card: string; circle: string; result?: 'correct' | 'wrong' } {
   if (opts.showResult && opts.isCorrect)
-    return { card: 'border-green-500 bg-green-500/10', circle: 'bg-green-500 text-white' }
+    return {
+      card: 'border-success bg-card',
+      circle: 'bg-success-solid text-success-foreground',
+      result: 'correct',
+    }
   if (opts.showResult && opts.isWrongSelection)
-    return { card: 'border-destructive bg-destructive/10', circle: 'bg-red-500 text-white' }
-  // Exam mode: confirmed answer — neutral grey, no correctness signal
-  if (opts.isExamLocked)
     return {
-      card: 'border-muted-foreground/40 bg-muted/50',
-      circle: 'bg-muted-foreground text-background',
+      card: 'border-danger bg-card',
+      circle: 'bg-danger-solid text-danger-foreground',
+      result: 'wrong',
     }
-  if (opts.isSelected && !opts.showResult)
-    return {
-      card: 'border-primary-text bg-primary/5',
-      circle: 'bg-primary text-primary-foreground',
-    }
-  return { card: 'border-border hover:border-primary-text/40', circle: 'border border-current' }
+  // Exam mode: confirmed answer — same look as a selection, no correctness signal
+  if (opts.isExamLocked || (opts.isSelected && !opts.showResult)) return SELECTED_STYLE
+  return { card: 'border-border bg-card hover:border-primary/40', circle: 'border border-current' }
+}
+
+function ResultMark({ result }: Readonly<{ result?: 'correct' | 'wrong' }>) {
+  if (result === 'correct')
+    return (
+      <>
+        <Check aria-hidden className="ml-auto size-4 shrink-0 text-success" />
+        <span className="sr-only">Correct answer</span>
+      </>
+    )
+  if (result === 'wrong')
+    return (
+      <>
+        <X aria-hidden className="ml-auto size-4 shrink-0 text-danger" />
+        <span className="sr-only">Your answer, incorrect</span>
+      </>
+    )
+  return null
 }
 
 export function AnswerOptions({
@@ -81,7 +104,7 @@ export function AnswerOptions({
         const isCorrect = option.id === correctOptionId
         const isWrongSelection = option.id === lockedSelection && option.id !== correctOptionId
         const isSelected = currentSelection === option.id
-        const { card, circle } = getOptionStyle({
+        const { card, circle, result } = getOptionStyle({
           showResult,
           isCorrect,
           isWrongSelection,
@@ -99,17 +122,19 @@ export function AnswerOptions({
             type="button"
             data-testid={`option-${option.id}`}
             data-selected={isSelected && !showResult ? 'true' : undefined}
+            data-result={result}
             data-kb-highlighted={isKeyboardHighlighted ? 'true' : undefined}
             disabled={disabled || (!!isExam && lockedSelection != null)}
             onClick={() => handleSelect(option.id)}
-            className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-colors ${card} ${isKeyboardHighlighted ? 'ring-2 ring-ring ring-offset-1 ring-offset-background' : ''} ${disabled && !showResult ? 'opacity-50' : ''}`}
+            className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-colors ${card} ${isKeyboardHighlighted ? 'outline-2 outline-offset-2 outline-ring' : ''} ${disabled && !showResult ? 'opacity-50' : ''}`}
           >
             <span
-              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${circle}`}
+              className={`flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${circle}`}
             >
               {LETTERS[index] ?? String(index + 1)}
             </span>
             <span>{option.text}</span>
+            <ResultMark result={result} />
           </button>
         )
       })}

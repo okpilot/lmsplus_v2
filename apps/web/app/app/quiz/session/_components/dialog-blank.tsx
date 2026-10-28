@@ -22,9 +22,7 @@ type DialogBlankProps = {
 
 function blankClass(result: BlankResult | undefined): string {
   if (!result) return 'border-input bg-card focus:border-primary-text'
-  return result.isCorrect
-    ? 'border-green-500 bg-green-500/10'
-    : 'border-destructive bg-destructive/10'
+  return result.isCorrect ? 'border-success bg-card' : 'border-danger bg-card'
 }
 
 /**

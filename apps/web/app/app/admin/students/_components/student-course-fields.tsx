@@ -21,9 +21,9 @@ export function StudentCourseFields({ courses, value, disabled, onChange }: Read
       disabled={disabled}
       className="grid gap-2"
     >
-      <span className="text-sm font-medium">Courses</span>
+      <span className="text-label font-medium text-muted-foreground">Courses (optional)</span>
       {courses.map((course) => (
-        <Label key={course.id} className="flex items-center gap-2 font-normal">
+        <Label key={course.id} className="flex items-center gap-2 font-normal text-foreground">
           <Checkbox value={course.id} />
           {course.name}
         </Label>

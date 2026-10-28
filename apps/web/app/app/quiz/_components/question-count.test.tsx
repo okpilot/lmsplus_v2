@@ -136,3 +136,16 @@ describe('QuestionCount pills', () => {
     expect(screen.getByRole('button', { name: '25' })).toHaveClass('aria-pressed:border-primary')
   })
 })
+
+function expectFieldLabel(el: HTMLElement) {
+  expect(el.className).toContain('text-label')
+  expect(el.className).toContain('text-muted-foreground')
+  expect(el.className).not.toContain('text-[13px]')
+}
+
+describe('QuestionCount label style', () => {
+  it('styles "Number of Questions" as a muted field label', () => {
+    render(<QuestionCount value={10} max={50} onValueChange={vi.fn()} />)
+    expectFieldLabel(screen.getByText('Number of Questions'))
+  })
+})

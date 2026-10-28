@@ -46,3 +46,25 @@ describe('DiagramLabelChip', () => {
     )
   })
 })
+
+function expectNoTint(cls: string) {
+  expect(cls).not.toMatch(/bg-[a-z-]+\/10/)
+  expect(cls).not.toMatch(/(green|red|emerald)-\d/)
+  expect(cls).not.toContain('bg-destructive')
+}
+
+describe('DiagramLabelChip result borders', () => {
+  it('uses border-success when graded correct', () => {
+    render(<DiagramLabelChip id="l1" text="Upwind" disabled={true} result="correct" />)
+    const cls = screen.getByTestId('diagram-label-chip-l1').className
+    expect(cls).toContain('border-success')
+    expectNoTint(cls)
+  })
+
+  it('uses border-danger when graded incorrect', () => {
+    render(<DiagramLabelChip id="l1" text="Upwind" disabled={true} result="incorrect" />)
+    const cls = screen.getByTestId('diagram-label-chip-l1').className
+    expect(cls).toContain('border-danger')
+    expectNoTint(cls)
+  })
+})

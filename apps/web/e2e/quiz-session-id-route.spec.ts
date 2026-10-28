@@ -38,7 +38,7 @@ import {
 test.use({ storageState: 'e2e/.auth/user.json', viewport: { width: 1280, height: 900 } })
 
 const OPTION = '[data-testid^="option-"]'
-const RESULT_CLASS = /border-(green-500|destructive)/
+const RESULT_ATTR = /^(correct|wrong)$/
 const SUBMIT = 'Submit Answer'
 const BLOCKED_OFFER = 'Save quiz for later and start quiz'
 
@@ -174,7 +174,9 @@ test.describe('Quiz session addressed by id', () => {
     await expect(page.getByRole('heading', { name: 'Resume your quiz?' })).toHaveCount(0)
     await page.getByRole('button', { name: '‹ Previous' }).click()
     await expect(page.getByText(`Question 1 of ${total}`)).toBeVisible()
-    await expect(page.getByTestId(chosen)).toHaveClass(RESULT_CLASS, { timeout: 10_000 })
+    await expect(page.getByTestId(chosen)).toHaveAttribute('data-result', RESULT_ATTR, {
+      timeout: 10_000,
+    })
   })
 
   test('a resumed practice question shows its saved feedback after a reload', async ({ page }) => {
@@ -191,8 +193,10 @@ test.describe('Quiz session addressed by id', () => {
     await expect(page.getByText(`Question 2 of ${total}`)).toBeVisible({ timeout: 10_000 })
     await page.getByRole('button', { name: '‹ Previous' }).click()
 
-    await expect(page.getByTestId(chosen)).toHaveClass(RESULT_CLASS, { timeout: 10_000 })
-    await expect(page.locator(`${OPTION}[class*="border-green-500"]`)).toHaveCount(1)
+    await expect(page.getByTestId(chosen)).toHaveAttribute('data-result', RESULT_ATTR, {
+      timeout: 10_000,
+    })
+    await expect(page.locator(`${OPTION}[data-result="correct"]`)).toHaveCount(1)
     await expect(page.getByRole('button', { name: SUBMIT })).toHaveCount(0)
   })
 
@@ -219,7 +223,9 @@ test.describe('Quiz session addressed by id', () => {
     await expect(other).toHaveURL(sessionUrl)
     await expect(other.getByText(`Question 2 of ${total}`)).toBeVisible({ timeout: 10_000 })
     await other.getByRole('button', { name: '‹ Previous' }).click()
-    await expect(other.getByTestId(chosen)).toHaveClass(RESULT_CLASS, { timeout: 10_000 })
+    await expect(other.getByTestId(chosen)).toHaveAttribute('data-result', RESULT_ATTR, {
+      timeout: 10_000,
+    })
   })
 
   test('the active clock continues from the server total instead of 00:00', async ({ page }) => {
@@ -289,7 +295,9 @@ test.describe('Quiz session addressed by id', () => {
     // Non-vacuous: the owner sees the quiz, the answer and the subject.
     await page.goto(sessionUrl)
     await expect(page.getByText(/Question 1 of/)).toBeVisible({ timeout: 10_000 })
-    await expect(page.getByTestId(chosen)).toHaveClass(RESULT_CLASS, { timeout: 10_000 })
+    await expect(page.getByTestId(chosen)).toHaveAttribute('data-result', RESULT_ATTR, {
+      timeout: 10_000,
+    })
     await page.goto('/app/quiz')
     const banner = page.getByText(`session for ${subject}`)
     await expect(banner).toBeVisible()
@@ -330,7 +338,9 @@ test.describe('Quiz session addressed by id', () => {
     await page.waitForURL(sessionUrl, { timeout: 15_000 })
     await expect(page.getByText(`Question 2 of ${total}`)).toBeVisible({ timeout: 10_000 })
     await page.getByRole('button', { name: '‹ Previous' }).click()
-    await expect(page.getByTestId(chosen)).toHaveClass(RESULT_CLASS, { timeout: 10_000 })
+    await expect(page.getByTestId(chosen)).toHaveAttribute('data-result', RESULT_ATTR, {
+      timeout: 10_000,
+    })
     expect((await readSessionRow(sessionId)).savedAt).toBeNull()
   })
 

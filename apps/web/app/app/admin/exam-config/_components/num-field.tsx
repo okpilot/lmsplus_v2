@@ -1,7 +1,7 @@
 'use client'
 
 const inputCls = 'w-full rounded border border-border bg-background px-3 py-2 text-sm'
-const labelCls = 'mb-1 block text-xs font-medium text-muted-foreground'
+const labelCls = 'mb-1 block text-label font-medium text-muted-foreground'
 
 export function NumField({
   label,

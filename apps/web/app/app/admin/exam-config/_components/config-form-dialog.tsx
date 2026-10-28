@@ -87,7 +87,7 @@ export function ConfigFormDialog({ subject, open, onOpenChange }: Readonly<Props
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <Switch id="enabled" checked={enabled} onCheckedChange={setEnabled} />
-            <Label htmlFor="enabled" className="text-sm font-medium">
+            <Label htmlFor="enabled" className="font-medium text-foreground">
               Enable exam mode for this subject
             </Label>
           </div>

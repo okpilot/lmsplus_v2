@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils'
-import { getSquareClass } from './filter-pill'
+import { getSquareClass, getSquareStatus } from './filter-pill'
 
 export type GridFilter = 'all' | 'flagged' | 'pinned'
 
@@ -29,9 +29,9 @@ function squareFlags(i: number, opts: BuildSquaresOpts) {
   const isFlagged = flaggedIds.has(qId)
   const isPinned = pinnedIds.has(qId)
   // Exam: answered squares stay neutral. Practice: an answer whose feedback has not arrived yet.
-  const isAnswered = !isCurrent && (answeredIds?.has(qId) ?? false)
+  const isAnswered = answeredIds?.has(qId) ?? false
   const isAnsweredInExam = isAnswered && (isExamMode === true || !feedback)
-  const isSeen = !isCurrent && (seenIds?.has(i) ?? false)
+  const isSeen = seenIds?.has(i) ?? false
   return { qId, isCurrent, isCorrect, isFlagged, isPinned, isAnsweredInExam, isSeen }
 }
 
@@ -43,6 +43,7 @@ function renderSquare(i: number, opts: BuildSquaresOpts) {
     opts,
   )
   if ((filter === 'flagged' && !isFlagged) || (filter === 'pinned' && !isPinned)) return null
+  const squareOpts = { isCurrent, isCorrect, isAnsweredInExam, isSeen }
   return (
     <button
       key={qId || i}
@@ -51,8 +52,9 @@ function renderSquare(i: number, opts: BuildSquaresOpts) {
       onClick={() => onNavigate(i)}
       className={cn(
         'flex aspect-square items-center justify-center rounded-lg text-xs font-medium transition-all',
-        getSquareClass({ isCurrent, isCorrect, isAnsweredInExam, isSeen }),
+        getSquareClass(squareOpts),
       )}
+      data-status={getSquareStatus(squareOpts)}
       aria-current={isCurrent ? 'step' : undefined}
       aria-label={`Question ${i + 1}${isFlagged ? ', flagged' : ''}${isPinned ? ', pinned' : ''}`}
     >

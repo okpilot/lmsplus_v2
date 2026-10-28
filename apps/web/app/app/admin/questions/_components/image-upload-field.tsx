@@ -81,7 +81,7 @@ export function ImageUploadField({ label, currentUrl, onUploaded, disabled }: Re
 
   return (
     <div className="space-y-2">
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      <span className="text-label font-medium text-muted-foreground">{label}</span>
       {preview && isSafePreviewUrl(preview) && (
         <div className="relative">
           {/* biome-ignore lint/performance/noImgElement: local blob/URL preview, not optimizable by next/image */}

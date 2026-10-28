@@ -27,7 +27,7 @@ export function OptionEditor({
 
   return (
     <div className="space-y-3">
-      <span className="text-xs font-medium text-muted-foreground">Options *</span>
+      <span className="text-label font-medium text-muted-foreground">Options</span>
       {OPTION_IDS.map((letter, idx) => (
         <div key={letter} className="flex items-center gap-3">
           <span className="w-6 text-center text-sm font-medium uppercase text-muted-foreground">

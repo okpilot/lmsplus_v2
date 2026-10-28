@@ -37,7 +37,7 @@ export function DifficultyStatusSelect({
   return (
     <div className="grid grid-cols-2 gap-3 [&>div]:min-w-0 [&_[data-slot=select-trigger]]:w-full">
       <div>
-        <span className="mb-1 block text-xs font-medium text-muted-foreground">Difficulty</span>
+        <span className="mb-1 block text-label font-medium text-muted-foreground">Difficulty</span>
         <Select
           value={difficulty}
           onValueChange={onDifficultyChange}
@@ -61,7 +61,7 @@ export function DifficultyStatusSelect({
         </Select>
       </div>
       <div>
-        <span className="mb-1 block text-xs font-medium text-muted-foreground">Status</span>
+        <span className="mb-1 block text-label font-medium text-muted-foreground">Status</span>
         <Select
           value={status}
           onValueChange={onStatusChange}
