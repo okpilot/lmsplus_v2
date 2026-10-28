@@ -41,12 +41,12 @@ describe('HeatmapCell', () => {
       expect(screen.getByText('5')).toBeInTheDocument()
     })
 
-    it('uses the muted-foreground activity fill, distinct from an empty day', () => {
+    it('fills an active day with muted, distinct from an outlined empty day', () => {
       render(<HeatmapCell {...activeProps} />)
       const cell = screen.getByTestId(`heatmap-cell-${activeProps.day}`)
       const inner = cell.firstElementChild
-      expect(inner?.className).toContain('bg-muted-foreground/15')
-      expect(inner?.className).not.toMatch(/(^|\s)bg-muted(\s|$)/)
+      expect(inner?.className).toMatch(/(^|\s)bg-muted(\s|$)/)
+      expect(inner?.className).not.toContain('border-border')
       expect(inner?.className).not.toMatch(/slate-/)
     })
 
@@ -65,11 +65,12 @@ describe('HeatmapCell', () => {
       expect(screen.getByText('—')).toBeInTheDocument()
     })
 
-    it('uses the muted background class', () => {
+    it('is outlined with no fill', () => {
       render(<HeatmapCell {...BASE_PROPS} total={0} isFuture={false} />)
       const cell = screen.getByTestId(`heatmap-cell-${BASE_PROPS.day}`)
       const inner = cell.firstElementChild
-      expect(inner?.className).toMatch(/bg-muted/)
+      expect(inner?.className).toContain('border-border')
+      expect(inner?.className).not.toMatch(/(^|\s)bg-muted(\s|$)/)
     })
   })
 
