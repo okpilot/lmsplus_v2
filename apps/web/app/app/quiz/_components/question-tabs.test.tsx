@@ -40,4 +40,34 @@ describe('QuestionTabs', () => {
     await user.click(screen.getByRole('tab', { name: 'Stats' }))
     expect(onTabChange).toHaveBeenCalledWith('statistics')
   })
+
+  it('places the tabs inside a tablist', () => {
+    render(<QuestionTabs activeTab="question" onTabChange={vi.fn()} />)
+    const tab = screen.getByRole('tab', { name: 'Question' })
+    expect(tab.closest('[role="tablist"]')).not.toBeNull()
+  })
+
+  it('names the tablist', () => {
+    render(<QuestionTabs activeTab="question" onTabChange={vi.fn()} />)
+    expect(screen.getByRole('tablist', { name: 'Question view' })).toBeInTheDocument()
+  })
+
+  it('styles the selected tab with the shared segmented look', () => {
+    render(<QuestionTabs activeTab="statistics" onTabChange={vi.fn()} />)
+    const tab = screen.getByRole('tab', { name: 'Stats' })
+    expect(tab).toHaveClass('aria-selected:bg-card', 'aria-selected:border-primary')
+  })
+
+  it('lets arrow keys on a focused tab reach the question navigation shortcuts', async () => {
+    const user = userEvent.setup()
+    const onWindowKey = vi.fn()
+    window.addEventListener('keydown', onWindowKey)
+    render(<QuestionTabs activeTab="question" onTabChange={vi.fn()} />)
+
+    screen.getByRole('tab', { name: 'Question' }).focus()
+    await user.keyboard('{ArrowRight}')
+    window.removeEventListener('keydown', onWindowKey)
+
+    expect(onWindowKey).toHaveBeenCalledWith(expect.objectContaining({ key: 'ArrowRight' }))
+  })
 })

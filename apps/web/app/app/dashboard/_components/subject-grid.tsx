@@ -1,7 +1,8 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { EmptyNote } from '@/components/ui/empty'
-import { Meter, type StatusTone } from '@/components/ui/meter'
+import { Meter } from '@/components/ui/meter'
 import type { SubjectProgress } from '@/lib/queries/dashboard'
+import { masteryMeterTone } from '@/lib/utils/mastery-tone'
 
 type SubjectGridProps = {
   subjects: SubjectProgress[]
@@ -21,12 +22,6 @@ function getRelativeDate(dateStr: string | null): string {
   if (diffWeeks < 5) return `${diffWeeks} weeks ago`
   const diffMonths = Math.floor(diffDays / 30)
   return `${diffMonths} month${diffMonths !== 1 ? 's' : ''} ago`
-}
-
-function subjectTone(mastery: number): StatusTone {
-  if (mastery < 50) return 'danger'
-  if (mastery < 90) return 'caution'
-  return 'success'
 }
 
 export function SubjectGrid({ subjects }: Readonly<SubjectGridProps>) {
@@ -56,9 +51,9 @@ function SubjectCard({ subject }: Readonly<{ subject: SubjectProgress }>) {
         <p className="mt-1 font-medium">{subject.name}</p>
         <Meter
           value={subject.masteryPercentage}
-          tone={subjectTone(subject.masteryPercentage)}
+          tone={masteryMeterTone(subject.masteryPercentage)}
           label={`${subject.name} mastery`}
-          className="mt-3 h-1.5"
+          className="mt-3"
         />
         <p className="mt-2 text-xs text-muted-foreground">Last practiced: {relativeDate}</p>
       </CardContent>

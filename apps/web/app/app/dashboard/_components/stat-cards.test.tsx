@@ -1,6 +1,6 @@
 import { render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { DAILY_GOAL } from '../_lib/tile-tones'
+import { DAILY_GOAL, STREAK_TARGET } from '../_lib/tile-tones'
 import { StatCards } from './stat-cards'
 
 const BASE_PROPS = {
@@ -153,19 +153,32 @@ describe('StatCards', () => {
     for (const c of contents) expect(c.className).toContain('px-3')
   })
 
-  it.each([
-    [50, 9, 'text-success'],
-    [10, 3, 'text-caution'],
-    [0, 0, 'text-danger'],
-  ] as const)(
-    'colours %i questions and a %i-day streak with %s',
-    (questionsToday, currentStreak, token) => {
-      const { container } = render(
-        <StatCards {...BASE_PROPS} questionsToday={questionsToday} currentStreak={currentStreak} />,
-      )
-      expect(container.querySelectorAll(`.${token}`).length).toBeGreaterThanOrEqual(2)
-    },
-  )
+  it('renders no danger or caution colour for low readiness, zero questions and a zero streak', () => {
+    const { container } = render(
+      <StatCards
+        {...BASE_PROPS}
+        examReadiness={{ readyCount: 2, totalCount: 10, projectedDate: null }}
+        questionsToday={0}
+        currentStreak={0}
+      />,
+    )
+    expect(container.querySelector('.text-danger')).toBeNull()
+    expect(container.querySelector('.text-caution')).toBeNull()
+    expect(container.querySelector('.bg-danger-solid')).toBeNull()
+    expect(container.querySelector('.bg-caution-solid')).toBeNull()
+  })
+
+  it('colours readiness, questions today and streak text-success when each meets its goal', () => {
+    const { container } = render(
+      <StatCards
+        {...BASE_PROPS}
+        examReadiness={{ readyCount: 19, totalCount: 20, projectedDate: null }}
+        questionsToday={DAILY_GOAL}
+        currentStreak={STREAK_TARGET}
+      />,
+    )
+    expect(container.querySelectorAll('[data-slot="stat"] > span.text-success')).toHaveLength(3)
+  })
 
   it('colours each tile value directly, with no wrapper span', () => {
     const { container } = render(
@@ -183,12 +196,14 @@ describe('StatCards', () => {
   })
 
   it.each([
-    [50, 'bg-success-solid'],
-    [10, 'bg-caution-solid'],
-    [0, 'bg-danger-solid'],
+    [DAILY_GOAL, 'bg-data-goal'],
+    [10, 'bg-data'],
+    [0, 'bg-data'],
   ] as const)('fills the daily goal bar with %i questions using %s', (questionsToday, bar) => {
     render(<StatCards {...BASE_PROPS} questionsToday={questionsToday} />)
     const meter = screen.getByRole('meter', { name: 'Daily goal progress' })
     expect(meter.querySelector(`.${bar}`)).not.toBeNull()
+    expect(meter.querySelector('.bg-danger-solid')).toBeNull()
+    expect(meter.querySelector('.bg-caution-solid')).toBeNull()
   })
 })

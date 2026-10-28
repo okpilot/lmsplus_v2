@@ -1,5 +1,6 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
 import { EmptyNote } from '@/components/ui/empty'
 import { Slider } from '@/components/ui/slider'
 
@@ -14,6 +15,32 @@ const PRESETS = [10, 25, 50] as const
 function NoQuestions() {
   return (
     <EmptyNote variant="inline">No questions available. Select at least one topic above.</EmptyNote>
+  )
+}
+
+function CountPill({
+  pressed,
+  disabled,
+  onClick,
+  children,
+}: Readonly<{
+  pressed: boolean
+  disabled?: boolean
+  onClick: () => void
+  children: React.ReactNode
+}>) {
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant="toggle"
+      className="rounded-full border-border"
+      aria-pressed={pressed}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      {children}
+    </Button>
   )
 }
 
@@ -44,31 +71,21 @@ export function QuestionCount({ value, max, onValueChange }: Readonly<QuestionCo
       />
       <div className="flex items-center gap-2">
         {PRESETS.map((preset) => (
-          <button
+          <CountPill
             key={preset}
-            type="button"
+            pressed={effectiveValue === preset}
             disabled={preset > effectiveMax}
             onClick={() => onValueChange(Math.min(preset, effectiveMax))}
-            className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-              effectiveValue === preset
-                ? 'border-primary bg-primary text-primary-foreground'
-                : 'border-border text-muted-foreground hover:border-foreground hover:text-foreground disabled:opacity-40'
-            }`}
           >
             {preset}
-          </button>
+          </CountPill>
         ))}
-        <button
-          type="button"
+        <CountPill
+          pressed={effectiveValue === effectiveMax}
           onClick={() => onValueChange(effectiveMax)}
-          className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-            effectiveValue === effectiveMax
-              ? 'border-primary bg-primary text-primary-foreground'
-              : 'border-border text-muted-foreground hover:border-foreground hover:text-foreground'
-          }`}
         >
           All
-        </button>
+        </CountPill>
         <span className="ml-auto text-sm text-muted-foreground">of {effectiveMax} selected</span>
       </div>
     </div>

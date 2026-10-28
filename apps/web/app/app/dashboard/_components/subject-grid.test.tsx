@@ -54,31 +54,16 @@ describe('SubjectGrid', () => {
     expect(screen.getByText('75%')).toBeInTheDocument()
   })
 
-  it('uses bg-caution-solid for mastery between 50-89%', () => {
-    render(<SubjectGrid subjects={[SUBJECT_MET]} />)
-    // 75% => amber
-    const bar = screen
-      .getByRole('meter', { name: 'Meteorology mastery' })
-      .querySelector('.bg-caution-solid')
-    expect(bar).toBeInTheDocument()
-  })
-
-  it('uses bg-danger-solid for mastery below 50%', () => {
-    render(<SubjectGrid subjects={[SUBJECT_ALW]} />)
-    // 25% => red
-    const bar = screen
-      .getByRole('meter', { name: 'Air Law mastery' })
-      .querySelector('.bg-danger-solid')
-    expect(bar).toBeInTheDocument()
-  })
-
-  it('uses bg-success-solid for mastery at or above 90%', () => {
-    render(<SubjectGrid subjects={[SUBJECT_COM]} />)
-    // 92% => green
-    const bar = screen
-      .getByRole('meter', { name: 'Communications mastery' })
-      .querySelector('.bg-success-solid')
-    expect(bar).toBeInTheDocument()
+  it.each([
+    [SUBJECT_MET, 'Meteorology mastery', 'bg-data'],
+    [SUBJECT_ALW, 'Air Law mastery', 'bg-data'],
+    [SUBJECT_COM, 'Communications mastery', 'bg-data-goal'],
+  ] as const)('fills the meter with the expected tone', (subject, name, fill) => {
+    render(<SubjectGrid subjects={[subject]} />)
+    const meter = screen.getByRole('meter', { name })
+    expect(meter.querySelector(`.${fill}`)).toBeInTheDocument()
+    expect(meter.querySelector('.bg-danger-solid')).toBeNull()
+    expect(meter.querySelector('.bg-caution-solid')).toBeNull()
   })
 
   it('shows "Never" for null lastPracticedAt', () => {

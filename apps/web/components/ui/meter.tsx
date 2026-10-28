@@ -5,17 +5,15 @@ import { Progress as ProgressPrimitive } from '@base-ui/react/progress'
 
 import { cn } from '@/lib/utils'
 
-export type StatusTone = 'success' | 'caution' | 'danger'
-export type MeterTone = 'primary' | StatusTone
+export type MeterTone = 'primary' | 'data' | 'goal'
 
 const FILL: Record<MeterTone, string> = {
   primary: 'bg-primary',
-  success: 'bg-success-solid',
-  caution: 'bg-caution-solid',
-  danger: 'bg-danger-solid',
+  data: 'bg-data',
+  goal: 'bg-data-goal',
 }
 
-const ROOT_CLASS = 'block h-2 w-full'
+const ROOT_CLASS = 'block h-1.5 w-full'
 const TRACK_CLASS = 'block h-full w-full overflow-hidden rounded-full bg-muted'
 const INDICATOR_CLASS = 'block h-full rounded-full transition-all'
 

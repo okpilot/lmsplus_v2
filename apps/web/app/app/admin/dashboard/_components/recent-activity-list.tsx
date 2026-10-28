@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { EmptyNote } from '@/components/ui/empty'
 import { Heading } from '@/components/ui/heading'
-import { getMasteryColor } from '../_lib/constants'
+import { masteryTextClass } from '@/lib/utils/mastery-tone'
 import type { RecentSession } from '../types'
 import { formatRelativeTime } from './student-table-helpers'
 
@@ -60,7 +60,7 @@ function ActivityRow({ session }: Readonly<{ session: RecentSession }>) {
 function ActivityScore({ score }: Readonly<{ score: number | null }>) {
   if (score === null) return <span className="text-muted-foreground">—</span>
   return (
-    <span className={`tabular-nums font-semibold ${getMasteryColor(score)}`}>
+    <span className={`tabular-nums font-semibold ${masteryTextClass(score)}`}>
       {Math.round(score)}%
     </span>
   )

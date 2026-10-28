@@ -5,6 +5,7 @@ import { CardList } from '@/components/ui/card'
 import { EmptyNote } from '@/components/ui/empty'
 import { Meter } from '@/components/ui/meter'
 import type { SubjectDetail } from '@/lib/queries/progress'
+import { masteryMeterTone } from '@/lib/utils/mastery-tone'
 
 type SubjectBreakdownProps = {
   subjects: SubjectDetail[]
@@ -45,8 +46,9 @@ function SubjectRow({ subject }: Readonly<{ subject: SubjectDetail }>) {
         <div className="flex items-center gap-3 px-4 pb-3 pr-10">
           <Meter
             value={subject.masteryPercentage}
+            tone={masteryMeterTone(subject.masteryPercentage)}
             label={`${subject.name} mastery`}
-            className="h-1.5 flex-1"
+            className="flex-1"
           />
           <span className="text-xs font-medium tabular-nums">{subject.masteryPercentage}%</span>
         </div>
@@ -61,8 +63,9 @@ function SubjectRow({ subject }: Readonly<{ subject: SubjectDetail }>) {
               <div className="flex items-center gap-2">
                 <Meter
                   value={topic.masteryPercentage}
+                  tone={masteryMeterTone(topic.masteryPercentage)}
                   label={`${topic.name} mastery`}
-                  className="h-1 w-20"
+                  className="w-20"
                 />
                 <span className="w-8 text-right text-xs tabular-nums">
                   {topic.masteryPercentage}%

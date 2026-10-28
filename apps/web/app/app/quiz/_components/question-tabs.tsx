@@ -1,5 +1,7 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
+
 export type QuestionTab = 'question' | 'explanation' | 'comments' | 'statistics'
 
 type QuestionTabsProps = {
@@ -14,29 +16,30 @@ const TABS: { value: QuestionTab; label: string }[] = [
   { value: 'statistics', label: 'Stats' },
 ]
 
+// Plain buttons, not ui/tabs: Base UI's TabsList stops ArrowLeft/ArrowRight propagation,
+// and use-quiz-keyboard needs those keys to move between questions.
 export function QuestionTabs({ activeTab, onTabChange }: Readonly<QuestionTabsProps>) {
   return (
-    <div className="flex justify-center border-b border-border">
-      {TABS.map((tab) => {
-        const isActive = activeTab === tab.value
-
-        return (
-          <button
+    <div className="flex justify-center">
+      <div
+        role="tablist"
+        aria-label="Question view"
+        className="inline-flex items-center gap-1 rounded-control bg-muted p-1"
+      >
+        {TABS.map((tab) => (
+          <Button
             key={tab.value}
             type="button"
+            variant="ghost"
             role="tab"
-            aria-selected={isActive}
+            aria-selected={activeTab === tab.value}
             onClick={() => onTabChange(tab.value)}
-            className={`px-2 py-2 text-xs font-medium transition-colors md:px-4 md:text-sm ${
-              isActive
-                ? 'border-b-2 border-primary-text text-foreground'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
+            className="h-8 rounded-[calc(var(--radius-control)-2px)] border border-transparent px-2 text-xs font-medium text-muted-foreground hover:bg-transparent hover:text-foreground aria-selected:border-primary aria-selected:bg-card aria-selected:text-primary-text md:px-3 md:text-sm"
           >
             {tab.label}
-          </button>
-        )
-      })}
+          </Button>
+        ))}
+      </div>
     </div>
   )
 }

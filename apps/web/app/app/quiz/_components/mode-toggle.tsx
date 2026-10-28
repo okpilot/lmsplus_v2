@@ -1,6 +1,19 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
 import type { QuizMode } from '../types'
+
+const MODES: { value: QuizMode; label: string }[] = [
+  { value: 'discovery', label: 'Discovery' },
+  { value: 'study', label: 'Study' },
+  { value: 'exam', label: 'Practice Exam' },
+]
+
+function isAvailable(mode: QuizMode, examAvailable: boolean, discoveryAvailable: boolean) {
+  if (mode === 'exam') return examAvailable
+  if (mode === 'discovery') return discoveryAvailable
+  return true
+}
 
 type ModeToggleProps = {
   value: QuizMode
@@ -18,49 +31,20 @@ export function ModeToggle({
   return (
     <div className="space-y-1.5">
       <span className="text-[13px] font-medium">Mode</span>
-      <div className="flex rounded-[10px] border border-border p-0.5">
-        <button
-          type="button"
-          aria-pressed={value === 'discovery'}
-          disabled={!discoveryAvailable}
-          onClick={() => discoveryAvailable && onValueChange('discovery')}
-          className={`flex-1 rounded-[8px] px-4 py-2 text-sm font-medium transition-colors ${
-            value === 'discovery'
-              ? 'bg-primary text-primary-foreground'
-              : discoveryAvailable
-                ? 'text-muted-foreground hover:text-foreground'
-                : 'text-muted-foreground opacity-50 cursor-not-allowed'
-          }`}
-        >
-          Discovery
-        </button>
-        <button
-          type="button"
-          aria-pressed={value === 'study'}
-          onClick={() => onValueChange('study')}
-          className={`flex-1 rounded-[8px] px-4 py-2 text-sm font-medium transition-colors ${
-            value === 'study'
-              ? 'bg-primary text-primary-foreground'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          Study
-        </button>
-        <button
-          type="button"
-          aria-pressed={value === 'exam'}
-          disabled={!examAvailable}
-          onClick={() => examAvailable && onValueChange('exam')}
-          className={`flex-1 rounded-[8px] px-4 py-2 text-sm font-medium transition-colors ${
-            value === 'exam'
-              ? 'bg-primary text-primary-foreground'
-              : examAvailable
-                ? 'text-muted-foreground hover:text-foreground'
-                : 'text-muted-foreground opacity-50 cursor-not-allowed'
-          }`}
-        >
-          Practice Exam
-        </button>
+      <div className="flex gap-1 rounded-control bg-muted p-1">
+        {MODES.map((mode) => (
+          <Button
+            key={mode.value}
+            type="button"
+            variant="toggle"
+            className="flex-1 hover:bg-card/60 aria-pressed:hover:bg-card"
+            aria-pressed={value === mode.value}
+            disabled={!isAvailable(mode.value, examAvailable, discoveryAvailable)}
+            onClick={() => onValueChange(mode.value)}
+          >
+            {mode.label}
+          </Button>
+        ))}
       </div>
       <p className="text-xs text-muted-foreground">
         {value === 'discovery'

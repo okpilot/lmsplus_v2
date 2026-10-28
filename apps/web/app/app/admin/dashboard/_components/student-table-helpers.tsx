@@ -1,6 +1,6 @@
 import { Badge } from '@/components/ui/badge'
 import { TableCell, TableRow } from '@/components/ui/table'
-import { getMasteryColor } from '../_lib/constants'
+import { masteryTextClass } from '@/lib/utils/mastery-tone'
 import type { DashboardStudent } from '../types'
 
 export function formatRelativeTime(iso: string | null): string {
@@ -49,7 +49,7 @@ export function StudentRow({ student, onClick }: Readonly<StudentRowProps>) {
       <TableCell>{formatRelativeTime(student.lastActiveAt)}</TableCell>
       <TableCell>{student.sessionCount}</TableCell>
       <TableCell>{student.avgScore !== null ? `${student.avgScore}%` : '\u2014'}</TableCell>
-      <TableCell className={getMasteryColor(student.mastery)}>{student.mastery}%</TableCell>
+      <TableCell className={masteryTextClass(student.mastery)}>{student.mastery}%</TableCell>
       <TableCell>
         {student.isActive ? (
           <Badge tone="success">Active</Badge>

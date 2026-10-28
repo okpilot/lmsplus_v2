@@ -116,3 +116,23 @@ describe('QuestionCount', () => {
     expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument()
   })
 })
+
+describe('QuestionCount pills', () => {
+  it('exposes aria-pressed on presets and All, true only for the chosen preset', () => {
+    render(<QuestionCount value={25} max={100} onValueChange={vi.fn()} />)
+    expect(screen.getByRole('button', { name: '25' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: '10' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: '50' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('marks All pressed when the value equals the max', () => {
+    render(<QuestionCount value={37} max={37} onValueChange={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('styles the pressed pill with the selected look (blue edge)', () => {
+    render(<QuestionCount value={25} max={100} onValueChange={vi.fn()} />)
+    expect(screen.getByRole('button', { name: '25' })).toHaveClass('aria-pressed:border-primary')
+  })
+})

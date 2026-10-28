@@ -1,6 +1,7 @@
 'use client'
 
-import { type KeyboardEvent, useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
+import { TabCount, Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
 
 type QuizTabsProps = {
   draftCount?: number | null
@@ -11,59 +12,8 @@ type QuizTabsProps = {
   ariaLabel?: string
 }
 
-type TabButtonProps = {
-  id: string
-  isActive: boolean
-  label: string
-  testId: string
-  panelId: string | undefined
-  onClick: () => void
-  badge?: number
-}
-
-function TabButton({
-  id,
-  isActive,
-  label,
-  testId,
-  panelId,
-  onClick,
-  badge,
-}: Readonly<TabButtonProps>) {
-  return (
-    <button
-      type="button"
-      id={id}
-      role="tab"
-      aria-selected={isActive}
-      aria-controls={panelId}
-      tabIndex={isActive ? 0 : -1}
-      data-testid={testId}
-      onClick={onClick}
-      className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 ${
-        isActive
-          ? 'border-primary-text text-primary-text'
-          : 'border-transparent text-muted-foreground hover:text-foreground'
-      }`}
-    >
-      {label}
-      {badge != null && badge > 0 && (
-        <span
-          data-testid="draft-count-badge"
-          className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground"
-        >
-          {badge}
-        </span>
-      )}
-    </button>
-  )
-}
-
 type TabName = 'new' | 'saved'
-const TAB_NAMES: Record<number, TabName> = { 0: 'new', 1: 'saved' }
-const TAB_COUNT = 2
 
-// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function QuizTabs({
   draftCount = null,
   newQuizContent,
@@ -73,65 +23,26 @@ export function QuizTabs({
   ariaLabel = 'Quiz options',
 }: Readonly<QuizTabsProps>) {
   const [tab, setTab] = useState<TabName>('new')
-  const tabListRef = useRef<HTMLDivElement>(null)
-  const pendingFocusRef = useRef<string | null>(null)
-
-  // Focus the tab button after React commits the state update.
-  // `tab` triggers the effect; pendingFocusRef gates execution to keyboard nav only.
-  useEffect(() => {
-    if (pendingFocusRef.current) {
-      tabListRef.current?.querySelector<HTMLElement>(`#tab-${tab}`)?.focus()
-      pendingFocusRef.current = null
-    }
-  }, [tab])
-
-  function handleKeyDown(e: KeyboardEvent) {
-    const currentIndex = tab === 'new' ? 0 : 1
-    let nextIndex: number
-
-    if (e.key === 'ArrowRight') nextIndex = (currentIndex + 1) % TAB_COUNT
-    else if (e.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + TAB_COUNT) % TAB_COUNT
-    else if (e.key === 'Home') nextIndex = 0
-    else if (e.key === 'End') nextIndex = TAB_COUNT - 1
-    else return
-
-    e.preventDefault()
-    const nextTab = TAB_NAMES[nextIndex] ?? 'new'
-    pendingFocusRef.current = nextTab
-    setTab(nextTab)
-  }
 
   return (
-    <div className="space-y-4">
-      <div
-        ref={tabListRef}
-        role="tablist"
-        aria-label={ariaLabel}
-        tabIndex={-1}
-        onKeyDown={handleKeyDown}
-        className="flex border-b border-border"
-      >
-        <TabButton
-          id="tab-new"
-          isActive={tab === 'new'}
-          label={newLabel}
-          testId="tab-new"
-          panelId={tab === 'new' ? 'tabpanel-new' : undefined}
-          onClick={() => setTab('new')}
-        />
-        <TabButton
-          id="tab-saved"
-          isActive={tab === 'saved'}
-          label={savedLabel}
-          testId="tab-saved"
-          panelId={tab === 'saved' ? 'tabpanel-saved' : undefined}
-          onClick={() => setTab('saved')}
-          badge={draftCount ?? undefined}
-        />
-      </div>
-      <div id={`tabpanel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`}>
-        {tab === 'new' ? newQuizContent : savedDraftContent}
-      </div>
-    </div>
+    <Tabs value={tab} onValueChange={(v) => setTab(v as TabName)} className="space-y-4">
+      <TabsList aria-label={ariaLabel}>
+        <TabsTab value="new" id="tab-new" data-testid="tab-new">
+          {newLabel}
+        </TabsTab>
+        <TabsTab value="saved" id="tab-saved" data-testid="tab-saved">
+          {savedLabel}
+          {draftCount != null && draftCount > 0 && (
+            <TabCount data-testid="draft-count-badge">{draftCount}</TabCount>
+          )}
+        </TabsTab>
+      </TabsList>
+      <TabsPanel value="new" data-testid="tabpanel-new">
+        {newQuizContent}
+      </TabsPanel>
+      <TabsPanel value="saved" data-testid="tabpanel-saved">
+        {savedDraftContent}
+      </TabsPanel>
+    </Tabs>
   )
 }

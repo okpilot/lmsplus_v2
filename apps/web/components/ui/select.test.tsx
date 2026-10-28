@@ -32,6 +32,6 @@ describe('SelectContent', () => {
     expect(popup).not.toBeNull()
     expect(popup?.getAttribute('data-align-trigger')).toBe('false')
     expect(popup?.className).toContain('bg-overlay')
-    expect(popup?.className).toContain('ring-input')
+    expect(popup?.className).toContain('ring-border')
   })
 })

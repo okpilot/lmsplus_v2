@@ -2,7 +2,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { EmptyNote } from '@/components/ui/empty'
 import { Heading } from '@/components/ui/heading'
 import { Meter } from '@/components/ui/meter'
-import { getMasteryColor, getMasteryTone } from '../_lib/constants'
+import { masteryMeterTone, masteryTextClass } from '@/lib/utils/mastery-tone'
 import type { WeakTopic } from '../types'
 
 type Props = Readonly<{ topics: WeakTopic[] }>
@@ -40,7 +40,7 @@ function TopicRow({ topic }: Readonly<{ topic: WeakTopic }>) {
           </p>
         </div>
         <div className="shrink-0 text-right">
-          <p className={`text-sm font-semibold tabular-nums ${getMasteryColor(topic.avgScore)}`}>
+          <p className={`text-sm font-semibold tabular-nums ${masteryTextClass(topic.avgScore)}`}>
             {Math.round(topic.avgScore)}%
           </p>
           <p className="text-xs text-muted-foreground">
@@ -50,9 +50,8 @@ function TopicRow({ topic }: Readonly<{ topic: WeakTopic }>) {
       </div>
       <Meter
         value={topic.avgScore}
-        tone={getMasteryTone(topic.avgScore)}
+        tone={masteryMeterTone(topic.avgScore)}
         label={`${topic.topicName} average score`}
-        className="h-1.5"
       />
     </li>
   )

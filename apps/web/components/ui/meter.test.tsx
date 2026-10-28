@@ -34,18 +34,22 @@ describe('Meter', () => {
 
   it.each([
     ['primary', 'bg-primary'],
-    ['success', 'bg-success-solid'],
-    ['caution', 'bg-caution-solid'],
-    ['danger', 'bg-danger-solid'],
+    ['data', 'bg-data'],
+    ['goal', 'bg-data-goal'],
   ] as const)('fills a %s meter with %s', (tone, fill) => {
     render(<Meter value={50} tone={tone} label="Score" />)
     expect(indicatorOf(screen.getByRole('meter', { name: 'Score' }))).toHaveClass(fill)
   })
 
-  it('draws the track in the muted colour and applies the caller size classes to the root', () => {
-    render(<Meter value={50} label="Score" className="mt-2 h-1.5" />)
+  it('is 6px tall (h-1.5) by default', () => {
+    render(<Meter value={50} label="Score" />)
+    expect(screen.getByRole('meter', { name: 'Score' })).toHaveClass('h-1.5')
+  })
+
+  it('draws the track in the muted colour and applies the caller classes to the root', () => {
+    render(<Meter value={50} label="Score" className="mt-2" />)
     const root = screen.getByRole('meter', { name: 'Score' })
-    expect(root).toHaveClass('mt-2', 'h-1.5')
+    expect(root).toHaveClass('mt-2')
     expect(root.querySelector('.bg-muted')).not.toBeNull()
   })
 })
@@ -68,6 +72,11 @@ describe('Progress', () => {
     expect(indicatorOf(screen.getByRole('progressbar', { name: 'Quiz progress' }))).toHaveClass(
       'bg-primary',
     )
+  })
+
+  it('is 6px tall (h-1.5) by default', () => {
+    render(<Progress value={25} label="Quiz progress" />)
+    expect(screen.getByRole('progressbar', { name: 'Quiz progress' })).toHaveClass('h-1.5')
   })
 
   it('applies the caller size classes to the root', () => {

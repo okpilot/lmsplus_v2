@@ -807,3 +807,12 @@ describe('FinishQuizDialog', () => {
     expect(document.activeElement).not.toBe(screen.getByRole('button', { name: /submit quiz/i }))
   })
 })
+
+describe('FinishQuizDialog floating surface', () => {
+  it('floats with a ring and shadow and no border', () => {
+    renderDialog({ open: true })
+    const el = screen.getByRole('dialog', { name: /finish quiz/i })
+    expect(el).toHaveClass('ring-1', 'shadow-lg')
+    expect(el.className).not.toMatch(/(^|\s)border(\s|$)/)
+  })
+})

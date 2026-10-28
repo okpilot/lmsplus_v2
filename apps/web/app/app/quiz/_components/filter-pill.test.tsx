@@ -137,3 +137,18 @@ describe('FilterRow', () => {
     expect(setFilter).toHaveBeenCalledWith('all')
   })
 })
+
+describe('FilterRow pills', () => {
+  it('sets aria-pressed true on the active filter pill only', () => {
+    renderFilterRow({ filter: 'flagged', flaggedCount: 1, pinnedCount: 1 })
+    expect(screen.getByTestId('filter-flagged')).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByTestId('filter-pinned')).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('carries the toggle variant selected look on every pill', () => {
+    renderFilterRow({ flaggedCount: 1 })
+    expect(screen.getByTestId('filter-flagged')).toHaveClass('aria-pressed:border-primary')
+    expect(screen.getByRole('button', { name: 'All' })).toHaveClass('aria-pressed:border-primary')
+  })
+})
