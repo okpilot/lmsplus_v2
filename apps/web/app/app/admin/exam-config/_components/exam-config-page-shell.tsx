@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { CardList } from '@/components/ui/card'
 import type { SubjectWithConfig } from '../types'
 import { ConfigFormDialog } from './config-form-dialog'
 import { SubjectConfigCard } from './subject-config-card'
@@ -12,7 +13,7 @@ export function ExamConfigPageShell({ subjects }: Readonly<Props>) {
 
   return (
     <>
-      <div className="grid gap-4">
+      <CardList>
         {subjects.map((subject) => (
           <SubjectConfigCard
             key={subject.id}
@@ -20,7 +21,7 @@ export function ExamConfigPageShell({ subjects }: Readonly<Props>) {
             onEdit={() => setEditingSubject(subject)}
           />
         ))}
-      </div>
+      </CardList>
 
       {editingSubject && (
         <ConfigFormDialog

@@ -80,34 +80,32 @@ export function StudentTableShell({ students, totalCount, filters }: Readonly<Pr
   return (
     <div className="space-y-3">
       {statusFilter}
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {SORTABLE_COLUMNS.map((col) => (
-                <SortableTableHead
-                  key={col.field}
-                  field={col.field}
-                  label={col.label}
-                  activeSort={filters.sort}
-                  activeDir={filters.dir}
-                  onSort={handleSort}
-                />
-              ))}
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {students.map((s) => (
-              <StudentRow
-                key={s.id}
-                student={s}
-                onClick={() => router.push(`/app/admin/dashboard/students/${s.id}`)}
+      <Table>
+        <TableHeader>
+          <TableRow>
+            {SORTABLE_COLUMNS.map((col) => (
+              <SortableTableHead
+                key={col.field}
+                field={col.field}
+                label={col.label}
+                activeSort={filters.sort}
+                activeDir={filters.dir}
+                onSort={handleSort}
               />
             ))}
-          </TableBody>
-        </Table>
-      </div>
+            <TableHead>Status</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {students.map((s) => (
+            <StudentRow
+              key={s.id}
+              student={s}
+              onClick={() => router.push(`/app/admin/dashboard/students/${s.id}`)}
+            />
+          ))}
+        </TableBody>
+      </Table>
       <PaginationBar
         page={filters.page}
         totalCount={totalCount}

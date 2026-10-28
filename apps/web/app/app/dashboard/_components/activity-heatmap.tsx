@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Card, CardContent } from '@/components/ui/card'
 import type { DailyActivity } from '@/lib/queries/analytics'
 import { HeatmapCell } from './heatmap-cell'
 import { HeatmapHeader } from './heatmap-header'
@@ -72,35 +73,37 @@ export function ActivityHeatmap({ data }: Readonly<ActivityHeatmapProps>) {
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1)
 
   return (
-    <div className="rounded-xl border border-border bg-card p-3 md:p-4">
-      <HeatmapHeader
-        monthName={monthName}
-        monthNameShort={monthNameShort}
-        year={year}
-        isCurrentMonth={isCurrentMonth}
-        atMinOffset={offset <= MIN_MONTH_OFFSET}
-        onBack={goBack}
-        onForward={goForward}
-      />
-      <div
-        ref={scrollRef}
-        className="flex cursor-grab select-none gap-1 overflow-x-auto overflow-y-hidden py-1 scrollbar-hide active:cursor-grabbing md:gap-1.5"
-      >
-        {days.map((day) => {
-          const activity = activityByDay.get(day)
-          return (
-            <HeatmapCell
-              key={day}
-              day={day}
-              total={activity?.total ?? 0}
-              correct={activity?.correct ?? 0}
-              incorrect={activity?.incorrect ?? 0}
-              isFuture={isFutureDay(day)}
-              isToday={day === todayDay}
-            />
-          )
-        })}
-      </div>
-    </div>
+    <Card>
+      <CardContent>
+        <HeatmapHeader
+          monthName={monthName}
+          monthNameShort={monthNameShort}
+          year={year}
+          isCurrentMonth={isCurrentMonth}
+          atMinOffset={offset <= MIN_MONTH_OFFSET}
+          onBack={goBack}
+          onForward={goForward}
+        />
+        <div
+          ref={scrollRef}
+          className="flex cursor-grab select-none gap-1 overflow-x-auto overflow-y-hidden py-1 scrollbar-hide active:cursor-grabbing md:gap-1.5"
+        >
+          {days.map((day) => {
+            const activity = activityByDay.get(day)
+            return (
+              <HeatmapCell
+                key={day}
+                day={day}
+                total={activity?.total ?? 0}
+                correct={activity?.correct ?? 0}
+                incorrect={activity?.incorrect ?? 0}
+                isFuture={isFutureDay(day)}
+                isToday={day === todayDay}
+              />
+            )
+          })}
+        </div>
+      </CardContent>
+    </Card>
   )
 }

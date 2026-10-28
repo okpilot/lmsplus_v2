@@ -67,50 +67,48 @@ export function SessionHistoryTable({
   return (
     <div className="space-y-3">
       {header}
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <SortableTableHead
-                field="date"
-                label="Date"
-                activeSort={filters.sort}
-                activeDir={filters.dir}
-                onSort={handleSort}
-              />
-              <TableHead>Subject</TableHead>
-              <TableHead>Topic</TableHead>
-              <SortableTableHead
-                field="mode"
-                label="Mode"
-                activeSort={filters.sort}
-                activeDir={filters.dir}
-                onSort={handleSort}
-              />
-              <SortableTableHead
-                field="score"
-                label="Score"
-                activeSort={filters.sort}
-                activeDir={filters.dir}
-                onSort={handleSort}
-              />
-              <SortableTableHead
-                field="questions"
-                label="Questions"
-                activeSort={filters.sort}
-                activeDir={filters.dir}
-                onSort={handleSort}
-              />
-              <TableHead>Duration</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {sessions.map((s) => (
-              <ClickableSessionRow key={s.sessionId} session={s} />
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <SortableTableHead
+              field="date"
+              label="Date"
+              activeSort={filters.sort}
+              activeDir={filters.dir}
+              onSort={handleSort}
+            />
+            <TableHead>Subject</TableHead>
+            <TableHead>Topic</TableHead>
+            <SortableTableHead
+              field="mode"
+              label="Mode"
+              activeSort={filters.sort}
+              activeDir={filters.dir}
+              onSort={handleSort}
+            />
+            <SortableTableHead
+              field="score"
+              label="Score"
+              activeSort={filters.sort}
+              activeDir={filters.dir}
+              onSort={handleSort}
+            />
+            <SortableTableHead
+              field="questions"
+              label="Questions"
+              activeSort={filters.sort}
+              activeDir={filters.dir}
+              onSort={handleSort}
+            />
+            <TableHead>Duration</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {sessions.map((s) => (
+            <ClickableSessionRow key={s.sessionId} session={s} />
+          ))}
+        </TableBody>
+      </Table>
       <PaginationBar
         page={filters.page}
         totalCount={totalCount}

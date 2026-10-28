@@ -4,6 +4,14 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { SortableTableHead } from '@/components/sortable-table-head'
 import { Badge } from '@/components/ui/badge'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { type ExamMode, isExamMode, MODE_LABELS, modeLabel } from '@/lib/constants/exam-modes'
 import { reportUrl } from '@/lib/constants/report-paths'
 import type { SessionReport, SortDir, SortKey } from '@/lib/queries/reports'
@@ -20,9 +28,9 @@ type Props = Readonly<{
 
 export function SessionTable({ sessions, sort, dir, onSort }: Readonly<Props>) {
   return (
-    <table className="w-full text-sm">
-      <thead>
-        <tr className="border-b border-border text-xs text-muted-foreground">
+    <Table>
+      <TableHeader>
+        <TableRow>
           <SortableTableHead
             field="date"
             label="Date"
@@ -39,9 +47,9 @@ export function SessionTable({ sessions, sort, dir, onSort }: Readonly<Props>) {
             onSort={onSort}
             className="px-4 py-3 text-xs"
           />
-          <th className="px-4 py-3 text-left font-medium">Mode</th>
-          <th className="px-4 py-3 text-left font-medium">Correct</th>
-          <th className="px-4 py-3 text-left font-medium">Time</th>
+          <TableHead className="px-4 py-3 text-xs">Mode</TableHead>
+          <TableHead className="px-4 py-3 text-xs">Correct</TableHead>
+          <TableHead className="px-4 py-3 text-xs">Time</TableHead>
           <SortableTableHead
             field="score"
             label="Score"
@@ -51,14 +59,14 @@ export function SessionTable({ sessions, sort, dir, onSort }: Readonly<Props>) {
             className="px-4 py-3 text-xs"
             align="right"
           />
-        </tr>
-      </thead>
-      <tbody>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
         {sessions.map((s) => (
           <SessionRow key={s.id} session={s} />
         ))}
-      </tbody>
-    </table>
+      </TableBody>
+    </Table>
   )
 }
 
@@ -70,9 +78,9 @@ function SessionRow({ session: s }: Readonly<{ session: SessionReport }>) {
   const navigate = () => router.push(href)
 
   return (
-    <tr
+    <TableRow
       tabIndex={0}
-      className="cursor-pointer border-b border-border transition-colors last:border-0 hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+      className="cursor-pointer hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
       onClick={navigate}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -81,29 +89,34 @@ function SessionRow({ session: s }: Readonly<{ session: SessionReport }>) {
         }
       }}
     >
-      <td className="px-4 py-3 text-muted-foreground">{formatDate(s.startedAt)}</td>
-      <td className="px-4 py-3 font-medium">
+      <TableCell className="px-4 py-3 whitespace-normal text-muted-foreground">
+        {formatDate(s.startedAt)}
+      </TableCell>
+      <TableCell className="px-4 py-3 whitespace-normal font-medium">
         <Link href={href} prefetch={false} onClick={(e) => e.stopPropagation()}>
           {s.subjectName ?? '\u2014'}
         </Link>
-      </td>
-      <td className="px-4 py-3">
+      </TableCell>
+      <TableCell className="px-4 py-3 whitespace-normal">
         {isExamMode(s.mode) ? (
           <ExamBadge mode={s.mode} />
         ) : (
           <span className="text-muted-foreground">{modeLabel(s.mode)}</span>
         )}
-      </td>
-      <td className="px-4 py-3 tabular-nums">
+      </TableCell>
+      <TableCell className="px-4 py-3 whitespace-normal tabular-nums">
         {formatCorrectFraction(s.correctCount, s.answeredItems)}
-      </td>
-      <td className="px-4 py-3 text-muted-foreground">
+      </TableCell>
+      <TableCell className="px-4 py-3 whitespace-normal text-muted-foreground">
         {formatDurationMinutes(s.durationMinutes)}
-      </td>
-      <td className="px-4 py-3 text-right font-semibold tabular-nums" style={{ color }}>
+      </TableCell>
+      <TableCell
+        className="px-4 py-3 whitespace-normal text-right font-semibold tabular-nums"
+        style={{ color }}
+      >
         {score}
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   )
 }
 

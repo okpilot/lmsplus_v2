@@ -1,3 +1,4 @@
+import { InsetPanel } from '@/components/kit/inset-panel'
 import { Button } from '@/components/ui/button'
 import { FieldError } from '@/components/ui/field-error'
 import type { BlockedStartState } from '../_hooks/use-blocked-start'
@@ -21,7 +22,7 @@ export function BlockedStartAlert({
     <div className="space-y-2">
       <FieldError role="alert">{message}</FieldError>
       {offer && (
-        <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+        <InsetPanel className="space-y-2">
           <p className="text-sm text-muted-foreground">
             Your {offer.subjectName} quiz is still open.
           </p>
@@ -29,7 +30,7 @@ export function BlockedStartAlert({
             Save quiz for later and start {startLabel}
           </Button>
           <FieldError role="alert">{error}</FieldError>
-        </div>
+        </InsetPanel>
       )}
     </div>
   )

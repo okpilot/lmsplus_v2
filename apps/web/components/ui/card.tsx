@@ -20,6 +20,19 @@ function Card({
   )
 }
 
+function CardList({
+  className,
+  ...props
+}: Readonly<React.ComponentProps<'div'> & { size?: 'default' | 'sm' }>) {
+  return (
+    <Card
+      {...props}
+      data-slot="card-list"
+      className={cn('gap-0 py-0 divide-y divide-border', className)}
+    />
+  )
+}
+
 function CardHeader({ className, ...props }: Readonly<React.ComponentProps<'div'>>) {
   return (
     <div
@@ -89,4 +102,13 @@ function CardFooter({ className, ...props }: Readonly<React.ComponentProps<'div'
   )
 }
 
-export { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
+export {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardList,
+  CardTitle,
+}

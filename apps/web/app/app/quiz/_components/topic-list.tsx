@@ -1,5 +1,6 @@
 'use client'
 
+import { CardList } from '@/components/ui/card'
 import type { SubtopicOption, TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
 import { TopicRow } from './topic-row'
 
@@ -63,9 +64,9 @@ export function TopicList({
   showCode,
 }: Readonly<TopicListProps>) {
   return (
-    <div className="rounded-lg border border-border">
+    <CardList>
       {topics.map((topic) => (
-        <div key={topic.id} className="border-b border-border last:border-b-0">
+        <div key={topic.id}>
           <TopicRow
             code={topic.code}
             name={topic.name}
@@ -89,6 +90,6 @@ export function TopicList({
           )}
         </div>
       ))}
-    </div>
+    </CardList>
   )
 }

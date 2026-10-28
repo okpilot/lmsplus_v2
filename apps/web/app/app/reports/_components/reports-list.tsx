@@ -3,6 +3,7 @@
 import { useCallback } from 'react'
 import { PaginationBar } from '@/app/app/_components/pagination-bar'
 import { useUpdateSearchParams } from '@/app/app/_hooks/use-update-search-params'
+import { CardList } from '@/components/ui/card'
 import { EmptyNote } from '@/components/ui/empty'
 import {
   Select,
@@ -71,7 +72,7 @@ export function ReportsList({ sessions, page, totalCount, pageSize, sort, dir }:
       <p className="mb-2 hidden text-xs text-muted-foreground md:block">
         Click a column header to sort
       </p>
-      <div className="hidden rounded-lg border border-border md:block">
+      <div className="hidden md:block">
         <SessionTable sessions={sessions} sort={sort} dir={dir} onSort={handleSort} />
       </div>
 
@@ -91,11 +92,11 @@ export function ReportsList({ sessions, page, totalCount, pageSize, sort, dir }:
             </SelectContent>
           </Select>
         </div>
-        <div className="flex flex-col gap-3">
+        <CardList>
           {sessions.map((s) => (
             <SessionCard key={s.id} session={s} />
           ))}
-        </div>
+        </CardList>
       </div>
 
       <PaginationBar

@@ -39,32 +39,30 @@ export function AttemptsTable({ rows, totalCount, pageSize }: Readonly<Props>) {
 
   return (
     <div className="space-y-3">
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="min-w-[160px]">Student</TableHead>
+            <TableHead className="min-w-[140px]">Subject</TableHead>
+            <TableHead className="w-40">Started</TableHead>
+            <TableHead className="w-40">Ended</TableHead>
+            <TableHead className="w-20">Score</TableHead>
+            <TableHead className="w-24">Result</TableHead>
+            <TableHead className="w-24">Answered</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.length === 0 ? (
             <TableRow>
-              <TableHead className="min-w-[160px]">Student</TableHead>
-              <TableHead className="min-w-[140px]">Subject</TableHead>
-              <TableHead className="w-40">Started</TableHead>
-              <TableHead className="w-40">Ended</TableHead>
-              <TableHead className="w-20">Score</TableHead>
-              <TableHead className="w-24">Result</TableHead>
-              <TableHead className="w-24">Answered</TableHead>
+              <TableCell colSpan={7} className="p-section">
+                <EmptyDescription className="text-center">No attempts yet</EmptyDescription>
+              </TableCell>
             </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="p-section">
-                  <EmptyDescription className="text-center">No attempts yet</EmptyDescription>
-                </TableCell>
-              </TableRow>
-            ) : (
-              rows.map((r) => <AttemptRow key={r.sessionId} row={r} />)
-            )}
-          </TableBody>
-        </Table>
-      </div>
+          ) : (
+            rows.map((r) => <AttemptRow key={r.sessionId} row={r} />)
+          )}
+        </TableBody>
+      </Table>
 
       <PaginationBar
         page={page}

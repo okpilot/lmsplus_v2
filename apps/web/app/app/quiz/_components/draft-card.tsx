@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
+import { Card, CardContent } from '@/components/ui/card'
 import { FieldError } from '@/components/ui/field-error'
 import { deleteDraftAndRefresh } from '../actions/discard-and-refresh'
 import { resumeQuizSession } from '../actions/resume'
@@ -80,36 +81,38 @@ export function DraftCard({ draft }: Readonly<{ draft: DraftData }>) {
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4 space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium">{subjectLabel}</p>
-          {dateLabel && <p className="text-xs text-muted-foreground">Saved {dateLabel}</p>}
+    <Card data-testid="draft-card">
+      <CardContent className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium">{subjectLabel}</p>
+            {dateLabel && <p className="text-xs text-muted-foreground">Saved {dateLabel}</p>}
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <button
+              type="button"
+              data-testid="resume-draft"
+              onClick={handleResume}
+              disabled={resuming}
+              aria-busy={resuming || undefined}
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+            >
+              {resuming ? 'Resuming...' : 'Resume'}
+            </button>
+            <button
+              type="button"
+              data-testid="delete-draft"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
+            >
+              {deleting ? 'Deleting...' : 'Delete'}
+            </button>
+          </div>
         </div>
-        <div className="flex shrink-0 gap-2">
-          <button
-            type="button"
-            data-testid="resume-draft"
-            onClick={handleResume}
-            disabled={resuming}
-            aria-busy={resuming || undefined}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-          >
-            {resuming ? 'Resuming...' : 'Resume'}
-          </button>
-          <button
-            type="button"
-            data-testid="delete-draft"
-            onClick={handleDelete}
-            disabled={deleting}
-            className="rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
-          >
-            {deleting ? 'Deleting...' : 'Delete'}
-          </button>
-        </div>
-      </div>
-      <SavedSessionProgress answered={answeredCount} total={totalCount} />
-      <FieldError>{error}</FieldError>
-    </div>
+        <SavedSessionProgress answered={answeredCount} total={totalCount} />
+        <FieldError>{error}</FieldError>
+      </CardContent>
+    </Card>
   )
 }

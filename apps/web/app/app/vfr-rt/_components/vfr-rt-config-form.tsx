@@ -3,6 +3,7 @@
 import { ModeToggle } from '@/app/app/quiz/_components/mode-toggle'
 import { QuestionFilters } from '@/app/app/quiz/_components/question-filters'
 import { useQuizConfig } from '@/app/app/quiz/_hooks/use-quiz-config'
+import { Card, CardContent } from '@/components/ui/card'
 import type { SubjectOption, TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
 import { VfrRtExamPanel } from './vfr-rt-exam-panel'
 import { VfrRtPracticeSections } from './vfr-rt-practice-sections'
@@ -41,26 +42,28 @@ export function VfrRtConfigForm({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-border bg-card p-6 space-y-5">
-        <ModeToggle
-          value={config.mode}
-          onValueChange={config.setMode}
-          examAvailable={exam.available}
-          discoveryAvailable={false}
-        />
-        {!isExam && (
-          <QuestionFilters
-            value={config.filters}
-            onValueChange={config.setFilters}
-            calcMode={config.calcMode}
-            onCalcModeChange={config.setCalcMode}
-            imageMode={config.imageMode}
-            onImageModeChange={config.setImageMode}
-            unseenLabel="Unanswered"
-            showCalcImageToggles={false}
+      <Card>
+        <CardContent className="space-y-5">
+          <ModeToggle
+            value={config.mode}
+            onValueChange={config.setMode}
+            examAvailable={exam.available}
+            discoveryAvailable={false}
           />
-        )}
-      </div>
+          {!isExam && (
+            <QuestionFilters
+              value={config.filters}
+              onValueChange={config.setFilters}
+              calcMode={config.calcMode}
+              onCalcModeChange={config.setCalcMode}
+              imageMode={config.imageMode}
+              onImageModeChange={config.setImageMode}
+              unseenLabel="Unanswered"
+              showCalcImageToggles={false}
+            />
+          )}
+        </CardContent>
+      </Card>
 
       {isExam && (
         <VfrRtExamPanel

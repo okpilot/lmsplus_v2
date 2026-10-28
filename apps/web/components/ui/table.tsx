@@ -6,7 +6,10 @@ import { cn } from '@/lib/utils'
 
 function Table({ className, ...props }: Readonly<React.ComponentProps<'table'>>) {
   return (
-    <div data-slot="table-container" className="relative w-full overflow-x-auto">
+    <div
+      data-slot="table-container"
+      className="relative w-full overflow-x-auto rounded-card border border-border bg-card"
+    >
       <table
         data-slot="table"
         className={cn('w-full caption-bottom text-sm', className)}
@@ -17,7 +20,13 @@ function Table({ className, ...props }: Readonly<React.ComponentProps<'table'>>)
 }
 
 function TableHeader({ className, ...props }: Readonly<React.ComponentProps<'thead'>>) {
-  return <thead data-slot="table-header" className={cn('[&_tr]:border-b', className)} {...props} />
+  return (
+    <thead
+      data-slot="table-header"
+      className={cn('bg-muted [&_tr]:border-b [&_tr]:hover:bg-transparent', className)}
+      {...props}
+    />
+  )
 }
 
 function TableBody({ className, ...props }: Readonly<React.ComponentProps<'tbody'>>) {

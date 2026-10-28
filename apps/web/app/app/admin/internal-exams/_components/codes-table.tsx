@@ -70,33 +70,31 @@ export function CodesTable({ rows, status, totalCount, pageSize }: Readonly<Prop
         </SelectContent>
       </Select>
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-24">Status</TableHead>
+            <TableHead className="min-w-[140px]">Code</TableHead>
+            <TableHead className="min-w-[160px]">Student</TableHead>
+            <TableHead className="min-w-[140px]">Subject</TableHead>
+            <TableHead className="w-40">Issued</TableHead>
+            <TableHead className="w-40">Expires</TableHead>
+            <TableHead className="w-32">Email</TableHead>
+            <TableHead className="w-24">Action</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.length === 0 ? (
             <TableRow>
-              <TableHead className="w-24">Status</TableHead>
-              <TableHead className="min-w-[140px]">Code</TableHead>
-              <TableHead className="min-w-[160px]">Student</TableHead>
-              <TableHead className="min-w-[140px]">Subject</TableHead>
-              <TableHead className="w-40">Issued</TableHead>
-              <TableHead className="w-40">Expires</TableHead>
-              <TableHead className="w-32">Email</TableHead>
-              <TableHead className="w-24">Action</TableHead>
+              <TableCell colSpan={8} className="p-section">
+                <EmptyDescription className="text-center">No codes found</EmptyDescription>
+              </TableCell>
             </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={8} className="p-section">
-                  <EmptyDescription className="text-center">No codes found</EmptyDescription>
-                </TableCell>
-              </TableRow>
-            ) : (
-              rows.map((r) => <CodeRow key={r.id} r={r} onVoid={setVoidId} />)
-            )}
-          </TableBody>
-        </Table>
-      </div>
+          ) : (
+            rows.map((r) => <CodeRow key={r.id} r={r} onVoid={setVoidId} />)
+          )}
+        </TableBody>
+      </Table>
 
       <PaginationBar
         page={page}

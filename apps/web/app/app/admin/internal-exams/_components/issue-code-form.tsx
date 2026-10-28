@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
+import { Card, CardContent } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { LoadingButton } from '@/components/ui/loading-button'
 import {
@@ -20,19 +21,10 @@ type Props = {
   onIssued: (issued: { codeId: string; code: string; expiresAt: string }) => void
 }
 
-export function IssueCodeForm({ students, subjects, onIssued }: Readonly<Props>) {
+function useIssueCode(onIssued: Props['onIssued']) {
   const [studentId, setStudentId] = useState<string>('')
   const [subjectId, setSubjectId] = useState<string>('')
   const [isPending, startTransition] = useTransition()
-
-  const studentItems = students.map((s) => ({
-    value: s.id,
-    label: s.fullName ? `${s.fullName} (${s.email})` : s.email,
-  }))
-  const subjectItems = subjects.map((s) => ({
-    value: s.id,
-    label: `${s.code} — ${s.name}`,
-  }))
 
   const canSubmit = studentId !== '' && subjectId !== ''
 
@@ -56,57 +48,103 @@ export function IssueCodeForm({ students, subjects, onIssued }: Readonly<Props>)
     })
   }
 
+  return { studentId, setStudentId, subjectId, setSubjectId, isPending, canSubmit, handleSubmit }
+}
+
+export function IssueCodeForm({ students, subjects, onIssued }: Readonly<Props>) {
+  const { studentId, setStudentId, subjectId, setSubjectId, isPending, canSubmit, handleSubmit } =
+    useIssueCode(onIssued)
+
+  const studentItems = students.map((s) => ({
+    value: s.id,
+    label: s.fullName ? `${s.fullName} (${s.email})` : s.email,
+  }))
+  const subjectItems = subjects.map((s) => ({
+    value: s.id,
+    label: `${s.code} — ${s.name}`,
+  }))
+
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="grid gap-4 rounded-lg border border-border bg-card p-4 md:grid-cols-[1fr_1fr_auto] md:items-end"
-      data-testid="issue-code-form"
-    >
-      <div className="grid gap-2">
-        <Label htmlFor="student">Student</Label>
-        <Select
-          value={studentId}
-          onValueChange={(v) => v && setStudentId(v)}
-          disabled={isPending || students.length === 0}
-          items={studentItems}
+    <Card>
+      <CardContent>
+        <form
+          onSubmit={handleSubmit}
+          className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end"
+          data-testid="issue-code-form"
         >
-          <SelectTrigger id="student" aria-label="Student" className="w-full">
-            <SelectValue placeholder="Select student" />
-          </SelectTrigger>
-          <SelectContent>
-            {studentItems.map((item) => (
-              <SelectItem key={item.value} value={item.value} label={item.label}>
-                {item.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+          <PickField
+            id="student"
+            label="Student"
+            placeholder="Select student"
+            value={studentId}
+            onChange={setStudentId}
+            disabled={isPending || students.length === 0}
+            items={studentItems}
+          />
 
-      <div className="grid gap-2">
-        <Label htmlFor="subject">Subject</Label>
-        <Select
-          value={subjectId}
-          onValueChange={(v) => v && setSubjectId(v)}
-          disabled={isPending || subjects.length === 0}
-          items={subjectItems}
-        >
-          <SelectTrigger id="subject" aria-label="Subject" className="w-full">
-            <SelectValue placeholder="Select subject" />
-          </SelectTrigger>
-          <SelectContent>
-            {subjectItems.map((item) => (
-              <SelectItem key={item.value} value={item.value} label={item.label}>
-                {item.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+          <PickField
+            id="subject"
+            label="Subject"
+            placeholder="Select subject"
+            value={subjectId}
+            onChange={setSubjectId}
+            disabled={isPending || subjects.length === 0}
+            items={subjectItems}
+          />
 
-      <LoadingButton type="submit" disabled={!canSubmit} loading={isPending} loadingText="Issuing…">
-        Issue code
-      </LoadingButton>
-    </form>
+          <LoadingButton
+            type="submit"
+            disabled={!canSubmit}
+            loading={isPending}
+            loadingText="Issuing…"
+          >
+            Issue code
+          </LoadingButton>
+        </form>
+      </CardContent>
+    </Card>
+  )
+}
+
+type PickFieldProps = {
+  id: string
+  label: string
+  placeholder: string
+  value: string
+  onChange: (value: string) => void
+  disabled: boolean
+  items: { value: string; label: string }[]
+}
+
+function PickField({
+  id,
+  label,
+  placeholder,
+  value,
+  onChange,
+  disabled,
+  items,
+}: Readonly<PickFieldProps>) {
+  return (
+    <div className="grid gap-2">
+      <Label htmlFor={id}>{label}</Label>
+      <Select
+        value={value}
+        onValueChange={(v) => v && onChange(v)}
+        disabled={disabled}
+        items={items}
+      >
+        <SelectTrigger id={id} aria-label={label} className="w-full">
+          <SelectValue placeholder={placeholder} />
+        </SelectTrigger>
+        <SelectContent>
+          {items.map((item) => (
+            <SelectItem key={item.value} value={item.value} label={item.label}>
+              {item.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   )
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { CardList } from '@/components/ui/card'
 import { EmptyNote } from '@/components/ui/empty'
 import { Meter } from '@/components/ui/meter'
 import type { SubjectDetail } from '@/lib/queries/progress'
@@ -15,11 +16,11 @@ export function SubjectBreakdown({ subjects }: Readonly<SubjectBreakdownProps>) 
   }
 
   return (
-    <div className="space-y-3">
+    <CardList>
       {subjects.map((subject) => (
         <SubjectRow key={subject.id} subject={subject} />
       ))}
-    </div>
+    </CardList>
   )
 }
 
@@ -27,11 +28,11 @@ function SubjectRow({ subject }: Readonly<{ subject: SubjectDetail }>) {
   const [expanded, setExpanded] = useState(false)
 
   return (
-    <div className="rounded-lg border border-border">
+    <div>
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center justify-between px-4 py-3 text-left"
+        className="flex w-full items-center justify-between px-4 py-3 text-left focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       >
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">

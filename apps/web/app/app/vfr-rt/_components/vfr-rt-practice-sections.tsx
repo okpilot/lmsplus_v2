@@ -3,6 +3,7 @@ import { QuestionCount } from '@/app/app/quiz/_components/question-count'
 import { StartButton } from '@/app/app/quiz/_components/start-button'
 import { TopicTree } from '@/app/app/quiz/_components/topic-tree'
 import type { useQuizConfig } from '@/app/app/quiz/_hooks/use-quiz-config'
+import { Card, CardContent } from '@/components/ui/card'
 import { FieldError } from '@/components/ui/field-error'
 
 type VfrRtPracticeSectionsProps = {
@@ -15,28 +16,32 @@ function TopicSection({ config }: Readonly<{ config: Config }>) {
   const t = config.topicTree
   return (
     <>
-      <div className="rounded-xl border border-border bg-card p-6">
-        <TopicTree
-          topics={t.topics}
-          checkedTopics={t.checkedTopics}
-          checkedSubtopics={t.checkedSubtopics}
-          onToggleTopic={t.toggleTopic}
-          onToggleSubtopic={t.toggleSubtopic}
-          onSelectAll={t.selectAll}
-          totalQuestions={t.totalQuestions}
-          allSelected={t.allSelected}
-          filteredByTopic={config.filteredByTopic}
-          filteredBySubtopic={config.filteredBySubtopic}
-          showCode={false}
-        />
-      </div>
-      <div className="rounded-xl border border-border bg-card p-6">
-        <QuestionCount
-          value={config.count}
-          max={config.availableCount}
-          onValueChange={config.setCount}
-        />
-      </div>
+      <Card>
+        <CardContent>
+          <TopicTree
+            topics={t.topics}
+            checkedTopics={t.checkedTopics}
+            checkedSubtopics={t.checkedSubtopics}
+            onToggleTopic={t.toggleTopic}
+            onToggleSubtopic={t.toggleSubtopic}
+            onSelectAll={t.selectAll}
+            totalQuestions={t.totalQuestions}
+            allSelected={t.allSelected}
+            filteredByTopic={config.filteredByTopic}
+            filteredBySubtopic={config.filteredBySubtopic}
+            showCode={false}
+          />
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent>
+          <QuestionCount
+            value={config.count}
+            max={config.availableCount}
+            onValueChange={config.setCount}
+          />
+        </CardContent>
+      </Card>
     </>
   )
 }

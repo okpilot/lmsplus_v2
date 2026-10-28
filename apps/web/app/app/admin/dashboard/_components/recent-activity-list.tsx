@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
 import { EmptyNote } from '@/components/ui/empty'
 import { Heading } from '@/components/ui/heading'
 import { getMasteryColor } from '../_lib/constants'
@@ -10,21 +11,24 @@ type Props = Readonly<{ sessions: RecentSession[] }>
 
 export function RecentActivityList({ sessions }: Readonly<Props>) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4 space-y-4">
-      <Heading level={2}>Recent Activity</Heading>
-
+    <Card>
+      <CardContent>
+        <Heading level={2}>Recent Activity</Heading>
+      </CardContent>
       {sessions.length === 0 ? (
-        <EmptyNote variant="inline" className="py-6 text-center">
-          No sessions yet.
-        </EmptyNote>
+        <CardContent>
+          <EmptyNote variant="inline" className="py-6 text-center">
+            No sessions yet.
+          </EmptyNote>
+        </CardContent>
       ) : (
-        <div className="space-y-3">
+        <div className="divide-y divide-border">
           {sessions.map((session) => (
             <ActivityRow key={session.sessionId} session={session} />
           ))}
         </div>
       )}
-    </div>
+    </Card>
   )
 }
 
@@ -32,7 +36,7 @@ function ActivityRow({ session }: Readonly<{ session: RecentSession }>) {
   return (
     <Link
       href={`/app/admin/dashboard/sessions/${session.sessionId}`}
-      className="flex w-full items-center justify-between gap-3 text-sm text-left rounded-lg px-2 py-1.5 -mx-2 transition-colors hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+      className="flex w-full items-center justify-between gap-3 text-sm text-left px-4 py-3 transition-colors hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2"
     >
       <div className="min-w-0 flex-1">
         <p className="font-medium truncate">{session.studentName ?? 'Unknown student'}</p>

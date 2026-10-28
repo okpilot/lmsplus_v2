@@ -1,4 +1,5 @@
 import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
 import { isExamMode, MODE_LABELS, type QuizMode } from '@/lib/constants/exam-modes'
 import type { QuizReportSummary } from '@/lib/queries/quiz-report-types'
 import { formatCorrectFraction } from '@/lib/utils/format-correct-fraction'
@@ -60,22 +61,24 @@ export function ResultSummary({ summary }: Readonly<Props>) {
   const statsProps = { summary, ...deriveStats(summary) }
 
   return (
-    <div className="rounded-xl border border-border bg-card p-6">
-      <div className="mb-4">
-        <p className="text-center font-semibold text-lg">
-          {isExam ? `${examLabel} Complete` : `${ctx.noun} Complete`}
-        </p>
-      </div>
-
-      {isExam && summary.passed !== null && (
-        <div className="mb-4 flex justify-center">
-          <PassFailBadge passed={summary.passed} />
+    <Card>
+      <CardContent>
+        <div className="mb-4">
+          <p className="text-center font-semibold text-lg">
+            {isExam ? `${examLabel} Complete` : `${ctx.noun} Complete`}
+          </p>
         </div>
-      )}
 
-      <DesktopStats {...statsProps} />
+        {isExam && summary.passed !== null && (
+          <div className="mb-4 flex justify-center">
+            <PassFailBadge passed={summary.passed} />
+          </div>
+        )}
 
-      <MobileStats {...statsProps} />
-    </div>
+        <DesktopStats {...statsProps} />
+
+        <MobileStats {...statsProps} />
+      </CardContent>
+    </Card>
   )
 }
