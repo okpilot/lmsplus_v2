@@ -13,6 +13,13 @@ describe('PasswordToggle', () => {
     expect(container.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
   })
 
+  it('centres without a translate so the pressed nudge cannot un-centre it', () => {
+    render(<PasswordToggle shown={false} onToggle={vi.fn()} />)
+    const btn = screen.getByRole('button', { name: 'Show password' })
+    expect(btn).toHaveClass('inset-y-0', 'my-auto')
+    expect(btn.className).not.toContain('-translate-y-1/2')
+  })
+
   it('labels "Hide password" with aria-pressed true when shown', () => {
     render(<PasswordToggle shown onToggle={vi.fn()} />)
     expect(screen.getByRole('button', { name: 'Hide password' })).toHaveAttribute(

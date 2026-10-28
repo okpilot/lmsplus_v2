@@ -153,10 +153,7 @@
         "apps/web/app/app/quiz/session/_components/diagram-label-chip.tsx",
         "apps/web/app/app/quiz/session/_components/keyboard-legend.tsx",
         "apps/web/app/app/quiz/session/_components/ordering-input-item.tsx",
-        "apps/web/app/app/settings/_components/change-password-form.tsx",
         "apps/web/app/auth/forgot-password/_components/recovery-code-form.tsx",
-        "apps/web/app/_components/login-form.tsx",
-        "apps/web/components/auth/new-password-fields.tsx",
         "apps/web/components/sortable-table-head.tsx"
       ],
       "linter": {

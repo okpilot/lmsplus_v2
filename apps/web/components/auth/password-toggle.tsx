@@ -24,7 +24,7 @@ export function PasswordToggle({
       onClick={onToggle}
       aria-label={`${shown ? 'Hide' : 'Show'} ${label}`}
       aria-pressed={shown}
-      className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+      className="absolute inset-y-0 right-1.5 my-auto text-muted-foreground"
     >
       <Icon aria-hidden="true" />
     </Button>
