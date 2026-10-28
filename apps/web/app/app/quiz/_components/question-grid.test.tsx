@@ -106,10 +106,15 @@ describe('QuestionGrid — desktop', () => {
     expect(desktopBtn(3).className).toContain('text-muted-foreground')
   })
 
-  it('reads a current square in seenIds as answered with the ring', () => {
+  it('reads the current Discovery square as unseen with the ring while the student is on it', () => {
     renderGrid({ currentIndex: 1, seenIds: new Set([1, 2]) })
-    expect(desktopBtn(1)).toHaveAttribute('data-status', 'answered')
+    expect(desktopBtn(1)).toHaveAttribute('data-status', 'unseen')
     expect(desktopBtn(1).className).toContain('ring-primary')
+  })
+
+  it('reads a Discovery square as answered once the student has moved on', () => {
+    renderGrid({ currentIndex: 2, seenIds: new Set([1, 2]) })
+    expect(desktopBtn(1)).toHaveAttribute('data-status', 'answered')
   })
 
   it('calls onNavigate with correct index when clicked', () => {

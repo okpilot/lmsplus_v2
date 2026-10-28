@@ -25,9 +25,13 @@ const STATUS_CLASS: Record<SquareStatus, string> = {
   wrong: 'bg-danger-soft text-danger',
 }
 
+export function getSquareClassFor(status: SquareStatus, isCurrent: boolean) {
+  const base = STATUS_CLASS[status]
+  return isCurrent ? `${base} ring-2 ring-primary` : base
+}
+
 export function getSquareClass(opts: SquareOpts) {
-  const base = STATUS_CLASS[getSquareStatus(opts)]
-  return opts.isCurrent ? `${base} ring-2 ring-primary` : base
+  return getSquareClassFor(getSquareStatus(opts), opts.isCurrent)
 }
 
 function FilterPill({

@@ -59,12 +59,15 @@ function getOptionStyle(opts: {
   return { card: 'border-border bg-card hover:border-primary/40', circle: 'border border-current' }
 }
 
-function ResultMark({ result }: Readonly<{ result?: 'correct' | 'wrong' }>) {
+function ResultMark({
+  result,
+  picked,
+}: Readonly<{ result?: 'correct' | 'wrong'; picked: boolean }>) {
   if (result === 'correct')
     return (
       <>
         <Check aria-hidden className="ml-auto size-4 shrink-0 text-success" />
-        <span className="sr-only">Correct answer</span>
+        <span className="sr-only">{picked ? 'Your answer, correct' : 'Correct answer'}</span>
       </>
     )
   if (result === 'wrong')
@@ -134,7 +137,7 @@ export function AnswerOptions({
               {LETTERS[index] ?? String(index + 1)}
             </span>
             <span>{option.text}</span>
-            <ResultMark result={result} />
+            <ResultMark result={result} picked={option.id === lockedSelection} />
           </button>
         )
       })}

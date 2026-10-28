@@ -584,6 +584,20 @@ describe('AnswerOptions', () => {
       expect(sr?.textContent).toBe('Your answer, incorrect')
     })
 
+    it('adds sr-only "Your answer, correct" when the student picked the correct option', () => {
+      render(
+        <AnswerOptions
+          options={OPTIONS}
+          onSubmit={vi.fn()}
+          disabled={true}
+          selectedOptionId="b"
+          correctOptionId="b"
+        />,
+      )
+      const sr = screen.getByTestId('option-b').querySelector('.sr-only')
+      expect(sr?.textContent).toBe('Your answer, correct')
+    })
+
     it('adds no sr-only result text to a neutral option', () => {
       renderResult()
       expect(screen.getByTestId('option-c').querySelector('.sr-only')).toBeNull()

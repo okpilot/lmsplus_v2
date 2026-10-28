@@ -197,6 +197,7 @@ describe('ShortAnswerInput result borders', () => {
     const cls = screen.getByTestId('short-answer-input').className
     expect(cls).toContain('border-success')
     expectNoTint(cls)
+    expect(cls).not.toContain('disabled:opacity-70')
   })
 
   it('uses border-danger without a tint when graded wrong', () => {
@@ -212,5 +213,10 @@ describe('ShortAnswerInput result borders', () => {
     const cls = screen.getByTestId('short-answer-input').className
     expect(cls).toContain('border-danger')
     expectNoTint(cls)
+  })
+
+  it('dims the locked field only while grading is pending', () => {
+    render(<ShortAnswerInput onSubmit={vi.fn()} disabled={false} submittedText="go around" />)
+    expect(screen.getByTestId('short-answer-input').className).toContain('disabled:opacity-70')
   })
 })
