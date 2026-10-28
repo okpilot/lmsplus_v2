@@ -19,7 +19,7 @@ const sheetTone = (on: boolean) => (on ? NAV_ACTIVE : 'font-normal text-muted-fo
 const moreTone = (on: boolean) =>
   on
     ? 'font-medium text-primary-text hover:text-primary-text aria-expanded:text-primary-text'
-    : 'text-muted-foreground hover:text-muted-foreground'
+    : 'font-normal text-muted-foreground hover:text-muted-foreground'
 
 function MoreIcon() {
   return (
@@ -75,7 +75,7 @@ export function MoreBackdrop({ onDismiss }: Readonly<{ onDismiss: () => void }>)
     <Button
       variant="ghost"
       aria-label="Close menu"
-      className="fixed inset-0 z-scrim size-auto cursor-default rounded-none bg-foreground/10 md:hidden"
+      className="fixed inset-0 z-scrim size-auto cursor-default rounded-none bg-foreground/10 hover:bg-foreground/10 md:hidden dark:hover:bg-foreground/10"
       onClick={onDismiss}
     />
   )

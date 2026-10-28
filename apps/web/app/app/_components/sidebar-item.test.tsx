@@ -24,6 +24,14 @@ describe('SidebarItem', () => {
     expect(link.className).not.toContain('bg-primary/10')
     expect(link.className).not.toContain('text-foreground/65')
     expect(link.querySelector('.opacity-70')).toBeNull()
+    expect(link.className).toContain('hover:bg-muted')
+    expect(link.className).not.toContain('dark:hover:bg-muted')
+  })
+
+  it('renders the icon directly inside the link', () => {
+    render(<SidebarItem item={ITEM} active={false} />)
+    const link = screen.getByRole('link', { name: 'Quiz' })
+    expect(link.querySelector('svg')?.parentElement).toBe(link)
   })
 
   it('renders a 36px caption row with an 18px icon', () => {
@@ -54,6 +62,7 @@ describe('RowIcon', () => {
 
   it('renders an 18px icon without opacity', () => {
     const { container } = render(<RowIcon paths={['M0 0']} />)
+    expect(container.querySelector('svg')?.parentElement).toBe(container)
     expect(container.querySelector('svg')?.getAttribute('class')).toContain('size-[18px]')
     expect(container.querySelector('.opacity-70')).toBeNull()
   })

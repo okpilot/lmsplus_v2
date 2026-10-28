@@ -131,10 +131,7 @@ describe('BottomTabBar', () => {
         'href',
         '/app/settings',
       )
-      expect(more).toHaveAttribute(
-        'aria-controls',
-        document.querySelector('#bottom-more-sheet')?.id,
-      )
+      expect(more).toHaveAttribute('aria-controls', 'bottom-more-sheet')
     })
 
     it('layers the backdrop below the tab bar and sheet, above page content', async () => {
@@ -145,10 +142,20 @@ describe('BottomTabBar', () => {
       const sheet = document.querySelector('#bottom-more-sheet') as HTMLElement
       expect(backdrop.className).toContain('z-scrim')
       expect(backdrop.className).toContain('md:hidden')
+      expect(backdrop.className).not.toContain('hover:bg-muted')
+      expect(backdrop.className).not.toContain('dark:hover:bg-muted/50')
       expect(nav.compareDocumentPosition(backdrop) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
       expect(
         backdrop.compareDocumentPosition(sheet) & Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy()
+    })
+
+    it('sets font-normal on an inactive More button only', async () => {
+      narrow(320)
+      const more = screen.getByRole('button', { name: 'More' })
+      expect(more.className).toContain('font-normal')
+      await userEvent.setup({ delay: null }).click(more)
+      expect(more.className).not.toContain('font-normal')
     })
 
     it('closes the sheet on Escape', async () => {
