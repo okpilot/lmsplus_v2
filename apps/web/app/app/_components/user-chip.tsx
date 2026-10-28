@@ -9,8 +9,8 @@ export function initials(name: string): string {
 function UserChipPlaceholder() {
   return (
     <div className="flex items-center gap-1 rounded-xl px-1 py-2">
-      <span aria-hidden="true" className="size-7 shrink-0 rounded-full bg-foreground/10" />
-      <span aria-hidden="true" className="h-3 w-20 rounded bg-foreground/10" />
+      <span aria-hidden="true" className="size-7 shrink-0 rounded-full bg-muted" />
+      <span aria-hidden="true" className="h-3 w-20 rounded bg-muted" />
       <span className="sr-only">Loading account</span>
     </div>
   )
@@ -22,11 +22,11 @@ export function UserChip({ displayName }: Readonly<{ displayName: string | null 
     <div className="flex items-center gap-1 rounded-xl px-1 py-2">
       <span
         aria-hidden="true"
-        className="flex size-7 shrink-0 items-center justify-center rounded-full bg-foreground text-[11px] font-semibold text-background"
+        className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground"
       >
         {initials(displayName)}
       </span>
-      <span className="min-w-0 truncate text-[13px] font-medium">{displayName}</span>
+      <span className="min-w-0 truncate text-caption font-medium">{displayName}</span>
     </div>
   )
 }

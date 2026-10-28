@@ -84,6 +84,23 @@ describe('BottomTabBar', () => {
     expect(screen.getByRole('link', { name: 'Dashboard' }).className).not.toContain('font-medium')
   })
 
+  it('tints the active tab blue and leaves inactive tabs grey', () => {
+    mockUsePathname.mockReturnValue('/app/quiz')
+    renderMeasured(1000)
+    const active = screen.getByRole('link', { name: 'Quiz' }).className
+    const inactive = screen.getByRole('link', { name: 'Dashboard' }).className
+    expect(active).toContain('text-primary-text')
+    expect(inactive).toContain('text-muted-foreground')
+    expect(inactive).not.toContain('text-foreground/55')
+  })
+
+  it('uses the border token for the tab strip', () => {
+    renderMeasured(1000)
+    const cls = screen.getByRole('navigation').className
+    expect(cls).toContain('border-border')
+    expect(cls).not.toContain('border-foreground/')
+  })
+
   it('links point to correct routes', () => {
     renderMeasured(1000)
     expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute(
@@ -245,14 +262,51 @@ describe('BottomTabBar', () => {
     it('marks More as active when the current page is in the sheet', () => {
       mockUsePathname.mockReturnValue('/app/settings')
       narrow(320)
-      expect(screen.getByRole('button', { name: 'More' }).className).not.toContain(
-        'text-foreground/55',
-      )
+      const cls = screen.getByRole('button', { name: 'More' }).className
+      expect(cls).toContain('text-primary-text')
+      expect(cls).toContain('font-medium')
+      expect(cls).not.toContain('text-foreground/55')
+    })
+
+    it('marks More as active while the sheet is open', async () => {
+      narrow(320)
+      const more = screen.getByRole('button', { name: 'More' })
+      await userEvent.setup({ delay: null }).click(more)
+      expect(more.className).toContain('text-primary-text')
     })
 
     it('leaves More inactive when the current page is visible', () => {
       narrow(320)
-      expect(screen.getByRole('button', { name: 'More' }).className).toContain('text-foreground/55')
+      const cls = screen.getByRole('button', { name: 'More' }).className
+      expect(cls).toContain('text-muted-foreground')
+      expect(cls).not.toContain('text-foreground/55')
+    })
+
+    it('fills the active sheet row blue at label size', async () => {
+      mockUsePathname.mockReturnValue('/app/settings')
+      narrow(320)
+      await userEvent.setup({ delay: null }).click(screen.getByRole('button', { name: 'More' }))
+      const cls = screen.getByRole('link', { name: 'Settings' }).className
+      expect(cls).toContain('bg-primary/10')
+      expect(cls).toContain('text-primary-text')
+      expect(cls).toContain('text-label')
+    })
+
+    it('renders inactive sheet rows grey without a fill', async () => {
+      narrow(320)
+      await userEvent.setup({ delay: null }).click(screen.getByRole('button', { name: 'More' }))
+      const cls = screen.getByRole('link', { name: 'Settings' }).className
+      expect(cls).toContain('text-muted-foreground')
+      expect(cls).toContain('text-label')
+      expect(cls).not.toContain('bg-primary/10')
+    })
+
+    it('uses the border token for the sheet', async () => {
+      narrow(320)
+      await userEvent.setup({ delay: null }).click(screen.getByRole('button', { name: 'More' }))
+      const cls = (document.querySelector('ul') as HTMLElement).className
+      expect(cls).toContain('border-border')
+      expect(cls).not.toContain('border-foreground/')
     })
   })
 })

@@ -9,7 +9,11 @@ import type { NavItem } from './nav-items'
 const SHEET_ID = 'bottom-more-sheet'
 export const SLOT =
   'flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 text-[11px]'
-export const tone = (on: boolean) => (on ? 'font-medium text-foreground' : 'text-foreground/55')
+export const tone = (on: boolean) =>
+  on ? 'font-medium text-primary-text' : 'text-muted-foreground'
+
+const sheetTone = (on: boolean) =>
+  on ? 'bg-primary/10 font-medium text-primary-text' : 'font-normal text-muted-foreground'
 
 function MoreIcon() {
   return (
@@ -39,7 +43,7 @@ export function MoreSheet({ hidden, activeHref, onClose }: Readonly<SheetProps>)
       <ul
         ref={listRef}
         id={SHEET_ID}
-        className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-nav rounded-t-2xl border-t border-foreground/[0.06] bg-card px-2 py-2"
+        className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-nav rounded-t-2xl border-t border-border bg-card px-2 py-2"
       >
         {hidden.map((item) => (
           <li key={item.href}>
@@ -47,7 +51,7 @@ export function MoreSheet({ hidden, activeHref, onClose }: Readonly<SheetProps>)
               href={item.href}
               aria-current={item.href === activeHref ? 'page' : undefined}
               onClick={onClose}
-              className={`flex h-11 items-center gap-3 rounded-lg px-3 text-sm ${tone(item.href === activeHref)}`}
+              className={`flex h-11 items-center gap-3 rounded-lg px-3 text-label ${sheetTone(item.href === activeHref)}`}
             >
               {item.icon && <NavIcon name={item.icon} className="size-5" />}
               <span className="truncate">{item.label}</span>

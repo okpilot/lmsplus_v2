@@ -37,4 +37,9 @@ describe('ThemeRow', () => {
     renderRow('light')
     expect(mockSetTheme).not.toHaveBeenCalled()
   })
+
+  it('keeps the 36px row height over the Button size class', () => {
+    renderRow('light')
+    expect(screen.getByRole('button', { name: 'Dark mode' }).className).toContain('h-9')
+  })
 })
