@@ -2,7 +2,7 @@
 
 import { BlockedStartAlert } from '@/app/app/quiz/_components/blocked-start-alert'
 import { StartButton } from '@/app/app/quiz/_components/start-button'
-import { InsetPanel } from '@/components/kit/inset-panel'
+import { Card, CardContent } from '@/components/ui/card'
 import { Heading } from '@/components/ui/heading'
 import { Stat, StatGroup } from '@/components/ui/stat'
 import type { SubjectOption } from '@/lib/queries/quiz-query-types'
@@ -28,14 +28,16 @@ function ExamParameters({ questionCount }: Readonly<{ questionCount: number | nu
       ? PARAMETERS
       : [{ value: String(questionCount), label: 'Questions' }, ...PARAMETERS]
   return (
-    <InsetPanel className="space-y-stack">
-      <Heading level={3}>VFR RT Mock Exam Parameters</Heading>
-      <StatGroup columns={parameters.length === 4 ? 4 : 3}>
-        {parameters.map((p) => (
-          <Stat variant="plain" size="compact" key={p.label} label={p.label} value={p.value} />
-        ))}
-      </StatGroup>
-    </InsetPanel>
+    <Card>
+      <CardContent className="space-y-stack">
+        <Heading level={3}>VFR RT Mock Exam Parameters</Heading>
+        <StatGroup columns={parameters.length === 4 ? 4 : 3}>
+          {parameters.map((p) => (
+            <Stat variant="plain" size="compact" key={p.label} label={p.label} value={p.value} />
+          ))}
+        </StatGroup>
+      </CardContent>
+    </Card>
   )
 }
 

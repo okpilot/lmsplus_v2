@@ -24,7 +24,7 @@ type StudentRowProps = Readonly<{
 export function StudentRow({ student, onClick }: Readonly<StudentRowProps>) {
   return (
     <TableRow
-      className={`cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring${student.isActive ? '' : ' opacity-60'}`}
+      className={`cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring${student.isActive ? '' : ' opacity-60'}`}
       tabIndex={0}
       onClick={onClick}
       onKeyDown={(e: React.KeyboardEvent) => {

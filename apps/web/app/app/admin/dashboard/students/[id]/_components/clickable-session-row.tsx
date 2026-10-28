@@ -13,7 +13,7 @@ export function ClickableSessionRow({ session: s }: Readonly<{ session: StudentS
   return (
     <TableRow
       tabIndex={0}
-      className="cursor-pointer hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+      className="cursor-pointer hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
       onClick={navigate}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {

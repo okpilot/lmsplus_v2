@@ -76,7 +76,7 @@ function ReportRow({ row: r }: Readonly<{ row: InternalExamHistoryEntry }>) {
           navigate()
         }
       }}
-      className="cursor-pointer hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+      className="cursor-pointer hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
     >
       <TableCell>
         <Link
