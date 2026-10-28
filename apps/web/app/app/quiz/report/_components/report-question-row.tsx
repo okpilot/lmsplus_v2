@@ -71,9 +71,8 @@ export function ReportQuestionRow({
                   disabled={isFlagToggling}
                 >
                   <Flag
-                    size={14}
                     aria-hidden
-                    className={isFlagged ? 'fill-caution text-caution' : undefined}
+                    className={isFlagged ? 'size-3.5 fill-caution text-caution' : 'size-3.5'}
                   />
                 </Button>
               )}
@@ -100,6 +99,7 @@ export function ReportQuestionRow({
                 type="button"
                 variant="link"
                 size="sm"
+                className="h-auto px-0"
                 onClick={() => setExpanded((prev) => !prev)}
                 aria-expanded={expanded}
               >

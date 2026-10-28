@@ -1,6 +1,11 @@
 import { buttonVariants } from '@/components/ui/button-variants'
 import { Skeleton } from '@/components/ui/skeleton'
+import { cn } from '@/lib/utils'
 
+const NAV_PLACEHOLDER_CLASS = cn(
+  buttonVariants({ variant: 'outline' }),
+  'pointer-events-none text-muted-foreground',
+)
 const OPTION_PLACEHOLDER_KEYS = ['a', 'b', 'c', 'd'] as const
 
 export default function QuizSessionLoading() {
@@ -25,8 +30,8 @@ export default function QuizSessionLoading() {
       >
         <div className="mx-auto max-w-3xl">
           <div className="flex items-center justify-between py-3">
-            <span className={buttonVariants({ variant: 'outline' })}>‹ Previous</span>
-            <span className={buttonVariants({ variant: 'outline' })}>Next ›</span>
+            <span className={NAV_PLACEHOLDER_CLASS}>‹ Previous</span>
+            <span className={NAV_PLACEHOLDER_CLASS}>Next ›</span>
           </div>
         </div>
       </div>

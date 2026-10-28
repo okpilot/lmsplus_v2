@@ -16,7 +16,7 @@ export const buttonVariants = cva(
           'bg-destructive text-destructive-foreground hover:bg-destructive/90 focus-visible:border-destructive focus-visible:ring-destructive',
         caution: 'bg-caution-solid text-caution-foreground hover:bg-caution-solid/90',
         toggle:
-          'text-muted-foreground hover:bg-muted hover:text-foreground aria-pressed:border-primary aria-pressed:bg-card aria-pressed:text-primary-text',
+          'text-muted-foreground hover:bg-muted hover:text-foreground aria-pressed:border-primary aria-pressed:bg-card aria-pressed:text-primary-text aria-pressed:hover:bg-muted',
         link: 'text-primary-text underline underline-offset-4 hover:opacity-80',
       },
       size: {

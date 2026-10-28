@@ -32,6 +32,7 @@ export function HeatmapHeader({
           variant="ghost"
           size="icon-sm"
           type="button"
+          className="text-muted-foreground"
           onClick={onBack}
           disabled={atMinOffset}
           aria-label="Previous month"
@@ -48,6 +49,7 @@ export function HeatmapHeader({
           variant="ghost"
           size="icon-sm"
           type="button"
+          className="text-muted-foreground"
           onClick={onForward}
           disabled={isCurrentMonth}
           aria-label="Next month"

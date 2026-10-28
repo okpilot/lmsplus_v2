@@ -46,7 +46,7 @@ export function TopicRow({
           {isExpanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
         </Button>
       ) : (
-        !indented && <span className="w-5" />
+        !indented && <span className="w-7" />
       )}
       <Checkbox checked={checked} onCheckedChange={(c) => onCheckedChange(c === true)} />
       <span className={`flex-1 text-sm ${checked ? 'text-foreground' : 'text-muted-foreground'}`}>
