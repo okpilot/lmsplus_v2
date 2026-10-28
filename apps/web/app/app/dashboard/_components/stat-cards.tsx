@@ -1,5 +1,6 @@
-import { Meter, type StatusTone } from '@/components/ui/meter'
+import { Meter, type MeterTone } from '@/components/ui/meter'
 import { Stat, StatGroup } from '@/components/ui/stat'
+import { goalMeterTone } from '@/lib/utils/mastery-tone'
 import { DAILY_GOAL, progressTone, readinessTone, STREAK_TARGET } from '../_lib/tile-tones'
 import { TileLabel } from './tile-label'
 
@@ -10,10 +11,9 @@ type StatCardsProps = {
   bestStreak: number
 }
 
-const READINESS_TIP =
-  'Percentage of subjects where your mastery is 90% or above. Red: below 31%, amber: 31–70%, green: 71%+.'
-const TODAY_TIP = `Questions answered today towards your daily goal of ${DAILY_GOAL}. Red: none yet, amber: in progress, green: goal reached.`
-const STREAK_TIP = `Consecutive days with at least one question answered. Red: streak broken, amber: 1–${STREAK_TARGET - 1} days, green: ${STREAK_TARGET}+ days.`
+const READINESS_TIP = 'Percentage of subjects where your mastery is 90% or above. Green: 90%+.'
+const TODAY_TIP = `Questions answered today towards your daily goal of ${DAILY_GOAL}.  Green: goal reached.`
+const STREAK_TIP = `Consecutive days with at least one question answered. Green: ${STREAK_TARGET}+ days.`
 const TILE_PADDING = 'px-3 md:px-card'
 const HINT_CLASS = 'hidden md:flex md:flex-col'
 
@@ -80,7 +80,7 @@ function TodayTile({ questionsToday }: Readonly<{ questionsToday: number }>) {
       hintClassName={HINT_CLASS}
       hint={
         <>
-          <DailyGoalBar progress={progress} tone={tone} />
+          <DailyGoalBar progress={progress} tone={goalMeterTone(questionsToday, DAILY_GOAL)} />
           <span className="block">
             {remaining > 0 ? `${remaining} more to hit your daily goal` : 'Daily goal reached!'}
           </span>
@@ -111,13 +111,13 @@ function StreakTile({
   )
 }
 
-function DailyGoalBar({ progress, tone }: Readonly<{ progress: number; tone: StatusTone }>) {
+function DailyGoalBar({ progress, tone }: Readonly<{ progress: number; tone: MeterTone }>) {
   return (
     <Meter
       value={progress}
       tone={tone}
       label="Daily goal progress"
-      className="mt-1 h-1.5 max-w-[120px]"
+      className="mt-1 max-w-[120px]"
     />
   )
 }

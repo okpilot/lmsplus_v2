@@ -15,3 +15,16 @@ describe('AlertDialog', () => {
     expect(screen.getByRole('alertdialog').className).toContain('bg-popover')
   })
 })
+
+describe('AlertDialog elevation', () => {
+  it('floats with a shadow', () => {
+    render(
+      <AlertDialog open>
+        <AlertDialogContent>
+          <AlertDialogTitle>Discard draft?</AlertDialogTitle>
+        </AlertDialogContent>
+      </AlertDialog>,
+    )
+    expect(screen.getByRole('alertdialog')).toHaveClass('shadow-lg')
+  })
+})

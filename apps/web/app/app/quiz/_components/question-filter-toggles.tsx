@@ -81,7 +81,7 @@ function FilterHint({ hint, label }: Readonly<{ hint: string; label: string }>) 
       {open && (
         <span
           aria-hidden
-          className="absolute bottom-full left-1/2 z-dropdown mb-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-foreground px-2.5 py-1.5 text-xs text-background shadow-md"
+          className="absolute bottom-full left-1/2 z-dropdown mb-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-popover px-2.5 py-1.5 text-xs text-popover-foreground ring-1 ring-border shadow-lg"
         >
           {hint}
         </span>

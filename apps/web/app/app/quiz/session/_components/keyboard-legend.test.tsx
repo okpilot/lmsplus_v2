@@ -109,3 +109,19 @@ describe('KeyboardLegend', () => {
     expect(btn).toHaveAttribute('aria-expanded', 'true')
   })
 })
+
+describe('KeyboardLegend surfaces', () => {
+  it('floats the popover with a ring and shadow and no border', () => {
+    render(<KeyboardLegend />)
+    fireEvent.click(screen.getByRole('button', { name: 'Keyboard shortcuts' }))
+    const el = screen.getByRole('dialog')
+    expect(el).toHaveClass('ring-1', 'shadow-lg')
+    expect(el.className).not.toMatch(/(^|\s)border(\s|$)/)
+  })
+
+  it('gives each key a bottom key edge', () => {
+    render(<KeyboardLegend />)
+    fireEvent.click(screen.getByRole('button', { name: 'Keyboard shortcuts' }))
+    expect(screen.getByText('Enter')).toHaveClass('border-b-2')
+  })
+})

@@ -65,14 +65,14 @@ export function KeyboardLegend({ isExam = false }: Readonly<{ isExam?: boolean }
           <div
             role="dialog"
             aria-label="Keyboard shortcuts"
-            className="absolute right-0 top-full z-dropdown mt-2 w-60 rounded-lg border border-border bg-background p-3 shadow-md"
+            className="absolute right-0 top-full z-dropdown mt-2 w-60 rounded-lg bg-popover p-3 ring-1 ring-border shadow-lg"
           >
             <p className="mb-2 text-xs font-medium">Keyboard shortcuts</p>
             <ul className="space-y-1.5">
               {shortcuts.map((s) => (
                 <li key={s.action} className="flex items-center justify-between gap-3 text-xs">
                   <span className="text-muted-foreground">{s.action}</span>
-                  <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-medium text-[11px]">
+                  <kbd className="rounded-sm border-b-2 border-border bg-muted px-1.5 py-0.5 font-medium text-[11px]">
                     {s.keys}
                   </kbd>
                 </li>

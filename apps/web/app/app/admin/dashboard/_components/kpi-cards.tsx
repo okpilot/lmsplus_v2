@@ -1,6 +1,6 @@
 import { EmptyNote } from '@/components/ui/empty'
 import { Stat, StatGroup } from '@/components/ui/stat'
-import { getMasteryTone } from '../_lib/constants'
+import { MASTERY_GOAL } from '@/lib/utils/mastery-tone'
 import type { DashboardKpis, TimeRange } from '../types'
 
 type Props = Readonly<{ data: DashboardKpis; range: TimeRange }>
@@ -31,7 +31,7 @@ export function KpiCards({ data, range }: Readonly<Props>) {
         label="Avg Mastery"
         value={`${data.avgMastery}%`}
         hint="across all subjects"
-        tone={getMasteryTone(data.avgMastery)}
+        tone={data.avgMastery >= MASTERY_GOAL ? 'success' : undefined}
       />
       <Stat
         label="Sessions This Period"
@@ -48,7 +48,9 @@ export function KpiCards({ data, range }: Readonly<Props>) {
             : `${data.weakestSubject.avgMastery}% avg mastery`
         }
         tone={
-          data.weakestSubject === null ? undefined : getMasteryTone(data.weakestSubject.avgMastery)
+          data.weakestSubject !== null && data.weakestSubject.avgMastery >= MASTERY_GOAL
+            ? 'success'
+            : undefined
         }
       />
       <Stat

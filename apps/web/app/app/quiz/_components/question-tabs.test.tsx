@@ -40,4 +40,17 @@ describe('QuestionTabs', () => {
     await user.click(screen.getByRole('tab', { name: 'Stats' }))
     expect(onTabChange).toHaveBeenCalledWith('statistics')
   })
+
+  it('places the tabs inside a tablist', () => {
+    render(<QuestionTabs activeTab="question" onTabChange={vi.fn()} />)
+    const tab = screen.getByRole('tab', { name: 'Question' })
+    expect(tab.closest('[role="tablist"]')).not.toBeNull()
+  })
+
+  it('styles the active tab with the shared segmented look', () => {
+    render(<QuestionTabs activeTab="statistics" onTabChange={vi.fn()} />)
+    const tab = screen.getByRole('tab', { name: 'Stats' })
+    expect(tab).toHaveAttribute('data-active')
+    expect(tab).toHaveClass('data-active:bg-card', 'data-active:border-primary')
+  })
 })

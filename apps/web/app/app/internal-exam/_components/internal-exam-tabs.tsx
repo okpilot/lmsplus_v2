@@ -1,7 +1,8 @@
 'use client'
 
 import { useSearchParams } from 'next/navigation'
-import { type KeyboardEvent, useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { TabCount, Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
 import type { AvailableInternalExam, InternalExamHistoryEntry } from '../queries'
 import { AvailableTab } from './available-tab'
 import { MyReportsTab } from './my-reports-tab'
@@ -13,13 +14,10 @@ type Props = {
 
 type TabKey = 'available' | 'reports'
 
-const TAB_ORDER: TabKey[] = ['available', 'reports']
-
 function readTabParam(value: string | null): TabKey {
   return value === 'reports' ? 'reports' : 'available'
 }
 
-// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function InternalExamTabs({ available, history }: Readonly<Props>) {
   const searchParams = useSearchParams()
   const tabParam = searchParams.get('tab')
@@ -28,106 +26,30 @@ export function InternalExamTabs({ available, history }: Readonly<Props>) {
   useEffect(() => {
     setTab(readTabParam(tabParam))
   }, [tabParam])
-  const tablistRef = useRef<HTMLDivElement | null>(null)
-
-  function focusTab(key: TabKey) {
-    setTab(key)
-    const el = tablistRef.current?.querySelector<HTMLButtonElement>(`[data-tabkey="${key}"]`)
-    el?.focus()
-  }
-
-  function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
-    const idx = TAB_ORDER.indexOf(tab)
-    if (idx < 0) return
-    if (e.key === 'ArrowRight') {
-      e.preventDefault()
-      focusTab(TAB_ORDER[(idx + 1) % TAB_ORDER.length] as TabKey)
-    } else if (e.key === 'ArrowLeft') {
-      e.preventDefault()
-      focusTab(TAB_ORDER[(idx - 1 + TAB_ORDER.length) % TAB_ORDER.length] as TabKey)
-    } else if (e.key === 'Home') {
-      e.preventDefault()
-      focusTab(TAB_ORDER[0] as TabKey)
-    } else if (e.key === 'End') {
-      e.preventDefault()
-      focusTab(TAB_ORDER[TAB_ORDER.length - 1] as TabKey)
-    }
-  }
 
   return (
-    <div className="space-y-4">
-      <div
-        ref={tablistRef}
-        role="tablist"
-        aria-label="Internal exam sections"
-        className="flex border-b border-border"
-        onKeyDown={onKeyDown}
-      >
-        <TabButton
-          id="available"
-          active={tab === 'available'}
-          label="Available"
-          badge={available.length || undefined}
-          onClick={() => setTab('available')}
-        />
-        <TabButton
-          id="reports"
-          active={tab === 'reports'}
-          label="My Reports"
-          onClick={() => setTab('reports')}
-        />
-      </div>
-      <div
-        role="tabpanel"
-        id={`tabpanel-${tab}`}
-        aria-labelledby={`tab-${tab}`}
-        data-testid={`tabpanel-${tab}`}
-      >
-        {tab === 'available' ? <AvailableTab rows={available} /> : <MyReportsTab rows={history} />}
-      </div>
-    </div>
-  )
-}
-
-function TabButton({
-  id,
-  active,
-  label,
-  badge,
-  onClick,
-}: Readonly<{
-  id: string
-  active: boolean
-  label: string
-  badge?: number
-  onClick: () => void
-}>) {
-  return (
-    <button
-      type="button"
-      id={`tab-${id}`}
-      role="tab"
-      aria-selected={active}
-      aria-controls={`tabpanel-${id}`}
-      tabIndex={active ? 0 : -1}
-      onClick={onClick}
-      data-testid={`tab-${id}`}
-      data-tabkey={id}
-      className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 ${
-        active
-          ? 'border-primary-text text-primary-text'
-          : 'border-transparent text-muted-foreground hover:text-foreground'
-      }`}
+    <Tabs
+      value={tab}
+      onValueChange={(v) => setTab(readTabParam(v as string))}
+      className="space-y-4"
     >
-      {label}
-      {badge != null && badge > 0 && (
-        <span
-          data-testid={`tab-${id}-badge`}
-          className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground"
-        >
-          {badge}
-        </span>
-      )}
-    </button>
+      <TabsList aria-label="Internal exam sections">
+        <TabsTab value="available" id="tab-available" data-testid="tab-available">
+          Available
+          {available.length > 0 && (
+            <TabCount data-testid="tab-available-badge">{available.length}</TabCount>
+          )}
+        </TabsTab>
+        <TabsTab value="reports" id="tab-reports" data-testid="tab-reports">
+          My Reports
+        </TabsTab>
+      </TabsList>
+      <TabsPanel value="available" id="tabpanel-available" data-testid="tabpanel-available">
+        <AvailableTab rows={available} />
+      </TabsPanel>
+      <TabsPanel value="reports" id="tabpanel-reports" data-testid="tabpanel-reports">
+        <MyReportsTab rows={history} />
+      </TabsPanel>
+    </Tabs>
   )
 }

@@ -1,5 +1,7 @@
 'use client'
 
+import { Tabs, TabsList, TabsTab } from '@/components/ui/tabs'
+
 export type QuestionTab = 'question' | 'explanation' | 'comments' | 'statistics'
 
 type QuestionTabsProps = {
@@ -16,27 +18,14 @@ const TABS: { value: QuestionTab; label: string }[] = [
 
 export function QuestionTabs({ activeTab, onTabChange }: Readonly<QuestionTabsProps>) {
   return (
-    <div className="flex justify-center border-b border-border">
-      {TABS.map((tab) => {
-        const isActive = activeTab === tab.value
-
-        return (
-          <button
-            key={tab.value}
-            type="button"
-            role="tab"
-            aria-selected={isActive}
-            onClick={() => onTabChange(tab.value)}
-            className={`px-2 py-2 text-xs font-medium transition-colors md:px-4 md:text-sm ${
-              isActive
-                ? 'border-b-2 border-primary-text text-foreground'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
+    <Tabs value={activeTab} onValueChange={(v) => onTabChange(v as QuestionTab)}>
+      <TabsList>
+        {TABS.map((tab) => (
+          <TabsTab key={tab.value} value={tab.value}>
             {tab.label}
-          </button>
-        )
-      })}
-    </div>
+          </TabsTab>
+        ))}
+      </TabsList>
+    </Tabs>
   )
 }

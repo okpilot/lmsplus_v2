@@ -15,7 +15,7 @@ export function SessionProgressBar({
       <Progress
         value={totalQuestions > 0 ? ((currentIndex + 1) / totalQuestions) * 100 : 0}
         label="Quiz progress"
-        className="h-1.5 flex-1"
+        className="flex-1"
       />
       <SessionTimer />
     </div>

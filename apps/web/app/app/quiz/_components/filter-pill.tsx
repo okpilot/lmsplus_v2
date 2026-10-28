@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronUp } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
 
 export function getSquareClass(opts: {
   isCurrent: boolean
@@ -29,19 +29,16 @@ function FilterPill({
   testId?: string
 }>) {
   return (
-    <button
+    <Button
       type="button"
+      size="sm"
+      variant="toggle"
       data-testid={testId}
+      aria-pressed={active}
       onClick={onClick}
-      className={cn(
-        'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
-        active
-          ? 'bg-primary/10 text-primary-text'
-          : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-      )}
     >
       {label}
-    </button>
+    </Button>
   )
 }
 
@@ -91,11 +88,13 @@ export function GridToggle({
   testId?: string
 }>) {
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
+      size="sm"
       data-testid={testId}
       onClick={onToggle}
-      className="mt-1.5 flex w-full items-center justify-center gap-1 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+      className="mt-1.5 w-full text-muted-foreground"
     >
       {expanded ? (
         <>
@@ -106,6 +105,6 @@ export function GridToggle({
           Show all ({totalQuestions}) <ChevronDown className="h-3 w-3" />
         </>
       )}
-    </button>
+    </Button>
   )
 }

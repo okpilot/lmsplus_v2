@@ -93,3 +93,12 @@ describe('InfoTooltip', () => {
     expect(screen.getByRole('tooltip', { hidden: true }).className).toContain('font-normal')
   })
 })
+
+describe('InfoTooltip floating surface', () => {
+  it('floats with a ring and shadow and no border', () => {
+    render(<InfoTooltip {...BASE_PROPS} />)
+    const el = screen.getByRole('tooltip', { hidden: true })
+    expect(el).toHaveClass('ring-1', 'shadow-lg')
+    expect(el.className).not.toMatch(/(^|\s)border(\s|$)/)
+  })
+})

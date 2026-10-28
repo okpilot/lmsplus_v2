@@ -263,7 +263,7 @@ describe('StudentRow', () => {
     expect(onClick).toHaveBeenCalledTimes(1)
   })
 
-  it('applies a green mastery colour class when mastery is 80 or above', () => {
+  it('applies the success mastery colour class when mastery is 90 or above', () => {
     render(
       <table>
         <tbody>
@@ -274,7 +274,7 @@ describe('StudentRow', () => {
     expect(screen.getByText('90%').className).toContain('text-success')
   })
 
-  it('applies a red mastery colour class when mastery is below 50', () => {
+  it('applies a neutral mastery colour, never danger or caution, when mastery is 30', () => {
     render(
       <table>
         <tbody>
@@ -282,6 +282,6 @@ describe('StudentRow', () => {
         </tbody>
       </table>,
     )
-    expect(screen.getByText('30%').className).toContain('text-danger')
+    expect(screen.getByText('30%').className).not.toMatch(/text-(danger|caution)/)
   })
 })
