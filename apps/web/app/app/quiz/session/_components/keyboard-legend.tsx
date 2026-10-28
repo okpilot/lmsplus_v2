@@ -2,6 +2,7 @@
 
 import { Keyboard } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { Button } from '@/components/ui/button'
 
 const NAV_SHORTCUTS: { keys: string; action: string }[] = [
   { keys: '← / →', action: 'Previous / next question' },
@@ -40,15 +41,17 @@ export function KeyboardLegend({ isExam = false }: Readonly<{ isExam?: boolean }
 
   return (
     <div className="relative">
-      <button
+      <Button
         type="button"
+        variant="ghost"
+        size="icon-sm"
         onClick={() => setOpen((p) => !p)}
         aria-label="Keyboard shortcuts"
         aria-expanded={open}
-        className="inline-flex items-center justify-center rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className="text-muted-foreground"
       >
         <Keyboard className="size-4" aria-hidden />
-      </button>
+      </Button>
       {open && (
         <>
           {/* Click-away backdrop. */}

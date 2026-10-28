@@ -9,7 +9,7 @@ type LoadingButtonProps = ComponentProps<typeof Button> & {
   loading?: boolean
   /**
    * Optional label shown while loading (e.g. "Saving..."). Falls back to children.
-   * For icon-only buttons (size="icon" / "icon-sm" / "icon-xs" / "icon-lg"),
+   * For icon-only buttons (size="icon" / "icon-sm"),
    * supply either this prop or an `aria-label` on the button — otherwise the
    * button has no accessible name while the spinner is visible.
    */

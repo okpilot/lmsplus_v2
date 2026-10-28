@@ -55,7 +55,7 @@ describe('ActivityHeatmap', () => {
   it('marks today with ring-2 ring-ring', () => {
     render(<ActivityHeatmap data={[makeDay('2026-03-18', 5)]} />)
     // Day 18 cell should have the ring
-    const cells = document.querySelectorAll('[class*="ring-ring"]')
+    const cells = document.querySelectorAll('.ring-2.ring-ring')
     expect(cells.length).toBe(1)
   })
 

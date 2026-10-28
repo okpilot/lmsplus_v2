@@ -20,7 +20,7 @@ export function ExpiredExamNotice({ sessionId }: Readonly<Props>) {
       <AlertTitle>Practice Exam expired</AlertTitle>
       <AlertDescription>Your exam time has ended. View your results below.</AlertDescription>
       <AlertAction className="flex gap-2">
-        <Button type="button" onClick={handleViewResults}>
+        <Button type="button" variant="caution" onClick={handleViewResults}>
           View Results
         </Button>
       </AlertAction>

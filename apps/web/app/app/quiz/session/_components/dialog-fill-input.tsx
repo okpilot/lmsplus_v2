@@ -3,6 +3,7 @@
 import { useRef } from 'react'
 import { InsetPanel } from '@/components/kit/inset-panel'
 import { BusyLabel } from '@/components/ui/busy-label'
+import { Button } from '@/components/ui/button'
 import { DialogLine } from './dialog-line'
 import { useDialogFillInput } from './use-dialog-fill-input'
 
@@ -113,17 +114,17 @@ export function DialogFillInput({
       )}
 
       {!locked && (
-        <button
+        <Button
           type="button"
           disabled={!allFilled || disabled || submitting}
           aria-busy={submitting || undefined}
           onClick={handleSubmit}
-          className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+          className="w-full"
         >
           <span className="inline-flex items-center justify-center gap-2">
             <BusyLabel busy={submitting}>Submit Answer</BusyLabel>
           </span>
-        </button>
+        </Button>
       )}
     </div>
   )

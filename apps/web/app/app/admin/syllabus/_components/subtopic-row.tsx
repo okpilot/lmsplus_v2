@@ -68,7 +68,7 @@ export function SubtopicRow({ subtopic, topicId }: Readonly<Props>) {
       </Badge>
       <Button
         variant="ghost"
-        size="icon-xs"
+        size="icon-sm"
         aria-label="Edit subtopic"
         onClick={() => setEditing(true)}
       >

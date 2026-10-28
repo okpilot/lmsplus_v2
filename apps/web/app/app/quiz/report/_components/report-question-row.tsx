@@ -6,6 +6,7 @@ import { MarkdownText } from '@/app/app/_components/markdown-text'
 import { ZoomableImage } from '@/app/app/_components/zoomable-image'
 import { InsetPanel } from '@/components/kit/inset-panel'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import type { QuizReportQuestion } from '@/lib/queries/quiz-report'
 import { isQuestionAnswered } from '@/lib/queries/report-question-answered'
 import { formatMsDuration } from './format-duration'
@@ -55,7 +56,9 @@ export function ReportQuestionRow({
                 {formatMsDuration(question.responseTimeMs)}
               </span>
               {flag && (
-                <button
+                <Button
+                  variant="toggle"
+                  size="icon-sm"
                   type="button"
                   data-testid="report-flag-button"
                   onClick={() => {
@@ -66,14 +69,12 @@ export function ReportQuestionRow({
                   aria-pressed={isFlagged}
                   aria-label={isFlagged ? 'Unflag question' : 'Flag question'}
                   disabled={isFlagToggling}
-                  className={
-                    isFlagged
-                      ? 'inline-flex items-center rounded-md p-1 text-orange-600 transition-colors hover:bg-orange-500/10 disabled:opacity-50 disabled:pointer-events-none dark:text-orange-400'
-                      : 'inline-flex items-center rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50 disabled:pointer-events-none'
-                  }
                 >
-                  <Flag size={14} aria-hidden className={isFlagged ? 'fill-current' : undefined} />
-                </button>
+                  <Flag
+                    aria-hidden
+                    className={isFlagged ? 'size-3.5 fill-caution text-caution' : 'size-3.5'}
+                  />
+                </Button>
               )}
             </div>
           </div>
@@ -94,11 +95,13 @@ export function ReportQuestionRow({
 
           {hasExplanation && (
             <div className="mt-2">
-              <button
+              <Button
                 type="button"
+                variant="link"
+                size="sm"
+                className="h-auto px-0"
                 onClick={() => setExpanded((prev) => !prev)}
                 aria-expanded={expanded}
-                className="inline-flex items-center gap-1 text-xs font-medium text-primary-text hover:underline"
               >
                 {expanded ? 'Hide explanation' : 'Show explanation'}
                 {expanded ? (
@@ -106,7 +109,7 @@ export function ReportQuestionRow({
                 ) : (
                   <ChevronDown size={14} aria-hidden />
                 )}
-              </button>
+              </Button>
 
               {expanded && (
                 <InsetPanel data-testid="explanation-panel" className="mt-2 space-y-2">

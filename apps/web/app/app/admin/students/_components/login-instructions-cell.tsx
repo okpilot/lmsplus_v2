@@ -33,11 +33,11 @@ export function LoginInstructionsCell({ student }: Readonly<Props>) {
       <div className="max-w-[220px] space-y-1.5 whitespace-normal text-xs">
         <p className="text-muted-foreground">{loginInstructionsConfirmText(state, name)}</p>
         <div className="flex items-center gap-1">
-          <LoadingButton size="xs" loading={isSending} onClick={handleSend}>
+          <LoadingButton size="sm" loading={isSending} onClick={handleSend}>
             Confirm
           </LoadingButton>
           <Button
-            size="xs"
+            size="sm"
             variant="outline"
             disabled={isSending}
             onClick={() => setConfirming(false)}
@@ -58,7 +58,7 @@ export function LoginInstructionsCell({ student }: Readonly<Props>) {
         </p>
       )}
       {canSend && (
-        <Button size="xs" variant="outline" onClick={() => setConfirming(true)}>
+        <Button size="sm" variant="outline" onClick={() => setConfirming(true)}>
           {state === 'not_sent' ? 'Send' : 'Resend'}
         </Button>
       )}

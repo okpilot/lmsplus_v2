@@ -90,7 +90,7 @@ export function SubjectRow({ subject }: Readonly<Props>) {
           render={
             <Button
               variant="ghost"
-              size="icon-xs"
+              size="icon-sm"
               aria-label={`Toggle ${subject.code} ${subject.name}`}
             />
           }
@@ -106,7 +106,7 @@ export function SubjectRow({ subject }: Readonly<Props>) {
         </Badge>
         <Button
           variant="ghost"
-          size="icon-xs"
+          size="icon-sm"
           aria-label="Edit subject"
           onClick={() => setEditing(true)}
         >

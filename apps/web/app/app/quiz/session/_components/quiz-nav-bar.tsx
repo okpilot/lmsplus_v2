@@ -1,3 +1,5 @@
+import { Button } from '@/components/ui/button'
+
 type QuizNavBarProps = {
   currentIndex: number
   totalQuestions: number
@@ -13,22 +15,17 @@ export function QuizNavBar({
 }: Readonly<QuizNavBarProps>) {
   return (
     <>
-      <button
-        type="button"
-        onClick={onPrev}
-        disabled={currentIndex === 0}
-        className="rounded-lg border border-input px-4 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
-      >
+      <Button variant="outline" type="button" onClick={onPrev} disabled={currentIndex === 0}>
         &lt; Previous
-      </button>
-      <button
+      </Button>
+      <Button
+        variant="outline"
         type="button"
         onClick={onNext}
         disabled={currentIndex === totalQuestions - 1}
-        className="rounded-lg border border-input px-4 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
       >
         Next &gt;
-      </button>
+      </Button>
     </>
   )
 }

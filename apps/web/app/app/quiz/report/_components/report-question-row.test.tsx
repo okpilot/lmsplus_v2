@@ -480,6 +480,21 @@ describe('ReportQuestionRow', () => {
       expect(button).toHaveAttribute('aria-label', 'Unflag question')
     })
 
+    it('renders the pressed flag as a toggle Button with a caution icon', () => {
+      render(
+        <ReportFlagProvider initialFlaggedIds={['q1']}>
+          <ReportQuestionRow question={makeQuestion()} index={0} />
+        </ReportFlagProvider>,
+      )
+      const button = screen.getByTestId('report-flag-button')
+      expect(button).toHaveAttribute('data-slot', 'button')
+      expect(button.className).toContain('aria-pressed:bg-card')
+      expect(button.className).not.toContain('text-orange-')
+      const icon = button.querySelector('svg')
+      expect(icon?.getAttribute('class')).toContain('text-caution')
+      expect(icon?.getAttribute('class')).not.toContain('text-orange-')
+    })
+
     it('flags the question when clicked', async () => {
       mockToggleFlag.mockResolvedValue({ success: true, flagged: true })
       render(

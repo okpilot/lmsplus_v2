@@ -22,9 +22,7 @@ describe('Button', () => {
   })
 
   it.each([
-    ['xs', 'h-6'],
     ['sm', 'h-7'],
-    ['icon-xs', 'size-6'],
     ['icon-sm', 'size-7'],
   ] as const)('keeps the %s button visual size and adds a tap area', (size, visual) => {
     render(<Button size={size}>x</Button>)

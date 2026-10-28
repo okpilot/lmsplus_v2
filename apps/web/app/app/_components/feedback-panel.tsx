@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button'
 import { MarkdownText } from './markdown-text'
 import { ZoomableImage } from './zoomable-image'
 
@@ -34,13 +35,9 @@ export function FeedbackPanel({
         />
       )}
 
-      <button
-        type="button"
-        onClick={onNext}
-        className="mt-2 rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground transition-colors hover:bg-secondary/90"
-      >
+      <Button variant="secondary" type="button" onClick={onNext} className="mt-2">
         Next Question →
-      </button>
+      </Button>
     </div>
   )
 }

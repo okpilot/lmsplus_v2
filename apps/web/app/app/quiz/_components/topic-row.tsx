@@ -1,6 +1,7 @@
 'use client'
 
 import { ChevronDown, ChevronRight } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 
 type TopicRowProps = {
@@ -33,17 +34,19 @@ export function TopicRow({
   return (
     <div className={`flex items-center gap-2 py-1.5 pr-3 ${indented ? 'pl-14' : 'pl-2'}`}>
       {onToggleExpand ? (
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon-sm"
           aria-expanded={isExpanded}
           aria-label={`Toggle ${code} ${name}`}
           onClick={onToggleExpand}
-          className="shrink-0 p-0.5 text-muted-foreground hover:text-foreground"
+          className="text-muted-foreground"
         >
           {isExpanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
-        </button>
+        </Button>
       ) : (
-        !indented && <span className="w-5" />
+        !indented && <span className="w-7" />
       )}
       <Checkbox checked={checked} onCheckedChange={(c) => onCheckedChange(c === true)} />
       <span className={`flex-1 text-sm ${checked ? 'text-foreground' : 'text-muted-foreground'}`}>

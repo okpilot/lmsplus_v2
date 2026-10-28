@@ -38,7 +38,6 @@ function FooterButton({ variant, onClick, disabled, busy, children }: Readonly<F
     <Button
       type="button"
       variant={variant}
-      size="lg"
       onClick={onClick}
       disabled={disabled}
       aria-busy={busy || undefined}

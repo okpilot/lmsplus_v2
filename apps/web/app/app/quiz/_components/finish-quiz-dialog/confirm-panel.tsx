@@ -31,7 +31,7 @@ export function ConfirmPanel({
       <div className="mt-3 flex gap-2">
         <Button
           type="button"
-          variant={isWarn ? 'default' : 'destructive'}
+          variant={isWarn ? 'caution' : 'destructive'}
           onClick={onConfirm}
           disabled={submitting}
           aria-busy={busy || undefined}

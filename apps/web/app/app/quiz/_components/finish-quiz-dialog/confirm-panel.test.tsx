@@ -37,4 +37,18 @@ describe('ConfirmPanel', () => {
     expect(onConfirm).toHaveBeenCalledOnce()
     expect(onCancel).toHaveBeenCalledOnce()
   })
+
+  it('maps the warning variant to the caution button', () => {
+    renderPanel('warning')
+    const confirm = screen.getByRole('button', { name: 'Discard' })
+    expect(confirm.className).toContain('bg-caution-solid')
+    expect(confirm.className).toContain('text-caution-foreground')
+  })
+
+  it('maps the destructive variant to the destructive button', () => {
+    renderPanel('destructive')
+    const confirm = screen.getByRole('button', { name: 'Discard' })
+    expect(confirm.className).toContain('bg-destructive')
+    expect(confirm.className).not.toContain('bg-caution-solid')
+  })
 })
