@@ -13,15 +13,17 @@ export function ExamConfigPageShell({ subjects }: Readonly<Props>) {
 
   return (
     <>
-      <CardList>
-        {subjects.map((subject) => (
-          <SubjectConfigCard
-            key={subject.id}
-            subject={subject}
-            onEdit={() => setEditingSubject(subject)}
-          />
-        ))}
-      </CardList>
+      {subjects.length > 0 && (
+        <CardList>
+          {subjects.map((subject) => (
+            <SubjectConfigCard
+              key={subject.id}
+              subject={subject}
+              onEdit={() => setEditingSubject(subject)}
+            />
+          ))}
+        </CardList>
+      )}
 
       {editingSubject && (
         <ConfigFormDialog

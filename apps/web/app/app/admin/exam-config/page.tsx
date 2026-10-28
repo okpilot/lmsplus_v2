@@ -2,7 +2,7 @@ import { Suspense } from 'react'
 import { PageHeader } from '@/components/ui/heading'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { ExamConfigContent } from './_components/exam-config-content'
-import { ExamConfigRowsSkeleton } from './loading'
+import { ExamConfigRowsSkeleton } from './_components/exam-config-rows-skeleton'
 
 export default async function ExamConfigPage() {
   await requireAdmin()

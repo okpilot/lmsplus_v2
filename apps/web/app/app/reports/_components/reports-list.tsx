@@ -92,11 +92,13 @@ export function ReportsList({ sessions, page, totalCount, pageSize, sort, dir }:
             </SelectContent>
           </Select>
         </div>
-        <CardList>
-          {sessions.map((s) => (
-            <SessionCard key={s.id} session={s} />
-          ))}
-        </CardList>
+        {sessions.length > 0 && (
+          <CardList>
+            {sessions.map((s) => (
+              <SessionCard key={s.id} session={s} />
+            ))}
+          </CardList>
+        )}
       </div>
 
       <PaginationBar
