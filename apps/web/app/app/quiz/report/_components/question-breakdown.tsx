@@ -21,11 +21,13 @@ export function QuestionBreakdown({ questions, page, totalCount, pageSize }: Rea
         </span>
       </div>
 
-      <CardList>
-        {questions.map((q, i) => (
-          <ReportQuestionRow key={q.questionId} question={q} index={(page - 1) * pageSize + i} />
-        ))}
-      </CardList>
+      {questions.length > 0 && (
+        <CardList>
+          {questions.map((q, i) => (
+            <ReportQuestionRow key={q.questionId} question={q} index={(page - 1) * pageSize + i} />
+          ))}
+        </CardList>
+      )}
 
       <PaginationBar
         page={page}

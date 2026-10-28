@@ -21,7 +21,7 @@ type DialogBlankProps = {
 }
 
 function blankClass(result: BlankResult | undefined): string {
-  if (!result) return 'border-input focus:border-primary-text'
+  if (!result) return 'border-input bg-card focus:border-primary-text'
   return result.isCorrect
     ? 'border-green-500 bg-green-500/10'
     : 'border-destructive bg-destructive/10'
