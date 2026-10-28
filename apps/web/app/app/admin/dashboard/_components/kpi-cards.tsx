@@ -56,7 +56,7 @@ export function KpiCards({ data, range }: Readonly<Props>) {
       <Stat
         label="Exam Readiness"
         value={`${data.examReadyStudents} / ${data.totalStudents}`}
-        hint="students at 90%+"
+        hint={`students at ${MASTERY_GOAL}%+`}
       />
     </StatGroup>
   )

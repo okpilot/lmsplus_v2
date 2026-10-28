@@ -11,6 +11,7 @@ vi.mock('next/navigation', () => ({
 }))
 
 import { BottomTabBar } from './bottom-tab-bar'
+import { NAV_ACTIVE } from './sidebar-item'
 
 type ObserverCallback = (entries: { contentRect: { width: number } }[]) => void
 let observerCallback: ObserverCallback | null = null
@@ -84,6 +85,23 @@ describe('BottomTabBar', () => {
     expect(screen.getByRole('link', { name: 'Dashboard' }).className).not.toContain('font-medium')
   })
 
+  it('tints the active tab blue and leaves inactive tabs grey', () => {
+    mockUsePathname.mockReturnValue('/app/quiz')
+    renderMeasured(1000)
+    const active = screen.getByRole('link', { name: 'Quiz' }).className
+    const inactive = screen.getByRole('link', { name: 'Dashboard' }).className
+    expect(active).toContain('text-primary-text')
+    expect(inactive).toContain('text-muted-foreground')
+    expect(inactive).not.toContain('text-foreground/55')
+  })
+
+  it('uses the border token for the tab strip', () => {
+    renderMeasured(1000)
+    const cls = screen.getByRole('navigation').className
+    expect(cls).toContain('border-border')
+    expect(cls).not.toContain('border-foreground/')
+  })
+
   it('links point to correct routes', () => {
     renderMeasured(1000)
     expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute(
@@ -113,7 +131,7 @@ describe('BottomTabBar', () => {
         'href',
         '/app/settings',
       )
-      expect(more).toHaveAttribute('aria-controls', document.querySelector('ul')?.id)
+      expect(more).toHaveAttribute('aria-controls', 'bottom-more-sheet')
     })
 
     it('layers the backdrop below the tab bar and sheet, above page content', async () => {
@@ -121,13 +139,23 @@ describe('BottomTabBar', () => {
       await userEvent.setup({ delay: null }).click(screen.getByRole('button', { name: 'More' }))
       const backdrop = screen.getByRole('button', { name: 'Close menu' })
       const nav = screen.getByRole('navigation')
-      const sheet = document.querySelector('ul') as HTMLElement
+      const sheet = document.querySelector('#bottom-more-sheet') as HTMLElement
       expect(backdrop.className).toContain('z-scrim')
       expect(backdrop.className).toContain('md:hidden')
+      expect(backdrop.className).not.toContain('hover:bg-muted')
+      expect(backdrop.className).not.toContain('dark:hover:bg-muted/50')
       expect(nav.compareDocumentPosition(backdrop) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
       expect(
         backdrop.compareDocumentPosition(sheet) & Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy()
+    })
+
+    it('sets font-normal on an inactive More button only', async () => {
+      narrow(320)
+      const more = screen.getByRole('button', { name: 'More' })
+      expect(more.className).toContain('font-normal')
+      await userEvent.setup({ delay: null }).click(more)
+      expect(more.className).not.toContain('font-normal')
     })
 
     it('closes the sheet on Escape', async () => {
@@ -225,7 +253,7 @@ describe('BottomTabBar', () => {
       narrow(320)
       const more = screen.getByRole('button', { name: 'More' })
       await userEvent.setup({ delay: null }).click(more)
-      const sheet = document.querySelector('ul')
+      const sheet = document.querySelector('#bottom-more-sheet')
       expect(sheet).not.toBeNull()
       expect(
         more.compareDocumentPosition(sheet as Node) & Node.DOCUMENT_POSITION_FOLLOWING,
@@ -245,14 +273,57 @@ describe('BottomTabBar', () => {
     it('marks More as active when the current page is in the sheet', () => {
       mockUsePathname.mockReturnValue('/app/settings')
       narrow(320)
-      expect(screen.getByRole('button', { name: 'More' }).className).not.toContain(
-        'text-foreground/55',
-      )
+      const cls = screen.getByRole('button', { name: 'More' }).className
+      expect(cls).toContain('text-primary-text')
+      expect(cls).toContain('font-medium')
+      expect(cls).not.toContain('text-foreground/55')
+      expect(cls).not.toContain('hover:text-foreground')
+    })
+
+    it('marks More as active while the sheet is open', async () => {
+      narrow(320)
+      const more = screen.getByRole('button', { name: 'More' })
+      await userEvent.setup({ delay: null }).click(more)
+      expect(more.className).toContain('text-primary-text')
+      expect(more.className).toContain('aria-expanded:text-primary-text')
+      expect(more.className).not.toContain('aria-expanded:text-foreground')
+      expect(more.className).not.toContain('aria-expanded:bg-muted')
     })
 
     it('leaves More inactive when the current page is visible', () => {
       narrow(320)
-      expect(screen.getByRole('button', { name: 'More' }).className).toContain('text-foreground/55')
+      const cls = screen.getByRole('button', { name: 'More' }).className
+      expect(cls).toContain('text-muted-foreground')
+      expect(cls).not.toContain('text-foreground/55')
+      expect(cls).not.toContain('hover:text-foreground')
+    })
+
+    it('fills the active sheet row blue at label size', async () => {
+      mockUsePathname.mockReturnValue('/app/settings')
+      narrow(320)
+      await userEvent.setup({ delay: null }).click(screen.getByRole('button', { name: 'More' }))
+      const cls = screen.getByRole('link', { name: 'Settings' }).className
+      expect(cls).toContain('bg-primary/10')
+      expect(cls).toContain('text-primary-text')
+      expect(cls).toContain('text-label')
+      for (const c of NAV_ACTIVE.split(' ')) expect(cls).toContain(c)
+    })
+
+    it('renders inactive sheet rows grey without a fill', async () => {
+      narrow(320)
+      await userEvent.setup({ delay: null }).click(screen.getByRole('button', { name: 'More' }))
+      const cls = screen.getByRole('link', { name: 'Settings' }).className
+      expect(cls).toContain('text-muted-foreground')
+      expect(cls).toContain('text-label')
+      expect(cls).not.toContain('bg-primary/10')
+    })
+
+    it('uses the border token for the sheet', async () => {
+      narrow(320)
+      await userEvent.setup({ delay: null }).click(screen.getByRole('button', { name: 'More' }))
+      const cls = (document.querySelector('#bottom-more-sheet') as HTMLElement).className
+      expect(cls).toContain('border-border')
+      expect(cls).not.toContain('border-foreground/')
     })
   })
 })

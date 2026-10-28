@@ -5,11 +5,21 @@ import { type RefObject, useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { NavIcon } from './nav-icon'
 import type { NavItem } from './nav-items'
+import { NAV_ACTIVE } from './sidebar-item'
 
 const SHEET_ID = 'bottom-more-sheet'
 export const SLOT =
   'flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 text-[11px]'
-export const tone = (on: boolean) => (on ? 'font-medium text-foreground' : 'text-foreground/55')
+export const tone = (on: boolean) =>
+  on ? 'font-medium text-primary-text' : 'text-muted-foreground'
+
+const sheetTone = (on: boolean) => (on ? NAV_ACTIVE : 'font-normal text-muted-foreground')
+
+/** `tone` plus hover/expanded overrides that beat the ghost variant's own. */
+const moreTone = (on: boolean) =>
+  on
+    ? 'font-medium text-primary-text hover:text-primary-text aria-expanded:text-primary-text'
+    : 'font-normal text-muted-foreground hover:text-muted-foreground'
 
 function MoreIcon() {
   return (
@@ -39,7 +49,7 @@ export function MoreSheet({ hidden, activeHref, onClose }: Readonly<SheetProps>)
       <ul
         ref={listRef}
         id={SHEET_ID}
-        className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-nav rounded-t-2xl border-t border-foreground/[0.06] bg-card px-2 py-2"
+        className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-nav rounded-t-2xl border-t border-border bg-card px-2 py-2"
       >
         {hidden.map((item) => (
           <li key={item.href}>
@@ -47,7 +57,7 @@ export function MoreSheet({ hidden, activeHref, onClose }: Readonly<SheetProps>)
               href={item.href}
               aria-current={item.href === activeHref ? 'page' : undefined}
               onClick={onClose}
-              className={`flex h-11 items-center gap-3 rounded-lg px-3 text-sm ${tone(item.href === activeHref)}`}
+              className={`flex h-11 items-center gap-3 rounded-lg px-3 text-label ${sheetTone(item.href === activeHref)}`}
             >
               {item.icon && <NavIcon name={item.icon} className="size-5" />}
               <span className="truncate">{item.label}</span>
@@ -65,7 +75,7 @@ export function MoreBackdrop({ onDismiss }: Readonly<{ onDismiss: () => void }>)
     <Button
       variant="ghost"
       aria-label="Close menu"
-      className="fixed inset-0 z-scrim size-auto cursor-default rounded-none bg-foreground/10 md:hidden"
+      className="fixed inset-0 z-scrim size-auto cursor-default rounded-none bg-foreground/10 hover:bg-foreground/10 md:hidden dark:hover:bg-foreground/10"
       onClick={onDismiss}
     />
   )
@@ -135,7 +145,7 @@ export function MoreButton({ moreRef, expanded, active, onToggle }: Readonly<Mor
       aria-expanded={expanded}
       aria-controls={SHEET_ID}
       onClick={onToggle}
-      className={`${SLOT} h-auto rounded-none ${tone(active || expanded)}`}
+      className={`${SLOT} h-auto rounded-none hover:bg-transparent aria-expanded:bg-transparent dark:hover:bg-transparent ${moreTone(active || expanded)}`}
     >
       <MoreIcon />
       <span className="max-w-full truncate">More</span>

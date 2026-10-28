@@ -34,6 +34,13 @@ describe('SignOutButton', () => {
     expect(screen.getByRole('button', { name: /sign out/i })).toBeInTheDocument()
   })
 
+  it('keeps the 36px row height over the Button size class', () => {
+    render(<SignOutButton variant="row" />)
+    const cls = screen.getByRole('button', { name: /sign out/i }).className
+    expect(cls).toContain('h-9')
+    expect(cls).not.toContain('h-(--control-h)')
+  })
+
   it('calls Supabase signOut when clicked', async () => {
     const user = userEvent.setup()
     render(<SignOutButton />)
