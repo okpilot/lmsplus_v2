@@ -31,7 +31,7 @@ export function StudyConfigForm({
 
   return (
     <div className="space-y-4">
-      <Card>
+      <Card className="overflow-visible">
         <CardContent className="space-y-5">
           {header}
           <SubjectSelect

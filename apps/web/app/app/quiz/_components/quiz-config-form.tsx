@@ -49,7 +49,7 @@ export function QuizConfigForm(props: Readonly<QuizConfigFormProps>) {
   return (
     <div className="space-y-4">
       {/* Card 1: Quiz Configuration */}
-      <Card>
+      <Card className="overflow-visible">
         <CardContent className="space-y-5">
           <ModeToggle
             value={config.mode}

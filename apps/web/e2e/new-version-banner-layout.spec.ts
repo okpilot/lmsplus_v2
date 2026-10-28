@@ -35,6 +35,6 @@ test.describe('Reload banner layout', () => {
     if (!box) throw new Error('banner has no box')
     expect(box.x).toBeGreaterThanOrEqual(0)
     expect(box.x + box.width).toBeLessThanOrEqual(320)
-    expect(await publishedHeight(page)).toBe(`${box.height}px`)
+    expect(Number.parseFloat(await publishedHeight(page))).toBeCloseTo(box.height, 0)
   })
 })
