@@ -47,10 +47,27 @@ describe('QuestionTabs', () => {
     expect(tab.closest('[role="tablist"]')).not.toBeNull()
   })
 
-  it('styles the active tab with the shared segmented look', () => {
+  it('names the tablist', () => {
+    render(<QuestionTabs activeTab="question" onTabChange={vi.fn()} />)
+    expect(screen.getByRole('tablist', { name: 'Question view' })).toBeInTheDocument()
+  })
+
+  it('styles the selected tab with the shared segmented look', () => {
     render(<QuestionTabs activeTab="statistics" onTabChange={vi.fn()} />)
     const tab = screen.getByRole('tab', { name: 'Stats' })
-    expect(tab).toHaveAttribute('data-active')
-    expect(tab).toHaveClass('data-active:bg-card', 'data-active:border-primary')
+    expect(tab).toHaveClass('aria-selected:bg-card', 'aria-selected:border-primary')
+  })
+
+  it('lets arrow keys on a focused tab reach the question navigation shortcuts', async () => {
+    const user = userEvent.setup()
+    const onWindowKey = vi.fn()
+    window.addEventListener('keydown', onWindowKey)
+    render(<QuestionTabs activeTab="question" onTabChange={vi.fn()} />)
+
+    screen.getByRole('tab', { name: 'Question' }).focus()
+    await user.keyboard('{ArrowRight}')
+    window.removeEventListener('keydown', onWindowKey)
+
+    expect(onWindowKey).toHaveBeenCalledWith(expect.objectContaining({ key: 'ArrowRight' }))
   })
 })
