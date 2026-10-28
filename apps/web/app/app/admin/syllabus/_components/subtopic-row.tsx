@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
+import { InsetPanel } from '@/components/kit/inset-panel'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { upsertSubtopic } from '../actions/upsert-subtopic'
@@ -43,7 +44,7 @@ export function SubtopicRow({ subtopic, topicId }: Readonly<Props>) {
 
   if (editing) {
     return (
-      <div className="rounded-md bg-muted/50 p-2">
+      <InsetPanel className="p-2">
         <InlineForm
           fields={[
             { name: 'code', placeholder: 'Code', width: 'w-28', defaultValue: subtopic.code },
@@ -54,7 +55,7 @@ export function SubtopicRow({ subtopic, topicId }: Readonly<Props>) {
           isPending={isPending}
           submitLabel="Save"
         />
-      </div>
+      </InsetPanel>
     )
   }
 

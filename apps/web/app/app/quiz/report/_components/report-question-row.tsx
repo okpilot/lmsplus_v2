@@ -4,6 +4,7 @@ import { Check, ChevronDown, ChevronUp, Flag, X } from 'lucide-react'
 import { useState } from 'react'
 import { MarkdownText } from '@/app/app/_components/markdown-text'
 import { ZoomableImage } from '@/app/app/_components/zoomable-image'
+import { InsetPanel } from '@/components/kit/inset-panel'
 import { Badge } from '@/components/ui/badge'
 import type { QuizReportQuestion } from '@/lib/queries/quiz-report'
 import { isQuestionAnswered } from '@/lib/queries/report-question-answered'
@@ -108,10 +109,7 @@ export function ReportQuestionRow({
               </button>
 
               {expanded && (
-                <div
-                  data-testid="explanation-panel"
-                  className="mt-2 space-y-2 rounded-lg bg-muted/50 p-3"
-                >
+                <InsetPanel data-testid="explanation-panel" className="mt-2 space-y-2">
                   {question.explanationImageUrl && (
                     <ZoomableImage
                       src={question.explanationImageUrl}
@@ -124,7 +122,7 @@ export function ReportQuestionRow({
                       {question.explanationText}
                     </MarkdownText>
                   )}
-                </div>
+                </InsetPanel>
               )}
             </div>
           )}

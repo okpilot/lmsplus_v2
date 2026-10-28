@@ -14,7 +14,7 @@ export function SessionCard({ session: s }: Readonly<{ session: SessionReport }>
     <Link
       href={reportUrl(s.mode, s.id, s.subjectCode)}
       prefetch={false}
-      className="block rounded-lg border border-border px-4 py-3 transition-colors hover:bg-accent"
+      className="block px-4 py-3 transition-colors hover:bg-accent outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
     >
       <div className="flex items-start justify-between">
         <p className="font-medium">{s.subjectName ?? '\u2014'}</p>

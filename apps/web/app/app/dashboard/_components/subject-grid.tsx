@@ -1,3 +1,4 @@
+import { Card, CardContent } from '@/components/ui/card'
 import { EmptyNote } from '@/components/ui/empty'
 import { Meter, type StatusTone } from '@/components/ui/meter'
 import type { SubjectProgress } from '@/lib/queries/dashboard'
@@ -46,19 +47,21 @@ function SubjectCard({ subject }: Readonly<{ subject: SubjectProgress }>) {
   const relativeDate = getRelativeDate(subject.lastPracticedAt)
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">{subject.code}</span>
-        <span className="font-semibold tabular-nums">{subject.masteryPercentage}%</span>
-      </div>
-      <p className="mt-1 font-medium">{subject.name}</p>
-      <Meter
-        value={subject.masteryPercentage}
-        tone={subjectTone(subject.masteryPercentage)}
-        label={`${subject.name} mastery`}
-        className="mt-3 h-1.5"
-      />
-      <p className="mt-2 text-xs text-muted-foreground">Last practiced: {relativeDate}</p>
-    </div>
+    <Card>
+      <CardContent>
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-muted-foreground">{subject.code}</span>
+          <span className="font-semibold tabular-nums">{subject.masteryPercentage}%</span>
+        </div>
+        <p className="mt-1 font-medium">{subject.name}</p>
+        <Meter
+          value={subject.masteryPercentage}
+          tone={subjectTone(subject.masteryPercentage)}
+          label={`${subject.name} mastery`}
+          className="mt-3 h-1.5"
+        />
+        <p className="mt-2 text-xs text-muted-foreground">Last practiced: {relativeDate}</p>
+      </CardContent>
+    </Card>
   )
 }

@@ -38,26 +38,24 @@ export function MyReportsTab({ rows }: Readonly<Props>) {
   }
 
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="min-w-[140px]">Subject</TableHead>
-            <TableHead className="w-16">Attempt</TableHead>
-            <TableHead className="w-40">Started</TableHead>
-            <TableHead className="w-40">Ended</TableHead>
-            <TableHead className="w-20">Score</TableHead>
-            <TableHead className="w-24">Result</TableHead>
-            <TableHead className="w-24">Answered</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((r) => (
-            <ReportRow key={r.id} row={r} />
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead className="min-w-[140px]">Subject</TableHead>
+          <TableHead className="w-16">Attempt</TableHead>
+          <TableHead className="w-40">Started</TableHead>
+          <TableHead className="w-40">Ended</TableHead>
+          <TableHead className="w-20">Score</TableHead>
+          <TableHead className="w-24">Result</TableHead>
+          <TableHead className="w-24">Answered</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.map((r) => (
+          <ReportRow key={r.id} row={r} />
+        ))}
+      </TableBody>
+    </Table>
   )
 }
 
@@ -78,7 +76,7 @@ function ReportRow({ row: r }: Readonly<{ row: InternalExamHistoryEntry }>) {
           navigate()
         }
       }}
-      className="cursor-pointer hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+      className="cursor-pointer hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
     >
       <TableCell>
         <Link

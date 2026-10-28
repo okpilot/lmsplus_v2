@@ -1,5 +1,6 @@
 'use client'
 
+import { InsetPanel } from '@/components/kit/inset-panel'
 import { Heading } from '@/components/ui/heading'
 import { Stat, StatGroup } from '@/components/ui/stat'
 import type { ExamSubjectOption } from '@/lib/queries/exam-subjects'
@@ -20,7 +21,7 @@ function formatTime(seconds: number): string {
 
 function ExamParametersPanel({ subject }: Readonly<{ subject: ExamSubjectOption }>) {
   return (
-    <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
+    <InsetPanel className="p-4 space-y-3">
       <Heading level={3}>Practice Exam Parameters</Heading>
       <StatGroup columns={3}>
         <Stat variant="plain" size="compact" label="Questions" value={subject.totalQuestions} />
@@ -32,7 +33,7 @@ function ExamParametersPanel({ subject }: Readonly<{ subject: ExamSubjectOption 
         />
         <Stat variant="plain" size="compact" label="Pass Mark" value={`${subject.passMark}%`} />
       </StatGroup>
-    </div>
+    </InsetPanel>
   )
 }
 

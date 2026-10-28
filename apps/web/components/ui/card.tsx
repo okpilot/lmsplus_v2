@@ -12,10 +12,23 @@ function Card({
       data-slot="card"
       data-size={size}
       className={cn(
-        'group/card flex flex-col gap-4 overflow-hidden rounded-card bg-card py-card text-sm text-card-foreground ring-1 ring-border has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:gap-3 data-[size=sm]:py-3 data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-card *:[img:last-child]:rounded-b-card',
+        'group/card flex flex-col gap-4 overflow-visible rounded-card bg-card py-card text-body text-card-foreground ring-1 ring-border has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:gap-3 data-[size=sm]:py-3 data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-card *:[img:last-child]:rounded-b-card',
         className,
       )}
       {...props}
+    />
+  )
+}
+
+function CardList({
+  className,
+  ...props
+}: Readonly<Omit<React.ComponentProps<typeof Card>, 'size'>>) {
+  return (
+    <Card
+      {...props}
+      data-slot="card-list"
+      className={cn('gap-0 overflow-hidden py-0 divide-y divide-border', className)}
     />
   )
 }
@@ -89,4 +102,13 @@ function CardFooter({ className, ...props }: Readonly<React.ComponentProps<'div'
   )
 }
 
-export { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
+export {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardList,
+  CardTitle,
+}

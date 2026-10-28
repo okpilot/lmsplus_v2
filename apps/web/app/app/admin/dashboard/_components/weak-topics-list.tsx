@@ -1,3 +1,4 @@
+import { Card, CardContent } from '@/components/ui/card'
 import { EmptyNote } from '@/components/ui/empty'
 import { Heading } from '@/components/ui/heading'
 import { Meter } from '@/components/ui/meter'
@@ -8,21 +9,23 @@ type Props = Readonly<{ topics: WeakTopic[] }>
 
 export function WeakTopicsList({ topics }: Readonly<Props>) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4 space-y-4">
-      <Heading level={2}>Weakest Topics</Heading>
+    <Card>
+      <CardContent className="space-y-4">
+        <Heading level={2}>Weakest Topics</Heading>
 
-      {topics.length === 0 ? (
-        <EmptyNote variant="inline" className="py-6 text-center">
-          No quiz data yet.
-        </EmptyNote>
-      ) : (
-        <ul className="space-y-4">
-          {topics.map((topic) => (
-            <TopicRow key={topic.topicId} topic={topic} />
-          ))}
-        </ul>
-      )}
-    </div>
+        {topics.length === 0 ? (
+          <EmptyNote variant="inline" className="py-6 text-center">
+            No quiz data yet.
+          </EmptyNote>
+        ) : (
+          <ul className="space-y-4">
+            {topics.map((topic) => (
+              <TopicRow key={topic.topicId} topic={topic} />
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 

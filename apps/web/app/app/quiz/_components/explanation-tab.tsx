@@ -1,3 +1,4 @@
+import { InsetPanel } from '@/components/kit/inset-panel'
 import { EmptyNote } from '@/components/ui/empty'
 import { Eyebrow } from '@/components/ui/heading'
 import { MarkdownText } from '../../_components/markdown-text'
@@ -18,10 +19,10 @@ export function ExplanationTab({
     <div className="space-y-3 py-4">
       <ExplanationContent text={explanationText} imageUrl={explanationImageUrl} />
       {learningObjective && (
-        <div className="rounded-lg bg-muted/50 p-4">
+        <InsetPanel className="p-4">
           <Eyebrow>Learning Objective</Eyebrow>
           <p className="mt-1 text-sm">{learningObjective}</p>
-        </div>
+        </InsetPanel>
       )}
     </div>
   )

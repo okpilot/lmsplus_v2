@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef } from 'react'
+import { InsetPanel } from '@/components/kit/inset-panel'
 import { BusyLabel } from '@/components/ui/busy-label'
 import { DialogLine } from './dialog-line'
 import { useDialogFillInput } from './use-dialog-fill-input'
@@ -80,7 +81,7 @@ export function DialogFillInput({
 
   return (
     <div className="space-y-3">
-      <div ref={rootRef} className="space-y-1 rounded-lg border border-border p-4">
+      <InsetPanel ref={rootRef} className="space-y-1 p-4">
         {lines.map((line, i) => (
           <DialogLine
             // Parsed lines are stable per template; index key is safe.
@@ -103,7 +104,7 @@ export function DialogFillInput({
             onEnter={handleEnter}
           />
         ))}
-      </div>
+      </InsetPanel>
 
       {graded && (
         <p role="status" aria-live="polite" className="sr-only">

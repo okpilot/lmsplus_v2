@@ -2,6 +2,7 @@
 
 import { Alert, AlertAction, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { CardList } from '@/components/ui/card'
 import { EmptyNote } from '@/components/ui/empty'
 import { Heading } from '@/components/ui/heading'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -62,7 +63,7 @@ function StatsDisplay({ stats }: Readonly<{ stats: QuestionStats }>) {
   return (
     <div className="space-y-3 py-4">
       <Heading level={3}>Your Statistics</Heading>
-      <div className="divide-y divide-border rounded-lg border border-border">
+      <CardList>
         <StatRow label="Times seen" value={String(stats.timesSeen)} />
         <StatRow
           label="Correct"
@@ -84,7 +85,7 @@ function StatsDisplay({ stats }: Readonly<{ stats: QuestionStats }>) {
             })}
           />
         )}
-      </div>
+      </CardList>
       <p className="text-xs text-muted-foreground">
         Statistics reflect your previous quiz sessions.
       </p>

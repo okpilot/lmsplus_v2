@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Card, CardContent } from '@/components/ui/card'
 import { FieldError } from '@/components/ui/field-error'
 import type { ExamSubjectOption } from '@/lib/queries/exam-subjects'
 import type { SubjectOption } from '@/lib/queries/quiz-query-types'
@@ -48,68 +49,70 @@ export function QuizConfigForm(props: Readonly<QuizConfigFormProps>) {
   return (
     <div className="space-y-4">
       {/* Card 1: Quiz Configuration */}
-      <div className="rounded-xl border border-border bg-card p-6 space-y-5">
-        <ModeToggle
-          value={config.mode}
-          onValueChange={config.setMode}
-          examAvailable={examSubjects.length > 0}
-        />
-        {isExam ? (
-          <ExamConfigForm
-            examSubjects={examSubjects}
-            subjectId={examSubjectId}
-            onSubjectChange={setExamSubjectId}
+      <Card>
+        <CardContent className="space-y-5">
+          <ModeToggle
+            value={config.mode}
+            onValueChange={config.setMode}
+            examAvailable={examSubjects.length > 0}
           />
-        ) : (
-          <>
-            <SubjectSelect
-              subjects={subjects}
-              value={config.subjectId}
-              onValueChange={config.handleSubjectChange}
+          {isExam ? (
+            <ExamConfigForm
+              examSubjects={examSubjects}
+              subjectId={examSubjectId}
+              onSubjectChange={setExamSubjectId}
             />
-            {config.subjectId && (
-              <QuestionFilters
-                value={config.filters}
-                onValueChange={config.setFilters}
-                calcMode={config.calcMode}
-                onCalcModeChange={config.setCalcMode}
-                imageMode={config.imageMode}
-                onImageModeChange={config.setImageMode}
-                unseenLabel="Unanswered"
+          ) : (
+            <>
+              <SubjectSelect
+                subjects={subjects}
+                value={config.subjectId}
+                onValueChange={config.handleSubjectChange}
               />
-            )}
-          </>
-        )}
-      </div>
+              {config.subjectId && (
+                <QuestionFilters
+                  value={config.filters}
+                  onValueChange={config.setFilters}
+                  calcMode={config.calcMode}
+                  onCalcModeChange={config.setCalcMode}
+                  imageMode={config.imageMode}
+                  onImageModeChange={config.setImageMode}
+                  unseenLabel="Unanswered"
+                />
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Study mode: Topics + Count */}
       {!isExam && (
         <>
           {config.topicTree.topics.length > 0 && (
-            <div className="rounded-xl border border-border bg-card p-6">
-              <TopicTree
-                topics={config.topicTree.topics}
-                checkedTopics={config.topicTree.checkedTopics}
-                checkedSubtopics={config.topicTree.checkedSubtopics}
-                onToggleTopic={config.topicTree.toggleTopic}
-                onToggleSubtopic={config.topicTree.toggleSubtopic}
-                onSelectAll={config.topicTree.selectAll}
-                totalQuestions={config.topicTree.totalQuestions}
-                allSelected={config.topicTree.allSelected}
-                filteredByTopic={config.filteredByTopic}
-                filteredBySubtopic={config.filteredBySubtopic}
-              />
-            </div>
+            <TopicTree
+              topics={config.topicTree.topics}
+              checkedTopics={config.topicTree.checkedTopics}
+              checkedSubtopics={config.topicTree.checkedSubtopics}
+              onToggleTopic={config.topicTree.toggleTopic}
+              onToggleSubtopic={config.topicTree.toggleSubtopic}
+              onSelectAll={config.topicTree.selectAll}
+              totalQuestions={config.topicTree.totalQuestions}
+              allSelected={config.topicTree.allSelected}
+              filteredByTopic={config.filteredByTopic}
+              filteredBySubtopic={config.filteredBySubtopic}
+            />
           )}
 
           {config.subjectId && (
-            <div className="rounded-xl border border-border bg-card p-6">
-              <QuestionCount
-                value={config.count}
-                max={config.availableCount}
-                onValueChange={config.setCount}
-              />
-            </div>
+            <Card>
+              <CardContent>
+                <QuestionCount
+                  value={config.count}
+                  max={config.availableCount}
+                  onValueChange={config.setCount}
+                />
+              </CardContent>
+            </Card>
           )}
         </>
       )}

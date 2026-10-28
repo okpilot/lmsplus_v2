@@ -1,8 +1,8 @@
 import { Suspense } from 'react'
 import { PageHeader } from '@/components/ui/heading'
-import { Skeleton } from '@/components/ui/skeleton'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { ExamConfigContent } from './_components/exam-config-content'
+import { ExamConfigRowsSkeleton } from './_components/exam-config-rows-skeleton'
 
 export default async function ExamConfigPage() {
   await requireAdmin()
@@ -20,12 +20,5 @@ export default async function ExamConfigPage() {
 }
 
 function ExamConfigFallback() {
-  return (
-    <div className="grid gap-4">
-      {Array.from({ length: 9 }).map((_, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton placeholders
-        <Skeleton key={i} className="h-20" />
-      ))}
-    </div>
-  )
+  return <ExamConfigRowsSkeleton />
 }

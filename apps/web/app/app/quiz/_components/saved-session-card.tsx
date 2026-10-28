@@ -1,6 +1,7 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import { FieldError } from '@/components/ui/field-error'
 import { modeLabel } from '@/lib/constants/exam-modes'
 import type { SavedQuizSession } from '@/lib/queries/load-saved-quizzes'
@@ -45,21 +46,23 @@ export function SavedSessionCard({ session }: Readonly<{ session: SavedQuizSessi
   const { error, resuming, resume, deleting, remove } = useSavedCardActions(session.sessionId)
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4 space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium">{session.subjectName}</p>
-          <p className="text-xs text-muted-foreground">{modeLabel(session.mode)}</p>
+    <Card>
+      <CardContent className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium">{session.subjectName}</p>
+            <p className="text-xs text-muted-foreground">{modeLabel(session.mode)}</p>
+          </div>
+          <SavedSessionButtons
+            resuming={resuming}
+            deleting={deleting}
+            onResume={resume}
+            onDelete={remove}
+          />
         </div>
-        <SavedSessionButtons
-          resuming={resuming}
-          deleting={deleting}
-          onResume={resume}
-          onDelete={remove}
-        />
-      </div>
-      <SavedSessionProgress answered={session.answeredCount} total={session.totalCount} />
-      <FieldError>{error}</FieldError>
-    </div>
+        <SavedSessionProgress answered={session.answeredCount} total={session.totalCount} />
+        <FieldError>{error}</FieldError>
+      </CardContent>
+    </Card>
   )
 }

@@ -78,7 +78,7 @@ export function VoidCodeDialog({ codeId, open, onOpenChange }: Readonly<Props>) 
             maxLength={500}
             rows={4}
           />
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <div className="text-right text-xs text-muted-foreground">
             <span>{trimmed.length}/500</span>
           </div>
           <FieldError role="alert">{error}</FieldError>

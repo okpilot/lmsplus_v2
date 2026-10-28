@@ -3,6 +3,7 @@
 import { ChevronRight } from 'lucide-react'
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
+import { InsetPanel } from '@/components/kit/inset-panel'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
@@ -66,7 +67,7 @@ export function SubjectRow({ subject }: Readonly<Props>) {
 
   if (editing) {
     return (
-      <div className="rounded-lg border bg-muted/50 p-3">
+      <InsetPanel>
         <InlineForm
           fields={[
             { name: 'code', placeholder: 'Code', width: 'w-20', defaultValue: subject.code },
@@ -78,7 +79,7 @@ export function SubjectRow({ subject }: Readonly<Props>) {
           isPending={isPending}
           submitLabel="Save"
         />
-      </div>
+      </InsetPanel>
     )
   }
 

@@ -39,11 +39,11 @@ export function SubjectConfigCard({ subject, onEdit }: Readonly<Props>) {
   }
 
   return (
-    <div className="flex items-center rounded-lg border border-border bg-card transition-colors hover:bg-muted/50">
+    <div className="flex items-center transition-colors hover:bg-muted/50">
       <button
         type="button"
         onClick={onEdit}
-        className="flex min-w-0 flex-1 items-center justify-between p-4 text-left"
+        className="flex min-w-0 flex-1 items-center justify-between p-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       >
         <div className="flex items-center gap-3">
           <span className="rounded bg-muted px-2 py-1 tabular-nums text-xs font-medium text-muted-foreground">
@@ -67,7 +67,7 @@ export function SubjectConfigCard({ subject, onEdit }: Readonly<Props>) {
           type="button"
           onClick={handleToggle}
           disabled={isPending}
-          className="relative mr-4 shrink-0 rounded-full transition-opacity after:absolute after:-inset-x-1 after:-inset-y-3 lg:after:hidden enabled:hover:opacity-80 disabled:opacity-50"
+          className="relative mr-4 shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring transition-opacity after:absolute after:-inset-x-1 after:-inset-y-3 lg:after:hidden enabled:hover:opacity-80 disabled:opacity-50"
         >
           <Badge tone={config.enabled ? 'success' : 'neutral'}>
             {isPending ? '...' : config.enabled ? 'Enabled' : 'Disabled'}
