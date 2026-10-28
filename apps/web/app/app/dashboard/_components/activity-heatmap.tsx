@@ -73,7 +73,7 @@ export function ActivityHeatmap({ data }: Readonly<ActivityHeatmapProps>) {
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1)
 
   return (
-    <Card className="overflow-visible">
+    <Card>
       <CardContent>
         <HeatmapHeader
           monthName={monthName}

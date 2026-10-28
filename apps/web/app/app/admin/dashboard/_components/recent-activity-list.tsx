@@ -11,7 +11,7 @@ type Props = Readonly<{ sessions: RecentSession[] }>
 
 export function RecentActivityList({ sessions }: Readonly<Props>) {
   return (
-    <Card>
+    <Card className="overflow-hidden">
       <CardContent>
         <Heading level={2}>Recent Activity</Heading>
       </CardContent>
@@ -36,7 +36,7 @@ function ActivityRow({ session }: Readonly<{ session: RecentSession }>) {
   return (
     <Link
       href={`/app/admin/dashboard/sessions/${session.sessionId}`}
-      className="flex w-full items-center justify-between gap-3 text-sm text-left px-4 py-3 transition-colors hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2"
+      className="flex w-full items-center justify-between gap-3 text-sm text-left px-card py-3 transition-colors hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2"
     >
       <div className="min-w-0 flex-1">
         <p className="font-medium truncate">{session.studentName ?? 'Unknown student'}</p>

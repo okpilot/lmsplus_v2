@@ -42,7 +42,7 @@ export function VfrRtConfigForm({
 
   return (
     <div className="space-y-4">
-      <Card className="overflow-visible">
+      <Card>
         <CardContent className="space-y-5">
           <ModeToggle
             value={config.mode}

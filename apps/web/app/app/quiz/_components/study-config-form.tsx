@@ -31,7 +31,7 @@ export function StudyConfigForm({
 
   return (
     <div className="space-y-4">
-      <Card className="overflow-visible">
+      <Card>
         <CardContent className="space-y-5">
           {header}
           <SubjectSelect
@@ -54,22 +54,18 @@ export function StudyConfigForm({
       </Card>
 
       {config.topicTree.topics.length > 0 && (
-        <Card>
-          <CardContent>
-            <TopicTree
-              topics={config.topicTree.topics}
-              checkedTopics={config.topicTree.checkedTopics}
-              checkedSubtopics={config.topicTree.checkedSubtopics}
-              onToggleTopic={config.topicTree.toggleTopic}
-              onToggleSubtopic={config.topicTree.toggleSubtopic}
-              onSelectAll={config.topicTree.selectAll}
-              totalQuestions={config.topicTree.totalQuestions}
-              allSelected={config.topicTree.allSelected}
-              filteredByTopic={config.filteredByTopic}
-              filteredBySubtopic={config.filteredBySubtopic}
-            />
-          </CardContent>
-        </Card>
+        <TopicTree
+          topics={config.topicTree.topics}
+          checkedTopics={config.topicTree.checkedTopics}
+          checkedSubtopics={config.topicTree.checkedSubtopics}
+          onToggleTopic={config.topicTree.toggleTopic}
+          onToggleSubtopic={config.topicTree.toggleSubtopic}
+          onSelectAll={config.topicTree.selectAll}
+          totalQuestions={config.topicTree.totalQuestions}
+          allSelected={config.topicTree.allSelected}
+          filteredByTopic={config.filteredByTopic}
+          filteredBySubtopic={config.filteredBySubtopic}
+        />
       )}
 
       {config.subjectId && (

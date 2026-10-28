@@ -58,7 +58,7 @@ function PageHeader({ title, description, actions, className }: Readonly<PageHea
         )}
       </div>
       {isEmptyNode(actions) ? null : (
-        <div className="flex shrink-0 items-center gap-inline">{actions}</div>
+        <div className="flex shrink-0 flex-wrap items-center gap-inline">{actions}</div>
       )}
     </div>
   )

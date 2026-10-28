@@ -16,23 +16,19 @@ function TopicSection({ config }: Readonly<{ config: Config }>) {
   const t = config.topicTree
   return (
     <>
-      <Card>
-        <CardContent>
-          <TopicTree
-            topics={t.topics}
-            checkedTopics={t.checkedTopics}
-            checkedSubtopics={t.checkedSubtopics}
-            onToggleTopic={t.toggleTopic}
-            onToggleSubtopic={t.toggleSubtopic}
-            onSelectAll={t.selectAll}
-            totalQuestions={t.totalQuestions}
-            allSelected={t.allSelected}
-            filteredByTopic={config.filteredByTopic}
-            filteredBySubtopic={config.filteredBySubtopic}
-            showCode={false}
-          />
-        </CardContent>
-      </Card>
+      <TopicTree
+        topics={t.topics}
+        checkedTopics={t.checkedTopics}
+        checkedSubtopics={t.checkedSubtopics}
+        onToggleTopic={t.toggleTopic}
+        onToggleSubtopic={t.toggleSubtopic}
+        onSelectAll={t.selectAll}
+        totalQuestions={t.totalQuestions}
+        allSelected={t.allSelected}
+        filteredByTopic={config.filteredByTopic}
+        filteredBySubtopic={config.filteredBySubtopic}
+        showCode={false}
+      />
       <Card>
         <CardContent>
           <QuestionCount

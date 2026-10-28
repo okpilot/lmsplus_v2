@@ -66,7 +66,7 @@ function Stat({ variant = 'card', className, contentClassName, ...props }: Reado
     )
   }
   return (
-    <Card className={cn('min-w-0 overflow-visible', className)}>
+    <Card className={cn('min-w-0', className)}>
       <CardContent className={contentClassName}>
         <StatBody {...props} />
       </CardContent>

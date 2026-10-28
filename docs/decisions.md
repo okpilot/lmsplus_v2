@@ -170,4 +170,4 @@
 ## 175 — 2026-10-13 — Input, Textarea, SelectTrigger and Checkbox keep dark:bg-muted/30 in dark mode; bg-card applies in light. #1433
 ## 176 — 2026-10-13 — Auth form error lines (login, forgot-password, recovery-code, reset-password, set-password) move to FieldError in the auth parts PR, not B2b-1. #1433
 ## 177 — 2026-10-14 — z layer scrim 15 between sticky 10 and nav 20; the bottom-bar More sheet backdrop uses it. #1433
-## 178 — 2026-10-28 — Surfaces: tables framed by ui/Table (muted header); list rows in one ui/CardList divided by lines; inner panels are kit/InsetPanel (muted fill, no border); a Card holding a popup (tooltip, filter hint) sets overflow-visible. #1433
+## 178 — 2026-10-28 — Surfaces: tables framed by ui/Table (muted header); list rows in one ui/CardList divided by lines; inner panels are kit/InsetPanel (muted fill, no border); Card does not clip (popups stay visible), CardList clips its rows. #1433

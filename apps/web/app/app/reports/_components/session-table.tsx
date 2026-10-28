@@ -47,9 +47,9 @@ export function SessionTable({ sessions, sort, dir, onSort }: Readonly<Props>) {
             onSort={onSort}
             className="px-4 py-3 text-xs"
           />
-          <TableHead className="px-4 py-3 text-xs">Mode</TableHead>
-          <TableHead className="px-4 py-3 text-xs">Correct</TableHead>
-          <TableHead className="px-4 py-3 text-xs">Time</TableHead>
+          <TableHead className="px-4 py-3 text-xs text-muted-foreground">Mode</TableHead>
+          <TableHead className="px-4 py-3 text-xs text-muted-foreground">Correct</TableHead>
+          <TableHead className="px-4 py-3 text-xs text-muted-foreground">Time</TableHead>
           <SortableTableHead
             field="score"
             label="Score"
@@ -80,7 +80,7 @@ function SessionRow({ session: s }: Readonly<{ session: SessionReport }>) {
   return (
     <TableRow
       tabIndex={0}
-      className="cursor-pointer hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+      className="cursor-pointer hover:bg-accent outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       onClick={navigate}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
