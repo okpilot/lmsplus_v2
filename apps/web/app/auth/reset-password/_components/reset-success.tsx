@@ -6,7 +6,7 @@ export function ResetSuccess() {
       <p className="text-sm text-muted-foreground">Your password has been updated successfully.</p>
       <Link
         href="/auth/reset-password/done"
-        className="inline-block text-sm font-medium text-primary-text hover:underline underline-offset-4"
+        className="inline-block text-sm font-medium text-primary-text underline underline-offset-4"
       >
         Sign in with your new password
       </Link>

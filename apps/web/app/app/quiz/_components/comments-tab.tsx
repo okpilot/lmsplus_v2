@@ -103,7 +103,7 @@ export function CommentsTab({ questionId, currentUserId }: Readonly<CommentsTabP
                         console.error('[CommentsTab] Failed to delete comment:', err),
                       )
                     }}
-                    className="mt-1 h-auto px-0 text-destructive"
+                    className="mt-2.5 h-auto px-0 text-destructive"
                   >
                     Delete
                   </Button>

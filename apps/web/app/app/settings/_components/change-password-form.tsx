@@ -1,9 +1,9 @@
 'use client'
 
-import { Eye, EyeOff } from 'lucide-react'
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { z } from 'zod'
+import { PasswordToggle } from '@/components/auth/password-toggle'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { FieldError } from '@/components/ui/field-error'
 import { Input } from '@/components/ui/input'
@@ -92,14 +92,11 @@ export function ChangePasswordForm() {
                 className="pr-10"
                 autoComplete="new-password"
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                aria-label={showPassword ? 'Hide passwords' : 'Show passwords'}
-              >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
+              <PasswordToggle
+                shown={showPassword}
+                onToggle={() => setShowPassword(!showPassword)}
+                label="passwords"
+              />
             </div>
           </div>
 

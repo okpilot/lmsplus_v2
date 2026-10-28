@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { z } from 'zod'
+import { FieldError } from '@/components/ui/field-error'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { LoadingButton } from '@/components/ui/loading-button'
@@ -63,24 +64,30 @@ export function ForgotPasswordForm() {
         />
       </div>
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      <FieldError role="alert">{error}</FieldError>
 
       <LoadingButton type="submit" loading={loading} loadingText="Sending..." className="w-full">
         Send reset code
       </LoadingButton>
 
       <p className="text-center text-sm">
-        <Link href="/" className="text-muted-foreground hover:text-primary-text">
+        <Link
+          href="/"
+          className="text-muted-foreground underline underline-offset-4 hover:text-primary-text"
+        >
           Back to login
         </Link>
       </p>
 
       <p className="text-center text-xs text-muted-foreground">
-        <Link href="/legal/terms" className="hover:text-primary-text underline">
+        <Link href="/legal/terms" className="underline underline-offset-4 hover:text-primary-text">
           Terms of Service
         </Link>
         {' · '}
-        <Link href="/legal/privacy" className="hover:text-primary-text underline">
+        <Link
+          href="/legal/privacy"
+          className="underline underline-offset-4 hover:text-primary-text"
+        >
           Privacy Policy
         </Link>
       </p>
