@@ -34,6 +34,7 @@ test.describe('Quiz restored answer feedback', () => {
       timeout: 10_000,
     })
     await expect(gridButton(page, 0)).toHaveAttribute('aria-current', 'step')
+    await expect(gridButton(page, 0)).toHaveAttribute('data-status', GRADED_STATUS)
 
     await page.getByRole('button', { name: 'Next ›' }).click()
     await expect(page.getByText(`Question 2 of ${total}`)).toBeVisible()

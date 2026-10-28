@@ -1,12 +1,16 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { FilterRow, getSquareClass, getSquareStatus } from './filter-pill'
+import { FilterRow, getSquareClassFor, getSquareStatus } from './filter-pill'
+
+function getSquareClass(o: Parameters<typeof getSquareStatus>[0]) {
+  return getSquareClassFor(getSquareStatus(o), o.isCurrent)
+}
 
 // ---------------------------------------------------------------------------
-// getSquareClass
+// getSquareClassFor
 // ---------------------------------------------------------------------------
 
-describe('getSquareClass', () => {
+describe('getSquareClassFor', () => {
   it('styles a correct square with success-soft and success text', () => {
     const cls = getSquareClass({ isCurrent: false, isCorrect: true })
     expect(cls).toContain('bg-success-soft text-success')

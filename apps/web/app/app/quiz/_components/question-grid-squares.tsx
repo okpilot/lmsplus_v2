@@ -14,8 +14,8 @@ type BuildSquaresOpts = {
   onNavigate: (index: number) => void
   isExamMode?: boolean
   answeredIds?: Set<string>
-  // Discovery-only: indices the user has already visited. Drives the "seen"
-  // (green) colour; left undefined for study/exam so their colouring is unchanged.
+  // Discovery-only: indices the user has already visited. They read as answered
+  // (grey); left undefined for study/exam so their colouring is unchanged.
   seenIds?: Set<number>
 }
 

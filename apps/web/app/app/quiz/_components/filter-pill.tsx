@@ -30,10 +30,6 @@ export function getSquareClassFor(status: SquareStatus, isCurrent: boolean) {
   return isCurrent ? `${base} ring-2 ring-primary` : base
 }
 
-export function getSquareClass(opts: SquareOpts) {
-  return getSquareClassFor(getSquareStatus(opts), opts.isCurrent)
-}
-
 function FilterPill({
   active,
   onClick,
