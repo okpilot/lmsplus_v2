@@ -18,10 +18,18 @@ const TABS: { value: QuestionTab; label: string }[] = [
 
 export function QuestionTabs({ activeTab, onTabChange }: Readonly<QuestionTabsProps>) {
   return (
-    <Tabs value={activeTab} onValueChange={(v) => onTabChange(v as QuestionTab)}>
+    <Tabs
+      value={activeTab}
+      onValueChange={(v) => onTabChange(v as QuestionTab)}
+      className="flex justify-center"
+    >
       <TabsList>
         {TABS.map((tab) => (
-          <TabsTab key={tab.value} value={tab.value}>
+          <TabsTab
+            key={tab.value}
+            value={tab.value}
+            className="h-8 px-2 text-xs md:px-3 md:text-sm"
+          >
             {tab.label}
           </TabsTab>
         ))}
