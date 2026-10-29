@@ -21,7 +21,7 @@ export function SessionSummary({
   const incorrectCount = answeredCount - correctCount
 
   return (
-    <div className="mx-auto max-w-md space-y-6 text-center">
+    <div className="mx-auto max-w-reading space-y-6 text-center">
       <Stat variant="plain" label={`${label} Complete`} value={`${Math.round(scorePercentage)}%`} />
 
       <StatGroup

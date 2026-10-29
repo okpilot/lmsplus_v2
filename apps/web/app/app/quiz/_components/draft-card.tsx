@@ -2,13 +2,10 @@
 
 import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { FieldError } from '@/components/ui/field-error'
 import { deleteDraftAndRefresh } from '../actions/discard-and-refresh'
 import { resumeQuizSession } from '../actions/resume'
 import type { DraftData } from '../types'
-import { SavedSessionProgress } from './saved-session-progress'
+import { SavedRow } from './saved-draft-card'
 
 // biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function DraftCard({ draft }: Readonly<{ draft: DraftData }>) {
@@ -82,37 +79,21 @@ export function DraftCard({ draft }: Readonly<{ draft: DraftData }>) {
   }
 
   return (
-    <Card data-testid="draft-card">
-      <CardContent className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="truncate text-label">{subjectLabel}</p>
-            {dateLabel && <p className="text-caption text-muted-foreground">Saved {dateLabel}</p>}
-          </div>
-          <div className="flex shrink-0 gap-2">
-            <Button
-              type="button"
-              data-testid="resume-draft"
-              onClick={handleResume}
-              disabled={resuming}
-              aria-busy={resuming || undefined}
-            >
-              {resuming ? 'Resuming...' : 'Resume'}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              data-testid="delete-draft"
-              onClick={handleDelete}
-              disabled={deleting}
-            >
-              {deleting ? 'Deleting...' : 'Delete'}
-            </Button>
-          </div>
-        </div>
-        <SavedSessionProgress answered={answeredCount} total={totalCount} />
-        <FieldError role="alert">{error}</FieldError>
-      </CardContent>
-    </Card>
+    <SavedRow
+      rowTestId="draft-card"
+      title={subjectLabel}
+      subtitle={dateLabel ? `Saved ${dateLabel}` : undefined}
+      answered={answeredCount}
+      total={totalCount}
+      error={error}
+      resumeTestId="resume-draft"
+      deleteTestId="delete-draft"
+      resuming={resuming}
+      resumeDisabled={resuming}
+      deleting={deleting}
+      deleteDisabled={deleting}
+      onResume={handleResume}
+      onDelete={handleDelete}
+    />
   )
 }

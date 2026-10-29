@@ -10,7 +10,7 @@ export default async function InternalExamPage() {
   await requireAuthUser()
 
   return (
-    <main className="space-y-6">
+    <main className="space-y-section">
       <PageHeader
         title="Internal Exam"
         description="Enter the code from your administrator to begin a supervised internal exam."

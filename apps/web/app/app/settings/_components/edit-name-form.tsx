@@ -58,7 +58,7 @@ export function EditNameForm({ currentName }: Readonly<EditNameFormProps>) {
         <CardTitle>Display Name</CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="max-w-field space-y-4">
           <div className="space-y-2">
             <Label htmlFor="fullName">Full name</Label>
             <Input

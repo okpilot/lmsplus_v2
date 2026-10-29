@@ -115,7 +115,7 @@ export function GridToggle({
         </>
       ) : (
         <>
-          Show all ({totalQuestions}) <ChevronDown className="size-icon-sm" />
+          See all ({totalQuestions}) <ChevronDown className="size-icon-sm" />
         </>
       )}
     </Button>

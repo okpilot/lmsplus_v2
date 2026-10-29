@@ -13,7 +13,7 @@ export default async function VfrRtPage() {
   const user = await requireAuthUser()
 
   return (
-    <main className="space-y-6">
+    <main className="space-y-section">
       <PageHeader
         title="Practice"
         description="Configure and start a VFR Radiotelephony practice session."
@@ -21,20 +21,18 @@ export default async function VfrRtPage() {
 
       <VfrRtActiveBanners userId={user.id} />
 
-      <div className="mx-auto max-w-xl">
-        <QuizTabs
-          draftCount={null}
-          newLabel="New Practice Session"
-          savedLabel="Saved Practice Sessions"
-          ariaLabel="Practice options"
-          newQuizContent={
-            <Suspense fallback={<Skeleton className="h-64 rounded-card" />}>
-              <VfrRtSetup />
-            </Suspense>
-          }
-          savedDraftContent={<VfrRtSavedPlaceholder />}
-        />
-      </div>
+      <QuizTabs
+        draftCount={null}
+        newLabel="New Practice Session"
+        savedLabel="Saved Practice Sessions"
+        ariaLabel="Practice options"
+        newQuizContent={
+          <Suspense fallback={<Skeleton className="h-64 rounded-card" />}>
+            <VfrRtSetup />
+          </Suspense>
+        }
+        savedDraftContent={<VfrRtSavedPlaceholder />}
+      />
     </main>
   )
 }

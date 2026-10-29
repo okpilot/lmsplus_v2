@@ -19,7 +19,7 @@ export function QuizPageTabs({
   >
 >) {
   return (
-    <div className="mx-auto max-w-xl">
+    <div>
       <RefreshOnReturn />
       <QuizTabs
         draftCount={savedTabCount}

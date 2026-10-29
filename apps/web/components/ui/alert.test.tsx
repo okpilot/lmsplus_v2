@@ -65,6 +65,31 @@ describe('Alert', () => {
     expect(screen.getByTestId('a')).not.toHaveAttribute('role')
   })
 
+  it('stacks its actions at every width by default', () => {
+    render(<Alert data-testid="a">Note</Alert>)
+    expect(screen.getByTestId('a').className).not.toContain('layout-banner-row')
+  })
+
+  it('places the action in a second column from lg in the row layout', () => {
+    render(
+      <Alert data-testid="a" layout="row">
+        <AlertTitle>T</AlertTitle>
+        <AlertAction>Go</AlertAction>
+      </Alert>,
+    )
+    const cls = screen.getByTestId('a').className
+    expect(cls).toContain('lg:grid-cols-(--layout-banner-row)')
+    expect(cls).toContain('lg:items-center')
+    expect(cls).toContain('lg:*:data-[slot=alert-action]:col-start-2')
+  })
+
+  it('sizes the icon column from the label-value layout token', () => {
+    render(<Alert data-testid="a">x</Alert>)
+    expect(screen.getByTestId('a').className).toContain(
+      'has-[>svg]:grid-cols-(--layout-label-value)',
+    )
+  })
+
   it('uses the muted surface for the neutral tone by default', () => {
     render(<Alert data-testid="a">Note</Alert>)
     expect(screen.getByTestId('a').className).toContain('bg-muted')

@@ -8,7 +8,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn(), refresh: 
 import { DraftCard } from './draft-card'
 
 describe('DraftCard surface', () => {
-  it('root carries data-testid draft-card and data-slot card', () => {
+  it('root is a list row carrying data-testid draft-card', () => {
     render(
       <DraftCard
         draft={{
@@ -24,6 +24,6 @@ describe('DraftCard surface', () => {
       />,
     )
     const root = screen.getByTestId('draft-card')
-    expect(root.getAttribute('data-slot')).toBe('card')
+    expect(root.getAttribute('data-slot')).toBe('card-list-row')
   })
 })

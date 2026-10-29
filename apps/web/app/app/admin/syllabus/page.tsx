@@ -7,7 +7,7 @@ import { SyllabusContentSkeleton } from './_components/syllabus-content-skeleton
 export default async function SyllabusPage() {
   await requireAdmin()
   return (
-    <div className="space-y-6">
+    <div className="space-y-section">
       <PageHeader
         title="Syllabus Manager"
         description="Manage the EASA PPL subject hierarchy. Add subjects, topics, and subtopics."

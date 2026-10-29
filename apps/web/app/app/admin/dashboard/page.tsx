@@ -27,7 +27,7 @@ export default async function AdminDashboardPage({ searchParams }: Readonly<Page
   const filters = parseFilters(await searchParams)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-section">
       <DashboardHeader currentRange={filters.range} />
       <Suspense fallback={<KpiSkeleton />}>
         <KpiCardsContent range={filters.range} />

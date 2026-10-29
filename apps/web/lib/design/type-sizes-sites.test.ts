@@ -177,23 +177,19 @@ describe('tab bar and heatmap (AC 16)', () => {
 })
 
 describe('quiz header is caption (AC 17)', () => {
-  it.each([
-    `${SESS}quiz-session-header-parts.tsx`,
-    `${SESS}quiz-session-meta-row.tsx`,
-    `${SESS}exam-session-header.tsx`,
-    'app/app/_components/session-timer.tsx',
-  ])('%s', (f) => {
-    const s = src(f)
-    expect(s).toContain('text-caption')
-    expect(s).not.toMatch(/text-sm\b/)
-  })
+  it.each([`${SESS}quiz-session-header-parts.tsx`, 'app/app/_components/session-timer.tsx'])(
+    '%s',
+    (f) => {
+      const s = src(f)
+      expect(s).toContain('text-caption')
+      expect(s).not.toMatch(/text-sm\b/)
+    },
+  )
 
-  it('counter span is caption medium', () => {
-    expect(
-      strings(`${SESS}quiz-session-header-parts.tsx`).some(
-        (x) => /text-caption/.test(x) && /font-medium/.test(x),
-      ),
-    ).toBe(true)
+  it('card counter is label semibold and the question code is caption', () => {
+    const f = strings(`${SESS}quiz-card-header.tsx`)
+    expect(f.some((x) => /text-label/.test(x) && /font-semibold/.test(x))).toBe(true)
+    expect(f.some((x) => /text-caption/.test(x))).toBe(true)
   })
 })
 

@@ -12,33 +12,38 @@ type VfrRtPracticeSectionsProps = {
 
 type Config = ReturnType<typeof useQuizConfig>
 
-function TopicSection({ config }: Readonly<{ config: Config }>) {
+/** Topic tree for a Practice (non-exam) VFR RT run; the right column of the setup layout. */
+export function VfrRtTopics({ config }: Readonly<{ config: Config }>) {
   const t = config.topicTree
+  if (t.topics.length === 0) return null
   return (
-    <>
-      <TopicTree
-        topics={t.topics}
-        checkedTopics={t.checkedTopics}
-        checkedSubtopics={t.checkedSubtopics}
-        onToggleTopic={t.toggleTopic}
-        onToggleSubtopic={t.toggleSubtopic}
-        onSelectAll={t.selectAll}
-        totalQuestions={t.totalQuestions}
-        allSelected={t.allSelected}
-        filteredByTopic={config.filteredByTopic}
-        filteredBySubtopic={config.filteredBySubtopic}
-        showCode={false}
-      />
-      <Card>
-        <CardContent>
-          <QuestionCount
-            value={config.count}
-            max={config.availableCount}
-            onValueChange={config.setCount}
-          />
-        </CardContent>
-      </Card>
-    </>
+    <TopicTree
+      topics={t.topics}
+      checkedTopics={t.checkedTopics}
+      checkedSubtopics={t.checkedSubtopics}
+      onToggleTopic={t.toggleTopic}
+      onToggleSubtopic={t.toggleSubtopic}
+      onSelectAll={t.selectAll}
+      totalQuestions={t.totalQuestions}
+      allSelected={t.allSelected}
+      filteredByTopic={config.filteredByTopic}
+      filteredBySubtopic={config.filteredBySubtopic}
+      showCode={false}
+    />
+  )
+}
+
+function CountSection({ config }: Readonly<{ config: Config }>) {
+  return (
+    <Card>
+      <CardContent>
+        <QuestionCount
+          value={config.count}
+          max={config.availableCount}
+          onValueChange={config.setCount}
+        />
+      </CardContent>
+    </Card>
   )
 }
 
@@ -53,13 +58,13 @@ function ConfigErrors({ config }: Readonly<{ config: Config }>) {
   )
 }
 
-/** Topic tree, question count, errors and start button for a Practice (non-exam) VFR RT run. */
+/** Question count, errors and start button for a Practice (non-exam) VFR RT run. */
 export function VfrRtPracticeSections({ config }: Readonly<VfrRtPracticeSectionsProps>) {
   const disabled =
     config.availableCount === 0 || config.loading || config.isPending || config.authError
   return (
     <>
-      {config.topicTree.topics.length > 0 && <TopicSection config={config} />}
+      {config.topicTree.topics.length > 0 && <CountSection config={config} />}
       <ConfigErrors config={config} />
       <StartButton
         disabled={disabled}

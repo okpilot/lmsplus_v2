@@ -30,7 +30,7 @@ export default async function StudentsPage({ searchParams }: Readonly<PageProps>
   const filters = parseFilters(await searchParams)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-section">
       <PageHeader
         title="Student Management"
         description="Register and manage students on the platform."

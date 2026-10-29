@@ -8,7 +8,7 @@ import { QuizSession } from './quiz-session'
 
 function LoaderSkeleton() {
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-reading space-y-6">
       <Skeleton className="h-1.5 w-full rounded-pill" />
       <div className="space-y-4">
         <Skeleton className="h-4 w-32" />

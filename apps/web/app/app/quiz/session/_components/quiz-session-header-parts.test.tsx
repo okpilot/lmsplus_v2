@@ -37,58 +37,39 @@ vi.mock('@/app/app/_components/theme-toggle', () => ({
 vi.mock('./keyboard-legend', () => ({
   KeyboardLegend: (p: { isExam: boolean }) => <div data-testid="legend">{String(p.isExam)}</div>,
 }))
-vi.mock('./quiz-header-action', () => ({
-  QuizHeaderAction: (p: { onFinishClick: () => void; submitting: boolean }) => (
-    <button type="button" data-testid="action" disabled={p.submitting} onClick={p.onFinishClick} />
-  ),
-}))
-vi.mock('./exam-session-header', () => ({
-  ExamBadge: (p: { mode?: string }) => <span data-testid="badge">{p.mode}</span>,
-}))
 
-import { DesktopTabs, HeaderControls, HeaderStatus } from './quiz-session-header-parts'
+import { DesktopTabs, HeaderControls, ModeHeading } from './quiz-session-header-parts'
 
 const base = {
   isExam: false,
-  currentIndex: 2,
-  totalQuestions: 5,
   timerStart: 1234,
   onTimeExpired: vi.fn(),
 }
 
-describe('HeaderStatus', () => {
-  it('shows the exam badge and countdown for a timed exam, without the session timer', () => {
-    const onTimeExpired = vi.fn()
-    render(
-      <HeaderStatus
-        {...base}
-        isExam
-        examMode="internal_exam"
-        timeLimitSeconds={600}
-        onTimeExpired={onTimeExpired}
-      />,
-    )
-    expect(screen.getByTestId('badge').textContent).toBe('internal_exam')
-    const cd = screen.getByTestId('countdown')
-    expect(cd.getAttribute('data-limit')).toBe('600')
-    expect(cd.getAttribute('data-start')).toBe('1234')
-    cd.click()
-    expect(onTimeExpired).toHaveBeenCalledTimes(1)
-    expect(screen.queryByTestId('session-timer')).toBeNull()
-    expect(screen.getByText('Q 3 / 5')).toBeTruthy()
+describe('ModeHeading', () => {
+  it.each([
+    ['study session', { isExam: false, mode: 'study' as const }, 'Study'],
+    ['discovery session', { isExam: false, mode: 'discovery' as const }, 'Discovery'],
+    ['internal exam', { isExam: true, examMode: 'internal_exam' as const }, 'Internal Exam'],
+    ['exam without a stored mode', { isExam: true }, 'Practice Exam'],
+  ])('names the mode for a %s', (_name, props, label) => {
+    render(<ModeHeading {...props} />)
+    expect(screen.getByText(label)).toHaveClass('text-label', 'font-semibold')
   })
 
-  it('shows the badge but no countdown for an exam without a time limit', () => {
-    render(<HeaderStatus {...base} isExam />)
-    expect(screen.getByTestId('badge')).toBeTruthy()
-    expect(screen.queryByTestId('countdown')).toBeNull()
+  it('shows the subject beneath the mode as muted caption text', () => {
+    render(<ModeHeading isExam={false} subjectName="Air Law" />)
+    expect(screen.getByText('Air Law')).toHaveClass('text-caption', 'text-muted-foreground')
   })
 
-  it('shows the session timer seeded with prior active time outside exams', () => {
-    render(<HeaderStatus {...base} initialActiveMs={4200} />)
-    expect(screen.getByTestId('session-timer').textContent).toBe('4200')
-    expect(screen.queryByTestId('badge')).toBeNull()
-    expect(screen.queryByTestId('countdown')).toBeNull()
+  it('omits the subject line when there is none', () => {
+    render(<ModeHeading isExam={false} />)
+    expect(screen.queryByText('Air Law')).toBeNull()
+  })
+
+  it('never renders an uppercase badge', () => {
+    render(<ModeHeading isExam examMode="mock_exam" />)
+    expect(screen.getByText('Practice Exam').className).not.toMatch(/uppercase/)
   })
 })
 
@@ -104,17 +85,66 @@ describe('DesktopTabs', () => {
 })
 
 describe('HeaderControls', () => {
-  it('renders the shortcut legend, theme toggle and header action, wiring Finish', () => {
+  const controls = { ...base, submitting: false, onFinishClick: vi.fn() }
+
+  it('renders the shortcut legend, theme toggle and an outline Finish button', () => {
     const onFinishClick = vi.fn()
-    render(<HeaderControls isExam submitting={false} onFinishClick={onFinishClick} />)
+    render(<HeaderControls {...controls} isExam onFinishClick={onFinishClick} />)
     expect(screen.getByTestId('legend').textContent).toBe('true')
     expect(screen.getByTestId('theme-toggle')).toBeTruthy()
-    screen.getByTestId('action').click()
+    const finish = screen.getByRole('button', { name: 'Finish Practice Exam' })
+    expect(finish).toHaveClass('border-border')
+    finish.click()
     expect(onFinishClick).toHaveBeenCalledTimes(1)
   })
 
+  it('names the Finish button after the exam mode', () => {
+    render(<HeaderControls {...controls} isExam examMode="internal_exam" />)
+    expect(screen.getByRole('button', { name: 'Finish Internal Exam' })).toBeTruthy()
+  })
+
+  it('disables Finish and marks it busy while submitting', () => {
+    render(<HeaderControls {...controls} submitting />)
+    const finish = screen.getByRole('button', { name: /finish test/i })
+    expect(finish).toBeDisabled()
+    expect(finish).toHaveAttribute('aria-busy', 'true')
+  })
+
+  it('replaces Finish with Exit in Discovery', () => {
+    const onExitClick = vi.fn()
+    render(<HeaderControls {...controls} isDiscovery onExitClick={onExitClick} />)
+    expect(screen.queryByRole('button', { name: /finish/i })).toBeNull()
+    screen.getByRole('button', { name: 'Exit' }).click()
+    expect(onExitClick).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows the countdown for a timed exam, without the session timer', () => {
+    const onTimeExpired = vi.fn()
+    render(
+      <HeaderControls {...controls} isExam timeLimitSeconds={600} onTimeExpired={onTimeExpired} />,
+    )
+    const cd = screen.getByTestId('countdown')
+    expect(cd.getAttribute('data-limit')).toBe('600')
+    expect(cd.getAttribute('data-start')).toBe('1234')
+    cd.click()
+    expect(onTimeExpired).toHaveBeenCalledTimes(1)
+    expect(screen.queryByTestId('session-timer')).toBeNull()
+  })
+
+  it('shows no timer for an exam without a time limit', () => {
+    render(<HeaderControls {...controls} isExam />)
+    expect(screen.queryByTestId('countdown')).toBeNull()
+    expect(screen.queryByTestId('session-timer')).toBeNull()
+  })
+
+  it('shows the session timer seeded with prior active time outside exams', () => {
+    render(<HeaderControls {...controls} initialActiveMs={4200} />)
+    expect(screen.getByTestId('session-timer').textContent).toBe('4200')
+    expect(screen.queryByTestId('countdown')).toBeNull()
+  })
+
   it('stacks the controls on the sticky z token', () => {
-    render(<HeaderControls isExam submitting={false} onFinishClick={vi.fn()} />)
+    render(<HeaderControls {...controls} isExam />)
     const wrapper = screen.getByTestId('theme-toggle').parentElement
     expect(wrapper).toHaveClass('z-sticky')
     expect(wrapper?.className).not.toMatch(/(^|\s)z-10(\s|$)/)

@@ -6,25 +6,6 @@ import { describe, expect, it } from 'vitest'
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 // GROUP: allowlist — `file` -> owning PR; a stale entry fails the test below.
 const ALLOW: Record<string, string> = {
-  'app/app/_components/active-session.tsx': 'W2 page width, owner W2 wave',
-  'app/app/_components/session-summary.tsx': 'W2 page width, owner W2 wave',
-  'app/app/internal-exam/_components/internal-exam-content.tsx': 'W2 page width, owner W2 wave',
-  'app/app/internal-exam/_components/recovery-banner.tsx': 'W2 page width, owner W2 wave',
-  'app/app/quiz/_components/active-practice-banner.tsx': 'W2 page width, owner W2 wave',
-  'app/app/quiz/_components/expired-exam-notice.tsx': 'W2 page width, owner W2 wave',
-  'app/app/quiz/_components/lookup-error-alerts.tsx': 'W2 page width, owner W2 wave',
-  'app/app/quiz/_components/quiz-page-tabs.tsx': 'W2 page width, owner W2 wave',
-  'app/app/quiz/_components/resume-exam-banner.tsx': 'W2 page width, owner W2 wave',
-  'app/app/quiz/session/_components/quiz-session-footer.tsx': 'W2 page width, owner W2 wave',
-  'app/app/quiz/session/_components/quiz-session-loader.tsx': 'W2 page width, owner W2 wave',
-  'app/app/quiz/session/_components/quiz-session.tsx': 'W2 page width, owner W2 wave',
-  'app/app/quiz/session/_components/saved-session-resume.tsx': 'W2 page width, owner W2 wave',
-  'app/app/quiz/session/[id]/loading.tsx': 'W2 page width, owner W2 wave',
-  'app/app/settings/loading.tsx': 'W2 page width, owner W2 wave',
-  'app/app/settings/page.tsx': 'W2 page width, owner W2 wave',
-  'app/app/vfr-rt/page.tsx': 'W2 page width, owner W2 wave',
-  'app/consent/page.tsx': 'W2 page width, owner W2 wave',
-  'app/legal/layout.tsx': 'W2 page width, owner W2 wave',
   'app/app/admin/questions/_components/image-upload-field.tsx': 'PR 12 file input restyle',
   'components/ui/sonner.tsx':
     'third-party unlayered CSS needs !important; arbitrary max-w with sonner --width',

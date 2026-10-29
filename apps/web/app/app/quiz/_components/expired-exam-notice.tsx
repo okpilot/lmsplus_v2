@@ -16,7 +16,7 @@ export function ExpiredExamNotice({ sessionId }: Readonly<Props>) {
   }
 
   return (
-    <Alert tone="caution" className="mx-auto mb-4 max-w-md">
+    <Alert tone="caution" layout="row">
       <AlertTitle>Practice Exam expired</AlertTitle>
       <AlertDescription>Your exam time has ended. View your results below.</AlertDescription>
       <AlertAction className="flex gap-2">

@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { useQuizConfig } from '@/app/app/quiz/_hooks/use-quiz-config'
-import { VfrRtPracticeSections } from './vfr-rt-practice-sections'
+import { VfrRtPracticeSections, VfrRtTopics } from './vfr-rt-practice-sections'
 
 vi.mock('@/app/app/quiz/_components/topic-tree', () => ({
   TopicTree: () => <div data-testid="topic-tree" />,
@@ -28,14 +28,18 @@ function makeConfig(over: Partial<Record<string, unknown>> = {}): Config {
 }
 
 describe('VfrRtPracticeSections', () => {
-  it('shows the topic tree and question count when topics exist', () => {
+  it('shows the question count when topics exist', () => {
     render(<VfrRtPracticeSections config={makeConfig()} />)
-    expect(screen.getByTestId('topic-tree')).toBeInTheDocument()
     expect(screen.getByTestId('question-count')).toBeInTheDocument()
   })
 
+  it('renders the topic tree in its own export for the right column', () => {
+    render(<VfrRtTopics config={makeConfig()} />)
+    expect(screen.getByTestId('topic-tree')).toBeInTheDocument()
+  })
+
   it('hides the topic tree when there are no topics', () => {
-    render(<VfrRtPracticeSections config={makeConfig({ topicTree: { topics: [] } })} />)
+    render(<VfrRtTopics config={makeConfig({ topicTree: { topics: [] } })} />)
     expect(screen.queryByTestId('topic-tree')).not.toBeInTheDocument()
   })
 

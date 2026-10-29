@@ -46,7 +46,7 @@ export function ModeToggle({
           </Button>
         ))}
       </div>
-      <p className="text-caption text-muted-foreground">
+      <p className="max-w-reading text-caption text-muted-foreground">
         {value === 'discovery'
           ? 'Discovery shows the answer and explanation up front — explore the questions, nothing scored.'
           : value === 'exam'

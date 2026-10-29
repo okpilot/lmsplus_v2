@@ -31,7 +31,7 @@ export function ActiveSession({
 }: Readonly<ActiveSessionProps>) {
   const feedbackData = feedback?.success ? feedback : null
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-reading space-y-section">
       <SessionProgressBar currentIndex={currentIndex} totalQuestions={questions.length} />
       <QuestionCard
         questionText={question.question_text}

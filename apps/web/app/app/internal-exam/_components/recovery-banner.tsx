@@ -13,12 +13,7 @@ export function RecoveryBanner({ session }: Readonly<Props>) {
     : 'Session in progress'
 
   return (
-    <Alert
-      role="status"
-      tone="caution"
-      data-testid="internal-exam-recovery-banner"
-      className="mx-auto max-w-md"
-    >
+    <Alert role="status" tone="caution" layout="row" data-testid="internal-exam-recovery-banner">
       <AlertTitle>You have an active internal exam in progress</AlertTitle>
       <AlertDescription muted>{subtitle}</AlertDescription>
       <AlertAction>

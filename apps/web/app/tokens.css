@@ -272,6 +272,13 @@
   --layout-distribution: 1fr 80px 80px;
   --layout-issue-code: 1fr 1fr auto;
   --layout-label-value: auto 1fr;
+  --layout-squares: repeat(auto-fill, minmax(2.25rem, 1fr));
+  --layout-squares-panel: repeat(auto-fill, minmax(2rem, 1fr));
+  --layout-rows-fill: auto 1fr;
+  --layout-rows-media-fill: auto auto 1fr;
+  --layout-rows-pair: auto auto;
+  --layout-cols-fill-auto: 1fr auto;
+  --layout-banner-row: minmax(0, 1fr) auto;
   --dialog-max: calc(100% - 2rem);
   --dialog-max-h: calc(100dvh - 2rem);
   --dialog-scroll-h: 85vh;

@@ -41,7 +41,7 @@ export async function QuizReportView({ sessionId, pageParam, namespace }: Readon
   const ctx = getReportContext(summary.mode, summary.subjectCode)
 
   return (
-    <main className="space-y-6">
+    <main className="space-y-section">
       <PageHeader title={`${ctx.noun} Results`} />
       <ReportFlagProvider key={`${sessionId}-${page}`} initialFlaggedIds={flaggedIds}>
         <ReportCard

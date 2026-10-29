@@ -33,9 +33,9 @@ export async function InternalExamContent() {
   const loadFailed = !availableResult.success || !historyResult.success || !activeResult.success
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-stack">
       {loadFailed && (
-        <Alert role="alert" tone="danger" className="mx-auto max-w-md">
+        <Alert role="alert" tone="danger">
           <AlertDescription>
             We couldn&apos;t load your internal exams right now. Please refresh — if the issue
             persists, contact support.

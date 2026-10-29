@@ -4,7 +4,7 @@ import type * as React from 'react'
 import { cn } from '@/lib/utils'
 
 const alertVariants = cva(
-  'group/alert relative grid w-full gap-x-inline gap-y-1 text-left text-foreground has-[>svg]:grid-cols-[auto_1fr] *:[svg]:row-span-2 *:[svg]:translate-y-0.5 *:[svg:not([class*=size-])]:size-icon',
+  'group/alert relative grid w-full gap-x-inline gap-y-1 text-left text-foreground has-[>svg]:grid-cols-(--layout-label-value) *:[svg]:row-span-2 *:[svg]:translate-y-0.5 *:[svg:not([class*=size-])]:size-icon',
   {
     variants: {
       tone: {
@@ -14,12 +14,16 @@ const alertVariants = cva(
         caution: 'bg-caution-soft [&>svg]:text-caution',
         danger: 'bg-danger-soft [&>svg]:text-danger',
       },
+      layout: {
+        stack: '',
+        row: 'lg:grid-cols-(--layout-banner-row) lg:items-center lg:*:data-[slot=alert-action]:col-start-2 lg:*:data-[slot=alert-action]:row-span-3 lg:*:data-[slot=alert-action]:row-start-1 lg:*:data-[slot=alert-action]:mt-0 lg:*:data-[slot=alert-action]:self-center',
+      },
       size: {
         default: 'rounded-card p-card',
         compact: 'rounded-card px-card py-stack',
       },
     },
-    defaultVariants: { tone: 'neutral', size: 'default' },
+    defaultVariants: { tone: 'neutral', layout: 'stack', size: 'default' },
   },
 )
 
@@ -29,6 +33,7 @@ const toneText =
 function Alert({
   className,
   tone,
+  layout,
   size,
   ...props
 }: Readonly<React.ComponentProps<'div'> & VariantProps<typeof alertVariants>>) {
@@ -36,7 +41,7 @@ function Alert({
     <div
       data-slot="alert"
       data-tone={tone ?? 'neutral'}
-      className={cn(alertVariants({ tone, size }), className)}
+      className={cn(alertVariants({ tone, layout, size }), className)}
       {...props}
     />
   )

@@ -12,7 +12,7 @@ export default async function QuizPage() {
   const data = await loadQuizPageData(user.id)
 
   return (
-    <main className="space-y-6">
+    <main className="space-y-section">
       <PageHeader title="Quiz" description="Configure and start a practice session." />
 
       <LookupErrorAlerts

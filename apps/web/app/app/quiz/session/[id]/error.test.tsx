@@ -32,7 +32,7 @@ describe('QuizSessionError', () => {
   it('centres the failure in the page area like sibling boundaries', () => {
     render(<QuizSessionError error={new Error('boom')} retry={vi.fn()} />)
     const wrapper = screen.getByRole('alert').closest('div.grid') as HTMLElement
-    expect(wrapper.className).toContain('min-h-[50vh]')
+    expect(wrapper.className).toContain('min-h-(--half-screen)')
     expect(wrapper.className).toContain('place-items-center')
     expect(wrapper.className).toContain('px-gutter')
   })

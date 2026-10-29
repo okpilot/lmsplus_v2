@@ -15,13 +15,10 @@ const mockAnswerOptionsOnSelectionChange = vi.fn()
 vi.mock('@/app/app/_components/answer-options', () => ({
   AnswerOptions: ({
     disabled,
-    submitting,
     onSelectionChange,
   }: {
     options: { id: string; text: string }[]
-    onSubmit: (id: string) => void
     disabled: boolean
-    submitting?: boolean
     selectedOptionId?: string | null
     correctOptionId?: string | null
     onSelectionChange?: (id: string | null) => void
@@ -30,13 +27,7 @@ vi.mock('@/app/app/_components/answer-options', () => ({
     if (onSelectionChange) {
       mockAnswerOptionsOnSelectionChange.mockImplementation(onSelectionChange)
     }
-    return (
-      <div
-        data-testid="answer-options"
-        data-disabled={String(disabled)}
-        data-submitting={String(submitting ?? false)}
-      />
-    )
+    return <div data-testid="answer-options" data-disabled={String(disabled)} />
   },
 }))
 
@@ -747,13 +738,6 @@ describe('QuizMainPanel', () => {
       const s = makeState({ answering: false, submitting: true } as Partial<QuizState>)
       render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
       expect(screen.getByTestId('answer-options')).toHaveAttribute('data-disabled', 'true')
-    })
-
-    it('shows the spinner on the submit control while a per-question RPC is in flight', () => {
-      // answering drives the Submit Answer spinner (submitting prop on AnswerOptions).
-      const s = makeState({ answering: true, submitting: false } as Partial<QuizState>)
-      render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
-      expect(screen.getByTestId('answer-options')).toHaveAttribute('data-submitting', 'true')
     })
   })
 })
