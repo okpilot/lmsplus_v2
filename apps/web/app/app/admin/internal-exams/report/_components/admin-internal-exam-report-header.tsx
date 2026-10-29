@@ -4,7 +4,7 @@ type Props = Readonly<{ studentName: string | null }>
 
 export function AdminInternalExamReportHeader({ studentName }: Readonly<Props>) {
   return (
-    <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
+    <nav className="flex items-center gap-1.5 text-body text-muted-foreground">
       <Link
         href="/app/admin/internal-exams?tab=attempts"
         className="transition-colors hover:text-foreground"

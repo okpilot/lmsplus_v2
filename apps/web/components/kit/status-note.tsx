@@ -39,7 +39,7 @@ export function StatusNote({ tone, title, children }: Readonly<StatusNoteProps>)
   return (
     <div
       role={ROLE[tone]}
-      className={cn('flex gap-3 rounded-2xl px-4 py-3 text-sm', PANEL_CLASS[tone])}
+      className={cn('flex gap-3 rounded-2xl px-4 py-3 text-body', PANEL_CLASS[tone])}
     >
       <Icon aria-hidden="true" className={cn('mt-0.5 size-4 shrink-0', ICON_CLASS[tone])} />
       <div>

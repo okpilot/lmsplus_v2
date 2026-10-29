@@ -16,7 +16,7 @@ export function QuestionBreakdown({ questions, page, totalCount, pageSize }: Rea
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <Heading level={2}>Question Breakdown</Heading>
-        <span className="text-sm text-muted-foreground">
+        <span className="text-body text-muted-foreground">
           {totalCount} question{totalCount === 1 ? '' : 's'}
         </span>
       </div>

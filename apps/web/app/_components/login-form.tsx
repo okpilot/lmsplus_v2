@@ -104,7 +104,7 @@ export function LoginForm({ initialError, nextPath }: Readonly<LoginFormProps>) 
       <div className="flex justify-end">
         <Link
           href="/auth/forgot-password"
-          className="text-sm text-muted-foreground underline underline-offset-4 hover:text-primary-text"
+          className="text-label text-muted-foreground underline underline-offset-4 hover:text-primary-text"
         >
           Forgot password?
         </Link>
@@ -116,11 +116,11 @@ export function LoginForm({ initialError, nextPath }: Readonly<LoginFormProps>) 
         Sign in
       </LoadingButton>
 
-      <p className="text-center text-sm text-muted-foreground">
+      <p className="text-center text-body text-muted-foreground">
         Don&apos;t have an account? Contact your administrator.
       </p>
 
-      <p className="text-center text-xs text-muted-foreground">
+      <p className="text-center text-caption text-muted-foreground">
         <Link href="/legal/terms" className="underline underline-offset-4 hover:text-primary-text">
           Terms of Service
         </Link>

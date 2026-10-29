@@ -33,7 +33,7 @@ export function ConsentCheckbox({
         aria-required={required}
         aria-label={`${label} ${linkText}`}
       />
-      <label htmlFor={id} className="text-sm leading-snug cursor-pointer">
+      <label htmlFor={id} className="text-body leading-snug cursor-pointer">
         {label}{' '}
         <a
           href={linkHref}
@@ -45,7 +45,7 @@ export function ConsentCheckbox({
           {linkText}
         </a>
         {description && (
-          <span className="mt-0.5 block text-xs text-muted-foreground">{description}</span>
+          <span className="mt-0.5 block text-caption text-muted-foreground">{description}</span>
         )}
       </label>
     </div>

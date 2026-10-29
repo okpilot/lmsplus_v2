@@ -16,7 +16,7 @@ export function LinkUnavailable({ reason }: Readonly<{ reason: 'invalid' | 'miss
         </p>
       </div>
 
-      <div className="space-y-2 text-sm">
+      <div className="space-y-2 text-body">
         <p className="font-medium">To get in:</p>
         <ol className="list-decimal space-y-1 pl-5 text-muted-foreground">
           {forgotPasswordSteps().map((step) => (
@@ -25,7 +25,7 @@ export function LinkUnavailable({ reason }: Readonly<{ reason: 'invalid' | 'miss
         </ol>
       </div>
 
-      <div className="flex flex-col gap-2 text-center text-sm">
+      <div className="flex flex-col gap-2 text-center text-body">
         <Link
           href="/auth/forgot-password"
           className="text-primary-text underline underline-offset-4"

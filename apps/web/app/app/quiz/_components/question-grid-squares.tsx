@@ -52,7 +52,7 @@ function renderSquare(i: number, opts: BuildSquaresOpts) {
       data-testid={`grid-btn-${i}`}
       onClick={() => onNavigate(i)}
       className={cn(
-        'flex aspect-square items-center justify-center rounded-lg text-xs font-medium transition-all',
+        'flex aspect-square items-center justify-center rounded-lg text-caption font-medium transition-all',
         getSquareClassFor(status, isCurrent),
       )}
       data-status={status}

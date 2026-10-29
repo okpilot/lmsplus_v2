@@ -21,7 +21,7 @@ export function ExplanationTab({
       {learningObjective && (
         <InsetPanel className="p-4">
           <Eyebrow>Learning Objective</Eyebrow>
-          <p className="mt-1 text-sm">{learningObjective}</p>
+          <p className="mt-1 text-body">{learningObjective}</p>
         </InsetPanel>
       )}
     </div>
@@ -38,7 +38,7 @@ function ExplanationContent({
         <ZoomableImage src={imageUrl} alt="Explanation illustration" className="max-h-48" />
       )}
       {text ? (
-        <MarkdownText className="text-sm text-muted-foreground">{text}</MarkdownText>
+        <MarkdownText className="text-body text-muted-foreground">{text}</MarkdownText>
       ) : (
         <EmptyNote variant="inline">No explanation available for this question.</EmptyNote>
       )}

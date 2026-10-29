@@ -16,7 +16,7 @@ export function AuthShell({ subtitle, children }: Readonly<AuthShellProps>) {
             aria-hidden="true"
             className="flex size-10 items-center justify-center rounded-control bg-primary"
           >
-            <span className="text-heading font-semibold text-primary-foreground">L</span>
+            <span className="text-heading text-primary-foreground">L</span>
           </div>
           <h1 className="text-title">LMS Plus</h1>
           {subtitle ? <p className="text-body text-muted-foreground">{subtitle}</p> : null}

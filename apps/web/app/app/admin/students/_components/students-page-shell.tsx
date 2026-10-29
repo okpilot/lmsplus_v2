@@ -27,7 +27,7 @@ export function StudentsPageShell({ students, courses, filters }: Readonly<Props
       <StudentFiltersBar filters={filters} />
 
       <div className="flex items-center justify-between">
-        <p className="text-xs text-muted-foreground">
+        <p className="text-caption text-muted-foreground">
           {students.length} user{students.length === 1 ? '' : 's'}
         </p>
         <StudentFormDialog

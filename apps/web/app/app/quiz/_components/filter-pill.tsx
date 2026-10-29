@@ -67,7 +67,7 @@ export function FilterRow({
   pinnedCount: number
 }>) {
   return (
-    <div className="flex items-center gap-1 text-xs" data-testid="grid-filters">
+    <div className="flex items-center gap-1 text-caption" data-testid="grid-filters">
       <FilterPill active={filter === 'all'} onClick={() => setFilter('all')} label="All" />
       {flaggedCount > 0 && (
         <FilterPill

@@ -81,7 +81,7 @@ function FilterHint({ hint, label }: Readonly<{ hint: string; label: string }>) 
       {open && (
         <span
           aria-hidden
-          className="absolute bottom-full left-1/2 z-dropdown mb-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-popover px-2.5 py-1.5 text-xs text-popover-foreground ring-1 ring-border shadow-raised"
+          className="absolute bottom-full left-1/2 z-dropdown mb-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-popover px-2.5 py-1.5 text-caption text-popover-foreground ring-1 ring-border shadow-raised"
         >
           {hint}
         </span>
@@ -103,7 +103,7 @@ export function FilterToggle({
 }>) {
   return (
     <div className="flex items-center justify-between">
-      <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+      <span className="flex items-center gap-1.5 text-body text-muted-foreground">
         {label}
         <FilterHint hint={hint} label={label} />
       </span>

@@ -27,10 +27,10 @@ export function OptionEditor({
 
   return (
     <div className="space-y-3">
-      <span className="text-label font-medium text-muted-foreground">Options</span>
+      <span className="text-label text-muted-foreground">Options</span>
       {OPTION_IDS.map((letter, idx) => (
         <div key={letter} className="flex items-center gap-3">
-          <span className="w-6 text-center text-sm font-medium uppercase text-muted-foreground">
+          <span className="w-6 text-center text-label uppercase text-muted-foreground">
             {letter}
           </span>
           <Input
@@ -40,7 +40,7 @@ export function OptionEditor({
             disabled={disabled}
             className="flex-1"
           />
-          <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <label className="flex items-center gap-1.5 text-caption text-muted-foreground">
             <input
               type="radio"
               name="correct-option"

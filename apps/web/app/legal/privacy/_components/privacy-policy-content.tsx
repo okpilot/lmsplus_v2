@@ -2,7 +2,7 @@ export function PrivacyPolicyContent() {
   return (
     <>
       <h1>Privacy Policy</h1>
-      <p className="text-sm text-muted-foreground">Last updated: March 2026</p>
+      <p className="text-body text-muted-foreground">Last updated: March 2026</p>
 
       <h2>1. Who We Are</h2>
       <p>

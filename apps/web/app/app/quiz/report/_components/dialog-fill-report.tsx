@@ -13,7 +13,7 @@ type Props = {
 // canonical. 3-state: fully correct / partial / none correct.
 export function DialogFillReport({ blanks, correctCount, totalBlanks }: Readonly<Props>) {
   return (
-    <div className="mt-1 space-y-1 text-xs">
+    <div className="mt-1 space-y-1 text-caption">
       <FractionLine correct={correctCount} total={totalBlanks} noun="blank" />
       <ul className="space-y-0.5">
         {blanks.map((blank) => (

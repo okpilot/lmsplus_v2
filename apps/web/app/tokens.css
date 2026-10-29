@@ -124,6 +124,10 @@
 @media (width >= 64rem) {
   :root {
     --control-h: 36px;
+    --text-body: 0.9375rem;
+    --text-label: 0.875rem;
+    --text-caption: 0.8125rem;
+    --text-overline: 0.75rem;
   }
 }
 @theme inline {
@@ -186,6 +190,7 @@
   --shadow-overlay: var(--elevation-overlay);
 }
 @theme {
+  --text-*: initial;
   --text-display: clamp(2.5rem, 2.0909rem + 1.8182vw, 3.5rem);
   --text-display--line-height: 1.1;
   --text-display--letter-spacing: -0.02em;
@@ -218,6 +223,15 @@
   --text-overline--line-height: 1.3;
   --text-overline--letter-spacing: 0.07em;
   --text-overline--font-weight: 500;
+  --text-micro: 0.6875rem;
+  --text-micro--line-height: 1.2;
+  --text-micro--letter-spacing: 0em;
+  --text-micro--font-weight: 500;
+  --text-chart: 0.5625rem;
+  --text-chart--line-height: 1;
+  --text-chart--letter-spacing: 0em;
+  --text-chart--font-weight: 400;
+  --tracking-logo: -0.055em;
   --spacing-inline: 0.5rem;
   --spacing-stack: clamp(0.625rem, 0.5739rem + 0.2273vw, 0.75rem);
   --spacing-card: clamp(1rem, 0.7955rem + 0.9091vw, 1.5rem);

@@ -5,9 +5,9 @@ export function Wordmark() {
     <Link
       href="/app/dashboard"
       aria-label="lmsplus home"
-      className="text-[18px] font-semibold leading-none tracking-[-0.055em]"
+      className="text-heading leading-none tracking-logo"
     >
-      lms<span className="opacity-45">plus</span>
+      lms<span className="text-muted-foreground">plus</span>
     </Link>
   )
 }

@@ -28,7 +28,7 @@ export function DialogSummary({
       {timeExpired && isExam ? (
         <ExpiredNotice submitting={submitting} countdown={countdown} />
       ) : (
-        <p className="mt-3 text-sm text-muted-foreground">
+        <p className="mt-3 text-body text-muted-foreground">
           You have answered {answeredCount} of {totalQuestions} questions.
         </p>
       )}

@@ -82,7 +82,7 @@ function StatsDisplay({ stats }: Readonly<{ stats: QuestionStats }>) {
           />
         )}
       </CardList>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-caption text-muted-foreground">
         Statistics reflect your previous quiz sessions.
       </p>
     </div>
@@ -100,8 +100,8 @@ function StatRow({
 }>) {
   return (
     <div className="flex justify-between px-4 py-3">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <span className={`text-sm font-semibold tabular-nums ${className ?? ''}`}>{value}</span>
+      <span className="text-body text-muted-foreground">{label}</span>
+      <span className={`text-label font-semibold tabular-nums ${className ?? ''}`}>{value}</span>
     </div>
   )
 }

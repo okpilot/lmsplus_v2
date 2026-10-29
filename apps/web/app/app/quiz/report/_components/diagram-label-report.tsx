@@ -14,7 +14,7 @@ type Props = Readonly<{
 // OrderingReport's structure (per-slot -> per-zone).
 export function DiagramLabelReport({ zones, correctCount, totalZones }: Readonly<Props>) {
   return (
-    <div className="mt-1 space-y-1 text-xs">
+    <div className="mt-1 space-y-1 text-caption">
       <FractionLine correct={correctCount} total={totalZones} noun="zone" />
       <ul className="space-y-0.5">
         {zones.map((zone) => (

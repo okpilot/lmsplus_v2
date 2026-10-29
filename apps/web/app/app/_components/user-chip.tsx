@@ -22,7 +22,7 @@ export function UserChip({ displayName }: Readonly<{ displayName: string | null 
     <div className="flex items-center gap-1 rounded-xl px-1 py-2">
       <span
         aria-hidden="true"
-        className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground"
+        className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-overline tracking-normal font-semibold text-muted-foreground"
       >
         {initials(displayName)}
       </span>

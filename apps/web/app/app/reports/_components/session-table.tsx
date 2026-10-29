@@ -37,7 +37,7 @@ export function SessionTable({ sessions, sort, dir, onSort }: Readonly<Props>) {
             activeSort={sort}
             activeDir={dir}
             onSort={onSort}
-            className="px-4 py-3 text-xs"
+            className="px-4 py-3"
           />
           <SortableTableHead
             field="subject"
@@ -45,18 +45,18 @@ export function SessionTable({ sessions, sort, dir, onSort }: Readonly<Props>) {
             activeSort={sort}
             activeDir={dir}
             onSort={onSort}
-            className="px-4 py-3 text-xs"
+            className="px-4 py-3"
           />
-          <TableHead className="px-4 py-3 text-xs text-muted-foreground">Mode</TableHead>
-          <TableHead className="px-4 py-3 text-xs text-muted-foreground">Correct</TableHead>
-          <TableHead className="px-4 py-3 text-xs text-muted-foreground">Time</TableHead>
+          <TableHead className="px-4 py-3">Mode</TableHead>
+          <TableHead className="px-4 py-3">Correct</TableHead>
+          <TableHead className="px-4 py-3">Time</TableHead>
           <SortableTableHead
             field="score"
             label="Score"
             activeSort={sort}
             activeDir={dir}
             onSort={onSort}
-            className="px-4 py-3 text-xs"
+            className="px-4 py-3"
             align="right"
           />
         </TableRow>

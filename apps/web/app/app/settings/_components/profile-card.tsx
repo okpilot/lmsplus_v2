@@ -28,7 +28,7 @@ export function ProfileCard({
         <CardTitle>Profile</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-body">
           <dt className="text-muted-foreground">Email</dt>
           <dd>{email}</dd>
           {organizationName && (

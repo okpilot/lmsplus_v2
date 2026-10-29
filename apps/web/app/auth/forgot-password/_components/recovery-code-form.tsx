@@ -55,7 +55,7 @@ export function RecoveryCodeForm({ email, onRequestNewCode }: Readonly<RecoveryC
 
   return (
     <div className="w-full space-y-4">
-      <p className="text-sm text-muted-foreground">
+      <p className="text-body text-muted-foreground">
         If an account exists for <strong>{email}</strong>, we sent a reset code to it.
       </p>
 
@@ -86,7 +86,7 @@ export function RecoveryCodeForm({ email, onRequestNewCode }: Readonly<RecoveryC
         </LoadingButton>
       </form>
 
-      <div className="flex items-center justify-between text-sm">
+      <div className="flex items-center justify-between text-body">
         <Button type="button" variant="link" onClick={onRequestNewCode} className="h-auto px-0">
           Send a new code
         </Button>

@@ -50,7 +50,7 @@ export function CommentsTab({ questionId, currentUserId }: Readonly<CommentsTabP
     <div className="space-y-4 py-4">
       <div className="flex items-center justify-between">
         <Heading level={3}>Comments</Heading>
-        <span className="text-xs text-muted-foreground">
+        <span className="text-caption text-muted-foreground">
           {comments.length} comment{comments.length !== 1 ? 's' : ''}
         </span>
       </div>
@@ -73,14 +73,14 @@ export function CommentsTab({ questionId, currentUserId }: Readonly<CommentsTabP
               key={c.id}
               className={`flex gap-3 ${isAdmin ? 'rounded-lg bg-primary/5 p-3' : ''}`}
             >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold bg-muted text-muted-foreground">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-overline tracking-normal font-semibold bg-muted text-muted-foreground">
                 {getInitials(name)}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">{name}</span>
+                  <span className="text-label">{name}</span>
                   {isAdmin && <Badge>LMS Plus</Badge>}
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-caption text-muted-foreground">
                     {new Date(c.created_at).toLocaleDateString('en-GB', {
                       day: 'numeric',
                       month: 'short',
@@ -88,7 +88,7 @@ export function CommentsTab({ questionId, currentUserId }: Readonly<CommentsTabP
                     })}
                   </span>
                 </div>
-                <p className="mt-1 text-sm">{c.body}</p>
+                <p className="mt-1 text-body">{c.body}</p>
                 {isOwn && (
                   <Button
                     type="button"
@@ -119,7 +119,7 @@ export function CommentsTab({ questionId, currentUserId }: Readonly<CommentsTabP
           onChange={(e) => setBody(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
           placeholder="Add a comment..."
-          className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:border-primary-text focus:outline-none"
+          className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-body placeholder:text-muted-foreground focus:border-primary-text focus:outline-none"
           disabled={submitting}
         />
         <Button

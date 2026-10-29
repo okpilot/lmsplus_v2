@@ -36,20 +36,20 @@ function ActivityRow({ session }: Readonly<{ session: RecentSession }>) {
   return (
     <Link
       href={`/app/admin/dashboard/sessions/${session.sessionId}`}
-      className="flex w-full items-center justify-between gap-3 text-sm text-left px-card py-3 transition-colors hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2"
+      className="flex w-full items-center justify-between gap-3 text-label text-left px-card py-3 transition-colors hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2"
     >
       <div className="min-w-0 flex-1">
         <p className="font-medium truncate">{session.studentName ?? 'Unknown student'}</p>
-        <p className="text-xs text-muted-foreground truncate">
+        <p className="text-caption text-muted-foreground truncate">
           {session.subjectName ?? 'Unknown subject'}
         </p>
       </div>
       <div className="shrink-0 flex items-center gap-2">
-        <Badge variant="outline" className="capitalize text-xs">
+        <Badge variant="outline" className="capitalize">
           {session.mode}
         </Badge>
         <ActivityScore score={session.scorePercentage} />
-        <span className="text-xs text-muted-foreground whitespace-nowrap">
+        <span className="text-caption text-muted-foreground whitespace-nowrap">
           {formatRelativeTime(session.endedAt)}
         </span>
       </div>

@@ -49,10 +49,10 @@ export function TopicRow({
         !indented && <span className="w-7" />
       )}
       <Checkbox checked={checked} onCheckedChange={(c) => onCheckedChange(c === true)} />
-      <span className={`flex-1 text-sm ${checked ? 'text-foreground' : 'text-muted-foreground'}`}>
+      <span className={`flex-1 text-body ${checked ? 'text-foreground' : 'text-muted-foreground'}`}>
         {showCode ? `${code} — ${name}` : name}
       </span>
-      <span className="text-xs text-muted-foreground">
+      <span className="text-caption text-muted-foreground">
         {filteredCount !== null ? (
           <>
             <span className="font-medium text-foreground">{filteredCount}</span>/{count}

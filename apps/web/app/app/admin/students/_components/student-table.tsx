@@ -50,7 +50,7 @@ function CourseBadges({
   return (
     <div className="flex flex-wrap gap-1">
       {active.map((c) => (
-        <Badge key={c.id} variant="outline" className="text-xs">
+        <Badge key={c.id} variant="outline">
           {c.short}
         </Badge>
       ))}
@@ -84,9 +84,9 @@ export function StudentTable({
         {students.map((s) => (
           <TableRow key={s.id}>
             <TableCell className="font-medium">{s.full_name ?? '—'}</TableCell>
-            <TableCell className="text-sm text-muted-foreground">{s.email}</TableCell>
+            <TableCell className="text-caption text-muted-foreground">{s.email}</TableCell>
             <TableCell>
-              <Badge variant={roleVariant(s.role)} className="text-xs capitalize">
+              <Badge variant={roleVariant(s.role)} className="capitalize">
                 {s.role}
               </Badge>
             </TableCell>
@@ -95,19 +95,15 @@ export function StudentTable({
             </TableCell>
             <TableCell>
               {s.deleted_at === null ? (
-                <Badge tone="success" className="text-xs">
-                  Active
-                </Badge>
+                <Badge tone="success">Active</Badge>
               ) : (
-                <Badge variant="destructive" className="text-xs">
-                  Inactive
-                </Badge>
+                <Badge variant="destructive">Inactive</Badge>
               )}
             </TableCell>
-            <TableCell className="text-xs tabular-nums text-muted-foreground">
+            <TableCell className="text-caption tabular-nums text-muted-foreground">
               {s.last_active_at ? formatDate(s.last_active_at) : 'Never'}
             </TableCell>
-            <TableCell className="text-xs tabular-nums text-muted-foreground">
+            <TableCell className="text-caption tabular-nums text-muted-foreground">
               {formatDate(s.created_at)}
             </TableCell>
             <TableCell>

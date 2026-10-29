@@ -106,9 +106,15 @@ function AttemptRow({ row: r }: Readonly<{ row: InternalExamAttemptRow }>) {
         </Link>
       </TableCell>
       <TableCell>{r.subjectName || '—'}</TableCell>
-      <TableCell className="text-xs text-muted-foreground">{formatAbsolute(r.startedAt)}</TableCell>
-      <TableCell className="text-xs text-muted-foreground">{formatAbsolute(r.endedAt)}</TableCell>
-      <TableCell className="tabular-nums text-sm">{formatScore(r.scorePercentage)}</TableCell>
+      <TableCell className="text-caption text-muted-foreground">
+        {formatAbsolute(r.startedAt)}
+      </TableCell>
+      <TableCell className="text-caption text-muted-foreground">
+        {formatAbsolute(r.endedAt)}
+      </TableCell>
+      <TableCell className="text-label font-semibold tabular-nums">
+        {formatScore(r.scorePercentage)}
+      </TableCell>
       <TableCell>
         {passed === null ? (
           <span className="text-muted-foreground">—</span>
@@ -122,7 +128,7 @@ function AttemptRow({ row: r }: Readonly<{ row: InternalExamAttemptRow }>) {
           </Badge>
         )}
       </TableCell>
-      <TableCell className="text-xs tabular-nums">
+      <TableCell className="text-caption tabular-nums">
         {formatCorrectFraction(correct, r.answeredItems)}
       </TableCell>
     </TableRow>

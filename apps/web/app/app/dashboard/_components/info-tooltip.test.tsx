@@ -88,9 +88,9 @@ describe('InfoTooltip', () => {
     expect(panel?.className).toMatch(/-translate-x-1\/2/)
   })
 
-  it('resets the tooltip panel to normal weight inside a label', () => {
+  it('styles the tooltip panel as caption', () => {
     render(<InfoTooltip label="What?" title="T" description="D" />)
-    expect(screen.getByRole('tooltip', { hidden: true }).className).toContain('font-normal')
+    expect(screen.getByRole('tooltip', { hidden: true }).className).toContain('text-caption')
   })
 })
 

@@ -9,7 +9,7 @@ type Props = Readonly<{ student: StudentDetail }>
 export function StudentHeader({ student }: Readonly<Props>) {
   return (
     <div className="space-y-3">
-      <nav className="text-sm text-muted-foreground">
+      <nav className="text-body text-muted-foreground">
         <Link href="/app/admin/dashboard" className="hover:text-foreground hover:underline">
           Dashboard
         </Link>
@@ -35,7 +35,7 @@ export function StudentHeader({ student }: Readonly<Props>) {
         }
       />
 
-      <p className="text-xs text-muted-foreground">
+      <p className="text-caption text-muted-foreground">
         Last active: {formatRelativeTime(student.lastActiveAt)}
       </p>
     </div>

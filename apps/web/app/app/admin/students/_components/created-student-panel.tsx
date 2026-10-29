@@ -26,10 +26,10 @@ export function CreatedStudentPanel({ studentId, email, fullName, onClose }: Rea
 
   return (
     <div className="space-y-4 py-2">
-      <p className="text-sm">Student created.</p>
+      <p className="text-body">Student created.</p>
 
       {confirming ? (
-        <div className="space-y-2 text-sm">
+        <div className="space-y-2 text-body">
           <p className="text-muted-foreground">
             {loginInstructionsConfirmText(sent ? 'waiting' : 'not_sent', name)}
           </p>

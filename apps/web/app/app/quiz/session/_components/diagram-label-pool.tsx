@@ -23,7 +23,7 @@ export function DiagramLabelPool({ labels, disabled }: Readonly<DiagramLabelPool
       }`}
     >
       {labels.length === 0 && (
-        <span className="text-xs text-muted-foreground">All labels placed</span>
+        <span className="text-caption text-muted-foreground">All labels placed</span>
       )}
       {labels.map((label) => (
         <DiagramLabelChip key={label.id} id={label.id} text={label.text} disabled={disabled} />

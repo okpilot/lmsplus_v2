@@ -52,12 +52,12 @@ export function SubjectConfigCard({ subject, onEdit }: Readonly<Props>) {
         </div>
 
         {config ? (
-          <span className="text-sm text-muted-foreground">
+          <span className="text-body text-muted-foreground">
             {config.totalQuestions} Q &middot; {Math.floor(config.timeLimitSeconds / 60)} min
             &middot; {config.passMark}%
           </span>
         ) : (
-          <span className="text-sm text-muted-foreground">Not configured</span>
+          <span className="text-body text-muted-foreground">Not configured</span>
         )}
       </button>
 

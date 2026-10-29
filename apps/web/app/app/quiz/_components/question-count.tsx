@@ -48,7 +48,7 @@ export function QuestionCount({ value, max, onValueChange }: Readonly<QuestionCo
   if (max === 0) {
     return (
       <div className="space-y-3">
-        <span className="text-label font-medium text-muted-foreground">Number of Questions</span>
+        <span className="text-label text-muted-foreground">Number of Questions</span>
         <NoQuestions />
       </div>
     )
@@ -60,8 +60,8 @@ export function QuestionCount({ value, max, onValueChange }: Readonly<QuestionCo
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <span className="text-label font-medium text-muted-foreground">Number of Questions</span>
-        <span className="text-sm font-semibold text-primary-text">{effectiveValue}</span>
+        <span className="text-label text-muted-foreground">Number of Questions</span>
+        <span className="text-label font-semibold text-primary-text">{effectiveValue}</span>
       </div>
       <Slider
         value={[effectiveValue]}
@@ -86,7 +86,7 @@ export function QuestionCount({ value, max, onValueChange }: Readonly<QuestionCo
         >
           All
         </CountPill>
-        <span className="ml-auto text-sm text-muted-foreground">of {effectiveMax} selected</span>
+        <span className="ml-auto text-body text-muted-foreground">of {effectiveMax} selected</span>
       </div>
     </div>
   )

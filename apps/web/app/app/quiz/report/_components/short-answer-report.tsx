@@ -12,7 +12,7 @@ export function ShortAnswerReport({ responseText, canonicalAnswer, isCorrect }: 
   const hasResponse = responseText !== null && responseText.trim().length > 0
 
   return (
-    <div className="mt-1 space-y-1 text-xs">
+    <div className="mt-1 space-y-1 text-caption">
       <div className={`flex items-center gap-1 ${isCorrect ? 'text-success' : 'text-danger'}`}>
         <span className="font-medium">Your answer:</span>
         <span>{hasResponse ? responseText : '—'}</span>

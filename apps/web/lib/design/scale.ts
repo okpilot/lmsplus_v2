@@ -18,7 +18,14 @@ export const TYPE_ROLES: Record<string, TypeRole> = {
   label: { min: 15, max: 16, lineHeight: 1.3, weight: 500, tracking: 0 },
   caption: { min: 13, max: 14, lineHeight: 1.4, weight: 400, tracking: 0 },
   overline: { min: 12, max: 12.5, lineHeight: 1.3, weight: 500, tracking: 0.07 },
+  micro: { min: 11, max: 11, lineHeight: 1.2, weight: 500, tracking: 0 },
+  chart: { min: 9, max: 9, lineHeight: 1, weight: 400, tracking: 0 },
 }
+
+// Desktop step (px) from DESKTOP_FROM; roles not listed do not step.
+export const TYPE_DESKTOP = { body: 15, label: 14, caption: 13, overline: 12 } as const
+
+export const TRACKING_LOGO = '-0.055em'
 
 // S2 · Comfortable. [min, max] px, fluid.
 export const SPACING: Record<string, readonly [number, number]> = {
@@ -65,7 +72,8 @@ export const SCRIM = { light: 40, dark: 40 } as const
 export const STATE = { hover: '8%', pressed: '12%' }
 
 // Tap height: 44px below 1024px, 36px from 1024px (64rem).
-export const CONTROL_HEIGHT = { phone: '44px', desktop: '36px', desktopFrom: '64rem' }
+export const DESKTOP_FROM = '64rem'
+export const CONTROL_HEIGHT = { phone: '44px', desktop: '36px', desktopFrom: DESKTOP_FROM }
 
 export const typeSize = (role: TypeRole) => fluid(role.min, role.max)
 export const spacingValue = ([min, max]: readonly [number, number]) => fluid(min, max)
