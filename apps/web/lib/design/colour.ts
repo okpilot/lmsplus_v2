@@ -5,9 +5,10 @@ import { STATE } from './scale'
 
 const FILLS = ['primary', 'secondary', 'destructive', 'caution-solid'] as const
 type Fill = (typeof FILLS)[number]
-export type ColourName = BaseName | `${Fill}-${'hover' | 'pressed'}`
+export type ColourName = BaseName | `${Fill}-${'hover' | 'pressed'}` | 'primary-soft'
 type Palette = Record<ColourName, string>
 
+const PRIMARY_SOFT_PCT = 10
 const STATE_DARK = 'oklch(0.2 0 0)'
 
 function withStates(base: Record<BaseName, string>): Palette {
@@ -17,6 +18,7 @@ function withStates(base: Record<BaseName, string>): Palette {
     out[`${fill}-hover`] = mixOklch(base[fill], overlay, Number.parseFloat(STATE.hover))
     out[`${fill}-pressed`] = mixOklch(base[fill], overlay, Number.parseFloat(STATE.pressed))
   }
+  out['primary-soft'] = mixOklch(base.card, base.primary, PRIMARY_SOFT_PCT)
   return out as Palette
 }
 
@@ -79,6 +81,7 @@ export const CONTRAST_PAIRS: readonly ContrastPair[] = [
   ['primary-text', 'overlay', TEXT],
   ['primary-text', 'muted', TEXT],
   ['primary-text', 'info-soft', TEXT],
+  ['primary-text', 'primary-soft', TEXT],
   ['primary-foreground', 'primary', TEXT],
   ['destructive-foreground', 'destructive', TEXT],
   ...onStates,

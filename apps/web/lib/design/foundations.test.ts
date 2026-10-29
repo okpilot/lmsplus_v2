@@ -43,6 +43,15 @@ describe('elevation and scrim tokens', () => {
   })
 })
 
+describe('primary-soft', () => {
+  for (const theme of ['light', 'dark'] as const) {
+    it(`${theme} primary-soft is 10% primary over the card`, () => {
+      const p = COLOURS[theme] as Palette
+      expect(p['primary-soft']).toBe(mixOklch(p.card as string, p.primary as string, 10))
+    })
+  }
+})
+
 describe('derived state colours', () => {
   const fills = ['primary', 'secondary', 'destructive', 'caution-solid'] as const
   for (const theme of ['light', 'dark'] as const) {

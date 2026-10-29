@@ -4,7 +4,7 @@ import type { NavItem } from './nav-items'
 
 const ROW_BASE = 'h-9 gap-2.5 rounded-[10px] px-2.5 text-caption'
 const INACTIVE = 'text-muted-foreground hover:bg-muted hover:text-foreground'
-export const NAV_ACTIVE = 'bg-primary/10 font-medium text-primary-text'
+export const NAV_ACTIVE = 'bg-primary-soft font-medium text-primary-text'
 
 /** Class for non-link rows (Button) that must align with SidebarItem. */
 export const ROW_CLASS = `${ROW_BASE} w-full justify-start border-0 font-normal ${INACTIVE} dark:hover:bg-muted`

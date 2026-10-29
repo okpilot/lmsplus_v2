@@ -111,7 +111,7 @@ export function DraftCard({ draft }: Readonly<{ draft: DraftData }>) {
           </div>
         </div>
         <SavedSessionProgress answered={answeredCount} total={totalCount} />
-        <FieldError>{error}</FieldError>
+        <FieldError role="alert">{error}</FieldError>
       </CardContent>
     </Card>
   )

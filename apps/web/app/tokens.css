@@ -53,6 +53,7 @@
   --destructive-pressed: oklch(0.4640 0.1496 25.00);
   --caution-solid-hover: oklch(0.7888 0.1380 95.00);
   --caution-solid-pressed: oklch(0.7632 0.1320 95.00);
+  --primary-soft: oklch(0.9550 0.0190 258.00);
   --elevation-raised: 0 4px 12px oklch(0 0 0 / 8%);
   --elevation-overlay: 0 12px 32px oklch(0 0 0 / 14%);
   --scrim: oklch(0 0 0 / 40%);
@@ -115,6 +116,7 @@
   --destructive-pressed: oklch(0.7984 0.0704 25.00);
   --caution-solid-hover: oklch(0.7520 0.1104 95.00);
   --caution-solid-pressed: oklch(0.7280 0.1056 95.00);
+  --primary-soft: oklch(0.2710 0.0307 259.80);
   --elevation-raised: 0 4px 12px oklch(0 0 0 / 40%);
   --elevation-overlay: 0 12px 32px oklch(0 0 0 / 50%);
   --scrim: oklch(0 0 0 / 40%);
@@ -178,6 +180,7 @@
   --color-destructive-pressed: var(--destructive-pressed);
   --color-caution-solid-hover: var(--caution-solid-hover);
   --color-caution-solid-pressed: var(--caution-solid-pressed);
+  --color-primary-soft: var(--primary-soft);
   --color-scrim: var(--scrim);
   --shadow-raised: var(--elevation-raised);
   --shadow-overlay: var(--elevation-overlay);
