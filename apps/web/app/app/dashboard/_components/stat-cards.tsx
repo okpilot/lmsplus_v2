@@ -1,7 +1,14 @@
 import { Meter, type MeterTone } from '@/components/ui/meter'
 import { Stat, StatGroup } from '@/components/ui/stat'
 import { goalMeterTone, MASTERY_GOAL } from '@/lib/utils/mastery-tone'
-import { DAILY_GOAL, progressTone, readinessTone, STREAK_TARGET } from '../_lib/tile-tones'
+import {
+  DAILY_GOAL,
+  dailyGoalProgress,
+  progressTone,
+  readinessPct,
+  readinessTone,
+  STREAK_TARGET,
+} from '../_lib/tile-tones'
 import { TileLabel } from './tile-label'
 
 type StatCardsProps = {
@@ -35,7 +42,7 @@ export function StatCards({
 type Readiness = StatCardsProps['examReadiness']
 
 function ReadinessTile({ readyCount, totalCount, projectedDate }: Readonly<Readiness>) {
-  const pct = totalCount > 0 ? Math.round((readyCount / totalCount) * 100) : 0
+  const pct = readinessPct(readyCount, totalCount)
   const projection = projectedDate ? `Est. ready by ${projectedDate}` : 'Keep practicing'
   return (
     <Stat
@@ -65,8 +72,7 @@ function ReadinessTile({ readyCount, totalCount, projectedDate }: Readonly<Readi
 }
 
 function TodayTile({ questionsToday }: Readonly<{ questionsToday: number }>) {
-  const progress = Math.min(Math.round((questionsToday / DAILY_GOAL) * 100), 100)
-  const remaining = Math.max(DAILY_GOAL - questionsToday, 0)
+  const { progress, remaining } = dailyGoalProgress(questionsToday)
   const tone = progressTone(questionsToday, DAILY_GOAL)
   return (
     <Stat

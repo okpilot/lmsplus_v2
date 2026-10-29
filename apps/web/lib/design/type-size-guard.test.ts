@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const ALLOW: string[] = []
 const DEFAULT_SCALE = /(?<![\w-])(?:[a-z-]+:)*text-(?:xs|sm|base|lg|xl|[2-9]xl)(?![\w-])/
-const ARBITRARY = /(?<![\w-])(?:[a-z-]+:)*text-\[\d/
+const ARBITRARY = /(?<![\w-])(?:[a-z-]+:)*text-\[(?:\d|\.|length:)/
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
@@ -22,7 +22,7 @@ function walk(dir: string, out: string[] = []): string[] {
 describe('type-size guard (AC 20)', () => {
   it('no source file uses a Tailwind default size or an arbitrary text size', () => {
     const hits: string[] = []
-    for (const dir of ['app', 'components']) {
+    for (const dir of ['app', 'components', 'lib']) {
       for (const f of walk(path.join(ROOT, dir))) {
         const rel = path.relative(ROOT, f)
         if (ALLOW.includes(rel)) continue

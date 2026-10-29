@@ -48,7 +48,7 @@ describe('micro and chart tokens (AC 4)', () => {
   it('emits micro 11px and chart 9px with sub-variables', () => {
     expect(theme).toContain('--text-micro: 0.6875rem;')
     expect(theme).toContain('--text-micro--line-height: 1.2;')
-    expect(theme).toContain('--text-micro--font-weight: 500;')
+    expect(theme).toContain('--text-micro--font-weight: 400;')
     expect(theme).toMatch(/--text-micro--letter-spacing: 0(em)?;/)
     expect(theme).toContain('--text-chart: 0.5625rem;')
     expect(theme).toContain('--text-chart--line-height: 1;')

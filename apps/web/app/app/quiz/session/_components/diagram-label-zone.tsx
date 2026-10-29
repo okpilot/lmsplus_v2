@@ -66,7 +66,7 @@ export function DiagramLabelZone({
       {result === 'incorrect' && canonicalText && (
         <span
           data-testid={`diagram-label-canonical-${zone.id}`}
-          className="absolute -bottom-4 left-0 whitespace-nowrap text-overline tracking-normal text-muted-foreground"
+          className="absolute -bottom-4 left-0 whitespace-nowrap text-overline leading-none tracking-normal text-muted-foreground"
         >
           {canonicalText}
         </span>

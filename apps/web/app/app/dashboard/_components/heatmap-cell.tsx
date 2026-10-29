@@ -39,12 +39,8 @@ export function HeatmapCell({
             <span className="text-chart font-bold leading-none text-foreground md:text-micro">
               {total}
             </span>
-            <span className="text-chart font-normal leading-none text-success md:text-micro">
-              {correct}
-            </span>
-            <span className="text-chart font-normal leading-none text-danger md:text-micro">
-              {incorrect}
-            </span>
+            <span className="text-chart leading-none text-success md:text-micro">{correct}</span>
+            <span className="text-chart leading-none text-danger md:text-micro">{incorrect}</span>
           </>
         ) : !isFuture ? (
           <span className="text-chart font-normal tracking-normal text-muted-foreground md:text-overline">
@@ -52,9 +48,7 @@ export function HeatmapCell({
           </span>
         ) : null}
       </div>
-      <span className={`text-chart font-normal leading-none md:text-micro ${dayTextClass}`}>
-        {day}
-      </span>
+      <span className={`text-chart leading-none md:text-micro ${dayTextClass}`}>{day}</span>
     </div>
   )
 }
