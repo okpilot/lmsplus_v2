@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardListRow } from '@/components/ui/card'
 import { EmptyNote } from '@/components/ui/empty'
 import { Heading } from '@/components/ui/heading'
 import { scoreColor } from '@/lib/utils/score-color'
@@ -34,9 +34,9 @@ export function RecentActivityList({ sessions }: Readonly<Props>) {
 
 function ActivityRow({ session }: Readonly<{ session: RecentSession }>) {
   return (
-    <Link
-      href={`/app/admin/dashboard/sessions/${session.sessionId}`}
-      className="flex w-full items-center justify-between gap-3 text-label text-left px-card py-3 transition-colors hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2"
+    <CardListRow
+      render={<Link href={`/app/admin/dashboard/sessions/${session.sessionId}`} />}
+      className="flex w-full items-center justify-between gap-3 text-label text-left transition-colors hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2"
     >
       <div className="min-w-0 flex-1">
         <p className="font-medium truncate">{session.studentName ?? 'Unknown student'}</p>
@@ -53,7 +53,7 @@ function ActivityRow({ session }: Readonly<{ session: RecentSession }>) {
           {formatRelativeTime(session.endedAt)}
         </span>
       </div>
-    </Link>
+    </CardListRow>
   )
 }
 

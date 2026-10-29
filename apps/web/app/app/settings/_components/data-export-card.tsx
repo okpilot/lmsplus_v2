@@ -56,7 +56,7 @@ export function DataExportCard() {
           loadingText="Exporting..."
           variant="outline"
         >
-          <Download className="mr-2 size-4" />
+          <Download className="mr-2 size-icon" />
           Export My Data
         </LoadingButton>
       </CardContent>

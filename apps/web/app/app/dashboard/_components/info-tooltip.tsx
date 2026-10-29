@@ -47,7 +47,7 @@ export function InfoTooltip({
         onClick={toggle}
         aria-label={label}
         aria-describedby={tooltipId}
-        className="flex size-5 items-center justify-center rounded-full border border-border text-overline text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className="flex size-icon-lg items-center justify-center rounded-pill border border-border text-overline text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
       >
         ?
       </button>
@@ -55,7 +55,7 @@ export function InfoTooltip({
       <div
         id={tooltipId}
         role="tooltip"
-        className={`absolute top-6 z-sticky w-48 rounded-lg bg-popover p-3 text-caption text-muted-foreground ring-1 ring-border shadow-raised md:top-7 md:w-56 ${alignClass} ${open ? 'block' : 'hidden group-hover:md:block'}`}
+        className={`absolute top-6 z-sticky w-48 rounded-control bg-popover p-3 text-caption text-muted-foreground ring-1 ring-border shadow-raised md:top-7 md:w-56 ${alignClass} ${open ? 'block' : 'hidden group-hover:md:block'}`}
       >
         <p className="font-medium text-foreground">{title}</p>
         <p className="mt-1">{description}</p>

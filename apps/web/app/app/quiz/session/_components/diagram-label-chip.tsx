@@ -43,7 +43,7 @@ export function DiagramLabelChip({ id, text, disabled, result }: Readonly<Diagra
       // Announce the graded state to screen readers / colorblind users — the
       // border colour + data-result attribute alone are not accessible.
       aria-label={result ? `${text}, ${result}` : text}
-      className={`touch-none cursor-grab rounded-md border px-2 py-1 text-overline tracking-normal active:cursor-grabbing disabled:cursor-not-allowed ${result ? '' : 'disabled:opacity-50'} ${stateClass}`}
+      className={`touch-none cursor-grab rounded-small border px-2 py-1 text-overline tracking-normal active:cursor-grabbing disabled:cursor-not-allowed ${result ? '' : 'disabled:opacity-50'} ${stateClass}`}
       {...attributes}
       {...listeners}
     >

@@ -35,7 +35,7 @@ describe('Empty', () => {
     render(<EmptyMedia variant="icon" data-testid="m" />)
     const cls = screen.getByTestId('m').className
     expect(cls).toContain('size-12')
-    expect(cls).toContain('rounded-full')
+    expect(cls).toContain('rounded-pill')
   })
 
   it('leaves the default media unstyled by the icon look', () => {

@@ -35,13 +35,72 @@ export const SPACING: Record<string, readonly [number, number]> = {
   cards: [12, 20],
   section: [24, 40],
   gutter: [16, 40],
+  // Rows and table cells.
+  row: [12, 12],
+  'cell-y': [10, 10],
+  'cell-x': [12, 12],
 }
 
-export const CONTAINERS = { content: '70rem', reading: '70ch' } as const
+// Fixed widths (px): session panel, setup column, saved-row progress column.
+export const FIXED_SPACING = { rail: '340px', 'setup-rail': '360px', progress: '280px' } as const
 
-// R2 · Soft.
-export const RADIUS = { base: rem(8), control: rem(8), card: rem(12), sheet: rem(16) } as const
-export const RADIUS_KEYS = ['control', 'card', 'sheet'] as const
+// Icon sizes (px) follow the adjacent text: caption, body, sidebar, heading, empty state.
+export const ICON_SIZES = { sm: 14, base: 16, nav: 18, lg: 20, xl: 24 } as const
+/** Spacing-namespace keys: icon-sm, icon, icon-nav, icon-lg, icon-xl. */
+export const ICON_SPACING_KEYS = Object.keys(ICON_SIZES).map((n) =>
+  n === 'base' ? 'icon' : `icon-${n}`,
+)
+
+// Named max-widths and column minimums. Dialog sizes keep Tailwind's sm / 2xl / md values.
+export const CONTAINERS = {
+  content: '70rem',
+  reading: '70ch',
+  field: '28ch',
+  dialog: '24rem',
+  'dialog-xs': '20rem',
+  'dialog-md': '28rem',
+  'dialog-wide': '42rem',
+  'col-sm': '140px',
+  'col-md': '160px',
+  'col-lg': '200px',
+  'col-xl': '300px',
+  'stat-note': '120px',
+  'login-note': '220px',
+  'question-cell': '400px',
+  'viewport-inset': 'calc(100vw - 2rem)',
+} as const
+
+// Layout variables. Grid templates are consumed as `grid-cols-(--layout-*)`.
+export const LAYOUT = {
+  'layout-setup': 'var(--spacing-setup-rail) minmax(0, 1fr)',
+  'layout-session':
+    'minmax(0, 1fr) minmax(0, var(--container-reading)) minmax(calc(var(--spacing-rail) + var(--spacing-section)), 1fr)',
+  'layout-saved-row': 'minmax(0, 1fr) var(--spacing-progress) auto',
+  'session-header-h': '3.375rem',
+  'panel-max': 'calc(100dvh - var(--session-header-h) - 2 * var(--spacing-section))',
+  'layout-distribution': '1fr 80px 80px',
+  'layout-issue-code': '1fr 1fr auto',
+  'layout-label-value': 'auto 1fr',
+  'dialog-max': 'calc(100% - 2rem)',
+  'dialog-max-h': 'calc(100dvh - 2rem)',
+  'dialog-scroll-h': '85vh',
+  'tab-bar-h': 'calc(3.5rem + env(safe-area-inset-bottom))',
+  'safe-bottom': 'env(safe-area-inset-bottom)',
+  'half-screen': '50vh',
+  'full-screen-h': '100dvh',
+} as const
+
+// R2 · Soft. inner = control radius minus a 4px track padding, minimum 4px; small = 6px chips, zones, menu items.
+export const RADIUS = {
+  base: rem(8),
+  control: rem(8),
+  card: rem(12),
+  sheet: rem(16),
+  inner: rem(4),
+  small: rem(6),
+  pill: 'calc(infinity * 1px)',
+} as const
+export const RADIUS_KEYS = ['control', 'card', 'sheet', 'inner', 'small', 'pill'] as const
 
 export const Z_INDEX = {
   sticky: 10,

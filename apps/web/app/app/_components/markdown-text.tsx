@@ -22,7 +22,7 @@ const MARKDOWN_COMPONENTS: Components = {
   strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
   em: ({ children }) => <em>{children}</em>,
   code: ({ children }) => (
-    <code className="rounded bg-muted px-1 py-0.5 font-medium text-caption">{children}</code>
+    <code className="rounded-inner bg-muted px-1 py-0.5 font-medium text-caption">{children}</code>
   ),
 }
 

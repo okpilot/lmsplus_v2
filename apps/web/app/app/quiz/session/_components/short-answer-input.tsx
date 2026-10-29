@@ -75,7 +75,7 @@ export function ShortAnswerInput({
         disabled={disabled || locked}
         aria-label="Your answer"
         data-testid="short-answer-input"
-        className={`w-full rounded-lg border bg-card px-4 py-3 text-body transition-colors ${showResult ? '' : 'disabled:opacity-50 disabled:cursor-not-allowed'} ${
+        className={`w-full rounded-control border bg-card px-4 py-3 text-body transition-colors ${showResult ? '' : 'disabled:opacity-50 disabled:cursor-not-allowed'} ${
           showResult && isCorrect
             ? 'border-success'
             : showResult

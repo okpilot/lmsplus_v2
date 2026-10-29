@@ -8,7 +8,7 @@ describe('PasswordToggle', () => {
     const { container } = render(<PasswordToggle shown={false} onToggle={vi.fn()} />)
     const btn = screen.getByRole('button', { name: 'Show password' })
     expect(btn).toHaveAttribute('data-slot', 'button')
-    expect(btn).toHaveClass('rounded-full')
+    expect(btn).toHaveClass('rounded-pill')
     expect(btn).not.toHaveAttribute('aria-pressed')
     expect(container.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
   })

@@ -28,7 +28,7 @@ describe('AdminNotFound', () => {
     const { container } = render(<AdminNotFound />)
     expect(container.firstElementChild).toHaveClass(
       'grid',
-      'min-h-[50vh]',
+      'min-h-(--half-screen)',
       'place-items-center',
       'px-gutter',
     )

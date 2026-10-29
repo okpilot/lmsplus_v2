@@ -109,7 +109,7 @@ export function DiagramLabelInput({
   return (
     <div className="space-y-3">
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <div className="relative aspect-[16/9] w-full overflow-hidden rounded-lg border border-border bg-card p-2">
+        <div className="relative aspect-video w-full overflow-hidden rounded-control border border-border bg-card p-2">
           <DiagramArt />
           {zones.map((zone, i) => (
             <DiagramLabelZone

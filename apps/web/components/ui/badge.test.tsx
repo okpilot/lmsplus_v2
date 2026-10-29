@@ -51,7 +51,7 @@ describe('Badge', () => {
     render(<Badge shape="circle">3</Badge>)
     const el = screen.getByText('3')
     expect(el.className).toContain('size-6')
-    expect(el.className).toContain('rounded-full')
+    expect(el.className).toContain('rounded-pill')
   })
 })
 
@@ -71,11 +71,11 @@ describe('Badge soft variant without a tone', () => {
     expect(neutral).toContain('text-muted-foreground')
   })
 
-  it('keeps a 14px icon inside a circle badge instead of the base 12px', () => {
+  it('sizes the icon inside a circle badge with the small icon token and no important', () => {
     render(<Badge shape="circle">3</Badge>)
     const cls = screen.getByText('3').className
-    expect(cls).toContain('[&>svg]:size-3.5!')
-    expect(cls).not.toContain('[&>svg]:size-3!')
+    expect(cls).toContain('[&>svg]:size-icon-sm')
+    expect(cls).not.toMatch(/size-[\w.-]+!/)
   })
 })
 

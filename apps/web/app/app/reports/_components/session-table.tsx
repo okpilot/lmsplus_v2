@@ -37,7 +37,6 @@ export function SessionTable({ sessions, sort, dir, onSort }: Readonly<Props>) {
             activeSort={sort}
             activeDir={dir}
             onSort={onSort}
-            className="px-4 py-3"
           />
           <SortableTableHead
             field="subject"
@@ -45,18 +44,16 @@ export function SessionTable({ sessions, sort, dir, onSort }: Readonly<Props>) {
             activeSort={sort}
             activeDir={dir}
             onSort={onSort}
-            className="px-4 py-3"
           />
-          <TableHead className="px-4 py-3">Mode</TableHead>
-          <TableHead className="px-4 py-3">Correct</TableHead>
-          <TableHead className="px-4 py-3">Time</TableHead>
+          <TableHead>Mode</TableHead>
+          <TableHead>Correct</TableHead>
+          <TableHead>Time</TableHead>
           <SortableTableHead
             field="score"
             label="Score"
             activeSort={sort}
             activeDir={dir}
             onSort={onSort}
-            className="px-4 py-3"
             align="right"
           />
         </TableRow>
@@ -89,29 +86,29 @@ function SessionRow({ session: s }: Readonly<{ session: SessionReport }>) {
         }
       }}
     >
-      <TableCell className="px-4 py-3 whitespace-normal text-muted-foreground">
+      <TableCell className="whitespace-normal text-muted-foreground">
         {formatDate(s.startedAt)}
       </TableCell>
-      <TableCell className="px-4 py-3 whitespace-normal font-medium">
+      <TableCell className="whitespace-normal font-medium">
         <Link href={href} prefetch={false} onClick={(e) => e.stopPropagation()}>
           {s.subjectName ?? '\u2014'}
         </Link>
       </TableCell>
-      <TableCell className="px-4 py-3 whitespace-normal">
+      <TableCell className="whitespace-normal">
         {isExamMode(s.mode) ? (
           <ExamBadge mode={s.mode} />
         ) : (
           <span className="text-muted-foreground">{modeLabel(s.mode)}</span>
         )}
       </TableCell>
-      <TableCell className="px-4 py-3 whitespace-normal tabular-nums">
+      <TableCell className="whitespace-normal tabular-nums">
         {formatCorrectFraction(s.correctCount, s.answeredItems)}
       </TableCell>
-      <TableCell className="px-4 py-3 whitespace-normal text-muted-foreground">
+      <TableCell className="whitespace-normal text-muted-foreground">
         {formatDurationMinutes(s.durationMinutes)}
       </TableCell>
       <TableCell
-        className="px-4 py-3 whitespace-normal text-right font-semibold tabular-nums"
+        className="whitespace-normal text-right font-semibold tabular-nums"
         style={{ color }}
       >
         {score}

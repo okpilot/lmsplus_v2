@@ -123,7 +123,7 @@ function DailyGoalBar({ progress, tone }: Readonly<{ progress: number; tone: Met
       value={progress}
       tone={tone}
       label="Daily goal progress"
-      className="mt-1 max-w-[120px]"
+      className="mt-1 max-w-stat-note"
     />
   )
 }

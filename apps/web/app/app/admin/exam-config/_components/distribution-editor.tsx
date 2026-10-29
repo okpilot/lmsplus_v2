@@ -34,7 +34,7 @@ export function DistributionEditor({ topics, distributions, onChange }: Readonly
 
   return (
     <div className="space-y-1">
-      <div className="grid grid-cols-[1fr_80px_80px] gap-2 text-caption font-medium text-muted-foreground">
+      <div className="grid grid-cols-(--layout-distribution) gap-2 text-caption font-medium text-muted-foreground">
         <span>Topic</span>
         <span className="text-right">Questions</span>
         <span className="text-right">Available</span>
@@ -101,7 +101,7 @@ function DistributionRow({
 }: Readonly<RowProps>) {
   return (
     <div
-      className={`grid grid-cols-[1fr_80px_80px] items-center gap-2 py-1${indent ? ' pl-6' : ''}`}
+      className={`grid grid-cols-(--layout-distribution) items-center gap-2 py-1${indent ? ' pl-6' : ''}`}
     >
       <span className="text-body">
         <span className="mr-1 tabular-nums text-caption text-muted-foreground">{code}</span>
@@ -115,7 +115,7 @@ function DistributionRow({
         value={value}
         aria-label={`${code} questions`}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full rounded border border-border bg-background px-2 py-1 text-right text-body"
+        className="w-full rounded-control border border-border bg-background px-2 py-1 text-right text-body"
       />
       <span className="text-right text-body text-muted-foreground">{available}</span>
     </div>

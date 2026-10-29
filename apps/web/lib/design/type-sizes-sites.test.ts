@@ -138,9 +138,9 @@ describe('tooltips and info button (AC 13, 14)', () => {
     }
   })
 
-  it('info "?" button is size-5 overline', () => {
+  it('info "?" button is size-icon-lg overline', () => {
     const w = win('app/app/dashboard/_components/info-tooltip.tsx', 'aria-describedby', 3)
-    expect(w).toContain('size-5')
+    expect(w).toContain('size-icon-lg')
     expect(w).toContain('text-overline')
     expect(w).not.toMatch(/\bh-4\b|\bw-4\b|md:h-5/)
   })

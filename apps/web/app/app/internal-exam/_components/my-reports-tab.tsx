@@ -41,7 +41,7 @@ export function MyReportsTab({ rows }: Readonly<Props>) {
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead className="min-w-[140px]">Subject</TableHead>
+          <TableHead className="min-w-col-sm">Subject</TableHead>
           <TableHead className="w-16">Attempt</TableHead>
           <TableHead className="w-40">Started</TableHead>
           <TableHead className="w-40">Ended</TableHead>

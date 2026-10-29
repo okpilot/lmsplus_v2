@@ -14,8 +14,8 @@ const FILL: Record<MeterTone, string> = {
 }
 
 const ROOT_CLASS = 'block h-1.5 w-full'
-const TRACK_CLASS = 'block h-full w-full overflow-hidden rounded-full bg-muted'
-const INDICATOR_CLASS = 'block h-full rounded-full transition-all'
+const TRACK_CLASS = 'block h-full w-full overflow-hidden rounded-pill bg-muted'
+const INDICATOR_CLASS = 'block h-full rounded-pill transition-all'
 
 type BarProps = Readonly<{
   value: number

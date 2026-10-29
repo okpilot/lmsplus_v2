@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { CardListRow } from '@/components/ui/card'
 import { isExamMode, MODE_LABELS, modeLabel } from '@/lib/constants/exam-modes'
 import { reportUrl } from '@/lib/constants/report-paths'
 import type { SessionReport } from '@/lib/queries/reports'
@@ -11,10 +12,9 @@ export function SessionCard({ session: s }: Readonly<{ session: SessionReport }>
   const color = s.scorePercentage == null ? undefined : scoreColor(s.scorePercentage)
 
   return (
-    <Link
-      href={reportUrl(s.mode, s.id, s.subjectCode)}
-      prefetch={false}
-      className="block px-4 py-3 transition-colors hover:bg-accent outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+    <CardListRow
+      render={<Link href={reportUrl(s.mode, s.id, s.subjectCode)} prefetch={false} />}
+      className="block transition-colors hover:bg-accent outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
     >
       <div className="flex items-start justify-between">
         <p className="font-medium">{s.subjectName ?? '\u2014'}</p>
@@ -35,6 +35,6 @@ export function SessionCard({ session: s }: Readonly<{ session: SessionReport }>
         </span>
         <span className="ml-3">Time: {formatDurationMinutes(s.durationMinutes)}</span>
       </p>
-    </Link>
+    </CardListRow>
   )
 }

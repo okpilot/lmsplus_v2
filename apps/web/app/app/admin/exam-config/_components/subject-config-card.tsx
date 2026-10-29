@@ -66,7 +66,7 @@ export function SubjectConfigCard({ subject, onEdit }: Readonly<Props>) {
           type="button"
           onClick={handleToggle}
           disabled={isPending}
-          className="relative mr-4 shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring after:absolute after:-inset-x-1 after:-inset-y-3 lg:after:hidden disabled:opacity-50"
+          className="relative mr-4 shrink-0 rounded-pill outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring after:absolute after:-inset-x-1 after:-inset-y-3 lg:after:hidden disabled:opacity-50"
         >
           <Badge tone={config.enabled ? 'success' : 'neutral'}>
             {isPending ? '...' : config.enabled ? 'Enabled' : 'Disabled'}

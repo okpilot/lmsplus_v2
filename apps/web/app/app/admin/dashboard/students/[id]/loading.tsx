@@ -8,7 +8,7 @@ export default function StudentDetailLoading() {
         <Skeleton className="h-8 w-64" />
         <Skeleton className="h-5 w-40" />
       </div>
-      <Skeleton className="h-96 rounded-xl" />
+      <Skeleton className="h-96 rounded-card" />
     </div>
   )
 }

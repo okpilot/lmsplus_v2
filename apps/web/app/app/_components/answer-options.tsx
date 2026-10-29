@@ -66,14 +66,14 @@ function ResultMark({
   if (result === 'correct')
     return (
       <>
-        <Check aria-hidden className="ml-auto size-4 shrink-0 text-success" />
+        <Check aria-hidden className="ml-auto size-icon shrink-0 text-success" />
         <span className="sr-only">{picked ? 'Your answer, correct' : 'Correct answer'}</span>
       </>
     )
   if (result === 'wrong')
     return (
       <>
-        <X aria-hidden className="ml-auto size-4 shrink-0 text-danger" />
+        <X aria-hidden className="ml-auto size-icon shrink-0 text-danger" />
         <span className="sr-only">Your answer, incorrect</span>
       </>
     )
@@ -129,10 +129,10 @@ export function AnswerOptions({
             data-kb-highlighted={isKeyboardHighlighted ? 'true' : undefined}
             disabled={disabled || (!!isExam && lockedSelection != null)}
             onClick={() => handleSelect(option.id)}
-            className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left text-body transition-colors ${card} ${isKeyboardHighlighted ? 'outline-2 outline-offset-2 outline-ring' : ''} ${disabled && !showResult ? 'opacity-50' : ''}`}
+            className={`flex w-full items-center gap-3 rounded-control border px-4 py-3 text-left text-body transition-colors ${card} ${isKeyboardHighlighted ? 'outline-2 outline-offset-2 outline-ring' : ''} ${disabled && !showResult ? 'opacity-50' : ''}`}
           >
             <span
-              className={`flex size-7 shrink-0 items-center justify-center rounded-full text-caption font-semibold ${circle}`}
+              className={`flex size-7 shrink-0 items-center justify-center rounded-pill text-caption font-semibold ${circle}`}
             >
               {LETTERS[index] ?? String(index + 1)}
             </span>

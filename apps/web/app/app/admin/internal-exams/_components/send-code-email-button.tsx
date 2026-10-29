@@ -50,7 +50,7 @@ export function SendCodeEmailButton({ codeId, emailedAt, disabled = false }: Rea
       </LoadingButton>
       {sentAt && (
         <span className="flex items-center gap-1 text-caption text-muted-foreground">
-          <Check aria-hidden="true" className="size-3" />
+          <Check aria-hidden="true" className="size-icon-sm" />
           Sent {formatted}
         </span>
       )}

@@ -1,3 +1,5 @@
+import { mergeProps } from '@base-ui/react/merge-props'
+import { useRender } from '@base-ui/react/use-render'
 import type * as React from 'react'
 
 import { cn } from '@/lib/utils'
@@ -31,6 +33,16 @@ function CardList({
       className={cn('gap-0 overflow-hidden py-0 divide-y divide-border', className)}
     />
   )
+}
+
+/** A row of a `CardList`; only direct children of one. */
+function CardListRow({ className, render, ...props }: Readonly<useRender.ComponentProps<'div'>>) {
+  return useRender({
+    defaultTagName: 'div',
+    props: mergeProps<'div'>({ className: cn('px-card py-row', className) }, props),
+    render,
+    state: { slot: 'card-list-row' },
+  })
 }
 
 function CardHeader({ className, ...props }: Readonly<React.ComponentProps<'div'>>) {
@@ -107,5 +119,6 @@ export {
   CardFooter,
   CardHeader,
   CardList,
+  CardListRow,
   CardTitle,
 }

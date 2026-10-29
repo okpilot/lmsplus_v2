@@ -35,7 +35,6 @@ export function QuestionTabs({ activeTab, onTabChange }: Readonly<QuestionTabsPr
             size="segment"
             aria-pressed={activeTab === tab.value}
             onClick={() => onTabChange(tab.value)}
-            className="rounded-[calc(var(--radius-control)-2px)]"
           >
             {tab.label}
           </Button>

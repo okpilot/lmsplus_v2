@@ -23,7 +23,7 @@ export function SubjectSelect({ subjects, value, onValueChange }: Readonly<Subje
         <CollapsibleTrigger
           aria-label="Select a subject"
           data-testid="subject-trigger"
-          className={`flex w-full items-center justify-between rounded-[10px] border border-border bg-card px-3 py-2.5 text-body transition-colors hover:bg-muted ${
+          className={`flex w-full items-center justify-between rounded-control border border-border bg-card px-3 py-2.5 text-body transition-colors hover:bg-muted ${
             open ? 'rounded-b-none border-b-transparent' : ''
           }`}
         >
@@ -37,12 +37,12 @@ export function SubjectSelect({ subjects, value, onValueChange }: Readonly<Subje
           )}
           <span className="text-muted-foreground">
             <ChevronDown
-              className={`h-4 w-4 transition-transform duration-fast ${open ? 'rotate-180' : ''}`}
+              className={`size-icon transition-transform duration-fast ${open ? 'rotate-180' : ''}`}
             />
           </span>
         </CollapsibleTrigger>
-        <CollapsibleContent className="overflow-hidden transition-[height] duration-fast ease-standard data-[ending-style]:h-0 data-[starting-style]:h-0">
-          <div className="divide-y divide-border rounded-b-[10px] border border-t-0 border-border">
+        <CollapsibleContent className="overflow-hidden transition-all duration-fast ease-standard data-ending-style:h-0 data-starting-style:h-0">
+          <div className="divide-y divide-border rounded-b-card border border-t-0 border-border">
             {subjects.map((s) => (
               <button
                 key={s.id}

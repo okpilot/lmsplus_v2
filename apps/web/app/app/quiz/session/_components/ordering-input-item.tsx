@@ -54,7 +54,7 @@ export function OrderingInputItem({
       style={style}
       data-testid={`ordering-item-${id}`}
       data-result={result ?? ''}
-      className={`flex items-center gap-3 rounded-lg border p-3 text-body ${stateClass}`}
+      className={`flex items-center gap-3 rounded-control border p-3 text-body ${stateClass}`}
     >
       {!disabled && (
         <button
@@ -65,7 +65,7 @@ export function OrderingInputItem({
           {...attributes}
           {...listeners}
         >
-          <GripVertical aria-hidden="true" className="size-4" />
+          <GripVertical aria-hidden="true" className="size-icon" />
         </button>
       )}
       <span className="flex-1">{text}</span>

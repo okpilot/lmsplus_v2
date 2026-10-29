@@ -7,6 +7,10 @@ import {
   DURATIONS,
   EASING,
   ELEVATION,
+  FIXED_SPACING,
+  ICON_SIZES,
+  ICON_SPACING_KEYS,
+  LAYOUT,
   RADIUS,
   RADIUS_KEYS,
   SCRIM,
@@ -51,7 +55,12 @@ function themeDecls(): Decl[] {
   out.push(['--tracking-logo', TRACKING_LOGO])
   for (const [name, range] of Object.entries(SPACING))
     out.push([`--spacing-${name}`, spacingValue(range)])
+  for (const [name, v] of Object.entries(FIXED_SPACING)) out.push([`--spacing-${name}`, v])
+  for (const [i, px] of Object.values(ICON_SIZES).entries())
+    out.push([`--spacing-${ICON_SPACING_KEYS[i]}`, rem(px)])
   for (const [name, v] of Object.entries(CONTAINERS)) out.push([`--container-${name}`, v])
+  for (const [name, v] of Object.entries(LAYOUT)) out.push([`--${name}`, v])
+  out.push(['--radius-*', 'initial'])
   for (const k of RADIUS_KEYS) out.push([`--radius-${k}`, RADIUS[k]])
   for (const [name, z] of Object.entries(Z_INDEX)) out.push([`--z-index-${name}`, z])
   for (const [name, ms] of Object.entries(DURATIONS))

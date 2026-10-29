@@ -38,11 +38,11 @@ export function ReportQuestionRow({
         <div className="mt-0.5 shrink-0">
           {question.isCorrect ? (
             <Badge role="img" aria-label="Correct" tone="success" shape="circle">
-              <Check size={14} strokeWidth={2.5} aria-hidden />
+              <Check className="size-icon-sm" strokeWidth={2.5} aria-hidden />
             </Badge>
           ) : (
             <Badge role="img" aria-label="Incorrect" tone="danger" shape="circle">
-              <X size={14} strokeWidth={2.5} aria-hidden />
+              <X className="size-icon-sm" strokeWidth={2.5} aria-hidden />
             </Badge>
           )}
         </div>
@@ -72,7 +72,9 @@ export function ReportQuestionRow({
                 >
                   <Flag
                     aria-hidden
-                    className={isFlagged ? 'size-3.5 fill-caution text-caution' : 'size-3.5'}
+                    className={
+                      isFlagged ? 'size-icon-sm fill-caution text-caution' : 'size-icon-sm'
+                    }
                   />
                 </Button>
               )}
@@ -105,9 +107,9 @@ export function ReportQuestionRow({
               >
                 {expanded ? 'Hide explanation' : 'Show explanation'}
                 {expanded ? (
-                  <ChevronUp size={14} aria-hidden />
+                  <ChevronUp className="size-icon-sm" aria-hidden />
                 ) : (
-                  <ChevronDown size={14} aria-hidden />
+                  <ChevronDown className="size-icon-sm" aria-hidden />
                 )}
               </Button>
 

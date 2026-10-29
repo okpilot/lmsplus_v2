@@ -16,15 +16,15 @@ export default function QuizSessionLoading() {
       </div>
       <div className="px-4 pt-4 pb-32 md:px-8 md:pb-24">
         <div className="mx-auto max-w-3xl space-y-4">
-          <Skeleton className="h-24 w-full rounded-lg" />
+          <Skeleton className="h-24 w-full rounded-card" />
           {OPTION_PLACEHOLDER_KEYS.map((key) => (
-            <Skeleton key={key} className="h-12 w-full rounded-lg" />
+            <Skeleton key={key} className="h-12 w-full rounded-control" />
           ))}
         </div>
       </div>
       <div
         aria-hidden="true"
-        className="fixed inset-x-0 bottom-0 z-sticky border-t border-border bg-background px-4 pb-[env(safe-area-inset-bottom)] md:px-8"
+        className="fixed inset-x-0 bottom-0 z-sticky border-t border-border bg-background px-4 pb-(--safe-bottom) md:px-8"
       >
         <div className="mx-auto max-w-3xl">
           <div className="flex items-center justify-between py-3">

@@ -4,7 +4,7 @@ import type * as React from 'react'
 import { cn } from '@/lib/utils'
 
 const alertVariants = cva(
-  'group/alert relative grid w-full gap-x-inline gap-y-1 text-left text-foreground has-[>svg]:grid-cols-[auto_1fr] *:[svg]:row-span-2 *:[svg]:translate-y-0.5 *:[svg:not([class*=size-])]:size-4',
+  'group/alert relative grid w-full gap-x-inline gap-y-1 text-left text-foreground has-[>svg]:grid-cols-[auto_1fr] *:[svg]:row-span-2 *:[svg]:translate-y-0.5 *:[svg:not([class*=size-])]:size-icon',
   {
     variants: {
       tone: {

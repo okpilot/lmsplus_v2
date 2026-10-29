@@ -5,7 +5,30 @@ import { describe, expect, it } from 'vitest'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 // GROUP: allowlist — `file` -> owning PR; a stale entry fails the test below.
-const ALLOW: Record<string, string> = {}
+const ALLOW: Record<string, string> = {
+  'app/app/_components/active-session.tsx': 'W2 page width, owner W2 wave',
+  'app/app/_components/session-summary.tsx': 'W2 page width, owner W2 wave',
+  'app/app/internal-exam/_components/internal-exam-content.tsx': 'W2 page width, owner W2 wave',
+  'app/app/internal-exam/_components/recovery-banner.tsx': 'W2 page width, owner W2 wave',
+  'app/app/quiz/_components/active-practice-banner.tsx': 'W2 page width, owner W2 wave',
+  'app/app/quiz/_components/expired-exam-notice.tsx': 'W2 page width, owner W2 wave',
+  'app/app/quiz/_components/lookup-error-alerts.tsx': 'W2 page width, owner W2 wave',
+  'app/app/quiz/_components/quiz-page-tabs.tsx': 'W2 page width, owner W2 wave',
+  'app/app/quiz/_components/resume-exam-banner.tsx': 'W2 page width, owner W2 wave',
+  'app/app/quiz/session/_components/quiz-session-footer.tsx': 'W2 page width, owner W2 wave',
+  'app/app/quiz/session/_components/quiz-session-loader.tsx': 'W2 page width, owner W2 wave',
+  'app/app/quiz/session/_components/quiz-session.tsx': 'W2 page width, owner W2 wave',
+  'app/app/quiz/session/_components/saved-session-resume.tsx': 'W2 page width, owner W2 wave',
+  'app/app/quiz/session/[id]/loading.tsx': 'W2 page width, owner W2 wave',
+  'app/app/settings/loading.tsx': 'W2 page width, owner W2 wave',
+  'app/app/settings/page.tsx': 'W2 page width, owner W2 wave',
+  'app/app/vfr-rt/page.tsx': 'W2 page width, owner W2 wave',
+  'app/consent/page.tsx': 'W2 page width, owner W2 wave',
+  'app/legal/layout.tsx': 'W2 page width, owner W2 wave',
+  'app/app/admin/questions/_components/image-upload-field.tsx': 'PR 12 file input restyle',
+  'components/ui/sonner.tsx':
+    'third-party unlayered CSS needs !important; arbitrary max-w with sonner --width',
+}
 
 const RULES: ReadonlyArray<readonly [string, RegExp]> = [
   [
@@ -19,17 +42,24 @@ const RULES: ReadonlyArray<readonly [string, RegExp]> = [
     /(?<![\w-])(?:[a-z-]+:)*max-w-(?:xs|sm|md|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|prose)(?![\w-])/,
   ],
   ['arbitrary size', /(?<![\w-])(?:[a-z-]+:)*size-\[/],
-  ['arbitrary value', /(?<![\w-])(?:[a-z0-9&_>*:()'-]+:)*[a-z][\w-]*-\[/],
+  // An arbitrary VALUE (`mt-[3px]`), not an arbitrary VARIANT (`data-[size=sm]:`), which ends in `]:`.
+  ['arbitrary value', /(?<![\w-])(?:[a-z0-9&_>*:()'-]+:)*[a-z][\w-]*-\[[^\]\s]*\](?![:/])/],
   ['important', /(?<![\w:])(?:[a-z0-9&_>*()[\]'=:-]+:)*[a-z][\w-]*-[\w./()%-]+!(?=[\s"'`]|$)/],
 ]
-const QUOTED = /(["'`])((?:(?!\1)[^\n])*)\1/g
+// Template literals may span lines; '' and "" strings may not.
+const QUOTED = /(["'])((?:(?!\1)[^\n])*)\1|`([^`]*)`/g
 
-function violations(line: string): string[] {
-  const out: string[] = []
-  for (const m of line.matchAll(QUOTED)) {
-    for (const [name, re] of RULES) if (re.test(m[2] ?? '')) out.push(name)
+function violationsAt(text: string): Array<{ index: number; rule: string }> {
+  const out: Array<{ index: number; rule: string }> = []
+  for (const m of text.matchAll(QUOTED)) {
+    for (const [name, re] of RULES)
+      if (re.test(m[2] ?? m[3] ?? '')) out.push({ index: m.index ?? 0, rule: name })
   }
   return out
+}
+
+function violations(text: string): string[] {
+  return violationsAt(text).map((v) => v.rule)
 }
 
 function walk(dir: string, out: string[] = []): string[] {
@@ -66,6 +96,16 @@ describe('layout guard matcher (AC 2)', () => {
       expect(violations(`<div className="flex ${cls} p-2" />`)).toContain(rule)
     })
   }
+  it('flags a radius inside a multi-line template literal', () => {
+    expect(violations('const c = `flex\n  rounded-lg p-2`')).toContain('named radius')
+  })
+  it('accepts arbitrary variants', () => {
+    expect(
+      violations(
+        '<div className="data-[size=sm]:p-2 has-[>svg]:gap-2 group-data-[size=sm]/card:px-3" />',
+      ),
+    ).toEqual([])
+  })
   it('accepts tokenised classes', () => {
     const ok =
       'rounded-control rounded-card rounded-sheet rounded-inner rounded-pill rounded-none rounded-t-sheet max-w-content max-w-reading size-icon px-gutter lg:grid-cols-(--layout-setup)'
@@ -80,12 +120,10 @@ describe('layout guard (AC 2)', () => {
       for (const f of walk(path.join(ROOT, dir))) {
         const rel = path.relative(ROOT, f)
         if (rel in ALLOW) continue
-        readFileSync(f, 'utf8')
-          .split('\n')
-          .forEach((line, i) => {
-            const v = violations(line)
-            if (v.length) hits.push(`${rel}:${i + 1} ${[...new Set(v)].join(',')}`)
-          })
+        const text = readFileSync(f, 'utf8')
+        for (const v of violationsAt(text)) {
+          hits.push(`${rel}:${text.slice(0, v.index).split('\n').length} ${v.rule}`)
+        }
       }
     }
     expect(

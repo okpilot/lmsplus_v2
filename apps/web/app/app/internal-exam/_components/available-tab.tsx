@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { CardList } from '@/components/ui/card'
+import { CardList, CardListRow } from '@/components/ui/card'
 import { Empty, EmptyDescription } from '@/components/ui/empty'
 import type { AvailableInternalExam } from '../queries'
 import { CodeEntryModal } from './code-entry-modal'
@@ -45,12 +45,11 @@ export function AvailableTab({ rows }: Readonly<Props>) {
     <div className="space-y-3">
       <CardList role="list" data-testid="available-list">
         {rows.map((row) => (
-          // biome-ignore lint/a11y/useSemanticElements: CardList is a div; rows are its listitems
-          <div
+          <CardListRow
             key={row.id}
             role="listitem"
             data-testid={`available-row-${row.id}`}
-            className="flex items-center justify-between gap-4 p-4"
+            className="flex items-center justify-between gap-4"
           >
             <div className="min-w-0">
               <p className="text-label font-semibold text-foreground">
@@ -70,7 +69,7 @@ export function AvailableTab({ rows }: Readonly<Props>) {
             <Button type="button" onClick={() => setSelected(row)} data-testid="start-button">
               Start
             </Button>
-          </div>
+          </CardListRow>
         ))}
       </CardList>
       <CodeEntryModal

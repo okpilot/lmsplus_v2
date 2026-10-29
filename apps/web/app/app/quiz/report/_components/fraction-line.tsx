@@ -13,7 +13,7 @@ export function FractionLine({ correct, total, noun }: Readonly<Props>) {
 
   return (
     <p className={`flex items-center gap-1 font-medium ${FRACTION_TEXT[tone]}`}>
-      {tone === 'partial' && <CircleDashed className="size-3.5 text-caution" aria-hidden />}
+      {tone === 'partial' && <CircleDashed className="size-icon-sm text-caution" aria-hidden />}
       {correct} / {total} {noun}
       {total === 1 ? '' : 's'} correct
     </p>

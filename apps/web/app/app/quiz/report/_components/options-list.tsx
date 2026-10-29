@@ -33,13 +33,13 @@ export function OptionsList({
             <span>{option.text}</span>
             {isCorrect && (
               <>
-                <Check size={12} aria-hidden className="ml-1 shrink-0" />
+                <Check aria-hidden className="ml-1 size-icon-sm shrink-0" />
                 <span>Correct</span>
               </>
             )}
             {isSelected && !isCorrect && (
               <>
-                <X size={12} aria-hidden className="ml-1 shrink-0" />
+                <X aria-hidden className="ml-1 size-icon-sm shrink-0" />
                 <span>Your answer</span>
               </>
             )}

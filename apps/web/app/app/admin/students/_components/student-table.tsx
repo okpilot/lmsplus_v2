@@ -69,8 +69,8 @@ export function StudentTable({
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead className="min-w-[160px]">Name</TableHead>
-          <TableHead className="min-w-[200px]">Email</TableHead>
+          <TableHead className="min-w-col-md">Name</TableHead>
+          <TableHead className="min-w-col-lg">Email</TableHead>
           <TableHead className="w-28">Role</TableHead>
           <TableHead className="w-40">Courses</TableHead>
           <TableHead className="w-24">Status</TableHead>
@@ -109,7 +109,7 @@ export function StudentTable({
             <TableCell>
               <LoginInstructionsCell student={s} />
             </TableCell>
-            <TableCell className="py-2.5 lg:py-2">
+            <TableCell>
               <div className="flex items-center gap-1">
                 <Button
                   variant="ghost"
@@ -118,7 +118,7 @@ export function StudentTable({
                   aria-label="Edit student"
                   onClick={() => onEdit(s)}
                 >
-                  <Pencil className="size-3.5 text-muted-foreground" />
+                  <Pencil className="size-icon-sm text-muted-foreground" />
                 </Button>
                 <Button
                   variant="ghost"
@@ -128,9 +128,9 @@ export function StudentTable({
                   onClick={() => onToggleStatus(s)}
                 >
                   {s.deleted_at === null ? (
-                    <UserX className="size-3.5 text-muted-foreground" />
+                    <UserX className="size-icon-sm text-muted-foreground" />
                   ) : (
-                    <UserCheck className="size-3.5 text-muted-foreground" />
+                    <UserCheck className="size-icon-sm text-muted-foreground" />
                   )}
                 </Button>
                 <Button
@@ -140,7 +140,7 @@ export function StudentTable({
                   aria-label="Export data"
                   onClick={() => onExport(s)}
                 >
-                  <Download className="size-3.5 text-muted-foreground" />
+                  <Download className="size-icon-sm text-muted-foreground" />
                 </Button>
               </div>
             </TableCell>

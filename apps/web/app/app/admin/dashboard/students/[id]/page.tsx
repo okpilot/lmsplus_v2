@@ -29,7 +29,7 @@ export default async function StudentDetailPage({ params, searchParams }: Readon
   return (
     <div className="space-y-6">
       <StudentHeader student={student} />
-      <Suspense fallback={<Skeleton className="h-96 rounded-xl" />}>
+      <Suspense fallback={<Skeleton className="h-96 rounded-card" />}>
         <SessionHistoryContent sessionsPromise={sessionsPromise} filters={filters} />
       </Suspense>
     </div>
