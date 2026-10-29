@@ -39,7 +39,7 @@ describe('InternalExamTabs', () => {
     render(<InternalExamTabs available={AVAILABLE} history={[]} />)
     const badge = screen.getByTestId('tab-available-badge')
     expect(badge).toHaveTextContent('2')
-    expect(badge).toHaveClass('bg-muted-foreground/15')
+    expect(badge).toHaveClass('bg-card')
   })
 
   it('styles the active tab with the shared segmented look', () => {
