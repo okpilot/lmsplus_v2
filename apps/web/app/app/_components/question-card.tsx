@@ -24,9 +24,7 @@ export function QuestionCard({
             Question {questionNumber} of {totalQuestions}
           </p>
           {dbQuestionNumber && (
-            <span className="tabular-nums text-xs text-muted-foreground/70">
-              {dbQuestionNumber}
-            </span>
+            <span className="tabular-nums text-xs text-muted-foreground">{dbQuestionNumber}</span>
           )}
         </div>
       )}

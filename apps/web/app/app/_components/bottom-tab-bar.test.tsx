@@ -142,6 +142,8 @@ describe('BottomTabBar', () => {
       const sheet = document.querySelector('#bottom-more-sheet') as HTMLElement
       expect(backdrop.className).toContain('z-scrim')
       expect(backdrop.className).toContain('md:hidden')
+      expect(backdrop.className).toContain('bg-scrim')
+      expect(backdrop.className).not.toContain('bg-foreground/10')
       expect(backdrop.className).not.toContain('hover:bg-muted')
       expect(backdrop.className).not.toContain('dark:hover:bg-muted/50')
       expect(nav.compareDocumentPosition(backdrop) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()

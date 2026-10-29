@@ -54,6 +54,13 @@ export const EASING = {
   standard: 'cubic-bezier(0.2, 0, 0, 1)',
 }
 
+// Elevation: shadow offset/blur px, black alpha %. Scrim: black alpha %.
+export const ELEVATION = {
+  raised: { y: 4, blur: 12, light: 8, dark: 40 },
+  overlay: { y: 12, blur: 32, light: 14, dark: 50 },
+} as const
+export const SCRIM = { light: 40, dark: 40 } as const
+
 // O2 · Clear.
 export const STATE = { hover: '8%', pressed: '12%' }
 

@@ -23,7 +23,7 @@ export function SubjectSelect({ subjects, value, onValueChange }: Readonly<Subje
         <CollapsibleTrigger
           aria-label="Select a subject"
           data-testid="subject-trigger"
-          className={`flex w-full items-center justify-between rounded-[10px] border border-border bg-card px-3 py-2.5 text-sm transition-colors hover:bg-muted/50 ${
+          className={`flex w-full items-center justify-between rounded-[10px] border border-border bg-card px-3 py-2.5 text-sm transition-colors hover:bg-muted ${
             open ? 'rounded-b-none border-b-transparent' : ''
           }`}
         >
@@ -52,7 +52,7 @@ export function SubjectSelect({ subjects, value, onValueChange }: Readonly<Subje
                   if (s.id !== value) onValueChange(s.id)
                   setOpen(false)
                 }}
-                className={`flex w-full items-center gap-2.5 border-l-2 px-3 py-2.5 text-sm transition-colors hover:bg-muted/50 ${
+                className={`flex w-full items-center gap-2.5 border-l-2 px-3 py-2.5 text-sm transition-colors hover:bg-muted ${
                   s.id === value ? 'border-l-primary bg-primary/5' : 'border-l-transparent'
                 }`}
               >

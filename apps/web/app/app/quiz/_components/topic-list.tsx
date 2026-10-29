@@ -21,7 +21,7 @@ function SubtopicRows({
   showCode,
 }: Readonly<SubtopicRowsProps>) {
   return (
-    <div className="border-t border-border bg-muted/40">
+    <div className="border-t border-border bg-muted">
       {subtopics.map((sub) => (
         <TopicRow
           key={sub.id}

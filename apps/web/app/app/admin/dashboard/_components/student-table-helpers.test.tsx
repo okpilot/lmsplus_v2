@@ -183,6 +183,19 @@ describe('StudentRow', () => {
     expect(screen.getByText('Inactive')).toBeInTheDocument()
   })
 
+  it('greys an inactive row with text colour, not opacity', () => {
+    render(
+      <table>
+        <tbody>
+          <StudentRow student={buildStudent({ isActive: false })} onClick={vi.fn()} />
+        </tbody>
+      </table>,
+    )
+    const row = screen.getByRole('row')
+    expect(row.className).not.toContain('opacity-60')
+    expect(row).toHaveClass('text-muted-foreground')
+  })
+
   it('calls onClick when the row is clicked', () => {
     const onClick = vi.fn()
     render(

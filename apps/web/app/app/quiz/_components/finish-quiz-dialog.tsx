@@ -86,11 +86,11 @@ export function FinishQuizDialog({
       disablePointerDismissal={!canDismiss || submitting}
     >
       <DialogPortal>
-        <DialogOverlay className="bg-black/50 supports-backdrop-filter:backdrop-blur-none" />
+        <DialogOverlay className="bg-scrim supports-backdrop-filter:backdrop-blur-none" />
         <DialogPrimitive.Popup
           ref={popupRef}
           initialFocus={popupRef}
-          className="fixed max-h-[calc(100dvh-2rem)] overflow-y-auto top-1/2 left-1/2 z-overlay w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 rounded-card bg-popover p-6 ring-1 ring-border shadow-lg outline-none sm:max-w-md"
+          className="fixed max-h-[calc(100dvh-2rem)] overflow-y-auto top-1/2 left-1/2 z-overlay w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 rounded-card bg-popover p-6 ring-1 ring-border shadow-overlay outline-none sm:max-w-md"
         >
           <DialogTitle className="text-heading">{title}</DialogTitle>
           <DialogBody

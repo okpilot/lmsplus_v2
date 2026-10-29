@@ -5,19 +5,21 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground [a]:hover:bg-primary/80',
+        default:
+          'bg-primary text-primary-foreground hover:bg-primary-hover active:bg-primary-pressed',
         outline:
           'border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-muted/30 dark:hover:bg-muted/50',
         secondary:
-          'bg-secondary text-secondary-foreground hover:bg-secondary/80 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground',
+          'bg-secondary text-secondary-foreground hover:bg-secondary-hover active:bg-secondary-pressed aria-expanded:bg-secondary aria-expanded:text-secondary-foreground',
         ghost:
           'hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50',
         destructive:
-          'bg-destructive text-destructive-foreground hover:bg-destructive/90 focus-visible:border-destructive focus-visible:ring-destructive',
-        caution: 'bg-caution-solid text-caution-foreground hover:bg-caution-solid/90',
+          'bg-destructive text-destructive-foreground hover:bg-destructive-hover active:bg-destructive-pressed focus-visible:border-destructive focus-visible:ring-destructive',
+        caution:
+          'bg-caution-solid text-caution-foreground hover:bg-caution-solid-hover active:bg-caution-solid-pressed',
         toggle:
           'text-muted-foreground hover:bg-muted hover:text-foreground aria-pressed:border-primary aria-pressed:bg-card aria-pressed:text-primary-text aria-pressed:hover:bg-muted',
-        link: 'text-primary-text underline underline-offset-4 hover:opacity-80',
+        link: 'text-primary-text underline underline-offset-4 hover:decoration-2',
       },
       size: {
         default:

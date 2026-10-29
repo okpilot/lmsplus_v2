@@ -65,7 +65,7 @@ export function KeyboardLegend({ isExam = false }: Readonly<{ isExam?: boolean }
           <div
             role="dialog"
             aria-label="Keyboard shortcuts"
-            className="absolute right-0 top-full z-dropdown mt-2 w-60 rounded-lg bg-popover p-3 ring-1 ring-border shadow-lg"
+            className="absolute right-0 top-full z-dropdown mt-2 w-60 rounded-lg bg-popover p-3 ring-1 ring-border shadow-raised"
           >
             <p className="mb-2 text-xs font-medium">Keyboard shortcuts</p>
             <ul className="space-y-1.5">

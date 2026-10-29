@@ -42,9 +42,9 @@ export const LIGHT = {
   // destructive = danger text shade; foreground is white on it
   destructive: DANGER,
   'destructive-foreground': 'oklch(0.99 0 0)',
-  data: 'oklch(0.635 0.009 255)',
+  data: 'oklch(0.61 0.009 255)',
   'data-strong': 'oklch(0.4 0.009 255)',
-  'data-goal': 'oklch(0.62 0.15 150)',
+  'data-goal': 'oklch(0.59 0.15 150)',
   'series-1': 'oklch(0.4 0.009 255)',
   'series-2': 'oklch(0.55 0.19 258)',
   'series-3': 'oklch(0.55 0.009 255)',

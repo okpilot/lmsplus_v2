@@ -83,7 +83,7 @@ export function DialogBlank({
         data-testid={`blank-${index}`}
         onKeyDown={(e) => handleBlankKeyDown(e, index, onEnter)}
         style={{ '--blank-w': blankWidthCh(value) } as CSSProperties}
-        className={`dialog-blank-input inline-block rounded border px-2 py-1 text-sm transition-colors ${result ? '' : 'disabled:opacity-70'} ${blankClass(result)}`}
+        className={`dialog-blank-input inline-block rounded border px-2 py-1 text-sm transition-colors ${result ? '' : 'disabled:opacity-50 disabled:cursor-not-allowed'} ${blankClass(result)}`}
       />
       {result && !result.isCorrect && (
         <span

@@ -78,3 +78,15 @@ describe('Badge soft variant without a tone', () => {
     expect(cls).not.toContain('[&>svg]:size-3!')
   })
 })
+
+describe('Badge link hover', () => {
+  it.each([
+    ['default', 'primary'],
+    ['secondary', 'secondary'],
+  ] as const)('%s hovers to the derived state colour', (variant, fill) => {
+    render(<Badge variant={variant}>x</Badge>)
+    const el = screen.getByText('x')
+    expect(el.className).toContain(`[a]:hover:bg-${fill}-hover`)
+    expect(el.className).not.toContain(`[a]:hover:bg-${fill}/80`)
+  })
+})

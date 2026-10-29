@@ -17,7 +17,7 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
       <PhoneTopBar />
-      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 self-start md:flex">
+      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 self-start md:flex border-r border-border bg-card">
         <SidebarNav />
       </aside>
       <div className="min-w-0 flex-1 px-5 py-8 pb-24 md:px-10 md:pb-8">

@@ -15,7 +15,7 @@ describe('FilterHint floating surface', () => {
     )
     fireEvent.mouseEnter(screen.getByRole('button', { name: /Info about Calculations/ }))
     const el = screen.getByText('Needs a calculator')
-    expect(el).toHaveClass('ring-1', 'shadow-lg', 'bg-popover')
+    expect(el).toHaveClass('ring-1', 'shadow-raised', 'bg-popover')
     expect(el.className).not.toMatch(/(^|\s)border(\s|$)/)
   })
 })

@@ -56,6 +56,14 @@ describe('AppShell', () => {
     expect(within(aside as HTMLElement).getByTestId('sidebar-nav')).toBeInTheDocument()
   })
 
+  it('draws the desktop sidebar as a card panel with a right border', () => {
+    mockUsePathname.mockReturnValue('/app/dashboard')
+    render(<AppShell>Content</AppShell>)
+
+    const cls = (screen.getByTestId('sidebar-nav').closest('aside')?.className ?? '').split(/\s+/)
+    expect(cls).toEqual(expect.arrayContaining(['bg-card', 'border-r', 'border-border']))
+  })
+
   it('renders in fullscreen mode when the pathname includes /session', () => {
     mockUsePathname.mockReturnValue('/app/quiz/session')
     render(<AppShell>Session content</AppShell>)

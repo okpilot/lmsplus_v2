@@ -112,4 +112,11 @@ describe('HeaderControls', () => {
     screen.getByTestId('action').click()
     expect(onFinishClick).toHaveBeenCalledTimes(1)
   })
+
+  it('stacks the controls on the sticky z token', () => {
+    render(<HeaderControls isExam submitting={false} onFinishClick={vi.fn()} />)
+    const wrapper = screen.getByTestId('theme-toggle').parentElement
+    expect(wrapper).toHaveClass('z-sticky')
+    expect(wrapper?.className).not.toMatch(/(^|\s)z-10(\s|$)/)
+  })
 })
