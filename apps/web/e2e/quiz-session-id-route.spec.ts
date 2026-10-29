@@ -158,7 +158,7 @@ test.describe('Quiz session addressed by id', () => {
     await page.getByRole('button', { name: 'Next ›' }).click()
     await expect(page.getByText(`Question 2 of ${total}`)).toBeVisible()
     await page.getByTestId('pin-button').click()
-    await expect(page.getByTestId('pin-button')).toHaveText(/Unpin/)
+    await expect(page.getByTestId('pin-button')).toHaveAttribute('aria-pressed', 'true')
     await expect
       .poll(async () => {
         const row = await readSessionRow(sessionId)
@@ -170,7 +170,7 @@ test.describe('Quiz session addressed by id', () => {
 
     await expect(page).toHaveURL(sessionUrl)
     await expect(page.getByText(`Question 2 of ${total}`)).toBeVisible({ timeout: 10_000 })
-    await expect(page.getByTestId('pin-button')).toHaveText(/Unpin/)
+    await expect(page.getByTestId('pin-button')).toHaveAttribute('aria-pressed', 'true')
     await expect(page.getByRole('heading', { name: 'Resume your quiz?' })).toHaveCount(0)
     await page.getByRole('button', { name: '‹ Previous' }).click()
     await expect(page.getByText(`Question 1 of ${total}`)).toBeVisible()

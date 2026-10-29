@@ -133,7 +133,8 @@ test.describe('Quiz answer save refused by the server', () => {
     await overlay.getByRole('button', { name: 'Continue without it' }).click()
     await expect(overlay).toBeHidden({ timeout: 10_000 })
 
-    await page.getByRole('button', { name: 'Next ›' }).click()
+    // The dropped answer leaves no Next button: use the navigator square.
+    await page.locator('[data-testid="grid-btn-1"]:visible').first().click()
     await expect(page.getByText('Question 2')).toBeVisible()
     await expect(page).toHaveURL(sessionUrl)
     expect(await readServerAnsweredCount()).toBe(0)

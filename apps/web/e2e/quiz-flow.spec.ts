@@ -47,7 +47,7 @@ test('quiz flow: configure → answer questions → view results → dashboard',
     await answerButtons.first().waitFor({ state: 'visible' })
     await answerButtons.first().click()
 
-    // Click Submit Answer (visible one — mobile + desktop both exist in DOM)
+    // Click Submit Answer
     await page.getByRole('button', { name: 'Submit Answer' }).first().click()
 
     // Navigate to next question (or finish on the last one)

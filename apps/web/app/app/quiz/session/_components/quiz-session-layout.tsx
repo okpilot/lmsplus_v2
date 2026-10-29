@@ -15,7 +15,7 @@ type QuizSessionLayoutProps = {
  */
 export function QuizSessionLayout({ tabs, question, panel }: Readonly<QuizSessionLayoutProps>) {
   return (
-    <div className="flex flex-col gap-stack lg:grid lg:grid-cols-(--layout-session) lg:items-start">
+    <div className="flex flex-col gap-stack lg:grid lg:grid-cols-(--layout-session) lg:items-start lg:gap-0">
       <div className="space-y-stack lg:col-start-2">
         {tabs}
         {question}
