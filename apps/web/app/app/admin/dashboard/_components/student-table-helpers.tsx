@@ -44,7 +44,7 @@ export function StudentRow({ student, onClick }: Readonly<StudentRowProps>) {
           )}
           <span className="font-medium">{student.fullName ?? '\u2014'}</span>
         </div>
-        <div className="text-xs text-muted-foreground">{student.email}</div>
+        <div className="text-caption text-muted-foreground">{student.email}</div>
       </TableCell>
       <TableCell>{formatRelativeTime(student.lastActiveAt)}</TableCell>
       <TableCell>{student.sessionCount}</TableCell>

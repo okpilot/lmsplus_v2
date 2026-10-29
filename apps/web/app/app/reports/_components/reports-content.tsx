@@ -29,7 +29,7 @@ export async function ReportsContent({ page, sort, dir }: Readonly<Props>) {
 
   return (
     <>
-      <p className="mt-1 text-sm text-muted-foreground">
+      <p className="mt-1 text-body text-muted-foreground">
         {result.totalCount} completed {result.totalCount === 1 ? 'session' : 'sessions'}
       </p>
       <ReportsList

@@ -89,9 +89,15 @@ function ReportRow({ row: r }: Readonly<{ row: InternalExamHistoryEntry }>) {
         </Link>
       </TableCell>
       <TableCell className="tabular-nums">#{r.attemptNumber}</TableCell>
-      <TableCell className="text-xs text-muted-foreground">{formatAbsolute(r.startedAt)}</TableCell>
-      <TableCell className="text-xs text-muted-foreground">{formatAbsolute(r.endedAt)}</TableCell>
-      <TableCell className="tabular-nums text-sm">{formatScore(r.scorePercentage)}</TableCell>
+      <TableCell className="text-caption text-muted-foreground">
+        {formatAbsolute(r.startedAt)}
+      </TableCell>
+      <TableCell className="text-caption text-muted-foreground">
+        {formatAbsolute(r.endedAt)}
+      </TableCell>
+      <TableCell className="text-label font-semibold tabular-nums">
+        {formatScore(r.scorePercentage)}
+      </TableCell>
       <TableCell>
         {r.passed === null ? (
           <span className="text-muted-foreground">—</span>
@@ -105,7 +111,7 @@ function ReportRow({ row: r }: Readonly<{ row: InternalExamHistoryEntry }>) {
           </Badge>
         )}
       </TableCell>
-      <TableCell className="text-xs tabular-nums">
+      <TableCell className="text-caption tabular-nums">
         {r.answeredCount}/{r.totalQuestions}
       </TableCell>
     </TableRow>

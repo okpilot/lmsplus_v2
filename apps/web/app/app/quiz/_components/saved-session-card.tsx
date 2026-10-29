@@ -50,8 +50,8 @@ export function SavedSessionCard({ session }: Readonly<{ session: SavedQuizSessi
       <CardContent className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium">{session.subjectName}</p>
-            <p className="text-xs text-muted-foreground">{modeLabel(session.mode)}</p>
+            <p className="truncate text-label">{session.subjectName}</p>
+            <p className="text-caption text-muted-foreground">{modeLabel(session.mode)}</p>
           </div>
           <SavedSessionButtons
             resuming={resuming}

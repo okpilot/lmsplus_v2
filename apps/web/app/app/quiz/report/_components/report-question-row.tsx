@@ -49,10 +49,10 @@ export function ReportQuestionRow({
 
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
-            <span className="text-xs font-medium text-muted-foreground">{label}</span>
-            <span className="text-sm">{question.questionText}</span>
+            <span className="text-caption font-medium text-muted-foreground">{label}</span>
+            <span className="text-body">{question.questionText}</span>
             <div className="ml-auto flex shrink-0 items-center gap-2">
-              <span className="text-xs text-muted-foreground">
+              <span className="text-caption text-muted-foreground">
                 {formatMsDuration(question.responseTimeMs)}
               </span>
               {flag && (
@@ -89,7 +89,7 @@ export function ReportQuestionRow({
             </div>
           )}
 
-          {!isAnswered && <p className="mt-1 text-xs text-muted-foreground">Not answered</p>}
+          {!isAnswered && <p className="mt-1 text-caption text-muted-foreground">Not answered</p>}
 
           <ReportAnswerBody question={question} />
 
@@ -121,7 +121,7 @@ export function ReportQuestionRow({
                     />
                   )}
                   {question.explanationText && (
-                    <MarkdownText className="text-sm text-muted-foreground">
+                    <MarkdownText className="text-body text-muted-foreground">
                       {question.explanationText}
                     </MarkdownText>
                   )}

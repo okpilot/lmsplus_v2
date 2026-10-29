@@ -69,7 +69,7 @@ export function ReportsList({ sessions, page, totalCount, pageSize, sort, dir }:
 
   return (
     <div>
-      <p className="mb-2 hidden text-xs text-muted-foreground md:block">
+      <p className="mb-2 hidden text-caption text-muted-foreground md:block">
         Click a column header to sort
       </p>
       <div className="hidden md:block">
@@ -78,7 +78,7 @@ export function ReportsList({ sessions, page, totalCount, pageSize, sort, dir }:
 
       <div className="md:hidden">
         <div className="mb-3 flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Sort by</span>
+          <span className="text-caption text-muted-foreground">Sort by</span>
           <Select value={`${sort}-${dir}`} onValueChange={handleMobileSort} items={SORT_OPTIONS}>
             <SelectTrigger size="sm" aria-label="Sort sessions">
               <SelectValue />

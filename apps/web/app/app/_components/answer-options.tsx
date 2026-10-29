@@ -129,10 +129,10 @@ export function AnswerOptions({
             data-kb-highlighted={isKeyboardHighlighted ? 'true' : undefined}
             disabled={disabled || (!!isExam && lockedSelection != null)}
             onClick={() => handleSelect(option.id)}
-            className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-colors ${card} ${isKeyboardHighlighted ? 'outline-2 outline-offset-2 outline-ring' : ''} ${disabled && !showResult ? 'opacity-50' : ''}`}
+            className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left text-body transition-colors ${card} ${isKeyboardHighlighted ? 'outline-2 outline-offset-2 outline-ring' : ''} ${disabled && !showResult ? 'opacity-50' : ''}`}
           >
             <span
-              className={`flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${circle}`}
+              className={`flex size-7 shrink-0 items-center justify-center rounded-full text-caption font-semibold ${circle}`}
             >
               {LETTERS[index] ?? String(index + 1)}
             </span>

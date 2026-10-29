@@ -45,7 +45,7 @@ function SubjectCard({ subject }: Readonly<{ subject: SubjectProgress }>) {
     <Card>
       <CardContent>
         <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">{subject.code}</span>
+          <span className="text-caption text-muted-foreground">{subject.code}</span>
           <span className="font-semibold tabular-nums">{subject.masteryPercentage}%</span>
         </div>
         <p className="mt-1 font-medium">{subject.name}</p>
@@ -55,7 +55,7 @@ function SubjectCard({ subject }: Readonly<{ subject: SubjectProgress }>) {
           label={`${subject.name} mastery`}
           className="mt-3"
         />
-        <p className="mt-2 text-xs text-muted-foreground">Last practiced: {relativeDate}</p>
+        <p className="mt-2 text-caption text-muted-foreground">Last practiced: {relativeDate}</p>
       </CardContent>
     </Card>
   )

@@ -24,6 +24,7 @@ describe('Button', () => {
   it.each([
     ['sm', 'h-7'],
     ['icon-sm', 'size-7'],
+    ['segment', 'h-8'],
   ] as const)('keeps the %s button visual size and adds a tap area', (size, visual) => {
     render(<Button size={size}>x</Button>)
     const { className } = screen.getByRole('button')

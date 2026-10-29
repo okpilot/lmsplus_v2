@@ -62,7 +62,7 @@ export function ResetPasswordForm() {
           {showRequestLink && (
             <Link
               href="/auth/forgot-password"
-              className="text-sm font-medium text-primary-text underline underline-offset-4"
+              className="text-label text-primary-text underline underline-offset-4"
             >
               Request a new code
             </Link>
@@ -74,7 +74,7 @@ export function ResetPasswordForm() {
         Update password
       </LoadingButton>
 
-      <p className="text-center text-sm">
+      <p className="text-center text-body">
         <Link
           href="/"
           className="text-muted-foreground underline underline-offset-4 hover:text-primary-text"

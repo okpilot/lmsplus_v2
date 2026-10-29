@@ -18,12 +18,12 @@ export function SessionCard({ session: s }: Readonly<{ session: SessionReport }>
     >
       <div className="flex items-start justify-between">
         <p className="font-medium">{s.subjectName ?? '\u2014'}</p>
-        <span className="ml-3 text-xl font-semibold tabular-nums" style={{ color }}>
+        <span className="ml-3 text-heading tabular-nums" style={{ color }}>
           {score}
         </span>
       </div>
-      <p className="mt-0.5 text-xs text-muted-foreground">{formatDate(s.startedAt)}</p>
-      <p className="mt-1 text-xs text-muted-foreground">
+      <p className="mt-0.5 text-caption text-muted-foreground">{formatDate(s.startedAt)}</p>
+      <p className="mt-1 text-caption text-muted-foreground">
         Mode:{' '}
         {isExamMode(s.mode) ? (
           <span className="font-semibold uppercase text-caution">{MODE_LABELS[s.mode]}</span>

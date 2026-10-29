@@ -32,7 +32,7 @@ export function HeaderStatus({
 }: Readonly<HeaderStatusProps>) {
   return (
     <div className="flex items-center gap-2">
-      <span className="text-sm font-medium md:hidden">
+      <span className="text-caption font-medium md:hidden">
         Q {currentIndex + 1} / {totalQuestions}
       </span>
       {isExam ? (
@@ -43,13 +43,13 @@ export function HeaderStatus({
               timeLimitSeconds={timeLimitSeconds}
               startedAt={timerStart}
               onExpired={onTimeExpired}
-              className="text-sm md:hidden"
+              className="text-caption md:hidden"
             />
           )}
         </>
       ) : (
         <SessionTimer
-          className="text-sm text-muted-foreground md:hidden"
+          className="text-caption text-muted-foreground md:hidden"
           initialElapsedMs={initialActiveMs}
         />
       )}

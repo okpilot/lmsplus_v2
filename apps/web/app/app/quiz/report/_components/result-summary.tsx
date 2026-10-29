@@ -64,7 +64,7 @@ export function ResultSummary({ summary }: Readonly<Props>) {
     <Card>
       <CardContent>
         <div className="mb-4">
-          <p className="text-center font-semibold text-lg">
+          <p className="text-center text-heading">
             {isExam ? `${examLabel} Complete` : `${ctx.noun} Complete`}
           </p>
         </div>

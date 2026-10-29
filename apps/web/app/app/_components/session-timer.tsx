@@ -19,7 +19,7 @@ export function SessionTimer({
   const secs = elapsed % 60
 
   return (
-    <span className={`tabular-nums text-xs text-muted-foreground ${className ?? ''}`}>
+    <span className={`tabular-nums text-caption text-muted-foreground ${className ?? ''}`}>
       {mins.toString().padStart(2, '0')}:{secs.toString().padStart(2, '0')}
     </span>
   )

@@ -23,7 +23,7 @@ export function BlockedStartAlert({
       <FieldError role="alert">{message}</FieldError>
       {offer && (
         <InsetPanel className="space-y-2">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-body text-muted-foreground">
             Your {offer.subjectName} quiz is still open.
           </p>
           <Button type="button" variant="outline" disabled={saving} onClick={onAccept}>

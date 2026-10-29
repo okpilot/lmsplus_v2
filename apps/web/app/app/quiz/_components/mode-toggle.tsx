@@ -30,7 +30,7 @@ export function ModeToggle({
 }: Readonly<ModeToggleProps>) {
   return (
     <div className="space-y-1.5">
-      <span className="text-label font-medium text-muted-foreground">Mode</span>
+      <span className="text-label text-muted-foreground">Mode</span>
       <div className="flex gap-1 rounded-control bg-muted p-1">
         {MODES.map((mode) => (
           <Button
@@ -46,7 +46,7 @@ export function ModeToggle({
           </Button>
         ))}
       </div>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-caption text-muted-foreground">
         {value === 'discovery'
           ? 'Discovery shows the answer and explanation up front — explore the questions, nothing scored.'
           : value === 'exam'

@@ -41,7 +41,7 @@ export function QuestionsPageShell({
       <BulkActionsBar selectedIds={selectedIds} onClear={clear} />
 
       <div className="flex items-center justify-between">
-        <p className="text-xs text-muted-foreground">
+        <p className="text-caption text-muted-foreground">
           {totalCount} question{totalCount === 1 ? '' : 's'}
         </p>
         <QuestionFormDialog

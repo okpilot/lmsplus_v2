@@ -50,10 +50,7 @@ function CardTitle({ className, ...props }: Readonly<React.ComponentProps<'div'>
   return (
     <div
       data-slot="card-title"
-      className={cn(
-        'text-base leading-snug font-medium group-data-[size=sm]/card:text-sm',
-        className,
-      )}
+      className={cn('text-label leading-snug font-semibold', className)}
       {...props}
     />
   )
@@ -63,7 +60,7 @@ function CardDescription({ className, ...props }: Readonly<React.ComponentProps<
   return (
     <div
       data-slot="card-description"
-      className={cn('text-sm text-muted-foreground', className)}
+      className={cn('text-caption text-muted-foreground', className)}
       {...props}
     />
   )

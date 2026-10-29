@@ -18,12 +18,12 @@ export function FeedbackPanel({
 }: Readonly<FeedbackPanelProps>) {
   return (
     <InsetPanel className="space-y-3">
-      <p className={`text-sm font-semibold ${isCorrect ? 'text-success' : 'text-danger'}`}>
+      <p className={`text-label font-semibold ${isCorrect ? 'text-success' : 'text-danger'}`}>
         {isCorrect ? 'Correct!' : 'Incorrect'}
       </p>
 
       {explanationText && (
-        <MarkdownText className="text-sm text-muted-foreground">{explanationText}</MarkdownText>
+        <MarkdownText className="text-body text-muted-foreground">{explanationText}</MarkdownText>
       )}
 
       {explanationImageUrl && (

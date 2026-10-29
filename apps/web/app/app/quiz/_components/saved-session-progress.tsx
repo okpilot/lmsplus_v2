@@ -9,7 +9,7 @@ export function SavedSessionProgress({
 
   return (
     <div className="space-y-1">
-      <div className="flex justify-between text-xs">
+      <div className="flex justify-between text-caption">
         <span className="text-muted-foreground">
           {answered} of {total} answered
         </span>

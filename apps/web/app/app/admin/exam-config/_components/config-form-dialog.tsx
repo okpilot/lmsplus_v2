@@ -122,7 +122,7 @@ export function ConfigFormDialog({ subject, open, onOpenChange }: Readonly<Props
               distributions={distributions}
               onChange={setDistributions}
             />
-            <div className={`mt-2 text-sm font-medium ${isValid ? 'text-success' : 'text-danger'}`}>
+            <div className={`mt-2 text-label ${isValid ? 'text-success' : 'text-danger'}`}>
               Total: {distributionSum} / {totalQuestions}
               {isValid ? ' \u2713' : ' (must match total questions)'}
             </div>

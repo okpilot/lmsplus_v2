@@ -46,12 +46,12 @@ export function TopicTree({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-label font-medium text-muted-foreground">Topics</span>
+        <span className="text-label text-muted-foreground">Topics</span>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-muted-foreground">
+          <span className="text-caption text-muted-foreground">
             {totalQuestions} questions available
           </span>
-          <span className="flex items-center gap-1.5 text-xs font-medium">
+          <span className="flex items-center gap-1.5 text-caption font-medium">
             <Checkbox checked={allSelected} onCheckedChange={onSelectAll} />
             Select all
           </span>

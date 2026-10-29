@@ -34,7 +34,7 @@ export function ExamSessionHeader({
         timeLimitSeconds={timeLimitSeconds}
         startedAt={startedAt}
         onExpired={onExpired}
-        className="text-sm"
+        className="text-caption"
       />
     </div>
   )

@@ -35,15 +35,17 @@ function TopicRow({ topic }: Readonly<{ topic: WeakTopic }>) {
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="font-medium leading-tight truncate">{topic.topicName}</p>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-caption text-muted-foreground">
             {topic.subjectShort} · {topic.subjectName}
           </p>
         </div>
         <div className="shrink-0 text-right">
-          <p className={`text-sm font-semibold tabular-nums ${masteryTextClass(topic.avgScore)}`}>
+          <p
+            className={`text-label font-semibold tabular-nums ${masteryTextClass(topic.avgScore)}`}
+          >
             {Math.round(topic.avgScore)}%
           </p>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-caption text-muted-foreground">
             {topic.studentCount} {topic.studentCount === 1 ? 'student' : 'students'}
           </p>
         </div>

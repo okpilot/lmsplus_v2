@@ -8,8 +8,7 @@ import type { NavItem } from './nav-items'
 import { NAV_ACTIVE } from './sidebar-item'
 
 const SHEET_ID = 'bottom-more-sheet'
-export const SLOT =
-  'flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 text-[11px]'
+export const SLOT = 'flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 text-micro'
 export const tone = (on: boolean) =>
   on ? 'font-medium text-primary-text' : 'text-muted-foreground'
 

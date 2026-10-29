@@ -68,21 +68,21 @@ export function QuestionTable({
                 aria-label={`Select question ${q.question_number ?? q.id}`}
               />
             </TableCell>
-            <TableCell className="tabular-nums text-xs text-muted-foreground">
+            <TableCell className="tabular-nums text-caption text-muted-foreground">
               {q.question_number ?? '\u2014'}
             </TableCell>
             <TableCell className="max-w-[400px]">
               <div className="flex">
-                <span className="min-w-0 flex-1 truncate text-sm" title={q.question_text}>
+                <span className="min-w-0 flex-1 truncate" title={q.question_text}>
                   {q.question_text}
                 </span>
               </div>
             </TableCell>
             <TableCell>
-              <span className="text-xs font-medium">{q.subject?.code ?? '\u2014'}</span>
+              <span className="text-caption font-medium">{q.subject?.code ?? '\u2014'}</span>
             </TableCell>
             <TableCell>
-              <span className="text-xs text-muted-foreground">
+              <span className="text-caption text-muted-foreground">
                 {q.topic?.name ? truncate(q.topic.name, 30) : '\u2014'}
               </span>
             </TableCell>
@@ -90,15 +90,13 @@ export function QuestionTable({
               {q.has_calculations ? (
                 <CalcBadge />
               ) : (
-                <span className="text-xs text-muted-foreground">{'—'}</span>
+                <span className="text-caption text-muted-foreground">{'—'}</span>
               )}
             </TableCell>
             <TableCell>
-              <Badge variant={q.status === 'active' ? 'default' : 'outline'} className="text-xs">
-                {q.status}
-              </Badge>
+              <Badge variant={q.status === 'active' ? 'default' : 'outline'}>{q.status}</Badge>
             </TableCell>
-            <TableCell className="text-xs tabular-nums text-muted-foreground">
+            <TableCell className="text-caption tabular-nums text-muted-foreground">
               {formatDate(q.updated_at)}
             </TableCell>
             <TableCell className="py-2.5 lg:py-2">

@@ -12,7 +12,7 @@ function Table({ className, ...props }: Readonly<React.ComponentProps<'table'>>)
     >
       <table
         data-slot="table"
-        className={cn('w-full caption-bottom text-sm', className)}
+        className={cn('w-full caption-bottom text-body', className)}
         {...props}
       />
     </div>
@@ -67,7 +67,7 @@ function TableHead({ className, ...props }: Readonly<React.ComponentProps<'th'>>
     <th
       data-slot="table-head"
       className={cn(
-        'h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0',
+        'h-10 px-2 text-left align-middle text-caption font-medium whitespace-nowrap text-muted-foreground [&:has([role=checkbox])]:pr-0',
         className,
       )}
       {...props}
@@ -89,7 +89,7 @@ function TableCaption({ className, ...props }: Readonly<React.ComponentProps<'ca
   return (
     <caption
       data-slot="table-caption"
-      className={cn('mt-4 text-sm text-muted-foreground', className)}
+      className={cn('mt-4 text-caption text-muted-foreground', className)}
       {...props}
     />
   )

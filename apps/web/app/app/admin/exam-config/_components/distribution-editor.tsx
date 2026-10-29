@@ -34,7 +34,7 @@ export function DistributionEditor({ topics, distributions, onChange }: Readonly
 
   return (
     <div className="space-y-1">
-      <div className="grid grid-cols-[1fr_80px_80px] gap-2 text-xs font-medium text-muted-foreground">
+      <div className="grid grid-cols-[1fr_80px_80px] gap-2 text-caption font-medium text-muted-foreground">
         <span>Topic</span>
         <span className="text-right">Questions</span>
         <span className="text-right">Available</span>
@@ -103,10 +103,10 @@ function DistributionRow({
     <div
       className={`grid grid-cols-[1fr_80px_80px] items-center gap-2 py-1${indent ? ' pl-6' : ''}`}
     >
-      <span className="text-sm">
-        <span className="mr-1 tabular-nums text-xs text-muted-foreground">{code}</span>
+      <span className="text-body">
+        <span className="mr-1 tabular-nums text-caption text-muted-foreground">{code}</span>
         {name}
-        {note && <span className="ml-2 text-xs text-muted-foreground">{note}</span>}
+        {note && <span className="ml-2 text-caption text-muted-foreground">{note}</span>}
       </span>
       <input
         type="number"
@@ -115,9 +115,9 @@ function DistributionRow({
         value={value}
         aria-label={`${code} questions`}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full rounded border border-border bg-background px-2 py-1 text-right text-sm"
+        className="w-full rounded border border-border bg-background px-2 py-1 text-right text-body"
       />
-      <span className="text-right text-sm text-muted-foreground">{available}</span>
+      <span className="text-right text-body text-muted-foreground">{available}</span>
     </div>
   )
 }

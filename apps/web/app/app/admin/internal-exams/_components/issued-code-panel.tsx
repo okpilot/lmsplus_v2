@@ -66,12 +66,12 @@ export function IssuedCodePanel({ codeId, code, expiresAt, onDismiss }: Readonly
         <div className="space-y-2">
           <Eyebrow>New code issued</Eyebrow>
           <p
-            className="tabular-nums text-3xl font-bold tracking-widest"
+            className="tabular-nums text-stat font-bold tracking-widest"
             data-testid="issued-code-value"
           >
             {code}
           </p>
-          <p className="text-sm text-muted-foreground">Expires {formatExpiry(expiresAt)}</p>
+          <p className="text-body text-muted-foreground">Expires {formatExpiry(expiresAt)}</p>
         </div>
         <div className="flex flex-col gap-2">
           <Button type="button" onClick={handleCopy} variant="default">

@@ -81,7 +81,7 @@ export function ImageUploadField({ label, currentUrl, onUploaded, disabled }: Re
 
   return (
     <div className="space-y-2">
-      <span className="text-label font-medium text-muted-foreground">{label}</span>
+      <span className="text-label text-muted-foreground">{label}</span>
       {preview && isSafePreviewUrl(preview) && (
         <div className="relative">
           {/* biome-ignore lint/performance/noImgElement: local blob/URL preview, not optimizable by next/image */}
@@ -94,7 +94,7 @@ export function ImageUploadField({ label, currentUrl, onUploaded, disabled }: Re
             type="button"
             variant="ghost"
             size="sm"
-            className="absolute right-1 top-1 h-6 px-2 text-xs"
+            className="absolute right-1 top-1 h-6 px-2"
             onClick={handleRemove}
             disabled={disabled || isPending}
           >
@@ -107,9 +107,9 @@ export function ImageUploadField({ label, currentUrl, onUploaded, disabled }: Re
         accept="image/png,image/jpeg,image/webp"
         onChange={handleFileChange}
         disabled={disabled || isPending}
-        className="max-w-xs text-xs"
+        className="max-w-xs"
       />
-      {isPending && <p className="text-xs text-muted-foreground">Uploading...</p>}
+      {isPending && <p className="text-caption text-muted-foreground">Uploading...</p>}
     </div>
   )
 }

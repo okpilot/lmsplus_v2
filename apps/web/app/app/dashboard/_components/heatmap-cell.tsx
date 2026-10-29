@@ -36,17 +36,19 @@ export function HeatmapCell({
       >
         {hasActivity ? (
           <>
-            <span className="text-[9px] font-bold leading-none text-foreground md:text-[11px]">
+            <span className="text-chart font-bold leading-none text-foreground md:text-micro">
               {total}
             </span>
-            <span className="text-[8px] leading-none text-success md:text-[10px]">{correct}</span>
-            <span className="text-[8px] leading-none text-danger md:text-[10px]">{incorrect}</span>
+            <span className="text-chart leading-none text-success md:text-micro">{correct}</span>
+            <span className="text-chart leading-none text-danger md:text-micro">{incorrect}</span>
           </>
         ) : !isFuture ? (
-          <span className="text-[9px] text-muted-foreground/40 md:text-xs">—</span>
+          <span className="text-chart font-normal tracking-normal text-muted-foreground md:text-overline">
+            —
+          </span>
         ) : null}
       </div>
-      <span className={`text-[9px] leading-none md:text-[10px] ${dayTextClass}`}>{day}</span>
+      <span className={`text-chart leading-none md:text-micro ${dayTextClass}`}>{day}</span>
     </div>
   )
 }

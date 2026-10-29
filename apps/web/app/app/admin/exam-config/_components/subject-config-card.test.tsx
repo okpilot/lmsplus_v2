@@ -237,11 +237,12 @@ describe('SubjectConfigCard', () => {
   })
 
   describe('toggle hover feedback', () => {
-    it('dims the status toggle on hover while it is enabled', () => {
+    it('has no hover dimming and dims only while disabled', () => {
       render(<SubjectConfigCard subject={subjectWithConfig} onEdit={vi.fn()} />)
       const cls = screen.getByRole('button', { name: 'Enabled' }).className
-      expect(cls).toContain('enabled:hover:opacity-80')
-      expect(cls).toContain('transition-opacity')
+      expect(cls).not.toContain('enabled:hover:opacity-80')
+      expect(cls).not.toContain('transition-opacity')
+      expect(cls).toContain('disabled:opacity-50')
     })
   })
 })

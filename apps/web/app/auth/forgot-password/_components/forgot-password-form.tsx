@@ -70,7 +70,7 @@ export function ForgotPasswordForm() {
         Send reset code
       </LoadingButton>
 
-      <p className="text-center text-sm">
+      <p className="text-center text-body">
         <Link
           href="/"
           className="text-muted-foreground underline underline-offset-4 hover:text-primary-text"
@@ -79,7 +79,7 @@ export function ForgotPasswordForm() {
         </Link>
       </p>
 
-      <p className="text-center text-xs text-muted-foreground">
+      <p className="text-center text-caption text-muted-foreground">
         <Link href="/legal/terms" className="underline underline-offset-4 hover:text-primary-text">
           Terms of Service
         </Link>

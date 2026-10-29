@@ -70,7 +70,7 @@ export function ConsentForm({ nextPath }: Readonly<ConsentFormProps>) {
             />
           </div>
 
-          <p className="text-xs text-muted-foreground">
+          <p className="text-caption text-muted-foreground">
             We use essential cookies only to keep you signed in. No tracking or analytics cookies
             are used.
           </p>

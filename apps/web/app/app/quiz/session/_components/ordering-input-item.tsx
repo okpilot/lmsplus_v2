@@ -54,7 +54,7 @@ export function OrderingInputItem({
       style={style}
       data-testid={`ordering-item-${id}`}
       data-result={result ?? ''}
-      className={`flex items-center gap-3 rounded-lg border p-3 text-sm ${stateClass}`}
+      className={`flex items-center gap-3 rounded-lg border p-3 text-body ${stateClass}`}
     >
       {!disabled && (
         <button
@@ -72,7 +72,7 @@ export function OrderingInputItem({
       {result === 'incorrect' && canonical && (
         <span
           data-testid={`ordering-canonical-${id}`}
-          className="text-xs font-medium text-muted-foreground"
+          className="text-caption font-medium text-muted-foreground"
         >
           {canonical}
         </span>

@@ -25,7 +25,7 @@ export function QuizSessionMetaRow({
   initialActiveMs,
 }: Readonly<QuizSessionMetaRowProps>) {
   return (
-    <div className="flex items-center justify-between text-sm">
+    <div className="flex items-center justify-between text-caption">
       <span className="hidden font-medium md:inline">
         Question {currentIndex + 1} of {totalQuestions}
       </span>
@@ -35,15 +35,15 @@ export function QuizSessionMetaRow({
             timeLimitSeconds={timeLimitSeconds}
             startedAt={timerStart}
             onExpired={onTimeExpired}
-            className="hidden text-sm md:inline"
+            className="hidden text-caption md:inline"
           />
         )
       ) : (
         <span className="hidden md:inline">
-          <SessionTimer className="text-sm" initialElapsedMs={initialActiveMs} />
+          <SessionTimer initialElapsedMs={initialActiveMs} />
         </span>
       )}
-      <span className="text-xs text-muted-foreground">
+      <span className="text-caption text-muted-foreground">
         {questionNumber ? `No. ${questionNumber}` : '\u00A0'}
       </span>
     </div>
