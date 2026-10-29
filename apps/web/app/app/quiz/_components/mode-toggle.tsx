@@ -36,8 +36,8 @@ export function ModeToggle({
           <Button
             key={mode.value}
             type="button"
-            variant="toggle"
-            className="flex-1 hover:bg-card/60 aria-pressed:hover:bg-card"
+            variant="segment"
+            className="flex-1"
             aria-pressed={value === mode.value}
             disabled={!isAvailable(mode.value, examAvailable, discoveryAvailable)}
             onClick={() => onValueChange(mode.value)}

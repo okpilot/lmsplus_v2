@@ -31,7 +31,7 @@ export function QuestionTabs({ activeTab, onTabChange }: Readonly<QuestionTabsPr
           <Button
             key={tab.value}
             type="button"
-            variant="toggle"
+            variant="segment"
             aria-pressed={activeTab === tab.value}
             onClick={() => onTabChange(tab.value)}
             className="h-8 rounded-[calc(var(--radius-control)-2px)] px-2 text-xs md:px-3 md:text-sm"

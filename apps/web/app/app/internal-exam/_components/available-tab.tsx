@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { CardList } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { Empty, EmptyDescription } from '@/components/ui/empty'
 import type { AvailableInternalExam } from '../queries'
 import { CodeEntryModal } from './code-entry-modal'
@@ -43,34 +43,38 @@ export function AvailableTab({ rows }: Readonly<Props>) {
 
   return (
     <div className="space-y-3">
-      <CardList data-testid="available-list">
-        {rows.map((row) => (
-          <div
-            key={row.id}
-            data-testid={`available-row-${row.id}`}
-            className="flex items-center justify-between gap-4 p-4"
-          >
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-foreground">
-                {row.subjectShort ? `${row.subjectShort} — ` : ''}
-                {row.subjectName}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Expires {formatAbsolute(row.expiresAt)}
-                {formatRelative(row.expiresAt) && (
-                  <>
-                    {' '}
-                    <span className="text-muted-foreground">({formatRelative(row.expiresAt)})</span>
-                  </>
-                )}
-              </p>
-            </div>
-            <Button type="button" onClick={() => setSelected(row)} data-testid="start-button">
-              Start
-            </Button>
-          </div>
-        ))}
-      </CardList>
+      <Card className="gap-0 py-0">
+        <ul className="divide-y divide-border" data-testid="available-list">
+          {rows.map((row) => (
+            <li
+              key={row.id}
+              data-testid={`available-row-${row.id}`}
+              className="flex items-center justify-between gap-4 p-4"
+            >
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-foreground">
+                  {row.subjectShort ? `${row.subjectShort} — ` : ''}
+                  {row.subjectName}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Expires {formatAbsolute(row.expiresAt)}
+                  {formatRelative(row.expiresAt) && (
+                    <>
+                      {' '}
+                      <span className="text-muted-foreground">
+                        ({formatRelative(row.expiresAt)})
+                      </span>
+                    </>
+                  )}
+                </p>
+              </div>
+              <Button type="button" onClick={() => setSelected(row)} data-testid="start-button">
+                Start
+              </Button>
+            </li>
+          ))}
+        </ul>
+      </Card>
       <CodeEntryModal
         open={selected !== null}
         onOpenChange={(next) => {

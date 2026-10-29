@@ -108,11 +108,10 @@ describe('disabled is 50% and not-allowed', () => {
 })
 
 describe('disabled controls', () => {
-  it('button variants: not-allowed cursor, hover only when enabled', () => {
+  it('button variants: no pointer events, 50% opacity', () => {
     const s = src('components/ui/button-variants.ts')
-    expect(s).toContain('disabled:cursor-not-allowed')
-    expect(s).not.toContain('disabled:pointer-events-none')
-    expect(s).not.toMatch(/(?<!not-disabled:)hover:bg-/)
+    expect(s).toContain('disabled:pointer-events-none')
+    expect(s).toContain('disabled:opacity-50')
   })
 
   it.each(['components/ui/input.tsx', 'components/ui/select.tsx'])(

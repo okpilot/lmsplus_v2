@@ -128,12 +128,13 @@ describe('ModeToggle segmented look', () => {
     expect(screen.getByRole('button', { name: /exam/i })).toHaveAttribute('aria-pressed', 'false')
   })
 
-  it('gives every option the toggle variant classes and no literal bg-primary', () => {
+  it('gives every option the segment look, no hover background and no literal bg-primary', () => {
     render(<ModeToggle value="study" onValueChange={vi.fn()} examAvailable />)
     for (const name of [/discovery/i, /study/i, /exam/i]) {
       const btn = screen.getByRole('button', { name })
       expect(btn).toHaveClass('aria-pressed:bg-card', 'aria-pressed:border-primary')
       expect(btn.className.split(/\s+/)).not.toContain('bg-primary')
+      expect(btn.className).not.toMatch(/hover:bg-/)
     }
   })
 

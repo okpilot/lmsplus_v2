@@ -1,6 +1,7 @@
 import { DARK } from './colour-dark'
 import { type ColourName as BaseName, LIGHT } from './colour-light'
 import { mixOklch } from './mix'
+import { STATE } from './scale'
 
 const FILLS = ['primary', 'secondary', 'destructive', 'caution-solid'] as const
 type Fill = (typeof FILLS)[number]
@@ -13,8 +14,8 @@ function withStates(base: Record<BaseName, string>): Palette {
   const out: Record<string, string> = { ...base }
   for (const fill of FILLS) {
     const overlay = fill === 'secondary' ? base.foreground : STATE_DARK
-    out[`${fill}-hover`] = mixOklch(base[fill], overlay, 8)
-    out[`${fill}-pressed`] = mixOklch(base[fill], overlay, 12)
+    out[`${fill}-hover`] = mixOklch(base[fill], overlay, Number.parseFloat(STATE.hover))
+    out[`${fill}-pressed`] = mixOklch(base[fill], overlay, Number.parseFloat(STATE.pressed))
   }
   return out as Palette
 }

@@ -49,7 +49,9 @@ export function StudentRow({ student, onClick }: Readonly<StudentRowProps>) {
       <TableCell>{formatRelativeTime(student.lastActiveAt)}</TableCell>
       <TableCell>{student.sessionCount}</TableCell>
       <TableCell>{student.avgScore !== null ? `${student.avgScore}%` : '\u2014'}</TableCell>
-      <TableCell className={masteryTextClass(student.mastery)}>{student.mastery}%</TableCell>
+      <TableCell className={student.isActive ? masteryTextClass(student.mastery) : undefined}>
+        {student.mastery}%
+      </TableCell>
       <TableCell>
         {student.isActive ? (
           <Badge tone="success">Active</Badge>

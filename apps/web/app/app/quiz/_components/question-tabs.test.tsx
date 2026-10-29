@@ -55,10 +55,11 @@ describe('QuestionTabs', () => {
     expect(screen.getByRole('group', { name: 'Question view' })).toBeInTheDocument()
   })
 
-  it('styles the pressed tab with the toggle look', () => {
+  it('styles the pressed tab with the segment look', () => {
     render(<QuestionTabs activeTab="statistics" onTabChange={vi.fn()} />)
     const tab = screen.getByRole('button', { name: 'Stats' })
     expect(tab).toHaveClass('aria-pressed:bg-card', 'aria-pressed:border-primary')
+    expect(tab.className).not.toMatch(/hover:bg-/)
   })
 
   it('lets arrow keys on a focused tab reach the question navigation shortcuts', async () => {
