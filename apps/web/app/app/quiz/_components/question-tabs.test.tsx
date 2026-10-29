@@ -62,6 +62,14 @@ describe('QuestionTabs', () => {
     expect(tab.className).not.toMatch(/hover:bg-/)
   })
 
+  it('keeps label-size text with tight phone padding so four tabs fit a 360px screen', () => {
+    render(<QuestionTabs activeTab="question" onTabChange={vi.fn()} />)
+    for (const tab of screen.getAllByRole('button')) {
+      expect(tab).toHaveClass('text-label', 'px-1', 'md:px-3')
+      expect(tab).not.toHaveClass('text-caption')
+    }
+  })
+
   it('lets arrow keys on a focused tab reach the question navigation shortcuts', async () => {
     const user = userEvent.setup()
     const onWindowKey = vi.fn()

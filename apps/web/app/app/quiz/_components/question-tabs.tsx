@@ -34,7 +34,7 @@ export function QuestionTabs({ activeTab, onTabChange }: Readonly<QuestionTabsPr
             variant="segment"
             aria-pressed={activeTab === tab.value}
             onClick={() => onTabChange(tab.value)}
-            className="h-8 rounded-[calc(var(--radius-control)-2px)] px-2 md:px-3"
+            className="h-8 rounded-[calc(var(--radius-control)-2px)] px-1 md:px-3"
           >
             {tab.label}
           </Button>
