@@ -12,7 +12,7 @@ const MARKDOWN_COMPONENTS: Components = {
   li: ({ children }) => <li className="mb-0.5">{children}</li>,
   table: ({ children }) => (
     <div className="mb-2 overflow-x-auto last:mb-0">
-      <table className="min-w-full border-collapse text-body">{children}</table>
+      <table className="min-w-full border-collapse">{children}</table>
     </div>
   ),
   th: ({ children }) => (
