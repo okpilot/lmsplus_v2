@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { goalMeterTone, MASTERY_GOAL, masteryMeterTone, masteryTextClass } from './mastery-tone'
+import {
+  atGoal,
+  goalMeterTone,
+  MASTERY_GOAL,
+  masteryMeterTone,
+  masteryTextClass,
+} from './mastery-tone'
 
 describe('mastery tone', () => {
   it('sets the mastery goal at 90', () => {
@@ -30,5 +36,15 @@ describe('mastery tone', () => {
     [60, 50, 'goal'],
   ] as const)('goalMeterTone(%i, %i) is %s', (value, target, tone) => {
     expect(goalMeterTone(value, target)).toBe(tone)
+  })
+
+  it.each([
+    [89.6, undefined, true],
+    [89.4, undefined, false],
+    [90, undefined, true],
+    [3, 3, true],
+    [2, 3, false],
+  ] as const)('atGoal(%d, %s) is %s', (value, target, expected) => {
+    expect(atGoal(value, target)).toBe(expected)
   })
 })

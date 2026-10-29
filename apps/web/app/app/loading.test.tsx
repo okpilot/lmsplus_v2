@@ -18,6 +18,9 @@ describe('AppLoading', () => {
     const { container } = render(<AppLoading />)
     const cls = container.firstElementChild?.className ?? ''
     expect(cls).toContain('opacity-0')
-    expect(cls).toContain('look-appear_200ms_ease-out_400ms_forwards')
+    expect(cls).toContain('var(--transition-duration-base)')
+    expect(cls).toContain('var(--ease-enter)')
+    expect(cls).toContain('400ms')
+    expect(cls).not.toContain('200ms_ease-out')
   })
 })

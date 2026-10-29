@@ -20,6 +20,7 @@ const twMerge = extendTailwindMerge({
       radius: [...RADIUS_KEYS],
       container: Object.keys(CONTAINERS),
       ease: Object.keys(EASING),
+      shadow: ['raised', 'overlay'],
     },
     classGroups: {
       z: [{ z: Object.keys(Z_INDEX) }],

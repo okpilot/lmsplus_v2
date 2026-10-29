@@ -178,7 +178,7 @@ describe('QuizTabs', () => {
 
     it('renders the draft badge as a TabCount', () => {
       renderTabs(2)
-      expect(screen.getByTestId('draft-count-badge')).toHaveClass('bg-muted-foreground/15')
+      expect(screen.getByTestId('draft-count-badge')).toHaveClass('bg-card')
     })
   })
 })

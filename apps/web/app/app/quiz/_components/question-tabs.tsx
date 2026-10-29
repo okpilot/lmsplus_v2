@@ -21,8 +21,9 @@ const TABS: { value: QuestionTab; label: string }[] = [
 export function QuestionTabs({ activeTab, onTabChange }: Readonly<QuestionTabsProps>) {
   return (
     <div className="flex justify-center">
+      {/* biome-ignore lint/a11y/useSemanticElements: a <fieldset> brings default border/legend layout; a flex pill row needs a plain group */}
       <div
-        role="tablist"
+        role="group"
         aria-label="Question view"
         className="inline-flex items-center gap-1 rounded-control bg-muted p-1"
       >
@@ -30,11 +31,10 @@ export function QuestionTabs({ activeTab, onTabChange }: Readonly<QuestionTabsPr
           <Button
             key={tab.value}
             type="button"
-            variant="ghost"
-            role="tab"
-            aria-selected={activeTab === tab.value}
+            variant="segment"
+            aria-pressed={activeTab === tab.value}
             onClick={() => onTabChange(tab.value)}
-            className="h-8 rounded-[calc(var(--radius-control)-2px)] border border-transparent px-2 text-xs font-medium text-muted-foreground hover:bg-transparent hover:text-foreground aria-selected:border-primary aria-selected:bg-card aria-selected:text-primary-text md:px-3 md:text-sm"
+            className="h-8 rounded-[calc(var(--radius-control)-2px)] px-2 text-xs md:px-3 md:text-sm"
           >
             {tab.label}
           </Button>

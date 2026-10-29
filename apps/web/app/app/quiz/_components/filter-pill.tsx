@@ -107,7 +107,7 @@ export function GridToggle({
       size="sm"
       data-testid={testId}
       onClick={onToggle}
-      className="mt-1.5 w-full text-muted-foreground"
+      className="mt-2 w-full text-muted-foreground"
     >
       {expanded ? (
         <>

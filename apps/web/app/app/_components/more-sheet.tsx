@@ -75,7 +75,7 @@ export function MoreBackdrop({ onDismiss }: Readonly<{ onDismiss: () => void }>)
     <Button
       variant="ghost"
       aria-label="Close menu"
-      className="fixed inset-0 z-scrim size-auto cursor-default rounded-none bg-foreground/10 hover:bg-foreground/10 md:hidden dark:hover:bg-foreground/10"
+      className="fixed inset-0 z-scrim size-auto cursor-default rounded-none bg-scrim hover:bg-scrim md:hidden dark:hover:bg-scrim"
       onClick={onDismiss}
     />
   )

@@ -40,7 +40,7 @@ export function SubjectConfigCard({ subject, onEdit }: Readonly<Props>) {
   }
 
   return (
-    <div className="flex items-center transition-colors hover:bg-muted/50">
+    <div className="flex items-center transition-colors hover:bg-muted">
       <button
         type="button"
         onClick={onEdit}

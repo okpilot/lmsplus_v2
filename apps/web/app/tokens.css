@@ -38,13 +38,25 @@
   --info-foreground: oklch(0.2 0.01 195);
   --destructive: oklch(0.5 0.17 25);
   --destructive-foreground: oklch(0.99 0 0);
-  --data: oklch(0.635 0.009 255);
+  --data: oklch(0.61 0.009 255);
   --data-strong: oklch(0.4 0.009 255);
-  --data-goal: oklch(0.62 0.15 150);
+  --data-goal: oklch(0.59 0.15 150);
   --series-1: oklch(0.4 0.009 255);
   --series-2: oklch(0.55 0.19 258);
   --series-3: oklch(0.55 0.009 255);
   --series-4: oklch(0.635 0.009 255);
+  --primary-hover: oklch(0.5220 0.1748 258.00);
+  --primary-pressed: oklch(0.5080 0.1672 258.00);
+  --secondary-hover: oklch(0.8762 0.0083 255.00);
+  --secondary-pressed: oklch(0.8468 0.0085 255.00);
+  --destructive-hover: oklch(0.4760 0.1564 25.00);
+  --destructive-pressed: oklch(0.4640 0.1496 25.00);
+  --caution-solid-hover: oklch(0.7888 0.1380 95.00);
+  --caution-solid-pressed: oklch(0.7632 0.1320 95.00);
+  --primary-soft: oklch(0.9550 0.0190 258.00);
+  --elevation-raised: 0 4px 12px oklch(0 0 0 / 8%);
+  --elevation-overlay: 0 12px 32px oklch(0 0 0 / 14%);
+  --scrim: oklch(0 0 0 / 40%);
   --radius: 0.5rem;
   --control-h: 44px;
   --state-hover: 8%;
@@ -96,6 +108,18 @@
   --series-2: oklch(0.7 0.15 258);
   --series-3: oklch(0.72 0.019 260);
   --series-4: oklch(0.6 0.019 260);
+  --primary-hover: oklch(0.5220 0.1748 258.00);
+  --primary-pressed: oklch(0.5080 0.1672 258.00);
+  --secondary-hover: oklch(0.3556 0.0124 260.00);
+  --secondary-pressed: oklch(0.3784 0.0122 260.00);
+  --destructive-hover: oklch(0.8256 0.0736 25.00);
+  --destructive-pressed: oklch(0.7984 0.0704 25.00);
+  --caution-solid-hover: oklch(0.7520 0.1104 95.00);
+  --caution-solid-pressed: oklch(0.7280 0.1056 95.00);
+  --primary-soft: oklch(0.2710 0.0307 259.80);
+  --elevation-raised: 0 4px 12px oklch(0 0 0 / 40%);
+  --elevation-overlay: 0 12px 32px oklch(0 0 0 / 50%);
+  --scrim: oklch(0 0 0 / 40%);
 }
 @media (width >= 64rem) {
   :root {
@@ -148,6 +172,18 @@
   --color-series-2: var(--series-2);
   --color-series-3: var(--series-3);
   --color-series-4: var(--series-4);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-pressed: var(--primary-pressed);
+  --color-secondary-hover: var(--secondary-hover);
+  --color-secondary-pressed: var(--secondary-pressed);
+  --color-destructive-hover: var(--destructive-hover);
+  --color-destructive-pressed: var(--destructive-pressed);
+  --color-caution-solid-hover: var(--caution-solid-hover);
+  --color-caution-solid-pressed: var(--caution-solid-pressed);
+  --color-primary-soft: var(--primary-soft);
+  --color-scrim: var(--scrim);
+  --shadow-raised: var(--elevation-raised);
+  --shadow-overlay: var(--elevation-overlay);
 }
 @theme {
   --text-display: clamp(2.5rem, 2.0909rem + 1.8182vw, 3.5rem);
@@ -206,4 +242,6 @@
   --ease-enter: cubic-bezier(0.2, 0, 0, 1);
   --ease-exit: cubic-bezier(0.3, 0, 1, 1);
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --default-transition-duration: var(--transition-duration-fast);
+  --default-transition-timing-function: var(--ease-standard);
 }

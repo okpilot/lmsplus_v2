@@ -48,7 +48,7 @@ describe('NewVersionBanner floating surface', () => {
   it('floats with a ring and shadow and no border', () => {
     render(<NewVersionBanner onReload={onReload} />)
     const el = screen.getByRole('status')
-    expect(el).toHaveClass('ring-1', 'shadow-lg')
+    expect(el).toHaveClass('ring-1', 'shadow-raised')
     expect(el.className).not.toMatch(/(^|\s)border(\s|$)/)
   })
 })

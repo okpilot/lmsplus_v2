@@ -30,4 +30,9 @@ describe('cn', () => {
   it('lets a design-token duration replace a default duration', () => {
     expect(cn('duration-200', 'duration-fast')).toBe('duration-fast')
   })
+
+  it('treats shadow tokens as shadows', () => {
+    expect(cn('shadow-overlay', 'shadow-none')).toBe('shadow-none')
+    expect(cn('shadow-raised', 'shadow-black/20')).toBe('shadow-raised shadow-black/20')
+  })
 })

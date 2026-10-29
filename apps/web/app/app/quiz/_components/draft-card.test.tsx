@@ -245,6 +245,7 @@ describe('DraftCard — Delete', () => {
     await waitFor(() =>
       expect(screen.getByText('Failed to delete. Please try again.')).toBeInTheDocument(),
     )
+    expect(screen.getByRole('alert')).toHaveTextContent('Failed to delete. Please try again.')
   })
 
   it('shows an error and re-enables delete when the delete request throws', async () => {

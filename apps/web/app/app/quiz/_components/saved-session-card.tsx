@@ -61,7 +61,7 @@ export function SavedSessionCard({ session }: Readonly<{ session: SavedQuizSessi
           />
         </div>
         <SavedSessionProgress answered={session.answeredCount} total={session.totalCount} />
-        <FieldError>{error}</FieldError>
+        <FieldError role="alert">{error}</FieldError>
       </CardContent>
     </Card>
   )

@@ -52,3 +52,23 @@ describe('buttonVariants', () => {
     expect(tokens).toContain('underline')
   })
 })
+
+describe('buttonVariants state layers', () => {
+  it.each([
+    ['default', 'primary'],
+    ['secondary', 'secondary'],
+    ['destructive', 'destructive'],
+    ['caution', 'caution-solid'],
+  ] as const)('%s fills hover and pressed with the derived state colours', (variant, fill) => {
+    const classes = buttonVariants({ variant })
+    expect(classes).toContain(`hover:bg-${fill}-hover`)
+    expect(classes).toContain(`active:bg-${fill}-pressed`)
+    expect(classes).not.toMatch(/hover:bg-[\w-]+\/(80|90)/)
+  })
+
+  it('link hover thickens the underline without opacity', () => {
+    const classes = buttonVariants({ variant: 'link' })
+    expect(classes).not.toContain('hover:opacity-80')
+    expect(classes).toContain('hover:decoration-2')
+  })
+})

@@ -142,6 +142,8 @@ describe('BottomTabBar', () => {
       const sheet = document.querySelector('#bottom-more-sheet') as HTMLElement
       expect(backdrop.className).toContain('z-scrim')
       expect(backdrop.className).toContain('md:hidden')
+      expect(backdrop.className).toContain('bg-scrim')
+      expect(backdrop.className).not.toContain('bg-foreground/10')
       expect(backdrop.className).not.toContain('hover:bg-muted')
       expect(backdrop.className).not.toContain('dark:hover:bg-muted/50')
       expect(nav.compareDocumentPosition(backdrop) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
@@ -303,7 +305,7 @@ describe('BottomTabBar', () => {
       narrow(320)
       await userEvent.setup({ delay: null }).click(screen.getByRole('button', { name: 'More' }))
       const cls = screen.getByRole('link', { name: 'Settings' }).className
-      expect(cls).toContain('bg-primary/10')
+      expect(cls).toContain('bg-primary-soft')
       expect(cls).toContain('text-primary-text')
       expect(cls).toContain('text-label')
       for (const c of NAV_ACTIVE.split(' ')) expect(cls).toContain(c)
@@ -315,7 +317,7 @@ describe('BottomTabBar', () => {
       const cls = screen.getByRole('link', { name: 'Settings' }).className
       expect(cls).toContain('text-muted-foreground')
       expect(cls).toContain('text-label')
-      expect(cls).not.toContain('bg-primary/10')
+      expect(cls).not.toContain('bg-primary-soft')
     })
 
     it('uses the border token for the sheet', async () => {

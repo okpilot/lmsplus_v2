@@ -61,7 +61,7 @@ export function AvailableTab({ rows }: Readonly<Props>) {
                   {formatRelative(row.expiresAt) && (
                     <>
                       {' '}
-                      <span className="text-muted-foreground/80">
+                      <span className="text-muted-foreground">
                         ({formatRelative(row.expiresAt)})
                       </span>
                     </>

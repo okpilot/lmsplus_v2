@@ -4,7 +4,7 @@
  */
 
 import type { createServerSupabaseClient } from '@repo/db/server'
-import { MASTERY_GOAL } from '@/lib/utils/mastery-tone'
+import { atGoal } from '@/lib/utils/mastery-tone'
 
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
@@ -74,7 +74,7 @@ export function computeExamReadiness(subjects: { masteryPercentage: number }[]):
   totalCount: number
   projectedDate: string | null
 } {
-  const readyCount = subjects.filter((s) => s.masteryPercentage >= MASTERY_GOAL).length
+  const readyCount = subjects.filter((s) => atGoal(s.masteryPercentage)).length
   const totalCount = subjects.length
   return { readyCount, totalCount, projectedDate: null }
 }
