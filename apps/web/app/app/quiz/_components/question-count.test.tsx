@@ -126,6 +126,12 @@ describe('QuestionCount pills', () => {
     expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'false')
   })
 
+  it('presses only All when the value equals max and a preset', () => {
+    render(<QuestionCount value={25} max={25} onValueChange={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: '25' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
   it('marks All pressed when the value equals the max', () => {
     render(<QuestionCount value={37} max={37} onValueChange={vi.fn()} />)
     expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'true')

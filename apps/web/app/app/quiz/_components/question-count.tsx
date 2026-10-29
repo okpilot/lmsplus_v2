@@ -73,7 +73,7 @@ export function QuestionCount({ value, max, onValueChange }: Readonly<QuestionCo
         {PRESETS.map((preset) => (
           <CountPill
             key={preset}
-            pressed={effectiveValue === preset}
+            pressed={effectiveValue === preset && preset < effectiveMax}
             disabled={preset > effectiveMax}
             onClick={() => onValueChange(Math.min(preset, effectiveMax))}
           >

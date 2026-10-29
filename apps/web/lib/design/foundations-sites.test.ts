@@ -106,3 +106,19 @@ describe('disabled is 50% and not-allowed', () => {
     expect(s).not.toContain('disabled:cursor-default')
   })
 })
+
+describe('disabled controls', () => {
+  it('button variants: not-allowed cursor, hover only when enabled', () => {
+    const s = src('components/ui/button-variants.ts')
+    expect(s).toContain('disabled:cursor-not-allowed')
+    expect(s).not.toContain('disabled:pointer-events-none')
+    expect(s).not.toMatch(/(?<!not-disabled:)hover:bg-/)
+  })
+
+  it.each(['components/ui/input.tsx', 'components/ui/select.tsx'])(
+    '%s keeps pointer events',
+    (f) => {
+      expect(src(f)).not.toMatch(/(?<!data-)disabled:pointer-events-none/)
+    },
+  )
+})
