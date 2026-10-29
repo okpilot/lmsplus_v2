@@ -62,10 +62,17 @@ describe('QuestionTabs', () => {
     expect(tab.className).not.toMatch(/hover:bg-/)
   })
 
+  it('gives each tab a 44px phone tap area that ends at desktop width', () => {
+    render(<QuestionTabs activeTab="question" onTabChange={vi.fn()} />)
+    for (const tab of screen.getAllByRole('button')) {
+      expect(tab).toHaveClass('relative', 'after:absolute', 'after:-inset-y-1.5', 'lg:after:hidden')
+    }
+  })
+
   it('keeps label-size text with tight phone padding so four tabs fit a 360px screen', () => {
     render(<QuestionTabs activeTab="question" onTabChange={vi.fn()} />)
     for (const tab of screen.getAllByRole('button')) {
-      expect(tab).toHaveClass('text-label', 'px-1', 'md:px-3')
+      expect(tab).toHaveClass('text-label', 'h-8', 'px-1', 'md:px-3')
       expect(tab).not.toHaveClass('text-caption')
     }
   })
