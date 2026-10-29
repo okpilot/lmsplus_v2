@@ -7,7 +7,7 @@ type Fill = (typeof FILLS)[number]
 export type ColourName = BaseName | `${Fill}-${'hover' | 'pressed'}`
 type Palette = Record<ColourName, string>
 
-const STATE_DARK = 'oklch(0.2 0.012 255)'
+const STATE_DARK = 'oklch(0.2 0 0)'
 
 function withStates(base: Record<BaseName, string>): Palette {
   const out: Record<string, string> = { ...base }
@@ -77,6 +77,7 @@ export const CONTRAST_PAIRS: readonly ContrastPair[] = [
   ['primary-text', 'popover', TEXT],
   ['primary-text', 'overlay', TEXT],
   ['primary-text', 'muted', TEXT],
+  ['primary-text', 'info-soft', TEXT],
   ['primary-foreground', 'primary', TEXT],
   ['destructive-foreground', 'destructive', TEXT],
   ...onStates,

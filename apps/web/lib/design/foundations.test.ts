@@ -5,7 +5,7 @@ import { contrastRatio } from './contrast'
 import { mixOklch } from './mix'
 import { ELEVATION, SCRIM } from './scale'
 
-const STATE_DARK = 'oklch(0.2 0.012 255)'
+const STATE_DARK = 'oklch(0.2 0 0)'
 type Palette = Record<string, string>
 
 describe('elevation and scrim tokens', () => {
@@ -52,6 +52,13 @@ describe('derived state colours', () => {
       it(`${theme} ${fill}-hover and -pressed mix 8% and 12% of the overlay`, () => {
         expect(p[`${fill}-hover`]).toBe(mixOklch(p[fill] as string, overlay, 8))
         expect(p[`${fill}-pressed`]).toBe(mixOklch(p[fill] as string, overlay, 12))
+      })
+    }
+    for (const fill of ['primary', 'destructive', 'caution-solid'] as const) {
+      it(`${theme} ${fill}-hover and -pressed keep the fill's hue`, () => {
+        const hue = (c: unknown) => Number(String(c).split(/[\s)]+/)[2])
+        expect(hue(p[`${fill}-hover`])).toBeCloseTo(hue(p[fill]), 1)
+        expect(hue(p[`${fill}-pressed`])).toBeCloseTo(hue(p[fill]), 1)
       })
     }
   }
