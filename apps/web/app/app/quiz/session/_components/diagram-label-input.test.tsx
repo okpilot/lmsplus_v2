@@ -40,6 +40,14 @@ function renderInput(extra: Partial<React.ComponentProps<typeof DiagramLabelInpu
 }
 
 describe('DiagramLabelInput (numbered tap list)', () => {
+  it('lays the answer rows out in two columns from the sm breakpoint, one on phones', () => {
+    renderInput()
+    const list = screen.getByTestId('diagram-row-z1').closest('ol')
+    expect(list?.className).toContain('grid')
+    expect(list?.className).toContain('sm:grid-cols-2')
+    expect(list?.className).not.toMatch(/(^| )grid-cols-2/)
+  })
+
   it('renders the artwork, an answer row per zone and a chip per label', () => {
     renderInput()
     expect(screen.getByTestId('diagram-art')).toBeInTheDocument()

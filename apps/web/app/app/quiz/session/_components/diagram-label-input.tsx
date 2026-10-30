@@ -80,7 +80,7 @@ function DiagramBoard({
           />
         ))}
       </div>
-      <ol className="space-y-2">
+      <ol className="grid gap-2 sm:grid-cols-2">
         {zones.map((zone, i) => (
           <DiagramAnswerRow
             key={zone.id}
