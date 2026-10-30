@@ -47,7 +47,7 @@ export function OrderingInputItem({
         ? 'border-danger bg-card'
         : 'border-input bg-card hover:bg-muted'
 
-  const liftClass = isDragging ? 'relative z-10 border-primary shadow-raised' : ''
+  const liftClass = isDragging ? 'relative z-sticky border-primary shadow-raised' : ''
 
   return (
     <li

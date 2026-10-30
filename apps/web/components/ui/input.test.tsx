@@ -50,7 +50,7 @@ describe('Input file button (B2b-12 AC 2)', () => {
   it('styles the file selector as a small outlined button', () => {
     render(<Input aria-label="Upload" type="file" />)
     const c = screen.getByLabelText('Upload').className
-    expect(c).toContain('file:h-7')
+    expect(c).toContain('file:h-6')
     expect(c).toContain('file:border-input')
     expect(c).toContain('file:bg-card')
     expect(c).toContain('file:px-2')

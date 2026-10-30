@@ -33,6 +33,11 @@ describe('layout tokens (AC 1)', () => {
     })
   }
 
+  it('pool-bottom clears the safe area, not a tab bar', () => {
+    expect(decl('pool-bottom')).toContain('safe-area-inset-bottom')
+    expect(decl('pool-bottom')).not.toContain('tab-bar-h')
+  })
+
   it('rail widths are 340px and 360px (or the rem equivalent)', () => {
     expect(decl('spacing-rail')).toMatch(/^(340px|21\.25rem)$/)
     expect(decl('spacing-setup-rail')).toMatch(/^(360px|22\.5rem)$/)

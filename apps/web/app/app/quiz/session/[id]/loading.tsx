@@ -9,7 +9,11 @@ export default function QuizSessionLoading() {
       </div>
       <div className="px-gutter py-section">
         <QuizSessionLayout
-          tabs={<Skeleton className="h-10 w-full rounded-control" />}
+          tabs={
+            <div className="lg:hidden">
+              <Skeleton className="h-10 w-full rounded-control" />
+            </div>
+          }
           question={
             <>
               <Skeleton className="h-24 w-full rounded-card" />

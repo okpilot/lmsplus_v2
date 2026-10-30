@@ -46,7 +46,8 @@ describe('QuizCardHeader', () => {
   it('fills the icon only while a toggle is on', () => {
     renderHeader({ isFlagged: true })
     expect(screen.getByRole('button', { name: 'Flag question' }).querySelector('svg')).toHaveClass(
-      'fill-current',
+      'fill-caution',
+      'text-caution',
     )
     expect(
       screen.getByRole('button', { name: 'Pin question' }).querySelector('svg'),

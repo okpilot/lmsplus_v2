@@ -8,8 +8,8 @@ import type { Armed } from './diagram-tap-state'
 type Result = 'correct' | 'incorrect' | undefined
 
 const BADGE = {
-  correct: 'border-success bg-success text-white',
-  incorrect: 'border-danger bg-danger text-white',
+  correct: 'border-success-solid bg-success-solid text-success-foreground',
+  incorrect: 'border-danger-solid bg-danger-solid text-danger-foreground',
   idle: 'border-foreground/60 bg-card text-foreground',
   filled: 'border-primary bg-primary text-primary-foreground',
 } as const
@@ -129,12 +129,13 @@ export function DiagramAnswerRow({
             </span>
           )}
         </span>
+        {result && <span className="sr-only">, {result}</span>}
       </Button>
     </li>
   )
 }
 
-/** Single-line sideways-scrolling pool of unplaced labels, pinned above the bottom nav below sm, near the viewport bottom from sm. */
+/** Single-line sideways-scrolling pool of unplaced labels, pinned near the viewport bottom. */
 export function DiagramTapPool({
   labels,
   armed,
@@ -157,7 +158,7 @@ export function DiagramTapPool({
     <div
       data-testid="diagram-tap-pool"
       onClick={disabled ? undefined : onTapPool}
-      className="sticky bottom-(--pool-bottom) z-10 sm:bottom-4 flex min-h-12 flex-nowrap items-center gap-2 overflow-x-auto rounded-card border border-input bg-card p-2 shadow-raised [scrollbar-width:none]"
+      className="sticky bottom-(--pool-bottom) z-sticky flex min-h-12 flex-nowrap items-center gap-2 overflow-x-auto rounded-card border border-input bg-card p-2 shadow-raised [scrollbar-width:none]"
     >
       {placedArmed && (
         <Button

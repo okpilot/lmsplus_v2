@@ -47,7 +47,7 @@ export function QuizCardHeader({
             disabled={flagLoading}
             onClick={onToggleFlag}
           >
-            <Flag className={isFlagged ? 'fill-current' : undefined} />
+            <Flag className={isFlagged ? 'fill-caution text-caution' : undefined} />
           </Button>
         )}
         <Button

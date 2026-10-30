@@ -13,6 +13,12 @@ describe('ProfileCard', () => {
     memberSince: '2024-01-15T00:00:00.000Z',
   }
 
+  it('lets a long email wrap inside its grid cell', () => {
+    render(<ProfileCard {...defaultProps} />)
+    const dd = screen.getByText('student@example.com')
+    expect(dd).toHaveClass('min-w-0', 'wrap-anywhere')
+  })
+
   it('renders the email address', () => {
     render(<ProfileCard {...defaultProps} />)
     expect(screen.getByText('student@example.com')).toBeInTheDocument()

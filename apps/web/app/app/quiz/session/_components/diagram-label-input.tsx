@@ -141,21 +141,35 @@ function DiagramFooter({
   )
 }
 
-/** Placement + armed state for tap-to-place; focus follows a newly placed label to its row. */
+/** Label returned to the pool by `next`, else null. */
+function returnedLabel(prev: Map<string, string>, next: Map<string, string>): string | null {
+  const kept = new Set(next.values())
+  return [...prev.values()].find((id) => !kept.has(id)) ?? null
+}
+
+/** Focus target after a tap: the row a label was placed in, or the chip it returned to. */
+function focusTarget(prev: Map<string, string>, next: Map<string, string>): string | null {
+  const zone = newlyPlacedZone(prev, next)
+  if (zone != null) return `diagram-row-${zone}`
+  const label = returnedLabel(prev, next)
+  return label == null ? null : `diagram-tap-chip-${label}`
+}
+
+/** Placement + armed state for tap-to-place; focus follows a placed label to its row, a returned one to its chip. */
 function useDiagramTap(initial: () => Map<string, string>) {
   const [placement, setPlacement] = useState(initial)
   const [armed, setArmed] = useState<Armed>(null)
-  const [focusZone, setFocusZone] = useState<string | null>(null)
+  const [focusId, setFocusId] = useState<string | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (focusZone == null) return
-    rootRef.current?.querySelector<HTMLElement>(`[data-testid="diagram-row-${focusZone}"]`)?.focus()
-    setFocusZone(null)
-  }, [focusZone])
+    if (focusId == null) return
+    rootRef.current?.querySelector<HTMLElement>(`[data-testid="${focusId}"]`)?.focus()
+    setFocusId(null)
+  }, [focusId])
 
   function applyTap(next: TapState) {
-    setFocusZone(newlyPlacedZone(placement, next.placement))
+    setFocusId(focusTarget(placement, next.placement))
     setPlacement(next.placement)
     setArmed(next.armed)
   }
@@ -207,7 +221,7 @@ export function DiagramLabelInput({
         zones={zones}
         labels={labels}
         placement={placement}
-        armed={armed}
+        armed={itemsDisabled ? null : armed}
         disabled={itemsDisabled}
         correctMapping={graded ? correctMapping : undefined}
         onTapRow={(zoneId) => applyTap(tapRow({ placement, armed }, zoneId))}
@@ -215,7 +229,7 @@ export function DiagramLabelInput({
       {!locked && (
         <DiagramTapPool
           labels={pool}
-          armed={armed}
+          armed={itemsDisabled ? null : armed}
           placedArmed={armed?.kind === 'label' && [...placement.values()].includes(armed.id)}
           disabled={itemsDisabled}
           onTapLabel={(id) => applyTap(tapLabel({ placement, armed }, id))}

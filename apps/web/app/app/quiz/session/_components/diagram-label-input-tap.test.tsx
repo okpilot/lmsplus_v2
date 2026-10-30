@@ -106,7 +106,7 @@ describe('DiagramLabelInput on every screen (tap-list amendment AC 1)', () => {
     renderInput()
     const cls = screen.getByTestId('diagram-tap-chip-l1').parentElement?.className ?? ''
     expect(cls).toMatch(/(^|\s)bottom-/)
-    expect(cls).toContain('sm:bottom-4')
+    expect(cls).not.toContain('sm:bottom-4')
     expect(cls).not.toMatch(/(^|\s)(sm|lg):static/)
   })
 
@@ -192,5 +192,68 @@ describe('DiagramLabelInput on every screen (tap-list amendment AC 1)', () => {
     await userEvent.click(screen.getByTestId('diagram-tap-chip-l1'))
     await userEvent.click(screen.getByTestId('diagram-row-z2'))
     expect(screen.getByTestId('diagram-row-z2')).toHaveFocus()
+  })
+
+  it('Return to pool moves focus to the returned chip', async () => {
+    renderInput()
+    await userEvent.click(screen.getByTestId('diagram-tap-chip-l1'))
+    await userEvent.click(screen.getByTestId('diagram-row-z1'))
+    await userEvent.click(screen.getByTestId('diagram-row-z1'))
+    await userEvent.click(screen.getByRole('button', { name: /return to pool/i }))
+    expect(screen.getByTestId('diagram-tap-chip-l1')).toHaveFocus()
+  })
+
+  it.each([{ submitting: true }, { submitted: true }])(
+    'an armed label is dropped once locked (%o): no "Tap to place here"',
+    (extra) => {
+      const props = {
+        imageRef: 'x',
+        zones: ZONES,
+        labels: LABELS,
+        onSubmit: vi.fn(),
+        disabled: false,
+      }
+      const { rerender } = render(<DiagramLabelInput {...props} />)
+      return userEvent.click(screen.getByTestId('diagram-tap-chip-l1')).then(() => {
+        expect(screen.getByTestId('diagram-row-z1').textContent).toMatch(/tap to place here/i)
+        rerender(<DiagramLabelInput {...props} {...extra} />)
+        expect(screen.getByTestId('diagram-row-z1').textContent).not.toMatch(/tap to place here/i)
+        expect(screen.getByTestId('diagram-row-z2').textContent).not.toMatch(/tap to place here/i)
+      })
+    },
+  )
+
+  describe('graded rows', () => {
+    const graded = {
+      submitted: true,
+      submittedMapping: [{ zoneId: 'z1', labelId: 'l2' }],
+      correctMapping: [
+        { zoneId: 'z1', labelId: 'l1' },
+        { zoneId: 'z2', labelId: 'l2' },
+      ],
+    }
+
+    it('an incorrect row name contains "incorrect"', () => {
+      renderInput(graded)
+      expect(screen.getByTestId('diagram-row-z1')).toHaveAccessibleName(/incorrect/i)
+    })
+
+    it('a correct row name contains "correct" but not "incorrect"', () => {
+      renderInput({
+        ...graded,
+        submittedMapping: [{ zoneId: 'z1', labelId: 'l1' }],
+      })
+      const name = screen.getByTestId('diagram-row-z1')
+      expect(name).toHaveAccessibleName(/correct/i)
+      expect(name).not.toHaveAccessibleName(/incorrect/i)
+    })
+
+    it('badge uses the foreground token pair, not text-white', () => {
+      renderInput(graded)
+      const badge = within(screen.getByTestId('diagram-row-z1')).getByText('1')
+      expect(badge.className).toContain('text-danger-foreground')
+      expect(badge.className).toContain('bg-danger-solid')
+      expect(badge.className).not.toContain('text-white')
+    })
   })
 })
