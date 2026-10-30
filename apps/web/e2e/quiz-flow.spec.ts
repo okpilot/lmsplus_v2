@@ -43,7 +43,7 @@ test('quiz flow: configure → answer questions → view results → dashboard',
     await expect(page.getByText(`Question ${i + 1}`)).toBeVisible()
 
     // Click the first answer option
-    const answerButtons = page.locator('button:has(span.rounded-full)')
+    const answerButtons = page.locator('button[data-testid^="option-"]')
     await answerButtons.first().waitFor({ state: 'visible' })
     await answerButtons.first().click()
 

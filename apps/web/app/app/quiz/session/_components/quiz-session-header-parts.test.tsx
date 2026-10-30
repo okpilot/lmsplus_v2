@@ -82,6 +82,11 @@ describe('DesktopTabs', () => {
     tabs.click()
     expect(onTabChange).toHaveBeenCalledWith('question')
   })
+
+  it('moves into the header only from the desktop breakpoint', () => {
+    render(<DesktopTabs activeTab="question" onTabChange={vi.fn()} />)
+    expect(screen.getByTestId('tabs').parentElement?.parentElement).toHaveClass('hidden', 'lg:flex')
+  })
 })
 
 describe('HeaderControls', () => {

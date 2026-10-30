@@ -36,7 +36,7 @@ async function startPracticeExam(page: Page): Promise<void> {
 }
 
 async function confirmFirstOption(page: Page): Promise<void> {
-  const options = page.locator('button:has(span.rounded-full)')
+  const options = page.locator('button[data-testid^="option-"]')
   await options.first().waitFor({ state: 'visible' })
   await options.first().click()
   await page.getByRole('button', { name: 'Confirm Answer' }).click()
@@ -142,7 +142,7 @@ test.describe('Quiz answer save refused by the server', () => {
     // The dropped answer is unlocked: Question 1 can be answered again.
     await page.getByRole('button', { name: '‹ Previous' }).click()
     await expect(page.getByText('Question 1')).toBeVisible()
-    const options = page.locator('button:has(span.rounded-full)')
+    const options = page.locator('button[data-testid^="option-"]')
     await expect(options.first()).toBeEnabled()
     await expect(page.locator('[data-selected="true"]')).toHaveCount(0)
   })

@@ -26,7 +26,7 @@ test.describe('Quiz restored answer feedback', () => {
   }) => {
     const total = await startStudyQuiz(page)
 
-    const options = page.locator('button:has(span.rounded-full)')
+    const options = page.locator('button[data-testid^="option-"]')
     await options.first().waitFor({ state: 'visible' })
     await options.first().click()
     await page.getByRole('button', { name: 'Submit Answer' }).first().click()

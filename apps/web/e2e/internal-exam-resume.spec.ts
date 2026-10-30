@@ -98,7 +98,7 @@ test.describe('internal exam — refresh resume', () => {
       const sessionUrl = page.url()
 
       // Confirming is what records the answer on the server; selection alone does not.
-      const firstOption = page.locator('button:has(span.rounded-full)').first()
+      const firstOption = page.locator('button[data-testid^="option-"]').first()
       await firstOption.click()
       const answerSaved = page.waitForResponse((response) => isServerActionPost(response.request()))
       await page.getByRole('button', { name: 'Confirm Answer' }).click()
@@ -110,7 +110,7 @@ test.describe('internal exam — refresh resume', () => {
       await expect(page).toHaveURL(sessionUrl)
       await expect(page.getByText(/Question \d/)).toBeVisible({ timeout: 15_000 })
       await expect(page.getByRole('heading', { name: /Resume your/i })).toHaveCount(0)
-      await expect(page.locator('button:has(span.rounded-full)').first()).toBeDisabled()
+      await expect(page.locator('button[data-testid^="option-"]').first()).toBeDisabled()
     } finally {
       await studentCtx.tracing
         .stop({ path: test.info().outputPath('student-trace.zip') })

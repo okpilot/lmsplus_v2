@@ -57,6 +57,6 @@ describe('Tabs', () => {
 describe('TabCount', () => {
   it('is a card chip by default and soft blue inside the active tab', () => {
     render(<Example />)
-    expect(screen.getByTestId('count')).toHaveClass('bg-card', 'group-data-active:bg-info-soft')
+    expect(screen.getByTestId('count')).toHaveClass('bg-card', 'group-data-active:bg-primary-soft')
   })
 })

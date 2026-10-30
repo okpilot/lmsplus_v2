@@ -40,7 +40,7 @@ describe('AdminErrorPage', () => {
     const { container } = render(<AdminErrorPage error={testError} retry={vi.fn()} />)
     expect(container.firstElementChild).toHaveClass(
       'grid',
-      'min-h-[50vh]',
+      'min-h-(--half-screen)',
       'place-items-center',
       'px-gutter',
     )

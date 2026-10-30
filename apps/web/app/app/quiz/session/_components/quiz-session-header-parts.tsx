@@ -38,7 +38,7 @@ type DesktopTabsProps = {
 
 export function DesktopTabs({ activeTab, onTabChange }: Readonly<DesktopTabsProps>) {
   return (
-    <div className="pointer-events-none absolute inset-0 hidden items-center justify-center md:flex">
+    <div className="pointer-events-none absolute inset-0 hidden items-center justify-center lg:flex">
       <div className="pointer-events-auto">
         <QuestionTabs activeTab={activeTab} onTabChange={onTabChange} />
       </div>

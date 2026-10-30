@@ -21,7 +21,7 @@ export function QuizSessionBody({ props, session }: Readonly<QuizSessionBodyProp
       <QuizSessionLayout
         tabs={
           !s.isExam && (
-            <div className="md:hidden">
+            <div className="lg:hidden">
               <QuestionTabs activeTab={ui.activeTab} onTabChange={ui.setActiveTab} />
             </div>
           )
