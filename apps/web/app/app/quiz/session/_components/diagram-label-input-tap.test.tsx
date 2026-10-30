@@ -177,6 +177,22 @@ describe('DiagramLabelInput on every screen (tap-list amendment AC 1)', () => {
     expect(screen.getByTestId('diagram-row-z1')).toHaveAttribute('aria-pressed', 'true')
   })
 
+  it('an armed row keeps the armed fill on hover', async () => {
+    renderInput()
+    await userEvent.click(screen.getByTestId('diagram-row-z1'))
+    const cls = screen.getByTestId('diagram-row-z1').className
+    expect(cls).toContain('hover:bg-primary-soft')
+    expect(cls).toContain('dark:hover:bg-primary-soft')
+  })
+
+  it('a pressed pool chip keeps the armed fill on hover', async () => {
+    renderInput()
+    await userEvent.click(screen.getByTestId('diagram-tap-chip-l1'))
+    expect(screen.getByTestId('diagram-tap-chip-l1').className).toContain(
+      'aria-pressed:hover:bg-primary-soft',
+    )
+  })
+
   it('a placed label armed shows a "Return to pool" button that unplaces it (AC 5)', async () => {
     renderInput()
     await userEvent.click(screen.getByTestId('diagram-tap-chip-l1'))

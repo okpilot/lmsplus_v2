@@ -64,7 +64,8 @@ function chipTone(armed: boolean, result: Result): string {
 
 function rowFrame(zoneArmed: boolean, target: boolean, result: Result): string {
   if (result) return result === 'correct' ? 'border-success' : 'border-danger'
-  if (zoneArmed) return 'border-primary bg-primary-soft'
+  if (zoneArmed)
+    return 'border-primary bg-primary-soft hover:bg-primary-soft dark:hover:bg-primary-soft'
   return target ? 'border-primary/60 border-dashed' : 'border-dashed border-input'
 }
 
@@ -209,7 +210,7 @@ export function DiagramTapPool({
           }}
           className={cn(
             CHIP,
-            'border-input aria-pressed:bg-primary-soft aria-pressed:ring-2 aria-pressed:ring-primary/30',
+            'border-input aria-pressed:bg-primary-soft aria-pressed:hover:bg-primary-soft aria-pressed:ring-2 aria-pressed:ring-primary/30',
           )}
         >
           {l.text}
