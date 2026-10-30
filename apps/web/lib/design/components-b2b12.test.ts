@@ -146,5 +146,7 @@ describe('B2b-12 AC 11 decision 189', () => {
     expect(line).toContain('question tabs tighten below 375px')
     expect(line).toContain('below 1024px the setup forms put topics before Start')
     expect(line).toContain('#1433')
+    expect(line).toContain('hints open on hover, click and tap, the keyboard legend on click')
+    expect(line).not.toContain('target zone')
   })
 })

@@ -4,7 +4,7 @@ import type * as React from 'react'
 import { cn } from '@/lib/utils'
 
 const SIZE_CLASSES = {
-  sm: 'h-7 rounded-inner px-2 py-0 text-label',
+  sm: 'h-7 rounded-inner px-2 py-0 text-body',
   default: 'h-(--control-h) rounded-control px-2.5 py-1 text-body',
   lg: 'h-12 rounded-control px-4 py-3 text-body',
 } as const

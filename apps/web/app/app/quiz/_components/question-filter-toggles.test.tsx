@@ -32,4 +32,19 @@ describe('FilterHint floating surface', () => {
     await userEvent.hover(screen.getByRole('button', { name: /Info about Calculations/ }))
     expect(await screen.findByRole('dialog', { name: 'Calculations' })).toBeInTheDocument()
   })
+
+  it('the popup wraps within max-w-60 and is not nowrap', async () => {
+    render(
+      <FilterToggle
+        label="Calculations"
+        hint="Needs a calculator"
+        checked={false}
+        onToggle={vi.fn()}
+      />,
+    )
+    await userEvent.hover(screen.getByRole('button', { name: /Info about Calculations/ }))
+    const el = await screen.findByText('Needs a calculator')
+    expect(el).toHaveClass('max-w-60')
+    expect(el.className).not.toContain('whitespace-nowrap')
+  })
 })

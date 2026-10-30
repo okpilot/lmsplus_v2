@@ -25,13 +25,14 @@ describe('Input sizes (B2b-12 AC 3)', () => {
     expect(c).toContain('rounded-control')
   })
 
-  it('sm is 28px with px-2 py-0, text-label and rounded-inner', () => {
+  it('sm is 28px with px-2 py-0, text-body and rounded-inner', () => {
     render(<Input aria-label="Small" size="sm" />)
     const c = screen.getByRole('textbox').className
     expect(c).toContain('h-7')
     expect(c).toContain('px-2')
     expect(c).toContain('py-0')
-    expect(c).toContain('text-label')
+    expect(c.split(' ')).toContain('text-body')
+    expect(c.split(' ')).not.toContain('text-label')
     expect(c).toContain('rounded-inner')
   })
 

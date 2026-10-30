@@ -50,6 +50,7 @@ export function OptionEditor({
           ))}
         </div>
         <RadioGroup
+          aria-label="Correct option"
           value={correctOptionId || null}
           onValueChange={(v) => {
             const id = OPTION_IDS.find((o) => o === v)

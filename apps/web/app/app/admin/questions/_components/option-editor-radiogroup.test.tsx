@@ -27,6 +27,11 @@ describe('OptionEditor radio group (B2b-12 AC 1)', () => {
     expect(group.querySelectorAll('[role="radio"]')).toHaveLength(4)
   })
 
+  it('names the radiogroup "Correct option"', () => {
+    setup()
+    expect(screen.getByRole('radiogroup', { name: 'Correct option' })).toBeInTheDocument()
+  })
+
   it('keeps the "Mark option X as correct" accessible name', () => {
     setup()
     expect(screen.getByRole('radio', { name: 'Mark option B as correct' })).toBeInTheDocument()

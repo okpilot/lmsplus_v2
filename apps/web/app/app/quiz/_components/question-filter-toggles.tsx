@@ -70,7 +70,7 @@ function FilterHint({ hint, label }: Readonly<{ hint: string; label: string }>) 
       >
         <CircleHelp className="size-icon-sm" />
       </PopoverTrigger>
-      <PopoverContent side="top" aria-label={label} className="w-auto whitespace-nowrap">
+      <PopoverContent side="top" aria-label={label} className="w-auto max-w-60">
         {hint}
       </PopoverContent>
     </Popover>
