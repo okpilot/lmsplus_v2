@@ -24,8 +24,8 @@ const RULES: ReadonlyArray<readonly [string, RegExp]> = [
   ],
   ['arbitrary size', /(?<![\w-])(?:[a-z-]+:)*size-\[/],
   // An arbitrary VALUE (`mt-[3px]`), not an arbitrary VARIANT (`data-[size=sm]:`), which ends in `]:`.
-  ['arbitrary value', /(?<![\w-])(?:[a-z0-9&_>*:()'-]+:)*[a-z][\w-]*-\[[^\]\s]*\](?![:/])/],
-  ['important', /(?<![\w:])(?:[a-z0-9&_>*()[\]'=:-]+:)*[a-z][\w-]*-[\w./()%-]+!(?=[\s"'`]|$)/],
+  ['arbitrary value', /(?<![\w-])[a-z][\w-]*-\[[^\]\s]*\](?![:/])/],
+  ['important', /(?<!\w)[a-z][\w-]*-[\w./()%-]+!(?=[\s"'`]|$)/],
 ]
 // Template literals may span lines; '' and "" strings may not.
 const QUOTED = /(["'])((?:(?!\1)[^\n])*)\1|`([^`]*)`/g
@@ -71,6 +71,9 @@ describe('layout guard matcher (AC 2)', () => {
     ['[&_svg]:size-[14px]', 'arbitrary size'],
     ['mt-[3px]', 'arbitrary value'],
     ['size-3.5!', 'important'],
+    ['md:size-3.5!', 'important'],
+    ['md:-mt-2!', 'important'],
+    ['md:mt-[3px]', 'arbitrary value'],
   ]
   for (const [cls, rule] of planted) {
     it(`flags ${cls} as ${rule}`, () => {
