@@ -48,6 +48,8 @@ type DiagramBoardProps = Readonly<{
   placement: Map<string, string>
   armed: Armed
   disabled: boolean
+  /** Submitted: unanswered rows read "Not answered" even before grading. */
+  locked: boolean
   /** Set only once graded. */
   correctMapping?: DiagramMapping[]
   onTapRow: (zoneId: string) => void
@@ -61,6 +63,7 @@ function DiagramBoard({
   placement,
   armed,
   disabled,
+  locked,
   correctMapping,
   onTapRow,
 }: Readonly<DiagramBoardProps>) {
@@ -89,6 +92,7 @@ function DiagramBoard({
             placed={labels.find((l) => l.id === placement.get(zone.id)) ?? null}
             armed={armed}
             disabled={disabled}
+            locked={locked}
             result={resultFor(zone.id)}
             canonicalText={
               correctMapping ? canonicalTextFor(zone.id, labels, correctMapping) : undefined
@@ -147,8 +151,15 @@ function returnedLabel(prev: Map<string, string>, next: Map<string, string>): st
   return [...prev.values()].find((id) => !kept.has(id)) ?? null
 }
 
-/** Focus target after a tap: the row a label was placed in, or the chip it returned to. */
-function focusTarget(prev: Map<string, string>, next: Map<string, string>): string | null {
+/** Focus target after a tap: the row now holding the armed label, else the row a label was placed in, else the chip it returned to. */
+function focusTarget(
+  armed: Armed,
+  prev: Map<string, string>,
+  next: Map<string, string>,
+): string | null {
+  const held =
+    armed?.kind === 'label' ? [...next].find(([, labelId]) => labelId === armed.id)?.[0] : undefined
+  if (held != null && next.get(held) !== prev.get(held)) return `diagram-row-${held}`
   const zone = newlyPlacedZone(prev, next)
   if (zone != null) return `diagram-row-${zone}`
   const label = returnedLabel(prev, next)
@@ -164,12 +175,12 @@ function useDiagramTap(initial: () => Map<string, string>) {
 
   useEffect(() => {
     if (focusId == null) return
-    rootRef.current?.querySelector<HTMLElement>(`[data-testid="${focusId}"]`)?.focus()
+    rootRef.current?.querySelector<HTMLElement>(`[data-testid="${CSS.escape(focusId)}"]`)?.focus()
     setFocusId(null)
   }, [focusId])
 
   function applyTap(next: TapState) {
-    setFocusId(focusTarget(placement, next.placement))
+    setFocusId(focusTarget(armed, placement, next.placement))
     setPlacement(next.placement)
     setArmed(next.armed)
   }
@@ -192,12 +203,12 @@ export function DiagramLabelInput({
     placementFromSubmitted(zones, labels, submitted, submittedMapping),
   )
 
-  const locked = submitted
-  const graded = locked && correctMapping != null
+  const graded = submitted && correctMapping != null
   const allCorrect = graded && allPlacementsCorrect(placement, correctMapping)
   const DiagramArt = getDiagramComponent(imageRef)
   const pool = poolLabels(labels, placement)
-  const itemsDisabled = locked || disabled || submitting
+  const itemsDisabled = submitted || disabled || submitting
+  const liveArmed = itemsDisabled ? null : armed
 
   function handleSubmit() {
     if (placement.size > 0) onSubmit(serializeMapping(placement))
@@ -221,16 +232,19 @@ export function DiagramLabelInput({
         zones={zones}
         labels={labels}
         placement={placement}
-        armed={itemsDisabled ? null : armed}
+        armed={liveArmed}
         disabled={itemsDisabled}
+        locked={submitted}
         correctMapping={graded ? correctMapping : undefined}
         onTapRow={(zoneId) => applyTap(tapRow({ placement, armed }, zoneId))}
       />
-      {!locked && (
+      {!submitted && (
         <DiagramTapPool
           labels={pool}
-          armed={itemsDisabled ? null : armed}
-          placedArmed={armed?.kind === 'label' && [...placement.values()].includes(armed.id)}
+          armed={liveArmed}
+          placedArmed={
+            liveArmed?.kind === 'label' && [...placement.values()].includes(liveArmed.id)
+          }
           disabled={itemsDisabled}
           onTapLabel={(id) => applyTap(tapLabel({ placement, armed }, id))}
           onTapPool={() => applyTap(tapPool({ placement, armed }))}
@@ -240,7 +254,7 @@ export function DiagramLabelInput({
       <DiagramFooter
         graded={graded}
         allCorrect={allCorrect}
-        locked={locked}
+        locked={submitted}
         submitDisabled={disabled || submitting || placement.size === 0}
         submitting={submitting}
         onSubmit={handleSubmit}

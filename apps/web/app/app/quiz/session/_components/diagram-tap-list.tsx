@@ -68,8 +68,16 @@ function rowFrame(zoneArmed: boolean, target: boolean, result: Result): string {
   return target ? 'border-primary/60 border-dashed' : 'border-dashed border-input'
 }
 
-function rowHint(result: Result, target: boolean): string {
-  if (result) return 'Not answered'
+function rowHint({
+  result,
+  locked,
+  target,
+}: {
+  result: Result
+  locked: boolean
+  target: boolean
+}): string {
+  if (result || locked) return 'Not answered'
   return target ? 'Tap to place here' : 'Tap, then pick a label'
 }
 
@@ -80,6 +88,7 @@ export function DiagramAnswerRow({
   placed,
   armed,
   disabled,
+  locked,
   result,
   canonicalText,
   onTap,
@@ -89,6 +98,7 @@ export function DiagramAnswerRow({
   placed: DiagramLabelChipData | null
   armed: Armed
   disabled: boolean
+  locked: boolean
   result: Result
   canonicalText?: string
   onTap: (zoneId: string) => void
@@ -108,7 +118,7 @@ export function DiagramAnswerRow({
         disabled={disabled}
         onClick={() => onTap(zone.id)}
         className={cn(
-          'h-auto min-h-11 w-full justify-start gap-3 rounded-control border px-3 py-2 text-left',
+          'h-auto min-h-11 w-full justify-start gap-3 rounded-control border px-3 py-2 text-left whitespace-normal',
           result && 'disabled:opacity-100',
           rowFrame(zoneArmed, target, result),
         )}
@@ -117,11 +127,19 @@ export function DiagramAnswerRow({
         <Badge n={n} tone={badgeTone(result, placed != null)} />
         <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
           {placed ? (
-            <span className={cn(CHIP, 'inline-flex items-center', chipTone(chipArmed, result))}>
+            <span
+              className={cn(
+                CHIP,
+                'inline-flex h-auto min-h-8 items-center py-1 whitespace-normal',
+                chipTone(chipArmed, result),
+              )}
+            >
               {placed.text}
             </span>
           ) : (
-            <span className="text-caption text-muted-foreground">{rowHint(result, target)}</span>
+            <span className="text-caption text-muted-foreground">
+              {rowHint({ result, locked, target })}
+            </span>
           )}
           {result === 'incorrect' && canonicalText && (
             <span className="text-caption">

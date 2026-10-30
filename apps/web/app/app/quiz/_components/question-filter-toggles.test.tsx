@@ -19,4 +19,17 @@ describe('FilterHint floating surface', () => {
     expect(el).toHaveClass('ring-1', 'shadow-raised', 'bg-popover')
     expect(el.className).not.toMatch(/(^|\s)border(\s|$)/)
   })
+
+  it('the opened popup is a dialog named after the label', async () => {
+    render(
+      <FilterToggle
+        label="Calculations"
+        hint="Needs a calculator"
+        checked={false}
+        onToggle={vi.fn()}
+      />,
+    )
+    await userEvent.hover(screen.getByRole('button', { name: /Info about Calculations/ }))
+    expect(await screen.findByRole('dialog', { name: 'Calculations' })).toBeInTheDocument()
+  })
 })

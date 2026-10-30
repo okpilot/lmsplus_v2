@@ -51,7 +51,7 @@ describe('StatCards', () => {
 
   it('states the shared daily goal in the Today tooltip', async () => {
     render(<StatCards {...BASE_PROPS} />)
-    await userEvent.click(screen.getAllByRole('button', { name: 'What is Questions Today?' })[0]!)
+    await userEvent.click(screen.getAllByRole('button', { name: /^What is Questions Today\?/ })[0]!)
     expect(await screen.findByText(new RegExp(`daily goal of ${DAILY_GOAL}`))).toBeInTheDocument()
   })
 
@@ -118,7 +118,7 @@ describe('StatCards', () => {
     const tile = screen.getByText('38 / 50').closest('[data-slot="card"]') as HTMLElement
     expect(tile.querySelector('[style*="width: 76%"]')).not.toBeNull()
     expect(
-      within(tile).getByRole('button', { name: 'What is Questions Today?' }),
+      within(tile).getByRole('button', { name: /^What is Questions Today\?/ }),
     ).toBeInTheDocument()
   })
 

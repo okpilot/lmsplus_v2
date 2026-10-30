@@ -3,6 +3,7 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { GripVertical } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 type OrderingInputItemProps = Readonly<{
   id: string
@@ -55,7 +56,11 @@ export function OrderingInputItem({
       style={style}
       data-testid={`ordering-item-${id}`}
       data-result={result ?? ''}
-      className={`flex items-center gap-3 rounded-control border p-3 text-body ${stateClass} ${liftClass}`}
+      className={cn(
+        'flex items-center gap-3 rounded-control border p-3 text-body',
+        stateClass,
+        liftClass,
+      )}
     >
       {!disabled && (
         <button

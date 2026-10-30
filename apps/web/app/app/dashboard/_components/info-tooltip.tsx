@@ -21,7 +21,7 @@ export function InfoTooltip({
     <Popover>
       <PopoverTrigger
         openOnHover
-        aria-label={label}
+        aria-label={`${label}. ${description}`}
         className="flex size-icon-lg items-center justify-center rounded-pill border border-border text-overline text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
       >
         ?

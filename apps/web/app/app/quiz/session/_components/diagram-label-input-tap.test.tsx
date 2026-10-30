@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -201,6 +201,69 @@ describe('DiagramLabelInput on every screen (tap-list amendment AC 1)', () => {
     await userEvent.click(screen.getByTestId('diagram-row-z1'))
     await userEvent.click(screen.getByRole('button', { name: /return to pool/i }))
     expect(screen.getByTestId('diagram-tap-chip-l1')).toHaveFocus()
+  })
+
+  it('moving an armed placed label into an occupied row focuses that row', async () => {
+    renderInput()
+    await userEvent.click(screen.getByTestId('diagram-tap-chip-l1'))
+    await userEvent.click(screen.getByTestId('diagram-row-z1'))
+    await userEvent.click(screen.getByTestId('diagram-tap-chip-l2'))
+    await userEvent.click(screen.getByTestId('diagram-row-z2'))
+    await userEvent.click(screen.getByTestId('diagram-row-z1'))
+    await userEvent.click(screen.getByTestId('diagram-row-z2'))
+    expect(within(screen.getByTestId('diagram-row-z2')).getByText('Upwind')).toBeInTheDocument()
+    expect(screen.getByTestId('diagram-row-z2')).toHaveFocus()
+  })
+
+  it('moving an armed placed label into an empty row focuses that row', async () => {
+    renderInput()
+    await userEvent.click(screen.getByTestId('diagram-tap-chip-l1'))
+    await userEvent.click(screen.getByTestId('diagram-row-z1'))
+    await userEvent.click(screen.getByTestId('diagram-row-z1'))
+    fireEvent.click(screen.getByTestId('diagram-row-z2'))
+    expect(within(screen.getByTestId('diagram-row-z2')).getByText('Upwind')).toBeInTheDocument()
+    expect(screen.getByTestId('diagram-row-z2')).toHaveFocus()
+  })
+
+  it('no "Return to pool" button once submitting with a placed label armed', async () => {
+    const props = {
+      imageRef: 'x',
+      zones: ZONES,
+      labels: LABELS,
+      onSubmit: vi.fn(),
+      disabled: false,
+    }
+    const { rerender } = render(<DiagramLabelInput {...props} />)
+    await userEvent.click(screen.getByTestId('diagram-tap-chip-l1'))
+    await userEvent.click(screen.getByTestId('diagram-row-z1'))
+    await userEvent.click(screen.getByTestId('diagram-row-z1'))
+    expect(screen.getByRole('button', { name: /return to pool/i })).toBeInTheDocument()
+    rerender(<DiagramLabelInput {...props} submitting />)
+    expect(screen.queryByRole('button', { name: /return to pool/i })).toBeNull()
+  })
+
+  it('a submitted ungraded empty row says "Not answered"', () => {
+    renderInput({ submitted: true })
+    expect(
+      within(screen.getByTestId('diagram-row-z1')).getByText(/not answered/i),
+    ).toBeInTheDocument()
+  })
+
+  it('a submitting empty row does not say "Not answered"', () => {
+    renderInput({ submitting: true })
+    expect(screen.getByTestId('diagram-row-z1').textContent).not.toMatch(/not answered/i)
+  })
+
+  it('answer rows and their placed chips wrap long text; pool chips do not', async () => {
+    renderInput()
+    await userEvent.click(screen.getByTestId('diagram-tap-chip-l1'))
+    await userEvent.click(screen.getByTestId('diagram-row-z1'))
+    const row = screen.getByTestId('diagram-row-z1')
+    expect(row.className).toContain('whitespace-normal')
+    const chip = within(row).getByText('Upwind')
+    expect(chip.className).toContain('whitespace-normal')
+    expect(chip.className).toContain('h-auto')
+    expect(screen.getByTestId('diagram-tap-chip-l2').className).toContain('whitespace-nowrap')
   })
 
   it.each([{ submitting: true }, { submitted: true }])(

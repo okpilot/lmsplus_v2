@@ -8,7 +8,7 @@ const BASE_PROPS = {
   title: 'Daily Activity',
   description: 'Each square shows how many questions you answered that day.',
 }
-const trigger = () => screen.getByRole('button', { name: 'What does this mean?' })
+const trigger = () => screen.getByRole('button', { name: /^What does this mean\?/ })
 
 describe('InfoTooltip', () => {
   it('renders the trigger button with the provided aria-label', () => {
@@ -55,6 +55,15 @@ describe('InfoTooltip', () => {
     render(<InfoTooltip {...BASE_PROPS} />)
     await userEvent.hover(trigger())
     expect(await screen.findByText('Daily Activity')).toBeInTheDocument()
+  })
+})
+
+describe('InfoTooltip trigger name', () => {
+  it('includes the description', () => {
+    render(<InfoTooltip {...BASE_PROPS} />)
+    expect(trigger()).toHaveAccessibleName(
+      'What does this mean?. Each square shows how many questions you answered that day.',
+    )
   })
 })
 
