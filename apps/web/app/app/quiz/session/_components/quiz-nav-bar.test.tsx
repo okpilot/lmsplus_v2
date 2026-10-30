@@ -51,7 +51,41 @@ describe('QuizNavBar', () => {
   it('disables Submit Answer until an option is picked', () => {
     renderNavBar({ action: 'submit', canSubmit: false })
     expect(screen.getByRole('button', { name: 'Submit Answer' })).toBeDisabled()
-    expect(screen.queryByRole('button', { name: /next/i })).toBeNull()
+  })
+
+  it('shows a ghost Next beside Submit that calls onNext, with Submit rightmost (AC1)', () => {
+    const { onNext } = renderNavBar({ action: 'submit', canSubmit: true, currentIndex: 0 })
+    const next = screen.getByRole('button', { name: /next/i })
+    const submit = screen.getByRole('button', { name: 'Submit Answer' })
+    expect(next).not.toHaveClass('bg-primary')
+    expect(next).toBeEnabled()
+    const all = screen.getAllByRole('button')
+    expect(all.indexOf(next)).toBeLessThan(all.indexOf(submit))
+    expect(all.indexOf(submit)).toBe(all.length - 1)
+    fireEvent.click(next)
+    expect(onNext).toHaveBeenCalledOnce()
+  })
+
+  it('disables the ghost Next beside Submit on the last question (AC1)', () => {
+    renderNavBar({ action: 'submit', canSubmit: true, currentIndex: 4, totalQuestions: 5 })
+    expect(screen.getByRole('button', { name: /next/i })).toBeDisabled()
+  })
+
+  it('shows the ghost Next beside Confirm Answer in exam mode (AC1)', () => {
+    renderNavBar({ action: 'submit', canSubmit: true, isExam: true })
+    expect(screen.getByRole('button', { name: /next/i })).not.toHaveClass('bg-primary')
+    expect(screen.getByRole('button', { name: 'Confirm Answer' })).toBeInTheDocument()
+  })
+
+  it('renders a primary Next without Submit after an answer (AC3)', () => {
+    renderNavBar({ action: 'next' })
+    expect(screen.getByRole('button', { name: /next/i })).toHaveClass('bg-primary')
+    expect(screen.queryByRole('button', { name: /submit|confirm/i })).toBeNull()
+  })
+
+  it('disables the ghost Next while the answer is in flight (AC6)', () => {
+    renderNavBar({ action: 'submit', canSubmit: true, submitting: true })
+    expect(screen.getByRole('button', { name: /next/i })).toBeDisabled()
   })
 
   it('submits the picked option from the slot', () => {
@@ -74,8 +108,17 @@ describe('QuizNavBar', () => {
     )
   })
 
-  it('renders nothing in the slot when there is no action', () => {
-    renderNavBar({ action: 'none' })
-    expect(screen.getAllByRole('button')).toHaveLength(1)
+  it('renders a ghost Next that calls onNext when there is no action (AC2)', () => {
+    const { onNext } = renderNavBar({ action: 'none', currentIndex: 0 })
+    expect(screen.getAllByRole('button')).toHaveLength(2)
+    const next = screen.getByRole('button', { name: /next/i })
+    expect(next).not.toHaveClass('bg-primary')
+    fireEvent.click(next)
+    expect(onNext).toHaveBeenCalledOnce()
+  })
+
+  it('disables the ghost Next on the last question when there is no action (AC2)', () => {
+    renderNavBar({ action: 'none', currentIndex: 4, totalQuestions: 5 })
+    expect(screen.getByRole('button', { name: /next/i })).toBeDisabled()
   })
 })

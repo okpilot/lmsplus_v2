@@ -54,7 +54,9 @@ async function captureActions(page: Page): Promise<Captured> {
   await expect(page.getByText(/Question 1 of \d+/)).toBeVisible({ timeout: 15_000 })
   await page.locator('button[data-testid^="option-"]').first().click()
   await page.getByRole('button', { name: 'Submit Answer' }).first().click()
-  await page.getByRole('button', { name: 'Next ›' }).waitFor({ state: 'visible', timeout: 10_000 })
+  await expect(page.getByRole('button', { name: 'Submit Answer' })).toHaveCount(0, {
+    timeout: 10_000,
+  })
   const ids = await watch.settle()
   const headers = watch.headers()
   if (!headers) throw new Error('no Server Action request observed')

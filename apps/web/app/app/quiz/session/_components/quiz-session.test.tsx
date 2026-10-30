@@ -345,6 +345,9 @@ describe('QuizSession', () => {
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
 
     answer('a')
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: /Submit Answer/ })).not.toBeInTheDocument(),
+    )
     fireEvent.click(await screen.findByRole('button', { name: /Next/ }))
     expect(screen.getByTestId('question-text')).toHaveTextContent('What is drag?')
     expect(screen.getByText(/Question 2 of/)).toBeInTheDocument()
@@ -367,11 +370,21 @@ describe('QuizSession', () => {
     expect(screen.getByRole('button', { name: /Previous/ })).toBeEnabled()
   })
 
-  it('shows Next only after the question is answered', async () => {
+  it('lets an unanswered question move to the next one, and makes Next primary after answering (AC4)', async () => {
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
-    expect(screen.queryByRole('button', { name: /Next/ })).not.toBeInTheDocument()
+    const ghost = screen.getByRole('button', { name: /Next/ })
+    expect(ghost).toBeEnabled()
+    expect(ghost).not.toHaveClass('bg-primary')
+    fireEvent.click(ghost)
+    expect(screen.getByTestId('question-text')).toHaveTextContent('What is drag?')
+    fireEvent.click(screen.getByRole('button', { name: /Previous/ }))
     answer('a')
-    expect(await screen.findByRole('button', { name: /Next/ })).toBeEnabled()
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: /Submit Answer/ })).not.toBeInTheDocument(),
+    )
+    const next = await screen.findByRole('button', { name: /Next/ })
+    expect(next).toBeEnabled()
+    expect(next).toHaveClass('bg-primary')
     expect(screen.queryByRole('button', { name: /Submit Answer/ })).not.toBeInTheDocument()
   })
 
@@ -399,6 +412,9 @@ describe('QuizSession', () => {
 
     // Answer first question
     answer('a')
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: /Submit Answer/ })).not.toBeInTheDocument(),
+    )
 
     // Go to second question and answer
     fireEvent.click(await screen.findByRole('button', { name: /Next/ }))

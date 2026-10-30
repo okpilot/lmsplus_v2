@@ -64,9 +64,10 @@ async function startQuizCapturing(page: Page): Promise<Captured> {
   const answers = page.locator('button[data-testid^="option-"]')
   await answers.first().click()
   await page.getByRole('button', { name: 'Submit Answer' }).first().click()
-  const next = page.getByRole('button', { name: 'Next ›' })
-  await next.waitFor({ state: 'visible', timeout: 10_000 })
-  await next.click()
+  await expect(page.getByRole('button', { name: 'Submit Answer' })).toHaveCount(0, {
+    timeout: 10_000,
+  })
+  await page.getByRole('button', { name: 'Next ›' }).click()
   await expect(page.getByText(/Question 2 of \d+/)).toBeVisible()
   const ids = await watch.settle()
   const headers = watch.headers()
