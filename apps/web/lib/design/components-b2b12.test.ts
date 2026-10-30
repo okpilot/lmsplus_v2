@@ -56,6 +56,13 @@ describe('B2b-12 AC 5 phone diagram', () => {
   it('biome.json has no override for the deleted chip', () => {
     expect(readFileSync(path.join(REPO, 'biome.json'), 'utf8')).not.toContain('diagram-label-chip')
   })
+  it.each([
+    'apps/web/app/app/dashboard/_components/info-tooltip.tsx',
+    'apps/web/app/app/quiz/_components/question-filter-toggles.tsx',
+    'apps/web/app/app/quiz/session/_components/keyboard-legend.tsx',
+  ])('biome.json keeps no raw-button exemption for %s', (f) => {
+    expect(readFileSync(path.join(REPO, 'biome.json'), 'utf8')).not.toContain(`"${f}"`)
+  })
   it('tap UI uses no raw button', () => {
     expect(src(`${S}diagram-tap-list.tsx`)).not.toMatch(/<button[\s>]/)
   })

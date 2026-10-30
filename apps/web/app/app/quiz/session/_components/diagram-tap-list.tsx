@@ -177,7 +177,7 @@ export function DiagramTapPool({
     <div
       data-testid="diagram-tap-pool"
       onClick={disabled ? undefined : onTapPool}
-      className="sticky bottom-(--pool-bottom) z-sticky flex min-h-12 flex-nowrap items-center gap-2 overflow-x-auto rounded-card border border-input bg-card p-2 shadow-raised [scrollbar-width:none]"
+      className="sticky bottom-(--pool-bottom) z-sticky flex min-h-12 flex-nowrap items-center gap-2 overflow-x-auto sm:flex-wrap rounded-card border border-input bg-card p-2 shadow-raised [scrollbar-width:none]"
     >
       {placedArmed && (
         <Button

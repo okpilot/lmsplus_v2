@@ -145,12 +145,9 @@
         "apps/web/components/ui/**",
         "apps/web/app/app/admin/exam-config/_components/subject-config-card.tsx",
         "apps/web/app/app/_components/answer-options.tsx",
-        "apps/web/app/app/dashboard/_components/info-tooltip.tsx",
         "apps/web/app/app/progress/_components/subject-breakdown.tsx",
-        "apps/web/app/app/quiz/_components/question-filter-toggles.tsx",
         "apps/web/app/app/quiz/_components/question-grid-squares.tsx",
         "apps/web/app/app/quiz/_components/subject-select.tsx",
-        "apps/web/app/app/quiz/session/_components/keyboard-legend.tsx",
         "apps/web/app/app/quiz/session/_components/ordering-input-item.tsx",
         "apps/web/components/sortable-table-head.tsx"
       ],

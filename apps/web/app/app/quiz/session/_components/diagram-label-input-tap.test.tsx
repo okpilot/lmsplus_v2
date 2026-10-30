@@ -78,6 +78,12 @@ describe('DiagramLabelInput on every screen (tap-list amendment AC 1)', () => {
     expect(onSubmit).toHaveBeenCalledWith(serializeMapping(new Map([['z1', 'l1']])))
   })
 
+  it('pool wraps from 640px so no chip sits past the edge on wide screens', () => {
+    renderInput()
+    const pool = screen.getByTestId('diagram-tap-chip-l1').parentElement
+    expect(pool?.className).toContain('sm:flex-wrap')
+  })
+
   it('pool is one non-wrapping scrolling line pinned above the bottom nav', async () => {
     renderInput()
     const pool = screen.getByTestId('diagram-tap-chip-l1').parentElement
