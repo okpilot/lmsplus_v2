@@ -606,7 +606,7 @@ describe('QuizSession', () => {
 
   it('keeps the Submit Answer button (with spinner) mounted while the per-question RPC is in flight', async () => {
     // Regression for #886: the answer is recorded optimistically before checkAnswer
-    // resolves, so canSubmitAnswer flips false mid-RPC. Without `|| s.answering` in
+    // resolves, so the pending selection clears mid-RPC. Without `|| s.answering` in
     // a mounted-while-answering rule, the button unmounts before the spinner can paint. Hold
     // checkAnswer pending to observe the in-flight window.
     let resolveCheck!: (value: unknown) => void

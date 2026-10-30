@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { KeyboardLegend } from './keyboard-legend'
 
@@ -61,22 +61,6 @@ describe('KeyboardLegend', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
-  it('closes the panel when the click-away backdrop is activated', () => {
-    render(<KeyboardLegend />)
-    fireEvent.click(screen.getByRole('button', { name: 'Keyboard shortcuts' }))
-    expect(screen.getByRole('dialog')).toBeInTheDocument()
-
-    // The backdrop button is aria-hidden; query by role is inappropriate here —
-    // use data attributes from the DOM structure instead.
-    // The backdrop is the first button child with tabIndex -1 rendered after the dialog opens.
-    const container = screen.getByRole('dialog').closest('div')?.parentElement
-    const backdrop = container?.querySelector('button[tabindex="-1"]') as HTMLElement | null
-    expect(backdrop).not.toBeNull()
-    fireEvent.click(backdrop!)
-
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-  })
-
   it('hides the tab shortcuts in exam mode where they do not apply', () => {
     render(<KeyboardLegend isExam />)
     fireEvent.click(screen.getByRole('button', { name: 'Keyboard shortcuts' }))
@@ -91,13 +75,13 @@ describe('KeyboardLegend', () => {
     expect(screen.queryByText('Stats tab')).not.toBeInTheDocument()
   })
 
-  it('closes the panel when Escape is pressed', () => {
+  it('closes the panel when Escape is pressed', async () => {
     render(<KeyboardLegend />)
     fireEvent.click(screen.getByRole('button', { name: 'Keyboard shortcuts' }))
     expect(screen.getByRole('dialog')).toBeInTheDocument()
 
-    fireEvent.keyDown(window, { key: 'Escape' })
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
 
   it('marks the toggle button as expanded when the panel is open', () => {

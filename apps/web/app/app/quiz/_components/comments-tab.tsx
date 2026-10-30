@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { EmptyNote } from '@/components/ui/empty'
 import { FieldError } from '@/components/ui/field-error'
 import { Heading } from '@/components/ui/heading'
+import { Input } from '@/components/ui/input'
 import { useComments } from '../session/_hooks/use-comments'
 import { getInitials } from './comment-helpers'
 import { CommentsSkeleton } from './comments-skeleton'
@@ -113,13 +114,13 @@ export function CommentsTab({ questionId, currentUserId }: Readonly<CommentsTabP
       </div>
 
       <div className="flex gap-2 border-t border-border pt-3">
-        <input
+        <Input
           type="text"
           value={body}
           onChange={(e) => setBody(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
           placeholder="Add a comment..."
-          className="flex-1 rounded-control border border-border bg-background px-3 py-2 text-body placeholder:text-muted-foreground focus:border-primary-text focus:outline-none"
+          className="flex-1"
           disabled={submitting}
         />
         <Button

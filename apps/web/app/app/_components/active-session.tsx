@@ -46,6 +46,7 @@ export function ActiveSession({
         </Alert>
       )}
       <SessionAnswerBlock
+        key={question.id}
         options={question.options}
         onSubmit={onSubmit}
         submitting={submitting}

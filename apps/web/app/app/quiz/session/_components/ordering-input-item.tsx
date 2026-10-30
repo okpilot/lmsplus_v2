@@ -3,6 +3,7 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { GripVertical } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 type OrderingInputItemProps = Readonly<{
   id: string
@@ -38,7 +39,6 @@ export function OrderingInputItem({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : undefined,
   }
 
   const stateClass =
@@ -46,7 +46,9 @@ export function OrderingInputItem({
       ? 'border-success bg-card'
       : result === 'incorrect'
         ? 'border-danger bg-card'
-        : 'border-border bg-card'
+        : cn('border-input bg-card', !disabled && 'hover:bg-muted')
+
+  const liftClass = isDragging ? 'relative z-sticky border-primary shadow-raised' : ''
 
   return (
     <li
@@ -54,7 +56,11 @@ export function OrderingInputItem({
       style={style}
       data-testid={`ordering-item-${id}`}
       data-result={result ?? ''}
-      className={`flex items-center gap-3 rounded-control border p-3 text-body ${stateClass}`}
+      className={cn(
+        'flex items-center gap-3 rounded-control border p-3 text-body',
+        stateClass,
+        liftClass,
+      )}
     >
       {!disabled && (
         <button

@@ -81,7 +81,7 @@ export function ImageUploadField({ label, currentUrl, onUploaded, disabled }: Re
 
   return (
     <div className="space-y-2">
-      <span className="text-label text-muted-foreground">{label}</span>
+      <span className="block text-label text-muted-foreground">{label}</span>
       {preview && isSafePreviewUrl(preview) && (
         <div className="relative">
           {/* biome-ignore lint/performance/noImgElement: local blob/URL preview, not optimizable by next/image */}
@@ -107,7 +107,7 @@ export function ImageUploadField({ label, currentUrl, onUploaded, disabled }: Re
         accept="image/png,image/jpeg,image/webp"
         onChange={handleFileChange}
         disabled={disabled || isPending}
-        className="max-w-xs"
+        className="max-w-field"
       />
       {isPending && <p className="text-caption text-muted-foreground">Uploading...</p>}
     </div>

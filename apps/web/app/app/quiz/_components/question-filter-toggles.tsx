@@ -1,7 +1,7 @@
 'use client'
 
 import { CircleHelp } from 'lucide-react'
-import { useState } from 'react'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Switch } from '@/components/ui/switch'
 import type { CalcMode, ImageMode, QuestionFilterValue } from '../types'
 
@@ -60,33 +60,20 @@ export const IMAGE_TOGGLES: { mode: Exclude<ImageMode, 'all'>; label: string; hi
 ]
 
 function FilterHint({ hint, label }: Readonly<{ hint: string; label: string }>) {
-  const [open, setOpen] = useState(false)
-
   return (
-    <span className="relative inline-flex">
-      <button
-        type="button"
-        onClick={() => setOpen((p) => !p)}
-        onMouseEnter={() => setOpen(true)}
-        onMouseLeave={() => setOpen(false)}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setOpen(false)}
+    <Popover>
+      <PopoverTrigger
+        openOnHover
         className="inline-flex text-muted-foreground hover:text-foreground"
-        // Fold the hint into the label so screen readers announce the explanation
-        // directly — the visual tooltip below is a sighted-only enhancement.
+        // Fold the hint into the label so screen readers announce the explanation directly.
         aria-label={`Info about ${label}. ${hint}`}
       >
         <CircleHelp className="size-icon-sm" />
-      </button>
-      {open && (
-        <span
-          aria-hidden
-          className="absolute bottom-full left-1/2 z-dropdown mb-2 -translate-x-1/2 whitespace-nowrap rounded-small bg-popover px-2.5 py-1.5 text-caption text-popover-foreground ring-1 ring-border shadow-raised"
-        >
-          {hint}
-        </span>
-      )}
-    </span>
+      </PopoverTrigger>
+      <PopoverContent side="top" aria-label={label} className="w-auto max-w-60">
+        {hint}
+      </PopoverContent>
+    </Popover>
   )
 }
 

@@ -4,6 +4,7 @@ import {
   CONTAINERS,
   DURATIONS,
   EASING,
+  ELEVATION,
   FIXED_SPACING,
   ICON_SPACING_KEYS,
   RADIUS_KEYS,
@@ -22,7 +23,7 @@ const twMerge = extendTailwindMerge({
       radius: [...RADIUS_KEYS],
       container: Object.keys(CONTAINERS),
       ease: Object.keys(EASING),
-      shadow: ['raised', 'overlay'],
+      shadow: Object.keys(ELEVATION),
     },
     classGroups: {
       z: [{ z: Object.keys(Z_INDEX) }],

@@ -6,7 +6,6 @@ import { describe, expect, it } from 'vitest'
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 // GROUP: allowlist — `file` -> owning PR; a stale entry fails the test below.
 const ALLOW: Record<string, string> = {
-  'app/app/admin/questions/_components/image-upload-field.tsx': 'PR 12 file input restyle',
   'components/ui/sonner.tsx':
     'third-party unlayered CSS needs !important; arbitrary max-w with sonner --width',
 }

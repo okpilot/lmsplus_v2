@@ -433,11 +433,11 @@ function buildRwy2709Answer(): { zone_id: string; label_id: string }[] {
 }
 
 // Part 3 — diagram_label. Label the RWY 27/09 left-hand traffic pattern by
-// dragging each chip onto its matching leg or turn zone.
+// placing each chip on its matching leg or turn zone.
 const DIAGRAM_LABEL: DiagramLabelQuestion[] = [
   {
     num: 'VRT-P3-DIAG-2709',
-    text: 'Label the RWY 27/09 left-hand traffic pattern: drag each label onto its matching leg or turn.',
+    text: 'Label the RWY 27/09 left-hand traffic pattern: place each label on its matching leg or turn.',
     answer: buildRwy2709Answer(),
   },
 ]
@@ -633,7 +633,7 @@ async function seed(): Promise<void> {
   )
   console.log('  No exam_config — training uses /app/vfr-rt (quick_quiz study mode)')
   console.log(
-    '  Pick Part 1 → short_answer · Part 2 → dialog_fill · Part 3 → multiple_choice + ordering (drag) + diagram_label (drag-to-label)',
+    '  Pick Part 1 → short_answer · Part 2 → dialog_fill · Part 3 → multiple_choice + ordering (drag) + diagram_label (tap-to-place)',
   )
   console.log('  Start at:         http://localhost:3000/app/vfr-rt')
 }

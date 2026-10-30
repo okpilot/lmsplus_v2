@@ -23,4 +23,10 @@ describe('QuizSessionLoading', () => {
     expect(container.querySelectorAll('button')).toHaveLength(0)
     expect(container.querySelector('.fixed')).toBeNull()
   })
+
+  it('hides the tabs skeleton from lg, like the live tabs', () => {
+    const { container } = render(<QuizSessionLoading />)
+
+    expect(container.querySelector('.lg\\:hidden [class*="h-10"]')).not.toBeNull()
+  })
 })

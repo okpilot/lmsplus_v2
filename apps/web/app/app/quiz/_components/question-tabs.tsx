@@ -25,7 +25,7 @@ export function QuestionTabs({ activeTab, onTabChange }: Readonly<QuestionTabsPr
       <div
         role="group"
         aria-label="Question view"
-        className="inline-flex items-center gap-1 rounded-control bg-muted p-1"
+        className="inline-flex items-center gap-1 rounded-control bg-muted p-1 max-[374.98px]:gap-0"
       >
         {TABS.map((tab) => (
           <Button
@@ -33,6 +33,7 @@ export function QuestionTabs({ activeTab, onTabChange }: Readonly<QuestionTabsPr
             type="button"
             variant="segment"
             size="segment"
+            className="max-[374.98px]:text-caption"
             aria-pressed={activeTab === tab.value}
             onClick={() => onTabChange(tab.value)}
           >

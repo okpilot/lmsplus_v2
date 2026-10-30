@@ -1,4 +1,5 @@
 import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DAILY_GOAL, STREAK_TARGET } from '../_lib/tile-tones'
 import { StatCards } from './stat-cards'
@@ -48,9 +49,10 @@ describe('StatCards', () => {
     expect(screen.getByText('Keep practicing')).toBeInTheDocument()
   })
 
-  it('states the shared daily goal in the Today tooltip', () => {
-    const { container } = render(<StatCards {...BASE_PROPS} />)
-    expect(container.textContent).toContain(`daily goal of ${DAILY_GOAL}`)
+  it('states the shared daily goal in the Today tooltip', async () => {
+    render(<StatCards {...BASE_PROPS} />)
+    await userEvent.click(screen.getAllByRole('button', { name: /^What is Questions Today\?/ })[0]!)
+    expect(await screen.findByText(new RegExp(`daily goal of ${DAILY_GOAL}`))).toBeInTheDocument()
   })
 
   it('displays questions today progress as N / 50', () => {
@@ -116,7 +118,7 @@ describe('StatCards', () => {
     const tile = screen.getByText('38 / 50').closest('[data-slot="card"]') as HTMLElement
     expect(tile.querySelector('[style*="width: 76%"]')).not.toBeNull()
     expect(
-      within(tile).getByRole('button', { name: 'What is Questions Today?' }),
+      within(tile).getByRole('button', { name: /^What is Questions Today\?/ }),
     ).toBeInTheDocument()
   })
 

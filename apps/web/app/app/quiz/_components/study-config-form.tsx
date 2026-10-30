@@ -30,8 +30,8 @@ export function StudyConfigForm({
   const config = useStudyConfig({ userId, subjects, preload })
 
   return (
-    <div className="flex flex-col gap-stack lg:grid lg:grid-cols-(--layout-setup) lg:items-start lg:gap-x-section">
-      <div className="space-y-stack lg:sticky lg:top-section">
+    <div className="flex flex-col gap-stack lg:grid lg:grid-cols-(--layout-setup) lg:grid-rows-(--layout-setup-rows) lg:items-start lg:gap-x-section">
+      <div className="lg:col-start-1 lg:row-start-1">
         <Card>
           <CardContent className="space-y-5">
             {header}
@@ -53,7 +53,26 @@ export function StudyConfigForm({
             )}
           </CardContent>
         </Card>
+      </div>
 
+      {config.topicTree.topics.length > 0 && (
+        <div className="lg:col-start-2 lg:row-start-1 lg:row-span-2">
+          <TopicTree
+            topics={config.topicTree.topics}
+            checkedTopics={config.topicTree.checkedTopics}
+            checkedSubtopics={config.topicTree.checkedSubtopics}
+            onToggleTopic={config.topicTree.toggleTopic}
+            onToggleSubtopic={config.topicTree.toggleSubtopic}
+            onSelectAll={config.topicTree.selectAll}
+            totalQuestions={config.topicTree.totalQuestions}
+            allSelected={config.topicTree.allSelected}
+            filteredByTopic={config.filteredByTopic}
+            filteredBySubtopic={config.filteredBySubtopic}
+          />
+        </div>
+      )}
+
+      <div className="space-y-stack lg:col-start-1 lg:row-start-2 lg:sticky lg:top-section">
         {config.subjectId && (
           <Card>
             <CardContent>
@@ -85,21 +104,6 @@ export function StudyConfigForm({
           onClick={config.handleStart}
         />
       </div>
-
-      {config.topicTree.topics.length > 0 && (
-        <TopicTree
-          topics={config.topicTree.topics}
-          checkedTopics={config.topicTree.checkedTopics}
-          checkedSubtopics={config.topicTree.checkedSubtopics}
-          onToggleTopic={config.topicTree.toggleTopic}
-          onToggleSubtopic={config.topicTree.toggleSubtopic}
-          onSelectAll={config.topicTree.selectAll}
-          totalQuestions={config.topicTree.totalQuestions}
-          allSelected={config.topicTree.allSelected}
-          filteredByTopic={config.filteredByTopic}
-          filteredBySubtopic={config.filteredBySubtopic}
-        />
-      )}
     </div>
   )
 }

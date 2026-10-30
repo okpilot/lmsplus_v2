@@ -183,6 +183,11 @@ describe('CommentsTab', () => {
     expect(screen.getByText('Failed to load comments')).toHaveAttribute('data-slot', 'field-error')
   })
 
+  it('the comment field is the shared text field', () => {
+    render(<CommentsTab questionId="q-1" currentUserId={CURRENT_USER_ID} />)
+    expect(screen.getByPlaceholderText('Add a comment...')).toHaveAttribute('data-slot', 'input')
+  })
+
   it('shows loading skeleton while comments are loading', () => {
     mockUseComments.mockReturnValue(defaultHookState({ isLoading: true }))
     render(<CommentsTab questionId="q-1" currentUserId={CURRENT_USER_ID} />)

@@ -38,7 +38,7 @@ The primary competitive baseline is Aviationexam. LMS Plus differentiates by off
 
 8. **Admin Student Manager**: Create/edit/deactivate students and instructors, password reset with must-change flag, role assignment, status filtering, name/email search. All operations org-scoped.
 
-9. **Student Settings**: Profile view, display name editing, password change, quiz statistics.
+9. **Student Settings**: Profile view, display name editing, password change.
 
 10. **GDPR Compliance**: First-login consent gate with versioned TOS/privacy acceptance, immutable consent audit trail (`user_consents` table), self-service JSON data export, admin data export per student, EASA Part ORA retention exemption documented in privacy policy.
 

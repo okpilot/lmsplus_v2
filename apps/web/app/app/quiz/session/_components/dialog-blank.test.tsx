@@ -110,3 +110,16 @@ describe('DialogBlank result borders', () => {
     expectNoTint(cls)
   })
 })
+
+describe('DialogBlank graded fill', () => {
+  it.each([true, false])(
+    'uses the card background when disabled and graded (correct=%s)',
+    (isCorrect) => {
+      renderBlank({ disabled: true, result: { isCorrect, canonical: 'x' } })
+      const cls = screen.getByTestId('blank-0').className
+      expect(cls).toContain('disabled:bg-card')
+      expect(cls).toContain('dark:disabled:bg-card')
+      expect(cls).not.toContain('disabled:bg-muted/50')
+    },
+  )
+})

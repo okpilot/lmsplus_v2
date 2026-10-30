@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 
 type QuizSessionLayoutProps = {
-  /** Question-view tabs, shown below `md` in study modes. */
+  /** Question-view tabs, shown below `lg` in study modes. */
   tabs?: ReactNode
   question: ReactNode
   panel: ReactNode

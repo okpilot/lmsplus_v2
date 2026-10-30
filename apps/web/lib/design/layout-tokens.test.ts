@@ -33,6 +33,11 @@ describe('layout tokens (AC 1)', () => {
     })
   }
 
+  it('pool-bottom clears the safe area, not a tab bar', () => {
+    expect(decl('pool-bottom')).toContain('safe-area-inset-bottom')
+    expect(decl('pool-bottom')).not.toContain('tab-bar-h')
+  })
+
   it('rail widths are 340px and 360px (or the rem equivalent)', () => {
     expect(decl('spacing-rail')).toMatch(/^(340px|21\.25rem)$/)
     expect(decl('spacing-setup-rail')).toMatch(/^(360px|22\.5rem)$/)
@@ -69,5 +74,11 @@ describe('layout tokens (AC 1)', () => {
   it('@tailwindcss/typography is not a dependency', () => {
     const pkg = readFileSync(path.join(APP, '../package.json'), 'utf8')
     expect(pkg).not.toContain('@tailwindcss/typography')
+  })
+})
+
+describe('layout tokens (B2b-12 AC 7)', () => {
+  it('--layout-setup-rows is auto 1fr', () => {
+    expect(decl('layout-setup-rows')).toBe('auto 1fr')
   })
 })

@@ -8,10 +8,6 @@ export type DiagramZoneData = { id: string; x: number; y: number; w: number; h: 
 export type DiagramLabelChipData = { id: string; text: string }
 export type DiagramMapping = { zoneId: string; labelId: string }
 
-/** Droppable id for the chip pool region — dropping a placed chip here
- *  unplaces it (returns it to the pool) rather than moving it to a zone. */
-export const DIAGRAM_POOL_DROPPABLE_ID = '__diagram_label_pool__'
-
 /**
  * Places `labelId` into `zoneId`. Consume-on-place: if the label was already
  * placed in a different zone, it is removed from there first (a move, not a
@@ -56,10 +52,6 @@ export function poolLabels(
 /** Serializes the placement map to the wire {zoneId,labelId}[] shape submitted to the server. */
 export function serializeMapping(placement: Map<string, string>): DiagramMapping[] {
   return Array.from(placement.entries()).map(([zoneId, labelId]) => ({ zoneId, labelId }))
-}
-
-export function hasAnyPlacement(placement: Map<string, string>): boolean {
-  return placement.size > 0
 }
 
 /**

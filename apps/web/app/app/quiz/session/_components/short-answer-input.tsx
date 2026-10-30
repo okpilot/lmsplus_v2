@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { BusyLabel } from '@/components/ui/busy-label'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { cn } from '@/lib/utils'
 
 type ShortAnswerInputProps = {
   onSubmit: (text: string) => void
@@ -40,7 +42,8 @@ export function ShortAnswerInput({
 
   return (
     <div className="space-y-3">
-      <input
+      <Input
+        size="lg"
         type="text"
         // Auto-focus on mount. The control is keyed by question.id (remounts per
         // question), so this lands focus in the field on every new question — the
@@ -75,13 +78,10 @@ export function ShortAnswerInput({
         disabled={disabled || locked}
         aria-label="Your answer"
         data-testid="short-answer-input"
-        className={`w-full rounded-control border bg-card px-4 py-3 text-body transition-colors ${showResult ? '' : 'disabled:opacity-50 disabled:cursor-not-allowed'} ${
-          showResult && isCorrect
-            ? 'border-success'
-            : showResult
-              ? 'border-danger'
-              : 'border-border focus:border-primary-text'
-        }`}
+        className={cn(
+          showResult && 'disabled:bg-card disabled:opacity-100 dark:disabled:bg-card',
+          showResult && (isCorrect ? 'border-success' : 'border-danger'),
+        )}
       />
 
       {showResult && (

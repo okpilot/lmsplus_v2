@@ -91,10 +91,10 @@ describe('quiz setup (AC 7)', () => {
     expect(form).toContain('lg:grid-cols-(--layout-setup)')
     expect(form).toContain('lg:sticky')
   })
-  it('Start is full width and DOM order is settings, count, Start, topics', () => {
+  it('Start is full width and DOM order is settings, topics, Start', () => {
     expect(src(`${Q}_components/start-button.tsx`) + form).toContain('w-full')
     const at = (s: string) => form.indexOf(s)
-    const order = ['<QuestionCount', '<StartButton', '<TopicTree'].map(at)
+    const order = ['<Card>', '<TopicTree', '<StartButton'].map(at)
     expect(order.every((i) => i >= 0)).toBe(true)
     expect([...order].sort((a, b) => a - b)).toEqual(order)
   })
@@ -139,7 +139,7 @@ describe('VFR RT setup (AC 10)', () => {
 })
 
 describe('quiz session (AC 11)', () => {
-  const sessionFiles = tree(Q + 'session').filter((f) => !f.includes('node_modules'))
+  const sessionFiles = tree(`${Q}session`).filter((f) => !f.includes('node_modules'))
   const all = [...sessionFiles, ...tree(`${A}_components`), ...tree(`${Q}_components`)]
   const text = all.map((f) => readFileSync(f, 'utf8')).join('\n')
 
