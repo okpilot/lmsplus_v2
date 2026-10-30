@@ -96,14 +96,6 @@ describe('disabled is 50% and not-allowed', () => {
     expect(s).toContain('disabled:opacity-50')
     expect(s).toContain('disabled:cursor-not-allowed')
   })
-
-  it.each(['diagram-label-chip'])('%s', (n) => {
-    const s = src(`app/app/quiz/session/_components/${n}.tsx`)
-    expect(s).toContain('disabled:opacity-50')
-    expect(s).toContain('disabled:cursor-not-allowed')
-    expect(s).not.toContain('disabled:opacity-70')
-    expect(s).not.toContain('disabled:cursor-default')
-  })
 })
 
 describe('disabled controls', () => {

@@ -26,7 +26,8 @@ type AnswerType = 'short_answer' | 'dialog_fill' | 'multiple_choice' | 'ordering
 const SHORT_ANSWER = '[data-testid="short-answer-input"]'
 const DIALOG_BLANK = '[data-testid^="blank-"]:not([data-testid^="blank-canonical"])'
 const ORDERING_ITEM = '[data-testid^="ordering-item-"]'
-const DIAGRAM_CHIP = '[data-testid^="diagram-label-chip-"]'
+const DIAGRAM_CHIP = '[data-testid^="diagram-tap-chip-"]'
+const DIAGRAM_ROW = '[data-testid^="diagram-row-"]'
 const MC_OPTION = '[data-testid^="option-"]'
 
 async function startExam(page: Page): Promise<void> {
@@ -67,22 +68,11 @@ async function detectType(page: Page): Promise<AnswerType> {
   return found
 }
 
-async function dragChipOntoFirstZone(page: Page): Promise<void> {
-  const chip = page.locator(DIAGRAM_CHIP).first()
-  const zone = page.locator('[data-testid^="diagram-label-zone-"]').first()
-  const chipBox = await chip.boundingBox()
-  const zoneBox = await zone.boundingBox()
-  if (!chipBox || !zoneBox) throw new Error('diagram chip or zone not laid out')
-  await page.mouse.move(chipBox.x + chipBox.width / 2, chipBox.y + chipBox.height / 2)
-  await page.mouse.down()
-  await page.mouse.move(chipBox.x + chipBox.width / 2 + 10, chipBox.y + chipBox.height / 2 + 10, {
-    steps: 5,
-  })
-  await page.mouse.move(zoneBox.x + zoneBox.width / 2, zoneBox.y + zoneBox.height / 2, {
-    steps: 15,
-  })
-  await page.mouse.up()
-  await expect(zone.locator(DIAGRAM_CHIP)).toHaveCount(1)
+async function tapChipOntoFirstRow(page: Page): Promise<void> {
+  const row = page.locator(DIAGRAM_ROW).first()
+  await page.locator(DIAGRAM_CHIP).first().click()
+  await row.click()
+  await expect(row).not.toContainText(/tap, then pick a label/i)
 }
 
 /** Answers the visible question and asserts it locks with no correctness feedback. */
@@ -108,12 +98,9 @@ async function answerAndAssertLocked(page: Page, type: AnswerType): Promise<void
     await submit.click()
     await expect(submit).toHaveCount(0)
   } else {
-    await dragChipOntoFirstZone(page)
-    // dnd-kit swallows clicks for 50ms after a drop; retry until the answer locks.
-    await expect(async () => {
-      if ((await submit.count()) > 0) await submit.click({ timeout: 1_000 })
-      await expect(submit).toHaveCount(0, { timeout: 1_000 })
-    }).toPass({ timeout: 10_000 })
+    await tapChipOntoFirstRow(page)
+    await submit.click()
+    await expect(submit).toHaveCount(0)
   }
   await expect(page.getByText(/^(Correct|Incorrect)$/)).toHaveCount(0)
 }

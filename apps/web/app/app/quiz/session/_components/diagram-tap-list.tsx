@@ -31,7 +31,7 @@ function Badge({ n, tone }: Readonly<{ n: number; tone: keyof typeof BADGE }>) {
   )
 }
 
-/** Numbered badge overlaid on a diagram zone (phones). */
+/** Numbered badge overlaid on a diagram zone. */
 export function DiagramZoneMarker({
   zone,
   n,
@@ -40,6 +40,7 @@ export function DiagramZoneMarker({
 }: Readonly<{ zone: DiagramZoneData; n: number; filled: boolean; result: Result }>) {
   return (
     <div
+      aria-hidden="true"
       className="pointer-events-none absolute grid place-items-center"
       style={{
         left: `${zone.x * 100}%`,
@@ -95,19 +96,24 @@ export function DiagramAnswerRow({
   const zoneArmed = armed?.kind === 'zone' && armed.id === zone.id
   const chipArmed = armed?.kind === 'label' && placed != null && armed.id === placed.id
   const target = armed?.kind === 'label' && !chipArmed && !result
+  const pressed = zoneArmed || chipArmed
   return (
     <li>
       <Button
         type="button"
         variant="ghost"
         data-testid={`diagram-row-${zone.id}`}
+        aria-pressed={pressed}
+        data-result={result}
         disabled={disabled}
         onClick={() => onTap(zone.id)}
         className={cn(
           'h-auto min-h-11 w-full justify-start gap-3 rounded-control border px-3 py-2 text-left',
+          result && 'disabled:opacity-100',
           rowFrame(zoneArmed, target, result),
         )}
       >
+        <span className="sr-only">Zone</span>
         <Badge n={n} tone={badgeTone(result, placed != null)} />
         <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
           {placed ? (
@@ -128,29 +134,43 @@ export function DiagramAnswerRow({
   )
 }
 
-/** Single-line sideways-scrolling pool of unplaced labels, pinned above the bottom nav. */
+/** Single-line sideways-scrolling pool of unplaced labels, pinned above the bottom nav below sm, near the viewport bottom from sm. */
 export function DiagramTapPool({
   labels,
   armed,
+  placedArmed,
   disabled,
   onTapLabel,
   onTapPool,
 }: Readonly<{
   labels: DiagramLabelChipData[]
   armed: Armed
+  /** True when the armed label is currently placed in a zone. */
+  placedArmed: boolean
   disabled: boolean
   onTapLabel: (id: string) => void
   onTapPool: () => void
 }>) {
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: background tap returns an armed placed label to the pool; every label inside is a real button
-    // biome-ignore lint/a11y/useKeyWithClickEvents: the keyboard path is the row buttons; this only unplaces
+    // biome-ignore lint/a11y/noStaticElementInteractions: background tap returns an armed placed label to the pool for pointer users
+    // biome-ignore lint/a11y/useKeyWithClickEvents: the keyboard path is the Return to pool button
     <div
       data-testid="diagram-tap-pool"
       onClick={onTapPool}
-      className="sticky bottom-20 z-10 flex min-h-12 flex-nowrap items-center gap-2 overflow-x-auto rounded-card border border-input bg-card p-2 shadow-raised [scrollbar-width:none]"
+      className="sticky bottom-(--pool-bottom) z-10 sm:bottom-4 flex min-h-12 flex-nowrap items-center gap-2 overflow-x-auto rounded-card border border-input bg-card p-2 shadow-raised [scrollbar-width:none]"
     >
-      {labels.length === 0 && (
+      {placedArmed && (
+        <Button
+          type="button"
+          variant="outline"
+          disabled={disabled}
+          onClick={onTapPool}
+          className={cn(CHIP, 'border-primary')}
+        >
+          Return to pool
+        </Button>
+      )}
+      {labels.length === 0 && !placedArmed && (
         <span className="text-caption text-muted-foreground">All labels placed</span>
       )}
       {labels.map((l) => (

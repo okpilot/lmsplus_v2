@@ -284,6 +284,7 @@
   --dialog-max-h: calc(100dvh - 2rem);
   --dialog-scroll-h: 85vh;
   --tab-bar-h: calc(3.5rem + env(safe-area-inset-bottom));
+  --pool-bottom: calc(var(--tab-bar-h) + 0.5rem);
   --safe-bottom: env(safe-area-inset-bottom);
   --half-screen: 50vh;
   --full-screen-h: 100dvh;

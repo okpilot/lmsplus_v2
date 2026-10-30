@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { tapLabel, tapPool, tapRow } from './diagram-tap-state'
+import { newlyPlacedZone, tapLabel, tapPool, tapRow } from './diagram-tap-state'
 
 const empty = { placement: new Map<string, string>(), armed: null }
 
@@ -39,5 +39,14 @@ describe('diagram tap state', () => {
     const s = tapPool(tapLabel(empty, 'l1'))
     expect(s.armed).toBeNull()
     expect(s.placement.size).toBe(0)
+  })
+})
+
+describe('newlyPlacedZone', () => {
+  it('returns the zone that received a previously unplaced label', () => {
+    expect(newlyPlacedZone(new Map(), new Map([['z1', 'l1']]))).toBe('z1')
+  })
+  it('returns null for a move between zones', () => {
+    expect(newlyPlacedZone(new Map([['z1', 'l1']]), new Map([['z2', 'l1']]))).toBeNull()
   })
 })

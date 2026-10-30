@@ -35,43 +35,26 @@ describe('B2b-12 AC 4 drag look', () => {
     expect(s).toContain('shadow-raised')
     expect(s).not.toMatch(/opacity-\d|opacity:/)
   })
-  it('chip is 28px rounded-inner caption text and lifts without fading', () => {
-    const s = src(`${S}diagram-label-chip.tsx`)
-    expect(s).toContain('h-7')
-    expect(s).toContain('rounded-inner')
-    expect(s).toContain('text-caption')
-    expect(s).toContain('whitespace-nowrap')
-    expect(s).toContain('truncate')
-    expect(s).toContain('shadow-raised')
-    expect(s).not.toContain('opacity: isDragging')
-  })
-  it('zone is dashed input-border, solid primary when hovered', () => {
-    const s = src(`${S}diagram-label-zone.tsx`)
-    expect(s).toContain('border-dashed')
-    expect(s).toContain('border-input')
-    expect(s).toContain('rounded-inner')
-    expect(s).toContain('text-overline')
-    expect(s).toContain('border-solid')
-    expect(s).toContain('bg-primary/8')
-  })
-  it('pool is rounded-card p-3 with the same hover', () => {
-    const s = src(`${S}diagram-label-pool.tsx`)
-    expect(s).toContain('rounded-card')
-    expect(s).toContain('p-3')
-    expect(s).toContain('border-primary')
-    expect(s).toContain('bg-primary/8')
-  })
 })
 
 describe('B2b-12 AC 5 phone diagram', () => {
-  it('new tap-list module and hook exist', () => {
+  it('tap-list module exists and the drag path is deleted', () => {
     expect(existsSync(path.join(ROOT, `${S}diagram-tap-list.tsx`))).toBe(true)
-    expect(existsSync(path.join(ROOT, `${Q}session/_hooks/use-media-query.ts`))).toBe(true)
   })
-  it('the hook uses useSyncExternalStore with a false server snapshot', () => {
-    const s = src(`${Q}session/_hooks/use-media-query.ts`)
-    expect(s).toContain('useSyncExternalStore')
-    expect(s).toMatch(/\(\)\s*=>\s*false/)
+  it.each([
+    `${S}diagram-label-zone.tsx`,
+    `${S}diagram-label-zone.test.tsx`,
+    `${S}diagram-label-chip.tsx`,
+    `${S}diagram-label-chip.test.tsx`,
+    `${S}diagram-label-pool.tsx`,
+    `${S}diagram-label-pool.test.tsx`,
+    `${Q}session/_hooks/use-media-query.ts`,
+    `${Q}session/_hooks/use-media-query.test.tsx`,
+  ])('%s is deleted', (f) => {
+    expect(existsSync(path.join(ROOT, f))).toBe(false)
+  })
+  it('biome.json has no override for the deleted chip', () => {
+    expect(readFileSync(path.join(REPO, 'biome.json'), 'utf8')).not.toContain('diagram-label-chip')
   })
   it('tap UI uses no raw button', () => {
     expect(src(`${S}diagram-tap-list.tsx`)).not.toMatch(/<button[\s>]/)
@@ -158,7 +141,7 @@ describe('B2b-12 AC 11 decision 189', () => {
   it('is appended with the phone clause', () => {
     expect(line).not.toBe('')
     expect(line).toContain(
-      'below 640px the diagram question is numbered zones and a tap-to-place list',
+      'the diagram question is numbered zones and a tap-to-place list on every screen',
     )
     expect(line).toContain('question tabs tighten below 375px')
     expect(line).toContain('below 1024px the setup forms put topics before Start')

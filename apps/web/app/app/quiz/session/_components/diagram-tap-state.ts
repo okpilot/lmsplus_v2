@@ -31,3 +31,15 @@ export function tapPool({ placement, armed }: TapState): TapState {
   }
   return { placement, armed: null }
 }
+
+/** Zone that newly received a label that was not placed before, else null. */
+export function newlyPlacedZone(
+  prev: Map<string, string>,
+  next: Map<string, string>,
+): string | null {
+  const placedBefore = new Set(prev.values())
+  for (const [zoneId, labelId] of next) {
+    if (prev.get(zoneId) !== labelId && !placedBefore.has(labelId)) return zoneId
+  }
+  return null
+}

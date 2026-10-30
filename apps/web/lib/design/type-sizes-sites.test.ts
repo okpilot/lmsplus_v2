@@ -103,7 +103,6 @@ describe('overline-sized chips (AC 12)', () => {
     `${SESS}keyboard-legend.tsx`,
     'app/app/_components/user-chip.tsx',
     `${Q}_components/comments-tab.tsx`,
-    `${SESS}diagram-label-zone.tsx`,
   ])('%s', (f) => {
     const s = src(f)
     expect(s).toContain('text-overline')
