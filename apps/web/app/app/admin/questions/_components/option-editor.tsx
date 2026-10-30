@@ -1,6 +1,7 @@
 'use client'
 
 import { Input } from '@/components/ui/input'
+import { Radio, RadioGroup } from '@/components/ui/radio-group'
 import type { QuestionOption } from '../types'
 
 type Props = {
@@ -25,35 +26,46 @@ export function OptionEditor({
     onChange(updated)
   }
 
+  // The Base UI RadioGroup is a composite root: it selects a focused text input's whole value and
+  // takes its arrow keys. The text inputs therefore sit OUTSIDE the group, in a column whose rows
+  // line up with the group's rows (same height and gap).
   return (
     <div className="space-y-3">
       <span className="text-label text-muted-foreground">Options</span>
-      {OPTION_IDS.map((letter, idx) => (
-        <div key={letter} className="flex items-center gap-3">
-          <span className="w-6 text-center text-label uppercase text-muted-foreground">
-            {letter}
-          </span>
-          <Input
-            value={options[idx]?.text ?? ''}
-            onChange={(e) => handleTextChange(idx, e.target.value)}
-            placeholder={`Option ${letter.toUpperCase()}`}
-            disabled={disabled}
-            className="flex-1"
-          />
-          <label className="flex items-center gap-1.5 text-caption text-muted-foreground">
-            <input
-              type="radio"
-              name="correct-option"
-              aria-label={`Mark option ${letter.toUpperCase()} as correct`}
-              checked={correctOptionId === letter}
-              onChange={() => onCorrectChange(letter)}
-              disabled={disabled}
-              className="accent-primary"
-            />{' '}
-            Correct
-          </label>
+      <div className="flex gap-3">
+        <div className="flex flex-1 flex-col gap-3">
+          {OPTION_IDS.map((letter, idx) => (
+            <div key={letter} className="flex h-(--control-h) items-center gap-3">
+              <span className="w-6 text-center text-label uppercase text-muted-foreground">
+                {letter}
+              </span>
+              <Input
+                value={options[idx]?.text ?? ''}
+                onChange={(e) => handleTextChange(idx, e.target.value)}
+                placeholder={`Option ${letter.toUpperCase()}`}
+                disabled={disabled}
+                className="flex-1"
+              />
+            </div>
+          ))}
         </div>
-      ))}
+        <RadioGroup
+          value={correctOptionId || null}
+          onValueChange={(v) => onCorrectChange(v as (typeof OPTION_IDS)[number])}
+          disabled={disabled}
+          className="flex flex-col gap-3"
+        >
+          {OPTION_IDS.map((letter) => (
+            <span
+              key={letter}
+              className="flex h-(--control-h) items-center gap-1.5 text-caption text-muted-foreground"
+            >
+              <Radio value={letter} aria-label={`Mark option ${letter.toUpperCase()} as correct`} />{' '}
+              Correct
+            </span>
+          ))}
+        </RadioGroup>
+      </div>
     </div>
   )
 }

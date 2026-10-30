@@ -71,3 +71,9 @@ describe('layout tokens (AC 1)', () => {
     expect(pkg).not.toContain('@tailwindcss/typography')
   })
 })
+
+describe('layout tokens (B2b-12 AC 7)', () => {
+  it('--layout-setup-rows is auto 1fr', () => {
+    expect(decl('layout-setup-rows')).toBe('auto 1fr')
+  })
+})

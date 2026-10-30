@@ -73,6 +73,7 @@ export const CONTAINERS = {
 // Layout variables. Grid templates are consumed as `grid-cols-(--layout-*)`.
 export const LAYOUT = {
   'layout-setup': 'var(--spacing-setup-rail) minmax(0, 1fr)',
+  'layout-setup-rows': 'auto 1fr',
   'layout-session':
     'minmax(0, 1fr) minmax(0, var(--container-reading)) minmax(calc(var(--spacing-rail) + var(--spacing-section)), 1fr)',
   'layout-saved-row': 'minmax(0, 1fr) var(--spacing-progress) auto',

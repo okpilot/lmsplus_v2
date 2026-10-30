@@ -14,6 +14,7 @@ import { useState } from 'react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { BusyLabel } from '@/components/ui/busy-label'
 import { Button } from '@/components/ui/button'
+import { useMediaQuery } from '../_hooks/use-media-query'
 import {
   allPlacementsCorrect,
   canonicalTextFor,
@@ -30,6 +31,8 @@ import {
 } from './diagram-label-input-helpers'
 import { DiagramLabelPool } from './diagram-label-pool'
 import { DiagramLabelZone } from './diagram-label-zone'
+import { DiagramAnswerRow, DiagramTapPool, DiagramZoneMarker } from './diagram-tap-list'
+import { type Armed, tapLabel, tapPool, tapRow } from './diagram-tap-state'
 import { getDiagramComponent } from './diagrams/registry'
 
 type DiagramLabelInputProps = Readonly<{
@@ -63,6 +66,9 @@ export function DiagramLabelInput({
     placementFromSubmitted(zones, labels, submitted, submittedMapping),
   )
 
+  const [armed, setArmed] = useState<Armed>(null)
+  const phone = useMediaQuery('(max-width: 639.98px)')
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
@@ -91,6 +97,11 @@ export function DiagramLabelInput({
     setPlacement((prev) => placeLabel(prev, overId, labelId))
   }
 
+  function applyTap(next: { placement: Map<string, string>; armed: Armed }) {
+    setPlacement(next.placement)
+    setArmed(next.armed)
+  }
+
   function handleSubmit() {
     if (placement.size > 0) onSubmit(serializeMapping(placement))
   }
@@ -111,20 +122,60 @@ export function DiagramLabelInput({
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <div className="relative aspect-video w-full overflow-hidden rounded-control border border-border bg-card p-2">
           <DiagramArt />
-          {zones.map((zone, i) => (
-            <DiagramLabelZone
-              key={zone.id}
-              zone={zone}
-              ariaLabel={`Drop zone ${i + 1} of ${zones.length}`}
-              placedLabel={labels.find((l) => l.id === placement.get(zone.id)) ?? null}
-              disabled={itemsDisabled}
-              result={graded ? zoneResult(zone.id, placement, correctMapping) : undefined}
-              canonicalText={graded ? canonicalTextFor(zone.id, labels, correctMapping) : undefined}
-            />
-          ))}
+          {phone
+            ? zones.map((zone, i) => (
+                <DiagramZoneMarker
+                  key={zone.id}
+                  zone={zone}
+                  n={i + 1}
+                  filled={placement.has(zone.id)}
+                  result={graded ? zoneResult(zone.id, placement, correctMapping) : undefined}
+                />
+              ))
+            : zones.map((zone, i) => (
+                <DiagramLabelZone
+                  key={zone.id}
+                  zone={zone}
+                  ariaLabel={`Drop zone ${i + 1} of ${zones.length}`}
+                  placedLabel={labels.find((l) => l.id === placement.get(zone.id)) ?? null}
+                  disabled={itemsDisabled}
+                  result={graded ? zoneResult(zone.id, placement, correctMapping) : undefined}
+                  canonicalText={
+                    graded ? canonicalTextFor(zone.id, labels, correctMapping) : undefined
+                  }
+                />
+              ))}
         </div>
 
-        {!locked && <DiagramLabelPool labels={pool} disabled={itemsDisabled} />}
+        {phone && (
+          <ol className="space-y-2">
+            {zones.map((zone, i) => (
+              <DiagramAnswerRow
+                key={zone.id}
+                zone={zone}
+                n={i + 1}
+                placed={labels.find((l) => l.id === placement.get(zone.id)) ?? null}
+                armed={armed}
+                disabled={itemsDisabled}
+                result={graded ? zoneResult(zone.id, placement, correctMapping) : undefined}
+                canonicalText={
+                  graded ? canonicalTextFor(zone.id, labels, correctMapping) : undefined
+                }
+                onTap={(zoneId) => applyTap(tapRow({ placement, armed }, zoneId))}
+              />
+            ))}
+          </ol>
+        )}
+        {!locked && phone && (
+          <DiagramTapPool
+            labels={pool}
+            armed={armed}
+            disabled={itemsDisabled}
+            onTapLabel={(id) => applyTap(tapLabel({ placement, armed }, id))}
+            onTapPool={() => applyTap(tapPool({ placement, armed }))}
+          />
+        )}
+        {!locked && !phone && <DiagramLabelPool labels={pool} disabled={itemsDisabled} />}
       </DndContext>
 
       {graded && (

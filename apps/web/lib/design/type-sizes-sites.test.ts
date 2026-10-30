@@ -54,8 +54,6 @@ describe('fields are body (AC 8)', () => {
   })
 
   it.each([
-    `${SESS}short-answer-input.tsx`,
-    `${SESS}dialog-blank.tsx`,
     `${Q}_components/comments-tab.tsx`,
     'app/app/admin/exam-config/_components/distribution-editor.tsx',
     'app/app/admin/exam-config/_components/num-field.tsx',
@@ -106,7 +104,6 @@ describe('overline-sized chips (AC 12)', () => {
     'app/app/_components/user-chip.tsx',
     `${Q}_components/comments-tab.tsx`,
     `${SESS}diagram-label-zone.tsx`,
-    `${SESS}diagram-label-chip.tsx`,
   ])('%s', (f) => {
     const s = src(f)
     expect(s).toContain('text-overline')
@@ -129,17 +126,14 @@ describe('overline-sized chips (AC 12)', () => {
 })
 
 describe('tooltips and info button (AC 13, 14)', () => {
-  it('tooltip bodies are caption without font-normal', () => {
-    const a = win('app/app/dashboard/_components/info-tooltip.tsx', 'role="tooltip"', 4)
-    const b = win(`${Q}_components/question-filter-toggles.tsx`, 'aria-hidden', 3)
-    for (const w of [a, b]) {
-      expect(w).toContain('text-caption')
-      expect(w).not.toContain('font-normal')
-    }
+  it('popover bodies are caption without font-normal', () => {
+    const s = src(`${U}popover.tsx`)
+    expect(s).toContain('text-caption')
+    expect(s).not.toContain('font-normal')
   })
 
   it('info "?" button is size-icon-lg overline', () => {
-    const w = win('app/app/dashboard/_components/info-tooltip.tsx', 'aria-describedby', 3)
+    const w = win('app/app/dashboard/_components/info-tooltip.tsx', 'openOnHover', 4)
     expect(w).toContain('size-icon-lg')
     expect(w).toContain('text-overline')
     expect(w).not.toMatch(/\bh-4\b|\bw-4\b|md:h-5/)

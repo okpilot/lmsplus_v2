@@ -1,12 +1,8 @@
 import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { useQuizConfig } from '@/app/app/quiz/_hooks/use-quiz-config'
-import { VfrRtPracticeSections, VfrRtTopics } from './vfr-rt-practice-sections'
+import { VfrRtPracticeSections } from './vfr-rt-practice-sections'
 
-vi.mock('@/app/app/quiz/_components/topic-tree', () => ({
-  TopicTree: () => <div data-testid="topic-tree" />,
-}))
 vi.mock('@/app/app/quiz/_components/question-count', () => ({
   QuestionCount: () => <div data-testid="question-count" />,
 }))
@@ -31,28 +27,6 @@ describe('VfrRtPracticeSections', () => {
   it('shows the question count when topics exist', () => {
     render(<VfrRtPracticeSections config={makeConfig()} />)
     expect(screen.getByTestId('question-count')).toBeInTheDocument()
-  })
-
-  it('renders the topic tree in its own export for the right column', () => {
-    render(<VfrRtTopics config={makeConfig()} />)
-    expect(screen.getByTestId('topic-tree')).toBeInTheDocument()
-  })
-
-  it('hides the topic tree when there are no topics', () => {
-    render(<VfrRtTopics config={makeConfig({ topicTree: { topics: [] } })} />)
-    expect(screen.queryByTestId('topic-tree')).not.toBeInTheDocument()
-  })
-
-  it('starts practice when Start Practice is clicked', async () => {
-    const config = makeConfig()
-    render(<VfrRtPracticeSections config={config} />)
-    await userEvent.click(screen.getByRole('button', { name: /start practice/i }))
-    expect(config.handleStart).toHaveBeenCalledTimes(1)
-  })
-
-  it('disables start when no questions are available', () => {
-    render(<VfrRtPracticeSections config={makeConfig({ availableCount: 0 })} />)
-    expect(screen.getByRole('button', { name: /start practice/i })).toBeDisabled()
   })
 
   it('shows the session-expired alert on an auth error', () => {

@@ -1,6 +1,8 @@
 'use client'
 
 import type { CSSProperties, KeyboardEvent } from 'react'
+import { Input } from '@/components/ui/input'
+import { cn } from '@/lib/utils'
 import type { BlankResult } from '../_utils/dialog-fill-helpers'
 
 /**
@@ -21,8 +23,8 @@ type DialogBlankProps = {
 }
 
 function blankClass(result: BlankResult | undefined): string {
-  if (!result) return 'border-input bg-card focus:border-primary-text'
-  return result.isCorrect ? 'border-success bg-card' : 'border-danger bg-card'
+  if (!result) return ''
+  return result.isCorrect ? 'border-success' : 'border-danger'
 }
 
 /**
@@ -74,7 +76,8 @@ export function DialogBlank({
 }: Readonly<DialogBlankProps>) {
   return (
     <span className="inline-flex min-w-0 flex-col">
-      <input
+      <Input
+        size="sm"
         type="text"
         value={value}
         onChange={(e) => onChange(index, e.target.value)}
@@ -83,7 +86,11 @@ export function DialogBlank({
         data-testid={`blank-${index}`}
         onKeyDown={(e) => handleBlankKeyDown(e, index, onEnter)}
         style={{ '--blank-w': blankWidthCh(value) } as CSSProperties}
-        className={`dialog-blank-input inline-block rounded-inner border px-2 py-1 text-body transition-colors ${result ? '' : 'disabled:opacity-50 disabled:cursor-not-allowed'} ${blankClass(result)}`}
+        className={cn(
+          'dialog-blank-input inline-block w-auto',
+          result && 'disabled:opacity-100',
+          blankClass(result),
+        )}
       />
       {result && !result.isCorrect && (
         <span

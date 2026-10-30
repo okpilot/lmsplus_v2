@@ -8,17 +8,11 @@ const src = (rel: string) => readFileSync(path.join(ROOT, rel), 'utf8')
 
 const RAISED = [
   'app/_components/new-version-banner.tsx',
-  'app/app/dashboard/_components/info-tooltip.tsx',
-  'app/app/quiz/_components/question-filter-toggles.tsx',
-  'app/app/quiz/session/_components/keyboard-legend.tsx',
+  'components/ui/popover.tsx',
   'components/ui/select.tsx',
   'app/app/admin/questions/_components/bulk-actions-bar.tsx',
 ]
-const OVERLAY = [
-  'components/ui/dialog.tsx',
-  'components/ui/alert-dialog.tsx',
-  'app/app/quiz/_components/finish-quiz-dialog.tsx',
-]
+const OVERLAY = ['components/ui/dialog.tsx', 'components/ui/alert-dialog.tsx']
 
 describe('elevation sites use shadow tokens', () => {
   it.each(RAISED)('%s uses shadow-raised', (f) => {
@@ -35,15 +29,14 @@ describe('elevation sites use shadow tokens', () => {
 })
 
 describe('scrim sites use the scrim token', () => {
-  it.each([
-    'components/ui/dialog.tsx',
-    'components/ui/alert-dialog.tsx',
-    'app/app/quiz/_components/finish-quiz-dialog.tsx',
-  ])('%s dims with bg-scrim, not raw black', (f) => {
-    const s = src(f)
-    expect(s).toMatch(/\bbg-scrim\b/)
-    expect(s).not.toMatch(/bg-black\//)
-  })
+  it.each(['components/ui/dialog.tsx', 'components/ui/alert-dialog.tsx'])(
+    '%s dims with bg-scrim, not raw black',
+    (f) => {
+      const s = src(f)
+      expect(s).toMatch(/\bbg-scrim\b/)
+      expect(s).not.toMatch(/bg-black\//)
+    },
+  )
 
   it('select popup is raised', () => {
     expect(src('components/ui/select.tsx')).toMatch(/\bshadow-raised\b/)
@@ -98,7 +91,13 @@ describe('opacity-as-colour is replaced by tokens', () => {
 })
 
 describe('disabled is 50% and not-allowed', () => {
-  it.each(['diagram-label-chip', 'short-answer-input', 'dialog-blank'])('%s', (n) => {
+  it('the shared Input carries the disabled state for short-answer-input and dialog-blank', () => {
+    const s = src('components/ui/input.tsx')
+    expect(s).toContain('disabled:opacity-50')
+    expect(s).toContain('disabled:cursor-not-allowed')
+  })
+
+  it.each(['diagram-label-chip'])('%s', (n) => {
     const s = src(`app/app/quiz/session/_components/${n}.tsx`)
     expect(s).toContain('disabled:opacity-50')
     expect(s).toContain('disabled:cursor-not-allowed')

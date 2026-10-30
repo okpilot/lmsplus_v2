@@ -18,8 +18,8 @@ export function DiagramLabelPool({ labels, disabled }: Readonly<DiagramLabelPool
     <div
       ref={setNodeRef}
       data-testid="diagram-label-pool"
-      className={`flex min-h-12 flex-wrap gap-2 rounded-control border border-dashed p-3 ${
-        isOver ? 'border-primary-text' : 'border-border'
+      className={`flex min-h-12 flex-wrap gap-2 rounded-card border p-3 ${
+        isOver ? 'border-solid border-primary bg-primary/8' : 'border-dashed border-input'
       }`}
     >
       {labels.length === 0 && (

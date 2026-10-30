@@ -107,7 +107,7 @@ export function ImageUploadField({ label, currentUrl, onUploaded, disabled }: Re
         accept="image/png,image/jpeg,image/webp"
         onChange={handleFileChange}
         disabled={disabled || isPending}
-        className="max-w-xs"
+        className="max-w-field"
       />
       {isPending && <p className="text-caption text-muted-foreground">Uploading...</p>}
     </div>

@@ -28,14 +28,15 @@ export function DiagramLabelZone({
 }: Readonly<DiagramLabelZoneProps>) {
   const { setNodeRef, isOver } = useDroppable({ id: zone.id, disabled })
 
+  const baseBg = isOver && !result ? '' : 'bg-background/70'
   const borderClass =
     result === 'correct'
       ? 'border-success'
       : result === 'incorrect'
         ? 'border-danger'
         : isOver
-          ? 'border-primary-text'
-          : 'border-dashed border-muted-foreground/50'
+          ? 'border-solid border-primary bg-primary/8'
+          : 'border-dashed border-input'
 
   return (
     // biome-ignore lint/a11y/useSemanticElements: an absolutely-positioned droppable box can't be a <fieldset> (layout + legend semantics); role="group" is the correct grouping role here
@@ -51,7 +52,7 @@ export function DiagramLabelZone({
         width: `${zone.w * 100}%`,
         height: `${zone.h * 100}%`,
       }}
-      className={`absolute flex items-center justify-center rounded-small border-2 bg-background/70 p-0.5 ${borderClass}`}
+      className={`absolute flex items-center justify-center rounded-inner border p-0.5 ${baseBg} ${borderClass}`}
     >
       {placedLabel ? (
         <DiagramLabelChip
@@ -66,7 +67,7 @@ export function DiagramLabelZone({
       {result === 'incorrect' && canonicalText && (
         <span
           data-testid={`diagram-label-canonical-${zone.id}`}
-          className="absolute -bottom-4 left-0 whitespace-nowrap text-overline leading-none tracking-normal text-muted-foreground"
+          className="absolute left-0 top-full z-10 mt-0.5 whitespace-nowrap rounded-inner bg-card px-1 text-overline leading-none tracking-normal text-foreground shadow-raised"
         >
           {canonicalText}
         </span>

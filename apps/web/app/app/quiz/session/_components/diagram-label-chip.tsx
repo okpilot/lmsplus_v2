@@ -22,7 +22,6 @@ export function DiagramLabelChip({ id, text, disabled, result }: Readonly<Diagra
 
   const style = {
     transform: CSS.Translate.toString(transform),
-    opacity: isDragging ? 0.5 : undefined,
   }
 
   const stateClass =
@@ -30,7 +29,9 @@ export function DiagramLabelChip({ id, text, disabled, result }: Readonly<Diagra
       ? 'border-success bg-card'
       : result === 'incorrect'
         ? 'border-danger bg-card'
-        : 'border-border bg-card'
+        : 'border-input bg-card'
+
+  const liftClass = isDragging ? 'relative z-10 border-primary shadow-raised' : ''
 
   return (
     <button
@@ -43,7 +44,7 @@ export function DiagramLabelChip({ id, text, disabled, result }: Readonly<Diagra
       // Announce the graded state to screen readers / colorblind users — the
       // border colour + data-result attribute alone are not accessible.
       aria-label={result ? `${text}, ${result}` : text}
-      className={`touch-none cursor-grab rounded-small border px-2 py-1 text-overline tracking-normal active:cursor-grabbing disabled:cursor-not-allowed ${result ? '' : 'disabled:opacity-50'} ${stateClass}`}
+      className={`h-7 max-w-full touch-none cursor-grab truncate whitespace-nowrap rounded-inner border px-2 text-caption active:cursor-grabbing disabled:cursor-not-allowed ${result ? '' : 'disabled:opacity-50'} ${stateClass} ${liftClass}`}
       {...attributes}
       {...listeners}
     >
