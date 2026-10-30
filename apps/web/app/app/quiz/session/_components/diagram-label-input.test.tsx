@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -174,5 +174,27 @@ describe('DiagramLabelInput (numbered tap list)', () => {
   it('does not announce a result before grading data arrives', () => {
     renderInput({ submitted: true, submittedMapping: CORRECT })
     expect(screen.queryByTestId('diagram-label-result')).not.toBeInTheDocument()
+  })
+})
+
+describe('DiagramLabelInput pool background while busy', () => {
+  it('ignores a pool background tap while submitting, so the placement stays as submitted', () => {
+    const el = (submitting: boolean) => (
+      <DiagramLabelInput
+        imageRef="known-diagram"
+        zones={ZONES}
+        labels={LABELS}
+        onSubmit={vi.fn()}
+        disabled={false}
+        submitting={submitting}
+      />
+    )
+    const { rerender } = render(el(false))
+    fireEvent.click(screen.getByTestId('diagram-tap-chip-l1'))
+    fireEvent.click(screen.getByTestId('diagram-row-z1'))
+    fireEvent.click(screen.getByTestId('diagram-row-z1'))
+    rerender(el(true))
+    fireEvent.click(screen.getByTestId('diagram-tap-pool'))
+    expect(screen.getByTestId('diagram-row-z1').textContent).toContain('Upwind')
   })
 })

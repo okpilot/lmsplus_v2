@@ -156,7 +156,7 @@ export function DiagramTapPool({
     // biome-ignore lint/a11y/useKeyWithClickEvents: the keyboard path is the Return to pool button
     <div
       data-testid="diagram-tap-pool"
-      onClick={onTapPool}
+      onClick={disabled ? undefined : onTapPool}
       className="sticky bottom-(--pool-bottom) z-10 sm:bottom-4 flex min-h-12 flex-nowrap items-center gap-2 overflow-x-auto rounded-card border border-input bg-card p-2 shadow-raised [scrollbar-width:none]"
     >
       {placedArmed && (
@@ -164,7 +164,10 @@ export function DiagramTapPool({
           type="button"
           variant="outline"
           disabled={disabled}
-          onClick={onTapPool}
+          onClick={(e) => {
+            e.stopPropagation()
+            onTapPool()
+          }}
           className={cn(CHIP, 'border-primary')}
         >
           Return to pool
