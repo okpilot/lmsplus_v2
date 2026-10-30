@@ -24,7 +24,7 @@ The primary competitive baseline is Aviationexam. LMS Plus differentiates by off
 
 1. **Authentication**: Email + password login with pre-created accounts (no self-registration). Password reset flow. Session recovery across deployments.
 
-2. **Student Dashboard**: Per-subject progress cards with colour-coded mastery bars (red/amber/green), 31-day activity heatmap, exam readiness score (X/N subjects of the selected course at 90%+), daily question goal tracker, study streak counter.
+2. **Student Dashboard**: Per-subject progress cards with mastery bars (grey until 90%, then green), 31-day activity heatmap, exam readiness score (X/N subjects of the selected course at 90%+), daily question goal tracker, study streak counter.
 
 3. **Quiz System**: Multi-select topic tree for question selection, combinable filters (All/Unseen/Incorrect/Flagged), configurable question count (10 to All), randomised delivery, immediate per-question feedback with explanations, session reports with score breakdown.
 
