@@ -114,7 +114,7 @@ export function DiagramAnswerRow({
         type="button"
         variant="ghost"
         data-testid={`diagram-row-${zone.id}`}
-        aria-pressed={pressed}
+        aria-pressed={locked || result ? undefined : pressed}
         data-result={result}
         disabled={disabled}
         onClick={() => onTap(zone.id)}

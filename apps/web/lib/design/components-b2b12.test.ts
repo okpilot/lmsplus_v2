@@ -155,5 +155,7 @@ describe('B2b-12 AC 11 decision 189', () => {
     expect(line).toContain('#1433')
     expect(line).toContain('hints open on hover, click and tap, the keyboard legend on click')
     expect(line).not.toContain('target zone')
+    expect(line).toContain('every quiz-screen text field is the shared Input')
+    expect(line).not.toContain('every text field')
   })
 })

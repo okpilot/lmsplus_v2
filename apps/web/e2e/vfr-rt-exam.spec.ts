@@ -70,9 +70,12 @@ async function detectType(page: Page): Promise<AnswerType> {
 
 async function tapChipOntoFirstRow(page: Page): Promise<void> {
   const row = page.locator(DIAGRAM_ROW).first()
-  await page.locator(DIAGRAM_CHIP).first().click()
+  const chip = page.locator(DIAGRAM_CHIP).first()
+  const label = ((await chip.textContent()) ?? '').trim()
+  expect(label).not.toBe('')
+  await chip.click()
   await row.click()
-  await expect(row).not.toContainText(/tap, then pick a label/i)
+  await expect(row).toContainText(label)
 }
 
 /** Answers the visible question and asserts it locks with no correctness feedback. */

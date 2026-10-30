@@ -172,6 +172,13 @@ describe('DiagramLabelInput on every screen (tap-list amendment AC 1)', () => {
     expect(screen.getByTestId('diagram-row-z1')).toHaveAccessibleName(/1[\s\S]*Upwind/)
   })
 
+  it('submitted rows are not announced as toggle buttons', () => {
+    renderInput({ submitted: true })
+    for (const z of ZONES) {
+      expect(screen.getByTestId(`diagram-row-${z.id}`)).not.toHaveAttribute('aria-pressed')
+    }
+  })
+
   it('armed pool chip and armed row expose aria-pressed (AC 5)', async () => {
     renderInput()
     const chip = screen.getByTestId('diagram-tap-chip-l1')
