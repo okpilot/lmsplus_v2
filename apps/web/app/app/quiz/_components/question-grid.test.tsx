@@ -1,6 +1,9 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { scrollPanelToCurrent } from '../_utils/scroll-panel-to-current'
 import { QuestionGrid } from './question-grid'
+
+vi.mock('../_utils/scroll-panel-to-current', () => ({ scrollPanelToCurrent: vi.fn() }))
 
 const IDS = ['q1', 'q2', 'q3', 'q4', 'q5']
 const MANY_IDS = Array.from({ length: 40 }, (_, i) => `q${i + 1}`)
@@ -380,5 +383,33 @@ describe('QuestionGrid — practice answer awaiting feedback', () => {
 
     expect(desktopBtn(1).className).toContain('ring-primary')
     expect(desktopBtn(1)).toHaveAttribute('data-status', 'answered')
+  })
+})
+
+describe('QuestionGrid — panel scroll sync', () => {
+  const baseProps = {
+    totalQuestions: 5,
+    currentIndex: 0,
+    pinnedIds: new Set<string>(),
+    flaggedIds: new Set<string>(['q1']),
+    questionIds: IDS,
+    feedbackMap: new Map<string, { isCorrect: boolean }>(),
+    onNavigate: vi.fn(),
+  }
+
+  it('scrolls the desktop grid panel when currentIndex changes', () => {
+    const { rerender } = render(<QuestionGrid {...baseProps} />)
+    const grid = screen.getByTestId('question-grid')
+    vi.mocked(scrollPanelToCurrent).mockClear()
+    rerender(<QuestionGrid {...baseProps} currentIndex={3} />)
+    expect(scrollPanelToCurrent).toHaveBeenCalledWith(grid)
+  })
+
+  it('scrolls the desktop grid panel when the filter changes', () => {
+    render(<QuestionGrid {...baseProps} />)
+    const grid = screen.getByTestId('question-grid')
+    vi.mocked(scrollPanelToCurrent).mockClear()
+    fireEvent.click(screen.getByTestId('filter-flagged'))
+    expect(scrollPanelToCurrent).toHaveBeenCalledWith(grid)
   })
 })

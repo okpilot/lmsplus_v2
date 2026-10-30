@@ -1,7 +1,8 @@
 'use client'
 
-import { type ReactNode, useEffect, useState } from 'react'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { useGridWindow } from '../_hooks/use-grid-window'
+import { scrollPanelToCurrent } from '../_utils/scroll-panel-to-current'
 import { FilterRow, GridToggle } from './filter-pill'
 import { buildSquares, type GridFilter } from './question-grid-squares'
 
@@ -83,6 +84,13 @@ export function QuestionGrid({
   const [filter, setFilter] = useState<GridFilter>('all')
   const flaggedCount = flaggedIds.size
   const pinnedCount = pinnedIds.size
+  const gridRef = useRef<HTMLDivElement>(null)
+
+  // DOM scroll sync (not data fetching): keep the current square in view inside the panel.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: currentIndex and filter are the triggers
+  useEffect(() => {
+    scrollPanelToCurrent(gridRef.current)
+  }, [currentIndex, filter])
 
   useEffect(() => {
     if (filter === 'flagged' && flaggedCount === 0) setFilter('all')
@@ -113,6 +121,7 @@ export function QuestionGrid({
       />
       <div
         data-testid="question-grid"
+        ref={gridRef}
         className="hidden grid-cols-(--layout-squares-panel) gap-1.5 lg:grid"
       >
         {squares}

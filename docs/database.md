@@ -2634,7 +2634,7 @@ Returns a single aggregate row with the caller's completed-session count and ave
 
 **Returns:** `TABLE(total_sessions BIGINT, avg_score NUMERIC)` — a no-`GROUP BY` aggregate always yields exactly one row.
 - `total_sessions` — `COUNT(*)` of the caller's `quiz_sessions` with `ended_at IS NOT NULL`, `deleted_at IS NULL`, and `score_percentage IS NOT NULL`. The non-null-score predicate makes the count match the legacy `.filter(s => s.score_percentage !== null)` set.
-- `avg_score` — raw `AVG(score_percentage)` over the same filtered set (`NULL` when none). `Math.round()` and the `totalSessions > 0 ? .. : 0` guard stay in TypeScript, which consumes the raw value (`avg_score` arrives as a JSON string because `score_percentage` is `NUMERIC(5,2)`; the caller coerces with `Number()`).
+- `avg_score` — raw `AVG(score_percentage)` over the same filtered set (`NULL` when none). `avg_score` arrives as a JSON string because `score_percentage` is `NUMERIC(5,2)`.
 
 **Migration:** `20260529000001_student_profile_stats_rpc.sql`; filters call `(select auth.uid())` since `20261017000300_invoker_rpcs_select_auth_uid.sql` (#1414)
 
