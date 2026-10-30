@@ -31,7 +31,7 @@ export function ChoicePills<T extends string | number>({
             key={option.value}
             type="button"
             size="sm"
-            className="rounded-full border-border"
+            className="rounded-pill border-border"
             aria-pressed={picked}
             variant="toggle"
             onClick={() => onChange(option.value)}

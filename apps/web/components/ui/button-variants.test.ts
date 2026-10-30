@@ -21,9 +21,9 @@ describe('buttonVariants', () => {
     expect(sm).not.toContain('text-[0.8rem]')
   })
 
-  it.each(['icon', 'icon-sm'] as const)('rounds the %s size fully', (size) => {
+  it.each(['icon', 'icon-sm'] as const)('rounds the %s size to a pill', (size) => {
     const classes = buttonVariants({ size })
-    expect(classes).toContain('rounded-full')
+    expect(classes).toContain('rounded-pill')
     expect(classes).not.toMatch(/(^|\s)rounded-control(\s|$)/)
   })
 

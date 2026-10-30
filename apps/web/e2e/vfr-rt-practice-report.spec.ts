@@ -95,7 +95,11 @@ test.describe('VFR RT practice report routing', () => {
     // Question order is shuffled; step forward to a short-answer question and answer it.
     const input = page.locator('[data-testid="short-answer-input"]')
     for (let i = 0; i < 30 && (await input.count()) === 0; i++) {
-      await page.getByRole('button', { name: 'Next ›' }).click()
+      // No Next before an answer: step through the navigator squares.
+      await page
+        .locator(`[data-testid="grid-btn-${i + 1}"]:visible`)
+        .first()
+        .click()
       await expect(page.getByText(`Question ${i + 2} of`)).toBeVisible()
     }
     await expect(input).toHaveCount(1)

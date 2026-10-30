@@ -71,9 +71,9 @@ export function CommentsTab({ questionId, currentUserId }: Readonly<CommentsTabP
           return (
             <div
               key={c.id}
-              className={`flex gap-3 ${isAdmin ? 'rounded-lg bg-primary/5 p-3' : ''}`}
+              className={`flex gap-3 ${isAdmin ? 'rounded-card bg-primary/5 p-3' : ''}`}
             >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-overline tracking-normal font-semibold bg-muted text-muted-foreground">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-pill text-overline tracking-normal font-semibold bg-muted text-muted-foreground">
                 {getInitials(name)}
               </div>
               <div className="min-w-0 flex-1">
@@ -119,7 +119,7 @@ export function CommentsTab({ questionId, currentUserId }: Readonly<CommentsTabP
           onChange={(e) => setBody(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
           placeholder="Add a comment..."
-          className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-body placeholder:text-muted-foreground focus:border-primary-text focus:outline-none"
+          className="flex-1 rounded-control border border-border bg-background px-3 py-2 text-body placeholder:text-muted-foreground focus:border-primary-text focus:outline-none"
           disabled={submitting}
         />
         <Button

@@ -17,9 +17,9 @@ export function ShortAnswerReport({ responseText, canonicalAnswer, isCorrect }: 
         <span className="font-medium">Your answer:</span>
         <span>{hasResponse ? responseText : '—'}</span>
         {isCorrect ? (
-          <Check size={12} aria-hidden className="ml-1 shrink-0" />
+          <Check aria-hidden className="ml-1 size-icon-sm shrink-0" />
         ) : (
-          <X size={12} aria-hidden className="ml-1 shrink-0" />
+          <X aria-hidden className="ml-1 size-icon-sm shrink-0" />
         )}
       </div>
       {!isCorrect && canonicalAnswer && (

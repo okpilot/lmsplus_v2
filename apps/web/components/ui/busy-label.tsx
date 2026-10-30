@@ -10,7 +10,7 @@ import type { ReactNode } from 'react'
 export function BusyLabel({ busy, children }: Readonly<{ busy: boolean; children: ReactNode }>) {
   return (
     <>
-      {busy && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
+      {busy && <Loader2 aria-hidden="true" className="size-icon animate-spin" />}
       <span key={busy ? 'busy' : 'idle'} className="contents">
         {children}
       </span>

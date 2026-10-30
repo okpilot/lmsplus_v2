@@ -34,7 +34,7 @@ export function StudentsPageShell({ students, courses, filters }: Readonly<Props
           courses={courses}
           trigger={
             <Button size="sm">
-              <Plus className="mr-1.5 size-4" />
+              <Plus className="mr-1.5 size-icon" />
               New Student
             </Button>
           }

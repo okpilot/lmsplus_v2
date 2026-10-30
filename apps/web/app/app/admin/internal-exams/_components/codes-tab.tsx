@@ -33,7 +33,7 @@ export function CodesTab({
   const [issued, setIssued] = useState<IssuedCode | null>(null)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-section">
       <IssueCodeForm
         students={students}
         subjects={subjects}

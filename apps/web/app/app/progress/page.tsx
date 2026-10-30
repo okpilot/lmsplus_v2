@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 
 export default function ProgressPage() {
   return (
-    <main className="space-y-6">
+    <main className="space-y-section">
       <PageHeader
         title="Progress"
         description="Detailed breakdown of your mastery across all EASA subjects."

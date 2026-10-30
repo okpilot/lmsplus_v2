@@ -5,7 +5,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 // server-side lookup-failure notices on the quiz page.
 function LookupAlert({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <Alert tone="danger" role="alert" className="mx-auto max-w-md">
+    <Alert tone="danger" role="alert">
       <AlertDescription>{children}</AlertDescription>
     </Alert>
   )

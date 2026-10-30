@@ -7,7 +7,7 @@ import { ExamConfigRowsSkeleton } from './_components/exam-config-rows-skeleton'
 export default async function ExamConfigPage() {
   await requireAdmin()
   return (
-    <div className="space-y-6">
+    <div className="space-y-section">
       <PageHeader
         title="Exam Configuration"
         description="Configure practice exam parameters for each EASA PPL subject."

@@ -43,7 +43,11 @@ export function TopicRow({
           onClick={onToggleExpand}
           className="text-muted-foreground"
         >
-          {isExpanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+          {isExpanded ? (
+            <ChevronDown className="size-icon" />
+          ) : (
+            <ChevronRight className="size-icon" />
+          )}
         </Button>
       ) : (
         !indented && <span className="w-7" />

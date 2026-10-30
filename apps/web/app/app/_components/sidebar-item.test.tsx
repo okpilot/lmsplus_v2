@@ -40,7 +40,7 @@ describe('SidebarItem', () => {
     expect(link.className).toContain('h-9')
     expect(link.className).toContain('text-caption')
     expect(link.className).not.toContain('text-[13px]')
-    expect(link.querySelector('svg')?.getAttribute('class')).toContain('size-[18px]')
+    expect(link.querySelector('svg')?.getAttribute('class')).toContain('size-icon-nav')
   })
 })
 
@@ -63,7 +63,7 @@ describe('RowIcon', () => {
   it('renders an 18px icon without opacity', () => {
     const { container } = render(<RowIcon paths={['M0 0']} />)
     expect(container.querySelector('svg')?.parentElement).toBe(container)
-    expect(container.querySelector('svg')?.getAttribute('class')).toContain('size-[18px]')
+    expect(container.querySelector('svg')?.getAttribute('class')).toContain('size-icon-nav')
     expect(container.querySelector('.opacity-70')).toBeNull()
   })
 })

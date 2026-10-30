@@ -53,7 +53,7 @@ export function PaginationBar({
           disabled={effectivePage <= 1}
           onClick={() => goToPage(effectivePage - 1)}
         >
-          <ChevronLeft className="size-4" />
+          <ChevronLeft className="size-icon" />
         </Button>
         {items.map((item) =>
           item.type === 'ellipsis' ? (
@@ -82,7 +82,7 @@ export function PaginationBar({
           disabled={effectivePage >= totalPages}
           onClick={() => goToPage(effectivePage + 1)}
         >
-          <ChevronRight className="size-4" />
+          <ChevronRight className="size-icon" />
         </Button>
       </div>
     </div>

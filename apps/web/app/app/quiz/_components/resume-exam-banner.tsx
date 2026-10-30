@@ -76,7 +76,7 @@ export function ResumeExamBanner({ userId, exam, discardOnly, sessionId }: Reado
     : `${exam.subjectName} — session interrupted`
 
   return (
-    <Alert tone="caution" className="mx-auto mb-4 max-w-md">
+    <Alert tone="caution" layout="row">
       <AlertTitle>{title}</AlertTitle>
       <AlertDescription>{subtitle}</AlertDescription>
       <FieldError role="alert">{error}</FieldError>

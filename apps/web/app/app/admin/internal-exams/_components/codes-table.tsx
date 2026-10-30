@@ -74,9 +74,9 @@ export function CodesTable({ rows, status, totalCount, pageSize }: Readonly<Prop
         <TableHeader>
           <TableRow>
             <TableHead className="w-24">Status</TableHead>
-            <TableHead className="min-w-[140px]">Code</TableHead>
-            <TableHead className="min-w-[160px]">Student</TableHead>
-            <TableHead className="min-w-[140px]">Subject</TableHead>
+            <TableHead className="min-w-col-sm">Code</TableHead>
+            <TableHead className="min-w-col-md">Student</TableHead>
+            <TableHead className="min-w-col-sm">Subject</TableHead>
             <TableHead className="w-40">Issued</TableHead>
             <TableHead className="w-40">Expires</TableHead>
             <TableHead className="w-32">Email</TableHead>

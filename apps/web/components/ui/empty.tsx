@@ -30,7 +30,7 @@ const emptyMediaVariants = cva('flex shrink-0 items-center justify-center', {
   variants: {
     variant: {
       default: '',
-      icon: 'size-12 rounded-full bg-muted text-muted-foreground [&_svg]:size-6',
+      icon: 'size-12 rounded-pill bg-muted text-muted-foreground [&_svg]:size-icon-xl',
     },
   },
   defaultVariants: { variant: 'default' },

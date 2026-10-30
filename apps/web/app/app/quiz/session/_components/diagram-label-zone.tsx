@@ -51,7 +51,7 @@ export function DiagramLabelZone({
         width: `${zone.w * 100}%`,
         height: `${zone.h * 100}%`,
       }}
-      className={`absolute flex items-center justify-center rounded-md border-2 bg-background/70 p-0.5 ${borderClass}`}
+      className={`absolute flex items-center justify-center rounded-small border-2 bg-background/70 p-0.5 ${borderClass}`}
     >
       {placedLabel ? (
         <DiagramLabelChip

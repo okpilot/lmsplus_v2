@@ -13,9 +13,7 @@ type QuestionCountProps = {
 const PRESETS = [10, 25, 50] as const
 
 function NoQuestions() {
-  return (
-    <EmptyNote variant="inline">No questions available. Select at least one topic above.</EmptyNote>
-  )
+  return <EmptyNote variant="inline">No questions available. Select at least one topic.</EmptyNote>
 }
 
 function CountPill({
@@ -34,7 +32,7 @@ function CountPill({
       type="button"
       size="sm"
       variant="toggle"
-      className="rounded-full border-border"
+      className="rounded-pill border-border"
       aria-pressed={pressed}
       disabled={disabled}
       onClick={onClick}

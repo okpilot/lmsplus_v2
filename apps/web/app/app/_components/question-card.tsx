@@ -20,12 +20,12 @@ export function QuestionCard({
     <div className="space-y-4">
       {questionNumber != null && totalQuestions != null && (
         <div className="flex items-center justify-between">
-          <p className="text-caption font-medium text-muted-foreground">
+          <p className="text-label font-semibold">
             Question {questionNumber} of {totalQuestions}
           </p>
           {dbQuestionNumber && (
             <span className="tabular-nums text-caption text-muted-foreground">
-              {dbQuestionNumber}
+              No. {dbQuestionNumber}
             </span>
           )}
         </div>

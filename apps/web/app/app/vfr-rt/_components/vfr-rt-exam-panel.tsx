@@ -51,7 +51,7 @@ export function VfrRtExamPanel({
     subjects,
   })
   return (
-    <div className="space-y-4">
+    <div className="space-y-stack">
       <ExamParameters questionCount={questionCount} />
       <BlockedStartAlert message={error} blocked={blocked} startLabel="the exam" />
       <StartButton

@@ -24,7 +24,7 @@ function TabsTab({ className, ...props }: Readonly<TabsPrimitive.Tab.Props>) {
     <TabsPrimitive.Tab
       data-slot="tabs-tab"
       className={cn(
-        'group inline-flex h-(--control-h) items-center gap-1.5 rounded-[calc(var(--radius-control)-2px)] border border-transparent px-3 text-label whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring data-active:border-primary data-active:bg-card data-active:text-primary-text',
+        'group inline-flex h-(--control-h) items-center gap-1.5 rounded-inner border border-transparent px-3 text-label whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring data-active:border-primary data-active:bg-card data-active:text-primary-text',
         className,
       )}
       {...props}
@@ -41,7 +41,7 @@ function TabCount({ className, ...props }: Readonly<React.ComponentProps<'span'>
     <span
       data-slot="tab-count"
       className={cn(
-        'inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-card px-1 text-caption font-medium text-muted-foreground tabular-nums group-data-active:bg-info-soft group-data-active:text-primary-text',
+        'inline-flex h-5 min-w-5 items-center justify-center rounded-pill bg-card px-1 text-caption font-medium text-muted-foreground tabular-nums group-data-active:bg-primary-soft group-data-active:text-primary-text',
         className,
       )}
       {...props}

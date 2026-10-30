@@ -22,7 +22,7 @@ const moreTone = (on: boolean) =>
 
 function MoreIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="size-5" fill="currentColor" aria-hidden="true">
+    <svg viewBox="0 0 24 24" className="size-icon-lg" fill="currentColor" aria-hidden="true">
       <circle cx="5" cy="12" r="1.8" />
       <circle cx="12" cy="12" r="1.8" />
       <circle cx="19" cy="12" r="1.8" />
@@ -44,11 +44,11 @@ export function MoreSheet({ hidden, activeHref, onClose }: Readonly<SheetProps>)
   }, [])
 
   return (
-    <div className="md:hidden">
+    <div className="sm:hidden">
       <ul
         ref={listRef}
         id={SHEET_ID}
-        className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-nav rounded-t-2xl border-t border-border bg-card px-2 py-2"
+        className="fixed inset-x-0 bottom-(--tab-bar-h) z-nav rounded-t-sheet border-t border-border bg-card px-2 py-2"
       >
         {hidden.map((item) => (
           <li key={item.href}>
@@ -56,9 +56,9 @@ export function MoreSheet({ hidden, activeHref, onClose }: Readonly<SheetProps>)
               href={item.href}
               aria-current={item.href === activeHref ? 'page' : undefined}
               onClick={onClose}
-              className={`flex h-11 items-center gap-3 rounded-lg px-3 text-label ${sheetTone(item.href === activeHref)}`}
+              className={`flex h-11 items-center gap-3 rounded-control px-3 text-label ${sheetTone(item.href === activeHref)}`}
             >
-              {item.icon && <NavIcon name={item.icon} className="size-5" />}
+              {item.icon && <NavIcon name={item.icon} className="size-icon-lg" />}
               <span className="truncate">{item.label}</span>
             </Link>
           </li>
@@ -74,7 +74,7 @@ export function MoreBackdrop({ onDismiss }: Readonly<{ onDismiss: () => void }>)
     <Button
       variant="ghost"
       aria-label="Close menu"
-      className="fixed inset-0 z-scrim size-auto cursor-default rounded-none bg-scrim hover:bg-scrim md:hidden dark:hover:bg-scrim"
+      className="fixed inset-0 z-scrim size-auto cursor-default rounded-none bg-scrim hover:bg-scrim sm:hidden dark:hover:bg-scrim"
       onClick={onDismiss}
     />
   )

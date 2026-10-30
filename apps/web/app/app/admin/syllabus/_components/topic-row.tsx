@@ -85,7 +85,7 @@ export function TopicRow({ topic, subjectId }: Readonly<Props>) {
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <div className="flex items-center gap-2 rounded-md px-2 py-2.5 lg:py-1.5 hover:bg-muted">
+      <div className="flex items-center gap-2 rounded-small px-2 py-2.5 lg:py-1.5 hover:bg-muted">
         <CollapsibleTrigger
           render={
             <Button
@@ -95,7 +95,9 @@ export function TopicRow({ topic, subjectId }: Readonly<Props>) {
             />
           }
         >
-          <ChevronRight className={`size-3.5 transition-transform ${open ? 'rotate-90' : ''}`} />
+          <ChevronRight
+            className={`size-icon-sm transition-transform ${open ? 'rotate-90' : ''}`}
+          />
         </CollapsibleTrigger>
 
         <span className="w-16 tabular-nums text-body">{topic.code}</span>

@@ -41,9 +41,7 @@ function spy(name: string) {
 vi.mock('../../_components/question-grid', () => ({ QuestionGrid: spy('grid') }))
 vi.mock('../../_components/question-tabs', () => ({ QuestionTabs: () => null }))
 vi.mock('./quiz-session-header', () => ({ QuizSessionHeader: spy('header') }))
-vi.mock('./quiz-session-meta-row', () => ({ QuizSessionMetaRow: spy('meta') }))
-vi.mock('./quiz-main-panel', () => ({ QuizMainPanel: () => null }))
-vi.mock('./quiz-session-footer', () => ({ QuizSessionFooter: () => null }))
+vi.mock('./quiz-question-card', () => ({ QuizQuestionCard: () => null }))
 vi.mock('./quiz-finish-dialog-host', () => ({ QuizFinishDialogHost: () => null }))
 
 import { QuizSession } from './quiz-session'
@@ -110,7 +108,6 @@ describe('QuizSession — resumed from the server', () => {
     renderIt()
 
     expect(seen.header?.initialActiveMs).toBe(42_000)
-    expect(seen.meta?.initialActiveMs).toBe(42_000)
   })
 
   it('tells the question grid which practice questions are answered', () => {

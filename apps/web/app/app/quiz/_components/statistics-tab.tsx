@@ -2,7 +2,7 @@
 
 import { Alert, AlertAction, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { CardList } from '@/components/ui/card'
+import { CardList, CardListRow } from '@/components/ui/card'
 import { EmptyNote } from '@/components/ui/empty'
 import { Heading } from '@/components/ui/heading'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -99,9 +99,9 @@ function StatRow({
   className?: string
 }>) {
   return (
-    <div className="flex justify-between px-4 py-3">
+    <CardListRow className="flex justify-between">
       <span className="text-body text-muted-foreground">{label}</span>
       <span className={`text-label font-semibold tabular-nums ${className ?? ''}`}>{value}</span>
-    </div>
+    </CardListRow>
   )
 }

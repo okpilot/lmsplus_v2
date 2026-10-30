@@ -23,14 +23,6 @@ test.describe('Settings — Page & Profile', () => {
     await expect(page.getByText(TEST_EMAIL)).toBeVisible()
     await expect(page.getByText('Member since')).toBeVisible()
   })
-
-  test('shows quiz statistics section', async ({ page }) => {
-    await gotoSettings(page)
-    await expect(page.getByText('Quiz Statistics')).toBeVisible()
-    await expect(page.getByText('Sessions')).toBeVisible()
-    await expect(page.getByText('Avg. Score')).toBeVisible()
-    await expect(page.getByText('Answered')).toBeVisible()
-  })
 })
 
 // ── Section 2: Display Name ──────────────────────────────────────────────────

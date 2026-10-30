@@ -1,15 +1,15 @@
 import { Skeleton } from '@/components/ui/skeleton'
 
 export function HeatmapSkeleton() {
-  return <Skeleton className="h-[120px] w-full rounded-xl" />
+  return <Skeleton className="h-30 w-full rounded-card" />
 }
 
 export function StatCardsSkeleton() {
   return (
     <div className="grid grid-cols-3 gap-2 md:gap-4">
-      <Skeleton className="h-24 rounded-xl" />
-      <Skeleton className="h-24 rounded-xl" />
-      <Skeleton className="h-24 rounded-xl" />
+      <Skeleton className="h-24 rounded-card" />
+      <Skeleton className="h-24 rounded-card" />
+      <Skeleton className="h-24 rounded-card" />
     </div>
   )
 }
@@ -19,9 +19,9 @@ export function SubjectGridSkeleton() {
     <div>
       <Skeleton className="mb-3 h-6 w-40" />
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <Skeleton className="h-24 rounded-xl" />
-        <Skeleton className="h-24 rounded-xl" />
-        <Skeleton className="h-24 rounded-xl" />
+        <Skeleton className="h-24 rounded-card" />
+        <Skeleton className="h-24 rounded-card" />
+        <Skeleton className="h-24 rounded-card" />
       </div>
     </div>
   )

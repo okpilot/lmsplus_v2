@@ -31,10 +31,10 @@ export function DiagramLabelReport({ zones, correctCount, totalZones }: Readonly
                 screen readers, mirroring ordering-report's per-slot status. */}
             <span className="sr-only">{zone.isCorrect ? 'Correct' : 'Incorrect'}</span>
             {zone.isCorrect ? (
-              <Check size={12} aria-hidden className="ml-1 shrink-0" />
+              <Check aria-hidden className="ml-1 size-icon-sm shrink-0" />
             ) : (
               <>
-                <X size={12} aria-hidden className="ml-1 shrink-0" />
+                <X aria-hidden className="ml-1 size-icon-sm shrink-0" />
                 {zone.correctLabel && (
                   <span className="text-success">(correct: {zone.correctLabel})</span>
                 )}

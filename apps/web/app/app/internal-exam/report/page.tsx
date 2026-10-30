@@ -16,7 +16,7 @@ export default async function InternalExamReportPage({
   })
 
   return (
-    <main className="space-y-6">
+    <main className="space-y-section">
       <ResultSummary summary={summary} />
       <QuestionBreakdown
         questions={questions}

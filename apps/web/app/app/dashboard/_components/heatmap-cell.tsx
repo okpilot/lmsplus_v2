@@ -29,10 +29,10 @@ export function HeatmapCell({
   return (
     <div
       data-testid={`heatmap-cell-${day}`}
-      className="flex min-w-[30px] flex-col items-center gap-0.5 md:min-w-[38px] md:flex-1"
+      className="flex min-w-7.5 flex-col items-center gap-0.5 md:min-w-9.5 md:flex-1"
     >
       <div
-        className={`flex h-[38px] w-full flex-col items-center justify-center gap-0.5 rounded-md md:h-[46px] ${cellBg}${ring} p-1`}
+        className={`flex h-9.5 w-full flex-col items-center justify-center gap-0.5 rounded-small md:h-11.5 ${cellBg}${ring} p-1`}
       >
         {hasActivity ? (
           <>

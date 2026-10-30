@@ -6,7 +6,7 @@ export function CodeChip({ className, ...props }: Readonly<React.ComponentProps<
     <span
       data-slot="code-chip"
       className={cn(
-        'inline-flex h-5 items-center rounded bg-muted px-1.5 text-overline tracking-normal tabular-nums text-muted-foreground',
+        'inline-flex h-5 items-center rounded-inner bg-muted px-1.5 text-overline tracking-normal tabular-nums text-muted-foreground',
         className,
       )}
       {...props}

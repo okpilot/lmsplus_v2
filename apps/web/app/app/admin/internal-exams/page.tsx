@@ -12,7 +12,7 @@ export default async function InternalExamsPage({ searchParams }: Readonly<PageP
   const { status, codesPage, attemptsPage } = parseInternalExamsSearchParams(await searchParams)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-section">
       <PageHeader
         title="Internal Exams"
         description="Issue one-time exam codes to students and review past attempts."

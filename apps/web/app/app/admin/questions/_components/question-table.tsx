@@ -48,7 +48,7 @@ export function QuestionTable({
             />
           </TableHead>
           <TableHead className="w-20">#</TableHead>
-          <TableHead className="min-w-[300px]">Question</TableHead>
+          <TableHead className="min-w-col-xl">Question</TableHead>
           <TableHead className="w-24">Subject</TableHead>
           <TableHead className="w-40">Topic</TableHead>
           <TableHead className="w-20">Calc</TableHead>
@@ -71,7 +71,7 @@ export function QuestionTable({
             <TableCell className="tabular-nums text-caption text-muted-foreground">
               {q.question_number ?? '\u2014'}
             </TableCell>
-            <TableCell className="max-w-[400px]">
+            <TableCell className="max-w-question-cell">
               <div className="flex">
                 <span className="min-w-0 flex-1 truncate" title={q.question_text}>
                   {q.question_text}
@@ -99,7 +99,7 @@ export function QuestionTable({
             <TableCell className="text-caption tabular-nums text-muted-foreground">
               {formatDate(q.updated_at)}
             </TableCell>
-            <TableCell className="py-2.5 lg:py-2">
+            <TableCell>
               <div className="flex items-center gap-1">
                 <QuestionFormDialog
                   tree={tree}
@@ -111,7 +111,7 @@ export function QuestionTable({
                       title="Edit question"
                       aria-label="Edit question"
                     >
-                      <Pencil className="size-3.5 text-muted-foreground" />
+                      <Pencil className="size-icon-sm text-muted-foreground" />
                     </Button>
                   }
                 />

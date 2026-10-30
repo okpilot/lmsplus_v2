@@ -1,3 +1,5 @@
+import { mergeProps } from '@base-ui/react/merge-props'
+import { useRender } from '@base-ui/react/use-render'
 import type * as React from 'react'
 
 import { cn } from '@/lib/utils'
@@ -33,12 +35,22 @@ function CardList({
   )
 }
 
+/** A row of a `CardList`; only direct children of one. */
+function CardListRow({ className, render, ...props }: Readonly<useRender.ComponentProps<'div'>>) {
+  return useRender({
+    defaultTagName: 'div',
+    props: mergeProps<'div'>({ className: cn('px-card py-row', className) }, props),
+    render,
+    state: { slot: 'card-list-row' },
+  })
+}
+
 function CardHeader({ className, ...props }: Readonly<React.ComponentProps<'div'>>) {
   return (
     <div
       data-slot="card-header"
       className={cn(
-        'group/card-header @container/card-header grid auto-rows-min items-start gap-1 rounded-t-card px-card group-data-[size=sm]/card:px-3 has-data-[slot=card-action]:grid-cols-[1fr_auto] has-data-[slot=card-description]:grid-rows-[auto_auto] [.border-b]:pb-card group-data-[size=sm]/card:[.border-b]:pb-3',
+        'group/card-header @container/card-header grid auto-rows-min items-start gap-1 rounded-t-card px-card group-data-[size=sm]/card:px-3 has-data-[slot=card-action]:grid-cols-(--layout-cols-fill-auto) has-data-[slot=card-description]:grid-rows-(--layout-rows-pair) [.border-b]:pb-card group-data-[size=sm]/card:[.border-b]:pb-3',
         className,
       )}
       {...props}
@@ -107,5 +119,6 @@ export {
   CardFooter,
   CardHeader,
   CardList,
+  CardListRow,
   CardTitle,
 }

@@ -28,7 +28,7 @@ export default async function ReportsPage({
   const dir = parseSortDir(params.dir)
 
   return (
-    <main className="space-y-6">
+    <main className="space-y-section">
       <PageHeader title="Reports" />
       <Suspense fallback={<ReportsContentFallback />}>
         <ReportsContent page={page} sort={sort} dir={dir} />

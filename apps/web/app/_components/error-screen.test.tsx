@@ -14,7 +14,7 @@ describe('ErrorScreen', () => {
 
   it('centres the card in a tall, gutter-padded area', () => {
     const { container } = render(<ErrorScreen action={null}>x</ErrorScreen>)
-    expect(container.firstElementChild?.className).toContain('min-h-[50vh]')
+    expect(container.firstElementChild?.className).toContain('min-h-(--half-screen)')
     expect(container.firstElementChild?.className).toContain('place-items-center')
   })
 

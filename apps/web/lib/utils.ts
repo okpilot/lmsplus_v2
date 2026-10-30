@@ -4,6 +4,8 @@ import {
   CONTAINERS,
   DURATIONS,
   EASING,
+  FIXED_SPACING,
+  ICON_SPACING_KEYS,
   RADIUS_KEYS,
   SPACING,
   TYPE_ROLES,
@@ -16,7 +18,7 @@ const twMerge = extendTailwindMerge({
   extend: {
     theme: {
       text: Object.keys(TYPE_ROLES),
-      spacing: Object.keys(SPACING),
+      spacing: [...Object.keys(SPACING), ...Object.keys(FIXED_SPACING), ...ICON_SPACING_KEYS],
       radius: [...RADIUS_KEYS],
       container: Object.keys(CONTAINERS),
       ease: Object.keys(EASING),

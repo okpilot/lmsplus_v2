@@ -94,7 +94,7 @@ async function startMETExam(page: Page): Promise<void> {
  * "Confirm Answer" is pressed; the confirmed option locks (disabled, no correctness shown).
  */
 async function answerCurrentQuestion(page: Page): Promise<void> {
-  const firstOption = page.locator('button:has(span.rounded-full)').first()
+  const firstOption = page.locator('button[data-testid^="option-"]').first()
   await firstOption.waitFor({ state: 'visible', timeout: 10_000 })
   await firstOption.click()
   await expect(firstOption).toHaveAttribute('data-selected', 'true')
@@ -157,7 +157,7 @@ test.describe('practice exam — refresh recovery', () => {
 
     await expect(page).toHaveURL(sessionUrl)
     await expect(page.getByText(/Question 1 of/)).toBeVisible({ timeout: 15_000 })
-    await expect(page.locator('button:has(span.rounded-full)').first()).toBeDisabled()
+    await expect(page.locator('button[data-testid^="option-"]').first()).toBeDisabled()
     await expect(page.getByText('Practice Exam in progress')).toHaveCount(0)
     // The countdown resolves to a real clock value after the reload, never the '--:--' placeholder.
     await expect(
@@ -195,7 +195,7 @@ test.describe('practice exam — refresh recovery', () => {
     await page.waitForURL(SESSION_ID_URL, { timeout: 10_000 })
     expect(page.url()).toBe(sessionUrl)
     await expect(page.getByText(/Question 1 of/)).toBeVisible({ timeout: 10_000 })
-    await expect(page.locator('button:has(span.rounded-full)').first()).toBeDisabled()
+    await expect(page.locator('button[data-testid^="option-"]').first()).toBeDisabled()
   })
 
   // ── 3. Resume banner: discard ───────────────────────────────────────────────

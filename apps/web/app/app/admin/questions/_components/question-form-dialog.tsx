@@ -68,7 +68,7 @@ export function QuestionFormDialog({ tree, question, trigger }: Readonly<Props>)
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger render={trigger} />
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="max-h-(--dialog-scroll-h) overflow-y-auto sm:max-w-dialog-wide">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Edit Question' : 'New Question'}</DialogTitle>
           <DialogDescription>

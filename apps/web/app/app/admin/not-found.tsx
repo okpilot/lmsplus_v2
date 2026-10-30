@@ -22,7 +22,7 @@ import {
  */
 export default function AdminNotFound() {
   return (
-    <div className="grid min-h-[50vh] place-items-center px-gutter">
+    <div className="grid min-h-(--half-screen) place-items-center px-gutter">
       <Empty>
         <EmptyHeader>
           <EmptyTitle as="h2">Not found</EmptyTitle>

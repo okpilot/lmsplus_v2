@@ -121,12 +121,9 @@ export function McAnswer({
     <AnswerOptions
       key={question.id}
       options={question.options}
-      onSubmit={s.handleSelectAnswer}
       // Options stay clickable mid-RPC (lockedRef prevents re-entry); only a
-      // session submit disables them. `submitting` drives the spinner + the
-      // Submit Answer button's own disabled state during the per-answer RPC.
+      // session submit disables them. The card's action slot owns Submit.
       disabled={s.submitting}
-      submitting={s.answering}
       selectedOptionId={s.existingAnswer?.selectedOptionId ?? null}
       correctOptionId={fb?.correctOptionId ?? null}
       onSelectionChange={onSelectionChange}

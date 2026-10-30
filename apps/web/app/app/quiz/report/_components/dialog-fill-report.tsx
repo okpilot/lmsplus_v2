@@ -32,10 +32,10 @@ export function DialogFillReport({ blanks, correctCount, totalBlanks }: Readonly
                 screen readers, mirroring options-list's per-item status text. */}
             <span className="sr-only">{blank.isCorrect ? 'Correct' : 'Incorrect'}</span>
             {blank.isCorrect ? (
-              <Check size={12} aria-hidden className="ml-1 shrink-0" />
+              <Check aria-hidden className="ml-1 size-icon-sm shrink-0" />
             ) : (
               <>
-                <X size={12} aria-hidden className="ml-1 shrink-0" />
+                <X aria-hidden className="ml-1 size-icon-sm shrink-0" />
                 {blank.canonical && (
                   <span className="text-success">(expected: {blank.canonical})</span>
                 )}

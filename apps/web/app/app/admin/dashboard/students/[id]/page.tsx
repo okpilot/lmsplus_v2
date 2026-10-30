@@ -27,9 +27,9 @@ export default async function StudentDetailPage({ params, searchParams }: Readon
   if (!student) notFound()
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-section">
       <StudentHeader student={student} />
-      <Suspense fallback={<Skeleton className="h-96 rounded-xl" />}>
+      <Suspense fallback={<Skeleton className="h-96 rounded-card" />}>
         <SessionHistoryContent sessionsPromise={sessionsPromise} filters={filters} />
       </Suspense>
     </div>

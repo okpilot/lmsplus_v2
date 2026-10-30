@@ -65,7 +65,7 @@ describe('QuestionCount', () => {
   it('shows empty state message when max is 0', () => {
     render(<QuestionCount value={1} max={0} onValueChange={vi.fn()} />)
     expect(
-      screen.getByText('No questions available. Select at least one topic above.'),
+      screen.getByText('No questions available. Select at least one topic.'),
     ).toBeInTheDocument()
     expect(screen.getByText(/no questions available/i).closest('[data-slot="empty"]')).toBeNull()
   })

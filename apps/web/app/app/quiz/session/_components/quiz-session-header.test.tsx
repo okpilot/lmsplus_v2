@@ -24,7 +24,6 @@ vi.mock('../../_components/exam-countdown-timer', () => ({ ExamCountdownTimer: (
 vi.mock('../../_components/question-tabs', () => ({
   QuestionTabs: () => <div data-testid="question-tabs" />,
 }))
-vi.mock('./exam-session-header', () => ({ ExamBadge: () => null }))
 vi.mock('./keyboard-legend', () => ({ KeyboardLegend: () => null }))
 
 // ---- Subject under test ----------------------------------------------------
@@ -35,8 +34,6 @@ import { QuizSessionHeader } from './quiz-session-header'
 
 const baseProps = {
   isExam: false,
-  currentIndex: 0,
-  totalQuestions: 5,
   submitting: false,
   timerStart: Date.now(),
   activeTab: 'question' as const,
@@ -81,5 +78,18 @@ describe('QuizSessionHeader — desktop tabs', () => {
   it('hides the question tabs in an exam', () => {
     render(<QuizSessionHeader {...baseProps} isExam />)
     expect(screen.queryByTestId('question-tabs')).toBeNull()
+  })
+})
+
+describe('QuizSessionHeader — mode and subject', () => {
+  it('names the session mode and the subject', () => {
+    render(<QuizSessionHeader {...baseProps} mode="study" subjectName="Air Law" />)
+    expect(screen.getByText('Study')).toBeInTheDocument()
+    expect(screen.getByText('Air Law')).toBeInTheDocument()
+  })
+
+  it('names the exam mode in exam sessions', () => {
+    render(<QuizSessionHeader {...baseProps} isExam examMode="vfr_rt_exam" />)
+    expect(screen.getByText('VFR RT Mock Exam')).toBeInTheDocument()
   })
 })

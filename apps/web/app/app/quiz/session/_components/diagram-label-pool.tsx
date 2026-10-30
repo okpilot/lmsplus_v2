@@ -18,7 +18,7 @@ export function DiagramLabelPool({ labels, disabled }: Readonly<DiagramLabelPool
     <div
       ref={setNodeRef}
       data-testid="diagram-label-pool"
-      className={`flex min-h-12 flex-wrap gap-2 rounded-lg border border-dashed p-3 ${
+      className={`flex min-h-12 flex-wrap gap-2 rounded-control border border-dashed p-3 ${
         isOver ? 'border-primary-text' : 'border-border'
       }`}
     >

@@ -74,7 +74,7 @@ export function ConfigFormDialog({ subject, open, onOpenChange }: Readonly<Props
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+      <DialogContent className="max-h-(--dialog-scroll-h) max-w-dialog-wide overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             Configure Exam &mdash; {subject.code} {subject.name}

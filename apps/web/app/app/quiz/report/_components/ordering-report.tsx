@@ -30,10 +30,10 @@ export function OrderingReport({ slots, correctCount, totalItems }: Readonly<Pro
                 screen readers, mirroring dialog-fill-report's per-blank status. */}
             <span className="sr-only">{slot.isCorrect ? 'Correct' : 'Incorrect'}</span>
             {slot.isCorrect ? (
-              <Check size={12} aria-hidden className="ml-1 shrink-0" />
+              <Check aria-hidden className="ml-1 size-icon-sm shrink-0" />
             ) : (
               <>
-                <X size={12} aria-hidden className="ml-1 shrink-0" />
+                <X aria-hidden className="ml-1 size-icon-sm shrink-0" />
                 {slot.canonicalText && (
                   <span className="text-success">(expected: {slot.canonicalText})</span>
                 )}

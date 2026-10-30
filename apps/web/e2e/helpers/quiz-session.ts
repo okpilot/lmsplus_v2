@@ -53,9 +53,9 @@ export async function readServerAnsweredCount(): Promise<number> {
   return rows?.length ?? 0
 }
 
-/** Picks the first option and submits it (the visible Submit button; mobile + desktop both exist). */
+/** Picks the first option and submits it (the card's single Submit button). */
 export async function submitFirstOption(page: Page): Promise<void> {
-  const options = page.locator('button:has(span.rounded-full)')
+  const options = page.locator('button[data-testid^="option-"]')
   await options.first().waitFor({ state: 'visible' })
   await options.first().click()
   await page.getByRole('button', { name: 'Submit Answer' }).first().click()

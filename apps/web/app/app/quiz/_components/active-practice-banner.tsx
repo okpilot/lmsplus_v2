@@ -25,7 +25,7 @@ export function ActivePracticeBanner({
   const modeLabel = MODE_LABELS[session.mode]
 
   return (
-    <Alert tone="caution" className="mx-auto mb-4 max-w-md">
+    <Alert tone="caution" layout="row">
       <AlertTitle>Unfinished {modeLabel} session</AlertTitle>
       <AlertDescription>
         You have an unfinished {modeLabel} session for {session.subjectName}. Resume it, or discard

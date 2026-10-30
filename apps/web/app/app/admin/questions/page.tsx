@@ -51,7 +51,7 @@ export default async function QuestionsPage({ searchParams }: Readonly<PageProps
   const filters = parseFilters(await searchParams)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-section">
       <PageHeader
         title="Question Editor"
         description="Manage questions in the EASA PPL question bank."

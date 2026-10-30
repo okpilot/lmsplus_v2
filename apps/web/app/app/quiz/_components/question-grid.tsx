@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { useGridWindow } from '../_hooks/use-grid-window'
+import { scrollPanelToCurrent } from '../_utils/scroll-panel-to-current'
 import { FilterRow, GridToggle } from './filter-pill'
 import { buildSquares, type GridFilter } from './question-grid-squares'
 
@@ -20,9 +21,54 @@ type QuestionGridProps = {
 
 const GAP = 6
 const MOBILE_SQUARE = 36
-const DESKTOP_SQUARE = 32
 
-// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
+type MobileGridProps = {
+  squares: ReactNode[]
+  filter: GridFilter
+  totalQuestions: number
+  currentIndex: number
+}
+
+// Below `lg` the grid collapses to two rows on the unfiltered view (flagged/pinned always
+// show every match); from `lg` the panel shows every square and scrolls.
+function MobileGrid({ squares, filter, totalQuestions, currentIndex }: Readonly<MobileGridProps>) {
+  const enabled = filter === 'all'
+  const mobile = useGridWindow({
+    minSquare: MOBILE_SQUARE,
+    gap: GAP,
+    totalQuestions,
+    currentIndex,
+    enabled,
+  })
+  // Restore the default two-row window when a filter takes over, so returning
+  // to the unfiltered view starts collapsed. (setExpanded identity is stable.)
+  const { setExpanded } = mobile
+  useEffect(() => {
+    if (!enabled) setExpanded(false)
+  }, [enabled, setExpanded])
+
+  const visible = mobile.collapsed ? squares.slice(mobile.windowStart, mobile.windowEnd) : squares
+  return (
+    <div className="lg:hidden">
+      <div
+        data-testid="question-grid-mobile"
+        ref={mobile.containerRef}
+        className="grid grid-cols-(--layout-squares) gap-1.5"
+      >
+        {visible}
+      </div>
+      {mobile.needsCollapse && (
+        <GridToggle
+          testId="grid-toggle-mobile"
+          expanded={mobile.expanded}
+          totalQuestions={totalQuestions}
+          onToggle={() => setExpanded((v) => !v)}
+        />
+      )}
+    </div>
+  )
+}
+
 export function QuestionGrid({
   totalQuestions,
   currentIndex,
@@ -38,41 +84,18 @@ export function QuestionGrid({
   const [filter, setFilter] = useState<GridFilter>('all')
   const flaggedCount = flaggedIds.size
   const pinnedCount = pinnedIds.size
+  const gridRef = useRef<HTMLDivElement>(null)
+
+  // DOM scroll sync (not data fetching): keep the current square in view inside the panel.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: currentIndex and filter are the triggers
+  useEffect(() => {
+    scrollPanelToCurrent(gridRef.current)
+  }, [currentIndex, filter])
 
   useEffect(() => {
     if (filter === 'flagged' && flaggedCount === 0) setFilter('all')
     if (filter === 'pinned' && pinnedCount === 0) setFilter('all')
   }, [filter, flaggedCount, pinnedCount])
-
-  // Windowing collapses only on the unfiltered view; flagged/pinned always
-  // show every match. Each breakpoint measures its own square size.
-  const enabled = filter === 'all'
-  const desktop = useGridWindow({
-    minSquare: DESKTOP_SQUARE,
-    gap: GAP,
-    totalQuestions,
-    currentIndex,
-    enabled,
-  })
-  const mobile = useGridWindow({
-    minSquare: MOBILE_SQUARE,
-    gap: GAP,
-    totalQuestions,
-    currentIndex,
-    enabled,
-  })
-
-  // Restore the default two-row window when a filter takes over, so returning
-  // to the unfiltered view starts collapsed rather than remembering a prior
-  // expansion. (setExpanded identities are stable useState setters.)
-  const { setExpanded: setDesktopExpanded } = desktop
-  const { setExpanded: setMobileExpanded } = mobile
-  useEffect(() => {
-    if (!enabled) {
-      setDesktopExpanded(false)
-      setMobileExpanded(false)
-    }
-  }, [enabled, setDesktopExpanded, setMobileExpanded])
 
   const squares = buildSquares({
     totalQuestions,
@@ -87,12 +110,6 @@ export function QuestionGrid({
     answeredIds,
     seenIds,
   })
-  const desktopSquares = desktop.collapsed
-    ? squares.slice(desktop.windowStart, desktop.windowEnd)
-    : squares
-  const mobileSquares = mobile.collapsed
-    ? squares.slice(mobile.windowStart, mobile.windowEnd)
-    : squares
 
   return (
     <div className="space-y-2">
@@ -102,42 +119,19 @@ export function QuestionGrid({
         flaggedCount={flaggedCount}
         pinnedCount={pinnedCount}
       />
-      <div className="hidden md:block">
-        <div
-          data-testid="question-grid"
-          ref={desktop.containerRef}
-          className="grid gap-1.5"
-          style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${DESKTOP_SQUARE}px, 1fr))` }}
-        >
-          {desktopSquares}
-        </div>
-        {desktop.needsCollapse && (
-          <GridToggle
-            testId="grid-toggle-desktop"
-            expanded={desktop.expanded}
-            totalQuestions={totalQuestions}
-            onToggle={() => desktop.setExpanded((v) => !v)}
-          />
-        )}
+      <div
+        data-testid="question-grid"
+        ref={gridRef}
+        className="hidden grid-cols-(--layout-squares-panel) gap-1.5 lg:grid"
+      >
+        {squares}
       </div>
-      <div className="md:hidden">
-        <div
-          data-testid="question-grid-mobile"
-          ref={mobile.containerRef}
-          className="grid gap-1.5"
-          style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${MOBILE_SQUARE}px, 1fr))` }}
-        >
-          {mobileSquares}
-        </div>
-        {mobile.needsCollapse && (
-          <GridToggle
-            testId="grid-toggle-mobile"
-            expanded={mobile.expanded}
-            totalQuestions={totalQuestions}
-            onToggle={() => mobile.setExpanded((v) => !v)}
-          />
-        )}
-      </div>
+      <MobileGrid
+        squares={squares}
+        filter={filter}
+        totalQuestions={totalQuestions}
+        currentIndex={currentIndex}
+      />
     </div>
   )
 }

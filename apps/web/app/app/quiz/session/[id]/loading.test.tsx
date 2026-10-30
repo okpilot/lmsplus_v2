@@ -17,13 +17,10 @@ describe('QuizSessionLoading', () => {
     expect(screen.getByRole('main')).toHaveAttribute('aria-busy', 'true')
   })
 
-  it('shows Previous and Next labels hidden from assistive tech, without any buttons', () => {
+  it('renders placeholder skeletons without buttons or a fixed control bar', () => {
     const { container } = render(<QuizSessionLoading />)
 
-    expect(screen.getByText('‹ Previous')).toBeInTheDocument()
-    expect(screen.getByText('Next ›')).toBeInTheDocument()
-    expect(screen.getByText('‹ Previous').closest('[aria-hidden="true"]')).not.toBeNull()
-    expect(screen.getByText('Next ›').closest('[aria-hidden="true"]')).not.toBeNull()
     expect(container.querySelectorAll('button')).toHaveLength(0)
+    expect(container.querySelector('.fixed')).toBeNull()
   })
 })

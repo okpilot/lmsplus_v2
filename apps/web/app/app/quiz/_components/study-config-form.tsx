@@ -30,28 +30,61 @@ export function StudyConfigForm({
   const config = useStudyConfig({ userId, subjects, preload })
 
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardContent className="space-y-5">
-          {header}
-          <SubjectSelect
-            subjects={subjects}
-            value={config.subjectId}
-            onValueChange={config.handleSubjectChange}
-          />
-          {config.subjectId && (
-            <QuestionFilters
-              value={config.filters}
-              onValueChange={config.setFilters}
-              calcMode={config.calcMode}
-              onCalcModeChange={config.setCalcMode}
-              imageMode={config.imageMode}
-              onImageModeChange={config.setImageMode}
-              unseenLabel={unseenLabel}
+    <div className="flex flex-col gap-stack lg:grid lg:grid-cols-(--layout-setup) lg:items-start lg:gap-x-section">
+      <div className="space-y-stack lg:sticky lg:top-section">
+        <Card>
+          <CardContent className="space-y-5">
+            {header}
+            <SubjectSelect
+              subjects={subjects}
+              value={config.subjectId}
+              onValueChange={config.handleSubjectChange}
             />
-          )}
-        </CardContent>
-      </Card>
+            {config.subjectId && (
+              <QuestionFilters
+                value={config.filters}
+                onValueChange={config.setFilters}
+                calcMode={config.calcMode}
+                onCalcModeChange={config.setCalcMode}
+                imageMode={config.imageMode}
+                onImageModeChange={config.setImageMode}
+                unseenLabel={unseenLabel}
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        {config.subjectId && (
+          <Card>
+            <CardContent>
+              <QuestionCount
+                value={config.count}
+                max={config.availableCount}
+                onValueChange={config.setCount}
+              />
+            </CardContent>
+          </Card>
+        )}
+
+        <FieldError role="alert">{config.error}</FieldError>
+        {config.authError && (
+          <FieldError role="alert">Session expired. Please refresh the page.</FieldError>
+        )}
+
+        <StartButton
+          disabled={
+            !config.subjectId ||
+            config.availableCount === 0 ||
+            config.loading ||
+            config.isPending ||
+            config.authError
+          }
+          loading={config.loading}
+          label="Start discovery"
+          loadingLabel="Loading..."
+          onClick={config.handleStart}
+        />
+      </div>
 
       {config.topicTree.topics.length > 0 && (
         <TopicTree
@@ -67,37 +100,6 @@ export function StudyConfigForm({
           filteredBySubtopic={config.filteredBySubtopic}
         />
       )}
-
-      {config.subjectId && (
-        <Card>
-          <CardContent>
-            <QuestionCount
-              value={config.count}
-              max={config.availableCount}
-              onValueChange={config.setCount}
-            />
-          </CardContent>
-        </Card>
-      )}
-
-      <FieldError role="alert">{config.error}</FieldError>
-      {config.authError && (
-        <FieldError role="alert">Session expired. Please refresh the page.</FieldError>
-      )}
-
-      <StartButton
-        disabled={
-          !config.subjectId ||
-          config.availableCount === 0 ||
-          config.loading ||
-          config.isPending ||
-          config.authError
-        }
-        loading={config.loading}
-        label="Start discovery"
-        loadingLabel="Loading..."
-        onClick={config.handleStart}
-      />
     </div>
   )
 }

@@ -41,7 +41,7 @@ function TabStrip({ bar }: Readonly<{ bar: Bar }>) {
     <nav
       ref={bar.ref}
       aria-label="Bottom navigation"
-      className="fixed inset-x-0 bottom-0 z-nav flex h-[calc(3.5rem+env(safe-area-inset-bottom))] border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+      className="fixed inset-x-0 bottom-0 z-nav flex h-(--tab-bar-h) border-t border-border bg-background/95 pb-(--safe-bottom) backdrop-blur sm:hidden"
     >
       {bar.visible.map((item) => (
         <TabLink

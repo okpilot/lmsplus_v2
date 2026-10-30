@@ -24,7 +24,7 @@ export function SavedSessionResume({
   const { resume, discard, loading, error } = useSavedSessionResume(sessionId)
 
   return (
-    <div className="mx-auto max-w-md space-y-4 py-10 text-center">
+    <div className="mx-auto max-w-dialog-md space-y-4 py-10 text-center">
       <PageHeader
         title="Saved quiz"
         description={`${MODE_LABELS[mode]}${subjectName ? ` - ${subjectName}` : ''}: ${answeredCount} of ${totalCount} answered`}

@@ -85,10 +85,10 @@ describe('StudentTable — status and actions', () => {
     expect(screen.queryByText('Active')).toBeNull()
   })
 
-  it('pads the actions cell to a 44px tap pitch below lg and compacts it from lg', () => {
+  it('takes the actions cell padding from the table primitive', () => {
     renderTable([row({})])
     const cell = screen.getByLabelText('Edit student').closest('td')
-    expect(cell?.className).toContain('py-2.5')
-    expect(cell?.className).toContain('lg:py-2')
+    expect(cell?.className).toContain('py-cell-y')
+    expect(cell?.className).not.toContain('py-2.5')
   })
 })

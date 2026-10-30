@@ -76,12 +76,12 @@ function FilterHint({ hint, label }: Readonly<{ hint: string; label: string }>) 
         // directly — the visual tooltip below is a sighted-only enhancement.
         aria-label={`Info about ${label}. ${hint}`}
       >
-        <CircleHelp className="size-3.5" />
+        <CircleHelp className="size-icon-sm" />
       </button>
       {open && (
         <span
           aria-hidden
-          className="absolute bottom-full left-1/2 z-dropdown mb-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-popover px-2.5 py-1.5 text-caption text-popover-foreground ring-1 ring-border shadow-raised"
+          className="absolute bottom-full left-1/2 z-dropdown mb-2 -translate-x-1/2 whitespace-nowrap rounded-small bg-popover px-2.5 py-1.5 text-caption text-popover-foreground ring-1 ring-border shadow-raised"
         >
           {hint}
         </span>

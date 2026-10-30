@@ -1,6 +1,9 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { scrollPanelToCurrent } from '../_utils/scroll-panel-to-current'
 import { QuestionGrid } from './question-grid'
+
+vi.mock('../_utils/scroll-panel-to-current', () => ({ scrollPanelToCurrent: vi.fn() }))
 
 const IDS = ['q1', 'q2', 'q3', 'q4', 'q5']
 const MANY_IDS = Array.from({ length: 40 }, (_, i) => `q${i + 1}`)
@@ -133,40 +136,18 @@ describe('QuestionGrid — desktop', () => {
     expect(desktopBtn(2)).toHaveAttribute('aria-label', 'Question 3, pinned')
   })
 
-  it('collapses to a two-row window for large quizzes on desktop', () => {
-    // jsdom offsetWidth = 0 → measure is skipped → perRow stays at the default 9
-    // → twoRows = 18, so 40 questions collapse to the 18-square window.
+  it('lists every question in the desktop panel with no collapse toggle', () => {
     renderGrid({ totalQuestions: 40, questionIds: MANY_IDS })
-    const grid = screen.getByTestId('question-grid')
-    expect(grid.querySelectorAll('button')).toHaveLength(18)
-    expect(screen.getByTestId('grid-toggle-desktop')).toHaveTextContent(/Show all.*40/)
-  })
-
-  it('expands to show all questions on desktop when toggled', () => {
-    renderGrid({ totalQuestions: 40, questionIds: MANY_IDS })
-    fireEvent.click(screen.getByTestId('grid-toggle-desktop'))
-    const grid = screen.getByTestId('question-grid')
-    expect(grid.querySelectorAll('button')).toHaveLength(40)
-    expect(screen.getByTestId('grid-toggle-desktop')).toHaveTextContent('Hide')
-  })
-
-  it('does not collapse small quizzes that fit in two rows on desktop', () => {
-    renderGrid({ totalQuestions: 5 })
-    expect(screen.getByTestId('question-grid').querySelectorAll('button')).toHaveLength(5)
-    expect(screen.queryByTestId('grid-toggle-desktop')).not.toBeInTheDocument()
-  })
-
-  it('restores the collapsed default after expanding then round-tripping through a filter', () => {
-    renderGrid({ totalQuestions: 40, questionIds: MANY_IDS, flaggedIds: new Set(['q1']) })
-    // Expand the desktop grid.
-    fireEvent.click(screen.getByTestId('grid-toggle-desktop'))
     expect(screen.getByTestId('question-grid').querySelectorAll('button')).toHaveLength(40)
-    // Switch to the flagged filter and back to All.
+    expect(screen.queryByTestId('grid-toggle-desktop')).not.toBeInTheDocument()
+    expect(screen.queryByText(/show all/i)).not.toBeInTheDocument()
+  })
+
+  it('keeps every desktop square after a filter round trip', () => {
+    renderGrid({ totalQuestions: 40, questionIds: MANY_IDS, flaggedIds: new Set(['q1']) })
     fireEvent.click(screen.getByTestId('filter-flagged'))
     fireEvent.click(screen.getByText('All'))
-    // Back on All, the grid should be collapsed again (two-row window), not expanded.
-    expect(screen.getByTestId('question-grid').querySelectorAll('button')).toHaveLength(18)
-    expect(screen.getByTestId('grid-toggle-desktop')).toHaveTextContent(/Show all/)
+    expect(screen.getByTestId('question-grid').querySelectorAll('button')).toHaveLength(40)
   })
 })
 
@@ -302,7 +283,6 @@ describe('QuestionGrid — effectiveFilter fallback', () => {
 
     fireEvent.click(screen.getByTestId('filter-flagged'))
 
-    // Neither breakpoint's toggle should appear when the filter is not 'all'.
     expect(screen.queryByTestId('grid-toggle-desktop')).not.toBeInTheDocument()
     expect(screen.queryByTestId('grid-toggle-mobile')).not.toBeInTheDocument()
   })
@@ -350,7 +330,7 @@ describe('QuestionGrid — mobile collapse', () => {
   it('shows toggle button for large quizzes', () => {
     renderGrid({ totalQuestions: 40, questionIds: MANY_IDS })
     expect(screen.getByTestId('grid-toggle-mobile')).toBeInTheDocument()
-    expect(screen.getByTestId('grid-toggle-mobile')).toHaveTextContent(/Show all.*40/)
+    expect(screen.getByTestId('grid-toggle-mobile')).toHaveTextContent(/See all.*40/)
   })
 
   it('shows all squares when expanded', () => {
@@ -403,5 +383,33 @@ describe('QuestionGrid — practice answer awaiting feedback', () => {
 
     expect(desktopBtn(1).className).toContain('ring-primary')
     expect(desktopBtn(1)).toHaveAttribute('data-status', 'answered')
+  })
+})
+
+describe('QuestionGrid — panel scroll sync', () => {
+  const baseProps = {
+    totalQuestions: 5,
+    currentIndex: 0,
+    pinnedIds: new Set<string>(),
+    flaggedIds: new Set<string>(['q1']),
+    questionIds: IDS,
+    feedbackMap: new Map<string, { isCorrect: boolean }>(),
+    onNavigate: vi.fn(),
+  }
+
+  it('scrolls the desktop grid panel when currentIndex changes', () => {
+    const { rerender } = render(<QuestionGrid {...baseProps} />)
+    const grid = screen.getByTestId('question-grid')
+    vi.mocked(scrollPanelToCurrent).mockClear()
+    rerender(<QuestionGrid {...baseProps} currentIndex={3} />)
+    expect(scrollPanelToCurrent).toHaveBeenCalledWith(grid)
+  })
+
+  it('scrolls the desktop grid panel when the filter changes', () => {
+    render(<QuestionGrid {...baseProps} />)
+    const grid = screen.getByTestId('question-grid')
+    vi.mocked(scrollPanelToCurrent).mockClear()
+    fireEvent.click(screen.getByTestId('filter-flagged'))
+    expect(scrollPanelToCurrent).toHaveBeenCalledWith(grid)
   })
 })

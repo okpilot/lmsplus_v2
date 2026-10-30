@@ -42,8 +42,8 @@ export function AttemptsTable({ rows, totalCount, pageSize }: Readonly<Props>) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="min-w-[160px]">Student</TableHead>
-            <TableHead className="min-w-[140px]">Subject</TableHead>
+            <TableHead className="min-w-col-md">Student</TableHead>
+            <TableHead className="min-w-col-sm">Subject</TableHead>
             <TableHead className="w-40">Started</TableHead>
             <TableHead className="w-40">Ended</TableHead>
             <TableHead className="w-20">Score</TableHead>

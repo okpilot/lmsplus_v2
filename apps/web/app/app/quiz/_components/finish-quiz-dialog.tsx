@@ -90,7 +90,7 @@ export function FinishQuizDialog({
         <DialogPrimitive.Popup
           ref={popupRef}
           initialFocus={popupRef}
-          className="fixed max-h-[calc(100dvh-2rem)] overflow-y-auto top-1/2 left-1/2 z-overlay w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 rounded-card bg-popover p-6 ring-1 ring-border shadow-overlay outline-none sm:max-w-md"
+          className="fixed max-h-(--dialog-max-h) overflow-y-auto top-1/2 left-1/2 z-overlay w-full max-w-(--dialog-max) -translate-x-1/2 -translate-y-1/2 rounded-sheet bg-popover p-6 ring-1 ring-border shadow-overlay outline-none sm:max-w-dialog-md"
         >
           <DialogTitle className="text-heading">{title}</DialogTitle>
           <DialogBody

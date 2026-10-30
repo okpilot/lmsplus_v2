@@ -26,7 +26,7 @@ export function StartButton({
       disabled={disabled || loading}
       onClick={onClick}
       aria-busy={loading || undefined}
-      className="w-full sm:w-auto"
+      className="w-full"
     >
       <span className="inline-flex items-center justify-center gap-2">
         <BusyLabel busy={loading}>{loading ? loadingLabel : label}</BusyLabel>

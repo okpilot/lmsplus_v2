@@ -30,7 +30,7 @@ export function ZoomableImage({ src, alt, className }: Readonly<ZoomableImagePro
         // so the image must not double-announce its own alt text.
         alt=""
         aria-hidden="true"
-        className={`rounded-md border border-border object-contain ${className ?? ''}`}
+        className={`rounded-small border border-border object-contain ${className ?? ''}`}
       />
     </a>
   )

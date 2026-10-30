@@ -6,7 +6,7 @@ import { useQuizConfig } from '@/app/app/quiz/_hooks/use-quiz-config'
 import { Card, CardContent } from '@/components/ui/card'
 import type { SubjectOption, TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
 import { VfrRtExamPanel } from './vfr-rt-exam-panel'
-import { VfrRtPracticeSections } from './vfr-rt-practice-sections'
+import { VfrRtPracticeSections, VfrRtTopics } from './vfr-rt-practice-sections'
 
 type VfrRtConfigFormProps = {
   subjectId: string
@@ -41,38 +41,42 @@ export function VfrRtConfigForm({
   const isExam = config.mode === 'exam'
 
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardContent className="space-y-5">
-          <ModeToggle
-            value={config.mode}
-            onValueChange={config.setMode}
-            examAvailable={exam.available}
-            discoveryAvailable={false}
-          />
-          {!isExam && (
-            <QuestionFilters
-              value={config.filters}
-              onValueChange={config.setFilters}
-              calcMode={config.calcMode}
-              onCalcModeChange={config.setCalcMode}
-              imageMode={config.imageMode}
-              onImageModeChange={config.setImageMode}
-              unseenLabel="Unanswered"
-              showCalcImageToggles={false}
+    <div className="flex flex-col gap-stack lg:grid lg:grid-cols-(--layout-setup) lg:items-start lg:gap-x-section">
+      <div className="space-y-stack lg:sticky lg:top-section">
+        <Card>
+          <CardContent className="space-y-5">
+            <ModeToggle
+              value={config.mode}
+              onValueChange={config.setMode}
+              examAvailable={exam.available}
+              discoveryAvailable={false}
             />
-          )}
-        </CardContent>
-      </Card>
+            {!isExam && (
+              <QuestionFilters
+                value={config.filters}
+                onValueChange={config.setFilters}
+                calcMode={config.calcMode}
+                onCalcModeChange={config.setCalcMode}
+                imageMode={config.imageMode}
+                onImageModeChange={config.setImageMode}
+                unseenLabel="Unanswered"
+                showCalcImageToggles={false}
+              />
+            )}
+          </CardContent>
+        </Card>
 
-      {isExam && (
-        <VfrRtExamPanel
-          subjectId={subjectId}
-          subjects={subjects}
-          questionCount={exam.questionCount}
-        />
-      )}
-      {!isExam && <VfrRtPracticeSections config={config} />}
+        {isExam && (
+          <VfrRtExamPanel
+            subjectId={subjectId}
+            subjects={subjects}
+            questionCount={exam.questionCount}
+          />
+        )}
+        {!isExam && <VfrRtPracticeSections config={config} />}
+      </div>
+
+      {!isExam && <VfrRtTopics config={config} />}
     </div>
   )
 }

@@ -14,88 +14,31 @@ describe('AnswerOptions', () => {
     vi.resetAllMocks()
   })
 
+  it('renders no Submit button of its own', () => {
+    render(<AnswerOptions options={OPTIONS} disabled={false} />)
+    expect(screen.queryByRole('button', { name: /submit|confirm/i })).not.toBeInTheDocument()
+  })
+
+  it('reports the picked option through onSelectionChange', async () => {
+    const user = userEvent.setup()
+    const onSelectionChange = vi.fn()
+    render(
+      <AnswerOptions options={OPTIONS} disabled={false} onSelectionChange={onSelectionChange} />,
+    )
+    await user.click(screen.getByText('Option Beta'))
+    expect(onSelectionChange).toHaveBeenCalledWith('b')
+  })
+
   it('renders all option buttons', () => {
-    render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
+    render(<AnswerOptions options={OPTIONS} disabled={false} />)
     expect(screen.getByText('Option Alpha')).toBeInTheDocument()
     expect(screen.getByText('Option Beta')).toBeInTheDocument()
     expect(screen.getByText('Option Gamma')).toBeInTheDocument()
   })
 
-  it('renders the Submit Answer button when result is not yet shown', () => {
-    render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
-    expect(screen.getByRole('button', { name: 'Submit Answer' })).toBeInTheDocument()
-  })
-
-  it('disables the Submit Answer button when no option is selected', () => {
-    render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
-    expect(screen.getByRole('button', { name: 'Submit Answer' })).toBeDisabled()
-  })
-
-  it('enables the Submit Answer button after an option is clicked', async () => {
-    const user = userEvent.setup()
-    render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
-    await user.click(screen.getByText('Option Alpha'))
-    expect(screen.getByRole('button', { name: 'Submit Answer' })).not.toBeDisabled()
-  })
-
-  it('calls onSubmit with the selected option ID when Submit is clicked', async () => {
-    const user = userEvent.setup()
-    const onSubmit = vi.fn()
-    render(<AnswerOptions options={OPTIONS} onSubmit={onSubmit} disabled={false} />)
-    await user.click(screen.getByText('Option Beta'))
-    await user.click(screen.getByRole('button', { name: 'Submit Answer' }))
-    expect(onSubmit).toHaveBeenCalledWith('b')
-  })
-
-  it('hides the Submit Answer button when selectedOptionId is provided (result shown)', () => {
-    render(
-      <AnswerOptions
-        options={OPTIONS}
-        onSubmit={vi.fn()}
-        disabled={true}
-        selectedOptionId="a"
-        correctOptionId="b"
-      />,
-    )
-    expect(screen.queryByRole('button', { name: 'Submit Answer' })).not.toBeInTheDocument()
-  })
-
-  it('shows a spinner on the Submit button while submitting', () => {
-    render(
-      <AnswerOptions
-        options={OPTIONS}
-        onSubmit={vi.fn()}
-        disabled={true}
-        submitting={true}
-        selectedOptionId="a"
-      />,
-    )
-    // selectedOptionId without correctOptionId keeps the submit button visible.
-    const submit = screen.getByRole('button', { name: 'Submit Answer' })
-    expect(submit).toBeDisabled()
-    // aria-hidden spinner: accessible name stays "Submit Answer", spinner present.
-    expect(submit.querySelector('.animate-spin')).not.toBeNull()
-    expect(submit).toHaveAttribute('aria-busy', 'true')
-  })
-
-  it('does not show a spinner on the Submit button when not submitting', async () => {
-    const user = userEvent.setup()
-    render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
-    await user.click(screen.getByText('Option Alpha'))
-    const submit = screen.getByRole('button', { name: 'Submit Answer' })
-    expect(submit.querySelector('.animate-spin')).toBeNull()
-    expect(submit).not.toHaveAttribute('aria-busy')
-  })
-
   it('shows correct styling on the correct option when result is shown', () => {
     render(
-      <AnswerOptions
-        options={OPTIONS}
-        onSubmit={vi.fn()}
-        disabled={true}
-        selectedOptionId="a"
-        correctOptionId="b"
-      />,
+      <AnswerOptions options={OPTIONS} disabled={true} selectedOptionId="a" correctOptionId="b" />,
     )
     // Option B is the correct one — button text contains 'Option Beta'
     const correctBtn = screen.getByText('Option Beta').closest('button')
@@ -107,13 +50,7 @@ describe('AnswerOptions', () => {
 
   it('shows error styling on the incorrectly selected option', () => {
     render(
-      <AnswerOptions
-        options={OPTIONS}
-        onSubmit={vi.fn()}
-        disabled={true}
-        selectedOptionId="a"
-        correctOptionId="b"
-      />,
+      <AnswerOptions options={OPTIONS} disabled={true} selectedOptionId="a" correctOptionId="b" />,
     )
     // Option A was selected but is wrong
     const wrongBtn = screen.getByText('Option Alpha').closest('button')
@@ -122,34 +59,20 @@ describe('AnswerOptions', () => {
   })
 
   it('disables all option buttons when disabled prop is true', () => {
-    render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={true} />)
+    render(<AnswerOptions options={OPTIONS} disabled={true} />)
     const buttons = screen.getAllByRole('button')
     const optionButtons = buttons.filter((b) => b.getAttribute('disabled') !== null)
     expect(optionButtons.length).toBeGreaterThan(0)
   })
 
-  it('does not call onSubmit if disabled and Submit is clicked', async () => {
-    const user = userEvent.setup()
-    const onSubmit = vi.fn()
-    // Provide a locked selection so Submit button is shown
-    // But no Submit button appears when lockedSelection is set, so test via disabled directly
-    render(<AnswerOptions options={OPTIONS} onSubmit={onSubmit} disabled={true} />)
-    const submitBtn = screen.queryByRole('button', { name: 'Submit Answer' })
-    // Submit is still rendered (no lockedSelection), just disabled
-    if (submitBtn) {
-      await user.click(submitBtn)
-    }
-    expect(onSubmit).not.toHaveBeenCalled()
-  })
-
   describe('letter circle labels', () => {
     it('renders letter A on the first option', () => {
-      render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
+      render(<AnswerOptions options={OPTIONS} disabled={false} />)
       expect(screen.getByText('A')).toBeInTheDocument()
     })
 
     it('renders letters A, B, C in order for three options', () => {
-      render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
+      render(<AnswerOptions options={OPTIONS} disabled={false} />)
       expect(screen.getByText('A')).toBeInTheDocument()
       expect(screen.getByText('B')).toBeInTheDocument()
       expect(screen.getByText('C')).toBeInTheDocument()
@@ -160,7 +83,7 @@ describe('AnswerOptions', () => {
         id: `opt-${i}`,
         text: `Option ${l}`,
       }))
-      render(<AnswerOptions options={eightOptions} onSubmit={vi.fn()} disabled={false} />)
+      render(<AnswerOptions options={eightOptions} disabled={false} />)
       for (const letter of ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']) {
         expect(screen.getByText(letter)).toBeInTheDocument()
       }
@@ -171,13 +94,13 @@ describe('AnswerOptions', () => {
         id: `opt-${i}`,
         text: `Option ${i + 1}`,
       }))
-      render(<AnswerOptions options={nineOptions} onSubmit={vi.fn()} disabled={false} />)
+      render(<AnswerOptions options={nineOptions} disabled={false} />)
       // Index 8 is beyond the LETTERS array — should render '9'
       expect(screen.getByText('9')).toBeInTheDocument()
     })
 
     it('places the correct letter inside the button for each option', () => {
-      render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
+      render(<AnswerOptions options={OPTIONS} disabled={false} />)
       const alphaBtn = screen.getByTestId('option-a')
       const betaBtn = screen.getByTestId('option-b')
       expect(alphaBtn.querySelector('span')?.textContent).toBe('A')
@@ -187,7 +110,7 @@ describe('AnswerOptions', () => {
 
   describe('letter circle styling states', () => {
     it('applies neutral border circle style when option is unselected', () => {
-      render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
+      render(<AnswerOptions options={OPTIONS} disabled={false} />)
       const circle = screen.getByTestId('option-a').querySelector('span')
       expect(circle?.className).toContain('border')
       expect(circle?.className).not.toContain('bg-success-solid')
@@ -197,7 +120,7 @@ describe('AnswerOptions', () => {
 
     it('applies primary-coloured circle when option is selected before submission', async () => {
       const user = userEvent.setup()
-      render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
+      render(<AnswerOptions options={OPTIONS} disabled={false} />)
       await user.click(screen.getByTestId('option-a'))
       const circle = screen.getByTestId('option-a').querySelector('span')
       expect(circle?.className).toContain('bg-primary')
@@ -208,7 +131,6 @@ describe('AnswerOptions', () => {
       render(
         <AnswerOptions
           options={OPTIONS}
-          onSubmit={vi.fn()}
           disabled={true}
           selectedOptionId="a"
           correctOptionId="b"
@@ -223,7 +145,6 @@ describe('AnswerOptions', () => {
       render(
         <AnswerOptions
           options={OPTIONS}
-          onSubmit={vi.fn()}
           disabled={true}
           selectedOptionId="a"
           correctOptionId="b"
@@ -238,7 +159,6 @@ describe('AnswerOptions', () => {
       render(
         <AnswerOptions
           options={OPTIONS}
-          onSubmit={vi.fn()}
           disabled={true}
           selectedOptionId="a"
           correctOptionId="b"
@@ -257,12 +177,7 @@ describe('AnswerOptions', () => {
       const user = userEvent.setup()
       const onSelectionChange = vi.fn()
       render(
-        <AnswerOptions
-          options={OPTIONS}
-          onSubmit={vi.fn()}
-          disabled={false}
-          onSelectionChange={onSelectionChange}
-        />,
+        <AnswerOptions options={OPTIONS} disabled={false} onSelectionChange={onSelectionChange} />,
       )
       await user.click(screen.getByTestId('option-b'))
       expect(onSelectionChange).toHaveBeenCalledWith('b')
@@ -272,12 +187,7 @@ describe('AnswerOptions', () => {
       const user = userEvent.setup()
       const onSelectionChange = vi.fn()
       render(
-        <AnswerOptions
-          options={OPTIONS}
-          onSubmit={vi.fn()}
-          disabled={true}
-          onSelectionChange={onSelectionChange}
-        />,
+        <AnswerOptions options={OPTIONS} disabled={true} onSelectionChange={onSelectionChange} />,
       )
       await user.click(screen.getByTestId('option-a'))
       expect(onSelectionChange).not.toHaveBeenCalled()
@@ -288,7 +198,6 @@ describe('AnswerOptions', () => {
       render(
         <AnswerOptions
           options={OPTIONS}
-          onSubmit={vi.fn()}
           disabled={false}
           selectedOptionId="a"
           correctOptionId="b"
@@ -302,7 +211,7 @@ describe('AnswerOptions', () => {
 
     it('is optional — component renders without onSelectionChange', async () => {
       const user = userEvent.setup()
-      render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
+      render(<AnswerOptions options={OPTIONS} disabled={false} />)
       // Should not throw when prop is omitted
       await user.click(screen.getByTestId('option-a'))
       expect(screen.getByTestId('option-a')).toHaveAttribute('data-selected', 'true')
@@ -310,25 +219,10 @@ describe('AnswerOptions', () => {
   })
 
   describe('showResult condition requires both selectedOptionId and correctOptionId', () => {
-    it('still shows Submit button when selectedOptionId is set but correctOptionId is null', () => {
-      render(
-        <AnswerOptions
-          options={OPTIONS}
-          onSubmit={vi.fn()}
-          disabled={false}
-          selectedOptionId="a"
-          correctOptionId={null}
-        />,
-      )
-      // correctOptionId is null → showResult is false → Submit button should appear
-      expect(screen.getByRole('button', { name: 'Submit Answer' })).toBeInTheDocument()
-    })
-
     it('does not show result styling when correctOptionId is null even though selectedOptionId is set', () => {
       render(
         <AnswerOptions
           options={OPTIONS}
-          onSubmit={vi.fn()}
           disabled={false}
           selectedOptionId="a"
           correctOptionId={null}
@@ -340,19 +234,6 @@ describe('AnswerOptions', () => {
       expect(btn?.className).not.toContain('border-danger')
       expect(btn).not.toHaveAttribute('data-result')
     })
-
-    it('hides Submit button when both selectedOptionId and correctOptionId are provided', () => {
-      render(
-        <AnswerOptions
-          options={OPTIONS}
-          onSubmit={vi.fn()}
-          disabled={true}
-          selectedOptionId="a"
-          correctOptionId="b"
-        />,
-      )
-      expect(screen.queryByRole('button', { name: 'Submit Answer' })).not.toBeInTheDocument()
-    })
   })
 
   describe('exam mode lock', () => {
@@ -362,7 +243,6 @@ describe('AnswerOptions', () => {
       render(
         <AnswerOptions
           options={OPTIONS}
-          onSubmit={vi.fn()}
           disabled={false}
           isExam={true}
           selectedOptionId="a"
@@ -386,39 +266,18 @@ describe('AnswerOptions', () => {
 
   describe('keyboard highlight', () => {
     it('highlights the keyboard-focused option', () => {
-      render(
-        <AnswerOptions
-          options={OPTIONS}
-          onSubmit={vi.fn()}
-          disabled={false}
-          keyboardHighlightedId="b"
-        />,
-      )
+      render(<AnswerOptions options={OPTIONS} disabled={false} keyboardHighlightedId="b" />)
       expect(screen.getByTestId('option-b')).toHaveAttribute('data-kb-highlighted', 'true')
     })
 
     it('does not highlight options other than the keyboard-focused one', () => {
-      render(
-        <AnswerOptions
-          options={OPTIONS}
-          onSubmit={vi.fn()}
-          disabled={false}
-          keyboardHighlightedId="b"
-        />,
-      )
+      render(<AnswerOptions options={OPTIONS} disabled={false} keyboardHighlightedId="b" />)
       expect(screen.getByTestId('option-a')).not.toHaveAttribute('data-kb-highlighted')
       expect(screen.getByTestId('option-c')).not.toHaveAttribute('data-kb-highlighted')
     })
 
     it('shows an outline, not a ring, on the keyboard-focused option', () => {
-      render(
-        <AnswerOptions
-          options={OPTIONS}
-          onSubmit={vi.fn()}
-          disabled={false}
-          keyboardHighlightedId="a"
-        />,
-      )
+      render(<AnswerOptions options={OPTIONS} disabled={false} keyboardHighlightedId="a" />)
       const cls = screen.getByTestId('option-a').className
       expect(cls).toContain('outline-2')
       expect(cls).not.toContain('ring-2')
@@ -428,7 +287,6 @@ describe('AnswerOptions', () => {
       render(
         <AnswerOptions
           options={OPTIONS}
-          onSubmit={vi.fn()}
           disabled={false}
           isExam
           selectedOptionId="a"
@@ -439,21 +297,14 @@ describe('AnswerOptions', () => {
     })
 
     it('does not highlight any option when keyboardHighlightedId is null', () => {
-      render(
-        <AnswerOptions
-          options={OPTIONS}
-          onSubmit={vi.fn()}
-          disabled={false}
-          keyboardHighlightedId={null}
-        />,
-      )
+      render(<AnswerOptions options={OPTIONS} disabled={false} keyboardHighlightedId={null} />)
       for (const { id } of OPTIONS) {
         expect(screen.getByTestId(`option-${id}`)).not.toHaveAttribute('data-kb-highlighted')
       }
     })
 
     it('does not highlight any option when keyboardHighlightedId is undefined', () => {
-      render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
+      render(<AnswerOptions options={OPTIONS} disabled={false} />)
       for (const { id } of OPTIONS) {
         expect(screen.getByTestId(`option-${id}`)).not.toHaveAttribute('data-kb-highlighted')
       }
@@ -463,7 +314,6 @@ describe('AnswerOptions', () => {
       render(
         <AnswerOptions
           options={OPTIONS}
-          onSubmit={vi.fn()}
           disabled={true}
           selectedOptionId="a"
           correctOptionId="b"
@@ -477,14 +327,14 @@ describe('AnswerOptions', () => {
   describe('data-selected attribute', () => {
     it('sets data-selected="true" on the option the user clicks before submission', async () => {
       const user = userEvent.setup()
-      render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
+      render(<AnswerOptions options={OPTIONS} disabled={false} />)
       await user.click(screen.getByTestId('option-b'))
       expect(screen.getByTestId('option-b')).toHaveAttribute('data-selected', 'true')
     })
 
     it('does not set data-selected on unselected options', async () => {
       const user = userEvent.setup()
-      render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
+      render(<AnswerOptions options={OPTIONS} disabled={false} />)
       await user.click(screen.getByTestId('option-b'))
       expect(screen.getByTestId('option-a')).not.toHaveAttribute('data-selected')
     })
@@ -493,7 +343,6 @@ describe('AnswerOptions', () => {
       render(
         <AnswerOptions
           options={OPTIONS}
-          onSubmit={vi.fn()}
           disabled={true}
           selectedOptionId="a"
           correctOptionId="b"
@@ -506,13 +355,13 @@ describe('AnswerOptions', () => {
 
   describe('selected, locked and default card look', () => {
     it('gives an unselected card border-border', () => {
-      render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
+      render(<AnswerOptions options={OPTIONS} disabled={false} />)
       expect(screen.getByTestId('option-a').className).toContain('border-border')
     })
 
     it('gives a selected pre-result card border-primary and ring-primary', async () => {
       const user = userEvent.setup()
-      render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
+      render(<AnswerOptions options={OPTIONS} disabled={false} />)
       await user.click(screen.getByTestId('option-a'))
       const cls = screen.getByTestId('option-a').className
       expect(cls).toContain('border-primary')
@@ -521,16 +370,13 @@ describe('AnswerOptions', () => {
 
     it('gives an exam-locked selected card the same card classes as a selected card', async () => {
       const user = userEvent.setup()
-      const { unmount } = render(
-        <AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />,
-      )
+      const { unmount } = render(<AnswerOptions options={OPTIONS} disabled={false} />)
       await user.click(screen.getByTestId('option-a'))
       const selected = screen.getByTestId('option-a').className.split(/\s+/).sort()
       unmount()
       render(
         <AnswerOptions
           options={OPTIONS}
-          onSubmit={vi.fn()}
           disabled={false}
           isExam
           selectedOptionId="a"
@@ -547,14 +393,14 @@ describe('AnswerOptions', () => {
     })
 
     it('sets no data-result before a result is shown', () => {
-      render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
+      render(<AnswerOptions options={OPTIONS} disabled={false} />)
       for (const { id } of OPTIONS) {
         expect(screen.getByTestId(`option-${id}`)).not.toHaveAttribute('data-result')
       }
     })
 
     it('sizes the letter circle size-7', () => {
-      render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
+      render(<AnswerOptions options={OPTIONS} disabled={false} />)
       expect(screen.getByTestId('option-a').querySelector('span')?.className).toContain('size-7')
     })
   })
@@ -564,7 +410,6 @@ describe('AnswerOptions', () => {
       render(
         <AnswerOptions
           options={OPTIONS}
-          onSubmit={vi.fn()}
           disabled={true}
           selectedOptionId="a"
           correctOptionId="b"
@@ -588,7 +433,6 @@ describe('AnswerOptions', () => {
       render(
         <AnswerOptions
           options={OPTIONS}
-          onSubmit={vi.fn()}
           disabled={true}
           selectedOptionId="b"
           correctOptionId="b"

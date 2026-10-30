@@ -111,11 +111,11 @@ export function GridToggle({
     >
       {expanded ? (
         <>
-          Hide <ChevronUp className="h-3 w-3" />
+          Hide <ChevronUp className="size-icon-sm" />
         </>
       ) : (
         <>
-          Show all ({totalQuestions}) <ChevronDown className="h-3 w-3" />
+          See all ({totalQuestions}) <ChevronDown className="size-icon-sm" />
         </>
       )}
     </Button>
