@@ -119,7 +119,7 @@ export function DiagramAnswerRow({
         onClick={() => onTap(zone.id)}
         className={cn(
           'h-auto min-h-11 w-full justify-start gap-3 rounded-control border px-3 py-2 text-left whitespace-normal',
-          result && 'disabled:opacity-100',
+          (result || locked) && 'disabled:opacity-100',
           rowFrame(zoneArmed, target, result),
         )}
       >

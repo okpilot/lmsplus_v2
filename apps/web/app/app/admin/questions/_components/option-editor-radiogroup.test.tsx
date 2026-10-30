@@ -50,3 +50,24 @@ describe('OptionEditor radio group (B2b-12 AC 1)', () => {
     expect(onCorrectChange).not.toHaveBeenCalled()
   })
 })
+
+describe('OptionEditor "Correct" text target (round 4 #1)', () => {
+  it('selects the option when its "Correct" text is clicked', async () => {
+    const { onCorrectChange } = setup()
+    await userEvent.click(screen.getAllByText('Correct').at(2) as HTMLElement)
+    expect(onCorrectChange).toHaveBeenCalledTimes(1)
+    expect(onCorrectChange).toHaveBeenCalledWith('c')
+  })
+
+  it('ignores a "Correct" text click when disabled', async () => {
+    const { onCorrectChange } = setup({ disabled: true })
+    await userEvent.click(screen.getAllByText('Correct').at(2) as HTMLElement)
+    expect(onCorrectChange).not.toHaveBeenCalled()
+  })
+
+  it('fires once when the radio itself is clicked', async () => {
+    const { onCorrectChange } = setup()
+    await userEvent.click(screen.getByLabelText('Mark option C as correct'))
+    expect(onCorrectChange).toHaveBeenCalledTimes(1)
+  })
+})

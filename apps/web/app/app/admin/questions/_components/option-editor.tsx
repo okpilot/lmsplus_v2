@@ -51,14 +51,24 @@ export function OptionEditor({
         </div>
         <RadioGroup
           value={correctOptionId || null}
-          onValueChange={(v) => onCorrectChange(v as (typeof OPTION_IDS)[number])}
+          onValueChange={(v) => {
+            const id = OPTION_IDS.find((o) => o === v)
+            if (id) onCorrectChange(id)
+          }}
           disabled={disabled}
           className="flex flex-col gap-3"
         >
           {OPTION_IDS.map((letter) => (
+            // biome-ignore lint/a11y/noStaticElementInteractions: the "Correct" text is a pointer target for the radio
+            // biome-ignore lint/a11y/useKeyWithClickEvents: the keyboard path is the radio itself
             <span
               key={letter}
-              className="flex h-(--control-h) items-center gap-1.5 text-caption text-muted-foreground"
+              onClick={(e) => {
+                // Radio clicks bubble here; Base UI already fires onValueChange for them.
+                if (disabled || e.target !== e.currentTarget) return
+                onCorrectChange(letter)
+              }}
+              className="flex h-(--control-h) cursor-pointer items-center gap-1.5 text-caption text-muted-foreground"
             >
               <Radio value={letter} aria-label={`Mark option ${letter.toUpperCase()} as correct`} />{' '}
               Correct
