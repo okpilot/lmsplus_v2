@@ -23,7 +23,6 @@ vi.mock('../_hooks/use-quiz-ui', () => ({
     feedbackMap: new Map(),
     pendingOptionId: null,
     handleSelectionChange: vi.fn(),
-    canSubmitAnswer: false,
   }),
 }))
 vi.mock('../_hooks/use-quiz-timer', () => ({

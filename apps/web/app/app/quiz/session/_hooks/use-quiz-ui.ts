@@ -8,23 +8,15 @@ type FeedbackMapInput = Map<string, AnswerFeedback>
 type UseQuizUIOptions = {
   feedback: FeedbackMapInput
   currentIndex: number
-  activeTab: string
-  existingAnswer: unknown
 }
 
 type UseQuizUIResult = {
   feedbackMap: Map<string, { isCorrect: boolean }>
   pendingOptionId: string | null
   handleSelectionChange: (id: string | null) => void
-  canSubmitAnswer: boolean
 }
 
-export function useQuizUI({
-  feedback,
-  currentIndex,
-  activeTab,
-  existingAnswer,
-}: UseQuizUIOptions): UseQuizUIResult {
+export function useQuizUI({ feedback, currentIndex }: UseQuizUIOptions): UseQuizUIResult {
   const feedbackMap = useMemo(() => {
     const map = new Map<string, { isCorrect: boolean }>()
     for (const [qId, fb] of feedback) {
@@ -43,8 +35,5 @@ export function useQuizUI({
     setPendingOptionId(null)
   }, [currentIndex])
 
-  const isQuestionTab = activeTab === 'question'
-  const canSubmitAnswer = isQuestionTab && !existingAnswer && !!pendingOptionId
-
-  return { feedbackMap, pendingOptionId, handleSelectionChange, canSubmitAnswer }
+  return { feedbackMap, pendingOptionId, handleSelectionChange }
 }

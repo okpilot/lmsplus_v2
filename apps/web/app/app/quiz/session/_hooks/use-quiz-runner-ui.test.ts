@@ -42,7 +42,9 @@ describe('useQuizRunnerUI', () => {
       useQuizRunnerUI(baseState, { isDiscovery: false, questions: [] }),
     )
     expect(result.current.effectiveTab).toBe('explanation')
-    expect(mockUI).toHaveBeenCalledWith(expect.objectContaining({ activeTab: 'explanation' }))
+    expect(mockUI).toHaveBeenCalledWith(
+      expect.not.objectContaining({ activeTab: expect.anything() }),
+    )
   })
 
   it('pins the question tab in an exam', () => {
