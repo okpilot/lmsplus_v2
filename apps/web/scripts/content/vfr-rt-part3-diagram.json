@@ -1,6 +1,6 @@
 {
   "part": 3,
-  "title": "Traffic Pattern — drag labels onto the diagram",
+  "title": "Traffic Pattern — label the diagram",
   "topic_code": "P3_MC",
   "subtopic_code": "P3_PATTERN",
   "subject_code": "RT",
@@ -14,7 +14,7 @@
   "questions": [
     {
       "num": "VRT-P3-DIAG-01",
-      "prompt": "This is a standard left-hand traffic pattern. Drag each name onto the leg it belongs to.",
+      "prompt": "This is a standard left-hand traffic pattern. Place each name on the leg it belongs to.",
       "diagram": {
         "image_ref": "rwy-2709-lh-pattern",
         "answer_by_zone": {
@@ -29,7 +29,7 @@
     },
     {
       "num": "VRT-P3-DIAG-02",
-      "prompt": "Same left-hand traffic pattern. Drag each name onto the turn it belongs to.",
+      "prompt": "Same left-hand traffic pattern. Place each name on the turn it belongs to.",
       "diagram": {
         "image_ref": "rwy-2709-lh-pattern",
         "answer_by_zone": {
