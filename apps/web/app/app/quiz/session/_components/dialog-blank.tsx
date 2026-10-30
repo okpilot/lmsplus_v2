@@ -24,7 +24,8 @@ type DialogBlankProps = {
 
 function blankClass(result: BlankResult | undefined): string {
   if (!result) return ''
-  return result.isCorrect ? 'border-success' : 'border-danger'
+  const border = result.isCorrect ? 'border-success' : 'border-danger'
+  return `${border} disabled:bg-card dark:disabled:bg-card`
 }
 
 /**

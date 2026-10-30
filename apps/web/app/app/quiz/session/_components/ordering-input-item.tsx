@@ -46,7 +46,7 @@ export function OrderingInputItem({
       ? 'border-success bg-card'
       : result === 'incorrect'
         ? 'border-danger bg-card'
-        : 'border-input bg-card hover:bg-muted'
+        : cn('border-input bg-card', !disabled && 'hover:bg-muted')
 
   const liftClass = isDragging ? 'relative z-sticky border-primary shadow-raised' : ''
 

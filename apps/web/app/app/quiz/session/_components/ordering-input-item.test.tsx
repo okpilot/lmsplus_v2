@@ -35,3 +35,16 @@ describe('OrderingInputItem border while dragging', () => {
     expect(item()).toHaveClass('border-input')
   })
 })
+
+describe('OrderingInputItem hover', () => {
+  it('has no hover fill when disabled and ungraded', () => {
+    sortable.isDragging = false
+    render(<OrderingInputItem id="a" text="First" disabled />)
+    expect(screen.getByTestId('ordering-item-a').className).not.toContain('hover:bg-muted')
+  })
+
+  it('has a hover fill when enabled and ungraded', () => {
+    sortable.isDragging = false
+    expect(item().className).toContain('hover:bg-muted')
+  })
+})

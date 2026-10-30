@@ -79,7 +79,7 @@ export function ShortAnswerInput({
         aria-label="Your answer"
         data-testid="short-answer-input"
         className={cn(
-          showResult && 'disabled:opacity-100',
+          showResult && 'disabled:bg-card disabled:opacity-100 dark:disabled:bg-card',
           showResult && (isCorrect ? 'border-success' : 'border-danger'),
         )}
       />

@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { newlyPlacedZone, tapLabel, tapPool, tapRow } from './diagram-tap-state'
+import {
+  focusTarget,
+  newlyPlacedZone,
+  returnedLabel,
+  tapLabel,
+  tapPool,
+  tapRow,
+} from './diagram-tap-state'
 
 const empty = { placement: new Map<string, string>(), armed: null }
 
@@ -48,5 +55,39 @@ describe('newlyPlacedZone', () => {
   })
   it('returns null for a move between zones', () => {
     expect(newlyPlacedZone(new Map([['z1', 'l1']]), new Map([['z2', 'l1']]))).toBeNull()
+  })
+})
+
+describe('returnedLabel', () => {
+  it('returns the label that left the placement', () => {
+    expect(returnedLabel(new Map([['z1', 'l1']]), new Map())).toBe('l1')
+  })
+  it('returns null when nothing left', () => {
+    expect(returnedLabel(new Map([['z1', 'l1']]), new Map([['z2', 'l1']]))).toBeNull()
+  })
+})
+
+describe('focusTarget', () => {
+  const armedL1 = { kind: 'label', id: 'l1' } as const
+  it('placed into a zone focuses its row', () => {
+    expect(focusTarget(null, new Map(), new Map([['z1', 'l1']]))).toBe('diagram-row-z1')
+  })
+  it('moved into an empty row focuses that row', () => {
+    const prev = new Map([['z1', 'l1']])
+    expect(focusTarget(armedL1, prev, new Map([['z2', 'l1']]))).toBe('diagram-row-z2')
+  })
+  it('moved into an occupied row focuses that row', () => {
+    const prev = new Map([
+      ['z1', 'l1'],
+      ['z2', 'l2'],
+    ])
+    expect(focusTarget(armedL1, prev, new Map([['z2', 'l1']]))).toBe('diagram-row-z2')
+  })
+  it('returned to the pool focuses the chip', () => {
+    expect(focusTarget(armedL1, new Map([['z1', 'l1']]), new Map())).toBe('diagram-tap-chip-l1')
+  })
+  it('no change returns null', () => {
+    const m = new Map([['z1', 'l1']])
+    expect(focusTarget(null, m, new Map(m))).toBeNull()
   })
 })

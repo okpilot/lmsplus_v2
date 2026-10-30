@@ -220,3 +220,21 @@ describe('ShortAnswerInput result borders', () => {
     expect(screen.getByTestId('short-answer-input').className).toContain('disabled:opacity-50')
   })
 })
+
+describe('ShortAnswerInput graded fill', () => {
+  it.each([true, false])('uses the card background once graded (correct=%s)', (isCorrect) => {
+    render(
+      <ShortAnswerInput
+        onSubmit={vi.fn()}
+        disabled={false}
+        submittedText="go around"
+        isCorrect={isCorrect}
+        correctAnswer="cleared to land"
+      />,
+    )
+    const cls = screen.getByTestId('short-answer-input').className
+    expect(cls).toContain('disabled:bg-card')
+    expect(cls).toContain('dark:disabled:bg-card')
+    expect(cls).not.toContain('disabled:bg-muted/50')
+  })
+})

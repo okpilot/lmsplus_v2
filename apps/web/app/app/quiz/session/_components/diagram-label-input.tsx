@@ -18,7 +18,7 @@ import {
 import { DiagramAnswerRow, DiagramTapPool, DiagramZoneMarker } from './diagram-tap-list'
 import {
   type Armed,
-  newlyPlacedZone,
+  focusTarget,
   type TapState,
   tapLabel,
   tapPool,
@@ -143,27 +143,6 @@ function DiagramFooter({
       )}
     </>
   )
-}
-
-/** Label returned to the pool by `next`, else null. */
-function returnedLabel(prev: Map<string, string>, next: Map<string, string>): string | null {
-  const kept = new Set(next.values())
-  return [...prev.values()].find((id) => !kept.has(id)) ?? null
-}
-
-/** Focus target after a tap: the row now holding the armed label, else the row a label was placed in, else the chip it returned to. */
-function focusTarget(
-  armed: Armed,
-  prev: Map<string, string>,
-  next: Map<string, string>,
-): string | null {
-  const held =
-    armed?.kind === 'label' ? [...next].find(([, labelId]) => labelId === armed.id)?.[0] : undefined
-  if (held != null && next.get(held) !== prev.get(held)) return `diagram-row-${held}`
-  const zone = newlyPlacedZone(prev, next)
-  if (zone != null) return `diagram-row-${zone}`
-  const label = returnedLabel(prev, next)
-  return label == null ? null : `diagram-tap-chip-${label}`
 }
 
 /** Placement + armed state for tap-to-place; focus follows a placed label to its row, a returned one to its chip. */
