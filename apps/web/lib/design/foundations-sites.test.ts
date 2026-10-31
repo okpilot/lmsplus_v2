@@ -6,12 +6,7 @@ import { describe, expect, it } from 'vitest'
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const src = (rel: string) => readFileSync(path.join(ROOT, rel), 'utf8')
 
-const RAISED = [
-  'app/_components/new-version-banner.tsx',
-  'components/ui/floating-surface.ts',
-  'components/ui/select.tsx',
-  'app/app/admin/questions/_components/bulk-actions-bar.tsx',
-]
+const RAISED = ['components/ui/floating-surface.ts', 'components/ui/select.tsx']
 const OVERLAY = ['components/ui/dialog.tsx', 'components/ui/alert-dialog.tsx']
 
 describe('elevation sites use shadow tokens', () => {
@@ -31,6 +26,25 @@ describe('elevation sites use shadow tokens', () => {
     const s = src(f)
     expect(s).toMatch(/\bshadow-overlay\b/)
     expect(s).not.toMatch(/\bshadow-lg\b/)
+  })
+})
+
+describe('floating panels take their surface from FLOATING_SURFACE', () => {
+  it('FLOATING_SURFACE has ring-surface and shadow-raised and no border', () => {
+    const s = src('components/ui/floating-surface.ts')
+    expect(s).toMatch(/\bring-surface\b/)
+    expect(s).toMatch(/\bshadow-raised\b/)
+    expect(s).not.toMatch(/(^|[\s'"])border([\s'"]|$)/)
+  })
+
+  it.each([
+    'app/_components/new-version-banner.tsx',
+    'app/app/admin/questions/_components/bulk-actions-bar.tsx',
+  ])('%s uses FLOATING_SURFACE and has no border class token', (f) => {
+    const s = src(f)
+    expect(s).toContain('FLOATING_SURFACE')
+    expect(s).not.toMatch(/(^|[\s'"`])border([\s'"`]|$)/)
+    expect(s).not.toMatch(/\bshadow-raised\b/)
   })
 })
 

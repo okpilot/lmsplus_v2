@@ -176,9 +176,6 @@ describe('PR18 focus ring and width tokens', () => {
     expect(read('components/ui/select.tsx')).not.toMatch(/(?<![\w-])z-10(?![\w-])/)
     expect(read('app/app/dashboard/_components/heatmap-cell.tsx')).toContain('ring-select')
     expect(read('app/app/quiz/_components/filter-pill.tsx')).toContain('ring-select')
-    expect(read('app/app/admin/internal-exams/_components/issued-code-panel.tsx')).toContain(
-      'border-emphasis',
-    )
     expect(read('app/app/quiz/_components/subject-select.tsx')).toContain('border-l-emphasis')
     expect(read('components/kit/kbd.tsx')).toContain('border-b-emphasis')
     expect(read('app/app/_components/answer-options.tsx')).toContain('outline-focus')

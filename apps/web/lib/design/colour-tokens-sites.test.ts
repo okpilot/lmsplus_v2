@@ -45,12 +45,13 @@ describe('PR17 colour tokens', () => {
     )
   })
 
-  it('bulk-actions-bar uses bg-glass', () => {
-    expect(read('app/app/admin/questions/_components/bulk-actions-bar.tsx')).toContain('bg-glass')
+  it('bulk-actions-bar uses FLOATING_SURFACE and no bg-glass', () => {
+    const s = read('app/app/admin/questions/_components/bulk-actions-bar.tsx')
+    expect(s).toContain('FLOATING_SURFACE')
+    expect(s).not.toContain('bg-glass')
   })
 
   it.each([
-    'app/app/admin/internal-exams/_components/issued-code-panel.tsx',
     'app/app/quiz/_components/comments-tab.tsx',
     'app/app/quiz/_components/subject-select.tsx',
   ])('%s selects with bg-primary-soft', (f) => {

@@ -3,6 +3,8 @@
 import { useTransition } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { FLOATING_SURFACE } from '@/components/ui/floating-surface'
+import { cn } from '@/lib/utils'
 import { bulkUpdateCalculations } from '../actions/bulk-update-calculations'
 import { bulkUpdateStatus } from '../actions/bulk-update-status'
 
@@ -58,7 +60,12 @@ export function BulkActionsBar({ selectedIds, onClear }: Readonly<Props>) {
   if (count === 0) return null
 
   return (
-    <div className="sticky bottom-0 z-sticky flex flex-wrap items-center gap-3 rounded-control border bg-glass px-4 py-2 shadow-raised backdrop-blur">
+    <div
+      className={cn(
+        FLOATING_SURFACE,
+        'sticky bottom-0 z-sticky flex flex-wrap items-center gap-3 rounded-control px-4 py-2',
+      )}
+    >
       <span className="text-label">{count} selected</span>
       <Button
         size="sm"

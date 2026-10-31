@@ -186,4 +186,12 @@ describe('BulkActionsBar', () => {
 
     expect(onClear).toHaveBeenCalledTimes(1)
   })
+
+  it('floats with a ring and shadow and no border', () => {
+    const { container } = render(<BulkActionsBar selectedIds={['q1']} onClear={vi.fn()} />)
+    const el = container.firstChild as HTMLElement
+    expect(el).toHaveClass('ring-surface', 'shadow-raised')
+    expect(el.className).not.toMatch(/(^|\s)border(\s|$)/)
+    expect(el.className).not.toContain('bg-glass')
+  })
 })

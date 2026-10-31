@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { FLOATING_SURFACE } from '@/components/ui/floating-surface'
 import { NewVersionBanner } from './new-version-banner'
 
 const onReload = vi.fn()
@@ -50,5 +51,10 @@ describe('NewVersionBanner floating surface', () => {
     const el = screen.getByRole('status')
     expect(el).toHaveClass('ring-surface', 'shadow-raised')
     expect(el.className).not.toMatch(/(^|\s)border(\s|$)/)
+  })
+
+  it('takes the FLOATING_SURFACE classes', () => {
+    render(<NewVersionBanner onReload={onReload} />)
+    expect(screen.getByRole('status')).toHaveClass(...FLOATING_SURFACE.split(' '))
   })
 })
