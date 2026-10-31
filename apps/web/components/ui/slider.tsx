@@ -44,7 +44,7 @@ function Slider({
             data-slot="slider-thumb"
             // biome-ignore lint/suspicious/noArrayIndexKey: slider thumbs have fixed order
             key={index}
-            className="relative block size-3 shrink-0 rounded-pill border border-ring bg-white ring-ring transition-shadow select-none after:absolute after:-inset-2 hover:ring-focus focus-visible:ring-focus focus-visible:ring-offset-focus focus-visible:ring-offset-background focus-visible:outline-hidden active:ring-focus"
+            className="relative block size-3 shrink-0 rounded-pill border border-ring bg-white ring-ring transition-shadow select-none after:absolute after:-inset-2 hover:ring-focus focus-visible:outline-solid focus-visible:outline-focus focus-visible:outline-offset-focus focus-visible:outline-hidden active:ring-focus"
           />
         ))}
       </SliderPrimitive.Control>

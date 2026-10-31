@@ -9,7 +9,7 @@ function Checkbox({ className, ...props }: Readonly<CheckboxPrimitive.Root.Props
     <CheckboxPrimitive.Root
       data-slot="checkbox"
       className={cn(
-        'peer relative flex size-4 shrink-0 items-center justify-center rounded-inner border border-input bg-field-fill transition-colors outline-none group-has-disabled/field:opacity-disabled after:absolute after:-inset-x-tap-x after:-inset-y-tap-y focus-visible:border-ring focus-visible:ring-focus focus-visible:ring-ring focus-visible:ring-offset-focus focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-disabled aria-invalid:border-invalid-border aria-invalid:ring-focus aria-invalid:ring-invalid-ring aria-invalid:aria-checked:border-primary data-checked:border-primary data-checked:bg-primary data-checked:text-primary-foreground dark:data-checked:bg-primary',
+        'peer relative flex size-4 shrink-0 items-center justify-center rounded-inner border border-input bg-field-fill transition-colors outline-none group-has-disabled/field:opacity-disabled after:absolute after:-inset-x-tap-x after:-inset-y-tap-y focus-visible:border-ring focus-visible:outline-solid focus-visible:outline-focus focus-visible:outline-ring focus-visible:outline-offset-focus disabled:cursor-not-allowed disabled:opacity-disabled aria-invalid:border-invalid-border aria-invalid:ring-focus aria-invalid:ring-invalid-ring aria-invalid:aria-checked:border-primary data-checked:border-primary data-checked:bg-primary data-checked:text-primary-foreground dark:data-checked:bg-primary',
         className,
       )}
       {...props}

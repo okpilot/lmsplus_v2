@@ -44,18 +44,14 @@ describe('PR18 focus ring and width tokens', () => {
     'components/ui/input.tsx',
     'components/ui/textarea.tsx',
     'components/ui/select.tsx',
-  ])('%s carries ring-focus and ring-offset-focus', (f) => {
+  ])('%s carries outline-focus and outline-offset-focus', (f) => {
     const s = read(f)
-    expect(s).toContain('focus-visible:ring-focus')
-    expect(s).toContain('focus-visible:ring-offset-focus')
+    expect(s).toContain('focus-visible:outline-solid')
+    expect(s).toContain('focus-visible:outline-focus')
+    expect(s).toContain('focus-visible:outline-offset-focus')
+    expect(s).not.toContain('focus-visible:ring-focus')
+    expect(s).not.toContain('focus-visible:ring-offset-background')
   })
-
-  it.each(['components/ui/input.tsx', 'components/ui/textarea.tsx', 'components/ui/select.tsx'])(
-    '%s offsets the focus ring with ring-offset-background',
-    (f) => {
-      expect(read(f)).toContain('focus-visible:ring-offset-background')
-    },
-  )
 
   it.each([
     'components/ui/button-variants.ts',
@@ -69,16 +65,19 @@ describe('PR18 focus ring and width tokens', () => {
     expect(read(f)).toContain('aria-invalid:ring-focus')
   })
 
-  it('slider hover, active and focus rings are ring-focus; focus has the gap', () => {
+  it('slider hover and active rings are ring-focus; focus is an outline with the gap', () => {
     const s = read('components/ui/slider.tsx')
     for (const c of [
       'hover:ring-focus',
       'active:ring-focus',
-      'focus-visible:ring-focus',
-      'focus-visible:ring-offset-focus',
+      'focus-visible:outline-solid',
+      'focus-visible:outline-focus',
+      'focus-visible:outline-offset-focus',
     ]) {
       expect(s).toContain(c)
     }
+    expect(s).not.toContain('focus-visible:ring-focus')
+    expect(s).not.toContain('focus-visible:ring-offset-background')
   })
 
   it.each([
@@ -125,13 +124,27 @@ describe('PR18 focus ring and width tokens', () => {
     expect(l).not.toContain('ring-offset-background')
   })
 
-  it('subject-config-card pill toggle keeps the outside ring', () => {
+  it('subject-config-card pill toggle focuses with an outline and a gap', () => {
     const l = rowLine(
       'app/app/admin/exam-config/_components/subject-config-card.tsx',
       'rounded-pill',
     )
-    expect(l).toContain('focus-visible:ring-focus')
-    expect(l).toContain('focus-visible:ring-offset-focus')
+    expect(l).toContain('focus-visible:outline-solid')
+    expect(l).toContain('focus-visible:outline-focus')
+    expect(l).toContain('focus-visible:outline-offset-focus')
+    expect(l).not.toContain('focus-visible:ring-focus')
+    expect(l).not.toContain('focus-visible:ring-offset-background')
+  })
+
+  it('no non-test file under app/ or components/ uses focus-visible:ring-offset-', () => {
+    const hits: string[] = []
+    for (const dir of ['app', 'components']) {
+      for (const f of walk(path.join(ROOT, dir))) {
+        if (/\.test\.[tj]sx?$/.test(f)) continue
+        if (read(path.relative(ROOT, f)).includes('focus-visible:ring-offset-')) hits.push(f)
+      }
+    }
+    expect(hits).toEqual([])
   })
 
   it('every outline-none element with a focus outline width resets the style with outline-solid', () => {

@@ -39,7 +39,8 @@ test.describe('Phone bottom tab bar More sheet', () => {
     const href = await link.getAttribute('href')
     if (!href) throw new Error('sheet link has no href')
     await link.click()
-    await expect(page).toHaveURL(new RegExp(`${href}(/|$)`), { timeout: 30_000 })
+    const escaped = href.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    await expect(page).toHaveURL(new RegExp(`${escaped}(/|$)`), { timeout: 30_000 })
     await expect(sheet).toHaveCount(0)
   })
 
