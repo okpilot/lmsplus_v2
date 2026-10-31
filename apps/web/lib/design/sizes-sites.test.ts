@@ -133,7 +133,7 @@ describe('control, avatar and column sizes', () => {
   })
   it('syllabus code columns are w-inset-lg', () => {
     for (const f of ['admin/syllabus/subject-row.tsx', 'admin/syllabus/topic-row.tsx'])
-      expect(app(f)).toContain('w-inset-lg')
+      expect(app(f)).toContain('w-inset-lg shrink-0')
   })
   it('subtopic code column fits a 9-character code (050-01-01 is 65.5px at caption size)', () => {
     const s = app('admin/syllabus/subtopic-row.tsx')

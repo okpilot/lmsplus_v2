@@ -100,7 +100,7 @@ export function TopicRow({ topic, subjectId }: Readonly<Props>) {
           />
         </CollapsibleTrigger>
 
-        <span className="w-inset-lg tabular-nums text-body">{topic.code}</span>
+        <span className="w-inset-lg shrink-0 tabular-nums text-body">{topic.code}</span>
         <span className="flex-1 text-body">{topic.name}</span>
         <Badge variant="secondary">{topic.questionCount} Q</Badge>
         <Button
