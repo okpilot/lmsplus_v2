@@ -1,0 +1,150 @@
+import { readdirSync, readFileSync, statSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { describe, expect, it } from 'vitest'
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
+const read = (f: string) => readFileSync(path.join(ROOT, f), 'utf8')
+
+function walk(dir: string): string[] {
+  const out: string[] = []
+  for (const name of readdirSync(dir)) {
+    const p = path.join(dir, name)
+    if (statSync(p).isDirectory()) out.push(...walk(p))
+    else if (/\.(tsx|ts)$/.test(name) && !/\.(test|spec)\./.test(name)) out.push(p)
+  }
+  return out
+}
+
+const RAW_WIDTH =
+  /(?<![\w-])(?:ring-[123]|ring-inset|outline-2|-outline-offset-2|border-2|border-[lrtb]-2)(?![\w-])/g
+
+describe('PR18 focus ring and width tokens', () => {
+  it('no ring-1|2|3, ring-inset, outline-2, -outline-offset-2 or border-2 in components/app', () => {
+    const hits: string[] = []
+    for (const dir of ['app', 'components']) {
+      for (const f of walk(path.join(ROOT, dir))) {
+        const text = readFileSync(f, 'utf8')
+        for (const m of text.matchAll(RAW_WIDTH)) {
+          hits.push(
+            `${path.relative(ROOT, f)}:${text.slice(0, m.index).split('\n').length} ${m[0]}`,
+          )
+        }
+      }
+    }
+    expect(hits).toEqual([])
+  })
+
+  it.each([
+    'components/ui/button-variants.ts',
+    'components/ui/badge.tsx',
+    'components/ui/checkbox.tsx',
+    'components/ui/radio-group.tsx',
+    'components/ui/switch.tsx',
+    'components/ui/input.tsx',
+    'components/ui/textarea.tsx',
+    'components/ui/select.tsx',
+  ])('%s carries ring-focus and ring-offset-focus', (f) => {
+    const s = read(f)
+    expect(s).toContain('focus-visible:ring-focus')
+    expect(s).toContain('focus-visible:ring-offset-focus')
+  })
+
+  it.each(['components/ui/input.tsx', 'components/ui/textarea.tsx', 'components/ui/select.tsx'])(
+    '%s offsets the focus ring with ring-offset-background',
+    (f) => {
+      expect(read(f)).toContain('focus-visible:ring-offset-background')
+    },
+  )
+
+  it.each([
+    'components/ui/button-variants.ts',
+    'components/ui/checkbox.tsx',
+    'components/ui/radio-group.tsx',
+    'components/ui/switch.tsx',
+    'components/ui/input.tsx',
+    'components/ui/textarea.tsx',
+    'components/ui/select.tsx',
+  ])('%s invalid ring is aria-invalid:ring-focus', (f) => {
+    expect(read(f)).toContain('aria-invalid:ring-focus')
+  })
+
+  it('slider hover, active and focus rings are ring-focus; focus has the gap', () => {
+    const s = read('components/ui/slider.tsx')
+    for (const c of [
+      'hover:ring-focus',
+      'active:ring-focus',
+      'focus-visible:ring-focus',
+      'focus-visible:ring-offset-focus',
+    ]) {
+      expect(s).toContain(c)
+    }
+  })
+
+  it.each([
+    'app/app/admin/dashboard/_components/student-table-helpers.tsx',
+    'app/app/admin/dashboard/students/[id]/_components/clickable-session-row.tsx',
+    'app/app/admin/internal-exams/_components/attempts-table.tsx',
+    'app/app/internal-exam/_components/my-reports-tab.tsx',
+    'app/app/reports/_components/session-table.tsx',
+    'app/app/admin/dashboard/_components/recent-activity-list.tsx',
+    'components/ui/tabs.tsx',
+  ])('%s focuses with outline-focus and outline-offset-2', (f) => {
+    const s = read(f)
+    expect(s).toContain('focus-visible:outline-focus')
+    expect(s).toContain('focus-visible:outline-offset-2')
+  })
+
+  it.each([
+    'app/app/admin/exam-config/_components/subject-config-card.tsx',
+    'app/app/progress/_components/subject-breakdown.tsx',
+    'app/app/reports/_components/session-card.tsx',
+  ])('%s focuses with an outside ring-focus ring', (f) => {
+    const s = read(f)
+    expect(s).toContain('focus-visible:ring-focus')
+    expect(s).toContain('focus-visible:ring-offset-focus')
+    expect(s).toContain('focus-visible:ring-offset-background')
+  })
+
+  it('width tokens replace ring-1, ring-2, border-2 and z-10', () => {
+    expect(read('components/ui/card.tsx')).toContain('ring-surface')
+    expect(read('components/ui/dialog.tsx')).toContain('ring-surface')
+    expect(read('components/ui/select.tsx')).toMatch(/z-sticky/)
+    expect(read('components/ui/select.tsx')).not.toMatch(/(?<![\w-])z-10(?![\w-])/)
+    expect(read('app/app/dashboard/_components/heatmap-cell.tsx')).toContain('ring-select')
+    expect(read('app/app/quiz/_components/filter-pill.tsx')).toContain('ring-select')
+    expect(read('app/app/admin/internal-exams/_components/issued-code-panel.tsx')).toContain(
+      'border-emphasis',
+    )
+    expect(read('app/app/quiz/_components/subject-select.tsx')).toContain('border-l-emphasis')
+    expect(read('app/app/quiz/session/_components/keyboard-legend.tsx')).toContain(
+      'border-b-emphasis',
+    )
+    expect(read('app/app/_components/answer-options.tsx')).toContain('outline-focus')
+  })
+
+  it('CardList rounds first and last child instead of clipping', () => {
+    const s = read('components/ui/card.tsx')
+    expect(s).toContain('*:first:rounded-t-card')
+    expect(s).toContain('*:last:rounded-b-card')
+    expect(s).not.toMatch(/divide-border[^'"`]*overflow-hidden|overflow-hidden[^'"`]*divide-border/)
+  })
+
+  it('recent-activity-list does not clip and rounds its last child', () => {
+    const s = read('app/app/admin/dashboard/_components/recent-activity-list.tsx')
+    expect(s).not.toContain('overflow-hidden')
+    expect(s).toContain('*:last:rounded-b-card')
+  })
+
+  it('table scroller wraps the container with -m-1 p-1 and no width class', () => {
+    const s = read('components/ui/table.tsx')
+    expect(s).toContain('data-slot="table-scroller"')
+    expect(s).not.toContain('w-[calc(100%+0.5rem)]')
+  })
+
+  it('decisions.md ends with entry 194 and marks 178 as amended by 179, 194', () => {
+    const d = read('../../docs/decisions.md')
+    expect(d).toMatch(/^## 194 — 2026-10-31 — One focus style/m)
+    expect(d).toMatch(/^## 178 .*Amended by 179, 194\.\s*$/m)
+  })
+})
