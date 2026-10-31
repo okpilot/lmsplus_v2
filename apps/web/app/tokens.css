@@ -410,6 +410,7 @@
   --ring-width-surface: 1px;
   --ring-offset-width-focus: 2px;
   --outline-width-focus: 2px;
+  --outline-offset-focus: 2px;
   --border-width-emphasis: 2px;
   --opacity-disabled: 50%;
   --stroke-width-icon: 2;

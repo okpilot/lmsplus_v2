@@ -47,6 +47,7 @@ export const WIDTHS = {
   ring: { focus: '2px', select: '2px', surface: '1px' },
   ringOffset: { focus: '2px' },
   outline: { focus: '2px' },
+  outlineOffset: { focus: '2px' },
   border: { emphasis: '2px' },
 } as const
 

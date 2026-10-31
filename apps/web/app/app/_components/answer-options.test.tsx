@@ -280,7 +280,8 @@ describe('AnswerOptions', () => {
       render(<AnswerOptions options={OPTIONS} disabled={false} keyboardHighlightedId="a" />)
       const cls = screen.getByTestId('option-a').className
       expect(cls).toContain('outline-focus')
-      expect(cls).not.toContain('ring-2')
+      expect(cls).toContain('outline-offset-focus')
+      expect(cls).not.toMatch(/(?<![\w-])ring-(select|focus|surface)(?![\w-])/)
     })
 
     it('does not show a keyboard highlight once an exam answer is locked', () => {

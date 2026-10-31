@@ -76,6 +76,7 @@ const widthDecls = (): Decl[] => {
   for (const [k, v] of Object.entries(WIDTHS.ring)) out.push([`--ring-width-${k}`, v])
   for (const [k, v] of Object.entries(WIDTHS.ringOffset)) out.push([`--ring-offset-width-${k}`, v])
   for (const [k, v] of Object.entries(WIDTHS.outline)) out.push([`--outline-width-${k}`, v])
+  for (const [k, v] of Object.entries(WIDTHS.outlineOffset)) out.push([`--outline-offset-${k}`, v])
   for (const [k, v] of Object.entries(WIDTHS.border)) out.push([`--border-width-${k}`, v])
   for (const [k, v] of Object.entries(OPACITY)) out.push([`--opacity-${k}`, v])
   for (const [k, v] of Object.entries(STROKE)) out.push([`--stroke-width-${k}`, v])

@@ -12,14 +12,10 @@ describe('Table surface', () => {
       </Table>,
     )
     const box = container.querySelector('[data-slot="table-container"]') as HTMLElement
-    for (const c of ['rounded-card', 'border', 'border-border', 'bg-card']) {
+    for (const c of ['rounded-card', 'border', 'border-border', 'bg-card', 'overflow-x-auto']) {
       expect(box.className.split(/\s+/)).toContain(c)
     }
-    expect(box.className.split(/\s+/)).not.toContain('overflow-x-auto')
-    const scroller = box.closest('[data-slot="table-scroller"]') as HTMLElement
-    const cls = scroller.className.split(/\s+/)
-    for (const c of ['-m-1', 'p-1', 'overflow-x-auto']) expect(cls).toContain(c)
-    expect(scroller.className).not.toMatch(/(?:^|\s)w-/)
+    expect(container.querySelector('[data-slot="table-scroller"]')).toBeNull()
   })
 
   it('header has bg-muted and neutralises row hover', () => {

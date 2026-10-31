@@ -17,7 +17,7 @@ function walk(dir: string): string[] {
 }
 
 const RAW_WIDTH =
-  /(?<![\w-])(?:ring-[123]|ring-inset|outline-2|-outline-offset-2|border-2|border-[lrtb]-2)(?![\w-])/g
+  /(?<![\w-])(?:ring-[123]|ring-inset|outline-2|-outline-offset-2|outline-offset-2|border-2|border-[lrtb]-2)(?![\w-])/g
 
 describe('PR18 focus ring and width tokens', () => {
   it('no ring-1|2|3, ring-inset, outline-2, -outline-offset-2 or border-2 in components/app', () => {
@@ -87,12 +87,19 @@ describe('PR18 focus ring and width tokens', () => {
     'app/app/admin/internal-exams/_components/attempts-table.tsx',
     'app/app/internal-exam/_components/my-reports-tab.tsx',
     'app/app/reports/_components/session-table.tsx',
-    'app/app/admin/dashboard/_components/recent-activity-list.tsx',
-    'components/ui/tabs.tsx',
-  ])('%s focuses with outline-focus and outline-offset-2', (f) => {
+  ])('%s focuses with outline-focus and an inset -outline-offset-focus', (f) => {
     const s = read(f)
     expect(s).toContain('focus-visible:outline-focus')
-    expect(s).toContain('focus-visible:outline-offset-2')
+    expect(s).toContain('focus-visible:-outline-offset-focus')
+  })
+
+  it.each([
+    'app/app/admin/dashboard/_components/recent-activity-list.tsx',
+    'components/ui/tabs.tsx',
+  ])('%s focuses with outline-focus and outline-offset-focus', (f) => {
+    const s = read(f)
+    expect(s).toContain('focus-visible:outline-focus')
+    expect(s).toContain('focus-visible:outline-offset-focus')
   })
 
   it.each([
@@ -130,16 +137,18 @@ describe('PR18 focus ring and width tokens', () => {
     expect(s).not.toMatch(/divide-border[^'"`]*overflow-hidden|overflow-hidden[^'"`]*divide-border/)
   })
 
-  it('recent-activity-list does not clip and rounds its last child', () => {
+  it('recent-activity-list does not clip and does not round its rows', () => {
     const s = read('app/app/admin/dashboard/_components/recent-activity-list.tsx')
     expect(s).not.toContain('overflow-hidden')
-    expect(s).toContain('*:last:rounded-b-card')
+    expect(s).not.toContain('rounded-t-card')
+    expect(s).not.toContain('rounded-b-card')
   })
 
-  it('table scroller wraps the container with -m-1 p-1 and no width class', () => {
+  it('table container scrolls and clips; no scroller wrapper', () => {
     const s = read('components/ui/table.tsx')
-    expect(s).toContain('data-slot="table-scroller"')
-    expect(s).not.toContain('w-[calc(100%+0.5rem)]')
+    expect(s).not.toContain('table-scroller')
+    expect(s).toContain('overflow-x-auto')
+    expect(s).not.toContain('w-[calc')
   })
 
   it('decisions.md ends with entry 194 and marks 178 as amended by 179, 194', () => {

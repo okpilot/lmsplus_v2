@@ -43,6 +43,7 @@ const twMerge = extendTailwindMerge({
       'ring-w': [{ ring: Object.keys(WIDTHS.ring) }],
       'ring-offset-w': [{ 'ring-offset': Object.keys(WIDTHS.ringOffset) }],
       'outline-w': [{ outline: Object.keys(WIDTHS.outline) }],
+      'outline-offset': [{ 'outline-offset': Object.keys(WIDTHS.outlineOffset) }],
       'border-w': [{ border: Object.keys(WIDTHS.border) }],
       'border-w-x': [{ 'border-x': Object.keys(WIDTHS.border) }],
       'border-w-y': [{ 'border-y': Object.keys(WIDTHS.border) }],

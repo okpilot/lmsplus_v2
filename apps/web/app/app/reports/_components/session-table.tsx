@@ -77,7 +77,7 @@ function SessionRow({ session: s }: Readonly<{ session: SessionReport }>) {
   return (
     <TableRow
       tabIndex={0}
-      className="cursor-pointer hover:bg-accent focus-visible:outline focus-visible:outline-focus focus-visible:outline-offset-2 focus-visible:outline-ring"
+      className="cursor-pointer hover:bg-accent focus-visible:outline focus-visible:outline-focus focus-visible:-outline-offset-focus focus-visible:outline-ring"
       onClick={navigate}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
