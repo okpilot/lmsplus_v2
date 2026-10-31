@@ -17,7 +17,7 @@ describe('buttonVariants', () => {
 
   it('sizes sm text with the caption token', () => {
     const sm = buttonVariants({ size: 'sm' })
-    expect(sm).toContain('text-caption')
+    expect(sm).toMatch(/(?<![\w-])text-caption-strong(?![\w-])/)
     expect(sm).not.toContain('text-[0.8rem]')
   })
 

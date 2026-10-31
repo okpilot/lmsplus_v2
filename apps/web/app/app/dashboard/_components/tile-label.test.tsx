@@ -13,7 +13,7 @@ describe('TileLabel', () => {
   it('uses the caption size on phones and the label size from md up', () => {
     const { container } = render(<TileLabel short="S" full="Full" description="d" />)
     const root = container.firstElementChild as HTMLElement
-    expect(root.className).toContain('text-caption')
+    expect(root.className).toMatch(/(?<![\w-])text-caption(?![\w-])/)
     expect(root.className).toContain('md:text-label')
   })
 })

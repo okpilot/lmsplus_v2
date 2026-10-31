@@ -52,7 +52,9 @@ describe('fields are body (AC 8)', () => {
   it('select trigger and item are body, SelectLabel is caption', () => {
     expect(win(`${U}select.tsx`, 'data-slot="select-trigger"', 6)).toContain('text-body')
     expect(win(`${U}select.tsx`, 'data-slot="select-item"', 6)).toContain('text-body')
-    expect(win(`${U}select.tsx`, 'data-slot="select-label"', 6)).toContain('text-caption')
+    expect(win(`${U}select.tsx`, 'data-slot="select-label"', 6)).toMatch(
+      /(?<![\w-])text-caption(?![\w-])/,
+    )
   })
 
   it.each([
@@ -94,7 +96,9 @@ describe('card (AC 11)', () => {
     expect(t).toContain('text-label-strong')
     expect(t).not.toContain('font-semibold')
     expect(t).not.toMatch(/text-base|group-data-\[size=sm\]\/card:text-sm/)
-    expect(win(`${U}card.tsx`, 'data-slot="card-description"', 6)).toContain('text-caption')
+    expect(win(`${U}card.tsx`, 'data-slot="card-description"', 6)).toMatch(
+      /(?<![\w-])text-caption(?![\w-])/,
+    )
   })
 })
 
@@ -128,7 +132,7 @@ describe('chip-sized chips (AC 12)', () => {
 describe('tooltips and info button (AC 13, 14)', () => {
   it('popover bodies are caption without font-normal', () => {
     const s = src(`${U}popover.tsx`)
-    expect(s).toContain('text-caption')
+    expect(s).toMatch(/(?<![\w-])text-caption(?![\w-])/)
     expect(s).not.toContain('font-normal')
   })
 
@@ -175,7 +179,7 @@ describe('quiz header is caption (AC 17)', () => {
     '%s',
     (f) => {
       const s = src(f)
-      expect(s).toContain('text-caption')
+      expect(s).toMatch(/(?<![\w-])text-caption(?![\w-])/)
       expect(s).not.toMatch(/text-sm\b/)
     },
   )
