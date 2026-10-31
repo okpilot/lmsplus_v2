@@ -3,6 +3,8 @@
 import Link from 'next/link'
 import { type RefObject, useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { FLOATING_SURFACE } from '@/components/ui/floating-surface'
+import { cn } from '@/lib/utils'
 import { NavIcon } from './nav-icon'
 import type { NavItem } from './nav-items'
 import { NAV_ACTIVE } from './sidebar-item'
@@ -48,7 +50,10 @@ export function MoreSheet({ hidden, activeHref, onClose }: Readonly<SheetProps>)
       <ul
         ref={listRef}
         id={SHEET_ID}
-        className="fixed inset-x-0 bottom-(--tab-bar-h) z-nav rounded-t-sheet border-t border-border bg-card px-2 py-2"
+        className={cn(
+          FLOATING_SURFACE,
+          'fixed inset-x-0 bottom-(--tab-bar-h) z-nav rounded-t-sheet px-2 py-2',
+        )}
       >
         {hidden.map((item) => (
           <li key={item.href}>

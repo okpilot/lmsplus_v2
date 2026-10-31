@@ -48,6 +48,15 @@ describe('floating panels take their surface from FLOATING_SURFACE', () => {
   })
 })
 
+describe('more-sheet surface', () => {
+  it('more-sheet.tsx uses FLOATING_SURFACE and no border-t or bg-card', () => {
+    const s = src('app/app/_components/more-sheet.tsx')
+    expect(s).toContain('FLOATING_SURFACE')
+    expect(s).not.toContain('border-t border-border')
+    expect(s).not.toMatch(/\bbg-card\b/)
+  })
+})
+
 describe('scrim sites use the scrim token', () => {
   it.each(['components/ui/dialog.tsx', 'components/ui/alert-dialog.tsx'])(
     '%s dims with bg-scrim, not raw black',

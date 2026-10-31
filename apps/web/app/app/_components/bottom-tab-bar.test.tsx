@@ -152,6 +152,21 @@ describe('BottomTabBar', () => {
       ).toBeTruthy()
     })
 
+    it('renders the sheet as a floating surface with ring and shadow, no border', async () => {
+      narrow(320)
+      await userEvent.setup({ delay: null }).click(screen.getByRole('button', { name: 'More' }))
+      const sheet = document.querySelector('#bottom-more-sheet') as HTMLElement
+      const tokens = sheet.className.split(/\s+/)
+      expect(tokens).toContain('ring-surface')
+      expect(tokens).toContain('shadow-raised')
+      expect(tokens).not.toContain('border')
+      expect(tokens).not.toContain('border-t')
+      expect(tokens).not.toContain('bg-card')
+      expect(tokens).toContain('rounded-t-sheet')
+      expect(tokens).toContain('bottom-(--tab-bar-h)')
+      expect(tokens).toContain('z-nav')
+    })
+
     it('paints the tab strip with the glass token', async () => {
       narrow(320)
       await userEvent.setup({ delay: null }).click(screen.getByRole('button', { name: 'More' }))
@@ -328,11 +343,11 @@ describe('BottomTabBar', () => {
       expect(cls).not.toContain('bg-primary-soft')
     })
 
-    it('uses the border token for the sheet', async () => {
+    it('uses the border token for the sheet ring', async () => {
       narrow(320)
       await userEvent.setup({ delay: null }).click(screen.getByRole('button', { name: 'More' }))
       const cls = (document.querySelector('#bottom-more-sheet') as HTMLElement).className
-      expect(cls).toContain('border-border')
+      expect(cls).toContain('ring-border')
       expect(cls).not.toContain('border-foreground/')
     })
   })
