@@ -82,17 +82,17 @@ describe('HeatmapCell', () => {
       expect(container.querySelectorAll('span').length).toBe(1) // only the day label
     })
 
-    it('uses the muted/30 background class', () => {
+    it('uses the data-future background class', () => {
       render(<HeatmapCell {...futureProps} />)
       const cell = screen.getByTestId(`heatmap-cell-${futureProps.day}`)
       const inner = cell.firstElementChild
-      expect(inner?.className).toMatch(/bg-muted\/30/)
+      expect(inner?.className).toMatch(/(^|\s)bg-data-future(\s|$)/)
     })
 
     it('renders the day number with dimmed text style', () => {
       render(<HeatmapCell {...futureProps} day={22} />)
       const dayLabel = screen.getByText('22')
-      expect(dayLabel.className).toMatch(/text-muted-foreground\/30/)
+      expect(dayLabel.className).toMatch(/(^|\s)text-data-empty(\s|$)/)
     })
   })
 

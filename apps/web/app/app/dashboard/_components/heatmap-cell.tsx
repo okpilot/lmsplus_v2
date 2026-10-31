@@ -18,10 +18,10 @@ export function HeatmapCell({
   const ring = isToday ? ' ring-2 ring-ring' : ''
   const hasActivity = !isFuture && total > 0
 
-  const cellBg = isFuture ? 'bg-muted/30' : hasActivity ? 'bg-muted' : 'border border-border'
+  const cellBg = isFuture ? 'bg-data-future' : hasActivity ? 'bg-muted' : 'border border-border'
 
   const dayTextClass = isFuture
-    ? 'text-muted-foreground/30'
+    ? 'text-data-empty'
     : isToday
       ? 'text-foreground font-semibold'
       : 'text-muted-foreground'

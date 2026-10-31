@@ -10,7 +10,7 @@ type Result = 'correct' | 'incorrect' | undefined
 const BADGE = {
   correct: 'border-success-solid bg-success-solid text-success-foreground',
   incorrect: 'border-danger-solid bg-danger-solid text-danger-foreground',
-  idle: 'border-foreground/60 bg-card text-foreground',
+  idle: 'border-diagram-line bg-card text-foreground',
   filled: 'border-primary bg-primary text-primary-foreground',
 } as const
 
@@ -58,14 +58,14 @@ const CHIP = 'h-8 shrink-0 rounded-inner border bg-card px-3 text-caption-strong
 
 function chipTone(armed: boolean, result: Result): string {
   if (result) return result === 'correct' ? 'border-success' : 'border-danger'
-  return armed ? 'border-primary bg-primary-soft ring-2 ring-primary/30' : 'border-input'
+  return armed ? 'border-primary bg-primary-soft ring-2 ring-selected-ring' : 'border-input'
 }
 
 function rowFrame(zoneArmed: boolean, target: boolean, result: Result): string {
   if (result) return result === 'correct' ? 'border-success' : 'border-danger'
   if (zoneArmed)
     return 'border-primary bg-primary-soft hover:bg-primary-soft dark:hover:bg-primary-soft'
-  return target ? 'border-primary/60 border-dashed' : 'border-dashed border-input'
+  return target ? 'border-primary-border-soft border-dashed' : 'border-dashed border-input'
 }
 
 function rowHint({
@@ -209,7 +209,7 @@ export function DiagramTapPool({
           }}
           className={cn(
             CHIP,
-            'border-input aria-pressed:bg-primary-soft aria-pressed:hover:bg-primary-soft aria-pressed:ring-2 aria-pressed:ring-primary/30',
+            'border-input aria-pressed:bg-primary-soft aria-pressed:hover:bg-primary-soft aria-pressed:ring-2 aria-pressed:ring-selected-ring',
           )}
         >
           {l.text}

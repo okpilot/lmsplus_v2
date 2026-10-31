@@ -145,11 +145,19 @@ describe('BottomTabBar', () => {
       expect(backdrop.className).toContain('bg-scrim')
       expect(backdrop.className).not.toContain('bg-foreground/10')
       expect(backdrop.className).not.toContain('hover:bg-muted')
-      expect(backdrop.className).not.toContain('dark:hover:bg-muted/50')
+      expect(backdrop.className).not.toMatch(/hover:bg-(muted|foreground)/)
       expect(nav.compareDocumentPosition(backdrop) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
       expect(
         backdrop.compareDocumentPosition(sheet) & Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy()
+    })
+
+    it('paints the tab strip with the glass token', async () => {
+      narrow(320)
+      await userEvent.setup({ delay: null }).click(screen.getByRole('button', { name: 'More' }))
+      const cls = screen.getByRole('navigation', { name: 'Bottom navigation' }).className
+      expect(cls).toMatch(/(?<![\w-])bg-glass(?![\w-])/)
+      expect(cls).not.toContain('bg-background/95')
     })
 
     it('sets font-normal on an inactive More button only', async () => {

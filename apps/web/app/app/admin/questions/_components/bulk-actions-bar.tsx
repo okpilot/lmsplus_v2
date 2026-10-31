@@ -58,7 +58,7 @@ export function BulkActionsBar({ selectedIds, onClear }: Readonly<Props>) {
   if (count === 0) return null
 
   return (
-    <div className="sticky bottom-0 z-sticky flex flex-wrap items-center gap-3 rounded-control border bg-background/95 px-4 py-2 shadow-raised backdrop-blur">
+    <div className="sticky bottom-0 z-sticky flex flex-wrap items-center gap-3 rounded-control border bg-glass px-4 py-2 shadow-raised backdrop-blur">
       <span className="text-label">{count} selected</span>
       <Button
         size="sm"
