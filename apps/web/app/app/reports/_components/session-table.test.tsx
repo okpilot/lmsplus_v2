@@ -125,7 +125,7 @@ describe('SessionTable', () => {
   it('renders the exam badge uppercase', () => {
     render(<SessionTable {...SORT_PROPS} sessions={[makeSession({ mode: 'mock_exam' })]} />)
     expect(screen.getByText('Practice Exam')).toHaveClass('uppercase')
-    expect(screen.getByText('Practice Exam')).not.toHaveClass('tracking-wide')
+    expect(screen.getByText('Practice Exam').className).not.toMatch(/\btracking-/)
   })
 
   it('renders an Internal Exam badge for internal_exam mode', () => {

@@ -22,9 +22,11 @@ const SESS = `${Q}session/_components/`
 describe('buttons and tabs (AC 6, 7)', () => {
   it('button base is label carrying its own weight; sm is caption-strong', () => {
     const s = src(`${U}button-variants.ts`)
-    expect(s).toContain('text-label')
+    const base = s.split('\n').find((l) => l.includes('group/button')) ?? ''
+    const sm = s.split('\n').find((l) => /^\s*sm:/.test(l)) ?? ''
+    expect(base).toMatch(/\btext-label(?![\w-])/)
     expect(s).not.toContain('font-medium')
-    expect(s).toContain('text-caption-strong')
+    expect(sm).toMatch(/\btext-caption-strong(?![\w-])/)
     expect(s).not.toMatch(/text-sm\b/)
   })
 
