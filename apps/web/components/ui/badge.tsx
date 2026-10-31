@@ -41,12 +41,15 @@ const badgeVariants = cva(
 )
 
 type BadgeVariants = VariantProps<typeof badgeVariants>
+export type BadgeTone = NonNullable<BadgeVariants['tone']>
+
+/** `outline` exists for the neutral tone only. */
+type BadgeToneProps =
+  | { tone?: 'neutral'; outline?: boolean }
+  | { tone: Exclude<BadgeTone, 'neutral'>; outline?: never }
+
 type BadgeProps = Readonly<
-  useRender.ComponentProps<'span'> &
-    Pick<BadgeVariants, 'shape'> & {
-      tone?: NonNullable<BadgeVariants['tone']>
-      outline?: boolean
-    }
+  useRender.ComponentProps<'span'> & Pick<BadgeVariants, 'shape'> & BadgeToneProps
 >
 
 function Badge({

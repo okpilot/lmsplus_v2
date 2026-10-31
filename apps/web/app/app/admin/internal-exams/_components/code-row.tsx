@@ -1,17 +1,19 @@
 'use client'
 
-import { Badge } from '@/components/ui/badge'
+import { Badge, type BadgeTone } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { TableCell, TableRow } from '@/components/ui/table'
 import type { InternalExamCodeRow } from '../types'
 import { SendCodeEmailButton } from './send-code-email-button'
 
-function displayStatus(row: InternalExamCodeRow): string {
+type DisplayStatus = InternalExamCodeRow['status'] | 'finished'
+
+function displayStatus(row: InternalExamCodeRow): DisplayStatus {
   if (row.status === 'consumed' && row.sessionEndedAt) return 'finished'
   return row.status
 }
 
-const STATUS_TONE: Record<string, 'success' | 'neutral' | 'danger'> = {
+const STATUS_TONE: Record<DisplayStatus, BadgeTone> = {
   active: 'success',
   consumed: 'neutral',
   finished: 'success',
@@ -37,7 +39,7 @@ export function CodeRow({
   return (
     <TableRow>
       <TableCell>
-        <Badge tone={STATUS_TONE[ds] ?? 'neutral'} className="capitalize">
+        <Badge tone={STATUS_TONE[ds]} className="capitalize">
           {ds}
         </Badge>
       </TableCell>

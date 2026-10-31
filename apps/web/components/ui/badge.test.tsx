@@ -27,6 +27,12 @@ describe('Badge', () => {
     expect(el.className).not.toContain('bg-primary')
   })
 
+  it('rejects outline on a non-neutral tone at compile time', () => {
+    // @ts-expect-error outline exists for the neutral tone only
+    const el = <Badge tone="danger" outline />
+    expect(el).toBeTruthy()
+  })
+
   it('renders the outline flag with border and transparent fill', () => {
     render(
       <Badge tone="neutral" outline>

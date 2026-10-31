@@ -63,7 +63,6 @@
   --selected-ring: color-mix(in oklab, var(--primary) 30%, transparent);
   --primary-border-hover: color-mix(in oklab, var(--primary) 40%, transparent);
   --primary-border-soft: color-mix(in oklab, var(--primary) 60%, transparent);
-  --danger-soft-hover: color-mix(in oklab, var(--destructive) 20%, transparent);
   --glass: color-mix(in oklab, var(--background) 95%, transparent);
   --data-empty: color-mix(in oklab, var(--muted-foreground) 30%, transparent);
   --diagram-line: color-mix(in oklab, var(--foreground) 60%, transparent);
@@ -140,7 +139,6 @@
   --selected-ring: color-mix(in oklab, var(--primary) 30%, transparent);
   --primary-border-hover: color-mix(in oklab, var(--primary) 40%, transparent);
   --primary-border-soft: color-mix(in oklab, var(--primary) 60%, transparent);
-  --danger-soft-hover: color-mix(in oklab, var(--destructive) 20%, transparent);
   --glass: color-mix(in oklab, var(--background) 95%, transparent);
   --data-empty: color-mix(in oklab, var(--muted-foreground) 30%, transparent);
   --diagram-line: color-mix(in oklab, var(--foreground) 60%, transparent);
@@ -226,7 +224,6 @@
   --color-selected-ring: var(--selected-ring);
   --color-primary-border-hover: var(--primary-border-hover);
   --color-primary-border-soft: var(--primary-border-soft);
-  --color-danger-soft-hover: var(--danger-soft-hover);
   --color-glass: var(--glass);
   --color-data-empty: var(--data-empty);
   --color-diagram-line: var(--diagram-line);

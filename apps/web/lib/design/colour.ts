@@ -61,11 +61,6 @@ export const ALPHA_COLOURS: Record<string, { light: AlphaFill; dark: AlphaFill }
     light: { base: 'primary', pct: 60 },
     dark: { base: 'primary', pct: 60 },
   },
-  // [a]:hover:bg-destructive/20 (badge), both themes
-  'danger-soft-hover': {
-    light: { base: 'destructive', pct: 20 },
-    dark: { base: 'destructive', pct: 20 },
-  },
   // bg-background/95 (bottom tab bar, bulk actions bar), both themes
   glass: { light: { base: 'background', pct: 95 }, dark: { base: 'background', pct: 95 } },
   // text-muted-foreground/30 (heatmap future-day label), both themes

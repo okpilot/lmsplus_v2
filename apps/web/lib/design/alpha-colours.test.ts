@@ -12,7 +12,6 @@ const KEYS = [
   'selected-ring',
   'primary-border-hover',
   'primary-border-soft',
-  'danger-soft-hover',
   'glass',
   'data-empty',
   'diagram-line',
