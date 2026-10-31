@@ -51,7 +51,7 @@ export function ResumeLink({
       }}
       className={cn(
         buttonVariants({ variant: 'caution' }),
-        'aria-disabled:pointer-events-none aria-disabled:opacity-50',
+        'aria-disabled:pointer-events-none aria-disabled:opacity-disabled',
       )}
     >
       {children}
