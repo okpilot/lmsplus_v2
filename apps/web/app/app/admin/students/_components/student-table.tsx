@@ -11,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { CourseOption, StudentRow } from '../types'
 import { LoginInstructionsCell } from './login-instructions-cell'
 
@@ -104,37 +105,59 @@ export function StudentTable({
             </TableCell>
             <TableCell>
               <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  title="Edit student"
-                  aria-label="Edit student"
-                  onClick={() => onEdit(s)}
-                >
-                  <Pencil className="size-icon-sm text-muted-foreground" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  title={s.deleted_at === null ? 'Deactivate student' : 'Reactivate student'}
-                  aria-label={s.deleted_at === null ? 'Deactivate student' : 'Reactivate student'}
-                  onClick={() => onToggleStatus(s)}
-                >
-                  {s.deleted_at === null ? (
-                    <UserX className="size-icon-sm text-muted-foreground" />
-                  ) : (
-                    <UserCheck className="size-icon-sm text-muted-foreground" />
-                  )}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  title="Export data"
-                  aria-label="Export data"
-                  onClick={() => onExport(s)}
-                >
-                  <Download className="size-icon-sm text-muted-foreground" />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Edit student"
+                        onClick={() => onEdit(s)}
+                      />
+                    }
+                  >
+                    <Pencil className="size-icon-sm text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent>Edit student</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={
+                          s.deleted_at === null ? 'Deactivate student' : 'Reactivate student'
+                        }
+                        onClick={() => onToggleStatus(s)}
+                      />
+                    }
+                  >
+                    {s.deleted_at === null ? (
+                      <UserX className="size-icon-sm text-muted-foreground" />
+                    ) : (
+                      <UserCheck className="size-icon-sm text-muted-foreground" />
+                    )}
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {s.deleted_at === null ? 'Deactivate student' : 'Reactivate student'}
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Export data"
+                        onClick={() => onExport(s)}
+                      />
+                    }
+                  >
+                    <Download className="size-icon-sm text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent>Export data</TooltipContent>
+                </Tooltip>
               </div>
             </TableCell>
           </TableRow>

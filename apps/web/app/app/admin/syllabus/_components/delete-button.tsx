@@ -15,6 +15,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { deleteItem } from '../actions/delete-item'
 
 type DeleteButtonProps = {
@@ -27,6 +28,7 @@ type DeleteButtonProps = {
 export function DeleteButton({ id, table, label, questionCount }: Readonly<DeleteButtonProps>) {
   const [isPending, startTransition] = useTransition()
   const hasQuestions = questionCount > 0
+  const reason = hasQuestions ? `${questionCount} questions reference this item` : 'Delete'
 
   function handleDelete() {
     startTransition(async () => {
@@ -45,18 +47,23 @@ export function DeleteButton({ id, table, label, questionCount }: Readonly<Delet
 
   return (
     <AlertDialog>
-      <AlertDialogTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            disabled={hasQuestions || isPending}
-            title={hasQuestions ? `${questionCount} questions reference this item` : 'Delete'}
-          />
-        }
-      >
-        <Trash2 className="size-icon-sm text-muted-foreground" />
-      </AlertDialogTrigger>
+      <Tooltip>
+        <TooltipTrigger render={<span className="inline-flex" />}>
+          <AlertDialogTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                disabled={hasQuestions || isPending}
+                aria-label={hasQuestions ? `Delete (${reason})` : 'Delete'}
+              />
+            }
+          >
+            <Trash2 className="size-icon-sm text-muted-foreground" />
+          </AlertDialogTrigger>
+        </TooltipTrigger>
+        <TooltipContent>{reason}</TooltipContent>
+      </Tooltip>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Delete {label}?</AlertDialogTitle>

@@ -169,7 +169,7 @@ describe('StudentRow', () => {
         </tbody>
       </table>,
     )
-    expect(screen.getByTitle('Active in last 7 days')).toHaveClass('bg-success')
+    expect(screen.getByRole('img', { name: 'Active in last 7 days' })).toHaveClass('bg-success')
   })
 
   it('renders Inactive badge when student is not active', () => {

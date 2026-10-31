@@ -183,7 +183,7 @@ test.describe('Admin Student Management — Deactivate / Reactivate', () => {
 
     // Confirmation dialog
     await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5_000 })
-    await expect(page.getByText('Deactivate student')).toBeVisible()
+    await expect(page.getByRole('dialog').getByText('Deactivate student')).toBeVisible()
     await page.getByRole('button', { name: 'Deactivate' }).click()
 
     // Success toast
@@ -251,7 +251,7 @@ test.describe('Admin Student Management — Deactivate / Reactivate', () => {
 
     // Confirmation dialog
     await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5_000 })
-    await expect(page.getByText('Reactivate student')).toBeVisible()
+    await expect(page.getByRole('dialog').getByText('Reactivate student')).toBeVisible()
     await page.getByRole('button', { name: 'Reactivate' }).click()
 
     // Success toast

@@ -11,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { SyllabusTree } from '../../syllabus/types'
 import type { QuestionRow } from '../types'
 import { CalcBadge } from './calc-badge'
@@ -75,9 +76,14 @@ export function QuestionTable({
             </TableCell>
             <TableCell className="max-w-question-cell">
               <div className="flex">
-                <span className="min-w-0 flex-1 truncate" title={q.question_text}>
-                  {q.question_text}
-                </span>
+                <Tooltip>
+                  <TooltipTrigger render={<span className="min-w-0 flex-1 truncate" />}>
+                    {q.question_text}
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-popover whitespace-pre-wrap break-words">
+                    {q.question_text}
+                  </TooltipContent>
+                </Tooltip>
               </div>
             </TableCell>
             <TableCell>
@@ -103,20 +109,22 @@ export function QuestionTable({
             </TableCell>
             <TableCell>
               <div className="flex items-center gap-1">
-                <QuestionFormDialog
-                  tree={tree}
-                  question={q}
-                  trigger={
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      title="Edit question"
-                      aria-label="Edit question"
-                    >
-                      <Pencil className="size-icon-sm text-muted-foreground" />
-                    </Button>
-                  }
-                />
+                <Tooltip>
+                  <QuestionFormDialog
+                    tree={tree}
+                    question={q}
+                    trigger={
+                      <TooltipTrigger
+                        render={
+                          <Button variant="ghost" size="icon-sm" aria-label="Edit question" />
+                        }
+                      >
+                        <Pencil className="size-icon-sm text-muted-foreground" />
+                      </TooltipTrigger>
+                    }
+                  />
+                  <TooltipContent>Edit question</TooltipContent>
+                </Tooltip>
                 <DeleteQuestionButton
                   id={q.id}
                   label={q.question_number ?? q.question_text.slice(0, 40)}

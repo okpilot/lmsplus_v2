@@ -95,16 +95,16 @@ describe('QuestionTable', () => {
     expect(screen.getByTestId('edit-dialog-q-3')).toBeInTheDocument()
   })
 
-  it('keeps the full question text in the DOM and exposes it via a title tooltip', () => {
+  it('keeps the full question text in the DOM and has no native title attribute', () => {
     // Visual overflow is handled by the CSS `truncate` class (not measurable in jsdom);
-    // the full text must stay in the DOM and be surfaced on hover via `title`.
+    // the full text must stay in the DOM and be surfaced on hover via a Base UI tooltip.
     const longText = `ZZZZZ_UNIQUE_${'Z'.repeat(200)}`
     const question = makeQuestion({ question_text: longText })
     render(<QuestionTable questions={[question]} {...DEFAULT_PROPS} />)
 
     const textEl = screen.getByText(longText)
     expect(textEl).toBeInTheDocument()
-    expect(textEl).toHaveAttribute('title', longText)
+    expect(textEl).not.toHaveAttribute('title')
   })
 
   it('displays the status badge', () => {

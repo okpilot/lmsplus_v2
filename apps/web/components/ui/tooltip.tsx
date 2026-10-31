@@ -36,6 +36,7 @@ function TooltipContent({
         className="z-dropdown"
       >
         <TooltipPrimitive.Popup
+          role="tooltip"
           data-slot="tooltip-content"
           className={cn(
             FLOATING_SURFACE,
