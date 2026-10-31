@@ -72,3 +72,13 @@ describe('buttonVariants state layers', () => {
     expect(classes).toContain('hover:decoration-2')
   })
 })
+
+describe('button control padding (#1674)', () => {
+  it('default is px-pad-control', () => {
+    expect(buttonVariants({ size: 'default' }).split(' ')).toContain('px-pad-control')
+  })
+
+  it('sm is px-pad-control-sm', () => {
+    expect(buttonVariants({ size: 'sm' }).split(' ')).toContain('px-pad-control-sm')
+  })
+})

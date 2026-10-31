@@ -35,13 +35,13 @@ describe('CardListRow', () => {
     const el = container.firstElementChild as HTMLElement
     expect(el.getAttribute('data-slot')).toBe('card-list-row')
     expect(el.className).toContain('px-card')
-    expect(el.className).toContain('py-row')
+    expect(el.className).toContain('py-3')
     expect(el.className).toContain('extra')
   })
 
   it('renders as the element given in render, keeping the row padding', () => {
     const { getByRole } = render(<CardListRow render={<a href="/x" />}>go</CardListRow>)
     const link = getByRole('link', { name: 'go' })
-    expect(link.className).toContain('py-row')
+    expect(link.className).toContain('py-3')
   })
 })

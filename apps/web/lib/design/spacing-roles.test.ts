@@ -114,11 +114,13 @@ describe('spacing roles (#1673)', () => {
     expect(has(t, cls('pl-16'))).toBe(false)
   })
 
-  it('auth-shell caps width with max-w-auth and keeps px-4 py-8', () => {
+  it('auth-shell caps width with max-w-auth and keeps px-gutter py-section', () => {
     const t = src('components/auth/auth-shell.tsx')
     expect(t).toContain('max-w-auth')
     expect(has(t, cls('max-w-100'))).toBe(false)
-    expect(has(t, cls('px-4'))).toBe(true)
-    expect(has(t, cls('py-8'))).toBe(true)
+    expect(has(t, cls('px-gutter'))).toBe(true)
+    expect(has(t, cls('py-section'))).toBe(true)
+    expect(has(t, cls('px-4'))).toBe(false)
+    expect(has(t, cls('py-8'))).toBe(false)
   })
 })

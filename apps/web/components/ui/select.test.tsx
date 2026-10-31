@@ -36,3 +36,27 @@ describe('SelectContent', () => {
     expect(popup?.className).toContain('ring-border')
   })
 })
+
+describe('SelectTrigger control padding (#1674)', () => {
+  it('pads the default trigger with pl-pad-control', () => {
+    render(
+      <Select>
+        <SelectTrigger aria-label="A">
+          <SelectValue />
+        </SelectTrigger>
+      </Select>,
+    )
+    expect(screen.getByRole('combobox').className.split(' ')).toContain('pl-pad-control')
+  })
+
+  it('pads the small trigger with data-[size=sm]:pl-pad-control-sm', () => {
+    render(
+      <Select>
+        <SelectTrigger size="sm" aria-label="B">
+          <SelectValue />
+        </SelectTrigger>
+      </Select>,
+    )
+    expect(screen.getByRole('combobox').className).toContain('data-[size=sm]:pl-pad-control-sm')
+  })
+})

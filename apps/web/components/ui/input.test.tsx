@@ -16,20 +16,20 @@ describe('Input', () => {
 })
 
 describe('Input sizes (B2b-12 AC 3)', () => {
-  it('lg is 48px with px-4 py-3 and rounded-control', () => {
+  it('lg is 48px with px-pad-control-lg py-3 and rounded-control', () => {
     render(<Input aria-label="Big" size="lg" />)
     const c = screen.getByRole('textbox').className
     expect(c).toContain('h-control-lg')
-    expect(c).toContain('px-4')
+    expect(c).toContain('px-pad-control-lg')
     expect(c).toContain('py-3')
     expect(c).toContain('rounded-control')
   })
 
-  it('sm is 28px with px-2 py-0, text-body and rounded-inner', () => {
+  it('sm is 28px with px-pad-control-sm py-0, text-body and rounded-inner', () => {
     render(<Input aria-label="Small" size="sm" />)
     const c = screen.getByRole('textbox').className
     expect(c).toContain('h-7')
-    expect(c).toContain('px-2')
+    expect(c).toContain('px-pad-control-sm')
     expect(c).toContain('py-0')
     expect(c.split(' ')).toContain('text-body')
     expect(c.split(' ')).not.toContain('text-label')

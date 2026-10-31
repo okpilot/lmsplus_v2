@@ -74,10 +74,10 @@ describe('primitives (AC 5, 6)', () => {
     const s = src(`${U}table.tsx`)
     expect(s.match(/px-cell-x py-cell-y/g)?.length ?? 0).toBeGreaterThanOrEqual(2)
   })
-  it('CardListRow is px-card py-row', () => {
+  it('CardListRow is px-card py-3', () => {
     const s = src(`${U}card.tsx`)
     expect(s).toContain('CardListRow')
-    expect(s).toContain('px-card py-row')
+    expect(s).toContain('px-card py-3')
   })
   it('tabs trigger is rounded-inner and question tabs carry no radius override', () => {
     expect(src(`${U}tabs.tsx`)).toContain('rounded-inner')
