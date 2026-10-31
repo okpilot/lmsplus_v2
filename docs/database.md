@@ -2638,7 +2638,7 @@ Returns a single aggregate row with the caller's completed-session count and ave
 
 **Migration:** `20260529000001_student_profile_stats_rpc.sql`; filters call `(select auth.uid())` since `20261017000300_invoker_rpcs_select_auth_uid.sql` (#1414)
 
-**Rationale:** Replaces a client-side count/average over an unpaginated `quiz_sessions` read that silently truncated at the PostgREST 1000-row cap, skewing `totalSessions` and `averageScore` for high-volume students (#668 P2, profile.ts).
+**Rationale:** Replaces a client-side count/average over an unpaginated `quiz_sessions` read that silently truncated at the PostgREST 1000-row cap, skewing `totalSessions` and `averageScore` for high-volume students (#668 P2).
 
 #### `start_vfr_rt_exam_session` — VFR RT mock exam start
 

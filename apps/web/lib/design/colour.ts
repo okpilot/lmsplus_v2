@@ -68,7 +68,7 @@ export const ALPHA_COLOURS: Record<string, { light: AlphaFill; dark: AlphaFill }
   },
   // bg-background/95 (bottom tab bar, bulk actions bar), both themes
   glass: { light: { base: 'background', pct: 95 }, dark: { base: 'background', pct: 95 } },
-  // text-muted-foreground/30 (heatmap empty cell), both themes
+  // text-muted-foreground/30 (heatmap future-day label), both themes
   'data-empty': {
     light: { base: 'muted-foreground', pct: 30 },
     dark: { base: 'muted-foreground', pct: 30 },

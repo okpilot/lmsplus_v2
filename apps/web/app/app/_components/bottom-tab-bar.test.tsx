@@ -152,12 +152,12 @@ describe('BottomTabBar', () => {
       ).toBeTruthy()
     })
 
-    it('paints the sheet nav with the glass token', async () => {
+    it('paints the tab strip with the glass token', async () => {
       narrow(320)
       await userEvent.setup({ delay: null }).click(screen.getByRole('button', { name: 'More' }))
-      const html = document.body.innerHTML
-      expect(html).toMatch(/(^|[\s"])bg-glass([\s"]|$)/)
-      expect(html).not.toContain('bg-background/95')
+      const cls = screen.getByRole('navigation', { name: 'Bottom navigation' }).className
+      expect(cls).toMatch(/(?<![\w-])bg-glass(?![\w-])/)
+      expect(cls).not.toContain('bg-background/95')
     })
 
     it('sets font-normal on an inactive More button only', async () => {
