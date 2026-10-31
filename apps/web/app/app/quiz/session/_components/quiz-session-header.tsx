@@ -34,7 +34,7 @@ export function QuizSessionHeader({
 }: Readonly<QuizSessionHeaderProps>) {
   const { isExam, examMode } = rest
   return (
-    // Pins from md so the header stays visible while the question scrolls beneath it.
+    // Pins from sm so the header stays visible while the question scrolls beneath it.
     // `sm:sticky` is a positioned value, so the `absolute inset-0` desktop tab overlay
     // still anchors to this element. NOTE: sm:sticky relies on no
     // `overflow: hidden/auto/clip` on any scroll-container ancestor — if a parent
