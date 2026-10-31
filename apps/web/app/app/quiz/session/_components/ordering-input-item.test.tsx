@@ -77,6 +77,7 @@ describe('OrderingInputItem drag handle is a bare Button', () => {
     const tokens = screen.getByRole('button', { name: /reorder/i }).className.split(/\s+/)
     expect(tokens).toContain('cursor-grab')
     expect(tokens).toContain('touch-none')
+    expect(tokens).toContain('select-none')
     expect(tokens).toContain('focus-visible:outline-focus')
     expect(tokens).not.toContain('active:translate-y-px')
   })

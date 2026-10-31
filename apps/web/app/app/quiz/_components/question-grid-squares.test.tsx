@@ -35,7 +35,7 @@ describe('question grid squares (Button variant bare)', () => {
     expect(screen.getByTestId('grid-btn-0')).not.toHaveAttribute('aria-current')
   })
 
-  it('has the standard focus ring and no press shift or text selection', () => {
+  it('has the inset focus ring and no press shift or text selection', () => {
     squares()
     const tokens = screen.getByTestId('grid-btn-0').className.split(/\s+/)
     expect(tokens).toContain('focus-visible:outline-focus')

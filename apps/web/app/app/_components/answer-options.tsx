@@ -129,7 +129,7 @@ export function AnswerOptions({
             disabled={disabled || (!!isExam && lockedSelection != null)}
             onClick={() => handleSelect(option.id)}
             className={cn(
-              'flex w-full select-text items-center gap-3 rounded-control border px-4 py-3 text-left text-body transition-colors',
+              'flex w-full items-center gap-3 rounded-control border px-4 py-3 text-left text-body transition-colors focus-visible:-outline-offset-focus',
               card,
               isKeyboardHighlighted &&
                 'outline-solid outline-focus outline-offset-focus outline-ring',

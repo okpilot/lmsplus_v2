@@ -471,15 +471,17 @@ describe('AnswerOptions', () => {
   })
 
   describe('Button variant bare', () => {
-    it('every option is a selectable-text, focus-ringed, press-free type=button', () => {
+    it('every option is a focus-ringed, press-free type=button with an inset ring', () => {
       render(<AnswerOptions options={OPTIONS} disabled={false} />)
       for (const o of OPTIONS) {
         const el = screen.getByTestId(`option-${o.id}`)
         const tokens = el.className.split(/\s+/)
         expect(el).toHaveAttribute('type', 'button')
-        expect(tokens).toContain('select-text')
-        expect(tokens).not.toContain('select-none')
+        expect(tokens).toContain('select-none')
+        expect(tokens).not.toContain('select-text')
         expect(tokens).toContain('focus-visible:outline-focus')
+        expect(tokens).toContain('focus-visible:-outline-offset-focus')
+        expect(tokens).not.toContain('focus-visible:outline-offset-focus')
         expect(tokens).not.toContain('active:translate-y-px')
       }
     })
@@ -487,8 +489,14 @@ describe('AnswerOptions', () => {
     it('a result-state disabled option keeps full opacity', () => {
       render(<AnswerOptions options={OPTIONS} disabled selectedOptionId="a" correctOptionId="b" />)
       const tokens = screen.getByTestId('option-a').className.split(/\s+/)
-      expect(tokens).not.toContain('disabled:opacity-disabled')
+      expect(tokens).not.toContain('opacity-disabled')
       expect(tokens).toContain('focus-visible:outline-focus')
+    })
+
+    it('a disabled option outside the result state is dimmed', () => {
+      render(<AnswerOptions options={OPTIONS} disabled />)
+      const tokens = screen.getByTestId('option-a').className.split(/\s+/)
+      expect(tokens).toContain('opacity-disabled')
     })
   })
 })
