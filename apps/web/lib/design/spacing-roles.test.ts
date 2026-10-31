@@ -31,7 +31,7 @@ describe('spacing roles (#1673)', () => {
       'group-data-[size=sm]/card:[.border-b]:pb-card-sm',
     ])
       expect(t).toContain(c)
-    for (const raw of ['gap-3', 'py-3', 'px-3', 'pb-3'])
+    for (const raw of ['gap-3', 'py-3', 'px-3', 'pb-3', 'p-3'])
       expect(t).not.toMatch(
         new RegExp(`(?:data-\\[size=sm\\]|group-data-\\[size=sm\\]/card)[^'\\s]*:${raw}(?![\\w-])`),
       )
@@ -60,7 +60,7 @@ describe('spacing roles (#1673)', () => {
   })
 
   it('subject-breakdown keeps its row action gutter pr-10', () => {
-    expect(src('app/app/progress/_components/subject-breakdown.tsx')).toContain('pr-10')
+    expect(has(src('app/app/progress/_components/subject-breakdown.tsx'), cls('pr-10'))).toBe(true)
   })
 
   it.each([
@@ -118,7 +118,7 @@ describe('spacing roles (#1673)', () => {
     const t = src('components/auth/auth-shell.tsx')
     expect(t).toContain('max-w-auth')
     expect(has(t, cls('max-w-100'))).toBe(false)
-    expect(t).toContain('px-4')
-    expect(t).toContain('py-8')
+    expect(has(t, cls('px-4'))).toBe(true)
+    expect(has(t, cls('py-8'))).toBe(true)
   })
 })
