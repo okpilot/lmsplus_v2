@@ -26,7 +26,6 @@ describe('buttons and tabs (AC 6, 7)', () => {
     expect(s).not.toContain('font-medium')
     expect(s).toContain('text-caption-strong')
     expect(s).not.toMatch(/text-sm\b/)
-    expect(s).toContain('text-caption')
   })
 
   it('tab trigger is label without text-sm or font-medium', () => {
@@ -182,7 +181,7 @@ describe('quiz header is caption (AC 17)', () => {
   it('card counter is label semibold and the question code is caption', () => {
     const f = strings(`${SESS}quiz-card-header.tsx`)
     expect(f.some((x) => /text-label-strong/.test(x))).toBe(true)
-    expect(f.some((x) => /text-caption/.test(x))).toBe(true)
+    expect(f.some((x) => /text-caption(?![\w-])/.test(x))).toBe(true)
   })
 })
 
@@ -206,7 +205,7 @@ describe('scores (AC 18)', () => {
   it('topic percentage is caption tabular', () => {
     expect(
       strings('app/app/progress/_components/subject-breakdown.tsx').some(
-        (x) => /text-caption/.test(x) && /tabular-nums/.test(x),
+        (x) => /text-caption(?![\w-])/.test(x) && /tabular-nums/.test(x),
       ),
     ).toBe(true)
   })

@@ -141,6 +141,12 @@ describe('leading roles', () => {
   ])('%s keeps %s', (f, cls) => {
     expect(src(f)).toContain(cls)
   })
+
+  it('heatmap total, correct and incorrect counts each keep leading-none', () => {
+    expect(
+      src(`${A}dashboard/_components/heatmap-cell.tsx`).match(/text-chart[^"]*leading-none/g),
+    ).toHaveLength(3)
+  })
 })
 
 describe('decision ledger', () => {
