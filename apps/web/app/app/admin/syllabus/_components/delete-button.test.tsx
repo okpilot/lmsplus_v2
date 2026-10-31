@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -31,6 +31,15 @@ describe('syllabus DeleteButton tooltip', () => {
     expect(tip).toHaveTextContent('3 questions reference this item')
   })
 
+  it('uses the singular for a count of 1', async () => {
+    setup(1)
+    const btn = screen.getByRole('button', { name: /1 question references/ })
+    expect(btn).toBeDisabled()
+    await userEvent.setup().hover(btn.closest('span') as HTMLElement)
+    const tip = await screen.findByRole('tooltip', {}, { timeout: 1500 })
+    expect(tip).toHaveTextContent(/1 question references/)
+  })
+
   it('says "Delete" in the tooltip when nothing references the item', async () => {
     setup(0)
     const btn = screen.getByRole('button', { name: 'Delete' })
@@ -45,7 +54,7 @@ describe('syllabus DeleteButton tooltip', () => {
     const wrapper = screen
       .getByRole('button', { name: /3 questions/ })
       .closest('span') as HTMLElement
-    fireEvent.pointerEnter(wrapper, { pointerType: 'touch' })
+    await userEvent.setup().pointer({ keys: '[TouchA]', target: wrapper })
     await new Promise((r) => setTimeout(r, 800))
     expect(screen.queryByRole('tooltip')).toBeNull()
   })

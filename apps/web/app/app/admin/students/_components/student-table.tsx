@@ -75,93 +75,92 @@ export function StudentTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {students.map((s) => (
-          <TableRow key={s.id}>
-            <TableCell className="font-medium">{s.full_name ?? '—'}</TableCell>
-            <TableCell className="text-caption text-muted-foreground">{s.email}</TableCell>
-            <TableCell>
-              <Badge tone={roleTone(s.role)} className="capitalize">
-                {s.role}
-              </Badge>
-            </TableCell>
-            <TableCell>
-              <CourseBadges student={s} courses={courses} />
-            </TableCell>
-            <TableCell>
-              {s.deleted_at === null ? (
-                <Badge tone="success">Active</Badge>
-              ) : (
-                <Badge tone="neutral">Inactive</Badge>
-              )}
-            </TableCell>
-            <TableCell className="text-caption tabular-nums text-muted-foreground">
-              {s.last_active_at ? formatDate(s.last_active_at) : 'Never'}
-            </TableCell>
-            <TableCell className="text-caption tabular-nums text-muted-foreground">
-              {formatDate(s.created_at)}
-            </TableCell>
-            <TableCell>
-              <LoginInstructionsCell student={s} />
-            </TableCell>
-            <TableCell>
-              <div className="flex items-center gap-1">
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label="Edit student"
-                        onClick={() => onEdit(s)}
-                      />
-                    }
-                  >
-                    <Pencil className="size-icon-sm text-muted-foreground" />
-                  </TooltipTrigger>
-                  <TooltipContent>Edit student</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={
-                          s.deleted_at === null ? 'Deactivate student' : 'Reactivate student'
-                        }
-                        onClick={() => onToggleStatus(s)}
-                      />
-                    }
-                  >
-                    {s.deleted_at === null ? (
-                      <UserX className="size-icon-sm text-muted-foreground" />
-                    ) : (
-                      <UserCheck className="size-icon-sm text-muted-foreground" />
-                    )}
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {s.deleted_at === null ? 'Deactivate student' : 'Reactivate student'}
-                  </TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label="Export data"
-                        onClick={() => onExport(s)}
-                      />
-                    }
-                  >
-                    <Download className="size-icon-sm text-muted-foreground" />
-                  </TooltipTrigger>
-                  <TooltipContent>Export data</TooltipContent>
-                </Tooltip>
-              </div>
-            </TableCell>
-          </TableRow>
-        ))}
+        {students.map((s) => {
+          const toggleLabel = s.deleted_at === null ? 'Deactivate student' : 'Reactivate student'
+          return (
+            <TableRow key={s.id}>
+              <TableCell className="font-medium">{s.full_name ?? '—'}</TableCell>
+              <TableCell className="text-caption text-muted-foreground">{s.email}</TableCell>
+              <TableCell>
+                <Badge tone={roleTone(s.role)} className="capitalize">
+                  {s.role}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <CourseBadges student={s} courses={courses} />
+              </TableCell>
+              <TableCell>
+                {s.deleted_at === null ? (
+                  <Badge tone="success">Active</Badge>
+                ) : (
+                  <Badge tone="neutral">Inactive</Badge>
+                )}
+              </TableCell>
+              <TableCell className="text-caption tabular-nums text-muted-foreground">
+                {s.last_active_at ? formatDate(s.last_active_at) : 'Never'}
+              </TableCell>
+              <TableCell className="text-caption tabular-nums text-muted-foreground">
+                {formatDate(s.created_at)}
+              </TableCell>
+              <TableCell>
+                <LoginInstructionsCell student={s} />
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center gap-1">
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="Edit student"
+                          onClick={() => onEdit(s)}
+                        />
+                      }
+                    >
+                      <Pencil className="size-icon-sm text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent>Edit student</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={toggleLabel}
+                          onClick={() => onToggleStatus(s)}
+                        />
+                      }
+                    >
+                      {s.deleted_at === null ? (
+                        <UserX className="size-icon-sm text-muted-foreground" />
+                      ) : (
+                        <UserCheck className="size-icon-sm text-muted-foreground" />
+                      )}
+                    </TooltipTrigger>
+                    <TooltipContent>{toggleLabel}</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="Export data"
+                          onClick={() => onExport(s)}
+                        />
+                      }
+                    >
+                      <Download className="size-icon-sm text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent>Export data</TooltipContent>
+                  </Tooltip>
+                </div>
+              </TableCell>
+            </TableRow>
+          )
+        })}
       </TableBody>
     </Table>
   )

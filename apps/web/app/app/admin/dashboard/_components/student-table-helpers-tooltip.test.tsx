@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { DashboardStudent } from '../types'
@@ -44,8 +44,9 @@ describe('StudentRow activity dot tooltip', () => {
 
   it('shows no tooltip on touch pointer', async () => {
     setup()
-    fireEvent.pointerEnter(screen.getByRole('img', { name: 'Active in last 7 days' }), {
-      pointerType: 'touch',
+    await userEvent.setup().pointer({
+      keys: '[TouchA]',
+      target: screen.getByRole('img', { name: 'Active in last 7 days' }),
     })
     await new Promise((r) => setTimeout(r, 800))
     expect(screen.queryByRole('tooltip')).toBeNull()

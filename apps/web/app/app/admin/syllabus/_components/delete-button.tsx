@@ -28,7 +28,9 @@ type DeleteButtonProps = {
 export function DeleteButton({ id, table, label, questionCount }: Readonly<DeleteButtonProps>) {
   const [isPending, startTransition] = useTransition()
   const hasQuestions = questionCount > 0
-  const reason = hasQuestions ? `${questionCount} questions reference this item` : 'Delete'
+  const reason = hasQuestions
+    ? `${questionCount} ${questionCount === 1 ? 'question references' : 'questions reference'} this item`
+    : 'Delete'
 
   function handleDelete() {
     startTransition(async () => {
