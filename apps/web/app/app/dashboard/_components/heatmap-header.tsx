@@ -1,3 +1,5 @@
+import { Button } from '@/components/ui/button'
+import { Heading } from '@/components/ui/heading'
 import { HeatmapInfo } from './heatmap-info'
 
 type HeaderProps = {
@@ -19,39 +21,41 @@ export function HeatmapHeader({
   onBack,
   onForward,
 }: Readonly<HeaderProps>) {
-  const navBtnBase =
-    'flex items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-30'
   return (
     <div className="mb-2 flex items-center justify-between md:mb-3">
       <div className="flex items-center gap-1.5">
-        <h3 className="text-sm font-semibold">Daily Progress</h3>
+        <Heading level={3}>Daily Progress</Heading>
         <HeatmapInfo />
       </div>
       <div className="flex items-center gap-1.5 md:gap-2">
-        <button
+        <Button
+          variant="ghost"
+          size="icon-sm"
           type="button"
+          className="text-muted-foreground"
           onClick={onBack}
           disabled={atMinOffset}
           aria-label="Previous month"
-          className={`h-5 w-5 md:h-6 md:w-6 transition-colors hover:bg-muted disabled:pointer-events-none ${navBtnBase}`}
         >
           ‹
-        </button>
-        <span className="min-w-[70px] text-center text-xs font-medium md:hidden">
+        </Button>
+        <span className="min-w-17.5 text-center text-caption-strong md:hidden">
           {monthNameShort} {year}
         </span>
-        <span className="hidden min-w-[120px] text-center text-sm font-medium md:inline">
+        <span className="hidden min-w-30 text-center text-label md:inline">
           {monthName} {year}
         </span>
-        <button
+        <Button
+          variant="ghost"
+          size="icon-sm"
           type="button"
+          className="text-muted-foreground"
           onClick={onForward}
           disabled={isCurrentMonth}
           aria-label="Next month"
-          className={`h-5 w-5 md:h-6 md:w-6 transition-colors hover:bg-muted disabled:pointer-events-none ${navBtnBase}`}
         >
           ›
-        </button>
+        </Button>
       </div>
     </div>
   )

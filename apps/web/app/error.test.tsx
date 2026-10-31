@@ -64,4 +64,24 @@ describe('ErrorPage', () => {
     render(<ErrorPage error={digestError} retry={mockRetry} />)
     expect(mockCaptureException).toHaveBeenCalledWith(digestError)
   })
+
+  it('presents the failure inside the shared empty part under a level-2 heading', () => {
+    const { container } = render(<ErrorPage error={testError} retry={mockRetry} />)
+    expect(container.querySelector('[data-slot="empty"]')).not.toBeNull()
+    expect(screen.getByRole('heading', { level: 2, name: /something went wrong/i })).toBeVisible()
+  })
+
+  it('renders Try again with the shared button part', () => {
+    render(<ErrorPage error={testError} retry={mockRetry} />)
+    expect(screen.getByRole('button', { name: /try again/i })).toHaveAttribute(
+      'data-slot',
+      'button',
+    )
+  })
+
+  it('announces the failure as an alert with a danger-toned icon', () => {
+    const { container } = render(<ErrorPage error={testError} retry={mockRetry} />)
+    expect(screen.getByRole('alert')).toHaveAttribute('data-slot', 'empty-header')
+    expect(container.querySelector('svg')?.getAttribute('class')).toContain('text-danger')
+  })
 })

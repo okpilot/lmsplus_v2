@@ -1,10 +1,11 @@
 'use client'
 
-import { Eye, EyeOff } from 'lucide-react'
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { z } from 'zod'
+import { PasswordToggle } from '@/components/auth/password-toggle'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { FieldError } from '@/components/ui/field-error'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { LoadingButton } from '@/components/ui/loading-button'
@@ -67,7 +68,7 @@ export function ChangePasswordForm() {
         <CardTitle>Change Password</CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="max-w-field space-y-4">
           <div className="space-y-2">
             <Label htmlFor="currentPassword">Current password</Label>
             <Input
@@ -88,17 +89,14 @@ export function ChangePasswordForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="At least 6 characters"
-                className="pr-10"
+                className="pr-field-end"
                 autoComplete="new-password"
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                aria-label={showPassword ? 'Hide passwords' : 'Show passwords'}
-              >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
+              <PasswordToggle
+                shown={showPassword}
+                onToggle={() => setShowPassword(!showPassword)}
+                label="passwords"
+              />
             </div>
           </div>
 
@@ -114,11 +112,7 @@ export function ChangePasswordForm() {
             />
           </div>
 
-          {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
+          <FieldError role="alert">{error}</FieldError>
 
           <LoadingButton
             type="submit"

@@ -70,3 +70,25 @@ describe('StudentTable — courses column', () => {
     expect(within(r).getByText('PPL')).toBeInTheDocument()
   })
 })
+
+describe('StudentTable — status and actions', () => {
+  it('shows an active student with the success badge tone', () => {
+    renderTable([row({})])
+    const badge = screen.getByText('Active')
+    expect(badge.className).toContain('bg-success-soft')
+    expect(badge.className).not.toContain('bg-green-600')
+  })
+
+  it('shows a deactivated student with the destructive badge', () => {
+    renderTable([row({ deleted_at: '2026-02-01T00:00:00.000Z' })])
+    expect(screen.getByText('Inactive')).toBeInTheDocument()
+    expect(screen.queryByText('Active')).toBeNull()
+  })
+
+  it('takes the actions cell padding from the table primitive', () => {
+    renderTable([row({})])
+    const cell = screen.getByLabelText('Edit student').closest('td')
+    expect(cell?.className).toContain('py-cell-y')
+    expect(cell?.className).not.toContain('py-2.5')
+  })
+})

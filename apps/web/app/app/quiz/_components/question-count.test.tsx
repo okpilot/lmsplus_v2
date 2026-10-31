@@ -42,7 +42,7 @@ describe('QuestionCount', () => {
 
   it('displays the current value in the count badge', () => {
     render(<QuestionCount value={25} max={100} onValueChange={vi.fn()} />)
-    // The count badge is a <span> with class text-primary — use getAllByText
+    // The count badge is a <span> with class text-primary-text — use getAllByText
     // and confirm at least one match is the badge span (not a preset button)
     const matches = screen.getAllByText('25')
     expect(matches.length).toBeGreaterThanOrEqual(1)
@@ -65,8 +65,9 @@ describe('QuestionCount', () => {
   it('shows empty state message when max is 0', () => {
     render(<QuestionCount value={1} max={0} onValueChange={vi.fn()} />)
     expect(
-      screen.getByText('No questions available. Select at least one topic above.'),
+      screen.getByText('No questions available. Select at least one topic.'),
     ).toBeInTheDocument()
+    expect(screen.getByText(/no questions available/i).closest('[data-slot="empty"]')).toBeNull()
   })
 
   it('calls onValueChange when the All button is clicked', async () => {
@@ -113,5 +114,44 @@ describe('QuestionCount', () => {
     expect(screen.getByRole('button', { name: '25' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '50' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument()
+  })
+})
+
+describe('QuestionCount pills', () => {
+  it('exposes aria-pressed on presets and All, true only for the chosen preset', () => {
+    render(<QuestionCount value={25} max={100} onValueChange={vi.fn()} />)
+    expect(screen.getByRole('button', { name: '25' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: '10' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: '50' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('presses only All when the value equals max and a preset', () => {
+    render(<QuestionCount value={25} max={25} onValueChange={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: '25' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('marks All pressed when the value equals the max', () => {
+    render(<QuestionCount value={37} max={37} onValueChange={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('styles the pressed pill with the selected look (blue edge)', () => {
+    render(<QuestionCount value={25} max={100} onValueChange={vi.fn()} />)
+    expect(screen.getByRole('button', { name: '25' })).toHaveClass('aria-pressed:border-primary')
+  })
+})
+
+function expectFieldLabel(el: HTMLElement) {
+  expect(el.className).toMatch(/(?<![\w-])text-label(?![\w-])/)
+  expect(el.className).toContain('text-muted-foreground')
+  expect(el.className).not.toContain('text-[13px]')
+}
+
+describe('QuestionCount label style', () => {
+  it('styles "Number of Questions" as a muted field label', () => {
+    render(<QuestionCount value={10} max={50} onValueChange={vi.fn()} />)
+    expectFieldLabel(screen.getByText('Number of Questions'))
   })
 })

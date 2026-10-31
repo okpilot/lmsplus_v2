@@ -816,7 +816,7 @@ that case and is returned only by the parenthesised form. Still cross-check each
 table actually having a `deleted_at` column (§3's matrix below): the query over-returns tables
 that have none, which is the harmless direction. Known members as of 2026-08-20, as illustrations of the shapes rather
 than a closed set: `organizations` (predicate keys on `id`, never carried the conjunct — a
-reader must filter explicitly, as `lib/queries/profile.ts:67-71` does); `flagged_questions` (no
+reader must filter explicitly, as the `getProfile` org lookup in `lib/queries/profile.ts` does); `flagged_questions` (no
 policy carries it: SELECT is `student_id = (select auth.uid())`, INSERT and UPDATE add the active-user `EXISTS` check — filtered in application code and via the
 `active_flagged_questions` view instead, see the callout below); `internal_exam_codes`
 (`admin_read_org_codes`, `20260429000002:59-69` — its `deleted_at IS NULL` constrains `users`,
@@ -851,7 +851,7 @@ RLS makes deleted records invisible **only where the effective policy carries th
 active-row predicate** — as `question_banks` above does. It is not
 automatic: where the policy omits that conjunct (the query at the top of this section derives
 the current set), a soft-deleted row is still returned and application code must filter it.
-`organizations` is exactly that case, which is why `lib/queries/profile.ts:67-71` applies
+`organizations` is exactly that case, which is why the `getProfile` org lookup in `lib/queries/profile.ts` applies
 `.is('deleted_at', null)` itself. Check the policy before omitting the filter.
 
 **Every `tenant_isolation` policy is `FOR SELECT` — the filter is unchanged in all cases.**
@@ -1013,7 +1013,7 @@ verb_noun pattern:
   get_student_streak         ← read, student: current + best daily-practice streak (all-time), computed in Postgres via gaps-and-islands over DISTINCT UTC response dates; replaces client-side computeStreaks over a .limit(10000) read that truncated at the 1000-row cap (#668)
   get_student_last_practiced ← read, student: most recent response timestamp per subject (all responses); retires the client-side questionSubjectMap + truncated questions read (#668)
   get_daily_subjects         ← read, student: distinct (day, subject_id) pairs the caller answered in the last p_days days (1-365); dashboard day tooltip; active-user gate
-  get_student_profile_stats  ← read, student: completed-session count + average score (single-row COUNT + AVG over own non-deleted, ended, non-null-score quiz_sessions); replaces the client-side count/average that truncated at the PostgREST 1000-row cap (#668 P2, profile.ts)
+  get_student_profile_stats  ← read, student: completed-session count + average score (single-row COUNT + AVG over own non-deleted, ended, non-null-score quiz_sessions); replaces the client-side count/average that truncated at the PostgREST 1000-row cap (#668 P2)
   record_auth_event          ← write, audit: records auth-related events (user.password_changed, user.password_reset, user.deactivated, user.created) after Server Action mutations. Self-defending: whitelist + role/org checks + best-effort (audit failure does not surface to caller). EXECUTE granted to authenticated, invoked through the acting user's client (not service role) so auth.uid() is the real actor.
   record_consent             ← write, GDPR: inserts one consent row for the caller; idempotent for accepted=true via an EXISTS pre-check on (user_id, document_type, document_version) (mig 085, #386)
   check_consent_status       ← read, GDPR: returns (has_tos, has_privacy) boolean flags for specified document versions
@@ -2626,7 +2626,7 @@ Returns one row per subject the caller has answered, with the most recent respon
 
 #### `get_student_profile_stats` — completed-session count + average score for the calling student
 
-Returns a single aggregate row with the caller's completed-session count and average score, computed in Postgres via `COUNT(*)` + `AVG(score_percentage)`. Used by the settings/profile page (`lib/queries/profile.ts` → `getProfileStats`).
+Returns a single aggregate row with the caller's completed-session count and average score, computed in Postgres via `COUNT(*)` + `AVG(score_percentage)`. No app caller (Quiz Statistics removed from Settings, Decision 188); exercised by `rls-active-user-reads.integration.test.ts` and `deactivated-student-live-token-reads.spec.ts`.
 
 **Security:** `SECURITY INVOKER`. `quiz_sessions` has MORE THAN ONE permissive SELECT policy (`students_select_sessions` = `student_id = (select auth.uid())`, and `instructors_read_sessions` = org + instructor/admin role), so RLS alone would let an instructor/admin caller average org-wide. The query self-scopes with an explicit `qs.student_id = (select auth.uid())` (load-bearing per security.md §3 (Multiple Permissive SELECT Policies), same multi-policy reason as `get_student_mastery_stats`). Unauthenticated caller → `auth.uid()` NULL → zero rows → `{0, NULL}`.
 
@@ -2634,11 +2634,11 @@ Returns a single aggregate row with the caller's completed-session count and ave
 
 **Returns:** `TABLE(total_sessions BIGINT, avg_score NUMERIC)` — a no-`GROUP BY` aggregate always yields exactly one row.
 - `total_sessions` — `COUNT(*)` of the caller's `quiz_sessions` with `ended_at IS NOT NULL`, `deleted_at IS NULL`, and `score_percentage IS NOT NULL`. The non-null-score predicate makes the count match the legacy `.filter(s => s.score_percentage !== null)` set.
-- `avg_score` — raw `AVG(score_percentage)` over the same filtered set (`NULL` when none). `Math.round()` and the `totalSessions > 0 ? .. : 0` guard stay in TypeScript, which consumes the raw value (`avg_score` arrives as a JSON string because `score_percentage` is `NUMERIC(5,2)`; the caller coerces with `Number()`).
+- `avg_score` — raw `AVG(score_percentage)` over the same filtered set (`NULL` when none). `avg_score` arrives as a JSON string because `score_percentage` is `NUMERIC(5,2)`.
 
 **Migration:** `20260529000001_student_profile_stats_rpc.sql`; filters call `(select auth.uid())` since `20261017000300_invoker_rpcs_select_auth_uid.sql` (#1414)
 
-**Rationale:** Replaces a client-side count/average over an unpaginated `quiz_sessions` read that silently truncated at the PostgREST 1000-row cap, skewing `totalSessions` and `averageScore` for high-volume students (#668 P2, profile.ts).
+**Rationale:** Replaces a client-side count/average over an unpaginated `quiz_sessions` read that silently truncated at the PostgREST 1000-row cap, skewing `totalSessions` and `averageScore` for high-volume students (#668 P2).
 
 #### `start_vfr_rt_exam_session` — VFR RT mock exam start
 

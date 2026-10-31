@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
+import { PageHeader } from '@/components/ui/heading'
 import { formatRelativeTime } from '../../../_components/student-table-helpers'
 import type { StudentDetail } from '../../../types'
 
@@ -8,7 +9,7 @@ type Props = Readonly<{ student: StudentDetail }>
 export function StudentHeader({ student }: Readonly<Props>) {
   return (
     <div className="space-y-3">
-      <nav className="text-sm text-muted-foreground">
+      <nav className="text-caption text-muted-foreground">
         <Link href="/app/admin/dashboard" className="hover:text-foreground hover:underline">
           Dashboard
         </Link>
@@ -16,27 +17,25 @@ export function StudentHeader({ student }: Readonly<Props>) {
         <span className="text-foreground">{student.fullName ?? 'Student'}</span>
       </nav>
 
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            {student.fullName ?? 'Unnamed Student'}
-          </h1>
-          <p className="text-sm text-muted-foreground">{student.email}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {student.deletedAt && <Badge variant="destructive">Inactive</Badge>}
-          {student.courses.map((short) => (
-            <Badge key={short} variant="outline">
-              {short}
+      <PageHeader
+        title={student.fullName ?? 'Unnamed Student'}
+        description={student.email}
+        actions={
+          <>
+            {student.deletedAt && <Badge variant="destructive">Inactive</Badge>}
+            {student.courses.map((short) => (
+              <Badge key={short} variant="outline">
+                {short}
+              </Badge>
+            ))}
+            <Badge variant="outline" className="capitalize">
+              {student.role}
             </Badge>
-          ))}
-          <Badge variant="outline" className="capitalize">
-            {student.role}
-          </Badge>
-        </div>
-      </div>
+          </>
+        }
+      />
 
-      <p className="text-xs text-muted-foreground">
+      <p className="text-caption text-muted-foreground">
         Last active: {formatRelativeTime(student.lastActiveAt)}
       </p>
     </div>

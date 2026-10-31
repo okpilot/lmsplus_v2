@@ -248,3 +248,16 @@ describe('TopicTree', () => {
     expect(screen.getByTestId('topic-row-050-01-02')).toHaveAttribute('data-filtered-count', '0')
   })
 })
+
+function expectFieldLabel(el: HTMLElement) {
+  expect(el.className).toMatch(/(?<![\w-])text-label(?![\w-])/)
+  expect(el.className).toContain('text-muted-foreground')
+  expect(el.className).not.toContain('text-[13px]')
+}
+
+describe('TopicTree label style', () => {
+  it('styles "Topics" as a muted field label', () => {
+    renderTree()
+    expectFieldLabel(screen.getByText('Topics'))
+  })
+})

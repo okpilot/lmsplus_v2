@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Heading } from '@/components/ui/heading'
 import { Label } from '@/components/ui/label'
 import { LoadingButton } from '@/components/ui/loading-button'
 import { Switch } from '@/components/ui/switch'
@@ -73,7 +74,7 @@ export function ConfigFormDialog({ subject, open, onOpenChange }: Readonly<Props
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+      <DialogContent className="max-h-(--dialog-scroll-h) max-w-dialog-wide overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             Configure Exam &mdash; {subject.code} {subject.name}
@@ -86,7 +87,7 @@ export function ConfigFormDialog({ subject, open, onOpenChange }: Readonly<Props
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <Switch id="enabled" checked={enabled} onCheckedChange={setEnabled} />
-            <Label htmlFor="enabled" className="text-sm font-medium">
+            <Label htmlFor="enabled" className="font-medium text-foreground">
               Enable exam mode for this subject
             </Label>
           </div>
@@ -114,17 +115,14 @@ export function ConfigFormDialog({ subject, open, onOpenChange }: Readonly<Props
               onChange={setPassMark}
             />
           </div>
-
-          <div className="border-t border-border pt-4">
-            <h3 className="mb-3 text-sm font-semibold">Question Distribution</h3>
+          <div className="space-y-3 border-t border-border pt-4">
+            <Heading level={3}>Question Distribution</Heading>
             <DistributionEditor
               topics={subject.topics}
               distributions={distributions}
               onChange={setDistributions}
             />
-            <div
-              className={`mt-2 text-sm font-medium ${isValid ? 'text-green-500' : 'text-red-500'}`}
-            >
+            <div className={`mt-2 text-label ${isValid ? 'text-success' : 'text-danger'}`}>
               Total: {distributionSum} / {totalQuestions}
               {isValid ? ' \u2713' : ' (must match total questions)'}
             </div>

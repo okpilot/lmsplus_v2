@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { QuizTabs } from './quiz-tabs'
 
@@ -115,63 +116,69 @@ describe('QuizTabs', () => {
       expect(screen.getByTestId('tab-saved')).toHaveAttribute('tabindex', '-1')
     })
 
-    it('only sets aria-controls on the active tab', () => {
-      renderTabs()
-      expect(screen.getByTestId('tab-new')).toHaveAttribute('aria-controls', 'tabpanel-new')
-      expect(screen.getByTestId('tab-saved')).not.toHaveAttribute('aria-controls')
-    })
-
-    it('renders a tabpanel linked to the active tab', () => {
+    it('links the active tab to the rendered panel with aria-controls', () => {
       renderTabs()
       const panel = screen.getByRole('tabpanel')
-      expect(panel).toHaveAttribute('aria-labelledby', 'tab-new')
-      expect(panel).toHaveAttribute('id', 'tabpanel-new')
+      expect(panel.id).not.toBe('')
+      expect(screen.getByTestId('tab-new')).toHaveAttribute('aria-controls', panel.id)
+    })
+
+    it('renders a tabpanel labelled by the active tab', () => {
+      renderTabs()
+      expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', 'tab-new')
     })
   })
 
-  describe('keyboard navigation', () => {
-    it('moves focus to next tab on ArrowRight', () => {
+  describe('keyboard navigation (Base UI roving focus)', () => {
+    it('moves focus and selection to the next tab on ArrowRight', async () => {
+      const user = userEvent.setup()
       renderTabs()
-      const newTab = screen.getByTestId('tab-new')
-      newTab.focus()
-      fireEvent.keyDown(newTab, { key: 'ArrowRight' })
+      screen.getByTestId('tab-new').focus()
+      await user.keyboard('{ArrowRight}')
       expect(screen.getByTestId('tab-saved')).toHaveFocus()
+      expect(screen.getByTestId('tab-saved')).toHaveAttribute('aria-selected', 'true')
       expect(screen.getByTestId('saved-draft')).toBeInTheDocument()
     })
 
-    it('wraps focus from last tab to first on ArrowRight', () => {
+    it('moves focus and selection to the previous tab on ArrowLeft', async () => {
+      const user = userEvent.setup()
       renderTabs()
       fireEvent.click(screen.getByTestId('tab-saved'))
-      const savedTab = screen.getByTestId('tab-saved')
-      savedTab.focus()
-      fireEvent.keyDown(savedTab, { key: 'ArrowRight' })
+      screen.getByTestId('tab-saved').focus()
+      await user.keyboard('{ArrowLeft}')
       expect(screen.getByTestId('tab-new')).toHaveFocus()
+      expect(screen.getByTestId('tab-new')).toHaveAttribute('aria-selected', 'true')
     })
 
-    it('moves focus to previous tab on ArrowLeft', () => {
+    it('moves focus to the last tab on End', async () => {
+      const user = userEvent.setup()
       renderTabs()
-      fireEvent.click(screen.getByTestId('tab-saved'))
-      const savedTab = screen.getByTestId('tab-saved')
-      savedTab.focus()
-      fireEvent.keyDown(savedTab, { key: 'ArrowLeft' })
-      expect(screen.getByTestId('tab-new')).toHaveFocus()
-    })
-
-    it('moves focus to first tab on Home', () => {
-      renderTabs()
-      fireEvent.click(screen.getByTestId('tab-saved'))
-      const savedTab = screen.getByTestId('tab-saved')
-      savedTab.focus()
-      fireEvent.keyDown(savedTab, { key: 'Home' })
-      expect(screen.getByTestId('tab-new')).toHaveFocus()
-    })
-
-    it('moves focus to last tab on End', () => {
-      renderTabs()
-      const newTab = screen.getByTestId('tab-new')
-      newTab.focus()
-      fireEvent.keyDown(newTab, { key: 'End' })
+      screen.getByTestId('tab-new').focus()
+      await user.keyboard('{End}')
       expect(screen.getByTestId('tab-saved')).toHaveFocus()
+    })
+
+    it('moves focus to the first tab on Home', async () => {
+      const user = userEvent.setup()
+      renderTabs()
+      fireEvent.click(screen.getByTestId('tab-saved'))
+      screen.getByTestId('tab-saved').focus()
+      await user.keyboard('{Home}')
+      expect(screen.getByTestId('tab-new')).toHaveFocus()
+    })
+  })
+
+  describe('selected look', () => {
+    it('styles the active tab with the shared segmented classes', () => {
+      renderTabs(2)
+      const tab = screen.getByTestId('tab-new')
+      expect(tab).toHaveAttribute('data-active')
+      expect(tab).toHaveClass('data-active:bg-card', 'data-active:border-primary')
+    })
+
+    it('renders the draft badge as a TabCount', () => {
+      renderTabs(2)
+      expect(screen.getByTestId('draft-count-badge')).toHaveClass('bg-card')
     })
   })
 })

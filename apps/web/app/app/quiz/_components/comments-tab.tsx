@@ -1,9 +1,15 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import { Badge } from '@/components/ui/badge'
 import { BusyLabel } from '@/components/ui/busy-label'
+import { Button } from '@/components/ui/button'
+import { EmptyNote } from '@/components/ui/empty'
+import { FieldError } from '@/components/ui/field-error'
+import { Heading } from '@/components/ui/heading'
+import { Input } from '@/components/ui/input'
 import { useComments } from '../session/_hooks/use-comments'
-import { getAvatarColor, getInitials } from './comment-helpers'
+import { getInitials } from './comment-helpers'
 import { CommentsSkeleton } from './comments-skeleton'
 
 type CommentsTabProps = {
@@ -44,18 +50,18 @@ export function CommentsTab({ questionId, currentUserId }: Readonly<CommentsTabP
   return (
     <div className="space-y-4 py-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Comments</h3>
-        <span className="text-xs text-muted-foreground">
+        <Heading level={3}>Comments</Heading>
+        <span className="text-caption text-muted-foreground">
           {comments.length} comment{comments.length !== 1 ? 's' : ''}
         </span>
       </div>
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      <FieldError>{error}</FieldError>
 
       {comments.length === 0 && !error && (
-        <p className="py-4 text-center text-sm text-muted-foreground">
+        <EmptyNote variant="inline" className="py-4 text-center">
           No comments yet. Be the first to comment.
-        </p>
+        </EmptyNote>
       )}
 
       <div className="space-y-3">
@@ -66,22 +72,16 @@ export function CommentsTab({ questionId, currentUserId }: Readonly<CommentsTabP
           return (
             <div
               key={c.id}
-              className={`flex gap-3 ${isAdmin ? 'rounded-lg bg-primary/5 p-3' : ''}`}
+              className={`flex gap-3 ${isAdmin ? 'rounded-card bg-primary-soft p-3' : ''}`}
             >
-              <div
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${getAvatarColor(name)}`}
-              >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-pill text-chip font-semibold bg-muted text-muted-foreground">
                 {getInitials(name)}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">{name}</span>
-                  {isAdmin && (
-                    <span className="rounded-full bg-primary px-1.5 py-0.5 text-xs text-primary-foreground">
-                      LMS Plus
-                    </span>
-                  )}
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-label">{name}</span>
+                  {isAdmin && <Badge>LMS Plus</Badge>}
+                  <span className="text-caption text-muted-foreground">
                     {new Date(c.created_at).toLocaleDateString('en-GB', {
                       day: 'numeric',
                       month: 'short',
@@ -89,10 +89,12 @@ export function CommentsTab({ questionId, currentUserId }: Readonly<CommentsTabP
                     })}
                   </span>
                 </div>
-                <p className="mt-1 text-sm">{c.body}</p>
+                <p className="mt-1 text-body">{c.body}</p>
                 {isOwn && (
-                  <button
+                  <Button
                     type="button"
+                    variant="link"
+                    size="sm"
                     onClick={() => {
                       // Catch so a rejected deleteComment Server Action doesn't escape this
                       // handler as an unhandled rejection (same guard as handleSubmit above).
@@ -100,10 +102,10 @@ export function CommentsTab({ questionId, currentUserId }: Readonly<CommentsTabP
                         console.error('[CommentsTab] Failed to delete comment:', err),
                       )
                     }}
-                    className="mt-1 text-xs text-destructive hover:underline"
+                    className="mt-2.5 h-auto px-0 text-destructive"
                   >
                     Delete
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
@@ -112,26 +114,25 @@ export function CommentsTab({ questionId, currentUserId }: Readonly<CommentsTabP
       </div>
 
       <div className="flex gap-2 border-t border-border pt-3">
-        <input
+        <Input
           type="text"
           value={body}
           onChange={(e) => setBody(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
           placeholder="Add a comment..."
-          className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+          className="flex-1"
           disabled={submitting}
         />
-        <button
+        <Button
           type="button"
           onClick={handleSubmit}
           disabled={!body.trim() || submitting}
           aria-busy={submitting || undefined}
-          className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
           <span className="inline-flex items-center justify-center gap-2">
             <BusyLabel busy={submitting}>{submitting ? 'Posting...' : 'Post'}</BusyLabel>
           </span>
-        </button>
+        </Button>
       </div>
     </div>
   )

@@ -27,7 +27,7 @@ function DialogOverlay({ className, ...props }: Readonly<DialogPrimitive.Backdro
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
       className={cn(
-        'fixed inset-0 isolate z-50 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0',
+        'fixed inset-0 isolate z-overlay bg-scrim duration-fast supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0',
         className,
       )}
       {...props}
@@ -39,19 +39,21 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  overlayClassName,
   ...props
 }: Readonly<
   DialogPrimitive.Popup.Props & {
     showCloseButton?: boolean
+    overlayClassName?: string
   }
 >) {
   return (
     <DialogPortal>
-      <DialogOverlay />
+      <DialogOverlay className={overlayClassName} />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          'fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
+          'fixed top-1/2 left-1/2 z-overlay grid w-full max-w-(--dialog-max) -translate-x-1/2 -translate-y-1/2 gap-4 rounded-sheet bg-popover p-dialog-pad text-body text-popover-foreground ring-1 ring-border shadow-overlay duration-fast outline-none sm:max-w-dialog data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
           className,
         )}
         {...props}
@@ -91,7 +93,7 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        '-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 sm:flex-row sm:justify-end',
+        '-mx-dialog-pad -mb-dialog-pad flex flex-col-reverse gap-2 rounded-b-sheet border-t bg-muted p-dialog-pad sm:flex-row sm:justify-end',
         className,
       )}
       {...props}
@@ -108,7 +110,7 @@ function DialogTitle({ className, ...props }: Readonly<DialogPrimitive.Title.Pro
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
-      className={cn('text-base leading-none font-medium', className)}
+      className={cn('text-heading', className)}
       {...props}
     />
   )
@@ -119,7 +121,7 @@ function DialogDescription({ className, ...props }: Readonly<DialogPrimitive.Des
     <DialogPrimitive.Description
       data-slot="dialog-description"
       className={cn(
-        'text-sm text-muted-foreground *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground',
+        'text-body text-muted-foreground *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground',
         className,
       )}
       {...props}

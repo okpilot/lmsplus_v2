@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Eyebrow } from '@/components/ui/heading'
 import { LoadingButton } from '@/components/ui/loading-button'
 import { formatExpiry } from '../_utils/format-expiry'
 import { sendInternalExamCodeEmail } from '../actions/send-code-email'
@@ -59,20 +60,15 @@ export function IssuedCodePanel({ codeId, code, expiresAt, onDismiss }: Readonly
     <section
       aria-label="Newly issued exam code"
       data-testid="issued-code-panel"
-      className="rounded-lg border-2 border-primary bg-primary/5 p-6"
+      className="rounded-card border-2 border-primary-text bg-primary-soft p-6"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-2">
-          <p className="text-sm font-semibold uppercase tracking-wide text-primary">
-            New code issued
-          </p>
-          <p
-            className="tabular-nums text-3xl font-bold tracking-widest"
-            data-testid="issued-code-value"
-          >
+          <Eyebrow>New code issued</Eyebrow>
+          <p className="tabular-nums text-stat tracking-code" data-testid="issued-code-value">
             {code}
           </p>
-          <p className="text-sm text-muted-foreground">Expires {formatExpiry(expiresAt)}</p>
+          <p className="text-body text-muted-foreground">Expires {formatExpiry(expiresAt)}</p>
         </div>
         <div className="flex flex-col gap-2">
           <Button type="button" onClick={handleCopy} variant="default">

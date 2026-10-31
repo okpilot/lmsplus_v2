@@ -1,4 +1,6 @@
-import { getMasteryColor } from '../_lib/constants'
+import { EmptyNote } from '@/components/ui/empty'
+import { Stat, StatGroup } from '@/components/ui/stat'
+import { atGoal, MASTERY_GOAL } from '@/lib/utils/mastery-tone'
 import type { DashboardKpis, TimeRange } from '../types'
 
 type Props = Readonly<{ data: DashboardKpis; range: TimeRange }>
@@ -13,69 +15,49 @@ function rangeLabel(range: TimeRange): string {
   return labels[range]
 }
 
-type CardProps = Readonly<{
-  title: string
-  value: React.ReactNode
-  sub?: string
-  valueClass?: string
-}>
-
-function KpiCard({ title, value, sub, valueClass = '' }: Readonly<CardProps>) {
-  return (
-    <div className="rounded-xl border border-border bg-card p-3 md:p-4">
-      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{title}</p>
-      <p className={`mt-1 text-2xl font-bold ${valueClass}`}>{value}</p>
-      {sub ? <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p> : null}
-    </div>
-  )
-}
-
 export function KpiCards({ data, range }: Readonly<Props>) {
   if (data.totalStudents === 0) {
-    return (
-      <div className="flex items-center justify-center rounded-xl border border-border bg-card p-8">
-        <p className="text-sm text-muted-foreground">No students enrolled yet</p>
-      </div>
-    )
+    return <EmptyNote>No students enrolled yet</EmptyNote>
   }
 
-  const masteryColor = getMasteryColor(data.avgMastery)
-
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-5">
-      <KpiCard
-        title="Active Students"
+    <StatGroup columns={1} className="md:grid-cols-3 2xl:grid-cols-5">
+      <Stat
+        label="Active Students"
         value={`${data.activeStudents} / ${data.totalStudents}`}
-        sub={`in last ${rangeLabel(range)}`}
+        hint={`in last ${rangeLabel(range)}`}
       />
-      <KpiCard
-        title="Avg Mastery"
+      <Stat
+        label="Avg Mastery"
         value={`${data.avgMastery}%`}
-        sub="across all subjects"
-        valueClass={masteryColor}
+        hint="across all subjects"
+        tone={atGoal(data.avgMastery) ? 'success' : undefined}
       />
-      <KpiCard
-        title="Sessions This Period"
+      <Stat
+        label="Sessions This Period"
         value={data.sessionsThisPeriod}
-        sub={`last ${rangeLabel(range)}`}
+        hint={`last ${rangeLabel(range)}`}
       />
-      <KpiCard
-        title="Weakest Subject"
+      <Stat
+        label="Weakest Subject"
+        size="text"
         value={data.weakestSubject === null ? '—' : data.weakestSubject.name}
-        sub={
+        hint={
           data.weakestSubject === null
             ? undefined
             : `${data.weakestSubject.avgMastery}% avg mastery`
         }
-        valueClass={
-          data.weakestSubject === null ? '' : getMasteryColor(data.weakestSubject.avgMastery)
+        tone={
+          data.weakestSubject !== null && atGoal(data.weakestSubject.avgMastery)
+            ? 'success'
+            : undefined
         }
       />
-      <KpiCard
-        title="Exam Readiness"
+      <Stat
+        label="Exam Readiness"
         value={`${data.examReadyStudents} / ${data.totalStudents}`}
-        sub="students at 90%+"
+        hint={`students at ${MASTERY_GOAL}%+`}
       />
-    </div>
+    </StatGroup>
   )
 }

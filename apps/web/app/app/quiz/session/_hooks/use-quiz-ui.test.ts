@@ -30,8 +30,6 @@ function renderUI(
   const defaults = {
     feedback: new Map<string, AnswerFeedback>(),
     currentIndex: 0,
-    activeTab: 'question',
-    existingAnswer: undefined,
   }
   return renderHook((props: Parameters<typeof useQuizUI>[0]) => useQuizUI(props), {
     initialProps: { ...defaults, ...opts } as Parameters<typeof useQuizUI>[0],
@@ -124,15 +122,13 @@ describe('useQuizUI — pendingOptionId and handleSelectionChange', () => {
     rerender({
       feedback: new Map(),
       currentIndex: 1,
-      activeTab: 'question',
-      existingAnswer: undefined,
     })
 
     expect(result.current.pendingOptionId).toBeNull()
   })
 
   it('does not reset pendingOptionId when a prop other than currentIndex changes', () => {
-    const { result, rerender } = renderUI({ currentIndex: 0, activeTab: 'question' })
+    const { result, rerender } = renderUI({ currentIndex: 0 })
 
     act(() => {
       result.current.handleSelectionChange(OPT_A)
@@ -140,75 +136,16 @@ describe('useQuizUI — pendingOptionId and handleSelectionChange', () => {
 
     rerender({
       feedback: new Map(),
-      currentIndex: 0,
-      activeTab: 'explanation', // tab changed, index did not
-      existingAnswer: undefined,
+      currentIndex: 0, // feedback changed, index did not
     })
 
     expect(result.current.pendingOptionId).toBe(OPT_A)
   })
 })
 
-// ---- canSubmitAnswer --------------------------------------------------------
-
-describe('useQuizUI — canSubmitAnswer', () => {
-  it('is false when no option is selected', () => {
-    const { result } = renderUI({ activeTab: 'question', existingAnswer: undefined })
-    expect(result.current.canSubmitAnswer).toBe(false)
-  })
-
-  it('is true when on the question tab, no existing answer, and an option is selected', () => {
-    const { result } = renderUI({ activeTab: 'question', existingAnswer: undefined })
-
-    act(() => {
-      result.current.handleSelectionChange(OPT_A)
-    })
-
-    expect(result.current.canSubmitAnswer).toBe(true)
-  })
-
-  it('is false when activeTab is not "question" even if an option is selected', () => {
-    const { result } = renderUI({ activeTab: 'explanation', existingAnswer: undefined })
-
-    act(() => {
-      result.current.handleSelectionChange(OPT_A)
-    })
-
-    expect(result.current.canSubmitAnswer).toBe(false)
-  })
-
-  it('is false when an existing answer is present even if an option is selected', () => {
-    const { result } = renderUI({
-      activeTab: 'question',
-      existingAnswer: { selectedOptionId: OPT_A, responseTimeMs: 500 },
-    })
-
-    act(() => {
-      result.current.handleSelectionChange(OPT_A)
-    })
-
-    expect(result.current.canSubmitAnswer).toBe(false)
-  })
-
-  it('becomes false after navigating to a new question (pendingOptionId resets)', () => {
-    const { result, rerender } = renderUI({
-      currentIndex: 0,
-      activeTab: 'question',
-      existingAnswer: undefined,
-    })
-
-    act(() => {
-      result.current.handleSelectionChange(OPT_A)
-    })
-    expect(result.current.canSubmitAnswer).toBe(true)
-
-    rerender({
-      feedback: new Map(),
-      currentIndex: 1,
-      activeTab: 'question',
-      existingAnswer: undefined,
-    })
-
-    expect(result.current.canSubmitAnswer).toBe(false)
+describe('useQuizUI — result', () => {
+  it('returns no separate submit flag', () => {
+    const { result } = renderUI()
+    expect(result.current).not.toHaveProperty('canSubmitAnswer')
   })
 })

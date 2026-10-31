@@ -30,7 +30,9 @@ function makeSubject(overrides: Partial<SubjectDetail> = {}): SubjectDetail {
 describe('SubjectBreakdown', () => {
   it('shows empty state message when subjects array is empty', () => {
     render(<SubjectBreakdown subjects={[]} />)
-    expect(screen.getByText(/no subjects with questions available yet/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(/no subjects with questions available yet/i).closest('[data-slot="empty"]'),
+    ).not.toBeNull()
   })
 
   it('renders a row for each subject', () => {
@@ -117,5 +119,18 @@ describe('SubjectBreakdown', () => {
     await user.click(screen.getByRole('button', { name: /aircraft general knowledge/i }))
     // No topic rows, just the expanded container
     expect(screen.queryByText('050-01')).not.toBeInTheDocument()
+  })
+
+  it('shows each subject and expanded topic as a meter named for it', async () => {
+    const user = userEvent.setup()
+    render(<SubjectBreakdown subjects={[makeSubject({ masteryPercentage: 75 })]} />)
+    expect(
+      screen.getByRole('meter', { name: 'Aircraft General Knowledge mastery' }),
+    ).toHaveAttribute('aria-valuenow', '75')
+    await user.click(screen.getByRole('button', { name: /aircraft general knowledge/i }))
+    expect(screen.getByRole('meter', { name: 'Airframe mastery' })).toHaveAttribute(
+      'aria-valuenow',
+      '60',
+    )
   })
 })

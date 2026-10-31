@@ -81,14 +81,18 @@ describe('DraftCard — rendering', () => {
 
   it('shows progress bar at correct width', () => {
     render(<DraftCard draft={DRAFT} />)
-    const bar = screen.getByTestId('draft-progress')
+    const bar = screen
+      .getByRole('progressbar', { name: 'Answered questions' })
+      .querySelector('[style*="width"]')
     // 2 of 4 = 50%
     expect(bar).toHaveStyle({ width: '50%' })
   })
 
   it('shows 0% progress bar when there are no answers', () => {
     render(<DraftCard draft={{ ...DRAFT, answers: {} }} />)
-    const bar = screen.getByTestId('draft-progress')
+    const bar = screen
+      .getByRole('progressbar', { name: 'Answered questions' })
+      .querySelector('[style*="width"]')
     expect(bar).toHaveStyle({ width: '0%' })
   })
 
@@ -241,6 +245,7 @@ describe('DraftCard — Delete', () => {
     await waitFor(() =>
       expect(screen.getByText('Failed to delete. Please try again.')).toBeInTheDocument(),
     )
+    expect(screen.getByRole('alert')).toHaveTextContent('Failed to delete. Please try again.')
   })
 
   it('shows an error and re-enables delete when the delete request throws', async () => {

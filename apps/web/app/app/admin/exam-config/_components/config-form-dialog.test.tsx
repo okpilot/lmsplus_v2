@@ -93,6 +93,13 @@ beforeEach(() => {
 
 describe('ConfigFormDialog', () => {
   describe('rendering when open', () => {
+    it('renders the distribution section title as a level-3 heading', () => {
+      render(<ConfigFormDialog subject={subjectNoConfig} open={true} onOpenChange={vi.fn()} />)
+      expect(screen.getByRole('heading', { level: 3, name: 'Question Distribution' })).toHaveClass(
+        'text-label-strong',
+      )
+    })
+
     it('renders the dialog title with subject code and name', () => {
       render(<ConfigFormDialog subject={subjectNoConfig} open={true} onOpenChange={vi.fn()} />)
       expect(screen.getByText(/AGK.*General Knowledge/)).toBeTruthy()
@@ -164,6 +171,22 @@ describe('ConfigFormDialog', () => {
       render(<ConfigFormDialog subject={subjectWithConfig} open={true} onOpenChange={vi.fn()} />)
       // 20 / 20 = valid
       expect(screen.getByText(/Total: 20 \/ 20/)).toBeTruthy()
+    })
+
+    it('colours a matching total with the success token', () => {
+      render(<ConfigFormDialog subject={subjectWithConfig} open={true} onOpenChange={vi.fn()} />)
+      const el = screen.getByText(/Total: 20 \/ 20/)
+      expect(el.closest('[class*="text-success"]')).not.toBeNull()
+      expect(el.closest('[class*="text-danger"]')).toBeNull()
+      expect(document.body.innerHTML).not.toMatch(/text-(green|red)-500/)
+    })
+
+    it('colours a mismatched total with the danger token', () => {
+      render(<ConfigFormDialog subject={subjectNoConfig} open={true} onOpenChange={vi.fn()} />)
+      const el = screen.getByText(/must match total questions/)
+      expect(el.closest('[class*="text-danger"]')).not.toBeNull()
+      expect(el.closest('[class*="text-success"]')).toBeNull()
+      expect(document.body.innerHTML).not.toMatch(/text-(green|red)-500/)
     })
 
     it('shows mismatch message when distribution sum does not match', () => {
@@ -399,5 +422,14 @@ describe('ConfigFormDialog sub-topic rows', () => {
         questionCount: 2,
       })
     }
+  })
+})
+
+describe('ConfigFormDialog switch label', () => {
+  it('keeps the enable-exam switch label foreground, not text-sm', () => {
+    render(<ConfigFormDialog subject={subjectNoConfig} open={true} onOpenChange={vi.fn()} />)
+    const cls = screen.getByText('Enable exam mode for this subject').className.split(/\s+/)
+    expect(cls).toContain('text-foreground')
+    expect(cls).not.toContain('text-sm')
   })
 })

@@ -15,13 +15,13 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
   }
 
   return (
-    <div className="flex min-h-screen flex-col md:flex-row">
+    <div className="flex min-h-screen flex-col sm:flex-row">
       <PhoneTopBar />
-      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 self-start md:flex">
+      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 self-start sm:flex border-r border-border bg-card">
         <SidebarNav />
       </aside>
-      <div className="min-w-0 flex-1 px-5 py-8 pb-24 md:px-10 md:pb-8">
-        <div className="mx-auto max-w-6xl">{children}</div>
+      <div className="min-w-0 flex-1 px-gutter py-section pb-tab-clear sm:pb-section">
+        <div className="mx-auto max-w-content">{children}</div>
       </div>
       <MobileNav />
     </div>

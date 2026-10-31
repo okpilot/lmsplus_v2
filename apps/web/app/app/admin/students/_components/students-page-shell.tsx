@@ -3,6 +3,7 @@
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { Empty, EmptyDescription } from '@/components/ui/empty'
 import type { CourseOption, StudentFilters, StudentRow } from '../types'
 import { ExportStudentDialog } from './export-student-dialog'
 import { StudentFiltersBar } from './student-filters'
@@ -26,14 +27,14 @@ export function StudentsPageShell({ students, courses, filters }: Readonly<Props
       <StudentFiltersBar filters={filters} />
 
       <div className="flex items-center justify-between">
-        <p className="text-xs text-muted-foreground">
+        <p className="text-caption text-muted-foreground">
           {students.length} user{students.length === 1 ? '' : 's'}
         </p>
         <StudentFormDialog
           courses={courses}
           trigger={
             <Button size="sm">
-              <Plus className="mr-1.5 size-4" />
+              <Plus className="mr-1.5 size-icon" />
               New Student
             </Button>
           }
@@ -41,11 +42,11 @@ export function StudentsPageShell({ students, courses, filters }: Readonly<Props
       </div>
 
       {students.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-12 text-center">
-          <p className="text-sm text-muted-foreground">
+        <Empty>
+          <EmptyDescription>
             No students found. Adjust filters or create a new student.
-          </p>
-        </div>
+          </EmptyDescription>
+        </Empty>
       ) : (
         <StudentTable
           students={students}

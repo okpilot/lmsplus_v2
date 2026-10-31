@@ -49,13 +49,13 @@ export function DeleteButton({ id, table, label, questionCount }: Readonly<Delet
         render={
           <Button
             variant="ghost"
-            size="icon-xs"
+            size="icon-sm"
             disabled={hasQuestions || isPending}
             title={hasQuestions ? `${questionCount} questions reference this item` : 'Delete'}
           />
         }
       >
-        <Trash2 className="size-3.5 text-muted-foreground" />
+        <Trash2 className="size-icon-sm text-muted-foreground" />
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>

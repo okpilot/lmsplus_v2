@@ -42,7 +42,8 @@ test.describe('Saved draft delete', () => {
 
     page.once('dialog', (d) => d.accept())
     await page
-      .locator('div.rounded-xl', { hasText: DRAFT_TEXT })
+      .getByTestId('draft-card')
+      .filter({ hasText: DRAFT_TEXT })
       .getByTestId('delete-draft')
       .click()
     await expect(page.getByText(DRAFT_TEXT)).toHaveCount(0, { timeout: 15_000 })

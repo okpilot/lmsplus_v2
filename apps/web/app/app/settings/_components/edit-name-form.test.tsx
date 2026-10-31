@@ -111,4 +111,17 @@ describe('EditNameForm', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Failed to update name')
   })
+
+  it('renders the error as a danger field error', async () => {
+    const user = userEvent.setup()
+    render(<EditNameForm currentName="Alice Smith" />)
+    const input = screen.getByLabelText(/full name/i)
+    await user.clear(input)
+    await user.type(input, ' ')
+    await user.click(screen.getByRole('button', { name: /save/i }))
+
+    const error = await screen.findByRole('alert')
+    expect(error).toHaveAttribute('data-slot', 'field-error')
+    expect(error).toHaveClass('text-danger')
+  })
 })

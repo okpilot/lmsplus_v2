@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Heading } from '@/components/ui/heading'
 import {
   forgotPasswordSteps,
   LINK_INVALID_MESSAGE,
@@ -9,23 +10,26 @@ export function LinkUnavailable({ reason }: Readonly<{ reason: 'invalid' | 'miss
   return (
     <div className="w-full space-y-4">
       <div className="space-y-1 text-center">
-        <h2 className="text-lg font-medium">This link cannot be used</h2>
-        <p className="text-sm text-muted-foreground">
+        <Heading level={2}>This link cannot be used</Heading>
+        <p className="text-body text-muted-foreground">
           {reason === 'invalid' ? LINK_INVALID_MESSAGE : LINK_MISSING_MESSAGE}
         </p>
       </div>
 
-      <div className="space-y-2 text-sm">
+      <div className="space-y-2 text-body">
         <p className="font-medium">To get in:</p>
-        <ol className="list-decimal space-y-1 pl-5 text-muted-foreground">
+        <ol className="list-decimal space-y-1 pl-prose-indent text-muted-foreground">
           {forgotPasswordSteps().map((step) => (
             <li key={step}>{step}</li>
           ))}
         </ol>
       </div>
 
-      <div className="flex flex-col gap-2 text-center text-sm">
-        <Link href="/auth/forgot-password" className="text-primary underline underline-offset-4">
+      <div className="flex flex-col gap-2 text-center text-body">
+        <Link
+          href="/auth/forgot-password"
+          className="text-primary-text underline underline-offset-4"
+        >
           Forgot password
         </Link>
         <Link href="/" className="text-muted-foreground underline underline-offset-4">

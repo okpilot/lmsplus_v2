@@ -59,6 +59,9 @@ describe('QuestionBreakdown', () => {
         <QuestionBreakdown questions={makeQuestions(3)} page={1} totalCount={3} pageSize={10} />,
       )
       expect(screen.getByText('Question Breakdown')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { level: 2, name: 'Question Breakdown' })).toHaveClass(
+        'text-heading',
+      )
     })
 
     it('displays the total question count from totalCount prop', () => {

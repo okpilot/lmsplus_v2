@@ -1,7 +1,7 @@
 'use client'
 
+import { Check, X } from 'lucide-react'
 import { useState } from 'react'
-import { BusyLabel } from '@/components/ui/busy-label'
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
 
@@ -12,10 +12,7 @@ type Option = {
 
 type AnswerOptionsProps = {
   options: Option[]
-  onSubmit: (selectedId: string) => void
   disabled: boolean
-  /** True only while the answer is being submitted — drives the spinner. */
-  submitting?: boolean
   correctOptionId?: string | null
   selectedOptionId?: string | null
   onSelectionChange?: (id: string | null) => void
@@ -28,33 +25,62 @@ type AnswerOptionsProps = {
   keyboardHighlightedId?: string | null
 }
 
+const SELECTED_STYLE = {
+  card: 'border-primary ring-1 ring-primary text-primary-text',
+  circle: 'bg-primary text-primary-foreground',
+}
+
 function getOptionStyle(opts: {
   showResult: boolean
   isCorrect: boolean
   isWrongSelection: boolean
   isSelected: boolean
   isExamLocked: boolean
-}) {
+}): { card: string; circle: string; result?: 'correct' | 'wrong' } {
   if (opts.showResult && opts.isCorrect)
-    return { card: 'border-green-500 bg-green-500/10', circle: 'bg-green-500 text-white' }
-  if (opts.showResult && opts.isWrongSelection)
-    return { card: 'border-destructive bg-destructive/10', circle: 'bg-red-500 text-white' }
-  // Exam mode: confirmed answer — neutral grey, no correctness signal
-  if (opts.isExamLocked)
     return {
-      card: 'border-muted-foreground/40 bg-muted/50',
-      circle: 'bg-muted-foreground text-background',
+      card: 'border-success',
+      circle: 'bg-success-solid text-success-foreground',
+      result: 'correct',
     }
-  if (opts.isSelected && !opts.showResult)
-    return { card: 'border-primary bg-primary/5', circle: 'bg-primary text-primary-foreground' }
-  return { card: 'border-border hover:border-primary/40', circle: 'border border-current' }
+  if (opts.showResult && opts.isWrongSelection)
+    return {
+      card: 'border-danger',
+      circle: 'bg-danger-solid text-danger-foreground',
+      result: 'wrong',
+    }
+  // Exam mode: confirmed answer — same look as a selection, no correctness signal
+  if (opts.isExamLocked || (opts.isSelected && !opts.showResult)) return SELECTED_STYLE
+  return {
+    card: 'border-border hover:border-primary-border-hover',
+    circle: 'border border-current',
+  }
+}
+
+function ResultMark({
+  result,
+  picked,
+}: Readonly<{ result?: 'correct' | 'wrong'; picked: boolean }>) {
+  if (result === 'correct')
+    return (
+      <>
+        <Check aria-hidden className="ml-auto size-icon shrink-0 text-success" />
+        <span className="sr-only">{picked ? 'Your answer, correct' : 'Correct answer'}</span>
+      </>
+    )
+  if (result === 'wrong')
+    return (
+      <>
+        <X aria-hidden className="ml-auto size-icon shrink-0 text-danger" />
+        <span className="sr-only">Your answer, incorrect</span>
+      </>
+    )
+  return null
 }
 
 export function AnswerOptions({
   options,
-  onSubmit,
   disabled,
-  submitting = false,
   correctOptionId,
   selectedOptionId: lockedSelection,
   onSelectionChange,
@@ -77,7 +103,7 @@ export function AnswerOptions({
         const isCorrect = option.id === correctOptionId
         const isWrongSelection = option.id === lockedSelection && option.id !== correctOptionId
         const isSelected = currentSelection === option.id
-        const { card, circle } = getOptionStyle({
+        const { card, circle, result } = getOptionStyle({
           showResult,
           isCorrect,
           isWrongSelection,
@@ -95,34 +121,22 @@ export function AnswerOptions({
             type="button"
             data-testid={`option-${option.id}`}
             data-selected={isSelected && !showResult ? 'true' : undefined}
+            data-result={result}
             data-kb-highlighted={isKeyboardHighlighted ? 'true' : undefined}
             disabled={disabled || (!!isExam && lockedSelection != null)}
             onClick={() => handleSelect(option.id)}
-            className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-colors ${card} ${isKeyboardHighlighted ? 'ring-2 ring-primary ring-offset-1' : ''} ${disabled && !showResult ? 'opacity-50' : ''}`}
+            className={`flex w-full items-center gap-3 rounded-control border px-4 py-3 text-left text-body transition-colors ${card} ${isKeyboardHighlighted ? 'outline-2 outline-offset-2 outline-ring' : ''} ${disabled && !showResult ? 'opacity-disabled' : ''}`}
           >
             <span
-              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${circle}`}
+              className={`flex size-7 shrink-0 items-center justify-center rounded-pill text-caption font-semibold ${circle}`}
             >
               {LETTERS[index] ?? String(index + 1)}
             </span>
             <span>{option.text}</span>
+            <ResultMark result={result} picked={option.id === lockedSelection} />
           </button>
         )
       })}
-
-      {!showResult && !(isExam && lockedSelection != null) && (
-        <button
-          type="button"
-          disabled={!currentSelection || disabled || submitting}
-          aria-busy={submitting || undefined}
-          onClick={() => currentSelection && onSubmit(currentSelection)}
-          className="mt-3 hidden w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 md:block"
-        >
-          <span className="inline-flex items-center justify-center gap-2">
-            <BusyLabel busy={submitting}>{isExam ? 'Confirm Answer' : 'Submit Answer'}</BusyLabel>
-          </span>
-        </button>
-      )}
     </div>
   )
 }

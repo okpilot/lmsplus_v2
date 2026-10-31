@@ -1,6 +1,8 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
+import { CardListRow } from '@/components/ui/card'
+import { FieldError } from '@/components/ui/field-error'
 import { modeLabel } from '@/lib/constants/exam-modes'
 import type { SavedQuizSession } from '@/lib/queries/load-saved-quizzes'
 import { useSavedCardActions } from '../_hooks/use-saved-card-actions'
@@ -19,6 +21,7 @@ function SavedSessionButtons({ resuming, deleting, onResume, onDelete }: Readonl
     <div className="flex shrink-0 gap-2">
       <Button
         type="button"
+        variant="outline"
         data-testid="resume-saved-session"
         onClick={onResume}
         disabled={busy}
@@ -44,21 +47,21 @@ export function SavedSessionCard({ session }: Readonly<{ session: SavedQuizSessi
   const { error, resuming, resume, deleting, remove } = useSavedCardActions(session.sessionId)
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4 space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium">{session.subjectName}</p>
-          <p className="text-xs text-muted-foreground">{modeLabel(session.mode)}</p>
-        </div>
-        <SavedSessionButtons
-          resuming={resuming}
-          deleting={deleting}
-          onResume={resume}
-          onDelete={remove}
-        />
+    <CardListRow className="flex flex-col gap-3 lg:grid lg:grid-cols-(--layout-saved-row) lg:items-center lg:gap-x-section">
+      <div className="min-w-0">
+        <p className="truncate text-label">{session.subjectName}</p>
+        <p className="text-caption text-muted-foreground">{modeLabel(session.mode)}</p>
       </div>
       <SavedSessionProgress answered={session.answeredCount} total={session.totalCount} />
-      {error && <p className="text-xs text-destructive">{error}</p>}
-    </div>
+      <SavedSessionButtons
+        resuming={resuming}
+        deleting={deleting}
+        onResume={resume}
+        onDelete={remove}
+      />
+      <FieldError role="alert" className="lg:col-span-full">
+        {error}
+      </FieldError>
+    </CardListRow>
   )
 }

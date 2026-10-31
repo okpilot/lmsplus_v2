@@ -1,10 +1,11 @@
 'use client'
 
 import { createClient } from '@repo/db/client'
-import { Eye, EyeOff } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
 import { z } from 'zod'
+import { PasswordToggle } from '@/components/auth/password-toggle'
+import { FieldError } from '@/components/ui/field-error'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { LoadingButton } from '@/components/ui/loading-button'
@@ -94,44 +95,40 @@ export function LoginForm({ initialError, nextPath }: Readonly<LoginFormProps>) 
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Enter your password"
             required
-            className="pr-10"
+            className="pr-field-end"
           />
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            aria-label={showPassword ? 'Hide password' : 'Show password'}
-          >
-            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
+          <PasswordToggle shown={showPassword} onToggle={() => setShowPassword(!showPassword)} />
         </div>
       </div>
 
       <div className="flex justify-end">
         <Link
           href="/auth/forgot-password"
-          className="text-sm text-muted-foreground hover:text-primary"
+          className="text-label text-muted-foreground underline underline-offset-4 hover:text-primary-text"
         >
           Forgot password?
         </Link>
       </div>
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      <FieldError role="alert">{error}</FieldError>
 
       <LoadingButton type="submit" loading={loading} loadingText="Signing in..." className="w-full">
         Sign in
       </LoadingButton>
 
-      <p className="text-center text-sm text-muted-foreground">
+      <p className="text-center text-body text-muted-foreground">
         Don&apos;t have an account? Contact your administrator.
       </p>
 
-      <p className="text-center text-xs text-muted-foreground">
-        <Link href="/legal/terms" className="hover:text-primary underline">
+      <p className="text-center text-caption text-muted-foreground">
+        <Link href="/legal/terms" className="underline underline-offset-4 hover:text-primary-text">
           Terms of Service
         </Link>
         {' · '}
-        <Link href="/legal/privacy" className="hover:text-primary underline">
+        <Link
+          href="/legal/privacy"
+          className="underline underline-offset-4 hover:text-primary-text"
+        >
           Privacy Policy
         </Link>
       </p>

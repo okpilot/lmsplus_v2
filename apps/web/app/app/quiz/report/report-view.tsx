@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { PageHeader } from '@/components/ui/heading'
 import { getFlaggedQuestionIds } from '@/lib/queries/flagged-questions'
 import { getQuizReportSummary, PAGE_SIZE } from '@/lib/queries/quiz-report'
 import { getQuizReportQuestions } from '@/lib/queries/quiz-report-questions'
@@ -40,8 +41,8 @@ export async function QuizReportView({ sessionId, pageParam, namespace }: Readon
   const ctx = getReportContext(summary.mode, summary.subjectCode)
 
   return (
-    <main className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">{ctx.noun} Results</h1>
+    <main className="space-y-section">
+      <PageHeader title={`${ctx.noun} Results`} />
       <ReportFlagProvider key={`${sessionId}-${page}`} initialFlaggedIds={flaggedIds}>
         <ReportCard
           summary={summary}

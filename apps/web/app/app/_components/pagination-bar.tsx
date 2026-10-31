@@ -42,7 +42,7 @@ export function PaginationBar({
 
   return (
     <div className="flex items-center justify-between pt-4">
-      <p className="text-xs text-muted-foreground">
+      <p className="text-caption text-muted-foreground">
         Showing {from}–{to} of {totalCount} {entityLabel}
       </p>
       <div className="flex items-center gap-1">
@@ -53,11 +53,11 @@ export function PaginationBar({
           disabled={effectivePage <= 1}
           onClick={() => goToPage(effectivePage - 1)}
         >
-          <ChevronLeft className="size-4" />
+          <ChevronLeft className="size-icon" />
         </Button>
         {items.map((item) =>
           item.type === 'ellipsis' ? (
-            <span key={item.key} className="px-1.5 text-xs text-muted-foreground">
+            <span key={item.key} className="px-1.5 text-caption text-muted-foreground">
               ...
             </span>
           ) : (
@@ -82,7 +82,7 @@ export function PaginationBar({
           disabled={effectivePage >= totalPages}
           onClick={() => goToPage(effectivePage + 1)}
         >
-          <ChevronRight className="size-4" />
+          <ChevronRight className="size-icon" />
         </Button>
       </div>
     </div>

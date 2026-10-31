@@ -21,7 +21,7 @@ export default async function AdminSessionReportPage({
   })
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-section">
       <AdminReportHeader studentId={summary.studentId} studentName={summary.studentName} />
       <AdminReportCard
         summary={summary}

@@ -47,6 +47,11 @@ describe('MyReportsTab', () => {
     expect(screen.getByTestId('reports-empty')).toHaveTextContent(/no internal exam attempts yet/i)
   })
 
+  it('renders the empty state with the shared empty part', () => {
+    render(<MyReportsTab rows={[]} />)
+    expect(screen.getByTestId('reports-empty')).toHaveAttribute('data-slot', 'empty')
+  })
+
   it('renders the full subject name as a link to the report page with the session id', () => {
     render(<MyReportsTab rows={[baseRow]} />)
     const link = screen.getByRole('link', { name: 'Air Law' })
@@ -98,6 +103,24 @@ describe('MyReportsTab', () => {
   it('renders the Fail badge when passed is false', () => {
     render(<MyReportsTab rows={[{ ...baseRow, passed: false }]} />)
     expect(screen.getByLabelText('Failed')).toBeInTheDocument()
+  })
+
+  it('styles the Pass badge with the success tone', () => {
+    render(<MyReportsTab rows={[baseRow]} />)
+    const cls = screen.getByLabelText('Passed').className
+    expect(cls).toContain('bg-success-soft')
+    expect(cls).toContain('text-success')
+    expect(cls).not.toContain('bg-destructive')
+    expect(cls).not.toContain('bg-primary')
+  })
+
+  it('styles the Fail badge with the danger tone', () => {
+    render(<MyReportsTab rows={[{ ...baseRow, passed: false }]} />)
+    const cls = screen.getByLabelText('Failed').className
+    expect(cls).toContain('bg-danger-soft')
+    expect(cls).toContain('text-danger')
+    expect(cls).not.toContain('bg-destructive')
+    expect(cls).not.toContain('bg-primary')
   })
 
   it('renders neither pass nor fail badge when passed is null', () => {

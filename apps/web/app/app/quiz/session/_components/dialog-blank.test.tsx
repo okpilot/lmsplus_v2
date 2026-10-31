@@ -88,3 +88,38 @@ describe('DialogBlank', () => {
     expect(onEnter).not.toHaveBeenCalled()
   })
 })
+
+function expectNoTint(cls: string) {
+  expect(cls).not.toMatch(/bg-[a-z-]+\/10/)
+  expect(cls).not.toMatch(/(green|red|emerald)-\d/)
+  expect(cls).not.toContain('bg-destructive')
+}
+
+describe('DialogBlank result borders', () => {
+  it('uses border-success without a tint when graded correct', () => {
+    renderBlank({ result: { isCorrect: true, canonical: 'x' } })
+    const cls = screen.getByTestId('blank-0').className
+    expect(cls).toContain('border-success')
+    expectNoTint(cls)
+  })
+
+  it('uses border-danger without a tint when graded wrong', () => {
+    renderBlank({ result: { isCorrect: false, canonical: 'x' } })
+    const cls = screen.getByTestId('blank-0').className
+    expect(cls).toContain('border-danger')
+    expectNoTint(cls)
+  })
+})
+
+describe('DialogBlank graded fill', () => {
+  it.each([true, false])(
+    'uses the card background when disabled and graded (correct=%s)',
+    (isCorrect) => {
+      renderBlank({ disabled: true, result: { isCorrect, canonical: 'x' } })
+      const cls = screen.getByTestId('blank-0').className
+      expect(cls).toContain('disabled:bg-card')
+      expect(cls).toContain('dark:disabled:bg-card')
+      expect(cls).not.toContain('disabled:bg-muted/50')
+    },
+  )
+})

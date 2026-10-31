@@ -241,9 +241,7 @@ test.describe('Red Team: quiz session read path by id (HA, HB)', () => {
         })
         await page.goto(url)
         await expect(page.getByText(/Question 1 of 2/)).toBeVisible({ timeout: 15_000 })
-        const graded = page.locator(
-          `${OPTION}[class*="border-green-500"], ${OPTION}[class*="border-destructive"]`,
-        )
+        const graded = page.locator(`${OPTION}[data-result]`)
         if (mode === 'quick_quiz') {
           // Practice: the server load carries the feedback, so it renders with no client action.
           expect(body).toContain('correctOptionId')

@@ -1,3 +1,5 @@
+import { mergeProps } from '@base-ui/react/merge-props'
+import { useRender } from '@base-ui/react/use-render'
 import type * as React from 'react'
 
 import { cn } from '@/lib/utils'
@@ -12,7 +14,7 @@ function Card({
       data-slot="card"
       data-size={size}
       className={cn(
-        'group/card flex flex-col gap-4 overflow-hidden rounded-xl bg-card py-4 text-sm text-card-foreground ring-1 ring-foreground/10 has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:gap-3 data-[size=sm]:py-3 data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl',
+        'group/card flex flex-col gap-4 overflow-visible rounded-card bg-card py-card text-body text-card-foreground ring-1 ring-border has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:gap-card-sm data-[size=sm]:py-card-sm data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-card *:[img:last-child]:rounded-b-card',
         className,
       )}
       {...props}
@@ -20,12 +22,35 @@ function Card({
   )
 }
 
+function CardList({
+  className,
+  ...props
+}: Readonly<Omit<React.ComponentProps<typeof Card>, 'size'>>) {
+  return (
+    <Card
+      {...props}
+      data-slot="card-list"
+      className={cn('gap-0 overflow-hidden py-0 divide-y divide-border', className)}
+    />
+  )
+}
+
+/** A row of a `CardList`; only direct children of one. */
+function CardListRow({ className, render, ...props }: Readonly<useRender.ComponentProps<'div'>>) {
+  return useRender({
+    defaultTagName: 'div',
+    props: mergeProps<'div'>({ className: cn('px-card py-row', className) }, props),
+    render,
+    state: { slot: 'card-list-row' },
+  })
+}
+
 function CardHeader({ className, ...props }: Readonly<React.ComponentProps<'div'>>) {
   return (
     <div
       data-slot="card-header"
       className={cn(
-        'group/card-header @container/card-header grid auto-rows-min items-start gap-1 rounded-t-xl px-4 group-data-[size=sm]/card:px-3 has-data-[slot=card-action]:grid-cols-[1fr_auto] has-data-[slot=card-description]:grid-rows-[auto_auto] [.border-b]:pb-4 group-data-[size=sm]/card:[.border-b]:pb-3',
+        'group/card-header @container/card-header grid auto-rows-min items-start gap-1 rounded-t-card px-card group-data-[size=sm]/card:px-card-sm has-data-[slot=card-action]:grid-cols-(--layout-cols-fill-auto) has-data-[slot=card-description]:grid-rows-(--layout-rows-pair) [.border-b]:pb-card group-data-[size=sm]/card:[.border-b]:pb-card-sm',
         className,
       )}
       {...props}
@@ -34,23 +59,14 @@ function CardHeader({ className, ...props }: Readonly<React.ComponentProps<'div'
 }
 
 function CardTitle({ className, ...props }: Readonly<React.ComponentProps<'div'>>) {
-  return (
-    <div
-      data-slot="card-title"
-      className={cn(
-        'text-base leading-snug font-medium group-data-[size=sm]/card:text-sm',
-        className,
-      )}
-      {...props}
-    />
-  )
+  return <div data-slot="card-title" className={cn('text-label-strong', className)} {...props} />
 }
 
 function CardDescription({ className, ...props }: Readonly<React.ComponentProps<'div'>>) {
   return (
     <div
       data-slot="card-description"
-      className={cn('text-sm text-muted-foreground', className)}
+      className={cn('text-caption text-muted-foreground', className)}
       {...props}
     />
   )
@@ -70,7 +86,7 @@ function CardContent({ className, ...props }: Readonly<React.ComponentProps<'div
   return (
     <div
       data-slot="card-content"
-      className={cn('px-4 group-data-[size=sm]/card:px-3', className)}
+      className={cn('px-card group-data-[size=sm]/card:px-card-sm', className)}
       {...props}
     />
   )
@@ -81,7 +97,7 @@ function CardFooter({ className, ...props }: Readonly<React.ComponentProps<'div'
     <div
       data-slot="card-footer"
       className={cn(
-        'flex items-center rounded-b-xl border-t bg-muted/50 p-4 group-data-[size=sm]/card:p-3',
+        'flex items-center rounded-b-card border-t bg-muted p-card group-data-[size=sm]/card:p-card-sm',
         className,
       )}
       {...props}
@@ -89,4 +105,14 @@ function CardFooter({ className, ...props }: Readonly<React.ComponentProps<'div'
   )
 }
 
-export { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
+export {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardList,
+  CardListRow,
+  CardTitle,
+}

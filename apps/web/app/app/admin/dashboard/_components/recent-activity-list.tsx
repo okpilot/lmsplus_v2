@@ -1,6 +1,9 @@
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
-import { getMasteryColor } from '../_lib/constants'
+import { Card, CardContent, CardListRow } from '@/components/ui/card'
+import { EmptyNote } from '@/components/ui/empty'
+import { Heading } from '@/components/ui/heading'
+import { scoreColor } from '@/lib/utils/score-color'
 import type { RecentSession } from '../types'
 import { formatRelativeTime } from './student-table-helpers'
 
@@ -8,46 +11,57 @@ type Props = Readonly<{ sessions: RecentSession[] }>
 
 export function RecentActivityList({ sessions }: Readonly<Props>) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4 space-y-4">
-      <h2 className="text-lg font-semibold">Recent Activity</h2>
-
+    <Card className="overflow-hidden">
+      <CardContent>
+        <Heading level={2}>Recent Activity</Heading>
+      </CardContent>
       {sessions.length === 0 ? (
-        <p className="py-6 text-center text-sm text-muted-foreground">No sessions yet.</p>
+        <CardContent>
+          <EmptyNote variant="inline" className="py-6 text-center">
+            No sessions yet.
+          </EmptyNote>
+        </CardContent>
       ) : (
-        <div className="space-y-3">
+        <div className="divide-y divide-border">
           {sessions.map((session) => (
-            <Link
-              key={session.sessionId}
-              href={`/app/admin/dashboard/sessions/${session.sessionId}`}
-              className="flex w-full items-center justify-between gap-3 text-sm text-left rounded-lg px-2 py-1.5 -mx-2 transition-colors hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
-            >
-              <div className="min-w-0 flex-1">
-                <p className="font-medium truncate">{session.studentName ?? 'Unknown student'}</p>
-                <p className="text-xs text-muted-foreground truncate">
-                  {session.subjectName ?? 'Unknown subject'}
-                </p>
-              </div>
-              <div className="shrink-0 flex items-center gap-2">
-                <Badge variant="outline" className="capitalize text-xs">
-                  {session.mode}
-                </Badge>
-                {session.scorePercentage !== null ? (
-                  <span
-                    className={`tabular-nums font-semibold ${getMasteryColor(session.scorePercentage)}`}
-                  >
-                    {Math.round(session.scorePercentage)}%
-                  </span>
-                ) : (
-                  <span className="text-muted-foreground">—</span>
-                )}
-                <span className="text-xs text-muted-foreground whitespace-nowrap">
-                  {formatRelativeTime(session.endedAt)}
-                </span>
-              </div>
-            </Link>
+            <ActivityRow key={session.sessionId} session={session} />
           ))}
         </div>
       )}
-    </div>
+    </Card>
+  )
+}
+
+function ActivityRow({ session }: Readonly<{ session: RecentSession }>) {
+  return (
+    <CardListRow
+      render={<Link href={`/app/admin/dashboard/sessions/${session.sessionId}`} />}
+      className="flex w-full items-center justify-between gap-3 text-label text-left transition-colors hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2"
+    >
+      <div className="min-w-0 flex-1">
+        <p className="font-medium truncate">{session.studentName ?? 'Unknown student'}</p>
+        <p className="text-caption text-muted-foreground truncate">
+          {session.subjectName ?? 'Unknown subject'}
+        </p>
+      </div>
+      <div className="shrink-0 flex items-center gap-2">
+        <Badge variant="outline" className="capitalize">
+          {session.mode}
+        </Badge>
+        <ActivityScore score={session.scorePercentage} />
+        <span className="text-caption text-muted-foreground whitespace-nowrap">
+          {formatRelativeTime(session.endedAt)}
+        </span>
+      </div>
+    </CardListRow>
+  )
+}
+
+function ActivityScore({ score }: Readonly<{ score: number | null }>) {
+  if (score === null) return <span className="text-muted-foreground">—</span>
+  return (
+    <span className="tabular-nums font-semibold" style={{ color: scoreColor(score) }}>
+      {Math.round(score)}%
+    </span>
   )
 }

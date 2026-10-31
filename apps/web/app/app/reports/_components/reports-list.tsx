@@ -3,6 +3,8 @@
 import { useCallback } from 'react'
 import { PaginationBar } from '@/app/app/_components/pagination-bar'
 import { useUpdateSearchParams } from '@/app/app/_hooks/use-update-search-params'
+import { CardList } from '@/components/ui/card'
+import { EmptyNote } from '@/components/ui/empty'
 import {
   Select,
   SelectContent,
@@ -32,6 +34,12 @@ const SORT_OPTIONS = [
   { value: 'subject-desc', label: 'Subject (Z–A)' },
 ]
 
+function NoReports() {
+  return (
+    <EmptyNote>No completed sessions yet. Start a quiz or review to see your reports.</EmptyNote>
+  )
+}
+
 export function ReportsList({ sessions, page, totalCount, pageSize, sort, dir }: Readonly<Props>) {
   const updateParams = useUpdateSearchParams()
 
@@ -56,25 +64,21 @@ export function ReportsList({ sessions, page, totalCount, pageSize, sort, dir }:
   )
 
   if (sessions.length === 0 && totalCount === 0) {
-    return (
-      <p className="py-8 text-center text-sm text-muted-foreground">
-        No completed sessions yet. Start a quiz or review to see your reports.
-      </p>
-    )
+    return <NoReports />
   }
 
   return (
     <div>
-      <p className="mb-2 hidden text-xs text-muted-foreground md:block">
+      <p className="mb-2 hidden text-caption text-muted-foreground md:block">
         Click a column header to sort
       </p>
-      <div className="hidden rounded-lg border border-border md:block">
+      <div className="hidden md:block">
         <SessionTable sessions={sessions} sort={sort} dir={dir} onSort={handleSort} />
       </div>
 
       <div className="md:hidden">
         <div className="mb-3 flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Sort by</span>
+          <span className="text-caption text-muted-foreground">Sort by</span>
           <Select value={`${sort}-${dir}`} onValueChange={handleMobileSort} items={SORT_OPTIONS}>
             <SelectTrigger size="sm" aria-label="Sort sessions">
               <SelectValue />
@@ -88,11 +92,13 @@ export function ReportsList({ sessions, page, totalCount, pageSize, sort, dir }:
             </SelectContent>
           </Select>
         </div>
-        <div className="flex flex-col gap-3">
-          {sessions.map((s) => (
-            <SessionCard key={s.id} session={s} />
-          ))}
-        </div>
+        {sessions.length > 0 && (
+          <CardList>
+            {sessions.map((s) => (
+              <SessionCard key={s.id} session={s} />
+            ))}
+          </CardList>
+        )}
       </div>
 
       <PaginationBar

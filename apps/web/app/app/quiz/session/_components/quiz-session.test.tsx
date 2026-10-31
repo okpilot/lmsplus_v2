@@ -126,24 +126,19 @@ vi.mock('@/app/app/_components/answer-options', async () => {
 
   function AnswerOptions({
     options,
-    onSubmit,
     disabled,
     selectedOptionId,
     correctOptionId,
     onSelectionChange,
-    isExam,
   }: {
     options: { id: string; text: string }[]
-    onSubmit: (id: string) => void
     disabled: boolean
     selectedOptionId?: string | null
     correctOptionId?: string | null
     onSelectionChange?: (id: string | null) => void
-    isExam?: boolean
   }) {
-    // In exam mode track pending selection locally, mirroring the real component's
-    // internal `selected` state. onSubmit fires only when the Confirm Answer button
-    // is clicked — not on the option click itself.
+    // Track the pending selection locally, mirroring the real component's internal
+    // `selected` state. Submitting is the card's action slot, not this component.
     const [pendingId, setPendingId] = useState<string | null>(null)
 
     return (
@@ -166,14 +161,7 @@ vi.mock('@/app/app/_components/answer-options', async () => {
             data-correct={correctOptionId === o.id ? 'true' : undefined}
             onClick={() => {
               onSelectionChange?.(o.id)
-              if (!isExam) {
-                // Study/practice mode: option click immediately submits, matching the
-                // real component where Submit Answer is the only confirm step.
-                onSubmit(o.id)
-              } else {
-                // Exam mode: option click only selects; onSubmit fires via Confirm Answer.
-                setPendingId(o.id)
-              }
+              setPendingId(o.id)
             }}
             disabled={disabled}
           >
@@ -192,20 +180,6 @@ vi.mock('@/app/app/_components/answer-options', async () => {
             Select only {o.text}
           </button>
         ))}
-        {/* Exam-mode confirm button — mirrors answer-options.tsx line 104 ("Confirm Answer") */}
-        {isExam && pendingId && (
-          <button
-            type="button"
-            data-testid="confirm-answer-btn"
-            onClick={() => {
-              onSubmit(pendingId)
-              setPendingId(null)
-            }}
-            disabled={disabled}
-          >
-            Confirm Answer
-          </button>
-        )}
       </div>
     )
   }
@@ -239,29 +213,6 @@ vi.mock('../../_components/question-grid', () => ({
   ),
 }))
 
-vi.mock('./quiz-nav-bar', () => ({
-  QuizNavBar: ({
-    currentIndex,
-    totalQuestions,
-    onPrev,
-    onNext,
-  }: {
-    currentIndex: number
-    totalQuestions: number
-    onPrev: () => void
-    onNext: () => void
-  }) => (
-    <div data-testid="quiz-nav-bar">
-      <button type="button" onClick={onPrev} disabled={currentIndex === 0}>
-        Previous
-      </button>
-      <button type="button" onClick={onNext} disabled={currentIndex === totalQuestions - 1}>
-        Next
-      </button>
-    </div>
-  ),
-}))
-
 vi.mock('../../_components/question-tabs', () => ({
   QuestionTabs: () => <div data-testid="question-tabs" />,
 }))
@@ -291,6 +242,12 @@ vi.mock('../_hooks/use-flagged-questions', () => ({
 }))
 
 import { QuizSession } from './quiz-session'
+
+/** Picks an option, then presses the card's Submit/Confirm Answer slot. */
+function answer(optionId: string) {
+  fireEvent.click(screen.getByTestId(`option-${optionId}`))
+  fireEvent.click(screen.getByRole('button', { name: /^(Submit|Confirm) Answer$/ }))
+}
 
 const QUESTIONS = [
   {
@@ -384,29 +341,51 @@ describe('QuizSession', () => {
     expect(screen.getByTestId('option-a').dataset.selected).toBe('true')
   })
 
-  it('navigates to next question and back', () => {
+  it('navigates to next question and back', async () => {
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
 
-    fireEvent.click(screen.getAllByRole('button', { name: /Next/ })[0]!)
+    answer('a')
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: /Submit Answer/ })).not.toBeInTheDocument(),
+    )
+    fireEvent.click(await screen.findByRole('button', { name: /Next/ }))
     expect(screen.getByTestId('question-text')).toHaveTextContent('What is drag?')
     expect(screen.getByText(/Question 2 of/)).toBeInTheDocument()
 
-    fireEvent.click(screen.getAllByRole('button', { name: /Previous/ })[0]!)
+    fireEvent.click(screen.getByRole('button', { name: /Previous/ }))
     expect(screen.getByTestId('question-text')).toHaveTextContent('What is lift?')
     expect(screen.getByText(/Question 1 of/)).toBeInTheDocument()
   })
 
-  it('disables Previous on first question and Next on last', () => {
+  it('disables Previous on the first question', () => {
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
+    expect(screen.getByRole('button', { name: /Previous/ })).toBeDisabled()
+  })
 
-    expect(screen.getAllByRole('button', { name: /Previous/ })[0]!).toBeDisabled()
-    expect(screen.getAllByRole('button', { name: /Next/ })[0]!).toBeEnabled()
+  it('disables Next on the last question once it is answered', async () => {
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
+    fireEvent.click(screen.getByTestId('grid-nav-2'))
+    answer('e')
+    expect(await screen.findByRole('button', { name: /Next/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /Previous/ })).toBeEnabled()
+  })
 
-    // Navigate to last question
-    fireEvent.click(screen.getAllByRole('button', { name: /Next/ })[0]!)
-    fireEvent.click(screen.getAllByRole('button', { name: /Next/ })[0]!)
-    expect(screen.getAllByRole('button', { name: /Next/ })[0]!).toBeDisabled()
-    expect(screen.getAllByRole('button', { name: /Previous/ })[0]!).toBeEnabled()
+  it('lets an unanswered question move to the next one, and makes Next primary after answering (AC4)', async () => {
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
+    const ghost = screen.getByRole('button', { name: /Next/ })
+    expect(ghost).toBeEnabled()
+    expect(ghost).not.toHaveClass('bg-primary')
+    fireEvent.click(ghost)
+    expect(screen.getByTestId('question-text')).toHaveTextContent('What is drag?')
+    fireEvent.click(screen.getByRole('button', { name: /Previous/ }))
+    answer('a')
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: /Submit Answer/ })).not.toBeInTheDocument(),
+    )
+    const next = await screen.findByRole('button', { name: /Next/ })
+    expect(next).toBeEnabled()
+    expect(next).toHaveClass('bg-primary')
+    expect(screen.queryByRole('button', { name: /Submit Answer/ })).not.toBeInTheDocument()
   })
 
   it('shows finish dialog when clicking Finish Test', () => {
@@ -428,15 +407,18 @@ describe('QuizSession', () => {
     expect(screen.queryByTestId('finish-dialog')).not.toBeInTheDocument()
   })
 
-  it('tracks answered count in dialog', () => {
+  it('tracks answered count in dialog', async () => {
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
 
     // Answer first question
-    fireEvent.click(screen.getByTestId('option-a'))
+    answer('a')
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: /Submit Answer/ })).not.toBeInTheDocument(),
+    )
 
     // Go to second question and answer
-    fireEvent.click(screen.getAllByRole('button', { name: /Next/ })[0]!)
-    fireEvent.click(screen.getByTestId('option-c'))
+    fireEvent.click(await screen.findByRole('button', { name: /Next/ }))
+    answer('c')
 
     fireEvent.click(screen.getByRole('button', { name: 'Finish Test' }))
     expect(screen.getByTestId('dialog-answered')).toHaveTextContent('2')
@@ -448,7 +430,7 @@ describe('QuizSession', () => {
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
 
     // Answer a question and wait for checkAnswer to resolve (clears pending ref)
-    fireEvent.click(screen.getByTestId('option-a'))
+    answer('a')
     await waitFor(() => expect(mockCheckAnswer).toHaveBeenCalled())
 
     // Open dialog and submit
@@ -475,7 +457,7 @@ describe('QuizSession', () => {
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
 
     // Answer a question and wait for checkAnswer to resolve (clears pending ref)
-    fireEvent.click(screen.getByTestId('option-a'))
+    answer('a')
     await waitFor(() => expect(mockCheckAnswer).toHaveBeenCalled())
 
     fireEvent.click(screen.getByRole('button', { name: 'Finish Test' }))
@@ -486,16 +468,16 @@ describe('QuizSession', () => {
     })
   })
 
-  it('preserves selected answer when navigating back to a question', () => {
+  it('preserves selected answer when navigating back to a question', async () => {
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
 
     // Answer first question
-    fireEvent.click(screen.getByTestId('option-a'))
+    answer('a')
     expect(screen.getByTestId('option-a').dataset.selected).toBe('true')
 
     // Navigate away and back
-    fireEvent.click(screen.getAllByRole('button', { name: /Next/ })[0]!)
-    fireEvent.click(screen.getAllByRole('button', { name: /Previous/ })[0]!)
+    fireEvent.click(await screen.findByRole('button', { name: /Next/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Previous/ }))
 
     // Answer should still be selected
     expect(screen.getByTestId('option-a').dataset.selected).toBe('true')
@@ -513,71 +495,119 @@ describe('QuizSession', () => {
     expect(screen.getByText(/Question 3 of/)).toBeInTheDocument()
   })
 
-  it('does not render Submit Answer button when no option is selected', () => {
+  it('disables Submit Answer until an option is picked', () => {
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
-    expect(screen.queryByRole('button', { name: /submit answer/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Submit Answer' })).toBeDisabled()
+    fireEvent.click(screen.getByTestId('select-btn-a'))
+    expect(screen.getByRole('button', { name: 'Submit Answer' })).toBeEnabled()
   })
 
   it('calls checkAnswer when an option is submitted via the answer options', () => {
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
-    fireEvent.click(screen.getByTestId('option-a'))
+    answer('a')
     expect(mockCheckAnswer).toHaveBeenCalled()
   })
 
-  it('toggles pin state on the current question', () => {
+  it('toggles pin state on the current question with a constant accessible name', () => {
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
-    const pinBtn = screen.getAllByTestId('pin-button')[0]!
-    expect(pinBtn).toHaveTextContent('Pin')
+    const pinBtn = screen.getByRole('button', { name: 'Pin question' })
     expect(pinBtn).toHaveAttribute('aria-pressed', 'false')
 
     fireEvent.click(pinBtn)
-    expect(pinBtn).toHaveTextContent('Unpin')
-    expect(pinBtn).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Pin question' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
 
-    fireEvent.click(pinBtn)
-    expect(pinBtn).toHaveTextContent('Pin')
-    expect(pinBtn).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(screen.getByRole('button', { name: 'Pin question' }))
+    expect(screen.getByRole('button', { name: 'Pin question' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
+  })
+
+  it('renders Flag and Pin in the card top row, before the answers and Previous', () => {
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
+    const flag = screen.getByRole('button', { name: 'Flag question' })
+    const pin = screen.getByRole('button', { name: 'Pin question' })
+    const answers = screen.getByTestId('answer-options')
+    const previous = screen.getByRole('button', { name: /Previous/ })
+    const order = (a: Node, b: Node) =>
+      a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING
+    expect(order(flag, pin)).toBeTruthy()
+    expect(order(pin, answers)).toBeTruthy()
+    expect(order(answers, previous)).toBeTruthy()
+    expect(order(previous, screen.getByTestId('question-grid'))).toBeTruthy()
+  })
+
+  it('shows the counter and question code in the top row', () => {
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
+    expect(screen.getByText('Question 1 of 3')).toBeInTheDocument()
+    expect(screen.getByText('No. 050-01-01-001')).toBeInTheDocument()
+  })
+
+  it('hides Flag when flagging is not allowed in an internal exam', () => {
+    render(
+      <QuizSession
+        sessionId="sess-exam"
+        questions={QUESTIONS}
+        userId="test-user-id"
+        mode="exam"
+        examMode="internal_exam"
+      />,
+    )
+    expect(screen.queryByRole('button', { name: 'Flag question' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Pin question' })).toBeInTheDocument()
+  })
+
+  it('labels the slot Confirm Answer in exam mode', () => {
+    render(
+      <QuizSession sessionId="sess-exam" questions={QUESTIONS} userId="test-user-id" mode="exam" />,
+    )
+    expect(screen.getByRole('button', { name: 'Confirm Answer' })).toBeDisabled()
+  })
+
+  it('names the mode and the subject in the header', () => {
+    render(
+      <QuizSession
+        sessionId="sess-1"
+        questions={QUESTIONS}
+        userId="test-user-id"
+        mode="study"
+        subjectName="Air Law"
+      />,
+    )
+    expect(screen.getByText('Study')).toBeInTheDocument()
+    expect(screen.getByText('Air Law')).toBeInTheDocument()
   })
 
   it('clears pending option when navigating to a different question', () => {
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
+    fireEvent.click(screen.getByTestId('grid-nav-2'))
 
     // Select an option without submitting — this sets pendingOptionId
-    fireEvent.click(screen.getByTestId('select-btn-a'))
+    fireEvent.click(screen.getByTestId('select-btn-e'))
+    expect(screen.getByRole('button', { name: 'Submit Answer' })).toBeEnabled()
 
-    // Submit Answer button should now be present in mobile controls (showSubmit=true)
-    expect(screen.getAllByRole('button', { name: /Submit Answer/i })[0]).toBeInTheDocument()
-
-    // Navigate to next question — currentIndex changes, useEffect clears pendingOptionId
-    fireEvent.click(screen.getAllByRole('button', { name: /Next/ })[0]!)
-
-    // Submit Answer button should be gone (pendingOptionId cleared)
-    expect(screen.queryByRole('button', { name: /Submit Answer/i })).not.toBeInTheDocument()
+    // Navigate back — currentIndex changes, the effect clears pendingOptionId
+    fireEvent.click(screen.getByRole('button', { name: /Previous/ }))
+    expect(screen.getByRole('button', { name: 'Submit Answer' })).toBeDisabled()
   })
 
   it('clears pending option when navigating via the question grid', () => {
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
 
-    // Select an option without submitting
     fireEvent.click(screen.getByTestId('select-btn-a'))
-    expect(screen.getAllByRole('button', { name: /Submit Answer/i })[0]).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Submit Answer' })).toBeEnabled()
 
-    // Navigate via grid jump
     fireEvent.click(screen.getByTestId('grid-nav-2'))
-
-    // Pending selection should be cleared
-    expect(screen.queryByRole('button', { name: /Submit Answer/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Submit Answer' })).toBeDisabled()
   })
 
-  it('does not show Submit Answer button before any option is selected', () => {
-    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
-    expect(screen.queryByRole('button', { name: /Submit Answer/i })).not.toBeInTheDocument()
-  })
-
-  it('keeps the mobile Submit Answer button (with spinner) mounted while the per-question RPC is in flight', async () => {
+  it('keeps the Submit Answer button (with spinner) mounted while the per-question RPC is in flight', async () => {
     // Regression for #886: the answer is recorded optimistically before checkAnswer
-    // resolves, so canSubmitAnswer flips false mid-RPC. Without `|| s.answering` in
-    // showSubmit, the footer button unmounts before the spinner can paint. Hold
+    // resolves, so the pending selection clears mid-RPC. Without `|| s.answering` in
+    // a mounted-while-answering rule, the button unmounts before the spinner can paint. Hold
     // checkAnswer pending to observe the in-flight window.
     let resolveCheck!: (value: unknown) => void
     mockCheckAnswer.mockImplementation(
@@ -589,16 +619,16 @@ describe('QuizSession', () => {
 
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
 
-    // Select an option (sets pendingOptionId) so the footer submit button appears
+    // Select an option (sets pendingOptionId) so Submit Answer is enabled
     fireEvent.click(screen.getByTestId('select-btn-a'))
-    expect(screen.getByTestId('submit-answer-mobile')).toBeInTheDocument()
+    expect(screen.getByTestId('submit-answer')).toBeInTheDocument()
 
     // Tap it → handleSelectAnswer fires, answering=true, checkAnswer awaited (held)
-    fireEvent.click(screen.getByTestId('submit-answer-mobile'))
+    fireEvent.click(screen.getByTestId('submit-answer'))
 
     // While the RPC is in flight the button stays mounted AND shows the spinner
     await waitFor(() =>
-      expect(screen.getByTestId('submit-answer-mobile')).toHaveAttribute('aria-busy', 'true'),
+      expect(screen.getByTestId('submit-answer')).toHaveAttribute('aria-busy', 'true'),
     )
 
     // Resolve the RPC → answer recorded, answering=false → button unmounts once
@@ -609,9 +639,7 @@ describe('QuizSession', () => {
       explanationText: null,
       explanationImageUrl: null,
     })
-    await waitFor(() =>
-      expect(screen.queryByTestId('submit-answer-mobile')).not.toBeInTheDocument(),
-    )
+    await waitFor(() => expect(screen.queryByTestId('submit-answer')).not.toBeInTheDocument())
   })
 
   // ---- Exam-mode onDiscard wiring ------------------------------------------
@@ -647,7 +675,7 @@ describe('QuizSession', () => {
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
 
     // Answer a question and wait for checkAnswer to resolve (clears pending ref)
-    fireEvent.click(screen.getByTestId('option-a'))
+    answer('a')
     await waitFor(() => expect(mockCheckAnswer).toHaveBeenCalled())
 
     // Open the finish dialog and click submit
@@ -686,8 +714,7 @@ describe('QuizSession', () => {
 
     // Buffer an answer so handleSubmitSession progresses past the empty-answers guard.
     // In exam mode: option click selects only; Confirm Answer fires onSubmit.
-    fireEvent.click(screen.getByTestId('option-a'))
-    fireEvent.click(screen.getByTestId('confirm-answer-btn'))
+    answer('a')
 
     // Open dialog and click Submit so the finish is in flight (submitting=true).
     // Pre-fix: when the timer fires later, handleTimeExpired's `s.submitting` guard
@@ -805,7 +832,7 @@ describe('QuizSession', () => {
     expect(startedAtAttr).toBeLessThanOrEqual(after)
   })
 
-  it('hides the header countdown timer on desktop breakpoint', () => {
+  it('shows one countdown in the header at every width', () => {
     render(
       <QuizSession
         sessionId="sess-exam"
@@ -818,14 +845,9 @@ describe('QuizSession', () => {
     )
 
     const timers = screen.getAllByTestId('exam-countdown-timer')
-    // Two instances render (header + main), but only one is visible on each breakpoint:
-    // header has `md:hidden` (mobile-only), main has `hidden md:inline` (desktop-only)
-    expect(timers).toHaveLength(2)
-    const headerTimer = timers[0]!
-    const mainTimer = timers[1]!
-    expect(headerTimer.getAttribute('data-classname')).toContain('md:hidden')
-    expect(mainTimer.getAttribute('data-classname')).toContain('hidden')
-    expect(mainTimer.getAttribute('data-classname')).toContain('md:inline')
+    expect(timers).toHaveLength(1)
+    expect(timers[0]!.getAttribute('data-classname')).toMatch(/(?<![\w-])text-caption(?![\w-])/)
+    expect(timers[0]!.getAttribute('data-classname')).not.toMatch(/hidden|md:/)
   })
 
   // ---- Discovery (browse-only) mode ----------------------------------------
@@ -901,7 +923,7 @@ describe('QuizSession', () => {
     // No scoring affordances present
     expect(screen.queryByTestId('finish-dialog')).not.toBeInTheDocument()
     // Navigate to next question
-    fireEvent.click(screen.getAllByRole('button', { name: /Next/ })[0]!)
+    fireEvent.click(screen.getByRole('button', { name: /Next/ }))
     expect(screen.getByTestId('option-c').dataset.selected).toBe('true')
     expect(screen.getByTestId('option-c').dataset.correct).toBe('true')
     fireEvent.click(screen.getByRole('button', { name: 'Exit' }))
@@ -923,10 +945,8 @@ describe('QuizSession', () => {
         initialFlaggedIds={['q1']}
       />,
     )
-    // q1 is the first question. The bootstrap seeded it as flagged, so the
-    // flag button must open in "Unflag" / aria-pressed=true state — not default.
-    const flagBtn = screen.getAllByTestId('flag-button')[0]!
-    expect(flagBtn).toHaveTextContent('Unflag')
+    // The accessible name never changes; only aria-pressed carries the state.
+    const flagBtn = screen.getByRole('button', { name: 'Flag question' })
     expect(flagBtn).toHaveAttribute('aria-pressed', 'true')
   })
 
@@ -939,8 +959,7 @@ describe('QuizSession', () => {
         initialFlaggedIds={['q2']} // q2 is flagged; q1 (the current question) is not
       />,
     )
-    const flagBtn = screen.getAllByTestId('flag-button')[0]!
-    expect(flagBtn).toHaveTextContent('Flag')
+    const flagBtn = screen.getByRole('button', { name: 'Flag question' })
     expect(flagBtn).toHaveAttribute('aria-pressed', 'false')
   })
 })

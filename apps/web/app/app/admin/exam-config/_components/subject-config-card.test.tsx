@@ -96,6 +96,29 @@ describe('SubjectConfigCard', () => {
       expect(screen.getByRole('button', { name: 'Enabled' })).toBeTruthy()
     })
 
+    it('shows the enabled state as a success badge inside the toggle button', () => {
+      render(<SubjectConfigCard subject={subjectWithConfig} onEdit={vi.fn()} />)
+      const badge = screen
+        .getByRole('button', { name: 'Enabled' })
+        .querySelector('[data-slot="badge"]')
+      expect(badge).toHaveClass('bg-success-soft')
+    })
+
+    it('shows the disabled state as a neutral badge inside the toggle button', () => {
+      render(<SubjectConfigCard subject={subjectWithDisabledConfig} onEdit={vi.fn()} />)
+      const badge = screen
+        .getByRole('button', { name: 'Disabled' })
+        .querySelector('[data-slot="badge"]')
+      expect(badge).toHaveClass('bg-muted')
+    })
+
+    it('extends the toggle tap area to 44px below lg without growing the badge', () => {
+      render(<SubjectConfigCard subject={subjectWithConfig} onEdit={vi.fn()} />)
+      const cls = screen.getByRole('button', { name: 'Enabled' }).className
+      expect(cls).toContain('after:-inset-y-3')
+      expect(cls).toContain('lg:after:hidden')
+    })
+
     it('shows "Disabled" toggle button when config exists but is disabled', () => {
       render(<SubjectConfigCard subject={subjectWithDisabledConfig} onEdit={vi.fn()} />)
       expect(screen.getByRole('button', { name: 'Disabled' })).toBeTruthy()
@@ -211,5 +234,24 @@ describe('SubjectConfigCard', () => {
       })
       expect(toast.success).not.toHaveBeenCalled()
     })
+  })
+
+  describe('toggle hover feedback', () => {
+    it('has no hover dimming and dims only while disabled', () => {
+      render(<SubjectConfigCard subject={subjectWithConfig} onEdit={vi.fn()} />)
+      const cls = screen.getByRole('button', { name: 'Enabled' }).className
+      expect(cls).not.toContain('enabled:hover:opacity-80')
+      expect(cls).not.toContain('transition-opacity')
+      expect(cls).toContain('disabled:opacity-disabled')
+    })
+  })
+})
+
+describe('SubjectConfigCard code chip', () => {
+  it('renders the subject code as a CodeChip', () => {
+    const { container } = render(<SubjectConfigCard subject={baseSubject} onEdit={vi.fn()} />)
+    const chip = container.querySelector('[data-slot=code-chip]')
+    expect(chip).not.toBeNull()
+    expect(chip).toHaveTextContent('AGK')
   })
 })

@@ -131,4 +131,9 @@ describe('SidebarNav', () => {
     renderNav()
     expect(screen.queryByRole('button', { name: /collapse|expand/i })).not.toBeInTheDocument()
   })
+
+  it('renders group labels as shared eyebrows', () => {
+    const nav = renderNav()
+    expect(within(nav).getByText('Learn')).toHaveClass('text-overline')
+  })
 })

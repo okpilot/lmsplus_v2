@@ -116,3 +116,44 @@ describe('ModeToggle', () => {
     expect(onValueChange).not.toHaveBeenCalled()
   })
 })
+
+describe('ModeToggle segmented look', () => {
+  it('sets aria-pressed true on the active mode only', () => {
+    render(<ModeToggle value="study" onValueChange={vi.fn()} examAvailable />)
+    expect(screen.getByRole('button', { name: /study/i })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: /discovery/i })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
+    expect(screen.getByRole('button', { name: /exam/i })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('gives every option the segment look, no hover background and no literal bg-primary', () => {
+    render(<ModeToggle value="study" onValueChange={vi.fn()} examAvailable />)
+    for (const name of [/discovery/i, /study/i, /exam/i]) {
+      const btn = screen.getByRole('button', { name })
+      expect(btn).toHaveClass('aria-pressed:bg-card', 'aria-pressed:border-primary')
+      expect(btn.className.split(/\s+/)).not.toContain('bg-primary')
+      expect(btn.className).not.toMatch(/hover:bg-/)
+    }
+  })
+
+  it('lays the options on a muted track', () => {
+    render(<ModeToggle value="study" onValueChange={vi.fn()} />)
+    const track = screen.getByRole('button', { name: /study/i }).parentElement as HTMLElement
+    expect(track).toHaveClass('bg-muted', 'p-1')
+  })
+})
+
+function expectFieldLabel(el: HTMLElement) {
+  expect(el.className).toMatch(/(?<![\w-])text-label(?![\w-])/)
+  expect(el.className).toContain('text-muted-foreground')
+  expect(el.className).not.toContain('text-[13px]')
+}
+
+describe('ModeToggle label style', () => {
+  it('styles "Mode" as a muted field label', () => {
+    render(<ModeToggle value="study" onValueChange={vi.fn()} />)
+    expectFieldLabel(screen.getByText('Mode'))
+  })
+})

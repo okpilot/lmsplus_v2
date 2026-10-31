@@ -4,6 +4,9 @@ import { Check, ChevronDown, ChevronUp, Flag, X } from 'lucide-react'
 import { useState } from 'react'
 import { MarkdownText } from '@/app/app/_components/markdown-text'
 import { ZoomableImage } from '@/app/app/_components/zoomable-image'
+import { InsetPanel } from '@/components/kit/inset-panel'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import type { QuizReportQuestion } from '@/lib/queries/quiz-report'
 import { isQuestionAnswered } from '@/lib/queries/report-question-answered'
 import { formatMsDuration } from './format-duration'
@@ -30,38 +33,32 @@ export function ReportQuestionRow({
   const isAnswered = isQuestionAnswered(question)
 
   return (
-    <div className={`px-4 py-3 ${question.isCorrect ? '' : 'bg-red-50 dark:bg-red-950/20'}`}>
+    <div className="px-4 py-3">
       <div className="flex items-start gap-3">
         <div className="mt-0.5 shrink-0">
           {question.isCorrect ? (
-            <span
-              role="img"
-              aria-label="Correct"
-              className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-green-100 text-green-600 dark:bg-green-900/30"
-            >
-              <Check size={14} strokeWidth={2.5} aria-hidden />
-            </span>
+            <Badge role="img" aria-label="Correct" tone="success" shape="circle">
+              <Check className="size-icon-sm stroke-icon-bold" aria-hidden />
+            </Badge>
           ) : (
-            <span
-              role="img"
-              aria-label="Incorrect"
-              className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-100 text-destructive dark:bg-red-900/30"
-            >
-              <X size={14} strokeWidth={2.5} aria-hidden />
-            </span>
+            <Badge role="img" aria-label="Incorrect" tone="danger" shape="circle">
+              <X className="size-icon-sm stroke-icon-bold" aria-hidden />
+            </Badge>
           )}
         </div>
 
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
-            <span className="text-xs font-medium text-muted-foreground">{label}</span>
-            <span className="text-sm">{question.questionText}</span>
+            <span className="text-caption-strong text-muted-foreground">{label}</span>
+            <span className="text-body">{question.questionText}</span>
             <div className="ml-auto flex shrink-0 items-center gap-2">
-              <span className="text-xs text-muted-foreground">
+              <span className="text-caption text-muted-foreground">
                 {formatMsDuration(question.responseTimeMs)}
               </span>
               {flag && (
-                <button
+                <Button
+                  variant="toggle"
+                  size="icon-sm"
                   type="button"
                   data-testid="report-flag-button"
                   onClick={() => {
@@ -72,14 +69,14 @@ export function ReportQuestionRow({
                   aria-pressed={isFlagged}
                   aria-label={isFlagged ? 'Unflag question' : 'Flag question'}
                   disabled={isFlagToggling}
-                  className={
-                    isFlagged
-                      ? 'inline-flex items-center rounded-md p-1 text-orange-600 transition-colors hover:bg-orange-500/10 disabled:opacity-50 disabled:pointer-events-none dark:text-orange-400'
-                      : 'inline-flex items-center rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50 disabled:pointer-events-none'
-                  }
                 >
-                  <Flag size={14} aria-hidden className={isFlagged ? 'fill-current' : undefined} />
-                </button>
+                  <Flag
+                    aria-hidden
+                    className={
+                      isFlagged ? 'size-icon-sm fill-caution text-caution' : 'size-icon-sm'
+                    }
+                  />
+                </Button>
               )}
             </div>
           </div>
@@ -94,31 +91,30 @@ export function ReportQuestionRow({
             </div>
           )}
 
-          {!isAnswered && <p className="mt-1 text-xs text-muted-foreground">Not answered</p>}
+          {!isAnswered && <p className="mt-1 text-caption text-muted-foreground">Not answered</p>}
 
           <ReportAnswerBody question={question} />
 
           {hasExplanation && (
             <div className="mt-2">
-              <button
+              <Button
                 type="button"
+                variant="link"
+                size="sm"
+                className="h-auto px-0"
                 onClick={() => setExpanded((prev) => !prev)}
                 aria-expanded={expanded}
-                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
               >
                 {expanded ? 'Hide explanation' : 'Show explanation'}
                 {expanded ? (
-                  <ChevronUp size={14} aria-hidden />
+                  <ChevronUp className="size-icon-sm" aria-hidden />
                 ) : (
-                  <ChevronDown size={14} aria-hidden />
+                  <ChevronDown className="size-icon-sm" aria-hidden />
                 )}
-              </button>
+              </Button>
 
               {expanded && (
-                <div
-                  data-testid="explanation-panel"
-                  className="mt-2 space-y-2 rounded-lg bg-muted/50 p-3"
-                >
+                <InsetPanel data-testid="explanation-panel" className="mt-2 space-y-2">
                   {question.explanationImageUrl && (
                     <ZoomableImage
                       src={question.explanationImageUrl}
@@ -127,11 +123,11 @@ export function ReportQuestionRow({
                     />
                   )}
                   {question.explanationText && (
-                    <MarkdownText className="text-sm text-muted-foreground">
+                    <MarkdownText className="text-body text-muted-foreground">
                       {question.explanationText}
                     </MarkdownText>
                   )}
-                </div>
+                </InsetPanel>
               )}
             </div>
           )}

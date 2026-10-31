@@ -96,6 +96,11 @@ describe('CodesTable', () => {
     expect(screen.getByText('No codes found')).toBeInTheDocument()
   })
 
+  it('renders the empty message with the shared empty description', () => {
+    render(<CodesTable rows={[]} totalCount={0} pageSize={25} />)
+    expect(screen.getByText('No codes found')).toHaveAttribute('data-slot', 'empty-description')
+  })
+
   it('renders code, student, subject', () => {
     render(<CodesTable rows={[baseRow]} totalCount={0} pageSize={25} />)
     expect(screen.getByText('ABCD-1234-X')).toBeInTheDocument()

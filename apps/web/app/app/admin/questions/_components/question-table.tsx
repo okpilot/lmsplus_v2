@@ -36,98 +36,94 @@ export function QuestionTable({
   const allSelected = questions.length > 0 && selectedIds.length === questions.length
 
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-10">
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead className="w-10">
+            <input
+              type="checkbox"
+              checked={allSelected}
+              onChange={onToggleAll}
+              aria-label="Select all questions"
+            />
+          </TableHead>
+          <TableHead className="w-20">#</TableHead>
+          <TableHead className="min-w-col-xl">Question</TableHead>
+          <TableHead className="w-24">Subject</TableHead>
+          <TableHead className="w-40">Topic</TableHead>
+          <TableHead className="w-20">Calc</TableHead>
+          <TableHead className="w-20">Status</TableHead>
+          <TableHead className="w-28">Updated</TableHead>
+          <TableHead className="w-20">Actions</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {questions.map((q) => (
+          <TableRow key={q.id} data-selected={selectedIds.includes(q.id) || undefined}>
+            <TableCell>
               <input
                 type="checkbox"
-                checked={allSelected}
-                onChange={onToggleAll}
-                aria-label="Select all questions"
+                checked={selectedIds.includes(q.id)}
+                onChange={() => onToggleSelect(q.id)}
+                aria-label={`Select question ${q.question_number ?? q.id}`}
               />
-            </TableHead>
-            <TableHead className="w-20">#</TableHead>
-            <TableHead className="min-w-[300px]">Question</TableHead>
-            <TableHead className="w-24">Subject</TableHead>
-            <TableHead className="w-40">Topic</TableHead>
-            <TableHead className="w-20">Calc</TableHead>
-            <TableHead className="w-20">Status</TableHead>
-            <TableHead className="w-28">Updated</TableHead>
-            <TableHead className="w-20">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {questions.map((q) => (
-            <TableRow key={q.id} data-selected={selectedIds.includes(q.id) || undefined}>
-              <TableCell>
-                <input
-                  type="checkbox"
-                  checked={selectedIds.includes(q.id)}
-                  onChange={() => onToggleSelect(q.id)}
-                  aria-label={`Select question ${q.question_number ?? q.id}`}
-                />
-              </TableCell>
-              <TableCell className="tabular-nums text-xs text-muted-foreground">
-                {q.question_number ?? '\u2014'}
-              </TableCell>
-              <TableCell className="max-w-[400px]">
-                <div className="flex">
-                  <span className="min-w-0 flex-1 truncate text-sm" title={q.question_text}>
-                    {q.question_text}
-                  </span>
-                </div>
-              </TableCell>
-              <TableCell>
-                <span className="text-xs font-medium">{q.subject?.code ?? '\u2014'}</span>
-              </TableCell>
-              <TableCell>
-                <span className="text-xs text-muted-foreground">
-                  {q.topic?.name ? truncate(q.topic.name, 30) : '\u2014'}
+            </TableCell>
+            <TableCell className="tabular-nums text-caption text-muted-foreground">
+              {q.question_number ?? '\u2014'}
+            </TableCell>
+            <TableCell className="max-w-question-cell">
+              <div className="flex">
+                <span className="min-w-0 flex-1 truncate" title={q.question_text}>
+                  {q.question_text}
                 </span>
-              </TableCell>
-              <TableCell>
-                {q.has_calculations ? (
-                  <CalcBadge />
-                ) : (
-                  <span className="text-xs text-muted-foreground">{'—'}</span>
-                )}
-              </TableCell>
-              <TableCell>
-                <Badge variant={q.status === 'active' ? 'default' : 'outline'} className="text-xs">
-                  {q.status}
-                </Badge>
-              </TableCell>
-              <TableCell className="text-xs tabular-nums text-muted-foreground">
-                {formatDate(q.updated_at)}
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-1">
-                  <QuestionFormDialog
-                    tree={tree}
-                    question={q}
-                    trigger={
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        title="Edit question"
-                        aria-label="Edit question"
-                      >
-                        <Pencil className="size-3.5 text-muted-foreground" />
-                      </Button>
-                    }
-                  />
-                  <DeleteQuestionButton
-                    id={q.id}
-                    label={q.question_number ?? q.question_text.slice(0, 40)}
-                  />
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+              </div>
+            </TableCell>
+            <TableCell>
+              <span className="text-caption-strong">{q.subject?.code ?? '\u2014'}</span>
+            </TableCell>
+            <TableCell>
+              <span className="text-caption text-muted-foreground">
+                {q.topic?.name ? truncate(q.topic.name, 30) : '\u2014'}
+              </span>
+            </TableCell>
+            <TableCell>
+              {q.has_calculations ? (
+                <CalcBadge />
+              ) : (
+                <span className="text-caption text-muted-foreground">{'—'}</span>
+              )}
+            </TableCell>
+            <TableCell>
+              <Badge variant={q.status === 'active' ? 'default' : 'outline'}>{q.status}</Badge>
+            </TableCell>
+            <TableCell className="text-caption tabular-nums text-muted-foreground">
+              {formatDate(q.updated_at)}
+            </TableCell>
+            <TableCell>
+              <div className="flex items-center gap-1">
+                <QuestionFormDialog
+                  tree={tree}
+                  question={q}
+                  trigger={
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      title="Edit question"
+                      aria-label="Edit question"
+                    >
+                      <Pencil className="size-icon-sm text-muted-foreground" />
+                    </Button>
+                  }
+                />
+                <DeleteQuestionButton
+                  id={q.id}
+                  label={q.question_number ?? q.question_text.slice(0, 40)}
+                />
+              </div>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   )
 }

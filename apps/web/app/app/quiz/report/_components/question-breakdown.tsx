@@ -1,4 +1,6 @@
 import { PaginationBar } from '@/app/app/_components/pagination-bar'
+import { CardList } from '@/components/ui/card'
+import { Heading } from '@/components/ui/heading'
 import type { QuizReportQuestion } from '@/lib/queries/quiz-report'
 import { ReportQuestionRow } from './report-question-row'
 
@@ -13,22 +15,19 @@ export function QuestionBreakdown({ questions, page, totalCount, pageSize }: Rea
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Question Breakdown</h2>
-        <span className="text-sm text-muted-foreground">
+        <Heading level={2}>Question Breakdown</Heading>
+        <span className="text-body text-muted-foreground">
           {totalCount} question{totalCount === 1 ? '' : 's'}
         </span>
       </div>
 
-      <div className="rounded-xl border border-border bg-card">
-        {questions.map((q, i) => (
-          <div
-            key={q.questionId}
-            className={i < questions.length - 1 ? 'border-b border-border' : ''}
-          >
-            <ReportQuestionRow question={q} index={(page - 1) * pageSize + i} />
-          </div>
-        ))}
-      </div>
+      {questions.length > 0 && (
+        <CardList>
+          {questions.map((q, i) => (
+            <ReportQuestionRow key={q.questionId} question={q} index={(page - 1) * pageSize + i} />
+          ))}
+        </CardList>
+      )}
 
       <PaginationBar
         page={page}

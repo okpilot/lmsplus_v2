@@ -3,6 +3,7 @@
 import { ChevronRight } from 'lucide-react'
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
+import { InsetPanel } from '@/components/kit/inset-panel'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
@@ -67,7 +68,7 @@ export function TopicRow({ topic, subjectId }: Readonly<Props>) {
 
   if (editing) {
     return (
-      <div className="rounded-md bg-muted/50 p-2">
+      <InsetPanel className="p-2">
         <InlineForm
           fields={[
             { name: 'code', placeholder: 'Code', width: 'w-24', defaultValue: topic.code },
@@ -78,33 +79,33 @@ export function TopicRow({ topic, subjectId }: Readonly<Props>) {
           isPending={isPending}
           submitLabel="Save"
         />
-      </div>
+      </InsetPanel>
     )
   }
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <div className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/50">
+      <div className="flex items-center gap-2 rounded-small px-2 py-2.5 lg:py-1.5 hover:bg-muted">
         <CollapsibleTrigger
           render={
             <Button
               variant="ghost"
-              size="icon-xs"
+              size="icon-sm"
               aria-label={`Toggle ${topic.code} ${topic.name}`}
             />
           }
         >
-          <ChevronRight className={`size-3.5 transition-transform ${open ? 'rotate-90' : ''}`} />
+          <ChevronRight
+            className={`size-icon-sm transition-transform ${open ? 'rotate-90' : ''}`}
+          />
         </CollapsibleTrigger>
 
-        <span className="w-16 tabular-nums text-sm">{topic.code}</span>
-        <span className="flex-1 text-sm">{topic.name}</span>
-        <Badge variant="secondary" className="text-xs">
-          {topic.questionCount} Q
-        </Badge>
+        <span className="w-16 tabular-nums text-body">{topic.code}</span>
+        <span className="flex-1 text-body">{topic.name}</span>
+        <Badge variant="secondary">{topic.questionCount} Q</Badge>
         <Button
           variant="ghost"
-          size="icon-xs"
+          size="icon-sm"
           aria-label="Edit topic"
           onClick={() => setEditing(true)}
         >
@@ -114,8 +115,7 @@ export function TopicRow({ topic, subjectId }: Readonly<Props>) {
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            strokeWidth="2"
-            className="text-muted-foreground"
+            className="stroke-icon text-muted-foreground"
           >
             <title>Edit</title>
             <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />

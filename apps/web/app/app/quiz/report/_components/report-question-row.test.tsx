@@ -85,7 +85,7 @@ describe('ReportQuestionRow', () => {
   describe('status icon', () => {
     it('shows the Correct icon when the answer is correct', () => {
       render(<ReportQuestionRow question={makeQuestion({ isCorrect: true })} index={0} />)
-      expect(screen.getByRole('img', { name: 'Correct' })).toBeInTheDocument()
+      expect(screen.getByRole('img', { name: 'Correct' })).toHaveClass('bg-success-soft')
     })
 
     it('shows the Incorrect icon when the answer is wrong', () => {
@@ -95,7 +95,7 @@ describe('ReportQuestionRow', () => {
           index={0}
         />,
       )
-      expect(screen.getByRole('img', { name: 'Incorrect' })).toBeInTheDocument()
+      expect(screen.getByRole('img', { name: 'Incorrect' })).toHaveClass('bg-danger-soft')
     })
   })
 
@@ -187,20 +187,21 @@ describe('ReportQuestionRow', () => {
   })
 
   describe('background tint', () => {
-    it('applies pink tint background on incorrect rows', () => {
+    it('applies no background on incorrect rows and keeps the Incorrect badge', () => {
       const { container } = render(
         <ReportQuestionRow question={makeQuestion({ isCorrect: false })} index={0} />,
       )
       const row = container.firstElementChild as HTMLElement
-      expect(row.className).toContain('bg-red-50')
+      expect(row.className).not.toMatch(/\bbg-/)
+      expect(screen.getByRole('img', { name: 'Incorrect' })).toBeInTheDocument()
     })
 
-    it('does not apply pink tint on correct rows', () => {
+    it('applies no background on correct rows', () => {
       const { container } = render(
         <ReportQuestionRow question={makeQuestion({ isCorrect: true })} index={0} />,
       )
       const row = container.firstElementChild as HTMLElement
-      expect(row.className).not.toContain('bg-red-50')
+      expect(row.className).not.toMatch(/\bbg-/)
     })
   })
 
@@ -478,6 +479,21 @@ describe('ReportQuestionRow', () => {
       const button = screen.getByTestId('report-flag-button')
       expect(button).toHaveAttribute('aria-pressed', 'true')
       expect(button).toHaveAttribute('aria-label', 'Unflag question')
+    })
+
+    it('renders the pressed flag as a toggle Button with a caution icon', () => {
+      render(
+        <ReportFlagProvider initialFlaggedIds={['q1']}>
+          <ReportQuestionRow question={makeQuestion()} index={0} />
+        </ReportFlagProvider>,
+      )
+      const button = screen.getByTestId('report-flag-button')
+      expect(button).toHaveAttribute('data-slot', 'button')
+      expect(button.className).toContain('aria-pressed:bg-card')
+      expect(button.className).not.toContain('text-orange-')
+      const icon = button.querySelector('svg')
+      expect(icon?.getAttribute('class')).toContain('text-caution')
+      expect(icon?.getAttribute('class')).not.toContain('text-orange-')
     })
 
     it('flags the question when clicked', async () => {

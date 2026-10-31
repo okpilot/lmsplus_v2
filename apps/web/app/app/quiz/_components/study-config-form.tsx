@@ -1,6 +1,8 @@
 'use client'
 
 import type { ReactNode } from 'react'
+import { Card, CardContent } from '@/components/ui/card'
+import { FieldError } from '@/components/ui/field-error'
 import type { SubjectOption } from '@/lib/queries/quiz-query-types'
 import { useStudyConfig } from '../_hooks/use-study-config'
 import type { PreloadPromise } from '../types'
@@ -28,29 +30,33 @@ export function StudyConfigForm({
   const config = useStudyConfig({ userId, subjects, preload })
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-border bg-card p-6 space-y-5">
-        {header}
-        <SubjectSelect
-          subjects={subjects}
-          value={config.subjectId}
-          onValueChange={config.handleSubjectChange}
-        />
-        {config.subjectId && (
-          <QuestionFilters
-            value={config.filters}
-            onValueChange={config.setFilters}
-            calcMode={config.calcMode}
-            onCalcModeChange={config.setCalcMode}
-            imageMode={config.imageMode}
-            onImageModeChange={config.setImageMode}
-            unseenLabel={unseenLabel}
-          />
-        )}
+    <div className="flex flex-col gap-stack lg:grid lg:grid-cols-(--layout-setup) lg:grid-rows-(--layout-setup-rows) lg:items-start lg:gap-x-section">
+      <div className="lg:col-start-1 lg:row-start-1">
+        <Card>
+          <CardContent className="space-y-5">
+            {header}
+            <SubjectSelect
+              subjects={subjects}
+              value={config.subjectId}
+              onValueChange={config.handleSubjectChange}
+            />
+            {config.subjectId && (
+              <QuestionFilters
+                value={config.filters}
+                onValueChange={config.setFilters}
+                calcMode={config.calcMode}
+                onCalcModeChange={config.setCalcMode}
+                imageMode={config.imageMode}
+                onImageModeChange={config.setImageMode}
+                unseenLabel={unseenLabel}
+              />
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {config.topicTree.topics.length > 0 && (
-        <div className="rounded-xl border border-border bg-card p-6">
+        <div className="lg:col-start-2 lg:row-start-1 lg:row-span-2">
           <TopicTree
             topics={config.topicTree.topics}
             checkedTopics={config.topicTree.checkedTopics}
@@ -66,40 +72,38 @@ export function StudyConfigForm({
         </div>
       )}
 
-      {config.subjectId && (
-        <div className="rounded-xl border border-border bg-card p-6">
-          <QuestionCount
-            value={config.count}
-            max={config.availableCount}
-            onValueChange={config.setCount}
-          />
-        </div>
-      )}
+      <div className="space-y-stack lg:col-start-1 lg:row-start-2 lg:sticky lg:top-section">
+        {config.subjectId && (
+          <Card>
+            <CardContent>
+              <QuestionCount
+                value={config.count}
+                max={config.availableCount}
+                onValueChange={config.setCount}
+              />
+            </CardContent>
+          </Card>
+        )}
 
-      {config.error && (
-        <p role="alert" className="text-sm text-destructive">
-          {config.error}
-        </p>
-      )}
-      {config.authError && (
-        <p role="alert" className="text-sm text-destructive">
-          Session expired. Please refresh the page.
-        </p>
-      )}
+        <FieldError role="alert">{config.error}</FieldError>
+        {config.authError && (
+          <FieldError role="alert">Session expired. Please refresh the page.</FieldError>
+        )}
 
-      <StartButton
-        disabled={
-          !config.subjectId ||
-          config.availableCount === 0 ||
-          config.loading ||
-          config.isPending ||
-          config.authError
-        }
-        loading={config.loading}
-        label="Start discovery"
-        loadingLabel="Loading..."
-        onClick={config.handleStart}
-      />
+        <StartButton
+          disabled={
+            !config.subjectId ||
+            config.availableCount === 0 ||
+            config.loading ||
+            config.isPending ||
+            config.authError
+          }
+          loading={config.loading}
+          label="Start discovery"
+          loadingLabel="Loading..."
+          onClick={config.handleStart}
+        />
+      </div>
     </div>
   )
 }

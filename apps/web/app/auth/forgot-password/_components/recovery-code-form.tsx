@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { z } from 'zod'
+import { Button } from '@/components/ui/button'
+import { FieldError } from '@/components/ui/field-error'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { LoadingButton } from '@/components/ui/loading-button'
@@ -53,7 +55,7 @@ export function RecoveryCodeForm({ email, onRequestNewCode }: Readonly<RecoveryC
 
   return (
     <div className="w-full space-y-4">
-      <p className="text-sm text-muted-foreground">
+      <p className="text-body text-muted-foreground">
         If an account exists for <strong>{email}</strong>, we sent a reset code to it.
       </p>
 
@@ -72,7 +74,7 @@ export function RecoveryCodeForm({ email, onRequestNewCode }: Readonly<RecoveryC
           />
         </div>
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        <FieldError role="alert">{error}</FieldError>
 
         <LoadingButton
           type="submit"
@@ -84,15 +86,14 @@ export function RecoveryCodeForm({ email, onRequestNewCode }: Readonly<RecoveryC
         </LoadingButton>
       </form>
 
-      <div className="flex items-center justify-between text-sm">
-        <button
-          type="button"
-          onClick={onRequestNewCode}
-          className="font-medium text-primary hover:underline underline-offset-4"
-        >
+      <div className="flex items-center justify-between text-body">
+        <Button type="button" variant="link" onClick={onRequestNewCode} className="h-auto px-0">
           Send a new code
-        </button>
-        <Link href="/" className="text-muted-foreground hover:text-primary">
+        </Button>
+        <Link
+          href="/"
+          className="text-muted-foreground underline underline-offset-4 hover:text-primary-text"
+        >
           Back to login
         </Link>
       </div>

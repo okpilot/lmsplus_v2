@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
+import { Empty, EmptyDescription } from '@/components/ui/empty'
 import {
   Table,
   TableBody,
@@ -30,36 +31,31 @@ function formatScore(score: number | null): string {
 export function MyReportsTab({ rows }: Readonly<Props>) {
   if (rows.length === 0) {
     return (
-      <div
-        className="rounded-lg border border-dashed border-border bg-muted/30 p-6 text-center text-sm text-muted-foreground"
-        data-testid="reports-empty"
-      >
-        No internal exam attempts yet.
-      </div>
+      <Empty data-testid="reports-empty">
+        <EmptyDescription>No internal exam attempts yet.</EmptyDescription>
+      </Empty>
     )
   }
 
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="min-w-[140px]">Subject</TableHead>
-            <TableHead className="w-16">Attempt</TableHead>
-            <TableHead className="w-40">Started</TableHead>
-            <TableHead className="w-40">Ended</TableHead>
-            <TableHead className="w-20">Score</TableHead>
-            <TableHead className="w-24">Result</TableHead>
-            <TableHead className="w-24">Answered</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((r) => (
-            <ReportRow key={r.id} row={r} />
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead className="min-w-col-sm">Subject</TableHead>
+          <TableHead className="w-16">Attempt</TableHead>
+          <TableHead className="w-40">Started</TableHead>
+          <TableHead className="w-40">Ended</TableHead>
+          <TableHead className="w-20">Score</TableHead>
+          <TableHead className="w-24">Result</TableHead>
+          <TableHead className="w-24">Answered</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.map((r) => (
+          <ReportRow key={r.id} row={r} />
+        ))}
+      </TableBody>
+    </Table>
   )
 }
 
@@ -80,7 +76,7 @@ function ReportRow({ row: r }: Readonly<{ row: InternalExamHistoryEntry }>) {
           navigate()
         }
       }}
-      className="cursor-pointer hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+      className="cursor-pointer hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
     >
       <TableCell>
         <Link
@@ -93,23 +89,29 @@ function ReportRow({ row: r }: Readonly<{ row: InternalExamHistoryEntry }>) {
         </Link>
       </TableCell>
       <TableCell className="tabular-nums">#{r.attemptNumber}</TableCell>
-      <TableCell className="text-xs text-muted-foreground">{formatAbsolute(r.startedAt)}</TableCell>
-      <TableCell className="text-xs text-muted-foreground">{formatAbsolute(r.endedAt)}</TableCell>
-      <TableCell className="tabular-nums text-sm">{formatScore(r.scorePercentage)}</TableCell>
+      <TableCell className="text-caption text-muted-foreground">
+        {formatAbsolute(r.startedAt)}
+      </TableCell>
+      <TableCell className="text-caption text-muted-foreground">
+        {formatAbsolute(r.endedAt)}
+      </TableCell>
+      <TableCell className="text-label-strong tabular-nums">
+        {formatScore(r.scorePercentage)}
+      </TableCell>
       <TableCell>
         {r.passed === null ? (
           <span className="text-muted-foreground">—</span>
         ) : r.passed ? (
-          <Badge variant="default" aria-label="Passed">
+          <Badge tone="success" aria-label="Passed">
             Pass
           </Badge>
         ) : (
-          <Badge variant="destructive" aria-label="Failed">
+          <Badge tone="danger" aria-label="Failed">
             Fail
           </Badge>
         )}
       </TableCell>
-      <TableCell className="text-xs tabular-nums">
+      <TableCell className="text-caption tabular-nums">
         {r.answeredCount}/{r.totalQuestions}
       </TableCell>
     </TableRow>

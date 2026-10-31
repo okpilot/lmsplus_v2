@@ -5,7 +5,7 @@ import { useRef, useState } from 'react'
 import { deleteDraftAndRefresh } from '../actions/discard-and-refresh'
 import { resumeQuizSession } from '../actions/resume'
 import type { DraftData } from '../types'
-import { SavedSessionProgress } from './saved-session-progress'
+import { SavedRow } from './saved-draft-card'
 
 // biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function DraftCard({ draft }: Readonly<{ draft: DraftData }>) {
@@ -79,36 +79,21 @@ export function DraftCard({ draft }: Readonly<{ draft: DraftData }>) {
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4 space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium">{subjectLabel}</p>
-          {dateLabel && <p className="text-xs text-muted-foreground">Saved {dateLabel}</p>}
-        </div>
-        <div className="flex shrink-0 gap-2">
-          <button
-            type="button"
-            data-testid="resume-draft"
-            onClick={handleResume}
-            disabled={resuming}
-            aria-busy={resuming || undefined}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-          >
-            {resuming ? 'Resuming...' : 'Resume'}
-          </button>
-          <button
-            type="button"
-            data-testid="delete-draft"
-            onClick={handleDelete}
-            disabled={deleting}
-            className="rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
-          >
-            {deleting ? 'Deleting...' : 'Delete'}
-          </button>
-        </div>
-      </div>
-      <SavedSessionProgress answered={answeredCount} total={totalCount} />
-      {error && <p className="text-xs text-destructive">{error}</p>}
-    </div>
+    <SavedRow
+      rowTestId="draft-card"
+      title={subjectLabel}
+      subtitle={dateLabel ? `Saved ${dateLabel}` : undefined}
+      answered={answeredCount}
+      total={totalCount}
+      error={error}
+      resumeTestId="resume-draft"
+      deleteTestId="delete-draft"
+      resuming={resuming}
+      resumeDisabled={resuming}
+      deleting={deleting}
+      deleteDisabled={deleting}
+      onResume={handleResume}
+      onDelete={handleDelete}
+    />
   )
 }

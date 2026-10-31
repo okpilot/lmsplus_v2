@@ -1,7 +1,7 @@
 'use client'
 
+import { ErrorScreen } from '@/app/_components/error-screen'
 import { useBoundaryError } from '@/app/_hooks/use-boundary-error'
-import { ErrorState } from '@/components/kit/error-state'
 import { Button } from '@/components/ui/button'
 
 export default function AppError({
@@ -14,8 +14,14 @@ export default function AppError({
   useBoundaryError(error)
 
   return (
-    <ErrorState action={<Button onClick={() => retry()}>Try again</Button>}>
+    <ErrorScreen
+      action={
+        <Button type="button" onClick={() => retry()}>
+          Try again
+        </Button>
+      }
+    >
       An unexpected error occurred.
-    </ErrorState>
+    </ErrorScreen>
   )
 }

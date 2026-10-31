@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
+import { InsetPanel } from '@/components/kit/inset-panel'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { upsertSubtopic } from '../actions/upsert-subtopic'
@@ -14,7 +15,6 @@ type Props = {
   topicId: string
 }
 
-// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function SubtopicRow({ subtopic, topicId }: Readonly<Props>) {
   const [editing, setEditing] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -43,7 +43,7 @@ export function SubtopicRow({ subtopic, topicId }: Readonly<Props>) {
 
   if (editing) {
     return (
-      <div className="rounded-md bg-muted/50 p-2">
+      <InsetPanel className="p-2">
         <InlineForm
           fields={[
             { name: 'code', placeholder: 'Code', width: 'w-28', defaultValue: subtopic.code },
@@ -54,20 +54,18 @@ export function SubtopicRow({ subtopic, topicId }: Readonly<Props>) {
           isPending={isPending}
           submitLabel="Save"
         />
-      </div>
+      </InsetPanel>
     )
   }
 
   return (
-    <div className="flex items-center gap-2 rounded-md px-2 py-1 hover:bg-muted/50">
-      <span className="w-20 tabular-nums text-xs">{subtopic.code}</span>
-      <span className="flex-1 text-sm">{subtopic.name}</span>
-      <Badge variant="secondary" className="text-xs">
-        {subtopic.questionCount} Q
-      </Badge>
+    <div className="flex items-center gap-2 rounded-small px-2 py-2.5 lg:py-1 hover:bg-muted">
+      <span className="w-20 tabular-nums text-caption">{subtopic.code}</span>
+      <span className="flex-1 text-body">{subtopic.name}</span>
+      <Badge variant="secondary">{subtopic.questionCount} Q</Badge>
       <Button
         variant="ghost"
-        size="icon-xs"
+        size="icon-sm"
         aria-label="Edit subtopic"
         onClick={() => setEditing(true)}
       >
@@ -77,8 +75,7 @@ export function SubtopicRow({ subtopic, topicId }: Readonly<Props>) {
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          strokeWidth="2"
-          className="text-muted-foreground"
+          className="stroke-icon text-muted-foreground"
         >
           <title>Edit</title>
           <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />

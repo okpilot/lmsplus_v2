@@ -2,6 +2,9 @@
 
 import { useState } from 'react'
 import { BusyLabel } from '@/components/ui/busy-label'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { cn } from '@/lib/utils'
 
 type ShortAnswerInputProps = {
   onSubmit: (text: string) => void
@@ -39,7 +42,8 @@ export function ShortAnswerInput({
 
   return (
     <div className="space-y-3">
-      <input
+      <Input
+        size="lg"
         type="text"
         // Auto-focus on mount. The control is keyed by question.id (remounts per
         // question), so this lands focus in the field on every new question — the
@@ -74,13 +78,10 @@ export function ShortAnswerInput({
         disabled={disabled || locked}
         aria-label="Your answer"
         data-testid="short-answer-input"
-        className={`w-full rounded-lg border px-4 py-3 text-sm transition-colors disabled:opacity-70 ${
-          showResult && isCorrect
-            ? 'border-green-500 bg-green-500/10'
-            : showResult
-              ? 'border-destructive bg-destructive/10'
-              : 'border-border focus:border-primary'
-        }`}
+        className={cn(
+          showResult && 'disabled:bg-card disabled:opacity-100 dark:disabled:bg-card',
+          showResult && (isCorrect ? 'border-success' : 'border-danger'),
+        )}
       />
 
       {showResult && (
@@ -90,23 +91,23 @@ export function ShortAnswerInput({
       )}
 
       {showResult && !isCorrect && correctAnswer != null && (
-        <p className="text-sm text-muted-foreground" data-testid="revealed-answer">
+        <p className="text-body text-muted-foreground" data-testid="revealed-answer">
           Correct answer: <span className="font-medium text-foreground">{correctAnswer}</span>
         </p>
       )}
 
       {!locked && (
-        <button
+        <Button
           type="button"
           disabled={!canSubmit}
           aria-busy={submitting || undefined}
           onClick={submit}
-          className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+          className="w-full"
         >
           <span className="inline-flex items-center justify-center gap-2">
             <BusyLabel busy={submitting}>Submit Answer</BusyLabel>
           </span>
-        </button>
+        </Button>
       )}
     </div>
   )

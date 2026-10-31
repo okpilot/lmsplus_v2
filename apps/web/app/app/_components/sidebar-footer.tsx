@@ -17,7 +17,7 @@ export function SidebarFooter() {
   const pathname = usePathname()
 
   return (
-    <div className="flex flex-col gap-1 border-t border-foreground/[0.06] pt-3">
+    <div className="flex flex-col gap-1 border-t border-border pt-3">
       {SETTINGS_ITEM && (
         <SidebarItem item={SETTINGS_ITEM} active={isActivePath(pathname, SETTINGS_ITEM.href)} />
       )}

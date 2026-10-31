@@ -18,9 +18,7 @@ vi.mock('../_hooks/use-quiz-timer', () => ({
 vi.mock('../_hooks/use-quiz-navigation-guard', () => ({ useQuizNavigationGuard: vi.fn() }))
 vi.mock('../../_components/question-tabs', () => ({ QuestionTabs: () => null }))
 vi.mock('./quiz-session-grid', () => ({ QuizSessionGrid: () => null }))
-vi.mock('./quiz-session-meta-row', () => ({ QuizSessionMetaRow: () => null }))
 vi.mock('./quiz-main-panel', () => ({ QuizMainPanel: () => null }))
-vi.mock('./quiz-session-footer', () => ({ QuizSessionFooter: () => null }))
 vi.mock('./quiz-session-header', () => ({
   QuizSessionHeader: ({ onExitClick }: Readonly<{ onExitClick: () => void }>) => (
     <button type="button" onClick={onExitClick}>

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { CardListRow } from '@/components/ui/card'
 import { isExamMode, MODE_LABELS, modeLabel } from '@/lib/constants/exam-modes'
 import { reportUrl } from '@/lib/constants/report-paths'
 import type { SessionReport } from '@/lib/queries/reports'
@@ -11,22 +12,21 @@ export function SessionCard({ session: s }: Readonly<{ session: SessionReport }>
   const color = s.scorePercentage == null ? undefined : scoreColor(s.scorePercentage)
 
   return (
-    <Link
-      href={reportUrl(s.mode, s.id, s.subjectCode)}
-      prefetch={false}
-      className="block rounded-lg border border-border px-4 py-3 transition-colors hover:bg-accent"
+    <CardListRow
+      render={<Link href={reportUrl(s.mode, s.id, s.subjectCode)} prefetch={false} />}
+      className="block transition-colors hover:bg-accent outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
     >
       <div className="flex items-start justify-between">
         <p className="font-medium">{s.subjectName ?? '\u2014'}</p>
-        <span className="ml-3 text-xl font-semibold tabular-nums" style={{ color }}>
+        <span className="ml-3 text-heading tabular-nums" style={{ color }}>
           {score}
         </span>
       </div>
-      <p className="mt-0.5 text-xs text-muted-foreground">{formatDate(s.startedAt)}</p>
-      <p className="mt-1 text-xs text-muted-foreground">
+      <p className="mt-0.5 text-caption text-muted-foreground">{formatDate(s.startedAt)}</p>
+      <p className="mt-1 text-caption text-muted-foreground">
         Mode:{' '}
         {isExamMode(s.mode) ? (
-          <span className="font-semibold uppercase text-amber-600">{MODE_LABELS[s.mode]}</span>
+          <span className="font-semibold uppercase text-caution">{MODE_LABELS[s.mode]}</span>
         ) : (
           <span className="font-medium">{modeLabel(s.mode)}</span>
         )}
@@ -35,6 +35,6 @@ export function SessionCard({ session: s }: Readonly<{ session: SessionReport }>
         </span>
         <span className="ml-3">Time: {formatDurationMinutes(s.durationMinutes)}</span>
       </p>
-    </Link>
+    </CardListRow>
   )
 }

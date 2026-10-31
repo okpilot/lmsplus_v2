@@ -3,7 +3,7 @@
 import { Download } from 'lucide-react'
 import { useTransition } from 'react'
 import { toast } from 'sonner'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { LoadingButton } from '@/components/ui/loading-button'
 import { downloadJsonFile } from '@/lib/gdpr/download-json'
 import { exportMyData } from '../gdpr-actions'
@@ -41,7 +41,7 @@ export function DataExportCard() {
   }
 
   return (
-    <Card>
+    <section className="flex flex-col gap-4 pt-4 lg:pt-0">
       <CardHeader>
         <CardTitle>Your Data</CardTitle>
         <CardDescription>
@@ -56,10 +56,10 @@ export function DataExportCard() {
           loadingText="Exporting..."
           variant="outline"
         >
-          <Download className="mr-2 size-4" />
+          <Download className="mr-2 size-icon" />
           Export My Data
         </LoadingButton>
       </CardContent>
-    </Card>
+    </section>
   )
 }

@@ -1,6 +1,6 @@
 import { Badge } from '@/components/ui/badge'
 import { TableCell, TableRow } from '@/components/ui/table'
-import { getMasteryColor } from '../_lib/constants'
+import { masteryTextClass } from '@/lib/utils/mastery-tone'
 import type { DashboardStudent } from '../types'
 
 export function formatRelativeTime(iso: string | null): string {
@@ -24,7 +24,7 @@ type StudentRowProps = Readonly<{
 export function StudentRow({ student, onClick }: Readonly<StudentRowProps>) {
   return (
     <TableRow
-      className={`cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring${student.isActive ? '' : ' opacity-60'}`}
+      className={`cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring${student.isActive ? '' : ' text-muted-foreground'}`}
       tabIndex={0}
       onClick={onClick}
       onKeyDown={(e: React.KeyboardEvent) => {
@@ -38,21 +38,23 @@ export function StudentRow({ student, onClick }: Readonly<StudentRowProps>) {
         <div className="flex items-center gap-1.5">
           {student.hasRecentActivity && (
             <span
-              className="size-2 shrink-0 rounded-full bg-green-500"
+              className="size-2 shrink-0 rounded-pill bg-success"
               title="Active in last 7 days"
             />
           )}
           <span className="font-medium">{student.fullName ?? '\u2014'}</span>
         </div>
-        <div className="text-xs text-muted-foreground">{student.email}</div>
+        <div className="text-caption text-muted-foreground">{student.email}</div>
       </TableCell>
       <TableCell>{formatRelativeTime(student.lastActiveAt)}</TableCell>
       <TableCell>{student.sessionCount}</TableCell>
       <TableCell>{student.avgScore !== null ? `${student.avgScore}%` : '\u2014'}</TableCell>
-      <TableCell className={getMasteryColor(student.mastery)}>{student.mastery}%</TableCell>
+      <TableCell className={student.isActive ? masteryTextClass(student.mastery) : undefined}>
+        {student.mastery}%
+      </TableCell>
       <TableCell>
         {student.isActive ? (
-          <Badge className="bg-green-600 hover:bg-green-600">Active</Badge>
+          <Badge tone="success">Active</Badge>
         ) : (
           <Badge variant="destructive">Inactive</Badge>
         )}

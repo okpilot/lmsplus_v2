@@ -37,3 +37,12 @@ describe('ChoicePills', () => {
     expect(screen.getByRole('group', { name: 'Greek' })).toBeInTheDocument()
   })
 })
+
+describe('ChoicePills selected look', () => {
+  it('gives every option the toggle variant, pressed edge in blue', () => {
+    render(<ChoicePills label="Greek" options={OPTIONS} value="b" onChange={vi.fn()} />)
+    for (const name of ['Alpha', 'Beta', 'Gamma']) {
+      expect(screen.getByRole('button', { name })).toHaveClass('aria-pressed:border-primary')
+    }
+  })
+})

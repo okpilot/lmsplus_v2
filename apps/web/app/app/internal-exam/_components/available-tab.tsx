@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { CardList, CardListRow } from '@/components/ui/card'
+import { Empty, EmptyDescription } from '@/components/ui/empty'
 import type { AvailableInternalExam } from '../queries'
 import { CodeEntryModal } from './code-entry-modal'
 
@@ -31,37 +33,35 @@ export function AvailableTab({ rows }: Readonly<Props>) {
 
   if (rows.length === 0) {
     return (
-      <div
-        className="rounded-lg border border-dashed border-border bg-muted/30 p-6 text-center text-sm text-muted-foreground"
-        data-testid="available-empty"
-      >
-        No internal exams available — your administrator will issue you a code when one is ready.
-      </div>
+      <Empty data-testid="available-empty">
+        <EmptyDescription>
+          No internal exams available — your administrator will issue you a code when one is ready.
+        </EmptyDescription>
+      </Empty>
     )
   }
 
   return (
     <div className="space-y-3">
-      <ul className="space-y-3" data-testid="available-list">
+      <CardList role="list" data-testid="available-list">
         {rows.map((row) => (
-          <li
+          <CardListRow
             key={row.id}
+            role="listitem"
             data-testid={`available-row-${row.id}`}
-            className="flex items-center justify-between gap-4 rounded-lg border border-border bg-card p-4"
+            className="flex items-center justify-between gap-4"
           >
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-foreground">
+              <p className="text-label-strong text-foreground">
                 {row.subjectShort ? `${row.subjectShort} — ` : ''}
                 {row.subjectName}
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="mt-1 text-caption text-muted-foreground">
                 Expires {formatAbsolute(row.expiresAt)}
                 {formatRelative(row.expiresAt) && (
                   <>
                     {' '}
-                    <span className="text-muted-foreground/80">
-                      ({formatRelative(row.expiresAt)})
-                    </span>
+                    <span className="text-muted-foreground">({formatRelative(row.expiresAt)})</span>
                   </>
                 )}
               </p>
@@ -69,9 +69,9 @@ export function AvailableTab({ rows }: Readonly<Props>) {
             <Button type="button" onClick={() => setSelected(row)} data-testid="start-button">
               Start
             </Button>
-          </li>
+          </CardListRow>
         ))}
-      </ul>
+      </CardList>
       <CodeEntryModal
         open={selected !== null}
         onOpenChange={(next) => {

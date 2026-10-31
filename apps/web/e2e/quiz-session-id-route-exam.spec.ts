@@ -70,11 +70,10 @@ test.describe('Practice Exam resumed by session URL', () => {
     await page.getByRole('button', { name: '‹ Previous' }).click()
     for (const id of [first, second]) {
       await expect(page.getByTestId(id)).toBeDisabled({ timeout: 10_000 })
-      await expect(page.getByTestId(id)).toHaveClass(/border-muted-foreground\/40/)
+      await expect(page.getByTestId(id)).toHaveAttribute('data-selected', 'true')
       if (id === first) await page.getByRole('button', { name: 'Next ›' }).click()
     }
-    await expect(page.locator(`${OPTION}[class*="border-green-500"]`)).toHaveCount(0)
-    await expect(page.locator(`${OPTION}[class*="border-destructive"]`)).toHaveCount(0)
+    await expect(page.locator(`${OPTION}[data-result]`)).toHaveCount(0)
     await expect.poll(() => bodies.length, { timeout: 10_000 }).toBeGreaterThan(0)
     expect(bodies.filter((body) => body.includes('selectedOptionId'))).toEqual([])
   })

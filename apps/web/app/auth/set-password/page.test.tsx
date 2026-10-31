@@ -49,3 +49,11 @@ describe('SetPasswordPage', () => {
     expect(screen.queryByTestId('set-password-form')).not.toBeInTheDocument()
   })
 })
+
+describe('SetPasswordPage shell', () => {
+  it('renders inside AuthShell: a card and the LMS Plus h1', async () => {
+    await renderPage({ token_hash: HASH, type: 'recovery' })
+    expect(document.querySelector('[data-slot=card]')).not.toBeNull()
+    expect(screen.getByRole('heading', { level: 1, name: 'LMS Plus' })).toBeInTheDocument()
+  })
+})

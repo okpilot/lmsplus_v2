@@ -34,6 +34,16 @@ describe('StatisticsTab', () => {
     expect(screen.getByText('3 (60%)')).toBeInTheDocument()
   })
 
+  it('colours the Correct value success and the Incorrect value danger', async () => {
+    render(<StatisticsTab questionId="q-1" hasAnswered={true} />)
+    await waitFor(() => {
+      expect(screen.getByText('3 (60%)')).toBeInTheDocument()
+    })
+    expect(screen.getByText('3 (60%)').className).toContain('text-success')
+    expect(screen.getByText('2').className).toContain('text-danger')
+    expect(document.body.innerHTML).not.toMatch(/text-green-600|text-destructive/)
+  })
+
   it('shows loading skeleton while fetching', async () => {
     let resolve: (value: typeof defaultStats) => void = () => {}
     mockFetchQuestionStats.mockReturnValue(
@@ -43,7 +53,7 @@ describe('StatisticsTab', () => {
     )
     render(<StatisticsTab questionId="q-1" hasAnswered={false} />)
     // Skeleton is visible while in-flight
-    expect(document.querySelector('.animate-pulse')).toBeInTheDocument()
+    expect(document.querySelector('[data-slot="skeleton"]')).toBeInTheDocument()
     resolve(defaultStats)
     await waitFor(() => {
       expect(screen.getByText('Times seen')).toBeInTheDocument()
@@ -64,6 +74,9 @@ describe('StatisticsTab', () => {
     await waitFor(() => {
       expect(screen.getByText('No statistics available for this question yet.')).toBeInTheDocument()
     })
+    const note = screen.getByText('No statistics available for this question yet.')
+    expect(note.closest('[data-slot="empty"]')).toBeNull()
+    expect(note.className).toContain('text-center')
   })
 
   it('shows error message and retry button when fetch fails', async () => {

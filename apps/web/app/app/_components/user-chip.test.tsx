@@ -34,4 +34,19 @@ describe('UserChip', () => {
     expect(screen.getByText('Loading account')).toBeInTheDocument()
     expect(container.querySelector('[aria-hidden="true"]')).toBeEmptyDOMElement()
   })
+
+  it('renders a grey avatar', () => {
+    render(<UserChip displayName="Ada Pilot" />)
+    const avatar = screen.getByText('AP')
+    expect(avatar.className).toContain('bg-muted')
+    expect(avatar.className).toContain('text-muted-foreground')
+    expect(avatar.className).not.toContain('bg-foreground')
+  })
+
+  it('renders the name at caption size', () => {
+    render(<UserChip displayName="Ada Pilot" />)
+    expect(screen.getByText('Ada Pilot').className).toMatch(
+      /(?<![\w-])text-caption-strong(?![\w-])/,
+    )
+  })
 })

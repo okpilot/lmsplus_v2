@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockLoadShellUser, mockRequireAuthUser } = vi.hoisted(() => ({
   mockLoadShellUser: vi.fn(),
@@ -62,26 +62,5 @@ describe('AppLayout', () => {
 
     await expect(AppLayout({ children: <span /> })).rejects.toThrow('NEXT_REDIRECT')
     expect(mockLoadShellUser).not.toHaveBeenCalled()
-  })
-})
-
-describe('AppLayout — redesign look scope', () => {
-  afterEach(() => {
-    vi.unstubAllEnvs()
-  })
-
-  it('renders the shell inside the v2 look scope when the redesign look is on', async () => {
-    vi.stubEnv('NEXT_PUBLIC_REDESIGN_LOOK', 'on')
-    await renderLayout()
-    expect(screen.getByTestId('app-shell').closest('[data-look]')).toHaveAttribute(
-      'data-look',
-      'v2',
-    )
-  })
-
-  it('renders the shell without the v2 look when the redesign look is unset', async () => {
-    vi.stubEnv('NEXT_PUBLIC_REDESIGN_LOOK', '')
-    await renderLayout()
-    expect(screen.getByTestId('app-shell').closest('[data-look]')).toBeNull()
   })
 })

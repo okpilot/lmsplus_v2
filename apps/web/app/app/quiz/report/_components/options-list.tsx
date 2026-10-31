@@ -22,9 +22,9 @@ export function OptionsList({
         const isCorrect = option.id === correctOptionId
         const isSelected = option.id === selectedOptionId
 
-        let rowClass = 'text-xs text-muted-foreground'
-        if (isCorrect) rowClass = 'text-xs text-green-600'
-        else if (isSelected) rowClass = 'text-xs text-destructive'
+        let rowClass = 'text-caption text-muted-foreground'
+        if (isCorrect) rowClass = 'text-caption text-success'
+        else if (isSelected) rowClass = 'text-caption text-danger'
 
         return (
           <li key={option.id} className={`flex items-center gap-1 ${rowClass}`}>
@@ -33,13 +33,13 @@ export function OptionsList({
             <span>{option.text}</span>
             {isCorrect && (
               <>
-                <Check size={12} aria-hidden className="ml-1 shrink-0" />
+                <Check aria-hidden className="ml-1 size-icon-sm shrink-0" />
                 <span>Correct</span>
               </>
             )}
             {isSelected && !isCorrect && (
               <>
-                <X size={12} aria-hidden className="ml-1 shrink-0" />
+                <X aria-hidden className="ml-1 size-icon-sm shrink-0" />
                 <span>Your answer</span>
               </>
             )}

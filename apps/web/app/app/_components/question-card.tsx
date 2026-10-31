@@ -20,12 +20,12 @@ export function QuestionCard({
     <div className="space-y-4">
       {questionNumber != null && totalQuestions != null && (
         <div className="flex items-center justify-between">
-          <p className="text-xs font-medium text-muted-foreground">
+          <p className="text-label-strong">
             Question {questionNumber} of {totalQuestions}
           </p>
           {dbQuestionNumber && (
-            <span className="tabular-nums text-xs text-muted-foreground/70">
-              {dbQuestionNumber}
+            <span className="tabular-nums text-caption text-muted-foreground">
+              No. {dbQuestionNumber}
             </span>
           )}
         </div>
@@ -33,7 +33,7 @@ export function QuestionCard({
       {questionImageUrl && (
         <ZoomableImage src={questionImageUrl} alt="Question illustration" className="max-h-64" />
       )}
-      <MarkdownText className="text-base font-medium leading-relaxed">{questionText}</MarkdownText>
+      <MarkdownText className="text-question">{questionText}</MarkdownText>
     </div>
   )
 }

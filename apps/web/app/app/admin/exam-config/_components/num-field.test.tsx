@@ -77,3 +77,16 @@ describe('NumField', () => {
     })
   })
 })
+
+function expectFieldLabel(el: HTMLElement) {
+  expect(el.className).toMatch(/(?<![\w-])text-label(?![\w-])/)
+  expect(el.className).toContain('text-muted-foreground')
+  expect(el.className).not.toContain('text-[13px]')
+}
+
+describe('NumField label style', () => {
+  it('styles the label text-label + text-muted-foreground without text-[13px]', () => {
+    render(<NumField label="Pass Mark" value={75} min={1} max={100} onChange={vi.fn()} />)
+    expectFieldLabel(screen.getByText('Pass Mark', { selector: 'label' }))
+  })
+})

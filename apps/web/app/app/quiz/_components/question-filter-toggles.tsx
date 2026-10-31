@@ -1,7 +1,7 @@
 'use client'
 
 import { CircleHelp } from 'lucide-react'
-import { useState } from 'react'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Switch } from '@/components/ui/switch'
 import type { CalcMode, ImageMode, QuestionFilterValue } from '../types'
 
@@ -60,33 +60,20 @@ export const IMAGE_TOGGLES: { mode: Exclude<ImageMode, 'all'>; label: string; hi
 ]
 
 function FilterHint({ hint, label }: Readonly<{ hint: string; label: string }>) {
-  const [open, setOpen] = useState(false)
-
   return (
-    <span className="relative inline-flex">
-      <button
-        type="button"
-        onClick={() => setOpen((p) => !p)}
-        onMouseEnter={() => setOpen(true)}
-        onMouseLeave={() => setOpen(false)}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setOpen(false)}
-        className="inline-flex text-muted-foreground/60 hover:text-muted-foreground"
-        // Fold the hint into the label so screen readers announce the explanation
-        // directly — the visual tooltip below is a sighted-only enhancement.
+    <Popover>
+      <PopoverTrigger
+        openOnHover
+        className="inline-flex text-muted-foreground hover:text-foreground"
+        // Fold the hint into the label so screen readers announce the explanation directly.
         aria-label={`Info about ${label}. ${hint}`}
       >
-        <CircleHelp className="size-3.5" />
-      </button>
-      {open && (
-        <span
-          aria-hidden
-          className="absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-foreground px-2.5 py-1.5 text-xs text-background shadow-md"
-        >
-          {hint}
-        </span>
-      )}
-    </span>
+        <CircleHelp className="size-icon-sm" />
+      </PopoverTrigger>
+      <PopoverContent side="top" aria-label={label} className="w-auto max-w-60">
+        {hint}
+      </PopoverContent>
+    </Popover>
   )
 }
 
@@ -103,7 +90,7 @@ export function FilterToggle({
 }>) {
   return (
     <div className="flex items-center justify-between">
-      <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+      <span className="flex items-center gap-1.5 text-body text-muted-foreground">
         {label}
         <FilterHint hint={hint} label={label} />
       </span>

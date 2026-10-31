@@ -157,6 +157,19 @@ describe('StudentRow', () => {
       </table>,
     )
     expect(screen.getByText('Active')).toBeInTheDocument()
+    expect(screen.getByText('Active').className).toContain('bg-success-soft')
+    expect(screen.getByText('Active').className).not.toContain('bg-green-600')
+  })
+
+  it('marks recent activity with a success-toned dot', () => {
+    render(
+      <table>
+        <tbody>
+          <StudentRow student={buildStudent({ hasRecentActivity: true })} onClick={vi.fn()} />
+        </tbody>
+      </table>,
+    )
+    expect(screen.getByTitle('Active in last 7 days')).toHaveClass('bg-success')
   })
 
   it('renders Inactive badge when student is not active', () => {
@@ -168,6 +181,35 @@ describe('StudentRow', () => {
       </table>,
     )
     expect(screen.getByText('Inactive')).toBeInTheDocument()
+  })
+
+  it('greys an inactive row with text colour, not opacity', () => {
+    render(
+      <table>
+        <tbody>
+          <StudentRow student={buildStudent({ isActive: false })} onClick={vi.fn()} />
+        </tbody>
+      </table>,
+    )
+    const row = screen.getByRole('row')
+    expect(row.className).not.toContain('opacity-60')
+    expect(row).toHaveClass('text-muted-foreground')
+  })
+
+  it.each([
+    [true, true],
+    [false, false],
+  ])('mastery 95 with isActive=%s has text-success: %s', (isActive, tone) => {
+    render(
+      <table>
+        <tbody>
+          <StudentRow student={buildStudent({ isActive, mastery: 95 })} onClick={vi.fn()} />
+        </tbody>
+      </table>,
+    )
+    const cell = screen.getByText('95%')
+    if (tone) expect(cell).toHaveClass('text-success')
+    else expect(cell).not.toHaveClass('text-success')
   })
 
   it('calls onClick when the row is clicked', () => {
@@ -250,7 +292,7 @@ describe('StudentRow', () => {
     expect(onClick).toHaveBeenCalledTimes(1)
   })
 
-  it('applies a green mastery colour class when mastery is 80 or above', () => {
+  it('applies the success mastery colour class when mastery is 90 or above', () => {
     render(
       <table>
         <tbody>
@@ -258,10 +300,10 @@ describe('StudentRow', () => {
         </tbody>
       </table>,
     )
-    expect(screen.getByText('90%').className).toContain('text-green-600')
+    expect(screen.getByText('90%').className).toContain('text-success')
   })
 
-  it('applies a red mastery colour class when mastery is below 50', () => {
+  it('applies a neutral mastery colour, never danger or caution, when mastery is 30', () => {
     render(
       <table>
         <tbody>
@@ -269,6 +311,6 @@ describe('StudentRow', () => {
         </tbody>
       </table>,
     )
-    expect(screen.getByText('30%').className).toContain('text-red-600')
+    expect(screen.getByText('30%').className).not.toMatch(/text-(danger|caution)/)
   })
 })

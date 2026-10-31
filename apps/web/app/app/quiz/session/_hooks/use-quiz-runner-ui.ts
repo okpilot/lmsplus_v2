@@ -19,8 +19,6 @@ export function useQuizRunnerUI(
   const quizUI = useQuizUI({
     feedback: s.feedback,
     currentIndex: s.currentIndex,
-    activeTab: effectiveTab,
-    existingAnswer: s.existingAnswer,
   })
   const leave = useQuizLeaveGuard({
     isDiscovery,

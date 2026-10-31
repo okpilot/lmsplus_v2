@@ -13,8 +13,6 @@ import { getAdminClient, TEST_EMAIL } from './helpers/supabase'
 
 test.use({ storageState: 'e2e/.auth/user.json', viewport: { width: 1280, height: 900 } })
 
-const FLAG_BUTTON = '[data-testid="flag-button"]'
-
 /** Picks the first subject; returns its code (the first span of the option). */
 async function pickFirstSubject(page: Page): Promise<string> {
   await page.locator('[data-testid="subject-trigger"]').click()
@@ -68,17 +66,20 @@ async function startStudyQuiz(page: Page): Promise<void> {
   await page.waitForURL(SESSION_ID_URL, { timeout: 10_000 })
 }
 
-/** Flags the first question not yet flagged: skips ones whose button reads Unflag. */
+/** Flags the first question not yet flagged: skips ones whose toggle is pressed, via the navigator. */
 async function flagAnUnflaggedQuestion(page: Page): Promise<void> {
-  const flag = page.locator(FLAG_BUTTON)
+  const flag = page.getByRole('button', { name: 'Flag question' })
   await flag.waitFor({ state: 'visible' })
   for (let i = 0; i < 5; i++) {
-    if ((await flag.textContent())?.includes('Unflag') !== true) break
-    await page.getByRole('button', { name: /Next/ }).first().click()
+    if ((await flag.getAttribute('aria-pressed')) !== 'true') break
+    await page
+      .getByTestId('question-grid')
+      .getByTestId(`grid-btn-${i + 1}`)
+      .click()
   }
-  await expect(flag).toContainText('Flag')
+  await expect(flag).toHaveAttribute('aria-pressed', 'false')
   await flag.click()
-  await expect(flag).toContainText('Unflag')
+  await expect(flag).toHaveAttribute('aria-pressed', 'true')
 }
 
 /** Flags a question in a Study quiz, then submits the quiz. */

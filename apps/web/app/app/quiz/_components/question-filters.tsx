@@ -58,7 +58,7 @@ export function QuestionFilters({
 
   return (
     <div className="space-y-3">
-      <span className="text-[13px] font-medium">Question Preferences</span>
+      <span className="text-label text-muted-foreground">Question Preferences</span>
       <div className="space-y-2.5">
         {FILTERS.map((opt) => (
           <FilterToggle

@@ -18,7 +18,7 @@ export function QuestionMetaFields({
   return (
     <div className="grid grid-cols-2 gap-3">
       <div>
-        <span className="mb-1 block text-xs font-medium text-muted-foreground">Question #</span>
+        <span className="mb-1 block text-label text-muted-foreground">Question # (optional)</span>
         <Input
           value={questionNumber}
           onChange={(e) => onQuestionNumberChange(e.target.value)}
@@ -27,7 +27,7 @@ export function QuestionMetaFields({
         />
       </div>
       <div>
-        <span className="mb-1 block text-xs font-medium text-muted-foreground">LO Reference</span>
+        <span className="mb-1 block text-label text-muted-foreground">LO Reference (optional)</span>
         <Input
           value={loReference}
           onChange={(e) => onLoReferenceChange(e.target.value)}

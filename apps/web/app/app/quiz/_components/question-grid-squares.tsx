@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils'
-import { getSquareClass } from './filter-pill'
+import { getSquareClassFor, getSquareStatus } from './filter-pill'
 
 export type GridFilter = 'all' | 'flagged' | 'pinned'
 
@@ -14,8 +14,8 @@ type BuildSquaresOpts = {
   onNavigate: (index: number) => void
   isExamMode?: boolean
   answeredIds?: Set<string>
-  // Discovery-only: indices the user has already visited. Drives the "seen"
-  // (green) colour; left undefined for study/exam so their colouring is unchanged.
+  // Discovery-only: indices the user has already visited. They read as answered
+  // (grey); left undefined for study/exam so their colouring is unchanged.
   seenIds?: Set<number>
 }
 
@@ -29,8 +29,9 @@ function squareFlags(i: number, opts: BuildSquaresOpts) {
   const isFlagged = flaggedIds.has(qId)
   const isPinned = pinnedIds.has(qId)
   // Exam: answered squares stay neutral. Practice: an answer whose feedback has not arrived yet.
-  const isAnswered = !isCurrent && (answeredIds?.has(qId) ?? false)
+  const isAnswered = answeredIds?.has(qId) ?? false
   const isAnsweredInExam = isAnswered && (isExamMode === true || !feedback)
+  // The square the student is on is not yet "seen" — it reads as answered once they move on.
   const isSeen = !isCurrent && (seenIds?.has(i) ?? false)
   return { qId, isCurrent, isCorrect, isFlagged, isPinned, isAnsweredInExam, isSeen }
 }
@@ -43,6 +44,7 @@ function renderSquare(i: number, opts: BuildSquaresOpts) {
     opts,
   )
   if ((filter === 'flagged' && !isFlagged) || (filter === 'pinned' && !isPinned)) return null
+  const status = getSquareStatus({ isCurrent, isCorrect, isAnsweredInExam, isSeen })
   return (
     <button
       key={qId || i}
@@ -50,9 +52,10 @@ function renderSquare(i: number, opts: BuildSquaresOpts) {
       data-testid={`grid-btn-${i}`}
       onClick={() => onNavigate(i)}
       className={cn(
-        'flex aspect-square items-center justify-center rounded-lg text-xs font-medium transition-all',
-        getSquareClass({ isCurrent, isCorrect, isAnsweredInExam, isSeen }),
+        'flex aspect-square items-center justify-center rounded-control text-caption-strong transition-all',
+        getSquareClassFor(status, isCurrent),
       )}
+      data-status={status}
       aria-current={isCurrent ? 'step' : undefined}
       aria-label={`Question ${i + 1}${isFlagged ? ', flagged' : ''}${isPinned ? ', pinned' : ''}`}
     >

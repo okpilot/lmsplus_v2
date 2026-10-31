@@ -57,6 +57,9 @@ describe('AnswerKeyField', () => {
       />,
     )
 
-    expect(screen.getByLabelText('Mark option B as correct')).toBeDisabled()
+    expect(screen.getByLabelText('Mark option B as correct')).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
   })
 })

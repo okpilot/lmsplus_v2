@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
+import { EmptyDescription } from '@/components/ui/empty'
 import {
   Table,
   TableBody,
@@ -38,32 +39,30 @@ export function AttemptsTable({ rows, totalCount, pageSize }: Readonly<Props>) {
 
   return (
     <div className="space-y-3">
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="min-w-col-md">Student</TableHead>
+            <TableHead className="min-w-col-sm">Subject</TableHead>
+            <TableHead className="w-40">Started</TableHead>
+            <TableHead className="w-40">Ended</TableHead>
+            <TableHead className="w-20">Score</TableHead>
+            <TableHead className="w-24">Result</TableHead>
+            <TableHead className="w-24">Answered</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.length === 0 ? (
             <TableRow>
-              <TableHead className="min-w-[160px]">Student</TableHead>
-              <TableHead className="min-w-[140px]">Subject</TableHead>
-              <TableHead className="w-40">Started</TableHead>
-              <TableHead className="w-40">Ended</TableHead>
-              <TableHead className="w-20">Score</TableHead>
-              <TableHead className="w-24">Result</TableHead>
-              <TableHead className="w-24">Answered</TableHead>
+              <TableCell colSpan={7} className="p-section">
+                <EmptyDescription className="text-center">No attempts yet</EmptyDescription>
+              </TableCell>
             </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center text-sm text-muted-foreground">
-                  No attempts yet
-                </TableCell>
-              </TableRow>
-            ) : (
-              rows.map((r) => <AttemptRow key={r.sessionId} row={r} />)
-            )}
-          </TableBody>
-        </Table>
-      </div>
+          ) : (
+            rows.map((r) => <AttemptRow key={r.sessionId} row={r} />)
+          )}
+        </TableBody>
+      </Table>
 
       <PaginationBar
         page={page}
@@ -94,7 +93,7 @@ function AttemptRow({ row: r }: Readonly<{ row: InternalExamAttemptRow }>) {
           navigate()
         }
       }}
-      className="cursor-pointer hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+      className="cursor-pointer hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
     >
       <TableCell>
         <Link
@@ -107,9 +106,15 @@ function AttemptRow({ row: r }: Readonly<{ row: InternalExamAttemptRow }>) {
         </Link>
       </TableCell>
       <TableCell>{r.subjectName || '—'}</TableCell>
-      <TableCell className="text-xs text-muted-foreground">{formatAbsolute(r.startedAt)}</TableCell>
-      <TableCell className="text-xs text-muted-foreground">{formatAbsolute(r.endedAt)}</TableCell>
-      <TableCell className="tabular-nums text-sm">{formatScore(r.scorePercentage)}</TableCell>
+      <TableCell className="text-caption text-muted-foreground">
+        {formatAbsolute(r.startedAt)}
+      </TableCell>
+      <TableCell className="text-caption text-muted-foreground">
+        {formatAbsolute(r.endedAt)}
+      </TableCell>
+      <TableCell className="text-label-strong tabular-nums">
+        {formatScore(r.scorePercentage)}
+      </TableCell>
       <TableCell>
         {passed === null ? (
           <span className="text-muted-foreground">—</span>
@@ -123,7 +128,7 @@ function AttemptRow({ row: r }: Readonly<{ row: InternalExamAttemptRow }>) {
           </Badge>
         )}
       </TableCell>
-      <TableCell className="text-xs tabular-nums">
+      <TableCell className="text-caption tabular-nums">
         {formatCorrectFraction(correct, r.answeredItems)}
       </TableCell>
     </TableRow>

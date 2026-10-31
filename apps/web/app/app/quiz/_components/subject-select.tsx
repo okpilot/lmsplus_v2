@@ -2,6 +2,7 @@
 
 import { ChevronDown } from 'lucide-react'
 import { useState } from 'react'
+import { CodeChip } from '@/components/kit/code-chip'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import type { SubjectOption } from '@/lib/queries/quiz-query-types'
 
@@ -17,20 +18,18 @@ export function SubjectSelect({ subjects, value, onValueChange }: Readonly<Subje
 
   return (
     <div className="space-y-1.5">
-      <span className="text-[13px] font-medium">Subject</span>
+      <span className="text-label text-muted-foreground">Subject</span>
       <Collapsible open={open} onOpenChange={setOpen}>
         <CollapsibleTrigger
           aria-label="Select a subject"
           data-testid="subject-trigger"
-          className={`flex w-full items-center justify-between rounded-[10px] border border-border bg-card px-3 py-2.5 text-sm transition-colors hover:bg-muted/50 ${
+          className={`flex w-full items-center justify-between rounded-control border border-border bg-card px-3 py-2.5 text-body transition-colors hover:bg-muted ${
             open ? 'rounded-b-none border-b-transparent' : ''
           }`}
         >
           {selected ? (
             <span className="flex items-center gap-2.5">
-              <span className="rounded bg-primary/15 px-1.5 py-0.5 tabular-nums text-xs font-semibold text-primary">
-                {selected.code}
-              </span>
+              <CodeChip>{selected.code}</CodeChip>
               <span className="text-foreground">{selected.name}</span>
             </span>
           ) : (
@@ -38,12 +37,12 @@ export function SubjectSelect({ subjects, value, onValueChange }: Readonly<Subje
           )}
           <span className="text-muted-foreground">
             <ChevronDown
-              className={`h-4 w-4 transition-transform duration-150 ${open ? 'rotate-180' : ''}`}
+              className={`size-icon transition-transform duration-fast ${open ? 'rotate-180' : ''}`}
             />
           </span>
         </CollapsibleTrigger>
-        <CollapsibleContent className="overflow-hidden transition-[height] duration-150 ease-out data-[ending-style]:h-0 data-[starting-style]:h-0">
-          <div className="divide-y divide-border rounded-b-[10px] border border-t-0 border-border">
+        <CollapsibleContent className="overflow-hidden transition-all duration-fast ease-standard data-ending-style:h-0 data-starting-style:h-0">
+          <div className="divide-y divide-border rounded-b-card border border-t-0 border-border">
             {subjects.map((s) => (
               <button
                 key={s.id}
@@ -53,19 +52,11 @@ export function SubjectSelect({ subjects, value, onValueChange }: Readonly<Subje
                   if (s.id !== value) onValueChange(s.id)
                   setOpen(false)
                 }}
-                className={`flex w-full items-center gap-2.5 border-l-2 px-3 py-2.5 text-sm transition-colors hover:bg-muted/50 ${
-                  s.id === value ? 'border-l-primary bg-primary/5' : 'border-l-transparent'
+                className={`flex w-full items-center gap-2.5 border-l-2 px-3 py-2.5 text-body transition-colors hover:bg-muted ${
+                  s.id === value ? 'border-l-primary bg-primary-soft' : 'border-l-transparent'
                 }`}
               >
-                <span
-                  className={`shrink-0 rounded px-1.5 py-0.5 tabular-nums text-xs ${
-                    s.id === value
-                      ? 'bg-primary/15 font-semibold text-primary'
-                      : 'bg-muted font-medium text-muted-foreground'
-                  }`}
-                >
-                  {s.code}
-                </span>
+                <CodeChip className="shrink-0">{s.code}</CodeChip>
                 <span
                   className={`flex-1 text-left ${
                     s.id === value ? 'font-medium text-foreground' : 'text-muted-foreground'

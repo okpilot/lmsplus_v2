@@ -1,0 +1,66 @@
+import { placeLabel, unplaceLabel } from './diagram-label-input-helpers'
+
+export type Armed = { kind: 'label' | 'zone'; id: string } | null
+export type TapState = Readonly<{ placement: Map<string, string>; armed: Armed }>
+
+function toggleArmed(armed: Armed, next: NonNullable<Armed>): Armed {
+  return armed?.kind === next.kind && armed.id === next.id ? null : next
+}
+
+/** Tap a label chip in the pool: place into an armed zone, else arm/disarm the label. */
+export function tapLabel({ placement, armed }: TapState, labelId: string): TapState {
+  if (armed?.kind === 'zone')
+    return { placement: placeLabel(placement, armed.id, labelId), armed: null }
+  return { placement, armed: toggleArmed(armed, { kind: 'label', id: labelId }) }
+}
+
+/** Tap an answer row: place an armed label, else arm the placed chip or the empty zone. */
+export function tapRow({ placement, armed }: TapState, zoneId: string): TapState {
+  const here = placement.get(zoneId)
+  if (armed?.kind === 'label' && armed.id !== here) {
+    return { placement: placeLabel(placement, zoneId, armed.id), armed: null }
+  }
+  if (here) return { placement, armed: toggleArmed(armed, { kind: 'label', id: here }) }
+  return { placement, armed: toggleArmed(armed, { kind: 'zone', id: zoneId }) }
+}
+
+/** Tap the pool background: return an armed placed label to the pool, then disarm. */
+export function tapPool({ placement, armed }: TapState): TapState {
+  if (armed?.kind === 'label' && [...placement.values()].includes(armed.id)) {
+    return { placement: unplaceLabel(placement, armed.id), armed: null }
+  }
+  return { placement, armed: null }
+}
+
+/** Zone that newly received a label that was not placed before, else null. */
+export function newlyPlacedZone(
+  prev: Map<string, string>,
+  next: Map<string, string>,
+): string | null {
+  const placedBefore = new Set(prev.values())
+  for (const [zoneId, labelId] of next) {
+    if (prev.get(zoneId) !== labelId && !placedBefore.has(labelId)) return zoneId
+  }
+  return null
+}
+
+/** Label returned to the pool by `next`, else null. */
+export function returnedLabel(prev: Map<string, string>, next: Map<string, string>): string | null {
+  const kept = new Set(next.values())
+  return [...prev.values()].find((id) => !kept.has(id)) ?? null
+}
+
+/** Focus target after a tap: the row now holding the armed label, else the row a label was placed in, else the chip it returned to. */
+export function focusTarget(
+  armed: Armed,
+  prev: Map<string, string>,
+  next: Map<string, string>,
+): string | null {
+  const held =
+    armed?.kind === 'label' ? [...next].find(([, labelId]) => labelId === armed.id)?.[0] : undefined
+  if (held != null && next.get(held) !== prev.get(held)) return `diagram-row-${held}`
+  const zone = newlyPlacedZone(prev, next)
+  if (zone != null) return `diagram-row-${zone}`
+  const label = returnedLabel(prev, next)
+  return label == null ? null : `diagram-tap-chip-${label}`
+}

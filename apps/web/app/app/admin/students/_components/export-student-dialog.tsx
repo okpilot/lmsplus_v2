@@ -81,7 +81,7 @@ export function ExportStudentDialog({ student, open, onOpenChange }: Readonly<Pr
             loading={isPending}
             loadingText="Exporting…"
           >
-            <Download className="mr-2 size-4" />
+            <Download className="mr-2 size-icon" />
             Export
           </LoadingButton>
         </DialogFooter>

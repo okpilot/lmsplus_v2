@@ -3,6 +3,7 @@
 import { closestCenter, DndContext } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { BusyLabel } from '@/components/ui/busy-label'
+import { Button } from '@/components/ui/button'
 import type { OrderingItem } from './ordering-input-helpers'
 import { OrderingInputItem } from './ordering-input-item'
 import { useOrderingInput } from './use-ordering-input'
@@ -79,17 +80,17 @@ export function OrderingInput({
       )}
 
       {!locked && (
-        <button
+        <Button
           type="button"
           disabled={disabled || submitting}
           aria-busy={submitting || undefined}
           onClick={handleSubmit}
-          className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+          className="w-full"
         >
           <span className="inline-flex items-center justify-center gap-2">
             <BusyLabel busy={submitting}>Submit Answer</BusyLabel>
           </span>
-        </button>
+        </Button>
       )}
     </div>
   )

@@ -1,5 +1,4 @@
 import { Suspense } from 'react'
-import { LookScope } from '@/components/kit/look-scope'
 import { requireAuthUser } from '@/lib/auth/require-auth-user'
 import { ActiveUserGate } from './_components/active-user-gate'
 import { AppShell } from './_components/app-shell'
@@ -15,9 +14,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
       <Suspense fallback={null}>
         <ActiveUserGate />
       </Suspense>
-      <LookScope>
-        <AppShell>{children}</AppShell>
-      </LookScope>
+      <AppShell>{children}</AppShell>
     </UserProvider>
   )
 }

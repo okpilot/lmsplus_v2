@@ -33,8 +33,12 @@ describe('ConsentForm', () => {
 
     it('renders TOS and Privacy checkboxes unchecked', () => {
       render(<ConsentForm />)
-      expect(screen.getByLabelText('I accept the Terms of Service')).not.toBeChecked()
-      expect(screen.getByLabelText('I accept the Privacy Policy')).not.toBeChecked()
+      expect(
+        screen.getByRole('checkbox', { name: 'I accept the Terms of Service' }),
+      ).not.toBeChecked()
+      expect(
+        screen.getByRole('checkbox', { name: 'I accept the Privacy Policy' }),
+      ).not.toBeChecked()
     })
 
     it('does not render an analytics checkbox', () => {
@@ -53,7 +57,7 @@ describe('ConsentForm', () => {
       const user = userEvent.setup()
       render(<ConsentForm />)
 
-      await user.click(screen.getByLabelText('I accept the Terms of Service'))
+      await user.click(screen.getByRole('checkbox', { name: 'I accept the Terms of Service' }))
 
       expect(screen.getByRole('button', { name: /continue/i })).toBeDisabled()
     })
@@ -62,7 +66,7 @@ describe('ConsentForm', () => {
       const user = userEvent.setup()
       render(<ConsentForm />)
 
-      await user.click(screen.getByLabelText('I accept the Privacy Policy'))
+      await user.click(screen.getByRole('checkbox', { name: 'I accept the Privacy Policy' }))
 
       expect(screen.getByRole('button', { name: /continue/i })).toBeDisabled()
     })
@@ -71,8 +75,8 @@ describe('ConsentForm', () => {
       const user = userEvent.setup()
       render(<ConsentForm />)
 
-      await user.click(screen.getByLabelText('I accept the Terms of Service'))
-      await user.click(screen.getByLabelText('I accept the Privacy Policy'))
+      await user.click(screen.getByRole('checkbox', { name: 'I accept the Terms of Service' }))
+      await user.click(screen.getByRole('checkbox', { name: 'I accept the Privacy Policy' }))
 
       expect(screen.getByRole('button', { name: /continue/i })).not.toBeDisabled()
     })
@@ -84,8 +88,8 @@ describe('ConsentForm', () => {
       const user = userEvent.setup()
       render(<ConsentForm />)
 
-      await user.click(screen.getByLabelText('I accept the Terms of Service'))
-      await user.click(screen.getByLabelText('I accept the Privacy Policy'))
+      await user.click(screen.getByRole('checkbox', { name: 'I accept the Terms of Service' }))
+      await user.click(screen.getByRole('checkbox', { name: 'I accept the Privacy Policy' }))
       await user.click(screen.getByRole('button', { name: /continue/i }))
 
       await waitFor(() => {
@@ -102,8 +106,8 @@ describe('ConsentForm', () => {
       const user = userEvent.setup()
       render(<ConsentForm nextPath="/app/internal-exam" />)
 
-      await user.click(screen.getByLabelText('I accept the Terms of Service'))
-      await user.click(screen.getByLabelText('I accept the Privacy Policy'))
+      await user.click(screen.getByRole('checkbox', { name: 'I accept the Terms of Service' }))
+      await user.click(screen.getByRole('checkbox', { name: 'I accept the Privacy Policy' }))
       await user.click(screen.getByRole('button', { name: /continue/i }))
 
       await waitFor(() => {
@@ -121,8 +125,8 @@ describe('ConsentForm', () => {
       const user = userEvent.setup()
       render(<ConsentForm />)
 
-      await user.click(screen.getByLabelText('I accept the Terms of Service'))
-      await user.click(screen.getByLabelText('I accept the Privacy Policy'))
+      await user.click(screen.getByRole('checkbox', { name: 'I accept the Terms of Service' }))
+      await user.click(screen.getByRole('checkbox', { name: 'I accept the Privacy Policy' }))
       await user.click(screen.getByRole('button', { name: /continue/i }))
 
       expect(await screen.findByRole('alert')).toHaveTextContent('Failed to record consent')
@@ -134,8 +138,8 @@ describe('ConsentForm', () => {
       const user = userEvent.setup()
       render(<ConsentForm />)
 
-      await user.click(screen.getByLabelText('I accept the Terms of Service'))
-      await user.click(screen.getByLabelText('I accept the Privacy Policy'))
+      await user.click(screen.getByRole('checkbox', { name: 'I accept the Terms of Service' }))
+      await user.click(screen.getByRole('checkbox', { name: 'I accept the Privacy Policy' }))
       await user.click(screen.getByRole('button', { name: /continue/i }))
 
       expect(await screen.findByRole('alert')).toHaveTextContent(
@@ -151,8 +155,8 @@ describe('ConsentForm', () => {
       const user = userEvent.setup()
       render(<ConsentForm />)
 
-      await user.click(screen.getByLabelText('I accept the Terms of Service'))
-      await user.click(screen.getByLabelText('I accept the Privacy Policy'))
+      await user.click(screen.getByRole('checkbox', { name: 'I accept the Terms of Service' }))
+      await user.click(screen.getByRole('checkbox', { name: 'I accept the Privacy Policy' }))
 
       // First submit — fails
       await user.click(screen.getByRole('button', { name: /continue/i }))
@@ -167,5 +171,22 @@ describe('ConsentForm', () => {
         expect(screen.queryByRole('alert')).not.toBeInTheDocument()
       })
     })
+  })
+
+  it('renders the server error as a danger field error', async () => {
+    vi.mocked(recordConsent).mockResolvedValue({
+      success: false,
+      error: 'Failed to record consent',
+    })
+    const user = userEvent.setup()
+    render(<ConsentForm />)
+
+    await user.click(screen.getByRole('checkbox', { name: 'I accept the Terms of Service' }))
+    await user.click(screen.getByRole('checkbox', { name: 'I accept the Privacy Policy' }))
+    await user.click(screen.getByRole('button', { name: /continue/i }))
+
+    const error = await screen.findByRole('alert')
+    expect(error).toHaveAttribute('data-slot', 'field-error')
+    expect(error).toHaveClass('text-danger')
   })
 })

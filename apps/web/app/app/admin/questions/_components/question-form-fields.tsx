@@ -94,7 +94,7 @@ export function QuestionFormFields({
         onLoReferenceChange={onLoReferenceChange}
       />
       <LabeledTextarea
-        label="Question Text *"
+        label="Question Text"
         value={questionText}
         placeholder="Enter the question..."
         rows={3}
@@ -115,7 +115,7 @@ export function QuestionFormFields({
         onCorrectOptionChange={onCorrectOptionChange}
       />
       <LabeledTextarea
-        label="Explanation"
+        label="Explanation (optional)"
         value={explanationText}
         placeholder="Explain the correct answer..."
         rows={2}

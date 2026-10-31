@@ -48,7 +48,7 @@ test('progress page updates after completing a quiz', async ({ page }) => {
 
   // Answer all 10 questions (deferred writes — no per-answer feedback)
   for (let i = 0; i < 10; i++) {
-    const answerButtons = page.locator('button:has(span.rounded-full)')
+    const answerButtons = page.locator('button[data-testid^="option-"]')
     await answerButtons.first().waitFor({ state: 'visible' })
     await answerButtons.first().click()
     await page.getByRole('button', { name: 'Submit Answer' }).first().click()

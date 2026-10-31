@@ -30,22 +30,22 @@ export function ConsentCheckbox({
         checked={checked}
         onCheckedChange={(c) => onCheckedChange(c === true)}
         disabled={disabled}
+        aria-required={required}
         aria-label={`${label} ${linkText}`}
       />
-      <label htmlFor={id} className="text-sm leading-snug cursor-pointer">
+      <label htmlFor={id} className="text-body cursor-pointer">
         {label}{' '}
         <a
           href={linkHref}
           target="_blank"
           rel="noopener noreferrer"
-          className="underline underline-offset-4 hover:text-primary"
+          className="underline underline-offset-4 hover:text-primary-text"
           onClick={(e) => e.stopPropagation()}
         >
           {linkText}
         </a>
-        {required && <span className="text-destructive"> *</span>}
         {description && (
-          <span className="mt-0.5 block text-xs text-muted-foreground">{description}</span>
+          <span className="mt-0.5 block text-caption text-muted-foreground">{description}</span>
         )}
       </label>
     </div>

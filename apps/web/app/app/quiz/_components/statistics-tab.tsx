@@ -1,5 +1,11 @@
 'use client'
 
+import { Alert, AlertAction, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { CardList, CardListRow } from '@/components/ui/card'
+import { EmptyNote } from '@/components/ui/empty'
+import { Heading } from '@/components/ui/heading'
+import { Skeleton } from '@/components/ui/skeleton'
 import type { QuestionStats } from '@/lib/queries/question-stats'
 import { useQuestionStats } from '../_hooks/use-question-stats'
 
@@ -20,27 +26,33 @@ function NotAnsweredMessage({ hasAnswered }: Readonly<{ hasAnswered: boolean }>)
   const message = hasAnswered
     ? 'No statistics available for this question yet.'
     : 'Answer this question to see statistics.'
-  return <div className="py-8 text-center text-sm text-muted-foreground">{message}</div>
+  return (
+    <EmptyNote variant="inline" className="py-8 text-center">
+      {message}
+    </EmptyNote>
+  )
 }
 
 function LoadingSkeleton() {
   return (
     <div className="space-y-3 py-4">
-      <div className="h-4 w-32 animate-pulse rounded bg-muted" />
-      <div className="h-4 w-48 animate-pulse rounded bg-muted" />
-      <div className="h-4 w-40 animate-pulse rounded bg-muted" />
+      <Skeleton className="h-4 w-32" />
+      <Skeleton className="h-4 w-48" />
+      <Skeleton className="h-4 w-40" />
     </div>
   )
 }
 
 function ErrorMessage({ message, onRetry }: Readonly<{ message: string; onRetry: () => void }>) {
   return (
-    <div className="space-y-2 py-8 text-center">
-      <p className="text-sm text-destructive">{message}</p>
-      <button type="button" onClick={onRetry} className="text-sm text-primary hover:underline">
-        Retry
-      </button>
-    </div>
+    <Alert tone="danger" className="my-4">
+      <AlertDescription>{message}</AlertDescription>
+      <AlertAction>
+        <Button type="button" variant="link" size="sm" onClick={onRetry}>
+          Retry
+        </Button>
+      </AlertAction>
+    </Alert>
   )
 }
 
@@ -50,19 +62,15 @@ function StatsDisplay({ stats }: Readonly<{ stats: QuestionStats }>) {
 
   return (
     <div className="space-y-3 py-4">
-      <h3 className="text-sm font-semibold">Your Statistics</h3>
-      <div className="divide-y divide-border rounded-lg border border-border">
+      <Heading level={3}>Your Statistics</Heading>
+      <CardList>
         <StatRow label="Times seen" value={String(stats.timesSeen)} />
         <StatRow
           label="Correct"
           value={`${stats.correctCount} (${accuracy}%)`}
-          className="text-green-600"
+          className="text-success"
         />
-        <StatRow
-          label="Incorrect"
-          value={String(stats.incorrectCount)}
-          className="text-destructive"
-        />
+        <StatRow label="Incorrect" value={String(stats.incorrectCount)} className="text-danger" />
         {stats.lastAnswered && (
           <StatRow
             label="Last answered"
@@ -73,8 +81,8 @@ function StatsDisplay({ stats }: Readonly<{ stats: QuestionStats }>) {
             })}
           />
         )}
-      </div>
-      <p className="text-xs text-muted-foreground">
+      </CardList>
+      <p className="text-caption text-muted-foreground">
         Statistics reflect your previous quiz sessions.
       </p>
     </div>
@@ -91,9 +99,9 @@ function StatRow({
   className?: string
 }>) {
   return (
-    <div className="flex justify-between px-4 py-3">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <span className={`text-sm font-semibold tabular-nums ${className ?? ''}`}>{value}</span>
-    </div>
+    <CardListRow className="flex justify-between">
+      <span className="text-body text-muted-foreground">{label}</span>
+      <span className={`text-label-strong tabular-nums ${className ?? ''}`}>{value}</span>
+    </CardListRow>
   )
 }

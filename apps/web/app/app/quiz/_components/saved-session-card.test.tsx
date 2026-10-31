@@ -68,6 +68,9 @@ describe('SavedSessionCard', () => {
     expect(
       await screen.findByText(PROGRESS_ERROR_MESSAGES.another_session_active ?? ''),
     ).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      PROGRESS_ERROR_MESSAGES.another_session_active ?? '',
+    )
     expect(mockPush).not.toHaveBeenCalled()
   })
 

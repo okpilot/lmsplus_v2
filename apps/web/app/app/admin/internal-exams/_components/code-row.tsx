@@ -37,15 +37,19 @@ export function CodeRow({
   return (
     <TableRow>
       <TableCell>
-        <Badge variant={STATUS_VARIANT[ds] ?? 'outline'} className="text-xs capitalize">
+        <Badge variant={STATUS_VARIANT[ds] ?? 'outline'} className="capitalize">
           {ds}
         </Badge>
       </TableCell>
-      <TableCell className="font-medium tracking-wider tabular-nums text-sm">{r.code}</TableCell>
+      <TableCell className="font-medium tracking-code tabular-nums">{r.code}</TableCell>
       <TableCell>{r.studentName || r.studentEmail || '—'}</TableCell>
       <TableCell>{r.subjectName || '—'}</TableCell>
-      <TableCell className="text-xs text-muted-foreground">{formatAbsolute(r.issuedAt)}</TableCell>
-      <TableCell className="text-xs text-muted-foreground">{formatAbsolute(r.expiresAt)}</TableCell>
+      <TableCell className="text-caption text-muted-foreground">
+        {formatAbsolute(r.issuedAt)}
+      </TableCell>
+      <TableCell className="text-caption text-muted-foreground">
+        {formatAbsolute(r.expiresAt)}
+      </TableCell>
       <TableCell>
         {/* Only an active code can be (re)emailed — the send action rejects
             consumed/voided/expired codes ('Code is no longer active'), so
