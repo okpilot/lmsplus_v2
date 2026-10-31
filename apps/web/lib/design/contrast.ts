@@ -45,7 +45,9 @@ export function contrastRatio(fg: string, bg: string, under = 'oklch(1 0 0)'): n
 
 /** `#rrggbb` of an opaque OKLCH colour, gamut-clipped to sRGB. */
 export function oklchToHex(value: string): string {
-  const rgb = toRgb(parseOklch(value), [1, 1, 1])
+  const colour = parseOklch(value)
+  if (colour.a < 1) throw new Error(`oklchToHex needs an opaque colour: ${value}`)
+  const rgb = toRgb(colour, [1, 1, 1])
   return `#${rgb
     .map((c) =>
       Math.round(c * 255)

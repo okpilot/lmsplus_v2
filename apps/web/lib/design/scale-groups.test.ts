@@ -27,12 +27,12 @@ const SPACING_ROLES = {
 
 const SIZES = {
   control: 'var(--control-h)',
-  'control-sm': '28px',
-  'control-lg': '48px',
-  chip: '20px',
-  avatar: '28px',
-  'icon-box': '40px',
-  'icon-box-lg': '48px',
+  'control-sm': '1.75rem',
+  'control-lg': '3rem',
+  chip: '1.25rem',
+  avatar: '1.75rem',
+  'icon-box': '2.5rem',
+  'icon-box-lg': '3rem',
   'skeleton-line': '1rem',
   'skeleton-title': '2rem',
   'skeleton-row': '3rem',
@@ -57,8 +57,8 @@ const SIZES = {
 }
 
 const CONTAINERS = {
-  'col-xs': '80px',
-  'col-code': '96px',
+  'col-xs': '5rem',
+  'col-code': '6rem',
   popover: '15rem',
   'popover-sm': '12rem',
   'menu-min': '9rem',
@@ -151,7 +151,7 @@ describe('AC1 type roles', () => {
     ['label-strong', 'label', '1.3', '600', '0em'],
     ['caption-strong', 'caption', '1.4', '500', '0em'],
     ['chip', 'overline', '1.3', '500', '0em'],
-    ['question', 'body', '1.625', '400', '0em'],
+    ['question', 'body', '1.625', '500', '0em'],
   ]
   for (const [role, base, lh, w, ls] of sameSize) {
     it(`text-${role} takes the ${base} size with lh ${lh}, weight ${w}, tracking ${ls}`, () => {
@@ -167,10 +167,10 @@ describe('AC1 type roles', () => {
     expect(scale.TYPE_DESKTOP).toMatchObject({ 'label-strong': 14, 'caption-strong': 13, chip: 12 })
   })
 
-  it('the 64rem step covers the strong roles and chip, not question', () => {
+  it('the 64rem step covers the strong roles, chip and question', () => {
     expect(desktop).toContain('--text-label-strong: 0.875rem;')
     expect(desktop).toContain('--text-caption-strong: 0.8125rem;')
     expect(desktop).toContain('--text-chip: 0.75rem;')
-    expect(desktop).not.toContain('--text-question')
+    expect(desktop).toContain('--text-question: 0.9375rem;')
   })
 })

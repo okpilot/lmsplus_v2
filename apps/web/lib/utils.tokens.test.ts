@@ -9,6 +9,7 @@ describe('AC4 cn() merges the new token groups', () => {
     ['ring offset width', 'ring-offset-4 ring-offset-focus', 'ring-offset-focus'],
     ['outline width', 'outline-4 outline-focus', 'outline-focus'],
     ['border width', 'border-4 border-emphasis', 'border-emphasis'],
+    ['border side width', 'border-t-2 border-t-emphasis', 'border-t-emphasis'],
     ['opacity', 'opacity-75 opacity-disabled', 'opacity-disabled'],
     ['stroke width', 'stroke-1 stroke-icon', 'stroke-icon'],
     ['stroke bold', 'stroke-icon stroke-icon-bold', 'stroke-icon-bold'],
@@ -33,5 +34,11 @@ describe('AC4 cn() merges the new token groups', () => {
 
   it('keeps a ring colour next to a ring width', () => {
     expect(cn('ring-ring', 'ring-focus')).toBe('ring-ring ring-focus')
+  })
+})
+
+describe('cn() keeps side border width and colour', () => {
+  it('border-t width token and colour coexist', () => {
+    expect(cn('border-t-emphasis', 'border-t-primary')).toBe('border-t-emphasis border-t-primary')
   })
 })

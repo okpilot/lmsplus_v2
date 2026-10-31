@@ -41,8 +41,10 @@ export const ALPHA_COLOURS: Record<string, { light: AlphaFill; dark: AlphaFill }
     light: { base: 'destructive', pct: 100 },
     dark: { base: 'destructive', pct: 50 },
   },
-  // bg-card, dark:bg-muted/30 (fields); heatmap future cell bg-muted/30 in both themes
+  // bg-card, dark:bg-muted/30 (fields)
   'field-fill': { light: { base: 'card', pct: 100 }, dark: { base: 'muted', pct: 30 } },
+  // bg-muted/30 (heatmap future cell), both themes
+  'data-future': { light: { base: 'muted', pct: 30 }, dark: { base: 'muted', pct: 30 } },
   // disabled:bg-muted/50, dark:disabled:bg-muted/80
   'field-disabled': { light: { base: 'muted', pct: 50 }, dark: { base: 'muted', pct: 80 } },
   // data-unchecked:bg-input, dark:data-unchecked:bg-input/80

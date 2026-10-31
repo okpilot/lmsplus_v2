@@ -57,6 +57,7 @@
   --invalid-ring: color-mix(in oklab, var(--destructive) 20%, transparent);
   --invalid-border: color-mix(in oklab, var(--destructive) 100%, transparent);
   --field-fill: color-mix(in oklab, var(--card) 100%, transparent);
+  --data-future: color-mix(in oklab, var(--muted) 30%, transparent);
   --field-disabled: color-mix(in oklab, var(--muted) 50%, transparent);
   --switch-off: color-mix(in oklab, var(--input) 100%, transparent);
   --selected-ring: color-mix(in oklab, var(--primary) 30%, transparent);
@@ -133,6 +134,7 @@
   --invalid-ring: color-mix(in oklab, var(--destructive) 40%, transparent);
   --invalid-border: color-mix(in oklab, var(--destructive) 50%, transparent);
   --field-fill: color-mix(in oklab, var(--muted) 30%, transparent);
+  --data-future: color-mix(in oklab, var(--muted) 30%, transparent);
   --field-disabled: color-mix(in oklab, var(--muted) 80%, transparent);
   --switch-off: color-mix(in oklab, var(--input) 80%, transparent);
   --selected-ring: color-mix(in oklab, var(--primary) 30%, transparent);
@@ -157,6 +159,7 @@
     --text-caption-strong: 0.8125rem;
     --text-overline: 0.75rem;
     --text-chip: 0.75rem;
+    --text-question: 0.9375rem;
   }
 }
 @theme inline {
@@ -217,6 +220,7 @@
   --color-invalid-ring: var(--invalid-ring);
   --color-invalid-border: var(--invalid-border);
   --color-field-fill: var(--field-fill);
+  --color-data-future: var(--data-future);
   --color-field-disabled: var(--field-disabled);
   --color-switch-off: var(--switch-off);
   --color-selected-ring: var(--selected-ring);
@@ -280,7 +284,7 @@
   --text-question: 1rem;
   --text-question--line-height: 1.625;
   --text-question--letter-spacing: 0em;
-  --text-question--font-weight: 400;
+  --text-question--font-weight: 500;
   --text-micro: 0.6875rem;
   --text-micro--line-height: 1.2;
   --text-micro--letter-spacing: 0em;
@@ -328,12 +332,12 @@
   --spacing-stack-sm: 0.5rem;
   --spacing-stack-lg: 1rem;
   --spacing-control: var(--control-h);
-  --spacing-control-sm: 28px;
-  --spacing-control-lg: 48px;
-  --spacing-chip: 20px;
-  --spacing-avatar: 28px;
-  --spacing-icon-box: 40px;
-  --spacing-icon-box-lg: 48px;
+  --spacing-control-sm: 1.75rem;
+  --spacing-control-lg: 3rem;
+  --spacing-chip: 1.25rem;
+  --spacing-avatar: 1.75rem;
+  --spacing-icon-box: 2.5rem;
+  --spacing-icon-box-lg: 3rem;
   --spacing-skeleton-line: 1rem;
   --spacing-skeleton-title: 2rem;
   --spacing-skeleton-row: 3rem;
@@ -369,8 +373,8 @@
   --container-stat-note: 120px;
   --container-login-note: 220px;
   --container-question-cell: 400px;
-  --container-col-xs: 80px;
-  --container-col-code: 96px;
+  --container-col-xs: 5rem;
+  --container-col-code: 6rem;
   --container-popover: 15rem;
   --container-popover-sm: 12rem;
   --container-menu-min: 9rem;

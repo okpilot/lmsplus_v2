@@ -21,7 +21,7 @@ export const TYPE_ROLES: Record<string, TypeRole> = {
   'label-strong': { min: 15, max: 16, lineHeight: 1.3, weight: 600, tracking: 0 },
   'caption-strong': { min: 13, max: 14, lineHeight: 1.4, weight: 500, tracking: 0 },
   chip: { min: 12, max: 12.5, lineHeight: 1.3, weight: 500, tracking: 0 },
-  question: { min: 16, max: 16, lineHeight: 1.625, weight: 400, tracking: 0 },
+  question: { min: 16, max: 16, lineHeight: 1.625, weight: 500, tracking: 0 },
   micro: { min: 11, max: 11, lineHeight: 1.2, weight: 400, tracking: 0 },
   chart: { min: 9, max: 9, lineHeight: 1, weight: 400, tracking: 0 },
 }
@@ -35,6 +35,7 @@ export const TYPE_DESKTOP = {
   'caption-strong': 13,
   overline: 12,
   chip: 12,
+  question: 15,
 } as const
 
 export const TRACKING = { logo: '-0.055em', code: '0.1em', normal: '0em' } as const
@@ -90,12 +91,12 @@ export const SPACING_ROLES: Record<string, number> = {
 // Component sizes -> --spacing-<k> (used by h-/w-/size-/min-h-).
 export const SIZES = {
   control: 'var(--control-h)',
-  'control-sm': '28px',
-  'control-lg': '48px',
-  chip: '20px',
-  avatar: '28px',
-  'icon-box': '40px',
-  'icon-box-lg': '48px',
+  'control-sm': '1.75rem',
+  'control-lg': '3rem',
+  chip: '1.25rem',
+  avatar: '1.75rem',
+  'icon-box': '2.5rem',
+  'icon-box-lg': '3rem',
   'skeleton-line': '1rem',
   'skeleton-title': '2rem',
   'skeleton-row': '3rem',
@@ -145,8 +146,8 @@ export const CONTAINERS = {
   'stat-note': '120px',
   'login-note': '220px',
   'question-cell': '400px',
-  'col-xs': '80px',
-  'col-code': '96px',
+  'col-xs': '5rem',
+  'col-code': '6rem',
   popover: '15rem',
   'popover-sm': '12rem',
   'menu-min': '9rem',
@@ -228,7 +229,7 @@ export const STATE = { hover: '8%', pressed: '12%' }
 export const DESKTOP_FROM = '64rem'
 export const CONTROL_HEIGHT = { phone: '44px', desktop: '36px' }
 
-// `md` and `2xl` stay stock until the namespace reset (PR 23).
+// `md`, `xl` and `2xl` stay stock until the namespace reset (PR 23).
 export const BREAKPOINTS = { sm: '40rem', lg: DESKTOP_FROM, tiny: '23.4375rem' } as const
 
 export const typeSize = (role: TypeRole) => fluid(role.min, role.max)

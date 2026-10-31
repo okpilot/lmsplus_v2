@@ -6,6 +6,7 @@ const KEYS = [
   'invalid-ring',
   'invalid-border',
   'field-fill',
+  'data-future',
   'field-disabled',
   'switch-off',
   'selected-ring',
