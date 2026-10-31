@@ -36,14 +36,16 @@ vi.mock('@/components/ui/collapsible', () => {
   function CollapsibleTrigger({
     children,
     className,
+    ...props
   }: {
     children: React.ReactNode
     className?: string
-  }) {
+  } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
     const { open, onOpenChange } = R.useContext(Ctx)
     return (
       <button
         type="button"
+        {...props}
         data-testid="collapsible-trigger"
         className={className}
         onClick={() => onOpenChange(!open)}

@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
 import type { TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
 import { TopicList } from './topic-list'
 
@@ -32,6 +33,7 @@ export function TopicTree({
   filteredBySubtopic,
   showCode = true,
 }: Readonly<TopicTreeProps>) {
+  const labelId = useId()
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
   function toggleExpand(topicId: string) {
@@ -44,17 +46,20 @@ export function TopicTree({
   }
 
   return (
-    <div className="space-y-2">
+    // biome-ignore lint/a11y/useSemanticElements: a <fieldset> brings default border/legend layout (choice-pills precedent)
+    <div role="group" aria-labelledby={labelId} className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-label text-muted-foreground">Topics</span>
+        <span id={labelId} className="text-label text-muted-foreground">
+          Topics
+        </span>
         <div className="flex items-center gap-3">
           <span className="text-caption text-muted-foreground">
             {totalQuestions} questions available
           </span>
-          <span className="flex items-center gap-1.5 text-caption-strong">
+          <Label className="gap-1.5 text-caption-strong text-foreground">
             <Checkbox checked={allSelected} onCheckedChange={onSelectAll} />
             Select all
-          </span>
+          </Label>
         </div>
       </div>
       <TopicList

@@ -1,10 +1,11 @@
 'use client'
 
 import { ChevronDown } from 'lucide-react'
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { CodeChip } from '@/components/kit/code-chip'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { Label } from '@/components/ui/label'
 import type { SubjectOption } from '@/lib/queries/quiz-query-types'
 
 type SubjectSelectProps = {
@@ -15,14 +16,15 @@ type SubjectSelectProps = {
 
 export function SubjectSelect({ subjects, value, onValueChange }: Readonly<SubjectSelectProps>) {
   const [open, setOpen] = useState(false)
+  const triggerId = useId()
   const selected = subjects.find((s) => s.id === value)
 
   return (
     <div className="space-y-stack-sm">
-      <span className="text-label text-muted-foreground">Subject</span>
+      <Label htmlFor={triggerId}>Subject</Label>
       <Collapsible open={open} onOpenChange={setOpen}>
         <CollapsibleTrigger
-          aria-label="Select a subject"
+          id={triggerId}
           data-testid="subject-trigger"
           className={`flex w-full items-center justify-between rounded-control border border-border bg-card px-3 py-2.5 text-body transition-colors hover:bg-muted ${
             open ? 'rounded-b-none border-b-transparent' : ''

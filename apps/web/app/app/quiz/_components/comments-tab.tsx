@@ -120,6 +120,7 @@ export function CommentsTab({ questionId, currentUserId }: Readonly<CommentsTabP
           onChange={(e) => setBody(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
           placeholder="Add a comment..."
+          aria-label="Add a comment"
           className="flex-1"
           disabled={submitting}
         />

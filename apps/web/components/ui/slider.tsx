@@ -11,6 +11,7 @@ function Slider({
   value,
   min = 0,
   max = 100,
+  'aria-labelledby': ariaLabelledBy,
   ...props
 }: Readonly<SliderPrimitive.Root.Props>) {
   const _values = React.useMemo(
@@ -42,6 +43,7 @@ function Slider({
         {Array.from({ length: _values.length }, (_, index) => (
           <SliderPrimitive.Thumb
             data-slot="slider-thumb"
+            aria-labelledby={ariaLabelledBy}
             // biome-ignore lint/suspicious/noArrayIndexKey: slider thumbs have fixed order
             key={index}
             className="relative block size-3 shrink-0 rounded-pill border border-ring bg-white ring-ring transition-shadow select-none after:absolute after:-inset-2 hover:ring-focus has-focus-visible:outline-solid has-focus-visible:outline-focus has-focus-visible:outline-offset-focus has-focus-visible:outline-ring active:ring-focus"

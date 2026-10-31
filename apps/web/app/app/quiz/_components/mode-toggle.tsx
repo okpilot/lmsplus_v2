@@ -1,5 +1,6 @@
 'use client'
 
+import { useId } from 'react'
 import { Button } from '@/components/ui/button'
 import type { QuizMode } from '../types'
 
@@ -28,9 +29,13 @@ export function ModeToggle({
   examAvailable = false,
   discoveryAvailable = true,
 }: Readonly<ModeToggleProps>) {
+  const labelId = useId()
   return (
-    <div className="space-y-stack-sm">
-      <span className="text-label text-muted-foreground">Mode</span>
+    // biome-ignore lint/a11y/useSemanticElements: a <fieldset> brings default border/legend layout (choice-pills precedent)
+    <div role="group" aria-labelledby={labelId} className="space-y-stack-sm">
+      <span id={labelId} className="text-label text-muted-foreground">
+        Mode
+      </span>
       <div className="flex gap-1 rounded-control bg-muted p-1">
         {MODES.map((mode) => (
           <Button

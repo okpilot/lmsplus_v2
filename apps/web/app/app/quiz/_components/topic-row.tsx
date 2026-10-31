@@ -3,6 +3,7 @@
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
 
 type TopicRowProps = {
   code: string
@@ -52,10 +53,12 @@ export function TopicRow({
       ) : (
         !indented && <span className="w-7" />
       )}
-      <Checkbox checked={checked} onCheckedChange={(c) => onCheckedChange(c === true)} />
-      <span className={`flex-1 text-body ${checked ? 'text-foreground' : 'text-muted-foreground'}`}>
+      <Label
+        className={`flex-1 gap-2 text-body ${checked ? 'text-foreground' : 'text-muted-foreground'}`}
+      >
+        <Checkbox checked={checked} onCheckedChange={(c) => onCheckedChange(c === true)} />
         {showCode ? `${code} — ${name}` : name}
-      </span>
+      </Label>
       <span className="text-caption text-muted-foreground">
         {filteredCount !== null ? (
           <>

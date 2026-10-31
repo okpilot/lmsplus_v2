@@ -1,7 +1,9 @@
 'use client'
 
+import { useId } from 'react'
 import { Button } from '@/components/ui/button'
 import { EmptyNote } from '@/components/ui/empty'
+import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 
 type QuestionCountProps = {
@@ -43,10 +45,11 @@ function CountPill({
 }
 
 export function QuestionCount({ value, max, onValueChange }: Readonly<QuestionCountProps>) {
+  const labelId = useId()
   if (max === 0) {
     return (
       <div className="space-y-stack">
-        <span className="text-label text-muted-foreground">Number of Questions</span>
+        <p className="text-label text-muted-foreground">Number of Questions</p>
         <NoQuestions />
       </div>
     )
@@ -58,10 +61,11 @@ export function QuestionCount({ value, max, onValueChange }: Readonly<QuestionCo
   return (
     <div className="space-y-stack">
       <div className="flex items-center justify-between">
-        <span className="text-label text-muted-foreground">Number of Questions</span>
+        <Label id={labelId}>Number of Questions</Label>
         <span className="text-label-strong text-primary-text">{effectiveValue}</span>
       </div>
       <Slider
+        aria-labelledby={labelId}
         value={[effectiveValue]}
         onValueChange={(v) => onValueChange(Array.isArray(v) ? (v[0] ?? 1) : v)}
         min={1}

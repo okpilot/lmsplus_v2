@@ -57,6 +57,7 @@ export function QuestionFiltersBar({ tree, filters }: Readonly<Props>) {
       <Input
         type="search"
         placeholder="Search question text..."
+        aria-label="Search questions"
         value={searchText}
         onChange={(e) => {
           const val = e.target.value

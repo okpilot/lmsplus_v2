@@ -1,4 +1,6 @@
+import { useId } from 'react'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 type Props = {
   questionNumber: string
@@ -15,11 +17,16 @@ export function QuestionMetaFields({
   onQuestionNumberChange,
   onLoReferenceChange,
 }: Readonly<Props>) {
+  const numberId = useId()
+  const loId = useId()
   return (
     <div className="grid grid-cols-2 gap-stack-lg">
       <div>
-        <span className="mb-1 block text-label text-muted-foreground">Question # (optional)</span>
+        <Label htmlFor={numberId} className="mb-1 block">
+          Question # (optional)
+        </Label>
         <Input
+          id={numberId}
           value={questionNumber}
           onChange={(e) => onQuestionNumberChange(e.target.value)}
           placeholder="e.g. MET-001"
@@ -27,8 +34,11 @@ export function QuestionMetaFields({
         />
       </div>
       <div>
-        <span className="mb-1 block text-label text-muted-foreground">LO Reference (optional)</span>
+        <Label htmlFor={loId} className="mb-1 block">
+          LO Reference (optional)
+        </Label>
         <Input
+          id={loId}
           value={loReference}
           onChange={(e) => onLoReferenceChange(e.target.value)}
           placeholder="e.g. LO 050 01 01 01"

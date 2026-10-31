@@ -42,7 +42,7 @@ async function createQuestionViaDialog(page: Page, questionText: string): Promis
   await page.getByPlaceholder('Option D').fill('The ozone layer boundary')
 
   // Mark option A as correct
-  await page.getByLabel('Mark option A as correct').click()
+  await page.getByRole('radio', { name: 'Mark option A as correct' }).click()
 
   // Fill explanation
   await page

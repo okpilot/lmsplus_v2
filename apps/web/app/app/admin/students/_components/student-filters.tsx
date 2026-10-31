@@ -112,6 +112,7 @@ export function StudentFiltersBar({ filters }: Readonly<Props>) {
       <Input
         type="search"
         placeholder="Search students..."
+        aria-label="Search students"
         value={searchText}
         onChange={(e) => setSearchText(e.target.value)}
         className="w-col-lg"

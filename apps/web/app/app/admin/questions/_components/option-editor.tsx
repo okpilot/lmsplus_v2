@@ -1,6 +1,8 @@
 'use client'
 
+import { useId } from 'react'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Radio, RadioGroup } from '@/components/ui/radio-group'
 import type { QuestionOption } from '../types'
 
@@ -21,6 +23,7 @@ export function OptionEditor({
   onCorrectChange,
   disabled,
 }: Readonly<Props>) {
+  const labelId = useId()
   function handleTextChange(idx: number, text: string) {
     const updated = options.map((opt, i) => (i === idx ? { ...opt, text } : opt))
     onChange(updated)
@@ -30,8 +33,11 @@ export function OptionEditor({
   // takes its arrow keys. The text inputs therefore sit OUTSIDE the group, in a column whose rows
   // line up with the group's rows (same height and gap).
   return (
-    <div className="space-y-stack">
-      <span className="text-label text-muted-foreground">Options</span>
+    // biome-ignore lint/a11y/useSemanticElements: a <fieldset> brings default border/legend layout (choice-pills precedent)
+    <div role="group" aria-labelledby={labelId} className="space-y-stack">
+      <span id={labelId} className="text-label text-muted-foreground">
+        Options
+      </span>
       <div className="flex gap-3">
         <div className="flex flex-1 flex-col gap-stack-lg">
           {OPTION_IDS.map((letter, idx) => (
@@ -43,6 +49,7 @@ export function OptionEditor({
                 value={options[idx]?.text ?? ''}
                 onChange={(e) => handleTextChange(idx, e.target.value)}
                 placeholder={`Option ${letter.toUpperCase()}`}
+                aria-label={`Option ${letter.toUpperCase()}`}
                 disabled={disabled}
                 className="flex-1"
               />
@@ -60,20 +67,13 @@ export function OptionEditor({
           className="flex flex-col gap-stack-lg"
         >
           {OPTION_IDS.map((letter) => (
-            // biome-ignore lint/a11y/noStaticElementInteractions: the "Correct" text is a pointer target for the radio
-            // biome-ignore lint/a11y/useKeyWithClickEvents: the keyboard path is the radio itself
-            <span
-              key={letter}
-              onClick={(e) => {
-                // Radio clicks bubble here; Base UI already fires onValueChange for them.
-                if (disabled || e.target !== e.currentTarget) return
-                onCorrectChange(letter)
-              }}
-              className="flex h-(--control-h) cursor-pointer items-center gap-1.5 text-caption text-muted-foreground"
-            >
-              <Radio value={letter} aria-label={`Mark option ${letter.toUpperCase()} as correct`} />{' '}
+            <Label key={letter} className="h-(--control-h) cursor-pointer gap-1.5 text-caption">
+              <span id={`${labelId}-mark-${letter}`} hidden>
+                {`Mark option ${letter.toUpperCase()} as correct`}
+              </span>
+              <Radio value={letter} aria-labelledby={`${labelId}-mark-${letter}`} />
               Correct
-            </span>
+            </Label>
           ))}
         </RadioGroup>
       </div>
