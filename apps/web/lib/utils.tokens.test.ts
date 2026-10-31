@@ -42,3 +42,9 @@ describe('cn() keeps side border width and colour', () => {
     expect(cn('border-t-emphasis', 'border-t-primary')).toBe('border-t-emphasis border-t-primary')
   })
 })
+
+describe('cn() opacity token', () => {
+  it('a later disabled:opacity-100 overrides disabled:opacity-disabled', () => {
+    expect(cn('disabled:opacity-disabled', 'disabled:opacity-100')).toBe('disabled:opacity-100')
+  })
+})

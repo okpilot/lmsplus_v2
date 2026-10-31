@@ -179,7 +179,9 @@ export const LAYOUT = {
   'dialog-max-h': 'calc(100dvh - 2rem)',
   'dialog-scroll-h': '85vh',
   'tab-bar-h': 'calc(3.5rem + env(safe-area-inset-bottom))',
-  'pool-bottom': 'calc(1rem + env(safe-area-inset-bottom))',
+  // Clears the reload banner like the toaster; -0.5rem cancels the gap when no banner is shown.
+  'pool-bottom':
+    'calc(1rem + env(safe-area-inset-bottom) + var(--reload-banner-h, -0.5rem) + 0.5rem)',
   'safe-bottom': 'env(safe-area-inset-bottom)',
   'half-screen': '50vh',
   'full-screen-h': '100dvh',
