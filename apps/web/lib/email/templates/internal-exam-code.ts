@@ -41,10 +41,10 @@ export function internalExamCodeEmail({
 <html lang="en">
   <body style="font-family: Arial, Helvetica, sans-serif; color: ${EMAIL_COLOURS.text}; line-height: 1.5;">
     <p>${studentName ? `Hello ${esc(studentName)},` : 'Hello,'}</p>
-    <p>You have been issued an access code for your <strong>${esc(subjectName)}</strong> internal exam.</p>
+    <p>You have been issued an access code for your <strong style="font-weight: 600;">${esc(subjectName)}</strong> internal exam.</p>
     <p>Enter this code at the exam page to begin:</p>
     <p style="font-size: 28px; font-weight: 600; letter-spacing: 4px; background: ${EMAIL_COLOURS.surface}; padding: 16px 24px; border-radius: 8px; display: inline-block;">${esc(code)}</p>
-    <p>This code expires on <strong>${esc(expiry)} (UTC)</strong>.</p>
+    <p>This code expires on <strong style="font-weight: 600;">${esc(expiry)} (UTC)</strong>.</p>
     <p>
       <a href="${esc(examUrl)}" style="display: inline-block; background: ${EMAIL_COLOURS.accent}; color: ${EMAIL_COLOURS['on-accent']}; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 600;">Go to exam</a>
     </p>

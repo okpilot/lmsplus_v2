@@ -36,13 +36,13 @@ function buildHtml(c: BodyContent): string {
 <html lang="en">
   <body style="font-family: Arial, Helvetica, sans-serif; color: ${EMAIL_COLOURS.text}; line-height: 1.5;">
     <p>${c.fullName ? `Hello ${esc(c.fullName)},` : 'Hello,'}</p>
-    <p>Use the link below to set the password for your LMS Plus account <strong>${esc(c.email)}</strong>.</p>
+    <p>Use the link below to set the password for your LMS Plus account <strong style="font-weight: 600;">${esc(c.email)}</strong>.</p>
     <p>
       <a href="${esc(c.setPasswordUrl)}" style="display: inline-block; background: ${EMAIL_COLOURS.accent}; color: ${EMAIL_COLOURS['on-accent']}; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 600;">Set my password</a>
     </p>
     <p style="color: ${EMAIL_COLOURS.muted}; font-size: 13px; word-wrap: break-word; overflow-wrap: break-word;">If the button does not work, copy and paste this link into your browser:<br />${esc(c.setPasswordUrl)}</p>
     <p>${esc(c.validity)}</p>
-    <p><strong>If the link has expired:</strong></p>
+    <p><strong style="font-weight: 600;">If the link has expired:</strong></p>
     <ol>
 ${c.steps.map((step) => `      <li>${esc(step)}</li>`).join('\n')}
     </ol>

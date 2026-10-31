@@ -52,12 +52,20 @@ describe('email templates colours', () => {
     it(`${name} uses no font-weight: bold (D3 max 600)`, () => {
       expect(html).not.toMatch(/font-weight:\s*(bold|700|800|900)/)
     })
+
+    it(`${name} sets 600 on every <strong> (client default is 700)`, () => {
+      expect(html.match(/<strong(?![^>]*font-weight:\s*600)[^>]*>/g) ?? []).toEqual([])
+    })
   }
 
-  it('muted text on the background meets WCAG AA 4.5:1', () => {
-    expect(
-      contrastRatio(COLOURS.light['muted-foreground'], COLOURS.light.background),
-    ).toBeGreaterThanOrEqual(4.5)
+  it('muted text on the mail client white meets WCAG AA 4.5:1', () => {
+    expect(contrastRatio(COLOURS.light['muted-foreground'], 'oklch(1 0 0)')).toBeGreaterThanOrEqual(
+      4.5,
+    )
+  })
+
+  it('body text on the surface code panel meets WCAG AA 4.5:1', () => {
+    expect(contrastRatio(COLOURS.light.foreground, COLOURS.light.muted)).toBeGreaterThanOrEqual(4.5)
   })
 
   it('on-accent text on the accent button meets WCAG AA 4.5:1', () => {
