@@ -57,6 +57,32 @@ const alphaDecls = (theme: 'light' | 'dark'): Decl[] =>
     return [`--${k}`, `color-mix(in oklab, var(--${base}) ${pct}%, transparent)`]
   })
 
+const spacingDecls = (): Decl[] => {
+  const out: Decl[] = []
+  for (const [name, range] of Object.entries(SPACING))
+    out.push([`--spacing-${name}`, spacingValue(range)])
+  for (const [name, v] of Object.entries(FIXED_SPACING)) out.push([`--spacing-${name}`, v])
+  for (const [i, px] of Object.values(ICON_SIZES).entries())
+    out.push([`--spacing-${ICON_SPACING_KEYS[i]}`, rem(px)])
+  for (const [name, px] of Object.entries(SPACING_ROLES)) out.push([`--spacing-${name}`, rem(px)])
+  for (const [name, v] of Object.entries(SIZES)) out.push([`--spacing-${name}`, v])
+  for (const [name, v] of Object.entries(CONTAINERS)) out.push([`--container-${name}`, v])
+  for (const [name, v] of Object.entries(LAYOUT)) out.push([`--${name}`, v])
+  return out
+}
+
+const widthDecls = (): Decl[] => {
+  const out: Decl[] = []
+  for (const [k, v] of Object.entries(WIDTHS.ring)) out.push([`--ring-width-${k}`, v])
+  for (const [k, v] of Object.entries(WIDTHS.ringOffset)) out.push([`--ring-offset-width-${k}`, v])
+  for (const [k, v] of Object.entries(WIDTHS.outline)) out.push([`--outline-width-${k}`, v])
+  for (const [k, v] of Object.entries(WIDTHS.border)) out.push([`--border-width-${k}`, v])
+  for (const [k, v] of Object.entries(OPACITY)) out.push([`--opacity-${k}`, v])
+  for (const [k, v] of Object.entries(STROKE)) out.push([`--stroke-width-${k}`, v])
+  for (const [k, v] of Object.entries(BREAKPOINTS)) out.push([`--breakpoint-${k}`, v])
+  return out
+}
+
 function themeDecls(): Decl[] {
   const out: Decl[] = [['--text-*', 'initial']]
   for (const [role, r] of Object.entries(TYPE_ROLES)) {
@@ -67,22 +93,8 @@ function themeDecls(): Decl[] {
   }
   for (const [k, v] of Object.entries(TRACKING)) out.push([`--tracking-${k}`, v])
   for (const [k, v] of Object.entries(FONT_WEIGHTS)) out.push([`--font-weight-${k}`, v])
-  for (const [name, range] of Object.entries(SPACING))
-    out.push([`--spacing-${name}`, spacingValue(range)])
-  for (const [name, v] of Object.entries(FIXED_SPACING)) out.push([`--spacing-${name}`, v])
-  for (const [i, px] of Object.values(ICON_SIZES).entries())
-    out.push([`--spacing-${ICON_SPACING_KEYS[i]}`, rem(px)])
-  for (const [name, px] of Object.entries(SPACING_ROLES)) out.push([`--spacing-${name}`, rem(px)])
-  for (const [name, v] of Object.entries(SIZES)) out.push([`--spacing-${name}`, v])
-  for (const [name, v] of Object.entries(CONTAINERS)) out.push([`--container-${name}`, v])
-  for (const [name, v] of Object.entries(LAYOUT)) out.push([`--${name}`, v])
-  for (const [k, v] of Object.entries(WIDTHS.ring)) out.push([`--ring-width-${k}`, v])
-  for (const [k, v] of Object.entries(WIDTHS.ringOffset)) out.push([`--ring-offset-width-${k}`, v])
-  for (const [k, v] of Object.entries(WIDTHS.outline)) out.push([`--outline-width-${k}`, v])
-  for (const [k, v] of Object.entries(WIDTHS.border)) out.push([`--border-width-${k}`, v])
-  for (const [k, v] of Object.entries(OPACITY)) out.push([`--opacity-${k}`, v])
-  for (const [k, v] of Object.entries(STROKE)) out.push([`--stroke-width-${k}`, v])
-  for (const [k, v] of Object.entries(BREAKPOINTS)) out.push([`--breakpoint-${k}`, v])
+  out.push(...spacingDecls())
+  out.push(...widthDecls())
   out.push(['--radius-*', 'initial'])
   for (const k of RADIUS_KEYS) out.push([`--radius-${k}`, RADIUS[k]])
   for (const [name, z] of Object.entries(Z_INDEX)) out.push([`--z-index-${name}`, z])
