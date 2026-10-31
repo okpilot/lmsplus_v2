@@ -7,8 +7,8 @@ const REMARK_PLUGINS = [remarkGfm]
 
 const MARKDOWN_COMPONENTS: Components = {
   p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-  ul: ({ children }) => <ul className="mb-2 list-disc pl-5 last:mb-0">{children}</ul>,
-  ol: ({ children }) => <ol className="mb-2 list-decimal pl-5 last:mb-0">{children}</ol>,
+  ul: ({ children }) => <ul className="mb-2 list-disc pl-prose-indent last:mb-0">{children}</ul>,
+  ol: ({ children }) => <ol className="mb-2 list-decimal pl-prose-indent last:mb-0">{children}</ol>,
   li: ({ children }) => <li className="mb-0.5">{children}</li>,
   table: ({ children }) => (
     <div className="mb-2 overflow-x-auto last:mb-0">

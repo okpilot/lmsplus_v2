@@ -22,14 +22,15 @@ describe('Button', () => {
   })
 
   it.each([
-    ['sm', 'h-7'],
-    ['icon-sm', 'size-7'],
-    ['segment', 'h-8'],
-  ] as const)('keeps the %s button visual size and adds a tap area', (size, visual) => {
+    ['sm', 'h-7', 'after:-inset-y-tap-y'],
+    ['icon-sm', 'size-7', 'after:-inset-y-tap-y'],
+    ['segment', 'h-8', 'after:-inset-y-1.5'],
+  ] as const)('keeps the %s button visual size and adds a tap area', (size, visual, insetY) => {
     render(<Button size={size}>x</Button>)
     const { className } = screen.getByRole('button')
     expect(className).toContain(visual)
     expect(className).toContain('after:absolute')
     expect(className).toContain('after:-inset-x-0.5')
+    expect(className).toContain(insetY)
   })
 })

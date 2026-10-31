@@ -95,7 +95,7 @@ export function LoginForm({ initialError, nextPath }: Readonly<LoginFormProps>) 
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Enter your password"
             required
-            className="pr-10"
+            className="pr-field-end"
           />
           <PasswordToggle shown={showPassword} onToggle={() => setShowPassword(!showPassword)} />
         </div>

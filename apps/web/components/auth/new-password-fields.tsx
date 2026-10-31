@@ -31,7 +31,7 @@ export function NewPasswordFields({
             placeholder="At least 6 characters"
             required
             autoFocus
-            className="pr-10"
+            className="pr-field-end"
           />
           <PasswordToggle
             shown={showPassword}

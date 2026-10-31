@@ -9,7 +9,7 @@ export function PrivacyPolicyContent() {
         LMS Plus is an EASA PPL training platform. We are the data controller for personal data
         processed through this service.
       </p>
-      <ul className="list-disc space-y-1 pl-5 text-body">
+      <ul className="list-disc space-y-1 pl-prose-indent text-body">
         <li>
           Controller contact:{' '}
           <a className="underline underline-offset-2" href="mailto:support@lmsplus.eu">
@@ -20,7 +20,7 @@ export function PrivacyPolicyContent() {
       </ul>
 
       <h2 className="pt-stack text-heading">2. Data We Collect</h2>
-      <ul className="list-disc space-y-1 pl-5 text-body">
+      <ul className="list-disc space-y-1 pl-prose-indent text-body">
         <li>
           <strong>Identity:</strong> name, email address, organisation membership
         </li>
@@ -35,7 +35,7 @@ export function PrivacyPolicyContent() {
       </ul>
 
       <h2 className="pt-stack text-heading">3. Legal Basis</h2>
-      <ul className="list-disc space-y-1 pl-5 text-body">
+      <ul className="list-disc space-y-1 pl-prose-indent text-body">
         <li>
           <strong>Platform operation:</strong> legitimate interest (Art. 6(1)(f))
         </li>
@@ -52,7 +52,7 @@ export function PrivacyPolicyContent() {
       <p className="text-body">
         Data is hosted on Supabase (EU region) with the following protections:
       </p>
-      <ul className="list-disc space-y-1 pl-5 text-body">
+      <ul className="list-disc space-y-1 pl-prose-indent text-body">
         <li>Encrypted at rest and in transit</li>
         <li>Access restricted to authenticated users via row-level security policies</li>
         <li>Service-role access limited to server-side administrative operations</li>
@@ -62,7 +62,7 @@ export function PrivacyPolicyContent() {
       <p className="text-body">
         We use <strong>essential cookies only</strong>:
       </p>
-      <ul className="list-disc space-y-1 pl-5 text-body">
+      <ul className="list-disc space-y-1 pl-prose-indent text-body">
         <li>An authentication session cookie (required to keep you signed in)</li>
         <li>A consent record cookie (tracks which document versions you have accepted)</li>
       </ul>
@@ -73,14 +73,14 @@ export function PrivacyPolicyContent() {
         Training records (quiz sessions, scores, and responses) are retained as required by{' '}
         <strong>EASA Part ORA</strong> for regulatory auditing purposes.
       </p>
-      <ul className="list-disc space-y-1 pl-5 text-body">
+      <ul className="list-disc space-y-1 pl-prose-indent text-body">
         <li>These records must identify the student and cannot be anonymised or deleted</li>
         <li>Deactivated accounts remain subject to this retention requirement</li>
         <li>Non-training data is retained only while your account is active</li>
       </ul>
 
       <h2 className="pt-stack text-heading">7. Who Has Access</h2>
-      <ul className="list-disc space-y-1 pl-5 text-body">
+      <ul className="list-disc space-y-1 pl-prose-indent text-body">
         <li>
           <strong>Flight school administrators:</strong> can view their students&apos; progress and
           export student data
@@ -136,7 +136,7 @@ export function PrivacyPolicyContent() {
       </p>
 
       <h2 className="pt-stack text-heading">10. Contact</h2>
-      <ul className="list-disc space-y-1 pl-5 text-body">
+      <ul className="list-disc space-y-1 pl-prose-indent text-body">
         <li>
           General enquiries:{' '}
           <a className="underline underline-offset-2" href="mailto:support@lmsplus.eu">

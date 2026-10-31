@@ -89,7 +89,7 @@ export function ChangePasswordForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="At least 6 characters"
-                className="pr-10"
+                className="pr-field-end"
                 autoComplete="new-password"
               />
               <PasswordToggle

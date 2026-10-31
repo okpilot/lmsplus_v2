@@ -18,7 +18,7 @@ export default function TermsPage() {
       <p className="text-body">
         LMS Plus is an online study aid for EASA PPL theoretical knowledge exams.
       </p>
-      <ul className="list-disc space-y-1 pl-5 text-body">
+      <ul className="list-disc space-y-1 pl-prose-indent text-body">
         <li>
           It is <strong>not</strong> a substitute for training delivered by an approved training
           organisation (ATO)
@@ -27,7 +27,7 @@ export default function TermsPage() {
       </ul>
 
       <h2 className="pt-stack text-heading">3. Accounts</h2>
-      <ul className="list-disc space-y-1 pl-5 text-body">
+      <ul className="list-disc space-y-1 pl-prose-indent text-body">
         <li>
           Accounts are provisioned by your flight school administrator — one account per student
         </li>
@@ -37,7 +37,7 @@ export default function TermsPage() {
 
       <h2 className="pt-stack text-heading">4. Acceptable Use</h2>
       <p className="text-body">You may use LMS Plus for personal study only. You must not:</p>
-      <ul className="list-disc space-y-1 pl-5 text-body">
+      <ul className="list-disc space-y-1 pl-prose-indent text-body">
         <li>Share your account credentials with others</li>
         <li>Scrape content programmatically or use automated tools to access the platform</li>
         <li>Reproduce, redistribute, or sell question bank material in any form</li>
@@ -53,7 +53,7 @@ export default function TermsPage() {
 
       <h2 className="pt-stack text-heading">6. Limitation of Liability</h2>
       <p className="text-body">LMS Plus is a study aid and:</p>
-      <ul className="list-disc space-y-1 pl-5 text-body">
+      <ul className="list-disc space-y-1 pl-prose-indent text-body">
         <li>Does not guarantee exam success</li>
         <li>
           We accept no liability for exam outcomes, scheduling decisions, or any loss arising from

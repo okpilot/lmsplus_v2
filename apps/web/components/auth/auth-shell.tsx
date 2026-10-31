@@ -10,7 +10,7 @@ type AuthShellProps = Readonly<{
 export function AuthShell({ subtitle, children }: Readonly<AuthShellProps>) {
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-8">
-      <Card className="w-full max-w-100">
+      <Card className="w-full max-w-auth">
         <CardHeader className="justify-items-center gap-2 text-center">
           <div
             aria-hidden="true"
