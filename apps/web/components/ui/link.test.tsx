@@ -27,6 +27,29 @@ describe('Link', () => {
     for (const t of tokens) expect(has(a, t), t).toBe(true)
   })
 
+  it('carries the focus ring tokens', () => {
+    render(<Link href="/x">go</Link>)
+    const a = screen.getByRole('link')
+    for (const t of [
+      'focus-visible:outline-solid',
+      'focus-visible:outline-focus',
+      'focus-visible:outline-ring',
+      'focus-visible:outline-offset-focus',
+    ])
+      expect(has(a, t), t).toBe(true)
+  })
+
+  it('lets a caller -outline-offset-focus replace the offset', () => {
+    render(
+      <Link href="/x" className="focus-visible:-outline-offset-focus">
+        go
+      </Link>,
+    )
+    const a = screen.getByRole('link')
+    expect(has(a, 'focus-visible:-outline-offset-focus')).toBe(true)
+    expect(has(a, 'focus-visible:outline-offset-focus')).toBe(false)
+  })
+
   it('forwards target and rel', () => {
     render(
       <Link href="/x" target="_blank" rel="noopener noreferrer">

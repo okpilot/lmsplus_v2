@@ -16,7 +16,7 @@ describe('Tooltip', () => {
         </Tooltip>
       </TooltipProvider>,
     )
-    const cls = screen.getByText('Tip').className
+    const cls = screen.getByText('Tip').className.split(/\s+/)
     for (const token of FLOATING_SURFACE.split(' ')) expect(cls).toContain(token)
     expect(cls).toContain('rounded-control')
     expect(cls).toContain('max-w-popover-sm')

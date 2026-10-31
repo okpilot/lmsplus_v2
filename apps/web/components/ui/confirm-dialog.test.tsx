@@ -54,4 +54,22 @@ describe('ConfirmDialog', () => {
     expect(screen.getByRole('alertdialog')).toContainElement(screen.getByRole('alert'))
     expect(screen.getByRole('alert')).toHaveTextContent('boom')
   })
+
+  it('styles Confirm destructive by default and non-destructive for tone default', () => {
+    const { unmount } = render(
+      <ConfirmDialog
+        open
+        onOpenChange={vi.fn()}
+        title="t"
+        description="d"
+        confirmLabel="Go"
+        pending={false}
+        onConfirm={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('button', { name: 'Go' }).className).toContain('bg-destructive')
+    unmount()
+    setup({ tone: 'default', confirmLabel: 'Go' })
+    expect(screen.getByRole('button', { name: 'Go' }).className).not.toContain('bg-destructive')
+  })
 })
