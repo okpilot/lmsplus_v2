@@ -72,6 +72,20 @@ describe('StudentHeader', () => {
     expect(screen.getByText('student')).toBeInTheDocument()
   })
 
+  it('shows a student role as an outlined neutral label chip', () => {
+    render(<StudentHeader student={makeStudent({ role: 'student' })} />)
+    const cls = screen.getByText('student').className.split(/\s+/)
+    expect(cls).toContain('border-border')
+    expect(cls).not.toContain('bg-info-soft')
+  })
+
+  it('shows the admin role in the info tone, as in the students list', () => {
+    render(<StudentHeader student={makeStudent({ role: 'admin' })} />)
+    const cls = screen.getByText('admin').className.split(/\s+/)
+    expect(cls).toContain('bg-info-soft')
+    expect(cls).not.toContain('border-border')
+  })
+
   it('does not render the Inactive badge when deletedAt is null', () => {
     render(<StudentHeader student={makeStudent({ deletedAt: null })} />)
     expect(screen.queryByText('Inactive')).not.toBeInTheDocument()
