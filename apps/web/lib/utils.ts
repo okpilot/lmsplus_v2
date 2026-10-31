@@ -6,10 +6,17 @@ import {
   EASING,
   ELEVATION,
   FIXED_SPACING,
+  FONT_WEIGHTS,
   ICON_SPACING_KEYS,
+  OPACITY,
   RADIUS_KEYS,
+  SIZES,
   SPACING,
+  SPACING_ROLES,
+  STROKE,
+  TRACKING,
   TYPE_ROLES,
+  WIDTHS,
   Z_INDEX,
 } from './design/scale'
 
@@ -19,7 +26,13 @@ const twMerge = extendTailwindMerge({
   extend: {
     theme: {
       text: Object.keys(TYPE_ROLES),
-      spacing: [...Object.keys(SPACING), ...Object.keys(FIXED_SPACING), ...ICON_SPACING_KEYS],
+      spacing: [
+        ...Object.keys(SPACING),
+        ...Object.keys(FIXED_SPACING),
+        ...ICON_SPACING_KEYS,
+        ...Object.keys(SPACING_ROLES),
+        ...Object.keys(SIZES),
+      ],
       radius: [...RADIUS_KEYS],
       container: Object.keys(CONTAINERS),
       ease: Object.keys(EASING),
@@ -27,6 +40,14 @@ const twMerge = extendTailwindMerge({
     },
     classGroups: {
       z: [{ z: Object.keys(Z_INDEX) }],
+      'ring-w': [{ ring: Object.keys(WIDTHS.ring) }],
+      'ring-offset-w': [{ 'ring-offset': Object.keys(WIDTHS.ringOffset) }],
+      'outline-w': [{ outline: Object.keys(WIDTHS.outline) }],
+      'border-w': [{ border: Object.keys(WIDTHS.border) }],
+      opacity: [{ opacity: Object.keys(OPACITY) }],
+      'stroke-w': [{ stroke: Object.keys(STROKE) }],
+      'font-weight': [{ font: Object.keys(FONT_WEIGHTS) }],
+      tracking: [{ tracking: Object.keys(TRACKING) }],
       duration: [{ duration: Object.keys(DURATIONS) }],
     },
   },

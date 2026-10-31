@@ -27,6 +27,56 @@ export const COLOURS: { light: Palette; dark: Palette } = {
   dark: withStates(DARK),
 }
 
+type AlphaFill = { base: ColourName; pct: number }
+
+/** Translucent state colours: `color-mix(base pct%, transparent)`. Never contrast-checked (decorative or layered). */
+export const ALPHA_COLOURS: Record<string, { light: AlphaFill; dark: AlphaFill }> = {
+  // aria-invalid:ring-destructive/20, dark:aria-invalid:ring-destructive/40
+  'invalid-ring': {
+    light: { base: 'destructive', pct: 20 },
+    dark: { base: 'destructive', pct: 40 },
+  },
+  // aria-invalid:border-destructive, dark:aria-invalid:border-destructive/50
+  'invalid-border': {
+    light: { base: 'destructive', pct: 100 },
+    dark: { base: 'destructive', pct: 50 },
+  },
+  // bg-card, dark:bg-muted/30 (fields); heatmap future cell bg-muted/30 in both themes
+  'field-fill': { light: { base: 'card', pct: 100 }, dark: { base: 'muted', pct: 30 } },
+  // disabled:bg-muted/50, dark:disabled:bg-muted/80
+  'field-disabled': { light: { base: 'muted', pct: 50 }, dark: { base: 'muted', pct: 80 } },
+  // data-unchecked:bg-input, dark:data-unchecked:bg-input/80
+  'switch-off': { light: { base: 'input', pct: 100 }, dark: { base: 'input', pct: 80 } },
+  // ring-primary/30 (diagram tap list), both themes
+  'selected-ring': { light: { base: 'primary', pct: 30 }, dark: { base: 'primary', pct: 30 } },
+  // hover:border-primary/40 (answer options), both themes
+  'primary-border-hover': {
+    light: { base: 'primary', pct: 40 },
+    dark: { base: 'primary', pct: 40 },
+  },
+  // border-primary/60 (diagram tap list), both themes
+  'primary-border-soft': {
+    light: { base: 'primary', pct: 60 },
+    dark: { base: 'primary', pct: 60 },
+  },
+  // [a]:hover:bg-destructive/20 (badge), both themes
+  'danger-soft-hover': {
+    light: { base: 'destructive', pct: 20 },
+    dark: { base: 'destructive', pct: 20 },
+  },
+  // bg-background/95 (bottom tab bar, bulk actions bar), both themes
+  glass: { light: { base: 'background', pct: 95 }, dark: { base: 'background', pct: 95 } },
+  // text-muted-foreground/30 (heatmap empty cell), both themes
+  'data-empty': {
+    light: { base: 'muted-foreground', pct: 30 },
+    dark: { base: 'muted-foreground', pct: 30 },
+  },
+  // border-foreground/60 (diagram badge), both themes
+  'diagram-line': { light: { base: 'foreground', pct: 60 }, dark: { base: 'foreground', pct: 60 } },
+  // fill-foreground/85 (runway art), both themes
+  'diagram-fill': { light: { base: 'foreground', pct: 85 }, dark: { base: 'foreground', pct: 85 } },
+}
+
 type ContrastPair = readonly [fg: ColourName, bg: ColourName, min: 3 | 4.5]
 
 const STATUSES = ['success', 'danger', 'caution', 'info'] as const

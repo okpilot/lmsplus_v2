@@ -18,14 +18,41 @@ export const TYPE_ROLES: Record<string, TypeRole> = {
   label: { min: 15, max: 16, lineHeight: 1.3, weight: 500, tracking: 0 },
   caption: { min: 13, max: 14, lineHeight: 1.4, weight: 400, tracking: 0 },
   overline: { min: 12, max: 12.5, lineHeight: 1.3, weight: 500, tracking: 0.07 },
+  'label-strong': { min: 15, max: 16, lineHeight: 1.3, weight: 600, tracking: 0 },
+  'caption-strong': { min: 13, max: 14, lineHeight: 1.4, weight: 500, tracking: 0 },
+  chip: { min: 12, max: 12.5, lineHeight: 1.3, weight: 500, tracking: 0 },
+  question: { min: 16, max: 16, lineHeight: 1.625, weight: 400, tracking: 0 },
   micro: { min: 11, max: 11, lineHeight: 1.2, weight: 400, tracking: 0 },
   chart: { min: 9, max: 9, lineHeight: 1, weight: 400, tracking: 0 },
 }
 
 // Desktop step (px) from DESKTOP_FROM; roles not listed do not step.
-export const TYPE_DESKTOP = { body: 15, label: 14, caption: 13, overline: 12 } as const
+export const TYPE_DESKTOP = {
+  body: 15,
+  label: 14,
+  'label-strong': 14,
+  caption: 13,
+  'caption-strong': 13,
+  overline: 12,
+  chip: 12,
+} as const
 
-export const TRACKING_LOGO = '-0.055em'
+export const TRACKING = { logo: '-0.055em', code: '0.1em', normal: '0em' } as const
+
+export const FONT_WEIGHTS = { normal: 400, medium: 500, semibold: 600 } as const
+
+// Border, ring and outline widths. Consumed as `ring-focus`, `border-emphasis`, ...
+export const WIDTHS = {
+  ring: { focus: '2px', select: '2px', surface: '1px' },
+  ringOffset: { focus: '2px' },
+  outline: { focus: '2px' },
+  border: { emphasis: '2px' },
+} as const
+
+export const OPACITY = { disabled: '50%' } as const
+
+// Lucide `strokeWidth` for icons.
+export const STROKE = { icon: 2, 'icon-bold': 2.5 } as const
 
 // S2 · Comfortable. [min, max] px, fluid.
 export const SPACING: Record<string, readonly [number, number]> = {
@@ -40,6 +67,57 @@ export const SPACING: Record<string, readonly [number, number]> = {
   'cell-y': [10, 10],
   'cell-x': [12, 12],
 }
+
+// Role paddings and gaps (px -> rem) -> --spacing-<k>.
+export const SPACING_ROLES: Record<string, number> = {
+  'dialog-pad': 16,
+  'card-sm': 12,
+  'prose-indent': 20,
+  'field-end': 40,
+  'tap-x': 12,
+  'tap-y': 8,
+  'nav-gap': 28,
+  'tab-clear': 96,
+  'inset-lg': 64,
+  'pad-control-sm': 8,
+  'pad-control': 12,
+  'pad-control-lg': 16,
+  'stack-xs': 4,
+  'stack-sm': 8,
+  'stack-lg': 16,
+}
+
+// Component sizes -> --spacing-<k> (used by h-/w-/size-/min-h-).
+export const SIZES = {
+  control: 'var(--control-h)',
+  'control-sm': '28px',
+  'control-lg': '48px',
+  chip: '20px',
+  avatar: '28px',
+  'icon-box': '40px',
+  'icon-box-lg': '48px',
+  'skeleton-line': '1rem',
+  'skeleton-title': '2rem',
+  'skeleton-row': '3rem',
+  'skeleton-row-lg': '4rem',
+  'skeleton-card': '6rem',
+  'skeleton-card-lg': '12rem',
+  'skeleton-chart': '16rem',
+  'skeleton-chart-lg': '24rem',
+  'skeleton-w': '12rem',
+  'skeleton-w-lg': '16rem',
+  'scroll-xs': '8rem',
+  'scroll-sm': '12rem',
+  'scroll-md': '16rem',
+  'field-min': '4rem',
+  'slider-v': '10rem',
+  'heatmap-cell': '1.875rem',
+  'heatmap-cell-md': '2.375rem',
+  'heatmap-row': '2.375rem',
+  'heatmap-row-md': '2.875rem',
+  'heatmap-label': '4.375rem',
+  'heatmap-label-md': '7.5rem',
+} as const
 
 // Fixed widths (px): session panel, setup column, saved-row progress column.
 export const FIXED_SPACING = { rail: '340px', 'setup-rail': '360px', progress: '280px' } as const
@@ -67,6 +145,13 @@ export const CONTAINERS = {
   'stat-note': '120px',
   'login-note': '220px',
   'question-cell': '400px',
+  'col-xs': '80px',
+  'col-code': '96px',
+  popover: '15rem',
+  'popover-sm': '12rem',
+  'menu-min': '9rem',
+  sidebar: '15rem',
+  auth: '25rem',
   'viewport-inset': 'calc(100vw - 2rem)',
 } as const
 
@@ -142,6 +227,9 @@ export const STATE = { hover: '8%', pressed: '12%' }
 // Tap height: 44px below 1024px, 36px from 1024px (64rem).
 export const DESKTOP_FROM = '64rem'
 export const CONTROL_HEIGHT = { phone: '44px', desktop: '36px' }
+
+// `md` and `2xl` stay stock until the namespace reset (PR 23).
+export const BREAKPOINTS = { sm: '40rem', lg: DESKTOP_FROM, tiny: '23.4375rem' } as const
 
 export const typeSize = (role: TypeRole) => fluid(role.min, role.max)
 export const spacingValue = ([min, max]: readonly [number, number]) => fluid(min, max)
