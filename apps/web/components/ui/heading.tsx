@@ -9,9 +9,7 @@ type EyebrowProps = Readonly<{
 }>
 
 function Eyebrow({ className, children }: Readonly<EyebrowProps>) {
-  return (
-    <p className={cn('text-overline uppercase text-muted-foreground', className)}>{children}</p>
-  )
+  return <p className={cn('text-overline text-muted-foreground', className)}>{children}</p>
 }
 
 type HeadingProps = Readonly<{

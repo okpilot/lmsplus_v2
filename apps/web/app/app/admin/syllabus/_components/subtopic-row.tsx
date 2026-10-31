@@ -15,7 +15,6 @@ type Props = {
   topicId: string
 }
 
-// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function SubtopicRow({ subtopic, topicId }: Readonly<Props>) {
   const [editing, setEditing] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -76,8 +75,7 @@ export function SubtopicRow({ subtopic, topicId }: Readonly<Props>) {
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          strokeWidth="2"
-          className="text-muted-foreground"
+          className="stroke-icon text-muted-foreground"
         >
           <title>Edit</title>
           <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />

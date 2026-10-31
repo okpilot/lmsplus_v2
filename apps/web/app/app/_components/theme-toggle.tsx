@@ -22,7 +22,7 @@ export function ThemeToggle() {
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
-        strokeWidth="2"
+        className="stroke-icon"
         strokeLinecap="round"
         strokeLinejoin="round"
       >

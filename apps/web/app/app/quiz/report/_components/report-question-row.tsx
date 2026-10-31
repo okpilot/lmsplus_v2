@@ -38,11 +38,11 @@ export function ReportQuestionRow({
         <div className="mt-0.5 shrink-0">
           {question.isCorrect ? (
             <Badge role="img" aria-label="Correct" tone="success" shape="circle">
-              <Check className="size-icon-sm" strokeWidth={2.5} aria-hidden />
+              <Check className="size-icon-sm stroke-icon-bold" aria-hidden />
             </Badge>
           ) : (
             <Badge role="img" aria-label="Incorrect" tone="danger" shape="circle">
-              <X className="size-icon-sm" strokeWidth={2.5} aria-hidden />
+              <X className="size-icon-sm stroke-icon-bold" aria-hidden />
             </Badge>
           )}
         </div>

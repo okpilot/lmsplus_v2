@@ -138,6 +138,13 @@ export function buildTokensCss(): string {
       ['--shadow-overlay', 'var(--elevation-overlay)'],
     ]),
     ...block('@theme', themeDecls()),
+    '@utility text-overline {',
+    '  font-size: var(--text-overline);',
+    '  line-height: var(--tw-leading, var(--text-overline--line-height));',
+    '  letter-spacing: var(--tw-tracking, var(--text-overline--letter-spacing));',
+    '  font-weight: var(--tw-font-weight, var(--text-overline--font-weight));',
+    '  text-transform: uppercase;',
+    '}',
   ]
   return `${lines.join('\n')}\n`
 }
