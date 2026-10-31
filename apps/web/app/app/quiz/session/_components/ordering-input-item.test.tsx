@@ -1,14 +1,18 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-const sortable = vi.hoisted(() => ({ isDragging: false }))
+const sortable = vi.hoisted(() => ({
+  isDragging: false,
+  activatorRef: vi.fn(),
+  onKeyDown: vi.fn(),
+}))
 
 vi.mock('@dnd-kit/sortable', () => ({
   useSortable: () => ({
     attributes: {},
-    listeners: {},
+    listeners: { onKeyDown: sortable.onKeyDown },
     setNodeRef: () => {},
-    setActivatorNodeRef: () => {},
+    setActivatorNodeRef: sortable.activatorRef,
     transform: null,
     transition: undefined,
     isDragging: sortable.isDragging,
@@ -46,5 +50,34 @@ describe('OrderingInputItem hover', () => {
   it('has a hover fill when enabled and ungraded', () => {
     sortable.isDragging = false
     expect(item().className).toContain('hover:bg-muted')
+  })
+})
+
+describe('OrderingInputItem drag handle is a bare Button', () => {
+  it('hands the rendered button to setActivatorNodeRef', () => {
+    sortable.isDragging = false
+    sortable.activatorRef.mockClear()
+    item()
+    const handle = screen.getByRole('button', { name: /reorder/i })
+    expect(sortable.activatorRef).toHaveBeenCalledWith(handle)
+    expect(handle).toHaveAttribute('type', 'button')
+  })
+
+  it('forwards keydown to the dnd-kit listener', () => {
+    sortable.isDragging = false
+    sortable.onKeyDown.mockClear()
+    item()
+    fireEvent.keyDown(screen.getByRole('button', { name: /reorder/i }), { key: ' ' })
+    expect(sortable.onKeyDown).toHaveBeenCalled()
+  })
+
+  it('keeps grab/touch classes, select-none, focus ring and no press shift', () => {
+    sortable.isDragging = false
+    item()
+    const tokens = screen.getByRole('button', { name: /reorder/i }).className.split(/\s+/)
+    expect(tokens).toContain('cursor-grab')
+    expect(tokens).toContain('touch-none')
+    expect(tokens).toContain('focus-visible:outline-focus')
+    expect(tokens).not.toContain('active:translate-y-px')
   })
 })

@@ -279,9 +279,20 @@ describe('AnswerOptions', () => {
     it('shows an outline, not a ring, on the keyboard-focused option', () => {
       render(<AnswerOptions options={OPTIONS} disabled={false} keyboardHighlightedId="a" />)
       const cls = screen.getByTestId('option-a').className
-      expect(cls).toContain('outline-focus')
-      expect(cls).toContain('outline-offset-focus')
+      const tokens = cls.split(/\s+/)
+      for (const t of ['outline-solid', 'outline-focus', 'outline-offset-focus', 'outline-ring']) {
+        expect(tokens).toContain(t)
+      }
       expect(cls).not.toMatch(/(?<![\w-])ring-(select|focus|surface)(?![\w-])/)
+    })
+
+    it('puts no bare outline tokens on a non-highlighted option', () => {
+      render(<AnswerOptions options={OPTIONS} disabled={false} keyboardHighlightedId="a" />)
+      const tokens = screen.getByTestId('option-b').className.split(/\s+/)
+      for (const t of ['outline-solid', 'outline-focus', 'outline-offset-focus', 'outline-ring']) {
+        expect(tokens).not.toContain(t)
+      }
+      expect(tokens).toContain('focus-visible:outline-focus')
     })
 
     it('does not show a keyboard highlight once an exam answer is locked', () => {
@@ -456,6 +467,28 @@ describe('AnswerOptions', () => {
           expect(node.getAttribute('class') ?? '').not.toMatch(/(green|red|emerald)-\d/)
         }
       }
+    })
+  })
+
+  describe('Button variant bare', () => {
+    it('every option is a selectable-text, focus-ringed, press-free type=button', () => {
+      render(<AnswerOptions options={OPTIONS} disabled={false} />)
+      for (const o of OPTIONS) {
+        const el = screen.getByTestId(`option-${o.id}`)
+        const tokens = el.className.split(/\s+/)
+        expect(el).toHaveAttribute('type', 'button')
+        expect(tokens).toContain('select-text')
+        expect(tokens).not.toContain('select-none')
+        expect(tokens).toContain('focus-visible:outline-focus')
+        expect(tokens).not.toContain('active:translate-y-px')
+      }
+    })
+
+    it('a result-state disabled option keeps full opacity', () => {
+      render(<AnswerOptions options={OPTIONS} disabled selectedOptionId="a" correctOptionId="b" />)
+      const tokens = screen.getByTestId('option-a').className.split(/\s+/)
+      expect(tokens).not.toContain('disabled:opacity-disabled')
+      expect(tokens).toContain('focus-visible:outline-focus')
     })
   })
 })

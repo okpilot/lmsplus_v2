@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { getSquareClassFor, getSquareStatus } from './filter-pill'
 
@@ -46,8 +47,9 @@ function renderSquare(i: number, opts: BuildSquaresOpts) {
   if ((filter === 'flagged' && !isFlagged) || (filter === 'pinned' && !isPinned)) return null
   const status = getSquareStatus({ isCurrent, isCorrect, isAnsweredInExam, isSeen })
   return (
-    <button
+    <Button
       key={qId || i}
+      variant="bare"
       type="button"
       data-testid={`grid-btn-${i}`}
       onClick={() => onNavigate(i)}
@@ -60,7 +62,7 @@ function renderSquare(i: number, opts: BuildSquaresOpts) {
       aria-label={`Question ${i + 1}${isFlagged ? ', flagged' : ''}${isPinned ? ', pinned' : ''}`}
     >
       {i + 1}
-    </button>
+    </Button>
   )
 }
 

@@ -60,8 +60,25 @@ describe('B2b-12 AC 5 phone diagram', () => {
     'apps/web/app/app/dashboard/_components/info-tooltip.tsx',
     'apps/web/app/app/quiz/_components/question-filter-toggles.tsx',
     'apps/web/app/app/quiz/session/_components/keyboard-legend.tsx',
+    'apps/web/app/app/_components/answer-options.tsx',
+    'apps/web/app/app/quiz/_components/question-grid-squares.tsx',
+    'apps/web/app/app/quiz/session/_components/ordering-input-item.tsx',
   ])('biome.json keeps no raw-button exemption for %s', (f) => {
     expect(readFileSync(path.join(REPO, 'biome.json'), 'utf8')).not.toContain(`"${f}"`)
+  })
+  it('non-test noRestrictedElements off override covers only components/ui', () => {
+    const cfg = JSON.parse(readFileSync(path.join(REPO, 'biome.json'), 'utf8')) as {
+      overrides: {
+        includes: string[]
+        linter?: { rules?: Record<string, Record<string, unknown>> }
+      }[]
+    }
+    const offs = cfg.overrides.filter(
+      (o) =>
+        o.linter?.rules?.correctness?.noRestrictedElements === 'off' &&
+        !o.includes.some((g) => g.includes('test')),
+    )
+    expect(offs.map((o) => o.includes)).toEqual([['apps/web/components/ui/**']])
   })
   it('tap UI uses no raw button', () => {
     expect(src(`${S}diagram-tap-list.tsx`)).not.toMatch(/<button[\s>]/)

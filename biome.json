@@ -145,12 +145,7 @@
       }
     },
     {
-      "includes": [
-        "apps/web/components/ui/**",
-        "apps/web/app/app/_components/answer-options.tsx",
-        "apps/web/app/app/quiz/_components/question-grid-squares.tsx",
-        "apps/web/app/app/quiz/session/_components/ordering-input-item.tsx"
-      ],
+      "includes": ["apps/web/components/ui/**"],
       "linter": {
         "rules": {
           "correctness": {

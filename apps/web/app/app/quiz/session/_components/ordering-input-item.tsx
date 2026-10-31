@@ -3,6 +3,7 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { GripVertical } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 type OrderingInputItemProps = Readonly<{
@@ -63,7 +64,8 @@ export function OrderingInputItem({
       )}
     >
       {!disabled && (
-        <button
+        <Button
+          variant="bare"
           type="button"
           ref={setActivatorNodeRef}
           aria-label={`Reorder ${text}`}
@@ -72,7 +74,7 @@ export function OrderingInputItem({
           {...listeners}
         >
           <GripVertical aria-hidden="true" className="size-icon" />
-        </button>
+        </Button>
       )}
       <span className="flex-1">{text}</span>
       {result === 'incorrect' && canonical && (

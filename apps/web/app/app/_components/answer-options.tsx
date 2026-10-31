@@ -2,6 +2,8 @@
 
 import { Check, X } from 'lucide-react'
 import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
 
@@ -116,8 +118,9 @@ export function AnswerOptions({
           !showResult && !(isExam && lockedSelection != null) && option.id === keyboardHighlightedId
 
         return (
-          <button
+          <Button
             key={option.id}
+            variant="bare"
             type="button"
             data-testid={`option-${option.id}`}
             data-selected={isSelected && !showResult ? 'true' : undefined}
@@ -125,7 +128,13 @@ export function AnswerOptions({
             data-kb-highlighted={isKeyboardHighlighted ? 'true' : undefined}
             disabled={disabled || (!!isExam && lockedSelection != null)}
             onClick={() => handleSelect(option.id)}
-            className={`flex w-full items-center gap-3 rounded-control border px-4 py-3 text-left text-body transition-colors ${card} ${isKeyboardHighlighted ? 'outline-focus outline-offset-focus outline-ring' : ''} ${disabled && !showResult ? 'opacity-disabled' : ''}`}
+            className={cn(
+              'flex w-full select-text items-center gap-3 rounded-control border px-4 py-3 text-left text-body transition-colors',
+              card,
+              isKeyboardHighlighted &&
+                'outline-solid outline-focus outline-offset-focus outline-ring',
+              disabled && !showResult && 'opacity-disabled',
+            )}
           >
             <span
               className={`flex size-7 shrink-0 items-center justify-center rounded-pill text-caption font-semibold ${circle}`}
@@ -134,7 +143,7 @@ export function AnswerOptions({
             </span>
             <span>{option.text}</span>
             <ResultMark result={result} picked={option.id === lockedSelection} />
-          </button>
+          </Button>
         )
       })}
     </div>
