@@ -196,6 +196,8 @@ describe('SortableTableHead bare button (S4a AC 2)', () => {
     )
     const btn = screen.getByRole('button')
     expect(btn).toHaveClass('focus-visible:outline-focus')
+    expect(btn).toHaveClass('focus-visible:-outline-offset-focus')
+    expect(btn).not.toHaveClass('focus-visible:outline-offset-focus')
     expect(btn).toHaveAttribute('type', 'button')
   })
 })

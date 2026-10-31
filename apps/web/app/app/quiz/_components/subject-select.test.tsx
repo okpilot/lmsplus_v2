@@ -222,6 +222,8 @@ describe('SubjectSelect bare button (S4a AC 2)', () => {
     render(<SubjectSelect subjects={SUBJECTS} value="" onValueChange={vi.fn()} />)
     for (const opt of screen.getAllByTestId('subject-option')) {
       expect(opt).toHaveClass('focus-visible:outline-focus')
+      expect(opt).toHaveClass('focus-visible:-outline-offset-focus')
+      expect(opt).not.toHaveClass('focus-visible:outline-offset-focus')
       expect(opt).toHaveAttribute('type', 'button')
     }
   })

@@ -32,7 +32,7 @@ export function SortableTableHead<T extends string>({
     >
       <Button
         variant="bare"
-        className={`flex w-full cursor-pointer items-center text-muted-foreground transition-colors hover:text-foreground ${justify}`}
+        className={`flex w-full cursor-pointer focus-visible:-outline-offset-focus items-center text-muted-foreground transition-colors hover:text-foreground ${justify}`}
         onClick={() => onSort(field)}
       >
         {label}
