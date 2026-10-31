@@ -4,6 +4,7 @@ import { useTransition } from 'react'
 import { toast } from 'sonner'
 import { CodeChip } from '@/components/kit/code-chip'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { toggleExamConfig } from '../actions/toggle-exam-config'
 import type { SubjectWithConfig } from '../types'
 
@@ -41,10 +42,10 @@ export function SubjectConfigCard({ subject, onEdit }: Readonly<Props>) {
 
   return (
     <div className="flex items-center transition-colors hover:bg-muted">
-      <button
-        type="button"
+      <Button
+        variant="bare"
         onClick={onEdit}
-        className="flex min-w-0 flex-1 items-center justify-between p-4 text-left outline-none focus-visible:outline-solid focus-visible:outline-focus focus-visible:-outline-offset-focus focus-visible:outline-ring"
+        className="flex min-w-0 flex-1 items-center justify-between p-4 text-left focus-visible:outline-solid focus-visible:outline-focus focus-visible:-outline-offset-focus focus-visible:outline-ring"
       >
         <div className="flex items-center gap-3">
           <CodeChip>{subject.code}</CodeChip>
@@ -59,19 +60,19 @@ export function SubjectConfigCard({ subject, onEdit }: Readonly<Props>) {
         ) : (
           <span className="text-body text-muted-foreground">Not configured</span>
         )}
-      </button>
+      </Button>
 
       {config && (
-        <button
-          type="button"
+        <Button
+          variant="bare"
           onClick={handleToggle}
           disabled={isPending}
-          className="relative mr-4 shrink-0 rounded-pill outline-none focus-visible:outline-solid focus-visible:outline-focus focus-visible:outline-offset-focus focus-visible:outline-ring after:absolute after:-inset-x-1 after:-inset-y-3 lg:after:hidden disabled:opacity-disabled"
+          className="relative mr-4 shrink-0 rounded-pill focus-visible:outline-solid focus-visible:outline-focus focus-visible:outline-offset-focus focus-visible:outline-ring after:absolute after:-inset-x-1 after:-inset-y-3 lg:after:hidden disabled:opacity-disabled"
         >
           <Badge tone={config.enabled ? 'success' : 'neutral'}>
             {isPending ? '...' : config.enabled ? 'Enabled' : 'Disabled'}
           </Badge>
-        </button>
+        </Button>
       )}
     </div>
   )

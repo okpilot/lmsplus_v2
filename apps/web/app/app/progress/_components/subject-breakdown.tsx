@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Button } from '@/components/ui/button'
 import { CardList } from '@/components/ui/card'
 import { EmptyNote } from '@/components/ui/empty'
 import { Meter } from '@/components/ui/meter'
@@ -31,18 +32,18 @@ function SubjectRow({ subject }: Readonly<{ subject: SubjectDetail }>) {
   return (
     <div>
       <div className="relative">
-        <button
-          type="button"
+        <Button
+          variant="bare"
           onClick={() => setExpanded(!expanded)}
           aria-expanded={expanded}
-          className="flex w-full items-center justify-between px-4 pt-3 pb-1.5 text-left outline-none after:absolute after:inset-0 focus-visible:outline-solid focus-visible:outline-focus focus-visible:-outline-offset-focus focus-visible:outline-ring"
+          className="flex w-full items-center justify-between px-4 pt-3 pb-1.5 text-left after:absolute after:inset-0 focus-visible:outline-solid focus-visible:outline-focus focus-visible:-outline-offset-focus focus-visible:outline-ring"
         >
           <span className="flex min-w-0 flex-1 items-center gap-2">
             <span className="text-caption-strong text-muted-foreground">{subject.code}</span>
             <span className="text-label">{subject.name}</span>
           </span>
           <span className="ml-3 text-muted-foreground">{expanded ? '−' : '+'}</span>
-        </button>
+        </Button>
         <div className="flex items-center gap-3 px-4 pb-3 pr-10">
           <Meter
             value={subject.masteryPercentage}

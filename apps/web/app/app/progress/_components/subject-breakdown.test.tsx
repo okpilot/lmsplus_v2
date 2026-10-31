@@ -134,3 +134,17 @@ describe('SubjectBreakdown', () => {
     )
   })
 })
+
+describe('SubjectBreakdown bare button (S4a AC 2)', () => {
+  it('row toggle uses the bare focus ring, inset offset and type=button', () => {
+    render(<SubjectBreakdown subjects={[makeSubject()]} />)
+    const [btn] = screen.getAllByRole('button')
+    if (!btn) throw new Error('no row toggle')
+    expect(btn).toHaveClass('focus-visible:outline-focus')
+    expect(btn).toHaveClass('focus-visible:-outline-offset-focus')
+    expect(btn).not.toHaveClass('focus-visible:outline-offset-focus')
+    expect(btn).toHaveAttribute('type', 'button')
+    const tokens = btn.className.split(/\s+/).filter(Boolean)
+    expect(new Set(tokens).size).toBe(tokens.length)
+  })
+})

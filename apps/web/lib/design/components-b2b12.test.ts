@@ -161,3 +161,14 @@ describe('B2b-12 AC 11 decision 189', () => {
     expect(line).not.toContain('every text field')
   })
 })
+
+describe('S4a AC 1/4 raw-button exemptions removed', () => {
+  it.each([
+    'apps/web/app/app/admin/exam-config/_components/subject-config-card.tsx',
+    'apps/web/app/app/progress/_components/subject-breakdown.tsx',
+    'apps/web/app/app/quiz/_components/subject-select.tsx',
+    'apps/web/components/sortable-table-head.tsx',
+  ])('biome.json keeps no raw-button exemption for %s', (f) => {
+    expect(readFileSync(path.join(REPO, 'biome.json'), 'utf8')).not.toContain(`"${f}"`)
+  })
+})

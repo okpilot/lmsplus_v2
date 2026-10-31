@@ -216,3 +216,13 @@ describe('SubjectSelect label and code chip', () => {
     expect(container.innerHTML).not.toContain('bg-primary/15')
   })
 })
+
+describe('SubjectSelect bare button (S4a AC 2)', () => {
+  it('option rows use the bare focus ring and type=button', () => {
+    render(<SubjectSelect subjects={SUBJECTS} value="" onValueChange={vi.fn()} />)
+    for (const opt of screen.getAllByTestId('subject-option')) {
+      expect(opt).toHaveClass('focus-visible:outline-focus')
+      expect(opt).toHaveAttribute('type', 'button')
+    }
+  })
+})

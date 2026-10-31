@@ -176,3 +176,26 @@ describe('SortableTableHead', () => {
     expect(screen.getByRole('button')).toHaveClass('justify-start')
   })
 })
+
+describe('SortableTableHead bare button (S4a AC 2)', () => {
+  it('uses the bare focus ring and type=button', () => {
+    render(
+      <table>
+        <thead>
+          <tr>
+            <SortableTableHead
+              field={'name' as TestField}
+              label="Name"
+              activeSort={'name' as TestField}
+              activeDir="asc"
+              onSort={vi.fn()}
+            />
+          </tr>
+        </thead>
+      </table>,
+    )
+    const btn = screen.getByRole('button')
+    expect(btn).toHaveClass('focus-visible:outline-focus')
+    expect(btn).toHaveAttribute('type', 'button')
+  })
+})

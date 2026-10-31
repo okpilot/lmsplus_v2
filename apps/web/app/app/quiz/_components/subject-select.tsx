@@ -3,6 +3,7 @@
 import { ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 import { CodeChip } from '@/components/kit/code-chip'
+import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import type { SubjectOption } from '@/lib/queries/quiz-query-types'
 
@@ -44,9 +45,9 @@ export function SubjectSelect({ subjects, value, onValueChange }: Readonly<Subje
         <CollapsibleContent className="overflow-hidden transition-all duration-fast ease-standard data-ending-style:h-0 data-starting-style:h-0">
           <div className="divide-y divide-border rounded-b-card border border-t-0 border-border">
             {subjects.map((s) => (
-              <button
+              <Button
                 key={s.id}
-                type="button"
+                variant="bare"
                 data-testid="subject-option"
                 onClick={() => {
                   if (s.id !== value) onValueChange(s.id)
@@ -64,7 +65,7 @@ export function SubjectSelect({ subjects, value, onValueChange }: Readonly<Subje
                 >
                   {s.name}
                 </span>
-              </button>
+              </Button>
             ))}
           </div>
         </CollapsibleContent>

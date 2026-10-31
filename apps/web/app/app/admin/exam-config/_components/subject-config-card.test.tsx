@@ -255,3 +255,21 @@ describe('SubjectConfigCard code chip', () => {
     expect(chip).toHaveTextContent('AGK')
   })
 })
+
+describe('SubjectConfigCard bare buttons (S4a AC 2)', () => {
+  it('every button uses the bare focus ring and type=button', () => {
+    render(<SubjectConfigCard subject={subjectWithConfig} onEdit={vi.fn()} />)
+    const buttons = screen.getAllByRole('button')
+    expect(buttons.length).toBeGreaterThanOrEqual(2)
+    for (const b of buttons) {
+      expect(b).toHaveClass('focus-visible:outline-focus')
+      expect(b).toHaveAttribute('type', 'button')
+    }
+  })
+  it('enable toggle keeps disabled:opacity-disabled', () => {
+    render(<SubjectConfigCard subject={subjectWithConfig} onEdit={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'Enabled' }).className).toContain(
+      'disabled:opacity-disabled',
+    )
+  })
+})

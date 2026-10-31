@@ -1,5 +1,6 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
 import { TableHead } from '@/components/ui/table'
 
 export type SortableTableHeadProps<T extends string> = Readonly<{
@@ -29,14 +30,14 @@ export function SortableTableHead<T extends string>({
       className={className}
       aria-sort={isActive ? (activeDir === 'asc' ? 'ascending' : 'descending') : 'none'}
     >
-      <button
-        type="button"
-        className={`flex w-full cursor-pointer items-center text-muted-foreground select-none transition-colors hover:text-foreground ${justify}`}
+      <Button
+        variant="bare"
+        className={`flex w-full cursor-pointer items-center text-muted-foreground transition-colors hover:text-foreground ${justify}`}
         onClick={() => onSort(field)}
       >
         {label}
         {indicator}
-      </button>
+      </Button>
     </TableHead>
   )
 }
