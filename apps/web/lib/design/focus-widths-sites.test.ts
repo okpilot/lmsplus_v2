@@ -93,24 +93,36 @@ describe('PR18 focus ring and width tokens', () => {
     expect(s).toContain('focus-visible:-outline-offset-focus')
   })
 
-  it.each([
-    'app/app/admin/dashboard/_components/recent-activity-list.tsx',
-    'components/ui/tabs.tsx',
-  ])('%s focuses with outline-focus and outline-offset-focus', (f) => {
-    const s = read(f)
+  it.each(['app/app/admin/dashboard/_components/recent-activity-list.tsx'])(
+    '%s focuses with outline-focus and an inset -outline-offset-focus',
+    (f) => {
+      const s = read(f)
+      expect(s).toContain('focus-visible:outline-focus')
+      expect(s).toContain('focus-visible:-outline-offset-focus')
+    },
+  )
+
+  it('tabs focus with outline-focus and outline-offset-focus', () => {
+    const s = read('components/ui/tabs.tsx')
     expect(s).toContain('focus-visible:outline-focus')
     expect(s).toContain('focus-visible:outline-offset-focus')
   })
 
   it.each([
-    'app/app/admin/exam-config/_components/subject-config-card.tsx',
-    'app/app/progress/_components/subject-breakdown.tsx',
-    'app/app/reports/_components/session-card.tsx',
-  ])('%s focuses with an outside ring-focus ring', (f) => {
-    const s = read(f)
-    expect(s).toContain('focus-visible:ring-focus')
-    expect(s).toContain('focus-visible:ring-offset-focus')
-    expect(s).toContain('focus-visible:ring-offset-background')
+    ['app/app/admin/exam-config/_components/subject-config-card.tsx', 47],
+    ['app/app/progress/_components/subject-breakdown.tsx', 38],
+    ['app/app/reports/_components/session-card.tsx', 17],
+  ])('%s row focuses with an inset outline (line %i)', (f, line) => {
+    const l = read(f).split('\n')[line - 1]
+    expect(l).toContain('focus-visible:outline-focus')
+    expect(l).toContain('focus-visible:-outline-offset-focus')
+    expect(l).not.toContain('ring-offset-background')
+  })
+
+  it('subject-config-card pill toggle keeps the outside ring', () => {
+    const l = read('app/app/admin/exam-config/_components/subject-config-card.tsx').split('\n')[68]
+    expect(l).toContain('focus-visible:ring-focus')
+    expect(l).toContain('focus-visible:ring-offset-focus')
   })
 
   it('width tokens replace ring-1, ring-2, border-2 and z-10', () => {
@@ -130,11 +142,10 @@ describe('PR18 focus ring and width tokens', () => {
     expect(read('app/app/_components/answer-options.tsx')).toContain('outline-focus')
   })
 
-  it('CardList rounds first and last child instead of clipping', () => {
+  it('CardList keeps its clip', () => {
     const s = read('components/ui/card.tsx')
-    expect(s).toContain('*:first:rounded-t-card')
-    expect(s).toContain('*:last:rounded-b-card')
-    expect(s).not.toMatch(/divide-border[^'"`]*overflow-hidden|overflow-hidden[^'"`]*divide-border/)
+    expect(s).toContain("'gap-0 overflow-hidden py-0 divide-y divide-border'")
+    expect(s).not.toContain('*:first:rounded-t-card')
   })
 
   it('recent-activity-list does not clip and does not round its rows', () => {

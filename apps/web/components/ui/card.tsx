@@ -30,10 +30,7 @@ function CardList({
     <Card
       {...props}
       data-slot="card-list"
-      className={cn(
-        'gap-0 py-0 divide-y divide-border *:first:rounded-t-card *:last:rounded-b-card',
-        className,
-      )}
+      className={cn('gap-0 overflow-hidden py-0 divide-y divide-border', className)}
     />
   )
 }

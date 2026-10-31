@@ -36,7 +36,7 @@ function ActivityRow({ session }: Readonly<{ session: RecentSession }>) {
   return (
     <CardListRow
       render={<Link href={`/app/admin/dashboard/sessions/${session.sessionId}`} />}
-      className="flex w-full items-center justify-between gap-3 text-label text-left transition-colors hover:bg-accent focus-visible:outline focus-visible:outline-focus focus-visible:outline-offset-focus focus-visible:outline-ring"
+      className="flex w-full items-center justify-between gap-3 text-label text-left transition-colors hover:bg-accent focus-visible:outline focus-visible:outline-focus focus-visible:-outline-offset-focus focus-visible:outline-ring"
     >
       <div className="min-w-0 flex-1">
         <p className="font-medium truncate">{session.studentName ?? 'Unknown student'}</p>

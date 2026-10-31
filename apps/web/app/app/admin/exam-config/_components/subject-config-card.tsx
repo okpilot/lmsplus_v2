@@ -44,7 +44,7 @@ export function SubjectConfigCard({ subject, onEdit }: Readonly<Props>) {
       <button
         type="button"
         onClick={onEdit}
-        className="flex min-w-0 flex-1 items-center justify-between p-4 text-left outline-none focus-visible:ring-focus focus-visible:ring-offset-focus focus-visible:ring-offset-background focus-visible:ring-ring"
+        className="flex min-w-0 flex-1 items-center justify-between p-4 text-left outline-none focus-visible:outline-focus focus-visible:-outline-offset-focus focus-visible:outline-ring"
       >
         <div className="flex items-center gap-3">
           <CodeChip>{subject.code}</CodeChip>
