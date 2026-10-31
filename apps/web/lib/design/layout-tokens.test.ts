@@ -33,8 +33,9 @@ describe('layout tokens (AC 1)', () => {
     })
   }
 
-  it('pool-bottom clears the safe area, not a tab bar', () => {
+  it('pool-bottom clears the safe area and the reload banner, not a tab bar', () => {
     expect(decl('pool-bottom')).toContain('safe-area-inset-bottom')
+    expect(decl('pool-bottom')).toContain('var(--reload-banner-h, -0.5rem) + 0.5rem')
     expect(decl('pool-bottom')).not.toContain('tab-bar-h')
   })
 
