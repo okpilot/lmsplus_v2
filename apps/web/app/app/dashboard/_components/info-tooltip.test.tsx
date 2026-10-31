@@ -72,7 +72,7 @@ describe('InfoTooltip floating surface', () => {
     render(<InfoTooltip {...BASE_PROPS} />)
     await userEvent.click(trigger())
     const el = await screen.findByRole('dialog')
-    expect(el).toHaveClass('ring-1', 'shadow-raised', 'text-caption')
+    expect(el).toHaveClass('ring-surface', 'shadow-raised', 'text-caption')
     expect(el.className).not.toMatch(/(^|\s)border(\s|$)/)
   })
 })

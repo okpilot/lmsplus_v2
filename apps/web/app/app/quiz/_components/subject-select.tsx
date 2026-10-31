@@ -52,7 +52,7 @@ export function SubjectSelect({ subjects, value, onValueChange }: Readonly<Subje
                   if (s.id !== value) onValueChange(s.id)
                   setOpen(false)
                 }}
-                className={`flex w-full items-center gap-2.5 border-l-2 px-3 py-2.5 text-body transition-colors hover:bg-muted ${
+                className={`flex w-full items-center gap-2.5 border-l-emphasis px-3 py-2.5 text-body transition-colors hover:bg-muted ${
                   s.id === value ? 'border-l-primary bg-primary-soft' : 'border-l-transparent'
                 }`}
               >

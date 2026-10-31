@@ -6,15 +6,17 @@ import { cn } from '@/lib/utils'
 
 function Table({ className, ...props }: Readonly<React.ComponentProps<'table'>>) {
   return (
-    <div
-      data-slot="table-container"
-      className="relative w-full overflow-x-auto rounded-card border border-border bg-card"
-    >
-      <table
-        data-slot="table"
-        className={cn('w-full caption-bottom text-body', className)}
-        {...props}
-      />
+    <div data-slot="table-scroller" className="-m-1 overflow-x-auto p-1">
+      <div
+        data-slot="table-container"
+        className="relative w-full rounded-card border border-border bg-card"
+      >
+        <table
+          data-slot="table"
+          className={cn('w-full caption-bottom text-body', className)}
+          {...props}
+        />
+      </div>
     </div>
   )
 }

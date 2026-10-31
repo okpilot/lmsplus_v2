@@ -35,7 +35,7 @@ function SubjectRow({ subject }: Readonly<{ subject: SubjectDetail }>) {
           type="button"
           onClick={() => setExpanded(!expanded)}
           aria-expanded={expanded}
-          className="flex w-full items-center justify-between px-4 pt-3 pb-1.5 text-left outline-none after:absolute after:inset-0 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+          className="flex w-full items-center justify-between px-4 pt-3 pb-1.5 text-left outline-none after:absolute after:inset-0 focus-visible:ring-focus focus-visible:ring-offset-focus focus-visible:ring-offset-background focus-visible:ring-ring"
         >
           <span className="flex min-w-0 flex-1 items-center gap-2">
             <span className="text-caption-strong text-muted-foreground">{subject.code}</span>

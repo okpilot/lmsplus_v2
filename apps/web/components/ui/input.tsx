@@ -19,7 +19,7 @@ function Input({ className, type, size = 'default', ...props }: Readonly<InputPr
       type={type}
       data-slot="input"
       className={cn(
-        'w-full min-w-0 border border-input bg-field-fill transition-colors outline-none file:mr-2 file:inline-flex file:h-6 file:rounded-inner file:border file:border-input file:bg-card file:px-2 file:text-label file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring disabled:cursor-not-allowed disabled:bg-field-disabled disabled:opacity-disabled aria-invalid:border-invalid-border aria-invalid:ring-3 aria-invalid:ring-invalid-ring',
+        'w-full min-w-0 border border-input bg-field-fill transition-colors outline-none file:mr-2 file:inline-flex file:h-6 file:rounded-inner file:border file:border-input file:bg-card file:px-2 file:text-label file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-focus focus-visible:ring-ring focus-visible:ring-offset-focus focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:bg-field-disabled disabled:opacity-disabled aria-invalid:border-invalid-border aria-invalid:ring-focus aria-invalid:ring-invalid-ring',
         SIZE_CLASSES[size],
         className,
       )}

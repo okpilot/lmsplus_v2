@@ -279,7 +279,7 @@ describe('AnswerOptions', () => {
     it('shows an outline, not a ring, on the keyboard-focused option', () => {
       render(<AnswerOptions options={OPTIONS} disabled={false} keyboardHighlightedId="a" />)
       const cls = screen.getByTestId('option-a').className
-      expect(cls).toContain('outline-2')
+      expect(cls).toContain('outline-focus')
       expect(cls).not.toContain('ring-2')
     })
 
@@ -384,7 +384,7 @@ describe('AnswerOptions', () => {
         />,
       )
       const locked = screen.getByTestId('option-a').className.split(/\s+/).sort()
-      for (const c of ['border-primary', 'ring-1', 'ring-primary']) {
+      for (const c of ['border-primary', 'ring-surface', 'ring-primary']) {
         expect(locked).toContain(c)
       }
       expect(locked.filter((c) => c.startsWith('border') || c.startsWith('ring'))).toEqual(

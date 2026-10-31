@@ -103,7 +103,7 @@ describe('HeatmapCell', () => {
       render(<HeatmapCell {...todayProps} />)
       const cell = screen.getByTestId(`heatmap-cell-${todayProps.day}`)
       const inner = cell.firstElementChild
-      expect(inner?.className).toMatch(/ring-2/)
+      expect(inner?.className).toMatch(/ring-select/)
       expect(inner?.className).toMatch(/ring-ring/)
     })
 

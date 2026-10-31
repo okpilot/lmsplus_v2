@@ -14,7 +14,7 @@ function Card({
       data-slot="card"
       data-size={size}
       className={cn(
-        'group/card flex flex-col gap-4 overflow-visible rounded-card bg-card py-card text-body text-card-foreground ring-1 ring-border has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:gap-card-sm data-[size=sm]:py-card-sm data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-card *:[img:last-child]:rounded-b-card',
+        'group/card flex flex-col gap-4 overflow-visible rounded-card bg-card py-card text-body text-card-foreground ring-surface ring-border has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:gap-card-sm data-[size=sm]:py-card-sm data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-card *:[img:last-child]:rounded-b-card',
         className,
       )}
       {...props}
@@ -30,7 +30,10 @@ function CardList({
     <Card
       {...props}
       data-slot="card-list"
-      className={cn('gap-0 overflow-hidden py-0 divide-y divide-border', className)}
+      className={cn(
+        'gap-0 py-0 divide-y divide-border *:first:rounded-t-card *:last:rounded-b-card',
+        className,
+      )}
     />
   )
 }

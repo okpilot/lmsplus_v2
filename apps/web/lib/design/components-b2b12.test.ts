@@ -101,7 +101,7 @@ describe('B2b-12 AC 8 popover consumers', () => {
   it('popover primitive exists and carries the overlay look', () => {
     const s = src('components/ui/popover.tsx')
     expect(s).toContain('@base-ui/react/popover')
-    expect(s).toContain('ring-1 ring-border')
+    expect(s).toContain('ring-surface ring-border')
     expect(s).toContain('shadow-raised')
     expect(s).toContain('bg-popover')
   })

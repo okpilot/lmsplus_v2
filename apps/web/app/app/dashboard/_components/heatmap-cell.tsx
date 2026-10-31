@@ -15,7 +15,7 @@ export function HeatmapCell({
   isFuture,
   isToday,
 }: Readonly<HeatmapCellProps>) {
-  const ring = isToday ? ' ring-2 ring-ring' : ''
+  const ring = isToday ? ' ring-select ring-ring' : ''
   const hasActivity = !isFuture && total > 0
 
   const cellBg = isFuture ? 'bg-data-future' : hasActivity ? 'bg-muted' : 'border border-border'

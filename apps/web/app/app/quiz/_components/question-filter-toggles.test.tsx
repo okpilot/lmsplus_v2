@@ -16,7 +16,7 @@ describe('FilterHint floating surface', () => {
     )
     await userEvent.hover(screen.getByRole('button', { name: /Info about Calculations/ }))
     const el = await screen.findByText('Needs a calculator')
-    expect(el).toHaveClass('ring-1', 'shadow-raised', 'bg-popover')
+    expect(el).toHaveClass('ring-surface', 'shadow-raised', 'bg-popover')
     expect(el.className).not.toMatch(/(^|\s)border(\s|$)/)
   })
 

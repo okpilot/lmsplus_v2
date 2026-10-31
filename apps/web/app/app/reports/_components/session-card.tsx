@@ -14,7 +14,7 @@ export function SessionCard({ session: s }: Readonly<{ session: SessionReport }>
   return (
     <CardListRow
       render={<Link href={reportUrl(s.mode, s.id, s.subjectCode)} prefetch={false} />}
-      className="block transition-colors hover:bg-accent outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+      className="block transition-colors hover:bg-accent outline-none focus-visible:ring-focus focus-visible:ring-offset-focus focus-visible:ring-offset-background focus-visible:ring-ring"
     >
       <div className="flex items-start justify-between">
         <p className="font-medium">{s.subjectName ?? '\u2014'}</p>

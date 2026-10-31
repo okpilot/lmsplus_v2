@@ -27,7 +27,7 @@ const STATUS_CLASS: Record<SquareStatus, string> = {
 
 export function getSquareClassFor(status: SquareStatus, isCurrent: boolean) {
   const base = STATUS_CLASS[status]
-  return isCurrent ? `${base} ring-2 ring-primary` : base
+  return isCurrent ? `${base} ring-select ring-primary` : base
 }
 
 function FilterPill({

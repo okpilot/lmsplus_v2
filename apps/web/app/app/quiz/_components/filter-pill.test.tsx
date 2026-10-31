@@ -37,9 +37,9 @@ describe('getSquareClassFor', () => {
     expect(cls).toContain('text-muted-foreground')
   })
 
-  it('adds ring-2 ring-primary on the current square', () => {
+  it('adds ring-select ring-primary on the current square', () => {
     const cls = getSquareClass({ isCurrent: true, isCorrect: null })
-    expect(cls).toContain('ring-2 ring-primary')
+    expect(cls).toContain('ring-select ring-primary')
     expect(cls).not.toContain('bg-primary')
   })
 

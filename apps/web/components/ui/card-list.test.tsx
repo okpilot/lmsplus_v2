@@ -18,7 +18,7 @@ describe('CardList', () => {
       'divide-y',
       'divide-border',
       'rounded-card',
-      'ring-1',
+      'ring-surface',
       'ring-border',
       'extra',
     ]) {

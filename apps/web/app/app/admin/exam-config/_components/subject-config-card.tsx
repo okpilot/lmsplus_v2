@@ -44,7 +44,7 @@ export function SubjectConfigCard({ subject, onEdit }: Readonly<Props>) {
       <button
         type="button"
         onClick={onEdit}
-        className="flex min-w-0 flex-1 items-center justify-between p-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        className="flex min-w-0 flex-1 items-center justify-between p-4 text-left outline-none focus-visible:ring-focus focus-visible:ring-offset-focus focus-visible:ring-offset-background focus-visible:ring-ring"
       >
         <div className="flex items-center gap-3">
           <CodeChip>{subject.code}</CodeChip>
@@ -66,7 +66,7 @@ export function SubjectConfigCard({ subject, onEdit }: Readonly<Props>) {
           type="button"
           onClick={handleToggle}
           disabled={isPending}
-          className="relative mr-4 shrink-0 rounded-pill outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring after:absolute after:-inset-x-1 after:-inset-y-3 lg:after:hidden disabled:opacity-disabled"
+          className="relative mr-4 shrink-0 rounded-pill outline-none focus-visible:ring-focus focus-visible:ring-offset-focus focus-visible:ring-offset-background focus-visible:ring-ring after:absolute after:-inset-x-1 after:-inset-y-3 lg:after:hidden disabled:opacity-disabled"
         >
           <Badge tone={config.enabled ? 'success' : 'neutral'}>
             {isPending ? '...' : config.enabled ? 'Enabled' : 'Disabled'}

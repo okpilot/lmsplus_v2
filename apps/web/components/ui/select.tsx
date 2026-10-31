@@ -42,7 +42,7 @@ function SelectTrigger({
       data-slot="select-trigger"
       data-size={size}
       className={cn(
-        "relative flex w-fit items-center justify-between gap-1.5 rounded-control border border-input bg-field-fill py-2 pr-2 pl-2.5 text-body whitespace-nowrap transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-disabled aria-invalid:border-invalid-border aria-invalid:ring-3 aria-invalid:ring-invalid-ring data-placeholder:text-muted-foreground data-[size=default]:h-(--control-h) data-[size=sm]:h-7 data-[size=sm]:rounded-control data-[size=sm]:after:absolute data-[size=sm]:after:-inset-x-0.5 data-[size=sm]:after:-inset-y-tap-y lg:after:hidden *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:hover:bg-foreground/(--state-hover) [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-icon",
+        "relative flex w-fit items-center justify-between gap-1.5 rounded-control border border-input bg-field-fill py-2 pr-2 pl-2.5 text-body whitespace-nowrap transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-focus focus-visible:ring-ring focus-visible:ring-offset-focus focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-disabled aria-invalid:border-invalid-border aria-invalid:ring-focus aria-invalid:ring-invalid-ring data-placeholder:text-muted-foreground data-[size=default]:h-(--control-h) data-[size=sm]:h-7 data-[size=sm]:rounded-control data-[size=sm]:after:absolute data-[size=sm]:after:-inset-x-0.5 data-[size=sm]:after:-inset-y-tap-y lg:after:hidden *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:hover:bg-foreground/(--state-hover) [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-icon",
         className,
       )}
       {...props}
@@ -85,7 +85,7 @@ function SelectContent({
           data-slot="select-content"
           data-align-trigger={alignItemWithTrigger}
           className={cn(
-            'relative isolate z-dropdown max-h-(--available-height) w-(--anchor-width) min-w-36 origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-control bg-overlay text-overlay-foreground shadow-raised ring-1 ring-border duration-fast data-[align-trigger=true]:animate-none data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
+            'relative isolate z-dropdown max-h-(--available-height) w-(--anchor-width) min-w-36 origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-control bg-overlay text-overlay-foreground shadow-raised ring-surface ring-border duration-fast data-[align-trigger=true]:animate-none data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
             className,
           )}
           {...props}
@@ -151,7 +151,7 @@ function SelectScrollUpButton({
     <SelectPrimitive.ScrollUpArrow
       data-slot="select-scroll-up-button"
       className={cn(
-        "top-0 z-10 flex w-full cursor-default items-center justify-center bg-overlay py-1 [&_svg:not([class*='size-'])]:size-icon",
+        "top-0 z-sticky flex w-full cursor-default items-center justify-center bg-overlay py-1 [&_svg:not([class*='size-'])]:size-icon",
         className,
       )}
       {...props}
@@ -169,7 +169,7 @@ function SelectScrollDownButton({
     <SelectPrimitive.ScrollDownArrow
       data-slot="select-scroll-down-button"
       className={cn(
-        "bottom-0 z-10 flex w-full cursor-default items-center justify-center bg-overlay py-1 [&_svg:not([class*='size-'])]:size-icon",
+        "bottom-0 z-sticky flex w-full cursor-default items-center justify-center bg-overlay py-1 [&_svg:not([class*='size-'])]:size-icon",
         className,
       )}
       {...props}

@@ -52,10 +52,10 @@ describe('ActivityHeatmap', () => {
     expect(cell.querySelector('.text-danger')?.textContent).toBe('2')
   })
 
-  it('marks today with ring-2 ring-ring', () => {
+  it('marks today with ring-select', () => {
     render(<ActivityHeatmap data={[makeDay('2026-03-18', 5)]} />)
     // Day 18 cell should have the ring
-    const cells = document.querySelectorAll('.ring-2.ring-ring')
+    const cells = document.querySelectorAll('.ring-select')
     expect(cells.length).toBe(1)
   })
 

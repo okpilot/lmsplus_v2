@@ -47,7 +47,7 @@ function renderIt() {
 describe('ReportsList surfaces', () => {
   it('desktop table wrapper has no border class', () => {
     const { container } = renderIt()
-    const wrap = container.querySelector('[data-slot="table-container"]')
+    const wrap = container.querySelector('[data-slot="table-scroller"]')
       ?.parentElement as HTMLElement
     expect(wrap.className.split(/\s+/)).not.toContain('border')
     expect(wrap.className).toContain('hidden')

@@ -26,7 +26,7 @@ type AnswerOptionsProps = {
 }
 
 const SELECTED_STYLE = {
-  card: 'border-primary ring-1 ring-primary text-primary-text',
+  card: 'border-primary ring-surface ring-primary text-primary-text',
   circle: 'bg-primary text-primary-foreground',
 }
 
@@ -125,7 +125,7 @@ export function AnswerOptions({
             data-kb-highlighted={isKeyboardHighlighted ? 'true' : undefined}
             disabled={disabled || (!!isExam && lockedSelection != null)}
             onClick={() => handleSelect(option.id)}
-            className={`flex w-full items-center gap-3 rounded-control border px-4 py-3 text-left text-body transition-colors ${card} ${isKeyboardHighlighted ? 'outline-2 outline-offset-2 outline-ring' : ''} ${disabled && !showResult ? 'opacity-disabled' : ''}`}
+            className={`flex w-full items-center gap-3 rounded-control border px-4 py-3 text-left text-body transition-colors ${card} ${isKeyboardHighlighted ? 'outline-focus outline-offset-2 outline-ring' : ''} ${disabled && !showResult ? 'opacity-disabled' : ''}`}
           >
             <span
               className={`flex size-7 shrink-0 items-center justify-center rounded-pill text-caption font-semibold ${circle}`}
