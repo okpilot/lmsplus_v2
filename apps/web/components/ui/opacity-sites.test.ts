@@ -26,11 +26,12 @@ describe('disabled opacity uses the token', () => {
     let out = ''
     try {
       out = execSync(
-        `grep -rnE "(^|[^-\\w])opacity-50\\b|:opacity-50\\b" app components --include=*.ts --include=*.tsx --exclude=*.test.ts --exclude=*.test.tsx`,
+        `grep -rnE "(^|[^-[:alnum:]_])opacity-50([^0-9]|$)" app components --include=*.ts --include=*.tsx --exclude=*.test.ts --exclude=*.test.tsx`,
         { cwd: ROOT, encoding: 'utf8' },
       )
-    } catch {
-      out = ''
+    } catch (e) {
+      // grep exits 1 on no match; any other status is a real failure.
+      if ((e as { status?: number }).status !== 1) throw e
     }
     expect(out).toBe('')
   })

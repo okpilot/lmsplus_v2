@@ -90,7 +90,7 @@ describe('opacity-as-colour is replaced by tokens', () => {
   })
 })
 
-describe('disabled is 50% and not-allowed', () => {
+describe('disabled uses the opacity token and not-allowed', () => {
   it('the shared Input carries the disabled state for short-answer-input and dialog-blank', () => {
     const s = src('components/ui/input.tsx')
     expect(s).toContain('disabled:opacity-disabled')
@@ -99,7 +99,7 @@ describe('disabled is 50% and not-allowed', () => {
 })
 
 describe('disabled controls', () => {
-  it('button variants: no pointer events, 50% opacity', () => {
+  it('button variants: no pointer events, opacity-disabled', () => {
     const s = src('components/ui/button-variants.ts')
     expect(s).toContain('disabled:pointer-events-none')
     expect(s).toContain('disabled:opacity-disabled')
