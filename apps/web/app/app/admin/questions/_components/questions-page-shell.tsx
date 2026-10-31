@@ -35,7 +35,7 @@ export function QuestionsPageShell({
   )
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-section">
       <QuestionFiltersBar tree={tree} filters={filters} />
 
       <BulkActionsBar selectedIds={selectedIds} onClear={clear} />

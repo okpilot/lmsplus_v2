@@ -57,9 +57,9 @@ export function QuestionFilters({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-stack">
       <span className="text-label text-muted-foreground">Question Preferences</span>
-      <div className="space-y-2.5">
+      <div className="space-y-stack-sm">
         {FILTERS.map((opt) => (
           <FilterToggle
             key={opt.value}

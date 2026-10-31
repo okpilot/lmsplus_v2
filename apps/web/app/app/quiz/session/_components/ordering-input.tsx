@@ -52,7 +52,7 @@ export function OrderingInput({
   const idToText = new Map(items.map((it) => [it.id, it.text]))
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-stack">
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={order.map((it) => it.id)} strategy={verticalListSortingStrategy}>
           <ol className="space-y-2">

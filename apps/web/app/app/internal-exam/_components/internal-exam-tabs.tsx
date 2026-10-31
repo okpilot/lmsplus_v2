@@ -31,7 +31,7 @@ export function InternalExamTabs({ available, history }: Readonly<Props>) {
     <Tabs
       value={tab}
       onValueChange={(v) => setTab(readTabParam(v as string))}
-      className="space-y-4"
+      className="space-y-section"
     >
       <TabsList aria-label="Internal exam sections">
         <TabsTab value="available" id="tab-available" data-testid="tab-available">

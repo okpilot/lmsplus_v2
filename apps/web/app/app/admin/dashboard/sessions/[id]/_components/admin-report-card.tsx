@@ -22,7 +22,7 @@ export function AdminReportCard({
   pageSize,
 }: Readonly<Props>) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-section">
       <ResultSummary summary={summary} />
       <QuestionBreakdown
         questions={questions}

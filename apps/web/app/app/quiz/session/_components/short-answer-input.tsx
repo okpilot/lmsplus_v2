@@ -41,7 +41,7 @@ export function ShortAnswerInput({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-stack">
       <Input
         size="lg"
         type="text"

@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { NavIcon } from './nav-icon'
 import type { NavItem } from './nav-items'
 
-const ROW_BASE = 'h-control gap-2.5 rounded-control px-2.5 text-caption'
+const ROW_BASE = 'h-control gap-2.5 rounded-control px-pad-control text-caption'
 const INACTIVE = 'text-muted-foreground hover:bg-muted hover:text-foreground'
 export const NAV_ACTIVE = 'bg-primary-soft font-medium text-primary-text'
 

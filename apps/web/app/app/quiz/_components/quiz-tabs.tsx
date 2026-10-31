@@ -25,7 +25,7 @@ export function QuizTabs({
   const [tab, setTab] = useState<TabName>('new')
 
   return (
-    <Tabs value={tab} onValueChange={(v) => setTab(v as TabName)} className="space-y-4">
+    <Tabs value={tab} onValueChange={(v) => setTab(v as TabName)} className="space-y-section">
       <TabsList aria-label={ariaLabel}>
         <TabsTab value="new" id="tab-new" data-testid="tab-new">
           {newLabel}

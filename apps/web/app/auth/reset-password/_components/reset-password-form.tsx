@@ -57,7 +57,7 @@ export function ResetPasswordForm() {
       />
 
       {error && (
-        <div className="space-y-1">
+        <div className="space-y-stack-sm">
           <FieldError role="alert">{error}</FieldError>
           {showRequestLink && (
             <Link

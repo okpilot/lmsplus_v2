@@ -17,7 +17,7 @@ export function QuestionCard({
   dbQuestionNumber,
 }: Readonly<QuestionCardProps>) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-stack">
       {questionNumber != null && totalQuestions != null && (
         <div className="flex items-center justify-between">
           <p className="text-label-strong">

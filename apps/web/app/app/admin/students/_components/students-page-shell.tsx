@@ -23,7 +23,7 @@ export function StudentsPageShell({ students, courses, filters }: Readonly<Props
   const [exportStudent, setExportStudent] = useState<StudentRow | null>(null)
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-section">
       <StudentFiltersBar filters={filters} />
 
       <div className="flex items-center justify-between">

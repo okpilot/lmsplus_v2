@@ -27,7 +27,7 @@ function NotAnsweredMessage({ hasAnswered }: Readonly<{ hasAnswered: boolean }>)
     ? 'No statistics available for this question yet.'
     : 'Answer this question to see statistics.'
   return (
-    <EmptyNote variant="inline" className="py-8 text-center">
+    <EmptyNote variant="inline" className="py-6 text-center">
       {message}
     </EmptyNote>
   )
@@ -35,7 +35,7 @@ function NotAnsweredMessage({ hasAnswered }: Readonly<{ hasAnswered: boolean }>)
 
 function LoadingSkeleton() {
   return (
-    <div className="space-y-3 py-4">
+    <div className="space-y-stack py-4">
       <Skeleton className="h-skeleton-line w-skeleton-w" />
       <Skeleton className="h-skeleton-line w-skeleton-w" />
       <Skeleton className="h-skeleton-line w-skeleton-w" />
@@ -61,7 +61,7 @@ function StatsDisplay({ stats }: Readonly<{ stats: QuestionStats }>) {
     stats.timesSeen > 0 ? Math.round((stats.correctCount / stats.timesSeen) * 100) : 0
 
   return (
-    <div className="space-y-3 py-4">
+    <div className="space-y-stack py-4">
       <Heading level={3}>Your Statistics</Heading>
       <CardList>
         <StatRow label="Times seen" value={String(stats.timesSeen)} />

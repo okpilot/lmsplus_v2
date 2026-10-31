@@ -30,10 +30,10 @@ export function OptionEditor({
   // takes its arrow keys. The text inputs therefore sit OUTSIDE the group, in a column whose rows
   // line up with the group's rows (same height and gap).
   return (
-    <div className="space-y-3">
+    <div className="space-y-stack">
       <span className="text-label text-muted-foreground">Options</span>
       <div className="flex gap-3">
-        <div className="flex flex-1 flex-col gap-3">
+        <div className="flex flex-1 flex-col gap-stack-lg">
           {OPTION_IDS.map((letter, idx) => (
             <div key={letter} className="flex h-(--control-h) items-center gap-3">
               <span className="w-6 text-center text-label uppercase text-muted-foreground">
@@ -57,7 +57,7 @@ export function OptionEditor({
             if (id) onCorrectChange(id)
           }}
           disabled={disabled}
-          className="flex flex-col gap-3"
+          className="flex flex-col gap-stack-lg"
         >
           {OPTION_IDS.map((letter) => (
             // biome-ignore lint/a11y/noStaticElementInteractions: the "Correct" text is a pointer target for the radio

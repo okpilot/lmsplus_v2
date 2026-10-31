@@ -18,7 +18,7 @@ function FieldError({ id, role, className, children }: Readonly<FieldErrorProps>
       id={id}
       role={role}
       data-slot="field-error"
-      className={cn('flex items-start gap-inline text-label text-danger', className)}
+      className={cn('flex items-start gap-2 text-label text-danger', className)}
     >
       <CircleAlert className="mt-0.5 size-icon shrink-0" aria-hidden="true" />
       {children}

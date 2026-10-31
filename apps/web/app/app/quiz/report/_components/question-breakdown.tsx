@@ -13,7 +13,7 @@ type Props = Readonly<{
 
 export function QuestionBreakdown({ questions, page, totalCount, pageSize }: Readonly<Props>) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-stack">
       <div className="flex items-center justify-between">
         <Heading level={2}>Question Breakdown</Heading>
         <span className="text-body text-muted-foreground">

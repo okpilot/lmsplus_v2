@@ -2,7 +2,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 
 export function CommentsSkeleton() {
   return (
-    <div className="space-y-3 py-4">
+    <div className="space-y-stack py-4">
       <div className="flex gap-3">
         <Skeleton className="size-8 rounded-pill" />
         <div className="flex-1 space-y-2">

@@ -42,7 +42,7 @@ export function SessionHistoryTable({
 
   if (totalCount === 0) {
     return (
-      <div className="space-y-3">
+      <div className="space-y-stack">
         {header}
         <EmptyNote>No sessions found.</EmptyNote>
       </div>
@@ -51,7 +51,7 @@ export function SessionHistoryTable({
 
   if (sessions.length === 0) {
     return (
-      <div className="space-y-3">
+      <div className="space-y-stack">
         {header}
         <EmptyNote>No sessions on this page. Try going back to page 1.</EmptyNote>
         <PaginationBar
@@ -65,7 +65,7 @@ export function SessionHistoryTable({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-stack">
       {header}
       <Table>
         <TableHeader>

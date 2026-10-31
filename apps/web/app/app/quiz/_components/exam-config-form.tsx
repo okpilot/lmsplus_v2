@@ -21,7 +21,7 @@ function formatTime(seconds: number): string {
 
 function ExamParametersPanel({ subject }: Readonly<{ subject: ExamSubjectOption }>) {
   return (
-    <InsetPanel className="p-4 space-y-3">
+    <InsetPanel className="p-4 space-y-stack">
       <Heading level={3}>Practice Exam Parameters</Heading>
       <StatGroup columns={3}>
         <Stat variant="plain" size="compact" label="Questions" value={subject.totalQuestions} />

@@ -52,7 +52,7 @@ export function InternalExamsTabs({
     <Tabs
       value={tab}
       onValueChange={(v) => setTab(readTabParam(v as string))}
-      className="space-y-4"
+      className="space-y-section"
     >
       <TabsList aria-label="Internal exam sections">
         <TabsTab value="codes" id="tab-codes" data-testid="tab-codes">

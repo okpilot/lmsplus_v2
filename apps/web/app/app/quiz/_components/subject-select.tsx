@@ -17,7 +17,7 @@ export function SubjectSelect({ subjects, value, onValueChange }: Readonly<Subje
   const selected = subjects.find((s) => s.id === value)
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-stack-sm">
       <span className="text-label text-muted-foreground">Subject</span>
       <Collapsible open={open} onOpenChange={setOpen}>
         <CollapsibleTrigger

@@ -45,7 +45,7 @@ function CountPill({
 export function QuestionCount({ value, max, onValueChange }: Readonly<QuestionCountProps>) {
   if (max === 0) {
     return (
-      <div className="space-y-3">
+      <div className="space-y-stack">
         <span className="text-label text-muted-foreground">Number of Questions</span>
         <NoQuestions />
       </div>
@@ -56,7 +56,7 @@ export function QuestionCount({ value, max, onValueChange }: Readonly<QuestionCo
   const effectiveValue = Math.min(value, effectiveMax)
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-stack">
       <div className="flex items-center justify-between">
         <span className="text-label text-muted-foreground">Number of Questions</span>
         <span className="text-label-strong text-primary-text">{effectiveValue}</span>

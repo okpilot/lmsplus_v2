@@ -46,7 +46,7 @@ export function ConsentForm({ nextPath }: Readonly<ConsentFormProps>) {
         <CardDescription>Please review and accept our policies to continue.</CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-stack-lg">
           <div className="space-y-4">
             <ConsentCheckbox
               id="consent-tos"

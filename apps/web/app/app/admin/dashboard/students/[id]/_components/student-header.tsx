@@ -8,7 +8,7 @@ type Props = Readonly<{ student: StudentDetail }>
 
 export function StudentHeader({ student }: Readonly<Props>) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-stack">
       <nav className="text-caption text-muted-foreground">
         <Link href="/app/admin/dashboard" className="hover:text-foreground hover:underline">
           Dashboard

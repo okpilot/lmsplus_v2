@@ -56,7 +56,7 @@ export function CodesTable({ rows, status, totalCount, pageSize }: Readonly<Prop
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-stack">
       <Select value={status ?? '__all__'} onValueChange={onStatusChange} items={STATUS_ITEMS}>
         <SelectTrigger className="w-col-md" aria-label="Status filter">
           <SelectValue placeholder="All" />

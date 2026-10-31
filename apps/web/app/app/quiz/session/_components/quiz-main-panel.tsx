@@ -42,7 +42,7 @@ export function QuizMainPanel({
   const showsQuestionCard = s.question.question_type !== 'dialog_fill'
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-stack">
       {showsQuestionCard && (
         <QuestionCard
           questionText={s.question.question_text}

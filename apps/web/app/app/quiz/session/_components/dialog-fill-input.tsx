@@ -81,7 +81,7 @@ export function DialogFillInput({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-stack">
       <InsetPanel ref={rootRef} className="space-y-1 p-4">
         {lines.map((line, i) => (
           <DialogLine

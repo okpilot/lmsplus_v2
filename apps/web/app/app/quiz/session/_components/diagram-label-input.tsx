@@ -205,7 +205,7 @@ export function DiagramLabelInput({
   }
 
   return (
-    <div ref={rootRef} className="space-y-3">
+    <div ref={rootRef} className="space-y-stack">
       <DiagramBoard
         Art={DiagramArt}
         zones={zones}

@@ -76,7 +76,7 @@ export function CodeEntryModal({ open, onOpenChange, subjectName, subjectShort }
         </DialogHeader>
         <form
           onSubmit={handleSubmit}
-          className="space-y-3"
+          className="space-y-stack"
           data-testid="code-entry-form"
           noValidate
         >

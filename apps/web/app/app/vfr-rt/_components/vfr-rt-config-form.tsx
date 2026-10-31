@@ -26,7 +26,7 @@ function SettingsCard({
 }: Readonly<{ config: Config; isExam: boolean; examAvailable: boolean }>) {
   return (
     <Card>
-      <CardContent className="space-y-5">
+      <CardContent className="space-y-stack-lg">
         <ModeToggle
           value={config.mode}
           onValueChange={config.setMode}

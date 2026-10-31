@@ -41,7 +41,7 @@ function NavGroup({
 }: Readonly<{ label: string; items: NavItem[]; pathname: string }>) {
   return (
     <div className="flex flex-col gap-0.5">
-      <Eyebrow className="px-2.5 pb-1">{label}</Eyebrow>
+      <Eyebrow className="px-pad-control pb-1">{label}</Eyebrow>
       {items.map((item) => {
         const Item = item.href === VFR_RT_HREF ? VfrRtNavGate : SidebarItem
         return <Item key={item.href} item={item} active={isActivePath(pathname, item.href)} />
@@ -60,7 +60,7 @@ export function SidebarNav() {
 
   return (
     <div className="flex h-full w-full flex-col gap-nav-gap px-3 py-6">
-      <span className="px-2.5">
+      <span className="px-pad-control">
         <Wordmark />
       </span>
       <nav

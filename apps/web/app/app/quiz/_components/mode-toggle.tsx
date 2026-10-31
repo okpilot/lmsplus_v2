@@ -29,7 +29,7 @@ export function ModeToggle({
   discoveryAvailable = true,
 }: Readonly<ModeToggleProps>) {
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-stack-sm">
       <span className="text-label text-muted-foreground">Mode</span>
       <div className="flex gap-1 rounded-control bg-muted p-1">
         {MODES.map((mode) => (

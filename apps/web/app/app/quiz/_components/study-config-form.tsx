@@ -33,7 +33,7 @@ export function StudyConfigForm({
     <div className="flex flex-col gap-stack lg:grid lg:grid-cols-(--layout-setup) lg:grid-rows-(--layout-setup-rows) lg:items-start lg:gap-x-section">
       <div className="lg:col-start-1 lg:row-start-1">
         <Card>
-          <CardContent className="space-y-5">
+          <CardContent className="space-y-stack-lg">
             {header}
             <SubjectSelect
               subjects={subjects}

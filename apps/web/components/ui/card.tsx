@@ -39,7 +39,7 @@ function CardList({
 function CardListRow({ className, render, ...props }: Readonly<useRender.ComponentProps<'div'>>) {
   return useRender({
     defaultTagName: 'div',
-    props: mergeProps<'div'>({ className: cn('px-card py-row', className) }, props),
+    props: mergeProps<'div'>({ className: cn('px-card py-3', className) }, props),
     render,
     state: { slot: 'card-list-row' },
   })

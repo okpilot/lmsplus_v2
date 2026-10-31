@@ -17,7 +17,7 @@ export function FeedbackPanel({
   onNext,
 }: Readonly<FeedbackPanelProps>) {
   return (
-    <InsetPanel className="space-y-3">
+    <InsetPanel className="space-y-stack">
       <p className={`text-label-strong ${isCorrect ? 'text-success' : 'text-danger'}`}>
         {isCorrect ? 'Correct!' : 'Incorrect'}
       </p>

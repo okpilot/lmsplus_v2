@@ -55,7 +55,7 @@ export function StudentTableShell({ students, totalCount, filters }: Readonly<Pr
 
   if (totalCount === 0) {
     return (
-      <div className="space-y-3">
+      <div className="space-y-stack">
         {statusFilter}
         <EmptyNote>No students found.</EmptyNote>
       </div>
@@ -64,7 +64,7 @@ export function StudentTableShell({ students, totalCount, filters }: Readonly<Pr
 
   if (students.length === 0) {
     return (
-      <div className="space-y-3">
+      <div className="space-y-stack">
         {statusFilter}
         <EmptyNote>No students on this page. Try going back to page 1.</EmptyNote>
         <PaginationBar
@@ -78,7 +78,7 @@ export function StudentTableShell({ students, totalCount, filters }: Readonly<Pr
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-stack">
       {statusFilter}
       <Table>
         <TableHeader>

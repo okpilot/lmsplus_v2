@@ -42,7 +42,7 @@ export function AvailableTab({ rows }: Readonly<Props>) {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-stack">
       <CardList role="list" data-testid="available-list">
         {rows.map((row) => (
           <CardListRow

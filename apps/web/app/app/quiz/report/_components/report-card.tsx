@@ -18,7 +18,7 @@ export function ReportCard({ summary, questions, page, totalCount, pageSize }: R
   const ctx = getReportContext(summary.mode, summary.subjectCode)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-section">
       <ResultSummary summary={summary} />
 
       <QuestionBreakdown

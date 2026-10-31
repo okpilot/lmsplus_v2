@@ -48,7 +48,7 @@ export function CommentsTab({ questionId, currentUserId }: Readonly<CommentsTabP
   if (isLoading) return <CommentsSkeleton />
 
   return (
-    <div className="space-y-4 py-4">
+    <div className="space-y-stack py-4">
       <div className="flex items-center justify-between">
         <Heading level={3}>Comments</Heading>
         <span className="text-caption text-muted-foreground">
@@ -59,12 +59,12 @@ export function CommentsTab({ questionId, currentUserId }: Readonly<CommentsTabP
       <FieldError>{error}</FieldError>
 
       {comments.length === 0 && !error && (
-        <EmptyNote variant="inline" className="py-4 text-center">
+        <EmptyNote variant="inline" className="py-6 text-center">
           No comments yet. Be the first to comment.
         </EmptyNote>
       )}
 
-      <div className="space-y-3">
+      <div className="space-y-stack">
         {comments.map((c) => {
           const name = c.users?.full_name ?? 'Unknown'
           const isAdmin = c.users?.role === 'admin'

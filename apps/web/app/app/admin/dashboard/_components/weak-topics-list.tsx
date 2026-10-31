@@ -10,7 +10,7 @@ type Props = Readonly<{ topics: WeakTopic[] }>
 export function WeakTopicsList({ topics }: Readonly<Props>) {
   return (
     <Card>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-stack">
         <Heading level={2}>Weakest Topics</Heading>
 
         {topics.length === 0 ? (
@@ -18,7 +18,7 @@ export function WeakTopicsList({ topics }: Readonly<Props>) {
             No quiz data yet.
           </EmptyNote>
         ) : (
-          <ul className="space-y-4">
+          <ul className="space-y-stack">
             {topics.map((topic) => (
               <TopicRow key={topic.topicId} topic={topic} />
             ))}
@@ -31,7 +31,7 @@ export function WeakTopicsList({ topics }: Readonly<Props>) {
 
 function TopicRow({ topic }: Readonly<{ topic: WeakTopic }>) {
   return (
-    <li className="space-y-1.5">
+    <li className="space-y-stack-sm">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="font-medium truncate">{topic.topicName}</p>

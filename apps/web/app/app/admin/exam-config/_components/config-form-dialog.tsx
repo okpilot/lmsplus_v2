@@ -115,7 +115,7 @@ export function ConfigFormDialog({ subject, open, onOpenChange }: Readonly<Props
               onChange={setPassMark}
             />
           </div>
-          <div className="space-y-3 border-t border-border pt-4">
+          <div className="space-y-stack-lg border-t border-border pt-4">
             <Heading level={3}>Question Distribution</Heading>
             <DistributionEditor
               topics={subject.topics}

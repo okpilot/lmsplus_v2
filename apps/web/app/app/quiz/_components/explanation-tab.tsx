@@ -16,7 +16,7 @@ export function ExplanationTab({
   learningObjective,
 }: Readonly<ExplanationTabProps>) {
   return (
-    <div className="space-y-3 py-4">
+    <div className="space-y-stack py-4">
       <ExplanationContent text={explanationText} imageUrl={explanationImageUrl} />
       {learningObjective && (
         <InsetPanel className="p-4">
