@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockRouterPush = vi.fn()
@@ -56,6 +56,17 @@ const SAVED: SavedQuizSession = {
   answeredCount: 4,
 }
 
+const DIALOG_NAME = 'Delete this saved quiz?'
+
+async function openDialog() {
+  return screen.findByRole('alertdialog', { name: DIALOG_NAME })
+}
+
+async function confirmDelete() {
+  const dialog = await openDialog()
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+}
+
 describe('SavedDraftCard', () => {
   beforeEach(() => {
     vi.resetAllMocks()
@@ -65,7 +76,6 @@ describe('SavedDraftCard', () => {
       sessionId: 'sess-1-new',
       questionIds: DRAFT.questionIds,
     })
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
   })
 
   it('shows empty state when drafts array is empty', () => {
@@ -131,19 +141,53 @@ describe('SavedDraftCard', () => {
     expect(screen.queryByText(/no saved quizzes/i)).not.toBeInTheDocument()
   })
 
-  it('does not call deleteDraft when the user cancels the confirmation dialog', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false)
+  it('opens an alertdialog with the fixed copy when Delete is clicked', async () => {
     render(<SavedDraftCard drafts={[DRAFT]} savedSessions={[]} />)
     fireEvent.click(screen.getByTestId('delete-draft'))
 
-    // Allow any async effects to flush
-    await new Promise((r) => setTimeout(r, 0))
+    const dialog = await openDialog()
+    expect(within(dialog).getByText('This cannot be undone.')).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Delete' })).toBeInTheDocument()
     expect(mockDeleteDraft).not.toHaveBeenCalled()
+  })
+
+  it('keeps the quiz and closes the dialog when Cancel is clicked', async () => {
+    render(<SavedDraftCard drafts={[DRAFT]} savedSessions={[]} />)
+    fireEvent.click(screen.getByTestId('delete-draft'))
+    const dialog = await openDialog()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+    expect(mockDeleteDraft).not.toHaveBeenCalled()
+  })
+
+  it('runs the delete once and closes the dialog when Delete is confirmed', async () => {
+    render(<SavedDraftCard drafts={[DRAFT]} savedSessions={[]} />)
+    fireEvent.click(screen.getByTestId('delete-draft'))
+    await confirmDelete()
+
+    await waitFor(() => expect(mockDeleteDraft).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+  })
+
+  it('disables both dialog buttons while the delete is in progress', async () => {
+    mockDeleteDraft.mockReturnValue(new Promise(() => {}))
+    render(<SavedDraftCard drafts={[DRAFT]} savedSessions={[]} />)
+    fireEvent.click(screen.getByTestId('delete-draft'))
+    const dialog = await openDialog()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() =>
+      expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeDisabled(),
+    )
+    expect(within(dialog).getByRole('button', { name: /Delete/ })).toBeDisabled()
   })
 
   it('deletes the draft in one request without a separate router refresh', async () => {
     render(<SavedDraftCard drafts={[DRAFT]} savedSessions={[]} />)
     fireEvent.click(screen.getByTestId('delete-draft'))
+    await confirmDelete()
 
     await waitFor(() => {
       expect(mockDeleteDraft).toHaveBeenCalledWith({ draftId: 'draft-1' })
@@ -156,6 +200,7 @@ describe('SavedDraftCard', () => {
     mockDeleteDraft.mockResolvedValue({ success: false })
     render(<SavedDraftCard drafts={[DRAFT]} savedSessions={[]} />)
     fireEvent.click(screen.getByTestId('delete-draft'))
+    await confirmDelete()
 
     await waitFor(() => {
       expect(screen.getByText(/failed to delete/i)).toBeInTheDocument()

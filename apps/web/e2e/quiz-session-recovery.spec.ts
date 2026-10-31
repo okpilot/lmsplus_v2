@@ -139,8 +139,11 @@ test.describe('Quiz Session Recovery', () => {
     await expect(page.getByText(`2 of ${total} answered`)).toBeVisible()
     expect((await readSessionRow(sessionId)).savedAt).not.toBeNull()
 
-    page.once('dialog', (dialog) => void dialog.accept())
     await page.getByTestId('delete-saved-session').click()
+    await page
+      .getByRole('alertdialog', { name: 'Delete this saved quiz?' })
+      .getByRole('button', { name: 'Delete' })
+      .click()
 
     await expect(page.getByTestId('resume-saved-session')).toHaveCount(0)
     await expect.poll(async () => (await readSessionRow(sessionId)).savedAt).toBeNull()
@@ -178,8 +181,11 @@ test.describe('Quiz Session Recovery', () => {
     await page.goto(sessionUrl)
     await expect(page.getByRole('heading', { name: 'Saved quiz' })).toBeVisible()
 
-    page.once('dialog', (dialog) => void dialog.accept())
     await page.getByRole('button', { name: 'Delete', exact: true }).click()
+    await page
+      .getByRole('alertdialog', { name: 'Delete this saved quiz?' })
+      .getByRole('button', { name: 'Delete' })
+      .click()
 
     await page.waitForURL(/\/app\/quiz$/, { timeout: 10_000 })
     await expect.poll(async () => (await readSessionRow(sessionId)).savedAt).toBeNull()
@@ -197,8 +203,12 @@ test.describe('Quiz Session Recovery', () => {
     await page.goto(sessionUrl)
     await expect(page.getByRole('heading', { name: 'Saved quiz' })).toBeVisible()
 
-    page.once('dialog', (dialog) => void dialog.dismiss())
     await page.getByRole('button', { name: 'Delete', exact: true }).click()
+    const dialog = page.getByRole('alertdialog', { name: 'Delete this saved quiz?' })
+    await expect(dialog).toBeVisible()
+    await expect(dialog.getByText('This cannot be undone.')).toBeVisible()
+    await dialog.getByRole('button', { name: 'Cancel' }).click()
+    await expect(dialog).toBeHidden()
 
     await expect(page.getByRole('heading', { name: 'Saved quiz' })).toBeVisible()
     expect(page.url()).toBe(sessionUrl)

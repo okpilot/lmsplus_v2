@@ -153,6 +153,10 @@ test.describe('Red Team: saved-quiz / draft refresh Server Actions (IV, IW, IX)'
     await page.goto(QUIZ_PATH)
     await page.getByTestId('tab-saved').click()
     await page.getByTestId('delete-saved-session').first().click()
+    await page
+      .getByRole('alertdialog', { name: 'Delete this saved quiz?' })
+      .getByRole('button', { name: 'Delete' })
+      .click()
     await expect.poll(() => watch.headers() !== undefined, { timeout: 15_000 }).toBe(true)
     // CONTROL: the list's own request cleared one of the attacker's saved markers.
     await expect.poll(() => savedCount(attackerUserId), { timeout: 15_000 }).toBe(before - 1)
@@ -194,7 +198,6 @@ test.describe('Red Team: saved-quiz / draft refresh Server Actions (IV, IW, IX)'
       { name: CONSENT_COOKIE, value: buildConsentCookieValue(attackerUserId), url: BASE_URL },
     ])
     const page = await ctx.newPage()
-    page.on('dialog', (d) => void d.accept())
     await signInViaForm(page, { email: ATTACKER_EMAIL, password: ATTACKER_PASSWORD })
     listCap = await captureList(page)
     sessionCap = await captureSession(page)

@@ -6,13 +6,14 @@ import { FieldError } from '@/components/ui/field-error'
 import { modeLabel } from '@/lib/constants/exam-modes'
 import type { SavedQuizSession } from '@/lib/queries/load-saved-quizzes'
 import { useSavedCardActions } from '../_hooks/use-saved-card-actions'
+import { DeleteSavedQuizButton } from './delete-saved-quiz-button'
 import { SavedSessionProgress } from './saved-session-progress'
 
 type ButtonsProps = {
   resuming: boolean
   deleting: boolean
   onResume: () => void
-  onDelete: () => void
+  onDelete: () => Promise<void>
 }
 
 function SavedSessionButtons({ resuming, deleting, onResume, onDelete }: Readonly<ButtonsProps>) {
@@ -29,15 +30,13 @@ function SavedSessionButtons({ resuming, deleting, onResume, onDelete }: Readonl
       >
         {resuming ? 'Resuming...' : 'Resume'}
       </Button>
-      <Button
-        type="button"
-        variant="outline"
-        data-testid="delete-saved-session"
-        onClick={onDelete}
+      <DeleteSavedQuizButton
+        testId="delete-saved-session"
+        label={deleting ? 'Deleting...' : 'Delete'}
+        onConfirm={onDelete}
+        pending={deleting}
         disabled={busy}
-      >
-        {deleting ? 'Deleting...' : 'Delete'}
-      </Button>
+      />
     </div>
   )
 }

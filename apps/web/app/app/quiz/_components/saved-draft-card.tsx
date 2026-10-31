@@ -6,6 +6,7 @@ import { Empty, EmptyDescription } from '@/components/ui/empty'
 import { FieldError } from '@/components/ui/field-error'
 import type { SavedQuizSession } from '@/lib/queries/load-saved-quizzes'
 import type { DraftData } from '../types'
+import { DeleteSavedQuizButton } from './delete-saved-quiz-button'
 import { DraftCard } from './draft-card'
 import { SavedSessionCard } from './saved-session-card'
 import { SavedSessionProgress } from './saved-session-progress'
@@ -23,7 +24,7 @@ type SavedRowProps = {
   deleting: boolean
   deleteDisabled: boolean
   onResume: () => void
-  onDelete: () => void
+  onDelete: () => Promise<void>
   rowTestId?: string
 }
 
@@ -51,15 +52,13 @@ export function SavedRow(props: Readonly<SavedRowProps>) {
         >
           {resuming ? 'Resuming...' : 'Resume'}
         </Button>
-        <Button
-          type="button"
-          variant="outline"
-          data-testid={props.deleteTestId}
-          onClick={props.onDelete}
+        <DeleteSavedQuizButton
+          testId={props.deleteTestId}
+          label={deleting ? 'Deleting...' : 'Delete'}
+          onConfirm={props.onDelete}
+          pending={deleting}
           disabled={props.deleteDisabled}
-        >
-          {deleting ? 'Deleting...' : 'Delete'}
-        </Button>
+        />
       </div>
       <FieldError role="alert" className="lg:col-span-full">
         {error}

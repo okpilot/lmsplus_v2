@@ -24,7 +24,6 @@ beforeEach(() => {
   vi.resetAllMocks()
   mockResume.mockResolvedValue({ success: true })
   mockDiscard.mockResolvedValue({ success: true })
-  vi.spyOn(window, 'confirm').mockReturnValue(true)
 })
 
 describe('useSavedCardActions', () => {
@@ -106,21 +105,12 @@ describe('useSavedCardActions', () => {
     await waitFor(() => expect(result.current.error).toBe(mapped))
   })
 
-  it('deletes in one request without a separate router refresh after a confirmed delete', async () => {
+  it('deletes in one request without a separate router refresh without asking', async () => {
     const { result } = renderHook(() => useSavedCardActions('s1'))
 
     await act(() => result.current.remove())
 
     expect(mockDiscard).toHaveBeenCalledWith({ sessionId: 's1' })
     expect(mockRefresh).not.toHaveBeenCalled()
-  })
-
-  it('does nothing when the delete is not confirmed', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false)
-    const { result } = renderHook(() => useSavedCardActions('s1'))
-
-    await act(() => result.current.remove())
-
-    expect(mockDiscard).not.toHaveBeenCalled()
   })
 })

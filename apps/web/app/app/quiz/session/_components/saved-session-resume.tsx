@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { FieldError } from '@/components/ui/field-error'
 import { PageHeader } from '@/components/ui/heading'
 import { MODE_LABELS, type QuizMode } from '@/lib/constants/exam-modes'
+import { DeleteSavedQuizButton } from '../../_components/delete-saved-quiz-button'
 import { useSavedSessionResume } from '../_hooks/use-saved-session-resume'
 
 type Props = {
@@ -37,9 +38,7 @@ export function SavedSessionResume({
         <Button onClick={resume} disabled={loading}>
           Resume
         </Button>
-        <Button variant="outline" onClick={discard} disabled={loading}>
-          Delete
-        </Button>
+        <DeleteSavedQuizButton onConfirm={discard} pending={loading} disabled={loading} />
       </div>
     </div>
   )

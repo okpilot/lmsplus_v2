@@ -65,7 +65,6 @@ export function DraftCard({ draft }: Readonly<{ draft: DraftData }>) {
   }
 
   async function handleDelete() {
-    if (!window.confirm('Delete this saved quiz? This cannot be undone.')) return
     setDeleting(true)
     setError(null)
     try {
