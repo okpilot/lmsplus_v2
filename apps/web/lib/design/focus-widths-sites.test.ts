@@ -65,18 +65,19 @@ describe('PR18 focus ring and width tokens', () => {
     expect(read(f)).toContain('aria-invalid:ring-focus')
   })
 
-  it('slider hover and active rings are ring-focus; focus is an outline with the gap', () => {
+  it('slider hover and active rings are ring-focus; focus (on the nested range input) is an outline with the gap', () => {
     const s = read('components/ui/slider.tsx')
     for (const c of [
       'hover:ring-focus',
       'active:ring-focus',
-      'focus-visible:outline-solid',
-      'focus-visible:outline-focus',
-      'focus-visible:outline-offset-focus',
-      'focus-visible:outline-ring',
+      'has-focus-visible:outline-solid',
+      'has-focus-visible:outline-focus',
+      'has-focus-visible:outline-offset-focus',
+      'has-focus-visible:outline-ring',
     ]) {
       expect(s).toContain(c)
     }
+    expect(s).not.toMatch(/(?<![\w-])focus-visible:outline/)
     expect(s).not.toContain('focus-visible:outline-hidden')
     expect(s).not.toContain('focus-visible:ring-focus')
     expect(s).not.toContain('focus-visible:ring-offset-background')
