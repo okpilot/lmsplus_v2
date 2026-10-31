@@ -55,12 +55,7 @@ function ConfirmDialog({
         <FieldError role="alert">{error}</FieldError>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={pending}>{cancelLabel}</AlertDialogCancel>
-          <LoadingButton
-            type="button"
-            variant={tone === 'destructive' ? 'destructive' : 'default'}
-            loading={pending}
-            onClick={onConfirm}
-          >
+          <LoadingButton type="button" variant={tone} loading={pending} onClick={onConfirm}>
             {confirmLabel}
           </LoadingButton>
         </AlertDialogFooter>

@@ -57,7 +57,7 @@ function PageHeader({ title, description, actions, className }: Readonly<PageHea
       )}
     >
       <div className="flex flex-col gap-1">
-        <h1 className="text-title">{title}</h1>
+        <Heading level={1}>{title}</Heading>
         {isEmptyNode(description) ? null : (
           <p className="text-body text-muted-foreground">{description}</p>
         )}

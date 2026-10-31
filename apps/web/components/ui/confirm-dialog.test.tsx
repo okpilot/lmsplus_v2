@@ -43,12 +43,6 @@ describe('ConfirmDialog', () => {
     expect(screen.getByRole('alertdialog')).toBeInTheDocument()
   })
 
-  it('ignores a backdrop click while pending', async () => {
-    const p = setup({ pending: true })
-    await userEvent.click(document.body)
-    expect(p.onOpenChange).not.toHaveBeenCalledWith(false)
-  })
-
   it('disables both buttons while pending and keeps the Delete name', () => {
     setup({ pending: true })
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled()

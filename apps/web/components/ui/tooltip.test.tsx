@@ -19,6 +19,7 @@ describe('Tooltip', () => {
     const cls = screen.getByText('Tip').className
     for (const token of FLOATING_SURFACE.split(' ')) expect(cls).toContain(token)
     expect(cls).toContain('rounded-control')
+    expect(cls).toContain('max-w-popover-sm')
   })
 
   it('opens after the default 600 ms delay on mouse hover', () => {

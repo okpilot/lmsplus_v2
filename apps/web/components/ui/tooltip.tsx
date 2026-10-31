@@ -39,7 +39,7 @@ function TooltipContent({
           data-slot="tooltip-content"
           className={cn(
             FLOATING_SURFACE,
-            'rounded-control px-2 py-1 text-caption outline-none duration-fast data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0',
+            'max-w-popover-sm rounded-control px-2 py-1 text-caption outline-none duration-fast data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0',
             className,
           )}
           {...props}
