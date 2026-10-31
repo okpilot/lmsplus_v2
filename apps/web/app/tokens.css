@@ -440,3 +440,6 @@
   --default-transition-duration: var(--transition-duration-fast);
   --default-transition-timing-function: var(--ease-standard);
 }
+@utility text-overline {
+  text-transform: uppercase;
+}

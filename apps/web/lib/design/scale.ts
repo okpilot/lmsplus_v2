@@ -52,7 +52,7 @@ export const WIDTHS = {
 
 export const OPACITY = { disabled: '50%' } as const
 
-// Lucide `strokeWidth` for icons.
+// Icon stroke widths → `stroke-icon` / `stroke-icon-bold` classes, never the `strokeWidth` prop.
 export const STROKE = { icon: 2, 'icon-bold': 2.5 } as const
 
 // S2 · Comfortable. [min, max] px, fluid.

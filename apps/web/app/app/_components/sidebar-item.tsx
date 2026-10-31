@@ -13,10 +13,9 @@ export function RowIcon({ paths }: Readonly<{ paths: string[] }>) {
   return (
     <svg
       viewBox="0 0 24 24"
-      className="size-icon-nav"
+      className="size-icon-nav stroke-icon"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"

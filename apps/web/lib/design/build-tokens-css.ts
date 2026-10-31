@@ -138,6 +138,7 @@ export function buildTokensCss(): string {
       ['--shadow-overlay', 'var(--elevation-overlay)'],
     ]),
     ...block('@theme', themeDecls()),
+    ...block('@utility text-overline', [['text-transform', 'uppercase']]),
   ]
   return `${lines.join('\n')}\n`
 }

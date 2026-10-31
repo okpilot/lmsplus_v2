@@ -79,5 +79,6 @@ describe('Eyebrow', () => {
     const el = screen.getByText('Over')
     expect(el.tagName).toBe('P')
     expect(el.className).toContain('text-overline')
+    expect(el.className).not.toMatch(/(^|\s)uppercase(\s|$)/)
   })
 })

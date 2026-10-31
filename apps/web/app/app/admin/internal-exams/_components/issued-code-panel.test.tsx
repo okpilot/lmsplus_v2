@@ -43,7 +43,8 @@ describe('IssuedCodePanel', () => {
 
   it('labels the panel with an eyebrow', () => {
     render(<IssuedCodePanel {...PROPS} />)
-    expect(screen.getByText('New code issued')).toHaveClass('text-overline', 'uppercase')
+    expect(screen.getByText('New code issued')).toHaveClass('text-overline')
+    expect(screen.getByText('New code issued')).not.toHaveClass('uppercase')
   })
 
   it('displays the issued code in large bold text', () => {
