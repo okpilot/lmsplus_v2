@@ -101,7 +101,7 @@ function StatRow({
   return (
     <CardListRow className="flex justify-between">
       <span className="text-body text-muted-foreground">{label}</span>
-      <span className={`text-label font-semibold tabular-nums ${className ?? ''}`}>{value}</span>
+      <span className={`text-label-strong tabular-nums ${className ?? ''}`}>{value}</span>
     </CardListRow>
   )
 }

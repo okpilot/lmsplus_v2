@@ -20,17 +20,19 @@ const Q = 'app/app/quiz/'
 const SESS = `${Q}session/_components/`
 
 describe('buttons and tabs (AC 6, 7)', () => {
-  it('button base is label with explicit medium; sm is caption', () => {
+  it('button base is label carrying its own weight; sm is caption-strong', () => {
     const s = src(`${U}button-variants.ts`)
-    expect(s).toContain('text-label')
-    expect(s).toContain('font-medium')
+    const base = s.split('\n').find((l) => l.includes('group/button')) ?? ''
+    const sm = s.split('\n').find((l) => /^\s*sm:/.test(l)) ?? ''
+    expect(base).toMatch(/\btext-label(?![\w-])/)
+    expect(s).not.toContain('font-medium')
+    expect(sm).toMatch(/\btext-caption-strong(?![\w-])/)
     expect(s).not.toMatch(/text-sm\b/)
-    expect(s).toContain('text-caption')
   })
 
   it('tab trigger is label without text-sm or font-medium', () => {
     const w = win(`${U}tabs.tsx`, 'data-slot="tabs-tab"', 6)
-    expect(w).toContain('text-label')
+    expect(w).toMatch(/(?<![\w-])text-label(?![\w-])/)
     expect(w).not.toMatch(/text-sm\b|font-medium/)
   })
 
@@ -50,7 +52,9 @@ describe('fields are body (AC 8)', () => {
   it('select trigger and item are body, SelectLabel is caption', () => {
     expect(win(`${U}select.tsx`, 'data-slot="select-trigger"', 6)).toContain('text-body')
     expect(win(`${U}select.tsx`, 'data-slot="select-item"', 6)).toContain('text-body')
-    expect(win(`${U}select.tsx`, 'data-slot="select-label"', 6)).toContain('text-caption')
+    expect(win(`${U}select.tsx`, 'data-slot="select-label"', 6)).toMatch(
+      /(?<![\w-])text-caption(?![\w-])/,
+    )
   })
 
   it.each([
@@ -79,8 +83,8 @@ describe('table (AC 10)', () => {
   it('table body, head caption medium muted, no text-sm', () => {
     expect(win(`${U}table.tsx`, 'data-slot="table"', 6)).toContain('text-body')
     const head = win(`${U}table.tsx`, 'data-slot="table-head"', 8)
-    expect(head).toContain('text-caption')
-    expect(head).toContain('font-medium')
+    expect(head).toContain('text-caption-strong')
+    expect(head).not.toContain('font-medium')
     expect(head).toContain('text-muted-foreground')
     expect(src(`${U}table.tsx`)).not.toMatch(/text-sm\b/)
   })
@@ -89,10 +93,12 @@ describe('table (AC 10)', () => {
 describe('card (AC 11)', () => {
   it('title label semibold; description caption', () => {
     const t = win(`${U}card.tsx`, 'data-slot="card-title"', 6)
-    expect(t).toContain('text-label')
-    expect(t).toContain('font-semibold')
+    expect(t).toContain('text-label-strong')
+    expect(t).not.toContain('font-semibold')
     expect(t).not.toMatch(/text-base|group-data-\[size=sm\]\/card:text-sm/)
-    expect(win(`${U}card.tsx`, 'data-slot="card-description"', 6)).toContain('text-caption')
+    expect(win(`${U}card.tsx`, 'data-slot="card-description"', 6)).toMatch(
+      /(?<![\w-])text-caption(?![\w-])/,
+    )
   })
 })
 
@@ -126,7 +132,7 @@ describe('chip-sized chips (AC 12)', () => {
 describe('tooltips and info button (AC 13, 14)', () => {
   it('popover bodies are caption without font-normal', () => {
     const s = src(`${U}popover.tsx`)
-    expect(s).toContain('text-caption')
+    expect(s).toMatch(/(?<![\w-])text-caption(?![\w-])/)
     expect(s).not.toContain('font-normal')
   })
 
@@ -155,7 +161,7 @@ describe('tab bar and heatmap (AC 16)', () => {
   it('more-sheet tab base is text-micro; rows label; no text-[', () => {
     const s = src('app/app/_components/more-sheet.tsx')
     expect(s).toContain('text-micro')
-    expect(s).toContain('text-label')
+    expect(s).toMatch(/(?<![\w-])text-label(?![\w-])/)
     expect(s).not.toContain('text-[')
   })
 
@@ -173,15 +179,15 @@ describe('quiz header is caption (AC 17)', () => {
     '%s',
     (f) => {
       const s = src(f)
-      expect(s).toContain('text-caption')
+      expect(s).toMatch(/(?<![\w-])text-caption(?![\w-])/)
       expect(s).not.toMatch(/text-sm\b/)
     },
   )
 
   it('card counter is label semibold and the question code is caption', () => {
     const f = strings(`${SESS}quiz-card-header.tsx`)
-    expect(f.some((x) => /text-label/.test(x) && /font-semibold/.test(x))).toBe(true)
-    expect(f.some((x) => /text-caption/.test(x))).toBe(true)
+    expect(f.some((x) => /text-label-strong/.test(x))).toBe(true)
+    expect(f.some((x) => /text-caption(?![\w-])/.test(x))).toBe(true)
   })
 })
 
@@ -199,17 +205,13 @@ describe('scores (AC 18)', () => {
     'app/app/internal-exam/_components/my-reports-tab.tsx',
     'app/app/progress/_components/subject-breakdown.tsx',
   ])('%s list score is label semibold tabular', (f) => {
-    expect(
-      strings(f).some(
-        (x) => /text-label/.test(x) && /font-semibold/.test(x) && /tabular-nums/.test(x),
-      ),
-    ).toBe(true)
+    expect(strings(f).some((x) => /text-label-strong/.test(x) && /tabular-nums/.test(x))).toBe(true)
   })
 
   it('topic percentage is caption tabular', () => {
     expect(
       strings('app/app/progress/_components/subject-breakdown.tsx').some(
-        (x) => /text-caption/.test(x) && /tabular-nums/.test(x),
+        (x) => /text-caption(?![\w-])/.test(x) && /tabular-nums/.test(x),
       ),
     ).toBe(true)
   })

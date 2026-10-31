@@ -20,7 +20,7 @@ export function QuestionCard({
     <div className="space-y-4">
       {questionNumber != null && totalQuestions != null && (
         <div className="flex items-center justify-between">
-          <p className="text-label font-semibold">
+          <p className="text-label-strong">
             Question {questionNumber} of {totalQuestions}
           </p>
           {dbQuestionNumber && (
@@ -33,7 +33,7 @@ export function QuestionCard({
       {questionImageUrl && (
         <ZoomableImage src={questionImageUrl} alt="Question illustration" className="max-h-64" />
       )}
-      <MarkdownText className="text-body font-medium leading-relaxed">{questionText}</MarkdownText>
+      <MarkdownText className="text-question">{questionText}</MarkdownText>
     </div>
   )
 }

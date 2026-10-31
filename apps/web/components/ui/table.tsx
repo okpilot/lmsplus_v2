@@ -67,7 +67,7 @@ function TableHead({ className, ...props }: Readonly<React.ComponentProps<'th'>>
     <th
       data-slot="table-head"
       className={cn(
-        'px-cell-x py-cell-y text-left align-middle text-caption font-medium whitespace-nowrap text-muted-foreground [&:has([role=checkbox])]:pr-0',
+        'px-cell-x py-cell-y text-left align-middle text-caption-strong whitespace-nowrap text-muted-foreground [&:has([role=checkbox])]:pr-0',
         className,
       )}
       {...props}

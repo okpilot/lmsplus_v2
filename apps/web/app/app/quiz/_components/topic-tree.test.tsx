@@ -250,7 +250,7 @@ describe('TopicTree', () => {
 })
 
 function expectFieldLabel(el: HTMLElement) {
-  expect(el.className).toContain('text-label')
+  expect(el.className).toMatch(/(?<![\w-])text-label(?![\w-])/)
   expect(el.className).toContain('text-muted-foreground')
   expect(el.className).not.toContain('text-[13px]')
 }

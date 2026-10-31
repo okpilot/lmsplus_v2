@@ -22,7 +22,7 @@ function renderHeader(overrides: Partial<React.ComponentProps<typeof QuizCardHea
 describe('QuizCardHeader', () => {
   it('shows the counter as a semibold label and the code muted', () => {
     renderHeader()
-    expect(screen.getByText('Question 2 of 5')).toHaveClass('text-label', 'font-semibold')
+    expect(screen.getByText('Question 2 of 5')).toHaveClass('text-label-strong')
     expect(screen.getByText('No. 050-01-01-002')).toHaveClass('text-muted-foreground')
   })
 

@@ -28,7 +28,7 @@ function Heading({ level, className, id, children }: Readonly<HeadingProps>) {
     )
   }
   return (
-    <h3 id={id} className={cn('text-label font-semibold', className)}>
+    <h3 id={id} className={cn('text-label-strong', className)}>
       {children}
     </h3>
   )

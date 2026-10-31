@@ -27,7 +27,7 @@ describe('StudentCourseFields', () => {
   it('styles the group heading as a muted field label', () => {
     renderFields()
     const cls = screen.getByText('Courses (optional)').className
-    expect(cls).toContain('text-label')
+    expect(cls).toMatch(/(?<![\w-])text-label(?![\w-])/)
     expect(cls).toContain('text-muted-foreground')
   })
 

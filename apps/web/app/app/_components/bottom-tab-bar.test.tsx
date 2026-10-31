@@ -307,7 +307,7 @@ describe('BottomTabBar', () => {
       const cls = screen.getByRole('link', { name: 'Settings' }).className
       expect(cls).toContain('bg-primary-soft')
       expect(cls).toContain('text-primary-text')
-      expect(cls).toContain('text-label')
+      expect(cls).toMatch(/(?<![\w-])text-label(?![\w-])/)
       for (const c of NAV_ACTIVE.split(' ')) expect(cls).toContain(c)
     })
 
@@ -316,7 +316,7 @@ describe('BottomTabBar', () => {
       await userEvent.setup({ delay: null }).click(screen.getByRole('button', { name: 'More' }))
       const cls = screen.getByRole('link', { name: 'Settings' }).className
       expect(cls).toContain('text-muted-foreground')
-      expect(cls).toContain('text-label')
+      expect(cls).toMatch(/(?<![\w-])text-label(?![\w-])/)
       expect(cls).not.toContain('bg-primary-soft')
     })
 

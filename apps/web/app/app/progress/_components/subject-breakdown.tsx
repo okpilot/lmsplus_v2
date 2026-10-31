@@ -38,7 +38,7 @@ function SubjectRow({ subject }: Readonly<{ subject: SubjectDetail }>) {
           className="flex w-full items-center justify-between px-4 pt-3 pb-1.5 text-left outline-none after:absolute after:inset-0 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
         >
           <span className="flex min-w-0 flex-1 items-center gap-2">
-            <span className="text-caption font-medium text-muted-foreground">{subject.code}</span>
+            <span className="text-caption-strong text-muted-foreground">{subject.code}</span>
             <span className="text-label">{subject.name}</span>
           </span>
           <span className="ml-3 text-muted-foreground">{expanded ? '−' : '+'}</span>
@@ -50,9 +50,7 @@ function SubjectRow({ subject }: Readonly<{ subject: SubjectDetail }>) {
             label={`${subject.name} mastery`}
             className="flex-1"
           />
-          <span className="text-label font-semibold tabular-nums">
-            {subject.masteryPercentage}%
-          </span>
+          <span className="text-label-strong tabular-nums">{subject.masteryPercentage}%</span>
         </div>
       </div>
 

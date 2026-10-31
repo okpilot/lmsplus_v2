@@ -15,7 +15,7 @@ describe('LabeledTextarea', () => {
       />,
     )
     const cls = screen.getByText('Notes').className
-    expect(cls).toContain('text-label')
+    expect(cls).toMatch(/(?<![\w-])text-label(?![\w-])/)
     expect(cls).toContain('text-muted-foreground')
     expect(cls).not.toContain('text-[13px]')
   })

@@ -45,6 +45,8 @@ describe('UserChip', () => {
 
   it('renders the name at caption size', () => {
     render(<UserChip displayName="Ada Pilot" />)
-    expect(screen.getByText('Ada Pilot').className).toContain('text-caption')
+    expect(screen.getByText('Ada Pilot').className).toMatch(
+      /(?<![\w-])text-caption-strong(?![\w-])/,
+    )
   })
 })

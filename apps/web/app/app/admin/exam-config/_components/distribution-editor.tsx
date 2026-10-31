@@ -34,7 +34,7 @@ export function DistributionEditor({ topics, distributions, onChange }: Readonly
 
   return (
     <div className="space-y-1">
-      <div className="grid grid-cols-(--layout-distribution) gap-2 text-caption font-medium text-muted-foreground">
+      <div className="grid grid-cols-(--layout-distribution) gap-2 text-caption-strong text-muted-foreground">
         <span>Topic</span>
         <span className="text-right">Questions</span>
         <span className="text-right">Available</span>

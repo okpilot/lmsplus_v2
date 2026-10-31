@@ -54,8 +54,7 @@ export function DiagramZoneMarker({
   )
 }
 
-const CHIP =
-  'h-8 shrink-0 rounded-inner border bg-card px-3 text-caption font-medium whitespace-nowrap'
+const CHIP = 'h-8 shrink-0 rounded-inner border bg-card px-3 text-caption-strong whitespace-nowrap'
 
 function chipTone(armed: boolean, result: Result): string {
   if (result) return result === 'correct' ? 'border-success' : 'border-danger'

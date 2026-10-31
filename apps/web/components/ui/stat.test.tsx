@@ -22,7 +22,7 @@ describe('Stat', () => {
 
   it('renders the hint when given', () => {
     render(<Stat label="L" value="1" hint="vs last week" />)
-    expect(screen.getByText('vs last week').className).toContain('text-caption')
+    expect(screen.getByText('vs last week').className).toMatch(/(?<![\w-])text-caption(?![\w-])/)
   })
 
   it('omits the hint when not given', () => {

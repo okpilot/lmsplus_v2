@@ -112,7 +112,7 @@ function AttemptRow({ row: r }: Readonly<{ row: InternalExamAttemptRow }>) {
       <TableCell className="text-caption text-muted-foreground">
         {formatAbsolute(r.endedAt)}
       </TableCell>
-      <TableCell className="text-label font-semibold tabular-nums">
+      <TableCell className="text-label-strong tabular-nums">
         {formatScore(r.scorePercentage)}
       </TableCell>
       <TableCell>

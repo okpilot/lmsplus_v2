@@ -54,7 +54,7 @@ describe('ModeHeading', () => {
     ['exam without a stored mode', { isExam: true }, 'Practice Exam'],
   ])('names the mode for a %s', (_name, props, label) => {
     render(<ModeHeading {...props} />)
-    expect(screen.getByText(label)).toHaveClass('text-label', 'font-semibold')
+    expect(screen.getByText(label)).toHaveClass('text-label-strong')
   })
 
   it('shows the subject beneath the mode as muted caption text', () => {
