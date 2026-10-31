@@ -8,7 +8,7 @@ const src = (f: string) => readFileSync(path.join(ROOT, f), 'utf8')
 const count = (text: string, token: string) => text.split(token).length - 1
 const has = (text: string, re: RegExp) => re.test(text)
 const cls = (name: string) =>
-  new RegExp(`(?<![\\w-])${name.replace(/[.[\]()]/g, '\\$&')}(?![\\w-])`)
+  new RegExp(`(?<![\\w-])${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w-])`)
 
 describe('spacing roles (#1673)', () => {
   it.each(['components/ui/dialog.tsx', 'components/ui/alert-dialog.tsx'])(
