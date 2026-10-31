@@ -20,10 +20,12 @@ const compile = async (): Promise<string> => {
   )
   return r.css as string
 }
+// Every rule for the selector, joined: the browser applies them all.
 const block = (css: string, sel: string) => {
-  const m = css.match(new RegExp(`${sel.replace(/[.:\\]/g, '\\$&')}\\s*\\{([^}]*)\\}`))
-  expect(m, `${sel} rule`).not.toBeNull()
-  return m?.[1] ?? ''
+  const re = new RegExp(`${sel.replace(/[.:\\]/g, '\\$&')}\\s*\\{([^}]*)\\}`, 'g')
+  const ms = [...css.matchAll(re)]
+  expect(ms.length, `${sel} rule`).toBeGreaterThan(0)
+  return ms.map((m) => m[1]).join(';')
 }
 
 describe('overline utility carries uppercase', () => {
@@ -91,8 +93,10 @@ describe('chip sites use text-chip', () => {
     },
   )
 
-  it('heatmap-cell keeps md:text-overline', () => {
-    expect(src('app/app/dashboard/_components/heatmap-cell.tsx')).toMatch(CLASS('md:text-overline'))
+  it('heatmap-cell dash is md:text-chip', () => {
+    const s = src('app/app/dashboard/_components/heatmap-cell.tsx')
+    expect(s).toMatch(CLASS('md:text-chip'))
+    expect(s).not.toMatch(CLASS('md:text-overline'))
   })
 
   it('info-tooltip stays text-overline', () => {

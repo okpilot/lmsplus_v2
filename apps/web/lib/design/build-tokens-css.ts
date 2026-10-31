@@ -139,10 +139,6 @@ export function buildTokensCss(): string {
     ]),
     ...block('@theme', themeDecls()),
     '@utility text-overline {',
-    '  font-size: var(--text-overline);',
-    '  line-height: var(--tw-leading, var(--text-overline--line-height));',
-    '  letter-spacing: var(--tw-tracking, var(--text-overline--letter-spacing));',
-    '  font-weight: var(--tw-font-weight, var(--text-overline--font-weight));',
     '  text-transform: uppercase;',
     '}',
   ]

@@ -43,7 +43,7 @@ export function HeatmapCell({
             <span className="text-chart leading-none text-danger md:text-micro">{incorrect}</span>
           </>
         ) : !isFuture ? (
-          <span className="text-chart font-normal tracking-normal text-muted-foreground md:text-overline">
+          <span className="text-chart font-normal tracking-normal text-muted-foreground md:text-chip">
             —
           </span>
         ) : null}
